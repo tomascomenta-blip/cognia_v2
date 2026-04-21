@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 web_app_improved.py -- Cognia v3 Mejorado
 ==========================================
@@ -111,7 +112,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
              padding:10px 14px;border-radius:6px;font-family:var(--mono);font-size:13px;outline:none}
   #mainInput:focus{border-color:var(--accent)}
   #mainInput:disabled{opacity:.5;cursor:not-allowed}
-  /* Botón adjuntar */
+  /* Bot&oacute;n adjuntar */
   .btn-attach{background:var(--surface2);border:1px solid var(--border);color:var(--text2);
               padding:9px 13px;border-radius:6px;cursor:pointer;font-size:16px;
               transition:all .15s;line-height:1}
@@ -192,7 +193,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <div class="container">
   <div class="chat-panel">
     <div class="messages" id="messages">
-      <div class="msg system">COGNIA v3+ — Selecciona un modo o modelo arriba antes de chatear</div>
+      <div class="msg system">COGNIA v3+ -- Selecciona un modo o modelo arriba antes de chatear</div>
     </div>
 
     <div class="input-area">
@@ -200,8 +201,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <div class="attach-bar" id="attachBar"></div>
 
       <div class="input-row">
-        <!-- Botón adjuntar archivo -->
-        <button class="btn-attach" title="Adjuntar archivo" onclick="document.getElementById('fileInput').click()">📎</button>
+        <!-- Bot&oacute;n adjuntar archivo -->
+        <button class="btn-attach" title="Adjuntar archivo" onclick="document.getElementById('fileInput').click()">&#x1F4CE;</button>
         <input type="file" id="fileInput" multiple accept=".txt,.py,.js,.json,.md,.csv,.html,.css,.pdf,.png,.jpg,.jpeg">
 
         <input type="text" id="mainInput"
@@ -862,7 +863,10 @@ setInterval(getStats, 8000);
 @app.route("/")
 def index():
     from flask import Response
-    return Response(HTML_TEMPLATE, mimetype='text/html; charset=utf-8')
+    # Servir como bytes UTF-8 explicitamente para evitar problemas de encoding
+    html_bytes = HTML_TEMPLATE.encode('utf-8')
+    return Response(html_bytes, mimetype='text/html; charset=utf-8',
+                    headers={'Content-Type': 'text/html; charset=utf-8'})
 
 
 @app.route("/api/chat", methods=["POST"])
