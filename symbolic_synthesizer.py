@@ -42,7 +42,7 @@ logger = get_logger(__name__)
 
 # ── Configuración ─────────────────────────────────────────────────────
 TOP_K_EPISODES      = 5     # episodios a recuperar
-MIN_EPISODE_SIM     = 0.25  # similitud mínima para usar un episodio
+MIN_EPISODE_SIM     = 0.42  # similitud mínima para usar un episodio (subido de 0.25)
 MAX_CONCEPTS        = 3     # máx conceptos únicos a combinar
 MAX_FACTS_PER_CONCEPT = 4   # hechos KG por concepto
 MAX_INFERENCES      = 3     # inferencias totales
@@ -116,6 +116,19 @@ class SymbolicSynthesizer:
 
         # ── 2. Extraer conceptos únicos de los episodios ──────────────
         concepts = self._extract_concepts(ai, episodes, vec)
+
+        # Si no hay conceptos relevantes, no forzar una respuesta con basura
+        if not concepts:
+            logger.debug(
+                "Sin conceptos relevantes tras filtrado — fallback al LLM",
+                extra={"op": "synthesizer.synthesize", "context": f"q={question[:50]}"},
+            )
+            return SynthesisResult(
+                text="",
+                confidence=0.0,
+                fallback=True,
+                synthesis_ms=(time.perf_counter() - t0) * 1000,
+            )
 
         # ── 3. Recopilar conocimiento de todos los conceptos ──────────
         all_facts:      List[str] = []
@@ -227,22 +240,50 @@ class SymbolicSynthesizer:
     def _extract_concepts(self, ai, episodes: List[Dict], vec) -> List[str]:
         """
         Extrae conceptos únicos de los episodios. Prioriza los labels
-        de los episodios más similares. Cae al top_label del metacog si falla.
+        de los episodios más similares. Filtra conceptos irrelevantes
+        comparando su vector contra el de la pregunta.
         """
         seen = set()
         concepts = []
 
-        # Labels directos de los episodios (ya ordenados por score)
+        # Obtener vector de cada label y comparar contra la pregunta
+        # Solo aceptar conceptos con similitud >= 0.30 respecto a la pregunta
         for ep in episodes:
             label = ep.get("label")
-            if label and label not in seen and len(label) > 1:
+            ep_sim = ep.get("similarity", 0.0)
+            if not label or label in seen or len(label) < 2:
+                continue
+            # Si la similitud del episodio es alta (>=0.55), confiar directamente
+            if ep_sim >= 0.55:
                 seen.add(label)
                 concepts.append(label)
+            else:
+                # Verificar similitud del label contra la pregunta
+                try:
+                    label_vec = self._get_vec(label.replace("_", " "))
+                    if label_vec and vec:
+                        import math
+                        dot = sum(a*b for a,b in zip(label_vec, vec))
+                        na = math.sqrt(sum(a*a for a in label_vec))
+                        nb = math.sqrt(sum(b*b for b in vec))
+                        sim_label = dot/(na*nb) if na and nb else 0.0
+                        if sim_label >= 0.30:
+                            seen.add(label)
+                            concepts.append(label)
+                    else:
+                        # Sin vectores: aceptar solo si sim episodio >= 0.45
+                        if ep_sim >= 0.45:
+                            seen.add(label)
+                            concepts.append(label)
+                except Exception:
+                    if ep_sim >= 0.45:
+                        seen.add(label)
+                        concepts.append(label)
             if len(concepts) >= MAX_CONCEPTS:
                 break
 
         # Fallback: usar metacog si no hay suficientes labels
-        if len(concepts) < 2:
+        if len(concepts) < 1:
             try:
                 assessment = ai.metacog.assess_confidence(episodes)
                 top = assessment.get("top_label")
