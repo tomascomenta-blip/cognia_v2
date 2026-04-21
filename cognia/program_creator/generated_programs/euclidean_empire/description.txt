@@ -1,0 +1,7 @@
+Title      : Euclidean Empire
+Category   : text-based strategy game
+Created at : 2026-04-05T20:16:34.388728
+Score      : 8.9 / 10
+
+Description:
+  A simple text-based strategy game where players manage resources and build their empire in a world governed by geometric shapes.

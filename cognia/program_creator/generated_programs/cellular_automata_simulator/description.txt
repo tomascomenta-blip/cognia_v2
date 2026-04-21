@@ -1,0 +1,7 @@
+Title      : Cellular Automata Simulator
+Category   : cellular automata simulator
+Created at : 2026-04-05T21:27:38.285380
+Score      : 5.1 / 10
+
+Description:
+  A terminal-based simulator of a simple 2D cellular automaton with the rules of Conway's Game of Life.

@@ -1,0 +1,7 @@
+Title      : Story Spinner
+Category   : procedural story generator
+Created at : 2026-04-05T21:18:07.212605
+Score      : 7.1 / 10
+
+Description:
+  Generates a short, randomized story based on user input.

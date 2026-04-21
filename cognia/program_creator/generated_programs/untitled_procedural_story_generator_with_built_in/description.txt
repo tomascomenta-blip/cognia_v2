@@ -1,0 +1,8 @@
+Title         : Untitled Procedural Story Generator With Built-In Templates
+Category      : procedural story generator with built-in templates
+Created at    : 2026-04-16T20:26:09.051112
+Score         : 7.0 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  A small procedural story generator with built-in templates program.

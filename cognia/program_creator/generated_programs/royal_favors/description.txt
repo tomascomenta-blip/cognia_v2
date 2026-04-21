@@ -1,0 +1,7 @@
+Title      : Royal Favors
+Category   : text-based strategy game
+Created at : 2026-04-05T21:07:21.912043
+Score      : 7.6 / 10
+
+Description:
+  A simple text-based strategy game inspired by Palacio Alatriste, where the player must choose which favors to grant to their lord.

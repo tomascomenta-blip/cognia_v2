@@ -1,0 +1,194 @@
+[
+  {
+    "id": "neural_network_visualizer",
+    "title": "Neural Network Visualizer",
+    "category": "simple neural network visualizer",
+    "description": "A simple terminal-based program that visualizes a basic neural network.",
+    "total_score": 8.0,
+    "created_at": "2026-04-05T15:14:59.693372",
+    "directory": "neural_network_visualizer"
+  },
+  {
+    "id": "fractal_sierpinski_triangle_renderer",
+    "title": "Fractal Sierpinski Triangle Renderer",
+    "category": "fractal pattern renderer in terminal",
+    "description": "A simple terminal-based program that renders the Sierpinski triangle fractal.",
+    "total_score": 6.5,
+    "created_at": "2026-04-05T15:23:35.072092",
+    "directory": "fractal_sierpinski_triangle_renderer"
+  },
+  {
+    "id": "melodia",
+    "title": "Melodia",
+    "category": "terminal-based music sequencer",
+    "description": "A simple terminal-based music sequencer with a Toscana-inspired interface.",
+    "total_score": 7.8,
+    "created_at": "2026-04-05T15:34:05.480941",
+    "directory": "melodia"
+  },
+  {
+    "id": "neural_network_visualizer_01",
+    "title": "Neural Network Visualizer",
+    "category": "simple neural network visualizer",
+    "description": "A simple terminal-based neural network visualizer with a menu system.",
+    "total_score": 7.6,
+    "created_at": "2026-04-05T15:44:30.555060",
+    "directory": "neural_network_visualizer_01"
+  },
+  {
+    "id": "prime_number_visualizer",
+    "title": "Prime Number Visualizer",
+    "category": "prime number visualizer",
+    "description": "A terminal-based program that visualizes prime numbers using a simple grid of asterisks (*).",
+    "total_score": 8.4,
+    "created_at": "2026-04-05T15:55:35.024189",
+    "directory": "prime_number_visualizer"
+  },
+  {
+    "id": "alaska_prime_visualizer",
+    "title": "Alaska Prime Visualizer",
+    "category": "prime number visualizer",
+    "description": "A terminal-based program that visualizes prime numbers using the ASCII art of snowflakes.",
+    "total_score": 7.8,
+    "created_at": "2026-04-05T16:04:30.810809",
+    "directory": "alaska_prime_visualizer"
+  },
+  {
+    "id": "ascii_art_generator",
+    "title": "ASCII Art Generator",
+    "category": "ASCII art generator",
+    "description": "A terminal-based ASCII art generator with a menu system.",
+    "total_score": 7.8,
+    "created_at": "2026-04-05T16:11:15.635023",
+    "directory": "ascii_art_generator"
+  },
+  {
+    "id": "turings_dilemma",
+    "title": "Turing's Dilemma",
+    "category": "text-based strategy game",
+    "description": "A simple, interactive game of strategy and decision-making inspired by Alan Turing.",
+    "total_score": 7.3,
+    "created_at": "2026-04-05T16:16:41.771056",
+    "directory": "turings_dilemma"
+  },
+  {
+    "id": "reaction_diffusion_simulator",
+    "title": "Reaction Diffusion Simulator",
+    "category": "reaction-diffusion pattern simulator",
+    "description": "Simulates the growth of reaction diffusion patterns using the logistic map and reaction-diffusion equations.",
+    "total_score": 7.3,
+    "created_at": "2026-04-05T19:57:40.410793",
+    "directory": "reaction_diffusion_simulator"
+  },
+  {
+    "id": "euclidean_empire",
+    "title": "Euclidean Empire",
+    "category": "text-based strategy game",
+    "description": "A simple text-based strategy game where players manage resources and build their empire in a world governed by geometric shapes.",
+    "total_score": 8.9,
+    "created_at": "2026-04-05T20:16:34.388728",
+    "directory": "euclidean_empire"
+  },
+  {
+    "id": "franzs_treasure_hunt",
+    "title": "Franz's Treasure Hunt",
+    "category": "text-based strategy game",
+    "description": "A simple text-based strategy game where you navigate as Franz to find treasure in a mystical forest.",
+    "total_score": 5.6,
+    "created_at": "2026-04-05T20:25:01.016472",
+    "directory": "franzs_treasure_hunt"
+  },
+  {
+    "id": "stem_encryptor",
+    "title": "Stem Encryptor",
+    "category": "cipher and encryption toy",
+    "description": "A terminal-based cipher toy that encrypts a message by shifting each letter in the word to its corresponding \"stem\" position.",
+    "total_score": 6.5,
+    "created_at": "2026-04-05T20:34:45.299769",
+    "directory": "stem_encryptor"
+  },
+  {
+    "id": "fractal_pattern_renderer",
+    "title": "Fractal Pattern Renderer",
+    "category": "fractal pattern renderer in terminal",
+    "description": "A terminal-based program that renders different types of fractals and provides a menu system to select themes.",
+    "total_score": 7.3,
+    "created_at": "2026-04-05T20:57:48.030130",
+    "directory": "fractal_pattern_renderer"
+  },
+  {
+    "id": "royal_favors",
+    "title": "Royal Favors",
+    "category": "text-based strategy game",
+    "description": "A simple text-based strategy game inspired by Palacio Alatriste, where the player must choose which favors to grant to their lord.",
+    "total_score": 7.6,
+    "created_at": "2026-04-05T21:07:21.912043",
+    "directory": "royal_favors"
+  },
+  {
+    "id": "story_spinner",
+    "title": "Story Spinner",
+    "category": "procedural story generator",
+    "description": "Generates a short, randomized story based on user input.",
+    "total_score": 7.1,
+    "created_at": "2026-04-05T21:18:07.212605",
+    "directory": "story_spinner"
+  },
+  {
+    "id": "cellular_automata_simulator",
+    "title": "Cellular Automata Simulator",
+    "category": "cellular automata simulator",
+    "description": "A terminal-based simulator of a simple 2D cellular automaton with the rules of Conway's Game of Life.",
+    "total_score": 5.1,
+    "created_at": "2026-04-05T21:27:38.285380",
+    "directory": "cellular_automata_simulator"
+  },
+  {
+    "id": "decent_dilemma",
+    "title": "Decent Dilemma",
+    "category": "text-based strategy game",
+    "description": "A simple text-based strategy game where you manage resources and make decisions to balance serotonin levels.",
+    "total_score": 8.4,
+    "created_at": "2026-04-05T21:47:44.182521",
+    "directory": "decent_dilemma"
+  },
+  {
+    "id": "untitled_word_frequency_analyzer",
+    "title": "Untitled Word Frequency Analyzer",
+    "category": "word frequency analyzer",
+    "description": "Analyzes the frequency of words in a given text and provides their counts.",
+    "total_score": 7.0,
+    "created_at": "2026-04-06T21:11:44.693445",
+    "directory": "untitled_word_frequency_analyzer"
+  },
+  {
+    "id": "untitled_automated_poetry_generator_based_on_user",
+    "title": "Untitled Automated Poetry Generator Based On User-Inputted Lyrics And A Random Poem Selection Algorithm",
+    "category": "Automated poetry generator based on user-inputted lyrics and a random poem selection algorithm",
+    "description": "This program generates a random poem based on user-inputted lyrics.",
+    "total_score": 6.5,
+    "created_at": "2026-04-06T21:39:41.593818",
+    "directory": "untitled_automated_poetry_generator_based_on_user",
+    "self_proposed": true
+  },
+  {
+    "id": "permutation_patterns",
+    "title": "Permutation Patterns",
+    "category": "number theory explorer that prints interesting patterns",
+    "description": "This program explores the patterns that can be created by permuting a set of characters.",
+    "total_score": 7.5,
+    "created_at": "2026-04-07T20:38:21.934009",
+    "directory": "permutation_patterns",
+    "self_proposed": false
+  },
+  {
+    "id": "untitled_procedural_story_generator_with_built_in",
+    "title": "Untitled Procedural Story Generator With Built-In Templates",
+    "category": "procedural story generator with built-in templates",
+    "description": "A small procedural story generator with built-in templates program.",
+    "total_score": 7.0,
+    "created_at": "2026-04-16T20:26:09.051112",
+    "directory": "untitled_procedural_story_generator_with_built_in",
+    "self_proposed": false
+  }
+]

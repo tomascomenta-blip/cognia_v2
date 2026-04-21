@@ -1,0 +1,7 @@
+Title      : Stem Encryptor
+Category   : cipher and encryption toy
+Created at : 2026-04-05T20:34:45.299769
+Score      : 6.5 / 10
+
+Description:
+  A terminal-based cipher toy that encrypts a message by shifting each letter in the word to its corresponding "stem" position.

@@ -1,0 +1,15 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 7.5 / 10
+Functionality     : 4.0 / 4.0
+Creativity        : 1.5 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Program ran successfully.
+  • Rich output (672 chars).
+  • Code has substantial length (>500 chars).
+  • Well-structured: 8 functions.
+  • Original program title.
+  • No errors detected.

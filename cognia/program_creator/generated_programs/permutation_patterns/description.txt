@@ -1,0 +1,8 @@
+Title         : Permutation Patterns
+Category      : number theory explorer that prints interesting patterns
+Created at    : 2026-04-07T20:38:21.934009
+Score         : 7.5 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  This program explores the patterns that can be created by permuting a set of characters.

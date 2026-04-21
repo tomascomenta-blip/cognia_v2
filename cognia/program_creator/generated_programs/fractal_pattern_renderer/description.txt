@@ -1,0 +1,7 @@
+Title      : Fractal Pattern Renderer
+Category   : fractal pattern renderer in terminal
+Created at : 2026-04-05T20:57:48.030130
+Score      : 7.3 / 10
+
+Description:
+  A terminal-based program that renders different types of fractals and provides a menu system to select themes.

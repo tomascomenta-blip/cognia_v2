@@ -1,0 +1,7 @@
+Title      : Reaction Diffusion Simulator
+Category   : reaction-diffusion pattern simulator
+Created at : 2026-04-05T19:57:40.410793
+Score      : 7.3 / 10
+
+Description:
+  Simulates the growth of reaction diffusion patterns using the logistic map and reaction-diffusion equations.

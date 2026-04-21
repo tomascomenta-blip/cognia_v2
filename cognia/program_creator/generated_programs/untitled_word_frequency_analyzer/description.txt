@@ -1,0 +1,7 @@
+Title      : Untitled Word Frequency Analyzer
+Category   : word frequency analyzer
+Created at : 2026-04-06T21:11:44.693445
+Score      : 7.0 / 10
+
+Description:
+  Analyzes the frequency of words in a given text and provides their counts.

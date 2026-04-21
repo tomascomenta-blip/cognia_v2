@@ -1,0 +1,7 @@
+Title      : Decent Dilemma
+Category   : text-based strategy game
+Created at : 2026-04-05T21:47:44.182521
+Score      : 8.4 / 10
+
+Description:
+  A simple text-based strategy game where you manage resources and make decisions to balance serotonin levels.
