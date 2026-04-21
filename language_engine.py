@@ -225,7 +225,14 @@ class LanguageEngine:
             context = pre_built_context or self._build_context(ai, question)
             context, investigated = self._maybe_investigate(ai, question, context)
             throttle_level = self._get_throttle_level(ai)
-            optimized  = self.optimizer.optimize(question, context, "social", throttle_level)
+            # Inyectar identidad de Cognia en el prompt social
+            _identity = (
+                "Eres Cognia, un sistema de inteligencia artificial cognitiva "
+                "con memoria episódica, grafo de conocimiento y capacidad de aprendizaje. "
+                "Fuiste creado como un proyecto de IA experimental. "
+                "Responde de forma amigable y natural. No menciones Super Mario ni temas irrelevantes.\n\n"
+            )
+            optimized  = self.optimizer.optimize(question, _identity + context, "social", throttle_level)
             llm_result = self._call_ollama(optimized.prompt, "social", question)
             latency    = (time.perf_counter() - t0) * 1000
             self._stats["full_llm"] += 1
@@ -243,7 +250,7 @@ class LanguageEngine:
                 response        = response,
                 stage_used      = "llm_social",
                 latency_ms      = latency,
-                tokens_sent     = optimized.tokens_estimate,
+                tokens_sent     = optimized.tokens_estimated,
                 confidence      = 0.90,
                 cache_hit       = False,
                 used_llm        = True,
