@@ -62,6 +62,17 @@ class QuestionClassifier:
 
     PATTERNS: List[tuple] = [
         # (tipo, patrones_es, patrones_en, confianza)
+        ("social",
+         ["hola", "buenas", "buenos días", "buenas tardes", "buenas noches",
+          "qué eres", "que eres", "quién eres", "quien eres", "cómo te llamas",
+          "como te llamas", "qué puedes hacer", "que puedes hacer",
+          "para qué sirves", "para que sirves", "eres una ia", "eres un robot",
+          "cuéntame algo de ti", "cuentame algo de ti", "preséntate", "presentate",
+          "cómo estás", "como estas", "cómo te va", "como te va"],
+         ["hello", "hi", "hey", "what are you", "who are you", "what can you do",
+          "tell me about yourself", "introduce yourself", "how are you",
+          "are you an ai", "are you a bot"],
+         0.95),
         ("definicion",
          ["qué es", "que es", "qué son", "que son", "define", "definición",
           "definicion", "significa", "significado", "concepto de"],
@@ -108,14 +119,17 @@ class QuestionClassifier:
         q = question.lower().strip()
         words = q.split()
 
-        # Preguntas muy cortas
-        if len(words) <= 4:
-            return ("corta", 0.70)
-
+        # Revisar TODOS los patrones antes del fallback por longitud
+        # Así "hola", "qué es X", "cuáles son Y" se clasifican bien
+        # aunque tengan pocas palabras
         for tipo, pats_es, pats_en, conf in self.PATTERNS[:-1]:
             for pat in pats_es + pats_en:
-                if pat in q:
+                if pat in q or q == pat:
                     return (tipo, conf)
+
+        # Preguntas muy cortas sin patrón reconocido
+        if len(words) <= 4:
+            return ("corta", 0.70)
 
         return ("general", 0.60)
 

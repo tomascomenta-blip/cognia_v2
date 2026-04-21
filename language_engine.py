@@ -213,6 +213,48 @@ class LanguageEngine:
                 )
 
         # ══════════════════════════════════════════════════════════════
+        # STAGE 0.5: BYPASS SOCIAL — saludos y preguntas de identidad
+        # van directo al LLM, el simbólico no puede responderlas bien
+        # ══════════════════════════════════════════════════════════════
+        _q_type_pre, _ = self.symbolic.classifier.classify(question)
+        if _q_type_pre == "social":
+            _le_logger.info(
+                "stage=social_bypass decision=llm reason=social_question",
+                extra={"op": "language_engine.stage0_5", "context": f"q={question[:60]}"},
+            )
+            context = pre_built_context or self._build_context(ai, question)
+            context, investigated = self._maybe_investigate(ai, question, context)
+            throttle_level = self._get_throttle_level(ai)
+            optimized  = self.optimizer.optimize(question, context, "social", throttle_level)
+            llm_result = self._call_ollama(optimized.prompt, "social", question)
+            latency    = (time.perf_counter() - t0) * 1000
+            self._stats["full_llm"] += 1
+            response = (
+                llm_result["text"]
+                if llm_result.get("ok") and llm_result.get("text")
+                else "Hola, soy Cognia, un sistema de IA cognitiva. ¿En qué puedo ayudarte?"
+            )
+            if vec and len(response) > 20:
+                self.cache.store(
+                    question=question, response=response,
+                    vector=vec, concept=None, confidence=0.90, used_llm=True,
+                )
+            return EngineResult(
+                response        = response,
+                stage_used      = "llm_social",
+                latency_ms      = latency,
+                tokens_sent     = optimized.tokens_estimate,
+                confidence      = 0.90,
+                cache_hit       = False,
+                used_llm        = True,
+                question_type   = "social",
+                tipo_pregunta   = "social",
+                tiene_contexto  = bool(context),
+                info_suficiente = True,
+                investigated    = investigated,
+            )
+
+        # ══════════════════════════════════════════════════════════════
         # STAGE 2: SYMBOLIC RESPONSE + DECISION GATE (PASO 4)
         # ══════════════════════════════════════════════════════════════
         sym_response   = self.symbolic.respond(ai, question)
