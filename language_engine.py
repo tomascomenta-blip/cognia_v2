@@ -222,17 +222,19 @@ class LanguageEngine:
                 "stage=social_bypass decision=llm reason=social_question",
                 extra={"op": "language_engine.stage0_5", "context": f"q={question[:60]}"},
             )
-            context = pre_built_context or self._build_context(ai, question)
-            context, investigated = self._maybe_investigate(ai, question, context)
             throttle_level = self._get_throttle_level(ai)
-            # Inyectar identidad de Cognia en el prompt social
-            _identity = (
+            investigated = False
+            # Para preguntas sociales: NO usar contexto episódico
+            # Solo el identity prompt — evita que memorias irrelevantes contaminen la respuesta
+            _identity_context = (
                 "Eres Cognia, un sistema de inteligencia artificial cognitiva "
                 "con memoria episódica, grafo de conocimiento y capacidad de aprendizaje. "
-                "Fuiste creado como un proyecto de IA experimental. "
-                "Responde de forma amigable y natural. No menciones Super Mario ni temas irrelevantes.\n\n"
+                "Fuiste creado como un proyecto de IA experimental por un desarrollador. "
+                "Tienes curiosidad, aprendes de cada conversación y recuerdas lo que te enseñan. "
+                "Responde de forma amigable, directa y natural. "
+                "No menciones temas que el usuario no haya preguntado."
             )
-            optimized  = self.optimizer.optimize(question, _identity + context, "social", throttle_level)
+            optimized  = self.optimizer.optimize(question, _identity_context, "social", throttle_level)
             llm_result = self._call_ollama(optimized.prompt, "social", question)
             latency    = (time.perf_counter() - t0) * 1000
             self._stats["full_llm"] += 1
