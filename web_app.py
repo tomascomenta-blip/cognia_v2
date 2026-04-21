@@ -319,7 +319,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <script>
 var $ = function(id) { return document.getElementById(id); };
 
-// ── Estado global ──────────────────────────────────────────────────────
+// -- Estado global ------------------------------------------------------
 var _currentMode  = 'normal';
 var _currentModel = 'llama3.2';
 var _attachedFiles = [];   // [{name, content, type}]
@@ -328,7 +328,7 @@ var _idleTimer = 0;
 var _idleInterval = null;
 var _autonomousPaused = false;
 
-// ── Modos predefinidos ─────────────────────────────────────────────────
+// -- Modos predefinidos -------------------------------------------------
 var MODES = {
   normal: {
     model: 'llama3.2',
@@ -372,7 +372,7 @@ function setMode(mode) {
 // Sync manual del selector de modelo
 $('modelSelect').addEventListener('change', function() {
   _currentModel = this.value;
-  // Detectar si coincide con algún modo predefinido
+  // Detectar si coincide con algun modo predefinido
   var matched = false;
   Object.keys(MODES).forEach(function(k) {
     if (MODES[k].model === _currentModel) {
@@ -387,7 +387,7 @@ $('modelSelect').addEventListener('change', function() {
   }
 });
 
-// ── Archivos adjuntos ──────────────────────────────────────────────────
+// -- Archivos adjuntos --------------------------------------------------
 $('fileInput').addEventListener('change', function() {
   var files = Array.from(this.files);
   if (!files.length) return;
@@ -414,8 +414,8 @@ function renderAttachBar() {
   if (!_attachedFiles.length) { bar.innerHTML = ''; return; }
   bar.innerHTML = _attachedFiles.map(function(f, i) {
     return '<div class="attach-chip">'
-      + '📄 ' + f.name
-      + ' <span class="rm" onclick="removeAttach(' + i + ')">✕</span>'
+      + '[doc] ' + f.name
+      + ' <span class="rm" onclick="removeAttach(' + i + ')">x</span>'
       + '</div>';
   }).join('');
 }
@@ -425,7 +425,7 @@ function removeAttach(i) {
   renderAttachBar();
 }
 
-// ── API helper ─────────────────────────────────────────────────────────
+// -- API helper ---------------------------------------------------------
 function api(endpoint, data, method) {
   data = data || {};
   method = method || 'POST';
@@ -447,7 +447,7 @@ function api(endpoint, data, method) {
   });
 }
 
-// ── Mensajes ───────────────────────────────────────────────────────────
+// -- Mensajes -----------------------------------------------------------
 function addMessage(text, type, extras) {
   type = type || 'bot';
   extras = extras || null;
@@ -500,7 +500,7 @@ function sendFeedback(positive, pregunta, fbRow, response_id) {
   });
 }
 
-// ── Enviar mensaje ─────────────────────────────────────────────────────
+// -- Enviar mensaje -----------------------------------------------------
 function sendMsg() {
   _markActivity();
   var inp = $('mainInput');
@@ -583,7 +583,7 @@ $('mainInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
 });
 
-// ── Idle / Autonomo ────────────────────────────────────────────────────
+// -- Idle / Autonomo ----------------------------------------------------
 function resetIdleTimer() {
   _idleTimer = 0;
   $('idleIndicator').textContent = 'Activo';
@@ -630,7 +630,7 @@ function pauseAutonomous() {
   addMessage('Modo autonomo: ' + (_autonomousPaused ? 'pausado' : 'activado'), 'system');
 }
 
-// ── Juegos ─────────────────────────────────────────────────────────────
+// -- Juegos -------------------------------------------------------------
 function loadGameLibrary() {
   api('/api/games/library', {}, 'GET').then(function(r) {
     var lib = $('gameLibrary');
@@ -698,7 +698,7 @@ function improveGames() {
   });
 }
 
-// ── Stats y monitoreo ──────────────────────────────────────────────────
+// -- Stats y monitoreo --------------------------------------------------
 function getStats() {
   fetch('/api/stats').then(function(r) { return r.json(); }).then(function(d) {
     $('s-active').textContent   = d.active_memories   !== undefined ? d.active_memories   : '-';
@@ -734,7 +734,7 @@ function checkOllama() {
     if (d.ok) {
       dot.style.background = 'var(--ok)';
       dot.style.animation  = 'none';
-      dot.title = 'Ollama OK — ' + (d.models ? d.models.length : 0) + ' modelos';
+      dot.title = 'Ollama OK -- ' + (d.models ? d.models.length : 0) + ' modelos';
       // Poblar el selector con los modelos reales de Ollama
       if (d.models && d.models.length) {
         var sel = $('modelSelect');
@@ -755,7 +755,7 @@ function checkOllama() {
   });
 }
 
-// ── Comandos ───────────────────────────────────────────────────────────
+// -- Comandos -----------------------------------------------------------
 function cmd(command) {
   _markActivity();
   addMessage(command, 'user');
@@ -816,7 +816,7 @@ function promptGraph()   { var c = prompt('Concepto para el grafo:');   if (c) c
 function promptInfer()   { var c = prompt('Concepto para inferir:');    if (c) cmd('inferir '  + c); }
 function promptPredict() { var c = prompt('Concepto para predecir:');   if (c) cmd('predecir ' + c); }
 
-// ── Inicio ─────────────────────────────────────────────────────────────
+// -- Inicio -------------------------------------------------------------
 $('sendBtn').addEventListener('click', sendMsg);
 getStats();
 checkOllama();
