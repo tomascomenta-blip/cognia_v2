@@ -588,7 +588,8 @@ class LanguageEngine:
         # Límites conservadores para CPU sin GPU
         num_predict = min(num_predict, 420)
 
-        system = self._get_system_prompt(question_type)
+        # Usar system prompt override si el frontend lo especificó (modo/modelo custom)
+        system = getattr(self, "_system_override", None) or self._get_system_prompt(question_type)
         payload = json.dumps({
             "model":   self.modelo,
             "prompt":  prompt,

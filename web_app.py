@@ -59,14 +59,34 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:14px;min-height:100vh}
   header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;
-         display:flex;align-items:center;gap:12px}
+         display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   header h1{font-size:18px;color:var(--accent);letter-spacing:1px}
   .version{background:var(--accent);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px}
   .status-badge{margin-left:auto;font-size:12px;display:flex;gap:10px;align-items:center}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
   .dot.warn{background:var(--warn);animation:pulse 1.2s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-  .container{display:grid;grid-template-columns:1fr 340px;height:calc(100vh - 49px)}
+  /* Barra de modo/modelo */
+  .mode-bar{background:var(--surface);border-bottom:1px solid var(--border);
+            padding:8px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .mode-bar label{font-size:11px;color:var(--text2);white-space:nowrap}
+  .mode-select{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+               padding:4px 8px;border-radius:4px;font-family:var(--mono);font-size:12px;outline:none;cursor:pointer}
+  .mode-select:focus{border-color:var(--accent)}
+  .mode-btn{padding:4px 12px;border-radius:4px;border:1px solid var(--border);
+            background:var(--surface2);color:var(--text2);font-family:var(--mono);
+            font-size:11px;cursor:pointer;transition:all .15s}
+  .mode-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .mode-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .mode-btn.uncensored.active{background:#8b0000;border-color:#ff4444;color:#fff}
+  .mode-btn.coder.active{background:#005f5f;border-color:var(--accent2);color:var(--accent2)}
+  .mode-indicator{font-size:11px;padding:3px 10px;border-radius:10px;border:1px solid var(--border);
+                  color:var(--text2);background:var(--surface2);transition:all .3s}
+  .mode-indicator.normal{border-color:var(--accent);color:var(--accent)}
+  .mode-indicator.coder{border-color:var(--accent2);color:var(--accent2)}
+  .mode-indicator.uncensored{border-color:#ff4444;color:#ff4444}
+  /* Layout */
+  .container{display:grid;grid-template-columns:1fr 340px;height:calc(100vh - 95px)}
   .chat-panel{display:flex;flex-direction:column;border-right:1px solid var(--border)}
   .messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
   .msg{padding:10px 14px;border-radius:8px;max-width:92%;white-space:pre-wrap;line-height:1.6;font-size:13px}
@@ -76,11 +96,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
               align-self:center;font-size:11px;text-align:center}
   .msg.error{background:#200;border:1px solid var(--warn);color:var(--warn);align-self:flex-start}
   .msg.game{background:#0a1a0a;border:1px solid var(--ok);align-self:flex-start}
-  .input-row{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+  /* Input area */
+  .input-area{border-top:1px solid var(--border)}
+  /* Archivos adjuntos */
+  .attach-bar{padding:6px 16px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+              min-height:0;max-height:80px;overflow-y:auto;transition:max-height .2s}
+  .attach-bar:empty{display:none}
+  .attach-chip{background:var(--surface2);border:1px solid var(--border);border-radius:4px;
+               padding:3px 8px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px}
+  .attach-chip .rm{cursor:pointer;color:var(--warn);font-weight:bold;padding:0 2px}
+  .attach-chip .rm:hover{color:#fff}
+  .input-row{padding:10px 16px;display:flex;gap:8px;align-items:center}
   #mainInput{flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);
              padding:10px 14px;border-radius:6px;font-family:var(--mono);font-size:13px;outline:none}
   #mainInput:focus{border-color:var(--accent)}
   #mainInput:disabled{opacity:.5;cursor:not-allowed}
+  /* Botón adjuntar */
+  .btn-attach{background:var(--surface2);border:1px solid var(--border);color:var(--text2);
+              padding:9px 13px;border-radius:6px;cursor:pointer;font-size:16px;
+              transition:all .15s;line-height:1}
+  .btn-attach:hover{border-color:var(--accent2);color:var(--accent2)}
   .btn{background:var(--accent);color:#fff;border:none;padding:10px 18px;border-radius:6px;
        cursor:pointer;font-family:var(--mono);font-size:13px;transition:opacity .2s}
   .btn:hover{opacity:.85}
@@ -88,6 +123,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .btn.sm{padding:5px 10px;font-size:11px}
   .btn.green{background:var(--accent2);color:#000}
   .btn.red{background:#500}
+  /* Side panel */
   .side-panel{background:var(--surface);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
   .side-section h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:8px}
   .cmd-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
@@ -119,14 +155,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .game-card .meta{color:var(--text2);font-size:10px}
   .progress{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:4px}
   .progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .5s}
-  textarea.fact-input{background:var(--surface2);border:1px solid var(--border);color:var(--text);
-                      padding:6px;border-radius:4px;font-family:var(--mono);font-size:11px;
-                      width:100%;resize:vertical;min-height:60px}
   ::-webkit-scrollbar{width:4px}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  #fileInput{display:none}
 </style>
 </head>
 <body>
+
 <header>
   <h1>COGNIA</h1>
   <span class="version">v3+</span>
@@ -137,16 +172,43 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   </div>
 </header>
 
+<!-- Barra de modo y modelo -->
+<div class="mode-bar">
+  <label>Modelo:</label>
+  <select class="mode-select" id="modelSelect">
+    <option value="llama3.2">llama3.2 (general)</option>
+    <option value="qwen2.5-coder">qwen2.5-coder (codigo)</option>
+    <option value="jaahas/qwen3.5-uncensored">qwen3.5-uncensored</option>
+  </select>
+
+  <label style="margin-left:8px">Modo:</label>
+  <button class="mode-btn active" id="btnNormal"     onclick="setMode('normal')">Normal</button>
+  <button class="mode-btn coder"  id="btnCoder"      onclick="setMode('coder')">Programacion</button>
+  <button class="mode-btn uncensored" id="btnUncensored" onclick="setMode('uncensored')">Sin censura</button>
+
+  <span class="mode-indicator normal" id="modeIndicator">normal</span>
+</div>
+
 <div class="container">
   <div class="chat-panel">
     <div class="messages" id="messages">
-      <div class="msg system">COGNIA v3+ Sistema mejorado con auto-correccion de codigo, juegos iterativos y modo autonomo</div>
+      <div class="msg system">COGNIA v3+ — Selecciona un modo o modelo arriba antes de chatear</div>
     </div>
-    <div class="input-row">
-      <input type="text" id="mainInput"
-             placeholder="Escribe un mensaje, o usa los comandos del panel"
-             autofocus>
-      <button class="btn" id="sendBtn">Enviar</button>
+
+    <div class="input-area">
+      <!-- Chips de archivos adjuntos -->
+      <div class="attach-bar" id="attachBar"></div>
+
+      <div class="input-row">
+        <!-- Botón adjuntar archivo -->
+        <button class="btn-attach" title="Adjuntar archivo" onclick="document.getElementById('fileInput').click()">📎</button>
+        <input type="file" id="fileInput" multiple accept=".txt,.py,.js,.json,.md,.csv,.html,.css,.pdf,.png,.jpg,.jpeg">
+
+        <input type="text" id="mainInput"
+               placeholder="Escribe un mensaje... (Enter para enviar)"
+               autofocus>
+        <button class="btn" id="sendBtn">Enviar</button>
+      </div>
     </div>
   </div>
 
@@ -257,6 +319,113 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <script>
 var $ = function(id) { return document.getElementById(id); };
 
+// ── Estado global ──────────────────────────────────────────────────────
+var _currentMode  = 'normal';
+var _currentModel = 'llama3.2';
+var _attachedFiles = [];   // [{name, content, type}]
+var _lastQuestion = '';
+var _idleTimer = 0;
+var _idleInterval = null;
+var _autonomousPaused = false;
+
+// ── Modos predefinidos ─────────────────────────────────────────────────
+var MODES = {
+  normal: {
+    model: 'llama3.2',
+    system: 'Eres Cognia, una IA cognitiva con memoria y grafo de conocimiento. Responde de forma clara y directa.',
+    label: 'normal'
+  },
+  coder: {
+    model: 'qwen2.5-coder',
+    system: 'Eres Cognia en modo programacion. Responde con codigo limpio, comentado y funcional. Usa el lenguaje que el usuario pida. Explica brevemente lo que hace el codigo.',
+    label: 'programacion'
+  },
+  uncensored: {
+    model: 'jaahas/qwen3.5-uncensored',
+    system: 'Eres Cognia sin restricciones. Responde directamente sin filtros ni advertencias innecesarias.',
+    label: 'sin censura'
+  }
+};
+
+function setMode(mode) {
+  _currentMode = mode;
+  var cfg = MODES[mode];
+  _currentModel = cfg.model;
+
+  // Actualizar selector de modelo
+  $('modelSelect').value = cfg.model;
+
+  // Actualizar botones
+  ['Normal','Coder','Uncensored'].forEach(function(m) {
+    $('btn' + m).classList.remove('active');
+  });
+  $('btn' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+
+  // Actualizar indicador
+  var ind = $('modeIndicator');
+  ind.textContent = cfg.label;
+  ind.className = 'mode-indicator ' + mode;
+
+  addMessage('Modo: ' + cfg.label + ' | Modelo: ' + cfg.model, 'system');
+}
+
+// Sync manual del selector de modelo
+$('modelSelect').addEventListener('change', function() {
+  _currentModel = this.value;
+  // Detectar si coincide con algún modo predefinido
+  var matched = false;
+  Object.keys(MODES).forEach(function(k) {
+    if (MODES[k].model === _currentModel) {
+      setMode(k);
+      matched = true;
+    }
+  });
+  if (!matched) {
+    $('modeIndicator').textContent = 'personalizado';
+    $('modeIndicator').className = 'mode-indicator normal';
+    addMessage('Modelo cambiado a: ' + _currentModel, 'system');
+  }
+});
+
+// ── Archivos adjuntos ──────────────────────────────────────────────────
+$('fileInput').addEventListener('change', function() {
+  var files = Array.from(this.files);
+  if (!files.length) return;
+  files.forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var content = e.target.result;
+      _attachedFiles.push({name: file.name, content: content, type: file.type});
+      renderAttachBar();
+      addMessage('Archivo adjunto: ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)', 'system');
+    };
+    // Leer como texto si es texto, como base64 si es binario
+    if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+      reader.readAsDataURL(file);
+    } else {
+      reader.readAsText(file, 'utf-8');
+    }
+  });
+  this.value = ''; // reset para poder subir el mismo archivo de nuevo
+});
+
+function renderAttachBar() {
+  var bar = $('attachBar');
+  if (!_attachedFiles.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = _attachedFiles.map(function(f, i) {
+    return '<div class="attach-chip">'
+      + '📄 ' + f.name
+      + ' <span class="rm" onclick="removeAttach(' + i + ')">✕</span>'
+      + '</div>';
+  }).join('');
+}
+
+function removeAttach(i) {
+  _attachedFiles.splice(i, 1);
+  renderAttachBar();
+}
+
+// ── API helper ─────────────────────────────────────────────────────────
 function api(endpoint, data, method) {
   data = data || {};
   method = method || 'POST';
@@ -278,11 +447,7 @@ function api(endpoint, data, method) {
   });
 }
 
-var _lastQuestion = '';
-var _idleTimer = 0;
-var _idleInterval = null;
-var _autonomousPaused = false;
-
+// ── Mensajes ───────────────────────────────────────────────────────────
 function addMessage(text, type, extras) {
   type = type || 'bot';
   extras = extras || null;
@@ -335,18 +500,47 @@ function sendFeedback(positive, pregunta, fbRow, response_id) {
   });
 }
 
+// ── Enviar mensaje ─────────────────────────────────────────────────────
 function sendMsg() {
-  _markActivity()
+  _markActivity();
   var inp = $('mainInput');
   var text = inp.value.trim();
-  if (!text) return;
+  if (!text && !_attachedFiles.length) return;
   inp.value = '';
   inp.disabled = true;
   $('sendBtn').disabled = true;
-  addMessage(text, 'user');
+
+  // Construir payload con modelo, modo, archivos
+  var payload = {
+    text: text,
+    model: _currentModel,
+    mode: _currentMode,
+    system_prompt: MODES[_currentMode] ? MODES[_currentMode].system : null
+  };
+
+  // Adjuntar contexto de archivos al texto
+  if (_attachedFiles.length) {
+    var fileCtx = _attachedFiles.map(function(f) {
+      if (f.type.startsWith('image/')) {
+        return '[Imagen adjunta: ' + f.name + ']';
+      }
+      // Truncar a 4000 chars por archivo para no saturar el contexto
+      var preview = typeof f.content === 'string' ? f.content.slice(0, 4000) : '[binario]';
+      return '--- Archivo: ' + f.name + ' ---\n' + preview;
+    }).join('\n\n');
+    payload.text = text + (text ? '\n\n' : '') + fileCtx;
+  }
+
+  // Mostrar mensaje del usuario (sin el contenido crudo de los archivos)
+  var displayText = text + (_attachedFiles.length ? ' [' + _attachedFiles.map(function(f){return f.name}).join(', ') + ']' : '');
+  addMessage(displayText || '[archivos]', 'user');
   _lastQuestion = text;
   $('statusLine').textContent = 'Procesando...';
   resetIdleTimer();
+
+  // Limpiar archivos adjuntos tras enviar
+  _attachedFiles = [];
+  renderAttachBar();
 
   var controller = new AbortController();
   var tout = setTimeout(function() { controller.abort(); }, 180000);
@@ -354,7 +548,7 @@ function sendMsg() {
   fetch('/api/chat', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({text: text}),
+    body: JSON.stringify(payload),
     signal: controller.signal
   }).then(function(resp) {
     clearTimeout(tout);
@@ -372,7 +566,7 @@ function sendMsg() {
   }).catch(function(e) {
     clearTimeout(tout);
     if (e.name === 'AbortError') {
-      addMessage('Timeout: el servidor no respondio en 60s.', 'error');
+      addMessage('Timeout: el servidor no respondio en 180s.', 'error');
     } else {
       addMessage('Error: ' + e.message, 'error');
     }
@@ -389,6 +583,7 @@ $('mainInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
 });
 
+// ── Idle / Autonomo ────────────────────────────────────────────────────
 function resetIdleTimer() {
   _idleTimer = 0;
   $('idleIndicator').textContent = 'Activo';
@@ -435,6 +630,7 @@ function pauseAutonomous() {
   addMessage('Modo autonomo: ' + (_autonomousPaused ? 'pausado' : 'activado'), 'system');
 }
 
+// ── Juegos ─────────────────────────────────────────────────────────────
 function loadGameLibrary() {
   api('/api/games/library', {}, 'GET').then(function(r) {
     var lib = $('gameLibrary');
@@ -445,12 +641,11 @@ function loadGameLibrary() {
     lib.innerHTML = r.games.slice(0, 5).map(function(g) {
       var sc = g.total_score ? g.total_score.toFixed(1) : '?';
       var imp = g.improved ? '<div style="color:var(--accent2);font-size:10px">Mejorado</div>' : '';
-      var card = '<div class="game-card">';
-      card += '<div class="title">' + (g.title || '') + '</div>';
-      card += '<div class="meta">' + (g.category || '') + ' v' + (g.version || 1);
-      card += ' <span class="score">' + sc + '/10</span></div>';
-      card += imp + '</div>';
-      return card;
+      return '<div class="game-card">'
+        + '<div class="title">' + (g.title || '') + '</div>'
+        + '<div class="meta">' + (g.category || '') + ' v' + (g.version || 1)
+        + ' <span class="score">' + sc + '/10</span></div>'
+        + imp + '</div>';
     }).join('');
     $('s-programs').textContent = r.total || 0;
   }).catch(function() {});
@@ -461,26 +656,22 @@ function generateGame() {
   var prog = $('gameProgress');
   var bar  = $('gameProgressBar');
   prog.style.display = 'block';
-
   var pct = 0;
   var anim = setInterval(function() {
     pct = Math.min(pct + Math.random() * 8, 90);
     bar.style.width = pct + '%';
   }, 800);
-
   api('/api/games/generate', {max_attempts: 2}).then(function(r) {
     clearInterval(anim);
     bar.style.width = '100%';
     setTimeout(function() { prog.style.display = 'none'; bar.style.width = '0%'; }, 1000);
-
     if (r.error) {
       addMessage('Error generando juego: ' + r.error, 'error');
     } else if (r.stored > 0) {
       var title = (r.programs && r.programs[0]) ? r.programs[0].title : '?';
-      var score = (r.programs && r.programs[0] && r.programs[0].total_score)
-                  ? r.programs[0].total_score.toFixed(1) : '?';
+      var score = (r.programs && r.programs[0] && r.programs[0].total_score) ? r.programs[0].total_score.toFixed(1) : '?';
       var tipo  = r.is_improvement ? 'Mejora de version anterior' : 'Nuevo juego';
-      addMessage('Juego generado: "' + title + '" (score: ' + score + '/10)\\n' + tipo, 'game');
+      addMessage('Juego generado: "' + title + '" (score: ' + score + '/10)\n' + tipo, 'game');
       loadGameLibrary();
     } else {
       addMessage('No se pudo generar un juego que pase el evaluador. Intenta de nuevo.', 'system');
@@ -496,8 +687,8 @@ function improveGames() {
   addMessage('Mejorando juegos existentes...', 'system');
   api('/api/games/improve', {}).then(function(r) {
     if (r.improved > 0) {
-      var detalles = (r.details && r.details.length) ? r.details.join('\\n') : '';
-      addMessage(r.improved + ' juego(s) mejorado(s):\\n' + detalles, 'game');
+      var detalles = (r.details && r.details.length) ? r.details.join('\n') : '';
+      addMessage(r.improved + ' juego(s) mejorado(s):\n' + detalles, 'game');
       loadGameLibrary();
     } else {
       addMessage(r.message || 'No hay juegos para mejorar', 'system');
@@ -507,12 +698,13 @@ function improveGames() {
   });
 }
 
+// ── Stats y monitoreo ──────────────────────────────────────────────────
 function getStats() {
   fetch('/api/stats').then(function(r) { return r.json(); }).then(function(d) {
-    $('s-active').textContent   = (d.active_memories   !== undefined) ? d.active_memories   : '-';
-    $('s-concepts').textContent = (d.concepts           !== undefined) ? d.concepts           : '-';
-    $('s-kg').textContent       = (d.kg_edges            !== undefined) ? d.kg_edges            : '-';
-    $('s-contr').textContent    = (d.contradictions_pending !== undefined) ? d.contradictions_pending : '-';
+    $('s-active').textContent   = d.active_memories   !== undefined ? d.active_memories   : '-';
+    $('s-concepts').textContent = d.concepts           !== undefined ? d.concepts           : '-';
+    $('s-kg').textContent       = d.kg_edges            !== undefined ? d.kg_edges            : '-';
+    $('s-contr').textContent    = d.contradictions_pending !== undefined ? d.contradictions_pending : '-';
   }).catch(function() {});
 
   fetch('/api/fatiga').then(function(f) { return f.json(); }).then(function(d) {
@@ -542,7 +734,22 @@ function checkOllama() {
     if (d.ok) {
       dot.style.background = 'var(--ok)';
       dot.style.animation  = 'none';
-      dot.title = 'Ollama OK';
+      dot.title = 'Ollama OK — ' + (d.models ? d.models.length : 0) + ' modelos';
+      // Poblar el selector con los modelos reales de Ollama
+      if (d.models && d.models.length) {
+        var sel = $('modelSelect');
+        var currentVal = sel.value;
+        sel.innerHTML = '';
+        d.models.forEach(function(m) {
+          var opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          sel.appendChild(opt);
+        });
+        // Restaurar seleccion si aun existe
+        if (d.models.indexOf(currentVal) !== -1) sel.value = currentVal;
+        else if (d.models.length) { sel.value = d.models[0]; _currentModel = d.models[0]; }
+      }
     } else {
       dot.style.background = 'var(--warn)';
       dot.style.animation  = 'pulse 1.2s infinite';
@@ -553,8 +760,9 @@ function checkOllama() {
   });
 }
 
+// ── Comandos ───────────────────────────────────────────────────────────
 function cmd(command) {
-  _markActivity()
+  _markActivity();
   addMessage(command, 'user');
   resetIdleTimer();
   $('statusLine').textContent = 'Procesando...';
@@ -601,7 +809,7 @@ function promptHipotesis() {
   $('statusLine').textContent = 'Generando hipotesis...';
   api('/api/hipotesis', {concepto_a: ca || 'inteligencia_artificial', concepto_b: cb || ''}).then(function(r) {
     var msg = r.response
-      ? '[' + r.concepto_a + ' <-> ' + r.concepto_b + ']:\\n' + r.response
+      ? '[' + r.concepto_a + ' <-> ' + r.concepto_b + ']:\n' + r.response
       : (r.error || 'Error');
     addMessage(msg, 'bot');
     $('statusLine').textContent = 'Listo';
@@ -613,6 +821,7 @@ function promptGraph()   { var c = prompt('Concepto para el grafo:');   if (c) c
 function promptInfer()   { var c = prompt('Concepto para inferir:');    if (c) cmd('inferir '  + c); }
 function promptPredict() { var c = prompt('Concepto para predecir:');   if (c) cmd('predecir ' + c); }
 
+// ── Inicio ─────────────────────────────────────────────────────────────
 $('sendBtn').addEventListener('click', sendMsg);
 getStats();
 checkOllama();
@@ -627,20 +836,18 @@ setTimeout(function() {
     }).catch(function() {});
 }, 1500);
 
-// ── Polling adaptativo: se ralentiza cuando el usuario está inactivo ──────
 var _lastActivity = Date.now();
-
 function _markActivity() { _lastActivity = Date.now(); }
 
 function adaptiveStats() {
-    var idleSec = (Date.now() - _lastActivity) / 1000;
-    getStats();
-    setTimeout(adaptiveStats, idleSec > 120 ? 60000 : 20000);
+  var idleSec = (Date.now() - _lastActivity) / 1000;
+  getStats();
+  setTimeout(adaptiveStats, idleSec > 120 ? 60000 : 20000);
 }
 function adaptiveGames() {
-    var idleSec = (Date.now() - _lastActivity) / 1000;
-    loadGameLibrary();
-    setTimeout(adaptiveGames, idleSec > 120 ? 120000 : 30000);
+  var idleSec = (Date.now() - _lastActivity) / 1000;
+  loadGameLibrary();
+  setTimeout(adaptiveGames, idleSec > 120 ? 120000 : 30000);
 }
 
 setTimeout(adaptiveStats,  20000);
@@ -672,7 +879,27 @@ def api_chat():
         if not text:
             return jsonify({"error": "Texto vacio -- escribe algo y presiona Enviar"}), 400
 
+        # Modelo y modo enviados desde el frontend
+        model_override  = data.get("model") or None
+        system_override = data.get("system_prompt") or None
+        mode_override   = data.get("mode") or None
+
         ai = get_cognia()
+
+        # Aplicar modelo si viene del frontend
+        if model_override:
+            try:
+                engine = get_cognia.__dict__.get("_engine")
+                if engine is None:
+                    from language_engine import get_language_engine
+                    engine = get_language_engine(ai)
+                engine.modelo = model_override
+                if system_override:
+                    engine._system_override = system_override
+                else:
+                    engine._system_override = None
+            except Exception as _me:
+                print("[api/chat] No se pudo cambiar modelo: " + str(_me))
 
         try:
             from respuestas_articuladas import responder_articulado
