@@ -235,11 +235,16 @@ def init_architecture_tables(path: str = ARCH_DB_PATH):
 
 def _safe_add_columns(cursor, table: str, columns: list):
     for col_def in columns:
-        col_name = col_def.split()[0]
+        if isinstance(col_def, tuple):
+            col_name = col_def[0]
+            col_full = f"{col_def[0]} {col_def[1]}"
+        else:
+            col_name = col_def.split()[0]
+            col_full = col_def
         try:
-            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col_def}")
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col_full}")
         except Exception:
-            pass  # column already exists
+            pass
 
 
 def _seed_default_params(path: str):
