@@ -527,9 +527,9 @@ function sendMsg() {
       }
       // Truncar a 4000 chars por archivo para no saturar el contexto
       var preview = typeof f.content === 'string' ? f.content.slice(0, 4000) : '[binario]';
-      return '--- Archivo: ' + f.name + ' ---\n' + preview;
-    }).join('\n\n');
-    payload.text = text + (text ? '\n\n' : '') + fileCtx;
+      return '--- Archivo: ' + f.name + ' ---\\n' + preview;
+    }).join('\\n\\n');
+    payload.text = text + (text ? '\\n\\n' : '') + fileCtx;
   }
 
   // Mostrar mensaje del usuario (sin el contenido crudo de los archivos)
@@ -672,7 +672,7 @@ function generateGame() {
       var title = (r.programs && r.programs[0]) ? r.programs[0].title : '?';
       var score = (r.programs && r.programs[0] && r.programs[0].total_score) ? r.programs[0].total_score.toFixed(1) : '?';
       var tipo  = r.is_improvement ? 'Mejora de version anterior' : 'Nuevo juego';
-      addMessage('Juego generado: "' + title + '" (score: ' + score + '/10)\n' + tipo, 'game');
+      addMessage('Juego generado: "' + title + '" (score: ' + score + '/10)\\n' + tipo, 'game');
       loadGameLibrary();
     } else {
       addMessage('No se pudo generar un juego que pase el evaluador. Intenta de nuevo.', 'system');
@@ -688,8 +688,8 @@ function improveGames() {
   addMessage('Mejorando juegos existentes...', 'system');
   api('/api/games/improve', {}).then(function(r) {
     if (r.improved > 0) {
-      var detalles = (r.details && r.details.length) ? r.details.join('\n') : '';
-      addMessage(r.improved + ' juego(s) mejorado(s):\n' + detalles, 'game');
+      var detalles = (r.details && r.details.length) ? r.details.join('\\n') : '';
+      addMessage(r.improved + ' juego(s) mejorado(s):\\n' + detalles, 'game');
       loadGameLibrary();
     } else {
       addMessage(r.message || 'No hay juegos para mejorar', 'system');
@@ -805,7 +805,7 @@ function promptHipotesis() {
   $('statusLine').textContent = 'Generando hipotesis...';
   api('/api/hipotesis', {concepto_a: ca || 'inteligencia_artificial', concepto_b: cb || ''}).then(function(r) {
     var msg = r.response
-      ? '[' + r.concepto_a + ' <-> ' + r.concepto_b + ']:\n' + r.response
+      ? '[' + r.concepto_a + ' <-> ' + r.concepto_b + ']:\\n' + r.response
       : (r.error || 'Error');
     addMessage(msg, 'bot');
     $('statusLine').textContent = 'Listo';
