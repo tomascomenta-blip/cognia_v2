@@ -86,40 +86,54 @@ class VectorCache:
             self._db_count = 0
             return
 
-        vectors = []
-        meta = []
-        expected_dim = None
-        skipped = 0
+        # Paso 1: detectar la dimension dominante
+        from collections import Counter
+        dim_counts = Counter()
+        parsed_rows = []
         for row in rows:
             try:
-                ep_id, obs, label, vec_str, conf, imp, emo_score, emo_label, surprise, fb_weight = row
-                vec = json.loads(vec_str)
-                # Detectar dimensión esperada en primer vector válido
-                if expected_dim is None:
-                    expected_dim = len(vec)
-                # Saltar vectores con dimensión incorrecta
-                if len(vec) != expected_dim:
-                    skipped += 1
-                    continue
-                vectors.append(vec)
-                meta.append({
-                    "id": ep_id,
-                    "observation": obs,
-                    "label": label,
-                    "confidence": float(conf or 0.5),
-                    "importance": float(imp or 1.0),
-                    "emotion_score": float(emo_score or 0.0),
-                    "emotion_label": emo_label or "neutral",
-                    "surprise": float(surprise or 0.0),
-                    "feedback_weight": float(fb_weight or 1.0),
-                })
+                vec = json.loads(row[3])
+                dim_counts[len(vec)] += 1
+                parsed_rows.append((row, vec))
             except Exception:
+                parsed_rows.append((row, None))
+
+        if not dim_counts:
+            logger.warning("VectorCache: no hay vectores validos",
+                           extra={"op": "vector_cache.build", "context": "empty"})
+            return
+
+        dominant_dim = dim_counts.most_common(1)[0][0]
+        logger.info(
+            f"VectorCache: dimension dominante={dominant_dim} distribucion={dict(dim_counts.most_common(5))}",
+            extra={"op": "vector_cache.build", "context": f"dim={dominant_dim}"}
+        )
+
+        # Paso 2: construir matriz solo con vectores de dimension dominante
+        vectors = []
+        meta = []
+        skipped = 0
+        for row, vec in parsed_rows:
+            if vec is None or len(vec) != dominant_dim:
                 skipped += 1
                 continue
+            ep_id, obs, label, vec_str, conf, imp, emo_score, emo_label, surprise, fb_weight = row
+            vectors.append(vec)
+            meta.append({
+                "id": ep_id,
+                "observation": obs,
+                "label": label,
+                "confidence": float(conf or 0.5),
+                "importance": float(imp or 1.0),
+                "emotion_score": float(emo_score or 0.0),
+                "emotion_label": emo_label or "neutral",
+                "surprise": float(surprise or 0.0),
+                "feedback_weight": float(fb_weight or 1.0),
+            })
 
         if skipped > 0:
             logger.warning(
-                f"VectorCache: {skipped} vectores corruptos/inconsistentes ignorados",
+                f"VectorCache: {skipped} vectores ignorados (dimension != {dominant_dim})",
                 extra={"op": "vector_cache.build", "context": f"skipped={skipped}"}
             )
 
