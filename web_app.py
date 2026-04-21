@@ -319,7 +319,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <script>
 var $ = function(id) { return document.getElementById(id); };
 
-// -- Estado global ------------------------------------------------------
+// ── Estado global ──────────────────────────────────────────────────────
 var _currentMode  = 'normal';
 var _currentModel = 'llama3.2';
 var _attachedFiles = [];   // [{name, content, type}]
@@ -328,7 +328,7 @@ var _idleTimer = 0;
 var _idleInterval = null;
 var _autonomousPaused = false;
 
-// -- Modos predefinidos -------------------------------------------------
+// ── Modos predefinidos ─────────────────────────────────────────────────
 var MODES = {
   normal: {
     model: 'llama3.2',
@@ -352,16 +352,8 @@ function setMode(mode) {
   var cfg = MODES[mode];
   _currentModel = cfg.model;
 
-  // FIX: si el modelo del modo no existe en el select, agregarlo antes de seleccionar
-  var selEl = $('modelSelect');
-  var existsInSel = Array.from(selEl.options).some(function(o) { return o.value === cfg.model; });
-  if (!existsInSel) {
-    var newOpt = document.createElement('option');
-    newOpt.value = cfg.model;
-    newOpt.textContent = cfg.model;
-    selEl.insertBefore(newOpt, selEl.firstChild);
-  }
-  selEl.value = cfg.model;
+  // Actualizar selector de modelo
+  $('modelSelect').value = cfg.model;
 
   // Actualizar botones
   ['Normal','Coder','Uncensored'].forEach(function(m) {
@@ -380,7 +372,7 @@ function setMode(mode) {
 // Sync manual del selector de modelo
 $('modelSelect').addEventListener('change', function() {
   _currentModel = this.value;
-  // Detectar si coincide con algun modo predefinido
+  // Detectar si coincide con algún modo predefinido
   var matched = false;
   Object.keys(MODES).forEach(function(k) {
     if (MODES[k].model === _currentModel) {
@@ -395,7 +387,7 @@ $('modelSelect').addEventListener('change', function() {
   }
 });
 
-// -- Archivos adjuntos --------------------------------------------------
+// ── Archivos adjuntos ──────────────────────────────────────────────────
 $('fileInput').addEventListener('change', function() {
   var files = Array.from(this.files);
   if (!files.length) return;
@@ -422,8 +414,8 @@ function renderAttachBar() {
   if (!_attachedFiles.length) { bar.innerHTML = ''; return; }
   bar.innerHTML = _attachedFiles.map(function(f, i) {
     return '<div class="attach-chip">'
-      + '[archivo] ' + f.name
-      + ' <span class="rm" onclick="removeAttach(' + i + ')">x</span>'
+      + '📄 ' + f.name
+      + ' <span class="rm" onclick="removeAttach(' + i + ')">✕</span>'
       + '</div>';
   }).join('');
 }
@@ -433,7 +425,7 @@ function removeAttach(i) {
   renderAttachBar();
 }
 
-// -- API helper ---------------------------------------------------------
+// ── API helper ─────────────────────────────────────────────────────────
 function api(endpoint, data, method) {
   data = data || {};
   method = method || 'POST';
@@ -455,7 +447,7 @@ function api(endpoint, data, method) {
   });
 }
 
-// -- Mensajes -----------------------------------------------------------
+// ── Mensajes ───────────────────────────────────────────────────────────
 function addMessage(text, type, extras) {
   type = type || 'bot';
   extras = extras || null;
@@ -508,7 +500,7 @@ function sendFeedback(positive, pregunta, fbRow, response_id) {
   });
 }
 
-// -- Enviar mensaje -----------------------------------------------------
+// ── Enviar mensaje ─────────────────────────────────────────────────────
 function sendMsg() {
   _markActivity();
   var inp = $('mainInput');
@@ -553,17 +545,6 @@ function sendMsg() {
   var controller = new AbortController();
   var tout = setTimeout(function() { controller.abort(); }, 180000);
 
-  // FIX: usar variable de control para garantizar que el input siempre se rehabilita
-  function _unlockInput() {
-    try {
-      inp.disabled = false;
-      $('sendBtn').disabled = false;
-      inp.focus();
-      $('statusLine').textContent = 'Listo';
-      getStats();
-    } catch(e) { console.warn('[unlock]', e); }
-  }
-
   fetch('/api/chat', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -582,25 +563,27 @@ function sendMsg() {
       }
       addMessage(r.response || '(sin respuesta)', 'bot', {fatigue: r.fatigue, response_id: r.response_id});
     }
-    _unlockInput();
   }).catch(function(e) {
     clearTimeout(tout);
-    try {
-      if (e.name === 'AbortError') {
-        addMessage('Timeout: el servidor no respondio en 180s.', 'error');
-      } else {
-        addMessage('Error: ' + e.message, 'error');
-      }
-    } catch(e2) { console.error('[catch addMessage]', e2); }
-    _unlockInput();
-  });
+    if (e.name === 'AbortError') {
+      addMessage('Timeout: el servidor no respondio en 180s.', 'error');
+    } else {
+      addMessage('Error: ' + e.message, 'error');
+    }
+  }).then(function() {
+    inp.disabled = false;
+    $('sendBtn').disabled = false;
+    inp.focus();
+    $('statusLine').textContent = 'Listo';
+    getStats();
+  }); /* fin sendMsg */
 }
 
 $('mainInput').addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
 });
 
-// -- Idle / Autonomo ----------------------------------------------------
+// ── Idle / Autonomo ────────────────────────────────────────────────────
 function resetIdleTimer() {
   _idleTimer = 0;
   $('idleIndicator').textContent = 'Activo';
@@ -647,7 +630,7 @@ function pauseAutonomous() {
   addMessage('Modo autonomo: ' + (_autonomousPaused ? 'pausado' : 'activado'), 'system');
 }
 
-// -- Juegos -------------------------------------------------------------
+// ── Juegos ─────────────────────────────────────────────────────────────
 function loadGameLibrary() {
   api('/api/games/library', {}, 'GET').then(function(r) {
     var lib = $('gameLibrary');
@@ -715,7 +698,7 @@ function improveGames() {
   });
 }
 
-// -- Stats y monitoreo --------------------------------------------------
+// ── Stats y monitoreo ──────────────────────────────────────────────────
 function getStats() {
   fetch('/api/stats').then(function(r) { return r.json(); }).then(function(d) {
     $('s-active').textContent   = d.active_memories   !== undefined ? d.active_memories   : '-';
@@ -730,25 +713,19 @@ function getStats() {
 }
 
 function updateFatigueUI(d) {
-  // FIX: guardia - si no hay datos validos, no actualizar
-  if (!d || typeof d !== 'object' || d.error) return;
-  try {
-    var score  = (typeof d.fatigue_score === 'number') ? d.fatigue_score : 0;
-    var level  = d.fatigue_level || 'baja';
-    var colors = {baja:'#51cf66', moderada:'#ffd700', alta:'#ff9500', critica:'#ff6b6b'};
-    $('fatigueBar').style.width       = score + '%';
-    $('fatigueBar').style.background  = colors[level] || '#51cf66';
-    $('fatigueScore').textContent     = score.toFixed(1) + ' / 100';
-    $('fatigueBadge').textContent     = level.toUpperCase();
-    $('fatigueBadge').className       = 'fatigue-badge fatigue-' + level;
-    $('f-cpu').textContent            = (d.current_cpu_pct  || 0).toFixed(1) + '%';
-    $('f-mem').textContent            = (d.current_mem_mb   || 0).toFixed(0) + ' MB';
-    $('f-cycle').textContent          = (d.avg_cycle_ms     || 0).toFixed(0) + ' ms';
-    var strats = Array.isArray(d.active_strategies) ? d.active_strategies : [];
-    $('f-mode').textContent = strats.length ? strats[0].replace(/_/g, ' ') : 'normal';
-  } catch(e) {
-    console.warn('[updateFatigueUI] error:', e);
-  }
+  var score  = d.fatigue_score || 0;
+  var level  = d.fatigue_level || 'baja';
+  var colors = {baja:'#51cf66', moderada:'#ffd700', alta:'#ff9500', critica:'#ff6b6b'};
+  $('fatigueBar').style.width       = score + '%';
+  $('fatigueBar').style.background  = colors[level] || '#51cf66';
+  $('fatigueScore').textContent     = score.toFixed(1) + ' / 100';
+  $('fatigueBadge').textContent     = level.toUpperCase();
+  $('fatigueBadge').className       = 'fatigue-badge fatigue-' + level;
+  $('f-cpu').textContent            = (d.current_cpu_pct  || 0).toFixed(1) + '%';
+  $('f-mem').textContent            = (d.current_mem_mb   || 0).toFixed(0) + ' MB';
+  $('f-cycle').textContent          = (d.avg_cycle_ms     || 0).toFixed(0) + ' ms';
+  var strats = d.active_strategies || [];
+  $('f-mode').textContent = strats.length ? strats[0].replace(/_/g, ' ') : 'normal';
 }
 
 function checkOllama() {
@@ -757,24 +734,16 @@ function checkOllama() {
     if (d.ok) {
       dot.style.background = 'var(--ok)';
       dot.style.animation  = 'none';
-      dot.title = 'Ollama OK -- ' + (d.models ? d.models.length : 0) + ' modelos';
-      // FIX: Poblar el selector con modelos reales de Ollama,
-      // pero solo agregar los que no existan ya (no borrar los hardcodeados)
+      dot.title = 'Ollama OK — ' + (d.models ? d.models.length : 0) + ' modelos';
+      // Poblar el selector con los modelos reales de Ollama
       if (d.models && d.models.length) {
         var sel = $('modelSelect');
         var currentVal = sel.value;
-        var existingVals = Array.from(sel.options).map(function(o) { return o.value; });
+        var _ev = Array.from(sel.options).map(function(o){return o.value;});
         d.models.forEach(function(m) {
-          if (existingVals.indexOf(m) === -1) {
-            var opt = document.createElement('option');
-            opt.value = m;
-            opt.textContent = m + ' (ollama)';
-            sel.appendChild(opt);
-          }
+          if (_ev.indexOf(m)===-1){var opt=document.createElement('option');opt.value=m;opt.textContent=m;sel.appendChild(opt);}
         });
-        // Restaurar seleccion previa si aun existe
-        var allVals = Array.from(sel.options).map(function(o) { return o.value; });
-        if (allVals.indexOf(currentVal) !== -1) sel.value = currentVal;
+        if(Array.from(sel.options).some(function(o){return o.value===currentVal;}))sel.value=currentVal;
       }
     } else {
       dot.style.background = 'var(--warn)';
@@ -786,7 +755,7 @@ function checkOllama() {
   });
 }
 
-// -- Comandos -----------------------------------------------------------
+// ── Comandos ───────────────────────────────────────────────────────────
 function cmd(command) {
   _markActivity();
   addMessage(command, 'user');
@@ -847,7 +816,7 @@ function promptGraph()   { var c = prompt('Concepto para el grafo:');   if (c) c
 function promptInfer()   { var c = prompt('Concepto para inferir:');    if (c) cmd('inferir '  + c); }
 function promptPredict() { var c = prompt('Concepto para predecir:');   if (c) cmd('predecir ' + c); }
 
-// -- Inicio -------------------------------------------------------------
+// ── Inicio ─────────────────────────────────────────────────────────────
 $('sendBtn').addEventListener('click', sendMsg);
 getStats();
 checkOllama();
@@ -879,7 +848,6 @@ function adaptiveGames() {
 setTimeout(adaptiveStats,  20000);
 setTimeout(adaptiveGames,  30000);
 setInterval(checkOllama,   60000);
-// FIX: No llamar updateFatigueUI con objeto vacio; getStats ya hace el fetch real
 setInterval(getStats, 8000);
 </script>
 </body>
@@ -904,9 +872,7 @@ def api_chat():
         text = (data.get("text") or data.get("prompt") or "").strip()
 
         if not text:
-            # FIX: mensaje de error mas claro y no retornar 400 que bloquea el unlock
-            return jsonify({"error": "Texto vacio -- escribe algo y presiona Enviar",
-                            "response": "Por favor escribe un mensaje antes de enviar."}), 200
+            return jsonify({"error": "Texto vacio", "response": "Escribe algo primero."})
 
         # Modelo y modo enviados desde el frontend
         model_override  = data.get("model") or None
