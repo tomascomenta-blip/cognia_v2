@@ -18,6 +18,17 @@ from logger_config import get_logger, log_db_error, log_slow, safe_execute
 
 logger = get_logger(__name__)
 
+# ── Cache vectorial numpy (10x-100x más rápido) ────────────────────────
+try:
+    from .episodic_fast import get_vector_cache, invalidate_cache
+    _USE_FAST_SEARCH = True
+    logger.info("VectorCache numpy activo — búsqueda rápida habilitada",
+                extra={"op": "episodic.init", "context": "fast=True"})
+except ImportError:
+    _USE_FAST_SEARCH = False
+    logger.warning("VectorCache no disponible — usando búsqueda lenta",
+                   extra={"op": "episodic.init", "context": "fast=False"})
+
 
 class EpisodicMemory:
     def __init__(self, db_path: str = DB_PATH):
@@ -51,6 +62,9 @@ class EpisodicMemory:
             ep_id = c.lastrowid
             conn.commit()
             conn.close()
+            # Invalidar cache para que la próxima búsqueda incluya este episodio
+            if _USE_FAST_SEARCH:
+                invalidate_cache(self.db)
             logger.debug(
                 "Episodio almacenado",
                 extra={"op": "episodic.store", "context": f"ep_id={ep_id} label={label}"},
@@ -72,6 +86,26 @@ class EpisodicMemory:
                          include_forgotten: bool = False,
                          emotion_filter: str = None) -> list:
         t0 = time.perf_counter()
+
+        # ── Búsqueda rápida con numpy (cache matricial) ────────────────
+        if _USE_FAST_SEARCH and not emotion_filter:
+            try:
+                cache = get_vector_cache(self.db)
+                scored = cache.search(query_vector, top_k=top_k,
+                                      include_forgotten=include_forgotten)
+                if scored:
+                    self._update_access(scored)
+                log_slow(logger, "episodic.retrieve_similar", t0, threshold_ms=200)
+                return scored
+            except Exception as exc:
+                logger.warning(
+                    "VectorCache falló, usando búsqueda lenta como fallback",
+                    extra={"op": "episodic.retrieve_similar",
+                           "context": f"err={exc}"}
+                )
+                # fallthrough al método lento
+
+        # ── Búsqueda lenta original (fallback o emotion_filter) ────────
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
@@ -99,19 +133,15 @@ class EpisodicMemory:
                 vec = json.loads(vec_str)
                 sim = cosine_similarity(query_vector, vec)
                 emo_boost = abs(emo_score) * 0.1
-                # PASO 5: feedback_weight pondera el score final.
-                # Episodios bien valorados (+1) tienen peso > 1.0 → suben en ranking.
-                # Episodios mal valorados (-1) tienen peso < 1.0 → bajan en ranking.
-                # Se aplica como multiplicador suave con atenuación: 0.7 base + 0.3 feedback
                 _fw = float(fb_weight) if fb_weight is not None else 1.0
-                _fw_factor = 0.70 + 0.30 * _fw   # rango: [0.76, 1.30] para pesos [0.2, 2.0]
+                _fw_factor = 0.70 + 0.30 * _fw
                 score = (0.55 * sim + 0.2 * conf + 0.15 * min(imp, 2.0) / 2.0 + emo_boost) * _fw_factor
                 scored.append({
                     "id": ep_id, "observation": obs, "label": label,
                     "similarity": sim, "confidence": conf, "score": score,
                     "emotion": {"score": emo_score, "label": emo_label},
                     "surprise": surprise,
-                    "feedback_weight": round(_fw, 3),   # exponer para diagnóstico
+                    "feedback_weight": round(_fw, 3),
                 })
             except (json.JSONDecodeError, TypeError, ValueError) as exc:
                 logger.warning(
@@ -122,27 +152,29 @@ class EpisodicMemory:
                 continue
 
         scored.sort(key=lambda x: x["score"], reverse=True)
-
         if scored:
-            top_ids = [s["id"] for s in scored[:top_k]]
-            try:
-                conn = db_connect(self.db)
-                c = conn.cursor()
-                now = datetime.now().isoformat()
-                for ep_id in top_ids:
-                    c.execute("""
-                        UPDATE episodic_memory
-                        SET access_count = access_count + 1, last_access = ?
-                        WHERE id = ?
-                    """, (now, ep_id))
-                conn.commit()
-                conn.close()
-            except Exception as exc:
-                log_db_error(logger, "episodic.update_access_count", exc,
-                             extra_ctx=f"ep_ids={top_ids[:3]}")
-
+            self._update_access(scored[:top_k])
         log_slow(logger, "episodic.retrieve_similar", t0, threshold_ms=200)
         return scored[:top_k]
+
+    def _update_access(self, scored: list):
+        """Actualiza access_count y last_access para los episodios recuperados."""
+        top_ids = [s["id"] for s in scored]
+        try:
+            conn = db_connect(self.db)
+            c = conn.cursor()
+            now = datetime.now().isoformat()
+            for ep_id in top_ids:
+                c.execute("""
+                    UPDATE episodic_memory
+                    SET access_count = access_count + 1, last_access = ?
+                    WHERE id = ?
+                """, (now, ep_id))
+            conn.commit()
+            conn.close()
+        except Exception as exc:
+            log_db_error(logger, "episodic.update_access_count", exc,
+                         extra_ctx=f"ep_ids={top_ids[:3]}")
 
     def get_due_for_review(self) -> list:
         try:
