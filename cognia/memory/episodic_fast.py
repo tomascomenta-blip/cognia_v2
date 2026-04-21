@@ -88,10 +88,19 @@ class VectorCache:
 
         vectors = []
         meta = []
+        expected_dim = None
+        skipped = 0
         for row in rows:
             try:
                 ep_id, obs, label, vec_str, conf, imp, emo_score, emo_label, surprise, fb_weight = row
                 vec = json.loads(vec_str)
+                # Detectar dimensión esperada en primer vector válido
+                if expected_dim is None:
+                    expected_dim = len(vec)
+                # Saltar vectores con dimensión incorrecta
+                if len(vec) != expected_dim:
+                    skipped += 1
+                    continue
                 vectors.append(vec)
                 meta.append({
                     "id": ep_id,
@@ -105,7 +114,14 @@ class VectorCache:
                     "feedback_weight": float(fb_weight or 1.0),
                 })
             except Exception:
+                skipped += 1
                 continue
+
+        if skipped > 0:
+            logger.warning(
+                f"VectorCache: {skipped} vectores corruptos/inconsistentes ignorados",
+                extra={"op": "vector_cache.build", "context": f"skipped={skipped}"}
+            )
 
         # Matriz numpy normalizada (para cosine similarity como dot product)
         mat = np.array(vectors, dtype=np.float32)
