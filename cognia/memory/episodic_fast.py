@@ -53,12 +53,19 @@ class VectorCache:
         return self._matrix is None or current_count != self._db_count
 
     def _get_db_count(self) -> int:
+        # FIX: throttle de COUNT(*) — máximo 1 vez cada 2 segundos
+        # Evita hacer una query SQL en CADA búsqueda semántica
+        now = time.time()
+        if hasattr(self, '_count_cache_ts') and (now - self._count_cache_ts) < 2.0:
+            return getattr(self, '_count_cache_val', 0)
         try:
             conn = db_connect(self.db_path)
             n = conn.execute(
                 "SELECT COUNT(*) FROM episodic_memory WHERE forgotten = 0"
             ).fetchone()[0]
             conn.close()
+            self._count_cache_ts = now
+            self._count_cache_val = n
             return n
         except Exception:
             return 0

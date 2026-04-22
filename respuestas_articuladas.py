@@ -1,4 +1,4 @@
-﻿"""
+"""
 respuestas_articuladas.py - Cognia v3 con Ollama (gratis, local)
 =================================================================
 INSTALACION:

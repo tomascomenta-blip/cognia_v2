@@ -167,10 +167,11 @@ class ModelRouter:
             rules: lista de reglas custom. Si None usa _RULES por defecto.
         """
         self._rules = rules or _RULES
-        # Cache liviano: última decisión por texto para evitar re-análisis
-        # en el mismo turno (el LanguageEngine puede llamar route() 2 veces)
-        self._cache: dict[str, RouterDecision] = {}
-        self._max_cache = 32
+        # Cache LRU real con OrderedDict (O(1) eviction, no FIFO)
+        # FIX: el cache FIFO original tenía hit rate ~0% con consultas variadas
+        from collections import OrderedDict
+        self._cache: OrderedDict = OrderedDict()
+        self._max_cache = 128  # aumentado de 32 a 128
 
     # ── API pública ────────────────────────────────────────────────────
 
@@ -246,13 +247,14 @@ class ModelRouter:
             },
         )
 
-        # Guardar en cache
-        if len(self._cache) >= self._max_cache:
-            # Limpiar la mitad más antigua (simple FIFO)
-            keys = list(self._cache.keys())
-            for k in keys[:self._max_cache // 2]:
-                del self._cache[k]
-        self._cache[cache_key] = decision
+        # Guardar en cache con eviction LRU O(1)
+        if cache_key in self._cache:
+            self._cache.move_to_end(cache_key)
+        else:
+            self._cache[cache_key] = decision
+            if len(self._cache) > self._max_cache:
+                self._cache.popitem(last=False)  # eliminar LRU (el más antiguo)
+            return decision
 
         return decision
 
@@ -397,6 +399,10 @@ def llamar_ollama_routed(
         },
     }).encode("utf-8")
 
+    # FIX: timeout adaptativo por modo (antes era 180s fijo para todo)
+    _TIMEOUT_MAP = {"modo_codigo": 120, "modo_general": 60}
+    _request_timeout = _TIMEOUT_MAP.get(decision.mode, 60)
+
     req = urllib.request.Request(
         f"{OLLAMA_URL}/api/generate",
         data=payload,
@@ -417,7 +423,7 @@ def llamar_ollama_routed(
 
     resultado = []
     try:
-        with urllib.request.urlopen(req, timeout=180) as r:
+        with urllib.request.urlopen(req, timeout=_request_timeout) as r:
             for linea in r:
                 if not linea.strip():
                     continue

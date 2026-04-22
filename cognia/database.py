@@ -11,13 +11,19 @@ from .config import DB_PATH, KG_STOPWORDS
 
 def db_connect(path: str = None) -> sqlite3.Connection:
     """
-    Wrapper para sqlite3.connect con configuración correcta para Windows.
-    Fuerza UTF-8 como text_factory para evitar corrupción de acentos.
+    Wrapper para sqlite3.connect con configuración optimizada.
+    - WAL mode: mejor concurrencia multi-hilo (sin database is locked)
+    - cache_size: reduce I/O repetitivo
+    - text_factory: evita corrupción de acentos en Windows
     """
     if path is None:
         path = DB_PATH
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, check_same_thread=False, timeout=30)
     conn.text_factory = str
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA cache_size=10000")
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 

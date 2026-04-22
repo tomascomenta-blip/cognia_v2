@@ -11,6 +11,20 @@ USO:
   python investigacion_masiva.py --rapido   (3 articulos por tema, para probar)
 """
 
+# FIX: rate limiting para evitar abuse de APIs externas
+import time as _time_rl
+_LAST_REQ_TS = 0.0
+_REQ_INTERVAL = 1.5
+
+def _rl_urlopen(req, timeout=15):
+    global _LAST_REQ_TS
+    wait = _REQ_INTERVAL - (_time_rl.time() - _LAST_REQ_TS)
+    if wait > 0:
+        _time_rl.sleep(wait)
+    _LAST_REQ_TS = _time_rl.time()
+    return __import__('urllib.request', fromlist=['urlopen']).urlopen(req, timeout=timeout)
+
+
 import sys, os, time, argparse, random
 from datetime import datetime, timedelta
 

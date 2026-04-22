@@ -217,8 +217,14 @@ class ConsolidationEngine:
 
         with self._lock:
             result.purged       = self._phase_purge()
+        time.sleep(0.05)   # FIX: yield entre fases para no bloquear hilo principal
+        with self._lock:
             result.weakened     = self._phase_weaken()
+        time.sleep(0.05)
+        with self._lock:
             result.consolidated = self._phase_consolidate()
+        time.sleep(0.05)
+        with self._lock:
             result.reinforced   = self._phase_reinforce()
             result.decayed      = self._phase_decay()
             result.sem_deduped  = self._phase_semantic_dedup()

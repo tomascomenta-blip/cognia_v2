@@ -17,4 +17,8 @@ __pycache__/
 *.pyc
 *.bak*
 uploads/
-node_modules/
+node_modules/*.db-shm
+*.db-wal
+*.db-journal
+cognia.log
+*.log

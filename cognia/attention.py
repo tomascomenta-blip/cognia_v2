@@ -65,7 +65,11 @@ class AttentionSystem:
         return round(min(1.0, attention), 4)
 
     def filter_memories(self, episodes: list, query_vector: list) -> list:
-        scored = [{**ep, "attention_score": self.score(ep, query_vector)}
+        # FIX: calcular current_time UNA vez para todos los episodios
+        # Antes: time.time() se llamaba N veces dentro de score()
+        import time as _t
+        _now = _t.time()
+        scored = [{**ep, "attention_score": self.score(ep, query_vector, current_time=_now)}
                   for ep in episodes]
         filtered = [ep for ep in scored if ep["attention_score"] >= self.threshold]
         filtered.sort(key=lambda x: x["attention_score"], reverse=True)

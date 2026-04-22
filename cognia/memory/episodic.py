@@ -1,4 +1,4 @@
-﻿"""
+"""
 cognia/memory/episodic.py
 =========================
 Memoria episódica: almacenamiento y recuperación de experiencias.

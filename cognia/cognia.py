@@ -1,4 +1,4 @@
-﻿"""
+"""
 cognia/cognia.py
 =================
 Clase principal Cognia v3 — integración de todos los módulos.
@@ -439,17 +439,20 @@ class Cognia:
             from .config import _embedding_cache
             _e_est = round(_cycle_ms / max(1.0, NORMAL_CYCLE_MS_ENERGY), 3)
             _ec = db_connect(self.db)
-            _ec.execute(
-                "INSERT INTO energy_log (timestamp, interaction_id, embedding_calls,"
-                " retrieval_ops, inference_steps, cache_hits, cache_misses,"
-                " latency_ms, energy_estimate) VALUES (?,?,?,?,?,?,?,?,?)",
-                (datetime.now().isoformat(), self.interaction_count,
-                 len(_embedding_cache), len(similar) if similar else 0,
-                 len(inferences),
-                 int(sum(self.fatigue._cache_hits))   if self.fatigue else 0,
-                 int(sum(self.fatigue._cache_misses)) if self.fatigue else 0,
-                 round(_cycle_ms, 1), _e_est))
-            _ec.commit(); _ec.close()
+            try:  # FIX: garantizar cierre de conexión aunque falle el INSERT
+                _ec.execute(
+                    "INSERT INTO energy_log (timestamp, interaction_id, embedding_calls,"
+                    " retrieval_ops, inference_steps, cache_hits, cache_misses,"
+                    " latency_ms, energy_estimate) VALUES (?,?,?,?,?,?,?,?,?)",
+                    (datetime.now().isoformat(), self.interaction_count,
+                     len(_embedding_cache), len(similar) if similar else 0,
+                     len(inferences),
+                     int(sum(self.fatigue._cache_hits))   if self.fatigue else 0,
+                     int(sum(self.fatigue._cache_misses)) if self.fatigue else 0,
+                     round(_cycle_ms, 1), _e_est))
+                _ec.commit()
+            finally:
+                _ec.close()  # FIX: siempre cerrar, incluso si falla el INSERT
         except Exception:
             pass
 

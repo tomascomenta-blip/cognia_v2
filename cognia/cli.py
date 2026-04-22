@@ -1,4 +1,4 @@
-﻿"""
+"""
 cognia/cli.py
 ==============
 Interfaz de lÃ­nea de comandos (REPL) para Cognia v3.

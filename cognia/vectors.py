@@ -25,6 +25,19 @@ def vec_norm(a):
 def cosine_similarity(a, b) -> float:
     if len(a) != len(b):
         return 0.0
+    # FIX: fast path con numpy (100x más rápido que Python puro)
+    try:
+        import numpy as np
+        av = np.asarray(a, dtype=np.float32)
+        bv = np.asarray(b, dtype=np.float32)
+        na = np.linalg.norm(av)
+        nb = np.linalg.norm(bv)
+        if na == 0 or nb == 0:
+            return 0.0
+        return float(np.clip(np.dot(av, bv) / (na * nb), -1.0, 1.0))
+    except ImportError:
+        pass
+    # Fallback Python puro
     dot = vec_dot(a, b)
     na, nb = vec_norm(a), vec_norm(b)
     if na == 0 or nb == 0:

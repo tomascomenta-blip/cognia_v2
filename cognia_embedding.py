@@ -151,10 +151,11 @@ class AsyncEmbeddingQueue:
 
     def _run(self):
         while True:
-            triggered = self._trigger.wait(timeout=self.BATCH_TIMEOUT)
-            self._trigger.clear()
-
+            self._trigger.wait(timeout=self.BATCH_TIMEOUT)
+            # FIX: _trigger.clear() dentro del lock para evitar race condition
+            # donde otro hilo setea el trigger justo después del clear y antes del lock
             with self._lock:
+                self._trigger.clear()
                 batch = self._queue[:self.BATCH_SIZE]
                 self._queue = self._queue[self.BATCH_SIZE:]
 

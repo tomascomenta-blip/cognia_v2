@@ -13,6 +13,19 @@ USO:
 """
 
 import sys, os, time, re, json, random, argparse, urllib.request, urllib.parse
+
+# FIX: rate limiting para evitar spam a Wikipedia
+_LAST_REQUEST_TIME = 0.0
+_MIN_REQUEST_INTERVAL = 1.5  # segundos entre requests (Wikipedia policy: max 1 req/s)
+
+def _rate_limited_urlopen(req, timeout=10):
+    """Wrapper que respeta el rate limit de Wikipedia (máx 1 req/s)."""
+    global _LAST_REQUEST_TIME
+    elapsed = time.time() - _LAST_REQUEST_TIME
+    if elapsed < _MIN_REQUEST_INTERVAL:
+        time.sleep(_MIN_REQUEST_INTERVAL - elapsed)
+    _LAST_REQUEST_TIME = time.time()
+    return urllib.request.urlopen(req, timeout=timeout)
 from datetime import datetime, timedelta
 from collections import deque
 
@@ -50,7 +63,7 @@ def buscar_titulos_wikipedia(query: str, lang: str = "es", n: int = 3) -> list:
             f"https://{lang}.wikipedia.org/w/api.php?{params}",
             headers={"User-Agent": "Cognia/3.0"}
         )
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with _rate_limited_urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
         return [item["title"] for item in data.get("query", {}).get("search", [])]
     except Exception:
@@ -69,7 +82,7 @@ def obtener_articulo(titulo: str, lang: str = "es", max_chars: int = 2000) -> st
             f"https://{lang}.wikipedia.org/w/api.php?{params}",
             headers={"User-Agent": "Cognia/3.0"}
         )
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with _rate_limited_urlopen(req, timeout=15) as r:
             data = json.loads(r.read())
         pages = data.get("query", {}).get("pages", {})
         for pid, page in pages.items():
