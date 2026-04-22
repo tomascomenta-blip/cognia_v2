@@ -81,6 +81,13 @@ try:
 except ImportError:
     HAS_NARRATIVE = False
 
+# ── Fase 3: CogniaMeshNode ────────────────────────────────────────────
+try:
+    from network.mesh_node import get_mesh_node, CogniaMeshNode
+    HAS_MESH = True
+except ImportError:
+    HAS_MESH = False
+
 
 class Cognia:
     """
@@ -216,6 +223,18 @@ class Cognia:
             print("✅ ConsolidationEngine PASO 6 activo")
         except ImportError:
             self._consolidation_engine = None
+
+        # ── Fase 3: MeshNode (red distribuida de conocimiento) ─────────
+        self._mesh_node: Optional[CogniaMeshNode] = None
+        if HAS_MESH:
+            try:
+                self._mesh_node = get_mesh_node()
+                print("✅ CogniaMeshNode Fase 3 activo (modo LOCAL_ONLY hasta start_mesh())")
+            except Exception as _mesh_exc:
+                logger.warning(
+                    "MeshNode no pudo inicializarse",
+                    extra={"op": "cognia.__init__", "context": f"err={_mesh_exc}"},
+                )
 
         # ── Paso 4: SelfArchitect ──────────────────────────────────────
         if HAS_SELF_ARCHITECT:
@@ -1267,4 +1286,99 @@ class Cognia:
                 f"       {obs_short}"
             )
         lines.append("─" * 55)
+        return "\n".join(lines)
+
+    # ──────────────────────────────────────────────────────────────────
+    # Fase 3 — COGNIA MESH
+    # ──────────────────────────────────────────────────────────────────
+
+    def start_mesh(self, port: int = 7474) -> str:
+        """
+        Inicia el nodo COGNIA MESH en background.
+
+        Requiere: pip install websockets
+        Sin websockets funciona en modo LOCAL_ONLY (CRDT local activo).
+
+        Uso:
+            cognia.start_mesh()
+            cognia.start_mesh(port=7475)
+        """
+        if not HAS_MESH:
+            return "⚠️  network/mesh_node.py no disponible."
+        if self._mesh_node is None:
+            return "⚠️  MeshNode no inicializado."
+        try:
+            self._mesh_node.port = port
+            self._mesh_node.start()
+            from network.mesh_node import HAS_WEBSOCKETS
+            mode = "red activa" if HAS_WEBSOCKETS else "LOCAL_ONLY"
+            return (
+                f"✅ MeshNode iniciado (id={self._mesh_node.node_id} "
+                f"port={port} modo={mode})"
+            )
+        except Exception as exc:
+            return f"⚠️  Error al iniciar MeshNode: {exc}"
+
+    def connect_mesh_peer(self, uri: str) -> str:
+        """
+        Conecta a otro nodo COGNIA por URI WebSocket.
+
+        Ejemplo:
+            cognia.connect_mesh_peer("ws://192.168.1.10:7474")
+        """
+        if not HAS_MESH or self._mesh_node is None:
+            return "⚠️  MeshNode no disponible."
+        self._mesh_node.connect_peer(uri)
+        return f"✅ Conectando a peer: {uri}"
+
+    def publish_knowledge(self, triples: list) -> str:
+        """
+        Publica triples de conocimiento a la red MESH.
+
+        Los triples privados/episódicos son filtrados automáticamente.
+
+        Parámetros
+        ----------
+        triples : lista de dicts con claves 'subject', 'predicate', 'object'.
+
+        Ejemplo:
+            cognia.publish_knowledge([
+                {"subject": "Python", "predicate": "es_un", "object": "lenguaje"}
+            ])
+        """
+        if not HAS_MESH or self._mesh_node is None:
+            return "⚠️  MeshNode no disponible."
+        if not triples:
+            return "⚠️  Lista de triples vacía."
+        self._mesh_node.publish_knowledge_delta(triples)
+        return f"✅ {len(triples)} triple(s) publicados (filtro de privacidad aplicado)."
+
+    def mesh_status(self) -> str:
+        """Muestra el estado del nodo MESH y estadísticas CRDT."""
+        if not HAS_MESH or self._mesh_node is None:
+            return "⚠️  MeshNode no disponible."
+        node  = self._mesh_node
+        stats = node.crdt_stats()
+        peers = node.get_peers()
+        from network.mesh_node import HAS_WEBSOCKETS
+        lines = [
+            f"🌐 COGNIA MESH — nodo: {node.node_id}",
+            f"   Estado:  {'activo' if node._running else 'detenido'}",
+            f"   Modo:    {'red (websockets)' if HAS_WEBSOCKETS else 'LOCAL_ONLY'}",
+            f"   Puerto:  {node.port}",
+            f"   Peers:   {len(peers)}",
+        ]
+        if peers:
+            for p in peers[:5]:
+                lines.append(f"   • {p}")
+        lines += [
+            f"\n   CRDT Knowledge Graph:",
+            f"   • Triples totales: {stats['total']}",
+            f"   • Válidos:         {stats['valid']}",
+            f"   • Invalidados:     {stats['invalid']}",
+        ]
+        if stats.get("by_node"):
+            lines.append("   • Por nodo:")
+            for nid, count in list(stats["by_node"].items())[:3]:
+                lines.append(f"     - {nid}: {count}")
         return "\n".join(lines)
