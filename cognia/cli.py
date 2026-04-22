@@ -121,6 +121,22 @@ def repl():
             print(ai.predict_next(raw[9:].strip()))
         elif raw.startswith("inferir "):
             print(ai.infer_about(raw[8:].strip()))
+        elif raw.startswith("narrativa "):
+            print(ai.get_narrative(raw[9:].strip()))
+        elif raw.startswith("mesh_iniciar"):
+            parts = raw.split()
+            port  = int(parts[1]) if len(parts) > 1 else 7474
+            print(ai.start_mesh(port))
+        elif raw.startswith("mesh_peer "):
+            print(ai.connect_mesh_peer(raw[10:].strip()))
+        elif raw.startswith("mesh_publicar ") and raw.count("|") >= 2:
+            partes = raw[14:].split("|")
+            triple = [{"subject":   partes[0].strip(),
+                       "predicate": partes[1].strip(),
+                       "object":    partes[2].strip()}]
+            print(ai.publish_knowledge(triple))
+        elif raw == "mesh_estado":
+            print(ai.mesh_status())
         else:
             try:
                 from respuestas_articuladas import responder_articulado

@@ -225,6 +225,81 @@ class EpisodicMemory:
             log_db_error(logger, "episodic.mark_reviewed", exc,
                          extra_ctx=f"ep_id={ep_id} correct={correct}")
 
+    def get_in_window(
+        self,
+        timestamp: str,
+        window_hours: float = 2.0,
+        include_forgotten: bool = False,
+        limit: int = 200,
+    ) -> list:
+        """
+        Retorna episodios dentro de una ventana temporal ±window_hours alrededor de timestamp.
+
+        Aprovecha el índice idx_episodic_timestamp para evitar full-scan con 6000+ episodios.
+        El parámetro limit evita cargar demasiados candidatos en ventanas muy amplias.
+
+        Parámetros
+        ----------
+        timestamp       : ISO datetime string del centro de la ventana.
+        window_hours    : Radio de la ventana en horas (default: 2.0).
+        include_forgotten: Incluir episodios olvidados (default: False).
+        limit           : Máximo de filas a retornar (default: 200).
+
+        Retorna
+        -------
+        Lista de dicts con claves:
+            id, observation, label, timestamp, confidence, importance,
+            emotion_score, emotion_label, surprise
+        Lista vacía si hay error o no hay resultados.
+        """
+        try:
+            from datetime import timedelta
+            center = datetime.fromisoformat(timestamp)
+            delta  = timedelta(hours=window_hours)
+            ts_min = (center - delta).isoformat()
+            ts_max = (center + delta).isoformat()
+
+            conn = db_connect(self.db)
+            c    = conn.cursor()
+            cond = "" if include_forgotten else "AND forgotten = 0"
+            c.execute(f"""
+                SELECT id, observation, label, timestamp,
+                       confidence, importance,
+                       emotion_score, emotion_label, surprise
+                FROM episodic_memory
+                WHERE timestamp BETWEEN ? AND ?
+                {cond}
+                ORDER BY timestamp
+                LIMIT ?
+            """, (ts_min, ts_max, limit))
+            rows = c.fetchall()
+            conn.close()
+        except Exception as exc:
+            log_db_error(logger, "episodic.get_in_window", exc,
+                         extra_ctx=f"ts={timestamp} window={window_hours}h")
+            return []
+
+        result = []
+        for row in rows:
+            ep_id, obs, label, ts, conf, imp, emo_s, emo_l, surprise = row
+            result.append({
+                "id":            ep_id,
+                "observation":   obs,
+                "label":         label,
+                "timestamp":     ts,
+                "confidence":    float(conf    or 0.5),
+                "importance":    float(imp     or 1.0),
+                "emotion_score": float(emo_s   or 0.0),
+                "emotion_label": emo_l         or "neutral",
+                "surprise":      float(surprise or 0.0),
+            })
+        logger.debug(
+            "get_in_window: episodios recuperados",
+            extra={"op":      "episodic.get_in_window",
+                   "context": f"ts={timestamp} window={window_hours}h count={len(result)}"},
+        )
+        return result
+
     def count(self, include_forgotten: bool = False) -> int:
         try:
             conn = db_connect(self.db)
