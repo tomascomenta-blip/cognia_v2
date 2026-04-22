@@ -1,4 +1,4 @@
-"""
+﻿"""
 cognia/cognia.py
 =================
 Clase principal Cognia v3 — integración de todos los módulos.
@@ -7,9 +7,15 @@ Clase principal Cognia v3 — integración de todos los módulos.
 import json
 import time
 import random
+import sys
+import os as _os_module
 from collections import defaultdict, Counter
 from datetime import datetime
 from typing import Optional
+
+sys.path.insert(0, _os_module.path.dirname(_os_module.path.dirname(_os_module.path.abspath(__file__))))
+from logger_config import get_logger
+logger = get_logger(__name__)
 
 from .config import (
     DB_PATH, HAS_FATIGUE, HAS_PLANNER, HAS_CURIOSITY_ENGINE,

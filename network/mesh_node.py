@@ -1,4 +1,4 @@
-"""
+﻿"""
 network/mesh_node.py
 ====================
 Nodo COGNIA MESH — red distribuida de conocimiento entre instancias.
@@ -130,7 +130,7 @@ class CogniaMeshNode:
     ):
         # ID único del nodo (hash de hostname + pid si no se provee)
         if node_id is None:
-            raw = f"{os.uname().nodename}-{os.getpid()}"
+            raw = f"{os.environ.get('COMPUTERNAME', os.environ.get('HOSTNAME', 'cognia'))}-{os.getpid()}"
             node_id = hashlib.sha256(raw.encode()).hexdigest()[:12]
 
         self.node_id  = node_id
