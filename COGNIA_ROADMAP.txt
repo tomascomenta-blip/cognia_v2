@@ -1,0 +1,343 @@
+# COGNIA — ROADMAP DE EVOLUCIÓN
+# Estado y metas del proyecto por fases
+# Última actualización: Abril 2026
+# Repositorio: https://github.com/tomascomenta-blip/cognia_v2
+# ============================================================
+
+================================================================================
+ESTADO ACTUAL DEL REPO (commit: 17bbaf9)
+================================================================================
+
+Stack base:
+  - Python 3.x + SQLite (cognia_memory.db) + Ollama (localhost:11434)
+  - Embeddings: all-MiniLM-L6-v2 via sentence-transformers
+  - Modelos: llama3.2 (general) + qwen2.5-coder (código) via ModelRouter
+  - ~6000+ memorias episódicas activas
+
+Módulos principales:
+  cognia/cognia.py              — clase principal Cognia v3 (1194 líneas)
+  cognia/memory/episodic.py     — EpisodicMemory + VectorCache numpy
+  cognia/memory/episodic_fast.py — búsqueda matricial ~2ms para 7000 vectores
+  cognia/memory/semantic.py     — SemanticMemory + SpreadingActivation
+  cognia/knowledge/graph.py     — KnowledgeGraph (networkx + SQLite)
+  cognia/knowledge/inference.py — InferenceEngine (reglas + herencia)
+  cognia/knowledge/temporal.py  — TemporalMemory (predicción de secuencias)
+  cognia/attention.py           — AttentionSystem (sem/emo/rec/freq ponderado)
+  cognia/consolidation_engine.py — 6 fases: purge/weaken/consolidate/reinforce/decay/dedup
+  cognia/user_profile.py        — CognitiveProfile con rollback (NUEVO Fase 1)
+  model_router.py               — enrutamiento inteligente entre modelos Ollama
+  cognia_embedding.py           — LazyEmbeddingModel + AsyncEmbeddingQueue + BoundedLRUCache
+  storage/db_pool.py            — ConnectionPool SQLite (NUEVO Fase 1)
+  consolidation_engine.py       — ConsolidationEngine raíz (ciclo de sueño completo)
+  language_engine.py            — LanguageEngine (generación de respuestas)
+  self_architect.py             — SelfArchitect (auto-evaluación arquitectural)
+  feedback_engine.py            — FeedbackEngine (aprendizaje por feedback usuario)
+
+================================================================================
+✅ FASE 1 — ESTABILIZACIÓN (COMPLETADA — commit 17bbaf9)
+================================================================================
+
+Objetivo: base limpia, sin bugs estructurales, deployable.
+
+[DONE] storage/db_pool.py reescrito
+       - _PooledConnection: drop-in replacement de db_connect()
+       - .close() devuelve al pool en vez de cerrar conexión física
+       - elimina "database is locked" bajo concurrencia
+
+[DONE] 15 módulos migrados al connection pool
+       episodic, semantic, graph, inference, temporal, goals,
+       world_model, hypothesis, contradiction, metacognition,
+       compression, cognia principal + 3 más
+
+[DONE] cognia/user_profile.py (módulo nuevo)
+       - CognitiveProfile: pesos de atención adaptativos por usuario
+       - rollback() estilo Control Z (hasta 10 snapshots)
+       - update_from_feedback(): ajusta pesos sem/emo/rec/freq en 0.02 por feedback
+       - build_attention_system(): reconstruye AttentionSystem con pesos del perfil
+       - UserProfileManager: persiste en tabla user_profile existente (sin migración)
+
+[DONE] cognia/cognia.py integrado con pool + CognitiveProfile
+       Métodos nuevos: apply_cognitive_feedback(), rollback_profile(),
+       show_profile(), set_response_style()
+
+[DONE] .gitignore fix: "node_modules/*.db-shm" → "*.db-shm"
+
+================================================================================
+🔲 FASE 2 — ARQUITECTURA COGNITIVA AVANZADA
+================================================================================
+
+Objetivo: memoria más rica, asociaciones reales, búsqueda inteligente.
+Sin dependencias nuevas (solo lo que ya está en requirements.txt).
+
+ARCHIVOS A CREAR:
+  cognia/memory/narrative.py (NUEVO)
+    - NarrativeThread: agrupa episodios en hilos coherentes
+    - build_thread(seed_memory_id): busca episodios en ventana temporal ±2h
+      + similitud semántica > 0.6, ordena por timestamp
+    - format_thread(): retorna el hilo como string legible para el usuario
+
+ARCHIVOS A EDITAR:
+  cognia/memory/episodic.py
+    - agregar get_in_window(timestamp, window_hours=2): retorna episodios
+      en ventana temporal ±N horas alrededor de un timestamp dado
+    - agregar get_most_similar_to(text): wrapper que vectoriza + busca top-1,
+      para que get_narrative() en cognia.py pueda usarlo con texto plano
+
+  cognia/memory/episodic_fast.py
+    - mejorar invalidación del VectorCache: el _needs_rebuild actual solo
+      compara COUNT(*), no detecta cambios en importance/confidence
+    - agregar hash liviano: XOR de últimos 50 IDs + suma de timestamps
+      para detectar modificaciones sin reconstruir todo el cache
+
+  cognia/consolidation_engine.py (_phase_decay)
+    - decay diferencial en vez de factor fijo (0.008):
+      * memorias con abs(emotion_score) > 0.5 → factor * 0.5 (protegidas)
+      * memorias con access_count = 0 → factor * 1.5 (acelerado)
+      * memorias con importance > 2.0 → factor * 0.3 (muy protegidas)
+
+  cognia/cognia.py
+    - integrar NarrativeThread
+    - nuevo método get_narrative(observation): busca episodio más similar
+      y retorna el hilo narrativo formateado como string
+
+================================================================================
+🔲 FASE 3 — SISTEMA DISTRIBUIDO (CRÍTICO)
+================================================================================
+
+Objetivo: arquitectura COGNIA MESH donde usuarios son nodos.
+Regla de oro: lo episódico es SIEMPRE local y cifrado. Solo se comparte semántica.
+
+PRINCIPIO DE DISEÑO:
+  No P2P puro (fragmentación cognitiva). No cliente-servidor clásico.
+  Replicación semántica selectiva con búsqueda federada bajo demanda.
+
+ARCHIVOS A CREAR:
+  network/mesh_node.py (NUEVO)
+    - CogniaMeshNode: nodo en la red usando libp2p (py-libp2p)
+    - publish_knowledge_delta(triples): publica solo triples nuevos
+    - on_knowledge_received(): valida firma Ed25519 antes de integrar
+    - federated_search(query_embedding, k, timeout_ms): busca en peers
+      sin exponer memorias privadas
+
+  network/crdt_graph.py (NUEVO)
+    - CRDTKnowledgeGraph: G-Set (Grow-Only Set) para convergencia eventual
+    - merge(remote_graph): unión idempotente, sin coordinador central
+    - Un triple agregado nunca se elimina (solo invalida con metadatos)
+
+  network/privacy.py (NUEVO)
+    - privatize_embedding(vector, epsilon=1.0): privacidad diferencial
+      añade ruido Laplaciano calibrado para compartir embeddings sin exponer datos
+    - Capa 1 PRIVADO: episódico, nunca sale del dispositivo
+    - Capa 2 SEMI-PRIVADO: resúmenes E2E cifrados para contactos autorizados
+    - Capa 3 PÚBLICO: triples de conocimiento general anonimizados
+
+TECNOLOGÍAS:
+  - libp2p (py-libp2p) — más ligero que IPFS completo
+  - CRDTs para consistencia sin coordinador
+  - Privacidad diferencial (ε=1.0) para embeddings compartidos
+
+================================================================================
+🔲 FASE 4 — PRIVACIDAD Y SEGURIDAD
+================================================================================
+
+Objetivo: memorias cifradas E2E, control total del usuario sobre sus datos.
+
+ARCHIVOS A CREAR:
+  security/key_manager.py (NUEVO)
+    - KeyManager: deriva clave maestra de passphrase con Argon2id
+      (salt 32B, 3 iteraciones, 4 lanes, 64MB memory cost)
+    - encrypt_memory(plaintext): AES-256-GCM con nonce aleatorio prepended
+    - decrypt_memory(ciphertext): AES-256-GCM decrypt
+    - Clave de sesión X25519 para datos semi-privados (E2E entre usuarios)
+
+  security/secure_storage.py (NUEVO)
+    - SecureEpisodicMemory: wrapper de EpisodicMemory que cifra/descifra
+      transparentemente al leer/escribir
+    - Flujo: [DB cifrada] → decrypt en RAM → [contexto] → [Ollama] → [borrar RAM]
+    - NUNCA escribir contexto descifrado a disco
+    - NUNCA loggear contenido de memorias privadas
+
+REGLAS DE SEPARACIÓN DE DATOS:
+  Capa PRIVADA  → AES-256-GCM, clave local derivada de passphrase
+  Capa SEMI-PRIV → X25519 + ChaCha20-Poly1305, solo contactos autorizados
+  Capa PÚBLICA  → sin cifrado, firmado con Ed25519, anonimizado
+
+================================================================================
+🔲 FASE 5 — ESCALADO DINÁMICO DEL MODELO
+================================================================================
+
+Objetivo: cambiar automáticamente entre modelos según recursos disponibles.
+
+ARCHIVOS A CREAR:
+  core/scale_manager.py (NUEVO)
+    - ScaleManager: detecta nivel óptimo de operación en runtime
+    - detect_level() → 1, 2 o 3 según RAM disponible + memoria count + peers
+    - select_model(): retorna nombre del modelo Ollama para el nivel actual
+    - watch(): hilo daemon que re-evalúa el nivel cada 60 segundos
+
+NIVELES:
+  NIVEL 1 — LOCAL PURO
+    RAM < 4GB o < 100 memorias activas
+    Modelo: llama3.2:3b-q4_K_M (2GB RAM)
+    Storage: SQLite local, sin red
+    Costo: $0
+
+  NIVEL 2 — SEMI-DISTRIBUIDO
+    RAM 4-12GB, 100-10.000 memorias, 1-50 peers
+    Modelo: llama3.2:8b-q4_K_M o qwen2.5:7b (4-5GB RAM)
+    Storage: SQLite + índice vectorial en disco
+    Costo: $0 local, ~$5-20/mes si VPS pequeño
+
+  NIVEL 3 — RED COMPLETA
+    RAM > 12GB, > 10.000 memorias, > 50 peers
+    Modelo: mixtral:8x7b-q3_K o API externa como fallback
+    Storage: SQLite por usuario + índice vectorial federado
+    Costo: ~$20-100/mes en VPS medianos
+
+EDITAR:
+  model_router.py
+    - integrar ScaleManager para selección automática de modelo base
+    - timeout adaptativo por nivel (nivel 1: 60s, nivel 2: 90s, nivel 3: 120s)
+    - reemplazar cache FIFO simple por LRU real con hit rate tracking
+
+================================================================================
+🔲 FASE 6 — PERSONALIZACIÓN PROFUNDA POR USUARIO
+================================================================================
+
+Objetivo: cada usuario tiene su propia "versión" de la IA.
+Nota: Fase 1 ya entregó el esqueleto (CognitiveProfile). Esta fase lo expande.
+
+EXPANDIR cognia/user_profile.py:
+  - domain_interests con vectores propios: cada interés tiene un embedding
+    para búsqueda semántica de intereses, no solo matching por string
+  - CognitiveProfile.evolve(): modifica parámetros de atención de forma
+    autónoma basada en patrones de uso (sin feedback explícito)
+  - multi-usuario real: UserProfileManager.switch_user(user_id) recarga
+    AttentionSystem, preferencias y contexto de trabajo memory completo
+
+ARCHIVOS A CREAR:
+  cognia/memory/personal_index.py (NUEVO)
+    - PersonalIndex: índice de conceptos de alta importancia personal
+    - Separado del KnowledgeGraph global — no se comparte en la red mesh
+    - Búsqueda por resonancia emocional además de similitud semántica
+
+  cognia/learning/style_engine.py (NUEVO)
+    - StyleEngine: aprende el estilo de escritura del usuario
+    - Detecta vocabulario frecuente, longitud de respuesta preferida,
+      nivel técnico, idioma dominante
+    - Alimenta al LanguageEngine para adaptar respuestas
+
+================================================================================
+🔲 FASE 7 — DEPLOYMENT ECONÓMICO
+================================================================================
+
+Objetivo: salir de local a producción con costo mínimo.
+
+ARQUITECTURA DE DEPLOYMENT:
+  FRONTEND (Vercel — $0)
+    React/Next.js: chat UI, dashboard de memoria, config de perfil
+    NO puede ejecutar Ollama ni acceder SQLite directamente
+
+  BACKEND LIGERO (Railway o Render — $0-7/mes)
+    FastAPI wrapper sobre cognia/cognia.py
+    Endpoints: /observe, /learn, /sleep, /profile, /feedback
+    Knowledge Graph compartido (solo semántica pública)
+    Registro de nodos mesh
+
+  LOCAL (dispositivo del usuario — $0)
+    Ollama + modelo local
+    SQLite con memorias personales cifradas
+    cognia corriendo como servidor en localhost:8080
+    WebSocket hacia el frontend
+
+  EDGE OPCIONAL (Cloudflare Workers — $0)
+    Cache de respuestas frecuentes
+    Rate limiting
+    Proxy para ocultar IPs de nodos
+
+ARCHIVOS A CREAR:
+  api/app.py (NUEVO)
+    - FastAPI con endpoints REST para todas las funciones de Cognia
+    - WebSocket para streaming de respuestas largas
+    - Auth básica con JWT (sin OAuth externo para mantener privacidad)
+
+  deploy/Dockerfile (NUEVO)
+    - Imagen mínima: python:3.11-slim + dependencias sin CUDA
+    - Sin Ollama en el contenedor (Ollama corre local del usuario)
+    - Variables de entorno: OLLAMA_URL, COGNIA_MODEL, DB_PATH
+
+  deploy/railway.toml (NUEVO)
+    - Config para Railway: build command, start command, health check
+
+================================================================================
+🔲 FASE 8 — MONETIZACIÓN
+================================================================================
+
+Objetivo: modelo de negocio sin romper privacidad ni descentralización.
+
+TIERS:
+  GRATUITO
+    Cognia local completo sin límite de memorias
+    Modelos pequeños (llama3.2:3b)
+    Hasta 3 dispositivos sincronizados
+    Knowledge graph público básico
+
+  COGNIA+ ($5-8/mes)
+    Modelos medianos (llama3.2:8b, qwen2.5:7b)
+    Sincronización ilimitada entre dispositivos
+    Backup cifrado en la nube (solo el usuario puede descifrar)
+    Analytics de memoria personal (qué recuerdo más, qué olvido)
+    Prioridad en red mesh para búsqueda federada
+
+  COGNIA PRO ($15-20/mes, para desarrolladores)
+    API key para integrar Cognia en sus apps
+    Knowledge graph privado para su organización
+    Acceso a modelos grandes via API con privacidad diferencial
+    Personalización profunda de arquitectura cognitiva
+
+PRINCIPIOS NO NEGOCIABLES:
+  El tier gratuito NUNCA degrada para presionar a pagar
+  Los datos del usuario NUNCA son el producto
+  El cifrado E2E no se puede desactivar en ningún tier
+  Sin anuncios en ningún tier
+
+ARCHIVOS A CREAR:
+  billing/tier_manager.py (NUEVO)
+    - TierManager: verifica tier del usuario, aplica límites
+    - Sin lógica en el core cognitivo — wrapper externo
+    - Feature flags por tier sin tocar CognitiveProfile
+
+================================================================================
+NOTAS PARA CLAUDE EN FUTURAS SESIONES
+================================================================================
+
+ANTES DE PROPONER CUALQUIER CAMBIO:
+  1. Clonar https://github.com/tomascomenta-blip/cognia_v2
+  2. Leer el código real — no asumir nada del análisis anterior
+  3. Verificar qué fases están en el historial de commits
+  4. Identificar el último commit con "feat: Fase N" para saber dónde estamos
+
+ESTILO DE CÓDIGO DEL PROYECTO:
+  - Logging con logger_config.py (get_logger, log_db_error, log_slow)
+  - Manejo de excepciones explícito (nunca except: pass)
+  - Docstrings en español
+  - Imports opcionales con try/except + flag HAS_*
+  - Módulos independientes que no rompen el sistema si fallan al importar
+  - Thread-safe: usar threading.Lock() o threading.RLock() donde sea necesario
+
+RESTRICCIONES TÉCNICAS:
+  - Sin dependencias nuevas salvo las de requirements.txt
+    (flask, requests, beautifulsoup4, pdfplumber, numpy,
+     sentence-transformers, networkx)
+  - Retrocompatible con la DB existente (migraciones aditivas solamente)
+  - Funcionar en Windows (rutas con backslash, encoding UTF-8 explícito)
+  - Ollama en localhost:11434 (no asumir GPU, diseñar para CPU)
+
+ENTREGABLES ESPERADOS POR FASE:
+  - Archivos .py listos para copiar (no snippets, archivos completos)
+  - Comandos PowerShell para copiar a las rutas correctas y hacer git push
+  - Ruta de archivos del usuario: C:\Users\Tomanquito\Downloads\cognia\cognia_v2
+
+================================================================================
+FIN DEL ROADMAP
+================================================================================
