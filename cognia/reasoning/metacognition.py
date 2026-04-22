@@ -1,4 +1,4 @@
-"""
+﻿"""
 cognia/reasoning/metacognition.py
 ===================================
 Metacognición: evaluación de confianza, log de decisiones,
@@ -7,7 +7,7 @@ evaluación de predicciones y módulo de curiosidad.
 
 import time
 from datetime import datetime
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH
 
 

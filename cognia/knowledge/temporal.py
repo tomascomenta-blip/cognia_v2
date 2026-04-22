@@ -1,4 +1,4 @@
-"""
+﻿"""
 cognia/knowledge/temporal.py
 ==============================
 Memoria predictiva inspirada en HTM.
@@ -9,7 +9,7 @@ import time
 from collections import deque, defaultdict
 from datetime import datetime
 from typing import Dict
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH
 
 

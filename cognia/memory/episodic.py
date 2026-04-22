@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from typing import Optional
 
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..vectors import cosine_similarity
 from ..config import DB_PATH
 from logger_config import get_logger, log_db_error, log_slow, safe_execute

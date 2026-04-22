@@ -1,4 +1,4 @@
-"""
+﻿"""
 cognia/knowledge/inference.py
 ==============================
 Motor de inferencia simbólica ligero.
@@ -7,7 +7,7 @@ Encadenamiento hacia adelante + herencia de propiedades vía is_a.
 
 from datetime import datetime
 from typing import List, Optional
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH
 from .graph import KnowledgeGraph
 

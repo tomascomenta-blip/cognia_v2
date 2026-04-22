@@ -17,7 +17,8 @@ from .config import (
     NORMAL_CYCLE_MS_ENERGY, VECTOR_DIM,
     ReasoningPlanner, ActiveCuriosityEngine,
 )
-from .database import db_connect, init_db, limpiar_episodios_ruido
+from .database import init_db, limpiar_episodios_ruido
+from storage.db_pool import db_connect_pooled as db_connect
 from .vectors import cosine_similarity
 
 from .memory import (
@@ -66,6 +67,13 @@ try:
 except ImportError:
     HAS_LANGUAGE_CORRECTOR = False
 
+# ── Perfil cognitivo de usuario v2 ────────────────────────────────────
+try:
+    from .user_profile import get_profile_manager, CognitiveProfile
+    HAS_USER_PROFILE_V2 = True
+except ImportError:
+    HAS_USER_PROFILE_V2 = False
+
 
 class Cognia:
     """
@@ -113,6 +121,19 @@ class Cognia:
         # Módulos v3.1
         self.chat_history  = ChatHistory(db_path)
         self.user_profile  = UserProfile(db_path)
+
+        # ── Perfil cognitivo v2 (pesos de atención adaptativos + rollback) ──
+        if HAS_USER_PROFILE_V2:
+            self._profile_manager  = get_profile_manager(db_path)
+            self.cognitive_profile = self._profile_manager.load("default")
+            # Reconstruir AttentionSystem con los pesos del perfil guardado
+            _custom_attention = self.cognitive_profile.build_attention_system()
+            if _custom_attention is not None:
+                self.attention = _custom_attention
+            print(f"✅ CognitiveProfile cargado: {self.cognitive_profile}")
+        else:
+            self._profile_manager  = None
+            self.cognitive_profile = None
 
         self.interaction_count       = 0
         self.consolidation_interval  = 8
@@ -1044,3 +1065,130 @@ class Cognia:
                 lines.append(f"  ↳ {concept} {prop['property']} {prop['value']} "
                               f"(de {prop['inherited_from']}, conf: {prop['confidence']:.0%})")
         return "\n".join(lines)
+
+    # ── Perfil cognitivo v2 — API pública ──────────────────────────────
+
+    def apply_cognitive_feedback(self, feedback: str) -> str:
+        """
+        Ajusta los pesos de atención según el feedback del usuario.
+        Usa el CognitiveProfile si está disponible, no hace nada si no.
+
+        feedback válidos:
+          "más detalle", "más corto", "correcto", "incorrecto",
+          "útil", "no útil", "más técnico", "más simple"
+
+        El cambio es gradual (delta=0.02 por llamada) y reversible con
+        rollback_profile().
+
+        Uso desde cli.py:
+            resultado = cognia.apply_cognitive_feedback("más detalle")
+        """
+        if not HAS_USER_PROFILE_V2 or self.cognitive_profile is None:
+            return "⚠️  Perfil cognitivo v2 no disponible."
+
+        ok = self.cognitive_profile.update_from_feedback(feedback)
+        if not ok:
+            valid = ", ".join(["más detalle", "más corto", "correcto", "incorrecto",
+                               "útil", "no útil", "más técnico", "más simple"])
+            return f"⚠️  Feedback desconocido. Válidos: {valid}"
+
+        # Reconstruir AttentionSystem con los nuevos pesos
+        new_attention = self.cognitive_profile.build_attention_system()
+        if new_attention:
+            self.attention = new_attention
+
+        # Persistir el cambio
+        if self._profile_manager:
+            self._profile_manager.save(self.cognitive_profile)
+
+        w = self.cognitive_profile.attention_weights
+        return (
+            f"✅ Perfil actualizado (feedback='{feedback}'):\n"
+            f"   sem={w.get('semantic',0):.2f}  "
+            f"emo={w.get('emotion',0):.2f}  "
+            f"rec={w.get('recency',0):.2f}  "
+            f"freq={w.get('frequency',0):.2f}\n"
+            f"   (usa 'rollback_profile' para deshacer)"
+        )
+
+    def rollback_profile(self, steps: int = 1) -> str:
+        """
+        Deshace los últimos N cambios de perfil cognitivo (Control Z).
+
+        Uso:
+            cognia.rollback_profile()       # deshacer último cambio
+            cognia.rollback_profile(3)      # deshacer últimos 3 cambios
+        """
+        if not HAS_USER_PROFILE_V2 or self.cognitive_profile is None:
+            return "⚠️  Perfil cognitivo v2 no disponible."
+
+        ok = self.cognitive_profile.rollback(steps=steps)
+        if not ok:
+            return "⚠️  No hay cambios de perfil para deshacer."
+
+        # Reconstruir AttentionSystem con los pesos restaurados
+        new_attention = self.cognitive_profile.build_attention_system()
+        if new_attention:
+            self.attention = new_attention
+
+        if self._profile_manager:
+            self._profile_manager.save(self.cognitive_profile)
+
+        w = self.cognitive_profile.attention_weights
+        return (
+            f"↩️  Perfil restaurado ({steps} paso(s) atrás):\n"
+            f"   sem={w.get('semantic',0):.2f}  "
+            f"emo={w.get('emotion',0):.2f}  "
+            f"rec={w.get('recency',0):.2f}  "
+            f"freq={w.get('frequency',0):.2f}"
+        )
+
+    def show_profile(self) -> str:
+        """Muestra el perfil cognitivo actual y el historial de snapshots."""
+        if not HAS_USER_PROFILE_V2 or self.cognitive_profile is None:
+            return "⚠️  Perfil cognitivo v2 no disponible."
+
+        p = self.cognitive_profile
+        w = p.attention_weights
+        lines = [
+            f"👤 Perfil cognitivo: {p.user_id}",
+            f"   Estilo:     {p.response_style}",
+            f"   Idioma:     {p.preferred_language}",
+            f"   Interacciones: {p.total_interactions}",
+            f"\n   Pesos de atención:",
+            f"   • Semántica:  {w.get('semantic',0):.2f}",
+            f"   • Emoción:    {w.get('emotion',0):.2f}",
+            f"   • Recencia:   {w.get('recency',0):.2f}",
+            f"   • Frecuencia: {w.get('frequency',0):.2f}",
+        ]
+        if p.domain_interests:
+            lines.append(f"\n   Intereses: {', '.join(p.domain_interests)}")
+        if p.feedback_counts:
+            top_fb = sorted(p.feedback_counts.items(), key=lambda x: -x[1])[:3]
+            fb_str = ", ".join(f"'{k}'×{v}" for k, v in top_fb)
+            lines.append(f"   Feedback recibido: {fb_str}")
+        history = p.history()
+        if history:
+            lines.append(f"\n   Historial de cambios ({len(history)} disponibles para rollback):")
+            for h in history[:3]:
+                lines.append(f"   ↩  v{h['version']} [{h['timestamp'][:16]}] {h['label']}")
+        else:
+            lines.append("\n   Sin historial de cambios.")
+        return "\n".join(lines)
+
+    def set_response_style(self, style: str) -> str:
+        """
+        Cambia el estilo de respuesta del perfil.
+        Estilos válidos: 'balanced', 'concise', 'detailed', 'socratic'
+        """
+        if not HAS_USER_PROFILE_V2 or self.cognitive_profile is None:
+            return "⚠️  Perfil cognitivo v2 no disponible."
+
+        ok = self.cognitive_profile.set_style(style)
+        if not ok:
+            return f"⚠️  Estilo inválido. Válidos: balanced, concise, detailed, socratic"
+
+        if self._profile_manager:
+            self._profile_manager.save(self.cognitive_profile)
+
+        return f"✅ Estilo de respuesta cambiado a: '{style}'"

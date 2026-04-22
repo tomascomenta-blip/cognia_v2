@@ -1,4 +1,4 @@
-"""
+﻿"""
 cognia/reasoning/hypothesis.py
 ================================
 Generación de hipótesis creativas entre pares de conceptos.
@@ -8,7 +8,7 @@ Usa Ollama si está disponible, con fallback a plantillas.
 from collections import Counter
 from datetime import datetime
 from typing import Optional
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..vectors import cosine_similarity
 from ..config import DB_PATH
 

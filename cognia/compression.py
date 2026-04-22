@@ -1,4 +1,4 @@
-"""
+﻿"""
 cognia/compression.py
 ======================
 ConceptCompressor: abstracción conceptual via clustering de embeddings.
@@ -8,7 +8,7 @@ GraphEpisodicBridge: integración episodios → knowledge graph (durante sueño)
 import json
 from datetime import datetime
 from typing import List, Tuple
-from .database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from .vectors import cosine_similarity, vec_norm
 from .config import DB_PATH
 from .memory.semantic import SemanticMemory

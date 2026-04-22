@@ -1,4 +1,4 @@
-"""
+﻿"""
 cognia/reasoning/contradiction.py
 ==================================
 Detector y registro de contradicciones cognitivas.
@@ -6,7 +6,7 @@ Detector y registro de contradicciones cognitivas.
 
 from datetime import datetime, timedelta
 from typing import Optional
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..vectors import cosine_similarity
 from ..config import DB_PATH
 

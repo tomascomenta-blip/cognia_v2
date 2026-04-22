@@ -1,4 +1,4 @@
-"""
+﻿"""
 cognia/knowledge/goals.py
 ==========================
 Sistema de objetivos cognitivos internos con prioridad dinámica.
@@ -6,7 +6,7 @@ Sistema de objetivos cognitivos internos con prioridad dinámica.
 
 import json
 from datetime import datetime
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH
 
 

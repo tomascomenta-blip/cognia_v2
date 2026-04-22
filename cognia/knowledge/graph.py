@@ -7,7 +7,7 @@ Almacena en SQLite + capa opcional en memoria con networkx.
 
 from datetime import datetime
 from typing import List, Tuple, Optional
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH, KG_STOPWORDS, HAS_NETWORKX
 
 if HAS_NETWORKX:

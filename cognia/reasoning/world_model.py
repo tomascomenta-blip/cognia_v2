@@ -1,10 +1,10 @@
-"""
+﻿"""
 cognia/reasoning/world_model.py
 ================================
 Modelo del mundo: relaciones entre entidades observadas.
 """
 
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH
 
 
