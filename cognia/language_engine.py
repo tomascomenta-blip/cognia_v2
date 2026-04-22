@@ -1,4 +1,4 @@
-"""
+﻿"""
 language_engine.py — Cognia Language Engine
 ============================================
 Orquestador principal del motor de lenguaje híbrido.
@@ -258,7 +258,7 @@ class LanguageEngine:
                 used_llm        = True,
                 question_type   = "social",
                 tipo_pregunta   = "social",
-                tiene_contexto  = bool(context),
+                tiene_contexto  = bool(pre_built_context),
                 info_suficiente = True,
                 investigated    = investigated,
             )
