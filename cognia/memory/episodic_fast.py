@@ -46,27 +46,46 @@ class VectorCache:
         self._matrix: Optional[np.ndarray] = None  # (N, 384)
         self._meta: list = []        # [{id, observation, label, ...}]
         self._db_count: int = 0      # episodios cuando se construyó el cache
+        self._db_hash: int = 0       # hash XOR de últimos 50 ids+importance+confidence
         self._built_at: float = 0.0
 
-    def _needs_rebuild(self, current_count: int) -> bool:
-        # Reconstruir si hay episodios nuevos o cache vacío
-        return self._matrix is None or current_count != self._db_count
+    def _needs_rebuild(self, current_hash: int) -> bool:
+        """Reconstruir si el hash cambió o el cache está vacío."""
+        return self._matrix is None or current_hash != self._db_hash
 
-    def _get_db_count(self) -> int:
-        # FIX: throttle de COUNT(*) — máximo 1 vez cada 2 segundos
-        # Evita hacer una query SQL en CADA búsqueda semántica
+    def _get_db_hash(self) -> int:
+        """
+        Hash liviano para detectar cambios en importance/confidence.
+
+        Estrategia: XOR de (id ^ timestamp_int) de los últimos 50 episodios
+        activos, ordenados por id DESC.  Coste: ~1 query, sin cargar vectores.
+        Throttle: máximo 1 vez cada 2 segundos (igual que el COUNT anterior).
+        """
         now = time.time()
-        if hasattr(self, '_count_cache_ts') and (now - self._count_cache_ts) < 2.0:
-            return getattr(self, '_count_cache_val', 0)
+        if hasattr(self, '_hash_cache_ts') and (now - self._hash_cache_ts) < 2.0:
+            return getattr(self, '_hash_cache_val', 0)
         try:
             conn = db_connect(self.db_path)
-            n = conn.execute(
-                "SELECT COUNT(*) FROM episodic_memory WHERE forgotten = 0"
-            ).fetchone()[0]
+            rows = conn.execute("""
+                SELECT id, COALESCE(importance, 1.0), COALESCE(confidence, 0.5)
+                FROM episodic_memory
+                WHERE forgotten = 0
+                ORDER BY id DESC
+                LIMIT 50
+            """).fetchall()
             conn.close()
-            self._count_cache_ts = now
-            self._count_cache_val = n
-            return n
+
+            h = 0
+            for ep_id, imp, conf in rows:
+                # Codificar importance y confidence como enteros escalados
+                imp_i  = int(float(imp)  * 1000)
+                conf_i = int(float(conf) * 1000)
+                h ^= (int(ep_id) * 2654435761) ^ (imp_i * 40503) ^ (conf_i * 6971)
+            h &= 0xFFFFFFFF  # mantener 32 bits
+
+            self._hash_cache_ts  = now
+            self._hash_cache_val = h
+            return h
         except Exception:
             return 0
 
@@ -151,6 +170,7 @@ class VectorCache:
         self._matrix = mat / norms  # vectores unitarios
         self._meta = meta
         self._db_count = len(rows)
+        self._db_hash = getattr(self, '_hash_cache_val', 0)
         self._built_at = time.perf_counter()
 
         elapsed = (time.perf_counter() - t0) * 1000
@@ -166,8 +186,8 @@ class VectorCache:
         ~2ms para 7000 vectores vs ~2500ms en Python puro.
         """
         # Verificar si necesita rebuild
-        current_count = self._get_db_count()
-        if self._needs_rebuild(current_count):
+        current_hash = self._get_db_hash()
+        if self._needs_rebuild(current_hash):
             self.build(include_forgotten)
 
         if self._matrix is None or len(self._meta) == 0:
@@ -227,4 +247,5 @@ def get_vector_cache(db_path: str = DB_PATH) -> VectorCache:
 def invalidate_cache(db_path: str = DB_PATH):
     """Llamar después de store() para forzar rebuild en próxima búsqueda."""
     if db_path in _caches:
-        _caches[db_path]._db_count = -1
+        _caches[db_path]._db_hash = -1
+        _caches[db_path]._hash_cache_ts = 0.0  # forzar re-query del hash

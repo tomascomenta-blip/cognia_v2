@@ -597,19 +597,28 @@ class ConsolidationEngine:
 
     def _phase_decay(self, limit: int = MAX_DECAY_PER_CYCLE) -> int:
         """
-        Reduce gradualmente la importancia de episodios que no se han
-        accedido en DECAY_LAST_ACCESS_DAYS días.
+        Reduce gradualmente la importancia de episodios no accedidos.
 
-        Fórmula: new_imp = imp - DECAY_IMPORTANCE_FACTOR * (imp - DECAY_IMPORTANCE_MIN)
+        Decay dinámico (Fase 2):
+          - Base: DECAY_IMPORTANCE_FACTOR
+          - Alta emoción (|emotion_score| > 0.5) → decae más lento:
+                factor_real = factor * (1 - abs(emotion_score) * 0.5)
+          - Sin accesos (access_count == 0) → decae más rápido:
+                factor_real = factor * 1.5
+          - Ambas condiciones se evalúan independientemente y se combinan.
+
+        Fórmula: new_imp = imp - factor_real * (imp - DECAY_IMPORTANCE_MIN)
         Converge a DECAY_IMPORTANCE_MIN sin cruzarlo nunca.
 
-        NO toca feedback_weight — ese es responsabilidad del FeedbackEngine.
+        NO toca feedback_weight — responsabilidad del FeedbackEngine.
         """
         cutoff = _days_ago(DECAY_LAST_ACCESS_DAYS)
         try:
             conn = _db_connect(self.db_path)
             rows = conn.execute("""
-                SELECT id, importance
+                SELECT id, importance,
+                       COALESCE(emotion_score, 0.0),
+                       COALESCE(access_count, 0)
                 FROM episodic_memory
                 WHERE forgotten = 0
                   AND importance > ?
@@ -623,9 +632,22 @@ class ConsolidationEngine:
                 return 0
 
             updates = []
-            for ep_id, imp in rows:
-                imp = float(imp)
-                new_imp = imp - DECAY_IMPORTANCE_FACTOR * (imp - DECAY_IMPORTANCE_MIN)
+            for ep_id, imp, emotion_score, access_count in rows:
+                imp   = float(imp)
+                emo   = float(emotion_score)
+                acc   = int(access_count)
+
+                factor = DECAY_IMPORTANCE_FACTOR
+
+                # Alta emoción → memoria más persistente (decae más lento)
+                if abs(emo) > 0.5:
+                    factor = factor * (1.0 - abs(emo) * 0.5)
+
+                # Sin ningún acceso → decae más rápido
+                if acc == 0:
+                    factor = factor * 1.5
+
+                new_imp = imp - factor * (imp - DECAY_IMPORTANCE_MIN)
                 new_imp = max(DECAY_IMPORTANCE_MIN, round(new_imp, 4))
                 if abs(new_imp - imp) > 0.0001:
                     updates.append((new_imp, ep_id))
@@ -639,9 +661,10 @@ class ConsolidationEngine:
             conn.close()
 
             logger.debug(
-                f"Decay: {len(updates)} episodios con importancia reducida",
+                f"Decay dinámico: {len(updates)} episodios con importancia reducida",
                 extra={"op": "consolidation._phase_decay",
-                       "context": f"cutoff_days={DECAY_LAST_ACCESS_DAYS} factor={DECAY_IMPORTANCE_FACTOR}"},
+                       "context": f"cutoff_days={DECAY_LAST_ACCESS_DAYS} "
+                                  f"base_factor={DECAY_IMPORTANCE_FACTOR}"},
             )
             return len(updates)
 

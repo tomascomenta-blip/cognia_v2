@@ -74,6 +74,13 @@ try:
 except ImportError:
     HAS_USER_PROFILE_V2 = False
 
+# ── Fase 2: NarrativeThread ───────────────────────────────────────────
+try:
+    from .memory.narrative import NarrativeThread
+    HAS_NARRATIVE = True
+except ImportError:
+    HAS_NARRATIVE = False
+
 
 class Cognia:
     """
@@ -1192,3 +1199,72 @@ class Cognia:
             self._profile_manager.save(self.cognitive_profile)
 
         return f"✅ Estilo de respuesta cambiado a: '{style}'"
+
+    def get_narrative(self, observation: str) -> str:
+        """
+        Construye y retorna un hilo narrativo para la observación dada.
+
+        Pasos
+        -----
+        1. Codificar la observación como vector (perception.encode).
+        2. Buscar el episodio más similar en memoria episódica.
+        3. Construir el hilo narrativo alrededor de ese episodio (NarrativeThread).
+        4. Formatear y retornar como string legible.
+
+        Retorna string con los episodios del hilo ordenados cronológicamente,
+        o mensaje de aviso si NarrativeThread no está disponible o no hay memoria.
+        """
+        if not HAS_NARRATIVE:
+            return "⚠️  NarrativeThread no disponible (cognia/memory/narrative.py ausente)."
+
+        # Obtener vector de la observación
+        try:
+            vec = self.perception.encode(observation)
+        except Exception as exc:
+            logger.warning(
+                "get_narrative: error al codificar observación",
+                extra={"op": "cognia.get_narrative", "context": f"err={exc}"},
+            )
+            return "⚠️  No se pudo codificar la observación."
+
+        # Buscar episodio semilla (el más similar)
+        similar = self.episodic.retrieve_similar(vec, top_k=1)
+        if not similar:
+            return "ℹ️  No hay episodios en memoria para construir un hilo narrativo."
+
+        seed_id = similar[0]["id"]
+
+        # Construir hilo narrativo
+        try:
+            thread_builder = NarrativeThread(self.db)
+            episodes = thread_builder.build_thread(seed_id)
+        except Exception as exc:
+            logger.warning(
+                "get_narrative: error al construir hilo",
+                extra={"op": "cognia.get_narrative",
+                       "context": f"seed_id={seed_id} err={exc}"},
+            )
+            return f"⚠️  Error al construir hilo narrativo: {exc}"
+
+        if not episodes:
+            return "ℹ️  No se encontraron episodios relacionados en la ventana temporal."
+
+        # Formatear salida legible
+        lines = [
+            f"📖 Hilo narrativo ({len(episodes)} episodio(s)) — semilla: #{seed_id}",
+            "─" * 55,
+        ]
+        for i, ep in enumerate(episodes, 1):
+            ts    = ep.get("timestamp", "")[:16]  # YYYY-MM-DDTHH:MM
+            label = ep.get("label", "?")
+            obs   = ep.get("observation", "")
+            sim   = ep.get("similarity", 0.0)
+            imp   = ep.get("importance", 1.0)
+            # Recortar observación larga
+            obs_short = obs if len(obs) <= 80 else obs[:77] + "..."
+            lines.append(
+                f"  {i:02d}. [{ts}] ({label}) sim={sim:.2f} imp={imp:.2f}\n"
+                f"       {obs_short}"
+            )
+        lines.append("─" * 55)
+        return "\n".join(lines)
