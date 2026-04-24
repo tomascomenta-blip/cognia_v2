@@ -1,4 +1,4 @@
-"""
+﻿"""
 cognia/cli.py
 ==============
 Interfaz de lÃ­nea de comandos (REPL) para Cognia v3.
@@ -40,6 +40,7 @@ def repl():
     ai = Cognia()
     print(HELP_TEXT)
     print("  [FASE 4] desbloquear <pass> | bloquear | seguridad")
+    print("  [FASE 5] escalar")
 
     while True:
         try:
@@ -155,7 +156,22 @@ def repl():
                 resultado = responder_articulado(ai, raw)
                 if "error" in resultado:
                     print(f"Error: {resultado['error']}")
-                else:
+                # -- Fase 5: Escalado dinamico ----------------------------------------
+        elif raw == "escalar":
+            try:
+                from cognia.scale_manager import get_scale_manager
+                sm = get_scale_manager()
+                st = sm.status()
+                print(f"\n Nivel {st['level']}: {st['name']}")
+                print(f"   Modelo recomendado : {st['model']}")
+                print(f"   Timeout            : {st['timeout_s']}s")
+                print(f"   RAM disponible     : {st['ram_gb']} GB")
+                print(f"   Memorias activas   : {st['memories']}")
+                print(f"   Peers activos      : {st['peers']}")
+                print(f"   Historial niveles  : {st['hit_counts']}\n")
+            except Exception as e:
+                print(f"  ScaleManager no disponible: {e}")
+        else:
                     print(f"\n{resultado['response']}\n")
                     stage = resultado.get('stage', '')
                     if stage:

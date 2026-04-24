@@ -1,4 +1,4 @@
-"""
+﻿"""
 model_router.py — Enrutamiento inteligente de modelos para Cognia
 =================================================================
 Detecta automáticamente el tipo de tarea y asigna el modelo correcto.
@@ -552,3 +552,4 @@ def run_tests():
 
 if __name__ == "__main__":
     run_tests()
+
