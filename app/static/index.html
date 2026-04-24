@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cognia v3</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #messages { scroll-behavior: smooth; }
+    .msg-user  { background: #1e40af; color: #fff; }
+    .msg-cognia{ background: #1e293b; color: #e2e8f0; }
+    .stage-badge { font-size: 0.65rem; opacity: 0.6; margin-top: 4px; }
+    #input:focus { outline: none; }
+    .dot-anim span { animation: blink 1.2s infinite; }
+    .dot-anim span:nth-child(2){ animation-delay:.2s }
+    .dot-anim span:nth-child(3){ animation-delay:.4s }
+    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">C</div>
+      <span class="font-semibold tracking-wide">Cognia <span class="text-blue-400">v3</span></span>
+    </div>
+    <div id="health-indicator" class="flex items-center gap-2 text-xs text-slate-400">
+      <span class="w-2 h-2 rounded-full bg-slate-600" id="health-dot"></span>
+      <span id="health-text">conectando...</span>
+    </div>
+  </header>
+
+  <!-- Messages -->
+  <div id="messages" class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-4 max-w-3xl w-full mx-auto">
+    <div class="msg-cognia rounded-2xl rounded-tl-sm px-4 py-3 max-w-lg self-start text-sm leading-relaxed">
+      Hola. Soy Cognia v3. ¿En qué puedo ayudarte?
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="px-4 pb-6 pt-2 max-w-3xl w-full mx-auto">
+    <div class="flex gap-2 bg-slate-800 rounded-2xl px-4 py-3 border border-slate-700">
+      <input
+        id="input"
+        type="text"
+        placeholder="Escribe algo..."
+        class="flex-1 bg-transparent text-sm placeholder-slate-500 focus:outline-none"
+        autocomplete="off"
+      />
+      <button
+        id="send-btn"
+        onclick="sendMessage()"
+        class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 rounded-xl transition-colors"
+      >
+        Enviar
+      </button>
+    </div>
+    <p class="text-center text-slate-600 text-xs mt-2">Presiona Enter para enviar</p>
+  </div>
+
+  <script>
+    const API = '';  // mismo origen
+
+    // Health check
+    async function checkHealth() {
+      try {
+        const r = await fetch(`${API}/api/health`);
+        const d = await r.json();
+        document.getElementById('health-dot').className = 'w-2 h-2 rounded-full ' + (d.status === 'ok' ? 'bg-green-500' : 'bg-red-500');
+        document.getElementById('health-text').textContent = d.status === 'ok' ? 'conectado' : 'error';
+      } catch {
+        document.getElementById('health-dot').className = 'w-2 h-2 rounded-full bg-red-500';
+        document.getElementById('health-text').textContent = 'sin conexión';
+      }
+    }
+    checkHealth();
+
+    // Send message
+    document.getElementById('input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    function appendMsg(text, role, stage) {
+      const wrap = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = `rounded-2xl px-4 py-3 max-w-lg text-sm leading-relaxed ${
+        role === 'user'
+          ? 'msg-user self-end rounded-tr-sm'
+          : 'msg-cognia self-start rounded-tl-sm'
+      }`;
+      div.textContent = text;
+      if (stage) {
+        const badge = document.createElement('div');
+        badge.className = 'stage-badge';
+        badge.textContent = `[${stage}]`;
+        div.appendChild(badge);
+      }
+      wrap.appendChild(div);
+      wrap.scrollTop = wrap.scrollHeight;
+      return div;
+    }
+
+    function appendLoading() {
+      const wrap = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = 'msg-cognia rounded-2xl rounded-tl-sm px-4 py-3 max-w-lg self-start text-sm dot-anim';
+      div.innerHTML = '<span>●</span><span>●</span><span>●</span>';
+      wrap.appendChild(div);
+      wrap.scrollTop = wrap.scrollHeight;
+      return div;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      input.disabled = true;
+      document.getElementById('send-btn').disabled = true;
+
+      appendMsg(text, 'user');
+      const loading = appendLoading();
+
+      try {
+        const r = await fetch(`${API}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: text })
+        });
+        const d = await r.json();
+        loading.remove();
+        if (d.error) {
+          appendMsg('Error: ' + d.error, 'cognia');
+        } else {
+          appendMsg(d.response || '(sin respuesta)', 'cognia', d.stage);
+        }
+      } catch (e) {
+        loading.remove();
+        appendMsg('Error de conexión con el servidor.', 'cognia');
+      }
+
+      input.disabled = false;
+      document.getElementById('send-btn').disabled = false;
+      input.focus();
+    }
+  </script>
+</body>
+</html>
