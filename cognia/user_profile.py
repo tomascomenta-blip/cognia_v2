@@ -248,6 +248,35 @@ class CognitiveProfile:
             self.domain_interests.append(domain)
             self.updated_at = datetime.now().isoformat()
 
+    def evolve(self, interaction_data: dict) -> bool:
+        changed = False
+        delta = 0.01
+        if interaction_data.get('was_followed_up'):
+            w = self.attention_weights
+            w['recency']  = min(0.75, w['recency']  + delta)
+            w['semantic'] = min(0.75, w['semantic'] + delta)
+            self._normalize_weights()
+            changed = True
+        if interaction_data.get('had_correction'):
+            w = self.attention_weights
+            w['semantic']  = min(0.75, w['semantic']  + delta)
+            w['frequency'] = max(0.05, w['frequency'] - delta)
+            self._normalize_weights()
+            changed = True
+        domain = interaction_data.get('topic_domain', '')
+        if domain and domain not in self.domain_interests:
+            self.domain_interests.append(domain.strip().lower())
+            changed = True
+        if changed:
+            self.total_interactions += 1
+            self.updated_at = __import__('datetime').datetime.now().isoformat()
+        return changed
+
+    def _normalize_weights(self) -> None:
+        total = sum(self.attention_weights.values())
+        if total > 0:
+            self.attention_weights = {k: round(v / total, 4) for k, v in self.attention_weights.items()}
+
     # ─────────────────────────────────────────────────────────────────
     # INTEGRACIÓN CON AttentionSystem
     # ─────────────────────────────────────────────────────────────────
