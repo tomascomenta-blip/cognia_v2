@@ -94,6 +94,15 @@ try:
 except ImportError:
     HAS_MESH = False
 
+# ── Fase 4: Seguridad y cifrado ───────────────────────────────────────
+try:
+    from security.key_manager import get_key_manager, KeyManager, SecurityError
+    from security.secure_storage import SecureEpisodicMemory, get_secure_memory
+    HAS_SECURITY = True
+except ImportError:
+    HAS_SECURITY = False
+    SecurityError = Exception
+
 
 class Cognia:
     """
@@ -251,6 +260,20 @@ class Cognia:
                 self.architect = None
         else:
             self.architect = None
+
+
+        # ── Fase 4: Seguridad y cifrado ────────────────────────────────
+        self._key_manager      = None
+        self._secure_episodic  = None
+        if HAS_SECURITY:
+            try:
+                self._key_manager = get_key_manager()
+                print("✅ KeyManager Fase 4 activo (bloqueado — usa: desbloquear <passphrase>)")
+            except Exception as _sec_exc:
+                logger.warning(
+                    "KeyManager no pudo inicializarse",
+                    extra={"op": "cognia.__init__", "context": f"err={_sec_exc}"},
+                )
 
         print("✅ COGNIA v3.2 lista. [KG + Inferencia + Objetivos + Predicción Temporal + Historial]\n")
 
@@ -1387,4 +1410,123 @@ class Cognia:
             lines.append("   • Por nodo:")
             for nid, count in list(stats["by_node"].items())[:3]:
                 lines.append(f"     - {nid}: {count}")
+        return "\n".join(lines)
+
+    # ──────────────────────────────────────────────────────────────────
+    # Fase 4 — SEGURIDAD Y CIFRADO
+    # ──────────────────────────────────────────────────────────────────
+
+    def unlock_security(self, passphrase: str) -> str:
+        """
+        Desbloquea el cifrado de memoria episódica con la passphrase dada.
+
+        Si es la primera vez, genera un salt nuevo y lo guarda en cognia_key.salt.
+        En sesiones posteriores, carga el salt existente para reproducir la clave.
+
+        Una vez desbloqueado:
+          - Nuevas observaciones se cifran automáticamente antes de escribir a la DB.
+          - Las lecturas descifran en RAM — el texto plano nunca vuelve a disco.
+          - El comando 'seguridad' muestra el estado de cobertura de cifrado.
+
+        La clave NUNCA se persiste. Al reiniciar Cognia hay que volver a desbloquear.
+
+        Uso en CLI: desbloquear <passphrase>
+        """
+        if not HAS_SECURITY:
+            return "⚠️  Módulo security no disponible (security/key_manager.py ausente)."
+
+        if self._key_manager is None:
+            return "⚠️  KeyManager no inicializado."
+
+        try:
+            self._key_manager.unlock(passphrase)
+            # Reemplazar la instancia de EpisodicMemory por la versión cifrada
+            self._secure_episodic = get_secure_memory(
+                db_path=self.db,
+                key_manager=self._key_manager,
+            )
+            self.episodic = self._secure_episodic
+            mode = self._key_manager.mode
+            return (
+                f"🔓 Cifrado activado (modo: {mode}).\n"
+                f"   Nuevas observaciones se cifrarán automáticamente.\n"
+                f"   Usa 'seguridad' para ver cobertura de cifrado.\n"
+                f"   Usa 'bloquear' para eliminar la clave de RAM."
+            )
+        except SecurityError as exc:
+            return f"❌ Error al desbloquear: {exc}"
+
+    def lock_security(self) -> str:
+        """
+        Bloquea el cifrado: elimina la clave maestra de RAM.
+
+        Después de bloquear, las nuevas observaciones se guardan en texto plano
+        (con aviso) hasta que se vuelva a desbloquear con unlock_security().
+
+        Las observaciones ya cifradas en la DB permanecen cifradas e inaccesibles
+        hasta el próximo unlock.
+
+        Uso en CLI: bloquear
+        """
+        if not HAS_SECURITY or self._key_manager is None:
+            return "⚠️  Módulo security no disponible."
+
+        if not self._key_manager.is_unlocked:
+            return "ℹ️  El cifrado ya está bloqueado."
+
+        self._key_manager.lock()
+        # Restaurar EpisodicMemory sin cifrado
+        from cognia.memory.episodic import EpisodicMemory as _EpisodicMemory
+        self.episodic = _EpisodicMemory(self.db)
+        self._secure_episodic = None
+        return (
+            "🔒 Cifrado bloqueado. Clave eliminada de RAM.\n"
+            "   Usa 'desbloquear <passphrase>' para reactivar."
+        )
+
+    def security_status(self) -> str:
+        """
+        Muestra el estado actual del cifrado de memoria episódica.
+
+        Uso en CLI: seguridad
+        """
+        if not HAS_SECURITY:
+            return "⚠️  Módulo security (Fase 4) no disponible."
+
+        km = self._key_manager
+        if km is None:
+            return "⚠️  KeyManager no inicializado."
+
+        lines = [
+            "🔐 Estado de cifrado — Fase 4",
+            f"   KeyManager:  {'🔓 Desbloqueado' if km.is_unlocked else '🔒 Bloqueado'}",
+            f"   Modo:        {km.mode}",
+        ]
+
+        if self._secure_episodic is not None:
+            try:
+                st = self._secure_episodic.status()
+                lines += [
+                    f"\n   Cobertura de cifrado:",
+                    f"   • Episodios totales:  {st['total_episodes']}",
+                    f"   • Cifrados:           {st['encrypted']}",
+                    f"   • En texto plano:     {st['plaintext']}",
+                    f"   • Cobertura:          {st['coverage_pct']}%",
+                ]
+                if st['plaintext'] > 0:
+                    lines.append(
+                        f"\n   ⚠️  {st['plaintext']} episodios aún en texto plano "
+                        f"(legacy). Se cifrarán progresivamente al accederse."
+                    )
+            except Exception as exc:
+                lines.append(f"   (Error al leer estadísticas: {exc})")
+        else:
+            lines.append("\n   Cifrado inactivo — usa 'desbloquear <passphrase>'")
+
+        lines += [
+            "\n   Capas de privacidad activas:",
+            "   • Capa 1 (episódico):    LOCAL — nunca sale del dispositivo",
+            "   • Capa 2 (semi-privado): resúmenes cifrados para peers",
+            "   • Capa 3 (público):      triples KG anonimizados (privacidad ε=1.0)",
+        ]
         return "\n".join(lines)

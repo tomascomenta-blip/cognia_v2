@@ -39,6 +39,7 @@ HELP_TEXT = """
 def repl():
     ai = Cognia()
     print(HELP_TEXT)
+    print("  [FASE 4] desbloquear <pass> | bloquear | seguridad")
 
     while True:
         try:
@@ -137,6 +138,17 @@ def repl():
             print(ai.publish_knowledge(triple))
         elif raw == "mesh_estado":
             print(ai.mesh_status())
+        # ── Fase 4: Seguridad ─────────────────────────────────────────
+        elif raw == "seguridad":
+            print(ai.security_status())
+        elif raw == "bloquear":
+            print(ai.lock_security())
+        elif raw.startswith("desbloquear "):
+            passphrase = raw[len("desbloquear "):].strip()
+            if passphrase:
+                print(ai.unlock_security(passphrase))
+            else:
+                print("⚠️  Uso: desbloquear <passphrase>")
         else:
             try:
                 from respuestas_articuladas import responder_articulado
