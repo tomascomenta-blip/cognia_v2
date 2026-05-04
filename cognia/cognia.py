@@ -732,6 +732,7 @@ class Cognia:
 
         # Hipótesis espontánea
         hipotesis_n = 0
+        pattern_info = ""
         try:
             buenos = [c for c in self.semantic.list_all()
                       if c["confidence"] >= 0.55 and c["support"] >= 2]
@@ -747,8 +748,8 @@ class Cognia:
                                                      kg=self.kg, usar_ollama=True)
                             hipotesis_n += 1
                             break
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.warning("sleep: hipótesis espontánea falló: %s", _e)
 
         # Limpieza de ruido
         try:

@@ -9,6 +9,8 @@ from datetime import datetime
 from typing import List, Tuple, Optional
 from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH, KG_STOPWORDS, HAS_NETWORKX
+from logger_config import get_logger as _get_kg_logger
+_kg_logger = _get_kg_logger(__name__)
 
 if HAS_NETWORKX:
     import networkx as nx
@@ -52,6 +54,10 @@ class KnowledgeGraph:
         """Agrega o refuerza una relación. Retorna True si fue nueva."""
         predicate = predicate.lower().strip()
         if predicate not in self.VALID_RELATIONS:
+            _kg_logger.debug(
+                "add_triple: predicado '%s' no reconocido → 'related_to' (%s→%s)",
+                predicate, subject, obj,
+            )
             predicate = "related_to"
         subject = subject.lower().strip()
         obj = obj.lower().strip()

@@ -403,15 +403,90 @@ class SymbolicResponder:
 
     # ── Helpers privados ─────────────────────────────────────────────
 
+    # Palabras de parada que no son conceptos
+    _STOP_WORDS = {
+        'que', 'cual', 'cuales', 'como', 'para', 'cuando', 'donde', 'quien',
+        'quienes', 'son', 'una', 'uno', 'las', 'los', 'del', 'entre', 'con',
+        'por', 'mas', 'hay', 'tipo', 'tipos', 'diferencia', 'funciona', 'fue',
+        'es', 'de', 'en', 'el', 'la', 'un', 'por', 'que', 'me', 'se', 'te',
+        'le', 'nos', 'si', 'no', 'ya', 'su', 'sus', 'mi', 'mis', 'tu', 'tus',
+        'al', 'lo', 'les', 'sobre', 'hasta', 'desde', 'pero', 'sino', 'porque',
+        'aunque', 'también', 'tambien', 'solo', 'sólo', 'esta', 'este', 'estos',
+        'estas', 'define', 'definicion', 'significa', 'concepto', 'what', 'how',
+        'the', 'and', 'or', 'of', 'is', 'are', 'was', 'were', 'can', 'could',
+        'would', 'should', 'will', 'have', 'has', 'had', 'do', 'does', 'did',
+        'mean', 'difference', 'explain', 'tell',
+    }
+
     def _extract_main_concept(self, ai, question: str) -> Optional[str]:
-        """Usa el pipeline cognitivo existente para extraer el concepto principal."""
+        """
+        Extrae el concepto principal de la pregunta.
+
+        Estrategia:
+          1. Coincidencia directa de palabras de la pregunta contra semantic_memory
+             (más preciso — ancla al concepto real que se pregunta)
+          2. Coincidencia por prefijo en semantic_memory (palabras >= 4 chars)
+          3. Fallback: similitud semántica contra episodic_memory (comportamiento original)
+        """
+        words = [w for w in re.findall(r'\b\w{3,}\b', question.lower())
+                 if w not in self._STOP_WORDS]
+
+        # ── Paso 1: coincidencia exacta en semantic_memory ────────────
+        try:
+            import sqlite3
+            conn = sqlite3.connect(ai.db)
+            conn.text_factory = str
+            # Ordenar por soporte descendente para preferir conceptos bien aprendidos
+            all_concepts = conn.execute(
+                "SELECT concept, support FROM semantic_memory "
+                "WHERE confidence > 0.05 ORDER BY support DESC"
+            ).fetchall()
+            conn.close()
+
+            concept_set = {row[0]: row[1] for row in all_concepts}
+
+            # Primero: coincidencia exacta palabra == concepto
+            best_word, best_support = None, -1
+            for word in words:
+                if word in concept_set and concept_set[word] > best_support:
+                    best_word    = word
+                    best_support = concept_set[word]
+            if best_word:
+                return best_word
+
+            # Segundo: la pregunta contiene el concepto como subcadena
+            # (ej: "programacion_orientada_a_objetos" vs "objetos")
+            for concept, support in sorted(concept_set.items(),
+                                           key=lambda x: x[1], reverse=True):
+                concept_clean = concept.replace("_", " ")
+                if concept_clean in question.lower() and support > best_support:
+                    best_word    = concept
+                    best_support = support
+            if best_word:
+                return best_word
+
+            # Tercero: alguna palabra de la pregunta es prefijo de un concepto
+            # (ej: "python" para concepto "python_programming")
+            for word in words:
+                if len(word) < 4:
+                    continue
+                for concept, support in concept_set.items():
+                    if concept.startswith(word) and support > best_support:
+                        best_word    = concept
+                        best_support = support
+            if best_word:
+                return best_word
+
+        except Exception:
+            pass
+
+        # ── Paso 2: fallback a similitud semántica (comportamiento original) ──
         try:
             from cognia.vectors import text_to_vector
-            vec = text_to_vector(question)
+            vec       = text_to_vector(question)
             similares = ai.episodic.retrieve_similar(vec, top_k=5)
             assessment = ai.metacog.assess_confidence(similares)
-            label = assessment.get("top_label")
-            return label
+            return assessment.get("top_label")
         except Exception:
             return None
 

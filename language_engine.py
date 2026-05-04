@@ -163,9 +163,24 @@ class LanguageEngine:
         self._stats = {
             "total": 0, "cache_hits": 0, "symbolic_only": 0,
             "hybrid": 0, "full_llm": 0, "fallbacks": 0,
+            "swarm": 0,
         }
         # PASO 4: gate de decision de tres zonas
         self.gate = get_decision_gate()
+
+        # Swarm distribuido (se activa si COORDINATOR_URL está configurado)
+        self._swarm = None
+        _coordinator = os.environ.get("COORDINATOR_URL", "")
+        if _coordinator:
+            try:
+                from node.inference_pipeline import get_pipeline
+                self._swarm = get_pipeline(_coordinator)
+                _swarm_ready = self._swarm.is_available()
+                print(f"[LanguageEngine] Swarm {'LISTO' if _swarm_ready else 'no disponible aún'} "
+                      f"({_coordinator})")
+            except ImportError:
+                pass
+
         print("[LanguageEngine] Motor híbrido inicializado.")
 
     # ── API principal ──────────────────────────────────────────────────
@@ -258,7 +273,7 @@ class LanguageEngine:
                 used_llm        = True,
                 question_type   = "social",
                 tipo_pregunta   = "social",
-                tiene_contexto  = bool(context),
+                tiene_contexto  = bool(pre_built_context),
                 info_suficiente = True,
                 investigated    = investigated,
             )
@@ -575,10 +590,57 @@ class LanguageEngine:
             tipo_pregunta  = q_type,
         )
 
-    # ── Llamada a Ollama ───────────────────────────────────────────────
+    # ── Llamada al LLM (Swarm → Ollama → error) ───────────────────────
 
     def _call_ollama(self, prompt: str, question_type: str,
                      original_question: str) -> Dict:
+        # Nivel 1: swarm distribuido (si está configurado y disponible)
+        swarm_result = self._call_swarm(prompt, question_type)
+        if swarm_result["ok"]:
+            return swarm_result
+
+        # Nivel 2: Ollama local
+        return self._call_ollama_direct(prompt, question_type, original_question)
+
+    def _call_swarm(self, prompt: str, question_type: str) -> Dict:
+        """Intenta generar con el swarm distribuido."""
+        if not self._swarm:
+            return {"ok": False, "error": "swarm no configurado"}
+        try:
+            if not self._swarm.is_available():
+                return {"ok": False, "error": "swarm no disponible"}
+
+            num_predict = min(int(os.environ.get("SWARM_MAX_TOKENS", "300")), 400)
+            result = self._swarm.generate(prompt, max_tokens=num_predict)
+
+            if result.get("ok") and result.get("text"):
+                self._stats["swarm"] += 1
+                _le_logger.info(
+                    f"swarm ok tokens={result['tokens_generated']} "
+                    f"latency={result['latency_ms']:.0f}ms "
+                    f"nodes={result['nodes_used']} mode={result['mode']}",
+                    extra={"op": "language_engine._call_swarm",
+                           "context": f"q_type={question_type}"},
+                )
+                try:
+                    from language_corrector import LanguageCorrector
+                    text, _ = LanguageCorrector().clean_response(result["text"])
+                except ImportError:
+                    text = result["text"]
+                return {"ok": True, "text": text,
+                        "tokens": result["tokens_generated"],
+                        "source": "swarm"}
+
+            return {"ok": False, "error": result.get("error", "swarm sin texto")}
+
+        except Exception as e:
+            _le_logger.warning(f"swarm falló: {e}",
+                               extra={"op": "language_engine._call_swarm",
+                                      "context": str(e)})
+            return {"ok": False, "error": str(e)}
+
+    def _call_ollama_direct(self, prompt: str, question_type: str,
+                            original_question: str) -> Dict:
         """Llama a Ollama con el prompt optimizado."""
         try:
             from cognia.prompt_optimizer import TOKEN_LIMITS
