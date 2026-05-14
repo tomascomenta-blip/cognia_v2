@@ -347,25 +347,29 @@ def _download_shard_from_coordinator(coord_url: str, config: dict) -> None:
             return
 
         try:
-            # Try the built-in downloader
             _root = Path(__file__).parent.parent
             if str(_root) not in sys.path:
                 sys.path.insert(0, str(_root))
-            from node.downloader import ShardDownloader
+            from node.downloader import download_npz_shard
 
-            hf_token = _ask("HuggingFace token para descarga (Enter para omitir)", default="")
-            dl = ShardDownloader(shard, MODEL_KEY, hf_token)
+            hf_token = _ask("HuggingFace token (Enter para omitir)", default="")
 
             def _progress(pct: float, msg: str):
                 bar = "#" * int(pct * 30) + "-" * (30 - int(pct * 30))
                 print(f"\r  [{bar}] {pct:5.1%} {msg[:40]}", end="", flush=True)
 
-            print(f"\n  Descargando shard {shard}...")
-            result_dl = dl.download(on_progress=_progress)
+            npz_dest = shard_dir / f"shard_{shard}.npz"
+            print(f"\n  Descargando shard {shard} (~300MB)...")
+            result_dl = download_npz_shard(
+                shard_index=shard,
+                dest_path=str(npz_dest),
+                hf_token=hf_token,
+                on_progress=_progress,
+            )
             print()
 
             if result_dl.ok:
-                print(f"  Shard {shard} descargado ({result_dl.size_mb:.0f}MB)")
+                print(f"  Shard {shard} listo ({result_dl.size_mb:.0f}MB)")
                 config["SHARD_WEIGHTS_DIR"] = str(shard_dir)
                 config["COGNIA_NODE_SHARD"] = str(shard)
             else:

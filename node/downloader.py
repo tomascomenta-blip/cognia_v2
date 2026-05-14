@@ -535,3 +535,111 @@ class ShardDownloader:
             "downloaded":  self.is_downloaded(),
             **meta,
         }
+
+
+# ══════════════════════════════════════════════════════════════════════
+# DESCARGA DIRECTA DE SHARDS PRE-CONVERTIDOS (.npz)
+# ══════════════════════════════════════════════════════════════════════
+
+def download_npz_shard(
+    shard_index: int,
+    dest_path: str,
+    base_url: str = "",
+    hf_token: str = "",
+    on_progress: ProgressFn = _noop_progress,
+) -> DownloadResult:
+    """
+    Descarga un shard .npz ya convertido desde un dataset de HuggingFace.
+
+    Mucho más rápido que ShardDownloader porque evita descargar el modelo
+    completo en safetensors y convertirlo localmente.
+
+    Args:
+        shard_index: 0..3
+        dest_path:   ruta local donde guardar el archivo (p.ej. ~/.cognia/shards/.../shard_0.npz)
+        base_url:    URL base del dataset HF (sin nombre de archivo)
+        hf_token:    token HF opcional para repos privados
+        on_progress: callback(pct: float, msg: str)
+    """
+    from shattering.model_constants import HF_SHARDS_BASE_URL
+
+    base = (base_url or HF_SHARDS_BASE_URL).rstrip("/")
+    url  = f"{base}/shard_{shard_index}.npz"
+
+    dest   = Path(dest_path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    if dest.exists():
+        size_mb = dest.stat().st_size / 1e6
+        on_progress(1.0, f"shard_{shard_index}.npz ya existe ({size_mb:.0f} MB)")
+        return DownloadResult(ok=True, shard_path=str(dest),
+                              size_mb=size_mb, mode="cached")
+
+    tmp = Path(str(dest) + ".tmp")
+    headers: dict = {}
+    if hf_token:
+        headers["Authorization"] = f"Bearer {hf_token}"
+
+    partial = tmp.stat().st_size if tmp.exists() else 0
+    if partial > 0:
+        headers["Range"] = f"bytes={partial}-"
+        on_progress(0.0, f"Resumiendo descarga desde {partial / 1e6:.1f} MB")
+
+    t0 = time.perf_counter()
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=60) as r:
+            status      = getattr(r, "status", 200)
+            content_len = int(r.headers.get("Content-Length", 0))
+
+            if partial > 0 and status == 200:
+                partial   = 0
+                open_mode = "wb"
+            else:
+                open_mode = "ab" if partial > 0 else "wb"
+
+            total      = partial + content_len if content_len > 0 else 0
+            downloaded = partial
+
+            with open(tmp, open_mode) as f:
+                while True:
+                    chunk = r.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total > 0:
+                        on_progress(
+                            downloaded / total,
+                            f"shard_{shard_index}.npz: "
+                            f"{downloaded/1e6:.0f} / {total/1e6:.0f} MB",
+                        )
+
+        shutil.move(str(tmp), str(dest))
+
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            return DownloadResult(
+                ok=False,
+                error=f"Acceso denegado (HTTP {exc.code}). "
+                      "Pasa un HF_TOKEN si el dataset es privado.",
+            )
+        if exc.code == 404:
+            return DownloadResult(
+                ok=False,
+                error=f"shard_{shard_index}.npz no encontrado en {url}. "
+                      "Verifica que el dataset HF este publicado.",
+            )
+        return DownloadResult(ok=False, error=f"HTTP {exc.code}: {exc}")
+    except Exception as exc:
+        return DownloadResult(ok=False, error=str(exc))
+
+    size_mb = dest.stat().st_size / 1e6
+    on_progress(1.0, f"shard_{shard_index}.npz listo ({size_mb:.0f} MB)")
+    return DownloadResult(
+        ok=True,
+        shard_path=str(dest),
+        size_mb=size_mb,
+        duration_s=time.perf_counter() - t0,
+        mode="prebuilt_npz",
+    )
