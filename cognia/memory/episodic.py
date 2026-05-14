@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 # ── Cache vectorial numpy (10x-100x más rápido) ────────────────────────
 try:
-    from .episodic_fast import get_vector_cache, invalidate_cache
+    from .episodic_fast import get_vector_cache, invalidate_cache  # noqa: F401
     _USE_FAST_SEARCH = True
     logger.info("VectorCache numpy activo — búsqueda rápida habilitada",
                 extra={"op": "episodic.init", "context": "fast=True"})
@@ -64,7 +64,7 @@ class EpisodicMemory:
             conn.close()
             # Invalidar cache para que la próxima búsqueda incluya este episodio
             if _USE_FAST_SEARCH:
-                invalidate_cache(self.db)
+                get_vector_cache(self.db).mark_dirty()
             logger.debug(
                 "Episodio almacenado",
                 extra={"op": "episodic.store", "context": f"ep_id={ep_id} label={label}"},
@@ -110,15 +110,17 @@ class EpisodicMemory:
             conn = db_connect(self.db)
             c = conn.cursor()
             cond = "" if include_forgotten else "WHERE forgotten = 0"
+            params: list = []
             if emotion_filter:
                 sep = "AND" if cond else "WHERE"
-                cond += f" {sep} emotion_label = '{emotion_filter}'"
+                cond += f" {sep} emotion_label = ?"
+                params.append(emotion_filter)
             c.execute(f"""
                 SELECT id, observation, label, vector, confidence, importance,
                        emotion_score, emotion_label, surprise,
                        COALESCE(feedback_weight, 1.0) AS feedback_weight
                 FROM episodic_memory {cond}
-            """)
+            """, params)
             rows = c.fetchall()
             conn.close()
         except Exception as exc:

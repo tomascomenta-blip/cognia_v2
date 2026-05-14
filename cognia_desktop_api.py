@@ -1,0 +1,194 @@
+"""
+cognia_desktop_api.py
+=====================
+Local FastAPI bridge for the Cognia Desktop Electron app.
+
+Runs on http://localhost:8765 as a child process spawned by Electron.
+The renderer fetches from this server; Electron never calls Python directly.
+
+Start manually for dev:
+    uvicorn cognia_desktop_api:app --port 8765 --reload
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import sys
+from pathlib import Path
+
+# Ensure repo root is on sys.path (this file lives in the repo root)
+_ROOT = Path(__file__).parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
+
+from shattering.orchestrator import ShatteringOrchestrator
+
+# In packaged Electron builds, suppress uvicorn's default exception handler
+# so crash details are not exposed to the renderer process.
+_PACKAGED = os.environ.get("COGNIA_PACKAGED", "0") == "1"
+
+if _PACKAGED:
+    import logging as _logging
+    _logging.getLogger().setLevel(_logging.WARNING)
+
+_MANIFEST = str(_ROOT / "shattering" / "manifests" / "cognia_desktop.json")
+_COORDINATOR = os.environ.get("COGNIA_COORDINATOR_URL")
+
+app = FastAPI(title="Cognia Desktop API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    # Covers Electron renderer (file:// or app://) and local dev curl/Postman
+    allow_origins=["http://localhost:8765", "app://.", "file://"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Single orchestrator instance shared across requests
+_orch = ShatteringOrchestrator(
+    manifest_path=_MANIFEST,
+    coordinator_url=_COORDINATOR,
+    mode="auto",
+)
+
+
+# ── Pydantic models ────────────────────────────────────────────────────
+
+class InferRequest(BaseModel):
+    prompt: str
+
+
+class InferResponse(BaseModel):
+    text:         str
+    sub_model:    str
+    confidence:   float
+    latency_ms:   float
+    mode:         str
+    route_reason: str
+
+
+class RouteResponse(BaseModel):
+    sub_model:  str
+    confidence: float
+    scores:     dict
+    reason:     str
+
+
+# ── Endpoints ──────────────────────────────────────────────────────────
+
+@app.post("/infer", response_model=InferResponse)
+async def infer(req: InferRequest):
+    """Route the prompt to the best sub-model and return its response."""
+    if not req.prompt.strip():
+        raise HTTPException(status_code=400, detail="prompt cannot be empty")
+    result = await _orch.ainfer(req.prompt)
+    return InferResponse(
+        text         = result.text,
+        sub_model    = result.sub_model,
+        confidence   = result.confidence,
+        latency_ms   = result.latency_ms,
+        mode         = result.mode,
+        route_reason = result.route_reason,
+    )
+
+
+@app.get("/route", response_model=RouteResponse)
+def route(prompt: str = Query(..., description="Prompt to route")):
+    """Return routing decision without running inference."""
+    if not prompt.strip():
+        raise HTTPException(status_code=400, detail="prompt cannot be empty")
+    d = _orch.route_only(prompt)
+    return RouteResponse(
+        sub_model  = d.sub_model,
+        confidence = d.confidence,
+        scores     = d.scores,
+        reason     = d.reason,
+    )
+
+
+@app.get("/status")
+def status():
+    """Return orchestrator + fragment status."""
+    return _orch.status()
+
+
+@app.get("/infer-stream")
+async def infer_stream(prompt: str = Query(..., description="Prompt to infer")):
+    """
+    SSE streaming inference endpoint.
+    Yields: {"token": "...", "done": false}  per word,
+    then:   {"done": true, "sub_model": ..., "latency_ms": ..., "mode": ...}
+    """
+    if not prompt.strip():
+        raise HTTPException(status_code=400, detail="prompt cannot be empty")
+
+    async def generator():
+        result = await _orch.ainfer(prompt)
+        words = result.text.split()
+        for i, word in enumerate(words):
+            token = word + (" " if i < len(words) - 1 else "")
+            yield {"data": json.dumps({"token": token, "done": False})}
+            await asyncio.sleep(0.02)
+        yield {
+            "data": json.dumps({
+                "done":       True,
+                "sub_model":  result.sub_model,
+                "confidence": result.confidence,
+                "latency_ms": result.latency_ms,
+                "mode":       result.mode,
+            })
+        }
+
+    return EventSourceResponse(generator())
+
+
+@app.get("/ready")
+async def ready():
+    """Readiness probe: checks Ollama and model availability."""
+    import urllib.request as _ur
+    import json as _j
+    ollama_ok = False
+    model_ok  = False
+    ollama_base = _orch._ollama_url.replace("/api/generate", "")
+    try:
+        with _ur.urlopen(f"{ollama_base}/api/tags", timeout=3) as r:
+            data = _j.loads(r.read())
+        model_name = _orch._ollama_model
+        model_ok = any(
+            m.get("name", "").split(":")[0] == model_name.split(":")[0]
+            for m in data.get("models", [])
+        )
+        ollama_ok = True
+    except Exception:
+        pass
+    return {
+        "status":     "ready" if ollama_ok and model_ok else "setup_required",
+        "ollama":     "running" if ollama_ok else "missing",
+        "model":      "available" if model_ok else "not_pulled",
+        "model_name": _orch._ollama_model,
+    }
+
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+
+@app.get("/")
+def root():
+    return {"service": "Cognia Desktop API", "version": "1.0.0"}
+
+
+# ── Dev entry point ────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("COGNIA_DESKTOP_PORT", 8765))
+    uvicorn.run("cognia_desktop_api:app", host="127.0.0.1", port=port, reload=False)

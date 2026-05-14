@@ -21,6 +21,7 @@ USO:
 """
 
 import json
+import threading
 import time
 import numpy as np
 from datetime import datetime
@@ -31,6 +32,8 @@ from ..config import DB_PATH
 from logger_config import get_logger, log_db_error, log_slow
 
 logger = get_logger(__name__)
+
+DEBOUNCE_S = 3.0   # minimum seconds between cache rebuilds triggered by mark_dirty()
 
 
 class VectorCache:
@@ -48,6 +51,10 @@ class VectorCache:
         self._db_count: int = 0      # episodios cuando se construyó el cache
         self._db_hash: int = 0       # hash XOR de últimos 50 ids+importance+confidence
         self._built_at: float = 0.0
+        self._dirty: bool = False    # True after mark_dirty(); cleared after rebuild
+        self._dirty_since: float = 0.0
+        self._faiss_index = None     # IndexFlatIP built by _build_locked() if faiss-cpu installed
+        self._lock = threading.RLock()
 
     def _needs_rebuild(self, current_hash: int) -> bool:
         """Reconstruir si el hash cambió o el cache está vacío."""
@@ -89,8 +96,24 @@ class VectorCache:
         except Exception:
             return 0
 
+    def mark_dirty(self):
+        """
+        Signal that the DB has new data.  Rebuild is deferred until DEBOUNCE_S
+        seconds have elapsed since the first dirty mark — so 200 consecutive
+        store() calls during a sleep cycle produce at most 1 rebuild.
+        """
+        with self._lock:
+            if not self._dirty:
+                self._dirty_since = time.monotonic()
+            self._dirty = True
+
     def build(self, include_forgotten: bool = False):
         """Carga todos los vectores en memoria como matriz numpy."""
+        with self._lock:
+            self._build_locked(include_forgotten)
+
+    def _build_locked(self, include_forgotten: bool = False):
+        """Must be called with self._lock held."""
         t0 = time.perf_counter()
         cond = "" if include_forgotten else "WHERE forgotten = 0"
         try:
@@ -168,6 +191,17 @@ class VectorCache:
         norms = np.linalg.norm(mat, axis=1, keepdims=True)
         norms[norms == 0] = 1.0
         self._matrix = mat / norms  # vectores unitarios
+
+        # Optional FAISS index for faster ANN search at scale
+        self._faiss_index = None
+        try:
+            import faiss as _faiss
+            _fi = _faiss.IndexFlatIP(dominant_dim)
+            _fi.add(self._matrix)
+            self._faiss_index = _fi
+        except Exception:
+            pass
+
         self._meta = meta
         self._db_count = len(rows)
         self._db_hash = getattr(self, '_hash_cache_val', 0)
@@ -185,54 +219,71 @@ class VectorCache:
         Búsqueda vectorial matricial.
         ~2ms para 7000 vectores vs ~2500ms en Python puro.
         """
-        # Verificar si necesita rebuild
-        current_hash = self._get_db_hash()
-        if self._needs_rebuild(current_hash):
-            self.build(include_forgotten)
+        with self._lock:
+            # Dirty flag takes priority; debounce delays rebuild during burst stores
+            now = time.monotonic()
+            if self._dirty:
+                if (now - self._dirty_since) >= DEBOUNCE_S or self._matrix is None:
+                    self._build_locked(include_forgotten)
+                    self._dirty = False
+                # else: debounce window — search stale matrix
+            else:
+                current_hash = self._get_db_hash()
+                if self._needs_rebuild(current_hash):
+                    self._build_locked(include_forgotten)
 
-        if self._matrix is None or len(self._meta) == 0:
-            return []
+            if self._matrix is None or len(self._meta) == 0:
+                return []
 
-        # Query vector normalizado
-        qv = np.array(query_vector, dtype=np.float32)
-        qnorm = np.linalg.norm(qv)
-        if qnorm == 0:
-            return []
-        qv = qv / qnorm
+            # Query vector normalizado
+            qv = np.array(query_vector, dtype=np.float32)
+            qnorm = np.linalg.norm(qv)
+            if qnorm == 0:
+                return []
+            qv = qv / qnorm
 
-        # Cosine similarity = dot product (vectores ya normalizados)
-        sims = self._matrix @ qv  # shape: (N,)
+            # FAISS ANN if installed; fallback to numpy dot product
+            fi = self._faiss_index
+            if fi is not None:
+                n_cands = min(max(top_k * 5, 50), len(self._meta))
+                _s, _xi = fi.search(qv.reshape(1, -1), n_cands)
+                candidate_pairs = [
+                    (int(_xi[0][j]), float(_s[0][j]))
+                    for j in range(n_cands) if _xi[0][j] >= 0
+                ]
+            else:
+                _raw = self._matrix @ qv
+                candidate_pairs = list(enumerate(_raw.tolist()))
 
-        # Score ponderado (misma fórmula que el original)
-        results = []
-        for i, sim in enumerate(sims):
-            m = self._meta[i]
-            emo_boost = abs(m["emotion_score"]) * 0.1
-            fw = m["feedback_weight"]
-            fw_factor = 0.70 + 0.30 * fw
-            score = (
-                0.55 * float(sim) +
-                0.20 * m["confidence"] +
-                0.15 * min(m["importance"], 2.0) / 2.0 +
-                emo_boost
-            ) * fw_factor
-            results.append({
-                "id": m["id"],
-                "observation": m["observation"],
-                "label": m["label"],
-                "similarity": float(sim),
-                "confidence": m["confidence"],
-                "score": score,
-                "emotion": {
-                    "score": m["emotion_score"],
-                    "label": m["emotion_label"]
-                },
-                "surprise": m["surprise"],
-                "feedback_weight": round(fw, 3),
-            })
+            results = []
+            for i, sim in candidate_pairs:
+                m = self._meta[i]
+                emo_boost = abs(m["emotion_score"]) * 0.1
+                fw = m["feedback_weight"]
+                fw_factor = 0.70 + 0.30 * fw
+                score = (
+                    0.55 * float(sim) +
+                    0.20 * m["confidence"] +
+                    0.15 * min(m["importance"], 2.0) / 2.0 +
+                    emo_boost
+                ) * fw_factor
+                results.append({
+                    "id": m["id"],
+                    "observation": m["observation"],
+                    "label": m["label"],
+                    "similarity": float(sim),
+                    "confidence": m["confidence"],
+                    "score": score,
+                    "emotion": {
+                        "score": m["emotion_score"],
+                        "label": m["emotion_label"]
+                    },
+                    "surprise": m["surprise"],
+                    "feedback_weight": round(fw, 3),
+                })
 
-        results.sort(key=lambda x: x["score"], reverse=True)
-        return results[:top_k]
+            results.sort(key=lambda x: x["score"], reverse=True)
+            return results[:top_k]
 
 
 # ── Singleton por db_path ──────────────────────────────────────────────
@@ -247,5 +298,7 @@ def get_vector_cache(db_path: str = DB_PATH) -> VectorCache:
 def invalidate_cache(db_path: str = DB_PATH):
     """Llamar después de store() para forzar rebuild en próxima búsqueda."""
     if db_path in _caches:
-        _caches[db_path]._db_hash = -1
-        _caches[db_path]._hash_cache_ts = 0.0  # forzar re-query del hash
+        cache = _caches[db_path]
+        with cache._lock:
+            cache._db_hash = -1
+            cache._hash_cache_ts = 0.0  # forzar re-query del hash

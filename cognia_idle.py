@@ -193,7 +193,7 @@ def run_sleep_cycle(cognia: Cognia, idle_state: IdleState) -> str:
 
     # ── 1. Sleep nativo de Cognia ──────────────────────────────────────
     try:
-        sleep_result = cognia.sleep()
+        sleep_result = cognia._sleep_sync()
         summary_parts.append(sleep_result)
     except Exception as e:
         summary_parts.append(f"⚠️  Error en sleep(): {e}")

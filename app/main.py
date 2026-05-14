@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse
 
 from app.routes.chat import router as chat_router
 from app.routes.status import router as status_router
+from app.routes.user_data import router as user_data_router
 
 app = FastAPI(
     title="Cognia v3 API",
@@ -27,13 +28,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://localhost:8765"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(chat_router, prefix="/api")
 app.include_router(status_router, prefix="/api")
+app.include_router(user_data_router, prefix="/api")
 
 # Servir frontend estático
 static_dir = os.path.join(os.path.dirname(__file__), "static")
@@ -43,3 +45,9 @@ if os.path.isdir(static_dir):
     @app.get("/", include_in_schema=False)
     def index():
         return FileResponse(os.path.join(static_dir, "index.html"))
+
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+    Instrumentator().instrument(app).expose(app)
+except ImportError:
+    pass

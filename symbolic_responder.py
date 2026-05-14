@@ -62,6 +62,16 @@ class QuestionClassifier:
 
     PATTERNS: List[tuple] = [
         # (tipo, patrones_es, patrones_en, confianza)
+        ("proyecto_actual",
+         ["este proyecto", "de que trata", "de qué trata", "trata este", "trata el proyecto",
+          "acerca de este proyecto", "sobre este proyecto", "qué hace este", "que hace este",
+          "para qué es este", "para que es este", "qué es este proyecto", "que es este proyecto",
+          "describe el proyecto", "describe este", "explica el proyecto", "explica este proyecto",
+          "propósito de este", "proposito de este", "objetivo de este proyecto"],
+         ["what is this project", "what does this project", "about this project",
+          "describe this project", "explain this project", "purpose of this project",
+          "what this project does", "tell me about this project"],
+         0.96),
         ("social",
          ["hola", "buenas", "buenos días", "buenas tardes", "buenas noches",
           "qué eres", "que eres", "quién eres", "quien eres", "cómo te llamas",
@@ -119,15 +129,13 @@ class QuestionClassifier:
         q = question.lower().strip()
         words = q.split()
 
-        # Revisar TODOS los patrones antes del fallback por longitud
-        # Así "hola", "qué es X", "cuáles son Y" se clasifican bien
-        # aunque tengan pocas palabras
         for tipo, pats_es, pats_en, conf in self.PATTERNS[:-1]:
             for pat in pats_es + pats_en:
-                if pat in q or q == pat:
+                # Use word-boundary matching to avoid "hi" matching inside "archivo"
+                if q == pat or re.search(r'(?<![a-zà-ÿ])' + re.escape(pat)
+                                         + r'(?![a-zà-ÿ])', q):
                     return (tipo, conf)
 
-        # Preguntas muy cortas sin patrón reconocido
         if len(words) <= 4:
             return ("corta", 0.70)
 
@@ -718,6 +726,18 @@ class SymbolicResponder:
                 pass
 
         total = score_sem + score_kg + score_ep + score_inf + score_desc + score_relevance
+
+        # Penalización por concepto fuera de la pregunta.
+        # Si ninguna palabra significativa del concepto aparece en la pregunta, el
+        # lookup ancló a un tema irrelevante (eg. Zelda cuando se pregunta por capacidades).
+        if question and concepto:
+            concept_parts = {
+                p for p in concepto.replace("_", " ").lower().split() if len(p) >= 4
+            }
+            q_lower = question.lower()
+            if concept_parts and not any(p in q_lower for p in concept_parts):
+                total *= 0.40
+
         result = round(min(1.0, total), 3)
 
         _sr_logger.debug(

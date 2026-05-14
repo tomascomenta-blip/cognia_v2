@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cognia"
+version = "3.2.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",
+    "pydantic>=2.0.0",
+    "flask>=2.3.0",
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.0",
+    "pdfplumber>=0.10.0",
+    "numpy",
+    "sentence-transformers>=2.2.0",
+    "networkx>=3.0",
+    "python-multipart>=0.0.9",
+    "websockets>=12.0",
+    "cryptography>=41.0.0",
+    "slowapi>=0.1.9",
+    "sse-starlette>=1.6",
+    "rich>=13.0",
+    "prompt_toolkit>=3.0",
+]
+
+[project.scripts]
+cognia            = "cognia.__main__:main"
+cognia-node       = "node.main:main"
+cognia-coordinator = "coordinator.run:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cognia*", "node*", "coordinator*", "shattering*", "app*"]

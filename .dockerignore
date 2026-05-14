@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.db
+*.db-wal
+*.db-shm
+model_shards/
+venv/
+.env
+.git/
+.github/
+node_modules/
+cognia_desktop/node_modules/

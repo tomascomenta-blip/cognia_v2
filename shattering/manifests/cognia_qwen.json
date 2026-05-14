@@ -1,0 +1,71 @@
+{
+  "app_id": "cognia_qwen",
+  "version": "1.0.0",
+  "shattering_version": "1",
+  "base_model": "qwen2.5-coder-3b-instruct",
+  "coordinator_url": "${COGNIA_COORDINATOR_URL}",
+  "model_config": {
+    "hf_repo": "Qwen/Qwen2.5-Coder-3B-Instruct",
+    "total_layers": 36,
+    "hidden_dim": 2048,
+    "intermediate_dim": 8960,
+    "n_heads": 16,
+    "n_kv_heads": 8,
+    "head_dim": 128,
+    "rope_theta": 1000000.0,
+    "rms_norm_eps": 1e-6,
+    "vocab_size": 151936,
+    "eos_token_id": 151645,
+    "precision": "int4"
+  },
+  "bundled": [
+    {
+      "fragment_id": "qwen-coder/0/int4",
+      "sub_model": "qwen-coder",
+      "shard_index": 0,
+      "quantization": "int4",
+      "layer_range": [0, 8],
+      "size_bytes": 314572800,
+      "sha256": "",
+      "hf_repo": "Qwen/Qwen2.5-Coder-3B-Instruct",
+      "hf_filename": "shard_0.npz",
+      "note": "includes embed_tokens table"
+    },
+    {
+      "fragment_id": "qwen-coder/1/int4",
+      "sub_model": "qwen-coder",
+      "shard_index": 1,
+      "quantization": "int4",
+      "layer_range": [9, 17],
+      "size_bytes": 280000000,
+      "sha256": "",
+      "hf_repo": "Qwen/Qwen2.5-Coder-3B-Instruct",
+      "hf_filename": "shard_1.npz"
+    },
+    {
+      "fragment_id": "qwen-coder/2/int4",
+      "sub_model": "qwen-coder",
+      "shard_index": 2,
+      "quantization": "int4",
+      "layer_range": [18, 26],
+      "size_bytes": 280000000,
+      "sha256": "",
+      "hf_repo": "Qwen/Qwen2.5-Coder-3B-Instruct",
+      "hf_filename": "shard_2.npz"
+    },
+    {
+      "fragment_id": "qwen-coder/3/int4",
+      "sub_model": "qwen-coder",
+      "shard_index": 3,
+      "quantization": "int4",
+      "layer_range": [27, 35],
+      "size_bytes": 380000000,
+      "sha256": "",
+      "hf_repo": "Qwen/Qwen2.5-Coder-3B-Instruct",
+      "hf_filename": "shard_3.npz",
+      "note": "includes lm_head and final_norm"
+    }
+  ],
+  "on_demand": [],
+  "optional": []
+}

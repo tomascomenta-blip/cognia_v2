@@ -1,0 +1,7 @@
+{
+  "shard": 0,
+  "model": "techne-3.2-3b-q4",
+  "layers": "0-6",
+  "mode": "simulation",
+  "size_mb": 0.0
+}

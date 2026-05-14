@@ -37,6 +37,8 @@ import math
 import sqlite3
 import threading
 import time
+
+import numpy as np
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
@@ -471,47 +473,57 @@ class ConsolidationEngine:
         merged_ids = set()  # IDs ya procesados en este batch
         to_merge: List[Tuple] = []   # (survivor_id, absorbed_id, new_vec, new_conf, new_imp, new_fw)
 
-        for i in range(len(parsed)):
-            if parsed[i][0] in merged_ids:
+        # Build normalised matrix for batch cosine similarity (BLAS, O(N log N))
+        vecs = np.array([p[1] for p in parsed], dtype=np.float32)
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        vecs_normed = vecs / norms
+        sim_matrix = vecs_normed @ vecs_normed.T  # (N, N)
+
+        # Collect upper-triangle pairs above threshold, capped at 500
+        ii, jj = np.where(np.triu(sim_matrix, k=1) >= CONSOLIDATE_SIM_THRESHOLD)
+        if len(ii) > 500:
+            scores = sim_matrix[ii, jj]
+            top = np.argsort(scores)[-500:]
+            ii, jj = ii[top], jj[top]
+
+        # Sort by similarity descending so we process best matches first
+        order = np.argsort(sim_matrix[ii, jj])[::-1]
+        ii, jj = ii[order], jj[order]
+
+        for idx_a, idx_b in zip(ii.tolist(), jj.tolist()):
+            id_a, vec_a, conf_a, imp_a, fw_a, _ = parsed[idx_a]
+            id_b, vec_b, conf_b, imp_b, fw_b, _ = parsed[idx_b]
+            if id_a in merged_ids or id_b in merged_ids:
                 continue
-            id_a, vec_a, conf_a, imp_a, fw_a, label_a = parsed[i]
 
-            for j in range(i + 1, len(parsed)):
-                if parsed[j][0] in merged_ids:
-                    continue
-                id_b, vec_b, conf_b, imp_b, fw_b, label_b = parsed[j]
+            sim = float(sim_matrix[idx_a, idx_b])
+            if conf_a >= conf_b:
+                survivor, absorbed = id_a, id_b
+                s_vec, s_conf, s_imp, s_fw = vec_a, conf_a, imp_a, fw_a
+                a_vec, a_conf, a_imp, a_fw = vec_b, conf_b, imp_b, fw_b
+            else:
+                survivor, absorbed = id_b, id_a
+                s_vec, s_conf, s_imp, s_fw = vec_b, conf_b, imp_b, fw_b
+                a_vec, a_conf, a_imp, a_fw = vec_a, conf_a, imp_a, fw_a
 
-                sim = _cosine(vec_a, vec_b)
-                if sim >= CONSOLIDATE_SIM_THRESHOLD:
-                    # El de mayor confianza sobrevive
-                    if conf_a >= conf_b:
-                        survivor, absorbed = id_a, id_b
-                        s_vec, s_conf, s_imp, s_fw = vec_a, conf_a, imp_a, fw_a
-                        a_vec, a_conf, a_imp, a_fw = vec_b, conf_b, imp_b, fw_b
-                    else:
-                        survivor, absorbed = id_b, id_a
-                        s_vec, s_conf, s_imp, s_fw = vec_b, conf_b, imp_b, fw_b
-                        a_vec, a_conf, a_imp, a_fw = vec_a, conf_a, imp_a, fw_a
+            total_conf = s_conf + a_conf
+            w_s = s_conf / total_conf if total_conf > 0 else 0.5
+            w_a = 1.0 - w_s
+            new_vec  = [w_s * sv + w_a * av for sv, av in zip(s_vec, a_vec)]
+            new_conf = min(REINFORCE_CONF_MAX, max(s_conf, a_conf) + 0.03)
+            new_imp  = max(s_imp, a_imp)
+            new_fw   = (s_fw + a_fw) / 2.0
 
-                    # Fusión: promedio ponderado por confianza
-                    total_conf = s_conf + a_conf
-                    w_s = s_conf / total_conf if total_conf > 0 else 0.5
-                    w_a = 1.0 - w_s
-                    new_vec  = [w_s * sv + w_a * av for sv, av in zip(s_vec, a_vec)]
-                    new_conf = min(REINFORCE_CONF_MAX, max(s_conf, a_conf) + 0.03)
-                    new_imp  = max(s_imp, a_imp)
-                    new_fw   = (s_fw + a_fw) / 2.0
+            to_merge.append((survivor, absorbed, new_vec, new_conf, new_imp, new_fw))
+            merged_ids.add(absorbed)
+            merged_ids.add(survivor)
 
-                    to_merge.append((survivor, absorbed, new_vec, new_conf, new_imp, new_fw))
-                    merged_ids.add(absorbed)
-                    merged_ids.add(survivor)   # survivor no puede absorber más en este batch
-
-                    logger.debug(
-                        f"consolidation: merged_ids=[{absorbed}] into survivor={survivor} sim={sim:.3f} new_weight={new_fw:.3f}",
-                        extra={"op": "consolidation._consolidate_batch",
-                               "context": f"sim={sim:.3f} survivor={survivor} absorbed={absorbed}"},
-                    )
-                    break  # un merge por episodio por batch
+            logger.debug(
+                f"consolidation: merged_ids=[{absorbed}] into survivor={survivor} sim={sim:.3f} new_weight={new_fw:.3f}",
+                extra={"op": "consolidation._consolidate_batch",
+                       "context": f"sim={sim:.3f} survivor={survivor} absorbed={absorbed}"},
+            )
 
         if not to_merge:
             return 0
@@ -686,13 +698,15 @@ class ConsolidationEngine:
         """
         try:
             conn = _db_connect(self.db_path)
-            rows = conn.execute("""
-                SELECT concept, vector, confidence, support, associations
-                FROM semantic_memory
-                ORDER BY support DESC, confidence DESC
-                LIMIT ?
-            """, (min(limit * 5, 300),)).fetchall()
-            conn.close()
+            try:
+                rows = conn.execute("""
+                    SELECT concept, vector, confidence, support, associations
+                    FROM semantic_memory
+                    ORDER BY support DESC, confidence DESC
+                    LIMIT ?
+                """, (min(limit * 5, 300),)).fetchall()
+            finally:
+                conn.close()
         except Exception as exc:
             log_db_error(logger, "consolidation._phase_semantic_dedup", exc)
             return 0

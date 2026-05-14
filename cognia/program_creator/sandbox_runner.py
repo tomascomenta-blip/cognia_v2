@@ -1,40 +1,69 @@
 """
-sandbox_runner.py — Ejecución aislada y segura de programas generados por Cognia.
+sandbox_runner.py — Ejecucion aislada de programas generados por Cognia.
 
-CAMBIOS v2:
-  - Timeout aumentado a 15s (programas automáticos necesitan más tiempo)
-  - Penaliza timeout sin output (programa colgado) pero no timeout con output (corrió bien)
+Dos capas de proteccion:
+  1. AST analysis — detecta todos los vectores de escape Python-level antes de ejecutar
+  2. Runtime __import__ guard inyectado en el archivo temporal — defensa en profundidad
+
+Sin Docker ni dependencias externas. Subprocess con env reducido.
 """
 
+import ast
 import os
-import re
 import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
+from typing import List, Tuple
 
-# ── Configuración ──────────────────────────────────────────────────────────────
-
-EXECUTION_TIMEOUT_SEC = 15     # Aumentado de 5s a 15s
+EXECUTION_TIMEOUT_SEC = 15
 MAX_OUTPUT_CHARS      = 4000
 
-BLOCKED_IMPORTS = {
-    "os.system", "os.popen", "os.execv", "os.execle", "os.execvp",
-    "os.fork", "os.kill", "os.remove", "os.unlink", "os.rmdir",
-    "shutil", "socket", "urllib", "http", "requests", "ftplib",
-    "smtplib", "telnetlib", "xmlrpc", "subprocess",
-    "ctypes", "cffi", "pickle", "shelve", "signal",
-}
+# Single source of truth for both AST check and runtime guard
+BLOCKED_MODULES: frozenset = frozenset({
+    "builtins",       # prevent __import__ override removal
+    "cffi",
+    "ctypes",
+    "ftplib",
+    "http",
+    "importlib",
+    "multiprocessing",
+    "pickle",
+    "requests",
+    "shelve",
+    "shutil",
+    "signal",
+    "smtplib",
+    "socket",
+    "subprocess",
+    "telnetlib",
+    "urllib",
+    "xmlrpc",
+})
 
-_BLOCKED_PATTERN = re.compile(
-    r"^\s*(?:import|from)\s+(" +
-    "|".join(re.escape(m.split(".")[0]) for m in BLOCKED_IMPORTS) +
-    r")\b",
-    re.MULTILINE,
+BLOCKED_OS_ATTRS: frozenset = frozenset({
+    "chmod", "chown", "execle", "execv", "execve", "execvp", "execvpe",
+    "fork", "kill", "makedirs", "mkdir", "popen", "remove", "removedirs",
+    "rename", "replace", "rmdir", "spawnl", "spawnle", "spawnv", "spawnve",
+    "startfile", "system", "unlink",
+})
+
+# Runtime guard injected at the top of every sandboxed file.
+# Overrides __import__ so dynamic escapes (exec, eval, importlib) are also blocked.
+_RUNTIME_GUARD = (
+    "import builtins as _b\n"
+    "_ri = _b.__import__\n"
+    "_BM = frozenset({"
+    + ", ".join(f'"{m}"' for m in sorted(BLOCKED_MODULES))
+    + "})\n"
+    "def _si(name, *a, **kw):\n"
+    "    if name.split('.')[0] in _BM:\n"
+    "        raise ImportError('[sandbox] blocked: ' + name)\n"
+    "    return _ri(name, *a, **kw)\n"
+    "_b.__import__ = _si\n"
+    "del _ri, _si, _b\n"
 )
 
-
-# ── Dataclass de resultado ─────────────────────────────────────────────────────
 
 @dataclass
 class ExecutionResult:
@@ -47,67 +76,108 @@ class ExecutionResult:
     code_length:      int  = 0
 
 
-# ── Validación previa ──────────────────────────────────────────────────────────
+# ── AST analysis ───────────────────────────────────────────────────────────────
 
-def _scan_blocked_imports(code: str) -> list[str]:
-    found = []
-    for match in _BLOCKED_PATTERN.finditer(code):
-        mod = match.group(1)
-        if mod not in found:
-            found.append(mod)
-    if "__import__" in code and "os" in code:
-        found.append("__import__(os) escape attempt")
-    return found
+class _SandboxVisitor(ast.NodeVisitor):
+    """
+    Walks the AST collecting policy violations.
+    Catches what regex cannot: __import__(), importlib.import_module(), os.system(), etc.
+    """
+
+    def __init__(self) -> None:
+        self.violations: List[str] = []
+
+    def _flag(self, msg: str, lineno: int) -> None:
+        self.violations.append(f"line {lineno}: {msg}")
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            root = alias.name.split(".")[0]
+            if root in BLOCKED_MODULES:
+                self._flag(f"import {alias.name}", node.lineno)
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module:
+            root = node.module.split(".")[0]
+            if root in BLOCKED_MODULES:
+                self._flag(f"from {node.module} import ...", node.lineno)
+        self.generic_visit(node)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        # __import__("socket")
+        if isinstance(node.func, ast.Name) and node.func.id == "__import__":
+            if node.args and isinstance(node.args[0], ast.Constant):
+                mod = str(node.args[0].value).split(".")[0]
+                if mod in BLOCKED_MODULES:
+                    self._flag(f"__import__('{node.args[0].value}')", node.lineno)
+            else:
+                self._flag("dynamic __import__ call", node.lineno)
+        # importlib.import_module(...)
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "import_module":
+            if node.args and isinstance(node.args[0], ast.Constant):
+                mod = str(node.args[0].value).split(".")[0]
+                if mod in BLOCKED_MODULES:
+                    self._flag(f"import_module('{node.args[0].value}')", node.lineno)
+            else:
+                self._flag("dynamic import_module call", node.lineno)
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        if isinstance(node.value, ast.Name) and node.value.id == "os":
+            if node.attr in BLOCKED_OS_ATTRS:
+                self._flag(f"os.{node.attr}", node.lineno)
+        self.generic_visit(node)
 
 
-def _sanitize_for_sandbox(code: str) -> str:
-    dangerous_calls = [
-        r"os\.system\s*\(",
-        r"os\.popen\s*\(",
-        r"subprocess\.\w+\s*\(",
-        r"exec\s*\(\s*open",
-    ]
-    sanitized = code
-    for pattern in dangerous_calls:
-        sanitized = re.sub(pattern, "print('# blocked call'  #", sanitized)
-    return sanitized
+def _ast_scan(code: str) -> Tuple[List[str], str]:
+    """
+    Parse code and walk the AST.
+    Returns (violations, parse_error). parse_error is "" on success.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return [], f"SyntaxError: {e}"
+    visitor = _SandboxVisitor()
+    visitor.visit(tree)
+    return visitor.violations, ""
 
 
-# ── Ejecución en subproceso ────────────────────────────────────────────────────
+# ── Ejecucion en subproceso ────────────────────────────────────────────────────
 
 def run_in_sandbox(code: str) -> ExecutionResult:
     """
-    Ejecuta código Python en subproceso aislado con timeout de 15s.
-    Los programas automáticos deberían terminar bien dentro de ese tiempo.
+    Executes Python code with two-layer protection:
+    1. AST scan rejects code with dangerous imports or os.* calls before any execution.
+    2. _RUNTIME_GUARD is prepended to the temp file to block dynamic-import escapes.
     """
     if not code or len(code.strip()) < 5:
         return ExecutionResult(success=False, execution_output="",
                                execution_errors="Empty code", exit_code=-1,
                                timed_out=False)
 
-    blocked = _scan_blocked_imports(code)
-    if blocked:
-        print(f"[sandbox] 🚫 Imports bloqueados: {blocked}")
-        dangerous = [b for b in blocked if b in {
-            "socket", "subprocess", "shutil", "signal", "ctypes", "cffi",
-            "pickle", "shelve",
-        }]
-        if dangerous:
-            return ExecutionResult(success=False, execution_output="",
-                                   execution_errors=f"Blocked: {dangerous}",
-                                   exit_code=-2, timed_out=False,
-                                   blocked_imports=blocked, code_length=len(code))
+    violations, parse_error = _ast_scan(code)
 
-    safe_code = _sanitize_for_sandbox(code)
-    tmp_file  = None
+    if parse_error:
+        return ExecutionResult(success=False, execution_output="",
+                               execution_errors=parse_error, exit_code=-1,
+                               timed_out=False, code_length=len(code))
 
+    if violations:
+        return ExecutionResult(success=False, execution_output="",
+                               execution_errors="Sandbox violation: " + violations[0],
+                               exit_code=-2, timed_out=False,
+                               blocked_imports=violations, code_length=len(code))
+
+    tmp_file = None
     try:
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".py", prefix="cognia_prog_",
-            dir=tempfile.gettempdir(), delete=False, encoding="utf-8"
+            dir=tempfile.gettempdir(), delete=False, encoding="utf-8",
         ) as f:
             tmp_file = f.name
-            f.write(safe_code)
+            f.write(_RUNTIME_GUARD + "\n" + code)
 
         try:
             proc = subprocess.run(
@@ -133,13 +203,12 @@ def run_in_sandbox(code: str) -> ExecutionResult:
             stdout    = (tex.stdout or b"").decode("utf-8", errors="replace") \
                         if isinstance(tex.stdout, bytes) else (tex.stdout or "")
             stderr    = f"[sandbox] Timeout after {EXECUTION_TIMEOUT_SEC}s"
-            print(f"[sandbox] ⏱️  Timeout alcanzado ({EXECUTION_TIMEOUT_SEC}s)")
 
     except Exception as exc:
         return ExecutionResult(success=False, execution_output="",
                                execution_errors=f"Sandbox error: {exc}",
                                exit_code=-4, timed_out=False,
-                               blocked_imports=blocked, code_length=len(code))
+                               code_length=len(code))
     finally:
         if tmp_file and os.path.exists(tmp_file):
             try:
@@ -147,23 +216,14 @@ def run_in_sandbox(code: str) -> ExecutionResult:
             except Exception:
                 pass
 
-    stdout = stdout[:MAX_OUTPUT_CHARS]
-    stderr = stderr[:MAX_OUTPUT_CHARS]
-
-    # Éxito normal
+    stdout  = stdout[:MAX_OUTPUT_CHARS]
+    stderr  = stderr[:MAX_OUTPUT_CHARS]
     success = exit_code == 0 and not timed_out and len(stdout.strip()) > 0
-
-    # Timeout CON output = probablemente corrió bien (loop infinito intencional)
     if timed_out and len(stdout.strip()) > 10:
         success = True
 
-    result = ExecutionResult(
+    return ExecutionResult(
         success=success, execution_output=stdout, execution_errors=stderr,
         exit_code=exit_code, timed_out=timed_out,
-        blocked_imports=blocked, code_length=len(code),
+        blocked_imports=violations, code_length=len(code),
     )
-
-    status = "✅" if success else ("⏱️" if timed_out else "❌")
-    print(f"[sandbox] {status} exit={exit_code} | "
-          f"output={len(stdout)}ch | errors={len(stderr)}ch")
-    return result

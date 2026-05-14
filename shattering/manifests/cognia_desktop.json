@@ -1,0 +1,105 @@
+{
+  "app_id": "cognia_desktop",
+  "version": "1.0.0",
+  "shattering_version": "1",
+  "base_model": "3.2-3b-q4",
+  "coordinator_url": "${COGNIA_COORDINATOR_URL}",
+  "bundled": [
+    {
+      "fragment_id": "logos/0/q4_k_m",
+      "sub_model": "logos",
+      "shard_index": 0,
+      "quantization": "q4_k_m",
+      "layer_range": [0, 6],
+      "size_bytes": 500000000,
+      "sha256": "",
+      "hf_repo": "cognia-ai/logos-3.2-3b-q4",
+      "hf_filename": "shard_0.safetensors"
+    },
+    {
+      "fragment_id": "logos/1/q4_k_m",
+      "sub_model": "logos",
+      "shard_index": 1,
+      "quantization": "q4_k_m",
+      "layer_range": [7, 13],
+      "size_bytes": 500000000,
+      "sha256": "",
+      "hf_repo": "cognia-ai/logos-3.2-3b-q4",
+      "hf_filename": "shard_1.safetensors"
+    },
+    {
+      "fragment_id": "logos/2/q4_k_m",
+      "sub_model": "logos",
+      "shard_index": 2,
+      "quantization": "q4_k_m",
+      "layer_range": [14, 20],
+      "size_bytes": 500000000,
+      "sha256": "",
+      "hf_repo": "cognia-ai/logos-3.2-3b-q4",
+      "hf_filename": "shard_2.safetensors"
+    },
+    {
+      "fragment_id": "logos/3/q4_k_m",
+      "sub_model": "logos",
+      "shard_index": 3,
+      "quantization": "q4_k_m",
+      "layer_range": [21, 27],
+      "size_bytes": 500000000,
+      "sha256": "",
+      "hf_repo": "cognia-ai/logos-3.2-3b-q4",
+      "hf_filename": "shard_3.safetensors"
+    }
+  ],
+  "on_demand": [
+    {
+      "fragment_id": "techne/0/q4_k_m",
+      "sub_model": "techne",
+      "shard_index": 0,
+      "quantization": "q4_k_m",
+      "layer_range": [0, 6],
+      "size_bytes": 500000000,
+      "sha256": "",
+      "hf_repo": "cognia-ai/techne-3.2-3b-q4",
+      "hf_filename": "shard_0.safetensors",
+      "trigger": "code_query"
+    },
+    {
+      "fragment_id": "rhetor/0/q4_k_m",
+      "sub_model": "rhetor",
+      "shard_index": 0,
+      "quantization": "q4_k_m",
+      "layer_range": [0, 6],
+      "size_bytes": 500000000,
+      "sha256": "",
+      "hf_repo": "cognia-ai/rhetor-3.2-3b-q4",
+      "hf_filename": "shard_0.safetensors",
+      "trigger": "writing_query"
+    }
+  ],
+  "optional": [
+    {
+      "fragment_id": "techne/1/q4_k_m",
+      "sub_model": "techne",
+      "shard_index": 1,
+      "quantization": "q4_k_m",
+      "layer_range": [7, 13],
+      "size_bytes": 500000000,
+      "sha256": "",
+      "hf_repo": "cognia-ai/techne-3.2-3b-q4",
+      "hf_filename": "shard_1.safetensors",
+      "trigger": "swarm_participation"
+    },
+    {
+      "fragment_id": "rhetor/1/q4_k_m",
+      "sub_model": "rhetor",
+      "shard_index": 1,
+      "quantization": "q4_k_m",
+      "layer_range": [7, 13],
+      "size_bytes": 500000000,
+      "sha256": "",
+      "hf_repo": "cognia-ai/rhetor-3.2-3b-q4",
+      "hf_filename": "shard_1.safetensors",
+      "trigger": "swarm_participation"
+    }
+  ]
+}

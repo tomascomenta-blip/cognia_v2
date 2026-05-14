@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self';" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cognia Desktop</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Privacy consent modal — shown only on first run -->
+  <div id="privacy-modal" class="privacy-modal">
+    <div class="privacy-modal__box">
+      <h2 class="privacy-modal__title">Antes de empezar</h2>
+      <p class="privacy-modal__body">
+        Cognia almacena tus mensajes y observaciones en una base de datos local
+        (<code>cognia_memory.db</code>) en tu equipo. Nada se envia a servidores externos
+        salvo cuando Ollama hace llamadas a modelos locales.<br><br>
+        Puedes borrar todos tus datos en cualquier momento desde Configuracion.
+      </p>
+      <div class="privacy-modal__footer">
+        <button id="btn-privacy-accept">Entendido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <h1>Cognia Desktop</h1>
+    <span id="backend-badge" class="tag">starting</span>
+    <span class="spacer"></span>
+    <button id="btn-feedback" class="btn">Feedback</button>
+    <button id="btn-status" class="btn">Status</button>
+  </div>
+
+  <!-- Chat -->
+  <div id="chat">
+    <div class="bubble system">Starting up...</div>
+  </div>
+
+  <!-- Status panel (hidden by default) -->
+  <div id="status-panel">
+    <strong>System</strong>
+    <pre id="status-content">Loading system information...</pre>
+  </div>
+
+  <!-- Input bar -->
+  <div id="inputbar">
+    <textarea id="prompt" placeholder="Ask Cognia anything... (Enter to send, Shift+Enter for newline)"></textarea>
+    <button id="btn-route" class="btn" disabled>Route</button>
+    <button id="btn-send"  class="btn" disabled>Send</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -267,7 +267,7 @@ class SymbolicSynthesizer:
                         na = math.sqrt(sum(a*a for a in label_vec))
                         nb = math.sqrt(sum(b*b for b in vec))
                         sim_label = dot/(na*nb) if na and nb else 0.0
-                        if sim_label >= 0.30:
+                        if sim_label >= 0.40:
                             seen.add(label)
                             concepts.append(label)
                     else:

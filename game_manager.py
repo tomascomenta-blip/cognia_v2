@@ -786,7 +786,7 @@ class AutonomousManager:
     def _memory_cycle(self) -> dict:
         """Ciclo suave de consolidación de memoria."""
         try:
-            self.cognia.sleep()
+            self.cognia._sleep_sync()
             return {"action": "memory_consolidation", "message": "Consolidé memorias en ciclo de sueño suave", "searches_done": self.searches_done}
         except Exception:
             return {"action": "idle", "message": "Ciclo idle completado", "searches_done": self.searches_done}

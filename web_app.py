@@ -29,6 +29,19 @@ from cognia import Cognia
 app = Flask(__name__)
 app.secret_key = SESSION_TOKEN
 
+# ── Phase 9 C5: optional API key middleware ──────────────────────────────────
+_WEB_API_KEY = os.environ.get("COGNIA_WEB_API_KEY", "")
+
+@app.before_request
+def _check_api_key():
+    if not _WEB_API_KEY:
+        return  # env var not set — open access (localhost-only assumption)
+    if not request.path.startswith("/api/"):
+        return  # static UI always accessible
+    if request.headers.get("X-Api-Key", "") != _WEB_API_KEY:
+        return jsonify({"error": "Unauthorized"}), 401
+# ── end Phase 9 C5 ──────────────────────────────────────────────────────────
+
 _cognia = None
 _cognia_lock = threading.Lock()
 
@@ -991,7 +1004,7 @@ def api_command():
     dispatch = {
         "yo":              lambda: ai.introspect(),
         "conceptos":       lambda: ai.list_concepts(),
-        "dormir":          lambda: ai.sleep(),
+        "dormir":          lambda: ai._sleep_sync(),
         "repasar":         lambda: ai.review_due(),
         "contradicciones": lambda: ai.show_contradictions(),
         "objetivos":       lambda: ai.show_goals(),
@@ -1203,7 +1216,7 @@ def _basic_autonomous_cycle():
         pass
 
     try:
-        ai.sleep()
+        ai._sleep_sync()
         return {"action": "sleep_cycle", "message": "Ciclo de consolidacion de memoria", "searches_done": 0}
     except Exception:
         return {"action": "idle", "message": "Sin tareas pendientes", "searches_done": 0}
@@ -1438,7 +1451,7 @@ def _auto_sleep_loop():
     time.sleep(3600)
     while True:
         try:
-            get_cognia().sleep()
+            get_cognia()._sleep_sync()
             print("[AutoSleep] Ciclo completado")
         except Exception as e:
             print("[AutoSleep] Error: " + str(e))

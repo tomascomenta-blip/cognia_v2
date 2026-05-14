@@ -76,6 +76,29 @@ try:
 except ImportError:
     from prompt_optimizer import PromptOptimizer, ContextCompressor
 
+def _build_project_context(cwd: str = None, max_chars_per_file: int = 2000) -> str:
+    """Lee archivos de descripcion del proyecto en el CWD y devuelve el contenido concatenado."""
+    import pathlib
+    base = pathlib.Path(cwd or os.getcwd())
+    candidates = [
+        "CLAUDE.md", "claude.md",
+        "README.md", "README.rst", "readme.md",
+        "pyproject.toml", "package.json", "setup.py", "setup.cfg",
+        "AGENTS.md", "agents.md",
+    ]
+    parts = []
+    for name in candidates:
+        p = base / name
+        if not p.exists():
+            continue
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")[:max_chars_per_file]
+            parts.append(f"--- {name} ---\n{text.strip()}")
+        except Exception:
+            continue
+    return "\n\n".join(parts)
+
+
 # ── Singleton global (un engine por proceso) ──────────────────────────
 _ENGINE_INSTANCE: Optional["LanguageEngine"] = None
 
@@ -168,18 +191,9 @@ class LanguageEngine:
         # PASO 4: gate de decision de tres zonas
         self.gate = get_decision_gate()
 
-        # Swarm distribuido (se activa si COORDINATOR_URL está configurado)
-        self._swarm = None
-        _coordinator = os.environ.get("COORDINATOR_URL", "")
-        if _coordinator:
-            try:
-                from node.inference_pipeline import get_pipeline
-                self._swarm = get_pipeline(_coordinator)
-                _swarm_ready = self._swarm.is_available()
-                print(f"[LanguageEngine] Swarm {'LISTO' if _swarm_ready else 'no disponible aún'} "
-                      f"({_coordinator})")
-            except ImportError:
-                pass
+        # Swarm distribuido (lazy — se inicializa al primer uso si COGNIA_COORDINATOR_URL está configurado)
+        self._swarm        = None
+        self._swarm_checked = False   # evita reintentos repetidos si el init falla
 
         print("[LanguageEngine] Motor híbrido inicializado.")
 
@@ -277,6 +291,76 @@ class LanguageEngine:
                 info_suficiente = True,
                 investigated    = investigated,
             )
+
+        # ══════════════════════════════════════════════════════════════
+        # STAGE 0.45: PROJECT CONTEXT — preguntas sobre el proyecto actual
+        # ══════════════════════════════════════════════════════════════
+        if _q_type_pre == "proyecto_actual":
+            _proj_ctx = _build_project_context()
+            _cwd_display = os.path.basename(os.getcwd()) or os.getcwd()
+            if _proj_ctx:
+                _proj_sys = (
+                    "Eres Cognia, un asistente de IA. El usuario te pregunta sobre el "
+                    "proyecto en el directorio de trabajo actual. A continuacion se "
+                    "muestran los archivos de descripcion del proyecto. "
+                    "Responde en el idioma de la pregunta de forma directa y concisa. "
+                    "No inventes informacion fuera del contexto dado."
+                )
+                _proj_prompt = (
+                    f"{_proj_sys}\n\n"
+                    f"=== CONTEXTO DEL PROYECTO ===\n{_proj_ctx}\n"
+                    f"=== FIN DEL CONTEXTO ===\n\n"
+                    f"Pregunta: {question}"
+                )
+                _le_logger.info(
+                    "stage=project_context cwd=%s",
+                    _cwd_display,
+                    extra={"op": "language_engine.stage0_45", "context": "cwd_scan"},
+                )
+                llm_result = self._call_ollama(_proj_prompt, "proyecto_actual", question)
+                latency    = (time.perf_counter() - t0) * 1000
+                self._stats["full_llm"] += 1
+                response = (
+                    llm_result["text"]
+                    if llm_result.get("ok") and llm_result.get("text")
+                    else "No encontre archivos de descripcion en el directorio actual."
+                )
+                return EngineResult(
+                    response        = response,
+                    stage_used      = "project_context",
+                    latency_ms      = latency,
+                    tokens_sent     = len(_proj_prompt) // 4,
+                    confidence      = 0.92,
+                    cache_hit       = False,
+                    used_llm        = True,
+                    question_type   = "proyecto_actual",
+                    tipo_pregunta   = "proyecto_actual",
+                    tiene_contexto  = True,
+                    info_suficiente = True,
+                )
+            else:
+                latency = (time.perf_counter() - t0) * 1000
+                _le_logger.info(
+                    "stage=project_context_empty cwd=%s",
+                    _cwd_display,
+                    extra={"op": "language_engine.stage0_45", "context": "no_files"},
+                )
+                return EngineResult(
+                    response        = (
+                        f"No encontre archivos de descripcion del proyecto en '{_cwd_display}'. "
+                        f"Agrega un README.md o CLAUDE.md al directorio para que pueda responder."
+                    ),
+                    stage_used      = "project_context_empty",
+                    latency_ms      = latency,
+                    tokens_sent     = 0,
+                    confidence      = 1.0,
+                    cache_hit       = False,
+                    used_llm        = False,
+                    question_type   = "proyecto_actual",
+                    tipo_pregunta   = "proyecto_actual",
+                    tiene_contexto  = False,
+                    info_suficiente = False,
+                )
 
         # ══════════════════════════════════════════════════════════════
         # STAGE 2: SYMBOLIC RESPONSE + DECISION GATE (PASO 4)
@@ -510,8 +594,9 @@ class LanguageEngine:
         else:
             final_prompt = optimized.prompt
 
-        # Llamar al LLM
-        llm_result = self._call_ollama(final_prompt, q_type, question)
+        # Llamar al LLM (swarm si disponible, Ollama si no)
+        llm_result = self._call_ollama(final_prompt, q_type, question,
+                                       system_override=_mem_sys)
 
         latency = (time.perf_counter() - t0) * 1000
         stage   = "hybrid" if is_hybrid else "llm"
@@ -593,32 +678,64 @@ class LanguageEngine:
     # ── Llamada al LLM (Swarm → Ollama → error) ───────────────────────
 
     def _call_ollama(self, prompt: str, question_type: str,
-                     original_question: str) -> Dict:
+                     original_question: str, system_override: str = None) -> Dict:
         # Nivel 1: swarm distribuido (si está configurado y disponible)
-        swarm_result = self._call_swarm(prompt, question_type)
+        swarm_result = self._call_swarm(prompt, question_type, system_override)
         if swarm_result["ok"]:
             return swarm_result
 
         # Nivel 2: Ollama local
-        return self._call_ollama_direct(prompt, question_type, original_question)
+        return self._call_ollama_direct(prompt, question_type, original_question,
+                                        system_override=system_override)
 
-    def _call_swarm(self, prompt: str, question_type: str) -> Dict:
-        """Intenta generar con el swarm distribuido."""
-        if not self._swarm:
+    def _get_swarm(self):
+        """Lazy init del pipeline distribuido. Retorna None si el coordinador no está configurado."""
+        if self._swarm_checked:
+            return self._swarm
+        self._swarm_checked = True
+        coord_url = (
+            os.environ.get("COGNIA_COORDINATOR_URL", "")
+            or os.environ.get("COORDINATOR_URL", "")
+        ).rstrip("/")
+        if not coord_url:
+            return None
+        try:
+            from node.inference_pipeline import DistributedInferencePipeline
+            self._swarm = DistributedInferencePipeline(
+                coordinator_url = coord_url,
+                model_name      = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4"),
+            )
+            _le_logger.info(
+                "[LanguageEngine] Swarm pipeline listo: %s", coord_url,
+                extra={"op": "language_engine._get_swarm", "context": ""},
+            )
+        except Exception as exc:
+            _le_logger.warning(
+                "[LanguageEngine] Swarm no disponible: %s", exc,
+                extra={"op": "language_engine._get_swarm", "context": ""},
+            )
+        return self._swarm
+
+    def _call_swarm(self, prompt: str, question_type: str,
+                    system_override: str = None) -> Dict:
+        """Intenta generar con el swarm distribuido. Retorna mismo formato que _call_ollama_direct."""
+        swarm = self._get_swarm()
+        if not swarm:
             return {"ok": False, "error": "swarm no configurado"}
         try:
-            if not self._swarm.is_available():
+            if not swarm.is_available():
                 return {"ok": False, "error": "swarm no disponible"}
 
             num_predict = min(int(os.environ.get("SWARM_MAX_TOKENS", "300")), 400)
-            result = self._swarm.generate(prompt, max_tokens=num_predict)
+            system      = system_override or self._get_system_prompt(question_type)
+            result      = swarm.generate(prompt, max_tokens=num_predict, system=system)
 
             if result.get("ok") and result.get("text"):
                 self._stats["swarm"] += 1
                 _le_logger.info(
-                    f"swarm ok tokens={result['tokens_generated']} "
-                    f"latency={result['latency_ms']:.0f}ms "
-                    f"nodes={result['nodes_used']} mode={result['mode']}",
+                    "swarm ok tokens=%d latency=%.0fms nodes=%d mode=%s",
+                    result.get("tokens_generated", 0), result.get("latency_ms", 0),
+                    result.get("nodes_used", 0), result.get("mode", "?"),
                     extra={"op": "language_engine._call_swarm",
                            "context": f"q_type={question_type}"},
                 )
@@ -628,19 +745,21 @@ class LanguageEngine:
                 except ImportError:
                     text = result["text"]
                 return {"ok": True, "text": text,
-                        "tokens": result["tokens_generated"],
+                        "tokens": result.get("tokens_generated", 0),
                         "source": "swarm"}
 
             return {"ok": False, "error": result.get("error", "swarm sin texto")}
 
-        except Exception as e:
-            _le_logger.warning(f"swarm falló: {e}",
-                               extra={"op": "language_engine._call_swarm",
-                                      "context": str(e)})
-            return {"ok": False, "error": str(e)}
+        except Exception as exc:
+            _le_logger.warning(
+                "swarm fallo: %s", exc,
+                extra={"op": "language_engine._call_swarm", "context": str(exc)},
+            )
+            return {"ok": False, "error": str(exc)}
 
     def _call_ollama_direct(self, prompt: str, question_type: str,
-                            original_question: str) -> Dict:
+                            original_question: str,
+                            system_override: str = None) -> Dict:
         """Llama a Ollama con el prompt optimizado."""
         try:
             from cognia.prompt_optimizer import TOKEN_LIMITS
@@ -650,8 +769,11 @@ class LanguageEngine:
         # Límites conservadores para CPU sin GPU
         num_predict = min(num_predict, 420)
 
-        # Usar system prompt override si el frontend lo especificó (modo/modelo custom)
-        system = getattr(self, "_system_override", None) or self._get_system_prompt(question_type)
+        system = (
+            system_override
+            or getattr(self, "_system_override", None)
+            or self._get_system_prompt(question_type)
+        )
         payload = json.dumps({
             "model":   self.modelo,
             "prompt":  prompt,

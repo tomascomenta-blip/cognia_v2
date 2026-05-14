@@ -1,0 +1,46 @@
+{
+  "name": "cognia-desktop",
+  "version": "1.0.0",
+  "description": "Cognia Desktop - Shattering v1 (LOGOS)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"uvicorn cognia_desktop_api:app --port 8765\" \"electron .\"",
+    "build": "electron-builder --config electron-builder.config.js",
+    "build:win": "electron-builder --win --config electron-builder.config.js",
+    "build:mac": "electron-builder --mac --config electron-builder.config.js",
+    "build:linux": "electron-builder --linux --config electron-builder.config.js"
+  },
+  "build": {
+    "appId": "ai.cognia.desktop",
+    "productName": "Cognia Desktop",
+    "directories": { "output": "dist" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../",
+        "to": "cognia_src",
+        "filter": [
+          "cognia_desktop_api.py",
+          "shattering/**",
+          "coordinator/**",
+          "node/**",
+          "requirements.txt"
+        ]
+      }
+    ],
+    "win": { "target": "nsis" }
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}

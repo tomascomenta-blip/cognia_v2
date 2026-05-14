@@ -58,8 +58,8 @@ try:
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
-    print("⚠️  psutil no encontrado. Instala con: pip install psutil")
-    print("   La fatiga cognitiva usará estimaciones alternativas.")
+    print("[WARN] psutil no encontrado. Instala con: pip install psutil")
+    print("       La fatiga cognitiva usara estimaciones alternativas.")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -166,7 +166,7 @@ class CognitiveFatigueMonitor:
         # Última vez que se propuso optimización arquitectural
         self._last_arch_proposal: Optional[float] = None
         
-        print("✅ CognitiveFatigueMonitor activo — midiendo fatiga en tiempo real")
+        print("[OK] CognitiveFatigueMonitor activo")
 
     # ── API principal ──────────────────────────────────────────────────
 

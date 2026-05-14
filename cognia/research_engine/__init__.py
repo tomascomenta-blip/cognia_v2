@@ -27,6 +27,7 @@ from .research_orchestrator import (
     ResearchSessionResult,
 )
 from .researcher import research_question, ResearchResult
+from .github_scraper import GitHubScraper, RepoContent
 from .knowledge_integrator import (
     integrate_research,
     get_research_log,
@@ -43,4 +44,6 @@ __all__ = [
     "integrate_research",
     "get_research_log",
     "IntegrationResult",
+    "GitHubScraper",
+    "RepoContent",
 ]

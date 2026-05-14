@@ -4,79 +4,254 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cognia v3</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    #messages { scroll-behavior: smooth; }
-    .msg-user  { background: #1e40af; color: #fff; }
-    .msg-cognia{ background: #1e293b; color: #e2e8f0; }
-    .stage-badge { font-size: 0.65rem; opacity: 0.6; margin-top: 4px; }
-    #input:focus { outline: none; }
-    .dot-anim span { animation: blink 1.2s infinite; }
-    .dot-anim span:nth-child(2){ animation-delay:.2s }
-    .dot-anim span:nth-child(3){ animation-delay:.4s }
-    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #000000;
+      --surface:  #060e06;
+      --border:   #0e2e0e;
+      --accent:   #00cc44;
+      --accent-h: #00ff55;
+      --text:     #b4f5b4;
+      --bright:   #00ff41;
+      --muted:    #2a6b2a;
+      --radius:   14px;
+      --font:     "Consolas", "Courier New", monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      background: linear-gradient(160deg, #000000 0%, #020c02 60%, #000000 100%);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: linear-gradient(180deg, #0a1a0a 0%, #060e06 100%);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 10px rgba(0, 255, 65, 0.08);
+      flex-shrink: 0;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #004422 0%, #00aa44 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; color: #000;
+      box-shadow: 0 0 12px rgba(0, 204, 68, 0.35);
+    }
+    .header-title {
+      font-weight: 600;
+      letter-spacing: .06em;
+      font-size: 15px;
+    }
+    .header-title .version {
+      color: var(--bright);
+      text-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
+    }
+    #health-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    #health-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background .3s, box-shadow .3s;
+    }
+    #health-dot.ok  { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    #health-dot.err { background: #ff2244; box-shadow: 0 0 6px #ff2244; }
+
+    /* ── Messages ── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+      scroll-behavior: smooth;
+    }
+    #messages::-webkit-scrollbar { width: 3px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg-user {
+      align-self: flex-end;
+      max-width: 72%;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      border-bottom-right-radius: 4px;
+      background: linear-gradient(135deg, #004422 0%, #006633 100%);
+      color: var(--text);
+      border: 1px solid #008844;
+      font-size: 14px;
+      line-height: 1.55;
+      box-shadow: 0 0 14px rgba(0, 204, 68, 0.12);
+    }
+    .msg-cognia {
+      align-self: flex-start;
+      max-width: 72%;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      border-bottom-left-radius: 4px;
+      background: linear-gradient(135deg, #050f05 0%, #0a1a0a 100%);
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .stage-badge {
+      font-size: 10px;
+      opacity: .45;
+      margin-top: 5px;
+      color: var(--muted);
+    }
+
+    /* ── Loading dots ── */
+    .dot-anim { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .dot-anim span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 1.2s infinite ease-in-out;
+      box-shadow: 0 0 5px var(--accent);
+    }
+    .dot-anim span:nth-child(2) { animation-delay: .2s; }
+    .dot-anim span:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: .2; transform: scale(.8); }
+      40%            { opacity: 1;  transform: scale(1.1); }
+    }
+
+    /* ── Input area ── */
+    .input-wrap {
+      padding: 12px 16px 20px;
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .input-box {
+      display: flex;
+      gap: 8px;
+      background: linear-gradient(135deg, #060e06 0%, #0a1a0a 100%);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 10px 14px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input-box:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(0, 204, 68, 0.2), 0 0 16px rgba(0, 204, 68, 0.08);
+    }
+    #input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      caret-color: var(--bright);
+    }
+    #input::placeholder { color: var(--muted); }
+    #send-btn {
+      background: linear-gradient(135deg, #006622 0%, #00aa44 100%);
+      color: #000000;
+      border: none;
+      border-radius: 12px;
+      padding: 6px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: opacity .15s, box-shadow .15s;
+      box-shadow: 0 0 12px rgba(0, 204, 68, 0.2);
+    }
+    #send-btn:hover:not(:disabled) {
+      opacity: .9;
+      box-shadow: 0 0 20px rgba(0, 255, 85, 0.35);
+    }
+    #send-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .input-hint {
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 6px;
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 h-screen flex flex-col">
+<body>
 
-  <!-- Header -->
-  <header class="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">C</div>
-      <span class="font-semibold tracking-wide">Cognia <span class="text-blue-400">v3</span></span>
+  <header>
+    <div class="header-left">
+      <div class="avatar">C</div>
+      <span class="header-title">Cognia <span class="version">v3</span></span>
     </div>
-    <div id="health-indicator" class="flex items-center gap-2 text-xs text-slate-400">
-      <span class="w-2 h-2 rounded-full bg-slate-600" id="health-dot"></span>
+    <div id="health-indicator">
+      <span id="health-dot"></span>
       <span id="health-text">conectando...</span>
     </div>
   </header>
 
-  <!-- Messages -->
-  <div id="messages" class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-4 max-w-3xl w-full mx-auto">
-    <div class="msg-cognia rounded-2xl rounded-tl-sm px-4 py-3 max-w-lg self-start text-sm leading-relaxed">
-      Hola. Soy Cognia v3. ¿En qué puedo ayudarte?
+  <div id="messages">
+    <div class="msg-cognia">
+      Hola. Soy Cognia v3. &iquest;En qu&eacute; puedo ayudarte?
     </div>
   </div>
 
-  <!-- Input -->
-  <div class="px-4 pb-6 pt-2 max-w-3xl w-full mx-auto">
-    <div class="flex gap-2 bg-slate-800 rounded-2xl px-4 py-3 border border-slate-700">
+  <div class="input-wrap">
+    <div class="input-box">
       <input
         id="input"
         type="text"
         placeholder="Escribe algo..."
-        class="flex-1 bg-transparent text-sm placeholder-slate-500 focus:outline-none"
         autocomplete="off"
       />
-      <button
-        id="send-btn"
-        onclick="sendMessage()"
-        class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 rounded-xl transition-colors"
-      >
-        Enviar
-      </button>
+      <button id="send-btn" onclick="sendMessage()">Enviar</button>
     </div>
-    <p class="text-center text-slate-600 text-xs mt-2">Presiona Enter para enviar</p>
+    <p class="input-hint">Presiona Enter para enviar</p>
   </div>
 
   <script>
-    const API = '';  // mismo origen
+    const API = '';
 
-    // Health check
     async function checkHealth() {
       try {
         const r = await fetch(`${API}/api/health`);
         const d = await r.json();
-        document.getElementById('health-dot').className = 'w-2 h-2 rounded-full ' + (d.status === 'ok' ? 'bg-green-500' : 'bg-red-500');
-        document.getElementById('health-text').textContent = d.status === 'ok' ? 'conectado' : 'error';
+        const dot = document.getElementById('health-dot');
+        const txt = document.getElementById('health-text');
+        if (d.status === 'ok') {
+          dot.className = 'ok';
+          txt.textContent = 'conectado';
+        } else {
+          dot.className = 'err';
+          txt.textContent = 'error';
+        }
       } catch {
-        document.getElementById('health-dot').className = 'w-2 h-2 rounded-full bg-red-500';
-        document.getElementById('health-text').textContent = 'sin conexión';
+        document.getElementById('health-dot').className = 'err';
+        document.getElementById('health-text').textContent = 'sin conexion';
       }
     }
     checkHealth();
 
-    // Send message
     document.getElementById('input').addEventListener('keydown', e => {
       if (e.key === 'Enter') sendMessage();
     });
@@ -84,11 +259,7 @@
     function appendMsg(text, role, stage) {
       const wrap = document.getElementById('messages');
       const div = document.createElement('div');
-      div.className = `rounded-2xl px-4 py-3 max-w-lg text-sm leading-relaxed ${
-        role === 'user'
-          ? 'msg-user self-end rounded-tr-sm'
-          : 'msg-cognia self-start rounded-tl-sm'
-      }`;
+      div.className = role === 'user' ? 'msg-user' : 'msg-cognia';
       div.textContent = text;
       if (stage) {
         const badge = document.createElement('div');
@@ -104,8 +275,8 @@
     function appendLoading() {
       const wrap = document.getElementById('messages');
       const div = document.createElement('div');
-      div.className = 'msg-cognia rounded-2xl rounded-tl-sm px-4 py-3 max-w-lg self-start text-sm dot-anim';
-      div.innerHTML = '<span>●</span><span>●</span><span>●</span>';
+      div.className = 'msg-cognia dot-anim';
+      div.innerHTML = '<span></span><span></span><span></span>';
       wrap.appendChild(div);
       wrap.scrollTop = wrap.scrollHeight;
       return div;
@@ -136,9 +307,9 @@
         } else {
           appendMsg(d.response || '(sin respuesta)', 'cognia', d.stage);
         }
-      } catch (e) {
+      } catch {
         loading.remove();
-        appendMsg('Error de conexión con el servidor.', 'cognia');
+        appendMsg('Error de conexion con el servidor.', 'cognia');
       }
 
       input.disabled = false;

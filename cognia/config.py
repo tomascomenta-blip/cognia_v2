@@ -17,7 +17,7 @@ try:
 except ImportError:
     HAS_FATIGUE = False
     _FATIGUE_MONITOR = None
-    print("⚠️  fatiga_cognitiva.py no encontrado — sin monitor de fatiga")
+    print("[WARN] fatiga_cognitiva.py no encontrado - sin monitor de fatiga")
 
 NORMAL_CYCLE_MS_ENERGY = 80.0  # ref para normalizar energy_estimate
 
@@ -28,7 +28,7 @@ try:
 except ImportError:
     HAS_PLANNER = False
     ReasoningPlanner = None
-    print("⚠️  ReasoningPlanner no disponible")
+    print("[WARN] ReasoningPlanner no disponible")
 
 try:
     from curiosity_engine import CuriosityEngine as ActiveCuriosityEngine
@@ -36,7 +36,7 @@ try:
 except ImportError:
     HAS_CURIOSITY_ENGINE = False
     ActiveCuriosityEngine = None
-    print("⚠️  CuriosityEngine no disponible")
+    print("[WARN] CuriosityEngine no disponible")
 
 try:
     from language_engine import get_language_engine
@@ -66,24 +66,24 @@ HAS_SEMANTIC = importlib.util.find_spec("sentence_transformers") is not None
 VECTOR_DIM   = 384 if HAS_SEMANTIC else 64
 
 if HAS_SEMANTIC:
-    print("✅ sentence-transformers detectado (se cargará en primer uso)")
+    print("[OK] sentence-transformers detectado (se cargara en primer uso)")
 else:
-    print("⚠️  sentence-transformers no encontrado. Usando n-gramas.")
+    print("[WARN] sentence-transformers no encontrado. Usando n-gramas.")
 
 try:
     import numpy as np
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
-    print("⚠️  numpy no encontrado. Clustering básico disponible.")
+    print("[WARN] numpy no encontrado. Clustering basico disponible.")
 
 try:
     import networkx as nx
     HAS_NETWORKX = True
-    print("✅ networkx cargado (knowledge graph activo)")
+    print("[OK] networkx cargado (knowledge graph activo)")
 except ImportError:
     HAS_NETWORKX = False
-    print("⚠️  networkx no encontrado. Instala con: pip install networkx")
+    print("[WARN] networkx no encontrado. Instala con: pip install networkx")
 
 # ── Cache de embeddings ───────────────────────────────────────────────
 _embedding_cache = BoundedLRUCache(max_entries=512)

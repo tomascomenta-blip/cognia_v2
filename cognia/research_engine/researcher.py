@@ -20,7 +20,7 @@ from typing import Optional
 
 OLLAMA_URL    = "http://localhost:11434/api/generate"
 OLLAMA_MODEL  = "llama3.2"
-TIMEOUT_SEC   = 120
+TIMEOUT_SEC   = 5   # short timeout — circuit breaker handles retries
 
 # Confianza base que se asigna a conocimiento aprendido via investigación
 # (menor que el conocimiento aprendido por observación directa)

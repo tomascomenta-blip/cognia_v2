@@ -46,7 +46,8 @@ try:
 except ImportError:
     _HAS_AES = False
     logger.warning(
-        "cryptography no instalada — cifrado en modo degradado (XOR+HMAC). "
+        "cryptography no encontrada — cifrado en modo degradado (XOR+HMAC). "
+        "Los datos NO estan protegidos con AES-256-GCM. "
         "Instala con: pip install cryptography",
         extra={"op": "key_manager.init", "context": "fallback=xor_hmac"},
     )

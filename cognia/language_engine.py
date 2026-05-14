@@ -46,6 +46,8 @@ try:
 except ImportError:
     from symbolic_responder import SymbolicResponder, UMBRAL_CONFIANZA, UMBRAL_FALLBACK, UMBRAL_MINIMO
 
+from security.ollama_url import validate_ollama_url
+
 # PASO 4: Decision Gate de tres zonas
 try:
     from cognia.decision_gate import DecisionGate, GateAction, get_decision_gate
@@ -67,6 +69,27 @@ from logger_config import get_logger as _get_le_logger
 _le_logger = _get_le_logger(__name__)
 
 try:
+    from cognia.memory_response_engine import MemoryContextBuilder
+    HAS_MEM_BUILDER = True
+except ImportError:
+    try:
+        from memory_response_engine import MemoryContextBuilder
+        HAS_MEM_BUILDER = True
+    except ImportError:
+        HAS_MEM_BUILDER = False
+
+# Si coverage de memoria supera este umbral, Ollama articula SOLO el contexto dado.
+_MEMORY_PRIMARY_THRESHOLD = 0.45
+
+_MEMORY_PRIMARY_SYSTEM_PROMPT = (
+    "Eres Cognia, un sistema de IA cuya fuente de conocimiento real es su memoria episodica. "
+    "El contexto provisto ES tu conocimiento real sobre este tema — no inventes ni agregues nada externo. "
+    "Articula una respuesta coherente y natural usando UNICAMENTE la informacion del contexto dado. "
+    "Si el contexto no cubre completamente la pregunta, dilo con honestidad. "
+    "Maximo 3 parrafos claros. Responde en el idioma de la pregunta."
+)
+
+try:
     from cognia.response_cache import ResponseCache
 except ImportError:
     from response_cache import ResponseCache
@@ -75,6 +98,34 @@ try:
     from cognia.prompt_optimizer import PromptOptimizer, ContextCompressor
 except ImportError:
     from prompt_optimizer import PromptOptimizer, ContextCompressor
+
+# ── Project context reader ────────────────────────────────────────────
+def _build_project_context(cwd: str = None, max_chars_per_file: int = 2000) -> str:
+    """
+    Lee archivos de descripcion del proyecto en el CWD.
+    Prioridad: CLAUDE.md > README.md > pyproject.toml > package.json > setup.py
+    Retorna string con el contenido relevante, o "" si no encuentra nada util.
+    """
+    import pathlib
+    base = pathlib.Path(cwd or os.getcwd())
+    candidates = [
+        "CLAUDE.md", "claude.md",
+        "README.md", "README.rst", "readme.md",
+        "pyproject.toml", "package.json", "setup.py", "setup.cfg",
+        "AGENTS.md", "agents.md",
+    ]
+    parts = []
+    for name in candidates:
+        p = base / name
+        if not p.exists():
+            continue
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")[:max_chars_per_file]
+            parts.append(f"--- {name} ---\n{text.strip()}")
+        except Exception:
+            continue
+    return "\n\n".join(parts)
+
 
 # ── Singleton global (un engine por proceso) ──────────────────────────
 _ENGINE_INSTANCE: Optional["LanguageEngine"] = None
@@ -151,7 +202,9 @@ class LanguageEngine:
     def __init__(self, db_path: str = "cognia_memory.db",
                  ollama_url: str = None, modelo: str = None):
         self.db_path    = db_path
-        self.ollama_url = ollama_url or os.environ.get("OLLAMA_URL", "http://localhost:11434")
+        self.ollama_url = validate_ollama_url(
+            ollama_url or os.environ.get("OLLAMA_URL", "http://localhost:11434")
+        )
         self.modelo     = modelo     or os.environ.get("COGNIA_MODEL", "llama3.2")
 
         self.symbolic   = SymbolicResponder()
@@ -163,9 +216,12 @@ class LanguageEngine:
         self._stats = {
             "total": 0, "cache_hits": 0, "symbolic_only": 0,
             "hybrid": 0, "full_llm": 0, "fallbacks": 0,
+            "memory_primary": 0,   # llamadas al LLM en modo articulador restringido
         }
         # PASO 4: gate de decision de tres zonas
         self.gate = get_decision_gate()
+        # Motor de contexto de memoria (Stage 0)
+        self._mem_builder = MemoryContextBuilder() if HAS_MEM_BUILDER else None
         print("[LanguageEngine] Motor híbrido inicializado.")
 
     # ── API principal ──────────────────────────────────────────────────
@@ -262,6 +318,108 @@ class LanguageEngine:
                 info_suficiente = True,
                 investigated    = investigated,
             )
+
+        # ══════════════════════════════════════════════════════════════
+        # STAGE 0.45: PROJECT CONTEXT — preguntas sobre el proyecto actual
+        # Lee archivos del CWD para responder sin contaminar con memoria
+        # episódica de conversaciones anteriores.
+        # ══════════════════════════════════════════════════════════════
+        if _q_type_pre == "proyecto_actual":
+            _proj_ctx = _build_project_context()
+            _cwd_display = os.path.basename(os.getcwd()) or os.getcwd()
+            if _proj_ctx:
+                _proj_sys = (
+                    "Eres Cognia, un asistente de IA. El usuario te pregunta sobre el "
+                    "proyecto en el directorio de trabajo actual. A continuacion se "
+                    "muestran los archivos de descripcion del proyecto. "
+                    "Responde en el idioma de la pregunta de forma directa y concisa. "
+                    "No inventes informacion fuera del contexto dado."
+                )
+                _proj_prompt = (
+                    f"{_proj_sys}\n\n"
+                    f"=== CONTEXTO DEL PROYECTO ===\n{_proj_ctx}\n"
+                    f"=== FIN DEL CONTEXTO ===\n\n"
+                    f"Pregunta: {question}"
+                )
+                _le_logger.info(
+                    "stage=project_context cwd=%s",
+                    _cwd_display,
+                    extra={"op": "language_engine.stage0_45", "context": "cwd_scan"},
+                )
+                llm_result = self._call_ollama(_proj_prompt, "proyecto_actual", question)
+                latency    = (time.perf_counter() - t0) * 1000
+                self._stats["full_llm"] += 1
+                response = (
+                    llm_result["text"]
+                    if llm_result.get("ok") and llm_result.get("text")
+                    else "No encontre archivos de descripcion en el directorio actual."
+                )
+                return EngineResult(
+                    response        = response,
+                    stage_used      = "project_context",
+                    latency_ms      = latency,
+                    tokens_sent     = len(_proj_prompt) // 4,
+                    confidence      = 0.92,
+                    cache_hit       = False,
+                    used_llm        = True,
+                    question_type   = "proyecto_actual",
+                    tipo_pregunta   = "proyecto_actual",
+                    tiene_contexto  = True,
+                    info_suficiente = True,
+                )
+            else:
+                # Sin archivos de descripcion — retornar directo, sin tocar memoria episodica
+                latency = (time.perf_counter() - t0) * 1000
+                _le_logger.info(
+                    "stage=project_context_empty cwd=%s",
+                    _cwd_display,
+                    extra={"op": "language_engine.stage0_45", "context": "no_files"},
+                )
+                return EngineResult(
+                    response        = (
+                        f"No encontre archivos de descripcion del proyecto en '{_cwd_display}'. "
+                        f"Agrega un README.md o CLAUDE.md al directorio para que pueda responder."
+                    ),
+                    stage_used      = "project_context_empty",
+                    latency_ms      = latency,
+                    tokens_sent     = 0,
+                    confidence      = 1.0,
+                    cache_hit       = False,
+                    used_llm        = False,
+                    question_type   = "proyecto_actual",
+                    tipo_pregunta   = "proyecto_actual",
+                    tiene_contexto  = False,
+                    info_suficiente = False,
+                )
+
+        # ══════════════════════════════════════════════════════════════
+        # STAGE 0: MEMORY CONTEXT BUILD
+        # Construye contexto desde memoria episódica/KG antes de llegar
+        # al simbólico o al LLM. Si coverage es alto, Ollama solo articula
+        # lo que la memoria provee, no genera desde su entrenamiento.
+        # ══════════════════════════════════════════════════════════════
+        _mem_ctx   = None
+        _mem_sys   = None    # system prompt override para _call_ollama()
+        if self._mem_builder is not None and vec:
+            try:
+                _mem_ctx = self._mem_builder.build(ai, question, vec)
+                if _mem_ctx.coverage >= _MEMORY_PRIMARY_THRESHOLD:
+                    _mem_sys = _MEMORY_PRIMARY_SYSTEM_PROMPT
+                    self._stats["memory_primary"] += 1
+                    _le_logger.info(
+                        "stage=memory_primary coverage=%.3f episodes=%d facts=%d",
+                        _mem_ctx.coverage, _mem_ctx.episode_count, _mem_ctx.fact_count,
+                        extra={"op": "language_engine.stage0",
+                               "context": f"label={_mem_ctx.top_label}"},
+                    )
+                # Si el caller no pasó contexto, usar el de memoria como base
+                if not pre_built_context and _mem_ctx.text:
+                    pre_built_context = _mem_ctx.text
+            except Exception as _me:
+                _le_logger.warning(
+                    "Stage 0 memory build error: %s", _me,
+                    extra={"op": "language_engine.stage0", "context": ""},
+                )
 
         # ══════════════════════════════════════════════════════════════
         # STAGE 2: SYMBOLIC RESPONSE + DECISION GATE (PASO 4)
@@ -496,7 +654,8 @@ class LanguageEngine:
             final_prompt = optimized.prompt
 
         # Llamar al LLM
-        llm_result = self._call_ollama(final_prompt, q_type, question)
+        llm_result = self._call_ollama(final_prompt, q_type, question,
+                                       system_override=_mem_sys)
 
         latency = (time.perf_counter() - t0) * 1000
         stage   = "hybrid" if is_hybrid else "llm"
@@ -578,7 +737,7 @@ class LanguageEngine:
     # ── Llamada a Ollama ───────────────────────────────────────────────
 
     def _call_ollama(self, prompt: str, question_type: str,
-                     original_question: str) -> Dict:
+                     original_question: str, system_override: str = None) -> Dict:
         """Llama a Ollama con el prompt optimizado."""
         try:
             from cognia.prompt_optimizer import TOKEN_LIMITS
@@ -588,8 +747,12 @@ class LanguageEngine:
         # Límites conservadores para CPU sin GPU
         num_predict = min(num_predict, 420)
 
-        # Usar system prompt override si el frontend lo especificó (modo/modelo custom)
-        system = getattr(self, "_system_override", None) or self._get_system_prompt(question_type)
+        # Prioridad: caller override > frontend override > default por tipo de pregunta
+        system = (
+            system_override or
+            getattr(self, "_system_override", None) or
+            self._get_system_prompt(question_type)
+        )
         payload = json.dumps({
             "model":   self.modelo,
             "prompt":  prompt,
@@ -793,17 +956,18 @@ class LanguageEngine:
         s = self._stats
         total = max(1, s["total"])
         return {
-            "total_requests":   s["total"],
-            "cache_hit_rate":   round(s["cache_hits"]    / total, 3),
-            "symbolic_rate":    round(s["symbolic_only"] / total, 3),
-            "hybrid_rate":      round(s["hybrid"]        / total, 3),
-            "full_llm_rate":    round(s["full_llm"]      / total, 3),
-            "fallback_rate":    round(s["fallbacks"]     / total, 3),
-            "llm_avoided_pct":  round(
+            "total_requests":      s["total"],
+            "cache_hit_rate":      round(s["cache_hits"]      / total, 3),
+            "symbolic_rate":       round(s["symbolic_only"]   / total, 3),
+            "hybrid_rate":         round(s["hybrid"]          / total, 3),
+            "full_llm_rate":       round(s["full_llm"]        / total, 3),
+            "fallback_rate":       round(s["fallbacks"]       / total, 3),
+            "memory_primary_rate": round(s["memory_primary"]  / total, 3),
+            "llm_avoided_pct":     round(
                 (s["cache_hits"] + s["symbolic_only"]) / total * 100, 1
             ),
-            "cache":            self.cache.stats(),
-            "prompt_stats":     self.optimizer.get_stats(),
+            "cache":               self.cache.stats(),
+            "prompt_stats":        self.optimizer.get_stats(),
         }
 
     def run_prompt_evolution(self) -> Dict[str, str]:

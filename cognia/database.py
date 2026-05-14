@@ -27,6 +27,33 @@ def db_connect(path: str = None) -> sqlite3.Connection:
     return conn
 
 
+def _run_migrations(conn: sqlite3.Connection):
+    """
+    Aplica migraciones de schema en orden ascendente.
+    Cada migración es idempotente: usa PRAGMA table_info antes de ALTER.
+    """
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS schema_version (
+        version INTEGER NOT NULL
+    )""")
+    row = conn.execute("SELECT version FROM schema_version").fetchone()
+    current = row[0] if row else 0
+
+    # Migration 1: add feedback_weight to episodic_memory
+    if current < 1:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(episodic_memory)").fetchall()}
+        if "feedback_weight" not in cols:
+            conn.execute(
+                "ALTER TABLE episodic_memory ADD COLUMN feedback_weight REAL DEFAULT 1.0"
+            )
+        if row:
+            conn.execute("UPDATE schema_version SET version = 1")
+        else:
+            conn.execute("INSERT INTO schema_version (version) VALUES (1)")
+
+    conn.commit()
+
+
 def init_db(path: str = DB_PATH):
     """
     Inicializa o migra la base de datos.
@@ -38,24 +65,25 @@ def init_db(path: str = DB_PATH):
     # ── Tablas heredadas de v2 ─────────────────────────────────────────
     c.execute("""
     CREATE TABLE IF NOT EXISTS episodic_memory (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp     TEXT NOT NULL,
-        observation   TEXT NOT NULL,
-        label         TEXT,
-        vector        TEXT NOT NULL,
-        confidence    REAL DEFAULT 0.5,
-        access_count  INTEGER DEFAULT 0,
-        last_access   TEXT,
-        importance    REAL DEFAULT 1.0,
-        forgotten     INTEGER DEFAULT 0,
-        compressed    INTEGER DEFAULT 0,
-        emotion_score REAL DEFAULT 0.0,
-        emotion_label TEXT DEFAULT 'neutral',
-        surprise      REAL DEFAULT 0.0,
-        review_count  INTEGER DEFAULT 0,
-        next_review   TEXT,
-        context_tags  TEXT DEFAULT '[]',
-        notes         TEXT
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp       TEXT NOT NULL,
+        observation     TEXT NOT NULL,
+        label           TEXT,
+        vector          TEXT NOT NULL,
+        confidence      REAL DEFAULT 0.5,
+        access_count    INTEGER DEFAULT 0,
+        last_access     TEXT,
+        importance      REAL DEFAULT 1.0,
+        forgotten       INTEGER DEFAULT 0,
+        compressed      INTEGER DEFAULT 0,
+        emotion_score   REAL DEFAULT 0.0,
+        emotion_label   TEXT DEFAULT 'neutral',
+        surprise        REAL DEFAULT 0.0,
+        review_count    INTEGER DEFAULT 0,
+        next_review     TEXT,
+        context_tags    TEXT DEFAULT '[]',
+        notes           TEXT,
+        feedback_weight REAL DEFAULT 1.0
     )""")
 
     c.execute("""
@@ -199,8 +227,15 @@ def init_db(path: str = DB_PATH):
     c.execute("CREATE INDEX IF NOT EXISTS idx_kg_subject ON knowledge_graph(subject, weight DESC)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_kg_object ON knowledge_graph(object, weight DESC)")
 
+    _run_migrations(conn)
     conn.commit()
     conn.close()
+
+    try:
+        from cognia.migrations import run_migrations
+        run_migrations(path)
+    except Exception:
+        pass
 
 
 def limpiar_episodios_ruido(path: str = DB_PATH) -> dict:

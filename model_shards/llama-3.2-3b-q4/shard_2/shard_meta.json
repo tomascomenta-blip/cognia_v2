@@ -1,0 +1,8 @@
+{
+  "shard": 2,
+  "model": "llama-3.2-3b-q4",
+  "layers": "14-20",
+  "mode": "simulation",
+  "size_mb": 0.0,
+  "downloaded": "2026-05-03T22:07:56"
+}

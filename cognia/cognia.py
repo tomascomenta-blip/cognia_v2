@@ -1,15 +1,16 @@
-﻿"""
+"""
 cognia/cognia.py
 =================
 Clase principal Cognia v3 — integración de todos los módulos.
 """
 
+import asyncio
 import json
 import time
 import random
 import sys
 import os as _os_module
-from collections import defaultdict, Counter
+from collections import defaultdict, Counter, deque
 from datetime import datetime
 from typing import Optional
 
@@ -103,6 +104,15 @@ except ImportError:
     HAS_SECURITY = False
     SecurityError = Exception
 
+try:
+    from prometheus_client import Counter as _PCounter
+    _SLEEP_CYCLES    = _PCounter("cognia_sleep_cycles_total",    "Sleep consolidation cycles completed")
+    _EPISODES_STORED = _PCounter("cognia_episodes_stored_total", "Episodic memory store() calls")
+except ImportError:
+    _SLEEP_CYCLES = _EPISODES_STORED = None
+
+_FEEDBACK_RATE_LIMIT = 10  # Phase 9 C6: max feedback calls per 60-second rolling window
+
 
 class Cognia:
     """
@@ -120,7 +130,7 @@ class Cognia:
     """
 
     def __init__(self, db_path: str = DB_PATH):
-        print("\n🧠 Iniciando COGNIA v3...")
+        print("\n[>>] Iniciando COGNIA v3...")
         self.db = db_path
         init_db(db_path)
 
@@ -159,7 +169,7 @@ class Cognia:
             _custom_attention = self.cognitive_profile.build_attention_system()
             if _custom_attention is not None:
                 self.attention = _custom_attention
-            print(f"✅ CognitiveProfile cargado: {self.cognitive_profile}")
+            print(f"[OK] CognitiveProfile cargado: {self.cognitive_profile}")
         else:
             self._profile_manager  = None
             self.cognitive_profile = None
@@ -167,6 +177,9 @@ class Cognia:
         self.interaction_count       = 0
         self.consolidation_interval  = 8
         self.forgetting_interval     = 15
+        # Phase 9 C6: feedback guards (in-memory, reset on restart)
+        self._feedback_timestamps: deque = deque()
+        self._feedback_applied_ids: set  = set()
         self._introspect_cache       = None
         self._introspect_ts          = 0.0
 
@@ -179,19 +192,19 @@ class Cognia:
 
         self.planner = ReasoningPlanner(db_path) if HAS_PLANNER else None
         if self.planner:
-            print("✅ ReasoningPlanner activo")
+            print("[OK] ReasoningPlanner activo")
 
         self.curiosity_engine = ActiveCuriosityEngine(db_path) if HAS_CURIOSITY_ENGINE else None
         if self.curiosity_engine:
-            print("✅ CuriosityEngine activo")
+            print("[OK] CuriosityEngine activo")
 
         if HAS_RESEARCH_ENGINE:
-            print("✅ ResearchEngine (investigación autónoma durante sueño) activo")
+            print("[OK] ResearchEngine (investigacion autonoma durante sueno) activo")
 
         self._hobby_idle_seconds    = 0.0
         self._last_interaction_time = time.time()
         if HAS_PROGRAM_CREATOR:
-            print("✅ ProgramCreator (hobby de programación) activo")
+            print("[OK] ProgramCreator (hobby de programacion) activo")
 
         self._lang = self.user_profile.get("lang", "es")
 
@@ -210,21 +223,21 @@ class Cognia:
         # ── Paso 3: módulos de aprendizaje ─────────────────────────────
         self.teacher = get_teacher(self, db_path) if HAS_TEACHER else None
         if self.teacher:
-            print("✅ TeacherInterface activo")
+            print("[OK] TeacherInterface activo")
 
         self.collapse_guard = ModelCollapseGuard(db_path) if HAS_COLLAPSE_GUARD else None
         if self.collapse_guard:
-            print("✅ ModelCollapseGuard activo")
+            print("[OK] ModelCollapseGuard activo")
 
         self.language_corrector = LanguageCorrector() if HAS_LANGUAGE_CORRECTOR else None
         if self.language_corrector:
-            print("✅ LanguageCorrector activo")
+            print("[OK] LanguageCorrector activo")
 
         # ── PASO 5: FeedbackEngine (aprendizaje por feedback) ──────────
         try:
             from feedback_engine import get_feedback_engine
             self._feedback_engine = get_feedback_engine(db_path)
-            print("✅ FeedbackEngine PASO 5 activo")
+            print("[OK] FeedbackEngine PASO 5 activo")
         except ImportError:
             self._feedback_engine = None
 
@@ -235,7 +248,7 @@ class Cognia:
                 db_path,
                 consolidation_interval=self.consolidation_interval,
             )
-            print("✅ ConsolidationEngine PASO 6 activo")
+            print("[OK] ConsolidationEngine PASO 6 activo")
         except ImportError:
             self._consolidation_engine = None
 
@@ -244,7 +257,7 @@ class Cognia:
         if HAS_MESH:
             try:
                 self._mesh_node = get_mesh_node()
-                print("✅ CogniaMeshNode Fase 3 activo (modo LOCAL_ONLY hasta start_mesh())")
+                print("[OK] CogniaMeshNode Fase 3 activo (modo LOCAL_ONLY hasta start_mesh())")
             except Exception as _mesh_exc:
                 logger.warning(
                     "MeshNode no pudo inicializarse",
@@ -255,7 +268,7 @@ class Cognia:
         if HAS_SELF_ARCHITECT:
             try:
                 self.architect = SelfArchitect(db_path=db_path, cognia_instance=self)
-                print("✅ SelfArchitect v4 activo")
+                print("[OK] SelfArchitect v4 activo")
             except Exception:
                 self.architect = None
         else:
@@ -268,14 +281,22 @@ class Cognia:
         if HAS_SECURITY:
             try:
                 self._key_manager = get_key_manager()
-                print("✅ KeyManager Fase 4 activo (bloqueado — usa: desbloquear <passphrase>)")
+                print("[OK] KeyManager Fase 4 activo (bloqueado - usa: desbloquear <passphrase>)")
             except Exception as _sec_exc:
                 logger.warning(
                     "KeyManager no pudo inicializarse",
                     extra={"op": "cognia.__init__", "context": f"err={_sec_exc}"},
                 )
 
-        print("✅ COGNIA v3.2 lista. [KG + Inferencia + Objetivos + Predicción Temporal + Historial]\n")
+        # ── PASO 7: ELC AdapterStore ───────────────────────────────────
+        try:
+            from cognia.memory.adapter_store import AdapterStore
+            self._adapter_store = AdapterStore()
+            print("[OK] ELC AdapterStore activo")
+        except ImportError:
+            self._adapter_store = None
+
+        print("[OK] COGNIA v3.2 lista. [KG + Inferencia + Objetivos + Prediccion Temporal + Historial]\n")
 
     # ── API pública ────────────────────────────────────────────────────
 
@@ -286,6 +307,74 @@ class Cognia:
     def learn(self, observation: str, label: str) -> str:
         result = self.observe(observation, provided_label=label)
         return self._format_result(result)
+
+    def github_research(self, query: str, max_repos: int = 5) -> str:
+        """Busca repos en GitHub y los ingiere en la memoria episodica."""
+        try:
+            from cognia.research_engine.github_scraper import GitHubScraper
+        except ImportError:
+            return "[ERROR] Modulo github_scraper no disponible."
+
+        if not query.strip():
+            return "Uso: /investigar <query>"
+
+        scraper = GitHubScraper(max_repos=max_repos)
+        repos   = scraper.search_repos(query.strip())
+
+        if not repos:
+            return f"No se encontraron repositorios para '{query}'. Verifica tu conexion o el query."
+
+        lines = []
+        errors = 0
+        for repo in repos:
+            text  = repo.to_learning_text()
+            label = repo.label()
+            try:
+                self.observe(text, provided_label=label)
+                lines.append(f"  {repo.repo_name}  ({repo.stars} stars)")
+            except Exception as exc:
+                errors += 1
+                lines.append(f"  {repo.repo_name}  [error: {exc}]")
+
+        summary = (
+            f"Investigacion GitHub completada.\n"
+            f"Query: '{query}'\n"
+            f"Repos ingeridos: {len(repos) - errors}/{len(repos)}\n"
+            + "\n".join(lines)
+        )
+        if errors:
+            summary += f"\nErrores: {errors}"
+        return summary
+
+    def create_program(self, idea: str) -> str:
+        """Crea un programa Python ahora con la idea dada. No espera al sleep."""
+        if not HAS_PROGRAM_CREATOR:
+            return "[ERROR] Modulo ProgramCreator no disponible."
+        if not idea.strip():
+            return "Uso: /crear <descripcion de lo que quieres que cree>"
+        try:
+            from cognia.program_creator import run_program_hobby
+            print(f"[ProgramCreator] Creando: '{idea[:60]}'...")
+            result = run_program_hobby(
+                cognia_instance=self,
+                max_attempts=2,
+                forced_idea=idea.strip(),
+                verbose=True,
+            )
+            if result.stored > 0:
+                names = ", ".join(p.title for p in result.programs)
+                return (
+                    f"Creacion completada en {result.duration_sec}s.\n"
+                    f"Guardados: {result.stored} — {names}\n"
+                    f"Usa /biblioteca para verlos."
+                )
+            return (
+                f"Creacion completada en {result.duration_sec}s.\n"
+                f"Intentos: {result.attempted}. Ninguno supero el umbral de calidad.\n"
+                f"Prueba con una descripcion mas especifica."
+            )
+        except Exception as exc:
+            return f"[ERROR] {exc}"
 
     # ── Método core ────────────────────────────────────────────────────
 
@@ -392,6 +481,8 @@ class Cognia:
                 confidence=0.6, importance=1.0, emotion=emotion, surprise=surprise,
                 context_tags=self.working_mem.get_context_labels()[-3:]
             )
+            if _EPISODES_STORED is not None:
+                _EPISODES_STORED.inc()
 
             self.working_mem.add(observation, provided_label, vec, emotion, 0.6)
 
@@ -566,60 +657,60 @@ class Cognia:
             _obs_display = result.get("observation", "")
             if self.language_corrector:
                 _obs_display = self.language_corrector.clean(_obs_display)
-            lines.append(f"✅ Aprendido: '{result['label']}'")
+            lines.append(f"[+] Aprendido: '{result['label']}'")
             if result.get("was_error"):
-                lines.append(f"   ↳ Corrección: antes creía '{result['previous_prediction']}'")
+                lines.append(f"   -> Correccion: antes creia '{result['previous_prediction']}'")
             emotion = result.get("emotion", {})
             if emotion.get("label") != "neutral":
-                lines.append(f"   💭 Emoción: {emotion['label']} (intensidad: {emotion.get('intensity',0):.0%})")
+                lines.append(f"   [~] Emocion: {emotion['label']} (intensidad: {emotion.get('intensity',0):.0%})")
             if result.get("contradiction"):
                 c = result["contradiction"]
-                lines.append(f"   ⚠️  Contradicción: {c['message']}")
+                lines.append(f"   [!] Contradiccion: {c['message']}")
             kg_n = result.get("kg_triples_added", 0)
             if kg_n > 0:
-                triples_str = "; ".join(f"{s}→{p}→{o}" for s, p, o in result.get("kg_triples", []))
-                lines.append(f"   🕸️  Grafo: +{kg_n} relaciones [{triples_str}]")
+                triples_str = "; ".join(f"{s}-{p}->{o}" for s, p, o in result.get("kg_triples", []))
+                lines.append(f"   [KG] Grafo: +{kg_n} relaciones [{triples_str}]")
             if result.get("reactivated"):
-                lines.append(f"   🔄 Reactivado: {result['reactivated'][0][:40]}")
+                lines.append(f"   [<] Reactivado: {result['reactivated'][0][:40]}")
 
         elif action == "infer":
             pred = result.get("prediction")
             conf = result.get("confidence", 0)
             state = result.get("state", "ignorant")
-            icons = {"confident": "🟢", "uncertain": "🟡", "confused": "🟠", "ignorant": "🔴"}
-            icon = icons.get(state, "❓")
+            icons = {"confident": "[++]", "uncertain": "[?]", "confused": "[~~]", "ignorant": "[--]"}
+            icon = icons.get(state, "[?]")
 
             if pred:
                 lines.append(f"{icon} Creo que es: '{pred}' (confianza: {conf:.0%})")
             else:
-                lines.append(f"{icon} No sé qué es esto todavía")
+                lines.append(f"{icon} No se que es esto todavia")
 
             if result.get("inference_answer"):
                 ia = result["inference_answer"]
-                lines.append(f"   🔗 Inferencia: {ia['justification']} (conf: {ia['confidence']:.0%})")
+                lines.append(f"   [->] Inferencia: {ia['justification']} (conf: {ia['confidence']:.0%})")
 
             if result.get("activated_concepts"):
                 acts = [a["concept"] for a in result["activated_concepts"][:3]]
-                lines.append(f"   🌐 Activados: {', '.join(acts)}")
+                lines.append(f"   [net] Activados: {', '.join(acts)}")
 
             if result.get("kg_facts"):
                 kf = result["kg_facts"][0]
-                lines.append(f"   📚 Grafo: {kf['subject']} --{kf['predicate']}--> {kf['object']}")
+                lines.append(f"   [KG] Grafo: {kf['subject']} --{kf['predicate']}--> {kf['object']}")
 
             if result.get("temporal_predictions"):
                 tp = result["temporal_predictions"]
                 preds_str = ", ".join(f"{p['concept']}({p['score']:.2f})" for p in tp[:2])
-                lines.append(f"   ⏭️  Predicción siguiente: {preds_str}")
+                lines.append(f"   [>>] Prediccion siguiente: {preds_str}")
 
             if result.get("inferences"):
                 inf = result["inferences"][0]
                 just = inf.get("justification", inf.get("property", ""))
-                lines.append(f"   💡 Inferido: {just[:80]}")
+                lines.append(f"   [i] Inferido: {just[:80]}")
 
             if result.get("question"):
-                lines.append(f"   ❓ {result['question']}")
+                lines.append(f"   [?] {result['question']}")
             if result.get("pattern_hypothesis"):
-                lines.append(f"   💭 {result['pattern_hypothesis']}")
+                lines.append(f"   [~] {result['pattern_hypothesis']}")
 
         return "\n".join(lines)
 
@@ -637,13 +728,13 @@ class Cognia:
         self.metacog.log_decision("correct", wrong_label, correct_label, was_error=True)
         self.kg.add_triple(observation.split()[0] if observation else "?",
                            "is_a", correct_label, weight=1.2, source="correction")
-        return f"✏️ Corregido: '{wrong_label}' → '{correct_label}'. Lo recordaré mejor ahora."
+        return f"[OK] Corregido: '{wrong_label}' -> '{correct_label}'. Lo recordare mejor ahora."
 
     def generate_hypothesis(self, a: str, b: str) -> str:
         result = self.hypothesis.generate(a, b, kg=self.kg)
         if not result or "error" in result:
             return result.get("error", "No pude generar hipótesis") if result else "No pude generar hipótesis"
-        return (f"💡 Hipótesis (confianza: {result['confidence']:.0%}):\n"
+        return (f"[i] Hipotesis (confianza: {result['confidence']:.0%}):\n"
                 f"{result['hypothesis']}\n"
                 f"Similitud entre conceptos: {result['similarity']:.2f}")
 
@@ -700,22 +791,29 @@ class Cognia:
     def list_concepts(self) -> str:
         concepts = self.semantic.list_all()
         if not concepts:
-            return "Sin conceptos semánticos todavía."
-        lines = ["📚 Conceptos semánticos:\n"]
+            return "Sin conceptos semanticos todavia."
+        lines = ["[KG] Conceptos semanticos:\n"]
         for c in concepts:
-            emo_icon = "😊" if c["emotion_avg"] > 0.2 else ("😔" if c["emotion_avg"] < -0.2 else "😐")
-            lines.append(f"  • {c['concept']} (conf: {c['confidence']:.0%}, soporte: {c['support']}) {emo_icon}")
+            emo_icon = "[+]" if c["emotion_avg"] > 0.2 else ("[-]" if c["emotion_avg"] < -0.2 else "[=]")
+            lines.append(f"  - {c['concept']} (conf: {c['confidence']:.0%}, soporte: {c['support']}) {emo_icon}")
         return "\n".join(lines)
 
     def forget_cycle(self) -> str:
         stats = self.forgetting.decay_cycle()
-        return (f"🌊 Ciclo de olvido:\n"
+        return (f"[~] Ciclo de olvido:\n"
                 f"   Revisados:   {stats['total_checked']}\n"
                 f"   Olvidados:   {stats['forgotten']}\n"
                 f"   Comprimidos: {stats['compressed']}")
 
-    def sleep(self) -> str:
+    async def sleep(self) -> str:
+        """Ciclo de sueño v3 (async): delega al hilo del executor para no bloquear el event loop."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self._sleep_sync)
+
+    def _sleep_sync(self) -> str:
         """Ciclo de sueño v3: consolidación + compresión + actualización del grafo."""
+        if _SLEEP_CYCLES is not None:
+            _SLEEP_CYCLES.inc()
         start = time.time()
 
         consolidation = self.consolidation.sleep_consolidation()
@@ -730,14 +828,17 @@ class Cognia:
 
         duration_ms = int((time.time() - start) * 1000)
 
-        # Hipótesis espontánea
-        hipotesis_n = 0
+        # Hipótesis espontánea (budget: 30 s máximo)
+        hipotesis_n  = 0
         pattern_info = ""
+        hyp_deadline = time.time() + 30
         try:
             buenos = [c for c in self.semantic.list_all()
                       if c["confidence"] >= 0.55 and c["support"] >= 2]
             if len(buenos) >= 4:
                 for _ in range(6):
+                    if time.time() > hyp_deadline:
+                        break
                     par = random.sample(buenos, 2)
                     ca_obj = self.semantic.get_concept(par[0]["concept"])
                     cb_obj = self.semantic.get_concept(par[1]["concept"])
@@ -749,7 +850,7 @@ class Cognia:
                             hipotesis_n += 1
                             break
         except Exception as _e:
-            logger.warning("sleep: hipótesis espontánea falló: %s", _e)
+            logger.warning("sleep: hipotesis espontanea fallo: %s", _e)
 
         # Limpieza de ruido
         try:
@@ -777,8 +878,24 @@ class Cognia:
         hobby_info = ""
         if HAS_PROGRAM_CREATOR:
             try:
-                from cognia.program_creator import maybe_run_hobby
-                if random.random() < 0.4:
+                from cognia.program_creator import run_program_hobby, maybe_run_hobby
+                from cognia.program_creator.generator import get_custom_ideas, remove_custom_idea
+                pending = get_custom_ideas()
+                if pending:
+                    # Hay ideas pedidas explicitamente — ejecutar siempre, no loteria
+                    forced = pending[0]
+                    remove_custom_idea(forced)
+                    hobby_result = run_program_hobby(
+                        cognia_instance=self,
+                        max_attempts=1,
+                        forced_idea=forced,
+                        verbose=False,
+                    )
+                    if hobby_result and hobby_result.stored > 0:
+                        hobby_info = f"\n   Programa creado:  '{forced[:40]}' guardado"
+                    else:
+                        hobby_info = f"\n   Programa creado:  '{forced[:40]}' descartado (score bajo)"
+                elif random.random() < 0.4:
                     hobby_result = maybe_run_hobby(cognia_instance=self, idle_seconds=60.0,
                                                    min_idle=60.0, probability=1.0, storage_dir=None)
                     if hobby_result and hobby_result.stored > 0:
@@ -815,6 +932,34 @@ class Cognia:
             except Exception:
                 pass
 
+        # ── PASO 7: ELC — entrenamiento de adaptador LoRA episódico ──
+        elc_info = ""
+        if self._adapter_store is not None:
+            try:
+                elc_info = self._run_elc_training()
+            except Exception as _elc_e:
+                logger.warning("sleep: ELC fallo: %s", _elc_e)
+
+        # ── PASO 8: Emotion wheel — procesamiento emocional nocturno ──
+        emotion_info = ""
+        try:
+            from cognia.memory.emotion_wheel import EmotionWheelProcessor
+            ew_report = EmotionWheelProcessor(self.db).process(hours=24.0)
+            if ew_report.episodes_processed > 0:
+                ew_parts = []
+                if ew_report.dominant:
+                    ew_parts.append(
+                        f"dominante={ew_report.dominant}({ew_report.intensity:.2f})"
+                    )
+                if ew_report.importance_modulated > 0:
+                    ew_parts.append(f"{ew_report.importance_modulated} modulados")
+                if ew_report.imbalance:
+                    ew_parts.append(f"desbalance={ew_report.imbalance}")
+                if ew_parts:
+                    emotion_info = f"\n   Emocion:           {', '.join(ew_parts)}"
+        except Exception as _ew_e:
+            logger.warning("sleep: emotion_wheel fallo: %s", _ew_e)
+
         # Language Engine — evolución de prompts + reporte al architect
         engine_info = ""
         if HAS_LANGUAGE_ENGINE:
@@ -832,9 +977,9 @@ class Cognia:
                         zones = engine.report_weak_zones()
                         if zones.get("engine_fallback_rate", 0) > 0.20:
                             engine_info += (
-                                f"\n   ⚠️  Engine fallback rate: "
-                                f"{zones['engine_fallback_rate']:.0%} — "
-                                f"evaluación arquitectural programada"
+                                f"\n   [!] Engine fallback rate: "
+                                f"{zones['engine_fallback_rate']:.0%} - "
+                                f"evaluacion arquitectural programada"
                             )
                     except Exception:
                         pass
@@ -849,7 +994,7 @@ class Cognia:
                 energy_result = self.architect.energy_loop.run_loop()
                 if energy_result.get("adjusted"):
                     architect_info += (
-                        f"\n   ⚡ Auto-ajuste energético: "
+                        f"\n   [*] Auto-ajuste energetico: "
                         f"{energy_result['actions'][-1].get('message','')}"
                     )
 
@@ -864,16 +1009,16 @@ class Cognia:
                         score = eval_result.get("score", 0)
                         n_props = eval_result.get("proposals_generated", 0)
                         has_crit = eval_result.get("has_critical", False)
-                        crit_tag = " 🔴 CRÍTICO" if has_crit else ""
+                        crit_tag = " [!!] CRITICO" if has_crit else ""
                         architect_info += (
-                            f"\n   🏗️  Architect score: {score:.1f}/100"
+                            f"\n   [arch] Architect score: {score:.1f}/100"
                             f"{crit_tag}"
                             + (f", {n_props} propuesta(s)" if n_props else "")
                         )
             except Exception:
                 pass
 
-        return (f"😴 CICLO DE SUEÑO v3 completado ({duration_ms}ms):\n"
+        return (f"[zz] CICLO DE SUENO v3 completado ({duration_ms}ms):\n"
                 f"   Consolidación:  {consolidation['concepts_consolidated']} conceptos, "
                 f"{consolidation['associations_created']} asociaciones\n"
                 f"   Compresión:     {compression['labels_processed']} labels, "
@@ -883,36 +1028,157 @@ class Cognia:
                 f"   Contradicciones resueltas: {resolved_contradictions}\n"
                 f"   Nuevos objetivos: {len(new_goals)}\n"
                 f"   Hipótesis generadas: {hipotesis_n}"
-                + extras + research_info + hobby_info + engine_info + feedback_info
-                + consolidation6_info + architect_info + pattern_info)
+                + extras + research_info + hobby_info + elc_info + emotion_info
+                + engine_info + feedback_info + consolidation6_info + architect_info
+                + pattern_info)
+
+    def _run_elc_training(self) -> str:
+        """
+        Trains or warm-starts the ELC LoRA adapter from recent high-importance
+        episodes. Runs entirely within _sleep_sync() — blocking but bounded.
+        Returns a one-line summary string (empty when skipped).
+        """
+        import json as _json
+        import numpy as _np
+        from node.local_adapter import LoRATrainer
+
+        conn = db_connect(self.db)
+        c    = conn.cursor()
+        c.execute("""
+            SELECT label, vector FROM episodic_memory
+            WHERE forgotten = 0 AND importance >= 0.7
+              AND vector IS NOT NULL AND label IS NOT NULL
+            ORDER BY importance DESC LIMIT 200
+        """)
+        rows = c.fetchall()
+        conn.close()
+
+        episodes = []
+        for label, vec_str in rows:
+            try:
+                episodes.append({
+                    "label":  label,
+                    "vector": _np.array(_json.loads(vec_str), dtype=_np.float32),
+                })
+            except Exception:
+                continue
+
+        user_id  = "default"
+        existing = self._adapter_store.get(user_id)
+        adapter  = LoRATrainer().train(episodes, user_id, existing=existing)
+        if adapter is None:
+            return ""
+        ok  = self._adapter_store.put(user_id, adapter)
+        fed = self._try_federated_sync(adapter)
+        base = f"\n   ELC:            adaptador entrenado ({len(episodes)} episodios)" if ok else ""
+        return base + fed
+
+    def _try_federated_sync(self, adapter) -> str:
+        """
+        Submits the local adapter (with added noise) to the coordinator and
+        downloads the current global adapter if available.
+        Both operations are fire-and-forget: coordinator absence is silent.
+        Returns a one-line summary or empty string.
+        """
+        import io as _io
+        import numpy as _np
+        from urllib.request import urlopen
+        from urllib.request import Request as _UrlRequest
+        from urllib.error import URLError
+
+        coordinator_url   = _os_module.environ.get("COGNIA_COORDINATOR_URL", "").rstrip("/")
+        contributor_token = _os_module.environ.get("COGNIA_CONTRIBUTOR_TOKEN", "")
+        if not coordinator_url or not contributor_token:
+            return ""
+
+        def _noisy(w):
+            return w + _np.random.normal(0, 0.01, w.shape).astype(_np.float32)
+
+        buf = _io.BytesIO()
+        _np.savez_compressed(
+            buf,
+            k_A=_noisy(adapter.lora_k.A),
+            k_B=_noisy(adapter.lora_k.B),
+            v_A=_noisy(adapter.lora_v.A),
+            v_B=_noisy(adapter.lora_v.B),
+        )
+        payload = buf.getvalue()
+        headers = {
+            "X-Contributor-Token": contributor_token,
+            "Content-Type":        "application/octet-stream",
+        }
+        lines = []
+
+        try:
+            req = _UrlRequest(
+                f"{coordinator_url}/api/federated/contribute",
+                data=payload, headers=headers, method="POST",
+            )
+            with urlopen(req, timeout=10) as resp:
+                if resp.status == 200:
+                    lines.append("contribucion enviada")
+        except (URLError, OSError):
+            pass
+
+        try:
+            req = _UrlRequest(
+                f"{coordinator_url}/api/federated/global",
+                headers={"X-Contributor-Token": contributor_token},
+                method="GET",
+            )
+            with urlopen(req, timeout=10) as resp:
+                if resp.status == 200:
+                    self._apply_global_adapter(resp.read())
+                    lines.append("adaptador global aplicado")
+        except (URLError, OSError):
+            pass
+        except Exception as _fe:
+            logger.warning("fed: error aplicando adaptador global: %s", _fe)
+
+        return ("\n   FED:            " + " | ".join(lines)) if lines else ""
+
+    def _apply_global_adapter(self, blob: bytes) -> None:
+        """Deserializes global adapter blob and caches it for shard injection."""
+        import io as _io
+        import numpy as _np
+        from node.local_adapter import LoRAAdapter, LoRAWeights
+
+        data    = _np.load(_io.BytesIO(blob), allow_pickle=False)
+        adapter = LoRAAdapter(
+            lora_k=LoRAWeights(A=data["k_A"].copy(), B=data["k_B"].copy()),
+            lora_v=LoRAWeights(A=data["v_A"].copy(), B=data["v_B"].copy()),
+            user_id="global",
+        )
+        if self._adapter_store is not None:
+            self._adapter_store.put("global", adapter)
 
     def fatigue_status(self) -> str:
         if not self.fatigue:
-            return "⚠️  Monitor de fatiga cognitiva no disponible."
+            return "[WARN] Monitor de fatiga cognitiva no disponible."
         return self.fatigue.format_status()
 
     def review_due(self) -> str:
         due = self.episodic.get_due_for_review()
         if not due:
-            return "✅ No hay episodios pendientes de repaso."
-        lines = [f"📅 {len(due)} episodios para repasar:\n"]
+            return "[OK] No hay episodios pendientes de repaso."
+        lines = [f"[!] {len(due)} episodios para repasar:\n"]
         for ep in due[:5]:
-            lines.append(f"  [{ep['id']}] '{ep['observation'][:50]}' → {ep['label']} "
+            lines.append(f"  [{ep['id']}] '{ep['observation'][:50]}' -> {ep['label']} "
                          f"(revisado {ep['review_count']}x)")
         lines.append("\nUsa 'repasar <id> correcto' o 'repasar <id> incorrecto'")
         return "\n".join(lines)
 
     def mark_review(self, ep_id: int, correct: bool) -> str:
         self.episodic.mark_reviewed(ep_id, correct)
-        return f"✅ Episodio {ep_id} marcado como {'correcto' if correct else 'incorrecto'}."
+        return f"[OK] Episodio {ep_id} marcado como {'correcto' if correct else 'incorrecto'}."
 
     def show_contradictions(self) -> str:
         items = self.contradiction.list_unresolved()
         if not items:
-            return "✅ Sin contradicciones detectadas."
-        lines = [f"⚠️ {len(items)} contradicciones sin resolver:\n"]
+            return "[OK] Sin contradicciones detectadas."
+        lines = [f"[!] {len(items)} contradicciones sin resolver:\n"]
         for item in items:
-            lines.append(f"  • [{item['concept']}] {item['claim_a']} vs {item['claim_b']}")
+            lines.append(f"  - [{item['concept']}] {item['claim_a']} vs {item['claim_b']}")
         return "\n".join(lines)
 
     def explain(self, observation: str) -> str:
@@ -923,21 +1189,21 @@ class Cognia:
         if assessment.get("top_label"):
             activated = self.semantic.spreading_activation(assessment["top_label"])
 
-        lines = [f"🔍 Explicación para: '{observation}'",
+        lines = [f"[?] Explicacion para: '{observation}'",
                  f"Estado: {assessment['state']} (confianza: {assessment['confidence']:.0%})",
-                 f"Razón: {assessment['reason']}"]
+                 f"Razon: {assessment['reason']}"]
 
         if similar:
             lines.append("\nRecuerdos más relevantes:")
             for s in similar[:3]:
                 emo = s.get("emotion", {}).get("label", "neutral")
-                lines.append(f"  • '{s['observation'][:40]}' → {s['label']} "
+                lines.append(f"  - '{s['observation'][:40]}' -> {s['label']} "
                               f"(sim={s['similarity']:.2f}, {emo})")
 
         if activated:
             lines.append("\nConceptos activados:")
             for a in activated[:4]:
-                lines.append(f"  → {a['concept']} (activación: {a['activation']:.2f})")
+                lines.append(f"  -> {a['concept']} (activacion: {a['activation']:.2f})")
 
         top_label = assessment.get("top_label", "")
         if top_label:
@@ -945,16 +1211,16 @@ class Cognia:
             if kg_facts:
                 lines.append("\nHechos en el grafo de conocimiento:")
                 for f in kg_facts[:4]:
-                    lines.append(f"  🕸️  {f['subject']} --{f['predicate']}--> {f['object']} (peso: {f['weight']:.1f})")
+                    lines.append(f"  [KG] {f['subject']} --{f['predicate']}--> {f['object']} (peso: {f['weight']:.1f})")
             ancestors = self.kg.get_ancestors(top_label)
             if ancestors:
-                lines.append(f"  Jerarquía: {top_label} → {'→'.join(ancestors)}")
+                lines.append(f"  Jerarquia: {top_label} -> {'->'.join(ancestors)}")
             inferences = self.inference.infer(top_label)
             if inferences:
                 lines.append("\nInferencias derivadas:")
                 for inf in inferences[:3]:
                     just = inf.get("justification", inf.get("property", ""))
-                    lines.append(f"  💡 {just[:80]}")
+                    lines.append(f"  [i] {just[:80]}")
 
         return "\n".join(lines)
 
@@ -963,28 +1229,28 @@ class Cognia:
     def show_graph(self, concept: str) -> str:
         facts = self.kg.get_facts(concept)
         if not facts:
-            return f"❌ No hay hechos sobre '{concept}' en el grafo de conocimiento."
-        lines = [f"🕸️  Knowledge Graph: '{concept}'\n"]
+            return f"[--] No hay hechos sobre '{concept}' en el grafo de conocimiento."
+        lines = [f"[KG] Knowledge Graph: '{concept}'\n"]
         by_pred = defaultdict(list)
         for f in facts:
             if f["subject"] == concept:
-                by_pred[f["predicate"]].append(f"→ {f['object']} (peso: {f['weight']:.1f})")
+                by_pred[f["predicate"]].append(f"-> {f['object']} (peso: {f['weight']:.1f})")
             else:
-                by_pred[f"← {f['predicate']}"].append(f"← {f['subject']} (peso: {f['weight']:.1f})")
+                by_pred[f"<- {f['predicate']}"].append(f"<- {f['subject']} (peso: {f['weight']:.1f})")
         for pred, items in sorted(by_pred.items()):
             lines.append(f"  [{pred}]")
             for item in items[:5]:
                 lines.append(f"    {item}")
         ancestors = self.kg.get_ancestors(concept)
         if ancestors:
-            lines.append(f"\n  Jerarquía: {concept} → {'→'.join(ancestors)}")
+            lines.append(f"\n  Jerarquia: {concept} -> {'->'.join(ancestors)}")
         return "\n".join(lines)
 
     def add_fact(self, subject: str, predicate: str, obj: str) -> str:
         is_new = self.kg.add_triple(subject.lower(), predicate.lower(), obj.lower(),
                                      weight=1.0, source="manual")
         action = "agregada" if is_new else "reforzada"
-        return f"✅ Relación {action}: {subject} --{predicate}--> {obj}"
+        return f"[OK] Relacion {action}: {subject} --{predicate}--> {obj}"
 
     def apply_feedback(self, response_id: str, correct: bool,
                        correction_text: str = None) -> str:
@@ -999,6 +1265,29 @@ class Cognia:
           4. Si hay corrección, guardar como episodio de alta prioridad
           5. Ajustar gate de decisión si el simbólico tiene muchos fallos
         """
+        # ── Phase 9 C6: rate limiting + double-apply prevention ───────────────
+        now = time.time()
+        while self._feedback_timestamps and self._feedback_timestamps[0] < now - 60:
+            self._feedback_timestamps.popleft()
+        if len(self._feedback_timestamps) >= _FEEDBACK_RATE_LIMIT:
+            logger.warning(
+                "Feedback rate limit exceeded",
+                extra={"op": "cognia.apply_feedback",
+                       "context": f"response_id={response_id}"},
+            )
+            return "Demasiados feedbacks en poco tiempo. Espera un momento."
+        if response_id and response_id in self._feedback_applied_ids:
+            logger.warning(
+                "Duplicate feedback attempt blocked",
+                extra={"op": "cognia.apply_feedback",
+                       "context": f"response_id={response_id}"},
+            )
+            return "Este feedback ya fue registrado anteriormente."
+        if response_id:
+            self._feedback_applied_ids.add(response_id)
+        self._feedback_timestamps.append(now)
+        # ── end Phase 9 C6 ───────────────────────────────────────────────────
+
         feedback_val = 1 if correct else -1
 
         # ── comportamiento original: chat_history + metacog ───────────
@@ -1046,16 +1335,16 @@ class Cognia:
         sem_n = summary.get("sem_affected", 0)
         gate  = " (umbral ajustado)" if summary.get("gate_adjusted") else ""
         if correction_text and not self._feedback_engine:
-            return "✅ Feedback registrado. Corrección guardada con alta prioridad."
+            return "[OK] Feedback registrado. Correccion guardada con alta prioridad."
         if correction_text:
             return (
-                f"✅ Feedback {'positivo' if correct else 'negativo'} registrado. "
-                f"Actualicé {ep_n} memorias, {sem_n} conceptos{gate}. "
-                f"Corrección guardada con alta prioridad."
+                f"[OK] Feedback {'positivo' if correct else 'negativo'} registrado. "
+                f"Actualice {ep_n} memorias, {sem_n} conceptos{gate}. "
+                f"Correccion guardada con alta prioridad."
             )
         return (
-            f"✅ Feedback {'positivo' if correct else 'negativo'} registrado. "
-            f"Actualicé {ep_n} memorias, {sem_n} conceptos{gate}."
+            f"[OK] Feedback {'positivo' if correct else 'negativo'} registrado. "
+            f"Actualice {ep_n} memorias, {sem_n} conceptos{gate}."
         )
 
     def get_memory_health(self) -> dict:
@@ -1098,10 +1387,10 @@ class Cognia:
     def predict_next(self, concept: str) -> str:
         preds = self.temporal_mem.predict_next(concept)
         if not preds:
-            return f"❌ Sin datos de secuencias para '{concept}' todavía."
-        lines = [f"⏭️  Predicciones temporales para '{concept}':\n"]
+            return f"[--] Sin datos de secuencias para '{concept}' todavia."
+        lines = [f"[>>] Predicciones temporales para '{concept}':\n"]
         for p in preds:
-            bar = "█" * int(p["probability"] * 20)
+            bar = "#" * int(p["probability"] * 20)
             lines.append(f"  {bar} {p['concept']} ({p['probability']:.0%}, {p['count']}x visto)")
         return "\n".join(lines)
 
@@ -1109,8 +1398,8 @@ class Cognia:
         inferences = self.inference.infer(concept, max_steps=3)
         inherited  = self.inference.infer_properties(concept)
         if not inferences and not inherited:
-            return f"❌ No se pudieron derivar inferencias sobre '{concept}'."
-        lines = [f"💡 Inferencias sobre '{concept}':\n"]
+            return f"[--] No se pudieron derivar inferencias sobre '{concept}'."
+        lines = [f"[i] Inferencias sobre '{concept}':\n"]
         for inf in inferences[:5]:
             conf = inf.get("confidence", 0)
             just = inf.get("justification", "")
@@ -1118,7 +1407,7 @@ class Cognia:
         if inherited:
             lines.append("\n  Propiedades heredadas:")
             for prop in inherited[:3]:
-                lines.append(f"  ↳ {concept} {prop['property']} {prop['value']} "
+                lines.append(f"  -> {concept} {prop['property']} {prop['value']} "
                               f"(de {prop['inherited_from']}, conf: {prop['confidence']:.0%})")
         return "\n".join(lines)
 
@@ -1140,13 +1429,13 @@ class Cognia:
             resultado = cognia.apply_cognitive_feedback("más detalle")
         """
         if not HAS_USER_PROFILE_V2 or self.cognitive_profile is None:
-            return "⚠️  Perfil cognitivo v2 no disponible."
+            return "[WARN] Perfil cognitivo v2 no disponible."
 
         ok = self.cognitive_profile.update_from_feedback(feedback)
         if not ok:
-            valid = ", ".join(["más detalle", "más corto", "correcto", "incorrecto",
-                               "útil", "no útil", "más técnico", "más simple"])
-            return f"⚠️  Feedback desconocido. Válidos: {valid}"
+            valid = ", ".join(["mas detalle", "mas corto", "correcto", "incorrecto",
+                               "util", "no util", "mas tecnico", "mas simple"])
+            return f"[WARN] Feedback desconocido. Validos: {valid}"
 
         # Reconstruir AttentionSystem con los nuevos pesos
         new_attention = self.cognitive_profile.build_attention_system()
@@ -1159,7 +1448,7 @@ class Cognia:
 
         w = self.cognitive_profile.attention_weights
         return (
-            f"✅ Perfil actualizado (feedback='{feedback}'):\n"
+            f"[OK] Perfil actualizado (feedback='{feedback}'):\n"
             f"   sem={w.get('semantic',0):.2f}  "
             f"emo={w.get('emotion',0):.2f}  "
             f"rec={w.get('recency',0):.2f}  "
@@ -1176,11 +1465,11 @@ class Cognia:
             cognia.rollback_profile(3)      # deshacer últimos 3 cambios
         """
         if not HAS_USER_PROFILE_V2 or self.cognitive_profile is None:
-            return "⚠️  Perfil cognitivo v2 no disponible."
+            return "[WARN] Perfil cognitivo v2 no disponible."
 
         ok = self.cognitive_profile.rollback(steps=steps)
         if not ok:
-            return "⚠️  No hay cambios de perfil para deshacer."
+            return "[WARN] No hay cambios de perfil para deshacer."
 
         # Reconstruir AttentionSystem con los pesos restaurados
         new_attention = self.cognitive_profile.build_attention_system()
@@ -1192,7 +1481,7 @@ class Cognia:
 
         w = self.cognitive_profile.attention_weights
         return (
-            f"↩️  Perfil restaurado ({steps} paso(s) atrás):\n"
+            f"[<<] Perfil restaurado ({steps} paso(s) atras):\n"
             f"   sem={w.get('semantic',0):.2f}  "
             f"emo={w.get('emotion',0):.2f}  "
             f"rec={w.get('recency',0):.2f}  "
@@ -1202,32 +1491,32 @@ class Cognia:
     def show_profile(self) -> str:
         """Muestra el perfil cognitivo actual y el historial de snapshots."""
         if not HAS_USER_PROFILE_V2 or self.cognitive_profile is None:
-            return "⚠️  Perfil cognitivo v2 no disponible."
+            return "[WARN] Perfil cognitivo v2 no disponible."
 
         p = self.cognitive_profile
         w = p.attention_weights
         lines = [
-            f"👤 Perfil cognitivo: {p.user_id}",
+            f"[~] Perfil cognitivo: {p.user_id}",
             f"   Estilo:     {p.response_style}",
             f"   Idioma:     {p.preferred_language}",
             f"   Interacciones: {p.total_interactions}",
-            f"\n   Pesos de atención:",
-            f"   • Semántica:  {w.get('semantic',0):.2f}",
-            f"   • Emoción:    {w.get('emotion',0):.2f}",
-            f"   • Recencia:   {w.get('recency',0):.2f}",
-            f"   • Frecuencia: {w.get('frequency',0):.2f}",
+            f"\n   Pesos de atencion:",
+            f"   - Semantica:  {w.get('semantic',0):.2f}",
+            f"   - Emocion:    {w.get('emotion',0):.2f}",
+            f"   - Recencia:   {w.get('recency',0):.2f}",
+            f"   - Frecuencia: {w.get('frequency',0):.2f}",
         ]
         if p.domain_interests:
             lines.append(f"\n   Intereses: {', '.join(p.domain_interests)}")
         if p.feedback_counts:
             top_fb = sorted(p.feedback_counts.items(), key=lambda x: -x[1])[:3]
-            fb_str = ", ".join(f"'{k}'×{v}" for k, v in top_fb)
+            fb_str = ", ".join(f"'{k}'x{v}" for k, v in top_fb)
             lines.append(f"   Feedback recibido: {fb_str}")
         history = p.history()
         if history:
             lines.append(f"\n   Historial de cambios ({len(history)} disponibles para rollback):")
             for h in history[:3]:
-                lines.append(f"   ↩  v{h['version']} [{h['timestamp'][:16]}] {h['label']}")
+                lines.append(f"   <<  v{h['version']} [{h['timestamp'][:16]}] {h['label']}")
         else:
             lines.append("\n   Sin historial de cambios.")
         return "\n".join(lines)
@@ -1238,16 +1527,16 @@ class Cognia:
         Estilos válidos: 'balanced', 'concise', 'detailed', 'socratic'
         """
         if not HAS_USER_PROFILE_V2 or self.cognitive_profile is None:
-            return "⚠️  Perfil cognitivo v2 no disponible."
+            return "[WARN] Perfil cognitivo v2 no disponible."
 
         ok = self.cognitive_profile.set_style(style)
         if not ok:
-            return f"⚠️  Estilo inválido. Válidos: balanced, concise, detailed, socratic"
+            return f"[WARN] Estilo invalido. Validos: balanced, concise, detailed, socratic"
 
         if self._profile_manager:
             self._profile_manager.save(self.cognitive_profile)
 
-        return f"✅ Estilo de respuesta cambiado a: '{style}'"
+        return f"[OK] Estilo de respuesta cambiado a: '{style}'"
 
     def get_narrative(self, observation: str) -> str:
         """
@@ -1264,22 +1553,22 @@ class Cognia:
         o mensaje de aviso si NarrativeThread no está disponible o no hay memoria.
         """
         if not HAS_NARRATIVE:
-            return "⚠️  NarrativeThread no disponible (cognia/memory/narrative.py ausente)."
+            return "[WARN] NarrativeThread no disponible (cognia/memory/narrative.py ausente)."
 
-        # Obtener vector de la observación
+        # Obtener vector de la observacion
         try:
             vec = self.perception.encode(observation)
         except Exception as exc:
             logger.warning(
-                "get_narrative: error al codificar observación",
+                "get_narrative: error al codificar observacion",
                 extra={"op": "cognia.get_narrative", "context": f"err={exc}"},
             )
-            return "⚠️  No se pudo codificar la observación."
+            return "[WARN] No se pudo codificar la observacion."
 
-        # Buscar episodio semilla (el más similar)
+        # Buscar episodio semilla (el mas similar)
         similar = self.episodic.retrieve_similar(vec, top_k=1)
         if not similar:
-            return "ℹ️  No hay episodios en memoria para construir un hilo narrativo."
+            return "[INFO] No hay episodios en memoria para construir un hilo narrativo."
 
         seed_id = similar[0]["id"]
 
@@ -1293,29 +1582,28 @@ class Cognia:
                 extra={"op": "cognia.get_narrative",
                        "context": f"seed_id={seed_id} err={exc}"},
             )
-            return f"⚠️  Error al construir hilo narrativo: {exc}"
+            return f"[WARN] Error al construir hilo narrativo: {exc}"
 
         if not episodes:
-            return "ℹ️  No se encontraron episodios relacionados en la ventana temporal."
+            return "[INFO] No se encontraron episodios relacionados en la ventana temporal."
 
         # Formatear salida legible
         lines = [
-            f"📖 Hilo narrativo ({len(episodes)} episodio(s)) — semilla: #{seed_id}",
-            "─" * 55,
+            f"[>] Hilo narrativo ({len(episodes)} episodio(s)) - semilla: #{seed_id}",
+            "-" * 55,
         ]
         for i, ep in enumerate(episodes, 1):
-            ts    = ep.get("timestamp", "")[:16]  # YYYY-MM-DDTHH:MM
+            ts    = ep.get("timestamp", "")[:16]
             label = ep.get("label", "?")
             obs   = ep.get("observation", "")
             sim   = ep.get("similarity", 0.0)
             imp   = ep.get("importance", 1.0)
-            # Recortar observación larga
             obs_short = obs if len(obs) <= 80 else obs[:77] + "..."
             lines.append(
                 f"  {i:02d}. [{ts}] ({label}) sim={sim:.2f} imp={imp:.2f}\n"
                 f"       {obs_short}"
             )
-        lines.append("─" * 55)
+        lines.append("-" * 55)
         return "\n".join(lines)
 
     # ──────────────────────────────────────────────────────────────────
@@ -1334,20 +1622,20 @@ class Cognia:
             cognia.start_mesh(port=7475)
         """
         if not HAS_MESH:
-            return "⚠️  network/mesh_node.py no disponible."
+            return "[WARN] network/mesh_node.py no disponible."
         if self._mesh_node is None:
-            return "⚠️  MeshNode no inicializado."
+            return "[WARN] MeshNode no inicializado."
         try:
             self._mesh_node.port = port
             self._mesh_node.start()
             from network.mesh_node import HAS_WEBSOCKETS
             mode = "red activa" if HAS_WEBSOCKETS else "LOCAL_ONLY"
             return (
-                f"✅ MeshNode iniciado (id={self._mesh_node.node_id} "
+                f"[OK] MeshNode iniciado (id={self._mesh_node.node_id} "
                 f"port={port} modo={mode})"
             )
         except Exception as exc:
-            return f"⚠️  Error al iniciar MeshNode: {exc}"
+            return f"[WARN] Error al iniciar MeshNode: {exc}"
 
     def connect_mesh_peer(self, uri: str) -> str:
         """
@@ -1357,9 +1645,9 @@ class Cognia:
             cognia.connect_mesh_peer("ws://192.168.1.10:7474")
         """
         if not HAS_MESH or self._mesh_node is None:
-            return "⚠️  MeshNode no disponible."
+            return "[WARN] MeshNode no disponible."
         self._mesh_node.connect_peer(uri)
-        return f"✅ Conectando a peer: {uri}"
+        return f"[OK] Conectando a peer: {uri}"
 
     def publish_knowledge(self, triples: list) -> str:
         """
@@ -1377,22 +1665,22 @@ class Cognia:
             ])
         """
         if not HAS_MESH or self._mesh_node is None:
-            return "⚠️  MeshNode no disponible."
+            return "[WARN] MeshNode no disponible."
         if not triples:
-            return "⚠️  Lista de triples vacía."
+            return "[WARN] Lista de triples vacia."
         self._mesh_node.publish_knowledge_delta(triples)
-        return f"✅ {len(triples)} triple(s) publicados (filtro de privacidad aplicado)."
+        return f"[OK] {len(triples)} triple(s) publicados (filtro de privacidad aplicado)."
 
     def mesh_status(self) -> str:
         """Muestra el estado del nodo MESH y estadísticas CRDT."""
         if not HAS_MESH or self._mesh_node is None:
-            return "⚠️  MeshNode no disponible."
+            return "[WARN] MeshNode no disponible."
         node  = self._mesh_node
         stats = node.crdt_stats()
         peers = node.get_peers()
         from network.mesh_node import HAS_WEBSOCKETS
         lines = [
-            f"🌐 COGNIA MESH — nodo: {node.node_id}",
+            f"[NET] COGNIA MESH - nodo: {node.node_id}",
             f"   Estado:  {'activo' if node._running else 'detenido'}",
             f"   Modo:    {'red (websockets)' if HAS_WEBSOCKETS else 'LOCAL_ONLY'}",
             f"   Puerto:  {node.port}",
@@ -1400,15 +1688,15 @@ class Cognia:
         ]
         if peers:
             for p in peers[:5]:
-                lines.append(f"   • {p}")
+                lines.append(f"   - {p}")
         lines += [
             f"\n   CRDT Knowledge Graph:",
-            f"   • Triples totales: {stats['total']}",
-            f"   • Válidos:         {stats['valid']}",
-            f"   • Invalidados:     {stats['invalid']}",
+            f"   - Triples totales: {stats['total']}",
+            f"   - Validos:         {stats['valid']}",
+            f"   - Invalidados:     {stats['invalid']}",
         ]
         if stats.get("by_node"):
-            lines.append("   • Por nodo:")
+            lines.append("   - Por nodo:")
             for nid, count in list(stats["by_node"].items())[:3]:
                 lines.append(f"     - {nid}: {count}")
         return "\n".join(lines)
@@ -1434,14 +1722,13 @@ class Cognia:
         Uso en CLI: desbloquear <passphrase>
         """
         if not HAS_SECURITY:
-            return "⚠️  Módulo security no disponible (security/key_manager.py ausente)."
+            return "[WARN] Modulo security no disponible (security/key_manager.py ausente)."
 
         if self._key_manager is None:
-            return "⚠️  KeyManager no inicializado."
+            return "[WARN] KeyManager no inicializado."
 
         try:
             self._key_manager.unlock(passphrase)
-            # Reemplazar la instancia de EpisodicMemory por la versión cifrada
             self._secure_episodic = get_secure_memory(
                 db_path=self.db,
                 key_manager=self._key_manager,
@@ -1449,13 +1736,13 @@ class Cognia:
             self.episodic = self._secure_episodic
             mode = self._key_manager.mode
             return (
-                f"🔓 Cifrado activado (modo: {mode}).\n"
-                f"   Nuevas observaciones se cifrarán automáticamente.\n"
+                f"[OPEN] Cifrado activado (modo: {mode}).\n"
+                f"   Nuevas observaciones se cifraran automaticamente.\n"
                 f"   Usa 'seguridad' para ver cobertura de cifrado.\n"
                 f"   Usa 'bloquear' para eliminar la clave de RAM."
             )
         except SecurityError as exc:
-            return f"❌ Error al desbloquear: {exc}"
+            return f"[FAIL] Error al desbloquear: {exc}"
 
     def lock_security(self) -> str:
         """
@@ -1470,18 +1757,17 @@ class Cognia:
         Uso en CLI: bloquear
         """
         if not HAS_SECURITY or self._key_manager is None:
-            return "⚠️  Módulo security no disponible."
+            return "[WARN] Modulo security no disponible."
 
         if not self._key_manager.is_unlocked:
-            return "ℹ️  El cifrado ya está bloqueado."
+            return "[INFO] El cifrado ya esta bloqueado."
 
         self._key_manager.lock()
-        # Restaurar EpisodicMemory sin cifrado
         from cognia.memory.episodic import EpisodicMemory as _EpisodicMemory
         self.episodic = _EpisodicMemory(self.db)
         self._secure_episodic = None
         return (
-            "🔒 Cifrado bloqueado. Clave eliminada de RAM.\n"
+            "[LOCK] Cifrado bloqueado. Clave eliminada de RAM.\n"
             "   Usa 'desbloquear <passphrase>' para reactivar."
         )
 
@@ -1492,15 +1778,15 @@ class Cognia:
         Uso en CLI: seguridad
         """
         if not HAS_SECURITY:
-            return "⚠️  Módulo security (Fase 4) no disponible."
+            return "[WARN] Modulo security (Fase 4) no disponible."
 
         km = self._key_manager
         if km is None:
-            return "⚠️  KeyManager no inicializado."
+            return "[WARN] KeyManager no inicializado."
 
         lines = [
-            "🔐 Estado de cifrado — Fase 4",
-            f"   KeyManager:  {'🔓 Desbloqueado' if km.is_unlocked else '🔒 Bloqueado'}",
+            "[SEC] Estado de cifrado - Fase 4",
+            f"   KeyManager:  {'[OPEN] Desbloqueado' if km.is_unlocked else '[LOCK] Bloqueado'}",
             f"   Modo:        {km.mode}",
         ]
 
@@ -1509,25 +1795,25 @@ class Cognia:
                 st = self._secure_episodic.status()
                 lines += [
                     f"\n   Cobertura de cifrado:",
-                    f"   • Episodios totales:  {st['total_episodes']}",
-                    f"   • Cifrados:           {st['encrypted']}",
-                    f"   • En texto plano:     {st['plaintext']}",
-                    f"   • Cobertura:          {st['coverage_pct']}%",
+                    f"   - Episodios totales:  {st['total_episodes']}",
+                    f"   - Cifrados:           {st['encrypted']}",
+                    f"   - En texto plano:     {st['plaintext']}",
+                    f"   - Cobertura:          {st['coverage_pct']}%",
                 ]
                 if st['plaintext'] > 0:
                     lines.append(
-                        f"\n   ⚠️  {st['plaintext']} episodios aún en texto plano "
-                        f"(legacy). Se cifrarán progresivamente al accederse."
+                        f"\n   [!] {st['plaintext']} episodios aun en texto plano "
+                        f"(legacy). Se cifraran progresivamente al accederse."
                     )
             except Exception as exc:
-                lines.append(f"   (Error al leer estadísticas: {exc})")
+                lines.append(f"   (Error al leer estadisticas: {exc})")
         else:
-            lines.append("\n   Cifrado inactivo — usa 'desbloquear <passphrase>'")
+            lines.append("\n   Cifrado inactivo - usa 'desbloquear <passphrase>'")
 
         lines += [
             "\n   Capas de privacidad activas:",
-            "   • Capa 1 (episódico):    LOCAL — nunca sale del dispositivo",
-            "   • Capa 2 (semi-privado): resúmenes cifrados para peers",
-            "   • Capa 3 (público):      triples KG anonimizados (privacidad ε=1.0)",
+            "   - Capa 1 (episodico):    LOCAL - nunca sale del dispositivo",
+            "   - Capa 2 (semi-privado): resumenes cifrados para peers",
+            "   - Capa 3 (publico):      triples KG anonimizados (privacidad e=1.0)",
         ]
         return "\n".join(lines)

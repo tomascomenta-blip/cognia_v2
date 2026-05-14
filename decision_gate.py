@@ -43,7 +43,9 @@ MEDIUM_THRESHOLD  = 0.38   # antes 0.42 — zona híbrida más amplia
 # Por debajo de MEDIUM_THRESHOLD → LLM directo
 
 # Umbral de similitud para is_response_relevant()
-RELEVANCE_MIN_SIM = 0.30   # similitud coseno mínima pregunta↔respuesta simbólica
+# 0.45 es el mínimo para que el simbólico no sirva respuestas sobre temas no relacionados.
+# Con 0.30 casos donde concepto=Zelda y pregunta=capacidades pasaban el gate.
+RELEVANCE_MIN_SIM = 0.45   # similitud coseno mínima pregunta↔respuesta simbólica
 
 # Longitud mínima para que una respuesta simbólica sea considerada sustancial
 MIN_SYMBOLIC_LEN  = 60     # caracteres
