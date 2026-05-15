@@ -6,18 +6,40 @@ Subcommand router. Entry point for the `cognia` CLI after `pip install cognia`.
 Usage:
     cognia                  -- first-run wizard (once), then REPL
     cognia init             -- re-run setup wizard
+    cognia install-weights  -- download shards and configure this machine as a node
     cognia server           -- start FastAPI web server (port 8000)
     cognia node             -- start as a shard node in the swarm
     cognia coordinator      -- start the swarm coordinator (port 8001)
-    cognia download-weights -- download and convert Qwen2.5 weights
     cognia status           -- show swarm and system status
 """
 
 from __future__ import annotations
 
+import json
 import os
 import sys
+import urllib.request
+from pathlib import Path
 
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _progress_bar(pct: float, msg: str) -> None:
+    bar = "#" * int(pct * 30) + "-" * (30 - int(pct * 30))
+    print(f"\r  [{bar}] {pct:5.1%}  {msg[:38]}", end="", flush=True)
+
+
+def _ask(prompt: str, default: str = "") -> str:
+    suffix = f" [{default}]" if default else ""
+    try:
+        answer = input(f"{prompt}{suffix}: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        sys.exit(0)
+    return answer or default
+
+
+# ── Subcommands ───────────────────────────────────────────────────────────────
 
 def _cmd_init(force: bool = True) -> None:
     from cognia.first_run import run_wizard
@@ -46,15 +68,134 @@ def _cmd_coordinator() -> None:
     uvicorn.run("coordinator.app:app", host="0.0.0.0", port=port, reload=False)
 
 
-def _cmd_download_weights() -> None:
-    from cognia.first_run import _download_weights, _ask
-    hf_token = _ask("HuggingFace token (Enter para omitir)", default="")
-    try:
-        shard_dir = _download_weights(hf_token)
-        print(f"Pesos listos en {shard_dir}")
-    except Exception as exc:
-        print(f"[ERROR] {exc}")
-        sys.exit(1)
+def _cmd_install_weights() -> None:
+    """
+    Descarga el shard asignado por el coordinador y configura este
+    dispositivo como nodo del swarm. Sin wizard completo.
+
+    Uso minimo:
+        cognia install-weights
+        cognia install-weights --coordinator http://192.168.1.50:8001
+        cognia install-weights --standalone   (descarga los 4 shards para uso local)
+    """
+    from cognia.first_run import COGNIA_HOME, SHARDS_DIR, DATA_DIR, CONFIG_FILE, FIRST_RUN_OK
+
+    args = sys.argv[2:]
+    standalone = "--standalone" in args
+
+    # Resolver URL del coordinador
+    coord_url = ""
+    if "--coordinator" in args:
+        idx = args.index("--coordinator")
+        if idx + 1 < len(args):
+            coord_url = args[idx + 1].rstrip("/")
+    if not coord_url:
+        coord_url = (
+            os.environ.get("COGNIA_COORDINATOR_URL", "")
+            or os.environ.get("COORDINATOR_URL", "")
+        ).rstrip("/")
+    if not coord_url and not standalone:
+        coord_url = _ask("URL del coordinador", default="http://localhost:8001")
+
+    print("\nCognia -- install-weights")
+    print("-" * 40)
+
+    # Crear directorios
+    COGNIA_HOME.mkdir(parents=True, exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    SHARDS_DIR.mkdir(parents=True, exist_ok=True)
+
+    _root = Path(__file__).parent.parent
+    if str(_root) not in sys.path:
+        sys.path.insert(0, str(_root))
+
+    from node.downloader import download_npz_shard
+    from shattering.model_constants import QWEN25_CODER_3B
+
+    model_key  = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
+    n_shards   = QWEN25_CODER_3B["n_shards"]
+    shard_dir  = SHARDS_DIR / model_key
+    shard_dir.mkdir(parents=True, exist_ok=True)
+
+    config: dict[str, str] = {
+        "COGNIA_DATA_DIR":    str(DATA_DIR),
+        "SHARD_WEIGHTS_DIR":  str(shard_dir),
+    }
+    if coord_url:
+        config["COGNIA_COORDINATOR_URL"] = coord_url
+
+    hf_token = os.environ.get("HF_TOKEN", "")
+
+    if standalone:
+        # Descargar los 4 shards para inferencia local completa
+        print(f"Modo standalone: descargando {n_shards} shards (~1.2GB total)\n")
+        for i in range(n_shards):
+            dest = shard_dir / f"shard_{i}.npz"
+            print(f"Shard {i}:")
+            result = download_npz_shard(i, str(dest), hf_token=hf_token,
+                                        on_progress=_progress_bar)
+            print()
+            if not result.ok:
+                print(f"  [ERROR] {result.error}")
+                sys.exit(1)
+            print(f"  OK ({result.size_mb:.0f} MB)")
+    else:
+        # Registrar con el coordinador y descargar solo el shard asignado
+        print(f"Coordinador: {coord_url}")
+        print("Registrando este dispositivo...")
+        try:
+            import platform
+            hw = platform.processor()[:40] or platform.machine()
+            try:
+                import psutil
+                hw += f" | {psutil.virtual_memory().total / 1e9:.1f}GB RAM"
+            except ImportError:
+                pass
+
+            data = json.dumps({"hardware_info": hw, "model_name": model_key}).encode()
+            req  = urllib.request.Request(
+                f"{coord_url}/api/node/register", data=data,
+                headers={"Content-Type": "application/json"}, method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as r:
+                reg = json.loads(r.read())
+
+            shard      = reg["shard"]
+            node_id    = reg["node_id"]
+            contrib_t  = reg.get("contributor_token", "")
+
+            print(f"  Shard asignado : {shard}")
+            print(f"  Node ID        : {node_id[:12]}...")
+
+            config["COGNIA_NODE_SHARD"] = str(shard)
+            if contrib_t:
+                config["COGNIA_CONTRIBUTOR_TOKEN"] = contrib_t
+
+        except Exception as exc:
+            print(f"  [ERROR] No se pudo conectar al coordinador: {exc}")
+            print("  Verifica que el coordinador este corriendo y la URL sea correcta.")
+            sys.exit(1)
+
+        dest = shard_dir / f"shard_{shard}.npz"
+        print(f"\nDescargando shard {shard} (~300MB)...")
+        result = download_npz_shard(shard, str(dest), hf_token=hf_token,
+                                    on_progress=_progress_bar)
+        print()
+        if not result.ok:
+            print(f"  [ERROR] {result.error}")
+            sys.exit(1)
+        print(f"  OK ({result.size_mb:.0f} MB)")
+
+    # Guardar config
+    lines = [f"{k}={v}\n" for k, v in config.items()]
+    CONFIG_FILE.write_text("".join(lines), encoding="utf-8")
+    FIRST_RUN_OK.touch()
+
+    print("\n" + "-" * 40)
+    print("Listo. Arranca el nodo con:")
+    print()
+    print("    cognia node")
+    print()
 
 
 def _cmd_status() -> None:
@@ -69,15 +210,13 @@ def _cmd_status() -> None:
         return
 
     try:
-        import urllib.request
-        import json
         with urllib.request.urlopen(
             f"{coord_url}/api/swarm/status?model_name=qwen-coder-3b-q4",
             timeout=4,
         ) as r:
             data = json.loads(r.read())
-        ready = data.get("ready", False)
-        nodes = data.get("nodes_online", "?")
+        ready  = data.get("ready", False)
+        nodes  = data.get("nodes_online", "?")
         shards = data.get("shards_covered", "?")
         print(f"Coordinador: {coord_url}")
         print(f"  Swarm listo     : {'si' if ready else 'no'}")
@@ -92,33 +231,40 @@ def _cmd_status() -> None:
 def _print_ollama_status() -> None:
     ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434")
     try:
-        import urllib.request
         urllib.request.urlopen(f"{ollama_url}/api/tags", timeout=3)
         print(f"Ollama: disponible en {ollama_url}")
     except Exception:
         print(f"Ollama: no disponible en {ollama_url}")
 
 
+# ── Help ──────────────────────────────────────────────────────────────────────
+
 _HELP = """\
-Uso: cognia [comando]
+Uso: cognia [comando] [opciones]
 
 Comandos:
   (ninguno)          Iniciar REPL (lanza wizard en primer uso)
   init               Re-ejecutar wizard de configuracion
+  install-weights    Descargar shards y configurar este dispositivo como nodo
   server             Servidor web FastAPI (puerto 8000)
   node               Iniciar como nodo del swarm distribuido
   coordinator        Iniciar coordinador del swarm (puerto 8001)
-  download-weights   Descargar y convertir pesos Qwen2.5-Coder-3B
   status             Estado del swarm y Ollama
   help / --help      Mostrar esta ayuda
 
-Variables de entorno clave:
-  COGNIA_COORDINATOR_URL   URL del coordinador (activa modo distribuido)
+Opciones de install-weights:
+  --coordinator URL  URL del coordinador (ej: http://192.168.1.50:8001)
+  --standalone       Descargar los 4 shards para inferencia local completa
+
+Variables de entorno:
+  COGNIA_COORDINATOR_URL   URL del coordinador
   OLLAMA_URL               URL de Ollama (default: http://localhost:11434)
-  COGNIA_MODEL             Modelo Ollama a usar (default: llama3.2)
-  SHARD_WEIGHTS_DIR        Ruta a los shards .npz del modelo
+  COGNIA_MODEL             Modelo Ollama (default: llama3.2)
+  HF_TOKEN                 Token HuggingFace para datasets privados
 """
 
+
+# ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
     from cognia.first_run import apply_config
@@ -130,14 +276,16 @@ def main() -> None:
         print(_HELP)
     elif cmd == "init":
         _cmd_init(force=True)
+    elif cmd == "install-weights":
+        _cmd_install_weights()
+    elif cmd in ("download-weights",):
+        _cmd_install_weights()   # alias
     elif cmd == "server":
         _cmd_server()
     elif cmd == "node":
         _cmd_node()
     elif cmd == "coordinator":
         _cmd_coordinator()
-    elif cmd == "download-weights":
-        _cmd_download_weights()
     elif cmd == "status":
         _cmd_status()
     elif cmd == "":
