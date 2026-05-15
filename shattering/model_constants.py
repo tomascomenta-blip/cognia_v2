@@ -92,10 +92,10 @@ QWEN_SYSTEM_PROMPT = "<|im_start|>system\n{system}<|im_end|>\n"
 QWEN_USER_PROMPT   = "<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
 
 # HuggingFace dataset that hosts the pre-converted INT4 .npz shards.
-# Upload once with: huggingface-cli upload tomascomenta-blip/cognia-shards
+# Upload once with: huggingface-cli upload Acua124298042/cognia-shards
 # Nodes download only their assigned shard (~300MB) from this URL.
-HF_SHARDS_DATASET = "tomascomenta-blip/cognia-shards"
+HF_SHARDS_DATASET = "Acua124298042/cognia-shards"
 HF_SHARDS_BASE_URL = (
-    "https://huggingface.co/datasets/tomascomenta-blip/cognia-shards"
+    "https://huggingface.co/datasets/Acua124298042/cognia-shards"
     "/resolve/main/qwen-coder-3b-q4"
 )
