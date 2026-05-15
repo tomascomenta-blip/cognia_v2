@@ -201,10 +201,32 @@ async def handle_relay_ws(websocket: WebSocket,
     Cada nodo conecta con su índice en la ruta.
     Cuando recibe datos, los reenvía al siguiente nodo de la cadena.
     El último nodo los reenvía al nodo 0 (quien los devuelve al cliente).
+
+    Security: session_id must exist and shard_index must be within bounds.
+    An attacker who does not know the session_id cannot inject data.
+    Session IDs are 16-byte random hex (uuid4), providing ~64 bits of entropy.
     """
+    # Validate session_id format: exactly 32 hex chars (uuid4.hex[:16] → 16 hex)
+    # Accept 8-32 hex chars to be forward-compatible with longer IDs.
+    import re as _re
+    if not _re.fullmatch(r"[0-9a-f]{8,64}", session_id):
+        await websocket.close(code=4003, reason="session_id inválido")
+        return
+
     session = await relay_manager.get_session(session_id)
     if not session:
         await websocket.close(code=4004, reason="session_id inválido o expirado")
+        return
+
+    # Reject out-of-bounds shard indices to prevent hijacking result capture.
+    if shard_index < 0 or shard_index >= session.n_shards:
+        await websocket.close(code=4003,
+                              reason=f"shard_index fuera de rango [0, {session.n_shards - 1}]")
+        return
+
+    # Reject a second connection for the same shard slot to prevent slot hijacking.
+    if shard_index in session.sockets:
+        await websocket.close(code=4003, reason="shard_index ya conectado")
         return
 
     await session.connect(shard_index, websocket)

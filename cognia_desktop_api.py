@@ -45,10 +45,14 @@ app = FastAPI(title="Cognia Desktop API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    # Covers Electron renderer (file:// or app://) and local dev curl/Postman
-    allow_origins=["http://localhost:8765", "app://.", "file://"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Only allow localhost access. Electron renderer communicates via IPC → ipcMain
+    # → apiPost/apiGet in main.js, never via CORS fetch from a renderer origin.
+    # "file://" and "app://." are intentionally excluded: any local HTML file or
+    # a compromised renderer extension could otherwise make credentialed requests
+    # to this API and exfiltrate inference results.
+    allow_origins=["http://localhost:8765", "http://127.0.0.1:8765"],
+    allow_methods=["POST", "GET"],
+    allow_headers=["Content-Type"],
 )
 
 # Single orchestrator instance shared across requests
@@ -61,8 +65,19 @@ _orch = ShatteringOrchestrator(
 
 # ── Pydantic models ────────────────────────────────────────────────────
 
+from pydantic import field_validator
+
+_MAX_PROMPT_CHARS = 4096  # guard against log flooding and excessive inference cost
+
 class InferRequest(BaseModel):
     prompt: str
+
+    @field_validator("prompt")
+    @classmethod
+    def prompt_not_too_long(cls, v: str) -> str:
+        if len(v) > _MAX_PROMPT_CHARS:
+            raise ValueError(f"prompt too long (max {_MAX_PROMPT_CHARS} chars)")
+        return v
 
 
 class InferResponse(BaseModel):
@@ -100,7 +115,7 @@ async def infer(req: InferRequest):
 
 
 @app.get("/route", response_model=RouteResponse)
-def route(prompt: str = Query(..., description="Prompt to route")):
+def route(prompt: str = Query(..., description="Prompt to route", max_length=4096)):
     """Return routing decision without running inference."""
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="prompt cannot be empty")
@@ -120,7 +135,7 @@ def status():
 
 
 @app.get("/infer-stream")
-async def infer_stream(prompt: str = Query(..., description="Prompt to infer")):
+async def infer_stream(prompt: str = Query(..., description="Prompt to infer", max_length=_MAX_PROMPT_CHARS)):
     """
     SSE streaming inference endpoint.
     Yields: {"token": "...", "done": false}  per word,

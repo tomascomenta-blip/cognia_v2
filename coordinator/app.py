@@ -100,11 +100,21 @@ _fed_store      = FederatedStore()
 _rate_limiter   = SlidingWindowLimiter()
 COORDINATOR_KEY = os.environ.get("COORDINATOR_KEY", "")
 
+# COGNIA_STRICT_AUTH=1 causes the coordinator to refuse to start without a key.
+# Set this in production deployments. When unset, the coordinator runs in
+# permissive mode (local dev only) with a persistent warning.
+_STRICT_AUTH = os.environ.get("COGNIA_STRICT_AUTH", "0") == "1"
+
 if not COORDINATOR_KEY:
+    if _STRICT_AUTH:
+        raise RuntimeError(
+            "COORDINATOR_KEY is not set and COGNIA_STRICT_AUTH=1. "
+            "Set COORDINATOR_KEY to a strong secret before starting the coordinator."
+        )
     _logger.warning(
         "COORDINATOR_KEY is not set. Admin endpoints (/api/node DELETE, "
-        "/api/shattering/infer, /api/node/pending_sessions) are unprotected. "
-        "Set the COORDINATOR_KEY environment variable before deploying."
+        "/api/shattering/infer, /api/node/pending_sessions, /api/contribution/:id) "
+        "are unprotected. Set COORDINATOR_KEY before deploying to a shared network."
     )
 
 if _prom_enabled:
@@ -427,13 +437,25 @@ async def session_infer(session_id: str, req: InferRequest):
 # ══════════════════════════════════════════════════════════════════════
 
 @app.get("/api/shattering/route")
-def shattering_route(prompt: str):
+@limiter.limit("30/minute")
+def shattering_route(
+    request: Request,
+    prompt: str,
+    x_contributor_token: Optional[str] = Header(None),
+    x_coordinator_key:   Optional[str] = Header(None),
+):
     """
     Run GlobalRouter on the given prompt and return the recommended sub_model.
 
-    Thin clients (mobile, embedded) can delegate routing to the coordinator
-    instead of embedding the keyword table locally.
+    Requires admin key or valid contributor token when COORDINATOR_KEY is set,
+    to prevent prompt-based fingerprinting of routing behavior.
     """
+    if COORDINATOR_KEY:
+        is_admin    = (x_coordinator_key == COORDINATOR_KEY)
+        token_owner = validate_token(COORDINATOR_KEY, x_contributor_token) if x_contributor_token else None
+        if not is_admin and not token_owner:
+            raise HTTPException(status_code=403, detail="Admin key or contributor token required.")
+
     decision = _global_router.route(prompt)
     return {
         "sub_model":  decision.sub_model,
@@ -609,11 +631,22 @@ def list_tiers():
 
 
 @app.get("/api/contribution/{node_id}")
-def get_contribution(node_id: str):
+def get_contribution(
+    node_id: str,
+    x_coordinator_key:   Optional[str] = Header(None),
+    x_contributor_token: Optional[str] = Header(None),
+):
     """
-    Returns the ledger entry for node_id: total params contributed,
-    current tier, allowed models, and requests served so far.
+    Returns the ledger entry for node_id.
+    Accessible by: admin key, or the node's own contributor token.
+    When COORDINATOR_KEY is unset the endpoint passes through (existing behavior).
     """
+    if COORDINATOR_KEY:
+        is_admin    = (x_coordinator_key == COORDINATOR_KEY)
+        token_owner = validate_token(COORDINATOR_KEY, x_contributor_token) if x_contributor_token else None
+        if not is_admin and token_owner != node_id:
+            raise HTTPException(status_code=403, detail="Admin key or matching contributor token required.")
+
     entry = ledger.get_contribution(node_id)
     if not entry:
         raise HTTPException(
@@ -653,9 +686,18 @@ async def federated_contribute(
     if not entry or entry["tier"] == "none":
         raise HTTPException(status_code=403, detail="Sin contribucion registrada para este nodo.")
 
+    # Enforce size limit before reading the full body into RAM.
+    _MAX_BODY = 512_000  # 512 KB — same cap as FederatedStore.MAX_BLOB_BYTES
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > _MAX_BODY:
+        raise HTTPException(status_code=413, detail=f"Body demasiado grande (max {_MAX_BODY} bytes).")
+
     body = await request.body()
     if not body:
         raise HTTPException(status_code=400, detail="Body vacio.")
+
+    if len(body) > _MAX_BODY:
+        raise HTTPException(status_code=413, detail=f"Body demasiado grande (max {_MAX_BODY} bytes).")
 
     contrib_id = _fed_store.add_contribution(
         node_id=node_id,
