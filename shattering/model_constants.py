@@ -97,5 +97,5 @@ QWEN_USER_PROMPT   = "<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\
 HF_SHARDS_DATASET = "Acua124298042/cognia-shards"
 HF_SHARDS_BASE_URL = (
     "https://huggingface.co/datasets/Acua124298042/cognia-shards"
-    "/resolve/main/qwen-coder-3b-q4"
+    "/resolve/main"
 )
