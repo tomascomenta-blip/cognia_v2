@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from storage.db_pool import db_connect_pooled as db_connect
-from logger_config import get_logger
+from .logger_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -11,7 +11,7 @@ DB_PATH = "cognia_memory.db"
 
 # ── Monitor de fatiga cognitiva ────────────────────────────────────────
 try:
-    from fatiga_cognitiva import get_fatigue_monitor, CognitiveFatigueMonitor
+    from .fatiga_cognitiva import get_fatigue_monitor, CognitiveFatigueMonitor
     _FATIGUE_MONITOR = get_fatigue_monitor()
     HAS_FATIGUE = True
 except ImportError:
@@ -39,7 +39,7 @@ except ImportError:
     print("[WARN] CuriosityEngine no disponible")
 
 try:
-    from language_engine import get_language_engine
+    from .language_engine import get_language_engine
     HAS_LANGUAGE_ENGINE = True
 except ImportError:
     HAS_LANGUAGE_ENGINE = False
@@ -57,7 +57,7 @@ except ImportError:
     HAS_PROGRAM_CREATOR = False
 
 # ── Dependencias de embeddings ────────────────────────────────────────
-from cognia_embedding import (
+from .cognia_embedding import (
     LazyEmbeddingModel, BoundedLRUCache,
     get_embedding_queue, text_to_vector_fast, _ngram_vector,
 )

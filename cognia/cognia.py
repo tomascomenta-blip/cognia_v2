@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Optional
 
 sys.path.insert(0, _os_module.path.dirname(_os_module.path.dirname(_os_module.path.abspath(__file__))))
-from logger_config import get_logger
+from .logger_config import get_logger
 logger = get_logger(__name__)
 
 from .config import (
@@ -40,7 +40,7 @@ from .knowledge import KnowledgeGraph, InferenceEngine, TemporalMemory, GoalSyst
 from .attention import AttentionSystem
 from .compression import ConceptCompressor, GraphEpisodicBridge
 
-from cognia_embedding import get_embedding_queue
+from .cognia_embedding import get_embedding_queue
 
 try:
     from cognia_deferred import DeferredMaintenance, IdleHypothesisScheduler
@@ -496,7 +496,7 @@ class Cognia:
 
             if HAS_LANGUAGE_ENGINE:
                 try:
-                    from language_engine import get_language_engine
+                    from .language_engine import get_language_engine
                     get_language_engine(self).invalidate_concept(provided_label)
                 except Exception:
                     pass
@@ -964,7 +964,7 @@ class Cognia:
         engine_info = ""
         if HAS_LANGUAGE_ENGINE:
             try:
-                from language_engine import get_language_engine
+                from .language_engine import get_language_engine
                 engine = get_language_engine(self)
                 evolved = engine.run_prompt_evolution()
                 if evolved:

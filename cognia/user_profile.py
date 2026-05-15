@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from logger_config import get_logger, log_db_error
+from .logger_config import get_logger, log_db_error
 
 logger = get_logger(__name__)
 

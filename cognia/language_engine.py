@@ -65,7 +65,7 @@ except ImportError:
     except ImportError:
         HAS_FEEDBACK_TRACKER = False
 
-from logger_config import get_logger as _get_le_logger
+from .logger_config import get_logger as _get_le_logger
 _le_logger = _get_le_logger(__name__)
 
 try:

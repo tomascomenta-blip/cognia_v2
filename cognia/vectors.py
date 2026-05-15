@@ -9,7 +9,7 @@ from .config import (
     VECTOR_DIM, _FATIGUE_MONITOR, HAS_FATIGUE,
     POSITIVE_WORDS, NEGATIVE_WORDS,
 )
-from cognia_embedding import text_to_vector_fast
+from .cognia_embedding import text_to_vector_fast
 
 
 # ── Operaciones vectoriales ────────────────────────────────────────────
