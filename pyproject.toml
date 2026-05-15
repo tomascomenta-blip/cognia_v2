@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognia-ai"
-version = "3.2.7"
+version = "3.2.8"
 description = "Local cognitive AI with episodic memory, distributed inference, and swarm learning"
 readme = "README.md"
 license = { text = "MIT" }
@@ -52,3 +52,28 @@ cognia-coordinator = "coordinator.run:main"
 [tool.setuptools.packages.find]
 where   = ["."]
 include = ["cognia*", "node*", "coordinator*", "shattering*", "app*", "security*", "storage*", "network*"]
+
+[tool.setuptools]
+py-modules = [
+    "respuestas_articuladas",
+    "consolidation_engine",
+    "feedback_engine",
+    "language_corrector",
+    "model_collapse_guard",
+    "self_architect",
+    "teacher_interface",
+    "cognia_deferred",
+    "cognia_modules_adicionales",
+    "curiosity_engine",
+    "logger_config",
+    "cognia_embedding",
+    "fatiga_cognitiva",
+    "language_engine",
+    "model_router",
+    "decision_gate",
+    "scoring_engine",
+    "conversation_memory",
+    "response_cache",
+    "code_memory",
+    "code_executor",
+]
