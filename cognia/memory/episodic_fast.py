@@ -29,7 +29,7 @@ from typing import Optional
 
 from ..database import db_connect
 from ..config import DB_PATH
-from .logger_config import get_logger, log_db_error, log_slow
+from ..logger_config import get_logger, log_db_error, log_slow
 
 logger = get_logger(__name__)
 

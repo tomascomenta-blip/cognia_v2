@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import List, Tuple, Optional
 from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH, KG_STOPWORDS, HAS_NETWORKX
-from .logger_config import get_logger as _get_kg_logger
+from ..logger_config import get_logger as _get_kg_logger
 _kg_logger = _get_kg_logger(__name__)
 
 if HAS_NETWORKX:

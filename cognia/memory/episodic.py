@@ -14,7 +14,7 @@ from typing import Optional
 from storage.db_pool import db_connect_pooled as db_connect
 from ..vectors import cosine_similarity
 from ..config import DB_PATH
-from .logger_config import get_logger, log_db_error, log_slow, safe_execute
+from ..logger_config import get_logger, log_db_error, log_slow, safe_execute
 
 logger = get_logger(__name__)
 

@@ -13,7 +13,7 @@ from typing import List, Optional
 from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH
 from ..vectors import cosine_similarity
-from .logger_config import get_logger, log_db_error
+from ..logger_config import get_logger, log_db_error
 
 logger = get_logger(__name__)
 
