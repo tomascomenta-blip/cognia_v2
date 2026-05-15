@@ -61,7 +61,6 @@ module.exports = {
   // Windows target: NSIS installer
   win: {
     target:          [{ target: "nsis", arch: ["x64"] }],
-    icon:            "renderer/icon.ico",
     // Sign if env vars present; skip gracefully if not
     signingHashAlgorithms: ["sha256"],
     sign:            process.env.CSC_LINK ? undefined : null,
@@ -71,8 +70,6 @@ module.exports = {
   nsis: {
     oneClick:              false,
     allowToChangeInstallationDirectory: true,
-    installerIcon:         "renderer/icon.ico",
-    uninstallerIcon:       "renderer/icon.ico",
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName:          "Cognia Desktop",
@@ -81,7 +78,6 @@ module.exports = {
   // macOS target: DMG
   mac: {
     target:       [{ target: "dmg", arch: ["x64", "arm64"] }],
-    icon:         "renderer/icon.icns",
     category:     "public.app-category.productivity",
     artifactName: "CogniaDesktop-${version}.${ext}",
     // Hardened runtime required for notarization
@@ -98,7 +94,6 @@ module.exports = {
   // Linux target: AppImage
   linux: {
     target:       [{ target: "AppImage", arch: ["x64"] }],
-    icon:         "renderer/icons",
     category:     "Utility",
     artifactName: "CogniaDesktop-${version}.${ext}",
   },
