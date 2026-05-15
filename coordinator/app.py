@@ -224,9 +224,34 @@ def node_heartbeat(request: Request, req: HeartbeatRequest):
 
 @app.delete("/api/node/{node_id}", dependencies=[Depends(require_admin)])
 def unregister_node(node_id: str):
-    """El nodo avisa que se desconecta limpiamente."""
+    """El nodo avisa que se desconecta limpiamente (admin)."""
     registry.unregister(node_id)
     return {"ok": True}
+
+
+class LeaveRequest(BaseModel):
+    node_id: str
+
+@app.post("/api/node/leave")
+@limiter.limit("60/minute")
+def node_leave(
+    request: Request,
+    req: LeaveRequest,
+    x_contributor_token: Optional[str] = Header(None),
+    x_coordinator_key:   Optional[str] = Header(None),
+):
+    """
+    El nodo sale de la red voluntariamente.
+    No requiere admin: el contributor token del propio nodo es suficiente.
+    El shard asignado queda marcado como disponible para redistribucion.
+    """
+    if COORDINATOR_KEY:
+        is_admin     = (x_coordinator_key == COORDINATOR_KEY)
+        token_owner  = validate_token(COORDINATOR_KEY, x_contributor_token) if x_contributor_token else None
+        if not is_admin and token_owner != req.node_id:
+            raise HTTPException(status_code=403, detail="Token invalido o no corresponde al node_id.")
+    registry.unregister(req.node_id)
+    return {"ok": True, "message": "Fragmento disponible para redistribucion."}
 
 
 # ══════════════════════════════════════════════════════════════════════

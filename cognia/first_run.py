@@ -164,6 +164,35 @@ def _find_convert_script() -> Path | None:
     return None
 
 
+def _download_npz_shards_standalone(hf_token: str = "") -> Path:
+    """Download the 4 pre-built INT4 .npz shards for standalone (local) inference."""
+    _root = Path(__file__).parent.parent
+    if str(_root) not in sys.path:
+        sys.path.insert(0, str(_root))
+    from node.downloader import download_npz_shard
+    from shattering.model_constants import QWEN25_CODER_3B
+
+    n_shards  = QWEN25_CODER_3B["n_shards"]
+    shard_dir = SHARDS_DIR / MODEL_KEY
+    shard_dir.mkdir(parents=True, exist_ok=True)
+
+    def _progress(pct: float, msg: str) -> None:
+        bar = "#" * int(pct * 30) + "-" * (30 - int(pct * 30))
+        print(f"\r  [{bar}] {pct:5.1%} {msg[:40]}", end="", flush=True)
+
+    for i in range(n_shards):
+        dest = shard_dir / f"shard_{i}.npz"
+        print(f"\n  Shard {i}/{n_shards - 1}:")
+        result = download_npz_shard(i, str(dest), hf_token=hf_token, on_progress=_progress)
+        print()
+        if not result.ok:
+            raise RuntimeError(f"Shard {i}: {result.error}")
+        print(f"  {result.size_mb:.0f} MB")
+
+    print(f"\n  Shards en {shard_dir}")
+    return shard_dir
+
+
 # ── Config file ───────────────────────────────────────────────────────────────
 
 def _write_config(vars: dict[str, str]) -> None:
@@ -197,110 +226,136 @@ def apply_config() -> None:
 def run_wizard(force: bool = False) -> None:
     """
     Interactive first-run wizard.
-
-    Asks the user for their setup mode and configures ~/.cognia/ accordingly.
     Safe to call every startup — skips if already configured unless force=True.
     """
     if FIRST_RUN_OK.exists() and not force:
         return
 
     print("\n" + "=" * 55)
-    print("  Cognia -- Configuracion inicial")
+    print("  Cognia -- Bienvenido")
     print("=" * 55)
-    print("\nEste wizard configura Cognia en tu dispositivo.")
-    print("Solo se ejecuta una vez. Puedes repetirlo con: cognia init\n")
+    print("""
+Cognia es una IA distribuida. El modelo vive repartido entre
+los dispositivos de sus usuarios: cada nodo aloja un fragmento
+(~300MB). Juntos forman un modelo de 3B parametros que ningun
+nodo necesita tener completo.
 
-    # ── Modo ──────────────────────────────────────────────────────────
-    print("Modos disponibles:")
-    print("  1. Standalone     - inferencia local con Ollama")
-    print("  2. Nodo de red    - unirse al swarm distribuido")
-    print("  3. Solo memoria   - sin LLM (solo memoria episodica y grafo)")
+  - Tus conversaciones nunca salen de este dispositivo.
+  - El fragmento que alojes es tuyo mientras Cognia este instalado.
+  - Si lo desinstales, el fragmento queda disponible para otro nodo.
+  - A mayor red, menor latencia para todos.
+""")
+
+    print("Como quieres usar Cognia?\n")
+    print("  1. Unirte a la red  (recomendado)")
+    print("     Alojas ~300MB. Accedes al modelo completo via la red.")
+    print("     Necesitas la URL de un coordinador.")
+    print()
+    print("  2. Standalone (sin red)")
+    print("     Descargas el modelo completo (~1.2GB) en este dispositivo.")
+    print("     Funciona sin internet. No dependes de otros nodos.")
+    print()
+    print("  3. Solo memoria")
+    print("     Sin inferencia LLM. Grafo episodico y aprendizaje activos.")
     print()
 
     mode = _ask("Selecciona modo", default="1")
 
     config: dict[str, str] = {}
-
-    # Create dirs
     COGNIA_HOME.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     SHARDS_DIR.mkdir(parents=True, exist_ok=True)
-
     config["COGNIA_DATA_DIR"] = str(DATA_DIR)
 
-    # ── Modo 1: Standalone ─────────────────────────────────────────────
     if mode == "1":
-        print("\n-- Modo Standalone --")
-        print("Cognia usara Ollama local para inferencia.")
-        print("Si Ollama no esta instalado: https://ollama.ai\n")
-
-        ollama_url = _ask("URL de Ollama", default="http://localhost:11434")
-        ollama_model = _ask("Modelo Ollama", default="llama3.2")
-        config["OLLAMA_URL"]    = ollama_url
-        config["COGNIA_MODEL"]  = ollama_model
-
-        if _ask_yn("\nDescargar pesos Qwen2.5-Coder-3B (~1.2GB comprimidos) para inferencia local?",
-                   default=False):
-            hf_token = _ask("HuggingFace token (opcional, Enter para omitir)", default="")
-            try:
-                shard_dir = _download_weights(hf_token)
-                config["SHARD_WEIGHTS_DIR"] = str(shard_dir)
-            except Exception as exc:
-                print(f"\n  [ERROR] Descarga fallo: {exc}")
-                print("  Puedes descargar los pesos manualmente luego con: cognia download-weights")
-
-    # ── Modo 2: Nodo de red ────────────────────────────────────────────
+        _wizard_join_network(config)
     elif mode == "2":
-        print("\n-- Modo Nodo de Red --")
-        print("Cognia descargara el shard que le asigne el coordinador.")
-        print("Solo necesitas la URL del coordinador.\n")
-
-        coord_url = _ask("URL del coordinador")
-        if not coord_url:
-            print("  [ERROR] Se requiere la URL del coordinador.")
-            sys.exit(1)
-
-        print(f"\n  Verificando coordinador en {coord_url}...")
-        if _coordinator_reachable(coord_url):
-            print("  Coordinador accesible.")
-        else:
-            print("  [WARN] El coordinador no responde ahora. Se intentara al iniciar.")
-
-        config["COGNIA_COORDINATOR_URL"] = coord_url
-
-        # Download the shard assigned by coordinator
-        if _ask_yn("\nDescargar ahora el shard asignado por el coordinador?", default=True):
-            _download_shard_from_coordinator(coord_url, config)
-
-    # ── Modo 3: Solo memoria ───────────────────────────────────────────
+        _wizard_standalone(config)
     elif mode == "3":
-        print("\n-- Modo Solo Memoria --")
-        print("Cognia funcionara sin LLM: aprendizaje, grafo y memoria activos.")
-
+        _wizard_memory_only(config)
     else:
-        print(f"  Modo '{mode}' no reconocido. Usando Standalone.")
+        print(f"  Modo '{mode}' no reconocido. Usando modo de red.")
+        _wizard_join_network(config)
 
-    # ── Ollama model para modos 2 y 3 también ─────────────────────────
-    if mode in ("2", "3") and "OLLAMA_URL" not in config:
-        if _ask_yn("\nConfigurar Ollama como fallback?", default=True):
-            config["OLLAMA_URL"]   = _ask("URL de Ollama", default="http://localhost:11434")
-            config["COGNIA_MODEL"] = _ask("Modelo Ollama", default="llama3.2")
-
-    # ── Guardar ────────────────────────────────────────────────────────
     _write_config(config)
     FIRST_RUN_OK.touch()
+    _wizard_print_done(mode, config)
 
+
+def _wizard_join_network(config: dict) -> None:
+    print("\n-- Unirte a la red --")
+    print("Tu dispositivo alojara un fragmento del modelo.")
+    print("El coordinador asigna que fragmento corresponde a cada nodo.\n")
+
+    coord_url = _ask("URL del coordinador")
+    if not coord_url:
+        print("  Se requiere la URL del coordinador.")
+        print("  Si no tienes una, vuelve a ejecutar 'cognia init' y elige el modo 2.")
+        sys.exit(1)
+
+    config["COGNIA_COORDINATOR_URL"] = coord_url.rstrip("/")
+
+    print(f"\n  Verificando coordinador en {coord_url}...")
+    if _coordinator_reachable(coord_url):
+        print("  Coordinador accesible.")
+    else:
+        print("  [WARN] El coordinador no responde ahora.")
+        if not _ask_yn("  Continuar de todos modos?", default=False):
+            sys.exit(0)
+
+    if _ask_yn("\nDescargar tu fragmento asignado ahora (~300MB)?", default=True):
+        _download_shard_from_coordinator(coord_url, config)
+
+    if _ask_yn("\nConfigurar Ollama como fallback cuando la red no este disponible?", default=False):
+        config["OLLAMA_URL"]   = _ask("URL de Ollama", default="http://localhost:11434")
+        config["COGNIA_MODEL"] = _ask("Modelo Ollama", default="llama3.2")
+
+
+def _wizard_standalone(config: dict) -> None:
+    print("\n-- Modo standalone --")
+    print("Cognia usara su propio motor de inferencia local (numpy, sin PyTorch).")
+    print("Necesitas ~1.2GB de espacio libre.\n")
+
+    if _ask_yn("Descargar los 4 shards del modelo Qwen2.5-Coder-3B (~1.2GB)?", default=True):
+        hf_token = _ask("HuggingFace token (opcional, Enter para omitir)", default="")
+        try:
+            shard_dir = _download_npz_shards_standalone(hf_token)
+            config["SHARD_WEIGHTS_DIR"] = str(shard_dir)
+        except Exception as exc:
+            print(f"\n  [ERROR] Descarga fallo: {exc}")
+            print("  Puedes descargar los pesos luego con: cognia install-weights --standalone")
+
+    if _ask_yn("\nConfigurar Ollama como fallback adicional?", default=False):
+        config["OLLAMA_URL"]   = _ask("URL de Ollama", default="http://localhost:11434")
+        config["COGNIA_MODEL"] = _ask("Modelo Ollama", default="llama3.2")
+
+
+def _wizard_memory_only(config: dict) -> None:
+    print("\n-- Solo memoria --")
+    print("Cognia funcionara sin LLM: aprendizaje, grafo y memoria activos.")
+    print("Puedes activar un LLM mas adelante con: cognia init\n")
+
+
+def _wizard_print_done(mode: str, config: dict) -> None:
     print("\n" + "=" * 55)
-    print("  Configuracion completa.")
+    print("  Listo.")
     print("=" * 55)
-    print(f"\n  Datos en:  {COGNIA_HOME}")
+    print(f"\n  Datos en: {COGNIA_HOME}")
+    print()
     print("  Comandos:")
     print("    cognia              -- iniciar REPL")
+    if mode == "1":
+        print("    cognia node         -- iniciar como nodo (contribuye tu fragmento)")
+        print("    cognia leave        -- salir de la red y liberar el fragmento")
     print("    cognia server       -- servidor web (puerto 8000)")
-    print("    cognia node         -- iniciar como nodo del swarm")
     print("    cognia coordinator  -- iniciar coordinador")
     print("    cognia init         -- repetir este wizard")
     print()
+    if mode == "1" and config.get("COGNIA_NODE_SHARD") is not None:
+        print("  Para contribuir tu fragmento a la red, ejecuta en otra terminal:")
+        print()
+        print("    cognia node")
+        print()
 
 
 def _download_shard_from_coordinator(coord_url: str, config: dict) -> None:
@@ -329,11 +384,12 @@ def _download_shard_from_coordinator(coord_url: str, config: dict) -> None:
         node_id   = result["node_id"]
         contrib_t = result.get("contributor_token", "")
 
-        print(f"  Registrado — shard asignado: {shard} (node_id: {node_id[:8]}...)")
+        print(f"  Registrado -- shard asignado: {shard} (node_id: {node_id[:8]}...)")
+        print(f"  Fragmento shard {shard} sera alojado en este dispositivo.")
 
+        config["COGNIA_NODE_ID"] = node_id
         if contrib_t:
             config["COGNIA_CONTRIBUTOR_TOKEN"] = contrib_t
-            print("  Contributor token guardado.")
 
         # Use the downloader if available
         shard_dir = SHARDS_DIR / MODEL_KEY

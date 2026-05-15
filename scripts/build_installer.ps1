@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Genera un instalador grafico de Windows que:
-      - Instala Python 3.11 si no esta presente
+      - Instala Python 3.12 si no esta presente
       - Ejecuta pip install cognia-ai
       - Crea accesos directos en el escritorio y menu inicio
 

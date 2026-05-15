@@ -11,6 +11,7 @@ Usage:
     cognia node             -- start as a shard node in the swarm
     cognia coordinator      -- start the swarm coordinator (port 8001)
     cognia status           -- show swarm and system status
+    cognia leave            -- leave the swarm and release the hosted shard
 """
 
 from __future__ import annotations
@@ -198,6 +199,69 @@ def _cmd_install_weights() -> None:
     print()
 
 
+def _cmd_leave() -> None:
+    """
+    Salir de la red distribuida voluntariamente.
+    Notifica al coordinador, el shard queda disponible para redistribucion.
+    Limpia la configuracion de nodo local.
+    """
+    from cognia.first_run import CONFIG_FILE, FIRST_RUN_OK, _load_config
+
+    config = _load_config()
+    coord_url    = config.get("COGNIA_COORDINATOR_URL", "").rstrip("/")
+    node_id      = config.get("COGNIA_NODE_ID", "")
+    contrib_tok  = config.get("COGNIA_CONTRIBUTOR_TOKEN", "")
+    shard        = config.get("COGNIA_NODE_SHARD", "?")
+
+    if not coord_url or not node_id:
+        print("Este dispositivo no esta registrado como nodo en ningun coordinador.")
+        return
+
+    print(f"\nSaliendo de la red...")
+    print(f"  Coordinador : {coord_url}")
+    print(f"  Node ID     : {node_id[:12]}...")
+    print(f"  Fragmento   : shard {shard}")
+    print()
+
+    try:
+        data    = json.dumps({"node_id": node_id}).encode()
+        headers = {"Content-Type": "application/json"}
+        if contrib_tok:
+            headers["X-Contributor-Token"] = contrib_tok
+        req = urllib.request.Request(
+            f"{coord_url}/api/node/leave",
+            data=data,
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            json.loads(r.read())
+        print(f"  Fragmento shard {shard} liberado. Queda disponible para otro nodo.")
+    except Exception as exc:
+        print(f"  No se pudo contactar al coordinador: {exc}")
+        print("  El coordinador detectara la desconexion automaticamente por TTL.")
+
+    # Conservar OLLAMA_URL, COGNIA_MODEL, COGNIA_DATA_DIR; eliminar vars de nodo
+    _node_keys = {
+        "COGNIA_COORDINATOR_URL", "COGNIA_NODE_ID",
+        "COGNIA_NODE_SHARD", "COGNIA_CONTRIBUTOR_TOKEN", "SHARD_WEIGHTS_DIR",
+    }
+    new_config = {k: v for k, v in config.items() if k not in _node_keys}
+    CONFIG_FILE.write_text(
+        "".join(f"{k}={v}\n" for k, v in new_config.items()), encoding="utf-8"
+    )
+    FIRST_RUN_OK.unlink(missing_ok=True)
+
+    print()
+    print("  Configuracion de nodo eliminada.")
+    print("  El fragmento permanece en disco. Puedes borrarlo en:")
+    shard_path = Path.home() / ".cognia" / "shards"
+    print(f"  {shard_path}")
+    print()
+    print("  La proxima vez que ejecutes 'cognia' se iniciara el wizard.")
+    print()
+
+
 def _cmd_status() -> None:
     coord_url = (
         os.environ.get("COGNIA_COORDINATOR_URL", "")
@@ -250,6 +314,7 @@ Comandos:
   node               Iniciar como nodo del swarm distribuido
   coordinator        Iniciar coordinador del swarm (puerto 8001)
   status             Estado del swarm y Ollama
+  leave              Salir de la red y liberar el fragmento alojado
   help / --help      Mostrar esta ayuda
 
 Opciones de install-weights:
@@ -288,6 +353,8 @@ def main() -> None:
         _cmd_coordinator()
     elif cmd == "status":
         _cmd_status()
+    elif cmd == "leave":
+        _cmd_leave()
     elif cmd == "":
         from cognia.first_run import run_wizard
         run_wizard(force=False)

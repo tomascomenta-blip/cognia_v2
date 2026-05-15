@@ -45,15 +45,9 @@ Name: "{autoprograms}\Cognia\Cognia"; \
 [Run]
 ; Instalar Python si falta (via winget, silencioso)
 Filename: "powershell.exe"; \
-    Parameters: "-NoProfile -Command ""winget install Python.Python.3.11 --accept-package-agreements --accept-source-agreements --silent"""; \
+    Parameters: "-NoProfile -Command ""winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements --silent"""; \
     StatusMsg: "Verificando Python..."; \
     Check: NeedsPython; \
-    Flags: waituntilterminated runhidden
-
-; Instalar cognia-ai desde PyPI
-Filename: "powershell.exe"; \
-    Parameters: "-NoProfile -Command ""$env:PATH = [Environment]::GetEnvironmentVariable('PATH','Machine') + ';' + [Environment]::GetEnvironmentVariable('PATH','User'); pip install cognia-ai --upgrade --quiet"""; \
-    StatusMsg: "Instalando Cognia (puede tardar 2-3 minutos)..."; \
     Flags: waituntilterminated runhidden
 
 ; Abrir Cognia al terminar (checkbox opcional)
@@ -63,19 +57,69 @@ Filename: "powershell.exe"; \
     Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
+; Notificar al coordinador que el nodo sale y liberar el fragmento
+Filename: "powershell.exe"; \
+    Parameters: "-NoProfile -Command ""cognia leave"""; \
+    Flags: runhidden waituntilterminated
+
+; Desinstalar el paquete Python
 Filename: "powershell.exe"; \
     Parameters: "-NoProfile -Command ""pip uninstall cognia-ai -y"""; \
     Flags: runhidden waituntilterminated
 
 [Code]
+
+// ── Buscar python.exe en rutas de instalacion conocidas ───────────────────────
+function FindPythonExe(): String;
+var
+  Versions: TStringList;
+  I: Integer;
+  PyExe, LocalAppData, AppData: String;
+begin
+  Result := '';
+  LocalAppData := GetEnv('LOCALAPPDATA');
+  AppData := GetEnv('APPDATA');
+  Versions := TStringList.Create;
+  try
+    Versions.Add('Python313');
+    Versions.Add('Python312');
+    Versions.Add('Python311');
+    for I := 0 to Versions.Count - 1 do begin
+      PyExe := LocalAppData + '\Programs\Python\' + Versions[I] + '\python.exe';
+      if FileExists(PyExe) then begin
+        Result := PyExe;
+        Exit;
+      end;
+    end;
+    // Instalaciones antiguas en AppData\Roaming
+    for I := 0 to Versions.Count - 1 do begin
+      PyExe := AppData + '\Python\' + Versions[I] + '\python.exe';
+      if FileExists(PyExe) then begin
+        Result := PyExe;
+        Exit;
+      end;
+    end;
+  finally
+    Versions.Free;
+  end;
+end;
+
+// ── Detectar si Python 3.11+ esta disponible ──────────────────────────────────
 function NeedsPython: Boolean;
 var
   ResultCode: Integer;
 begin
-  Result := not Exec('python', '--version', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
+  if FindPythonExe() <> '' then begin
+    Result := False;
+    Exit;
+  end;
+  // Ultimo recurso: probar el comando generico en PATH
+  Result := not Exec('python', '-c "import sys; exit(0 if sys.version_info>=(3,11) else 1)"',
+                     '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
             or (ResultCode <> 0);
 end;
 
+// ── Agregar directorio al PATH del usuario ────────────────────────────────────
 procedure AddToUserPath(Dir: String);
 var
   OldPath: String;
@@ -90,8 +134,33 @@ begin
   end;
 end;
 
-procedure DeinitializeSetup;
+// ── Instalar cognia-ai via python -m pip una vez que Python ya esta listo ─────
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  PyExe, ScriptsDir: String;
+  ResultCode: Integer;
 begin
-  AddToUserPath(ExpandConstant('{localappdata}') + '\Programs\Python\Python311\Scripts');
-  AddToUserPath(ExpandConstant('{localappdata}') + '\Programs\Python\Python312\Scripts');
+  if CurStep = ssPostInstall then begin
+    PyExe := FindPythonExe();
+    if PyExe = '' then
+      PyExe := 'python';  // fallback si esta en PATH del sistema
+    Exec(PyExe, '-m pip install cognia-ai --upgrade --quiet',
+         '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    // Agregar el directorio Scripts al PATH del usuario
+    if PyExe <> 'python' then begin
+      ScriptsDir := ExtractFilePath(PyExe) + 'Scripts';
+      AddToUserPath(ScriptsDir);
+    end;
+  end;
+end;
+
+// ── PATH del usuario al terminar la instalacion ───────────────────────────────
+procedure DeinitializeSetup;
+var
+  LocalAppData: String;
+begin
+  LocalAppData := GetEnv('LOCALAPPDATA');
+  AddToUserPath(LocalAppData + '\Programs\Python\Python313\Scripts');
+  AddToUserPath(LocalAppData + '\Programs\Python\Python312\Scripts');
+  AddToUserPath(LocalAppData + '\Programs\Python\Python311\Scripts');
 end;

@@ -10,7 +10,7 @@
     "hidden_dim": 2048,
     "intermediate_dim": 8960,
     "n_heads": 16,
-    "n_kv_heads": 8,
+    "n_kv_heads": 2,
     "head_dim": 128,
     "rope_theta": 1000000.0,
     "rms_norm_eps": 1e-6,
@@ -27,7 +27,7 @@
       "layer_range": [0, 8],
       "size_bytes": 314572800,
       "sha256": "",
-      "hf_repo": "Qwen/Qwen2.5-Coder-3B-Instruct",
+      "hf_dataset": "Acua124298042/cognia-shards",
       "hf_filename": "shard_0.npz",
       "note": "includes embed_tokens table"
     },
@@ -39,7 +39,7 @@
       "layer_range": [9, 17],
       "size_bytes": 280000000,
       "sha256": "",
-      "hf_repo": "Qwen/Qwen2.5-Coder-3B-Instruct",
+      "hf_dataset": "Acua124298042/cognia-shards",
       "hf_filename": "shard_1.npz"
     },
     {
@@ -50,7 +50,7 @@
       "layer_range": [18, 26],
       "size_bytes": 280000000,
       "sha256": "",
-      "hf_repo": "Qwen/Qwen2.5-Coder-3B-Instruct",
+      "hf_dataset": "Acua124298042/cognia-shards",
       "hf_filename": "shard_2.npz"
     },
     {
@@ -61,7 +61,7 @@
       "layer_range": [27, 35],
       "size_bytes": 380000000,
       "sha256": "",
-      "hf_repo": "Qwen/Qwen2.5-Coder-3B-Instruct",
+      "hf_dataset": "Acua124298042/cognia-shards",
       "hf_filename": "shard_3.npz",
       "note": "includes lm_head and final_norm"
     }

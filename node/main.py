@@ -41,7 +41,8 @@ from shattering.model_constants import QWEN25_CODER_3B
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 COORDINATOR_URL  = os.environ.get("COGNIA_COORDINATOR_URL", "http://localhost:8001").rstrip("/")
-WEIGHTS_DIR      = os.environ.get("SHARD_WEIGHTS_DIR", "model_shards/qwen-coder-3b-q4")
+_DEFAULT_WEIGHTS = os.path.join(os.path.expanduser("~"), ".cognia", "shards", "qwen-coder-3b-q4")
+WEIGHTS_DIR      = os.environ.get("SHARD_WEIGHTS_DIR", _DEFAULT_WEIGHTS)
 MODEL_NAME       = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
 HARDWARE_INFO    = os.environ.get("COGNIA_NODE_HARDWARE", "")
 HEARTBEAT_EVERY  = 30   # seconds
@@ -117,6 +118,24 @@ class ShardNode:
     # ── Registration ───────────────────────────────────────────────────
 
     def _register(self):
+        existing_id    = os.environ.get("COGNIA_NODE_ID", "")
+        existing_shard = os.environ.get("COGNIA_NODE_SHARD", "")
+
+        if existing_id and existing_shard:
+            # Reactivate the existing registration via heartbeat.
+            # Avoids being assigned a different shard than the one already on disk.
+            try:
+                result = _http("POST", f"{COORDINATOR_URL}/api/node/heartbeat",
+                               {"node_id": existing_id})
+                if result.get("ok"):
+                    self.node_id = existing_id
+                    self.shard   = int(existing_shard)
+                    print(f"[node] Reactivado — shard {self.shard} "
+                          f"(node_id: {self.node_id[:8]}...)")
+                    return
+            except Exception:
+                pass  # coordinator unreachable or node expired — fall through to fresh register
+
         print(f"[node] Registrando en {COORDINATOR_URL}...")
         result = _http("POST", f"{COORDINATOR_URL}/api/node/register", {
             "hardware_info": _detect_hardware(),
