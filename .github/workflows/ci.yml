@@ -38,4 +38,6 @@ jobs:
           pip-audit --requirement requirements.txt || true
 
       - name: Run tests
-        run: pytest tests/ -x --tb=short
+        run: |
+          pip install pytest --quiet
+          pytest tests/ -x --tb=short
