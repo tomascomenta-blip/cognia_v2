@@ -36,7 +36,6 @@ module.exports = {
     "preload.js",
     "renderer/**/*",
     "!renderer/**/*.map",
-    "!node_modules/**",
   ],
 
   // Python backend and Cognia source shipped as extraResources
