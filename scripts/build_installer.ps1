@@ -30,11 +30,12 @@ Write-Host ""
 Write-Step "Buscando Inno Setup..."
 
 $iscc = $null
+$isccFromPath = Get-Command ISCC -ErrorAction SilentlyContinue
 $candidates = @(
     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
-    "C:\Program Files\Inno Setup 6\ISCC.exe",
-    (Get-Command ISCC -ErrorAction SilentlyContinue)?.Source
+    "C:\Program Files\Inno Setup 6\ISCC.exe"
 )
+if ($isccFromPath) { $candidates += $isccFromPath.Source }
 foreach ($c in $candidates) {
     if ($c -and (Test-Path $c)) { $iscc = $c; break }
 }
@@ -47,16 +48,19 @@ if (-not $iscc) {
     $installerExe = "$env:TEMP\innosetup-installer.exe"
     $innoURL = "https://files.jrsoftware.org/is/6/innosetup-6.3.3.exe"
 
-    Write-Step "Descargando Inno Setup (~5MB)..."
-    Invoke-WebRequest -Uri $innoURL -OutFile $installerExe -UseBasicParsing
-
-    Write-Step "Instalando Inno Setup (silencioso)..."
-    Start-Process -FilePath $installerExe -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
-    Remove-Item $installerExe -Force
-
-    $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-    if (-not (Test-Path $iscc)) {
-        Write-Fail "No se pudo instalar Inno Setup. Descargalo manualmente: https://jrsoftware.org/isinfo.php"
+    Write-Step "Instalando Inno Setup via winget..."
+    winget install JRSoftware.InnoSetup --accept-package-agreements --accept-source-agreements --silent
+    # winget puede devolver exit code != 0 aunque instale correctamente; buscar el exe
+    $iscc = $null
+    foreach ($p in @("C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+                     "C:\Program Files\Inno Setup 6\ISCC.exe",
+                     "C:\Program Files (x86)\Inno Setup 7\ISCC.exe",
+                     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+                     "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe")) {
+        if (Test-Path $p) { $iscc = $p; break }
+    }
+    if (-not $iscc) {
+        Write-Fail "No se encontro ISCC.exe tras la instalacion. Instala Inno Setup manualmente: https://jrsoftware.org/isinfo.php"
     }
 }
 
