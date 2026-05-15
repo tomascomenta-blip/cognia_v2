@@ -448,14 +448,42 @@ def llamar_ollama_routed(
                     )
                     break
     except Exception as exc:
-        logger.error(
-            f"Error llamando a Ollama con modelo {decision.model}",
-            extra={"op":      "model_router.llamar_ollama_routed",
-                   "context": str(exc)},
+        logger.warning(
+            f"Ollama no disponible, intentando red de shards",
+            extra={"op": "model_router.llamar_ollama_routed", "context": str(exc)},
         )
+        shard_result = _llamar_shard_network(prompt, tipo)
+        if shard_result is not None:
+            return shard_result
         raise
 
     return "".join(resultado).strip()
+
+
+def _llamar_shard_network(prompt: str, tipo: str) -> Optional[str]:
+    """Fallback: usa DistributedInferencePipeline cuando Ollama no esta disponible."""
+    coord_url = os.environ.get("COGNIA_COORDINATOR_URL", "").rstrip("/")
+    if not coord_url:
+        return None
+    try:
+        from node.inference_pipeline import DistributedInferencePipeline
+        pipeline = DistributedInferencePipeline(coordinator_url=coord_url)
+        if not pipeline.is_available():
+            logger.warning(
+                "Swarm no listo (ningun nodo conectado)",
+                extra={"op": "model_router._llamar_shard_network"},
+            )
+            return None
+        result = pipeline.generate(prompt, max_tokens=300)
+        if result.get("ok"):
+            return result.get("text", "")
+        return None
+    except Exception as exc:
+        logger.warning(
+            f"Red de shards no disponible: {exc}",
+            extra={"op": "model_router._llamar_shard_network"},
+        )
+        return None
 
 
 def _build_system_prompt_for_mode(mode: str, tipo: str) -> str:
