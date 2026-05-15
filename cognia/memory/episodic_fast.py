@@ -126,7 +126,10 @@ class VectorCache:
             """).fetchall()
             conn.close()
         except Exception as exc:
-            log_db_error(logger, "vector_cache.build", exc)
+            if "no such table" in str(exc):
+                logger.debug("vector_cache.build: tabla aun no inicializada, cache vacio")
+            else:
+                log_db_error(logger, "vector_cache.build", exc)
             return
 
         if not rows:
