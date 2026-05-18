@@ -814,6 +814,13 @@ class LanguageEngine:
             return {"ok": True, "text": text, "tokens": len(tokens),
                     "truncated": is_truncated}
         except Exception as e:
+            try:
+                from model_router import _llamar_shard_network
+                shard_text = _llamar_shard_network(prompt, question_type)
+                if shard_text:
+                    return {"ok": True, "text": shard_text, "tokens": 0, "truncated": False}
+            except Exception:
+                pass
             return {"ok": False, "error": str(e), "text": ""}
 
     def _get_system_prompt(self, question_type: str) -> str:

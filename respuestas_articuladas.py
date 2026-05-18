@@ -623,10 +623,6 @@ def responder_articulado(ai, pregunta):
                   "y responde de forma directa. Sin listas. Máximo 2 párrafos. "
                   "Responde en el mismo idioma de la pregunta.")
 
-    estado = verificar_ollama()
-    if not estado["ok"]:
-        return {"error": estado["error"]}
-
     try:
         respuesta = llamar_ollama(
             prompt,
