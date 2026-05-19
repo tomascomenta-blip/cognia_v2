@@ -166,7 +166,21 @@ async def infer_stream(prompt: str = Query(..., description="Prompt to infer", m
 
 @app.get("/ready")
 async def ready():
-    """Readiness probe: checks Ollama and model availability."""
+    """
+    Readiness probe: reports shard availability as the primary signal.
+
+    Returns {"status": "ready"} when the Qwen .npz shards are present,
+    regardless of Ollama. Falls back to checking Ollama only when shards
+    are missing (legacy path still needed for users without shards).
+    """
+    if _orch.shards_ready():
+        return {
+            "status": "ready",
+            "inference": "shards",
+            "shards": "available",
+        }
+
+    # Shards not found — check Ollama as secondary option
     import urllib.request as _ur
     import json as _j
     ollama_ok = False
@@ -183,8 +197,21 @@ async def ready():
         ollama_ok = True
     except Exception:
         pass
+
+    if ollama_ok and model_ok:
+        return {
+            "status":     "ready",
+            "inference":  "ollama",
+            "ollama":     "running",
+            "model":      "available",
+            "model_name": _orch._ollama_model,
+        }
+
     return {
-        "status":     "ready" if ollama_ok and model_ok else "setup_required",
+        "status":     "setup_required",
+        "reason":     "shards_missing",
+        "inference":  "none",
+        "shards":     "missing",
         "ollama":     "running" if ollama_ok else "missing",
         "model":      "available" if model_ok else "not_pulled",
         "model_name": _orch._ollama_model,

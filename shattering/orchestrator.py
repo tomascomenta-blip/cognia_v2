@@ -106,6 +106,10 @@ class ShatteringOrchestrator:
         else:
             self._mode = mode
 
+        # Lazy-initialized state for real shard-weight inference
+        self._pipeline    = None
+        self._local_route = None
+
     # ── Public API ──────────────────────────────────────────────────────
 
     def infer(self, prompt: str) -> InferResult:
@@ -139,6 +143,10 @@ class ShatteringOrchestrator:
     def route_only(self, prompt: str) -> RouteDecision:
         """Return routing decision without running inference."""
         return self._router.route(prompt)
+
+    def shards_ready(self) -> bool:
+        """Public probe: True when all 4 Qwen .npz shard files are present."""
+        return self._shards_available()
 
     def preload(self, sub_model: Optional[str] = None) -> None:
         """
@@ -213,6 +221,11 @@ class ShatteringOrchestrator:
     # ── Local inference ─────────────────────────────────────────────────
 
     def _local_infer(self, prompt: str, decision: RouteDecision):
+        # If real Qwen .npz shards are present, run the full shard pipeline
+        if self._shards_available():
+            text = self._shard_infer(prompt)
+            return text, "local"
+
         sub_model = decision.sub_model
         specs     = self._manifest.fragments_for_sub_model(sub_model)
 
@@ -244,6 +257,146 @@ class ShatteringOrchestrator:
 
         text = self._run_shard_chain(prompt, engines, sub_model, self._n_passes)
         return text, "local"
+
+    def _shards_available(self) -> bool:
+        """True when all 4 Qwen INT4 .npz shard files exist and are non-empty."""
+        shard_dir = Path(os.environ.get("SHARD_WEIGHTS_DIR", ""))
+        if not shard_dir.is_dir():
+            return False
+        return all(
+            (shard_dir / f"shard_{i}.npz").is_file()
+            and (shard_dir / f"shard_{i}.npz").stat().st_size > 0
+            for i in range(4)
+        )
+
+    def _shard_infer(self, prompt: str) -> str:
+        """
+        Run end-to-end inference via the real Qwen INT4 forward pass.
+
+        Loads all 4 ShardEngines lazily on first call, registers them as
+        local engines in inference_pipeline, then runs a local generate cycle
+        that bypasses the coordinator HTTP calls entirely.
+        Imported lazily to avoid circular imports.
+        """
+        if self._pipeline is None:
+            pipeline, route = self._build_local_pipeline()
+            self._pipeline = pipeline
+            self._local_route = route
+
+        result = self._generate_local(prompt, self._pipeline, self._local_route)
+        if result.get("ok") and result.get("text"):
+            return result["text"]
+
+        error = result.get("error", "shard inference failed")
+        logger.warning("[Orchestrator] shard inference returned error: %s", error)
+        shard_dir = os.environ.get("SHARD_WEIGHTS_DIR", "")
+        raise RuntimeError(
+            f"Shard inference failed: {error}. "
+            f"Shard dir: {shard_dir}. "
+            f"If shards are corrupt, re-run the setup wizard to re-download them."
+        )
+
+    def _generate_local(self, prompt: str, pipeline, route: list) -> dict:
+        """
+        Drive the token-by-token generation loop locally, without any HTTP call.
+        Delegates each forward pass to registered local ShardEngines.
+        """
+        import time as _time
+        import numpy as np
+        from node.inference_pipeline import _apply_qwen_template
+
+        t0         = _time.perf_counter()
+        is_qwen    = "qwen" in pipeline.model_name.lower()
+        _QWEN_EOS  = {151643, 151645}
+        system     = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+        formatted  = _apply_qwen_template(prompt, system) if is_qwen else prompt
+        session_id = "local"   # not used over the network
+
+        current_ids = np.array(pipeline._encode(formatted), dtype=np.int32)
+        hidden_dim  = pipeline._get_model_config().get("hidden_dim", 2048)
+        eos_set     = _QWEN_EOS if is_qwen else {2}
+
+        generated_ids, tokens_generated = self._token_loop(
+            pipeline, route, session_id, current_ids, hidden_dim, eos_set
+        )
+
+        text = pipeline._decode(generated_ids)
+        return {
+            "ok":               True,
+            "text":             text,
+            "tokens_generated": tokens_generated,
+            "latency_ms":       round((_time.perf_counter() - t0) * 1000, 1),
+        }
+
+    def _token_loop(self, pipeline, route: list, session_id: str,
+                    current_ids, hidden_dim: int, eos_set: set):
+        """Inner token generation loop. Returns (generated_ids, token_count)."""
+        import numpy as np
+
+        generated_ids    = []
+        tokens_generated = 0
+
+        for _ in range(self._max_tokens):
+            output, success = pipeline._forward_through_swarm(
+                current_ids, session_id, route, hidden_dim
+            )
+            if not success:
+                break
+            next_id = pipeline._sample(output, temperature=0.7)
+            tokens_generated += 1
+            if next_id in eos_set:
+                break
+            generated_ids.append(next_id)
+            current_ids = np.array([next_id], dtype=np.int32)
+
+        return generated_ids, tokens_generated
+
+    def _build_local_pipeline(self):
+        """
+        Loads all 4 ShardEngines, registers them, and returns
+        (DistributedInferencePipeline, local_route).
+        """
+        from node.inference_pipeline import (
+            DistributedInferencePipeline, register_local_engines,
+        )
+        from shattering.model_constants import QWEN25_CODER_3B
+
+        shard_dir  = os.environ.get("SHARD_WEIGHTS_DIR", "")
+        model_name = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
+        n_shards   = QWEN25_CODER_3B["n_shards"]
+
+        engines = self._load_shard_engines(shard_dir, model_name, QWEN25_CODER_3B)
+        register_local_engines(engines)
+
+        pipeline    = DistributedInferencePipeline(coordinator_url="", model_name=model_name)
+        local_route = [{"shard": i, "node": "local"} for i in range(n_shards)]
+        logger.info("[Orchestrator] local pipeline ready (%d shards)", n_shards)
+        return pipeline, local_route
+
+    def _load_shard_engines(self, shard_dir: str, model_name: str, cfg: dict) -> list:
+        """Load each shard .npz into a ShardEngine, raising if any fails."""
+        from node.shard_engine import ShardEngine, ShardConfig
+
+        engines = []
+        for i in range(cfg["n_shards"]):
+            shard_cfg = ShardConfig(
+                model_name=model_name, shard_index=i,
+                n_shards=cfg["n_shards"], total_layers=cfg["total_layers"],
+                hidden_dim=cfg["hidden_dim"], intermediate_dim=cfg["intermediate_dim"],
+                n_heads=cfg["n_heads"], n_kv_heads=cfg["n_kv_heads"],
+                head_dim=cfg["head_dim"], rope_theta=cfg["rope_theta"],
+                rms_norm_eps=cfg["rms_norm_eps"], vocab_size=cfg["vocab_size"],
+                eos_token_id=cfg["eos_token_id"],
+            )
+            engine = ShardEngine(shard_cfg, weights_path=shard_dir)
+            if engine.mode != "real":
+                raise RuntimeError(
+                    f"shard_{i}.npz could not be loaded in real mode from {shard_dir}. "
+                    f"The file may be corrupt or incomplete. Re-run the setup wizard."
+                )
+            engines.append(engine)
+            logger.info("[Orchestrator] loaded shard %d from %s", i, shard_dir)
+        return engines
 
     def _any_real_weights(self, specs: List[FragmentSpec]) -> bool:
         import os
@@ -381,10 +534,12 @@ class ShatteringOrchestrator:
             return ""
 
     def _unavailable_response(self, sub_model: str) -> str:
+        if self._shards_available():
+            return f"[{sub_model.upper()}] Shard inference failed. Check logs for details."
         return (
-            f"[{sub_model.upper()}] Ollama is not running or model "
-            f"'{self._ollama_model}' is not pulled. "
-            f"Run: ollama serve && ollama pull {self._ollama_model}"
+            f"[{sub_model.upper()}] No inference backend available. "
+            f"Run the setup wizard to download model shards, or start Ollama: "
+            f"ollama serve && ollama pull {self._ollama_model}"
         )
 
     # ── Distributed inference ───────────────────────────────────────────

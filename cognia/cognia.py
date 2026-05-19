@@ -296,6 +296,29 @@ class Cognia:
         except ImportError:
             self._adapter_store = None
 
+        # ── Shattering orchestrator (shard inference, no Ollama required) ──
+        self._orchestrator = None
+        try:
+            from shattering.orchestrator import ShatteringOrchestrator
+            _manifest_path = _os_module.path.join(
+                _os_module.path.dirname(_os_module.path.dirname(_os_module.path.abspath(__file__))),
+                "shattering", "manifests", "cognia_qwen.json",
+            )
+            self._orchestrator = ShatteringOrchestrator(
+                manifest_path=_manifest_path,
+                coordinator_url=_os_module.environ.get("COGNIA_COORDINATOR_URL"),
+                mode="auto",
+            )
+            if self._orchestrator.shards_ready():
+                print("[OK] ShatteringOrchestrator activo (shards Qwen disponibles)")
+            else:
+                print("[OK] ShatteringOrchestrator activo (shards no encontrados — modo Ollama)")
+        except Exception as _orch_exc:
+            logger.warning(
+                "ShatteringOrchestrator no pudo inicializarse",
+                extra={"op": "cognia.__init__", "context": f"err={_orch_exc}"},
+            )
+
         print("[OK] COGNIA v3.2 lista. [KG + Inferencia + Objetivos + Prediccion Temporal + Historial]\n")
 
     # ── API pública ────────────────────────────────────────────────────

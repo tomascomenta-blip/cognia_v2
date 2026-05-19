@@ -130,11 +130,12 @@ def _build_project_context(cwd: str = None, max_chars_per_file: int = 2000) -> s
 # ── Singleton global (un engine por proceso) ──────────────────────────
 _ENGINE_INSTANCE: Optional["LanguageEngine"] = None
 
-def get_language_engine(cognia_instance=None) -> "LanguageEngine":
+def get_language_engine(cognia_instance=None, orchestrator=None) -> "LanguageEngine":
     global _ENGINE_INSTANCE
     if _ENGINE_INSTANCE is None:
         db = getattr(cognia_instance, "db", "cognia_memory.db") if cognia_instance else "cognia_memory.db"
-        _ENGINE_INSTANCE = LanguageEngine(db_path=db)
+        orch = orchestrator or getattr(cognia_instance, "_orchestrator", None)
+        _ENGINE_INSTANCE = LanguageEngine(db_path=db, orchestrator=orch)
     return _ENGINE_INSTANCE
 
 
@@ -197,15 +198,21 @@ class LanguageEngine:
     Instanciar una vez y reutilizar:
         engine = LanguageEngine(db_path="cognia_memory.db")
         result = engine.respond(cognia_instance, pregunta)
+
+    Si se pasa `orchestrator`, se usa como backend de inferencia primario
+    cuando los shards Qwen estan disponibles; Ollama queda como fallback.
     """
 
     def __init__(self, db_path: str = "cognia_memory.db",
-                 ollama_url: str = None, modelo: str = None):
+                 ollama_url: str = None, modelo: str = None,
+                 orchestrator=None):
         self.db_path    = db_path
         self.ollama_url = validate_ollama_url(
             ollama_url or os.environ.get("OLLAMA_URL", "http://localhost:11434")
         )
         self.modelo     = modelo     or os.environ.get("COGNIA_MODEL", "llama3.2")
+        # Optional ShatteringOrchestrator — used instead of Ollama when shards are ready
+        self._orchestrator = orchestrator
 
         self.symbolic   = SymbolicResponder()
         self.cache      = ResponseCache(db_path)
@@ -738,7 +745,26 @@ class LanguageEngine:
 
     def _call_ollama(self, prompt: str, question_type: str,
                      original_question: str, system_override: str = None) -> Dict:
-        """Llama a Ollama con el prompt optimizado."""
+        """
+        Llama al backend de inferencia con el prompt optimizado.
+
+        Prioridad:
+          1. ShatteringOrchestrator (shards Qwen reales) — si disponible y listo
+          2. Ollama — como fallback
+        """
+        # Delegate to shard pipeline when real weights are present
+        if (self._orchestrator is not None
+                and hasattr(self._orchestrator, "shards_ready")
+                and self._orchestrator.shards_ready()):
+            try:
+                result = self._orchestrator.infer(prompt)
+                return {"ok": True, "text": result.text, "tokens": 0, "truncated": False}
+            except Exception as _shard_exc:
+                _le_logger.warning(
+                    "Shard inference failed, falling back to Ollama: %s", _shard_exc,
+                    extra={"op": "language_engine._call_ollama", "context": "shard_fallback"},
+                )
+
         try:
             from cognia.prompt_optimizer import TOKEN_LIMITS
         except ImportError:

@@ -44,22 +44,21 @@ window.cognia.onReady((data) => {
   } else {
     badge.textContent = "setup required";
     badge.className   = "tag rhetor";
-    if (data.ollama === "missing") {
+    if (data.reason === "shards_missing" || data.shards === "missing") {
       appendSystem(
-        "Ollama is not running.\n" +
-        "1. Install Ollama from https://ollama.ai\n" +
-        "2. Run: ollama serve\n" +
-        "3. Run: ollama pull " + (data.model_name || "llama3.2") + "\n" +
-        "Then restart Cognia."
-      );
-    } else if (data.model === "not_pulled") {
-      appendSystem(
-        "Ollama is running but model '" + (data.model_name || "llama3.2") + "' is not downloaded.\n" +
-        "Run in a terminal: ollama pull " + (data.model_name || "llama3.2") + "\n" +
+        "Model fragments not found.\n" +
+        "Run the setup wizard to download the model fragments:\n\n" +
+        "    cognia install-weights\n\n" +
+        "Or open the setup window from the menu and follow the steps.\n" +
         "Then restart Cognia."
       );
     } else {
-      appendSystem("Setup required. Check the Ollama installation and restart.");
+      appendSystem(
+        "Inference backend not available.\n" +
+        "Run the setup wizard to download model shards, or start Ollama:\n\n" +
+        "    ollama serve && ollama pull " + (data.model_name || "llama3.2") + "\n\n" +
+        "Then restart Cognia."
+      );
     }
     setControls(false);
   }
