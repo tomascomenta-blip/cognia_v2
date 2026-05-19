@@ -7,6 +7,20 @@
 
 ---
 
+## Descargar
+
+Releases disponibles en: **https://github.com/tomascomenta-blip/cognia_v2/releases**
+
+| Plataforma | Archivo | Requisitos |
+|---|---|---|
+| Windows | CogniaDesktop-x.x.x-Setup.exe | Python 3.11+ |
+| Linux | CogniaDesktop-x.x.x.AppImage | Python 3.11+ |
+| Android | cognia-mobile-x.x.x.apk | Android 8+ |
+
+El instalador descarga el modelo automaticamente (~300 MB en modo swarm).
+
+---
+
 ## Estado del proyecto (Mayo 2026)
 
 | Fase | Estado | Descripcion |

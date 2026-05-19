@@ -5,6 +5,7 @@ on:
     tags:
       - "v*"        # Python CLI + Desktop installer
       - "desktop-v*" # Desktop installer only
+      - "mobile-v*"  # Android APK only
 
 jobs:
   # ── Python CLI → PyPI (only on v* tags) ───────────────────────────────
@@ -100,5 +101,45 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: cognia_desktop/dist/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Android APK (v* and mobile-v* tags) ──────────────────────────────
+  release-android:
+    if: startsWith(github.ref, 'refs/tags/mobile-v') || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Node deps
+        working-directory: cognia_mobile
+        run: npm install
+
+      - name: Expo prebuild
+        working-directory: cognia_mobile
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build APK
+        working-directory: cognia_mobile/android
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: cognia_mobile/android/app/build/outputs/apk/release/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

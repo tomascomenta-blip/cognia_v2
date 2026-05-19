@@ -43,17 +43,25 @@ _COORDINATOR = os.environ.get("COGNIA_COORDINATOR_URL")
 
 app = FastAPI(title="Cognia Desktop API", version="1.0.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    # Only allow localhost access. Electron renderer communicates via IPC → ipcMain
-    # → apiPost/apiGet in main.js, never via CORS fetch from a renderer origin.
-    # "file://" and "app://." are intentionally excluded: any local HTML file or
-    # a compromised renderer extension could otherwise make credentialed requests
-    # to this API and exfiltrate inference results.
-    allow_origins=["http://localhost:8765", "http://127.0.0.1:8765"],
+# COGNIA_LAN_MODE=1 → bind to 0.0.0.0 and open CORS for LAN (mobile access).
+# Default (Electron mode) → localhost only.
+_LAN_MODE = os.environ.get("COGNIA_LAN_MODE", "0") == "1"
+_CORS_ORIGINS = (
+    os.environ.get("COGNIA_CORS_ORIGINS", "*").split(",")
+    if _LAN_MODE
+    else ["http://localhost:8765", "http://127.0.0.1:8765"]
+)
+
+_cors_kwargs: dict = dict(
+    allow_origins=_CORS_ORIGINS,
     allow_methods=["POST", "GET"],
     allow_headers=["Content-Type"],
 )
+if _LAN_MODE:
+    # Also permit 192.168.x.x LAN addresses that may not be in COGNIA_CORS_ORIGINS
+    _cors_kwargs["allow_origin_regex"] = r"http://192\.168\.\d+\.\d+:\d+"
+
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 # Single orchestrator instance shared across requests
 _orch = ShatteringOrchestrator(
@@ -233,4 +241,5 @@ def root():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("COGNIA_DESKTOP_PORT", 8765))
-    uvicorn.run("cognia_desktop_api:app", host="127.0.0.1", port=port, reload=False)
+    host = "0.0.0.0" if _LAN_MODE else "127.0.0.1"
+    uvicorn.run("cognia_desktop_api:app", host=host, port=port, reload=False)

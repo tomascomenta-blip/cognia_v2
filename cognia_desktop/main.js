@@ -148,6 +148,9 @@ function startBackend() {
       ...process.env,
       COGNIA_DESKTOP_PORT: String(API_PORT),
       COGNIA_PACKAGED:     app.isPackaged ? "1" : "0",
+      // Enable LAN mode so mobile devices on the same network can reach the API.
+      // The OS firewall is the real access gate; this only controls bind address + CORS.
+      COGNIA_LAN_MODE:     "1",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
