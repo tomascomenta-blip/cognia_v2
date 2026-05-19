@@ -13,6 +13,7 @@
 *.png
 *.webp
 *.avif
+!cognia_mobile/assets/*.png
 __pycache__/
 *.pyc
 *.pyo
