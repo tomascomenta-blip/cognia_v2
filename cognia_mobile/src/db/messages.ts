@@ -48,3 +48,17 @@ export async function insertMessage(
   );
   return { id, conversationId, role, content, stage, createdAt: now };
 }
+
+// Updates content and stage of an existing message row.
+// Used to commit the final streamed content without per-token DB writes.
+export async function updateMessageContent(
+  db: SQLiteDatabase,
+  messageId: string,
+  content: string,
+  stage?: string
+): Promise<void> {
+  await db.runAsync(
+    'UPDATE messages SET content = ?, stage = ? WHERE id = ?',
+    [content, stage ?? null, messageId]
+  );
+}

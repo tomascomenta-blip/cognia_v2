@@ -1,5 +1,3 @@
-import type { Platform } from 'react-native';
-
 export type Role = 'user' | 'assistant';
 
 export interface Conversation {
@@ -14,6 +12,7 @@ export interface Message {
   conversationId: string;
   role: Role;
   content: string;
+  // sub_model is stored in the stage column (existing schema, no migration needed)
   stage?: string;
   createdAt: number;
 }
@@ -23,7 +22,27 @@ export interface AppSettings {
 }
 
 export interface ChatApiResponse {
-  response: string;
-  stage: string;
-  error: string;
+  text: string;
+  sub_model: string;
+  confidence: number;
+  latency_ms: number;
+  mode: string;
+  route_reason: string;
+}
+
+export interface ReadyResponse {
+  status: 'ready' | 'setup_required';
+  inference: 'shards' | 'ollama' | 'none';
+}
+
+export interface StreamToken {
+  token?: string;
+  done: boolean;
+  // fields present on the final done=true event
+  text?: string;
+  sub_model?: string;
+  confidence?: number;
+  latency_ms?: number;
+  mode?: string;
+  route_reason?: string;
 }

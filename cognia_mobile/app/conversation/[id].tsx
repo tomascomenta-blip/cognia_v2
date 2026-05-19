@@ -6,7 +6,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { sendMessage } from '../../src/api/chatClient';
+import { streamMessage } from '../../src/api/chatClient';
 import { InputBar } from '../../src/components/InputBar';
 import { LoadingDots } from '../../src/components/LoadingDots';
 import { MessageBubble } from '../../src/components/MessageBubble';
@@ -18,8 +18,17 @@ export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
   const { settings } = useSettings();
-  const { messages, isSending, setIsSending, addMessage, setTitle, abortRef } =
-    useMessages(id);
+  const {
+    messages,
+    isSending,
+    setIsSending,
+    addMessage,
+    addStreamingPlaceholder,
+    appendToken,
+    finalizeMessage,
+    setTitle,
+    abortRef,
+  } = useMessages(id);
   const listRef = useRef<FlatList>(null);
   const isFirstMessage = messages.length === 0;
 
@@ -43,20 +52,44 @@ export default function ChatScreen() {
     setIsSending(true);
     abortRef.current = new AbortController();
 
-    try {
-      const result = await sendMessage(text, settings.serverUrl, abortRef.current.signal);
-      const content = result.error
-        ? `[error] ${result.error}`
-        : result.response;
-      await addMessage('assistant', content, result.stage);
-    } catch (err) {
-      const isAbort = err instanceof Error && err.name === 'AbortError';
-      if (!isAbort) {
-        await addMessage('assistant', 'No se pudo conectar al servidor.');
-      }
-    } finally {
-      setIsSending(false);
-    }
+    // Insert a placeholder immediately so the user sees the streaming response appear
+    const placeholder = await addStreamingPlaceholder();
+    let accumulatedContent = '';
+
+    await streamMessage(
+      text,
+      settings.serverUrl,
+      (token) => {
+        accumulatedContent += token;
+        appendToken(placeholder.id, token);
+      },
+      (final) => {
+        // On done, build the stage string encoding sub_model + latency
+        // Format: "SUB_MODEL·latency_ms" — parsed by MessageBubble for display
+        const stage = final.sub_model && final.latency_ms != null
+          ? `${final.sub_model}·${final.latency_ms}`
+          : final.sub_model;
+
+        // Use the authoritative text from the server if it sent one,
+        // otherwise keep what we accumulated via tokens
+        const finalContent = final.text ?? accumulatedContent;
+
+        finalizeMessage(placeholder.id, finalContent, stage).catch(() => undefined);
+        setIsSending(false);
+      },
+      (err) => {
+        const isAbort = err.name === 'AbortError';
+        if (!isAbort) {
+          finalizeMessage(
+            placeholder.id,
+            '[!] No se pudo conectar al servidor.',
+            undefined
+          ).catch(() => undefined);
+        }
+        setIsSending(false);
+      },
+      abortRef.current.signal
+    );
   };
 
   useEffect(() => {
