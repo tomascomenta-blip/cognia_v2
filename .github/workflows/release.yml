@@ -3,10 +3,13 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "v*"        # Python CLI + Desktop installer
+      - "desktop-v*" # Desktop installer only
 
 jobs:
+  # ── Python CLI → PyPI (only on v* tags) ───────────────────────────────
   publish-pypi:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -28,6 +31,7 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
           attestations: false
 
+  # ── Windows installer (v* and desktop-v* tags) ────────────────────────
   release-windows:
     runs-on: windows-latest
     permissions:
@@ -63,6 +67,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # ── Linux AppImage (v* and desktop-v* tags) ───────────────────────────
   release-linux:
     runs-on: ubuntu-latest
     permissions:

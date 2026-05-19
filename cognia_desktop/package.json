@@ -1,6 +1,6 @@
 {
   "name": "cognia-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Cognia Desktop - Shattering v1 (LOGOS)",
   "main": "main.js",
   "scripts": {

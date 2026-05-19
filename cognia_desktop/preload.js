@@ -62,4 +62,14 @@ contextBridge.exposeInMainWorld("cognia", {
 
   /** Listen for auto-update downloaded event */
   onUpdateAvailable: (cb) => ipcRenderer.on("update-available", cb),
+
+  /** Setup wizard — only active when setup.html is loaded */
+  setup: {
+    run:          (opts) => ipcRenderer.invoke("setup:run", opts),
+    launch:       ()     => ipcRenderer.invoke("setup:launch"),
+    openExternal: (url)  => ipcRenderer.invoke("setup:open-external", url),
+    onProgress:   (cb)   => ipcRenderer.on("setup:progress", (_e, d) => cb(d)),
+    onDone:       (cb)   => ipcRenderer.once("setup:done",   ()       => cb()),
+    onError:      (cb)   => ipcRenderer.once("setup:error",  (_e, m)  => cb(m)),
+  },
 });

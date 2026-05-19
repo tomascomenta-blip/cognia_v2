@@ -13,30 +13,137 @@ const { autoUpdater } = require("electron-updater");
 const { spawn }   = require("child_process");
 const path        = require("path");
 const http        = require("http");
+const fs          = require("fs");
 
 const API_PORT    = process.env.COGNIA_DESKTOP_PORT || 8765;
 const API_BASE    = `http://127.0.0.1:${API_PORT}`;
 const POLL_INTERVAL = 500;   // ms between health checks
 const POLL_TIMEOUT  = 30000; // ms before giving up
 
-let pythonProc = null;
-let mainWindow = null;
+let pythonProc  = null;
+let mainWindow  = null;
+let setupWindow = null;
+
+
+// ── First-run / setup detection ────────────────────────────────────────────
+
+function getEnvPath() {
+  return path.join(app.getPath("userData"), ".env");
+}
+
+function isSetupComplete() {
+  const p = getEnvPath();
+  if (!fs.existsSync(p)) return false;
+  return /^COGNIA_SETUP_DONE=1/m.test(fs.readFileSync(p, "utf8"));
+}
+
+function loadEnvFile() {
+  const p = getEnvPath();
+  if (!fs.existsSync(p)) return;
+  fs.readFileSync(p, "utf8").split("\n").forEach((line) => {
+    const eq = line.indexOf("=");
+    if (eq < 1) return;
+    const k = line.slice(0, eq).trim();
+    const v = line.slice(eq + 1).trim();
+    if (k) process.env[k] = v;
+  });
+}
+
+function getAppRoot() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "cognia_src")
+    : path.join(__dirname, "..");
+}
+
+function getPython() {
+  return process.platform === "win32" ? "python" : "python3";
+}
+
+
+// ── Setup window ──────────────────────────────────────────────────────
+
+function createSetupWindow() {
+  setupWindow = new BrowserWindow({
+    width:     680,
+    height:    520,
+    resizable: false,
+    title:     "Cognia — Configuracion inicial",
+    webPreferences: {
+      preload:          path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration:  false,
+      sandbox:          true,
+    },
+  });
+
+  setupWindow.loadFile(path.join(__dirname, "renderer", "setup.html"));
+  setupWindow.on("closed", () => { setupWindow = null; });
+}
+
+// ── IPC handlers for setup wizard ─────────────────────────────────────
+
+ipcMain.handle("setup:run", (event, opts) => {
+  const setupScript = path.join(getAppRoot(), "scripts", "cognia_setup.py");
+  const shardsDir   = path.join(app.getPath("userData"), "shards", "qwen-coder-3b-q4");
+  const coordinator = opts.coordinatorMode === "local" ? "local" : opts.coordinatorUrl;
+
+  const args = [
+    setupScript,
+    "--mode",        "ipc",
+    "--coordinator", coordinator,
+    "--env-path",    getEnvPath(),
+    "--shards-dir",  shardsDir,
+  ];
+
+  const proc = spawn(getPython(), args, {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  proc.stdout.on("data", (chunk) => {
+    String(chunk).split("\n").filter(Boolean).forEach((line) => {
+      try {
+        const msg = JSON.parse(line);
+        event.sender.send("setup:progress", msg);
+        if (msg.phase === "done" && msg.status === "ok") {
+          event.sender.send("setup:done");
+        }
+        if (msg.fatal === true) {
+          event.sender.send("setup:error", msg.detail || "Error de configuracion");
+        }
+      } catch (_) {}
+    });
+  });
+
+  proc.stderr.on("data", (d) => process.stderr.write(`[setup] ${d}`));
+  proc.on("error", (err) => {
+    event.sender.send("setup:error", `No se pudo iniciar Python: ${err.message}`);
+  });
+});
+
+ipcMain.handle("setup:launch", () => {
+  loadEnvFile();
+  if (setupWindow) {
+    setupWindow.close();
+  }
+  startBackend();
+  createWindow();
+  waitForBackend()
+    .then((d) => mainWindow?.webContents.send("backend-ready", d))
+    .catch(() => mainWindow?.webContents.send("backend-error", "Cognia could not start."));
+  autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+});
+
+ipcMain.handle("setup:open-external", (_e, url) => shell.openExternal(url));
 
 
 // ── Spawn Python backend ───────────────────────────────────────────────
 
 function startBackend() {
-  // Resolve cognia_desktop_api.py relative to the app root
-  // (works both in dev and in packaged builds via extraResources)
-  const appRoot = app.isPackaged
-    ? path.join(process.resourcesPath, "cognia_src")
-    : path.join(__dirname, "..");
-
-  const apiScript = path.join(appRoot, "cognia_desktop_api.py");
-  const python    = process.platform === "win32" ? "python" : "python3";
+  const apiScript = path.join(getAppRoot(), "cognia_desktop_api.py");
+  const python    = getPython();
 
   pythonProc = spawn(python, [apiScript], {
-    cwd: appRoot,
+    cwd: getAppRoot(),
     env: {
       ...process.env,
       COGNIA_DESKTOP_PORT: String(API_PORT),
@@ -174,6 +281,15 @@ ipcMain.handle("open-feedback", () => {
 // ── App lifecycle ──────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+  if (!isSetupComplete()) {
+    createSetupWindow();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createSetupWindow();
+    });
+    return;
+  }
+
+  loadEnvFile();
   startBackend();
   createWindow();
 

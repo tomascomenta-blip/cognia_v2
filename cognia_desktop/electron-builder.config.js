@@ -45,6 +45,7 @@ module.exports = {
       to:     "cognia_src",
       filter: [
         "cognia_desktop_api.py",
+        "scripts/cognia_setup.py",
         "shattering/**",
         "coordinator/**",
         "node/**",
@@ -72,6 +73,7 @@ module.exports = {
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName:          "Cognia Desktop",
+    include:               "build/nsis_check_python.nsh",
   },
 
   // macOS target: DMG

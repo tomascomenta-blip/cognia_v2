@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cognia — Configuracion</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg, #0d0d0d);
+      color: var(--fg, #e8e8e8);
+      font-family: "Menlo", "Consolas", monospace;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+
+    .panel {
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .step { display: none; }
+    .step.active { display: block; }
+
+    h1 {
+      font-size: 15px;
+      font-weight: normal;
+      color: var(--fg, #e8e8e8);
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      color: var(--muted, #666);
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 7px 18px;
+      border: 1px solid var(--border, #2a2a2a);
+      background: transparent;
+      color: var(--fg, #e8e8e8);
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    .btn:hover { border-color: var(--fg, #e8e8e8); }
+    .btn:disabled { opacity: 0.3; cursor: default; }
+    .btn-primary { border-color: var(--fg, #e8e8e8); }
+
+    /* Step 2 — coordinator mode */
+    .radio-group { margin-bottom: 24px; }
+    .radio-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border, #2a2a2a);
+      cursor: pointer;
+    }
+    .radio-option input[type="radio"] { margin-top: 2px; accent-color: var(--fg, #e8e8e8); }
+    .radio-label { flex: 1; }
+    .radio-label strong { display: block; margin-bottom: 2px; }
+    .radio-label span { color: var(--muted, #666); }
+    #url-field {
+      margin-top: 12px;
+      display: none;
+    }
+    #url-field input {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid var(--border, #2a2a2a);
+      color: var(--fg, #e8e8e8);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 7px 12px;
+    }
+    #url-field label {
+      display: block;
+      color: var(--muted, #666);
+      margin-bottom: 6px;
+    }
+
+    /* Step 3 — progress list */
+    .phase-list { margin-bottom: 24px; }
+    .phase-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border, #2a2a2a);
+    }
+    .phase-icon {
+      font-family: inherit;
+      color: var(--muted, #666);
+      min-width: 20px;
+    }
+    .phase-icon.ok   { color: var(--fg, #e8e8e8); }
+    .phase-icon.err  { color: #cc3333; }
+    .phase-text { flex: 1; }
+    .phase-text .label { display: block; }
+    .phase-text .detail {
+      display: block;
+      color: var(--muted, #666);
+      margin-top: 3px;
+      font-size: 12px;
+    }
+    .progress-bar-wrap {
+      height: 2px;
+      background: var(--border, #2a2a2a);
+      margin-top: 6px;
+      width: 100%;
+    }
+    .progress-bar-fill {
+      height: 2px;
+      background: var(--fg, #e8e8e8);
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    /* Step 4 */
+    .result-msg {
+      font-size: 15px;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+    .result-msg.error { color: #cc3333; }
+    .hint { color: var(--muted, #666); margin-bottom: 20px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+<div class="panel">
+
+  <!-- STEP 1: Welcome -->
+  <div class="step active" id="step-1">
+    <h1>Cognia Desktop — configuracion inicial</h1>
+    <p class="subtitle">
+      Este asistente descargara el modelo de IA (~1.2 GB) y configurara
+      el entorno en tu equipo.<br>
+      Requiere Python 3.11+ y conexion a internet.
+    </p>
+    <button class="btn btn-primary" id="btn-begin">Iniciar configuracion</button>
+  </div>
+
+  <!-- STEP 2: Coordinator mode -->
+  <div class="step" id="step-2">
+    <h1>Modo de ejecucion</h1>
+    <p class="subtitle">Elige como quieres usar Cognia.</p>
+    <div class="radio-group">
+      <label class="radio-option">
+        <input type="radio" name="coord-mode" value="local" checked />
+        <div class="radio-label">
+          <strong>Solo en este equipo</strong>
+          <span>Recomendado. El modelo corre localmente, sin red.</span>
+        </div>
+      </label>
+      <label class="radio-option">
+        <input type="radio" name="coord-mode" value="swarm" />
+        <div class="radio-label">
+          <strong>Conectar a swarm remoto</strong>
+          <span>Unirse a un coordinador existente en la red.</span>
+        </div>
+      </label>
+    </div>
+    <div id="url-field">
+      <label for="coord-url">URL del coordinador</label>
+      <input type="text" id="coord-url" placeholder="http://192.168.1.x:8001" autocomplete="off" />
+    </div>
+    <br>
+    <button class="btn btn-primary" id="btn-continue">Continuar</button>
+    <button class="btn" id="btn-back-1">Atras</button>
+  </div>
+
+  <!-- STEP 3: Installing -->
+  <div class="step" id="step-3">
+    <h1>Instalando</h1>
+    <div class="phase-list" id="phase-list">
+      <div class="phase-item" data-phase="check_python">
+        <span class="phase-icon">[ ]</span>
+        <div class="phase-text">
+          <span class="label">Verificando Python 3.11+</span>
+          <span class="detail"></span>
+        </div>
+      </div>
+      <div class="phase-item" data-phase="install_deps">
+        <span class="phase-icon">[ ]</span>
+        <div class="phase-text">
+          <span class="label">Instalando dependencias Python</span>
+          <span class="detail"></span>
+        </div>
+      </div>
+      <div class="phase-item" data-phase="generate_keys">
+        <span class="phase-icon">[ ]</span>
+        <div class="phase-text">
+          <span class="label">Generando claves de seguridad</span>
+          <span class="detail"></span>
+        </div>
+      </div>
+      <div class="phase-item" data-phase="download_shards">
+        <span class="phase-icon">[ ]</span>
+        <div class="phase-text">
+          <span class="label">Descargando modelo (~1.2 GB)</span>
+          <span class="detail"></span>
+          <div class="progress-bar-wrap" style="display:none">
+            <div class="progress-bar-fill" id="shard-progress"></div>
+          </div>
+        </div>
+      </div>
+      <div class="phase-item" data-phase="verify_shards">
+        <span class="phase-icon">[ ]</span>
+        <div class="phase-text">
+          <span class="label">Verificando shards</span>
+          <span class="detail"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Done or Error -->
+  <div class="step" id="step-4">
+    <h1 id="result-title">Configuracion completa</h1>
+    <p class="result-msg" id="result-msg">Cognia esta listo.</p>
+    <p class="hint" id="result-hint"></p>
+    <button class="btn btn-primary" id="btn-launch" style="display:none">Abrir Cognia</button>
+    <button class="btn" id="btn-open-python" style="display:none">Abrir python.org</button>
+    <button class="btn" id="btn-retry" style="display:none">Reintentar</button>
+    <button class="btn" id="btn-quit" style="display:none">Salir</button>
+  </div>
+
+</div>
+<script src="setup.js"></script>
+</body>
+</html>
