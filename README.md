@@ -132,6 +132,19 @@ Ver [docs/PRIVACY.md](docs/PRIVACY.md) y [docs/SECURITY.md](docs/SECURITY.md) pa
 
 ---
 
+## Arquitectura Diferencial
+
+Cognia no es un wrapper de LLM ni una interfaz de chat con memoria. Las diferencias tecnicas respecto a los sistemas convencionales son estructurales:
+
+- **Inferencia sin servidor central:** El forward pass ocurre en los dispositivos de los usuarios (shards .npz en numpy puro, sin PyTorch). El coordinador enruta pero no ejecuta ni almacena nada de la conversacion.
+- **Memoria episodica como almacen primario:** El conocimiento vive en SQLite local + VectorCache numpy por usuario, no en pesos compartidos. Cada instancia aprende de su propio historial sin exponer datos.
+- **Cuantizacion dinamica en produccion:** Los pesos escalan INT4 → INT8 → FP16 → FP32 segun frecuencia de acceso en tiempo real, con auto-decay a INT4 tras inactividad. El objetivo es minimizar RAM sin degradar las rutas calientes.
+- **Adaptacion personal sin fine-tuning global:** El ciclo de sueno entrena adapters LoRA (r=4-8) sobre episodios de alta importancia del usuario y los aplica en las proyecciones KV del transformer. Cada instancia desarrolla un sesgo de respuesta personalizado sin alterar los pesos base compartidos.
+- **Aprendizaje federado sobre adapters, no sobre parametros completos:** Los nodos contribuyen deltas LoRA con ruido gaussiano (sigma=0.01); el coordinador ejecuta FedAvg ponderado por tier. Los datos del usuario nunca salen del dispositivo.
+- **Ciclo de sueño autonomo de 8 pasos:** Consolidacion episodica, compresion conceptual, actualizacion del grafo de conocimiento, investigacion autonoma via GitHub, entrenamiento ELC, procesamiento emocional Plutchik, y auto-expansion de rango LoRA cuando el adapter satura.
+- **Economia de contribucion sin suscripciones:** El acceso prioritario se asigna por recursos aportados (disco, computo, uptime), no por pago. Los tiers (basic/standard/premium) definen RPM y modelos accesibles, con enforcement por sliding window por node_id.
+- **Router de dominio sobre tres sub-modelos:** LOGOS (razonamiento, temp=0.3), TECHNE (codigo, temp=0.15), RHETOR (escritura, temp=0.7) — tres perfiles de generacion distintos sobre la misma base Qwen2.5-Coder-3B INT4.
+
 ## Para Colaborar
 
 Lee el [ROADMAP.md](ROADMAP.md) para entender la direccion actual. Cognia prioriza la eficiencia (CPU-only), la privacidad y la estabilidad. No se aceptan dependencias pesadas (PyTorch/Tensorflow) en el motor de inferencia principal.

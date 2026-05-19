@@ -533,6 +533,22 @@ the ledger; this phase adds the enforcement gate so tiers actually restrict acce
 | 17 — Contribution Economy | allowed_models gate + RPM sliding window por node_id en shattering/infer | DONE |
 | 18 — Sandbox real | AST analysis + runtime __import__ guard; elimina regex bypasseable | DONE |
 | 19 — ARA | Adaptive Rank Amplification: saturacion detectada, expansion ortogonal, FedAvg variable-rank | DONE |
+| 20 — Innovacion arquitectural | Routing semantico, LPC/Semantic Persistence, DUS scale-up, Fed Distillation | TODO |
+
+---
+
+## Phase 20 — Arquitectura Diferencial [TODO]
+
+**Goal:** Reemplazar decisiones de diseno primitivas con mecanismos que diferencian a Cognia
+de los LLMs convencionales, sin requerir PyTorch ni infraestructura nueva.
+
+| Change | Description | Files | Status |
+|---|---|---|---|
+| 20.1 | Semantic router: reemplaza keyword matching en router.py con similitud coseno sobre embeddings del VectorCache; umbral configurable en model_constants.py | `shattering/router.py`, `shattering/model_constants.py`, `cognia/memory/episodic_fast.py` | TODO |
+| 20.2 | Latent Persistence Cache (LPC): cachear el hidden state comprimido del ultimo shard por session_id; en requests subsiguientes inyectarlo como contexto residual en lugar de recalcular desde token 0 | `shattering/mla.py`, `node/shard_engine.py`, `shattering/orchestrator.py` | TODO |
+| 20.3 | Depth Up-Scaling (DUS) para shards: fusionar dos shards adyacentes (interpolacion alpha de sus capas) para generar un shard de mayor profundidad sin reentrenamiento completo; util para nodos con mas RAM disponible | `scripts/scale_shards.py` (new), `shattering/model_constants.py` | TODO |
+| 20.4 | Federated Knowledge Distillation: en lugar de promediar deltas LoRA crudos, el coordinador extrae representaciones semanticas de cada contribucion y agrega en espacio de embeddings antes de proyectar de vuelta a LoRA | `coordinator/federated_store.py`, `coordinator/app.py` | TODO |
+| 20.5 | MLA correccion arquitectural: MLA_N_HEADS_ASSUMED y MLA_N_KV_HEADS_ASSUMED usan valores de Llama (24/8); deben actualizarse a Qwen2.5-3B (16/2) y MLA_D_C recalcularse como hidden_dim // n_kv_heads = 1024 | `shattering/model_constants.py`, `shattering/mla.py` | TODO |
 
 ## Critical Files Map
 
