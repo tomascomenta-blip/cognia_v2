@@ -73,7 +73,7 @@ module.exports = {
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName:          "Cognia Desktop",
-    include:               "build/nsis_check_python.nsh",
+    include:               path.join(ROOT, "build", "nsis_check_python.nsh"),
   },
 
   // macOS target: DMG
