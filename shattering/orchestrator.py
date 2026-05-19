@@ -417,8 +417,9 @@ class ShatteringOrchestrator:
             import numpy as np
             from shattering.recursive_context import RecursiveContext
 
+            from shattering.model_constants import QWEN25_CODER_3B
             ids        = list(prompt.encode("utf-8"))[:512]
-            hidden_dim = 3072
+            hidden_dim = QWEN25_CODER_3B["hidden_dim"]
             hidden     = np.zeros((len(ids), hidden_dim), dtype=np.float16)
 
             if n_passes <= 1:
@@ -554,7 +555,7 @@ class ShatteringOrchestrator:
         import numpy as np
 
         sub_model  = decision.sub_model
-        model_name = f"{sub_model}-3.2-3b-q4"
+        model_name = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
 
         try:
             # 1. Create session

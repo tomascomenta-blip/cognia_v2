@@ -42,12 +42,12 @@ DOMAIN_EXPERT_CLUSTERS: dict = {
     "rhetor": list(range(10, 16)),  # experts 10-15 (6 writing experts)
 }
 
-# MLA: compressed KV-cache dimensions (Decision Pending: verify against actual HF config)
-MLA_D_C:       int = 512   # KV compression dim  = hidden_dim // 6
-MLA_D_C_PRIME: int = 768   # Q  compression dim  = hidden_dim // 4
-# Assumed (NOT verified from code): n_heads=24, n_kv_heads=8, head_dim=128
-MLA_N_HEADS_ASSUMED:    int = 24
-MLA_N_KV_HEADS_ASSUMED: int = 8
+# MLA: compressed KV-cache dimensions calibrated for Qwen2.5-Coder-3B
+MLA_D_C:       int = 512   # KV compression dim  (arbitrary; smaller = less VRAM)
+MLA_D_C_PRIME: int = 512   # Q  compression dim
+# Qwen2.5-Coder-3B-Instruct: n_heads=16, n_kv_heads=2, head_dim=128
+MLA_N_HEADS_ASSUMED:    int = 16
+MLA_N_KV_HEADS_ASSUMED: int = 2
 MLA_HEAD_DIM_ASSUMED:   int = 128
 
 

@@ -7,12 +7,12 @@ Based on DeepSeek-V3 MLA design: instead of caching full K and V tensors per
 layer, we cache a compressed latent representation (dimension d_c << n_kv_heads*head_dim).
 K and V are reconstructed from the latent via learned up-projection matrices.
 
-Memory comparison (per layer at T=512, Llama 3.2-3B defaults):
-  Standard GQA:  n_kv_heads(8) * T * head_dim(128) * 2 = 1 MB/layer * 28 = 28 MB
-  MLA (d_c=512): d_c * T * 2 bytes = 0.5 MB/layer * 28 = 14 MB
+Memory comparison (per layer at T=512, Qwen2.5-Coder-3B defaults):
+  Standard GQA:  n_kv_heads(2) * T * head_dim(128) * 2 = 0.25 MB/layer * 36 = 9 MB
+  MLA (d_c=512): d_c * T * 2 bytes = 0.5 MB/layer * 36 = 18 MB
 
-Primary benefit on Llama 3.2-3B (already GQA): enables longer contexts by
-halving the per-token cache cost, rather than a dramatic memory reduction.
+Note: Qwen already uses aggressive GQA (n_kv_heads=2), so MLA's primary benefit
+here is enabling longer contexts with stable cache growth, not memory reduction.
 
 Simulation mode:
   All weight matrices default to identity/zeros — no RAM wasted on large tensors.
@@ -35,7 +35,7 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 
 from shattering.model_constants import (
-    LLAMA_32_3B,
+    QWEN25_CODER_3B,
     MLA_D_C,
     MLA_D_C_PRIME,
     MLA_HEAD_DIM_ASSUMED,
@@ -45,7 +45,7 @@ from shattering.model_constants import (
 
 logger = logging.getLogger(__name__)
 
-_HIDDEN_DIM = LLAMA_32_3B["hidden_dim"]   # 3072
+_HIDDEN_DIM = QWEN25_CODER_3B["hidden_dim"]   # 2048
 
 
 # ── Compressed KV Cache ─────────────────────────────────────────────────
