@@ -5,6 +5,7 @@ const PHASES = {
   install_deps:    "install_deps",
   generate_keys:   "generate_keys",
   write_env:       "generate_keys",   // maps to same row
+  register_node:   "register_node",
   download_shards: "download_shards",
   verify_shards:   "verify_shards",
 };
@@ -148,6 +149,18 @@ document.getElementById("btn-continue").addEventListener("click", () => {
   }
 
   setupOpts = { coordinatorMode: mode, coordinatorUrl: url };
+
+  // Adapt UI to mode before entering step 3
+  const registerRow = document.querySelector('.phase-item[data-phase="register_node"]');
+  const downloadLabel = document.getElementById("download-label");
+  if (mode === "swarm") {
+    registerRow.style.display = "flex";
+    downloadLabel.textContent = "Descargando shard asignado (~300 MB)";
+  } else {
+    registerRow.style.display = "none";
+    downloadLabel.textContent = "Descargando modelo (~1.2 GB)";
+  }
+
   showStep(3);
 
   window.cognia.setup.onProgress(onProgress);
@@ -165,7 +178,6 @@ document.getElementById("btn-open-python").addEventListener("click", () => {
 });
 
 document.getElementById("btn-retry").addEventListener("click", () => {
-  // Reset phase icons and go back to step 3
   document.querySelectorAll(".phase-icon").forEach((el) => {
     el.textContent = "[ ]";
     el.className   = "phase-icon";
@@ -174,6 +186,18 @@ document.getElementById("btn-retry").addEventListener("click", () => {
   const fill = document.getElementById("shard-progress");
   if (fill) fill.style.width = "0%";
   currentShardProgress = {};
+
+  // Re-apply mode-specific visibility
+  const registerRow = document.querySelector('.phase-item[data-phase="register_node"]');
+  const downloadLabel = document.getElementById("download-label");
+  if (setupOpts.coordinatorMode === "swarm") {
+    registerRow.style.display = "flex";
+    downloadLabel.textContent = "Descargando shard asignado (~300 MB)";
+  } else {
+    registerRow.style.display = "none";
+    downloadLabel.textContent = "Descargando modelo (~1.2 GB)";
+  }
+
   showStep(3);
 
   window.cognia.setup.onProgress(onProgress);

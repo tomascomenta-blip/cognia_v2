@@ -5,18 +5,23 @@ Modes:
   --mode cli   Human-readable output to terminal.
   --mode ipc   Newline-delimited JSON on stdout (consumed by Electron via spawn).
   --check      Exit 0 if setup is complete, exit 1 otherwise.
+
+Shard strategy:
+  local mode  — downloads all 4 shards; this machine runs inference end-to-end.
+  swarm mode  — registers with coordinator, gets 1 shard assigned, downloads only that.
 """
 
 import argparse
 import json
-import os
+import platform
 import secrets
 import subprocess
 import sys
+import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -31,6 +36,7 @@ SETUP_DONE_MARKER = "COGNIA_SETUP_DONE=1"
 class PhaseResult:
     ok: bool
     detail: str = ""
+    data: dict = field(default_factory=dict)
 
 
 # ── Emitter ───────────────────────────────────────────────────────────────────
@@ -50,8 +56,8 @@ def make_emitter(mode: str) -> Callable:
             if status == "progress" and done is not None and total and total > 0:
                 pct = int(done / total * 100)
                 bar = ("=" * (pct // 5)).ljust(20)
-                msg = f"  [{bar}] {pct}%  shard {shard + 1}/{N_SHARDS}"
-                print(f"\r{msg}", end="", flush=True)
+                label = f"shard {shard}" if shard is not None else ""
+                print(f"\r  [{bar}] {pct}%  {label}", end="", flush=True)
                 return
             if status == "progress":
                 return
@@ -114,6 +120,7 @@ def generate_keys(
     env_path: Path,
     coordinator_url: str,
     shards_dir: Path,
+    is_local: bool,
     emit: Callable,
 ) -> PhaseResult:
     existing: dict[str, str] = {}
@@ -123,15 +130,18 @@ def generate_keys(
                 k, _, v = line.partition("=")
                 existing[k.strip()] = v.strip()
 
-    updates = {
-        "COORDINATOR_KEY":      existing.get("COORDINATOR_KEY") or secrets.token_hex(32),
-        "COGNIA_ADMIN_KEY":     existing.get("COGNIA_ADMIN_KEY") or secrets.token_hex(32),
+    updates: dict[str, str] = {
+        "COGNIA_ADMIN_KEY":       existing.get("COGNIA_ADMIN_KEY") or secrets.token_hex(32),
         "COGNIA_COORDINATOR_URL": coordinator_url,
-        "SHARD_WEIGHTS_DIR":    str(shards_dir),
-        "COGNIA_SWARM_MODEL":   "qwen-coder-3b-q4",
-        "COGNIA_DESKTOP_PORT":  "8765",
-        "COGNIA_SETUP_DONE":    "1",
+        "SHARD_WEIGHTS_DIR":      str(shards_dir),
+        "COGNIA_SWARM_MODEL":     "qwen-coder-3b-q4",
+        "COGNIA_DESKTOP_PORT":    "8765",
     }
+
+    # COORDINATOR_KEY is only meaningful when running the coordinator locally
+    if is_local:
+        updates["COORDINATOR_KEY"] = existing.get("COORDINATOR_KEY") or secrets.token_hex(32)
+
     existing.update(updates)
 
     env_path.parent.mkdir(parents=True, exist_ok=True)
@@ -143,10 +153,70 @@ def generate_keys(
     return PhaseResult(ok=True)
 
 
-def download_shards(shards_dir: Path, emit: Callable) -> PhaseResult:
+def register_with_coordinator(
+    coordinator_url: str,
+    env_path: Path,
+    emit: Callable,
+) -> PhaseResult:
+    """Register this node with the coordinator and get a shard assignment."""
+    emit({"phase": "register_node", "status": "running", "detail": ""})
+
+    hardware_info = f"{platform.processor()} | {_ram_gb():.1f}GB RAM"
+    payload = json.dumps({
+        "hardware_info": hardware_info,
+        "model_name": "qwen-coder-3b-q4",
+    }).encode()
+
+    url = f"{coordinator_url.rstrip('/')}/api/node/register"
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = json.loads(resp.read().decode())
+    except urllib.error.URLError as exc:
+        detail = f"No se pudo conectar al coordinador: {exc.reason}"
+        emit({"phase": "register_node", "status": "error",
+              "detail": detail, "fatal": True})
+        return PhaseResult(ok=False, detail=detail)
+    except Exception as exc:
+        detail = str(exc)
+        emit({"phase": "register_node", "status": "error",
+              "detail": detail, "fatal": True})
+        return PhaseResult(ok=False, detail=detail)
+
+    node_id = body.get("node_id") or body.get("id")
+    shard   = body.get("shard")
+
+    if node_id is None or shard is None:
+        detail = f"Respuesta inesperada del coordinador: {body}"
+        emit({"phase": "register_node", "status": "error",
+              "detail": detail, "fatal": True})
+        return PhaseResult(ok=False, detail=detail)
+
+    # Persist node identity so heartbeat can reuse it across restarts
+    _append_env(env_path, {
+        "COGNIA_NODE_ID":    str(node_id),
+        "COGNIA_NODE_SHARD": str(shard),
+    })
+
+    emit({"phase": "register_node", "status": "ok",
+          "detail": f"shard {shard} asignado", "shard": shard})
+    return PhaseResult(ok=True, data={"shard": shard, "node_id": node_id})
+
+
+def download_shards(
+    shards_dir: Path,
+    shard_indices: List[int],
+    emit: Callable,
+) -> PhaseResult:
     shards_dir.mkdir(parents=True, exist_ok=True)
 
-    for i in range(N_SHARDS):
+    for i in shard_indices:
         dest = shards_dir / f"shard_{i}.npz"
         if dest.exists() and dest.stat().st_size > 0:
             emit({"phase": "download_shards", "status": "skip", "shard": i})
@@ -181,7 +251,11 @@ def download_shards(shards_dir: Path, emit: Callable) -> PhaseResult:
     return PhaseResult(ok=True)
 
 
-def verify_shards(shards_dir: Path, emit: Callable) -> PhaseResult:
+def verify_shards(
+    shards_dir: Path,
+    shard_indices: List[int],
+    emit: Callable,
+) -> PhaseResult:
     try:
         import numpy as np  # noqa: PLC0415
     except ImportError:
@@ -190,7 +264,7 @@ def verify_shards(shards_dir: Path, emit: Callable) -> PhaseResult:
         return PhaseResult(ok=False, detail="numpy missing")
 
     missing = []
-    for i in range(N_SHARDS):
+    for i in shard_indices:
         path = shards_dir / f"shard_{i}.npz"
         if not path.exists():
             missing.append(i)
@@ -209,8 +283,59 @@ def verify_shards(shards_dir: Path, emit: Callable) -> PhaseResult:
         return PhaseResult(ok=False, detail=detail)
 
     emit({"phase": "verify_shards", "status": "ok",
-          "detail": f"{N_SHARDS}/{N_SHARDS} shards verificados"})
+          "detail": f"{len(shard_indices)}/{N_SHARDS} shards verificados"})
     return PhaseResult(ok=True)
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _ram_gb() -> float:
+    try:
+        import os
+        if sys.platform == "win32":
+            import ctypes
+            kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+            class MEMORYSTATUSEX(ctypes.Structure):
+                _fields_ = [
+                    ("dwLength", ctypes.c_ulong),
+                    ("dwMemoryLoad", ctypes.c_ulong),
+                    ("ullTotalPhys", ctypes.c_ulonglong),
+                    ("ullAvailPhys", ctypes.c_ulonglong),
+                    ("ullTotalPageFile", ctypes.c_ulonglong),
+                    ("ullAvailPageFile", ctypes.c_ulonglong),
+                    ("ullTotalVirtual", ctypes.c_ulonglong),
+                    ("ullAvailVirtual", ctypes.c_ulonglong),
+                    ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+                ]
+            stat = MEMORYSTATUSEX()
+            stat.dwLength = ctypes.sizeof(stat)
+            kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+            return stat.ullTotalPhys / (1024 ** 3)
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemTotal"):
+                    return int(line.split()[1]) / (1024 ** 2)
+    except Exception:
+        pass
+    return 0.0
+
+
+def _append_env(env_path: Path, kv: dict[str, str]) -> None:
+    existing: dict[str, str] = {}
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, _, v = line.partition("=")
+                existing[k.strip()] = v.strip()
+    existing.update(kv)
+    env_path.write_text(
+        "\n".join(f"{k}={v}" for k, v in existing.items()) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _mark_done(env_path: Path) -> None:
+    _append_env(env_path, {"COGNIA_SETUP_DONE": "1"})
 
 
 # ── Setup complete check ───────────────────────────────────────────────────────
@@ -219,10 +344,7 @@ def is_setup_complete(env_path: Path) -> bool:
     if not env_path.exists():
         return False
     content = env_path.read_text(encoding="utf-8")
-    return any(
-        line.strip() == SETUP_DONE_MARKER
-        for line in content.splitlines()
-    )
+    return any(line.strip() == SETUP_DONE_MARKER for line in content.splitlines())
 
 
 # ── Main orchestrator ──────────────────────────────────────────────────────────
@@ -235,24 +357,40 @@ def run_setup(
 ) -> int:
     emit = make_emitter(mode)
     root = Path(__file__).resolve().parent.parent
+    is_local = coordinator == "local"
+    coordinator_url = "http://localhost:8001" if is_local else coordinator
 
-    coordinator_url = (
-        "http://localhost:8001" if coordinator == "local" else coordinator
-    )
-
-    phases = [
+    # Phases 1-3: always the same
+    for phase_fn in [
         lambda: check_python(emit),
         lambda: install_deps(root, emit),
-        lambda: generate_keys(env_path, coordinator_url, shards_dir, emit),
-        lambda: download_shards(shards_dir, emit),
-        lambda: verify_shards(shards_dir, emit),
-    ]
-
-    for phase_fn in phases:
+        lambda: generate_keys(env_path, coordinator_url, shards_dir, is_local, emit),
+    ]:
         result = phase_fn()
         if not result.ok:
             return 1
 
+    if is_local:
+        # Local mode: this machine runs all 4 shards sequentially
+        shard_indices = list(range(N_SHARDS))
+        emit({"phase": "download_shards", "status": "info",
+              "detail": "modo local — descargando los 4 shards"})
+    else:
+        # Swarm mode: get shard assignment from coordinator, download only that one
+        reg = register_with_coordinator(coordinator_url, env_path, emit)
+        if not reg.ok:
+            return 1
+        shard_indices = [reg.data["shard"]]
+
+    for phase_fn in [
+        lambda: download_shards(shards_dir, shard_indices, emit),
+        lambda: verify_shards(shards_dir, shard_indices, emit),
+    ]:
+        result = phase_fn()
+        if not result.ok:
+            return 1
+
+    _mark_done(env_path)
     emit({"phase": "done", "status": "ok", "detail": ""})
     return 0
 

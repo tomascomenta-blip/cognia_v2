@@ -146,8 +146,9 @@
   <div class="step active" id="step-1">
     <h1>Cognia Desktop — configuracion inicial</h1>
     <p class="subtitle">
-      Este asistente descargara el modelo de IA (~1.2 GB) y configurara
-      el entorno en tu equipo.<br>
+      Este asistente configurara el entorno en tu equipo.<br>
+      En modo local descarga el modelo completo (~1.2 GB).<br>
+      En modo swarm descarga solo el shard asignado (~300 MB).<br>
       Requiere Python 3.11+ y conexion a internet.
     </p>
     <button class="btn btn-primary" id="btn-begin">Iniciar configuracion</button>
@@ -175,7 +176,7 @@
     </div>
     <div id="url-field">
       <label for="coord-url">URL del coordinador</label>
-      <input type="text" id="coord-url" placeholder="http://192.168.1.x:8001" autocomplete="off" />
+      <input type="text" id="coord-url" placeholder="https://cognia-coordinator-production.up.railway.app" autocomplete="off" />
     </div>
     <br>
     <button class="btn btn-primary" id="btn-continue">Continuar</button>
@@ -207,10 +208,17 @@
           <span class="detail"></span>
         </div>
       </div>
+      <div class="phase-item" data-phase="register_node" style="display:none">
+        <span class="phase-icon">[ ]</span>
+        <div class="phase-text">
+          <span class="label">Registrando nodo en coordinador</span>
+          <span class="detail"></span>
+        </div>
+      </div>
       <div class="phase-item" data-phase="download_shards">
         <span class="phase-icon">[ ]</span>
         <div class="phase-text">
-          <span class="label">Descargando modelo (~1.2 GB)</span>
+          <span class="label" id="download-label">Descargando modelo (~1.2 GB)</span>
           <span class="detail"></span>
           <div class="progress-bar-wrap" style="display:none">
             <div class="progress-bar-fill" id="shard-progress"></div>
