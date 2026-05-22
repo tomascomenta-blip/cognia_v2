@@ -249,6 +249,19 @@ def download_shards(
                   "shard": i, "detail": detail, "fatal": False})
             return PhaseResult(ok=False, detail=detail)
 
+    # Download tokenizer.json alongside shards so local BPE works without network
+    tok_dest = shards_dir / "tokenizer.json"
+    if not tok_dest.exists():
+        tok_url = "https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct/resolve/main/tokenizer.json"
+        tok_tmp = tok_dest.with_suffix(".part")
+        try:
+            urllib.request.urlretrieve(tok_url, str(tok_tmp))
+            tok_tmp.rename(tok_dest)
+        except Exception:
+            if tok_tmp.exists():
+                tok_tmp.unlink()
+            # Non-fatal: inference falls back to HF tokenizer
+
     return PhaseResult(ok=True)
 
 
