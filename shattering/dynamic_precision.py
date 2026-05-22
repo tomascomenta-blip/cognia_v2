@@ -94,7 +94,7 @@ class DynamicWeights:
         if prec == PREC_INT8:
             return x32 @ (cache.q.astype(np.float32) * cache.scale).T
         # PREC_INT4: always dequantize from nibble-packed source
-        return x32 @ self._w4.dequantize().T
+        return self._w4.linear(x32)
 
     def decay(self, factor: float = 0.3) -> None:
         """

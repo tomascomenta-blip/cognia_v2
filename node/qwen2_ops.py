@@ -32,9 +32,21 @@ class INT4Weights:
     def dequantize(self) -> np.ndarray:
         return dequantize_int4(self.packed, self.scale, self.orig_cols)
 
-    def linear(self, x: np.ndarray) -> np.ndarray:
-        """Compute x @ W^T with on-demand dequantization to float32."""
-        return x @ self.dequantize().T
+    def linear(self, x: np.ndarray, chunk: int = 4096) -> np.ndarray:
+        """Compute x @ W^T chunked to avoid allocating the full dequantized matrix."""
+        x32      = x.astype(np.float32)
+        n_rows   = self.packed.shape[0]
+        out_cols = n_rows
+        result   = np.empty((x32.shape[0], out_cols), dtype=np.float32)
+        for start in range(0, n_rows, chunk):
+            end   = min(start + chunk, n_rows)
+            w_fp  = dequantize_int4(
+                self.packed[start:end],
+                self.scale[start:end],
+                self.orig_cols,
+            )
+            result[:, start:end] = x32 @ w_fp.T
+        return result
 
 
 # ── Qwen2 math primitives ────────────────────────────────────────────────────
