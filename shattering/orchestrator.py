@@ -152,6 +152,33 @@ class ShatteringOrchestrator:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.infer, prompt)
 
+    async def astream(self, prompt: str):
+        """
+        Async generator — yields (token_text, None) per token, then (None, InferResult).
+        Runs the CPU-bound token loop in a thread pool so the event loop stays free.
+        """
+        import asyncio as _asyncio
+        loop  = _asyncio.get_event_loop()
+        queue: _asyncio.Queue = _asyncio.Queue()
+
+        def _run():
+            try:
+                result = self._shard_infer_stream(prompt, queue, loop)
+                loop.call_soon_threadsafe(queue.put_nowait, ("__done__", result))
+            except Exception as exc:
+                loop.call_soon_threadsafe(queue.put_nowait, ("__error__", str(exc)))
+
+        loop.run_in_executor(None, _run)
+
+        while True:
+            item = await queue.get()
+            if item[0] == "__done__":
+                yield None, item[1]   # (None, InferResult)
+                break
+            if item[0] == "__error__":
+                raise RuntimeError(item[1])
+            yield item[0], None       # (token_text, None)
+
     def route_only(self, prompt: str) -> RouteDecision:
         """Return routing decision without running inference."""
         return self._router.route(prompt)
@@ -296,6 +323,64 @@ class ShatteringOrchestrator:
             for i in range(4)
         )
 
+    def _shard_infer_stream(self, prompt: str, queue, loop) -> "InferResult":
+        """Streaming version: puts token text into queue, returns InferResult when done."""
+        import time as _time
+        import numpy as np
+        from node.inference_pipeline import _apply_qwen_template
+
+        if self._pipeline is None:
+            pipeline, route = self._build_local_pipeline()
+            self._pipeline = pipeline
+            self._local_route = route
+
+        pipeline   = self._pipeline
+        route      = self._local_route
+        t0         = _time.perf_counter()
+        is_qwen    = "qwen" in pipeline.model_name.lower()
+        _QWEN_EOS  = {151643, 151645}
+        system     = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+        formatted  = _apply_qwen_template(prompt, system) if is_qwen else prompt
+        session_id = f"local_{_time.time()}"
+
+        current_ids     = np.array(pipeline._encode(formatted), dtype=np.int32)
+        hidden_dim      = pipeline._get_model_config().get("hidden_dim", 2048)
+        eos_set         = _QWEN_EOS if is_qwen else {2}
+        generated_ids   = []
+        tokens_generated = 0
+        t_loop          = _time.perf_counter()
+
+        for _ in range(self._max_tokens):
+            output, success = pipeline._forward_through_swarm(
+                current_ids, session_id, route, hidden_dim
+            )
+            if not success:
+                break
+            next_id = pipeline._sample(output, temperature=0.7)
+            tokens_generated += 1
+
+            if tokens_generated % 10 == 0:
+                elapsed = _time.perf_counter() - t_loop
+                rate    = tokens_generated / elapsed if elapsed > 0 else 0
+                logger.info("[TokenLoop] %d tokens, %.2f tok/s", tokens_generated, rate)
+
+            if next_id in eos_set:
+                break
+            generated_ids.append(next_id)
+            token_text = pipeline._decode([next_id])
+            loop.call_soon_threadsafe(queue.put_nowait, (token_text, None))
+            current_ids = np.array([next_id], dtype=np.int32)
+
+        text = pipeline._decode(generated_ids)
+        return InferResult(
+            text         = text,
+            sub_model    = "logos",
+            confidence   = 0.0,
+            latency_ms   = round((_time.perf_counter() - t0) * 1000, 1),
+            mode         = "local",
+            route_reason = "shard_stream",
+        )
+
     def _shard_infer(self, prompt: str) -> str:
         """
         Run end-to-end inference via the real Qwen INT4 forward pass.
@@ -337,7 +422,7 @@ class ShatteringOrchestrator:
         _QWEN_EOS  = {151643, 151645}
         system     = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
         formatted  = _apply_qwen_template(prompt, system) if is_qwen else prompt
-        session_id = "local"   # not used over the network
+        session_id = f"local_{_time.time()}"
 
         current_ids = np.array(pipeline._encode(formatted), dtype=np.int32)
         hidden_dim  = pipeline._get_model_config().get("hidden_dim", 2048)
@@ -359,9 +444,11 @@ class ShatteringOrchestrator:
                     current_ids, hidden_dim: int, eos_set: set):
         """Inner token generation loop. Returns (generated_ids, token_count)."""
         import numpy as np
+        import time as _time
 
         generated_ids    = []
         tokens_generated = 0
+        t0               = _time.perf_counter()
 
         for _ in range(self._max_tokens):
             output, success = pipeline._forward_through_swarm(
@@ -371,6 +458,12 @@ class ShatteringOrchestrator:
                 break
             next_id = pipeline._sample(output, temperature=0.7)
             tokens_generated += 1
+
+            if tokens_generated % 10 == 0:
+                elapsed = _time.perf_counter() - t0
+                rate    = tokens_generated / elapsed if elapsed > 0 else 0
+                logger.info("[TokenLoop] %d tokens, %.2f tok/s", tokens_generated, rate)
+
             if next_id in eos_set:
                 break
             generated_ids.append(next_id)

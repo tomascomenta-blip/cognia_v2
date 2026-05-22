@@ -318,7 +318,7 @@ class DistributedInferencePipeline:
 
             if _LOCAL_ENGINES:
                 for engine in _LOCAL_ENGINES:
-                    wire, _ = engine.process_bytes(wire)
+                    wire, _ = engine.process_bytes(wire, session_id)
                 # Detect protocol version by first byte
                 if wire[0] in (0, 1, 2):
                     _, _, out = decode_wire(wire)

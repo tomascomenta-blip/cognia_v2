@@ -177,25 +177,27 @@ async def infer_stream(prompt: str = Query(..., description="Prompt to infer", m
 
     async def generator():
         try:
-            result = await _orch.ainfer(prompt)
+            result = None
+            async for token_text, final in _orch.astream(prompt):
+                if token_text is not None:
+                    yield {"data": json.dumps({"token": token_text, "done": False})}
+                else:
+                    result = final
+            if result is None:
+                yield {"data": json.dumps({"done": True, "error": "no output"})}
+                return
+            yield {
+                "data": json.dumps({
+                    "done":       True,
+                    "sub_model":  result.sub_model,
+                    "confidence": result.confidence,
+                    "latency_ms": result.latency_ms,
+                    "mode":       result.mode,
+                })
+            }
         except Exception as exc:
             _api_logger.error("Stream inference failed: %s", exc, exc_info=True)
             yield {"data": json.dumps({"done": True, "error": str(exc)})}
-            return
-        words = result.text.split()
-        for i, word in enumerate(words):
-            token = word + (" " if i < len(words) - 1 else "")
-            yield {"data": json.dumps({"token": token, "done": False})}
-            await asyncio.sleep(0.02)
-        yield {
-            "data": json.dumps({
-                "done":       True,
-                "sub_model":  result.sub_model,
-                "confidence": result.confidence,
-                "latency_ms": result.latency_ms,
-                "mode":       result.mode,
-            })
-        }
 
     return EventSourceResponse(generator())
 

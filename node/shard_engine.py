@@ -295,6 +295,7 @@ class ShardEngine:
         self,
         hidden_state: Optional[np.ndarray],
         token_ids: Optional[np.ndarray] = None,
+        session_id: str = "",
     ) -> Tuple[np.ndarray, float]:
         """
         Forward pass through this shard's layers.
@@ -324,7 +325,7 @@ class ShardEngine:
                 x = hidden_state.astype(np.float32)
 
             for layer in self._layers:
-                x = layer.forward(x)
+                x = layer.forward(x, session_id)
 
             if cfg.is_last and self._lm_weights is not None:
                 from node.qwen2_ops import _rms_norm
@@ -338,13 +339,13 @@ class ShardEngine:
     def forward(
         self,
         hidden_state: Optional[np.ndarray],
-        session_id: Optional[str] = None,
+        session_id: str = "",
         token_ids: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, float]:
-        """Convenience wrapper for process() that accepts session_id (MLA compat)."""
-        return self.process(hidden_state, token_ids=token_ids)
+        """Convenience wrapper for process() that accepts session_id."""
+        return self.process(hidden_state, token_ids=token_ids, session_id=session_id)
 
-    def process_bytes(self, data: bytes) -> Tuple[bytes, float]:
+    def process_bytes(self, data: bytes, session_id: str = "") -> Tuple[bytes, float]:
         """
         Wire protocol entry point.
         Accepts both new (PTYPE_*) and legacy header formats.
@@ -356,9 +357,9 @@ class ShardEngine:
         if ptype in (PTYPE_HIDDEN, PTYPE_TOKENS, PTYPE_LOGITS):
             ptype, _shard_from, payload = decode_wire(data)
             if ptype == PTYPE_TOKENS:
-                result, ms = self.process(None, token_ids=payload)
+                result, ms = self.process(None, token_ids=payload, session_id=session_id)
             else:
-                result, ms = self.process(payload)
+                result, ms = self.process(payload, session_id=session_id)
             if self.config.is_last and result.dtype == np.float32:
                 return encode_logits(self.config.shard_index, result), ms
             return encode_hidden(self.config.shard_index, result), ms
