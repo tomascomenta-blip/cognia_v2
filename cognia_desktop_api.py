@@ -70,6 +70,7 @@ _orch = ShatteringOrchestrator(
     manifest_path=_MANIFEST,
     coordinator_url=_COORDINATOR,
     mode="auto",
+    max_new_tokens=64,
 )
 
 
