@@ -4,9 +4,13 @@ cognia/database.py
 Conexión SQLite, inicialización de tablas y limpieza de ruido.
 """
 
+import logging as _log
+import os as _os
 import sqlite3
 from datetime import datetime, timedelta
 from .config import DB_PATH, KG_STOPWORDS
+
+_encrypt_warned = False
 
 
 def db_connect(path: str = None) -> sqlite3.Connection:
@@ -59,6 +63,13 @@ def init_db(path: str = DB_PATH):
     Inicializa o migra la base de datos.
     Completamente retrocompatible con v2 — solo agrega tablas nuevas.
     """
+    global _encrypt_warned
+    if not _os.getenv("COGNIA_ENCRYPT_PASSPHRASE") and not _encrypt_warned:
+        _log.getLogger("cognia.db").warning(
+            "COGNIA_ENCRYPT_PASSPHRASE not set — episodic memory is stored unencrypted. "
+            "Run: python scripts/migrate_db_encrypt.py"
+        )
+        _encrypt_warned = True
     conn = db_connect(path)
     c = conn.cursor()
 

@@ -85,7 +85,7 @@ function createSetupWindow() {
 ipcMain.handle("setup:run", (event, opts) => {
   const setupScript = path.join(getAppRoot(), "scripts", "cognia_setup.py");
   const shardsDir   = path.join(app.getPath("userData"), "shards", "qwen-coder-3b-q4");
-  const coordinator = opts.coordinatorMode === "local" ? "local" : opts.coordinatorUrl;
+  const coordinator = opts.coordinatorUrl || "https://cognia-coordinator-production.up.railway.app";
 
   const args = [
     setupScript,

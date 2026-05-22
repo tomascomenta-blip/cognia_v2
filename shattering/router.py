@@ -29,7 +29,7 @@ class RouteDecision:
 
 # ── Keyword tables ─────────────────────────────────────────────────────
 
-router_version = "1.1"
+router_version = "1.2"
 
 _TECHNE: List[str] = [
     "code", "function", "bug", "debug", "error", "exception", "syntax",
@@ -129,9 +129,13 @@ class GlobalRouter:
 
         if total == 0:
             conf   = 0.3
-            reason = f"No keyword matches — defaulting to '{self.default}'"
+            reason = f"No keyword matches -- defaulting to '{self.default}'"
         else:
-            conf   = min(1.0, max(0.3, scores[winner] / total))
+            ratio          = scores[winner] / total
+            # Evidence damping: needs 6+ keyword hits for full confidence.
+            # Prevents overconfident routing when a single ambiguous keyword matches.
+            evidence_scale = min(1.0, total / 6.0)
+            conf           = min(1.0, max(0.3, ratio * (0.4 + 0.6 * evidence_scale)))
             reason = (
                 f"'{winner}' scored {scores[winner]}/{total} hits "
                 f"({conf:.0%} confidence)"

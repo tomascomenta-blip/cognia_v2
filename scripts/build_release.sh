@@ -82,6 +82,14 @@ else
   step "CSC_LINK not set. Building unsigned package."
 fi
 
+# ── Run test suite ────────────────────────────────────────────────────
+
+step "Running test suite..."
+cd "$ROOT"
+python3 -m pytest tests/ -x --tb=short -q || fail "Tests failed. Aborting build."
+ok "All tests passed."
+cd "$DESK"
+
 # ── Run electron-builder ───────────────────────────────────────────────
 
 step "Running electron-builder ($TARGET)..."

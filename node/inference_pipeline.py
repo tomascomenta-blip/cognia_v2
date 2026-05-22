@@ -97,6 +97,20 @@ class LightTokenizer:
         return " ".join(words)
 
 
+def _try_tokenizers_lib(shard_dir: str):
+    """Load real BPE tokenizer from tokenizer.json in the shard directory."""
+    try:
+        from tokenizers import Tokenizer
+        path = os.path.join(shard_dir, "tokenizer.json")
+        if os.path.exists(path):
+            tok = Tokenizer.from_file(path)
+            logger.info("[Pipeline] Real BPE tokenizer loaded from %s", path)
+            return tok
+    except Exception as exc:
+        logger.warning("[Pipeline] tokenizers lib failed: %s", exc)
+    return None
+
+
 def _try_hf_tokenizer(model_name: str):
     """Intenta cargar el tokenizer real de HuggingFace si está disponible."""
     try:
@@ -151,9 +165,14 @@ class DistributedInferencePipeline:
                  model_name:      str = SWARM_MODEL):
         self.coordinator   = coordinator_url.rstrip("/")
         self.model_name    = model_name
-        self._tokenizer    = _try_hf_tokenizer(model_name) or LightTokenizer()
-        self._mode         = "real" if hasattr(self._tokenizer, "convert_ids_to_tokens") \
-                             else "simulation"
+        shard_dir          = os.environ.get("SHARD_WEIGHTS_DIR", "")
+        self._tokenizer    = (
+            _try_tokenizers_lib(shard_dir)
+            or _try_hf_tokenizer(model_name)
+            or LightTokenizer()
+        )
+        self._real_tokenizer = not isinstance(self._tokenizer, LightTokenizer)
+        self._mode         = "real" if self._real_tokenizer else "simulation"
         self._model_cfg_cache: Optional[tuple] = None   # (cfg, fetch_time)
 
     # ── Verificar disponibilidad del swarm ────────────────────────────
@@ -362,11 +381,18 @@ class DistributedInferencePipeline:
     # ── Tokenizer helpers ─────────────────────────────────────────────
 
     def _encode(self, text: str) -> list:
-        if hasattr(self._tokenizer, "encode") and self._mode == "real":
+        if self._real_tokenizer:
+            # tokenizers lib: .encode() returns an Encoding with .ids
+            enc = self._tokenizer.encode(text)
+            return enc.ids if hasattr(enc, "ids") else list(enc)
+        if hasattr(self._tokenizer, "encode"):
+            # HuggingFace transformers fallback
             return self._tokenizer.encode(text, add_special_tokens=True)
         return self._tokenizer.encode(text)
 
     def _decode(self, ids: list) -> str:
+        if self._real_tokenizer:
+            return self._tokenizer.decode(ids)
         if hasattr(self._tokenizer, "decode") and self._mode == "real":
             return self._tokenizer.decode(ids, skip_special_tokens=True)
         return self._tokenizer.decode(ids)

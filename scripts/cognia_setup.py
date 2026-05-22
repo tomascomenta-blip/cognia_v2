@@ -133,6 +133,7 @@ def generate_keys(
     updates: dict[str, str] = {
         "COGNIA_ADMIN_KEY":       existing.get("COGNIA_ADMIN_KEY") or secrets.token_hex(32),
         "COGNIA_COORDINATOR_URL": coordinator_url,
+        "COGNIA_NODE_MODE":       "swarm",
         "SHARD_WEIGHTS_DIR":      str(shards_dir),
         "COGNIA_SWARM_MODEL":     "qwen-coder-3b-q4",
         "COGNIA_DESKTOP_PORT":    "8765",

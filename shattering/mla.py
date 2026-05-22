@@ -118,6 +118,7 @@ class MLAModule:
         n_heads: int = MLA_N_HEADS_ASSUMED,
         n_kv_heads: int = MLA_N_KV_HEADS_ASSUMED,
         head_dim: int = MLA_HEAD_DIM_ASSUMED,
+        rope_theta: float = 10_000_000.0,
         simulation: bool = True,
     ):
         self.layer_idx  = layer_idx
@@ -128,6 +129,7 @@ class MLAModule:
         self.n_heads    = n_heads
         self.n_kv_heads = n_kv_heads
         self.head_dim   = head_dim
+        self.rope_theta = rope_theta
         self.simulation = simulation
 
         # Projection matrices — None until load_weights() is called
@@ -194,11 +196,18 @@ class MLAModule:
         c_q   = hidden @ self._W_DQ                          # (seq, d_c')
         Q_up  = c_q   @ self._W_UQ                           # (seq, n_h*head)
 
-        # 3. Scaled dot-product attention (simplified: no masking / RoPE)
+        # 3. Scaled dot-product attention with RoPE and causal masking
+        from node.qwen2_ops import _precompute_rope, _apply_rope
+
         n_h, n_kv, hd = self.n_heads, self.n_kv_heads, self.head_dim
         Q = Q_up.reshape(seq_len, n_h,  hd)
         K = K_up.reshape(seq_len, n_kv, hd)
         V = V_up.reshape(seq_len, n_kv, hd)
+
+        # RoPE: rotate Q and K in their head-dim space
+        cos, sin = _precompute_rope(seq_len, hd, self.rope_theta)
+        Q = _apply_rope(Q, cos, sin)
+        K = _apply_rope(K, cos, sin)
 
         # GQA: repeat K/V heads to match Q heads
         repeats = n_h // n_kv
@@ -207,6 +216,12 @@ class MLAModule:
 
         scale  = hd ** -0.5
         scores = np.einsum("shd,thd->sht", Q, K) * scale    # (seq, n_h, seq)
+
+        # Causal mask: position s must not attend to future position t > s
+        # scores shape: (s, h, t) — mask broadcasts over h axis
+        mask   = np.triu(np.full((seq_len, seq_len), -1e9, dtype=np.float32), k=1)
+        scores = scores + mask[:, None, :]
+
         attn   = self._softmax(scores, axis=-1)
         out    = np.einsum("sht,thd->shd", attn, V)          # (seq, n_h, hd)
         return out.reshape(seq_len, self.hidden_dim)
@@ -241,11 +256,17 @@ def patch_shard_engine_mla(shard_engine, kv_cache: Optional[CompressedKVCache] =
     simulation = getattr(shard_engine, "mode", "sim") != "real"
     patched    = 0
 
+    cfg = shard_engine.config
     for i, layer in enumerate(getattr(shard_engine, "_layers", [])):
-        layer_idx = shard_engine.config.layer_start + i
+        layer_idx = cfg.layer_start + i
         mla       = MLAModule(
             layer_idx  = layer_idx,
             kv_cache   = kv_cache,
+            hidden_dim = cfg.hidden_dim,
+            n_heads    = cfg.n_heads,
+            n_kv_heads = cfg.n_kv_heads,
+            head_dim   = cfg.head_dim,
+            rope_theta = cfg.rope_theta,
             simulation = simulation,
         )
         if hasattr(layer, "self_attn"):

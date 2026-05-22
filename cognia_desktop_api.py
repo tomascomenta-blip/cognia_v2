@@ -34,9 +34,11 @@ from shattering.orchestrator import ShatteringOrchestrator
 # so crash details are not exposed to the renderer process.
 _PACKAGED = os.environ.get("COGNIA_PACKAGED", "0") == "1"
 
+import logging as _logging
 if _PACKAGED:
-    import logging as _logging
     _logging.getLogger().setLevel(_logging.WARNING)
+else:
+    _logging.basicConfig(level=_logging.INFO, format="%(levelname)s %(name)s %(message)s")
 
 _MANIFEST = str(_ROOT / "shattering" / "manifests" / "cognia_desktop.json")
 _COORDINATOR = os.environ.get("COGNIA_COORDINATOR_URL")
@@ -69,6 +71,20 @@ _orch = ShatteringOrchestrator(
     coordinator_url=_COORDINATOR,
     mode="auto",
 )
+
+
+async def _kv_evict_loop() -> None:
+    while True:
+        await asyncio.sleep(60)
+        try:
+            _orch._evict_mla_caches(max_age_seconds=120)
+        except Exception:
+            pass
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    asyncio.create_task(_kv_evict_loop())
 
 
 # ── Pydantic models ────────────────────────────────────────────────────
@@ -106,12 +122,18 @@ class RouteResponse(BaseModel):
 
 # ── Endpoints ──────────────────────────────────────────────────────────
 
+_api_logger = _logging.getLogger("cognia_desktop_api")
+
 @app.post("/infer", response_model=InferResponse)
 async def infer(req: InferRequest):
     """Route the prompt to the best sub-model and return its response."""
     if not req.prompt.strip():
         raise HTTPException(status_code=400, detail="prompt cannot be empty")
-    result = await _orch.ainfer(req.prompt)
+    try:
+        result = await _orch.ainfer(req.prompt)
+    except Exception as exc:
+        _api_logger.error("Inference failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
     return InferResponse(
         text         = result.text,
         sub_model    = result.sub_model,
@@ -153,7 +175,12 @@ async def infer_stream(prompt: str = Query(..., description="Prompt to infer", m
         raise HTTPException(status_code=400, detail="prompt cannot be empty")
 
     async def generator():
-        result = await _orch.ainfer(prompt)
+        try:
+            result = await _orch.ainfer(prompt)
+        except Exception as exc:
+            _api_logger.error("Stream inference failed: %s", exc, exc_info=True)
+            yield {"data": json.dumps({"done": True, "error": str(exc)})}
+            return
         words = result.text.split()
         for i, word in enumerate(words):
             token = word + (" " if i < len(words) - 1 else "")

@@ -16,6 +16,7 @@ sse-starlette>=1.6
 prometheus-fastapi-instrumentator>=6.1
 rich>=13.0
 prompt_toolkit>=3.0
+tokenizers>=0.19
 # faiss-cpu>=1.7.4  # optional: faster episodic search at scale
 # torch>=2.1.0      # required only for real-weight shard inference (node/shard_engine.py)
 # transformers>=4.40.0  # required only for real-weight shard inference; needs GQA support

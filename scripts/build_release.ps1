@@ -83,6 +83,18 @@ if ($SkipSign) {
     Write-Step "CSC_LINK not set. Building unsigned installer."
 }
 
+# ── Run test suite ────────────────────────────────────────────────────
+
+Write-Step "Running test suite..."
+Push-Location $ROOT
+try {
+    python -m pytest tests/ -x --tb=short -q
+    if ($LASTEXITCODE -ne 0) { Write-Fail "Tests failed. Aborting build." }
+    Write-OK "All tests passed."
+} finally {
+    Pop-Location
+}
+
 # ── Run electron-builder ───────────────────────────────────────────────
 
 Write-Step "Running electron-builder..."

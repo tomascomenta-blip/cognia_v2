@@ -213,7 +213,11 @@ function sendPrompt() {
       removeThinking();
       if (!streamBubble.parentElement) chat.appendChild(streamWrap);
       if (final.error) {
-        appendSystem("Something went wrong. Please try again.");
+        appendSystem(
+          final.error.includes("Shard") || final.error.includes("shard")
+            ? "No se pudo ejecutar inferencia: " + final.error
+            : "Error al procesar la respuesta. Revisa los logs del backend."
+        );
         streamWrap.remove();
       } else {
         const sm = final.sub_model || "?";

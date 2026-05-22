@@ -10,7 +10,9 @@ const PHASES = {
   verify_shards:   "verify_shards",
 };
 
-let setupOpts = { coordinatorMode: "local", coordinatorUrl: "" };
+const COORDINATOR_URL = "https://cognia-coordinator-production.up.railway.app";
+
+let setupOpts = { coordinatorMode: "swarm", coordinatorUrl: COORDINATOR_URL };
 let currentShardProgress = {};   // shard index -> { done, total }
 
 // ── Navigation ─────────────────────────────────────────────────────────
@@ -132,34 +134,14 @@ document.getElementById("btn-begin").addEventListener("click", () => showStep(2)
 
 document.getElementById("btn-back-1").addEventListener("click", () => showStep(1));
 
-document.querySelectorAll('input[name="coord-mode"]').forEach((radio) => {
-  radio.addEventListener("change", () => {
-    const isSwarm = radio.value === "swarm" && radio.checked;
-    document.getElementById("url-field").style.display = isSwarm ? "block" : "none";
-  });
-});
-
 document.getElementById("btn-continue").addEventListener("click", () => {
-  const mode = document.querySelector('input[name="coord-mode"]:checked').value;
-  const url  = document.getElementById("coord-url").value.trim();
+  const urlInput = document.getElementById("coordinator-url-input");
+  const coordinatorUrl = (urlInput && urlInput.value.trim()) ? urlInput.value.trim() : COORDINATOR_URL;
+  setupOpts = { coordinatorMode: "swarm", coordinatorUrl };
 
-  if (mode === "swarm" && !url.match(/^https?:\/\/.+/)) {
-    document.getElementById("coord-url").style.borderColor = "#cc3333";
-    return;
-  }
-
-  setupOpts = { coordinatorMode: mode, coordinatorUrl: url };
-
-  // Adapt UI to mode before entering step 3
+  // Always show register_node row (swarm-only)
   const registerRow = document.querySelector('.phase-item[data-phase="register_node"]');
-  const downloadLabel = document.getElementById("download-label");
-  if (mode === "swarm") {
-    registerRow.style.display = "flex";
-    downloadLabel.textContent = "Descargando shard asignado (~300 MB)";
-  } else {
-    registerRow.style.display = "none";
-    downloadLabel.textContent = "Descargando modelo (~1.2 GB)";
-  }
+  registerRow.style.display = "flex";
 
   showStep(3);
 
@@ -187,16 +169,9 @@ document.getElementById("btn-retry").addEventListener("click", () => {
   if (fill) fill.style.width = "0%";
   currentShardProgress = {};
 
-  // Re-apply mode-specific visibility
+  // Ensure register_node row is visible (swarm-only)
   const registerRow = document.querySelector('.phase-item[data-phase="register_node"]');
-  const downloadLabel = document.getElementById("download-label");
-  if (setupOpts.coordinatorMode === "swarm") {
-    registerRow.style.display = "flex";
-    downloadLabel.textContent = "Descargando shard asignado (~300 MB)";
-  } else {
-    registerRow.style.display = "none";
-    downloadLabel.textContent = "Descargando modelo (~1.2 GB)";
-  }
+  registerRow.style.display = "flex";
 
   showStep(3);
 

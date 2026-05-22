@@ -102,7 +102,11 @@ class ShatteringOrchestrator:
         )
 
         if mode == "auto":
-            self._mode = "distributed" if self._coord_url else "local"
+            # Prefer local shard inference when weights are already present;
+            # only fall back to distributed when no local shards exist.
+            self._mode = "local" if self._shards_available() else (
+                "distributed" if self._coord_url else "local"
+            )
         else:
             self._mode = mode
 
@@ -110,11 +114,19 @@ class ShatteringOrchestrator:
         self._pipeline    = None
         self._local_route = None
 
+        # Proactive MLA eviction -- evict every 90s to match relay SESSION_TIMEOUT=120s
+        self._last_eviction: float = 0.0
+
     # ── Public API ──────────────────────────────────────────────────────
 
     def infer(self, prompt: str) -> InferResult:
         """Route the prompt, load the right sub-model, and return generated text."""
-        t0 = time.time()
+        # Proactive eviction: every 90s, evict caches older than 150s (SESSION_TIMEOUT+30s)
+        _now = time.time()
+        if _now - self._last_eviction > 90.0:
+            self._evict_mla_caches(max_age_seconds=150.0)
+            self._last_eviction = _now
+        t0 = _now
         decision = self._router.route(prompt)
         logger.info(
             "[Orchestrator] sub_model=%s conf=%.2f — %s",
@@ -255,15 +267,30 @@ class ShatteringOrchestrator:
             text = self._ollama_infer(prompt, sub_model, n_passes=self._n_passes)
             return text, "simulation"
 
-        text = self._run_shard_chain(prompt, engines, sub_model, self._n_passes)
+        text = self._shard_infer(prompt)
         return text, "local"
 
     def _shards_available(self) -> bool:
-        """True when all 4 Qwen INT4 .npz shard files exist and are non-empty."""
+        """
+        True when at least one Qwen INT4 .npz shard file exists and is non-empty.
+
+        In swarm mode each node hosts exactly 1 shard (the one assigned by the
+        coordinator). Requiring all 4 would always return False for swarm nodes.
+        The assigned shard index is stored in COGNIA_NODE_SHARD; when unset,
+        any shard_*.npz present is accepted.
+        """
         shard_dir = Path(os.environ.get("SHARD_WEIGHTS_DIR", ""))
         if not shard_dir.is_dir():
             return False
-        return all(
+        assigned = os.environ.get("COGNIA_NODE_SHARD")
+        if assigned is not None:
+            try:
+                shard_file = shard_dir / f"shard_{int(assigned)}.npz"
+                return shard_file.is_file() and shard_file.stat().st_size > 0
+            except (ValueError, OSError):
+                return False
+        # No assignment — accept any present shard
+        return any(
             (shard_dir / f"shard_{i}.npz").is_file()
             and (shard_dir / f"shard_{i}.npz").stat().st_size > 0
             for i in range(4)
@@ -353,8 +380,8 @@ class ShatteringOrchestrator:
 
     def _build_local_pipeline(self):
         """
-        Loads all 4 ShardEngines, registers them, and returns
-        (DistributedInferencePipeline, local_route).
+        Load available shard engines (1 in swarm mode, 4 in standalone mode),
+        register them as local, and return (DistributedInferencePipeline, local_route).
         """
         from node.inference_pipeline import (
             DistributedInferencePipeline, register_local_engines,
@@ -363,22 +390,38 @@ class ShatteringOrchestrator:
 
         shard_dir  = os.environ.get("SHARD_WEIGHTS_DIR", "")
         model_name = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
-        n_shards   = QWEN25_CODER_3B["n_shards"]
 
-        engines = self._load_shard_engines(shard_dir, model_name, QWEN25_CODER_3B)
+        # Determine which shards are present locally
+        assigned = os.environ.get("COGNIA_NODE_SHARD")
+        if assigned is not None:
+            try:
+                shard_indices = [int(assigned)]
+            except ValueError:
+                shard_indices = list(range(QWEN25_CODER_3B["n_shards"]))
+        else:
+            shard_indices = [
+                i for i in range(QWEN25_CODER_3B["n_shards"])
+                if (Path(shard_dir) / f"shard_{i}.npz").is_file()
+            ]
+
+        engines = self._load_shard_engines(shard_dir, model_name, QWEN25_CODER_3B, shard_indices)
         register_local_engines(engines)
 
         pipeline    = DistributedInferencePipeline(coordinator_url="", model_name=model_name)
-        local_route = [{"shard": i, "node": "local"} for i in range(n_shards)]
-        logger.info("[Orchestrator] local pipeline ready (%d shards)", n_shards)
+        local_route = [{"shard": idx, "node": "local"} for idx in shard_indices]
+        logger.info("[Orchestrator] local pipeline ready (%d shards: %s)", len(shard_indices), shard_indices)
         return pipeline, local_route
 
-    def _load_shard_engines(self, shard_dir: str, model_name: str, cfg: dict) -> list:
-        """Load each shard .npz into a ShardEngine, raising if any fails."""
+    def _load_shard_engines(self, shard_dir: str, model_name: str, cfg: dict,
+                             shard_indices: Optional[List[int]] = None) -> list:
+        """Load the specified shard .npz files into ShardEngines, raising if any fails."""
         from node.shard_engine import ShardEngine, ShardConfig
 
+        if shard_indices is None:
+            shard_indices = list(range(cfg["n_shards"]))
+
         engines = []
-        for i in range(cfg["n_shards"]):
+        for i in shard_indices:
             shard_cfg = ShardConfig(
                 model_name=model_name, shard_index=i,
                 n_shards=cfg["n_shards"], total_layers=cfg["total_layers"],
@@ -407,52 +450,23 @@ class ShatteringOrchestrator:
                     return True
         return False
 
-    def _run_shard_chain(self, prompt: str, engines: list, sub_model: str,
-                          n_passes: int = 1) -> str:
-        """
-        Run real-weights shard chain, then generate text with Ollama.
-        The shard chain exercises NPQ/RST/MLA/MoE routing; Ollama produces text.
-        """
+    def _warmup_shard_engines(self, engines: list) -> None:
+        # Diagnostic/warmup only — does not generate text. Real inference uses _shard_infer().
         try:
             import numpy as np
-            from shattering.recursive_context import RecursiveContext
-
             from shattering.model_constants import QWEN25_CODER_3B
-            ids        = list(prompt.encode("utf-8"))[:512]
             hidden_dim = QWEN25_CODER_3B["hidden_dim"]
-            hidden     = np.zeros((len(ids), hidden_dim), dtype=np.float16)
-
-            if n_passes <= 1:
-                for engine in engines:
-                    out = engine.forward(hidden)
-                    if isinstance(out, tuple):
-                        hidden = out[0]
-                    elif isinstance(out, dict):
-                        hidden = out.get("hidden_state", hidden)
-                    elif hasattr(out, "shape"):
-                        hidden = out
-            else:
-                ctx = RecursiveContext(hidden_dim=hidden_dim)
-                ctx.reset()
-                for _ in range(n_passes):
-                    h = ctx.inject(hidden.astype(np.float32)).astype(np.float16)
-                    for engine in engines:
-                        out = engine.forward(h)
-                        if isinstance(out, tuple):
-                            h = out[0]
-                        elif isinstance(out, dict):
-                            h = out.get("hidden_state", h)
-                        elif hasattr(out, "shape"):
-                            h = out
-                    ctx.update(h.astype(np.float32))
-                    hidden = h
-
+            hidden     = np.zeros((1, hidden_dim), dtype=np.float16)
+            for engine in engines:
+                out = engine.forward(hidden)
+                if isinstance(out, tuple):
+                    hidden = out[0]
+                elif isinstance(out, dict):
+                    hidden = out.get("hidden_state", hidden)
+                elif hasattr(out, "shape"):
+                    hidden = out
         except Exception as exc:
-            logger.warning("[Orchestrator] shard chain computation error: %s", exc)
-
-        # Shard chain computed routing and feature representations.
-        # Generate actual text response via Ollama.
-        return self._ollama_infer(prompt, sub_model, n_passes=n_passes)
+            logger.warning("[Orchestrator] warmup error: %s", exc)
 
     # ── Text generation backend ─────────────────────────────────────────
 
@@ -547,57 +561,46 @@ class ShatteringOrchestrator:
 
     def _distributed_infer(self, prompt: str, decision: RouteDecision):
         """
-        Create a coordinator session for the routed sub-model and infer over HTTP.
-        Falls back to local if the coordinator is unreachable.
+        Full distributed token generation via DistributedInferencePipeline.
+
+        Uses the pipeline's built-in token loop which:
+          1. Gets route from coordinator (GET /api/swarm/route)
+          2. Creates a relay session (POST /api/session/create)
+          3. Runs an autoregressive loop: encodes token IDs as PTYPE_TOKENS,
+             POSTs through the relay, receives PTYPE_LOGITS from the last shard,
+             samples the next token, repeats
+          4. Decodes and returns text
+
+        Falls back to local inference if the coordinator or swarm is unavailable.
         """
-        import urllib.request
-        import urllib.error
-        import numpy as np
+        from node.inference_pipeline import DistributedInferencePipeline
 
-        sub_model  = decision.sub_model
         model_name = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
+        pipeline   = DistributedInferencePipeline(
+            coordinator_url=self._coord_url,
+            model_name=model_name,
+        )
 
-        try:
-            # 1. Create session
-            payload = json.dumps({"model_name": model_name}).encode()
-            req = urllib.request.Request(
-                f"{self._coord_url}/api/session/create",
-                data=payload,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=10) as r:
-                session_data = json.loads(r.read())
-            session_id = session_data["session_id"]
-
-            # 2. Encode prompt as stub FP16 hidden state
-            ids    = list(prompt.encode("utf-8"))[:128]
-            hs_b64 = base64.b64encode(
-                np.array(ids, dtype=np.float16).tobytes()
-            ).decode()
-
-            # 3. POST to infer
-            payload = json.dumps({"hidden_state_b64": hs_b64}).encode()
-            req = urllib.request.Request(
-                f"{self._coord_url}/api/session/{session_id}/infer",
-                data=payload,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=70) as r:
-                infer_data = json.loads(r.read())
-
-            latency = infer_data.get("latency_ms", "?")
-            return (
-                f"[{sub_model.upper()} distributed — {latency}ms]",
-                "distributed",
-            )
-
-        except (urllib.error.URLError, OSError) as exc:
-            logger.warning(
-                "[Orchestrator] coordinator unreachable (%s) — falling back to local", exc
-            )
+        if not pipeline.is_available():
+            logger.warning("[Orchestrator] coordinator swarm not ready -- falling back to local")
             return self._local_infer(prompt, decision)
-        except Exception as exc:
-            logger.warning("[Orchestrator] distributed infer error: %s", exc)
-            return self._local_infer(prompt, decision)
+
+        sub_model   = decision.sub_model
+        system      = self._SYSTEM_PROMPTS.get(sub_model, "You are a helpful assistant.")
+        temperature = self._TEMPERATURES.get(sub_model, 0.5)
+
+        result = pipeline.generate(
+            prompt=prompt,
+            max_tokens=self._max_tokens,
+            temperature=temperature,
+            system=system,
+        )
+
+        if result.get("ok") and result.get("text"):
+            return result["text"], "distributed"
+
+        logger.warning(
+            "[Orchestrator] distributed generate failed (%s) -- falling back to local",
+            result.get("error", "unknown"),
+        )
+        return self._local_infer(prompt, decision)

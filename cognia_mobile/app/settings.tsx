@@ -92,8 +92,11 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>URL del servidor Cognia</Text>
         <Text style={styles.hint}>
-          Emulador Android: http://10.0.2.2:8765{'\n'}
-          Dispositivo real: http://&lt;IP-LAN-de-tu-PC&gt;:8765{'\n\n'}
+          Mismo Wi-Fi que tu PC: http://&lt;IP-de-tu-PC&gt;:8765{'\n'}
+          Emulador Android: http://10.0.2.2:8765{'\n\n'}
+          Para encontrar la IP de tu PC:{'\n'}
+          Windows: ipconfig (campo "IPv4"){'\n'}
+          Mac/Linux: ifconfig | grep inet{'\n\n'}
           Inicia el backend con:{'\n'}
           python cognia_desktop_api.py
         </Text>
@@ -105,7 +108,7 @@ export default function SettingsScreen() {
             setUrlError('');
             setTestState('idle');
           }}
-          placeholder="http://10.0.2.2:8765"
+          placeholder="http://192.168.1.X:8765"
           placeholderTextColor={Colors.muted}
           autoCapitalize="none"
           autoCorrect={false}

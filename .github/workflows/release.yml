@@ -5,11 +5,29 @@ on:
     tags:
       - "v*"        # Python CLI + Desktop installer
       - "desktop-v*" # Desktop installer only
-      - "mobile-v*"  # Android APK only
+      - "mobile-v*"  # PWA deploy + Android APK
 
 jobs:
+  # ── Test gate (all tags) ───────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run test suite
+        run: pytest tests/ -x --tb=short -q
+
   # ── Python CLI → PyPI (only on v* tags) ───────────────────────────────
   publish-pypi:
+    needs: [test]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -34,6 +52,7 @@ jobs:
 
   # ── Windows installer (v* and desktop-v* tags) ────────────────────────
   release-windows:
+    needs: [test]
     runs-on: windows-latest
     permissions:
       contents: write
@@ -70,6 +89,7 @@ jobs:
 
   # ── Linux AppImage (v* and desktop-v* tags) ───────────────────────────
   release-linux:
+    needs: [test]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -104,8 +124,37 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # ── PWA deploy to Vercel (mobile-v* and v* tags) ─────────────────────
+  deploy-pwa:
+    needs: [test]
+    if: startsWith(github.ref, 'refs/tags/mobile-v') || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps
+        working-directory: cognia_mobile
+        run: npm install
+
+      - name: Build web bundle
+        working-directory: cognia_mobile
+        run: npm run build:web
+
+      - name: Deploy to Vercel
+        working-directory: cognia_mobile
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx vercel deploy --prebuilt --prod --token $VERCEL_TOKEN dist
+
   # ── Android APK (v* and mobile-v* tags) ──────────────────────────────
   release-android:
+    needs: [test]
     if: startsWith(github.ref, 'refs/tags/mobile-v') || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
