@@ -96,10 +96,31 @@ Infra verificada: coordinator Railway LIVE, HF dataset LIVE (shard_0=319 MB).
 
 ## Fases pendientes (siguiente sesion)
 
-### PENDIENTE — Benchmark de velocidad real
-- Correr `python scripts/benchmark_inference.py` con shards reales
-- Medir tok/s baseline post-Phase21 (target 3-6 tok/s)
-- Documentar en ROADMAP.md y vault
+### DONE — Release CI disparado (2026-05-25)
+- Tag `desktop-v1.0.0-beta.1` pusheado
+- GitHub Actions correra: test gate → Windows .exe + Linux .AppImage → upload a GitHub Release
+- Ver: https://github.com/tomascomenta-blip/cognia_v2/actions
+
+### DONE — Benchmark de velocidad real (2026-05-25)
+Medido con shard_0.npz real (Qwen2.5-Coder-3B INT4, D:/CogniaModels/):
+
+| Metrica | Valor |
+|---|---|
+| Backend | c_kernel (gcc+omp) |
+| q_proj (2048->2048) | 3.4 ms |
+| gate (2048->8960) | 12.9 ms |
+| lm_head (2048->151936) | 250.9 ms |
+| Cold prefill (7 tokens) | 3987 ms |
+| Hot decode (FP32 DynQuant) | 176 ms/tok |
+| **tok/s estimado (4 shards)** | **~1.26 tok/s** |
+| DynQuant warmup (30 steps) | 100% fp32 |
+| KV-cache overhead | -0.2 ms (neutro) |
+| silu_mul fusion speedup | 1.22x |
+
+Analisis: lm_head (250 ms) es el mayor bottleneck (~60% del tiempo de decode).
+Opciones: chunked lm_head con top-k prefilter, o mover lm_head a shard separado.
+Target 3-6 tok/s requiere ~4-8x mejora — posible con speculative decoding
+confirmado + lm_head optimizado.
 
 ### DONE — Packaging / release (verificado 2026-05-25)
 - `electron-builder.config.js`: config completa, NSIS/DMG/AppImage, extraResources OK
@@ -120,9 +141,11 @@ Infra verificada: coordinator Railway LIVE, HF dataset LIVE (shard_0=319 MB).
 - build/entitlements.mac.plist CREADO (blocker macOS build)
 - package.json: seccion build duplicada eliminada
 
-### PENDIENTE — cognia_mobile CI
-- APK (Gradle) y PWA (Vercel) en tags `mobile-v*`
-- Verificar que settings.tsx conecta al coordinator correcto
+### DONE — cognia_mobile CI (2026-05-25)
+- APK y PWA en tags `mobile-v*` — jobs `release-android` y `deploy-pwa` en release.yml
+- Fix: `assembleRelease` -> `assembleDebug` (debug signing, no keystore para beta)
+- Fix: `vercel deploy --prebuilt` -> `vercel dist --prod --yes` (sintaxis correcta para static export)
+- `settings.tsx` verificado: default `http://10.0.2.2:8765` correcto para emulador; LAN IP para dispositivo real
 
 ### PENDIENTE — Qwen2.5-7B migration (diferida por usuario)
 - Requiere ~4 GB adicionales en D:

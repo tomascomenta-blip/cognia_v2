@@ -23,7 +23,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run test suite
-        run: pytest tests/ -x --tb=short -q
+        run: python -m pytest tests/ -x --tb=short -q
 
   # ── Python CLI → PyPI (only on v* tags) ───────────────────────────────
   publish-pypi:
@@ -150,7 +150,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: npx vercel deploy --prebuilt --prod --token $VERCEL_TOKEN dist
+        run: npx vercel dist --prod --token "$VERCEL_TOKEN" --yes
 
   # ── Android APK (v* and mobile-v* tags) ──────────────────────────────
   release-android:
@@ -184,11 +184,11 @@ jobs:
 
       - name: Build APK
         working-directory: cognia_mobile/android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleDebug
 
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: cognia_mobile/android/app/build/outputs/apk/release/*.apk
+          files: cognia_mobile/android/app/build/outputs/apk/debug/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
