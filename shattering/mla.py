@@ -96,6 +96,13 @@ class CompressedKVCache:
     def active_sessions(self) -> int:
         return len(self._cache)
 
+    def truncate(self, session_id: str, layer_idx: int, max_len: int) -> None:
+        """Truncate cached KV latent to max_len tokens (speculative decoding rollback)."""
+        entry = self._cache.get(session_id, {}).get(layer_idx)
+        if entry is not None:
+            c_kv, _ = entry
+            self._cache[session_id][layer_idx] = (c_kv[:max_len], max_len)
+
 
 # ── MLA Module ──────────────────────────────────────────────────────────
 
@@ -162,68 +169,100 @@ class MLAModule:
         position: int = 0,
     ) -> np.ndarray:
         """
-        Forward pass with optional KV-cache population.
+        Forward pass with KV-cache retrieval and update.
 
         Args:
-            hidden:     (seq_len, hidden_dim) float32
-            session_id: if provided, cache the compressed KV latent for this layer
-            position:   token position offset (for cache retrieval)
+            hidden:     (seq_len, hidden_dim) float32 — current tokens only
+            session_id: if provided, retrieve past KV latents and cache new ones
+            position:   token position offset (for RoPE; inferred from cache if 0)
 
         Returns:
             (seq_len, hidden_dim) float32 — pass-through in simulation mode
         """
         seq_len = hidden.shape[0]
 
-        if session_id is not None:
-            if self.simulation or self._W_DKV is None:
-                # Simulation: cache a zero latent to exercise the lifecycle
-                c_kv = np.zeros((seq_len, self.d_c), dtype=np.float32)
-            else:
-                c_kv = hidden @ self._W_DKV                  # (seq, d_c)
-
-            self.kv_cache.put(session_id, self.layer_idx, c_kv, position + seq_len)
-
         if self.simulation or self._W_DKV is None:
-            return hidden                                      # pass-through
+            # Simulation: cache zero latent to exercise lifecycle, then pass through
+            if session_id is not None:
+                c_kv_new = np.zeros((seq_len, self.d_c), dtype=np.float32)
+                cached    = self.kv_cache.get(session_id, self.layer_idx)
+                if cached is not None:
+                    c_kv_past, past_pos = cached
+                    c_kv_full = np.concatenate([c_kv_past, c_kv_new], axis=0)
+                    new_pos   = past_pos + seq_len
+                else:
+                    c_kv_full = c_kv_new
+                    new_pos   = seq_len
+                self.kv_cache.put(session_id, self.layer_idx, c_kv_full, new_pos)
+            return hidden
 
-        # Full MLA forward (real weights):
-        # 1. Compress KV
-        c_kv  = hidden @ self._W_DKV                         # (seq, d_c)
-        K_up  = c_kv  @ self._W_UK                           # (seq, n_kv*head)
-        V_up  = c_kv  @ self._W_UV                           # (seq, n_kv*head)
+        # ── Real weights path ─────────────────────────────────────────────
 
-        # 2. Compress Q
-        c_q   = hidden @ self._W_DQ                          # (seq, d_c')
-        Q_up  = c_q   @ self._W_UQ                           # (seq, n_h*head)
-
-        # 3. Scaled dot-product attention with RoPE and causal masking
         from node.qwen2_ops import _precompute_rope, _apply_rope
 
         n_h, n_kv, hd = self.n_heads, self.n_kv_heads, self.head_dim
-        Q = Q_up.reshape(seq_len, n_h,  hd)
-        K = K_up.reshape(seq_len, n_kv, hd)
-        V = V_up.reshape(seq_len, n_kv, hd)
 
-        # RoPE: rotate Q and K in their head-dim space
-        cos, sin = _precompute_rope(seq_len, hd, self.rope_theta)
-        Q = _apply_rope(Q, cos, sin)
-        K = _apply_rope(K, cos, sin)
+        # 1. Compress current input into KV latent
+        c_kv_new = hidden @ self._W_DKV                      # (seq, d_c)
 
-        # GQA: repeat K/V heads to match Q heads
+        # 2. Retrieve and extend past KV latent from cache
+        if session_id is not None:
+            cached = self.kv_cache.get(session_id, self.layer_idx)
+            if cached is not None:
+                c_kv_past, past_pos = cached
+                c_kv_full = np.concatenate([c_kv_past, c_kv_new], axis=0)
+                offset    = past_pos          # RoPE start position for current tokens
+            else:
+                c_kv_full = c_kv_new
+                offset    = position
+            total_len = c_kv_full.shape[0]
+            self.kv_cache.put(session_id, self.layer_idx, c_kv_full, total_len)
+        else:
+            c_kv_full = c_kv_new
+            offset    = position
+            total_len = seq_len
+
+        # 3. Expand K and V from full latent (past + current)
+        K_up = c_kv_full @ self._W_UK                        # (total, n_kv*hd)
+        V_up = c_kv_full @ self._W_UV                        # (total, n_kv*hd)
+
+        # 4. Compress Q from current input only
+        c_q  = hidden  @ self._W_DQ                          # (seq, d_c')
+        Q_up = c_q     @ self._W_UQ                          # (seq, n_h*hd)
+
+        Q = Q_up.reshape(seq_len,   n_h,  hd)
+        K = K_up.reshape(total_len, n_kv, hd)
+        V = V_up.reshape(total_len, n_kv, hd)
+
+        # 5. RoPE on Q (positions offset..offset+seq) and K (positions 0..total_len)
+        cos_k, sin_k = _precompute_rope(total_len, hd, self.rope_theta)
+        K = _apply_rope(K, cos_k, sin_k)
+
+        cos_q, sin_q = _precompute_rope(offset + seq_len, hd, self.rope_theta)
+        Q = _apply_rope(Q, cos_q[offset:], sin_q[offset:])
+
+        # 6. GQA: repeat K/V to match Q heads
         repeats = n_h // n_kv
-        K = np.repeat(K, repeats, axis=1)                    # (seq, n_h, hd)
+        K = np.repeat(K, repeats, axis=1)                    # (total, n_h, hd)
         V = np.repeat(V, repeats, axis=1)
 
+        # 7. Scaled dot-product — Q attends to full K/V (past + current)
         scale  = hd ** -0.5
-        scores = np.einsum("shd,thd->sht", Q, K) * scale    # (seq, n_h, seq)
+        scores = np.einsum("shd,thd->sht", Q, K) * scale    # (seq, n_h, total)
 
-        # Causal mask: position s must not attend to future position t > s
-        # scores shape: (s, h, t) — mask broadcasts over h axis
-        mask   = np.triu(np.full((seq_len, seq_len), -1e9, dtype=np.float32), k=1)
-        scores = scores + mask[:, None, :]
+        # Causal mask: current position s must not attend to future positions
+        # Positions: past tokens [0..offset-1] are always visible; current [offset..offset+seq-1]
+        if seq_len > 1:
+            # Prefill: apply causal mask within current tokens only
+            causal = np.zeros((seq_len, total_len), dtype=np.float32)
+            cur_block = np.triu(
+                np.full((seq_len, seq_len), -1e9, dtype=np.float32), k=1
+            )
+            causal[:, -seq_len:] = cur_block
+            scores = scores + causal[:, None, :]
 
-        attn   = self._softmax(scores, axis=-1)
-        out    = np.einsum("sht,thd->shd", attn, V)          # (seq, n_h, hd)
+        attn = self._softmax(scores, axis=-1)
+        out  = np.einsum("sht,thd->shd", attn, V)            # (seq, n_h, hd)
         return out.reshape(seq_len, self.hidden_dim)
 
     @staticmethod

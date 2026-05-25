@@ -88,7 +88,8 @@ class VectorCache:
                 imp_i  = int(float(imp)  * 1000)
                 conf_i = int(float(conf) * 1000)
                 h ^= (int(ep_id) * 2654435761) ^ (imp_i * 40503) ^ (conf_i * 6971)
-            h &= 0xFFFFFFFF  # mantener 32 bits
+            h ^= len(rows) * 0x9E3779B9  # incorporate count so XOR can't cancel to 0
+            h &= 0xFFFFFFFF
 
             self._hash_cache_ts  = now
             self._hash_cache_val = h

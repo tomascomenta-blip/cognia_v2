@@ -148,8 +148,7 @@ class RelayManager:
     async def _cleanup_loop(self):
         while True:
             await asyncio.sleep(30)
-            async with self._lock:
-                self._purge_expired()
+            await self._purge_expired_async()
 
     def cancel(self):
         """Cancel the background task on application shutdown."""
@@ -173,7 +172,34 @@ class RelayManager:
         async with self._lock:
             self._sessions.pop(session_id, None)
 
+    async def _purge_expired_async(self):
+        """Identify expired sessions, broadcast PTYPE_CLEAR_CACHE to shards, then purge."""
+        try:
+            from node.shard_engine import encode_clear_cache
+        except ImportError:
+            encode_clear_cache = None
+
+        async with self._lock:
+            expired = {sid: s for sid, s in self._sessions.items() if s.is_expired()}
+
+        # Broadcast clear-cache control frame outside the lock (async WS sends)
+        if encode_clear_cache:
+            for sid, session in expired.items():
+                frame = encode_clear_cache(0, sid)
+                for shard_idx, ws in list(session.sockets.items()):
+                    try:
+                        await ws.send_bytes(frame)
+                    except Exception:
+                        pass  # socket may already be closed
+
+        async with self._lock:
+            for sid in expired:
+                self._sessions.pop(sid, None)
+            if _RELAY_SESSIONS is not None:
+                _RELAY_SESSIONS.set(len(self._sessions))
+
     def _purge_expired(self):
+        """Synchronous purge (no PTYPE_CLEAR_CACHE). Used by create_session."""
         expired = [sid for sid, s in self._sessions.items() if s.is_expired()]
         for sid in expired:
             del self._sessions[sid]

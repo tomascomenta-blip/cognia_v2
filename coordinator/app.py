@@ -40,6 +40,7 @@ from coordinator.relay import relay_manager, handle_relay_ws, INFER_TIMEOUT_S
 from coordinator.contributor import ContributorLedger, generate_token, validate_token, TIERS
 from coordinator.federated_store import FederatedStore
 from coordinator.rate_limiter import SlidingWindowLimiter
+from coordinator.shard_registry import ShardRegistry
 from shattering.router import GlobalRouter
 
 try:
@@ -60,10 +61,26 @@ except ImportError:
 # APP
 # ══════════════════════════════════════════════════════════════════════
 
+async def _sar_sync_loop():
+    """Periodically sync stale nodes into shard_debt (SAR — Phase 28)."""
+    from coordinator.registry import NODE_TIMEOUT
+    while True:
+        await asyncio.sleep(300)   # run every 5 minutes
+        try:
+            for model_name in ("qwen-coder-3b-q4",):
+                newly = _shard_registry.sync_stale_nodes(model_name, NODE_TIMEOUT)
+                if newly:
+                    _logger.info("[SAR] Recorded %d newly offline nodes for %s: %s",
+                                 len(newly), model_name, newly)
+        except Exception as exc:
+            _logger.warning("[SAR] sync_stale_nodes failed: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("[Coordinator] Iniciando...")
     relay_manager.start_cleanup()
+    asyncio.create_task(_sar_sync_loop())
     yield
     relay_manager.cancel()
     print("[Coordinator] Cerrando.")
@@ -98,6 +115,7 @@ ledger          = ContributorLedger()
 _global_router  = GlobalRouter()
 _fed_store      = FederatedStore()
 _rate_limiter   = SlidingWindowLimiter()
+_shard_registry = ShardRegistry()
 COORDINATOR_KEY = os.environ.get("COORDINATOR_KEY", "")
 
 # COGNIA_STRICT_AUTH=1 causes the coordinator to refuse to start without a key.
@@ -229,6 +247,8 @@ def node_heartbeat(request: Request, req: HeartbeatRequest):
     result = registry.heartbeat(req.node_id)
     if not result["ok"]:
         raise HTTPException(status_code=404, detail=result["error"])
+    # SAR: node is alive again — clear any pending debt entry
+    _shard_registry.clear_debt(req.node_id)
     return result
 
 
@@ -289,6 +309,44 @@ def swarm_status(model_name: str = DEFAULT_MODEL):
         status["estimated_tps"]        = round(1000 / max(1, net_ms + 100), 2)
 
     return status
+
+
+@app.get("/api/swarm/replication")
+def swarm_replication(model_name: str = DEFAULT_MODEL):
+    """
+    SAR: replication report per shard.
+
+    Returns p_all_online (probability all shards have >= 1 active node),
+    under_replicated shard indices, and shard-debt info (nodes offline > 24h
+    with a unique shard that urgently need replacement).
+    """
+    from coordinator.registry import MODELS, NODE_TIMEOUT
+    cfg      = MODELS.get(model_name, MODELS[DEFAULT_MODEL])
+    n_shards = cfg["n_shards"]
+    report   = _shard_registry.replication_report(
+        model_name   = model_name,
+        n_shards     = n_shards,
+        node_timeout = NODE_TIMEOUT,
+    )
+    return {
+        "model_name":       report.model_name,
+        "n_shards":         report.n_shards,
+        "ready":            report.ready,
+        "p_all_online":     report.p_all_online,
+        "under_replicated": report.under_replicated,
+        "in_debt":          report.in_debt,
+        "recommended_target": report.recommended_target,
+        "shards": [
+            {
+                "shard":            s.shard_index,
+                "active_replicas":  s.active_replicas,
+                "is_covered":       s.is_covered,
+                "under_replicated": s.under_replicated,
+                "in_debt":          s.in_debt,
+            }
+            for s in report.shards
+        ],
+    }
 
 
 @app.get("/api/swarm/route")
@@ -551,16 +609,13 @@ async def shattering_infer(
     n_shards = cfg["n_shards"]
     session_id = await relay_manager.create_session(n_shards)
 
-    # Encode prompt as a stub FP16 hidden state so the relay has something to forward
+    # Encode prompt as PTYPE_TEXT so shard 0 can tokenize it correctly
     try:
-        import numpy as np
-        ids    = list(req.prompt.encode("utf-8"))[:128]
-        hs_b64 = base64.b64encode(
-            np.array(ids, dtype=np.float16).tobytes()
-        ).decode()
+        from node.shard_engine import encode_text
+        prompt_bytes = encode_text(0, req.prompt)
     except Exception:
-        # numpy may not be available on coordinator; fall through with zero tensor
-        hs_b64 = base64.b64encode(bytes(256)).decode()
+        # Fallback: raw UTF-8 bytes (shard engine byte-level fallback handles this)
+        prompt_bytes = req.prompt.encode("utf-8")
 
     session = await relay_manager.get_session(session_id)
     if not session:
@@ -580,7 +635,7 @@ async def shattering_infer(
         await asyncio.sleep(0.05)
 
     session.reset_result()
-    sent = await session.send_to_shard0(base64.b64decode(hs_b64))
+    sent = await session.send_to_shard0(prompt_bytes)
     if not sent:
         raise HTTPException(status_code=503, detail="Shard 0 disconnected")
 

@@ -81,6 +81,16 @@ try:
 except ImportError:
     HAS_HOBBY = False
 
+# Agent runtime (Phase 25 — opcional, no rompe nada si no está disponible)
+try:
+    from cognia.agents.daemon import AgentDaemon, get_fatigue_score
+    _AGENT_DAEMON = AgentDaemon()
+    HAS_AGENT_RUNTIME = True
+    print("AgentRuntime cargado")
+except Exception:
+    HAS_AGENT_RUNTIME = False
+    _AGENT_DAEMON = None
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Constantes
 # ─────────────────────────────────────────────────────────────────────────────
@@ -304,10 +314,20 @@ def idle_watchdog(cognia: Cognia, idle_state: IdleState,
         remaining = idle_threshold - idle
 
         if do_sleep:
-            print(f"\n{col(C.DIM, f'[{ts()}] {idle:.0f}s idle — {motivo}')}") 
+            print(f"\n{col(C.DIM, f'[{ts()}] {idle:.0f}s idle — {motivo}')}")
             summary = run_sleep_cycle(cognia, idle_state)
             print(f"\n{col(C.GREEN, summary)}")
             print(f"\n{col(C.CYAN, 'Cognia v3')}> ", end="", flush=True)
+
+        elif HAS_AGENT_RUNTIME and not idle_state.sleeping():
+            # Procesar tareas del agent runtime durante inactividad
+            fatigue = get_fatigue_score(cognia)
+            processed = _AGENT_DAEMON.tick(fatigue_score=fatigue, user_active=False)
+            if processed:
+                record = _AGENT_DAEMON.status(processed)
+                status_str = record.status if record else "?"
+                print(f"\n{col(C.DIM, f'[{ts()}] [agent] tarea {processed[:8]}... -> {status_str}')}")
+                print(f"\n{col(C.CYAN, 'Cognia v3')}> ", end="", flush=True)
 
         elif HAS_HOBBY and idle_state.should_hobby(idle_threshold):
             # Cognia lleva mucho tiempo sin hacer nada — que programe
@@ -370,6 +390,20 @@ def handle_special_command(cmd: str, cognia: Cognia, idle_state: IdleState) -> b
     elif cmd in ("salir", "exit", "quit"):
         raise SystemExit(0)
 
+    elif cmd == "agente" or cmd.startswith("tarea "):
+        if not HAS_AGENT_RUNTIME:
+            print("AgentRuntime no disponible.")
+            return True
+        if cmd == "agente":
+            pending = _AGENT_DAEMON.pending()
+            print(f"Agent runtime: {pending} tarea(s) pendiente(s).")
+        else:
+            desc = cmd[6:].strip()
+            if desc:
+                tid = _AGENT_DAEMON.submit(desc)
+                print(f"Tarea encolada: {tid[:8]}... — '{desc}'")
+        return True
+
     return False
 
 
@@ -382,6 +416,8 @@ HELP_TEXT = f"""
 {col(C.BOLD, '║')}  dormir          → Forzar ciclo de sueño ahora
 {col(C.BOLD, '║')}  programas       → Ver biblioteca de programas hobby
 {col(C.BOLD, '║')}  investigaciones → Ver historial de investigación
+{col(C.BOLD, '║')}  agente          → Estado del agent runtime
+{col(C.BOLD, '║')}  tarea <desc>    → Encolar tarea autonoma
 {col(C.BOLD, '║')}  ayuda           → Esta ayuda
 {col(C.BOLD, '║')}  salir           → Salir limpiamente
 {col(C.BOLD, '╠══════════════════════════════════════════════════════════╣')}
@@ -419,6 +455,10 @@ def main(idle_threshold: float = DEFAULT_IDLE_SEC):
         name="idle-watchdog",
     )
     watchdog_thread.start()
+
+    # Iniciar FS watcher del daemon autónomo (opcional)
+    if HAS_AGENT_RUNTIME and _AGENT_DAEMON is not None:
+        _AGENT_DAEMON.start_fs_watcher(".")
 
     # ── Loop de input del usuario ──────────────────────────────────────
     try:
@@ -499,6 +539,8 @@ def main(idle_threshold: float = DEFAULT_IDLE_SEC):
 
     finally:
         stop_event.set()
+        if HAS_AGENT_RUNTIME and _AGENT_DAEMON is not None:
+            _AGENT_DAEMON.stop_fs_watcher()
         print(col(C.DIM, "Watchdog detenido. ¡Hasta luego!"))
 
 

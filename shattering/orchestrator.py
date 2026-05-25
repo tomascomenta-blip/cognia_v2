@@ -26,11 +26,88 @@ from typing import Dict, List, Optional
 
 from shattering.manifest import AppManifest, FragmentSpec, ManifestLoader
 from shattering.fragment_manager import FragmentManager
-from shattering.model_constants import DEFAULT_RST_PASSES
+from shattering.model_constants import DEFAULT_RST_PASSES, LPC_MAX_SESSIONS, LPC_TTL_SECONDS
 from shattering.router import GlobalRouter, RouteDecision
 from security.ollama_url import validate_ollama_url
 
 logger = logging.getLogger(__name__)
+
+
+# ── Latent Persistence Cache (Phase 20.2) ────────────────────────────────────
+
+import threading as _threading
+from dataclasses import dataclass as _dataclass
+
+@_dataclass
+class _LPCEntry:
+    mla_session_id: str   # internal key used in MLA KV-cache
+    token_count:    int   # tokens already cached (prompt prefix length)
+    last_access:    float # monotonic time
+
+
+class LatentPersistenceCache:
+    """
+    Maps an external session identifier (e.g. user+conversation ID) to a
+    persistent MLA KV-cache session.  On each turn only the NEW tokens
+    (beyond the previously cached prefix) are processed by the shard chain;
+    the MLA KV-cache provides attention context for the cached prefix.
+
+    Eviction: sessions idle for LPC_TTL_SECONDS are cleared from both this
+    cache and from all loaded ShardEngine MLA caches.
+    """
+
+    def __init__(self) -> None:
+        self._entries: Dict[str, _LPCEntry] = {}
+        self._lock = _threading.Lock()
+
+    def get_or_create(self, lpc_session_id: str) -> _LPCEntry:
+        """Return existing entry or create a new one."""
+        with self._lock:
+            entry = self._entries.get(lpc_session_id)
+            if entry is None:
+                entry = _LPCEntry(
+                    mla_session_id = f"lpc_{lpc_session_id}",
+                    token_count    = 0,
+                    last_access    = time.monotonic(),
+                )
+                self._entries[lpc_session_id] = entry
+                self._enforce_limit()
+            else:
+                entry.last_access = time.monotonic()
+            return entry
+
+    def update(self, lpc_session_id: str, new_token_count: int) -> None:
+        with self._lock:
+            entry = self._entries.get(lpc_session_id)
+            if entry is not None:
+                entry.token_count  = new_token_count
+                entry.last_access  = time.monotonic()
+
+    def invalidate(self, lpc_session_id: str) -> None:
+        """Clear a session (e.g. when prompt is not an extension of cached prefix)."""
+        with self._lock:
+            self._entries.pop(lpc_session_id, None)
+
+    def evict_stale(self, mla_evict_fn=None) -> int:
+        """Evict sessions idle beyond LPC_TTL_SECONDS. Calls mla_evict_fn(mla_session_id) if set."""
+        now = time.monotonic()
+        with self._lock:
+            stale = [
+                (sid, e.mla_session_id)
+                for sid, e in self._entries.items()
+                if now - e.last_access > LPC_TTL_SECONDS
+            ]
+            for sid, mla_sid in stale:
+                del self._entries[sid]
+                if mla_evict_fn is not None:
+                    mla_evict_fn(mla_sid)
+        return len(stale)
+
+    def _enforce_limit(self) -> None:
+        """Evict oldest entry when over LPC_MAX_SESSIONS. Must be called with lock held."""
+        if len(self._entries) > LPC_MAX_SESSIONS:
+            oldest = min(self._entries.items(), key=lambda kv: kv[1].last_access)
+            del self._entries[oldest[0]]
 
 
 @dataclass
@@ -114,17 +191,31 @@ class ShatteringOrchestrator:
         self._pipeline    = None
         self._local_route = None
 
+        # Speculative decoding draft model (lazy-loaded on first shard inference)
+        self._draft = None
+
         # Proactive MLA eviction -- evict every 90s to match relay SESSION_TIMEOUT=120s
         self._last_eviction: float = 0.0
 
+        # LPC: cross-turn KV-cache persistence (Phase 20.2)
+        self._lpc = LatentPersistenceCache()
+
     # ── Public API ──────────────────────────────────────────────────────
 
-    def infer(self, prompt: str) -> InferResult:
-        """Route the prompt, load the right sub-model, and return generated text."""
+    def infer(self, prompt: str, lpc_session_id: Optional[str] = None) -> InferResult:
+        """
+        Route the prompt, load the right sub-model, and return generated text.
+
+        lpc_session_id: when provided, the MLA KV-cache is preserved across calls
+                        for this session. Only tokens beyond the cached prefix are
+                        processed by the shard chain, giving O(new_tokens) cost
+                        instead of O(full_prompt) on subsequent turns.
+        """
         # Proactive eviction: every 90s, evict caches older than 150s (SESSION_TIMEOUT+30s)
         _now = time.time()
         if _now - self._last_eviction > 90.0:
             self._evict_mla_caches(max_age_seconds=150.0)
+            self._lpc.evict_stale(mla_evict_fn=self._evict_one_mla_session)
             self._last_eviction = _now
         t0 = _now
         decision = self._router.route(prompt)
@@ -136,7 +227,7 @@ class ShatteringOrchestrator:
         if self._mode == "distributed" and self._coord_url:
             text, mode_used = self._distributed_infer(prompt, decision)
         else:
-            text, mode_used = self._local_infer(prompt, decision)
+            text, mode_used = self._local_infer(prompt, decision, lpc_session_id=lpc_session_id)
 
         return InferResult(
             text         = text,
@@ -147,15 +238,18 @@ class ShatteringOrchestrator:
             route_reason = decision.reason,
         )
 
-    async def ainfer(self, prompt: str) -> InferResult:
+    async def ainfer(self, prompt: str, lpc_session_id: Optional[str] = None) -> InferResult:
         """Async wrapper — runs infer() in the default thread pool."""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.infer, prompt)
+        return await loop.run_in_executor(None, self.infer, prompt, lpc_session_id)
 
-    async def astream(self, prompt: str):
+    async def astream(self, prompt: str, lpc_session_id: Optional[str] = None):
         """
         Async generator — yields (token_text, None) per token, then (None, InferResult).
         Runs the CPU-bound token loop in a thread pool so the event loop stays free.
+
+        lpc_session_id: when provided, MLA KV-cache is preserved across streaming calls
+                        for this session (same cross-turn persistence as ainfer).
         """
         import asyncio as _asyncio
         loop  = _asyncio.get_event_loop()
@@ -163,7 +257,8 @@ class ShatteringOrchestrator:
 
         def _run():
             try:
-                result = self._shard_infer_stream(prompt, queue, loop)
+                result = self._shard_infer_stream(prompt, queue, loop,
+                                                  lpc_session_id=lpc_session_id)
                 loop.call_soon_threadsafe(queue.put_nowait, ("__done__", result))
             except Exception as exc:
                 loop.call_soon_threadsafe(queue.put_nowait, ("__error__", str(exc)))
@@ -257,12 +352,19 @@ class ShatteringOrchestrator:
             if kv_cache is not None and hasattr(kv_cache, "evict_stale"):
                 kv_cache.evict_stale(max_age_seconds)
 
+    def _evict_one_mla_session(self, mla_session_id: str) -> None:
+        """Clear a specific MLA session from all loaded ShardEngines."""
+        for engine in self._fragments._engines.values():
+            if hasattr(engine, "clear_cache"):
+                engine.clear_cache(mla_session_id)
+
     # ── Local inference ─────────────────────────────────────────────────
 
-    def _local_infer(self, prompt: str, decision: RouteDecision):
+    def _local_infer(self, prompt: str, decision: RouteDecision,
+                     lpc_session_id: Optional[str] = None):
         # If real Qwen .npz shards are present, run the full shard pipeline
         if self._shards_available():
-            text = self._shard_infer(prompt)
+            text = self._shard_infer(prompt, lpc_session_id=lpc_session_id)
             return text, "local"
 
         sub_model = decision.sub_model
@@ -294,7 +396,7 @@ class ShatteringOrchestrator:
             text = self._ollama_infer(prompt, sub_model, n_passes=self._n_passes)
             return text, "simulation"
 
-        text = self._shard_infer(prompt)
+        text = self._shard_infer(prompt, lpc_session_id=lpc_session_id)
         return text, "local"
 
     def _shards_available(self) -> bool:
@@ -323,16 +425,36 @@ class ShatteringOrchestrator:
             for i in range(4)
         )
 
-    def _shard_infer_stream(self, prompt: str, queue, loop) -> "InferResult":
-        """Streaming version: puts token text into queue, returns InferResult when done."""
+    def _try_load_draft(self, shard_dir: str) -> None:
+        """Attempt to load the nano-draft model; silently skip if not built yet."""
+        if self._draft is not None:
+            return
+        from pathlib import Path as _P
+        draft_path = _P(shard_dir) / "nano_draft.npz"
+        if not draft_path.is_file():
+            return
+        try:
+            from node.nano_draft import NanoDraft
+            self._draft = NanoDraft(str(draft_path))
+            logger.info("[Orchestrator] nano-draft loaded from %s", draft_path)
+        except Exception as exc:
+            logger.warning("[Orchestrator] nano-draft load failed: %s", exc)
+
+    def _shard_infer_stream(self, prompt: str, queue, loop,
+                            lpc_session_id: Optional[str] = None) -> "InferResult":
+        """
+        Streaming token generation with speculative decoding when nano_draft.npz is present.
+        Puts (token_text, None) into queue per token; returns InferResult when done.
+        """
         import time as _time
         import numpy as np
-        from node.inference_pipeline import _apply_qwen_template
+        from node.inference_pipeline import _apply_qwen_template, _LOCAL_ENGINES
 
         if self._pipeline is None:
             pipeline, route = self._build_local_pipeline()
             self._pipeline = pipeline
             self._local_route = route
+            self._try_load_draft(os.environ.get("SHARD_WEIGHTS_DIR", ""))
 
         pipeline   = self._pipeline
         route      = self._local_route
@@ -341,22 +463,122 @@ class ShatteringOrchestrator:
         _QWEN_EOS  = {151643, 151645}
         system     = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
         formatted  = _apply_qwen_template(prompt, system) if is_qwen else prompt
-        session_id = f"local_{_time.time()}"
+        vocab_size = 151936 if is_qwen else 32000
+        _N_DRAFT   = 6
 
-        current_ids     = np.array(pipeline._encode(formatted), dtype=np.int32)
-        hidden_dim      = pipeline._get_model_config().get("hidden_dim", 2048)
-        eos_set         = _QWEN_EOS if is_qwen else {2}
-        generated_ids   = []
+        all_ids = np.array(pipeline._encode(formatted), dtype=np.int32)
+
+        # LPC: reuse cross-turn KV-cache when lpc_session_id is provided
+        lpc_entry = None
+        if lpc_session_id is not None:
+            lpc_entry  = self._lpc.get_or_create(lpc_session_id)
+            session_id = lpc_entry.mla_session_id
+            cached_n   = lpc_entry.token_count
+            if cached_n > 0 and cached_n < len(all_ids):
+                current_ids = all_ids[cached_n:]
+                logger.info("[LPC/stream] session=%s: skipping %d cached tokens, processing %d new",
+                            lpc_session_id, cached_n, len(current_ids))
+            elif cached_n >= len(all_ids):
+                self._evict_one_mla_session(lpc_entry.mla_session_id)
+                self._lpc.invalidate(lpc_session_id)
+                lpc_entry  = self._lpc.get_or_create(lpc_session_id)
+                session_id = lpc_entry.mla_session_id
+                current_ids = all_ids
+            else:
+                current_ids = all_ids
+        else:
+            session_id  = f"local_{_time.time()}"
+            current_ids = all_ids
+
+        prompt_ids = current_ids.copy()
+        hidden_dim       = pipeline._get_model_config().get("hidden_dim", 2048)
+        eos_set          = _QWEN_EOS if is_qwen else {2}
+        generated_ids    = []
         tokens_generated = 0
-        t_loop          = _time.perf_counter()
+        t_loop           = _time.perf_counter()
+        prev_output      = None   # output from previous forward pass (for spec d_0 verify)
+        _prev_text_len   = 0      # cumulative decode length for streaming diff
 
         for _ in range(self._max_tokens):
+            # ── Speculative path ──────────────────────────────────────────
+            if self._draft is not None and prev_output is not None:
+                gen_arr = np.array(generated_ids, dtype=np.int32)
+                ctx_for_draft = np.concatenate([prompt_ids[-32:], gen_arr]) \
+                    if len(gen_arr) else prompt_ids[-64:]
+
+                candidates = self._draft.draft(ctx_for_draft, n=_N_DRAFT)
+
+                # Verify d_0 against previous step's output
+                prev_flat    = prev_output[-1].flatten() if prev_output.ndim == 2 else prev_output.flatten()
+                d0_expected  = int(np.argmax(prev_flat[:vocab_size]))
+
+                if d0_expected != candidates[0]:
+                    # Draft missed d_0 — fall through to normal single-token step
+                    pass
+                else:
+                    # d_0 correct — run batch verification for d_1..d_{N-1}
+                    kv_before = max((eng.kv_len(session_id) for eng in _LOCAL_ENGINES
+                                     if hasattr(eng, "kv_len")), default=0)
+                    batch_ids = np.array(candidates, dtype=np.int32)
+                    out_batch, ok = pipeline._forward_through_swarm(
+                        batch_ids, session_id, route, hidden_dim
+                    )
+
+                    if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
+                        accepted = [candidates[0]]
+                        for i in range(1, _N_DRAFT):
+                            pred = int(np.argmax(out_batch[i - 1].flatten()[:vocab_size]))
+                            if pred == candidates[i]:
+                                accepted.append(candidates[i])
+                            else:
+                                accepted.append(pred)
+                                break
+
+                        # Bonus token when all N accepted
+                        if len(accepted) == _N_DRAFT:
+                            bonus = int(np.argmax(out_batch[-1].flatten()[:vocab_size]))
+                            if bonus not in eos_set:
+                                accepted.append(bonus)
+
+                        k = len(accepted)
+                        # Truncate KV-cache to accepted length
+                        for eng in _LOCAL_ENGINES:
+                            if hasattr(eng, "truncate_kv"):
+                                eng.truncate_kv(session_id, kv_before + k)
+
+                        prev_output = out_batch[k - 1] if k <= _N_DRAFT else out_batch[-1]
+                        tokens_generated += k
+                        done = False
+                        for tok_id in accepted:
+                            if tok_id in eos_set:
+                                done = True
+                                break
+                            generated_ids.append(tok_id)
+                        # Decode cumulatively; emit only the new suffix
+                        _full = pipeline._decode(generated_ids)
+                        _new  = _full[_prev_text_len:]
+                        _prev_text_len = len(_full)
+                        if _new:
+                            loop.call_soon_threadsafe(queue.put_nowait, (_new, None))
+                        current_ids = np.array([accepted[-1]], dtype=np.int32)
+
+                        if tokens_generated % 10 == 0:
+                            elapsed = _time.perf_counter() - t_loop
+                            rate    = tokens_generated / elapsed if elapsed > 0 else 0
+                            logger.info("[SpecLoop] %d tokens, %.2f tok/s (accepted %d/%d drafts)",
+                                        tokens_generated, rate, k, _N_DRAFT)
+                        if done:
+                            break
+                        continue   # skip normal path below
+
+            # ── Normal single-token path ──────────────────────────────────
             output, success = pipeline._forward_through_swarm(
                 current_ids, session_id, route, hidden_dim
             )
             if not success:
                 break
-            next_id = pipeline._sample(output, temperature=0.7)
+            next_id     = pipeline._sample(output, temperature=0.7)
+            prev_output = output
             tokens_generated += 1
 
             if tokens_generated % 10 == 0:
@@ -367,11 +589,21 @@ class ShatteringOrchestrator:
             if next_id in eos_set:
                 break
             generated_ids.append(next_id)
-            token_text = pipeline._decode([next_id])
-            loop.call_soon_threadsafe(queue.put_nowait, (token_text, None))
+            # Decode cumulatively; emit only the new suffix so byte-level BPE
+            # tokens that form partial UTF-8 sequences are never sent as empty strings.
+            _full = pipeline._decode(generated_ids)
+            _new  = _full[_prev_text_len:]
+            _prev_text_len = len(_full)
+            if _new:
+                loop.call_soon_threadsafe(queue.put_nowait, (_new, None))
             current_ids = np.array([next_id], dtype=np.int32)
 
         text = pipeline._decode(generated_ids)
+
+        # Update LPC so the next streaming call can skip the cached prefix
+        if lpc_entry is not None and lpc_session_id is not None:
+            self._lpc.update(lpc_session_id, len(all_ids) + tokens_generated)
+
         return InferResult(
             text         = text,
             sub_model    = "logos",
@@ -381,7 +613,7 @@ class ShatteringOrchestrator:
             route_reason = "shard_stream",
         )
 
-    def _shard_infer(self, prompt: str) -> str:
+    def _shard_infer(self, prompt: str, lpc_session_id: Optional[str] = None) -> str:
         """
         Run end-to-end inference via the real Qwen INT4 forward pass.
 
@@ -395,7 +627,9 @@ class ShatteringOrchestrator:
             self._pipeline = pipeline
             self._local_route = route
 
-        result = self._generate_local(prompt, self._pipeline, self._local_route)
+        result = self._generate_local(
+            prompt, self._pipeline, self._local_route, lpc_session_id=lpc_session_id
+        )
         if result.get("ok") and result.get("text"):
             return result["text"]
 
@@ -408,29 +642,64 @@ class ShatteringOrchestrator:
             f"If shards are corrupt, re-run the setup wizard to re-download them."
         )
 
-    def _generate_local(self, prompt: str, pipeline, route: list) -> dict:
+    def _generate_local(self, prompt: str, pipeline, route: list,
+                        lpc_session_id: Optional[str] = None) -> dict:
         """
         Drive the token-by-token generation loop locally, without any HTTP call.
         Delegates each forward pass to registered local ShardEngines.
+
+        When lpc_session_id is provided, the MLA KV-cache for the cached prefix
+        is reused from the previous turn and only NEW tokens are processed.
         """
         import time as _time
         import numpy as np
         from node.inference_pipeline import _apply_qwen_template
 
-        t0         = _time.perf_counter()
-        is_qwen    = "qwen" in pipeline.model_name.lower()
-        _QWEN_EOS  = {151643, 151645}
-        system     = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
-        formatted  = _apply_qwen_template(prompt, system) if is_qwen else prompt
-        session_id = f"local_{_time.time()}"
+        t0        = _time.perf_counter()
+        is_qwen   = "qwen" in pipeline.model_name.lower()
+        _QWEN_EOS = {151643, 151645}
+        system    = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+        formatted = _apply_qwen_template(prompt, system) if is_qwen else prompt
+        eos_set   = _QWEN_EOS if is_qwen else {2}
+        hidden_dim = pipeline._get_model_config().get("hidden_dim", 2048)
 
-        current_ids = np.array(pipeline._encode(formatted), dtype=np.int32)
-        hidden_dim  = pipeline._get_model_config().get("hidden_dim", 2048)
-        eos_set     = _QWEN_EOS if is_qwen else {2}
+        all_ids = np.array(pipeline._encode(formatted), dtype=np.int32)
+
+        # ── LPC: decide session_id and which tokens to process ────────────
+        if lpc_session_id is not None:
+            lpc_entry  = self._lpc.get_or_create(lpc_session_id)
+            session_id = lpc_entry.mla_session_id
+            cached_n   = lpc_entry.token_count
+
+            if cached_n > 0 and cached_n < len(all_ids):
+                # Skip the cached prefix — only feed new tokens to the shard chain
+                current_ids = all_ids[cached_n:]
+                logger.info(
+                    "[LPC] session=%s: skipping %d cached tokens, processing %d new",
+                    lpc_session_id, cached_n, len(current_ids),
+                )
+            elif cached_n >= len(all_ids):
+                # Prompt shrank (e.g. new conversation topic) — reset LPC entry
+                logger.info("[LPC] session=%s: prompt shorter than cache, resetting", lpc_session_id)
+                self._evict_one_mla_session(session_id)
+                self._lpc.invalidate(lpc_session_id)
+                lpc_entry  = self._lpc.get_or_create(lpc_session_id)
+                session_id = lpc_entry.mla_session_id
+                current_ids = all_ids
+            else:
+                current_ids = all_ids
+        else:
+            session_id  = f"local_{_time.time()}"
+            current_ids = all_ids
+            lpc_entry   = None
 
         generated_ids, tokens_generated = self._token_loop(
             pipeline, route, session_id, current_ids, hidden_dim, eos_set
         )
+
+        # ── LPC: update cached token count ───────────────────────────────
+        if lpc_entry is not None:
+            self._lpc.update(lpc_session_id, len(all_ids) + tokens_generated)
 
         text = pipeline._decode(generated_ids)
         return {
@@ -442,21 +711,77 @@ class ShatteringOrchestrator:
 
     def _token_loop(self, pipeline, route: list, session_id: str,
                     current_ids, hidden_dim: int, eos_set: set):
-        """Inner token generation loop. Returns (generated_ids, token_count)."""
+        """Inner token generation loop with optional speculative decoding."""
         import numpy as np
         import time as _time
+        from node.inference_pipeline import _LOCAL_ENGINES
 
+        vocab_size       = 151936
+        _N_DRAFT         = 6
+        prompt_ids_local = current_ids.copy()  # save full prompt for draft context
         generated_ids    = []
         tokens_generated = 0
         t0               = _time.perf_counter()
+        prev_output      = None
 
         for _ in range(self._max_tokens):
+            # Speculative path
+            if self._draft is not None and prev_output is not None:
+                gen_arr = np.array(generated_ids, dtype=np.int32)
+                ctx = np.concatenate([prompt_ids_local[-32:], gen_arr]) \
+                    if len(gen_arr) else prompt_ids_local[-64:]
+                candidates  = self._draft.draft(ctx, n=_N_DRAFT)
+                prev_flat   = prev_output[-1].flatten() if prev_output.ndim == 2 else prev_output.flatten()
+                d0_expected = int(np.argmax(prev_flat[:vocab_size]))
+
+                if d0_expected == candidates[0]:
+                    kv_before = max((e.kv_len(session_id) for e in _LOCAL_ENGINES
+                                     if hasattr(e, "kv_len")), default=0)
+                    out_batch, ok = pipeline._forward_through_swarm(
+                        np.array(candidates, dtype=np.int32), session_id, route, hidden_dim
+                    )
+                    if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
+                        accepted = [candidates[0]]
+                        for i in range(1, _N_DRAFT):
+                            pred = int(np.argmax(out_batch[i - 1].flatten()[:vocab_size]))
+                            if pred == candidates[i]:
+                                accepted.append(candidates[i])
+                            else:
+                                accepted.append(pred)
+                                break
+                        if len(accepted) == _N_DRAFT:
+                            bonus = int(np.argmax(out_batch[-1].flatten()[:vocab_size]))
+                            if bonus not in eos_set:
+                                accepted.append(bonus)
+                        k = len(accepted)
+                        for eng in _LOCAL_ENGINES:
+                            if hasattr(eng, "truncate_kv"):
+                                eng.truncate_kv(session_id, kv_before + k)
+                        prev_output      = out_batch[k - 1] if k <= _N_DRAFT else out_batch[-1]
+                        tokens_generated += k
+                        done = False
+                        for tok_id in accepted:
+                            if tok_id in eos_set:
+                                done = True
+                                break
+                            generated_ids.append(tok_id)
+                        current_ids = np.array([accepted[-1]], dtype=np.int32)
+                        if tokens_generated % 10 == 0:
+                            elapsed = _time.perf_counter() - t0
+                            rate    = tokens_generated / elapsed if elapsed > 0 else 0
+                            logger.info("[SpecLoop] %d tokens, %.2f tok/s (k=%d)", tokens_generated, rate, k)
+                        if done:
+                            break
+                        continue
+
+            # Normal single-token step
             output, success = pipeline._forward_through_swarm(
                 current_ids, session_id, route, hidden_dim
             )
             if not success:
                 break
-            next_id = pipeline._sample(output, temperature=0.7)
+            next_id     = pipeline._sample(output, temperature=0.7)
+            prev_output = output
             tokens_generated += 1
 
             if tokens_generated % 10 == 0:

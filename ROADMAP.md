@@ -533,22 +533,153 @@ the ledger; this phase adds the enforcement gate so tiers actually restrict acce
 | 17 — Contribution Economy | allowed_models gate + RPM sliding window por node_id en shattering/infer | DONE |
 | 18 — Sandbox real | AST analysis + runtime __import__ guard; elimina regex bypasseable | DONE |
 | 19 — ARA | Adaptive Rank Amplification: saturacion detectada, expansion ortogonal, FedAvg variable-rank | DONE |
-| 20 — Innovacion arquitectural | Routing semantico, LPC/Semantic Persistence, DUS scale-up, Fed Distillation | TODO |
+| 20 — Innovacion arquitectural | Routing semantico, LPC/Semantic Persistence, DUS scale-up, Fed Distillation | DONE 2026-05-23 |
+| 21 — Fast Inference Stack | SWA O(512), kernels C en produccion, benchmarks CI, intra-turn KV-cache validado | DONE 2026-05-24 |
 
 ---
 
-## Phase 20 — Arquitectura Diferencial [TODO]
+## Phase 20 — Arquitectura Diferencial [DONE 2026-05-23]
 
 **Goal:** Reemplazar decisiones de diseno primitivas con mecanismos que diferencian a Cognia
 de los LLMs convencionales, sin requerir PyTorch ni infraestructura nueva.
 
 | Change | Description | Files | Status |
 |---|---|---|---|
-| 20.1 | Semantic router: reemplaza keyword matching en router.py con similitud coseno sobre embeddings del VectorCache; umbral configurable en model_constants.py | `shattering/router.py`, `shattering/model_constants.py`, `cognia/memory/episodic_fast.py` | TODO |
-| 20.2 | Latent Persistence Cache (LPC): cachear el hidden state comprimido del ultimo shard por session_id; en requests subsiguientes inyectarlo como contexto residual en lugar de recalcular desde token 0 | `shattering/mla.py`, `node/shard_engine.py`, `shattering/orchestrator.py` | TODO |
-| 20.3 | Depth Up-Scaling (DUS) para shards: fusionar dos shards adyacentes (interpolacion alpha de sus capas) para generar un shard de mayor profundidad sin reentrenamiento completo; util para nodos con mas RAM disponible | `scripts/scale_shards.py` (new), `shattering/model_constants.py` | TODO |
-| 20.4 | Federated Knowledge Distillation: en lugar de promediar deltas LoRA crudos, el coordinador extrae representaciones semanticas de cada contribucion y agrega en espacio de embeddings antes de proyectar de vuelta a LoRA | `coordinator/federated_store.py`, `coordinator/app.py` | TODO |
-| 20.5 | MLA correccion arquitectural: MLA_N_HEADS_ASSUMED y MLA_N_KV_HEADS_ASSUMED usan valores de Llama (24/8); deben actualizarse a Qwen2.5-3B (16/2) y MLA_D_C recalcularse como hidden_dim // n_kv_heads = 1024 | `shattering/model_constants.py`, `shattering/mla.py` | TODO |
+| 20.1 | Semantic router: reemplaza keyword matching en router.py con similitud coseno sobre embeddings del VectorCache; umbral configurable en model_constants.py | `shattering/router.py`, `shattering/model_constants.py`, `cognia/memory/episodic_fast.py` | DONE 2026-05-23 |
+| 20.2 | Latent Persistence Cache (LPC): cachear el hidden state comprimido del ultimo shard por session_id; en requests subsiguientes inyectarlo como contexto residual en lugar de recalcular desde token 0 | `shattering/mla.py`, `node/shard_engine.py`, `shattering/orchestrator.py` | DONE 2026-05-23 |
+| 20.3 | Depth Up-Scaling (DUS) para shards: fusionar dos shards adyacentes (interpolacion alpha de sus capas) para generar un shard de mayor profundidad sin reentrenamiento completo; util para nodos con mas RAM disponible | `scripts/scale_shards.py` (new), `shattering/model_constants.py` | DONE 2026-05-23 |
+| 20.4 | Federated Knowledge Distillation: en lugar de promediar deltas LoRA crudos, el coordinador extrae representaciones semanticas de cada contribucion y agrega en espacio de embeddings antes de proyectar de vuelta a LoRA | `coordinator/federated_store.py`, `coordinator/app.py` | DONE 2026-05-23 |
+| 20.5 | MLA correccion arquitectural: MLA_N_HEADS_ASSUMED y MLA_N_KV_HEADS_ASSUMED usan valores de Llama (24/8); deben actualizarse a Qwen2.5-3B (16/2) y MLA_D_C recalcularse como hidden_dim // n_kv_heads = 1024 | `shattering/model_constants.py`, `shattering/mla.py` | DONE 2026-05-18 |
+
+## Phase 21 — Fast Inference Stack [DONE 2026-05-24]
+
+**Goal:** Reduce single-token latency from ~0.1 tok/s toward 2-16 tok/s via C kernel acceleration, intra-turn KV-cache, speculative decoding, and layer fusion.
+
+| Change | Description | Files | Status |
+|---|---|---|---|
+| 21.1 | C kernel backend: gcc+omp AVX2 int4_linear, rms_norm, silu_fwd replacing numpy fallback; multi-path build (gcc/clang/MSVC/cffi) | `node/fast_kernels.c`, `node/build_fast_kernels.py`, `node/qwen2_ops.py` | DONE 2026-05-24 |
+| 21.2 | Intra-turn KV-cache: `RealTransformerLayer._kv_cache[session_id]` accumulates K/V per token; SWA_WINDOW=512 caps attention O(1) per step | `node/qwen2_ops.py` | DONE 2026-05-24 |
+| 21.3 | Speculative decoding: NanoDraft (2-layer, hidden=256) generates N_DRAFT=6 tokens; main model verifies in single batched forward pass; PCA distillation script | `node/nano_draft.py`, `scripts/build_draft_model.py`, `shattering/orchestrator.py` | DONE 2026-05-24 |
+| 21.4 | Layer fusion: rms_norm_linear (RMSNorm inline during INT4 matmul, no intermediate tensor) + silu_mul (SiLU*up in-place); _CLIB_FUSED flag; _get_int4_base() for DynamicWeights compat | `node/fast_kernels.c`, `node/qwen2_ops.py` | DONE 2026-05-24 |
+
+**Verification:** `_CLIB_FUSED=True`, rms_norm_linear maxdiff=0.00e+00, silu_mul maxdiff=0.00e+00.
+Run `python scripts/benchmark_inference.py` for latency numbers.
+
+---
+
+## Phase 22 — Tool Registry + SymbolicPlanner [DONE 2026-05-24]
+
+**Goal:** Formalizar tools existentes en registro uniforme + SymbolicPlanner sin LLM para ~90% de tareas.
+
+| Change | Description | Files | Status |
+|--------|-------------|-------|--------|
+| 22.1 | ToolRegistry: Tool + ToolResult dataclasses, singleton, execute() con error handling | `cognia/agents/tool_registry.py` | DONE 2026-05-24 |
+| 22.2 | Registrar execute_python, validate_python, search_wikipedia, research_llm | `cognia/agents/tool_registry.py` | DONE 2026-05-24 |
+| 22.3 | SymbolicPlanner: SubTask, TASK_TEMPLATES (5 tipos), classify_task() keyword matching, plan_task() con episodic cache | `cognia/agents/planner.py` | DONE 2026-05-24 |
+| 22.4 | Package cognia/agents/__init__.py | `cognia/agents/__init__.py` | DONE 2026-05-24 |
+
+**Verification:** `pytest tests/test_phase22.py` → 25/25 passed.
+
+---
+
+## Phase 23 — Supervisor + TaskQueue + Verifier [DONE 2026-05-24]
+
+**Goal:** State machine síncrona con persistencia SQLite y verificación determinista. Sin asyncio ni AgentBus.
+
+| Change | Description | Files | Status |
+|--------|-------------|-------|--------|
+| 23.1 | TaskQueue: SQLite WAL en cognia_agents.db separada, PriorityQueue in-memory, reload tras crash | `cognia/agents/task_queue.py` | DONE 2026-05-24 |
+| 23.2 | Verifier: AST + run() + coseno, 0 LLM, fail_reason estructurado | `cognia/agents/verifier.py` | DONE 2026-05-24 |
+| 23.3 | Supervisor (_Executor): state machine CREATED→PLANNING→EXECUTING→VERIFYING→DONE/FAILED/ABORTED, retry, LOOP_DETECTOR, TIME_BUDGET | `cognia/agents/supervisor.py` | DONE 2026-05-24 |
+| 23.4 | CogniaAgentRuntime: submit()+tick()+status(), integrable desde cognia_idle.py | `cognia/agents/supervisor.py` | DONE 2026-05-24 |
+
+**Verification:** `pytest tests/test_phase23.py` → 30/30 passed. Suite acumulada: 55/55.
+
+---
+
+## Phase 24 — Workers deterministas + Synthesizer [DONE 2026-05-24]
+
+**Goal:** Workers 0-LLM + Synthesizer como único punto de LLM call por tarea.
+
+| Change | Description | Files | Status |
+|--------|-------------|-------|--------|
+| 24.1 | FileExplorer: os.walk MAX_FILES=500 MAX_DEPTH=6, ast.parse símbolos/imports, ignora __pycache__ | `cognia/agents/workers/file_explorer.py` | DONE 2026-05-24 |
+| 24.2 | ResearchWorker: episodic cache → Wikipedia → LLM fallback, threshold 0.75 | `cognia/agents/workers/research_worker.py` | DONE 2026-05-24 |
+| 24.3 | Synthesizer: _build_context presupuesto 300 tokens, fallback determinista si LLM falla | `cognia/agents/synthesizer.py` | DONE 2026-05-24 |
+| 24.4 | ToolRegistry: file_explorer, research, query_episodic registrados | `cognia/agents/tool_registry.py` | DONE 2026-05-24 |
+| 24.5 | Supervisor conectado al Synthesizer real (orchestrator opcional) | `cognia/agents/supervisor.py` | DONE 2026-05-24 |
+
+**Verification:** `pytest tests/test_phase24.py` → 21/21 passed. Suite acumulada: 76/76.
+
+---
+
+## Phase 25 — Autonomous Daemon [DONE 2026-05-24]
+
+**Goal:** AgentDaemon integrado en cognia_idle.py — procesa tareas en IDLE, throttling por fatiga, FS watcher.
+
+| Change | Description | Files | Status |
+|--------|-------------|-------|--------|
+| 25.1 | AgentDaemon: tick() con PAUSE/SLOW thresholds, interval throttling | `cognia/agents/daemon.py` | DONE 2026-05-24 |
+| 25.2 | FS watcher: polling cada 5s, detecta .py/.json/.yaml, encola analisis, deduplica por path | `cognia/agents/daemon.py` | DONE 2026-05-24 |
+| 25.3 | cognia_idle.py: import HAS_AGENT_RUNTIME, tick en idle_watchdog, comandos "agente"/"tarea", FS watcher start/stop | `cognia_idle.py` | DONE 2026-05-24 |
+| 25.4 | get_fatigue_score: extraccion segura del score de fatiga de cualquier instancia Cognia | `cognia/agents/daemon.py` | DONE 2026-05-24 |
+
+**Verification:** `pytest tests/test_phase25.py` → 21/21 passed. Suite acumulada: 97/97.
+
+---
+
+## Phase 26 — Safe Self-Improvement [DONE 2026-05-24]
+
+**Goal:** Mejora autónoma de parámetros: experimentos aislados, 4 métricas SQL, 0 LLM calls, sin modificar código.
+
+| Change | Description | Files | Status |
+|--------|-------------|-------|--------|
+| 26.1 | TunableParams (5 campos) + ParamBounds + _mutate ±10% clipado | `cognia/agents/self_improvement.py` | DONE 2026-05-24 |
+| 26.2 | Benchmark: 4 métricas SQL (completion_rate, failed_rate, avg_attempts, subtask_pass_rate) | `cognia/agents/self_improvement.py` | DONE 2026-05-24 |
+| 26.3 | SandboxedExperiment: temp DB + _patch_params context manager + CogniaAgentRuntime aislado | `cognia/agents/self_improvement.py` | DONE 2026-05-24 |
+| 26.4 | SafeImprover: MAX_EXPERIMENTS_PER_RUN=3, MIN_DELTA=0.02, persistencia en .params.json | `cognia/agents/self_improvement.py` | DONE 2026-05-24 |
+| 26.5 | EPISODIC_PLAN_THRESHOLD promovido a constante de módulo en planner.py (antes hardcoded 0.85) | `cognia/agents/planner.py` | DONE 2026-05-24 |
+
+**Verification:** `pytest tests/test_phase26.py` → 25/25 passed. Suite acumulada: 122/122.
+
+---
+
+## Phase 27 — End-to-End Inference Tests [DONE 2026-05-24]
+
+**Goal:** Verificar el pipeline de inferencia completo (wire protocol, tokenizer, router, orchestrator, INT4 quant, LPC) con tests que corren sin pesos reales, más 7 tests de integración real guardados con `@needs_shards`.
+
+| Change | Description | Files | Status |
+|--------|-------------|-------|--------|
+| 27.1 | Wire protocol: encode/decode tokens, hidden, logits, clear_cache, text | `tests/test_e2e_inference.py` | DONE 2026-05-24 |
+| 27.2 | LightTokenizer: encode/decode, vocab range, determinismo | `tests/test_e2e_inference.py` | DONE 2026-05-24 |
+| 27.3 | ChatML template: estructura, system prompt, assistant turn | `tests/test_e2e_inference.py` | DONE 2026-05-24 |
+| 27.4 | Router: RouteDecision, sub_model válido, confidence range, techne para código | `tests/test_e2e_inference.py` | DONE 2026-05-24 |
+| 27.5 | Orchestrator sim: init, route_only, shards_ready=False, status dict | `tests/test_e2e_inference.py` | DONE 2026-05-24 |
+| 27.6 | INT4 quant roundtrip: shape, dtype, valores dentro de atol=0.15 | `tests/test_e2e_inference.py` | DONE 2026-05-24 |
+| 27.7 | LatentPersistenceCache: get_or_create, update, invalidate, independencia de sesiones | `tests/test_e2e_inference.py` | DONE 2026-05-24 |
+| 27.8 | _shards_available: env logic, COGNIA_NODE_SHARD, dirs vacíos | `tests/test_e2e_inference.py` | DONE 2026-05-24 |
+| 27.9 | Real shard inference (7 tests, @needs_shards): text output, mode=local, LPC, no EOS en output | `tests/test_e2e_inference.py` | DONE 2026-05-24 |
+
+**Verification:** `pytest tests/test_e2e_inference.py` → 39 passed, 7 skipped (sin pesos). Suite acumulada: 161/161.
+
+---
+
+## Phase 28 — SAR: Shard Availability Redundancy [DONE 2026-05-24]
+
+**Goal:** Con 4 shards y uptime ~50%, P(todos online) = 6.25% — inviable sin redundancia. SAR agrega tracking de replicacion por shard, marcado de deuda (nodes offline >24h con shard unico), y reporte de disponibilidad con P(all_online). Warm pool descartado (fuera de alcance en Railway).
+
+| Change | Description | Files | Status |
+|--------|-------------|-------|--------|
+| 28.1 | ShardRegistry: debt table (shard_debt), record_offline / clear_debt / shards_in_debt / debt_nodes | `coordinator/shard_registry.py` | DONE 2026-05-24 |
+| 28.2 | replication_report(): p_all_online, under_replicated, in_debt, recommended_target | `coordinator/shard_registry.py` | DONE 2026-05-24 |
+| 28.3 | _target_replicas_for_p(): formula matematica R >= log(1-p^(1/n)) / log(1-uptime) | `coordinator/shard_registry.py` | DONE 2026-05-24 |
+| 28.4 | sync_stale_nodes(): escaneo periodico cada 5min en background task del coordinator | `coordinator/shard_registry.py`, `coordinator/app.py` | DONE 2026-05-24 |
+| 28.5 | GET /api/swarm/replication endpoint en coordinator | `coordinator/app.py` | DONE 2026-05-24 |
+| 28.6 | Heartbeat endpoint llama clear_debt() cuando nodo vuelve online | `coordinator/app.py` | DONE 2026-05-24 |
+
+**Verification:** `pytest tests/test_sar.py` → 29/29 passed. Suite acumulada: 190/190.
+
+---
 
 ## Critical Files Map
 

@@ -17,9 +17,12 @@ are loaded, so RAM cost is negligible.
 
 from __future__ import annotations
 
+import logging
 import numpy as np
 
 from shattering.model_constants import LLAMA_32_3B, RST_ALPHA_INIT
+
+logger = logging.getLogger(__name__)
 
 
 class RecursiveContext:
@@ -74,6 +77,14 @@ class RecursiveContext:
 
         self._vec = self._layer_norm(aggregated)
 
+        # Numerical stability guard: clamp exploding norms, warn on collapse
+        norm = float(np.linalg.norm(self._vec))
+        if norm > 100.0:
+            self._vec = self._vec / norm * 10.0
+            logger.warning("[RST] context_vec norm exploded (%.1f) -- clamped to 10.0", norm)
+        elif norm < 1e-6 and h.size > 0:
+            logger.warning("[RST] context_vec collapsed to near-zero (norm=%.2e)", norm)
+
     # ── Weight loading ───────────────────────────────────────────────
 
     def load_weights(self, W_proj: np.ndarray,
@@ -104,3 +115,13 @@ class RecursiveContext:
     def vector(self) -> np.ndarray:
         """Current context vector, shape (1, hidden_dim)."""
         return self._vec
+
+    def stats(self) -> dict:
+        """Diagnostic stats for monitoring RST context health."""
+        norm = float(np.linalg.norm(self._vec))
+        return {
+            "hidden_dim":    self.hidden_dim,
+            "alpha":         self.alpha,
+            "context_norm":  round(norm, 4),
+            "has_weights":   self._W_proj is not None,
+        }

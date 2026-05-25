@@ -87,6 +87,20 @@ DYN_QUANT_THRESH_FP16:  int   = 15   # moderate  → FP16 cache  (2 bytes/param)
 DYN_QUANT_THRESH_FP32:  int   = 30   # high-freq → FP32 cache  (4 bytes/param, fastest matmul)
 DYN_QUANT_IDLE_DECAY_S: float = 300.0  # 5 min idle → auto-reset counter + drop cache
 
+# Router: semantic embedding routing (Phase 20.1)
+ROUTER_SEMANTIC_THRESHOLD: float = 0.6   # cosine sim below this -> fall back to keyword
+ROUTER_SEMANTIC_BLEND:     float = 0.30  # weight for semantic vs keyword (0=keyword, 1=semantic)
+ROUTER_EMBEDDING_DIM:      int   = 384   # matches all-MiniLM-L6-v2 / cognia_embedding fallback
+
+# LPC: Latent Persistence Cache (Phase 20.2)
+LPC_MAX_SESSIONS: int   = 32    # max concurrent user sessions
+LPC_TTL_SECONDS:  float = 300.0 # evict idle sessions after 5 min
+
+# SWA: Sliding Window Attention (Phase 21.2 early impl)
+# Attention is O(SWA_WINDOW) instead of O(total_seq) when context exceeds this length.
+# Past KV-cache beyond the window is preserved for LPC cross-turn but not attended to.
+SWA_WINDOW: int = 512
+
 # Qwen chat template (ChatML format)
 QWEN_SYSTEM_PROMPT = "<|im_start|>system\n{system}<|im_end|>\n"
 QWEN_USER_PROMPT   = "<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"

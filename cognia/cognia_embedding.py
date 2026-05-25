@@ -71,10 +71,10 @@ class LazyEmbeddingModel:
                             "all-MiniLM-L6-v2",
                             device="cpu"
                         )
-                        print("[cognia_embedding] ✅ all-MiniLM-L6-v2 cargado (lazy)")
+                        print("[cognia_embedding] all-MiniLM-L6-v2 cargado (lazy)")
                     except ImportError:
                         cls._model = None
-                        print("[cognia_embedding] ⚠️  sentence-transformers no disponible — usando n-gramas")
+                        print("[cognia_embedding] sentence-transformers no disponible -- usando n-gramas")
                     cls._loaded = True
         return cls._model
 
@@ -261,7 +261,7 @@ def get_embedding_queue(throttle_controller=None, vector_dim: int = 384) -> Asyn
                     throttle_controller=throttle_controller,
                     vector_dim=vector_dim,
                 )
-                print("[cognia_embedding] ✅ AsyncEmbeddingQueue iniciado")
+                print("[cognia_embedding] AsyncEmbeddingQueue iniciado")
     return _global_queue
 
 

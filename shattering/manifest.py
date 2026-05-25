@@ -120,7 +120,7 @@ class ManifestLoader:
                 layer_range=item["layer_range"],
                 size_bytes=item["size_bytes"],
                 sha256=item.get("sha256", ""),
-                hf_repo=item["hf_repo"],
+                hf_repo=item.get("hf_repo") or item.get("hf_dataset", ""),
                 hf_filename=item["hf_filename"],
                 trigger=item.get("trigger"),
             )

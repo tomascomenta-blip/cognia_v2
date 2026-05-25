@@ -9,20 +9,184 @@ RealTransformerLayer — full Qwen2 decoder layer (RMSNorm, RoPE, GQA, SwiGLU).
 
 from __future__ import annotations
 
+import ctypes
+import platform
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 from shattering.quantization import quantize_int4, dequantize_int4
+from shattering.model_constants import SWA_WINDOW
+
+# Tier-1: Numba JIT (Python <=3.12 only)
+try:
+    import numba as nb
+    _NUMBA = True
+except ImportError:
+    _NUMBA = False
+
+# Tier-2: C kernels via ctypes (.dll/.so) or cffi module — any Python version.
+# Auto-built on first import when neither artifact exists.
+
+def _load_fast_kernels():
+    """Returns (lib, ffi_or_None, has_fusion) where lib exposes int4_linear / rms_norm / silu_fwd
+    and has_fusion=True when rms_norm_linear / silu_mul are also available (Phase 21.4)."""
+    node_dir = Path(__file__).parent
+
+    def _bind_basic(lib):
+        _p_u8  = ctypes.POINTER(ctypes.c_uint8)
+        _p_f32 = ctypes.POINTER(ctypes.c_float)
+        _i, _f = ctypes.c_int, ctypes.c_float
+        lib.int4_linear.argtypes = [_p_u8, _p_f32, _i, _i, _i, _p_f32, _i, _p_f32]
+        lib.int4_linear.restype  = None
+        lib.rms_norm.argtypes    = [_p_f32, _p_f32, _i, _i, _f, _p_f32]
+        lib.rms_norm.restype     = None
+        lib.silu_fwd.argtypes    = [_p_f32, _i, _i, _p_f32]
+        lib.silu_fwd.restype     = None
+
+    def _bind_fusion(lib) -> bool:
+        """Bind 21.4 fused kernels. Returns True if present in the DLL."""
+        _p_u8  = ctypes.POINTER(ctypes.c_uint8)
+        _p_f32 = ctypes.POINTER(ctypes.c_float)
+        _i, _f = ctypes.c_int, ctypes.c_float
+        try:
+            lib.rms_norm_linear  # AttributeError if missing from DLL
+            lib.rms_norm_linear.argtypes = [
+                _p_f32, _p_f32, _p_u8, _p_f32,
+                _i, _i, _i, _i, _i, _f, _p_f32,
+            ]
+            lib.rms_norm_linear.restype = None
+            lib.silu_mul.argtypes = [_p_f32, _p_f32, _i]
+            lib.silu_mul.restype  = None
+            return True
+        except AttributeError:
+            return False
+
+    # --- ctypes path (.dll / .so) ---
+    ext      = ".dll" if platform.system() == "Windows" else ".so"
+    dll_path = node_dir / f"fast_kernels{ext}"
+    if dll_path.exists():
+        try:
+            lib = ctypes.CDLL(str(dll_path))
+            _bind_basic(lib)
+            has_fusion = _bind_fusion(lib)
+            if not has_fusion:
+                # Old DLL missing 21.4 functions — delete and let build path handle it
+                try:
+                    dll_path.unlink()
+                except OSError:
+                    return lib, None, False  # locked (Windows): return without fusion
+                # Fall through to build path below
+            else:
+                return lib, None, True
+        except Exception:
+            pass
+
+    # --- cffi module path (_fast_kernels_cffi*.pyd / .so) ---
+    cffi_candidates = list(node_dir.glob("_fast_kernels_cffi*.pyd")) + \
+                      list(node_dir.glob("_fast_kernels_cffi*.so"))
+    if cffi_candidates:
+        try:
+            import importlib.util, sys as _sys
+            spec = importlib.util.spec_from_file_location("_fast_kernels_cffi",
+                                                          str(cffi_candidates[0]))
+            mod  = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            has_fusion = _bind_fusion(mod.lib)
+            return mod.lib, mod.ffi, has_fusion
+        except Exception:
+            pass
+
+    # --- neither found: try to build ---
+    try:
+        from node.build_fast_kernels import build
+        build()
+    except Exception:
+        pass
+
+    # retry after build
+    if dll_path.exists():
+        return _load_fast_kernels()   # one recursive retry
+    cffi_candidates = list(node_dir.glob("_fast_kernels_cffi*.pyd")) + \
+                      list(node_dir.glob("_fast_kernels_cffi*.so"))
+    if cffi_candidates:
+        return _load_fast_kernels()
+
+    return None, None, False
+
+
+_CLIB, _CFFI, _CLIB_FUSED = (None, None, False) if _NUMBA else _load_fast_kernels()
+
+
+def _ptr_u8(a: np.ndarray) -> ctypes.POINTER:
+    return a.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8))
+
+def _ptr_f32(a: np.ndarray) -> ctypes.POINTER:
+    return a.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+
+
+def _cffi_ptr(ffi, a: np.ndarray, ctype: str):
+    """Cast a contiguous float32/uint8 numpy array to a cffi pointer."""
+    return ffi.cast(ctype, ffi.from_buffer(a))
+
+if _NUMBA:
+    @nb.njit(parallel=True, fastmath=True, cache=True)
+    def _int4_linear_jit(packed, scale, orig_cols, x):
+        """INT4 matmul kernel: result[b,r] = sum_k x[b,k] * W[r,k], nibbles unpacked inline."""
+        n_rows  = packed.shape[0]
+        n_batch = x.shape[0]
+        half    = orig_cols // 2
+        odd     = orig_cols & 1
+        result  = np.zeros((n_batch, n_rows), dtype=np.float32)
+        for r in nb.prange(n_rows):
+            s = scale[r, 0]
+            for i in range(half):
+                byte = np.int32(packed[r, i])
+                hi   = np.float32((byte >> 4) - 8) * s
+                lo   = np.float32((byte & 0x0F) - 8) * s
+                for b in range(n_batch):
+                    result[b, r] += x[b, 2 * i] * hi + x[b, 2 * i + 1] * lo
+            if odd:
+                byte = np.int32(packed[r, half])
+                hi   = np.float32((byte >> 4) - 8) * s
+                for b in range(n_batch):
+                    result[b, r] += x[b, orig_cols - 1] * hi
+        return result
+
+    @nb.njit(fastmath=True, cache=True)
+    def _rms_norm_jit(x, weight, eps):
+        out   = np.empty_like(x)
+        d     = x.shape[1]
+        inv_d = np.float32(1.0) / np.float32(d)
+        for i in range(x.shape[0]):
+            ss = np.float32(0.0)
+            for j in range(d):
+                ss += x[i, j] * x[i, j]
+            rms = np.sqrt(ss * inv_d + np.float32(eps))
+            for j in range(d):
+                out[i, j] = x[i, j] / rms * weight[j]
+        return out
+
+    @nb.njit(fastmath=True, cache=True)
+    def _silu_jit(x):
+        out = np.empty_like(x)
+        for i in range(x.shape[0]):
+            for j in range(x.shape[1]):
+                v   = x[i, j]
+                v_c = min(max(v, np.float32(-30.0)), np.float32(30.0))
+                out[i, j] = v * (np.float32(1.0) / (np.float32(1.0) + np.exp(-v_c)))
+        return out
 
 
 # ── INT4 weight storage ──────────────────────────────────────────────────────
 
 @dataclass
 class INT4Weights:
-    packed:    np.ndarray   # (out_features, ceil(in_features/2)) uint8
-    scale:     np.ndarray   # (out_features, 1) float32
-    orig_cols: int          # in_features before nibble padding
+    packed:    np.ndarray            # (out_features, ceil(in_features/2)) uint8
+    scale:     np.ndarray            # (out_features, 1) float32
+    orig_cols: int                   # in_features before nibble padding
+    _fp16_cache: "np.ndarray | None" = field(default=None, repr=False)  # cached float16 dequant for large matrices
 
     @classmethod
     def from_float32(cls, W: np.ndarray) -> "INT4Weights":
@@ -33,31 +197,123 @@ class INT4Weights:
         return dequantize_int4(self.packed, self.scale, self.orig_cols)
 
     def linear(self, x: np.ndarray, chunk: int = 4096) -> np.ndarray:
-        """Compute x @ W^T chunked to avoid allocating the full dequantized matrix."""
-        x32      = x.astype(np.float32)
-        n_rows   = self.packed.shape[0]
-        out_cols = n_rows
-        result   = np.empty((x32.shape[0], out_cols), dtype=np.float32)
-        for start in range(0, n_rows, chunk):
-            end   = min(start + chunk, n_rows)
-            w_fp  = dequantize_int4(
-                self.packed[start:end],
-                self.scale[start:end],
+        """x @ W^T — uses Numba JIT → ctypes C → chunked numpy, in priority order."""
+        x32 = np.ascontiguousarray(x.astype(np.float32))
+        if _NUMBA:
+            return _int4_linear_jit(
+                np.ascontiguousarray(self.packed),
+                np.ascontiguousarray(self.scale),
                 self.orig_cols,
+                x32,
             )
-            result[:, start:end] = x32 @ w_fp.T
+        n_rows  = self.packed.shape[0]
+        n_batch = x32.shape[0]
+        if _CLIB is not None:
+            packed = np.ascontiguousarray(self.packed)
+            scale  = np.ascontiguousarray(self.scale.ravel())
+            out    = np.empty((n_batch, n_rows), dtype=np.float32)
+            if _CFFI is not None:
+                _CLIB.int4_linear(
+                    _cffi_ptr(_CFFI, packed, "uint8_t *"),
+                    _cffi_ptr(_CFFI, scale,  "float *"),
+                    n_rows, packed.shape[1], self.orig_cols,
+                    _cffi_ptr(_CFFI, x32, "float *"), n_batch,
+                    _cffi_ptr(_CFFI, out, "float *"),
+                )
+            else:
+                _CLIB.int4_linear(
+                    _ptr_u8(packed), _ptr_f32(scale),
+                    ctypes.c_int(n_rows), ctypes.c_int(packed.shape[1]),
+                    ctypes.c_int(self.orig_cols),
+                    _ptr_f32(x32), ctypes.c_int(n_batch),
+                    _ptr_f32(out),
+                )
+            return out
+        # Large matrices (lm_head, vocab=151936): cache dequantized weights as float16.
+        # Built once in chunks to avoid OOM; reused every token as a fast float16→float32 cast
+        # instead of re-unpacking nibbles on every forward pass.
+        result = np.empty((n_batch, n_rows), dtype=np.float32)
+        if n_rows > 50000:
+            if self._fp16_cache is None:
+                blocks: list = []
+                for s in range(0, n_rows, chunk):
+                    e = min(s + chunk, n_rows)
+                    w = dequantize_int4(self.packed[s:e], self.scale[s:e], self.orig_cols)
+                    blocks.append(w.astype(np.float16))
+                    del w
+                self._fp16_cache = np.vstack(blocks)
+            big_chunk = min(chunk * 4, n_rows)
+            for start in range(0, n_rows, big_chunk):
+                end = min(start + big_chunk, n_rows)
+                result[:, start:end] = x32 @ self._fp16_cache[start:end].astype(np.float32).T
+            return result
+        # Smaller matrices: single-chunk or adaptive chunk.
+        big_chunk = min(chunk * 4, n_rows)
+        step = big_chunk
+        try:
+            for start in range(0, n_rows, step):
+                end  = min(start + step, n_rows)
+                w_fp = dequantize_int4(self.packed[start:end], self.scale[start:end], self.orig_cols)
+                result[:, start:end] = x32 @ w_fp.T
+        except MemoryError:
+            step = chunk
+            for start in range(0, n_rows, step):
+                end  = min(start + step, n_rows)
+                w_fp = dequantize_int4(self.packed[start:end], self.scale[start:end], self.orig_cols)
+                result[:, start:end] = x32 @ w_fp.T
         return result
 
 
 # ── Qwen2 math primitives ────────────────────────────────────────────────────
 
 def _rms_norm(x: np.ndarray, weight: np.ndarray, eps: float = 1e-6) -> np.ndarray:
-    rms = np.sqrt((x * x).mean(-1, keepdims=True) + eps)
-    return (x / rms) * weight
+    x32 = np.ascontiguousarray(x.astype(np.float32))
+    if _NUMBA and x32.ndim == 2:
+        return _rms_norm_jit(x32, weight.astype(np.float32), eps)
+    if _CLIB is not None and x32.ndim == 2:
+        w32    = np.ascontiguousarray(weight.astype(np.float32))
+        n_b, d = x32.shape
+        out    = np.empty_like(x32)
+        if _CFFI is not None:
+            _CLIB.rms_norm(
+                _cffi_ptr(_CFFI, x32, "float *"),
+                _cffi_ptr(_CFFI, w32, "float *"),
+                n_b, d, eps,
+                _cffi_ptr(_CFFI, out, "float *"),
+            )
+        else:
+            _CLIB.rms_norm(
+                _ptr_f32(x32), _ptr_f32(w32),
+                ctypes.c_int(n_b), ctypes.c_int(d),
+                ctypes.c_float(eps),
+                _ptr_f32(out),
+            )
+        return out
+    rms = np.sqrt((x32 * x32).mean(-1, keepdims=True) + eps)
+    return (x32 / rms) * weight
 
 
 def _silu(x: np.ndarray) -> np.ndarray:
-    return x * (1.0 / (1.0 + np.exp(-x.clip(-30, 30))))
+    x32 = np.ascontiguousarray(x.astype(np.float32))
+    if _NUMBA and x32.ndim == 2:
+        return _silu_jit(x32)
+    if _CLIB is not None and x32.ndim == 2:
+        n_b, d = x32.shape
+        out    = np.empty_like(x32)
+        if _CFFI is not None:
+            _CLIB.silu_fwd(
+                _cffi_ptr(_CFFI, x32, "float *"),
+                n_b, d,
+                _cffi_ptr(_CFFI, out, "float *"),
+            )
+        else:
+            _CLIB.silu_fwd(
+                _ptr_f32(x32),
+                ctypes.c_int(n_b), ctypes.c_int(d),
+                _ptr_f32(out),
+            )
+        return out
+    return x32 * (1.0 / (1.0 + np.exp(-x32.clip(-30, 30))))
 
 
 def _rotate_half(x: np.ndarray) -> np.ndarray:
@@ -85,6 +341,95 @@ def _apply_rope(
 ) -> np.ndarray:
     """x: (seq, n_heads, head_dim); cos/sin: (seq, head_dim)."""
     return x * cos[:, None, :] + _rotate_half(x) * sin[:, None, :]
+
+
+# ── Phase 21.4 — layer fusion helpers ───────────────────────────────────────
+
+def _get_int4_base(w) -> "Optional[INT4Weights]":
+    """Return INT4Weights base only when the weight hasn't been promoted to a
+    higher-precision cache by DynamicWeights. Returns None otherwise so callers
+    fall back to the normal (unfused) linear path."""
+    if isinstance(w, INT4Weights):
+        return w
+    base = getattr(w, "_base", None)
+    if isinstance(base, INT4Weights):
+        if getattr(w, "_fp32_cache", None) is None and \
+           getattr(w, "_fp16_cache", None) is None:
+            return base
+    return None
+
+
+def _rms_norm_linear(
+    x: np.ndarray,
+    norm_w: np.ndarray,
+    w4: "INT4Weights",
+    eps: float,
+) -> np.ndarray:
+    """Fused RMSNorm + INT4 linear via C kernel.
+
+    Computes inv_rms once per batch row then applies the norm inline during
+    the INT4 matmul, avoiding an intermediate (seq, hidden) normed tensor
+    write to RAM. Falls back to numpy when _CLIB_FUSED is False.
+    """
+    if not _CLIB_FUSED:
+        normed = _rms_norm(x, norm_w, eps)
+        return w4.linear(normed)
+
+    x32    = np.ascontiguousarray(x.astype(np.float32))
+    nw32   = np.ascontiguousarray(norm_w.astype(np.float32))
+    packed = np.ascontiguousarray(w4.packed)
+    scale  = np.ascontiguousarray(w4.scale.ravel())
+    n_batch, d_in = x32.shape
+    n_rows        = w4.packed.shape[0]
+    n_packed      = w4.packed.shape[1]
+    out    = np.empty((n_batch, n_rows), dtype=np.float32)
+    if _CFFI is not None:
+        _CLIB.rms_norm_linear(
+            _cffi_ptr(_CFFI, x32,    "float *"),
+            _cffi_ptr(_CFFI, nw32,   "float *"),
+            _cffi_ptr(_CFFI, packed, "uint8_t *"),
+            _cffi_ptr(_CFFI, scale,  "float *"),
+            n_batch, d_in, n_rows, n_packed, w4.orig_cols,
+            eps,
+            _cffi_ptr(_CFFI, out, "float *"),
+        )
+    else:
+        _CLIB.rms_norm_linear(
+            _ptr_f32(x32), _ptr_f32(nw32),
+            _ptr_u8(packed), _ptr_f32(scale),
+            ctypes.c_int(n_batch), ctypes.c_int(d_in),
+            ctypes.c_int(n_rows),  ctypes.c_int(n_packed),
+            ctypes.c_int(w4.orig_cols),
+            ctypes.c_float(eps),
+            _ptr_f32(out),
+        )
+    return out
+
+
+def _silu_mul(gate: np.ndarray, up: np.ndarray) -> np.ndarray:
+    """Fused SiLU(gate) * up in-place via C kernel.
+
+    Returns gate array modified in-place to hold silu(gate)*up, avoiding the
+    temporary array that _silu(gate) * up would create.
+    Falls back to numpy when _CLIB_FUSED is False.
+    """
+    gate32 = np.ascontiguousarray(gate.astype(np.float32))
+    up32   = np.ascontiguousarray(up.astype(np.float32))
+    if not _CLIB_FUSED:
+        return gate32 * (1.0 / (1.0 + np.exp(-gate32.clip(-30, 30)))) * up32
+
+    if _CFFI is not None:
+        _CLIB.silu_mul(
+            _cffi_ptr(_CFFI, gate32, "float *"),
+            _cffi_ptr(_CFFI, up32,   "float *"),
+            gate32.size,
+        )
+    else:
+        _CLIB.silu_mul(
+            _ptr_f32(gate32), _ptr_f32(up32),
+            ctypes.c_int(gate32.size),
+        )
+    return gate32
 
 
 # ── Qwen2 decoder layer ──────────────────────────────────────────────────────
@@ -129,8 +474,12 @@ class RealTransformerLayer:
     def forward(self, x: np.ndarray, session_id: str = "") -> np.ndarray:
         """x: (seq, hidden_dim) float32 → (seq, hidden_dim) float32."""
         x = x.astype(np.float32)
-        x = x + self._attention(_rms_norm(x, self.norm1, self.rms_eps), session_id)
-        x = x + self._mlp(_rms_norm(x, self.norm2, self.rms_eps))
+        if _CLIB_FUSED:
+            x = x + self._attention_normed(x, session_id)
+            x = x + self._mlp_normed(x)
+        else:
+            x = x + self._attention(_rms_norm(x, self.norm1, self.rms_eps), session_id)
+            x = x + self._mlp(_rms_norm(x, self.norm2, self.rms_eps))
         return x
 
     def _attention(self, x: np.ndarray, session_id: str = "") -> np.ndarray:
@@ -171,26 +520,152 @@ class RealTransformerLayer:
 
         # Store updated cache (single-session: replace all other entries)
         if session_id:
-            self._kv_cache = {session_id: (K, V)}
+            self._kv_cache[session_id] = (K, V)
 
         total = K.shape[0]
+
+        # SWA: when context exceeds SWA_WINDOW, truncate K/V for attention scoring only.
+        # The full K/V is kept in _kv_cache for LPC cross-turn persistence.
+        # Reduces attention from O(total) to O(SWA_WINDOW) at long contexts.
+        if total > SWA_WINDOW:
+            K_attn = K[-SWA_WINDOW:]
+            V_attn = V[-SWA_WINDOW:]
+            attn_offset = total - SWA_WINDOW  # first absolute position in the window
+        else:
+            K_attn, V_attn = K, V
+            attn_offset = 0
+
+        attn_total = K_attn.shape[0]
+
         # GQA: expand K, V to match n_heads
-        K_exp = np.repeat(K, group, axis=1)   # (total, H, D)
-        V_exp = np.repeat(V, group, axis=1)
+        K_exp = np.repeat(K_attn, group, axis=1)   # (attn_total, H, D)
+        V_exp = np.repeat(V_attn, group, axis=1)
 
         # Scaled dot-product — causal mask only needed during prefill (seq > 1)
-        scores = np.einsum("qhd,khd->hqk", Q, K_exp) / np.sqrt(D)  # (H, seq, total)
+        scores = np.einsum("qhd,khd->hqk", Q, K_exp) / np.sqrt(D)  # (H, seq, attn_total)
         if seq > 1:
-            mask = np.full((seq, total), -1e9, dtype=np.float32)
-            for i in range(seq):
-                mask[i, past_len + i + 1:] = -1e9
-                mask[i, :past_len + i + 1] = 0.0
-            scores += mask[None]
+            # Causal mask within the attended window
+            q_abs = np.arange(past_len, past_len + seq, dtype=np.int32).reshape(-1, 1)
+            k_abs = np.arange(attn_offset, attn_offset + attn_total, dtype=np.int32).reshape(1, -1)
+            future = (k_abs > q_abs).astype(np.float32) * -1e9
+            scores = scores + future[None]
         scores -= scores.max(-1, keepdims=True)
         probs   = np.exp(scores); probs /= probs.sum(-1, keepdims=True)
 
         out = np.einsum("hqk,khd->qhd", probs, V_exp).reshape(seq, H * D)
         return self.w_o.linear(out)
+
+    # ── 21.4 fused paths ─────────────────────────────────────────────────────
+
+    def _attention_normed(self, x: np.ndarray, session_id: str = "") -> np.ndarray:
+        """Attention with fused RMSNorm+Q/K/V projections (avoids intermediate normed tensor).
+
+        Uses _rms_norm_linear when Q/K/V weights are still in INT4 (not yet promoted
+        to FP32 by DynamicWeights warmup). Falls back per-weight to the standard path.
+        """
+        seq = x.shape[0]
+        H, KH, D = self.n_heads, self.n_kv_heads, self.head_dim
+        group = H // KH
+
+        past_len = 0
+        K_past: Optional[np.ndarray] = None
+        V_past: Optional[np.ndarray] = None
+        if session_id:
+            cached = self._kv_cache.get(session_id)
+            if cached is not None:
+                K_past, V_past = cached
+                past_len = K_past.shape[0]
+
+        # Fused norm+projection when weights are still in INT4 tier
+        wq_b = _get_int4_base(self.w_q)
+        wk_b = _get_int4_base(self.w_k)
+        wv_b = _get_int4_base(self.w_v)
+
+        _normed = None  # computed lazily if needed for LoRA or fallback
+
+        def _normed_x() -> np.ndarray:
+            nonlocal _normed
+            if _normed is None:
+                _normed = _rms_norm(x, self.norm1, self.rms_eps)
+            return _normed
+
+        Q = (_rms_norm_linear(x, self.norm1, wq_b, self.rms_eps)
+             if wq_b is not None else self.w_q.linear(_normed_x())).reshape(seq, H, D)
+
+        k_raw = (_rms_norm_linear(x, self.norm1, wk_b, self.rms_eps)
+                 if wk_b is not None else self.w_k.linear(_normed_x()))
+        if getattr(self, "_lora_k", None) is not None:
+            k_raw = k_raw + self._lora_k.delta(_normed_x())
+
+        v_raw = (_rms_norm_linear(x, self.norm1, wv_b, self.rms_eps)
+                 if wv_b is not None else self.w_v.linear(_normed_x()))
+        if getattr(self, "_lora_v", None) is not None:
+            v_raw = v_raw + self._lora_v.delta(_normed_x())
+
+        K_new = k_raw.reshape(seq, KH, D)
+        V_new = v_raw.reshape(seq, KH, D)
+
+        cos, sin = _precompute_rope(seq, D, self.rope_theta, offset=past_len)
+        Q     = _apply_rope(Q,     cos, sin)
+        K_new = _apply_rope(K_new, cos, sin)
+
+        if K_past is not None:
+            K = np.concatenate([K_past, K_new], axis=0)
+            V = np.concatenate([V_past, V_new], axis=0)
+        else:
+            K, V = K_new, V_new
+
+        if session_id:
+            self._kv_cache[session_id] = (K, V)
+
+        total = K.shape[0]
+
+        if total > SWA_WINDOW:
+            K_attn = K[-SWA_WINDOW:]
+            V_attn = V[-SWA_WINDOW:]
+            attn_offset = total - SWA_WINDOW
+        else:
+            K_attn, V_attn = K, V
+            attn_offset = 0
+
+        attn_total = K_attn.shape[0]
+        K_exp = np.repeat(K_attn, group, axis=1)
+        V_exp = np.repeat(V_attn, group, axis=1)
+
+        scores = np.einsum("qhd,khd->hqk", Q, K_exp) / np.sqrt(D)
+        if seq > 1:
+            q_abs  = np.arange(past_len, past_len + seq, dtype=np.int32).reshape(-1, 1)
+            k_abs  = np.arange(attn_offset, attn_offset + attn_total, dtype=np.int32).reshape(1, -1)
+            future = (k_abs > q_abs).astype(np.float32) * -1e9
+            scores = scores + future[None]
+        scores -= scores.max(-1, keepdims=True)
+        probs   = np.exp(scores); probs /= probs.sum(-1, keepdims=True)
+
+        out = np.einsum("hqk,khd->qhd", probs, V_exp).reshape(seq, H * D)
+        return self.w_o.linear(out)
+
+    def _mlp_normed(self, x: np.ndarray) -> np.ndarray:
+        """MLP with fused SiLU*mul gate activation (avoids temporary gate array).
+
+        RMSNorm is applied first (unfused); the silu*up fusion saves one full
+        intermediate (seq, intermediate_dim) tensor allocation and write.
+        """
+        normed = _rms_norm(x, self.norm2, self.rms_eps)
+        gate   = self.w_gate.linear(normed)
+        up     = self.w_up.linear(normed)
+        return self.w_down.linear(_silu_mul(gate, up))
+
+    def truncate_kv(self, session_id: str, max_len: int) -> None:
+        """Truncate KV-cache to max_len tokens (speculative decoding rollback)."""
+        kv = self._kv_cache.get(session_id)
+        if kv is not None:
+            K, V = kv
+            self._kv_cache[session_id] = (K[:max_len], V[:max_len])
+
+    def kv_len(self, session_id: str) -> int:
+        """Return number of cached K/V tokens for this session."""
+        kv = self._kv_cache.get(session_id)
+        return kv[0].shape[0] if kv is not None else 0
 
     def _mlp(self, x: np.ndarray) -> np.ndarray:
         return self.w_down.linear(_silu(self.w_gate.linear(x)) * self.w_up.linear(x))

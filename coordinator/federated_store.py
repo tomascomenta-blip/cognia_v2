@@ -1,20 +1,19 @@
 """
 coordinator/federated_store.py
 ==============================
-FedAvg aggregation store for Cognia's federated learning layer.
+FedAvg + Federated Knowledge Distillation (Phase 20.4) for Cognia's federated layer.
 
 Each node contributes a LoRA adapter (k_A, k_B, v_A, v_B) trained locally
-during the sleep cycle. The coordinator aggregates them with weighted FedAvg
-(weight = contributor tier's min_params_b) and serves the global adapter back.
+during the sleep cycle. The coordinator aggregates them in two steps:
 
-Privacy: clients add Gaussian noise (sigma=0.01) before submitting. This is
-enforced on the client side; the server stores whatever it receives.
+  1. Tier weight (existing): contribution weight = tier's min_params_b
+  2. Semantic weight (Phase 20.4): multiply by cosine similarity between the
+     contribution's effective delta (k_A @ k_B, v_A @ v_B) and the current
+     global adapter's delta. Contributions aligned with the current global
+     model are trusted more; outliers are down-weighted automatically.
 
-Storage: SQLite BLOBs inside coordinator.db. No filesystem paths — no path
-traversal risk. Blobs are compressed npz, ~20-30 KB each.
-
-Aggregation triggers when AGGREGATE_EVERY_N unapplied contributions accumulate,
-or can be triggered manually via aggregate().
+Privacy: clients add Gaussian noise (sigma=0.01) before submitting.
+Storage: SQLite BLOBs inside coordinator.db. No filesystem paths.
 """
 
 import io
@@ -33,10 +32,11 @@ logger = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────
 
-AGGREGATE_EVERY_N = 5
-MIN_CONTRIBUTORS  = 2
-MAX_PENDING       = 200       # drop oldest unapplied contributions past this cap
-MAX_BLOB_BYTES    = 512_000   # 512 KB hard cap per submission
+AGGREGATE_EVERY_N      = 5
+MIN_CONTRIBUTORS       = 2
+MAX_PENDING            = 200       # drop oldest unapplied contributions past this cap
+MAX_BLOB_BYTES         = 512_000   # 512 KB hard cap per submission
+SEMANTIC_WEIGHT_ALPHA  = 0.3       # blend factor: final_w = tier_w * (1 + alpha * cos_sim)
 
 # Expected npz keys (Qwen2.5-Coder-3B ELC adapter)
 _KEYS        = ("k_A", "k_B", "v_A", "v_B")
@@ -69,6 +69,25 @@ CREATE TABLE IF NOT EXISTS fed_global_state (
 INSERT OR IGNORE INTO fed_global_state (id, version, updated_at, n_contributors)
 VALUES (1, 0, 0, 0);
 """
+
+
+def _effective_delta_embed(arrays: dict) -> np.ndarray:
+    """
+    Flatten k_A@k_B and v_A@v_B into a unit-norm embedding vector.
+    This 'effective delta' lives in the same space regardless of LoRA rank,
+    allowing cosine similarity to measure semantic alignment between contributions.
+    """
+    dk = (arrays["k_A"].T @ arrays["k_B"].T).flatten()   # (hidden_dim, proj_out) flattened
+    dv = (arrays["v_A"].T @ arrays["v_B"].T).flatten()
+    vec = np.concatenate([dk, dv]).astype(np.float32)
+    norm = np.linalg.norm(vec)
+    return vec / norm if norm > 1e-9 else vec
+
+
+def _semantic_cosine(embed_a: np.ndarray, embed_b: np.ndarray) -> float:
+    """Cosine similarity; both inputs assumed unit-norm."""
+    # Clip to [-1,1] to handle float precision artifacts
+    return float(np.clip(np.dot(embed_a, embed_b), -1.0, 1.0))
 
 
 def _pad_to_rank(arrays: dict, target_rank: int) -> dict:
@@ -223,13 +242,23 @@ class FederatedStore:
 
     def aggregate(self) -> bool:
         """
-        Runs FedAvg over all unapplied contributions.
+        Runs FedAvg + Federated Knowledge Distillation over all unapplied contributions.
         Returns True if a new global adapter was produced.
         Called automatically by add_contribution; can also be called manually.
 
-        Supports variable-rank adapters (ARA): finds the max rank across
-        the batch, pads smaller contributions with zeros before averaging.
-        The global adapter is saved at the batch's max rank.
+        Phase 20.4 semantic weighting: when a global adapter already exists,
+        each contribution's effective delta (k_A@k_B, v_A@v_B) is compared to
+        the global adapter's delta via cosine similarity. The final weight for
+        each contribution is:
+
+            w_final = tier_weight * (1 + SEMANTIC_WEIGHT_ALPHA * cos_sim)
+
+        Contributions aligned with the current global model get up to 30% more
+        weight; divergent contributions get less. This acts as a soft quality
+        filter without requiring a central validation set.
+
+        Supports variable-rank adapters (ARA): pads smaller contributions to
+        the batch's max rank before accumulation.
         """
         with self._conn() as conn:
             rows = conn.execute(
@@ -252,13 +281,39 @@ class FederatedStore:
         if len(loaded) < MIN_CONTRIBUTORS:
             return False
 
-        total_weight = sum(float(r["weight"]) for r, _ in loaded)
+        # Phase 20.4: compute global adapter embedding for semantic weighting
+        global_embed: np.ndarray | None = None
+        global_blob_existing = self.get_global_adapter()
+        if global_blob_existing is not None:
+            try:
+                g_data = np.load(io.BytesIO(global_blob_existing), allow_pickle=False)
+                global_embed = _effective_delta_embed(
+                    {k: g_data[k].astype(np.float32) for k in _KEYS}
+                )
+            except Exception:
+                global_embed = None
+
+        # Pass 2: compute per-contribution weights (tier * semantic)
+        max_rank = max(int(d["k_A"].shape[0]) for _, d in loaded)
+        weights  = []
+        for row, data in loaded:
+            w = float(row["weight"])
+            if global_embed is not None:
+                try:
+                    contrib_embed = _effective_delta_embed(
+                        {k: data[k].astype(np.float32) for k in _KEYS}
+                    )
+                    cos_sim = _semantic_cosine(contrib_embed, global_embed)
+                    w *= 1.0 + SEMANTIC_WEIGHT_ALPHA * cos_sim
+                except Exception:
+                    pass  # fall back to tier-only weight on error
+            weights.append(max(w, 0.0))
+
+        total_weight = sum(weights)
         if total_weight <= 0.0:
             return False
 
-        max_rank = max(int(d["k_A"].shape[0]) for _, d in loaded)
-
-        # Pass 2: weighted accumulation with rank padding
+        # Pass 3: weighted accumulation with rank padding
         acc = {
             "k_A": np.zeros((max_rank, _HIDDEN_DIM),  dtype=np.float64),
             "k_B": np.zeros((_KV_PROJ_OUT, max_rank), dtype=np.float64),
@@ -266,12 +321,11 @@ class FederatedStore:
             "v_B": np.zeros((_KV_PROJ_OUT, max_rank), dtype=np.float64),
         }
         valid_ids = []
-
-        for row, data in loaded:
-            w      = float(row["weight"]) / total_weight
+        for (row, data), w in zip(loaded, weights):
+            norm_w = w / total_weight
             padded = _pad_to_rank({k: data[k].astype(np.float64) for k in _KEYS}, max_rank)
             for k in _KEYS:
-                acc[k] += w * padded[k]
+                acc[k] += norm_w * padded[k]
             valid_ids.append(row["id"])
 
         buf = io.BytesIO()
@@ -299,8 +353,8 @@ class FederatedStore:
             )
 
         logger.info(
-            "fed: FedAvg v%d complete — %d contributors rank=%d",
-            self._version(), len(valid_ids), max_rank,
+            "fed: KD-FedAvg v%d complete -- %d contributors rank=%d sem_weighted=%s",
+            self._version(), len(valid_ids), max_rank, global_embed is not None,
         )
         return True
 

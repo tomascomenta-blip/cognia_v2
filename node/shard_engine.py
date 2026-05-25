@@ -38,9 +38,11 @@ logger = logging.getLogger(__name__)
 
 # ── Wire protocol ────────────────────────────────────────────────────────────
 
-PTYPE_HIDDEN  = 0
-PTYPE_TOKENS  = 1
-PTYPE_LOGITS  = 2
+PTYPE_HIDDEN      = 0
+PTYPE_TOKENS      = 1
+PTYPE_LOGITS      = 2
+PTYPE_TEXT        = 3   # raw UTF-8 prompt; shard 0 tokenizes internally
+PTYPE_CLEAR_CACHE = 4   # control: clear KV-cache for a session_id
 
 _WIRE_FMT  = ">BBHII"                     # type, reserved, shard_idx, dim0, dim1
 _WIRE_SIZE = struct.calcsize(_WIRE_FMT)   # 12 bytes
@@ -67,10 +69,25 @@ def encode_logits(shard_index: int, logits: np.ndarray) -> bytes:
     return hdr + logits.astype(np.float32).tobytes()
 
 
-def decode_wire(data: bytes) -> Tuple[int, int, np.ndarray]:
+def encode_text(shard_index: int, prompt: str) -> bytes:
+    """Encode a raw UTF-8 prompt for PTYPE_TEXT (shard 0 entry)."""
+    body = prompt.encode("utf-8")
+    hdr = struct.pack(_WIRE_FMT, PTYPE_TEXT, 0, shard_index, len(body), 0)
+    return hdr + body
+
+
+def encode_clear_cache(shard_index: int, session_id: str) -> bytes:
+    """Encode a PTYPE_CLEAR_CACHE control frame for session eviction."""
+    body = session_id.encode("utf-8")
+    hdr = struct.pack(_WIRE_FMT, PTYPE_CLEAR_CACHE, 0, shard_index, len(body), 0)
+    return hdr + body
+
+
+def decode_wire(data: bytes) -> Tuple[int, int, object]:
     """
     Deserialize wire bytes.
-    Returns (ptype, shard_index, payload_array).
+    Returns (ptype, shard_index, payload).
+    payload is np.ndarray for PTYPE_HIDDEN/TOKENS/LOGITS, str for PTYPE_TEXT.
     """
     ptype, _reserved, shard_idx, dim0, dim1 = struct.unpack(
         _WIRE_FMT, data[:_WIRE_SIZE]
@@ -80,6 +97,8 @@ def decode_wire(data: bytes) -> Tuple[int, int, np.ndarray]:
         payload = np.frombuffer(body, dtype=np.int32).copy()
     elif ptype == PTYPE_LOGITS:
         payload = np.frombuffer(body, dtype=np.float32).reshape(dim0, dim1).copy()
+    elif ptype in (PTYPE_TEXT, PTYPE_CLEAR_CACHE):
+        payload = body[:dim0].decode("utf-8", errors="replace")
     else:  # PTYPE_HIDDEN
         payload = np.frombuffer(body, dtype=np.float16).reshape(dim0, dim1).copy()
     return ptype, shard_idx, payload
@@ -217,6 +236,8 @@ class ShardEngine:
         self._final_norm:  Optional[np.ndarray] = None
         self._lora_adapter       = None   # ELC adapter; set via set_adapter()
         self._precision_manager  = None   # PrecisionManager; set in _load_real_weights
+        self._weights_path       = weights_path  # kept for lazy tokenizer on PTYPE_TEXT
+        self._tokenizer          = None   # lazy-loaded when PTYPE_TEXT arrives at shard 0
 
         shard_npz = (
             os.path.join(weights_path, f"shard_{config.shard_index}.npz")
@@ -330,7 +351,7 @@ class ShardEngine:
             if cfg.is_last and self._lm_weights is not None:
                 from node.qwen2_ops import _rms_norm
                 x = _rms_norm(x, self._final_norm, cfg.rms_norm_eps)
-                result = self._lm_weights.linear(x[-1:])   # (1, vocab_size) float32
+                result = self._lm_weights.linear(x)   # (seq, vocab_size) float32
             else:
                 result = x.astype(np.float16)
 
@@ -351,12 +372,21 @@ class ShardEngine:
         Accepts both new (PTYPE_*) and legacy header formats.
         Returns (response_bytes, latency_ms).
         """
-        # Detect protocol version: new header has payload_type in byte 0 as 0/1/2
-        # Legacy header starts with shard_index uint16 big-endian (never 0/1/2 for valid shards)
+        # Detect protocol version: new header has payload_type in byte 0 as 0-4
+        # Legacy header starts with shard_index uint16 big-endian (never 0-4 for valid shards)
         ptype = data[0]
-        if ptype in (PTYPE_HIDDEN, PTYPE_TOKENS, PTYPE_LOGITS):
+        if ptype in (PTYPE_HIDDEN, PTYPE_TOKENS, PTYPE_LOGITS, PTYPE_TEXT, PTYPE_CLEAR_CACHE):
             ptype, _shard_from, payload = decode_wire(data)
-            if ptype == PTYPE_TOKENS:
+            if ptype == PTYPE_CLEAR_CACHE:
+                # Control frame: evict KV-cache for the given session_id
+                self.clear_cache(str(payload))
+                # Return an empty PTYPE_HIDDEN ack so relay can forward to next shard
+                ack = struct.pack(_WIRE_FMT, PTYPE_CLEAR_CACHE, 0, self.config.shard_index, 0, 0)
+                return ack, 0.0
+            if ptype == PTYPE_TEXT:
+                token_ids = self._tokenize_text(payload)
+                result, ms = self.process(None, token_ids=token_ids, session_id=session_id)
+            elif ptype == PTYPE_TOKENS:
                 result, ms = self.process(None, token_ids=payload, session_id=session_id)
             else:
                 result, ms = self.process(payload, session_id=session_id)
@@ -368,6 +398,34 @@ class ShardEngine:
             _shard_from, n_layers, tensor = decode_hidden_state(data)
             result, ms = self.process(tensor)
             return encode_hidden_state(self.config.shard_index, self.config.n_layers, result), ms
+
+    def _tokenize_text(self, text: str) -> np.ndarray:
+        """Lazy-load tokenizer and tokenize a raw text prompt."""
+        if self._tokenizer is None:
+            self._tokenizer = self._load_tokenizer()
+        if self._tokenizer is not None:
+            try:
+                enc = self._tokenizer.encode(text)
+                ids = enc.ids if hasattr(enc, "ids") else list(enc)
+                return np.array(ids, dtype=np.int32)
+            except Exception as exc:
+                logger.warning("Tokenizer encode failed: %s; using byte fallback", exc)
+        # Byte-level fallback: valid vocab range, stable across runs
+        return np.frombuffer(text.encode("utf-8"), dtype=np.uint8).astype(np.int32)
+
+    def _load_tokenizer(self):
+        """Try to load the BPE tokenizer from the weights directory."""
+        if not self._weights_path:
+            return None
+        try:
+            from tokenizers import Tokenizer
+            tok_path = os.path.join(self._weights_path, "tokenizer.json")
+            if os.path.exists(tok_path):
+                logger.info("shard %d: loaded tokenizer from %s", self.config.shard_index, tok_path)
+                return Tokenizer.from_file(tok_path)
+        except Exception as exc:
+            logger.debug("Tokenizer load failed: %s", exc)
+        return None
 
     def set_adapter(self, adapter) -> None:
         """
@@ -393,9 +451,28 @@ class ShardEngine:
                 layer._lora_k = None
                 layer._lora_v = None
 
+    def truncate_kv(self, session_id: str, max_len: int) -> None:
+        """Truncate KV-cache for speculative decoding rollback."""
+        for layer in self._layers:
+            if hasattr(layer, "truncate_kv"):
+                layer.truncate_kv(session_id, max_len)
+
+    def kv_len(self, session_id: str) -> int:
+        """Return current KV-cache length (tokens) for this session."""
+        for layer in self._layers:
+            if hasattr(layer, "kv_len"):
+                return layer.kv_len(session_id)
+        return 0
+
     def clear_cache(self, session_id: str) -> None:
+        # Clear MLA compressed KV-cache if patched
         if self._kv_cache is not None:
             self._kv_cache.clear(session_id)
+        # Clear native RealTransformerLayer per-session KV-cache
+        from node.qwen2_ops import RealTransformerLayer
+        for layer in self._layers:
+            if isinstance(layer, RealTransformerLayer):
+                layer._kv_cache.pop(session_id, None)
 
     def decay_precision(self, factor: float = 0.3) -> dict:
         """

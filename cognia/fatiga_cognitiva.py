@@ -165,10 +165,33 @@ class CognitiveFatigueMonitor:
         
         # Última vez que se propuso optimización arquitectural
         self._last_arch_proposal: Optional[float] = None
+
+        # Timestamp de la última actividad registrada (para auto-reset por idle)
+        self._last_activity: float = time.time()
         
         print("[OK] CognitiveFatigueMonitor activo")
 
     # ── API principal ──────────────────────────────────────────────────
+
+    def reset(self) -> None:
+        """
+        Reset all fatigue state to zero.
+        Call after a sleep cycle or extended idle period so the monitor
+        reflects recovered capacity rather than accumulating stale load.
+        """
+        for q in (
+            self._cycle_times, self._cpu_samples, self._mem_samples,
+            self._expensive_ops, self._cache_hits, self._cache_misses,
+            self._score_history, self._active_strategies,
+        ):
+            q.clear()
+        self._fatigue_score     = 0.0
+        self._prev_fatigue      = 0.0
+        self._total_expensive_ops = 0
+        self._total_cheap_ops     = 0
+        self._cycle_start         = None
+        self._start_time          = time.time()
+        self._last_activity       = time.time()
 
     def start_cycle(self):
         """Marcar el inicio de un ciclo de razonamiento."""
@@ -206,6 +229,7 @@ class CognitiveFatigueMonitor:
         self._total_cycles += 1
         self._total_expensive_ops += expensive + cache_misses
         self._total_cheap_ops += cache_hits + ops_count
+        self._last_activity = time.time()
         
         # Snapshot de CPU y memoria
         cpu, mem_mb = self._sample_resources()
@@ -306,11 +330,18 @@ class CognitiveFatigueMonitor:
             "energy_watts":       energy_watts,
         }
 
+    _IDLE_RESET_SECONDS: float = 600.0  # 10 min idle + fatigue>50 -> auto-reset
+
     def get_adaptations(self) -> dict:
         """
         Retorna las adaptaciones que Cognia debe aplicar según el nivel de fatiga.
         Este dict se usa directamente en el ciclo observe() de Cognia.
         """
+        # Auto-reset after extended idle period when fatigue is elevated
+        if (self._fatigue_score > 50.0
+                and time.time() - self._last_activity > self._IDLE_RESET_SECONDS):
+            self.reset()
+
         s = self._fatigue_score
         
         if s < THRESHOLD_MODERATE:

@@ -58,13 +58,18 @@ module.exports = {
     },
   ],
 
-  // Windows target: NSIS installer
+  // Windows target:
+  //   CI (GH Actions, admin): NSIS installer
+  //   Local dev (no admin):   portable .exe — avoids winCodeSign toolchain which
+  //                           requires symlink privilege (Windows Developer Mode).
+  //   Enable Developer Mode or run as admin to produce NSIS locally.
   win: {
-    target:          [{ target: "nsis", arch: ["x64"] }],
-    // Sign if env vars present; skip gracefully if not
-    signingHashAlgorithms: ["sha256"],
-    sign:            process.env.CSC_LINK ? undefined : null,
-    artifactName:    "CogniaDesktop-${version}-Setup.${ext}",
+    target: process.env.CI
+      ? [{ target: "nsis",     arch: ["x64"] }]
+      : [{ target: "portable", arch: ["x64"] }],
+    signingHashAlgorithms: process.env.CSC_LINK ? ["sha256"] : [],
+    sign:         process.env.CSC_LINK ? undefined : null,
+    artifactName: "CogniaDesktop-${version}-Setup.${ext}",
   },
 
   nsis: {

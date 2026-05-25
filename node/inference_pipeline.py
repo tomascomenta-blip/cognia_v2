@@ -401,10 +401,13 @@ class DistributedInferencePipeline:
         """
         Samples the next token from logits or (in simulation) from the hidden state.
 
-        Real mode   : output is (1, vocab_size) float32 logits from the last shard.
+        Real mode   : output is (seq, vocab_size) float32 logits; uses last position.
         Simulation  : output is (1, hidden_dim) float16 hidden state; sampled as proxy.
         """
-        flat       = output.flatten().astype(np.float32)
+        if output.ndim == 2 and output.shape[0] > 1:
+            flat = output[-1].astype(np.float32)
+        else:
+            flat = output.flatten().astype(np.float32)
         vocab_size = self._get_model_config().get("vocab_size", 151936)
         if len(flat) > vocab_size:
             flat = flat[:vocab_size]
