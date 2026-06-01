@@ -2126,6 +2126,20 @@ Rules:
     except Exception:
         pass
 
+    # Register agent task as a conversation turn so follow-up questions work
+    try:
+        from conversation_memory import get_conversation_context
+        from vectors import text_to_vector
+        _task_vec = text_to_vector(task[:200])
+        if _task_vec:
+            get_conversation_context(ai).add_turn(
+                user_text   = f"/hacer {task[:300]}",
+                cognia_text = (result_text or summary)[:400],
+                vector      = _task_vec,
+            )
+    except Exception:
+        pass
+
     # Save agent state
     try:
         import json as _json_save

@@ -5,9 +5,15 @@ Constantes globales, rutas, e imports opcionales compartidos.
 """
 
 import importlib.util
+import os
+from pathlib import Path
 
 # ── Base de datos ──────────────────────────────────────────────────────
-DB_PATH = "cognia_memory.db"
+# Absolute path so the DB is the same regardless of working directory.
+# Respects COGNIA_DB_PATH env var for custom installations.
+_DB_DIR = Path(os.environ.get("COGNIA_DB_PATH", Path.home() / ".cognia"))
+_DB_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = str(_DB_DIR / "cognia_memory.db")
 
 # ── Monitor de fatiga cognitiva ────────────────────────────────────────
 try:
