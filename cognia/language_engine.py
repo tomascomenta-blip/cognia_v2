@@ -715,11 +715,18 @@ class LanguageEngine:
         context = pre_built_context or self._build_context(ai, question)
         context, investigated = self._maybe_investigate(ai, question, context)
 
-        # PASO 3: detectar cambio de tema para ajustar system prompt
+        # PASO 3: detectar cambio de tema + SIEMPRE prepend conversation block.
+        # Cuando pre_built_context proviene del Stage 0 de memoria, _build_context()
+        # no se ejecuta y el historial de conversación se pierde. Este bloque lo
+        # restaura de forma barata (in-memory, sin DB queries extra).
         try:
             from conversation_memory import get_conversation_context
             _conv_ctx = get_conversation_context(ai)
             self._topic_changed_hint = _conv_ctx.topic_changed_last()
+            if vec:
+                _conv_block = _conv_ctx.build_context_block(question, vec)
+                if _conv_block and _conv_block not in context:
+                    context = _conv_block + ("\n\n" + context if context else "")
         except Exception:
             self._topic_changed_hint = False
 

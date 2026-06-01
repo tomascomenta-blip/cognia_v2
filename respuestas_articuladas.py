@@ -491,6 +491,25 @@ def _preprocess_question(ai, pregunta: str) -> dict:
         vec = text_to_vector(pregunta)
         emotion = analyze_emotion(pregunta)
         ai.working_mem.add(pregunta, None, vec, emotion, 0.3)
+        # Store user messages in episodic memory for cross-session recall.
+        # Short messages (<8 chars) or plain greetings without info are skipped.
+        if hasattr(ai, 'episodic') and len(pregunta) >= 8:
+            try:
+                ai.episodic.store(
+                    observation  = pregunta,
+                    label        = None,
+                    vector       = vec,
+                    confidence   = 0.45,
+                    importance   = 0.55,
+                    emotion      = emotion,
+                    surprise     = 0.0,
+                    context_tags = [],
+                )
+                from cognia.memory.episodic_fast import get_vector_cache
+                from cognia.config import DB_PATH
+                get_vector_cache(getattr(ai, 'db', DB_PATH)).mark_dirty()
+            except Exception:
+                pass
         if hasattr(ai, "user_profile"):
             lang = "es" if any(c in pregunta.lower() for c in "aeiouuáéíóúñ") else "en"
             ai.user_profile.set("lang", lang)
