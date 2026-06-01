@@ -332,6 +332,43 @@ class LanguageEngine:
                 tiene_contexto  = True,
                 info_suficiente = True,
             )
+        # ── Deterministic recall bypass ───────────────────────────────
+        # Small LLMs hallucinate "no tengo memoria" for context-recall
+        # questions; answer directly from ConversationContext buffer.
+        _RECALL_PAT = re.compile(
+            r'\b(que.*te.*dij[ei]|que.*te.*ped[íi]|[uú]ltimo.*mensaje|last.*message'
+            r'|recuerdas.*que|lo.?[uú]ltimo|what.*last|lo.*que.*ped[íi]|lo.*que.*dij[ei]'
+            r'|cual.*fue.*[uú]ltimo|cual.*fue.*lo.*[uú]ltimo|de.*que.*habl[aá]bamos'
+            r'|qu[eé].*te.*pregunt[eé]|mi.*[uú]ltima.*pregunta|[uú]ltima.*cosa.*que)\b',
+            re.IGNORECASE,
+        )
+        if _RECALL_PAT.search(question):
+            try:
+                from conversation_memory import get_conversation_context
+                _ctx = get_conversation_context(ai)
+                _turns = _ctx._buffer.get_all() if hasattr(_ctx, '_buffer') else []
+                # Filter out the current question itself
+                _prev = [t for t in _turns if t.user_text.strip() != question.strip()]
+                if _prev:
+                    _last = _prev[-1]
+                    _recall_resp = f"Tu ultimo mensaje fue: \"{_last.short_user(120)}\""
+                    latency = (time.perf_counter() - t0) * 1000
+                    return EngineResult(
+                        response        = _recall_resp,
+                        stage_used      = "recall_static",
+                        latency_ms      = latency,
+                        tokens_sent     = 0,
+                        confidence      = 1.0,
+                        cache_hit       = False,
+                        used_llm        = False,
+                        question_type   = "recall",
+                        tipo_pregunta   = "recall",
+                        tiene_contexto  = True,
+                        info_suficiente = True,
+                    )
+            except Exception:
+                pass
+        # ─────────────────────────────────────────────────────────────
         _q_type_pre, _ = self.symbolic.classifier.classify(question)
         if _q_type_pre == "social":
             _le_logger.info(
