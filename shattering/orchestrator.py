@@ -20,6 +20,7 @@ import os
 import time
 import urllib.error
 import urllib.request
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -194,6 +195,10 @@ class ShatteringOrchestrator:
         # Speculative decoding draft model (lazy-loaded on first shard inference)
         self._draft = None
 
+        # Optional llama.cpp acceleration layer (lazy-loaded on first local infer)
+        self._llama: "Optional[object]" = None
+        self._llama_checked: bool = False   # avoids repeated failed attempts
+
         # Proactive MLA eviction -- evict every 90s to match relay SESSION_TIMEOUT=120s
         self._last_eviction: float = 0.0
 
@@ -240,8 +245,47 @@ class ShatteringOrchestrator:
 
     async def ainfer(self, prompt: str, lpc_session_id: Optional[str] = None) -> InferResult:
         """Async wrapper — runs infer() in the default thread pool."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.infer, prompt, lpc_session_id)
+
+    async def astream_chat(self, messages: list):
+        """
+        Async generator for multi-turn chat — yields (token_text, None) per token.
+        Uses /v1/chat/completions on llama-server so full conversation history is sent.
+        Falls back to astream(last_user_message) if llama.cpp is unavailable.
+        """
+        import asyncio as _asyncio
+
+        self._try_load_llama()
+        if self._llama is not None:
+            loop = _asyncio.get_running_loop()
+            queue: _asyncio.Queue = _asyncio.Queue()
+
+            def _run_chat():
+                try:
+                    for tok in self._llama.stream_chat(messages, max_tokens=self._max_tokens):
+                        loop.call_soon_threadsafe(queue.put_nowait, (tok, None))
+                    loop.call_soon_threadsafe(queue.put_nowait, ("__done__", None))
+                except Exception as exc:
+                    loop.call_soon_threadsafe(queue.put_nowait, ("__error__", str(exc)))
+
+            loop.run_in_executor(None, _run_chat)
+            while True:
+                item = await queue.get()
+                if item[0] == "__done__":
+                    yield None, None
+                    return
+                if item[0] == "__error__":
+                    logger.warning("[Orchestrator] stream_chat error: %s; falling back", item[1])
+                    break
+                yield item[0], None
+
+        # Fallback: single-turn with the last user message
+        last_user = next(
+            (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
+        )
+        async for tok, final in self.astream(last_user):
+            yield tok, final
 
     async def astream(self, prompt: str, lpc_session_id: Optional[str] = None):
         """
@@ -252,13 +296,49 @@ class ShatteringOrchestrator:
                         for this session (same cross-turn persistence as ainfer).
         """
         import asyncio as _asyncio
-        loop  = _asyncio.get_event_loop()
-        queue: _asyncio.Queue = _asyncio.Queue()
+
+        # Fast path: llama.cpp streaming (server-side SSE, much better quality)
+        self._try_load_llama()
+        if self._llama is not None:
+            from node.inference_pipeline import _apply_qwen_template
+            system = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+            formatted = _apply_qwen_template(prompt, system)
+            loop = _asyncio.get_running_loop()
+            queue: _asyncio.Queue = _asyncio.Queue()
+
+            def _run_llama():
+                try:
+                    for tok in self._llama.stream_generate(formatted, max_tokens=self._max_tokens):
+                        loop.call_soon_threadsafe(queue.put_nowait, (tok, None))
+                    loop.call_soon_threadsafe(queue.put_nowait, ("__done__", None))
+                except Exception as exc:
+                    loop.call_soon_threadsafe(queue.put_nowait, ("__error__", str(exc)))
+
+            loop.run_in_executor(None, _run_llama)
+            while True:
+                item = await queue.get()
+                if item[0] == "__done__":
+                    yield None, None
+                    return
+                if item[0] == "__error__":
+                    logger.warning("[Orchestrator] llama.cpp stream error: %s; falling back", item[1])
+                    self._llama = None
+                    break
+                yield item[0], None
+            else:
+                return  # llama path completed cleanly
+
+        _decision = self._router.route(prompt)
+        _temperature = self._TEMPERATURES.get(_decision.sub_model, 0.5)
+
+        loop  = _asyncio.get_running_loop()
+        queue = _asyncio.Queue()
 
         def _run():
             try:
                 result = self._shard_infer_stream(prompt, queue, loop,
-                                                  lpc_session_id=lpc_session_id)
+                                                  lpc_session_id=lpc_session_id,
+                                                  temperature=_temperature)
                 loop.call_soon_threadsafe(queue.put_nowait, ("__done__", result))
             except Exception as exc:
                 loop.call_soon_threadsafe(queue.put_nowait, ("__error__", str(exc)))
@@ -360,11 +440,40 @@ class ShatteringOrchestrator:
 
     # ── Local inference ─────────────────────────────────────────────────
 
+    def _try_load_llama(self) -> None:
+        """Attempt to load llama.cpp backend once; sets _llama_checked to avoid retries."""
+        if self._llama_checked:
+            return
+        self._llama_checked = True
+        try:
+            from node.llama_backend import LlamaBackend
+            self._llama = LlamaBackend.try_load()
+            if self._llama:
+                logger.info("[Orchestrator] llama.cpp backend active")
+        except Exception as exc:
+            logger.debug("[Orchestrator] llama.cpp backend unavailable: %s", exc)
+
     def _local_infer(self, prompt: str, decision: RouteDecision,
-                     lpc_session_id: Optional[str] = None):
+                     lpc_session_id: Optional[str] = None,
+                     temperature: Optional[float] = None):
+        if temperature is None:
+            temperature = self._TEMPERATURES.get(decision.sub_model, 0.5)
+        # Fast path: llama.cpp if GGUF model and runtime are present
+        self._try_load_llama()
+        if self._llama is not None:
+            from node.inference_pipeline import _apply_qwen_template
+            system = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+            formatted = _apply_qwen_template(prompt, system)
+            result = self._llama.generate(formatted, max_tokens=self._max_tokens)
+            if result is not None:
+                return result, "llama.cpp"
+            # llama.cpp failed mid-session — disable and fall through to numpy
+            logger.warning("[Orchestrator] llama.cpp returned None, falling back to numpy")
+            self._llama = None
+
         # If real Qwen .npz shards are present, run the full shard pipeline
         if self._shards_available():
-            text = self._shard_infer(prompt, lpc_session_id=lpc_session_id)
+            text = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
             return text, "local"
 
         sub_model = decision.sub_model
@@ -396,34 +505,43 @@ class ShatteringOrchestrator:
             text = self._ollama_infer(prompt, sub_model, n_passes=self._n_passes)
             return text, "simulation"
 
-        text = self._shard_infer(prompt, lpc_session_id=lpc_session_id)
+        text = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
         return text, "local"
 
     def _shards_available(self) -> bool:
         """
-        True when at least one Qwen INT4 .npz shard file exists and is non-empty.
+        True when at least one Qwen INT4 shard is present (either .npz file or unpacked
+        shard_N/ directory created by scripts/unpack_shards.py).
 
         In swarm mode each node hosts exactly 1 shard (the one assigned by the
         coordinator). Requiring all 4 would always return False for swarm nodes.
         The assigned shard index is stored in COGNIA_NODE_SHARD; when unset,
-        any shard_*.npz present is accepted.
+        any shard_*.npz or shard_N/ present is accepted.
         """
         shard_dir = Path(os.environ.get("SHARD_WEIGHTS_DIR", ""))
+        if not shard_dir.is_absolute():
+            shard_dir = Path(__file__).parent.parent / shard_dir
         if not shard_dir.is_dir():
             return False
+
+        def _shard_present(idx: int) -> bool:
+            npz = shard_dir / f"shard_{idx}.npz"
+            if npz.is_file() and npz.stat().st_size > 0:
+                return True
+            # Also accept unpacked directory form (scripts/unpack_shards.py)
+            npy_dir = shard_dir / f"shard_{idx}"
+            try:
+                return npy_dir.is_dir() and any(npy_dir.iterdir())
+            except OSError:
+                return False
+
         assigned = os.environ.get("COGNIA_NODE_SHARD")
         if assigned is not None:
             try:
-                shard_file = shard_dir / f"shard_{int(assigned)}.npz"
-                return shard_file.is_file() and shard_file.stat().st_size > 0
+                return _shard_present(int(assigned))
             except (ValueError, OSError):
                 return False
-        # No assignment — accept any present shard
-        return any(
-            (shard_dir / f"shard_{i}.npz").is_file()
-            and (shard_dir / f"shard_{i}.npz").stat().st_size > 0
-            for i in range(4)
-        )
+        return any(_shard_present(i) for i in range(4))
 
     def _try_load_draft(self, shard_dir: str) -> None:
         """Attempt to load the nano-draft model; silently skip if not built yet."""
@@ -441,7 +559,8 @@ class ShatteringOrchestrator:
             logger.warning("[Orchestrator] nano-draft load failed: %s", exc)
 
     def _shard_infer_stream(self, prompt: str, queue, loop,
-                            lpc_session_id: Optional[str] = None) -> "InferResult":
+                            lpc_session_id: Optional[str] = None,
+                            temperature: float = 0.5) -> "InferResult":
         """
         Streaming token generation with speculative decoding when nano_draft.npz is present.
         Puts (token_text, None) into queue per token; returns InferResult when done.
@@ -454,7 +573,10 @@ class ShatteringOrchestrator:
             pipeline, route = self._build_local_pipeline()
             self._pipeline = pipeline
             self._local_route = route
-            self._try_load_draft(os.environ.get("SHARD_WEIGHTS_DIR", ""))
+            _sd = Path(os.environ.get("SHARD_WEIGHTS_DIR", ""))
+            if not _sd.is_absolute():
+                _sd = Path(__file__).parent.parent / _sd
+            self._try_load_draft(str(_sd))
 
         pipeline   = self._pipeline
         route      = self._local_route
@@ -487,7 +609,7 @@ class ShatteringOrchestrator:
             else:
                 current_ids = all_ids
         else:
-            session_id  = f"local_{_time.time()}"
+            session_id  = "intra_" + uuid.uuid4().hex[:8]
             current_ids = all_ids
 
         prompt_ids = current_ids.copy()
@@ -577,7 +699,7 @@ class ShatteringOrchestrator:
             )
             if not success:
                 break
-            next_id     = pipeline._sample(output, temperature=0.7)
+            next_id     = pipeline._sample(output, temperature=temperature)
             prev_output = output
             tokens_generated += 1
 
@@ -603,6 +725,9 @@ class ShatteringOrchestrator:
         # Update LPC so the next streaming call can skip the cached prefix
         if lpc_entry is not None and lpc_session_id is not None:
             self._lpc.update(lpc_session_id, len(all_ids) + tokens_generated)
+        else:
+            # Intra-turn session — evict immediately so MLA cache doesn't leak
+            self._evict_one_mla_session(session_id)
 
         return InferResult(
             text         = text,
@@ -613,7 +738,8 @@ class ShatteringOrchestrator:
             route_reason = "shard_stream",
         )
 
-    def _shard_infer(self, prompt: str, lpc_session_id: Optional[str] = None) -> str:
+    def _shard_infer(self, prompt: str, lpc_session_id: Optional[str] = None,
+                     temperature: float = 0.5) -> str:
         """
         Run end-to-end inference via the real Qwen INT4 forward pass.
 
@@ -626,9 +752,14 @@ class ShatteringOrchestrator:
             pipeline, route = self._build_local_pipeline()
             self._pipeline = pipeline
             self._local_route = route
+            _sd = Path(os.environ.get("SHARD_WEIGHTS_DIR", ""))
+            if not _sd.is_absolute():
+                _sd = Path(__file__).parent.parent / _sd
+            self._try_load_draft(str(_sd))
 
         result = self._generate_local(
-            prompt, self._pipeline, self._local_route, lpc_session_id=lpc_session_id
+            prompt, self._pipeline, self._local_route,
+            lpc_session_id=lpc_session_id, temperature=temperature
         )
         if result.get("ok") and result.get("text"):
             return result["text"]
@@ -643,7 +774,8 @@ class ShatteringOrchestrator:
         )
 
     def _generate_local(self, prompt: str, pipeline, route: list,
-                        lpc_session_id: Optional[str] = None) -> dict:
+                        lpc_session_id: Optional[str] = None,
+                        temperature: float = 0.5) -> dict:
         """
         Drive the token-by-token generation loop locally, without any HTTP call.
         Delegates each forward pass to registered local ShardEngines.
@@ -689,17 +821,21 @@ class ShatteringOrchestrator:
             else:
                 current_ids = all_ids
         else:
-            session_id  = f"local_{_time.time()}"
+            session_id  = "intra_" + uuid.uuid4().hex[:8]
             current_ids = all_ids
             lpc_entry   = None
 
         generated_ids, tokens_generated = self._token_loop(
-            pipeline, route, session_id, current_ids, hidden_dim, eos_set
+            pipeline, route, session_id, current_ids, hidden_dim, eos_set,
+            temperature=temperature
         )
 
         # ── LPC: update cached token count ───────────────────────────────
         if lpc_entry is not None:
             self._lpc.update(lpc_session_id, len(all_ids) + tokens_generated)
+        else:
+            # Intra-turn session — evict immediately so MLA cache doesn't leak
+            self._evict_one_mla_session(session_id)
 
         text = pipeline._decode(generated_ids)
         return {
@@ -710,7 +846,8 @@ class ShatteringOrchestrator:
         }
 
     def _token_loop(self, pipeline, route: list, session_id: str,
-                    current_ids, hidden_dim: int, eos_set: set):
+                    current_ids, hidden_dim: int, eos_set: set,
+                    temperature: float = 0.5):
         """Inner token generation loop with optional speculative decoding."""
         import numpy as np
         import time as _time
@@ -780,7 +917,7 @@ class ShatteringOrchestrator:
             )
             if not success:
                 break
-            next_id     = pipeline._sample(output, temperature=0.7)
+            next_id     = pipeline._sample(output, temperature=temperature)
             prev_output = output
             tokens_generated += 1
 
@@ -806,7 +943,10 @@ class ShatteringOrchestrator:
         )
         from shattering.model_constants import QWEN25_CODER_3B
 
-        shard_dir  = os.environ.get("SHARD_WEIGHTS_DIR", "")
+        _shard_dir_raw = Path(os.environ.get("SHARD_WEIGHTS_DIR", ""))
+        if not _shard_dir_raw.is_absolute():
+            _shard_dir_raw = Path(__file__).parent.parent / _shard_dir_raw
+        shard_dir  = str(_shard_dir_raw)
         model_name = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
 
         # Determine which shards are present locally

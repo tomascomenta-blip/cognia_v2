@@ -23,9 +23,54 @@ _ROOT = Path(__file__).parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from fastapi import FastAPI, HTTPException, Query
+# Load .env from the repo root before any os.environ reads.
+# Electron spawns this process without loading .env, so we do it here.
+# Existing env vars (set by the OS or Electron) are never overridden.
+def _load_dotenv(env_file: Path) -> None:
+    if not env_file.is_file():
+        return
+    with env_file.open(encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if not _line or _line.startswith("#") or "=" not in _line:
+                continue
+            _key, _, _val = _line.partition("=")
+            _key = _key.strip()
+            _val = _val.strip().strip('"').strip("'")
+            if _key and _key not in os.environ:
+                os.environ[_key] = _val
+
+_load_dotenv(_ROOT / ".env")
+
+# If SHARD_WEIGHTS_DIR is set but points to a non-existent directory,
+# fall back to the value from the project .env (dev workflow: shards in project tree).
+def _fix_shard_dir_if_missing() -> None:
+    current = os.environ.get("SHARD_WEIGHTS_DIR", "")
+    if not current:
+        return
+    p = Path(current) if Path(current).is_absolute() else _ROOT / current
+    if p.is_dir():
+        return
+    # Override with project .env value
+    env_file = _ROOT / ".env"
+    if not env_file.is_file():
+        return
+    with env_file.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            if key.strip() == "SHARD_WEIGHTS_DIR":
+                os.environ["SHARD_WEIGHTS_DIR"] = val.strip().strip('"').strip("'")
+                break
+
+_fix_shard_dir_if_missing()
+
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+import time as _time
+from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from shattering.orchestrator import ShatteringOrchestrator
@@ -43,7 +88,14 @@ else:
 _MANIFEST = str(_ROOT / "shattering" / "manifests" / "cognia_desktop.json")
 _COORDINATOR = os.environ.get("COGNIA_COORDINATOR_URL")
 
-app = FastAPI(title="Cognia Desktop API", version="1.0.0")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def _lifespan(app):
+    asyncio.create_task(_kv_evict_loop())
+    yield
+
+app = FastAPI(title="Cognia Desktop API", version="1.0.0", lifespan=_lifespan)
 
 # COGNIA_LAN_MODE=1 → bind to 0.0.0.0 and open CORS for LAN (mobile access).
 # Default (Electron mode) → localhost only.
@@ -51,12 +103,14 @@ _LAN_MODE = os.environ.get("COGNIA_LAN_MODE", "0") == "1"
 _CORS_ORIGINS = (
     os.environ.get("COGNIA_CORS_ORIGINS", "*").split(",")
     if _LAN_MODE
-    else ["http://localhost:8765", "http://127.0.0.1:8765"]
+    # Electron loadFile() sends Origin: null (file:// scheme); include it so
+    # Chromium doesn't block EventSource responses from the renderer.
+    else ["http://localhost:8765", "http://127.0.0.1:8765", "null"]
 )
 
 _cors_kwargs: dict = dict(
     allow_origins=_CORS_ORIGINS,
-    allow_methods=["POST", "GET"],
+    allow_methods=["POST", "GET", "DELETE"],
     allow_headers=["Content-Type"],
 )
 if _LAN_MODE:
@@ -64,6 +118,26 @@ if _LAN_MODE:
     _cors_kwargs["allow_origin_regex"] = r"http://192\.168\.\d+\.\d+:\d+"
 
 app.add_middleware(CORSMiddleware, **_cors_kwargs)
+
+_CHAT_DB = str(_ROOT / "cognia_desktop_chat.db")
+
+def _init_chat_db() -> None:
+    from storage.db_pool import get_pool
+    with get_pool(_CHAT_DB).get() as conn:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS chat_history ("
+            "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  session_id TEXT NOT NULL,"
+            "  role TEXT NOT NULL,"
+            "  content TEXT NOT NULL,"
+            "  ts INTEGER NOT NULL DEFAULT (strftime('%s','now'))"
+            ")"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_history(session_id, id)"
+        )
+
+_init_chat_db()
 
 # Single orchestrator instance shared across requests
 _orch = ShatteringOrchestrator(
@@ -83,10 +157,6 @@ async def _kv_evict_loop() -> None:
             pass
 
 
-@app.on_event("startup")
-async def _startup() -> None:
-    asyncio.create_task(_kv_evict_loop())
-
 
 # ── Pydantic models ────────────────────────────────────────────────────
 
@@ -96,6 +166,23 @@ _MAX_PROMPT_CHARS = 4096  # guard against log flooding and excessive inference c
 
 class InferRequest(BaseModel):
     prompt: str
+
+    @field_validator("prompt")
+    @classmethod
+    def prompt_not_too_long(cls, v: str) -> str:
+        if len(v) > _MAX_PROMPT_CHARS:
+            raise ValueError(f"prompt too long (max {_MAX_PROMPT_CHARS} chars)")
+        return v
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatStreamRequest(BaseModel):
+    prompt: str
+    history: list[ChatMessage] = []
 
     @field_validator("prompt")
     @classmethod
@@ -159,6 +246,53 @@ def route(prompt: str = Query(..., description="Prompt to route", max_length=409
     )
 
 
+_SYSTEM_PROMPT = (
+    "Eres Cognia, un asistente de IA distribuido y local que corre en el dispositivo del usuario. "
+    "Tienes memoria episodica y un grafo de conocimiento para recordar contexto entre sesiones. "
+    "Responde siempre en el mismo idioma que el usuario. "
+    "Usa Markdown para formatear tus respuestas: **negrita** para enfasis, `codigo inline` para variables y funciones, "
+    "bloques de codigo con triple backtick para ejemplos de codigo (incluye el lenguaje, ej: ```python), "
+    "y listas con guion para enumeraciones. "
+    "Se conciso y directo. Si no sabes algo, dilo claramente en vez de inventar."
+)
+
+
+@app.post("/infer-stream-v2")
+async def infer_stream_v2(req: ChatStreamRequest):
+    """
+    SSE streaming endpoint with full conversation history.
+    Body: { prompt: str, history: [{role, content}, ...] }
+    The history contains previous turns; prompt is the current user message.
+    """
+    if not req.prompt.strip():
+        raise HTTPException(status_code=400, detail="prompt cannot be empty")
+
+    messages = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    for m in req.history:
+        messages.append({"role": m.role, "content": m.content})
+    messages.append({"role": "user", "content": req.prompt})
+
+    async def generator():
+        try:
+            got_tokens = False
+            async for token_text, _ in _orch.astream_chat(messages):
+                if token_text is not None:
+                    got_tokens = True
+                    yield {"data": json.dumps({"token": token_text, "done": False})}
+            if got_tokens:
+                yield {"data": json.dumps({
+                    "done": True, "sub_model": "llama", "confidence": 1.0,
+                    "latency_ms": 0, "mode": "llama.cpp", "route_reason": "llama.cpp",
+                })}
+            else:
+                yield {"data": json.dumps({"done": True, "error": "no output"})}
+        except Exception as exc:
+            _api_logger.error("stream_v2 failed: %s", exc, exc_info=True)
+            yield {"data": json.dumps({"done": True, "error": str(exc)})}
+
+    return EventSourceResponse(generator())
+
+
 @app.get("/status")
 def status():
     """Return orchestrator + fragment status."""
@@ -178,21 +312,28 @@ async def infer_stream(prompt: str = Query(..., description="Prompt to infer", m
     async def generator():
         try:
             result = None
+            got_tokens = False
             async for token_text, final in _orch.astream(prompt):
                 if token_text is not None:
+                    got_tokens = True
                     yield {"data": json.dumps({"token": token_text, "done": False})}
                 else:
                     result = final
             if result is None:
-                yield {"data": json.dumps({"done": True, "error": "no output"})}
+                if got_tokens:
+                    # llama.cpp path: tokens delivered, no InferResult object — send clean done
+                    yield {"data": json.dumps({"done": True, "sub_model": "llama", "confidence": 1.0, "latency_ms": 0, "mode": "llama.cpp", "route_reason": "llama.cpp"})}
+                else:
+                    yield {"data": json.dumps({"done": True, "error": "no output"})}
                 return
             yield {
                 "data": json.dumps({
-                    "done":       True,
-                    "sub_model":  result.sub_model,
-                    "confidence": result.confidence,
-                    "latency_ms": result.latency_ms,
-                    "mode":       result.mode,
+                    "done":         True,
+                    "sub_model":    result.sub_model,
+                    "confidence":   result.confidence,
+                    "latency_ms":   result.latency_ms,
+                    "mode":         result.mode,
+                    "route_reason": getattr(result, "route_reason", ""),
                 })
             }
         except Exception as exc:
@@ -256,6 +397,169 @@ async def ready():
     }
 
 
+@app.get("/health/performance")
+async def health_performance():
+    """Measure real tok/s by running a short test inference."""
+    import time
+    backend_activo = "llama" if (
+        hasattr(_orch, "_llama") and _orch._llama is not None
+        and hasattr(_orch._llama, "stream_chat")
+    ) else "numpy"
+    nano_draft_activo = getattr(_orch, "_draft", None) is not None
+    try:
+        messages = [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": "Hola"},
+        ]
+        tokens = 0
+        t0 = time.perf_counter()
+        async for token_text, _ in _orch.astream_chat(messages):
+            if token_text is not None:
+                tokens += 1
+                if tokens >= 10:
+                    break
+        elapsed = time.perf_counter() - t0
+        tok_s = round(tokens / elapsed, 2) if elapsed > 0 else 0.0
+        return {
+            "tok_s": tok_s,
+            "latencia_total_ms": round(elapsed * 1000, 1),
+            "backend_activo": backend_activo,
+            "nano_draft_activo": nano_draft_activo,
+        }
+    except Exception as exc:
+        return {"error": str(exc), "tok_s": 0}
+
+
+class ChatHistoryRequest(BaseModel):
+    session_id: str
+    messages: list[ChatMessage]
+
+
+@app.get("/chat/history")
+def get_chat_history(session_id: str = Query(..., max_length=128)):
+    from storage.db_pool import get_pool
+    with get_pool(_CHAT_DB).get() as conn:
+        rows = conn.execute(
+            "SELECT role, content FROM chat_history WHERE session_id = ? ORDER BY id",
+            (session_id,),
+        ).fetchall()
+    return {"messages": [{"role": r, "content": c} for r, c in rows]}
+
+
+@app.post("/chat/history")
+def save_chat_history(req: ChatHistoryRequest):
+    from storage.db_pool import get_pool
+    with get_pool(_CHAT_DB).get() as conn:
+        conn.execute("DELETE FROM chat_history WHERE session_id = ?", (req.session_id,))
+        conn.executemany(
+            "INSERT INTO chat_history (session_id, role, content) VALUES (?, ?, ?)",
+            [(req.session_id, m.role, m.content) for m in req.messages],
+        )
+    return {"saved": len(req.messages)}
+
+
+@app.delete("/chat/history")
+def delete_chat_history(session_id: str = Query(..., max_length=128)):
+    from storage.db_pool import get_pool
+    with get_pool(_CHAT_DB).get() as conn:
+        conn.execute("DELETE FROM chat_history WHERE session_id = ?", (session_id,))
+    return {"deleted": True}
+
+
+class AgentRequest(BaseModel):
+    task: str = Field(..., min_length=1, max_length=2000)
+
+
+class AgentResponse(BaseModel):
+    result: str
+    latency_ms: float
+
+
+@app.post("/agent", response_model=AgentResponse)
+async def run_agent(req: AgentRequest):
+    """Run a single agent task via the orchestrator."""
+    if not req.task.strip():
+        raise HTTPException(status_code=400, detail="task cannot be empty")
+    t0 = _time.perf_counter()
+    try:
+        result = await _orch.ainfer(
+            f"Eres un agente de IA. Ejecuta esta tarea de forma directa y concisa:\n\n{req.task}"
+        )
+        latency = (_time.perf_counter() - t0) * 1000
+        return AgentResponse(result=result.text, latency_ms=round(latency, 1))
+    except Exception as exc:
+        _api_logger.error("Agent task failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+_SKILLS_DIR_API = _ROOT / "cognia_skills"
+
+
+@app.get("/skills")
+def list_skills():
+    """List available skill files from cognia_skills/."""
+    import pathlib, re as _re
+    skills_dir = _SKILLS_DIR_API
+    if not skills_dir.exists():
+        return {"skills": []}
+    result = []
+    for f in sorted(skills_dir.glob("*.md")):
+        lines = f.read_text(encoding="utf-8", errors="replace").splitlines()
+        desc = ""
+        in_front = False
+        for line in lines:
+            if line.strip() == "---":
+                in_front = not in_front
+                continue
+            if in_front and line.startswith("description:"):
+                desc = line.split(":", 1)[1].strip()
+                break
+        result.append({"name": f.stem, "description": desc, "file": f.name})
+    return {"skills": result}
+
+
+@app.get("/skills/{name}")
+def get_skill(name: str):
+    """Return full content of a skill file."""
+    import re as _re
+    if not _re.match(r'^[\w\-]+$', name):
+        raise HTTPException(status_code=400, detail="invalid skill name")
+    f = _SKILLS_DIR_API / f"{name}.md"
+    if not f.exists():
+        raise HTTPException(status_code=404, detail="skill not found")
+    return {"name": name, "content": f.read_text(encoding="utf-8", errors="replace")}
+
+
+@app.get("/network/status")
+async def network_status():
+    """P2P network status: coordinator reachability + local backend info."""
+    import urllib.request as _ur
+    import json as _j
+
+    local_backend = "llama" if (
+        hasattr(_orch, "_llama") and _orch._llama is not None
+        and hasattr(_orch._llama, "stream_chat")
+    ) else "numpy"
+    nano_draft = getattr(_orch, "_draft", None) is not None
+
+    coordinator_url = os.environ.get("COGNIA_COORDINATOR_URL", "").rstrip("/")
+    if not coordinator_url:
+        return {"online": False, "error": "no coordinator configured",
+                "local_backend": local_backend, "nano_draft": nano_draft}
+
+    try:
+        req = _ur.Request(f"{coordinator_url}/status", headers={"Accept": "application/json"})
+        with _ur.urlopen(req, timeout=3) as r:
+            data = _j.loads(r.read())
+        data["local_backend"] = local_backend
+        data["nano_draft"] = nano_draft
+        data.setdefault("online", True)
+        return data
+    except Exception as exc:
+        return {"online": False, "error": "coordinator unreachable",
+                "local_backend": local_backend, "nano_draft": nano_draft}
+
+
 @app.get("/health")
 def health():
     return {"ok": True}
@@ -264,6 +568,68 @@ def health():
 @app.get("/")
 def root():
     return {"service": "Cognia Desktop API", "version": "1.0.0"}
+
+
+# ── File browser endpoints ─────────────────────────────────────────────
+
+import re as _re_files
+
+_WORKSPACE = Path.cwd()
+
+
+@app.get("/files/list")
+def list_files(path: str = "."):
+    """List files in a directory relative to workspace."""
+    target = (_WORKSPACE / path).resolve()
+    if not str(target).startswith(str(_WORKSPACE)):
+        raise HTTPException(status_code=403, detail="path outside workspace")
+    if not target.is_dir():
+        raise HTTPException(status_code=404, detail="not a directory")
+    entries = []
+    try:
+        for e in sorted(target.iterdir(), key=lambda x: (x.is_file(), x.name)):
+            if e.name.startswith('.') and e.name not in ('.env',):
+                continue
+            entries.append({
+                "name": e.name,
+                "type": "dir" if e.is_dir() else "file",
+                "size": e.stat().st_size if e.is_file() else None,
+                "path": str(e.relative_to(_WORKSPACE)).replace("\\", "/"),
+            })
+    except PermissionError:
+        pass
+    return {"path": str(target.relative_to(_WORKSPACE)).replace("\\", "/"), "entries": entries[:100]}
+
+
+@app.get("/files/read")
+def read_file(path: str):
+    """Read a text file relative to workspace. Max 100KB."""
+    target = (_WORKSPACE / path).resolve()
+    if not str(target).startswith(str(_WORKSPACE)):
+        raise HTTPException(status_code=403, detail="path outside workspace")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="not a file")
+    try:
+        content = target.read_text(encoding="utf-8", errors="replace")
+        return {"path": path, "content": content[:102400], "truncated": len(content) > 102400}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/files/write")
+async def write_file(req: Request):
+    """Write text to a file relative to workspace."""
+    body = await req.json()
+    path = body.get("path", "")
+    content = body.get("content", "")
+    if not path or not _re_files.match(r'^[\w\-./]+$', path):
+        raise HTTPException(status_code=400, detail="invalid path")
+    target = (_WORKSPACE / path).resolve()
+    if not str(target).startswith(str(_WORKSPACE)):
+        raise HTTPException(status_code=403, detail="path outside workspace")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
+    return {"ok": True, "path": path, "size": len(content)}
 
 
 # ── Dev entry point ────────────────────────────────────────────────────

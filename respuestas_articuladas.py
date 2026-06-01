@@ -23,10 +23,14 @@ import os, sys, json, urllib.request
 
 # ── Language Engine híbrido (opcional pero recomendado) ───────────────────────
 try:
-    from language_engine import get_language_engine
+    from cognia.language_engine import get_language_engine
     HAS_LANGUAGE_ENGINE = True
 except ImportError:
-    HAS_LANGUAGE_ENGINE = False
+    try:
+        from language_engine import get_language_engine
+        HAS_LANGUAGE_ENGINE = True
+    except ImportError:
+        HAS_LANGUAGE_ENGINE = False
 
 # ── PASO 3: Memoria conversacional multi-turno ────────────────────────
 try:
@@ -52,6 +56,41 @@ except ImportError:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
 os.chdir(BASE_DIR)
+
+
+def _trim_context_smart(ctx: str, max_chars: int = 1600) -> str:
+    """Split context by section markers and apply per-section budgets."""
+    if len(ctx) <= max_chars:
+        return ctx
+
+    # Identify sections by common markers in the context
+    sections = []
+    current = []
+    for line in ctx.split('\n'):
+        if line.startswith('[') or line.startswith('**') or line.startswith('=='):
+            if current:
+                sections.append('\n'.join(current))
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        sections.append('\n'.join(current))
+
+    if len(sections) <= 1:
+        # No sections found, simple truncation with ellipsis
+        return ctx[:max_chars] + '...'
+
+    # Distribute budget: first section gets 40%, rest split equally
+    budget_first = int(max_chars * 0.4)
+    budget_rest = max_chars - budget_first
+    per_section = max(100, budget_rest // (len(sections) - 1))
+
+    parts = [sections[0][:budget_first]]
+    for sec in sections[1:]:
+        parts.append(sec[:per_section])
+
+    result = '\n'.join(p for p in parts if p.strip())
+    return result[:max_chars]
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 MODELO     = os.environ.get("COGNIA_MODEL", "llama3.2")
@@ -279,7 +318,7 @@ def construir_contexto(ai, pregunta):
         preds = ai.temporal_mem.predict_from_context()
         if preds:
             pred_lines = [
-                f"- {p['concept']} (probabilidad: {p['probability']:.0%})"
+                f"- {p.get('concept', str(p))} (probabilidad: {p.get('probability', p.get('score', 0)):.0%})"
                 for p in preds[:3]
             ]
             bloques.append("PREDICCIONES TEMPORALES:\n" + "\n".join(pred_lines))
@@ -500,6 +539,44 @@ def _postprocess_response(ai, engine_result, pre: dict) -> dict:
     except Exception:
         pass
 
+    # episodic memory — store meaningful LLM responses so they can be recalled.
+    # Only store when the LLM was used (not cache/symbolic) and response is substantial.
+    # Label with top_label from the engine so retrieval can anchor to a concept.
+    try:
+        _ep_label = getattr(engine_result, 'episode_ids', None)  # just to gate
+        if (engine_result.used_llm
+                and len(engine_result.response) > 40
+                and engine_result.stage_used not in ("cache", "symbolic_forced")):
+            _resp_snippet = engine_result.response[:300].strip()
+            _resp_label = None
+            # Try to derive label from the top_label inside mem_builder context
+            if hasattr(ai, 'episodic'):
+                try:
+                    from cognia.vectors import text_to_vector as _tv2
+                    _qv = _tv2(engine_result.response[:100])
+                    _sim = ai.episodic.retrieve_similar(_qv, top_k=3)
+                    _lbs = [s.get("label") for s in _sim if s.get("label")]
+                    if _lbs:
+                        from collections import Counter as _Ctr
+                        _resp_label = _Ctr(_lbs).most_common(1)[0][0]
+                except Exception:
+                    pass
+            ai.episodic.store(
+                observation  = _resp_snippet,
+                label        = _resp_label,
+                vector       = text_to_vector(_resp_snippet[:200]),
+                confidence   = min(0.7, engine_result.confidence + 0.1),
+                importance   = 0.6,
+                emotion      = analyze_emotion(_resp_snippet[:80]),
+                surprise     = 0.0,
+                context_tags = [],
+            )
+            from cognia.memory.episodic_fast import get_vector_cache
+            from cognia.config import DB_PATH
+            get_vector_cache(getattr(ai, 'db', DB_PATH)).mark_dirty()
+    except Exception:
+        pass
+
     # ── PASO 3: Registrar turno completo en ConversationContext ────────
     if HAS_CONV_MEMORY:
         try:
@@ -612,7 +689,7 @@ def responder_articulado(ai, pregunta):
 
     if contexto:
         inv_nota = "\n(Nota: investigué esto ahora en Wikipedia y lo guardé en mi memoria.)" if investigado else ""
-        contexto_trim = contexto[:1200] + ("..." if len(contexto) > 1200 else "")
+        contexto_trim = _trim_context_smart(contexto)
         prompt = (f"PREGUNTA: {pregunta[:400]}\n\n"
                   f"CONTEXTO DE MI MEMORIA:\n{contexto_trim}{inv_nota}\n\n"
                   "Responde basandote en el contexto de forma natural.")

@@ -317,13 +317,18 @@ class DistributedInferencePipeline:
                                            payload.astype(np.float16))
 
             if _LOCAL_ENGINES:
-                for engine in _LOCAL_ENGINES:
-                    wire, _ = engine.process_bytes(wire, session_id)
-                # Detect protocol version by first byte
-                if wire[0] in (0, 1, 2):
-                    _, _, out = decode_wire(wire)
+                # Fast path: skip bytes serialization between local engines
+                if payload.dtype == np.int32:
+                    x = None
+                    token_ids = payload
                 else:
-                    _, _, out = decode_hidden_state(wire)
+                    x = payload.astype(np.float32)
+                    token_ids = None
+                for engine in _LOCAL_ENGINES:
+                    out, _ = engine.process(x, token_ids=token_ids, session_id=session_id)
+                    # After first shard: hidden state passes through as float32
+                    x = out.astype(np.float32) if out.dtype != np.float32 else out
+                    token_ids = None
                 return out, True
 
             if not self.coordinator:

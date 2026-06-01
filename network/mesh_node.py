@@ -591,3 +591,10 @@ def get_mesh_node(
     if _node_instance is None:
         _node_instance = CogniaMeshNode(node_id=node_id, port=port)
     return _node_instance
+
+
+def get_active_peers() -> int:
+    """Retorna el número de peers activos conocidos por el nodo mesh."""
+    if _node_instance is None:
+        return 0
+    return len(_node_instance._peers)

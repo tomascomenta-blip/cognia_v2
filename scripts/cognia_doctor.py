@@ -138,6 +138,47 @@ def check_shards() -> bool:
                  "empty -- shards are downloaded on first inference request")
 
 
+def check_inference_speed() -> bool:
+    shard_dir = os.environ.get("SHARD_WEIGHTS_DIR", "")
+    if not shard_dir:
+        env_path = os.path.join(_ROOT, ".env")
+        if os.path.isfile(env_path):
+            with open(env_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("SHARD_WEIGHTS_DIR="):
+                        shard_dir = line.split("=", 1)[1].strip().strip('"').strip("'")
+                        break
+    if not shard_dir or not os.path.isdir(os.path.join(_ROOT, shard_dir)):
+        return _warn("Inferencia", "No shards -- skip")
+    try:
+        import time
+        sys.path.insert(0, _ROOT)
+        from shattering.orchestrator import ShatteringOrchestrator
+        _candidates = ["cognia_qwen.json", "cognia_desktop.json"]
+        manifest = next(
+            (os.path.join(_ROOT, "shattering", "manifests", c)
+             for c in _candidates
+             if os.path.isfile(os.path.join(_ROOT, "shattering", "manifests", c))),
+            None,
+        )
+        if manifest is None:
+            return _warn("Inferencia", "No manifest found -- skip")
+        orch = ShatteringOrchestrator(
+            manifest_path=manifest,
+            base_dir=os.path.join(_ROOT, shard_dir),
+        )
+        t0 = time.perf_counter()
+        result = orch.infer("Hello")
+        latency_ms = (time.perf_counter() - t0) * 1000
+        # Approximate subword tokens: word count * 1.3 (English code skews ~1.2-1.4 subwords/word)
+        approx_tokens = len(result.text.split()) * 1.3
+        tok_s = approx_tokens / latency_ms * 1000 if latency_ms > 0 else 0.0
+        return _ok(f"Inferencia: {tok_s:.1f} tok/s (approx) | backend={result.mode} | {latency_ms:.0f}ms")
+    except Exception as e:
+        return _warn("Inferencia fallo", str(e))
+
+
 def run_all() -> int:
     sections = [
         ("Python version",    check_python),
@@ -147,6 +188,7 @@ def run_all() -> int:
         ("Configuration",     check_env),
         ("Database",          check_db),
         ("Model shards",      check_shards),
+        ("Inference speed",   check_inference_speed),
     ]
 
     fails = 0

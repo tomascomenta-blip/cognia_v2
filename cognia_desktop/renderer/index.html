@@ -58,6 +58,20 @@
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 10l3-4 3 3 2-3 2 4" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><rect x="1.5" y="2" width="13" height="12" rx="1.5" stroke="currentColor" stroke-width="1.2"/></svg>
           <span>Status</span>
         </button>
+        <button class="nav-item" data-panel="skills" title="Skills">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="13" cy="11" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M13 9.5v1.5l1 1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          <span>Skills</span>
+        </button>
+        <button class="nav-item" data-panel="tools" title="Herramientas">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+          <span>Tools</span>
+        </button>
+        <button id="nav-agent" class="nav-item" title="Modo agente">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M2 14c0-3 2.5-4.5 6-4.5s6 1.5 6 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M6 6h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+          <span>Agent</span>
+        </button>
       </nav>
 
       <div id="sidebar-bottom">
@@ -68,6 +82,7 @@
         <div id="badge-wrap">
           <span id="backend-badge" class="badge">connecting</span>
         </div>
+        <div id="network-status" style="font-size:10px;opacity:0.5;padding:4px 8px;word-break:break-word;">Network: —</div>
       </div>
     </aside>
 
@@ -84,10 +99,15 @@
           </div>
         </header>
         <div id="chat"></div>
+        <div id="perf-bar"></div>
         <div id="inputbar">
           <textarea id="prompt" placeholder="Message Cognia..."></textarea>
+          <span id="char-counter" style="font-size:10px;opacity:0.4;margin-left:4px;align-self:flex-end;">0/4096</span>
           <button id="btn-send" class="btn-primary" disabled>Send</button>
+          <button id="btn-clear-chat" class="btn-ghost" title="Clear conversation">Clear</button>
+          <button id="btn-export-chat" class="btn-ghost" title="Export chat as Markdown">Export</button>
         </div>
+        <div id="kb-hint" style="font-size:10px;opacity:0.35;text-align:right;padding:2px 8px;">Ctrl+Enter enviar &middot; Ctrl+K limpiar &middot; Esc cancelar</div>
       </div>
 
       <!-- Memory panel -->
@@ -118,6 +138,39 @@
         </header>
         <div class="panel-content">
           <pre id="status-content" class="code-block">Loading...</pre>
+        </div>
+      </div>
+
+      <!-- Skills panel -->
+      <div id="panel-skills" class="panel">
+        <header class="panel-header">
+          <span class="panel-title">Skills</span>
+        </header>
+        <div class="panel-content" id="skills-content">
+          <p class="placeholder-text">Loading skills...</p>
+        </div>
+      </div>
+
+      <!-- Tools panel -->
+      <div id="panel-tools" class="panel">
+        <div class="tools-layout">
+          <div class="file-browser" id="file-browser">
+            <div class="browser-header">
+              <span id="browser-path">.</span>
+              <button id="btn-refresh-files" title="Actualizar">&#8635;</button>
+            </div>
+            <div id="file-list"></div>
+          </div>
+          <div class="file-editor-area">
+            <div class="editor-header">
+              <span id="editor-filename">Sin archivo</span>
+              <div class="editor-actions">
+                <button id="btn-send-to-chat" disabled>Enviar al chat</button>
+                <button id="btn-save-file" disabled>Guardar</button>
+              </div>
+            </div>
+            <textarea id="file-editor" placeholder="Abre un archivo del navegador..." disabled></textarea>
+          </div>
         </div>
       </div>
 
@@ -153,6 +206,19 @@
 
   <!-- Compat shim: status panel refs in app.js -->
   <div id="status-panel" style="display:none"><pre id="status-panel-compat"></pre></div>
+
+  <!-- Agent modal -->
+  <div id="agent-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--bg-secondary,#1e1e2e);border:1px solid var(--border,#444);border-radius:12px;padding:24px;width:480px;max-width:90vw;">
+      <h3 style="margin:0 0 12px;font-size:15px;">Modo agente</h3>
+      <textarea id="agent-task-input" placeholder="Describe la tarea que quieres ejecutar..." style="width:100%;height:100px;resize:vertical;background:var(--bg-primary,#161622);border:1px solid var(--border,#444);border-radius:6px;color:inherit;padding:8px;font-family:inherit;font-size:13px;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+        <button id="agent-cancel-btn" style="padding:6px 14px;border-radius:6px;cursor:pointer;background:transparent;border:1px solid var(--border,#444);color:inherit;">Cancelar</button>
+        <button id="agent-run-btn" style="padding:6px 14px;border-radius:6px;cursor:pointer;background:#5865f2;border:none;color:white;font-weight:600;">Ejecutar</button>
+      </div>
+      <div id="agent-result" style="margin-top:12px;display:none;background:var(--bg-primary,#161622);border-radius:6px;padding:10px;font-size:12px;max-height:200px;overflow-y:auto;white-space:pre-wrap;"></div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

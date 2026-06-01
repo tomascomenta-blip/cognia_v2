@@ -46,14 +46,15 @@ def _run_migrations(conn: sqlite3.Connection):
     # Migration 1: add feedback_weight to episodic_memory
     if current < 1:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(episodic_memory)").fetchall()}
-        if "feedback_weight" not in cols:
-            conn.execute(
-                "ALTER TABLE episodic_memory ADD COLUMN feedback_weight REAL DEFAULT 1.0"
-            )
-        if row:
-            conn.execute("UPDATE schema_version SET version = 1")
-        else:
-            conn.execute("INSERT INTO schema_version (version) VALUES (1)")
+        with conn:
+            if "feedback_weight" not in cols:
+                conn.execute(
+                    "ALTER TABLE episodic_memory ADD COLUMN feedback_weight REAL DEFAULT 1.0"
+                )
+            if row:
+                conn.execute("UPDATE schema_version SET version = 1")
+            else:
+                conn.execute("INSERT INTO schema_version (version) VALUES (1)")
 
     conn.commit()
 

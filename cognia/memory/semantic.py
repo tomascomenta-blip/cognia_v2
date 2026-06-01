@@ -232,6 +232,22 @@ class SemanticMemory:
             log_db_error(logger, "semantic.list_all", exc)
             return []
 
+    def get_crystallized(self, min_support: int = 5, min_confidence: float = 0.75) -> list:
+        """Return concepts that have been validated enough times to be considered stable knowledge."""
+        try:
+            conn = db_connect(self.db)
+            c = conn.cursor()
+            c.execute(
+                "SELECT concept, confidence, support FROM semantic_memory "
+                "WHERE support >= ? AND confidence >= ? ORDER BY confidence DESC LIMIT 50",
+                (min_support, min_confidence)
+            )
+            rows = c.fetchall()
+            conn.close()
+            return [{"concept": r[0], "confidence": r[1], "support": r[2]} for r in rows]
+        except Exception:
+            return []
+
     def detect_contradiction(self, concept: str, new_label: str, vector: list) -> Optional[dict]:
         existing = self.get_concept(concept)
         if not existing:

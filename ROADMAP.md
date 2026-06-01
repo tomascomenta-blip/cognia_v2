@@ -535,6 +535,7 @@ the ledger; this phase adds the enforcement gate so tiers actually restrict acce
 | 19 — ARA | Adaptive Rank Amplification: saturacion detectada, expansion ortogonal, FedAvg variable-rank | DONE |
 | 20 — Innovacion arquitectural | Routing semantico, LPC/Semantic Persistence, DUS scale-up, Fed Distillation | DONE 2026-05-23 |
 | 21 — Fast Inference Stack | SWA O(512), kernels C en produccion, benchmarks CI, intra-turn KV-cache validado | DONE 2026-05-24 |
+| 29 — Test Coverage + Shard Dir Fix | fatiga_cognitiva tests (41), _shards_available dir-format support, new directory shard tests | DONE 2026-05-29 |
 
 ---
 
@@ -678,6 +679,22 @@ Run `python scripts/benchmark_inference.py` for latency numbers.
 | 28.6 | Heartbeat endpoint llama clear_debt() cuando nodo vuelve online | `coordinator/app.py` | DONE 2026-05-24 |
 
 **Verification:** `pytest tests/test_sar.py` → 29/29 passed. Suite acumulada: 190/190.
+
+---
+
+## Phase 29 — Test Coverage + Shard Dir Fix [DONE 2026-05-29]
+
+**Goal:** Add test coverage for CognitiveFatigueMonitor (0 tests before this phase) and fix
+a latent bug in `_shards_available()` that would cause Ollama fallback when shards were
+available only in unpacked directory format (`shard_N/` from `scripts/unpack_shards.py`).
+
+| Change | Description | Files | Status |
+|--------|-------------|-------|--------|
+| 29.1 | 41 tests for CognitiveFatigueMonitor: construction, score bounds, level thresholds, adaptations, get_state, reset/reset_state, embedding recording, thread safety, singleton, _normalize | `tests/test_fatiga_cognitiva.py` (new) | DONE 2026-05-29 |
+| 29.2 | `_shards_available()` now accepts both `.npz` files AND unpacked `shard_N/` directories | `shattering/orchestrator.py` | DONE 2026-05-29 |
+| 29.3 | 4 new tests for directory-based shard detection in TestShardsAvailableLogic | `tests/test_e2e_inference.py` | DONE 2026-05-29 |
+
+**Verification:** `pytest tests/test_fatiga_cognitiva.py tests/test_e2e_inference.py::TestShardsAvailableLogic` → 49/49 passed.
 
 ---
 

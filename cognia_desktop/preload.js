@@ -13,36 +13,54 @@ contextBridge.exposeInMainWorld("cognia", {
   infer: (prompt) => ipcRenderer.invoke("infer", prompt),
 
   /**
-   * GET /infer-stream (SSE streaming)
+   * POST /infer-stream-v2 (SSE streaming with conversation history)
+   * history: [{role, content}, ...] — previous turns (not including current prompt)
    * onToken(token: string) called for each token chunk
    * onDone({ done, sub_model, confidence, latency_ms, mode }) called at the end
    * Returns a cancel() function.
    */
-  inferStream: (prompt, onToken, onDone) => {
-    const url = `${API_BASE}/infer-stream?prompt=${encodeURIComponent(prompt)}`;
-    const es = new EventSource(url);
+  inferStream: (prompt, history, onToken, onDone) => {
+    const controller = new AbortController();
+    let finished = false;
 
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.done) {
-          onDone(data);
-          es.close();
-        } else {
-          onToken(data.token);
+    fetch(`${API_BASE}/infer-stream-v2`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ prompt, history }),
+      signal:  controller.signal,
+    }).then(async (response) => {
+      const reader  = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          const raw = line.slice(5).trim();
+          if (!raw) continue;
+          try {
+            const data = JSON.parse(raw);
+            if (data.done) {
+              finished = true;
+              onDone(data);
+              return;
+            } else {
+              onToken(data.token);
+            }
+          } catch (_) {}
         }
-      } catch (_err) {
-        onDone({ error: "Parse error" });
-        es.close();
       }
-    };
+      if (!finished) onDone({ done: true, sub_model: "llama", confidence: 1, latency_ms: 0, mode: "llama.cpp" });
+    }).catch((err) => {
+      if (err.name !== "AbortError") onDone({ error: err.message });
+    });
 
-    es.onerror = () => {
-      onDone({ error: "Stream error" });
-      es.close();
-    };
-
-    return () => es.close();
+    return () => controller.abort();
   },
 
   /** GET /route */

@@ -216,6 +216,36 @@ class ShardConfig:
         return self.shard_index == self.n_shards - 1
 
 
+# ── _NpyDir ──────────────────────────────────────────────────────────────────
+
+class _NpyDir:
+    """
+    Dict-like wrapper for a directory of per-array .npy files.
+    Each access mmap's the file with mode='r' so weight pages are OS-managed
+    and evicted under memory pressure without touching Python heap.
+    """
+    __slots__ = ("_dir", "_cache")
+
+    def __init__(self, directory: str) -> None:
+        self._dir   = directory
+        self._cache: dict = {}
+
+    def __contains__(self, key: str) -> bool:
+        return os.path.exists(os.path.join(self._dir, f"{key}.npy"))
+
+    def __getitem__(self, key: str) -> np.ndarray:
+        if key not in self._cache:
+            path = os.path.join(self._dir, f"{key}.npy")
+            self._cache[key] = np.load(path, mmap_mode='r')
+        return self._cache[key]
+
+    def keys(self):
+        return (f[:-4] for f in os.listdir(self._dir) if f.endswith(".npy"))
+
+    def close(self) -> None:
+        self._cache.clear()
+
+
 # ── ShardEngine ──────────────────────────────────────────────────────────────
 
 class ShardEngine:
@@ -231,13 +261,15 @@ class ShardEngine:
         self._layers             = []
         self._load_time_ms       = 0.0
         self._kv_cache           = None   # injected by patch_shard_engine_mla()
-        self._embed_table: Optional[np.ndarray] = None
+        self._embed_table: Optional[np.ndarray] = None   # fp32 (if RAM allows) or None
+        self._embed_w4   = None   # INT4 packed fallback when fp32 table won't fit in RAM
         self._lm_weights         = None   # INT4Weights or DynamicWeights for last-shard LM head
         self._final_norm:  Optional[np.ndarray] = None
         self._lora_adapter       = None   # ELC adapter; set via set_adapter()
         self._precision_manager  = None   # PrecisionManager; set in _load_real_weights
         self._weights_path       = weights_path  # kept for lazy tokenizer on PTYPE_TEXT
         self._tokenizer          = None   # lazy-loaded when PTYPE_TEXT arrives at shard 0
+        self._npz_data           = None   # NpzFile kept alive so mmap views stay valid
 
         shard_npz = (
             os.path.join(weights_path, f"shard_{config.shard_index}.npz")
@@ -268,16 +300,33 @@ class ShardEngine:
         from node.qwen2_ops import INT4Weights, RealTransformerLayer
         from shattering.dynamic_precision import PrecisionManager
         cfg  = self.config
-        data = np.load(shard_path, allow_pickle=False)
+
+        # Prefer unpacked directory (shard_N/) created by scripts/unpack_shards.py.
+        # Individual .npy files can be mmap'd zero-copy: only the pages being computed
+        # stay in RAM and the OS evicts the rest. Fallback to compressed .npz with
+        # mmap_mode='c' (numpy decompresses to a temp file — still evictable by OS).
+        unpacked_dir = shard_path.replace(".npz", "")
+        if os.path.isdir(unpacked_dir):
+            data = _NpyDir(unpacked_dir)
+        else:
+            data = np.load(shard_path, allow_pickle=False, mmap_mode='c')
+        self._npz_data = data
 
         pm = PrecisionManager()
         self._precision_manager = pm
 
-        # Embedding table (shard 0) — kept as fp32; not tracked by precision manager
+        # Embedding table (shard 0): try fp32 for fast lookup; fall back to INT4 on OOM.
+        # The table is (vocab=151936, hidden=2048) fp32 = 1.16 GB — may not fit in RAM.
+        # INT4 fallback dequantizes only the needed rows per token (trivial cost).
         if cfg.is_first and "embed_p" in data:
-            ocols = int(data["embed_ocols"])
+            ocols = int(data["embed_ocols"]) if "embed_ocols" in data else data["embed_p"].shape[1] * 2
             from shattering.quantization import dequantize_int4
-            self._embed_table = dequantize_int4(data["embed_p"], data["embed_s"], ocols)
+            from node.qwen2_ops import INT4Weights
+            try:
+                self._embed_table = dequantize_int4(data["embed_p"], data["embed_s"], ocols)
+            except MemoryError:
+                # Keep INT4 packed as mmap views; rows dequantized on demand in process()
+                self._embed_w4 = INT4Weights(data["embed_p"], data["embed_s"], ocols)
 
         # LM head + final norm (last shard) — wrapped for dynamic precision
         if cfg.is_last and "lm_p" in data:
@@ -340,8 +389,19 @@ class ShardEngine:
 
         else:
             # Real mode — embed tokens or accept hidden state
-            if cfg.is_first and token_ids is not None and self._embed_table is not None:
-                x = self._embed_table[token_ids.astype(np.int32)]  # (seq, hidden)
+            if cfg.is_first and token_ids is not None:
+                tids = token_ids.astype(np.int32)
+                if self._embed_table is not None:
+                    x = self._embed_table[tids]                        # fp32 lookup (fast)
+                elif self._embed_w4 is not None:
+                    from shattering.quantization import dequantize_int4
+                    x = dequantize_int4(
+                        self._embed_w4.packed[tids],
+                        self._embed_w4.scale[tids],
+                        self._embed_w4.orig_cols,
+                    )                                                   # INT4 row lookup
+                else:
+                    x = hidden_state.astype(np.float32)
             else:
                 x = hidden_state.astype(np.float32)
 

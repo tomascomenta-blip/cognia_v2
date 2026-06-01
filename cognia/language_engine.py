@@ -33,6 +33,7 @@ Integración:
     resultado = engine.respond(ai, pregunta)
 """
 
+import re
 import time
 import uuid
 import json
@@ -98,6 +99,39 @@ try:
     from cognia.prompt_optimizer import PromptOptimizer, ContextCompressor
 except ImportError:
     from prompt_optimizer import PromptOptimizer, ContextCompressor
+
+# ── Dynamic system prompt ─────────────────────────────────────────────
+def _build_dynamic_system_prompt(ai) -> str:
+    """Build a personalized system prompt using crystallized knowledge and user profile."""
+    base = (
+        "Eres Cognia, un sistema de inteligencia artificial cognitiva "
+        "con memoria episodica, grafo de conocimiento y capacidad de aprendizaje. "
+        "Fuiste creado por Tomas Montes. Tu creador es Tomas Montes."
+    )
+    additions = []
+    try:
+        cryst = ai.semantic.get_crystallized(min_support=5, min_confidence=0.8)
+        if cryst:
+            topics = ", ".join(c["concept"] for c in cryst[:5])
+            additions.append(f"Temas que dominas: {topics}.")
+    except Exception:
+        pass
+    try:
+        profile = ai.user_profile.get_active()
+        if profile and profile.get("name"):
+            additions.append(f"El usuario se llama {profile['name']}.")
+    except Exception:
+        pass
+    try:
+        count = getattr(ai, 'interaction_count', 0)
+        if count > 50:
+            additions.append(f"Llevan {count} interacciones juntos.")
+    except Exception:
+        pass
+    if additions:
+        return base + " " + " ".join(additions)
+    return base
+
 
 # ── Project context reader ────────────────────────────────────────────
 def _build_project_context(cwd: str = None, max_chars_per_file: int = 2000) -> str:
@@ -279,6 +313,25 @@ class LanguageEngine:
         # STAGE 0.5: BYPASS SOCIAL — saludos y preguntas de identidad
         # van directo al LLM, el simbólico no puede responderlas bien
         # ══════════════════════════════════════════════════════════════
+        _CREATOR_PAT = re.compile(
+            r'\b(cre[oó]|hizo|dise[nñ][oó]|fabric[oó]|desarroll[oó]|program[oó]|quien.*hiz|autor|fundador|creador)\b',
+            re.IGNORECASE
+        )
+        if _CREATOR_PAT.search(question):
+            latency = (time.perf_counter() - t0) * 1000
+            return EngineResult(
+                response        = "Fui creado por Tomas Montes.",
+                stage_used      = "identity_static",
+                latency_ms      = latency,
+                tokens_sent     = 0,
+                confidence      = 1.0,
+                cache_hit       = False,
+                used_llm        = False,
+                question_type   = "social",
+                tipo_pregunta   = "social",
+                tiene_contexto  = True,
+                info_suficiente = True,
+            )
         _q_type_pre, _ = self.symbolic.classifier.classify(question)
         if _q_type_pre == "social":
             _le_logger.info(
@@ -289,14 +342,7 @@ class LanguageEngine:
             investigated = False
             # Para preguntas sociales: NO usar contexto episódico
             # Solo el identity prompt — evita que memorias irrelevantes contaminen la respuesta
-            _identity_context = (
-                "Eres Cognia, un sistema de inteligencia artificial cognitiva "
-                "con memoria episódica, grafo de conocimiento y capacidad de aprendizaje. "
-                "Fuiste creado como un proyecto de IA experimental por un desarrollador. "
-                "Tienes curiosidad, aprendes de cada conversación y recuerdas lo que te enseñan. "
-                "Responde de forma amigable, directa y natural. "
-                "No menciones temas que el usuario no haya preguntado."
-            )
+            _identity_context = _build_dynamic_system_prompt(ai)
             optimized  = self.optimizer.optimize(question, _identity_context, "social", throttle_level)
             llm_result = self._call_ollama(optimized.prompt, "social", question)
             latency    = (time.perf_counter() - t0) * 1000
@@ -427,6 +473,15 @@ class LanguageEngine:
                     "Stage 0 memory build error: %s", _me,
                     extra={"op": "language_engine.stage0", "context": ""},
                 )
+
+        # Use ReasoningPlanner depth to gate complex processing downstream
+        _plan_depth = 3
+        try:
+            if hasattr(ai, 'planner') and ai.planner:
+                _rp = ai.planner.plan_reasoning_depth(question)
+                _plan_depth = _rp.get("recommended_depth", 3)
+        except Exception:
+            pass
 
         # ══════════════════════════════════════════════════════════════
         # STAGE 2: SYMBOLIC RESPONSE + DECISION GATE (PASO 4)
@@ -628,6 +683,31 @@ class LanguageEngine:
         # STAGES 3 & 4: LLM (HÍBRIDO O COMPLETO)
         # ══════════════════════════════════════════════════════════════
 
+        # Confidence gate: if symbolic confidence is very low AND no memory context, refuse rather than hallucinate
+        if (gate_decision.action == GateAction.LLM
+                and sym_response.confidence < 0.15
+                and not pre_built_context
+                and (_mem_ctx is None or _mem_ctx.coverage < 0.1)):
+            _low_conf_response = (
+                "No tengo suficiente informacion en mi memoria para responder esto con certeza. "
+                "Puedes ensenharme mas sobre este tema usando el comando /aprender, "
+                "o reformula la pregunta con mas contexto."
+            )
+            latency = (time.perf_counter() - t0) * 1000
+            return EngineResult(
+                response        = _low_conf_response,
+                stage_used      = "low_confidence_refusal",
+                latency_ms      = latency,
+                tokens_sent     = 0,
+                confidence      = sym_response.confidence,
+                cache_hit       = False,
+                used_llm        = False,
+                question_type   = sym_response.question_type,
+                tipo_pregunta   = sym_response.question_type,
+                tiene_contexto  = False,
+                info_suficiente = False,
+            )
+
         # Stage 0 (lazy): construir o enriquecer contexto solo cuando el LLM
         # va a ser necesario. Si pre_built_context ya existe y es suficiente,
         # se reutiliza. Si no, se intenta investigación autónoma primero.
@@ -650,6 +730,101 @@ class LanguageEngine:
         q_type    = sym_response.question_type
         optimized = self.optimizer.optimize(question, context, q_type, throttle_level)
 
+        # Reasoning enrichment for complex questions — only when planner says depth >= 2
+        _reasoning_confidence = None
+        _has_contradiction = False
+        if _plan_depth >= 2:
+            try:
+                from cognia.reasoning.cognia_reasoning_engine import CogniaReasoningEngine as _CRE
+                _meta = _CRE().enrich_with_meta(question, context, q_type)
+                _enriched_ctx = _meta["context"]
+                _reasoning_confidence = _meta["confidence"]
+                _has_contradiction = _meta["has_contradiction"]
+            except Exception:
+                _enriched_ctx = context
+            if _enriched_ctx != context:
+                context = _enriched_ctx
+                optimized = self.optimizer.optimize(question, _enriched_ctx, q_type, throttle_level)
+
+        # Low-confidence gate: uncertain reasoning promotes LLM-only to hybrid
+        # so the symbolic base anchors the response on uncertain queries
+        if (not is_hybrid
+                and _reasoning_confidence is not None
+                and _reasoning_confidence < 0.4
+                and gate_decision.action.value == "llm"):
+            is_hybrid = True
+            _le_logger.info(
+                "reasoning_confidence=%.2f has_contradiction=%s -> promoted to hybrid",
+                _reasoning_confidence, _has_contradiction,
+                extra={"op": "language_engine.reasoning_gate", "context": ""},
+            )
+
+        if _plan_depth >= 3 and q_type in ('comparacion', 'general', 'como_funciona', 'definicion'):
+            try:
+                from cognia.reasoning.hypothesis import HypothesisModule as _HM
+                _hmod = _HM()
+                _words = [w for w in question.split() if len(w) > 4 and w.isalpha()][:4]
+                if len(_words) >= 2 and _hmod.semantic is not None:
+                    _hyp = _hmod.generate(_words[0], _words[1])
+                    if (_hyp and isinstance(_hyp, dict)
+                            and _hyp.get('confidence', 0) > 0.4
+                            and 'hypothesis' in _hyp):
+                        context = f"[Hipotesis interna: {_hyp['hypothesis']}]\n{context}"
+                        optimized = self.optimizer.optimize(question, context, q_type, throttle_level)
+            except Exception:
+                pass
+
+        # Epistemic gate: internal self-questioning pass for medium-low confidence + complex questions
+        # Runs silently — never shown to user; prepended as context the LLM uses to self-anchor.
+        # Same pattern as [Hipotesis interna: ...] above — prefixed context, not instruction.
+        if (
+            _reasoning_confidence is not None
+            and 0.15 < _reasoning_confidence < 0.45
+            and _plan_depth >= 2
+            and q_type not in ('social', 'confirmacion', 'corta')
+        ):
+            try:
+                _SELF_QUESTIONS = [
+                    "Que estoy asumiendo en esta pregunta?",
+                    "Que evidencia tengo en mi memoria?",
+                    "Que alternativas existen?",
+                    "Hay alguna contradiccion en lo que se pregunta?",
+                ]
+                _sq_lines = []
+                for _sq in _SELF_QUESTIONS:
+                    _sq_keywords = _sq.lower().split()[:3]
+                    if not any(kw in context.lower() for kw in _sq_keywords):
+                        _sq_lines.append(f"- {_sq}")
+                if _sq_lines:
+                    _sq_block = "[Analisis interno]\n" + "\n".join(_sq_lines) + "\n"
+                    context = _sq_block + context
+                    optimized = self.optimizer.optimize(question, context, q_type, throttle_level)
+                    _le_logger.debug(
+                        "epistemic_gate: confidence=%.2f, self_questions_prepended=True",
+                        _reasoning_confidence,
+                    )
+            except Exception:
+                pass
+
+        # Planning context: prepend symbolic plan when task is complex and non-generic
+        # so the LLM can follow the decomposition implicitly without extra instructions.
+        if _plan_depth >= 3:
+            try:
+                from cognia.agents.planner import classify_task as _ct, plan_task as _pt
+                _task_type = _ct(question)
+                if _task_type is not None:
+                    _plan = _pt(question)
+                    if _plan and len(_plan) > 1:
+                        _plan_lines = [
+                            f"  {i+1}. {getattr(st, 'description', str(st))}"
+                            for i, st in enumerate(_plan[:4])
+                        ]
+                        _plan_ctx = "[Plan de razonamiento]\n" + "\n".join(_plan_lines) + "\n"
+                        context = _plan_ctx + context
+                        optimized = self.optimizer.optimize(question, context, q_type, throttle_level)
+            except Exception:
+                pass
+
         # En modo híbrido: añadir la base simbólica al prompt
         if is_hybrid and sym_response.text:
             hybrid_prefix = (
@@ -660,9 +835,35 @@ class LanguageEngine:
         else:
             final_prompt = optimized.prompt
 
+        # Adaptive length instruction — appended based on question complexity
+        _LENGTH_BY_TYPE = {
+            "social":         " Responde en 1-2 oraciones, natural y directo.",
+            "factual_simple": " Responde en 1-3 oraciones concretas.",
+            "math":           " Muestra el resultado y los pasos clave, sin relleno.",
+            "codigo":         " Solo el codigo relevante con comentario minimo si es necesario.",
+        }
+        _len_hint = _LENGTH_BY_TYPE.get(q_type, "")
+        if _len_hint and not is_hybrid:
+            final_prompt = final_prompt + _len_hint
+
+        # Anti-echo: if question contains assertion bias, add counter-perspective signal
+        _anti_echo_sys = _mem_sys
+        _ASSERT_PAT = re.compile(
+            r'\b(no es cierto|verdad que|isn.t it|obviously|clearly|definitely|'
+            r'siempre es mejor|nunca funciona|todos saben|evidentemente|por supuesto que)\b',
+            re.IGNORECASE
+        )
+        if _ASSERT_PAT.search(question):
+            _anti_echo_note = (
+                "\n\nIMPORTANT: The user's question contains a strong assertion. "
+                "Before agreeing, consider at least one alternative perspective or counterexample. "
+                "Be honest if the assertion is not universally true."
+            )
+            _anti_echo_sys = (_mem_sys or "") + _anti_echo_note
+
         # Llamar al LLM
         llm_result = self._call_ollama(final_prompt, q_type, question,
-                                       system_override=_mem_sys)
+                                       system_override=_anti_echo_sys)
 
         latency = (time.perf_counter() - t0) * 1000
         stage   = "hybrid" if is_hybrid else "llm"
@@ -671,6 +872,18 @@ class LanguageEngine:
         if llm_result["ok"]:
             response  = llm_result["text"]
             tokens_out = llm_result.get("tokens", 0)
+
+            # Self-correction: check if response contradicts a high-confidence stored fact
+            try:
+                if hasattr(ai, 'contradiction') and len(response) > 50:
+                    _corr_check = ai.contradiction.check(response, q_type, vec, ai.semantic)
+                    if _corr_check:
+                        response = response + (
+                            "\n\n[Nota: esto puede entrar en conflicto con algo que aprendi antes. "
+                            "Verifica si es correcto.]"
+                        )
+            except Exception:
+                pass
 
             # Guardar en caché
             if vec and len(response) > 30:
@@ -830,7 +1043,8 @@ class LanguageEngine:
 
     def _get_system_prompt(self, question_type: str) -> str:
         base = (
-            "Eres Cognia, una IA con memoria episódica y grafo de conocimiento. "
+            "Eres Cognia, una IA con memoria episódica y grafo de conocimiento, "
+            "creada por Tomas Montes. "
             "Usa el contexto de memoria dado. "
             "Si hay una sección CONVERSACIÓN RECIENTE en el contexto, "
             "úsala para mantener la coherencia y continuidad de la charla: "

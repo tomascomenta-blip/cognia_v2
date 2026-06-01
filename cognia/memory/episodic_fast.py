@@ -27,7 +27,7 @@ import numpy as np
 from datetime import datetime
 from typing import Optional
 
-from ..database import db_connect
+from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH
 from ..logger_config import get_logger, log_db_error, log_slow
 
@@ -210,6 +210,10 @@ class VectorCache:
         self._db_count = len(rows)
         self._db_hash = getattr(self, '_hash_cache_val', 0)
         self._built_at = time.perf_counter()
+        # Invalidate throttle so next _get_db_hash() re-queries the DB.
+        # Without this, a dirty-triggered build stores a pre-dirty hash,
+        # causing an extra rebuild on the next search() call.
+        self._hash_cache_ts = 0.0
 
         elapsed = (time.perf_counter() - t0) * 1000
         logger.info(
@@ -240,9 +244,17 @@ class VectorCache:
                 return []
 
             # Query vector normalizado
-            qv = np.array(query_vector, dtype=np.float32)
-            qnorm = np.linalg.norm(qv)
-            if qnorm == 0:
+            if query_vector is None:
+                return []
+            try:
+                qv = np.array(query_vector, dtype=np.float32)
+            except (TypeError, ValueError):
+                return []
+            if qv.ndim != 1 or qv.shape[0] == 0:
+                return []
+            import math as _math
+            qnorm = float(np.linalg.norm(qv))
+            if qnorm == 0 or not _math.isfinite(qnorm):
                 return []
             qv = qv / qnorm
 

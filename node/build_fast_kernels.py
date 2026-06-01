@@ -140,7 +140,8 @@ def _build_cffi() -> bool:
 
 def build(no_omp: bool = False, force_cffi: bool = False) -> bool:
     if not force_cffi:
-        base = ["-O3", "-march=native", "-shared"] + ([] if IS_WIN else ["-fPIC"])
+        base = ["-O3", "-march=native", "-mavx2", "-mfma", "-ffast-math",
+                "-shared"] + ([] if IS_WIN else ["-fPIC"])
         omp  = [] if no_omp else ["-fopenmp"]
 
         # gcc — check PATH first, then known MSYS2 install locations

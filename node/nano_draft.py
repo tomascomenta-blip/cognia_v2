@@ -106,12 +106,14 @@ class NanoDraft:
         cached_n = self._cached_prefix_len(ids)
         if cached_n < len(ids):
             new_ids  = ids[cached_n:]
-            x, kv    = self._forward_incremental(new_ids, self._ctx_kv, offset=cached_n)
+            x_emb    = self._embed[new_ids]   # (new_seq, 256)
+            x, kv    = self._forward_incremental(x_emb, self._ctx_kv, offset=cached_n)
             self._ctx_kv  = kv
             self._ctx_ids = ids.copy()
         else:
             # Context unchanged — recover last hidden from cache
-            x, kv = self._forward_incremental(ids[-1:], self._ctx_kv, offset=len(ids) - 1)
+            x_emb = self._embed[ids[-1:]]     # (1, 256)
+            x, kv = self._forward_incremental(x_emb, self._ctx_kv, offset=len(ids) - 1)
             # Don't update _ctx_kv (kv already has the full context)
 
         x = _rms_norm(x[-1:], self._norm_f)   # (1, 256) — last position

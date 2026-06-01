@@ -75,7 +75,7 @@ que viaja con los pesos y se ejecuta en cualquier maquina.
 
 ### 21.2 — KV-Cache Activo en Loop Local
 
-**Estado:** PROPUESTA
+**Estado:** DONE (2026-05-29 — intra-turn session_id en _generate_local + _shard_infer_stream; evict_one_mla_session tras inferencia)
 
 **El problema:**
 El MLA KV-cache existe en `shattering/mla.py` pero no esta conectado al loop
@@ -106,7 +106,7 @@ Activar el flujo session_id → MLA cache en el loop local:
 
 ### 21.3 — Speculative Decoding con Nano-Draft Local
 
-**Estado:** PROPUESTA
+**Estado:** DONE (2026-05-29 — _shard_infer() ahora llama _try_load_draft(); NanoDraft activo si nano_draft.npz existe en SHARD_WEIGHTS_DIR)
 
 **El problema:**
 La generacion es estrictamente secuencial: 1 token → esperar chain completa → 1 token.

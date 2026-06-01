@@ -294,6 +294,8 @@ class TestVectorCacheHash:
             assert h1 == h2
             assert h1 != 0
         finally:
+            from storage.db_pool import close_pool
+            close_pool(path)
             os.unlink(path)
 
     def test_hash_xor_cambia_con_nuevos_episodios(self):
@@ -316,6 +318,8 @@ class TestVectorCacheHash:
             assert h1 != h2
         finally:
             conn.close()
+            from storage.db_pool import close_pool
+            close_pool(path)
             os.unlink(path)
 
     def test_needs_rebuild_si_hash_cambia(self):

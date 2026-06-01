@@ -17,6 +17,8 @@ class ContradictionDetector:
 
     def check(self, observation: str, label: str, vector: list,
               semantic) -> Optional[dict]:
+        if semantic is None:
+            return None
         related = semantic.find_related(vector, top_k=3)
         for item in related:
             if item["concept"] != label and item["similarity"] > 0.85 and item["confidence"] > 0.6:

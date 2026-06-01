@@ -193,6 +193,24 @@ class CognitiveFatigueMonitor:
         self._start_time          = time.time()
         self._last_activity       = time.time()
 
+    def reset_state(self) -> None:
+        for q in (
+            self._cycle_times, self._cpu_samples, self._mem_samples,
+            self._expensive_ops, self._cache_hits, self._cache_misses,
+            self._score_history,
+        ):
+            q.clear()
+        self._active_strategies      = []
+        self._fatigue_score          = 0.0
+        self._prev_fatigue           = 0.0
+        self._total_cycles           = 0
+        self._total_expensive_ops    = 0
+        self._total_cheap_ops        = 0
+        self._cycle_start            = None
+        self._last_arch_proposal     = None
+        self._start_time             = time.time()
+        self._last_activity          = time.time()
+
     def start_cycle(self):
         """Marcar el inicio de un ciclo de razonamiento."""
         self._cycle_start = time.perf_counter()

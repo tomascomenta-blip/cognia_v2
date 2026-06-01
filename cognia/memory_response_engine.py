@@ -60,6 +60,14 @@ class MemoryContextBuilder:
         # 3. Knowledge Graph
         kg_facts = cognia.kg.get_facts(top_label)[:8] if top_label else []
 
+        # 3b. Hechos heredados via cadena is_a
+        _inherited_facts: list = []
+        if top_label:
+            try:
+                _inherited_facts = cognia.kg.get_inherited_facts(top_label)
+            except Exception:
+                pass
+
         # 4. Activación semántica
         concepts = cognia.semantic.spreading_activation(top_label, depth=2)[:5] if top_label else []
 
@@ -79,10 +87,20 @@ class MemoryContextBuilder:
         except Exception:
             pass
 
+        # 7. Crystallized concepts — stable high-confidence knowledge (max 3)
+        _cryst: list = []
+        try:
+            if hasattr(cognia, 'semantic') and hasattr(cognia.semantic, 'get_crystallized'):
+                _cryst = cognia.semantic.get_crystallized()[:3]
+        except Exception:
+            pass
+
         coverage = self._coverage(relevant, direct, kg_facts, concepts, confidence)
         text     = self._format(
             relevant, direct, kg_facts, concepts, inferences, temporal,
             top_label, confidence, assessment.get("state", "ignorant"),
+            crystallized=_cryst,
+            inherited_facts=_inherited_facts,
         )
 
         return MemoryContext(
@@ -116,11 +134,18 @@ class MemoryContextBuilder:
     # ── Formateo de contexto ──────────────────────────────────────────
 
     def _format(self, relevant, direct, kg_facts, concepts, inferences, temporal,
-                top_label, confidence, state) -> str:
+                top_label, confidence, state, crystallized=None, inherited_facts=None) -> str:
         if not relevant and not kg_facts and not concepts:
             return ""
 
         blocks: list = []
+
+        # Crystallized concepts — prepended as highest-priority stable knowledge
+        if crystallized:
+            cryst_lines = "; ".join(
+                f"{c['concept']} (conf={c['confidence']:.2f})" for c in crystallized
+            )
+            blocks.append(f"[Conocimiento consolidado: {cryst_lines}]")
 
         # Episodios — los directamente relevantes primero, luego el resto
         ordered = direct + [e for e in relevant if e not in direct]
@@ -144,6 +169,10 @@ class MemoryContextBuilder:
                 for f in kg_facts[:6]
             ]
             blocks.append("HECHOS CONOCIDOS:\n" + "\n".join(lines))
+
+        # Hechos heredados por herencia is_a
+        if inherited_facts:
+            blocks.append("HECHOS INFERIDOS POR HERENCIA:\n" + "\n".join(f"- {f}" for f in inherited_facts))
 
         # Conceptos semánticos activados
         if concepts:

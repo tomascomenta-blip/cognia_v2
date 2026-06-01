@@ -260,3 +260,102 @@ This gives streaming callers the same cross-turn speed benefit as non-streaming 
 5. RST K=2 quality investigation -- ablation with K=1 vs K=2 on a real prompt
 6. Consider adding pipeline initialization lock to prevent TOCTOU race in 
    _shard_infer_stream/_shard_infer when called concurrently
+
+---
+
+## Session: 2026-05-29
+
+### Context Read
+- CLAUDE_NOTES.md: previous session ended at Phase 21 benchmark + NanoDraft rewrite
+- MANAGER_LOG.md (untracked): confirms large May-29 autonomous session already ran
+  (23+ cycles: UI, tests for desktop_api/dynamic_precision/llama_backend, KV intra-turn,
+  speculative decoding wired, FatigueMonitor.reset_state(), network status endpoint,
+  chat history persistence). All 3 untracked test files confirmed passing.
+- ROADMAP.md: Phases 1-28 DONE before this session started
+
+### Issues Found and Fixed (2026-05-29)
+
+### [ALTO] _shards_available() blind to unpacked shard_N/ directories -- FIXED
+**File**: shattering/orchestrator.py -- _shards_available()
+
+Root cause: After running `scripts/unpack_shards.py`, shards exist as directories
+(shard_0/, shard_1/, etc.) containing individual .npy files. _shards_available()
+only checked for shard_N.npz files, so it always returned False for unpacked shards,
+forcing every inference to fall back to Ollama even when real weights were present.
+
+Fix: Added _shard_present(idx) inner function that checks:
+1. shard_N.npz exists and non-empty (original path)
+2. shard_N/ directory exists and is non-empty (unpacked path)
+Handles COGNIA_NODE_SHARD env var for single-shard nodes.
+
+### [BUG] cognia_doctor.py crash when no manifest file found -- FIXED
+**File**: scripts/cognia_doctor.py -- check_inference_speed()
+
+Root cause: When no manifest file exists, the function passed manifest_path=None
+to ShatteringOrchestrator() which raised ValueError, turning a [WARN] into a crash.
+
+Fix: Early return `_warn("Inferencia", "No manifest found -- skip")` before
+constructing the orchestrator when no candidate manifest file is found.
+
+### [COVERAGE] CognitiveFatigueMonitor had zero test coverage -- FIXED
+**File**: tests/test_fatiga_cognitiva.py (NEW, 41 tests)
+
+Added comprehensive test suite covering:
+- Construction (initial score/level/trend)
+- start_cycle/end_cycle basics and counters
+- Score bounds (never < 0, never > 100)
+- Level thresholds (moderada/alta/critica via direct _fatigue_score injection)
+- Trend detection (subiendo with increasing ops)
+- get_adaptations() keys, normal mode, critica mode, idle reset trigger
+- get_state() keys and cache_hit_rate bounds
+- reset() and reset_state() behavior
+- record_embedding_computed/cached counters
+- should_propose_optimization() logic
+- Thread safety (4 concurrent workers, 20 cycles each)
+- Singleton pattern (get_fatigue_monitor returns same instance)
+- _normalize() math (7 precision tests)
+
+Note: Threshold tests use direct `m._fatigue_score = float(X)` injection because
+organic score pumping via cycles only reaches ~15 pts max due to W_OPS=0.15 and
+alpha=0.3 exponential smoothing -- not enough to cross THRESHOLD_MODERATE=30.
+
+### [COVERAGE] Unpacked shard dir detection had no tests -- FIXED
+**File**: tests/test_e2e_inference.py -- TestShardsAvailableLogic class
+
+Added 4 tests:
+- test_true_when_unpacked_directory_present: shard_0/ with .npy file -> True
+- test_false_when_directory_exists_but_is_empty: empty shard_0/ -> False
+- test_true_directory_preferred_over_missing_npz: shard_1/ with npy + COGNIA_NODE_SHARD=1 -> True
+- test_false_when_no_shard_present: neither .npz nor dir -> False
+
+### [ROADMAP] Phase 29 documented
+**File**: ROADMAP.md
+
+Added Phase 29 entry to execution order table and full section:
+"Test Coverage + Shard Dir Fix" -- fatiga_cognitiva 41 tests, _shards_available dir fix,
+new directory shard tests.
+
+---
+
+## Files Modified This Session (2026-05-29)
+- shattering/orchestrator.py: _shards_available() now detects both .npz and shard_N/ dirs
+- tests/test_e2e_inference.py: 4 new shard directory detection tests
+- scripts/cognia_doctor.py: early return on missing manifest (no crash)
+- ROADMAP.md: Phase 29 added
+- tests/test_fatiga_cognitiva.py: NEW -- 41 tests for CognitiveFatigueMonitor
+
+## Test Count
+- Previous session: ~368 collected
+- This session end: 467 collected (41 fatiga + 4 shard dir + previous untracked files)
+
+## Priority Order for Next Session
+1. Verify full test suite passes cleanly: `pytest tests/ -x --tb=short`
+   -- Full run was started but session ended before results confirmed
+2. Add tokens_generated field to InferResult for accurate tok/s measurement
+   -- InferResult currently has only .text and .mode; tok/s in cognia_doctor
+      estimated from word count (inaccurate for short responses)
+3. Check if orchestrator.infer() returns early exit path for empty prompts
+   -- No guard seen; empty string could cause dim-0 tensor issues in qwen2_ops
+4. Benchmark baseline: `python scripts/benchmark_inference.py` to confirm 4.8 tok/s
+   with fast_kernels_omp.dll still holds after recent changes
+5. Phase 21 final validation: mark DONE in ROADMAP if benchmark passes clean

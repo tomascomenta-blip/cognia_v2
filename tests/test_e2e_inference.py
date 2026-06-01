@@ -188,8 +188,9 @@ class TestRouter:
 # ══════════════════════════════════════════════════════════════════════════════
 
 @pytest.fixture
-def orchestrator_sim(tmp_path):
+def orchestrator_sim(tmp_path, monkeypatch):
     """Orchestrator forced to simulation mode (no real weights)."""
+    monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(tmp_path))
     from shattering.orchestrator import ShatteringOrchestrator
     return ShatteringOrchestrator(
         manifest_path="cognia_qwen",
@@ -341,6 +342,37 @@ class TestShardsAvailableLogic:
         orch = ShatteringOrchestrator.__new__(ShatteringOrchestrator)
         assert orch._shards_available() is True
 
+    def test_true_when_unpacked_directory_present(self, monkeypatch, tmp_path):
+        # scripts/unpack_shards.py creates shard_N/ directories instead of .npz files
+        npy_dir = tmp_path / "shard_0"
+        npy_dir.mkdir()
+        (npy_dir / "l0_q_p.npy").write_bytes(b"\x00" * 64)
+        monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(tmp_path))
+        monkeypatch.delenv("COGNIA_NODE_SHARD", raising=False)
+        from shattering.orchestrator import ShatteringOrchestrator
+        orch = ShatteringOrchestrator.__new__(ShatteringOrchestrator)
+        assert orch._shards_available() is True
+
+    def test_false_when_directory_exists_but_is_empty(self, monkeypatch, tmp_path):
+        # Empty shard_0/ should not count (no actual weight files)
+        (tmp_path / "shard_0").mkdir()
+        monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(tmp_path))
+        monkeypatch.delenv("COGNIA_NODE_SHARD", raising=False)
+        from shattering.orchestrator import ShatteringOrchestrator
+        orch = ShatteringOrchestrator.__new__(ShatteringOrchestrator)
+        assert orch._shards_available() is False
+
+    def test_true_directory_preferred_over_missing_npz(self, monkeypatch, tmp_path):
+        # Only shard_1/ directory present (no .npz), assigned shard=1
+        npy_dir = tmp_path / "shard_1"
+        npy_dir.mkdir()
+        (npy_dir / "l0_q_p.npy").write_bytes(b"\x00" * 64)
+        monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(tmp_path))
+        monkeypatch.setenv("COGNIA_NODE_SHARD", "1")
+        from shattering.orchestrator import ShatteringOrchestrator
+        orch = ShatteringOrchestrator.__new__(ShatteringOrchestrator)
+        assert orch._shards_available() is True
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Real shard inference (skipped without weights)
@@ -368,7 +400,7 @@ class TestRealShardInference:
 
     def test_infer_mode_is_local(self, orch):
         result = orch.infer("Say hello.", lpc_session_id="e2e_mode_test")
-        assert result.mode == "local"
+        assert result.mode in {"local", "llama.cpp"}
 
     def test_infer_latency_recorded(self, orch):
         result = orch.infer("Hi", lpc_session_id="e2e_latency_test")

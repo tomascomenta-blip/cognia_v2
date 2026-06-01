@@ -86,7 +86,7 @@ prompt
 
 | Componente | Estado hoy | Visión |
 |---|---|---|
-| Inferencia local | Funciona, lenta (~0.1 tok/s) | 3-6 tok/s con C kernels + spec decoding |
+| Inferencia local | ~1.26 tok/s medido (hot decode, FP32 DynQuant) | 3-6 tok/s — lm_head bottleneck 250ms |
 | Sharding | 4 shards en 1 máquina | N shards en N dispositivos con SAR |
 | Disponibilidad | Sin redundancia | SAR: replicación adaptativa + warm pool |
 | Federated learning | Implementado (ELC, FedAvg) | Activo en producción con usuarios reales |

@@ -73,15 +73,22 @@ class DynamicWeights:
         Compute x @ W^T. Promotes or uses precision cache based on access count.
         Drop-in replacement for INT4Weights.linear(x).
         """
+        # When a C kernel is available it handles INT4 directly and is already optimal.
+        # Skip the promotion system entirely to avoid cache-build OOM on large matrices.
+        from node.qwen2_ops import _CLIB
+        if _CLIB is not None:
+            return self._w4.linear(x)
+
         with self._lock:
             now = time.monotonic()
             if now - self._last_access > DYN_QUANT_IDLE_DECAY_S:
                 self._reset()
             self._access_count += 1
             self._last_access  = now
-            target = self._target_prec()
-            if target != self._cache_prec or (target != PREC_INT4 and self._cache is None):
-                self._build_cache(target)
+            if not getattr(self, '_no_promote', False):
+                target = self._target_prec()
+                if target != self._cache_prec or (target != PREC_INT4 and self._cache is None):
+                    self._build_cache(target)
             prec  = self._cache_prec
             cache = self._cache
 
@@ -133,7 +140,13 @@ class DynamicWeights:
 
     def _build_cache(self, prec: str) -> None:
         self._drop_cache()
-        W_fp32 = self._w4.dequantize()
+        try:
+            W_fp32 = self._w4.dequantize()
+        except MemoryError:
+            # Matrix too large for RAM — pin permanently at INT4.
+            self._no_promote   = True
+            self._access_count = 0
+            return
         if prec == PREC_FP32:
             self._cache = W_fp32
         elif prec == PREC_FP16:

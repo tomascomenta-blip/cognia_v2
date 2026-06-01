@@ -13,9 +13,21 @@ const btnRoute      = document.getElementById("btn-route");
 const btnStatus     = document.getElementById("btn-status");
 const statusContent = document.getElementById("status-content");
 const badge         = document.getElementById("backend-badge");
+const perfBar       = document.getElementById("perf-bar");
+const charCounter   = document.getElementById("char-counter");
+
+promptEl.addEventListener("input", () => {
+  const len = promptEl.value.length;
+  if (charCounter) {
+    charCounter.textContent = len + "/4096";
+    charCounter.style.color = len > 4096 ? "#ef4444" : len > 3800 ? "#f97316" : "";
+    charCounter.style.opacity = len > 0 ? "0.7" : "0.4";
+  }
+});
 
 let backendReady = false;
 let busy         = false;
+const history    = [];   // [{role: "user"|"assistant", content: string}]
 
 
 // ── Sidebar navigation ─────────────────────────────────────────────────
@@ -30,6 +42,8 @@ document.querySelectorAll(".nav-item[data-panel]").forEach(btn => {
     btn.classList.add("active");
     if (btn.dataset.panel === "status") refreshStatus();
     if (btn.dataset.panel === "nodes")  refreshNodes();
+    if (btn.dataset.panel === "skills") refreshSkills();
+    if (btn.dataset.panel === "tools")  loadDirectory('.');
   });
 });
 
@@ -72,6 +86,62 @@ async function refreshNodes() {
 }
 
 
+// ── Skills panel ──────────────────────────────────────────────────────
+
+async function refreshSkills() {
+  const el = document.getElementById("skills-content");
+  if (!el) return;
+  el.innerHTML = "<p class='placeholder-text'>Loading...</p>";
+  try {
+    const res = await fetch("http://localhost:8765/skills");
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const skills = data.skills || [];
+    if (!skills.length) {
+      el.innerHTML = "<p class='placeholder-text'>No skills found. Create one with <code>/skill-nuevo &lt;name&gt;</code> in the CLI.</p>";
+      return;
+    }
+    el.innerHTML = skills.map(s => `
+      <div class="skill-card">
+        <div class="skill-info">
+          <span class="skill-name">${_esc(s.name)}</span>
+          <span class="skill-desc">${_esc(s.description || "")}</span>
+        </div>
+        <button class="btn-ghost skill-use" data-skill="${_esc(s.name)}">Use</button>
+      </div>
+    `).join("");
+    el.querySelectorAll(".skill-use").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const name = btn.dataset.skill;
+        try {
+          const r = await fetch(`http://localhost:8765/skills/${encodeURIComponent(name)}`);
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const d = await r.json();
+          const lines = d.content.split("\n");
+          let inFront = false, body = [], pastFront = false;
+          for (const line of lines) {
+            if (line.trim() === "---") { inFront = !inFront; if (!inFront) { pastFront = true; } continue; }
+            if (pastFront) body.push(line);
+          }
+          const prompt = body.join("\n").replace(/^\n+/, "");
+          promptEl.value = prompt;
+          promptEl.dispatchEvent(new Event("input"));
+          document.querySelector(".nav-item[data-panel='chat']")?.click();
+          promptEl.focus();
+        } catch (e) {
+          alert("Could not load skill: " + e.message);
+        }
+      });
+    });
+  } catch (e) {
+    el.innerHTML = "<p class='placeholder-text'>Could not load skills. Is the backend running?</p>";
+  }
+}
+
+function _esc(str) {
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
 // ── First-run privacy consent ──────────────────────────────────────────
 
 (function checkPrivacyConsent() {
@@ -88,13 +158,50 @@ async function refreshNodes() {
 
 // ── Backend lifecycle ──────────────────────────────────────────────────
 
+const _SESSION_ID = "default";
+
+async function _loadHistory() {
+  try {
+    const res = await fetch(`http://localhost:8765/chat/history?session_id=${_SESSION_ID}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    for (const msg of (data.messages || [])) {
+      if (msg.role === "user") {
+        appendBubble(msg.content, "user", null);
+      } else if (msg.role === "assistant") {
+        appendBubble(msg.content, "ai", null);
+      }
+      history.push({ role: msg.role, content: msg.content });
+    }
+    if (history.length > 0) scrollChat();
+  } catch (_) {}
+}
+
+async function _saveHistory() {
+  try {
+    await fetch("http://localhost:8765/chat/history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: _SESSION_ID, messages: history }),
+    });
+  } catch (_) {}
+}
+
+async function _clearHistory() {
+  try {
+    await fetch(`http://localhost:8765/chat/history?session_id=${_SESSION_ID}`, { method: "DELETE" });
+  } catch (_) {}
+}
+
 window.cognia.onReady((data) => {
   backendReady = true;
   if (!data || data.status === "ready") {
     badge.textContent = "ready";
     badge.className   = "badge ready";
     setControls(false);
-    appendSystem("Ready. Type a message and press Send.");
+    _loadHistory().then(() => {
+      if (history.length === 0) appendSystem("Ready. Type a message and press Send.");
+    });
   } else {
     badge.textContent = "setup required";
     badge.className   = "badge";
@@ -130,10 +237,37 @@ window.cognia.onUpdateAvailable(() => {
 
 // ── Chat helpers ───────────────────────────────────────────────────────
 
-function appendBubble(text, role) {
+function _makeTimeSpan(timestamp) {
+  const span = document.createElement("span");
+  span.style.cssText = "font-size:10px;opacity:0.5;margin-left:8px;";
+  span.textContent = timestamp === null ? "anteriormente"
+    : timestamp !== undefined ? timestamp
+    : new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  return span;
+}
+
+function appendBubble(text, role, timestamp) {
   const el = document.createElement("div");
   el.className = `bubble ${role}`;
-  el.textContent = text;
+  if (role === "ai") {
+    const textSpan = document.createElement("span");
+    textSpan.innerHTML = mdToHtml(text);
+    el.appendChild(textSpan);
+    const btn = document.createElement("button");
+    btn.textContent = "Copy";
+    btn.style.cssText = "display:block;margin-top:6px;font-size:11px;padding:2px 8px;cursor:pointer;opacity:0.6;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;";
+    btn.addEventListener("click", () => {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = "Copied!";
+        setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+      });
+    });
+    el.appendChild(btn);
+    el.appendChild(_makeTimeSpan(timestamp));
+  } else {
+    el.appendChild(document.createTextNode(text));
+    if (role === "user") el.appendChild(_makeTimeSpan(timestamp));
+  }
   chat.appendChild(el);
   scrollChat();
   return el;
@@ -209,6 +343,21 @@ function showThinking() {
 function removeThinking() { document.getElementById("thinking")?.remove(); }
 function scrollChat()     { chat.scrollTop = chat.scrollHeight; }
 
+function mdToHtml(text) {
+  let s = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  s = s.replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>");
+  s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/(?<!\*)\*(?!\*)([^*]+)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
+  s = s.replace(/^#{1,3} (.+)$/gm, "<strong>$1</strong><br>");
+  s = s.replace(/^[-*] (.+)$/gm, "&bull; $1");
+  s = s.replace(/\n/g, "<br>");
+  return s;
+}
+
 function setControls(isBusy) {
   busy = isBusy;
   btnSend.disabled  = isBusy || !backendReady;
@@ -224,6 +373,7 @@ function sendPrompt() {
   const text = promptEl.value.trim();
   if (!text || busy || !backendReady) return;
 
+  history.push({ role: "user", content: text });
   appendBubble(text, "user");
   promptEl.value = "";
   autoResize();
@@ -240,19 +390,25 @@ function sendPrompt() {
   streamMeta.className = "meta";
   streamWrap.appendChild(streamMeta);
 
+  // Pass history without the current turn (API appends prompt separately)
+  const historySnapshot = history.slice(0, -1);
+  const _streamStart = Date.now();
+
   _cancelStream = window.cognia.inferStream(
     text,
+    historySnapshot,
     (token) => {
       removeThinking();
-      if (!streamBubble.parentElement) chat.appendChild(streamWrap);
+      if (!streamWrap.parentElement) chat.appendChild(streamWrap);
       streamBubble.textContent += token;
       scrollChat();
     },
     (final) => {
       _cancelStream = null;
       removeThinking();
-      if (!streamBubble.parentElement) chat.appendChild(streamWrap);
+      if (!streamWrap.parentElement) chat.appendChild(streamWrap);
       if (final.error) {
+        history.pop(); // remove failed user turn
         appendSystem(
           final.error.includes("hard") || final.error.includes("shard")
             ? "Inference failed: " + final.error
@@ -260,6 +416,10 @@ function sendPrompt() {
         );
         streamWrap.remove();
       } else {
+        const assistantText = streamBubble.textContent;
+        streamBubble.innerHTML = mdToHtml(assistantText);
+        history.push({ role: "assistant", content: assistantText });
+        _saveHistory();
         const sm = final.sub_model || "?";
         const tag = document.createElement("span");
         tag.className = "tag " + sm;
@@ -268,6 +428,34 @@ function sendPrompt() {
         streamMeta.appendChild(document.createTextNode(
           `${Math.round((final.confidence || 0) * 100)}% · ${final.mode} · ${final.latency_ms?.toFixed(0)}ms`
         ));
+
+        if (final.route_reason && final.route_reason !== "llama.cpp") {
+          const reasonEl = document.createElement("div");
+          reasonEl.style.cssText = "font-size:10px;opacity:0.45;margin-top:2px;font-style:italic;";
+          reasonEl.textContent = final.route_reason;
+          streamWrap.appendChild(reasonEl);
+        }
+
+        const copyBtn = document.createElement("button");
+        copyBtn.textContent = "Copy";
+        copyBtn.style.cssText = "display:block;margin-top:4px;font-size:11px;padding:2px 8px;cursor:pointer;opacity:0.6;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;";
+        copyBtn.addEventListener("click", () => {
+          navigator.clipboard.writeText(assistantText).then(() => {
+            copyBtn.textContent = "Copied!";
+            setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
+          });
+        });
+        streamWrap.appendChild(copyBtn);
+        streamWrap.appendChild(_makeTimeSpan());
+
+        if (perfBar) {
+          const elapsed_ms = final.latency_ms ?? (Date.now() - _streamStart);
+          const wordCount  = assistantText.trim().split(/\s+/).filter(Boolean).length;
+          const tok_s      = elapsed_ms > 0 ? (wordCount / (elapsed_ms / 1000)).toFixed(1) : "—";
+          const parts      = [`Backend: ${final.mode || "—"}`];
+          parts.push(`~${tok_s} tok/s`);
+          perfBar.textContent = parts.join(" | ");
+        }
       }
       setControls(false);
       promptEl.focus();
@@ -323,10 +511,69 @@ function autoResize() {
 btnSend.addEventListener("click", sendPrompt);
 btnRoute.addEventListener("click", routePrompt);
 
+const btnClearChat = document.getElementById("btn-clear-chat");
+if (btnClearChat) {
+  btnClearChat.addEventListener("click", () => {
+    chat.innerHTML = "";
+    history.length = 0;
+    _clearHistory();
+  });
+}
+
+const btnExportChat = document.getElementById("btn-export-chat");
+if (btnExportChat) {
+  btnExportChat.addEventListener("click", () => {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const lines = [
+      "# Cognia Chat Export",
+      `_Exportado: ${now.toLocaleString()}_`,
+      "",
+    ];
+    for (const msg of history) {
+      const label = msg.role === "user" ? "**Usuario:**" : "**Cognia:**";
+      lines.push(`${label} ${msg.content}`, "");
+    }
+    const md = lines.join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([md], { type: "text/markdown" }));
+    a.download = `cognia-chat-${dateStr}.md`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+}
+
 const feedbackBtn = document.getElementById("btn-feedback");
 if (feedbackBtn) {
   feedbackBtn.addEventListener("click", () => window.cognia.openFeedback());
 }
+
+// ── Network status polling ─────────────────────────────────────────────
+
+const _networkStatusEl = document.getElementById("network-status");
+
+async function _refreshNetworkStatus() {
+  if (!_networkStatusEl) return;
+  try {
+    const res = await fetch("http://localhost:8765/network/status");
+    if (!res.ok) throw new Error("http " + res.status);
+    const d = await res.json();
+    if (d.online === false) {
+      _networkStatusEl.textContent = "Network: offline";
+    } else {
+      const nodes = d.active_nodes ?? d.nodes ?? d.connected_nodes;
+      _networkStatusEl.textContent = nodes != null
+        ? `Network: ${nodes} node${nodes !== 1 ? "s" : ""} online`
+        : "Network: online";
+    }
+  } catch (_) {
+    _networkStatusEl.textContent = "Network: offline";
+  }
+}
+
+_refreshNetworkStatus();
+setInterval(_refreshNetworkStatus, 30000);
+
 
 promptEl.addEventListener("input", autoResize);
 promptEl.addEventListener("keydown", (e) => {
@@ -335,3 +582,191 @@ promptEl.addEventListener("keydown", (e) => {
     sendPrompt();
   }
 });
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "l" && e.ctrlKey) {
+    e.preventDefault();
+    chat.innerHTML = "";
+    history.length = 0;
+    _clearHistory();
+    promptEl.focus();
+  }
+  // Ctrl+Enter or Cmd+Enter: send message
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    sendPrompt();
+    return;
+  }
+  // Ctrl+K: clear chat
+  if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+    e.preventDefault();
+    if (confirm("Limpiar el chat?")) {
+      chat.innerHTML = "";
+      history.length = 0;
+      _saveHistory();
+      appendSystem("Chat limpiado.");
+    }
+    return;
+  }
+  // Escape: cancel stream
+  if (e.key === "Escape" && _cancelStream) {
+    e.preventDefault();
+    _cancelStream();
+    _cancelStream = null;
+    removeThinking();
+    appendSystem("Respuesta cancelada.");
+    return;
+  }
+});
+
+
+// ── Tools panel ──────────────────────────────────────────────────────────────
+let _editorCurrentPath = null;
+
+async function loadDirectory(path) {
+  path = path || '.';
+  try {
+    const r = await fetch('http://localhost:8765/files/list?path=' + encodeURIComponent(path));
+    const data = await r.json();
+    document.getElementById('browser-path').textContent = data.path || path;
+    const list = document.getElementById('file-list');
+    list.innerHTML = '';
+    // Up button if not root
+    if (data.path && data.path !== '.') {
+      const up = document.createElement('div');
+      up.className = 'file-entry dir-entry';
+      up.textContent = '.. (subir)';
+      const parentPath = data.path.split('/').slice(0, -1).join('/') || '.';
+      up.addEventListener('click', () => loadDirectory(parentPath));
+      list.appendChild(up);
+    }
+    (data.entries || []).forEach(e => {
+      const row = document.createElement('div');
+      row.className = 'file-entry ' + (e.type === 'dir' ? 'dir-entry' : 'file-entry-item');
+      const sizeStr = e.type === 'file' && e.size != null
+        ? (' (' + (e.size > 1024 ? (e.size/1024).toFixed(1)+'KB' : e.size+'B') + ')')
+        : '';
+      row.textContent = (e.type === 'dir' ? '[D] ' : '[F] ') + e.name + sizeStr;
+      if (e.type === 'dir') {
+        row.addEventListener('click', () => loadDirectory(e.path));
+      } else {
+        row.addEventListener('click', () => openFile(e.path, e.name));
+      }
+      list.appendChild(row);
+    });
+  } catch(err) {
+    const list = document.getElementById('file-list');
+    if (list) list.textContent = 'Error: ' + err.message;
+  }
+}
+
+async function openFile(path, name) {
+  try {
+    const r = await fetch('http://localhost:8765/files/read?path=' + encodeURIComponent(path));
+    const data = await r.json();
+    _editorCurrentPath = path;
+    document.getElementById('editor-filename').textContent = name || path;
+    const ed = document.getElementById('file-editor');
+    ed.value = data.content || '';
+    ed.disabled = false;
+    document.getElementById('btn-send-to-chat').disabled = false;
+    document.getElementById('btn-save-file').disabled = false;
+    if (data.truncated) {
+      document.getElementById('editor-filename').textContent += ' [truncado a 100KB]';
+    }
+  } catch(err) {
+    alert('Error abriendo archivo: ' + err.message);
+  }
+}
+
+const _btnRefreshFiles = document.getElementById('btn-refresh-files');
+if (_btnRefreshFiles) {
+  _btnRefreshFiles.addEventListener('click', () => {
+    loadDirectory(document.getElementById('browser-path').textContent);
+  });
+}
+
+const _btnSendToChat = document.getElementById('btn-send-to-chat');
+if (_btnSendToChat) {
+  _btnSendToChat.addEventListener('click', () => {
+    const content = document.getElementById('file-editor').value;
+    if (!content) return;
+    const fname = _editorCurrentPath || 'archivo';
+    promptEl.value = 'Lee este archivo (' + fname + '):\n\n' + content.slice(0, 4000);
+    promptEl.dispatchEvent(new Event('input'));
+    document.querySelector('.nav-item[data-panel="chat"]').click();
+    promptEl.focus();
+  });
+}
+
+const _btnSaveFile = document.getElementById('btn-save-file');
+if (_btnSaveFile) {
+  _btnSaveFile.addEventListener('click', async () => {
+    if (!_editorCurrentPath) return;
+    const content = document.getElementById('file-editor').value;
+    try {
+      const r = await fetch('http://localhost:8765/files/write', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({path: _editorCurrentPath, content})
+      });
+      const data = await r.json();
+      if (data.ok) {
+        const btn = document.getElementById('btn-save-file');
+        btn.textContent = 'Guardado!';
+        setTimeout(() => { btn.textContent = 'Guardar'; }, 1500);
+      }
+    } catch(err) {
+      alert('Error guardando: ' + err.message);
+    }
+  });
+}
+
+
+// ── Agent modal ───────────────────────────────────────────────────────────────
+
+const agentModal     = document.getElementById('agent-modal');
+const agentTaskInput = document.getElementById('agent-task-input');
+const agentRunBtn    = document.getElementById('agent-run-btn');
+const agentCancelBtn = document.getElementById('agent-cancel-btn');
+const agentResult    = document.getElementById('agent-result');
+const navAgent       = document.getElementById('nav-agent');
+
+if (navAgent) {
+  navAgent.addEventListener('click', () => {
+    agentModal.style.display = 'flex';
+    agentTaskInput.value = '';
+    agentResult.style.display = 'none';
+    agentTaskInput.focus();
+  });
+}
+if (agentCancelBtn) {
+  agentCancelBtn.addEventListener('click', () => {
+    agentModal.style.display = 'none';
+  });
+}
+if (agentRunBtn) {
+  agentRunBtn.addEventListener('click', async () => {
+    const task = agentTaskInput.value.trim();
+    if (!task) return;
+    agentRunBtn.disabled = true;
+    agentRunBtn.textContent = 'Ejecutando...';
+    agentResult.style.display = 'none';
+    try {
+      const resp = await fetch(`${window._backendUrl || 'http://localhost:8765'}/agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task })
+      });
+      const data = await resp.json();
+      agentResult.textContent = data.result || data.detail || 'Sin resultado';
+      agentResult.style.display = 'block';
+    } catch (e) {
+      agentResult.textContent = 'Error: ' + e.message;
+      agentResult.style.display = 'block';
+    } finally {
+      agentRunBtn.disabled = false;
+      agentRunBtn.textContent = 'Ejecutar';
+    }
+  });
+}

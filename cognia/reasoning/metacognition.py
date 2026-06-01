@@ -24,7 +24,7 @@ class MetacognitionModule:
 
         top = similar_episodes[0]
         sim = top["similarity"]
-        conf = top["confidence"]
+        conf = top.get("confidence", 0.0)  # missing key treated as no confidence
 
         labels = [e["label"] for e in similar_episodes if e.get("label")]
         top_label = max(set(labels), key=labels.count) if labels else None
@@ -44,7 +44,7 @@ class MetacognitionModule:
             except Exception:
                 pass
 
-        blended = 0.55 * sim + 0.35 * conf + kg_bonus
+        blended = min(1.0, 0.55 * sim + 0.35 * conf + kg_bonus)  # clamped: inputs can exceed 1
 
         if blended >= 0.75:
             state = "confident"

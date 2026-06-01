@@ -58,7 +58,7 @@ MLA_HEAD_DIM_ASSUMED:   int = 128
 QWEN25_CODER_3B: dict = {
     "total_layers":      36,
     "hidden_dim":        2048,
-    "intermediate_dim":  8960,
+    "intermediate_dim":  11008,  # actual from gate_proj shape (11008, 2048); config.json was wrong
     "n_heads":           16,
     "n_kv_heads":        2,        # GQA: group size 8 (verified from k_proj shape=256)
     "head_dim":          128,      # hidden_dim // n_heads

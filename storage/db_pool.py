@@ -229,3 +229,29 @@ def pool_stats() -> dict:
             "available": pool._pool.qsize(),
         }
     return stats
+
+
+def close_pool(db_path: str = None):
+    """
+    Drena y cierra todas las conexiones físicas del pool para un db_path dado.
+    Útil en tests para liberar el archivo antes de os.unlink() en Windows.
+    """
+    if db_path is None:
+        try:
+            from cognia.config import DB_PATH
+            db_path = DB_PATH
+        except ImportError:
+            return
+    pool = _pools.pop(db_path, None)
+    if pool is None:
+        return
+    # Drain all idle connections and close them physically
+    while True:
+        try:
+            conn = pool._pool.get_nowait()
+            try:
+                conn.close()
+            except Exception:
+                pass
+        except Exception:
+            break

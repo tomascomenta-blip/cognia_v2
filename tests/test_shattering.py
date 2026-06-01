@@ -400,6 +400,16 @@ DESKTOP_MANIFEST = str(ROOT / "shattering" / "manifests" / "cognia_desktop.json"
 
 class TestShatteringOrchestrator:
 
+    @pytest.fixture(autouse=True)
+    def _mock_llm(self):
+        """Prevent actual LLM calls (llama-server cold start / shard inference / Ollama timeout) during unit tests."""
+        from shattering.orchestrator import ShatteringOrchestrator
+        with patch.object(ShatteringOrchestrator, '_try_load_llama', lambda self: None), \
+             patch.object(ShatteringOrchestrator, '_shards_available', lambda self: False), \
+             patch.object(ShatteringOrchestrator, '_ollama_infer',
+                          lambda self, prompt, sub_model, n_passes=1: "[Simulation] Test mock response."):
+            yield
+
     @pytest.fixture
     def tmpdir(self):
         with tempfile.TemporaryDirectory() as d:
@@ -438,7 +448,7 @@ class TestShatteringOrchestrator:
         assert result.sub_model in ("logos", "techne", "rhetor")
         assert 0.0 <= result.confidence <= 1.0
         assert result.latency_ms >= 0.0
-        assert result.mode in ("local", "simulation", "distributed")
+        assert result.mode in ("local", "simulation", "distributed", "llama.cpp")
         assert result.route_reason
 
     def test_simulation_response_nonempty(self, tmpdir):

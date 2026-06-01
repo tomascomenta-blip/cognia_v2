@@ -32,6 +32,7 @@ function getEnvPath() {
 }
 
 function isSetupComplete() {
+  if (process.env.COGNIA_SETUP_DONE === "1") return true;
   const p = getEnvPath();
   if (!fs.existsSync(p)) return false;
   return /^COGNIA_SETUP_DONE=1/m.test(fs.readFileSync(p, "utf8"));
@@ -293,11 +294,23 @@ app.whenReady().then(async () => {
   }
 
   loadEnvFile();
-  startBackend();
+  // COGNIA_EXTERNAL_BACKEND=1 skips spawning Python (used by Playwright tests
+  // that start the backend separately to avoid port conflicts).
+  if (process.env.COGNIA_EXTERNAL_BACKEND !== "1") startBackend();
   createWindow();
 
   try {
     const readyData = await waitForBackend();
+    // Wait for the renderer to finish loading before sending backend-ready.
+    // Without this, a fast-starting backend sends the event before the
+    // ipcRenderer listener is registered and the message is silently lost.
+    await new Promise((resolve) => {
+      if (mainWindow?.webContents.isLoading()) {
+        mainWindow.webContents.once("did-finish-load", resolve);
+      } else {
+        resolve();
+      }
+    });
     mainWindow?.webContents.send("backend-ready", readyData);
   } catch (_err) {
     mainWindow?.webContents.send("backend-error", "Cognia could not start. Please restart the application.");

@@ -205,6 +205,49 @@ class KnowledgeGraph:
 
         return list(set(triples))
 
+    def _get_isa_parents(self, concept: str) -> list:
+        """Return direct is_a parents of concept (one hop)."""
+        conn = db_connect(self.db)
+        c = conn.cursor()
+        c.execute(
+            "SELECT object FROM knowledge_graph WHERE subject=? AND predicate='is_a' ORDER BY weight DESC",
+            (concept.lower(),),
+        )
+        rows = c.fetchall()
+        conn.close()
+        return [r[0] for r in rows]
+
+    def _get_direct_facts(self, concept: str) -> list:
+        """Return non-is_a facts where concept is subject, as readable strings."""
+        conn = db_connect(self.db)
+        c = conn.cursor()
+        c.execute(
+            "SELECT predicate, object FROM knowledge_graph WHERE subject=? AND predicate != 'is_a' ORDER BY weight DESC LIMIT 10",
+            (concept.lower(),),
+        )
+        rows = c.fetchall()
+        conn.close()
+        return [f"{concept} {pred} {obj}" for pred, obj in rows]
+
+    def get_inherited_facts(self, concept: str, max_depth: int = 2) -> list:
+        """Return facts inherited via is_a chain up to max_depth hops."""
+        inherited = []
+        visited = set()
+        queue = [(concept.lower(), 0)]
+        while queue:
+            current, depth = queue.pop(0)
+            if current in visited or depth > max_depth:
+                continue
+            visited.add(current)
+            for parent in self._get_isa_parents(current):
+                if parent not in visited:
+                    queue.append((parent, depth + 1))
+                    for fact in self._get_direct_facts(parent):
+                        entry = f"{concept} (via {parent}): {fact}"
+                        if entry not in inherited:
+                            inherited.append(entry)
+        return inherited[:8]
+
     def stats(self) -> dict:
         conn = db_connect(self.db)
         c = conn.cursor()

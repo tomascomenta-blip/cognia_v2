@@ -175,6 +175,7 @@ class Cognia:
             self.cognitive_profile = None
 
         self.interaction_count       = 0
+        self._session_observations   = 0
         self.consolidation_interval  = 8
         self.forgetting_interval     = 15
         # Phase 9 C6: feedback guards (in-memory, reset on restart)
@@ -489,6 +490,11 @@ class Cognia:
 
         if provided_label:
             # ── MODO APRENDIZAJE ───────────────────────────────────────
+
+            # Stage 1: plausibility — reject observations that are pure noise
+            if len(observation.strip()) < 5 or len(observation.strip().split()) < 2:
+                return {"status": "rejected", "reason": "too_short", "label": provided_label}
+
             contradiction = self.contradiction.check(observation, provided_label, vec, self.semantic)
             if contradiction:
                 self.contradiction.log_contradiction(
@@ -499,15 +505,76 @@ class Cognia:
 
             old_prediction = assessment.get("top_label")
 
+            # 5-stage learning verification gate
+            _store_confidence = 0.6
+            _store_importance = 1.0
+
+            # Stage 2: similarity check — if very similar to recent observation, lower importance
+            if similar and similar[0]["similarity"] > 0.95:
+                _store_importance = 0.5  # duplicate signal
+
+            # Stage 3: contradiction pre-check — if contradiction detected, lower confidence
+            if contradiction:
+                _store_confidence = 0.4
+
+            # Stage 3b: KG inherited-facts conflict check — negation against is_a chain
+            try:
+                if hasattr(self, 'kg') and self.kg:
+                    _obs_words = [w for w in observation.split() if len(w) > 3 and w.isalpha()]
+                    if _obs_words:
+                        _inherited = self.kg.get_inherited_facts(_obs_words[0].lower(), max_depth=2)
+                        if _inherited:
+                            _obs_lower = observation.lower()
+                            _negation_words = ["no ", "not ", "never ", "nunca ", "no puede", "cannot", "doesn't", "no es"]
+                            _has_negation = any(neg in _obs_lower for neg in _negation_words)
+                            _inherits_positive = any(
+                                any(kw in inh.lower() for kw in _obs_words[:2])
+                                for inh in _inherited
+                            )
+                            if _has_negation and _inherits_positive:
+                                # Inherited facts conflict with negation — reduce confidence
+                                _store_confidence *= 0.6
+            except Exception:
+                pass  # never block learning
+
+            # Stage 4: length/complexity bonus — longer, richer observations get higher importance
+            word_count = len(observation.split())
+            if word_count > 30:
+                _store_importance = min(1.0, _store_importance * 1.2)
+
+            # Stage 5: confidence delta from semantic memory
+            try:
+                _sem_conf = self.semantic.get_concept(provided_label)
+                if _sem_conf and _sem_conf.get("confidence", 0) > 0.8:
+                    _store_confidence = min(0.9, _store_confidence + 0.1)
+            except Exception:
+                pass
+
             ep_id = self.episodic.store(
                 observation=observation, label=provided_label, vector=vec,
-                confidence=0.6, importance=1.0, emotion=emotion, surprise=surprise,
+                confidence=_store_confidence, importance=_store_importance, emotion=emotion, surprise=surprise,
                 context_tags=self.working_mem.get_context_labels()[-3:]
             )
             if _EPISODES_STORED is not None:
                 _EPISODES_STORED.inc()
 
-            self.working_mem.add(observation, provided_label, vec, emotion, 0.6)
+            self._session_observations += 1
+            # Auto-consolidate every 20 new observations to prevent episodic drift
+            if self._session_observations % 20 == 0:
+                try:
+                    if self._consolidation_engine is not None:
+                        self._consolidation_engine.run_light_cycle()
+                    else:
+                        self.consolidation.run_light_cycle()
+                except AttributeError:
+                    try:
+                        self.consolidation.consolidate(max_episodes=10)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+            self.working_mem.add(observation, provided_label, vec, emotion, _store_confidence)
 
             words = features["words"][:3]
             for w in words:
@@ -516,6 +583,23 @@ class Cognia:
 
             self.semantic.update_concept(provided_label, vec,
                                           confidence_delta=0.05, emotion_score=emotion["score"])
+
+            # Crystallization: when a concept reaches support threshold, boost confidence significantly
+            try:
+                _cryst_check = self.semantic.get_concept(provided_label)
+                if _cryst_check and _cryst_check.get("support", 0) == 5:
+                    # Exactly at threshold — apply one-time crystallization boost
+                    self.semantic.update_concept(
+                        provided_label, vec,
+                        confidence_delta=0.15,  # larger boost than normal 0.05
+                        emotion_score=emotion.get("score", 0.0) if isinstance(emotion, dict) else 0.0,
+                    )
+                    logger.info(
+                        "concept_crystallized label=%s", provided_label,
+                        extra={"op": "cognia.crystallize", "context": "support=5"},
+                    )
+            except Exception:
+                pass
 
             if HAS_LANGUAGE_ENGINE:
                 try:
@@ -559,12 +643,15 @@ class Cognia:
 
         else:
             # ── MODO INFERENCIA ────────────────────────────────────────
+            # Use the inferred top_label as a soft label (lower confidence than
+            # explicit /aprender) so retrieval can find these episodes by concept.
+            _infer_label = assessment.get("top_label") if assessment.get("confidence", 0) > 0.25 else None
             self.episodic.store(
-                observation=observation, label=None, vector=vec,
+                observation=observation, label=_infer_label, vector=vec,
                 confidence=0.3, importance=0.5, emotion=emotion, surprise=surprise,
                 context_tags=[]
             )
-            self.working_mem.add(observation, None, vec, emotion, 0.3)
+            self.working_mem.add(observation, _infer_label, vec, emotion, 0.3)
 
             inference_answer = None
             if "?" in observation:
