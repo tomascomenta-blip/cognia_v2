@@ -222,6 +222,17 @@ _CMD_DESCRIPTIONS = {
     "/plan-ver":        "Ver todos los planes activos",
     "/plan-ok":         "Marcar paso como completado   <id> <n>",
     "/plan-borrar":     "Eliminar un plan              <id>",
+    # Herramientas nuevas
+    "/monitor":         "Ejecutar cmd en background y ver output  <cmd>",
+    "/powershell":      "Ejecutar comando PowerShell              <cmd>",
+    "/tarea-crear":     "Crear tarea de sesion                    <desc>",
+    "/tarea-lista":     "Listar tareas de sesion",
+    "/tarea-ok":        "Marcar tarea completada                  <id>",
+    "/tarea-borrar":    "Borrar tarea                             <id>",
+    "/web-fetch":       "Descargar URL y convertir a texto        <url>",
+    "/web-buscar":      "Buscar en la web (DuckDuckGo)            <query>",
+    "/worktree":        "Crear git worktree en rama aislada       <rama>",
+    "/notificar":       "Enviar notificacion de escritorio        <mensaje>",
     # UI
     "/limpiar":         "Limpiar pantalla",
     "/compactar":       "Resumir historial de sesión",
@@ -1812,6 +1823,220 @@ def repl():
                     _print_line("[detail]No hay estadisticas disponibles.[/detail]")
             except Exception as _e:
                 _print_line(f"[err_cl]Error: {_e}[/err_cl]")
+
+        # ── /monitor <cmd> ────────────────────────────────────────────
+        elif raw.startswith("/monitor "):
+            _mon_cmd = raw[len("/monitor "):].strip()
+            if not _mon_cmd:
+                _print_line("[warn_cl]Uso: /monitor <comando>[/warn_cl]")
+            else:
+                import subprocess as _sp, threading as _th
+                _print_line(f"[detail]Monitoreando: {_escape(_mon_cmd)}  (Ctrl+C para parar)[/detail]")
+                try:
+                    _mon_proc = _sp.Popen(
+                        _mon_cmd, shell=True, stdout=_sp.PIPE, stderr=_sp.STDOUT,
+                        text=True, encoding="utf-8", errors="replace",
+                    )
+                    try:
+                        for _line in _mon_proc.stdout:
+                            _print_line(_line.rstrip())
+                    except KeyboardInterrupt:
+                        _mon_proc.terminate()
+                        _print_line("[detail]Monitor detenido.[/detail]")
+                    _mon_proc.wait()
+                    _print_line(f"[detail]Proceso terminado (exit {_mon_proc.returncode})[/detail]")
+                except Exception as _e:
+                    _print_line(f"[err_cl]Error en monitor: {_e}[/err_cl]")
+
+        # ── /powershell <cmd> ──────────────────────────────────────────
+        elif raw.startswith("/powershell "):
+            _ps_cmd = raw[len("/powershell "):].strip()
+            if not _ps_cmd:
+                _print_line("[warn_cl]Uso: /powershell <comando>[/warn_cl]")
+            else:
+                import subprocess as _sp, sys as _sys
+                _ps_exe = "powershell.exe" if _sys.platform == "win32" else "pwsh"
+                try:
+                    _ps_res = _sp.run(
+                        [_ps_exe, "-NonInteractive", "-Command", _ps_cmd],
+                        capture_output=True, text=True, timeout=120,
+                        encoding="utf-8", errors="replace",
+                    )
+                    _out = (_ps_res.stdout + _ps_res.stderr).strip()
+                    _show_response(_out or f"(exit {_ps_res.returncode})", "green")
+                except Exception as _e:
+                    _print_line(f"[err_cl]PowerShell error: {_e}[/err_cl]")
+
+        # ── /tarea-crear /tarea-lista /tarea-ok /tarea-borrar ──────────
+        elif raw.startswith("/tarea-crear ") or raw == "/tarea-crear":
+            _tdesc = raw[len("/tarea-crear "):].strip() if raw.startswith("/tarea-crear ") else ""
+            if not _tdesc:
+                _print_line("[warn_cl]Uso: /tarea-crear <descripcion>[/warn_cl]")
+            else:
+                if not hasattr(ai, "_session_tasks"):
+                    ai._session_tasks = []
+                _tid = len(ai._session_tasks) + 1
+                ai._session_tasks.append({"id": _tid, "desc": _tdesc, "done": False})
+                _print_line(f"[ok_cl]Tarea #{_tid} creada: {_escape(_tdesc)}[/ok_cl]")
+
+        elif raw == "/tarea-lista":
+            if not getattr(ai, "_session_tasks", None):
+                _print_line("[detail]No hay tareas en esta sesion.[/detail]")
+            else:
+                _tlines = []
+                for _t in ai._session_tasks:
+                    _status = "[OK]" if _t["done"] else "[ ]"
+                    _tlines.append(f"  {_status} #{_t['id']} {_t['desc']}")
+                _show_response("\n".join(_tlines), "cyan")
+
+        elif raw.startswith("/tarea-ok ") or raw == "/tarea-ok":
+            _tok_id = raw[len("/tarea-ok "):].strip() if raw.startswith("/tarea-ok ") else ""
+            if not _tok_id:
+                _print_line("[warn_cl]Uso: /tarea-ok <id>[/warn_cl]")
+            else:
+                try:
+                    _tok_n = int(_tok_id)
+                    _found = next((t for t in getattr(ai, "_session_tasks", []) if t["id"] == _tok_n), None)
+                    if _found:
+                        _found["done"] = True
+                        _print_line(f"[ok_cl]Tarea #{_tok_n} completada.[/ok_cl]")
+                    else:
+                        _print_line(f"[warn_cl]Tarea #{_tok_n} no encontrada.[/warn_cl]")
+                except ValueError:
+                    _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
+
+        elif raw.startswith("/tarea-borrar ") or raw == "/tarea-borrar":
+            _tbid = raw[len("/tarea-borrar "):].strip() if raw.startswith("/tarea-borrar ") else ""
+            if not _tbid:
+                _print_line("[warn_cl]Uso: /tarea-borrar <id>[/warn_cl]")
+            else:
+                try:
+                    _tbn = int(_tbid)
+                    _before = len(getattr(ai, "_session_tasks", []))
+                    ai._session_tasks = [t for t in getattr(ai, "_session_tasks", []) if t["id"] != _tbn]
+                    if len(ai._session_tasks) < _before:
+                        _print_line(f"[ok_cl]Tarea #{_tbn} eliminada.[/ok_cl]")
+                    else:
+                        _print_line(f"[warn_cl]Tarea #{_tbn} no encontrada.[/warn_cl]")
+                except ValueError:
+                    _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
+
+        # ── /web-fetch <url> ───────────────────────────────────────────
+        elif raw.startswith("/web-fetch ") or raw == "/web-fetch":
+            _wf_url = raw[len("/web-fetch "):].strip() if raw.startswith("/web-fetch ") else ""
+            if not _wf_url or not _wf_url.startswith("http"):
+                _print_line("[warn_cl]Uso: /web-fetch <url>  (debe empezar con http)[/warn_cl]")
+            else:
+                try:
+                    import urllib.request as _ur, html as _html_mod
+                    _req = _ur.Request(
+                        _wf_url,
+                        headers={"User-Agent": "CogniaBot/1.0 (+cognia-ai)"},
+                    )
+                    with _ur.urlopen(_req, timeout=15) as _resp:
+                        _raw_bytes = _resp.read(1_000_000)
+                    _ct = _resp.headers.get("content-type", "")
+                    _text = _raw_bytes.decode("utf-8", errors="replace")
+                    # Strip HTML tags to plain text
+                    import re as _re2
+                    _text = _re2.sub(r"<style[^>]*>.*?</style>", " ", _text, flags=_re2.DOTALL | _re2.IGNORECASE)
+                    _text = _re2.sub(r"<script[^>]*>.*?</script>", " ", _text, flags=_re2.DOTALL | _re2.IGNORECASE)
+                    _text = _re2.sub(r"<[^>]+>", " ", _text)
+                    _text = _re2.sub(r"\s{3,}", "\n\n", _text).strip()
+                    _text = _html_mod.unescape(_text)
+                    _preview = _text[:3000]
+                    _show_response(f"[{_wf_url}]\n\n{_preview}", "cyan")
+                    # Inject into session context
+                    try:
+                        ai.observe(f"Contenido de {_wf_url}:\n{_text[:500]}", provided_label="web_fetch")
+                    except Exception:
+                        pass
+                except Exception as _e:
+                    _print_line(f"[err_cl]web-fetch error: {_e}[/err_cl]")
+
+        # ── /web-buscar <query> ────────────────────────────────────────
+        elif raw.startswith("/web-buscar ") or raw == "/web-buscar":
+            _wb_q = raw[len("/web-buscar "):].strip() if raw.startswith("/web-buscar ") else ""
+            if not _wb_q:
+                _print_line("[warn_cl]Uso: /web-buscar <query>[/warn_cl]")
+            else:
+                try:
+                    import urllib.request as _ur2, urllib.parse as _up2, json as _json2
+                    _enc_q = _up2.quote_plus(_wb_q)
+                    # DDG Instant Answer API — free, no auth, no scraping
+                    _ddg_api = f"https://api.duckduckgo.com/?q={_enc_q}&format=json&no_redirect=1&no_html=1&skip_disambig=1"
+                    _req2 = _ur2.Request(_ddg_api, headers={"User-Agent": "CogniaBot/1.0"})
+                    with _ur2.urlopen(_req2, timeout=15) as _r2:
+                        _data2 = _json2.loads(_r2.read())
+                    _lines2 = [f"Resultados para: {_wb_q}\n"]
+                    _abstract = _data2.get("Abstract", "").strip()
+                    if _abstract:
+                        _src = _data2.get("AbstractURL", "")
+                        _lines2.append(f"Resumen: {_abstract[:300]}")
+                        if _src:
+                            _lines2.append(f"Fuente: {_src}\n")
+                    _direct_results = _data2.get("Results", [])
+                    for _i, _r in enumerate(_direct_results[:5], 1):
+                        _lines2.append(f"{_i}. {_r.get('Text','')[:80]}")
+                        _lines2.append(f"   {_r.get('FirstURL','')}")
+                    _related = [t for t in _data2.get("RelatedTopics", [])
+                                if isinstance(t, dict) and t.get("Text")]
+                    if _related and not _direct_results:
+                        _lines2.append("Temas relacionados:")
+                        for _rr in _related[:6]:
+                            _lines2.append(f"  - {_rr['Text'][:90]}")
+                    if len(_lines2) <= 1:
+                        _lines2.append("(Sin resultados directos — prueba otra busqueda)")
+                    _show_response("\n".join(_lines2), "cyan")
+                except Exception as _e:
+                    _print_line(f"[err_cl]web-buscar error: {_e}[/err_cl]")
+
+        # ── /worktree <rama> ───────────────────────────────────────────
+        elif raw.startswith("/worktree ") or raw == "/worktree":
+            _wt_rama = raw[len("/worktree "):].strip() if raw.startswith("/worktree ") else ""
+            if not _wt_rama:
+                _print_line("[warn_cl]Uso: /worktree <nombre-rama>[/warn_cl]")
+            else:
+                import subprocess as _sp2
+                _wt_path = f"../{_wt_rama}-worktree"
+                try:
+                    _r1 = _sp2.run(
+                        ["git", "worktree", "add", "-b", _wt_rama, _wt_path],
+                        capture_output=True, text=True, cwd=".",
+                    )
+                    if _r1.returncode == 0:
+                        _print_line(f"[ok_cl]Worktree creado en {_wt_path} (rama: {_wt_rama})[/ok_cl]")
+                        _print_line(f"[detail]Usa: cd {_wt_path}  para trabajar ahi[/detail]")
+                    else:
+                        _print_line(f"[err_cl]{_r1.stderr.strip()}[/err_cl]")
+                except Exception as _e:
+                    _print_line(f"[err_cl]worktree error: {_e}[/err_cl]")
+
+        # ── /notificar <mensaje> ───────────────────────────────────────
+        elif raw.startswith("/notificar ") or raw == "/notificar":
+            _notif_msg = raw[len("/notificar "):].strip() if raw.startswith("/notificar ") else ""
+            if not _notif_msg:
+                _print_line("[warn_cl]Uso: /notificar <mensaje>[/warn_cl]")
+            else:
+                import sys as _sys2
+                try:
+                    if _sys2.platform == "win32":
+                        import subprocess as _sp3
+                        _ps_notif = (
+                            f"Add-Type -AssemblyName System.Windows.Forms; "
+                            f"[System.Windows.Forms.MessageBox]::Show('{_notif_msg}', 'Cognia')"
+                        )
+                        _sp3.Popen(
+                            ["powershell.exe", "-WindowStyle", "Hidden", "-Command", _ps_notif],
+                            creationflags=0x08000000,  # CREATE_NO_WINDOW
+                        )
+                        _print_line(f"[ok_cl]Notificacion enviada: {_escape(_notif_msg)}[/ok_cl]")
+                    else:
+                        import subprocess as _sp3
+                        _sp3.Popen(["notify-send", "Cognia", _notif_msg])
+                        _print_line(f"[ok_cl]Notificacion enviada: {_escape(_notif_msg)}[/ok_cl]")
+                except Exception as _e:
+                    _print_line(f"[err_cl]notificar error: {_e}[/err_cl]")
 
         # -- Unknown slash --------------------------------------------------
         elif raw.startswith("/"):
