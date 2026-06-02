@@ -465,9 +465,18 @@ class SymbolicSynthesizer:
 
         # ── Párrafo 1: respuesta directa a la pregunta ────────────────
         q_clean = question.strip().rstrip("?").rstrip(".")
-        if descriptions:
-            # Usar la descripción del concepto principal
-            main_desc = descriptions[0]
+        # Filter descriptions that look like raw vector/binary data
+        _clean_descs = [
+            d for d in descriptions
+            if not (d.lstrip().startswith("[-") or d.lstrip().startswith("[0.")
+                    or ", 0." in d[:80] or ", -0." in d[:80])
+        ]
+        if _clean_descs:
+            # Strip the "concept: " prefix — show only the human-readable part
+            main_desc = _clean_descs[0]
+            _colon = main_desc.find(": ")
+            if _colon != -1:
+                main_desc = main_desc[_colon + 2:]
             partes.append(f"Sobre {q_clean}: {main_desc}.")
         elif concepts:
             # Sin descripción: anclar al concepto

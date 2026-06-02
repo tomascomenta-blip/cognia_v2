@@ -342,13 +342,43 @@ class LanguageEngine:
             r'|qu[eé].*te.*pregunt[eé]|mi.*[uú]ltima.*pregunta|[uú]ltima.*cosa.*que)\b',
             re.IGNORECASE,
         )
-        if _RECALL_PAT.search(question):
+        _NAME_PAT = re.compile(
+            r'\b(c[oó]mo.*me.*llamo|cu[aá]l.*es.*mi.*nombre|sabes.*mi.*nombre'
+            r'|recuerdas.*mi.*nombre|cu[aá]l.*era.*mi.*nombre)\b',
+            re.IGNORECASE,
+        )
+        if _NAME_PAT.search(question) or _RECALL_PAT.search(question):
             try:
                 from conversation_memory import get_conversation_context
+                import re as _re
                 _ctx = get_conversation_context(ai)
                 _turns = _ctx._buffer.get_all() if hasattr(_ctx, '_buffer') else []
-                # Filter out the current question itself
                 _prev = [t for t in _turns if t.user_text.strip() != question.strip()]
+                # Name-recall: only for name-specific questions
+                if _NAME_PAT.search(question):
+                    _NAME_DECL = _re.compile(
+                        r'(?:mi nombre es|me llamo|soy)\s+([A-Za-zÁáÉéÍíÓóÚúÑñ]{2,30})',
+                        _re.IGNORECASE,
+                    )
+                    for _t in reversed(_prev):
+                        _m = _NAME_DECL.search(_t.user_text)
+                        if _m:
+                            _name = _m.group(1).capitalize()
+                            latency = (time.perf_counter() - t0) * 1000
+                            return EngineResult(
+                                response        = f"Tu nombre es {_name}.",
+                                stage_used      = "recall_static",
+                                latency_ms      = latency,
+                                tokens_sent     = 0,
+                                confidence      = 1.0,
+                                cache_hit       = False,
+                                used_llm        = False,
+                                question_type   = "recall",
+                                tipo_pregunta   = "recall",
+                                tiene_contexto  = True,
+                                info_suficiente = True,
+                            )
+                # Last-message recall
                 if _prev:
                     _last = _prev[-1]
                     _recall_resp = f"Tu ultimo mensaje fue: \"{_last.short_user(120)}\""
