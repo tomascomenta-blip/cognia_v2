@@ -117,7 +117,10 @@ class ContextCompressor:
         Retorna (contexto_comprimido, lista_de_bloques_incluidos).
         """
         if not context:
-            return context, []
+            return "", []
+        # Coerce list/tuple context to string (defensive guard)
+        if not isinstance(context, str):
+            context = "\n".join(str(c) for c in context) if isinstance(context, (list, tuple)) else str(context)
 
         token_limit = CONTEXT_TOKENS_BY_LEVEL.get(throttle_level, 1400)
         char_limit  = max_chars or int(token_limit * CHARS_PER_TOKEN)
@@ -407,7 +410,7 @@ class PromptOptimizer:
             context=ctx_trimmed if compressed_ctx else "(sin contexto relevante)"
         )
 
-        original_len  = len(question) + len(context)
+        original_len  = len(question) + (len(context) if isinstance(context, str) else sum(len(str(c)) for c in context))
         optimized_len = len(prompt)
         compression   = max(0.0, 1.0 - (optimized_len / max(1, original_len)))
 
