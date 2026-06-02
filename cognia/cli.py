@@ -234,6 +234,7 @@ _CMD_DESCRIPTIONS = {
     "/worktree":        "Crear git worktree en rama aislada       <rama>",
     "/notificar":       "Enviar notificacion de escritorio        <mensaje>",
     # UI
+    "/resumen-sesion":  "Resumen de la sesion actual",
     "/limpiar":         "Limpiar pantalla",
     "/compactar":       "Resumir historial de sesión",
     "/resumir":         "Resume la conversacion actual y guarda en memoria",
@@ -1355,8 +1356,26 @@ def repl():
         elif raw.startswith("/leer "):
             ruta = raw[len("/leer "):].strip()
             if ruta:
-                from cognia.ingest import ingest_file
-                _run(raw, lambda: ingest_file(ai, ruta), color="bright_green")
+                _lr_path = Path(ruta).expanduser().resolve()
+                if _lr_path.suffix.lower() == ".pdf":
+                    try:
+                        import pdfplumber
+                        with pdfplumber.open(_lr_path) as _pdf:
+                            _pages = _pdf.pages[:10]  # max 10 pages
+                            _pdf_text = "\n\n".join(
+                                f"[Pagina {i+1}]\n{page.extract_text() or '(sin texto)'}"
+                                for i, page in enumerate(_pages)
+                            )
+                        content = _pdf_text[:4000]
+                        _show_response(content, "bright_green")
+                        _session_log.append({"input": raw, "output": content, "elapsed": 0})
+                    except ImportError:
+                        _print_line("[err_cl]pdfplumber no instalado -- pip install pdfplumber[/err_cl]")
+                    except Exception as _pdf_e:
+                        _print_line(f"[err_cl]Error leyendo PDF: {_escape(str(_pdf_e))}[/err_cl]")
+                else:
+                    from cognia.ingest import ingest_file
+                    _run(raw, lambda: ingest_file(ai, ruta), color="bright_green")
             else:
                 _print_line("[warn_cl]Uso: /leer <ruta_al_archivo>[/warn_cl]")
         elif raw.startswith("/proyecto "):
@@ -1607,7 +1626,10 @@ def repl():
             if _tarea:
                 _print_line("[detail]Iniciando agente...[/detail]")
                 _resp = _run_agent_task(ai, _tarea, _print_line)
-                _show_response(_resp, "cyan")
+                if _resp:
+                    _show_response(_resp, "cyan")
+                else:
+                    _print_line("[warn_cl]El agente no produjo respuesta.[/warn_cl]")
                 _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
             else:
                 _print_line("[warn_cl]Uso: /hacer <descripcion de la tarea>[/warn_cl]")
@@ -2038,6 +2060,26 @@ def repl():
                 except Exception as _e:
                     _print_line(f"[err_cl]notificar error: {_e}[/err_cl]")
 
+        # -- Session summary ------------------------------------------------
+        elif raw == "/resumen-sesion":
+            _rs_lines = []
+            _rs_lines.append(f"Mensajes en sesion: {len(_session_log)}")
+            if _session_log:
+                _rs_lines.append("Ultimos temas:")
+                for _sl in _session_log[-3:]:
+                    _inp = _sl.get('input', '')[:60]
+                    _rs_lines.append(f"  - {_inp}")
+            _tasks = getattr(ai, '_session_tasks', [])
+            if _tasks:
+                _done = sum(1 for t in _tasks if t['done'])
+                _rs_lines.append(f"Tareas: {_done}/{len(_tasks)} completadas")
+            try:
+                _ep_count = ai.episodic.count()
+                _rs_lines.append(f"Episodios en memoria: {_ep_count}")
+            except Exception:
+                pass
+            _show_response("\n".join(_rs_lines), "cyan")
+
         # -- Unknown slash --------------------------------------------------
         elif raw.startswith("/"):
             _print_line(
@@ -2162,7 +2204,7 @@ def repl():
                         _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
 
 
-def _run_agent_task(ai, task: str, _print_fn, max_steps: int = 8) -> str:
+def _run_agent_task(ai, task: str, _print_fn, max_steps: int = 12) -> str:
     """
     ReAct-style agent loop. Uses the orchestrator LLM to plan tool calls,
     executes them, feeds results back, until DONE or max_steps.

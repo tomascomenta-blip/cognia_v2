@@ -339,7 +339,8 @@ class LanguageEngine:
             r'\b(que.*te.*dij[ei]|que.*te.*ped[íi]|[uú]ltimo.*mensaje|last.*message'
             r'|recuerdas.*que|lo.?[uú]ltimo|what.*last|lo.*que.*ped[íi]|lo.*que.*dij[ei]'
             r'|cual.*fue.*[uú]ltimo|cual.*fue.*lo.*[uú]ltimo|de.*que.*habl[aá]bamos'
-            r'|qu[eé].*te.*pregunt[eé]|mi.*[uú]ltima.*pregunta|[uú]ltima.*cosa.*que)\b',
+            r'|qu[eé].*te.*pregunt[eé]|mi.*[uú]ltima.*pregunta|[uú]ltima.*cosa.*que'
+            r'|what.*did.*i.*say|what.*was.*my.*last|do.*you.*remember.*what|remind.*me.*what)\b',
             re.IGNORECASE,
         )
         _NAME_PAT = re.compile(
