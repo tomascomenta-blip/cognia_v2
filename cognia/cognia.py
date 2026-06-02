@@ -646,6 +646,17 @@ class Cognia:
             # Use the inferred top_label as a soft label (lower confidence than
             # explicit /aprender) so retrieval can find these episodes by concept.
             _infer_label = assessment.get("top_label") if assessment.get("confidence", 0) > 0.25 else None
+            # Content-based label override for better retrieval
+            if not _infer_label or _infer_label in ("respuesta_streaming", "None"):
+                _obs_lower = observation.lower()
+                if any(w in _obs_lower for w in ("mi nombre es", "me llamo", "soy ")):
+                    _infer_label = "identidad_usuario"
+                elif any(w in _obs_lower for w in ("error", "bug", "falla", "problema")):
+                    _infer_label = "problema_tecnico"
+                elif any(w in _obs_lower for w in ("como", "cómo", "explica", "que es", "qué es")):
+                    _infer_label = "pregunta_general"
+                elif any(w in _obs_lower for w in ("python", "codigo", "función", "clase", "def ")):
+                    _infer_label = "programacion"
             self.episodic.store(
                 observation=observation, label=_infer_label, vector=vec,
                 confidence=0.3, importance=0.5, emotion=emotion, surprise=surprise,

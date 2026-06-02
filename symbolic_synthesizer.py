@@ -41,7 +41,7 @@ from logger_config import get_logger
 logger = get_logger(__name__)
 
 # ── Configuración ─────────────────────────────────────────────────────
-TOP_K_EPISODES      = 5     # episodios a recuperar
+TOP_K_EPISODES      = 8     # episodios a recuperar
 MIN_EPISODE_SIM     = 0.42  # similitud mínima para usar un episodio (subido de 0.25)
 MAX_CONCEPTS        = 3     # máx conceptos únicos a combinar
 MAX_FACTS_PER_CONCEPT = 4   # hechos KG por concepto
@@ -488,7 +488,7 @@ class SymbolicSynthesizer:
 
         # ── Párrafo 2: episodios relevantes (narrativa) ───────────────
         ep_frases = []
-        for ep in episodes[:3]:
+        for ep in episodes[:5]:
             obs = ep.get("observation", "").strip()[:120]
             sim = ep.get("similarity", 0.0)
             lbl = ep.get("label", "")

@@ -1058,7 +1058,7 @@ class LanguageEngine:
             from prompt_optimizer import TOKEN_LIMITS
         num_predict = TOKEN_LIMITS.get(question_type, 500)
         # Límites conservadores para CPU sin GPU
-        num_predict = min(num_predict, 420)
+        num_predict = min(num_predict, 900)
 
         # Prioridad: caller override > frontend override > default por tipo de pregunta
         system = (

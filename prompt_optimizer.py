@@ -30,15 +30,15 @@ from collections import defaultdict
 
 # ── Límites por tipo de pregunta (tokens aproximados) ─────────────────
 TOKEN_LIMITS = {
-    "definicion":    600,
-    "lista":         500,
-    "comparacion":   700,
-    "como_funciona": 800,
-    "historia":      600,
-    "estado":        400,
-    "confirmacion":  300,
-    "corta":         250,
-    "general":       600,
+    "definicion":    900,
+    "lista":         700,
+    "comparacion":   1000,
+    "como_funciona": 1100,
+    "historia":      900,
+    "estado":        600,
+    "confirmacion":  400,
+    "corta":         350,
+    "general":       900,
 }
 
 # Tokens de contexto máximos por nivel de ThrottleController
@@ -348,28 +348,27 @@ class PromptOptimizer:
         "general": (
             "PREGUNTA: {question}\n\n"
             "CONTEXTO DE MI MEMORIA:\n{context}\n\n"
-            "Responde basándote en el contexto de forma natural."
+            "Responde de forma completa y detallada, usando el contexto. Incluye ejemplos si son relevantes."
         ),
         "sin_contexto": (
             "PREGUNTA: {question}\n\n"
             "No tengo información específica en mi memoria sobre esto. "
-            "Razona sobre los conceptos involucrados y responde directamente. "
-            "Máximo 2 párrafos."
+            "Razona sobre los conceptos involucrados y responde de forma completa."
         ),
         "definicion": (
             "PREGUNTA: {question}\n\n"
             "CONOCIMIENTO:\n{context}\n\n"
-            "Define el concepto en 1-2 párrafos directos."
+            "Define el concepto con detalle, incluyendo características, ejemplos y usos."
         ),
         "lista": (
             "PREGUNTA: {question}\n\n"
             "DATOS:\n{context}\n\n"
-            "Responde con una lista concisa de 4-6 puntos."
+            "Responde con una lista completa. Incluye descripción de cada punto."
         ),
         "como_funciona": (
             "PREGUNTA: {question}\n\n"
             "CONOCIMIENTO:\n{context}\n\n"
-            "Explica el proceso en pasos claros. Máximo 5 pasos."
+            "Explica el proceso en pasos claros y detallados."
         ),
     }
 

@@ -2047,98 +2047,119 @@ def repl():
 
         # -- Free text → articulated cognitive response --------------------
         else:
-            # Fast-path: stream tokens from llama.cpp if available
-            _streamed = False
-            try:
-                from shattering.orchestrator import ShatteringOrchestrator as _SO
-                _orch_cli = getattr(ai, '_orchestrator', None)
-                if _orch_cli is None:
-                    try:
-                        _orch_cli = _SO(mode='local')
-                    except Exception:
-                        _orch_cli = None
-                if _orch_cli is not None:
-                    _llama = getattr(_orch_cli, '_llama', None)
-                    if _llama is None:
+            # ── Auto-inference: detect if the question needs tools ────────
+            import re as _re_tool
+            _TOOL_PATTERNS = [
+                (r'\b(lee|leer|mostrar?|ver)\s+(el\s+)?(archivo|fichero|codigo|file)\s+(\S+)', 'leer_archivo'),
+                (r'\b(busca|buscar|encuentra|encontrar|grep)\s+.{3,50}\s+en\s+\S+', 'buscar'),
+                (r'\b(ejecuta|ejecutar|corre|correr|run)\s+.{3,80}', 'ejecutar'),
+                (r'\bque\s+(contiene|tiene)\s+(el\s+)?(archivo|fichero)\s+(\S+)', 'leer_archivo'),
+                (r'\b(lista|listar|lista\s+los?\s+archivos?)\s+(en\s+|de\s+)?\S+', 'listar'),
+                (r'\b(escribe|escribir|crea\s+el\s+archivo|crear?\s+archivo)\s+\S+', 'escribir_archivo'),
+            ]
+            _needs_tool = False
+            for _tp, _tool_name in _TOOL_PATTERNS:
+                if _re_tool.search(_tp, raw, _re_tool.IGNORECASE):
+                    _needs_tool = True
+                    break
+            if _needs_tool:
+                _print_line("[detail]Detectada operacion de herramienta -- activando agente...[/detail]")
+                _resp = _run_agent_task(ai, raw, _print_line)
+                _show_response(_resp, "cyan")
+                _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
+            if not _needs_tool:
+                # Fast-path: stream tokens from llama.cpp if available
+                _streamed = False
+                try:
+                    from shattering.orchestrator import ShatteringOrchestrator as _SO
+                    _orch_cli = getattr(ai, '_orchestrator', None)
+                    if _orch_cli is None:
                         try:
-                            _orch_cli._try_load_llama()
-                            _llama = getattr(_orch_cli, '_llama', None)
+                            _orch_cli = _SO(mode='local')
                         except Exception:
-                            pass
-                    if _llama is not None:
-                        from node.inference_pipeline import _apply_qwen_template
-                        _system = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
-                        _formatted = _apply_qwen_template(raw, _system)
-                        _tokens_buf = []
-                        t0 = time.time()
-                        try:
-                            print("", flush=True)
-                            for _tok in _llama.stream_generate(_formatted, max_tokens=512):
-                                _tokens_buf.append(_tok)
-                                if _HAS_RICH and _console:
-                                    _console.print(_tok, end="", style="cyan", highlight=False)
-                                else:
-                                    print(_tok, end="", flush=True)
-                            print()
-                            _streamed = True
-                            _full_response = "".join(_tokens_buf)
-                            elapsed = time.time() - t0
-                            _show_footer(elapsed, _full_response)
-                            _session_log.append({
-                                "input":   raw,
-                                "output":  _full_response,
-                                "elapsed": elapsed,
-                            })
+                            _orch_cli = None
+                    if _orch_cli is not None:
+                        _llama = getattr(_orch_cli, '_llama', None)
+                        if _llama is None:
                             try:
-                                ai.observe(_full_response[:300], provided_label="respuesta_streaming")
+                                _orch_cli._try_load_llama()
+                                _llama = getattr(_orch_cli, '_llama', None)
                             except Exception:
                                 pass
-                        except Exception as _se:
-                            if _tokens_buf:
-                                _streamed = True  # partial stream — don't retry
-                            print()
-            except Exception:
-                pass
+                        if _llama is not None:
+                            from node.inference_pipeline import _apply_qwen_template
+                            _system = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+                            _formatted = _apply_qwen_template(raw, _system)
+                            _tokens_buf = []
+                            t0 = time.time()
+                            try:
+                                print("", flush=True)
+                                for _tok in _llama.stream_generate(_formatted, max_tokens=512):
+                                    _tokens_buf.append(_tok)
+                                    if _HAS_RICH and _console:
+                                        _console.print(_tok, end="", style="cyan", highlight=False)
+                                    else:
+                                        print(_tok, end="", flush=True)
+                                print()
+                                _streamed = True
+                                _full_response = "".join(_tokens_buf)
+                                elapsed = time.time() - t0
+                                _show_footer(elapsed, _full_response)
+                                _session_log.append({
+                                    "input":   raw,
+                                    "output":  _full_response,
+                                    "elapsed": elapsed,
+                                })
+                                try:
+                                    ai.observe(_full_response[:300], provided_label="respuesta_streaming")
+                                except Exception:
+                                    pass
+                            except Exception as _se:
+                                if _tokens_buf:
+                                    _streamed = True  # partial stream — don't retry
+                                print()
+                except Exception:
+                    pass
 
-            if not _streamed:
-                try:
-                    from respuestas_articuladas import responder_articulado
-                    if _HAS_RICH and _console:
-                        flt      = _VerboseFilter()
-                        logging.root.addFilter(flt)
-                        captured = io.StringIO()
-                        try:
-                            with _console.status("[spinner]Procesando...[/spinner]", spinner="dots"):
-                                t0 = time.time()
-                                with contextlib.redirect_stdout(captured):
-                                    result = responder_articulado(ai, raw)
-                        finally:
-                            logging.root.removeFilter(flt)
-                        elapsed = time.time() - t0
-                        if _debug_mode:
-                            txt = captured.getvalue().strip()
-                            if txt:
-                                _console.print(txt, style="info_dim", markup=False)
-                    else:
-                        t0      = time.time()
-                        result  = responder_articulado(ai, raw)
-                        elapsed = time.time() - t0
+                if not _streamed:
+                    try:
+                        from respuestas_articuladas import responder_articulado
+                        if _HAS_RICH and _console:
+                            flt      = _VerboseFilter()
+                            logging.root.addFilter(flt)
+                            captured = io.StringIO()
+                            try:
+                                with _console.status("[spinner]Procesando...[/spinner]", spinner="dots"):
+                                    t0 = time.time()
+                                    with contextlib.redirect_stdout(captured):
+                                        result = responder_articulado(ai, raw)
+                            finally:
+                                logging.root.removeFilter(flt)
+                            elapsed = time.time() - t0
+                            if _debug_mode:
+                                txt = captured.getvalue().strip()
+                                if txt:
+                                    _console.print(txt, style="info_dim", markup=False)
+                        else:
+                            t0      = time.time()
+                            result  = responder_articulado(ai, raw)
+                            elapsed = time.time() - t0
 
-                    if "error" in result:
-                        _print_line(f"[err_cl]Error: {_escape(str(result['error']))}[/err_cl]")
-                    else:
-                        _show_response(result["response"], "cyan")
-                        _show_footer(elapsed, result["response"])
-                        stage = result.get("language_engine", {}).get("stage", "")
-                        if stage:
-                            _print_line(f"[detail][stage: {stage}][/detail]")
-                        _session_log.append({
-                            "input":   raw,
-                            "output":  result["response"],
-                            "elapsed": elapsed,
-                        })
-                except Exception as e:
-                    _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
+                        if "error" in result:
+                            _print_line(f"[err_cl]Error: {_escape(str(result['error']))}[/err_cl]")
+                        else:
+                            _show_response(result["response"], "cyan")
+                            _show_footer(elapsed, result["response"])
+                            stage = result.get("language_engine", {}).get("stage", "")
+                            if stage:
+                                _print_line(f"[detail][stage: {stage}][/detail]")
+                            _session_log.append({
+                                "input":   raw,
+                                "output":  result["response"],
+                                "elapsed": elapsed,
+                            })
+                    except Exception as e:
+                        _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
 
 
 def _run_agent_task(ai, task: str, _print_fn, max_steps: int = 8) -> str:
@@ -2157,12 +2178,15 @@ Tools (ONLY these — do NOT invent others):
   listar <directory>
   ejecutar <shell command>
   memorizar <text>
+  anotar <clave> | <valor>  (save a note to working memory)
+  notas                      (read all working memory notes)
   responder <final answer>
 
 Rules:
 - escribir_archivo auto-creates directories. Do NOT use mkdir.
 - For escribir_archivo, write COMPLETE, REAL code after the | separator (multiple lines ok).
 - Use responder only when the task is fully done.
+- Use anotar to save intermediate results, plans, and code snippets. Use notas to recall them.
 - No explanations outside the ACCION line."""
 
     # Load persistent agent state
@@ -2187,8 +2211,27 @@ Rules:
         _prior_ctx = "CONTEXTO PREVIO:\n" + "\n".join(_prior_lines) + "\n\n"
 
     history = [f"{_prior_ctx}TAREA: {task}"]
+    _working_memory: dict = {}  # key→value notes the agent writes during task
     result_text = ""
     step = 0
+
+    # Auto-decompose large tasks into sub-steps
+    if len(task) > 120:
+        try:
+            _decomp_prompt = (
+                f"Break this task into 3-5 concrete sequential steps. "
+                f"Reply with ONLY a numbered list, one step per line, no explanations.\n\n"
+                f"Task: {task}"
+            )
+            from shattering.orchestrator import ShatteringOrchestrator as _DO
+            _d_orch = getattr(ai, '_orchestrator', None) or _DO(mode='local')
+            _d_result = _d_orch.infer(_decomp_prompt)
+            _steps_text = _d_result.text.strip()
+            if _steps_text and len(_steps_text) > 20:
+                history.append(f"PLAN DE SUBTAREAS:\n{_steps_text}")
+                _print_fn(f"[detail]Plan: {_steps_text[:200]}[/detail]")
+        except Exception:
+            pass
 
     for step in range(max_steps):
         # last 6 history entries to avoid context overflow
@@ -2335,8 +2378,24 @@ Rules:
             except Exception as e:
                 history.append(f"RESULTADO memorizar: (sin memoria episodica disponible) {e}")
 
+        elif action == "anotar":
+            parts = args.split(" | ", 1)
+            if len(parts) == 2:
+                _key, _val = parts[0].strip(), parts[1].strip()
+                _working_memory[_key] = _val
+                history.append(f"RESULTADO anotar: '{_key}' guardado en memoria de trabajo")
+            else:
+                history.append("RESULTADO anotar ERROR: formato incorrecto (usa clave | valor)")
+
+        elif action == "notas":
+            if _working_memory:
+                _notes_str = "\n".join(f"  {k}: {v}" for k, v in _working_memory.items())
+                history.append(f"RESULTADO notas:\n{_notes_str}")
+            else:
+                history.append("RESULTADO notas: (memoria de trabajo vacia)")
+
         else:
-            _valid = "leer_archivo, escribir_archivo, buscar, listar, ejecutar, memorizar, responder"
+            _valid = "leer_archivo, escribir_archivo, buscar, listar, ejecutar, memorizar, anotar, notas, responder"
             _mkdir_hint = ""
             if action in ("mkdir", "crear_directorio", "crear_carpeta", "create_dir", "makedir"):
                 _mkdir_hint = " Para crear un directorio con un archivo usa escribir_archivo <dir/file> | <contenido> — crea los directorios automaticamente."
