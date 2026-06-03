@@ -1,0 +1,2 @@
+recursive-include shattering/manifests *.json
+recursive-include cognia/knowledge *.json *.txt

@@ -7,6 +7,7 @@ Server-Side Request Forgery against cloud metadata services or
 internal network endpoints.
 """
 import logging
+import os
 import urllib.parse
 
 _logger = logging.getLogger(__name__)
@@ -17,16 +18,18 @@ _FALLBACK   = "http://localhost:11434"
 
 def validate_ollama_url(url: str) -> str:
     """
-    Return url unchanged if it points to a safe local host (localhost,
-    127.0.0.1, ::1). Log a WARNING and return the fallback URL otherwise.
-
-    Blocks: 169.254.x.x (cloud metadata), 10.x, 192.168.x, public IPs.
+    Return url unchanged if it points to a safe local host.
+    If COGNIA_REMOTE_OLLAMA=1 is set, also allow external URLs
+    (use only when connecting to a trusted remote cognia node).
     """
     if not url:
         return _FALLBACK
     try:
         host = (urllib.parse.urlparse(url).hostname or "").lower()
         if host in _SAFE_HOSTS:
+            return url
+        if os.environ.get("COGNIA_REMOTE_OLLAMA") == "1":
+            _logger.info("COGNIA_REMOTE_OLLAMA=1 — aceptando URL remota: %s", url)
             return url
     except Exception:
         pass
