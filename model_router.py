@@ -51,7 +51,7 @@ MODEL_REGISTRY: dict[str, dict] = {
     # },
 }
 
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 
 # ── Reglas de detección (ordenadas de más específica a más general) ────────────
 
