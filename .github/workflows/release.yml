@@ -37,16 +37,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build package
+      - name: Build and publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
-          pip install build --quiet
+          pip install build twine --quiet
           python -m build
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_TOKEN }}
-          attestations: false
+          twine upload dist/*
 
   # ── Windows installer (v* and desktop-v* tags) ────────────────────────
   release-windows:
