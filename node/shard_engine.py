@@ -34,6 +34,34 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+# ── Adaptive Vocabulary Pruning (AVP) ────────────────────────────────────────
+# Module-level singleton; None = disabled (default).
+# Call enable_vocab_pruning() after model load to activate.
+
+_vocab_pruner = None   # type: "VocabPruner | None"
+
+
+def enable_vocab_pruning(vocab_size: int = 151936) -> None:
+    """Enable AVP for the last-shard lm_head computation.
+
+    Reduces lm_head matmul from V=151936 to ~2000 candidates.
+    Safe to call multiple times — replaces the existing instance.
+    """
+    global _vocab_pruner
+    from node.vocab_pruner import VocabPruner
+    _vocab_pruner = VocabPruner(vocab_size)
+
+
+def disable_vocab_pruning() -> None:
+    """Disable AVP and revert to full-vocab lm_head computation."""
+    global _vocab_pruner
+    _vocab_pruner = None
+
+
+def get_vocab_pruner():
+    """Return the active VocabPruner instance, or None."""
+    return _vocab_pruner
+
 logger = logging.getLogger(__name__)
 
 # ── Wire protocol ────────────────────────────────────────────────────────────
@@ -390,6 +418,9 @@ class ShardEngine:
         else:
             # Real mode — embed tokens or accept hidden state
             if cfg.is_first and token_ids is not None:
+                # Prefill: start of a new generation turn — reset AVP focus set
+                if _vocab_pruner is not None and token_ids.shape[0] > 1:
+                    _vocab_pruner.reset_turn()
                 tids = token_ids.astype(np.int32)
                 if self._embed_table is not None:
                     x = self._embed_table[tids]                        # fp32 lookup (fast)
@@ -411,7 +442,20 @@ class ShardEngine:
             if cfg.is_last and self._lm_weights is not None:
                 from node.qwen2_ops import _rms_norm
                 x = _rms_norm(x, self._final_norm, cfg.rms_norm_eps)
-                result = self._lm_weights.linear(x)   # (seq, vocab_size) float32
+                # AVP: use pruned lm_head for decode steps (seq==1 only).
+                # Prefill (seq>1) always uses full vocab — focus set not warm yet.
+                pruner = _vocab_pruner
+                if pruner is not None and x.shape[0] == 1:
+                    hidden_last = x[-1:]   # (1, D)
+                    pruned_logits, focus_idx = pruner.prune_lm_head(
+                        self._lm_weights, hidden_last
+                    )
+                    # Reconstruct full-size logits array (needed for encode_logits)
+                    full = np.full((1, cfg.vocab_size), -1e9, dtype=np.float32)
+                    full[0, focus_idx] = pruned_logits[0]
+                    result = full
+                else:
+                    result = self._lm_weights.linear(x)   # (seq, vocab_size) float32
             else:
                 result = x.astype(np.float16)
 

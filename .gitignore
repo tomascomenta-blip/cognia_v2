@@ -40,3 +40,5 @@ model_shards/qwen_hf_temp/
 _scan*.txt
 .claude/
 node_modules/
+build/
+dist/

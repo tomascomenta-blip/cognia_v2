@@ -265,6 +265,14 @@ class DistributedInferencePipeline:
             next_id = self._sample(output, temperature)
             tokens_generated += 1
 
+            # Feed generated token into AVP history so focus set stays warm
+            try:
+                from node.shard_engine import _vocab_pruner as _avp
+                if _avp is not None:
+                    _avp.update_history(next_id)
+            except Exception:
+                pass  # AVP is optional; never break generation
+
             if next_id in eos_set:
                 break
 

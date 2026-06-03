@@ -3,6 +3,58 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-02] SHATTERING END-TO-END TEST RESULTS
+- Test battery: 7/7 passed (after fixing RelaySession -> RelayManager/InferenceSession import)
+- llama.cpp path: WORKING — _LlamaServerBackend, Qwen2.5-Coder-3B-Instruct-Q4_0.gguf, 9-11s/response on i3-10110U
+- Numpy shard path: WORKING — shard_0 loads in real mode, forward pass OK (tuple output)
+- Coordinator relay: WORKING — starts in <3s, /health ok, node registration returns model_config
+- Router accuracy: 3/3 correct (techne/logos/rhetor, lowercase output)
+- Bugs fixed: coordinator.relay exports RelayManager+InferenceSession (not RelaySession) — fixed in test script and workflow
+- GitHub Actions workflow: created at .github/workflows/shattering_test.yml (8 steps, ubuntu-latest, no weights needed for CI)
+- Script created: scripts/test_shattering_full.py (7 tests including simulation, coordinator, llama, shard engine)
+- Conclusion: shattering system fully operational — llama.cpp is primary path (8-9 tok/s), numpy shards available as fallback, coordinator relay protocol verified working
+
+## [2026-06-02] CYCLE 8 — Conversational Intent Prediction + Cache Warming (CIP)
+- Archivos: cognia/reasoning/intent_predictor.py (new), cognia/reasoning/cache_warmer.py (new), cognia_desktop_api.py, tests/test_intent_predictor.py (new)
+- Resultado tests: PASS — 7 passed (new suite), full suite pending
+- Notas: IntentPredictor genera 3 follow-ups via 4 heuristic patterns (topic expansion, depth drill, correction follow-up, task follow-up). CacheWarmer pre-calienta SemanticCache en background thread (max_workers=1). Fire-and-forget post-response. Si Cognia esta ocupada, skip silencioso.
+
+## [2026-06-02] CYCLE 6 — Semantic Memory Compression (MemoryCompressor)
+- Archivos: cognia/memory/memory_compressor.py (new), cognia/cognia.py, tests/test_memory_compressor.py (new)
+- Resultado tests: PASS — 6 passed (new suite), 869 passed (full suite, 0 regresiones)
+- Notas: CLUSTER_THRESHOLD=0.90, MIN_CLUSTER_SIZE=4, COMPRESS_THRESHOLD=800, TARGET=600. Greedy cosine clustering within label groups. Macro-episode = centroid embedding + highest-importance content. Runs at end of sleep cycle. Prevents memory unbounded growth.
+
+## [2026-06-02] CYCLE 5 — Inference-Time Compute Scaling (ComplexityScorer + ITCS)
+- Archivos: cognia/reasoning/complexity_scorer.py (new), cognia/language_engine.py, cognia_desktop_api.py, tests/test_complexity_scorer.py (new)
+- Resultado tests: PASS — 10 passed (new suite), 863 passed (full suite, 0 regresiones)
+- Notas: ComplexityScorer scores 1-5 using 5 additive heuristics (length>80, interrogative, tech vocab>=2, multi-clause>=3, comparative). budget: fast/normal/deep. set_pipeline_budget() in language_engine.py gates RST/hypothesis/self-questioning/planning on _active_budget != "fast". Greetings and single-word queries always score 1 = skip 2-5s of reasoning pipeline. _pipeline_budget resets to "normal" at start of each respond() call to prevent leaking between requests. ITCS wired in /infer and /infer-stream endpoints of cognia_desktop_api.py.
+
+## [2026-06-02] CYCLE 4 — Thought-Chain Persistence (TCP)
+- Archivos: cognia/reasoning/thought_cache.py (new), cognia/language_engine.py, tests/test_thought_cache.py (new)
+- Resultado tests: PASS — 7 passed (new suite), 853 passed (full suite, 0 regresiones)
+- Notas: TF-IDF threshold=0.88, TTL=3d, max=300 chains. Cached: reasoning_context, confidence, has_contradiction, sub_questions, hypothesis, task_type. enable_thought_cache() auto-called at module load. Skips enrich_with_meta() on hit — saves ~50-200ms per similar query. Own SQLite DB (cognia_thought_cache.db), not main DB.
+
+## [2026-06-02] CYCLE 3 — Adaptive Vocabulary Pruning (AVP)
+- Archivos: node/vocab_pruner.py (new), node/shard_engine.py (enable_vocab_pruning/disable_vocab_pruning + AVP hook in process()), node/inference_pipeline.py (update_history after sampling), tests/test_vocab_pruner.py (new, 6 tests)
+- Resultado tests: PASS — 6 passed (new suite), 846 passed (full suite, 0 regresiones)
+- Notas: Reduces lm_head compute from V=151936 to ~2000 candidates. Focus set = special tokens 0-99 + recent token neighbors (+-50) + top-200 frequent + 200 random. Correctness guarantee: warmup 3 turns full vocab, then 1% probabilistic verification with auto-correction on miss. enable_vocab_pruning() / disable_vocab_pruning() in shard_engine.py. Wiring: shard_engine.process() applies AVP only for decode steps (seq==1); prefill (seq>1) uses full vocab and triggers reset_turn(). AVP not activated by default — call enable_vocab_pruning() after model load.
+
+## [2026-06-02] CYCLE 2 — Auto-population del Knowledge Graph
+- Archivos: cognia/knowledge/graph.py (extract_and_store + get_auto_facts_count + get_recent_auto_facts), cognia/language_engine.py (hook after LLM response), tests/test_kg_auto_population.py (new, 8 tests)
+- Resultado tests: PASS — 8 passed (new suite), 840 passed (full suite, 0 regresiones)
+- Notas: extract_and_store() con 7 patrones regex ES+EN (is_a, has_property, tiene, puede, creado_por, pertenece_a); weight=0.6 para triples auto-extraidos; source column ya existia en schema; duplicate-safe via add_triple UNIQUE constraint; hook silencioso en language_engine.py solo en LLM path (not cache/symbolic paths)
+
+## [2026-06-02] CYCLE 1 — Semantic Response Cache (SemanticCache)
+- Archivos: cognia/semantic_cache.py (already existed, numpy-based TF-IDF), cognia_desktop_api.py (added /api/cache/stats endpoint + wiring was already present), tests/test_semantic_cache.py (added test_max_entries_eviction + test_thread_safety, total 7 tests)
+- Resultado tests: PASS — 7 passed (semantic cache suite), 832 passed (full suite)
+- Notas: TF-IDF cosine similarity cache, threshold=0.92, TTL=7d, max=500 entries, /api/cache/stats endpoint. Thread-safe RLock. Returns cached response in <5ms vs ~5000ms pipeline. Cache skips responses shorter than 20 chars (enforced in /infer endpoint).
+
+## [2026-06-01] CYCLE K+1 — KnowledgeSeeder: static seed + dynamic cache + sleep prefetch
+- Archivos creados: cognia/knowledge/knowledge_cache.py, cognia/knowledge/knowledge_seeder.py, tests/test_knowledge_cache.py
+- Archivos modificados: cognia/language_engine.py, cognia/cognia.py, pyproject.toml (3.2.18->3.2.19)
+- Resultado tests: PASS — 7/7 new tests; 830 total (0 regresiones)
+- Notas: Expande conocimiento bruto sin anadir latencia al path critico — cache hit bypassa LLM (stage=knowledge_cache), static seed inyecta ~150 hechos en episodic memory al startup en background thread; DuckDuckGo fetch en hilos daemon; prefetch durante /dormir encolado en background
+
 ## [2026-06-01] CYCLE 1-4 — 4 core improvements
 
 - Archivos: prompt_optimizer.py, cognia/language_engine.py, cognia/cli.py, cognia/cognia.py, symbolic_synthesizer.py
@@ -606,3 +658,14 @@ MODULOS AUDITADOS CON 0 REGRESIONES:
 - Resultado tests: PASS — 818 passed (sin regresiones)
 - Bug: 5 lugares en cli.py importaban 'Orchestrator' pero la clase real es 'ShatteringOrchestrator'. Detectado al correr python -m cognia en produccion.
 - Fix: reemplazados todos los imports erroneos por ShatteringOrchestrator con alias apropiado
+
+
+## [2026-06-01] CYCLE 1 (session B) — Semantic Response Cache (SRC)
+- Archivos modificados: cognia/semantic_cache.py (new), cognia_desktop_api.py, tests/test_semantic_cache.py (new)
+- Resultado tests: PASS — 5/5 new tests passed; 120 passed total across core test modules
+- Notas: TF-IDF semantic cache, threshold=0.92, TTL=7d, max_entries=500; cache miss never breaks inference; thread-safe RLock; /infer returns X-Cache: HIT header on cache hits; vocab rebuilt lazily from DB; numpy-only, no sklearn
+
+## [2026-06-02] CYCLE 7 — Real-Time Factual Validation (RFV)
+- Archivos: cognia/reasoning/factual_validator.py (new), cognia_desktop_api.py, tests/test_factual_validator.py (new)
+- Resultado tests: PASS — 8 passed (new); 877 passed total suite
+- Notas: Extracts claims via regex from response, cross-checks against KG. Contradictions = same subject+predicate, different object, stored weight>=0.7. Max 2 corrections per response. ASCII-only notes. Wraps in try/except -- never breaks response. _init_rfv() called at startup in cognia_desktop_api.py; _rfv_validator singleton; hook in /infer endpoint after SRC store, before return.

@@ -75,6 +75,10 @@ from sse_starlette.sse import EventSourceResponse
 
 from shattering.orchestrator import ShatteringOrchestrator
 
+# ITCS: Inference-Time Compute Scaling — zero-LLM complexity scorer
+from cognia.reasoning.complexity_scorer import ComplexityScorer as _ComplexityScorer
+_itcs_scorer = _ComplexityScorer()
+
 # In packaged Electron builds, suppress uvicorn's default exception handler
 # so crash details are not exposed to the renderer process.
 _PACKAGED = os.environ.get("COGNIA_PACKAGED", "0") == "1"
@@ -139,6 +143,13 @@ def _init_chat_db() -> None:
 
 _init_chat_db()
 
+# ── Semantic Response Cache ────────────────────────────────────────────
+# Initialized after _CHAT_DB pool exists so it can share the same SQLite file.
+from cognia.semantic_cache import SemanticResponseCache as _SRC
+from storage.db_pool import get_pool as _get_pool
+
+_sem_cache: _SRC = _SRC(db_pool=_get_pool(_CHAT_DB))
+
 # Single orchestrator instance shared across requests
 _orch = ShatteringOrchestrator(
     manifest_path=_MANIFEST,
@@ -147,6 +158,23 @@ _orch = ShatteringOrchestrator(
     max_new_tokens=64,
 )
 
+# ── Conversational Intent Predictor / Cache Warmer (CIP) ──────────────
+_cache_warmer = None
+
+def _init_cache_warmer() -> None:
+    """Initialize CacheWarmer singleton against the shared semantic cache."""
+    global _cache_warmer
+    try:
+        from cognia.reasoning.cache_warmer import CacheWarmer
+        _cache_warmer = CacheWarmer(_orch, _sem_cache)
+        _api_logger.info("CIP: CacheWarmer initialized")
+    except Exception as exc:
+        _api_logger.warning("CIP: could not initialize CacheWarmer: %s", exc)
+
+try:
+    _init_cache_warmer()
+except Exception:
+    pass
 
 async def _kv_evict_loop() -> None:
     while True:
@@ -212,18 +240,102 @@ class RouteResponse(BaseModel):
 
 _api_logger = _logging.getLogger("cognia_desktop_api")
 
+# ── Real-Time Factual Validation (RFV) ────────────────────────────────
+_rfv_validator = None
+
+def _init_rfv() -> None:
+    """Initialize the FactualValidator singleton against the local KG DB."""
+    global _rfv_validator
+    try:
+        from cognia.knowledge.graph import KnowledgeGraph
+        from cognia.config import DB_PATH
+        kg = KnowledgeGraph(DB_PATH)
+        from cognia.reasoning.factual_validator import FactualValidator
+        _rfv_validator = FactualValidator(kg)
+        _api_logger.info("RFV: FactualValidator initialized")
+    except Exception as exc:
+        _api_logger.warning("RFV: could not initialize FactualValidator: %s", exc)
+
+# Attempt initialization at startup (non-fatal if KG/DB not ready)
+try:
+    _init_rfv()
+except Exception:
+    pass
+
+
 @app.post("/infer", response_model=InferResponse)
-async def infer(req: InferRequest):
+async def infer(req: InferRequest, response: "fastapi.Response" = None):
     """Route the prompt to the best sub-model and return its response."""
+    from fastapi import Response as _Response
     if not req.prompt.strip():
         raise HTTPException(status_code=400, detail="prompt cannot be empty")
+
+    # ITCS: score query complexity and set pipeline budget before inference
+    _complexity = _itcs_scorer.score(req.prompt)
+    _api_logger.info(
+        "ITCS score=%d budget=%s reasons=%s",
+        _complexity.score, _complexity.budget, _complexity.reasons,
+    )
+    try:
+        from cognia.language_engine import set_pipeline_budget as _spb
+        _spb(_complexity.budget)
+    except Exception:
+        pass
+
+    # Semantic cache lookup — safe fallback, never breaks inference
+    try:
+        _cached = _sem_cache.lookup(req.prompt)
+        if _cached and len(_cached) > 20:
+            _r = InferResponse(
+                text         = _cached,
+                sub_model    = "cache",
+                confidence   = 1.0,
+                latency_ms   = 0.0,
+                mode         = "semantic_cache",
+                route_reason = "SRC HIT",
+            )
+            # FastAPI doesn't pass Response here; headers set via custom response
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                content=_r.model_dump(),
+                headers={"X-Cache": "HIT"},
+            )
+    except Exception as _ce:
+        _api_logger.warning("SRC lookup error (ignored): %s", _ce)
+
     try:
         result = await _orch.ainfer(req.prompt)
     except Exception as exc:
         _api_logger.error("Inference failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
+
+    # Store in semantic cache — safe fallback
+    try:
+        _sem_cache.store(req.prompt, result.text, result.sub_model)
+    except Exception as _ce:
+        _api_logger.warning("SRC store error (ignored): %s", _ce)
+
+    # CIP: warm cache for predicted follow-ups (fire and forget)
+    if _cache_warmer is not None:
+        try:
+            _cache_warmer.warm_async(req.prompt, result.text)
+        except Exception:
+            pass
+
+    # RFV: validate response against KG — never breaks the response
+    response_text = result.text
+    try:
+        if _rfv_validator is not None and len(response_text) > 30:
+            rfv_result = _rfv_validator.validate(response_text)
+            if rfv_result.has_contradictions:
+                correction = _rfv_validator.format_correction_note(rfv_result)
+                if correction:
+                    response_text = response_text + "\n\n" + correction
+    except Exception as _rfv_exc:
+        _api_logger.warning("RFV validation error (ignored): %s", _rfv_exc)
+
     return InferResponse(
-        text         = result.text,
+        text         = response_text,
         sub_model    = result.sub_model,
         confidence   = result.confidence,
         latency_ms   = result.latency_ms,
@@ -308,6 +420,19 @@ async def infer_stream(prompt: str = Query(..., description="Prompt to infer", m
     """
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="prompt cannot be empty")
+
+    # ITCS: score and set budget (astream path goes through shard pipeline, not LanguageEngine,
+    # but set it anyway in case the engine is used downstream)
+    _stream_complexity = _itcs_scorer.score(prompt)
+    _api_logger.info(
+        "ITCS stream score=%d budget=%s",
+        _stream_complexity.score, _stream_complexity.budget,
+    )
+    try:
+        from cognia.language_engine import set_pipeline_budget as _spb
+        _spb(_stream_complexity.budget)
+    except Exception:
+        pass
 
     async def generator():
         try:
@@ -558,6 +683,16 @@ async def network_status():
     except Exception as exc:
         return {"online": False, "error": "coordinator unreachable",
                 "local_backend": local_backend, "nano_draft": nano_draft}
+
+
+@app.get("/api/cache/stats")
+def cache_stats():
+    """Return semantic response cache statistics (entries, hit_rate, total_hits)."""
+    try:
+        return _sem_cache.stats()
+    except Exception as exc:
+        _api_logger.warning("cache_stats error: %s", exc)
+        return {"entries": 0, "total_hits": 0, "hit_rate": 0.0}
 
 
 @app.get("/health")

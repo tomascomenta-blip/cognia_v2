@@ -49,6 +49,51 @@ except ImportError:
 
 from security.ollama_url import validate_ollama_url
 
+# ── Thought-Chain Persistence (TCP) ──────────────────────────────────────────
+_thought_cache = None   # type: ignore[assignment]  # ThoughtCache | None
+
+
+def enable_thought_cache(db_path: str = "cognia_thought_cache.db") -> None:
+    """Enable TCP — import is deferred so the module stays importable without numpy."""
+    global _thought_cache
+    from cognia.reasoning.thought_cache import ThoughtCache
+    _thought_cache = ThoughtCache(db_path)
+
+
+def disable_thought_cache() -> None:
+    global _thought_cache
+    _thought_cache = None
+
+# KnowledgeCache fast-path (optional — gracefully absent)
+try:
+    from cognia.knowledge.knowledge_cache import KnowledgeCache as _KnowledgeCache
+    _HAS_KNOWLEDGE_CACHE = True
+except ImportError:
+    _HAS_KNOWLEDGE_CACHE = False
+
+# Pattern: informational questions that benefit from cached facts
+_KNOWLEDGE_QUESTION_PAT = re.compile(
+    r'^\s*(?:qu[eé]\s+es|qu[eé]\s+son|c[oó]mo\s+funciona|qui[eé]n\s+es|cu[aá]ndo\s+(?:fue|se|naci)|d[oó]nde\s+(?:est[aá]|fue)|'
+    r'what\s+is|what\s+are|how\s+does|how\s+do|who\s+is|when\s+was|where\s+is)\b',
+    re.IGNORECASE,
+)
+
+_KNOWLEDGE_STOPWORDS = frozenset({
+    "que", "qué", "es", "son", "un", "una", "el", "la", "los", "las",
+    "de", "del", "en", "y", "o", "a", "al", "lo", "como", "cómo",
+    "funciona", "funcionan", "quien", "quién", "cuando", "cuándo",
+    "donde", "dónde", "fue", "se", "está", "nació",
+    "what", "is", "are", "how", "does", "do", "who", "when", "was", "where",
+})
+
+
+def _extract_topic(question: str) -> str:
+    """Strip interrogative stopwords and return the 3-4 substantive words as topic."""
+    tokens = re.sub(r"[^\w\s]", "", question.lower()).split()
+    filtered = [t for t in tokens if t not in _KNOWLEDGE_STOPWORDS and len(t) > 2]
+    return " ".join(filtered[:4]) if filtered else question[:40].lower()
+
+
 # PASO 4: Decision Gate de tres zonas
 try:
     from cognia.decision_gate import DecisionGate, GateAction, get_decision_gate
@@ -159,6 +204,23 @@ def _build_project_context(cwd: str = None, max_chars_per_file: int = 2000) -> s
         except Exception:
             continue
     return "\n\n".join(parts)
+
+
+# ── ITCS: pipeline budget (fast | normal | deep) ─────────────────────
+# Set per-request by cognia_desktop_api.py before calling engine.respond().
+# Resets to "normal" after each request — callers must set it each time.
+_pipeline_budget: str = "normal"
+
+
+def set_pipeline_budget(budget: str) -> None:
+    """Set the active pipeline budget for the next respond() call.
+
+    budget: "fast" | "normal" | "deep"
+    Called by cognia_desktop_api.py after ITCS complexity scoring.
+    """
+    global _pipeline_budget
+    if budget in ("fast", "normal", "deep"):
+        _pipeline_budget = budget
 
 
 # ── Singleton global (un engine por proceso) ──────────────────────────
@@ -281,6 +343,10 @@ class LanguageEngine:
         t0 = time.perf_counter()
         self._stats["total"] += 1
         ai = cognia_instance
+        # Snapshot ITCS budget; reset module-level for next request (avoids leaking)
+        import cognia.language_engine as _le_mod
+        _active_budget = _le_mod._pipeline_budget
+        _le_mod._pipeline_budget = "normal"
 
         # ── Obtener vector de la pregunta ──────────────────────────────
         vec = self._get_vector(question)
@@ -399,6 +465,41 @@ class LanguageEngine:
                     )
             except Exception:
                 pass
+
+        # ══════════════════════════════════════════════════════════════
+        # STAGE 0.3: KNOWLEDGE CACHE FAST-PATH
+        # Only for informational questions (qué es, cómo funciona, etc.)
+        # Bypasses LLM entirely when a cached fact is available.
+        # ══════════════════════════════════════════════════════════════
+        if _KNOWLEDGE_QUESTION_PAT.search(question):
+            _kc = getattr(ai, "_knowledge_cache", None)
+            if _kc is not None:
+                try:
+                    _topic = _extract_topic(question)
+                    _cached_fact = _kc.get(_topic) if _topic else None
+                    if _cached_fact:
+                        latency = (time.perf_counter() - t0) * 1000
+                        _le_logger.info(
+                            "stage=knowledge_cache topic=%s",
+                            _topic,
+                            extra={"op": "language_engine.stage0_3", "context": "cache_hit"},
+                        )
+                        return EngineResult(
+                            response        = _cached_fact,
+                            stage_used      = "knowledge_cache",
+                            latency_ms      = latency,
+                            tokens_sent     = 0,
+                            confidence      = 0.75,
+                            cache_hit       = True,
+                            used_llm        = False,
+                            question_type   = "informativa",
+                            tipo_pregunta   = "informativa",
+                            tiene_contexto  = True,
+                            info_suficiente = True,
+                        )
+                except Exception:
+                    pass  # never block on cache error
+
         # ─────────────────────────────────────────────────────────────
         _q_type_pre, _ = self.symbolic.classifier.classify(question)
         if _q_type_pre == "social":
@@ -808,18 +909,31 @@ class LanguageEngine:
         # Reasoning enrichment for complex questions — only when planner says depth >= 2
         _reasoning_confidence = None
         _has_contradiction = False
-        if _plan_depth >= 2:
-            try:
-                from cognia.reasoning.cognia_reasoning_engine import CogniaReasoningEngine as _CRE
-                _meta = _CRE().enrich_with_meta(question, context, q_type)
-                _enriched_ctx = _meta["context"]
-                _reasoning_confidence = _meta["confidence"]
-                _has_contradiction = _meta["has_contradiction"]
-            except Exception:
-                _enriched_ctx = context
-            if _enriched_ctx != context:
-                context = _enriched_ctx
-                optimized = self.optimizer.optimize(question, _enriched_ctx, q_type, throttle_level)
+        # TCP: check thought cache before calling enrich_with_meta
+        _tc_hit = None
+        if _thought_cache is not None:
+            _tc_hit = _thought_cache.lookup(question)
+        if _plan_depth >= 2 and _active_budget != "fast":
+            if _tc_hit is not None:
+                # Replay cached reasoning chain — skip enrich_with_meta() call
+                _enriched_ctx       = _tc_hit.get("reasoning_context", context) or context
+                _reasoning_confidence = _tc_hit.get("confidence", 0.5)
+                _has_contradiction    = _tc_hit.get("has_contradiction", False)
+                if _enriched_ctx != context:
+                    context = _enriched_ctx
+                    optimized = self.optimizer.optimize(question, _enriched_ctx, q_type, throttle_level)
+            else:
+                try:
+                    from cognia.reasoning.cognia_reasoning_engine import CogniaReasoningEngine as _CRE
+                    _meta = _CRE().enrich_with_meta(question, context, q_type)
+                    _enriched_ctx = _meta["context"]
+                    _reasoning_confidence = _meta["confidence"]
+                    _has_contradiction = _meta["has_contradiction"]
+                except Exception:
+                    _enriched_ctx = context
+                if _enriched_ctx != context:
+                    context = _enriched_ctx
+                    optimized = self.optimizer.optimize(question, _enriched_ctx, q_type, throttle_level)
 
         # Low-confidence gate: uncertain reasoning promotes LLM-only to hybrid
         # so the symbolic base anchors the response on uncertain queries
@@ -834,7 +948,7 @@ class LanguageEngine:
                 extra={"op": "language_engine.reasoning_gate", "context": ""},
             )
 
-        if _plan_depth >= 3 and q_type in ('comparacion', 'general', 'como_funciona', 'definicion'):
+        if _plan_depth >= 3 and _active_budget not in ("fast",) and q_type in ('comparacion', 'general', 'como_funciona', 'definicion'):
             try:
                 from cognia.reasoning.hypothesis import HypothesisModule as _HM
                 _hmod = _HM()
@@ -856,6 +970,7 @@ class LanguageEngine:
             _reasoning_confidence is not None
             and 0.15 < _reasoning_confidence < 0.45
             and _plan_depth >= 2
+            and _active_budget != "fast"
             and q_type not in ('social', 'confirmacion', 'corta')
         ):
             try:
@@ -883,7 +998,7 @@ class LanguageEngine:
 
         # Planning context: prepend symbolic plan when task is complex and non-generic
         # so the LLM can follow the decomposition implicitly without extra instructions.
-        if _plan_depth >= 3:
+        if _plan_depth >= 3 and _active_budget != "fast":
             try:
                 from cognia.agents.planner import classify_task as _ct, plan_task as _pt
                 _task_type = _ct(question)
@@ -899,6 +1014,18 @@ class LanguageEngine:
                         optimized = self.optimizer.optimize(question, context, q_type, throttle_level)
             except Exception:
                 pass
+
+        # TCP: store thought chain after all reasoning blocks have run
+        if _thought_cache is not None and _tc_hit is None and _reasoning_confidence is not None:
+            _thought_cache.store(question, {
+                "reasoning_context": context,
+                "confidence":        _reasoning_confidence,
+                "has_contradiction": _has_contradiction,
+                "sub_questions":     [],
+                "hypothesis":        locals().get("_hyp", {}).get("hypothesis") if "_hyp" in dir() else None,
+                "task_type":         locals().get("_task_type") if "_task_type" in dir() else None,
+                "plan_steps":        [],
+            })
 
         # En modo híbrido: añadir la base simbólica al prompt
         if is_hybrid and sym_response.text:
@@ -1006,6 +1133,14 @@ class LanguageEngine:
                     episode_ids   = _ep_ids_llm,
                     concepts      = _concepts_llm,
                 )
+
+            # Auto-populate KG from user question + AI response (silent, best-effort)
+            try:
+                if hasattr(ai, 'kg'):
+                    ai.kg.extract_and_store(question + " " + response, source="conversation")
+            except Exception:
+                pass
+
             return _result_llm
 
         # ══════════════════════════════════════════════════════════════
@@ -1337,3 +1472,9 @@ class LanguageEngine:
             "engine_cache_misses":    cache_stats.get("misses",  0),
         }
 
+
+# ── Auto-enable TCP on module load ────────────────────────────────────────────
+try:
+    enable_thought_cache()
+except Exception:
+    pass  # non-fatal — numpy or sqlite missing; TCP stays disabled

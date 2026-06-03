@@ -5,12 +5,73 @@ Grafo de conocimiento simbólico con relaciones tipadas.
 Almacena en SQLite + capa opcional en memoria con networkx.
 """
 
+import re
 from datetime import datetime
 from typing import List, Tuple, Optional
 from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH, KG_STOPWORDS, HAS_NETWORKX
 from ..logger_config import get_logger as _get_kg_logger
 _kg_logger = _get_kg_logger(__name__)
+
+# Articles/stopwords to strip when normalizing entity strings
+_STRIP_ARTICLES = re.compile(
+    r'^\s*(?:el|la|los|las|un|una|unos|unas|the|a|an)\s+', re.IGNORECASE
+)
+
+# Common stop words too short/generic to be useful entities
+_ENTITY_STOPWORDS = frozenset({
+    "que", "qué", "es", "son", "un", "una", "el", "la", "los", "las",
+    "de", "del", "en", "y", "o", "a", "al", "lo", "se", "su", "sus",
+    "con", "por", "para", "pero", "como", "cómo", "más", "muy", "también",
+    "the", "is", "are", "was", "were", "has", "have", "had", "can", "could",
+    "this", "that", "these", "those", "and", "or", "but", "in", "on", "at",
+    "to", "of", "for", "with", "by", "from", "not", "be", "been",
+})
+
+# Extraction patterns: (regex, predicate, subject_group, object_group)
+# Groups: 1=subject, 2=object (or None to use label fallback)
+_EXTRACT_PATTERNS: List[Tuple] = [
+    # "X is a Y" / "X es un/una Y"
+    (re.compile(
+        r'\b(.+?)\s+(?:es\s+un[ao]?|is\s+an?)\s+(.+?)(?:[.,;]|$)',
+        re.IGNORECASE), "is_a"),
+    # "X es Y" (descriptor, not article+noun)
+    (re.compile(
+        r'\b(.{3,40}?)\s+es\s+([a-záéíóúñ][a-záéíóúñ ]{2,40}?)(?:[.,;]|$)',
+        re.IGNORECASE), "has_property"),
+    # "X is Y" (descriptor)
+    (re.compile(
+        r'\b(.{3,40}?)\s+is\s+([a-z][a-z ]{2,40}?)(?:[.,;]|$)',
+        re.IGNORECASE), "has_property"),
+    # "X tiene Y" / "X has Y"
+    (re.compile(
+        r'\b(.+?)\s+(?:tiene|has)\s+(.+?)(?:[.,;]|$)',
+        re.IGNORECASE), "tiene"),
+    # "X puede Y" / "X can Y"
+    (re.compile(
+        r'\b(.+?)\s+(?:puede|can)\s+(.+?)(?:[.,;]|$)',
+        re.IGNORECASE), "puede"),
+    # "X fue creado por Y" / "X was created by Y"
+    (re.compile(
+        r'\b(.+?)\s+(?:fue\s+creado\s+por|was\s+created\s+by)\s+(.+?)(?:[.,;]|$)',
+        re.IGNORECASE), "creado_por"),
+    # "X pertenece a Y" / "X belongs to Y"
+    (re.compile(
+        r'\b(.+?)\s+(?:pertenece\s+a|belongs\s+to)\s+(.+?)(?:[.,;]|$)',
+        re.IGNORECASE), "pertenece_a"),
+]
+
+# Map auto-extraction predicates to valid KG predicates
+_PRED_MAP = {
+    "is_a": "is_a",
+    "has_property": "has_property",
+    "tiene": "has_property",
+    "puede": "capable_of",
+    "creado_por": "related_to",
+    "pertenece_a": "part_of",
+}
+
+_AUTO_WEIGHT = 0.6
 
 if HAS_NETWORKX:
     import networkx as nx
@@ -259,3 +320,85 @@ class KnowledgeGraph:
         nodes = c.fetchone()[0]
         conn.close()
         return {"total_edges": total, "nodes": nodes, "by_relation": by_rel}
+
+    # ── Auto-extraction from text ─────────────────────────────────────
+
+    @staticmethod
+    def _normalize_entity(text: str) -> str:
+        """Lowercase, strip leading articles, collapse whitespace."""
+        text = text.strip().lower()
+        text = _STRIP_ARTICLES.sub("", text).strip()
+        text = re.sub(r'\s+', ' ', text)
+        return text
+
+    def extract_and_store(self, text: str, source: str = "conversation") -> list:
+        """
+        Extract subject-predicate-object triples from text using pattern matching.
+        Returns list of (s, p, o) triples that were newly added.
+
+        Handles both English and Spanish via regex patterns.
+        Weight is fixed at 0.6 (lower confidence than user-taught facts).
+        Silently skips duplicates, short/stopword entities, and pattern failures.
+        """
+        added: list = []
+        # Process sentence by sentence to reduce greedy cross-clause matches
+        sentences = re.split(r'[.!?\n]+', text)
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(sentence) < 10:
+                continue
+            for pattern, raw_pred in _EXTRACT_PATTERNS:
+                for m in pattern.finditer(sentence):
+                    subj = self._normalize_entity(m.group(1))
+                    obj  = self._normalize_entity(m.group(2))
+                    # Skip short or stopword entities
+                    if len(subj) < 3 or len(obj) < 3:
+                        continue
+                    if subj in _ENTITY_STOPWORDS or obj in _ENTITY_STOPWORDS:
+                        continue
+                    # Limit entity length to avoid garbage captures
+                    if len(subj) > 60 or len(obj) > 60:
+                        continue
+                    kg_pred = _PRED_MAP.get(raw_pred, "related_to")
+                    is_new = self.add_triple(subj, kg_pred, obj,
+                                             weight=_AUTO_WEIGHT, source=source)
+                    if is_new:
+                        added.append((subj, kg_pred, obj))
+        return added
+
+    def get_auto_facts_count(self) -> int:
+        """Count of auto-extracted triples (source != 'learned' and != 'user')."""
+        conn = db_connect(self.db)
+        c = conn.cursor()
+        c.execute(
+            "SELECT COUNT(*) FROM knowledge_graph WHERE source NOT IN ('learned', 'user')"
+        )
+        count = c.fetchone()[0]
+        conn.close()
+        return count
+
+    def get_recent_auto_facts(self, limit: int = 10) -> list:
+        """Most recently auto-extracted triples with timestamps."""
+        conn = db_connect(self.db)
+        c = conn.cursor()
+        c.execute(
+            """SELECT subject, predicate, object, weight, source, timestamp
+               FROM knowledge_graph
+               WHERE source NOT IN ('learned', 'user')
+               ORDER BY timestamp DESC, id DESC
+               LIMIT ?""",
+            (limit,),
+        )
+        rows = c.fetchall()
+        conn.close()
+        return [
+            {
+                "subject":   r[0],
+                "predicate": r[1],
+                "object":    r[2],
+                "weight":    r[3],
+                "source":    r[4],
+                "timestamp": r[5],
+            }
+            for r in rows
+        ]

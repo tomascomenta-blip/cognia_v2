@@ -1,0 +1,205 @@
+name: Shattering Protocol Test
+
+on:
+  push:
+    paths:
+      - 'shattering/**'
+      - 'coordinator/**'
+      - 'node/**'
+      - '.github/workflows/shattering_test.yml'
+  pull_request:
+    paths:
+      - 'shattering/**'
+      - 'coordinator/**'
+      - 'node/**'
+  workflow_dispatch:
+
+jobs:
+  coordinator-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-3.12-shattering-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-3.12-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Test shattering imports
+        run: |
+          python -c "
+          from shattering.orchestrator import ShatteringOrchestrator
+          from shattering.router import GlobalRouter
+          from shattering.fragment_manager import FragmentManager
+          from coordinator.relay import RelayManager, InferenceSession
+          print('All shattering imports OK')
+          "
+
+      - name: Test router accuracy
+        run: |
+          python -c "
+          from shattering.router import GlobalRouter
+          r = GlobalRouter()
+          cases = [
+              ('write a python function to sort a list', 'techne'),
+              ('explain the philosophy of consciousness', 'logos'),
+              ('write a poem about the sea', 'rhetor'),
+          ]
+          errors = []
+          for q, expected in cases:
+              got = r.route(q).sub_model
+              status = 'OK' if got == expected else 'MISMATCH'
+              print(f'{expected}: got {got} -- {status}')
+              if got != expected:
+                  errors.append(f'{expected} -> got {got}')
+          if errors:
+              raise AssertionError('Router mismatches: ' + ', '.join(errors))
+          print('Router accuracy: 3/3 correct')
+          "
+
+      - name: Test coordinator startup + health
+        run: |
+          python coordinator/run.py &
+          COORD_PID=$!
+          echo "Coordinator PID: $COORD_PID"
+          for i in $(seq 1 12); do
+            sleep 1
+            if curl -sf http://127.0.0.1:8001/health > /dev/null 2>&1; then
+              echo "Coordinator started OK after ${i}s"
+              break
+            fi
+            if [ $i -eq 12 ]; then
+              echo "Coordinator did not start within 12s"
+              kill $COORD_PID 2>/dev/null || true
+              exit 1
+            fi
+          done
+          HEALTH=$(curl -s http://127.0.0.1:8001/health)
+          echo "Health response: $HEALTH"
+          echo $HEALTH | python -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok') is True, f'ok!=True: {d}'"
+          kill $COORD_PID 2>/dev/null || true
+          echo "Coordinator test PASSED"
+
+      - name: Test node registration protocol
+        run: |
+          python coordinator/run.py &
+          COORD_PID=$!
+          # Wait for startup
+          for i in $(seq 1 12); do
+            sleep 1
+            if curl -sf http://127.0.0.1:8001/health > /dev/null 2>&1; then break; fi
+          done
+          python -c "
+          import urllib.request, json, urllib.error
+          data = json.dumps({
+              'node_id': 'ci-node-001',
+              'shards': [0],
+              'endpoint': 'http://127.0.0.1:9000',
+              'contributor_token': 'ci-test-token',
+          }).encode()
+          req = urllib.request.Request(
+              'http://127.0.0.1:8001/api/node/register',
+              data=data,
+              headers={'Content-Type': 'application/json'},
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=5) as r:
+                  resp = json.loads(r.read())
+                  print('Registration OK:', resp.get('shard'), resp.get('model_name'))
+                  assert 'node_id' in resp or 'shard' in resp
+          except urllib.error.HTTPError as e:
+              # 401/403 acceptable when COORDINATOR_KEY auth is enforced
+              if e.code in (401, 403):
+                  print('Auth required (HTTP', e.code, ') -- acceptable')
+              else:
+                  raise
+          "
+          kill $COORD_PID 2>/dev/null || true
+          echo "Node registration test PASSED"
+
+      - name: Test simulation inference (no weights)
+        run: |
+          python -c "
+          import os
+          os.environ['SHARD_WEIGHTS_DIR'] = '/nonexistent_shard_dir_ci_test'
+          # Unset any GGUF path so llama.cpp is skipped
+          os.environ.pop('LLAMA_GGUF_PATH', None)
+          os.environ.pop('LLAMA_SERVER_PATH', None)
+          from shattering.orchestrator import ShatteringOrchestrator
+          orch = ShatteringOrchestrator(manifest_path='shattering/manifests/cognia_desktop.json')
+          assert not orch._shards_available(), 'Expected shards_available=False in CI (no weights)'
+          result = orch.infer('Say hello.')
+          assert result is not None
+          assert isinstance(result.text, str)
+          assert len(result.text) > 0
+          print('Simulation inference OK:', repr(result.text[:80]))
+          print('Mode:', result.mode)
+          "
+
+      - name: Test LPC session cache
+        run: |
+          python -c "
+          from shattering.orchestrator import LatentPersistenceCache
+          lpc = LatentPersistenceCache()
+          e1 = lpc.get_or_create('session-abc')
+          assert e1.mla_session_id == 'lpc_session-abc'
+          lpc.update('session-abc', 42)
+          e2 = lpc.get_or_create('session-abc')
+          assert e2.token_count == 42
+          lpc.invalidate('session-abc')
+          e3 = lpc.get_or_create('session-abc')
+          assert e3.token_count == 0
+          print('LPC session cache OK')
+          "
+
+      - name: Test relay protocol imports
+        run: |
+          python -c "
+          from coordinator.relay import RelayManager, InferenceSession
+          from coordinator.rate_limiter import SlidingWindowLimiter
+          limiter = SlidingWindowLimiter()
+          allowed, retry_after = limiter.check('test-node', limit=10)
+          assert allowed, 'First request should be allowed'
+          assert retry_after == 0
+          print('Relay + RateLimiter imports OK')
+          "
+
+      - name: Test model constants integrity
+        run: |
+          python -c "
+          from shattering.model_constants import QWEN25_CODER_3B, get_model_config
+          cfg = QWEN25_CODER_3B
+          assert cfg['n_heads'] == 16
+          assert cfg['n_kv_heads'] == 2
+          assert cfg['hidden_dim'] == 2048
+          assert cfg['vocab_size'] == 151936
+          assert cfg['n_shards'] == 4
+          # get_model_config must work for the cognia_qwen manifest key
+          cfg2 = get_model_config('cognia_qwen')
+          assert cfg2 is not None
+          print('Model constants OK:', cfg['n_heads'], 'heads,', cfg['vocab_size'], 'vocab')
+          "
+
+      - name: Run full test battery script
+        run: |
+          # Set CI-safe shard dir so shard tests skip gracefully
+          export SHARD_WEIGHTS_DIR=/nonexistent_shard_dir_ci_test
+          export LLAMA_GGUF_PATH=""
+          export LLAMA_SERVER_PATH=""
+          python scripts/test_shattering_full.py
+        env:
+          SHARD_WEIGHTS_DIR: /nonexistent_shard_dir_ci_test
+          LLAMA_GGUF_PATH: ""
+          LLAMA_SERVER_PATH: ""

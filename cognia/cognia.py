@@ -320,6 +320,26 @@ class Cognia:
                 extra={"op": "cognia.__init__", "context": f"err={_orch_exc}"},
             )
 
+        # ── KnowledgeCache + KnowledgeSeeder (static seed en background) ──
+        self._knowledge_cache = None
+        try:
+            from cognia.knowledge.knowledge_cache import KnowledgeCache
+            from cognia.knowledge.knowledge_seeder import KnowledgeSeeder
+            import threading as _threading
+            self._knowledge_cache = KnowledgeCache(db_path)
+            _seed_t = _threading.Thread(
+                target=KnowledgeSeeder.seed_static,
+                args=(self.episodic,),
+                daemon=True,
+            )
+            _seed_t.start()
+            print("[OK] KnowledgeCache activo + seed estatico iniciado en background")
+        except Exception as _kc_exc:
+            logger.warning(
+                "KnowledgeCache/KnowledgeSeeder no pudo inicializarse",
+                extra={"op": "cognia.__init__", "context": f"err={_kc_exc}"},
+            )
+
         print("[OK] COGNIA v3.2 lista. [KG + Inferencia + Objetivos + Prediccion Temporal + Historial]\n")
 
     # ── API pública ────────────────────────────────────────────────────
@@ -1053,6 +1073,20 @@ class Cognia:
             except Exception:
                 pass
 
+        # ── Memory compression pass (semantic homeostasis) ────────────
+        try:
+            from cognia.memory.memory_compressor import MemoryCompressor
+            _compressor = MemoryCompressor(self)
+            if _compressor.should_compress():
+                _compress_result = _compressor.compress()
+                logger.info(
+                    "sleep: memory compression freed=%d clusters=%d",
+                    _compress_result.get("freed", 0),
+                    _compress_result.get("merged_clusters", 0),
+                )
+        except Exception as _mc_exc:
+            logger.warning("sleep: memory_compressor fallo: %s", _mc_exc)
+
         # ── PASO 7: ELC — entrenamiento de adaptador LoRA episódico ──
         elc_info = ""
         if self._adapter_store is not None:
@@ -1139,6 +1173,15 @@ class Cognia:
             except Exception:
                 pass
 
+        # ── KnowledgeSeeder sleep prefetch ────────────────────────────
+        knowledge_prefetch_info = ""
+        try:
+            from cognia.knowledge.knowledge_seeder import KnowledgeSeeder
+            KnowledgeSeeder.prefetch_sleep_topics(self._knowledge_cache, self.episodic)
+            knowledge_prefetch_info = "\n   Knowledge prefetch: top topics encolados en background"
+        except Exception:
+            pass
+
         return (f"[zz] CICLO DE SUENO v3 completado ({duration_ms}ms):\n"
                 f"   Consolidación:  {consolidation['concepts_consolidated']} conceptos, "
                 f"{consolidation['associations_created']} asociaciones\n"
@@ -1151,7 +1194,7 @@ class Cognia:
                 f"   Hipótesis generadas: {hipotesis_n}"
                 + extras + research_info + hobby_info + elc_info + emotion_info
                 + engine_info + feedback_info + consolidation6_info + architect_info
-                + pattern_info)
+                + knowledge_prefetch_info + pattern_info)
 
     def _run_elc_training(self) -> str:
         """
