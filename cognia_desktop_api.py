@@ -705,6 +705,24 @@ def root():
     return {"service": "Cognia Desktop API", "version": "1.0.0"}
 
 
+# ── Ollama-compatible proxy endpoint (for remote cognia nodes) ─────────────
+@app.post("/api/generate")
+async def ollama_generate(req: dict):
+    """Ollama-compatible /api/generate endpoint for remote cognia clients."""
+    prompt = req.get("prompt", "")
+    if not prompt.strip():
+        raise HTTPException(status_code=400, detail="prompt cannot be empty")
+    try:
+        result = await infer(InferRequest(prompt=prompt, history=[]))
+        return {
+            "model": req.get("model", "cognia"),
+            "response": result.text,
+            "done": True,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── File browser endpoints ─────────────────────────────────────────────
 
 import re as _re_files
