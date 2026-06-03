@@ -1,4 +1,4 @@
-# Cognia v3 — Arquitectura Cognitiva Simbolico-Neural
+# Cognia v3 — Arquotectura Cognitiva Simbolico-Neural
 
 > IA local, ligera, sin APIs externas. Corre en CPU. Objetivo: 2-5W de consumo.
 > Ahora con inferencia distribuida real (SRDN) y soporte Qwen2.5-Coder.
