@@ -41,6 +41,7 @@ from coordinator.contributor import ContributorLedger, generate_token, validate_
 from coordinator.federated_store import FederatedStore
 from coordinator.rate_limiter import SlidingWindowLimiter
 from coordinator.shard_registry import ShardRegistry
+from coordinator.event_bus import get_event_bus
 from shattering.router import GlobalRouter
 
 try:
@@ -212,7 +213,7 @@ def require_contributor_or_admin(
 
 @app.post("/api/node/register")
 @limiter.limit("200/minute")
-def register_node(request: Request, req: RegisterRequest):
+async def register_node(request: Request, req: RegisterRequest):
     """
     Registra un nodo nuevo en el swarm.
     Retorna el shard asignado, la configuración del modelo y,
@@ -232,6 +233,12 @@ def register_node(request: Request, req: RegisterRequest):
     if COORDINATOR_KEY:
         result["contributor_token"] = generate_token(COORDINATOR_KEY, node_id)
         result["tier"] = ledger.get_tier_for_node(node_id)
+
+    await get_event_bus().publish("node_joined", {
+        "node_id":     node_id,
+        "shard_index": result.get("shard_index"),
+        "model_name":  req.model_name,
+    })
 
     return result
 
@@ -253,9 +260,10 @@ def node_heartbeat(request: Request, req: HeartbeatRequest):
 
 
 @app.delete("/api/node/{node_id}", dependencies=[Depends(require_admin)])
-def unregister_node(node_id: str):
+async def unregister_node(node_id: str):
     """El nodo avisa que se desconecta limpiamente (admin)."""
     registry.unregister(node_id)
+    await get_event_bus().publish("node_left", {"node_id": node_id, "reason": "admin_unregister"})
     return {"ok": True}
 
 
@@ -264,7 +272,7 @@ class LeaveRequest(BaseModel):
 
 @app.post("/api/node/leave")
 @limiter.limit("60/minute")
-def node_leave(
+async def node_leave(
     request: Request,
     req: LeaveRequest,
     x_contributor_token: Optional[str] = Header(None),
@@ -281,6 +289,7 @@ def node_leave(
         if not is_admin and token_owner != req.node_id:
             raise HTTPException(status_code=403, detail="Token invalido o no corresponde al node_id.")
     registry.unregister(req.node_id)
+    await get_event_bus().publish("node_left", {"node_id": req.node_id, "reason": "voluntary_leave"})
     return {"ok": True, "message": "Fragmento disponible para redistribucion."}
 
 
@@ -798,6 +807,38 @@ async def federated_global(
 def federated_stats():
     """Aggregation statistics. Admin only."""
     return _fed_store.stats()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# EVENT BUS — WebSocket subscription + history REST
+# ══════════════════════════════════════════════════════════════════════
+
+@app.websocket("/ws/events")
+async def events_ws(websocket: WebSocket):
+    """
+    WebSocket para suscripcion al event bus del coordinador.
+    Al conectar, recibe los ultimos 50 eventos del history.
+    Luego recibe cada nuevo evento en tiempo real (JSON text frames).
+    Mensajes entrantes se ignoran (solo lectura para el cliente).
+    """
+    bus = get_event_bus()
+    await bus.subscribe(websocket)
+    try:
+        while True:
+            await websocket.receive_text()   # mantener conexion viva, ignorar input
+    except Exception:
+        pass
+    finally:
+        await bus.unsubscribe(websocket)
+
+
+@app.get("/api/events/history")
+def events_history():
+    """
+    Retorna los ultimos 50 eventos de red del coordinador (sin autenticacion).
+    Util para polling y debugging.
+    """
+    return {"events": get_event_bus().get_history()}
 
 
 # ══════════════════════════════════════════════════════════════════════
