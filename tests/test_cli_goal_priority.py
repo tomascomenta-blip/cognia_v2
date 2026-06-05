@@ -120,6 +120,7 @@ def _import_cli():
 
     import cognia.cli as cli_mod
     sys.modules.update(_saved_rich)  # restore real rich so other test modules work
+    del sys.modules["cognia.cli"]    # don't leave fake-rich cli cached for other tests
     return cli_mod
 
 
