@@ -214,6 +214,10 @@ def _build_weight_cache() -> None:
                     continue
                 oc = int(shard[ock]) if ock in shard else shard[pk].shape[1] * 2
                 _W[(shard_idx, layer_i, name)] = dequantize_int4(shard[pk], shard[sk], oc)
+            for bname in ("q_b", "k_b", "v_b"):
+                bk = f"{p}{bname}"
+                if bk in shard:
+                    _W[(shard_idx, layer_i, bname)] = shard[bk].astype(np.float32)
     _shards.clear()  # free 1.2 GB packed shards — all weights now in _W
     print(f"[local_runner] Weight cache built: {len(_W)} matrices, "
           f"~{sum(v.nbytes for v in _W.values()) // 1_000_000} MB float32")
@@ -236,9 +240,18 @@ def _layer_forward(shard: dict, layer_i: int, global_layer: int, x: np.ndarray,
     group = H // KH
 
     xn = _rms_norm(x, norm1)
-    Q = (_get_w(shard_idx, layer_i, "q") @ xn.T).T.reshape(seq, H, D)
-    K = (_get_w(shard_idx, layer_i, "k") @ xn.T).T.reshape(seq, KH, D)
-    V = (_get_w(shard_idx, layer_i, "v") @ xn.T).T.reshape(seq, KH, D)
+    q_bias = _W.get((shard_idx, layer_i, "q_b"))
+    k_bias = _W.get((shard_idx, layer_i, "k_b"))
+    v_bias = _W.get((shard_idx, layer_i, "v_b"))
+    Q = (_get_w(shard_idx, layer_i, "q") @ xn.T).T
+    K = (_get_w(shard_idx, layer_i, "k") @ xn.T).T
+    V = (_get_w(shard_idx, layer_i, "v") @ xn.T).T
+    if q_bias is not None: Q = Q + q_bias
+    if k_bias is not None: K = K + k_bias
+    if v_bias is not None: V = V + v_bias
+    Q = Q.reshape(seq, H, D)
+    K = K.reshape(seq, KH, D)
+    V = V.reshape(seq, KH, D)
 
     Q = _apply_rope(Q, pos_offset)
     K = _apply_rope(K, pos_offset)

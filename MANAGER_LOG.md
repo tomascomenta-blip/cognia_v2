@@ -3,6 +3,11 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-04] CYCLE manager_test_fix — fix test isolation bug in test_cli_profile_commands
+- Archivos: tests/test_cli_goal_commands.py, tests/test_cli_goal_priority.py
+- Tests: PASS — 1631 passed (was 1626 before fix; reduced from 15 FAILED to 10 pre-existing FAILED)
+- Notas: `_stub_rich()` era llamado en module-level, envenenando sys.modules["rich.*"] antes de que test_cli_stats_suggest importara cognia.cli. Fix: mover _stub_rich() dentro de _import_cli_funcs()/_import_cli(), guardar/restaurar sys.modules["rich.*"] y eliminar cognia.cli del cache despues del import para no dejar version fake-rich disponible a otros tests.
+
 ## [2026-06-04] CYCLE space_inference_debug — fix HF Space inference pipeline
 - Archivos: cognia_public_api/inference_proxy.py, cognia_public_api/cognia_inference/local_runner.py, cognia_public_api/README.md
 - Bugs fixed: hf_token NameError en Level 3 fallback; causal mask shape (7,16,7)+(1,7,7) error; README sin YAML frontmatter (CONFIG_ERROR); tokenizer.json sin encoding='utf-8'
@@ -1188,3 +1193,11 @@ MODULOS AUDITADOS CON 0 REGRESIONES:
 - Archivos: cognia/language_engine.py, cognia_desktop_api.py, cognia/knowledge/graph.py, cognia/cli.py, tests/conftest.py, cognia_public_api/inference_proxy.py
 - Tests: 22 failed, 1619 passed, 9 errors — dentro del umbral aceptable (baseline ~22 failed)
 - Notas: Commits 3415ad6 y 409e450. language_engine integra CuriosityEngine+Worker, UserFacts, ContextInjector, LongTermConsolidator, ResponseScorer. desktop_api agrega APIKeyManager, DesktopRateLimiter, MetricsCollector, StateInspector, ConsolidationWorker en lifespan. graph.py: migracion idempotente last_accessed. cli.py: /yo-actualizar, /aprendiendo, /reporte, /reporte-json. coordinator/app.py ya estaba en commit 73ae336.
+
+## [2026-06-05] CYCLE — HF Space inference working, decode fixed, bias support added
+- Archivos modificados: cognia_public_api/cognia_inference/local_runner.py, scripts/convert_hf_to_shards.py
+- Space status: RUNNING, inference_ready=true, source=local_numpy
+- Fixes: full re-prefill per token (context-aware), BPE decode via _tokenizer_obj, pos_offset wired through _layer_forward
+- Quality issue noted: shards lack Q/K/V bias — convert script updated to save them on next re-conversion
+- API key cogn-2bcfb6317aaf14f3 confirmed working; output is tokenized but low quality due to INT4 quant loss + no bias
+- Resultado tests: 1631 passed (background agent fixed 5 additional test failures in rich stubbing)

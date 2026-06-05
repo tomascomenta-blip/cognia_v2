@@ -160,6 +160,16 @@ def _convert_layer(layer_idx: int, tensor_map: Dict[str, str]) -> dict:
         arrays[f"l0_{short}_s"] = s
         arrays[f"l0_{short}_oc"] = np.array(oc)
 
+    # Qwen2.5 q_proj and k_proj include bias terms — save as float32
+    for short, full in (
+        ("q", f"{pfx}.self_attn.q_proj.bias"),
+        ("k", f"{pfx}.self_attn.k_proj.bias"),
+        ("v", f"{pfx}.self_attn.v_proj.bias"),
+    ):
+        b = _load_tensor(tensor_map, full)
+        if b is not None:
+            arrays[f"l0_{short}_b"] = b.astype(np.float32)
+
     n1 = _load_tensor(tensor_map, f"{pfx}.input_layernorm.weight")
     n2 = _load_tensor(tensor_map, f"{pfx}.post_attention_layernorm.weight")
     if n1 is None or n2 is None:
