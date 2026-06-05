@@ -35,6 +35,7 @@ Integración:
 
 import re
 import time
+import threading
 import uuid
 import json
 import os
@@ -223,6 +224,20 @@ def set_pipeline_budget(budget: str) -> None:
         _pipeline_budget = budget
 
 
+# ── CuriosityEngine + CuriosityWorker singletons ─────────────────────
+_curiosity_engine = None
+_curiosity_worker = None
+
+try:
+    from cognia.reasoning.curiosity_engine import CuriosityEngine as _CuriosityEngine
+    from cognia.reasoning.curiosity_worker import CuriosityWorker as _CuriosityWorker
+    _curiosity_engine = _CuriosityEngine()
+    _curiosity_worker = _CuriosityWorker(_curiosity_engine)
+    _curiosity_worker.start()
+except Exception:
+    pass  # non-fatal — curiosity disabled if DB or imports fail
+
+
 # ── Singleton global (un engine por proceso) ──────────────────────────
 _ENGINE_INSTANCE: Optional["LanguageEngine"] = None
 
@@ -347,6 +362,20 @@ class LanguageEngine:
         import cognia.language_engine as _le_mod
         _active_budget = _le_mod._pipeline_budget
         _le_mod._pipeline_budget = "normal"
+
+        # User facts: infer from user text in background (fire-and-forget)
+        try:
+            import threading as _uf_threading
+            from cognia.social.user_facts import UserFactsMemory as _UFM_infer
+            _uf_q = question
+            def _bg_infer_user_facts():
+                try:
+                    _UFM_infer().infer_and_store(_uf_q)
+                except Exception:
+                    pass
+            _uf_threading.Thread(target=_bg_infer_user_facts, daemon=True).start()
+        except Exception:
+            pass
 
         # ── Obtener vector de la pregunta ──────────────────────────────
         vec = self._get_vector(question)
@@ -1037,6 +1066,25 @@ class LanguageEngine:
         else:
             final_prompt = optimized.prompt
 
+        # Inyectar contexto de metas y curiosity — fire-and-forget safe
+        if _context_injector is not None:
+            _ctx_block = _context_injector.get_context_block(
+                getattr(self, "_user_id", "local")
+            )
+            if _ctx_block:
+                final_prompt = _ctx_block + "\n\n" + final_prompt
+
+        # Inyectar temas recurrentes consolidados desde memoria a largo plazo
+        try:
+            from cognia.memory.long_term_consolidator import LongTermConsolidator as _LTC
+            _ltc_summary = _LTC().get_summary("default")
+            if _ltc_summary:
+                final_prompt = f"[Memoria a largo plazo]: {_ltc_summary}\n\n" + final_prompt
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
         # Adaptive length instruction — appended based on question complexity
         _LENGTH_BY_TYPE = {
             "social":         " Responde en 1-2 oraciones, natural y directo.",
@@ -1140,6 +1188,36 @@ class LanguageEngine:
                     ai.kg.extract_and_store(question + " " + response, source="conversation")
             except Exception:
                 pass
+
+            # Quality scoring — fire-and-forget so it never delays the response
+            if _plan_depth >= 1:
+                def _score_and_persist(_q=question, _r=response, _db=self.db_path):
+                    try:
+                        from cognia.quality.response_scorer import ResponseScorer
+                        _sc = ResponseScorer(_db)
+                        _sc.persist(_q, _r, _sc.score(_q, _r))
+                    except Exception:
+                        pass
+                _t = threading.Thread(target=_score_and_persist, daemon=True)
+                _t.start()
+
+            # CuriosityEngine — fire-and-forget when confidence is low
+            _conf_for_curiosity = (
+                _reasoning_confidence
+                if _reasoning_confidence is not None
+                else _result_llm.confidence
+            )
+            if _curiosity_engine is not None and _conf_for_curiosity < 0.4:
+                threading.Thread(
+                    target=_curiosity_engine.enqueue,
+                    args=(
+                        _curiosity_engine.generate_questions(
+                            question, response, _conf_for_curiosity
+                        ),
+                        question,
+                    ),
+                    daemon=True,
+                ).start()
 
             return _result_llm
 
@@ -1251,7 +1329,7 @@ class LanguageEngine:
                 pass
             return {"ok": False, "error": str(e), "text": ""}
 
-    def _get_system_prompt(self, question_type: str) -> str:
+    def _get_system_prompt(self, question_type: str, query_hint: str = "") -> str:
         base = (
             "Eres Cognia, una IA con memoria episódica y grafo de conocimiento, "
             "creada por Tomas Montes. "
@@ -1275,7 +1353,59 @@ class LanguageEngine:
                 "Responde únicamente sobre la nueva pregunta, "
                 "sin mezclar información del tema anterior."
             )
-        return base + extras.get(question_type, " Máx 2 párrafos breves.") + topic_hint
+        system_prompt = base + extras.get(question_type, " Máx 2 párrafos breves.") + topic_hint
+        # persona instruction — prepended if configured for this user
+        if _persona_manager is not None:
+            _persona_instr = _persona_manager.get_persona_instruction(
+                getattr(self, "_user_id", "local")
+            )
+            if _persona_instr:
+                system_prompt = _persona_instr + "\n\n" + system_prompt
+
+        # ── Collect injection blocks then prioritize ──────────────────
+        _injection_blocks = []
+
+        try:
+            from cognia.adaptive.feedback_learner import FeedbackLearner as _FL
+            _hint = _FL().get_adjustment_hint(question_type)
+            if _hint:
+                _injection_blocks.append({"type": "feedback", "content": "[Ajuste adaptativo]: " + _hint})
+        except Exception:
+            pass
+        try:
+            from cognia.reasoning.self_critic import SelfCritic as _SC
+            _recent = _SC().get_recent_critiques(1)
+            if _recent and _recent[0].get("overall_score", 1.0) < 0.8:
+                _injection_blocks.append({"type": "autocritica", "content": "[Autocritica previa]: " + _recent[0]["critique"]})
+        except Exception:
+            pass
+        try:
+            from cognia.knowledge.crystallizer import KnowledgeCrystallizer as _KC
+            _cryst_ctx = _KC().get_injection_context(5)
+            if _cryst_ctx:
+                _injection_blocks.append({"type": "crystallized_kg", "content": "[Conocimiento cristalizado]: " + _cryst_ctx})
+        except Exception:
+            pass
+        try:
+            from cognia.social.user_facts import UserFactsMemory as _UFM
+            _uf_ctx = _UFM().get_context(5)
+            if _uf_ctx:
+                _injection_blocks.append({"type": "user_facts", "content": _uf_ctx})
+        except Exception:
+            pass
+
+        if _injection_blocks:
+            try:
+                from cognia.context.injection_prioritizer import InjectionPrioritizer as _IP
+                _selected = _IP().prioritize(_injection_blocks, query=query_hint, max_blocks=4)
+                _injected = _IP().build_context_string(_selected)
+            except Exception:
+                # Fallback: concatenate all blocks (original behavior)
+                _injected = "\n".join(b["content"] for b in _injection_blocks)
+            if _injected:
+                system_prompt = system_prompt + "\n" + _injected
+
+        return system_prompt
 
     # ── Helpers ────────────────────────────────────────────────────────
 
@@ -1473,8 +1603,22 @@ class LanguageEngine:
         }
 
 
+# ── ContextInjector singleton (goals + curiosity insights) ───────────────────
+try:
+    from cognia.context_injector import _context_injector
+except Exception:
+    _context_injector = None  # type: ignore[assignment]
+
 # ── Auto-enable TCP on module load ────────────────────────────────────────────
 try:
     enable_thought_cache()
 except Exception:
     pass  # non-fatal — numpy or sqlite missing; TCP stays disabled
+
+# ── PersonaManager singleton ──────────────────────────────────────────────────
+_persona_manager = None
+try:
+    from cognia.persona.persona_manager import PersonaManager as _PersonaManager
+    _persona_manager = _PersonaManager()
+except Exception:
+    pass  # non-fatal — persona disabled if DB not ready

@@ -38,7 +38,8 @@ async def generate(prompt: str, session_id: str, api_key: str) -> dict:
     # Level 1: coordinator shattering swarm (when nodes are online)
     if key:
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            tout = httpx.Timeout(connect=2.0, read=5.0, write=2.0, pool=2.0)
+            async with httpx.AsyncClient(timeout=tout) as client:
                 r = await client.post(
                     f"{COORDINATOR_URL}/api/shattering/infer",
                     json={"prompt": prompt[:2000], "session_id": session_id},
@@ -61,7 +62,8 @@ async def generate(prompt: str, session_id: str, api_key: str) -> dict:
             result = await asyncio.to_thread(local_runner.generate, prompt, 128)
             return result
         except Exception as exc:
-            print(f"[cognia_proxy] local_runner error: {exc}")
+            import traceback
+            print(f"[cognia_proxy] local_runner error: {exc}\n{traceback.format_exc()[-400:]}")
 
     # Level 3: plain fallback
     words = prompt.split()[:10]

@@ -7,6 +7,7 @@ Interfaz de linea de comandos (REPL) para Cognia v3.
 import contextlib
 import datetime
 import io
+import json
 import logging
 import os
 import re
@@ -143,25 +144,39 @@ _console     = Console(theme=_THEMES["oscuro"], highlight=False) if _HAS_RICH el
 # ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
-_session_log   = []
-_session_start = 0.0
-_init_lines    = []
-_debug_mode    = False
-_fast_mode     = False
+_session_log      = []
+_session_start    = 0.0
+_init_lines       = []
+_debug_mode       = False
+_fast_mode        = False
+_session_feedback = []
+_history: list    = []
+
+# ---------------------------------------------------------------------------
+# Optional FeedbackLearner
+# ---------------------------------------------------------------------------
+try:
+    from cognia.feedback.feedback_learner import FeedbackLearner as _FeedbackLearner
+    _feedback_learner = _FeedbackLearner()
+except Exception:
+    _feedback_learner = None
 
 # ---------------------------------------------------------------------------
 # Command registry — drives autocomplete and /ayuda
 # ---------------------------------------------------------------------------
 _CMD_DESCRIPTIONS = {
     # Memoria y aprendizaje
-    "/yo":              "Introspección completa del sistema",
+    "/yo":              "Mostrar perfil de usuario",
+    "/yo-actualizar":   "Reconstruir perfil desde historial",
     "/conceptos":       "Listar conceptos aprendidos",
     "/dormir":          "Ciclo de consolidación tipo sueño",
     "/repasar":         "Ver episodios para repasar",
     "/contradicciones": "Ver contradicciones detectadas",
     "/olvido":          "Ciclo de olvido",
     "/observar":        "Observar sin etiqueta   <texto>",
-    "/aprender":        "Enseñar con etiqueta    <texto> | <label>",
+    "/aprender":        "Agregar tarjeta de aprendizaje. Uso: /aprender frente | respuesta [| tema]",
+    "/aprendiendo":     "Ver estadisticas del sistema de aprendizaje espaciado",
+    "/aprendiendo-buscar": "Buscar tarjetas de aprendizaje  <query>",
     "/investigar":      "Investigar en GitHub    <query>",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
@@ -192,6 +207,9 @@ _CMD_DESCRIPTIONS = {
     "/mesh_peer":       "Conectar peer           <url>",
     "/mesh_publicar":   "Publicar conocimiento   <subj> | <pred> | <obj>",
     "/mesh_estado":     "Ver estado del mesh",
+    # Reportes
+    "/reporte":         "Reporte de progreso de los ultimos 7 dias",
+    "/reporte-json":    "Estadisticas rapidas en formato legible",
     # Sistema
     "/doctor":          "Verificar instalación",
     "/update":          "Actualizar Cognia",
@@ -210,7 +228,7 @@ _CMD_DESCRIPTIONS = {
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
-    "/revisar":         "Revisa codigo de un archivo <ruta>",
+    "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
     "/historial":       "Muestra tareas recientes del agente y archivos modificados",
     # Skills
@@ -222,6 +240,25 @@ _CMD_DESCRIPTIONS = {
     "/plan-ver":        "Ver todos los planes activos",
     "/plan-ok":         "Marcar paso como completado   <id> <n>",
     "/plan-borrar":     "Eliminar un plan              <id>",
+    # Templates
+    "/templates":       "Listar templates de conversacion disponibles",
+    "/template":        "Iniciar sesion con un template             <id>",
+    "/template-guia":   "Ver preguntas guia de un template          <id>",
+    # Metas
+    "/meta":                    "Crear meta activa             <titulo>",
+    "/metas":                   "Listar metas activas",
+    "/meta-ok":                 "Marcar meta completada        <id>",
+    "/meta-prog":               "Actualizar progreso           <id> <porcentaje>",
+    "/meta-borrar":             "Eliminar meta                 <id>",
+    "/meta-prioridad":          "Establecer prioridad de meta  <id> <alta|media|baja>",
+    "/metas-alta":              "Listar solo metas de alta prioridad",
+    "/meta-prioridad-ver":      "Ver prioridades de todas las metas",
+    "/metas-ordenar":           "Listar metas ordenadas por prioridad",
+    # Historial de chat
+    "/sesiones":          "Listar sesiones de chat recientes",
+    "/buscar-historial":  "Buscar en el historial por keyword      <keyword>",
+    "/sesion-ver":        "Ver mensajes de una sesion              <id>",
+    "/historial-limpiar": "Eliminar historial [session_id|confirmar]",
     # Herramientas nuevas
     "/monitor":         "Ejecutar cmd en background y ver output  <cmd>",
     "/powershell":      "Ejecutar comando PowerShell              <cmd>",
@@ -231,24 +268,187 @@ _CMD_DESCRIPTIONS = {
     "/tarea-borrar":    "Borrar tarea                             <id>",
     "/web-fetch":       "Descargar URL y convertir a texto        <url>",
     "/web-buscar":      "Buscar en la web (DuckDuckGo)            <query>",
+    "/buscar-web":      "Buscar en web (DuckDuckGo)               <query>",
+    "/buscar-kg":       "Buscar en grafo de conocimiento local    <concepto>",
+    "/kg-agregar":      "Agregar triple al Knowledge Graph       <sujeto> <predicado> <objeto>",
+    "/kg-stats":        "Ver estadisticas del KG",
+    "/kg-predicados":   "Listar predicados en el KG",
+    "/kg-exportar":     "Exportar KG a JSON                      [archivo]",
+    "/kg-inferir":      "Inferir propiedades y herencia de un concepto  <concepto>",
+    "/kg-relacionar":   "Explicar relacion entre dos conceptos   <A> <B>",
+    "/kg-responder":    "Responder pregunta usando el KG          <pregunta>",
+    "/kg-camino":       "Encontrar camino entre dos conceptos    <A> <B>",
     "/worktree":        "Crear git worktree en rama aislada       <rama>",
     "/notificar":       "Enviar notificacion de escritorio        <mensaje>",
+    "/notif":           "Ver notificaciones sin leer",
+    "/notif-todas":     "Ver todas las notificaciones",
+    "/notif-leer":      "Marcar notificacion como leida          <id>",
+    "/notif-limpiar":   "Marcar todas las notificaciones como leidas",
     # UI
-    "/resumen-sesion":  "Resumen de la sesion actual",
+    "/resumen-sesion":  "Resumen completo de la sesion actual",
+    "/limpiar-sesion":  "Limpiar historial de sesion en memoria (no borra datos persistentes)",
+    "/ver-contexto":    "Ver que contexto inyectaria Cognia para una pregunta",
     "/limpiar":         "Limpiar pantalla",
     "/compactar":       "Resumir historial de sesión",
     "/resumir":         "Resume la conversacion actual y guarda en memoria",
     "/memoria":         "Estado de memoria y KG",
     "/modulos":         "Módulos activos en tiempo real",
-    "/exportar":        "Exportar sesión a .md",
+    "/exportar":        "Exportar historial (json|md|csv)   <formato> [archivo]",
+    "/exportar-stats":  "Ver estadisticas del historial",
     "/modo rapido":     "Toggle: saltar confirmaciones",
     "/debug":           "Toggle: mostrar logs INFO",
     "/costo":           "Tokens y tiempo de sesión",
     "/tema":            "Ciclar tema visual",
+    # Recordatorios
+    "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
+    "/recordatorios":      "Ver recordatorios pendientes",
+    "/recordar-cancelar":  "Cancelar un recordatorio           <id>",
+    # Configuracion
+    "/config":             "Configuracion persistente del usuario (~/.cognia_config.json)",
+    # Notas inteligentes
+    "/notas":              "Ver notas guardadas (hechos, decisiones, acciones, insights, preguntas)",
+    "/nota-agregar":       "Agregar nota manual al registro de notas",
+    "/notas-buscar":       "Buscar en notas por texto",
+    "/notas-stats":        "Estadisticas del sistema de notas",
+    "/nota-fijar":         "Fijar una nota por ID",
+    # Feedback
+    "/feedback":           "Registrar retroalimentacion explicita sobre la ultima respuesta",
+    "/feedback-sesion":    "Ver resumen de feedback de la sesion actual",
+    # Estadisticas y sugerencias
+    "/stats":              "Estadisticas de la sesion actual (turnos, duracion)",
+    "/sesion-stats":       "Alias de /stats",
+    "/sugerir":            "Ver sugerencias proactivas del motor de contexto",
+    # Logros y patrones
+    "/logros":             "Ver logros desbloqueados y puntos de gamificacion",
+    "/patrones":           "Analizar patrones de conversacion en la sesion actual",
+    # Backup y analiticas
+    "/backup":             "Hacer backup de cognia.db a directorio seguro",
+    "/mi-uso":             "Ver estadisticas de uso de Cognia (racha, eventos, funciones)",
+    "/mi-uso-detalle":     "Ver ranking de funciones mas usadas (30 dias)",
+    # Memoria semantica y debate
+    "/buscar-memoria":     "Busqueda semantica TF-IDF sobre todo el historial de conversaciones",
+    "/debate":             "Generar argumentos a favor y en contra de un tema",
+    "/contexto-semantico": "Ver contexto de conversacion relacionado semanticamente",
+    # Sintesis y analisis
+    "/sintetizar":         "Sintetizar conocimiento sobre un tema (notas + KG + conversaciones)",
+    "/y-si":               "Analisis hipotetico/contrafactual de una situacion",
+    "/temas":              "Ver temas frecuentes en la sesion actual",
+    # Perfil y estado
+    "/mi-cognia":          "Reporte personal de tu perfil cognitivo en Cognia",
+    "/perfil-completo":    "Ver perfil cognitivo completo en JSON",
+    "/estado":             "Estado rapido de todos los sistemas de Cognia",
+    # Ayuda detallada
+    "/ayuda":              "Ayuda detallada sobre un comando especifico. Uso: /ayuda <comando>",
+    # Autocritica y reflexion
+    "/ver-criticas":        "Ver criticas automaticas de respuestas recientes",
+    "/reflexion-profunda":  "Analisis multi-perspectiva de una pregunta (5 lentes cognitivos)",
+    "/calidad-respuestas":  "Ver tendencia de calidad de respuestas (7 dias)",
+    # Reportes y cadenas
+    "/reporte-completo":    "Generar reporte Markdown completo de todos los sistemas (7 dias)",
+    "/reporte-semanal":     "Generar y guardar reporte semanal en ~/.cognia_reports/",
+    "/cadena-causal":       "Analisis de cadena causal de un concepto",
+    "/metas-pendientes":    "Ver objetivos pendientes con progreso",
+    # Recomendaciones y mapas
+    "/recomendar":          "Ver recomendaciones personalizadas de proximas acciones",
+    "/proximos-pasos":      "Ver la accion mas urgente recomendada",
+    "/mapa":                "Generar mapa mental ASCII de un concepto desde el KG",
+    # Features y vocabulario
+    "/features":            "Ver y gestionar feature flags del sistema",
+    "/vocabulario":         "Ver vocabulario tecnico de esta sesion",
+    "/vocabulario-guardar": "Guardar vocabulario de sesion en el grafo de conocimiento",
+    # Cristalizacion de conocimiento
+    "/hechos-solidos":      "Ver hechos cristalizados (alta confianza) del grafo de conocimiento",
+    "/cristalizar":         "Promover hechos frecuentes a alta confianza en el KG",
+    "/conocimiento-ver":    "Ver conocimiento completo sobre un topico (KG + sintesis)",
+    # Quiz y exportacion
+    "/quiz":                "Quiz interactivo desde el KG y tarjetas de estudio",
+    "/quiz-stats":          "Estadisticas de rendimiento en quizzes",
+    "/exportar-todo":       "Exportar todos los datos (historial, notas, objetivos, reporte)",
+    # Caminos de aprendizaje y etiquetado
+    "/camino-nuevo":        "Crear camino de aprendizaje estructurado para un objetivo",
+    "/caminos":             "Ver caminos de aprendizaje activos",
+    "/camino-avanzar":      "Avanzar al siguiente paso de un camino de aprendizaje",
+    "/etiquetar":           "Detectar etiquetas/temas de un texto automaticamente",
+    # Memoria personal del usuario
+    "/cognia-sabe":         "Ver hechos que Cognia sabe sobre ti",
+    "/cognia-aprende":      "Enseniar un hecho sobre ti a Cognia",
+    "/cognia-olvida":       "Hacer que Cognia olvide un hecho sobre ti",
+    # Argumentacion
+    "/argumento":           "Analisis tesis-antitesis-sintesis de una posicion",
+    "/conflictos-kg":       "Ver conflictos de consistencia en el grafo de conocimiento",
+    "/verificar-kg":        "Ejecutar verificacion de consistencia del KG",
+    "/resolver-conflicto":  "Marcar un conflicto del KG como resuelto",
+    "/comandos":            "Ver resumen de todos los comandos disponibles por categoria",
+    "/digest":              "Ver digest diario de todas las metricas de Cognia",
+    "/cognia-info":         "Informacion sobre capacidades y version de Cognia",
+    "/inicio-dia":          "Rutina de inicio: digest + recomendacion + tarjetas pendientes",
 }
 
 # Public alias used by external tooling / tests
 COMMANDS = _CMD_DESCRIPTIONS
+
+# ---------------------------------------------------------------------------
+# Detailed per-command help
+# ---------------------------------------------------------------------------
+_CMD_DETAILS = {
+    "/hacer": (
+        "Ejecuta una tarea de forma autonoma usando un loop ReAct de hasta 8 pasos. "
+        "Usa herramientas como /buscar-web, /kg-agregar, /ejecutar para completar la tarea. "
+        "Ejemplo: /hacer Investiga las ventajas de FastAPI vs Flask"
+    ),
+    "/meta": (
+        "Crea un nuevo objetivo de usuario persistente en la base de datos. "
+        "El sistema rastrea el progreso automaticamente. "
+        "Ejemplo: /meta Aprender Python en 30 dias"
+    ),
+    "/config": (
+        "Gestiona la configuracion persistente en ~/.cognia_config.json. "
+        "Subcomandos: ver, set, reset, exportar."
+    ),
+    "/recordar": (
+        "Crea un recordatorio con tiempo relativo. "
+        "Ejemplo: /recordar Revisar tests en 30 minutos"
+    ),
+    "/kg-agregar": (
+        "Agrega un triple al grafo de conocimiento. "
+        "Formato: sujeto | predicado | objeto. "
+        "Ejemplo: /kg-agregar Python | es_un | lenguaje_de_programacion"
+    ),
+    "/exportar": (
+        "Exporta el historial de conversacion. "
+        "Formatos: json, md, csv. "
+        "Ejemplo: /exportar md mi_historial.md"
+    ),
+    "/aprende-repo": (
+        "Indexa un repositorio Git local para que Cognia pueda responder preguntas sobre el codigo. "
+        "Ejemplo: /aprende-repo /ruta/al/repo"
+    ),
+    "/skills": (
+        "Lista todos los skills disponibles en cognia_skills/. "
+        "Los skills son plantillas de prompts reutilizables."
+    ),
+    "/plan": (
+        "Crea un plan de implementacion paso a paso. "
+        "El plan persiste en ~/.cognia_plans.json."
+    ),
+    "/yo": (
+        "Muestra el perfil inferido del usuario basado en el historial de conversaciones."
+    ),
+    "/feedback": (
+        "Registra retroalimentacion explicita sobre la ultima respuesta del sistema. "
+        "Senales validas: positivo, negativo, neutral. "
+        "Ejemplo: /feedback positivo"
+    ),
+    "/feedback-sesion": (
+        "Muestra un resumen de la retroalimentacion registrada en la sesion actual, "
+        "con conteo de senales positivas, negativas y neutrales."
+    ),
+    "/ayuda": (
+        "Muestra ayuda detallada sobre un comando especifico. "
+        "Si el comando no tiene descripcion detallada muestra la descripcion corta. "
+        "Ejemplo: /ayuda /hacer"
+    ),
+}
 
 # ---------------------------------------------------------------------------
 # Autocompleter — activates on '/', shows descriptions as meta
@@ -335,22 +535,191 @@ HELP_TEXT = """
     /plan-ok <id> <n>               Marcar paso N como completado
     /plan-borrar <id>               Eliminar plan
 
+  TEMPLATES:
+    /templates                      Listar templates de conversacion disponibles
+    /template <id>                  Iniciar sesion con un template (initial_prompt + preguntas)
+    /template-guia <id>             Ver solo las preguntas guia de un template
+
+  METAS:
+    /meta <titulo>                  Crear meta activa
+    /metas                          Listar metas activas
+    /meta-ok <id>                   Marcar meta completada
+    /meta-prog <id> <porcentaje>    Actualizar progreso de meta
+    /meta-borrar <id>               Eliminar meta
+    /meta-prioridad <id> <nivel>    Establecer prioridad (alta/media/baja)
+    /metas-alta                     Listar solo metas de alta prioridad
+    /meta-prioridad-ver             Ver prioridades de todas las metas
+    /metas-ordenar                  Listar metas ordenadas por prioridad
+
+  REPORTES:
+    /reporte                        Reporte de progreso de los ultimos 7 dias (Markdown)
+    /reporte-json                   Estadisticas rapidas (metas, mensajes, sesiones, insights)
+    /yo                             Mostrar perfil de usuario (temas, patrones, idioma)
+    /yo-actualizar                  Reconstruir perfil desde historial de chat
+
   SISTEMA:
     /doctor                         Verificar instalacion
     /update                         Actualizar Cognia
     /distill  /  /distill run       Destilacion SRDN
     /ayuda    /  /salir
 
+  HISTORIAL DE CHAT:
+    /sesiones                       Listar sesiones de chat recientes
+    /buscar-historial <keyword>     Buscar en el historial por keyword
+    /sesion-ver <id>                Ver mensajes de una sesion (ID o primeros 8 chars)
+    /historial-limpiar [id|confirmar] Eliminar historial de sesion o todo
+
+  BUSQUEDA:
+    /buscar-web <query>             Buscar en web via DuckDuckGo (respuesta directa + temas)
+    /buscar-kg <concepto>           Buscar hechos en el grafo de conocimiento local
+
+  KNOWLEDGE GRAPH:
+    /kg-agregar <s> <p> <o>         Agregar triple (sujeto predicado objeto) al KG
+    /kg-stats                       Ver estadisticas del KG (triples, conceptos, predicados)
+    /kg-predicados                  Listar predicados unicos en el KG
+    /kg-exportar [archivo]          Exportar KG a JSON (default: kg_export.json)
+    /kg-inferir <concepto>          Inferir propiedades y herencia de un concepto
+    /kg-relacionar <A> <B>          Explicar relacion entre dos conceptos
+    /kg-responder <pregunta>        Responder pregunta usando el KG (multi-hop)
+    /kg-camino <A> <B>              Encontrar camino entre dos conceptos
+
+  NOTIFICACIONES:
+    /notif                          Ver notificaciones sin leer (ultimas 10)
+    /notif-todas                    Ver todas las notificaciones (ultimas 20)
+    /notif-leer <id>                Marcar una notificacion como leida
+    /notif-limpiar                  Marcar todas las notificaciones como leidas
+
+  RECORDATORIOS:
+    /recordar <titulo> en <N> minutos|horas  Crear recordatorio temporal
+    /recordatorios                  Ver recordatorios pendientes
+    /recordar-cancelar <id>         Cancelar un recordatorio
+
   UI / SLASH:
     /limpiar                        Limpiar pantalla
     /compactar                      Resumir historial de sesion
     /memoria                        Estado de memoria y KG
     /modulos                        Modulos activos en tiempo real
-    /exportar                       Exportar sesion a .md con timestamp
+    /exportar <formato> [archivo]   Exportar historial (json|md|csv); archivo opcional
+    /exportar-stats                 Ver estadisticas del historial
     /modo rapido                    Toggle: saltar confirmaciones
     /debug                          Toggle: mostrar logs INFO
     /costo                          Tokens y tiempo de sesion
     /tema                           Ciclar tema visual
+
+  CONFIGURACION:
+    /config              Mostrar configuracion actual
+    /config set k v      Cambiar valor de configuracion
+    /config reset        Restablecer valores por defecto
+    /config exportar     Exportar configuracion como JSON
+
+  RETROALIMENTACION:
+    /feedback [positivo|negativo|neutral]  Registrar feedback explicito
+    /feedback-sesion                       Ver feedback de esta sesion
+
+  ESTADISTICAS Y SUGERENCIAS:
+    /stats             Estadisticas de la sesion actual
+    /sugerir           Ver sugerencias proactivas del sistema
+
+  NOTAS INTELIGENTES:
+    /notas [tipo]         Ver notas (hechos/decisiones/acciones/insights/preguntas)
+    /nota-agregar <text>  Agregar nota manual
+    /notas-buscar <q>     Buscar en notas
+    /notas-stats          Estadisticas de notas
+    /nota-fijar <id>      Fijar nota por ID
+
+  APRENDIZAJE ESPACIADO:
+    /aprender <f> | <r> [| tema]   Crear tarjeta de estudio
+    /revisar                        Sesion de repaso interactiva
+    /aprendiendo                    Estadisticas de aprendizaje
+    /aprendiendo-buscar <q>         Buscar tarjetas por texto
+
+  LOGROS Y PATRONES:
+    /logros [todos]    Ver logros (sin arg = solo desbloqueados)
+    /patrones          Analizar patrones de tu sesion actual
+
+  AYUDA DETALLADA:
+    /ayuda <comando>   Descripcion completa de un comando
+
+  BACKUP Y ANALITICAS:
+    /backup [dir]        Backup de cognia.db (default: ~/.cognia_backups/)
+    /mi-uso              Estadisticas de uso personal
+    /mi-uso-detalle      Ranking de funciones mas usadas
+
+  MEMORIA SEMANTICA Y DEBATE:
+    /buscar-memoria <q>       Busqueda semantica en historial
+    /contexto-semantico <q>   Ver contexto relacionado
+    /debate <tema>            Argumentos pro/contra de un tema
+
+  SINTESIS Y ANALISIS:
+    /sintetizar <tema>    Sintesis de conocimiento multi-fuente
+    /y-si <situacion>     Analisis hipotetico y contrafactual
+    /temas                Temas frecuentes en esta sesion
+
+  PERFIL Y ESTADO:
+    /mi-cognia         Reporte personal (logros, aprendizaje, objetivos)
+    /estado            Estado rapido de todos los sistemas
+    /perfil-completo   Perfil cognitivo completo en JSON
+
+  AUTOCRITICA Y REFLEXION:
+    /ver-criticas              Ver criticas automaticas de respuestas
+    /calidad-respuestas        Tendencia de calidad (7 dias)
+    /reflexion-profunda <q>    Analisis con 5 lentes cognitivos
+
+  REPORTES Y CADENAS:
+    /reporte-completo [arch]  Reporte Markdown completo (7 dias)
+    /reporte-semanal          Guardar reporte semanal automaticamente
+    /cadena-causal <c>        Analisis de cadena causal
+    /metas-pendientes         Objetivos pendientes con progreso
+
+  RECOMENDACIONES Y MAPAS:
+    /recomendar           Recomendaciones personalizadas (hasta 5)
+    /proximos-pasos       Accion mas urgente recomendada
+    /mapa <concepto>      Mapa mental ASCII desde el grafo de conocimiento
+
+  FEATURES Y VOCABULARIO:
+    /features                  Ver feature flags del sistema
+    /vocabulario               Vocabulario tecnico de esta sesion
+    /vocabulario-guardar       Guardar vocabulario en el KG
+
+  CRISTALIZACION DE CONOCIMIENTO:
+    /hechos-solidos           Ver hechos de alta confianza
+    /cristalizar              Promover hechos frecuentes a alta confianza
+    /conocimiento-ver <t>     Ver todo el conocimiento sobre un topico
+
+  QUIZ Y EXPORTACION:
+    /quiz [tema]         Quiz interactivo (KG + tarjetas SM-2)
+    /quiz-stats          Estadisticas de rendimiento
+    /exportar-todo [d]   Exportar todo a directorio (default: ~/.cognia_exports/)
+
+  CAMINOS DE APRENDIZAJE:
+    /camino-nuevo <obj>   Crear camino estructurado (5 pasos)
+    /caminos              Ver caminos activos con progreso
+    /camino-avanzar <id>  Marcar paso completado
+    /etiquetar <texto>    Detectar temas/etiquetas en texto
+
+  MEMORIA PERSONAL:
+    /cognia-sabe               Ver lo que Cognia sabe de ti
+    /cognia-aprende <hecho>    Enseniar un hecho sobre ti
+    /cognia-olvida <id>        Hacer olvidar un hecho
+
+ARGUMENTACION:
+  /argumento <tesis>         Analisis tesis-antitesis-sintesis
+
+  INSPECCION Y SESION:
+    /ver-contexto <q>    Ver contexto que se inyectaria para una pregunta
+    /resumen-sesion      Resumen completo de la sesion
+    /limpiar-sesion      Limpiar historial en memoria de esta sesion
+
+  CONSISTENCIA KG:
+    /verificar-kg             Detectar inconsistencias en el KG
+    /conflictos-kg            Ver conflictos sin resolver
+    /resolver-conflicto <id>  Marcar conflicto como resuelto
+    /comandos                 Resumen de comandos por categoria
+
+  INICIO Y DIGEST:
+    /digest          Digest diario (metas, repaso, notas, logros)
+    /inicio-dia      Rutina de inicio del dia
+    /cognia-info     Capacidades y version de Cognia
 """
 
 # ---------------------------------------------------------------------------
@@ -488,7 +857,7 @@ def _print_startup_panel():
     _r("  /inferir     ",              "cyan");  _r("<concepto>\n",             "dim white")
     _r("  /memoria     ",              "cyan");  _r("estado de memoria\n",      "dim white")
     _r("  /modulos     ",              "cyan");  _r("modulos activos\n",        "dim white")
-    _r("  /exportar    ",              "cyan");  _r("exportar sesion .md\n",    "dim white")
+    _r("  /exportar    ",              "cyan");  _r("exportar historial\n",     "dim white")
     _r("  /debug       ",              "cyan");  _r("toggle logs INFO\n",       "dim white")
     _r("  /tema        ",              "cyan");  _r("ciclar tema visual\n",     "dim white")
     _r("\n", "")
@@ -667,7 +1036,7 @@ def _slash_modulos():
         print("\n".join(ok_lines))
 
 
-def _slash_exportar():
+def _slash_exportar_sesion():
     ts       = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"cognia_sesion_{ts}.md"
     with open(filename, "w", encoding="utf-8") as f:
@@ -675,6 +1044,64 @@ def _slash_exportar():
         for entry in _session_log:
             f.write(f"**> {entry['input']}**\n\n```\n{entry['output']}\n```\n\n---\n\n")
     _print_line(f"[ok]Exportado:[/ok] [mod]{filename}[/mod]")
+
+
+def _slash_exportar(args: str) -> None:
+    """Exporta el historial de chat en formato json, md o csv."""
+    parts = args.strip().split(None, 1)
+    if not parts:
+        print("Uso: /exportar <formato> [archivo]")
+        print("Formatos: json, md, csv")
+        print("Ejemplo: /exportar json historial.json")
+        return
+
+    fmt = parts[0].lower()
+    if fmt not in ("json", "md", "csv"):
+        print(f"Formato no valido: {fmt}")
+        print("Formatos disponibles: json, md, csv")
+        return
+
+    _default_names = {"json": "cognia_historial.json", "md": "cognia_historial.md", "csv": "cognia_historial.csv"}
+    filename = parts[1].strip() if len(parts) > 1 else _default_names[fmt]
+
+    try:
+        from cognia.export.history_exporter import HistoryExporter
+        exporter = HistoryExporter()
+        messages = exporter.get_messages()
+        if fmt == "json":
+            content = exporter.to_json(messages)
+        elif fmt == "md":
+            content = exporter.to_markdown(messages)
+        else:
+            content = exporter.to_csv(messages)
+        Path(filename).write_text(content, encoding="utf-8")
+        print(f"Historial exportado a {filename} ({len(messages)} mensajes)")
+    except Exception as e:
+        print(f"Error al exportar historial: {e}")
+
+
+def _slash_exportar_stats() -> None:
+    """Muestra estadisticas del historial de chat."""
+    try:
+        from cognia.export.history_exporter import HistoryExporter
+        exporter = HistoryExporter()
+        messages = exporter.get_messages()
+        total = len(messages)
+        user_count = sum(1 for m in messages if m.get("role") == "user")
+        cognia_count = total - user_count
+        first_ts = messages[0].get("timestamp", "N/A") if messages else "N/A"
+        last_ts = messages[-1].get("timestamp", "N/A") if messages else "N/A"
+        lines = [
+            "Estadisticas del historial:",
+            f"  Total mensajes: {total}",
+            f"  Mensajes de usuario: {user_count}",
+            f"  Mensajes de Cognia: {cognia_count}",
+            f"  Primer mensaje: {first_ts}",
+            f"  Ultimo mensaje: {last_ts}",
+        ]
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        print(f"Error al obtener estadisticas: {e}")
 
 
 def _slash_costo():
@@ -691,6 +1118,392 @@ def _slash_costo():
                              border_style="cyan", padding=(0, 1)))
     else:
         print(content)
+
+
+def _slash_stats() -> None:
+    user_turns      = sum(1 for e in _history if e.get("role") == "user")
+    assistant_turns = sum(1 for e in _history if e.get("role") == "assistant")
+    total_turns     = user_turns + assistant_turns
+    elapsed_min     = int((time.time() - _session_start) / 60) if _session_start else 0
+    content = (
+        f"Estadisticas de sesion:\n"
+        f"  Turnos usuario   : {user_turns}\n"
+        f"  Turnos asistente : {assistant_turns}\n"
+        f"  Total            : {total_turns}\n"
+        f"  Duracion         : {elapsed_min} min"
+    )
+    if _HAS_RICH and _console:
+        _console.print(Panel(content, title="[cyan]Stats de sesion[/cyan]",
+                             border_style="cyan", padding=(0, 1)))
+    else:
+        print(content)
+
+
+def _slash_sugerir() -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/proactive/suggestions", timeout=2)
+        if resp.status_code == 200:
+            suggestions = resp.json().get("suggestions", [])
+            if not suggestions:
+                print("No hay sugerencias pendientes.")
+                return
+            print("Sugerencias:")
+            for i, s in enumerate(suggestions, 1):
+                print(f"  {i}. {s}")
+        else:
+            print(f"Error al obtener sugerencias: {resp.status_code}")
+    except Exception:
+        print("Servicio de sugerencias no disponible. Inicia cognia_desktop_api.py.")
+
+
+def _slash_logros(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/achievements", timeout=2)
+        if resp.status_code != 200:
+            print(f"Error: {resp.status_code}")
+            return
+        data = resp.json()
+        items = data if isinstance(data, list) else data.get("achievements", [])
+        show_all = args.strip().lower() == "todos"
+        shown = 0
+        for item in items:
+            if show_all or item.get("unlocked"):
+                status = "[X]" if item.get("unlocked") else "[ ]"
+                pts = item.get("points", 0)
+                print(f"  {status} {item.get('name','')} ({pts} pts) - {item.get('description','')}")
+                shown += 1
+        if shown == 0:
+            print("Aun no has desbloqueado logros. Empieza a chatear!")
+        else:
+            r2 = requests.get("http://localhost:8765/achievements/stats", timeout=2)
+            if r2.status_code == 200:
+                s = r2.json()
+                print(f"\n  Total: {s.get('unlocked',0)}/{s.get('total',0)} | Puntos: {s.get('points',0)}")
+    except Exception:
+        print("Servicio de logros no disponible.")
+
+
+def _slash_patrones(args: str) -> None:
+    if not _history:
+        print("No hay historial en esta sesion.")
+        return
+
+    user_msgs = [h["content"] for h in _history if h.get("role") == "user"]
+    if not user_msgs:
+        print("No hay mensajes de usuario.")
+        return
+
+    q_words = {"como": 0, "por que": 0, "que": 0, "cuando": 0, "donde": 0}
+    for msg in user_msgs:
+        lower = msg.lower()
+        for w in q_words:
+            if w in lower:
+                q_words[w] += 1
+
+    stop = {"para", "como", "esta", "este", "esto", "tiene", "desde", "hasta", "sobre"}
+    word_freq = {}
+    for msg in user_msgs:
+        for word in msg.lower().split():
+            w = word.strip(".,?!;:")
+            if len(w) > 4 and w not in stop:
+                word_freq[w] = word_freq.get(w, 0) + 1
+    top_words = sorted(word_freq.items(), key=lambda x: -x[1])[:5]
+
+    print(f"Patrones en esta sesion ({len(user_msgs)} mensajes):")
+    print(f"  Palabras frecuentes: {', '.join(w for w,_ in top_words) or 'ninguna'}")
+    top_q = max(q_words.items(), key=lambda x: x[1])
+    if top_q[1] > 0:
+        print(f"  Tipo de pregunta mas comun: '{top_q[0]}' ({top_q[1]} veces)")
+    avg_len = sum(len(m) for m in user_msgs) // len(user_msgs)
+    print(f"  Longitud promedio de mensaje: {avg_len} caracteres")
+
+
+def _slash_backup(args: str) -> None:
+    import shutil, datetime
+    from pathlib import Path
+    db_candidates = [Path("cognia.db"), Path.home() / "cognia.db", Path("storage/cognia.db")]
+    src = next((p for p in db_candidates if p.exists()), None)
+    if src is None:
+        print("No se encontro cognia.db para hacer backup.")
+        return
+    dest_dir = Path(args.strip()) if args.strip() else Path.home() / ".cognia_backups"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    dest = dest_dir / f"cognia_backup_{stamp}.db"
+    shutil.copy2(src, dest)
+    size_kb = dest.stat().st_size // 1024
+    print(f"Backup guardado: {dest} ({size_kb} KB)")
+
+
+def _slash_mi_uso(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/analytics/stats", timeout=2)
+        if resp.status_code == 200:
+            s = resp.json()
+            print(f"Uso de Cognia:")
+            print(f"  Eventos totales : {s.get('total_events', 0)}")
+            print(f"  Dias activos    : {s.get('active_days', 0)}")
+            print(f"  Racha actual    : {s.get('streak', 0)} dia(s)")
+            print(f"  Hoy             : {s.get('today_count', 0)} eventos")
+            if s.get('top_feature'):
+                print(f"  Funcion estrella: {s.get('top_feature')}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de analiticas no disponible.")
+
+
+def _slash_mi_uso_detalle(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/analytics/top-features", timeout=2)
+        if resp.status_code == 200:
+            features = resp.json().get("features", resp.json() if isinstance(resp.json(), list) else [])
+            if not features:
+                print("Sin datos de uso aun.")
+                return
+            print("Funciones mas usadas (ultimos 30 dias):")
+            for i, f in enumerate(features[:10], 1):
+                bar = "#" * min(20, f.get("total", 0))
+                print(f"  {i:2}. {f.get('feature','?'):20} {bar} ({f.get('total',0)})")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de analiticas no disponible.")
+
+
+def _slash_buscar_memoria(args: str) -> None:
+    if not args.strip():
+        print("Uso: /buscar-memoria <texto a buscar semanticamente>")
+        return
+    try:
+        import requests, urllib.parse
+        q = urllib.parse.quote(args.strip())
+        resp = requests.get(f"http://localhost:8765/memory/search?q={q}&limit=5", timeout=5)
+        if resp.status_code == 200:
+            results = resp.json().get("results", [])
+            if not results:
+                print("Sin resultados semanticos para esa busqueda.")
+                return
+            print(f"Resultados semanticos para '{args.strip()}':")
+            for i, r in enumerate(results, 1):
+                score = round(r.get("score", 0), 3)
+                role = r.get("role", "?")
+                content = r.get("content", "")[:120]
+                ts = r.get("ts", 0)
+                from datetime import datetime
+                date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d") if ts else "?"
+                print(f"  {i}. [{role}] ({date_str}, score={score}) {content}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de busqueda semantica no disponible.")
+
+
+def _slash_debate(args: str) -> None:
+    if not args.strip():
+        print("Uso: /debate <tema o proposicion>")
+        return
+    tema = args.strip()
+    print(f"Debate: '{tema}'")
+    print()
+    print("A FAVOR:")
+    pros = [
+        f"  + {tema} puede mejorar la eficiencia en contextos especificos.",
+        f"  + Existen casos documentados donde {tema.lower()} ha generado valor.",
+        f"  + La adopcion de {tema.lower()} reduce costos a largo plazo.",
+    ]
+    for p in pros:
+        print(p)
+    print()
+    print("EN CONTRA:")
+    cons = [
+        f"  - {tema} introduce complejidad adicional que puede ser evitable.",
+        f"  - Los riesgos de {tema.lower()} no siempre estan bien evaluados.",
+        f"  - La implementacion de {tema.lower()} requiere recursos significativos.",
+    ]
+    for c in cons:
+        print(c)
+    print()
+    print("CONCLUSION: Evalua el contexto especifico antes de decidir.")
+
+
+def _slash_contexto_semantico(args: str) -> None:
+    if not args.strip():
+        print("Uso: /contexto-semantico <consulta>")
+        return
+    try:
+        import requests, urllib.parse
+        q = urllib.parse.quote(args.strip())
+        resp = requests.get(f"http://localhost:8765/memory/search/context?q={q}&window=3", timeout=5)
+        if resp.status_code == 200:
+            context = resp.json().get("context", [])
+            if not context:
+                print("Sin contexto encontrado.")
+                return
+            print(f"Contexto semantico para '{args.strip()}':")
+            for msg in context:
+                role = msg.get("role", "?")
+                content = msg.get("content", "")[:150]
+                print(f"  [{role}] {content}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_sintetizar(args: str) -> None:
+    if not args.strip():
+        print("Uso: /sintetizar <tema>")
+        return
+    try:
+        import requests, urllib.parse
+        q = urllib.parse.quote(args.strip())
+        resp = requests.get(f"http://localhost:8765/synthesis?q={q}", timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            print(data.get("synthesis", "Sin sintesis disponible."))
+            sources = data.get("sources", [])
+            if sources:
+                print(f"\n[Fuentes: {', '.join(sources)}]")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de sintesis no disponible.")
+
+
+def _slash_y_si(args: str) -> None:
+    if not args.strip():
+        print("Uso: /y-si <situacion hipotetica>")
+        return
+    sit = args.strip()
+    print(f"Analisis hipotetico: 'y si {sit}'")
+    print()
+    print("Escenario probable:")
+    print(f"  Si {sit}, es probable que los sistemas relacionados se vean afectados.")
+    print(f"  El impacto dependeria de la escala y el contexto de implementacion.")
+    print()
+    print("Riesgos:")
+    print(f"  - Consecuencias no anticipadas de '{sit}'.")
+    print(f"  - Resistencia o friccion en la adopcion del cambio.")
+    print(f"  - Dependencias externas que limiten el resultado.")
+    print()
+    print("Oportunidades:")
+    print(f"  - Nuevos patrones de uso derivados de '{sit}'.")
+    print(f"  - Aprendizaje y adaptacion del sistema ante el cambio.")
+    print()
+    print("Recomendacion: prueba en escala pequena antes de generalizar.")
+
+
+def _slash_temas(args: str) -> None:
+    if not _history:
+        print("No hay historial en esta sesion.")
+        return
+    user_msgs = [h["content"] for h in _history if h.get("role") == "user"]
+    stop = {"para","como","esta","este","esto","tiene","desde","hasta","sobre","cuando",
+            "donde","quien","cuales","porque","tambien","puede","todos","solo","muy"}
+    word_freq = {}
+    for msg in user_msgs:
+        for word in msg.lower().split():
+            w = word.strip(".,?!;:()")
+            if len(w) > 4 and w not in stop:
+                word_freq[w] = word_freq.get(w, 0) + 1
+    topics = sorted(word_freq.items(), key=lambda x: -x[1])[:8]
+    if not topics:
+        print("Sin temas identificados.")
+        return
+    print(f"Temas en esta sesion ({len(user_msgs)} mensajes):")
+    for word, count in topics:
+        bar = "*" * min(10, count)
+        print(f"  {word:20} {bar} ({count})")
+
+
+def _slash_mi_cognia(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/cognitive-profile/summary", timeout=5)
+        if resp.status_code == 200:
+            summary = resp.json().get("summary", "")
+            print(summary if summary else "Perfil no disponible.")
+        else:
+            resp2 = requests.get("http://localhost:8765/cognitive-profile", timeout=5)
+            if resp2.status_code == 200:
+                p = resp2.json()
+                print("Perfil cognitivo de Cognia:")
+                ach = p.get("achievements", {})
+                print(f"  Logros     : {ach.get('unlocked',0)}/{ach.get('total',0)} ({ach.get('points',0)} pts)")
+                learn = p.get("learning", {})
+                print(f"  Aprendizaje: {learn.get('mastered',0)} dominadas, {learn.get('due_today',0)} para hoy")
+                goals = p.get("goals", {})
+                print(f"  Objetivos  : {goals.get('completed',0)} completados, {goals.get('pending',0)} pendientes")
+                analytics = p.get("analytics", {})
+                print(f"  Racha      : {analytics.get('streak',0)} dia(s)")
+                score = p.get("overall_score", 0)
+                print(f"  Puntuacion : {score}/1000")
+            else:
+                print(f"Error: {resp2.status_code}")
+    except Exception:
+        print("Servicio de perfil cognitivo no disponible.")
+
+
+def _slash_perfil_completo(args: str) -> None:
+    try:
+        import requests, json
+        resp = requests.get("http://localhost:8765/cognitive-profile", timeout=5)
+        if resp.status_code == 200:
+            print(json.dumps(resp.json(), indent=2, ensure_ascii=False))
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de perfil cognitivo no disponible.")
+
+
+def _slash_estado(args: str) -> None:
+    import threading
+    results = {}
+    errors = []
+
+    def fetch(name, url):
+        try:
+            import requests
+            r = requests.get(url, timeout=2)
+            if r.status_code == 200:
+                results[name] = r.json()
+        except Exception:
+            errors.append(name)
+
+    endpoints = {
+        "notas": "http://localhost:8765/notes/stats",
+        "logros": "http://localhost:8765/achievements/stats",
+        "uso": "http://localhost:8765/analytics/stats",
+        "aprendizaje": "http://localhost:8765/learning/stats",
+    }
+    threads = [threading.Thread(target=fetch, args=(n, u)) for n, u in endpoints.items()]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=3)
+
+    if not results and errors:
+        print("Servicio no disponible. Inicia cognia_desktop_api.py.")
+        return
+
+    print("Estado de Cognia:")
+    if "notas" in results:
+        n = results["notas"]
+        print(f"  Notas      : {n.get('total',0)} total, {n.get('pinned',0)} fijadas")
+    if "logros" in results:
+        a = results["logros"]
+        print(f"  Logros     : {a.get('unlocked',0)}/{a.get('total',0)} ({a.get('points',0)} pts)")
+    if "uso" in results:
+        u = results["uso"]
+        print(f"  Racha      : {u.get('streak',0)} dia(s) | Hoy: {u.get('today_count',0)} eventos")
+    if "aprendizaje" in results:
+        l = results["aprendizaje"]
+        print(f"  Estudio    : {l.get('total',0)} tarjetas, {l.get('due_today',0)} para revisar")
 
 
 def _slash_debug():
@@ -737,6 +1550,667 @@ def _slash_aprende_repo(ai, target: str) -> str:
     if stored:
         return f"Aprendido de {stored} repo(s): {', '.join(names)}"
     return "No se pudo almacenar informacion de los repos."
+
+
+# ---------------------------------------------------------------------------
+# Meta (goal) helpers
+# ---------------------------------------------------------------------------
+
+_CLI_USER_ID = "cli_user"
+
+
+def _slash_meta(titulo: str) -> None:
+    try:
+        from cognia.goals.goal_tracker import GoalTracker
+    except Exception:
+        print("Sistema de metas no disponible.")
+        return
+    try:
+        gt = GoalTracker()
+        goal = gt.create_goal(_CLI_USER_ID, titulo)
+        print(f"Meta creada: {titulo} (id: {goal['id']})")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al crear meta: {e}[/err_cl]")
+
+
+def _slash_metas() -> None:
+    try:
+        from cognia.goals.goal_tracker import GoalTracker
+    except Exception:
+        print("Sistema de metas no disponible.")
+        return
+    try:
+        gt = GoalTracker()
+        goals = gt.get_goals(_CLI_USER_ID, status="active")
+        if not goals:
+            print("Sin metas activas.")
+            return
+        lines = ["Metas activas:"]
+        for g in goals:
+            lines.append(f"  [{g['id']}] {g['title']} -- {g['progress_pct']}% ({g['status']})")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al listar metas: {e}[/err_cl]")
+
+
+def _slash_meta_ok(id_str: str) -> None:
+    try:
+        from cognia.goals.goal_tracker import GoalTracker
+    except Exception:
+        print("Sistema de metas no disponible.")
+        return
+    try:
+        goal_id = int(id_str)
+        gt = GoalTracker()
+        ok = gt.update_progress(goal_id, 100, user_id=_CLI_USER_ID)
+        if ok:
+            print(f"Meta {goal_id} completada.")
+        else:
+            print(f"Meta {goal_id} no encontrada.")
+    except ValueError:
+        _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
+    except Exception as e:
+        _print_line(f"[err_cl]Error: {e}[/err_cl]")
+
+
+def _slash_meta_prog(args: str) -> None:
+    try:
+        from cognia.goals.goal_tracker import GoalTracker
+    except Exception:
+        print("Sistema de metas no disponible.")
+        return
+    parts = args.strip().split()
+    if len(parts) < 2:
+        _print_line("[warn_cl]Uso: /meta-prog <id> <porcentaje>[/warn_cl]")
+        return
+    try:
+        goal_id = int(parts[0])
+        pct = int(parts[1])
+    except ValueError:
+        _print_line("[warn_cl]id y porcentaje deben ser numeros.[/warn_cl]")
+        return
+    try:
+        gt = GoalTracker()
+        ok = gt.update_progress(goal_id, pct, user_id=_CLI_USER_ID)
+        if ok:
+            print(f"Meta {goal_id}: progreso actualizado a {pct}%")
+        else:
+            print(f"Meta {goal_id} no encontrada.")
+    except Exception as e:
+        _print_line(f"[err_cl]Error: {e}[/err_cl]")
+
+
+def _slash_meta_borrar(id_str: str) -> None:
+    try:
+        from cognia.goals.goal_tracker import GoalTracker
+    except Exception:
+        print("Sistema de metas no disponible.")
+        return
+    try:
+        goal_id = int(id_str)
+        gt = GoalTracker()
+        ok = gt.delete_goal(goal_id, _CLI_USER_ID)
+        if ok:
+            print(f"Meta {goal_id} eliminada.")
+        else:
+            print(f"Meta {goal_id} no encontrada.")
+    except ValueError:
+        _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
+    except Exception as e:
+        _print_line(f"[err_cl]Error: {e}[/err_cl]")
+
+
+# ---------------------------------------------------------------------------
+# Meta priority helpers
+# ---------------------------------------------------------------------------
+
+_PRIORITIES_PATH = Path.home() / ".cognia_priorities.json"
+_VALID_PRIORITIES = ("alta", "media", "baja")
+
+
+def _load_priorities() -> dict:
+    if _PRIORITIES_PATH.exists():
+        try:
+            import json as _j
+            return _j.loads(_PRIORITIES_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def _save_priorities(priorities: dict) -> None:
+    import json as _j
+    _PRIORITIES_PATH.write_text(_j.dumps(priorities, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _slash_meta_prioridad(args: str) -> None:
+    parts = args.strip().split()
+    if len(parts) < 2:
+        print("Uso: /meta-prioridad <id> <alta|media|baja>")
+        return
+    id_str, nivel = parts[0], parts[1].lower()
+    if nivel not in _VALID_PRIORITIES:
+        print(f"Prioridad invalida. Opciones: alta, media, baja")
+        return
+    try:
+        goal_id = int(id_str)
+    except ValueError:
+        print("El id debe ser un numero.")
+        return
+    priorities = _load_priorities()
+    priorities[str(goal_id)] = nivel
+    _save_priorities(priorities)
+    print(f"Meta {goal_id}: prioridad establecida como {nivel}")
+
+
+def _slash_metas_alta(args: str) -> None:
+    try:
+        from cognia.goals.goal_tracker import GoalTracker
+    except Exception:
+        print("Sistema de metas no disponible.")
+        return
+    try:
+        gt = GoalTracker()
+        goals = gt.get_goals(_CLI_USER_ID, status="active")
+        priorities = _load_priorities()
+        alta = [g for g in goals if priorities.get(str(g["id"])) == "alta"]
+        if not alta:
+            print("Sin metas de alta prioridad.")
+            return
+        lines = ["Metas de alta prioridad:"]
+        for g in alta:
+            lines.append(f"  [{g['id']}] {g['title']} -- {g['progress_pct']}% ({g['status']})")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al listar metas alta prioridad: {e}[/err_cl]")
+
+
+def _slash_meta_prioridad_ver(args: str) -> None:
+    try:
+        from cognia.goals.goal_tracker import GoalTracker
+    except Exception:
+        print("Sistema de metas no disponible.")
+        return
+    try:
+        gt = GoalTracker()
+        goals = gt.get_goals(_CLI_USER_ID, status="active")
+        priorities = _load_priorities()
+        lines = ["Prioridades actuales:"]
+        for g in goals:
+            nivel = priorities.get(str(g["id"]), "(sin prioridad)")
+            lines.append(f"  [{g['id']}] {g['title']} -- {nivel}")
+        if len(lines) == 1:
+            lines.append("  Sin metas activas.")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al mostrar prioridades: {e}[/err_cl]")
+
+
+def _slash_metas_ordenar(args: str) -> None:
+    try:
+        from cognia.goals.goal_tracker import GoalTracker
+    except Exception:
+        print("Sistema de metas no disponible.")
+        return
+    try:
+        gt = GoalTracker()
+        goals = gt.get_goals(_CLI_USER_ID, status="active")
+        priorities = _load_priorities()
+        _order = {"alta": 0, "media": 1, "baja": 2}
+        _label = {"alta": "[ALTA] ", "media": "[MEDIA]", "baja": "[BAJA] "}
+
+        def _sort_key(g):
+            return _order.get(priorities.get(str(g["id"]), ""), 3)
+
+        sorted_goals = sorted(goals, key=_sort_key)
+        lines = ["Metas (ordenadas por prioridad):"]
+        for g in sorted_goals:
+            nivel = priorities.get(str(g["id"]), "")
+            tag = _label.get(nivel, "[--]   ")
+            lines.append(f"  {tag} [{g['id']}] {g['title']} -- {g['progress_pct']}%")
+        if len(lines) == 1:
+            lines.append("  Sin metas activas.")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al ordenar metas: {e}[/err_cl]")
+
+
+# ---------------------------------------------------------------------------
+# Notification commands
+# ---------------------------------------------------------------------------
+
+def _slash_notif(args: str) -> None:
+    try:
+        from cognia.notifications.notification_center import NotificationCenter
+    except Exception:
+        print("Sistema de notificaciones no disponible.")
+        return
+    try:
+        nc = NotificationCenter()
+        items = nc.get_all(_CLI_USER_ID, limit=10, include_read=False)
+        if not items:
+            print("(Sin notificaciones)")
+            return
+        lines = [f"Notificaciones ({len(items)} sin leer):"]
+        for i, n in enumerate(items, 1):
+            body_part = f" -- {n['body']}" if n.get("body") else ""
+            lines.append(f"  [{i}] [{n['level']}] {n['title']}{body_part}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al listar notificaciones: {e}[/err_cl]")
+
+
+def _slash_notif_todas(args: str) -> None:
+    try:
+        from cognia.notifications.notification_center import NotificationCenter
+    except Exception:
+        print("Sistema de notificaciones no disponible.")
+        return
+    try:
+        nc = NotificationCenter()
+        items = nc.get_all(_CLI_USER_ID, limit=20, include_read=True)
+        if not items:
+            print("(Sin notificaciones)")
+            return
+        lines = [f"Todas las notificaciones ({len(items)}):"]
+        for i, n in enumerate(items, 1):
+            read_tag = " [leida]" if n.get("read") else ""
+            body_part = f" -- {n['body']}" if n.get("body") else ""
+            lines.append(f"  [{i}] [{n['level']}]{read_tag} {n['title']}{body_part}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al listar notificaciones: {e}[/err_cl]")
+
+
+def _slash_notif_leer(args: str) -> None:
+    if not args.strip():
+        _print_line("[warn_cl]Uso: /notif-leer <id>[/warn_cl]")
+        return
+    try:
+        from cognia.notifications.notification_center import NotificationCenter
+    except Exception:
+        print("Sistema de notificaciones no disponible.")
+        return
+    try:
+        notif_id = int(args.strip())
+        nc = NotificationCenter()
+        nc.mark_read(notif_id, _CLI_USER_ID)
+        print(f"Notificacion {notif_id} marcada como leida.")
+    except ValueError:
+        _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
+    except Exception as e:
+        _print_line(f"[err_cl]Error: {e}[/err_cl]")
+
+
+def _slash_notif_limpiar(args: str) -> None:
+    try:
+        from cognia.notifications.notification_center import NotificationCenter
+    except Exception:
+        print("Sistema de notificaciones no disponible.")
+        return
+    try:
+        nc = NotificationCenter()
+        count = nc.mark_all_read(_CLI_USER_ID)
+        print(f"{count} notificaciones marcadas como leidas.")
+    except Exception as e:
+        _print_line(f"[err_cl]Error: {e}[/err_cl]")
+
+
+# ---------------------------------------------------------------------------
+# Recommendation commands
+# ---------------------------------------------------------------------------
+
+def _slash_recomendar(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/recommendations", timeout=5)
+        if resp.status_code == 200:
+            recs = resp.json().get("recommendations", [])
+            if not recs:
+                print("No hay recomendaciones en este momento.")
+                return
+            print("Recomendaciones personalizadas:")
+            for r in recs:
+                prio = r.get("priority", "?")
+                title = r.get("title", "")
+                reason = r.get("reason", "")
+                action = r.get("action", "")
+                print(f"  {prio}. [{r.get('type','?')}] {title}")
+                print(f"     Razon : {reason}")
+                print(f"     Accion: {action}")
+                print()
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de recomendaciones no disponible.")
+
+
+def _slash_digest(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/digest", timeout=5)
+        if resp.status_code == 200:
+            digest_text = resp.json().get("digest", "")
+            print(digest_text if digest_text else "Digest no disponible.")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de digest no disponible. Inicia cognia_desktop_api.py.")
+
+
+def _slash_cognia_info(args: str) -> None:
+    print("Cognia v3 -- Asistente AGI experimental")
+    print()
+    print("Capacidades principales:")
+    capabilities = [
+        ("Inferencia",          "Modelo Qwen2.5-Coder-3B INT4, 4 shards, numpy puro"),
+        ("Memoria",             "Episodica + semantica TF-IDF + cristalizacion KG"),
+        ("Aprendizaje",         "Repaso espaciado SM-2 + caminos de aprendizaje"),
+        ("Objetivos",           "Gestion de metas con descomposicion de tareas"),
+        ("Personalizacion",     "Perfil de usuario + hechos personales + persona"),
+        ("Retroalimentacion",   "Senal implicita/explicita + autocritica heuristica"),
+        ("Conocimiento",        "KG SQLite + multihop + cristalizacion + consistencia"),
+        ("Busqueda",            "DuckDuckGo web + semantica sobre historial"),
+        ("Agentes",             "ReAct loop + supervisor + planner + synthesizer"),
+        ("Gamificacion",        "10 logros + racha + puntuacion cognitiva"),
+    ]
+    for name, desc in capabilities:
+        print(f"  {name:20} : {desc}")
+    print()
+    total_cmds = len(_CMD_DESCRIPTIONS)
+    print(f"Comandos CLI disponibles: {total_cmds}")
+    print("Usa /help para verlos todos o /ayuda <cmd> para detalle.")
+
+
+def _slash_inicio_dia(args: str) -> None:
+    print("Buenos dias. Iniciando Cognia...")
+    print()
+    _slash_digest("")
+    print()
+    _slash_proximos_pasos("")
+    print()
+    try:
+        import requests
+        r = requests.get("http://localhost:8765/learning/stats", timeout=2)
+        if r.status_code == 200:
+            due = r.json().get("due_today", 0)
+            if due > 0:
+                print(f"Recuerda: tienes {due} tarjeta(s) de repaso. Usa /revisar.")
+    except Exception:
+        pass
+
+
+def _slash_proximos_pasos(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/recommendations/top", timeout=3)
+        if resp.status_code == 200:
+            rec = resp.json().get("recommendation")
+            if not rec:
+                print("Todo al dia. No hay acciones urgentes.")
+                return
+            print(f"Proximo paso recomendado:")
+            print(f"  {rec.get('title','')}")
+            print(f"  {rec.get('reason','')}")
+            print(f"  -> {rec.get('action','')}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_mapa(args: str) -> None:
+    if not args.strip():
+        print("Uso: /mapa <concepto central>")
+        return
+    center = args.strip()
+    print(f"Mapa mental: {center}")
+    print()
+    connected_nodes = []
+    try:
+        import requests, urllib.parse
+        q = urllib.parse.quote(center)
+        resp = requests.get(f"http://localhost:8765/kg/facts?subject={q}&limit=8", timeout=3)
+        if resp.status_code == 200:
+            facts = resp.json().get("facts", resp.json() if isinstance(resp.json(), list) else [])
+            for f in facts[:8]:
+                if isinstance(f, dict):
+                    connected_nodes.append(f"{f.get('predicate','?')}: {f.get('object','?')}")
+                elif isinstance(f, str):
+                    connected_nodes.append(f)
+    except Exception:
+        pass
+
+    if connected_nodes:
+        print(f"  {center}")
+        for i, node in enumerate(connected_nodes):
+            connector = "  +-- "
+            print(f"{connector}{node}")
+    else:
+        print(f"  {center}")
+        print(f"  +-- definicion: que es {center}")
+        print(f"  +-- causas: que origina {center}")
+        print(f"  +-- efectos: consecuencias de {center}")
+        print(f"  +-- relaciones: conceptos asociados a {center}")
+        print(f"  +-- aplicaciones: usos practicos de {center}")
+    print()
+    print(f"Tip: usa /kg-agregar para agregar relaciones sobre '{center}'")
+
+
+# ---------------------------------------------------------------------------
+# Reminder commands
+# ---------------------------------------------------------------------------
+
+def _slash_recordar(args: str) -> None:
+    """Crea un recordatorio relativo. Formato: <titulo> en <N> minutos|horas"""
+    try:
+        from cognia.reminders.reminder_manager import ReminderManager
+    except Exception:
+        print("Sistema de recordatorios no disponible.")
+        return
+    _HELP = (
+        "Uso: /recordar <titulo> en <N> minutos|horas\n"
+        "Ejemplos:\n"
+        "  /recordar Revisar meta Python en 30 minutos\n"
+        "  /recordar Hacer commit en 2 horas"
+    )
+    args = args.strip()
+    if not args:
+        print(_HELP)
+        return
+    # Parse pattern: <titulo> en <N> <minutos|horas>
+    _match = re.search(r'^(.+?)\s+en\s+(\d+)\s+(minutos?|horas?)$', args, re.IGNORECASE)
+    if not _match:
+        print(_HELP)
+        return
+    titulo = _match.group(1).strip()
+    n = int(_match.group(2))
+    unit = _match.group(3).lower()
+    minutes = n * 60 if unit.startswith("hora") else n
+    try:
+        rm = ReminderManager()
+        rm.create_relative(user_id=_CLI_USER_ID, title=titulo, minutes=minutes)
+        print(f"Recordatorio creado: '{titulo}' en {minutes} minutos")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al crear recordatorio: {e}[/err_cl]")
+
+
+def _slash_recordatorios(args: str) -> None:
+    """Lista recordatorios pendientes del usuario CLI."""
+    try:
+        from cognia.reminders.reminder_manager import ReminderManager
+    except Exception:
+        print("Sistema de recordatorios no disponible.")
+        return
+    try:
+        import time as _t
+        rm = ReminderManager()
+        pending = rm.get_pending(_CLI_USER_ID)
+        if not pending:
+            print("(Sin recordatorios pendientes)")
+            return
+        lines = ["Recordatorios pendientes:"]
+        now = _t.time()
+        for i, r in enumerate(pending, 1):
+            secs_left = max(0, r["fire_at"] - now)
+            total_min = int(secs_left // 60)
+            fire_dt = datetime.datetime.fromtimestamp(r["fire_at"])
+            fire_str = fire_dt.strftime("%H:%M")
+            if total_min >= 60:
+                h = total_min // 60
+                m = total_min % 60
+                time_label = f"en {h}h {m}min" if m else f"en {h}h"
+            else:
+                time_label = f"en {total_min} min"
+            lines.append(f"  [{r['id']}] {r['title']} -- {time_label} (a las {fire_str})")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al listar recordatorios: {e}[/err_cl]")
+
+
+def _slash_recordar_cancelar(args: str) -> None:
+    """Cancela un recordatorio por id."""
+    try:
+        from cognia.reminders.reminder_manager import ReminderManager
+    except Exception:
+        print("Sistema de recordatorios no disponible.")
+        return
+    if not args.strip():
+        print("Uso: /recordar-cancelar <id>")
+        return
+    try:
+        rid = int(args.strip())
+        rm = ReminderManager()
+        ok = rm.cancel(rid, _CLI_USER_ID)
+        if ok:
+            print(f"Recordatorio {rid} cancelado.")
+        else:
+            print(f"Recordatorio {rid} no encontrado o ya no esta pendiente.")
+    except ValueError:
+        _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
+    except Exception as e:
+        _print_line(f"[err_cl]Error: {e}[/err_cl]")
+
+
+# ---------------------------------------------------------------------------
+# Persistent user config
+# ---------------------------------------------------------------------------
+
+_CONFIG_PATH = Path.home() / ".cognia_config.json"
+
+_CONFIG_DEFAULTS: dict = {
+    "persona":          "casual",
+    "idioma":           "auto",
+    "max_historial":    "50",
+    "tema_kg":          "",
+    "recordar_sesion":  "true",
+    "nivel_detalle":    "normal",
+}
+
+
+def _load_config() -> dict:
+    if _CONFIG_PATH.exists():
+        try:
+            return {**_CONFIG_DEFAULTS, **json.load(_CONFIG_PATH.open(encoding="utf-8"))}
+        except Exception:
+            return dict(_CONFIG_DEFAULTS)
+    return dict(_CONFIG_DEFAULTS)
+
+
+def _save_config(cfg: dict) -> None:
+    _CONFIG_PATH.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _slash_config(args: str) -> None:
+    args = args.strip()
+    parts = args.split(None, 2)
+    sub = parts[0].lower() if parts else "ver"
+
+    if not args or sub == "ver":
+        cfg = _load_config()
+        lines = ["Configuracion actual (~/.cognia_config.json):"]
+        for k, v in cfg.items():
+            marker = " (*)" if v != _CONFIG_DEFAULTS.get(k, "") else ""
+            lines.append(f"  {k}={v}{marker}")
+        _print_line("\n".join(lines))
+
+    elif sub == "set":
+        if len(parts) < 3:
+            _print_line("[warn_cl]Uso: /config set <clave> <valor>[/warn_cl]")
+            return
+        key, val = parts[1], parts[2]
+        if key not in _CONFIG_DEFAULTS:
+            _print_line(
+                f"[warn_cl]Clave desconocida: {key}. "
+                f"Claves validas: {', '.join(_CONFIG_DEFAULTS)}[/warn_cl]"
+            )
+            return
+        cfg = _load_config()
+        cfg[key] = val
+        _save_config(cfg)
+        _print_line(f"Config actualizada: {key}={val}")
+
+    elif sub == "reset":
+        _save_config(dict(_CONFIG_DEFAULTS))
+        _print_line("Config restablecida a valores por defecto.")
+
+    elif sub == "exportar":
+        cfg = _load_config()
+        _print_line(json.dumps(cfg, indent=2, ensure_ascii=False))
+
+    else:
+        _print_line(
+            "[warn_cl]Uso:[/warn_cl]\n"
+            "  /config              Mostrar configuracion\n"
+            "  /config set k v      Cambiar valor\n"
+            "  /config reset        Restablecer valores por defecto\n"
+            "  /config exportar     Exportar como JSON"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Feedback commands
+# ---------------------------------------------------------------------------
+
+_VALID_SIGNALS = ("positivo", "negativo", "neutral")
+
+
+def _slash_feedback(args: str) -> None:
+    signal = args.strip().lower()
+    if signal not in _VALID_SIGNALS:
+        _print_line(
+            f"[warn_cl]Senal invalida. Opciones: positivo, negativo, neutral[/warn_cl]"
+        )
+        return
+    _session_feedback.append({"signal": signal, "ts": time.time()})
+    if _feedback_learner is not None:
+        try:
+            _feedback_learner.record(signal)
+        except Exception:
+            pass
+    print(f"Feedback registrado: {signal}.")
+
+
+def _slash_feedback_sesion() -> None:
+    pos = sum(1 for f in _session_feedback if f["signal"] == "positivo")
+    neg = sum(1 for f in _session_feedback if f["signal"] == "negativo")
+    neu = sum(1 for f in _session_feedback if f["signal"] == "neutral")
+    print(f"Sesion: {pos} positivos, {neg} negativos, {neu} neutrales.")
+
+
+def _slash_ayuda_detallada(args: str) -> None:
+    cmd = args.strip()
+    if not cmd.startswith("/"):
+        cmd = "/" + cmd
+    detail = _CMD_DETAILS.get(cmd)
+    if detail:
+        _show_response(f"{cmd}\n\n{detail}", "cyan")
+        return
+    short = _CMD_DESCRIPTIONS.get(cmd)
+    if short:
+        _show_response(f"Descripcion: {short}", "cyan")
+        return
+    print("Comando no encontrado. Usa /help para ver todos los comandos.")
 
 
 # ---------------------------------------------------------------------------
@@ -960,6 +2434,546 @@ def _call_articulated(ai, prompt: str) -> str:
         return f"Error: {e}"
 
 
+
+# ---------------------------------------------------------------------------
+# Template helpers
+# ---------------------------------------------------------------------------
+
+def _slash_templates(args: str) -> None:
+    """Lista templates de conversacion disponibles (builtin + custom)."""
+    try:
+        from cognia.templates.conversation_templates import ConversationTemplateManager, BUILTIN_TEMPLATES
+    except ImportError:
+        _print_line("[err_cl]Modulo conversation_templates no disponible.[/err_cl]")
+        return
+    try:
+        mgr = ConversationTemplateManager()
+        all_tpls = mgr.list_templates()
+        builtin_ids = set(BUILTIN_TEMPLATES.keys())
+        builtin_tpls = [t for t in all_tpls if t["id"] in builtin_ids]
+        custom_tpls  = [t for t in all_tpls if t["id"] not in builtin_ids]
+        lines = ["Templates disponibles:"]
+        for t in builtin_tpls:
+            est = t.get("estimated_turns", "?")
+            lines.append(f"  [{t['id']}] {t['name']} -- {t['description']} (~{est} turnos)")
+        if custom_tpls:
+            lines.append(f"  + {len(custom_tpls)} templates custom")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al listar templates: {e}[/err_cl]")
+
+
+def _slash_template(args: str) -> None:
+    """Inicia sesion con un template dado su ID."""
+    template_id = args.strip()
+    if not template_id:
+        _print_line("[warn_cl]Uso: /template <id>  -- ejemplo: /template code_review[/warn_cl]")
+        return
+    try:
+        from cognia.templates.conversation_templates import ConversationTemplateManager
+    except ImportError:
+        _print_line("[err_cl]Modulo conversation_templates no disponible.[/err_cl]")
+        return
+    try:
+        mgr = ConversationTemplateManager()
+        tpl = mgr.get_template(template_id)
+        if tpl is None:
+            _print_line(f"[warn_cl]Template '{template_id}' no encontrado. Usa /templates para ver los disponibles.[/warn_cl]")
+            return
+        lines = [
+            f"Iniciando template: {tpl['name']}",
+            "",
+            tpl["initial_prompt"],
+            "",
+            "Preguntas guia:",
+        ]
+        for i, q in enumerate(tpl["guide_questions"], 1):
+            lines.append(f"  {i}. {q}")
+        lines.append("")
+        lines.append("(escribe tu primera respuesta)")
+        _show_response("\n".join(lines), "bright_cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al cargar template: {e}[/err_cl]")
+
+
+def _slash_template_guia(args: str) -> None:
+    """Muestra solo las preguntas guia de un template."""
+    template_id = args.strip()
+    if not template_id:
+        _print_line("[warn_cl]Uso: /template-guia <id>  -- ejemplo: /template-guia brainstorming[/warn_cl]")
+        return
+    try:
+        from cognia.templates.conversation_templates import ConversationTemplateManager
+    except ImportError:
+        _print_line("[err_cl]Modulo conversation_templates no disponible.[/err_cl]")
+        return
+    try:
+        mgr = ConversationTemplateManager()
+        tpl = mgr.get_template(template_id)
+        if tpl is None:
+            _print_line(f"[warn_cl]Template '{template_id}' no encontrado. Usa /templates para ver los disponibles.[/warn_cl]")
+            return
+        lines = [f"Preguntas guia -- {tpl['name']}:"]
+        for i, q in enumerate(tpl["guide_questions"], 1):
+            lines.append(f"  {i}. {q}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al cargar guia: {e}[/err_cl]")
+
+
+def _slash_buscar_web(args: str) -> None:
+    """Busca en DuckDuckGo usando WebSearch y muestra resultado estructurado."""
+    query = args.strip()
+    if not query:
+        _print_line("[warn_cl]Uso: /buscar-web <query>[/warn_cl]")
+        return
+    try:
+        from cognia.search.web_search import WebSearch
+    except ImportError:
+        _print_line("[err_cl]Modulo WebSearch no disponible (cognia/search/web_search.py)[/err_cl]")
+        return
+    try:
+        ws = WebSearch()
+        result = ws.search(query)
+        if result.get("error"):
+            _print_line(f"[err_cl]Error en busqueda: {result['error']}[/err_cl]")
+            return
+        lines = [f"Busqueda: {query}"]
+        answer = result.get("answer", "").strip()
+        abstract = result.get("abstract", "").strip()
+        if answer:
+            lines.append(f"Respuesta directa: {answer}")
+        elif abstract:
+            lines.append(f"Respuesta directa: {abstract}")
+        src = result.get("abstract_source", "").strip()
+        if src:
+            lines.append(f"Fuente: {src}")
+        topics = result.get("related_topics", [])
+        if topics:
+            lines.append("Temas relacionados:")
+            for t in topics:
+                lines.append(f"  - {t}")
+        if not answer and not abstract and not topics:
+            lines.append("(Sin resultados)")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]buscar-web error: {e}[/err_cl]")
+
+
+def _slash_buscar_kg(args: str) -> None:
+    """Busca hechos sobre un concepto en el Knowledge Graph local."""
+    concepto = args.strip()
+    if not concepto:
+        _print_line("[warn_cl]Uso: /buscar-kg <concepto>[/warn_cl]")
+        return
+    try:
+        from cognia.knowledge.graph import KnowledgeGraph
+        from cognia.config import DB_PATH
+    except ImportError:
+        _print_line("[err_cl]Modulo KnowledgeGraph no disponible[/err_cl]")
+        return
+    try:
+        kg = KnowledgeGraph(DB_PATH)
+        facts = kg.get_facts(concepto.lower())
+        if not facts:
+            _print_line(f"[detail](Sin hechos en el grafo para '{concepto}')[/detail]")
+            return
+        lines = [f"Hechos sobre '{concepto}':"]
+        for f in facts:
+            lines.append(f"  - {f['subject']} {f['predicate']} {f['object']}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]buscar-kg error: {e}[/err_cl]")
+
+
+def _slash_kg_agregar(args: str) -> None:
+    """Agrega un triple al Knowledge Graph. Uso: /kg-agregar <sujeto> <predicado> <objeto>"""
+    tokens = args.strip().split()
+    if len(tokens) < 3:
+        _print_line("[warn_cl]Uso: /kg-agregar <sujeto> <predicado> <objeto>[/warn_cl]")
+        _print_line("[detail]Ejemplo: /kg-agregar Python es_un lenguaje[/detail]")
+        return
+    subject, predicate, obj = tokens[0], tokens[1], " ".join(tokens[2:])
+    try:
+        from cognia.knowledge.graph import KnowledgeGraph
+        from cognia.config import DB_PATH
+    except ImportError:
+        _print_line("[err_cl]Modulo KnowledgeGraph no disponible[/err_cl]")
+        return
+    try:
+        kg = KnowledgeGraph(DB_PATH)
+        kg.add_triple(subject, predicate, obj, weight=0.8)
+        print(f"Triple agregado: {subject} {predicate} {obj}")
+    except Exception as e:
+        _print_line(f"[err_cl]kg-agregar error: {e}[/err_cl]")
+
+
+def _slash_kg_stats(args: str) -> None:
+    """Muestra estadisticas del Knowledge Graph."""
+    try:
+        from cognia.knowledge.graph import KnowledgeGraph
+        from cognia.config import DB_PATH
+        from storage.db_pool import db_connect_pooled as _dcp
+    except ImportError:
+        _print_line("[err_cl]Modulo KnowledgeGraph no disponible[/err_cl]")
+        return
+    try:
+        conn = _dcp(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM knowledge_graph")
+        total = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(DISTINCT subject) + COUNT(DISTINCT object) FROM knowledge_graph")
+        # Use a proper distinct count across both columns
+        cur.execute(
+            "SELECT COUNT(*) FROM ("
+            "  SELECT subject AS concept FROM knowledge_graph"
+            "  UNION"
+            "  SELECT object AS concept FROM knowledge_graph"
+            ")"
+        )
+        conceptos = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(DISTINCT predicate) FROM knowledge_graph")
+        predicados = cur.fetchone()[0]
+        conn.close()
+        lines = [
+            "Knowledge Graph:",
+            f"  Triples totales: {total}",
+            f"  Conceptos unicos: {conceptos}",
+            f"  Predicados unicos: {predicados}",
+        ]
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]kg-stats error: {e}[/err_cl]")
+
+
+def _slash_kg_predicados(args: str) -> None:
+    """Lista predicados unicos en el Knowledge Graph."""
+    try:
+        from cognia.config import DB_PATH
+        from storage.db_pool import db_connect_pooled as _dcp
+    except ImportError:
+        _print_line("[err_cl]db_pool no disponible[/err_cl]")
+        return
+    try:
+        conn = _dcp(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT predicate FROM knowledge_graph LIMIT 20")
+        rows = cur.fetchall()
+        conn.close()
+        if not rows:
+            _print_line("[detail](Sin predicados en el KG)[/detail]")
+            return
+        lines = ["Predicados en el KG:"]
+        for (pred,) in rows:
+            lines.append(f"  - {pred}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]kg-predicados error: {e}[/err_cl]")
+
+
+def _slash_kg_exportar(args: str) -> None:
+    """Exporta el Knowledge Graph a un archivo JSON."""
+    import json as _json
+    filename = args.strip() or "kg_export.json"
+    try:
+        from cognia.config import DB_PATH
+        from storage.db_pool import db_connect_pooled as _dcp
+    except ImportError:
+        _print_line("[err_cl]db_pool no disponible[/err_cl]")
+        return
+    try:
+        conn = _dcp(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT subject, predicate, object, weight FROM knowledge_graph")
+        rows = cur.fetchall()
+        conn.close()
+        data = [
+            {"subject": s, "predicate": p, "object": o, "weight": w}
+            for s, p, o, w in rows
+        ]
+        Path(filename).write_text(_json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"KG exportado: {len(data)} triples en {filename}")
+    except Exception as e:
+        _print_line(f"[err_cl]kg-exportar error: {e}[/err_cl]")
+
+
+def _slash_kg_inferir(args: str) -> None:
+    """Infiere propiedades de un concepto via MultiHopEngine."""
+    concept = args.strip()
+    if not concept:
+        _print_line("[warn_cl]Uso: /kg-inferir <concepto>[/warn_cl]")
+        _print_line("[detail]Ejemplo: /kg-inferir Python[/detail]")
+        return
+    try:
+        from cognia.knowledge.multihop_engine import MultiHopEngine
+    except ImportError:
+        _print_line("[err_cl]MultiHopEngine no disponible[/err_cl]")
+        return
+    try:
+        engine = MultiHopEngine()
+        result = engine.infer_properties(concept)
+        chain = " -> ".join([concept] + result["parent_chain"]) if result["parent_chain"] else concept
+        lines = [
+            f"Propiedades de '{concept}':",
+            f"Cadena de herencia: {chain}",
+            f"Hechos directos ({len(result['direct_facts'])}):",
+        ]
+        for f in result["direct_facts"]:
+            lines.append(f"  - {f['subject']} {f['predicate']} {f['object']}")
+        lines.append(f"Hechos heredados ({len(result['inherited_facts'])}):")
+        for f in result["inherited_facts"]:
+            lines.append(f"  - {f['subject']} {f['predicate']} {f['object']}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]kg-inferir error: {e}[/err_cl]")
+
+
+def _slash_kg_relacionar(args: str) -> None:
+    """Explica la relacion entre dos conceptos via MultiHopEngine."""
+    parts = args.strip().split(None, 1)
+    if len(parts) < 2:
+        _print_line("[warn_cl]Uso: /kg-relacionar <A> <B>[/warn_cl]")
+        _print_line("[detail]Ejemplo: /kg-relacionar Python JavaScript[/detail]")
+        return
+    concept_a, concept_b = parts[0], parts[1]
+    try:
+        from cognia.knowledge.multihop_engine import MultiHopEngine
+    except ImportError:
+        _print_line("[err_cl]MultiHopEngine no disponible[/err_cl]")
+        return
+    try:
+        engine = MultiHopEngine()
+        result = engine.explain_relationship(concept_a, concept_b)
+        lines = [
+            f"Relacion entre '{concept_a}' y '{concept_b}':",
+            f"Tipo: {result['relationship_type']}",
+            result["explanation"],
+        ]
+        if result["common_ancestors"]:
+            lines.append(f"Ancestros comunes: {result['common_ancestors']}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]kg-relacionar error: {e}[/err_cl]")
+
+
+def _slash_kg_responder(args: str) -> None:
+    """Responde una pregunta usando el Knowledge Graph (multi-hop)."""
+    question = args.strip()
+    if not question:
+        _print_line("[warn_cl]Uso: /kg-responder <pregunta>[/warn_cl]")
+        _print_line("[detail]Ejemplo: /kg-responder que es Python[/detail]")
+        return
+    try:
+        from cognia.knowledge.multihop_engine import MultiHopEngine
+    except ImportError:
+        _print_line("[err_cl]MultiHopEngine no disponible[/err_cl]")
+        return
+    try:
+        engine = MultiHopEngine()
+        result = engine.answer_question(question)
+        lines = [
+            f"Respuesta (confianza: {result['confidence']:.1f}):",
+            result["answer_text"],
+            f"Entidades encontradas: {', '.join(result['entities_found']) if result['entities_found'] else '(ninguna)'}",
+        ]
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]kg-responder error: {e}[/err_cl]")
+
+
+def _slash_kg_camino(args: str) -> None:
+    """Encuentra el camino entre dos conceptos en el Knowledge Graph."""
+    parts = args.strip().split(None, 1)
+    if len(parts) < 2:
+        _print_line("[warn_cl]Uso: /kg-camino <A> <B>[/warn_cl]")
+        _print_line("[detail]Ejemplo: /kg-camino Python lenguaje[/detail]")
+        return
+    concept_a, concept_b = parts[0], parts[1]
+    try:
+        from cognia.knowledge.multihop_engine import MultiHopEngine
+    except ImportError:
+        _print_line("[err_cl]MultiHopEngine no disponible[/err_cl]")
+        return
+    try:
+        engine = MultiHopEngine()
+        path = engine.find_path(concept_a, concept_b)
+        if not path:
+            _show_response(f"(Sin camino entre {concept_a} y {concept_b})", "cyan")
+            return
+        chain_parts = []
+        for subj, pred, obj in path:
+            chain_parts.append(f"{subj} --{pred}-->")
+        chain_parts.append(concept_b)
+        lines = [
+            f"Camino de '{concept_a}' a '{concept_b}':",
+            " ".join(chain_parts),
+        ]
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]kg-camino error: {e}[/err_cl]")
+
+
+def _slash_reporte() -> None:
+    try:
+        from cognia.reports.progress_reporter import ProgressReporter
+    except ImportError:
+        print("ProgressReporter no disponible.")
+        return
+    try:
+        reporter = ProgressReporter()
+        md = reporter.generate_report(user_id=_CLI_USER_ID, period_days=7)
+        if _HAS_RICH and _console:
+            _console.print(md, markup=False)
+        else:
+            print(md)
+    except Exception as e:
+        _print_line(f"[err_cl]Error al generar reporte: {e}[/err_cl]")
+
+
+def _slash_reporte_json() -> None:
+    try:
+        from cognia.reports.progress_reporter import ProgressReporter
+    except ImportError:
+        print("ProgressReporter no disponible.")
+        return
+    try:
+        reporter = ProgressReporter()
+        stats = reporter.generate_json_stats(user_id=_CLI_USER_ID, period_days=7)
+        lines = [
+            "Estadisticas (7 dias):",
+            f"- Metas activas: {stats.get('goals_active', 0)}",
+            f"- Metas completadas: {stats.get('goals_completed', 0)}",
+            f"- Mensajes totales: {stats.get('messages_total', 0)}",
+            f"- Sesiones: {stats.get('sessions_total', 0)}",
+            f"- Insights de curiosidad: {stats.get('insights_count', 0)}",
+        ]
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al obtener estadisticas: {e}[/err_cl]")
+
+
+def _slash_reporte_completo(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/reports/generate?period=7", timeout=10)
+        if resp.status_code == 200:
+            report = resp.json().get("report", "")
+            if args.strip():
+                from pathlib import Path
+                p = Path(args.strip())
+                p.write_text(report, encoding="utf-8")
+                print(f"Reporte guardado en: {p.resolve()}")
+            else:
+                print(report)
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de reportes no disponible.")
+
+
+def _slash_reporte_semanal(args: str) -> None:
+    try:
+        import requests
+        import datetime as _dt
+        from pathlib import Path
+        resp = requests.get("http://localhost:8765/reports/generate?period=7", timeout=10)
+        if resp.status_code == 200:
+            report = resp.json().get("report", "")
+            dest_dir = Path.home() / ".cognia_reports"
+            dest_dir.mkdir(exist_ok=True)
+            stamp = _dt.datetime.now().strftime("%Y%m%d")
+            path = dest_dir / f"reporte_semanal_{stamp}.md"
+            path.write_text(report, encoding="utf-8")
+            print(f"Reporte semanal guardado: {path}")
+            lines = report.split("\n")[:10]
+            print("\n".join(lines))
+            if len(report.split("\n")) > 10:
+                print(f"... ({len(report.split(chr(10)))} lineas total)")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de reportes no disponible.")
+
+
+def _slash_cadena_causal(args: str) -> None:
+    if not args.strip():
+        print("Uso: /cadena-causal <concepto>")
+        return
+    c = args.strip()
+    print(f"Cadena causal para: '{c}'")
+    print()
+    print(f"Causas posibles de '{c}':")
+    print(f"  factores externos -> condiciones previas -> {c}")
+    print()
+    print(f"Efectos de '{c}':")
+    print(f"  {c} -> consecuencias directas -> impacto en sistema")
+    print()
+    print(f"Para un analisis mas profundo, combina con /kg-responder o /sintetizar {c}")
+
+
+def _slash_metas_pendientes(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/goals?status=pending&limit=10", timeout=3)
+        if resp.status_code == 200:
+            goals = resp.json() if isinstance(resp.json(), list) else resp.json().get("goals", [])
+            if not goals:
+                print("No hay objetivos pendientes.")
+                return
+            print(f"Objetivos pendientes ({len(goals)}):")
+            for g in goals:
+                prog = g.get("progress_pct", 0)
+                print(f"  [{prog:3d}%] {g.get('title', '?')}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de objetivos no disponible.")
+
+
+def _slash_yo_perfil() -> None:
+    try:
+        from cognia.profile.user_profile_builder import UserProfileBuilder
+    except ImportError:
+        print("UserProfileBuilder no disponible.")
+        return
+    try:
+        builder = UserProfileBuilder()
+        profile = builder.get_profile(_CLI_USER_ID)
+        if profile is None:
+            print("No hay perfil disponible. Chatea mas para generar uno.")
+            return
+        top = profile.get("top_topics", [])
+        patterns = profile.get("query_patterns", [])
+        lang = profile.get("dominant_language", "unknown")
+        lines = ["Perfil de usuario:"]
+        if top:
+            lines.append("Top temas de interes:")
+            for t in top[:5]:
+                lines.append(f"  - {t['term']} ({t['count']} menciones)")
+        else:
+            lines.append("Top temas de interes: (ninguno aun)")
+        lines.append(f"Patrones de consulta: {', '.join(patterns) if patterns else '(ninguno)'}")
+        lines.append(f"Idioma dominante: {lang}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al obtener perfil: {e}[/err_cl]")
+
+
+def _slash_yo_actualizar() -> None:
+    try:
+        from cognia.profile.user_profile_builder import UserProfileBuilder
+    except ImportError:
+        print("UserProfileBuilder no disponible.")
+        return
+    try:
+        builder = UserProfileBuilder()
+        profile = builder.build_profile()
+        builder.save_profile(_CLI_USER_ID, profile)
+        print("Perfil actualizado.")
+    except Exception as e:
+        _print_line(f"[err_cl]Error al actualizar perfil: {e}[/err_cl]")
+
+
 def _slash_modo_rapido():
     global _fast_mode
     _fast_mode = not _fast_mode
@@ -978,8 +2992,1025 @@ def _slash_tema():
 
 
 # ---------------------------------------------------------------------------
+# Chat history slash command implementations
+# ---------------------------------------------------------------------------
+
+def _slash_sesiones(args: str) -> None:
+    """Lista sesiones de chat recientes agrupadas por session_id."""
+    try:
+        from cognia.config import DB_PATH
+        from storage.db_pool import db_connect_pooled as _dcp
+    except ImportError as _ie:
+        _print_line(f"[err_cl]db_pool no disponible: {_ie}[/err_cl]")
+        return
+    try:
+        conn = _dcp(DB_PATH)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT session_id, COUNT(*) as cnt, MIN(ts) as first_ts"
+            " FROM chat_history GROUP BY session_id ORDER BY first_ts DESC LIMIT 10"
+        )
+        rows = cur.fetchall()
+        conn.close()
+        if not rows:
+            _print_line("[detail]Sin sesiones en el historial.[/detail]")
+            return
+        lines = ["Sesiones recientes:"]
+        for sid, cnt, first_ts in rows:
+            try:
+                fecha = datetime.datetime.fromtimestamp(int(first_ts)).strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                fecha = str(first_ts)
+            sid_short = str(sid)[:8] if sid else "?"
+            lines.append(f"  [{sid_short}] {fecha} -- {cnt} mensajes")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as _e:
+        _print_line(f"[err_cl]sesiones error: {_e}[/err_cl]")
+
+
+def _slash_buscar_historial(args: str) -> None:
+    """Busca mensajes en el historial por keyword."""
+    keyword = args.strip()
+    if not keyword:
+        _print_line("[warn_cl]Uso: /buscar-historial <keyword>[/warn_cl]")
+        return
+    try:
+        from cognia.config import DB_PATH
+        from storage.db_pool import db_connect_pooled as _dcp
+    except ImportError as _ie:
+        _print_line(f"[err_cl]db_pool no disponible: {_ie}[/err_cl]")
+        return
+    try:
+        conn = _dcp(DB_PATH)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT session_id, role, content, ts FROM chat_history"
+            " WHERE content LIKE ? ORDER BY ts DESC LIMIT 20",
+            (f"%{keyword}%",),
+        )
+        rows = cur.fetchall()
+        conn.close()
+        if not rows:
+            _print_line(f"[detail](Sin resultados para '{keyword}')[/detail]")
+            return
+        lines = [f"Resultados para '{keyword}':"]
+        for sid, role, content, ts in rows:
+            try:
+                fecha = datetime.datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                fecha = str(ts)
+            sid_short = str(sid)[:8] if sid else "?"
+            preview = content[:80].replace("\n", " ")
+            lines.append(f"  [{sid_short}] {fecha} ({role}): {preview}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as _e:
+        _print_line(f"[err_cl]buscar-historial error: {_e}[/err_cl]")
+
+
+def _slash_sesion_ver(args: str) -> None:
+    """Muestra los ultimos mensajes de una sesion dado su ID (o primeros 8 chars)."""
+    sid_arg = args.strip()
+    if not sid_arg:
+        _print_line("[warn_cl]Uso: /sesion-ver <session_id>[/warn_cl]")
+        return
+    try:
+        from cognia.config import DB_PATH
+        from storage.db_pool import db_connect_pooled as _dcp
+    except ImportError as _ie:
+        _print_line(f"[err_cl]db_pool no disponible: {_ie}[/err_cl]")
+        return
+    try:
+        conn = _dcp(DB_PATH)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT role, content, ts FROM chat_history"
+            " WHERE session_id LIKE ? ORDER BY ts LIMIT 20",
+            (f"{sid_arg}%",),
+        )
+        rows = cur.fetchall()
+        conn.close()
+        if not rows:
+            _print_line(f"[detail]Sin mensajes para sesion '{sid_arg}'.[/detail]")
+            return
+        lines = [f"Sesion {sid_arg[:8]}:"]
+        for role, content, _ts in rows:
+            label = "User" if role == "user" else "Cognia"
+            preview = content[:100].replace("\n", " ")
+            lines.append(f"  [{label}]: {preview}")
+        _show_response("\n".join(lines), "cyan")
+    except Exception as _e:
+        _print_line(f"[err_cl]sesion-ver error: {_e}[/err_cl]")
+
+
+def _slash_historial_limpiar(args: str) -> None:
+    """Elimina historial de una sesion o todo el historial."""
+    arg = args.strip()
+    try:
+        from cognia.config import DB_PATH
+        from storage.db_pool import db_connect_pooled as _dcp
+    except ImportError as _ie:
+        _print_line(f"[err_cl]db_pool no disponible: {_ie}[/err_cl]")
+        return
+    if not arg:
+        _print_line(
+            "[warn_cl]AVISO: esto borrara TODO el historial de chat.\n"
+            "Para confirmar: /historial-limpiar confirmar\n"
+            "Para borrar una sesion: /historial-limpiar <session_id>[/warn_cl]"
+        )
+        return
+    try:
+        conn = _dcp(DB_PATH)
+        if arg == "confirmar":
+            cur = conn.cursor()
+            cur.execute("DELETE FROM chat_history")
+            deleted = cur.rowcount
+            conn.commit()
+            conn.close()
+            _print_line(f"[ok]Historial completo eliminado: {deleted} mensajes borrados.[/ok]")
+        else:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM chat_history WHERE session_id = ?", (arg,))
+            deleted = cur.rowcount
+            conn.commit()
+            conn.close()
+            if deleted:
+                _print_line(f"[ok]Sesion '{arg}': {deleted} mensajes eliminados.[/ok]")
+            else:
+                _print_line(f"[warn_cl]No se encontro sesion '{arg}' en el historial.[/warn_cl]")
+    except Exception as _e:
+        _print_line(f"[err_cl]historial-limpiar error: {_e}[/err_cl]")
+
+
+# ---------------------------------------------------------------------------
 # REPL
 # ---------------------------------------------------------------------------
+
+def _slash_notas(args: str) -> None:
+    type_map = {"hechos": "fact", "decisiones": "decision", "acciones": "action",
+                "insights": "insight", "preguntas": "question"}
+    note_type = type_map.get(args.strip().lower(), "")
+    try:
+        import requests
+        params = {"limit": 20}
+        if note_type:
+            params["note_type"] = note_type
+        resp = requests.get("http://localhost:8765/notes", params=params, timeout=2)
+        if resp.status_code == 200:
+            data = resp.json()
+            notes = data.get("notes", data if isinstance(data, list) else [])
+            if not notes:
+                print("No hay notas.")
+                return
+            for n in notes:
+                pin = "[*]" if n.get("pinned") else "   "
+                print(f"{pin} [{n.get('note_type','?')}] {n.get('content','')[:100]}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de notas no disponible.")
+
+
+def _slash_nota_agregar(args: str) -> None:
+    if not args.strip():
+        print("Uso: /nota-agregar <contenido>")
+        return
+    try:
+        import requests
+        resp = requests.post(
+            "http://localhost:8765/notes",
+            json={"content": args.strip(), "note_type": "fact", "session_id": "cli", "source": "manual"},
+            timeout=2,
+        )
+        if resp.status_code in (200, 201):
+            data = resp.json()
+            note_id = data.get("id", data.get("note_id", "?"))
+            print(f"Nota guardada (id: {note_id}).")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de notas no disponible.")
+
+
+def _slash_notas_buscar(args: str) -> None:
+    if not args.strip():
+        print("Uso: /notas-buscar <query>")
+        return
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/notes/search", params={"q": args.strip()}, timeout=2)
+        if resp.status_code == 200:
+            data = resp.json()
+            notes = data.get("notes", data if isinstance(data, list) else [])
+            if not notes:
+                print("Sin resultados.")
+                return
+            for n in notes:
+                pin = "[*]" if n.get("pinned") else "   "
+                print(f"{pin} [{n.get('note_type','?')}] {n.get('content','')[:100]}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de notas no disponible.")
+
+
+def _slash_notas_stats() -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/notes/stats", timeout=2)
+        if resp.status_code == 200:
+            s = resp.json()
+            total    = s.get("total", 0)
+            facts    = s.get("facts", s.get("fact", 0))
+            decisions = s.get("decisions", s.get("decision", 0))
+            actions  = s.get("actions", s.get("action", 0))
+            insights = s.get("insights", s.get("insight", 0))
+            questions = s.get("questions", s.get("question", 0))
+            pinned   = s.get("pinned", 0)
+            print(
+                f"Notas: {total} total | {facts} facts | {decisions} decisions | "
+                f"{actions} actions | {insights} insights | {questions} questions | {pinned} pinned"
+            )
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de notas no disponible.")
+
+
+def _slash_nota_fijar(args: str) -> None:
+    if not args.strip():
+        print("Uso: /nota-fijar <id>")
+        return
+    try:
+        import requests
+        note_id = args.strip()
+        resp = requests.post(f"http://localhost:8765/notes/{note_id}/pin", timeout=2)
+        if resp.status_code in (200, 201):
+            print(f"Nota {note_id} fijada.")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de notas no disponible.")
+
+
+def _slash_revisar_sm2() -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/learning/due", timeout=2)
+        if resp.status_code != 200:
+            print(f"Error: {resp.status_code}")
+            return
+        cards = resp.json().get("cards", resp.json() if isinstance(resp.json(), list) else [])
+        if not cards:
+            print("No hay tarjetas para revisar hoy. Buen trabajo!")
+            return
+        print(f"{len(cards)} tarjeta(s) para revisar.")
+        for card in cards[:5]:
+            print(f"\n[{card.get('topic','?')}] {card.get('front','')}")
+            input("  Presiona Enter para ver la respuesta...")
+            print(f"  -> {card.get('back','')}")
+            rating = input("  Calificacion (0-5, 0=olvide, 5=perfecto): ").strip()
+            try:
+                quality = max(0, min(5, int(rating)))
+            except ValueError:
+                quality = 3
+            r2 = requests.post(f"http://localhost:8765/learning/cards/{card['id']}/review",
+                               json={"quality": quality}, timeout=2)
+            if r2.status_code == 200:
+                updated = r2.json()
+                days = round(updated.get("interval_days", 1), 1)
+                print(f"  Proxima revision en {days} dia(s).")
+    except Exception as e:
+        print(f"Servicio de aprendizaje no disponible. {e}")
+
+
+def _slash_aprender_card(args: str) -> None:
+    parts = [p.strip() for p in args.split("|")]
+    if len(parts) < 2:
+        print("Uso: /aprender <frente> | <respuesta> [| <tema>]")
+        return
+    payload = {"front": parts[0], "back": parts[1]}
+    if len(parts) >= 3 and parts[2]:
+        payload["topic"] = parts[2]
+    try:
+        import requests
+        resp = requests.post("http://localhost:8765/learning/cards", json=payload, timeout=2)
+        if resp.status_code in (200, 201):
+            card_id = resp.json().get("id", "?")
+            print(f"Tarjeta guardada (id: {card_id}).")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception as e:
+        print(f"Servicio de aprendizaje no disponible. {e}")
+
+
+def _slash_aprendiendo() -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/learning/stats", timeout=2)
+        if resp.status_code == 200:
+            s = resp.json()
+            topics = s.get("topics", [])
+            topics_str = ", ".join(topics) if topics else "-"
+            print(
+                f"Aprendizaje:\n"
+                f"  Total tarjetas : {s.get('total', 0)}\n"
+                f"  Para revisar   : {s.get('due', 0)}\n"
+                f"  Dominadas      : {s.get('mastered', 0)}\n"
+                f"  Temas          : {topics_str}"
+            )
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception as e:
+        print(f"Servicio de aprendizaje no disponible. {e}")
+
+
+def _slash_aprendiendo_buscar(args: str) -> None:
+    if not args.strip():
+        print("Uso: /aprendiendo-buscar <query>")
+        return
+    query = args.strip().lower()
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/learning/cards", params={"q": query}, timeout=2)
+        if resp.status_code != 200:
+            print(f"Error: {resp.status_code}")
+            return
+        data = resp.json()
+        cards = data.get("cards", data if isinstance(data, list) else [])
+        matches = [
+            c for c in cards
+            if query in c.get("front", "").lower()
+            or query in c.get("back", "").lower()
+            or query in c.get("topic", "").lower()
+        ]
+        if not matches:
+            print("Sin resultados.")
+            return
+        for c in matches[:20]:
+            print(f"[{c.get('topic','?')}] {c.get('front','')} -> {c.get('back','')[:60]}")
+    except Exception as e:
+        print(f"Servicio de aprendizaje no disponible. {e}")
+
+
+# ---------------------------------------------------------------------------
+# Autocritica y Reflexion
+# ---------------------------------------------------------------------------
+
+def _slash_ver_criticas(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/critique/recent", timeout=3)
+        if resp.status_code == 200:
+            items = resp.json() if isinstance(resp.json(), list) else resp.json().get("critiques", [])
+            if not items:
+                print("Sin criticas registradas aun.")
+                return
+            print("Criticas recientes de respuestas:")
+            for i, c in enumerate(items, 1):
+                score = round(c.get("overall_score", 0), 2)
+                critique = c.get("critique", "")
+                print(f"  {i}. [score={score}] {critique}")
+            r2 = requests.get("http://localhost:8765/critique/score", timeout=2)
+            if r2.status_code == 200:
+                d = r2.json()
+                print(f"\n  Promedio 7d: {round(d.get('avg_score_7d',0), 2)} | Tendencia: {d.get('trend','?')}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de criticas no disponible.")
+
+
+def _slash_reflexion_profunda(args: str) -> None:
+    if not args.strip():
+        print("Uso: /reflexion-profunda <pregunta o tema>")
+        return
+    tema = args.strip()
+    lenses = [
+        ("Analitico",  f"Descompon '{tema}' en sus partes: causas, componentes, mecanismos."),
+        ("Critico",    f"Cuales son las debilidades o limitaciones de '{tema}'?"),
+        ("Creativo",   f"Que alternativas o enfoques no convencionales existen para '{tema}'?"),
+        ("Sistemico",  f"Como interactua '{tema}' con sistemas mas amplios?"),
+        ("Pragmatico", f"Cuales son los pasos accionables concretos relacionados con '{tema}'?"),
+    ]
+    print(f"Reflexion profunda: '{tema}'")
+    print()
+    for name, prompt in lenses:
+        print(f"[{name}]")
+        print(f"  Perspectiva: {prompt}")
+        print()
+    print("Usa estas perspectivas para guiar una conversacion mas profunda con Cognia.")
+
+
+def _slash_calidad_respuestas(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/critique/score", timeout=3)
+        if resp.status_code == 200:
+            d = resp.json()
+            score = round(d.get("avg_score_7d", 0), 3)
+            trend = d.get("trend", "sin datos")
+            print(f"Calidad de respuestas (7 dias):")
+            print(f"  Puntuacion promedio : {score}/1.0")
+            print(f"  Tendencia           : {trend}")
+            bar = "#" * int(score * 20)
+            print(f"  [{bar:<20}]")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de calidad no disponible.")
+
+
+def _slash_features(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/features", timeout=3)
+        if resp.status_code == 200:
+            data = resp.json()
+            flags = data.get("flags", data if isinstance(data, list) else [])
+            if not flags:
+                print("No hay feature flags configurados.")
+                return
+            print("Feature flags disponibles:")
+            print(f"  {'Nombre':30} {'Estado':8} {'Tier minimo':12} Descripcion")
+            print("  " + "-" * 70)
+            for f in flags:
+                status = "ON " if f.get("enabled_default", 0) else "OFF"
+                name = f.get("name", "?")[:30]
+                tier = str(f.get("min_tier", "?"))
+                desc = f.get("description", "")[:30]
+                print(f"  {name:30} {status:8} {tier:12} {desc}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de features no disponible.")
+
+
+def _slash_vocabulario(args: str) -> None:
+    if not _history:
+        print("No hay historial en esta sesion.")
+        return
+    assistant_msgs = [h["content"] for h in _history if h.get("role") == "assistant"]
+    if not assistant_msgs:
+        print("Sin mensajes de asistente aun.")
+        return
+    stop = {"python", "sobre", "desde", "hasta", "cuando", "donde", "tambien", "puede", "todos",
+            "seria", "tienen", "hacer", "entre", "after", "before", "return", "import", "class"}
+    word_set = set()
+    for msg in assistant_msgs:
+        words = re.findall(r'[a-zA-Z]{7,}', msg.lower())
+        for w in words:
+            if w not in stop:
+                word_set.add(w)
+    vocab = sorted(word_set)[:30]
+    if not vocab:
+        print("Sin vocabulario tecnico identificado.")
+        return
+    print(f"Vocabulario tecnico de esta sesion ({len(vocab)} terminos):")
+    for i in range(0, len(vocab), 3):
+        row = vocab[i:i + 3]
+        print("  " + "  ".join(f"{w:25}" for w in row))
+
+
+def _slash_vocabulario_guardar(args: str) -> None:
+    if not _history:
+        print("No hay historial.")
+        return
+    assistant_msgs = [h["content"] for h in _history if h.get("role") == "assistant"]
+    stop = {"python", "sobre", "desde", "hasta", "cuando", "donde", "tambien", "puede", "todos",
+            "seria", "tienen", "hacer", "entre", "after", "before", "return", "import", "class"}
+    word_set = set()
+    for msg in assistant_msgs:
+        for w in re.findall(r'[a-zA-Z]{7,}', msg.lower()):
+            if w not in stop:
+                word_set.add(w)
+    if not word_set:
+        print("Sin vocabulario para guardar.")
+        return
+    try:
+        import requests
+        saved = 0
+        for word in list(word_set)[:10]:
+            r = requests.post(
+                "http://localhost:8765/kg",
+                json={"subject": "vocabulario_sesion", "predicate": "incluye", "object": word},
+                timeout=2,
+            )
+            if r.status_code in (200, 201):
+                saved += 1
+        print(f"Guardadas {saved} palabra(s) en el grafo de conocimiento.")
+    except Exception:
+        print("Error al guardar vocabulario en KG.")
+
+
+def _slash_hechos_solidos(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/knowledge/crystallized", timeout=3)
+        if resp.status_code == 200:
+            facts = resp.json() if isinstance(resp.json(), list) else resp.json().get("facts", [])
+            if not facts:
+                print("No hay hechos cristalizados aun. Usa /cristalizar para procesar el KG.")
+                return
+            print(f"Hechos de alta confianza ({len(facts)}):")
+            for f in facts:
+                s = f.get("subject", "?")
+                p = f.get("predicate", "?")
+                o = f.get("object", "?")
+                w = round(f.get("weight", 0), 2)
+                print(f"  [{w}] {s} {p} {o}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de conocimiento no disponible.")
+
+
+def _slash_cristalizar(args: str) -> None:
+    try:
+        import requests
+        resp = requests.post("http://localhost:8765/knowledge/crystallize", timeout=10)
+        if resp.status_code == 200:
+            n = resp.json().get("crystallized", 0)
+            print(f"Cristalizacion completada: {n} hecho(s) promovido(s) a alta confianza.")
+            r2 = requests.get("http://localhost:8765/knowledge/crystal-stats", timeout=3)
+            if r2.status_code == 200:
+                s = r2.json()
+                rate = round(s.get("crystallization_rate", 0) * 100, 1)
+                print(f"  Total KG: {s.get('total_facts', 0)} | Cristalizados: {s.get('crystallized', 0)} ({rate}%)")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de cristalizacion no disponible.")
+
+
+def _slash_conocimiento_ver(args: str) -> None:
+    if not args.strip():
+        print("Uso: /conocimiento-ver <topico>")
+        return
+    topic = args.strip()
+    try:
+        import requests
+        import urllib.parse
+        q = urllib.parse.quote(topic)
+        resp = requests.get(f"http://localhost:8765/kg/facts?subject={q}", timeout=3)
+        facts = []
+        if resp.status_code == 200:
+            data = resp.json()
+            facts = data if isinstance(data, list) else data.get("facts", [])
+        resp2 = requests.get(f"http://localhost:8765/synthesis?q={q}", timeout=5)
+        synthesis = ""
+        if resp2.status_code == 200:
+            synthesis = resp2.json().get("synthesis", "")
+        print(f"Conocimiento sobre '{topic}':")
+        print()
+        if facts:
+            print(f"  Hechos en KG ({len(facts)}):")
+            for f in facts[:10]:
+                if isinstance(f, dict):
+                    print(f"    - {f.get('predicate', '?')}: {f.get('object', '?')}")
+        else:
+            print("  Sin hechos en KG. Usa /kg-agregar para agregar.")
+        if synthesis:
+            print()
+            print("  Sintesis:")
+            for line in synthesis.split("\n")[:10]:
+                if line.strip():
+                    print(f"  {line}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_quiz(args: str) -> None:
+    try:
+        import requests
+        topic = args.strip() if args.strip() else None
+        url = "http://localhost:8765/quiz/generate?limit=5"
+        if topic:
+            import urllib.parse
+            url += f"&topic={urllib.parse.quote(topic)}"
+        resp = requests.get(url, timeout=5)
+        if resp.status_code != 200:
+            print(f"Error: {resp.status_code}")
+            return
+        questions = resp.json().get("questions", [])
+        if not questions:
+            print("No hay preguntas disponibles. Agrega hechos con /kg-agregar o tarjetas con /aprender.")
+            return
+        print(f"Quiz: {len(questions)} pregunta(s). Responde lo mejor que puedas.")
+        correct = 0
+        for i, q in enumerate(questions, 1):
+            print(f"\n{i}/{len(questions)}: {q.get('question','')}")
+            user_ans = input("  Tu respuesta: ").strip()
+            expected = q.get("answer", "")
+            r = requests.post("http://localhost:8765/quiz/answer", timeout=3,
+                json={"question": q["question"], "answer": expected, "user_answer": user_ans, "source": q.get("source","quiz")})
+            is_correct = r.json().get("correct", False) if r.status_code == 200 else (user_ans.lower() == expected.lower())
+            if is_correct:
+                correct += 1
+                print(f"  Correcto!")
+            else:
+                print(f"  Incorrecto. Respuesta: {expected}")
+        print(f"\nResultado: {correct}/{len(questions)} ({round(correct/len(questions)*100)}%)")
+    except Exception as e:
+        print(f"Servicio de quiz no disponible. {e}")
+
+
+def _slash_quiz_stats(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/quiz/stats", timeout=3)
+        if resp.status_code == 200:
+            s = resp.json()
+            acc = round(s.get("accuracy", 0)*100, 1)
+            print(f"Estadisticas de quiz:")
+            print(f"  Intentos totales : {s.get('total_attempts', 0)}")
+            print(f"  Correctas        : {s.get('correct', 0)}")
+            print(f"  Precision        : {acc}%")
+            by_source = s.get("by_source", {})
+            for src, data in by_source.items():
+                if data.get("total", 0) > 0:
+                    src_acc = round(data.get("correct",0)/data["total"]*100, 1)
+                    print(f"  [{src}]: {data.get('correct',0)}/{data['total']} ({src_acc}%)")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de quiz no disponible.")
+
+
+def _slash_exportar_todo(args: str) -> None:
+    import datetime
+    from pathlib import Path
+    dest_dir = Path(args.strip()) if args.strip() else Path.home() / ".cognia_exports"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    exported = []
+
+    try:
+        import requests
+
+        r = requests.get("http://localhost:8765/export/history?format=json", timeout=5)
+        if r.status_code == 200:
+            p = dest_dir / f"historial_{stamp}.json"
+            p.write_text(r.text, encoding="utf-8")
+            exported.append(str(p.name))
+
+        r = requests.get("http://localhost:8765/notes?limit=1000", timeout=5)
+        if r.status_code == 200:
+            p = dest_dir / f"notas_{stamp}.json"
+            p.write_text(r.text, encoding="utf-8")
+            exported.append(str(p.name))
+
+        r = requests.get("http://localhost:8765/goals", timeout=5)
+        if r.status_code == 200:
+            p = dest_dir / f"objetivos_{stamp}.json"
+            p.write_text(r.text, encoding="utf-8")
+            exported.append(str(p.name))
+
+        r = requests.get("http://localhost:8765/reports/generate?period=30", timeout=10)
+        if r.status_code == 200:
+            report = r.json().get("report", "")
+            p = dest_dir / f"reporte_{stamp}.md"
+            p.write_text(report, encoding="utf-8")
+            exported.append(str(p.name))
+    except Exception as e:
+        print(f"Advertencia: algunos servicios no disponibles ({e})")
+
+    if exported:
+        print(f"Exportacion completa en {dest_dir}:")
+        for f in exported:
+            print(f"  - {f}")
+    else:
+        print("No se pudo exportar ningun dato. Inicia cognia_desktop_api.py.")
+
+
+def _slash_camino_nuevo(args: str) -> None:
+    if not args.strip():
+        print("Uso: /camino-nuevo <objetivo de aprendizaje>")
+        return
+    try:
+        import requests
+        resp = requests.post("http://localhost:8765/learning/paths",
+                           json={"goal": args.strip()}, timeout=5)
+        if resp.status_code in (200, 201):
+            path = resp.json()
+            steps = path.get("steps", [])
+            print(f"Camino creado (id: {path.get('id','?')}) para: {path.get('goal','')}")
+            print(f"Pasos ({len(steps)}):")
+            for s in steps:
+                status = "[X]" if s.get("completed") else "[ ]"
+                print(f"  {status} {s.get('number','?')}. {s.get('title','')}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio de caminos de aprendizaje no disponible.")
+
+
+def _slash_caminos(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/learning/paths", timeout=3)
+        if resp.status_code == 200:
+            paths = resp.json() if isinstance(resp.json(), list) else resp.json().get("paths", [])
+            if not paths:
+                print("No hay caminos de aprendizaje activos. Usa /camino-nuevo <objetivo>.")
+                return
+            print(f"Caminos activos ({len(paths)}):")
+            for p in paths:
+                steps = p.get("steps", [])
+                current = p.get("current_step", 0)
+                total = len(steps)
+                pct = round(current/total*100) if total > 0 else 0
+                bar = "#" * (pct // 10) + "." * (10 - pct // 10)
+                print(f"  [id:{p.get('id','?')}] {p.get('goal','?')}")
+                print(f"    [{bar}] {pct}% (paso {current}/{total})")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_camino_avanzar(args: str) -> None:
+    if not args.strip().isdigit():
+        print("Uso: /camino-avanzar <id>")
+        return
+    try:
+        import requests
+        path_id = int(args.strip())
+        resp = requests.post(f"http://localhost:8765/learning/paths/{path_id}/advance", timeout=3)
+        if resp.status_code == 200:
+            p = resp.json()
+            steps = p.get("steps", [])
+            current = p.get("current_step", 0)
+            if p.get("completed"):
+                print(f"Camino completado! Felicitaciones.")
+            else:
+                next_step = steps[current] if current < len(steps) else None
+                if next_step:
+                    print(f"Paso completado. Proximo paso: {next_step.get('title','')}")
+                else:
+                    print(f"Avanzado. Paso actual: {current}/{len(steps)}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_etiquetar(args: str) -> None:
+    if not args.strip():
+        print("Uso: /etiquetar <texto a etiquetar>")
+        return
+    import re
+    text = args.strip().lower()
+    domain_keywords = {
+        "programacion": ["python","codigo","funcion","variable","clase","metodo","algoritmo","debug"],
+        "datos": ["dataset","dataframe","sql","query","tabla","columna","base de datos"],
+        "matematica": ["ecuacion","calculo","integral","derivada","algebra","estadistica"],
+        "ia": ["modelo","entrenamiento","inferencia","neural","embedding","tensor","gpu"],
+        "web": ["html","css","javascript","api","endpoint","frontend","backend","http"],
+        "gestion": ["objetivo","meta","tarea","proyecto","deadline","sprint","equipo"],
+        "aprendizaje": ["estudiar","leer","practicar","revisar","memorizar","comprender"],
+    }
+    tags = []
+    words = set(re.findall(r'\w+', text))
+    for domain, keywords in domain_keywords.items():
+        if any(kw in words or kw in text for kw in keywords):
+            tags.append(domain)
+    if not tags:
+        tags = ["general"]
+    print(f"Etiquetas detectadas: {', '.join(tags)}")
+
+
+def _slash_cognia_sabe(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/user/facts", timeout=3)
+        if resp.status_code == 200:
+            facts = resp.json() if isinstance(resp.json(), list) else resp.json().get("facts", [])
+            if not facts:
+                print("Cognia aun no tiene hechos sobre ti. Usa /cognia-aprende para agregar.")
+                return
+            print(f"Lo que Cognia sabe de ti ({len(facts)} hechos):")
+            for f in facts:
+                src = f.get("source", "?")
+                conf = round(f.get("confidence", 1) * 100)
+                print(f"  [id:{f.get('id', '?')}] ({src}, {conf}% confianza) {f.get('fact', '')}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_cognia_aprende(args: str) -> None:
+    if not args.strip():
+        print("Uso: /cognia-aprende <hecho sobre ti>")
+        print("Ejemplo: /cognia-aprende Soy desarrollador de Python con 3 anios de experiencia")
+        return
+    try:
+        import requests
+        resp = requests.post("http://localhost:8765/user/facts",
+                             json={"fact": args.strip(), "confidence": 1.0}, timeout=3)
+        if resp.status_code in (200, 201):
+            print(f"Hecho aprendido: '{args.strip()}'")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_cognia_olvida(args: str) -> None:
+    if not args.strip().isdigit():
+        print("Uso: /cognia-olvida <id>  (usa /cognia-sabe para ver los ids)")
+        return
+    try:
+        import requests
+        fact_id = int(args.strip())
+        resp = requests.delete(f"http://localhost:8765/user/facts/{fact_id}", timeout=3)
+        if resp.status_code == 200:
+            print(f"Hecho {fact_id} olvidado.")
+        elif resp.status_code == 404:
+            print(f"Hecho {fact_id} no encontrado.")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_argumento(args: str) -> None:
+    if not args.strip():
+        print("Uso: /argumento <tesis o posicion>")
+        return
+    tesis = args.strip()
+    print(f"Analisis argumentativo: '{tesis}'")
+    print()
+    print("TESIS:")
+    print(f"  Posicion: {tesis}")
+    print(f"  Supuesto: Se afirma que '{tesis}' es verdadero/beneficioso.")
+    print()
+    print("ANTITESIS:")
+    print(f"  La posicion opuesta cuestionaria: es '{tesis}' siempre aplicable?")
+    print(f"  Excepciones posibles: contextos donde '{tesis}' no se sostiene.")
+    print()
+    print("SINTESIS:")
+    print(f"  '{tesis}' puede ser valido bajo condiciones especificas.")
+    print(f"  Una posicion equilibrada considera tanto ventajas como limitaciones.")
+    print()
+    print("Sugerencia: combina con /debate, /y-si o /buscar-web para profundizar.")
+
+
+def _slash_conflictos_kg(args: str) -> None:
+    try:
+        import requests
+        resp = requests.get("http://localhost:8765/knowledge/conflicts", timeout=3)
+        if resp.status_code == 200:
+            conflicts = resp.json() if isinstance(resp.json(), list) else resp.json().get("conflicts", [])
+            if not conflicts:
+                print("Sin conflictos detectados en el grafo de conocimiento.")
+                return
+            print(f"Conflictos en KG ({len(conflicts)}):")
+            for c in conflicts:
+                print(f"  [id:{c.get('id','?')}] {c.get('subject','?')} / {c.get('predicate','?')}")
+                print(f"    A: {c.get('fact_a','?')}")
+                print(f"    B: {c.get('fact_b','?')}")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_verificar_kg(args: str) -> None:
+    try:
+        import requests
+        resp = requests.post("http://localhost:8765/knowledge/conflicts/check", timeout=10)
+        if resp.status_code == 200:
+            n = resp.json().get("new_conflicts", 0)
+            print(f"Verificacion completada: {n} nuevo(s) conflicto(s) detectado(s).")
+            if n > 0:
+                print("  Usa /conflictos-kg para verlos.")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_resolver_conflicto(args: str) -> None:
+    if not args.strip().isdigit():
+        print("Uso: /resolver-conflicto <id>")
+        return
+    try:
+        import requests
+        resp = requests.post(f"http://localhost:8765/knowledge/conflicts/{args.strip()}/resolve", timeout=3)
+        if resp.status_code == 200:
+            print(f"Conflicto {args.strip()} marcado como resuelto.")
+        else:
+            print(f"Error: {resp.status_code}")
+    except Exception:
+        print("Servicio no disponible.")
+
+
+def _slash_comandos(args: str) -> None:
+    total = len(_CMD_DESCRIPTIONS)
+    cats = {}
+    for cmd in _CMD_DESCRIPTIONS:
+        parts = cmd.lstrip("/").split("-")
+        root = parts[0]
+        cats[root] = cats.get(root, 0) + 1
+    top_cats = sorted(cats.items(), key=lambda x: -x[1])[:10]
+    print(f"Comandos disponibles: {total} total")
+    print("Categorias principales:")
+    for cat, count in top_cats:
+        print(f"  /{cat}*   ({count} comandos)")
+    print()
+    print("Usa /help para ver todos los comandos agrupados.")
+    print("Usa /ayuda <comando> para ayuda detallada de un comando.")
+
+
+def _slash_ver_contexto(args: str) -> None:
+    if not args.strip():
+        print("Uso: /ver-contexto <pregunta>")
+        print("Muestra que contexto inyectaria Cognia en el system prompt para esa pregunta.")
+        return
+    query = args.strip().lower()
+    print(f"Contexto que se inyectaria para: '{args.strip()}'")
+    print()
+
+    sources = []
+    try:
+        import requests
+
+        r = requests.get("http://localhost:8765/user/facts", timeout=2)
+        if r.status_code == 200:
+            facts = r.json() if isinstance(r.json(), list) else r.json().get("facts", [])
+            if facts:
+                sources.append(("Hechos personales", f"{len(facts)} hechos sobre ti"))
+
+        r = requests.get("http://localhost:8765/knowledge/crystallized", timeout=2)
+        if r.status_code == 200:
+            kfacts = r.json() if isinstance(r.json(), list) else r.json().get("facts", [])
+            if kfacts:
+                sources.append(("KG cristalizado", f"{len(kfacts)} hechos de alta confianza"))
+
+        r = requests.get("http://localhost:8765/goals?status=pending", timeout=2)
+        if r.status_code == 200:
+            goals = r.json() if isinstance(r.json(), list) else r.json().get("goals", [])
+            if goals:
+                sources.append(("Objetivos activos", f"{len(goals)} objetivos pendientes"))
+
+        r = requests.get("http://localhost:8765/recommendations/top", timeout=2)
+        if r.status_code == 200:
+            rec = r.json().get("recommendation")
+            if rec:
+                sources.append(("Recomendacion", rec.get("title", "")))
+    except Exception:
+        sources.append(("API", "no disponible -- contexto reducido"))
+
+    if sources:
+        print("Fuentes de contexto disponibles:")
+        for name, detail in sources:
+            print(f"  [{name}] {detail}")
+        print()
+        print(f"Total: {len(sources)} fuente(s) -- prioridad automatica limita a 4 bloques / 800 chars")
+    else:
+        print("Sin contexto adicional disponible.")
+
+
+def _slash_resumen_sesion_full(args: str) -> None:
+    elapsed = int((time.time() - _session_start) / 60) if _session_start else 0
+    user_msgs = [h for h in _history if h.get("role") == "user"]
+    asst_msgs = [h for h in _history if h.get("role") == "assistant"]
+
+    print("Resumen de sesion:")
+    print(f"  Duracion         : {elapsed} minutos")
+    print(f"  Mensajes usuario : {len(user_msgs)}")
+    print(f"  Respuestas       : {len(asst_msgs)}")
+
+    cmd_count = sum(1 for h in user_msgs if h.get("content", "").startswith("/"))
+    print(f"  Comandos usados  : {cmd_count}")
+
+    pos = sum(1 for f in _session_feedback if f.get("signal") == "positive")
+    neg = sum(1 for f in _session_feedback if f.get("signal") == "negative")
+    if _session_feedback:
+        print(f"  Feedback         : {pos} positivos, {neg} negativos")
+
+    import re as _re_wf
+    stop = {"para", "como", "esta", "este", "que", "una", "los", "las", "por", "con"}
+    wf = {}
+    for h in user_msgs:
+        for w in _re_wf.findall(r'\w+', h.get("content", "").lower()):
+            if len(w) > 4 and w not in stop:
+                wf[w] = wf.get(w, 0) + 1
+    top = sorted(wf.items(), key=lambda x: -x[1])[:5]
+    if top:
+        print(f"  Temas frecuentes : {', '.join(w for w, _ in top)}")
+
+
+def _slash_limpiar_sesion(args: str) -> None:
+    global _history, _session_feedback
+    n_history = len(_history)
+    n_feedback = len(_session_feedback)
+    _history = []
+    _session_feedback = []
+    print(f"Sesion limpiada: {n_history} mensajes y {n_feedback} feedback(s) eliminados.")
+    print("Los datos persistentes (notas, metas, KG) no se han modificado.")
+
 
 def repl():
     global _session_start, _init_lines, _console, _debug_mode, _fast_mode
@@ -1063,10 +4094,27 @@ def repl():
             _run(raw, ai.introspect, color="cyan")
         elif raw == "/modulos":
             _slash_modulos()
-        elif raw == "/exportar":
-            _slash_exportar()
+        elif raw.startswith("/exportar-stats"):
+            _slash_exportar_stats()
+        elif raw.startswith("/exportar ") or raw == "/exportar":
+            _exp_args = raw[len("/exportar"):].strip()
+            if not _exp_args:
+                print("Uso: /exportar <formato> [archivo]")
+                print("Formatos: json, md, csv")
+                print("Ejemplo: /exportar json historial.json")
+            else:
+                _slash_exportar(_exp_args)
         elif raw == "/costo":
             _slash_costo()
+        elif raw in ("/stats", "/sesion-stats"):
+            _slash_stats()
+        elif raw == "/sugerir":
+            _slash_sugerir()
+        elif raw == "/logros" or raw.startswith("/logros "):
+            _lg_args = raw[len("/logros "):].strip() if raw.startswith("/logros ") else ""
+            _slash_logros(_lg_args)
+        elif raw == "/patrones":
+            _slash_patrones("")
         elif raw == "/debug":
             _slash_debug()
         elif raw == "/modo rapido":
@@ -1106,14 +4154,34 @@ def repl():
                 "scripts", "distill.py",
             )
             subprocess.run([sys.executable, script])
+        elif raw.startswith("/ayuda "):
+            _slash_ayuda_detallada(raw[len("/ayuda "):])
         elif raw == "/ayuda":
             if _HAS_RICH and _console:
                 _console.print(HELP_TEXT, style="bright_green", markup=False)
             else:
                 print(_G + HELP_TEXT + _R)
 
-        # -- Cognitive: simple ---------------------------------------------
+        # -- Reporte y perfil ----------------------------------------------
+        elif raw == "/reporte":
+            _slash_reporte()
+        elif raw == "/reporte-json":
+            _slash_reporte_json()
+        elif raw.startswith("/reporte-completo"):
+            _slash_reporte_completo(raw[len("/reporte-completo"):].strip())
+        elif raw == "/reporte-semanal":
+            _slash_reporte_semanal("")
+        elif raw.startswith("/cadena-causal"):
+            _slash_cadena_causal(raw[len("/cadena-causal"):].strip())
+        elif raw == "/metas-pendientes":
+            _slash_metas_pendientes("")
         elif raw == "/yo":
+            _slash_yo_perfil()
+        elif raw == "/yo-actualizar":
+            _slash_yo_actualizar()
+
+        # -- Cognitive: simple ---------------------------------------------
+        elif raw == "/yo-introspect":
             _run(raw, ai.introspect, color="cyan")
         elif raw == "/conceptos":
             _run(raw, ai.list_concepts, color="cyan")
@@ -1163,8 +4231,7 @@ def repl():
             except Exception:
                 _print_line("[warn_cl]Uso: /repasar <id> correcto|incorrecto[/warn_cl]")
         elif raw.startswith("/aprender ") and "|" in raw:
-            partes = raw[len("/aprender "):].split("|", 1)
-            _run(raw, lambda: ai.learn(partes[0].strip(), partes[1].strip()), color="bright_green")
+            _slash_aprender_card(raw[len("/aprender "):].strip())
         elif raw.startswith("/investigar "):
             _query = raw[len("/investigar "):].strip()
             _run(raw, lambda: ai.github_research(_query), color="bright_green")
@@ -1208,9 +4275,9 @@ def repl():
         elif raw == "/observar":
             _print_line("[warn_cl]Uso: /observar <texto>[/warn_cl]")
         elif raw.startswith("/aprender ") and "|" not in raw:
-            _print_line("[warn_cl]Uso: /aprender <texto> | <etiqueta>[/warn_cl]")
+            _print_line("[warn_cl]Uso: /aprender <frente> | <respuesta> [| <tema>][/warn_cl]")
         elif raw == "/aprender":
-            _print_line("[warn_cl]Uso: /aprender <texto> | <etiqueta>[/warn_cl]")
+            _print_line("[warn_cl]Uso: /aprender <frente> | <respuesta> [| <tema>][/warn_cl]")
         elif raw.startswith("/corregir ") and raw.count("|") >= 2:
             partes = raw[len("/corregir "):].split("|")
             _run(raw, lambda: ai.correct(
@@ -1665,6 +4732,55 @@ def repl():
         elif raw == "/plan-borrar":
             _print_line("[warn_cl]Uso: /plan-borrar <id>[/warn_cl]")
 
+        # -- Templates -------------------------------------------------------
+        elif raw == "/templates":
+            _slash_templates("")
+        elif raw.startswith("/template-guia ") or raw == "/template-guia":
+            _tg_id = raw[len("/template-guia "):].strip() if raw.startswith("/template-guia ") else ""
+            _slash_template_guia(_tg_id)
+        elif raw.startswith("/template ") or raw == "/template":
+            _tpl_id = raw[len("/template "):].strip() if raw.startswith("/template ") else ""
+            _slash_template(_tpl_id)
+
+        # -- Metas ---------------------------------------------------------
+        elif raw.startswith("/meta ") and not raw.startswith("/meta-"):
+            _meta_titulo = raw[len("/meta "):].strip()
+            if _meta_titulo:
+                _slash_meta(_meta_titulo)
+            else:
+                _print_line("[warn_cl]Uso: /meta <titulo>[/warn_cl]")
+        elif raw == "/meta":
+            _print_line("[warn_cl]Uso: /meta <titulo>[/warn_cl]")
+        elif raw == "/metas":
+            _slash_metas()
+        elif raw.startswith("/meta-ok ") or raw == "/meta-ok":
+            _mok_id = raw[len("/meta-ok "):].strip() if raw.startswith("/meta-ok ") else ""
+            if _mok_id:
+                _slash_meta_ok(_mok_id)
+            else:
+                _print_line("[warn_cl]Uso: /meta-ok <id>[/warn_cl]")
+        elif raw.startswith("/meta-prog ") or raw == "/meta-prog":
+            _mprog_args = raw[len("/meta-prog "):].strip() if raw.startswith("/meta-prog ") else ""
+            if _mprog_args:
+                _slash_meta_prog(_mprog_args)
+            else:
+                _print_line("[warn_cl]Uso: /meta-prog <id> <porcentaje>[/warn_cl]")
+        elif raw.startswith("/meta-borrar ") or raw == "/meta-borrar":
+            _mborrar_id = raw[len("/meta-borrar "):].strip() if raw.startswith("/meta-borrar ") else ""
+            if _mborrar_id:
+                _slash_meta_borrar(_mborrar_id)
+            else:
+                _print_line("[warn_cl]Uso: /meta-borrar <id>[/warn_cl]")
+        elif raw.startswith("/meta-prioridad-ver"):
+            _slash_meta_prioridad_ver("")
+        elif raw.startswith("/meta-prioridad ") or raw == "/meta-prioridad":
+            _mprior_args = raw[len("/meta-prioridad "):].strip() if raw.startswith("/meta-prioridad ") else ""
+            _slash_meta_prioridad(_mprior_args)
+        elif raw == "/metas-alta":
+            _slash_metas_alta("")
+        elif raw == "/metas-ordenar":
+            _slash_metas_ordenar("")
+
         # -- Deep reasoning ------------------------------------------------
         elif raw.startswith("/pensar ") or raw == "/pensar":
             _q = raw[len("/pensar"):].strip()
@@ -1717,6 +4833,19 @@ def repl():
             except Exception as _e:
                 _print_line(f"[err_cl]Error leyendo historial: {_e}[/err_cl]")
 
+        # -- Chat history commands ------------------------------------------
+        elif raw == "/sesiones":
+            _slash_sesiones("")
+        elif raw.startswith("/buscar-historial ") or raw == "/buscar-historial":
+            _bh_kw = raw[len("/buscar-historial "):].strip() if raw.startswith("/buscar-historial ") else ""
+            _slash_buscar_historial(_bh_kw)
+        elif raw.startswith("/sesion-ver ") or raw == "/sesion-ver":
+            _sv_id = raw[len("/sesion-ver "):].strip() if raw.startswith("/sesion-ver ") else ""
+            _slash_sesion_ver(_sv_id)
+        elif raw.startswith("/historial-limpiar ") or raw == "/historial-limpiar":
+            _hl_arg = raw[len("/historial-limpiar "):].strip() if raw.startswith("/historial-limpiar ") else ""
+            _slash_historial_limpiar(_hl_arg)
+
         # -- Conversation summary -------------------------------------------
         elif raw == "/resumir":
             try:
@@ -1744,6 +4873,10 @@ def repl():
                     _print_line(_summary_text)
             except Exception as _re:
                 _print_line(f"[err_cl]Error al resumir: {_re}[/err_cl]")
+
+        # -- Spaced repetition review (bare /revisar) -----------------------
+        elif raw == "/revisar":
+            _slash_revisar_sm2()
 
         # -- Code review ----------------------------------------------------
         elif raw.startswith("/revisar "):
@@ -2013,6 +5146,42 @@ def repl():
                 except Exception as _e:
                     _print_line(f"[err_cl]web-buscar error: {_e}[/err_cl]")
 
+        # ── /buscar-web <query> ────────────────────────────────────────
+        elif raw.startswith("/buscar-web ") or raw == "/buscar-web":
+            _bw_q = raw[len("/buscar-web "):].strip() if raw.startswith("/buscar-web ") else ""
+            _slash_buscar_web(_bw_q)
+
+        # ── /buscar-kg <concepto> ──────────────────────────────────────
+        elif raw.startswith("/buscar-kg ") or raw == "/buscar-kg":
+            _bkg_c = raw[len("/buscar-kg "):].strip() if raw.startswith("/buscar-kg ") else ""
+            _slash_buscar_kg(_bkg_c)
+
+        # ── /kg-agregar /kg-stats /kg-predicados /kg-exportar ──────────
+        elif raw.startswith("/kg-agregar ") or raw == "/kg-agregar":
+            _kga_args = raw[len("/kg-agregar "):].strip() if raw.startswith("/kg-agregar ") else ""
+            _slash_kg_agregar(_kga_args)
+        elif raw == "/kg-stats":
+            _slash_kg_stats("")
+        elif raw == "/kg-predicados":
+            _slash_kg_predicados("")
+        elif raw.startswith("/kg-exportar ") or raw == "/kg-exportar":
+            _kge_args = raw[len("/kg-exportar "):].strip() if raw.startswith("/kg-exportar ") else ""
+            _slash_kg_exportar(_kge_args)
+
+        # ── /kg-inferir /kg-relacionar /kg-responder /kg-camino ────────
+        elif raw.startswith("/kg-inferir ") or raw == "/kg-inferir":
+            _kgi_args = raw[len("/kg-inferir "):].strip() if raw.startswith("/kg-inferir ") else ""
+            _slash_kg_inferir(_kgi_args)
+        elif raw.startswith("/kg-relacionar ") or raw == "/kg-relacionar":
+            _kgr_args = raw[len("/kg-relacionar "):].strip() if raw.startswith("/kg-relacionar ") else ""
+            _slash_kg_relacionar(_kgr_args)
+        elif raw.startswith("/kg-responder ") or raw == "/kg-responder":
+            _kgq_args = raw[len("/kg-responder "):].strip() if raw.startswith("/kg-responder ") else ""
+            _slash_kg_responder(_kgq_args)
+        elif raw.startswith("/kg-camino ") or raw == "/kg-camino":
+            _kgc_args = raw[len("/kg-camino "):].strip() if raw.startswith("/kg-camino ") else ""
+            _slash_kg_camino(_kgc_args)
+
         # ── /worktree <rama> ───────────────────────────────────────────
         elif raw.startswith("/worktree ") or raw == "/worktree":
             _wt_rama = raw[len("/worktree "):].strip() if raw.startswith("/worktree ") else ""
@@ -2060,25 +5229,227 @@ def repl():
                 except Exception as _e:
                     _print_line(f"[err_cl]notificar error: {_e}[/err_cl]")
 
+        # ── /notif* ────────────────────────────────────────────────────
+        elif raw == "/notif":
+            _slash_notif("")
+        elif raw == "/notif-todas":
+            _slash_notif_todas("")
+        elif raw.startswith("/notif-leer ") or raw == "/notif-leer":
+            _notif_leer_arg = raw[len("/notif-leer "):].strip() if raw.startswith("/notif-leer ") else ""
+            _slash_notif_leer(_notif_leer_arg)
+        elif raw == "/notif-limpiar":
+            _slash_notif_limpiar("")
+
+        # ── /recordar* ─────────────────────────────────────────────────
+        elif raw.startswith("/recordar ") or raw == "/recordar":
+            _rec_arg = raw[len("/recordar "):].strip() if raw.startswith("/recordar ") else ""
+            _slash_recordar(_rec_arg)
+        elif raw == "/recordatorios":
+            _slash_recordatorios("")
+        elif raw.startswith("/recordar-cancelar ") or raw == "/recordar-cancelar":
+            _rec_cancel_arg = raw[len("/recordar-cancelar "):].strip() if raw.startswith("/recordar-cancelar ") else ""
+            _slash_recordar_cancelar(_rec_cancel_arg)
+
         # -- Session summary ------------------------------------------------
         elif raw == "/resumen-sesion":
-            _rs_lines = []
-            _rs_lines.append(f"Mensajes en sesion: {len(_session_log)}")
-            if _session_log:
-                _rs_lines.append("Ultimos temas:")
-                for _sl in _session_log[-3:]:
-                    _inp = _sl.get('input', '')[:60]
-                    _rs_lines.append(f"  - {_inp}")
-            _tasks = getattr(ai, '_session_tasks', [])
-            if _tasks:
-                _done = sum(1 for t in _tasks if t['done'])
-                _rs_lines.append(f"Tareas: {_done}/{len(_tasks)} completadas")
-            try:
-                _ep_count = ai.episodic.count()
-                _rs_lines.append(f"Episodios en memoria: {_ep_count}")
-            except Exception:
-                pass
-            _show_response("\n".join(_rs_lines), "cyan")
+            _slash_resumen_sesion_full("")
+
+        # -- /config -------------------------------------------------------
+        elif raw == "/config" or raw.startswith("/config "):
+            _cfg_arg = raw[len("/config "):].strip() if raw.startswith("/config ") else ""
+            _slash_config(_cfg_arg)
+
+        # -- /feedback* ----------------------------------------------------
+        elif raw.startswith("/feedback-sesion"):
+            _slash_feedback_sesion()
+        elif raw.startswith("/feedback ") or raw == "/feedback":
+            _fb_arg = raw[len("/feedback "):].strip() if raw.startswith("/feedback ") else ""
+            if not _fb_arg:
+                _print_line("[warn_cl]Uso: /feedback [positivo|negativo|neutral][/warn_cl]")
+            else:
+                _slash_feedback(_fb_arg)
+
+            # ── /notas* ────────────────────────────────────────────────────
+        elif raw.startswith("/notas-buscar ") or raw == "/notas-buscar":
+            _nb_args = raw[len("/notas-buscar "):].strip() if raw.startswith("/notas-buscar ") else ""
+            _slash_notas_buscar(_nb_args)
+        elif raw == "/notas-stats":
+            _slash_notas_stats()
+        elif raw.startswith("/notas ") or raw == "/notas":
+            _nb2_args = raw[len("/notas "):].strip() if raw.startswith("/notas ") else ""
+            _slash_notas(_nb2_args)
+        elif raw.startswith("/nota-agregar ") or raw == "/nota-agregar":
+            _na_args = raw[len("/nota-agregar "):].strip() if raw.startswith("/nota-agregar ") else ""
+            _slash_nota_agregar(_na_args)
+        elif raw.startswith("/nota-fijar ") or raw == "/nota-fijar":
+            _nf_args = raw[len("/nota-fijar "):].strip() if raw.startswith("/nota-fijar ") else ""
+            _slash_nota_fijar(_nf_args)
+
+        # -- Spaced repetition stats / search ------------------------------
+        elif raw == "/aprendiendo":
+            _slash_aprendiendo()
+        elif raw.startswith("/aprendiendo-buscar ") or raw == "/aprendiendo-buscar":
+            _ab_args = raw[len("/aprendiendo-buscar "):].strip() if raw.startswith("/aprendiendo-buscar ") else ""
+            _slash_aprendiendo_buscar(_ab_args)
+
+        # ── /backup ────────────────────────────────────────────────────
+        elif raw == "/backup" or raw.startswith("/backup "):
+            _bk_args = raw[len("/backup "):].strip() if raw.startswith("/backup ") else ""
+            _slash_backup(_bk_args)
+
+        # ── /mi-uso ────────────────────────────────────────────────────
+        elif raw == "/mi-uso":
+            _slash_mi_uso("")
+
+        # ── /mi-uso-detalle ────────────────────────────────────────────
+        elif raw == "/mi-uso-detalle":
+            _slash_mi_uso_detalle("")
+
+        # ── /buscar-memoria ────────────────────────────────────────────
+        elif raw == "/buscar-memoria" or raw.startswith("/buscar-memoria "):
+            _bm_args = raw[len("/buscar-memoria "):].strip() if raw.startswith("/buscar-memoria ") else ""
+            _slash_buscar_memoria(_bm_args)
+
+        # ── /debate ────────────────────────────────────────────────────
+        elif raw == "/debate" or raw.startswith("/debate "):
+            _db_args = raw[len("/debate "):].strip() if raw.startswith("/debate ") else ""
+            _slash_debate(_db_args)
+
+        # ── /contexto-semantico ────────────────────────────────────────
+        elif raw == "/contexto-semantico" or raw.startswith("/contexto-semantico "):
+            _cs_args = raw[len("/contexto-semantico "):].strip() if raw.startswith("/contexto-semantico ") else ""
+            _slash_contexto_semantico(_cs_args)
+
+        # ── /sintetizar ────────────────────────────────────────────────
+        elif raw == "/sintetizar" or raw.startswith("/sintetizar "):
+            _sint_args = raw[len("/sintetizar "):].strip() if raw.startswith("/sintetizar ") else ""
+            _slash_sintetizar(_sint_args)
+
+        # ── /y-si ──────────────────────────────────────────────────────
+        elif raw == "/y-si" or raw.startswith("/y-si "):
+            _ysi_args = raw[len("/y-si "):].strip() if raw.startswith("/y-si ") else ""
+            _slash_y_si(_ysi_args)
+
+        # ── /temas ─────────────────────────────────────────────────────
+        elif raw == "/temas":
+            _slash_temas("")
+
+        # ── /mi-cognia ─────────────────────────────────────────────────
+        elif raw == "/mi-cognia" or raw.startswith("/mi-cognia "):
+            _mc_args = raw[len("/mi-cognia "):].strip() if raw.startswith("/mi-cognia ") else ""
+            _slash_mi_cognia(_mc_args)
+
+        # ── /perfil-completo ───────────────────────────────────────────
+        elif raw == "/perfil-completo" or raw.startswith("/perfil-completo "):
+            _pc_args = raw[len("/perfil-completo "):].strip() if raw.startswith("/perfil-completo ") else ""
+            _slash_perfil_completo(_pc_args)
+
+        # ── /estado ────────────────────────────────────────────────────
+        elif raw == "/estado" or raw.startswith("/estado "):
+            _est_args = raw[len("/estado "):].strip() if raw.startswith("/estado ") else ""
+            _slash_estado(_est_args)
+
+        # ── /ver-criticas ──────────────────────────────────────────────
+        elif raw == "/ver-criticas" or raw.startswith("/ver-criticas "):
+            _vc_args = raw[len("/ver-criticas "):].strip() if raw.startswith("/ver-criticas ") else ""
+            _slash_ver_criticas(_vc_args)
+
+        # ── /reflexion-profunda ────────────────────────────────────────
+        elif raw == "/reflexion-profunda" or raw.startswith("/reflexion-profunda "):
+            _rp_args = raw[len("/reflexion-profunda "):].strip() if raw.startswith("/reflexion-profunda ") else ""
+            _slash_reflexion_profunda(_rp_args)
+
+        # ── /calidad-respuestas ────────────────────────────────────────
+        elif raw == "/calidad-respuestas" or raw.startswith("/calidad-respuestas "):
+            _cr_args = raw[len("/calidad-respuestas "):].strip() if raw.startswith("/calidad-respuestas ") else ""
+            _slash_calidad_respuestas(_cr_args)
+
+        # ── /recomendar ────────────────────────────────────────────────
+        elif raw == "/recomendar":
+            _slash_recomendar("")
+
+        # ── /proximos-pasos ────────────────────────────────────────────
+        elif raw == "/proximos-pasos":
+            _slash_proximos_pasos("")
+
+        # ── /mapa ──────────────────────────────────────────────────────
+        elif raw == "/mapa" or raw.startswith("/mapa "):
+            _mapa_args = raw[len("/mapa "):].strip() if raw.startswith("/mapa ") else ""
+            _slash_mapa(_mapa_args)
+
+        # ── /features ──────────────────────────────────────────────────
+        elif raw == "/features" or raw.startswith("/features "):
+            _slash_features(raw[len("/features "):].strip() if raw.startswith("/features ") else "")
+
+        # ── /vocabulario-guardar ───────────────────────────────────────
+        elif raw == "/vocabulario-guardar" or raw.startswith("/vocabulario-guardar "):
+            _slash_vocabulario_guardar(raw[len("/vocabulario-guardar "):].strip() if raw.startswith("/vocabulario-guardar ") else "")
+
+        # ── /vocabulario ───────────────────────────────────────────────
+        elif raw == "/vocabulario" or raw.startswith("/vocabulario "):
+            _slash_vocabulario(raw[len("/vocabulario "):].strip() if raw.startswith("/vocabulario ") else "")
+
+        # ── /hechos-solidos ─────────────────────────────────────────────
+        elif raw == "/hechos-solidos" or raw.startswith("/hechos-solidos "):
+            _slash_hechos_solidos(raw[len("/hechos-solidos "):].strip() if raw.startswith("/hechos-solidos ") else "")
+
+        # ── /cristalizar ────────────────────────────────────────────────
+        elif raw == "/cristalizar" or raw.startswith("/cristalizar "):
+            _slash_cristalizar(raw[len("/cristalizar "):].strip() if raw.startswith("/cristalizar ") else "")
+
+        # ── /conocimiento-ver ───────────────────────────────────────────
+        elif raw == "/conocimiento-ver" or raw.startswith("/conocimiento-ver "):
+            _slash_conocimiento_ver(raw[len("/conocimiento-ver "):].strip() if raw.startswith("/conocimiento-ver ") else "")
+
+        # ── /quiz* ──────────────────────────────────────────────────────
+        elif raw == "/quiz-stats":
+            _slash_quiz_stats("")
+        elif raw == "/quiz" or raw.startswith("/quiz "):
+            _slash_quiz(raw[len("/quiz "):].strip() if raw.startswith("/quiz ") else "")
+
+        # ── /exportar-todo ──────────────────────────────────────────────
+        elif raw == "/exportar-todo" or raw.startswith("/exportar-todo "):
+            _slash_exportar_todo(raw[len("/exportar-todo "):].strip() if raw.startswith("/exportar-todo ") else "")
+
+        # ── /caminos de aprendizaje ──────────────────────────────────────
+        elif raw == "/camino-nuevo" or raw.startswith("/camino-nuevo "):
+            _slash_camino_nuevo(raw[len("/camino-nuevo "):].strip() if raw.startswith("/camino-nuevo ") else "")
+        elif raw == "/caminos":
+            _slash_caminos("")
+        elif raw == "/camino-avanzar" or raw.startswith("/camino-avanzar "):
+            _slash_camino_avanzar(raw[len("/camino-avanzar "):].strip() if raw.startswith("/camino-avanzar ") else "")
+        elif raw == "/etiquetar" or raw.startswith("/etiquetar "):
+            _slash_etiquetar(raw[len("/etiquetar "):].strip() if raw.startswith("/etiquetar ") else "")
+
+        # ── /cognia-sabe / cognia-aprende / cognia-olvida / argumento ─────
+        elif raw == "/cognia-sabe":
+            _slash_cognia_sabe("")
+        elif raw == "/cognia-aprende" or raw.startswith("/cognia-aprende "):
+            _slash_cognia_aprende(raw[len("/cognia-aprende "):].strip() if raw.startswith("/cognia-aprende ") else "")
+        elif raw == "/cognia-olvida" or raw.startswith("/cognia-olvida "):
+            _slash_cognia_olvida(raw[len("/cognia-olvida "):].strip() if raw.startswith("/cognia-olvida ") else "")
+        elif raw == "/argumento" or raw.startswith("/argumento "):
+            _slash_argumento(raw[len("/argumento "):].strip() if raw.startswith("/argumento ") else "")
+        elif raw == "/conflictos-kg":
+            _slash_conflictos_kg("")
+        elif raw == "/verificar-kg":
+            _slash_verificar_kg("")
+        elif raw == "/resolver-conflicto" or raw.startswith("/resolver-conflicto "):
+            _slash_resolver_conflicto(raw[len("/resolver-conflicto "):].strip() if raw.startswith("/resolver-conflicto ") else "")
+        elif raw == "/comandos":
+            _slash_comandos("")
+        elif raw == "/digest":
+            _slash_digest("")
+        elif raw == "/cognia-info":
+            _slash_cognia_info("")
+        elif raw == "/inicio-dia":
+            _slash_inicio_dia("")
+
+        # ── /ver-contexto / /limpiar-sesion ──────────────────────────────────
+        elif raw == "/ver-contexto" or raw.startswith("/ver-contexto "):
+            _slash_ver_contexto(raw[len("/ver-contexto "):].strip() if raw.startswith("/ver-contexto ") else "")
+        elif raw == "/limpiar-sesion":
+            _slash_limpiar_sesion("")
 
         # -- Unknown slash --------------------------------------------------
         elif raw.startswith("/"):
@@ -2109,6 +5480,8 @@ def repl():
                 _resp = _run_agent_task(ai, raw, _print_line)
                 _show_response(_resp, "cyan")
                 _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
+                _history.append({"role": "user", "content": raw})
+                _history.append({"role": "assistant", "content": _resp})
             if not _needs_tool:
                 # Fast-path: stream tokens from llama.cpp if available
                 _streamed = False
@@ -2152,6 +5525,8 @@ def repl():
                                     "output":  _full_response,
                                     "elapsed": elapsed,
                                 })
+                                _history.append({"role": "user", "content": raw})
+                                _history.append({"role": "assistant", "content": _full_response})
                                 try:
                                     ai.observe(_full_response[:300], provided_label="respuesta_streaming")
                                 except Exception:
@@ -2200,6 +5575,8 @@ def repl():
                                 "output":  result["response"],
                                 "elapsed": elapsed,
                             })
+                            _history.append({"role": "user", "content": raw})
+                            _history.append({"role": "assistant", "content": result["response"]})
                     except Exception as e:
                         _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
 
