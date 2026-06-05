@@ -1183,3 +1183,8 @@ MODULOS AUDITADOS CON 0 REGRESIONES:
 - Archivos: tests/conftest.py, ROADMAP.md, tests/test_public_api.py
 - Resultado: PASS
 - Notas: rich.console contaminacion por swig/llama-cpp; fix via recarga de modulos en conftest; 260 passed (benchmark+cli_config chain); 9/9 public API tests pasan en aislado; suite completa 1591 passed (50 failed son pre-existentes por DB state pollution)
+
+## [2026-06-05] CYCLE manager_commit — commit language_engine + desktop_api + KG migrations
+- Archivos: cognia/language_engine.py, cognia_desktop_api.py, cognia/knowledge/graph.py, cognia/cli.py, tests/conftest.py, cognia_public_api/inference_proxy.py
+- Tests: 22 failed, 1619 passed, 9 errors — dentro del umbral aceptable (baseline ~22 failed)
+- Notas: Commits 3415ad6 y 409e450. language_engine integra CuriosityEngine+Worker, UserFacts, ContextInjector, LongTermConsolidator, ResponseScorer. desktop_api agrega APIKeyManager, DesktopRateLimiter, MetricsCollector, StateInspector, ConsolidationWorker en lifespan. graph.py: migracion idempotente last_accessed. cli.py: /yo-actualizar, /aprendiendo, /reporte, /reporte-json. coordinator/app.py ya estaba en commit 73ae336.
