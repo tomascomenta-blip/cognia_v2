@@ -766,3 +766,78 @@ available only in unpacked directory format (`shard_N/` from `scripts/unpack_sha
 | 13.5 Registry + downloader | `coordinator/registry.py`, `node/downloader.py` |
 | 13.6 Qwen manifest | `shattering/manifests/cognia_qwen.json` (new) |
 | 13.7 HF conversion script | `scripts/convert_hf_to_shards.py` (new) |
+
+## Fases 29-51 — AGI Features Night Session (2026-06-02)
+
+### Phase 29 — API Key Tiers DONE
+Tier system (free/pro/enterprise/local) con rate limiting por tier. `cognia/auth/tier_config.py`.
+
+### Phase 30 — Persistent Configuration DONE
+`~/.cognia_config.json` con /config set/ver/reset/exportar. `_CONFIG_DEFAULTS` 6 claves.
+
+### Phase 31 — Long-term Memory Consolidation DONE
+Episodic → KG recurring topics. Daemon 300s. `cognia/memory/long_term_consolidator.py`.
+
+### Phase 32 — Implicit Feedback Learning DONE
+Señal positiva/negativa de texto usuario. Adaptive hint en system prompt. `cognia/adaptive/feedback_learner.py`.
+
+### Phase 33 — Proactive Suggestions DONE
+Sugerencias post-infer en background. Goal reminders + web search hints. `cognia/proactive/proactive_engine.py`.
+
+### Phase 34 — Smart Notes Engine DONE
+Auto-extrae fact/decision/action/insight/question de respuestas. 5 endpoints. `cognia/notes/smart_notes.py`.
+
+### Phase 35 — Spaced Repetition SM-2 DONE
+Algoritmo SM-2 completo. ease_factor, interval, repetitions. `cognia/learning/spaced_repetition.py`.
+
+### Phase 36 — Achievement System DONE
+10 logros event-driven. Gamification con puntos. `cognia/gamification/achievement_system.py`.
+
+### Phase 37 — Usage Analytics DONE
+feature_usage table upsert diario. Streak, daily activity. `cognia/analytics/usage_analytics.py`.
+
+### Phase 38 — Semantic Memory Search DONE
+TF-IDF puro numpy sobre chat_history. Cosine similarity. `cognia/memory/semantic_search.py`.
+
+### Phase 39 — Knowledge Synthesizer DONE
+Agrega notas + KG + conversaciones sobre tema. `cognia/synthesis/knowledge_synthesizer.py`.
+
+### Phase 40 — Unified Cognitive Profile DONE
+8 subsistemas en perfil unificado. overall_score 0-1000. `cognia/intelligence/cognitive_profile.py`.
+
+### Phase 41 — Self-Critique Engine DONE
+Heurística de calidad (length/clarity/completeness). Autocrítica en system prompt. `cognia/reasoning/self_critic.py`.
+
+### Phase 42 — Comprehensive Report Generator DONE
+Markdown report 7 subsistemas. GET /reports/generate. `cognia/export/comprehensive_report.py`.
+
+### Phase 43 — Personalized Recommendation Engine DONE
+5 reglas (SR, goals, notes, curiosity, streak). `cognia/intelligence/recommendation_engine.py`.
+
+### Phase 44 — Feature Flags System DONE
+10 flags con tier gating. PATCH /features/{name} admin-protected. `cognia/features/feature_flags.py`.
+
+### Phase 45 — Knowledge Crystallization DONE
+crystallized column en KG. Daemon 600s. System prompt injection. `cognia/knowledge/crystallizer.py`.
+
+### Phase 46 — Knowledge Quiz Generator DONE
+SM-2 + KG → quiz questions sin LLM. SM-2 feedback loop. `cognia/learning/quiz_generator.py`.
+
+### Phase 47 — Learning Path Generator DONE
+8 domain templates + fallback. 5 pasos por camino. `cognia/learning/learning_path.py`.
+
+### Phase 48 — User Facts Memory DONE
+Regex inference patterns. Injects "Lo que Cognia sabe de ti" en system prompt. `cognia/social/user_facts.py`.
+
+### Phase 49 — Context Injection Prioritizer DONE
+Rankea context blocks por relevancia. Max 4 bloques / 800 chars. `cognia/context/injection_prioritizer.py`.
+
+### Phase 50 — Knowledge Consistency Checker DONE
+multiple_values + circular_is_a detection. `cognia/knowledge/consistency_checker.py`.
+
+### Phase 51 — Daily Digest Generator DONE
+8 métricas agregadas. GET /digest. Panel en /dashboard. `cognia/social/daily_digest.py`.
+
+### Phase 52 — Public API (HuggingFace Spaces) DONE (2026-06-04)
+API publica FastAPI en HuggingFace Spaces (gratis, sin tarjeta, 24/7). Bearer auth con keys formato `cogn-XXXXXXXXXXXXXXXX`. CORS abierto para uso desde paginas web. Inferencia via coordinator swarm (Level 1) o llama-cpp-python local GGUF (Level 2). Keep-alive via GitHub Actions cron. `cognia_public_api/`.
+**Space live:** https://Acua124298042-cognia-api.hf.space
