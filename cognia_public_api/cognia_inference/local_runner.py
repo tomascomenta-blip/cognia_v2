@@ -27,11 +27,20 @@ _SYSTEM_PROMPT = (
 )
 
 
+_GGUF_MIN_SIZE = 1_400_000_000  # Q3_K_S 3B model is ~1.45 GB; reject partial downloads
+
+
 def _download_gguf(hf_token: str) -> Path | None:
     dest = DATA_DIR / GGUF_FILENAME
-    if dest.exists() and dest.stat().st_size > 100_000_000:
-        print(f"[local_runner] GGUF cached at {dest} ({dest.stat().st_size // 1_000_000} MB)")
-        return dest
+    if dest.exists():
+        size = dest.stat().st_size
+        if size >= _GGUF_MIN_SIZE:
+            print(f"[local_runner] GGUF cached at {dest} ({size // 1_000_000} MB)")
+            return dest
+        # Partial download — delete and re-fetch
+        print(f"[local_runner] GGUF incomplete ({size // 1_000_000} MB < {_GGUF_MIN_SIZE // 1_000_000} MB expected), re-downloading...")
+        dest.unlink()
+
     print(f"[local_runner] Downloading {GGUF_FILENAME} from {HF_DATASET}...")
     try:
         hf_hub_download(
@@ -41,8 +50,9 @@ def _download_gguf(hf_token: str) -> Path | None:
             token=hf_token or None,
             repo_type="dataset",
         )
-        print(f"[local_runner] GGUF downloaded: {dest.stat().st_size // 1_000_000} MB")
-        return dest
+        size = dest.stat().st_size if dest.exists() else 0
+        print(f"[local_runner] GGUF downloaded: {size // 1_000_000} MB")
+        return dest if size >= _GGUF_MIN_SIZE else None
     except Exception as exc:
         print(f"[local_runner] GGUF download failed: {exc}")
         return None
