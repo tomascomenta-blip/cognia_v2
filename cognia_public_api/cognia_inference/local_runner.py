@@ -1,8 +1,8 @@
 """
 LocalRunner: Qwen2.5-Coder-3B inference for HF Spaces.
 
-Priority path 1: llama-cpp-python with Q3_K_S GGUF (downloads from HF dataset).
-Priority path 2: ctransformers with Q3_K_S GGUF (pre-built Linux wheels, no cmake).
+Priority path 1: llama-cpp-python with official Q4_0 GGUF (Qwen/Qwen2.5-Coder-3B-Instruct-GGUF).
+Priority path 2: ctransformers with Q4_0 GGUF.
 Fallback path:   numpy shard-based inference (slow, may produce garbage).
 """
 import os
@@ -13,8 +13,10 @@ from pathlib import Path
 from huggingface_hub import hf_hub_download
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
-HF_DATASET = "Acua124298042/cognia-shards"
-GGUF_FILENAME = "Qwen2.5-Coder-3B-Instruct-Q3_K_S.gguf"
+# Official Qwen GGUF repo — properly validated vocabulary, compatible with all llama-cpp versions
+HF_DATASET = "Qwen/Qwen2.5-Coder-3B-Instruct-GGUF"
+GGUF_FILENAME = "qwen2.5-coder-3b-instruct-q4_0.gguf"
+_HF_DATASET_TYPE = "model"
 
 _llm = None
 _llm_type: str = ""  # "llama_cpp" | "ctransformers" | "numpy" | ""
@@ -27,7 +29,7 @@ _SYSTEM_PROMPT = (
 )
 
 
-_GGUF_MIN_SIZE = 1_400_000_000  # Q3_K_S 3B model is ~1.45 GB; reject partial downloads
+_GGUF_MIN_SIZE = 1_900_000_000  # Q4_0 3B model is ~2.0 GB; reject partial downloads
 
 
 def _download_gguf(hf_token: str) -> Path | None:
@@ -48,7 +50,7 @@ def _download_gguf(hf_token: str) -> Path | None:
             filename=GGUF_FILENAME,
             local_dir=str(DATA_DIR),
             token=hf_token or None,
-            repo_type="dataset",
+            repo_type="model",
         )
         size = dest.stat().st_size if dest.exists() else 0
         print(f"[local_runner] GGUF downloaded: {size // 1_000_000} MB")
@@ -135,7 +137,7 @@ def _startup_numpy(hf_token: str) -> bool:
             fname = f"shard_{i}.npz"
             dest = DATA_DIR / fname
             if not dest.exists():
-                hf_hub_download(repo_id=HF_DATASET, filename=fname,
+                hf_hub_download(repo_id="Acua124298042/cognia-shards", filename=fname,
                                 local_dir=str(DATA_DIR), token=hf_token or None, repo_type="dataset")
             shards.append(dict(np.load(str(dest), allow_pickle=False)))
             print(f"[local_runner] numpy shard_{i} loaded")
