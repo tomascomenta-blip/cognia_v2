@@ -71,14 +71,14 @@ def startup(hf_token: str = "") -> bool:
             # Path 1: llama-cpp-python (fastest, but needs pre-built wheel)
             try:
                 from llama_cpp import Llama
-                print("[local_runner] Loading GGUF with llama-cpp-python...")
+                import llama_cpp
+                print(f"[local_runner] Loading GGUF with llama-cpp-python {llama_cpp.__version__}...")
                 _llm = Llama(
                     model_path=str(gguf_path),
                     n_ctx=2048,
                     n_threads=2,
                     n_gpu_layers=0,
                     verbose=False,
-                    chat_format="chatml",
                 )
                 _llm_type = "llama_cpp"
                 _loaded = True
@@ -203,18 +203,22 @@ def generate(prompt: str, max_tokens: int = 256) -> dict:
 
 def _generate_llama(prompt: str, max_tokens: int) -> dict:
     t0 = time.time()
+    # Use raw completion with pre-formatted ChatML — avoids version-specific chat_format bugs
+    chat = (
+        f"<|im_start|>system\n{_SYSTEM_PROMPT}<|im_end|>\n"
+        f"<|im_start|>user\n{prompt[:1800]}<|im_end|>\n"
+        f"<|im_start|>assistant\n"
+    )
     try:
-        output = _llm.create_chat_completion(
-            messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": prompt[:1800]},
-            ],
+        output = _llm(
+            chat,
             max_tokens=min(max_tokens, 512),
             temperature=0.7,
             stop=["<|im_end|>", "<|endoftext|>"],
+            echo=False,
         )
         elapsed = time.time() - t0
-        text = output["choices"][0]["message"]["content"].strip()
+        text = output["choices"][0]["text"].strip()
         n_tokens = output.get("usage", {}).get("completion_tokens", len(text.split()))
         tps = round(n_tokens / elapsed, 2) if elapsed > 0 else 0
         return {"text": text, "tokens_per_second": tps, "source": "local_llama_cpp"}
