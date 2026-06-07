@@ -161,6 +161,11 @@ _history: list    = []
 # giving the synthesis slash commands (/temas, /resumen) recent material.
 _HISTORY_SEED_N = 20
 
+# Current session identity (set in repl() at startup). Used to tag persisted
+# turns and to power /resume.
+_SESSION_ID: str = ""
+_SESSION_CWD: str = ""
+
 
 def _persist_turn(ai, user_text: str, assistant_text: str) -> None:
     """
@@ -287,6 +292,7 @@ _CMD_DESCRIPTIONS = {
     "/metas-ordenar":           "Listar metas ordenadas por prioridad",
     # Historial de chat
     "/sesiones":          "Listar sesiones de chat recientes",
+    "/resume":            "Reanudar una sesion previa       [id|directorio|list]",
     "/buscar-historial":  "Buscar en el historial por keyword      <keyword>",
     "/sesion-ver":        "Ver mensajes de una sesion              <id>",
     "/historial-limpiar": "Eliminar historial [session_id|confirmar]",
@@ -740,6 +746,8 @@ ARGUMENTACION:
     /ver-contexto <q>    Ver contexto que se inyectaria para una pregunta
     /resumen-sesion      Resumen completo de la sesion
     /limpiar-sesion      Limpiar historial en memoria de esta sesion
+    /sesiones            Listar sesiones recientes (id, fecha, directorio)
+    /resume [id|dir]     Reanudar una sesion previa (por id o directorio)
 
   CONSISTENCIA KG:
     /verificar-kg             Detectar inconsistencias en el KG
@@ -3026,8 +3034,22 @@ def _slash_tema():
 # Chat history slash command implementations
 # ---------------------------------------------------------------------------
 
+def _fmt_ts(ts) -> str:
+    """Format a chat_history timestamp (ISO string) for display, best-effort."""
+    if ts is None:
+        return "?"
+    try:
+        return datetime.datetime.fromisoformat(str(ts)).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        # Legacy rows may store an epoch int.
+        try:
+            return datetime.datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            return str(ts)[:16]
+
+
 def _slash_sesiones(args: str) -> None:
-    """Lista sesiones de chat recientes agrupadas por session_id."""
+    """Lista sesiones de chat recientes (id, fecha, directorio)."""
     try:
         from cognia.config import DB_PATH
         from storage.db_pool import db_connect_pooled as _dcp
@@ -3038,25 +3060,106 @@ def _slash_sesiones(args: str) -> None:
         conn = _dcp(DB_PATH)
         cur = conn.cursor()
         cur.execute(
-            "SELECT session_id, COUNT(*) as cnt, MIN(ts) as first_ts"
-            " FROM chat_history GROUP BY session_id ORDER BY first_ts DESC LIMIT 10"
+            "SELECT session_id, cwd, COUNT(*), MAX(timestamp)"
+            " FROM chat_history WHERE session_id IS NOT NULL"
+            " GROUP BY session_id ORDER BY MAX(id) DESC LIMIT 10"
         )
         rows = cur.fetchall()
         conn.close()
         if not rows:
-            _print_line("[detail]Sin sesiones en el historial.[/detail]")
+            _print_line("[detail]Sin sesiones con identificador en el historial. "
+                        "(Las sesiones se registran al iniciar el CLI.)[/detail]")
             return
-        lines = ["Sesiones recientes:"]
-        for sid, cnt, first_ts in rows:
-            try:
-                fecha = datetime.datetime.fromtimestamp(int(first_ts)).strftime("%Y-%m-%d %H:%M")
-            except Exception:
-                fecha = str(first_ts)
+        lines = ["Sesiones recientes (reanuda con /resume <id> o /resume <directorio>):"]
+        for sid, cwd, cnt, last_ts in rows:
             sid_short = str(sid)[:8] if sid else "?"
-            lines.append(f"  [{sid_short}] {fecha} -- {cnt} mensajes")
+            lines.append(f"  [{sid_short}] {_fmt_ts(last_ts)}  {cnt:>3} msgs  {cwd or '?'}")
         _show_response("\n".join(lines), "cyan")
     except Exception as _e:
         _print_line(f"[err_cl]sesiones error: {_e}[/err_cl]")
+
+
+def _slash_resume(args: str, ai) -> None:
+    """
+    Reanuda una sesion previa cargando su hilo al contexto.
+
+      /resume                 -> ultima sesion del directorio actual
+      /resume list            -> listar sesiones recientes
+      /resume <id>            -> sesion por id (o prefijo de 8 chars)
+      /resume <directorio>    -> ultima sesion que corrio en ese directorio
+    """
+    arg = args.strip()
+    ch = getattr(ai, "chat_history", None)
+    if ch is None:
+        _print_line("[err_cl]Historial no disponible.[/err_cl]")
+        return
+
+    if arg in ("list", "lista", "-l", "--list", "?"):
+        sessions = ch.list_sessions(limit=12)
+        if not sessions:
+            _print_line("[detail]No hay sesiones registradas todavia. "
+                        "(Se registran al iniciar el CLI.)[/detail]")
+            return
+        lines = ["Sesiones recientes (reanuda con /resume <id> o /resume <directorio>):"]
+        for s in sessions:
+            sid_short = (s["session_id"] or "?")[:8]
+            lines.append(f"  [{sid_short}] {_fmt_ts(s['last_ts'])}  "
+                         f"{s['count']:>3} msgs  {s['cwd'] or '?'}")
+        _show_response("\n".join(lines), "cyan")
+        return
+
+    target_sid = None
+    scope = ""
+    if not arg or arg in ("here", "aqui", "."):
+        cwd = _SESSION_CWD or os.path.normpath(os.path.abspath(os.getcwd()))
+        target_sid = ch.latest_session_for_dir(cwd)
+        scope = f"directorio actual ({cwd})"
+    else:
+        expanded = os.path.normpath(os.path.abspath(os.path.expanduser(arg)))
+        looks_like_path = (
+            os.path.isdir(expanded)
+            or os.sep in arg
+            or (os.altsep and os.altsep in arg)
+            or arg.startswith("~")
+            or arg.startswith(".")
+        )
+        if looks_like_path:
+            target_sid = ch.latest_session_for_dir(expanded)
+            scope = f"directorio {expanded}"
+        else:
+            target_sid = ch.resolve_session_prefix(arg)
+            scope = f"sesion {arg}"
+            if target_sid is None:
+                alt = ch.latest_session_for_dir(expanded)
+                if alt:
+                    target_sid, scope = alt, f"directorio {expanded}"
+
+    if not target_sid:
+        _print_line(
+            f"[warn_cl]No encontre una sesion para {_escape(scope)}. "
+            "Proba: /resume list[/warn_cl]"
+        )
+        return
+
+    if target_sid == _SESSION_ID:
+        _print_line("[detail]Esa es la sesion actual; ya estas en ella.[/detail]")
+        return
+
+    turns = ch.get_session_turns(target_sid, limit=_HISTORY_SEED_N)
+    if not turns:
+        _print_line(
+            f"[warn_cl]La sesion {target_sid[:8]} no tiene mensajes de dialogo.[/warn_cl]"
+        )
+        return
+
+    _history[:] = turns
+    _print_line(
+        f"[ok_cl]Reanudada sesion {target_sid[:8]} ({_escape(scope)}): "
+        f"{len(turns)} mensajes cargados al contexto.[/ok_cl]"
+    )
+    last_user = next((t["content"] for t in reversed(turns) if t["role"] == "user"), "")
+    if last_user:
+        _print_line(f"[detail]Ultimo tema: {_escape(last_user[:80])}[/detail]")
 
 
 def _slash_buscar_historial(args: str) -> None:
@@ -3075,8 +3178,8 @@ def _slash_buscar_historial(args: str) -> None:
         conn = _dcp(DB_PATH)
         cur = conn.cursor()
         cur.execute(
-            "SELECT session_id, role, content, ts FROM chat_history"
-            " WHERE content LIKE ? ORDER BY ts DESC LIMIT 20",
+            "SELECT session_id, role, content, timestamp FROM chat_history"
+            " WHERE content LIKE ? ORDER BY id DESC LIMIT 20",
             (f"%{keyword}%",),
         )
         rows = cur.fetchall()
@@ -3086,10 +3189,7 @@ def _slash_buscar_historial(args: str) -> None:
             return
         lines = [f"Resultados para '{keyword}':"]
         for sid, role, content, ts in rows:
-            try:
-                fecha = datetime.datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M")
-            except Exception:
-                fecha = str(ts)
+            fecha = _fmt_ts(ts)
             sid_short = str(sid)[:8] if sid else "?"
             preview = content[:80].replace("\n", " ")
             lines.append(f"  [{sid_short}] {fecha} ({role}): {preview}")
@@ -3114,8 +3214,8 @@ def _slash_sesion_ver(args: str) -> None:
         conn = _dcp(DB_PATH)
         cur = conn.cursor()
         cur.execute(
-            "SELECT role, content, ts FROM chat_history"
-            " WHERE session_id LIKE ? ORDER BY ts LIMIT 20",
+            "SELECT role, content, timestamp FROM chat_history"
+            " WHERE session_id LIKE ? ORDER BY id LIMIT 20",
             (f"{sid_arg}%",),
         )
         rows = cur.fetchall()
@@ -4058,6 +4158,19 @@ def repl():
         ai = Cognia()
     _init_lines[:] = buf.getvalue().splitlines()
 
+    # Register this run as a session, tagged with the directory it launched in,
+    # so every persisted turn carries (session_id, cwd) and /resume can later
+    # bring back a session by id or by directory.
+    global _SESSION_ID, _SESSION_CWD
+    try:
+        import uuid as _uuid
+        _SESSION_ID = _uuid.uuid4().hex[:12]
+        _SESSION_CWD = os.path.normpath(os.path.abspath(os.getcwd()))
+        ai.chat_history.set_session(_SESSION_ID, _SESSION_CWD)
+        _init_lines.append(f"[OK] Sesion {_SESSION_ID[:8]} en {_SESSION_CWD}")
+    except Exception:
+        pass
+
     # Restore conversation continuity across restarts: seed the in-memory
     # _history (multi-turn prompt context) from persisted chat_history so the
     # model can follow a thread that started in a previous session.
@@ -4880,6 +4993,9 @@ def repl():
         # -- Chat history commands ------------------------------------------
         elif raw == "/sesiones":
             _slash_sesiones("")
+        elif raw == "/resume" or raw.startswith("/resume "):
+            _rs_arg = raw[len("/resume "):].strip() if raw.startswith("/resume ") else ""
+            _slash_resume(_rs_arg, ai)
         elif raw.startswith("/buscar-historial ") or raw == "/buscar-historial":
             _bh_kw = raw[len("/buscar-historial "):].strip() if raw.startswith("/buscar-historial ") else ""
             _slash_buscar_historial(_bh_kw)

@@ -56,6 +56,26 @@ def _run_migrations(conn: sqlite3.Connection):
             else:
                 conn.execute("INSERT INTO schema_version (version) VALUES (1)")
 
+    # chat_history: ensure session_id + cwd exist (per-session /resume).
+    # Deliberately version-AGNOSTIC and idempotent rather than gated on
+    # schema_version: a second migration runner (cognia/migrations/runner.py)
+    # shares this same schema_version table and may have advanced the counter
+    # past any gate we'd pick, which would silently skip the ALTER and break
+    # /resume with "no such column". A bare PRAGMA + conditional ALTER is cheap
+    # and safe to run every startup. We do NOT touch schema_version here (the
+    # other runner owns it; writing it could downgrade its value).
+    has_chat = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='chat_history'"
+    ).fetchone() is not None
+    if has_chat:
+        cols = {r[1] for r in conn.execute(
+            "PRAGMA table_info(chat_history)").fetchall()}
+        with conn:
+            if "session_id" not in cols:
+                conn.execute("ALTER TABLE chat_history ADD COLUMN session_id TEXT")
+            if "cwd" not in cols:
+                conn.execute("ALTER TABLE chat_history ADD COLUMN cwd TEXT")
+
     conn.commit()
 
 
@@ -172,7 +192,9 @@ def init_db(path: str = DB_PATH):
         label_used  TEXT,
         confidence  REAL DEFAULT 0.0,
         feedback    INTEGER DEFAULT 0,
-        response_id TEXT
+        response_id TEXT,
+        session_id  TEXT,
+        cwd         TEXT
     )""")
 
     c.execute("""
