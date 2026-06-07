@@ -1073,6 +1073,22 @@ class Cognia:
             except Exception:
                 pass
 
+        # ── Memory budget: enforce the configured size caps (count / MB) ──
+        # Cheap when under limit (just COUNT + file size); purges lowest-value
+        # memories only when a cap is exceeded. Runs during sleep housekeeping.
+        try:
+            from cognia.memory.memory_budget import enforce_memory_budget, get_limits
+            if any(get_limits()):
+                _bud = enforce_memory_budget(self.db)
+                if _bud.get("enforced"):
+                    consolidation6_info += (
+                        f"\n   Presupuesto memoria: -{_bud['soft_deleted']} archivados, "
+                        f"-{_bud['hard_deleted']} borrados "
+                        f"({_bud['after']['active']} activos, {_bud['after']['mb']}MB)"
+                    )
+        except Exception:
+            pass
+
         # ── Memory compression pass (semantic homeostasis) ────────────
         try:
             from cognia.memory.memory_compressor import MemoryCompressor

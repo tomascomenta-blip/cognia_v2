@@ -255,3 +255,34 @@ def close_pool(db_path: str = None):
                 pass
         except Exception:
             break
+
+
+def vacuum(db_path: str = None) -> bool:
+    """
+    Reclaim disk after deletes: checkpoint the WAL into the main file, then
+    VACUUM to shrink it. VACUUM requires autocommit and no pooled transaction,
+    so it runs on a dedicated short-lived connection (the one place a direct
+    sqlite3 connection is legitimate -- it lives here, inside the pool module,
+    not scattered across the app). Returns True on success.
+
+    First closes the pool for this path so no pooled connection holds a lock
+    that would block the checkpoint/VACUUM.
+    """
+    if db_path is None:
+        try:
+            from cognia.config import DB_PATH
+            db_path = DB_PATH
+        except ImportError:
+            return False
+    close_pool(db_path)
+    try:
+        conn = sqlite3.connect(db_path, timeout=30)
+        conn.isolation_level = None  # autocommit (VACUUM cannot run in a tx)
+        try:
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            conn.execute("VACUUM")
+        finally:
+            conn.close()
+        return True
+    except Exception:
+        return False

@@ -344,6 +344,7 @@ _CMD_DESCRIPTIONS = {
     "/costo":           "Tokens y tiempo de sesión",
     "/tema":            "Tema visual: /tema cicla, /tema <oscuro|claro|alto_contraste> fija (persiste)",
     "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
+    "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
     "/recordatorios":      "Ver recordatorios pendientes",
@@ -3082,6 +3083,58 @@ def _slash_color(arg: str = ""):
         print(f"Color de acento: {color} (guardado)")
 
 
+def _slash_memoria_limite(arg: str, ai):
+    """
+    Ver o fijar el tope de memoria. Persiste y aplica al instante.
+      /memoria-limite                 -> uso actual + limites
+      /memoria-limite <N> [MB]        -> tope de N recuerdos (y opcional MB)
+      /memoria-limite off             -> sin limites
+    """
+    from cognia.memory.memory_budget import current_usage, get_limits, enforce_memory_budget
+    arg = (arg or "").strip().lower()
+    db = getattr(ai, "db", None)
+
+    if not arg:
+        u = current_usage(db)
+        mc, mmb = get_limits()
+        _show_response(
+            "Memoria episodica:\n"
+            f"  Activos : {u['active']}\n"
+            f"  Totales : {u['total']}\n"
+            f"  Disco   : {u['mb']} MB\n"
+            f"  Tope recuerdos : {mc if mc else 'sin limite'}\n"
+            f"  Tope disco     : {str(mmb)+' MB' if mmb else 'sin limite'}\n"
+            "  Fijar: /memoria-limite <N> [MB]   |   quitar: /memoria-limite off",
+            _ACCENT,
+        )
+        return
+
+    if arg in ("off", "0", "ninguno", "sin"):
+        _persist_setting("COGNIA_MAX_MEMORIES", "0")
+        _persist_setting("COGNIA_MAX_DB_MB", "0")
+        _print_line("[ok_cl]Topes de memoria desactivados.[/ok_cl]")
+        return
+
+    parts = arg.split()
+    try:
+        count = int(float(parts[0]))
+        mb = float(parts[1]) if len(parts) > 1 else None
+    except Exception:
+        _print_line("[warn_cl]Uso: /memoria-limite <N recuerdos> [MB][/warn_cl]")
+        return
+    _persist_setting("COGNIA_MAX_MEMORIES", str(count))
+    if mb is not None:
+        _persist_setting("COGNIA_MAX_DB_MB", str(int(mb)))
+    _print_line(f"[detail]Aplicando tope ({count} recuerdos"
+                + (f", {mb:.0f} MB" if mb else "") + ")...[/detail]")
+    rep = enforce_memory_budget(db, max_count=count, max_mb=mb)
+    _show_response(
+        f"Tope aplicado. Archivados: {rep['soft_deleted']}, borrados: {rep['hard_deleted']}. "
+        f"Ahora: {rep['after']['active']} activos, {rep['after']['mb']} MB.",
+        _ACCENT,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Chat history slash command implementations
 # ---------------------------------------------------------------------------
@@ -4332,6 +4385,9 @@ def repl():
             _slash_tema(raw[len("/tema "):] if raw.startswith("/tema ") else "")
         elif raw == "/color" or raw.startswith("/color "):
             _slash_color(raw[len("/color "):] if raw.startswith("/color ") else "")
+        elif raw == "/memoria-limite" or raw.startswith("/memoria-limite "):
+            _slash_memoria_limite(
+                raw[len("/memoria-limite "):] if raw.startswith("/memoria-limite ") else "", ai)
 
         # -- System ---------------------------------------------------------
         elif raw == "/salir":
