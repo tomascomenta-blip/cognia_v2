@@ -3,6 +3,16 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-07] CYCLE 15 -- Cobertura: precedencia de clasificacion del Cognitive Loop
+- Archivos modificados: tests/test_cognitive_loop.py (solo tests; CERO cambios a produccion)
+- Resultado tests: PASS -- 13/13 passed en aislamiento (solo ruta classify, sin process/LLM), 1.47s (+4 tests nuevos)
+- Notas: la suite existente probaba cada ruta aislada pero NUNCA el desempate cuando las senales colisionan. Se bloquea la precedencia documentada ACT > RECALL > DELIBERATE > FAST:
+  * ACT vence a RECALL ("busca lo que dijiste antes" -> ACT).
+  * ACT vence a DELIBERATE ("calcula el plan paso a paso" -> ACT).
+  * RECALL vence a DELIBERATE ("recuerda la arquitectura que disenamos paso a paso" -> RECALL).
+  * query vacia/None -> FAST sin lanzar.
+- Total cobertura Chimera anadida en sesion (ciclos 13-15): +33 tests deterministas, 0 cambios a produccion.
+
 ## [2026-06-07] CYCLE 14 -- Cobertura adicional: hierarchical + band_router
 - Archivos modificados: tests/test_hierarchical_memory.py, tests/test_band_router.py (solo tests; CERO cambios a produccion)
 - Resultado tests: PASS -- 27/27 passed (antes 17; +10 tests), 71.55s (lento por carga del backend de embeddings)

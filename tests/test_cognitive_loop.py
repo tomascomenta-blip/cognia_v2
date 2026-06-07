@@ -123,3 +123,32 @@ def test_recall_process_pulls_global_band(loop):
     # The GLOBAL band exists in the hydra routing (active or not).
     band_names = {b.name for b in trace.hydra.bands}
     assert "GLOBAL" in band_names
+
+
+# --- classification precedence (ACT > RECALL > DELIBERATE > FAST) ------------
+# The documented priority is only correct if it holds when cues COLLIDE. The
+# existing suite exercises each route in isolation; these lock the ordering.
+
+def test_act_beats_recall(loop):
+    # "busca" (action verb) + "dijiste"/"antes" (recall cues) -> ACT wins.
+    d = loop.classify("busca lo que dijiste antes")
+    assert d.route == ROUTE_ACT
+    assert any("ACT" in r for r in d.reasons)
+
+
+def test_act_beats_deliberate(loop):
+    # "calcula" (action verb) + "plan"/"paso a paso" (deliberate markers) -> ACT.
+    assert loop.classify("calcula el plan paso a paso").route == ROUTE_ACT
+
+
+def test_recall_beats_deliberate(loop):
+    # recall cue + deliberate markers, NO action verb -> RECALL wins (lookup,
+    # not a new plan).
+    d = loop.classify("recuerda la arquitectura que disenamos paso a paso")
+    assert d.route == ROUTE_RECALL
+
+
+def test_empty_and_none_query_default_to_fast(loop):
+    # A blank/None query has no cues and must default to FAST, never raise.
+    assert loop.classify("").route == ROUTE_FAST
+    assert loop.classify(None).route == ROUTE_FAST
