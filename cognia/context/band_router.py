@@ -279,25 +279,56 @@ class HydraContextRouter:
         if vec is None:
             return items
 
+        # Collect RAW candidate dicts from both stores WITHOUT pre-formatting.
+        # WHY top_k=5 (more than the 3 we ultimately emit): the re-ranker needs
+        # extra candidates so its similarity/recency/importance fusion + dedup
+        # actually has room to reorder and drop, not just pass-through.
+        episodic_raw: List[dict] = []
         if self._episodic is not None:
             try:
-                for ep in self._episodic.retrieve_similar(vec, top_k=3):
-                    label = ep.get("label") or ep.get("observation") or ""
-                    if label:
-                        sim = ep.get("similarity", 0.0)
-                        items.append("episodic[%0.2f]: %s" % (sim, _clean(label)))
+                episodic_raw = list(self._episodic.retrieve_similar(vec, top_k=5)) or []
             except Exception:
-                pass
+                episodic_raw = []
 
+        semantic_raw: List[dict] = []
         if self._semantic is not None:
             try:
-                for rel in self._semantic.find_related(vec, top_k=3):
-                    concept = rel.get("concept") or ""
-                    if concept:
-                        sim = rel.get("similarity", 0.0)
-                        items.append("semantic[%0.2f]: %s" % (sim, _clean(concept)))
+                semantic_raw = list(self._semantic.find_related(vec, top_k=5)) or []
             except Exception:
-                pass
+                semantic_raw = []
+
+        # Re-rank via the fusion re-ranker (whitepaper 5.3). Built lazily and
+        # fully defensively: if the import or any call fails, fall back to the
+        # ORIGINAL concat-and-format behavior so the band never regresses.
+        try:
+            from cognia.memory.reranker import rerank, format_ranked
+            ranked = rerank(episodic_raw, semantic_raw, top_k=5)
+            formatted = format_ranked(ranked)
+            if formatted:
+                return [_clean(line, max_len=160) for line in formatted]
+            # Empty candidate set -> nothing to show (matches old behavior).
+            if not episodic_raw and not semantic_raw:
+                return items
+        except Exception:
+            pass
+
+        # -- Fallback: ORIGINAL behavior (do not regress) -------------------
+        for ep in episodic_raw:
+            try:
+                label = ep.get("label") or ep.get("observation") or ""
+                if label:
+                    sim = ep.get("similarity", 0.0)
+                    items.append("episodic[%0.2f]: %s" % (sim, _clean(label)))
+            except Exception:
+                continue
+        for rel in semantic_raw:
+            try:
+                concept = rel.get("concept") or ""
+                if concept:
+                    sim = rel.get("similarity", 0.0)
+                    items.append("semantic[%0.2f]: %s" % (sim, _clean(concept)))
+            except Exception:
+                continue
         return items
 
     # -- Assembly ---------------------------------------------------------

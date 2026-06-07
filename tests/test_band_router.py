@@ -119,3 +119,19 @@ def test_media_never_raises_and_returns_list(router):
         r = router.route(q)
         media = _band(r, "MEDIA")
         assert isinstance(media.items, list)
+
+
+def test_global_band_returns_ascii_strings_and_does_not_raise(router):
+    # A recall-cue query activates GLOBAL, which now runs through the fusion
+    # re-ranker. Regardless of DB contents, the band items must be a list of
+    # ASCII-only strings and routing must not raise.
+    r = router.route(
+        "recuerda lo que dijiste antes sobre la arquitectura de shards y el "
+        "routing semantico"
+    )
+    g = _band(r, "GLOBAL")
+    assert g.active is True
+    assert isinstance(g.items, list)
+    for it in g.items:
+        assert isinstance(it, str)
+        assert it == it.encode("ascii", "replace").decode("ascii")
