@@ -3,6 +3,121 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-06] CYCLE 10 -- Phase 62: Session Warm Starter (SWS)
+- Archivos modificados: cognia/context/session_warm_starter.py (nuevo), tests/test_session_warm_starter.py (nuevo), cognia_desktop_api.py
+- Resultado tests: PASS -- 22/22 passed (test_session_warm_starter.py); suite completa: 2121 passed, 8 failed pre-existentes, 9 errors pre-existentes
+- Notas: SWS compila briefing del usuario (KG user facts + knowledge gaps + memoria) e inyecta como contexto al inicio de cada sesion. Solo primer turn por sesion. Min 3 user facts con weight>=0.5 para activarse. Max 400 chars. Secciones separadas por " | ". Fail-safe en todas las fuentes. Elimina cold-start problem para usuarios que regresan.
+
+## [2026-06-06] CYCLE 9 -- Phase 61: Conversation Anchor Tracker (CAT)
+- Archivos modificados: cognia/context/anchor_tracker.py (nuevo), tests/test_anchor_tracker.py (nuevo), cognia_desktop_api.py
+- Resultado tests: PASS -- 28/28 passed (test_anchor_tracker.py); suite completa: 2099 passed, 8 failed pre-existentes, 9 errors pre-existentes
+- Notas: CAT rastreo del intent original del usuario por sesion. Detecta drift via keyword overlap (threshold 0.2), solo despues de 5 turns. Inyecta reminder ASCII en system prompt si hay drift. In-memory, reset en restart. session_id anadido a InferRequest (default="default"). clear_session() en DELETE /chat/history. GET /anchor/{session_id} debug endpoint.
+
+## [2026-06-06] CYCLE 8 -- Phase 60: Knowledge Gap Auto-Detector (KGAD)
+- Archivos modificados: cognia/knowledge/gap_detector.py (nuevo), tests/test_gap_detector.py (nuevo), cognia_desktop_api.py
+- Resultado tests: PASS -- 23/23 passed (test_gap_detector.py); suite completa interrumpida por disco lleno, tests criticos 57/57
+- Notas: KGAD registra gaps de conocimiento cuando ResponseGate detecta calidad<0.4. Deduplica por topic/dia, cap MAX_GAPS_PER_DAY=10. Encola en CuriosityEngine (enqueue([question], source_prompt)) para investigacion futura. Cierra el loop de auto-mejora: Cognia aprende lo que no sabe. GET /gaps + POST /gaps/{topic}/resolve. Singleton inicializado despues de _curiosity_engine_api para wiring correcto.
+
+## [2026-06-06] CYCLE 7 -- Phase 59: Response Format Intelligence (RFI)
+- Archivos modificados: cognia/quality/format_intelligence.py (nuevo), tests/test_format_intelligence.py (nuevo), cognia_desktop_api.py
+- Resultado tests: PASS -- 23/23 passed (suite completa: 2048 passed, 8 failed pre-existentes, 9 errors pre-existentes)
+- Notas: RFI detecta tipo de pregunta (HOW_TO/COMPARE/DEBUG/LIST/EXPLAIN/YES_NO/GENERAL) via regex puro (sin LLM). Inyecta hint de formato como prefijo en /infer y en system prompt de /infer-stream-v2. Bug corregido durante impl: `\bcrash\b` no matcheaba "crashes" -- cambiado a `crashes?`. GET /format/detect endpoint para debug.
+
+## [2026-06-06] CYCLE 6 -- Phase 58: Real-Time Contradiction Alert (RCA)
+- Archivos modificados: cognia/quality/contradiction_alert.py (nuevo), tests/test_contradiction_alert.py (nuevo), cognia_desktop_api.py
+- Resultado tests: PASS -- 24 passed (suite completa: 2025 passed, 8 failed pre-existentes, 9 errors pre-existentes)
+- Notas: RCA detecta cuando mensajes del usuario contradicen hechos del KG (threshold weight>=0.6). Regex extrae claims del mensaje (is_a/uses/prefers/negaciones), busca en KG, alerta si hay conflicto con objeto distinto. Max 2 alertas, max 120 chars, ASCII puro. Complementa consistency_checker.py (KG vs KG). Inyectado en prompt antes de inferencia. GET /contradictions endpoint para debug.
+
+## [2026-06-06] CYCLE 5 -- Phase 57: Proactive Insight Connector (PIC)
+- Archivos modificados: cognia/proactive/insight_connector.py (nuevo), tests/test_insight_connector.py (nuevo), cognia_desktop_api.py
+- Resultado tests: PASS -- 20 passed (suite completa: 2001 passed, 8 failed pre-existentes, 9 errors pre-existentes)
+- Notas: PIC traversa el KG para encontrar conexiones entre la query actual y conocimiento previo del usuario. Max 2 insights por query, threshold 0.3, formato ASCII. Inyectado en prompt antes de cada inferencia. GET /insights endpoint para debug. Sin LLM calls, sin deps externas.
+
+## [2026-06-06] CYCLE 4 -- Phase 56: Smart Context Window Manager
+- Archivos modificados: cognia/context/context_window_manager.py (nuevo), tests/test_context_window_manager.py (nuevo), cognia/context/injection_prioritizer.py
+- Resultado tests: PASS -- 30 passed (suite completa: 1981 passed, 8 failed pre-existentes, 9 errors pre-existentes)
+- Notas: CWM prioriza bloques de contexto por relevancia*recencia*source_weight dentro de budget 800 tokens. Recency decay: 1/(1+age_h*0.1). Dedup por fingerprint 100 chars. InjectionPrioritizer usa CWM en fast path cuando disponible, fallback a logica legacy si import falla. Sin LLM calls, sin deps externas.
+
+## [2026-06-06] CYCLE 3 -- Phase 55: Response Quality Auto-Gate
+- Archivos modificados: cognia/quality/response_gate.py (nuevo), tests/test_response_gate.py (nuevo), cognia_desktop_api.py
+- Resultado tests: PASS -- 29 passed
+- Notas: ResponseGate evalua longitud (0.3) + relevancia keyword (0.4) + deteccion de refusals (0.3). Retry automatico si score<0.35, max 1 retry. Refusal/echo zeroes out relevance credit. Solo en /infer sincronico, no en streaming. Sin LLM calls. Disk full (238G/238G) -- eliminados 13k .pyc files para liberar 284MB antes de poder escribir archivos.
+
+## [2026-06-06] CYCLE 2 -- Phase 54: Adaptive Conversation Style Engine
+- Archivos modificados: cognia/adaptive/style_engine.py (nuevo), tests/test_style_engine_phase54.py (nuevo), cognia_desktop_api.py
+- Resultado tests: PASS -- 25 passed
+- Notas: StyleEngine aprende preferencias de estilo (longitud/formalidad/detalle) de las conversaciones y adapta el system prompt. Sin LLM calls. Turn-count gating (min 5 turns). EMA para formality_score (0.9*prev + 0.1*signal). Running-average capped-at-20 para avg_user_msg_len. detail_score += 0.1 con "?", -= 0.1 si respuesta larga + followup corto. Hint inyectado en /infer-stream-v2 system prompt. record_exchange fire-and-forget en /infer. GET /style/profile endpoint.
+
+## [2026-06-06] CYCLE 1 -- Phase 53: Conversational Knowledge Extraction (CKE)
+- Archivos modificados: cognia/knowledge/cke_extractor.py (nuevo), tests/test_cke_extractor.py (nuevo), cognia_desktop_api.py
+- Resultado tests: PASS -- 25 passed (full suite: 1897 passed, 8 failed / 9 errors pre-existentes no relacionados)
+- Notas: CKE extrae hechos estructurados de conversaciones y los agrega al KG automaticamente. 5 patrones regex: is_a (EN/ES, w=0.8), has_property (EN/ES, w=0.7), related_to/uses/works_with (w=0.6), corrections no/actually/wrong (w=0.9), user_facts I_am/I_work_at/I_prefer (w=0.85). Stop-entities filtrados. Max 5 hechos por mensaje. Fire-and-forget en /infer via threading.Thread daemon. Sin LLM calls. Sin PyTorch. Cognia aprende de cada conversacion.
+
+## [2026-06-05] CYCLE -- test coverage for coordinator/federated_store.py (FederatedStore)
+- Archivos modificados: tests/test_federated_store.py (nuevo, 210 lineas)
+- Resultado tests: PASS -- 15 passed (full suite: 1805 passed, pre-existing failures/errors unrelated)
+- Notas: coordinator/federated_store.py (FedAvg engine, critico segun CLAUDE.md) no tenia ninguna cobertura. Tests cubren: _effective_delta_embed (unit norm), _semantic_cosine (range [-1,1] y identidad), _pad_to_rank (forma correcta al aumentar rank, sin cambio en mismo rank), add_contribution (blob demasiado grande, blob invalido, tier none, contribucion valida devuelve UUID), auto-aggregate no dispara bajo umbral, dispara en AGGREGATE_EVERY_N, marca contribuciones applied, incrementa version en rondas multiples, y FedAvg con ranks mixtos (relleno correcto al max rank). Todos los tests usan :memory:.
+
+## [2026-06-05] CYCLE -- test coverage for coordinator/registry.py (NodeRegistry)
+- Archivos modificados: tests/test_node_registry.py (nuevo, 148 lineas)
+- Resultado tests: PASS -- 14 passed (full suite: 1855 passed, 8 pre-existing failures in test_phase9_security.py)
+- Notas: coordinator/registry.py (SQLite swarm registry) no tenia tests directos. Tests cubren: register (keys presentes, shard valido, distribucion multi-shard, fallback modelo desconocido), heartbeat (ok/error), unregister (marca is_active=False), get_route (swarm incompleto retorna missing, swarm completo retorna ok), status (vacio, con nodos), eviccion de nodos stale via _mark_stale_nodes, y _get_node (None si no existe, dataclass correcto si existe). Todos los tests usan :memory: sin disco.
+
+## [2026-06-05] CYCLE -- test coverage for node/nano_draft.py (NanoDraft speculative decoding)
+- Archivos modificados: tests/test_nano_draft.py (nuevo, 210 lineas)
+- Resultado tests: PASS -- 17 passed (full suite: 1841 passed, 8 pre-existing failures in test_phase9_security.py)
+- Notas: nano_draft.py (speculative decoding draft model) no tenia cobertura previa. Tests cubren _rms_norm (forma, normalizacion, escala), _silu (cero, positivo grande, negativo acotado), _rope (forma, offset distinto produce salida distinta, preservacion de norma L2), y NanoDraft clase (init, draft retorna N tokens validos, reset_cache, _cached_prefix_len, contexto mayor que _MAX_CTX, reutilizacion incremental de KV-cache). Todos los tests usan pesos sinteticos numpy sin necesitar archivos GGUF reales.
+
+## [2026-06-05] CYCLE -- test coverage for node/rank_expansion.py (ARA)
+- Archivos modificados: tests/test_rank_expansion.py (nuevo, 153 lineas)
+- Resultado tests: PASS -- 20 passed (full suite: 1824 passed, 8 pre-existing failures)
+- Notas: rank_expansion.py es modulo critico (ARA) documentado en CLAUDE.md sin cobertura previa. Tests cubren is_saturated (plateau detection, edge cases), _orthogonal_extension (forma, ortogonalidad, dtype), y expand_lora_weights (formas, preservacion de pesos existentes, B columns cero, escala pequena en nuevas filas A, MAX_RANK=8).
+
+## [2026-06-05] CYCLE test_curiosity_worker -- add 25 tests for CuriosityEngine and CuriosityWorker
+- Archivos modificados: tests/test_curiosity_worker.py (nuevo, 214 lineas)
+- Resultado tests: PASS -- 25 passed (new file); 1792 passed full suite, 8 failed pre-existing in test_phase9_security.py (sin cambio)
+- Notas: Cubre _extract_keywords (short/stopwords/dedup/empty), generate_questions (high/low confidence/threshold/empty), enqueue+get_pending (ordering/limit/noop), mark_answered/mark_failed status transitions, get_insights (answered-only), _extract_topic (interrogative prefix stripping, fallback last-3-words, question mark removal), CuriosityWorker daemon flag/start/stop/_process_batch noop sin GitHubScraper. Commit: bc13ea8
+
+## [2026-06-05] CYCLE test_self_improvement -- add unit tests for SafeImprover Phase 26 (cognia/agents/self_improvement.py)
+- Archivos modificados: tests/test_self_improvement.py (nuevo, 254 lineas)
+- Resultado tests: PASS -- 14 passed (new file); 1767 passed full suite, 8 failed pre-existing in test_phase9_security.py (sin cambio)
+- Notas: Cubre TunableParams round-trips, _mutate bounds clipping (50 iterations), _composite score en [0,1] para extremos, Benchmark.measure con DB faltante y con SQLite sembrado (3 DONE/1 FAILED/1 ABORTED + subtasks), ImprovementResult.summary ADOPTED/NO_CHANGE, y SafeImprover JSON persistence. Sin LLM calls ni mocks de CogniaAgentRuntime. Commit: 9cccdd7
+
+## [2026-06-05] CYCLE test_cache_warmer -- add unit tests for CacheWarmer (cognia/reasoning/cache_warmer.py)
+- Archivos modificados: tests/test_cache_warmer.py (nuevo, 176 lineas)
+- Resultado tests: PASS -- 19 passed (new file); 1753 passed full suite, 8 failed pre-existing in test_phase9_security.py (sin cambio)
+- Notas: Patch target corregido de cache_warmer.IntentPredictor a intent_predictor.IntentPredictor (lazy import en __init__). Cubre instantiation, fire-and-forget, shutdown guard, busy detection, generate fallback/exception/text-attr, y los 4 skip conditions de _warm_for_query. Commit: 1b75b12
+
+## [2026-06-05] CYCLE test_forgetting -- add unit tests for ForgettingModule and ConsolidationModule
+- Archivos modificados: tests/test_forgetting.py (nuevo, 343 lineas)
+- Resultado tests: PASS -- 15 passed (new file); 1734 passed full suite, 8 failed pre-existing (sin cambio)
+- Notas: 15 tests cubriendo ForgettingModule (instantiation, decay_cycle empty/forget/compress/preserve/emotion/review, reactivate empty/recover/dissimilar/top_k) y ConsolidationModule (empty DB, return dict keys, consolidates label with min_support, skips below min_support). Commit: 58c8edd
+
+## [2026-06-05] CYCLE test_emotion_wheel -- add unit tests for EmotionWheelProcessor
+- Archivos modificados: tests/test_emotion_wheel.py (nuevo)
+- Resultado tests: PASS -- 18 passed (new file); 1719 passed full suite, 8 failed pre-existing
+- Notas: 18 tests cubriendo _dominant, _detect_imbalance, _LABEL_MAP (labels espanol), EmotionWheelProcessor.process() con SQLite temp (empty/dominance/modulation/neutral-skip), y rangos de _BOOST_FACTOR/_DAMPEN_FACTOR.
+
+## [2026-06-05] CYCLE test_style_engine -- add unit tests for StyleEngine and StyleHint
+- Archivos modificados: tests/test_style_engine.py (nuevo)
+- Resultado tests: PASS -- 1670 passed, 8 failed (pre-existing; no regressions)
+- Notas: 31 tests cubriendo StyleHint round-trip, to_prompt_instruction variants, observe/recompute inference, stats keys, save/load con DB mockeado, y edge cases (empty input, WINDOW truncation a 50 mensajes).
+
+## [2026-06-05] CYCLE test_isolation_fixes -- fix order-dependent test failures in history_exporter and cli goal tests
+- Archivos modificados: tests/test_history_exporter.py, tests/test_cli_goal_commands.py, tests/test_cli_goal_priority.py
+- Resultado tests: PASS -- 1639 passed, 8 failed (2 fixed; remaining 8 are pre-existing order-dependent failures in test_cli_synthesis and test_phase9_security)
+- Notas: TestGetMessages.test_returns_list y test_since_filter_parsed fallaban cuando storage.db_pool real era cargado primero por otro test; fix: patch.object(get_pool) como hace test_rows_mapped_to_dicts. Also: del sys.modules["cognia.cli"] en _import_cli_funcs() de los dos archivos de goals para evitar que la CLI con rich falso contamine otros modulos.
+
+## [2026-06-05] CYCLE tool_router_feedback_tests -- add unit tests for ToolRouter and FeedbackLearner
+- Archivos modificados: tests/test_tool_router_and_feedback.py (nuevo)
+- Resultado tests: PASS -- 31 nuevos passed; suite completa 1701 passed, 8 failed (pre-existentes sin cambio)
+- Notas: ToolRouter y FeedbackLearner carecian de tests. 31 tests cubren ToolChoice enum, route/route_with_confidence/execute() heuristicas, detect_signal (positivo/negativo/neutral), record+get_stats, get_adjustment_hint con threshold, y top_positive/negative_types. FeedbackLearner usa tmp_path + close_pool() para teardown limpio en Windows.
+
+## [2026-06-05] CYCLE world_model_tests -- add test coverage for WorldModelModule
+- Archivos modificados: tests/test_world_model.py (creado)
+- Resultado tests: PASS -- 6/6 nuevos; suite completa 1637 passed, 10 failed (pre-existentes sin cambio)
+- Notas: WorldModelModule carecia de tests. 6 tests cubren add_relation nuevo, incremento de strength, cap en 1.0, lista vacia, limite top-5, y orden descendente. Fixture crea tabla world_model en DB temporal y llama close_pool() en teardown para liberar archivo en Windows.
+
 ## [2026-06-04] CYCLE manager_test_fix — fix test isolation bug in test_cli_profile_commands
 - Archivos: tests/test_cli_goal_commands.py, tests/test_cli_goal_priority.py
 - Tests: PASS — 1631 passed (was 1626 before fix; reduced from 15 FAILED to 10 pre-existing FAILED)
@@ -1201,3 +1316,42 @@ MODULOS AUDITADOS CON 0 REGRESIONES:
 - Quality issue noted: shards lack Q/K/V bias — convert script updated to save them on next re-conversion
 - API key cogn-2bcfb6317aaf14f3 confirmed working; output is tokenized but low quality due to INT4 quant loss + no bias
 - Resultado tests: 1631 passed (background agent fixed 5 additional test failures in rich stubbing)
+
+## [2026-06-05] CYCLE -- test coverage: coordinator/rate_limiter.py SlidingWindowLimiter
+- Archivos modificados: tests/test_coordinator_rate_limiter.py (new, 177 lines)
+- Resultado tests: PASS -- 12 passed (new file); full suite 1804 passed, 8 pre-existing failures in test_phase9_security.py (unrelated)
+- Notas: SlidingWindowLimiter had zero test coverage; added 12 tests covering allow/deny boundary, retry_after semantics, key independence, evict_stale, and thread safety under concurrent load; committed as 904fd47
+
+## [2026-06-06] CYCLE 1 — HYDRA-analogo: enrutador de contexto/memoria de 3 bandas
+- Archivos: cognia/context/band_router.py (NEW), tests/test_band_router.py (NEW, 8 tests), .gitignore (venv312/model_shards/weights), CLAUDE.md (mandato manager)
+- Resultado tests: PASS — 8 passed (verificado independiente con venv312)
+- Commit: bc92db2
+- Notas: Flagship gap del GOAL. HydraContextRouter reutiliza GlobalRouter (persona LOGOS/TECHNE/RHETOR + temp) y enruta recuperacion de contexto en 3 bandas LOCAL/MEDIA/GLOBAL sobre las memorias reales (working/episodic/semantic). GLOBAL se activa solo con cues de recall. Degrada con DB vacia. CLI real: python -m cognia.context.band_router "<query>".
+- Hallazgo: venv/ del repo roto (Python 3.14, wheels cp314 ausentes). Usar venv312/ (Python 3.12) para tests.
+
+## [2026-06-06] CYCLE 2 — Cognitive Loop (FAST/RECALL/DELIBERATE/ACT)
+- Archivos: cognia/reasoning/cognitive_loop.py (NEW), tests/test_cognitive_loop.py (NEW, 16 tests)
+- Resultado tests: PASS — 16 passed. Commit 9f9987d
+- Notas: Orquestador Chimera s2. Ejecuta los 4 routes OFFLINE de verdad: RECALL via band GLOBAL, DELIBERATE via plan_task+SelfCritic.critique+verify, ACT invoca tool real (execute_python -> 4). Reutiliza ComplexityScorer/planner/verifier/tool_registry.
+
+## [2026-06-06] CYCLE 3 — fix(cli): Theme robusto sin rich
+- Archivos: cognia/cli.py. Commit 2382919
+- Resultado: import cli OK sin rich. Desbloquea 12 tests test_cli_* (NameError Theme).
+- Notas: rich es opcional pero _THEMES usaba Theme() a nivel modulo sin guardia. Shim Theme=dict en except ImportError.
+
+## [2026-06-06] CYCLE 4 — Memoria jerarquica con write-gating
+- Archivos: cognia/memory/hierarchical.py (NEW), tests/test_hierarchical_memory.py (NEW, 6 tests)
+- Resultado tests: PASS — 6 passed.
+- Notas: Chimera s5.2. write-gate por sorpresa(novedad)+importancia, pinning durable. Reutiliza decay/consolidacion. Demo real: novel surprise=1.0 stored, duplicado surprise=0.02 gated out.
+
+## [2026-06-06] BASELINE suite (venv312, post-fixes): 2074 passed, 65 failed, 23 errors (210s). venv/ del repo roto -> usar venv312.
+
+## [2026-06-06] CYCLE 5 — World-model lite (simular antes de actuar) + gate ACT
+- Archivos: cognia/reasoning/action_simulator.py (NEW), cognia/reasoning/cognitive_loop.py (gate), tests/test_action_simulator.py (NEW)
+- Resultado tests: PASS — 25 passed (9 nuevos + 16 cognitive_loop). Commit d3caf5d
+- Notas: Chimera s6+s8.2. Predice riesgo/efecto de tool antes de ejecutar; CONFIRM bloquea, PROCEED ejecuta. Consulta KG world_model.
+
+## [2026-06-06] FASE FINAL — Orquestador integral cognia/chimera.py + README
+- Archivos: cognia/chimera.py (NEW), tests/test_chimera.py (NEW, 21 tests), README.md (seccion Chimera)
+- Resultado tests: PASS — 60 passed across las 5 suites Chimera (verificado por sub-agente)
+- Notas: Trace de 10 etapas (s11). CLI: python -m cognia.chimera "<q>". README con tabla literal/adaptado/descartado + comandos repro.

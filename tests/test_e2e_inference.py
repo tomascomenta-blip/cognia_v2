@@ -375,6 +375,52 @@ class TestShardsAvailableLogic:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# InferResult contract: tokens_generated + empty-prompt guard
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestInferResultContract:
+    """Tests for InferResult dataclass and empty-prompt guard."""
+
+    def test_infer_result_has_tokens_generated_field(self):
+        """InferResult must expose tokens_generated (default 0)."""
+        from shattering.orchestrator import InferResult
+        r = InferResult(
+            text="hello", sub_model="logos", confidence=0.8,
+            latency_ms=100.0, mode="simulation", route_reason="test",
+        )
+        assert hasattr(r, "tokens_generated")
+        assert r.tokens_generated == 0
+
+    def test_infer_result_tokens_generated_set_explicitly(self):
+        from shattering.orchestrator import InferResult
+        r = InferResult(
+            text="hi", sub_model="logos", confidence=0.5,
+            latency_ms=50.0, mode="local", route_reason="test",
+            tokens_generated=42,
+        )
+        assert r.tokens_generated == 42
+
+    def test_empty_prompt_returns_error_mode(self, monkeypatch):
+        """infer('') must return immediately with mode='error'."""
+        monkeypatch.setenv("SHARD_WEIGHTS_DIR", "")
+        from shattering.orchestrator import ShatteringOrchestrator
+        orch = ShatteringOrchestrator.__new__(ShatteringOrchestrator)
+        result = orch.infer("")
+        assert result.mode == "error"
+        assert result.text == ""
+        assert result.route_reason == "empty_prompt"
+        assert result.tokens_generated == 0
+
+    def test_whitespace_only_prompt_returns_error_mode(self, monkeypatch):
+        """infer('   ') must be treated as empty — no router call."""
+        monkeypatch.setenv("SHARD_WEIGHTS_DIR", "")
+        from shattering.orchestrator import ShatteringOrchestrator
+        orch = ShatteringOrchestrator.__new__(ShatteringOrchestrator)
+        result = orch.infer("   \t\n  ")
+        assert result.mode == "error"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Real shard inference (skipped without weights)
 # ══════════════════════════════════════════════════════════════════════════════
 

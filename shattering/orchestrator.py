@@ -113,12 +113,13 @@ class LatentPersistenceCache:
 
 @dataclass
 class InferResult:
-    text:         str
-    sub_model:    str
-    confidence:   float
-    latency_ms:   float
-    mode:         str   # "local" | "distributed" | "simulation"
-    route_reason: str
+    text:             str
+    sub_model:        str
+    confidence:       float
+    latency_ms:       float
+    mode:             str   # "local" | "distributed" | "simulation"
+    route_reason:     str
+    tokens_generated: int = 0
 
 
 class ShatteringOrchestrator:
@@ -216,6 +217,17 @@ class ShatteringOrchestrator:
                         processed by the shard chain, giving O(new_tokens) cost
                         instead of O(full_prompt) on subsequent turns.
         """
+        if not prompt or not prompt.strip():
+            return InferResult(
+                text             = "",
+                sub_model        = "none",
+                confidence       = 0.0,
+                latency_ms       = 0.0,
+                mode             = "error",
+                route_reason     = "empty_prompt",
+                tokens_generated = 0,
+            )
+
         # Proactive eviction: every 90s, evict caches older than 150s (SESSION_TIMEOUT+30s)
         _now = time.time()
         if _now - self._last_eviction > 90.0:
@@ -231,16 +243,20 @@ class ShatteringOrchestrator:
 
         if self._mode == "distributed" and self._coord_url:
             text, mode_used = self._distributed_infer(prompt, decision)
+            tokens_generated = 0
         else:
-            text, mode_used = self._local_infer(prompt, decision, lpc_session_id=lpc_session_id)
+            text, mode_used, tokens_generated = self._local_infer(
+                prompt, decision, lpc_session_id=lpc_session_id
+            )
 
         return InferResult(
-            text         = text,
-            sub_model    = decision.sub_model,
-            confidence   = decision.confidence,
-            latency_ms   = round((time.time() - t0) * 1000, 1),
-            mode         = mode_used,
-            route_reason = decision.reason,
+            text             = text,
+            sub_model        = decision.sub_model,
+            confidence       = decision.confidence,
+            latency_ms       = round((time.time() - t0) * 1000, 1),
+            mode             = mode_used,
+            route_reason     = decision.reason,
+            tokens_generated = tokens_generated,
         )
 
     async def ainfer(self, prompt: str, lpc_session_id: Optional[str] = None) -> InferResult:
@@ -456,6 +472,7 @@ class ShatteringOrchestrator:
     def _local_infer(self, prompt: str, decision: RouteDecision,
                      lpc_session_id: Optional[str] = None,
                      temperature: Optional[float] = None):
+        """Returns (text, mode, tokens_generated)."""
         if temperature is None:
             temperature = self._TEMPERATURES.get(decision.sub_model, 0.5)
         # Fast path: llama.cpp if GGUF model and runtime are present
@@ -466,15 +483,17 @@ class ShatteringOrchestrator:
             formatted = _apply_qwen_template(prompt, system)
             result = self._llama.generate(formatted, max_tokens=self._max_tokens)
             if result is not None:
-                return result, "llama.cpp"
+                # Estimate token count from text length (llama-server doesn't return it)
+                toks = max(1, len(result) // 4)
+                return result, "llama.cpp", toks
             # llama.cpp failed mid-session — disable and fall through to numpy
             logger.warning("[Orchestrator] llama.cpp returned None, falling back to numpy")
             self._llama = None
 
         # If real Qwen .npz shards are present, run the full shard pipeline
         if self._shards_available():
-            text = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
-            return text, "local"
+            text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
+            return text, "local", toks
 
         sub_model = decision.sub_model
         specs     = self._manifest.fragments_for_sub_model(sub_model)
@@ -494,19 +513,19 @@ class ShatteringOrchestrator:
                     break
 
         if not specs:
-            return f"[Simulation] No bundle configured for '{sub_model}'.", "simulation"
+            return f"[Simulation] No bundle configured for '{sub_model}'.", "simulation", 0
 
         engines = self._fragments.load_all(specs)
         if not engines:
-            return f"[Simulation] No engines loaded for '{sub_model}'.", "simulation"
+            return f"[Simulation] No engines loaded for '{sub_model}'.", "simulation", 0
 
         has_real_weights = self._any_real_weights(specs)
         if not has_real_weights:
             text = self._ollama_infer(prompt, sub_model, n_passes=self._n_passes)
-            return text, "simulation"
+            return text, "simulation", 0
 
-        text = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
-        return text, "local"
+        text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
+        return text, "local", toks
 
     def _shards_available(self) -> bool:
         """
@@ -730,23 +749,25 @@ class ShatteringOrchestrator:
             self._evict_one_mla_session(session_id)
 
         return InferResult(
-            text         = text,
-            sub_model    = "logos",
-            confidence   = 0.0,
-            latency_ms   = round((_time.perf_counter() - t0) * 1000, 1),
-            mode         = "local",
-            route_reason = "shard_stream",
+            text             = text,
+            sub_model        = "logos",
+            confidence       = 0.0,
+            latency_ms       = round((_time.perf_counter() - t0) * 1000, 1),
+            mode             = "local",
+            route_reason     = "shard_stream",
+            tokens_generated = tokens_generated,
         )
 
     def _shard_infer(self, prompt: str, lpc_session_id: Optional[str] = None,
-                     temperature: float = 0.5) -> str:
+                     temperature: float = 0.5) -> tuple:
         """
         Run end-to-end inference via the real Qwen INT4 forward pass.
 
         Loads all 4 ShardEngines lazily on first call, registers them as
         local engines in inference_pipeline, then runs a local generate cycle
         that bypasses the coordinator HTTP calls entirely.
-        Imported lazily to avoid circular imports.
+
+        Returns (text: str, tokens_generated: int).
         """
         if self._pipeline is None:
             pipeline, route = self._build_local_pipeline()
@@ -762,7 +783,7 @@ class ShatteringOrchestrator:
             lpc_session_id=lpc_session_id, temperature=temperature
         )
         if result.get("ok") and result.get("text"):
-            return result["text"]
+            return result["text"], result.get("tokens_generated", 0)
 
         error = result.get("error", "shard inference failed")
         logger.warning("[Orchestrator] shard inference returned error: %s", error)

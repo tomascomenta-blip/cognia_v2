@@ -356,6 +356,7 @@ _MAX_PROMPT_CHARS = 4096  # guard against log flooding and excessive inference c
 
 class InferRequest(BaseModel):
     prompt: str
+    session_id: str = Field("default", max_length=128)
 
     @field_validator("prompt")
     @classmethod
@@ -383,12 +384,13 @@ class ChatStreamRequest(BaseModel):
 
 
 class InferResponse(BaseModel):
-    text:         str
-    sub_model:    str
-    confidence:   float
-    latency_ms:   float
-    mode:         str
-    route_reason: str
+    text:             str
+    sub_model:        str
+    confidence:       float
+    latency_ms:       float
+    mode:             str
+    route_reason:     str
+    tokens_generated: int = 0
 
 
 class RouteResponse(BaseModel):
@@ -557,6 +559,102 @@ except Exception as _sce:
     )
     _SelfCritic = None  # type: ignore[assignment,misc]
 
+# ── Response Quality Auto-Gate singleton — Phase 55 ──────────────────
+_response_gate = None
+
+try:
+    from cognia.quality.response_gate import ResponseGate as _ResponseGate
+    _response_gate = _ResponseGate()
+except Exception as _rg_err:
+    _logging.getLogger("cognia_desktop_api").warning(
+        "ResponseGate init failed: %s", _rg_err
+    )
+
+# ── CKE (Conversational Knowledge Extraction) singleton — Phase 53 ────
+_cke = None
+
+try:
+    from cognia.knowledge.cke_extractor import CKEExtractor as _CKEExtractor
+    from cognia.knowledge.graph import KnowledgeGraph as _KnowledgeGraph
+    _cke = _CKEExtractor(_KnowledgeGraph())
+except Exception as _cke_err:
+    _logging.getLogger("cognia_desktop_api").warning(
+        "CKEExtractor init failed: %s", _cke_err
+    )
+
+# ── Style Engine singleton — Phase 54 ────────────────────────────────
+_style_engine = None
+
+try:
+    from cognia.adaptive.style_engine import StyleEngine as _StyleEngine
+    _style_engine = _StyleEngine(_CHAT_DB)
+except Exception as _se_err:
+    _logging.getLogger("cognia_desktop_api").warning(
+        "StyleEngine init failed: %s", _se_err
+    )
+
+# ── Proactive Insight Connector singleton — Phase 57 ─────────────────
+_insight_connector = None
+
+try:
+    from cognia.proactive.insight_connector import InsightConnector as _InsightConnector
+    from cognia.knowledge.graph import KnowledgeGraph as _KGForPIC
+    _insight_connector = _InsightConnector(_KGForPIC())
+except Exception as _pic_err:
+    _logging.getLogger("cognia_desktop_api").warning(
+        "InsightConnector init failed: %s", _pic_err
+    )
+
+# ── Contradiction Alert singleton — Phase 58 ─────────────────────────
+_contradiction_alert = None
+
+try:
+    from cognia.quality.contradiction_alert import ContradictionAlert as _ContradictionAlert
+    from cognia.knowledge.graph import KnowledgeGraph as _KGForRCA
+    _contradiction_alert = _ContradictionAlert(_KGForRCA())
+except Exception as _rca_err:
+    _logging.getLogger("cognia_desktop_api").warning(
+        "ContradictionAlert init failed: %s", _rca_err
+    )
+
+# ── Response Format Intelligence singleton — Phase 59 ────────────────
+_format_intelligence = None
+
+try:
+    from cognia.quality.format_intelligence import FormatIntelligence as _FormatIntelligence
+    _format_intelligence = _FormatIntelligence()
+except Exception as _rfi_err:
+    _logging.getLogger("cognia_desktop_api").warning(
+        "FormatIntelligence init failed: %s", _rfi_err
+    )
+
+# ── Conversation Anchor Tracker singleton — Phase 61 ─────────────────
+_anchor_tracker = None
+
+try:
+    from cognia.context.anchor_tracker import AnchorTracker as _AnchorTracker
+    _anchor_tracker = _AnchorTracker()
+except Exception as _cat_err:
+    _logging.getLogger("cognia_desktop_api").warning(
+        "AnchorTracker init failed: %s", _cat_err
+    )
+
+# ── Session Warm Starter singleton — Phase 62 ─────────────────────────
+_warm_starter = None
+
+try:
+    from cognia.context.session_warm_starter import SessionWarmStarter as _SessionWarmStarter
+    from cognia.knowledge.graph import KnowledgeGraph as _KGForSWS
+    _warm_starter = _SessionWarmStarter(
+        _KGForSWS(),
+        _CHAT_DB,
+        consolidator=_consolidator,
+    )
+except Exception as _sws_err:
+    _logging.getLogger("cognia_desktop_api").warning(
+        "SessionWarmStarter init failed: %s", _sws_err
+    )
+
 
 @app.post("/infer", response_model=InferResponse)
 async def infer(req: InferRequest, request: Request, response: "fastapi.Response" = None):
@@ -564,6 +662,18 @@ async def infer(req: InferRequest, request: Request, response: "fastapi.Response
     from fastapi import Response as _Response
     if not req.prompt.strip():
         raise HTTPException(status_code=400, detail="prompt cannot be empty")
+
+    # SWS: inject user briefing into prompt on first turn of each session
+    if _warm_starter is not None:
+        try:
+            _sws_sid = getattr(req, "session_id", None) or "default"
+            if _warm_starter.is_first_turn(_sws_sid):
+                _sws_briefing = _warm_starter.build_briefing(_sws_sid)
+                if _sws_briefing:
+                    req = req.model_copy(update={"prompt": _sws_briefing + "\n\n" + req.prompt})
+                _warm_starter.mark_briefed(_sws_sid)
+        except Exception:
+            pass
 
     # ITCS: score query complexity and set pipeline budget before inference
     _complexity = _itcs_scorer.score(req.prompt)
@@ -615,8 +725,49 @@ async def infer(req: InferRequest, request: Request, response: "fastapi.Response
     except Exception as _ce:
         _api_logger.warning("SRC lookup error (ignored): %s", _ce)
 
+    # PIC: inject proactive insights into prompt before inference (fire-and-forget safe)
+    _infer_prompt = req.prompt
+    if _insight_connector is not None:
+        try:
+            _pic_injection = _insight_connector.get_prompt_injection(req.prompt)
+            if _pic_injection:
+                _infer_prompt = _pic_injection + "\n\n" + req.prompt
+        except Exception:
+            pass
+
+    # RCA: inject contradiction alert if user message conflicts with KG facts
+    if _contradiction_alert is not None:
+        try:
+            _ca_injection = _contradiction_alert.get_alert_injection(req.prompt)
+            if _ca_injection:
+                _infer_prompt = _ca_injection + "\n\n" + _infer_prompt
+        except Exception:
+            pass
+
+    # RFI: prepend format hint so the LLM structures its response optimally
+    if _format_intelligence is not None:
+        try:
+            _fmt_hint = _format_intelligence.get_format_hint(req.prompt)
+            if _fmt_hint:
+                _infer_prompt = "[Format instruction: " + _fmt_hint + "]\n\n" + _infer_prompt
+        except Exception:
+            pass
+
+    # CAT: Conversation Anchor Tracker — set anchor on first message, inject hint on drift
+    _cat_session_id = getattr(req, "session_id", None) or "default"
+    if _anchor_tracker is not None:
+        try:
+            if _cat_session_id not in _anchor_tracker._anchors:
+                _anchor_tracker.set_anchor(_cat_session_id, req.prompt)
+            _cat_hint = _anchor_tracker.get_anchor_hint(_cat_session_id, req.prompt)
+            if _cat_hint:
+                _infer_prompt = _cat_hint + "\n\n" + _infer_prompt
+            _anchor_tracker.record_turn(_cat_session_id)
+        except Exception:
+            pass
+
     try:
-        result = await _orch.ainfer(req.prompt)
+        result = await _orch.ainfer(_infer_prompt)
     except Exception as exc:
         _api_logger.error("Inference failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail=str(exc))
@@ -645,6 +796,38 @@ async def infer(req: InferRequest, request: Request, response: "fastapi.Response
                     response_text = response_text + "\n\n" + correction
     except Exception as _rfv_exc:
         _api_logger.warning("RFV validation error (ignored): %s", _rfv_exc)
+
+    # Response Quality Auto-Gate: retry once if quality score is too low
+    if _response_gate is not None:
+        try:
+            _rg_retry, _rg_reason = _response_gate.should_retry(req.prompt, response_text)
+            if _rg_retry:
+                _retry_prompt = _response_gate.build_retry_prompt(
+                    req.prompt, response_text, _rg_reason
+                )
+                try:
+                    _retry_result = await _orch.ainfer(_retry_prompt)
+                    if _retry_result and len(_retry_result.text) > len(response_text):
+                        response_text = _retry_result.text
+                except Exception:
+                    pass  # keep original on any retry error
+        except Exception:
+            pass  # gate errors never break the response
+
+    # Knowledge Gap Auto-Detector: record low-quality responses (fire-and-forget)
+    if _gap_detector is not None and _response_gate is not None:
+        try:
+            _kgad_quality = _response_gate.score(req.prompt, response_text)
+            _kgad_query = req.prompt
+            _kgad_resp = response_text
+            import threading as _threading_kgad
+            _threading_kgad.Thread(
+                target=_gap_detector.maybe_record_gap,
+                args=(_kgad_query, _kgad_resp, _kgad_quality),
+                daemon=True,
+            ).start()
+        except Exception:
+            pass  # gap detector errors never break the response
 
     # Smart Notes: extract notes from assistant response (fire-and-forget)
     if _notes is not None and (_feature_flags is None or _feature_flags.is_enabled("auto_notes", getattr(request.state, "tier", "free"))):
@@ -723,13 +906,38 @@ async def infer(req: InferRequest, request: Request, response: "fastapi.Response
             target=_uf_ref.infer_and_store, args=(_uf_text,), daemon=True
         ).start()
 
+    # CKE: extract structured facts from user message into KG (fire-and-forget)
+    if _cke is not None:
+        _cke_ref = _cke
+        _cke_prompt = req.prompt
+        _cke_resp = response_text
+        import threading as _threading_cke
+        _threading_cke.Thread(
+            target=_cke_ref.extract_and_store,
+            args=(_cke_prompt, _cke_resp),
+            daemon=True,
+        ).start()
+
+    # StyleEngine: record exchange and update style profile (fire-and-forget)
+    if _style_engine is not None:
+        _se_ref = _style_engine
+        _se_user = req.prompt
+        _se_resp = response_text
+        import threading as _threading_se
+        _threading_se.Thread(
+            target=_se_ref.record_exchange,
+            args=(_se_user, _se_resp),
+            daemon=True,
+        ).start()
+
     return InferResponse(
-        text         = response_text,
-        sub_model    = result.sub_model,
-        confidence   = result.confidence,
-        latency_ms   = result.latency_ms,
-        mode         = result.mode,
-        route_reason = result.route_reason,
+        text             = response_text,
+        sub_model        = result.sub_model,
+        confidence       = result.confidence,
+        latency_ms       = result.latency_ms,
+        mode             = result.mode,
+        route_reason     = result.route_reason,
+        tokens_generated = result.tokens_generated,
     )
 
 
@@ -768,7 +976,25 @@ async def infer_stream_v2(req: ChatStreamRequest):
     if not req.prompt.strip():
         raise HTTPException(status_code=400, detail="prompt cannot be empty")
 
-    messages = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    _stream_system_prompt = _SYSTEM_PROMPT
+    if _style_engine is not None:
+        try:
+            _style_hint = _style_engine.get_style_hint()
+            if _style_hint:
+                _stream_system_prompt = _SYSTEM_PROMPT + " " + _style_hint + "."
+        except Exception:
+            pass
+
+    # RFI: append format hint to system prompt for streaming endpoint
+    if _format_intelligence is not None:
+        try:
+            _stream_fmt_hint = _format_intelligence.get_format_hint(req.prompt)
+            if _stream_fmt_hint:
+                _stream_system_prompt = _stream_system_prompt + " " + _stream_fmt_hint
+        except Exception:
+            pass
+
+    messages = [{"role": "system", "content": _stream_system_prompt}]
     for m in req.history:
         messages.append({"role": m.role, "content": m.content})
     messages.append({"role": "user", "content": req.prompt})
@@ -842,12 +1068,13 @@ async def infer_stream(prompt: str = Query(..., description="Prompt to infer", m
                 return
             yield {
                 "data": json.dumps({
-                    "done":         True,
-                    "sub_model":    result.sub_model,
-                    "confidence":   result.confidence,
-                    "latency_ms":   result.latency_ms,
-                    "mode":         result.mode,
-                    "route_reason": getattr(result, "route_reason", ""),
+                    "done":             True,
+                    "sub_model":        result.sub_model,
+                    "confidence":       result.confidence,
+                    "latency_ms":       result.latency_ms,
+                    "mode":             result.mode,
+                    "route_reason":     getattr(result, "route_reason", ""),
+                    "tokens_generated": getattr(result, "tokens_generated", 0),
                 })
             }
         except Exception as exc:
@@ -980,6 +1207,12 @@ def delete_chat_history(session_id: str = Query(..., max_length=128)):
     from storage.db_pool import get_pool
     with get_pool(_CHAT_DB).get() as conn:
         conn.execute("DELETE FROM chat_history WHERE session_id = ?", (session_id,))
+    # CAT: clear anchor on session evict/delete
+    if _anchor_tracker is not None:
+        try:
+            _anchor_tracker.clear_session(session_id)
+        except Exception:
+            pass
     return {"deleted": True}
 
 
@@ -1372,6 +1605,20 @@ try:
 except Exception:
     pass
 
+# ── Knowledge Gap Auto-Detector singleton — Phase 60 ─────────────────
+_gap_detector = None
+
+try:
+    from cognia.knowledge.gap_detector import KnowledgeGapDetector as _KnowledgeGapDetector
+    _gap_detector = _KnowledgeGapDetector(
+        _CHAT_DB,
+        curiosity_engine=_curiosity_engine_api,
+    )
+except Exception as _kgad_err:
+    _logging.getLogger("cognia_desktop_api").warning(
+        "KnowledgeGapDetector init failed: %s", _kgad_err
+    )
+
 
 @app.get("/curiosity/insights")
 def curiosity_insights(limit: int = Query(20, ge=1, le=100)):
@@ -1383,6 +1630,55 @@ def curiosity_insights(limit: int = Query(20, ge=1, le=100)):
     except Exception as exc:
         _api_logger.warning("curiosity_insights error: %s", exc)
         return {"insights": [], "error": str(exc)}
+
+
+@app.get("/gaps")
+def get_knowledge_gaps(limit: int = Query(20, ge=1, le=100)):
+    """Return recent knowledge gaps detected from low-quality responses."""
+    if _gap_detector is None:
+        return {"gaps": [], "error": "KnowledgeGapDetector not available"}
+    try:
+        return {"gaps": _gap_detector.get_gaps(limit=limit)}
+    except Exception as exc:
+        _api_logger.warning("get_knowledge_gaps error: %s", exc)
+        return {"gaps": [], "error": str(exc)}
+
+
+@app.post("/gaps/{topic}/resolve")
+def resolve_knowledge_gap(topic: str):
+    """Mark a knowledge gap as resolved."""
+    if _gap_detector is None:
+        return {"ok": False, "error": "KnowledgeGapDetector not available"}
+    try:
+        _gap_detector.mark_resolved(topic)
+        return {"ok": True, "topic": topic}
+    except Exception as exc:
+        _api_logger.warning("resolve_knowledge_gap error: %s", exc)
+        return {"ok": False, "error": str(exc)}
+
+
+@app.get("/insights")
+def insights(q: str = Query(..., description="Query to find KG insights for", max_length=512)):
+    """Return PIC insight strings for the given query (Phase 57 debug endpoint)."""
+    if _insight_connector is None:
+        return {"insights": [], "error": "InsightConnector not available"}
+    try:
+        return {"insights": _insight_connector.find_insights(q)}
+    except Exception as exc:
+        _api_logger.warning("InsightConnector error: %s", exc)
+        return {"insights": [], "error": str(exc)}
+
+
+@app.get("/contradictions")
+def contradictions(q: str = Query(..., description="User message to check for KG contradictions", max_length=512)):
+    """Return RCA contradiction alerts for the given text (Phase 58 debug endpoint)."""
+    if _contradiction_alert is None:
+        return {"alerts": [], "error": "ContradictionAlert not available"}
+    try:
+        return {"alerts": _contradiction_alert.check(q)}
+    except Exception as exc:
+        _api_logger.warning("ContradictionAlert error: %s", exc)
+        return {"alerts": [], "error": str(exc)}
 
 
 @app.get("/")
@@ -2797,6 +3093,36 @@ def critique_score():
     return {"avg_score_7d": avg_7d, "trend": trend}
 
 
+# ── Conversation Anchor Tracker debug endpoint — Phase 61 ─────────────
+
+@app.get("/anchor/{session_id}")
+def anchor_debug(session_id: str):
+    """Return current anchor info for a session (debug endpoint)."""
+    if _anchor_tracker is None:
+        raise HTTPException(status_code=503, detail="AnchorTracker not available")
+    anchor = _anchor_tracker._anchors.get(session_id)
+    if anchor is None:
+        return {"session_id": session_id, "anchor": None}
+    return {
+        "session_id": session_id,
+        "anchor": {
+            "original_query": anchor.original_query,
+            "turn_count": anchor.turn_count,
+            "keywords": sorted(anchor.keywords),
+        },
+    }
+
+
+# ── Style Engine endpoint — Phase 54 ──────────────────────────────────
+
+@app.get("/style/profile")
+def style_profile():
+    """Return the current adaptive style profile for the local user."""
+    if _style_engine is None:
+        raise HTTPException(status_code=503, detail="StyleEngine not available")
+    return _style_engine.get_profile()
+
+
 # ── Comprehensive Report Generator singleton ──────────────────────────
 
 _report_gen: _Optional["_ComprehensiveReportGenerator_t"] = None
@@ -3088,6 +3414,18 @@ def digest_get():
         raise HTTPException(status_code=503, detail="DailyDigest not available")
     data = _digest.generate()
     return {"digest": _digest.format_digest(data), "data": data}
+
+
+# ── Format Intelligence endpoint — Phase 59 ──────────────────────────
+
+@app.get("/format/detect")
+def format_detect(q: str = Query(..., description="Text to classify", max_length=4096)):
+    """Debug endpoint: return detected question type and format hint for a given text."""
+    if _format_intelligence is None:
+        raise HTTPException(status_code=503, detail="FormatIntelligence not available")
+    qtype = _format_intelligence.detect_type(q)
+    hint  = _format_intelligence.get_format_hint(q)
+    return {"type": qtype, "hint": hint}
 
 
 # ── Dev entry point ────────────────────────────────────────────────────

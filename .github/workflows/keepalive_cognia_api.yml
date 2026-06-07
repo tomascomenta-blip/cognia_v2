@@ -1,0 +1,19 @@
+name: Keep Cognia API Alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # cada 10 minutos
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Cognia API
+        env:
+          COGNIA_SPACE_URL: ${{ secrets.COGNIA_SPACE_URL }}
+        run: |
+          URL="${COGNIA_SPACE_URL:-https://YOUR-USERNAME-cognia-api.hf.space}"
+          echo "Pinging $URL/health"
+          curl -s -o /dev/null -w "Status: %{http_code}, Time: %{time_total}s\n" "$URL/health" || echo "Ping failed (Space may be starting up)"
+          echo "Keep-alive ping done at $(date -u)"
