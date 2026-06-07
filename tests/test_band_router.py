@@ -16,6 +16,9 @@ from cognia.context.band_router import (
     HydraContextRouter,
     HydraRouting,
     BandResult,
+    format_trace,
+    _PERSONA_TEMPERATURE,
+    _DEFAULT_TEMPERATURE,
 )
 
 
@@ -135,3 +138,30 @@ def test_global_band_returns_ascii_strings_and_does_not_raise(router):
     for it in g.items:
         assert isinstance(it, str)
         assert it == it.encode("ascii", "replace").decode("ascii")
+
+
+# --- additional coverage -----------------------------------------------------
+
+def test_temperature_matches_persona_map(router):
+    # The routing temperature must be the documented per-persona default (or the
+    # fallback), never an arbitrary value -- this invariant gates sampling.
+    r = router.route("explica y analiza por que la entropia siempre aumenta")
+    expected = _PERSONA_TEMPERATURE.get(r.persona, _DEFAULT_TEMPERATURE)
+    assert r.temperature == expected
+
+
+def test_empty_query_does_not_raise(router):
+    # An empty query must route cleanly: LOCAL still active, persona valid.
+    r = router.route("")
+    assert isinstance(r, HydraRouting)
+    local = _band(r, "LOCAL")
+    assert local.active is True
+    assert r.persona in {"logos", "techne", "rhetor"}
+
+
+def test_format_trace_is_ascii_with_sections(router):
+    r = router.route("recuerda lo que dijiste antes sobre los shards y el routing")
+    trace = format_trace(r)
+    assert trace == trace.encode("ascii", "replace").decode("ascii")
+    for marker in ("INPUT:", "PERSONA:", "BAND SCORES:", "ACTIVE BANDS:"):
+        assert marker in trace

@@ -3,6 +3,14 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-07] CYCLE 14 -- Cobertura adicional: hierarchical + band_router
+- Archivos modificados: tests/test_hierarchical_memory.py, tests/test_band_router.py (solo tests; CERO cambios a produccion)
+- Resultado tests: PASS -- 27/27 passed (antes 17; +10 tests), 71.55s (lento por carga del backend de embeddings)
+- Notas:
+  * hierarchical: invariante del write-gate (gate_score == W_SURPRISE*surprise + W_IMPORTANCE*importance, auditable), importance explicita baja colapsa el termino, override explicito con clamp [0,1], importance vacia=0.0, stats shape (5 capas), decay()/consolidate() devuelven dict y nunca lanzan.
+  * band_router: invariante temperatura<->persona (_PERSONA_TEMPERATURE), query vacia no lanza (LOCAL activo), format_trace ASCII con secciones INPUT/PERSONA/BAND SCORES/ACTIVE BANDS.
+- HALLAZGO (no es bug): el fast vector-cache (episodic_fast.search) tiene DEBOUNCE para evitar rebuilds en rafagas de escritura; una re-consulta inmediata tras store() ve matriz stale -> compute_surprise=1.0. Por eso en DB fresca el gate nunca rechaza (surprise arranca alto); el rechazo real solo ocurre con cache tibia. Se documento en el test en vez de forzar un caso dependiente de timing.
+
 ## [2026-06-07] CYCLE 13 -- Cobertura adicional de modulos Chimera (edge-cases)
 - Archivos modificados: tests/test_reranker.py, tests/test_goal_contract.py, tests/test_action_simulator.py (solo tests; CERO cambios a codigo de produccion)
 - Resultado tests: PASS -- 42/42 passed en aislamiento (antes 23; +19 tests nuevos), 6.34s
