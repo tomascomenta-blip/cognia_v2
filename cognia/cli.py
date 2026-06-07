@@ -5661,7 +5661,8 @@ def repl():
                             except Exception:
                                 pass
                         if _llama is not None:
-                            _system = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+                            from shattering.model_constants import COGNIA_SYSTEM_PROMPT
+                            _system = COGNIA_SYSTEM_PROMPT
                             # Multi-turn: feed the last few turns so the model can
                             # follow the conversation thread. _history holds prior
                             # turns only (the current one is appended AFTER generation),

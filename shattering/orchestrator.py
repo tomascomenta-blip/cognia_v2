@@ -27,7 +27,9 @@ from typing import Dict, List, Optional
 
 from shattering.manifest import AppManifest, FragmentSpec, ManifestLoader
 from shattering.fragment_manager import FragmentManager
-from shattering.model_constants import DEFAULT_RST_PASSES, LPC_MAX_SESSIONS, LPC_TTL_SECONDS
+from shattering.model_constants import (
+    COGNIA_SYSTEM_PROMPT, DEFAULT_RST_PASSES, LPC_MAX_SESSIONS, LPC_TTL_SECONDS,
+)
 from shattering.router import GlobalRouter, RouteDecision
 from security.ollama_url import validate_ollama_url
 
@@ -317,7 +319,7 @@ class ShatteringOrchestrator:
         self._try_load_llama()
         if self._llama is not None:
             from node.inference_pipeline import _apply_qwen_template
-            system = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+            system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
             loop = _asyncio.get_running_loop()
             queue: _asyncio.Queue = _asyncio.Queue()
@@ -479,7 +481,7 @@ class ShatteringOrchestrator:
         self._try_load_llama()
         if self._llama is not None:
             from node.inference_pipeline import _apply_qwen_template
-            system = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+            system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
             result = self._llama.generate(formatted, max_tokens=self._max_tokens)
             if result is not None:
@@ -602,7 +604,7 @@ class ShatteringOrchestrator:
         t0         = _time.perf_counter()
         is_qwen    = "qwen" in pipeline.model_name.lower()
         _QWEN_EOS  = {151643, 151645}
-        system     = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+        system     = COGNIA_SYSTEM_PROMPT
         formatted  = _apply_qwen_template(prompt, system) if is_qwen else prompt
         vocab_size = 151936 if is_qwen else 32000
         _N_DRAFT   = 6
@@ -811,7 +813,7 @@ class ShatteringOrchestrator:
         t0        = _time.perf_counter()
         is_qwen   = "qwen" in pipeline.model_name.lower()
         _QWEN_EOS = {151643, 151645}
-        system    = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+        system    = COGNIA_SYSTEM_PROMPT
         formatted = _apply_qwen_template(prompt, system) if is_qwen else prompt
         eos_set   = _QWEN_EOS if is_qwen else {2}
         hidden_dim = pipeline._get_model_config().get("hidden_dim", 2048)

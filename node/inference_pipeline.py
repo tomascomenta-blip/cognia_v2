@@ -260,7 +260,11 @@ class DistributedInferencePipeline:
 
         # 3. Tokenizar con ChatML
         is_qwen = "qwen" in self.model_name.lower()
-        _system = system or "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
+        if system:
+            _system = system
+        else:
+            from shattering.model_constants import COGNIA_SYSTEM_PROMPT
+            _system = COGNIA_SYSTEM_PROMPT
         formatted = _apply_qwen_template(prompt, _system) if is_qwen else prompt
         current_ids = np.array(self._encode(formatted), dtype=np.int32)
 

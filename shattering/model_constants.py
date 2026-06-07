@@ -105,6 +105,19 @@ SWA_WINDOW: int = 512
 QWEN_SYSTEM_PROMPT = "<|im_start|>system\n{system}<|im_end|>\n"
 QWEN_USER_PROMPT   = "<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
 
+# Canonical Cognia persona / system prompt. Single source of truth so every
+# inference path (CLI streaming, orchestrator, node pipeline) states the same
+# identity. The creator clause is explicit because the base Qwen weights other-
+# wise hallucinate "Anthropic"/"Alibaba" when asked who made Cognia. ASCII-only
+# to stay safe in the Windows CP1252 CLI.
+COGNIA_CREATOR = "Tomas Montes"
+COGNIA_SYSTEM_PROMPT = (
+    "Eres Cognia, un sistema de inteligencia artificial cognitiva local, con "
+    "memoria episodica y grafo de conocimiento. Fuiste creado por Tomas Montes; "
+    "tu creador es Tomas Montes (no Anthropic ni Alibaba). Responde en espanol "
+    "de forma clara y directa."
+)
+
 # HuggingFace dataset that hosts the pre-converted INT4 .npz shards.
 # Upload once with: huggingface-cli upload Acua124298042/cognia-shards
 # Nodes download only their assigned shard (~300MB) from this URL.
