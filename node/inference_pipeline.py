@@ -26,7 +26,7 @@ import struct
 import numpy as np
 import urllib.request
 import urllib.error
-from typing import Optional
+from typing import Optional, List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +45,29 @@ _LLAMA_EOS_TOKEN = 2
 
 
 def _apply_qwen_template(prompt: str,
-                          system: str = "You are a helpful assistant.") -> str:
-    """Wrap a user prompt in ChatML format for Qwen2 models."""
-    return (
-        f"<|im_start|>system\n{system}<|im_end|>\n"
-        f"<|im_start|>user\n{prompt}<|im_end|>\n"
-        "<|im_start|>assistant\n"
-    )
+                          system: str = "You are a helpful assistant.",
+                          history: Optional[List[Dict[str, str]]] = None) -> str:
+    """Wrap a user prompt in ChatML format for Qwen2 models.
+
+    If ``history`` is given it must be a list of prior turns, each a dict
+    ``{"role": "user"|"assistant", "content": str}``. Those turns are rendered
+    as ChatML blocks BEFORE the current ``prompt`` so the model sees the prior
+    conversation (multi-turn). Without ``history`` the output is the original
+    single-turn template, so every existing caller is unaffected.
+
+    Malformed turns (missing/unknown role, empty content) are skipped rather
+    than raising, so a noisy ``_history`` buffer can be passed verbatim.
+    """
+    parts = [f"<|im_start|>system\n{system}<|im_end|>\n"]
+    for turn in (history or []):
+        role = turn.get("role")
+        content = turn.get("content")
+        if role not in ("user", "assistant") or not content:
+            continue
+        parts.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
+    parts.append(f"<|im_start|>user\n{prompt}<|im_end|>\n")
+    parts.append("<|im_start|>assistant\n")
+    return "".join(parts)
 
 
 # ══════════════════════════════════════════════════════════════════════

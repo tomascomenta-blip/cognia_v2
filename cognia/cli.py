@@ -5507,7 +5507,13 @@ def repl():
                         if _llama is not None:
                             from node.inference_pipeline import _apply_qwen_template
                             _system = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
-                            _formatted = _apply_qwen_template(raw, _system)
+                            # Multi-turn: feed the last few turns so the model can
+                            # follow the conversation thread. _history holds prior
+                            # turns only (the current one is appended AFTER generation),
+                            # so it never contains 'raw' yet. Cap to the last 8 turns
+                            # (16 messages) to bound the prompt size.
+                            _hist_ctx = _history[-16:] if _history else None
+                            _formatted = _apply_qwen_template(raw, _system, history=_hist_ctx)
                             _tokens_buf = []
                             t0 = time.time()
                             try:
