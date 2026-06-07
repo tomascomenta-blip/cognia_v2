@@ -1162,7 +1162,10 @@ class ShatteringOrchestrator:
 
         if not pipeline.is_available():
             logger.warning("[Orchestrator] coordinator swarm not ready -- falling back to local")
-            return self._local_infer(prompt, decision)
+            # _local_infer returns a 3-tuple (text, mode, tokens); this method's
+            # contract is a 2-tuple (text, mode), so drop the token count.
+            text, mode, _ = self._local_infer(prompt, decision)
+            return text, mode
 
         sub_model   = decision.sub_model
         system      = self._SYSTEM_PROMPTS.get(sub_model, "You are a helpful assistant.")
@@ -1182,4 +1185,5 @@ class ShatteringOrchestrator:
             "[Orchestrator] distributed generate failed (%s) -- falling back to local",
             result.get("error", "unknown"),
         )
-        return self._local_infer(prompt, decision)
+        text, mode, _ = self._local_infer(prompt, decision)
+        return text, mode

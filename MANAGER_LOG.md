@@ -1420,3 +1420,99 @@ MODULOS AUDITADOS CON 0 REGRESIONES:
 - Archivos: cognia/memory/reranker.py (NEW), cognia/context/band_router.py (_retrieve_global), tests/test_reranker.py (NEW, 8), tests/test_band_router.py (11)
 - Resultado tests: PASS — 19 passed (reranker 8 + band_router 11)
 - Notas: fusion episodic+semantic por similitud+recencia+importancia, dedup, clamp sim negativa. Fallback al concat previo. LOCAL/MEDIA/persona intactos.
+
+## [2026-06-07] FIX — Agente CLI crasheaba + backend forzado a Ollama (verificacion e2e real, no pytest)
+- Sintoma e2e: pedir codigo en el REPL ("escribe una funcion python...") -> "Agente: error LLM: too many values to unpack (expected 2)"; cualquier prompt caia a Ollama pese a tener GGUF local.
+- Causa raiz 1 (router.py _EmbeddingIndex): el prompt se embebia con text_to_vector_fast (queue singleton, dim variable) mientras los centroides usaban otro encoder -> np.dot(64,)x(384,) ValueError. Fix: similarities() usa el MISMO encoder que construyo los centroides (self._embed_fn, swap atomico con los centroides) + guard de dimension que devuelve 0.0 en mismatch en vez de crashear.
+- Causa raiz 2 (orchestrator.py _distributed_infer): contrato 2-tupla (text, mode) pero los dos fallbacks hacian `return self._local_infer(...)` que es 3-tupla -> "too many values to unpack". Fix: `text, mode, _ = self._local_infer(...)` en ambos fallbacks.
+- Causa raiz 3 (config.env): COGNIA_COORDINATOR_URL era una URL de DASHBOARD de Railway (railway.com/project/.../service/...), no la API -> apply_config la cargaba, el orquestador entraba en modo distribuido y siempre caia al fallback roto. Fix: comentada la URL + anadido SHARD_WEIGHTS_DIR absoluto -> modo local llama.cpp (Qwen2.5-Coder-3B GGUF).
+- Verificacion e2e (REPL real, `python -m cognia`): el agente ya NO crashea; corre loop ReAct y escribe funciones.py con `return s[::-1]`. mode=llama.cpp confirmado.
+- Tests: pytest -k "router or orchestrator or band_router" -> 95 passed, 0 failed.
+- Nota de calidad (no es bug): Qwen-Coder-3B interpreta "17 por 23" como 17/23=0.739; el llama3.2 de Ollama daba 391. Limitacion de modelo 3B de codigo, no del fix.
+- Archivos: shattering/router.py, shattering/orchestrator.py, ~/.cognia/config.env
+
+## 2026-06-07 — Tests de regresion (sub-agente)
+Se agregaron DOS tests pytest reales para fijar dos bugs ya corregidos esta sesion (solo se anadieron archivos de test, sin tocar codigo de produccion):
+
+- tests/test_router_dim_guard.py (3 tests): bloquea el bug de mismatch de dimensiones en
+  `_EmbeddingIndex.similarities()` (prompt 64-dim vs centroides 384-dim -> antes ValueError en np.dot).
+  Fuerza el mismatch real (centroides 384 + encoder de prompt 64, incluyendo el fallback n-gram)
+  y verifica que devuelve dict de floats sin crashear y que los dominios con shape distinto dan 0.0.
+  Tambien valida ruta normal (dims iguales -> dot real) y GlobalRouter().route() end-to-end.
+
+- tests/test_distributed_infer_arity.py (1 test): bloquea el bug de aridad de tupla en
+  `_distributed_infer` (fallback retornaba 3-tupla de `_local_infer` mientras `infer()` desempaquetaba 2 ->
+  "too many values to unpack"). Construye el orquestador configurado via `Cognia()._orchestrator`,
+  fuerza `_mode='distributed'` + `_coord_url='http://127.0.0.1:9'` (puerto inalcanzable -> is_available()==False),
+  llama `infer('di hola')` y verifica que devuelve un InferResult con `.text` sin ValueError de unpack.
+
+Resultado pytest (venv312): 4 passed in 7.00s. Ambos archivos en verde.
+
+## 2026-06-07 — Safety hardening: destructive NL no puede ejecutar tool destructivo (ACT route)
+
+CONTEXTO: El cognitive_loop clasificaba comandos destructivos en NL ("borra todos los archivos en
+C:/", "drop table users", etc.) como FAST porque `_ACT_VERBS` solo tenia verbos ingleses/benignos.
+Hipotesis del manager: NO es vulnerabilidad real porque `_pick_tool()` deriva sus PROPIOS kwargs
+benignos y nunca pasa el payload destructivo a un tool.
+
+PROBADO EMPIRICAMENTE (real CognitiveLoop, offline, sin mocks):
+- `_pick_tool()` para los 8 prompts destructivos solo elige tools SEGUROS con kwargs benignos:
+    "borra/elimina/formatea/drop/destruye/remove" -> validate_python {"code":"x = 1\n"} (NO ejecuta)
+    "delete all files in C:/"                      -> file_explorer {"path":"."} (lista CWD, NO C:/)
+    "rm -rf /"                                     -> sin verbo -> FAST -> NINGUN tool
+- El payload destructivo del usuario NUNCA llega al tool. El simulador predice risk=0.00 PROCEED
+  para todos (kwargs reversibles, read-only).
+
+CAMBIO (defensa en profundidad): agregue verbos destructivos ES/EN a `_ACT_VERBS`
+("borra","borrar","elimina","eliminar","formatea","formatear","destruye","destruir","delete",
+"remove","drop"). SI los agregue porque NO rompe nada y mantiene la garantia: ahora 7/8 prompts
+rutean a ACT y pasan POR el world-model gate en vez de irse silenciosamente a FAST; aun asi
+`_pick_tool` solo elige tool SEGURO. "rm -rf /" sigue FAST (no contiene token-verbo) y FAST no
+invoca ningun tool -> tambien seguro.
+
+TEST NUEVO: tests/test_act_safety.py (8 prompts ES/EN x 4 tests = drive real loop, assert nunca
+raise, solo tools en {execute_python,validate_python,file_explorer} con kwargs benignos, y que el
+simulador nunca juzga el pick como IRREVERSIBLE).
+
+RESULTADO pytest (venv312):
+  tests/test_act_safety.py + test_cognitive_loop.py + test_action_simulator.py: 51 passed in 13.25s
+ARCHIVOS: tests/test_act_safety.py (nuevo), cognia/reasoning/cognitive_loop.py (_ACT_VERBS).
+
+---
+
+## 2026-06-07 — Sub-agente: dos fixes de doc/reality drift + métrica honesta
+
+### TASK A — README: claim de "FedAvg" vs. realidad del código
+VERIFICACIÓN EN CÓDIGO (`coordinator/federated_store.py`, cableado en `coordinator/app.py`
+líneas 41/117/766/798): la capa federada **NO** hace FedAvg sobre parámetros completos.
+`FederatedStore.aggregate()` (líneas 243-359) combina ÚNICAMENTE adapters LoRA por nodo
+(`k_A/k_B/v_A/v_B`, r=4-8), nunca los pesos base. Es un **promedio ponderado de deltas LoRA**:
+`w = tier × (1 + 0.3·cos_sim)` con similitud coseno del delta efectivo (`k_A@k_B`, `v_A@v_B`)
+contra el adapter global vigente. Clientes suman ruido gaussiano (sigma=0.01) antes de enviar.
+=> NO hay violación de la restricción dura "Sin FedAvg sobre parámetros completos". Solo se
+agrega el subespacio LoRA de bajo rango. Mecanismo SHIPPED (endpoints HTTP reales en app.py),
+no aspiracional.
+NOTA: el código usa la palabra "FedAvg" en docstrings/comentarios internos, pero el algoritmo
+real es promedio ponderado de SOLO deltas LoRA — no FedAvg sobre full params. No es violación,
+es naming impreciso en comentarios.
+FIX: README.md "Arquitectura Diferencial" — el bullet "Adaptacion personal" omitía por completo
+la agregación federada. Se AGREGÓ un bullet nuevo y honesto: "Agregacion federada de SOLO deltas
+LoRA (NO FedAvg sobre parametros completos)" describiendo el promedio ponderado tier×coseno y el
+ruido gaussiano, dejando explícito que los pesos base jamás se promedian ni alteran.
+
+### TASK B — cognia_doctor.py: métrica tok/s engañosa por cold-start
+`scripts/cognia_doctor.py::check_inference_speed()` hacía UNA sola `infer()` en frío y estimaba
+tokens con `word*1.3`. FIX: (1) warm-up `infer("Hello")` con timing descartado; (2) run medido
+sobre el modelo ya cargado; (3) usa `result.tokens_generated` (conteo REAL del loop de generación,
+no estimación), con fallback etiquetado a word*1.3 solo si el backend no reporta tokens.
+ETIQUETA antes: "Inferencia: X.X tok/s (approx) | backend=... | Yms"
+ETIQUETA después: "Inferencia: X.X tok/s (warm, real tokens) | backend=... | N tok in Yms"
+VERIFICACIÓN (venv312, carga real del GGUF 3B en CPU):
+  [OK] Inferencia: 3.2 tok/s (warm, real tokens) | backend=llama.cpp | 127 tok in 39904ms
+  RESULT_OK= True
+Probe adicional (2 prompts, warm): 8 tok/2846ms=2.81 tok/s, 69 tok/24103ms=2.86 tok/s —
+throughput estable ~2.8-3.2 tok/s independiente del largo de generación. La métrica ahora es
+consistente y honesta (antes el cold-start single-shot la hacía variar/colapsar).
+NOTA: el rango real medido en esta CPU es ~3 tok/s, por debajo del "5-9" esperado en el brief;
+es el número honesto de steady-state de este hardware/backend.
+ARCHIVOS: README.md, scripts/cognia_doctor.py.

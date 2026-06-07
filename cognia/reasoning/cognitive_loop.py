@@ -59,6 +59,14 @@ _ACT_VERBS = [
     "ejecuta", "corre", "calcula", "busca", "run", "execute", "search",
     "fetch", "convierte", "lista archivos", "crea archivo", "valida",
     "validate", "explora", "explore",
+    # Defense-in-depth (safety): destructive verbs (ES/EN) must route to ACT so
+    # they pass THROUGH the world-model risk gate instead of silently going
+    # FAST. This is provably safe because _pick_tool() never binds the
+    # destructive payload to a tool -- it only ever selects a SAFE tool with
+    # benign kwargs (validate_python "x = 1", file_explorer ".", or
+    # arithmetic-only execute_python). See tests/test_act_safety.py.
+    "borra", "borrar", "elimina", "eliminar", "formatea", "formatear",
+    "destruye", "destruir", "delete", "remove", "drop",
 ]
 
 # RECALL: cues signalling the query reaches back to prior knowledge / history.

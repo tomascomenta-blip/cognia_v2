@@ -168,13 +168,31 @@ def check_inference_speed() -> bool:
             manifest_path=manifest,
             base_dir=os.path.join(_ROOT, shard_dir),
         )
+
+        # WARM-UP: first call pays the cold-start cost (model/runtime load,
+        # weight mmap, tokenizer init). Discard its timing entirely so the
+        # reported number reflects steady-state throughput, not load time.
+        _ = orch.infer("Hello")
+
+        # MEASURED run on the warmed model.
         t0 = time.perf_counter()
-        result = orch.infer("Hello")
+        result = orch.infer("Write a short function that adds two numbers.")
         latency_ms = (time.perf_counter() - t0) * 1000
-        # Approximate subword tokens: word count * 1.3 (English code skews ~1.2-1.4 subwords/word)
-        approx_tokens = len(result.text.split()) * 1.3
-        tok_s = approx_tokens / latency_ms * 1000 if latency_ms > 0 else 0.0
-        return _ok(f"Inferencia: {tok_s:.1f} tok/s (approx) | backend={result.mode} | {latency_ms:.0f}ms")
+
+        # Prefer REAL tokens counted by the generation loop; fall back to a
+        # clearly-labeled word*1.3 estimate only if the backend didn't report
+        # a token count (e.g. simulation/fallback mode).
+        real_tokens = getattr(result, "tokens_generated", 0) or 0
+        if real_tokens > 0:
+            tok_s = real_tokens / latency_ms * 1000 if latency_ms > 0 else 0.0
+            label = (f"Inferencia: {tok_s:.1f} tok/s (warm, real tokens) | "
+                     f"backend={result.mode} | {real_tokens} tok in {latency_ms:.0f}ms")
+        else:
+            approx_tokens = len(result.text.split()) * 1.3
+            tok_s = approx_tokens / latency_ms * 1000 if latency_ms > 0 else 0.0
+            label = (f"Inferencia: {tok_s:.1f} tok/s (warm, approx word*1.3) | "
+                     f"backend={result.mode} | {latency_ms:.0f}ms")
+        return _ok(label)
     except Exception as e:
         return _warn("Inferencia fallo", str(e))
 

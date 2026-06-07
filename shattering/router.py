@@ -134,6 +134,11 @@ class _EmbeddingIndex:
         from shattering.model_constants import ROUTER_EMBEDDING_DIM
         self._dim = ROUTER_EMBEDDING_DIM
         self._ngram = _make_ngram_encoder(self._dim)
+        # Encoder that produced the *current* centroids. The prompt must be
+        # embedded with this same function, otherwise dimensions can diverge
+        # (e.g. the async embedding queue is a singleton fixed at a different
+        # dim than the n-gram fallback) and np.dot crashes the router.
+        self._embed_fn = self._ngram
 
     def _compute_centroids(self, encode, domain_keywords: Dict[str, List[str]]) -> Dict[str, np.ndarray]:
         result: Dict[str, np.ndarray] = {}
@@ -153,14 +158,19 @@ class _EmbeddingIndex:
         # Phase 1: instant n-gram centroids (no model loading)
         with self._lock:
             self._centroids = self._compute_centroids(self._ngram, domain_keywords)
+            self._embed_fn = self._ngram
 
         # Phase 2: background upgrade to ST embeddings
         def _rebuild_with_st():
             try:
                 from cognia.cognia_embedding import text_to_vector_fast
                 upgraded = self._compute_centroids(text_to_vector_fast, domain_keywords)
+                # Swap centroids and the matching prompt encoder atomically so
+                # similarities() never mixes a 384-dim centroid with a prompt
+                # vector from a different-dim embedder.
                 with self._lock:
                     self._centroids = upgraded
+                    self._embed_fn = text_to_vector_fast
             except Exception:
                 pass  # stay with n-gram
 
@@ -171,17 +181,28 @@ class _EmbeddingIndex:
         """Return cosine similarity of prompt embedding to each domain centroid."""
         with self._lock:
             centroids = dict(self._centroids)
+            embed_fn = self._embed_fn
 
+        # Embed the prompt with the SAME encoder that built the current
+        # centroids; fall back to the n-gram encoder (which always matches the
+        # Phase-1 centroids) if it fails.
         try:
-            from cognia.cognia_embedding import text_to_vector_fast
-            pv = np.array(text_to_vector_fast(prompt), dtype=np.float32)
+            pv = np.array(embed_fn(prompt), dtype=np.float32)
         except Exception:
             pv = np.array(self._ngram(prompt), dtype=np.float32)
 
         norm = np.linalg.norm(pv)
         if norm > 0:
             pv = pv / norm
-        return {domain: float(np.dot(pv, c)) for domain, c in centroids.items()}
+
+        # Final dimension guard: a singleton embedding queue can still hand back
+        # a vector whose dim differs from the centroids. Never let that crash
+        # routing — treat a mismatched domain as a neutral 0.0 similarity so the
+        # router degrades to keyword scoring instead of raising.
+        out: Dict[str, float] = {}
+        for domain, c in centroids.items():
+            out[domain] = float(np.dot(pv, c)) if pv.shape == c.shape else 0.0
+        return out
 
 
 class GlobalRouter:

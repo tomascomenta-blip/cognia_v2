@@ -1,69 +1,73 @@
 # Cognia v3 — Arquitectura Cognitiva Simbolico-Neural
 
-> IA local, ligera, sin APIs externas. Corre en CPU. Objetivo: 2-5W de consumo.
-> Ahora con inferencia distribuida real (SRDN) y soporte Qwen2.5-Coder.
+> IA local, ligera y privada. Corre en CPU, sin APIs externas y sin PyTorch en el
+> camino critico. Aprende, razona y recuerda en tu propia maquina.
 
-**Stack:** Python 3.11+ · SQLite · Qwen2.5-Coder (INT4) · sentence-transformers · numpy · FastAPI · Electron
-
----
-
-## Descargar
-
-Releases disponibles en: **https://github.com/tomascomenta-blip/cognia_v2/releases**
-
-| Plataforma | Archivo | Requisitos |
-|---|---|---|
-| Windows | CogniaDesktop-x.x.x-Setup.exe | Python 3.11+ |
-| Linux | CogniaDesktop-x.x.x.AppImage | Python 3.11+ |
-| Android | cognia-mobile-x.x.x.apk | Android 8+ |
-
-El instalador descarga el modelo automaticamente (~300 MB en modo swarm).
+**Stack:** Python 3.11+ (3.12 recomendado) · SQLite · Qwen2.5-Coder-3B (GGUF / INT4) ·
+llama.cpp · sentence-transformers · numpy · FastAPI · Electron
 
 ---
 
-## Estado del proyecto (Mayo 2026)
+## Tabla de contenidos
+
+- [Que es Cognia](#que-es-cognia)
+- [Estado del proyecto](#estado-del-proyecto-junio-2026)
+- [Instalacion](#instalacion)
+- [Uso — el REPL](#uso--el-repl)
+- [Modelo e inferencia](#modelo-e-inferencia)
+- [Rendimiento (benchmarks reales)](#rendimiento-benchmarks-reales)
+- [Modulos principales](#modulos-principales)
+- [Arquitectura Diferencial](#arquitectura-diferencial)
+- [Capa Cognitiva Chimera](#capa-cognitiva-chimera-sistema-no-atencion)
+- [Inferencia distribuida (swarm)](#inferencia-distribuida-swarm)
+- [Seguridad y privacidad](#seguridad-y-privacidad)
+- [Desarrollo y tests](#desarrollo-y-tests)
+- [Documentacion](#documentacion)
+- [Para colaborar](#para-colaborar)
+
+---
+
+## Que es Cognia
+
+Cognia es una **arquitectura cognitiva** que aprende, razona y recuerda localmente. A
+diferencia de un chatbot, gestiona un ciclo de vida cognitivo completo: memoria episodica
+y semantica, un grafo de conocimiento, consolidacion de memoria durante el "sueno", y
+razonamiento que puede distribuirse entre varios dispositivos de una red local.
+
+Tres ideas la definen:
+
+1. **Local-first y privada.** Tus datos nunca salen de tu maquina salvo que conectes
+   nodos en una red mesh de forma explicita. Memorias cifradas en reposo (AES-256-GCM).
+2. **Ligera.** Inferencia en CPU mediante llama.cpp (GGUF cuantizado) o shards numpy puro
+   (INT4), sin PyTorch ni Tensorflow en el motor principal.
+3. **Cognitiva, no solo generativa.** Router de dominio (LOGOS/TECHNE/RHETOR), ciclo de
+   sueno de consolidacion, world-model que simula consecuencias antes de actuar, y una
+   capa cognitiva Chimera construida sobre todo lo anterior.
+
+---
+
+## Estado del proyecto (Junio 2026)
 
 | Fase | Estado | Descripcion |
 |------|--------|-------------|
-| **Fase 1-6 — Estabilizacion y Core** | COMPLETADA | Base limpia, NarrativeThread, MeshNode, Seguridad, Escalado. |
-| **Fase 7 — Shattering (SRDN)** | COMPLETADA | LOGOS/TECHNE/RHETOR sub-models, MoE, NPQ, RST, MLA. |
-| **Fase 8 — Commercial Release** | COMPLETADA | Instaladores, UX, Cifrado por defecto, Documentacion completa. |
-| **Fase 9-12 — Hardening y UX** | COMPLETADA | Proteccion SQLi/XSS/SSRF, Consentimiento de privacidad, Auto-update. |
-| **Fase 13 — Real Distributed Inference** | COMPLETADA | Inferencia real con Qwen2.5-Coder-3B INT4, auto-sharding. |
+| **Fases 1-6 — Estabilizacion y core** | COMPLETADA | Base limpia, NarrativeThread, MeshNode, seguridad, escalado. |
+| **Fase 7 — Shattering (SRDN)** | COMPLETADA | Sub-modelos LOGOS/TECHNE/RHETOR, MoE, NPQ, RST, MLA. |
+| **Fase 8 — Commercial release** | COMPLETADA | Instaladores, UX, cifrado por defecto, documentacion. |
+| **Fases 9-12 — Hardening y UX** | COMPLETADA | Proteccion SQLi/XSS/SSRF, consentimiento de privacidad, auto-update. |
+| **Fase 13 — Inferencia distribuida real** | COMPLETADA | Qwen2.5-Coder-3B INT4, auto-sharding, relay WebSocket. |
+| **Inferencia local llama.cpp** | OPERATIVA | GGUF como ruta primaria (~8-9 tok/s en CPU 4-core); shards numpy como fallback. |
+| **Capa cognitiva Chimera** | OPERATIVA | Band router de 3 bandas, cognitive loop, memoria jerarquica, world-model. |
 
-Ver [ROADMAP.md](ROADMAP.md) para el detalle tecnico de cada fase.
-
----
-
-## Que hace Cognia
-
-Cognia es una arquitectura cognitiva que aprende, razona y recuerda localmente. A diferencia de un simple chatbot, gestiona un ciclo de vida cognitivo completo incluyendo consolidacion de memoria durante el "sueño" y razonamiento distribuido entre multiples dispositivos.
-
-### Arquitectura Shattering (SRDN)
-
-Cognia v3 introduce **Sparse-Recursive Distillation Network**, permitiendo correr modelos de 3B+ parametros en dispositivos con poca RAM (Android, PCs antiguos) mediante:
-- **Auto-sharding:** El modelo se divide en fragmentos (shards) que pueden ejecutarse en distintos nodos de una red local.
-- **Cuantizacion INT4:** Pesos comprimidos un 75% sin perdida critica de precision, operados puramente en numpy.
-- **Inferencia hibrida:** Combina Ollama (para razonamiento general) con el motor nativo de Cognia (para tareas especializadas).
-
-### Modulos Principales
-
-| Modulo | Funcion |
-|--------|---------|
-| `KnowledgeGraph` | Memoria semantica estructurada y jerarquica. |
-| `InferenceEngine` | Razonamiento transitivo y herencia de propiedades. |
-| `ShatteringOrchestrator` | Gestion de inferencia distribuida y ruteo MoE. |
-| `ConsolidationEngine` | Ciclo de sueño: purga, refuerzo y olvido de memorias. |
-| `SecureStorage` | Cifrado AES-256-GCM de memorias episodicas. |
-| `CogniaMeshNode` | Red P2P para sincronizacion de conocimiento via CRDT. |
+Detalle tecnico por fase en [ROADMAP.md](ROADMAP.md). Bitacora de sesiones en
+[CLAUDE_NOTES.md](CLAUDE_NOTES.md) y [MANAGER_LOG.md](MANAGER_LOG.md).
 
 ---
 
-## Descarga e Instalacion
+## Instalacion
 
-### Instaladores rapidos
+### Instaladores rapidos (recomendado)
 
-Recomendado para la mayoria de los usuarios. Descarga el repositorio y ejecuta:
+Descarga el repositorio y ejecuta el instalador de tu plataforma:
 
 **Windows (PowerShell):**
 ```powershell
@@ -75,75 +79,210 @@ Recomendado para la mayoria de los usuarios. Descarga el repositorio y ejecuta:
 bash install.sh
 ```
 
+El instalador crea un entorno, instala dependencias y descarga el modelo (~300 MB en modo
+swarm, ~1.2 GB en modo standalone con los 4 shards).
+
 ### Desktop App (Electron)
 
-Para una experiencia visual, puedes construir el instalador de escritorio:
 ```bash
 cd cognia_desktop
 npm install
-npm run build:win  # o build:linux / build:mac
+npm run build:win    # o build:linux / build:mac
 ```
+
+### Releases precompilados
+
+| Plataforma | Archivo | Requisitos |
+|---|---|---|
+| Windows | `CogniaDesktop-x.x.x-Setup.exe` | Python 3.11+ |
+| Linux | `CogniaDesktop-x.x.x.AppImage` | Python 3.11+ |
+| Android | `cognia-mobile-x.x.x.apk` | Android 8+ |
+
+Releases: **https://github.com/tomascomenta-blip/cognia_v2/releases**
+
+> **Nota sobre Python:** el `venv/` del repo puede apuntar a un interprete sin wheels
+> disponibles. Se recomienda **Python 3.12**. En desarrollo, este repo usa
+> `venv312/Scripts/python.exe` — sustituyelo por tu interprete si difiere.
 
 ---
 
-## Uso — Comandos Principales
+## Uso — el REPL
 
-### Cognicion y Memoria
-- `aprender <texto> | <etiqueta>`: Enseñar un concepto nuevo.
-- `observar <texto>`: Guardar una observacion sin procesar.
-- `dormir`: Iniciar ciclo de consolidacion y limpieza (sueño).
-- `yo`: Ver estado interno de la memoria y perfil cognitivo.
-- `narrativa <texto>`: Recuperar hilos de episodios relacionados.
+Arranca Cognia (lanza el wizard la primera vez, luego abre el REPL interactivo):
 
-### Sistema y Red
-- `doctor`: Diagnostico completo del sistema y dependencias.
-- `update`: Actualizar Cognia, dependencias y migraciones de DB.
-- `seguridad`: Gestionar cifrado y llaves de acceso.
-- `grafo <concepto>`: Visualizar el grafo de conocimiento local.
-- `inferir <concepto>`: Ejecutar razonamiento transitivo sobre un tema.
-
-### Inferencia Distribuida (Qwen2.5)
 ```bash
-# Convertir pesos de HuggingFace a shards de Cognia
-python scripts/convert_hf_to_shards.py --hf-dir /path/to/qwen --out-dir model_shards/qwen-q4
+python -m cognia
+```
+
+Dentro del REPL, **cualquier texto sin `/` es chat cognitivo**; los comandos empiezan
+con `/`:
+
+```
+cognia> hola, que sabes hacer?          <- chat libre (inferencia)
+cognia> /ayuda                          <- lista completa de comandos
+cognia> aprender El sol es una estrella | astronomia
+cognia> /salir
+```
+
+### Comandos principales
+
+| Comando | Que hace |
+|---|---|
+| `<texto libre>` | Chat cognitivo (inferencia + memoria). |
+| `/ayuda` | Lista completa de comandos. |
+| `/yo` | Perfil cognitivo y estado interno de la memoria. |
+| `/memoria` | Estado de la memoria episodica/semantica. |
+| `aprender <texto> \| <etiqueta>` | Ensenar un concepto nuevo. |
+| `/observar <texto>` | Guardar una observacion sin procesar. |
+| `/dormir` | Ciclo de consolidacion y limpieza (sueno). |
+| `/grafo <concepto>` | Visualizar el grafo de conocimiento local. |
+| `/inferir <concepto>` | Razonamiento transitivo sobre un tema. |
+| `/sesiones` | Listar sesiones de chat recientes. |
+| `/modulos` | Modulos cognitivos activos. |
+| `/debug` | Alternar logs detallados. |
+| `/salir` | Salir del REPL. |
+
+### Subcomandos de la CLI
+
+```bash
+cognia                  # REPL (wizard en el primer uso)
+cognia init             # Re-ejecutar el wizard de configuracion
+cognia install-weights  # Descargar shards y configurar este equipo como nodo
+cognia install-weights --standalone   # Descargar los 4 shards para uso local completo
+cognia server           # Servidor web FastAPI (puerto 8000)
+cognia node             # Iniciar como nodo del swarm distribuido
+cognia coordinator      # Iniciar el coordinador del swarm (puerto 8001)
+cognia status           # Estado del swarm y de Ollama
+cognia leave            # Salir de la red y liberar el shard alojado
 ```
 
 ---
 
-## Seguridad y Privacidad
+## Modelo e inferencia
 
-- **Local-First:** Tus datos nunca salen de tu maquina a menos que conectes nodos en red mesh de forma explicita.
-- **Cifrado en reposo:** Memorias episodicas cifradas con AES-256-GCM.
-- **Proteccion Anti-Injection:** Filtros estructurales en prompts y consultas SQL parametrizadas.
-- **Privacidad Diferencial:** Ruido estadistico aplicado en sincronizaciones de red para proteger la identidad.
+Cognia resuelve cada prompt por la **primera ruta de inferencia disponible**, en este
+orden:
 
-Ver [docs/PRIVACY.md](docs/PRIVACY.md) y [docs/SECURITY.md](docs/SECURITY.md) para mas detalles.
+1. **llama.cpp + GGUF (ruta local primaria).** Si encuentra un GGUF de Qwen2.5-Coder-3B,
+   lo carga via `llama-cpp-python` o `llama-server`. Es la ruta mas rapida y de mejor
+   calidad en una sola maquina. El backend busca el modelo en `SHARD_WEIGHTS_DIR` (o en
+   `model_shards/qwen-coder-3b-q4/` por defecto).
+2. **Shards numpy INT4 (fallback distribuido / local).** Forward pass en numpy puro sin
+   PyTorch, repartible entre nodos del swarm. Es el corazon de la arquitectura Shattering.
+3. **Ollama (opcional).** Si defines `OLLAMA_URL`, se usa como motor de razonamiento
+   general alternativo.
+
+### Configurar el modelo
+
+El backend GGUF detecta automaticamente cualquiera de estas cuantizaciones (de mayor a
+menor prioridad): `Q4_0`, `Q3_K_S`, `Q4_K_M`, `Q5_K_M`. Para apuntar a una carpeta de
+modelos concreta, define la ruta **absoluta**:
+
+```
+# ~/.cognia/config.env
+SHARD_WEIGHTS_DIR=C:\ruta\a\model_shards\qwen-coder-3b-q4
+```
+
+> La ruta absoluta evita que la deteccion dependa del directorio de trabajo. Si la dejas
+> relativa, solo resuelve cuando arrancas desde la raiz del repo.
+
+**Usar otro modelo (p. ej. Qwen2.5-7B).** `LLAMA_GGUF_PATH` tiene prioridad sobre la
+deteccion automatica. Apunta directamente a un GGUF (en modelos split, al primer fragmento
+`-00001-of-NNNNN.gguf`; llama.cpp carga el resto):
+
+```
+# LLAMA_GGUF_PATH=C:\ruta\a\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf
+```
+
+> Un 7B es mas capaz pero pesa ~6 GB en RAM y, en una CPU de gama baja con poca memoria
+> libre, puede bajar a ~1 tok/s por swapping. El 3B es el equilibrio recomendado para
+> CPU-only.
+
+Variables de entorno relevantes:
+
+| Variable | Default | Uso |
+|---|---|---|
+| `SHARD_WEIGHTS_DIR` | `model_shards/qwen-coder-3b-q4` | Carpeta del GGUF / shards. |
+| `LLAMA_GGUF_PATH` | (vacio) | Ruta directa a un GGUF; tiene prioridad sobre la deteccion. |
+| `COGNIA_COORDINATOR_URL` | (vacio) | URL de la **API** del coordinador del swarm. Sin definir = modo local. |
+| `OLLAMA_URL` | `http://localhost:11434` | Motor Ollama opcional. |
+| `COGNIA_DATA_DIR` | `~/.cognia/data` | Datos y memoria local. |
+| `HF_TOKEN` | (vacio) | Token de HuggingFace para descargas privadas. |
 
 ---
 
-## Documentacion
+## Rendimiento (benchmarks reales)
 
-| Documento | Contenido |
-|-----------|-----------|
-| [docs/INSTALL.md](docs/INSTALL.md) | Guia detallada de instalacion y configuracion. |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Solucion a problemas comunes y diagnostico. |
-| [docs/PRIVACY.md](docs/PRIVACY.md) | Detalles sobre el manejo de datos y privacidad. |
-| [ROADMAP.md](ROADMAP.md) | Plan de desarrollo y estado de las fases. |
+Medido en un **Intel i3-10110U (4 cores, sin GPU dedicada)**, llama.cpp en CPU. Numeros
+de streaming real (ver [MANAGER_LOG.md](MANAGER_LOG.md)):
+
+| Configuracion | tok/s | Notas |
+|---|---|---|
+| Q3_K_S, threads=4 | **7.7** | +7% sobre Q4_0, calidad similar. |
+| Q4_0, threads=4 (CPU puro) | 7.2 – 8.8 | Ruta primaria por defecto. |
+| `stream_chat` (runs limpios) | 8.6 (pico 9.0) | Throughput real sostenido. |
+| Vulkan + Intel UHD (offload) | 3.7 – 3.8 | **Peor**: la memoria compartida es el cuello de botella. |
+
+**Notas honestas:**
+- El techo de este hardware ronda **8-9 tok/s**; el objetivo de >10 tok/s no se alcanza
+  sin GPU dedicada real. Una CPU/GPU mas potente sube estos numeros.
+- `cognia doctor` puede reportar ~0.6-0.8 tok/s: ese numero cuenta *palabras* en una
+  respuesta corta con arranque en frio, **no** es el throughput de streaming.
+- El offload a iGPU Intel via Vulkan es contraproducente; mantener CPU puro.
+
+---
+
+## Modulos principales
+
+| Modulo | Funcion |
+|--------|---------|
+| `KnowledgeGraph` | Memoria semantica estructurada y jerarquica. |
+| `InferenceEngine` | Razonamiento transitivo y herencia de propiedades. |
+| `ShatteringOrchestrator` | Inferencia distribuida y ruteo MoE (LOGOS/TECHNE/RHETOR). |
+| `ConsolidationEngine` | Ciclo de sueno: purga, refuerzo y olvido de memorias. |
+| `SecureStorage` | Cifrado AES-256-GCM de memorias episodicas. |
+| `CogniaMeshNode` | Red P2P para sincronizacion de conocimiento via CRDT. |
+| `BandRouter` | Enrutador de contexto/memoria de 3 bandas (LOCAL/MEDIA/GLOBAL). |
+| `CognitiveLoop` | Clasificador de ruta FAST/RECALL/DELIBERATE/ACT. |
 
 ---
 
 ## Arquitectura Diferencial
 
-Cognia no es un wrapper de LLM ni una interfaz de chat con memoria. Las diferencias tecnicas respecto a los sistemas convencionales son estructurales:
+Cognia no es un wrapper de LLM ni una interfaz de chat con memoria. Las diferencias
+tecnicas respecto a los sistemas convencionales son estructurales:
 
-- **Inferencia sin servidor central:** El forward pass ocurre en los dispositivos de los usuarios (shards .npz en numpy puro, sin PyTorch). El coordinador enruta pero no ejecuta ni almacena nada de la conversacion.
-- **Memoria episodica como almacen primario:** El conocimiento vive en SQLite local + VectorCache numpy por usuario, no en pesos compartidos. Cada instancia aprende de su propio historial sin exponer datos.
-- **Cuantizacion dinamica en produccion:** Los pesos escalan INT4 → INT8 → FP16 → FP32 segun frecuencia de acceso en tiempo real, con auto-decay a INT4 tras inactividad. El objetivo es minimizar RAM sin degradar las rutas calientes.
-- **Adaptacion personal sin fine-tuning global:** El ciclo de sueno entrena adapters LoRA (r=4-8) sobre episodios de alta importancia del usuario y los aplica en las proyecciones KV del transformer. Cada instancia desarrolla un sesgo de respuesta personalizado sin alterar los pesos base compartidos.
-- **Aprendizaje federado sobre adapters, no sobre parametros completos:** Los nodos contribuyen deltas LoRA con ruido gaussiano (sigma=0.01); el coordinador ejecuta FedAvg ponderado por tier. Los datos del usuario nunca salen del dispositivo.
-- **Ciclo de sueño autonomo de 8 pasos:** Consolidacion episodica, compresion conceptual, actualizacion del grafo de conocimiento, investigacion autonoma via GitHub, entrenamiento ELC, procesamiento emocional Plutchik, y auto-expansion de rango LoRA cuando el adapter satura.
-- **Economia de contribucion sin suscripciones:** El acceso prioritario se asigna por recursos aportados (disco, computo, uptime), no por pago. Los tiers (basic/standard/premium) definen RPM y modelos accesibles, con enforcement por sliding window por node_id.
-- **Router de dominio sobre tres sub-modelos:** LOGOS (razonamiento, temp=0.3), TECHNE (codigo, temp=0.15), RHETOR (escritura, temp=0.7) — tres perfiles de generacion distintos sobre la misma base Qwen2.5-Coder-3B INT4.
+- **Inferencia sin servidor central:** El forward pass ocurre en los dispositivos de los
+  usuarios (shards .npz en numpy puro, sin PyTorch). El coordinador enruta pero no ejecuta
+  ni almacena nada de la conversacion.
+- **Memoria episodica como almacen primario:** El conocimiento vive en SQLite local +
+  VectorCache numpy por usuario, no en pesos compartidos. Cada instancia aprende de su
+  propio historial sin exponer datos.
+- **Cuantizacion dinamica en produccion:** Los pesos escalan INT4 → INT8 → FP16 → FP32
+  segun frecuencia de acceso en tiempo real, con auto-decay a INT4 tras inactividad. El
+  objetivo es minimizar RAM sin degradar las rutas calientes.
+- **Adaptacion personal sin fine-tuning global:** El ciclo de sueno entrena adapters LoRA
+  (r=4-8) sobre episodios de alta importancia del usuario y los aplica en las proyecciones
+  KV del transformer. Cada instancia desarrolla un sesgo de respuesta personalizado sin
+  alterar los pesos base compartidos.
+- **Agregacion federada de SOLO deltas LoRA (NO FedAvg sobre parametros completos):** El
+  coordinador (`coordinator/federated_store.py`, cableado en `coordinator/app.py`) combina
+  unicamente los adapters LoRA que cada nodo aporta (matrices `k_A/k_B/v_A/v_B`, r=4-8),
+  nunca los pesos base del modelo. La combinacion es un **promedio ponderado de deltas
+  LoRA**: peso por tier del nodo × afinidad semantica (similitud coseno del delta efectivo
+  `k_A@k_B`, `v_A@v_B` contra el adapter global vigente, `w = tier × (1 + 0.3·cos)`), que
+  baja el peso de aportes divergentes sin un set de validacion central. Los clientes suman
+  **ruido gaussiano (sigma=0.01)** antes de enviar. Esto NO es FedAvg sobre parametros
+  completos (prohibido por diseno): los pesos base compartidos jamas se promedian ni se
+  alteran; solo se agrega el subespacio LoRA de bajo rango.
+- **Ciclo de sueno autonomo:** Consolidacion episodica, compresion conceptual,
+  actualizacion del grafo de conocimiento, investigacion autonoma, entrenamiento ELC,
+  procesamiento emocional Plutchik, y auto-expansion de rango LoRA cuando el adapter satura.
+- **Router de dominio sobre tres sub-modelos:** LOGOS (razonamiento, temp=0.3), TECHNE
+  (codigo, temp=0.15), RHETOR (escritura, temp=0.7) — tres perfiles de generacion distintos
+  sobre la misma base Qwen2.5-Coder-3B INT4.
+
+---
 
 ## Capa Cognitiva Chimera (sistema, no atencion)
 
@@ -160,8 +299,8 @@ Flujo end-to-end (whitepaper seccion 11), un solo comando:
 python -m cognia.chimera "calcula 2+2"
 ```
 
-Etapas reales del trace: INPUT -> bandas HYDRA -> route cognitivo -> memoria recuperada
--> plan -> critica -> verify -> world-model (riesgo) -> tools -> output -> memoria escrita.
+Etapas reales del trace: INPUT → bandas HYDRA → route cognitivo → memoria recuperada
+→ plan → critica → verify → world-model (riesgo) → tools → output → memoria escrita.
 
 ### Que se implemento: literal vs adaptado vs descartado
 
@@ -178,10 +317,9 @@ Etapas reales del trace: INPUT -> bandas HYDRA -> route cognitivo -> memoria rec
 | Aprendizaje continuo (3 velocidades) | **PARCIAL ya existe** | Episodico, adapters LoRA, consolidacion lenta. No se toco en esta capa. | `cognia/memory/*` |
 | Espacio latente unificado U | **DESCARTADO** | Exigiria entrenamiento conjunto; los subsistemas se comunican por texto/vectores. | - |
 
-### Comandos exactos para reproducir cada prueba
+### Reproducir cada prueba
 
-> El `venv/` del repo apunta a un Python 3.14 con wheels ausentes. Usar un interprete 3.12.
-> En esta maquina: `venv312/Scripts/python.exe`. Sustituir por tu interprete si difiere.
+> Usar un interprete Python 3.12. En este repo: `venv312/Scripts/python.exe`.
 
 ```
 # C1 HYDRA 3 bandas
@@ -205,9 +343,84 @@ venv312/Scripts/python.exe -m cognia.chimera "refactoriza el orchestrator paso a
 venv312/Scripts/python.exe -m pytest tests/test_chimera.py -q
 ```
 
-## Para Colaborar
+---
 
-Lee el [ROADMAP.md](ROADMAP.md) para entender la direccion actual. Cognia prioriza la eficiencia (CPU-only), la privacidad y la estabilidad. No se aceptan dependencias pesadas (PyTorch/Tensorflow) en el motor de inferencia principal.
+## Inferencia distribuida (swarm)
+
+La arquitectura **Shattering (SRDN — Sparse-Recursive Distillation Network)** permite correr
+modelos de 3B+ parametros en equipos con poca RAM repartiendo el modelo en shards:
+
+- **Auto-sharding:** el modelo se divide en fragmentos que corren en distintos nodos de una
+  red local, coordinados por un relay WebSocket.
+- **Cuantizacion INT4:** pesos comprimidos ~75% operados puramente en numpy.
+- **Coordinador sin estado de conversacion:** enruta tokens entre shards; no almacena ni
+  ejecuta el contenido de la sesion.
+
+```bash
+# Convertir pesos de HuggingFace a shards de Cognia
+python scripts/convert_hf_to_shards.py --hf-dir /ruta/a/qwen --out-dir model_shards/qwen-q4
+
+# Levantar coordinador y nodos
+cognia coordinator                       # equipo A (puerto 8001)
+cognia install-weights --coordinator http://A:8001   # equipo B descarga su shard
+cognia node                              # equipo B se une al swarm
+```
+
+> Para usar el swarm, `COGNIA_COORDINATOR_URL` debe apuntar a la **API** del coordinador
+> (p. ej. `https://<servicio>.up.railway.app`), no a una URL de dashboard.
+
+---
+
+## Seguridad y privacidad
+
+- **Local-First:** tus datos nunca salen de tu maquina salvo que conectes nodos mesh
+  explicitamente.
+- **Cifrado en reposo:** memorias episodicas con AES-256-GCM.
+- **Proteccion anti-injection:** filtros estructurales en prompts y consultas SQL
+  parametrizadas (sin `sqlite3.connect()` directo; via `storage/db_pool.py`).
+- **Privacidad diferencial:** ruido estadistico en sincronizaciones de red para proteger
+  la identidad.
+
+Mas detalle en [docs/PRIVACY.md](docs/PRIVACY.md) y [docs/SECURITY.md](docs/SECURITY.md).
+
+---
+
+## Desarrollo y tests
+
+Suite rapida (excluye el e2e de inferencia, lento/pesado):
+
+```bash
+python -m pytest tests/ --ignore=tests/test_e2e_inference.py -q
+```
+
+Convenciones del repo (ver [ROADMAP.md](ROADMAP.md) y `CLAUDE.md`):
+
+- **Sin PyTorch/Tensorflow** en el motor de inferencia principal.
+- **Windows CP1252:** los `print()` y strings del CLI usan ASCII puro (sin emojis ni
+  box-drawing). Este README, al ser documentacion Markdown, si usa Unicode.
+- **Sin constantes de modelo hardcodeadas:** usar `shattering/model_constants.py`.
+- **Cada subsistema cierra con una prueba CLI real** — nada de mocks/stubs.
+
+---
+
+## Documentacion
+
+| Documento | Contenido |
+|-----------|-----------|
+| [docs/INSTALL.md](docs/INSTALL.md) | Guia detallada de instalacion y configuracion. |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Solucion a problemas comunes y diagnostico. |
+| [docs/PRIVACY.md](docs/PRIVACY.md) | Manejo de datos y privacidad. |
+| [ROADMAP.md](ROADMAP.md) | Plan de desarrollo y estado de las fases (fuente de verdad). |
+| [CLAUDE_NOTES.md](CLAUDE_NOTES.md) | Log real de sesiones de desarrollo y fixes. |
+| [MANAGER_LOG.md](MANAGER_LOG.md) | Bitacora del manager (benchmarks, decisiones). |
+
+---
+
+## Para colaborar
+
+Lee el [ROADMAP.md](ROADMAP.md) para entender la direccion actual. Cognia prioriza la
+eficiencia (CPU-only), la privacidad y la estabilidad. No se aceptan dependencias pesadas
+(PyTorch/Tensorflow) en el motor de inferencia principal.
 
 ---
 © 2026 Cognia Project. Distribuido bajo licencia MIT.
