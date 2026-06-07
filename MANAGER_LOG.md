@@ -3,6 +3,14 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-07] CYCLE 13 -- Cobertura adicional de modulos Chimera (edge-cases)
+- Archivos modificados: tests/test_reranker.py, tests/test_goal_contract.py, tests/test_action_simulator.py (solo tests; CERO cambios a codigo de produccion)
+- Resultado tests: PASS -- 42/42 passed en aislamiento (antes 23; +19 tests nuevos), 6.34s
+- Notas: cierre de huecos reales de cobertura sin tocar produccion.
+  * reranker: top_k 0/negativo/no-numerico, dedup cross-source episodic<->semantic, normalizacion de label (case+whitespace), timestamp futuro (recency=1.0) y malformado (neutral), clamp de importance sobre el cap 3.0, format_ranked en []/None.
+  * goal_contract: CASO CRITICO complete is True (todas las criterios satisfechos -- la garantia anti-alucinacion nunca se probaba en la direccion positiva), lista vacia no-complete (guard total>0), text_present con fallback a evidence["text"] y evidence=None, reanchor_hint->str, format_status lineas esperadas.
+  * action_simulator: banda SANDBOX aislada (risk en [MED,HIGH)), plan vacio -> PROCEED horizonte 0, un paso CONFIRM tainta todo el plan, invariantes risk/uncertainty en [0,1] para todas las formas de entrada.
+
 ## [2026-06-06] CYCLE 10 -- Phase 62: Session Warm Starter (SWS)
 - Archivos modificados: cognia/context/session_warm_starter.py (nuevo), tests/test_session_warm_starter.py (nuevo), cognia_desktop_api.py
 - Resultado tests: PASS -- 22/22 passed (test_session_warm_starter.py); suite completa: 2121 passed, 8 failed pre-existentes, 9 errors pre-existentes
@@ -1379,3 +1387,18 @@ MODULOS AUDITADOS CON 0 REGRESIONES:
 - Los 8 fallos residuales del suite (5 test_phase9_security, 2 test_cli_synthesis, 1 test_context_injector) son contaminacion cross-test de sys.modules: decenas de tests CLI mockean cognia.cognia/web_app sin limpiar. Pasan en aislamiento.
 - Decision: NO refactorizar (masivo, riesgo de romper 2174 verdes, deuda preexistente no introducida por esta sesion, codigo de producto correcto). Documentado en ROADMAP Phase 53 y aqui.
 - Doc: ROADMAP.md Phase 53 (Chimera Cognitive Layer, 53.1-53.8).
+
+## [2026-06-07] CYCLE 10 — Banda MEDIA con resumen real (compressed memory)
+- Archivos: cognia/context/band_router.py (MEDIA usa SessionSummarizer.extract_summary), tests/test_band_router.py (8->10 tests)
+- Resultado tests: PASS — band_router 10 passed; capstone CLI fluye el summary MEDIA sin romper
+- Notas: la banda MEDIA ahora es "memoria resumida" de verdad, no solo labels. Additivo, LOCAL/GLOBAL intactos.
+
+## [2026-06-07] CYCLE 11 — GoalContract verificable + anti-goal-drift (s8.3)
+- Archivos: cognia/agents/goal_contract.py (NEW), tests/test_goal_contract.py (NEW, 6 tests)
+- Resultado tests: PASS — 6 passed; demo 4/4 contra repo real, drift 0.0 off-topic
+- Notas: criterios evaluados por checks reales (file/text/command), no auto-reporte. Reutiliza AnchorTracker. Modulo nuevo.
+
+## [2026-06-07] CYCLE 12 — Re-ranker de banda GLOBAL (s5.3/s12)
+- Archivos: cognia/memory/reranker.py (NEW), cognia/context/band_router.py (_retrieve_global), tests/test_reranker.py (NEW, 8), tests/test_band_router.py (11)
+- Resultado tests: PASS — 19 passed (reranker 8 + band_router 11)
+- Notas: fusion episodic+semantic por similitud+recencia+importancia, dedup, clamp sim negativa. Fallback al concat previo. LOCAL/MEDIA/persona intactos.

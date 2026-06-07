@@ -12,6 +12,7 @@ import sys
 from cognia.agents.goal_contract import (
     Criterion,
     GoalContract,
+    format_status,
 )
 
 
@@ -122,3 +123,81 @@ def test_drift_off_topic_lower_than_on_topic():
     assert 0.0 <= off_topic.drift <= 1.0
     # Off-topic query overlaps less with the anchor -> strictly lower score.
     assert off_topic.drift < on_topic.drift
+
+
+# --- additional coverage -----------------------------------------------------
+
+def test_complete_true_when_all_criteria_satisfied(tmp_path):
+    # THE positive case: a contract is only "complete" when EVERY criterion is
+    # independently verified. This is the anti progress-hallucination guarantee
+    # and must be exercised in the all-pass direction, not just the failing one.
+    f = tmp_path / "built.txt"
+    f.write_text("HYDRA band router is built", encoding="utf-8")
+
+    contract = GoalContract.from_spec(
+        "ship it",
+        [
+            {"kind": "file_exists", "path": str(f), "description": "artifact exists"},
+            {"kind": "text_in_file", "path": str(f), "substring": "HYDRA",
+             "description": "artifact mentions HYDRA"},
+            {"kind": "text_present", "substring": "ok", "evidence_key": "log",
+             "description": "evidence shows ok"},
+        ],
+    )
+    status = contract.check(evidence={"log": "all checks ok"})
+    assert status.satisfied_count == 3
+    assert status.total == 3
+    assert status.complete is True
+
+
+def test_empty_criteria_is_not_complete():
+    # total == 0 must NOT count as complete (the `total > 0` guard): an empty
+    # contract has proven nothing.
+    status = GoalContract("do something", []).check()
+    assert status.total == 0
+    assert status.satisfied_count == 0
+    assert status.complete is False
+
+
+def test_text_present_defaults_to_evidence_text_key():
+    # With no evidence_key, the check reads evidence["text"].
+    contract = GoalContract.from_spec(
+        "default key",
+        [{"kind": "text_present", "substring": "done", "description": "has"}],
+    )
+    status = contract.check(evidence={"text": "the task is done"})
+    assert status.results[0].satisfied is True
+
+
+def test_text_present_with_no_evidence_is_unsatisfied():
+    # No evidence supplied at all -> unsatisfied, never raises.
+    contract = GoalContract.from_spec(
+        "no evidence",
+        [{"kind": "text_present", "substring": "done", "evidence_key": "out",
+          "description": "has"}],
+    )
+    status = contract.check(evidence=None)
+    assert status.results[0].satisfied is False
+    assert status.complete is False
+
+
+def test_reanchor_hint_returns_string():
+    # reanchor_hint must always return a string (possibly empty), never raise.
+    contract = GoalContract("refactor the model shards loader", [],
+                            session_id="hint-test")
+    hint = contract.reanchor_hint("write a poem about the ocean")
+    assert isinstance(hint, str)
+
+
+def test_format_status_renders_expected_lines(tmp_path):
+    f = tmp_path / "ok.txt"
+    f.write_text("x", encoding="utf-8")
+    contract = GoalContract.from_spec(
+        "render me",
+        [{"kind": "file_exists", "path": str(f), "description": "exists"}],
+    )
+    rendered = format_status(contract.check())
+    assert "GOAL: render me" in rendered
+    assert "SATISFIED: 1/1" in rendered
+    assert "COMPLETE: yes" in rendered
+    rendered.encode("ascii")  # ASCII-safe for Windows stdout

@@ -17,6 +17,7 @@ from cognia.memory.reranker import (
     W_SIM,
     W_RECENCY,
     W_IMPORTANCE,
+    _NEUTRAL_RECENCY,
 )
 
 
@@ -118,3 +119,75 @@ def test_negative_similarity_clamped():
     res = rerank([], [_sem("neg", -0.5, confidence=0.0)], top_k=5)
     assert len(res) == 1
     assert res[0].score >= 0.0
+
+
+# --- additional edge coverage ------------------------------------------------
+
+def test_top_k_zero_returns_empty():
+    # top_k=0 is a valid request for "no results" and must return [], not all.
+    res = rerank([_ep("a", 0.9), _ep("b", 0.8)], [], top_k=0)
+    assert res == []
+
+
+def test_top_k_negative_clamped_to_empty():
+    # A negative top_k is clamped to 0 (documented), never slices from the end.
+    res = rerank([_ep("a", 0.9), _ep("b", 0.8)], [], top_k=-3)
+    assert res == []
+
+
+def test_top_k_non_numeric_defaults_to_five():
+    # A non-numeric top_k falls back to the documented default of 5.
+    eps = [_ep("e%d" % i, 0.1 * (i + 1)) for i in range(9)]
+    res = rerank(eps, [], top_k="not a number")
+    assert len(res) == 5
+
+
+def test_cross_source_dedup_keeps_higher_score():
+    # The SAME label surfacing from BOTH stores must collapse to one item, and
+    # the higher-scoring source survives (here the high-similarity semantic hit).
+    ep = _ep("shard routing", 0.20)
+    sem = _sem("shard routing", 0.90)
+    res = rerank([ep], [sem], top_k=5)
+    matches = [r for r in res if r.label == "shard routing"]
+    assert len(matches) == 1
+    assert matches[0].source == "semantic"
+
+
+def test_norm_label_dedup_is_case_and_whitespace_insensitive():
+    # "Shard   Routing" and "shard routing" are the same memory after
+    # normalization -> exactly one survives.
+    res = rerank([_ep("Shard   Routing", 0.30), _ep("shard routing", 0.80)],
+                 [], top_k=5)
+    assert len(res) == 1
+    assert abs(res[0].similarity - 0.80) < 1e-9
+
+
+def test_future_timestamp_clamps_recency_to_one():
+    # A timestamp in the future must clamp recency to the most-recent value 1.0
+    # (never negative age, never > 1).
+    future = (datetime.now() + timedelta(days=10)).isoformat()
+    res = rerank([_ep("future", 0.5, importance=1.0, timestamp=future)], [], top_k=5)
+    assert len(res) == 1
+    assert res[0].recency == 1.0
+
+
+def test_malformed_timestamp_falls_back_to_neutral_recency():
+    # A garbage timestamp string must not raise and must yield neutral recency.
+    res = rerank([_ep("bad", 0.5, importance=1.0, timestamp="not-a-real-date")],
+                 [], top_k=5)
+    assert len(res) == 1
+    assert res[0].recency == _NEUTRAL_RECENCY
+
+
+def test_importance_above_cap_is_clamped():
+    # Episodic importance is on a 0..3 scale; a value above the cap must clamp
+    # the normalized importance to 1.0 (never > 1).
+    res = rerank([_ep("hot", 0.5, importance=9.0)], [], top_k=5)
+    assert len(res) == 1
+    assert res[0].importance == 1.0
+
+
+def test_format_ranked_empty_and_none():
+    # Rendering an empty or None list returns an empty list, never raises.
+    assert format_ranked([]) == []
+    assert format_ranked(None) == []

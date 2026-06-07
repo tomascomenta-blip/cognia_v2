@@ -114,3 +114,51 @@ def test_format_prediction_is_ascii(sim):
     assert rendered.strip()
     rendered.encode("ascii")  # must not raise
     assert "RECOMMENDATION" in rendered
+
+
+# --- additional coverage -----------------------------------------------------
+
+def test_medium_risk_lands_in_sandbox_band(sim):
+    # Two destructive verbs, no broad scope, no network -> risk in [MED, HIGH):
+    # not high enough to CONFIRM, not low enough to PROCEED -> SANDBOX. This is
+    # the only band the existing suite never asserted directly.
+    p = sim.simulate("remove and delete the cache file")
+    assert RISK_MED <= p.risk < RISK_HIGH
+    assert p.recommendation == "SANDBOX"
+
+
+def test_empty_plan_is_safe_proceed(sim):
+    # An empty plan has nothing to execute -> zero risk, PROCEED, horizon 0.
+    agg = sim.predict_plan([])
+    assert agg["horizon"] == 0
+    assert agg["max_risk"] == 0.0
+    assert agg["any_confirm"] is False
+    assert agg["recommendation"] == "PROCEED"
+
+
+def test_one_confirm_step_taints_whole_plan(sim):
+    # A single irreversible/destructive step must force plan-level CONFIRM even
+    # if other steps are trivially safe -- the user must approve before it runs.
+    safe = SubTask(id="t0", description="Validate syntax",
+                   tool_required="validate_python")
+    danger = SubTask(id="t1",
+                     description="delete remove drop and format the disk",
+                     tool_required="obliterate_records")
+    agg = sim.predict_plan([safe, danger])
+    assert agg["any_confirm"] is True
+    assert agg["recommendation"] == "CONFIRM"
+
+
+def test_risk_and_uncertainty_always_in_unit_interval(sim):
+    # The fused risk/uncertainty must never escape [0, 1] for any input shape.
+    probes = [
+        sim.predict_tool("validate_python", {"code": "x=1"}),
+        sim.predict_tool("execute_python",
+                         {"code": "import os, subprocess, shutil; os.remove('x')"}),
+        sim.predict_tool("totally_made_up_tool", {"delete": "everything"}),
+        sim.simulate("delete all files in C:/ and format disk and wipe everything"),
+        sim.simulate("read the manual"),
+    ]
+    for p in probes:
+        assert 0.0 <= p.risk <= 1.0
+        assert 0.0 <= p.uncertainty <= 1.0
