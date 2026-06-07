@@ -5737,24 +5737,20 @@ def repl():
                 learn_user_traits(ai, raw)
             except Exception:
                 pass
-            # ── Auto-inference: detect if the question needs tools ────────
-            import re as _re_tool
-            _TOOL_PATTERNS = [
-                (r'\b(lee|leer|mostrar?|ver)\s+(el\s+)?(archivo|fichero|codigo|file)\s+(\S+)', 'leer_archivo'),
-                (r'\b(busca|buscar|encuentra|encontrar|grep)\s+.{3,50}\s+en\s+\S+', 'buscar'),
-                (r'\b(ejecuta|ejecutar|corre|correr|run)\s+.{3,80}', 'ejecutar'),
-                (r'\bque\s+(contiene|tiene)\s+(el\s+)?(archivo|fichero)\s+(\S+)', 'leer_archivo'),
-                (r'\b(lista|listar|lista\s+los?\s+archivos?)\s+(en\s+|de\s+)?\S+', 'listar'),
-                (r'\b(escribe|escribir|crea\s+el\s+archivo|crear?\s+archivo)\s+\S+', 'escribir_archivo'),
-            ]
-            _needs_tool = False
-            for _tp, _tool_name in _TOOL_PATTERNS:
-                if _re_tool.search(_tp, raw, _re_tool.IGNORECASE):
-                    _needs_tool = True
-                    break
+            # ── Auto-routing: is this an ACTION (run the agent) or chat? ──
+            # No command needed: a natural-language request to do something is
+            # detected and routed to the agent automatically, with a tool hint.
+            try:
+                from cognia.agent.intent import detect as _detect_intent
+                _intent = _detect_intent(raw)
+            except Exception:
+                _intent = None
+            _needs_tool = bool(_intent and _intent.needs_agent)
             if _needs_tool:
-                _print_line("[detail]Detectada operacion de herramienta -- activando agente...[/detail]")
-                _resp = _run_agent_task(ai, raw, _print_line)
+                _hint = _intent.suggested_tool
+                _hmsg = f" (sugiero {_hint})" if _hint else ""
+                _print_line(f"[detail]Detectada accion{_hmsg} -- activando agente...[/detail]")
+                _resp = _run_agent_task(ai, raw, _print_line, hint=_hint)
                 _show_response(_resp, _ACCENT)
                 _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
                 _persist_turn(ai, raw, _resp)
@@ -5884,7 +5880,7 @@ def repl():
                         _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
 
 
-def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None) -> str:
+def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None, hint: str = "") -> str:
     """
     ReAct-style agent loop with a CONCRETE tool registry (cognia/agent/tools.py)
     and DYNAMIC step budgeting (cognia/agent/loop.py).
@@ -5942,6 +5938,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None) -> str:
         _prior_ctx = "CONTEXTO PREVIO:\n" + "\n".join(_prior_lines) + "\n\n"
 
     history = [f"{_prior_ctx}TAREA: {task}"]
+    if hint:
+        # Bias the first step toward the auto-detected tool (the agent is still
+        # free to choose another; it's a hint, not a command).
+        history.append(f"PISTA: probablemente convenga empezar con la herramienta '{hint}'.")
     _working_memory: dict = {}
     result_text = ""
 
