@@ -49,6 +49,27 @@ class ChatHistory:
         conn.close()
         return list(reversed(rows))
 
+    def get_recent_turns(self, n: int = 20) -> list:
+        """
+        Full-content user/assistant turns for restoring conversation continuity
+        across restarts (seeds the REPL's in-memory _history buffer).
+
+        Unlike get_recent(), content is NOT truncated and only user/assistant
+        roles are returned, in chronological (oldest-first) order. Ordered by id
+        (monotonic autoincrement) rather than the textual timestamp so ties and
+        clock quirks can't scramble turn order.
+        """
+        conn = db_connect(self.db)
+        c = conn.cursor()
+        c.execute("""
+            SELECT role, content FROM chat_history
+            WHERE role IN ('user', 'assistant')
+            ORDER BY id DESC LIMIT ?
+        """, (n,))
+        rows = [{"role": r[0], "content": r[1]} for r in c.fetchall()]
+        conn.close()
+        return list(reversed(rows))
+
     def get_frequent_topics(self, top_k: int = 5) -> list:
         conn = db_connect(self.db)
         c = conn.cursor()

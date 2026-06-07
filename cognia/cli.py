@@ -155,6 +155,34 @@ _fast_mode        = False
 _session_feedback = []
 _history: list    = []
 
+# Conversation continuity: how many prior messages to restore from chat_history
+# into _history at REPL startup. Bounded so old sessions don't bloat the prompt
+# (the streaming path only feeds _history[-16:] to the model anyway), while still
+# giving the synthesis slash commands (/temas, /resumen) recent material.
+_HISTORY_SEED_N = 20
+
+
+def _persist_turn(ai, user_text: str, assistant_text: str) -> None:
+    """
+    Append a completed turn to the in-memory _history buffer AND persist it to
+    chat_history so the conversation survives a restart.
+
+    Only the streaming and agent paths call this; the articulated path persists
+    itself inside responder_articulado() (respuestas_articuladas.py logs both the
+    user and assistant rows), so routing it through here too would double-log.
+
+    Best-effort persistence: a DB hiccup must never break the chat loop.
+    """
+    _history.append({"role": "user", "content": user_text})
+    _history.append({"role": "assistant", "content": assistant_text})
+    try:
+        ch = getattr(ai, "chat_history", None)
+        if ch is not None:
+            ch.log(role="user", content=user_text)
+            ch.log(role="assistant", content=assistant_text)
+    except Exception:
+        pass
+
 # ---------------------------------------------------------------------------
 # Optional FeedbackLearner
 # ---------------------------------------------------------------------------
@@ -4030,6 +4058,19 @@ def repl():
         ai = Cognia()
     _init_lines[:] = buf.getvalue().splitlines()
 
+    # Restore conversation continuity across restarts: seed the in-memory
+    # _history (multi-turn prompt context) from persisted chat_history so the
+    # model can follow a thread that started in a previous session.
+    try:
+        _restored = ai.chat_history.get_recent_turns(_HISTORY_SEED_N)
+        if _restored:
+            _history[:] = _restored
+            _init_lines.append(
+                f"[OK] Continuidad: {len(_restored)} mensajes de sesiones previas restaurados"
+            )
+    except Exception:
+        pass
+
     # Startup panel + animated modules
     _print_startup_panel()
     _animate_startup(_init_lines)
@@ -5483,8 +5524,7 @@ def repl():
                 _resp = _run_agent_task(ai, raw, _print_line)
                 _show_response(_resp, "cyan")
                 _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
-                _history.append({"role": "user", "content": raw})
-                _history.append({"role": "assistant", "content": _resp})
+                _persist_turn(ai, raw, _resp)
             if not _needs_tool:
                 # Fast-path: stream tokens from llama.cpp if available
                 _streamed = False
@@ -5555,8 +5595,7 @@ def repl():
                                         "output":  _full_response,
                                         "elapsed": elapsed,
                                     })
-                                    _history.append({"role": "user", "content": raw})
-                                    _history.append({"role": "assistant", "content": _full_response})
+                                    _persist_turn(ai, raw, _full_response)
                                     try:
                                         ai.observe(_full_response[:300], provided_label="respuesta_streaming")
                                     except Exception:
