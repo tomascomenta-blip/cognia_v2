@@ -1589,3 +1589,43 @@ NOTA: NO se toco codigo de producto. cognia.cli con rich real escribe a sys.stdo
 (rich.Console respeta swaps de sys.stdout en runtime — verificado), asi que la captura del test
 funciona una vez que cognia.cli/rich quedan reales y con identidad unica.
 ARCHIVOS: tests/test_cli_goal_priority.py, tests/test_cli_goal_commands.py
+
+== 2026-06-07 | Sesion: memoria conversacional, vector-dim, agente self-extending, release 3.3.0 ==
+Trabajo verificado end-to-end contra el modelo real (no solo pytest). venv312 siempre.
+1) Memoria conversacional intra-sesion: el fast-path de streaming mandaba solo el mensaje actual
+   (_apply_qwen_template(raw)); _history nunca se releia. Fix: pasar a /v1/chat/completions
+   (stream_chat con messages reales); _apply_qwen_template gana history como fallback.
+   Commits 271bb1f, bc66733. Verificado: turno N+1 edita el HTML del turno N.
+2) Persistencia entre sesiones: el REPL no escribia turnos del streaming a chat_history y arrancaba
+   con _history=[]. Fix: ChatHistory.get_recent_turns()+_persist_turn(); repl() siembra _history.
+   Commit 2dc749b. Verificado: dato persistido en "sesion 1" recordado tras reinicio.
+3) /resume <id|directorio>: feature de sesiones a medio construir y ROTA (consultaba columnas
+   session_id/ts inexistentes). Fix: migracion AGNOSTICA de version (otro runner comparte
+   schema_version) que agrega session_id+cwd a chat_history; set_session() etiqueta todos los
+   caminos; /resume + reparados /sesiones,/buscar-historial,/sesion-ver. Commit a5580f6.
+4) Bug 64/384 del VectorCache: config.VECTOR_DIM era "384 if HAS_SEMANTIC else 64"; sin
+   sentence-transformers las consultas salian en dim 64 vs matriz 384 -> matmul crash -> 6.3s por
+   busqueda. Fix: VECTOR_DIM=384 fijo (n-gram tambien 384) + scripts/migrate_vector_dim.py reembebio
+   7094 vectores. Commit 8da3cc2. Medido: 6342ms -> 60ms; 20132 vectores buscables.
+5) Identidad: el streaming decia "creado por Anthropic" (alucinacion Qwen). Fix: COGNIA_SYSTEM_PROMPT
+   canonico en shattering/model_constants.py (creador = Tomas Montes, "no Anthropic ni Alibaba")
+   usado por cli/orchestrator/pipeline. Commit 81bef21.
+6) Agente (3 mejoras): registry concreto de tools (cognia/agent/tools.py, 9->25 tools: recordar/RAG,
+   kg_*, calcular, git_*, tests, http_get...); pasos dinamicos (cognia/agent/loop.py:
+   estimate_step_budget 1-5 -> 2..28, techo AGENT_HARD_CAP=40, anti-estancamiento); system prompt
+   adaptativo por usuario (cognia/agent/adaptive_prompt.py: nombre/idioma/verbosidad en user_profile).
+   _run_agent_task reescrito para usar el registry. Commit 339f520. Release 3.3.0 a PyPI (cognia-ai).
+7) Self-extending tools (cognia/agent/tool_synthesis.py): el modelo escribe run(args)->str, se
+   verifica de verdad (scan estatico de imports allowlist + sandbox real contra un test + esperado)
+   con loop de auto-reparacion; solo si pasa se registra. Fix de bug pre-existente en
+   program_creator/sandbox_runner.py (del _ri rompia TODO import; saque builtins de la blocklist).
+   Commit fecca33. Verificado: el modelo olvido un import y se auto-reparo en intento 2.
+8) Investigacion de fondo bajo consumo (cognia/agent/background_research.py): cola tool_ideas +
+   background_tick() guardado por RAM libre; señal wanted_tools cuando el agente pide tool inexistente;
+   daemon detached + Tarea Programada Windows (scripts/cognia_research_daemon.py,
+   install_research_daemon.py) que sale entre ticks (RAM ~0 en reposo). Prompt evoluciona con
+   synthesized_capabilities_note(). Commit d740c04. Verificado: idea en cola -> sintetizada+verificada.
+SUITE COMPLETA: 2337 passed, 0 failed (18 min). +54 tests nuevos en la sesion.
+META: agregada seccion "Metodo de trabajo" a CLAUDE.md (venv312, verificar-antes-de-construir,
+verificacion REAL no solo pytest, regresion por bug, commits chicos+push, secretos, validar codigo
+generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (vencido) removido.
