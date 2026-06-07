@@ -38,6 +38,9 @@ try:
     _HAS_RICH = True
 except ImportError:
     _HAS_RICH = False
+    # rich is optional; without it _console stays None and themes are never
+    # applied, but _THEMES is still built at import time -- keep Theme harmless.
+    Theme = dict
 
 # ---------------------------------------------------------------------------
 # Optional: prompt_toolkit
