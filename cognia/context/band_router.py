@@ -157,6 +157,17 @@ class HydraContextRouter:
         except Exception:
             self._semantic = None
 
+        # -- Summarizer (deterministic extractive compressor for MEDIA) -----
+        # WHY: MEDIA is the "compressed/summarized" band per the whitepaper, so
+        # it must emit a real summary -- not just labels. Built lazily and
+        # defensively so a missing dep never breaks construction.
+        self._summarizer = None
+        try:
+            from cognia.summarizer.session_summarizer import SessionSummarizer
+            self._summarizer = SessionSummarizer()
+        except Exception:
+            self._summarizer = None
+
     # -- Persona ----------------------------------------------------------
 
     def _route_persona(self, query: str):
@@ -235,9 +246,26 @@ class HydraContextRouter:
                 items.extend(_clean(lbl) for lbl in labels if lbl)
             except Exception:
                 pass
-        # A compressor/summarizer is used only if trivially callable. The
-        # available MemoryCompressor requires a live cognia_instance, so it is
-        # NOT trivially callable here -- skip silently per spec.
+        # MEDIA is the compressed/summarized band: in ADDITION to the labels,
+        # build a real extractive summary from recent working-memory turns plus
+        # the current query. SessionSummarizer.extract_summary wants a list of
+        # {"role","content"} dicts and only reads role=="user" content, so the
+        # query and recent observations are framed as user turns. Any failure
+        # falls back silently to the labels already collected -- never raises.
+        if self._summarizer is not None:
+            try:
+                messages: List[dict] = []
+                if self._working is not None:
+                    for entry in self._working.get_recent(n=5):
+                        text = entry.get("observation") or entry.get("label") or ""
+                        if text:
+                            messages.append({"role": "user", "content": text})
+                messages.append({"role": "user", "content": query})
+                summary = self._summarizer.extract_summary(messages)
+                if summary and summary.strip():
+                    items.append("summary: " + _clean(summary, max_len=300))
+            except Exception:
+                pass
         return items
 
     def _retrieve_global(self, query: str) -> List[str]:

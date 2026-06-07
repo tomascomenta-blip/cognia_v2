@@ -95,3 +95,27 @@ def test_assembled_context_is_str_with_local(router):
     r = router.route("hola, escribe algo")
     assert isinstance(r.assembled_context, str)
     assert "LOCAL" in r.assembled_context
+
+
+def test_media_active_emits_summary(router):
+    # A long multi-clause query activates MEDIA (compressed/summarized band).
+    # Extractive summary output varies, so assert STRUCTURE not text: MEDIA is
+    # active, items is a list, and a summary-derived entry is present.
+    long_q = (
+        "resume y compara las decisiones de arquitectura de shards y el "
+        "routing semantico que discutimos; ademas explica el world model"
+    )
+    r = router.route(long_q)
+    media = _band(r, "MEDIA")
+    assert media.active is True
+    assert isinstance(media.items, list)
+    assert any(it.startswith("summary:") for it in media.items)
+
+
+def test_media_never_raises_and_returns_list(router):
+    # MEDIA retrieval must degrade gracefully: a list, never an exception,
+    # regardless of whether the summarizer produced output.
+    for q in ["hola", "resume y compara A; ademas analiza B y explica C extensamente aqui"]:
+        r = router.route(q)
+        media = _band(r, "MEDIA")
+        assert isinstance(media.items, list)
