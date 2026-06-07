@@ -51,6 +51,13 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
     """Dispatch one tool by name. Unknown name -> a helpful error string."""
     spec = TOOLS.get(name)
     if spec is None:
+        # Signal: the agent wanted a tool that doesn't exist yet. Logged so the
+        # background researcher can later turn frequent wishes into real tools.
+        try:
+            from cognia.agent.background_research import record_wanted_tool
+            record_wanted_tool(name, hint=args[:120])
+        except Exception:
+            pass
         valid = ", ".join(TOOLS.keys())
         return f"ERROR: herramienta '{name}' no existe. Validas: {valid}"
     try:

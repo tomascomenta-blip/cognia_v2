@@ -277,6 +277,20 @@ def synthesize_and_register(spec: ToolSpec, orch=None, code: str = None,
 
 # ── load verified generated tools into the registry ────────────────────
 
+def synthesized_capabilities_note(limit: int = 8) -> str:
+    """
+    One short line describing the tools Cognia has built for itself, for folding
+    into the system prompt so its self-description evolves with its capabilities.
+    Empty string if it hasn't made any yet.
+    """
+    verified = [e for e in _load_manifest() if e.get("verified")]
+    if not verified:
+        return ""
+    names = [e["name"] for e in verified[:limit]]
+    return ("Herramientas que creaste y verificaste vos mismo: "
+            + ", ".join(names) + ".")
+
+
 def load_generated_tools(registry: dict = None) -> int:
     """
     Register every verified generated tool into the live tool registry.

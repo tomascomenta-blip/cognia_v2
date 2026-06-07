@@ -123,6 +123,21 @@ def build_adaptive_system_prompt(ai) -> str:
     except Exception:
         return COGNIA_SYSTEM_PROMPT
 
-    if not parts:
+    # Capability evolution: reflect tools Cognia synthesized for itself, so its
+    # self-description grows as it gains skills (independent of user traits).
+    cap_note = ""
+    try:
+        from cognia.agent.tool_synthesis import synthesized_capabilities_note
+        cap_note = synthesized_capabilities_note()
+    except Exception:
+        cap_note = ""
+
+    if not parts and not cap_note:
         return COGNIA_SYSTEM_PROMPT
-    return COGNIA_SYSTEM_PROMPT + "\n\nSobre el usuario (aprendido en sesiones previas):\n- " + "\n- ".join(parts)
+
+    prompt = COGNIA_SYSTEM_PROMPT
+    if parts:
+        prompt += "\n\nSobre el usuario (aprendido en sesiones previas):\n- " + "\n- ".join(parts)
+    if cap_note:
+        prompt += "\n\n" + cap_note
+    return prompt
