@@ -40,6 +40,19 @@ ROUTE_DELIBERATE = "DELIBERATE"
 ROUTE_ACT = "ACT"
 
 
+# -- DELIBERATE loop bounds (whitepaper 7.2/7.3) ------------------------------
+# WHY a hard cap of 2: the Chimera Planner deliberation loop is
+# generate->evaluate->revise. One revision is enough to fix the single weakness
+# the deterministic critic/verifier/world-model surface per pass, and a fixed,
+# small bound keeps the offline loop deterministic and cheap (no runaway). So:
+# iteration 0 (generate) + at most 1 revision (revise) = 2 total iterations.
+MAX_DELIBERATE_ITERS = 2
+
+# WHY 0.6: matches the verifier's SCORE_THRESHOLD convention -- a critique
+# overall below this signals the candidate is weak enough to warrant a revision.
+CRITIQUE_REVISE_THRESHOLD = 0.6
+
+
 # -- Classification cue sets (module-level so the WHY is inspectable) ----------
 # ACT: verbs that imply an action / external tool invocation.
 _ACT_VERBS = [
@@ -96,6 +109,9 @@ class LoopTrace:
     tools_invoked: list | None
     output: str
     prediction: object | None = None   # World-Model Prediction for the ACT route
+    # WHY defaulted: existing construction sites (chimera fallback, tests) pass
+    # args up to `prediction`; a trailing default keeps them working unchanged.
+    plan_risk: dict | None = None      # ActionSimulator.predict_plan() for DELIBERATE
 
 
 class CognitiveLoop:
@@ -289,38 +305,39 @@ class CognitiveLoop:
             "this query." % score
         )
 
-    def _run_deliberate(
-        self, query: str, hydra
-    ) -> Tuple[list, dict, object, str]:
-        # DELIBERATE: real deterministic plan -> candidate -> critique -> verify.
-        plan = None
-        critique = None
-        verify_res = None
-        reasons: List[str] = []
-
-        # 1. Deterministic plan (template or generic 2-step; never calls an LLM).
-        try:
-            from cognia.agents.planner import plan_task
-            plan = plan_task(query, task_id="loop")
-        except Exception as exc:
-            reasons.append("plan_task error: " + _clean(str(exc)))
-            plan = []
-
-        # 2. Build a candidate response string FROM the plan (no LLM).
+    @staticmethod
+    def _plan_to_candidate(query: str, plan: list) -> str:
+        # Build a candidate response string FROM the plan (no LLM).
         if plan:
             step_lines = [
                 "%d. %s (tool=%s)" % (i + 1, _clean(st.description, 120),
                                       st.tool_required)
                 for i, st in enumerate(plan)
             ]
-            candidate = (
+            return (
                 "Proposed plan for the request '%s':\n%s"
                 % (_clean(query, 120), "\n".join(step_lines))
             )
-        else:
-            candidate = "No plan could be derived for: " + _clean(query, 120)
+        return "No plan could be derived for: " + _clean(query, 120)
 
-        # 3. Deterministic self-critique (numeric scores).
+    def _deliberate_pass(
+        self, query: str, plan_query: str, reasons: List[str]
+    ) -> dict:
+        # One generate->evaluate pass: plan -> candidate -> critique -> verify
+        # -> world-model plan-risk. Returns the assembled signals for the loop
+        # to score. `plan_query` may be the original query OR an augmented one
+        # (original + critique/risk weakness) so REVISE produces a real, new plan.
+        plan: list = []
+        try:
+            from cognia.agents.planner import plan_task
+            plan = plan_task(plan_query, task_id="loop")
+        except Exception as exc:
+            reasons.append("plan_task error: " + _clean(str(exc)))
+            plan = []
+
+        candidate = self._plan_to_candidate(query, plan)
+
+        critique = None
         if self._critic is not None:
             try:
                 critique = self._critic.critique(candidate, query)
@@ -330,33 +347,136 @@ class CognitiveLoop:
             critique = {"critique": "(critic unavailable)",
                         "scores": {"overall": 0.0}}
 
-        # 4. Deterministic verify of the candidate as generic text output.
+        verify_res = None
         try:
             from cognia.agents.verifier import verify
             verify_res = verify(candidate, output_type="text")
         except Exception as exc:
             reasons.append("verify error: " + _clean(str(exc)))
 
+        # World-Model plan-risk over the whole plan horizon (offline, no LLM).
+        plan_risk = None
+        if self._simulator is not None and plan:
+            try:
+                plan_risk = self._simulator.predict_plan(plan)
+            except Exception as exc:
+                reasons.append("predict_plan error: " + _clean(str(exc)))
+
         overall = 0.0
         try:
             overall = float(critique.get("scores", {}).get("overall", 0.0))
         except Exception:
             overall = 0.0
+        passed = bool(getattr(verify_res, "passed", False)) if verify_res else False
+
+        return {
+            "plan": plan,
+            "critique": critique,
+            "verify": verify_res,
+            "plan_risk": plan_risk,
+            "overall": overall,
+            "passed": passed,
+        }
+
+    @staticmethod
+    def _augment_query(query: str, pass_result: dict) -> str:
+        # REVISE input: append the concrete weakness so plan_task sees new text
+        # and can route to a different template / surface the risky concern.
+        # WHY deterministic: the weakness comes straight from the critic text and
+        # the world-model risk reason -- no randomness, no LLM.
+        weakness = _clean(str((pass_result.get("critique") or {}).get(
+            "critique", "")), 120)
+        risk = pass_result.get("plan_risk") or {}
+        risk_note = ""
+        if risk.get("recommendation") == "CONFIRM":
+            steps = risk.get("steps") or []
+            why = ""
+            for s in steps:
+                rs = getattr(s, "reasons", []) or []
+                if rs:
+                    why = _clean(str(rs[0]), 80)
+                    break
+            risk_note = " addressing risk (max_risk=%.2f) %s" % (
+                float(risk.get("max_risk", 0.0)), why)
+        v = pass_result.get("verify")
+        verify_note = ""
+        if v is not None and not getattr(v, "passed", True):
+            verify_note = " fixing verify issue %s" % _clean(
+                str(getattr(v, "fail_reason", "")), 60)
+        return ("%s -- revise the plan to be more complete and safe: %s%s%s"
+                % (query, weakness, risk_note, verify_note))
+
+    @staticmethod
+    def _is_better(cand: dict, best: dict) -> bool:
+        # Keep the BEST iteration: prefer one that PASSES verify, then higher
+        # critique overall, tie-break on lower plan max_risk.
+        if best is None:
+            return True
+        if cand["passed"] != best["passed"]:
+            return cand["passed"]
+        if cand["overall"] != best["overall"]:
+            return cand["overall"] > best["overall"]
+        cand_risk = float((cand.get("plan_risk") or {}).get("max_risk", 1.0))
+        best_risk = float((best.get("plan_risk") or {}).get("max_risk", 1.0))
+        return cand_risk < best_risk
+
+    def _run_deliberate(
+        self, query: str, hydra
+    ) -> Tuple[list, dict, object, str, dict]:
+        # DELIBERATE: bounded generate->evaluate->revise loop (whitepaper 7.2/7.3).
+        # Folds in the world-model plan-risk score and keeps the best iteration.
+        reasons: List[str] = []
+        best: Optional[dict] = None
+        iters = 0
+        plan_query = query
+
+        while iters < MAX_DELIBERATE_ITERS:
+            cand = self._deliberate_pass(query, plan_query, reasons)
+            iters += 1
+            if self._is_better(cand, best):
+                best = cand
+
+            # Decide whether a revision is warranted on THIS candidate.
+            risk = cand.get("plan_risk") or {}
+            needs_revision = (
+                (not cand["passed"])
+                or (cand["overall"] < CRITIQUE_REVISE_THRESHOLD)
+                or (risk.get("recommendation") == "CONFIRM")
+            )
+            if not needs_revision or iters >= MAX_DELIBERATE_ITERS:
+                break
+            # REVISE: re-plan from an augmented description (real, deterministic).
+            plan_query = self._augment_query(query, cand)
+
+        best = best or {
+            "plan": [], "critique": {"critique": "(no plan)",
+                                     "scores": {"overall": 0.0}},
+            "verify": None, "plan_risk": None, "overall": 0.0, "passed": False,
+        }
+
         verdict = "n/a"
-        if verify_res is not None:
-            verdict = "PASS" if getattr(verify_res, "passed", False) else "FAIL"
+        if best["verify"] is not None:
+            verdict = "PASS" if best["passed"] else "FAIL"
+        risk = best.get("plan_risk") or {}
+        risk_rec = risk.get("recommendation", "n/a")
+        risk_max = float(risk.get("max_risk", 0.0))
         output = _ascii(
-            "DELIBERATE result: %d-step plan; critique overall=%.2f (%s); "
-            "verify=%s%s"
+            "DELIBERATE result: %d iteration(s); %d-step plan; "
+            "critique overall=%.2f (%s); verify=%s; "
+            "plan risk=%s (max_risk=%.2f)%s"
             % (
-                len(plan or []),
-                overall,
-                _clean(critique.get("critique", "")),
+                iters,
+                len(best["plan"] or []),
+                best["overall"],
+                _clean((best["critique"] or {}).get("critique", "")),
                 verdict,
+                risk_rec,
+                risk_max,
                 ("; " + "; ".join(reasons)) if reasons else "",
             )
         )
-        return plan, critique, verify_res, output
+        return (best["plan"], best["critique"], best["verify"], output,
+                best["plan_risk"])
 
     def _pick_tool(self, query: str, names: List[str]) -> Optional[Tuple[str, dict]]:
         """
@@ -475,6 +595,7 @@ class CognitiveLoop:
         verify_res = None
         tools_invoked = None
         prediction = None
+        plan_risk = None
         output = ""
 
         try:
@@ -483,8 +604,8 @@ class CognitiveLoop:
             elif decision.route == ROUTE_RECALL:
                 output = self._run_recall(query, hydra)
             elif decision.route == ROUTE_DELIBERATE:
-                plan, critique, verify_res, output = self._run_deliberate(
-                    query, hydra
+                plan, critique, verify_res, output, plan_risk = (
+                    self._run_deliberate(query, hydra)
                 )
             elif decision.route == ROUTE_ACT:
                 tools_invoked, output, prediction = self._run_act(query, hydra)
@@ -508,6 +629,7 @@ class CognitiveLoop:
             tools_invoked=tools_invoked,
             output=output,
             prediction=prediction,
+            plan_risk=plan_risk,
         )
 
 
@@ -564,6 +686,17 @@ def format_trace(trace: LoopTrace) -> str:
             getattr(v, "passed", "?"),
             getattr(v, "score", 0.0),
             _clean(str(getattr(v, "fail_reason", None))),
+        ))
+
+    # DELIBERATION + PLAN RISK (Chimera Planner loop) -- shown for DELIBERATE.
+    pr = getattr(trace, "plan_risk", None)
+    if pr is not None:
+        # Number of iterations is embedded in the deterministic output string.
+        m = re.search(r"(\d+) iteration", str(trace.output))
+        if m:
+            lines.append("DELIBERATION: %s iters" % m.group(1))
+        lines.append("PLAN RISK: %s (max_risk=%.2f)" % (
+            pr.get("recommendation", "?"), float(pr.get("max_risk", 0.0))
         ))
 
     # PREDICTION (World-Model "simulate before act") -- shown for ACT route.
