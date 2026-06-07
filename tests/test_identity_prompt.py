@@ -35,11 +35,16 @@ def test_prompt_is_ascii_for_cp1252_cli():
     COGNIA_SYSTEM_PROMPT.encode("ascii")
 
 
-def test_cli_streaming_uses_canonical_prompt():
-    # The streaming fast-path imports the constant rather than an inline string.
+def test_cli_streaming_uses_adaptive_prompt_built_on_canonical():
+    # The streaming fast-path now builds the system prompt via
+    # build_adaptive_system_prompt(), which augments COGNIA_SYSTEM_PROMPT.
     import inspect
     from cognia import cli
-    src = inspect.getsource(cli.repl)
-    # repl() doesn't hold it, but the module must reference the constant by name.
-    mod_src = inspect.getsource(cli)
-    assert "COGNIA_SYSTEM_PROMPT" in mod_src
+    from cognia.agent import adaptive_prompt
+
+    assert "build_adaptive_system_prompt" in inspect.getsource(cli)
+    # And the builder is grounded in the canonical identity prompt.
+    assert "COGNIA_SYSTEM_PROMPT" in inspect.getsource(adaptive_prompt)
+    # Identity survives the augmentation even with no learned traits.
+    import types
+    assert adaptive_prompt.build_adaptive_system_prompt(types.SimpleNamespace()) == COGNIA_SYSTEM_PROMPT

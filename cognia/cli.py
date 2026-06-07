@@ -5620,6 +5620,13 @@ def repl():
 
         # -- Free text → articulated cognitive response --------------------
         else:
+            # Self-tuning: learn traits about this user (name, language, verbosity)
+            # from every message, persisted across sessions.
+            try:
+                from cognia.agent.adaptive_prompt import learn_user_traits
+                learn_user_traits(ai, raw)
+            except Exception:
+                pass
             # ── Auto-inference: detect if the question needs tools ────────
             import re as _re_tool
             _TOOL_PATTERNS = [
@@ -5661,8 +5668,8 @@ def repl():
                             except Exception:
                                 pass
                         if _llama is not None:
-                            from shattering.model_constants import COGNIA_SYSTEM_PROMPT
-                            _system = COGNIA_SYSTEM_PROMPT
+                            from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
+                            _system = build_adaptive_system_prompt(ai)
                             # Multi-turn: feed the last few turns so the model can
                             # follow the conversation thread. _history holds prior
                             # turns only (the current one is appended AFTER generation),
@@ -5767,32 +5774,34 @@ def repl():
                         _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
 
 
-def _run_agent_task(ai, task: str, _print_fn, max_steps: int = 12) -> str:
+def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None) -> str:
     """
-    ReAct-style agent loop. Uses the orchestrator LLM to plan tool calls,
-    executes them, feeds results back, until DONE or max_steps.
+    ReAct-style agent loop with a CONCRETE tool registry (cognia/agent/tools.py)
+    and DYNAMIC step budgeting (cognia/agent/loop.py).
+
+    Steps are not fixed: estimate_step_budget() decides how many a task deserves,
+    the agent can request more when it runs out, and AGENT_HARD_CAP is the only
+    absolute limit. Tools come from the registry, so adding one never touches
+    this function.
     """
-    TOOLS_DOC = """You are an autonomous agent. Start your reply with ACCION: on the first line.
+    from cognia.agent.tools import run_tool, build_tools_doc
+    from cognia.agent.loop import (
+        estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
+    )
 
-ACCION: <tool> <args>
-
-Tools (ONLY these — do NOT invent others):
-  leer_archivo <path>
-  escribir_archivo <path> | <content>   (content can be multiple lines of real code)
-  buscar <pattern> | <directory>
-  listar <directory>
-  ejecutar <shell command>
-  memorizar <text>
-  anotar <clave> | <valor>  (save a note to working memory)
-  notas                      (read all working memory notes)
-  responder <final answer>
-
-Rules:
-- escribir_archivo auto-creates directories. Do NOT use mkdir.
-- For escribir_archivo, write COMPLETE, REAL code after the | separator (multiple lines ok).
-- Use responder only when the task is fully done.
-- Use anotar to save intermediate results, plans, and code snippets. Use notas to recall them.
-- No explanations outside the ACCION line."""
+    TOOLS_DOC = (
+        "You are an autonomous agent. Start your reply with ACCION: on the first line.\n\n"
+        "ACCION: <tool> <args>\n\n"
+        "Tools (ONLY these -- do NOT invent others):\n"
+        + build_tools_doc()
+        + "\n  responder <respuesta final>          -- usar SOLO cuando la tarea esta completa\n\n"
+        "Rules:\n"
+        "- escribir_archivo crea directorios solo. NO uses mkdir.\n"
+        "- Para escribir_archivo, pone codigo COMPLETO y REAL despues de | (varias lineas ok).\n"
+        "- Usa anotar para guardar resultados intermedios; notas para recordarlos.\n"
+        "- Usa recordar/kg_buscar para consultar la memoria de Cognia.\n"
+        "- responder solo cuando termines. Nada de texto fuera de la linea ACCION."
+    )
 
     # Load persistent agent state
     _AGENT_STATE_PATH = Path.home() / ".cognia_agent_state.json"
@@ -5804,10 +5813,8 @@ Rules:
     except Exception:
         pass
 
-    # Capture files known before this task starts
     _prior_files_touched = list(_agent_state.get("files_touched", []))
 
-    # Build prior context from last 2 tasks
     _prior_ctx = ""
     if _agent_state["tasks"]:
         _prior_lines = []
@@ -5816,200 +5823,104 @@ Rules:
         _prior_ctx = "CONTEXTO PREVIO:\n" + "\n".join(_prior_lines) + "\n\n"
 
     history = [f"{_prior_ctx}TAREA: {task}"]
-    _working_memory: dict = {}  # key→value notes the agent writes during task
+    _working_memory: dict = {}
     result_text = ""
-    step = 0
+
+    # Shared context passed to every tool -- plain dict, no abstraction.
+    ctx = {
+        "ai": ai,
+        "working_memory": _working_memory,
+        "agent_state": _agent_state,
+        "print_fn": _print_fn,
+        "show_diff": (lambda old, new, path: _show_file_diff(old, new, path, _print_fn)),
+    }
+
+    # Orchestrator (reused for planning + steps)
+    try:
+        from shattering.orchestrator import ShatteringOrchestrator as Orchestrator
+        orch = getattr(ai, "_orchestrator", None) or Orchestrator(mode="local")
+    except Exception as e:
+        _print_fn(f"[err_cl]Agente: no hay orquestador: {e}[/err_cl]")
+        return "(el agente no pudo iniciar el modelo)"
+
+    # Dynamic step budget: the model decides how many steps the task deserves.
+    budget = max_steps if max_steps else estimate_step_budget(task, orch)
+    _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {AGENT_HARD_CAP})[/detail]")
 
     # Auto-decompose large tasks into sub-steps
     if len(task) > 120:
         try:
             _decomp_prompt = (
-                f"Break this task into 3-5 concrete sequential steps. "
-                f"Reply with ONLY a numbered list, one step per line, no explanations.\n\n"
+                "Break this task into 3-5 concrete sequential steps. "
+                "Reply with ONLY a numbered list, one step per line, no explanations.\n\n"
                 f"Task: {task}"
             )
-            from shattering.orchestrator import ShatteringOrchestrator as _DO
-            _d_orch = getattr(ai, '_orchestrator', None) or _DO(mode='local')
-            _d_result = _d_orch.infer(_decomp_prompt)
-            _steps_text = _d_result.text.strip()
+            _steps_text = orch.infer(_decomp_prompt).text.strip()
             if _steps_text and len(_steps_text) > 20:
                 history.append(f"PLAN DE SUBTAREAS:\n{_steps_text}")
                 _print_fn(f"[detail]Plan: {_steps_text[:200]}[/detail]")
         except Exception:
             pass
 
-    for step in range(max_steps):
-        # last 6 history entries to avoid context overflow
-        ctx = "\n".join(history[-6:])
-        prompt = f"{TOOLS_DOC}\n\nContexto de la tarea:\n{ctx}\n\nSiguiente ACCION:"
+    total_steps = 0
+    _last_sig = None
+    _repeat = 0
+    while total_steps < AGENT_HARD_CAP:
+        # Out of budget: ask the model if it actually needs more steps.
+        if total_steps >= budget:
+            extra = wants_more_steps(task, "\n".join(history[-3:]), orch)
+            if extra <= 0:
+                break
+            budget = min(budget + extra, AGENT_HARD_CAP)
+            _print_fn(f"[detail]El agente pidio {extra} pasos mas (presupuesto {budget})[/detail]")
+
+        total_steps += 1
+        ctx_text = "\n".join(history[-6:])
+        prompt = f"{TOOLS_DOC}\n\nContexto de la tarea:\n{ctx_text}\n\nSiguiente ACCION:"
 
         try:
-            from shattering.orchestrator import ShatteringOrchestrator as Orchestrator
-            orch = getattr(ai, '_orchestrator', None) or Orchestrator(mode='local')
-            result = orch.infer(prompt)
-            raw_response = result.text.strip()
+            raw_response = orch.infer(prompt).text.strip()
         except Exception as e:
             _print_fn(f"[err_cl]Agente: error LLM: {e}[/err_cl]")
             break
 
-        _print_fn(f"[detail]paso {step+1}: {raw_response[:120]}[/detail]")
+        _print_fn(f"[detail]paso {total_steps}: {raw_response[:120]}[/detail]")
 
-        m = re.search(r'ACCI[OÓ]N:\s*(\w+)\s*(.*)', raw_response, re.IGNORECASE | re.DOTALL)
+        m = re.search(r"ACCI[OÓ]N:\s*(\w+)\s*(.*)", raw_response, re.IGNORECASE | re.DOTALL)
         if not m:
             history.append(f"RESULTADO: (respuesta no estructurada) {raw_response[:200]}")
             continue
 
         action = m.group(1).lower().strip()
-        args   = m.group(2).strip()
+        args = m.group(2).strip()
 
         if action == "responder":
             result_text = args
             break
 
-        elif action == "leer_archivo":
-            path = Path(args.strip())
-            try:
-                content = path.read_text(encoding="utf-8", errors="replace")[:3000]
-                history.append(f"RESULTADO leer_archivo {path}: {content}")
-            except Exception as e:
-                history.append(f"RESULTADO leer_archivo ERROR: {e}")
-
-        elif action == "escribir_archivo":
-            parts = args.split(" | ", 1)
-            if len(parts) == 2:
-                wpath, content = Path(parts[0].strip()), _strip_code_fences(parts[1])
-                try:
-                    wpath.parent.mkdir(parents=True, exist_ok=True)
-                    _wa_old = wpath.read_text(encoding="utf-8") if wpath.exists() else ""
-                    wpath.write_text(content, encoding="utf-8")
-                    history.append(f"RESULTADO escribir_archivo {wpath}: OK ({len(content)} chars)")
-                    _show_file_diff(_wa_old, content, str(wpath), _print_fn)
-                    _print_fn(f"[ok]Archivo escrito: {wpath}[/ok]")
-                    if str(wpath) not in _agent_state["files_touched"]:
-                        _agent_state["files_touched"].append(str(wpath))
-                        _agent_state["files_touched"] = _agent_state["files_touched"][-10:]
-                except Exception as e:
-                    history.append(f"RESULTADO escribir_archivo ERROR: {e}")
-            else:
-                history.append("RESULTADO escribir_archivo ERROR: formato incorrecto (usa ruta | contenido)")
-
-        elif action == "buscar":
-            parts = args.split(" | ", 1)
-            patron = parts[0].strip()
-            directorio = parts[1].strip() if len(parts) > 1 else "."
-            results = []
-            try:
-                # Try ripgrep first (fast, shows file:line)
-                r = subprocess.run(
-                    ["rg", "--no-heading", "-n", "--max-count", "3", "-l", patron, directorio],
-                    capture_output=True, text=True, timeout=10
+        # Stuck-detector: same action+args repeated -> nudge, then stop.
+        sig = (action, args[:60])
+        if sig == _last_sig:
+            _repeat += 1
+            if _repeat >= 2:
+                history.append(
+                    "AVISO: estas repitiendo la misma accion sin progreso. "
+                    "Cambia de enfoque o usa responder."
                 )
-                if r.returncode == 0 and r.stdout.strip():
-                    results = r.stdout.strip().splitlines()[:10]
-            except Exception:
-                pass
-            if not results:
-                # Fallback: regex content search with file:line:content
-                try:
-                    try:
-                        compiled = re.compile(patron, re.IGNORECASE)
-                    except re.error:
-                        compiled = None
-                    _SKIP = {'.git', 'venv', '__pycache__', '.pytest_cache', 'node_modules'}
-                    for _p in Path(directorio).rglob("*"):
-                        if _p.is_file() and not any(x in _p.parts for x in _SKIP):
-                            try:
-                                for _i, _ln in enumerate(_p.read_text(errors='replace').splitlines(), 1):
-                                    if (compiled and compiled.search(_ln)) or (not compiled and patron.lower() in _ln.lower()):
-                                        results.append(f"{_p}:{_i}: {_ln.strip()[:100]}")
-                                        if len(results) >= 15:
-                                            break
-                            except Exception:
-                                pass
-                        if len(results) >= 15:
-                            break
-                except Exception:
-                    pass
-            if not results:
-                # Last fallback: glob filename match
-                try:
-                    import glob as _glob
-                    results = _glob.glob(f"{directorio}/**/*{patron}*", recursive=True)[:10]
-                except Exception:
-                    pass
-            if results:
-                history.append(f"RESULTADO buscar '{patron}': " + " | ".join(results))
-            else:
-                history.append(f"RESULTADO buscar '{patron}': sin resultados")
-
-        elif action == "listar":
-            try:
-                entries = sorted(Path(args.strip() or ".").iterdir(), key=lambda p: (p.is_file(), p.name))[:30]
-                listing = [f"{'D' if e.is_dir() else 'F'} {e.name}" for e in entries]
-                history.append(f"RESULTADO listar: {listing}")
-            except Exception as e:
-                history.append(f"RESULTADO listar ERROR: {e}")
-
-        elif action == "ejecutar":
-            _BLOCK = [
-                "rm -rf", "format", "del /s", "del /q", "del /f",
-                ":(){", "python -c", "python3 -c", "powershell",
-                "mkfs", "dd if=", "> /dev/", "shutdown", "reboot",
-            ]
-            import re as _re_sec_ag
-            _args_normalized = _re_sec_ag.sub(r"\s+", " ", args.lower())
-            if any(b in _args_normalized for b in _BLOCK):
-                _print_fn("[err_cl]ejecutar: BLOQUEADO por seguridad[/err_cl]")
-                history.append("RESULTADO ejecutar: BLOQUEADO por seguridad")
-            else:
-                _esc_cmd = _escape(args) if _HAS_RICH else args
-                _print_fn(f"[detail]$ {_esc_cmd}[/detail]")
-                try:
-                    r = subprocess.run(args, shell=True, capture_output=True, text=True, timeout=30)
-                    out = (r.stdout + r.stderr).strip()
-                    _esc_fn = _escape if _HAS_RICH else (lambda s: s)
-                    for _ol in out.splitlines()[:40]:
-                        _print_fn(f"  {_esc_fn(_ol)}")
-                    if r.returncode != 0:
-                        _print_fn(f"[warn_cl]codigo de salida: {r.returncode}[/warn_cl]")
-                    history.append(f"RESULTADO ejecutar: {out[:1500] or '(sin output)'}")
-                except Exception as e:
-                    history.append(f"RESULTADO ejecutar ERROR: {e}")
-
-        elif action == "memorizar":
-            try:
-                ai.observe(args, provided_label="agente_tarea")
-                history.append("RESULTADO memorizar: guardado en memoria episodica")
-            except Exception as e:
-                history.append(f"RESULTADO memorizar: (sin memoria episodica disponible) {e}")
-
-        elif action == "anotar":
-            parts = args.split(" | ", 1)
-            if len(parts) == 2:
-                _key, _val = parts[0].strip(), parts[1].strip()
-                _working_memory[_key] = _val
-                history.append(f"RESULTADO anotar: '{_key}' guardado en memoria de trabajo")
-            else:
-                history.append("RESULTADO anotar ERROR: formato incorrecto (usa clave | valor)")
-
-        elif action == "notas":
-            if _working_memory:
-                _notes_str = "\n".join(f"  {k}: {v}" for k, v in _working_memory.items())
-                history.append(f"RESULTADO notas:\n{_notes_str}")
-            else:
-                history.append("RESULTADO notas: (memoria de trabajo vacia)")
-
+            if _repeat >= 3:
+                _print_fn("[warn_cl]Agente estancado (accion repetida), deteniendo.[/warn_cl]")
+                break
         else:
-            _valid = "leer_archivo, escribir_archivo, buscar, listar, ejecutar, memorizar, anotar, notas, responder"
-            _mkdir_hint = ""
-            if action in ("mkdir", "crear_directorio", "crear_carpeta", "create_dir", "makedir"):
-                _mkdir_hint = " Para crear un directorio con un archivo usa escribir_archivo <dir/file> | <contenido> — crea los directorios automaticamente."
-            history.append(
-                f"ERROR: herramienta '{action}' no existe. Herramientas validas: {_valid}.{_mkdir_hint}"
-            )
+            _repeat = 0
+        _last_sig = sig
+
+        result = run_tool(action, args, ctx)
+        history.append(result)
+        if action == "escribir_archivo" and result.startswith("RESULTADO escribir_archivo") and "OK" in result:
+            _print_fn(f"[ok_cl]{result.split(':', 1)[0].replace('RESULTADO ', '')}[/ok_cl]")
 
     # Save summary to episodic memory
-    summary = f"Tarea: {task[:100]} | Pasos: {step+1} | Resultado: {result_text[:200]}"
+    summary = f"Tarea: {task[:100]} | Pasos: {total_steps} | Resultado: {result_text[:200]}"
     try:
         ai.observe(summary, provided_label="agente_tarea_completada")
     except Exception:
@@ -6035,7 +5946,7 @@ Rules:
         _agent_state["tasks"].append({
             "task": task[:100],
             "result": (result_text or "(sin respuesta)")[:150],
-            "steps": step + 1,
+            "steps": total_steps,
             "ts": datetime.datetime.now().isoformat()[:19],
         })
         _agent_state["tasks"] = _agent_state["tasks"][-5:]
@@ -6046,7 +5957,6 @@ Rules:
     except Exception:
         pass
 
-    # Offer git commit hint if new files were written during this task
     _newly_written = [
         f for f in _agent_state.get("files_touched", [])
         if f not in _prior_files_touched
