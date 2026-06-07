@@ -42,3 +42,12 @@ _scan*.txt
 node_modules/
 build/
 dist/
+venv312/
+venv*/
+model_shards/
+*.dll
+*.so
+*.gguf
+*.npy
+*.bin
+file
