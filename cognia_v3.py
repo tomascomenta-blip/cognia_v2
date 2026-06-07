@@ -111,7 +111,11 @@ from cognia_embedding import (
 try:
     import importlib.util
     HAS_SEMANTIC = importlib.util.find_spec("sentence_transformers") is not None
-    VECTOR_DIM   = 384 if HAS_SEMANTIC else 64
+    # Pinned to 384 (see cognia/config.py): the n-gram fallback takes any dim and
+    # all-MiniLM-L6-v2 is 384, so the embedder dim never diverges from the
+    # VectorCache dim. A conditional `else 64` here would re-pollute the shared DB
+    # with 64-dim vectors and resurrect the matmul crash this fixed.
+    VECTOR_DIM   = 384
 
     if HAS_SEMANTIC:
         print("✅ sentence-transformers detectado (se cargará en primer uso)")
@@ -120,7 +124,7 @@ try:
 
 except Exception:
     HAS_SEMANTIC = False
-    VECTOR_DIM = 64
+    VECTOR_DIM = 384
 try:
     import numpy as np
     HAS_NUMPY = True

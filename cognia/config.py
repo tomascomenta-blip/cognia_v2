@@ -69,7 +69,17 @@ from .cognia_embedding import (
 )
 
 HAS_SEMANTIC = importlib.util.find_spec("sentence_transformers") is not None
-VECTOR_DIM   = 384 if HAS_SEMANTIC else 64
+# VECTOR_DIM is FIXED at 384 whether or not sentence-transformers is installed.
+# all-MiniLM-L6-v2 produces 384-dim vectors, and the n-gram fallback
+# (_ngram_vector) takes an arbitrary dim, so 384 works for both backends.
+# Historically this was `384 if HAS_SEMANTIC else 64`, which meant uninstalling
+# sentence-transformers silently flipped new vectors (and queries) to dim 64
+# while the DB still held 384-dim vectors. The VectorCache builds on the
+# dominant dim (384), so 64-dim queries hit `(N,384) @ (64,)` -> matmul crash
+# -> 6s slow-path fallback on every search. Pinning to 384 keeps queries and
+# stored vectors dimensionally consistent across the ST-installed/uninstalled
+# boundary. See scripts/migrate_vector_dim.py to re-embed any legacy 64-dim rows.
+VECTOR_DIM   = 384
 
 if HAS_SEMANTIC:
     print("[OK] sentence-transformers detectado (se cargara en primer uso)")
