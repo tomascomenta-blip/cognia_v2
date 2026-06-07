@@ -221,6 +221,31 @@ def apply_config() -> None:
             os.environ[k] = v
 
 
+def set_config_value(key: str, value: str) -> None:
+    """
+    Persist a single key=value in ~/.cognia/config.env, updating it in place if
+    present and preserving every other line (including comments). Also reflects
+    it in os.environ so it takes effect immediately this session.
+    """
+    COGNIA_HOME.mkdir(parents=True, exist_ok=True)
+    out_lines: list[str] = []
+    found = False
+    if CONFIG_FILE.exists():
+        for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                k = stripped.partition("=")[0].strip()
+                if k == key:
+                    out_lines.append(f"{key}={value}")
+                    found = True
+                    continue
+            out_lines.append(line)
+    if not found:
+        out_lines.append(f"{key}={value}")
+    CONFIG_FILE.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+    os.environ[key] = value
+
+
 # ── Main wizard ───────────────────────────────────────────────────────────────
 
 def run_wizard(force: bool = False) -> None:

@@ -141,8 +141,15 @@ _THEMES = {
     }),
 }
 _THEME_ORDER = list(_THEMES)
-_theme_idx   = 0
-_console     = Console(theme=_THEMES["oscuro"], highlight=False) if _HAS_RICH else None
+
+# Persisted look: theme + accent come from ~/.cognia/config.env (loaded into
+# os.environ by apply_config() before the CLI imports). Accent colors Cognia's
+# actual responses; the theme styles everything else. Both survive restarts.
+_DEFAULT_ACCENT = "cyan"
+_ACCENT      = os.environ.get("COGNIA_ACCENT", "").strip() or _DEFAULT_ACCENT
+_saved_theme = os.environ.get("COGNIA_THEME", "").strip()
+_theme_idx   = _THEME_ORDER.index(_saved_theme) if _saved_theme in _THEMES else 0
+_console     = Console(theme=_THEMES[_THEME_ORDER[_theme_idx]], highlight=False) if _HAS_RICH else None
 
 # ---------------------------------------------------------------------------
 # Session state
@@ -335,7 +342,8 @@ _CMD_DESCRIPTIONS = {
     "/modo rapido":     "Toggle: saltar confirmaciones",
     "/debug":           "Toggle: mostrar logs INFO",
     "/costo":           "Tokens y tiempo de sesión",
-    "/tema":            "Ciclar tema visual",
+    "/tema":            "Tema visual: /tema cicla, /tema <oscuro|claro|alto_contraste> fija (persiste)",
+    "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
     # Recordatorios
     "/recordar":           "Crear recordatorio temporal        <titulo> en <N> minutos|horas",
     "/recordatorios":      "Ver recordatorios pendientes",
@@ -3019,15 +3027,59 @@ def _slash_modo_rapido():
     _print_line(f"[detail]modo rapido {'activado' if _fast_mode else 'desactivado'}[/detail]")
 
 
-def _slash_tema():
+def _persist_setting(key: str, value: str) -> None:
+    """Save a CLI preference to ~/.cognia/config.env. Best-effort."""
+    try:
+        from cognia.first_run import set_config_value
+        set_config_value(key, value)
+    except Exception:
+        pass
+
+
+def _slash_tema(arg: str = ""):
+    """`/tema` cicla; `/tema <nombre>` fija uno de: oscuro, claro, alto_contraste. Persiste."""
     global _theme_idx, _console
-    _theme_idx = (_theme_idx + 1) % len(_THEME_ORDER)
+    arg = (arg or "").strip().lower()
+    if arg and arg in _THEMES:
+        _theme_idx = _THEME_ORDER.index(arg)
+    elif arg:
+        _print_line(f"[warn_cl]Tema desconocido '{_escape(arg)}'. "
+                    f"Opciones: {', '.join(_THEME_ORDER)}[/warn_cl]")
+        return
+    else:
+        _theme_idx = (_theme_idx + 1) % len(_THEME_ORDER)
     name = _THEME_ORDER[_theme_idx]
     if _HAS_RICH:
         _console = Console(theme=_THEMES[name], highlight=False)
-        _console.rule(f"[dim]Tema: {name}[/dim]")
+        _console.rule(f"[dim]Tema: {name} (guardado)[/dim]")
     else:
         print(f"Tema: {name} (Rich no disponible)")
+    _persist_setting("COGNIA_THEME", name)
+
+
+def _slash_color(arg: str = ""):
+    """`/color <nombre>` fija el color de acento de las respuestas (ej: cyan, magenta, #ff8800). Persiste."""
+    global _ACCENT
+    color = (arg or "").strip()
+    if not color:
+        _print_line(f"[detail]Color de acento actual: {_ACCENT}. "
+                    "Uso: /color <nombre|#hex> (ej: cyan, magenta, green, #ff8800)[/detail]")
+        return
+    # Validate via rich.Style; reject anything rich can't parse so we never break output.
+    if _HAS_RICH:
+        try:
+            from rich.style import Style as _RStyle
+            _RStyle.parse(color)
+        except Exception:
+            _print_line(f"[warn_cl]Color invalido '{_escape(color)}'. "
+                        "Proba: cyan, magenta, green, yellow, blue, red, o #rrggbb[/warn_cl]")
+            return
+    _ACCENT = color
+    _persist_setting("COGNIA_ACCENT", color)
+    if _HAS_RICH and _console:
+        _console.print(f"Color de acento: {color} (guardado)", style=color)
+    else:
+        print(f"Color de acento: {color} (guardado)")
 
 
 # ---------------------------------------------------------------------------
@@ -4276,8 +4328,10 @@ def repl():
             _slash_debug()
         elif raw == "/modo rapido":
             _slash_modo_rapido()
-        elif raw == "/tema":
-            _slash_tema()
+        elif raw == "/tema" or raw.startswith("/tema "):
+            _slash_tema(raw[len("/tema "):] if raw.startswith("/tema ") else "")
+        elif raw == "/color" or raw.startswith("/color "):
+            _slash_color(raw[len("/color "):] if raw.startswith("/color ") else "")
 
         # -- System ---------------------------------------------------------
         elif raw == "/salir":
@@ -5645,7 +5699,7 @@ def repl():
             if _needs_tool:
                 _print_line("[detail]Detectada operacion de herramienta -- activando agente...[/detail]")
                 _resp = _run_agent_task(ai, raw, _print_line)
-                _show_response(_resp, "cyan")
+                _show_response(_resp, _ACCENT)
                 _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
                 _persist_turn(ai, raw, _resp)
             if not _needs_tool:
@@ -5702,7 +5756,7 @@ def repl():
                                 for _tok in _stream_src():
                                     _tokens_buf.append(_tok)
                                     if _HAS_RICH and _console:
-                                        _console.print(_tok, end="", style="cyan", highlight=False)
+                                        _console.print(_tok, end="", style=_ACCENT, highlight=False)
                                     else:
                                         print(_tok, end="", flush=True)
                                 print()
@@ -5758,7 +5812,7 @@ def repl():
                         if "error" in result:
                             _print_line(f"[err_cl]Error: {_escape(str(result['error']))}[/err_cl]")
                         else:
-                            _show_response(result["response"], "cyan")
+                            _show_response(result["response"], _ACCENT)
                             _show_footer(elapsed, result["response"])
                             stage = result.get("language_engine", {}).get("stage", "")
                             if stage:
