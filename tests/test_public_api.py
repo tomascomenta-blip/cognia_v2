@@ -42,7 +42,12 @@ def _fresh_db(tmp_path):
 
 @pytest.fixture()
 def client(_fresh_db):
-    # Import app lazily so lifespan doesn't fire on module import
+    # Import app lazily so lifespan doesn't fire on module import.
+    # Other suites import a different top-level "app" (web_app/coordinator) and
+    # also reorder sys.path, so re-assert cognia_public_api at the front and drop
+    # any cached "app" to force a fresh import of the public-API app.
+    sys.path.insert(0, os.path.abspath(_API_DIR))
+    sys.modules.pop("app", None)
     import app as api_app
     importlib.reload(api_app)
     from fastapi.testclient import TestClient

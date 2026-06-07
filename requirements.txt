@@ -17,6 +17,9 @@ prometheus-fastapi-instrumentator>=6.1
 rich>=13.0
 prompt_toolkit>=3.0
 tokenizers>=0.19
+huggingface_hub>=0.20    # cognia_public_api inference proxy + shard download
+psutil>=5.9              # cognia_embedding, fatiga_cognitiva, scale_manager, first_run
+httpx>=0.27              # cognia_public_api inference_proxy + FastAPI TestClient
 # numba>=0.59       # Phase B JIT SIMD kernels — requires Python <=3.12 (not 3.14)
 # faiss-cpu>=1.7.4  # optional: faster episodic search at scale
 # torch>=2.1.0      # required only for real-weight shard inference (node/shard_engine.py)
