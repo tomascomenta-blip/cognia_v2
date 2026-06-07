@@ -12,6 +12,90 @@ import types
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
+import pytest
+
+
+# ---------------------------------------------------------------------------
+# Cross-test isolation: this module stubs sys.modules entries (cognia.cognia,
+# cognia.config, cognia.goals.goal_tracker, cognia.cli, rich.*) to import
+# cognia.cli without heavy deps. Without restoring them, later test files
+# inherit a MagicMock `Cognia`, a stub `cognia.config`, and a MagicMock
+# GoalTracker — polluting test_phase9_security, test_context_injector and
+# test_cli_synthesis. This autouse fixture snapshots and restores every key
+# this file touches, so the leak cannot escape the module.
+# ---------------------------------------------------------------------------
+
+# Modules stubbed-and-restored. The "cognia.*" entries are pre-imported in the
+# fixture so the REAL module is what gets restored on teardown (popping them
+# would leave a stale `web_app` whose `from cognia import Cognia` resolves to a
+# MagicMock and crashes JSON serialization in test_phase9_security).
+_REAL_MODULE_KEYS = (
+    "cognia.cognia",
+    "cognia.config",
+    "cognia.goals.goal_tracker",
+    # Pre-import REAL rich so teardown restores it, not the _FakeConsole stub.
+    # If rich is left stubbed, a later test (e.g. test_cli_learning) imports
+    # cognia.cli with _console = _FakeConsole (whose .print is a no-op), and
+    # downstream tests like test_cli_template_commands then see empty output.
+    "rich", "rich.console", "rich.markup", "rich.panel",
+    "rich.text", "rich.table", "rich.theme", "rich.progress",
+    # Restore the REAL cognia.cli too: popping it leaves the `cognia` package's
+    # `.cli` attribute pointing at the stub module, so a later `import cognia.cli`
+    # returns a stale stub object distinct from sys.modules["cognia.cli"]. That
+    # split-identity made test_cli_template_commands read an empty buffer.
+    "cognia.cli",
+)
+# Modules to evict entirely on teardown (re-imported fresh by their own tests).
+_EVICT_MODULE_KEYS = (
+    "web_app",
+)
+
+
+@pytest.fixture(autouse=True)
+def _restore_sys_modules():
+    import importlib
+    # Force the real modules into sys.modules so teardown restores them
+    # (not the stubs and not a popped/absent entry).
+    _saved = {}
+    for key in _REAL_MODULE_KEYS:
+        try:
+            importlib.import_module(key)
+        except Exception:
+            pass
+        _saved[key] = sys.modules.get(key, KeyError)
+    _evict_saved = {k: sys.modules.get(k, KeyError) for k in _EVICT_MODULE_KEYS}
+    try:
+        yield
+    finally:
+        def _restore(key, original):
+            if original is KeyError:
+                sys.modules.pop(key, None)
+            else:
+                sys.modules[key] = original
+            # Re-sync the parent package attribute. The helpers do
+            # `del sys.modules["cognia.cli"]` which leaves the `cognia`
+            # package's `.cli` attribute pointing at a stub module, so a
+            # later `import cognia.cli` returns the stale stub instead of the
+            # restored sys.modules entry. Rebind the attribute to keep both
+            # views consistent.
+            if "." in key:
+                parent_name, _, child = key.rpartition(".")
+                parent = sys.modules.get(parent_name)
+                if parent is not None:
+                    if original is KeyError:
+                        if hasattr(parent, child):
+                            try:
+                                delattr(parent, child)
+                            except Exception:
+                                pass
+                    else:
+                        setattr(parent, child, original)
+
+        for key, original in _saved.items():
+            _restore(key, original)
+        for key, original in _evict_saved.items():
+            _restore(key, original)
+
 
 # ---------------------------------------------------------------------------
 # Rich + prompt_toolkit stubs (same pattern as test_cli_goal_commands.py)

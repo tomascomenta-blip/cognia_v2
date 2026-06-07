@@ -53,7 +53,11 @@ def test_y_si_prints_escenario():
 # 4. /temas with empty history
 # ---------------------------------------------------------------------------
 def test_temas_empty_history():
-    import cognia.cli as cli_mod
+    # Use the *exact* module the imported _slash_temas closure reads from.
+    # An earlier test (test_cli_goal_*) may evict and re-import cognia.cli,
+    # so `import cognia.cli` here could bind a different module instance whose
+    # _history is not the one _slash_temas actually consults.
+    cli_mod = sys.modules[_slash_temas.__module__]
     original = cli_mod._history[:]
     cli_mod._history.clear()
     try:
@@ -67,7 +71,9 @@ def test_temas_empty_history():
 # 5. /temas extracts frequent words
 # ---------------------------------------------------------------------------
 def test_temas_extracts_frequent_words():
-    import cognia.cli as cli_mod
+    # See note in test_temas_empty_history: bind to the same module instance
+    # that _slash_temas reads, not whatever `import cognia.cli` resolves to now.
+    cli_mod = sys.modules[_slash_temas.__module__]
     original = cli_mod._history[:]
     cli_mod._history.clear()
     cli_mod._history.extend([

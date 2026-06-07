@@ -1516,3 +1516,76 @@ consistente y honesta (antes el cold-start single-shot la hacía variar/colapsar
 NOTA: el rango real medido en esta CPU es ~3 tok/s, por debajo del "5-9" esperado en el brief;
 es el número honesto de steady-state de este hardware/backend.
 ARCHIVOS: README.md, scripts/cognia_doctor.py.
+
+---
+## 2026-06-07 — Sub-agente: aislamiento de pytest (cross-test state pollution)
+DIAGNOSTICO: 8 tests fallaban SOLO en suite completa (pasaban en aislamiento). Causa raiz:
+fuga de estado en sys.modules desde tests/test_cli_goal_priority.py y tests/test_cli_goal_commands.py.
+Sus helpers _import_cli()/_import_cli_funcs() hacen:
+  sys.modules["cognia.cognia"] = stub (Cognia = MagicMock)
+  sys.modules["cognia.config"] = stub
+  sys.modules["cognia.goals.goal_tracker"] = MagicMock (via _fake_goal_tracker)
+  del sys.modules["cognia.cli"]
+...y NUNCA los restauraban (solo restauraban rich.*). Consecuencias en victimas:
+
+1) test_phase9_security TestFeedbackRateLimit::* (4 tests): hacen
+   `from cognia.cognia import Cognia; Cognia.apply_feedback.__get__(...)`. Con cognia.cognia
+   stubbeado, Cognia==MagicMock -> AttributeError "MagicMock has no attribute apply_feedback".
+2) test_phase9_security TestWebAppApiKeyMiddleware::test_correct_key_allows_access: el modulo
+   web_app quedaba cacheado en sys.modules importado bajo el stub; su global _cognia se volvia
+   MagicMock (web_app: `from cognia import Cognia` -> get_cognia() cachea MagicMock()). Al
+   reload(web_app) en el test, /api/health devolvia get_memory_health() -> MagicMock ->
+   "Object of type MagicMock is not JSON serializable" (500, no 200).
+3) test_context_injector TestContextInjectorSingleton::test_singleton_get_context_block_callable:
+   afectado por la cadena cognia.goals.goal_tracker / cognia.cognia stubbeada al importar.
+4) test_cli_synthesis test_temas_empty_history / test_temas_extracts_frequent_words: la eviccion
+   de cognia.cli causaba MISMATCH DE IDENTIDAD de modulo: `from cognia.cli import _slash_temas`
+   (en collection) quedaba ligado al modulo A; dentro del test `import cognia.cli` resolvia al
+   modulo B re-importado, con _history DISTINTO. El test poblaba B._history pero _slash_temas
+   leia A._history (vacio) -> "No hay historial".
+
+FIX (solo tests, sin tocar codigo de producto — no es bug de producto, es fuga de tests):
+- tests/test_cli_goal_priority.py y tests/test_cli_goal_commands.py: fixture autouse
+  _restore_sys_modules que (a) pre-importa los modulos REALES cognia.cognia/cognia.config/
+  cognia.goals.goal_tracker y los restaura en teardown (restaurar el real, NO popearlos, evita
+  dejar web_app stale apuntando a MagicMock), y (b) evicta cognia.cli, web_app y rich.* para
+  re-import limpio. Asi la fuga no escapa del modulo.
+- tests/test_cli_synthesis.py: los 2 tests de /temas ahora mutan
+  sys.modules[_slash_temas.__module__]._history (la MISMA instancia que la closure lee),
+  inmune a evicciones/re-imports de cognia.cli.
+
+REPRO red->green (fast, -p no:randomly):
+  priority+commands+phase9: ANTES 16 failed/1 failed -> AHORA 54 passed
+  priority+commands+context_injector: 47 passed
+  priority+commands+cli_synthesis: ANTES 1 failed -> AHORA 39 passed
+  superset (priority,commands,cli_synthesis,context_injector,phase9,feedback_learner,public_api,
+  cli_commands): 111 passed.
+ARCHIVOS: tests/test_cli_goal_priority.py, tests/test_cli_goal_commands.py, tests/test_cli_synthesis.py
+
+## 2026-06-07 (cont.) — Correccion: el fix de aislamiento revelo regresion en test_cli_template_commands
+La suite COMPLETA (no el repro rapido) destapo que el approach inicial (evictar/popear
+cognia.cli y rich.* en teardown) introducia 11 fallos NUEVOS en tests/test_cli_template_commands.py
+(antes verdes). Causa raiz encadenada:
+ 1) test_cli_goal_*::_import_cli_funcs hace `del sys.modules["cognia.cli"]` -> deja el ATRIBUTO
+    `cognia.cli` del PAQUETE `cognia` apuntando al modulo stub. Popear cognia.cli en teardown no
+    arregla ese atributo: un `import cognia.cli` posterior devuelve el stub viejo (identidad
+    partida: `import cognia.cli` != `sys.modules["cognia.cli"]`).
+ 2) Ademas, restaurar rich.* stubbeado (con _FakeConsole cuyo .print es no-op) dejaba a
+    test_cli_learning importando cognia.cli con `_console=_FakeConsole`; test_cli_template_commands
+    invoca _slash_template/_slash_template_guia (usan _console.print) y capturaba '' (buffer vacio).
+FIX FINAL (en ambos test_cli_goal_*.py):
+ - Pre-importar y RESTAURAR (no popear) los modulos REALES: cognia.cognia, cognia.config,
+   cognia.goals.goal_tracker, rich + rich.* y cognia.cli.
+ - En teardown, ademas de restaurar sys.modules[key], RE-SINCRONIZAR el atributo del paquete
+   padre (setattr(parent, child, modulo_real)) para matar la identidad partida de cognia.cli.
+ - Solo web_app se evicta (re-importado fresco por test_phase9_security via importlib.reload).
+REPRO red->green (fast, -p no:randomly):
+  goal_commands+learning+template: ANTES 11 failed -> AHORA 32 passed
+  slice completo tests/test_cli_*.py: ANTES 11 failed (con fix intermedio) / 2 failed (sin fix) ->
+    AHORA 282 passed.
+  superset (goal_priority,goal_commands,cli_synthesis,context_injector,phase9,template,learning,
+    feedback_learner,public_api,cli_commands,session_tools): 137 passed.
+NOTA: NO se toco codigo de producto. cognia.cli con rich real escribe a sys.stdout dinamico
+(rich.Console respeta swaps de sys.stdout en runtime — verificado), asi que la captura del test
+funciona una vez que cognia.cli/rich quedan reales y con identidad unica.
+ARCHIVOS: tests/test_cli_goal_priority.py, tests/test_cli_goal_commands.py
