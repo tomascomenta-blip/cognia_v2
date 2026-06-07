@@ -95,6 +95,7 @@ class LoopTrace:
     verify: object | None
     tools_invoked: list | None
     output: str
+    prediction: object | None = None   # World-Model Prediction for the ACT route
 
 
 class CognitiveLoop:
@@ -137,6 +138,16 @@ class CognitiveLoop:
             self._registry = get_tool_registry()
         except Exception:
             self._registry = None
+
+        # World-Model action simulator -- "simulate before act" risk gate.
+        # WHY here: built once so the ACT route can predict EFFECT/RISK of the
+        # chosen tool BEFORE executing it. Tolerate missing DB/registry.
+        self._simulator = None
+        try:
+            from cognia.reasoning.action_simulator import ActionSimulator
+            self._simulator = ActionSimulator(db_path=db_path)
+        except Exception:
+            self._simulator = None
 
     # -- Classification ---------------------------------------------------
 
@@ -387,14 +398,16 @@ class CognitiveLoop:
             return "validate_python", {"code": "x = 1\n"}
         return None
 
-    def _run_act(self, query: str, hydra) -> Tuple[list, str]:
-        # ACT: actually execute a real registered tool with safe kwargs.
+    def _run_act(self, query: str, hydra) -> Tuple[list, str, object]:
+        # ACT: simulate (predict EFFECT+RISK) the chosen tool, then either GATE
+        # (CONFIRM) or actually execute it (PROCEED/SANDBOX) with safe kwargs.
         if self._registry is None:
-            return None, _ascii("ACT: tool registry unavailable.")
+            return None, _ascii("ACT: tool registry unavailable."), None
         try:
             names = list(self._registry.names())
         except Exception as exc:
-            return None, _ascii("ACT: registry.names() error: " + _clean(str(exc)))
+            return None, _ascii(
+                "ACT: registry.names() error: " + _clean(str(exc))), None
 
         picked = self._pick_tool(query, names)
         if picked is None:
@@ -402,20 +415,46 @@ class CognitiveLoop:
             return None, _ascii(
                 "ACT: no safe tool matched. Available tools: "
                 + ", ".join(names)
-            )
+            ), None
 
         name, kwargs = picked
+
+        # World-Model "simulate before act": predict before executing.
+        prediction = None
+        if self._simulator is not None:
+            try:
+                prediction = self._simulator.predict_tool(name, kwargs)
+            except Exception:
+                # NEVER let the gate crash the loop: a None prediction simply
+                # means "no gate available" and execution proceeds as before.
+                prediction = None
+
+        # RISK GATE: CONFIRM -> do NOT auto-execute; flag for confirmation.
+        if prediction is not None and getattr(
+            prediction, "recommendation", "PROCEED") == "CONFIRM":
+            reason = "; ".join(getattr(prediction, "reasons", []) or []) or "high risk"
+            out = "ACTION GATED: %s needs confirmation (risk=%.2f): %s" % (
+                name, getattr(prediction, "risk", 0.0), _clean(reason, 120)
+            )
+            # Mark the tool as gated (not executed): result is None.
+            return [(name, None)], _ascii(out), prediction
+
+        # PROCEED / SANDBOX -> execute as before (keep current behavior).
         result = self._registry.execute(name, **kwargs)
         tools_invoked = [(name, result)]
+        sb = ""
+        if prediction is not None and getattr(
+                prediction, "recommendation", "") == "SANDBOX":
+            sb = " [SANDBOX: risk=%.2f]" % getattr(prediction, "risk", 0.0)
         if getattr(result, "success", False):
-            out = "ACT: invoked tool '%s' kwargs=%s -> %s" % (
-                name, _clean(str(kwargs), 80), _clean(str(result.output), 120)
+            out = "ACT: invoked tool '%s' kwargs=%s -> %s%s" % (
+                name, _clean(str(kwargs), 80), _clean(str(result.output), 120), sb
             )
         else:
-            out = "ACT: tool '%s' failed: %s" % (
-                name, _clean(str(getattr(result, "error", "")))
+            out = "ACT: tool '%s' failed: %s%s" % (
+                name, _clean(str(getattr(result, "error", ""))), sb
             )
-        return tools_invoked, _ascii(out)
+        return tools_invoked, _ascii(out), prediction
 
     # -- Public pipeline --------------------------------------------------
 
@@ -435,6 +474,7 @@ class CognitiveLoop:
         critique = None
         verify_res = None
         tools_invoked = None
+        prediction = None
         output = ""
 
         try:
@@ -447,7 +487,7 @@ class CognitiveLoop:
                     query, hydra
                 )
             elif decision.route == ROUTE_ACT:
-                tools_invoked, output = self._run_act(query, hydra)
+                tools_invoked, output, prediction = self._run_act(query, hydra)
             else:
                 output = _ascii("Unknown route: " + decision.route)
         except Exception as exc:
@@ -467,6 +507,7 @@ class CognitiveLoop:
             verify=verify_res,
             tools_invoked=tools_invoked,
             output=output,
+            prediction=prediction,
         )
 
 
@@ -525,10 +566,28 @@ def format_trace(trace: LoopTrace) -> str:
             _clean(str(getattr(v, "fail_reason", None))),
         ))
 
+    # PREDICTION (World-Model "simulate before act") -- shown for ACT route.
+    p = getattr(trace, "prediction", None)
+    if p is not None:
+        lines.append("PREDICTION:")
+        lines.append("  effect: " + _clean(getattr(p, "predicted_effect", "")))
+        lines.append("  risk=%.2f uncertainty=%.2f reversible=%s" % (
+            getattr(p, "risk", 0.0),
+            getattr(p, "uncertainty", 0.0),
+            getattr(p, "reversible", "?"),
+        ))
+        lines.append("  recommendation: %s" % getattr(p, "recommendation", "?"))
+        for r in getattr(p, "reasons", []) or []:
+            lines.append("    - " + _clean(r))
+
     # TOOLS.
     if trace.tools_invoked:
         lines.append("TOOLS INVOKED:")
         for name, res in trace.tools_invoked:
+            # res is None when the action was GATED (CONFIRM) and not executed.
+            if res is None:
+                lines.append("  - %s: GATED (not executed)" % name)
+                continue
             lines.append("  - %s: success=%s output=%s" % (
                 name,
                 getattr(res, "success", "?"),
