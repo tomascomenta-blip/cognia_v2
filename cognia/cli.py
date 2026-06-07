@@ -5505,41 +5505,62 @@ def repl():
                             except Exception:
                                 pass
                         if _llama is not None:
-                            from node.inference_pipeline import _apply_qwen_template
                             _system = "Eres Cognia, un sistema de IA con memoria episodica y grafo de conocimiento."
                             # Multi-turn: feed the last few turns so the model can
                             # follow the conversation thread. _history holds prior
                             # turns only (the current one is appended AFTER generation),
                             # so it never contains 'raw' yet. Cap to the last 8 turns
                             # (16 messages) to bound the prompt size.
-                            _hist_ctx = _history[-16:] if _history else None
-                            _formatted = _apply_qwen_template(raw, _system, history=_hist_ctx)
+                            _hist_ctx = [
+                                h for h in _history[-16:]
+                                if h.get("role") in ("user", "assistant") and h.get("content")
+                            ]
+                            # Prefer the canonical multi-turn API (/v1/chat/completions):
+                            # llama-server applies the official Qwen chat template, with
+                            # real role separation -- more robust than a hand-built ChatML
+                            # string (which malforms on empty/odd turns). Fall back to the
+                            # manual ChatML template if the backend lacks stream_chat.
+                            _use_chat = hasattr(_llama, "stream_chat")
+                            if _use_chat:
+                                _messages = [{"role": "system", "content": _system}]
+                                _messages.extend(_hist_ctx)
+                                _messages.append({"role": "user", "content": raw})
+                                _stream_src = lambda: _llama.stream_chat(_messages, max_tokens=512)
+                            else:
+                                from node.inference_pipeline import _apply_qwen_template
+                                _formatted = _apply_qwen_template(
+                                    raw, _system, history=_hist_ctx or None)
+                                _stream_src = lambda: _llama.stream_generate(_formatted, max_tokens=512)
                             _tokens_buf = []
                             t0 = time.time()
                             try:
                                 print("", flush=True)
-                                for _tok in _llama.stream_generate(_formatted, max_tokens=512):
+                                for _tok in _stream_src():
                                     _tokens_buf.append(_tok)
                                     if _HAS_RICH and _console:
                                         _console.print(_tok, end="", style="cyan", highlight=False)
                                     else:
                                         print(_tok, end="", flush=True)
                                 print()
-                                _streamed = True
-                                _full_response = "".join(_tokens_buf)
-                                elapsed = time.time() - t0
-                                _show_footer(elapsed, _full_response)
-                                _session_log.append({
-                                    "input":   raw,
-                                    "output":  _full_response,
-                                    "elapsed": elapsed,
-                                })
-                                _history.append({"role": "user", "content": raw})
-                                _history.append({"role": "assistant", "content": _full_response})
-                                try:
-                                    ai.observe(_full_response[:300], provided_label="respuesta_streaming")
-                                except Exception:
-                                    pass
+                                _full_response = "".join(_tokens_buf).strip()
+                                # An empty stream (backend hiccup) is NOT a real answer:
+                                # leave _streamed False so we fall through to the
+                                # articulated path instead of printing a blank reply.
+                                _streamed = bool(_full_response)
+                                if _streamed:
+                                    elapsed = time.time() - t0
+                                    _show_footer(elapsed, _full_response)
+                                    _session_log.append({
+                                        "input":   raw,
+                                        "output":  _full_response,
+                                        "elapsed": elapsed,
+                                    })
+                                    _history.append({"role": "user", "content": raw})
+                                    _history.append({"role": "assistant", "content": _full_response})
+                                    try:
+                                        ai.observe(_full_response[:300], provided_label="respuesta_streaming")
+                                    except Exception:
+                                        pass
                             except Exception as _se:
                                 if _tokens_buf:
                                     _streamed = True  # partial stream — don't retry
