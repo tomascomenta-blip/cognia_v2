@@ -50,4 +50,5 @@ model_shards/
 *.gguf
 *.npy
 *.bin
-file
+# Auto-generated, machine-specific agent tools (verified at runtime, not shipped)
+cognia/agent/generated_tools/

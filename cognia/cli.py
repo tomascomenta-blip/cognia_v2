@@ -5788,6 +5788,15 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None) -> str:
     from cognia.agent.loop import (
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
     )
+    # Pull in any tools Cognia synthesized and verified in the background, so the
+    # agent can use its own self-made tools. Best-effort.
+    try:
+        from cognia.agent.tool_synthesis import load_generated_tools
+        _n_gen = load_generated_tools()
+        if _n_gen:
+            _print_fn(f"[detail]{_n_gen} herramienta(s) auto-generada(s) disponibles[/detail]")
+    except Exception:
+        pass
 
     TOOLS_DOC = (
         "You are an autonomous agent. Start your reply with ACCION: on the first line.\n\n"

@@ -21,7 +21,12 @@ MAX_OUTPUT_CHARS      = 4000
 
 # Single source of truth for both AST check and runtime guard
 BLOCKED_MODULES: frozenset = frozenset({
-    "builtins",       # prevent __import__ override removal
+    # NOTE: 'builtins' is intentionally NOT blocked. The real __import__ is
+    # captured privately in the runtime guard (_ri default-arg), so re-importing
+    # builtins can't restore it. Blocking builtins used to cascade-fail every
+    # pure-Python stdlib module (re, json, string, random, collections all
+    # trigger an internal `import builtins` while loading), making the sandbox
+    # reject almost any non-trivial program.
     "cffi",
     "ctypes",
     "ftplib",
@@ -56,7 +61,12 @@ _RUNTIME_GUARD = (
     "_BM = frozenset({"
     + ", ".join(f'"{m}"' for m in sorted(BLOCKED_MODULES))
     + "})\n"
-    "def _si(name, *a, **kw):\n"
+    # _ri is captured as a keyword-only default so _si keeps a private reference
+    # to the real __import__ even after `del _ri` removes it from the sandbox
+    # namespace. Without this capture, `del _ri` left _si referencing a deleted
+    # global -> NameError on EVERY import (even safe stdlib like math/re/json),
+    # silently breaking all sandboxed code that imports anything.
+    "def _si(name, *a, _ri=_ri, **kw):\n"
     "    if name.split('.')[0] in _BM:\n"
     "        raise ImportError('[sandbox] blocked: ' + name)\n"
     "    return _ri(name, *a, **kw)\n"
