@@ -1355,3 +1355,27 @@ MODULOS AUDITADOS CON 0 REGRESIONES:
 - Archivos: cognia/chimera.py (NEW), tests/test_chimera.py (NEW, 21 tests), README.md (seccion Chimera)
 - Resultado tests: PASS — 60 passed across las 5 suites Chimera (verificado por sub-agente)
 - Notas: Trace de 10 etapas (s11). CLI: python -m cognia.chimera "<q>". README con tabla literal/adaptado/descartado + comandos repro.
+
+## [2026-06-06] CYCLE 6 — Loop de deliberacion DELIBERATE (s7.2/7.3)
+- Archivos: cognia/reasoning/cognitive_loop.py (_run_deliberate, plan_risk), tests/test_deliberation_loop.py (NEW, 5 tests)
+- Resultado tests: PASS — deliberation 5, cognitive_loop 16, action_simulator 9, chimera 21 (todas verdes)
+- Notas: generate->predict_plan(world-model)->critique->verify->revise acotado a 2 iters, mejor iteracion. FAST/RECALL/ACT intactos.
+
+## [2026-06-07] CYCLE 7 — Triaje suite: deps + aislamiento (no eran bugs)
+- Hallazgo: los 65 failed/23 errors del baseline eran 100% deps ausentes en venv312, no bugs de codigo.
+- Fix durable: requirements.txt + pyproject.toml declaran huggingface_hub, psutil, httpx (usados en cognia/ y cognia_public_api/ pero sin declarar).
+- Fix aislamiento: tests/test_public_api.py reafirma cognia_public_api en sys.path y limpia sys.modules['app'] (contaminacion cross-test).
+- Resultado: instalando deps declaradas, 65 failed -> ~8 (residuales de orden/estado global entre tests). public_api 9/9 verde. phase9 verde junto a public_api.
+- Commit: pendiente push
+
+## [2026-06-07] CYCLE 8 — Aprendizaje continuo 3 velocidades (s10)
+- Archivos: cognia/learning/continuous_learning.py (NEW), tests/test_continuous_learning.py (NEW, 8 tests)
+- Resultado tests: PASS — 8 passed
+- Notas: FAST=write episodico real, MEDIUM=trigger de destilacion real (entrenamiento delegado al sleep cycle, no fabricado), SLOW=consolidacion+decay reales. Modulo nuevo, sin editar codigo existente.
+
+## [2026-06-07] SUITE FINAL: 2174 passed, 8 failed, 0 errors (de 65 failed/23 errors baseline). Los 8 restantes son aislamiento cross-test (pasan en aislamiento), no bugs de producto.
+
+## [2026-06-07] CYCLE 9 — Triaje aislamiento (decision documentada, no perseguir)
+- Los 8 fallos residuales del suite (5 test_phase9_security, 2 test_cli_synthesis, 1 test_context_injector) son contaminacion cross-test de sys.modules: decenas de tests CLI mockean cognia.cognia/web_app sin limpiar. Pasan en aislamiento.
+- Decision: NO refactorizar (masivo, riesgo de romper 2174 verdes, deuda preexistente no introducida por esta sesion, codigo de producto correcto). Documentado en ROADMAP Phase 53 y aqui.
+- Doc: ROADMAP.md Phase 53 (Chimera Cognitive Layer, 53.1-53.8).

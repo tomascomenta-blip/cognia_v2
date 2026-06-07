@@ -841,3 +841,24 @@ multiple_values + circular_is_a detection. `cognia/knowledge/consistency_checker
 ### Phase 52 — Public API (HuggingFace Spaces) DONE (2026-06-04)
 API publica FastAPI en HuggingFace Spaces (gratis, sin tarjeta, 24/7). Bearer auth con keys formato `cogn-XXXXXXXXXXXXXXXX`. CORS abierto para uso desde paginas web. Inferencia via coordinator swarm (Level 1) o llama-cpp-python local GGUF (Level 2). Keep-alive via GitHub Actions cron. `cognia_public_api/`.
 **Space live:** https://Acua124298042-cognia-api.hf.space
+
+### Phase 53 — Chimera Cognitive Layer DONE (2026-06-07)
+Capa cognitiva a nivel de SISTEMA inspirada en el whitepaper `chimera_transformer.md`.
+HYDRA NO como atencion (modelo INT4 pre-shardeado intocable) sino como analogo de sistema.
+Todo offline, sin LLM, reutilizando subsistemas existentes. Pruebas CLI reales.
+
+| Sub | Cambio | Archivos | Status |
+|-----|--------|----------|--------|
+| 53.1 | HYDRA-analogo: enrutador de contexto de 3 bandas LOCAL/MEDIA/GLOBAL sobre LOGOS/TECHNE/RHETOR | `cognia/context/band_router.py`, `tests/test_band_router.py` | DONE (8 tests) |
+| 53.2 | Cognitive Loop FAST/RECALL/DELIBERATE/ACT, ejecucion real offline por route | `cognia/reasoning/cognitive_loop.py`, `tests/test_cognitive_loop.py` | DONE (16 tests) |
+| 53.3 | Memoria jerarquica 5 capas + write-gating por sorpresa/importancia + pinning | `cognia/memory/hierarchical.py`, `tests/test_hierarchical_memory.py` | DONE (6 tests) |
+| 53.4 | World-model lite: simular antes de actuar (riesgo/efecto) + gate de riesgo en ACT | `cognia/reasoning/action_simulator.py`, `tests/test_action_simulator.py` | DONE (9 tests) |
+| 53.5 | Loop de deliberacion DELIBERATE (generate->world-model->critique->verify->replan, 2 iters) | `cognia/reasoning/cognitive_loop.py`, `tests/test_deliberation_loop.py` | DONE (5 tests) |
+| 53.6 | Orquestador integral (whitepaper s11): trace de 10 etapas. CLI `python -m cognia.chimera` | `cognia/chimera.py`, `tests/test_chimera.py` | DONE (21 tests) |
+| 53.7 | Aprendizaje continuo 3 velocidades (FAST write / MEDIUM trigger / SLOW consolidacion) | `cognia/learning/continuous_learning.py`, `tests/test_continuous_learning.py` | DONE (8 tests) |
+| 53.8 | Deps no declaradas (huggingface_hub/psutil/httpx) + fix aislamiento test_public_api | `requirements.txt`, `pyproject.toml`, `tests/test_public_api.py` | DONE |
+
+DESCARTADO (inviable / fuera de alcance): multimodal nativo (nodos numpy sin encoders),
+espacio latente unificado U (requiere entrenamiento conjunto). Ver README "Capa Cognitiva Chimera".
+
+**Verificacion:** `venv312/Scripts/python.exe -m pytest tests/test_band_router.py tests/test_cognitive_loop.py tests/test_hierarchical_memory.py tests/test_action_simulator.py tests/test_chimera.py tests/test_deliberation_loop.py tests/test_continuous_learning.py` → 73 passed. Suite global: 2174 passed (8 fallos residuales son aislamiento cross-test preexistente, pasan en aislamiento; deuda de higiene del suite, no bugs de producto). NOTA: `venv/` del repo roto (Py3.14), usar Python 3.12 + `pip install -r requirements.txt`.
