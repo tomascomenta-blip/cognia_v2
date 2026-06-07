@@ -145,6 +145,66 @@ Cognia no es un wrapper de LLM ni una interfaz de chat con memoria. Las diferenc
 - **Economia de contribucion sin suscripciones:** El acceso prioritario se asigna por recursos aportados (disco, computo, uptime), no por pago. Los tiers (basic/standard/premium) definen RPM y modelos accesibles, con enforcement por sliding window por node_id.
 - **Router de dominio sobre tres sub-modelos:** LOGOS (razonamiento, temp=0.3), TECHNE (codigo, temp=0.15), RHETOR (escritura, temp=0.7) — tres perfiles de generacion distintos sobre la misma base Qwen2.5-Coder-3B INT4.
 
+## Capa Cognitiva Chimera (sistema, no atencion)
+
+Sobre el backbone Qwen2.5-Coder-3B INT4 pre-shardeado se construyo una capa cognitiva
+inspirada en el whitepaper `chimera_transformer.md`. HYDRA NO se implementa como mecanismo
+de atencion (el modelo esta pre-cuantizado y pre-shardeado: alterar la atencion exigiria
+reentrenar y re-shardar todo el swarm). En su lugar, los conceptos de Chimera se realizan
+como un **analogo a nivel de sistema** que orquesta los subsistemas ya existentes. Todo
+corre offline, sin LLM y sin PyTorch en el camino critico.
+
+Flujo end-to-end (whitepaper seccion 11), un solo comando:
+
+```
+python -m cognia.chimera "calcula 2+2"
+```
+
+Etapas reales del trace: INPUT -> bandas HYDRA -> route cognitivo -> memoria recuperada
+-> plan -> critica -> verify -> world-model (riesgo) -> tools -> output -> memoria escrita.
+
+### Que se implemento: literal vs adaptado vs descartado
+
+| Subsistema Chimera | Decision | Por que / como | Archivos |
+|---|---|---|---|
+| HYDRA (atencion 3 bandas) | **ADAPTADO** (no literal) | Atencion intocable (INT4 pre-shardeado). Reimplementado como enrutador de CONTEXTO/MEMORIA de 3 bandas LOCAL/MEDIA/GLOBAL sobre el router LOGOS/TECHNE/RHETOR. | `cognia/context/band_router.py` |
+| MoE routing | **YA EXISTE** (reutilizado) | LOGOS/TECHNE/RHETOR via `GlobalRouter`. No se duplico. | `shattering/router.py` |
+| Cognitive Loop (FAST/RECALL/DELIBERATE/ACT) | **CONSTRUIDO** | Clasificador de ruta + ejecucion real offline de cada ruta. | `cognia/reasoning/cognitive_loop.py` |
+| Memoria jerarquica 5 capas | **ADAPTADO** (facade + gating) | Las 5 capas existian sueltas; se unifico y se agrego el write-gate por sorpresa+importancia que faltaba. | `cognia/memory/hierarchical.py` |
+| World model | **ADAPTADO ligero** | Sin RSSM neuronal (sin computo). Simulador de consecuencias deterministico (riesgo, reversibilidad, KG) que gatea antes de ejecutar. | `cognia/reasoning/action_simulator.py` |
+| Planner + critico | **YA EXISTE** (cableado) | `plan_task` (templates) + `SelfCritic.critique` + `verify`. | `cognia/agents/planner.py`, `cognia/reasoning/self_critic.py`, `cognia/agents/verifier.py` |
+| Agentes + herramientas | **YA EXISTE** (reutilizado) | `tool_registry` con tools reales (execute_python, etc.). | `cognia/agents/tool_registry.py` |
+| Multimodal nativo | **DESCARTADO** | Inviable: nodos numpy puro sin encoders de vision/audio; fuera de la vision P2P CPU-only. | - |
+| Aprendizaje continuo (3 velocidades) | **PARCIAL ya existe** | Episodico, adapters LoRA, consolidacion lenta. No se toco en esta capa. | `cognia/memory/*` |
+| Espacio latente unificado U | **DESCARTADO** | Exigiria entrenamiento conjunto; los subsistemas se comunican por texto/vectores. | - |
+
+### Comandos exactos para reproducir cada prueba
+
+> El `venv/` del repo apunta a un Python 3.14 con wheels ausentes. Usar un interprete 3.12.
+> En esta maquina: `venv312/Scripts/python.exe`. Sustituir por tu interprete si difiere.
+
+```
+# C1 HYDRA 3 bandas
+venv312/Scripts/python.exe -m cognia.context.band_router "recuerda lo que dijiste antes sobre shards?"
+venv312/Scripts/python.exe -m pytest tests/test_band_router.py -q
+
+# C2 Cognitive Loop
+venv312/Scripts/python.exe -m cognia.reasoning.cognitive_loop "calcula 2+2"
+venv312/Scripts/python.exe -m pytest tests/test_cognitive_loop.py -q
+
+# C4 Memoria jerarquica con write-gating
+venv312/Scripts/python.exe -m cognia.memory.hierarchical
+venv312/Scripts/python.exe -m pytest tests/test_hierarchical_memory.py -q
+
+# C5 World-model: simular antes de actuar
+venv312/Scripts/python.exe -m cognia.reasoning.action_simulator "delete all files in C:/"
+venv312/Scripts/python.exe -m pytest tests/test_action_simulator.py -q
+
+# FASE FINAL integral
+venv312/Scripts/python.exe -m cognia.chimera "refactoriza el orchestrator paso a paso e implementa y prueba"
+venv312/Scripts/python.exe -m pytest tests/test_chimera.py -q
+```
+
 ## Para Colaborar
 
 Lee el [ROADMAP.md](ROADMAP.md) para entender la direccion actual. Cognia prioriza la eficiencia (CPU-only), la privacidad y la estabilidad. No se aceptan dependencias pesadas (PyTorch/Tensorflow) en el motor de inferencia principal.
