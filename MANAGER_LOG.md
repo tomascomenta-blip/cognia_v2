@@ -1666,3 +1666,19 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   juntas 11/11.
 - Proximo: Fase 3 -- 2 equipos FISICOS en LAN TP=2, medir tok/s vs baseline 3B single-device (la tesis
   de que TP le gana sumando equipos debiles); luego 4 equipos/ponderada/churn/bootstrap/standalone.
+
+## [2026-06-08] SHATTERING v2 -- Fase 3a: motor de modelo completo TP (generacion end-to-end)
+- Que: shattering/tp_engine.py ata el TP por-capa en un loop de generacion completo: TPModelWeights
+  (embed INT4 + capas + final_norm + lm_head INT4), embed_lookup (gather+dequant de filas),
+  generate_reference (single-device greedy), generate_tp (cada capa partida en T ranks; embed+lm_head
+  en el "seeder" segun Decision 11). timed_generate_tp para micro-bench.
+- Verificacion REAL: CHECK directo -> la secuencia de tokens generada en TP es IDENTICA a la
+  single-device para T=1/2/4/8 (modelo random vocab=512, 3 capas, KH=8), incl. decode con KV-cache.
+  pytest dirigido 3/3. Los 4 archivos TP juntos: 14/14.
+- Hallazgo honesto: tok/s in-process BAJA con T (196->50 de T=1 a T=8) porque en una sola maquina
+  partir en mas ranks es overhead sin paralelismo. Confirma la tesis: TP solo gana con ranks en
+  dispositivos SEPARADOS en paralelo. El CHECK lo marca explicito ("NOT the LAN thesis").
+- Limite declarado: la tesis de latencia (TP le gana a single-device) necesita 2 EQUIPOS FISICOS en
+  LAN -- no se puede verificar en una maquina (loopback = microsegundos). Fase 3c queda BLOQUEADA por
+  hardware; entregar tooling runnable + guia para que el dueno mida. Proximo factible: Fase 3b
+  (generacion cross-proceso con seeder + ranks por sockets, identidad de tokens).
