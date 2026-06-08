@@ -262,6 +262,58 @@ def _cmd_leave() -> None:
     print()
 
 
+def _cmd_modo() -> None:
+    """
+    Ver o cambiar el modo de uso y la personalizacion.
+
+    Uso:
+        cognia modo                 -- mostrar modo + personalizacion actual
+        cognia modo local           -- correr el modelo en este equipo
+        cognia modo compartido      -- unirse a la red local (swarm)
+        cognia modo memoria         -- sin LLM (solo memoria/grafo)
+    """
+    from cognia.user_prefs import (
+        load_prefs, save_pref, K_RUN_MODE, K_USER_NAME, K_LANG, K_STYLE, MODE_LABELS,
+    )
+    from cognia.first_run import SHARDS_DIR
+
+    args  = sys.argv[2:]
+    prefs = load_prefs()
+
+    if args:
+        target = args[0].strip().lower()
+        if target not in MODE_LABELS:
+            print(f"Modo desconocido: '{target}'. Opciones: local, compartido, memoria.")
+            sys.exit(1)
+        save_pref(K_RUN_MODE, target)
+        print(f"Modo cambiado a: {MODE_LABELS[target]}")
+        if target == "local":
+            model_key = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
+            has_shards = (SHARDS_DIR / model_key / "shard_0.npz").exists()
+            if not has_shards:
+                print("  Faltan los pesos locales. Descargalos con:")
+                print("      cognia install-weights --standalone")
+        elif target == "compartido":
+            print("  Conecta a un coordinador con:")
+            print("      cognia install-weights --coordinator <URL>")
+        return
+
+    mode  = prefs.get(K_RUN_MODE) or ""
+    label = MODE_LABELS.get(mode, mode or "(sin configurar -- ejecuta 'cognia init')")
+    print("Cognia -- modo y personalizacion")
+    print("-" * 42)
+    print(f"  Modo actual : {label}")
+    print(f"  Nombre      : {prefs.get(K_USER_NAME) or '(no definido)'}")
+    print(f"  Idioma      : {prefs.get(K_LANG) or '(default)'}")
+    print(f"  Estilo      : {prefs.get(K_STYLE) or '(default)'}")
+    print()
+    print("  Cambiar modo:")
+    print("    cognia modo local        -- correr en este equipo")
+    print("    cognia modo compartido   -- unirse a la red local")
+    print("    cognia modo memoria      -- sin LLM")
+    print("    cognia init              -- reconfigurar todo (incluida personalizacion)")
+
+
 def _cmd_status() -> None:
     coord_url = (
         os.environ.get("COGNIA_COORDINATOR_URL", "")
@@ -309,6 +361,7 @@ Uso: cognia [comando] [opciones]
 Comandos:
   (ninguno)          Iniciar REPL (lanza wizard en primer uso)
   init               Re-ejecutar wizard de configuracion
+  modo               Ver o cambiar el modo (local/compartido/memoria) y personalizacion
   install-weights    Descargar shards y configurar este dispositivo como nodo
   server             Servidor web FastAPI (puerto 8000)
   node               Iniciar como nodo del swarm distribuido
@@ -351,6 +404,8 @@ def main() -> None:
         _cmd_node()
     elif cmd == "coordinator":
         _cmd_coordinator()
+    elif cmd in ("modo", "mode"):
+        _cmd_modo()
     elif cmd == "status":
         _cmd_status()
     elif cmd == "leave":

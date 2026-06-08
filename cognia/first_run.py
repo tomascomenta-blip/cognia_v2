@@ -260,31 +260,23 @@ def run_wizard(force: bool = False) -> None:
     print("  Cognia -- Bienvenido")
     print("=" * 55)
     print("""
-Cognia es una IA distribuida. El modelo vive repartido entre
-los dispositivos de sus usuarios: cada nodo aloja un fragmento
-(~300MB). Juntos forman un modelo de 3B parametros que ningun
-nodo necesita tener completo.
-
-  - Tus conversaciones nunca salen de este dispositivo.
-  - El fragmento que alojes es tuyo mientras Cognia este instalado.
-  - Si lo desinstales, el fragmento queda disponible para otro nodo.
-  - A mayor red, menor latencia para todos.
+Cognia es una IA que corre en TUS equipos. Tus conversaciones
+nunca salen de aca. Elegi como queres usarla:
 """)
 
-    print("Como quieres usar Cognia?\n")
-    print("  1. Unirte a la red  (recomendado)")
-    print("     Alojas ~300MB. Accedes al modelo completo via la red.")
-    print("     Necesitas la URL de un coordinador.")
+    print("  1. Local  (este equipo)             [recomendado]")
+    print("     Descarga el modelo y lo corre en este equipo.")
+    print("     Funciona sin internet. La opcion mas simple.")
     print()
-    print("  2. Standalone (sin red)")
-    print("     Descargas el modelo completo (~1.2GB) en este dispositivo.")
-    print("     Funciona sin internet. No dependes de otros nodos.")
+    print("  2. Compartido  (red local)")
+    print("     Varios equipos de tu red juntan su memoria para")
+    print("     correr un modelo mas grande entre todos.")
     print()
-    print("  3. Solo memoria")
-    print("     Sin inferencia LLM. Grafo episodico y aprendizaje activos.")
+    print("  3. Solo memoria  (sin modelo de IA)")
+    print("     Aprendizaje, grafo de conocimiento y memoria, sin LLM.")
     print()
 
-    mode = _ask("Selecciona modo", default="1")
+    mode = _ask("Elegi una opcion (1/2/3)", default="1")
 
     config: dict[str, str] = {}
     COGNIA_HOME.mkdir(parents=True, exist_ok=True)
@@ -292,25 +284,54 @@ nodo necesita tener completo.
     SHARDS_DIR.mkdir(parents=True, exist_ok=True)
     config["COGNIA_DATA_DIR"] = str(DATA_DIR)
 
-    if mode == "1":
+    if mode == "2":
+        config["COGNIA_RUN_MODE"] = "compartido"
         _wizard_join_network(config)
-    elif mode == "2":
-        _wizard_standalone(config)
     elif mode == "3":
+        config["COGNIA_RUN_MODE"] = "memoria"
         _wizard_memory_only(config)
     else:
-        print(f"  Modo '{mode}' no reconocido. Usando modo de red.")
-        _wizard_join_network(config)
+        mode = "1"
+        config["COGNIA_RUN_MODE"] = "local"
+        _wizard_standalone(config)
+
+    _wizard_personalize(config)
 
     _write_config(config)
     FIRST_RUN_OK.touch()
     _wizard_print_done(mode, config)
 
 
+def _wizard_personalize(config: dict) -> None:
+    """Optional personalization: name, reply language, reply style.
+
+    Everything is Enter-to-skip. Persisted to config.env and folded into the
+    system prompt by cognia/user_prefs.personalize_prompt at chat time.
+    """
+    print("\n-- Personalizacion (opcional, Enter para saltar) --")
+
+    name = _ask("Tu nombre")
+    if name:
+        config["COGNIA_USER_NAME"] = name
+
+    lang = _ask("Idioma de las respuestas (espanol/ingles)", default="espanol").strip().lower()
+    if lang in ("espanol", "ingles"):
+        config["COGNIA_LANG"] = lang
+
+    print("  Estilo de respuesta:  1) breve   2) detallada   3) tecnica   4) amigable")
+    style_map = {"1": "breve", "2": "detallada", "3": "tecnica", "4": "amigable"}
+    s = _ask("Elegi estilo (Enter para el default)", default="").strip().lower()
+    if s in style_map:
+        config["COGNIA_STYLE"] = style_map[s]
+    elif s in style_map.values():
+        config["COGNIA_STYLE"] = s
+
+
 def _wizard_join_network(config: dict) -> None:
-    print("\n-- Unirte a la red --")
-    print("Tu dispositivo alojara un fragmento del modelo.")
-    print("El coordinador asigna que fragmento corresponde a cada nodo.\n")
+    print("\n-- Compartido (red local) --")
+    print("Tu equipo aloja un fragmento del modelo; entre varios equipos")
+    print("de la red corren un modelo mas grande del que entraria en uno solo.")
+    print("El coordinador asigna que fragmento le toca a cada equipo.\n")
 
     coord_url = _ask("URL del coordinador")
     if not coord_url:
@@ -337,8 +358,8 @@ def _wizard_join_network(config: dict) -> None:
 
 
 def _wizard_standalone(config: dict) -> None:
-    print("\n-- Modo standalone --")
-    print("Cognia usara su propio motor de inferencia local (numpy, sin PyTorch).")
+    print("\n-- Local (este equipo) --")
+    print("Cognia descarga el modelo y lo corre aca, sin internet ni cuenta.")
     print("Necesitas ~1.2GB de espacio libre.\n")
 
     if _ask_yn("Descargar los 4 shards del modelo Qwen2.5-Coder-3B (~1.2GB)?", default=True):
@@ -362,24 +383,31 @@ def _wizard_memory_only(config: dict) -> None:
 
 
 def _wizard_print_done(mode: str, config: dict) -> None:
+    run_mode = config.get("COGNIA_RUN_MODE", "local")
+    is_shared = run_mode == "compartido"
+
     print("\n" + "=" * 55)
-    print("  Listo.")
+    print("  Listo. Cognia esta configurado.")
     print("=" * 55)
-    print(f"\n  Datos en: {COGNIA_HOME}")
+    name = config.get("COGNIA_USER_NAME")
+    print(f"\n  Modo: {'Compartido (red local)' if is_shared else ('Solo memoria' if run_mode == 'memoria' else 'Local (este equipo)')}")
+    if name:
+        print(f"  Hola, {name}.")
+    print(f"  Datos en: {COGNIA_HOME}")
     print()
-    print("  Comandos:")
-    print("    cognia              -- iniciar REPL")
-    if mode == "1":
-        print("    cognia node         -- iniciar como nodo (contribuye tu fragmento)")
-        print("    cognia leave        -- salir de la red y liberar el fragmento")
-    print("    cognia server       -- servidor web (puerto 8000)")
-    print("    cognia coordinator  -- iniciar coordinador")
-    print("    cognia init         -- repetir este wizard")
+    print("  Para empezar a chatear, ejecuta:")
+    print("      cognia")
     print()
-    if mode == "1" and config.get("COGNIA_NODE_SHARD") is not None:
-        print("  Para contribuir tu fragmento a la red, ejecuta en otra terminal:")
-        print()
-        print("    cognia node")
+    print("  Otros comandos utiles:")
+    print("    cognia modo         -- ver o cambiar el modo y la personalizacion")
+    if is_shared:
+        print("    cognia node         -- contribuir tu fragmento a la red")
+        print("    cognia leave        -- salir de la red")
+    print("    cognia init         -- repetir esta configuracion")
+    print()
+    if is_shared and config.get("COGNIA_NODE_SHARD") is not None:
+        print("  Para contribuir tu fragmento a la red, en otra terminal:")
+        print("      cognia node")
         print()
 
 

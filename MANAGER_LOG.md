@@ -1711,3 +1711,21 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
 - ESTADO: el motor TP descentralizado de Shattering v2 esta COMPLETO y verificado en software de punta
   a punta, incluido el modelo de produccion real. Pendiente real: conversion de pesos a layout-TP en
   disco + daemons node/seeder cross-maquina + medicion fisica (3c) + fases B/C/bootstrap/standalone.
+
+## [2026-06-08] USABILIDAD CLI -- onboarding simple (Local default) + personalizacion + comando 'modo'
+- Que: cognia/first_run.py wizard reescrito a lenguaje plano y 3 opciones claras con LOCAL como
+  default recomendado (1=Local este equipo, 2=Compartido red local, 3=Solo memoria); paso de
+  personalizacion opcional (nombre/idioma/estilo, Enter para saltar); pantalla 'listo' con el
+  modo y proximos pasos. cognia/user_prefs.py (nuevo): K_USER_NAME/K_LANG/K_STYLE/K_RUN_MODE,
+  personalization_suffix (puro) + personalize_prompt (no-op si vacio). cognia/__main__.py:
+  comando nuevo 'cognia modo' (ver/cambiar modo + personalizacion). cli.py: el system prompt del
+  path streaming ahora pasa por personalize_prompt(build_adaptive_system_prompt(ai)).
+- Por que: 'descargar -> configurar -> ya' tiene que ser obvio; antes el modo 'recomendado' pedia
+  una URL de coordinador que el usuario no tiene (callejon sin salida). Ahora Local funciona ya.
+- Como se verifico: wizard end-to-end con HOME temporal (sin tocar ~/.cognia real, modo memoria sin
+  descarga) -> config.env correcto (RUN_MODE/USER_NAME/LANG/STYLE). 'cognia modo' muestra estado;
+  'cognia modo local' cambia y da hint honesto de descarga. pytest dirigido user_prefs+identity+
+  adaptive 18/18 (la personalizacion NO altera el prompt canonico para usuario fresco). Suite
+  completa: pendiente (corriendo).
+- Proximo: desktop -- onboarding visual Local/Compartido claro, endpoints /mode y /settings, panel
+  de ajustes/personalizacion, indicador+switch de modo, tema.

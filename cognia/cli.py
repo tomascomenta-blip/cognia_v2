@@ -5809,7 +5809,8 @@ def repl():
                                 pass
                         if _llama is not None:
                             from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
-                            _system = build_adaptive_system_prompt(ai)
+                            from cognia.user_prefs import personalize_prompt
+                            _system = personalize_prompt(build_adaptive_system_prompt(ai))
                             # Multi-turn: feed the last few turns so the model can
                             # follow the conversation thread. _history holds prior
                             # turns only (the current one is appended AFTER generation),
