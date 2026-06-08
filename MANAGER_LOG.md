@@ -1729,3 +1729,22 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   completa: pendiente (corriendo).
 - Proximo: desktop -- onboarding visual Local/Compartido claro, endpoints /mode y /settings, panel
   de ajustes/personalizacion, indicador+switch de modo, tema.
+
+## [2026-06-08] USABILIDAD DESKTOP -- onboarding Local/Compartido + endpoints modo/ajustes
+- Que: cognia_desktop_api.py: endpoints nuevos GET/POST /mode y GET/POST /settings (modo local/
+  compartido/memoria + personalizacion nombre/idioma/estilo), compartiendo el MISMO config.env que el
+  CLI via cognia/user_prefs. El _SYSTEM_PROMPT del streaming ahora pasa por personalize_prompt (chat
+  del desktop respeta la personalizacion). Renderer: setup.html/setup.js -- el paso 2 dejo de ser un
+  campo de URL suelto y ahora es una eleccion clara LOCAL (default, descarga el modelo, sin internet)
+  vs COMPARTIDO (red local, muestra URL del coordinador). Local pasa coordinator='local' -> standalone.
+- Por que: el desktop solo hacia swarm con una URL confusa; ahora 'descargar -> elegir Local -> ya'.
+- Como se verifico: TestClient real -> GET/POST /mode y /settings devuelven y persisten bien, modo
+  invalido -> 400, personalizacion preservada al cambiar de modo. tests/test_desktop_api.py 16/16
+  (2 nuevos). node --check setup.js OK, setup.html con divs balanceados. Suite completa: pendiente.
+- Pendiente: funciones nuevas en el app principal (panel de ajustes/personalizacion + indicador/switch
+  de modo + tema) -- index.html/app.js; verificacion visual requiere correr Electron.
+- Funciones nuevas (mismo commit): panel de Settings extendido en index.html/app.js/style.css --
+  personalizacion (nombre/idioma/estilo) que guarda via POST /settings, switch de modo via POST /mode,
+  y tema claro/oscuro (body.light + localStorage). node --check app.js OK; CSS/HTML balanceados.
+  Verificacion visual de Electron pendiente (requiere correr la app); la logica esta cableada a los
+  endpoints ya verificados por TestClient.

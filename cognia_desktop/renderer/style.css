@@ -529,3 +529,30 @@ body {
 #file-editor::-webkit-scrollbar { width: 3px; }
 #file-editor::-webkit-scrollbar-track { background: transparent; }
 #file-editor::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+
+/* ── Light theme overrides ──────────────────────────────────────────── */
+body.light {
+  --bg:         #f7f7f8;
+  --surface:    #ffffff;
+  --surface-2:  #f0f0f2;
+  --surface-3:  #e7e7ea;
+  --border:     #d8d8dd;
+  --text:       #1a1f2b;
+  --text-2:     #55617a;
+  --text-muted: #8a93a6;
+}
+
+/* ── Settings panel controls (personalization / mode / theme) ───────── */
+.settings-section-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-2); margin: 4px 0 8px;
+}
+.settings-field { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.settings-field label { width: 150px; color: var(--text-2); font-size: 12px; }
+.settings-field input, .settings-field select {
+  flex: 1; background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--radius); padding: 6px 8px;
+  font-family: var(--font-ui); font-size: 12px;
+}
+.settings-note { font-size: 11px; color: var(--text-muted); }

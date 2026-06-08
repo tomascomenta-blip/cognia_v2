@@ -196,6 +196,64 @@
             <span class="settings-key">Mode</span>
             <span class="settings-val" id="settings-mode">—</span>
           </div>
+
+          <div class="settings-divider"></div>
+
+          <!-- Personalizacion -->
+          <div class="settings-section-title">Personalizacion</div>
+          <div class="settings-field">
+            <label for="set-name">Tu nombre</label>
+            <input id="set-name" type="text" placeholder="(opcional)" maxlength="64" />
+          </div>
+          <div class="settings-field">
+            <label for="set-lang">Idioma de respuesta</label>
+            <select id="set-lang">
+              <option value="">(default)</option>
+              <option value="espanol">Espanol</option>
+              <option value="ingles">Ingles</option>
+            </select>
+          </div>
+          <div class="settings-field">
+            <label for="set-style">Estilo</label>
+            <select id="set-style">
+              <option value="">(default)</option>
+              <option value="breve">Breve</option>
+              <option value="detallada">Detallada</option>
+              <option value="tecnica">Tecnica</option>
+              <option value="amigable">Amigable</option>
+            </select>
+          </div>
+          <div class="settings-field">
+            <button id="btn-save-personalization" class="btn-primary">Guardar</button>
+            <span id="set-saved" class="settings-note"></span>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <!-- Modo de uso -->
+          <div class="settings-section-title">Modo de uso</div>
+          <div class="settings-field">
+            <label for="set-mode">Como corre Cognia</label>
+            <select id="set-mode">
+              <option value="local">Local (este equipo)</option>
+              <option value="compartido">Compartido (red local)</option>
+              <option value="memoria">Solo memoria</option>
+            </select>
+          </div>
+          <span class="settings-note">El cambio se aplica al reiniciar Cognia.</span>
+
+          <div class="settings-divider"></div>
+
+          <!-- Apariencia -->
+          <div class="settings-section-title">Apariencia</div>
+          <div class="settings-field">
+            <label for="set-theme">Tema</label>
+            <select id="set-theme">
+              <option value="dark">Oscuro</option>
+              <option value="light">Claro</option>
+            </select>
+          </div>
+
           <div class="settings-divider"></div>
           <button class="btn-ghost" onclick="window.cognia?.openFeedback?.()">Send feedback</button>
         </div>

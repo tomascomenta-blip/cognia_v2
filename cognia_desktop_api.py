@@ -994,6 +994,14 @@ async def infer_stream_v2(req: ChatStreamRequest):
         except Exception:
             pass
 
+    # Fold in the user's explicit personalization (name/language/style) last so it
+    # survives the style/format hints above. No-op when nothing is configured.
+    try:
+        from cognia.user_prefs import personalize_prompt as _pp
+        _stream_system_prompt = _pp(_stream_system_prompt)
+    except Exception:
+        pass
+
     messages = [{"role": "system", "content": _stream_system_prompt}]
     for m in req.history:
         messages.append({"role": m.role, "content": m.content})
@@ -1353,6 +1361,76 @@ def cache_analytics_reset():
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+# ── Mode + personalization endpoints (shared config with the CLI) ──────────
+
+class _ModeRequest(BaseModel):
+    mode: str = Field(..., max_length=32)
+
+
+class _SettingsRequest(BaseModel):
+    name:  _Optional[str] = Field(default=None, max_length=64)
+    lang:  _Optional[str] = Field(default=None, max_length=16)
+    style: _Optional[str] = Field(default=None, max_length=16)
+
+
+def _prefs_payload() -> dict:
+    """Current run mode + personalization, read from ~/.cognia/config.env."""
+    from cognia.user_prefs import (
+        load_prefs, K_USER_NAME, K_LANG, K_STYLE, K_RUN_MODE, MODE_LABELS,
+        LANG_CHOICES, STYLE_CHOICES,
+    )
+    p = load_prefs()
+    mode = p.get(K_RUN_MODE, "")
+    return {
+        "mode":        mode,
+        "mode_label":  MODE_LABELS.get(mode, mode),
+        "name":        p.get(K_USER_NAME, ""),
+        "lang":        p.get(K_LANG, ""),
+        "style":       p.get(K_STYLE, ""),
+        "mode_choices":  list(MODE_LABELS.keys()),
+        "lang_choices":  list(LANG_CHOICES),
+        "style_choices": list(STYLE_CHOICES),
+    }
+
+
+@app.get("/mode")
+def get_mode():
+    """Current run mode (local|compartido|memoria) + personalization."""
+    return _prefs_payload()
+
+
+@app.post("/mode")
+def set_mode(req: _ModeRequest):
+    """Switch the run mode. Does not move weights; the next launch honors it."""
+    from cognia.user_prefs import save_pref, K_RUN_MODE, MODE_LABELS
+    mode = req.mode.strip().lower()
+    if mode not in MODE_LABELS:
+        raise HTTPException(status_code=400, detail="modo invalido (local|compartido|memoria)")
+    save_pref(K_RUN_MODE, mode)
+    return _prefs_payload()
+
+
+@app.get("/settings")
+def get_settings():
+    """Alias of /mode: returns run mode + personalization in one payload."""
+    return _prefs_payload()
+
+
+@app.post("/settings")
+def set_settings(req: _SettingsRequest):
+    """Update personalization. Only the provided, valid fields are saved."""
+    from cognia.user_prefs import (
+        save_pref, K_USER_NAME, K_LANG, K_STYLE, LANG_CHOICES, STYLE_CHOICES,
+    )
+    if req.name is not None:
+        save_pref(K_USER_NAME, req.name.strip())
+    if req.lang is not None and req.lang.strip().lower() in LANG_CHOICES:
+        save_pref(K_LANG, req.lang.strip().lower())
+    if req.style is not None and req.style.strip().lower() in STYLE_CHOICES:
+        save_pref(K_STYLE, req.style.strip().lower())
+    return _prefs_payload()
 
 
 # ── Persona endpoints ──────────────────────────────────────────────────

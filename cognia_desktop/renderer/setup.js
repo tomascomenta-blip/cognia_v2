@@ -134,22 +134,53 @@ document.getElementById("btn-begin").addEventListener("click", () => showStep(2)
 
 document.getElementById("btn-back-1").addEventListener("click", () => showStep(1));
 
-document.getElementById("btn-continue").addEventListener("click", () => {
-  const urlInput = document.getElementById("coordinator-url-input");
-  const coordinatorUrl = (urlInput && urlInput.value.trim()) ? urlInput.value.trim() : COORDINATOR_URL;
-  setupOpts = { coordinatorMode: "swarm", coordinatorUrl };
+// ── Local vs Compartido choice ─────────────────────────────────────────
 
-  // Always show register_node row (swarm-only)
+function selectedMode() {
+  const el = document.querySelector('input[name="usage-mode"]:checked');
+  return el ? el.value : "local";
+}
+
+function applyModeToUrlField() {
+  const field = document.getElementById("url-field");
+  if (field) field.style.display = selectedMode() === "compartido" ? "block" : "none";
+}
+
+document.querySelectorAll('input[name="usage-mode"]').forEach((r) =>
+  r.addEventListener("change", applyModeToUrlField)
+);
+applyModeToUrlField();
+
+// Build setup options from the chosen mode, and wire the progress UI to match.
+function buildSetupOpts() {
+  const mode = selectedMode();
   const registerRow = document.querySelector('.phase-item[data-phase="register_node"]');
-  registerRow.style.display = "flex";
+  const downloadLabel = document.getElementById("download-label");
 
+  if (mode === "compartido") {
+    const urlInput = document.getElementById("coordinator-url-input");
+    const coordinatorUrl = (urlInput && urlInput.value.trim()) ? urlInput.value.trim() : COORDINATOR_URL;
+    if (registerRow) registerRow.style.display = "flex";
+    if (downloadLabel) downloadLabel.textContent = "Descargando tu fragmento (~300 MB)";
+    return { coordinatorMode: "swarm", coordinatorUrl };
+  }
+
+  // local: download the full model, no coordinator registration
+  if (registerRow) registerRow.style.display = "none";
+  if (downloadLabel) downloadLabel.textContent = "Descargando el modelo (~1.2 GB)";
+  return { coordinatorMode: "local", coordinatorUrl: "local" };
+}
+
+function startSetup() {
+  setupOpts = buildSetupOpts();
   showStep(3);
-
   window.cognia.setup.onProgress(onProgress);
   window.cognia.setup.onDone(onDone);
   window.cognia.setup.onError(onError);
   window.cognia.setup.run(setupOpts);
-});
+}
+
+document.getElementById("btn-continue").addEventListener("click", startSetup);
 
 document.getElementById("btn-launch").addEventListener("click", () => {
   window.cognia.setup.launch();
@@ -169,16 +200,7 @@ document.getElementById("btn-retry").addEventListener("click", () => {
   if (fill) fill.style.width = "0%";
   currentShardProgress = {};
 
-  // Ensure register_node row is visible (swarm-only)
-  const registerRow = document.querySelector('.phase-item[data-phase="register_node"]');
-  registerRow.style.display = "flex";
-
-  showStep(3);
-
-  window.cognia.setup.onProgress(onProgress);
-  window.cognia.setup.onDone(onDone);
-  window.cognia.setup.onError(onError);
-  window.cognia.setup.run(setupOpts);
+  startSetup();
 });
 
 document.getElementById("btn-quit").addEventListener("click", () => {

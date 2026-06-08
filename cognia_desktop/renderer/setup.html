@@ -144,23 +144,34 @@
 
   <!-- STEP 1: Welcome -->
   <div class="step active" id="step-1">
-    <h1>Cognia Desktop — configuracion inicial</h1>
+    <h1>Cognia — configuracion inicial</h1>
     <p class="subtitle">
-      Este asistente configurara el entorno en tu equipo.<br>
-      Descarga solo el shard asignado (~300 MB) y conecta al swarm.<br>
-      Requiere Python 3.11+ y conexion a internet.
+      Cognia corre en TUS equipos; tus conversaciones nunca salen de aca.<br>
+      En el siguiente paso elegis como usarla. Requiere Python 3.11+.
     </p>
-    <button class="btn btn-primary" id="btn-begin">Iniciar configuracion</button>
+    <button class="btn btn-primary" id="btn-begin">Empezar</button>
   </div>
 
-  <!-- STEP 2: Coordinator URL (editable, defaults to Railway) -->
+  <!-- STEP 2: Local vs Compartido -->
   <div class="step" id="step-2">
-    <h1>Conectar al swarm</h1>
-    <p class="subtitle">
-      Cognia se conecta al coordinador para obtener tu shard asignado.<br>
-      Puedes usar el coordinador oficial o apuntar a uno propio.
-    </p>
-    <div id="url-field" style="display: block; margin-bottom: 24px;">
+    <h1>Como queres usar Cognia?</h1>
+    <div class="radio-group">
+      <label class="radio-option">
+        <input type="radio" name="usage-mode" value="local" checked />
+        <span class="radio-label">
+          <strong>Local (este equipo)  ·  recomendado</strong>
+          <span>Descarga el modelo (~1.2 GB) y lo corre aca. Funciona sin internet. La opcion mas simple.</span>
+        </span>
+      </label>
+      <label class="radio-option">
+        <input type="radio" name="usage-mode" value="compartido" />
+        <span class="radio-label">
+          <strong>Compartido (red local)</strong>
+          <span>Tu equipo aloja un fragmento (~300 MB); entre varios equipos de la red corren un modelo mas grande del que entraria en uno solo.</span>
+        </span>
+      </label>
+    </div>
+    <div id="url-field">
       <label for="coordinator-url-input">URL del coordinador</label>
       <input type="text" id="coordinator-url-input"
              value="https://cognia-coordinator-production.up.railway.app" />

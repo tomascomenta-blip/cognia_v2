@@ -206,3 +206,37 @@ def test_network_status_offline_without_coordinator(api_client, monkeypatch):
     r = api_client.get("/network/status")
     assert r.status_code == 200
     assert r.json()["online"] is False
+
+
+def test_mode_endpoint_reports_choices(api_client, monkeypatch, tmp_path):
+    from cognia import first_run
+    monkeypatch.setattr(first_run, "COGNIA_HOME", tmp_path)
+    monkeypatch.setattr(first_run, "CONFIG_FILE", tmp_path / "config.env")
+    r = api_client.get("/mode")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["mode_choices"] == ["local", "compartido", "memoria"]
+    assert "style_choices" in body
+
+
+def test_settings_and_mode_roundtrip(api_client, monkeypatch, tmp_path):
+    import os
+    from cognia import first_run
+    monkeypatch.setattr(first_run, "COGNIA_HOME", tmp_path)
+    monkeypatch.setattr(first_run, "CONFIG_FILE", tmp_path / "config.env")
+    touched = ["COGNIA_USER_NAME", "COGNIA_LANG", "COGNIA_STYLE", "COGNIA_RUN_MODE"]
+    try:
+        r = api_client.post("/settings", json={"name": "Ana", "lang": "ingles", "style": "tecnica"})
+        assert r.status_code == 200
+        assert r.json()["name"] == "Ana" and r.json()["style"] == "tecnica"
+
+        r = api_client.post("/mode", json={"mode": "compartido"})
+        assert r.status_code == 200
+        assert r.json()["mode"] == "compartido"
+        assert r.json()["name"] == "Ana"  # personalization preserved across mode change
+
+        r = api_client.post("/mode", json={"mode": "no-existe"})
+        assert r.status_code == 400
+    finally:
+        for k in touched:
+            os.environ.pop(k, None)

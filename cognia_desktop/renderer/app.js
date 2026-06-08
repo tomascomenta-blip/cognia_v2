@@ -40,10 +40,11 @@ document.querySelectorAll(".nav-item[data-panel]").forEach(btn => {
     const target = document.getElementById(panelId);
     if (target) target.classList.add("active");
     btn.classList.add("active");
-    if (btn.dataset.panel === "status") refreshStatus();
-    if (btn.dataset.panel === "nodes")  refreshNodes();
-    if (btn.dataset.panel === "skills") refreshSkills();
-    if (btn.dataset.panel === "tools")  loadDirectory('.');
+    if (btn.dataset.panel === "status")   refreshStatus();
+    if (btn.dataset.panel === "nodes")    refreshNodes();
+    if (btn.dataset.panel === "skills")   refreshSkills();
+    if (btn.dataset.panel === "tools")    loadDirectory('.');
+    if (btn.dataset.panel === "settings") loadSettingsPanel();
   });
 });
 
@@ -770,3 +771,62 @@ if (agentRunBtn) {
     }
   });
 }
+
+
+// ── Settings panel: personalization, mode, theme ──────────────────────
+const _SETTINGS_API = "http://localhost:8765";
+
+function applyTheme(theme) {
+  document.body.classList.toggle("light", theme === "light");
+  try { localStorage.setItem("cognia_theme", theme); } catch (_) {}
+}
+
+async function loadSettingsPanel() {
+  const themeSel = document.getElementById("set-theme");
+  if (themeSel) { try { themeSel.value = localStorage.getItem("cognia_theme") || "dark"; } catch (_) {} }
+  try {
+    const r = await fetch(`${_SETTINGS_API}/settings`);
+    if (!r.ok) return;
+    const s = await r.json();
+    const n  = document.getElementById("set-name");  if (n)  n.value  = s.name  || "";
+    const l  = document.getElementById("set-lang");  if (l)  l.value  = s.lang  || "";
+    const st = document.getElementById("set-style"); if (st) st.value = s.style || "";
+    const m  = document.getElementById("set-mode");  if (m && s.mode) m.value = s.mode;
+  } catch (_) {}
+}
+
+(function wireSettingsPanel() {
+  const save = document.getElementById("btn-save-personalization");
+  if (save) save.addEventListener("click", async () => {
+    const note = document.getElementById("set-saved");
+    const payload = {
+      name:  document.getElementById("set-name")?.value  || "",
+      lang:  document.getElementById("set-lang")?.value  || "",
+      style: document.getElementById("set-style")?.value || "",
+    };
+    try {
+      const r = await fetch(`${_SETTINGS_API}/settings`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (note) note.textContent = r.ok ? "Guardado." : "Error al guardar";
+    } catch (_) { if (note) note.textContent = "Backend no disponible"; }
+    setTimeout(() => { if (note) note.textContent = ""; }, 2500);
+  });
+
+  const modeSel = document.getElementById("set-mode");
+  if (modeSel) modeSel.addEventListener("change", async () => {
+    try {
+      await fetch(`${_SETTINGS_API}/mode`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: modeSel.value }),
+      });
+    } catch (_) {}
+  });
+
+  const themeSel = document.getElementById("set-theme");
+  if (themeSel) themeSel.addEventListener("change", () => applyTheme(themeSel.value));
+})();
+
+// Apply the saved theme as soon as the app loads.
+try { applyTheme(localStorage.getItem("cognia_theme") || "dark"); } catch (_) {}
