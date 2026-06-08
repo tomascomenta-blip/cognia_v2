@@ -1759,3 +1759,12 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
 - Verificado: wheel 3.5.0 incluye cognia/user_prefs.py + __main__ con _cmd_modo (616 archivos).
   PyPI sirve 3.5.0. Commit 40d95e8 (bump+changelog) pusheado a origin/main.
 - Instalable: pip install -U cognia-ai  (o pip install cognia-ai==3.5.0).
+
+## [2026-06-08] RELEASE -- cognia-ai 3.5.1 (fix chat offline + /doctor pip)
+- Que: bug #2 (chat caia a Ollama; ahora model_router._llamar_shard_local usa shards INT4 locales
+  en-proceso cuando no hay Ollama/coordinador) + bug #3 (/doctor crasheaba instalado por pip;
+  diagnosticas movidas a cognia/doctor.py que viaja en el wheel; /update,/distill degradan limpio).
+- Verificado: _llamar_shard_local respondio texto coherente sin Ollama; /doctor corre en-proceso;
+  4 tests de regresion; suite 2425 passed, 1 skipped, 0 failed. Wheel 3.5.1 incluye cognia/doctor.py
+  y model_router con _llamar_shard_local. twine check PASSED. Subido a PyPI (token .env, redactado).
+- Commit 2a58e6e. PyPI: https://pypi.org/project/cognia-ai/3.5.1/  (pip install -U cognia-ai)
