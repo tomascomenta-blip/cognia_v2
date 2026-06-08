@@ -1682,3 +1682,16 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   LAN -- no se puede verificar en una maquina (loopback = microsegundos). Fase 3c queda BLOQUEADA por
   hardware; entregar tooling runnable + guia para que el dueno mida. Proximo factible: Fase 3b
   (generacion cross-proceso con seeder + ranks por sockets, identidad de tokens).
+
+## [2026-06-08] SHATTERING v2 -- Fase 3b: generacion TP cross-proceso end-to-end (tokens identicos)
+- Que: scripts/tp_generate_demo.py + tests/test_tp_generate_distributed.py. Generacion de TEXTO con el
+  modelo completo repartido en T procesos que hacen all-reduce por TCP. rank0 = seeder (embed +
+  final_norm + lm_head, decide cada token); cada rank tiene su tajada TP de cada capa.
+- Truco clave: el broadcast del hidden embebido se hace REUSANDO el all-reduce -- el seeder aporta el
+  hidden real y los demas aportan ceros, asi la suma entregada a todos ES el hidden. Cero primitiva
+  nueva. Por token: 1 all-reduce de broadcast + 2 por capa.
+- Verificacion REAL: demo en procesos OS separados -> tokens IDENTICOS al single-device para TP=2 y
+  TP=4. pytest dirigido (version threads, CI) 2/2.
+- Estado del rediseno: el motor TP descentralizado esta COMPLETO y verificado en software (1 capa ->
+  modelo entero -> generacion, in-process y cross-proceso). Falta SOLO la validacion en hardware real
+  (Fase 3c, BLOQUEADA): medir si TP le gana a single-device en latencia con 2 equipos fisicos en LAN.
