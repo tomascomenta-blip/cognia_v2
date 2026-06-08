@@ -2,6 +2,33 @@
 
 ---
 
+## [3.5.0] - 2026-06-08
+
+### UX — Onboarding simple (Local por defecto) + personalizacion
+
+Hace que "descargar -> configurar -> ya" sea obvio, con eleccion clara entre correr
+LOCAL (en este equipo, sin internet) o COMPARTIDO (red local).
+
+- `cognia/first_run.py`: wizard reescrito a lenguaje plano; LOCAL es el default
+  recomendado (antes el modo recomendado pedia una URL de coordinador que el usuario
+  no tiene). Paso de personalizacion opcional (nombre / idioma / estilo) + pantalla
+  "listo" con el modo y proximos pasos.
+- `cognia/user_prefs.py` (NUEVO): preferencias explicitas (nombre/idioma/estilo/modo)
+  persistidas en `~/.cognia/config.env`. `personalization_suffix` (puro) +
+  `personalize_prompt` (no-op si no hay nada configurado, asi nunca altera el prompt
+  canonico de un usuario nuevo).
+- `cognia/__main__.py`: comando nuevo `cognia modo` para ver y cambiar el modo
+  (local/compartido/memoria) y la personalizacion sin re-configurar todo.
+- `cognia/cli.py`: el system prompt del path de streaming pasa por `personalize_prompt`.
+- Desktop: endpoints `GET/POST /mode` y `/settings` (comparten el mismo `config.env`
+  que el CLI); onboarding visual Local/Compartido; panel de ajustes con personalizacion,
+  switch de modo y tema claro/oscuro.
+
+Verificado: wizard end-to-end (HOME temporal), `cognia modo` ver/cambiar, endpoints con
+TestClient. Suite completa 2421 passed, 1 skipped, 0 failed.
+
+---
+
 ## [1.8.0] - 2026-05-12
 
 ### Phase 19 — ARA: Adaptive Rank Amplification
