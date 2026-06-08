@@ -1748,3 +1748,14 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   y tema claro/oscuro (body.light + localStorage). node --check app.js OK; CSS/HTML balanceados.
   Verificacion visual de Electron pendiente (requiere correr la app); la logica esta cableada a los
   endpoints ya verificados por TestClient.
+
+## [2026-06-08] RELEASE -- cognia-ai 3.5.0 publicado a PyPI (autorizado por el dueno)
+- Que: bump 3.4.0 -> 3.5.0 (pyproject.toml) + entrada CHANGELOG (UX onboarding Local-default,
+  cognia modo, personalizacion, endpoints desktop /mode + /settings). Build con venv312
+  (python -m build) -> wheel + sdist. twine check PASSED. Subido a PyPI con twine.
+- Autorizacion: el dueno pidio explicitamente "Quiero que subas el cli" (publicar es irreversible).
+- Seguridad: PYPI_TOKEN cargado desde .env (gitignoreado, NO trackeado) en la MISMA linea del comando;
+  output redactado (pypi-... -> <REDACTED>); el token nunca se imprimio ni se commiteo.
+- Verificado: wheel 3.5.0 incluye cognia/user_prefs.py + __main__ con _cmd_modo (616 archivos).
+  PyPI sirve 3.5.0. Commit 40d95e8 (bump+changelog) pusheado a origin/main.
+- Instalable: pip install -U cognia-ai  (o pip install cognia-ai==3.5.0).
