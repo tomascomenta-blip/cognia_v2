@@ -1629,3 +1629,22 @@ SUITE COMPLETA: 2337 passed, 0 failed (18 min). +54 tests nuevos en la sesion.
 META: agregada seccion "Metodo de trabajo" a CLAUDE.md (venv312, verificar-antes-de-construir,
 verificacion REAL no solo pytest, regresion por bug, commits chicos+push, secretos, validar codigo
 generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (vencido) removido.
+
+## [2026-06-08] SHATTERING v2 -- Fase 1: motor Tensor-Parallel en-proceso (verificado)
+- Contexto: rediseno del shattering hacia TP descentralizado sobre LAN (no WAN). Spec completa y
+  12 decisiones en SHATTERING_V2_DESIGN.md. Objetivo elegido por el dueno: bajar latencia de UN
+  prompt repartiendo cada matriz entre equipos (grado-investigacion, asumido). North Star: 14B INT4
+  / 4 equipos / LAN-aula. Decision clave verificada: INT4 per-row es compatible BIT-EXACTO con TP.
+- Archivos nuevos: shattering/tensor_parallel.py (slice_rows col-parallel + slice_cols row-parallel
+  con escala per-row compartida + partition_layer + tp_forward_layer Megatron, 2 all-reduce/capa
+  como suma en-proceso); tests/test_tensor_parallel.py (7 tests); SHATTERING_V2_DESIGN.md.
+- Referencia dorada: node/qwen2_ops.py::RealTransformerLayer (forward existente). El forward TP debe
+  igualarlo. Replica el path NO fusionado (norm+residual una vez, cada rank su parcial, suma=all-reduce).
+- Verificacion REAL (no solo pytest): script directo CHECK -> forward TP == golden a worst rel_diff
+  1.6e-6 (solo orden de suma) para T=1/2/4 + KV-cache multi-turno (per-device-per-head); slicing INT4
+  bit-exacto confirmado. pytest dirigido: 7/7 passed. SUITE COMPLETA (sin e2e): 2403 passed, 0 failed
+  (17m42s) -- cambio aditivo, cero regresiones.
+- Bug latente detectado (fuera de alcance, registrado en el diseno): RealTransformerLayer ignora los
+  bias q/k/v que Qwen2.5 define y el convert script guarda. Afecta al baseline, no a la equivalencia TP.
+- Proximo: Fase 2 -- all-reduce centralizado sobre sockets (numpy) reusando coordinator/ + sanity
+  checks NaN/inf/norma; probar TP=2 en 2 procesos misma maquina contra el forward en-proceso.
