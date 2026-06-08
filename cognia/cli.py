@@ -278,6 +278,7 @@ _CMD_DESCRIPTIONS = {
     "/skills":          "Listar skills disponibles",
     "/skill-nuevo":     "Crear nueva skill              <nombre>",
     "/skill-cargar":    "Cargar y ejecutar skill        <nombre> [args]",
+    "/skill":           "Aplicar skill (Claude/Cognia) a una tarea: /skill <nombre> [tarea]",
     # Plan
     "/plan":            "Crear plan de tareas con LLM  <objetivo>",
     "/plan-ver":        "Ver todos los planes activos",
@@ -2398,28 +2399,59 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
 
 
 def _slash_skills():
-    _SKILLS_DIR.mkdir(parents=True, exist_ok=True)
-    files = sorted(_SKILLS_DIR.glob("*.md"))
-    if not files:
+    """Lista TODAS las skills: las de Cognia y las de Claude (~/.claude/skills, repo)."""
+    try:
+        from cognia.agent.skills import load_skills
+        skills = load_skills()
+    except Exception:
+        skills = {}
+    if not skills:
         _print_line("[detail]Sin skills. Crea una con /skill-nuevo <nombre>[/detail]")
         return
     lines = []
-    for f in files:
-        try:
-            fm, _ = _parse_frontmatter(f.read_text(encoding="utf-8", errors="replace"))
-            desc = fm.get("description", "")
-        except OSError:
-            desc = ""
-        lines.append(f"  {f.stem:<20} {desc}")
+    for name in sorted(skills):
+        s = skills[name]
+        tag = "C" if s.kind == "claude" else "o"  # C=formato Claude, o=Cognia
+        lines.append(f"  [{tag}] {name:<22} {s.description[:60]}")
     if _HAS_RICH and _console:
         from rich.markup import escape as _esc
-        _console.print("[cyan]Skills disponibles:[/cyan]")
+        _console.print(f"[cyan]Skills disponibles ({len(skills)}) -- usa /skill <nombre> [tarea]:[/cyan]")
         for ln in lines:
             _console.print(f"[detail]{_esc(ln)}[/detail]")
     else:
-        print("Skills disponibles:")
+        print(f"Skills disponibles ({len(skills)}):")
         for ln in lines:
             print(ln)
+
+
+def _slash_skill(arg: str, ai):
+    """
+    Aplica una skill (formato Claude o Cognia).
+      /skill <nombre>          -> muestra la skill
+      /skill <nombre> <tarea>  -> ejecuta la tarea con el agente guiado por la skill
+    """
+    from cognia.agent.skills import load_skills, skill_guidance
+    parts = (arg or "").strip().split(None, 1)
+    skills = load_skills()
+    if not parts:
+        _print_line("[detail]Uso: /skill <nombre> [tarea].  Lista: /skills[/detail]")
+        return
+    name = parts[0]
+    task = parts[1].strip() if len(parts) > 1 else ""
+    s = skills.get(name) or next(
+        (v for k, v in skills.items() if k.lower().startswith(name.lower())), None)
+    if not s:
+        _print_line(f"[warn_cl]No encontre la skill '{_escape(name)}'. Lista: /skills[/warn_cl]")
+        return
+    if not task:
+        _show_response(
+            f"Skill '{s.name}' [{s.kind}]\n{s.description}\n\n{s.body[:1500]}", _ACCENT)
+        return
+    _print_line(f"[detail]Ejecutando con skill '{s.name}'...[/detail]")
+    _resp = _run_agent_task(ai, task, _print_line, guidance=skill_guidance(s))
+    _show_response(_resp, _ACCENT)
+    _session_log.append({"input": f"/skill {name} {task}", "output": _resp, "elapsed": 0})
+    _persist_turn(ai, f"/skill {name} {task}", _resp)
 
 
 def _slash_skill_nuevo(nombre: str):
@@ -4953,6 +4985,8 @@ def repl():
                 _sname = _parts2[0]
                 _sargs = _parts2[1] if len(_parts2) > 1 else ""
                 _slash_skill_cargar(ai, _sname, _sargs)
+        elif raw == "/skill" or raw.startswith("/skill "):
+            _slash_skill(raw[len("/skill "):] if raw.startswith("/skill ") else "", ai)
 
         # -- Agent mode -----------------------------------------------------
         elif raw.startswith("/hacer "):
@@ -5880,7 +5914,8 @@ def repl():
                         _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
 
 
-def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None, hint: str = "") -> str:
+def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
+                    hint: str = "", guidance: str = "") -> str:
     """
     ReAct-style agent loop with a CONCRETE tool registry (cognia/agent/tools.py)
     and DYNAMIC step budgeting (cognia/agent/loop.py).
@@ -5937,7 +5972,22 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None, hint: str =
             _prior_lines.append(f"- Tarea anterior: {_t['task'][:80]} -> {_t['result'][:120]}")
         _prior_ctx = "CONTEXTO PREVIO:\n" + "\n".join(_prior_lines) + "\n\n"
 
+    # Skill guidance: an explicit one (from /skill) wins; otherwise auto-apply a
+    # skill whose description matches this task, so Claude/Cognia skills shape the
+    # agent without an explicit command.
+    if not guidance:
+        try:
+            from cognia.agent.skills import find_skill, skill_guidance
+            _matched = find_skill(task)
+            if _matched:
+                guidance = skill_guidance(_matched)
+                _print_fn(f"[detail]Aplicando skill '{_matched.name}'[/detail]")
+        except Exception:
+            pass
+
     history = [f"{_prior_ctx}TAREA: {task}"]
+    if guidance:
+        history.append(guidance)
     if hint:
         # Bias the first step toward the auto-detected tool (the agent is still
         # free to choose another; it's a hint, not a command).
