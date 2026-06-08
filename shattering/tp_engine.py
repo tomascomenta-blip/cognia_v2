@@ -23,6 +23,7 @@ only a plumbing/throughput sanity check, not the LAN comparison.)
 
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass
 from typing import List, Tuple
@@ -99,6 +100,62 @@ def generate_tp(
         nxt = int(np.argmax(_logits_last(model, x[-1:])))
         out.append(nxt)
     return out
+
+
+def load_qwen_int4_model(shard_dir: str, n_shards: int = 4) -> TPModelWeights:
+    """Assemble a full TPModelWeights from the real INT4 .npz shards on disk.
+
+    Loads the same layer-partitioned .npz produced by scripts/convert_hf_to_shards.py
+    (embed in shard 0, lm_head + final_norm in the last shard, transformer layers
+    spread across shards) into one in-memory model so the TP engine can run the
+    real Qwen2.5-Coder-3B. Reuses the exact key layout from node/shard_engine.py.
+    """
+    from shattering.model_constants import QWEN25_CODER_3B as cfg
+
+    total_layers = cfg["total_layers"]
+    lps = total_layers // n_shards
+    layers: List = [None] * total_layers
+    embed = lm_head = None
+    final_norm = None
+
+    for s in range(n_shards):
+        path = os.path.join(shard_dir, f"shard_{s}.npz")
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"missing shard: {path}")
+        data = np.load(path, allow_pickle=False)
+        layer_start = s * lps
+        n_here = (total_layers - layer_start) if s == n_shards - 1 else lps
+
+        if s == 0:
+            oc = int(data["embed_ocols"]) if "embed_ocols" in data else data["embed_p"].shape[1] * 2
+            embed = INT4Weights(np.array(data["embed_p"]), np.array(data["embed_s"]), oc)
+        if s == n_shards - 1:
+            oc = int(data["lm_ocols"]) if "lm_ocols" in data else data["lm_p"].shape[1] * 2
+            lm_head = INT4Weights(np.array(data["lm_p"]), np.array(data["lm_s"]), oc)
+            final_norm = np.array(data["final_norm"]).astype(np.float32)
+
+        for i in range(n_here):
+            p = f"l{i}_"
+
+            def w(name: str) -> INT4Weights:
+                key_c = f"{p}{name}_oc"
+                oc = int(data[key_c]) if key_c in data.files else data[f"{p}{name}_p"].shape[1] * 2
+                return INT4Weights(np.array(data[f"{p}{name}_p"]), np.array(data[f"{p}{name}_s"]), oc)
+
+            layers[layer_start + i] = RealTransformerLayer(
+                n_heads=cfg["n_heads"], n_kv_heads=cfg["n_kv_heads"], head_dim=cfg["head_dim"],
+                rope_theta=cfg["rope_theta"], rms_norm_eps=cfg["rms_norm_eps"],
+                w_q=w("q"), w_k=w("k"), w_v=w("v"), w_o=w("o"),
+                w_gate=w("g"), w_up=w("u"), w_down=w("d"),
+                norm1=np.array(data[f"{p}n1"]).astype(np.float32),
+                norm2=np.array(data[f"{p}n2"]).astype(np.float32),
+            )
+        data.close()
+
+    if any(l is None for l in layers) or embed is None or lm_head is None or final_norm is None:
+        raise ValueError("incomplete model: some shards/keys were missing")
+    return TPModelWeights(embed=embed, layers=layers, final_norm=final_norm,
+                          lm_head=lm_head, rms_eps=cfg["rms_norm_eps"])
 
 
 def timed_generate_tp(

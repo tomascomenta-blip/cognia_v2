@@ -1695,3 +1695,19 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
 - Estado del rediseno: el motor TP descentralizado esta COMPLETO y verificado en software (1 capa ->
   modelo entero -> generacion, in-process y cross-proceso). Falta SOLO la validacion en hardware real
   (Fase 3c, BLOQUEADA): medir si TP le gana a single-device en latencia con 2 equipos fisicos en LAN.
+
+## [2026-06-08] SHATTERING v2 -- Fase 3 verificacion contra MODELO REAL (Qwen-Coder-3B INT4)
+- Que: shattering/tp_engine.py + load_qwen_int4_model (carga los .npz reales layer-sharded en un
+  TPModelWeights completo, reusando el layout de keys de node/shard_engine). scripts/tp_real_model_check.py
+  (CHECK end-to-end) + tests/test_tp_real_model.py (regresion opt-in, gateada por COGNIA_TP_REAL_TEST=1
+  + presencia de shards, para no inflar la suite ni arriesgar OOM).
+- Verificacion REAL (la mas fuerte, no pesos random): sobre model_shards/qwen-coder-3b-q4 (36 capas,
+  INT4 de produccion), generate_tp(T=2) genera tokens IDENTICOS al single-device:
+  [19,1945,40979,2285,103487,19,1945,40979]. CHECK PASS. Test opt-in: 1 passed (20s) / skip cuando off.
+  Suite de cierre completa sin e2e: 2412 passed, 0 failed (17m).
+- Nota honesta: timing in-process TP=2 (5.0s) < ref (7.1s) es RUIDO de warmup de numba (ref corre
+  primero y paga la compilacion JIT), NO la tesis de latencia. La tesis sigue necesitando 2 equipos
+  fisicos (Fase 3c, bloqueada).
+- ESTADO: el motor TP descentralizado de Shattering v2 esta COMPLETO y verificado en software de punta
+  a punta, incluido el modelo de produccion real. Pendiente real: conversion de pesos a layout-TP en
+  disco + daemons node/seeder cross-maquina + medicion fisica (3c) + fases B/C/bootstrap/standalone.
