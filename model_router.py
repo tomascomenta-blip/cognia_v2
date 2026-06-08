@@ -449,15 +449,58 @@ def llamar_ollama_routed(
                     break
     except Exception as exc:
         logger.warning(
-            f"Ollama no disponible, intentando red de shards",
+            f"Ollama no disponible, intentando shards locales / red de shards",
             extra={"op": "model_router.llamar_ollama_routed", "context": str(exc)},
         )
+        # 1) Shards distribuidos (si hay coordinador configurado)
         shard_result = _llamar_shard_network(prompt, tipo)
         if shard_result is not None:
             return shard_result
+        # 2) Shards INT4 locales (numpy, en-proceso) — chat funciona sin Ollama ni red
+        local_result = _llamar_shard_local(prompt)
+        if local_result is not None:
+            return local_result
         raise
 
     return "".join(resultado).strip()
+
+
+_LOCAL_ORCH = None  # lazy ShatteringOrchestrator para inferencia INT4 local offline
+
+
+def _llamar_shard_local(prompt: str) -> Optional[str]:
+    """Fallback final SIN red: inferencia con los shards INT4 locales (numpy).
+
+    Cuando Ollama no esta corriendo y no hay coordinador, usa el motor de shards
+    en-proceso (Qwen INT4) para que el chat funcione offline / out-of-the-box.
+    Devuelve None si no hay shards o algo falla, sin romper el flujo.
+    """
+    global _LOCAL_ORCH
+    try:
+        if _LOCAL_ORCH is None:
+            import os.path as _osp
+            from shattering.orchestrator import ShatteringOrchestrator
+            manifest = _osp.join(
+                _osp.dirname(_osp.abspath(__file__)),
+                "shattering", "manifests", "cognia_desktop.json",
+            )
+            _LOCAL_ORCH = ShatteringOrchestrator(manifest_path=manifest, mode="local")
+        if not _LOCAL_ORCH._shards_available():
+            return None
+        res = _LOCAL_ORCH.infer(prompt)
+        txt = (getattr(res, "text", "") or "").strip()
+        if txt:
+            logger.info(
+                "Respuesta via shards INT4 locales (sin Ollama)",
+                extra={"op": "model_router._llamar_shard_local"},
+            )
+        return txt or None
+    except Exception as exc:
+        logger.warning(
+            f"Shards locales no disponibles: {exc}",
+            extra={"op": "model_router._llamar_shard_local"},
+        )
+        return None
 
 
 def _llamar_shard_network(prompt: str, tipo: str) -> Optional[str]:

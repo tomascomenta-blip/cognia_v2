@@ -4426,33 +4426,34 @@ def repl():
             print("Hasta luego.")
             break
         elif raw == "/doctor":
-            import subprocess
-            script = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "scripts", "cognia_doctor.py",
-            )
-            subprocess.run([sys.executable, script])
+            # In-process so it works both from the repo and a pip-installed wheel
+            # (scripts/ is not shipped in the package).
+            try:
+                from cognia.doctor import run_all as _doctor_run
+                _doctor_run()
+            except Exception as _de:
+                _print_line(f"[err_cl]Error en /doctor: {_escape(str(_de))}[/err_cl]")
         elif raw == "/update":
-            import subprocess
-            script = os.path.join(
+            _scr = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "scripts", "cognia_update.py",
             )
-            subprocess.run([sys.executable, script])
-        elif raw == "/distill":
-            import subprocess
-            script = os.path.join(
+            if os.path.isfile(_scr):
+                import subprocess
+                subprocess.run([sys.executable, _scr])
+            else:
+                _print_line("[detail]Instalado por pip -- actualiza con:  pip install -U cognia-ai[/detail]")
+        elif raw in ("/distill", "/distill run"):
+            _scr = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "scripts", "distill.py",
             )
-            subprocess.run([sys.executable, script, "--dry-run"])
-        elif raw == "/distill run":
-            import subprocess
-            script = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "scripts", "distill.py",
-            )
-            subprocess.run([sys.executable, script])
+            if os.path.isfile(_scr):
+                import subprocess
+                _dargs = [] if raw == "/distill run" else ["--dry-run"]
+                subprocess.run([sys.executable, _scr] + _dargs)
+            else:
+                _print_line("[detail]/distill esta disponible desde el repo de Cognia (no en la instalacion pip).[/detail]")
         elif raw.startswith("/ayuda "):
             _slash_ayuda_detallada(raw[len("/ayuda "):])
         elif raw == "/ayuda":

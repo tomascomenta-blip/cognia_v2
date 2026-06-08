@@ -2,6 +2,25 @@
 
 ---
 
+## [3.5.1] - 2026-06-08
+
+### Fix — Chat offline (sin Ollama) + `/doctor` instalado por pip
+
+- **Bug: el chat dependia de Ollama.** Al escribir texto libre en el REPL, si no habia
+  Ollama corriendo, daba `Ollama no disponible` aunque los shards INT4 locales estuvieran
+  cargados. `model_router._llamar_shard_local` (NUEVO): cuando Ollama falla y no hay
+  coordinador, usa `ShatteringOrchestrator(mode="local").infer()` (numpy, en-proceso) para
+  responder con los shards locales. Verificado: responde texto coherente sin Ollama.
+- **Bug: `/doctor` crasheaba instalado por pip** (`can't open file scripts/cognia_doctor.py`)
+  porque `scripts/` no se empaqueta. Las diagnosticas se movieron a `cognia/doctor.py`
+  (modulo del paquete, viaja en el wheel) y `/doctor` lo ejecuta en-proceso.
+  `/update` y `/distill` degradan limpio cuando el script del repo no esta presente
+  (sin traceback): `/update` sugiere `pip install -U cognia-ai`.
+
+Tests de regresion nuevos: `tests/test_doctor_packaging.py`, `tests/test_model_router_local_fallback.py`.
+
+---
+
 ## [3.5.0] - 2026-06-08
 
 ### UX — Onboarding simple (Local por defecto) + personalizacion
