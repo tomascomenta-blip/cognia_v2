@@ -1648,3 +1648,21 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   bias q/k/v que Qwen2.5 define y el convert script guarda. Afecta al baseline, no a la equivalencia TP.
 - Proximo: Fase 2 -- all-reduce centralizado sobre sockets (numpy) reusando coordinator/ + sanity
   checks NaN/inf/norma; probar TP=2 en 2 procesos misma maquina contra el forward en-proceso.
+
+## [2026-06-08] SHATTERING v2 -- Fase 2: all-reduce centralizado sobre sockets (verificado 2 procesos)
+- Que: transporte del TP. shattering/tp_allreduce.py = AllReduceServer (reductor/coordinador, barrera:
+  recibe T parciales, sanity check, suma, broadcast) + AllReduceClient (un rank) sobre TCP plano,
+  numpy + stdlib, SIN PyTorch/NCCL. shattering/tensor_parallel.py: + tp_forward_layer_distributed
+  (forward por-rank usando callback all_reduce; norm+residual replicados, cada rank reconstruye el
+  mismo hidden tras cada all-reduce).
+- Por que (Decision 5): payload por all-reduce = pocos KB (un hidden de token) -> regimen
+  latency-bound, no bandwidth -> reductor central (2 saltos fijos) le gana al anillo con pocos ranks.
+  Sanity checks (Decision 10): NaN/inf + cota de magnitud por tensor -> expulsion visible del rank
+  culpable en vez de corromper la suma en silencio.
+- Verificacion REAL (no solo pytest): scripts/tp_two_proc_demo.py corre TP=2 en DOS PROCESOS OS
+  separados que hacen all-reduce sobre TCP real -> rel_diff vs referencia en-proceso = 0.00e+00 exacto
+  (T=2: a+b==b+a en IEEE). pytest dirigido tests/test_tp_allreduce.py 4/4 (suma multi-round, sanity
+  rechaza NaN con expelled_rank, forward distribuido 2-rank == in-process incl KV-cache). Fase 1+2
+  juntas 11/11.
+- Proximo: Fase 3 -- 2 equipos FISICOS en LAN TP=2, medir tok/s vs baseline 3B single-device (la tesis
+  de que TP le gana sumando equipos debiles); luego 4 equipos/ponderada/churn/bootstrap/standalone.

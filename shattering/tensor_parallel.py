@@ -171,3 +171,32 @@ def tp_forward_layer(
     x = x + mlp_out
 
     return x
+
+
+def tp_forward_layer_distributed(
+    rank_layer: RealTransformerLayer,
+    x: np.ndarray,
+    all_reduce,
+    session_id: str = "",
+) -> np.ndarray:
+    """One decoder layer from the point of view of a SINGLE rank.
+
+    `rank_layer` is this rank's share from partition_layer(). `all_reduce(partial)`
+    must return the element-wise sum of every rank's partial (e.g. an
+    AllReduceClient.all_reduce over sockets). The norm + residual are replicated:
+    every rank holds the (small) norm weights and the broadcast input x, so each
+    independently reconstructs the identical full hidden state after each
+    all-reduce. Running this in T processes reproduces tp_forward_layer exactly.
+    """
+    x = np.ascontiguousarray(x.astype(np.float32))
+    eps = rank_layer.rms_eps
+
+    normed1 = _rms_norm(x, rank_layer.norm1, eps)
+    attn_out = all_reduce(rank_layer._attention(normed1, session_id))
+    x = x + attn_out
+
+    normed2 = _rms_norm(x, rank_layer.norm2, eps)
+    mlp_out = all_reduce(rank_layer._mlp(normed2))
+    x = x + mlp_out
+
+    return x
