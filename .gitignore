@@ -60,3 +60,6 @@ cognia_v3/training/*.jsonl
 data/
 cognia_v3/training/kaggle/_dataset_staging/
 cognia_v3/training/kaggle/_kernel_staging/
+
+# Notebook Colab con dataset personal embebido (privacidad)
+cognia_v3/training/colab/*.ipynb
