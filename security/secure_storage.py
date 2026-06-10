@@ -32,7 +32,7 @@ from typing import List, Optional
 
 from cognia.memory.episodic import EpisodicMemory
 from cognia.config import DB_PATH
-from logger_config import get_logger
+from cognia_v3.core.logger_config import get_logger
 
 from .key_manager import KeyManager, SecurityError, get_key_manager
 

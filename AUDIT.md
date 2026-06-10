@@ -14,7 +14,7 @@ Fecha: 2026-06-09. Auditados: 36 archivos `.py` en la raíz de `cognia_v2` (no s
 | cognia_desktop_api.py | Bridge FastAPI local (puerto 8765) para la app Electron de escritorio | interfaces ⚠ Electron lo spawnea por nombre |
 | cognia_embedding.py | Embeddings lazy + cola async batcheada + cache LRU acotado | memory |
 | cognia_idle.py | Daemon de inactividad: Cognia "vive" sola en terminal (sueño/hobby/investigación) | scripts ⚠ entry point |
-| cognia_modules_adicionales.py | Esqueletos de módulos propuestos para v1 (no integrados) | archive |
+| cognia_modules_adicionales.py | ReasoningPlanner, ContradictionResolver, etc. (importado por cognia_v3.py y cognia/config.py) | core (reclasificado: estaba en uso activo, no era archive) |
 | cognia_v3.py | Entry point principal: KnowledgeGraph, InferenceEngine, GoalSystem, TemporalMemory, AttentionSystem | core ⚠ entry point principal — ver Conflictos |
 | cognia_writing.py | Entry point GUI PyQt6 de la variante Shattering "writing" (RHETOR) | scripts ⚠ entry point |
 | consolidation_engine.py | Ciclo de "sueño profundo": eliminación, consolidación, decay, dedup de memorias | memory |
@@ -65,8 +65,11 @@ Sin candidatos a `archive` por patrón: **no existen** `fix_*.py`, `paso*.py`, `
 4. El plan original describe ~70 archivos con parches `fix_*`/`paso*` — ese estado ya no
    existe; el alcance real de la migración es menor pero el riesgo de imports es mayor.
 
-**Recomendación para Task 0.2:** usar un paquete nuevo que no colisione — p.ej.
-`cognia_v3/{core,memory,interfaces,training,eval}` — o subpaquete `cognia/legacy_v3/`,
-en vez de mezclar con el paquete PyPI. Los entry points (`cognia_v3.py`,
-`cognia_desktop_api.py`, `web_app.py`, `cognia_code.py`, `cognia_writing.py`,
-`cognia_idle.py`) quedan en la raíz como launchers delgados.
+**Decisión ejecutada (Task 0.2/0.3, aprobada por el dueño):** paquete nuevo
+`cognia_v3/{core,memory,interfaces,training,eval}`. 29 módulos migrados con `git mv`;
+136 líneas de import reescritas en 39 archivos (incl. los imports opcionales try/except
+del paquete `cognia/`, que conservan su semántica de degradación en pip). Los entry
+points (`cognia_v3.py` → launcher delgado, `cognia_desktop_api.py`, `web_app.py`,
+`cognia_code.py`, `cognia_writing.py`, `cognia_idle.py`, `run_tests.py`) quedan en la
+raíz. Verificación: 29/29 módulos importan, REPL corre y sale limpio, suite rápida
+2425 passed / 1 skipped.

@@ -15,7 +15,7 @@ SEGURIDAD:
   - El SelfArchitect puede llamar validate_python() para validar sus propuestas
 
 USO:
-  from code_executor import get_code_executor
+  from cognia_v3.interfaces.code_executor import get_code_executor
   ex = get_code_executor()
   result = ex.run_python("print('hola mundo')")
   print(result.output)  # "hola mundo"
@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from typing import Optional
 
-from logger_config import get_logger, log_slow
+from cognia_v3.core.logger_config import get_logger, log_slow
 
 logger = get_logger(__name__)
 

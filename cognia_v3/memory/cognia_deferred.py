@@ -9,7 +9,7 @@ Saca del hot-path de observe() dos operaciones costosas:
 
 INTEGRACIÓN EN cognia_v3.py → Cognia.__init__():
 
-    from cognia_deferred import DeferredMaintenance, IdleHypothesisScheduler
+    from cognia_v3.memory.cognia_deferred import DeferredMaintenance, IdleHypothesisScheduler
 
     self._maintenance   = DeferredMaintenance(self, throttle_controller=self.fatigue)
     self._hyp_scheduler = IdleHypothesisScheduler(

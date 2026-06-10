@@ -41,7 +41,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
-from logger_config import get_logger, log_db_error
+from cognia_v3.core.logger_config import get_logger, log_db_error
 
 logger = get_logger(__name__)
 
@@ -175,7 +175,7 @@ class ConsolidationEngine:
     Motor de consolidación y limpieza de memoria para Cognia.
 
     Uso desde cognia.py:
-        from consolidation_engine import get_consolidation_engine
+        from cognia_v3.memory.consolidation_engine import get_consolidation_engine
         self._consolidation_engine = get_consolidation_engine(db_path)
 
     En sleep():

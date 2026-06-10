@@ -4,7 +4,7 @@ logger_config.py — Cognia Logging System
 Sistema de logging estructurado para todos los módulos de Cognia.
 
 Uso básico en cualquier módulo:
-    from logger_config import get_logger
+    from cognia_v3.core.logger_config import get_logger
     logger = get_logger(__name__)
 
     logger.info("Operación OK", extra={"op": "store_episode", "label": label})
@@ -12,7 +12,7 @@ Uso básico en cualquier módulo:
     logger.error("Fallo crítico", extra={"op": "db_write", "table": "episodic_memory"})
 
 Uso del helper safe_execute:
-    from logger_config import safe_execute
+    from cognia_v3.core.logger_config import safe_execute
     result = safe_execute(lambda: risky_function(), context="nombre_operacion", fallback=None)
 """
 

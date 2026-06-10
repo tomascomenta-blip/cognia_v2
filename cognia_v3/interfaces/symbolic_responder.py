@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 
-from logger_config import get_logger as _get_sr_logger
+from cognia_v3.core.logger_config import get_logger as _get_sr_logger
 
 # ── PASO 4: Sintetizador multi-fuente ────────────────────────────────
 try:
@@ -28,7 +28,7 @@ try:
     HAS_SYNTHESIZER = True
 except ImportError:
     try:
-        from symbolic_synthesizer import get_synthesizer
+        from cognia_v3.interfaces.symbolic_synthesizer import get_synthesizer
         HAS_SYNTHESIZER = True
     except ImportError:
         HAS_SYNTHESIZER = False

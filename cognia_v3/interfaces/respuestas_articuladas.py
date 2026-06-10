@@ -10,7 +10,7 @@ USO STANDALONE:
   python respuestas_articuladas.py "Que es Python?"
 
 INTEGRACION FLASK (en web_app.py, antes de if __name__):
-  from respuestas_articuladas import register_routes_llm
+  from cognia_v3.interfaces.respuestas_articuladas import register_routes_llm
   register_routes_llm(app, get_cognia)
 
 MODELOS RECOMENDADOS:
@@ -27,28 +27,28 @@ try:
     HAS_LANGUAGE_ENGINE = True
 except ImportError:
     try:
-        from language_engine import get_language_engine
+        from cognia_v3.interfaces.language_engine import get_language_engine
         HAS_LANGUAGE_ENGINE = True
     except ImportError:
         HAS_LANGUAGE_ENGINE = False
 
 # ── PASO 3: Memoria conversacional multi-turno ────────────────────────
 try:
-    from conversation_memory import get_conversation_context
+    from cognia_v3.memory.conversation_memory import get_conversation_context
     HAS_CONV_MEMORY = True
 except ImportError:
     HAS_CONV_MEMORY = False
 
 # ── ModelRouter: enrutamiento inteligente de modelos ─────────────────
 try:
-    from model_router import get_model_router, llamar_ollama_routed
+    from cognia_v3.interfaces.model_router import get_model_router, llamar_ollama_routed
     HAS_MODEL_ROUTER = True
 except ImportError:
     HAS_MODEL_ROUTER = False
 
 # ── CodeMemory: memoria especializada en código ───────────────────────
 try:
-    from code_memory import get_code_memory
+    from cognia_v3.memory.code_memory import get_code_memory
     HAS_CODE_MEMORY = True
 except ImportError:
     HAS_CODE_MEMORY = False
@@ -239,7 +239,7 @@ def construir_contexto(ai, pregunta):
             if _conv_block:
                 bloques.append(_conv_block)
         except Exception as _e:
-            from logger_config import get_logger as _gl
+            from cognia_v3.core.logger_config import get_logger as _gl
             _gl(__name__).warning(
                 "Error construyendo contexto conversacional",
                 extra={"op": "construir_contexto.conv", "context": str(_e)},
@@ -621,7 +621,7 @@ def _postprocess_response(ai, engine_result, pre: dict) -> dict:
                     vector      = _vec_preg,
                 )
         except Exception as _e:
-            from logger_config import get_logger as _gl
+            from cognia_v3.core.logger_config import get_logger as _gl
             _gl(__name__).warning(
                 "Error registrando turno en ConversationContext",
                 extra={"op": "_postprocess_response.conv", "context": str(_e)},
@@ -698,7 +698,7 @@ def responder_articulado(ai, pregunta):
     investigado = False
     info_inv = None
     try:
-        from investigador import investigar_si_necesario
+        from cognia_v3.core.investigador import investigar_si_necesario
         contexto, investigado, info_inv = investigar_si_necesario(ai, pregunta, contexto)
     except Exception:
         pass
@@ -787,7 +787,7 @@ def register_routes_llm(app, ai_getter):
         # Si encuentra problemas, genera propuestas en DB para revisión humana.
         # Nunca interrumpe el flujo de respuesta.
         try:
-            from self_architect import SelfArchitect
+            from cognia_v3.core.self_architect import SelfArchitect
             if not hasattr(api_chat, "_architect"):
                 api_chat._architect = SelfArchitect(cognia_instance=ai)
             eval_result = api_chat._architect.tick(ai.interaction_count)
@@ -819,7 +819,7 @@ def register_routes_llm(app, ai_getter):
                 if result.get("_needs_arch_optimization"):
                     try:
                         if not hasattr(api_chat, "_architect"):
-                            from self_architect import SelfArchitect
+                            from cognia_v3.core.self_architect import SelfArchitect
                             api_chat._architect = SelfArchitect(cognia_instance=ai)
                         api_chat._architect.run_evaluation(triggered_by="fatigue_critical")
                     except Exception:

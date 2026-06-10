@@ -42,7 +42,7 @@ def _verify_code(content: str) -> VerifyResult:
 
     # 2. Blocked imports (reutiliza el scanner de code_executor)
     try:
-        from code_executor import _scan_blocked_imports
+        from cognia_v3.interfaces.code_executor import _scan_blocked_imports
         blocked = _scan_blocked_imports(content)
         if blocked:
             return VerifyResult(False, 0.1, f"CODE:BLOCKED_IMPORT:{blocked[0]}")
@@ -51,7 +51,7 @@ def _verify_code(content: str) -> VerifyResult:
 
     # 3. Ejecución en sandbox con timeout
     try:
-        from code_executor import get_code_executor
+        from cognia_v3.interfaces.code_executor import get_code_executor
         exec_result = get_code_executor().run(content, language="python")
         if exec_result.timed_out:
             return VerifyResult(False, 0.2, "CODE:EXEC_TIMEOUT")

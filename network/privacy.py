@@ -26,7 +26,7 @@ from typing import List, Optional
 
 import numpy as np
 
-from logger_config import get_logger
+from cognia_v3.core.logger_config import get_logger
 
 logger = get_logger(__name__)
 

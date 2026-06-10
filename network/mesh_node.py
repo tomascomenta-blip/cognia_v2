@@ -40,7 +40,7 @@ from network.privacy import (
     filter_shareable_triples,
     PrivacyLayer,
 )
-from logger_config import get_logger
+from cognia_v3.core.logger_config import get_logger
 
 logger = get_logger(__name__)
 

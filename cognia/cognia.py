@@ -43,33 +43,33 @@ from .compression import ConceptCompressor, GraphEpisodicBridge
 from .cognia_embedding import get_embedding_queue
 
 try:
-    from cognia_deferred import DeferredMaintenance, IdleHypothesisScheduler
+    from cognia_v3.memory.cognia_deferred import DeferredMaintenance, IdleHypothesisScheduler
     HAS_DEFERRED = True
 except ImportError:
     HAS_DEFERRED = False
 
 # ── Paso 3: módulos de aprendizaje ────────────────────────────────────
 try:
-    from teacher_interface import get_teacher
+    from cognia_v3.interfaces.teacher_interface import get_teacher
     HAS_TEACHER = True
 except ImportError:
     HAS_TEACHER = False
 
 # ── Paso 4: SelfArchitect ─────────────────────────────────────────────
 try:
-    from self_architect import SelfArchitect
+    from cognia_v3.core.self_architect import SelfArchitect
     HAS_SELF_ARCHITECT = True
 except ImportError:
     HAS_SELF_ARCHITECT = False
 
 try:
-    from model_collapse_guard import ModelCollapseGuard
+    from cognia_v3.core.model_collapse_guard import ModelCollapseGuard
     HAS_COLLAPSE_GUARD = True
 except ImportError:
     HAS_COLLAPSE_GUARD = False
 
 try:
-    from language_corrector import LanguageCorrector
+    from cognia_v3.interfaces.language_corrector import LanguageCorrector
     HAS_LANGUAGE_CORRECTOR = True
 except ImportError:
     HAS_LANGUAGE_CORRECTOR = False
@@ -236,7 +236,7 @@ class Cognia:
 
         # ── PASO 5: FeedbackEngine (aprendizaje por feedback) ──────────
         try:
-            from feedback_engine import get_feedback_engine
+            from cognia_v3.core.feedback_engine import get_feedback_engine
             self._feedback_engine = get_feedback_engine(db_path)
             print("[OK] FeedbackEngine PASO 5 activo")
         except ImportError:
@@ -244,7 +244,7 @@ class Cognia:
 
         # ── PASO 6: ConsolidationEngine (consolidación y limpieza) ─────
         try:
-            from consolidation_engine import get_consolidation_engine
+            from cognia_v3.memory.consolidation_engine import get_consolidation_engine
             self._consolidation_engine = get_consolidation_engine(
                 db_path,
                 consolidation_interval=self.consolidation_interval,

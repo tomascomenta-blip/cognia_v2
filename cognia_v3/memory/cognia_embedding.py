@@ -15,13 +15,13 @@ INTEGRACIÓN EN cognia_v3.py
          _embedding_cache: Dict[str, list] = {}
          _CACHE_MAX = 512
   2. Agregar al inicio de cognia_v3.py (después de los imports estándar):
-         from cognia_embedding import BoundedLRUCache, get_embedding_queue, text_to_vector_fast
+         from cognia_v3.memory.cognia_embedding import BoundedLRUCache, get_embedding_queue, text_to_vector_fast
          _embedding_cache = BoundedLRUCache(max_entries=512)
          # _embedding_queue se inicializa en Cognia.__init__() con:
          #   self._embedding_queue = get_embedding_queue(throttle_controller=self.fatigue)
   3. Reemplazar la función text_to_vector() de cognia_v3.py con la versión de este
      módulo (ver abajo) O importarla directamente:
-         from cognia_embedding import text_to_vector_fast as text_to_vector
+         from cognia_v3.memory.cognia_embedding import text_to_vector_fast as text_to_vector
 """
 
 from __future__ import annotations
@@ -311,7 +311,7 @@ def text_to_vector_fast(
       - Compatible con la firma original: retorna list[float]
 
     Para reemplazar en cognia_v3.py:
-        from cognia_embedding import text_to_vector_fast as text_to_vector
+        from cognia_v3.memory.cognia_embedding import text_to_vector_fast as text_to_vector
     """
     key = text[:200]
 

@@ -25,7 +25,7 @@ INTEGRACIÓN:
   No reemplaza las plantillas existentes — las alimenta mejor.
 
 USO:
-  from symbolic_synthesizer import SymbolicSynthesizer
+  from cognia_v3.interfaces.symbolic_synthesizer import SymbolicSynthesizer
   synth = SymbolicSynthesizer()
   result = synth.synthesize(ai, question, question_vec)
   # result.text tiene mayor relevancia semántica
@@ -36,7 +36,7 @@ import time
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 
-from logger_config import get_logger
+from cognia_v3.core.logger_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -16,13 +16,13 @@ import inspect
 
 
 def test_ollama_except_block_wires_local_shard_fallback():
-    import model_router as mr
+    from cognia_v3.interfaces import model_router as mr
     src = inspect.getsource(mr.llamar_ollama_routed)
     assert "_llamar_shard_local" in src, "Ollama failure must fall back to local shards"
 
 
 def test_local_shard_fallback_graceful_without_shards(monkeypatch):
-    import model_router as mr
+    from cognia_v3.interfaces import model_router as mr
     monkeypatch.setenv("SHARD_WEIGHTS_DIR", "")  # no shards available
     mr._LOCAL_ORCH = None                        # reset the lazy singleton
     # Must never raise; returns None when there is nothing to run.

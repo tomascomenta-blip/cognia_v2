@@ -23,7 +23,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
-from logger_config import get_logger, log_slow
+from cognia_v3.core.logger_config import get_logger, log_slow
 
 logger = get_logger(__name__)
 

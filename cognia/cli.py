@@ -2505,7 +2505,7 @@ def _slash_skill_cargar(ai, nombre: str, args: str):
 
 def _call_articulated(ai, prompt: str) -> str:
     try:
-        from respuestas_articuladas import responder_articulado
+        from cognia_v3.interfaces.respuestas_articuladas import responder_articulado
         result = responder_articulado(ai, prompt)
         if "error" in result:
             return f"Error: {result['error']}"
@@ -5875,7 +5875,7 @@ def repl():
 
                 if not _streamed:
                     try:
-                        from respuestas_articuladas import responder_articulado
+                        from cognia_v3.interfaces.respuestas_articuladas import responder_articulado
                         if _HAS_RICH and _console:
                             flt      = _VerboseFilter()
                             logging.root.addFilter(flt)
@@ -6099,7 +6099,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
 
     # Register agent task as a conversation turn so follow-up questions work
     try:
-        from conversation_memory import get_conversation_context
+        from cognia_v3.memory.conversation_memory import get_conversation_context
         from vectors import text_to_vector
         _task_vec = text_to_vector(task[:200])
         if _task_vec:

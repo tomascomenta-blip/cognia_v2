@@ -12,7 +12,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict
 
-from logger_config import get_logger, log_db_error, safe_execute
+from cognia_v3.core.logger_config import get_logger, log_db_error, safe_execute
 
 logger = get_logger(__name__)
 
@@ -49,7 +49,7 @@ class TeacherInterface:
 
         self._guard = None
         try:
-            from model_collapse_guard import ModelCollapseGuard
+            from cognia_v3.core.model_collapse_guard import ModelCollapseGuard
             self._guard = ModelCollapseGuard(db_path=db_path)
             logger.info("ModelCollapseGuard cargado",
                         extra={"op": "teacher.init", "context": f"db={db_path}"})
@@ -59,7 +59,7 @@ class TeacherInterface:
 
         self._corrector = None
         try:
-            from language_corrector import LanguageCorrector
+            from cognia_v3.interfaces.language_corrector import LanguageCorrector
             self._corrector = LanguageCorrector()
             logger.info("LanguageCorrector cargado",
                         extra={"op": "teacher.init", "context": "ok"})
@@ -268,7 +268,7 @@ class TeacherInterface:
 
     def _invalidate_engine_cache(self, concept: str):
         try:
-            from language_engine import get_language_engine
+            from cognia_v3.interfaces.language_engine import get_language_engine
             get_language_engine(self._ai).invalidate_concept(concept)
         except ImportError:
             logger.debug(

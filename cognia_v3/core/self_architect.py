@@ -482,7 +482,7 @@ class ArchitectureEvaluator:
         Si el engine no esta disponible, rellena con defaults neutros.
         """
         try:
-            from language_engine import get_language_engine
+            from cognia_v3.interfaces.language_engine import get_language_engine
             engine = get_language_engine()
             zones  = engine.report_weak_zones()
             m.update(zones)
@@ -508,7 +508,7 @@ class ArchitectureEvaluator:
         Convierte risk_level a un score numerico para el DiagnosticEngine.
         """
         try:
-            from model_collapse_guard import ModelCollapseGuard
+            from cognia_v3.core.model_collapse_guard import ModelCollapseGuard
             guard  = ModelCollapseGuard(self.db)
             report = guard.get_collapse_report()
 

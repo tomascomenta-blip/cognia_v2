@@ -7,7 +7,7 @@ Extiende EpisodicMemory con almacenamiento dedicado para:
   - Errores y sus soluciones (alta prioridad, crucial para aprendizaje)
 
 USO:
-  from code_memory import get_code_memory
+  from cognia_v3.memory.code_memory import get_code_memory
   cm = get_code_memory(cognia_instance)
 
   cm.save_snippet("def foo(): ...", "python", "función de utilidad", ["utils"])
@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from logger_config import get_logger, log_db_error
+from cognia_v3.core.logger_config import get_logger, log_db_error
 
 logger = get_logger(__name__)
 

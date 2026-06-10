@@ -17,7 +17,7 @@ USO EN CHAT:
   aprender insulina
 
 ACTIVACIÓN DESDE web_app.py (antes del if __name__):
-  from aprendizaje_profundo import register_routes_aprendizaje
+  from cognia_v3.core.aprendizaje_profundo import register_routes_aprendizaje
   register_routes_aprendizaje(app, get_cognia)
 """
 
@@ -987,7 +987,7 @@ def aprender_tema(ai, clave: str) -> dict:
     }
 
     try:
-        from cognia_v3 import text_to_vector, analyze_emotion
+        from cognia_v3.core.cognia_v3 import text_to_vector, analyze_emotion
     except ImportError:
         return {"ok": False, "error": "No se pudo importar cognia_v3"}
 

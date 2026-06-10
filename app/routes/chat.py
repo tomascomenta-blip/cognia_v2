@@ -39,7 +39,7 @@ def _respuesta_sin_ollama(ai, pregunta: str) -> dict:
     apuntando Ollama a un puerto cerrado para que falle rapido.
     """
     try:
-        from language_engine import get_language_engine
+        from cognia_v3.interfaces.language_engine import get_language_engine
         engine = get_language_engine(ai)
         original_url = engine.ollama_url
         engine.ollama_url = "http://127.0.0.1:1"
@@ -71,7 +71,7 @@ def chat(req: ChatRequest):
     try:
         ai = get_cognia()
         try:
-            from respuestas_articuladas import responder_articulado
+            from cognia_v3.interfaces.respuestas_articuladas import responder_articulado
             resultado = responder_articulado(ai, req.input.strip())
         except Exception as e:
             resultado = {"error": str(e)}

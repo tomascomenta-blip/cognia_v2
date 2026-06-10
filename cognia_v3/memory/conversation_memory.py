@@ -11,12 +11,12 @@ COMPONENTES:
 
 INTEGRACIÓN:
   1. En respuestas_articuladas.py → construir_contexto():
-       from conversation_memory import get_conversation_context
+       from cognia_v3.memory.conversation_memory import get_conversation_context
        ctx = get_conversation_context(ai)
        bloque_conv = ctx.build_context_block(pregunta, vec_pregunta)
 
   2. En language_engine.py → LanguageEngine.__init__():
-       from conversation_memory import get_conversation_context
+       from cognia_v3.memory.conversation_memory import get_conversation_context
        # (acceso via ai en respond())
 
   3. En respuestas_articuladas.py → _postprocess_response():
@@ -39,7 +39,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Dict
 
-from logger_config import get_logger
+from cognia_v3.core.logger_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -354,7 +354,7 @@ class ConversationContext:
 
     Uso en respuestas_articuladas.py:
 
-        from conversation_memory import get_conversation_context
+        from cognia_v3.memory.conversation_memory import get_conversation_context
 
         # En construir_contexto():
         ctx = get_conversation_context(ai)

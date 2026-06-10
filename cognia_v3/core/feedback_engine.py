@@ -36,7 +36,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from logger_config import get_logger, log_db_error
+from cognia_v3.core.logger_config import get_logger, log_db_error
 
 logger = get_logger(__name__)
 
@@ -225,7 +225,7 @@ class FeedbackEngine:
     Aplica feedback de usuario a la memoria de Cognia.
 
     Uso desde cognia.py:
-        from feedback_engine import FeedbackEngine
+        from cognia_v3.core.feedback_engine import FeedbackEngine
         self._feedback_engine = FeedbackEngine(db_path)
 
     Luego en apply_feedback():
@@ -554,7 +554,7 @@ class FeedbackEngine:
             negative_rate    = recent_feedbacks.count(-1) / len(recent_feedbacks)
 
             try:
-                from decision_gate import get_decision_gate
+                from cognia_v3.interfaces.decision_gate import get_decision_gate
             except ImportError:
                 from cognia.decision_gate import get_decision_gate
 

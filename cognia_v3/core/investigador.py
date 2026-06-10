@@ -9,7 +9,7 @@ Cuando Cognia no sabe algo:
   5. Devuelve el contexto enriquecido para que Llama responda bien
 
 USO:
-  from investigador import investigar_si_necesario
+  from cognia_v3.core.investigador import investigar_si_necesario
   contexto = investigar_si_necesario(ai, pregunta, contexto_actual)
 """
 
@@ -246,7 +246,7 @@ def guardar_en_cognia(ai, titulo, extracto, hechos, pregunta_original):
     guardado = {"episodios": 0, "hechos_grafo": 0, "actualizado": False}
 
     try:
-        from cognia_v3 import text_to_vector, analyze_emotion
+        from cognia_v3.core.cognia_v3 import text_to_vector, analyze_emotion
         import sqlite3
 
         # Usar el título completo como label (sin truncar)

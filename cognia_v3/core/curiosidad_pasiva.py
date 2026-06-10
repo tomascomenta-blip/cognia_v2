@@ -17,7 +17,7 @@ DIFERENCIA CON dormir (sleep()):
   - curiosidad_pasiva → ADQUIERE conocimiento nuevo sobre temas que Cognia ya sabe que no sabe
 
 USO EN web_app.py:
-    from curiosidad_pasiva import CuriosidadPasiva, register_routes_curiosidad
+    from cognia_v3.core.curiosidad_pasiva import CuriosidadPasiva, register_routes_curiosidad
     curiosidad = CuriosidadPasiva(get_cognia)
     curiosidad.iniciar()
     register_routes_curiosidad(app, curiosidad)
@@ -267,7 +267,7 @@ def ciclo_curiosidad(ai, db_path: str) -> dict:
     
     # 3. Investigar
     try:
-        from investigador import buscar_wikipedia, buscar_duckduckgo, extraer_hechos_simples, guardar_en_cognia
+        from cognia_v3.core.investigador import buscar_wikipedia, buscar_duckduckgo, extraer_hechos_simples, guardar_en_cognia
         
         termino_busqueda = limpiar_concepto_para_busqueda(concepto)
         wiki = buscar_wikipedia(termino_busqueda)
@@ -319,7 +319,7 @@ class CuriosidadPasiva:
     Hilo de fondo que ejecuta ciclos de curiosidad pasiva.
     
     Ejemplo de uso:
-        from curiosidad_pasiva import CuriosidadPasiva
+        from cognia_v3.core.curiosidad_pasiva import CuriosidadPasiva
         curiosidad = CuriosidadPasiva(get_cognia_func)
         curiosidad.iniciar()
         # ...

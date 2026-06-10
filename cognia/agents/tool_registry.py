@@ -66,7 +66,7 @@ def _make_registry() -> ToolRegistry:
 
     # ── execute_python ──────────────────────────────────────────────────
     try:
-        from code_executor import get_code_executor
+        from cognia_v3.interfaces.code_executor import get_code_executor
         _exec = get_code_executor()
 
         def _execute_python(code: str) -> dict:
@@ -86,7 +86,7 @@ def _make_registry() -> ToolRegistry:
 
     # ── validate_python ─────────────────────────────────────────────────
     try:
-        from code_executor import validate_python
+        from cognia_v3.interfaces.code_executor import validate_python
 
         def _validate_python(code: str) -> dict:
             r = validate_python(code)
@@ -104,7 +104,7 @@ def _make_registry() -> ToolRegistry:
 
     # ── search_wikipedia ────────────────────────────────────────────────
     try:
-        from investigador import buscar_wikipedia
+        from cognia_v3.core.investigador import buscar_wikipedia
 
         def _search_wikipedia(query: str) -> dict:
             result = buscar_wikipedia(query)

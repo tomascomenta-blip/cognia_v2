@@ -14,7 +14,7 @@ FLUJO:
   → GateDecision(action, reason, adjusted_confidence)
 
 USO desde language_engine.py (Stage 2):
-  from decision_gate import DecisionGate, GateAction
+  from cognia_v3.interfaces.decision_gate import DecisionGate, GateAction
   gate   = DecisionGate()
   result = gate.evaluate(sym_response, question, vec, ai)
   if result.action == GateAction.SYMBOLIC:
@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List
 
-from logger_config import get_logger, log_slow
+from cognia_v3.core.logger_config import get_logger, log_slow
 
 logger = get_logger(__name__)
 

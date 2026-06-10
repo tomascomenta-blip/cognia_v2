@@ -19,7 +19,7 @@ INTEGRACIÓN CON EpisodicMemory:
   de propuestas son bien recibidas.
 
 USO:
-  from scoring_engine import get_scoring_engine
+  from cognia_v3.core.scoring_engine import get_scoring_engine
   se = get_scoring_engine(db_path="cognia_memory.db")
   se.record("prop_001", "nueva_funcion", +10, "código funcionó sin errores")
   se.record("prop_001", "documentacion", +5, "docstrings claros")
@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from logger_config import get_logger, log_db_error
+from cognia_v3.core.logger_config import get_logger, log_db_error
 
 logger = get_logger(__name__)
 

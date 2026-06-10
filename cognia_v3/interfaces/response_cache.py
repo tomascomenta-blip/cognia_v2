@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from collections import OrderedDict
 from typing import Optional, List, Dict
 
-from logger_config import get_logger, log_db_error, log_slow, safe_execute
+from cognia_v3.core.logger_config import get_logger, log_db_error, log_slow, safe_execute
 
 logger = get_logger(__name__)
 
