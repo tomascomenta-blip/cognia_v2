@@ -1933,3 +1933,17 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   Regresion: test_phase22.py + test_phase23.py = 55 passed.
 - Verificacion E2E real via registry: search 1 match real en repo, write/edit/run_tests
   OK (1 passed en workspace temp), gates devuelven ToolResult de error (traversal y .env).
+
+## [2026-06-10] CYCLE 3 (mision programacion) — Set duro discriminativo: pass@1 40%, max_tokens no es la palanca
+- Archivos: cognia_v3/eval/tasks_hard.jsonl (20 tasks: 6 ALG, 5 LONG, 5 DBG, 4 SPEC, asserts validados contra soluciones de referencia)
+- Resultados: pass@1 = 8/20 (40%) IGUAL con max_tokens 512 y 1024.
+  - ALG 4/6, LONG 0/5, DBG 3/5, SPEC 2/4 (identico en ambos runs, temp=0)
+  - Unica truncada real: LONG3 (SyntaxError a 512). Medida aparte con 1024 reales
+    (timeout 900s): genero 908 tokens completos y FALLO por logica (ValueError).
+- Bug de produccion confirmado: urlopen timeout=120s en node/llama_backend.py corta
+  generaciones >660 tokens a ~5.5 tok/s (devuelve None silencioso). Fix pendiente:
+  timeout proporcional al presupuesto.
+- Conclusion: el techo single-shot del 3B en tareas duras es ~40%; la palanca de mayor
+  upside es el loop agentico con feedback de ejecucion (generar->test->reparar), ahora
+  posible con las tools Tier 1 (commit 0ca1b46). Proximo: modo --repair en benchmark +
+  loop en Supervisor.
