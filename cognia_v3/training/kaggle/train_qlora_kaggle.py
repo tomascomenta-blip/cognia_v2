@@ -1,9 +1,13 @@
 """
 QLoRA training kernel para Kaggle (GPU T4/P100, gratis, sin tarjeta).
 
-Corre COMO KERNEL DE KAGGLE (script kernel) con:
-  - dataset privado adjunto: cognia-dataset (cognia_dataset.jsonl)
-  - enable_gpu: true, enable_internet: true (baja el modelo base de HF)
+Corre COMO KERNEL DE KAGGLE (script kernel) 100% OFFLINE:
+  - enable_internet: FALSE (sin verificación de teléfono no hay internet).
+  - NO instala nada por pip: usa lo preinstalado en la imagen de Kaggle
+    (transformers/peft/bitsandbytes/accelerate ya vienen).
+  - modelo base montado como model source: Kaggle Models
+    qwen-lm/qwen2.5-coder/transformers/3b-instruct → /kaggle/input/...
+  - dataset privado adjunto: cognia-dataset (cognia_dataset.jsonl).
 
 Hace 3 cosas y deja todo en /kaggle/working (descargable por CLI):
   1. Entrena un adapter LoRA sobre Qwen2.5-Coder-3B-Instruct CONGELADO (4-bit).
@@ -12,22 +16,30 @@ Hace 3 cosas y deja todo en /kaggle/working (descargable por CLI):
 
 El modelo base NUNCA se modifica: solo se crea el adapter.
 """
+import glob
 import json
 import os
-import subprocess
-import sys
-
-# ── Deps: Kaggle trae torch/transformers; aseguramos peft/bitsandbytes ──
-subprocess.run([sys.executable, "-m", "pip", "install", "-q",
-                "peft>=0.10", "bitsandbytes>=0.43", "accelerate"], check=True)
 
 import torch
 from datasets import Dataset
 from transformers import (AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig,
                           DataCollatorForLanguageModeling, Trainer, TrainingArguments)
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
-MODEL = "Qwen/Qwen2.5-Coder-3B-Instruct"
+
+def _find_model_dir() -> str:
+    """Ruta del modelo montado bajo /kaggle/input (config.json presente)."""
+    candidates = glob.glob("/kaggle/input/**/config.json", recursive=True)
+    if not candidates:
+        raise FileNotFoundError(
+            "No se encontró el modelo montado bajo /kaggle/input. "
+            "Adjuntar qwen-lm/qwen2.5-coder/transformers/3b-instruct como model source.")
+    # el más superficial / con tokenizer al lado
+    candidates.sort(key=lambda p: len(p))
+    return os.path.dirname(candidates[0])
+
+
+MODEL = _find_model_dir()
 DATASET_PATH = "/kaggle/input/cognia-dataset/cognia_dataset.jsonl"
 OUT = "/kaggle/working"
 MAX_LEN = 512
@@ -79,6 +91,7 @@ def run_eval(model, tokenizer, label: str) -> dict:
 def main():
     assert torch.cuda.is_available(), "Este kernel necesita GPU (enable_gpu: true)"
     print("GPU:", torch.cuda.get_device_name(0))
+    print("MODEL DIR:", MODEL)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=True)
     if tokenizer.pad_token is None:
