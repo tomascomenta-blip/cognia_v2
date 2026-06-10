@@ -55,3 +55,6 @@ cognia/agent/generated_tools/
 
 # Datasets de entrenamiento derivados de la memoria personal (privacidad)
 cognia_v3/training/*.jsonl
+
+# MNIST y otros datasets descargados
+data/

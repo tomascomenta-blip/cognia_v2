@@ -1768,3 +1768,36 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   4 tests de regresion; suite 2425 passed, 1 skipped, 0 failed. Wheel 3.5.1 incluye cognia/doctor.py
   y model_router con _llamar_shard_local. twine check PASSED. Subido a PyPI (token .env, redactado).
 - Commit 2a58e6e. PyPI: https://pypi.org/project/cognia-ai/3.5.1/  (pip install -U cognia-ai)
+
+## 2026-06-09 — Build plan Cognia v3: SESSIONS 0-2 (rama cognia-reorganization)
+- SESSION 0 (commits 5825254, 98b794c): AUDIT.md de 36 .py de la raiz; paquete NUEVO
+  cognia_v3/{core,memory,interfaces,training,eval} (decision del dueno: no mezclar con el
+  paquete PyPI cognia/ que ya tiene cognia/memory/). 29 modulos migrados con git mv,
+  136 imports reescritos en 39 archivos (incl. try/except opcionales de cognia/ — semantica
+  pip preservada). cognia_v3.py raiz = launcher delgado; fix utf-8 en prints con emoji.
+  Baseline eval de 10 preguntas: stub 0%, modelo real local 58.3% (shattering_llamacpp:
+  el orquestador usa llama.cpp+GGUF aunque _shards_available()=False; los .npz no estan).
+  ARCHITECTURE.md nuevo. Verificado: 29/29 imports, REPL e2e, suite 2425 passed/1 skipped.
+- SESSION 1 (commit 4ff7ac5): CognitiveLoop FAST/RECALL/DELIBERATE/ACT adaptado a las APIs
+  reales (get_facts, retrieve_similar(vector), infer). Wiring en repl() SOLO con backend
+  generativo real (sin backend queda el pipeline simbolico para no contaminar memoria).
+  Verificado con modelo real: routing 5/5, respuestas 5/5, RECALL inyecto 3 hechos del KG;
+  REPL e2e con [CognitiveLoop] activo. 13 tests de regresion.
+- SESSION 2 (commit 69fbdc6): dataset_gen.py -> 3489 pares reales (3000 KG + 489 episodios)
+  en cognia_v3/training/cognia_dataset.jsonl (gitignoreado: deriva de memoria personal).
+  qlora_trainer.py listo con checks honestos. ENTRENAMIENTO BLOQUEADO en esta maquina:
+  i3-10110U 2 cores, sin GPU CUDA, 11.8 GB RAM — bitsandbytes 4-bit necesita CUDA.
+  Correr en hardware con GPU cuando este disponible. 5 tests de regresion.
+- SESSION 3 en curso: SDPC E1 (Protocolo del Aula) en MNIST, torch 2.12 CPU instalado en
+  venv312, proceso e1_mnist corriendo (PID 2560, log e1_run.log). Veredicto pendiente.
+- SESSION 3 cerrada: SDPC E1 (MNIST, 5 epochs, criterio >=95% del BP).
+  Run 1 (config del plan: lr 0.02, init std 0.02): COLAPSO a azar (9.8% vs BP 97.7%,
+  ratio 0.10). Diagnostico acotado (e1_diag.py, 5 configs en subset): causa raiz =
+  init std fija 0.02 -> senal forward desvanecida en profundidad; ademas feedback
+  positivo |W| -> updates -> ReLUs muertas con mas steps.
+  FIX 1: He-init por capa. FIX 2: clip de norma del update + weight decay 1e-4 +
+  lr decay 0.6/epoch (limitacion #4 del paper: sin garantia de convergencia).
+  Run final: SDPC 92.23% vs BP 97.68% -> ratio 0.9442. VEREDICTO: FAIL (<0.95).
+  SDPC queda PAUSADO segun protocolo; el sistema sigue via QLoRA. JSONs en
+  cognia_v3/eval/sdpc_e1_*.json (se commitean ambos: negativo y final, reportar
+  negativos es parte del aporte). 6 tests de regresion en tests/test_sdpc.py.
