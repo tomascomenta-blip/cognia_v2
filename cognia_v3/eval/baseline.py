@@ -32,10 +32,17 @@ BASELINE_QUESTIONS = [
 ]
 
 
+def _fold(text: str) -> str:
+    """lowercase + sin acentos: el modelo responde a veces en español ('París')."""
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", text.lower())
+                   if not unicodedata.combining(c))
+
+
 def score_response(response: str, keywords: list[str]) -> float:
-    """Keyword scoring. Returns 0.0 to 1.0."""
-    r = response.lower()
-    return sum(1 for kw in keywords if kw.lower() in r) / len(keywords)
+    """Keyword scoring (accent-insensitive). Returns 0.0 to 1.0."""
+    r = _fold(response)
+    return sum(1 for kw in keywords if _fold(kw) in r) / len(keywords)
 
 
 def run_baseline(query_fn: Callable[[str], str], label: str = "model") -> dict:
@@ -73,13 +80,16 @@ def run_baseline(query_fn: Callable[[str], str], label: str = "model") -> dict:
 
 def make_real_query_fn() -> tuple[Callable[[str], str], str] | tuple[None, str]:
     """Devuelve (query_fn, label) con el primer backend real disponible, o (None, motivo)."""
-    # 1. Shattering: shards INT4 locales (camino canonico de verificacion del repo)
+    # 1. Shattering local: llama.cpp+GGUF (fast path) o shards INT4 .npz
     try:
         from shattering.orchestrator import ShatteringOrchestrator
         orch = ShatteringOrchestrator(
             manifest_path="shattering/manifests/cognia_desktop.json", mode="local",
             max_new_tokens=200,
         )
+        orch._try_load_llama()
+        if orch._llama is not None:
+            return (lambda p: orch.infer(p).text, "shattering_llamacpp")
         if orch._shards_available():
             return (lambda p: orch.infer(p).text, "shattering_int4")
     except Exception as e:

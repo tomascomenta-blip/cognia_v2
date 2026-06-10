@@ -1,0 +1,77 @@
+{
+  "label": "shattering_llamacpp_baseline",
+  "timestamp": "2026-06-09T21:06:39.765819",
+  "avg_score": 0.5833333333333333,
+  "results": [
+    {
+      "id": "R1",
+      "category": "reasoning",
+      "prompt": "If a dog is a mammal and all mammals are warm-blooded, is a dog warm-blooded? Answer yes or no and explain.",
+      "response": "Yes, a dog is warm-blooded.\nTo explain, dogs fall under the category of mammals. All mammals are defined as warm-blooded organisms, meaning they maintain a consistent body temperature regardless of ex",
+      "score": 1.0
+    },
+    {
+      "id": "R2",
+      "category": "logic",
+      "prompt": "If it rains the ground gets wet. The ground is wet. Did it necessarily rain?",
+      "response": "Sí, puede decirse con certeza que sí it río. La conclusión se deduce del hecho que, si llueve, el suelo se moja. Como el suelo está mojado, se puede inferir que río.",
+      "score": 0.0
+    },
+    {
+      "id": "F1",
+      "category": "factual",
+      "prompt": "What causes rain?",
+      "response": "Rain is caused by the condensation of water vapor in the sky, which then falls as precipitation.",
+      "score": 0.3333333333333333
+    },
+    {
+      "id": "F2",
+      "category": "factual",
+      "prompt": "What is the capital of France?",
+      "response": "La capital de Francia es París.",
+      "score": 0.0
+    },
+    {
+      "id": "F3",
+      "category": "factual",
+      "prompt": "What is machine learning?",
+      "response": "La inteligencia artificial que puedes usar es Cognia. Cognia es una inteligencia artificial creada por Tomas Montes y tiene capacidades de procesar y aprender basándose en datos y experiencias.",
+      "score": 0.0
+    },
+    {
+      "id": "M1",
+      "category": "math",
+      "prompt": "What is 15% of 200?",
+      "response": "15% of 200 is 30.",
+      "score": 1.0
+    },
+    {
+      "id": "C1",
+      "category": "code",
+      "prompt": "Write a Python function that reverses a string.",
+      "response": "Certainly! To reverse a string in Python, you can use slicing. Here's a simple function that accomplishes this:\n\n```python\ndef reverse_string(s):\n    # Use slicing to reverse the string\n    return s[:",
+      "score": 1.0
+    },
+    {
+      "id": "C2",
+      "category": "code",
+      "prompt": "In Python, what is the difference between a list and a tuple?",
+      "response": "En Python, una lista y un tuple son ambas colecciones de elementos que se pueden usar para almacenar y manipular datos, pero tienen algunas diferencias importantes:\n\n1. Mutabilidad:\n   - Una lista es ",
+      "score": 0.5
+    },
+    {
+      "id": "C3",
+      "category": "code",
+      "prompt": "Write Python code to iterate a list printing index and value.",
+      "response": "Certainly! Below is a Python code snippet that iterates over a list and prints both the index and the value of each element:\n\n```python\n# Define a list\nmy_list = [10, 20, 30, 40, 50]\n\n# Iterate over t",
+      "score": 1.0
+    },
+    {
+      "id": "C4",
+      "category": "cs",
+      "prompt": "Name 3 common sorting algorithms.",
+      "response": "1. Bubble Sort\n2. Quick Sort\n3. Merge Sort",
+      "score": 1.0
+    }
+  ]
+}

@@ -3487,6 +3487,32 @@ def repl():
     ai = Cognia()
     print(HELP_TEXT)
 
+    # SESSION 1: CognitiveLoop rutea las consultas libres (FAST/RECALL/DELIBERATE/ACT).
+    # Solo se activa con backend generativo real (shards Shattering / Ollama); sin él,
+    # alimentar prompts aumentados a ai.process contaminaría la memoria episódica,
+    # así que se conserva el pipeline simbólico legacy.
+    _loop_state = {"loop": None, "checked": False}
+
+    def _get_cognitive_loop():
+        if not _loop_state["checked"]:
+            _loop_state["checked"] = True
+            try:
+                from cognia_v3.interfaces.cognitive_loop import CognitiveLoop
+                from cognia_v3.eval.baseline import make_real_query_fn
+                llm_fn, label = make_real_query_fn()
+                if llm_fn is None:
+                    print(f"[CognitiveLoop] sin backend LLM ({label}) — REPL en modo simbólico legacy")
+                else:
+                    print(f"[CognitiveLoop] activo con backend: {label}")
+                    _loop_state["loop"] = CognitiveLoop(
+                        kg=ai.kg, language_engine=llm_fn,
+                        episodic_memory=ai.episodic, inference_engine=ai.inference,
+                        cognia=ai, vectorize=text_to_vector,
+                    )
+            except Exception as e:
+                print(f"[CognitiveLoop] no disponible ({e}) — REPL en modo simbólico legacy")
+        return _loop_state["loop"]
+
     while True:
         try:
             raw = input("Cognia v3> ").strip()
@@ -3567,6 +3593,14 @@ def repl():
         elif raw.startswith("inferir "):
             print(ai.infer_about(raw[8:].strip()))
         else:
+            loop = _get_cognitive_loop()
+            if loop is not None:
+                try:
+                    resp = loop.process(raw)
+                    print(f"[{resp.mode_used}] {resp.answer}")
+                    continue
+                except Exception as e:
+                    print(f"[CognitiveLoop] error ({e}) — fallback simbólico")
             print(ai.process(raw))
 
 
