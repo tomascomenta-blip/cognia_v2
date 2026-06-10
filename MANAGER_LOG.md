@@ -1915,3 +1915,21 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - HALLAZGO: el modelo esta en el TECHO del benchmark (100%). Para medir mejora
   post-QLoRA hay que agregar tasks mas dificiles (algoritmica multi-paso, specs
   ambiguas, refactors largos); --tasks-file ya soporta sets externos sin tocar codigo.
+
+## [2026-06-10] Agent tools Tier 1: search_code / write_file / edit_file / run_tests (cognia/agents)
+- Nuevo: cognia/agents/workers/dev_tools.py - 4 tools deterministas (0 LLM, solo stdlib)
+  registradas en tool_registry.py con el patron existente (Tool plano, try/except ImportError).
+- search_code: regex archivo-por-archivo (os.walk + re), read-only, budget interno 15s,
+  ignora .git/venv*/node_modules/__pycache__/model_shards/checkpoints, cap max_results.
+- write_file/edit_file: confinados a AGENT_WORKSPACE_ROOT (default agent_workspace/ o
+  COGNIA_AGENT_WORKSPACE); path traversal bloqueado via Path.resolve() + is_relative_to;
+  .env, *secret*, *.exe, *.dll y todo bajo .git/ bloqueados; .py se valida con ast.parse
+  ANTES de persistir (en edit se valida el archivo resultante completo); backup .bak.
+- edit_file: reemplazo exacto, old_string debe aparecer exactamente count veces (error
+  reporta el conteo real). run_tests: pytest en subprocess aislado (venv312, -x -q
+  --tb=short, cwd=workspace, timeout), parsea summary -> {passed, failed, errors, tail}.
+  Solo corre DENTRO del workspace, nunca sobre el repo por default.
+- Tests: tests/test_agent_tools_tier1.py = 23 passed (workspace = tmp_path via monkeypatch).
+  Regresion: test_phase22.py + test_phase23.py = 55 passed.
+- Verificacion E2E real via registry: search 1 match real en repo, write/edit/run_tests
+  OK (1 passed en workspace temp), gates devuelven ToolResult de error (traversal y .env).
