@@ -69,12 +69,17 @@ def push_kernel(user: str, dataset_ref: str) -> str:
         "id": ref, "title": "cognia-qlora-train",
         "code_file": "train_qlora_kaggle.py", "language": "python",
         "kernel_type": "script", "is_private": "true",
+        # GPU requiere verificación de teléfono; el kernel detecta CPU y cae al
+        # 0.5B. Cuando el teléfono esté verificado, poner enable_gpu="true" y
+        # corre el 3B en 4-bit sin cambiar código.
         "enable_gpu": "true", "enable_internet": "false",
         "dataset_sources": [dataset_ref], "kernel_sources": [],
         "competition_sources": [],
-        # modelo base montado offline (sin verificación de teléfono no hay internet).
-        # Formato requerido: {owner}/{slug}/{framework}/{instance}/{version}
-        "model_sources": ["qwen-lm/qwen2.5-coder/transformers/3b-instruct/1"],
+        # modelos base montados offline. Formato: {owner}/{slug}/{fw}/{inst}/{ver}
+        "model_sources": [
+            "qwen-lm/qwen2.5-coder/transformers/3b-instruct/1",
+            "qwen-lm/qwen2.5-coder/transformers/0.5b-instruct/1",
+        ],
     }
     (staging / "kernel-metadata.json").write_text(json.dumps(meta), encoding="utf-8")
     print(f"[kaggle] pusheando kernel {ref} (GPU)...")
