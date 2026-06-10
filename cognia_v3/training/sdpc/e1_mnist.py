@@ -31,8 +31,10 @@ def evaluate(model, loader: DataLoader) -> float:
     return correct / total
 
 
-def run_e1(epochs: int = 5, batch_size: int = 64, sdpc_lr: float = 0.02) -> dict:
-    torch.manual_seed(42)
+def run_e1(epochs: int = 5, batch_size: int = 64, sdpc_lr: float = 1e-3,
+           seed: int = 42) -> dict:
+    # lr 1e-3: el update SDPC ahora pasa por Adam local por capa (sdpc_mlp.py)
+    torch.manual_seed(seed)
 
     tf = transforms.Compose([transforms.ToTensor(),
                              transforms.Normalize((0.1307,), (0.3081,))])
@@ -52,8 +54,8 @@ def run_e1(epochs: int = 5, batch_size: int = 64, sdpc_lr: float = 0.02) -> dict
         for ep in range(1, epochs + 1):
             model.train()
             total_loss = total_acc = n = 0
-            # lr decay para SDPC: estabiliza las épocas tardías (FIX 2)
-            lr_ep = sdpc_lr * (0.6 ** (ep - 1))
+            # lr decay suave (con Adam local alcanza decaer poco)
+            lr_ep = sdpc_lr * (0.8 ** (ep - 1))
             for x, y in train_loader:
                 r = model.train_step(x, y, lr_ep) if use_lr else model.train_step(x, y)
                 total_loss += r["loss"]

@@ -58,3 +58,5 @@ cognia_v3/training/*.jsonl
 
 # MNIST y otros datasets descargados
 data/
+cognia_v3/training/kaggle/_dataset_staging/
+cognia_v3/training/kaggle/_kernel_staging/

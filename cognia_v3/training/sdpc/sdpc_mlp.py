@@ -42,6 +42,18 @@ class SDPCLayer(nn.Module):
         self.alpha = 0.05   # tasa de actualización de la línea base
         self.eps = 1e-8
 
+        # Momentos adaptativos LOCALES (estilo Adam) para el update SDPC.
+        # Siguen siendo 100% libres de backprop: solo usan el dW local de la
+        # capa, igual que la literatura DFA entrena con Adam. Cierran la
+        # brecha de escala entre capas que el SGD crudo no maneja (E1: 92.2%
+        # con SGD+clip vs umbral 95%).
+        self.register_buffer("mW", torch.zeros(out_dim, in_dim))
+        self.register_buffer("vW", torch.zeros(out_dim, in_dim))
+        self.register_buffer("mb", torch.zeros(out_dim))
+        self.register_buffer("vb", torch.zeros(out_dim))
+        self.register_buffer("t_step", torch.tensor(0))
+        self.beta1, self.beta2 = 0.9, 0.999
+
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns: (h, a, guilt)
@@ -85,9 +97,23 @@ class SDPCLayer(nn.Module):
         norm = dW.norm()
         if norm > self.MAX_UPDATE_NORM:
             dW *= self.MAX_UPDATE_NORM / norm
+        db = delta.mean(dim=0)
 
-        self.W -= lr * dW + lr * self.WEIGHT_DECAY * self.W
-        self.bias -= lr * delta.mean(dim=0)
+        # Adam local por capa (bias-corrected). Solo estado local: sin
+        # transporte de pesos ni información de otras capas.
+        self.t_step += 1
+        t = int(self.t_step)
+        self.mW.mul_(self.beta1).add_(dW, alpha=1 - self.beta1)
+        self.vW.mul_(self.beta2).addcmul_(dW, dW, value=1 - self.beta2)
+        self.mb.mul_(self.beta1).add_(db, alpha=1 - self.beta1)
+        self.vb.mul_(self.beta2).addcmul_(db, db, value=1 - self.beta2)
+        mW_hat = self.mW / (1 - self.beta1 ** t)
+        vW_hat = self.vW / (1 - self.beta2 ** t)
+        mb_hat = self.mb / (1 - self.beta1 ** t)
+        vb_hat = self.vb / (1 - self.beta2 ** t)
+
+        self.W -= lr * mW_hat / (vW_hat.sqrt() + self.eps) + lr * self.WEIGHT_DECAY * self.W
+        self.bias -= lr * mb_hat / (vb_hat.sqrt() + self.eps)
 
 
 class SDPCMLP(nn.Module):
@@ -106,6 +132,12 @@ class SDPCMLP(nn.Module):
         # Capa de salida: lineal estándar actualizada con regla delta (tampoco usa BP)
         self.output = nn.Linear(dims[-2], dims[-1])
         nn.init.normal_(self.output.weight, std=0.02)
+        # Adam local también para la capa de salida (mismo criterio que SDPCLayer)
+        self.register_buffer("out_mW", torch.zeros(dims[-1], dims[-2]))
+        self.register_buffer("out_vW", torch.zeros(dims[-1], dims[-2]))
+        self.register_buffer("out_mb", torch.zeros(dims[-1]))
+        self.register_buffer("out_vb", torch.zeros(dims[-1]))
+        self.register_buffer("out_t", torch.tensor(0))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Inference only — returns logits."""
@@ -144,9 +176,20 @@ class SDPCMLP(nn.Module):
             layer.sdpc_update(h_prev=hiddens[i], a=pre_acts[i],
                               global_error=global_error, guilt=guilts[i], lr=lr)
 
-        # ── Update capa de salida: regla delta ──
-        self.output.weight -= lr * (global_error.T @ hiddens[-1]) / batch
-        self.output.bias -= lr * global_error.mean(dim=0)
+        # ── Update capa de salida: regla delta + Adam local ──
+        dW = (global_error.T @ hiddens[-1]) / batch
+        db = global_error.mean(dim=0)
+        self.out_t += 1
+        t = int(self.out_t)
+        b1, b2, eps = 0.9, 0.999, 1e-8
+        self.out_mW.mul_(b1).add_(dW, alpha=1 - b1)
+        self.out_vW.mul_(b2).addcmul_(dW, dW, value=1 - b2)
+        self.out_mb.mul_(b1).add_(db, alpha=1 - b1)
+        self.out_vb.mul_(b2).addcmul_(db, db, value=1 - b2)
+        self.output.weight -= lr * (self.out_mW / (1 - b1 ** t)) / \
+            ((self.out_vW / (1 - b2 ** t)).sqrt() + eps)
+        self.output.bias -= lr * (self.out_mb / (1 - b1 ** t)) / \
+            ((self.out_vb / (1 - b2 ** t)).sqrt() + eps)
 
         # ── Métricas ──
         loss = F.cross_entropy(logits, y).item()
