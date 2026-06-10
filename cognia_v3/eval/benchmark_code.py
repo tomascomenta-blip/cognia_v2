@@ -437,7 +437,11 @@ def main():
     tasks = TASKS
     if args.tasks_file:
         with open(args.tasks_file, encoding="utf-8") as f:
-            tasks = json.load(f)
+            text = f.read()
+        try:
+            tasks = json.loads(text)          # lista JSON clasica
+        except json.JSONDecodeError:          # JSONL: un objeto por linea
+            tasks = [json.loads(ln) for ln in text.splitlines() if ln.strip()]
     if args.limit:
         tasks = tasks[:args.limit]
 
