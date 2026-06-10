@@ -483,10 +483,13 @@ class ShatteringOrchestrator:
             from node.inference_pipeline import _apply_qwen_template
             system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
-            result = self._llama.generate(formatted, max_tokens=self._max_tokens)
+            result = self._llama.generate(formatted, max_tokens=self._max_tokens,
+                                          temperature=temperature)
             if result is not None:
-                # Estimate token count from text length (llama-server doesn't return it)
-                toks = max(1, len(result) // 4)
+                # Prefer the real count reported by llama-server (tokens_predicted);
+                # fall back to a len//4 estimate if the backend doesn't expose it
+                real = getattr(self._llama, "last_tokens_predicted", None)
+                toks = real if real is not None else max(1, len(result) // 4)
                 return result, "llama.cpp", toks
             # llama.cpp failed mid-session — disable and fall through to numpy
             logger.warning("[Orchestrator] llama.cpp returned None, falling back to numpy")

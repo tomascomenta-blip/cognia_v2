@@ -24,6 +24,10 @@ Setup (run once when disk space is available):
   Then set in .env:
     LLAMA_GGUF_PATH=model_shards/qwen-coder-3b-q4/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf
     LLAMA_SERVER_PORT=8088   # optional, default 8088 (avoids clash with app :8000)
+
+NOTE: node/llama-server.exe is pinned to b9391 (7fb1e70b5) — b9414 has a ~37% CPU
+decode regression measured on i3-10110U (5.2 vs 8.2 tok/s). Do NOT update the binary
+without re-running the A/B (real server, /completion, timings.predicted_per_second).
 """
 
 from __future__ import annotations
@@ -45,12 +49,13 @@ _SERVER_TIMEOUT = 30      # seconds to wait for llama-server to start
 _CTX_SIZE       = 4096
 _N_GPU_LAYERS   = 0       # CPU only; Intel UHD integrated GPU (Vulkan) is slower than CPU on i3-10110U (3.8 vs 8.8 tok/s)
 
-# Q4_0 listed first: faster dequantization on CPU (~7.2 tok/s measured on i3-10110U, threads=4)
-# Q3_K_S second: ~7.7 tok/s on same hw, slightly lower quality; swap top two to prefer quality
+# Q4_K_M listed first: measured on i3-10110U with llama-server b9391 it is faster
+# AND higher quality than Q4_0 — decode 8.09 tok/s / prefill 29.3 tok/s (Q4_K_M)
+# vs decode 7.58 / prefill 20.3 (Q4_0). Q3_K_S kept as a smaller fallback.
 _GGUF_CANDIDATES = [
+    "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
     "Qwen2.5-Coder-3B-Instruct-Q4_0.gguf",
     "Qwen2.5-Coder-3B-Instruct-Q3_K_S.gguf",
-    "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
     "Qwen2.5-Coder-3B-Instruct-Q5_K_M.gguf",
     "qwen2.5-coder-3b-instruct-q4_k_m.gguf",
 ]
@@ -148,6 +153,8 @@ class _LlamaServerBackend:
         self._proc: Optional[subprocess.Popen] = None
         self._json    = _json
         self._urlreq  = urllib.request
+        # Real token count from the last /completion response (None until first call)
+        self.last_tokens_predicted: Optional[int] = None
 
         # Check if a server is already running on the port
         if self._ping():
@@ -168,15 +175,20 @@ class _LlamaServerBackend:
         if not binary:
             raise FileNotFoundError("llama-server binary not found; set LLAMA_SERVER_PATH in .env")
 
-        n_threads = max(4, os.cpu_count() or 4)
+        # Measured on i3-10110U (llama-server b9391, Q4_K_M): decode 8.09 tok/s @3t,
+        # prefill 29.3 tok/s @3t vs 22.7 @4t — the 4th logical thread competes with
+        # the OS and hurts BOTH phases, so decode AND batch use cpu_count-1.
+        n_threads_decode = max(1, (os.cpu_count() or 4) - 1)
+        n_threads_batch  = max(1, (os.cpu_count() or 4) - 1)
         cmd = [
             binary,
             "--model",    str(gguf_path),
             "--port",     str(port),
             "--ctx-size", str(_CTX_SIZE),
             "--n-gpu-layers", str(_N_GPU_LAYERS),
-            "--threads",  str(n_threads),
-            "--threads-batch", str(n_threads),
+            "--threads",  str(n_threads_decode),
+            "--threads-batch", str(n_threads_batch),
+            "--cache-reuse", "256",
             "--prio",     "2",
             "--flash-attn", "on",
             "--log-disable",
@@ -212,6 +224,8 @@ class _LlamaServerBackend:
             "n_predict":   max_tokens,
             "temperature": temperature,
             "stop":        ["<|im_end|>", "<|endoftext|>"],
+            # cache_prompt: avoid re-prefilling the full history every turn
+            "cache_prompt": True,
         }).encode()
         try:
             req = self._urlreq.Request(
@@ -221,6 +235,8 @@ class _LlamaServerBackend:
             )
             with self._urlreq.urlopen(req, timeout=120) as resp:
                 data = self._json.loads(resp.read())
+                # Real token count reported by llama-server (replaces len//4 estimates)
+                self.last_tokens_predicted = data.get("tokens_predicted")
                 return data.get("content", "")
         except Exception as exc:
             logger.warning("[llama_backend] llama-server request failed: %s", exc)
@@ -236,6 +252,8 @@ class _LlamaServerBackend:
             "temperature": temperature,
             "stop":        ["<|im_end|>", "<|endoftext|>"],
             "stream":      True,
+            # cache_prompt: avoid re-prefilling the full history every turn
+            "cache_prompt": True,
         }).encode()
         try:
             req = self._urlreq.Request(
@@ -276,6 +294,8 @@ class _LlamaServerBackend:
             "temperature": temperature,
             "stream":      True,
             "stop":        ["<|im_end|>", "<|endoftext|>"],
+            # cache_prompt: avoid re-prefilling the full history every turn
+            "cache_prompt": True,
         }).encode()
         try:
             req = self._urlreq.Request(
@@ -343,6 +363,11 @@ class LlamaBackend:
 
     def __init__(self, impl) -> None:
         self._impl = impl
+
+    @property
+    def last_tokens_predicted(self) -> Optional[int]:
+        """Real token count from the last generate() call, or None if unknown."""
+        return getattr(self._impl, "last_tokens_predicted", None)
 
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7) -> Optional[str]:

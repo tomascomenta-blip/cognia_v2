@@ -1843,3 +1843,40 @@ Demostrado: entrenar Qwen-3B con el KG de Cognia FUNCIONA — internaliza el
 conocimiento personal (+69.5%) sin perder capacidad general. Adapter (15MB) en
 checkpoints/cognia_3b_v2_winner/ (gitignoreado, pesos de KG personal).
 Pipeline reproducible: cognia_v3/training/colab/make_colab_notebook.py.
+
+## 2026-06-10 — Optimizaciones medidas backend llama.cpp (4 cambios quirurgicos)
+Base: llama-bench b9391 en i3-10110U (2c/4t): decode tg32 6.91@2t / 7.58@3t / 7.28@4t;
+prefill pp128 mejor @4t (20.25 tok/s).
+- node/llama_backend.py: --threads = cpu_count-1 (decode optimo 3t) y
+  --threads-batch = cpu_count (prefill optimo 4t); antes ambos max(4, cpu_count).
+- node/llama_backend.py: --cache-reuse 256 en el cmd del server (reuso de chunks
+  de KV-cache desplazados, habilita reuso cross-turn junto con cache_prompt).
+- node/llama_backend.py: "cache_prompt": true en los payloads de generate(),
+  stream_generate() y stream_chat() — evita re-prefill del historial completo
+  por turno (con prefill ~18 tok/s eso dominaba la latencia multi-turn).
+- shattering/orchestrator.py _local_infer(): generate() ahora recibe
+  temperature=temperature (antes la temperatura calculada por sub_model se
+  ignoraba y siempre iba el default 0.7).
+Verificacion: pytest -k "llama" -> 31 passed, 2472 deselected (23.90s);
+ast.parse de ambos archivos -> SYNTAX OK. Sin inferencia real (benchmarks
+corriendo en la maquina en este momento, por orden explicita).
+
+## 2026-06-10 — Velocidad lote 2: Q4_K_M primero, batch 3t, tokens reales, pin b9391
+Mediciones reales en i3-10110U (2c/4t), llama-server b9391, via /completion timings:
+- Q4_K_M: decode 8.09 tok/s @3t, prefill 29.3 @3t (22.7 @4t).
+- Q4_0:   decode 7.58 @3t, prefill 20.3 @4t.
+- Build b9414: regresion ~37% decode CPU vs b9391 (5.2 vs 8.2 tok/s, servidor real).
+Cambios:
+- node/llama_backend.py _GGUF_CANDIDATES: Q4_K_M primero (mas rapido Y mejor
+  calidad que Q4_0 en b9391); comentario actualizado con los numeros medidos.
+- node/llama_backend.py: --threads-batch tambien cpu_count-1 (prefill 29.3 @3t
+  vs 22.7 @4t; el 4to thread logico compite con el sistema).
+- node/llama_backend.py: tokens_predicted del JSON de /completion guardado en
+  last_tokens_predicted (server backend) + property en la facade LlamaBackend.
+- node/llama_backend.py docstring: nota de pin del binario a b9391 (7fb1e70b5);
+  no actualizar sin re-correr el A/B real.
+- shattering/orchestrator.py _local_infer(): usa el conteo real de tokens si el
+  backend lo expone; si no, mantiene el estimado len//4.
+Verificacion: pytest -k "llama" -> 31 passed, 2472 deselected (4.69s);
+ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
+(por orden explicita). .env no trackeado y llama-server.exe gitignoreado: OK.
