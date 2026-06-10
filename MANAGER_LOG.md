@@ -1897,3 +1897,21 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Desktop path (.env -> 7B): limitado por fisica a ~4 tok/s; decision de modelo dejada al dueno.
 - Techo fisico estimado 3B Q4_K_M en esta maquina: ~8 tok/s a bateria; mas con cargador (DDR4-2400
   dual channel, decode memory-bound).
+
+## [2026-06-10] Benchmark de calidad de codigo: pass@1 con ejecucion real (cognia_v3/eval/benchmark_code.py)
+- Nuevo: cognia_v3/eval/benchmark_code.py - 25 problemas Python estilo MBPP embebidos
+  (10 easy / 10 medium / 5 hard, incluye 2 bug-fix), solo stdlib, sin I/O ni red.
+  Backend LlamaBackend.try_load() (llama-server arranca solo), ChatML via
+  _apply_qwen_template, temperature=0, max_tokens=768. Ejecucion en subprocess
+  aislado (env minimo, timeout 10s); exit 0 = PASS. code_executor.run_python NO se
+  reuso: exige stdout no vacio para success y los asserts no imprimen.
+- Sanity: los 25 sets de asserts validados contra soluciones de referencia escritas
+  a mano en scratch temporal (25/25 OK, scratch no commiteado).
+- Smoke (--limit 3 --label smoke): 3/3 PASS, server arranco solo. JSON smoke borrado.
+- BASELINE REAL (Qwen2.5-Coder-3B-Instruct Q4_K_M, b9391, a bateria):
+  pass@1 = 25/25 = 100% (easy 10/10, medium 10/10, hard 5/5)
+  velocidad: 5.82 tok/s promedio, 1687 tokens generados, ~6.5 min total.
+  JSON: cognia_v3/eval/results_code_baseline_20260610_1738.json
+- HALLAZGO: el modelo esta en el TECHO del benchmark (100%). Para medir mejora
+  post-QLoRA hay que agregar tasks mas dificiles (algoritmica multi-paso, specs
+  ambiguas, refactors largos); --tasks-file ya soporta sets externos sin tocar codigo.
