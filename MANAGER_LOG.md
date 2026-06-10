@@ -1801,3 +1801,45 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   SDPC queda PAUSADO segun protocolo; el sistema sigue via QLoRA. JSONs en
   cognia_v3/eval/sdpc_e1_*.json (se commitean ambos: negativo y final, reportar
   negativos es parte del aporte). 6 tests de regresion en tests/test_sdpc.py.
+
+## 2026-06-09 (noche) — SDPC SOLID PASS + entrenamiento QLoRA en Kaggle (rama cognia-reorganization)
+- SDPC E1 reformulado hasta pasar el umbral SOLIDO (pedido del dueno): Adam local por capa
+  (libre de backprop, solo estado local) sobre He-init + clip + weight decay.
+  3 seeds: ratios 0.9798 / 0.9825 / 0.9783 (min 0.9783, media 0.9802) = SOLID PASS.
+  Progresion: 0.10 (config plan), 0.944 (He+clip), 0.978-0.983 (Adam local).
+  Commit eb640bc. Habilitado E2 segun protocolo del paper.
+- Entrenamiento QLoRA sin GPU local: investigado Colab (sin CLI oficial) vs Kaggle (CLI real,
+  T4/P100 30h/sem, sin tarjeta): elegido Kaggle. Cuenta creada via pyautogui+Firefox (perfil
+  ANTHUANGOD, autorizado): user anthuananthuan, legacy API key en ~/.kaggle/kaggle.json
+  (fuera del repo). Dataset privado cognia-dataset subido; kernel cognia-qlora-train v1
+  RUNNING con GPU. Pipeline en cognia_v3/training/kaggle/ (commit 47cdf84).
+- Chimera verificada post-migracion: python -m cognia.chimera corre la traza completa de
+  10 etapas (bandas HYDRA, route, memoria, write-gating) end-to-end, exit 0.
+
+## 2026-06-09 (noche) — Entrenamiento en la nube: Kaggle CPU OK + Colab GPU en curso
+- Kaggle kernel (offline, sin internet por falta de verif. telefono) iterado v1->v4:
+  v1 fallo (pip sin internet), v2 (modelo offline OK pero sin GPU: Kaggle exige
+  verif. telefono para GPU), v3 (CPU 0.5B, fallo path dataset), v4 COMPLETO.
+  Resultado v4 (CPU/fp32/0.5B, 150 steps): base 69.2% -> adapter 58.3%, DELTA -10.8%.
+  Causa del delta negativo: el dataset de KG triples tiene completions cortas
+  ("X causes Y") -> el adapter aprende a responder terso ("No.", "Paris.", "30.0")
+  y pierde keywords del scoring (R1 pierde 'warm', C3 pierde 'enumerate'). Algunas
+  SI mejoraron (C2 0->1 explica mutable/immutable). Insight: enriquecer completions
+  del dataset o ajustar scoring; el 0.5B+150steps sobre-ajusta el estilo terso.
+  Adapter guardado en checkpoints/cognia_cpu_0.5b/ (gitignoreado, pesos de KG personal).
+- Colab (alternativa GPU sin tarjeta NI telefono, solo cuenta Google): notebook
+  autonomo con dataset embebido (gzip+b64, privado) subido por la web (pyautogui).
+  Corriendo en Tesla T4 real con el 3B COMPLETO + dataset completo + 1 epoch.
+  Pendiente el delta. Generador en cognia_v3/training/colab/make_colab_notebook.py.
+
+## 2026-06-10 — QLoRA en Colab GPU: ADAPTER GANADOR (v2)
+Colab T4 (gratis, solo cuenta Google, sin tarjeta ni telefono), 3B completo,
+dataset completo (3289 train + 200 holdout de conocimiento), lr 5e-5 + dropout 0.1.
+Reformulacion tras el v1 (-5% generico, derivaba a chino por lr 2e-4 agresivo):
+- GENERICO (capacidad general): 70.8% -> 83.3%  (+12.5%, NO degrado, mejoro)
+- CONOCIMIENTO KG (recall sobre 200 holdout NO entrenados): 18.5% -> 88.0%  (+69.5%)
+Sin artefactos (F3 75->100, C2 0->100, respuestas coherentes en ingles).
+Demostrado: entrenar Qwen-3B con el KG de Cognia FUNCIONA — internaliza el
+conocimiento personal (+69.5%) sin perder capacidad general. Adapter (15MB) en
+checkpoints/cognia_3b_v2_winner/ (gitignoreado, pesos de KG personal).
+Pipeline reproducible: cognia_v3/training/colab/make_colab_notebook.py.
