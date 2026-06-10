@@ -1880,3 +1880,20 @@ Cambios:
 Verificacion: pytest -k "llama" -> 31 passed, 2472 deselected (4.69s);
 ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 (por orden explicita). .env no trackeado y llama-server.exe gitignoreado: OK.
+
+## [2026-06-10] CYCLE FINAL — Sesion velocidad de inferencia: barrera 8 tok/s rota a nivel server
+- Archivos modificados: node/llama_backend.py, shattering/orchestrator.py, node/*.dll (pin b9391), MANAGER_LOG.md
+- Commits: 3e50ae9 (optimizaciones backend), 4f1fafd (pin DLLs b9391) — pusheados a origin/cognia-reorganization
+- Resultado tests: 31 passed (suite llama), 2472 deselected
+- Mediciones (i3-10110U, A BATERIA):
+  - Baseline server (b9414 + Q4_0 + threads 4): 5.2-5.4 tok/s decode
+  - Final server (b9391 + Q4_K_M + threads 3 + cache_prompt): 8.19 tok/s code / 8.15 general (+57%)
+  - E2E orchestrator completo: 7.77 tok/s (205 tokens reales) — overhead no-modelo ~5%
+- Causa raiz principal: REGRESION ~37% decode CPU en build b9414 de llama.cpp (node/) vs b9391.
+  llama-bench no la mostraba (8.09 en ambos); solo el server real la exponia. Binarios pineados.
+- Speculative decoding DESCARTADO con evidencia: draft 0.5B = 1.54 tok/s (5x peor) pese a 90.8%
+  acceptance; ngram modes neutros. En 2 cores el draft compite por el mismo bandwidth.
+- Q4_K_M > Q4_0 en velocidad en b9391 (8.09/29.3 vs 7.58/20.3) — candidatos reordenados.
+- Desktop path (.env -> 7B): limitado por fisica a ~4 tok/s; decision de modelo dejada al dueno.
+- Techo fisico estimado 3B Q4_K_M en esta maquina: ~8 tok/s a bateria; mas con cargador (DDR4-2400
+  dual channel, decode memory-bound).
