@@ -1947,3 +1947,40 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   upside es el loop agentico con feedback de ejecucion (generar->test->reparar), ahora
   posible con las tools Tier 1 (commit 0ca1b46). Proximo: modo --repair en benchmark +
   loop en Supervisor.
+
+## [2026-06-10] Set duro para benchmark de codigo: tasks_hard.jsonl (20 tasks) + medicion truncado 512 vs 1024
+- Problema: el set embebido de 25 tasks dio pass@1=100% (saturado, sin poder discriminativo).
+- Nuevo: cognia_v3/eval/tasks_hard.jsonl - 20 tasks duras, mismo schema, ASCII puro, solo stdlib:
+  6 algoritmicas (DP subsecuencias, topo-sort con ciclos, parser aritmetico recursivo,
+  sweep-line de intervalos, n-queens con poda, decode-ways), 5 de codigo largo (LRU cache
+  5 metodos, interprete turtle con REPEAT anidado, parser JSON sin import json, clase Matrix
+  con det por cofactores, Polynomial con __str__ de formato exacto), 5 de debugging real
+  (mutable default + aliasing en clone, off-by-one en binaria rotada, round() que rompe
+  suma de centavos + formato float, lower() vs casefold() con eszett, remove durante
+  iteracion + position=0 falsy), 4 de spec multietapa (validador 5 reglas en orden fijo,
+  tabla ASCII con alineacion y rstrip exactos, semver con prerelease, pipeline de logs).
+- Validacion: 20/20 sets de asserts corridos contra soluciones de referencia en scratch
+  temporal (no commiteado); ademas las 5 DBG verificadas en sentido inverso: el codigo
+  buggy del prompt FALLA los tests (si no, no discriminan).
+- Fix minimo en benchmark_code.py (bug real): --tasks-file usaba json.load y no podia
+  leer JSONL linea-por-linea; ahora intenta lista JSON y cae a JSONL. Verificado por los
+  dos runs completos (tasks=20 cargadas del .jsonl).
+- RUN A (paridad produccion, max_tokens=512): pass@1 = 8/20 = 40.0%
+  ALG 4/6, LONG 0/5, DBG 3/5, SPEC 1/4; errores assert=6 runtime=5 syntax=1; 5.55 tok/s.
+  JSON: cognia_v3/eval/results_code_hard_mt512_20260610_1810.json
+- RUN B (max_tokens=1024): pass@1 = 8/20 = 40.0% - identico task por task (temp=0);
+  unica diferencia LONG3: de syntax (truncada en 512 exactos) a empty. 5.70 tok/s.
+  JSON: cognia_v3/eval/results_code_hard_mt1024_20260610_1825.json
+- HALLAZGO 1 (costo del truncado): 0 puntos en este set. Solo 1 fallo de 12 en Run A fue
+  truncado real (LONG3, 512 tokens clavados); el resto fallo con 145-419 tokens generados:
+  soluciones cortas pero incorrectas (logica/formato), no cortadas.
+- HALLAZGO 2 (cap oculto de produccion): node/llama_backend.py generate() usa
+  urlopen(timeout=120); a ~5.5-6 tok/s eso corta toda generacion >~660 tokens. Por eso
+  LONG3 en Run B dio empty (el server seguia generando y el cliente abandono a los 120s).
+  Subir max_tokens en produccion NO tiene efecto mas alla de ~660 sin tocar ese timeout
+  (node/ fuera de alcance de esta sesion; queda documentado).
+- HALLAZGO 3 (probe aislado, server propio con timeout 900s): LONG3 con 1024 reales
+  genero 901 tokens en 145s y AUN ASI fallo (ValueError del propio parser generado):
+  ni siquiera la unica task truncada se recupera con mas presupuesto.
+- Set en rango objetivo (40-75%): queda margen de mejora medible para QLoRA/prompting,
+  con LONG (0/5) y SPEC (1/4) como bandas mas sensibles.
