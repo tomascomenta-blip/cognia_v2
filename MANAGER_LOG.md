@@ -1984,3 +1984,22 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   ni siquiera la unica task truncada se recupera con mas presupuesto.
 - Set en rango objetivo (40-75%): queda margen de mejora medible para QLoRA/prompting,
   con LONG (0/5) y SPEC (1/4) como bandas mas sensibles.
+
+## [2026-06-10] Fix produccion: timeout proporcional + ctx 16384 + presupuestos de tokens
+- Causa raiz (medida en CYCLE 3): urlopen(timeout=120) fijo en node/llama_backend.py
+  cortaba toda generacion >~660 tokens a ~5.5 tok/s y devolvia None silencioso; ademas
+  _CTX_SIZE=4096 con GGUF n_ctx_train=32768, y caps de 512 (CLI) / 256 (orchestrator).
+- Cambios quirurgicos (4):
+  1. node/llama_backend.py: timeout_s = max(120, 30 + int(max_tokens*0.6)) en generate(),
+     stream_generate() y stream_chat() (0.6 s/token cubre el peor caso ~2 tok/s).
+  2. node/llama_backend.py: _CTX_SIZE 4096 -> 16384 (KV ~36KB/token con GQA 2 heads
+     => ~590MB a 16k en maquina de 12GB).
+  3. cognia/cli.py:5834: stream_chat max_tokens 512 -> 1024.
+  4. shattering/orchestrator.py: max_new_tokens default 256 -> 768.
+- Verificacion: pytest -k llama: 31 passed, 0 failed. Smoke E2E real (server arrancado
+  con ctx 16384): generate(max_tokens=900) sobre primos -> 498 tokens / 68.6s / 7.26 tok/s
+  (texto completo, no-None). Smoke largo: 900 tokens / 122.3s / 7.36 tok/s, CRUZO la
+  barrera de 120s y devolvio texto completo (con el timeout fijo viejo devolvia None).
+  Velocidad sin degradacion vs 6-8 tok/s de referencia (maquina a bateria).
+- Nota: cli.py:5839 (fallback stream_generate sin stream_chat) queda en 512; fuera del
+  alcance pedido, documentado aqui.

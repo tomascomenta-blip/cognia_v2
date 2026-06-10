@@ -46,7 +46,9 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_PORT   = 8088
 _SERVER_TIMEOUT = 30      # seconds to wait for llama-server to start
-_CTX_SIZE       = 4096
+# 16384: GGUF n_ctx_train=32768; Qwen2.5-3B uses GQA (2 KV heads) so KV cache is
+# ~36KB/token => ~590MB at 16k on a 12GB machine. Enables large file/repo prompts.
+_CTX_SIZE       = 16384
 _N_GPU_LAYERS   = 0       # CPU only; Intel UHD integrated GPU (Vulkan) is slower than CPU on i3-10110U (3.8 vs 8.8 tok/s)
 
 # Q4_K_M listed first: measured on i3-10110U with llama-server b9391 it is faster
@@ -227,13 +229,17 @@ class _LlamaServerBackend:
             # cache_prompt: avoid re-prefilling the full history every turn
             "cache_prompt": True,
         }).encode()
+        # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
+        # generation past ~660 tokens (returned None silently). 0.6 s/token covers
+        # the ~2 tok/s worst case with margin.
+        timeout_s = max(120, 30 + int(max_tokens * 0.6))
         try:
             req = self._urlreq.Request(
                 f"{self._base}/completion",
                 data    = payload,
                 headers = {"Content-Type": "application/json"},
             )
-            with self._urlreq.urlopen(req, timeout=120) as resp:
+            with self._urlreq.urlopen(req, timeout=timeout_s) as resp:
                 data = self._json.loads(resp.read())
                 # Real token count reported by llama-server (replaces len//4 estimates)
                 self.last_tokens_predicted = data.get("tokens_predicted")
@@ -255,13 +261,16 @@ class _LlamaServerBackend:
             # cache_prompt: avoid re-prefilling the full history every turn
             "cache_prompt": True,
         }).encode()
+        # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
+        # generation past ~660 tokens. 0.6 s/token covers the ~2 tok/s worst case.
+        timeout_s = max(120, 30 + int(max_tokens * 0.6))
         try:
             req = self._urlreq.Request(
                 f"{self._base}/completion",
                 data    = payload,
                 headers = {"Content-Type": "application/json"},
             )
-            with self._urlreq.urlopen(req, timeout=120) as resp:
+            with self._urlreq.urlopen(req, timeout=timeout_s) as resp:
                 buf = b""
                 while True:
                     chunk = resp.read(64)
@@ -297,13 +306,16 @@ class _LlamaServerBackend:
             # cache_prompt: avoid re-prefilling the full history every turn
             "cache_prompt": True,
         }).encode()
+        # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
+        # generation past ~660 tokens. 0.6 s/token covers the ~2 tok/s worst case.
+        timeout_s = max(120, 30 + int(max_tokens * 0.6))
         try:
             req = self._urlreq.Request(
                 f"{self._base}/v1/chat/completions",
                 data    = payload,
                 headers = {"Content-Type": "application/json"},
             )
-            with self._urlreq.urlopen(req, timeout=120) as resp:
+            with self._urlreq.urlopen(req, timeout=timeout_s) as resp:
                 buf = b""
                 while True:
                     chunk = resp.read(64)

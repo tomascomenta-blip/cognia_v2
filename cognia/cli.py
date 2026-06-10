@@ -5831,7 +5831,7 @@ def repl():
                                 _messages = [{"role": "system", "content": _system}]
                                 _messages.extend(_hist_ctx)
                                 _messages.append({"role": "user", "content": raw})
-                                _stream_src = lambda: _llama.stream_chat(_messages, max_tokens=512)
+                                _stream_src = lambda: _llama.stream_chat(_messages, max_tokens=1024)
                             else:
                                 from node.inference_pipeline import _apply_qwen_template
                                 _formatted = _apply_qwen_template(

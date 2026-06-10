@@ -150,7 +150,7 @@ class ShatteringOrchestrator:
         base_dir: str = "model_shards",
         coordinator_url: Optional[str] = None,
         mode: str = "auto",           # "auto" | "local" | "distributed"
-        max_new_tokens: int = 256,
+        max_new_tokens: int = 768,
         n_recursive_passes: int = DEFAULT_RST_PASSES,
         ollama_url: Optional[str] = None,
         ollama_model: Optional[str] = None,
