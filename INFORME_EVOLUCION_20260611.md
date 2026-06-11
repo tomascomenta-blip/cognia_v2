@@ -15,7 +15,13 @@
 | Grammar GBNF (ROI 4) | **MEDIDA Y SIN GANANCIA**: 8/20 idéntico task-por-task — los fallos son de lógica, no de formato | results_code_hard_det_grammar_20260611_1729 |
 | HYDRA → prompt (ROI 5) | **VIVA**: band_router inyecta memoria en el fast-path; smoke recall real PASS ("Rust" desde DB, no historia) | commits 0f9dc30, 22a78e2 |
 | Repair por edición (ROI 3) | **MEDIDO: 0 recovered** (8/20 sin cambio; mayoría search_not_found — el 3B no copia exactamente sus propias líneas). Con 4 experimentos, CONCLUSIÓN: el techo es la capacidad single-shot del 3B; ningún repair lo supera. FASE 3 → QLoRA dirigido + 7B batch + few-shot | results_code_hard_det_repair_edit_20260611_1756 |
+| Few-shot 2-shot | **MEDIDO: 35% — EMPEORA** (-1 task vs baseline; interferencia directa: NameError 'width' filtrado del exemplar a SPEC2) | results_code_hard_det_fewshot2_20260611_1838 |
 | Robustez inesperada | La generación sobrevive al sleep de la laptop (10 h dormida a mitad de ronda, completó al despertar) | run E2E #1 |
+
+**Programa de medición FASE 3 completo**: 5 hipótesis de prompt/decode medidas contra el baseline
+determinista (max_tokens ×2, grammar, repair regen ×2, repair edit, few-shot) — ninguna mueve pass@1.
+El techo es capacidad del modelo. Palancas restantes (de modelo): QLoRA dirigido con dataset sintético
+en Kaggle GPU, 7B Q4 batch, edits por número de línea (idea sin probar).
 
 ---
 
