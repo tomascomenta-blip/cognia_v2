@@ -3,12 +3,10 @@ os.environ["COGNIA_AGENT_WORKSPACE"] = r"D:\Movido_desde_C\Downloads\cognia\cogn
 sys.path.insert(0, r"D:\Movido_desde_C\Downloads\cognia\cognia_v2")
 from cognia.agents.workers.dev_tools import search_code, edit_file, run_tests
 
-# Step A: find the bug
-# search_code uses os.walk(root) relative to process cwd; must pass workspace-absolute path
-ws = os.environ["COGNIA_AGENT_WORKSPACE"]
+# Step A: verify the fix is in place (root is relative to AGENT_WORKSPACE_ROOT)
 result_search = search_code(
-    pattern=r"total / i\b",
-    root=os.path.join(ws, "mini_repo"),
+    pattern=r"total / \(i \+ 1\)",
+    root="mini_repo",
     glob="*.py"
 )
 print("SEARCH:", result_search)

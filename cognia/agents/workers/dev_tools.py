@@ -49,13 +49,16 @@ def _is_ignored_dir(name: str) -> bool:
 
 def search_code(pattern: str, root: str = ".", glob: str = "*.py", max_results: int = 50) -> dict:
     """Busqueda regex de contenido. Retorna matches como {file, line_no, line}."""
+    root_path = Path(root)
+    if not root_path.is_absolute():
+        root_path = Path(AGENT_WORKSPACE_ROOT) / root_path
     rx = re.compile(pattern)
     deadline = time.monotonic() + SEARCH_TIMEOUT_S
     matches: List[dict] = []
     truncated = False
     timed_out = False
 
-    for dirpath, dirnames, filenames in os.walk(root):
+    for dirpath, dirnames, filenames in os.walk(root_path):
         dirnames[:] = [d for d in dirnames if not _is_ignored_dir(d)]
         for fname in filenames:
             if time.monotonic() > deadline:
