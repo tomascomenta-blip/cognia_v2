@@ -201,8 +201,10 @@ class _LlamaCppBackend:
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
                  min_p=None, repeat_penalty=None, seed=None,
-                 cache_prompt: bool = True) -> Optional[str]:
+                 cache_prompt: bool = True, grammar: str = None) -> Optional[str]:
         # cache_prompt se ignora: backend in-process, no hay KV-cache de server.
+        # grammar se ignora: el binding exige un objeto LlamaGrammar, no el
+        # string GBNF crudo que acepta llama-server (fuera de alcance aca).
         # llama-cpp-python soporta los 5 sampling kwargs nativos (min_p desde
         # 0.2.20). Un binding mas viejo levanta TypeError -> lo atrapa el
         # except de abajo (mismo contrato: None en fallo).
@@ -342,7 +344,7 @@ class _LlamaServerBackend:
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
                  min_p=None, repeat_penalty=None, seed=None,
-                 cache_prompt: bool = True) -> Optional[str]:
+                 cache_prompt: bool = True, grammar: str = None) -> Optional[str]:
         import urllib.error
         payload = self._json.dumps({
             "prompt":      prompt,
@@ -353,6 +355,10 @@ class _LlamaServerBackend:
             # False: prefill completo — el KV-cache reusado cambia los logits
             # (experimento 2026-06-11), necesario para benchmarks deterministas.
             "cache_prompt": cache_prompt,
+            # grammar: string GBNF que el server compila y usa para restringir
+            # el sampling (campo nativo de /completion en b9391). Solo si se
+            # pasa: sin grammar el payload queda identico al actual.
+            **({"grammar": grammar} if grammar is not None else {}),
             # Sampling params: solo los no-None (defaults del server intactos)
             **_sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
                                 repeat_penalty=repeat_penalty, seed=seed),
@@ -380,7 +386,7 @@ class _LlamaServerBackend:
     def stream_generate(self, prompt: str, max_tokens: int = 256,
                         temperature: float = 0.7, top_p=None, top_k=None,
                         min_p=None, repeat_penalty=None, seed=None,
-                        cache_prompt: bool = True):
+                        cache_prompt: bool = True, grammar: str = None):
         """Yield tokens one at a time using llama-server SSE /completion?stream=true."""
         import urllib.error
         payload = self._json.dumps({
@@ -392,6 +398,8 @@ class _LlamaServerBackend:
             # cache_prompt True (default): no re-prefilla el historial entero.
             # False: prefill completo (logits deterministas, ver generate()).
             "cache_prompt": cache_prompt,
+            # grammar: string GBNF, solo si se pasa (ver generate())
+            **({"grammar": grammar} if grammar is not None else {}),
             # Sampling params: solo los no-None (defaults del server intactos)
             **_sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
                                 repeat_penalty=repeat_penalty, seed=seed),
@@ -550,7 +558,7 @@ class LlamaBackend:
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
                  min_p=None, repeat_penalty=None, seed=None,
-                 cache_prompt: bool = True) -> Optional[str]:
+                 cache_prompt: bool = True, grammar: str = None) -> Optional[str]:
         # Sampling params: se reenvian SOLO si no son None, asi un impl viejo
         # sin esos kwargs sigue funcionando con la llamada posicional de siempre.
         extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
@@ -559,6 +567,9 @@ class LlamaBackend:
         # impl queda intacto y los impls viejos sin el kwarg siguen andando).
         if not cache_prompt:
             extra["cache_prompt"] = False
+        # grammar (string GBNF): solo si se pasa, mismo criterio que arriba.
+        if grammar is not None:
+            extra["grammar"] = grammar
         return self._impl.generate(prompt, max_tokens, temperature, **extra)
 
     def generate_long(self, prompt: str, max_total_tokens: int = None,
@@ -629,13 +640,16 @@ class LlamaBackend:
     def stream_generate(self, prompt: str, max_tokens: int = 256,
                         temperature: float = 0.7, top_p=None, top_k=None,
                         min_p=None, repeat_penalty=None, seed=None,
-                        cache_prompt: bool = True):
+                        cache_prompt: bool = True, grammar: str = None):
         """Yield tokens; falls back to non-streaming generate() if impl has no stream_generate."""
         extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
                                   repeat_penalty=repeat_penalty, seed=seed)
         # cache_prompt: solo cuando es False (ver generate())
         if not cache_prompt:
             extra["cache_prompt"] = False
+        # grammar (string GBNF): solo si se pasa (ver generate())
+        if grammar is not None:
+            extra["grammar"] = grammar
         if hasattr(self._impl, "stream_generate"):
             yield from self._impl.stream_generate(prompt, max_tokens, temperature, **extra)
         else:

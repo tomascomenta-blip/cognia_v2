@@ -628,6 +628,59 @@ class TestServerPayloadCachePrompt:
         assert _sent_payload(b)["cache_prompt"] is False
 
 
+class TestServerPayloadGrammar:
+    """El payload incluye "grammar" (string GBNF) SOLO cuando se pasa."""
+
+    def test_generate_default_payload_has_no_grammar(self):
+        b = _make_server_backend(_COMPLETION_RESP)
+        b.generate("hola", max_tokens=8)
+        assert "grammar" not in _sent_payload(b)
+
+    def test_generate_includes_grammar_when_given(self):
+        b = _make_server_backend(_COMPLETION_RESP)
+        b.generate("hola", max_tokens=8, grammar='root ::= "x"')
+        assert _sent_payload(b)["grammar"] == 'root ::= "x"'
+
+    def test_stream_generate_default_payload_has_no_grammar(self):
+        b = _make_server_backend(_SSE_COMPLETION_RESP)
+        list(b.stream_generate("hola", max_tokens=8))
+        assert "grammar" not in _sent_payload(b)
+
+    def test_stream_generate_includes_grammar_when_given(self):
+        b = _make_server_backend(_SSE_COMPLETION_RESP)
+        list(b.stream_generate("hola", max_tokens=8, grammar='root ::= "x"'))
+        assert _sent_payload(b)["grammar"] == 'root ::= "x"'
+
+
+class TestFacadeGrammarForwarding:
+    """La fachada reenvia grammar SOLO si no es None (impls viejos OK)."""
+
+    def test_generate_default_keeps_positional_call(self):
+        mock_impl = MagicMock()
+        mock_impl.generate.return_value = "ok"
+        backend = _make_backend(mock_impl)
+        backend.generate("p", max_tokens=16, temperature=0.5)
+        mock_impl.generate.assert_called_once_with("p", 16, 0.5)
+
+    def test_generate_forwards_grammar(self):
+        mock_impl = MagicMock()
+        mock_impl.generate.return_value = "ok"
+        backend = _make_backend(mock_impl)
+        backend.generate("p", max_tokens=16, temperature=0.0,
+                         grammar='root ::= "x"')
+        mock_impl.generate.assert_called_once_with("p", 16, 0.0,
+                                                   grammar='root ::= "x"')
+
+    def test_stream_generate_forwards_grammar(self):
+        mock_impl = MagicMock()
+        mock_impl.stream_generate.return_value = iter(["A"])
+        backend = _make_backend(mock_impl)
+        list(backend.stream_generate("p", max_tokens=8, temperature=0.3,
+                                     grammar='root ::= "x"'))
+        mock_impl.stream_generate.assert_called_once_with("p", 8, 0.3,
+                                                          grammar='root ::= "x"')
+
+
 class TestFacadeCachePromptForwarding:
     """La fachada reenvia cache_prompt SOLO cuando es False (impls viejos OK)."""
 
