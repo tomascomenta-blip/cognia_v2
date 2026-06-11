@@ -2062,3 +2062,82 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   * Regla operativa: benchmarks SIEMPRE con cache_prompt=false + seed fijo => determinismo total garantizado.
   * Pendiente CYCLE 3: kwarg cache_prompt en generate()/benchmark (hoy hardcodeado true).
 - Commits CYCLE 2: d5c2624, 3e04511, 03594a2, 805d4b5, f0b7782, 1bc0f39, 5a8e1b2, 5ea0506.
+
+## [2026-06-11 16:43] CYCLE 3a cierre -- benchmark de codigo 100% determinista (cache_prompt kwarg)
+- Cambio A (42a8824): kwarg cache_prompt (default True) en generate/stream_generate/stream_chat de
+  _LlamaServerBackend y de la fachada LlamaBackend (reenviado SOLO cuando es False, impls viejos intactos);
+  _LlamaCppBackend lo acepta y lo ignora (in-process, sin KV-cache de server). Producto sin cambios de comportamiento.
+- Cambio B (2ce3e0a): benchmark_code.py pasa cache_prompt=False en TODA generacion (base y repair),
+  --seed default None -> 42, y el JSON persiste "cache_prompt": false junto al seed.
+- Tests: 10 nuevos en test_llama_backend.py (payload True por default / False cuando se pasa, 3 endpoints,
+  fakes sin server + forwarding fachada). Dirigidos: 74 passed, 0 failed
+  (test_llama_backend + test_e2e_long_gen_gate + test_orchestrator_max_tokens).
+- Smoke REAL contra llama-server :8088 (adoptado): 2x generate(cache_prompt=False, temp=0.0, seed=42,
+  max_tokens=8) -> output identico (' John. I am a software developer.'). CHECK PASS.
+- Comando canonico set duro determinista:
+  venv312\Scripts\python.exe -m cognia_v3.eval.benchmark_code --tasks-file cognia_v3\eval\tasks_hard.jsonl --max-tokens 768 --seed 42 --label hard_det
+
+## [2026-06-11 17:05] CYCLE 3b cierre -- memoria real inyectada en el fast-path de chat del CLI
+- Problema: el camino dominante (stream_chat en cli.py) mandaba [system adaptativo] + _history[-16:]
+  + query: CERO tokens de memoria episodica/semantica/working llegaban al modelo.
+- Decision: band_router (HYDRA canonico) sobre conversation_memory. Razon concreta: Cognia (ai) ya
+  tiene exactamente las 4 capas que el router necesita (perception, working_mem, episodic, semantic),
+  las MISMAS clases que el router construia solo -- el wiring es pasar 4 kwargs; ademas le da vida al
+  assembled_context que nunca se inyectaba en ningun prompt de produccion (codigo muerto).
+- Cambio A (0f9dc30, band_router.py): __init__ acepta capas pre-construidas (keyword-only) +
+  build_memory_block(query, max_chars=800): filtra el item LOCAL 'query: ...' y el 'summary: ...' de
+  MEDIA cuando working esta vacia (derivan solo de la query), cap duro MEMORY_BLOCK_MAX_CHARS=800.
+  Devuelve '' sin memoria real => el caller no inyecta nada.
+- Cambio B (22a78e2, cli.py): _build_memory_block_for(ai, q) construye el router UNA vez por instancia
+  (cacheado en ai._hydra_router) wired a las memorias vivas de ai; _build_stream_messages() inyecta el
+  bloque DENTRO del ultimo mensaje user ('Contexto de memoria...\n<bloque>\n\nPregunta: <raw>').
+  POSICION critica: el bloque cambia por turno; antes de la historia invalidaria el prefijo KV cacheado
+  (cache_prompt + --cache-reuse 256) => re-prefill de toda la historia cada turno (4k tok a ~29 tok/s
+  prefill = >2 min extra). Despues de la historia solo se re-prefilla el ultimo mensaje. La historia
+  persiste raw (sin bloque) via _persist_turn => turnos previos byte-identicos.
+- Tests (sin server, fakes): tests/test_cli_memory_injection.py 6 nuevos -- (a) bloque en ultimo user +
+  historia byte-identica, (b) sin memoria => messages identico al legacy (cero overhead), (c) cap 800,
+  (d) capas inyectadas alimentan GLOBAL, (e) fallo del router cae a mensaje plano, (f) sin memoria real
+  bloque vacio. Dirigidos: 20 passed, 0 failed (6 nuevos + 14 test_band_router.py sin regresion).
+- Wiring real verificado por CLI con fakes: bloque 265 chars LOCAL+MEDIA+GLOBAL, router cacheado reusado.
+- PENDIENTE (manager): smoke E2E real contra llama-server :8088 (ocupado por benchmark durante este ciclo).
+  Procedimiento: arrancar python -m cognia; sembrar memoria (p.ej. /observar mi lenguaje favorito es rust
+  o ai.observe(...)); preguntar con cue de recall ('recuerda cual es mi lenguaje favorito?'); esperar que
+  la respuesta mencione lo sembrado y que el primer turno SIN memoria no agregue 'Contexto de memoria'.
+
+## [2026-06-11 17:15] CYCLE 4 cierre -- grammar GBNF en el backend + flag --grammar en benchmark_code
+- Cambio A (55424f8, node/llama_backend.py): kwarg grammar: str = None en generate/stream_generate de
+  _LlamaServerBackend y de la fachada LlamaBackend (campo "grammar" en el payload de /completion SOLO si
+  no es None; impls viejos intactos). _LlamaCppBackend lo acepta y lo ignora con comentario (el binding
+  exige objeto LlamaGrammar, no string GBNF crudo -- fuera de alcance).
+- Cambio B (5086257, cognia_v3/eval/benchmark_code.py): constante GRAMMAR_PYTHON_BLOCK
+  (root ::= "```python\n" body "```" "\n"? ; body sin tres backticks seguidos) + flag --grammar
+  (store_true) que la pasa a generate() en base y repair; el JSON persiste "grammar": true/false.
+  Edge documentado: un ``` dentro de un string del codigo generado corta el bloque (mismo comportamiento
+  que extract_code, aceptable).
+- Hipotesis: fallos de formato del set duro (hard_det 17:01: 8/20, syntax=1, prosa/fences rotos en
+  SPEC/LONG) se eliminan forzando "solo un bloque de codigo python" -- costo cero de modelo.
+- Tests dirigidos (fakes, sin server): test_llama_backend.py +7 (payload con/sin grammar, forwarding
+  fachada) y tests/test_benchmark_code.py nuevo +3 (constante con "root ::=", literales de fence,
+  extract_code limpia output con forma de gramatica). Conteo real: 72 passed, 0 failed.
+- Smoke REAL contra llama-server :8088 (adoptado, libre tras hard_det): generate(prompt ChatML 'funcion
+  suma', max_tokens=96, temp=0.0, seed=42, cache_prompt=False, grammar=GRAMMAR_PYTHON_BLOCK) ->
+  '```python\ndef suma(a, b):\n    return a + b\n```' (stop_reason=eos, 17 tokens). Gramatica aceptada
+  por el server al primer intento (sin 400). CHECK PASS.
+- A/B pendiente (manager): mismo run hard_det con grammar activada, seed 42:
+  venv312\Scripts\python.exe -m cognia_v3.eval.benchmark_code --tasks-file cognia_v3\eval\tasks_hard.jsonl --max-tokens 768 --seed 42 --label hard_det_grammar --grammar
+
+## [2026-06-11 17:20] CYCLE 3-4 cierre manager — baseline determinista + HYDRA vivo + GBNF listo
+- Baseline determinista del set duro (seed=42, cache_prompt=false): pass@1 = 8/20 = 40.0%,
+  identico task-por-task al historico pero ahora REPRODUCIBLE AL BYTE. ALG 4/6, LONG 0/5,
+  DBG 3/5, SPEC 1/4; assert=6 runtime=5 syntax=1; 5.27 tok/s wall (con contention de sub-agentes).
+  JSON: cognia_v3/eval/results_code_hard_det_20260611_1701.json
+- SMOKE E2E MEMORIA (CYCLE 3b): PASS los 3 checks — (1) bloque HYDRA inyectado en el ULTIMO user
+  ("Contexto de memoria" + hecho sembrado), (2) historia byte-identica (prefijo KV preservado),
+  (3) recall real: modelo respondio "El lenguaje de programacion favorito de Tomas es Rust." con
+  el dato viniendo SOLO de memoria (DB temporal, no estaba en la historia). HYDRA en produccion.
+- Mejora menor anotada: items LOCAL/GLOBAL del bloque muestran labels genericos
+  ("conocimiento_python"); el recall funciono via summary de MEDIA. Render de items en cola.
+- GBNF (CYCLE 4): smoke real PASS al primer intento (output exactamente ```python fence, eos,
+  17 tokens). A/B contra baseline corriendo en background (label hard_det_grammar).
+- Push: 862713b..5086257 (6 commits de ciclos 3a/3b/4 + docs).
