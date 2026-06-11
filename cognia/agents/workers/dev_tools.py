@@ -37,8 +37,9 @@ SEARCH_TIMEOUT_S = 15
 # venv* cubre venv, venv312, .venv; model_shards/checkpoints son pesados y binarios
 _SEARCH_IGNORE_DIRS = {".git", "node_modules", "__pycache__", "model_shards", "checkpoints"}
 
-# Nombres que el agente nunca puede escribir (secretos y binarios ejecutables)
-_BLOCKED_WRITE_PATTERNS = (".env", "*secret*", "*.exe", "*.dll")
+# Nombres que el agente nunca puede escribir (secretos y binarios ejecutables).
+# "*.env" cubre .env y variantes (prod.env, x.env, ...).
+_BLOCKED_WRITE_PATTERNS = ("*.env", "*secret*", "*.exe", "*.dll")
 
 
 # --- search_code (read-only, sin confinamiento de workspace) -----------------
@@ -114,6 +115,17 @@ def _check_writable(resolved: Path) -> None:
     if ".git" in resolved.parts:
         raise ValueError(f"writing under .git is blocked: {resolved}")
 
+def resolve_write_path(path: str) -> Path:
+    """Gate completo de escritura: confinamiento al workspace + nombres bloqueados.
+
+    Compartido por write_file/edit_file de este modulo y por las tools de
+    escritura del loop ReAct (cognia/agent/tools.py). Levanta ValueError con
+    mensaje ASCII que nombra el workspace permitido.
+    """
+    resolved = _resolve_in_workspace(path)
+    _check_writable(resolved)
+    return resolved
+
 def _validate_py(content: str, context: str) -> None:
     try:
         ast.parse(content)
@@ -125,8 +137,7 @@ def _validate_py(content: str, context: str) -> None:
 
 def write_file(path: str, content: str) -> dict:
     """Crea/sobrescribe un archivo dentro del workspace. Backup .bak si existia."""
-    resolved = _resolve_in_workspace(path)
-    _check_writable(resolved)
+    resolved = resolve_write_path(path)
     if resolved.suffix == ".py":
         _validate_py(content, "write_file")
 
@@ -150,8 +161,7 @@ def write_file(path: str, content: str) -> dict:
 
 def edit_file(path: str, old_string: str, new_string: str, count: int = 1) -> dict:
     """Reemplazo exacto de substring. old_string debe aparecer exactamente count veces."""
-    resolved = _resolve_in_workspace(path)
-    _check_writable(resolved)
+    resolved = resolve_write_path(path)
     if not resolved.is_file():
         raise ValueError(f"file not found in workspace: {path}")
 

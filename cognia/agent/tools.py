@@ -30,6 +30,12 @@ import re
 import subprocess
 from pathlib import Path
 
+# Gate de escritura compartido con los workers Tier 1: confina TODA escritura
+# del loop al workspace del agente (AGENT_WORKSPACE_ROOT, env-overridable via
+# COGNIA_AGENT_WORKSPACE) y bloquea nombres sensibles (*.env, *secret*,
+# binarios). Levanta ValueError con mensaje ASCII que nombra el workspace.
+from cognia.agents.workers.dev_tools import resolve_write_path as _resolve_write_path
+
 # name -> {"fn", "doc", "danger"}
 TOOLS: dict = {}
 
@@ -102,12 +108,15 @@ def _leer_archivo(args, ctx):
 
 
 @tool("escribir_archivo",
-      "escribir_archivo <path> | <contenido>  -- crea/sobrescribe (crea dirs)")
+      "escribir_archivo <path> | <contenido>  -- crea/sobrescribe en el workspace (crea dirs)")
 def _escribir_archivo(args, ctx):
     parts = args.split(" | ", 1)
     if len(parts) != 2:
         return "RESULTADO escribir_archivo ERROR: formato (usa ruta | contenido)"
-    wpath = Path(parts[0].strip())
+    try:
+        wpath = _resolve_write_path(parts[0].strip())
+    except ValueError as e:
+        return f"RESULTADO escribir_archivo ERROR: {e}"
     content = _strip_fences(parts[1])
     old = wpath.read_text(encoding="utf-8") if wpath.exists() else ""
     wpath.parent.mkdir(parents=True, exist_ok=True)
@@ -126,12 +135,15 @@ def _escribir_archivo(args, ctx):
 
 
 @tool("apendar_archivo",
-      "apendar_archivo <path> | <texto>      -- agrega texto al final del archivo")
+      "apendar_archivo <path> | <texto>      -- agrega texto al final (en el workspace)")
 def _apendar_archivo(args, ctx):
     parts = args.split(" | ", 1)
     if len(parts) != 2:
         return "RESULTADO apendar_archivo ERROR: formato (usa ruta | texto)"
-    wpath = Path(parts[0].strip())
+    try:
+        wpath = _resolve_write_path(parts[0].strip())
+    except ValueError as e:
+        return f"RESULTADO apendar_archivo ERROR: {e}"
     text = _strip_fences(parts[1])
     wpath.parent.mkdir(parents=True, exist_ok=True)
     # Start on a fresh line if the file has content not ending in a newline,
@@ -146,13 +158,18 @@ def _apendar_archivo(args, ctx):
     return f"RESULTADO apendar_archivo {wpath}: OK (+{len(text)} chars)"
 
 
-@tool("copiar_archivo", "copiar_archivo <src> | <dst>          -- copia un archivo")
+@tool("copiar_archivo", "copiar_archivo <src> | <dst>          -- copia un archivo (dst en el workspace)")
 def _copiar_archivo(args, ctx):
     parts = args.split(" | ", 1)
     if len(parts) != 2:
         return "RESULTADO copiar_archivo ERROR: formato (usa src | dst)"
     import shutil
-    src, dst = Path(parts[0].strip()), Path(parts[1].strip())
+    # src puede leerse de cualquier lado (leer es legitimo); dst queda confinado.
+    src = Path(parts[0].strip())
+    try:
+        dst = _resolve_write_path(parts[1].strip())
+    except ValueError as e:
+        return f"RESULTADO copiar_archivo ERROR: {e}"
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
     return f"RESULTADO copiar_archivo: {src} -> {dst} OK"
