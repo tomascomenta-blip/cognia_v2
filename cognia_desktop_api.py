@@ -83,6 +83,7 @@ from cognia.debug.state_inspector import StateInspector as _StateInspector
 
 _state_inspector = _StateInspector()
 
+from shattering.model_constants import GEN_CHAT_MAX_TOKENS
 from shattering.orchestrator import ShatteringOrchestrator
 
 # ITCS: Inference-Time Compute Scaling — zero-LLM complexity scorer
@@ -294,12 +295,14 @@ from cognia.cache.cache_analytics import CacheAnalytics as _CacheAnalytics
 
 _cache_analytics = _CacheAnalytics(cache_instance=_sem_cache)
 
-# Single orchestrator instance shared across requests
+# Single orchestrator instance shared across requests.
+# GEN_CHAT_MAX_TOKENS (1024): the previous hardcoded 64 truncated every chat
+# answer; per-request callers can still pass max_tokens to infer()/astream().
 _orch = ShatteringOrchestrator(
     manifest_path=_MANIFEST,
     coordinator_url=_COORDINATOR,
     mode="auto",
-    max_new_tokens=64,
+    max_new_tokens=GEN_CHAT_MAX_TOKENS,
 )
 
 # ── Conversational Intent Predictor / Cache Warmer (CIP) ──────────────
