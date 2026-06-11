@@ -107,6 +107,31 @@ def _stop_reason(data: dict) -> Optional[str]:
     return None
 
 
+# ── Sampling params ───────────────────────────────────────────────────────────
+
+def _sampling_payload(top_p=None, top_k=None, min_p=None,
+                      repeat_penalty=None, seed=None) -> dict:
+    """Dict con SOLO los sampling params no-None, listo para mergear al payload.
+
+    Nombres estandar de llama.cpp aceptados nativos por llama-server b9391 en
+    /completion y /v1/chat/completions: top_p, top_k, min_p, repeat_penalty,
+    seed. Si todos son None devuelve {} y el payload queda identico al actual
+    (defaults del server intactos).
+    """
+    out = {}
+    if top_p is not None:
+        out["top_p"] = top_p
+    if top_k is not None:
+        out["top_k"] = top_k
+    if min_p is not None:
+        out["min_p"] = min_p
+    if repeat_penalty is not None:
+        out["repeat_penalty"] = repeat_penalty
+    if seed is not None:
+        out["seed"] = seed
+    return out
+
+
 # ── GGUF path resolution ──────────────────────────────────────────────────────
 
 def _find_gguf() -> Optional[Path]:
@@ -155,13 +180,20 @@ class _LlamaCppBackend:
         logger.info("[llama_backend] llama-cpp-python loaded: %s", gguf_path.name)
 
     def generate(self, prompt: str, max_tokens: int = 256,
-                 temperature: float = 0.7) -> Optional[str]:
+                 temperature: float = 0.7, top_p=None, top_k=None,
+                 min_p=None, repeat_penalty=None, seed=None) -> Optional[str]:
+        # llama-cpp-python soporta los 5 sampling kwargs nativos (min_p desde
+        # 0.2.20). Un binding mas viejo levanta TypeError -> lo atrapa el
+        # except de abajo (mismo contrato: None en fallo).
+        extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
+                                  repeat_penalty=repeat_penalty, seed=seed)
         try:
             result = self._model(
                 prompt,
                 max_tokens  = max_tokens,
                 temperature = temperature,
                 echo        = False,
+                **extra,
             )
             return result["choices"][0]["text"]
         except Exception as exc:
@@ -256,7 +288,8 @@ class _LlamaServerBackend:
             return False
 
     def generate(self, prompt: str, max_tokens: int = 256,
-                 temperature: float = 0.7) -> Optional[str]:
+                 temperature: float = 0.7, top_p=None, top_k=None,
+                 min_p=None, repeat_penalty=None, seed=None) -> Optional[str]:
         import urllib.error
         payload = self._json.dumps({
             "prompt":      prompt,
@@ -265,6 +298,9 @@ class _LlamaServerBackend:
             "stop":        ["<|im_end|>", "<|endoftext|>"],
             # cache_prompt: avoid re-prefilling the full history every turn
             "cache_prompt": True,
+            # Sampling params: solo los no-None (defaults del server intactos)
+            **_sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
+                                repeat_penalty=repeat_penalty, seed=seed),
         }).encode()
         # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
         # generation past ~660 tokens (returned None silently). 0.6 s/token covers
@@ -287,7 +323,8 @@ class _LlamaServerBackend:
             return None
 
     def stream_generate(self, prompt: str, max_tokens: int = 256,
-                        temperature: float = 0.7):
+                        temperature: float = 0.7, top_p=None, top_k=None,
+                        min_p=None, repeat_penalty=None, seed=None):
         """Yield tokens one at a time using llama-server SSE /completion?stream=true."""
         import urllib.error
         payload = self._json.dumps({
@@ -298,6 +335,9 @@ class _LlamaServerBackend:
             "stream":      True,
             # cache_prompt: avoid re-prefilling the full history every turn
             "cache_prompt": True,
+            # Sampling params: solo los no-None (defaults del server intactos)
+            **_sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
+                                repeat_penalty=repeat_penalty, seed=seed),
         }).encode()
         # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
         # generation past ~660 tokens. 0.6 s/token covers the ~2 tok/s worst case.
@@ -337,7 +377,8 @@ class _LlamaServerBackend:
             logger.warning("[llama_backend] llama-server stream failed: %s", exc)
 
     def stream_chat(self, messages: list, max_tokens: int = 512,
-                    temperature: float = 0.7):
+                    temperature: float = 0.7, top_p=None, top_k=None,
+                    min_p=None, repeat_penalty=None, seed=None):
         """Yield tokens using /v1/chat/completions (multi-turn, OpenAI-compatible)."""
         import urllib.error
         payload = self._json.dumps({
@@ -348,6 +389,11 @@ class _LlamaServerBackend:
             "stop":        ["<|im_end|>", "<|endoftext|>"],
             # cache_prompt: avoid re-prefilling the full history every turn
             "cache_prompt": True,
+            # Sampling params: solo los no-None. llama-server acepta los nombres
+            # nativos (top_k/min_p/repeat_penalty/seed) tambien en el endpoint
+            # OpenAI-compatible (extension propia de llama.cpp).
+            **_sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
+                                repeat_penalty=repeat_penalty, seed=seed),
         }).encode()
         # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
         # generation past ~660 tokens. 0.6 s/token covers the ~2 tok/s worst case.
@@ -438,8 +484,13 @@ class LlamaBackend:
         return getattr(self._impl, "last_stop_reason", None)
 
     def generate(self, prompt: str, max_tokens: int = 256,
-                 temperature: float = 0.7) -> Optional[str]:
-        return self._impl.generate(prompt, max_tokens, temperature)
+                 temperature: float = 0.7, top_p=None, top_k=None,
+                 min_p=None, repeat_penalty=None, seed=None) -> Optional[str]:
+        # Sampling params: se reenvian SOLO si no son None, asi un impl viejo
+        # sin esos kwargs sigue funcionando con la llamada posicional de siempre.
+        extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
+                                  repeat_penalty=repeat_penalty, seed=seed)
+        return self._impl.generate(prompt, max_tokens, temperature, **extra)
 
     def generate_long(self, prompt: str, max_total_tokens: int = None,
                       chunk_tokens: int = None, temperature: float = 0.7,
@@ -507,24 +558,30 @@ class LlamaBackend:
         }
 
     def stream_generate(self, prompt: str, max_tokens: int = 256,
-                        temperature: float = 0.7):
+                        temperature: float = 0.7, top_p=None, top_k=None,
+                        min_p=None, repeat_penalty=None, seed=None):
         """Yield tokens; falls back to non-streaming generate() if impl has no stream_generate."""
+        extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
+                                  repeat_penalty=repeat_penalty, seed=seed)
         if hasattr(self._impl, "stream_generate"):
-            yield from self._impl.stream_generate(prompt, max_tokens, temperature)
+            yield from self._impl.stream_generate(prompt, max_tokens, temperature, **extra)
         else:
-            result = self._impl.generate(prompt, max_tokens, temperature)
+            result = self._impl.generate(prompt, max_tokens, temperature, **extra)
             if result:
                 yield result
 
     def stream_chat(self, messages: list, max_tokens: int = 512,
-                    temperature: float = 0.7):
+                    temperature: float = 0.7, top_p=None, top_k=None,
+                    min_p=None, repeat_penalty=None, seed=None):
         """Yield tokens using multi-turn /v1/chat/completions."""
+        extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
+                                  repeat_penalty=repeat_penalty, seed=seed)
         if hasattr(self._impl, "stream_chat"):
-            yield from self._impl.stream_chat(messages, max_tokens, temperature)
+            yield from self._impl.stream_chat(messages, max_tokens, temperature, **extra)
         else:
             # Flatten history to a single prompt as fallback
             text = "\n".join(f"{m['role']}: {m['content']}" for m in messages)
-            yield from self.stream_generate(text, max_tokens, temperature)
+            yield from self.stream_generate(text, max_tokens, temperature, **extra)
 
     def stop(self) -> None:
         if hasattr(self._impl, "stop"):
