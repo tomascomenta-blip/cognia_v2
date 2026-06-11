@@ -270,6 +270,7 @@ _CMD_DESCRIPTIONS = {
     "/ejecutar":        "Ejecutar comando shell     <cmd>",
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
+    "/largo":           "Generacion larga (hasta 5000 tokens) con progreso <pedido>",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
@@ -442,6 +443,12 @@ _CMD_DETAILS = {
         "Ejecuta una tarea de forma autonoma usando un loop ReAct de hasta 8 pasos. "
         "Usa herramientas como /buscar-web, /kg-agregar, /ejecutar para completar la tarea. "
         "Ejemplo: /hacer Investiga las ventajas de FastAPI vs Flask"
+    ),
+    "/largo": (
+        "Genera una respuesta larga (hasta 5000 tokens) con el fast-path llama.cpp "
+        "y continuacion automatica por rondas, mostrando progreso. "
+        "Lento (~10 min a 8 tok/s). Requiere llama-server/GGUF disponible. "
+        "Ejemplo: /largo Escribe una guia completa de asyncio en Python"
     ),
     "/meta": (
         "Crea un nuevo objetivo de usuario persistente en la base de datos. "
@@ -2513,6 +2520,81 @@ def _call_articulated(ai, prompt: str) -> str:
     except Exception as e:
         return f"Error: {e}"
 
+
+def _slash_largo(ai, pedido: str) -> None:
+    """
+    /largo <pedido>: generacion larga (hasta GEN_LONG_MAX_TOKENS tokens) via el
+    fast-path llama.cpp con continuacion automatica (LlamaBackend.generate_long).
+    Imprime progreso ASCII por ronda y el texto completo al final.
+    """
+    from shattering.model_constants import (
+        COGNIA_SYSTEM_PROMPT, GEN_CHAT_TEMPERATURE, GEN_LONG_MAX_TOKENS,
+    )
+    # Mismo fast-path que el chat libre: orquestador cacheado en ai si existe,
+    # si no uno local, y _try_load_llama() para obtener el backend llama.cpp.
+    _llama = None
+    try:
+        from shattering.orchestrator import ShatteringOrchestrator as _SO
+        _orch = getattr(ai, '_orchestrator', None)
+        if _orch is None:
+            try:
+                _orch = _SO(mode='local')
+            except Exception:
+                _orch = None
+        if _orch is not None:
+            _llama = getattr(_orch, '_llama', None)
+            if _llama is None:
+                try:
+                    _orch._try_load_llama()
+                    _llama = getattr(_orch, '_llama', None)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    if _llama is None or not hasattr(_llama, "generate_long"):
+        _print_line("[warn_cl]backend llama no disponible (GGUF o llama-server "
+                    "faltante) -- /largo necesita el fast-path llama.cpp[/warn_cl]")
+        return
+
+    # Prompt ChatML igual que el fallback del fast-path de chat (sin historial:
+    # el pedido largo es one-shot, el contexto entero se gasta en la respuesta).
+    try:
+        from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
+        from cognia.user_prefs import personalize_prompt
+        _system = personalize_prompt(build_adaptive_system_prompt(ai))
+    except Exception:
+        _system = COGNIA_SYSTEM_PROMPT
+    from node.inference_pipeline import _apply_qwen_template
+    _prompt = _apply_qwen_template(pedido, _system)
+
+    _print_line(f"[detail]Generando hasta {GEN_LONG_MAX_TOKENS} tokens "
+                f"(continuacion automatica, ~10 min a 8 tok/s)...[/detail]")
+    t0 = time.time()
+
+    def _on_chunk(ronda, chunk_toks, total, reason):
+        # Progreso ASCII puro (consola Windows CP1252)
+        print(f"  ronda {ronda}: {chunk_toks} tokens, total {total}", flush=True)
+
+    result = _llama.generate_long(
+        _prompt,
+        temperature=GEN_CHAT_TEMPERATURE,
+        on_chunk=_on_chunk,
+    )
+    elapsed = time.time() - t0
+    if result is None:
+        _print_line("[warn_cl]La generacion larga fallo (primera ronda sin "
+                    "respuesta del backend).[/warn_cl]")
+        return
+    texto = (result.get("text") or "").strip()
+    if not texto:
+        _print_line("[warn_cl]La generacion larga devolvio texto vacio.[/warn_cl]")
+        return
+    _show_response(texto, _ACCENT)
+    print(f"  [{result['total_tokens']} tokens, {result['rounds']} rondas, "
+          f"{elapsed:.0f}s, stop={result['stop_reason']}]")
+    _session_log.append({"input": f"/largo {pedido}", "output": texto,
+                         "elapsed": elapsed})
+    _persist_turn(ai, f"/largo {pedido}", texto)
 
 
 # ---------------------------------------------------------------------------
@@ -5002,6 +5084,14 @@ def repl():
                 _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
             else:
                 _print_line("[warn_cl]Uso: /hacer <descripcion de la tarea>[/warn_cl]")
+
+        # -- Long-form generation --------------------------------------------
+        elif raw == "/largo" or raw.startswith("/largo "):
+            _pedido = raw[len("/largo "):].strip() if raw.startswith("/largo ") else ""
+            if _pedido:
+                _slash_largo(ai, _pedido)
+            else:
+                _print_line("[warn_cl]Uso: /largo <pedido>[/warn_cl]")
 
         # -- Plan system ---------------------------------------------------
         elif raw.startswith("/plan ") and not raw.startswith("/plan-"):
