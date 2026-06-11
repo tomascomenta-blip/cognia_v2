@@ -2141,3 +2141,36 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - GBNF (CYCLE 4): smoke real PASS al primer intento (output exactamente ```python fence, eos,
   17 tokens). A/B contra baseline corriendo en background (label hard_det_grammar).
 - Push: 862713b..5086257 (6 commits de ciclos 3a/3b/4 + docs).
+
+## [2026-06-11 17:45] CYCLE 5 -- repair por EDICION puntual (--repair-mode edit) en benchmark_code
+- Por que: repair por REGENERACION completa dio 0 recovered en 2 smokes (temp 0 y 0.5) -- el 3B no
+  traza error->causa->fix reescribiendo todo. Hipotesis viva (CYCLE 4 06-10): edicion puntual guiada
+  por el traceback, con el contrato exacto old/new de dev_tools.edit_file (match exactamente 1 vez).
+- Cambio A (7e99518, cognia_v3/eval/benchmark_code.py): flag --repair-mode {regen,edit} (default
+  regen, comportamiento actual intacto). En edit: prompt pide UN cambio minimo formato SEARCH/REPLACE
+  (instrucciones literales + ejemplo corto + codigo completo + error_type + err_detail[-300:]);
+  system prompt propio (el base exige "ONLY a Python code block"). Funciones PURAS module-level:
+  parse_search_replace(text) (tolerante: 1+ bloques, marcadores 5-9 simbolos, prosa/fences alrededor,
+  REPLACE vacio = borrar) y apply_edits(code, edits) (None si algun SEARCH no aparece exactamente
+  1 vez, sin fuzzy). Gate ast.parse sobre el resultado: reason explicita en el attempt
+  (search_not_found / syntax_after_edit), el codigo roto NO se adopta; attempts con reason mecanica
+  se saltean al elegir prev_code/prev_err de la proxima ronda. En edit NO va GRAMMAR_PYTHON_BLOCK al
+  repair (el output esperado es SEARCH/REPLACE, no un fence python). JSON persiste repair_mode.
+  Usa --repair-temp, el seed del run y cache_prompt=False como el resto del benchmark.
+- Tests (sin server): tests/test_benchmark_code.py +13 (bloque unico/multiple/multilinea, prosa,
+  sin bloques, REPLACE vacio, SEARCH inexistente/ambiguo 2x, lista vacia, edits en orden, edit que
+  rompe sintaxis cazado por ast.parse, pipeline parse->apply completo). Conteo real: 16 passed, 0 failed.
+- SMOKE REAL x2 (7c303bd, scripts/smoke_repair_edit.py; server :8088 libre tras el A/B grammar):
+  * LONG2 (AttributeError 'list' object has no attribute 'split'): el 3B emitio el formato
+    SEARCH/REPLACE PERFECTO en 18 tokens (vs ~300-768 del regen); propuso des-indentar
+    "    tokens = program.split()" -> el edit aplico (match exacto 1 vez) pero rompia la sintaxis;
+    el gate ast.parse lo cazo: syntax_after_edit, codigo roto no adoptado. NOT RECOVERED.
+  * ALG3 (TypeError 'in <string>' requires string as left operand): formato degenerado (8 bloques
+    SEARCH sin separador =======) -> 0 bloques parseados -> search_not_found, sin cambios. NOT RECOVERED.
+  Mecanismo end-to-end OK (parse -> apply -> ast gate -> reason persistida); el cuello es la
+  competencia de edicion del 3B, no el tooling. Costo: ~20-100 tokens por intento (vs regen completo).
+- Dato del ciclo paralelo: A/B grammar termino 8/20 = igual al baseline 8/20 (sin ganancia) --
+  results_code_hard_det_grammar_20260611_1729.json.
+- A/B pendiente (manager): set duro completo con repair edit 1 ronda vs baseline 8/20 y vs regen
+  (0 recovered):
+  venv312\Scripts\python.exe -m cognia_v3.eval.benchmark_code --tasks-file cognia_v3\eval\tasks_hard.jsonl --max-tokens 768 --seed 42 --label hard_det_repair_edit --repair 1 --repair-mode edit
