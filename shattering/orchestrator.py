@@ -210,7 +210,8 @@ class ShatteringOrchestrator:
 
     # ── Public API ──────────────────────────────────────────────────────
 
-    def infer(self, prompt: str, lpc_session_id: Optional[str] = None) -> InferResult:
+    def infer(self, prompt: str, lpc_session_id: Optional[str] = None,
+              max_tokens: Optional[int] = None) -> InferResult:
         """
         Route the prompt, load the right sub-model, and return generated text.
 
@@ -218,6 +219,9 @@ class ShatteringOrchestrator:
                         for this session. Only tokens beyond the cached prefix are
                         processed by the shard chain, giving O(new_tokens) cost
                         instead of O(full_prompt) on subsequent turns.
+        max_tokens:     per-call generation budget; None uses the constructor
+                        default (self._max_tokens). Lets a caller request a long
+                        answer without rebuilding the orchestrator.
         """
         if not prompt or not prompt.strip():
             return InferResult(
@@ -248,7 +252,8 @@ class ShatteringOrchestrator:
             tokens_generated = 0
         else:
             text, mode_used, tokens_generated = self._local_infer(
-                prompt, decision, lpc_session_id=lpc_session_id
+                prompt, decision, lpc_session_id=lpc_session_id,
+                max_tokens=max_tokens,
             )
 
         return InferResult(
@@ -261,19 +266,25 @@ class ShatteringOrchestrator:
             tokens_generated = tokens_generated,
         )
 
-    async def ainfer(self, prompt: str, lpc_session_id: Optional[str] = None) -> InferResult:
+    async def ainfer(self, prompt: str, lpc_session_id: Optional[str] = None,
+                     max_tokens: Optional[int] = None) -> InferResult:
         """Async wrapper — runs infer() in the default thread pool."""
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, self.infer, prompt, lpc_session_id)
+        return await loop.run_in_executor(
+            None, self.infer, prompt, lpc_session_id, max_tokens
+        )
 
-    async def astream_chat(self, messages: list):
+    async def astream_chat(self, messages: list, max_tokens: Optional[int] = None):
         """
         Async generator for multi-turn chat — yields (token_text, None) per token.
         Uses /v1/chat/completions on llama-server so full conversation history is sent.
         Falls back to astream(last_user_message) if llama.cpp is unavailable.
+
+        max_tokens: per-call generation budget; None uses self._max_tokens.
         """
         import asyncio as _asyncio
 
+        _max_toks = max_tokens if max_tokens is not None else self._max_tokens
         self._try_load_llama()
         if self._llama is not None:
             loop = _asyncio.get_running_loop()
@@ -281,7 +292,7 @@ class ShatteringOrchestrator:
 
             def _run_chat():
                 try:
-                    for tok in self._llama.stream_chat(messages, max_tokens=self._max_tokens):
+                    for tok in self._llama.stream_chat(messages, max_tokens=_max_toks):
                         loop.call_soon_threadsafe(queue.put_nowait, (tok, None))
                     loop.call_soon_threadsafe(queue.put_nowait, ("__done__", None))
                 except Exception as exc:
@@ -302,19 +313,22 @@ class ShatteringOrchestrator:
         last_user = next(
             (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
         )
-        async for tok, final in self.astream(last_user):
+        async for tok, final in self.astream(last_user, max_tokens=max_tokens):
             yield tok, final
 
-    async def astream(self, prompt: str, lpc_session_id: Optional[str] = None):
+    async def astream(self, prompt: str, lpc_session_id: Optional[str] = None,
+                      max_tokens: Optional[int] = None):
         """
         Async generator — yields (token_text, None) per token, then (None, InferResult).
         Runs the CPU-bound token loop in a thread pool so the event loop stays free.
 
         lpc_session_id: when provided, MLA KV-cache is preserved across streaming calls
                         for this session (same cross-turn persistence as ainfer).
+        max_tokens:     per-call generation budget; None uses self._max_tokens.
         """
         import asyncio as _asyncio
 
+        _max_toks = max_tokens if max_tokens is not None else self._max_tokens
         # Fast path: llama.cpp streaming (server-side SSE, much better quality)
         self._try_load_llama()
         if self._llama is not None:
@@ -326,7 +340,7 @@ class ShatteringOrchestrator:
 
             def _run_llama():
                 try:
-                    for tok in self._llama.stream_generate(formatted, max_tokens=self._max_tokens):
+                    for tok in self._llama.stream_generate(formatted, max_tokens=_max_toks):
                         loop.call_soon_threadsafe(queue.put_nowait, (tok, None))
                     loop.call_soon_threadsafe(queue.put_nowait, ("__done__", None))
                 except Exception as exc:
@@ -356,7 +370,8 @@ class ShatteringOrchestrator:
             try:
                 result = self._shard_infer_stream(prompt, queue, loop,
                                                   lpc_session_id=lpc_session_id,
-                                                  temperature=_temperature)
+                                                  temperature=_temperature,
+                                                  max_tokens=max_tokens)
                 loop.call_soon_threadsafe(queue.put_nowait, ("__done__", result))
             except Exception as exc:
                 loop.call_soon_threadsafe(queue.put_nowait, ("__error__", str(exc)))
@@ -473,17 +488,19 @@ class ShatteringOrchestrator:
 
     def _local_infer(self, prompt: str, decision: RouteDecision,
                      lpc_session_id: Optional[str] = None,
-                     temperature: Optional[float] = None):
-        """Returns (text, mode, tokens_generated)."""
+                     temperature: Optional[float] = None,
+                     max_tokens: Optional[int] = None):
+        """Returns (text, mode, tokens_generated). max_tokens=None uses self._max_tokens."""
         if temperature is None:
             temperature = self._TEMPERATURES.get(decision.sub_model, 0.5)
+        _max_toks = max_tokens if max_tokens is not None else self._max_tokens
         # Fast path: llama.cpp if GGUF model and runtime are present
         self._try_load_llama()
         if self._llama is not None:
             from node.inference_pipeline import _apply_qwen_template
             system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
-            result = self._llama.generate(formatted, max_tokens=self._max_tokens,
+            result = self._llama.generate(formatted, max_tokens=_max_toks,
                                           temperature=temperature)
             if result is not None:
                 # Prefer the real count reported by llama-server (tokens_predicted);
@@ -497,7 +514,8 @@ class ShatteringOrchestrator:
 
         # If real Qwen .npz shards are present, run the full shard pipeline
         if self._shards_available():
-            text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
+            text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id,
+                                           temperature=temperature, max_tokens=max_tokens)
             return text, "local", toks
 
         sub_model = decision.sub_model
@@ -529,7 +547,8 @@ class ShatteringOrchestrator:
             text = self._ollama_infer(prompt, sub_model, n_passes=self._n_passes)
             return text, "simulation", 0
 
-        text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
+        text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id,
+                                       temperature=temperature, max_tokens=max_tokens)
         return text, "local", toks
 
     def _shards_available(self) -> bool:
@@ -584,7 +603,8 @@ class ShatteringOrchestrator:
 
     def _shard_infer_stream(self, prompt: str, queue, loop,
                             lpc_session_id: Optional[str] = None,
-                            temperature: float = 0.5) -> "InferResult":
+                            temperature: float = 0.5,
+                            max_tokens: Optional[int] = None) -> "InferResult":
         """
         Streaming token generation with speculative decoding when nano_draft.npz is present.
         Puts (token_text, None) into queue per token; returns InferResult when done.
@@ -644,8 +664,9 @@ class ShatteringOrchestrator:
         t_loop           = _time.perf_counter()
         prev_output      = None   # output from previous forward pass (for spec d_0 verify)
         _prev_text_len   = 0      # cumulative decode length for streaming diff
+        _budget          = max_tokens if max_tokens is not None else self._max_tokens
 
-        for _ in range(self._max_tokens):
+        for _ in range(_budget):
             # ── Speculative path ──────────────────────────────────────────
             if self._draft is not None and prev_output is not None:
                 gen_arr = np.array(generated_ids, dtype=np.int32)
@@ -764,7 +785,8 @@ class ShatteringOrchestrator:
         )
 
     def _shard_infer(self, prompt: str, lpc_session_id: Optional[str] = None,
-                     temperature: float = 0.5) -> tuple:
+                     temperature: float = 0.5,
+                     max_tokens: Optional[int] = None) -> tuple:
         """
         Run end-to-end inference via the real Qwen INT4 forward pass.
 
@@ -785,7 +807,8 @@ class ShatteringOrchestrator:
 
         result = self._generate_local(
             prompt, self._pipeline, self._local_route,
-            lpc_session_id=lpc_session_id, temperature=temperature
+            lpc_session_id=lpc_session_id, temperature=temperature,
+            max_tokens=max_tokens,
         )
         if result.get("ok") and result.get("text"):
             return result["text"], result.get("tokens_generated", 0)
@@ -801,7 +824,8 @@ class ShatteringOrchestrator:
 
     def _generate_local(self, prompt: str, pipeline, route: list,
                         lpc_session_id: Optional[str] = None,
-                        temperature: float = 0.5) -> dict:
+                        temperature: float = 0.5,
+                        max_tokens: Optional[int] = None) -> dict:
         """
         Drive the token-by-token generation loop locally, without any HTTP call.
         Delegates each forward pass to registered local ShardEngines.
@@ -853,7 +877,7 @@ class ShatteringOrchestrator:
 
         generated_ids, tokens_generated = self._token_loop(
             pipeline, route, session_id, current_ids, hidden_dim, eos_set,
-            temperature=temperature
+            temperature=temperature, max_tokens=max_tokens,
         )
 
         # ── LPC: update cached token count ───────────────────────────────
@@ -873,7 +897,8 @@ class ShatteringOrchestrator:
 
     def _token_loop(self, pipeline, route: list, session_id: str,
                     current_ids, hidden_dim: int, eos_set: set,
-                    temperature: float = 0.5):
+                    temperature: float = 0.5,
+                    max_tokens: Optional[int] = None):
         """Inner token generation loop with optional speculative decoding."""
         import numpy as np
         import time as _time
@@ -886,8 +911,9 @@ class ShatteringOrchestrator:
         tokens_generated = 0
         t0               = _time.perf_counter()
         prev_output      = None
+        _budget          = max_tokens if max_tokens is not None else self._max_tokens
 
-        for _ in range(self._max_tokens):
+        for _ in range(_budget):
             # Speculative path
             if self._draft is not None and prev_output is not None:
                 gen_arr = np.array(generated_ids, dtype=np.int32)
