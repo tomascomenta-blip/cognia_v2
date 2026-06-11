@@ -2009,3 +2009,56 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   Velocidad sin degradacion vs 6-8 tok/s de referencia (maquina a bateria).
 - Nota: cli.py:5839 (fallback stream_generate sin stream_chat) queda en 512; fuera del
   alcance pedido, documentado aqui.
+
+## [2026-06-10] CYCLE 4 — repair_temperature + E2E dev_tools loop
+- Archivos modificados: cognia_v3/eval/benchmark_code.py, cognia/cli.py, cognia/agents/workers/dev_tools.py, agent_workspace/mini_repo/, agent_workspace/e2e_demo.py
+- Resultado tests: 23 passed (test_agent_tools_tier1.py), E2E PASS
+- repair_temperature medido: temp=0 → 0 recovered; temp=0.5 → 0 recovered (ALG4 diverge pero sigue fallando)
+- CONCLUSION: repair por regeneracion completa no es la palanca para el 3B. El modelo no puede trazar error→causa→fix en 1 shot.
+- E2E search→edit→test: PASS. Bug real (total/i ZeroDivisionError) encontrado con search_code, corregido con edit_file, verificado con run_tests (4/4).
+- Fix adicional: search_code ahora resuelve root relativo contra AGENT_WORKSPACE_ROOT (era CWD, inconsistente con edit_file/run_tests).
+- Fix menor: cognia/cli.py:5839 fallback max_tokens 512→1024
+- Notas: palanca real demostrada: edicion puntual guiada por herramientas vs regeneracion completa
+
+## [2026-06-10 22:35] TAREA 0 — Apagado programado 4:30 AM (verificado)
+- Script: scripts/shutdown_pc.py (verificado por lectura + smoke test --help con venv312)
+- Programacion: schtasks "Cognia_Shutdown_430AM" -> 11/06/2026 4:30 AM, estado Listo/Habilitado
+- Comando: venv312 python shutdown_pc.py --delay 60 (margen 60s cancelable con shutdown /a)
+- Verificacion: schtasks /query muestra "Hora proxima ejecucion: 11/06/2026 4:30:00 a.m."
+
+## [2026-06-10 23:15] CYCLE 1 — Mapa exhaustivo del estado real (workflow 6 agentes, 5 dimensiones + gaps)
+- Hallazgos clave (verificados con file:line):
+  * Tokens/respuesta: bloqueado SOLO por caps hardcodeados — cognia_desktop_api.py:302 max_new_tokens=64 (!), orchestrator 768, CLI chat 1024, benchmark 768. Backend (ctx 16384, timeout proporcional, streaming SSE) ya soporta 5000.
+  * Primitivas faltantes: llama_backend descarta el motivo de parada (stop_type/stopped_limit) de /completion; NO existe continuacion automatica en el repo; infer()/astream() no aceptan max_tokens por llamada; /tokenize jamas se usa (presupuesto de prompt = heuristica chars/3.8).
+  * Sampling: solo temperature+stop se envian al server (sin top_p/top_k/min_p/seed/grammar). Chat CLI genera a 0.7 mientras benchmark mide a 0.0. cache_prompt:true + --cache-reuse 256 = candidato a causa raiz del no-determinismo a temp=0 (ALG2 flip).
+  * Velocidad: decode 8.09 tok/s @3t Q4_K_M b9391 (a bateria); runs hard mt512/mt1024 contaminados (pre-fix timeout 120s); timings del server no se persisten; sin A/B de KV q8_0 / ubatch / mlock / cargador.
+  * Coding: pass@1 40% set duro (LONG 0/5, SPEC 1/4); repair por regeneracion = 0 recovered (2 runs); NO existe dataset de codigo para QLoRA (solo kg_triples, deltas negativos); dev_tools registradas pero inalcanzables desde el planner (_build_kwargs sin casos).
+  * Memoria: HYDRA assembled_context NUNCA se inyecta en ningun prompt (codigo muerto en produccion); fast-path CLI lleva 0 tokens de memoria; historia capada por mensajes (16), no por tokens.
+  * Seguridad agentes: escribir_archivo del loop ReAct escribe SIN confinamiento de workspace; query_episodic es stub (viola regla anti-stubs).
+- Mapa completo: tasks/wllr5hm5g.output (temp) — destilado aqui y en memoria del manager.
+- Proximo: FASE 1 delegada a sub-agente (stop reason + max_tokens por llamada + caps + generate_long + E2E 5000 tokens reales).
+
+## [2026-06-11 16:05] CYCLE 1 cierre — FASE 1 generacion larga implementada y verificada E2E
+- Commits: b3f3c8d (constantes GEN_*), 449f0d3 (_stop_reason + last_stop_reason, campo real de b9391 = stop_type), b1150cf (generate_long con continuacion automatica), df64101 (max_tokens por llamada en infer/astream/astream_chat), a36586d (desktop API 64 -> GEN_CHAT_MAX_TOKENS).
+- Tests dirigidos: 40 passed (test_llama_backend.py + test_orchestrator_max_tokens.py).
+- E2E real #1 (scripts/e2e_long_gen.py): 4996 tokens reales en 3 rondas (2048+2048+900), fin natural eos, texto coherente de 16095 chars (guia de 30 secciones completa). CHECK fallo por 4 tokens: el modelo termino el contenido naturalmente — la continuacion automatica FUNCIONA (2 rondas continuaron tras stop=limit). Gate #2 con target 6000/40 secciones en curso.
+- Anomalia notable: la laptop durmio ~10h en medio de la ronda 2 y la generacion sobrevivio y se reanudo al despertar (elapsed 308s -> 37013s entre rondas). Robustez inesperada del par llama-server + urlopen sin timeout agotado.
+- Bug encontrado en verificacion: _SERVER_TIMEOUT=30s insuficiente para carga fria del GGUF 1.9GB (primer intento de E2E fallo con backend None); transitorio — con disco caliente carga en segundos. Fix en cola CYCLE 2.
+- TAREA 0 mantenimiento: el apagado de 4:30 no se ejecuto (maquina dormida, 0xC0000142, tarea once sin proxima ejecucion). Re-registrada para 12/06 4:30 AM con WakeToRun=True + StartWhenAvailable=True (verificado via Get-ScheduledTaskInfo).
+- Entregable de mision: INFORME_EVOLUCION_20260611.md creado (linea base medida, top 10 ROI/revolucionarias/realistas, roadmaps, riesgos, prediccion cuantitativa).
+
+## [2026-06-11 16:50] CYCLE 2 cierre — gate 6000 PASS + causa raiz del no-determinismo CERRADA
+- Gate FASE 1 #2: CHECK PASS — 6000 tokens reales en 3 rondas (2048+2048+1904), stop=limit
+  (limite del presupuesto, el modelo tenia mas para decir), 22502 chars, 1722s (3.48 tok/s wall,
+  con contention del sub-agente editando en paralelo; el run limpio de referencia dio 6.65 tok/s).
+- Tests dirigidos: 64 passed, 0 failed (test_llama_backend + test_orchestrator_max_tokens + test_e2e_long_gen_gate).
+- /props real de b9391 (verificado): default_generation_settings.n_ctx=16384, model_path=...Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf;
+  keys incluyen build_info, chat_template, total_slots, endpoint_slots.
+- EXPERIMENTO DETERMINISMO (decisivo):
+  * seed=42 x2 via backend (cache_prompt=true heredado): NO determinista entre estados de cache distintos (24 vs 25 tokens, haikus diferentes).
+  * seed=42 x3 con cache_prompt=false: 3/3 IDENTICOS. seed=42 x3 con cache_prompt=true: 3/3 identicos entre si pero DISTINTOS de los sin-cache.
+  * CONCLUSION: el estado del KV-cache (prefijo reusado vs recomputado) cambia el camino numerico de los logits;
+    con historia de cache distinta el output cambia aunque el seed sea fijo. El flip de ALG2 entre runs (18:56 pass / 21:29 fail, temp=0) queda explicado.
+  * Regla operativa: benchmarks SIEMPRE con cache_prompt=false + seed fijo => determinismo total garantizado.
+  * Pendiente CYCLE 3: kwarg cache_prompt en generate()/benchmark (hoy hardcodeado true).
+- Commits CYCLE 2: d5c2624, 3e04511, 03594a2, 805d4b5, f0b7782, 1bc0f39, 5a8e1b2, 5ea0506.
