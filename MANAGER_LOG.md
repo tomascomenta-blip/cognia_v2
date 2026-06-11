@@ -2189,3 +2189,18 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   (c) few-shot / prompt engineering del benchmark (no medido aun, barato).
 - Infraestructura que SI quedo de estos ciclos (toda pusheada): benchmark determinista al byte,
   grammar GBNF, repair-mode edit con parser+gate AST, generacion larga 6000 tokens, HYDRA vivo.
+
+## [2026-06-11 18:10] CYCLE 6 — seguridad: tools de escritura del loop ReAct confinadas al workspace
+- Riesgo cerrado: escribir_archivo / apendar_archivo / copiar_archivo (cognia/agent/tools.py)
+  escribian en CUALQUIER path del disco sin validacion, expuestas via /hacer y auto-intent.
+- Fix: reusan resolve_write_path() de dev_tools (helper publico nuevo = _resolve_in_workspace +
+  _check_writable; write_file/edit_file de Tier 1 refactorizados al mismo helper, cero duplicacion).
+  Relativo -> AGENT_WORKSPACE_ROOT; absoluto fuera / traversal .. -> ERROR ASCII que nombra el
+  workspace; *.env (hardening desde ".env": cubre x.env), *secret*, *.exe, *.dll, .git/ bloqueados.
+  copiar_archivo: src libre (leer es legitimo), dst confinado. Tools de lectura intactas.
+- Contrato cambiado (declarado): files_touched guarda el path RESUELTO; las skills que escriben
+  "tests/test_x.py" via /hacer ahora caen en agent_workspace/tests/, no en el repo (intencional).
+- Verificacion: 9 tests de regresion nuevos en tests/test_agent_tools.py + run_tool() real contra
+  workspace temporal (COGNIA_AGENT_WORKSPACE) mostrando los rechazos. Dirigidos: test_agent_tools +
+  test_agent_loop + test_agent_tools_tier1 = 51 passed; vecinos (tool_synthesis, intent, router,
+  cli_session) = 82 passed. Total 133 passed, 0 failed. Commit e0564d3 (sin push).
