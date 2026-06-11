@@ -436,6 +436,234 @@ class TestLastStopReason:
 
 
 # ---------------------------------------------------------------------------
+# _sampling_payload() — sampling params solo cuando no son None
+# ---------------------------------------------------------------------------
+
+class TestSamplingPayload:
+    def test_empty_when_all_none(self):
+        from node.llama_backend import _sampling_payload
+        assert _sampling_payload() == {}
+
+    def test_includes_only_non_none(self):
+        from node.llama_backend import _sampling_payload
+        assert _sampling_payload(seed=42) == {"seed": 42}
+        assert _sampling_payload(top_p=0.9, top_k=40) == {"top_p": 0.9, "top_k": 40}
+
+    def test_all_params(self):
+        from node.llama_backend import _sampling_payload
+        out = _sampling_payload(top_p=0.95, top_k=20, min_p=0.05,
+                                repeat_penalty=1.1, seed=7)
+        assert out == {"top_p": 0.95, "top_k": 20, "min_p": 0.05,
+                       "repeat_penalty": 1.1, "seed": 7}
+
+    def test_zero_values_are_kept(self):
+        """0 / 0.0 son valores validos (p.ej. seed=0), no se filtran."""
+        from node.llama_backend import _sampling_payload
+        assert _sampling_payload(seed=0, top_k=0) == {"seed": 0, "top_k": 0}
+
+
+# ---------------------------------------------------------------------------
+# _LlamaServerBackend payloads — fakes, sin server real
+# ---------------------------------------------------------------------------
+
+class _FakeResp:
+    """Respuesta HTTP fake con read() incremental (compatible con el loop SSE)."""
+
+    def __init__(self, payload: bytes):
+        self._buf = payload
+
+    def read(self, n=-1):
+        if n is None or n < 0:
+            out, self._buf = self._buf, b""
+        else:
+            out, self._buf = self._buf[:n], self._buf[n:]
+        return out
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+class _FakeUrlReq:
+    """Reemplazo de urllib.request: captura los Request y sirve bytes fijos."""
+
+    def __init__(self, resp_bytes: bytes):
+        self.requests = []
+        self._resp_bytes = resp_bytes
+
+    def Request(self, url, data=None, headers=None):
+        self.requests.append({"url": url, "data": data, "headers": headers})
+        return ("REQ", url)
+
+    def urlopen(self, req, timeout=None):
+        return _FakeResp(self._resp_bytes)
+
+
+def _make_server_backend(resp_bytes: bytes):
+    """_LlamaServerBackend sin __init__ (no arranca proceso ni pinguea)."""
+    import json as _json
+    from node.llama_backend import _LlamaServerBackend
+    b = object.__new__(_LlamaServerBackend)
+    b._port = 8088
+    b._base = "http://127.0.0.1:8088"
+    b._proc = None
+    b._json = _json
+    b._urlreq = _FakeUrlReq(resp_bytes)
+    b.last_tokens_predicted = None
+    b.last_stop_reason = None
+    return b
+
+
+_COMPLETION_RESP = (b'{"content": "ok", "stop": true, "stop_type": "eos", '
+                    b'"tokens_predicted": 2}')
+_SSE_COMPLETION_RESP = (b'data: {"content": "ok", "stop": true, '
+                        b'"stop_type": "eos", "tokens_predicted": 2}\n')
+_SSE_CHAT_RESP = (b'data: {"choices": [{"delta": {"content": "ok"}, '
+                  b'"finish_reason": "stop", "index": 0}]}\n'
+                  b'data: [DONE]\n')
+
+
+def _sent_payload(backend) -> dict:
+    import json as _json
+    return _json.loads(backend._urlreq.requests[0]["data"])
+
+
+_SAMPLING_KEYS = ("top_p", "top_k", "min_p", "repeat_penalty", "seed")
+
+
+class TestServerPayloadSampling:
+    """Los 3 endpoints incluyen sampling params SOLO cuando no son None."""
+
+    def test_generate_default_payload_has_no_sampling_keys(self):
+        b = _make_server_backend(_COMPLETION_RESP)
+        b.generate("hola", max_tokens=8)
+        payload = _sent_payload(b)
+        for key in _SAMPLING_KEYS:
+            assert key not in payload
+        assert payload["n_predict"] == 8
+
+    def test_generate_includes_given_sampling_params(self):
+        b = _make_server_backend(_COMPLETION_RESP)
+        b.generate("hola", max_tokens=8, seed=42, top_p=0.9)
+        payload = _sent_payload(b)
+        assert payload["seed"] == 42
+        assert payload["top_p"] == 0.9
+        assert "top_k" not in payload
+        assert "min_p" not in payload
+        assert "repeat_penalty" not in payload
+
+    def test_stream_generate_default_payload_has_no_sampling_keys(self):
+        b = _make_server_backend(_SSE_COMPLETION_RESP)
+        list(b.stream_generate("hola", max_tokens=8))
+        payload = _sent_payload(b)
+        for key in _SAMPLING_KEYS:
+            assert key not in payload
+        assert payload["stream"] is True
+
+    def test_stream_generate_includes_given_sampling_params(self):
+        b = _make_server_backend(_SSE_COMPLETION_RESP)
+        list(b.stream_generate("hola", max_tokens=8, top_k=40,
+                               repeat_penalty=1.1))
+        payload = _sent_payload(b)
+        assert payload["top_k"] == 40
+        assert payload["repeat_penalty"] == 1.1
+        assert "seed" not in payload
+
+    def test_stream_chat_default_payload_has_no_sampling_keys(self):
+        b = _make_server_backend(_SSE_CHAT_RESP)
+        list(b.stream_chat([{"role": "user", "content": "hola"}], max_tokens=8))
+        payload = _sent_payload(b)
+        for key in _SAMPLING_KEYS:
+            assert key not in payload
+        assert payload["max_tokens"] == 8
+
+    def test_stream_chat_includes_given_sampling_params(self):
+        b = _make_server_backend(_SSE_CHAT_RESP)
+        list(b.stream_chat([{"role": "user", "content": "hola"}],
+                           max_tokens=8, seed=7, min_p=0.05))
+        payload = _sent_payload(b)
+        assert payload["seed"] == 7
+        assert payload["min_p"] == 0.05
+        assert "top_p" not in payload
+
+
+class TestFacadeSamplingForwarding:
+    """La fachada reenvia sampling params SOLO si no son None (impls viejos OK)."""
+
+    def test_generate_without_params_keeps_positional_call(self):
+        mock_impl = MagicMock()
+        mock_impl.generate.return_value = "ok"
+        backend = _make_backend(mock_impl)
+        backend.generate("p", max_tokens=16, temperature=0.5)
+        mock_impl.generate.assert_called_once_with("p", 16, 0.5)
+
+    def test_generate_forwards_only_given_params(self):
+        mock_impl = MagicMock()
+        mock_impl.generate.return_value = "ok"
+        backend = _make_backend(mock_impl)
+        backend.generate("p", max_tokens=16, temperature=0.0, seed=42)
+        mock_impl.generate.assert_called_once_with("p", 16, 0.0, seed=42)
+
+    def test_stream_chat_forwards_only_given_params(self):
+        mock_impl = MagicMock()
+        mock_impl.stream_chat.return_value = iter(["A"])
+        backend = _make_backend(mock_impl)
+        msgs = [{"role": "user", "content": "hola"}]
+        list(backend.stream_chat(msgs, max_tokens=64, temperature=0.7,
+                                 top_p=0.9))
+        mock_impl.stream_chat.assert_called_once_with(msgs, 64, 0.7, top_p=0.9)
+
+    def test_stream_generate_forwards_only_given_params(self):
+        mock_impl = MagicMock()
+        mock_impl.stream_generate.return_value = iter(["A"])
+        backend = _make_backend(mock_impl)
+        list(backend.stream_generate("p", max_tokens=8, temperature=0.3,
+                                     top_k=40))
+        mock_impl.stream_generate.assert_called_once_with("p", 8, 0.3, top_k=40)
+
+
+# ---------------------------------------------------------------------------
+# _server_props_summary()
+# ---------------------------------------------------------------------------
+
+class TestServerPropsSummary:
+    def test_representative_props(self):
+        """Forma representativa de GET /props en builds recientes de llama-server."""
+        from node.llama_backend import _server_props_summary
+        data = {
+            "default_generation_settings": {
+                "id": 0, "id_task": -1, "n_ctx": 16384,
+                "params": {"n_predict": -1, "temperature": 0.8},
+            },
+            "total_slots": 1,
+            "model_path": "D:/models/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+            "build_info": "b9391-7fb1e70b5",
+            "chat_template": "{%- if tools %}...",
+        }
+        out = _server_props_summary(data)
+        assert out == {
+            "n_ctx": 16384,
+            "model_path": "D:/models/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+            "build_info": "b9391-7fb1e70b5",
+            "total_slots": 1,
+        }
+
+    def test_missing_fields_give_none(self):
+        from node.llama_backend import _server_props_summary
+        out = _server_props_summary({})
+        assert out == {"n_ctx": None, "model_path": None,
+                       "build_info": None, "total_slots": None}
+
+    def test_facade_server_props_none_for_inprocess_impl(self):
+        """Impl sin metodo props() (in-process) -> server_props() devuelve None."""
+        mock_impl = MagicMock(spec=["generate"])
+        backend = _make_backend(mock_impl)
+        assert backend.server_props() is None
+
+
+# ---------------------------------------------------------------------------
 # _find_gguf()
 # ---------------------------------------------------------------------------
 
