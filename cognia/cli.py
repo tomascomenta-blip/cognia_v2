@@ -5826,17 +5826,24 @@ def repl():
                             # real role separation -- more robust than a hand-built ChatML
                             # string (which malforms on empty/odd turns). Fall back to the
                             # manual ChatML template if the backend lacks stream_chat.
+                            # Temperatura explicita (no el default implicito del
+                            # backend): visible y auditable en model_constants.
+                            from shattering.model_constants import GEN_CHAT_TEMPERATURE
                             _use_chat = hasattr(_llama, "stream_chat")
                             if _use_chat:
                                 _messages = [{"role": "system", "content": _system}]
                                 _messages.extend(_hist_ctx)
                                 _messages.append({"role": "user", "content": raw})
-                                _stream_src = lambda: _llama.stream_chat(_messages, max_tokens=1024)
+                                _stream_src = lambda: _llama.stream_chat(
+                                    _messages, max_tokens=1024,
+                                    temperature=GEN_CHAT_TEMPERATURE)
                             else:
                                 from node.inference_pipeline import _apply_qwen_template
                                 _formatted = _apply_qwen_template(
                                     raw, _system, history=_hist_ctx or None)
-                                _stream_src = lambda: _llama.stream_generate(_formatted, max_tokens=1024)
+                                _stream_src = lambda: _llama.stream_generate(
+                                    _formatted, max_tokens=1024,
+                                    temperature=GEN_CHAT_TEMPERATURE)
                             _tokens_buf = []
                             t0 = time.time()
                             try:

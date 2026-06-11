@@ -93,6 +93,11 @@ GEN_DEFAULT_MAX_TOKENS: int = 768   # orchestrator default (short answers, low l
 GEN_CHAT_MAX_TOKENS:    int = 1024  # interactive chat (desktop API)
 GEN_LONG_MAX_TOKENS:    int = 5000  # long-form generation target (FASE 1 goal)
 GEN_CONTINUATION_CHUNK: int = 2048  # per-round chunk in the continuation loop
+# Temperatura del chat interactivo. Explicitarla (en vez de heredar el default
+# 0.7 del backend) alinea producto y metrica: el benchmark mide a temp=0.0 y
+# el chat samplea a 0.7 — con la constante esa diferencia queda visible y
+# auditable en un solo lugar.
+GEN_CHAT_TEMPERATURE:   float = 0.7
 
 # Router: semantic embedding routing (Phase 20.1)
 ROUTER_SEMANTIC_THRESHOLD: float = 0.6   # cosine sim below this -> fall back to keyword
