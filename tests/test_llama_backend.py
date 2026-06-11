@@ -589,6 +589,84 @@ class TestServerPayloadSampling:
         assert "top_p" not in payload
 
 
+class TestServerPayloadCachePrompt:
+    """cache_prompt=True por default; False cuando se pasa (3 endpoints).
+
+    El KV-cache reusado cambia el camino numerico de los logits (experimento
+    2026-06-11): cache_prompt=False es la unica forma de output determinista.
+    """
+
+    def test_generate_default_cache_prompt_true(self):
+        b = _make_server_backend(_COMPLETION_RESP)
+        b.generate("hola", max_tokens=8)
+        assert _sent_payload(b)["cache_prompt"] is True
+
+    def test_generate_cache_prompt_false(self):
+        b = _make_server_backend(_COMPLETION_RESP)
+        b.generate("hola", max_tokens=8, cache_prompt=False)
+        assert _sent_payload(b)["cache_prompt"] is False
+
+    def test_stream_generate_default_cache_prompt_true(self):
+        b = _make_server_backend(_SSE_COMPLETION_RESP)
+        list(b.stream_generate("hola", max_tokens=8))
+        assert _sent_payload(b)["cache_prompt"] is True
+
+    def test_stream_generate_cache_prompt_false(self):
+        b = _make_server_backend(_SSE_COMPLETION_RESP)
+        list(b.stream_generate("hola", max_tokens=8, cache_prompt=False))
+        assert _sent_payload(b)["cache_prompt"] is False
+
+    def test_stream_chat_default_cache_prompt_true(self):
+        b = _make_server_backend(_SSE_CHAT_RESP)
+        list(b.stream_chat([{"role": "user", "content": "hola"}], max_tokens=8))
+        assert _sent_payload(b)["cache_prompt"] is True
+
+    def test_stream_chat_cache_prompt_false(self):
+        b = _make_server_backend(_SSE_CHAT_RESP)
+        list(b.stream_chat([{"role": "user", "content": "hola"}],
+                           max_tokens=8, cache_prompt=False))
+        assert _sent_payload(b)["cache_prompt"] is False
+
+
+class TestFacadeCachePromptForwarding:
+    """La fachada reenvia cache_prompt SOLO cuando es False (impls viejos OK)."""
+
+    def test_generate_default_keeps_positional_call(self):
+        mock_impl = MagicMock()
+        mock_impl.generate.return_value = "ok"
+        backend = _make_backend(mock_impl)
+        backend.generate("p", max_tokens=16, temperature=0.5)
+        mock_impl.generate.assert_called_once_with("p", 16, 0.5)
+
+    def test_generate_forwards_cache_prompt_false(self):
+        mock_impl = MagicMock()
+        mock_impl.generate.return_value = "ok"
+        backend = _make_backend(mock_impl)
+        backend.generate("p", max_tokens=16, temperature=0.0,
+                         seed=42, cache_prompt=False)
+        mock_impl.generate.assert_called_once_with("p", 16, 0.0, seed=42,
+                                                   cache_prompt=False)
+
+    def test_stream_generate_forwards_cache_prompt_false(self):
+        mock_impl = MagicMock()
+        mock_impl.stream_generate.return_value = iter(["A"])
+        backend = _make_backend(mock_impl)
+        list(backend.stream_generate("p", max_tokens=8, temperature=0.3,
+                                     cache_prompt=False))
+        mock_impl.stream_generate.assert_called_once_with("p", 8, 0.3,
+                                                          cache_prompt=False)
+
+    def test_stream_chat_forwards_cache_prompt_false(self):
+        mock_impl = MagicMock()
+        mock_impl.stream_chat.return_value = iter(["A"])
+        backend = _make_backend(mock_impl)
+        msgs = [{"role": "user", "content": "hola"}]
+        list(backend.stream_chat(msgs, max_tokens=64, temperature=0.7,
+                                 cache_prompt=False))
+        mock_impl.stream_chat.assert_called_once_with(msgs, 64, 0.7,
+                                                      cache_prompt=False)
+
+
 class TestFacadeSamplingForwarding:
     """La fachada reenvia sampling params SOLO si no son None (impls viejos OK)."""
 

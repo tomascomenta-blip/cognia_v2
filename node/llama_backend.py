@@ -200,7 +200,9 @@ class _LlamaCppBackend:
 
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
-                 min_p=None, repeat_penalty=None, seed=None) -> Optional[str]:
+                 min_p=None, repeat_penalty=None, seed=None,
+                 cache_prompt: bool = True) -> Optional[str]:
+        # cache_prompt se ignora: backend in-process, no hay KV-cache de server.
         # llama-cpp-python soporta los 5 sampling kwargs nativos (min_p desde
         # 0.2.20). Un binding mas viejo levanta TypeError -> lo atrapa el
         # except de abajo (mismo contrato: None en fallo).
@@ -339,15 +341,18 @@ class _LlamaServerBackend:
 
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
-                 min_p=None, repeat_penalty=None, seed=None) -> Optional[str]:
+                 min_p=None, repeat_penalty=None, seed=None,
+                 cache_prompt: bool = True) -> Optional[str]:
         import urllib.error
         payload = self._json.dumps({
             "prompt":      prompt,
             "n_predict":   max_tokens,
             "temperature": temperature,
             "stop":        ["<|im_end|>", "<|endoftext|>"],
-            # cache_prompt: avoid re-prefilling the full history every turn
-            "cache_prompt": True,
+            # cache_prompt True (default): no re-prefilla el historial entero.
+            # False: prefill completo — el KV-cache reusado cambia los logits
+            # (experimento 2026-06-11), necesario para benchmarks deterministas.
+            "cache_prompt": cache_prompt,
             # Sampling params: solo los no-None (defaults del server intactos)
             **_sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
                                 repeat_penalty=repeat_penalty, seed=seed),
@@ -374,7 +379,8 @@ class _LlamaServerBackend:
 
     def stream_generate(self, prompt: str, max_tokens: int = 256,
                         temperature: float = 0.7, top_p=None, top_k=None,
-                        min_p=None, repeat_penalty=None, seed=None):
+                        min_p=None, repeat_penalty=None, seed=None,
+                        cache_prompt: bool = True):
         """Yield tokens one at a time using llama-server SSE /completion?stream=true."""
         import urllib.error
         payload = self._json.dumps({
@@ -383,8 +389,9 @@ class _LlamaServerBackend:
             "temperature": temperature,
             "stop":        ["<|im_end|>", "<|endoftext|>"],
             "stream":      True,
-            # cache_prompt: avoid re-prefilling the full history every turn
-            "cache_prompt": True,
+            # cache_prompt True (default): no re-prefilla el historial entero.
+            # False: prefill completo (logits deterministas, ver generate()).
+            "cache_prompt": cache_prompt,
             # Sampling params: solo los no-None (defaults del server intactos)
             **_sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
                                 repeat_penalty=repeat_penalty, seed=seed),
@@ -428,7 +435,8 @@ class _LlamaServerBackend:
 
     def stream_chat(self, messages: list, max_tokens: int = 512,
                     temperature: float = 0.7, top_p=None, top_k=None,
-                    min_p=None, repeat_penalty=None, seed=None):
+                    min_p=None, repeat_penalty=None, seed=None,
+                    cache_prompt: bool = True):
         """Yield tokens using /v1/chat/completions (multi-turn, OpenAI-compatible)."""
         import urllib.error
         payload = self._json.dumps({
@@ -437,8 +445,9 @@ class _LlamaServerBackend:
             "temperature": temperature,
             "stream":      True,
             "stop":        ["<|im_end|>", "<|endoftext|>"],
-            # cache_prompt: avoid re-prefilling the full history every turn
-            "cache_prompt": True,
+            # cache_prompt True (default): no re-prefilla el historial entero.
+            # False: prefill completo (logits deterministas, ver generate()).
+            "cache_prompt": cache_prompt,
             # Sampling params: solo los no-None. llama-server acepta los nombres
             # nativos (top_k/min_p/repeat_penalty/seed) tambien en el endpoint
             # OpenAI-compatible (extension propia de llama.cpp).
@@ -540,11 +549,16 @@ class LlamaBackend:
 
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
-                 min_p=None, repeat_penalty=None, seed=None) -> Optional[str]:
+                 min_p=None, repeat_penalty=None, seed=None,
+                 cache_prompt: bool = True) -> Optional[str]:
         # Sampling params: se reenvian SOLO si no son None, asi un impl viejo
         # sin esos kwargs sigue funcionando con la llamada posicional de siempre.
         extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
                                   repeat_penalty=repeat_penalty, seed=seed)
+        # cache_prompt: se reenvia SOLO cuando es False (el default True del
+        # impl queda intacto y los impls viejos sin el kwarg siguen andando).
+        if not cache_prompt:
+            extra["cache_prompt"] = False
         return self._impl.generate(prompt, max_tokens, temperature, **extra)
 
     def generate_long(self, prompt: str, max_total_tokens: int = None,
@@ -614,10 +628,14 @@ class LlamaBackend:
 
     def stream_generate(self, prompt: str, max_tokens: int = 256,
                         temperature: float = 0.7, top_p=None, top_k=None,
-                        min_p=None, repeat_penalty=None, seed=None):
+                        min_p=None, repeat_penalty=None, seed=None,
+                        cache_prompt: bool = True):
         """Yield tokens; falls back to non-streaming generate() if impl has no stream_generate."""
         extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
                                   repeat_penalty=repeat_penalty, seed=seed)
+        # cache_prompt: solo cuando es False (ver generate())
+        if not cache_prompt:
+            extra["cache_prompt"] = False
         if hasattr(self._impl, "stream_generate"):
             yield from self._impl.stream_generate(prompt, max_tokens, temperature, **extra)
         else:
@@ -627,10 +645,14 @@ class LlamaBackend:
 
     def stream_chat(self, messages: list, max_tokens: int = 512,
                     temperature: float = 0.7, top_p=None, top_k=None,
-                    min_p=None, repeat_penalty=None, seed=None):
+                    min_p=None, repeat_penalty=None, seed=None,
+                    cache_prompt: bool = True):
         """Yield tokens using multi-turn /v1/chat/completions."""
         extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
                                   repeat_penalty=repeat_penalty, seed=seed)
+        # cache_prompt: solo cuando es False (ver generate())
+        if not cache_prompt:
+            extra["cache_prompt"] = False
         if hasattr(self._impl, "stream_chat"):
             yield from self._impl.stream_chat(messages, max_tokens, temperature, **extra)
         else:
