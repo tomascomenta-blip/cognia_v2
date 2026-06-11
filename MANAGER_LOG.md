@@ -3,6 +3,12 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-10] CYCLE 4 — E2E dev_tools loop: search→edit→test en mini_repo
+- Bug plantado: total / i (ZeroDivisionError + wrong value) en stats.running_mean
+- Herramientas: search_code → edit_file → run_tests
+- Resultado: PASS, tests: 4 passed / 0 failed
+- Notas: mecanismo search→edit→test demostrado en bug real multi-archivo. search_code requiere path absoluto (os.walk relativo a cwd del proceso, no al workspace); edit_file y run_tests usan paths relativos al workspace correctamente. conftest.py agregado a mini_repo para resolver import en pytest desde raiz del repo.
+
 ## [2026-06-07] CYCLE 15 -- Cobertura: precedencia de clasificacion del Cognitive Loop
 - Archivos modificados: tests/test_cognitive_loop.py (solo tests; CERO cambios a produccion)
 - Resultado tests: PASS -- 13/13 passed en aislamiento (solo ruta classify, sin process/LLM), 1.47s (+4 tests nuevos)
