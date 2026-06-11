@@ -33,6 +33,10 @@ SYSTEM_PROMPT = ("You are an expert Python programmer. Reply with ONLY a Python 
 
 DEFAULT_MAX_TOKENS = 768
 EXEC_TIMEOUT_S = 10
+# Temperatura de la generacion base: greedy para que pass@1 sea reproducible.
+# Es la MISMA constante que se persiste en el JSON (antes habia un hardcode
+# duplicado en el output que podia desalinearse del valor real usado).
+BASE_TEMPERATURE = 0.0
 
 # ── Tasks embebidas (estilo MBPP, escritas a mano, solo stdlib, sin I/O) ──────
 # Cada task: id, difficulty, prompt, entry_point, tests (3-5 asserts).
@@ -337,7 +341,8 @@ def build_repair_prompt(task_prompt: str, code: str, err_type: str,
 
 def repair_failures(backend, tasks: list[dict], results: list[dict],
                     repair_rounds: int, max_tokens: int,
-                    repair_temperature: float = 0.5) -> dict:
+                    repair_temperature: float = 0.5,
+                    seed: int = None) -> dict:
     """
     Para cada task FAIL: regenerar con el error de ejecucion real, hasta
     repair_rounds rondas o PASS. Muta results (passed_final, repair_attempts)
@@ -370,7 +375,8 @@ def repair_failures(backend, tasks: list[dict], results: list[dict],
                                          prev_err_type, prev_err_detail)
             t0 = time.perf_counter()
             response = backend.generate(prompt, max_tokens=max_tokens,
-                                        temperature=repair_temperature) or ""
+                                        temperature=repair_temperature,
+                                        seed=seed) or ""
             gen_s = time.perf_counter() - t0
             tokens = backend.last_tokens_predicted
             total_tokens += tokens or 0
@@ -397,14 +403,21 @@ def repair_failures(backend, tasks: list[dict], results: list[dict],
 def run_benchmark(tasks: list[dict], label: str = "baseline",
                   max_tokens: int = DEFAULT_MAX_TOKENS,
                   repair_rounds: int = 0,
-                  repair_temperature: float = 0.5) -> dict:
+                  repair_temperature: float = 0.5,
+                  seed: int = None) -> dict:
     """Corre todas las tasks contra el modelo real y guarda JSON con resultados."""
     backend, gguf_name = make_backend()
     if backend is None:
         print("ERROR: no llama backend available (GGUF or llama-server missing)")
         sys.exit(1)
+    # Config real del server al inicio del run (None si el impl no expone /props):
+    # se persiste en el JSON para que cada resultado declare contra QUE server corrio.
+    server_props = None
+    props_fn = getattr(backend, "server_props", None)
+    if callable(props_fn):
+        server_props = props_fn()
     print(f"[benchmark_code] backend OK, model={gguf_name}, "
-          f"tasks={len(tasks)}, max_tokens={max_tokens}", flush=True)
+          f"tasks={len(tasks)}, max_tokens={max_tokens}, seed={seed}", flush=True)
 
     results = []
     for i, task in enumerate(tasks, 1):
@@ -412,7 +425,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
               f"generating...", flush=True)
         t0 = time.perf_counter()
         response = backend.generate(build_prompt(task["prompt"]),
-                                    max_tokens=max_tokens, temperature=0.0)
+                                    max_tokens=max_tokens,
+                                    temperature=BASE_TEMPERATURE, seed=seed)
         gen_s = time.perf_counter() - t0
         response = response or ""
         tokens = backend.last_tokens_predicted  # None si el impl no lo reporta
@@ -438,7 +452,7 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
     if repair_rounds > 0:
         repair_stats = repair_failures(backend, tasks, results,
                                        repair_rounds, max_tokens,
-                                       repair_temperature)
+                                       repair_temperature, seed=seed)
 
     # ── Metricas ──────────────────────────────────────────────────────────
     n = len(results)
@@ -463,7 +477,10 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         "timestamp": datetime.datetime.now().isoformat(),
         "model": gguf_name,
         "max_tokens": max_tokens,
-        "temperature": 0.0,
+        "temperature": BASE_TEMPERATURE,
+        "seed": seed,
+        "repair_temperature": repair_temperature if repair_rounds > 0 else None,
+        "server_props": server_props,
         "n_tasks": n,
         "n_passed": n_pass,
         "pass_at_1": round(pass_at_1, 4),
@@ -561,6 +578,9 @@ def main():
     parser.add_argument("--repair-temp", type=float, default=0.5,
                         help="temperatura para las rondas de reparacion (default 0.5; "
                              "temp=0 reproduce codigo identico, temp>0 permite divergir)")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="seed de sampling para llama-server (default None = "
+                             "seed aleatoria del server); se persiste en el JSON")
     args = parser.parse_args()
 
     tasks = TASKS
@@ -575,7 +595,8 @@ def main():
         tasks = tasks[:args.limit]
 
     run_benchmark(tasks, label=args.label, max_tokens=args.max_tokens,
-                  repair_rounds=args.repair, repair_temperature=args.repair_temp)
+                  repair_rounds=args.repair, repair_temperature=args.repair_temp,
+                  seed=args.seed)
 
 
 if __name__ == "__main__":
