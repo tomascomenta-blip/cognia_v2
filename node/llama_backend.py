@@ -132,6 +132,25 @@ def _sampling_payload(top_p=None, top_k=None, min_p=None,
     return out
 
 
+# ── /props parsing ────────────────────────────────────────────────────────────
+
+def _server_props_summary(data: dict) -> dict:
+    """Parseo puro de la respuesta de GET /props de llama-server -> resumen.
+
+    Campos observados en builds recientes (a verificar contra b9391):
+    default_generation_settings.n_ctx (contexto por slot), model_path (GGUF
+    cargado), build_info y total_slots a nivel raiz. Devuelve dict con claves
+    fijas y None donde el campo no este, para que el caller loguee sin KeyError.
+    """
+    dgs = data.get("default_generation_settings") or {}
+    return {
+        "n_ctx":       dgs.get("n_ctx"),
+        "model_path":  data.get("model_path"),
+        "build_info":  data.get("build_info"),
+        "total_slots": data.get("total_slots"),
+    }
+
+
 # ── GGUF path resolution ──────────────────────────────────────────────────────
 
 def _find_gguf() -> Optional[Path]:
@@ -230,6 +249,9 @@ class _LlamaServerBackend:
         # Check if a server is already running on the port
         if self._ping():
             logger.info("[llama_backend] llama-server already running on :%d", port)
+            # Server adoptado sin verificar flags: loguear su config real via
+            # /props y avisar si el contexto no coincide con el esperado.
+            self._check_adopted_server()
             return
 
         env_server = os.environ.get("LLAMA_SERVER_PATH", "").strip()
@@ -286,6 +308,34 @@ class _LlamaServerBackend:
             return True
         except Exception:
             return False
+
+    def props(self) -> Optional[dict]:
+        """GET /props del server (JSON crudo), o None si falla."""
+        try:
+            with self._urlreq.urlopen(f"{self._base}/props", timeout=5) as resp:
+                return self._json.loads(resp.read())
+        except Exception as exc:
+            logger.debug("[llama_backend] GET /props failed: %s", exc)
+            return None
+
+    def _check_adopted_server(self) -> None:
+        """Loguea la config real de un server preexistente; warn si n_ctx difiere.
+
+        No falla duro: un server ajeno con otro contexto sigue siendo usable,
+        pero el mismatch explica diferencias de calidad/velocidad en benchmarks.
+        """
+        data = self.props()
+        if not data:
+            logger.warning("[llama_backend] adopted server: /props unavailable, "
+                           "cannot verify n_ctx/model")
+            return
+        summary = _server_props_summary(data)
+        logger.info("[llama_backend] adopted server: n_ctx=%s model=%s",
+                    summary["n_ctx"], summary["model_path"])
+        if summary["n_ctx"] is not None and summary["n_ctx"] != _CTX_SIZE:
+            logger.warning("[llama_backend] adopted server n_ctx=%s != expected "
+                           "_CTX_SIZE=%d — results may differ from a self-started "
+                           "server", summary["n_ctx"], _CTX_SIZE)
 
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
@@ -482,6 +532,11 @@ class LlamaBackend:
     def last_stop_reason(self) -> Optional[str]:
         """Why the last generation stopped: 'eos'|'limit'|'word'|None (see _stop_reason)."""
         return getattr(self._impl, "last_stop_reason", None)
+
+    def server_props(self) -> Optional[dict]:
+        """JSON crudo de GET /props del impl server, o None (in-process no tiene)."""
+        fn = getattr(self._impl, "props", None)
+        return fn() if callable(fn) else None
 
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
