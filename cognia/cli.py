@@ -195,6 +195,62 @@ def _persist_turn(ai, user_text: str, assistant_text: str) -> None:
     except Exception:
         pass
 
+
+def _build_memory_block_for(ai, query: str) -> str:
+    """
+    Bounded HYDRA memory block ([LOCAL]/[MEDIA]/[GLOBAL]) for the streaming
+    fast-path; "" when no real memory is relevant to the query.
+
+    The band router (cognia/context/band_router.py, the HYDRA analogue) is
+    built once per Cognia instance and cached on it, wired to the SAME memory
+    objects the REPL already mutates (perception / working_mem / episodic /
+    semantic), so retrieval sees what observe()/persist wrote this session
+    instead of a parallel set of instances over the same DB.
+    """
+    router = getattr(ai, "_hydra_router", None)
+    if router is None:
+        from cognia.context.band_router import HydraContextRouter
+        router = HydraContextRouter(
+            db_path=getattr(ai, "db", None),
+            perception=getattr(ai, "perception", None),
+            working=getattr(ai, "working_mem", None),
+            episodic=getattr(ai, "episodic", None),
+            semantic=getattr(ai, "semantic", None),
+        )
+        try:
+            ai._hydra_router = router
+        except Exception:
+            pass
+    return router.build_memory_block(query)
+
+
+def _build_stream_messages(ai, raw: str, system: str, hist_ctx: list) -> list:
+    """
+    Messages para el fast-path de streaming, con memoria real inyectada.
+
+    POSICION (critica para el KV-cache): el bloque de memoria cambia por turno;
+    si fuera ANTES de la historia invalidaria el prefijo KV cacheado del server
+    (cache_prompt + --cache-reuse) y forzaria re-prefill de TODA la historia en
+    cada turno (una historia de 4k tokens a ~29 tok/s de prefill = >2 min extra
+    por turno). Por eso va DENTRO del ULTIMO mensaje user: la historia previa
+    queda byte-identica y el server reusa su prefijo. Sin memoria relevante el
+    mensaje queda exactamente como antes (cero overhead).
+    """
+    user_content = raw
+    try:
+        mem_block = _build_memory_block_for(ai, raw)
+        if mem_block:
+            user_content = (
+                "Contexto de memoria (puede ser relevante o no):\n"
+                + mem_block + "\n\nPregunta: " + raw
+            )
+    except Exception:
+        user_content = raw
+    messages = [{"role": "system", "content": system}]
+    messages.extend(hist_ctx)
+    messages.append({"role": "user", "content": user_content})
+    return messages
+
 # ---------------------------------------------------------------------------
 # Optional FeedbackLearner
 # ---------------------------------------------------------------------------
@@ -5920,17 +5976,21 @@ def repl():
                             # backend): visible y auditable en model_constants.
                             from shattering.model_constants import GEN_CHAT_TEMPERATURE
                             _use_chat = hasattr(_llama, "stream_chat")
+                            # Memoria real en el fast-path: el bloque HYDRA del
+                            # band router va DENTRO del ultimo mensaje user
+                            # (ver _build_stream_messages: posicion obligada
+                            # para no invalidar el prefijo KV cacheado).
+                            _messages = _build_stream_messages(
+                                ai, raw, _system, _hist_ctx)
                             if _use_chat:
-                                _messages = [{"role": "system", "content": _system}]
-                                _messages.extend(_hist_ctx)
-                                _messages.append({"role": "user", "content": raw})
                                 _stream_src = lambda: _llama.stream_chat(
                                     _messages, max_tokens=1024,
                                     temperature=GEN_CHAT_TEMPERATURE)
                             else:
                                 from node.inference_pipeline import _apply_qwen_template
                                 _formatted = _apply_qwen_template(
-                                    raw, _system, history=_hist_ctx or None)
+                                    _messages[-1]["content"], _system,
+                                    history=_hist_ctx or None)
                                 _stream_src = lambda: _llama.stream_generate(
                                     _formatted, max_tokens=1024,
                                     temperature=GEN_CHAT_TEMPERATURE)
