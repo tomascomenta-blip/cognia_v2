@@ -72,6 +72,39 @@ _SERVER_BINARIES = [
 ]
 
 
+# ── Stop-reason mapping ───────────────────────────────────────────────────────
+
+def _stop_reason(data: dict) -> Optional[str]:
+    """Map a /completion response (or final SSE chunk) to 'eos'|'limit'|'word'|None.
+
+    Verified empirically against the pinned b9391 binary (2026-06-10):
+    /completion reports stop_type as a string ('eos'|'limit'|'word'|'none')
+    plus stopping_word; the LAST streaming SSE chunk carries the same fields.
+    /v1/chat/completions streaming instead puts finish_reason ('stop'|'length')
+    in choices[0] of the last chunk before [DONE]. Older builds used
+    stopped_eos/stopped_limit/stopped_word booleans — kept as fallback.
+    """
+    st = data.get("stop_type")
+    if st in ("eos", "limit", "word"):
+        return st
+    # Older llama-server builds: boolean flags instead of stop_type
+    if data.get("stopped_eos"):
+        return "eos"
+    if data.get("stopped_limit"):
+        return "limit"
+    if data.get("stopped_word"):
+        return "word"
+    # OpenAI-compatible /v1/chat/completions final chunk
+    choices = data.get("choices")
+    if isinstance(choices, list) and choices:
+        fr = choices[0].get("finish_reason")
+        if fr == "length":
+            return "limit"
+        if fr == "stop":
+            return "eos"
+    return None
+
+
 # ── GGUF path resolution ──────────────────────────────────────────────────────
 
 def _find_gguf() -> Optional[Path]:
@@ -157,6 +190,8 @@ class _LlamaServerBackend:
         self._urlreq  = urllib.request
         # Real token count from the last /completion response (None until first call)
         self.last_tokens_predicted: Optional[int] = None
+        # Why the last generation stopped: 'eos'|'limit'|'word'|None (see _stop_reason)
+        self.last_stop_reason: Optional[str] = None
 
         # Check if a server is already running on the port
         if self._ping():
@@ -243,6 +278,7 @@ class _LlamaServerBackend:
                 data = self._json.loads(resp.read())
                 # Real token count reported by llama-server (replaces len//4 estimates)
                 self.last_tokens_predicted = data.get("tokens_predicted")
+                self.last_stop_reason = _stop_reason(data)
                 return data.get("content", "")
         except Exception as exc:
             logger.warning("[llama_backend] llama-server request failed: %s", exc)
@@ -264,6 +300,7 @@ class _LlamaServerBackend:
         # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
         # generation past ~660 tokens. 0.6 s/token covers the ~2 tok/s worst case.
         timeout_s = max(120, 30 + int(max_tokens * 0.6))
+        self.last_stop_reason = None
         try:
             req = self._urlreq.Request(
                 f"{self._base}/completion",
@@ -287,6 +324,10 @@ class _LlamaServerBackend:
                                 if tok:
                                     yield tok
                                 if data.get("stop"):
+                                    # Final SSE chunk carries the same fields as
+                                    # the non-streaming response (verified on b9391)
+                                    self.last_tokens_predicted = data.get("tokens_predicted")
+                                    self.last_stop_reason = _stop_reason(data)
                                     return
                             except Exception:
                                 pass
@@ -309,6 +350,7 @@ class _LlamaServerBackend:
         # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
         # generation past ~660 tokens. 0.6 s/token covers the ~2 tok/s worst case.
         timeout_s = max(120, 30 + int(max_tokens * 0.6))
+        self.last_stop_reason = None
         try:
             req = self._urlreq.Request(
                 f"{self._base}/v1/chat/completions",
@@ -331,10 +373,17 @@ class _LlamaServerBackend:
                                 return
                             try:
                                 data = self._json.loads(raw)
-                                tok = (data.get("choices") or [{}])[0] \
-                                          .get("delta", {}).get("content", "")
+                                choice = (data.get("choices") or [{}])[0]
+                                tok = choice.get("delta", {}).get("content", "")
                                 if tok:
                                     yield tok
+                                # Last chunk before [DONE] carries finish_reason
+                                # and timings.predicted_n (verified on b9391)
+                                if choice.get("finish_reason"):
+                                    self.last_stop_reason = _stop_reason(data)
+                                    predicted = data.get("timings", {}).get("predicted_n")
+                                    if predicted is not None:
+                                        self.last_tokens_predicted = predicted
                             except Exception:
                                 pass
         except Exception as exc:
@@ -380,6 +429,11 @@ class LlamaBackend:
     def last_tokens_predicted(self) -> Optional[int]:
         """Real token count from the last generate() call, or None if unknown."""
         return getattr(self._impl, "last_tokens_predicted", None)
+
+    @property
+    def last_stop_reason(self) -> Optional[str]:
+        """Why the last generation stopped: 'eos'|'limit'|'word'|None (see _stop_reason)."""
+        return getattr(self._impl, "last_stop_reason", None)
 
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7) -> Optional[str]:

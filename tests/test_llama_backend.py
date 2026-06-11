@@ -266,6 +266,80 @@ class TestStop:
 
 
 # ---------------------------------------------------------------------------
+# _stop_reason()
+# ---------------------------------------------------------------------------
+
+class TestStopReason:
+    """Dicts mirror REAL b9391 /completion responses captured on 2026-06-10."""
+
+    def test_limit(self):
+        """n_predict cap reached -> 'limit' (real b9391 response shape)."""
+        from node.llama_backend import _stop_reason
+        data = {"content": "The ocean", "stop": True, "stop_type": "limit",
+                "stopping_word": "", "tokens_predicted": 8, "truncated": False}
+        assert _stop_reason(data) == "limit"
+
+    def test_eos(self):
+        """Natural end (eos token) -> 'eos'."""
+        from node.llama_backend import _stop_reason
+        data = {"content": "Hi! How can I assist you today?", "stop": True,
+                "stop_type": "eos", "stopping_word": "", "tokens_predicted": 10}
+        assert _stop_reason(data) == "eos"
+
+    def test_word(self):
+        """Stop string hit -> 'word'."""
+        from node.llama_backend import _stop_reason
+        data = {"content": "done", "stop": True, "stop_type": "word",
+                "stopping_word": "<|im_end|>", "tokens_predicted": 5}
+        assert _stop_reason(data) == "word"
+
+    def test_none_when_no_fields(self):
+        """Empty/unknown dict -> None (e.g. mid-stream chunk)."""
+        from node.llama_backend import _stop_reason
+        assert _stop_reason({}) is None
+        assert _stop_reason({"content": "tok", "stop": False}) is None
+        assert _stop_reason({"stop_type": "none"}) is None
+
+    def test_legacy_boolean_flags(self):
+        """Older llama-server builds report stopped_* booleans."""
+        from node.llama_backend import _stop_reason
+        assert _stop_reason({"stopped_eos": True}) == "eos"
+        assert _stop_reason({"stopped_limit": True}) == "limit"
+        assert _stop_reason({"stopped_word": True}) == "word"
+
+    def test_openai_chat_finish_reason(self):
+        """/v1/chat/completions final chunk: finish_reason length/stop (real b9391 shape)."""
+        from node.llama_backend import _stop_reason
+        length_chunk = {"choices": [{"finish_reason": "length", "index": 0, "delta": {}}],
+                        "object": "chat.completion.chunk",
+                        "timings": {"predicted_n": 8}}
+        stop_chunk = {"choices": [{"finish_reason": "stop", "index": 0, "delta": {}}],
+                      "object": "chat.completion.chunk"}
+        mid_chunk = {"choices": [{"finish_reason": None, "index": 0,
+                                  "delta": {"content": "tok"}}]}
+        assert _stop_reason(length_chunk) == "limit"
+        assert _stop_reason(stop_chunk) == "eos"
+        assert _stop_reason(mid_chunk) is None
+
+
+# ---------------------------------------------------------------------------
+# last_stop_reason facade property
+# ---------------------------------------------------------------------------
+
+class TestLastStopReason:
+    def test_facade_exposes_impl_attribute(self):
+        mock_impl = MagicMock()
+        mock_impl.last_stop_reason = "limit"
+        backend = _make_backend(mock_impl)
+        assert backend.last_stop_reason == "limit"
+
+    def test_facade_returns_none_when_impl_lacks_attribute(self):
+        mock_impl = MagicMock(spec=["generate"])
+        backend = _make_backend(mock_impl)
+        assert backend.last_stop_reason is None
+
+
+# ---------------------------------------------------------------------------
 # _find_gguf()
 # ---------------------------------------------------------------------------
 
