@@ -87,6 +87,13 @@ DYN_QUANT_THRESH_FP16:  int   = 15   # moderate  → FP16 cache  (2 bytes/param)
 DYN_QUANT_THRESH_FP32:  int   = 30   # high-freq → FP32 cache  (4 bytes/param, fastest matmul)
 DYN_QUANT_IDLE_DECAY_S: float = 300.0  # 5 min idle → auto-reset counter + drop cache
 
+# Generation limits (FASE 1: respuestas largas). Single source of truth so the
+# orchestrator, desktop API and continuation loop agree on token budgets.
+GEN_DEFAULT_MAX_TOKENS: int = 768   # orchestrator default (short answers, low latency)
+GEN_CHAT_MAX_TOKENS:    int = 1024  # interactive chat (desktop API)
+GEN_LONG_MAX_TOKENS:    int = 5000  # long-form generation target (FASE 1 goal)
+GEN_CONTINUATION_CHUNK: int = 2048  # per-round chunk in the continuation loop
+
 # Router: semantic embedding routing (Phase 20.1)
 ROUTER_SEMANTIC_THRESHOLD: float = 0.6   # cosine sim below this -> fall back to keyword
 ROUTER_SEMANTIC_BLEND:     float = 0.30  # weight for semantic vs keyword (0=keyword, 1=semantic)
