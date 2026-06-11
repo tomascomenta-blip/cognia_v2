@@ -2174,3 +2174,18 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - A/B pendiente (manager): set duro completo con repair edit 1 ronda vs baseline 8/20 y vs regen
   (0 recovered):
   venv312\Scripts\python.exe -m cognia_v3.eval.benchmark_code --tasks-file cognia_v3\eval\tasks_hard.jsonl --max-tokens 768 --seed 42 --label hard_det_repair_edit --repair 1 --repair-mode edit
+
+## [2026-06-11 18:00] CYCLE 5 cierre — repair-edit A/B: 0 recovered. Conclusion estrategica FASE 3.
+- A/B repair por edicion (seed 42, cache off, 1 ronda): pass@1 8/20 -> 8/20, recovered=0.
+  Costo repair: 437 tokens / 421s. JSON: results_code_hard_det_repair_edit_20260611_1756.json
+- Patron de fallo: mayoria search_not_found (el 3B no copia exactamente lineas de su propio codigo
+  en el bloque SEARCH); donde el edit aplico (DBG1, SPEC3) cambio el error pero no arreglo la logica.
+- A/B grammar (previo, 17:29): 8/20 identico task-por-task. GBNF descartada como palanca de pass@1
+  (los fallos son de logica, no de formato); queda como infraestructura de outputs estructurados.
+- CONCLUSION (4 experimentos: regen t0, regen t0.5, edit smoke, edit full): el techo de pass@1 del
+  3B es su capacidad single-shot. Ningun esquema de repair lo supera. FASE 3 se redirige a:
+  (a) QLoRA dirigido con dataset sintetico de codigo generado en Kaggle GPU (no existe dataset aun),
+  (b) 7B Q4 via LLAMA_GGUF_PATH para tareas batch (decode ~3-4 tok/s estimado),
+  (c) few-shot / prompt engineering del benchmark (no medido aun, barato).
+- Infraestructura que SI quedo de estos ciclos (toda pusheada): benchmark determinista al byte,
+  grammar GBNF, repair-mode edit con parser+gate AST, generacion larga 6000 tokens, HYDRA vivo.

@@ -3,6 +3,20 @@
 > Generado por la sesión de manager autónomo. Cada afirmación de línea base está medida
 > (file:line o JSON de resultados), no estimada. Las predicciones declaran su supuesto.
 
+## 0. Resultados de ESTA sesión (medidos, actualizado 17:45)
+
+| Qué | Resultado | Evidencia |
+|---|---|---|
+| FASE 1 generación larga | **HECHA**: gate E2E PASS 6000 tokens reales, 3 rondas de continuación automática | gate exit 0; commits b3f3c8d..5ea0506 |
+| Comando /largo en REPL | Desplegado (hasta 5000 tokens con progreso) | commit 5a8e1b2 |
+| Desktop API | cap 64 → 1024 tokens | commit a36586d |
+| No-determinismo | **CAUSA RAÍZ CERRADA**: KV-cache cambia logits; cache off + seed = 3/3 idéntico | experimento MANAGER_LOG 16:50 |
+| Baseline determinista | pass@1 = 8/20 = 40.0% reproducible al byte | results_code_hard_det_20260611_1701 |
+| Grammar GBNF (ROI 4) | **MEDIDA Y SIN GANANCIA**: 8/20 idéntico task-por-task — los fallos son de lógica, no de formato | results_code_hard_det_grammar_20260611_1729 |
+| HYDRA → prompt (ROI 5) | **VIVA**: band_router inyecta memoria en el fast-path; smoke recall real PASS ("Rust" desde DB, no historia) | commits 0f9dc30, 22a78e2 |
+| Repair por edición (ROI 3) | **MEDIDO: 0 recovered** (8/20 sin cambio; mayoría search_not_found — el 3B no copia exactamente sus propias líneas). Con 4 experimentos, CONCLUSIÓN: el techo es la capacidad single-shot del 3B; ningún repair lo supera. FASE 3 → QLoRA dirigido + 7B batch + few-shot | results_code_hard_det_repair_edit_20260611_1756 |
+| Robustez inesperada | La generación sobrevive al sleep de la laptop (10 h dormida a mitad de ronda, completó al despertar) | run E2E #1 |
+
 ---
 
 ## 1. Línea base medida (hechos, no suposiciones)
@@ -37,8 +51,9 @@ solo `temperature`+`stop` se envían al server (sin top_p/top_k/seed/grammar); n
 3. **Repair por edición puntual (LLM → dev_tools)** — la regeneración completa ya falló (0 recovered);
    el loop search→edit→test está operativo y verificado. Falta solo el wiring LLM→old_string/new_string
    desde el traceback. Palanca directa sobre los 12 FAIL del set duro.
-4. **Grammar GBNF "solo bloque Python"** — b9391 lo soporta nativo, costo 0 de modelo; ataca los FAIL
-   de formato/sintaxis (SPEC 1/4). Esfuerzo: horas, medible de inmediato contra el set duro.
+4. **Grammar GBNF "solo bloque Python"** — [MEDIDA 17:29: SIN GANANCIA en este set — 8/20 idéntico;
+   los fallos son de lógica/semántica, no de formato. Queda como infraestructura útil para outputs
+   estructurados (SEARCH/REPLACE, JSON), no como palanca de pass@1.]
 5. **Memoria al fast-path** — hoy el camino dominante lleva 0 tokens de memoria; inyectar el bloque de
    conversation_memory (≤210 tokens) o HYDRA assembled_context (~10 líneas de integración) da recall
    entre sesiones por ~2% del ctx.
@@ -139,7 +154,7 @@ solo `temperature`+`stop` se envían al server (sin top_p/top_k/seed/grammar); n
 | Tokens/respuesta máx | 4996 (medido hoy) | 20000 | ctx 24k + continuación encadenada; ~45 min wall |
 | Tokens/respuesta producto | 1024 | 5000 por defecto en tareas largas | generate_long en CLI/API |
 | Decode tok/s | 8.09 (batería) | 8.9-10 | cargador (+10-25% DDR4 dual channel), mlock, ubatch |
-| pass@1 set duro | 40% | 55-65% | GBNF (+5-10pp en SPEC/syntax) + repair edición (+10pp en DBG/ALG) — bandas independientes |
+| pass@1 set duro | 40% | 50-60% (revisado) | GBNF medido = 0pp (descartado); palancas restantes: repair edición (A/B en curso; smoke débil), QLoRA dirigido, 7B batch |
 | pass@1 con QLoRA dirigido | — | +5-10pp adicionales | dataset sintético de calidad apuntado a LONG |
 | Memoria en prompt | 0 tokens | ~210-800 tokens útiles | conversation_memory + HYDRA wiring |
 | Varianza benchmark | ±5pp (ruido) | ~0 (seed fijo) | ROI 2 |
@@ -154,9 +169,12 @@ y sin violar ninguna restricción del repo (sin PyTorch en nodos, sin WAN shardi
 
 - ¿Y si el no-determinismo NO es cache_prompt? → el A/B lo decide en horas; si persiste, fijar
   binario+seed+slot y aceptar varianza documentada.
-- ¿Y si GBNF empeora el contenido al forzar formato? → medir con el mismo seed; revertir si pass@1 baja.
-- ¿Y si el repair por edición tampoco recupera? → el dato existente (0 recovered en regeneración) no
-  predice edición; pero si falla, la palanca pasa a QLoRA dirigido y al 7B batch.
+- ¿Y si GBNF empeora el contenido al forzar formato? → MEDIDO 17:29: ni mejora ni empeora (8/20
+  idéntico); la hipótesis "fallos de formato" no sobrevivió a la medición — eran fallos de lógica.
+- ¿Y si el repair por edición tampoco recupera? → MEDIDO 17:56: 0 recovered (search_not_found
+  dominante). La palanca pasa, con datos, a QLoRA dirigido + 7B batch + few-shot. Idea no probada
+  que queda anotada: dar al modelo el código NUMERADO por líneas y pedir "línea N → nuevo texto"
+  (elimina la necesidad de copiar exacto, que es donde falla).
 - ¿Y si 20k tokens nunca caben (prompt+gen > ctx)? → la generación jerárquica (revolucionaria 1) no
   depende del ctx: compone ventanas frescas; es el plan B estructural.
 - ¿Sesgo de optimismo en +15-25pp de pass@1? → las bandas son independientes (SPEC formato vs DBG
