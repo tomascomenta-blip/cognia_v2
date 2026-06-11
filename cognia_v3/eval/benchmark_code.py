@@ -33,6 +33,15 @@ SYSTEM_PROMPT = ("You are an expert Python programmer. Reply with ONLY a Python 
 
 DEFAULT_MAX_TOKENS = 768
 EXEC_TIMEOUT_S = 10
+
+# Gramatica GBNF (llama-server /completion, campo "grammar"): fuerza el output
+# a ser EXACTAMENTE un bloque markdown ```python ... ``` (newline final
+# opcional), sin prosa antes ni despues. body admite cualquier caracter pero
+# nunca tres backticks seguidos: un ``` dentro de un string del codigo
+# generado corta el bloque — mismo comportamiento que extract_code, aceptable.
+GRAMMAR_PYTHON_BLOCK = r'''root ::= "```python\n" body "```" "\n"?
+body ::= ( [^`] | "`" [^`] | "``" [^`] )*
+'''
 # Temperatura de la generacion base: greedy para que pass@1 sea reproducible.
 # Es la MISMA constante que se persiste en el JSON (antes habia un hardcode
 # duplicado en el output que podia desalinearse del valor real usado).
@@ -342,7 +351,7 @@ def build_repair_prompt(task_prompt: str, code: str, err_type: str,
 def repair_failures(backend, tasks: list[dict], results: list[dict],
                     repair_rounds: int, max_tokens: int,
                     repair_temperature: float = 0.5,
-                    seed: int = None) -> dict:
+                    seed: int = None, grammar: str = None) -> dict:
     """
     Para cada task FAIL: regenerar con el error de ejecucion real, hasta
     repair_rounds rondas o PASS. Muta results (passed_final, repair_attempts)
@@ -378,7 +387,8 @@ def repair_failures(backend, tasks: list[dict], results: list[dict],
             # (experimento 2026-06-11) -- prefill completo para reproducibilidad
             response = backend.generate(prompt, max_tokens=max_tokens,
                                         temperature=repair_temperature,
-                                        seed=seed, cache_prompt=False) or ""
+                                        seed=seed, cache_prompt=False,
+                                        grammar=grammar) or ""
             gen_s = time.perf_counter() - t0
             tokens = backend.last_tokens_predicted
             total_tokens += tokens or 0
@@ -406,8 +416,11 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
                   max_tokens: int = DEFAULT_MAX_TOKENS,
                   repair_rounds: int = 0,
                   repair_temperature: float = 0.5,
-                  seed: int = None) -> dict:
+                  seed: int = None, use_grammar: bool = False) -> dict:
     """Corre todas las tasks contra el modelo real y guarda JSON con resultados."""
+    # use_grammar: restringe el sampling a un bloque ```python ...``` exacto
+    # (base y repair) — elimina prosa y fences rotos sin tocar el modelo.
+    grammar = GRAMMAR_PYTHON_BLOCK if use_grammar else None
     backend, gguf_name = make_backend()
     if backend is None:
         print("ERROR: no llama backend available (GGUF or llama-server missing)")
@@ -419,7 +432,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
     if callable(props_fn):
         server_props = props_fn()
     print(f"[benchmark_code] backend OK, model={gguf_name}, "
-          f"tasks={len(tasks)}, max_tokens={max_tokens}, seed={seed}", flush=True)
+          f"tasks={len(tasks)}, max_tokens={max_tokens}, seed={seed}, "
+          f"grammar={use_grammar}", flush=True)
 
     results = []
     for i, task in enumerate(tasks, 1):
@@ -431,7 +445,7 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         response = backend.generate(build_prompt(task["prompt"]),
                                     max_tokens=max_tokens,
                                     temperature=BASE_TEMPERATURE, seed=seed,
-                                    cache_prompt=False)
+                                    cache_prompt=False, grammar=grammar)
         gen_s = time.perf_counter() - t0
         response = response or ""
         tokens = backend.last_tokens_predicted  # None si el impl no lo reporta
@@ -457,7 +471,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
     if repair_rounds > 0:
         repair_stats = repair_failures(backend, tasks, results,
                                        repair_rounds, max_tokens,
-                                       repair_temperature, seed=seed)
+                                       repair_temperature, seed=seed,
+                                       grammar=grammar)
 
     # ── Metricas ──────────────────────────────────────────────────────────
     n = len(results)
@@ -486,6 +501,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         "seed": seed,
         # Toda generacion del benchmark (base y repair) corre sin KV-cache
         "cache_prompt": False,
+        # True si la generacion fue restringida con GRAMMAR_PYTHON_BLOCK
+        "grammar": use_grammar,
         "repair_temperature": repair_temperature if repair_rounds > 0 else None,
         "server_props": server_props,
         "n_tasks": n,
@@ -589,6 +606,10 @@ def main():
                         help="seed de sampling para llama-server (default 42 = "
                              "determinista junto a cache_prompt=False); se "
                              "persiste en el JSON")
+    parser.add_argument("--grammar", action="store_true",
+                        help="restringir el sampling con GRAMMAR_PYTHON_BLOCK "
+                             "(GBNF): el output es exactamente un bloque "
+                             "```python ...``` — sin prosa ni fences rotos")
     args = parser.parse_args()
 
     tasks = TASKS
@@ -604,7 +625,7 @@ def main():
 
     run_benchmark(tasks, label=args.label, max_tokens=args.max_tokens,
                   repair_rounds=args.repair, repair_temperature=args.repair_temp,
-                  seed=args.seed)
+                  seed=args.seed, use_grammar=args.grammar)
 
 
 if __name__ == "__main__":
