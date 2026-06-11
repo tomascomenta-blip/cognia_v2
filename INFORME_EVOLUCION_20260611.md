@@ -153,7 +153,7 @@ solo `temperature`+`stop` se envían al server (sin top_p/top_k/seed/grammar); n
 |---|---|---|---|
 | Tokens/respuesta máx | 4996 (medido hoy) | 20000 | ctx 24k + continuación encadenada; ~45 min wall |
 | Tokens/respuesta producto | 1024 | 5000 por defecto en tareas largas | generate_long en CLI/API |
-| Decode tok/s | 8.09 (batería) | 8.9-10 | cargador (+10-25% DDR4 dual channel), mlock, ubatch |
+| Decode tok/s | 8.09 (batería) | 8.3-9 (revisado) | cargador MEDIDO 18:20 ≈ 0 ganancia (7.4-7.6 wall ≈ mismo decode); quedan mlock, ubatch, KV q8_0 sin medir |
 | pass@1 set duro | 40% | 50-60% (revisado) | GBNF medido = 0pp (descartado); palancas restantes: repair edición (A/B en curso; smoke débil), QLoRA dirigido, 7B batch |
 | pass@1 con QLoRA dirigido | — | +5-10pp adicionales | dataset sintético de calidad apuntado a LONG |
 | Memoria en prompt | 0 tokens | ~210-800 tokens útiles | conversation_memory + HYDRA wiring |

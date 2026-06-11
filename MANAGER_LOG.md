@@ -2204,3 +2204,16 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   workspace temporal (COGNIA_AGENT_WORKSPACE) mostrando los rechazos. Dirigidos: test_agent_tools +
   test_agent_loop + test_agent_tools_tier1 = 51 passed; vecinos (tool_synthesis, intent, router,
   cli_session) = 82 passed. Total 133 passed, 0 failed. Commit e0564d3 (sin push).
+
+## [2026-06-11 18:25] CYCLE 6 cierre + probe velocidad AC — fin de sesion manager
+- CYCLE 6 (seguridad): escribir_archivo/apendar_archivo/copiar_archivo del loop ReAct confinadas
+  al workspace via helper compartido resolve_write_path() (dev_tools.py:117); patron .env -> *.env;
+  133 tests passed (51 dirigidos + 82 vecinos); verificacion en vivo con rechazos reales.
+  Commits e0564d3 + ec6fa35. Cerrado el riesgo "/hacer puede sobrescribir cualquier archivo".
+- Probe velocidad CON CARGADOR (server idle, seed 42, cache off): 256 tokens 7.56 / 7.44 tok/s wall.
+  La hipotesis "+10-25% enchufado" NO se materializo (baseline 8.09 a bateria era decode puro,
+  comparable). Prediccion del INFORME revisada a la baja. Quedan sin medir: mlock, ubatch, KV q8_0.
+- Sesion 2026-06-11: 21 commits pusheados. FASE 1 cerrada (6000 tok E2E), determinismo resuelto,
+  baseline 40% reproducible, GBNF y repair (regen+edit) medidos sin ganancia (conclusion: techo
+  single-shot del 3B -> QLoRA dirigido / 7B / few-shot), HYDRA vivo en produccion con recall real,
+  seguridad ReAct cerrada, INFORME_EVOLUCION_20260611.md como entregable de mision.
