@@ -48,6 +48,53 @@ body ::= ( [^`] | "`" [^`] | "``" [^`] )*
 # duplicado en el output que podia desalinearse del valor real usado).
 BASE_TEMPERATURE = 0.0
 
+# ── Few-shot (--fewshot N): ejemplos resueltos ANTES del enunciado real ──────
+# 2 pares (enunciado, solucion COMPLETA correcta) escritos a mano, estilo del
+# set pero SIN tasks del set embebido ni de tasks_hard.jsonl (cero leakage).
+# Modelan lo que falla en el 3B: leer el enunciado con cuidado, casos borde
+# explicitos y formato exacto de salida. Costo: ~300-500 tokens extra de
+# prefill por task (~15-20s a 29 tok/s) — aceptable como palanca de prompt.
+FEWSHOT_EXEMPLARS = [
+    # Funcion con docstring + casos borde + formato exacto de salida.
+    ('Write a Python function `truncate(s, width)` that returns s unchanged '
+     'when len(s) <= width; otherwise it returns the first width - 3 '
+     'characters of s followed by "...". When width <= 3 no text fits, so '
+     'return "." repeated width times. width is always a non-negative integer.',
+     'def truncate(s, width):\n'
+     '    """Truncate s to at most width characters, ending with \'...\'.\n'
+     '\n'
+     '    Edge cases: an already-short s is returned unchanged, and\n'
+     '    width <= 3 cannot fit any text, so the result is just dots.\n'
+     '    """\n'
+     '    if len(s) <= width:\n'
+     '        return s\n'
+     '    if width <= 3:\n'
+     '        return "." * width\n'
+     '    return s[:width - 3] + "..."'),
+    # Clase chica con 2 metodos + caso borde (overdraft no muta estado).
+    ('Write a Python class `BankAccount` whose balance starts at 0, with two '
+     'methods: `deposit(amount)` adds amount and returns the new balance; '
+     '`withdraw(amount)` subtracts amount and returns the new balance, but '
+     'if amount is greater than the current balance it must leave the '
+     'balance unchanged and return None. Amounts are positive integers.',
+     'class BankAccount:\n'
+     '    """Bank account holding a non-negative integer balance."""\n'
+     '\n'
+     '    def __init__(self):\n'
+     '        self.balance = 0\n'
+     '\n'
+     '    def deposit(self, amount):\n'
+     '        self.balance += amount\n'
+     '        return self.balance\n'
+     '\n'
+     '    def withdraw(self, amount):\n'
+     '        # Overdraft rejected: balance unchanged, signal with None.\n'
+     '        if amount > self.balance:\n'
+     '            return None\n'
+     '        self.balance -= amount\n'
+     '        return self.balance'),
+]
+
 # ── Tasks embebidas (estilo MBPP, escritas a mano, solo stdlib, sin I/O) ──────
 # Cada task: id, difficulty, prompt, entry_point, tests (3-5 asserts).
 # 10 faciles / 10 medias / 5 dificiles. Incluye 2 bug-fix (M10, H05).
@@ -379,9 +426,24 @@ def make_backend():
     return backend, (gguf.name if gguf else "unknown")
 
 
-def build_prompt(task_prompt: str, system: str = SYSTEM_PROMPT) -> str:
+def build_fewshot_prefix(n: int) -> str:
+    """Prefijo con n ejemplos resueltos de FEWSHOT_EXEMPLARS. "" si n <= 0."""
+    if n <= 0:
+        return ""
+    parts = ["Ejemplos resueltos:\n\n"]
+    for problem, solution in FEWSHOT_EXEMPLARS[:n]:
+        parts.append("[Problema]\n" + problem + "\n[Solucion]\n```python\n"
+                     + solution + "\n```\n\n")
+    parts.append("Ahora resuelve:\n\n")
+    return "".join(parts)
+
+
+def build_prompt(task_prompt: str, system: str = SYSTEM_PROMPT,
+                 fewshot: int = 0) -> str:
     from node.inference_pipeline import _apply_qwen_template
-    return _apply_qwen_template(task_prompt, system=system)
+    # fewshot=0 => prefijo vacio: prompt byte-identico al comportamiento previo.
+    return _apply_qwen_template(build_fewshot_prefix(fewshot) + task_prompt,
+                                system=system)
 
 
 def build_repair_prompt(task_prompt: str, code: str, err_type: str,
@@ -539,7 +601,7 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
                   repair_rounds: int = 0,
                   repair_temperature: float = 0.5,
                   seed: int = None, use_grammar: bool = False,
-                  repair_mode: str = "regen") -> dict:
+                  repair_mode: str = "regen", fewshot: int = 0) -> dict:
     """Corre todas las tasks contra el modelo real y guarda JSON con resultados."""
     # use_grammar: restringe el sampling a un bloque ```python ...``` exacto
     # (base y repair) — elimina prosa y fences rotos sin tocar el modelo.
@@ -556,7 +618,7 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         server_props = props_fn()
     print(f"[benchmark_code] backend OK, model={gguf_name}, "
           f"tasks={len(tasks)}, max_tokens={max_tokens}, seed={seed}, "
-          f"grammar={use_grammar}", flush=True)
+          f"grammar={use_grammar}, fewshot={fewshot}", flush=True)
 
     results = []
     for i, task in enumerate(tasks, 1):
@@ -565,7 +627,7 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         t0 = time.perf_counter()
         # cache_prompt=False: el KV-cache reusado cambia los logits
         # (experimento 2026-06-11) -- prefill completo para reproducibilidad
-        response = backend.generate(build_prompt(task["prompt"]),
+        response = backend.generate(build_prompt(task["prompt"], fewshot=fewshot),
                                     max_tokens=max_tokens,
                                     temperature=BASE_TEMPERATURE, seed=seed,
                                     cache_prompt=False, grammar=grammar)
@@ -627,6 +689,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         "cache_prompt": False,
         # True si la generacion fue restringida con GRAMMAR_PYTHON_BLOCK
         "grammar": use_grammar,
+        # N ejemplos resueltos antepuestos al enunciado (0 = single-shot)
+        "fewshot": fewshot,
         "repair_temperature": repair_temperature if repair_rounds > 0 else None,
         # "regen" | "edit" (solo significativo si repair_rounds > 0)
         "repair_mode": repair_mode if repair_rounds > 0 else None,
@@ -740,6 +804,11 @@ def main():
                         help="restringir el sampling con GRAMMAR_PYTHON_BLOCK "
                              "(GBNF): el output es exactamente un bloque "
                              "```python ...``` — sin prosa ni fences rotos")
+    parser.add_argument("--fewshot", type=int, default=0,
+                        choices=range(len(FEWSHOT_EXEMPLARS) + 1),
+                        help="anteponer N ejemplos resueltos (FEWSHOT_EXEMPLARS) "
+                             "al enunciado de cada task (default 0 = single-shot, "
+                             "prompt identico al previo)")
     args = parser.parse_args()
 
     tasks = TASKS
@@ -756,7 +825,7 @@ def main():
     run_benchmark(tasks, label=args.label, max_tokens=args.max_tokens,
                   repair_rounds=args.repair, repair_temperature=args.repair_temp,
                   seed=args.seed, use_grammar=args.grammar,
-                  repair_mode=args.repair_mode)
+                  repair_mode=args.repair_mode, fewshot=args.fewshot)
 
 
 if __name__ == "__main__":

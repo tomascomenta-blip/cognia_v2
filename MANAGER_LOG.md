@@ -2217,3 +2217,19 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   baseline 40% reproducible, GBNF y repair (regen+edit) medidos sin ganancia (conclusion: techo
   single-shot del 3B -> QLoRA dirigido / 7B / few-shot), HYDRA vivo en produccion con recall real,
   seguridad ReAct cerrada, INFORME_EVOLUCION_20260611.md como entregable de mision.
+
+## [2026-06-11 19:05] CYCLE 7 — flag --fewshot N en benchmark_code (ultima palanca de prompt sin medir)
+- Que: benchmark_code.py gana `--fewshot N` (default 0 = prompt byte-identico al previo, N<=2).
+  Con N>0 el user prompt antepone "Ejemplos resueltos:" + N pares [Problema]/[Solucion] de la
+  constante FEWSHOT_EXEMPLARS + "Ahora resuelve:" + enunciado real. System prompt intacto.
+- FEWSHOT_EXEMPLARS: 2 ejemplos escritos a mano, CERO leakage (ni del set embebido ni de
+  tasks_hard.jsonl): truncate(s, width) (docstring + casos borde + formato exacto) y clase
+  BankAccount (2 metodos, overdraft no muta estado). Modelan lo que falla en el 3B: leer el
+  enunciado con cuidado, casos borde, formato de salida. Costo ~300-500 tokens prefill/task.
+- JSON de salida persiste "fewshot": N. Banner de arranque lo imprime.
+- Verificacion: 3 tests nuevos en tests/test_benchmark_code.py (N=0 byte-identico contra
+  _apply_qwen_template reconstruido a mano; N=2 contiene ambos ejemplos y el enunciado real al
+  final; ast.parse de cada solucion) -> 19 passed, 0 failed (16 previos + 3 nuevos). Ademas
+  ejecucion REAL de ambos exemplars contra asserts a mano (EXEMPLARS OK) y print del prompt N=2.
+- A/B pendiente (lo lanza el manager): set duro con --fewshot 2, seed 42, label hard_det_fewshot2.
+  Baseline a batir: 8/20 (results_code_hard_det_20260611_1701.json).

@@ -132,3 +132,45 @@ class TestApplyEdits:
         edits = parse_search_replace(response)
         out = apply_edits(self.CODE, edits)
         assert out == self.CODE.replace("total += i", "total += abs(i)")
+
+
+# ---------------------------------------------------------------------------
+# FEWSHOT_EXEMPLARS / build_prompt(fewshot=N) — flag --fewshot
+# ---------------------------------------------------------------------------
+
+class TestFewshot:
+    TASK_PROMPT = "Write a Python function `dummy(x)` that returns x."
+
+    def test_fewshot_zero_prompt_byte_identical(self):
+        """Con N=0 el prompt es BYTE-identico al comportamiento previo."""
+        from cognia_v3.eval.benchmark_code import build_fewshot_prefix, build_prompt
+        assert build_fewshot_prefix(0) == ""
+        assert build_prompt(self.TASK_PROMPT, fewshot=0) == build_prompt(self.TASK_PROMPT)
+        # Reconstruccion del template previo (sin few-shot) a mano:
+        from node.inference_pipeline import _apply_qwen_template
+        from cognia_v3.eval.benchmark_code import SYSTEM_PROMPT
+        expected = _apply_qwen_template(self.TASK_PROMPT, system=SYSTEM_PROMPT)
+        assert build_prompt(self.TASK_PROMPT, fewshot=0) == expected
+
+    def test_fewshot_two_contains_exemplars_and_real_task_last(self):
+        """Con N=2 el prompt trae ambos ejemplos y el enunciado real al final."""
+        from cognia_v3.eval.benchmark_code import FEWSHOT_EXEMPLARS, build_prompt
+        prompt = build_prompt(self.TASK_PROMPT, fewshot=2)
+        assert "Ejemplos resueltos:" in prompt
+        assert prompt.count("[Problema]") == 2
+        assert prompt.count("[Solucion]") == 2
+        for problem, solution in FEWSHOT_EXEMPLARS:
+            assert problem in prompt
+            assert solution in prompt
+        # El enunciado real va DESPUES de todos los ejemplos
+        real_pos = prompt.index("Ahora resuelve:\n\n" + self.TASK_PROMPT)
+        for problem, _ in FEWSHOT_EXEMPLARS:
+            assert prompt.index(problem) < real_pos
+
+    def test_exemplar_solutions_compile(self):
+        """Cada solucion de FEWSHOT_EXEMPLARS es codigo Python valido."""
+        import ast
+        from cognia_v3.eval.benchmark_code import FEWSHOT_EXEMPLARS
+        assert len(FEWSHOT_EXEMPLARS) == 2
+        for _, solution in FEWSHOT_EXEMPLARS:
+            ast.parse(solution)
