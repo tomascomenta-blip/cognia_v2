@@ -374,9 +374,11 @@ def repair_failures(backend, tasks: list[dict], results: list[dict],
             prompt = build_repair_prompt(task["prompt"], prev_code,
                                          prev_err_type, prev_err_detail)
             t0 = time.perf_counter()
+            # cache_prompt=False: el KV-cache reusado cambia los logits
+            # (experimento 2026-06-11) -- prefill completo para reproducibilidad
             response = backend.generate(prompt, max_tokens=max_tokens,
                                         temperature=repair_temperature,
-                                        seed=seed) or ""
+                                        seed=seed, cache_prompt=False) or ""
             gen_s = time.perf_counter() - t0
             tokens = backend.last_tokens_predicted
             total_tokens += tokens or 0
@@ -424,9 +426,12 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         print(f"[{i}/{len(tasks)}] {task['id']} ({task['difficulty']}) "
               f"generating...", flush=True)
         t0 = time.perf_counter()
+        # cache_prompt=False: el KV-cache reusado cambia los logits
+        # (experimento 2026-06-11) -- prefill completo para reproducibilidad
         response = backend.generate(build_prompt(task["prompt"]),
                                     max_tokens=max_tokens,
-                                    temperature=BASE_TEMPERATURE, seed=seed)
+                                    temperature=BASE_TEMPERATURE, seed=seed,
+                                    cache_prompt=False)
         gen_s = time.perf_counter() - t0
         response = response or ""
         tokens = backend.last_tokens_predicted  # None si el impl no lo reporta
@@ -479,6 +484,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         "max_tokens": max_tokens,
         "temperature": BASE_TEMPERATURE,
         "seed": seed,
+        # Toda generacion del benchmark (base y repair) corre sin KV-cache
+        "cache_prompt": False,
         "repair_temperature": repair_temperature if repair_rounds > 0 else None,
         "server_props": server_props,
         "n_tasks": n,
@@ -578,9 +585,10 @@ def main():
     parser.add_argument("--repair-temp", type=float, default=0.5,
                         help="temperatura para las rondas de reparacion (default 0.5; "
                              "temp=0 reproduce codigo identico, temp>0 permite divergir)")
-    parser.add_argument("--seed", type=int, default=None,
-                        help="seed de sampling para llama-server (default None = "
-                             "seed aleatoria del server); se persiste en el JSON")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="seed de sampling para llama-server (default 42 = "
+                             "determinista junto a cache_prompt=False); se "
+                             "persiste en el JSON")
     args = parser.parse_args()
 
     tasks = TASKS
