@@ -2233,3 +2233,15 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   ejecucion REAL de ambos exemplars contra asserts a mano (EXEMPLARS OK) y print del prompt N=2.
 - A/B pendiente (lo lanza el manager): set duro con --fewshot 2, seed 42, label hard_det_fewshot2.
   Baseline a batir: 8/20 (results_code_hard_det_20260611_1701.json).
+
+## [2026-06-11 18:45] CYCLE 7 cierre — few-shot 2-shot: 35% (EMPEORA). Programa de medicion FASE 3 completo.
+- A/B few-shot 2 exemplars (seed 42, cache off): pass@1 7/20 = 35% vs baseline 8/20 = 40%.
+  JSON: results_code_hard_det_fewshot2_20260611_1838.json
+- Evidencia de interferencia directa: SPEC2 fallo con NameError 'width' — la variable del exemplar
+  truncate(s, width) se filtro a la solucion. El patron de fallos cambio (ALG2/ALG5 caen, ALG4 sube):
+  los exemplars perturban, no guian.
+- PROGRAMA DE MEDICION COMPLETO (5 hipotesis de prompt/decode, todas medidas contra baseline
+  determinista): max_tokens 512->1024 (0pp), grammar GBNF (0pp), repair regen t0/t0.5 (0 recovered),
+  repair edit (0 recovered), few-shot 2-shot (-5pp). CONCLUSION FINAL: el techo de pass@1 del
+  Qwen2.5-Coder-3B es su capacidad single-shot; las palancas restantes son de MODELO:
+  QLoRA dirigido con dataset sintetico (Kaggle GPU), 7B Q4 batch, o edits por numero de linea (idea).
