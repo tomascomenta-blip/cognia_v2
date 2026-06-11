@@ -20,6 +20,7 @@ class QuestionType:
     LIST    = "list"     # "list", "give me examples", "name some", "what are"
     DEBUG   = "debug"    # "why is X failing", "error", "bug", "not working"
     YES_NO  = "yes_no"   # "is X", "does X", "can X", "do I need"
+    CODE    = "code"     # "implement", "write a function", "create a class", "hace una funcion"
     GENERAL = "general"  # fallback
 
 
@@ -67,6 +68,17 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             re.IGNORECASE,
         ),
     ),
+    (
+        QuestionType.CODE,
+        re.compile(
+            r'\b(implement|write\s+a\s+(function|class|script|program|method)|'
+            r'create\s+a\s+(function|class|script|module)|'
+            r'code\s+(a|an|the)\s+\w+|'
+            r'(hace?|haz)\s+una?\s+(funcion|clase|script|programa)|'
+            r'implementa\s+|escribe\s+(una?\s+)?(funcion|clase))\b',
+            re.IGNORECASE,
+        ),
+    ),
 ]
 
 _HINTS: dict[str, str] = {
@@ -76,6 +88,7 @@ _HINTS: dict[str, str] = {
     QuestionType.LIST:    "Respond with a concise bullet-point list. 3-7 items maximum.",
     QuestionType.EXPLAIN: "Start with a one-sentence definition, then elaborate with 2-3 key points.",
     QuestionType.YES_NO:  "Start with a direct yes or no, then briefly explain why.",
+    QuestionType.CODE:    "Provide a complete, working implementation. Use clear variable names and handle edge cases.",
     QuestionType.GENERAL: "",
 }
 
