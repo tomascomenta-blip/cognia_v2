@@ -439,6 +439,71 @@ class LlamaBackend:
                  temperature: float = 0.7) -> Optional[str]:
         return self._impl.generate(prompt, max_tokens, temperature)
 
+    def generate_long(self, prompt: str, max_total_tokens: int = None,
+                      chunk_tokens: int = None, temperature: float = 0.7,
+                      on_chunk=None) -> Optional[dict]:
+        """
+        Long-form generation via auto-continuation (FASE 1, target 5000 tokens).
+
+        Generates chunk_tokens per round; while the round stops at the n_predict
+        cap (last_stop_reason == 'limit') and the running total is below
+        max_total_tokens, re-launches with prompt + accumulated text. Because
+        every payload sends cache_prompt:true, llama-server re-uses the shared
+        prefix KV-cache and each continuation only prefills the new tail.
+        Stop strings are kept: an emitted <|im_end|> is a legitimate natural end.
+
+        on_chunk: optional callback on_chunk(round, chunk_tokens, total_tokens,
+        stop_reason) for progress reporting.
+
+        Returns {"text", "total_tokens", "stop_reason", "rounds"}; None only if
+        the FIRST round fails (same contract as generate()).
+        """
+        from shattering.model_constants import (
+            GEN_CONTINUATION_CHUNK, GEN_LONG_MAX_TOKENS,
+        )
+        if max_total_tokens is None:
+            max_total_tokens = GEN_LONG_MAX_TOKENS
+        if chunk_tokens is None:
+            chunk_tokens = GEN_CONTINUATION_CHUNK
+
+        text_parts: list = []
+        total_tokens = 0
+        rounds       = 0
+        stop_reason: Optional[str] = None
+
+        while total_tokens < max_total_tokens:
+            ask   = min(chunk_tokens, max_total_tokens - total_tokens)
+            chunk = self.generate("".join([prompt] + text_parts),
+                                  max_tokens=ask, temperature=temperature)
+            if chunk is None:
+                # Request failed; surface what we have (None if nothing yet)
+                if not text_parts:
+                    return None
+                stop_reason = "error"
+                break
+            rounds += 1
+            real = self.last_tokens_predicted
+            chunk_toks = real if real is not None else max(1, len(chunk) // 4)
+            total_tokens += chunk_toks
+            text_parts.append(chunk)
+            stop_reason = self.last_stop_reason
+            if on_chunk is not None:
+                try:
+                    on_chunk(rounds, chunk_toks, total_tokens, stop_reason)
+                except Exception:
+                    pass
+            if stop_reason != "limit":
+                break   # eos/word (natural end) or unknown -> do not continue
+            if not chunk:
+                break   # no progress despite 'limit' -> avoid an infinite loop
+
+        return {
+            "text":         "".join(text_parts),
+            "total_tokens": total_tokens,
+            "stop_reason":  stop_reason,
+            "rounds":       rounds,
+        }
+
     def stream_generate(self, prompt: str, max_tokens: int = 256,
                         temperature: float = 0.7):
         """Yield tokens; falls back to non-streaming generate() if impl has no stream_generate."""

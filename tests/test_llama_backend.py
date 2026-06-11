@@ -173,6 +173,102 @@ class TestGenerate:
 
 
 # ---------------------------------------------------------------------------
+# generate_long()
+# ---------------------------------------------------------------------------
+
+class _FakeLongImpl:
+    """Scripted impl: each round pops (text, tokens, stop_reason)."""
+
+    def __init__(self, rounds):
+        self._rounds = list(rounds)
+        self.last_tokens_predicted: Optional[int] = None
+        self.last_stop_reason: Optional[str] = None
+        self.prompts: list = []
+
+    def generate(self, prompt, max_tokens=256, temperature=0.7):
+        self.prompts.append((prompt, max_tokens))
+        if not self._rounds:
+            return None
+        text, toks, reason = self._rounds.pop(0)
+        self.last_tokens_predicted = toks
+        self.last_stop_reason = reason
+        return text
+
+
+class TestGenerateLong:
+    def test_continues_on_limit_until_eos(self):
+        """Rounds cut by 'limit' are continued with prompt + accumulated text."""
+        impl = _FakeLongImpl([
+            ("AAA ", 100, "limit"),
+            ("BBB ", 100, "limit"),
+            ("CCC.", 50,  "eos"),
+        ])
+        backend = _make_backend(impl)
+        result = backend.generate_long("P: ", max_total_tokens=1000, chunk_tokens=100)
+
+        assert result["text"] == "AAA BBB CCC."
+        assert result["total_tokens"] == 250
+        assert result["stop_reason"] == "eos"
+        assert result["rounds"] == 3
+        # Continuation prompt must carry the accumulated text (KV prefix reuse)
+        assert impl.prompts[1][0] == "P: AAA "
+        assert impl.prompts[2][0] == "P: AAA BBB "
+
+    def test_stops_at_max_total_tokens(self):
+        """Loop never exceeds max_total_tokens; last chunk asks the remainder."""
+        impl = _FakeLongImpl([
+            ("X" * 40, 100, "limit"),
+            ("Y" * 40, 100, "limit"),
+            ("Z" * 20, 50,  "limit"),
+        ])
+        backend = _make_backend(impl)
+        result = backend.generate_long("P", max_total_tokens=250, chunk_tokens=100)
+
+        assert result["total_tokens"] == 250
+        assert result["rounds"] == 3
+        assert result["stop_reason"] == "limit"
+        # Third round must only ask the 50 remaining tokens
+        assert impl.prompts[2][1] == 50
+
+    def test_natural_stop_first_round(self):
+        """eos on the first round -> single round, no continuation."""
+        impl = _FakeLongImpl([("Hola.", 12, "eos")])
+        backend = _make_backend(impl)
+        result = backend.generate_long("P", max_total_tokens=5000, chunk_tokens=2048)
+
+        assert result == {"text": "Hola.", "total_tokens": 12,
+                          "stop_reason": "eos", "rounds": 1}
+
+    def test_returns_none_when_first_round_fails(self):
+        """First generate() returning None -> None (same contract as generate)."""
+        impl = _FakeLongImpl([])   # no scripted rounds -> generate returns None
+        backend = _make_backend(impl)
+        assert backend.generate_long("P") is None
+
+    def test_partial_result_on_mid_loop_failure(self):
+        """Failure after a successful round -> partial text with stop_reason error."""
+        impl = _FakeLongImpl([("AAA", 100, "limit")])
+        backend = _make_backend(impl)
+        result = backend.generate_long("P", max_total_tokens=1000, chunk_tokens=100)
+
+        assert result["text"] == "AAA"
+        assert result["stop_reason"] == "error"
+        assert result["rounds"] == 1
+
+    def test_on_chunk_callback_invoked_per_round(self):
+        calls = []
+        impl = _FakeLongImpl([
+            ("A", 100, "limit"),
+            ("B", 60,  "eos"),
+        ])
+        backend = _make_backend(impl)
+        backend.generate_long("P", max_total_tokens=500, chunk_tokens=100,
+                              on_chunk=lambda r, ct, tt, sr: calls.append((r, ct, tt, sr)))
+
+        assert calls == [(1, 100, 100, "limit"), (2, 60, 160, "eos")]
+
+
+# ---------------------------------------------------------------------------
 # stream_generate()
 # ---------------------------------------------------------------------------
 
