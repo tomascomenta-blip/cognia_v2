@@ -45,7 +45,9 @@ logger = logging.getLogger(__name__)
 # ── Config ────────────────────────────────────────────────────────────────────
 
 _DEFAULT_PORT   = 8088
-_SERVER_TIMEOUT = 30      # seconds to wait for llama-server to start
+# 90s: la carga fria del GGUF de 1.9GB desde disco excede 30s (fallo el E2E del
+# 2026-06-11 al primer intento); con el archivo en cache de disco carga en segundos.
+_SERVER_TIMEOUT = 90      # seconds to wait for llama-server to start
 # 16384: GGUF n_ctx_train=32768; Qwen2.5-3B uses GQA (2 KV heads) so KV cache is
 # ~36KB/token => ~590MB at 16k on a 12GB machine. Enables large file/repo prompts.
 _CTX_SIZE       = 16384
