@@ -16,6 +16,7 @@ Ejecucion: subprocess directo (cognia_v3/interfaces/code_executor.run_python NO
 encaja: exige stdout no vacio para success, y los tests con asserts no imprimen).
 """
 import argparse
+import ast
 import datetime
 import json
 import os
@@ -264,6 +265,53 @@ def extract_code(response: str) -> str:
     return response.strip()
 
 
+# ── Repair por EDICION (SEARCH/REPLACE) ──────────────────────────────────────
+# Regenerar completo NO recupera nada con el 3B (0 recovered en 2 smokes,
+# temp 0 y 0.5): no traza error->causa->fix reescribiendo todo. La alternativa
+# es pedir UN cambio minimo en formato SEARCH/REPLACE y aplicarlo con el mismo
+# contrato exacto de cognia/agents/workers/dev_tools.edit_file: el SEARCH debe
+# aparecer EXACTAMENTE 1 vez, sin fuzzy matching.
+
+# Marcadores al inicio de linea (MULTILINE) para tolerar prosa/fences
+# alrededor; 5-9 simbolos para tolerar que el modelo no cuente exacto 7.
+_SEARCH_REPLACE_RE = re.compile(
+    r"^<{5,9} SEARCH[ \t]*\n(.*?)^={5,9}[ \t]*\n(.*?)^>{5,9} REPLACE",
+    re.DOTALL | re.MULTILINE)
+
+
+def parse_search_replace(text: str) -> list[tuple[str, str]]:
+    """
+    Extrae bloques SEARCH/REPLACE de la respuesta del modelo.
+    Devuelve [(old, new), ...] en orden de aparicion; acepta 1+ bloques e
+    ignora prosa alrededor. Lista vacia si no hay bloques bien formados.
+    """
+    if not text:
+        return []
+    pairs = []
+    for m in _SEARCH_REPLACE_RE.finditer(text):
+        old, new = m.group(1), m.group(2)
+        # El \n final de cada seccion separa del marcador siguiente, no es
+        # contenido (permite REPLACE vacio = borrar lineas).
+        pairs.append((old[:-1] if old.endswith("\n") else old,
+                      new[:-1] if new.endswith("\n") else new))
+    return pairs
+
+
+def apply_edits(code: str, edits: list[tuple[str, str]]) -> str | None:
+    """
+    Aplica cada (old, new) en orden sobre code con reemplazo exacto.
+    None si no hay edits o si algun old no aparece exactamente 1 vez
+    (mismo contrato que dev_tools.edit_file: sin fuzzy matching).
+    """
+    if not edits:
+        return None
+    for old, new in edits:
+        if not old or code.count(old) != 1:
+            return None
+        code = code.replace(old, new, 1)
+    return code
+
+
 def _sandbox_env() -> dict:
     """Env minimo para el subprocess (Windows necesita SystemRoot)."""
     env = {"PYTHONPATH": "", "PYTHONIOENCODING": "utf-8",
@@ -331,9 +379,9 @@ def make_backend():
     return backend, (gguf.name if gguf else "unknown")
 
 
-def build_prompt(task_prompt: str) -> str:
+def build_prompt(task_prompt: str, system: str = SYSTEM_PROMPT) -> str:
     from node.inference_pipeline import _apply_qwen_template
-    return _apply_qwen_template(task_prompt, system=SYSTEM_PROMPT)
+    return _apply_qwen_template(task_prompt, system=system)
 
 
 def build_repair_prompt(task_prompt: str, code: str, err_type: str,
@@ -348,14 +396,57 @@ def build_repair_prompt(task_prompt: str, code: str, err_type: str,
     return build_prompt(msg)
 
 
+# El system prompt base ("reply with ONLY a Python code block") contradice el
+# formato SEARCH/REPLACE: el modo edit necesita su propio system.
+REPAIR_EDIT_SYSTEM_PROMPT = (
+    "You are an expert Python debugger. Reply with ONLY a SEARCH/REPLACE "
+    "block in the exact format requested. No explanations.")
+
+
+def build_repair_edit_prompt(task_prompt: str, code: str, err_type: str,
+                             err_detail: str) -> str:
+    """
+    Prompt de repair por EDICION: pide UN cambio minimo en formato
+    SEARCH/REPLACE en vez de regenerar la funcion completa. El 3B necesita
+    instrucciones literales + un ejemplo corto del formato en el prompt.
+    """
+    msg = (task_prompt
+           + "\n\nYour previous solution was:\n```python\n" + code + "\n```\n\n"
+           + "It FAILED when executed. Error type: " + err_type
+           + "\nError detail: " + err_detail[-300:]
+           + "\n\nFix it with ONE minimal edit to the code above. "
+             "Reply with EXACTLY this format and nothing else:\n\n"
+             "<<<<<<< SEARCH\n"
+             "the exact lines to replace, copied from the code above\n"
+             "=======\n"
+             "the corrected lines\n"
+             ">>>>>>> REPLACE\n\n"
+             "Example (fixing an off-by-one):\n"
+             "<<<<<<< SEARCH\n"
+             "    for i in range(len(items) - 1):\n"
+             "=======\n"
+             "    for i in range(len(items)):\n"
+             ">>>>>>> REPLACE\n\n"
+             "The SEARCH lines must be copied EXACTLY, character by "
+             "character, including indentation.")
+    return build_prompt(msg, system=REPAIR_EDIT_SYSTEM_PROMPT)
+
+
 def repair_failures(backend, tasks: list[dict], results: list[dict],
                     repair_rounds: int, max_tokens: int,
                     repair_temperature: float = 0.5,
-                    seed: int = None, grammar: str = None) -> dict:
+                    seed: int = None, grammar: str = None,
+                    repair_mode: str = "regen") -> dict:
     """
-    Para cada task FAIL: regenerar con el error de ejecucion real, hasta
-    repair_rounds rondas o PASS. Muta results (passed_final, repair_attempts)
-    y devuelve stats agregadas {tokens, seconds, recovered}.
+    Para cada task FAIL: hasta repair_rounds rondas o PASS, con el error de
+    ejecucion real en el prompt. repair_mode:
+      - "regen": regenerar la funcion completa (comportamiento original).
+      - "edit": pedir UN cambio minimo SEARCH/REPLACE y aplicarlo con match
+        exacto sobre el codigo fallido. Si no aplica (search_not_found) o el
+        resultado no parsea (syntax_after_edit), la ronda cuenta como no
+        recuperada con esa reason en error_type del attempt.
+    Muta results (passed_final, repair_attempts) y devuelve stats agregadas
+    {tokens, seconds, recovered}.
     """
     task_by_id = {t["id"]: t for t in tasks}
     total_tokens = 0
@@ -372,30 +463,61 @@ def repair_failures(backend, tasks: list[dict], results: list[dict],
               f"{len(pending)} tasks failing", flush=True)
         for r in pending:
             task = task_by_id[r["id"]]
-            # Ultimo codigo + error (de la ronda previa si ya hubo repair)
-            if r["repair_attempts"]:
-                last = r["repair_attempts"][-1]
-                prev_code = last["extracted_code"]
-                prev_err_type, prev_err_detail = last["error_type"], last["error_detail"]
+            # Ultimo codigo + error REAL de ejecucion. Los attempts con
+            # error_type mecanico del modo edit (search_not_found /
+            # syntax_after_edit) no cambiaron el codigo: se saltean.
+            prev_code = r["extracted_code"]
+            prev_err_type, prev_err_detail = r["error_type"], r["error_detail"]
+            for att in r["repair_attempts"]:
+                if att["error_type"] not in ("search_not_found", "syntax_after_edit"):
+                    prev_code = att["extracted_code"]
+                    prev_err_type, prev_err_detail = att["error_type"], att["error_detail"]
+            if repair_mode == "edit":
+                prompt = build_repair_edit_prompt(task["prompt"], prev_code,
+                                                  prev_err_type, prev_err_detail)
             else:
-                prev_code = r["extracted_code"]
-                prev_err_type, prev_err_detail = r["error_type"], r["error_detail"]
-            prompt = build_repair_prompt(task["prompt"], prev_code,
-                                         prev_err_type, prev_err_detail)
+                prompt = build_repair_prompt(task["prompt"], prev_code,
+                                             prev_err_type, prev_err_detail)
             t0 = time.perf_counter()
             # cache_prompt=False: el KV-cache reusado cambia los logits
-            # (experimento 2026-06-11) -- prefill completo para reproducibilidad
+            # (experimento 2026-06-11) -- prefill completo para reproducibilidad.
+            # En modo edit NO va la grammar de bloque python: el output
+            # esperado es un bloque SEARCH/REPLACE, no un fence ```python.
             response = backend.generate(prompt, max_tokens=max_tokens,
                                         temperature=repair_temperature,
                                         seed=seed, cache_prompt=False,
-                                        grammar=grammar) or ""
+                                        grammar=None if repair_mode == "edit" else grammar) or ""
             gen_s = time.perf_counter() - t0
             tokens = backend.last_tokens_predicted
             total_tokens += tokens or 0
             total_seconds += gen_s
-            code = extract_code(response)
-            passed, err_type, err_detail = run_task_tests(
-                code, task["tests"], task["entry_point"])
+            if repair_mode == "edit":
+                edits = parse_search_replace(response)
+                new_code = apply_edits(prev_code, edits)
+                if new_code is None:
+                    # Sin cambio aplicable: el codigo queda como estaba.
+                    code = prev_code
+                    passed = False
+                    err_type = "search_not_found"
+                    err_detail = (f"{len(edits)} SEARCH/REPLACE block(s) "
+                                  "parsed; SEARCH must match exactly once")
+                else:
+                    try:
+                        ast.parse(new_code)
+                    except SyntaxError as exc:
+                        # El edit rompio la sintaxis: no se adopta.
+                        code = prev_code
+                        passed = False
+                        err_type = "syntax_after_edit"
+                        err_detail = f"line {exc.lineno}: {exc.msg}"
+                    else:
+                        code = new_code
+                        passed, err_type, err_detail = run_task_tests(
+                            code, task["tests"], task["entry_point"])
+            else:
+                code = extract_code(response)
+                passed, err_type, err_detail = run_task_tests(
+                    code, task["tests"], task["entry_point"])
             r["repair_attempts"].append({
                 "round": rnd, "passed": passed,
                 "error_type": err_type, "error_detail": err_detail[:300],
@@ -416,7 +538,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
                   max_tokens: int = DEFAULT_MAX_TOKENS,
                   repair_rounds: int = 0,
                   repair_temperature: float = 0.5,
-                  seed: int = None, use_grammar: bool = False) -> dict:
+                  seed: int = None, use_grammar: bool = False,
+                  repair_mode: str = "regen") -> dict:
     """Corre todas las tasks contra el modelo real y guarda JSON con resultados."""
     # use_grammar: restringe el sampling a un bloque ```python ...``` exacto
     # (base y repair) — elimina prosa y fences rotos sin tocar el modelo.
@@ -472,7 +595,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         repair_stats = repair_failures(backend, tasks, results,
                                        repair_rounds, max_tokens,
                                        repair_temperature, seed=seed,
-                                       grammar=grammar)
+                                       grammar=grammar,
+                                       repair_mode=repair_mode)
 
     # ── Metricas ──────────────────────────────────────────────────────────
     n = len(results)
@@ -504,6 +628,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         # True si la generacion fue restringida con GRAMMAR_PYTHON_BLOCK
         "grammar": use_grammar,
         "repair_temperature": repair_temperature if repair_rounds > 0 else None,
+        # "regen" | "edit" (solo significativo si repair_rounds > 0)
+        "repair_mode": repair_mode if repair_rounds > 0 else None,
         "server_props": server_props,
         "n_tasks": n,
         "n_passed": n_pass,
@@ -602,6 +728,10 @@ def main():
     parser.add_argument("--repair-temp", type=float, default=0.5,
                         help="temperatura para las rondas de reparacion (default 0.5; "
                              "temp=0 reproduce codigo identico, temp>0 permite divergir)")
+    parser.add_argument("--repair-mode", choices=["regen", "edit"], default="regen",
+                        help="regen = regenerar la funcion completa (default); "
+                             "edit = pedir UN cambio minimo SEARCH/REPLACE y "
+                             "aplicarlo con match exacto (contrato dev_tools)")
     parser.add_argument("--seed", type=int, default=42,
                         help="seed de sampling para llama-server (default 42 = "
                              "determinista junto a cache_prompt=False); se "
@@ -625,7 +755,8 @@ def main():
 
     run_benchmark(tasks, label=args.label, max_tokens=args.max_tokens,
                   repair_rounds=args.repair, repair_temperature=args.repair_temp,
-                  seed=args.seed, use_grammar=args.grammar)
+                  seed=args.seed, use_grammar=args.grammar,
+                  repair_mode=args.repair_mode)
 
 
 if __name__ == "__main__":
