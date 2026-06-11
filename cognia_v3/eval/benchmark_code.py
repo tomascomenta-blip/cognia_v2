@@ -323,8 +323,81 @@ def build_prompt(task_prompt: str) -> str:
     return _apply_qwen_template(task_prompt, system=SYSTEM_PROMPT)
 
 
+def build_repair_prompt(task_prompt: str, code: str, err_type: str,
+                        err_detail: str) -> str:
+    """Prompt de reparacion: tarea original + codigo fallido + error real."""
+    msg = (task_prompt
+           + "\n\nYour previous solution was:\n```python\n" + code + "\n```\n\n"
+           + "It FAILED when executed. Error type: " + err_type
+           + "\nError detail: " + err_detail[-300:]
+           + "\n\nReply with ONLY the corrected complete function in a "
+             "python code block. No explanations.")
+    return build_prompt(msg)
+
+
+def repair_failures(backend, tasks: list[dict], results: list[dict],
+                    repair_rounds: int, max_tokens: int,
+                    repair_temperature: float = 0.5) -> dict:
+    """
+    Para cada task FAIL: regenerar con el error de ejecucion real, hasta
+    repair_rounds rondas o PASS. Muta results (passed_final, repair_attempts)
+    y devuelve stats agregadas {tokens, seconds, recovered}.
+    """
+    task_by_id = {t["id"]: t for t in tasks}
+    total_tokens = 0
+    total_seconds = 0.0
+    recovered = 0
+    for r in results:
+        r["passed_final"] = r["passed"]
+        r["repair_attempts"] = []
+    for rnd in range(1, repair_rounds + 1):
+        pending = [r for r in results if not r["passed_final"]]
+        if not pending:
+            break
+        print(f"[repair] round {rnd}/{repair_rounds}: "
+              f"{len(pending)} tasks failing", flush=True)
+        for r in pending:
+            task = task_by_id[r["id"]]
+            # Ultimo codigo + error (de la ronda previa si ya hubo repair)
+            if r["repair_attempts"]:
+                last = r["repair_attempts"][-1]
+                prev_code = last["extracted_code"]
+                prev_err_type, prev_err_detail = last["error_type"], last["error_detail"]
+            else:
+                prev_code = r["extracted_code"]
+                prev_err_type, prev_err_detail = r["error_type"], r["error_detail"]
+            prompt = build_repair_prompt(task["prompt"], prev_code,
+                                         prev_err_type, prev_err_detail)
+            t0 = time.perf_counter()
+            response = backend.generate(prompt, max_tokens=max_tokens,
+                                        temperature=repair_temperature) or ""
+            gen_s = time.perf_counter() - t0
+            tokens = backend.last_tokens_predicted
+            total_tokens += tokens or 0
+            total_seconds += gen_s
+            code = extract_code(response)
+            passed, err_type, err_detail = run_task_tests(
+                code, task["tests"], task["entry_point"])
+            r["repair_attempts"].append({
+                "round": rnd, "passed": passed,
+                "error_type": err_type, "error_detail": err_detail[:300],
+                "gen_seconds": round(gen_s, 2), "tokens_predicted": tokens,
+                "response": response, "extracted_code": code,
+            })
+            if passed:
+                r["passed_final"] = True
+                recovered += 1
+            status = "PASS" if passed else f"FAIL ({err_type})"
+            print(f"    [repair r{rnd}] {r['id']} -> {status} "
+                  f"{err_detail[:60]}", flush=True)
+    return {"tokens": total_tokens, "seconds": total_seconds,
+            "recovered": recovered}
+
+
 def run_benchmark(tasks: list[dict], label: str = "baseline",
-                  max_tokens: int = DEFAULT_MAX_TOKENS) -> dict:
+                  max_tokens: int = DEFAULT_MAX_TOKENS,
+                  repair_rounds: int = 0,
+                  repair_temperature: float = 0.5) -> dict:
     """Corre todas las tasks contra el modelo real y guarda JSON con resultados."""
     backend, gguf_name = make_backend()
     if backend is None:
@@ -360,6 +433,13 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
             "response": response, "extracted_code": code,
         })
 
+    # -- Repair (opcional): regenerar FAILs con el error real --------------
+    repair_stats = None
+    if repair_rounds > 0:
+        repair_stats = repair_failures(backend, tasks, results,
+                                       repair_rounds, max_tokens,
+                                       repair_temperature)
+
     # ── Metricas ──────────────────────────────────────────────────────────
     n = len(results)
     n_pass = sum(1 for r in results if r["passed"])
@@ -394,6 +474,36 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         "results": results,
     }
 
+    if repair_stats is not None:
+        n_pass_final = sum(1 for r in results if r["passed_final"])
+        # Recovered por categoria (campo "category" si existe; fallback difficulty)
+        task_by_id = {t["id"]: t for t in tasks}
+        recovered_by_cat = {}
+        pass_by_round = {}
+        for r in results:
+            cat = task_by_id[r["id"]].get("category", r["difficulty"])
+            if not r["passed"] and r["passed_final"]:
+                recovered_by_cat[cat] = recovered_by_cat.get(cat, 0) + 1
+            for att in r["repair_attempts"]:
+                if att["passed"]:
+                    pass_by_round[att["round"]] = pass_by_round.get(att["round"], 0) + 1
+        # Acumulado de PASS tras cada ronda
+        cum = n_pass
+        pass_after_round = {}
+        for rnd in range(1, repair_rounds + 1):
+            cum += pass_by_round.get(rnd, 0)
+            pass_after_round[str(rnd)] = cum
+        output.update({
+            "repair_rounds": repair_rounds,
+            "n_passed_after_repair": n_pass_final,
+            "pass_after_repair": round(n_pass_final / n, 4) if n else 0.0,
+            "recovered": repair_stats["recovered"],
+            "recovered_by_category": recovered_by_cat,
+            "pass_after_round": pass_after_round,
+            "repair_total_tokens": repair_stats["tokens"],
+            "repair_total_seconds": round(repair_stats["seconds"], 2),
+        })
+
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
     out_path = EVAL_DIR / f"results_code_{label}_{ts}.json"
     with open(out_path, "w", encoding="utf-8") as f:
@@ -419,6 +529,19 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
     if avg_tok_s:
         print(f" velocidad: {avg_tok_s:.2f} tok/s promedio, "
               f"{total_tokens} tokens generados en total")
+    if repair_stats is not None:
+        print("-" * 72)
+        print(f" REPAIR (hasta {repair_rounds} rondas, feedback de ejecucion real):")
+        for rnd, cum in output["pass_after_round"].items():
+            print(f"   pass tras ronda {rnd}: {cum}/{n} = {cum / n:.1%}")
+        print(f"   pass_after_repair: {output['n_passed_after_repair']}/{n} "
+              f"= {output['pass_after_repair']:.1%}  "
+              f"(recovered {output['recovered']} FAIL->PASS)")
+        if output["recovered_by_category"]:
+            print("   recovered por categoria: " + ", ".join(
+                f"{k}={v}" for k, v in sorted(output["recovered_by_category"].items())))
+        print(f"   costo repair: {output['repair_total_tokens']} tokens, "
+              f"{output['repair_total_seconds']:.0f}s extra")
     print(f" JSON: {out_path}")
     print("=" * 72)
     return output
@@ -432,6 +555,12 @@ def main():
                         help="correr solo las primeras N tasks (smoke test)")
     parser.add_argument("--tasks-file", default=None,
                         help="JSON opcional con lista de tasks (mismo schema que TASKS)")
+    parser.add_argument("--repair", type=int, default=0,
+                        help="N rondas de reparacion con feedback de ejecucion "
+                             "para las tasks FAIL (default 0 = sin repair)")
+    parser.add_argument("--repair-temp", type=float, default=0.5,
+                        help="temperatura para las rondas de reparacion (default 0.5; "
+                             "temp=0 reproduce codigo identico, temp>0 permite divergir)")
     args = parser.parse_args()
 
     tasks = TASKS
@@ -445,7 +574,8 @@ def main():
     if args.limit:
         tasks = tasks[:args.limit]
 
-    run_benchmark(tasks, label=args.label, max_tokens=args.max_tokens)
+    run_benchmark(tasks, label=args.label, max_tokens=args.max_tokens,
+                  repair_rounds=args.repair, repair_temperature=args.repair_temp)
 
 
 if __name__ == "__main__":

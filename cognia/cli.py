@@ -5836,7 +5836,7 @@ def repl():
                                 from node.inference_pipeline import _apply_qwen_template
                                 _formatted = _apply_qwen_template(
                                     raw, _system, history=_hist_ctx or None)
-                                _stream_src = lambda: _llama.stream_generate(_formatted, max_tokens=512)
+                                _stream_src = lambda: _llama.stream_generate(_formatted, max_tokens=1024)
                             _tokens_buf = []
                             t0 = time.time()
                             try:
