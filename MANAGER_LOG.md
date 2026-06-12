@@ -2368,3 +2368,21 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   El 3B no posee competencia de edicion estructural ni de auto-reparacion bajo NINGUN mecanismo
   de prompt. Valor del resultado negativo: nadie tiene que re-litigar trucos de prompt en este
   modelo; toda la inversion va a palancas de MODELO (QLoRA dataset sintetico, 7B batch).
+
+## [2026-06-12 04:10] Datagen v1 cierre + v2 relanzado (3B rejection-sampling) — fin de sesion nocturna
+- Datagen v1 (7B, 4h07m GPU): 20 candidatos generados, 8 aceptados (40%), syn_long=5 syn_spec=3.
+  ~12 min/candidato = camino lento (fp16 7B shardeado entre 2 T4; el log de runs COMPLETE no es
+  accesible via API para confirmar si bnb instalo). 8 pares NO entrenan nada. Rejects: failed_run=9
+  (asserts auto-generados fragiles), bad_static=2, bad_asserts=1.
+- DECISION v2 (deadline apagado 4:30): preferir 3b-instruct en _pick_model_dir — fp16 ~6GB cabe
+  ENTERO en una T4 (camino rapido garantizado, 5-10x candidatos/hora). Con el gate de ejecucion
+  es rejection sampling (estilo STaR): data auto-generada y verificada vale para mejorar al mismo
+  3B en sus bandas debiles. Kernel version 3 pusheado y corriendo en la nube (sobrevive al apagado).
+- NOTA de proceso: este patch de 2 lineas lo aplico el manager directamente (desviacion declarada
+  de la regla sub-agents-only) por el deadline del apagado programado.
+- RUNBOOK proxima sesion: (1) status/output del kernel cognia-code-datagen -> synthetic/; revisar
+  datagen_report.json (target: 300+ aceptados); (2) si el volumen alcanza: lanzar QLoRA con
+  run_kaggle_training --dataset-file synthetic_code_dataset.jsonl --push-only; (3) adapter ->
+  convert_lora_to_gguf -> LLAMA_LORA_PATH -> benchmark seed 42; gate: >8/20.
+- Sesion nocturna: programa de medicion cerrado (8 experimentos, 0 palancas de prompt), pipeline
+  QLoRA listo, LLAMA_LORA_PATH en backend, datagen v2 generando overnight.

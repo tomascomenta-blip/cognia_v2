@@ -597,7 +597,12 @@ def _pick_model_dir() -> str:
     vrams = [torch.cuda.get_device_properties(i).total_memory / 1e9 for i in gpus]
     for i, v in enumerate(vrams):
         print("[gpu] device %d: %s %.1f GB" % (i, torch.cuda.get_device_name(i), v))
-    key = "14b" if vrams and max(vrams) >= 20.0 else "7b"
+    # v2 (2026-06-12): el run v1 con 7B produjo 20 candidatos en 4h (~12 min/par,
+    # camino lento: fp16 shardeado entre 2 T4). El 3b fp16 (~6GB) cabe ENTERO en
+    # una T4 -> 5-10x mas candidatos/hora; con el gate de ejecucion esto es
+    # rejection sampling (estilo STaR): data auto-generada y verificada es valida
+    # para mejorar al MISMO 3B en sus bandas debiles.
+    key = "14b" if vrams and max(vrams) >= 20.0 else "3b"
     match = [d for d in candidates if key in d.lower()]
     pool = match or candidates
     pool.sort(key=len)

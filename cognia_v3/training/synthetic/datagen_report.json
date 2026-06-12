@@ -1,0 +1,19 @@
+{
+  "partial": false,
+  "model_dir": "/kaggle/input/models/qwen-lm/qwen2.5-coder/transformers/7b-instruct/1",
+  "generated": 20,
+  "accepted": 8,
+  "acceptance_rate": 0.4,
+  "by_band": {
+    "syn_long": 5,
+    "syn_spec": 3
+  },
+  "rejects": {
+    "no_block": 0,
+    "bad_static": 2,
+    "bad_asserts": 1,
+    "failed_run": 9,
+    "dup": 0
+  },
+  "elapsed_s": 14813
+}
