@@ -2245,3 +2245,35 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   repair edit (0 recovered), few-shot 2-shot (-5pp). CONCLUSION FINAL: el techo de pass@1 del
   Qwen2.5-Coder-3B es su capacidad single-shot; las palancas restantes son de MODELO:
   QLoRA dirigido con dataset sintetico (Kaggle GPU), 7B Q4 batch, o edits por numero de linea (idea).
+
+## [2026-06-11 23:11] CYCLE 8 — generador de dataset sintetico de codigo en Kaggle GPU (lanzado)
+- Que: datagen_kernel.py (kernel Kaggle GPU) + run_kaggle_datagen.py (orquestador local) +
+  tests/test_datagen_kernel.py. Es la palanca grande post-medicion: QLoRA dirigido necesita
+  pares de CODIGO de calidad que no existian (cognia_dataset.jsonl = kg_triples/episodios,
+  deltas negativos).
+- Modelo: Qwen2.5-Coder-7B-Instruct 4-bit nf4. Slugs verificados contra la API de Kaggle:
+  qwen-lm/qwen2.5-coder/transformers/7b-instruct/1 y 14b-instruct/1 EXISTEN (oficiales, v1);
+  ambos van montados y el kernel elige por VRAM en runtime: 14B solo si un device tiene
+  >= 20 GB (en T4 16GB x2 / P100 16GB el 14B shardeado bnb rinde la mitad y el cuello son
+  pares verificados/4h -> gana el 7B). enable_internet=false, sin descarga de HF.
+- Plantillas: 20 familias con slots aleatorios, temp 0.8. LONG 60% (BankAccount, Frac,
+  Scheduler, TextHistory undo/redo, TaskList prioridad, Vending, GradeBook, Ring buffer,
+  parse_config INI, Warehouse) y SPEC 40% (format_duration, progress_bar, humanize_bytes,
+  csv_row, to_roman, format_phone, wrap, ordinal, group_digits, mask_card). ANTI-LEAKAGE:
+  temas disjuntos de tasks_hard.jsonl, con test de regresion que lo verifica.
+- Gate de calidad (no negociable): 3-5 asserts generados greedy desde el MISMO enunciado
+  (ejemplos inline con ==), scan estatico de solucion y asserts (ast.parse + allowlist de
+  imports + sin input/open/eval/exec, regla 9), ejecucion solucion+asserts en subprocess -I
+  timeout 10s. Solo lo que pasa entra al JSONL. Checkpoint cada 50; corte 500 pares o 4h.
+- Verificacion: 31 tests nuevos -> 31 passed 0 failed (venv312, 3.4s), incl. respuesta sin
+  fence, codigo que no parsea, assert que falla -> par rechazado, timeout real en subprocess.
+  Commits 07ad73f (kernel) + c48d020 (orquestador) + 02f3003 (tests). SIN push a origin
+  (regla de la sesion).
+- LANZADO: kernel anthuananthuan/cognia-code-datagen pusheado (version 1) y en estado
+  RUNNING en GPU. Status: `.\venv312\Scripts\python.exe -m kaggle kernels status
+  anthuananthuan/cognia-code-datagen`. Descarga al terminar: `.\venv312\Scripts\python.exe
+  -m kaggle kernels output anthuananthuan/cognia-code-datagen -p cognia_v3\training\synthetic`.
+  Output esperado: synthetic_code_dataset.jsonl ({prompt, completion, syn_long|syn_spec}) +
+  datagen_report.json con tasa de aceptacion y distribucion por banda.
+- Proximo paso: al completar, validar el JSONL local (conteos + spot-check) y entrenar QLoRA
+  gated con run_kaggle_training.py apuntando al dataset sintetico; A/B contra el set duro.
