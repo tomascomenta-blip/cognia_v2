@@ -2277,3 +2277,20 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   datagen_report.json con tasa de aceptacion y distribucion por banda.
 - Proximo paso: al completar, validar el JSONL local (conteos + spot-check) y entrenar QLoRA
   gated con run_kaggle_training.py apuntando al dataset sintetico; A/B contra el set duro.
+
+## [2026-06-11 23:32] CYCLE 8b — Datagen Kaggle: run 1 ERROR a los 40s -> fix bnb + relanzamiento (run 2)
+- Causa raiz: el image de Kaggle NO trae bitsandbytes>=0.46.1 y el load 4-bit de
+  AutoModelForCausalLM murio con ImportError (log descargado en
+  cognia_v3/training/synthetic/_debug/cognia-code-datagen.log). Con enable_internet=false
+  no habia forma de upgradearlo. La eleccion de modelo SI funciono ("[model] eleccion: 7b").
+- Fix (commit 8b67ac3, SIN push a origin):
+  * run_kaggle_datagen.py: enable_internet false->true; 3b-instruct/1 agregado a
+    model_sources como ultimo recurso (instancia verificada via API, version 1).
+  * datagen_kernel.py: _ensure_bitsandbytes() al inicio de main() ANTES de importar
+    transformers (pip install -U bitsandbytes guardado + chequeo >=0.46.1). Cascada de
+    carga: bnb OK -> 4-bit nf4; si no -> fp16 shardeado entre las 2 T4 (7B fp16 ~15GB);
+    si el load igual falla (OOM) -> degrada a 3b-instruct fp16. Imprime el camino tomado.
+- Verificado: ast.parse + import local OK (venv312); tests/test_datagen_kernel.py
+  31 passed (funciones puras intactas).
+- RELANZADO: kernel pusheado como version 2 (~23:29 local). Status x2 post-push:
+  STATUS_CHECKS_PLACEHOLDER

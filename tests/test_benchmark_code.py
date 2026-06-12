@@ -135,6 +135,143 @@ class TestApplyEdits:
 
 
 # ---------------------------------------------------------------------------
+# number_lines / parse_line_edits / apply_line_edits — --repair-mode lineedit
+# ---------------------------------------------------------------------------
+
+def _le_block(n: int, content: str) -> str:
+    return f"LINE {n}:\n```python\n{content}\n```"
+
+
+class TestNumberLines:
+    def test_one_indexed_format(self):
+        from cognia_v3.eval.benchmark_code import number_lines
+        out = number_lines("def f():\n    return 1")
+        assert out == "  1| def f():\n  2|     return 1"
+
+    def test_empty_lines_numbered(self):
+        from cognia_v3.eval.benchmark_code import number_lines
+        out = number_lines("a\n\nb")
+        assert out.splitlines()[1].startswith("  2|")
+
+    def test_roundtrip_with_apply(self):
+        """number_lines y apply_line_edits usan el MISMO split: el numero
+        que ve el modelo es el indice que se aplica."""
+        from cognia_v3.eval.benchmark_code import apply_line_edits, number_lines
+        code = "a = 1\nb = 2\nc = 3"
+        numbered = number_lines(code)
+        # La linea mostrada como "  2| b = 2" es la que toca el edit n=2
+        assert "  2| b = 2" in numbered
+        assert apply_line_edits(code, [(2, "b = 99")]) == "a = 1\nb = 99\nc = 3"
+
+
+class TestParseLineEdits:
+    def test_single_block(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        assert parse_line_edits(_le_block(3, "    return x + 1")) == [
+            (3, "    return x + 1")]
+
+    def test_multiple_blocks(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        text = _le_block(2, "a = 2") + "\n\n" + _le_block(5, "b = 5")
+        assert parse_line_edits(text) == [(2, "a = 2"), (5, "b = 5")]
+
+    def test_delete_line(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        assert parse_line_edits("DELETE LINE 4") == [(4, None)]
+
+    def test_mixed_replace_and_delete(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        text = _le_block(1, "import os") + "\nDELETE LINE 7"
+        assert parse_line_edits(text) == [(1, "import os"), (7, None)]
+
+    def test_prose_around_blocks_ignored(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        text = ("The bug is on line 3:\n\n" + _le_block(3, "    i += 1")
+                + "\n\nThis fixes the counter.")
+        assert parse_line_edits(text) == [(3, "    i += 1")]
+
+    def test_multiline_content(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        content = "    if x:\n        return 1"
+        assert parse_line_edits(_le_block(2, content)) == [(2, content)]
+
+    def test_duplicate_line_number_last_wins(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        text = _le_block(3, "x = 1") + "\n" + _le_block(3, "x = 2")
+        assert parse_line_edits(text) == [(3, "x = 2")]
+
+    def test_no_blocks_returns_empty(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        assert parse_line_edits("Here is the corrected function...") == []
+        assert parse_line_edits("") == []
+
+
+class TestApplyLineEdits:
+    CODE = ("def f(items):\n"
+            "    total = 0\n"
+            "    for i in items:\n"
+            "        total += i\n"
+            "    return total")
+
+    def test_single_replace(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits(self.CODE, [(4, "        total += i * 2")])
+        assert out == self.CODE.replace("total += i", "total += i * 2")
+
+    def test_delete_line(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits("a\nb\nc", [(2, None)])
+        assert out == "a\nc"
+
+    def test_out_of_range_returns_none(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        assert apply_line_edits(self.CODE, [(6, "x = 1")]) is None
+        assert apply_line_edits(self.CODE, [(0, "x = 1")]) is None
+        # Un edit valido + uno fuera de rango: TODO el repair se descarta
+        assert apply_line_edits(self.CODE, [(2, "ok"), (99, "x")]) is None
+
+    def test_empty_edit_list_returns_none(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        assert apply_line_edits(self.CODE, []) is None
+
+    def test_multiline_content_expands_line(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits("a\nb\nc", [(2, "b1\nb2")])
+        assert out == "a\nb1\nb2\nc"
+
+    def test_applies_descending_indices_stable(self):
+        """Un reemplazo multilinea en una linea TEMPRANA no corre el indice
+        del edit posterior: se aplica de mayor a menor n."""
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits("a\nb\nc\nd", [(2, "b1\nb2"), (4, "D")])
+        assert out == "a\nb1\nb2\nc\nD"
+
+    def test_delete_then_later_replace_indices_stable(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits("a\nb\nc", [(1, None), (3, "C")])
+        assert out == "b\nC"
+
+    def test_edit_that_breaks_syntax_is_caught_by_ast(self):
+        """El repair-lineedit valida con ast.parse: un edit roto NO se adopta."""
+        import ast
+        import pytest
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits(self.CODE, [(3, "    for i in items")])  # sin ':'
+        assert out is not None  # el reemplazo aplica...
+        with pytest.raises(SyntaxError):
+            ast.parse(out)      # ...pero el pipeline lo rechaza (syntax_after_edit)
+
+    def test_full_pipeline_parse_then_apply(self):
+        """Flujo completo respuesta-del-modelo -> edits -> codigo corregido."""
+        from cognia_v3.eval.benchmark_code import apply_line_edits, parse_line_edits
+        response = ("The accumulator ignores sign:\n"
+                    + _le_block(4, "        total += abs(i)"))
+        edits = parse_line_edits(response)
+        out = apply_line_edits(self.CODE, edits)
+        assert out == self.CODE.replace("total += i", "total += abs(i)")
+
+
+# ---------------------------------------------------------------------------
 # FEWSHOT_EXEMPLARS / build_prompt(fewshot=N) — flag --fewshot
 # ---------------------------------------------------------------------------
 

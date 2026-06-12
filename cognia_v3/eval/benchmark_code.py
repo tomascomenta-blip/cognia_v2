@@ -359,6 +359,75 @@ def apply_edits(code: str, edits: list[tuple[str, str]]) -> str | None:
     return code
 
 
+# ── Repair por NUMERO DE LINEA (--repair-mode lineedit) ─────────────────────
+# El modo edit fallo en masa con search_not_found: el 3B NO logra copiar
+# exactamente las lineas de su propio codigo (8/12 attempts en
+# hard_det_repair_edit). Aca el codigo se muestra NUMERADO y el edit se
+# referencia por numero de linea: desaparece la necesidad de copy exacto.
+
+# Bloque "LINE <n>:" seguido de un fence python con el contenido nuevo de esa
+# linea (puede ser multilinea: reemplaza la linea n por el bloque entero).
+# Anclado a inicio de linea (MULTILINE) para tolerar prosa alrededor; el ':'
+# es opcional por tolerancia al 3B.
+_LINE_EDIT_RE = re.compile(
+    r"^LINE[ \t]+(\d+)[ \t]*:?[ \t]*\n```(?:python|py)?[ \t]*\n(.*?)```",
+    re.DOTALL | re.MULTILINE)
+# "DELETE LINE <n>" borra la linea n entera.
+_LINE_DELETE_RE = re.compile(r"^DELETE LINE[ \t]+(\d+)", re.MULTILINE)
+
+
+def number_lines(code: str) -> str:
+    """Codigo con numeros de linea 1-indexed, formato '  N| contenido'."""
+    return "\n".join(f"{i:3d}| {line}"
+                     for i, line in enumerate(code.split("\n"), 1))
+
+
+def parse_line_edits(text: str) -> list[tuple[int, str | None]]:
+    """
+    Extrae edits por numero de linea de la respuesta del modelo.
+    Devuelve [(n, contenido_nuevo | None), ...]; None = borrar la linea n.
+    Tolera prosa alrededor; si un n aparece repetido gana el ULTIMO en el
+    texto. Lista vacia si no hay bloques bien formados.
+    """
+    if not text:
+        return []
+    found = []  # (posicion, n, contenido | None) para ordenar por aparicion
+    for m in _LINE_EDIT_RE.finditer(text):
+        body = m.group(2)
+        # El \n final separa del fence de cierre, no es contenido.
+        found.append((m.start(), int(m.group(1)),
+                      body[:-1] if body.endswith("\n") else body))
+    for m in _LINE_DELETE_RE.finditer(text):
+        found.append((m.start(), int(m.group(1)), None))
+    found.sort(key=lambda t: t[0])
+    by_line = {}
+    for _, n, content in found:
+        by_line[n] = content  # duplicado: el ultimo pisa al anterior
+    return list(by_line.items())
+
+
+def apply_line_edits(code: str, edits: list[tuple[int, str | None]]) -> str | None:
+    """
+    Aplica cada (n, contenido) sobre code: contenido None borra la linea n,
+    contenido str (puede ser multilinea) reemplaza la linea n por ese bloque.
+    None si no hay edits o algun n esta fuera de rango [1, len(lineas)].
+    Aplica de MAYOR a menor n para que los reemplazos multilinea/borrados no
+    desplacen los indices de los edits restantes. Mismo split("\\n") que
+    number_lines: los numeros que vio el modelo son los que se aplican.
+    """
+    if not edits:
+        return None
+    lines = code.split("\n")
+    if any(n < 1 or n > len(lines) for n, _ in edits):
+        return None
+    for n, content in sorted(edits, key=lambda e: e[0], reverse=True):
+        if content is None:
+            del lines[n - 1]
+        else:
+            lines[n - 1:n] = content.split("\n")
+    return "\n".join(lines)
+
+
 def _sandbox_env() -> dict:
     """Env minimo para el subprocess (Windows necesita SystemRoot)."""
     env = {"PYTHONPATH": "", "PYTHONIOENCODING": "utf-8",
@@ -494,6 +563,40 @@ def build_repair_edit_prompt(task_prompt: str, code: str, err_type: str,
     return build_prompt(msg, system=REPAIR_EDIT_SYSTEM_PROMPT)
 
 
+REPAIR_LINEEDIT_SYSTEM_PROMPT = (
+    "You are an expert Python debugger. Reply with ONLY LINE edits in the "
+    "exact format requested. No explanations.")
+
+
+def build_repair_lineedit_prompt(task_prompt: str, code: str, err_type: str,
+                                 err_detail: str) -> str:
+    """
+    Prompt de repair por NUMERO DE LINEA: el codigo va numerado y el edit
+    referencia la linea por numero — el 3B ya no necesita copiar sus propias
+    lineas caracter por caracter (el fallo dominante del modo edit).
+    """
+    msg = (task_prompt
+           + "\n\nYour previous solution was (line numbers added on the left):\n"
+           + "```python\n" + number_lines(code) + "\n```\n\n"
+           + "It FAILED when executed. Error type: " + err_type
+           + "\nError detail: " + err_detail[-300:]
+           + "\n\nFix it by replacing the faulty line(s). For each line to "
+             "change, reply with a block in EXACTLY this format:\n\n"
+             "LINE <n>:\n"
+             "```python\n"
+             "<new content for that line, keeping its indentation>\n"
+             "```\n\n"
+             "To delete line n entirely write instead: DELETE LINE <n>\n\n"
+             "Example (replacing line 3 with a fixed loop):\n"
+             "LINE 3:\n"
+             "```python\n"
+             "    for i in range(len(items)):\n"
+             "```\n\n"
+             "Do NOT include the line numbers or '|' in the new content. "
+             "Reply with LINE block(s) only, no other text.")
+    return build_prompt(msg, system=REPAIR_LINEEDIT_SYSTEM_PROMPT)
+
+
 def repair_failures(backend, tasks: list[dict], results: list[dict],
                     repair_rounds: int, max_tokens: int,
                     repair_temperature: float = 0.5,
@@ -507,6 +610,9 @@ def repair_failures(backend, tasks: list[dict], results: list[dict],
         exacto sobre el codigo fallido. Si no aplica (search_not_found) o el
         resultado no parsea (syntax_after_edit), la ronda cuenta como no
         recuperada con esa reason en error_type del attempt.
+      - "lineedit": codigo numerado en el prompt, edits referenciados por
+        numero de linea (LINE <n>: / DELETE LINE <n>). Reasons mecanicas:
+        no_edits_parsed, line_out_of_range, syntax_after_edit.
     Muta results (passed_final, repair_attempts) y devuelve stats agregadas
     {tokens, seconds, recovered}.
     """
@@ -526,43 +632,62 @@ def repair_failures(backend, tasks: list[dict], results: list[dict],
         for r in pending:
             task = task_by_id[r["id"]]
             # Ultimo codigo + error REAL de ejecucion. Los attempts con
-            # error_type mecanico del modo edit (search_not_found /
-            # syntax_after_edit) no cambiaron el codigo: se saltean.
+            # error_type mecanico de los modos edit/lineedit (el codigo no
+            # cambio en esa ronda) se saltean.
             prev_code = r["extracted_code"]
             prev_err_type, prev_err_detail = r["error_type"], r["error_detail"]
             for att in r["repair_attempts"]:
-                if att["error_type"] not in ("search_not_found", "syntax_after_edit"):
+                if att["error_type"] not in ("search_not_found", "syntax_after_edit",
+                                             "no_edits_parsed", "line_out_of_range"):
                     prev_code = att["extracted_code"]
                     prev_err_type, prev_err_detail = att["error_type"], att["error_detail"]
             if repair_mode == "edit":
                 prompt = build_repair_edit_prompt(task["prompt"], prev_code,
                                                   prev_err_type, prev_err_detail)
+            elif repair_mode == "lineedit":
+                prompt = build_repair_lineedit_prompt(task["prompt"], prev_code,
+                                                      prev_err_type, prev_err_detail)
             else:
                 prompt = build_repair_prompt(task["prompt"], prev_code,
                                              prev_err_type, prev_err_detail)
             t0 = time.perf_counter()
             # cache_prompt=False: el KV-cache reusado cambia los logits
             # (experimento 2026-06-11) -- prefill completo para reproducibilidad.
-            # En modo edit NO va la grammar de bloque python: el output
-            # esperado es un bloque SEARCH/REPLACE, no un fence ```python.
+            # En modos edit/lineedit NO va la grammar de bloque python: el
+            # output esperado no es un unico fence ```python.
             response = backend.generate(prompt, max_tokens=max_tokens,
                                         temperature=repair_temperature,
                                         seed=seed, cache_prompt=False,
-                                        grammar=None if repair_mode == "edit" else grammar) or ""
+                                        grammar=grammar if repair_mode == "regen" else None) or ""
             gen_s = time.perf_counter() - t0
             tokens = backend.last_tokens_predicted
             total_tokens += tokens or 0
             total_seconds += gen_s
-            if repair_mode == "edit":
-                edits = parse_search_replace(response)
-                new_code = apply_edits(prev_code, edits)
+            if repair_mode in ("edit", "lineedit"):
+                if repair_mode == "edit":
+                    edits = parse_search_replace(response)
+                    new_code = apply_edits(prev_code, edits)
+                    mech_type = "search_not_found"
+                    mech_detail = (f"{len(edits)} SEARCH/REPLACE block(s) "
+                                   "parsed; SEARCH must match exactly once")
+                else:
+                    edits = parse_line_edits(response)
+                    if not edits:
+                        new_code = None
+                        mech_type = "no_edits_parsed"
+                        mech_detail = ("no LINE <n>: / DELETE LINE <n> "
+                                       "blocks parsed from response")
+                    else:
+                        new_code = apply_line_edits(prev_code, edits)
+                        mech_type = "line_out_of_range"
+                        mech_detail = (f"{len(edits)} line edit(s) parsed; "
+                                       "a line number is out of range")
                 if new_code is None:
                     # Sin cambio aplicable: el codigo queda como estaba.
                     code = prev_code
                     passed = False
-                    err_type = "search_not_found"
-                    err_detail = (f"{len(edits)} SEARCH/REPLACE block(s) "
-                                  "parsed; SEARCH must match exactly once")
+                    err_type = mech_type
+                    err_detail = mech_detail
                 else:
                     try:
                         ast.parse(new_code)
@@ -692,7 +817,7 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         # N ejemplos resueltos antepuestos al enunciado (0 = single-shot)
         "fewshot": fewshot,
         "repair_temperature": repair_temperature if repair_rounds > 0 else None,
-        # "regen" | "edit" (solo significativo si repair_rounds > 0)
+        # "regen" | "edit" | "lineedit" (solo significativo si repair_rounds > 0)
         "repair_mode": repair_mode if repair_rounds > 0 else None,
         "server_props": server_props,
         "n_tasks": n,
@@ -792,10 +917,13 @@ def main():
     parser.add_argument("--repair-temp", type=float, default=0.5,
                         help="temperatura para las rondas de reparacion (default 0.5; "
                              "temp=0 reproduce codigo identico, temp>0 permite divergir)")
-    parser.add_argument("--repair-mode", choices=["regen", "edit"], default="regen",
+    parser.add_argument("--repair-mode", choices=["regen", "edit", "lineedit"],
+                        default="regen",
                         help="regen = regenerar la funcion completa (default); "
                              "edit = pedir UN cambio minimo SEARCH/REPLACE y "
-                             "aplicarlo con match exacto (contrato dev_tools)")
+                             "aplicarlo con match exacto (contrato dev_tools); "
+                             "lineedit = codigo numerado, edits por numero de "
+                             "linea (LINE <n>: / DELETE LINE <n>)")
     parser.add_argument("--seed", type=int, default=42,
                         help="seed de sampling para llama-server (default 42 = "
                              "determinista junto a cache_prompt=False); se "
