@@ -68,6 +68,10 @@ def push_kernel(user: str) -> str:
         # (run 1 murio a los 40s con ImportError en el load 4-bit; verificado en
         # _debug/cognia-code-datagen.log) y el kernel hace pip install -U.
         "enable_gpu": "true", "enable_internet": "true",
+        # machine_shape: el backend nuevo de Kaggle IGNORA enable_gpu; sin este
+        # campo el kernel corre en CPU (causa raiz de v1/v2 lentos:
+        # gpu_quota.time_used=0 tras 2 runs de 4h).
+        "machine_shape": "NvidiaTeslaT4",
         "dataset_sources": [], "kernel_sources": [], "competition_sources": [],
         "model_sources": MODEL_SOURCES,
     }

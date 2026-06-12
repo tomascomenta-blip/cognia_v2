@@ -96,6 +96,10 @@ def push_kernel(user: str, dataset_ref: str) -> str:
         # bitsandbytes>=0.46.1 (run 1 del datagen murio en el load 4-bit, fix
         # 8b67ac3) y el kernel hace pip install -U bitsandbytes guardado.
         "enable_gpu": "true", "enable_internet": "true",
+        # machine_shape: el backend nuevo de Kaggle IGNORA enable_gpu; sin este
+        # campo el kernel corre en CPU (causa raiz de v1/v2 lentos:
+        # gpu_quota.time_used=0 tras 2 runs de 4h).
+        "machine_shape": "NvidiaTeslaT4",
         "dataset_sources": [dataset_ref], "kernel_sources": [],
         "competition_sources": [],
         # modelos base montados offline. Formato: {owner}/{slug}/{fw}/{inst}/{ver}

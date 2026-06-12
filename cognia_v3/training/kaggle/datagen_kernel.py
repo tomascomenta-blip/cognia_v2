@@ -583,9 +583,9 @@ def _ensure_bitsandbytes() -> bool:
 
 
 def _pick_model_dir() -> str:
-    """Dir del modelo montado bajo /kaggle/input. 14B solo si UN device tiene
-    >= 20 GB (en T4 16GB x2 / P100 16GB el 14B va shardeado y rinde la mitad;
-    el cuello es pares verificados/hora, asi que ahi gana el 7B)."""
+    """Dir del modelo montado bajo /kaggle/input. Con GPU -> 7B 4-bit (teacher
+    correcto: acceptance 40% vs 14.6% del 3B); sin GPU -> 3B (en CPU solo el
+    3b es viable). Los fallbacks fp16 -> 3b quedan como red de seguridad."""
     import torch
     candidates = sorted({os.path.dirname(p) for p in
                          glob.glob("/kaggle/input/**/config.json", recursive=True)})
@@ -597,12 +597,12 @@ def _pick_model_dir() -> str:
     vrams = [torch.cuda.get_device_properties(i).total_memory / 1e9 for i in gpus]
     for i, v in enumerate(vrams):
         print("[gpu] device %d: %s %.1f GB" % (i, torch.cuda.get_device_name(i), v))
-    # v2 (2026-06-12): el run v1 con 7B produjo 20 candidatos en 4h (~12 min/par,
-    # camino lento: fp16 shardeado entre 2 T4). El 3b fp16 (~6GB) cabe ENTERO en
-    # una T4 -> 5-10x mas candidatos/hora; con el gate de ejecucion esto es
-    # rejection sampling (estilo STaR): data auto-generada y verificada es valida
-    # para mejorar al MISMO 3B en sus bandas debiles.
-    key = "14b" if vrams and max(vrams) >= 20.0 else "3b"
+    # v3 (2026-06-12): la historia real de v1/v2 lentos NO era fp16 shardeado:
+    # los kernels corrieron en CPU porque kernel-metadata no llevaba
+    # machine_shape (el backend nuevo ignora enable_gpu; gpu_quota.time_used=0
+    # lo confirma). Con T4 real (~15.8GB) el 7b 4-bit es el teacher correcto
+    # (acceptance 40% vs 14.6% del 3B); sin GPU solo el 3b es viable en CPU.
+    key = "7b" if vrams else "3b"
     match = [d for d in candidates if key in d.lower()]
     pool = match or candidates
     pool.sort(key=len)
