@@ -406,10 +406,40 @@ def parse_line_edits(text: str) -> list[tuple[int, str | None]]:
     return list(by_line.items())
 
 
+def reindent_block(original_line: str, new_content: str) -> str:
+    """
+    Re-basa la indentacion de new_content a la de original_line. El 3B suele
+    devolver el bloque de reemplazo en columna 0 o sobre-indentado y eso rompe
+    ast.parse ("unindent does not match", "expected an indented block") aunque
+    el contenido del fix sea correcto (5/12 syntax_after_edit en el A/B).
+    Base del modelo = leading whitespace de la PRIMERA linea no vacia; se
+    reemplaza ese prefijo por el indent de original_line en TODO el bloque,
+    preservando la indentacion RELATIVA interna. Una linea que no empieza con
+    la base (indentacion inconsistente) se re-basa plana al indent original
+    (mejor esfuerzo). Lineas vacias quedan vacias.
+    """
+    indent_orig = original_line[:len(original_line) - len(original_line.lstrip())]
+    lines = new_content.split("\n")
+    first = next((l for l in lines if l.strip()), None)
+    if first is None:
+        return new_content
+    indent_model = first[:len(first) - len(first.lstrip())]
+    out = []
+    for line in lines:
+        if not line.strip():
+            out.append("")
+        elif line.startswith(indent_model):
+            out.append(indent_orig + line[len(indent_model):])
+        else:
+            out.append(indent_orig + line.lstrip())
+    return "\n".join(out)
+
+
 def apply_line_edits(code: str, edits: list[tuple[int, str | None]]) -> str | None:
     """
     Aplica cada (n, contenido) sobre code: contenido None borra la linea n,
-    contenido str (puede ser multilinea) reemplaza la linea n por ese bloque.
+    contenido str (puede ser multilinea) reemplaza la linea n por ese bloque,
+    re-basado con reindent_block a la indentacion de la linea original.
     None si no hay edits o algun n esta fuera de rango [1, len(lineas)].
     Aplica de MAYOR a menor n para que los reemplazos multilinea/borrados no
     desplacen los indices de los edits restantes. Mismo split("\\n") que
@@ -424,7 +454,7 @@ def apply_line_edits(code: str, edits: list[tuple[int, str | None]]) -> str | No
         if content is None:
             del lines[n - 1]
         else:
-            lines[n - 1:n] = content.split("\n")
+            lines[n - 1:n] = reindent_block(lines[n - 1], content).split("\n")
     return "\n".join(lines)
 
 

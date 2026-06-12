@@ -206,6 +206,39 @@ class TestParseLineEdits:
         assert parse_line_edits("") == []
 
 
+class TestReindentBlock:
+    def test_no_indent_inherits_original(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        out = reindent_block("        total += i", "total += abs(i)")
+        assert out == "        total += abs(i)"
+
+    def test_over_indented_rebased(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        out = reindent_block("    return x", "            return x + 1")
+        assert out == "    return x + 1"
+
+    def test_relative_indent_preserved(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        # Base del modelo = 0; la linea interna con +4 queda en orig+4
+        out = reindent_block("    if x:", "if x:\n    return 1\nreturn 0")
+        assert out == "    if x:\n        return 1\n    return 0"
+
+    def test_multiline_with_empty_line(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        out = reindent_block("    a = 1", "a = 1\n\nb = 2")
+        assert out == "    a = 1\n\n    b = 2"
+
+    def test_inconsistent_line_rebased_flat(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        # 2da linea NO empieza con la base del modelo (4 esp): mejor esfuerzo
+        out = reindent_block("        x = 1", "    a = 1\n  b = 2")
+        assert out == "        a = 1\n        b = 2"
+
+    def test_matching_indent_is_noop(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        assert reindent_block("    total = 0", "    total = 1") == "    total = 1"
+
+
 class TestApplyLineEdits:
     CODE = ("def f(items):\n"
             "    total = 0\n"
@@ -269,6 +302,29 @@ class TestApplyLineEdits:
         edits = parse_line_edits(response)
         out = apply_line_edits(self.CODE, edits)
         assert out == self.CODE.replace("total += i", "total += abs(i)")
+
+    def test_replace_reindents_to_original_line(self):
+        """El modelo devuelve el fix en columna 0: hereda los 8 espacios."""
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits(self.CODE, [(4, "total += abs(i)")])
+        assert out == self.CODE.replace("total += i", "total += abs(i)")
+
+    def test_delete_not_affected_by_reindent(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits(self.CODE, [(4, None)])
+        assert out == self.CODE.replace("\n        total += i", "")
+
+    def test_ab_case_unindent_now_parses(self):
+        """Caso real del A/B: bloque multilinea en columna 0 sobre una linea
+        indentada daba 'unindent does not match any outer indentation level' /
+        'expected an indented block'; re-basado, ast.parse pasa."""
+        import ast
+        from cognia_v3.eval.benchmark_code import apply_line_edits, parse_line_edits
+        response = ("Only positive items should count:\n"
+                    + _le_block(4, "if i > 0:\n    total += i"))
+        out = apply_line_edits(self.CODE, parse_line_edits(response))
+        ast.parse(out)  # sin reindent_block: SyntaxError
+        assert "        if i > 0:\n            total += i" in out
 
 
 # ---------------------------------------------------------------------------

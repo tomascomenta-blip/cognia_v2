@@ -2345,3 +2345,15 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   smoke S/R): el CONTENIDO del fix puede ser correcto y solo la indentacion lo rompe.
 - PROXIMA HIPOTESIS (barata, determinista): auto-reindent — re-basar la indentacion del bloque
   de reemplazo al leading whitespace de la linea original n antes del gate ast.parse.
+
+## [2026-06-12 00:35] DELEGADO: auto-reindent determinista en repair lineedit
+- reindent_block(original_line, new_content) en cognia_v3/eval/benchmark_code.py:409 (pura):
+  re-basa el bloque de reemplazo al leading whitespace de la linea original n, preservando
+  la indentacion RELATIVA interna; linea inconsistente -> re-base plana (mejor esfuerzo);
+  lineas vacias quedan vacias. apply_line_edits la aplica a cada reemplazo (DELETE intacto);
+  el gate ast.parse / reason syntax_after_edit queda igual.
+- Motivo: A/B lineedit anclo bien pero 5/12 = syntax_after_edit por indentacion del bloque
+  ("unindent does not match", "expected an indented block") con contenido del fix correcto.
+- Verificado: pytest tests/test_benchmark_code.py -q (venv312) -> 48 passed (9 nuevos:
+  herencia de indent, sobre-indentado, relativa preservada, linea vacia, DELETE intacto,
+  caso real A/B que antes no parseaba). NADA contra el server: el manager relanza el A/B.
