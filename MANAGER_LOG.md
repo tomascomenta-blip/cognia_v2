@@ -2416,3 +2416,15 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Mientras: kernel datagen v4 sigue en CPU (elegira 3b por vrams vacio); inofensivo,
   se cosechara su output. Al confirmarse la verificacion: re-push (7b 4-bit en T4)
   y luego pipeline QLoRA completo.
+
+## 2026-06-12 17:05 — CYCLE 12: 7B Q4 local MEDIDO — 10/20 (50%) vs 8/20 (40%) del 3B
+- Qwen2.5-Coder-7B-Instruct Q4_K_M (bartowski, 4.68GB) descargado a
+  model_shards/qwen-coder-7b-q4/; via LLAMA_GGUF_PATH, mismo protocolo determinista
+  (seed 42, cache off, max_tokens 768, tasks_hard.jsonl).
+- RESULTADO: pass@1 50% (10/20) a 2.18 tok/s (vs 40% a ~8 tok/s del 3B).
+  Por banda vs baseline 3B: ALG 5/6, LONG 2/5 (3B: 0/5 — mejora real),
+  DBG 3/5, SPEC 0/4 (3B: 1/4 — seguir specs exactas NO escala con el tamano).
+- Veredicto palanca "7B batch": +10 puntos reales por ~3.7x de velocidad. Viable para
+  tareas batch/nocturnas donde la latencia no importa; NO reemplaza al 3B interactivo.
+  JSON: results_code_hard7b_det_20260612_1701.json (+ smoke results_code_smoke7b).
+- Nota: carga fria del 7B entra en el _SERVER_TIMEOUT=90s actual (smoke OK al primer try).
