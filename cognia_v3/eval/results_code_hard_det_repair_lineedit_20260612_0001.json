@@ -1,0 +1,561 @@
+{
+  "label": "hard_det_repair_lineedit",
+  "timestamp": "2026-06-12T00:01:51.699412",
+  "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "max_tokens": 768,
+  "temperature": 0.0,
+  "seed": 42,
+  "cache_prompt": false,
+  "grammar": false,
+  "fewshot": 0,
+  "repair_temperature": 0.5,
+  "repair_mode": "lineedit",
+  "server_props": {
+    "default_generation_settings": {
+      "params": {
+        "seed": 4294967295,
+        "temperature": 0.800000011920929,
+        "dynatemp_range": 0.0,
+        "dynatemp_exponent": 1.0,
+        "top_k": 40,
+        "top_p": 0.949999988079071,
+        "min_p": 0.05000000074505806,
+        "top_n_sigma": -1.0,
+        "xtc_probability": 0.0,
+        "xtc_threshold": 0.10000000149011612,
+        "typical_p": 1.0,
+        "repeat_last_n": 64,
+        "repeat_penalty": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "dry_multiplier": 0.0,
+        "dry_base": 1.75,
+        "dry_allowed_length": 2,
+        "dry_penalty_last_n": -1,
+        "mirostat": 0,
+        "mirostat_tau": 5.0,
+        "mirostat_eta": 0.10000000149011612,
+        "max_tokens": -1,
+        "n_predict": -1,
+        "n_keep": 0,
+        "n_discard": 0,
+        "ignore_eos": false,
+        "stream": true,
+        "n_probs": 0,
+        "min_keep": 0,
+        "chat_format": "Content-only",
+        "reasoning_format": "none",
+        "reasoning_in_content": false,
+        "generation_prompt": "",
+        "samplers": [
+          "penalties",
+          "dry",
+          "top_n_sigma",
+          "top_k",
+          "typ_p",
+          "top_p",
+          "min_p",
+          "xtc",
+          "temperature"
+        ],
+        "speculative.types": "none",
+        "timings_per_token": false,
+        "post_sampling_probs": false,
+        "backend_sampling": false,
+        "lora": []
+      },
+      "n_ctx": 16384
+    },
+    "total_slots": 4,
+    "model_alias": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+    "model_path": "D:\\Movido_desde_C\\Downloads\\cognia\\cognia_v2\\model_shards\\qwen-coder-3b-q4\\Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+    "modalities": {
+      "vision": false,
+      "audio": false
+    },
+    "media_marker": "<__media_AMkmVHq2FaQo0ECStFJXqNU3PVj5bBZT__>",
+    "endpoint_slots": true,
+    "endpoint_props": false,
+    "endpoint_metrics": false,
+    "ui": true,
+    "ui_settings": {},
+    "webui": true,
+    "webui_settings": {},
+    "chat_template": "{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0]['role'] == 'system' %}\n        {{- messages[0]['content'] }}\n    {%- else %}\n        {{- 'You are Qwen, created by Alibaba Cloud. You are a helpful assistant.' }}\n    {%- endif %}\n    {{- \"\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>\" }}\n    {%- for tool in tools %}\n        {{- \"\\n\" }}\n        {{- tool | tojson }}\n    {%- endfor %}\n    {{- \"\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\\\"name\\\": <function-name>, \\\"arguments\\\": <args-json-object>}\\n</tool_call><|im_end|>\\n\" }}\n{%- else %}\n    {%- if messages[0]['role'] == 'system' %}\n        {{- '<|im_start|>system\\n' + messages[0]['content'] + '<|im_end|>\\n' }}\n    {%- else %}\n        {{- '<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- for message in messages %}\n    {%- if (message.role == \"user\") or (message.role == \"system\" and not loop.first) or (message.role == \"assistant\" and not message.tool_calls) %}\n        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == \"assistant\" %}\n        {{- '<|im_start|>' + message.role }}\n        {%- if message.content %}\n            {{- '\\n' + message.content }}\n        {%- endif %}\n        {%- for tool_call in message.tool_calls %}\n            {%- if tool_call.function is defined %}\n                {%- set tool_call = tool_call.function %}\n            {%- endif %}\n            {{- '\\n<tool_call>\\n{\"name\": \"' }}\n            {{- tool_call.name }}\n            {{- '\", \"arguments\": ' }}\n            {{- tool_call.arguments | tojson }}\n            {{- '}\\n</tool_call>' }}\n        {%- endfor %}\n        {{- '<|im_end|>\\n' }}\n    {%- elif message.role == \"tool\" %}\n        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != \"tool\") %}\n            {{- '<|im_start|>user' }}\n        {%- endif %}\n        {{- '\\n<tool_response>\\n' }}\n        {{- message.content }}\n        {{- '\\n</tool_response>' }}\n        {%- if loop.last or (messages[loop.index0 + 1].role != \"tool\") %}\n            {{- '<|im_end|>\\n' }}\n        {%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n{%- endif %}",
+    "chat_template_caps": {
+      "supports_object_arguments": true,
+      "supports_parallel_tool_calls": true,
+      "supports_preserve_reasoning": false,
+      "supports_string_content": true,
+      "supports_system_role": true,
+      "supports_tool_calls": true,
+      "supports_tools": true,
+      "supports_typed_content": false
+    },
+    "bos_token": "<|endoftext|>",
+    "eos_token": "<|im_end|>",
+    "build_info": "b9391-7fb1e70b5",
+    "is_sleeping": false,
+    "cors_proxy_enabled": false
+  },
+  "n_tasks": 20,
+  "n_passed": 8,
+  "pass_at_1": 0.4,
+  "by_difficulty": {
+    "hard": {
+      "total": 20,
+      "passed": 8
+    }
+  },
+  "errors_by_type": {
+    "runtime": 5,
+    "assert": 6,
+    "syntax": 1
+  },
+  "avg_tok_per_s": 5.07,
+  "total_tokens_predicted": 5192,
+  "results": [
+    {
+      "id": "ALG1",
+      "difficulty": "hard",
+      "entry_point": "num_distinct",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 45.59,
+      "tokens_predicted": 220,
+      "tok_per_s": 4.83,
+      "response": "```python\ndef num_distinct(s, t):\n    if len(t) > len(s):\n        return 0\n    if len(t) == 0:\n        return 1\n    \n    # Initialize a DP table\n    dp = [[0] * (len(t) + 1) for _ in range(len(s) + 1)]\n    \n    # Base case: an empty string is a subsequence of any string\n    for i in range(len(s) + 1):\n        dp[i][0] = 1\n    \n    # Fill the DP table\n    for i in range(1, len(s) + 1):\n        for j in range(1, len(t) + 1):\n            if s[i - 1] == t[j - 1]:\n                dp[i][j] = dp[i - 1][j - 1] + dp[i - 1][j]\n            else:\n                dp[i][j] = dp[i - 1][j]\n    \n    return dp[len(s)][len(t)]\n```",
+      "extracted_code": "def num_distinct(s, t):\n    if len(t) > len(s):\n        return 0\n    if len(t) == 0:\n        return 1\n    \n    # Initialize a DP table\n    dp = [[0] * (len(t) + 1) for _ in range(len(s) + 1)]\n    \n    # Base case: an empty string is a subsequence of any string\n    for i in range(len(s) + 1):\n        dp[i][0] = 1\n    \n    # Fill the DP table\n    for i in range(1, len(s) + 1):\n        for j in range(1, len(t) + 1):\n            if s[i - 1] == t[j - 1]:\n                dp[i][j] = dp[i - 1][j - 1] + dp[i - 1][j]\n            else:\n                dp[i][j] = dp[i - 1][j]\n    \n    return dp[len(s)][len(t)]",
+      "passed_final": true,
+      "repair_attempts": []
+    },
+    {
+      "id": "ALG2",
+      "difficulty": "hard",
+      "entry_point": "find_order",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 41.66,
+      "tokens_predicted": 199,
+      "tok_per_s": 4.78,
+      "response": "```python\ndef find_order(n, prereqs):\n    # Build the graph\n    graph = {i: [] for i in range(n)}\n    for b, a in prereqs:\n        graph[a].append(b)\n    \n    # Initialize indegree\n    indegree = [0] * n\n    for a in range(n):\n        for b in graph[a]:\n            indegree[b] += 1\n    \n    # Initialize queue with courses with no prerequisites\n    queue = [i for i in range(n) if indegree[i] == 0]\n    \n    # Topological sort\n    order = []\n    while queue:\n        course = queue.pop(0)\n        order.append(course)\n        for b in graph[course]:\n            indegree[b] -= 1\n            if indegree[b] == 0:\n                queue.append(b)\n    \n    # Check if all courses were visited\n    return order if len(order) == n else []\n```",
+      "extracted_code": "def find_order(n, prereqs):\n    # Build the graph\n    graph = {i: [] for i in range(n)}\n    for b, a in prereqs:\n        graph[a].append(b)\n    \n    # Initialize indegree\n    indegree = [0] * n\n    for a in range(n):\n        for b in graph[a]:\n            indegree[b] += 1\n    \n    # Initialize queue with courses with no prerequisites\n    queue = [i for i in range(n) if indegree[i] == 0]\n    \n    # Topological sort\n    order = []\n    while queue:\n        course = queue.pop(0)\n        order.append(course)\n        for b in graph[course]:\n            indegree[b] -= 1\n            if indegree[b] == 0:\n                queue.append(b)\n    \n    # Check if all courses were visited\n    return order if len(order) == n else []",
+      "passed_final": true,
+      "repair_attempts": []
+    },
+    {
+      "id": "ALG3",
+      "difficulty": "hard",
+      "entry_point": "calc",
+      "passed": false,
+      "error_type": "runtime",
+      "error_detail": "TypeError: 'in <string>' requires string as left operand, not int",
+      "gen_seconds": 65.55,
+      "tokens_predicted": 316,
+      "tok_per_s": 4.82,
+      "response": "```python\ndef calc(expr):\n    def parse(expr):\n        tokens = []\n        i = 0\n        while i < len(expr):\n            if expr[i].isspace():\n                i += 1\n                continue\n            elif expr[i] in \"+-*/()\":\n                tokens.append(expr[i])\n                i += 1\n            elif expr[i].isdigit():\n                num = \"\"\n                while i < len(expr) and expr[i].isdigit():\n                    num += expr[i]\n                    i += 1\n                tokens.append(int(num))\n        return tokens\n\n    def evaluate(tokens):\n        stack = []\n        i = 0\n        while i < len(tokens):\n            if tokens[i] == \"(\":\n                stack.append(i)\n            elif tokens[i] == \")\":\n                start = stack.pop()\n                expr = tokens[start+1:i]\n                result = evaluate(expr)\n                tokens[start:i+1] = [result]\n            elif tokens[i] in \"+-*/\":\n                if len(stack) < 2:\n                    raise ValueError(\"Invalid expression\")\n                right = stack.pop()\n                left = stack.pop()\n                if tokens[i] == \"+\":\n                    stack.append(left + right)\n                elif tokens[i] == \"-\":\n                    stack.append(left - right)\n                elif tokens[i] == \"*\":\n                    stack.append(left * right)\n                elif tokens[i] == \"/\":\n                    stack.append(left // right)\n            else:\n                stack.append(tokens[i])\n            i += 1\n        return stack[0]\n\n    return evaluate(parse(expr))\n```",
+      "extracted_code": "def calc(expr):\n    def parse(expr):\n        tokens = []\n        i = 0\n        while i < len(expr):\n            if expr[i].isspace():\n                i += 1\n                continue\n            elif expr[i] in \"+-*/()\":\n                tokens.append(expr[i])\n                i += 1\n            elif expr[i].isdigit():\n                num = \"\"\n                while i < len(expr) and expr[i].isdigit():\n                    num += expr[i]\n                    i += 1\n                tokens.append(int(num))\n        return tokens\n\n    def evaluate(tokens):\n        stack = []\n        i = 0\n        while i < len(tokens):\n            if tokens[i] == \"(\":\n                stack.append(i)\n            elif tokens[i] == \")\":\n                start = stack.pop()\n                expr = tokens[start+1:i]\n                result = evaluate(expr)\n                tokens[start:i+1] = [result]\n            elif tokens[i] in \"+-*/\":\n                if len(stack) < 2:\n                    raise ValueError(\"Invalid expression\")\n                right = stack.pop()\n                left = stack.pop()\n                if tokens[i] == \"+\":\n                    stack.append(left + right)\n                elif tokens[i] == \"-\":\n                    stack.append(left - right)\n                elif tokens[i] == \"*\":\n                    stack.append(left * right)\n                elif tokens[i] == \"/\":\n                    stack.append(left // right)\n            else:\n                stack.append(tokens[i])\n            i += 1\n        return stack[0]\n\n    return evaluate(parse(expr))",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "runtime",
+          "error_detail": "UnboundLocalError: cannot access local variable 'num' where it is not associated with a value",
+          "gen_seconds": 39.97,
+          "tokens_predicted": 6,
+          "response": "DELETE LINE 13",
+          "extracted_code": "def calc(expr):\n    def parse(expr):\n        tokens = []\n        i = 0\n        while i < len(expr):\n            if expr[i].isspace():\n                i += 1\n                continue\n            elif expr[i] in \"+-*/()\":\n                tokens.append(expr[i])\n                i += 1\n            elif expr[i].isdigit():\n                while i < len(expr) and expr[i].isdigit():\n                    num += expr[i]\n                    i += 1\n                tokens.append(int(num))\n        return tokens\n\n    def evaluate(tokens):\n        stack = []\n        i = 0\n        while i < len(tokens):\n            if tokens[i] == \"(\":\n                stack.append(i)\n            elif tokens[i] == \")\":\n                start = stack.pop()\n                expr = tokens[start+1:i]\n                result = evaluate(expr)\n                tokens[start:i+1] = [result]\n            elif tokens[i] in \"+-*/\":\n                if len(stack) < 2:\n                    raise ValueError(\"Invalid expression\")\n                right = stack.pop()\n                left = stack.pop()\n                if tokens[i] == \"+\":\n                    stack.append(left + right)\n                elif tokens[i] == \"-\":\n                    stack.append(left - right)\n                elif tokens[i] == \"*\":\n                    stack.append(left * right)\n                elif tokens[i] == \"/\":\n                    stack.append(left // right)\n            else:\n                stack.append(tokens[i])\n            i += 1\n        return stack[0]\n\n    return evaluate(parse(expr))"
+        }
+      ]
+    },
+    {
+      "id": "ALG4",
+      "difficulty": "hard",
+      "entry_point": "min_rooms",
+      "passed": false,
+      "error_type": "assert",
+      "error_detail": "assert min_rooms([[1, 3], [3, 5]]) == 1",
+      "gen_seconds": 33.63,
+      "tokens_predicted": 164,
+      "tok_per_s": 4.88,
+      "response": "```python\ndef min_rooms(intervals):\n    if not intervals:\n        return 0\n    \n    # Sort intervals by start time\n    intervals.sort(key=lambda x: x[0])\n    \n    # Initialize a list to keep track of the end times of meetings\n    end_times = []\n    \n    # Iterate through each interval\n    for start, end in intervals:\n        # If the current meeting starts before the earliest ending meeting, we need a new room\n        if not end_times or start >= end_times[0]:\n            end_times.append(end)\n        else:\n            # Otherwise, we can reuse an existing room\n            end_times.pop(0)\n            end_times.append(end)\n    \n    # The length of end_times is the minimum number of rooms needed\n    return len(end_times)\n```",
+      "extracted_code": "def min_rooms(intervals):\n    if not intervals:\n        return 0\n    \n    # Sort intervals by start time\n    intervals.sort(key=lambda x: x[0])\n    \n    # Initialize a list to keep track of the end times of meetings\n    end_times = []\n    \n    # Iterate through each interval\n    for start, end in intervals:\n        # If the current meeting starts before the earliest ending meeting, we need a new room\n        if not end_times or start >= end_times[0]:\n            end_times.append(end)\n        else:\n            # Otherwise, we can reuse an existing room\n            end_times.pop(0)\n            end_times.append(end)\n    \n    # The length of end_times is the minimum number of rooms needed\n    return len(end_times)",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "syntax_after_edit",
+          "error_detail": "line 15: unindent does not match any outer indentation level",
+          "gen_seconds": 27.75,
+          "tokens_predicted": 18,
+          "response": "DELETE LINE 14\n```python\n            end_times.pop(0)\n```",
+          "extracted_code": "def min_rooms(intervals):\n    if not intervals:\n        return 0\n    \n    # Sort intervals by start time\n    intervals.sort(key=lambda x: x[0])\n    \n    # Initialize a list to keep track of the end times of meetings\n    end_times = []\n    \n    # Iterate through each interval\n    for start, end in intervals:\n        # If the current meeting starts before the earliest ending meeting, we need a new room\n        if not end_times or start >= end_times[0]:\n            end_times.append(end)\n        else:\n            # Otherwise, we can reuse an existing room\n            end_times.pop(0)\n            end_times.append(end)\n    \n    # The length of end_times is the minimum number of rooms needed\n    return len(end_times)"
+        }
+      ]
+    },
+    {
+      "id": "ALG5",
+      "difficulty": "hard",
+      "entry_point": "count_queens",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 35.81,
+      "tokens_predicted": 238,
+      "tok_per_s": 6.65,
+      "response": "```python\ndef count_queens(n):\n    def is_safe(board, row, col):\n        # Check if the column is safe\n        for i in range(row):\n            if board[i][col] == 1:\n                return False\n        \n        # Check upper left diagonal\n        for i, j in zip(range(row, -1, -1), range(col, -1, -1)):\n            if board[i][j] == 1:\n                return False\n        \n        # Check upper right diagonal\n        for i, j in zip(range(row, -1, -1), range(col, n)):\n            if board[i][j] == 1:\n                return False\n        \n        return True\n\n    def backtrack(row):\n        if row == n:\n            return 1\n        \n        count = 0\n        for col in range(n):\n            if is_safe(board, row, col):\n                board[row][col] = 1\n                count += backtrack(row + 1)\n                board[row][col] = 0\n        \n        return count\n\n    board = [[0] * n for _ in range(n)]\n    return backtrack(0)\n```",
+      "extracted_code": "def count_queens(n):\n    def is_safe(board, row, col):\n        # Check if the column is safe\n        for i in range(row):\n            if board[i][col] == 1:\n                return False\n        \n        # Check upper left diagonal\n        for i, j in zip(range(row, -1, -1), range(col, -1, -1)):\n            if board[i][j] == 1:\n                return False\n        \n        # Check upper right diagonal\n        for i, j in zip(range(row, -1, -1), range(col, n)):\n            if board[i][j] == 1:\n                return False\n        \n        return True\n\n    def backtrack(row):\n        if row == n:\n            return 1\n        \n        count = 0\n        for col in range(n):\n            if is_safe(board, row, col):\n                board[row][col] = 1\n                count += backtrack(row + 1)\n                board[row][col] = 0\n        \n        return count\n\n    board = [[0] * n for _ in range(n)]\n    return backtrack(0)",
+      "passed_final": true,
+      "repair_attempts": []
+    },
+    {
+      "id": "ALG6",
+      "difficulty": "hard",
+      "entry_point": "num_decodings",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 24.92,
+      "tokens_predicted": 131,
+      "tok_per_s": 5.26,
+      "response": "```python\ndef num_decodings(s):\n    if not s or s[0] == '0':\n        return 0\n    \n    dp = [0] * (len(s) + 1)\n    dp[0], dp[1] = 1, 1\n    \n    for i in range(2, len(s) + 1):\n        if s[i-1] != '0':\n            dp[i] += dp[i-1]\n        if 10 <= int(s[i-2:i]) <= 26:\n            dp[i] += dp[i-2]\n    \n    return dp[-1]\n```",
+      "extracted_code": "def num_decodings(s):\n    if not s or s[0] == '0':\n        return 0\n    \n    dp = [0] * (len(s) + 1)\n    dp[0], dp[1] = 1, 1\n    \n    for i in range(2, len(s) + 1):\n        if s[i-1] != '0':\n            dp[i] += dp[i-1]\n        if 10 <= int(s[i-2:i]) <= 26:\n            dp[i] += dp[i-2]\n    \n    return dp[-1]",
+      "passed_final": true,
+      "repair_attempts": []
+    },
+    {
+      "id": "LONG1",
+      "difficulty": "hard",
+      "entry_point": "put",
+      "passed": false,
+      "error_type": "runtime",
+      "error_detail": "KeyError: 2",
+      "gen_seconds": 34.66,
+      "tokens_predicted": 191,
+      "tok_per_s": 5.51,
+      "response": "```python\nclass LRUCache:\n    def __init__(self, capacity):\n        self.capacity = capacity\n        self.cache = {}\n        self.keys = []\n\n    def get(self, key):\n        if key in self.cache:\n            self.keys.remove(key)\n            self.keys.append(key)\n            return self.cache[key]\n        return -1\n\n    def put(self, key, value):\n        if key in self.cache:\n            self.keys.remove(key)\n        elif len(self.cache) >= self.capacity:\n            self.pop_lru()\n        self.cache[key] = value\n        self.keys.append(key)\n\n    def keys_by_recency(self):\n        return self.keys\n\n    def pop_lru(self):\n        if self.keys:\n            key = self.keys.pop(0)\n            del self.cache[key]\n            return (key, self.cache.pop(key))\n        return None\n\n    def __len__(self):\n        return len(self.cache)\n```",
+      "extracted_code": "class LRUCache:\n    def __init__(self, capacity):\n        self.capacity = capacity\n        self.cache = {}\n        self.keys = []\n\n    def get(self, key):\n        if key in self.cache:\n            self.keys.remove(key)\n            self.keys.append(key)\n            return self.cache[key]\n        return -1\n\n    def put(self, key, value):\n        if key in self.cache:\n            self.keys.remove(key)\n        elif len(self.cache) >= self.capacity:\n            self.pop_lru()\n        self.cache[key] = value\n        self.keys.append(key)\n\n    def keys_by_recency(self):\n        return self.keys\n\n    def pop_lru(self):\n        if self.keys:\n            key = self.keys.pop(0)\n            del self.cache[key]\n            return (key, self.cache.pop(key))\n        return None\n\n    def __len__(self):\n        return len(self.cache)",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "assert",
+          "error_detail": "assert c.get(2) == -1",
+          "gen_seconds": 35.25,
+          "tokens_predicted": 16,
+          "response": "LINE 17:\n```python\n            self.keys.remove(key)\n```",
+          "extracted_code": "class LRUCache:\n    def __init__(self, capacity):\n        self.capacity = capacity\n        self.cache = {}\n        self.keys = []\n\n    def get(self, key):\n        if key in self.cache:\n            self.keys.remove(key)\n            self.keys.append(key)\n            return self.cache[key]\n        return -1\n\n    def put(self, key, value):\n        if key in self.cache:\n            self.keys.remove(key)\n            self.keys.remove(key)\n            self.pop_lru()\n        self.cache[key] = value\n        self.keys.append(key)\n\n    def keys_by_recency(self):\n        return self.keys\n\n    def pop_lru(self):\n        if self.keys:\n            key = self.keys.pop(0)\n            del self.cache[key]\n            return (key, self.cache.pop(key))\n        return None\n\n    def __len__(self):\n        return len(self.cache)"
+        }
+      ]
+    },
+    {
+      "id": "LONG2",
+      "difficulty": "hard",
+      "entry_point": "run_turtle",
+      "passed": false,
+      "error_type": "runtime",
+      "error_detail": "AttributeError: 'list' object has no attribute 'split'",
+      "gen_seconds": 62.79,
+      "tokens_predicted": 379,
+      "tok_per_s": 6.04,
+      "response": "```python\ndef run_turtle(program):\n    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # North, East, South, West\n    x, y = 0, 0\n    direction_index = 0\n    pen_down = False\n    marks = set()\n\n    def move(n):\n        nonlocal x, y\n        for _ in range(n):\n            x += directions[direction_index][0]\n            y += directions[direction_index][1]\n            if pen_down:\n                marks.add((x, y))\n\n    def turn_left():\n        nonlocal direction_index\n        direction_index = (direction_index - 1) % 4\n\n    def turn_right():\n        nonlocal direction_index\n        direction_index = (direction_index + 1) % 4\n\n    def repeat(n, command):\n        for _ in range(n):\n            command()\n\n    tokens = program.split()\n    i = 0\n    while i < len(tokens):\n        token = tokens[i]\n        if token == \"PENDOWN\":\n            pen_down = True\n        elif token == \"PENUP\":\n            pen_down = False\n        elif token == \"MOVE\":\n            move(int(tokens[i + 1]))\n            i += 1\n        elif token == \"TURN\":\n            if tokens[i + 1] == \"L\":\n                turn_left()\n            else:\n                turn_right()\n            i += 1\n        elif token == \"REPEAT\":\n            n = int(tokens[i + 1])\n            command = lambda: run_turtle(tokens[i + 2:i + 2 + n])\n            repeat(n, command)\n            i += 2 + n\n        i += 1\n\n    return (x, y, sorted(marks))\n```",
+      "extracted_code": "def run_turtle(program):\n    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # North, East, South, West\n    x, y = 0, 0\n    direction_index = 0\n    pen_down = False\n    marks = set()\n\n    def move(n):\n        nonlocal x, y\n        for _ in range(n):\n            x += directions[direction_index][0]\n            y += directions[direction_index][1]\n            if pen_down:\n                marks.add((x, y))\n\n    def turn_left():\n        nonlocal direction_index\n        direction_index = (direction_index - 1) % 4\n\n    def turn_right():\n        nonlocal direction_index\n        direction_index = (direction_index + 1) % 4\n\n    def repeat(n, command):\n        for _ in range(n):\n            command()\n\n    tokens = program.split()\n    i = 0\n    while i < len(tokens):\n        token = tokens[i]\n        if token == \"PENDOWN\":\n            pen_down = True\n        elif token == \"PENUP\":\n            pen_down = False\n        elif token == \"MOVE\":\n            move(int(tokens[i + 1]))\n            i += 1\n        elif token == \"TURN\":\n            if tokens[i + 1] == \"L\":\n                turn_left()\n            else:\n                turn_right()\n            i += 1\n        elif token == \"REPEAT\":\n            n = int(tokens[i + 1])\n            command = lambda: run_turtle(tokens[i + 2:i + 2 + n])\n            repeat(n, command)\n            i += 2 + n\n        i += 1\n\n    return (x, y, sorted(marks))",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "assert",
+          "error_detail": "assert run_turtle(\"MOVE 3\") == (0, 3, [])",
+          "gen_seconds": 70.21,
+          "tokens_predicted": 150,
+          "response": "DELETE LINE 28\nDELETE LINE 29\nDELETE LINE 30\nDELETE LINE 31\nDELETE LINE 32\nDELETE LINE 33\nDELETE LINE 34\nDELETE LINE 35\nDELETE LINE 36\nDELETE LINE 37\nDELETE LINE 38\nDELETE LINE 39\nDELETE LINE 40\nDELETE LINE 41\nDELETE LINE 42\nDELETE LINE 43\nDELETE LINE 44\nDELETE LINE 45\nDELETE LINE 46\nDELETE LINE 47\nDELETE LINE 48\nDELETE LINE 49\nDELETE LINE 50\nDELETE LINE 51\nDELETE LINE 52",
+          "extracted_code": "def run_turtle(program):\n    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # North, East, South, West\n    x, y = 0, 0\n    direction_index = 0\n    pen_down = False\n    marks = set()\n\n    def move(n):\n        nonlocal x, y\n        for _ in range(n):\n            x += directions[direction_index][0]\n            y += directions[direction_index][1]\n            if pen_down:\n                marks.add((x, y))\n\n    def turn_left():\n        nonlocal direction_index\n        direction_index = (direction_index - 1) % 4\n\n    def turn_right():\n        nonlocal direction_index\n        direction_index = (direction_index + 1) % 4\n\n    def repeat(n, command):\n        for _ in range(n):\n            command()\n"
+        }
+      ]
+    },
+    {
+      "id": "LONG3",
+      "difficulty": "hard",
+      "entry_point": "parse_json",
+      "passed": false,
+      "error_type": "syntax",
+      "error_detail": "SyntaxError: no binding for nonlocal 'i' found",
+      "gen_seconds": 111.9,
+      "tokens_predicted": 768,
+      "tok_per_s": 6.86,
+      "response": "```python\ndef parse_json(s):\n    def parse_value():\n        nonlocal i\n        if s[i] == '{':\n            return parse_object()\n        elif s[i] == '[':\n            return parse_array()\n        elif s[i] == '\"':\n            return parse_string()\n        elif s[i] == 't':\n            return parse_true()\n        elif s[i] == 'f':\n            return parse_false()\n        elif s[i] == 'n':\n            return parse_null()\n        elif s[i].isdigit() or s[i] == '-':\n            return parse_number()\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_object():\n        nonlocal i\n        result = {}\n        i += 1  # Skip '{'\n        while i < len(s) and s[i] != '}':\n            key = parse_string()\n            i += 1  # Skip ':'\n            value = parse_value()\n            result[key] = value\n            if i < len(s) and s[i] == ',':\n                i += 1  # Skip ','\n        i += 1  # Skip '}'\n        return result\n\n    def parse_array():\n        nonlocal i\n        result = []\n        i += 1  # Skip '['\n        while i < len(s) and s[i] != ']':\n            result.append(parse_value())\n            if i < len(s) and s[i] == ',':\n                i += 1  # Skip ','\n        i += 1  # Skip ']'\n        return result\n\n    def parse_string():\n        nonlocal i\n        result = []\n        i += 1  # Skip '\"'\n        while i < len(s) and s[i] != '\"':\n            if s[i] == '\\\\':\n                i += 1  # Skip '\\\\'\n                if s[i] == 'n':\n                    result.append('\\n')\n                elif s[i] == 't':\n                    result.append('\\t')\n                elif s[i] == 'r':\n                    result.append('\\r')\n                elif s[i] == 'f':\n                    result.append('\\f')\n                elif s[i] == '\\\\':\n                    result.append('\\\\')\n                elif s[i] == '\"':\n                    result.append('\"')\n                elif s[i] == 'u':\n                    i += 1  # Skip 'u'\n                    hex_value = s[i:i+4]\n                    result.append(chr(int(hex_value, 16)))\n                    i += 4\n            else:\n                result.append(s[i])\n            i += 1\n        i += 1  # Skip '\"'\n        return ''.join(result)\n\n    def parse_true():\n        nonlocal i\n        if s[i:i+4] == 'true':\n            i += 4\n            return True\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_false():\n        nonlocal i\n        if s[i:i+5] == 'false':\n            i += 5\n            return False\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_null():\n        nonlocal i\n        if s[i:i+4] == 'null':\n            i += 4\n            return None\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_number():\n        nonlocal i\n        result = []\n        if s[i] == '-':\n            result.append('-')\n            i += 1\n        while i < len(s) and s[i].isdigit():\n            result.append(s[i])\n            i += 1\n        if i < len(s) and s[i] == '.':\n            result.append('.')\n            i += 1\n            while i < len(s) and s[i].isdigit():\n                result.append(s[i])\n                i += 1",
+      "extracted_code": "def parse_json(s):\n    def parse_value():\n        nonlocal i\n        if s[i] == '{':\n            return parse_object()\n        elif s[i] == '[':\n            return parse_array()\n        elif s[i] == '\"':\n            return parse_string()\n        elif s[i] == 't':\n            return parse_true()\n        elif s[i] == 'f':\n            return parse_false()\n        elif s[i] == 'n':\n            return parse_null()\n        elif s[i].isdigit() or s[i] == '-':\n            return parse_number()\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_object():\n        nonlocal i\n        result = {}\n        i += 1  # Skip '{'\n        while i < len(s) and s[i] != '}':\n            key = parse_string()\n            i += 1  # Skip ':'\n            value = parse_value()\n            result[key] = value\n            if i < len(s) and s[i] == ',':\n                i += 1  # Skip ','\n        i += 1  # Skip '}'\n        return result\n\n    def parse_array():\n        nonlocal i\n        result = []\n        i += 1  # Skip '['\n        while i < len(s) and s[i] != ']':\n            result.append(parse_value())\n            if i < len(s) and s[i] == ',':\n                i += 1  # Skip ','\n        i += 1  # Skip ']'\n        return result\n\n    def parse_string():\n        nonlocal i\n        result = []\n        i += 1  # Skip '\"'\n        while i < len(s) and s[i] != '\"':\n            if s[i] == '\\\\':\n                i += 1  # Skip '\\\\'\n                if s[i] == 'n':\n                    result.append('\\n')\n                elif s[i] == 't':\n                    result.append('\\t')\n                elif s[i] == 'r':\n                    result.append('\\r')\n                elif s[i] == 'f':\n                    result.append('\\f')\n                elif s[i] == '\\\\':\n                    result.append('\\\\')\n                elif s[i] == '\"':\n                    result.append('\"')\n                elif s[i] == 'u':\n                    i += 1  # Skip 'u'\n                    hex_value = s[i:i+4]\n                    result.append(chr(int(hex_value, 16)))\n                    i += 4\n            else:\n                result.append(s[i])\n            i += 1\n        i += 1  # Skip '\"'\n        return ''.join(result)\n\n    def parse_true():\n        nonlocal i\n        if s[i:i+4] == 'true':\n            i += 4\n            return True\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_false():\n        nonlocal i\n        if s[i:i+5] == 'false':\n            i += 5\n            return False\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_null():\n        nonlocal i\n        if s[i:i+4] == 'null':\n            i += 4\n            return None\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_number():\n        nonlocal i\n        result = []\n        if s[i] == '-':\n            result.append('-')\n            i += 1\n        while i < len(s) and s[i].isdigit():\n            result.append(s[i])\n            i += 1\n        if i < len(s) and s[i] == '.':\n            result.append('.')\n            i += 1\n            while i < len(s) and s[i].isdigit():\n                result.append(s[i])\n                i += 1",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "syntax_after_edit",
+          "error_detail": "line 3: expected an indented block after function definition on line 2",
+          "gen_seconds": 81.38,
+          "tokens_predicted": 16,
+          "response": "LINE 3:\n```python\n    while i < len(s):\n```",
+          "extracted_code": "def parse_json(s):\n    def parse_value():\n        nonlocal i\n        if s[i] == '{':\n            return parse_object()\n        elif s[i] == '[':\n            return parse_array()\n        elif s[i] == '\"':\n            return parse_string()\n        elif s[i] == 't':\n            return parse_true()\n        elif s[i] == 'f':\n            return parse_false()\n        elif s[i] == 'n':\n            return parse_null()\n        elif s[i].isdigit() or s[i] == '-':\n            return parse_number()\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_object():\n        nonlocal i\n        result = {}\n        i += 1  # Skip '{'\n        while i < len(s) and s[i] != '}':\n            key = parse_string()\n            i += 1  # Skip ':'\n            value = parse_value()\n            result[key] = value\n            if i < len(s) and s[i] == ',':\n                i += 1  # Skip ','\n        i += 1  # Skip '}'\n        return result\n\n    def parse_array():\n        nonlocal i\n        result = []\n        i += 1  # Skip '['\n        while i < len(s) and s[i] != ']':\n            result.append(parse_value())\n            if i < len(s) and s[i] == ',':\n                i += 1  # Skip ','\n        i += 1  # Skip ']'\n        return result\n\n    def parse_string():\n        nonlocal i\n        result = []\n        i += 1  # Skip '\"'\n        while i < len(s) and s[i] != '\"':\n            if s[i] == '\\\\':\n                i += 1  # Skip '\\\\'\n                if s[i] == 'n':\n                    result.append('\\n')\n                elif s[i] == 't':\n                    result.append('\\t')\n                elif s[i] == 'r':\n                    result.append('\\r')\n                elif s[i] == 'f':\n                    result.append('\\f')\n                elif s[i] == '\\\\':\n                    result.append('\\\\')\n                elif s[i] == '\"':\n                    result.append('\"')\n                elif s[i] == 'u':\n                    i += 1  # Skip 'u'\n                    hex_value = s[i:i+4]\n                    result.append(chr(int(hex_value, 16)))\n                    i += 4\n            else:\n                result.append(s[i])\n            i += 1\n        i += 1  # Skip '\"'\n        return ''.join(result)\n\n    def parse_true():\n        nonlocal i\n        if s[i:i+4] == 'true':\n            i += 4\n            return True\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_false():\n        nonlocal i\n        if s[i:i+5] == 'false':\n            i += 5\n            return False\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_null():\n        nonlocal i\n        if s[i:i+4] == 'null':\n            i += 4\n            return None\n        else:\n            raise ValueError(\"Invalid JSON\")\n\n    def parse_number():\n        nonlocal i\n        result = []\n        if s[i] == '-':\n            result.append('-')\n            i += 1\n        while i < len(s) and s[i].isdigit():\n            result.append(s[i])\n            i += 1\n        if i < len(s) and s[i] == '.':\n            result.append('.')\n            i += 1\n            while i < len(s) and s[i].isdigit():\n                result.append(s[i])\n                i += 1"
+        }
+      ]
+    },
+    {
+      "id": "LONG4",
+      "difficulty": "hard",
+      "entry_point": "det",
+      "passed": false,
+      "error_type": "runtime",
+      "error_detail": "AttributeError: 'list' object has no attribute 'det'",
+      "gen_seconds": 65.46,
+      "tokens_predicted": 407,
+      "tok_per_s": 6.22,
+      "response": "```python\nclass Matrix:\n    def __init__(self, rows):\n        self.rows = rows\n\n    def __add__(self, other):\n        if len(self.rows) != len(other.rows) or len(self.rows[0]) != len(other.rows[0]):\n            raise ValueError(\"Matrices must have the same shape for addition\")\n        return Matrix([[self.rows[i][j] + other.rows[i][j] for j in range(len(self.rows[0]))] for i in range(len(self.rows))])\n\n    def __mul__(self, other):\n        if len(self.rows[0]) != len(other.rows):\n            raise ValueError(\"Number of columns in self must match number of rows in other for multiplication\")\n        return Matrix([[sum(self.rows[i][k] * other.rows[k][j] for k in range(len(self.rows[0]))) for j in range(len(other.rows[0]))] for i in range(len(self.rows))])\n\n    def transpose(self):\n        return Matrix([[self.rows[j][i] for j in range(len(self.rows))] for i in range(len(self.rows[0]))])\n\n    def det(self):\n        if len(self.rows) != len(self.rows[0]):\n            raise ValueError(\"Matrix must be square to compute determinant\")\n        if len(self.rows) == 1:\n            return self.rows[0][0]\n        det = 0\n        for i in range(len(self.rows)):\n            sign = (-1) ** i\n            sub_matrix = [row[:i] + row[i+1:] for row in self.rows[1:]]\n            det += sign * self.rows[0][i] * sub_matrix.det()\n        return det\n\n    def __eq__(self, other):\n        if len(self.rows) != len(other.rows) or len(self.rows[0]) != len(other.rows[0]):\n            return False\n        return all(self.rows[i] == other.rows[i] for i in range(len(self.rows)))\n```",
+      "extracted_code": "class Matrix:\n    def __init__(self, rows):\n        self.rows = rows\n\n    def __add__(self, other):\n        if len(self.rows) != len(other.rows) or len(self.rows[0]) != len(other.rows[0]):\n            raise ValueError(\"Matrices must have the same shape for addition\")\n        return Matrix([[self.rows[i][j] + other.rows[i][j] for j in range(len(self.rows[0]))] for i in range(len(self.rows))])\n\n    def __mul__(self, other):\n        if len(self.rows[0]) != len(other.rows):\n            raise ValueError(\"Number of columns in self must match number of rows in other for multiplication\")\n        return Matrix([[sum(self.rows[i][k] * other.rows[k][j] for k in range(len(self.rows[0]))) for j in range(len(other.rows[0]))] for i in range(len(self.rows))])\n\n    def transpose(self):\n        return Matrix([[self.rows[j][i] for j in range(len(self.rows))] for i in range(len(self.rows[0]))])\n\n    def det(self):\n        if len(self.rows) != len(self.rows[0]):\n            raise ValueError(\"Matrix must be square to compute determinant\")\n        if len(self.rows) == 1:\n            return self.rows[0][0]\n        det = 0\n        for i in range(len(self.rows)):\n            sign = (-1) ** i\n            sub_matrix = [row[:i] + row[i+1:] for row in self.rows[1:]]\n            det += sign * self.rows[0][i] * sub_matrix.det()\n        return det\n\n    def __eq__(self, other):\n        if len(self.rows) != len(other.rows) or len(self.rows[0]) != len(other.rows[0]):\n            return False\n        return all(self.rows[i] == other.rows[i] for i in range(len(self.rows)))",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "runtime",
+          "error_detail": "AttributeError: 'list' object has no attribute 'det'",
+          "gen_seconds": 53.91,
+          "tokens_predicted": 73,
+          "response": "DELETE LINE 29:\n```python\n#     def __eq__(self, other):\n#         if len(self.rows) != len(other.rows) or len(self.rows[0]) != len(other.rows[0]):\n#             return False\n#         return all(self.rows[i] == other.rows[i] for i in range(len(self.rows)))\n```",
+          "extracted_code": "class Matrix:\n    def __init__(self, rows):\n        self.rows = rows\n\n    def __add__(self, other):\n        if len(self.rows) != len(other.rows) or len(self.rows[0]) != len(other.rows[0]):\n            raise ValueError(\"Matrices must have the same shape for addition\")\n        return Matrix([[self.rows[i][j] + other.rows[i][j] for j in range(len(self.rows[0]))] for i in range(len(self.rows))])\n\n    def __mul__(self, other):\n        if len(self.rows[0]) != len(other.rows):\n            raise ValueError(\"Number of columns in self must match number of rows in other for multiplication\")\n        return Matrix([[sum(self.rows[i][k] * other.rows[k][j] for k in range(len(self.rows[0]))) for j in range(len(other.rows[0]))] for i in range(len(self.rows))])\n\n    def transpose(self):\n        return Matrix([[self.rows[j][i] for j in range(len(self.rows))] for i in range(len(self.rows[0]))])\n\n    def det(self):\n        if len(self.rows) != len(self.rows[0]):\n            raise ValueError(\"Matrix must be square to compute determinant\")\n        if len(self.rows) == 1:\n            return self.rows[0][0]\n        det = 0\n        for i in range(len(self.rows)):\n            sign = (-1) ** i\n            sub_matrix = [row[:i] + row[i+1:] for row in self.rows[1:]]\n            det += sign * self.rows[0][i] * sub_matrix.det()\n        return det\n    def __eq__(self, other):\n        if len(self.rows) != len(other.rows) or len(self.rows[0]) != len(other.rows[0]):\n            return False\n        return all(self.rows[i] == other.rows[i] for i in range(len(self.rows)))"
+        }
+      ]
+    },
+    {
+      "id": "LONG5",
+      "difficulty": "hard",
+      "entry_point": "derivative",
+      "passed": false,
+      "error_type": "assert",
+      "error_detail": "assert str(p) == \"3x^2 - 2x + 1\"",
+      "gen_seconds": 83.89,
+      "tokens_predicted": 463,
+      "tok_per_s": 5.52,
+      "response": "```python\nclass Polynomial:\n    def __init__(self, coeffs):\n        self.coeffs = coeffs\n        self.normalize()\n\n    def normalize(self):\n        while len(self.coeffs) > 1 and self.coeffs[-1] == 0:\n            self.coeffs.pop()\n\n    def __add__(self, other):\n        if not isinstance(other, Polynomial):\n            raise TypeError(\"Operand must be a Polynomial\")\n        max_len = max(len(self.coeffs), len(other.coeffs))\n        coeffs = [0] * max_len\n        for i in range(max_len):\n            coeffs[i] = self.coeffs[i] if i < len(self.coeffs) else 0\n            coeffs[i] += other.coeffs[i] if i < len(other.coeffs) else 0\n        return Polynomial(coeffs)\n\n    def __mul__(self, other):\n        if not isinstance(other, Polynomial):\n            raise TypeError(\"Operand must be a Polynomial\")\n        coeffs = [0] * (len(self.coeffs) + len(other.coeffs) - 1)\n        for i in range(len(self.coeffs)):\n            for j in range(len(other.coeffs)):\n                coeffs[i + j] += self.coeffs[i] * other.coeffs[j]\n        return Polynomial(coeffs)\n\n    def evaluate(self, x):\n        return sum(c * x**i for i, c in enumerate(self.coeffs))\n\n    def derivative(self):\n        return Polynomial([i * c for i, c in enumerate(self.coeffs)][1:])\n\n    def __eq__(self, other):\n        if not isinstance(other, Polynomial):\n            return False\n        return self.coeffs == other.coeffs\n\n    def __str__(self):\n        if not self.coeffs:\n            return \"0\"\n        terms = []\n        for i, c in enumerate(self.coeffs):\n            if c == 0:\n                continue\n            term = str(abs(c))\n            if i > 0:\n                term += \"x\"\n            if i > 1:\n                term += f\"^{i}\"\n            terms.append(term)\n        if len(terms) == 1:\n            return terms[0]\n        return \" + \".join(terms[:-1]) + \" - \" + terms[-1]\n```",
+      "extracted_code": "class Polynomial:\n    def __init__(self, coeffs):\n        self.coeffs = coeffs\n        self.normalize()\n\n    def normalize(self):\n        while len(self.coeffs) > 1 and self.coeffs[-1] == 0:\n            self.coeffs.pop()\n\n    def __add__(self, other):\n        if not isinstance(other, Polynomial):\n            raise TypeError(\"Operand must be a Polynomial\")\n        max_len = max(len(self.coeffs), len(other.coeffs))\n        coeffs = [0] * max_len\n        for i in range(max_len):\n            coeffs[i] = self.coeffs[i] if i < len(self.coeffs) else 0\n            coeffs[i] += other.coeffs[i] if i < len(other.coeffs) else 0\n        return Polynomial(coeffs)\n\n    def __mul__(self, other):\n        if not isinstance(other, Polynomial):\n            raise TypeError(\"Operand must be a Polynomial\")\n        coeffs = [0] * (len(self.coeffs) + len(other.coeffs) - 1)\n        for i in range(len(self.coeffs)):\n            for j in range(len(other.coeffs)):\n                coeffs[i + j] += self.coeffs[i] * other.coeffs[j]\n        return Polynomial(coeffs)\n\n    def evaluate(self, x):\n        return sum(c * x**i for i, c in enumerate(self.coeffs))\n\n    def derivative(self):\n        return Polynomial([i * c for i, c in enumerate(self.coeffs)][1:])\n\n    def __eq__(self, other):\n        if not isinstance(other, Polynomial):\n            return False\n        return self.coeffs == other.coeffs\n\n    def __str__(self):\n        if not self.coeffs:\n            return \"0\"\n        terms = []\n        for i, c in enumerate(self.coeffs):\n            if c == 0:\n                continue\n            term = str(abs(c))\n            if i > 0:\n                term += \"x\"\n            if i > 1:\n                term += f\"^{i}\"\n            terms.append(term)\n        if len(terms) == 1:\n            return terms[0]\n        return \" + \".join(terms[:-1]) + \" - \" + terms[-1]",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "syntax_after_edit",
+          "error_detail": "line 11: expected an indented block after 'if' statement on line 10",
+          "gen_seconds": 63.57,
+          "tokens_predicted": 17,
+          "response": "LINE 10:\n```python\n        if not self.coeffs:\n```",
+          "extracted_code": "class Polynomial:\n    def __init__(self, coeffs):\n        self.coeffs = coeffs\n        self.normalize()\n\n    def normalize(self):\n        while len(self.coeffs) > 1 and self.coeffs[-1] == 0:\n            self.coeffs.pop()\n\n    def __add__(self, other):\n        if not isinstance(other, Polynomial):\n            raise TypeError(\"Operand must be a Polynomial\")\n        max_len = max(len(self.coeffs), len(other.coeffs))\n        coeffs = [0] * max_len\n        for i in range(max_len):\n            coeffs[i] = self.coeffs[i] if i < len(self.coeffs) else 0\n            coeffs[i] += other.coeffs[i] if i < len(other.coeffs) else 0\n        return Polynomial(coeffs)\n\n    def __mul__(self, other):\n        if not isinstance(other, Polynomial):\n            raise TypeError(\"Operand must be a Polynomial\")\n        coeffs = [0] * (len(self.coeffs) + len(other.coeffs) - 1)\n        for i in range(len(self.coeffs)):\n            for j in range(len(other.coeffs)):\n                coeffs[i + j] += self.coeffs[i] * other.coeffs[j]\n        return Polynomial(coeffs)\n\n    def evaluate(self, x):\n        return sum(c * x**i for i, c in enumerate(self.coeffs))\n\n    def derivative(self):\n        return Polynomial([i * c for i, c in enumerate(self.coeffs)][1:])\n\n    def __eq__(self, other):\n        if not isinstance(other, Polynomial):\n            return False\n        return self.coeffs == other.coeffs\n\n    def __str__(self):\n        if not self.coeffs:\n            return \"0\"\n        terms = []\n        for i, c in enumerate(self.coeffs):\n            if c == 0:\n                continue\n            term = str(abs(c))\n            if i > 0:\n                term += \"x\"\n            if i > 1:\n                term += f\"^{i}\"\n            terms.append(term)\n        if len(terms) == 1:\n            return terms[0]\n        return \" + \".join(terms[:-1]) + \" - \" + terms[-1]"
+        }
+      ]
+    },
+    {
+      "id": "DBG1",
+      "difficulty": "hard",
+      "entry_point": "add_item",
+      "passed": false,
+      "error_type": "assert",
+      "error_detail": "assert inv[\"items\"][1][\"tags\"] == []",
+      "gen_seconds": 51.14,
+      "tokens_predicted": 221,
+      "tok_per_s": 4.32,
+      "response": "```python\ndef make_inventory():\n    return {\"items\": [], \"log\": []}\n\n\ndef add_item(inventory, name, qty, tags=[]):\n    item = {\"name\": name, \"qty\": qty, \"tags\": tags}\n    inventory[\"items\"].append(item)\n    inventory[\"log\"].append(\"add:\" + name)\n    return item\n\n\ndef tag_item(inventory, name, tag):\n    for item in inventory[\"items\"]:\n        if item[\"name\"] == name:\n            if tag not in item[\"tags\"]:\n                item[\"tags\"].append(tag)\n            return True\n    return False\n\n\ndef total_quantity(inventory):\n    total = 0\n    for item in inventory[\"items\"]:\n        total += item[\"qty\"]\n    return total\n\n\ndef clone_inventory(inventory):\n    return {\"items\": [item.copy() for item in inventory[\"items\"]], \"log\": list(inventory[\"log\"])}\n\n\ndef find_by_tag(inventory, tag):\n    return [item[\"name\"] for item in inventory[\"items\"] if tag in item[\"tags\"]]\n```",
+      "extracted_code": "def make_inventory():\n    return {\"items\": [], \"log\": []}\n\n\ndef add_item(inventory, name, qty, tags=[]):\n    item = {\"name\": name, \"qty\": qty, \"tags\": tags}\n    inventory[\"items\"].append(item)\n    inventory[\"log\"].append(\"add:\" + name)\n    return item\n\n\ndef tag_item(inventory, name, tag):\n    for item in inventory[\"items\"]:\n        if item[\"name\"] == name:\n            if tag not in item[\"tags\"]:\n                item[\"tags\"].append(tag)\n            return True\n    return False\n\n\ndef total_quantity(inventory):\n    total = 0\n    for item in inventory[\"items\"]:\n        total += item[\"qty\"]\n    return total\n\n\ndef clone_inventory(inventory):\n    return {\"items\": [item.copy() for item in inventory[\"items\"]], \"log\": list(inventory[\"log\"])}\n\n\ndef find_by_tag(inventory, tag):\n    return [item[\"name\"] for item in inventory[\"items\"] if tag in item[\"tags\"]]",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "assert",
+          "error_detail": "assert inv[\"items\"][1][\"tags\"] == []",
+          "gen_seconds": 51.18,
+          "tokens_predicted": 37,
+          "response": "LINE 29:\n```python\n    return {\"items\": [item.copy() for item in inventory[\"items\"]], \"log\": list(inventory[\"log\"])}\n```",
+          "extracted_code": "def make_inventory():\n    return {\"items\": [], \"log\": []}\n\n\ndef add_item(inventory, name, qty, tags=[]):\n    item = {\"name\": name, \"qty\": qty, \"tags\": tags}\n    inventory[\"items\"].append(item)\n    inventory[\"log\"].append(\"add:\" + name)\n    return item\n\n\ndef tag_item(inventory, name, tag):\n    for item in inventory[\"items\"]:\n        if item[\"name\"] == name:\n            if tag not in item[\"tags\"]:\n                item[\"tags\"].append(tag)\n            return True\n    return False\n\n\ndef total_quantity(inventory):\n    total = 0\n    for item in inventory[\"items\"]:\n        total += item[\"qty\"]\n    return total\n\n\ndef clone_inventory(inventory):\n    return {\"items\": [item.copy() for item in inventory[\"items\"]], \"log\": list(inventory[\"log\"])}\n\n\ndef find_by_tag(inventory, tag):\n    return [item[\"name\"] for item in inventory[\"items\"] if tag in item[\"tags\"]]"
+        }
+      ]
+    },
+    {
+      "id": "DBG2",
+      "difficulty": "hard",
+      "entry_point": "smallest_in_rotated",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 47.07,
+      "tokens_predicted": 204,
+      "tok_per_s": 4.33,
+      "response": "```python\ndef smallest_in_rotated(lst):\n    \"\"\"Return the smallest element of a rotated ascending-sorted list of\n    unique integers using binary search, or None if the list is empty.\n\n    Examples:\n        smallest_in_rotated([3, 4, 5, 1, 2]) -> 1\n        smallest_in_rotated([1, 2, 3]) -> 1  (rotation by 0 is allowed)\n    \"\"\"\n    if len(lst) == 0:\n        return None\n    lo = 0\n    hi = len(lst) - 1\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if lst[mid] > lst[hi]:\n            # the smallest element is strictly to the right of mid\n            lo = mid + 1\n        else:\n            # the smallest element is at mid or to the left of mid\n            hi = mid\n    return lst[lo]\n```",
+      "extracted_code": "def smallest_in_rotated(lst):\n    \"\"\"Return the smallest element of a rotated ascending-sorted list of\n    unique integers using binary search, or None if the list is empty.\n\n    Examples:\n        smallest_in_rotated([3, 4, 5, 1, 2]) -> 1\n        smallest_in_rotated([1, 2, 3]) -> 1  (rotation by 0 is allowed)\n    \"\"\"\n    if len(lst) == 0:\n        return None\n    lo = 0\n    hi = len(lst) - 1\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if lst[mid] > lst[hi]:\n            # the smallest element is strictly to the right of mid\n            lo = mid + 1\n        else:\n            # the smallest element is at mid or to the left of mid\n            hi = mid\n    return lst[lo]",
+      "passed_final": true,
+      "repair_attempts": []
+    },
+    {
+      "id": "DBG3",
+      "difficulty": "hard",
+      "entry_point": "split_bill",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 24.67,
+      "tokens_predicted": 87,
+      "tok_per_s": 3.53,
+      "response": "```python\ndef split_bill(total_cents, people):\n    share = total_cents // people\n    remainder = total_cents % people\n    shares = [share] * people\n    for i in range(remainder):\n        shares[i] += 1\n    return shares\n\n\ndef format_cents(cents):\n    return \"$\" + \"{:.2f}\".format(cents / 100)\n```",
+      "extracted_code": "def split_bill(total_cents, people):\n    share = total_cents // people\n    remainder = total_cents % people\n    shares = [share] * people\n    for i in range(remainder):\n        shares[i] += 1\n    return shares\n\n\ndef format_cents(cents):\n    return \"$\" + \"{:.2f}\".format(cents / 100)",
+      "passed_final": true,
+      "repair_attempts": []
+    },
+    {
+      "id": "DBG4",
+      "difficulty": "hard",
+      "entry_point": "add_user",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 27.69,
+      "tokens_predicted": 107,
+      "tok_per_s": 3.86,
+      "response": "```python\ndef normalize(name):\n    return name.strip().casefold()\n\n\ndef add_user(registry, name):\n    key = normalize(name)\n    if key in registry:\n        return False\n    registry[key] = name.strip()\n    return True\n\n\ndef remove_user(registry, name):\n    key = normalize(name)\n    if key in registry:\n        del registry[key]\n        return True\n    return False\n\n\ndef list_users(registry):\n    return sorted(registry.values(), key=lambda x: x.casefold())\n```",
+      "extracted_code": "def normalize(name):\n    return name.strip().casefold()\n\n\ndef add_user(registry, name):\n    key = normalize(name)\n    if key in registry:\n        return False\n    registry[key] = name.strip()\n    return True\n\n\ndef remove_user(registry, name):\n    key = normalize(name)\n    if key in registry:\n        del registry[key]\n        return True\n    return False\n\n\ndef list_users(registry):\n    return sorted(registry.values(), key=lambda x: x.casefold())",
+      "passed_final": true,
+      "repair_attempts": []
+    },
+    {
+      "id": "DBG5",
+      "difficulty": "hard",
+      "entry_point": "drop_done",
+      "passed": false,
+      "error_type": "assert",
+      "error_detail": "assert r is q",
+      "gen_seconds": 38.98,
+      "tokens_predicted": 145,
+      "tok_per_s": 3.72,
+      "response": "```python\ndef add_task(queue, task, position=None):\n    if position is not None:\n        queue.insert(position, task)\n    else:\n        queue.append(task)\n\n\ndef drop_done(queue):\n    return [task for task in queue if not task[\"done\"]]\n\n\ndef next_task(queue):\n    best = None\n    for task in queue:\n        if task[\"done\"]:\n            continue\n        if best is None or task[\"priority\"] > best[\"priority\"]:\n            best = task\n    return best\n\n\ndef complete(queue, task_id):\n    for task in queue:\n        if task[\"id\"] == task_id:\n            task[\"done\"] = True\n            return True\n    return False\n```",
+      "extracted_code": "def add_task(queue, task, position=None):\n    if position is not None:\n        queue.insert(position, task)\n    else:\n        queue.append(task)\n\n\ndef drop_done(queue):\n    return [task for task in queue if not task[\"done\"]]\n\n\ndef next_task(queue):\n    best = None\n    for task in queue:\n        if task[\"done\"]:\n            continue\n        if best is None or task[\"priority\"] > best[\"priority\"]:\n            best = task\n    return best\n\n\ndef complete(queue, task_id):\n    for task in queue:\n        if task[\"id\"] == task_id:\n            task[\"done\"] = True\n            return True\n    return False",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "missing_func",
+          "error_detail": "no 'def drop_done' in generated code",
+          "gen_seconds": 40.16,
+          "tokens_predicted": 23,
+          "response": "LINE 8:\n```python\n    return [task for task in queue if not task[\"done\"]]\n```",
+          "extracted_code": "def add_task(queue, task, position=None):\n    if position is not None:\n        queue.insert(position, task)\n    else:\n        queue.append(task)\n\n\n    return [task for task in queue if not task[\"done\"]]\n    return [task for task in queue if not task[\"done\"]]\n\n\ndef next_task(queue):\n    best = None\n    for task in queue:\n        if task[\"done\"]:\n            continue\n        if best is None or task[\"priority\"] > best[\"priority\"]:\n            best = task\n    return best\n\n\ndef complete(queue, task_id):\n    for task in queue:\n        if task[\"id\"] == task_id:\n            task[\"done\"] = True\n            return True\n    return False"
+        }
+      ]
+    },
+    {
+      "id": "SPEC1",
+      "difficulty": "hard",
+      "entry_point": "validate_username",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 48.62,
+      "tokens_predicted": 212,
+      "tok_per_s": 4.36,
+      "response": "```python\ndef validate_username(name):\n    violated_rules = []\n    \n    # LEN\n    if not (5 <= len(name) <= 15):\n        violated_rules.append(\"LEN\")\n    \n    # CHARSET\n    allowed_chars = set(\"abcdefghijklmnopqrstuvwxyz0123456789_.\")\n    if not all(char in allowed_chars for char in name):\n        violated_rules.append(\"CHARSET\")\n    \n    # BOUNDARY\n    if not (name[0].islower() and name[-1] not in \"._\"):\n        violated_rules.append(\"BOUNDARY\")\n    \n    # RUN\n    for i in range(len(name) - 2):\n        if name[i] == name[i+1] == name[i+2]:\n            violated_rules.append(\"RUN\")\n            break\n    \n    # RESERVED\n    cleaned_name = name.replace(\".\", \"\").replace(\"_\", \"\").lower()\n    if cleaned_name in [\"admin\", \"root\", \"system\"]:\n        violated_rules.append(\"RESERVED\")\n    \n    return violated_rules\n```",
+      "extracted_code": "def validate_username(name):\n    violated_rules = []\n    \n    # LEN\n    if not (5 <= len(name) <= 15):\n        violated_rules.append(\"LEN\")\n    \n    # CHARSET\n    allowed_chars = set(\"abcdefghijklmnopqrstuvwxyz0123456789_.\")\n    if not all(char in allowed_chars for char in name):\n        violated_rules.append(\"CHARSET\")\n    \n    # BOUNDARY\n    if not (name[0].islower() and name[-1] not in \"._\"):\n        violated_rules.append(\"BOUNDARY\")\n    \n    # RUN\n    for i in range(len(name) - 2):\n        if name[i] == name[i+1] == name[i+2]:\n            violated_rules.append(\"RUN\")\n            break\n    \n    # RESERVED\n    cleaned_name = name.replace(\".\", \"\").replace(\"_\", \"\").lower()\n    if cleaned_name in [\"admin\", \"root\", \"system\"]:\n        violated_rules.append(\"RESERVED\")\n    \n    return violated_rules",
+      "passed_final": true,
+      "repair_attempts": []
+    },
+    {
+      "id": "SPEC2",
+      "difficulty": "hard",
+      "entry_point": "format_table",
+      "passed": false,
+      "error_type": "assert",
+      "error_detail": "assert format_table([\"name\", \"qty\"], [[\"apple\", 3], [\"kiwi\", 41]]) == \"name  | qty\\n------+----\\napple |   3\\nkiwi  |  41\"",
+      "gen_seconds": 41.12,
+      "tokens_predicted": 211,
+      "tok_per_s": 5.13,
+      "response": "```python\ndef format_table(headers, rows):\n    # Calculate the width of each column\n    column_widths = [max(len(str(header)), max(len(str(cell)) for cell in row)) for header, row in zip(headers, rows)]\n    \n    # Format the header line\n    header_line = \" | \".join(f\"{header:<{width}}\" for header, width in zip(headers, column_widths))\n    \n    # Format the separator line\n    separator_line = \"-+-\".join(\"-\" * width for width in column_widths)\n    \n    # Format each row\n    row_lines = []\n    for row in rows:\n        row_line = \" | \".join(f\"{str(cell):>{width}}\" if isinstance(cell, (int, float)) else f\"{str(cell):<{width}}\" for cell, width in zip(row, column_widths))\n        row_lines.append(row_line)\n    \n    # Join all lines with newline\n    return \"\\n\".join([header_line, separator_line] + row_lines)\n```",
+      "extracted_code": "def format_table(headers, rows):\n    # Calculate the width of each column\n    column_widths = [max(len(str(header)), max(len(str(cell)) for cell in row)) for header, row in zip(headers, rows)]\n    \n    # Format the header line\n    header_line = \" | \".join(f\"{header:<{width}}\" for header, width in zip(headers, column_widths))\n    \n    # Format the separator line\n    separator_line = \"-+-\".join(\"-\" * width for width in column_widths)\n    \n    # Format each row\n    row_lines = []\n    for row in rows:\n        row_line = \" | \".join(f\"{str(cell):>{width}}\" if isinstance(cell, (int, float)) else f\"{str(cell):<{width}}\" for cell, width in zip(row, column_widths))\n        row_lines.append(row_line)\n    \n    # Join all lines with newline\n    return \"\\n\".join([header_line, separator_line] + row_lines)",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "syntax_after_edit",
+          "error_detail": "line 6: unindent does not match any outer indentation level",
+          "gen_seconds": 43.39,
+          "tokens_predicted": 91,
+          "response": "DELETE LINE 3\nDELETE LINE 4\nDELETE LINE 5\nDELETE LINE 6\nDELETE LINE 7\nDELETE LINE 8\nDELETE LINE 9\nLINE 12:\n```python\n        row_line = \" | \".join(f\"{str(cell):>{width}}\" if isinstance(cell, (int, float)) else f\"{str(cell):<{width}}\" for cell, width in zip(row, column_widths))\n```",
+          "extracted_code": "def format_table(headers, rows):\n    # Calculate the width of each column\n    column_widths = [max(len(str(header)), max(len(str(cell)) for cell in row)) for header, row in zip(headers, rows)]\n    \n    # Format the header line\n    header_line = \" | \".join(f\"{header:<{width}}\" for header, width in zip(headers, column_widths))\n    \n    # Format the separator line\n    separator_line = \"-+-\".join(\"-\" * width for width in column_widths)\n    \n    # Format each row\n    row_lines = []\n    for row in rows:\n        row_line = \" | \".join(f\"{str(cell):>{width}}\" if isinstance(cell, (int, float)) else f\"{str(cell):<{width}}\" for cell, width in zip(row, column_widths))\n        row_lines.append(row_line)\n    \n    # Join all lines with newline\n    return \"\\n\".join([header_line, separator_line] + row_lines)"
+        }
+      ]
+    },
+    {
+      "id": "SPEC3",
+      "difficulty": "hard",
+      "entry_point": "compare_versions",
+      "passed": false,
+      "error_type": "assert",
+      "error_detail": "assert compare_versions(\"1.0.0-alpha\", \"1.0.0\") == -1",
+      "gen_seconds": 50.03,
+      "tokens_predicted": 252,
+      "tok_per_s": 5.04,
+      "response": "```python\ndef compare_versions(a, b):\n    def parse_version(version):\n        parts = version.split('-')\n        core, prerelease = parts[0], parts[1] if len(parts) > 1 else ''\n        core_parts = core.split('.')\n        prerelease_parts = prerelease.split('.')\n        return core_parts, prerelease_parts\n\n    def compare_parts(a, b):\n        for pa, pb in zip(a, b):\n            if pa.isdigit() and pb.isdigit():\n                if int(pa) < int(pb):\n                    return -1\n                elif int(pa) > int(pb):\n                    return 1\n            elif pa.isdigit() and pb.isalpha():\n                return -1\n            elif pa.isalpha() and pb.isdigit():\n                return 1\n            elif pa.isalpha() and pb.isalpha():\n                if pa < pb:\n                    return -1\n                elif pa > pb:\n                    return 1\n        return 0\n\n    core_a, prerelease_a = parse_version(a)\n    core_b, prerelease_b = parse_version(b)\n\n    if core_a != core_b:\n        return compare_parts(core_a, core_b)\n\n    return compare_parts(prerelease_a, prerelease_b)\n```",
+      "extracted_code": "def compare_versions(a, b):\n    def parse_version(version):\n        parts = version.split('-')\n        core, prerelease = parts[0], parts[1] if len(parts) > 1 else ''\n        core_parts = core.split('.')\n        prerelease_parts = prerelease.split('.')\n        return core_parts, prerelease_parts\n\n    def compare_parts(a, b):\n        for pa, pb in zip(a, b):\n            if pa.isdigit() and pb.isdigit():\n                if int(pa) < int(pb):\n                    return -1\n                elif int(pa) > int(pb):\n                    return 1\n            elif pa.isdigit() and pb.isalpha():\n                return -1\n            elif pa.isalpha() and pb.isdigit():\n                return 1\n            elif pa.isalpha() and pb.isalpha():\n                if pa < pb:\n                    return -1\n                elif pa > pb:\n                    return 1\n        return 0\n\n    core_a, prerelease_a = parse_version(a)\n    core_b, prerelease_b = parse_version(b)\n\n    if core_a != core_b:\n        return compare_parts(core_a, core_b)\n\n    return compare_parts(prerelease_a, prerelease_b)",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "assert",
+          "error_detail": "assert compare_versions(\"1.0.0-alpha\", \"1.0.0\") == -1",
+          "gen_seconds": 37.36,
+          "tokens_predicted": 21,
+          "response": "LINE 18:\n```python\n            elif pa.isalpha() and pb.isalpha():\n```",
+          "extracted_code": "def compare_versions(a, b):\n    def parse_version(version):\n        parts = version.split('-')\n        core, prerelease = parts[0], parts[1] if len(parts) > 1 else ''\n        core_parts = core.split('.')\n        prerelease_parts = prerelease.split('.')\n        return core_parts, prerelease_parts\n\n    def compare_parts(a, b):\n        for pa, pb in zip(a, b):\n            if pa.isdigit() and pb.isdigit():\n                if int(pa) < int(pb):\n                    return -1\n                elif int(pa) > int(pb):\n                    return 1\n            elif pa.isdigit() and pb.isalpha():\n                return -1\n            elif pa.isalpha() and pb.isalpha():\n                return 1\n            elif pa.isalpha() and pb.isalpha():\n                if pa < pb:\n                    return -1\n                elif pa > pb:\n                    return 1\n        return 0\n\n    core_a, prerelease_a = parse_version(a)\n    core_b, prerelease_b = parse_version(b)\n\n    if core_a != core_b:\n        return compare_parts(core_a, core_b)\n\n    return compare_parts(prerelease_a, prerelease_b)"
+        }
+      ]
+    },
+    {
+      "id": "SPEC4",
+      "difficulty": "hard",
+      "entry_point": "summarize_logs",
+      "passed": false,
+      "error_type": "runtime",
+      "error_detail": "ValueError: too many values to unpack (expected 3)",
+      "gen_seconds": 47.99,
+      "tokens_predicted": 277,
+      "tok_per_s": 5.77,
+      "response": "```python\ndef summarize_logs(lines):\n    def parse_line(line):\n        parts = line.split('|', 3)\n        if len(parts) != 4 or not parts[0].isdigit():\n            return None\n        timestamp, level, id, message = parts\n        return (int(timestamp), level, id, message)\n\n    def is_valid_entry(entry):\n        level, id, message = entry\n        return level in [\"WARN\", \"ERROR\"]\n\n    def deduplicate(entries):\n        seen = {}\n        for timestamp, level, id, message in entries:\n            if id not in seen or timestamp > seen[id][0]:\n                seen[id] = (timestamp, level, id, message)\n        return [seen[id] for id in seen]\n\n    def format_entry(entry):\n        timestamp, level, id, message = entry\n        return f\"{level} {id}: {message}\"\n\n    parsed_entries = [parse_line(line) for line in lines if parse_line(line) is not None]\n    valid_entries = [entry for entry in parsed_entries if is_valid_entry(entry)]\n    deduplicated_entries = deduplicate(valid_entries)\n    sorted_entries = sorted(deduplicated_entries, key=lambda x: (x[0], x[2]))\n    formatted_entries = [format_entry(entry) for entry in sorted_entries]\n    return formatted_entries\n```",
+      "extracted_code": "def summarize_logs(lines):\n    def parse_line(line):\n        parts = line.split('|', 3)\n        if len(parts) != 4 or not parts[0].isdigit():\n            return None\n        timestamp, level, id, message = parts\n        return (int(timestamp), level, id, message)\n\n    def is_valid_entry(entry):\n        level, id, message = entry\n        return level in [\"WARN\", \"ERROR\"]\n\n    def deduplicate(entries):\n        seen = {}\n        for timestamp, level, id, message in entries:\n            if id not in seen or timestamp > seen[id][0]:\n                seen[id] = (timestamp, level, id, message)\n        return [seen[id] for id in seen]\n\n    def format_entry(entry):\n        timestamp, level, id, message = entry\n        return f\"{level} {id}: {message}\"\n\n    parsed_entries = [parse_line(line) for line in lines if parse_line(line) is not None]\n    valid_entries = [entry for entry in parsed_entries if is_valid_entry(entry)]\n    deduplicated_entries = deduplicate(valid_entries)\n    sorted_entries = sorted(deduplicated_entries, key=lambda x: (x[0], x[2]))\n    formatted_entries = [format_entry(entry) for entry in sorted_entries]\n    return formatted_entries",
+      "passed_final": false,
+      "repair_attempts": [
+        {
+          "round": 1,
+          "passed": false,
+          "error_type": "syntax_after_edit",
+          "error_detail": "line 2: expected an indented block after function definition on line 2",
+          "gen_seconds": 55.52,
+          "tokens_predicted": 155,
+          "response": "DELETE LINE 3\nDELETE LINE 4\nDELETE LINE 5\nDELETE LINE 6\nDELETE LINE 7\nDELETE LINE 8\nDELETE LINE 9\nDELETE LINE 10\nDELETE LINE 11\nDELETE LINE 12\nDELETE LINE 13\nDELETE LINE 14\nDELETE LINE 15\nDELETE LINE 16\nDELETE LINE 17\nDELETE LINE 18\nDELETE LINE 19\nDELETE LINE 20\nDELETE LINE 21\nDELETE LINE 22\nDELETE LINE 23\nDELETE LINE 24\nDELETE LINE 25\nDELETE LINE 26\nDELETE LINE 27\nDELETE LINE 28\nDELETE LINE 29",
+          "extracted_code": "def summarize_logs(lines):\n    def parse_line(line):\n        parts = line.split('|', 3)\n        if len(parts) != 4 or not parts[0].isdigit():\n            return None\n        timestamp, level, id, message = parts\n        return (int(timestamp), level, id, message)\n\n    def is_valid_entry(entry):\n        level, id, message = entry\n        return level in [\"WARN\", \"ERROR\"]\n\n    def deduplicate(entries):\n        seen = {}\n        for timestamp, level, id, message in entries:\n            if id not in seen or timestamp > seen[id][0]:\n                seen[id] = (timestamp, level, id, message)\n        return [seen[id] for id in seen]\n\n    def format_entry(entry):\n        timestamp, level, id, message = entry\n        return f\"{level} {id}: {message}\"\n\n    parsed_entries = [parse_line(line) for line in lines if parse_line(line) is not None]\n    valid_entries = [entry for entry in parsed_entries if is_valid_entry(entry)]\n    deduplicated_entries = deduplicate(valid_entries)\n    sorted_entries = sorted(deduplicated_entries, key=lambda x: (x[0], x[2]))\n    formatted_entries = [format_entry(entry) for entry in sorted_entries]\n    return formatted_entries"
+        }
+      ]
+    }
+  ],
+  "repair_rounds": 1,
+  "n_passed_after_repair": 8,
+  "pass_after_repair": 0.4,
+  "recovered": 0,
+  "recovered_by_category": {},
+  "pass_after_round": {
+    "1": 8
+  },
+  "repair_total_tokens": 623,
+  "repair_total_seconds": 599.66
+}

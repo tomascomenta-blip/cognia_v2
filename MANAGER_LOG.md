@@ -2332,3 +2332,16 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
        .\venv312\Scripts\python.exe -m cognia_v3.eval.benchmark_code --tasks-file cognia_v3/eval/tasks_hard.jsonl --label hard_det_qlora_code --seed 42
      Gate: comparar contra el baseline 8/20 (pass@1 0.40, results_code_hard_det_20260611_1701.json,
      seed 42). >8/20 = adapter queda; <=8/20 = se descarta (LLAMA_LORA_PATH sin setear).
+
+## [2026-06-12 00:05] CYCLE 9 cierre — lineedit A/B: 0 recovered PERO el modo de fallo cambio de capa
+- A/B repair lineedit (seed 42, 1 ronda): 8/20 -> 8/20, recovered=0. Costo 623 tok / 600s.
+  JSON: results_code_hard_det_repair_lineedit_20260612_0001.json
+- DIAGNOSTICO CLAVE (progresion por capas a traves de los 3 modos):
+  * regen: reescribe el mismo codigo incorrecto (sin anclaje).
+  * edit S/R: no ancla (search_not_found dominante — no copia exacto sus lineas).
+  * lineedit: ANCLA BIEN (0 search_not_found) pero 5/12 = syntax_after_edit por INDENTACION
+    del bloque de reemplazo; el resto aplica pero no arregla la logica.
+- Cada iteracion elimino una capa mecanica y expuso la siguiente. Evidencia previa (LONG2 en el
+  smoke S/R): el CONTENIDO del fix puede ser correcto y solo la indentacion lo rompe.
+- PROXIMA HIPOTESIS (barata, determinista): auto-reindent — re-basar la indentacion del bloque
+  de reemplazo al leading whitespace de la linea original n antes del gate ast.parse.
