@@ -183,6 +183,29 @@ def _find_gguf() -> Optional[Path]:
     return None
 
 
+# ── LoRA adapter args ─────────────────────────────────────────────────────────
+
+def _lora_args() -> list:
+    """Args extra de adapter LoRA para el cmd de llama-server, o [].
+
+    Si LLAMA_LORA_PATH apunta a un adapter GGUF existente (salida de
+    convert_lora_to_gguf.py de llama.cpp; el b9391 pineado soporta --lora)
+    devuelve ["--lora", path]. Seteada pero el archivo no existe -> warning y
+    el server arranca SIN adapter. No seteada -> [] (cmd identico al actual).
+    """
+    env_path = os.environ.get("LLAMA_LORA_PATH", "").strip()
+    if not env_path:
+        return []
+    p = Path(env_path)
+    if not p.is_absolute():
+        p = Path(__file__).parent.parent / p
+    if p.is_file():
+        logger.info("[llama_backend] LoRA adapter: %s", p)
+        return ["--lora", str(p)]
+    logger.warning("[llama_backend] LLAMA_LORA_PATH set but file not found: %s", p)
+    return []
+
+
 # ── Backend 1: llama-cpp-python (in-process) ─────────────────────────────────
 
 class _LlamaCppBackend:
@@ -290,6 +313,8 @@ class _LlamaServerBackend:
             "--flash-attn", "on",
             "--log-disable",
         ]
+        # Adapter LoRA local opcional (env LLAMA_LORA_PATH -> ["--lora", path])
+        cmd += _lora_args()
         self._proc = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
