@@ -2386,3 +2386,20 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   convert_lora_to_gguf -> LLAMA_LORA_PATH -> benchmark seed 42; gate: >8/20.
 - Sesion nocturna: programa de medicion cerrado (8 experimentos, 0 palancas de prompt), pipeline
   QLoRA listo, LLAMA_LORA_PATH en backend, datagen v2 generando overnight.
+
+## 2026-06-12 16:05 — CYCLE 11: causa raiz de los datagen lentos = kernels Kaggle corrian en CPU
+- Runbook ejecutado: kernel v3 (3B) COMPLETE a las 03:51 -> 48 generados / 7 aceptados (14.6%)
+  en 4h15m. Acumulado 15 pares vs target 300: gate QLoRA NO pasa.
+- Diagnostico (no parche): ~3 tok/s efectivos = velocidad CPU. Evidencia dura:
+  (a) log v1 sin lineas '[gpu] device ...' -> torch.cuda.device_count()==0;
+  (b) api.quota_view(): gpu_quota.time_used=0, has_ever_run=False tras 8h de runs.
+  El backend nuevo de Kaggle IGNORA 'enable_gpu'; el campo real es 'machine_shape'
+  (enum: NvidiaTeslaT4 / NvidiaTeslaP100 / Tpu1VmV38; kagglesdk kernels_api_service.py:191).
+- Fix (sub-agente a64d6b4): machine_shape=NvidiaTeslaT4 en datagen + training pushers;
+  _pick_model_dir vuelve a 7b con GPU (acceptance 40% vs 14.6%; el cambio a 3b era
+  workaround del sintoma). py_compile limpio. Commit 331db7c pusheado.
+- Kernel version 4 RUNNING. PENDIENTE VERIFICAR: time_reserved>0 en quota (si sigue 0,
+  sospecha = cuenta sin verificacion telefonica -> GPU silenciosamente denegada; eso
+  seria accion humana del dueno, no automatizable).
+- Nota SDK: kagglesdk 'TimeDeltaSerializer' revienta con duraciones sin parte decimal;
+  workaround monkeypatch en Temp\kaggle_quota.py.
