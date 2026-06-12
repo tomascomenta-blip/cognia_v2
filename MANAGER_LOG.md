@@ -2294,3 +2294,41 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   31 passed (funciones puras intactas).
 - RELANZADO: kernel pusheado como version 2 (~23:29 local). Status x2 post-push:
   STATUS_CHECKS_PLACEHOLDER
+
+## [2026-06-11 23:47] CYCLE 10-prep — Pipeline QLoRA listo para el dataset sintetico + eval local del adapter
+- Objetivo: que el training arranque EN CUANTO synthetic_code_dataset.jsonl baje del kernel
+  de datagen (RUNNING en Kaggle), y que el adapter resultante se pueda evaluar local.
+- Hecho (commits d51e206 + 7310812, SIN push a origin, NADA lanzado a Kaggle):
+  * run_kaggle_training.py: --dataset-file <path> (sube ESE jsonl como version del dataset,
+    staging limpiado de jsonls viejos); --push-only (pushea y sale con slug + comandos, sin
+    poll de 5h); OUT_DIR fijo checkpoints/cognia_v1 (no existia) -> out_dir_for():
+    checkpoints/qlora_<stem>; enable_internet=true (leccion bnb del fix 8b67ac3).
+  * train_qlora_kaggle.py: cascada bnb del fix 8b67ac3 (_ensure_bitsandbytes() ANTES de
+    importar transformers; sin bnb usable -> 3B fp16 + gradient checkpointing + LoRA fp32);
+    MAX_LEN 512->1024 (syn_long = clases 40-80 lineas; batch GPU 4->2, accum 4->8, batch
+    efectivo 16 igual); confirmado: entrena {prompt, completion}, SIN filtro por source.
+  * node/llama_backend.py: _lora_args() module-level -> si LLAMA_LORA_PATH apunta a un
+    adapter GGUF existente se appendea ["--lora", path] al cmd de llama-server (b9391 lo
+    soporta); seteada pero inexistente -> warning y server sin adapter.
+  * Incluidos los cambios sin commitear de la sesion previa (_find_dataset por glob,
+    sin --dir-mode zip), declarados en el mensaje de d51e206.
+- Verificado: tests/test_llama_backend.py 72 passed in 5.21s (venv312; 3 tests nuevos de
+  _lora_args); ast.parse OK de los 2 archivos kaggle; --help y out_dir_for() corridos real.
+- COMANDO DE LANZAMIENTO cuando el dataset aterrice en cognia_v3/training/synthetic/:
+    .\venv312\Scripts\python.exe -m cognia_v3.training.kaggle.run_kaggle_training --dataset-file cognia_v3/training/synthetic/synthetic_code_dataset.jsonl --push-only
+  (espera a que el kernel de datagen LIBERE la sesion GPU; --push-only imprime el slug y
+  los comandos de status/descarga; el adapter baja a checkpoints/qlora_synthetic_code_dataset/)
+- GATE LOCAL del adapter (procedimiento, en orden):
+  1. Descargar output del kernel (lo imprime --push-only):
+       .\venv312\Scripts\python.exe -m kaggle kernels output anthuananthuan/cognia-qlora-train -p checkpoints\qlora_synthetic_code_dataset
+     Mirar eval_compare.json: si el delta del baseline de 10 preguntas es muy negativo,
+     frenar aca.
+  2. Convertir el adapter PEFT a GGUF (script del repo de llama.cpp, NO corrido aun;
+     requiere clone de llama.cpp + pip install gguf en venv312):
+       .\venv312\Scripts\python.exe <llama.cpp>\convert_lora_to_gguf.py checkpoints\qlora_synthetic_code_dataset\final_adapter --base-model-id Qwen/Qwen2.5-Coder-3B-Instruct --outfile checkpoints\qlora_synthetic_code_dataset\cognia_code_adapter.gguf --outtype f16
+  3. Matar el llama-server actual (:8088), exportar LLAMA_LORA_PATH al .gguf del paso 2 y
+     correr el benchmark duro determinista (mismo seed que el baseline):
+       $env:LLAMA_LORA_PATH = "checkpoints\qlora_synthetic_code_dataset\cognia_code_adapter.gguf"
+       .\venv312\Scripts\python.exe -m cognia_v3.eval.benchmark_code --tasks-file cognia_v3/eval/tasks_hard.jsonl --label hard_det_qlora_code --seed 42
+     Gate: comparar contra el baseline 8/20 (pass@1 0.40, results_code_hard_det_20260611_1701.json,
+     seed 42). >8/20 = adapter queda; <=8/20 = se descarta (LLAMA_LORA_PATH sin setear).
