@@ -2440,3 +2440,14 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   de MODELO (mas capacidad), consistente con el veredicto del programa de medicion.
 - Proximo paso de producto: modo batch/quality en el orquestador que enrute reintentos
   al 7B via LLAMA_GGUF_PATH (segundo servidor o swap).
+
+## 2026-06-12 18:55 — CYCLE 13: /modelo en produccion (conmutador 3B<->7B) — E2E PASS
+- Sub-agente a4e5058 implemento; manager verifico E2E real en 3 iteraciones:
+  run1 adopto un server 7B huerfano del benchmark (cortocircuito 'ya activo');
+  run2 revelo BUG PREEXISTENTE: la primera linea de stdin del REPL no entra al
+  dispatch de slash commands (va al LLM como chat) — pendiente, prioridad media;
+  run3 con linea de sacrificio: switch real PASS ('Cargando... ~60-90s' ->
+  'Modelo activo: Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf' via /props).
+- 11 tests nuevos (test_cli_modelo.py) + 106 del area en verde. Commit pusheado.
+- Pendientes del dia: bug primera-linea del REPL; cosechar kernel datagen v4 (~19:50);
+  verificacion telefonica Kaggle (dueno); modo cascada batch en orquestador.
