@@ -2403,3 +2403,16 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   seria accion humana del dueno, no automatizable).
 - Nota SDK: kagglesdk 'TimeDeltaSerializer' revienta con duraciones sin parte decimal;
   workaround monkeypatch en Temp\kaggle_quota.py.
+
+## 2026-06-12 16:25 — CYCLE 11b: GPU denegada a nivel de CUENTA (verificacion telefonica)
+- Sonda decisiva: kernel minimo cognia-gpu-probe con machine_shape=NvidiaTeslaT4 ->
+  probe.json: {"cuda_available": false, "device_count": 0}. machine_shape correcto
+  pero Kaggle NO asigna GPU a la cuenta.
+- Causa casi segura: cuenta anthuananthuan sin verificacion telefonica (Kaggle la exige
+  para GPU e internet en kernels). Consistente con: gpu_quota.has_ever_run=False,
+  y el pip install de bitsandbytes que nunca funciono (internet tambien gated).
+- ACCION HUMANA REQUERIDA (no automatizable: SMS al telefono del dueno): verificar
+  telefono en kaggle.com/settings. Notificado al dueno (push + mensaje + navegador abierto).
+- Mientras: kernel datagen v4 sigue en CPU (elegira 3b por vrams vacio); inofensivo,
+  se cosechara su output. Al confirmarse la verificacion: re-push (7b 4-bit en T4)
+  y luego pipeline QLoRA completo.
