@@ -1,16 +1,18 @@
 """
 QLoRA training kernel para Kaggle (GPU T4/P100, gratis, sin tarjeta).
 
-Corre COMO KERNEL DE KAGGLE (script kernel) 100% OFFLINE:
-  - enable_internet: FALSE (sin verificación de teléfono no hay internet).
-  - NO instala nada por pip: usa lo preinstalado en la imagen de Kaggle
-    (transformers/peft/bitsandbytes/accelerate ya vienen).
+Corre COMO KERNEL DE KAGGLE (script kernel):
+  - enable_internet: TRUE — el image de Kaggle NO trae bitsandbytes>=0.46.1
+    (run 1 del datagen murio en el load 4-bit, fix 8b67ac3) y el kernel hace
+    pip install -U bitsandbytes guardado; si bnb sigue inusable cae a fp16.
   - modelo base montado como model source: Kaggle Models
     qwen-lm/qwen2.5-coder/transformers/3b-instruct → /kaggle/input/...
-  - dataset privado adjunto: cognia-dataset (cognia_dataset.jsonl).
+  - dataset privado adjunto: cognia-dataset (un JSONL {prompt, completion};
+    campos extra como `source` se ignoran).
 
 Hace 3 cosas y deja todo en /kaggle/working (descargable por CLI):
-  1. Entrena un adapter LoRA sobre Qwen2.5-Coder-3B-Instruct CONGELADO (4-bit).
+  1. Entrena un adapter LoRA sobre Qwen2.5-Coder-3B-Instruct CONGELADO (4-bit,
+     o fp16 si bitsandbytes no quedo usable).
   2. Evalúa base vs base+adapter con el baseline de 10 preguntas de Cognia.
   3. Guarda final_adapter/ + eval_compare.json.
 
@@ -19,12 +21,15 @@ El modelo base NUNCA se modifica: solo se crea el adapter.
 import glob
 import json
 import os
+import subprocess
+import sys
 
 import torch
 from datasets import Dataset
-from transformers import (AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig,
-                          DataCollatorForLanguageModeling, Trainer, TrainingArguments)
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+
+# transformers/peft se importan DENTRO de main(), DESPUES del pip upgrade de
+# bitsandbytes: transformers cachea la deteccion de bnb al primer import
+# (leccion del fix 8b67ac3 en datagen_kernel).
 
 
 def _find_model_dir(prefer_small: bool) -> str:
@@ -45,11 +50,57 @@ def _find_model_dir(prefer_small: bool) -> str:
     return pool[0]
 
 
+def _ensure_bitsandbytes() -> bool:
+    """El image de Kaggle trae bitsandbytes viejo y el load 4-bit muere:
+    transformers exige bitsandbytes>=0.46.1 (run 1 del datagen, 2026-06-11).
+    Intento guardado de upgrade por pip (necesita enable_internet=true) y
+    chequeo de version; si devuelve False, main() carga el 3B en fp16.
+    Misma cascada que datagen_kernel._ensure_bitsandbytes (fix 8b67ac3)."""
+    try:
+        r = subprocess.run([sys.executable, "-m", "pip", "install", "-U",
+                            "bitsandbytes"],
+                           capture_output=True, text=True, timeout=600)
+        tail = (r.stdout or r.stderr or "").strip().splitlines()
+        print("[bnb] pip install -U bitsandbytes -> rc=%d (%s)"
+              % (r.returncode, tail[-1] if tail else "sin output"), flush=True)
+    except Exception as e:
+        print("[bnb] pip install fallo: %s" % e, flush=True)
+    try:
+        import importlib.metadata
+        import bitsandbytes  # noqa: F401  (importable = sus libs CUDA cargan)
+        ver = importlib.metadata.version("bitsandbytes")
+        ok = tuple(int(x) for x in ver.split(".")[:3]) >= (0, 46, 1)
+        print("[bnb] version instalada: %s -> %s"
+              % (ver, "OK" if ok else "insuficiente (<0.46.1)"), flush=True)
+        return ok
+    except Exception as e:
+        print("[bnb] import fallo: %s" % e, flush=True)
+        return False
+
+
+def _find_dataset() -> str:
+    """Ruta del cognia_dataset.jsonl montado (el ZIP se extrae con estructura variable)."""
+    hits = glob.glob("/kaggle/input/**/cognia_dataset.jsonl", recursive=True)
+    if not hits:
+        hits = glob.glob("/kaggle/input/**/*.jsonl", recursive=True)
+    if not hits:
+        raise FileNotFoundError(
+            "No se encontró cognia_dataset.jsonl bajo /kaggle/input. "
+            f"Contenido: {glob.glob('/kaggle/input/*')}")
+    return hits[0]
+
+
 HAS_GPU = torch.cuda.is_available()
 MODEL = _find_model_dir(prefer_small=not HAS_GPU)
-DATASET_PATH = "/kaggle/input/cognia-dataset/cognia_dataset.jsonl"
+DATASET_PATH = _find_dataset()
 OUT = "/kaggle/working"
-MAX_LEN = 512
+# 1024: el codigo sintetico (syn_long: clases de 40-80 lineas + prompt) excede
+# largo los 512 tokens que alcanzaban para los kg_triples — truncar a 512
+# cortaria la mayoria de las completions a mitad de funcion. Presupuesto de
+# memoria T4 16GB con el 3B en 4-bit (~2GB de pesos): duplicar seq_len duplica
+# la memoria de activaciones, asi que el batch GPU baja 4->2 y grad_accum sube
+# 4->8 (batch efectivo 16 igual; activaciones ~constantes vs 512x4).
+MAX_LEN = 1024
 # En CPU acotamos los pasos para garantizar terminación dentro del límite de Kaggle.
 CPU_MAX_STEPS = 150
 
@@ -98,7 +149,19 @@ def run_eval(model, tokenizer, label: str) -> dict:
 
 
 def main():
-    mode = "GPU/4-bit/3B" if HAS_GPU else "CPU/fp32/0.5B"
+    # pip upgrade de bnb ANTES de importar transformers: transformers cachea
+    # la deteccion de bitsandbytes al primer import (fix 8b67ac3).
+    use_bnb = HAS_GPU and _ensure_bitsandbytes()
+
+    from transformers import (AutoModelForCausalLM, AutoTokenizer,
+                              DataCollatorForLanguageModeling, Trainer,
+                              TrainingArguments)
+    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+
+    if HAS_GPU:
+        mode = "GPU/4-bit/3B" if use_bnb else "GPU/fp16-fallback/3B"
+    else:
+        mode = "CPU/fp32/0.5B"
     print(f"MODE: {mode}")
     print("DEVICE:", torch.cuda.get_device_name(0) if HAS_GPU else "CPU")
     print("MODEL DIR:", MODEL)
@@ -107,7 +170,8 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    if HAS_GPU:
+    if HAS_GPU and use_bnb:
+        from transformers import BitsAndBytesConfig
         # T4 es Turing: sin bf16 -> compute dtype float16
         bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_use_double_quant=True,
                                  bnb_4bit_quant_type="nf4",
@@ -115,6 +179,15 @@ def main():
         model = AutoModelForCausalLM.from_pretrained(
             MODEL, quantization_config=bnb, device_map="auto", trust_remote_code=True)
         model = prepare_model_for_kbit_training(model)
+    elif HAS_GPU:
+        # FALLBACK sin bnb usable: 3B en fp16 (~6GB) entra en una T4 de 16GB
+        # con LoRA encima igual que en 4-bit. Gradient checkpointing manual
+        # (prepare_model_for_kbit_training es solo para modelos cuantizados).
+        model = AutoModelForCausalLM.from_pretrained(
+            MODEL, torch_dtype=torch.float16, device_map="auto",
+            trust_remote_code=True)
+        model.gradient_checkpointing_enable()
+        model.enable_input_require_grads()
     else:
         # CPU: sin bitsandbytes (4-bit necesita CUDA). 0.5B en fp32, LoRA igual.
         model = AutoModelForCausalLM.from_pretrained(
@@ -129,6 +202,9 @@ def main():
     print(f"Dataset: {len(records)} pares")
 
     def fmt(r):
+        # Solo {prompt, completion}: campos extra del datagen (p.ej.
+        # source: syn_long|syn_spec) se ignoran — NO hay filtro por source,
+        # se entrena con todos los pares del JSONL.
         return (f"<|im_start|>user\n{r['prompt']}<|im_end|>\n"
                 f"<|im_start|>assistant\n{r['completion']}<|im_end|>")
 
@@ -144,14 +220,22 @@ def main():
                      target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],
                      lora_dropout=0.05, bias="none", task_type="CAUSAL_LM")
     model = get_peft_model(model, cfg)
+    # LoRA en fp32: con la base fp16 (fallback sin bnb) el GradScaler rechaza
+    # params entrenables en half ("Attempting to unscale FP16 gradients").
+    # En el camino 4-bit prepare_model_for_kbit_training ya lo dejo asi (no-op).
+    for p in model.parameters():
+        if p.requires_grad:
+            p.data = p.data.float()
     model.print_trainable_parameters()
 
     args = TrainingArguments(
         output_dir=f"{OUT}/checkpoints",
         num_train_epochs=1,
         max_steps=-1 if HAS_GPU else CPU_MAX_STEPS,
-        per_device_train_batch_size=4 if HAS_GPU else 2,
-        gradient_accumulation_steps=4 if HAS_GPU else 2,
+        # GPU: batch 2 + accum 8 (no 4+4) para compensar MAX_LEN 512->1024
+        # manteniendo batch efectivo 16 y memoria de activaciones ~constante.
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=8 if HAS_GPU else 2,
         learning_rate=2e-4, fp16=HAS_GPU, bf16=False,
         logging_steps=10, save_strategy="no", warmup_ratio=0.05,
         lr_scheduler_type="cosine", report_to="none", eval_strategy="no",
