@@ -2357,3 +2357,14 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Verificado: pytest tests/test_benchmark_code.py -q (venv312) -> 48 passed (9 nuevos:
   herencia de indent, sobre-indentado, relativa preservada, linea vacia, DELETE intacto,
   caso real A/B que antes no parseaba). NADA contra el server: el manager relanza el A/B.
+
+## [2026-06-12 00:35] Auto-reindent A/B: 0 recovered. PROGRAMA DE MEDICION CERRADO (8 experimentos).
+- lineedit+reindent (seed 42): 8/20 -> 8/20, recovered=0. El reindent elimino el re-basado como
+  causa pero los syntax_after_edit persisten con otra forma (unexpected indent, bloques que no
+  encajan estructuralmente, 'return' outside function) y aparecen nuevos runtime (UnboundLocalError).
+  JSON: results_code_hard_det_repair_lineedit_v2_20260612_0031.json
+- VEREDICTO FINAL (8 experimentos deterministas contra baseline 8/20): max_tokens x2, grammar,
+  few-shot, repair regen x2, repair S/R, repair lineedit, lineedit+reindent — TODOS 0 o negativos.
+  El 3B no posee competencia de edicion estructural ni de auto-reparacion bajo NINGUN mecanismo
+  de prompt. Valor del resultado negativo: nadie tiene que re-litigar trucos de prompt en este
+  modelo; toda la inversion va a palancas de MODELO (QLoRA dataset sintetico, 7B batch).
