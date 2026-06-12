@@ -5,12 +5,16 @@ Por que: el techo de pass@1 del Qwen2.5-Coder-3B (40% set duro) es capacidad sin
 (5 hipotesis de prompt/decode medidas, 0 ganancia). La palanca es ENTRENAR, y el dataset
 actual (cognia_dataset.jsonl: kg_triples/episodios) dio deltas NEGATIVOS en codigo.
 
-Corre COMO KERNEL DE KAGGLE (script, GPU, enable_internet=false):
+Corre COMO KERNEL DE KAGGLE (script, GPU, enable_internet=true):
   - Generador: Qwen2.5-Coder-7B-Instruct en 4-bit nf4 (bitsandbytes), montado como
     model source. El 14B-Instruct tambien va montado: se usa SOLO si un device tiene
     >= 20 GB de VRAM. En las GPUs gratis de Kaggle (T4 16GB x2 / P100 16GB) gana el
     7B: el 14B solo cabe shardeado entre 2 T4 (pipeline-parallel bnb = mitad de
     throughput) y el cuello de botella es pares VERIFICADOS dentro de las 4h.
+  - El image de Kaggle NO trae bitsandbytes>=0.46.1 (run 1 del 2026-06-11 murio
+    con ImportError en el load 4-bit). Cascada de carga: pip install -U
+    bitsandbytes -> 4-bit nf4; si bnb sigue inusable -> fp16 shardeado entre las
+    2 T4 (7B fp16 ~15GB cabe); si el load igual falla (OOM) -> 3b-instruct fp16.
   - Plantillas dirigidas a las bandas debiles del 3B: LONG 60% (clases con estado,
     40-80 lineas) y SPEC 40% (formato EXACTO de salida, casos borde explicitos).
     Temperatura 0.8 para diversidad de soluciones.
@@ -551,6 +555,33 @@ def build_asserts_request(task_prompt: str, entry: str) -> str:
 # se importan aca adentro para que el modulo siga siendo importable en local.
 # ---------------------------------------------------------------------------
 
+def _ensure_bitsandbytes() -> bool:
+    """El image de Kaggle (run 1, 2026-06-11) trae bitsandbytes viejo y el load
+    4-bit muere: transformers exige bitsandbytes>=0.46.1. Intento guardado de
+    upgrade por pip (necesita enable_internet=true) y chequeo de version; si
+    devuelve False, main() carga en fp16 sin quantization_config."""
+    try:
+        r = subprocess.run([sys.executable, "-m", "pip", "install", "-U",
+                            "bitsandbytes"],
+                           capture_output=True, text=True, timeout=600)
+        tail = (r.stdout or r.stderr or "").strip().splitlines()
+        print("[bnb] pip install -U bitsandbytes -> rc=%d (%s)"
+              % (r.returncode, tail[-1] if tail else "sin output"), flush=True)
+    except Exception as e:
+        print("[bnb] pip install fallo: %s" % e, flush=True)
+    try:
+        import importlib.metadata
+        import bitsandbytes  # noqa: F401  (importable = sus libs CUDA cargan)
+        ver = importlib.metadata.version("bitsandbytes")
+        ok = tuple(int(x) for x in ver.split(".")[:3]) >= (0, 46, 1)
+        print("[bnb] version instalada: %s -> %s"
+              % (ver, "OK" if ok else "insuficiente (<0.46.1)"), flush=True)
+        return ok
+    except Exception as e:
+        print("[bnb] import fallo: %s" % e, flush=True)
+        return False
+
+
 def _pick_model_dir() -> str:
     """Dir del modelo montado bajo /kaggle/input. 14B solo si UN device tiene
     >= 20 GB (en T4 16GB x2 / P100 16GB el 14B va shardeado y rinde la mitad;
@@ -617,25 +648,61 @@ def _write_outputs(accepted: list, rejects: dict, n_candidates: int,
 
 
 def main():
+    # ANTES de importar transformers: el pip upgrade debe correr primero para
+    # que transformers vea la version nueva de bitsandbytes en el load 4-bit.
+    use_bnb = _ensure_bitsandbytes()
+
     import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+    from transformers import AutoModelForCausalLM, AutoTokenizer
 
     t0 = time.time()
     rng = random.Random(SEED)
     model_dir = _pick_model_dir()
 
-    tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
-    tokenizer.padding_side = "left"  # generacion en lote
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    # T4/P100 no tienen bf16 -> compute dtype float16 (mismo criterio que el
-    # kernel de entrenamiento train_qlora_kaggle.py)
-    bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_use_double_quant=True,
-                             bnb_4bit_quant_type="nf4",
-                             bnb_4bit_compute_dtype=torch.float16)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_dir, quantization_config=bnb, device_map="auto",
-        trust_remote_code=True)
+    def _make_tokenizer(d):
+        tok = AutoTokenizer.from_pretrained(d, trust_remote_code=True)
+        tok.padding_side = "left"  # generacion en lote
+        if tok.pad_token is None:
+            tok.pad_token = tok.eos_token
+        return tok
+
+    tokenizer = _make_tokenizer(model_dir)
+
+    if use_bnb:
+        from transformers import BitsAndBytesConfig
+        # T4/P100 no tienen bf16 -> compute dtype float16 (mismo criterio que el
+        # kernel de entrenamiento train_qlora_kaggle.py)
+        load_kwargs = dict(quantization_config=BitsAndBytesConfig(
+            load_in_4bit=True, bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.float16))
+        print("[model] camino de carga: 4-bit nf4 (bitsandbytes)", flush=True)
+    else:
+        # FALLBACK sin bnb usable: fp16 shardeado entre GPUs via device_map
+        # (7B fp16 ~15GB cabe entre las 2 T4 de 16GB).
+        load_kwargs = dict(torch_dtype=torch.float16)
+        print("[model] camino de carga: FALLBACK fp16 (bnb>=0.46.1 no disponible)",
+              flush=True)
+
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_dir, device_map="auto", trust_remote_code=True, **load_kwargs)
+    except Exception as e:
+        # Ultimo recurso: si ni 4-bit ni fp16 del 7B cargan (p.ej. OOM),
+        # degradar al 3B en fp16 (~6GB, entra en una sola T4). Generar con el
+        # 3B es lo peor pero mejor que perder la ventana de GPU.
+        print("[model] load de %s fallo: %s: %s"
+              % (model_dir, type(e).__name__, e), flush=True)
+        dirs3 = sorted((d for d in {os.path.dirname(p) for p in glob.glob(
+            "/kaggle/input/**/config.json", recursive=True)}
+            if "3b" in d.lower()), key=len)
+        if not dirs3:
+            raise
+        model_dir = dirs3[0]
+        print("[model] DEGRADADO a 3b-instruct fp16: %s" % model_dir, flush=True)
+        tokenizer = _make_tokenizer(model_dir)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_dir, torch_dtype=torch.float16, device_map="auto",
+            trust_remote_code=True)
     model.eval()
     print("[model] cargado en %.1fs" % (time.time() - t0), flush=True)
 

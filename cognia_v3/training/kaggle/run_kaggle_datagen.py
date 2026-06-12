@@ -7,7 +7,8 @@ Calcado del patron de run_kaggle_training.py, con dos diferencias:
 
 Flujo completo:
   1. Verifica credenciales (~/.kaggle/kaggle.json).
-  2. Pushea el kernel datagen_kernel.py con GPU (enable_internet=false).
+  2. Pushea el kernel datagen_kernel.py con GPU (enable_internet=true: el image
+     no trae bitsandbytes>=0.46.1 y el kernel intenta `pip install -U`).
   3. Pollea el estado cada 120s hasta complete/error (max 5h).
   4. Descarga synthetic_code_dataset.jsonl + datagen_report.json a
      cognia_v3/training/synthetic/.
@@ -28,12 +29,14 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 OUT_DIR = REPO / "cognia_v3" / "training" / "synthetic"
 
-# Instancias oficiales verificadas con la API (2026-06-11): ambas version 1.
+# Instancias oficiales verificadas con la API (2026-06-11): todas version 1.
 # El kernel usa el 7B salvo que un device tenga >= 20 GB de VRAM (ver
-# datagen_kernel._pick_model_dir).
+# datagen_kernel._pick_model_dir). El 3B va montado SOLO como ultimo recurso:
+# si ni 4-bit ni fp16 del 7B cargan, el kernel degrada a 3b-instruct.
 MODEL_SOURCES = [
     "qwen-lm/qwen2.5-coder/transformers/7b-instruct/1",
     "qwen-lm/qwen2.5-coder/transformers/14b-instruct/1",
+    "qwen-lm/qwen2.5-coder/transformers/3b-instruct/1",
 ]
 
 
@@ -61,7 +64,10 @@ def push_kernel(user: str) -> str:
         "id": ref, "title": "cognia-code-datagen",
         "code_file": "datagen_kernel.py", "language": "python",
         "kernel_type": "script", "is_private": "true",
-        "enable_gpu": "true", "enable_internet": "false",
+        # enable_internet=true: el image de Kaggle NO trae bitsandbytes>=0.46.1
+        # (run 1 murio a los 40s con ImportError en el load 4-bit; verificado en
+        # _debug/cognia-code-datagen.log) y el kernel hace pip install -U.
+        "enable_gpu": "true", "enable_internet": "true",
         "dataset_sources": [], "kernel_sources": [], "competition_sources": [],
         "model_sources": MODEL_SOURCES,
     }
