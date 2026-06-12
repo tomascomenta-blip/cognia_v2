@@ -130,6 +130,32 @@ COGNIA_SYSTEM_PROMPT = (
     "de forma clara y directa."
 )
 
+# ── Modelos GGUF conmutables en caliente (comando REPL /modelo) ──────────
+# Rutas RELATIVAS al root del repo (el repo puede moverse de disco/carpeta);
+# se resuelven a absolutas en runtime con resolve_gguf_path().
+# Medicion 2026-06-12 en i3-10110U (llama-server b9391, benchmark pass@1):
+#   3b: 40% pass@1, ~8 tok/s  |  7b: 50% pass@1, ~2.2 tok/s
+#   cascada 3b->7b: 60% pass@1 (el 7b recupera casos que el 3b falla)
+MODEL_GGUF_REGISTRY: dict = {
+    "3b": "model_shards/qwen-coder-3b-q4/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+    "7b": "model_shards/qwen-coder-7b-q4/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
+}
+MODEL_GGUF_DEFAULT: str = "3b"   # default actual del backend (ver _GGUF_CANDIDATES)
+
+
+def resolve_gguf_path(key: str):
+    """Ruta absoluta (Path) del GGUF del registry para `key`, o None si no existe la clave.
+
+    Resuelve contra el root del repo (este archivo vive en shattering/), asi el
+    registry sobrevive a mover el repo de disco. No verifica existencia en disco.
+    """
+    from pathlib import Path
+    rel = MODEL_GGUF_REGISTRY.get(key)
+    if rel is None:
+        return None
+    return Path(__file__).resolve().parent.parent / rel
+
+
 # HuggingFace dataset that hosts the pre-converted INT4 .npz shards.
 # Upload once with: huggingface-cli upload Acua124298042/cognia-shards
 # Nodes download only their assigned shard (~300MB) from this URL.

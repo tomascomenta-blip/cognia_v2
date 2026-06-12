@@ -486,6 +486,23 @@ class ShatteringOrchestrator:
         except Exception as exc:
             logger.debug("[Orchestrator] llama.cpp backend unavailable: %s", exc)
 
+    def reload_llama(self) -> "Optional[object]":
+        """Recarga el backend llama.cpp (p.ej. tras cambiar LLAMA_GGUF_PATH).
+
+        Para el server actual si lo hay, resetea el guard _llama_checked y
+        re-dispara _try_load_llama(). Devuelve el backend nuevo o None si la
+        carga fallo (mismo contrato que _llama tras _try_load_llama).
+        """
+        if self._llama is not None:
+            try:
+                self._llama.stop()
+            except Exception:
+                pass
+        self._llama = None
+        self._llama_checked = False
+        self._try_load_llama()
+        return self._llama
+
     def _local_infer(self, prompt: str, decision: RouteDecision,
                      lpc_session_id: Optional[str] = None,
                      temperature: Optional[float] = None,

@@ -327,6 +327,7 @@ _CMD_DESCRIPTIONS = {
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
     "/largo":           "Generacion larga (hasta 5000 tokens) con progreso <pedido>",
+    "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
@@ -505,6 +506,13 @@ _CMD_DETAILS = {
         "y continuacion automatica por rondas, mostrando progreso. "
         "Lento (~10 min a 8 tok/s). Requiere llama-server/GGUF disponible. "
         "Ejemplo: /largo Escribe una guia completa de asyncio en Python"
+    ),
+    "/modelo": (
+        "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
+        "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
+        "server actual, recarga con el GGUF elegido y verifica via /props. "
+        "Medido: 3b 40% pass@1 ~8tok/s, 7b 50% ~2.2tok/s, cascada 60%. "
+        "Ejemplo: /modelo 7b"
     ),
     "/meta": (
         "Crea un nuevo objetivo de usuario persistente en la base de datos. "
@@ -2651,6 +2659,164 @@ def _slash_largo(ai, pedido: str) -> None:
     _session_log.append({"input": f"/largo {pedido}", "output": texto,
                          "elapsed": elapsed})
     _persist_turn(ai, f"/largo {pedido}", texto)
+
+
+def _modelo_activo_nombre(_llama) -> str:
+    """Nombre del GGUF activo: /props del server si responde, si no el
+    configurado en el backend, si no LLAMA_GGUF_PATH, si no el default del
+    registry. Siempre devuelve un string ASCII descriptivo."""
+    from shattering.model_constants import (
+        MODEL_GGUF_DEFAULT, MODEL_GGUF_REGISTRY,
+    )
+    if _llama is not None:
+        try:
+            props = _llama.server_props()
+        except Exception:
+            props = None
+        if props:
+            from node.llama_backend import _server_props_summary
+            mp = _server_props_summary(props).get("model_path")
+            if mp:
+                return f"{Path(mp).name} (server vivo)"
+        gp = getattr(_llama, "gguf_path", None)
+        if gp:
+            return f"{Path(str(gp)).name} (configurado en backend)"
+    env = os.environ.get("LLAMA_GGUF_PATH", "").strip()
+    if env:
+        return f"{Path(env).name} (LLAMA_GGUF_PATH, server no arrancado)"
+    return (f"{Path(MODEL_GGUF_REGISTRY[MODEL_GGUF_DEFAULT]).name} "
+            f"(default registry, server no arrancado)")
+
+
+def _slash_modelo(ai, args: str) -> None:
+    """
+    /modelo [3b|7b]: ver o conmutar en caliente el modelo GGUF del backend.
+
+    Sin args: muestra el modelo activo y los del registry con su existencia
+    en disco ([OK]/[NO]). Con clave: para el llama-server actual, setea
+    LLAMA_GGUF_PATH a la ruta absoluta del GGUF elegido y re-dispara la carga
+    via ShatteringOrchestrator.reload_llama(), verificando por GET /props que
+    el modelo cargado es el pedido. ASCII puro (consola Windows CP1252).
+    """
+    from shattering.model_constants import (
+        MODEL_GGUF_REGISTRY, resolve_gguf_path,
+    )
+
+    # Backend actual: solo el orquestador YA cacheado en ai (no construir uno
+    # nuevo ni disparar la carga del modelo solo para mostrar el estado).
+    _orch  = getattr(ai, '_orchestrator', None)
+    _llama = getattr(_orch, '_llama', None) if _orch is not None else None
+
+    key = args.strip().split()[0].lower() if args.strip() else ""
+    if not key:
+        lines = [f"Modelo activo: {_modelo_activo_nombre(_llama)}",
+                 "Disponibles (registry):"]
+        for k, rel in MODEL_GGUF_REGISTRY.items():
+            p = resolve_gguf_path(k)
+            tag = "[OK]" if (p is not None and p.is_file()) else "[NO]"
+            lines.append(f"  {tag} {k} -> {rel}")
+        lines.append("Uso: /modelo <clave>  -- ejemplo: /modelo 7b")
+        _show_response("\n".join(lines), "cyan")
+        return
+
+    if key not in MODEL_GGUF_REGISTRY:
+        validas = ", ".join(sorted(MODEL_GGUF_REGISTRY))
+        _print_line(f"[err_cl]Clave de modelo desconocida: '{key}'. "
+                    f"Validas: {validas}[/err_cl]")
+        return
+
+    target = resolve_gguf_path(key)
+    if not target.is_file():
+        _print_line(f"[err_cl]GGUF no encontrado en disco: {target} -- "
+                    f"no se cambia nada.[/err_cl]")
+        return
+
+    # Ya activo? Solo si hay un server VIVO que reporta ese GGUF por /props
+    # (el nombre por default/env no cuenta: el server podria no estar corriendo).
+    if _llama is not None:
+        try:
+            props = _llama.server_props()
+        except Exception:
+            props = None
+        if props:
+            from node.llama_backend import _server_props_summary
+            mp = _server_props_summary(props).get("model_path")
+            if mp and Path(mp).name == target.name:
+                _print_line(f"[detail]{target.name} ya es el modelo activo.[/detail]")
+                return
+
+    # Parar el server actual. stop() devuelve False si el server fue adoptado
+    # (proceso externo): en ese caso NO seguimos, porque el reload adoptaria
+    # el server viejo con el modelo viejo.
+    if _llama is not None:
+        try:
+            stopped = _llama.stop()
+        except Exception:
+            stopped = False
+        if not stopped:
+            _print_line("[err_cl]El llama-server actual fue arrancado "
+                        "externamente y no se puede parar desde aca. "
+                        "Cerralo manualmente y reintenta /modelo.[/err_cl]")
+            return
+    else:
+        # Sin backend cacheado puede igual haber un server externo vivo en el
+        # puerto: el reload lo adoptaria con el modelo viejo. Chequear antes.
+        from node.llama_backend import _DEFAULT_PORT
+        port = int(os.environ.get("LLAMA_SERVER_PORT", _DEFAULT_PORT))
+        try:
+            import urllib.request as _urlreq
+            _urlreq.urlopen(f"http://127.0.0.1:{port}/health", timeout=1)
+            _print_line(f"[err_cl]Hay un llama-server externo vivo en :{port} "
+                        f"que este REPL no controla. Cerralo manualmente y "
+                        f"reintenta /modelo.[/err_cl]")
+            return
+        except Exception:
+            pass  # puerto libre: camino normal
+
+    # Setear el GGUF elegido (ruta absoluta; _find_gguf prioriza este env var)
+    os.environ["LLAMA_GGUF_PATH"] = str(target)
+
+    _print_line(f"[detail]Cargando {target.name}... (el 7B tarda ~60-90s en "
+                f"frio; el REPL queda bloqueado mientras tanto)[/detail]")
+
+    # Recargar el backend: orquestador cacheado en ai si existe, si no uno
+    # local nuevo (mismo patron que /largo).
+    if _orch is None:
+        try:
+            from shattering.orchestrator import ShatteringOrchestrator as _SO
+            _orch = _SO(mode='local')
+        except Exception as e:
+            _print_line(f"[err_cl]No se pudo construir el orquestador: {e}[/err_cl]")
+            return
+    try:
+        nuevo = _orch.reload_llama()
+    except Exception as e:
+        _print_line(f"[err_cl]La recarga del backend fallo: {e}[/err_cl]")
+        return
+    if nuevo is None:
+        _print_line("[err_cl]El backend no cargo con el nuevo GGUF (binario "
+                    "llama-server o runtime faltante?). Revisa los logs.[/err_cl]")
+        return
+
+    # Verificar via GET /props que el server nuevo cargo el modelo pedido
+    real = None
+    try:
+        props = nuevo.server_props()
+    except Exception:
+        props = None
+    if props:
+        from node.llama_backend import _server_props_summary
+        real = _server_props_summary(props).get("model_path")
+    if real is None:
+        # Backend in-process (sin /props): confiar en la ruta configurada
+        gp = getattr(nuevo, "gguf_path", None)
+        real = str(gp) if gp else None
+    if real and Path(real).name == target.name:
+        _print_line(f"[ok]Modelo activo: {Path(real).name}[/ok]")
+    else:
+        _print_line(f"[warn_cl]Backend cargado pero el modelo reportado no "
+                    f"coincide (esperado {target.name}, server reporta "
+                    f"{real}).[/warn_cl]")
 
 
 # ---------------------------------------------------------------------------
@@ -5148,6 +5314,10 @@ def repl():
                 _slash_largo(ai, _pedido)
             else:
                 _print_line("[warn_cl]Uso: /largo <pedido>[/warn_cl]")
+
+        # -- Model switching ---------------------------------------------------
+        elif raw == "/modelo" or raw.startswith("/modelo "):
+            _slash_modelo(ai, raw[len("/modelo "):] if raw.startswith("/modelo ") else "")
 
         # -- Plan system ---------------------------------------------------
         elif raw.startswith("/plan ") and not raw.startswith("/plan-"):

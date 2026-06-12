@@ -213,6 +213,7 @@ class _LlamaCppBackend:
 
     def __init__(self, gguf_path: Path) -> None:
         from llama_cpp import Llama  # imported lazily; raises ImportError if missing
+        self._gguf_path = gguf_path   # expuesto via LlamaBackend.gguf_path (/modelo)
         self._model = Llama(
             model_path     = str(gguf_path),
             n_ctx          = _CTX_SIZE,
@@ -266,6 +267,7 @@ class _LlamaServerBackend:
         self._port    = port
         self._base    = f"http://127.0.0.1:{port}"
         self._proc: Optional[subprocess.Popen] = None
+        self._gguf_path = gguf_path   # expuesto via LlamaBackend.gguf_path (/modelo)
         self._json    = _json
         self._urlreq  = urllib.request
         # Real token count from the last /completion response (None until first call)
@@ -529,14 +531,31 @@ class _LlamaServerBackend:
         except Exception as exc:
             logger.warning("[llama_backend] stream_chat failed: %s", exc)
 
-    def stop(self) -> None:
+    def stop(self) -> bool:
+        """Para el llama-server propio. Devuelve True si el puerto quedo libre.
+
+        Un server ADOPTADO (arrancado externamente, self._proc is None) no es
+        nuestro proceso y no se puede matar limpio desde aca: si sigue
+        respondiendo al health-check se devuelve False para que el caller
+        (p.ej. /modelo) avise al usuario en vez de adoptar el modelo viejo.
+        """
         if self._proc and self._proc.poll() is None:
             self._proc.terminate()
             try:
                 self._proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self._proc.kill()
+                try:
+                    self._proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
             logger.info("[llama_backend] llama-server stopped")
+        alive = self._ping()
+        if alive and self._proc is None:
+            logger.warning("[llama_backend] server adoptado sigue vivo en :%d "
+                           "(proceso externo; no se puede parar desde aca)",
+                           self._port)
+        return not alive
 
     @staticmethod
     def available() -> bool:
@@ -574,6 +593,11 @@ class LlamaBackend:
     def last_stop_reason(self) -> Optional[str]:
         """Why the last generation stopped: 'eos'|'limit'|'word'|None (see _stop_reason)."""
         return getattr(self._impl, "last_stop_reason", None)
+
+    @property
+    def gguf_path(self) -> Optional[Path]:
+        """Ruta del GGUF con el que se construyo el impl, o None si no la expone."""
+        return getattr(self._impl, "_gguf_path", None)
 
     def server_props(self) -> Optional[dict]:
         """JSON crudo de GET /props del impl server, o None (in-process no tiene)."""
@@ -699,9 +723,15 @@ class LlamaBackend:
             text = "\n".join(f"{m['role']}: {m['content']}" for m in messages)
             yield from self.stream_generate(text, max_tokens, temperature, **extra)
 
-    def stop(self) -> None:
+    def stop(self) -> bool:
+        """Para el server si el impl lo maneja. True si quedo parado (o no habia server).
+
+        El impl in-process (llama-cpp-python) no tiene stop(): se devuelve True
+        porque no hay puerto que liberar (el modelo viejo lo libera el GC).
+        """
         if hasattr(self._impl, "stop"):
-            self._impl.stop()
+            return bool(self._impl.stop())
+        return True
 
     @classmethod
     def try_load(cls) -> Optional["LlamaBackend"]:
