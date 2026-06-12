@@ -2428,3 +2428,15 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   tareas batch/nocturnas donde la latencia no importa; NO reemplaza al 3B interactivo.
   JSON: results_code_hard7b_det_20260612_1701.json (+ smoke results_code_smoke7b).
 - Nota: carga fria del 7B entra en el _SERVER_TIMEOUT=90s actual (smoke OK al primer try).
+
+## 2026-06-12 17:15 — CYCLE 12b: cascada 3B->7B MEDIDA = 12/20 (60%) — mejor numero de la mision
+- Union de los dos runs deterministas (mismo seed/protocolo) = resultado exacto de la
+  cascada "3B genera, 7B reintenta los fallos": 12/20 = 60% (+20 pts sobre 3B solo,
+  +10 sobre 7B solo). Conjuntos complementarios: solo-3B={DBG4, SPEC1},
+  solo-7B={ALG4, DBG5, LONG1, LONG4}.
+- Costo de la cascada: run 3B completo (~8 tok/s) + 7B solo en los 12 fallos (~2.2 tok/s).
+  El orden importa: 3B primero preserva sus 2 exclusivas.
+- Implicacion: la primera palanca POSITIVA tras 8 experimentos de prompt en 0. Es palanca
+  de MODELO (mas capacidad), consistente con el veredicto del programa de medicion.
+- Proximo paso de producto: modo batch/quality en el orquestador que enrute reintentos
+  al 7B via LLAMA_GGUF_PATH (segundo servidor o swap).
