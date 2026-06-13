@@ -9,6 +9,7 @@ code 0 = PASS. Es la metrica troncal para medir mejora de programacion
 Usage:
     venv312\\Scripts\\python.exe -m cognia_v3.eval.benchmark_code --limit 3 --label smoke
     venv312\\Scripts\\python.exe -m cognia_v3.eval.benchmark_code --label baseline
+    venv312\\Scripts\\python.exe -m cognia_v3.eval.benchmark_code --tasks-file cognia_v3/eval/tasks_hard.jsonl --cascade 7b
 
 Backend: node/llama_backend.py LlamaBackend.try_load() (llama-server arranca solo).
 Prompt: ChatML via node/inference_pipeline._apply_qwen_template.
@@ -751,12 +752,117 @@ def repair_failures(backend, tasks: list[dict], results: list[dict],
             "recovered": recovered}
 
 
+# ── Cascada de modelos (--cascade <clave del registry>) ─────────────────────
+# Medicion 2026-06-12 (tasks_hard, seed 42, cache off): 3B saca 8/20 y 7B
+# 10/20 en conjuntos COMPLEMENTARIOS; la union da 12/20. La cascada lo explota
+# con UN solo swap de servidor: etapa 1 con el modelo activo, etapa 2 regenera
+# SOLO los fallos con el modelo del registry pedido. La etapa 2 es generacion
+# FRESCA (mismo prompt single-shot que etapa 1, sin traceback): mide la
+# cascada pura validada por union, no un repair.
+
+
+def check_cascade_args(cascade_key, repair_rounds) -> str | None:
+    """Mensaje de error si la combinacion de flags es invalida, None si OK."""
+    if cascade_key and repair_rounds:
+        return ("--cascade no se combina con --repair: la etapa 2 de la "
+                "cascada es regeneracion fresca, no repair con feedback")
+    return None
+
+
+def select_cascade_failures(tasks: list[dict], results: list[dict]) -> list[dict]:
+    """Tasks cuyo resultado de etapa 1 fue FAIL, en el orden original.
+
+    Lista vacia = 0 fallos: la etapa 2 se salta y NO se hace swap.
+    """
+    failed_ids = {r["id"] for r in results if not r["passed"]}
+    return [t for t in tasks if t["id"] in failed_ids]
+
+
+def merge_cascade_results(results: list[dict], cascade_by_id: dict) -> dict:
+    """
+    Mezcla etapa 1 + etapa 2: anota en cada result el campo stage
+    ("first" = paso con el modelo 1, "cascade" = recuperada por el modelo 2,
+    None = fallo final) y cuelga el attempt de etapa 2 en cascade_attempt.
+    cascade_by_id puede ser {} (0 fallos o swap abortado: etapa 2 no corrio).
+    Devuelve los counts agregados por etapa.
+    """
+    n_pass_first = recovered = failed_final = 0
+    for r in results:
+        if r["passed"]:
+            r["stage"] = "first"
+            n_pass_first += 1
+            continue
+        att = cascade_by_id.get(r["id"])
+        if att is not None:
+            r["cascade_attempt"] = att
+        if att is not None and att["passed"]:
+            r["stage"] = "cascade"
+            recovered += 1
+        else:
+            r["stage"] = None
+            failed_final += 1
+    return {"pass_first": n_pass_first, "recovered_cascade": recovered,
+            "failed_final": failed_final,
+            "pass_total": n_pass_first + recovered}
+
+
+def swap_server_model(backend, key: str):
+    """
+    UN solo swap del llama-server al GGUF del registry `key`: para el server
+    actual, setea LLAMA_GGUF_PATH (prioridad maxima en _find_gguf) y recarga
+    con LlamaBackend.try_load() — mismo mecanismo que /modelo en cognia/cli.py.
+    Verifica por GET /props que el GGUF cargado es el pedido (fallback:
+    gguf_path del backend in-process, que no expone /props).
+    Devuelve (backend_nuevo, nombre_gguf_real); RuntimeError con mensaje
+    claro si algo no cierra (el caller aborta la etapa 2).
+    """
+    from node.llama_backend import LlamaBackend, _server_props_summary
+    from shattering.model_constants import resolve_gguf_path
+
+    target = resolve_gguf_path(key)
+    if target is None:
+        raise RuntimeError(f"clave '{key}' no esta en MODEL_GGUF_REGISTRY")
+    if not target.is_file():
+        raise RuntimeError(f"GGUF de '{key}' no existe en disco: {target}")
+    # Parar el server actual ANTES de recargar: un server vivo en el puerto
+    # seria adoptado con el modelo viejo (mismo cuidado que /modelo en el CLI).
+    if not backend.stop():
+        raise RuntimeError(
+            "el llama-server actual no se pudo parar (server adoptado o "
+            "externo en el puerto); cerralo manualmente y reintenta")
+    # _find_gguf prioriza este env var: la proxima carga usa el GGUF pedido
+    os.environ["LLAMA_GGUF_PATH"] = str(target)
+    new_backend = LlamaBackend.try_load()
+    if new_backend is None:
+        raise RuntimeError(f"el backend no cargo con {target.name} "
+                           "(binario llama-server o runtime faltante)")
+    # Verificar por GET /props que el server nuevo cargo el modelo pedido
+    real = None
+    try:
+        props = new_backend.server_props()
+    except Exception:
+        props = None
+    if props:
+        mp = _server_props_summary(props).get("model_path")
+        if mp:
+            real = Path(mp).name
+    if real is None:
+        # Backend in-process (sin /props): confiar en la ruta configurada
+        gp = getattr(new_backend, "gguf_path", None)
+        real = Path(str(gp)).name if gp else None
+    if real != target.name:
+        raise RuntimeError(f"verificacion /props del swap FALLO: esperado "
+                           f"{target.name}, server reporta {real}")
+    return new_backend, real
+
+
 def run_benchmark(tasks: list[dict], label: str = "baseline",
                   max_tokens: int = DEFAULT_MAX_TOKENS,
                   repair_rounds: int = 0,
                   repair_temperature: float = 0.5,
                   seed: int = None, use_grammar: bool = False,
-                  repair_mode: str = "regen", fewshot: int = 0) -> dict:
+                  repair_mode: str = "regen", fewshot: int = 0,
+                  cascade_key: str = None) -> dict:
     """Corre todas las tasks contra el modelo real y guarda JSON con resultados."""
     # use_grammar: restringe el sampling a un bloque ```python ...``` exacto
     # (base y repair) — elimina prosa y fences rotos sin tocar el modelo.
@@ -814,6 +920,68 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
                                        repair_temperature, seed=seed,
                                        grammar=grammar,
                                        repair_mode=repair_mode)
+
+    # -- Cascada (opcional): regenerar SOLO los FAIL con el segundo modelo --
+    cascade = None
+    if cascade_key:
+        cascade = {"key": cascade_key, "model": None, "error": None}
+        # Nombre GGUF real del modelo de etapa 1 (via /props si esta vivo)
+        first_name = gguf_name
+        if server_props:
+            from node.llama_backend import _server_props_summary
+            mp = _server_props_summary(server_props).get("model_path")
+            if mp:
+                first_name = Path(mp).name
+        failed_tasks = select_cascade_failures(tasks, results)
+        cascade_by_id = {}
+        if not failed_tasks:
+            print("[cascade] 0 fallos en etapa 1: etapa 2 salteada (sin swap)",
+                  flush=True)
+            cascade["model"] = {"first": first_name, "cascade": None}
+        else:
+            print(f"[cascade] etapa 1: {len(failed_tasks)} fallos -> swap a "
+                  f"'{cascade_key}' para reintentarlos", flush=True)
+            try:
+                backend, cascade_name = swap_server_model(backend, cascade_key)
+            except RuntimeError as exc:
+                # Swap fallido: abortar la etapa 2 pero PERSISTIR la etapa 1
+                # (el caller corta con exit 1 via cascade_error en el JSON).
+                cascade["error"] = str(exc)
+                cascade["model"] = {"first": first_name, "cascade": None}
+                print(f"[cascade] ABORT: {exc}", flush=True)
+            else:
+                cascade["model"] = {"first": first_name, "cascade": cascade_name}
+                print(f"[cascade] swap OK, server reporta {cascade_name}",
+                      flush=True)
+                for i, task in enumerate(failed_tasks, 1):
+                    print(f"[cascade {i}/{len(failed_tasks)}] {task['id']} "
+                          f"({task['difficulty']}) generating...", flush=True)
+                    t0 = time.perf_counter()
+                    # Generacion FRESCA: mismo prompt single-shot y mismo
+                    # protocolo determinista que etapa 1 (sin traceback) --
+                    # mide la cascada pura, no un repair.
+                    response = backend.generate(
+                        build_prompt(task["prompt"], fewshot=fewshot),
+                        max_tokens=max_tokens, temperature=BASE_TEMPERATURE,
+                        seed=seed, cache_prompt=False, grammar=grammar) or ""
+                    gen_s = time.perf_counter() - t0
+                    tokens = backend.last_tokens_predicted
+                    tok_s = (tokens / gen_s) if (tokens and gen_s > 0) else None
+                    code = extract_code(response)
+                    passed, err_type, err_detail = run_task_tests(
+                        code, task["tests"], task["entry_point"])
+                    status = "PASS" if passed else f"FAIL ({err_type})"
+                    print(f"    -> {status} {err_detail[:80]}", flush=True)
+                    cascade_by_id[task["id"]] = {
+                        "passed": passed, "error_type": err_type,
+                        "error_detail": err_detail[:300],
+                        "gen_seconds": round(gen_s, 2),
+                        "tokens_predicted": tokens,
+                        "tok_per_s": round(tok_s, 2) if tok_s else None,
+                        "response": response, "extracted_code": code,
+                    }
+        # Anota stage en cada result y agrega los counts por etapa
+        cascade["counts"] = merge_cascade_results(results, cascade_by_id)
 
     # ── Metricas ──────────────────────────────────────────────────────────
     n = len(results)
@@ -890,6 +1058,16 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
             "repair_total_seconds": round(repair_stats["seconds"], 2),
         })
 
+    if cascade is not None:
+        output.update({
+            "cascade_key": cascade["key"],
+            # Nombres GGUF reales de ambos modelos (via /props); "cascade" es
+            # None si la etapa 2 no corrio (0 fallos o swap abortado)
+            "cascade_model": cascade["model"],
+            "cascade_error": cascade["error"],
+            "cascade_counts": cascade["counts"],
+        })
+
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
     out_path = EVAL_DIR / f"results_code_{label}_{ts}.json"
     with open(out_path, "w", encoding="utf-8") as f:
@@ -928,12 +1106,26 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
                 f"{k}={v}" for k, v in sorted(output["recovered_by_category"].items())))
         print(f"   costo repair: {output['repair_total_tokens']} tokens, "
               f"{output['repair_total_seconds']:.0f}s extra")
+    if cascade is not None:
+        c = cascade["counts"]
+        casc_name = cascade["model"]["cascade"] or "(etapa 2 no corrio)"
+        print("-" * 72)
+        print(f" CASCADE {cascade['model']['first']} -> {casc_name}:")
+        print(f"   pass@1 etapa 1:       {c['pass_first']}/{n} = "
+              f"{c['pass_first'] / n:.1%}")
+        print(f"   +recuperadas etapa 2: {c['recovered_cascade']}")
+        print(f"   total final:          {c['pass_total']}/{n} = "
+              f"{c['pass_total'] / n:.1%}")
+        if cascade["error"]:
+            print(f"   ERROR swap: {cascade['error']}")
     print(f" JSON: {out_path}")
     print("=" * 72)
     return output
 
 
-def main():
+def build_arg_parser() -> argparse.ArgumentParser:
+    """Parser CLI del benchmark (factorizado para testear el parseo sin correr)."""
+    from shattering.model_constants import MODEL_GGUF_REGISTRY
     parser = argparse.ArgumentParser(description="Cognia code benchmark (pass@1, ejecucion real)")
     parser.add_argument("--label", default="baseline", help="etiqueta para el JSON de salida")
     parser.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
@@ -967,7 +1159,23 @@ def main():
                         help="anteponer N ejemplos resueltos (FEWSHOT_EXEMPLARS) "
                              "al enunciado de cada task (default 0 = single-shot, "
                              "prompt identico al previo)")
+    parser.add_argument("--cascade", default=None, metavar="KEY",
+                        choices=sorted(MODEL_GGUF_REGISTRY),
+                        help="cascada de modelos: tras la etapa 1 con el modelo "
+                             "activo, UN solo swap del llama-server al GGUF del "
+                             "registry (claves validas: %(choices)s) y "
+                             "regeneracion FRESCA de SOLO las tasks que "
+                             "fallaron, mismo protocolo determinista (mismo "
+                             "prompt/seed/max_tokens, cache off; NO es repair)")
+    return parser
+
+
+def main():
+    parser = build_arg_parser()
     args = parser.parse_args()
+    err = check_cascade_args(args.cascade, args.repair)
+    if err:
+        parser.error(err)
 
     tasks = TASKS
     if args.tasks_file:
@@ -980,10 +1188,15 @@ def main():
     if args.limit:
         tasks = tasks[:args.limit]
 
-    run_benchmark(tasks, label=args.label, max_tokens=args.max_tokens,
-                  repair_rounds=args.repair, repair_temperature=args.repair_temp,
-                  seed=args.seed, use_grammar=args.grammar,
-                  repair_mode=args.repair_mode, fewshot=args.fewshot)
+    out = run_benchmark(tasks, label=args.label, max_tokens=args.max_tokens,
+                        repair_rounds=args.repair, repair_temperature=args.repair_temp,
+                        seed=args.seed, use_grammar=args.grammar,
+                        repair_mode=args.repair_mode, fewshot=args.fewshot,
+                        cascade_key=args.cascade)
+    # Swap de la cascada abortado: la etapa 1 quedo persistida en el JSON,
+    # pero el run NO es un resultado de cascada valido -> exit code 1.
+    if out.get("cascade_error"):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

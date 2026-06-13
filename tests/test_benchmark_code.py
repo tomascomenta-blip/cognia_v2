@@ -367,3 +367,105 @@ class TestFewshot:
         assert len(FEWSHOT_EXEMPLARS) == 2
         for _, solution in FEWSHOT_EXEMPLARS:
             ast.parse(solution)
+
+
+# ---------------------------------------------------------------------------
+# --cascade — parseo del flag, seleccion de fallos y merge etapa1+etapa2
+# ---------------------------------------------------------------------------
+
+def _res(tid: str, passed: bool, diff: str = "easy") -> dict:
+    """Result sintetico de etapa 1 (solo los campos que usa la cascada)."""
+    return {"id": tid, "difficulty": diff, "passed": passed}
+
+
+def _att(passed: bool) -> dict:
+    """Attempt sintetico de etapa 2 (mismo shape que cascade_by_id[...])."""
+    return {"passed": passed, "error_type": "" if passed else "assert",
+            "error_detail": "", "gen_seconds": 1.0, "tokens_predicted": 10,
+            "tok_per_s": 10.0, "response": "", "extracted_code": ""}
+
+
+class TestCascadeFlagParsing:
+    def test_valid_key_parses(self):
+        from cognia_v3.eval.benchmark_code import build_arg_parser
+        args = build_arg_parser().parse_args(["--cascade", "7b"])
+        assert args.cascade == "7b"
+
+    def test_default_is_none(self):
+        from cognia_v3.eval.benchmark_code import build_arg_parser
+        assert build_arg_parser().parse_args([]).cascade is None
+
+    def test_invalid_key_clear_error(self, capsys):
+        """Clave fuera del registry: error claro listando las validas."""
+        import pytest
+        from cognia_v3.eval.benchmark_code import build_arg_parser
+        with pytest.raises(SystemExit):
+            build_arg_parser().parse_args(["--cascade", "13b"])
+        err = capsys.readouterr().err
+        assert "invalid choice" in err and "13b" in err
+        # El mensaje lista las claves validas del registry
+        assert "3b" in err and "7b" in err
+
+    def test_cascade_excluye_repair(self):
+        """--cascade + --repair es invalido (la etapa 2 es regen fresca)."""
+        from cognia_v3.eval.benchmark_code import check_cascade_args
+        msg = check_cascade_args("7b", 2)
+        assert msg is not None and "--cascade" in msg and "--repair" in msg
+        assert check_cascade_args("7b", 0) is None
+        assert check_cascade_args(None, 2) is None
+        assert check_cascade_args(None, 0) is None
+
+
+class TestSelectCascadeFailures:
+    TASKS = [{"id": "T1"}, {"id": "T2"}, {"id": "T3"}]
+
+    def test_only_failures_in_original_order(self):
+        from cognia_v3.eval.benchmark_code import select_cascade_failures
+        results = [_res("T1", False), _res("T2", True), _res("T3", False)]
+        # La seleccion es por id: el orden de results no importa
+        out = select_cascade_failures(self.TASKS, results[::-1])
+        assert [t["id"] for t in out] == ["T1", "T3"]
+
+    def test_zero_failures_returns_empty(self):
+        """0 fallos => lista vacia: la etapa 2 se salta y NO se hace swap."""
+        from cognia_v3.eval.benchmark_code import select_cascade_failures
+        results = [_res(t["id"], True) for t in self.TASKS]
+        assert select_cascade_failures(self.TASKS, results) == []
+
+
+class TestMergeCascadeResults:
+    def test_counts_and_stages(self):
+        from cognia_v3.eval.benchmark_code import merge_cascade_results
+        results = [_res("T1", True), _res("T2", False),
+                   _res("T3", False), _res("T4", True)]
+        counts = merge_cascade_results(
+            results, {"T2": _att(True), "T3": _att(False)})
+        assert counts == {"pass_first": 2, "recovered_cascade": 1,
+                          "failed_final": 1, "pass_total": 3}
+        assert results[0]["stage"] == "first"
+        assert results[1]["stage"] == "cascade"
+        assert results[2]["stage"] is None
+        assert results[3]["stage"] == "first"
+        # El attempt de etapa 2 queda colgado SOLO de los results reintentados
+        assert results[1]["cascade_attempt"]["passed"] is True
+        assert results[2]["cascade_attempt"]["passed"] is False
+        assert "cascade_attempt" not in results[0]
+
+    def test_zero_failures_merge_empty(self):
+        """Caso 0 fallos: merge con {} funciona y recovered queda en 0."""
+        from cognia_v3.eval.benchmark_code import merge_cascade_results
+        results = [_res("T1", True), _res("T2", True)]
+        counts = merge_cascade_results(results, {})
+        assert counts == {"pass_first": 2, "recovered_cascade": 0,
+                          "failed_final": 0, "pass_total": 2}
+        assert all(r["stage"] == "first" for r in results)
+
+    def test_failure_without_attempt_stays_failed(self):
+        """Swap abortado: el FAIL sin attempt queda stage None, sin crash."""
+        from cognia_v3.eval.benchmark_code import merge_cascade_results
+        results = [_res("T1", False)]
+        counts = merge_cascade_results(results, {})
+        assert counts == {"pass_first": 0, "recovered_cascade": 0,
+                          "failed_final": 1, "pass_total": 0}
+        assert results[0]["stage"] is None
+        assert "cascade_attempt" not in results[0]
