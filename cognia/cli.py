@@ -4584,6 +4584,18 @@ def _slash_limpiar_sesion(args: str) -> None:
     print("Los datos persistentes (notas, metas, KG) no se han modificado.")
 
 
+def _strip_input_bom(line: str) -> str:
+    """Quita el BOM UTF-8 que aparece al inicio de la PRIMERA linea cuando
+    stdin viene pipeado (p.ej. PowerShell antepone los bytes EF BB BF al
+    stream). Segun el encoding de stdin el BOM llega como '\\ufeff' (utf-8)
+    o como '\\xef\\xbb\\xbf' (cp1252). Sin esto, un '/comando' como primera
+    linea no empieza con '/' y cae al chat en vez del dispatch (bug E2E)."""
+    for _bom in ("\ufeff", "\xef\xbb\xbf"):
+        if line.startswith(_bom):
+            line = line[len(_bom):]
+    return line.strip()
+
+
 def repl():
     global _session_start, _init_lines, _console, _debug_mode, _fast_mode
 
@@ -4675,7 +4687,10 @@ def repl():
     # -----------------------------------------------------------------------
     while True:
         try:
-            raw = _get_input()
+            # El BOM que PowerShell antepone al pipe rompe el dispatch de la
+            # primera linea ('/comando' deja de empezar con '/'): sanear aca,
+            # el UNICO punto de entrada al dispatch.
+            raw = _strip_input_bom(_get_input())
         except (EOFError, KeyboardInterrupt):
             print("\nHasta luego.")
             break
