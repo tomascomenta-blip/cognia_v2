@@ -2451,3 +2451,13 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - 11 tests nuevos (test_cli_modelo.py) + 106 del area en verde. Commit pusheado.
 - Pendientes del dia: bug primera-linea del REPL; cosechar kernel datagen v4 (~19:50);
   verificacion telefonica Kaggle (dueno); modo cascada batch en orquestador.
+
+## 2026-06-12 22:50 — CYCLE 14 (cierre mision anterior): cascada E2E = 12/20 (60%) EXACTO
+- benchmark --cascade 7b corrido entero: etapa1 3B 8/20, swap unico verificado /props,
+  etapa2 7B regen fresca sobre 12 fallos: +4. Total 12/20 = 60.0% = prediccion de la
+  union determinista. Mecanismo validado de punta a punta. JSON:
+  results_code_hard_cascade_20260612_2006.json. Commit pusheado.
+- NUEVA MISION /manager (22:45): creatividad — hipotesis, analogias transversales,
+  transferencia, explorador 70/30, laboratorio, detector de repeticion, abstraccion,
+  autoevaluacion de novedad. Ciclo 1 = inventario verificado de lo existente
+  (reasoning/hypothesis.py, CuriosityEngine, ReasoningPlanner, ResearchEngine).
