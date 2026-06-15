@@ -2461,3 +2461,19 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   transferencia, explorador 70/30, laboratorio, detector de repeticion, abstraccion,
   autoevaluacion de novedad. Ciclo 1 = inventario verificado de lo existente
   (reasoning/hypothesis.py, CuriosityEngine, ReasoningPlanner, ResearchEngine).
+
+## 2026-06-13 02:30 — CYCLE 1 (mision creatividad): inventario verificado + mapa de decision
+- Workflow de reconocimiento (6 exploradores paralelos + sintesis, 7 agentes, ~526k tokens):
+  mapa VERIFICADO de las 8 piezas del GOAL vs lo existente, cada veredicto con call-site real.
+- Paquete VIVO = cognia/ (REPL -> cli.py:19 -> cognia.py). cognia_v3/core/cognia_v3.py (3609
+  lineas) es ZOMBIE. RIESGO #1 confirmado leyendo el codigo: program_creator/generator.py:19-21,
+  researcher.py:21-22 y self_architect:2406 usan Ollama HARDCODEADO (no el backend vivo
+  llama-server) -> pipeline creativo es NO-OP silencioso. hypothesis.py SI usa orchestrator
+  primario (hypothesis.py:124). orchestrator.infer NO expone temperature (gap para divergencia).
+- Veredictos: (1) REESCRIBIR hypothesis.py, (2)(3)(7) CONSTRUIR (huecos puros), (4) CONSTRUIR
+  sobre senales vivas, (5) REUSAR program_creator, (6) REESCRIBIR collapse_guard, (8) REESCRIBIR
+  self_architect scoring. Orden: 0 fundacion -> 1 hipotesis multi -> 5 lab -> 8 novedad -> 6
+  repeticion -> 4 explorador -> 7+2+3 mapeo abstracto. Mapa completo en PLAN_CREATIVIDAD.md.
+- Zombie a revivir: cognitive_loop.py (780 lineas, TESTEADO, base del refinamiento iterativo).
+- Proximo (CYCLE 2): fundacion = helper creative_generate(orchestrator,...) + threadear
+  temperature en infer + pieza (1) hipotesis multi desde prompt libre. Verificacion E2E real.
