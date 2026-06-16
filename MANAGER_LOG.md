@@ -3,6 +3,20 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 7a: generacion jerarquica (capstone "tokens infinitos")
+- generate_hierarchical (node/llama_backend.py, commit 1d42245): outline -> N secciones,
+  cada una con prompt FRESCO (prompt+outline+resumen corto previo). Prefill por seccion
+  acotado -> NO crece con el texto total -> rompe el techo de ctx 16k; limite real = tiempo.
+  Reusa generate_long por seccion. _parse_outline robusto al 3B (lineas/inline/fallback).
+  /largo --jerarquico cablea el modo. Constantes GEN_HIERARCHICAL_SECTIONS=5,
+  GEN_SECTION_SUMMARY_CHARS=200.
+- 79 tests (assembly, parse inline, y la PROPIEDAD clave: el prompt de cada seccion trae
+  solo el RESUMEN 200ch de la previa, NO su texto completo). E2E REAL con modelo: outline +
+  2 secciones, 512 tokens, 2 rondas (maquinaria corre end-to-end).
+- HONESTIDAD: calidad del outline limitada por el 3B (no sigue bien 'uno por linea'); la
+  infra es correcta y verificada, el techo de calidad es el modelo (7B/QLoRA del roadmap).
+- Resultado: suite completa como gate antes de push.
+
 ## [2026-06-16] CYCLE — FASE 7b (sandbox_tester) + 3c (/esfuerzo funcional)
 - FASE 7b (commit 185b73b): cognia_v3/core/sandbox_tester.py + arreglo del import roto en
   self_architect.test_proposal (apuntaba a un modulo top-level inexistente -> siempre error).
