@@ -810,8 +810,12 @@ async def infer(req: InferRequest, request: Request, response: "fastapi.Response
                 )
                 try:
                     _retry_result = await _orch.ainfer(_retry_prompt)
-                    if _retry_result and len(_retry_result.text) > len(response_text):
-                        response_text = _retry_result.text
+                    # Quedarse con la regeneracion solo si puntua MEJOR (calidad),
+                    # no por ser mas larga (FASE 4a).
+                    if _retry_result and _retry_result.text:
+                        response_text = _response_gate.pick_better(
+                            req.prompt, response_text, _retry_result.text
+                        )
                 except Exception:
                     pass  # keep original on any retry error
         except Exception:

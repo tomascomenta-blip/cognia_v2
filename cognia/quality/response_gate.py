@@ -169,3 +169,13 @@ class ResponseGate:
             f"The previous answer was {reason}. "
             f"Please answer more completely: {original_question}"
         )
+
+    def pick_better(self, question: str, original: str, candidate: str) -> str:
+        """Devuelve la respuesta de MAYOR calidad (score), no la mas larga. Desempata a
+        favor de 'original' (no reemplazar sin mejora real). Usado por el auto-gate para
+        quedarse con la regeneracion solo si puntua mejor (FASE 4a)."""
+        if not candidate or not candidate.strip():
+            return original
+        if self.score(question, candidate) > self.score(question, original):
+            return candidate
+        return original
