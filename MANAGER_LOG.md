@@ -3,6 +3,22 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 5: orquestador /flujo (objetivo CENTRAL O1) + FASE 4a
+- FASE 4a (commit 273d6ac): ResponseGate.pick_better; el auto-gate del desktop API elige la
+  regeneracion por SCORE (calidad), no por longitud (criterio pobre que marco el audit O8).
+  30 tests.
+- FASE 5 (commit ac85e4f, scoping con workflow de 4 agentes): cognia/agents/flow.py run_flow
+  + dict STAGES (funciones planas, sin clases). /flujo <objetivo> descompone en
+  analisis->[plan]->ejecucion->informe->[verificacion]->[correccion], decidiendo DINAMICAMENTE
+  las etapas por complejidad (ComplexityScorer, 0 LLM) + nivel de /esfuerzo. Reusa piezas
+  reales: planner.plan_task, synthesizer.synthesize, verifier.verify, response_gate,
+  band-router (_build_memory_block_for). Presupuesto 1-2 inferencias (degrada a determinista
+  sin backend; NO usa el ReAct loop). 6 tests. CLI REAL: /flujo "que es una lista enlazada"
+  -> complejidad=2 (fast) -> ejecucion>informe, 1 inferencia, informe + meta de etapas.
+  Correccion al spec: informe ANTES de verificacion/correccion (no se verifica un informe
+  inexistente).
+- Resultado: suite completa como gate antes de push.
+
 ## [2026-06-16] CYCLE — FASE 7a: generacion jerarquica (capstone "tokens infinitos")
 - generate_hierarchical (node/llama_backend.py, commit 1d42245): outline -> N secciones,
   cada una con prompt FRESCO (prompt+outline+resumen corto previo). Prefill por seccion
