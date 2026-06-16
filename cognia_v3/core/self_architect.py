@@ -2463,7 +2463,7 @@ class SelfArchitect:
         if not code:
             return {"error":"Sin código. Llama primero generate_module_code().","proposal_id":proposal_id}
         try:
-            from sandbox_tester import SandboxTester
+            from cognia_v3.core.sandbox_tester import SandboxTester
         except ImportError as e:
             return {"error": f"sandbox_tester.py no disponible: {e}"}
         mname = title.replace("New module: ","").replace(" ","").strip() or f"module_{proposal_id}"
