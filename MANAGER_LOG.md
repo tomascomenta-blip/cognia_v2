@@ -2509,3 +2509,13 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Commit 213ec5f. Loop cientifico operativo: hipotesis (pieza 1) + validacion (pieza 5).
 - Proximo (CYCLE 4): pieza (8) autoevaluacion de novedad = novedad x factibilidad x impacto
   (LLM juzga cada eje), para priorizar ideas y alimentar al explorador (pieza 4). M effort.
+
+## 2026-06-13 21:15 — CYCLE 4 (creatividad): pieza (8) autoevaluacion de novedad — E2E PASS
+- idea_eval.py: evaluate_idea (creative_generate temp 0.25, 3 ejes novedad/factibilidad/
+  impacto, value=producto), _parse_axes robusto + reintento + None honesto; rank_ideas
+  (orden desc, None al final, cap 8). cli.py /evaluar-idea; cognia.py formateador ASCII.
+- Verificado: 16 tests verdes. E2E server real: VALOR 0.21 (0.6*0.7*0.5), 20s.
+- Commit pusheado. Estado mision: piezas (1) hipotesis, (5) laboratorio, (8) novedad HECHAS.
+  Loop: generar -> validar empiricamente -> priorizar por valor.
+- Proximo (CYCLE 5): pieza (6) detector de repeticion (patrones de solucion + forzar
+  alternativas) o pieza (4) explorador 70/30 (consume novedad+collapse). Evaluar ROI.
