@@ -269,6 +269,66 @@ class TestGenerateLong:
 
 
 # ---------------------------------------------------------------------------
+# _LlamaCppBackend: stop_reason / token count (regresion de generate_long in-process)
+# ---------------------------------------------------------------------------
+
+class _FakeCppModel:
+    """Stub minimo de llama-cpp-python __call__: rondas (text, completion_tokens, finish_reason)."""
+
+    def __init__(self, rounds):
+        self._rounds = list(rounds)
+        self.calls: list = []
+
+    def __call__(self, prompt, **kwargs):
+        self.calls.append((prompt, kwargs))
+        text, toks, fr = self._rounds.pop(0)
+        return {"choices": [{"text": text, "finish_reason": fr}],
+                "usage": {"completion_tokens": toks}}
+
+
+def _make_cpp_backend(rounds):
+    """_LlamaCppBackend sin tocar llama_cpp real: bypass __init__ + fake _model."""
+    from node.llama_backend import _LlamaCppBackend
+    be = object.__new__(_LlamaCppBackend)
+    be._gguf_path = None
+    be.last_tokens_predicted = None
+    be.last_stop_reason = None
+    be._model = _FakeCppModel(rounds)
+    return be
+
+
+class TestLlamaCppBackendStopReason:
+    def test_generate_sets_token_count_and_maps_length_to_limit(self):
+        be = _make_cpp_backend([("hola", 7, "length")])
+        out = be.generate("P", max_tokens=100, temperature=0.0)
+        assert out == "hola"
+        assert be.last_tokens_predicted == 7
+        assert be.last_stop_reason == "limit"
+        # Debe enviar los stop strings de fin de turno, igual que el server backend
+        assert be._model.calls[0][1].get("stop") == ["<|im_end|>", "<|endoftext|>"]
+
+    def test_generate_maps_stop_to_eos(self):
+        be = _make_cpp_backend([("fin.", 3, "stop")])
+        be.generate("P")
+        assert be.last_stop_reason == "eos"
+
+    def test_generate_long_continues_in_process(self):
+        """Regresion: in-process debe continuar mas alla de la ronda 1.
+        Antes last_stop_reason era None -> generate_long cortaba tras 1 ronda."""
+        from node.llama_backend import LlamaBackend
+        impl = _make_cpp_backend([
+            ("AAA ", 100, "length"),
+            ("BBB ", 100, "length"),
+            ("CCC.", 50,  "stop"),
+        ])
+        result = LlamaBackend(impl).generate_long("P: ", max_total_tokens=1000, chunk_tokens=100)
+        assert result["rounds"] == 3
+        assert result["text"] == "AAA BBB CCC."
+        assert result["stop_reason"] == "eos"
+        assert result["total_tokens"] == 250
+
+
+# ---------------------------------------------------------------------------
 # stream_generate()
 # ---------------------------------------------------------------------------
 

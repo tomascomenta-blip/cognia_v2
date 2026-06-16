@@ -220,6 +220,12 @@ class _LlamaCppBackend:
             n_gpu_layers   = _N_GPU_LAYERS,
             verbose        = False,
         )
+        # Mirror _LlamaServerBackend: token count real + stop reason del ultimo
+        # generate(), para que la auto-continuacion (generate_long) funcione tambien
+        # in-process. Sin esto last_stop_reason era siempre None y el loop cortaba
+        # tras la ronda 1 (None != 'limit').
+        self.last_tokens_predicted: Optional[int] = None
+        self.last_stop_reason: Optional[str] = None
         logger.info("[llama_backend] llama-cpp-python loaded: %s", gguf_path.name)
 
     def generate(self, prompt: str, max_tokens: int = 256,
@@ -240,8 +246,17 @@ class _LlamaCppBackend:
                 max_tokens  = max_tokens,
                 temperature = temperature,
                 echo        = False,
+                # Mismos stop strings que el server backend: corta en fin de turno
+                # ChatML en vez de seguir generando texto del siguiente turno.
+                stop        = ["<|im_end|>", "<|endoftext|>"],
                 **extra,
             )
+            # Mismo contrato que el server backend: token count real + stop reason.
+            # llama-cpp-python devuelve formato OpenAI (choices[0].finish_reason
+            # 'length'|'stop' + usage.completion_tokens); _stop_reason ya lo mapea a
+            # 'limit'|'eos', habilitando la continuacion de generate_long.
+            self.last_tokens_predicted = (result.get("usage") or {}).get("completion_tokens")
+            self.last_stop_reason = _stop_reason(result)
             return result["choices"][0]["text"]
         except Exception as exc:
             logger.warning("[llama_backend] llama-cpp-python generate failed: %s", exc)
