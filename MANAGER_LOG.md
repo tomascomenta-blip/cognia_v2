@@ -2477,3 +2477,21 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Zombie a revivir: cognitive_loop.py (780 lineas, TESTEADO, base del refinamiento iterativo).
 - Proximo (CYCLE 2): fundacion = helper creative_generate(orchestrator,...) + threadear
   temperature en infer + pieza (1) hipotesis multi desde prompt libre. Verificacion E2E real.
+
+## 2026-06-13 19:10 — CYCLE 2 (creatividad): pieza (1) hipotesis multi + fundacion — E2E PASS
+- Fundacion: temperature threadeada en orchestrator.infer/ainfer (default None=compat;
+  _local_infer ya la aceptaba). creative_llm.py: creative_generate() = punto unico hacia
+  el backend vivo compartido (no Ollama, no orchestrators nuevos).
+- Pieza (1): HypothesisModule.generate_many(problem, n, orchestrator) — N hipotesis (3-10)
+  desde PROMPT LIBRE; genera temp0.95 + puntua plausibilidad por LLM temp0.2 (no coseno);
+  rankea. CLI /hipotesis <texto sin barra>. Viejo A|B intacto.
+- DIAGNOSTICO (5 sondas reales, no parche a ciegas): el primer E2E dio TODO 0.5 = flake
+  transitorio de la 1a llamada de scoring tras adoptar server en frio (KV cache-reuse edge),
+  amplificado por diseno de 1-sola-llamada sin reintento. Bug 2: parser perdia cuerpo de
+  hipotesis multilinea. FIX: retry de scoring + fold multilinea + _clean_hypothesis +
+  fallback HONESTO (plausibility None -> "[sin puntuar]", sin ranking falso).
+- Verificado: 40 tests del area verdes. E2E server FRIO: 5 hipotesis con plaus reales y
+  distintas (0.90/0.80/0.70/0.60/0.50), 77s, llama-server. Commit ae53b22 pusheado.
+- USAGE GATE: 84% ventana 5h (semanal 9% sano). Checkpoint limpio. Proximo (CYCLE 3):
+  pieza (5) laboratorio = migrar program_creator/generator.py de Ollama al orchestrator
+  + generalizar para validar hipotesis. Luego (8) novedad, (6) repeticion, (4) explorador.
