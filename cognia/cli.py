@@ -337,6 +337,7 @@ _CMD_DESCRIPTIONS = {
     "/largo":           "Generacion larga (hasta 5000 tokens) con progreso <pedido>",
     "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
+    "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
     "/esfuerzo":        "Nivel de esfuerzo del razonamiento (bajo|medio|alto|maximo)",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
@@ -505,6 +506,13 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/deliberar": (
+        "Ejecuta el loop deliberativo del CognitiveLoop: planner simbolico -> self-critic "
+        "heuristico -> verifier -> world-model (action-simulator), con hasta 2 iteraciones de "
+        "revision quedandose con la mejor. Es OFFLINE y DETERMINISTA: NO llama al LLM/llama-server, "
+        "por eso es rapido (sub-segundo). Imprime el plan, la critica (score), el verify (PASS/FAIL) "
+        "y el riesgo del plan. Ejemplo: /deliberar refactoriza el modulo de memoria episodica"
+    ),
     "/hacer": (
         "Ejecuta una tarea de forma autonoma usando un loop ReAct de hasta 8 pasos. "
         "Usa herramientas como /buscar-web, /kg-agregar, /ejecutar para completar la tarea. "
@@ -5623,6 +5631,44 @@ def repl():
                         pass
                 except Exception as _pe:
                     _print_line(f"[err_cl]Error en razonamiento: {_pe}[/err_cl]")
+
+        # -- Deliberacion (CognitiveLoop DELIBERATE, offline/determinista) --
+        elif raw.startswith("/deliberar ") or raw == "/deliberar":
+            _obj = raw[len("/deliberar"):].strip()
+            if not _obj:
+                _print_line("[warn_cl]Uso: /deliberar <objetivo>  (plan->critica->verify->revise, offline/determinista)[/warn_cl]")
+            else:
+                _print_line("[detail]Deliberando (offline: planner + self-critic + verifier + world-model)...[/detail]")
+                try:
+                    loop = getattr(ai, "_cognitive_loop", None)
+                    if loop is None:
+                        from cognia.reasoning.cognitive_loop import CognitiveLoop
+                        loop = CognitiveLoop(db_path=getattr(ai, "db", None))
+                        try:
+                            ai._cognitive_loop = loop
+                        except Exception:
+                            pass
+                    _plan, _crit, _verify, _out, _risk = loop._run_deliberate(_obj, None)
+                    _print_line(f"[bold]PLAN ({len(_plan or [])} pasos):[/bold]")
+                    for _i, _st in enumerate(_plan or [], 1):
+                        _print_line(f"  {_i}. {getattr(_st, 'description', _st)} (tool={getattr(_st, 'tool_required', '?')})")
+                    _sc = (_crit or {}).get("scores", {})
+                    _print_line(f"[bold]CRITICA[/bold] overall={float(_sc.get('overall', 0.0)):.2f}: {(_crit or {}).get('critique', '')}")
+                    if _verify is not None:
+                        _ok = getattr(_verify, "passed", False)
+                        _extra = "" if _ok else f" reason={getattr(_verify, 'fail_reason', '')}"
+                        _print_line(f"VERIFY: {'PASS' if _ok else 'FAIL'} (score={float(getattr(_verify, 'score', 0.0)):.2f}){_extra}")
+                    if _risk:
+                        _print_line(f"PLAN RISK: {_risk.get('recommendation', '?')} (max_risk={float(_risk.get('max_risk', 0.0)):.2f})")
+                    _print_line(f"[detail]{_out}[/detail]")
+                    try:
+                        _vv = "PASS" if (_verify is not None and getattr(_verify, "passed", False)) else "FAIL/NA"
+                        ai.observe(f"Deliberacion sobre: {_obj[:80]} | {len(_plan or [])} pasos, verify={_vv}",
+                                   provided_label="deliberacion")
+                    except Exception:
+                        pass
+                except Exception as _de:
+                    _print_line(f"[err_cl]Error en deliberacion: {_de}[/err_cl]")
 
         # -- Agent history --------------------------------------------------
         elif raw == "/historial":
