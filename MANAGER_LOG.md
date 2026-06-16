@@ -2495,3 +2495,17 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - USAGE GATE: 84% ventana 5h (semanal 9% sano). Checkpoint limpio. Proximo (CYCLE 3):
   pieza (5) laboratorio = migrar program_creator/generator.py de Ollama al orchestrator
   + generalizar para validar hipotesis. Luego (8) novedad, (6) repeticion, (4) explorador.
+
+## 2026-06-13 20:40 — CYCLE 3 (creatividad): pieza (5) laboratorio de experimentacion — E2E PASS
+- experiment_lab.py: design_experiment (creative_generate temp 0.4) + run_experiment que
+  ejecuta SOLO via sandbox_runner.run_in_sandbox (REUSADO: AST allowlist + guard import +
+  subprocess timeout = regla 9 de CLAUDE.md). _extract_code (fences) + _parse_verdict
+  (ultima linea VERDICT/VEREDICTO). Honesto: bloqueo de import o sin codigo -> reportado.
+- cli.py /experimento <afirmacion>; cognia.py run_experiment formateador ASCII.
+- Verificado: 12 tests (sandbox real, no mockeado; caso import socket bloqueado sin
+  success fingido). E2E server real: /experimento "suma de primeros n impares = cuadrado
+  perfecto" -> modelo genero experimento, corrio 100/100 casos -> VEREDICTO PASS, 62s.
+- NO migre el generador de programas-hobby (sigue Ollama-muerto; tangencial; deuda anotada).
+- Commit 213ec5f. Loop cientifico operativo: hipotesis (pieza 1) + validacion (pieza 5).
+- Proximo (CYCLE 4): pieza (8) autoevaluacion de novedad = novedad x factibilidad x impacto
+  (LLM juzga cada eje), para priorizar ideas y alimentar al explorador (pieza 4). M effort.
