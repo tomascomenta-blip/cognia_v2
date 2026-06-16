@@ -1489,32 +1489,51 @@ def _slash_mi_uso_detalle(args: str) -> None:
         print("Servicio de analiticas no disponible.")
 
 
-def _slash_buscar_memoria(args: str) -> None:
+def _fmt_ts(ts) -> str:
+    """Fecha YYYY-MM-DD desde un ts que puede ser epoch (int/float, schema desktop)
+    o ISO (str, schema REPL)."""
+    if not ts:
+        return "?"
+    from datetime import datetime
+    try:
+        if isinstance(ts, (int, float)):
+            return datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+        return datetime.fromisoformat(str(ts)).strftime("%Y-%m-%d")
+    except Exception:
+        return "?"
+
+
+def _slash_buscar_memoria(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /buscar-memoria <texto a buscar semanticamente>")
         return
+
+    def _print_results(results):
+        if not results:
+            print("Sin resultados semanticos para esa busqueda.")
+            return
+        print(f"Resultados semanticos para '{args.strip()}':")
+        for i, r in enumerate(results, 1):
+            score = round(r.get("score", 0), 3)
+            role = r.get("role", "?")
+            content = (r.get("content", "") or "")[:120]
+            print(f"  {i}. [{role}] ({_fmt_ts(r.get('ts'))}, score={score}) {content}")
+
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(args.strip())
         resp = requests.get(f"http://localhost:8765/memory/search?q={q}&limit=5", timeout=5)
         if resp.status_code == 200:
-            results = resp.json().get("results", [])
-            if not results:
-                print("Sin resultados semanticos para esa busqueda.")
-                return
-            print(f"Resultados semanticos para '{args.strip()}':")
-            for i, r in enumerate(results, 1):
-                score = round(r.get("score", 0), 3)
-                role = r.get("role", "?")
-                content = r.get("content", "")[:120]
-                ts = r.get("ts", 0)
-                from datetime import datetime
-                date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d") if ts else "?"
-                print(f"  {i}. [{role}] ({date_str}, score={score}) {content}")
+            _print_results(resp.json().get("results", []))
         else:
             print(f"Error: {resp.status_code}")
     except Exception:
-        print("Servicio de busqueda semantica no disponible.")
+        # Fallback local (sin Electron/:8765): SemanticMemorySearch sobre ai.db
+        try:
+            from cognia.memory.semantic_search import SemanticMemorySearch
+            _print_results(SemanticMemorySearch(db_path=ai.db).search(args.strip(), limit=5))
+        except Exception as _e:
+            print(f"Busqueda semantica local fallo: {_e}")
 
 
 def _slash_debate(args: str) -> None:
@@ -1545,48 +1564,65 @@ def _slash_debate(args: str) -> None:
     print("CONCLUSION: Evalua el contexto especifico antes de decidir.")
 
 
-def _slash_contexto_semantico(args: str) -> None:
+def _slash_contexto_semantico(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /contexto-semantico <consulta>")
         return
+
+    def _print_ctx(context):
+        if not context:
+            print("Sin contexto encontrado.")
+            return
+        print(f"Contexto semantico para '{args.strip()}':")
+        for msg in context:
+            role = msg.get("role", "?")
+            content = (msg.get("content", "") or "")[:150]
+            print(f"  [{role}] {content}")
+
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(args.strip())
         resp = requests.get(f"http://localhost:8765/memory/search/context?q={q}&window=3", timeout=5)
         if resp.status_code == 200:
-            context = resp.json().get("context", [])
-            if not context:
-                print("Sin contexto encontrado.")
-                return
-            print(f"Contexto semantico para '{args.strip()}':")
-            for msg in context:
-                role = msg.get("role", "?")
-                content = msg.get("content", "")[:150]
-                print(f"  [{role}] {content}")
+            _print_ctx(resp.json().get("context", []))
         else:
             print(f"Error: {resp.status_code}")
     except Exception:
-        print("Servicio no disponible.")
+        # Fallback local: SemanticMemorySearch.search_context sobre ai.db
+        try:
+            from cognia.memory.semantic_search import SemanticMemorySearch
+            _print_ctx(SemanticMemorySearch(db_path=ai.db).search_context(args.strip(), window=3))
+        except Exception as _e:
+            print(f"Contexto semantico local fallo: {_e}")
 
 
-def _slash_sintetizar(args: str) -> None:
+def _slash_sintetizar(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /sintetizar <tema>")
         return
+
+    def _print_synth(data):
+        print(data.get("synthesis", "Sin sintesis disponible."))
+        sources = data.get("sources", [])
+        if sources:
+            print(f"\n[Fuentes: {', '.join(sources)}]")
+
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(args.strip())
         resp = requests.get(f"http://localhost:8765/synthesis?q={q}", timeout=5)
         if resp.status_code == 200:
-            data = resp.json()
-            print(data.get("synthesis", "Sin sintesis disponible."))
-            sources = data.get("sources", [])
-            if sources:
-                print(f"\n[Fuentes: {', '.join(sources)}]")
+            _print_synth(resp.json())
         else:
             print(f"Error: {resp.status_code}")
     except Exception:
-        print("Servicio de sintesis no disponible.")
+        # Fallback local: KnowledgeSynthesizer con _CHAT_DB apuntando al DB del REPL
+        try:
+            import cognia.synthesis.knowledge_synthesizer as _ks
+            _ks._CHAT_DB = ai.db
+            _print_synth(_ks.KnowledgeSynthesizer().synthesize(args.strip()))
+        except Exception as _e:
+            print(f"Sintesis local fallo: {_e}")
 
 
 def _slash_y_si(args: str) -> None:
@@ -4633,7 +4669,7 @@ def _slash_comandos(args: str) -> None:
     print("Usa /ayuda <comando> para ayuda detallada de un comando.")
 
 
-def _slash_ver_contexto(args: str) -> None:
+def _slash_ver_contexto(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /ver-contexto <pregunta>")
         print("Muestra que contexto inyectaria Cognia en el system prompt para esa pregunta.")
@@ -4670,7 +4706,19 @@ def _slash_ver_contexto(args: str) -> None:
             if rec:
                 sources.append(("Recomendacion", rec.get("title", "")))
     except Exception:
-        sources.append(("API", "no disponible -- contexto reducido"))
+        # Fallback local (sin Electron): mostrar el bloque de memoria REAL que el
+        # fast-path (band-router HYDRA) inyectaria para esta pregunta.
+        try:
+            block = _build_memory_block_for(ai, args.strip())
+        except Exception:
+            block = ""
+        if block:
+            print("Bloque de memoria local (HYDRA) que se inyectaria:")
+            print(block)
+            print()
+            sources.append(("HYDRA local", "band-router LOCAL/MEDIA/GLOBAL"))
+        else:
+            sources.append(("API", "no disponible -- sin contexto local"))
 
     if sources:
         print("Fuentes de contexto disponibles:")
@@ -6173,7 +6221,7 @@ def repl():
         # ── /buscar-memoria ────────────────────────────────────────────
         elif raw == "/buscar-memoria" or raw.startswith("/buscar-memoria "):
             _bm_args = raw[len("/buscar-memoria "):].strip() if raw.startswith("/buscar-memoria ") else ""
-            _slash_buscar_memoria(_bm_args)
+            _slash_buscar_memoria(ai, _bm_args)
 
         # ── /debate ────────────────────────────────────────────────────
         elif raw == "/debate" or raw.startswith("/debate "):
@@ -6183,12 +6231,12 @@ def repl():
         # ── /contexto-semantico ────────────────────────────────────────
         elif raw == "/contexto-semantico" or raw.startswith("/contexto-semantico "):
             _cs_args = raw[len("/contexto-semantico "):].strip() if raw.startswith("/contexto-semantico ") else ""
-            _slash_contexto_semantico(_cs_args)
+            _slash_contexto_semantico(ai, _cs_args)
 
         # ── /sintetizar ────────────────────────────────────────────────
         elif raw == "/sintetizar" or raw.startswith("/sintetizar "):
             _sint_args = raw[len("/sintetizar "):].strip() if raw.startswith("/sintetizar ") else ""
-            _slash_sintetizar(_sint_args)
+            _slash_sintetizar(ai, _sint_args)
 
         # ── /y-si ──────────────────────────────────────────────────────
         elif raw == "/y-si" or raw.startswith("/y-si "):
@@ -6312,7 +6360,7 @@ def repl():
 
         # ── /ver-contexto / /limpiar-sesion ──────────────────────────────────
         elif raw == "/ver-contexto" or raw.startswith("/ver-contexto "):
-            _slash_ver_contexto(raw[len("/ver-contexto "):].strip() if raw.startswith("/ver-contexto ") else "")
+            _slash_ver_contexto(ai, raw[len("/ver-contexto "):].strip() if raw.startswith("/ver-contexto ") else "")
         elif raw == "/limpiar-sesion":
             _slash_limpiar_sesion("")
 

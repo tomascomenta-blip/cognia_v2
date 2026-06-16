@@ -27,7 +27,7 @@ def _capture(fn, *args):
 # 1. /sintetizar requires args
 # ---------------------------------------------------------------------------
 def test_sintetizar_requires_args():
-    out = _capture(_slash_sintetizar, "")
+    out = _capture(_slash_sintetizar, None, "")
     assert "Uso:" in out
 
 

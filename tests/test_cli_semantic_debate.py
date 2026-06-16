@@ -29,7 +29,7 @@ def _capture(fn, *args):
 # 1. /buscar-memoria requires args
 # ---------------------------------------------------------------------------
 def test_buscar_memoria_requires_args():
-    out = _capture(_slash_buscar_memoria, "")
+    out = _capture(_slash_buscar_memoria, None, "")
     assert "Uso:" in out
     assert "/buscar-memoria" in out
 
@@ -60,7 +60,7 @@ def test_debate_prints_pro_con_sections():
 # 4. /contexto-semantico requires args
 # ---------------------------------------------------------------------------
 def test_contexto_semantico_requires_args():
-    out = _capture(_slash_contexto_semantico, "")
+    out = _capture(_slash_contexto_semantico, None, "")
     assert "Uso:" in out
     assert "/contexto-semantico" in out
 
@@ -68,11 +68,31 @@ def test_contexto_semantico_requires_args():
 # ---------------------------------------------------------------------------
 # 5. /buscar-memoria handles connection error gracefully
 # ---------------------------------------------------------------------------
-def test_buscar_memoria_handles_connection_error():
-    import requests
+def test_buscar_memoria_local_fallback_when_api_down(tmp_path):
+    """Sin Electron (:8765 caido), /buscar-memoria cae a SemanticMemorySearch local
+    sobre ai.db (antes imprimia 'no disponible'; FASE 2a)."""
+    import sqlite3
+    import types
+    db = str(tmp_path / "cm.db")
+    con = sqlite3.connect(db)
+    con.execute(
+        "CREATE TABLE chat_history (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "timestamp TEXT, role TEXT, content TEXT, session_id TEXT)"
+    )
+    con.executemany(
+        "INSERT INTO chat_history (timestamp, role, content, session_id) VALUES (?,?,?,?)",
+        [("2026-06-16T10:00:00", "user", "hablamos de python y asyncio", "s1"),
+         ("2026-06-16T10:01:00", "assistant", "asyncio es para concurrencia en python", "s1")],
+    )
+    con.commit()
+    con.close()
+    ai = types.SimpleNamespace(db=db)
     with mock.patch("requests.get", side_effect=Exception("connection refused")):
-        out = _capture(_slash_buscar_memoria, "python")
-    assert "no disponible" in out.lower() or "servicio" in out.lower()
+        out = _capture(_slash_buscar_memoria, ai, "python asyncio")
+    assert "no disponible" not in out.lower()   # ya no es el viejo mensaje de error
+    assert "Resultados semanticos" in out or "python" in out.lower()
+    from storage.db_pool import close_pool
+    close_pool(db)
 
 
 # ---------------------------------------------------------------------------
