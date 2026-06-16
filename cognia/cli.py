@@ -282,6 +282,7 @@ _CMD_DESCRIPTIONS = {
     "/encolar":         "Encolar idea para sleep <idea>",
     "/corregir":        "Corregir error          <obs> | <mal> | <bien>",
     "/hipotesis":       "Generar hipótesis       <A> | <B>",
+    "/experimento":     "Probar afirmacion empiricamente (sandbox)  <afirmacion>",
     "/explicar":        "Autoexplicación         <texto>",
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
@@ -507,6 +508,13 @@ _CMD_DETAILS = {
         "Lento (~10 min a 8 tok/s). Requiere llama-server/GGUF disponible. "
         "Ejemplo: /largo Escribe una guia completa de asyncio en Python"
     ),
+    "/experimento": (
+        "Pone a prueba una afirmacion de forma EMPIRICA. El LLM disena un "
+        "experimento Python autocontenido (solo stdlib), se corre en el sandbox "
+        "seguro (scan de imports + timeout) y se lee el VEREDICTO del stdout. "
+        "Si el sandbox rechaza el codigo, se reporta el fallo (no se finge exito). "
+        "Ejemplo: /experimento ordenar con sort() es mas rapido que bubble sort"
+    ),
     "/modelo": (
         "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
         "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
@@ -603,6 +611,7 @@ HELP_TEXT = """
     /aprende-repo <url_o_query>     Aprende de un repo GitHub por URL o busqueda
     /corregir <obs> | <mal> | <bien>Corregir error
     /hipotesis <A> | <B>            Generar hipotesis
+    /experimento <afirmacion>       Probar afirmacion empiricamente (sandbox)
     /yo                             Introspección completa
     /conceptos                      Listar conceptos
     /dormir                         Consolidacion tipo sueno
@@ -4912,6 +4921,11 @@ def repl():
             _run(raw, lambda: ai.generate_hypotheses_many(texto), color="magenta")
         elif raw.startswith("/hipotesis"):
             _print_line("[warn_cl]Uso: /hipotesis <A> | <B>  (pares)  o  /hipotesis <problema>  (N hipotesis)[/warn_cl]")
+        elif raw.startswith("/experimento ") and raw[len("/experimento "):].strip():
+            texto = raw[len("/experimento "):].strip()
+            _run(raw, lambda: ai.run_experiment(texto), color="cyan")
+        elif raw.startswith("/experimento"):
+            _print_line("[warn_cl]Uso: /experimento <afirmacion>  -- ejemplo: /experimento bubble sort es O(n^2)[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
             _run(raw, lambda: ai.explain(texto), color="magenta")

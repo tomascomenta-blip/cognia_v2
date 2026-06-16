@@ -897,6 +897,36 @@ class Cognia:
             lineas.append("(no se pudo puntuar la plausibilidad; orden = generacion)")
         return "\n".join(lineas)
 
+    def run_experiment(self, claim: str) -> str:
+        """Pone a prueba una afirmacion empiricamente: el LLM disena un experimento
+        Python, se corre en el sandbox seguro y se lee el veredicto del stdout."""
+        from cognia.reasoning.experiment_lab import run_experiment as _run_exp
+        res = _run_exp(self._orchestrator, claim)
+
+        if not res.get("executed"):
+            return f"[lab] No se ejecuto el experimento: {res.get('reason', 'motivo desconocido')}"
+
+        lineas = [f"[lab] VEREDICTO: {res['verdict']}"]
+        if res["success"]:
+            lineas.append("Ejecucion: OK (el experimento corrio y produjo mediciones)")
+        else:
+            lineas.append("Ejecucion: FALLO (ver detalle abajo)")
+        if res["blocked"]:
+            lineas.append("Rechazado por el sandbox (imports/llamadas bloqueadas): "
+                          + "; ".join(str(b) for b in res["blocked"]))
+        if res["timed_out"]:
+            lineas.append("El experimento excedio el tiempo limite (timeout).")
+
+        salida = (res.get("output") or "").strip()
+        if salida:
+            primeras = salida.splitlines()[:8]
+            lineas.append("Salida (primeras lineas):")
+            lineas.extend("  " + ln for ln in primeras)
+        err = (res.get("error") or "").strip()
+        if err and not res["success"]:
+            lineas.append("Error: " + err.splitlines()[0])
+        return "\n".join(lineas)
+
     def introspect(self) -> dict:
         now = time.time()
         if self._introspect_cache and (now - self._introspect_ts) < 2.0:
