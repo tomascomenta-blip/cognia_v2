@@ -880,8 +880,11 @@ class Cognia:
                 f"Similitud entre conceptos: {result['similarity']:.2f}")
 
     def generate_hypotheses_many(self, problem: str, n: int = 5) -> str:
-        """Genera N hipotesis diversas para un problema libre via el LLM vivo compartido."""
-        items = self.hypothesis.generate_many(problem, n, orchestrator=self._orchestrator)
+        """Genera N hipotesis diversas para un problema libre via el LLM vivo compartido.
+        diversify=True activa el detector de repeticion: si el conjunto sale repetitivo
+        se fuerzan enfoques alternativos antes de puntuar."""
+        items = self.hypothesis.generate_many(problem, n, orchestrator=self._orchestrator,
+                                              diversify=True)
         if not items:
             return "No pude generar hipotesis (backend no disponible o sin resultados)."
         lineas = [f"[i] {len(items)} hipotesis para: {problem.strip()}"]
@@ -895,6 +898,25 @@ class Cognia:
                 lineas.append(f"{it['rank']}. [plaus {it['plausibility']:.2f}] {it['hypothesis']}")
         if sin_puntuar:
             lineas.append("(no se pudo puntuar la plausibilidad; orden = generacion)")
+        return "\n".join(lineas)
+
+    def measure_diversity(self, ideas: list) -> str:
+        """Mide que tan variado es un conjunto de ideas (similitud lexica, sin LLM)
+        y reporta los pares casi-duplicados detectados. ASCII puro para el CLI."""
+        from cognia.reasoning import repetition_detector as _rd
+        ideas = [i.strip() for i in (ideas or []) if i and i.strip()]
+        if len(ideas) < 2:
+            return "Necesito al menos 2 ideas para medir diversidad (separa con '||')."
+        score = _rd.diversity(ideas)
+        repeats = _rd.find_repeats(ideas)
+        lineas = [f"[i] Diversidad: {score:.2f} (1.0 = todas distintas, 0.0 = todas iguales) "
+                  f"sobre {len(ideas)} ideas"]
+        if repeats:
+            lineas.append(f"Pares casi-duplicados detectados ({len(repeats)}):")
+            for i, j, sim in repeats:
+                lineas.append(f"  - idea {i + 1} <-> idea {j + 1}  (sim {sim:.2f})")
+        else:
+            lineas.append("Sin pares casi-duplicados: el conjunto no repite estrategias.")
         return "\n".join(lineas)
 
     def run_experiment(self, claim: str) -> str:

@@ -508,6 +508,57 @@ class TestHypothesisGenerateMany:
         assert plaus == [0.9, 0.5, 0.2]
         assert [it["rank"] for it in items] == [1, 2, 3]
 
+    def test_diversify_repetitive_set_forces_alternatives(self):
+        # Conjunto generado REPETITIVO (diversity < 0.5) con diversify=True ->
+        # se dispara force_alternatives, mergea las nuevas y el resultado es mas
+        # diverso (incluye los enfoques alternativos del detector).
+        gen = ("1. recolectar agua de lluvia en azoteas\n"
+               "2. recolectar agua de lluvia en los techos\n"
+               "3. recolectar agua de lluvia con canaletas\n")
+        alts = ("1. construir un acueducto subterraneo presurizado\n"
+                "2. desalinizar mediante membranas de osmosis inversa\n")
+        scores = "1: 0.6\n2: 0.5\n3: 0.4\n"
+        orch = _FakeOrchestrator([gen, alts, scores])
+        hmod = self._hmod()
+        items = hmod.generate_many("abastecer agua urbana", n=3,
+                                   orchestrator=orch, diversify=True)
+        # 3 llamadas: generacion + alternativas + scoring.
+        assert len(orch.calls) == 3
+        textos = " ".join(it["hypothesis"] for it in items)
+        # Una alternativa nueva del detector entro al conjunto final.
+        assert "acueducto" in textos or "osmosis" in textos
+        # Recortado a n.
+        assert len(items) <= 3
+
+    def test_diversify_diverse_set_skips_alternatives(self):
+        # Conjunto ya DIVERSO (diversity >= 0.5): diversify=True NO debe llamar a
+        # force_alternatives. Solo generacion + scoring = 2 llamadas.
+        gen = ("1. sensores de humedad para riego por goteo\n"
+               "2. plantas nativas de bajo consumo hidrico\n"
+               "3. reuso de aguas grises tratadas filtradas\n")
+        scores = "1: 0.7\n2: 0.5\n3: 0.6\n"
+        orch = _FakeOrchestrator([gen, scores])
+        hmod = self._hmod()
+        items = hmod.generate_many("riego urbano", n=3,
+                                   orchestrator=orch, diversify=True)
+        # Sin alternativas extra: solo 2 llamadas LLM.
+        assert len(orch.calls) == 2
+        assert len(items) == 3
+
+    def test_diversify_default_false_unchanged(self):
+        # diversify default = False: mismo comportamiento que siempre (2 llamadas),
+        # aunque el conjunto sea repetitivo. Garantiza el contrato existente.
+        gen = ("1. recolectar agua de lluvia en azoteas\n"
+               "2. recolectar agua de lluvia en los techos\n"
+               "3. recolectar agua de lluvia con canaletas\n")
+        scores = "1: 0.6\n2: 0.5\n3: 0.4\n"
+        orch = _FakeOrchestrator([gen, scores])
+        hmod = self._hmod()
+        items = hmod.generate_many("agua urbana", n=3, orchestrator=orch)
+        # Sin diversify: NO se dispara force_alternatives -> 2 llamadas.
+        assert len(orch.calls) == 2
+        assert len(items) == 3
+
 
 class TestParseNumberedFold:
     """_parse_numbered: fold de lineas de continuacion y limpieza de display."""
@@ -552,7 +603,7 @@ class TestGenerateHypothesesManyFormatter:
         from cognia.cognia import Cognia
 
         class _HMod:
-            def generate_many(self, problem, n, orchestrator=None):
+            def generate_many(self, problem, n, orchestrator=None, diversify=False):
                 return items
 
         ai = Cognia.__new__(Cognia)

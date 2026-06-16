@@ -240,7 +240,8 @@ class HypothesisModule:
         return {"hypothesis": text, "confidence": round(hyp_conf, 3),
                 "similarity": round(sim, 3), "via_ollama": text is not None and "sim=" not in text}
 
-    def generate_many(self, problem: str, n: int = 5, orchestrator=None) -> list:
+    def generate_many(self, problem: str, n: int = 5, orchestrator=None,
+                      diversify: bool = False) -> list:
         """
         Genera N hipotesis DIVERSAS para un problema libre (no pares de conceptos),
         las puntua por plausibilidad con el LLM y las persiste ordenadas por plausibilidad.
@@ -249,6 +250,11 @@ class HypothesisModule:
           (a) generacion a alta temperatura -> lista numerada de angulos distintos,
           (b) plausibilidad a baja temperatura -> puntaje 0.0-1.0 por hipotesis.
         Sin orchestrator no hay backend vivo: retorna [] (no se inventa fallback).
+
+        diversify (opt-in, default False = comportamiento ACTUAL intacto): si True,
+        tras generar mide la diversidad del conjunto y, si es repetitivo (< 0.5),
+        fuerza enfoques alternativos via repetition_detector y los mergea antes de
+        puntuar. Default False mantiene verde el contrato existente.
         """
         if orchestrator is None or not problem or not problem.strip():
             return []
@@ -270,6 +276,27 @@ class HypothesisModule:
         # Si salen menos de 3, devolvemos las que haya; si no salio ninguna, [].
         if not hyps:
             return []
+
+        # (a.2) DIVERSIFICACION opt-in: si el conjunto generado es repetitivo
+        # (mismas estrategias), forzamos enfoques alternativos y los mergeamos.
+        # Import tardio para evitar el ciclo (repetition_detector importa de aca).
+        if diversify:
+            from . import repetition_detector as _rd
+            if _rd.diversity(hyps) < 0.5:
+                # 1) Colapsa los casi-duplicados del propio conjunto (deja un
+                #    representante por cluster) para abrir lugar a los enfoques
+                #    nuevos; sin esto, el [:n] final descartaria las alternativas.
+                dedup = []
+                for h in hyps:
+                    if all(_rd.similarity(h, d) < 0.6 for d in dedup):
+                        dedup.append(h)
+                # 2) Pide alternativas y mergea solo las genuinamente nuevas.
+                nuevas = _rd.force_alternatives(
+                    orchestrator, problem, dedup, n=max(2, n // 2))
+                for cand in nuevas:
+                    if all(_rd.similarity(cand, h) < 0.6 for h in dedup):
+                        dedup.append(cand)
+                hyps = dedup[:n]
 
         # (b) PLAUSIBILIDAD: una sola llamada de baja temperatura puntuando cada hipotesis.
         numbered = "\n".join(f"{i}. {h}" for i, h in enumerate(hyps, 1))

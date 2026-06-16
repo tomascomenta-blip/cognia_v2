@@ -287,6 +287,7 @@ _CMD_DESCRIPTIONS = {
     "/analogia":        "Traducir problema a otros dominios (analogias transversales)  <problema>",
     "/abstraer":        "Resolver por abstraccion (forma -> solucion abstracta -> concreta)  <problema>",
     "/transferir":      "Transferir el principio de un dominio a otro  <fuente> | <objetivo>",
+    "/diversidad":      "Medir diversidad de ideas y detectar repeticiones  <idea1> || <idea2> || ...",
     "/explicar":        "Autoexplicación         <texto>",
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
@@ -555,6 +556,13 @@ _CMD_DETAILS = {
         "Ejemplo: /transferir como las hormigas encuentran el camino mas corto | "
         "como rutear paquetes en una red"
     ),
+    "/diversidad": (
+        "Mide que tan variado es un conjunto de ideas (similitud LEXICA, sin LLM "
+        "ni red) y detecta los pares casi-duplicados (mismas estrategias). El "
+        "score va de 0.0 (todas iguales) a 1.0 (todas distintas). Separa las "
+        "ideas con '||'. Detector de repeticion (pieza 6 de la mision creativa). "
+        "Ejemplo: /diversidad recolectar agua de lluvia || juntar agua de lluvia en azoteas || usar plantas nativas"
+    ),
     "/modelo": (
         "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
         "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
@@ -656,6 +664,7 @@ HELP_TEXT = """
     /analogia <problema>            Traducir problema a otros dominios (analogias)
     /abstraer <problema>            Resolver por abstraccion (forma -> abstracta -> concreta)
     /transferir <fuente> | <objetivo>  Transferir el principio de un dominio a otro
+    /diversidad <i1> || <i2> ...    Medir diversidad de ideas y detectar repeticiones
     /yo                             Introspección completa
     /conceptos                      Listar conceptos
     /dormir                         Consolidacion tipo sueno
@@ -4991,6 +5000,13 @@ def repl():
                 partes[0].strip(), partes[1].strip()), color="cyan")
         elif raw.startswith("/transferir"):
             _print_line("[warn_cl]Uso: /transferir <fuente> | <objetivo>[/warn_cl]")
+        elif raw.startswith("/diversidad ") and "||" in raw:
+            ideas = [p.strip() for p in raw[len("/diversidad "):].split("||")]
+            ideas = [p for p in ideas if p]
+            _run(raw, lambda: ai.measure_diversity(ideas), color="cyan")
+        elif raw.startswith("/diversidad"):
+            _print_line("[warn_cl]Uso: /diversidad <idea1> || <idea2> || ...  "
+                        "-- ejemplo: /diversidad recolectar agua de lluvia || juntar lluvia en azoteas[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
             _run(raw, lambda: ai.explain(texto), color="magenta")
