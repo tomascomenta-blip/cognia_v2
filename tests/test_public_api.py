@@ -46,15 +46,39 @@ def client(_fresh_db):
     # Other suites import a different top-level "app" (web_app/coordinator) and
     # also reorder sys.path, so re-assert cognia_public_api at the front and drop
     # any cached "app" to force a fresh import of the public-API app.
-    sys.path.insert(0, os.path.abspath(_API_DIR))
+    #
+    # CRITICAL ISOLATION: the repo root also has an `app/` PACKAGE
+    # (app/routes/status.py). Leaving cognia_public_api's `app` module in
+    # sys.modules, or _API_DIR permanently at the front of sys.path, would make
+    # a later `import app.routes...` resolve to the wrong target. We snapshot and
+    # fully restore both so this fixture never pollutes downstream suites.
+    api_dir = os.path.abspath(_API_DIR)
+    saved_app = sys.modules.get("app")
+    # Always insert at front so cognia_public_api/app.py shadows the repo `app`
+    # package during this import; remove exactly this copy in finally.
+    sys.path.insert(0, api_dir)
     sys.modules.pop("app", None)
-    import app as api_app
-    importlib.reload(api_app)
-    from fastapi.testclient import TestClient
+    try:
+        import app as api_app
+        importlib.reload(api_app)
+        from fastapi.testclient import TestClient
 
-    # TestClient triggers lifespan by default (with_)
-    with TestClient(api_app.app) as c:
-        yield c
+        # TestClient triggers lifespan by default (with_)
+        with TestClient(api_app.app) as c:
+            yield c
+    finally:
+        # Restore sys.modules["app"] to whatever it was (the repo `app` package
+        # or absent) so the next suite imports the correct module.
+        if saved_app is not None:
+            sys.modules["app"] = saved_app
+        else:
+            sys.modules.pop("app", None)
+        # Drop exactly the one path entry we inserted at front (a pre-existing
+        # deeper copy from module import stays intact).
+        try:
+            sys.path.remove(api_dir)
+        except ValueError:
+            pass
 
 
 # ---------------------------------------------------------------------------
