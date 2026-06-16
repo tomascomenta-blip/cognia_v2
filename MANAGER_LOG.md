@@ -3,6 +3,19 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 6: recapitulacion automatica (O3) + taxonomia multinivel (O2)
+- FASE 6 (commit 8ed6eb6): cognia/memory/recap_policy.py should_recap (disparadores O3:
+  turnos/contexto/tareas/objetivos, sin LLM) + MEMORY_LEVELS (taxonomia canonica O2: los 5
+  niveles -> piezas reales). cli._persist_turn auto-mantiene una recap extractiva
+  (SessionSummarizer, sin LLM) cuando dispara; comando /recap la muestra. 7 tests. CLI real:
+  /recap -> "Recapitulacion de sesion (11 turnos, 2115 chars)" sobre historial restaurado.
+- Con esto los 9 objetivos del goal tienen deliverable verificado+pusheado: O1 /flujo,
+  O2 taxonomia, O3 /recap, O4 comandos memoria locales, O5 /esfuerzo, O6 /deliberar+flow,
+  O7 1a/1b/7a, O8 4a+flow-verify, O9 7b+dev_tools.
+- Pendientes (refinamiento/compliance): FASE 0b (resto db_pool cognia_v3), 7c (Ollama->orch),
+  3c-resto, e inyeccion de recap al prompt + ProjectMemory persistente.
+- Resultado: suite completa como gate antes de push.
+
 ## [2026-06-16] CYCLE — FASE 5: orquestador /flujo (objetivo CENTRAL O1) + FASE 4a
 - FASE 4a (commit 273d6ac): ResponseGate.pick_better; el auto-gate del desktop API elige la
   regeneracion por SCORE (calidad), no por longitud (criterio pobre que marco el audit O8).
