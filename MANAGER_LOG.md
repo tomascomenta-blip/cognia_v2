@@ -2564,3 +2564,15 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - HONESTIDAD: similitud LEXICA (sin sentence-transformers) -> se escapan sinonimos. Cota anotada.
 - Commit pusheado. Estado: 7/8 piezas (1,5,8,2,7,3,6). Falta (4) explorador 70/30. Luego
   WIRING /investigar (loop completo) y palanca 7B para razonamiento profundo.
+
+## 2026-06-13 22:25 — CYCLE 9 (creatividad): pieza (4) explorador 70/30 — E2E PASS — 8/8 PIEZAS
+- explorer.py: allocate (explore_n>=1 siempre, allocate(5)=(3,2)), _deepen (explota),
+  _explore_new (reusa force_alternatives), explore_exploit. cognia.py explore_problem;
+  cli.py /explorar.
+- Verificado: 11 tests. E2E real: /explorar (bateria) -> split 3/2, 3 profundizadas + 2
+  exploradas, 313s. HONESTIDAD: una idea base alucinada (motor del celular) = cota 3B.
+- HITO: LAS 8 PIEZAS DEL GOAL ESTAN HECHAS Y VERIFICADAS E2E. Commits CYCLE 2-9.
+- Proximo: WIRING = comando /investigar que encadene generar(1)->detectar repeticion(6)
+  ->evaluar novedad(8)->explorar(4)->validar en lab(5)->analogias(2), el loop cientifico
+  completo. Y palanca de CALIDAD: rutear estas tareas de razonamiento por el 7B (cascada
+  ya existe, /modelo 7b) para subir la profundidad creativa (cota actual = 3B).
