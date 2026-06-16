@@ -936,6 +936,21 @@ class Cognia:
         return (f"Novedad: {res['novedad']:.2f} | Factibilidad: {res['factibilidad']:.2f} | "
                 f"Impacto: {res['impacto']:.2f} | VALOR: {res['value']:.2f}")
 
+    def find_analogies(self, problem: str) -> str:
+        """Traduce un problema a otros dominios (analogias transversales) via el
+        LLM vivo y formatea ASCII legible. Lista vacia -> mensaje honesto."""
+        from cognia.reasoning.analogy_engine import find_analogies as _find_an
+        bloques = _find_an(self._orchestrator, problem)
+        if not bloques:
+            return "No pude generar analogias (backend no disponible o sin resultados)."
+        lineas = [f"[i] {len(bloques)} analogias para: {problem.strip()}"]
+        for b in bloques:
+            lineas.append(
+                f"[{b['dominio']}] Analogia: {b['analogia']} | "
+                f"Solucion: {b['solucion']} | Adaptacion: {b['adaptacion']}"
+            )
+        return "\n".join(lineas)
+
     def introspect(self) -> dict:
         now = time.time()
         if self._introspect_cache and (now - self._introspect_ts) < 2.0:

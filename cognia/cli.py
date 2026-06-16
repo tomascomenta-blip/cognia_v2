@@ -284,6 +284,7 @@ _CMD_DESCRIPTIONS = {
     "/hipotesis":       "Generar hipótesis       <A> | <B>",
     "/experimento":     "Probar afirmacion empiricamente (sandbox)  <afirmacion>",
     "/evaluar-idea":    "Evaluar idea (novedad x factibilidad x impacto)  <idea>",
+    "/analogia":        "Traducir problema a otros dominios (analogias transversales)  <problema>",
     "/explicar":        "Autoexplicación         <texto>",
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
@@ -524,6 +525,14 @@ _CMD_DETAILS = {
         "(no se inventan numeros). "
         "Ejemplo: /evaluar-idea un IDE que escribe sus propios tests"
     ),
+    "/analogia": (
+        "Traduce un problema a OTROS DOMINIOS (biologia, fisica, economia, "
+        "ecologia, ingenieria, sistemas sociales, etc.) con el LLM vivo: por cada "
+        "dominio da una ANALOGIA (situacion equivalente), la SOLUCION de ese dominio "
+        "y la ADAPTACION de vuelta al problema original. Si no se puede generar nada "
+        "util tras un reintento, se reporta el fallo (no se inventa). "
+        "Ejemplo: /analogia el contexto del modelo se satura con conversaciones largas"
+    ),
     "/modelo": (
         "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
         "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
@@ -622,6 +631,7 @@ HELP_TEXT = """
     /hipotesis <A> | <B>            Generar hipotesis
     /experimento <afirmacion>       Probar afirmacion empiricamente (sandbox)
     /evaluar-idea <idea>            Evaluar idea (novedad x factibilidad x impacto)
+    /analogia <problema>            Traducir problema a otros dominios (analogias)
     /yo                             Introspección completa
     /conceptos                      Listar conceptos
     /dormir                         Consolidacion tipo sueno
@@ -4941,6 +4951,11 @@ def repl():
             _run(raw, lambda: ai.evaluate_idea(texto), color="magenta")
         elif raw.startswith("/evaluar-idea"):
             _print_line("[warn_cl]Uso: /evaluar-idea <idea>  -- ejemplo: /evaluar-idea un IDE que escribe sus propios tests[/warn_cl]")
+        elif raw.startswith("/analogia ") and raw[len("/analogia "):].strip():
+            texto = raw[len("/analogia "):].strip()
+            _run(raw, lambda: ai.find_analogies(texto), color="cyan")
+        elif raw.startswith("/analogia"):
+            _print_line("[warn_cl]Uso: /analogia <problema>  -- ejemplo: /analogia el contexto del modelo se satura con conversaciones largas[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
             _run(raw, lambda: ai.explain(texto), color="magenta")
