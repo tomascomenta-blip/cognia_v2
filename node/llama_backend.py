@@ -718,6 +718,104 @@ class LlamaBackend:
             "rounds":       rounds,
         }
 
+    @staticmethod
+    def _parse_outline(text: str, max_sections: int) -> list:
+        """Extrae titulos de seccion de un outline LLM. Robusto al 3B (que a veces no
+        respeta 'uno por linea'): (1) lineas numeradas/vinetas; (2) si hay <2 items,
+        separa por marcadores numerados INLINE '(1.' / '2)'; (3) fallback a lineas no
+        vacias. Capa cada titulo a 120 chars."""
+        import re
+        text = text or ""
+        items = []
+        for line in text.splitlines():
+            line = line.strip()
+            m = re.match(r"^[\(\[]?(?:\d+[\.\)]|[-*•])\s*(.+)", line)
+            if m and m.group(1).strip():
+                items.append(m.group(1).strip())
+        if len(items) < 2:
+            # marcadores numerados en cualquier posicion (el 3B mete '(1. ...' inline)
+            chunks = re.split(r"[\(\[]?\b\d+[\.\)]\s+", text)
+            cand = [c.strip(" .)\n\t-") for c in chunks if len(c.strip()) > 2]
+            if len(cand) >= 2:
+                items = cand
+        if not items:
+            items = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        return [it[:120] for it in items][:max_sections]
+
+    def generate_hierarchical(self, prompt: str, target_tokens: int = None,
+                              n_sections: int = None, temperature: float = 0.7,
+                              on_section=None) -> Optional[dict]:
+        """
+        Generacion larga JERARQUICA (FASE 7a): pide un outline de N secciones y genera
+        cada seccion con un prompt FRESCO = prompt + outline + resumen corto de lo previo.
+        El prefill por seccion es acotado (no crece con el texto total), asi la longitud
+        total deja de estar limitada por el ctx de 16k -> generacion cuasi-infinita; el
+        unico limite real pasa a ser el tiempo de pared (~8 tok/s).
+
+        on_section: callback opcional on_section(idx, total, titulo, tokens).
+        Returns {"text","outline","sections","total_tokens","rounds"}; None si falla el
+        outline o la primera seccion (mismo contrato de None que generate()).
+        """
+        from shattering.model_constants import (
+            GEN_LONG_MAX_TOKENS, GEN_HIERARCHICAL_SECTIONS, GEN_SECTION_SUMMARY_CHARS,
+        )
+        if target_tokens is None:
+            target_tokens = GEN_LONG_MAX_TOKENS
+        if n_sections is None:
+            n_sections = GEN_HIERARCHICAL_SECTIONS
+
+        outline_prompt = (
+            f"{prompt}\n\n"
+            f"Primero, devuelve SOLO un esquema de exactamente {n_sections} secciones "
+            f"para responder lo anterior: una por linea, numeradas (1., 2., ...), con un "
+            f"titulo corto cada una. Sin texto adicional."
+        )
+        outline_text = self.generate(outline_prompt,
+                                     max_tokens=max(128, n_sections * 32),
+                                     temperature=temperature)
+        if outline_text is None:
+            return None
+        sections = self._parse_outline(outline_text, n_sections) or [prompt]
+
+        outline_block = "\n".join(f"{i+1}. {s}" for i, s in enumerate(sections))
+        per_section = max(256, target_tokens // max(1, len(sections)))
+        parts: list = []
+        total_tokens = 0
+        rounds = 0
+        prev_summary = ""
+
+        for i, sec in enumerate(sections):
+            sec_prompt = (
+                f"{prompt}\n\nEsquema:\n{outline_block}\n\n"
+                + (f"Resumen de lo ya escrito: {prev_summary}\n\n" if prev_summary else "")
+                + f"Escribe SOLO la seccion {i+1}: {sec}"
+            )
+            res = self.generate_long(sec_prompt, max_total_tokens=per_section,
+                                     temperature=temperature)
+            if res is None:
+                if not parts:
+                    return None
+                break
+            parts.append(f"## {sec}\n{res['text']}")
+            total_tokens += res["total_tokens"]
+            rounds += res["rounds"]
+            # Resumen acotado -> mantiene chico el prefill de la siguiente seccion
+            prev_summary = (sec + ": " + (res["text"] or "")[:GEN_SECTION_SUMMARY_CHARS]
+                            ).replace("\n", " ")
+            if on_section is not None:
+                try:
+                    on_section(i + 1, len(sections), sec, res["total_tokens"])
+                except Exception:
+                    pass
+
+        return {
+            "text":         "\n\n".join(parts),
+            "outline":      sections,
+            "sections":     len(parts),
+            "total_tokens": total_tokens,
+            "rounds":       rounds,
+        }
+
     def stream_generate(self, prompt: str, max_tokens: int = 256,
                         temperature: float = 0.7, top_p=None, top_k=None,
                         min_p=None, repeat_penalty=None, seed=None,

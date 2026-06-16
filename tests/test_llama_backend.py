@@ -287,6 +287,61 @@ class TestGenerateLong:
 
 
 # ---------------------------------------------------------------------------
+# generate_hierarchical()  (FASE 7a)
+# ---------------------------------------------------------------------------
+
+class TestGenerateHierarchical:
+    def test_outline_then_sections_assembled_with_bounded_prefill(self):
+        """outline -> N secciones con prompt fresco. El output trae todo el texto, pero el
+        prefill de cada seccion solo incluye un RESUMEN corto de la previa (no el texto
+        completo) -> generacion cuasi-infinita con ctx fijo."""
+        impl = _FakeLongImpl([
+            ("1. Alpha\n2. Beta\n3. Gamma", 12, "eos"),  # outline
+            ("X" * 500, 120, "eos"),                       # seccion Alpha
+            ("Y" * 500, 120, "eos"),                       # seccion Beta
+            ("Z" * 100, 30,  "eos"),                       # seccion Gamma
+        ])
+        backend = _make_backend(impl)
+        result = backend.generate_hierarchical("Escribe sobre asyncio",
+                                               target_tokens=900, n_sections=3)
+
+        assert result["outline"] == ["Alpha", "Beta", "Gamma"]
+        assert result["sections"] == 3
+        assert result["total_tokens"] == 270
+        # Output completo: las 3 secciones con su texto integro
+        for header, body in [("## Alpha", "X" * 500), ("## Beta", "Y" * 500),
+                             ("## Gamma", "Z" * 100)]:
+            assert header in result["text"] and body in result["text"]
+
+        prompts = [p for (p, _mt) in impl.prompts]
+        assert len(prompts) == 4   # 1 outline + 3 secciones
+        assert "Escribe SOLO la seccion 1: Alpha" in prompts[1]
+        # Prefill acotado: el prompt de Beta trae el RESUMEN de Alpha (200 chars), NO los 500
+        assert ("X" * 200) in prompts[2] and ("X" * 500) not in prompts[2]
+        assert ("Y" * 200) in prompts[3] and ("Y" * 500) not in prompts[3]
+
+    def test_parse_outline_handles_inline_numbered_markers(self):
+        """El 3B a veces no respeta 'uno por linea' y mete '(1. ... 2. ...' inline;
+        _parse_outline debe extraer >=2 secciones igual."""
+        from node.llama_backend import LlamaBackend
+        text = "Intro (1. Definicion de asyncio 2. Funcionalidades 3. Ejemplo de uso"
+        items = LlamaBackend._parse_outline(text, 5)
+        assert len(items) >= 2
+        assert all(len(it) <= 120 for it in items)
+
+    def test_unparseable_outline_falls_back_to_single_section(self):
+        """Si el outline no se puede parsear en items, genera una sola seccion (=prompt)."""
+        impl = _FakeLongImpl([
+            ("", 1, "eos"),                    # outline vacio -> fallback a [prompt]
+            ("contenido unico", 40, "eos"),
+        ])
+        backend = _make_backend(impl)
+        result = backend.generate_hierarchical("tema X", target_tokens=300, n_sections=3)
+        assert result["sections"] == 1
+        assert "contenido unico" in result["text"]
+
+
+# ---------------------------------------------------------------------------
 # _LlamaCppBackend: stop_reason / token count (regresion de generate_long in-process)
 # ---------------------------------------------------------------------------
 

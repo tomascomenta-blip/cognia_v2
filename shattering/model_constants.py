@@ -99,6 +99,11 @@ GEN_CONTINUATION_CHUNK: int = 2048  # per-round chunk in the continuation loop
 # estimador es ~4 chars/token, consistente con el fallback del loop.
 GEN_CTX_GUARD_RATIO:    float = 0.75  # fraccion de _CTX_SIZE como techo del prefill
 GEN_CTX_MARGIN_TOKENS:  int   = 64    # margen extra reservado por debajo del ctx
+# Generacion jerarquica (outline -> secciones con prompt fresco): rompe el techo de
+# ctx porque cada seccion parte de un prefill acotado (solo el outline + un resumen
+# corto de lo previo), no del texto completo acumulado.
+GEN_HIERARCHICAL_SECTIONS: int = 5    # secciones por defecto en generate_hierarchical
+GEN_SECTION_SUMMARY_CHARS: int = 200  # chars del resumen de la seccion previa (continuidad)
 # Temperatura del chat interactivo. Explicitarla (en vez de heredar el default
 # 0.7 del backend) alinea producto y metrica: el benchmark mide a temp=0.0 y
 # el chat samplea a 0.7 — con la constante esa diferencia queda visible y

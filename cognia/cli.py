@@ -334,7 +334,7 @@ _CMD_DESCRIPTIONS = {
     "/ejecutar":        "Ejecutar comando shell     <cmd>",
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
-    "/largo":           "Generacion larga (hasta 5000 tokens) con progreso <pedido>",
+    "/largo":           "Generacion larga (hasta 5000 tokens) con progreso  [--jerarquico] <pedido>",
     "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
@@ -522,7 +522,9 @@ _CMD_DETAILS = {
         "Genera una respuesta larga (hasta 5000 tokens) con el fast-path llama.cpp "
         "y continuacion automatica por rondas, mostrando progreso. "
         "Lento (~10 min a 8 tok/s). Requiere llama-server/GGUF disponible. "
-        "Ejemplo: /largo Escribe una guia completa de asyncio en Python"
+        "Con --jerarquico genera un outline y luego cada seccion con un prompt fresco "
+        "(prefill acotado por seccion -> rompe el techo de ctx, longitud cuasi-ilimitada). "
+        "Ejemplo: /largo --jerarquico Escribe una guia completa de asyncio en Python"
     ),
     "/experimento": (
         "Pone a prueba una afirmacion de forma EMPIRICA. El LLM disena un "
@@ -2775,6 +2777,12 @@ def _slash_largo(ai, pedido: str) -> None:
     from shattering.model_constants import (
         COGNIA_SYSTEM_PROMPT, GEN_CHAT_TEMPERATURE, GEN_LONG_MAX_TOKENS,
     )
+    # Modo jerarquico (outline -> secciones con prompt fresco; rompe el techo de ctx)
+    # con el flag --jerarquico al inicio del pedido.
+    jerarquico = False
+    if pedido.strip().lower().startswith("--jerarquico"):
+        jerarquico = True
+        pedido = pedido.strip()[len("--jerarquico"):].strip()
     # Mismo fast-path que el chat libre: orquestador cacheado en ai si existe,
     # si no uno local, y _try_load_llama() para obtener el backend llama.cpp.
     _llama = None
@@ -2812,19 +2820,29 @@ def _slash_largo(ai, pedido: str) -> None:
     from node.inference_pipeline import _apply_qwen_template
     _prompt = _apply_qwen_template(pedido, _system)
 
-    _print_line(f"[detail]Generando hasta {GEN_LONG_MAX_TOKENS} tokens "
-                f"(continuacion automatica, ~10 min a 8 tok/s)...[/detail]")
+    if jerarquico:
+        _print_line("[detail]Generacion jerarquica (outline -> secciones con prompt "
+                    "fresco; prefill acotado por seccion)...[/detail]")
+    else:
+        _print_line(f"[detail]Generando hasta {GEN_LONG_MAX_TOKENS} tokens "
+                    f"(continuacion automatica, ~10 min a 8 tok/s)...[/detail]")
     t0 = time.time()
 
-    def _on_chunk(ronda, chunk_toks, total, reason):
-        # Progreso ASCII puro (consola Windows CP1252)
-        print(f"  ronda {ronda}: {chunk_toks} tokens, total {total}", flush=True)
-
-    result = _llama.generate_long(
-        _prompt,
-        temperature=GEN_CHAT_TEMPERATURE,
-        on_chunk=_on_chunk,
-    )
+    if jerarquico:
+        def _on_section(idx, total, titulo, toks):
+            print(f"  seccion {idx}/{total}: {titulo[:60]} ({toks} tokens)", flush=True)
+        result = _llama.generate_hierarchical(
+            _prompt, temperature=GEN_CHAT_TEMPERATURE, on_section=_on_section,
+        )
+    else:
+        def _on_chunk(ronda, chunk_toks, total, reason):
+            # Progreso ASCII puro (consola Windows CP1252)
+            print(f"  ronda {ronda}: {chunk_toks} tokens, total {total}", flush=True)
+        result = _llama.generate_long(
+            _prompt,
+            temperature=GEN_CHAT_TEMPERATURE,
+            on_chunk=_on_chunk,
+        )
     elapsed = time.time() - t0
     if result is None:
         _print_line("[warn_cl]La generacion larga fallo (primera ronda sin "
@@ -2835,8 +2853,10 @@ def _slash_largo(ai, pedido: str) -> None:
         _print_line("[warn_cl]La generacion larga devolvio texto vacio.[/warn_cl]")
         return
     _show_response(texto, _ACCENT)
+    _meta = (f"{result.get('sections')} secciones" if jerarquico
+             else f"stop={result.get('stop_reason')}")
     print(f"  [{result['total_tokens']} tokens, {result['rounds']} rondas, "
-          f"{elapsed:.0f}s, stop={result['stop_reason']}]")
+          f"{elapsed:.0f}s, {_meta}]")
     _session_log.append({"input": f"/largo {pedido}", "output": texto,
                          "elapsed": elapsed})
     _persist_turn(ai, f"/largo {pedido}", texto)
