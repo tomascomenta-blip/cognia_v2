@@ -3,6 +3,24 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 2b (/deliberar) + 2c (recovery + db_pool); 2a diferida
+- Scoping de FASE 2 con workflow (3 agentes, specs verificadas en codigo).
+- FASE 2c (commit a163df9): TaskQueue.recover() resetea tareas colgadas
+  EXECUTING/VERIFYING -> CREATED +attempts; cap MAX_RECOVERY_ATTEMPTS=2 -> ABORTED
+  (corta loop de crash). _conn() migrado a storage/db_pool (elimina sqlite3.connect
+  directo: cumple regla dura + adelanta FASE 0b). test_phase23.py 32 passed (2 nuevos,
+  probados: fallan sin recover() con status EXECUTING). E2E real: status=CREATED
+  attempts=1 pending=1 pop=True.
+- FASE 2b (commit 6cdbcbd): comando /deliberar -> CognitiveLoop._run_deliberate
+  (plan/critica/verify/plan-risk). HONESTIDAD: es OFFLINE/determinista (NO usa el LLM;
+  la spec decia "backend real", falso). Medido deliberate=0.2s. CLI real PASS:
+  PLAN(3 pasos)/CRITICA 0.77/VERIFY PASS/PLAN RISK PROCEED + persiste concepto.
+- FASE 2a DIFERIDA con evidencia: /buscar-memoria,/contexto-semantico,/sintetizar,
+  /ver-contexto. Landmine: SemanticMemorySearch hace SELECT ...ts... pero chat_history
+  del REPL tiene 'timestamp' (no 'ts') -> OperationalError; + refactor de 4 firmas y
+  call-sites en cli.py 6500 lineas + parche _ks._CHAT_DB. Spec completa capturada.
+- Resultado: suite completa como gate antes de push.
+
 ## [2026-06-16] CYCLE — FASE 3 (/esfuerzo): unico objetivo MISSING, ahora DONE
 - Nuevo: cognia/effort_levels.py — dict plano nivel->params (bajo/medio/alto/maximo):
   max_tokens, alternativas, profundidad, verificaciones, reintentos, subtareas_max +
