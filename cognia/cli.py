@@ -338,6 +338,7 @@ _CMD_DESCRIPTIONS = {
     "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
+    "/flujo":           "Orquestador de flujo: analisis->plan->ejecucion->informe->verificacion <objetivo>",
     "/esfuerzo":        "Nivel de esfuerzo del razonamiento (bajo|medio|alto|maximo)",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
@@ -512,6 +513,14 @@ _CMD_DETAILS = {
         "revision quedandose con la mejor. Es OFFLINE y DETERMINISTA: NO llama al LLM/llama-server, "
         "por eso es rapido (sub-segundo). Imprime el plan, la critica (score), el verify (PASS/FAIL) "
         "y el riesgo del plan. Ejemplo: /deliberar refactoriza el modulo de memoria episodica"
+    ),
+    "/flujo": (
+        "Orquestador de flujo estructurado (objetivo O1): descompone el objetivo en etapas "
+        "(analisis -> plan -> ejecucion -> informe -> verificacion -> correccion) y decide "
+        "DINAMICAMENTE cuales correr segun la complejidad (heuristica, 0 LLM) y el nivel de "
+        "/esfuerzo. Reusa planner + synthesizer + verifier + response_gate. Presupuesto: 1 "
+        "inferencia (el informe) en objetivos simples, hasta 2 en complejos; degrada a resumen "
+        "determinista sin backend. Ejemplo: /flujo compara async vs threads en Python"
     ),
     "/hacer": (
         "Ejecuta una tarea de forma autonoma usando un loop ReAct de hasta 8 pasos. "
@@ -5744,6 +5753,23 @@ def repl():
                         pass
                 except Exception as _de:
                     _print_line(f"[err_cl]Error en deliberacion: {_de}[/err_cl]")
+
+        # -- Flujo orquestado (analisis->plan->ejecucion->informe->verificacion) --
+        elif raw.startswith("/flujo ") or raw == "/flujo":
+            _goal = raw[len("/flujo"):].strip()
+            if not _goal:
+                _print_line("[warn_cl]Uso: /flujo <objetivo>[/warn_cl]")
+            else:
+                _print_line("[detail]Flujo estructurado (etapas dinamicas por "
+                            "complejidad/esfuerzo)...[/detail]")
+                try:
+                    from cognia.agents.flow import run_flow
+                    _report = run_flow(ai, _goal, _active_effort(), _print_line)
+                    _show_response(_report, _ACCENT)
+                    _session_log.append({"input": raw, "output": _report, "elapsed": 0})
+                    _persist_turn(ai, raw, _report)
+                except Exception as _fe:
+                    _print_line(f"[err_cl]Error en flujo: {_fe}[/err_cl]")
 
         # -- Agent history --------------------------------------------------
         elif raw == "/historial":
