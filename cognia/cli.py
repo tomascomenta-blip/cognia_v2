@@ -286,6 +286,7 @@ _CMD_DESCRIPTIONS = {
     "/evaluar-idea":    "Evaluar idea (novedad x factibilidad x impacto)  <idea>",
     "/analogia":        "Traducir problema a otros dominios (analogias transversales)  <problema>",
     "/abstraer":        "Resolver por abstraccion (forma -> solucion abstracta -> concreta)  <problema>",
+    "/transferir":      "Transferir el principio de un dominio a otro  <fuente> | <objetivo>",
     "/explicar":        "Autoexplicación         <texto>",
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
@@ -543,6 +544,17 @@ _CMD_DETAILS = {
         "el fallo (no se inventa). "
         "Ejemplo: /abstraer no me alcanza el tiempo para terminar todas mis tareas del dia"
     ),
+    "/transferir": (
+        "Transfiere CONOCIMIENTO entre dominios con el LLM vivo: no busca "
+        "coincidencias superficiales, busca el PRINCIPIO fundamental compartido. "
+        "Dado un dominio/problema FUENTE y uno OBJETIVO (separados por '|'): "
+        "(1) extrae el PRINCIPIO abstracto y general que hace funcionar a la "
+        "fuente, (2) lo APLICA de forma concreta al objetivo. Si no se logra la "
+        "transferencia completa tras un reintento, se reporta el fallo (no se "
+        "inventa). "
+        "Ejemplo: /transferir como las hormigas encuentran el camino mas corto | "
+        "como rutear paquetes en una red"
+    ),
     "/modelo": (
         "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
         "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
@@ -643,6 +655,7 @@ HELP_TEXT = """
     /evaluar-idea <idea>            Evaluar idea (novedad x factibilidad x impacto)
     /analogia <problema>            Traducir problema a otros dominios (analogias)
     /abstraer <problema>            Resolver por abstraccion (forma -> abstracta -> concreta)
+    /transferir <fuente> | <objetivo>  Transferir el principio de un dominio a otro
     /yo                             Introspección completa
     /conceptos                      Listar conceptos
     /dormir                         Consolidacion tipo sueno
@@ -4972,6 +4985,12 @@ def repl():
             _run(raw, lambda: ai.solve_by_abstraction(texto), color="cyan")
         elif raw.startswith("/abstraer"):
             _print_line("[warn_cl]Uso: /abstraer <problema>  -- ejemplo: /abstraer no me alcanza el tiempo para terminar todas mis tareas del dia[/warn_cl]")
+        elif raw.startswith("/transferir ") and "|" in raw:
+            partes = raw[len("/transferir "):].split("|", 1)
+            _run(raw, lambda: ai.transfer_principle(
+                partes[0].strip(), partes[1].strip()), color="cyan")
+        elif raw.startswith("/transferir"):
+            _print_line("[warn_cl]Uso: /transferir <fuente> | <objetivo>[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
             _run(raw, lambda: ai.explain(texto), color="magenta")

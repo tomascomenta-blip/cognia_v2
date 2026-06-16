@@ -965,6 +965,20 @@ class Cognia:
             f"Solucion concreta: {res['solucion_concreta']}"
         )
 
+    def transfer_principle(self, source: str, target: str) -> str:
+        """Transfiere el principio que hace funcionar a la FUENTE (source) hacia el
+        OBJETIVO (target) via el LLM vivo y formatea ASCII legible. Extrae el
+        principio abstracto de la fuente (no coincidencias superficiales) y lo
+        aplica al objetivo. None -> mensaje honesto."""
+        from cognia.reasoning.transfer_engine import transfer_principle as _transfer
+        res = _transfer(self._orchestrator, source, target)
+        if res is None:
+            return "No pude transferir el principio (backend no disponible o respuesta incompleta)."
+        return (
+            f"Principio (de {source.strip()}): {res['principio']}\n"
+            f"Aplicacion (a {target.strip()}): {res['aplicacion']}"
+        )
+
     def introspect(self) -> dict:
         now = time.time()
         if self._introspect_cache and (now - self._introspect_ts) < 2.0:
