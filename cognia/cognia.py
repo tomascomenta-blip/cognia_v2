@@ -951,6 +951,20 @@ class Cognia:
             )
         return "\n".join(lineas)
 
+    def solve_by_abstraction(self, problem: str) -> str:
+        """Resuelve un problema por abstraccion (forma abstracta -> solucion
+        abstracta -> solucion concreta) via el LLM vivo y formatea ASCII legible.
+        None -> mensaje honesto."""
+        from cognia.reasoning.abstraction_engine import solve_by_abstraction as _solve_abs
+        res = _solve_abs(self._orchestrator, problem)
+        if res is None:
+            return "No pude abstraer el problema (backend no disponible o respuesta incompleta)."
+        return (
+            f"Forma abstracta: {res['forma_abstracta']}\n"
+            f"Solucion abstracta: {res['solucion_abstracta']}\n"
+            f"Solucion concreta: {res['solucion_concreta']}"
+        )
+
     def introspect(self) -> dict:
         now = time.time()
         if self._introspect_cache and (now - self._introspect_ts) < 2.0:

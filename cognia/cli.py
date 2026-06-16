@@ -285,6 +285,7 @@ _CMD_DESCRIPTIONS = {
     "/experimento":     "Probar afirmacion empiricamente (sandbox)  <afirmacion>",
     "/evaluar-idea":    "Evaluar idea (novedad x factibilidad x impacto)  <idea>",
     "/analogia":        "Traducir problema a otros dominios (analogias transversales)  <problema>",
+    "/abstraer":        "Resolver por abstraccion (forma -> solucion abstracta -> concreta)  <problema>",
     "/explicar":        "Autoexplicación         <texto>",
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
@@ -533,6 +534,15 @@ _CMD_DETAILS = {
         "util tras un reintento, se reporta el fallo (no se inventa). "
         "Ejemplo: /analogia el contexto del modelo se satura con conversaciones largas"
     ),
+    "/abstraer": (
+        "Resuelve un problema por ABSTRACCION con el LLM vivo: piensa en "
+        "principios, no en ejemplos. (1) extrae la FORMA ABSTRACTA del problema "
+        "(su estructura general sin los detalles del dominio), (2) resuelve esa "
+        "forma abstracta, (3) TRADUCE esa solucion de vuelta al problema concreto "
+        "original. Si no se logra el ciclo completo tras un reintento, se reporta "
+        "el fallo (no se inventa). "
+        "Ejemplo: /abstraer no me alcanza el tiempo para terminar todas mis tareas del dia"
+    ),
     "/modelo": (
         "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
         "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
@@ -632,6 +642,7 @@ HELP_TEXT = """
     /experimento <afirmacion>       Probar afirmacion empiricamente (sandbox)
     /evaluar-idea <idea>            Evaluar idea (novedad x factibilidad x impacto)
     /analogia <problema>            Traducir problema a otros dominios (analogias)
+    /abstraer <problema>            Resolver por abstraccion (forma -> abstracta -> concreta)
     /yo                             Introspección completa
     /conceptos                      Listar conceptos
     /dormir                         Consolidacion tipo sueno
@@ -4956,6 +4967,11 @@ def repl():
             _run(raw, lambda: ai.find_analogies(texto), color="cyan")
         elif raw.startswith("/analogia"):
             _print_line("[warn_cl]Uso: /analogia <problema>  -- ejemplo: /analogia el contexto del modelo se satura con conversaciones largas[/warn_cl]")
+        elif raw.startswith("/abstraer ") and raw[len("/abstraer "):].strip():
+            texto = raw[len("/abstraer "):].strip()
+            _run(raw, lambda: ai.solve_by_abstraction(texto), color="cyan")
+        elif raw.startswith("/abstraer"):
+            _print_line("[warn_cl]Uso: /abstraer <problema>  -- ejemplo: /abstraer no me alcanza el tiempo para terminar todas mis tareas del dia[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
             _run(raw, lambda: ai.explain(texto), color="magenta")
