@@ -277,6 +277,7 @@ _CMD_DESCRIPTIONS = {
     "/aprendiendo":     "Ver estadisticas del sistema de aprendizaje espaciado",
     "/aprendiendo-buscar": "Buscar tarjetas de aprendizaje  <query>",
     "/investigar":      "Investigar en GitHub    <query>",
+    "/razonar":         "Loop cientifico: hipotesis -> evaluar -> analogias -> validar  <problema>",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
     "/encolar":         "Encolar idea para sleep <idea>",
@@ -572,6 +573,17 @@ _CMD_DETAILS = {
         "elimina (siempre al menos 1 idea nueva). "
         "Ejemplo: /explorar como reducir el consumo de agua en una ciudad"
     ),
+    "/razonar": (
+        "Loop cientifico ACOTADO que ENCADENA las piezas creativas con el LLM "
+        "vivo: (1) genera hasta 3 hipotesis diversas, (2) evalua cada una en "
+        "novedad x factibilidad x impacto y las rankea por VALOR, (3) traduce el "
+        "problema a otros dominios (analogias para enmarcarlo), (4) VALIDA la "
+        "hipotesis top con un experimento en el sandbox seguro. Reporta un "
+        "informe integrado; honesto si algun paso no da resultado. ~9-10 "
+        "llamadas LLM (lento en CPU). Para investigar en GitHub usa "
+        "/investigar. "
+        "Ejemplo: /razonar como reducir el consumo de agua en una ciudad"
+    ),
     "/modelo": (
         "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
         "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
@@ -675,6 +687,7 @@ HELP_TEXT = """
     /transferir <fuente> | <objetivo>  Transferir el principio de un dominio a otro
     /diversidad <i1> || <i2> ...    Medir diversidad de ideas y detectar repeticiones
     /explorar <problema>            Modo explorador 70/30 (explota lo prometedor, explora lo nuevo)
+    /razonar <problema>             Loop cientifico: hipotesis -> evaluar -> analogias -> validar
     /yo                             Introspección completa
     /conceptos                      Listar conceptos
     /dormir                         Consolidacion tipo sueno
@@ -935,7 +948,7 @@ def _to_str(result):
 
 def _cmd_color(raw):
     cmd = raw.lstrip("/").split()[0] if raw else ""
-    if cmd in {"aprender", "corregir", "hecho", "indice_add", "dormir", "investigar", "crear", "encolar"}:
+    if cmd in {"aprender", "corregir", "hecho", "indice_add", "dormir", "investigar", "razonar", "crear", "encolar"}:
         return "bright_green"
     if cmd in {"hipotesis", "explicar", "narrativa", "inferir"}:
         return "magenta"
@@ -4928,6 +4941,12 @@ def repl():
             _run(raw, lambda: ai.github_research(_query), color="bright_green")
         elif raw == "/investigar":
             _print_line("[warn_cl]Uso: /investigar <query>  -- ejemplo: /investigar machine learning Python[/warn_cl]")
+        elif raw.startswith("/razonar ") and raw[len("/razonar "):].strip():
+            # Loop cientifico: hipotesis -> evaluar valor -> analogias -> validar.
+            texto = raw[len("/razonar "):].strip()
+            _run(raw, lambda: ai.investigate(texto), color="bright_green")
+        elif raw.startswith("/razonar"):
+            _print_line("[warn_cl]Uso: /razonar <problema>  -- loop cientifico: hipotesis -> evaluar -> analogias -> validar[/warn_cl]")
         elif raw.startswith("/aprende-repo "):
             _ar_target = raw[len("/aprende-repo "):].strip()
             _print_line("[detail]Buscando y aprendiendo de GitHub...[/detail]")

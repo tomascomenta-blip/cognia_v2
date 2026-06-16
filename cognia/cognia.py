@@ -114,6 +114,76 @@ except ImportError:
 _FEEDBACK_RATE_LIMIT = 10  # Phase 9 C6: max feedback calls per 60-second rolling window
 
 
+def _rank_hypotheses(hyps: list) -> list:
+    """Ordena las hipotesis por value (novedad x factibilidad x impacto) desc, con
+    las que no se pudieron evaluar (value None) AL FINAL. Empate/None se desempata
+    por plausibility desc para que el orden sea estable y tenga sentido.
+
+    Pura y sin LLM (asi el test la ejercita sin backend). Espera dicts con al
+    menos {hypothesis, plausibility}; opcionalmente {value} (None si no evaluo).
+    No muta la lista de entrada.
+    """
+    def _key(d):
+        val = d.get("value")
+        plaus = d.get("plausibility")
+        # (value None al final, value desc, plausibility desc como desempate).
+        return (val is None, -(val if val is not None else 0.0),
+                -(plaus if plaus is not None else 0.0))
+    return sorted(hyps or [], key=_key)
+
+
+def _render_investigation(problem: str, hyps: list, analogias: list, exp) -> str:
+    """Arma el reporte ASCII integrado del loop /investigar a partir de los datos
+    YA calculados (hipotesis con value+plausibility, analogias, dict de experimento).
+
+    Pura y sin LLM: separa el FORMATEO/RANKING de las llamadas al backend para que
+    el test lo verifique sin modelo. Maneja honestamente listas vacias y None en
+    cada bloque (no inventa). ASCII puro (CP1252) para el CLI.
+
+    - hyps: list de {hypothesis, plausibility, value(None si no evaluo)}.
+    - analogias: list de {dominio, adaptacion, ...} (puede ser []).
+    - exp: dict de experiment_lab.run_experiment (puede ser None / executed False).
+    """
+    problema = (problem or "").strip()
+    lineas = [f"INVESTIGACION: {problema}"]
+
+    # ── Hipotesis rankeadas por valor ──────────────────────────────────────
+    lineas.append("Hipotesis (rankeadas por valor = novedad x factibilidad x impacto):")
+    ranked = _rank_hypotheses(hyps)
+    if not ranked:
+        lineas.append("  (no se generaron hipotesis)")
+    else:
+        for i, h in enumerate(ranked, 1):
+            plaus = h.get("plausibility")
+            plaus_txt = f"{plaus:.2f}" if plaus is not None else "n/a"
+            val = h.get("value")
+            if val is None:
+                etiqueta = f"[sin evaluar | plaus {plaus_txt}]"
+            else:
+                etiqueta = f"[valor {val:.2f} | plaus {plaus_txt}]"
+            lineas.append(f"{i}. {etiqueta} {h.get('hypothesis', '')}")
+
+    # ── Analogias para enmarcar ────────────────────────────────────────────
+    lineas.append("Analogias para enmarcar el problema:")
+    if not analogias:
+        lineas.append("  (sin analogias)")
+    else:
+        for a in analogias:
+            dominio = (a.get("dominio") or "?").strip() or "?"
+            adapt = (a.get("adaptacion") or "").strip()
+            lineas.append(f"  [{dominio}] {adapt}")
+
+    # ── Validacion empirica de la hipotesis top ────────────────────────────
+    lineas.append("Validacion empirica de la hipotesis top:")
+    if not exp or not exp.get("executed"):
+        razon = (exp or {}).get("reason", "motivo desconocido")
+        lineas.append(f"  no ejecutable: {razon}")
+    else:
+        lineas.append(f"  VEREDICTO: {exp.get('verdict', 'inconcluso')}")
+
+    return "\n".join(lineas)
+
+
 class Cognia:
     """
     Cognia v3 — Arquitectura Cognitiva Híbrida Simbólico-Neural.
@@ -1047,6 +1117,56 @@ class Cognia:
             lineas.append("  (no surgieron enfoques genuinamente nuevos esta vez)")
 
         return "\n".join(lineas)
+
+    def investigate(self, problem: str) -> str:
+        """Loop cientifico ACOTADO que ENCADENA las piezas creativas existentes:
+        generar hipotesis -> evaluar su novedad/valor -> analogias para enmarcar ->
+        validar empiricamente la mejor. NO reimplementa nada: orquesta los metodos
+        ya verificados (hypothesis.generate_many, idea_eval, analogy_engine,
+        experiment_lab) y arma un reporte ASCII integrado.
+
+        Presupuesto de llamadas LLM (el i3 es lento ~8 tok/s, lo mantenemos bajo):
+          - generate_many(n=3, diversify): 2-3 llamadas.
+          - evaluate_idea x3: 3 llamadas (1 c/u, +reintento si server frio).
+          - find_analogies(k=2): 1-2 llamadas.
+          - run_experiment: 1 diseno + 1 ejecucion en sandbox.
+        ~9-10 llamadas LLM en el caso tipico.
+        """
+        from cognia.reasoning import idea_eval
+        from cognia.reasoning import analogy_engine
+        from cognia.reasoning import experiment_lab
+
+        problem = (problem or "").strip()
+        if not problem:
+            return "Uso: /investigar <problema>"
+
+        # PASO 1 — HIPOTESIS: hasta 3 angulos diversos, rankeados por plausibilidad.
+        hyps = self.hypothesis.generate_many(
+            problem, n=3, orchestrator=self._orchestrator, diversify=True)
+        if not hyps:
+            return ("No pude investigar: no se generaron hipotesis "
+                    "(backend no disponible o sin resultados).")
+
+        # PASO 2 — EVALUAR NOVEDAD: una pasada de idea_eval por hipotesis; se
+        # adjunta value (None si no se pudo evaluar, honesto). _rank_hypotheses
+        # luego ordena por value desc dejando las None al final.
+        for h in hyps:
+            ev = idea_eval.evaluate_idea(self._orchestrator, h.get("hypothesis", ""))
+            h["value"] = ev["value"] if ev else None
+
+        ranked = _rank_hypotheses(hyps)
+        top = ranked[0]  # mejor por value (o por plausibility si todas value None)
+
+        # PASO 3 — ANALOGIAS del PROBLEMA (k=2 para acotar): enmarcan el problema
+        # en otros dominios. [] si el backend no devolvio nada util (honesto).
+        analogias = analogy_engine.find_analogies(self._orchestrator, problem, k=2)
+
+        # PASO 4 — VALIDAR la mejor hipotesis empiricamente. El lab reporta
+        # honestamente si no es ejecutable (executed False).
+        exp = experiment_lab.run_experiment(self._orchestrator, top.get("hypothesis", ""))
+
+        # PASO 5 — REPORTE ASCII integrado (formateo/ranking puro, sin LLM).
+        return _render_investigation(problem, hyps, analogias, exp)
 
     def introspect(self) -> dict:
         now = time.time()
