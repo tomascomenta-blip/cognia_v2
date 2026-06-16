@@ -40,7 +40,11 @@ Así se modifica este repo (es el método demostrado en las sesiones autónomas;
     no esconderlo.
 
 ## Restricciones duras (no negociar)
-- Sin PyTorch en nodos. Sin sharding WAN síncrono. Sin FedAvg. Sin draft model centralizado.
+- Sin PyTorch en nodos. Sin sharding WAN síncrono. Sin draft model centralizado.
+- **FedAvg:** permitido SOLO sobre adapters LoRA (el coordinator agrega/redistribuye adapters),
+  NUNCA sobre parámetros completos del modelo base. Autorizado por el dueño 2026-06-16 (legitima
+  `coordinator/federated_store.py`). Sujeto a la regla de abajo: los adapters no deben permitir
+  reconstruir datos personales (ruido DP aplicado en cliente).
 - Cero datos personales centralizados.
 - HYDRA como atención en la red es INVIABLE (modelo pre-cuantizado INT4 + pre-shardeado).
   El trabajo HYDRA es el **análogo a nivel de sistema**: enrutador de contexto/memoria de
