@@ -3,6 +3,23 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — Auditoria completa de arquitectura (workflow 11 agentes) + plan de 8 fases
+- Archivos creados: AUDITORIA_ARQUITECTURA_IA_20260615.md
+- Metodo: workflow multi-agente (10 auditores 1/objetivo + adversarial O10 + sintesis), 10/10 objetivos, evidencia file:line de codigo real.
+- Veredicto: ~80% de la algoritmia EXISTE; el problema dominante es WIRING (supervisor/CognitiveLoop/HierarchicalMemory/SemanticSearch desconectados del REPL cli.py; varios comandos llaman a :8765 muerto sin Electron). O5 (/esfuerzo) MISSING; resto PARTIAL.
+- Violaciones DURAS halladas: FedAvg vivo (coordinator/federated_store.py:4 + app.py:117,798) contra CLAUDE.md:43 — REQUIERE DECISION DEL DUENO. >40 sitios sqlite3.connect directo pese a db_pool. self_architect hardcodea 'llama3.2' + depende de Ollama (NO-OP) + importa sandbox_tester.py inexistente (test_proposal roto).
+- Tokens infinitos: generate_long() existe (tope fijo 5000); falta §3.1 outline jerarquico y §3.2 compresion; BUG: _LlamaCppBackend no setea last_stop_reason -> generate_long corta tras ronda 1 in-process (solo anda con llama-server).
+- Nota operativa: el apagado 04:30 mato el primer run del workflow; se reanudo (resumeFromRunId) tras reboot 13:21 y completo. Tarea de apagado ya consumida (era ONCE).
+- Proximo: FASE 1a (fix in-process stop_reason) verificar->arreglar->test de regresion.
+- Resultado tests: N/A (auditoria + docs, sin cambios a produccion aun).
+
+## [2026-06-15] CYCLE — Prerrequisito apagado 04:30 + auditoria propuesta "tokens infinitos"
+- Archivos creados: scripts/auto_shutdown.py, INFORME_APAGADO_AUTOMATICO.md
+- Apagado: tarea `CogniaAutoShutdown` (Task Scheduler, ONCE) verificada State=Ready, NextRun 2026-06-16 04:30; shutdown /s /t 60 con gracia (sin /f), cancelable (shutdown /a | --cancel).
+- Auditoria pedida por el dueño ("propuesta de tokens infinitos"): EXISTE en INFORME_EVOLUCION_20260611.md §3.1 (generacion jerarquica con outline, 20k-100k) y §3.2 (continuacion con compresion incremental → generacion "infinita" con ctx fijo). NO esta en project_proposals.md del auditor.
+- Verificado en codigo real (no solo docs): node/llama_backend.py:624 `generate_long()` implementa la FUNDACION (auto-continuacion hasta cap fijo GEN_LONG_MAX_TOKENS=5000, reenviando texto acumulado completo). La parte "infinita" (§3.2, compresion incremental para no chocar el ctx 16k) NO esta implementada.
+- Resultado tests: N/A (sin cambios a produccion; solo script de SO + docs + log).
+
 ## [2026-06-10] CYCLE 4 — E2E dev_tools loop: search→edit→test en mini_repo
 - Bug plantado: total / i (ZeroDivisionError + wrong value) en stats.running_mean
 - Herramientas: search_code → edit_file → run_tests
