@@ -3,6 +3,23 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 7b (sandbox_tester) + 3c (/esfuerzo funcional)
+- FASE 7b (commit 185b73b): cognia_v3/core/sandbox_tester.py + arreglo del import roto en
+  self_architect.test_proposal (apuntaba a un modulo top-level inexistente -> siempre error).
+  SandboxTester.test_module_from_code valida sintaxis (validate_python) + ejecuta aislado
+  (run_python) y devuelve report {passed,timestamp,summary,details.criteria}. Criterio
+  "executes" = exit 0 sin stderr/timeout (run_python.success exige stdout, inutil para un
+  modulo que solo define una clase). 4 tests. NOTA: code_executor.py:425 log_slow recibe
+  t0/1000 como start-time -> warning de "operacion lenta" con ms absurdos (bug cosmetico
+  pre-existente, solo log).
+- FASE 3c (commit 6a0b792): _active_effort() lee el nivel activo; /pensar pasa
+  max_tokens=nivel a orchestrator.infer -> /esfuerzo ya cambia la profundidad. 10 tests.
+  CLI real: /esfuerzo bajo + /pensar -> CoT correcto. Pendiente /razonar,/hipotesis,/deliberar
+  (APIs subyacentes no parametrizadas por nivel todavia).
+- FASE 7c DIFERIDA: Ollama->ShatteringOrchestrator en generate_module_code (orchestrator
+  pesado + test con modelo real; self_architect desconectado = valor latente).
+- Resultado: suite completa como gate antes de push.
+
 ## [2026-06-16] CYCLE — FASE 2a: comandos de memoria locales -> FASE 2 COMPLETA
 - FASE 2a-1 (commit cd0433a): SemanticMemorySearch tolerante a schema 'ts' (desktop) y
   'timestamp' (REPL): _ts_column via PRAGMA + alias AS ts; search_context ventana por id
