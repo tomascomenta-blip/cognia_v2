@@ -79,3 +79,18 @@ def test_esfuerzo_rejects_unknown_level(cli_tmp_config, capsys):
     assert "desconocido" in out
     # config no debe cambiar ante un nivel invalido
     assert cli_tmp_config._load_config()["esfuerzo"] == "medio"
+
+
+# ── FASE 3c: _active_effort() lee el nivel activo y lo usan los comandos ──────
+
+def test_active_effort_default_medio(cli_tmp_config):
+    from cognia.effort_levels import EFFORT_LEVELS
+    assert cli_tmp_config._active_effort() == EFFORT_LEVELS["medio"]
+
+
+def test_active_effort_reflects_set_level(cli_tmp_config):
+    from cognia.effort_levels import EFFORT_LEVELS
+    cli_tmp_config._slash_esfuerzo("alto")
+    assert cli_tmp_config._active_effort() == EFFORT_LEVELS["alto"]
+    # max_tokens del nivel activo es lo que /pensar pasa a infer()
+    assert cli_tmp_config._active_effort()["max_tokens"] == EFFORT_LEVELS["alto"]["max_tokens"]

@@ -2372,6 +2372,13 @@ def _save_config(cfg: dict) -> None:
     _CONFIG_PATH.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def _active_effort() -> dict:
+    """Parametros del nivel /esfuerzo activo (lee ~/.cognia_config.json). Fuente unica
+    para que los comandos de razonamiento escalen profundidad/tokens segun el nivel."""
+    from .effort_levels import get_effort
+    return get_effort(_load_config().get("esfuerzo", "medio"))
+
+
 def _slash_config(args: str) -> None:
     args = args.strip()
     parts = args.split(None, 2)
@@ -5664,7 +5671,7 @@ def repl():
                         f"Al final escribe 'Conclusion:' con tu respuesta final.\n\n"
                         f"Pregunta: {_q}"
                     )
-                    _cot_result = _orch_p.infer(_cot_prompt)
+                    _cot_result = _orch_p.infer(_cot_prompt, max_tokens=_active_effort()["max_tokens"])
                     _cot_text = _cot_result.text.strip()
                     for _line in _cot_text.split('\n'):
                         if _line.strip():
