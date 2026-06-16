@@ -161,6 +161,7 @@ _debug_mode       = False
 _fast_mode        = False
 _session_feedback = []
 _history: list    = []
+_session_recap: str = ""   # FASE 6 (O3): recap extractiva auto-mantenida; /recap la muestra
 
 # Conversation continuity: how many prior messages to restore from chat_history
 # into _history at REPL startup. Bounded so old sessions don't bloat the prompt
@@ -192,6 +193,19 @@ def _persist_turn(ai, user_text: str, assistant_text: str) -> None:
         if ch is not None:
             ch.log(role="user", content=user_text)
             ch.log(role="assistant", content=assistant_text)
+    except Exception:
+        pass
+
+    # FASE 6 (O3): recapitulacion automatica extractiva (sin LLM) cuando se cumplen los
+    # disparadores (turnos/contexto). Se cachea en _session_recap; /recap la muestra.
+    try:
+        global _session_recap
+        _n_user = sum(1 for _h in _history if _h.get("role") == "user")
+        _ctx_chars = sum(len(_h.get("content", "")) for _h in _history)
+        from cognia.memory.recap_policy import should_recap
+        if should_recap(_n_user, context_chars=_ctx_chars)[0]:
+            from cognia.summarizer.session_summarizer import SessionSummarizer
+            _session_recap = SessionSummarizer().extract_summary(_history)
     except Exception:
         pass
 
@@ -339,6 +353,7 @@ _CMD_DESCRIPTIONS = {
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
     "/flujo":           "Orquestador de flujo: analisis->plan->ejecucion->informe->verificacion <objetivo>",
+    "/recap":           "Recapitulacion extractiva de la sesion (auto cada N turnos, sin LLM)",
     "/esfuerzo":        "Nivel de esfuerzo del razonamiento (bajo|medio|alto|maximo)",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
@@ -521,6 +536,12 @@ _CMD_DETAILS = {
         "/esfuerzo. Reusa planner + synthesizer + verifier + response_gate. Presupuesto: 1 "
         "inferencia (el informe) en objetivos simples, hasta 2 en complejos; degrada a resumen "
         "determinista sin backend. Ejemplo: /flujo compara async vs threads en Python"
+    ),
+    "/recap": (
+        "Recapitulacion automatica de la sesion (objetivo O3): extractiva, SIN LLM (ranking "
+        "por densidad de tokens). Se auto-mantiene en _persist_turn cuando se cumplen los "
+        "disparadores (cada N turnos o cuando el contexto acumulado crece demasiado); /recap "
+        "muestra la ultima recap + si hay una pendiente. Politica en cognia/memory/recap_policy.py."
     ),
     "/hacer": (
         "Ejecuta una tarea de forma autonoma usando un loop ReAct de hasta 8 pasos. "
@@ -2388,6 +2409,25 @@ def _active_effort() -> dict:
     para que los comandos de razonamiento escalen profundidad/tokens segun el nivel."""
     from .effort_levels import get_effort
     return get_effort(_load_config().get("esfuerzo", "medio"))
+
+
+def _slash_recap() -> None:
+    """Muestra la recapitulacion extractiva de la sesion (sin LLM) + el estado del
+    disparador de recap automatica (FASE 6 / O3)."""
+    from cognia.memory.recap_policy import should_recap
+    n_user = sum(1 for h in _history if h.get("role") == "user")
+    ctx_chars = sum(len(h.get("content", "")) for h in _history)
+    summary = _session_recap
+    if not summary:
+        try:
+            from cognia.summarizer.session_summarizer import SessionSummarizer
+            summary = SessionSummarizer().extract_summary(_history)
+        except Exception:
+            summary = ""
+    pend, reason = should_recap(n_user, context_chars=ctx_chars)
+    _print_line(f"Recapitulacion de sesion ({n_user} turnos de usuario, {ctx_chars} chars):")
+    _print_line(summary or "  (sin contenido suficiente para recapitular)")
+    _print_line(f"[detail]recap automatica: {'pendiente (' + reason + ')' if pend else 'al dia'}[/detail]")
 
 
 def _slash_config(args: str) -> None:
@@ -6224,6 +6264,10 @@ def repl():
         elif raw == "/esfuerzo" or raw.startswith("/esfuerzo "):
             _esf_arg = raw[len("/esfuerzo "):].strip() if raw.startswith("/esfuerzo ") else ""
             _slash_esfuerzo(_esf_arg)
+
+        # -- /recap --------------------------------------------------------
+        elif raw == "/recap":
+            _slash_recap()
 
         # -- /feedback* ----------------------------------------------------
         elif raw.startswith("/feedback-sesion"):
