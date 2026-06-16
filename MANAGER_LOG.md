@@ -3,6 +3,20 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 3 (/esfuerzo): unico objetivo MISSING, ahora DONE
+- Nuevo: cognia/effort_levels.py — dict plano nivel->params (bajo/medio/alto/maximo):
+  max_tokens, alternativas, profundidad, verificaciones, reintentos, subtareas_max +
+  normalize_effort (acepta acentos/sinonimos) + get_effort/effort_names. Centraliza
+  constantes de esfuerzo (fuente unica para razonamiento/flujos).
+- cognia/cli.py: comando /esfuerzo (ver/cambiar nivel), persistido en ~/.cognia_config.json
+  (nueva clave 'esfuerzo'=medio), entrada en _CMD_HELP, dispatch junto a /config.
+- Tests: tests/test_effort_levels.py (9) — modulo puro (monotonia, normalizacion, fallback)
+  + handler CLI (muestra activo, set persiste con acento, rechaza invalido). 15/15 con cli_config.
+- VERIFICACION REAL: python -m cognia, /esfuerzo muestra "activo: medio", /esfuerzo alto
+  persiste, /esfuerzo re-muestra "activo: alto". Config restaurada a medio tras la prueba.
+- Pendiente FASE 3c: propagar el nivel a /pensar,/razonar,/deliberar,/hipotesis (cuando exista /deliberar).
+- Resultado tests: suite completa como gate antes de commit.
+
 ## [2026-06-16] CYCLE — FASE 0a (FedAvg) + FASE 1b (guarda de ctx) + FASE 0b diferida
 - FASE 0a: CLAUDE.md permite FedAvg-de-adapters (decision del dueno). Commit 7663228.
 - FASE 1a: fix backend in-process stop_reason. Commit df795d3. Suite previa 2797 passed.

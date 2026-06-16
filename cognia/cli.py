@@ -337,6 +337,7 @@ _CMD_DESCRIPTIONS = {
     "/largo":           "Generacion larga (hasta 5000 tokens) con progreso <pedido>",
     "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
+    "/esfuerzo":        "Nivel de esfuerzo del razonamiento (bajo|medio|alto|maximo)",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
     "/historial":       "Muestra tareas recientes del agente y archivos modificados",
@@ -2310,6 +2311,7 @@ _CONFIG_DEFAULTS: dict = {
     "tema_kg":          "",
     "recordar_sesion":  "true",
     "nivel_detalle":    "normal",
+    "esfuerzo":         "medio",   # nivel /esfuerzo (ver cognia/effort_levels.py)
 }
 
 
@@ -2371,6 +2373,49 @@ def _slash_config(args: str) -> None:
             "  /config reset        Restablecer valores por defecto\n"
             "  /config exportar     Exportar como JSON"
         )
+
+
+def _slash_esfuerzo(args: str) -> None:
+    """Muestra o cambia el nivel de esfuerzo del razonamiento (objetivo /esfuerzo).
+
+    Persiste en ~/.cognia_config.json (clave 'esfuerzo'). Sin argumento muestra el
+    nivel activo y sus parametros; con un nivel valido lo cambia. Los parametros
+    (max_tokens, alternativas, profundidad, verificaciones, reintentos, subtareas)
+    viven en cognia/effort_levels.py — fuente unica para razonamiento/flujos.
+    """
+    from .effort_levels import (
+        EFFORT_LEVELS, effort_names, normalize_effort, DEFAULT_EFFORT,
+    )
+    args = args.strip()
+    cfg = _load_config()
+    current = normalize_effort(cfg.get("esfuerzo", DEFAULT_EFFORT)) or DEFAULT_EFFORT
+
+    if not args:
+        p = EFFORT_LEVELS[current]
+        _print_line(
+            f"Nivel de esfuerzo activo: {current}  ({p['descripcion']})\n"
+            f"  max_tokens={p['max_tokens']}  alternativas={p['alternativas']}  "
+            f"profundidad={p['profundidad']}  verificaciones={p['verificaciones']}  "
+            f"reintentos={p['reintentos']}  subtareas_max={p['subtareas_max']}\n"
+            f"Niveles: {', '.join(effort_names())}   (uso: /esfuerzo <nivel>)"
+        )
+        return
+
+    target = normalize_effort(args)
+    if target is None:
+        _print_line(
+            f"[warn_cl]Nivel desconocido: {args}. "
+            f"Validos: {', '.join(effort_names())}[/warn_cl]"
+        )
+        return
+    cfg["esfuerzo"] = target
+    _save_config(cfg)
+    p = EFFORT_LEVELS[target]
+    _print_line(
+        f"Nivel de esfuerzo -> {target}  ({p['descripcion']})\n"
+        f"  max_tokens={p['max_tokens']}  verificaciones={p['verificaciones']}  "
+        f"alternativas={p['alternativas']}  reintentos={p['reintentos']}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -6027,6 +6072,11 @@ def repl():
         elif raw == "/config" or raw.startswith("/config "):
             _cfg_arg = raw[len("/config "):].strip() if raw.startswith("/config ") else ""
             _slash_config(_cfg_arg)
+
+        # -- /esfuerzo -----------------------------------------------------
+        elif raw == "/esfuerzo" or raw.startswith("/esfuerzo "):
+            _esf_arg = raw[len("/esfuerzo "):].strip() if raw.startswith("/esfuerzo ") else ""
+            _slash_esfuerzo(_esf_arg)
 
         # -- /feedback* ----------------------------------------------------
         elif raw.startswith("/feedback-sesion"):
