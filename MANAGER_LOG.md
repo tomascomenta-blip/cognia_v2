@@ -2530,3 +2530,16 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Proximo (CYCLE 6): pieza (7) abstraccion (concreto->abstracto->resolver->traducir) o
   (3) transferencia (principio A->B) — hermanas de (2), comparten el motor de mapeo
   abstracto. O (6) detector de repeticion / (4) explorador. Evaluar ROI.
+
+## 2026-06-13 21:42 — CYCLE 6 (creatividad): pieza (7) motor de abstraccion — E2E PASS
+- abstraction_engine.py: solve_by_abstraction (1 prompt FORMA/SOLUCION ABSTRACTA/CONCRETA,
+  parser reusa helpers de analogy_engine, retry, None honesto si no hay ciclo completo).
+  cli.py /abstraer; cognia.py formateador ASCII.
+- Verificado: 11 tests verdes. E2E server real: /abstraer (ideas en lluvia de ideas) ->
+  3 partes coherentes, 63s.
+- Commit pusheado. Estado: 5/8 piezas (1 hipotesis, 5 lab, 8 novedad, 2 analogias, 7 abstraccion).
+- NOTA PROCESO: los monitores persistentes (Monitor tool) NO informan bien con el output
+  bufferizado+box-drawing del CLI; cambiar a background bash con until-loop que sale al
+  completarse (1 notificacion confiable) o revisar el log directo.
+- Proximo (CYCLE 7): pieza (3) transferencia (principio A->B) — hermana de 2/7. Luego (6)
+  detector de repeticion y (4) explorador. Despues: WIRING del loop completo /investigar.
