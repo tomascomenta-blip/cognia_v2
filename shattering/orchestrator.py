@@ -211,7 +211,8 @@ class ShatteringOrchestrator:
     # ── Public API ──────────────────────────────────────────────────────
 
     def infer(self, prompt: str, lpc_session_id: Optional[str] = None,
-              max_tokens: Optional[int] = None) -> InferResult:
+              max_tokens: Optional[int] = None,
+              temperature: Optional[float] = None) -> InferResult:
         """
         Route the prompt, load the right sub-model, and return generated text.
 
@@ -222,6 +223,9 @@ class ShatteringOrchestrator:
         max_tokens:     per-call generation budget; None uses the constructor
                         default (self._max_tokens). Lets a caller request a long
                         answer without rebuilding the orchestrator.
+        temperature:    per-call sampling temperature; None uses the routed
+                        default (self._TEMPERATURES). Solo afecta el camino local;
+                        el distribuido no expone temperatura por-llamada.
         """
         if not prompt or not prompt.strip():
             return InferResult(
@@ -253,6 +257,7 @@ class ShatteringOrchestrator:
         else:
             text, mode_used, tokens_generated = self._local_infer(
                 prompt, decision, lpc_session_id=lpc_session_id,
+                temperature=temperature,
                 max_tokens=max_tokens,
             )
 
@@ -267,11 +272,12 @@ class ShatteringOrchestrator:
         )
 
     async def ainfer(self, prompt: str, lpc_session_id: Optional[str] = None,
-                     max_tokens: Optional[int] = None) -> InferResult:
+                     max_tokens: Optional[int] = None,
+                     temperature: Optional[float] = None) -> InferResult:
         """Async wrapper — runs infer() in the default thread pool."""
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
-            None, self.infer, prompt, lpc_session_id, max_tokens
+            None, self.infer, prompt, lpc_session_id, max_tokens, temperature
         )
 
     async def astream_chat(self, messages: list, max_tokens: Optional[int] = None):

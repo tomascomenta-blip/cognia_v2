@@ -4907,8 +4907,11 @@ def repl():
             partes = raw[len("/hipotesis "):].split("|", 1)
             _run(raw, lambda: ai.generate_hypothesis(
                 partes[0].strip(), partes[1].strip()), color="magenta")
+        elif raw.startswith("/hipotesis ") and raw[len("/hipotesis "):].strip():
+            texto = raw[len("/hipotesis "):].strip()
+            _run(raw, lambda: ai.generate_hypotheses_many(texto), color="magenta")
         elif raw.startswith("/hipotesis"):
-            _print_line("[warn_cl]Uso: /hipotesis <A> | <B>[/warn_cl]")
+            _print_line("[warn_cl]Uso: /hipotesis <A> | <B>  (pares)  o  /hipotesis <problema>  (N hipotesis)[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
             _run(raw, lambda: ai.explain(texto), color="magenta")

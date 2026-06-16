@@ -304,3 +304,343 @@ class TestKnowledgeGraphInheritance:
         assert any("breathes" in r for r in inherited)
         # Verify the KG prerequisite is correct: inherited contains animal-level facts
         assert any("animal" in r for r in inherited)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Group 4 — HypothesisModule.generate_many() (misión creatividad, pieza 1)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class _FakeInferResult:
+    """Doble de test del InferResult del backend (NO un mock de produccion)."""
+    def __init__(self, text):
+        self.text = text
+
+
+class _FakeOrchestrator:
+    """Backend de doble de test: devuelve textos fijos en orden por cada infer()."""
+    def __init__(self, texts):
+        self._texts = list(texts)
+        self.calls = []
+
+    def infer(self, prompt, max_tokens=None, temperature=None):
+        self.calls.append({"prompt": prompt, "max_tokens": max_tokens,
+                           "temperature": temperature})
+        text = self._texts.pop(0) if self._texts else ""
+        return _FakeInferResult(text)
+
+
+class TestHypothesisGenerateMany:
+    def setup_method(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._db_path = os.path.join(self._tmp.name, "hyp_many.db")
+        conn = sqlite3.connect(self._db_path)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS hypotheses (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                hypothesis  TEXT,
+                confidence  REAL,
+                created_at  TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+
+    def teardown_method(self):
+        _drain_pool(self._db_path)
+        self._tmp.cleanup()
+
+    def _hmod(self):
+        from cognia.reasoning.hypothesis import HypothesisModule
+        return HypothesisModule(db_path=self._db_path, semantic=_FakeSemantic(set()))
+
+    def test_none_orchestrator_returns_empty(self):
+        hmod = self._hmod()
+        assert hmod.generate_many("como mejorar el riego urbano", n=5, orchestrator=None) == []
+
+    def test_full_flow_parses_orders_ranks_and_persists(self):
+        gen = ("1. Recolectar agua de lluvia en azoteas\n"
+               "2. Sensores de humedad para riego por goteo\n"
+               "3. Plantas nativas de bajo consumo\n"
+               "4. Reuso de aguas grises tratadas\n"
+               "5. Micro-reservorios subterraneos en plazas\n")
+        scores = "1: 0.6\n2: 0.9\n3: 0.7\n4: 0.4\n5: 0.8\n"
+        orch = _FakeOrchestrator([gen, scores])
+        hmod = self._hmod()
+        items = hmod.generate_many("riego urbano", n=5, orchestrator=orch)
+
+        assert len(items) == 5
+        # Solo dos llamadas LLM (generacion + plausibilidad).
+        assert len(orch.calls) == 2
+        # Ordenadas por plausibilidad desc: 0.9, 0.8, 0.7, 0.6, 0.4
+        plaus = [it["plausibility"] for it in items]
+        assert plaus == sorted(plaus, reverse=True)
+        assert plaus[0] == 0.9
+        # Ranks consecutivos 1..5.
+        assert [it["rank"] for it in items] == [1, 2, 3, 4, 5]
+        # El de mayor plausibilidad es la hipotesis 2.
+        assert "Sensores de humedad" in items[0]["hypothesis"]
+        # Persistidas: 5 filas en la tabla hypotheses.
+        conn = sqlite3.connect(self._db_path)
+        cnt = conn.execute("SELECT COUNT(*) FROM hypotheses").fetchone()[0]
+        conn.close()
+        assert cnt == 5
+
+    def test_clamp_n_below_three(self):
+        gen = "1. Angulo uno\n2. Angulo dos\n3. Angulo tres\n"
+        scores = "1: 0.5\n2: 0.5\n3: 0.5\n"
+        orch = _FakeOrchestrator([gen, scores])
+        hmod = self._hmod()
+        # n=1 se clampa a 3 (minimo) -> el prompt pide 3 angulos.
+        items = hmod.generate_many("problema cualquiera", n=1, orchestrator=orch)
+        assert len(items) == 3
+        assert "EXACTAMENTE 3" in orch.calls[0]["prompt"]
+
+    def test_robust_parsing_paren_dash_and_missing_scores(self):
+        # Mezcla de separadores: ") ", ". ", " - ", linea vacia intercalada.
+        gen = ("1) Primera idea concreta\n"
+               "\n"
+               "2. Segunda idea concreta\n"
+               "3 - Tercera idea concreta\n")
+        # Solo se puntua la 1 y la 3; la 2 falta -> default 0.5. Padding para
+        # superar el piso de 15 chars de creative_generate (caso real: lista mas larga).
+        scores = "1: 0.8\n2: x\n3: 0.2\n"
+        orch = _FakeOrchestrator([gen, scores])
+        hmod = self._hmod()
+        items = hmod.generate_many("problema", n=3, orchestrator=orch)
+        assert len(items) == 3
+        by_text = {it["hypothesis"]: it["plausibility"] for it in items}
+        assert by_text["Primera idea concreta"] == 0.8
+        assert by_text["Tercera idea concreta"] == 0.2
+        assert by_text["Segunda idea concreta"] == 0.5  # default: "2: x" no parsea
+
+    def test_too_few_hypotheses_returns_what_it_has(self):
+        # El modelo solo entrego 2 lineas utilizables (<3): devolvemos las 2 (no [] si hay >=1).
+        gen = "1. Unica idea concreta\n2. Otra idea concreta\n"
+        orch = _FakeOrchestrator([gen, "1: 0.5\n2: 0.5\n8: 0.5\n"])
+        hmod = self._hmod()
+        items = hmod.generate_many("problema", n=5, orchestrator=orch)
+        assert len(items) == 2
+        assert [it["rank"] for it in items] == [1, 2]
+
+    def test_empty_generation_returns_empty(self):
+        orch = _FakeOrchestrator(["", ""])
+        hmod = self._hmod()
+        assert hmod.generate_many("problema", n=5, orchestrator=orch) == []
+
+    def test_scoring_retry_on_first_call_empty(self):
+        # Flake de 1a-llamada-en-frio: el scoring devuelve vacio la 1a vez y scores
+        # validos la 2a. El reintento debe rescatar plausibilidades reales (no 0.5).
+        gen = ("1. Recolectar agua de lluvia\n"
+               "2. Sensores de humedad\n"
+               "3. Plantas nativas\n")
+        scores = "1: 0.7\n2: 0.4\n3: 0.9\n"
+        orch = _FakeOrchestrator([gen, "", scores])  # 2a infer (1er scoring) vacio
+        hmod = self._hmod()
+        items = hmod.generate_many("riego", n=3, orchestrator=orch)
+        assert len(items) == 3
+        # 3 llamadas: generacion + scoring fallido + scoring reintento.
+        assert len(orch.calls) == 3
+        plaus = [it["plausibility"] for it in items]
+        # Reintento exitoso -> plausibilidades reales (no todas None ni todas 0.5).
+        assert None not in plaus
+        assert set(plaus) != {0.5}
+        assert plaus[0] == 0.9  # ordenado desc, la hipotesis 3
+
+    def test_scoring_total_failure_marks_unscored_keeps_gen_order(self):
+        # Scoring vacio AMBAS veces -> sin fabricar ranking: plausibility None y
+        # orden = generacion (rank por orden de generacion).
+        gen = ("1. Idea uno concreta\n"
+               "2. Idea dos concreta\n"
+               "3. Idea tres concreta\n")
+        orch = _FakeOrchestrator([gen, "", ""])
+        hmod = self._hmod()
+        items = hmod.generate_many("problema", n=3, orchestrator=orch)
+        assert len(items) == 3
+        assert all(it["plausibility"] is None for it in items)
+        # Orden de generacion preservado.
+        assert items[0]["hypothesis"] == "Idea uno concreta"
+        assert items[2]["hypothesis"] == "Idea tres concreta"
+        assert [it["rank"] for it in items] == [1, 2, 3]
+        # Persistido con confidence neutro 0.5 (no None en disco).
+        conn = sqlite3.connect(self._db_path)
+        confs = [r[0] for r in conn.execute("SELECT confidence FROM hypotheses").fetchall()]
+        conn.close()
+        assert confs == [0.5, 0.5, 0.5]
+
+    def test_multiline_fold_keeps_body_not_just_title(self):
+        # Hipotesis multilinea: el cuerpo (bullets de continuacion) debe foldearse
+        # en la hipotesis, no descartarse dejando solo el titulo en negrita.
+        gen = ("1. **Expandir memoria:**\n"
+               "   - detalle uno\n"
+               "   - mas\n"
+               "\n"
+               "2. T2\n"
+               "   sigue\n")
+        # Padding >15 chars: creative_generate descarta scores muy cortos (caso real: lista larga).
+        scores = "1: 0.6\n2: 0.7\n(fin)\n"
+        orch = _FakeOrchestrator([gen, scores])
+        hmod = self._hmod()
+        items = hmod.generate_many("problema", n=2, orchestrator=orch)
+        assert len(items) == 2
+        by_plaus = {it["plausibility"]: it["hypothesis"] for it in items}
+        h1 = by_plaus[0.6]
+        assert "detalle uno" in h1
+        assert "mas" in h1
+        assert "**" not in h1            # markdown removido
+        assert "Expandir memoria" in h1  # titulo conservado
+        h2 = by_plaus[0.7]
+        assert "sigue" in h2
+
+    def test_partial_scores_fill_missing_with_default(self):
+        # Scoring solo para 1 y 3 -> el idx 2 cae al default 0.5; ordenado desc.
+        gen = ("1. Idea uno concreta\n"
+               "2. Idea dos concreta\n"
+               "3. Idea tres concreta\n")
+        # Padding >15 chars: creative_generate descarta scores muy cortos (caso real: lista larga).
+        scores = "1: 0.9\n3: 0.2\n(fin)\n"
+        orch = _FakeOrchestrator([gen, scores])
+        hmod = self._hmod()
+        items = hmod.generate_many("problema", n=3, orchestrator=orch)
+        assert len(items) == 3
+        # Parcial NO es fallo total: nadie queda con None.
+        assert all(it["plausibility"] is not None for it in items)
+        plaus = [it["plausibility"] for it in items]
+        assert plaus == [0.9, 0.5, 0.2]
+        assert [it["rank"] for it in items] == [1, 2, 3]
+
+
+class TestParseNumberedFold:
+    """_parse_numbered: fold de lineas de continuacion y limpieza de display."""
+
+    def test_fold_multiline_item(self):
+        from cognia.reasoning.hypothesis import _parse_numbered
+        text = ("1. **T1:**\n"
+                "   - detalle uno\n"
+                "   - mas\n"
+                "\n"
+                "2. T2\n"
+                "   sigue\n")
+        out = _parse_numbered(text, 5)
+        assert len(out) == 2
+        assert "detalle uno" in out[0] and "mas" in out[0]
+        assert "**" not in out[0]
+        assert "T1" in out[0]
+        assert "sigue" in out[1]
+
+    def test_single_line_items_unchanged(self):
+        from cognia.reasoning.hypothesis import _parse_numbered
+        text = "1) Primera idea\n2. Segunda idea\n3 - Tercera idea\n"
+        out = _parse_numbered(text, 3)
+        assert out == ["Primera idea", "Segunda idea", "Tercera idea"]
+
+    def test_caps_long_hypothesis_at_word_boundary(self):
+        from cognia.reasoning.hypothesis import _parse_numbered
+        long = "palabra " * 100  # ~800 chars
+        out = _parse_numbered("1. " + long + "\n", 1)
+        assert len(out) == 1
+        assert len(out[0]) <= 403          # 400 + "..."
+        assert out[0].endswith("...")
+        assert not out[0].endswith(" ...")  # corte en limite de palabra, sin espacio colgante
+
+
+class TestGenerateHypothesesManyFormatter:
+    """generate_hypotheses_many de cognia.py: render honesto del caso sin puntuar."""
+
+    def _ai_with_items(self, items):
+        # Construye una instancia minima sin __init__ pesado y le inyecta un
+        # hypothesis-module doble que devuelve items fijos.
+        from cognia.cognia import Cognia
+
+        class _HMod:
+            def generate_many(self, problem, n, orchestrator=None):
+                return items
+
+        ai = Cognia.__new__(Cognia)
+        ai.hypothesis = _HMod()
+        ai._orchestrator = None
+        return ai
+
+    def test_unscored_items_render_sin_puntuar_and_note(self):
+        items = [
+            {"hypothesis": "Idea uno", "plausibility": None, "rank": 1},
+            {"hypothesis": "Idea dos", "plausibility": None, "rank": 2},
+        ]
+        out = self._ai_with_items(items).generate_hypotheses_many("problema", n=2)
+        assert "[sin puntuar]" in out
+        assert "[plaus" not in out
+        assert "orden = generacion" in out
+        assert out.isascii()  # CLI ASCII puro
+
+    def test_scored_items_render_plaus(self):
+        items = [
+            {"hypothesis": "Idea uno", "plausibility": 0.9, "rank": 1},
+            {"hypothesis": "Idea dos", "plausibility": 0.3, "rank": 2},
+        ]
+        out = self._ai_with_items(items).generate_hypotheses_many("problema", n=2)
+        assert "[plaus 0.90]" in out
+        assert "[sin puntuar]" not in out
+        assert "orden = generacion" not in out
+
+
+class TestCreativeGenerate:
+    def test_short_output_returns_none(self):
+        from cognia.reasoning.creative_llm import creative_generate
+        orch = _FakeOrchestrator(["corto"])  # len < 15
+        assert creative_generate(orch, "p") is None
+
+    def test_strips_and_returns_text(self):
+        from cognia.reasoning.creative_llm import creative_generate
+        orch = _FakeOrchestrator(["   una respuesta lo bastante larga   "])
+        out = creative_generate(orch, "p", temperature=0.95, max_tokens=420)
+        assert out == "una respuesta lo bastante larga"
+        # temperature/max_tokens se forwardean al backend.
+        assert orch.calls[0]["temperature"] == 0.95
+        assert orch.calls[0]["max_tokens"] == 420
+
+    def test_backend_exception_returns_none(self):
+        from cognia.reasoning.creative_llm import creative_generate
+
+        class _Boom:
+            def infer(self, *a, **k):
+                raise RuntimeError("backend caido")
+
+        assert creative_generate(_Boom(), "p") is None
+
+
+class TestHipotesisManyRouting:
+    """El branch CLI: /hipotesis con texto y SIN '|' rutea a generate_hypotheses_many."""
+
+    def _route(self, raw, ai):
+        # Replica EXACTA de la cadena de branches de /hipotesis en cli.repl()
+        # (lineas ~4906-4913). Verifica la decision de ruteo, no el render.
+        if raw.startswith("/hipotesis ") and "|" in raw:
+            partes = raw[len("/hipotesis "):].split("|", 1)
+            return ("pair", ai.generate_hypothesis(partes[0].strip(), partes[1].strip()))
+        elif raw.startswith("/hipotesis ") and raw[len("/hipotesis "):].strip():
+            texto = raw[len("/hipotesis "):].strip()
+            return ("many", ai.generate_hypotheses_many(texto))
+        elif raw.startswith("/hipotesis"):
+            return ("usage", None)
+
+    def test_text_without_pipe_routes_to_many(self):
+        from unittest.mock import MagicMock
+        ai = MagicMock()
+        ai.generate_hypotheses_many.return_value = "ok"
+        kind, _ = self._route("/hipotesis como reducir el ruido urbano", ai)
+        assert kind == "many"
+        ai.generate_hypotheses_many.assert_called_once_with("como reducir el ruido urbano")
+        ai.generate_hypothesis.assert_not_called()
+
+    def test_pipe_still_routes_to_pair(self):
+        from unittest.mock import MagicMock
+        ai = MagicMock()
+        kind, _ = self._route("/hipotesis agua | energia", ai)
+        assert kind == "pair"
+        ai.generate_hypothesis.assert_called_once_with("agua", "energia")
+        ai.generate_hypotheses_many.assert_not_called()
+
+    def test_bare_command_routes_to_usage(self):
+        from unittest.mock import MagicMock
+        ai = MagicMock()
+        kind, _ = self._route("/hipotesis", ai)
+        assert kind == "usage"

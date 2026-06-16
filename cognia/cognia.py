@@ -879,6 +879,24 @@ class Cognia:
                 f"{result['hypothesis']}\n"
                 f"Similitud entre conceptos: {result['similarity']:.2f}")
 
+    def generate_hypotheses_many(self, problem: str, n: int = 5) -> str:
+        """Genera N hipotesis diversas para un problema libre via el LLM vivo compartido."""
+        items = self.hypothesis.generate_many(problem, n, orchestrator=self._orchestrator)
+        if not items:
+            return "No pude generar hipotesis (backend no disponible o sin resultados)."
+        lineas = [f"[i] {len(items)} hipotesis para: {problem.strip()}"]
+        # Si el scoring fallo total (todas sin plausibilidad), no inventamos numeros:
+        # mostramos "[sin puntuar]" y avisamos que el orden es el de generacion.
+        sin_puntuar = all(it["plausibility"] is None for it in items)
+        for it in items:
+            if it["plausibility"] is None:
+                lineas.append(f"{it['rank']}. [sin puntuar] {it['hypothesis']}")
+            else:
+                lineas.append(f"{it['rank']}. [plaus {it['plausibility']:.2f}] {it['hypothesis']}")
+        if sin_puntuar:
+            lineas.append("(no se pudo puntuar la plausibilidad; orden = generacion)")
+        return "\n".join(lineas)
+
     def introspect(self) -> dict:
         now = time.time()
         if self._introspect_cache and (now - self._introspect_ts) < 2.0:
