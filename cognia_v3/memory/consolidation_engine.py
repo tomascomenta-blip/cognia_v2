@@ -152,12 +152,17 @@ def _avg_vec(vecs: List[List[float]]) -> List[float]:
     return [sum(v[i] for v in vecs) / n for i in range(len(vecs[0]))]
 
 
-def _db_connect(db_path: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path, timeout=10)
-    conn.text_factory = str
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    return conn
+def _db_connect(db_path: str):
+    """Pooled connection (regla dura del repo: sin sqlite3.connect directo).
+
+    storage/db_pool ya aplica los mismos PRAGMA (journal_mode=WAL,
+    synchronous=NORMAL, foreign_keys, text_factory) en _new_conn. El objeto
+    devuelto se comporta como sqlite3.Connection pero su .close() devuelve la
+    conexion al pool en vez de cerrarla — compatible con el patron existente
+    `conn = _db_connect(...); ...; conn.close()` de todos los call-sites.
+    """
+    from storage.db_pool import db_connect_pooled
+    return db_connect_pooled(db_path)
 
 
 def _days_ago(days: int) -> str:
