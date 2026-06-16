@@ -2576,3 +2576,18 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   ->evaluar novedad(8)->explorar(4)->validar en lab(5)->analogias(2), el loop cientifico
   completo. Y palanca de CALIDAD: rutear estas tareas de razonamiento por el 7B (cascada
   ya existe, /modelo 7b) para subir la profundidad creativa (cota actual = 3B).
+
+## 2026-06-13 22:50 — CYCLE 10 (creatividad): WIRING /razonar — loop cientifico completo — E2E PASS
+- cognia.py investigate(problem) orquesta las 8 piezas: generate_many(diversify) -> evaluate_idea
+  (rankea por value) -> find_analogias(k=2) -> run_experiment(top) -> reporte ASCII. Puras
+  _rank_hypotheses/_render_investigation. cli.py /razonar (/investigar SIGUE = GitHub, sin cambio UX).
+- Verificado: 14 tests. E2E real: /razonar (desperdicio comida) -> reporte integrado completo
+  (3 hipotesis rankeadas, 2 analogias, veredicto inconcluso honesto), 355s.
+- HONESTIDAD: mecanismo OK; profundidad acotada por 3B (valores 0.21 iguales, analogias finas).
+  Palanca de calidad: /modelo 7b antes de comandos creativos.
+- HITO: MISION CREATIVIDAD ESTRUCTURALMENTE COMPLETA. 8/8 piezas (CYCLE 2-9) + loop /razonar
+  (CYCLE 10). Todo verificado E2E real y pusheado. Comandos: /hipotesis /analogia /transferir
+  /explorar /experimento /diversidad /abstraer /evaluar-idea /razonar.
+- Pendiente OPCIONAL (calidad, no estructura): medir las piezas creativas con el 7B (cascada)
+  para cuantificar la mejora de profundidad; mejorar prompt de ejes en idea_eval (3B da 0.21
+  plano); embeddings reales para el detector (hoy Jaccard lexico).
