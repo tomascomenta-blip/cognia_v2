@@ -2519,3 +2519,14 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   Loop: generar -> validar empiricamente -> priorizar por valor.
 - Proximo (CYCLE 5): pieza (6) detector de repeticion (patrones de solucion + forzar
   alternativas) o pieza (4) explorador 70/30 (consume novedad+collapse). Evaluar ROI.
+
+## 2026-06-13 21:30 — CYCLE 5 (creatividad): pieza (2) motor de analogias transversales — E2E PASS
+- analogy_engine.py: find_analogies (essence + 1 prompt estructurado, parseo robusto,
+  retry, [] honesto), _pick_domains deterministico, 12 DOMINIOS. cli.py /analogia;
+  cognia.py formateador ASCII. NO reusa el AnalogyEngine zombie de v3.
+- Verificado: 12 tests verdes. E2E server real: /analogia (contexto LLM se satura) ->
+  3 dominios (Biologia/Evolucion/Ecologia) con analogia+solucion+adaptacion, 130s.
+- Commit pusheado. Estado: 4/8 piezas (1 hipotesis, 5 lab, 8 novedad, 2 analogias).
+- Proximo (CYCLE 6): pieza (7) abstraccion (concreto->abstracto->resolver->traducir) o
+  (3) transferencia (principio A->B) — hermanas de (2), comparten el motor de mapeo
+  abstracto. O (6) detector de repeticion / (4) explorador. Evaluar ROI.
