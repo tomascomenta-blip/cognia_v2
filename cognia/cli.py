@@ -283,6 +283,7 @@ _CMD_DESCRIPTIONS = {
     "/corregir":        "Corregir error          <obs> | <mal> | <bien>",
     "/hipotesis":       "Generar hipótesis       <A> | <B>",
     "/experimento":     "Probar afirmacion empiricamente (sandbox)  <afirmacion>",
+    "/evaluar-idea":    "Evaluar idea (novedad x factibilidad x impacto)  <idea>",
     "/explicar":        "Autoexplicación         <texto>",
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
@@ -515,6 +516,14 @@ _CMD_DETAILS = {
         "Si el sandbox rechaza el codigo, se reporta el fallo (no se finge exito). "
         "Ejemplo: /experimento ordenar con sort() es mas rapido que bubble sort"
     ),
+    "/evaluar-idea": (
+        "Autoevalua una idea en tres ejes 0.0-1.0 con el LLM vivo: novedad "
+        "(que tan original), factibilidad (que tan realista de implementar) e "
+        "impacto (efecto potencial). El VALOR es el producto de los tres. Si la "
+        "respuesta no se puede parsear tras un reintento, se reporta el fallo "
+        "(no se inventan numeros). "
+        "Ejemplo: /evaluar-idea un IDE que escribe sus propios tests"
+    ),
     "/modelo": (
         "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
         "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
@@ -612,6 +621,7 @@ HELP_TEXT = """
     /corregir <obs> | <mal> | <bien>Corregir error
     /hipotesis <A> | <B>            Generar hipotesis
     /experimento <afirmacion>       Probar afirmacion empiricamente (sandbox)
+    /evaluar-idea <idea>            Evaluar idea (novedad x factibilidad x impacto)
     /yo                             Introspección completa
     /conceptos                      Listar conceptos
     /dormir                         Consolidacion tipo sueno
@@ -4926,6 +4936,11 @@ def repl():
             _run(raw, lambda: ai.run_experiment(texto), color="cyan")
         elif raw.startswith("/experimento"):
             _print_line("[warn_cl]Uso: /experimento <afirmacion>  -- ejemplo: /experimento bubble sort es O(n^2)[/warn_cl]")
+        elif raw.startswith("/evaluar-idea ") and raw[len("/evaluar-idea "):].strip():
+            texto = raw[len("/evaluar-idea "):].strip()
+            _run(raw, lambda: ai.evaluate_idea(texto), color="magenta")
+        elif raw.startswith("/evaluar-idea"):
+            _print_line("[warn_cl]Uso: /evaluar-idea <idea>  -- ejemplo: /evaluar-idea un IDE que escribe sus propios tests[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
             _run(raw, lambda: ai.explain(texto), color="magenta")

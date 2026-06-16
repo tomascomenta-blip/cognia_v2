@@ -927,6 +927,15 @@ class Cognia:
             lineas.append("Error: " + err.splitlines()[0])
         return "\n".join(lineas)
 
+    def evaluate_idea(self, idea: str) -> str:
+        """Autoevalua una idea en novedad x factibilidad x impacto via el LLM vivo."""
+        from cognia.reasoning.idea_eval import evaluate_idea as _eval_idea
+        res = _eval_idea(self._orchestrator, idea)
+        if res is None:
+            return "No pude evaluar la idea (backend no disponible o respuesta no parseable)."
+        return (f"Novedad: {res['novedad']:.2f} | Factibilidad: {res['factibilidad']:.2f} | "
+                f"Impacto: {res['impacto']:.2f} | VALOR: {res['value']:.2f}")
+
     def introspect(self) -> dict:
         now = time.time()
         if self._introspect_cache and (now - self._introspect_ts) < 2.0:
