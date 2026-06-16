@@ -3,6 +3,18 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 2a: comandos de memoria locales -> FASE 2 COMPLETA
+- FASE 2a-1 (commit cd0433a): SemanticMemorySearch tolerante a schema 'ts' (desktop) y
+  'timestamp' (REPL): _ts_column via PRAGMA + alias AS ts; search_context ventana por id
+  (monotono). Test schema REPL: probado falla con OperationalError sin fix. 7 passed.
+- FASE 2a-2 (commit 4a15aba): /buscar-memoria, /contexto-semantico, /sintetizar, /ver-contexto
+  caen a clases locales (SemanticMemorySearch / KnowledgeSynthesizer con _CHAT_DB=ai.db /
+  _build_memory_block_for HYDRA) cuando :8765 no responde. 4 firmas -> (ai, args) + 4 call-sites.
+  23 tests (3 actualizados a nueva firma + test de fallback que mockea requests caido). CLI REAL
+  (sin Electron): /buscar-memoria->'Resultados semanticos', /sintetizar->'Sintesis sobre',
+  /ver-contexto->'Bloque de memoria local (HYDRA)'; ninguno 'no disponible'.
+- FASE 2 COMPLETA (2a + 2b + 2c). Resultado: suite completa como gate antes de push.
+
 ## [2026-06-16] CYCLE — FASE 2b (/deliberar) + 2c (recovery + db_pool); 2a diferida
 - Scoping de FASE 2 con workflow (3 agentes, specs verificadas en codigo).
 - FASE 2c (commit a163df9): TaskQueue.recover() resetea tareas colgadas
