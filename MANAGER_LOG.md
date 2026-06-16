@@ -2554,3 +2554,13 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Commit pusheado. Estado: 6/8 piezas (1,5,8,2,7,3). Faltan (6) detector repeticion + (4)
   explorador 70/30 (infraestructura, menos visibles). Luego WIRING: loop /investigar que
   encadene generar->evaluar->validar->analogias, y evaluar 7B para razonamiento profundo.
+
+## 2026-06-13 22:10 — CYCLE 8 (creatividad): pieza (6) detector de repeticion — E2E PASS
+- repetition_detector.py: Jaccard lexico deterministico (similarity/diversity/find_repeats)
+  + force_alternatives (LLM enfoques distintos, filtra nuevos). generate_many diversify=True
+  opt-in (default False intacto). cli.py /diversidad; cognia.py measure_diversity.
+- Verificado: 63 tests (detector + 40+ pieza 1 con diversify, contrato intacto). E2E:
+  /diversidad=0.88 correcto; /hipotesis diversify sin regresion.
+- HONESTIDAD: similitud LEXICA (sin sentence-transformers) -> se escapan sinonimos. Cota anotada.
+- Commit pusheado. Estado: 7/8 piezas (1,5,8,2,7,3,6). Falta (4) explorador 70/30. Luego
+  WIRING /investigar (loop completo) y palanca 7B para razonamiento profundo.
