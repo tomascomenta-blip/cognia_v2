@@ -288,6 +288,7 @@ _CMD_DESCRIPTIONS = {
     "/abstraer":        "Resolver por abstraccion (forma -> solucion abstracta -> concreta)  <problema>",
     "/transferir":      "Transferir el principio de un dominio a otro  <fuente> | <objetivo>",
     "/diversidad":      "Medir diversidad de ideas y detectar repeticiones  <idea1> || <idea2> || ...",
+    "/explorar":        "Modo explorador 70/30 (explota lo prometedor, explora lo nuevo)  <problema>",
     "/explicar":        "Autoexplicación         <texto>",
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
@@ -563,6 +564,14 @@ _CMD_DETAILS = {
         "ideas con '||'. Detector de repeticion (pieza 6 de la mision creativa). "
         "Ejemplo: /diversidad recolectar agua de lluvia || juntar agua de lluvia en azoteas || usar plantas nativas"
     ),
+    "/explorar": (
+        "Modo explorador 70/30 (pieza 4 de la mision creativa) con el LLM vivo: "
+        "genera ideas base, EXPLOTA las prometedoras (las profundiza y refina, "
+        "70% del presupuesto) y reserva 30% para EXPLORAR enfoques nuevos / poco "
+        "convencionales que eviten lo ya conocido. La exploracion NUNCA se "
+        "elimina (siempre al menos 1 idea nueva). "
+        "Ejemplo: /explorar como reducir el consumo de agua en una ciudad"
+    ),
     "/modelo": (
         "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
         "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
@@ -665,6 +674,7 @@ HELP_TEXT = """
     /abstraer <problema>            Resolver por abstraccion (forma -> abstracta -> concreta)
     /transferir <fuente> | <objetivo>  Transferir el principio de un dominio a otro
     /diversidad <i1> || <i2> ...    Medir diversidad de ideas y detectar repeticiones
+    /explorar <problema>            Modo explorador 70/30 (explota lo prometedor, explora lo nuevo)
     /yo                             Introspección completa
     /conceptos                      Listar conceptos
     /dormir                         Consolidacion tipo sueno
@@ -5007,6 +5017,12 @@ def repl():
         elif raw.startswith("/diversidad"):
             _print_line("[warn_cl]Uso: /diversidad <idea1> || <idea2> || ...  "
                         "-- ejemplo: /diversidad recolectar agua de lluvia || juntar lluvia en azoteas[/warn_cl]")
+        elif raw.startswith("/explorar ") and raw[len("/explorar "):].strip():
+            texto = raw[len("/explorar "):].strip()
+            _run(raw, lambda: ai.explore_problem(texto), color="cyan")
+        elif raw.startswith("/explorar"):
+            _print_line("[warn_cl]Uso: /explorar <problema>  "
+                        "-- ejemplo: /explorar como reducir el consumo de agua en una ciudad[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
             _run(raw, lambda: ai.explain(texto), color="magenta")

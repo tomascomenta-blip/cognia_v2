@@ -1001,6 +1001,53 @@ class Cognia:
             f"Aplicacion (a {target.strip()}): {res['aplicacion']}"
         )
 
+    def explore_problem(self, problem: str, total: int = 5) -> str:
+        """Modo explorador 70/30: explota las ideas prometedoras (profundiza) y
+        reserva presupuesto para explorar enfoques nuevos. La exploracion nunca
+        se elimina (explore_n>=1 siempre). ASCII puro para el CLI."""
+        from cognia.reasoning import explorer as _explorer
+        problem = (problem or "").strip()
+        if not problem:
+            return "Uso: /explorar <problema>"
+
+        # Ideas base ya rankeadas por plausibilidad (las usamos como 'known':
+        # las mejores se explotan, las demas sirven de 'a evitar' al explorar).
+        items = self.hypothesis.generate_many(
+            problem, n=max(3, total), orchestrator=self._orchestrator)
+        known = [it["hypothesis"] for it in items] if items else []
+
+        res = _explorer.explore_exploit(
+            self._orchestrator, problem, known, total=total)
+        if res.get("reason"):
+            return f"No pude explorar (backend no disponible o problema vacio): {res['reason']}"
+
+        exploit_n = res["exploit_n"]
+        explore_n = res["explore_n"]
+        exploited = res["exploited"]
+        explored = res["explored"]
+
+        lineas = [f"[i] Modo explorador 70/30 para: {problem}",
+                  f"    split presupuesto: explotacion={exploit_n}  exploracion={explore_n}"]
+
+        lineas.append("")
+        lineas.append(f"EXPLOTACION (70%): {len(exploited)} idea(s) profundizada(s)")
+        if exploited:
+            for k, e in enumerate(exploited, 1):
+                lineas.append(f"  {k}. Base: {e['base']}")
+                lineas.append(f"     -> {e['profundizada']}")
+        else:
+            lineas.append("  (sin ideas para profundizar: no hubo hipotesis base o el backend no respondio)")
+
+        lineas.append("")
+        lineas.append(f"EXPLORACION (30%): {len(explored)} idea(s) nueva(s) / no convencional(es)")
+        if explored:
+            for k, idea in enumerate(explored, 1):
+                lineas.append(f"  {k}. {idea}")
+        else:
+            lineas.append("  (no surgieron enfoques genuinamente nuevos esta vez)")
+
+        return "\n".join(lineas)
+
     def introspect(self) -> dict:
         now = time.time()
         if self._introspect_cache and (now - self._introspect_ts) < 2.0:
