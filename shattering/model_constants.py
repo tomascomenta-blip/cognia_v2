@@ -93,6 +93,12 @@ GEN_DEFAULT_MAX_TOKENS: int = 768   # orchestrator default (short answers, low l
 GEN_CHAT_MAX_TOKENS:    int = 1024  # interactive chat (desktop API)
 GEN_LONG_MAX_TOKENS:    int = 5000  # long-form generation target (FASE 1 goal)
 GEN_CONTINUATION_CHUNK: int = 2048  # per-round chunk in the continuation loop
+# Guarda de contexto para la continuacion: cuando prompt+texto acumulado se acerca
+# a _CTX_SIZE, generate_long deja de reenviar TODO y manda prompt + la cola reciente,
+# acotando el prefill (sin esto las rondas tardias desbordan el ctx de 16k). El
+# estimador es ~4 chars/token, consistente con el fallback del loop.
+GEN_CTX_GUARD_RATIO:    float = 0.75  # fraccion de _CTX_SIZE como techo del prefill
+GEN_CTX_MARGIN_TOKENS:  int   = 64    # margen extra reservado por debajo del ctx
 # Temperatura del chat interactivo. Explicitarla (en vez de heredar el default
 # 0.7 del backend) alinea producto y metrica: el benchmark mide a temp=0.0 y
 # el chat samplea a 0.7 — con la constante esa diferencia queda visible y

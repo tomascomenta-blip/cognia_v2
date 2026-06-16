@@ -267,6 +267,24 @@ class TestGenerateLong:
 
         assert calls == [(1, 100, 100, "limit"), (2, 60, 160, "eos")]
 
+    def test_ctx_guard_caps_resent_prefix(self):
+        """FASE 1b: al acercarse a _CTX_SIZE deja de reenviar TODO y manda
+        prompt + cola; el prefill queda acotado y el output sigue completo."""
+        import node.llama_backend as lb
+        impl = _FakeLongImpl([("X" * 50, 50, "limit")] * 5 + [("END", 3, "eos")])
+        backend = _make_backend(impl)
+        with patch.object(lb, "_CTX_SIZE", 100):   # ctx chico para disparar la guarda
+            result = backend.generate_long("P:", max_total_tokens=10000, chunk_tokens=10)
+
+        # Output completo: la guarda recorta el INPUT al modelo, nunca el resultado
+        assert result["text"] == "X" * 250 + "END"
+        assert result["rounds"] == 6
+        sent = [p for (p, _mt) in impl.prompts]
+        # Sin guarda la ultima ronda reenviaria prompt+250 chars; con guarda <= ~prompt+budget
+        # budget = min(0.75*100, 100-10-64)=26 tok -> ~104 chars + prompt(2) + holgura
+        assert max(len(s) for s in sent) <= 2 + 104 + 4
+        assert sent[-1].startswith("P:")   # el prompt original se conserva siempre
+
 
 # ---------------------------------------------------------------------------
 # _LlamaCppBackend: stop_reason / token count (regresion de generate_long in-process)

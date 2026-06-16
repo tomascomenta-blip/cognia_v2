@@ -3,6 +3,19 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 0a (FedAvg) + FASE 1b (guarda de ctx) + FASE 0b diferida
+- FASE 0a: CLAUDE.md permite FedAvg-de-adapters (decision del dueno). Commit 7663228.
+- FASE 1a: fix backend in-process stop_reason. Commit df795d3. Suite previa 2797 passed.
+- FASE 1b: guarda de ctx en generate_long (node/llama_backend.py) — al acercarse a _CTX_SIZE
+  manda prompt+cola en vez de reenviar todo; nuevas constantes GEN_CTX_GUARD_RATIO=0.75,
+  GEN_CTX_MARGIN_TOKENS=64 en model_constants.py. Test de regresion: sin guarda el prefill
+  de la ultima ronda = 252 chars (falla), con guarda <=110. tests/test_llama_backend.py 76/76.
+- FASE 0b DIFERIDA (con evidencia, no por pereza): migrar cognia_v3 a db_pool romperia
+  test_consolidation.py en Windows (pool retiene 5 handles eager; el test borra tmp con
+  sqlite3.connect directo) y response_cache.py no tiene test directo. Requiere refactor de
+  teardown a close_pool + tests nuevos -> unidad dedicada, no incremento rapido.
+- Resultado tests: targeted PASS (81/81 con orchestrator); suite completa como gate antes de commit.
+
 ## [2026-06-16] CYCLE — Auditoria completa de arquitectura (workflow 11 agentes) + plan de 8 fases
 - Archivos creados: AUDITORIA_ARQUITECTURA_IA_20260615.md
 - Metodo: workflow multi-agente (10 auditores 1/objetivo + adversarial O10 + sintesis), 10/10 objetivos, evidencia file:line de codigo real.

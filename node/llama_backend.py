@@ -649,6 +649,10 @@ class LlamaBackend:
         prefix KV-cache and each continuation only prefills the new tail.
         Stop strings are kept: an emitted <|im_end|> is a legitimate natural end.
 
+        Ctx guard: cuando prompt+acumulado se acerca a _CTX_SIZE el loop deja de
+        reenviar el texto completo y manda prompt + la cola mas reciente, de modo
+        que el prefill nunca desborda la ventana (el output sigue siendo completo).
+
         on_chunk: optional callback on_chunk(round, chunk_tokens, total_tokens,
         stop_reason) for progress reporting.
 
@@ -657,6 +661,7 @@ class LlamaBackend:
         """
         from shattering.model_constants import (
             GEN_CONTINUATION_CHUNK, GEN_LONG_MAX_TOKENS,
+            GEN_CTX_GUARD_RATIO, GEN_CTX_MARGIN_TOKENS,
         )
         if max_total_tokens is None:
             max_total_tokens = GEN_LONG_MAX_TOKENS
@@ -668,9 +673,21 @@ class LlamaBackend:
         rounds       = 0
         stop_reason: Optional[str] = None
 
+        # Techo de prefill: una fraccion del ctx, dejando sitio para el chunk a
+        # generar. ~4 chars/token (mismo estimador que el fallback de abajo).
+        prefill_cap = int(_CTX_SIZE * GEN_CTX_GUARD_RATIO)
+
         while total_tokens < max_total_tokens:
             ask   = min(chunk_tokens, max_total_tokens - total_tokens)
-            chunk = self.generate("".join([prompt] + text_parts),
+            # Guarda de ctx: si prompt+acumulado no entra bajo el techo, no reenviar
+            # TODO -> mandar prompt + la cola mas reciente. text_parts conserva el
+            # texto completo (la cola es solo input al modelo, no recorta el output).
+            budget = min(prefill_cap, _CTX_SIZE - ask - GEN_CTX_MARGIN_TOKENS)
+            accumulated = "".join(text_parts)
+            if (len(prompt) + len(accumulated)) // 4 > budget:
+                keep_tokens = max(0, budget - len(prompt) // 4)
+                accumulated = accumulated[-(keep_tokens * 4):] if keep_tokens else ""
+            chunk = self.generate(prompt + accumulated,
                                   max_tokens=ask, temperature=temperature)
             if chunk is None:
                 # Request failed; surface what we have (None if nothing yet)
