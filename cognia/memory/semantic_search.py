@@ -97,12 +97,25 @@ class SemanticMemorySearch:
     # Internal helpers
     # ------------------------------------------------------------------
 
+    def _ts_column(self, conn) -> str:
+        """Nombre de la columna de tiempo en chat_history: 'ts' (schema desktop/test)
+        o 'timestamp' (schema REPL en cognia_memory.db). Permite a la misma clase
+        operar sobre ambos esquemas sin romper (la columna se aliasa luego AS ts).
+        Default 'ts'."""
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(chat_history)").fetchall()}
+        if "ts" in cols:
+            return "ts"
+        if "timestamp" in cols:
+            return "timestamp"
+        return "ts"
+
     def _load_history(self, limit: int = 200) -> list[dict]:
         """Load last `limit` rows from chat_history ordered by id asc."""
         from storage.db_pool import get_pool
         with get_pool(self._db_path).get() as conn:
+            tscol = self._ts_column(conn)   # 'ts' o 'timestamp' (allowlist -> sin injection)
             rows = conn.execute(
-                "SELECT id, session_id, role, content, ts "
+                f"SELECT id, session_id, role, content, {tscol} AS ts "
                 "FROM chat_history ORDER BY id DESC LIMIT ?",
                 (limit,),
             ).fetchall()
@@ -195,8 +208,9 @@ class SemanticMemorySearch:
         Find the best matching message and return surrounding conversation window.
 
         Fetches the top-1 result from search(), then retrieves `window` messages
-        before and after (within the same session) by ts proximity.
-        Returns the conversation snippet sorted by ts asc.
+        before and after (within the same session) by id proximity (monotono, asi
+        funciona igual con ts INTEGER o timestamp TEXT).
+        Returns the conversation snippet sorted by id asc.
         """
         top = self.search(query, limit=1)
         if not top:
@@ -204,25 +218,26 @@ class SemanticMemorySearch:
 
         best = top[0]
         session_id = best["session_id"]
-        center_ts = best["ts"]
+        center_id = best["id"]   # ventana por id (monotono) -> independiente del tipo de ts
 
         from storage.db_pool import get_pool
         with get_pool(self._db_path).get() as conn:
+            tscol = self._ts_column(conn)
             # Fetch window messages before + center
             before = conn.execute(
-                "SELECT id, session_id, role, content, ts "
+                f"SELECT id, session_id, role, content, {tscol} AS ts "
                 "FROM chat_history "
-                "WHERE session_id = ? AND ts <= ? "
-                "ORDER BY ts DESC LIMIT ?",
-                (session_id, center_ts, window + 1),
+                "WHERE session_id = ? AND id <= ? "
+                "ORDER BY id DESC LIMIT ?",
+                (session_id, center_id, window + 1),
             ).fetchall()
             # Fetch window messages after
             after = conn.execute(
-                "SELECT id, session_id, role, content, ts "
+                f"SELECT id, session_id, role, content, {tscol} AS ts "
                 "FROM chat_history "
-                "WHERE session_id = ? AND ts > ? "
-                "ORDER BY ts ASC LIMIT ?",
-                (session_id, center_ts, window),
+                "WHERE session_id = ? AND id > ? "
+                "ORDER BY id ASC LIMIT ?",
+                (session_id, center_id, window),
             ).fetchall()
 
         def _to_dict(r: tuple) -> dict:
@@ -243,5 +258,5 @@ class SemanticMemorySearch:
                 seen.add(item["id"])
                 unique.append(item)
 
-        unique.sort(key=lambda x: x["ts"])
+        unique.sort(key=lambda x: x["id"])
         return unique
