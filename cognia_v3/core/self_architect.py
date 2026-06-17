@@ -85,6 +85,11 @@ FATIGUE_LEVELS = {
     "critical": (0.80, 1.00),  # only critical checks + propose architecture change
 }
 
+# Presupuesto de tokens para generacion de codigo de modulos (FASE 7c).
+# Antes era num_predict=1200 en la llamada a Ollama; ahora se pasa a
+# ShatteringOrchestrator.infer(max_tokens=...).
+CODEGEN_MAX_TOKENS = 1200
+
 
 def db_connect(path: str = ARCH_DB_PATH):
     # Pooled (regla dura del repo: sin sqlite3.connect directo). db_pool ya fija
@@ -275,7 +280,9 @@ def _seed_default_params(path: str):
         # Protected params
         ("db_path",    ARCH_DB_PATH, "str", "SQLite database path", 1),
         ("vector_dim", "384",        "int", "Embedding dimensions (fixed to model)", 1),
-        ("llm_model",  "llama3.2",   "str", "Ollama LLM model (requires restart)", 1),
+        # (FASE 7c) Se removio el param 'llm_model'='llama3.2': la generacion de codigo
+        # ya no usa Ollama sino ShatteringOrchestrator (routing a sub-modelos, sin un
+        # nombre de modelo unico). El param era vestigial (no lo leia nadie).
     ]
 
     conn = db_connect(path)
@@ -2128,9 +2135,11 @@ class SelfArchitect:
       11. Present ranked proposals to human for approval
     """
 
-    def __init__(self, db_path: str = ARCH_DB_PATH, cognia_instance=None):
+    def __init__(self, db_path: str = ARCH_DB_PATH, cognia_instance=None,
+                 orchestrator=None):
         self.db     = db_path
         self.cognia      = cognia_instance
+        self._orchestrator = orchestrator   # inyeccion explicita (tests / wiring directo)
         self.energy_loop = EnergyOptimizationLoop(db_path)
 
         init_architecture_tables(db_path)
@@ -2380,9 +2389,27 @@ class SelfArchitect:
 
     # ── Punto 3: Module Generator ─────────────────────────────────────
 
+    def _resolve_orchestrator(self):
+        """Backend de inferencia para codegen (FASE 7c).
+
+        Orden: orchestrator inyectado en el ctor -> el de la instancia Cognia
+        (cognia/cognia.py construye self._orchestrator = ShatteringOrchestrator +
+        _try_load_llama, backend real llama.cpp). Si no hay ninguno -> None, y
+        generate_module_code cae al esqueleto (mismo contrato que antes con Ollama
+        caido). NO se construye un orchestrator pesado aqui: eso lo hace el dueno
+        del ciclo (Cognia), para no cargar el modelo por-llamada.
+        """
+        if self._orchestrator is not None:
+            return self._orchestrator
+        ai = self.cognia
+        if ai is not None:
+            return getattr(ai, "_orchestrator", None) or getattr(ai, "orchestrator", None)
+        return None
+
     def generate_module_code(self, proposal_id: int) -> dict:
-        """Genera código Python para una propuesta new_module vía Ollama."""
-        import urllib.request as _ur, json as _js
+        """Genera código Python para una propuesta new_module vía el backend real
+        (ShatteringOrchestrator/llama.cpp). Sin Ollama. Cae a esqueleto si no hay
+        backend disponible."""
         conn = db_connect(self.db); c = conn.cursor()
         try:
             c.execute("""SELECT id,title,problem,modification,why_better,
@@ -2403,35 +2430,28 @@ class SelfArchitect:
                   f"PSEUDOCÓDIGO:\n{pseudocode or '(ninguno)'}\n\n"
                   f"REQUISITOS: clase {mname}(db_path), método status_report()->str, sqlite3.\n"
                   f"Responde SOLO con código Python puro. Sin markdown.")
-        code, err = None, None
+        code, err, sub_model = None, None, None
         try:
-            url = os.environ.get("OLLAMA_URL","http://localhost:11434")
-            modelo = os.environ.get("COGNIA_MODEL","llama3.2")
-            with _ur.urlopen(_ur.Request(f"{url}/api/tags"), timeout=10) as r:
-                avail = [m["name"].split(":")[0] for m in _js.loads(r.read()).get("models",[])]
-            if modelo.split(":")[0] not in avail:
-                raise RuntimeError(f"Modelo {modelo!r} no disponible. Disponibles: {avail}")
-            payload = _js.dumps({"model":modelo,"prompt":prompt,"stream":True,
-                "system":"Responde SOLO con código Python puro.",
-                "options":{"temperature":0.3,"num_predict":1200}}).encode()
-            req = _ur.Request(f"{url}/api/generate",data=payload,
-                              headers={"Content-Type":"application/json"})
-            toks=[]
-            with _ur.urlopen(req,timeout=120) as r:
-                for line in r:
-                    if not line.strip(): continue
-                    try: chunk=_js.loads(line.decode())
-                    except: continue
-                    if chunk.get("response"): toks.append(chunk["response"])
-                    if chunk.get("done"): break
-            raw = "".join(toks).strip()
+            orch = self._resolve_orchestrator()
+            if orch is None:
+                raise RuntimeError("backend de inferencia no disponible (sin orchestrator)")
+            sys_prompt = "Responde SOLO con código Python puro. Sin markdown."
+            result = orch.infer(f"{sys_prompt}\n\n{prompt}",
+                                max_tokens=CODEGEN_MAX_TOKENS, temperature=0.3)
+            sub_model = getattr(result, "sub_model", None)
+            raw = (getattr(result, "text", "") or "").strip()
+            if not raw:
+                raise RuntimeError(
+                    f"inferencia vacia (sub_model={sub_model}, "
+                    f"mode={getattr(result, 'mode', '?')})")
+            # Quitar fences de markdown si el modelo los agrego pese al system prompt
             if raw.startswith("```"):
-                parts=raw.split("\n")
-                raw="\n".join(parts[1:-1] if parts[-1].strip()=="```" else parts[1:])
+                parts = raw.split("\n")
+                raw = "\n".join(parts[1:-1] if parts[-1].strip() == "```" else parts[1:])
             code = raw
         except Exception as e:
             err = str(e)
-            code = (f'''"""\n{mname} — esqueleto (Ollama no disponible: {e})\n"""\n'''
+            code = (f'''"""\n{mname} — esqueleto (backend no disponible: {e})\n"""\n'''
                     f"import sqlite3\n\nclass {mname}:\n"
                     f"    def __init__(self, db_path='cognia_memory.db'): self.db=db_path\n"
                     f"    def run(self): return {{'status':'not_implemented'}}\n"
@@ -2446,7 +2466,7 @@ class SelfArchitect:
             conn2.close(); return {"error": f"Error guardando: {e}"}
         conn2.close()
         return {"proposal_id":proposal_id,"module_name":mname,"status":status,
-                "ollama_used":err is None,"generation_error":err,
+                "backend_used":err is None,"sub_model":sub_model,"generation_error":err,
                 "code_preview":code[:300]+"..." if len(code)>300 else code}
 
     def test_proposal(self, proposal_id: int) -> dict:
