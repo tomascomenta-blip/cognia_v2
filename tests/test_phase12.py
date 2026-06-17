@@ -92,6 +92,46 @@ class TestCompressedKVCacheEviction:
         self.cache.evict_stale(max_age_seconds=1.0)
         assert self.cache.active_sessions() == 0
 
+    def test_concurrent_put_and_evict_no_crash(self):
+        # Regression: evict_stale() snapshots _last_access in a list comprehension.
+        # Without a lock, a concurrent put() inserting a new session_id mid-iteration
+        # raised "RuntimeError: dictionary changed size during iteration". The cache
+        # is touched from the thread-pool inference path, so this must be safe.
+        import threading
+
+        errors = []
+        stop = threading.Event()
+
+        def writer():
+            i = 0
+            while not stop.is_set():
+                try:
+                    self._put(f"w_{i}")
+                    self.cache.get(f"w_{i}", 0)
+                    i += 1
+                except Exception as exc:  # pragma: no cover - failure path
+                    errors.append(exc)
+                    return
+
+        def evictor():
+            while not stop.is_set():
+                try:
+                    self.cache.evict_stale(max_age_seconds=-1.0)
+                except Exception as exc:  # pragma: no cover - failure path
+                    errors.append(exc)
+                    return
+
+        threads = [threading.Thread(target=writer) for _ in range(3)]
+        threads += [threading.Thread(target=evictor) for _ in range(2)]
+        for t in threads:
+            t.start()
+        time.sleep(0.5)
+        stop.set()
+        for t in threads:
+            t.join(timeout=5)
+
+        assert not errors, f"concurrent access raised: {errors[:3]}"
+
 
 # ── 12.1 Orchestrator._evict_mla_caches ─────────────────────────────────
 

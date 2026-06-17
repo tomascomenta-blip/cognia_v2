@@ -29,6 +29,7 @@ Integration:
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from typing import Dict, Optional, Tuple
 
@@ -63,45 +64,58 @@ class CompressedKVCache:
     def __init__(self):
         self._cache: Dict[str, Dict[int, Tuple[np.ndarray, int]]] = {}
         self._last_access: Dict[str, float] = {}
+        # The inference token loop runs in a thread pool (orchestrator.ainfer ->
+        # run_in_executor) and eviction is triggered from infer() on any thread,
+        # so concurrent put()/get() vs evict_stale() can mutate these dicts while
+        # evict_stale() iterates them (RuntimeError: dictionary changed size).
+        # Mirror the lock idiom used by every other shared cache (LPC, router,
+        # FragmentManager, DynamicWeights).
+        self._lock = threading.RLock()
 
     def get(self, session_id: str, layer_idx: int) -> Optional[Tuple[np.ndarray, int]]:
-        self._last_access[session_id] = time.monotonic()
-        return self._cache.get(session_id, {}).get(layer_idx)
+        with self._lock:
+            self._last_access[session_id] = time.monotonic()
+            return self._cache.get(session_id, {}).get(layer_idx)
 
     def put(self, session_id: str, layer_idx: int,
             c_kv: np.ndarray, position: int) -> None:
-        if session_id not in self._cache:
-            self._cache[session_id] = {}
-        self._cache[session_id][layer_idx] = (c_kv, position)
-        self._last_access[session_id] = time.monotonic()
+        with self._lock:
+            if session_id not in self._cache:
+                self._cache[session_id] = {}
+            self._cache[session_id][layer_idx] = (c_kv, position)
+            self._last_access[session_id] = time.monotonic()
 
     def clear(self, session_id: str) -> None:
-        self._cache.pop(session_id, None)
-        self._last_access.pop(session_id, None)
+        with self._lock:
+            self._cache.pop(session_id, None)
+            self._last_access.pop(session_id, None)
 
     def evict_stale(self, max_age_seconds: float = 3600.0) -> int:
         """Remove sessions not accessed within max_age_seconds. Returns eviction count."""
         now = time.monotonic()
-        stale = [
-            sid for sid, t in self._last_access.items()
-            if now - t > max_age_seconds
-        ]
-        for sid in stale:
-            self._cache.pop(sid, None)
-            self._last_access.pop(sid, None)
+        with self._lock:
+            stale = [
+                sid for sid, t in self._last_access.items()
+                if now - t > max_age_seconds
+            ]
+            for sid in stale:
+                self._cache.pop(sid, None)
+                self._last_access.pop(sid, None)
         if stale:
             logger.debug("[MLA] Evicted %d stale KV-cache sessions", len(stale))
         return len(stale)
 
     def active_sessions(self) -> int:
-        return len(self._cache)
+        with self._lock:
+            return len(self._cache)
 
     def truncate(self, session_id: str, layer_idx: int, max_len: int) -> None:
         """Truncate cached KV latent to max_len tokens (speculative decoding rollback)."""
-        entry = self._cache.get(session_id, {}).get(layer_idx)
-        if entry is not None:
-            c_kv, _ = entry
-            self._cache[session_id][layer_idx] = (c_kv[:max_len], max_len)
+        with self._lock:
+            entry = self._cache.get(session_id, {}).get(layer_idx)
+            if entry is not None:
+                c_kv, _ = entry
+                self._cache[session_id][layer_idx] = (c_kv[:max_len], max_len)
 
 
 # ── MLA Module ──────────────────────────────────────────────────────────
