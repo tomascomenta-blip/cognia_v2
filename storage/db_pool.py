@@ -52,6 +52,7 @@ class SQLitePool:
     def __init__(self, db_path: str, size: int = MAX_CONNS):
         self.db_path = db_path
         self._size   = size
+        self._gc_reclaimed = 0   # conexiones rescatadas por el __del__ de _PooledConnection
         self._pool: Queue = Queue(maxsize=size)
         for _ in range(size):
             self._pool.put(self._new_conn())
@@ -152,6 +153,28 @@ class _PooledConnection:
             self._closed = True
             self._pool.release(self._conn, commit=False)  # no commit doble
 
+    def __del__(self):
+        # Red de seguridad (Gotchas.md CRITICO): un call-site con close() DENTRO del
+        # try fuga la conexion si una excepcion salta el close() -> tras 5 fugas el
+        # pool se vacia y cada acquire() se estanca 10s. Al recolectarse este wrapper
+        # sin close(), devolvemos la conexion al pool (rollback para descartar txn
+        # sin commitear) en vez de perderla. Solo dispara en el camino fugado;
+        # el happy-path ya hizo close() (_closed=True) y aqui es no-op.
+        try:
+            if not getattr(self, "_closed", True):
+                self._closed = True
+                try:
+                    self._conn.rollback()
+                except Exception:
+                    pass
+                self._pool.release(self._conn, commit=False)
+                try:
+                    self._pool._gc_reclaimed += 1
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     def __getattr__(self, name):
         return getattr(self._conn, name)
 
@@ -227,6 +250,7 @@ def pool_stats() -> dict:
         stats[path] = {
             "size": pool.size,
             "available": pool._pool.qsize(),
+            "gc_reclaimed": getattr(pool, "_gc_reclaimed", 0),
         }
     return stats
 
