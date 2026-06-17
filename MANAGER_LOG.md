@@ -3,6 +3,35 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 3c-resto: /esfuerzo propagado a /deliberar, /razonar, /hipotesis
+- /pensar ya escalaba (FASE 3c). Faltaban los otros 3 comandos. commit 347b362.
+- /deliberar: _run_deliberate(query, hydra, max_iters=None) — el loop usa max_iters o
+  MAX_DELIBERATE_ITERS si None (default + ruta interna intactos). CLI pasa
+  max_iters=verificaciones+1 (bajo1/medio2/alto3/maximo4).
+- /razonar -> investigate(problema, effort): escala n hipotesis (alternativas) y k analogias
+  (profundidad). Sin effort -> defaults previos n=3/k=2.
+- /hipotesis <problema> -> generate_hypotheses_many(problema, n=alternativas) (antes n=5 fijo).
+- 22 passed (6 nuevos + deliberation_loop + effort_levels + cli_deliberar). _run_deliberate
+  (offline/determinista) con max_iters=1 -> 1 pasada; n threadea via fake hypothesis engine
+  (method binding, sin LLM). E2E real offline: la formula del CLI da el cap por nivel y
+  _run_deliberate lo respeta. NOTA: max_tokens por-subllamada no se threadea (requeriria
+  cambiar firmas de las sub-APIs); las palancas dominantes a ~8 tok/s (alternativas/iteraciones)
+  SI quedan cableadas. Suite completa como gate antes del push.
+
+## [2026-06-16] CYCLE — db_pool.__del__ rescata conexiones fugadas (gotcha CRITICO del vault)
+- Gotchas.md documentaba una mitigacion (_PooledConnection.__del__) que NO existia en esta
+  version de storage/db_pool.py. El patron `conn=db_connect_pooled(db); ...; conn.close()`
+  con close() DENTRO del try fuga la conexion si una excepcion lo salta; tras 5 fugas el pool
+  (Queue maxsize=5) se vacia y cada acquire() se estanca 10s. FASE 0b agrego 16 modulos usando
+  db_connect_pooled -> la red de seguridad pasa a ser necesaria. commit 3df0934.
+- Fix: __del__ devuelve la conexion al pool (rollback) si el wrapper se recolecta sin close();
+  no-op en el happy-path. Protege TODOS los call-sites (cognia/ ~245 + cognia_v3 16) sin
+  tocarlos. Nuevo SQLitePool._gc_reclaimed en pool_stats() (vigilar fugas vivas: >0 = hay fuga).
+- 3 tests: leak de 7 conexiones -> available vuelve a 5, gc_reclaimed>=7; close explicito no
+  double-cuenta; 20 fugas en <5s. DEMOSTRADO el fallo sin el fix: neutralizando __del__,
+  "available 0==5" tras 20.4s de estancamientos. Suite completa: 2870 passed, 1 skipped, 0
+  failed — y en 3:31 (vs ~17min) porque el fix elimino estancamientos latentes de 10s.
+
 ## [2026-06-16] CYCLE — FASE 7c: self_architect.generate_module_code via orchestrator (sin Ollama)
 - generate_module_code dependia de Ollama (urllib localhost:11434 + modelo hardcodeado
   'llama3.2') -> NO-OP con el backend real (Ollama no corre) -> siempre esqueleto. Re-cableado
