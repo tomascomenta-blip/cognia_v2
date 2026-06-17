@@ -3,6 +3,19 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — EJECUCION prompt mejorado S5/Fase1: allowlist de imports (seguridad)
+- Primera fase del prompt mejorado (orden S5->S1->S3->S2->S4): seguridad como prerrequisito.
+  commit c3df3c3. La validacion de codigo auto-generado era solo blocklist; regla 9 pide
+  allowlist. code_executor.validate_generated_module_imports (AST) + ALLOWED_IMPORTS_GENERATED;
+  sandbox_tester suma el criterio imports_allowlisted y solo ejecuta si pasa sintaxis+blocklist+
+  allowlist. 12 passed (8 nuevos + 4 sandbox_tester). E2E real: modulo con `import pathlib`
+  rechazado por allowlist (blocklist lo dejaria pasar) y NO ejecutado; sqlite3/json pasa y corre.
+- PROXIMO (segun PROMPT_AUTOMEJORA_MEJORADO.md): S1 benchmark con/sin herramienta + decision por
+  utilidad (umbral configurable, descartar inutiles) — unidad de diseno mas grande (define la
+  tarea-benchmark); luego S3 (gate de retencion + recuperacion), S2 (disparador auto de
+  investigacion + confianza unificada), S4 (lazo completo E2E + correccion de creencias auditada)
+  + demo final. Cada fase: verificar->implementar->test regresion->E2E real->suite gate->push->log.
+
 ## [2026-06-16] MANAGER — plan en curso COMPLETO + prompt de auto-mejora MEJORADO (empieza ejecucion)
 - Directiva /manager del dueno: terminar el plan en curso, luego MEJORAR el prompt "Sistema de
   Herramientas Autonomas e Investigacion Continua" y EJECUTARLO. Usage 29% (sin gate).
