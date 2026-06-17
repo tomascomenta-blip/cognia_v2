@@ -65,6 +65,18 @@ _BLOCKED_PYTHON_PATTERN = re.compile(
     re.MULTILINE,
 )
 
+# ── Allowlist para CODIGO AUTO-GENERADO (regla 9 CLAUDE.md) ───────────────────
+# Mas estricta que la blocklist: el codigo que produce el SelfArchitect solo puede
+# importar este conjunto (stdlib seguro que un modulo cognitivo razonable necesita).
+# Rechaza imports NUEVOS no previstos (no solo los conocidos-peligrosos), que es el
+# punto de una allowlist. Para habilitar uno mas: agregarlo aqui (queda auditado).
+ALLOWED_IMPORTS_GENERATED = {
+    "sqlite3", "json", "math", "datetime", "time", "typing", "collections",
+    "dataclasses", "re", "itertools", "functools", "statistics", "random",
+    "string", "enum", "abc", "heapq", "bisect", "hashlib", "uuid", "decimal",
+    "fractions", "copy", "textwrap", "logging", "__future__",
+}
+
 
 # ── Dataclass de resultado ────────────────────────────────────────────────────
 
@@ -319,6 +331,37 @@ def _scan_blocked_imports(code: str) -> list[str]:
     if "__import__" in code:
         found.append("__import__ (posible escape)")
     return found
+
+
+def validate_generated_module_imports(code: str) -> tuple[bool, list[str]]:
+    """Allowlist AST para CODIGO AUTO-GENERADO (regla 9 CLAUDE.md).
+
+    Recorre el AST y devuelve (ok, offending): ok=True solo si TODO import (import X /
+    from X import ...) tiene su modulo top-level en ALLOWED_IMPORTS_GENERATED. Los imports
+    relativos (from . import x) se rechazan (un modulo generado no debe depender del paquete).
+    Mas estricto que la blocklist: rechaza imports validos-pero-no-previstos (p.ej. pathlib,
+    socket nuevo) que la blocklist no conoce. Usar como compuerta ANTES de ejecutar nada.
+    """
+    try:
+        tree = ast.parse(code or "")
+    except SyntaxError:
+        return (False, ["<syntax error>"])
+    offending: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                top = alias.name.split(".")[0]
+                if top not in ALLOWED_IMPORTS_GENERATED and top not in offending:
+                    offending.append(top)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level and node.level > 0:          # import relativo
+                if "<relative import>" not in offending:
+                    offending.append("<relative import>")
+                continue
+            top = (node.module or "").split(".")[0]
+            if top not in ALLOWED_IMPORTS_GENERATED and top not in offending:
+                offending.append(top or "<unknown>")
+    return (len(offending) == 0, offending)
 
 
 def run_python(code: str, timeout: int = None) -> ExecutionResult:

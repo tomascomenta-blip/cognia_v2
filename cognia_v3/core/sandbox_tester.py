@@ -29,7 +29,8 @@ class SandboxTester:
     def test_module_from_code(self, code: str, module_name: str = "module",
                               proposal_id: int = 0) -> dict:
         """Reporte: {passed, timestamp, summary, details:{criteria:{name:{passed,value}}}}."""
-        from cognia_v3.interfaces.code_executor import validate_python, run_python
+        from cognia_v3.interfaces.code_executor import (
+            validate_python, run_python, validate_generated_module_imports)
 
         val = validate_python(code or "")
         # validate_python mezcla errores de sintaxis y de imports peligrosos
@@ -38,8 +39,11 @@ class SandboxTester:
         syntax_errs = [e for e in val.errors if "peligroso" not in e.lower()]
         syntax_ok = not syntax_errs
         no_blocked = not blocked_errs
-        # Solo ejecutar si pasa sintaxis e imports (no gastar el subprocess en basura).
-        exec_res = run_python(code) if (syntax_ok and no_blocked) else None
+        # Allowlist (regla 9): el codigo auto-generado solo puede importar stdlib seguro;
+        # rechaza imports validos-pero-no-previstos que la blocklist no conoce.
+        allow_ok, allow_offending = validate_generated_module_imports(code or "")
+        # Solo ejecutar si pasa sintaxis + blocklist + allowlist (no gastar el subprocess en basura).
+        exec_res = run_python(code) if (syntax_ok and no_blocked and allow_ok) else None
 
         # OJO: run_python.success exige stdout no vacio (linea 380); un MODULO que solo
         # define una clase no imprime nada -> aqui "ejecuta" = exit 0, sin stderr ni timeout.
@@ -61,6 +65,11 @@ class SandboxTester:
             "no_blocked_imports": {
                 "passed": no_blocked,
                 "value": "; ".join(blocked_errs) if blocked_errs else "ok",
+            },
+            "imports_allowlisted": {
+                "passed": allow_ok,
+                "value": "ok" if allow_ok else
+                         ("fuera de allowlist: " + ", ".join(allow_offending)),
             },
             "executes": {
                 "passed": executes,
