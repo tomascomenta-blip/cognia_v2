@@ -1,4 +1,4 @@
-# Cognia v3 — Arquitectura Cognitiva Simbolico-Neural
+# Cognia v3 — Arquotectura Cognitiva Simbolico-Neural
 
 > IA local, ligera y privada. Corre en CPU, sin APIs externas y sin PyTorch en el
 > camino critico. Aprende, razona y recuerda en tu propia maquina.
