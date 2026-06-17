@@ -6791,6 +6791,18 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _print_fn(f"[err_cl]Agente: error LLM: {e}[/err_cl]")
             break
 
+        # Sin backend de codigo, orch.infer devuelve el aviso como TEXTO (no
+        # excepcion); como no trae 'ACCION:' el loop lo repetiria hasta agotar
+        # el presupuesto entero. Cortar de una con instrucciones accionables.
+        if (not raw_response) or ("No inference backend available" in raw_response):
+            _print_fn("[err_cl]El agente necesita un modelo de codigo y no hay backend disponible.[/err_cl]")
+            _print_fn("[detail]Activa uno y reintenta /hacer:[/detail]")
+            _print_fn("[detail]  - Ollama:  ollama serve  &&  ollama pull qwen2.5-coder  "
+                      "(luego: set COGNIA_OLLAMA_MODEL=qwen2.5-coder)[/detail]")
+            _print_fn("[detail]  - o shards locales:  cognia install-weights --standalone[/detail]")
+            result_text = "(sin backend de inferencia: el agente no puede generar codigo)"
+            break
+
         _print_fn(f"[detail]paso {total_steps}: {raw_response[:120]}[/detail]")
 
         m = re.search(r"ACCI[OÓ]N:\s*(\w+)\s*(.*)", raw_response, re.IGNORECASE | re.DOTALL)
