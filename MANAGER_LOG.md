@@ -2851,3 +2851,24 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Pendiente OPCIONAL (calidad, no estructura): medir las piezas creativas con el 7B (cascada)
   para cuantificar la mejora de profundidad; mejorar prompt de ejes en idea_eval (3B da 0.21
   plano); embeddings reales para el detector (hoy Jaccard lexico).
+
+## [2026-06-16] MANAGER — Verificacion PyPI cognia-ai 3.6.0 en carpeta externa
+- GOAL: subir cognia a PyPI y probarlo en carpeta externa hasta que funcione; luego cerrar ciclo.
+- Estado encontrado: 3.6.0 YA estaba publicado en PyPI (subido 2026-06-17T03:14) por sesion previa.
+  No re-publico (mismo numero de version es irreversible/imposible y no hay defecto que lo amerite).
+- Verificacion REAL en venv limpio externo (D:/Movido_desde_C/Downloads/cognia_pypi_test, py3.12):
+  - pip install --no-cache-dir cognia-ai==3.6.0  -> OK (62 deps resueltas)
+  - import cognia/cognia_v3/node/coordinator/shattering/security/storage -> OK
+  - cognia --help  -> exit 0 ; cognia status -> exit 0
+  - 3 entry points (cognia, cognia-node, cognia-coordinator) resuelven a callables reales -> OK
+  - app.main (FastAPI) importa -> OK
+  - data files en wheel: shattering/manifests/*.json (6) + cognia/skills/*.md (5) -> OK;
+    cognia_desktop.json parsea OK.
+- Hallazgo no-bug: package-data declara cognia/knowledge/*.json pero en el repo ese dir es paquete
+  Python (solo .py); el glob no matchea nada -> no-op inofensivo, sin corrupcion.
+- REPL interactivo (prompt_toolkit) lanza NoConsoleScreenBufferError SOLO con stdin redirigido
+  (Git Bash y PowerShell por igual). Reproducido con un prompt_toolkit trivial -> ambiental, no del
+  paquete; un usuario real en terminal TTY no lo ve. No se toca codigo (otra sesion trabaja en paginas).
+- Resultado: PyPI 3.6.0 funciona correctamente instalado limpio en carpeta externa. GOAL cumplido.
+- Cambios de codigo: NINGUNO (instruccion: evitar abstracciones / no corromper).
+- Ciclo manager CERRADO.
