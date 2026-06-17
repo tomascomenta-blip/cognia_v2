@@ -1118,7 +1118,7 @@ class Cognia:
 
         return "\n".join(lineas)
 
-    def investigate(self, problem: str) -> str:
+    def investigate(self, problem: str, effort: dict = None) -> str:
         """Loop cientifico ACOTADO que ENCADENA las piezas creativas existentes:
         generar hipotesis -> evaluar su novedad/valor -> analogias para enmarcar ->
         validar empiricamente la mejor. NO reimplementa nada: orquesta los metodos
@@ -1140,9 +1140,14 @@ class Cognia:
         if not problem:
             return "Uso: /investigar <problema>"
 
-        # PASO 1 — HIPOTESIS: hasta 3 angulos diversos, rankeados por plausibilidad.
+        # FASE 3c: el nivel /esfuerzo escala cuanto se explora — n hipotesis
+        # (alternativas) y k analogias (profundidad). Sin effort -> defaults previos.
+        _n = max(1, int((effort or {}).get("alternativas", 3)))
+        _k = max(1, int((effort or {}).get("profundidad", 2)))
+
+        # PASO 1 — HIPOTESIS: n angulos diversos, rankeados por plausibilidad.
         hyps = self.hypothesis.generate_many(
-            problem, n=3, orchestrator=self._orchestrator, diversify=True)
+            problem, n=_n, orchestrator=self._orchestrator, diversify=True)
         if not hyps:
             return ("No pude investigar: no se generaron hipotesis "
                     "(backend no disponible o sin resultados).")
@@ -1159,7 +1164,7 @@ class Cognia:
 
         # PASO 3 — ANALOGIAS del PROBLEMA (k=2 para acotar): enmarcan el problema
         # en otros dominios. [] si el backend no devolvio nada util (honesto).
-        analogias = analogy_engine.find_analogies(self._orchestrator, problem, k=2)
+        analogias = analogy_engine.find_analogies(self._orchestrator, problem, k=_k)
 
         # PASO 4 — VALIDAR la mejor hipotesis empiricamente. El lab reporta
         # honestamente si no es ejecutable (executed False).

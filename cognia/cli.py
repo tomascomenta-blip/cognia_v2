@@ -5121,7 +5121,7 @@ def repl():
         elif raw.startswith("/razonar ") and raw[len("/razonar "):].strip():
             # Loop cientifico: hipotesis -> evaluar valor -> analogias -> validar.
             texto = raw[len("/razonar "):].strip()
-            _run(raw, lambda: ai.investigate(texto), color="bright_green")
+            _run(raw, lambda: ai.investigate(texto, effort=_active_effort()), color="bright_green")
         elif raw.startswith("/razonar"):
             _print_line("[warn_cl]Uso: /razonar <problema>  -- loop cientifico: hipotesis -> evaluar -> analogias -> validar[/warn_cl]")
         elif raw.startswith("/aprende-repo "):
@@ -5177,7 +5177,8 @@ def repl():
                 partes[0].strip(), partes[1].strip()), color="magenta")
         elif raw.startswith("/hipotesis ") and raw[len("/hipotesis "):].strip():
             texto = raw[len("/hipotesis "):].strip()
-            _run(raw, lambda: ai.generate_hypotheses_many(texto), color="magenta")
+            _run(raw, lambda: ai.generate_hypotheses_many(
+                texto, n=_active_effort()["alternativas"]), color="magenta")
         elif raw.startswith("/hipotesis"):
             _print_line("[warn_cl]Uso: /hipotesis <A> | <B>  (pares)  o  /hipotesis <problema>  (N hipotesis)[/warn_cl]")
         elif raw.startswith("/experimento ") and raw[len("/experimento "):].strip():
@@ -5772,7 +5773,10 @@ def repl():
                             ai._cognitive_loop = loop
                         except Exception:
                             pass
-                    _plan, _crit, _verify, _out, _risk = loop._run_deliberate(_obj, None)
+                    # FASE 3c: el nivel /esfuerzo fija el tope de pasadas deliberativas.
+                    _max_iters = _active_effort()["verificaciones"] + 1
+                    _plan, _crit, _verify, _out, _risk = loop._run_deliberate(
+                        _obj, None, max_iters=_max_iters)
                     _print_line(f"[bold]PLAN ({len(_plan or [])} pasos):[/bold]")
                     for _i, _st in enumerate(_plan or [], 1):
                         _print_line(f"  {_i}. {getattr(_st, 'description', _st)} (tool={getattr(_st, 'tool_required', '?')})")

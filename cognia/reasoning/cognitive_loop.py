@@ -429,16 +429,19 @@ class CognitiveLoop:
         return cand_risk < best_risk
 
     def _run_deliberate(
-        self, query: str, hydra
+        self, query: str, hydra, max_iters: int = None
     ) -> Tuple[list, dict, object, str, dict]:
         # DELIBERATE: bounded generate->evaluate->revise loop (whitepaper 7.2/7.3).
         # Folds in the world-model plan-risk score and keeps the best iteration.
+        # max_iters (FASE 3c): tope de pasadas que fija el nivel /esfuerzo desde el CLI;
+        # None usa MAX_DELIBERATE_ITERS (default / ruta interna del Cognitive Loop).
+        max_iters = max_iters if (max_iters and max_iters > 0) else MAX_DELIBERATE_ITERS
         reasons: List[str] = []
         best: Optional[dict] = None
         iters = 0
         plan_query = query
 
-        while iters < MAX_DELIBERATE_ITERS:
+        while iters < max_iters:
             cand = self._deliberate_pass(query, plan_query, reasons)
             iters += 1
             if self._is_better(cand, best):
@@ -451,7 +454,7 @@ class CognitiveLoop:
                 or (cand["overall"] < CRITIQUE_REVISE_THRESHOLD)
                 or (risk.get("recommendation") == "CONFIRM")
             )
-            if not needs_revision or iters >= MAX_DELIBERATE_ITERS:
+            if not needs_revision or iters >= max_iters:
                 break
             # REVISE: re-plan from an augmented description (real, deterministic).
             plan_query = self._augment_query(query, cand)
