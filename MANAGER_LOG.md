@@ -3,6 +3,32 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] MANAGER — plan en curso COMPLETO + prompt de auto-mejora MEJORADO (empieza ejecucion)
+- Directiva /manager del dueno: terminar el plan en curso, luego MEJORAR el prompt "Sistema de
+  Herramientas Autonomas e Investigacion Continua" y EJECUTARLO. Usage 29% (sin gate).
+- PLAN EN CURSO COMPLETO (todas las fases verificadas + pusheadas): FASE 0b (db_pool 16 modulos),
+  7c (codegen via orchestrator), db_pool.__del__ (gotcha vault), 3c-resto (/esfuerzo a 3 comandos),
+  FASE 6 deep (recap al fast-path + ProjectMemory).
+- PROMPT MEJORADO: PROMPT_AUTOMEJORA_MEJORADO.md. Hallazgo grounded (greps reales): los 5
+  sistemas del prompt YA existen en ~80% — S1 self_architect+sandbox_tester+scoring_engine,
+  S2 curiosity_engine+gap_detector+investigador, S3 consolidation+semantic+code_memory+
+  ProjectMemory+band_router, S4 SelfArchitect.tick+SafeImprover, S5 code_executor+sandbox_tester.
+  El prompt reorienta a CABLEAR/completar/VERIFICAR bajo reglas duras (db_pool, model_constants,
+  sin Ollama, sin mocks, sandbox allowlist, E2E real), con criterios de aceptacion MEDIBLES y
+  fases (S5->S1->S3->S2->S4->demo). NO reconstruir.
+- EJECUCION: arranca por S5 (seguridad, prerrequisito): allowlist de imports para codigo
+  auto-generado (regla 9). Estado actual = blocklist (code_executor.BLOCKED_IMPORTS_PYTHON);
+  gap = allowlist AST (rechaza imports nuevos no previstos, no solo conocidos-peligrosos).
+
+## [2026-06-16] CYCLE — FASE 6 deep: recap al fast-path + ProjectMemory persistente
+- (a) _build_stream_messages inyecta _session_recap (recap extractiva auto-mantenida) en el
+  ultimo mensaje user (slot KV-safe); "" => no-op. (b) cognia/memory/project_memory.py
+  (ProjectMemory via db_pool con `with get_pool().get()`, nivel "proyectos" de O2) +
+  run_flow lo escribe (best-effort, solo si ai.db real) + comando /proyectos. commit 8de08b4.
+- 18 passed (7 nuevos + flow/cli_flujo/recap regress). E2E real: run_flow persiste 1 flujo
+  status=done; ProjectMemory lifecycle; pool gc_reclaimed=0 (ruta nueva no fuga). Suite gate:
+  2881 passed, 1 skipped, 0 failed (3:23).
+
 ## [2026-06-16] CYCLE — FASE 3c-resto: /esfuerzo propagado a /deliberar, /razonar, /hipotesis
 - /pensar ya escalaba (FASE 3c). Faltaban los otros 3 comandos. commit 347b362.
 - /deliberar: _run_deliberate(query, hydra, max_iters=None) — el loop usa max_iters o
