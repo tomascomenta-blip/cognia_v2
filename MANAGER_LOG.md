@@ -2872,3 +2872,34 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Resultado: PyPI 3.6.0 funciona correctamente instalado limpio en carpeta externa. GOAL cumplido.
 - Cambios de codigo: NINGUNO (instruccion: evitar abstracciones / no corromper).
 - Ciclo manager CERRADO.
+
+## [2026-06-17] E2E full sweep — bugs reales encontrados y arreglados
+- GOAL: probar TODA Cognia end-to-end (toda funcion); cada bug: reportar, arreglar, reportar solucion.
+- Metodo: harness no-interactivo (_HAS_PT=False + feeder de input) sobre el REPL real; 5 batches
+  cubriendo ~110 de 200 comandos. 0 crashes en todos los batches. venv312, verificacion CLI real.
+- BUG 1 (sesion previa, ya en este commit): subsistema de aprendizaje (/aprender, /aprendiendo,
+  /revisar-sm2, /quiz, /caminos, etc.) pegaba a :8765 muerto -> timeouts. Reescrito a engines
+  locales (spaced_repetition/quiz_generator/learning_path). Tests viejos del contrato HTTP
+  reescritos al comportamiento local; +tests/test_cli_learning_local.py.
+- BUG 2: /usuario y /usuarios importaban switch_user/list_users (inexistentes en cognia.user_profile)
+  e iteraban forma de dato equivocada -> "No disponible". Reescrito contra UserProfileManager real;
+  /usuario persiste el usuario para que aparezca en /usuarios. Verificado: /usuario alice -> /usuarios
+  muestra "- alice (actual)".
+- BUG 3 (sistemico, persistencia): UserProfileManager.save/delete, StyleEngine.save y
+  PersonalIndex.save escribian via db_connect_pooled SIN conn.commit(). Como _PooledConnection.close()
+  libera con commit=False, los INSERT/DELETE se descartaban -> nada persistia entre reinicios.
+  Agregado commit() en las 3. +tests/test_profile_persistence.py (falla sin el commit).
+  Auditado el patron en 57 archivos que usan db_connect_pooled: solo estas 3 rutas de guardado a
+  user_profile estaban afectadas (el resto usa `with get_pool().get()` que auto-commitea, o ya
+  commitea explicito como memory_budget).
+- BUG 4: /indice_personal y /indice_add construian PersonalIndex(ai.db) (path como user_id) y
+  llamaban list_concepts()/add_concept() inexistentes. Agregado PersonalIndex.list_concepts();
+  CLI usa load(user_id, db)/add()/save(). Verificado E2E.
+- NO bug (limitacion por diseno): ~25 comandos dependen del desktop API :8765 (notas, logros,
+  analiticas, recomendar, sintetizar, mapa, digest, perfil-completo, calidad-respuestas, etc.) y
+  degradan con "Inicia cognia_desktop_api.py" cuando se corre standalone. Correcto: ese API solo
+  existe con la app Electron levantada. No se rewirea (riesgo de corrupcion; otra sesion trabaja
+  en paginas). Reportado como limitacion conocida, no defecto.
+- LLM local: llama_cpp no instalado en venv312 -> _try_load_llama() None; chat y reasoning
+  (/explicar, /razonar) caen a responder_articulado y responden coherente (lento ~40s/turno).
+- Gate final: suite completa 2897 passed, 1 skipped, 0 failed. 2 commits pusheados a origin.
