@@ -2928,3 +2928,20 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   para no corromper su trabajo. El detector de estancamiento corto bien el ciclo.
 - Memoria: [[cognia-llama-backend-setup]]. Fix de codigo relacionado ya commiteado
   (agente corta rapido sin backend, baa468d).
+
+## [2026-06-17] PUBLICADO cognia-ai 3.6.1 a PyPI (autorizado por el dueño)
+- Autorizacion explicita del dueño ("publicarlo en pipy"). Token desde .env (PYPI_TOKEN),
+  verificado gitignoreado y NO trackeado; cargado como env var en la MISMA linea del comando,
+  output redactado.
+- Build: venv312 `python -m build` (sdist+wheel ~2.3MB). twine check PASSED. Sin binarios
+  pesados colados (no GGUF/.exe/.dll/.npz en el wheel).
+- Incluye respecto a 3.6.0: agente escribe en CWD (no site-packages/agent_workspace), corte
+  rapido sin backend, learning standalone (sin :8765), persistencia de perfiles, /usuario,
+  /indice_personal, /indice_add. Suite 2900 passed.
+- Upload OK -> https://pypi.org/project/cognia-ai/3.6.1/
+- Verificacion REAL: `pip install --upgrade cognia-ai==3.6.1` en el pythoncore del dueño
+  (hubo lag de propagacion de PyPI ~1-2min; reintento con espera). Desde cwd neutral:
+  version=3.6.1, modulo desde site-packages, ambos fixes presentes, import cognia OK.
+  El upgrade reemplazo los 2 archivos que estaban parcheados a mano por la version oficial.
+- 3.6.1 NO trae el GGUF/binario -> el backend sigue por env vars LLAMA_GGUF_PATH/LLAMA_SERVER_PATH.
+  Memoria: [[cognia-llama-backend-setup]].
