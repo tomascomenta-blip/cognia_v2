@@ -28,9 +28,16 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Workspace raiz para escrituras/tests del agente. Variable de modulo para que
 # tests y deploys puedan redirigirlo sin tocar el environment global.
+#
+# Default = el directorio ACTUAL desde donde se lanzo Cognia (os.getcwd()): cuando
+# el usuario dice "crea esto en esta carpeta" espera el archivo en su CWD, no en
+# una carpeta oculta dentro del paquete instalado. Antes el default era
+# _REPO_ROOT/agent_workspace, que en un install PyPI cae DENTRO de site-packages
+# (invisible y contamina la instalacion). COGNIA_AGENT_WORKSPACE sigue forzando un
+# sandbox fijo cuando se necesita.
 AGENT_WORKSPACE_ROOT = (
     os.environ.get("COGNIA_AGENT_WORKSPACE")
-    or str(_REPO_ROOT / "agent_workspace")
+    or os.getcwd()
 )
 
 SEARCH_TIMEOUT_S = 15
