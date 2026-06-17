@@ -64,10 +64,11 @@ RECENCY_WINDOW_HOURS  = 48     # ventana para definir "explorado recientemente"
 MIN_CONTRADICTION_AGE = 2      # mínimo de días para considerar contradicción "crónica"
 
 
-def db_connect(path: str = CURIOSITY_DB_PATH) -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
-    conn.text_factory = str
-    return conn
+def db_connect(path: str = CURIOSITY_DB_PATH):
+    # Pooled (regla dura del repo: sin sqlite3.connect directo). db_pool fija
+    # text_factory=str; .close() devuelve la conexion al pool.
+    from storage.db_pool import db_connect_pooled
+    return db_connect_pooled(path)
 
 
 # ══════════════════════════════════════════════════════════════════════

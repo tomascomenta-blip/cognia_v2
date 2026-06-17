@@ -48,10 +48,11 @@ INTERVALO_SEGUNDOS = int(os.environ.get("COGNIA_CURIOSIDAD_INTERVALO", 1800))  #
 MAX_POR_DIA = int(os.environ.get("COGNIA_CURIOSIDAD_MAX_DIA", 10))
 
 
-def db_connect(path: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
-    conn.text_factory = str
-    return conn
+def db_connect(path: str):
+    # Pooled (regla dura del repo: sin sqlite3.connect directo). db_pool fija
+    # text_factory=str; .close() devuelve la conexion al pool.
+    from storage.db_pool import db_connect_pooled
+    return db_connect_pooled(path)
 
 
 # ── Selector de conceptos a investigar ───────────────────────────────

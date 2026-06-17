@@ -28,10 +28,11 @@ from typing import Optional, List, Dict, Tuple, Any
 COGNIA_DB = "cognia_memory.db"
 
 
-def db_connect(path: str = COGNIA_DB) -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
-    conn.text_factory = str
-    return conn
+def db_connect(path: str = COGNIA_DB):
+    # Pooled (regla dura del repo: sin sqlite3.connect directo). db_pool fija
+    # text_factory=str; .close() devuelve la conexion al pool.
+    from storage.db_pool import db_connect_pooled
+    return db_connect_pooled(path)
 
 
 # ══════════════════════════════════════════════════════════════════════

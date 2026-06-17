@@ -99,16 +99,19 @@ except ImportError:
     HAS_PROGRAM_CREATOR = False
 
 
-def db_connect(path: str = None) -> sqlite3.Connection:
+def db_connect(path: str = None):
     """
-    Wrapper para sqlite3.connect con configuración correcta para Windows.
-    Fuerza UTF-8 como text_factory para evitar corrupción de acentos.
+    Wrapper sobre storage/db_pool (regla dura del repo: sin sqlite3.connect directo).
+    db_pool fija text_factory=str (UTF-8 en todas las plataformas) + PRAGMAs; el
+    objeto devuelto duck-typea como sqlite3.Connection y su .close() lo devuelve al
+    pool en vez de cerrarlo. Se mantiene el default 'cognia_memory.db' (NO se delega
+    en get_pool(None)->config.DB_PATH) para preservar el comportamiento previo y la
+    firma publica (dataset_gen importa este db_connect).
     """
     if path is None:
         path = "cognia_memory.db"
-    conn = sqlite3.connect(path)
-    conn.text_factory = str  # Fuerza str (UTF-8) en todas las plataformas
-    return conn
+    from storage.db_pool import db_connect_pooled
+    return db_connect_pooled(path)
 
 
 # ── Dependencias opcionales ────────────────────────────────────────────
@@ -1891,8 +1894,9 @@ class InferenceEngine:
                     "confidence": conf,
                     "rule": f"IF {p_a} {pred_a} AND {p_b} {pred_b} THEN {conclusion}"
                 })
-                # Actualizar contador de uso
-                c2 = db_connect(self.db).cursor()
+                # (Antes habia aqui un `c2 = db_connect(self.db).cursor()` muerto:
+                #  abria una conexion sin usar ni cerrar -> con el pool drenaba las
+                #  conexiones. El UPDATE de "contador de uso" nunca se implemento.)
 
         return results
 

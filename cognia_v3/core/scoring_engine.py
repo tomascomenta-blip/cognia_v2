@@ -149,17 +149,17 @@ class ScoringEngine:
 
     def _init_tables(self):
         try:
-            conn = sqlite3.connect(self.db)
+            conn = self._connect()
             conn.executescript(_DDL)
             conn.commit()
             conn.close()
         except Exception as exc:
             log_db_error(logger, "scoring_engine._init_tables", exc)
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db)
-        conn.text_factory = str
-        return conn
+    def _connect(self):
+        # Pooled (regla dura del repo: sin sqlite3.connect directo).
+        from storage.db_pool import db_connect_pooled
+        return db_connect_pooled(self.db)
 
     # ── API pública: registrar eventos ────────────────────────────────
 

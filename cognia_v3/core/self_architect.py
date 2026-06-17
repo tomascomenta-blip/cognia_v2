@@ -86,10 +86,12 @@ FATIGUE_LEVELS = {
 }
 
 
-def db_connect(path: str = ARCH_DB_PATH) -> sqlite3.Connection:
-    conn = sqlite3.connect(path)
-    conn.text_factory = str
-    return conn
+def db_connect(path: str = ARCH_DB_PATH):
+    # Pooled (regla dura del repo: sin sqlite3.connect directo). db_pool ya fija
+    # text_factory=str + PRAGMAs; el objeto devuelto duck-typea como Connection y
+    # su .close() lo devuelve al pool — compatible con conn=...; commit; close.
+    from storage.db_pool import db_connect_pooled
+    return db_connect_pooled(path)
 
 
 # ══════════════════════════════════════════════════════════════════════
