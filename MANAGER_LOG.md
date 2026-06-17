@@ -3,6 +3,25 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 7c: self_architect.generate_module_code via orchestrator (sin Ollama)
+- generate_module_code dependia de Ollama (urllib localhost:11434 + modelo hardcodeado
+  'llama3.2') -> NO-OP con el backend real (Ollama no corre) -> siempre esqueleto. Re-cableado
+  a ShatteringOrchestrator.infer (llama.cpp). commit ba6998b.
+- Diseno: _resolve_orchestrator() usa orchestrator inyectado (nuevo ctor arg, testeable) o el
+  de la instancia Cognia (cognia/cognia.py:378 ya tiene self._orchestrator). Sin backend -> None
+  -> esqueleto (mismo contrato). NO construye orchestrator pesado por-llamada. infer(sys+prompt,
+  max_tokens=CODEGEN_MAX_TOKENS=1200, temperature=0.3) -> result.text -> strip fences -> persist.
+  Return: ollama_used -> backend_used + sub_model. Quitado el seed 'llm_model'='llama3.2'
+  (vestigial, no lo leia nadie). sandbox_tester (185b73b) sigue cubriendo test_proposal.
+- Verificacion: test_self_architect_codegen.py (5) + test_sandbox_tester.py (4) = 9 passed
+  (orchestrator inyectado + budget 1200/temp0.3 threaded, strip fences, resuelve desde
+  cognia_instance, esqueleto sin-backend y con-infer-vacio). E2E REAL: en venv312
+  _try_load_llama() SI carga llama.cpp in-process (mode=llama.cpp) -> generate_module_code con
+  backend real produjo codigo Python (clase RateLimiter) en 32s, status=code_generated,
+  backend_used=True. (Nota: el note viejo "llama-cpp-python no instalado" quedo desactualizado:
+  el backend in-process carga OK aqui.) Calidad acotada por el 3B (como 7a); maquinaria verificada.
+- Suite completa (gate antes del push): 2867 passed, 1 skipped, 0 failed (1132s, venv312).
+
 ## [2026-06-16] CYCLE — FASE 0b COMPLETA: migracion cognia_v3 a storage/db_pool (16 modulos)
 - Re-aterrizaje + mapa: workflow de 16 agentes (1/modulo) mapeo twin/divergencia,
   importadores prod-vs-test, cobertura real y patron de conexion de TODOS los modulos con
