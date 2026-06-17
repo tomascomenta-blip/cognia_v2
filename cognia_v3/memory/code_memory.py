@@ -142,17 +142,18 @@ class CodeMemory:
     def _init_tables(self):
         """Crea las tablas si no existen."""
         try:
-            conn = sqlite3.connect(self.db)
+            conn = self._connect()
             conn.executescript(_DDL)
             conn.commit()
             conn.close()
         except Exception as exc:
             log_db_error(logger, "code_memory._init_tables", exc)
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db)
-        conn.text_factory = str
-        return conn
+    def _connect(self):
+        # Pooled connection (regla dura del repo: sin sqlite3.connect directo).
+        # db_pool ya fija text_factory=str + PRAGMAs; .close() devuelve al pool.
+        from storage.db_pool import db_connect_pooled
+        return db_connect_pooled(self.db)
 
     # ── API pública: guardar ───────────────────────────────────────────
 

@@ -16,6 +16,7 @@ from collections import OrderedDict
 from typing import Optional, List, Dict
 
 from cognia_v3.core.logger_config import get_logger, log_db_error, log_slow, safe_execute
+from storage.db_pool import db_connect_pooled
 
 logger = get_logger(__name__)
 
@@ -183,7 +184,8 @@ class ResponseCache:
         with self._lock:
             best_sim   = 0.0
             best_entry = None
-            for entry in self._ram.values():
+            best_key   = None
+            for key, entry in self._ram.items():
                 if entry.is_expired():
                     continue
                 try:
@@ -198,8 +200,12 @@ class ResponseCache:
                 if sim > best_sim and sim >= CACHE_SIMILARITY:
                     best_sim   = sim
                     best_entry = entry
-            if best_entry:
-                self._ram.move_to_end(id(best_entry).__str__())
+                    best_key   = key
+            # LRU touch: move_to_end must use the REAL dict key
+            # (f"{timestamp}_{id}", set in _add_to_ram), not id(entry) — the
+            # old code passed id(entry).__str__() and raised KeyError on every hit.
+            if best_key is not None:
+                self._ram.move_to_end(best_key)
             return best_entry
 
     def _add_to_ram(self, entry: CacheEntry):
@@ -216,7 +222,7 @@ class ResponseCache:
 
     def _init_db(self):
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS response_cache (
                     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -244,7 +250,7 @@ class ResponseCache:
     def _search_db(self, vector: List[float]) -> Optional[CacheEntry]:
         t0 = time.perf_counter()
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             conn.text_factory = str
             now  = time.time()
             rows = conn.execute("""
@@ -291,7 +297,7 @@ class ResponseCache:
 
     def _persist_to_db(self, entry: CacheEntry):
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             conn.execute("""
                 INSERT INTO response_cache
                 (question, response, vector, concept, confidence,
@@ -312,9 +318,11 @@ class ResponseCache:
 
     def _db_delete_concept(self, concept: str) -> int:
         try:
-            conn = sqlite3.connect(self._db_path)
-            conn.execute("DELETE FROM response_cache WHERE concept=?", (concept,))
-            n = conn.total_changes
+            conn = db_connect_pooled(self._db_path)
+            # cursor.rowcount (per-statement), NOT conn.total_changes — the latter
+            # is cumulative on a pooled/reused connection and would inflate the count.
+            cur = conn.execute("DELETE FROM response_cache WHERE concept=?", (concept,))
+            n = cur.rowcount
             conn.commit()
             conn.close()
             return n
@@ -325,12 +333,13 @@ class ResponseCache:
 
     def _db_clear_expired(self) -> int:
         try:
-            conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn = db_connect_pooled(self._db_path)
+            # cursor.rowcount, NOT conn.total_changes (cumulative on pooled conn).
+            cur = conn.execute(
                 "DELETE FROM response_cache WHERE (? - timestamp) >= ttl",
                 (time.time(),)
             )
-            n = conn.total_changes
+            n = cur.rowcount
             conn.commit()
             conn.close()
             return n
