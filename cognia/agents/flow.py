@@ -154,8 +154,28 @@ def run_flow(ai, goal: str, effort_params: dict, print_fn=print) -> str:
         "subtasks": None, "results": None, "report": "", "score": None,
     }
     ctx = _stage_analisis(ctx)          # siempre primero: decide la ruta
+
+    # FASE 6: persistir el estado del flujo (nivel "proyectos" de la taxonomia O2) para
+    # retomar entre sesiones. Best-effort: solo si la instancia tiene un db real (los fakes
+    # de test sin .db no abren pool ni tocan disco); nunca rompe el flujo.
+    pm = flow_id = None
+    _db = getattr(ai, "db", None)
+    if _db:
+        try:
+            from cognia.memory.project_memory import get_project_memory
+            pm = get_project_memory(_db)
+            flow_id = pm.start_flow(ctx["goal"], ["analisis"] + ctx["route"])
+            pm.mark_stage(flow_id, "analisis")
+        except Exception:
+            pm = flow_id = None
+
     for stage in ctx["route"]:
         ctx = STAGES[stage](ctx)
+        if pm and flow_id:
+            try:
+                pm.mark_stage(flow_id, stage)
+            except Exception:
+                pass
 
     report = (ctx.get("report") or "").strip() or "(el flujo no produjo informe)"
     meta = f"[flujo: complejidad={ctx.get('complexity')} ({ctx.get('budget')}); " \
@@ -163,4 +183,9 @@ def run_flow(ai, goal: str, effort_params: dict, print_fn=print) -> str:
     if ctx.get("score") is not None:
         meta += f"; score={ctx['score']}"
     meta += "]"
+    if pm and flow_id:
+        try:
+            pm.finish_flow(flow_id, report, ctx.get("score"), status="done")
+        except Exception:
+            pass
     return f"{report}\n\n{meta}"

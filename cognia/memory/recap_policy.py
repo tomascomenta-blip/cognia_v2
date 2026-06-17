@@ -22,7 +22,8 @@ MEMORY_LEVELS = {
     "inmediata": "context/band_router.py banda LOCAL (fast-path de la respuesta actual)",
     "sesion":    "cli.py _history + memory/conversation_memory.py (buffer de turnos)",
     "trabajo":   "goals/goal_tracker.py (objetivos/tareas activos)",
-    "proyectos": "agents/task_queue.py agent_tasks (estado persistente de tareas) [parcial]",
+    "proyectos": "memory/project_memory.py project_flows (estado persistente de flujos /flujo, "
+                 "retomable entre sesiones) + agents/task_queue.py agent_tasks (tareas)",
     "historica": "memory/episodic.py + memory/semantic.py + knowledge_graph (KG)",
 }
 

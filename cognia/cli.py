@@ -251,15 +251,22 @@ def _build_stream_messages(ai, raw: str, system: str, hist_ctx: list) -> list:
     mensaje queda exactamente como antes (cero overhead).
     """
     user_content = raw
+    _blocks = []
+    # FASE 6 (O3): en conversaciones largas, anclar el contexto con la recap extractiva
+    # auto-mantenida (sin LLM, _persist_turn la refresca cuando dispara should_recap) en
+    # vez de reenviar todo el historial. Va en el MISMO slot que el bloque de memoria (el
+    # ULTIMO mensaje user) para no invalidar el prefijo KV cacheado del server. "" => no se
+    # inyecta (cero overhead en conversaciones cortas). Independiente de que mem_block falle.
+    if _session_recap:
+        _blocks.append("Recapitulacion de la conversacion (resumen):\n" + _session_recap)
     try:
         mem_block = _build_memory_block_for(ai, raw)
         if mem_block:
-            user_content = (
-                "Contexto de memoria (puede ser relevante o no):\n"
-                + mem_block + "\n\nPregunta: " + raw
-            )
+            _blocks.append("Contexto de memoria (puede ser relevante o no):\n" + mem_block)
     except Exception:
-        user_content = raw
+        pass
+    if _blocks:
+        user_content = "\n\n".join(_blocks) + "\n\nPregunta: " + raw
     messages = [{"role": "system", "content": system}]
     messages.extend(hist_ctx)
     messages.append({"role": "user", "content": user_content})
@@ -353,6 +360,7 @@ _CMD_DESCRIPTIONS = {
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
     "/flujo":           "Orquestador de flujo: analisis->plan->ejecucion->informe->verificacion <objetivo>",
+    "/proyectos":       "Estado persistente de flujos /flujo (retomar entre sesiones)",
     "/recap":           "Recapitulacion extractiva de la sesion (auto cada N turnos, sin LLM)",
     "/esfuerzo":        "Nivel de esfuerzo del razonamiento (bajo|medio|alto|maximo)",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
@@ -5814,6 +5822,28 @@ def repl():
                     _persist_turn(ai, raw, _report)
                 except Exception as _fe:
                     _print_line(f"[err_cl]Error en flujo: {_fe}[/err_cl]")
+
+        # -- Proyectos: estado persistente de flujos /flujo (FASE 6, nivel O2) ----
+        elif raw == "/proyectos" or raw.startswith("/proyectos"):
+            try:
+                from cognia.memory.project_memory import get_project_memory
+                _pm = get_project_memory(getattr(ai, "db", None) or "cognia_memory.db")
+                _flows = _pm.recent(8)
+                if not _flows:
+                    _print_line("[detail]Sin flujos registrados todavia (usa /flujo <objetivo>).[/detail]")
+                else:
+                    _print_line("[bold]Proyectos / flujos recientes:[/bold]")
+                    for _f in _flows:
+                        _done, _tot = len(_f["stages_done"]), len(_f["route"])
+                        _sc = f" score={_f['score']}" if _f.get("score") is not None else ""
+                        _print_line(f"  #{_f['id']} [{_f['status']}] {_f['goal'][:60]} "
+                                    f"({_done}/{_tot} etapas{_sc})")
+                    _pend = _pm.latest_unfinished()
+                    if _pend:
+                        _print_line(f"[detail]Sin terminar: #{_pend['id']} -- retomar con "
+                                    f"/flujo {_pend['goal'][:60]}[/detail]")
+            except Exception as _pe:
+                _print_line(f"[err_cl]Error leyendo proyectos: {_pe}[/err_cl]")
 
         # -- Agent history --------------------------------------------------
         elif raw == "/historial":
