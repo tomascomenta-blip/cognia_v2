@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import cognia.cli as cli
 from cognia.cli import (
     _slash_camino_avanzar,
     _slash_camino_nuevo,
@@ -41,12 +42,14 @@ def test_camino_nuevo_whitespace_only_requires_args():
 
 
 # ---------------------------------------------------------------------------
-# 2. /caminos handles connection error gracefully
+# 2. /caminos works locally with no active paths (no :8765 dependency)
 # ---------------------------------------------------------------------------
-def test_caminos_handles_connection_error():
-    with patch("requests.get", side_effect=Exception("refused")):
-        out = _capture(_slash_caminos, "")
-    assert "no disponible" in out.lower()
+def test_caminos_empty_no_http(tmp_path, monkeypatch):
+    from cognia.learning.learning_path import LearningPathGenerator
+    db = str(tmp_path / "lp.db")
+    monkeypatch.setattr(cli, "_lpath_gen", lambda: LearningPathGenerator(db_path=db))
+    out = _capture(_slash_caminos, "")
+    assert "no disponible" not in out.lower()
 
 
 # ---------------------------------------------------------------------------

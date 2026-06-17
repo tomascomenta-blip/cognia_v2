@@ -432,6 +432,7 @@ class UserProfileManager:
                 ON CONFLICT(key) DO UPDATE SET value=excluded.value,
                                                updated_at=excluded.updated_at
             """, (key, value, now))
+            conn.commit()  # _PooledConnection.close() libera con commit=False
             conn.close()
 
             with self._lock:
@@ -456,6 +457,7 @@ class UserProfileManager:
             from storage.db_pool import db_connect_pooled
             conn = db_connect_pooled(self.db)
             conn.execute("DELETE FROM user_profile WHERE key=?", (key,))
+            conn.commit()  # _PooledConnection.close() libera con commit=False
             conn.close()
             with self._lock:
                 self._cache.pop(user_id, None)

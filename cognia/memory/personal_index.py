@@ -156,6 +156,7 @@ class PersonalIndex:
             conn.execute("""INSERT INTO user_profile (key, value, updated_at) VALUES (?, ?, ?)
                 ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
             """, (key, value, now))
+            conn.commit()  # _PooledConnection.close() libera con commit=False
             conn.close()
             return True
         except Exception as exc:

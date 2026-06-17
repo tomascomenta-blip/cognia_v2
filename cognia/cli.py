@@ -4082,19 +4082,46 @@ def _slash_nota_fijar(args: str) -> None:
         print("Servicio de notas no disponible.")
 
 
+def _learning_db() -> str:
+    """One shared local DB for the learning subsystem (SR cards, quiz results,
+    learning paths). The :8765 desktop API only exists when Electron is running;
+    the standalone CLI talks to the same engines directly so the learning
+    commands work without any service. Mirrors cognia_desktop_api's single-DB
+    layout so quiz can read SR cards written by /aprender.
+    """
+    from cognia.first_run import DATA_DIR
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return str(DATA_DIR / "learning.db")
+
+
+def _sr_engine():
+    from cognia.learning.spaced_repetition import SpacedRepetitionEngine
+    return SpacedRepetitionEngine(db_path=_learning_db())
+
+
+def _quiz_gen():
+    from cognia.learning.quiz_generator import QuizGenerator
+    try:
+        from cognia.config import DB_PATH as _kg_db
+    except Exception:
+        _kg_db = None
+    return QuizGenerator(db_path=_learning_db(), kg_db_path=_kg_db)
+
+
+def _lpath_gen():
+    from cognia.learning.learning_path import LearningPathGenerator
+    return LearningPathGenerator(db_path=_learning_db())
+
+
 def _slash_revisar_sm2() -> None:
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/learning/due", timeout=2)
-        if resp.status_code != 200:
-            print(f"Error: {resp.status_code}")
-            return
-        cards = resp.json().get("cards", resp.json() if isinstance(resp.json(), list) else [])
+        eng = _sr_engine()
+        cards = eng.get_due_cards(limit=5)
         if not cards:
             print("No hay tarjetas para revisar hoy. Buen trabajo!")
             return
         print(f"{len(cards)} tarjeta(s) para revisar.")
-        for card in cards[:5]:
+        for card in cards:
             print(f"\n[{card.get('topic','?')}] {card.get('front','')}")
             input("  Presiona Enter para ver la respuesta...")
             print(f"  -> {card.get('back','')}")
@@ -4103,14 +4130,11 @@ def _slash_revisar_sm2() -> None:
                 quality = max(0, min(5, int(rating)))
             except ValueError:
                 quality = 3
-            r2 = requests.post(f"http://localhost:8765/learning/cards/{card['id']}/review",
-                               json={"quality": quality}, timeout=2)
-            if r2.status_code == 200:
-                updated = r2.json()
-                days = round(updated.get("interval_days", 1), 1)
-                print(f"  Proxima revision en {days} dia(s).")
+            updated = eng.review_card(card["id"], quality)
+            days = round(updated.get("interval_days", 1), 1)
+            print(f"  Proxima revision en {days} dia(s).")
     except Exception as e:
-        print(f"Servicio de aprendizaje no disponible. {e}")
+        print(f"No se pudo revisar: {e}")
 
 
 def _slash_aprender_card(args: str) -> None:
@@ -4118,40 +4142,28 @@ def _slash_aprender_card(args: str) -> None:
     if len(parts) < 2:
         print("Uso: /aprender <frente> | <respuesta> [| <tema>]")
         return
-    payload = {"front": parts[0], "back": parts[1]}
-    if len(parts) >= 3 and parts[2]:
-        payload["topic"] = parts[2]
+    topic = parts[2] if len(parts) >= 3 and parts[2] else "general"
     try:
-        import requests
-        resp = requests.post("http://localhost:8765/learning/cards", json=payload, timeout=2)
-        if resp.status_code in (200, 201):
-            card_id = resp.json().get("id", "?")
-            print(f"Tarjeta guardada (id: {card_id}).")
-        else:
-            print(f"Error: {resp.status_code}")
+        card_id = _sr_engine().add_card(parts[0], parts[1], topic)
+        print(f"Tarjeta guardada (id: {card_id}).")
     except Exception as e:
-        print(f"Servicio de aprendizaje no disponible. {e}")
+        print(f"No se pudo guardar la tarjeta: {e}")
 
 
 def _slash_aprendiendo() -> None:
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/learning/stats", timeout=2)
-        if resp.status_code == 200:
-            s = resp.json()
-            topics = s.get("topics", [])
-            topics_str = ", ".join(topics) if topics else "-"
-            print(
-                f"Aprendizaje:\n"
-                f"  Total tarjetas : {s.get('total', 0)}\n"
-                f"  Para revisar   : {s.get('due', 0)}\n"
-                f"  Dominadas      : {s.get('mastered', 0)}\n"
-                f"  Temas          : {topics_str}"
-            )
-        else:
-            print(f"Error: {resp.status_code}")
+        s = _sr_engine().get_stats()
+        topics = s.get("topics", [])
+        topics_str = ", ".join(topics) if topics else "-"
+        print(
+            f"Aprendizaje:\n"
+            f"  Total tarjetas : {s.get('total', 0)}\n"
+            f"  Para revisar   : {s.get('due_today', 0)}\n"
+            f"  Dominadas      : {s.get('mastered', 0)}\n"
+            f"  Temas          : {topics_str}"
+        )
     except Exception as e:
-        print(f"Servicio de aprendizaje no disponible. {e}")
+        print(f"No se pudieron leer las estadisticas: {e}")
 
 
 def _slash_aprendiendo_buscar(args: str) -> None:
@@ -4160,26 +4172,14 @@ def _slash_aprendiendo_buscar(args: str) -> None:
         return
     query = args.strip().lower()
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/learning/cards", params={"q": query}, timeout=2)
-        if resp.status_code != 200:
-            print(f"Error: {resp.status_code}")
-            return
-        data = resp.json()
-        cards = data.get("cards", data if isinstance(data, list) else [])
-        matches = [
-            c for c in cards
-            if query in c.get("front", "").lower()
-            or query in c.get("back", "").lower()
-            or query in c.get("topic", "").lower()
-        ]
+        matches = _sr_engine().search_cards(query)
         if not matches:
             print("Sin resultados.")
             return
         for c in matches[:20]:
             print(f"[{c.get('topic','?')}] {c.get('front','')} -> {c.get('back','')[:60]}")
     except Exception as e:
-        print(f"Servicio de aprendizaje no disponible. {e}")
+        print(f"No se pudo buscar: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -4411,17 +4411,9 @@ def _slash_conocimiento_ver(args: str) -> None:
 
 def _slash_quiz(args: str) -> None:
     try:
-        import requests
         topic = args.strip() if args.strip() else None
-        url = "http://localhost:8765/quiz/generate?limit=5"
-        if topic:
-            import urllib.parse
-            url += f"&topic={urllib.parse.quote(topic)}"
-        resp = requests.get(url, timeout=5)
-        if resp.status_code != 200:
-            print(f"Error: {resp.status_code}")
-            return
-        questions = resp.json().get("questions", [])
+        gen = _quiz_gen()
+        questions = gen.generate_mixed(topic=topic, limit=5)
         if not questions:
             print("No hay preguntas disponibles. Agrega hechos con /kg-agregar o tarjetas con /aprender.")
             return
@@ -4431,9 +4423,9 @@ def _slash_quiz(args: str) -> None:
             print(f"\n{i}/{len(questions)}: {q.get('question','')}")
             user_ans = input("  Tu respuesta: ").strip()
             expected = q.get("answer", "")
-            r = requests.post("http://localhost:8765/quiz/answer", timeout=3,
-                json={"question": q["question"], "answer": expected, "user_answer": user_ans, "source": q.get("source","quiz")})
-            is_correct = r.json().get("correct", False) if r.status_code == 200 else (user_ans.lower() == expected.lower())
+            is_correct = gen.record_answer(
+                q.get("question", ""), expected, user_ans, source=q.get("source", "quiz")
+            )
             if is_correct:
                 correct += 1
                 print(f"  Correcto!")
@@ -4441,29 +4433,24 @@ def _slash_quiz(args: str) -> None:
                 print(f"  Incorrecto. Respuesta: {expected}")
         print(f"\nResultado: {correct}/{len(questions)} ({round(correct/len(questions)*100)}%)")
     except Exception as e:
-        print(f"Servicio de quiz no disponible. {e}")
+        print(f"No se pudo generar el quiz: {e}")
 
 
 def _slash_quiz_stats(args: str) -> None:
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/quiz/stats", timeout=3)
-        if resp.status_code == 200:
-            s = resp.json()
-            acc = round(s.get("accuracy", 0)*100, 1)
-            print(f"Estadisticas de quiz:")
-            print(f"  Intentos totales : {s.get('total_attempts', 0)}")
-            print(f"  Correctas        : {s.get('correct', 0)}")
-            print(f"  Precision        : {acc}%")
-            by_source = s.get("by_source", {})
-            for src, data in by_source.items():
-                if data.get("total", 0) > 0:
-                    src_acc = round(data.get("correct",0)/data["total"]*100, 1)
-                    print(f"  [{src}]: {data.get('correct',0)}/{data['total']} ({src_acc}%)")
-        else:
-            print(f"Error: {resp.status_code}")
-    except Exception:
-        print("Servicio de quiz no disponible.")
+        s = _quiz_gen().get_stats()
+        acc = round(s.get("accuracy", 0)*100, 1)
+        print(f"Estadisticas de quiz:")
+        print(f"  Intentos totales : {s.get('total_attempts', 0)}")
+        print(f"  Correctas        : {s.get('correct', 0)}")
+        print(f"  Precision        : {acc}%")
+        by_source = s.get("by_source", {})
+        for src, data in by_source.items():
+            if data.get("total", 0) > 0:
+                src_acc = round(data.get("correct",0)/data["total"]*100, 1)
+                print(f"  [{src}]: {data.get('correct',0)}/{data['total']} ({src_acc}%)")
+    except Exception as e:
+        print(f"No se pudieron leer las estadisticas: {e}")
 
 
 def _slash_exportar_todo(args: str) -> None:
@@ -4517,45 +4504,34 @@ def _slash_camino_nuevo(args: str) -> None:
         print("Uso: /camino-nuevo <objetivo de aprendizaje>")
         return
     try:
-        import requests
-        resp = requests.post("http://localhost:8765/learning/paths",
-                           json={"goal": args.strip()}, timeout=5)
-        if resp.status_code in (200, 201):
-            path = resp.json()
-            steps = path.get("steps", [])
-            print(f"Camino creado (id: {path.get('id','?')}) para: {path.get('goal','')}")
-            print(f"Pasos ({len(steps)}):")
-            for s in steps:
-                status = "[X]" if s.get("completed") else "[ ]"
-                print(f"  {status} {s.get('number','?')}. {s.get('title','')}")
-        else:
-            print(f"Error: {resp.status_code}")
-    except Exception:
-        print("Servicio de caminos de aprendizaje no disponible.")
+        path = _lpath_gen().generate(args.strip())
+        steps = path.get("steps", [])
+        print(f"Camino creado (id: {path.get('id','?')}) para: {path.get('goal','')}")
+        print(f"Pasos ({len(steps)}):")
+        for s in steps:
+            status = "[X]" if s.get("completed") else "[ ]"
+            print(f"  {status} {s.get('number','?')}. {s.get('title','')}")
+    except Exception as e:
+        print(f"No se pudo crear el camino: {e}")
 
 
 def _slash_caminos(args: str) -> None:
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/learning/paths", timeout=3)
-        if resp.status_code == 200:
-            paths = resp.json() if isinstance(resp.json(), list) else resp.json().get("paths", [])
-            if not paths:
-                print("No hay caminos de aprendizaje activos. Usa /camino-nuevo <objetivo>.")
-                return
-            print(f"Caminos activos ({len(paths)}):")
-            for p in paths:
-                steps = p.get("steps", [])
-                current = p.get("current_step", 0)
-                total = len(steps)
-                pct = round(current/total*100) if total > 0 else 0
-                bar = "#" * (pct // 10) + "." * (10 - pct // 10)
-                print(f"  [id:{p.get('id','?')}] {p.get('goal','?')}")
-                print(f"    [{bar}] {pct}% (paso {current}/{total})")
-        else:
-            print(f"Error: {resp.status_code}")
-    except Exception:
-        print("Servicio no disponible.")
+        paths = _lpath_gen().get_active_paths()
+        if not paths:
+            print("No hay caminos de aprendizaje activos. Usa /camino-nuevo <objetivo>.")
+            return
+        print(f"Caminos activos ({len(paths)}):")
+        for p in paths:
+            steps = p.get("steps", [])
+            current = p.get("current_step", 0)
+            total = len(steps)
+            pct = round(current/total*100) if total > 0 else 0
+            bar = "#" * (pct // 10) + "." * (10 - pct // 10)
+            print(f"  [id:{p.get('id','?')}] {p.get('goal','?')}")
+            print(f"    [{bar}] {pct}% (paso {current}/{total})")
+    except Exception as e:
+        print(f"No se pudieron leer los caminos: {e}")
 
 
 def _slash_camino_avanzar(args: str) -> None:
@@ -4563,25 +4539,19 @@ def _slash_camino_avanzar(args: str) -> None:
         print("Uso: /camino-avanzar <id>")
         return
     try:
-        import requests
-        path_id = int(args.strip())
-        resp = requests.post(f"http://localhost:8765/learning/paths/{path_id}/advance", timeout=3)
-        if resp.status_code == 200:
-            p = resp.json()
-            steps = p.get("steps", [])
-            current = p.get("current_step", 0)
-            if p.get("completed"):
-                print(f"Camino completado! Felicitaciones.")
-            else:
-                next_step = steps[current] if current < len(steps) else None
-                if next_step:
-                    print(f"Paso completado. Proximo paso: {next_step.get('title','')}")
-                else:
-                    print(f"Avanzado. Paso actual: {current}/{len(steps)}")
+        p = _lpath_gen().advance_step(int(args.strip()))
+        steps = p.get("steps", [])
+        current = p.get("current_step", 0)
+        if p.get("completed"):
+            print(f"Camino completado! Felicitaciones.")
         else:
-            print(f"Error: {resp.status_code}")
-    except Exception:
-        print("Servicio no disponible.")
+            next_step = steps[current] if current < len(steps) else None
+            if next_step:
+                print(f"Paso completado. Proximo paso: {next_step.get('title','')}")
+            else:
+                print(f"Avanzado. Paso actual: {current}/{len(steps)}")
+    except Exception as e:
+        print(f"No se pudo avanzar: {e}")
 
 
 def _slash_etiquetar(args: str) -> None:
@@ -5305,13 +5275,15 @@ def repl():
         # -- User profiles --------------------------------------------------
         elif raw == "/usuarios":
             try:
-                from cognia.user_profile import list_users
-                users = list_users(ai.db)
+                from cognia.user_profile import get_profile_manager
+                mgr = getattr(ai, "_profile_manager", None) or get_profile_manager(ai.db)
+                users = mgr.list_users()
                 if users:
+                    current = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
                     _show_response(
                         "\n".join(
-                            f"[{u['id']}] {u['name']}  (interacciones: {u.get('interactions', 0)})"
-                            for u in users
+                            f"- {uid}" + ("  (actual)" if uid == current else "")
+                            for uid in users
                         ),
                         "cyan",
                     )
@@ -5322,8 +5294,18 @@ def repl():
         elif raw.startswith("/usuario "):
             uid = raw[len("/usuario "):].strip()
             try:
-                from cognia.user_profile import switch_user
-                _run(raw, lambda: switch_user(ai, uid), color="cyan")
+                from cognia.user_profile import get_profile_manager
+                mgr = getattr(ai, "_profile_manager", None) or get_profile_manager(ai.db)
+                profile = mgr.load(uid)
+                mgr.save(profile)  # persist so el usuario aparece en /usuarios
+                ai.cognitive_profile = profile
+                _show_response(
+                    f"Usuario activo: {uid}\n"
+                    f"  Estilo        : {getattr(profile, 'response_style', '?')}\n"
+                    f"  Idioma        : {getattr(profile, 'preferred_language', '?')}\n"
+                    f"  Interacciones : {getattr(profile, 'total_interactions', 0)}",
+                    "cyan",
+                )
             except Exception as e:
                 _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
         elif raw == "/estilo_info":
