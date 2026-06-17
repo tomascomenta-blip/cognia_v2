@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from cognia_v3.core.logger_config import get_logger, log_db_error
+from storage.db_pool import db_connect_pooled
 
 logger = get_logger(__name__)
 
@@ -197,7 +198,7 @@ _INIT_SQL = [
 def _init_schema(db_path: str) -> None:
     """Aplica migraciones aditivas. Se puede llamar múltiples veces sin riesgo."""
     try:
-        conn = sqlite3.connect(db_path)
+        conn = db_connect_pooled(db_path)
         for sql in _INIT_SQL:
             try:
                 conn.execute(sql)
@@ -347,7 +348,7 @@ class FeedbackEngine:
         new_ws    = []
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = db_connect_pooled(self.db_path)
             conn.text_factory = str
 
             for ep_id in ep_ids:
@@ -404,7 +405,7 @@ class FeedbackEngine:
         affected   = 0
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = db_connect_pooled(self.db_path)
             conn.text_factory = str
 
             for concept in concepts:
@@ -450,7 +451,7 @@ class FeedbackEngine:
         concepts:    List[str],
     ) -> None:
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = db_connect_pooled(self.db_path)
             conn.execute(
                 """INSERT INTO feedback_log
                    (response_id, feedback, stage_used, confidence,
@@ -500,7 +501,7 @@ class FeedbackEngine:
 
             # Establecer peso alto desde el inicio para que aparezca primero
             try:
-                conn = sqlite3.connect(self.db_path)
+                conn = db_connect_pooled(self.db_path)
                 conn.execute(
                     "UPDATE episodic_memory SET feedback_weight=? WHERE id=?",
                     (1.5, ep_id),
@@ -539,7 +540,7 @@ class FeedbackEngine:
             return False
 
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = db_connect_pooled(self.db_path)
             rows = conn.execute(
                 """SELECT feedback FROM feedback_log
                    WHERE stage_used IN ('symbolic','symbolic_synthesized','symbolic_forced')
@@ -610,7 +611,7 @@ class FeedbackEngine:
         t0 = time.perf_counter()
         updated = 0
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = db_connect_pooled(self.db_path)
             rows = conn.execute(
                 """SELECT id, feedback_weight FROM episodic_memory
                    WHERE feedback_weight != 1.0 AND forgotten = 0"""
@@ -650,7 +651,7 @@ class FeedbackEngine:
     def stats(self) -> Dict:
         """Resumen del estado de feedback para diagnóstico."""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = db_connect_pooled(self.db_path)
             total_fb = conn.execute("SELECT COUNT(*) FROM feedback_log").fetchone()[0]
             pos_fb   = conn.execute(
                 "SELECT COUNT(*) FROM feedback_log WHERE feedback=1"

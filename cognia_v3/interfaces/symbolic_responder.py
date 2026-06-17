@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any
 
 from cognia_v3.core.logger_config import get_logger as _get_sr_logger
+from storage.db_pool import db_connect_pooled
 
 # ── PASO 4: Sintetizador multi-fuente ────────────────────────────────
 try:
@@ -442,7 +443,7 @@ class SymbolicResponder:
         # ── Paso 1: coincidencia exacta en semantic_memory ────────────
         try:
             import sqlite3
-            conn = sqlite3.connect(ai.db)
+            conn = db_connect_pooled(ai.db)
             conn.text_factory = str
             # Ordenar por soporte descendente para preferir conceptos bien aprendidos
             all_concepts = conn.execute(
@@ -502,7 +503,7 @@ class SymbolicResponder:
         """Busca descripción en semantic_memory."""
         try:
             import sqlite3
-            conn = sqlite3.connect(ai.db)
+            conn = db_connect_pooled(ai.db)
             conn.text_factory = str
             row = conn.execute(
                 "SELECT description FROM semantic_memory WHERE concept=?",
@@ -685,7 +686,7 @@ class SymbolicResponder:
         """
         try:
             import sqlite3
-            conn = sqlite3.connect(ai.db)
+            conn = db_connect_pooled(ai.db)
             conn.text_factory = str
             row = conn.execute(
                 "SELECT confidence, support FROM semantic_memory WHERE concept=?",

@@ -32,6 +32,7 @@ Diseño:
 import math
 import time
 import sqlite3
+from storage.db_pool import db_connect_pooled
 import threading
 from typing import List, Dict, Optional
 
@@ -184,7 +185,7 @@ class ModelCollapseGuard:
         Si numpy no está disponible usa implementación pura en Python.
         """
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             rows = conn.execute("""
                 SELECT vector FROM episodic_memory
                 WHERE forgotten = 0 AND vector IS NOT NULL
@@ -219,7 +220,7 @@ class ModelCollapseGuard:
 
     def _top_labels(self, limit: int = 5) -> List[Dict]:
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             rows = conn.execute("""
                 SELECT correct_label, COUNT(*) as cnt
                 FROM teacher_corrections
@@ -243,7 +244,7 @@ class ModelCollapseGuard:
     def _recent_events(self, hours: int = 24) -> List[Dict]:
         cutoff = time.time() - hours * 3600
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             rows = conn.execute("""
                 SELECT event_type, label, score, timestamp
                 FROM collapse_events
@@ -258,7 +259,7 @@ class ModelCollapseGuard:
 
     def _log_event(self, event_type: str, label: str, score: float):
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             conn.execute("""
                 INSERT INTO collapse_events (event_type, label, score, timestamp)
                 VALUES (?,?,?,?)
@@ -270,7 +271,7 @@ class ModelCollapseGuard:
 
     def _init_db(self):
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS collapse_events (
                     id         INTEGER PRIMARY KEY AUTOINCREMENT,

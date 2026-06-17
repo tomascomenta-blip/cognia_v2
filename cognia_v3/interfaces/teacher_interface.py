@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Optional, List, Dict
 
 from cognia_v3.core.logger_config import get_logger, log_db_error, safe_execute
+from storage.db_pool import db_connect_pooled
 
 logger = get_logger(__name__)
 
@@ -252,7 +253,7 @@ class TeacherInterface:
 
     def _boost_last_episode(self, label: str):
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             conn.execute("""
                 UPDATE episodic_memory
                 SET confidence = MIN(1.0, confidence + 0.25),
@@ -285,7 +286,7 @@ class TeacherInterface:
 
     def _recent_corrections(self, limit: int = 20) -> List[Dict]:
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             rows = conn.execute("""
                 SELECT observation, wrong_label, correct_label, source,
                        timestamp, accepted, rejection_reason
@@ -309,7 +310,7 @@ class TeacherInterface:
 
     def _persist(self, record: CorrectionRecord):
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             conn.execute("""
                 INSERT INTO teacher_corrections
                 (observation, wrong_label, correct_label, source,
@@ -329,7 +330,7 @@ class TeacherInterface:
 
     def _db_count(self, where: str) -> int:
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             n = conn.execute(
                 f"SELECT COUNT(*) FROM teacher_corrections WHERE {where}"
             ).fetchone()[0]
@@ -342,7 +343,7 @@ class TeacherInterface:
 
     def _init_db(self):
         try:
-            conn = sqlite3.connect(self._db_path)
+            conn = db_connect_pooled(self._db_path)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS teacher_corrections (
                     id               INTEGER PRIMARY KEY AUTOINCREMENT,

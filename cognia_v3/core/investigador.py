@@ -247,7 +247,7 @@ def guardar_en_cognia(ai, titulo, extracto, hechos, pregunta_original):
 
     try:
         from cognia_v3.core.cognia_v3 import text_to_vector, analyze_emotion
-        import sqlite3
+        from storage.db_pool import db_connect_pooled
 
         # Usar el título completo como label (sin truncar)
         titulo_label = titulo.lower().replace(" ", "_").replace("(", "").replace(")", "").strip("_")
@@ -261,7 +261,7 @@ def guardar_en_cognia(ai, titulo, extracto, hechos, pregunta_original):
 
         # Verificar si ya existe un episodio similar para ESTE concepto
         db_path = getattr(ai.episodic, 'db', 'cognia_memory.db')
-        conn = sqlite3.connect(db_path)
+        conn = db_connect_pooled(db_path)   # pooled (regla dura: sin sqlite3.connect)
         conn.text_factory = str
         c = conn.cursor()
         c.execute("""

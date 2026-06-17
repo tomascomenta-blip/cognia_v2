@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 
 from cognia_v3.core.logger_config import get_logger
+from storage.db_pool import db_connect_pooled
 
 logger = get_logger(__name__)
 
@@ -355,7 +356,7 @@ class SymbolicSynthesizer:
         """Busca descripción en semantic_memory."""
         try:
             import sqlite3
-            conn = sqlite3.connect(ai.db)
+            conn = db_connect_pooled(ai.db)
             conn.text_factory = str
             row = conn.execute(
                 "SELECT description FROM semantic_memory WHERE concept=?",
@@ -414,7 +415,7 @@ class SymbolicSynthesizer:
         for concept in concepts[:MAX_CONCEPTS]:
             try:
                 import sqlite3
-                conn = sqlite3.connect(ai.db)
+                conn = db_connect_pooled(ai.db)
                 row  = conn.execute(
                     "SELECT confidence FROM semantic_memory WHERE concept=?",
                     (concept,)

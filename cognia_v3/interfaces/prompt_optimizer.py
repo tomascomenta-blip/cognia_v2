@@ -23,6 +23,7 @@ import re
 import json
 import time
 import sqlite3
+from storage.db_pool import db_connect_pooled
 import threading
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
@@ -255,7 +256,7 @@ class PromptMetricsStore:
 
     def _init_table(self):
         try:
-            conn = sqlite3.connect(self._db)
+            conn = db_connect_pooled(self._db)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS prompt_metrics (
                     id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -280,7 +281,7 @@ class PromptMetricsStore:
     def record(self, m: PromptMetrics):
         with self._lock:
             try:
-                conn = sqlite3.connect(self._db)
+                conn = db_connect_pooled(self._db)
                 conn.execute("""
                     INSERT INTO prompt_metrics
                     (prompt_id, question_type, prompt_length, context_length,
@@ -299,7 +300,7 @@ class PromptMetricsStore:
     def get_stats_by_type(self) -> Dict:
         """Devuelve estadísticas agrupadas por tipo de pregunta."""
         try:
-            conn = sqlite3.connect(self._db)
+            conn = db_connect_pooled(self._db)
             rows = conn.execute("""
                 SELECT question_type,
                        COUNT(*) as n,
