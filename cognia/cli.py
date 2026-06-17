@@ -5319,7 +5319,8 @@ def repl():
         elif raw == "/indice_personal":
             try:
                 from cognia.memory.personal_index import PersonalIndex
-                pi        = PersonalIndex(ai.db)
+                uid       = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
+                pi        = PersonalIndex.load(uid, ai.db)
                 conceptos = pi.list_concepts()
                 if conceptos:
                     _show_response("\n".join(f"- {c}" for c in conceptos), "cyan")
@@ -5332,8 +5333,11 @@ def repl():
             if concepto:
                 try:
                     from cognia.memory.personal_index import PersonalIndex
-                    pi = PersonalIndex(ai.db)
-                    _run(raw, lambda: pi.add_concept(concepto), color="bright_green")
+                    uid = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
+                    pi  = PersonalIndex.load(uid, ai.db)
+                    pi.add(concepto)
+                    pi.save(ai.db)
+                    _print_line(f"[bright_green]Concepto agregado al indice: {concepto}[/bright_green]")
                 except Exception as e:
                     _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
             else:

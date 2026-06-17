@@ -71,4 +71,6 @@ def test_personal_index_persists(tmp_path):
     close_pool(db)
     loaded = PersonalIndex.load("carol", db)
     assert "python" in loaded._entries
+    # list_concepts() backs /indice_personal; it must report saved concepts.
+    assert "python" in loaded.list_concepts()
     close_pool(db)

@@ -177,6 +177,11 @@ class PersonalIndex:
             logger.warning("PersonalIndex.load error: %s", exc)
         return cls(user_id=user_id)
 
+    def list_concepts(self) -> list[str]:
+        """Nombres de todos los conceptos del indice, ordenados por importancia."""
+        return [e.concept for e in sorted(
+            self._entries.values(), key=lambda e: e.importance, reverse=True)]
+
     def summary(self) -> dict:
         if not self._entries: return {"total": 0, "top": []}
         top = sorted(self._entries.values(), key=lambda e: e.importance, reverse=True)[:5]
