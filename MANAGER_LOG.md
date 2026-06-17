@@ -3,6 +3,45 @@
 
 <!-- Sub-agentes: appendear entradas aqui, nunca borrar entradas anteriores -->
 
+## [2026-06-16] CYCLE — FASE 0b COMPLETA: migracion cognia_v3 a storage/db_pool (16 modulos)
+- Re-aterrizaje + mapa: workflow de 16 agentes (1/modulo) mapeo twin/divergencia,
+  importadores prod-vs-test, cobertura real y patron de conexion de TODOS los modulos con
+  sqlite3.connect directo en cognia_v3 (42 sites / 16 modulos). HALLAZGO que invalido la
+  premisa de la tarea: consolidation_engine tiene DOS copias DIVERGIDAS — produccion
+  (cognia/cognia.py:317) usa cognia_v3/memory/consolidation_engine (la VIEJA, sin numpy/decay
+  dinamico, SIN test), mientras tests/test_consolidation.py prueba cognia/consolidation_engine
+  (la NUEVA, huerfana de produccion). Idem patron de fallback try/except en language_engine:
+  los `from cognia.X import` son ramas muertas -> resuelven a cognia_v3. -> escribir test
+  DIRECTO al modulo de produccion antes de migrar (no confiar en el test del twin).
+- Patron de migracion (uniforme, minimo, semantica preservada): storage/db_pool.db_connect_pooled
+  como drop-in. db_pool._new_conn ya fija text_factory=str + WAL/synchronous/foreign_keys, y
+  _PooledConnection.close() devuelve la conexion al pool -> los call-sites (conn=...; commit;
+  close) quedan SIN tocar y el try/except que traga errores se preserva (db_connect_pooled NO
+  re-lanza como haria get().get()). Helpers (_db_connect/_connect/db_connect): 1 linea. Inline:
+  `conn = sqlite3.connect(X)` -> `conn = db_connect_pooled(X)`.
+- 16 modulos migrados (0 sqlite3.connect( en TODO cognia_v3, verificado por scan):
+  consolidation_engine, code_memory, response_cache, self_architect, curiosity_engine,
+  curiosidad_pasiva, cognia_modules_adicionales, cognia_v3.py, scoring_engine, teacher_interface,
+  symbolic_synthesizer, symbolic_responder, prompt_optimizer, model_collapse_guard, investigador,
+  feedback_engine. 4 commits (82c4a04, 4842aba, 44d1e28, 39e12fb).
+- GOTCHA db_pool corregido (response_cache): _db_delete_concept/_db_clear_expired leian
+  conn.total_changes (ACUMULATIVO en conexion reusada del pool) -> ahora cursor.rowcount.
+  Test de regresion con 6 escrituras pooled previas: SIN fix devuelve 7, CON fix 6 (rojo->verde).
+- 2 BUGS PREEXISTENTES hallados por los tests nuevos (no de db_pool, corregidos): (a)
+  response_cache._search_ram hacia move_to_end(id(entry).__str__()) con clave equivocada ->
+  KeyError en CADA hit de cache RAM; (b) cognia_v3.py:1898 `c2 = db_connect(self.db).cursor()`
+  muerto -> abria conexion sin cerrar; con el pool DRENABA conexiones. Ambos eliminados.
+- Tests nuevos (4 archivos): test_consolidation_v3 (14), test_code_memory (6),
+  test_response_cache (5), test_db_pool_migration_v3 (scan cognia_v3 + 3 smokes pooled-init).
+  Targeted (incluye twins): 108 passed. E2E real: get_consolidation_engine().run_full_cycle
+  purged=3 + pool_stats activo; ScoringEngine crea tablas por executescript POOLED; code_memory
+  + response_cache get/save reales por el pool (RAM hit ya NO crashea).
+- Suite completa (gate antes del push): 2862 passed, 1 skipped, 0 failed (1043s, venv312).
+- NOTA decision del dueno (fuera de FASE 0b): la divergencia de consolidation_engine (prod usa
+  copia vieja sin test; el test cubre la copia huerfana) deberia resolverse aparte. Tambien
+  quedan sqlite3.connect directos FUERA de cognia_v3 (cognia/, coordinator/, etc.) — fuera del
+  alcance declarado de FASE 0b (solo cognia_v3).
+
 ## [2026-06-16] CYCLE — FASE 6: recapitulacion automatica (O3) + taxonomia multinivel (O2)
 - FASE 6 (commit 8ed6eb6): cognia/memory/recap_policy.py should_recap (disparadores O3:
   turnos/contexto/tareas/objetivos, sin LLM) + MEMORY_LEVELS (taxonomia canonica O2: los 5
