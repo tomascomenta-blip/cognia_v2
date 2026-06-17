@@ -2903,3 +2903,28 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - LLM local: llama_cpp no instalado en venv312 -> _try_load_llama() None; chat y reasoning
   (/explicar, /razonar) caen a responder_articulado y responden coherente (lento ~40s/turno).
 - Gate final: suite completa 2897 passed, 1 skipped, 0 failed. 2 commits pusheados a origin.
+
+## [2026-06-17] Backend de inferencia organizado para que /hacer funcione
+- Sintoma del dueño: en su Desktop, chat (hola) respondia pero /hacer imprimia
+  "No inference backend available" y no creaba nada.
+- Diagnostico: el `cognia` del Desktop es el PyPI cognia.exe (pythoncore-3.12),
+  que NO trae GGUF ni binario llama-server. Sin backend, el agente quedaba sin
+  modelo de codigo (el chat anda igual porque usa responder_articulado n-gram).
+- Hallazgo: los assets YA estan en el repo -> node/llama-server.exe (+ DLL, pin
+  b9391) y model_shards/qwen-coder-3b-q4/*.gguf (Q4_K_M, etc). El backend solo no
+  arrancaba por falta de runtime visible para el PyPI.
+- Verificacion REAL: LlamaBackend.try_load() bajo pythoncore python carga el server
+  y genera; orch.infer(manifest cognia_desktop, mode local) -> mode=llama.cpp,
+  codigo correcto ("def suma(a,b): return a+b") en ~3s.
+- Organizacion (cambios de ENTORNO, no de codigo del repo):
+  * setx User: LLAMA_GGUF_PATH y LLAMA_SERVER_PATH apuntando a los assets del repo,
+    para que el cognia PyPI del Desktop encuentre el backend en cualquier terminal nueva.
+  * ~/.cognia/config.env: corregido OLLAMA_URL=y / COGNIA_MODEL=y (basura del wizard)
+    a los defaults http://localhost:11434 / llama3.2.
+- Limite honesto: con el backend andando, el LOOP del agente (3B) elige mal las
+  herramientas (se cicla en leer_archivo, auto-aplica skill 'documentar' a una tarea
+  de crear archivo) y no llego a escribir el juego. ESO es calidad del agente/creacion
+  de paginas -> dominio de la OTRA sesion. No se toca el loop ni el matcher de skills
+  para no corromper su trabajo. El detector de estancamiento corto bien el ciclo.
+- Memoria: [[cognia-llama-backend-setup]]. Fix de codigo relacionado ya commiteado
+  (agente corta rapido sin backend, baa468d).
