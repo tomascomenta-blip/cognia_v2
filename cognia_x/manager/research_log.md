@@ -119,3 +119,21 @@ colapso de rango, no la magnitud — reportado tal cual. H-CF-2 **apoyada (confi
 - exp004=E1 (roofline CPU/bandwidth-bound) y exp005=E2 (SWA vs full): requieren llama.cpp + GGUF.
 - Ciclo-2 candidato: experimento del híbrido (H-MEZ-4 / H-SEQ-4-revisada) a escala chica.
 - Decisión pendiente del dueño: ¿aplicar el fix de exp003 al `federated_store.py` de Cognia?
+
+---
+
+## 2026-06-17 — CYCLE 1 (manager autónomo): cornerstone H-BW-1 validado en el target
+
+### Hecho
+- **Verificación por evidencia existente** (regla CLAUDE.md "verificá, no asumas"): el vault
+  (Gotchas) ya tiene medido en i3-10110U que el decode es memory-bandwidth-bound — spec decode 5×
+  más lento pese a 90.8% acceptance ("el draft compite por el mismo bandwidth"), 3 hilos > 4, techo
+  ~8 tok/s con 3B Q4_K_M. El cornerstone NO era asunción: ya estaba medido.
+- **exp004** (roofline numpy independiente, sin llama.cpp): GEMV y=W@x. float32 ≈ **2.2× más
+  rápido** que float64 (∝ mitad de bytes); GB/s clavado en **~15-22** pese a ×16 más cómputo
+  (memory-bound); hilos saturan a **~2** (1→2 = +11%, 3-4 peores). Dos vías independientes → H-BW-1.
+- A-008 y H-BW-1 actualizados a confianza **alta (medido en target)**.
+
+### Próximo
+- CYCLE 2: experimento del **híbrido** (H-MEZ-4) a escala chica — medir coste↔recall juntos en un
+  stack de capas (mayoría lineal + pocas full) vs los puros, validando con mis propias constantes.

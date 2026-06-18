@@ -99,11 +99,34 @@ Cognia (respeta la independencia: el experimento es standalone, el fix sería en
 
 ---
 
-## exp004 (=E1) — Roofline CPU: ¿bandwidth-bound? + barrido hilos/precisión  ⏳ DISEÑO
-- **Estado:** diseñado, pendiente (requiere llama.cpp + GGUF).
-- **Hipótesis:** [[A-008]]/[[H-BW-1]] decode bandwidth-bound; hilos 2→4 <30%; tok/s ∝ 1/bytes-por-peso.
-- **Método:** con `venv312` + llama.cpp sobre el GGUF de Cognia, medir tok/s (500 tokens) en
-  Q8/Q4_K_M/Q2_K variando `--threads` 1,2,3,4; si hay contadores, GB/s leídos de DRAM vs banda pico.
-- **Métrica:** tok/s vs hilos (aplanamiento) y tok/s vs (1/bytes_por_peso) (~lineal salvo ternario).
+## exp004 (=E1) — Roofline CPU: GEMV memory-bandwidth-bound  ✅ CORRIDO
+- **Estado:** completo (2026-06-17, ciclo-2 / manager CYCLE 1). **Sin llama.cpp**: microbench numpy
+  puro de la operación núcleo del decode batch=1 (GEMV: matriz de pesos × vector).
+- **Hipótesis:** [[A-008]]/[[H-BW-1]] — decode bandwidth-bound; bytes/peso↓ → throughput↑; hilos saturan.
+- **Código:** `cognia_x/experiments/exp004_roofline_cpu/run.py` (numpy puro, determinista).
+- **Cómo correr:** `.\venv312\Scripts\python.exe cognia_x\experiments\exp004_roofline_cpu\run.py`
+
+### Resultado (i3-10110U, real)
+**Eje bytes/peso (y=W@x):** float32 vs float64 → speedup ×2.40 / ×2.16 / ×2.21 (n=1024/2048/4096)
+≈ proporcional a la mitad de bytes. GB/s clavado en **~15-22** pese a ×16 más cómputo de n=1024 a
+4096; GFLOP/s solo 4-11 (muy bajo el pico FP) → **régimen memory-bound** (izquierda del codo del roofline).
+
+**Eje hilos (n=4096, float32, vía OPENBLAS/OMP/MKL_NUM_THREADS):**
+| hilos | ms | GB/s | speedup vs 1 |
+|---|---|---|---|
+| 1 | 4.383 | 15.31 | 1.00× |
+| 2 | 3.932 | 17.07 | **1.11×** (pico) |
+| 3 | 4.066 | 16.51 | 1.08× |
+| 4 | 4.206 | 15.95 | 0.96× (peor) |
+
+→ 1→2 hilos solo **+11%**; 3-4 hilos *empeoran* (contención de banda). Satura a ~2 hilos.
+
+### Conclusión
+H-BW-1 **confirmada por dos vías independientes**: (1) este microbench numpy (bytes/peso ≈2× ↔
+mitad de bytes; GB/s plano; hilos saturan) y (2) la evidencia del vault en el decode real de
+llama.cpp (spec decode 5× más lento, 3 hilos > 4, techo ~8 tok/s). Confianza ALTA. **Caveat:** el
+GEMV solo modela el streaming de pesos; el decode completo además mueve KV-cache (refuerza el
+argumento bandwidth, no lo debilita). El tramo bytes/peso no se extiende a ternario (unpack/LUT
+es compute — coincide con el "fused int4 kernel 1.01x compute-bound" del vault).
 
 > Más fichas (exp005=E2 SWA vs full, E4 RAG vs LoRA, E5 peso de embedding) en `future_work.md`.

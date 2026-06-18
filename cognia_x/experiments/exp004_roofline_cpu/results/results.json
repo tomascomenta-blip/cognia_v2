@@ -1,0 +1,93 @@
+{
+  "experiment": "exp004_roofline_cpu",
+  "config": {
+    "seed": 7,
+    "ns": [
+      1024,
+      2048,
+      4096
+    ],
+    "dtypes": [
+      "float64",
+      "float32"
+    ],
+    "reps": 30,
+    "thread_counts": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "threads_n": 4096,
+    "numpy": "2.4.6",
+    "cpu_count": 4
+  },
+  "sweep_bytes": [
+    {
+      "n": 1024,
+      "dtype": "float64",
+      "bytes_per_elem": 8,
+      "time_ms": 0.4549199999019038,
+      "gflops": 4.6099358138842375,
+      "gbps": 18.43974325553695
+    },
+    {
+      "n": 1024,
+      "dtype": "float32",
+      "bytes_per_elem": 4,
+      "time_ms": 0.18930000005639158,
+      "gflops": 11.078457471607335,
+      "gbps": 22.15691494321467
+    },
+    {
+      "n": 2048,
+      "dtype": "float64",
+      "bytes_per_elem": 8,
+      "time_ms": 2.1444533333124127,
+      "gflops": 3.9117698994375427,
+      "gbps": 15.64707959775017
+    },
+    {
+      "n": 2048,
+      "dtype": "float32",
+      "bytes_per_elem": 4,
+      "time_ms": 0.9929733332683099,
+      "gflops": 8.447969063166498,
+      "gbps": 16.895938126332997
+    },
+    {
+      "n": 4096,
+      "dtype": "float64",
+      "bytes_per_elem": 8,
+      "time_ms": 7.518433333340606,
+      "gflops": 4.462955314267717,
+      "gbps": 17.851821257070867
+    },
+    {
+      "n": 4096,
+      "dtype": "float32",
+      "bytes_per_elem": 4,
+      "time_ms": 3.401020000092103,
+      "gflops": 9.865990790730814,
+      "gbps": 19.73198158146163
+    }
+  ],
+  "speedup_f32_vs_f64": {
+    "1024": 2.4031695708736676,
+    "2048": 2.1596283217939782,
+    "4096": 2.2106407292920944
+  },
+  "sweep_threads": {
+    "threadpoolctl": false,
+    "default_threads_reported": 4,
+    "blas": "scipy-openblas",
+    "measurement_default": {
+      "n": 4096,
+      "dtype": "float32",
+      "time_ms": 4.066439999951399,
+      "gflops": 8.25154975860975,
+      "gbps": 16.5030995172195
+    },
+    "by_threads": null
+  }
+}

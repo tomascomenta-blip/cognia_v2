@@ -17,7 +17,7 @@
 
 | id | Supuesto | Estado | Nota |
 |----|----------|--------|------|
-| A-008 | Decode batch=1 en CPU es memory-bandwidth-bound; tok/s ~ banda/bytes-leídos-por-token. | apoyado | base de toda la tesis (H-BW-1, IISWC'24). Validar números en E1. |
+| A-008 | Decode batch=1 en CPU es memory-bandwidth-bound; tok/s ~ banda/bytes-leídos-por-token. | **apoyado (medido en i3-10110U)** | vault/Gotchas: spec decode 5× más lento (draft compite por banda), 3 hilos > 4, techo ~8 tok/s 3B Q4_K_M. Cornerstone confirmado en el target + exp004. |
 | A-009 | SWA (Gemma-3 5:1, W~1024) reduce KV de O(L) a ~O(W) sin degradar perplejidad material. | apoyado | H-SEQ-3 holds=true (producción). |
 | A-010 | Ratio recurrente:atención óptimo en 3:1–4:1; 6:1 es el borde que degrada recall. | apoyado | arXiv:2507.06457. |
 | A-011 | BLT/patching por entropía no recupera overhead a 1-3B (gana solo a 7B+). | apoyado | H-REP-2. |

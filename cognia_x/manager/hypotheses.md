@@ -96,7 +96,7 @@ marcan dónde la intuición/literatura se sobre-extiende. Confianza = del veredi
 | H-SEQ-2 | recall full >95% e híbrido 7:1 hasta N grande | ❌ false | media | 1ª mitad sólida; 7:1 es el borde que la evidencia desaconseja (3:1-6:1) |
 | **H-SEQ-3** | **SWA (W~1024) conserva calidad, KV O(L)→O(W), ↑tok/s** | ✅ **true** | **alta** | Gemma-3 producción: KV 60%→<15% a 32K sin perder perplejidad |
 | H-SEQ-4 | óptimo es híbrido 6:1 SSM:SWA, domina Pareto 2K-16K | ❌ false | media | dirección híbrido correcta; 6:1 y "SSM:SWA" sobre-especificados |
-| **H-BW-1** | **decode bandwidth-bound: hilos 2→4 <30%; bytes/peso↓→tok/s↑** | ✅ **true** | media | núcleo sólido; constantes no medidas en el target; no aplica a ternario |
+| **H-BW-1** | **decode bandwidth-bound: hilos 2→4 <30%; bytes/peso↓→tok/s↑** | ✅ **true** | **alta** | **medido en i3-10110U (vault):** spec decode 5× más lento pese a 90.8% accept; 3 hilos > 4; techo ~8 tok/s 3B Q4_K_M. No aplica a ternario (compute). Corroborado por exp004 |
 | H-BIT-1 | ternario nativo > Q4 denso de igual calidad, sin pérdida | ❌ false | alta | bitnet.cpp es kernel-vs-kernel; BitNet pierde ~12% MMLU vs Qwen2.5-1.5B |
 | H-LUT-1 | T-MAC gana solo si las LUTs caben en L2 | ❌ false | media | T-MAC pone las LUTs en REGISTROS, no L2; límite real registro/L1 |
 | H-SPARSE-1 | sparsity reduce banda; beneficio neto solo con >60% (ReLU) | ✅ true | baja | dirección ReLU-sí/SwiGLU-no correcta; umbral 60% no medido en CPU |
