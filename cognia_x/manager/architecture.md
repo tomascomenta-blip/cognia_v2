@@ -18,12 +18,15 @@ llena a medida que la evidencia llega. Una sesión nueva debe leer `hypotheses.m
   memoria/ancho de banda?
 
 ### 2. Mezcla de secuencia (lo que reemplaza/complementa a la atención)
-- **Estado:** parcialmente informado por evidencia.
-- **Hallazgo (exp001):** el camino de mezcla por defecto **no** debe contener un término O(L²)
-  en tiempo/memoria (apoyado, confianza alta para coste). El sub-cuadrático lineal domina el
-  coste hasta 70× a L=4096.
-- **Pendiente (exp002):** evidencia de **calidad**. Hipótesis de diseño en evaluación: **híbrido**
-  (mayoría de capas sub-cuadráticas + pocas de atención para recall exacto). NO decidido.
+- **Estado:** informado por evidencia en ambos lados (coste y capacidad). Decisión: híbrido como
+  dirección líder, **a confirmar con experimento** (no decidido en firme).
+- **Hallazgo de coste (exp001):** el camino de mezcla por defecto **no** debe contener un término
+  O(L²) en tiempo/memoria (apoyado, confianza alta). El lineal domina el coste hasta 70× a L=4096.
+- **Hallazgo de capacidad (exp002):** el recall de un mezclador de estado acotado escala con el
+  **tamaño de su estado** (d²/32 medido); la atención full tiene recall ~ilimitado en N. → existe
+  un trade-off coste↔capacidad real.
+- **Dirección de diseño (H-MEZ-4):** **híbrido** — mayoría de capas lineales (coste) + pocas de
+  atención full (recall exacto). Pendiente de medir (exp003+). NO se adopta por autoridad.
 
 ### 3. Mecanismo de cómputo (precisión / sparsity)
 - **Estado:** abierto. *(dimensión CPU-bottleneck del ciclo-1 pendiente)*
@@ -45,6 +48,9 @@ llena a medida que la evidencia llega. Una sesión nueva debe leer `hypotheses.m
 - **P1 — Sin O(L²) por defecto** en el camino de mezcla (exp001).
 - **P2 — Coste primero, calidad como compuerta** antes de fijar un componente (D-004).
 - **P3 — La asíntota no basta:** validar el factor constante real en CPU (exp001 / A-004).
+- **P4 — Recall acotado por estado:** un mezclador de estado fijo tiene recall asociativo
+  limitado por el tamaño de su estado (exp002). El recall exacto ~ilimitado exige algún mecanismo
+  de direccionamiento por posición (atención) o memoria externa. → diseñar a sabiendas del techo.
 
 > La tesis de arquitectura integrada y las decisiones conservadora/moderada/radical por
 > componente se escribirán aquí al cerrar el ciclo-1 (workflow).

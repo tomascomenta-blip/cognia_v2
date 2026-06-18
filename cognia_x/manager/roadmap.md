@@ -12,9 +12,10 @@
 Barrido de 6 dimensiones con evidencia + refutación adversarial + síntesis:
 representación · mezcla de secuencia · cuello de botella CPU · aprendizaje continuo ·
 inspiración biológica · auto-mejora.
-- [x] exp001 (coste de mezcla) corrido.
+- [x] exp001 (coste de mezcla) corrido → H-MEZ-1/2 apoyadas.
+- [x] exp002 (capacidad de recall) corrido → H-MEZ-3 apoyada; trade-off coste↔capacidad medido.
 - [ ] Síntesis del workflow integrada en `architecture.md` / `decision_log.md` / `hypotheses.md`.
-- [ ] exp002: calidad de mezcladores (recall/copia).
+- [ ] exp003: validar A-001 (CPU bandwidth-bound) + experimento del híbrido (H-MEZ-4).
 
 ## F2 — Decisiones por componente (conservadora/moderada/radical)  ⬜ PENDIENTE
 Para cada componente: 3 alternativas evaluadas con experimento. Salida → `architecture.md`.

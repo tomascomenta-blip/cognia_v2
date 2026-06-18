@@ -34,7 +34,13 @@ La atención full entra en régimen cuadrático ~L≥512 (tiempo y memoria). Un 
 SSM O(L) implementado con bucle Python pierde contra el lineal vectorizado: la asíntota no basta
 en CPU. **Alcance:** mide coste, no calidad. → `experiments.md` exp001, `hypotheses.md` H-MEZ-1/2.
 
-### 3.2 Síntesis del ciclo-1 (en curso)
+### 3.2 exp002 — capacidad de recall asociativo (2026-06-17)
+Contrapeso a exp001. Sonda training-free: almacenar N pares clave→valor y medir recall. La
+atención full mantiene accuracy ~1.0 en todo N; la atención lineal se degrada con capacidad
+**d²/32** (32→32, 64→128, 128→512), es decir, su recall escala con el **tamaño del estado**, no
+con d. → trade-off **coste↔capacidad** medido. → `experiments.md` exp002, `hypotheses.md` H-MEZ-3.
+
+### 3.3 Síntesis del ciclo-1 (en curso)
 *Pendiente: integración de la investigación multi-dimensión (embeddings, atención, cuello de
 botella CPU, aprendizaje continuo, inspiración biológica, auto-mejora) con verificación
 adversarial. Se añadirá aquí al cerrar el workflow.*
@@ -47,8 +53,13 @@ adversarial. Se añadirá aquí al cerrar el workflow.*
   término O(L²) (apoyado por exp001, confianza alta para coste).
 - C2: las decisiones de reemplazo de componentes exigen evidencia de **calidad**, no solo de
   coste (principio metodológico reforzado por el alcance de exp001).
+- C3: existe un **trade-off coste↔capacidad** medido en la mezcla de secuencia (exp001+exp002):
+  el lineal es barato pero su recall está acotado por el tamaño de su estado (d²); la atención
+  full es cara pero con recall ~ilimitado en N. Conclusión de diseño provisional: **ni reemplazar
+  ni mantener — combinar** (híbrido). No se acepta por autoridad: se probará (H-MEZ-4).
 
 ## 6. Próximos pasos
-- exp002: calidad de mezcladores (recall/copia) — el contrapeso a exp001.
+- ✅ exp002 (calidad/recall) corrido — confirma el trade-off.
+- exp003: validar A-001 (CPU memory-bandwidth-bound) + diseñar el experimento del híbrido (H-MEZ-4).
 - Integrar síntesis del ciclo-1 → `architecture.md`.
 - Derivar el primer boceto de arquitectura CPU-first defendible por evidencia.

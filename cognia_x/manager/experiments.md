@@ -40,16 +40,45 @@ el término O(L²) en el camino de mezcla por defecto.
 
 ---
 
-## exp002 — Calidad de mezcladores: recall/copia controlada  ⏳ DISEÑO
+## exp002 — Capacidad de recall asociativo  ✅ CORRIDO
+
+- **Estado:** completo (2026-06-17).
+- **Hipótesis:** [[H-MEZ-3]] — la capacidad de recall de un mezclador de estado acotado
+  (atención lineal, estado d×d) está limitada por su tamaño de estado; la atención full no.
+- **Código:** `cognia_x/experiments/exp002_recall_capacity/run.py`
+- **Cómo correr:**
+  `.\venv312\Scripts\python.exe cognia_x\experiments\exp002_recall_capacity\run.py`
+- **Método:** training-free, sin hacks de temperatura. Se almacenan N pares (kⱼ→vⱼ), k,v ~
+  N(0,I_d) (régimen estándar de la atención escalada). Se consulta cada kᵢ y se cuenta acierto si
+  vᵢ es el vecino más cercano (coseno) entre los N valores. full = softmax(K·kᵢ/√d)·V; linear =
+  estado S=Σ kⱼvⱼᵀ, lectura kᵢᵀS. d∈{32,64,128}, N∈{8…512}, 3 trials.
+
+### Resultado
+- Atención full: **accuracy ~1.0** en todo el rango (mín 0.96 en d=32,N=512).
+- Atención lineal: se degrada con N. **Capacidad (máx N con acc≥0.9): 32→32, 64→128, 128→512**.
+- **Capacidad = d²/32 exacto** → escala con el **tamaño del estado** (d² escalares), no con d.
+
+### Amenazas a la validez
+- Es una sonda de capacidad *representacional* (sin entrenar), no un modelo entrenado; un modelo
+  entrenado podría comprimir mejor, pero el techo de estado acotado es estructural (pigeonhole).
+- La constante 1/32 depende del umbral 0.9 y del ruido; lo robusto es el **escalado con d²**.
+
+### Conclusión
+H-MEZ-3 **apoyada** (confianza alta). Junto con exp001 establece un **trade-off coste↔capacidad**
+medido: lineal barato pero recall acotado por estado; full caro pero recall ~ilimitado en N. →
+Motiva la hipótesis del **híbrido** [[H-MEZ-4]] con evidencia en ambos lados, no por autoridad.
+
+---
+
+## exp003 — ¿Inferencia en CPU memory-bandwidth-bound? + diseño del híbrido  ⏳ DISEÑO
 
 - **Estado:** diseñado, pendiente de correr.
-- **Hipótesis:** los mezcladores sub-cuadráticos pierden exactitud en recall asociativo/copia
-  exacta frente a la atención full (el contrapeso a exp001).
-- **Método propuesto:** tarea sintética tipo *induction head* / copia de secuencia y *associative
-  recall* (clave→valor) con longitudes crecientes; comparar accuracy de full vs lineal vs SSM
-  (entrenando heads pequeños en CPU con torch-cpu, o evaluando capacidad de copia analíticamente).
-- **Métrica:** accuracy de recuperación vs L; punto donde el sub-cuadrático se degrada.
-- **Por qué importa:** decide si "reemplazar atención" es viable o si hace falta un **híbrido**
-  (mayoría de capas lineales + pocas de atención full para recall exacto, à la Jamba/Griffin).
+- **Hipótesis:** [[A-001]] la decodificación autoregresiva en CPU está limitada por ancho de
+  banda de memoria (mover pesos), no por FLOPs → la cuantización pesa más que reducir FLOPs.
+- **Método propuesto:** perfil roofline simple en torch-cpu — para una capa lineal/matmul típica
+  variar tamaño de pesos y batch; medir GB/s efectivos vs FLOP/s; comparar float32 vs int8.
+  Segundo objetivo: especificar exp del **híbrido** (H-MEZ-4): pila de capas mayormente lineales +
+  k capas de atención full, medir coste (exp001-style) y recall (exp002-style) conjuntos.
+- **Métrica:** intensidad aritmética (FLOP/byte) y punto de quiebre del roofline.
 
 > Fichas adicionales del ciclo-1 (workflow) se añadirán aquí tras la síntesis.

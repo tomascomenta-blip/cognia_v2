@@ -47,8 +47,32 @@ nada sobre **calidad** (recall asociativo, in-context learning, copia exacta). L
 "reemplazar atención" NO está justificada todavía; sí lo está "el coste de la atención full es un
 cuello de botella real de escalado en CPU". → ver `hypotheses.md` H-MEZ-1.
 
+### exp002 — resultados reales (seed=7, trials=3) — el contrapeso a exp001
+Capacidad de recall asociativo: ¿qué pierde el mezclador barato?
+
+| d | capacidad lineal (máx N con acc≥0.9) | acc full en ese rango |
+|---|---|---|
+| 32  | 32  | ~1.000 (0.96 solo en N=512) |
+| 64  | 128 | 1.000 |
+| 128 | 512 | 1.000 |
+
+**Lectura:**
+1. La atención full mantiene accuracy **~1.0** para todo N probado (recall ~ilimitado en N,
+   limitado solo por colisión de claves).
+2. La atención lineal **se degrada** al crecer N: a d=64 cae de 0.956 (N=128) a 0.725 (N=256)
+   a 0.348 (N=512).
+3. **Hallazgo afinado:** la capacidad sigue exactamente `cap = d²/32` (32→32, 64→128, 128→512).
+   Es decir, la capacidad de recall escala con el **tamaño del estado** (la matriz d×d = d²
+   escalares), NO con d. Esto es la consecuencia estructural de tener estado acotado.
+
+**Conclusión (junta exp001 + exp002):** el mezclador lineal es ~70× más barato (exp001) pero su
+recall asociativo está **acotado por su estado** (exp002), mientras la atención full es cara pero
+con recall ~ilimitado en N. Ninguno domina: hay un **trade-off coste↔capacidad** real y medido.
+→ Esto motiva, **con evidencia en ambos lados**, la hipótesis del **híbrido** (mayoría de capas
+lineales por coste + pocas de atención full para recall exacto). Ver H-MEZ-3 / H-MEZ-4.
+
 ### Próximo
 - Integrar la síntesis del ciclo-1 (workflow) en `architecture.md` / `decision_log.md` /
   `hypotheses.md`.
-- `exp002`: medir **calidad** de los mezcladores (no solo coste) en una tarea de recall/copia
-  controlada — el contrapeso necesario a exp001.
+- `exp003`: validar A-001 (¿la inferencia en CPU es memory-bandwidth-bound?) con un perfil
+  roofline simple; y diseñar el experimento del **híbrido** (probar H-MEZ-4).

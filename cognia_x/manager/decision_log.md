@@ -25,5 +25,14 @@
 - **Razón:** honestidad de alcance; evitar conclusiones sobre-extendidas.
 - **Reversible:** N/A (principio metodológico).
 
+## D-005 (2026-06-17) — Híbrido como dirección líder de mezcla de secuencia (a confirmar)
+- **Decisión:** perseguir la arquitectura de mezcla **híbrida** (mayoría lineal + pocas capas de
+  atención full) como hipótesis de diseño principal — NO como decisión cerrada; requiere su
+  experimento (H-MEZ-4).
+- **Razón:** exp001 (lineal 70× más barato) + exp002 (full con recall ~ilimitado vs lineal
+  acotado por estado d²) muestran un trade-off coste↔capacidad; el híbrido es la combinación que
+  la evidencia sugiere, alineada con la literatura (Jamba, Griffin, Based).
+- **Reversible:** sí; se abandona si exp003+ refuta H-MEZ-4.
+
 > Decisiones de arquitectura por componente (síntesis del ciclo-1) se añadirán aquí al cerrar
 > el workflow.
