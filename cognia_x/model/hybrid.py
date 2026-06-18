@@ -39,6 +39,9 @@ class HybridConfig:
         if self.d_ff is None:
             self.d_ff = max(16, int(round(8 * self.d_model / 3 / 16)) * 16)
         assert self.d_model % self.n_heads == 0, "d_model debe ser divisible por n_heads"
+        # RoPE rota pares (i, i+d_head/2): d_head debe ser par o apply_rope rompe por shape.
+        assert (self.d_model // self.n_heads) % 2 == 0, \
+            "d_head (d_model//n_heads) debe ser par para RoPE"
 
     def layer_types(self):
         types = []

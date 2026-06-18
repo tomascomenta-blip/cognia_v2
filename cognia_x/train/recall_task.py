@@ -42,20 +42,23 @@ def make_recall_batch(rng, batch, n_pairs, n_queries, n_keys, n_vals, device):
 
 
 def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=None,
+                   min_steps=0,
                    d_model=96, n_layers=4, n_heads=4,
                    n_keys=96, n_vals=32, n_pairs=48, n_queries=8,
                    batch=32, lr=3e-4, abs_pos=False):
     rng = np.random.default_rng(seed)
+    eval_rng = np.random.default_rng(seed + 10**6)   # eval aislado: reproducible sin importar #pasos
     torch.manual_seed(seed)
     L = 2 * n_pairs + n_queries
     vocab = 1 + n_keys + n_vals
+    chance = 1.0 / n_vals    # azar REAL: el modelo aprende que la respuesta es un token-valor
     cfg = HybridConfig(vocab_size=vocab, d_model=d_model, n_layers=n_layers, n_heads=n_heads,
                        window=L + 1, attn_every=attn_every, max_seq_len=L + 1, abs_pos_emb=abs_pos)
     model = HybridLM(cfg).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
     types = cfg.layer_types()
-    log(f"[recall:{name}] params={model.num_params():,} L={L} vocab={vocab} "
-        f"capas={types.count('linear')}lin/{types.count('attn')}attn")
+    log(f"[recall:{name}] params={model.num_params():,} L={L} vocab={vocab} ae={attn_every} "
+        f"capas={types.count('linear')}lin/{types.count('attn')}attn azar={chance:.3f}")
 
     model.train()
     for step in range(1, steps + 1):
@@ -65,17 +68,19 @@ def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         opt.step()
-        if deadline and time.time() > deadline:
-            log(f"[recall:{name}] deadline alcanzado en step {step}")
+        # Piso de pasos: no cortar por deadline antes de min_steps (si no, la atencion a np alto
+        # se corta antes de cruzar la transicion -> falso plateau). Ver workflow CYCLE 6.
+        if deadline is not None and step >= min_steps and time.time() > deadline:
+            log(f"[recall:{name}] deadline alcanzado en step {step} (min_steps={min_steps})")
             break
         if step % max(1, steps // 10) == 0 or step == steps:
-            acc = eval_recall(model, rng, n_pairs, n_queries, n_keys, n_vals, device, batches=8)
-            log(f"[recall:{name}] step {step}/{steps} loss {loss.item():.4f} acc {acc:.3f}")
+            acc = eval_recall(model, eval_rng, n_pairs, n_queries, n_keys, n_vals, device, batches=8)
+            log(f"[recall:{name}] step {step}/{steps} loss {loss.item():.4f} acc {acc:.3f} (azar {chance:.3f})")
 
-    acc = eval_recall(model, rng, n_pairs, n_queries, n_keys, n_vals, device, batches=20)
-    log(f"[recall:{name}] FINAL acc {acc:.3f}")
-    return {"name": name, "attn_every": attn_every, "final_acc": acc,
-            "params": model.num_params(),
+    acc = eval_recall(model, eval_rng, n_pairs, n_queries, n_keys, n_vals, device, batches=20)
+    log(f"[recall:{name}] FINAL acc {acc:.3f} (azar {chance:.3f})")
+    return {"name": name, "attn_every": attn_every, "final_acc": acc, "chance": chance,
+            "n_pairs": n_pairs, "n_queries": n_queries, "params": model.num_params(),
             "layers": {"linear": types.count("linear"), "attn": types.count("attn")}}
 
 

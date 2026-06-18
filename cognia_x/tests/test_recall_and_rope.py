@@ -65,3 +65,16 @@ def test_aprende_recall_1par():
                        n_keys=8, n_vals=8, n_pairs=1, n_queries=1,
                        batch=64, lr=1e-3)
     assert r["final_acc"] >= 0.95, f"recall 1-par deberia ~1.0, dio {r['final_acc']}"
+
+
+def test_aprende_recall_multipar():
+    """Recall REAL con disambiguacion (np>=2): la atencion debe seleccionar el par correcto
+    entre varios, no solo copiar. Esto SI ejerce la cabeza de induccion (a diferencia de np=1).
+    Con supervision densa (n_queries alto) cruza rapido. Regresion del bug central de CYCLE 6."""
+    logs = []
+    r = train_and_eval("test_np3", attn_every=1, steps=1500, log=logs.append, seed=0,
+                       d_model=64, n_layers=2, n_heads=4,
+                       n_keys=12, n_vals=16, n_pairs=3, n_queries=12,
+                       batch=64, lr=1e-3)
+    # azar = 1/16 = 0.0625; debe estar MUY por encima (recall asociativo de verdad).
+    assert r["final_acc"] >= 0.90, f"recall 3-pares deberia cruzar a ~1.0, dio {r['final_acc']}"
