@@ -219,3 +219,25 @@ el lineal puro no tiene? = cierre empírico de H-MEZ-4) + `charlm_best.pt` + `ch
 
 ### Próximo
 Al volver: leer los resultados, documentar si el híbrido cerró el eje recall y la calidad del char-LM.
+
+### RESULTADO de la corrida nocturna (2026-06-18 04:25, honesto — uno OK, uno fallido)
+- ✅ **char-LM: FUNCIONÓ.** Modelo híbrido 6.3M params, byte-level. 7366 pasos; mejor val
+  **1.74 nats/byte (~2.5 bits/byte)**, luego SOBREAJUSTÓ el corpus de 778KB (val subió a 2.49,
+  train loss ~0.4). Las muestras generan **español + estructura markdown + identificadores de
+  código** reconocibles (forma plausible, significado incoherente — típico de char-LM chico). →
+  **la arquitectura híbrida del ciclo-1 entrena y aprende estructura de lenguaje desde cero,
+  byte a byte, en CPU.** Es la prueba de que "corre de verdad y aprende". Mejor ckpt: `charlm_best.pt`.
+- ❌ **recall (cierre de H-MEZ-4): INCONCLUSO / FALLIDO.** Acc final: lineal 0.0908, híbrido 0.0908,
+  atención 0.0922 (chance≈0.031). **Ninguna config aprendió recall — ni la atención pura, que era
+  el control positivo y DEBÍA resolver MQAR.** Sin control positivo válido, el experimento NO
+  diferencia híbrido vs lineal → **NO cierra H-MEZ-4.** Causa: setup inadecuado (modelo d=96/4
+  capas demasiado chico, 48 pares demasiados, 2500 pasos pocos). Un fracaso es información:
+  **lección** = primero conseguir que la atención resuelva la tarea (control positivo) con tarea
+  más fácil (p.ej. 8-16 pares) y/o modelo mayor + más pasos, ANTES de comparar las 3 configs.
+
+### Próximo real (CYCLE 6)
+- Rehacer el experimento de recall con control positivo válido: bajar n_pairs a ~12, subir pasos,
+  verificar que atención→~1.0 ANTES de comparar; entonces sí medir si el híbrido iguala al full y
+  el lineal queda abajo (cierre real de H-MEZ-4).
+- char-LM: corpus más grande (evitar sobreajuste) o modelo regularizado; el backbone ya demostró
+  que aprende.
