@@ -1,0 +1,4 @@
+# artefactos generados del entrenamiento (no commitear: checkpoints, logs en curso)
+runs/
+**/__pycache__/
+*.pyc

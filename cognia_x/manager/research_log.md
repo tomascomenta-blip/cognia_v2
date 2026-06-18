@@ -197,3 +197,25 @@ vs LoRA) o un GGUF real (SWA vs full, peso de embedding) → sesiones con GPU Ka
 ### Próximo
 - CYCLE 5+ (siguiente sesión de manager o cuando haya backend): E2 real (SWA vs full en llama.cpp),
   cerrar eje recall del híbrido (Kaggle), RAG vs LoRA (E4). El loop continúa.
+
+---
+
+## 2026-06-17 — CYCLE 5 (manager autónomo): construcción de la IA v0 + entrenamiento nocturno
+
+### Hecho
+- **Implementado el modelo HÍBRIDO v0 en PyTorch CPU** (`cognia_x/model/hybrid.py`): la arquitectura
+  del ciclo-1 hecha código — mayoría capas lineales O(L) (estado fijo) + atención sliding-window
+  (~3:1), RMSNorm + SwiGLU + lm_head atado, byte-level (vocab 256). Objetivo: barata, fácil de
+  entrenar, inteligente.
+- **Pipeline de entrenamiento** (`cognia_x/train/`): recall_task (lineal vs híbrido vs atención →
+  cierre empírico de H-MEZ-4) + charlm (byte-LM sobre el texto local del repo) + run_overnight.
+- Verificado end-to-end (smoke): recall entrena (loss 4.83→3.89); char-LM aprende (val 5.53→4.90),
+  checkpoint + muestras OK.
+- **Lanzado entrenamiento nocturno en background** (hasta 04:25 AM); apagado del equipo a las 04:30.
+
+### Resultado (PENDIENTE — corriendo al cerrar esta entrada)
+Estará en `cognia_x/runs/overnight_v0/`: `recall_results.json` (¿el híbrido recupera el recall que
+el lineal puro no tiene? = cierre empírico de H-MEZ-4) + `charlm_best.pt` + `charlm_samples.txt`.
+
+### Próximo
+Al volver: leer los resultados, documentar si el híbrido cerró el eje recall y la calidad del char-LM.

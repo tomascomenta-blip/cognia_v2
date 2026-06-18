@@ -132,3 +132,14 @@ recall del estado fijo está acotado por su tamaño — reproduce a Jelassi "Rep
 - El ternario es una **apuesta de I+D**, no decisión cerrada (H-BIT-1 refutada).
 - El investigador-sintetizador señaló truncamiento del corpus en la dimensión de aprendizaje
   continuo; reconstruyó desde findings + verificación propia. Anotado por honestidad.
+
+## Implementación v0 (2026-06-17) — el diseño hecho código
+
+El backbone (componente 1) ya está implementado y entrenándose: `cognia_x/model/hybrid.py`
+(PyTorch CPU). Encarna las decisiones: mezcla **híbrida** (mayoría capas lineales O(L) de estado
+fijo + minoría de atención sliding-window, ratio ~3:1, D-007), pre-norm RMSNorm + SwiGLU,
+lm_head atado (D-008), byte-level v0 (D-013). La atención lineal se entrena en su forma paralela
+O(L²) — matemáticamente idéntica a la recurrente O(L) de inferencia (el ahorro de banda es de
+inferencia). Entrenamiento en `cognia_x/train/` (recall + char-LM); resultados en `runs/`.
+Lo que falta de la arquitectura integrada (cuantización real, RAG continuo, auto-mejora) sigue en
+fases F4-F6 del roadmap.

@@ -68,3 +68,12 @@
 ## D-012 (2026-06-17) — Auto-mejora solo con evaluador verificable + gate humano + rollback
 - **Decisión:** nunca RL con auto-recompensa online; nunca proxy auto-generado como fitness.
 - **Razón:** reward hacking/colapso reproducibles; STOP desactivó sandbox 0.42%. **Reversible:** N/A (gate de seguridad).
+
+## D-013 (2026-06-17) — Implementación v0: PyTorch CPU + byte-level (asumido autónomamente)
+- **Decisión:** construir el modelo v0 en **PyTorch (CPU)** con entrada **byte-level** (vocab 256).
+- **Razón:** (a) *fácil de entrenar* → autograd de PyTorch; la regla "numpy puro" del vault aplica a
+  los NODOS de despliegue de Cognia, no a este laboratorio (Cognia-X es independiente). (b)
+  byte-level elimina el tokenizador (más fácil + robusto) para un primer modelo; el "vocab moderado
+  BPE" (D-008) es un upgrade de eficiencia de inferencia posterior.
+- **Reversible:** sí. La arquitectura híbrida (D-007) es la misma; portar a numpy para nodos o
+  cambiar el front-end de representación es trabajo futuro.

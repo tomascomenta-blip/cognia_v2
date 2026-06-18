@@ -52,3 +52,17 @@
   medida en i3-10110U. Lo que queda (eje recall del híbrido, SWA real, RAG vs LoRA) necesita
   entrenamiento GPU/Kaggle o backend llama.cpp+GGUF → próxima sesión de manager.
 - Next: CYCLE 5 = E2 real (SWA vs full con GGUF) o eje recall del híbrido (Kaggle). El loop continúa.
+
+## [2026-06-17] CYCLE 5 — construcción de la IA v0 + entrenamiento nocturno lanzado
+- Mandato del dueño: "crea la IA desde cero... barata, fácil de entrenar e inteligente", autónomo,
+  sin preguntar; programar apagado a las 4:30 AM. Hecho: `shutdown /s` a las 04:30, deadline train 04:25.
+- **Construido `cognia_x/model/hybrid.py`** (PyTorch CPU): modelo HÍBRIDO = mayoría capas lineales
+  O(L) + atención sliding-window (~3:1) + RMSNorm + SwiGLU + lm_head atado, byte-level (vocab 256).
+  La arquitectura del ciclo-1 hecha código. Decisiones D-007 (híbrido) + D-013 (PyTorch/byte-level).
+- **`cognia_x/train/`**: recall_task (cierra H-MEZ-4 end-to-end: lineal vs híbrido vs atención) +
+  charlm (byte-LM sobre texto local) + run_overnight (orquesta con deadline + checkpoints).
+- **Smoke verificado** (regla CLAUDE.md): recall entrena (loss 4.83→3.89); char-LM entrena
+  (val 5.53→4.90), checkpoint + sample OK. Lanzado run REAL en background (b6e1do2gj) hasta 04:25.
+- Tests: N/A (lab independiente). Verificación REAL = el pipeline corre y APRENDE (mostrado).
+- Resultados estarán en `cognia_x/runs/overnight_v0/` (recall_results.json, charlm_best.pt, samples).
+- Next: al volver, leer runs/overnight_v0/ y documentar el resultado del entrenamiento.

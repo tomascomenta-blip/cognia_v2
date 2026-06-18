@@ -24,8 +24,10 @@ La tesis es defendible en dirección; varias constantes ya se midieron en CPU:
 - [ ] E2 real: SWA vs atención full en llama.cpp con GGUF — tok/s(L) + KV-cache.
 - [ ] Cerrar el eje **recall** del híbrido (tarea multi-capa entrenada; entrenamiento en Kaggle GPU).
 
-## F4 — Boceto de arquitectura CPU-first v0  ⬜ PENDIENTE
-Diseño integrado defendible por evidencia (representación + mezcla híbrida + cómputo), entrenable a escala chica.
+## F4 — Boceto de arquitectura CPU-first v0  🟡 EN CURSO (implementado + entrenando)
+- [x] Modelo híbrido v0 en PyTorch CPU (`cognia_x/model/hybrid.py`): la arquitectura del ciclo-1 hecha código.
+- [x] Pipeline de entrenamiento (recall + char-LM) verificado y lanzado (corrida nocturna).
+- [ ] Documentar resultados: ¿el híbrido cierra el eje recall (H-MEZ-4)? + calidad del char-LM.
 
 ## F5 — Aprendizaje continuo viable en CPU  ⬜ PENDIENTE
 RAG document-level + LoRA + fusión intra-cuenca, medido (sin olvido catastrófico).
