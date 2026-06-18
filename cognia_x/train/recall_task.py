@@ -42,7 +42,7 @@ def make_recall_batch(rng, batch, n_pairs, n_queries, n_keys, n_vals, device):
 
 
 def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=None,
-                   min_steps=0, warmup=0,
+                   min_steps=0, warmup=0, early_stop=1.01,
                    d_model=96, n_layers=4, n_heads=4,
                    n_keys=96, n_vals=32, n_pairs=48, n_queries=8,
                    batch=32, lr=3e-4, abs_pos=False):
@@ -76,9 +76,12 @@ def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=
         if deadline is not None and step >= min_steps and time.time() > deadline:
             log(f"[recall:{name}] deadline alcanzado en step {step} (min_steps={min_steps})")
             break
-        if step % max(1, steps // 10) == 0 or step == steps:
+        if step % max(1, steps // 20) == 0 or step == steps:
             acc = eval_recall(model, eval_rng, n_pairs, n_queries, n_keys, n_vals, device, batches=8)
             log(f"[recall:{name}] step {step}/{steps} loss {loss.item():.4f} acc {acc:.3f} (azar {chance:.3f})")
+            if acc >= early_stop and step >= warmup:   # resuelto: cortar (independiente de min_steps)
+                log(f"[recall:{name}] early-stop en step {step} (acc {acc:.3f} >= {early_stop})")
+                break
 
     acc = eval_recall(model, eval_rng, n_pairs, n_queries, n_keys, n_vals, device, batches=20)
     log(f"[recall:{name}] FINAL acc {acc:.3f} (azar {chance:.3f})")

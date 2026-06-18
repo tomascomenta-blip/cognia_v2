@@ -57,6 +57,8 @@ def main():
                     help="piso de pasos: no cortar una celda por deadline antes de esto (que la "
                          "atención cruce la transición de fase antes de aceptar su acc)")
     ap.add_argument("--warmup", type=int, default=0, help="pasos de warmup lineal de LR")
+    ap.add_argument("--early_stop", type=float, default=0.99,
+                    help="cortar una celda si acc >= esto (resuelto); 1.01 lo desactiva")
     ap.add_argument("--hybrid_ae", type=int, default=3,
                     help="attn_every del híbrido (a n_layers=2 usar 2 -> [linear,attn]; a 4 usar 3)")
     ap.add_argument("--n_queries", type=int, default=None)
@@ -119,7 +121,7 @@ def main():
                 r = train_and_eval(
                     f"{name}_np{np_}", attn_every=ae, steps=args.steps, log=log, seed=args.seed,
                     n_keys=n_keys, n_pairs=np_, deadline=per, min_steps=args.min_steps,
-                    warmup=args.warmup, abs_pos=args.abs_pos, **RECIPE)
+                    warmup=args.warmup, early_stop=args.early_stop, abs_pos=args.abs_pos, **RECIPE)
                 grid[np_][name] = r["final_acc"]
                 log(f"[exp008] np={np_} {name} acc={r['final_acc']:.3f} azar={r['chance']:.3f} "
                     f"capas={r['layers']} ({(time.time()-t0)/60:.1f} min)")
