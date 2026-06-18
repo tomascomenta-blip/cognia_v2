@@ -66,3 +66,7 @@
 - Tests: N/A (lab independiente). Verificación REAL = el pipeline corre y APRENDE (mostrado).
 - Resultados estarán en `cognia_x/runs/overnight_v0/` (recall_results.json, charlm_best.pt, samples).
 - Next: al volver, leer runs/overnight_v0/ y documentar el resultado del entrenamiento.
+- **RESULTADO (04:25):** char-LM ✅ aprende (val 1.74 nats/byte, genera español+markdown+código;
+  sobreajustó el corpus chico). recall ❌ INCONCLUSO: 3 configs ~0.09, ni la atención (control
+  positivo) resolvió MQAR → NO cierra H-MEZ-4; setup inadecuado, lección documentada. Honesto.
+  Next CYCLE 6: rehacer recall con control positivo válido (menos pares, más pasos).
