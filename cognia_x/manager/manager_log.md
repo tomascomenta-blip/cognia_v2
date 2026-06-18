@@ -70,3 +70,28 @@
   sobreajustó el corpus chico). recall ❌ INCONCLUSO: 3 configs ~0.09, ni la atención (control
   positivo) resolvió MQAR → NO cierra H-MEZ-4; setup inadecuado, lección documentada. Honesto.
   Next CYCLE 6: rehacer recall con control positivo válido (menos pares, más pasos).
+
+## [2026-06-18] CYCLE 6 — diagnóstico del recall + RoPE + revisión adversarial (workflow)
+- Startup: sesión continuada (modo manager autónomo, ultracode). Objetivo: control positivo válido
+  para cerrar H-MEZ-4.
+- **Diagnóstico (causa raíz):** aislé el fallo bajando dificultad — np=1 atención acc 1.000 (copia
+  ok); np=2 a 2 capas/pocos pasos/n_queries=1 plateau 0.60; np=2 a 4 capas/8 cabezas/4000 pasos
+  0.998 (transición de fase). NO es bug del modelo: era **sub-recursos**.
+- **RoPE:** agregado a la atención (faltaba toda señal posicional). Pero RoPE NO movió la aguja a
+  2 capas y abs_pos tampoco → la posición no era el cuello; lo es capacidad/pasos. RoPE queda como
+  mejora correcta (verificada por tests).
+- **Workflow de revisión adversarial** (6 agentes, 5 lentes): tarea/modelo/bugs SÓLIDO (RoPE=pos
+  relativa, lineal paralela==recurrente diff 1e-7, alineamiento sin off-by-one, todo numérico);
+  corrigió 2 cosas que acepté: (1) sobredimensioné la receta — el lever real es **pasos + densidad
+  de supervisión (n_queries)**, no profundidad; mi 0.998 nunca se commiteó (lo corregí en docs);
+  (2) capacidad del lineal multi-cabeza = **d²/h, no d²** → el barrido debe entrar por encima de
+  esa capacidad para separar.
+- **Hecho (verificado, smoke+tests):** RoPE + assert d_head par; baseline de azar + rng eval + piso
+  de pasos en recall_task; exp008 parametrizable + deadline robusto + control-primero; nuevo test
+  discriminante np=3 (5 passed). Commits 52c97bf + 870d097 pusheados.
+- **Verificación REAL:** atención cruza recall de 3 pares a >0.9 (test) — control positivo válido
+  conseguido a escala chica. Falta el régimen separador (np≥24).
+- Tests: 5 passed (cognia_x/tests/). Suite de Cognia: N/A (lab independiente, no toca su código).
+- **Resultado del cierre de H-MEZ-4: PENDIENTE** — anchor probe (atención sola, np 8/16/24/32)
+  corriendo para mapear el cruce; luego comparación 3-vías en el régimen donde el lineal satura.
+- Next: leer el probe; correr lineal+híbrido en el np separador; documentar cierre o límite de CPU.

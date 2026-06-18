@@ -241,3 +241,61 @@ Al volver: leer los resultados, documentar si el híbrido cerró el eje recall y
   el lineal queda abajo (cierre real de H-MEZ-4).
 - char-LM: corpus más grande (evitar sobreajuste) o modelo regularizado; el backbone ya demostró
   que aprende.
+
+---
+
+## 2026-06-18 — CYCLE 6 (manager autónomo): diagnóstico del recall + RoPE + revisión adversarial
+
+### Diagnóstico (causa raíz del fallo del control positivo, regla "diagnóstico antes que parche")
+Reproduje el fallo nocturno y lo aislé bajando la dificultad hasta el mínimo:
+- **np=1 par** (`[k,v,k]`→predecir v): atención **acc 1.000** (copia de un salto). El modelo SÍ
+  recupera valores.
+- **np=2** a 2 capas / pocos pasos / `n_queries=1`: **plateau 0.60** — no selecciona el par correcto.
+- **np=2** a 4 capas/8 cabezas/4000 pasos: **acc 0.998**, con curva de transición de fase (la
+  cabeza de inducción se forma de golpe ~paso 2000-2800).
+**Conclusión:** NO era un bug del modelo. El control fallaba por **sub-recursos**. (Honestidad:
+ese 0.998 lo vi en terminal pero NO lo commiteé; ver corrección del workflow abajo.)
+
+### RoPE — descartar "falta de posición" como causa
+El modelo NO tenía señal posicional (ni RoPE ni embeddings de posición). Hipótesis: el recall
+asociativo necesita "copiar el token que sigue a la clave" → direccionamiento posicional. Agregué
+**RoPE** a la atención softmax (la lineal ELU+1 conserva su kernel positivo). Resultado: **RoPE
+NO movió la aguja a 2 capas** (idéntico ~0.24), y embeddings de posición absolutos **tampoco**
+(0.58). → la posición NO era el cuello de botella; lo es la **capacidad/pasos**. (RoPE queda igual
+como mejora correcta de arquitectura, verificada: propiedad de posición relativa + norma preservada.)
+
+### Revisión adversarial (workflow, 6 agentes / 5 lentes) — corrigió mi diagnóstico
+Lancé un workflow que auditó tarea, modelo/RoPE, validez del diagnóstico, justicia del comparador
+y bugs. Verdicts: tarea/modelo/bugs **sólido** (verificado numéricamente: RoPE=posición relativa,
+atención lineal paralela==recurrente diff 1e-7, alineamiento target/logits sin off-by-one);
+diagnóstico **problema_serio**; justicia **con_reservas**. Correcciones que **acepto**:
+1. **Sobredimensioné la receta.** El lever real NO es la profundidad: es **PASOS + DENSIDAD DE
+   SUPERVISIÓN** (`n_queries`). Con `n_queries` adecuado la atención cruza en np=2 con **solo 2
+   capas en ~300-460 pasos** (el agente lo reprodujo). Mi plateau de 2 capas venía de `n_queries=1`
+   (gradiente escasísimo: 1 de L posiciones supervisada), no de falta de capas. Verificado luego:
+   `test_aprende_recall_multipar` (np=3, n_queries=12) cruza a >0.9.
+2. **Capacidad del lineal = d²/h, NO d².** `LinearAttention` es multi-cabeza: estado recurrente
+   = h·d_head². Con d=128/h=8 → d_head=16 → cap ≈ 64 pares (no 512 como el single-head de exp002).
+   El barrido por defecto (4,8,16,32) **no saturaba el lineal** → no habría separación. Hay que
+   barrer n_pairs POR ENCIMA de la capacidad — justo donde a la atención le cuesta más cruzar en CPU.
+   Esa es la tensión central del experimento en este hardware.
+3. **Baseline de azar = 1/n_vals, no 1/vocab.** Logueada ahora junto a cada acc.
+
+### Hecho (verificado: smoke + tests)
+- `cognia_x/model/hybrid.py`: RoPE (build_rope_cache/apply_rope) en atención softmax; `abs_pos_emb`
+  opcional; assert d_head par.
+- `cognia_x/train/recall_task.py`: baseline de azar, rng de eval dedicado, piso de pasos (min_steps).
+- `cognia_x/experiments/exp008_recall_control/`: barrido parametrizable (d/capas/cabezas/n_queries/
+  lr/pairs), deadline robusto, control-primero. Receta base d=64/h=8/n_queries=16/lr1e-3.
+- `cognia_x/tests/test_recall_and_rope.py`: 5 tests (RoPE, posición relativa, posición-sensible,
+  recall 1-par, recall 3-pares con disambiguación). **5 passed.**
+- Commits: 52c97bf (RoPE+diagnóstico), 870d097 (fixes del workflow + corrección honesta). Pusheados.
+
+### Resultado del cierre de H-MEZ-4 — PENDIENTE (anchor probe corriendo)
+Diseño final (recomendado por el workflow): **anclar el control primero** — atención_pura sola,
+barrido np={8,16,24,32}, d=64/h=8 (cap lineal ≈16), `n_queries=16`, `min_steps=5000` (no cortar
+antes de cruzar). Objetivo: mapear hasta qué np la atención cruza a ~1.0 en CPU; luego correr
+lineal+híbrido en el régimen donde el lineal se satura (np≥24) para medir si el híbrido recupera
+el recall (cierre de H-MEZ-4) o si la demostración entrenada queda limitada por el presupuesto de
+CPU (en cuyo caso el eje recall se sostiene por exp002 teórico, no end-to-end). Se completará al
+terminar el probe.
