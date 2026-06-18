@@ -70,15 +70,40 @@ Motiva la hipótesis del **híbrido** [[H-MEZ-4]] con evidencia en ambos lados, 
 
 ---
 
-## exp003 — ¿Inferencia en CPU memory-bandwidth-bound? + diseño del híbrido  ⏳ DISEÑO
+## exp003 (=E3) — Inexactitud del FedAvg de adapters LoRA  ✅ CORRIDO
 
-- **Estado:** diseñado, pendiente de correr.
-- **Hipótesis:** [[A-001]] la decodificación autoregresiva en CPU está limitada por ancho de
-  banda de memoria (mover pesos), no por FLOPs → la cuantización pesa más que reducir FLOPs.
-- **Método propuesto:** perfil roofline simple en torch-cpu — para una capa lineal/matmul típica
-  variar tamaño de pesos y batch; medir GB/s efectivos vs FLOP/s; comparar float32 vs int8.
-  Segundo objetivo: especificar exp del **híbrido** (H-MEZ-4): pila de capas mayormente lineales +
-  k capas de atención full, medir coste (exp001-style) y recall (exp002-style) conjuntos.
-- **Métrica:** intensidad aritmética (FLOP/byte) y punto de quiebre del roofline.
+- **Estado:** completo (2026-06-17). P0 del ciclo-1 (mejor impacto/coste).
+- **Hipótesis:** [[H-CF-2]] — avg(B)·avg(A) ≠ avg(B·A); el FedAvg ingenuo de LoRA es inexacto.
+- **Código:** `cognia_x/experiments/exp003_fedavg_lora_inexactness/run.py` (numpy puro, sin entrenar).
+- **Cómo correr:**
+  `.\venv312\Scripts\python.exe cognia_x\experiments\exp003_fedavg_lora_inexactness\run.py`
+- **Método:** K clientes con adapters LoRA (r=8 = `_RANK_MAX` de Cognia). Comparar Δ_exact =
+  mean(B_k@A_k) vs Δ_naive = mean(B_k)@mean(A_k); error relativo Frobenius. Barrer heterogeneidad
+  (K=4) y nº de clientes (h=0.5). 20 trials, seed fijo.
 
-> Fichas adicionales del ciclo-1 (workflow) se añadirán aquí tras la síntesis.
+### Resultado
+- **Sanity:** heterogeneidad 0 → error = 0.00e+00 (clientes idénticos ⇒ exacto). La matemática cuadra.
+- **Error vs heterogeneidad:** 0.4% → 2.7% → 10% → 33% → **66%** (h=0.1→2.0). Monótono creciente.
+- **Colapso de rango (estructural):** Δ_exact rango 32 (=K·r); Δ_naive rango 8 (=r). El ingenuo
+  descarta 4× la diversidad de los clientes, **independiente de la heterogeneidad**.
+- **Matiz honesto:** el error *relativo* DECRECE con K (0.111→0.060 de K=2 a 16) bajo ruido iid
+  alrededor de una media compartida — promediar más clientes reduce la varianza del término
+  cruzado. El daño que SÍ crece con K es el colapso de rango, no la magnitud. (Refina la
+  afirmación del sintetizador "error crece con K", que es model-dependiente.)
+
+### Conclusión
+H-CF-2 **apoyada** (confianza alta — es álgebra, no depende de papers). Confirma un bug real en
+`coordinator/federated_store.py` de Cognia (Pass 3 promedia k_A,k_B,v_A,v_B por separado). Fix:
+agregar Δ-W reconstruidas + re-SVD a rango r, o FedEx-LoRA. Hallazgo de Cognia-X con impacto en
+Cognia (respeta la independencia: el experimento es standalone, el fix sería en Cognia si el dueño lo decide).
+
+---
+
+## exp004 (=E1) — Roofline CPU: ¿bandwidth-bound? + barrido hilos/precisión  ⏳ DISEÑO
+- **Estado:** diseñado, pendiente (requiere llama.cpp + GGUF).
+- **Hipótesis:** [[A-008]]/[[H-BW-1]] decode bandwidth-bound; hilos 2→4 <30%; tok/s ∝ 1/bytes-por-peso.
+- **Método:** con `venv312` + llama.cpp sobre el GGUF de Cognia, medir tok/s (500 tokens) en
+  Q8/Q4_K_M/Q2_K variando `--threads` 1,2,3,4; si hay contadores, GB/s leídos de DRAM vs banda pico.
+- **Métrica:** tok/s vs hilos (aplanamiento) y tok/s vs (1/bytes_por_peso) (~lineal salvo ternario).
+
+> Más fichas (exp005=E2 SWA vs full, E4 RAG vs LoRA, E5 peso de embedding) en `future_work.md`.

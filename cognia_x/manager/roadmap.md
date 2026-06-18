@@ -14,8 +14,15 @@ representación · mezcla de secuencia · cuello de botella CPU · aprendizaje c
 inspiración biológica · auto-mejora.
 - [x] exp001 (coste de mezcla) corrido → H-MEZ-1/2 apoyadas.
 - [x] exp002 (capacidad de recall) corrido → H-MEZ-3 apoyada; trade-off coste↔capacidad medido.
-- [ ] Síntesis del workflow integrada en `architecture.md` / `decision_log.md` / `hypotheses.md`.
-- [ ] exp003: validar A-001 (CPU bandwidth-bound) + experimento del híbrido (H-MEZ-4).
+- [x] Workflow de 13 agentes (6 dimensiones) corrido; 24 hipótesis verificadas adversarialmente.
+- [x] Síntesis integrada en `architecture.md` / `decision_log.md` / `hypotheses.md` / `assumptions.md`.
+
+## F2 — Validar las constantes en el hardware objetivo  🟡 EN CURSO
+La tesis es defendible en dirección; las constantes (tok/s, ratios, umbrales) NO se midieron en
+CPU. Experimentos E1-E5 (ver `experiments.md` / `future_work.md`):
+- [ ] exp003 = E3: demostrar inexactitud del FedAvg de LoRA (numpy puro, P0). **siguiente**
+- [ ] exp004 = E1: roofline CPU — confirmar bandwidth-bound + barrido de hilos/precisión.
+- [ ] exp005 = E2: SWA vs atención full — tok/s(L) + KV-cache (requiere GGUF).
 
 ## F2 — Decisiones por componente (conservadora/moderada/radical)  ⬜ PENDIENTE
 Para cada componente: 3 alternativas evaluadas con experimento. Salida → `architecture.md`.

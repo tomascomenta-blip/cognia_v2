@@ -34,5 +34,31 @@
   la evidencia sugiere, alineada con la literatura (Jamba, Griffin, Based).
 - **Reversible:** sí; se abandona si exp003+ refuta H-MEZ-4.
 
-> Decisiones de arquitectura por componente (síntesis del ciclo-1) se añadirán aquí al cerrar
-> el workflow.
+## D-006 (2026-06-17) — Métrica maestra = BYTES MOVIDOS POR TOKEN (no FLOPs)
+- **Decisión:** juzgar toda optimización por bytes/token movidos, porque el decode batch=1 en CPU
+  es memory-bandwidth-bound. **Reversible:** N/A (principio, validado por E1/H-BW-1).
+
+## D-007 (2026-06-17) — Backbone híbrido estado-fijo + atención sliding-window, ratio 3:1–4:1
+- **Decisión:** mayoría SSM/Gated-DeltaNet + minoría SWA (W~1024) + 1-2 capas globales; NO 6:1.
+- **Razón:** exp001+exp002 + Gemma-3/NVIDIA-Hybrid/arXiv:2507.06457. **Reversible:** sí (E2/H-SEQ-3).
+
+## D-008 (2026-06-17) — Representación BPE vocab moderado parity-aware; rechazar byte-puro y BLT
+- **Decisión:** BPE byte-fallback ~32-64k parity-aware + embedding/head cuantizados; NO byte-puro,
+  NO BLT a 1-3B. **Razón:** ×4 pasos / BLT no paga a esta escala / vocab grande infla softmax O(V).
+
+## D-009 (2026-06-17) — Q4 base hoy + ternario como APUESTA de I+D (no cerrada)
+- **Decisión:** Q4_K_M en producción; ternario b1.58 solo tras benchmark honesto vs Q4 igualado.
+- **Razón:** H-BIT-1 refutada (bitnet.cpp es kernel-vs-kernel; BitNet pierde ~12% MMLU). **Reversible:** sí.
+
+## D-010 (2026-06-17) — Aprendizaje continuo triple capa; kNN-LM por-token descartado
+- **Decisión:** RAG document-level + LoRA r≤16 + fusión de adapters dentro de la misma cuenca +
+  router de bandas. **Razón:** RAG ≥ fine-tune sin olvido; kNN-LM/token es memory-bound. **Reversible:** sí.
+
+## D-011 (2026-06-17) — Agregación federada: avg(B@A)/FedEx-LoRA, NO FedAvg ingenuo
+- **Decisión:** agregar delta-W reconstruidas, no promediar A y B por separado.
+- **Razón:** avg(A)·avg(B) ≠ avg(A·B) — INEXACTO, no subóptimo; el bug está en `federated_store.py`
+  Pass 3 de Cognia. **Hallazgo accionable** (impacto en Cognia real). Validar con exp003. **Reversible:** sí.
+
+## D-012 (2026-06-17) — Auto-mejora solo con evaluador verificable + gate humano + rollback
+- **Decisión:** nunca RL con auto-recompensa online; nunca proxy auto-generado como fitness.
+- **Razón:** reward hacking/colapso reproducibles; STOP desactivó sandbox 0.42%. **Reversible:** N/A (gate de seguridad).

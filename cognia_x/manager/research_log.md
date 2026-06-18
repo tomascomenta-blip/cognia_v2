@@ -73,6 +73,49 @@ lineales por coste + pocas de atención full para recall exacto). Ver H-MEZ-3 / 
 
 ### Próximo
 - Integrar la síntesis del ciclo-1 (workflow) en `architecture.md` / `decision_log.md` /
-  `hypotheses.md`.
-- `exp003`: validar A-001 (¿la inferencia en CPU es memory-bandwidth-bound?) con un perfil
-  roofline simple; y diseñar el experimento del **híbrido** (probar H-MEZ-4).
+  `hypotheses.md`. ✅ hecho (ver abajo).
+- `exp003`: el FedAvg ingenuo de LoRA es inexacto (H-CF-2) — demostrarlo en numpy.
+
+---
+
+## 2026-06-17 — Sesión 1 (cont.): ciclo-1 sintetizado e integrado
+
+### Hecho
+- El workflow de investigación (13 agentes, 672k tokens, 181 tool-uses, ~23 min) terminó.
+  6 dimensiones × {investigar con evidencia web → refutar adversarialmente} + síntesis.
+- **24 hipótesis** generadas; **13 holds=true, 11 holds=false**. Los verificadores fueron
+  genuinamente críticos: incluso auditaron el código real de Cognia (`federated_store.py`
+  _RANK_MAX=8, `self_architect.py`, `prompt_optimizer._estimate_quality`).
+- Integrado en `architecture.md` (tesis + 6 componentes con alternativas), `hypotheses.md`
+  (tabla de 24 veredictos), `decision_log.md` (D-006..D-012), `assumptions.md` (A-008..A-019),
+  `paper.md` (§3.3).
+
+### Tesis del ciclo-1 (confianza alta en direcciones, media en constantes)
+Una IA CPU-first se diseña para minimizar **bytes movidos por token** (decode es
+memory-bandwidth-bound), no FLOPs. Backbone híbrido estado-fijo + atención sliding-window
+(3:1-4:1); representación BPE vocab moderado parity-aware (no byte-puro/BLT a 1-3B); Q4 base +
+ternario como apuesta (NO probado superior a Q4); aprendizaje continuo RAG+LoRA+fusión intra-cuenca
+(kNN-LM/token descartado); agregación federada avg(B@A) (FedAvg ingenuo INEXACTO); biología =
+principios no implementación; auto-mejora solo con evaluador verificable + gate.
+
+### Hallazgos destacados
+- **Cross-validación fuerte:** mi exp002 (recall ∝ d², empírico en CPU) reproduce el resultado
+  teórico de Jelassi "Repeat After Me" (ICML'24) que el workflow recuperó por otra vía. Dos
+  caminos independientes → mismo techo estructural. Sube la confianza en el backbone híbrido.
+- **Bug real en Cognia:** la agregación federada de adapters (Pass 3, `federated_store.py`)
+  promedia A y B por separado = matemáticamente inexacto (H-CF-2). Barato de arreglar y verificar.
+- **Refutaciones honestas:** el ternario NO está probado superior a Q4 (H-BIT-1); el gate de
+  auto-mejora de Cognia es circular, no held-out (H-SELF-2); T-MAC usa registros no L2 (H-LUT-1).
+
+### exp003 (=E3) corrido — inexactitud del FedAvg de LoRA confirmada
+Resultado real (numpy, seed=11, r=8): error relativo Frobenius del FedAvg ingenuo vs la fusión
+exacta = **0.00e+00 a heterogeneidad 0** (sanity), creciendo a **0.4% → 10% → 66%** con la
+heterogeneidad; y colapso de rango estructural **32 (K·r) → 8 (r)**. Matiz honesto: el error
+*relativo* decrece con K bajo ruido iid (promediado), así que el daño que crece con K es el
+colapso de rango, no la magnitud — reportado tal cual. H-CF-2 **apoyada (confianza alta, es
+álgebra)**. Confirma el bug en `federated_store.py` Pass 3 de Cognia.
+
+### Próximo
+- exp004=E1 (roofline CPU/bandwidth-bound) y exp005=E2 (SWA vs full): requieren llama.cpp + GGUF.
+- Ciclo-2 candidato: experimento del híbrido (H-MEZ-4 / H-SEQ-4-revisada) a escala chica.
+- Decisión pendiente del dueño: ¿aplicar el fix de exp003 al `federated_store.py` de Cognia?

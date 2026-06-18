@@ -13,4 +13,19 @@
 | A-006 | Se puede aprender localmente y fusionar conocimiento sin reentrenar la base ni olvidar. | no-verificado | Núcleo de la prioridad #2; a investigar (model merging / LoRA / replay). |
 | A-007 | torch-cpu/numpy en `venv312` bastan para todos los experimentos del lab. | apoyado | exp001 corrió sin fricción; ambos disponibles. |
 
-> Supuestos adicionales del ciclo-1 (workflow) se añadirán/actualizarán aquí.
+## Ciclo-1 (workflow) — supuestos con estado
+
+| id | Supuesto | Estado | Nota |
+|----|----------|--------|------|
+| A-008 | Decode batch=1 en CPU es memory-bandwidth-bound; tok/s ~ banda/bytes-leídos-por-token. | apoyado | base de toda la tesis (H-BW-1, IISWC'24). Validar números en E1. |
+| A-009 | SWA (Gemma-3 5:1, W~1024) reduce KV de O(L) a ~O(W) sin degradar perplejidad material. | apoyado | H-SEQ-3 holds=true (producción). |
+| A-010 | Ratio recurrente:atención óptimo en 3:1–4:1; 6:1 es el borde que degrada recall. | apoyado | arXiv:2507.06457. |
+| A-011 | BLT/patching por entropía no recupera overhead a 1-3B (gana solo a 7B+). | apoyado | H-REP-2. |
+| A-012 | FedAvg ingenuo de A,B por separado es matemáticamente inexacto (crece con heterog./DP). | apoyado | H-CF-2; bug real en `federated_store.py`. |
+| A-013 | RAG document-level ≥ fine-tune para hechos nuevos, cero olvido, < coste que kNN-LM/token. | apoyado | H-CF-3. |
+| A-014 | Un ternario b1.58 nativo bate a un Q4 denso de **calidad comparable** sin pérdida. | **refutado** | H-BIT-1; los 2-6× son kernel-vs-kernel; BitNet pierde ~12% MMLU. |
+| A-015 | T-MAC condiciona su ventaja a que las LUTs quepan en **L2**. | **refutado** | el mecanismo real es registros/L1 (H-LUT-1). |
+| A-016 | kNN-LM por-token es viable en el CPU objetivo (búsqueda ANN por token). | **refutado** | retrieval memory-bound; document-level sí, por-token no. |
+| A-017 | El gate de auto-mejora de Cognia es held-out (señal de rollback fiable). | **refutado** | evaluador CIRCULAR sobre la misma DB que se auto-escribe (H-SELF-2). |
+| A-018 | El ahorro de banda de SSM/SWA se materializa con los kernels CPU ACTUALES de llama.cpp. | no-verificado | soporte inmaduro; riesgo de diseño. |
+| A-019 | Las constantes numéricas (<30% hilos, ≥30% tok/s a 8K, break-even patching) se cumplen en ESTE CPU. | no-verificado | E1-E5 las confirman antes de comprometer diseño. |

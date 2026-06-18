@@ -40,10 +40,22 @@ atención full mantiene accuracy ~1.0 en todo N; la atención lineal se degrada 
 **d²/32** (32→32, 64→128, 128→512), es decir, su recall escala con el **tamaño del estado**, no
 con d. → trade-off **coste↔capacidad** medido. → `experiments.md` exp002, `hypotheses.md` H-MEZ-3.
 
-### 3.3 Síntesis del ciclo-1 (en curso)
-*Pendiente: integración de la investigación multi-dimensión (embeddings, atención, cuello de
-botella CPU, aprendizaje continuo, inspiración biológica, auto-mejora) con verificación
-adversarial. Se añadirá aquí al cerrar el workflow.*
+### 3.3 Síntesis del ciclo-1 (workflow de 13 agentes, 2026-06-17)
+Barrido de 6 dimensiones con evidencia web + verificación adversarial (24 hipótesis, 13 holds=true /
+11 holds=false). **Tesis:** una IA CPU-first se diseña para minimizar **bytes movidos por token**
+(decode memory-bandwidth-bound), no FLOPs. De ahí: backbone **híbrido** estado-fijo + atención
+sliding-window (3:1-4:1, Gemma-3 verificado); representación **BPE vocab moderado parity-aware**
+(no byte-puro ni BLT a 1-3B); **Q4 base + ternario como apuesta** (BitNet NO demostrado superior a
+Q4 de igual calidad); aprendizaje continuo **RAG document-level + LoRA + fusión intra-cuenca**
+(kNN-LM/token descartado); agregación federada **avg(B@A)/FedEx-LoRA** (FedAvg ingenuo es
+INEXACTO — bug real en `federated_store.py` de Cognia); biología = tomar **principios**
+(esparsidad, memoria=cómputo) NO **implementación** (SNN/FF/predictive-coding cuestan más);
+auto-mejora **solo con evaluador verificable + gate + rollback**. Confianza **alta en direcciones,
+media en constantes** (no medidas en el CPU objetivo → E1-E5). Detalle: `architecture.md`,
+`hypotheses.md`, `decision_log.md`.
+
+**Cross-validación:** mi exp002 (recall ∝ d², empírico) reproduce el resultado teórico de la
+literatura (Jelassi "Repeat After Me" ICML'24) que el workflow recuperó por una vía independiente.
 
 ## 4. Errores / fracasos registrados
 - (ninguno aún; se registrarán con su lección — un fracaso es información, no abandono).

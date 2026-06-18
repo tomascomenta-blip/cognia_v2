@@ -78,5 +78,42 @@
 
 ---
 
-> Las hipótesis H-REP-*, H-CPU-*, H-CONT-*, H-BIO-*, H-AUTO-* del ciclo-1 (workflow) se
-> añadirán aquí con su evidence ledger cuando termine la síntesis. *(workflow en curso)*
+## Ciclo-1 (workflow de 13 agentes) — hipótesis verificadas adversarialmente (2026-06-17)
+
+24 hipótesis generadas por 6 investigadores con evidencia web; cada una atacada por un
+verificador adversarial. **Las refutadas (holds=false) son tan valiosas como las apoyadas:**
+marcan dónde la intuición/literatura se sobre-extiende. Confianza = del veredicto adversarial.
+
+**Prioridad P0 (mejor relación impacto/coste, todas CPU-feasibles):** H-SEQ-3, H-BW-1, H-CF-2.
+
+| ID | Enunciado (resumen) | Veredicto | Conf | Nota clave del verificador |
+|----|---------------------|-----------|------|----------------------------|
+| H-REP-1 | latencia ∝ 1/(bytes por paso), embedding aporta <5% | ❌ false | media | confunde embedding de ENTRADA (barato) con lm_head O(V) (hasta 62% del paso) |
+| H-REP-2 | patching BLT no recupera overhead a 1-3B en CPU | ✅ true | media | BLT a 1B arranca peor que BPE-Llama2; gana solo a 7B+ |
+| H-REP-3 | BPE parity-aware sin coste de inferencia extra | ❌ false | media | la paridad suele comprarse ampliando vocab → infla softmax O(V) |
+| H-REP-4 | cuantizar embedding+head 8-bit: >10% RAM, ΔPPL<1% | ✅ true | media | embedding+head = 25-37% params a 1-3B vocab grande |
+| H-SEQ-1 | Transformer cae >40% tok/s a 8K; cruce SSM 1K-4K | ❌ false | media | premisa bandwidth correcta; números inventados (caída real ~-37% recién a 110K) |
+| H-SEQ-2 | recall full >95% e híbrido 7:1 hasta N grande | ❌ false | media | 1ª mitad sólida; 7:1 es el borde que la evidencia desaconseja (3:1-6:1) |
+| **H-SEQ-3** | **SWA (W~1024) conserva calidad, KV O(L)→O(W), ↑tok/s** | ✅ **true** | **alta** | Gemma-3 producción: KV 60%→<15% a 32K sin perder perplejidad |
+| H-SEQ-4 | óptimo es híbrido 6:1 SSM:SWA, domina Pareto 2K-16K | ❌ false | media | dirección híbrido correcta; 6:1 y "SSM:SWA" sobre-especificados |
+| **H-BW-1** | **decode bandwidth-bound: hilos 2→4 <30%; bytes/peso↓→tok/s↑** | ✅ **true** | media | núcleo sólido; constantes no medidas en el target; no aplica a ternario |
+| H-BIT-1 | ternario nativo > Q4 denso de igual calidad, sin pérdida | ❌ false | alta | bitnet.cpp es kernel-vs-kernel; BitNet pierde ~12% MMLU vs Qwen2.5-1.5B |
+| H-LUT-1 | T-MAC gana solo si las LUTs caben en L2 | ❌ false | media | T-MAC pone las LUTs en REGISTROS, no L2; límite real registro/L1 |
+| H-SPARSE-1 | sparsity reduce banda; beneficio neto solo con >60% (ReLU) | ✅ true | baja | dirección ReLU-sí/SwiGLU-no correcta; umbral 60% no medido en CPU |
+| H-CF-1 | LoRA r≤16 preserva >90% base, <5% drop | ❌ false | media | sobre-especificado; `federated_store.py` _RANK_MAX=8 prohíbe r=64/256 |
+| **H-CF-2** | **FedAvg ingenuo de A,B inexacto vs avg(B@A); crece con heterog.** | ✅ **true** | **alta** | avg(A)avg(B)≠avg(AB); **exp003 ✅: error 0→66%, rango K·r→r**; bug en `federated_store.py` Pass 3 |
+| H-CF-3 | RAG document-level ≥ fine-tune, cero olvido, < kNN-LM/token | ✅ true | media | Ovadia 2024; kNN-LM por-token descartado (memory-bound) |
+| H-CF-4 | fusión cruza barreras; TIES degrada antes que task-arith | ❌ false | media | lo OPUESTO: TIES degrada MENOS rápido que task-arithmetic |
+| H-BIO-1 | sparsity impuesta (ReLU) > truco de picos en CPU | ❌ false | media | dirección correcta; >70%/<2ppl/1.5× no se sostiene a ≤1.5B |
+| H-BIO-2 | gating por contexto: barato SOLO con señal fiable | ✅ true | media | XdG (PNAS 2018); sin task-ID → recae en olvido |
+| H-BIO-3 | predictive coding / FF NO competitivos vs QLoRA en CPU | ✅ true | alta | PC ~100× coste backprop; ≥10× wall-clock para igual exactitud |
+| H-BIO-4 | Hopfield = atención: misma operación, mismo memory-bound | ✅ true | alta | la etiqueta "biológica" no compra eficiencia extra |
+| H-SELF-1 | evaluador verificable > proxy auto-generado (reward hacking) | ✅ true | media | dirección sí; monotonía/umbrales exactos no garantizados |
+| H-SELF-2 | gate+rollback held-out reduce deriva casi sin coste | ❌ false | media | el evaluador de Cognia es CIRCULAR (misma DB que se auto-escribe), no held-out |
+| H-SELF-3 | collapse_guard detecta colapso ANTES que el proxy | ❌ false | media | señales sobre poblaciones distintas (entradas vs salidas); orden no demostrado |
+| H-SELF-4 | self-modeling → mejor cuantización → ↑tok/s | ❌ false | media | cadena causal con eslabones rotos (varianza de pesos ≠ cuantizabilidad) |
+
+**Convergencia notable:** H-SEQ-2/literatura (recall ∝ tamaño de estado; Jelassi "Repeat After Me"
+ICML'24, Arora "Zoology" ICLR'24) **coincide con mi exp002 empírico** (capacidad = d²/32). Dos
+caminos independientes (micro-experimento propio + revisión de literatura verificada) llegan al
+mismo techo estructural. Esto eleva la confianza en P4 y en la decisión del backbone híbrido.

@@ -2,15 +2,17 @@
 
 > Cola de ideas e investigaciones. No es compromiso; es memoria de lo que vale la pena explorar.
 
-## Experimentos cercanos
-- **exp002** — calidad de mezcladores: recall asociativo / copia (induction heads) full vs lineal
-  vs SSM. Contrapeso obligatorio a exp001.
-- **exp003** — perfil roofline en CPU: ¿memory-bandwidth-bound o compute-bound? (valida A-001).
-  Medir bytes movidos vs FLOPs en una capa típica con torch-cpu.
-- **exp004** — coste de cuantización: int8/int4/ternario vs float32 en CPU (tiempo + calidad),
-  validar si los hallazgos de coste se mantienen (A-005).
-- **exp005** — representación de entrada: byte/char vs tokenización BPE — tamaño de tabla de
-  embeddings, ancho de banda, robustez (dimensión "representación").
+## Experimentos cercanos (E1-E5 del ciclo-1, priorizados por impacto/coste)
+- ✅ **exp001** coste de mezcla; ✅ **exp002** capacidad de recall (corridos).
+- **exp003 = E3** (P0, **siguiente**) — demostrar que el FedAvg ingenuo de LoRA es inexacto:
+  ‖avg(B@A) − avg(B)·avg(A)‖_F > 0 y crece con la heterogeneidad. numpy puro, 100% CPU, definitivo.
+  Valida H-CF-2; impacto directo en `coordinator/federated_store.py` de Cognia.
+- **exp004 = E1** (P0) — roofline CPU: tok/s de un GGUF en Q8/Q4/Q2 variando hilos 1-4; confirmar
+  bandwidth-bound (aplanamiento por hilos <30%, tok/s ∝ 1/bytes-por-peso). Requiere llama.cpp.
+- **exp005 = E2** (P1) — SWA vs atención full: tok/s(L) 256→32K + RAM de KV-cache + ΔPPL. Valida
+  H-SEQ-3. Requiere un GGUF con sliding-window (Gemma-3 / Mistral-SWA).
+- **E4** — RAG document-level vs LoRA vs kNN-LM/token para 100 hechos nuevos (valida H-CF-3).
+- **E5** — peso real de embedding+lm_head en el GGUF y ahorro de cuantizarlos (valida H-REP-4).
 
 ## Direcciones de arquitectura (a confirmar con evidencia)
 - Mezcla de secuencia híbrida (mayoría lineal + pocas capas de atención para recall exacto).

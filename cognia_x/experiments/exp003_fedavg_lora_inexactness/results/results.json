@@ -1,0 +1,71 @@
+{
+  "experiment": "exp003_fedavg_lora_inexactness",
+  "config": {
+    "seed": 11,
+    "m": 256,
+    "n": 256,
+    "r": 8,
+    "trials": 20
+  },
+  "error_vs_heterogeneity_K4": [
+    {
+      "hetero": 0.0,
+      "rel_error": 0.0,
+      "rank_exact": 8.0,
+      "rank_naive": 8.0
+    },
+    {
+      "hetero": 0.1,
+      "rel_error": 0.0043216966808807145,
+      "rank_exact": 32.0,
+      "rank_naive": 8.0
+    },
+    {
+      "hetero": 0.25,
+      "rel_error": 0.02682610701433987,
+      "rank_exact": 32.0,
+      "rank_naive": 8.0
+    },
+    {
+      "hetero": 0.5,
+      "rel_error": 0.10080567097963637,
+      "rank_exact": 32.0,
+      "rank_naive": 8.0
+    },
+    {
+      "hetero": 1.0,
+      "rel_error": 0.32885170418032267,
+      "rank_exact": 32.0,
+      "rank_naive": 8.0
+    },
+    {
+      "hetero": 2.0,
+      "rel_error": 0.6565000327450423,
+      "rank_exact": 32.0,
+      "rank_naive": 8.0
+    }
+  ],
+  "error_vs_clients_h0.5": [
+    {
+      "K": 2,
+      "rel_error": 0.1108820241338884
+    },
+    {
+      "K": 3,
+      "rel_error": 0.10780432472864927
+    },
+    {
+      "K": 4,
+      "rel_error": 0.10061881064458482
+    },
+    {
+      "K": 8,
+      "rel_error": 0.07954973009153911
+    },
+    {
+      "K": 16,
+      "rel_error": 0.059509955058469385
+    }
+  ],
+  "sanity_zero_hetero_rel_error": 0.0
+}
