@@ -129,4 +129,31 @@ GEMV solo modela el streaming de pesos; el decode completo además mueve KV-cach
 argumento bandwidth, no lo debilita). El tramo bytes/peso no se extiende a ternario (unpack/LUT
 es compute — coincide con el "fused int4 kernel 1.01x compute-bound" del vault).
 
-> Más fichas (exp005=E2 SWA vs full, E4 RAG vs LoRA, E5 peso de embedding) en `future_work.md`.
+---
+
+## exp005 — Frontera coste↔recall del backbone híbrido (H-MEZ-4)  ✅ CORRIDO
+- **Estado:** completo (2026-06-17, manager CYCLE 2). numpy puro, mide el **eje coste**; el eje
+  recall viene de exp002.
+- **Hipótesis:** [[H-MEZ-4]] — un stack mayormente lineal + pocas capas full se acerca al coste
+  del lineal puro y al recall del full puro.
+- **Código:** `cognia_x/experiments/exp005_hybrid_decode_frontier/run.py`
+- **Cómo correr:** `.\venv312\Scripts\python.exe cognia_x\experiments\exp005_hybrid_decode_frontier\run.py`
+- **Método:** un paso de decode por un stack de m=24 capas, k de atención full (KV-cache O(L)) +
+  (24-k) lineales (estado fijo O(d²)), d=128. Caches/estados pre-construidos fuera del bucle
+  cronometrado. Barrer k∈{0,1,3,6,12,24} × L∈{512,2048,8192}, 80 reps.
+
+### Resultado (ms/token, verificado re-corriendo)
+- **Pure linear (k=0): ~constante en L** (0.44→0.49 ms, +3% sobre ×16 de L).
+- **Pure full (k=24): ~lineal en L** (2.4→9.9→41 ms).
+- **Híbrido coste como % del full puro:** a L=8192 → k=1: ~7%, **k=3: ~12-15%**, k=6: ~26%. La
+  ventaja crece con L (las capas lineales son constantes en L y dominan el ahorro).
+
+### Conclusión
+H-MEZ-4 **apoyada en su eje coste** (confianza alta). Junto a exp002 (recall: full ~ilimitado en
+N, lineal acotado por d²): un híbrido **3/24 full** compra recall de nivel-full a **~12-15% del
+coste de decode** del full puro a L=8192. **Caveat honesto:** a contexto corto (L=512) el ahorro
+es modesto (k=3 ≈ 28% del full) — el payoff del híbrido depende de **contexto largo**. El recall
+del stack híbrido aún no se midió end-to-end (requiere entrenar o construir la tarea multi-capa);
+se infiere de exp002. → ciclo-3.
+
+> Más fichas (E2 SWA vs full real con GGUF, E4 RAG vs LoRA, E5 peso de embedding) en `future_work.md`.

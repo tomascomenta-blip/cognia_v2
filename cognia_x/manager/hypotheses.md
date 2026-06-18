@@ -67,14 +67,16 @@
   ≈ el del lineal puro (+ O(k) penalización), y el recall asociativo será ≫ el del lineal puro,
   acercándose al full. Refutable si el híbrido no mejorara el recall del lineal, o si su coste se
   acercara al del full.
-- **Estado:** **abierta** (a probar).
-- **Confianza:** media (motivada por evidencia + literatura Jamba/Griffin/Based, no aún medida aquí).
-- **Evidencia a favor:** exp001 (coste lineal ≪ full) + exp002 (recall full ≫ lineal) → el híbrido
-  es la combinación natural; literatura de modelos híbridos lo respalda.
-- **Evidencia en contra:** el número y la colocación de capas full podrían necesitar ser grandes
-  para igualar el recall, erosionando la ventaja de coste. A medir.
-- **Veredicto adversarial:** pendiente (necesita su propio experimento).
-- **Experimento:** exp003+ (diseño del híbrido, pendiente).
+- **Estado:** **apoyada (eje coste)**; recall del stack aún por medir end-to-end.
+- **Confianza:** alta en coste; media en el conjunto (recall inferido de exp002, no medido en stack).
+- **Evidencia a favor:** **exp005 (propio): híbrido 3/24 full = ~12-15% del coste de decode del
+  full puro a L=8192; lineal puro ~constante en L, full puro ~lineal en L.** + exp001 (coste lineal
+  ≪ full) + exp002 (recall full ≫ lineal) + literatura Jamba/Griffin/NVIDIA-Hybrid.
+- **Evidencia en contra:** a contexto corto (L=512) el ahorro es modesto (k=3 ≈ 28% del full); el
+  payoff depende de L grande. El recall del stack híbrido no se midió (se infiere de exp002).
+- **Veredicto adversarial:** eje coste sostenido y verificado (re-corrido). Falta cerrar el eje
+  recall con un experimento multi-capa entrenado/construido.
+- **Experimento:** exp005 ✅ (coste); recall del stack → ciclo-3.
 
 ---
 

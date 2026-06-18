@@ -8,33 +8,30 @@
 - [x] Documentación viva mínima en `manager/` (los 9 archivos).
 - [x] Primer experimento reproducible corrido (exp001) — el lab "corre de verdad".
 
-## F1 — Ciclo-1 de investigación (mapa de evidencia)  🟡 EN CURSO
-Barrido de 6 dimensiones con evidencia + refutación adversarial + síntesis:
-representación · mezcla de secuencia · cuello de botella CPU · aprendizaje continuo ·
-inspiración biológica · auto-mejora.
-- [x] exp001 (coste de mezcla) corrido → H-MEZ-1/2 apoyadas.
-- [x] exp002 (capacidad de recall) corrido → H-MEZ-3 apoyada; trade-off coste↔capacidad medido.
-- [x] Workflow de 13 agentes (6 dimensiones) corrido; 24 hipótesis verificadas adversarialmente.
+## F1 — Ciclo-1 de investigación (mapa de evidencia)  ✅ DONE (2026-06-17)
+- [x] exp001 (coste de mezcla) → H-MEZ-1/2; exp002 (capacidad de recall) → H-MEZ-3.
+- [x] Workflow de 13 agentes (6 dimensiones), 24 hipótesis verificadas adversarialmente.
 - [x] Síntesis integrada en `architecture.md` / `decision_log.md` / `hypotheses.md` / `assumptions.md`.
 
-## F2 — Validar las constantes en el hardware objetivo  🟡 EN CURSO
-La tesis es defendible en dirección; las constantes (tok/s, ratios, umbrales) NO se midieron en
-CPU. Experimentos E1-E5 (ver `experiments.md` / `future_work.md`):
-- [ ] exp003 = E3: demostrar inexactitud del FedAvg de LoRA (numpy puro, P0). **siguiente**
-- [ ] exp004 = E1: roofline CPU — confirmar bandwidth-bound + barrido de hilos/precisión.
-- [ ] exp005 = E2: SWA vs atención full — tok/s(L) + KV-cache (requiere GGUF).
+## F2 — Decisiones por componente (conservadora/moderada/radical)  ✅ DONE (2026-06-17)
+- [x] 6 componentes con sus 3 alternativas + evidencia → `architecture.md` (§1-7), `decision_log.md` (D-006..D-012).
 
-## F2 — Decisiones por componente (conservadora/moderada/radical)  ⬜ PENDIENTE
-Para cada componente: 3 alternativas evaluadas con experimento. Salida → `architecture.md`.
+## F3 — Validar las constantes en el hardware objetivo  🟡 EN CURSO
+La tesis es defendible en dirección; varias constantes ya se midieron en CPU:
+- [x] exp003 = E3: inexactitud del FedAvg de LoRA (error 0→66%, rango K·r→r).
+- [x] exp004 = E1: roofline CPU — bandwidth-bound (float32 ~2.2× f64; hilos saturan a 2).
+- [x] exp005: frontera coste del híbrido (H-MEZ-4) — 3/24 full = ~12-15% del coste de full puro a L=8192.
+- [ ] E2 real: SWA vs atención full en llama.cpp con GGUF — tok/s(L) + KV-cache.
+- [ ] Cerrar el eje **recall** del híbrido (tarea multi-capa entrenada; entrenamiento en Kaggle GPU).
 
-## F3 — Boceto de arquitectura CPU-first v0  ⬜ PENDIENTE
-Primer diseño integrado defendible por evidencia (representación + mezcla + cómputo).
+## F4 — Boceto de arquitectura CPU-first v0  ⬜ PENDIENTE
+Diseño integrado defendible por evidencia (representación + mezcla híbrida + cómputo), entrenable a escala chica.
 
-## F4 — Aprendizaje continuo viable en CPU  ⬜ PENDIENTE
-Mecanismo de aprendizaje local + fusión sin olvido catastrófico, medido.
+## F5 — Aprendizaje continuo viable en CPU  ⬜ PENDIENTE
+RAG document-level + LoRA + fusión intra-cuenca, medido (sin olvido catastrófico).
 
-## F5 — Auto-mejora Nivel 1→2 con gates de estabilidad  ⬜ PENDIENTE
-Observación → recomendaciones, con evaluación + rollback antes de subir de nivel.
+## F6 — Auto-mejora Nivel 1→2 con gates de estabilidad  ⬜ PENDIENTE
+Observación → recomendaciones, con evaluador verificable + rollback antes de subir de nivel.
 
 > Criterio de avance entre fases: hipótesis clave apoyada por experimento reproducible + 0
 > regresiones + reproducibilidad mantenida.

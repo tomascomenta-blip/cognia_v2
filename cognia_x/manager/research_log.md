@@ -137,3 +137,22 @@ colapso de rango, no la magnitud — reportado tal cual. H-CF-2 **apoyada (confi
 ### Próximo
 - CYCLE 2: experimento del **híbrido** (H-MEZ-4) a escala chica — medir coste↔recall juntos en un
   stack de capas (mayoría lineal + pocas full) vs los puros, validando con mis propias constantes.
+
+---
+
+## 2026-06-17 — CYCLE 2 (manager autónomo): H-MEZ-4 validada en su eje coste
+
+### Hecho
+- **exp005** (frontera coste↔recall del híbrido, numpy puro): un paso de decode por un stack de
+  m=24 capas con k full + (24-k) lineales, barriendo k y L. Verificado re-corriéndolo el manager.
+- **Resultado real:** pure linear (k=0) ~constante en L (0.44→0.49 ms); pure full (k=24) ~lineal
+  (2.4→41 ms a L=8192). **Híbrido 3/24 full = ~12-15% del coste de full puro a L=8192** (k=1 ~7%).
+- Combinado con exp002 (recall: full ~ilimitado en N, lineal acotado por d²): el híbrido compra
+  recall de nivel-full a ~1/7 del coste de decode a contexto largo. H-MEZ-4 → apoyada (eje coste).
+- **Caveat honesto:** a L=512 el ahorro es modesto (k=3 ≈ 28% del full); el payoff depende de L
+  grande. El recall del stack híbrido no se midió end-to-end (se infiere de exp002).
+
+### Próximo
+- CYCLE 3 candidato: cerrar el eje recall del híbrido (tarea multi-capa entrenada/construida,
+  posiblemente vía Kaggle GPU para el entrenamiento, evaluación en CPU). O E2 real (SWA vs full en
+  llama.cpp con GGUF). Seguir el loop de manager.

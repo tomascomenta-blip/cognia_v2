@@ -18,3 +18,14 @@
   correr el experimento y mostrar números.
 - Archivos: exp004/run.py + results/; experiments.md, hypotheses.md, assumptions.md, research_log.md.
 - Next: CYCLE 2 = experimento del híbrido (H-MEZ-4).
+
+## [2026-06-17] CYCLE 2 — experimento del híbrido (H-MEZ-4), eje coste
+- Startup: usage 37% (<80%, proceder).
+- Sub-tarea delegada a sub-agente (general-purpose): exp005 (frontera coste del decode híbrido).
+  El sub-agente lo escribió y corrió; el manager VERIFICÓ re-corriéndolo (número clave confirmado).
+- **Resultado:** pure linear ~constante en L; pure full ~lineal; **híbrido 3/24 full = ~12-15% del
+  coste de full puro a L=8192**. H-MEZ-4 → apoyada (eje coste, confianza alta). Caveat: payoff
+  depende de L grande; recall del stack aún por medir (inferido de exp002).
+- Tests: N/A (experimento standalone numpy en `cognia_x/`).
+- Archivos: exp005/run.py + results/; experiments.md, hypotheses.md, architecture.md, research_log.md, roadmap.md.
+- Next: CYCLE 3 = cerrar eje recall del híbrido, o E2 real (SWA vs full con GGUF).

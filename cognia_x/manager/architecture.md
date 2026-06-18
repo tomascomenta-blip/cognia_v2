@@ -37,7 +37,9 @@ recall del estado fijo está acotado por su tamaño — reproduce a Jelassi "Rep
 - **Evidencia:** exp001 (coste O(L²)) + exp002 (recall ∝ estado) propios; NVIDIA Mamba-2-Hybrid 8B
   supera Transformer 12/12 tasks ~8× decode (arXiv:2406.07887); Gemma-3 KV 60%→<15% sin perder
   perplejidad (arXiv:2503.19786); ratio 3:1-6:1, el extremo alto degrada recall (arXiv:2507.06457).
-  Transformer-puro NO (KV O(L)); SSM-puro NO ("Repeat After Me" arXiv:2402.01032).
+  Transformer-puro NO (KV O(L)); SSM-puro NO ("Repeat After Me" arXiv:2402.01032). **exp005
+  (propio): un híbrido 3/24 capas full retiene solo ~12-15% del coste de decode del full puro a
+  L=8192 → la frontera coste↔recall del híbrido está MEDIDA, no solo citada.**
 
 ### 2. Representación de entrada (tokenización/embeddings)
 - **Decisión:** **BPE byte-fallback, vocab MODERADO (~32k-64k, no 256k), parity-aware** sobre el
