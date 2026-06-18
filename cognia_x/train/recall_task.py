@@ -42,7 +42,7 @@ def make_recall_batch(rng, batch, n_pairs, n_queries, n_keys, n_vals, device):
 
 
 def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=None,
-                   min_steps=0,
+                   min_steps=0, warmup=0,
                    d_model=96, n_layers=4, n_heads=4,
                    n_keys=96, n_vals=32, n_pairs=48, n_queries=8,
                    batch=32, lr=3e-4, abs_pos=False):
@@ -62,6 +62,9 @@ def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=
 
     model.train()
     for step in range(1, steps + 1):
+        if warmup > 0 and step <= warmup:        # warmup lineal de LR (forma la cabeza de induccion)
+            for g in opt.param_groups:
+                g["lr"] = lr * step / warmup
         x, y = make_recall_batch(rng, batch, n_pairs, n_queries, n_keys, n_vals, device)
         _, loss = model(x, y)
         opt.zero_grad()

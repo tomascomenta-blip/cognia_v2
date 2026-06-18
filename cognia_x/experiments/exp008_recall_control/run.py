@@ -56,6 +56,9 @@ def main():
     ap.add_argument("--min_steps", type=int, default=0,
                     help="piso de pasos: no cortar una celda por deadline antes de esto (que la "
                          "atención cruce la transición de fase antes de aceptar su acc)")
+    ap.add_argument("--warmup", type=int, default=0, help="pasos de warmup lineal de LR")
+    ap.add_argument("--hybrid_ae", type=int, default=3,
+                    help="attn_every del híbrido (a n_layers=2 usar 2 -> [linear,attn]; a 4 usar 3)")
     ap.add_argument("--n_queries", type=int, default=None)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--abs_pos", action="store_true",
@@ -75,10 +78,11 @@ def main():
         v = getattr(args, k)
         if v is not None:
             RECIPE[k] = v
-    configs = CONFIGS
+    configs_all = [("atencion_pura", 1), ("hibrido_3to1", args.hybrid_ae), ("lineal_puro", 0)]
+    configs = configs_all
     if args.configs:
         want = set(args.configs.split(","))
-        configs = [c for c in CONFIGS if c[0] in want]
+        configs = [c for c in configs_all if c[0] in want]
 
     torch.set_num_threads(3)
     os.makedirs(RESULTS, exist_ok=True)
@@ -115,7 +119,7 @@ def main():
                 r = train_and_eval(
                     f"{name}_np{np_}", attn_every=ae, steps=args.steps, log=log, seed=args.seed,
                     n_keys=n_keys, n_pairs=np_, deadline=per, min_steps=args.min_steps,
-                    abs_pos=args.abs_pos, **RECIPE)
+                    warmup=args.warmup, abs_pos=args.abs_pos, **RECIPE)
                 grid[np_][name] = r["final_acc"]
                 log(f"[exp008] np={np_} {name} acc={r['final_acc']:.3f} azar={r['chance']:.3f} "
                     f"capas={r['layers']} ({(time.time()-t0)/60:.1f} min)")
