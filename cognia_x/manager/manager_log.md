@@ -29,3 +29,12 @@
 - Tests: N/A (experimento standalone numpy en `cognia_x/`).
 - Archivos: exp005/run.py + results/; experiments.md, hypotheses.md, architecture.md, research_log.md, roadmap.md.
 - Next: CYCLE 3 = cerrar eje recall del híbrido, o E2 real (SWA vs full con GGUF).
+
+## [2026-06-17] CYCLE 3 — coste del vocabulario / representación (D-008, H-REP-1/4)
+- Startup: usage 39% (<80%, proceder).
+- Sub-tarea delegada a sub-agente: exp006 (lm_head O(V) vs bloque). Manager VERIFICÓ re-corriéndolo.
+- **Resultado:** lm_head = 1 bloque a V≈26k (lineal en V); input embed ~10⁴× más barato (refuta
+  H-REP-1); memoria embed+head 1-10% a vocab moderado tied, 30% a 256k. Refuerza D-008.
+- Tests: N/A (standalone numpy en `cognia_x/`).
+- Archivos: exp006/run.py + results/; experiments.md, hypotheses.md, architecture.md, decision_log.md, research_log.md.
+- Next: CYCLE 4 = exp007 eje precisión (int8 vs float32, por qué hacen falta kernels especiales).

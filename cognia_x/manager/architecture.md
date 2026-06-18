@@ -50,7 +50,10 @@ recall del estado fijo está acotado por su tamaño — reproduce a Jelassi "Rep
 - **Evidencia:** byte-puro ×4 pasos = ×4 lecturas de pesos (ByT5 2-10× más lento); BLT a 1B arranca
   PEOR que BPE-Llama2, gana solo a 7B+ (arXiv:2412.09871); vocab grande infla lm_head+softmax O(V),
   hasta 62% del paso (FR-Spec, arXiv:2502.14856) → vocab moderado. embedding+head = 25-37% params a
-  1-3B; cuantizar 8-bit da >10% RAM con ΔPPL<1% (H-REP-4 holds=true).
+  1-3B; cuantizar 8-bit da >10% RAM con ΔPPL<1% (H-REP-4 holds=true). **exp006 (propio): lm_head
+  O(V) iguala 1 bloque transformer a V≈26k y crece lineal; el embedding de ENTRADA es ~10⁴× más
+  barato (lookup). A vocab moderado (≤64k tied) head = 1-10% del modelo; el riesgo de cómputo+memoria
+  aparece a 128-256k → confirma "vocab moderado" con números propios.**
 - **Refutación útil:** H-REP-1 (holds=false) — no confundir el embedding de ENTRADA (lookup barato)
   con la capa de SALIDA lm_head O(V), que sí mueve la latencia.
 

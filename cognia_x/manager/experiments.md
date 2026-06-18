@@ -156,4 +156,31 @@ es modesto (k=3 ≈ 28% del full) — el payoff del híbrido depende de **contex
 del stack híbrido aún no se midió end-to-end (requiere entrenar o construir la tarea multi-capa);
 se infiere de exp002. → ciclo-3.
 
-> Más fichas (E2 SWA vs full real con GGUF, E4 RAG vs LoRA, E5 peso de embedding) en `future_work.md`.
+---
+
+## exp006 — Coste del vocabulario: lm_head O(V) vs bloque transformer  ✅ CORRIDO
+- **Estado:** completo (2026-06-17, manager CYCLE 3). numpy puro.
+- **Hipótesis:** [[H-REP-1]] (input embed ≠ output lm_head) y [[H-REP-4]] (embed+head = fracción
+  grande a 1-3B). Valida la decisión [[#5..]] D-008 "vocab moderado".
+- **Código:** `cognia_x/experiments/exp006_vocab_lmhead_cost/run.py`
+- **Cómo correr:** `.\venv312\Scripts\python.exe cognia_x\experiments\exp006_vocab_lmhead_cost\run.py`
+- **Método:** d=2048, n_layers=24. (A) tiempo de lm_head `y=Eout@h` (GEMV O(V·d)) para V∈{8k…64k};
+  (B) coste de 1 bloque (6 GEMVs); (C) lookup del embedding de entrada; (D) cruce; (E) memoria analítica.
+
+### Resultado (verificado re-corriendo)
+- **lm_head crece lineal con V** e **iguala 1 bloque transformer a V≈26.000** (a V=64k cuesta ~2.5×
+  un bloque). Confirma el punto estilo FR-Spec donde la proyección de vocab empieza a pesar.
+- **El embedding de ENTRADA es trivial:** lookup de 1 fila ≈ 0.001-0.003 ms, **~10⁴× más barato**
+  que el lm_head → confirma la refutación de H-REP-1 (no confundir entrada con salida).
+- **Memoria (con weight-tying):** embed+head = 1-10% a vocab moderado (≤64k), 18% a 131k, 30% a
+  256k. Sin tying entra en la banda 25-37% antes (31% a 131k). → H-REP-4 cierto **a vocab grande o
+  sin tying**; a vocab moderado tied la fracción es modesta.
+
+### Conclusión
+Refuerza **D-008 (vocab moderado)** desde dos ángulos: a vocab moderado el coste/token del head
+queda ≤1 bloque y la huella de params es chica (1-10%); el riesgo de cómputo **y** memoria aparece
+justo al ir a 128k-256k. Matiz honesto: el lm_head "domina **un** bloque" a V≈26k, pero igualar el
+modelo entero (24 bloques) requiere V≈645k.
+
+> Más fichas (E2 SWA vs full real con GGUF, E4 RAG vs LoRA, E5 peso de embedding en un GGUF real)
+> en `future_work.md`.

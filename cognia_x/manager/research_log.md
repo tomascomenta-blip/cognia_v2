@@ -156,3 +156,21 @@ colapso de rango, no la magnitud — reportado tal cual. H-CF-2 **apoyada (confi
 - CYCLE 3 candidato: cerrar el eje recall del híbrido (tarea multi-capa entrenada/construida,
   posiblemente vía Kaggle GPU para el entrenamiento, evaluación en CPU). O E2 real (SWA vs full en
   llama.cpp con GGUF). Seguir el loop de manager.
+
+---
+
+## 2026-06-17 — CYCLE 3 (manager autónomo): coste del vocabulario (representación)
+
+### Hecho
+- **exp006** (coste lm_head O(V) vs bloque transformer, numpy puro). Verificado re-corriéndolo.
+- **Resultado real (d=2048):** lm_head crece lineal con V e **iguala 1 bloque transformer a
+  V≈26.000** (a V=64k = ~2.5× un bloque). El **embedding de ENTRADA es trivial** (lookup ~0.001 ms,
+  ~10⁴× más barato) → confirma la refutación de H-REP-1. Memoria (tied): 1-10% a vocab moderado,
+  30% a 256k. → refuerza D-008 "vocab moderado" con números propios.
+- **Matiz honesto:** el lm_head domina **un** bloque a V≈26k, pero igualar el modelo entero (24
+  bloques) requiere V≈645k; H-REP-4 "25-37%" es cierto a vocab grande/sin tying, no a vocab moderado tied.
+
+### Próximo
+- CYCLE 4: exp007 — eje precisión (int8 vs float32 GEMV en numpy): esperado que int8 naïve sea
+  LENTO (sin BLAS) → demuestra por qué hacen falta kernels especiales (T-MAC/bitnet.cpp), validando
+  el caveat del ciclo-1 (la proporcionalidad bytes→tok/s se rompe a baja precisión).

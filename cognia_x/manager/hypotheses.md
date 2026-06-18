@@ -90,10 +90,10 @@ marcan dónde la intuición/literatura se sobre-extiende. Confianza = del veredi
 
 | ID | Enunciado (resumen) | Veredicto | Conf | Nota clave del verificador |
 |----|---------------------|-----------|------|----------------------------|
-| H-REP-1 | latencia ∝ 1/(bytes por paso), embedding aporta <5% | ❌ false | media | confunde embedding de ENTRADA (barato) con lm_head O(V) (hasta 62% del paso) |
+| H-REP-1 | latencia ∝ 1/(bytes por paso), embedding aporta <5% | ❌ false | media | confunde embedding de ENTRADA con lm_head O(V). **exp006 ✅: input embed ~10⁴× más barato; lm_head = 1 bloque a V≈26k** |
 | H-REP-2 | patching BLT no recupera overhead a 1-3B en CPU | ✅ true | media | BLT a 1B arranca peor que BPE-Llama2; gana solo a 7B+ |
 | H-REP-3 | BPE parity-aware sin coste de inferencia extra | ❌ false | media | la paridad suele comprarse ampliando vocab → infla softmax O(V) |
-| H-REP-4 | cuantizar embedding+head 8-bit: >10% RAM, ΔPPL<1% | ✅ true | media | embedding+head = 25-37% params a 1-3B vocab grande |
+| H-REP-4 | cuantizar embedding+head 8-bit: >10% RAM, ΔPPL<1% | ✅ true | media | **exp006:** 25-37% solo a vocab grande (≥131k) o sin tying; a vocab moderado tied es 1-10% |
 | H-SEQ-1 | Transformer cae >40% tok/s a 8K; cruce SSM 1K-4K | ❌ false | media | premisa bandwidth correcta; números inventados (caída real ~-37% recién a 110K) |
 | H-SEQ-2 | recall full >95% e híbrido 7:1 hasta N grande | ❌ false | media | 1ª mitad sólida; 7:1 es el borde que la evidencia desaconseja (3:1-6:1) |
 | **H-SEQ-3** | **SWA (W~1024) conserva calidad, KV O(L)→O(W), ↑tok/s** | ✅ **true** | **alta** | Gemma-3 producción: KV 60%→<15% a 32K sin perder perplejidad |

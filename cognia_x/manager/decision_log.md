@@ -45,6 +45,9 @@
 ## D-008 (2026-06-17) — Representación BPE vocab moderado parity-aware; rechazar byte-puro y BLT
 - **Decisión:** BPE byte-fallback ~32-64k parity-aware + embedding/head cuantizados; NO byte-puro,
   NO BLT a 1-3B. **Razón:** ×4 pasos / BLT no paga a esta escala / vocab grande infla softmax O(V).
+- **Refuerzo (exp006, medido):** lm_head O(V) iguala 1 bloque transformer a V≈26k; a vocab moderado
+  (≤64k tied) head = 1-10% del modelo; el riesgo de cómputo+memoria aparece a 128-256k. Confirma el
+  rango ~32-64k como punto dulce. **Reversible:** sí.
 
 ## D-009 (2026-06-17) — Q4 base hoy + ternario como APUESTA de I+D (no cerrada)
 - **Decisión:** Q4_K_M en producción; ternario b1.58 solo tras benchmark honesto vs Q4 igualado.
