@@ -174,3 +174,26 @@ colapso de rango, no la magnitud — reportado tal cual. H-CF-2 **apoyada (confi
 - CYCLE 4: exp007 — eje precisión (int8 vs float32 GEMV en numpy): esperado que int8 naïve sea
   LENTO (sin BLAS) → demuestra por qué hacen falta kernels especiales (T-MAC/bitnet.cpp), validando
   el caveat del ciclo-1 (la proporcionalidad bytes→tok/s se rompe a baja precisión).
+
+---
+
+## 2026-06-17 — CYCLE 4 (manager autónomo): eje precisión (por qué int8 necesita kernels)
+
+### Hecho
+- **exp007** (int8 vs float32 GEMV, numpy puro). Verificado re-corriéndolo.
+- **Resultado real:** int8 naïve = **8-10× más LENTO** que float32 (BLAS no acelera enteros);
+  dequant+float32 = ~14× más lento; pero int8 ahorra **4× de memoria** (almacenamiento). → el
+  ahorro de baja precisión es de memoria, NO de cómputo automático.
+- Confirma el caveat **D-009/H-BIT-1**: la ley bytes→tok/s (exp004, válida f32 vs f64 ambos BLAS)
+  se ROMPE en int8/ternario sin kernels dedicados. Es **por qué existen T-MAC/bitnet.cpp**; coincide
+  con el vault ("fused int4 1.01× compute-bound").
+
+### Estado del loop (4 ciclos de manager hoy)
+Cuatro decisiones de arquitectura ahora tienen evidencia PROPIA medida en este hardware:
+backbone/bandwidth (exp004), híbrido coste (exp005), representación/vocab (exp006), precisión
+(exp007) — más federado (exp003). Lo que queda necesita entrenamiento (eje recall del híbrido, RAG
+vs LoRA) o un GGUF real (SWA vs full, peso de embedding) → sesiones con GPU Kaggle o backend llama.cpp.
+
+### Próximo
+- CYCLE 5+ (siguiente sesión de manager o cuando haya backend): E2 real (SWA vs full en llama.cpp),
+  cerrar eje recall del híbrido (Kaggle), RAG vs LoRA (E4). El loop continúa.

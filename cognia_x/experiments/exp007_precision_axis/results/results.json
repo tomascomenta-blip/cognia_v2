@@ -1,0 +1,53 @@
+{
+  "experiment": "exp007_precision_axis",
+  "config": {
+    "seed": 7,
+    "ns": [
+      2048,
+      4096
+    ],
+    "reps": 20,
+    "numpy": "2.4.6",
+    "cpu_count": 4
+  },
+  "rows": [
+    {
+      "n": 2048,
+      "time_ms": {
+        "float32_blas": 0.9248099999240367,
+        "int8_naive": 8.451344999957655,
+        "dequant_float32_blas": 13.708220000080473
+      },
+      "ratio_vs_float32": {
+        "float32_blas": 1.0,
+        "int8_naive": 0.10942755264737984,
+        "dequant_float32_blas": 0.06746390121537352
+      },
+      "memory_bytes_W": {
+        "float32": 16777216,
+        "int8": 4194304,
+        "storage_saving_x": 4.0
+      },
+      "scale_W": 0.04623901937890241
+    },
+    {
+      "n": 4096,
+      "time_ms": {
+        "float32_blas": 4.22120500006713,
+        "int8_naive": 34.879519999958575,
+        "dequant_float32_blas": 58.469960000002175
+      },
+      "ratio_vs_float32": {
+        "float32_blas": 1.0,
+        "int8_naive": 0.12102245099910043,
+        "dequant_float32_blas": 0.07219442257300968
+      },
+      "memory_bytes_W": {
+        "float32": 67108864,
+        "int8": 16777216,
+        "storage_saving_x": 4.0
+      },
+      "scale_W": 0.04266655914426789
+    }
+  ]
+}

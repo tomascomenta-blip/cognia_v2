@@ -38,3 +38,17 @@
 - Tests: N/A (standalone numpy en `cognia_x/`).
 - Archivos: exp006/run.py + results/; experiments.md, hypotheses.md, architecture.md, decision_log.md, research_log.md.
 - Next: CYCLE 4 = exp007 eje precisión (int8 vs float32, por qué hacen falta kernels especiales).
+
+## [2026-06-17] CYCLE 4 — eje precisión (D-009/H-BIT-1 caveat)
+- Startup: usage 41% (<80%, proceder).
+- Sub-tarea delegada a sub-agente: exp007 (int8 vs float32 GEMV). Manager VERIFICÓ re-corriéndolo.
+- **Resultado:** int8 naïve 8-10× más LENTO que float32 (sin BLAS para enteros); dequant+float ~14×;
+  int8 ahorra 4× memoria. → el ahorro de baja precisión es de memoria, no de cómputo automático.
+  Confirma por qué existen T-MAC/bitnet.cpp. Refuerza D-009 (Q4 base, ternario solo I+D).
+- Tests: N/A (standalone numpy en `cognia_x/`).
+- Archivos: exp007/run.py + results/; experiments.md, hypotheses.md, architecture.md, decision_log.md, research_log.md.
+- **Resumen de la sesión de manager (4 ciclos):** exp004 (bandwidth), exp005 (híbrido coste),
+  exp006 (vocab/lm_head), exp007 (precisión). 4 decisiones de arquitectura con evidencia propia
+  medida en i3-10110U. Lo que queda (eje recall del híbrido, SWA real, RAG vs LoRA) necesita
+  entrenamiento GPU/Kaggle o backend llama.cpp+GGUF → próxima sesión de manager.
+- Next: CYCLE 5 = E2 real (SWA vs full con GGUF) o eje recall del híbrido (Kaggle). El loop continúa.

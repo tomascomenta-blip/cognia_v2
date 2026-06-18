@@ -182,5 +182,32 @@ queda ≤1 bloque y la huella de params es chica (1-10%); el riesgo de cómputo 
 justo al ir a 128k-256k. Matiz honesto: el lm_head "domina **un** bloque" a V≈26k, pero igualar el
 modelo entero (24 bloques) requiere V≈645k.
 
+---
+
+## exp007 — Eje de precisión: por qué int8 necesita kernels especiales  ✅ CORRIDO
+- **Estado:** completo (2026-06-17, manager CYCLE 4). numpy puro.
+- **Hipótesis:** caveat de [[H-BW-1]]/[[#3 D-009]] — la proporcionalidad bytes→tok/s (exp004) se
+  ROMPE en int8 sin kernels dedicados; el ahorro de int8 es de memoria, no de cómputo automático.
+- **Código:** `cognia_x/experiments/exp007_precision_axis/run.py`
+- **Cómo correr:** `.\venv312\Scripts\python.exe cognia_x\experiments\exp007_precision_axis\run.py`
+- **Método:** GEMV y=W@x, n∈{2048,4096}. Tres caminos: (1) float32 BLAS; (2) int8 naïve (matmul
+  entera, sin BLAS); (3) dequant int8→float32 + BLAS. Cuantización simétrica por-tensor.
+
+### Resultado (verificado re-corriendo)
+| camino | n=2048 | n=4096 | vs float32 |
+|---|---|---|---|
+| float32 (BLAS) | ~1.0 ms | ~4.0 ms | 1.00× (ref) |
+| int8 naïve (sin BLAS) | ~8.5 ms | ~35 ms | **~0.11× (8-10× más LENTO)** |
+| dequant + float32 | ~14 ms | ~58 ms | ~0.07× (14× más lento) |
+| memoria W | 16.8→4.2 MB | 67→17 MB | **4× menos (almacenamiento)** |
+
+### Conclusión
+El int8 en numpy puro **ahorra 4× de memoria pero NO acelera el cómputo** (es 8-10× más lento: la
+matmul entera no toca BLAS; el dequant añade overhead). → confirma el caveat **D-009/H-BIT-1**: la
+ley bytes→tok/s (exp004, válida float32 vs float64 ambos BLAS) **se rompe** en int8/ternario sin
+kernels dedicados. **Esto es exactamente por qué existen T-MAC / bitnet.cpp** y coincide con el
+vault ("fused int4 kernel 1.01× — compute-bound"). Realizar la velocidad de baja precisión exige
+kernels especializados, no basta con cuantizar.
+
 > Más fichas (E2 SWA vs full real con GGUF, E4 RAG vs LoRA, E5 peso de embedding en un GGUF real)
 > en `future_work.md`.

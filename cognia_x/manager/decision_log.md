@@ -52,6 +52,9 @@
 ## D-009 (2026-06-17) — Q4 base hoy + ternario como APUESTA de I+D (no cerrada)
 - **Decisión:** Q4_K_M en producción; ternario b1.58 solo tras benchmark honesto vs Q4 igualado.
 - **Razón:** H-BIT-1 refutada (bitnet.cpp es kernel-vs-kernel; BitNet pierde ~12% MMLU). **Reversible:** sí.
+- **Refuerzo (exp007, medido):** int8 naïve en numpy = 8-10× más LENTO que float32; el ahorro de
+  baja precisión es de memoria (4×), no de cómputo automático → la velocidad exige kernels
+  especializados (T-MAC/bitnet.cpp), no basta con cuantizar. Justifica "Q4 base, ternario solo I+D".
 
 ## D-010 (2026-06-17) — Aprendizaje continuo triple capa; kNN-LM por-token descartado
 - **Decisión:** RAG document-level + LoRA r≤16 + fusión de adapters dentro de la misma cuenca +

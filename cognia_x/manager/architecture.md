@@ -68,7 +68,9 @@ recall del estado fijo está acotado por su tamaño — reproduce a Jelassi "Rep
   kernel-vs-kernel sobre los MISMOS pesos ternarios, no ternario-vs-Q4; BitNet-2B4T pierde ~12%
   MMLU vs Qwen2.5-1.5B (53.17 vs 60.25, arXiv:2504.12285). H-LUT-1 **holds=false** — T-MAC pone las
   LUTs en REGISTROS, no en L2; el límite real es registro/L1. La proporcionalidad bytes→tok/s se
-  rompe en el tramo Q4→ternario (coste LUT constante por peso).
+  rompe en el tramo Q4→ternario (coste LUT constante por peso). **exp007 (propio): int8 naïve en
+  numpy es 8-10× más LENTO que float32 (BLAS no acelera enteros); el ahorro de int8 es de memoria
+  (4×), no de cómputo → realizar la velocidad de baja precisión EXIGE kernels especializados.**
 
 ### 4. Aprendizaje continuo / anti-olvido
 - **Decisión:** **triple capa** — (a) **RAG a nivel de DOCUMENTO** (1 recuperación/consulta) para
