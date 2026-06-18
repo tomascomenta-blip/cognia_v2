@@ -223,17 +223,14 @@ class MLAModule:
         if session_id is not None:
             cached = self.kv_cache.get(session_id, self.layer_idx)
             if cached is not None:
-                c_kv_past, past_pos = cached
+                c_kv_past, _past_pos = cached
                 c_kv_full = np.concatenate([c_kv_past, c_kv_new], axis=0)
-                offset    = past_pos          # RoPE start position for current tokens
             else:
                 c_kv_full = c_kv_new
-                offset    = position
             total_len = c_kv_full.shape[0]
             self.kv_cache.put(session_id, self.layer_idx, c_kv_full, total_len)
         else:
             c_kv_full = c_kv_new
-            offset    = position
             total_len = seq_len
 
         # 3. Expand K and V from full latent (past + current)
@@ -248,12 +245,18 @@ class MLAModule:
         K = K_up.reshape(total_len, n_kv, hd)
         V = V_up.reshape(total_len, n_kv, hd)
 
-        # 5. RoPE on Q (positions offset..offset+seq) and K (positions 0..total_len)
+        # 5. RoPE. K spans absolute positions [0..total_len) in its own frame;
+        #    the current tokens are the LAST seq_len rows of K, so Q must be
+        #    rotated at positions [total_len-seq_len .. total_len). Deriving the
+        #    Q offset from the actual K length (not the caller's `position`/
+        #    `offset`) keeps Q and K in the same frame on the uncached path too
+        #    (where K holds only the current tokens at positions [0..seq_len)).
+        q_offset = total_len - seq_len
         cos_k, sin_k = _precompute_rope(total_len, hd, self.rope_theta)
         K = _apply_rope(K, cos_k, sin_k)
 
-        cos_q, sin_q = _precompute_rope(offset + seq_len, hd, self.rope_theta)
-        Q = _apply_rope(Q, cos_q[offset:], sin_q[offset:])
+        cos_q, sin_q = _precompute_rope(total_len, hd, self.rope_theta)
+        Q = _apply_rope(Q, cos_q[q_offset:], sin_q[q_offset:])
 
         # 6. GQA: repeat K/V to match Q heads
         repeats = n_h // n_kv
@@ -264,8 +267,9 @@ class MLAModule:
         scale  = hd ** -0.5
         scores = np.einsum("shd,thd->sht", Q, K) * scale    # (seq, n_h, total)
 
-        # Causal mask: current position s must not attend to future positions
-        # Positions: past tokens [0..offset-1] are always visible; current [offset..offset+seq-1]
+        # Causal mask: current position s must not attend to future positions.
+        # Past tokens (first total_len-seq_len cols) are always visible; the
+        # causal triangle applies only within the current block (last seq_len cols).
         if seq_len > 1:
             # Prefill: apply causal mask within current tokens only
             causal = np.zeros((seq_len, total_len), dtype=np.float32)

@@ -728,6 +728,8 @@ class RealTransformerLayer:
 
     def truncate_kv(self, session_id: str, max_len: int) -> None:
         """Truncate KV-cache to max_len tokens (speculative decoding rollback)."""
+        if max_len < 0:
+            raise ValueError(f"max_len must be non-negative, got {max_len}")
         kv = self._kv_cache.get(session_id)
         if kv is not None:
             K, V = kv
