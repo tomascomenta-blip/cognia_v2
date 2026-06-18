@@ -33,6 +33,7 @@ class HybridConfig:
     attn_every: int = 4       # 1 de cada `attn_every` capas es atencion; resto lineal. <=0 => todo lineal; ==1 => todo atencion
     max_seq_len: int = 512
     tie_embeddings: bool = True
+    abs_pos_emb: bool = False   # embeddings de posicion absolutos aprendidos (ademas de RoPE en attn)
 
     def __post_init__(self):
         if self.d_ff is None:
@@ -49,6 +50,27 @@ class HybridConfig:
             else:
                 types.append("attn" if (i % self.attn_every == self.attn_every - 1) else "linear")
         return types
+
+
+def build_rope_cache(seq_len, dh, device, base=10000.0):
+    """Tabla RoPE (cos,sin) de forma (L, dh). dh debe ser par."""
+    half = dh // 2
+    inv_freq = 1.0 / (base ** (torch.arange(0, half, device=device).float() / half))
+    pos = torch.arange(seq_len, device=device).float()
+    ang = torch.outer(pos, inv_freq)            # L, half
+    emb = torch.cat([ang, ang], dim=-1)         # L, dh
+    return emb.cos(), emb.sin()
+
+
+def apply_rope(x, cos, sin):
+    """Aplica RoPE a x de forma (B,h,L,dh). cos/sin: (L,dh)."""
+    L = x.shape[-2]
+    cos = cos[:L].view(1, 1, L, -1)
+    sin = sin[:L].view(1, 1, L, -1)
+    half = x.shape[-1] // 2
+    x1, x2 = x[..., :half], x[..., half:]
+    rot = torch.cat([-x2, x1], dim=-1)
+    return x * cos + rot * sin
 
 
 class RMSNorm(nn.Module):
@@ -84,7 +106,7 @@ class LinearAttention(nn.Module):
         self.qkv = nn.Linear(d, 3 * d, bias=False)
         self.o = nn.Linear(d, d, bias=False)
 
-    def forward(self, x):
+    def forward(self, x, cos=None, sin=None):       # cos/sin ignorados (kernel positivo)
         B, L, D = x.shape
         qkv = self.qkv(x).view(B, L, 3, self.h, self.dh).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]           # B,h,L,dh
@@ -111,10 +133,13 @@ class SlidingWindowAttention(nn.Module):
         self.qkv = nn.Linear(d, 3 * d, bias=False)
         self.o = nn.Linear(d, d, bias=False)
 
-    def forward(self, x):
+    def forward(self, x, cos=None, sin=None):
         B, L, D = x.shape
         qkv = self.qkv(x).view(B, L, 3, self.h, self.dh).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
+        if cos is not None:
+            q = apply_rope(q, cos, sin)
+            k = apply_rope(k, cos, sin)
         scores = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(self.dh)   # B,h,L,L
         idx = torch.arange(L, device=x.device)
         causal = idx[None, :] <= idx[:, None]
@@ -139,8 +164,8 @@ class Block(nn.Module):
         self.norm2 = RMSNorm(cfg.d_model)
         self.mlp = SwiGLU(cfg.d_model, cfg.d_ff)
 
-    def forward(self, x):
-        x = x + self.mixer(self.norm1(x))
+    def forward(self, x, cos=None, sin=None):
+        x = x + self.mixer(self.norm1(x), cos, sin)
         x = x + self.mlp(self.norm2(x))
         return x
 
@@ -150,7 +175,12 @@ class HybridLM(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.embed = nn.Embedding(cfg.vocab_size, cfg.d_model)
+        self.pos_emb = nn.Embedding(cfg.max_seq_len, cfg.d_model) if cfg.abs_pos_emb else None
         self.blocks = nn.ModuleList([Block(cfg, t) for t in cfg.layer_types()])
+        self.dh = cfg.d_model // cfg.n_heads
+        cos, sin = build_rope_cache(cfg.max_seq_len, self.dh, device="cpu")
+        self.register_buffer("rope_cos", cos, persistent=False)
+        self.register_buffer("rope_sin", sin, persistent=False)
         self.norm_f = RMSNorm(cfg.d_model)
         self.lm_head = nn.Linear(cfg.d_model, cfg.vocab_size, bias=False)
         if cfg.tie_embeddings:
@@ -166,8 +196,12 @@ class HybridLM(nn.Module):
 
     def forward(self, idx, targets=None):
         x = self.embed(idx)
+        L = idx.shape[1]
+        if self.pos_emb is not None:
+            x = x + self.pos_emb(torch.arange(L, device=idx.device))
+        cos, sin = self.rope_cos[:L].to(x.dtype), self.rope_sin[:L].to(x.dtype)
         for b in self.blocks:
-            x = b(x)
+            x = b(x, cos, sin)
         x = self.norm_f(x)
         logits = self.lm_head(x)
         loss = None

@@ -44,13 +44,13 @@ def make_recall_batch(rng, batch, n_pairs, n_queries, n_keys, n_vals, device):
 def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=None,
                    d_model=96, n_layers=4, n_heads=4,
                    n_keys=96, n_vals=32, n_pairs=48, n_queries=8,
-                   batch=32, lr=3e-4):
+                   batch=32, lr=3e-4, abs_pos=False):
     rng = np.random.default_rng(seed)
     torch.manual_seed(seed)
     L = 2 * n_pairs + n_queries
     vocab = 1 + n_keys + n_vals
     cfg = HybridConfig(vocab_size=vocab, d_model=d_model, n_layers=n_layers, n_heads=n_heads,
-                       window=L + 1, attn_every=attn_every, max_seq_len=L + 1)
+                       window=L + 1, attn_every=attn_every, max_seq_len=L + 1, abs_pos_emb=abs_pos)
     model = HybridLM(cfg).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
     types = cfg.layer_types()
