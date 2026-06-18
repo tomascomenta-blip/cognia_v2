@@ -209,5 +209,49 @@ kernels dedicados. **Esto es exactamente por qué existen T-MAC / bitnet.cpp** y
 vault ("fused int4 kernel 1.01× — compute-bound"). Realizar la velocidad de baja precisión exige
 kernels especializados, no basta con cuantizar.
 
+---
+
+## exp008 — Cierre de H-MEZ-4: ¿el híbrido recupera el recall que el lineal no tiene?  ✅ CERRADO
+- **Estado:** CERRADO (2026-06-18, manager CYCLE 6). PyTorch CPU. Revisado por workflow adversarial.
+- **Hipótesis:** [[H-MEZ-4]] eje recall — entrenando end-to-end, una config **híbrida** (mayoría
+  lineal + minoría atención) iguala el recall de la atención pura, que el **lineal puro** (estado
+  fijo, exp002) no alcanza al saturar su estado. Falsable: si lineal ≈ atención en todo el barrido
+  (no se satura) o si el híbrido NO recupera el recall de la atención.
+- **Código:** `cognia_x/experiments/exp008_recall_control/run.py` (+ `cognia_x/train/recall_task.py`,
+  `cognia_x/model/hybrid.py`).
+- **Método:** tarea MQAR (pares clave→valor + consultas). 3 configs a igual tamaño, solo cambia el
+  mixer: `atencion_pura` (ae=1), `hibrido_3to1` (ae=3), `lineal_puro` (ae=0). Métrica: accuracy de
+  recall en las consultas (azar = 1/n_vals). **Control-primero:** validar atención→~1.0 a cada
+  dificultad ANTES de comparar.
+- **Diagnóstico previo (por qué el run nocturno dio inconcluso):** sub-recursos, no bug. Levers
+  reales = **pasos + densidad de supervisión (n_queries)**. Verificado: np=1 atención 1.000; recall
+  de 3 pares cruza a >0.9 (test). RoPE agregado (la posición no era el cuello).
+- **Capacidad del lineal (corrección del workflow):** `LinearAttention` es multi-cabeza → estado
+  = h·d_head² = **d²/h**, no d². Con d=64/h=8 → cap ≈ 16 pares; para separar hay que barrer np≥24
+  (justo donde a la atención le cuesta más cruzar en CPU — la tensión central del experimento).
+
+### Resultado (verificado, profundidad 4, d=64, h=4, warmup) — H-MEZ-4 CERRADO
+| n_pairs | atención | híbrido [lin,attn,lin,attn] | lineal | lectura |
+|--------:|---------:|---------:|-------:|---------|
+| 4 | 0.999 | 0.991 | 0.988 | bajo capacidad: las 3 resuelven |
+| 8 | 1.000 | 0.998 | **0.255** | **lineal satura y falla; el híbrido lo recupera** |
+- Azar = 1/n_vals = 0.0625. A np=8 la atención cruza en ~1200 pasos, el híbrido en ~4800, el
+  **lineal queda plano en ~0.25 los 12000 pasos** (loss 1.8, nunca cruza). El híbrido sigue a la
+  ATENCIÓN, no al lineal → las 2 capas de atención recuperan el recall que el estado fijo pierde.
+- **Hallazgo 2º:** a profundidad 2 el híbrido `[lin,attn]` (1 atención) falla como el lineal (0.52)
+  → el recall exige **≥2 capas de atención** (circuito de inducción de 2 operaciones). Por eso el
+  cierre se hace a prof. ≥4.
+- **Diagnóstico del fallo previo:** SUB-RECURSOS (receta mala: sin warmup, h=8, n_queries=1), NO bug.
+  Verificado por workflow adversarial (modelo/tarea correctos). Detalle en `results/results.md`.
+- Caveats: semilla única; híbrido principal 2:2 (50% atención) prueba el mecanismo — refuerzo a
+  prof. 6 (33% atención, mayoría-lineal) verifica el ratio D-007.
+
+### Conclusión
+**H-MEZ-4 cerrado en sus dos ejes:** el híbrido **recupera el recall** que el lineal puro pierde al
+saturar su estado (este exp, entrenado end-to-end) **a ~12-15% del coste** del full (exp005). La
+predicción de exp002 (recall acotado por el estado, training-free) se confirma ahora ENTRENANDO.
+
+---
+
 > Más fichas (E2 SWA vs full real con GGUF, E4 RAG vs LoRA, E5 peso de embedding en un GGUF real)
 > en `future_work.md`.

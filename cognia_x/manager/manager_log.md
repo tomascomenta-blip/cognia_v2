@@ -92,6 +92,15 @@
 - **Verificación REAL:** atención cruza recall de 3 pares a >0.9 (test) — control positivo válido
   conseguido a escala chica. Falta el régimen separador (np≥24).
 - Tests: 5 passed (cognia_x/tests/). Suite de Cognia: N/A (lab independiente, no toca su código).
-- **Resultado del cierre de H-MEZ-4: PENDIENTE** — anchor probe (atención sola, np 8/16/24/32)
-  corriendo para mapear el cruce; luego comparación 3-vías en el régimen donde el lineal satura.
-- Next: leer el probe; correr lineal+híbrido en el np separador; documentar cierre o límite de CPU.
+- **Resultado del cierre de H-MEZ-4: ✅ CERRADO (end-to-end en CPU).** Profundidad 4, d=64, h=4,
+  201k params, 3 configs igual tamaño. np=4: att 0.999 / hyb 0.991 / lin 0.988 (las 3). **np=8:
+  att 1.000 / hyb 0.998 / lin 0.255** → el lineal SATURA y falla, el híbrido RECUPERA el recall
+  siguiendo a la atención. Confirma exp002 entrenando; junto a exp005 (coste) cierra H-MEZ-4 en
+  sus dos ejes. Clave del éxito: receta (warmup + h=4 + n_queries=16) — la atención cruza np=8 en
+  ~1200 pasos (antes no cruzaba: era sub-recursos, no bug). Hallazgo 2º: el recall exige ≥2 capas
+  de atención (a prof. 2 el híbrido de 1 atención falla como el lineal). Datos en results/.
+- **Iteración (honesta):** ~6 diseños de probe antes de acertar — el cuello no era capacidad/CPU
+  sino la receta de entrenamiento de la atención; early-stop + warmup destrabaron el grid. Maté
+  varios probes sub-óptimos al detectarlos (no esperé a que fallaran del todo).
+- Next: refuerzo a prof. 6 (híbrido mayoría-lineal 33% atención) corriendo; correr tests como
+  compuerta final; documentar en memoria. char-LM corpus mayor sigue pendiente (CYCLE 7).

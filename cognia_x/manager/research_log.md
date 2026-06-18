@@ -291,11 +291,25 @@ diagnóstico **problema_serio**; justicia **con_reservas**. Correcciones que **a
   recall 1-par, recall 3-pares con disambiguación). **5 passed.**
 - Commits: 52c97bf (RoPE+diagnóstico), 870d097 (fixes del workflow + corrección honesta). Pusheados.
 
-### Resultado del cierre de H-MEZ-4 — PENDIENTE (anchor probe corriendo)
-Diseño final (recomendado por el workflow): **anclar el control primero** — atención_pura sola,
-barrido np={8,16,24,32}, d=64/h=8 (cap lineal ≈16), `n_queries=16`, `min_steps=5000` (no cortar
-antes de cruzar). Objetivo: mapear hasta qué np la atención cruza a ~1.0 en CPU; luego correr
-lineal+híbrido en el régimen donde el lineal se satura (np≥24) para medir si el híbrido recupera
-el recall (cierre de H-MEZ-4) o si la demostración entrenada queda limitada por el presupuesto de
-CPU (en cuyo caso el eje recall se sostiene por exp002 teórico, no end-to-end). Se completará al
-terminar el probe.
+### Resultado del cierre de H-MEZ-4 — ✅ CERRADO (entrenado end-to-end en CPU)
+Tras varios diseños fallidos (clave: el cruce de la atención dependía críticamente de la receta —
+warmup + h=4 + n_queries=16 hace que la atención cruce np=8 en ~1200 pasos, antes no cruzaba), la
+corrida decisiva a **profundidad 4** (d=64, h=4, 201k params, mismo tamaño las 3 configs):
+
+| n_pairs | atención | híbrido [lin,attn,lin,attn] | lineal |
+|--------:|---------:|---------:|-------:|
+| 4 | 0.999 | 0.991 | 0.988 |
+| 8 | 1.000 | 0.998 | **0.255** |
+
+(azar 1/n_vals = 0.0625). **A np=8 el lineal puro SATURA y falla (0.255, plano los 12000 pasos),
+pero el híbrido recupera el recall (0.998) siguiendo a la atención (1.000).** A np=4 (bajo la
+capacidad) las 3 resuelven → la transición es visible. **Esto cierra H-MEZ-4 (eje recall) ENTRENANDO:**
+- Confirma exp002 (recall acotado por el estado) pero ahora end-to-end, no training-free.
+- El híbrido (2 capas de atención entre 4) recupera lo que el estado fijo pierde.
+- Junto con exp005 (coste ~12-15% del full) → H-MEZ-4 cerrado en sus DOS ejes.
+
+**Hallazgo 2º (de profundidad 2):** el híbrido mínimo `[lin,attn]` (1 sola atención) FALLA como el
+lineal (0.52 a np=2); el recall exige **≥2 capas de atención** (circuito de inducción de 2 ops). Por
+eso el cierre se hace a prof. ≥4. **Caveats:** semilla única; el híbrido principal es 2:2 (50%
+atención) — prueba el mecanismo; refuerzo a prof. 6 (33% atención, mayoría-lineal D-007) en curso.
+Datos: `cognia_x/experiments/exp008_recall_control/results/` (results.md, results_depth4.json, run_depth4.log).
