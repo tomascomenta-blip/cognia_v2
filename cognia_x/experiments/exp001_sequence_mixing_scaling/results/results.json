@@ -1,0 +1,88 @@
+{
+  "experiment": "exp001_sequence_mixing_scaling",
+  "config": {
+    "seed": 1234,
+    "d": 64,
+    "reps": 3,
+    "lengths": [
+      128,
+      256,
+      512,
+      1024,
+      2048,
+      4096
+    ],
+    "numpy": "2.4.6",
+    "cpu_count": 4,
+    "dtype": "float32"
+  },
+  "rows": [
+    {
+      "L": 128,
+      "attn_full_s": 0.002019033333150825,
+      "attn_full_mem_mb": 0.0625,
+      "attn_linear_s": 0.0005710666676653394,
+      "attn_linear_mem_mb": 0.015625,
+      "ssm_scan_s": 0.0006152333335194271,
+      "ssm_scan_mem_mb": 0.000244140625,
+      "speedup_lin_vs_full": 3.5355475069226654,
+      "mem_ratio_full_vs_lin": 4.0
+    },
+    {
+      "L": 256,
+      "attn_full_s": 0.0029613333329810607,
+      "attn_full_mem_mb": 0.25,
+      "attn_linear_s": 0.0005329333337916372,
+      "attn_linear_mem_mb": 0.015625,
+      "ssm_scan_s": 0.0007162000001699198,
+      "ssm_scan_mem_mb": 0.000244140625,
+      "speedup_lin_vs_full": 5.556667495185924,
+      "mem_ratio_full_vs_lin": 16.0
+    },
+    {
+      "L": 512,
+      "attn_full_s": 0.005942666666669538,
+      "attn_full_mem_mb": 1.0,
+      "attn_linear_s": 0.0008237666661443654,
+      "attn_linear_mem_mb": 0.015625,
+      "ssm_scan_s": 0.0011522333334141877,
+      "ssm_scan_mem_mb": 0.000244140625,
+      "speedup_lin_vs_full": 7.214016918752189,
+      "mem_ratio_full_vs_lin": 64.0
+    },
+    {
+      "L": 1024,
+      "attn_full_s": 0.024575800000699626,
+      "attn_full_mem_mb": 4.0,
+      "attn_linear_s": 0.0014985333327786066,
+      "attn_linear_mem_mb": 0.015625,
+      "ssm_scan_s": 0.0025670333331315,
+      "ssm_scan_mem_mb": 0.000244140625,
+      "speedup_lin_vs_full": 16.3999021330615,
+      "mem_ratio_full_vs_lin": 256.0
+    },
+    {
+      "L": 2048,
+      "attn_full_s": 0.1072257000002234,
+      "attn_full_mem_mb": 16.0,
+      "attn_linear_s": 0.003389533332665451,
+      "attn_linear_mem_mb": 0.015625,
+      "ssm_scan_s": 0.006896300000031867,
+      "ssm_scan_mem_mb": 0.000244140625,
+      "speedup_lin_vs_full": 31.6343547847348,
+      "mem_ratio_full_vs_lin": 1024.0
+    },
+    {
+      "L": 4096,
+      "attn_full_s": 0.4815171000009286,
+      "attn_full_mem_mb": 64.0,
+      "attn_linear_s": 0.0068472999992081895,
+      "attn_linear_mem_mb": 0.015625,
+      "ssm_scan_s": 0.010611066666266803,
+      "ssm_scan_mem_mb": 0.000244140625,
+      "speedup_lin_vs_full": 70.3221853952084,
+      "mem_ratio_full_vs_lin": 4096.0
+    }
+  ],
+  "crossover_L_linear_beats_full_time": 128
+}
