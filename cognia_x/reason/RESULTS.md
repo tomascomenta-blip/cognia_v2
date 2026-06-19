@@ -150,3 +150,73 @@ problemas que nunca viste.
 
 Reproducir: `python -m cognia_x.reason.run_cycle13` (full) / `--smoke` (rápido).
 Test: `python -m pytest cognia_x/tests/test_cycle13_reason.py -q`. Datos: `runs/cycle13/`.
+
+# CYCLE 14 — Componer cadenas: cuando NINGUNA forma sola de pensar alcanza
+
+CYCLE 12/13 tenían una brecha honesta: TODO problema se resolvía con UNA sola cadena (oracle = mejor
+cadena por instancia). CYCLE 14 cierra el sentido literal de "cadenas de razonamiento": problemas
+**COMPUESTOS** donde la respuesta necesita el OUTPUT del paso 1 como ENTRADA del paso 2, así que la IA
+tiene que aprender a **ENCADENAR** estrategias en una secuencia (un pequeño "programa de razonamiento")
+y DESCUBRIR la secuencia correcta probando y verificando. Construido **sobre** las cadenas y el
+verificador del lab (se extendió: `gen_composed` aparte, step-chains nuevas; cycle12/13 byte-a-byte iguales).
+
+## Los problemas compuestos (cada uno = 2 pasos, ground-truth computable)
+- **afford_packs**: paso 1 = ¿qué paquete es más barato por kg? (tasa/comparación) → su precio;
+  paso 2 = ¿cuántos del más barato entran en el presupuesto restando un envío fijo? (hacia atrás, floor).
+- **split_then_check**: paso 1 = dividir la cuenta con propina entre N (paso-a-paso) → cuota por persona;
+  paso 2 = ¿esa cuota supera un límite L? (decisión/umbral, 0/1).
+- **stock_then_days**: paso 1 = consumo diario = personas × unidades/día (paso-a-paso) → consumo;
+  paso 2 = ¿cuántos días enteros alcanza el stock? (hacia atrás, floor).
+
+El **modelo de ejecución** es concreto: un programa es una tupla de step-chains; el paso 1 corre con
+`intermediate=None` y produce un número; cada paso siguiente recibe ese número por un argumento y lo
+CONSUME. La predicción del programa es el valor del ÚLTIMO paso. Las step-chains de paso-2
+(`backwards`, `decision`) SIN intermedio no tienen de qué partir → fallan: por eso una sola op no basta.
+
+## Resultados — accuracy HELD-OUT en tipos compuestos (FULL: train=4000, held-out=2000, programas long≤2 = 30)
+| estrategia | accuracy held-out |
+|---|---:|
+| cadena fija de UN paso (cualquiera de las 5) | **0.196** |
+| composer CONFIDENCE (circular) | 0.425 |
+| **composer VERIFIER (examinador real)** | **1.000** |
+| ORACLE (mejor programa por instancia) | 1.000 |
+
+### Programas DESCUBIERTOS por el composer (VERIFIER), tipo → secuencia
+| tipo compuesto | programa aprendido |
+|---|---|
+| afford_packs | `("unit_rate", "backwards")` |
+| split_then_check | `("stepwise", "decision")` |
+| stock_then_days | `("stepwise", "backwards")` |
+
+**Lo que demuestra:**
+1. **Ninguna cadena sola resuelve los compuestos** (todas ~0.196, solo aciertos accidentales) → la
+   composición es NECESARIA, no un lujo.
+2. El **composer aprendido DESCUBRE el programa correcto por tipo** (la tabla de arriba es exacta),
+   supera a toda cadena fija y **alcanza el oráculo** (1.000) sobre problemas NUEVOS (semillas disjuntas)
+   → aprendió a componer y GENERALIZA.
+3. **Verificador-anclado, no circular**: el composer premiado con la CONFIANZA auto-reportada (circular)
+   es secuestrado por programas con el paso fanfarrón (`step_direct`, conf ~0.95): elige `("direct",)`
+   para los tres tipos y cae a **0.425**. Misma lección no-circular de CYCLE 12, ahora en el espacio de
+   secuencias: solo cuenta lo que sobrevive a un examinador REAL.
+
+## Caveats (honestidad)
+- **El composer VERIFIER toca 1.000 porque el espacio long≤2 contiene EXACTAMENTE el programa correcto
+  y las step-chains "casa" son exactas** (mismo techo sintético que CYCLE 12/13). Lo demostrado es el
+  MECANISMO — descubrir una SECUENCIA por verificación — no una afirmación de escala. Con 30 programas
+  la búsqueda es chica y la converge sin esfuerzo; el punto es el mecanismo, no el tamaño.
+- **El contraste de confianza no es un secuestro perfecto a 0.000**: `step_direct` acierta por accidente
+  parte de las veces (de ahí 0.425, no 0.196 ni 0.000). Igual queda MUY por debajo del verificador
+  (1.000) → la dirección y la magnitud de la lección se sostienen.
+- Cada compuesto tiene UN único programa perfecto en este diseño; problemas reales tendrían varios
+  caminos válidos y pasos ruidosos. La búsqueda sobre secuencias largas (>2) crece exponencial y pediría
+  poda/UCB — fuera de alcance acá.
+
+## Innovación
+Lleva el router de meta-razonamiento de CYCLE 12/13 a problemas que **ninguna cadena sola resuelve**:
+el "brazo" del bandit pasa de una cadena a una **SECUENCIA de cadenas** (un programa), ejecutada
+encadenando intermedios, y descubierta por el **verificador real**. Cierra el sentido literal de
+"cadenas de razonamiento" — componer estrategias — manteniendo la regla del lab (solo cuenta lo que
+sobrevive a un examinador no-circular).
+
+Reproducir: `python -m cognia_x.reason.run_cycle14` (full) / `--smoke` (rápido).
+Test: `python -m pytest cognia_x/tests/test_cycle14_reason.py -q`. Datos: `runs/cycle14/`.

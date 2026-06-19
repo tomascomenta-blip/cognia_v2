@@ -90,13 +90,94 @@ def _arrive_on_time(rng):
 # Se agrega SOLO cuando se pide explícitamente (out-of-distribution: presente solo en el test set).
 OOD_TYPE = "discount_better"
 
+
+# ============================================================================
+# CYCLE 14 — problemas COMPUESTOS (multi-paso): NINGUNA cadena de un solo paso los resuelve.
+# La respuesta necesita el OUTPUT del paso 1 como ENTRADA del paso 2 (un pequeño "programa" de
+# razonamiento = una SECUENCIA de cadenas). Se agregan en un generador APARTE (gen_composed) para
+# que TYPES/gen_problems sigan byte-a-byte iguales -> cycle12/13 no se tocan.
+#
+# Modelo de ejecución (concreto y explícito): cada problema compuesto guarda en params un
+# "intermediate" = el valor que produce el paso 1 correcto, y la "answer" = lo que produce el paso 2
+# al consumir ese intermediate. Una cadena de paso-2 consume el intermediate por un argumento opcional.
+# ============================================================================
+COMPOSED_TYPES = ["afford_packs", "split_then_check", "stock_then_days"]
+
+
+def _afford_packs(rng):
+    # PASO 1 (tasa/comparación): ¿qué paquete es más barato por kg? -> precio del más barato.
+    # PASO 2 (hacia atrás): con un presupuesto y una tarifa fija de envío, ¿cuántos del más barato entran?
+    pa = round(rng.uniform(2.0, 30.0), 2); ga = rng.randint(200, 2000)
+    pb = round(rng.uniform(2.0, 30.0), 2); gb = rng.randint(200, 2000)
+    rate_a = pa / ga; rate_b = pb / gb
+    while abs(rate_a - rate_b) < 1e-4:
+        pb = round(rng.uniform(2.0, 30.0), 2); gb = rng.randint(200, 2000); rate_b = pb / gb
+    cheaper_price = pa if rate_a < rate_b else pb        # intermediate del paso 1
+    fee = round(rng.uniform(1.0, 10.0), 2)
+    budget = round(rng.uniform(fee + 2 * cheaper_price, fee + 25 * cheaper_price), 2)
+    ans = float(math.floor((budget - fee) / cheaper_price))   # paso 2 consume cheaper_price
+    text = (f"Paquete A: ${pa:.2f} por {ga} g. Paquete B: ${pb:.2f} por {gb} g. Elegí el más barato por kg. "
+            f"Tenés ${budget:.2f} y el envío fijo cuesta ${fee:.2f}. ¿Cuántos del más barato podés comprar?")
+    return {"type": "afford_packs", "text": text, "answer": ans,
+            "params": {"pa": pa, "ga": ga, "pb": pb, "gb": gb, "fee": fee, "budget": budget,
+                       "intermediate": cheaper_price}}
+
+
+def _split_then_check(rng):
+    # PASO 1 (paso-a-paso): dividir la cuenta con propina entre N -> cuánto paga cada uno.
+    # PASO 2 (decisión/umbral): ¿esa cuota por persona supera un límite L? (1=supera, 0=no).
+    n = rng.randint(2, 8)
+    total = round(rng.uniform(20.0, 200.0), 2)
+    tip = rng.choice([0.0, 0.05, 0.10, 0.12, 0.15, 0.20])
+    share = total * (1.0 + tip) / n               # intermediate del paso 1
+    limit = round(rng.uniform(5.0, 60.0), 2)
+    while abs(share - limit) < 1e-3:              # evitar el filo exacto (decisión ambigua)
+        limit = round(rng.uniform(5.0, 60.0), 2)
+    ans = 1.0 if share > limit else 0.0           # paso 2 consume share
+    text = (f"{n} amigos comen, la cuenta es ${total:.2f} con {int(tip*100)}% de propina. "
+            f"¿La cuota por persona supera ${limit:.2f}? (1=sí, 0=no)")
+    return {"type": "split_then_check", "text": text, "answer": ans,
+            "params": {"n": n, "total": total, "tip": tip, "limit": limit, "intermediate": share}}
+
+
+def _stock_then_days(rng):
+    # PASO 1 (paso-a-paso): consumo diario total = personas * unidades por persona por día.
+    # PASO 2 (hacia atrás): con un stock dado, ¿cuántos días ENTEROS alcanza? floor(stock/consumo).
+    people = rng.randint(2, 10)
+    per = rng.randint(1, 6)
+    daily = float(people * per)                   # intermediate del paso 1
+    stock = rng.randint(int(daily) + 1, int(daily) * 30 + 1)
+    ans = float(math.floor(stock / daily))        # paso 2 consume daily
+    text = (f"Sos {people} personas y cada una consume {per} por día. Tenés un stock de {stock}. "
+            f"¿Para cuántos días ENTEROS alcanza?")
+    return {"type": "stock_then_days", "text": text, "answer": ans,
+            "params": {"people": people, "per": per, "stock": stock, "intermediate": daily}}
+
 _GENS = {
     "split_bill": _split_bill,
     "cheaper_per_kg": _cheaper_per_kg,
     "trips_within_budget": _trips_within_budget,
     "arrive_on_time": _arrive_on_time,
     "discount_better": _discount_better,
+    "afford_packs": _afford_packs,
+    "split_then_check": _split_then_check,
+    "stock_then_days": _stock_then_days,
 }
+
+
+def gen_composed(n, seed, types=None):
+    """
+    CYCLE 14 — genera n problemas COMPUESTOS balanceados entre COMPOSED_TYPES. Determinista por `seed`.
+    APARTE de gen_problems a propósito: cycle12/13 nunca ven estos tipos (siguen byte-a-byte iguales).
+    """
+    use = list(types) if types is not None else COMPOSED_TYPES
+    rng = Random(seed)
+    out = []
+    for i in range(n):
+        t = use[i % len(use)]
+        out.append(_GENS[t](rng))
+    rng.shuffle(out)
+    return out
 
 
 def gen_problems(n, seed, types=None):
@@ -120,6 +201,8 @@ def is_correct(problem, predicted, tol=1e-6):
     if predicted is None:
         return False
     ans = problem["answer"]
-    if problem["type"] in ("cheaper_per_kg", "arrive_on_time", "discount_better"):
-        return float(predicted) == float(ans)   # decision binaria: exacto
+    # decisiones binarias y conteos ENTEROS: exacto (afford_packs/stock_then_days son floor -> enteros)
+    if problem["type"] in ("cheaper_per_kg", "arrive_on_time", "discount_better",
+                           "split_then_check", "afford_packs", "stock_then_days"):
+        return float(predicted) == float(ans)
     return abs(float(predicted) - float(ans)) <= tol

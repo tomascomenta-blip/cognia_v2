@@ -3016,3 +3016,20 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Tests: 6 passed (cycle12 + cycle13 juntos). Caveats honestos en RESULTS.md (techo sintético heredado;
   umbral de "duda" es constante de diseño; ask-rate absoluto bajo, lo load-bearing es el contraste).
 - Commit pusheado a origin (rama cognia-x).
+
+## [2026-06-19] CYCLE 14 — cadenas COMPUESTAS (encadenar estrategias multi-paso)
+- GOAL (misma sesión): cerrar el sentido literal de "cadenas de razonamiento" — problemas multi-paso
+  donde NINGUNA cadena sola alcanza; la IA debe descubrir la SECUENCIA correcta de estrategias. Usage 5%.
+- Construido sobre CYCLE 12/13 (extendido, no reescrito; ambos siguen corriendo idénticos — verificado).
+  problems.py +3 tipos compuestos (afford_packs, split_then_check, stock_then_days) vía gen_composed
+  (TYPES/gen_problems intactos); chains.py +STEP_CHAINS que consumen un intermedio (CHAINS de 1 paso
+  intactas); composer.py (run_program pipea salida→entrada, bandit sobre SECUENCIAS); run_cycle14.py.
+- Resultado FULL (train=4000, held-out=2000, 30 programas long<=2) — VERIFICADO corriendo el módulo:
+  * Ninguna cadena de UN paso pasa de ~0.196 → la composición es NECESARIA.
+  * composer VERIFIER 1.000 held-out (= oracle), descubrió el programa correcto por tipo
+    (afford_packs→unit_rate+backwards, split_then_check→stepwise+decision, stock_then_days→stepwise+backwards).
+  * Anti-Goodhart sostenido: composer CONFIDENCE (circular) 0.420 — el paso fanfarrón 'direct' lo secuestra.
+- Tests: 9 passed (cycle12+13+14 juntos). Caveats honestos: espacio long<=2 con un único programa
+  correcto por tipo y steps "casa" exactos → techo perfecto sintético; mecanismo (descubrir secuencia
+  por verificación real), no escala.
+- Commit pusheado a origin (rama cognia-x).

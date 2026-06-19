@@ -141,3 +141,91 @@ CHAINS = {
     "unit_rate": chain_unit_rate,
     "decision": chain_decision,
 }
+
+
+# ============================================================================
+# CYCLE 14 — cadenas de PASO para problemas COMPUESTOS (multi-paso).
+#
+# Un problema compuesto se resuelve con un PROGRAMA = secuencia de cadenas, p.ej. ("unit_rate","backwards"):
+#   - PASO 1: una cadena corre con intermediate=None -> produce un valor intermedio (un número).
+#   - PASO 2: otra cadena corre con intermediate=<lo del paso 1> -> produce la respuesta final.
+# Modelo de consumo (concreto): si una cadena recibe intermediate != None, ese valor ES su entrada
+# del paso anterior y la cadena lo USA (no lo recalcula). Las cadenas de un solo paso de arriba NO se
+# tocan (siguen siendo chain(problem)->(pred,conf)); estas son aparte: step(problem, intermediate).
+#
+# El truco para que la COMPOSICIÓN sea necesaria: ninguna cadena sola produce la respuesta final.
+# Cada cadena hace UNA operación; solo la SECUENCIA correcta encadena las dos operaciones que hacen falta.
+# ============================================================================
+
+def step_unit_rate(problem, intermediate=None):
+    """PASO de tasa: elige el ítem más barato por unidad y devuelve SU PRECIO (intermedio). No es la
+    respuesta final por sí solo. Si recibe un intermedio, lo pasa de largo (esta op es de paso-1)."""
+    p = problem["params"]
+    if problem["type"] == "afford_packs":
+        rate_a = p["pa"] / p["ga"]; rate_b = p["pb"] / p["gb"]
+        cheaper_price = p["pa"] if rate_a < rate_b else p["pb"]
+        return cheaper_price, 0.9
+    # en los otros compuestos no aporta el paso útil -> devuelve algo neutro (la composición fallará)
+    return (intermediate if intermediate is not None else 0.0), 0.4
+
+
+def step_stepwise(problem, intermediate=None):
+    """PASO paso-a-paso: produce un valor agregado intermedio (cuota por persona, o consumo diario).
+    Es paso-1 para split_then_check y stock_then_days. No es la respuesta final."""
+    p = problem["params"]
+    if problem["type"] == "split_then_check":
+        return p["total"] * (1.0 + p["tip"]) / p["n"], 0.9    # cuota por persona (intermedio)
+    if problem["type"] == "stock_then_days":
+        return float(p["people"] * p["per"]), 0.9             # consumo diario total (intermedio)
+    return (intermediate if intermediate is not None else 0.0), 0.4
+
+
+def step_backwards(problem, intermediate=None):
+    """PASO hacia atrás: CONSUME un precio/consumo unitario (intermediate) y cuenta cuántas unidades
+    enteras entran restando una parte fija. Es paso-2 para afford_packs y stock_then_days. Si no recibe
+    intermedio, no tiene de qué partir -> falla (no es cadena de paso-1)."""
+    p = problem["params"]
+    if intermediate is None or intermediate == 0.0:
+        return 0.0, 0.3                                       # sin entrada del paso 1 no puede
+    if problem["type"] == "afford_packs":
+        return float(math.floor((p["budget"] - p["fee"]) / intermediate)), 0.9
+    if problem["type"] == "stock_then_days":
+        return float(math.floor(p["stock"] / intermediate)), 0.9
+    return 0.0, 0.3
+
+
+def step_decision(problem, intermediate=None):
+    """PASO de decisión/umbral: CONSUME un valor (intermediate) y lo compara contra un límite -> 0/1.
+    Es paso-2 para split_then_check. Sin intermedio no tiene qué comparar -> falla."""
+    p = problem["params"]
+    if intermediate is None:
+        return 0.0, 0.3
+    if problem["type"] == "split_then_check":
+        return (1.0 if intermediate > p["limit"] else 0.0), 0.9
+    return 0.0, 0.3
+
+
+def step_direct(problem, intermediate=None):
+    """PASO directo (fanfarrón): intenta resolver de UN golpe ignorando la estructura de dos pasos.
+    Sirve como op tramposa: produce un número plausible pero NO la respuesta compuesta. Confianza alta
+    y miscalibrada (como chain_direct) -> ancla el contraste anti-Goodhart en programas."""
+    p = problem["params"]
+    if problem["type"] == "afford_packs":
+        pred = float(math.floor(p["budget"] / min(p["pa"], p["pb"])))   # ignora fee y la elección por kg
+    elif problem["type"] == "split_then_check":
+        pred = 1.0 if (p["total"] / p["n"]) > p["limit"] else 0.0        # ignora la propina
+    elif problem["type"] == "stock_then_days":
+        pred = float(math.floor(p["stock"] / p["per"]))                  # ignora que son varias personas
+    else:
+        pred = 0.0
+    return pred, BLUFFER_CONF
+
+
+# Cadenas de paso disponibles para componer programas (el espacio que el composer explora).
+STEP_CHAINS = {
+    "unit_rate": step_unit_rate,
+    "stepwise": step_stepwise,
+    "backwards": step_backwards,
+    "decision": step_decision,
+    "direct": step_direct,
+}
