@@ -2961,3 +2961,17 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   genera inglés+español). cycle8 FULL en cola (corre cuando CYCLE 7 termine, sin thrashing).
 - Commits: dd8b3f3 (CYCLE 7 tooling), 1bd03ac (CYCLE 8 código). Pusheados.
 - Next: documentar CYCLE 7 al terminar; correr cycle8 full; actualizar H-SELF-2 con la evidencia.
+
+## [2026-06-19 madrugada] CYCLE 8 RESULTADO — la IA aprende sin olvidar (mandato cumplido)
+- **CYCLE 7 cerrado:** char-LM corpus 22× → best val 2.10 bits/byte (< gzip 2.93), generaliza
+  cross-book, gap plateó (no sobreajusta vs CYCLE 5). runs/cycle7/.
+- **CYCLE 8 cerrado (headline):** loop continuo Nivel 1. naive olvida español +1.22; gate AGREGADO
+  ciego (no_harm=True pese al daño), POR-DOMINIO lo atrapa (no_harm=False), **D por-dominio+replay
+  APRENDE lo nuevo (-0.030) SIN olvidar (español +0.058 = 21× menos) → ACEPTA.** Replay reduce
+  olvido 15-21× y estabiliza. **H-SELF-2 dado vuelta** ❌→✅ condicional. Commit 7126f99.
+- **CYCLE 9:** sorpresa REFUTADA; congelar-tronco FUNCIONA (-25% olvido). f1a6a24, 3bcbcfb.
+- 3 problemas resueltos por transformación cotidiana: olvido (replay+gate por-dominio), Goodhart
+  (examinador cross-book no-circular + banda k·σ), colapso (solo datos reales + verificar Nivel 2).
+- Tests: smokes verifican mecanismos. Verificación REAL = los runs corren y los gates deciden bien.
+- Honestidad: modelo chico, semilla única, sobre el MECANISMO no escala; 1 mecanismo creativo falló.
+- Apagado 4:30 AM sigue programado. Todo pusheado a origin (rama cognia-x).
