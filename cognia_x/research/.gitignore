@@ -1,0 +1,4 @@
+# datos del Investigation Engine (append-only JSONL generado en runtime; reproducible, no commitear)
+store/
+**/__pycache__/
+*.pyc

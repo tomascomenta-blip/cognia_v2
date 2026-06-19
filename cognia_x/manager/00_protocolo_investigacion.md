@@ -1,10 +1,16 @@
 # Cognia-X — Protocolo de Investigación (meta-prompt mejorado v1)
 
+> **v2 (2026-06-19):** la directiva "Investigación, Aprendizaje y Mejora Continua" extiende esta
+> constitución. Ver `_directiva_v2.md` (jerarquía de evidencia enforzada, analogías de 7 etapas,
+> techo teórico físico/diseño/histórico, escalabilidad obligatoria, registro con verificación de
+> integridad) y su encarnación en CÓDIGO ejecutable y testeado en `cognia_x/research/` (Investigation
+> Engine) — el método deja de depender de la buena voluntad del agente: el engine lo exige.
+>
 > Este documento es la **constitución operativa** de Cognia-X. Es la versión mejorada
 > del prompt fundacional entregado por el dueño. El prompt original se conserva íntegro
 > al final (Apéndice A) — *nunca se borra información histórica, solo se añade*.
-> Toda sesión futura debe leer este archivo + `roadmap.md` + `research_log.md` (últimas
-> entradas) ANTES de actuar.
+> Toda sesión futura debe leer este archivo + `_directiva_v2.md` + `roadmap.md` + `research_log.md`
+> (últimas entradas) ANTES de actuar.
 
 ---
 
