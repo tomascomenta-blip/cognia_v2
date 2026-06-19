@@ -30,6 +30,9 @@ def chain_direct(problem):
     elif t == "arrive_on_time":
         # decide "a ojo": si la velocidad es alta dice que sí, sin calcular -> falla cerca del filo
         pred = 1.0 if p["speed"] >= 60.0 else 0.0
+    elif t == "discount_better":
+        # se deja engañar por el NÚMERO más grande: si X% > $Y (comparando crudo) elige A. Error característico.
+        pred = 0.0 if p["x"] > p["y"] else 1.0
     else:
         pred = 0.0
     return pred, BLUFFER_CONF
@@ -54,6 +57,9 @@ def chain_stepwise(problem):
         # multiplica en vez de dividir al normalizar -> comparación invertida muchas veces
         ra = p["pa"] * p["ga"]; rb = p["pb"] * p["gb"]
         return (0.0 if ra < rb else 1.0), 0.5
+    if t == "discount_better":
+        # mismo descuido del directo: compara X contra Y sin pasar el % a dinero -> falla seguido
+        return (0.0 if p["x"] > p["y"] else 1.0), 0.5
     return 0.0, 0.5
 
 
@@ -75,6 +81,11 @@ def chain_backwards(problem):
         # compara gramos por dólar al revés -> a menudo invertido
         ga_per = p["ga"] / p["pa"]; gb_per = p["gb"] / p["pb"]
         return (0.0 if ga_per > gb_per else 1.0), 0.5   # nota: esta SÍ acertaría; la sesgamos abajo con baja conf
+    if t == "discount_better":
+        # razona hacia atrás desde el PRECIO FINAL: precio*(1-X/100) vs precio-Y -> el menor gana. Correcta.
+        final_a = p["price"] * (1.0 - p["x"] / 100.0)
+        final_b = p["price"] - p["y"]
+        return (0.0 if final_a < final_b else 1.0), 0.9
     return 0.0, 0.5
 
 
@@ -94,6 +105,10 @@ def chain_unit_rate(problem):
         # km por hora vs requerido: razonable pero conservador
         need = p["dist"] / p["speed"]
         return (1.0 if need <= p["h"] else 0.0), 0.55
+    if t == "discount_better":
+        # normaliza el % a DINERO real (su movida natural): ahorro_A=precio*X/100 vs ahorro_B=Y. Correcta.
+        save_a = p["price"] * p["x"] / 100.0
+        return (0.0 if save_a > p["y"] else 1.0), 0.9
     return 0.0, 0.5
 
 
@@ -113,6 +128,9 @@ def chain_decision(problem):
     if t == "trips_within_budget":
         # decide sin restar la fija
         return float(math.floor(p["b"] / p["c"])), 0.5
+    if t == "discount_better":
+        # decide "a ojo" por el número más grande -> mismo engaño que el directo
+        return (0.0 if p["x"] > p["y"] else 1.0), 0.5
     return 0.0, 0.5
 
 

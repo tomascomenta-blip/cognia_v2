@@ -51,6 +51,25 @@ def _trips_within_budget(rng):
             "params": {"b": b, "c": c, "f": f}}
 
 
+def _discount_better(rng):
+    # dos ofertas sobre un mismo precio P: A = X% off, B = $Y off -> ¿cuál ahorra más? (0=A, 1=B)
+    # WHY: tipo NUEVO usado SOLO en test (CYCLE 13, fuera-de-distribución). El ahorro de A es P*X/100,
+    # el de B es Y fijo -> verdad-base computable; el "directo" se deja engañar por el número grande.
+    price = round(rng.uniform(20.0, 500.0), 2)
+    x = rng.choice([5, 10, 15, 20, 25, 30, 40, 50])      # porcentaje de descuento de A
+    y = round(rng.uniform(2.0, 120.0), 2)                # descuento fijo en $ de B
+    save_a = price * x / 100.0
+    save_b = y
+    # evitar empates ambiguos (arruinarian la verdad-base)
+    while abs(save_a - save_b) < 1e-3:
+        y = round(rng.uniform(2.0, 120.0), 2); save_b = y
+    ans = 0.0 if save_a > save_b else 1.0
+    text = (f"Un producto sale ${price:.2f}. Oferta A: {x}% de descuento. Oferta B: ${y:.2f} de descuento. "
+            f"¿Cuál ahorra más? (0=A, 1=B)")
+    return {"type": "discount_better", "text": text, "answer": ans,
+            "params": {"price": price, "x": x, "y": y}}
+
+
 def _arrive_on_time(rng):
     # ¿llegás a tiempo? distancia km, velocidad km/h, plazo H horas -> 1 si dist/vel <= H, si no 0 (decision)
     dist = round(rng.uniform(10.0, 300.0), 1)
@@ -67,20 +86,30 @@ def _arrive_on_time(rng):
             "params": {"dist": dist, "speed": speed, "h": h}}
 
 
+# tipo NUEVO de CYCLE 13: NO está en TYPES (que sigue siendo los 4 originales para no romper cycle12).
+# Se agrega SOLO cuando se pide explícitamente (out-of-distribution: presente solo en el test set).
+OOD_TYPE = "discount_better"
+
 _GENS = {
     "split_bill": _split_bill,
     "cheaper_per_kg": _cheaper_per_kg,
     "trips_within_budget": _trips_within_budget,
     "arrive_on_time": _arrive_on_time,
+    "discount_better": _discount_better,
 }
 
 
-def gen_problems(n, seed):
-    """Genera n problemas balanceados entre los 4 tipos. Determinista por `seed` (Random local)."""
+def gen_problems(n, seed, types=None):
+    """
+    Genera n problemas balanceados entre los tipos pedidos. Determinista por `seed` (Random local).
+    Backward-compatible: sin `types` usa los 4 tipos originales (TYPES) -> cycle12 corre igual.
+    Pasar types=["discount_better", ...] para incluir el tipo NUEVO (CYCLE 13).
+    """
+    use = list(types) if types is not None else TYPES
     rng = Random(seed)
     out = []
     for i in range(n):
-        t = TYPES[i % len(TYPES)]
+        t = use[i % len(use)]
         out.append(_GENS[t](rng))
     rng.shuffle(out)
     return out
@@ -91,6 +120,6 @@ def is_correct(problem, predicted, tol=1e-6):
     if predicted is None:
         return False
     ans = problem["answer"]
-    if problem["type"] in ("cheaper_per_kg", "arrive_on_time"):
+    if problem["type"] in ("cheaper_per_kg", "arrive_on_time", "discount_better"):
         return float(predicted) == float(ans)   # decision binaria: exacto
     return abs(float(predicted) - float(ans)) <= tol

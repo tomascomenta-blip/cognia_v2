@@ -3000,3 +3000,19 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   is_correct se usa solo como examinador real y como oráculo de la pregunta-al-usuario. Honesto.
 - Tests: 3 passed. Caveats honestos en RESULTS.md (suite sintética → techo perfecto; mecanismo, no escala).
 - Pilar 5 (Razonamiento) del README abierto y demostrado. Commit pusheado a origin (rama cognia-x).
+
+## [2026-06-19] CYCLE 13 — razonar en el régimen REALISTA (examinador ruidoso + tipos no vistos)
+- GOAL (misma sesión): empujar el razonamiento más allá del techo perfecto de CYCLE 12 hacia lo
+  realista — el usuario a veces contesta mal, y a veces el problema es de un tipo nunca visto. Usage 0%.
+- Construido sobre el router/cadenas/verificador de CYCLE 12 (extendido, NO reescrito; cycle12 sigue
+  corriendo idéntico — verificado). cognia_x/reason/run_cycle13.py + tests/test_cycle13_reason.py;
+  problems.py +tipo OOD `discount_better` (opt-in, TYPES sin cambios); router.py +oráculo ruidoso/escalación OOD.
+- Problema A (oráculo RUIDOSO, "preguntás y a veces te contestan mal"): blind-single (confía ciego)
+  CAE monótono con el ruido (0.94→0.81→0.72 @p=0..0.4); robust-aggregate (vota K=5 + acumula, LLN)
+  se mantiene 1.000. VERIFICADO corriendo el módulo.
+- Problema B (tipo NUEVO fuera-de-distribución, "saber lo que no sabés"): naive rutea confiado y falla
+  (acc 0.683 en el tipo nuevo); con escalación (poca evidencia/empate cerca del azar → pregunta en vez
+  de adivinar) ask-rate familiares 0.000 vs tipo nuevo >0 → acc 1.000. La IA reconoce lo desconocido y pregunta.
+- Tests: 6 passed (cycle12 + cycle13 juntos). Caveats honestos en RESULTS.md (techo sintético heredado;
+  umbral de "duda" es constante de diseño; ask-rate absoluto bajo, lo load-bearing es el contraste).
+- Commit pusheado a origin (rama cognia-x).
