@@ -3132,3 +3132,27 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   SUPERVISADA (fine-tune por el verificador) para dominar a un bag-of-words barato bajo ruido. Frontier
   que abre CYCLE 20 → CYCLE 21: encoder fine-tuneado por el verificador.
 - Tests: 10 passed (cycle17/19/20). cycle17/19 corren idénticos. Commit pusheado (cognia-x).
+
+## [2026-06-19] CYCLE 21 — CAPSTONE: encoder SUPERVISADO POR EL VERIFICADOR le gana al bag-of-words
+- GOAL (misma sesión): cerrar el sub-arco de ruteo por texto (16→17→19→20→21). Darle al encoder la
+  SEÑAL DEL VERIFICADOR (la encarnación literal de "evalúa el resultado dentro del sistema") y testear
+  si un encoder supervisado por fin le gana a Naive-Bayes en TODOS los niveles de ambigüedad. Usage 20%.
+- supervised_router.py: SupervisedLMRouter (arm E) — features del char-LM in-domain CONGELADO
+  (lm_embed, whitened) → cabeza MLP chica que aprende, por cadena, si esa cadena ACIERTA en el texto
+  (multi-label BCE). Target = correr cada cadena y tomar is_correct (el verificador real). Rutea al
+  argmax de éxito predicho. Toda la supervisión es el verificador; input solo problem["text"]; solo
+  la cabeza entrena (char-LM congelado) → rápido en CPU. run_cycle21.py (7 brazos).
+- Self-audit (confirmado por código): target = is_correct (línea 51); input = lm_embed(problem["text"])
+  (línea 102); fit() no lee label; type solo post-hoc para pureza/ceiling. 0 lecturas de label en train/route.
+- Resultado FULL (train=2000/test=800/nivel) — VERIFICADO:
+  * E le GANA a B(Naive-Bayes) en los 3 niveles y alcanza el ceiling (1.000), incl. el ruidoso (amb 1.0)
+    donde C(off) y D(in-unsup) PERDÍAN contra B. E media 1.000 vs B 0.921.
+  * Smoke (encoder/cabeza más chicos): E media 0.997 vs B 0.864 — el titular se sostiene a ambas escalas.
+- CONCLUSIÓN del sub-arco: un encoder aprendido NO le gana al bag-of-words por ser "neuronal" o
+  "in-domain" — le gana UNA VEZ que recibe la MISMA señal del verificador que el bag-of-words ya tenía.
+  La representación rica solo paga cuando el verificador la alinea a la tarea. Respuesta literal a
+  "evaluá el resultado dentro del sistema".
+- Caveat honesto: E=1.000 porque las cadenas son exactas (chain-success perfectamente aprendible);
+  en cadenas graduadas ni ceiling ni E serían 1.0 — el claim es RELATIVO (E ≥ ceiling ≥ B). char-LM
+  congelado (solo la cabeza entrena); full fine-tune queda como frontier. 4 tipos sintéticos.
+- Tests: 13 passed (cycle17/19/20/21). Prior cycles idénticos. Commit pusheado (cognia-x).

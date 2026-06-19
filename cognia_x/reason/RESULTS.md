@@ -597,3 +597,105 @@ frontera natural que abre CYCLE 20.
 Reproducir: `python -m cognia_x.reason.run_cycle20` (full ~9–10 min con entrenamiento) / `--smoke` (encoder
 diminuto rápido). Test: `python -m pytest cognia_x/tests/test_cycle20_reason.py -q`. Datos + encoder guardado:
 `runs/cycle20/`.
+
+---
+
+## CYCLE 21 — el encoder SUPERVISADO POR EL VERIFICADOR (brazo E): el capstone del sub-arco de texto
+
+### Hipótesis a cerrar
+El sub-arco 16→17→19→20 dejó esta lección refinada: *"un encoder diminuto **unsupervised** (in-domain o
+no) necesita señal **supervisada** del verificador para dominar a un bag-of-words discriminativo barato
+(Naive-Bayes) **bajo ruido**"*. Ni el off-domain (C, CYCLE 19) ni el in-domain-unsupervised (D, CYCLE 20) le
+ganaron a B en todos los niveles de ambigüedad. **CYCLE 21 le da al encoder EXACTAMENTE esa señal**: aprende
+la representación DISCRIMINATIVAMENTE del verificador real (qué cadena ACIERTA cada texto) y rutea sobre eso.
+Es el embodiment literal del objetivo del dueño: *"evaluá el resultado DENTRO del sistema"* — el encoder
+aprende de si la forma de razonar elegida FUNCIONÓ. Pregunta-titular: ¿E le gana a B en TODOS los niveles
+(0.0 / 0.5 / 1.0), incluido el ruidoso, lo que nada antes logró, y se acerca al ceiling?
+
+### Qué se construyó — brazo E (`supervised_router.py`)
+Approach (a) **chain-success supervision**, concreto y limpio (torch, CPU, semillas fijas):
+- **Features**: `lm_embed` del char-LM **IN-DOMAIN de CYCLE 20** (frozen, reusado del cache
+  `runs/cycle20/encoder_indomain.pt`) → vector fijo (2·d_model), whitened (z-score por dim sobre el train).
+  Única lectura del problema: `problem["text"]`.
+- **Cabeza supervisada** (`SupervisedHead`): MLP chica (1 capa oculta) que predice, por CADA cadena, si esa
+  cadena **acierta** el texto (multi-label). El TARGET sale de `chain_success_target` = correr cada cadena y
+  mirar `is_correct` (el VERIFICADOR real): `y[c]=1` si la cadena c acertó, 0 si no. BCE multi-label.
+- **Ruteo**: `select` = argmax de la prob-de-éxito predicha por cadena.
+- Solo se entrena la **cabeza** (el char-LM queda frozen) → barato en CPU; las features se cachean (1 forward
+  del char-LM por texto). Costo: la cabeza converge en ~60 épocas sobre features cacheadas (segundos); el
+  char-LM in-domain ya está cacheado de CYCLE 20 (no se re-entrena).
+
+### Resultado REAL (held-out parafraseado, 7 brazos; FULL: train=2000/test=800 por nivel)
+
+| ambig | FIJA  | A:kw  | B:NB  | C:LM-off | D:LM-in(unsup) | **E:SUP** | CEIL  |
+|-------|-------|-------|-------|----------|----------------|-----------|-------|
+| 0.00  | 0.782 | 0.836 | 0.944 | 0.782    | 1.000          | **1.000** | 1.000 |
+| 0.50  | 0.790 | 0.731 | 0.911 | 0.751    | 0.780          | **1.000** | 1.000 |
+| 1.00  | 0.794 | 0.715 | 0.907 | 0.770    | 0.806          | **1.000** | 1.000 |
+
+(azar-de-cadena ~0.58–0.59. E: cabeza hidden 64 sobre features de 192 dim; BCE final ~0.21; `train_route_acc`
+1.000. Encoder in-domain frozen = el de CYCLE 20, ~332k params.)
+
+### Veredicto — TITULAR CONFIRMADO: la señal del verificador hace que un encoder APRENDIDO le gane al bag-of-words en TODO el rango
+- **E le gana a B (Naive-Bayes) en 3/3 niveles** — incluido ambigüedad MÁXIMA (1.000 vs 0.907), el régimen
+  ruidoso donde C y D **perdían** con B. Esto es **exactamente lo que ni off-domain (C) ni
+  unsupervised-in-domain (D) lograron**. E media 1.000 vs B media 0.921.
+- **E iguala el ceiling (router-de-tipo) en 3/3** (1.000): con señal del verificador, la representación
+  aprendida rutea tan bien como si le dieran la etiqueta de tipo verdadera — sin nunca verla.
+- **E le gana a D(unsup) en 3/3 y a C(off) en 3/3 y a A(kw) en 3/3 y supera la FIJA en 3/3.**
+- En smoke (train=200) E ya da 1.00/0.99/1.00, robusto a la escala chica.
+
+### Por qué E domina donde D fallaba (la lección del sub-arco)
+La diferencia no es "in-domain vs off-domain" (D ya era in-domain) sino **unsupervised vs supervisado**. D
+aprende P(byte siguiente): captura la *superficie* del texto, no qué pistas DISCRIMINAN la cadena correcta →
+bajo distractores + vocabulario compartido su representación se ensucia. E entrena la cabeza directo del
+**verificador** (¿qué cadena ACERTÓ?): sus features de decisión ya están alineadas a lo que importa, y los
+distractores (que no covarían con el éxito-de-cadena) no la confunden — la **misma** razón por la que B (NB)
+degrada suave, pero E lo hace sobre una representación más rica (las features aprendidas del char-LM) → la
+domina por completo. Esto valida **literalmente** la lección refinada de CYCLE 20.
+
+### CONCLUSIÓN del sub-arco de ruteo de texto (16→17→19→20→21)
+1. **16**: rutear desde keywords parece funcionar — pero sobre texto trivialmente separable (almuerzo gratis).
+2. **17**: bajo paráfrasis+ambigüedad las keywords (A) confunden; un Naive-Bayes bag-of-words (B), supervisado
+   por el verificador, degrada suave y es el baseline a vencer.
+3. **19**: un encoder char-LM OFF-DOMAIN (libros) recupera estructura y le gana a A, pero **pierde** con B.
+4. **20**: un encoder char-LM IN-DOMAIN pero UNSUPERVISED le gana a off-domain y le gana a B **con texto
+   limpio**, pero sigue perdiendo con B **bajo ruido**.
+5. **21**: un encoder SUPERVISADO POR EL VERIFICADOR le gana a B en **TODOS** los niveles e iguala el ceiling.
+
+**Takeaway honesto**: un encoder APRENDIDO NO le gana a un bag-of-words barato por ser "neural" ni por estar
+"in-domain" — le gana **una vez que recibe la MISMA señal supervisada que el bag-of-words ya tenía: el
+verificador**. La representación rica solo paga cuando está *alineada a la tarea por el verificador*. Esa es
+la respuesta a la pregunta del dueño "evaluá el resultado dentro del sistema": el encoder que aprende de si
+su razonamiento FUNCIONÓ es el que finalmente domina.
+
+### Caveats honestos (no maquillar)
+- E llega a **1.000** porque las cadenas subyacentes son **exactas/deterministas** (no graded): el
+  chain-success es perfectamente aprendible (4 tipos, cada uno con una cadena "de casa" nítida). Sobre cadenas
+  GRADUADAS (CYCLE 15, que patinan) ni el ceiling sería 1.000; E heredaría ese techo. La claim es **relativa**
+  (E ≥ ceiling ≥ B en este setup), no "E resuelve todo". El valor está en que E **cierra la brecha vs B que D
+  no podía**, no en el 1.000 absoluto.
+- 4 tipos sintéticos, char-LM diminuto **frozen** (solo se entrena la cabeza). No es una afirmación sobre LLMs
+  reales ni sobre fine-tunear el encoder completo (queda como frontera). La cabeza ve features frozen.
+- B sigue siendo el baseline **honesto y fuerte** (0.91–0.94 bajo ruido); E no lo "rompe", lo **supera** sobre
+  una representación más rica con la misma señal.
+
+### Verificación
+- **Cabeza supervisada**: ENTRENA (BCE 0.70→~0.21, `train_route_acc` 1.000), RUTEA, GUARDA y RECARGA ruteando
+  **idéntico** en 40 sondas → `head_save_reload_ok: true` (impreso en el run; `runs/cycle21/supervised_head.pt`).
+- **Self-audit (supervisión SOLO del verificador)**: el target sale de `chain_success_target` cuya única señal
+  es `is_correct(problem, pred)` (`supervised_router.py:51`); el input de la cabeza es SOLO
+  `lm_embed(self.encoder, problem["text"], ...)` (`supervised_router.py:102`); `fit()` no toca type/answer
+  (`supervised_router.py:130-131`). El **único** acceso a `problem["type"]` en el código es la pureza post-hoc
+  (`supervised_router.py:191`), nunca usada para decidir; `["answer"]` aparece solo en docstrings/comentarios.
+  El grep `["type"]`/`["answer"]` sobre el módulo confirma: 0 lecturas de label para entrenar/rutear.
+- cycle17 `--smoke` y cycle20 `--smoke` corren idénticos (tablas intactas; D sigue perdiendo con B en CYCLE 20).
+  `lm_router.py` no se tocó; `supervised_router.py` es un módulo NUEVO que solo REUSA `lm_embed`/`is_correct`/`CHAINS`.
+- **Tests**: `pytest test_cycle17 test_cycle19 test_cycle20 test_cycle21 -q` → **13 passed** (~187 s). El test de
+  cycle21 afirma: (i) entrena+rutea+save/reload; (ii) la supervisión nunca lee type/answer (target = `is_correct`
+  sobre cadenas, input = `problem["text"]`); (iii) E > D y E > C a ambig alta Y E ≥ B a ambig baja (el titular;
+  con la cota E>D / E>C que SÍ se sostiene como fallback honesto).
+- CPU-only (threads=3), determinista por semillas.
+
+Reproducir: `python -m cognia_x.reason.run_cycle21` (full ~6 min) / `--smoke` (rápido). Test:
+`python -m pytest cognia_x/tests/test_cycle21_reason.py -q`. Datos + cabeza guardada: `runs/cycle21/`.
