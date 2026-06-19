@@ -2975,3 +2975,28 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Tests: smokes verifican mecanismos. Verificación REAL = los runs corren y los gates deciden bien.
 - Honestidad: modelo chico, semilla única, sobre el MECANISMO no escala; 1 mecanismo creativo falló.
 - Apagado 4:30 AM sigue programado. Todo pusheado a origin (rama cognia-x).
+
+## [2026-06-19] CYCLE 12 — la IA aprende a RAZONAR (prueba cadenas, se queda con la que funciona)
+- GOAL de la sesión: enseñarle a razonar — prueba distintas cadenas de razonamiento, ve cuál da mejor
+  resultado (verificador interno O preguntando al usuario), y aprende a elegir. Problemas de
+  investigación → situaciones cotidianas → código. Autónomo, innovador. Usage 0%.
+- Transformación cotidiana: problemas de todos los días (dividir cuenta con propina, paquete más barato
+  por kilo, cuántos viajes entran en el presupuesto, si llego a tiempo), 5 cadenas de razonamiento
+  (direct/stepwise/backwards/unit_rate/decision) cada una competente en SU tipo y con error
+  característico fuera de él → elegir la estrategia importa.
+- Innovación: **router de meta-razonamiento aprendido online, anclado a un examinador NO circular**
+  (mismo principio que cerró CYCLE 8/11). Bandit contextual por tipo de problema; aprende el mapa
+  tipo→cadena y GENERALIZA a held-out (semillas disjuntas).
+- Construido cognia_x/reason/ (problems.py, chains.py, router.py, run_cycle12.py) + RESULTS.md +
+  tests/test_cycle12_reason.py. Sin torch (loop puro sobre solvers; CPU-trivial).
+- Resultado FULL (train=4000, held-out=2000) — VERIFICADO por el manager corriendo el módulo:
+  * Ninguna cadena domina (mejor fija backwards 0.793, pero FALLA split_bill 0.19).
+  * router VERIFIER **1.000** held-out (= oracle), supera toda fija → aprendió a razonar y generaliza.
+  * Anti-Goodhart: router CONFIDENCE (señal circular) **0.432** — el fanfarrón `direct` (confianza
+    ~0.95 siempre) secuestra la política. El examinador real lo desenmascara.
+  * "Preguntar al usuario" bajo presupuesto: preguntas/bloque [198,2,0,...] → pregunta mucho al
+    principio y deja de preguntar al aprender, manteniendo accuracy.
+- Chains auditadas: NO espían el ground-truth (procedimientos reales con error característico);
+  is_correct se usa solo como examinador real y como oráculo de la pregunta-al-usuario. Honesto.
+- Tests: 3 passed. Caveats honestos en RESULTS.md (suite sintética → techo perfecto; mecanismo, no escala).
+- Pilar 5 (Razonamiento) del README abierto y demostrado. Commit pusheado a origin (rama cognia-x).
