@@ -58,14 +58,20 @@ propias preguntas y "siempre aprueba".
   sandbox con timeout; `cognia_v3/core/sandbox_tester.py`); si es texto → redundancia en ≥2 fuentes
   reales; filtro de degeneración (KL del histograma de bytes + gzip dentro de rango del corpus real).
 
-## Mecanismo creativo (ir más allá): curiosidad por sorpresa + ancla de Fisher
-- **Aprender solo lo SORPRENDENTE.** `forward()` ya da la pérdida por-byte; se aplica gradiente solo
-  donde la sorpresa supera `EMA + k·sigma` (poniendo `target=-100` en lo no-sorprendente). Concentra
-  el escaso presupuesto de CPU en el ~10% novedoso y **no arrastra** los pesos en el 90% redundante
-  (de donde venía casi todo el daño a lo viejo).
-- **Ancla de Fisher gratis.** Adam ya calcula `exp_avg_sq` ≈ diagonal de Fisher; se usa como peso de
-  una penalización `λ·F·(θ−θ_viejo)²`: lo importante para lo viejo se vuelve **rígido**, lo trivial
-  **plástico**. Previene el olvido en cada paso, no post-hoc.
+## Mecanismo creativo (ir más allá): curiosidad por sorpresa — PROBADO y REFUTADO ❌
+**Hipótesis:** aplicar gradiente solo a los bytes SORPRENDENTES (mayor pérdida = novedad) concentra
+el presupuesto en lo nuevo y arrastra menos los pesos viejos → menos olvido a igual coste.
+**Resultado (CYCLE 9, `run_cycle9.py`, smoke d=128):** REFUTADO. Las 3 variantes (top-k de pérdida,
+banda 50-95, banda 70-97) dan **gain NEGATIVO** en el dominio nuevo (-0.11 a -0.42 vs naive +0.15) y
+NO reducen el olvido del español. **Causa (primeros principios):** en un byte-LM la pérdida por-byte
+NO separa "novedad generalizable" de "ruido/contexto"; entrenar un subconjunto de posiciones da un
+gradiente más débil y sesgado → peor generalización. La supervisión DENSA aprende mejor. *Un fracaso
+es información: la curiosidad-por-pérdida-cruda no sirve para este modelo.*
+
+**Pendiente (no probado aún):** ancla de Fisher/EWC-light (leer `exp_avg_sq` de Adam como diagonal de
+Fisher, penalización `λ·F·(θ−θ_viejo)²` para volver rígidos los pesos importantes) y **adapters LoRA
+con tronco congelado** (olvido imposible por construcción). La solución VALIDADA hoy es el gate
+por-dominio + replay (arriba).
 
 ## El loop (Nivel 1) y la demostración
 `cognia_x/learn/continual.py` (gate) + `run_cycle8.py` (demo). Montaje: base sabe inglés+español;

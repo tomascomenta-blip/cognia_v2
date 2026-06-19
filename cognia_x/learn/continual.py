@@ -20,6 +20,7 @@ import statistics
 import time
 
 import torch
+import torch.nn.functional as F
 
 from cognia_x.train.charlm import eval_loss, get_batch
 
@@ -83,6 +84,39 @@ def learn_steps(model, opt, new_t, steps, L, batch, device, replay_t=None, repla
         src = replay_t if use_replay else new_t
         x, y = get_batch(src, batch, L, device)
         _, loss = model(x, y)
+        opt.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        opt.step()
+        last = loss.item()
+    return last
+
+
+def learn_steps_surprise(model, opt, new_t, steps, L, batch, device, low_q=0.5, high_q=0.95,
+                         replay_t=None, replay_ratio=0.5, warmup=0, base_lr=None):
+    """CURIOSIDAD: aprende los bytes de una BANDA de sorpresa — pérdida por-byte entre los cuantiles
+    [low_q, high_q]. Excluye el fácil/redundante (bajo low_q, de donde viene el daño a lo viejo) Y el
+    EXTREMO superior (sobre high_q), que suele ser RUIDO (caracteres raros/formato), no novedad
+    aprendible. Concentra el gradiente en lo novel-pero-aprendible. Una sola forward (reduction='none').
+    Lección del smoke de CYCLE 9: el top-k absoluto entrena el ruido y EMPEORA; la banda lo evita."""
+    model.train()
+    V = model.cfg.vocab_size
+    last = float("nan")
+    for s in range(1, steps + 1):
+        if warmup > 0 and s <= warmup and base_lr is not None:
+            for g in opt.param_groups:
+                g["lr"] = base_lr * s / warmup
+        use_replay = (replay_t is not None and replay_t.numel() > L + 1
+                      and (s % max(1, round(1 / max(1e-6, replay_ratio))) == 0))
+        src = replay_t if use_replay else new_t
+        x, y = get_batch(src, batch, L, device)
+        logits, _ = model(x)
+        lf = F.cross_entropy(logits.view(-1, V), y.view(-1), reduction="none")  # (B*L,)
+        with torch.no_grad():
+            lo = torch.quantile(lf, low_q)
+            hi = torch.quantile(lf, high_q) if high_q < 1.0 else lf.max() + 1.0
+            keep = ((lf >= lo) & (lf <= hi)).float()
+        loss = (lf * keep).sum() / keep.sum().clamp(min=1.0)
         opt.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
