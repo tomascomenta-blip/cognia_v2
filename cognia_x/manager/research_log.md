@@ -328,3 +328,62 @@ trade-off coste-de-entrenamiento real del ratio.
 **Caveats:** semilla única; modelo chico (201-302k params), tarea sintética — resultado sobre el
 MECANISMO de recall, no escala. **Datos:** `cognia_x/experiments/exp008_recall_control/results/`
 (results.md, results_depth4.json/run_depth4.log, results_depth6.json/run_depth6.log).
+
+---
+
+## 2026-06-18/19 — CYCLE 7: char-LM sobre corpus 22× mayor (menos sobreajuste)
+
+### Hecho
+- Ataca el sobreajuste del CYCLE 5 (char-LM en 778KB markdown → sobreajustó a ~29 épocas). MISMO
+  modelo (6.3M params, híbrido byte-level), corpus 22× mayor: **17.4MB de prosa de dominio público**
+  (Gutenberg, 15 libros español+inglés). `cognia_x/data/get_corpus.py` (reproducible, gitignored).
+- Pipeline reforzado por revisión adversarial (workflow 5 agentes): **holdout cross-book** (val = 2
+  libros enteros no vistos), **eval determinista**, **gap train-val logueado** (la señal de
+  sobreajuste), **baseline gzip**, cap de épocas, separador entre libros.
+
+### Resultado — GENERALIZA (sin sobreajustar a ~1 época)
+- val bajó a **2.12 bits/byte** (1.466 nats), **por debajo del baseline gzip (2.93)** → comprime
+  mejor que gzip: aprende estructura de lenguaje real, sobre libros NUNCA vistos (cross-book).
+- **Gap train-val ESTABLE ~0.19 nats** a 1.09 épocas, con el val aún bajando → NO sobreajusta
+  (vs CYCLE 5 cuyo val SUBÍA). Genera inglés Y español reconocibles.
+- **Confound honesto declarado:** CYCLE 7 hace ~1 época vs ~29 de CYCLE 5; el efecto es corpus+épocas
+  combinados, no corpus aislado. El val absoluto NO se compara con CYCLE 5 (corpus distinto); lo
+  comparable es el gap y la forma de la curva. Datos: `runs/cycle7/` (metrics.csv, summary.json).
+
+---
+
+## 2026-06-18/19 — CYCLE 8: enseñar a la IA a APRENDER SOLA (aprendizaje continuo Nivel 1)
+
+### Diseño (método: transformación a problema cotidiano)
+Los 3 problemas que plantea "aprender solo" → "el estudiante diligente" (`learn/DESIGN.md`):
+- **Olvido catastrófico** → replay (repasar) + compuerta do-no-harm **POR-DOMINIO** (no agregada).
+- **Goodhart** → examinador externo **cross-book NO-circular** + banda de incertidumbre (umbral=k·σ).
+- **Colapso** → aprender solo de datos REALES; lo auto-generado (Nivel 2) solo verificado.
+
+### Fix crítico (revisión adversarial, workflow 5 lentes)
+La v1 usaba un gate AGREGADO (promedio de los dominios viejos) que es **CIEGO** al daño concentrado.
+El repo ya lo tenía como **H-SELF-2 ❌false** ("evaluador CIRCULAR, no held-out"). Nuestro examinador
+NO es circular (held-out cross-book real) → oportunidad de **dar vuelta H-SELF-2**. Fix: gate
+**por-dominio** (peor-caso) + banda de incertidumbre.
+
+### Verificado (smoke, base d=128): el mecanismo FUNCIONA
+- Aprender inglés nuevo DESTRUYE el español (naive **+0.96** de olvido) mientras MEJORA el inglés.
+- El **promedio** de los viejos ve solo **+0.25** (esconde 75% del daño) vs el **PEOR dominio +0.96**
+  → el gate agregado es ciego; el por-dominio lo atrapa.
+- **Replay reduce el olvido del español 15×** (+0.86 → +0.058) → aprende sin olvidar (la solución).
+- Código: `cognia_x/learn/` (continual.py: gate por-dominio; run_cycle8.py: demo dilución 4 brazos).
+- **Resultado FULL: PENDIENTE** (corre tras CYCLE 7; con eps en la "zona ciega" mostrará: agregado
+  ACEPTA el daño, por-dominio RECHAZA, por-dominio+replay ACEPTA sin olvidar → cierre de H-SELF-2).
+
+---
+
+## 2026-06-18/19 — CYCLE 9: mecanismos creativos extra ("ir más allá") — 1 refutado, 1 exitoso
+
+- **Aprendizaje por SORPRESA/curiosidad (gradiente solo en bytes de mayor pérdida): REFUTADO ❌.**
+  3 variantes (top-k, banda 50-95, 70-97) dan gain NEGATIVO en lo nuevo (-0.11 a -0.42 vs naive +0.15)
+  sin reducir el olvido. Causa: en un byte-LM la pérdida por-byte no separa novedad de ruido; la
+  supervisión esparsa generaliza peor. *Un fracaso es información.*
+- **CONGELAR EL TRONCO de recall (embeddings + atención) y aprender solo en lineal+MLP: FUNCIONA ✅
+  (modesto).** Reduce el olvido ~25% (+0.80 vs +1.06) conservando ~94% del aprendizaje nuevo
+  (+0.143 vs +0.152). Parameter-free, complementario al replay. (`freeze_recall_trunk`.)
+- Commits: 1bd03ac (CYCLE 8), f1a6a24 (sorpresa refutada), 3bcbcfb (congelar funciona). Pusheados.

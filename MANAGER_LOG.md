@@ -2945,3 +2945,19 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   El upgrade reemplazo los 2 archivos que estaban parcheados a mano por la version oficial.
 - 3.6.1 NO trae el GGUF/binario -> el backend sigue por env vars LLAMA_GGUF_PATH/LLAMA_SERVER_PATH.
   Memoria: [[cognia-llama-backend-setup]].
+
+## [2026-06-18 noche] CYCLE 8 (manager autónomo) — enseñar a la IA a APRENDER SOLA (lab cognia_x)
+- GOAL de la sesión: loop de aprendizaje continuo Nivel 1 + resolver olvido/Goodhart/colapso por
+  transformación a problema cotidiano. Apagado programado 4:30 AM. Usage 26%.
+- Diseño (método everyday): los 3 problemas → "estudiante diligente" (aprende de fuentes reales,
+  repasa lo viejo, examinador externo por-materia, solo aprueba si no baja en ninguna anterior).
+- Workflow adversarial (5 lentes) encontró fallo real en la v1: el gate AGREGADO es CIEGO (promedia
+  los dominios viejos). El repo ya lo tenía como H-SELF-2 ❌false "por evaluador circular". Mi
+  examinador NO es circular (held-out cross-book real) → oportunidad de dar vuelta H-SELF-2.
+- Construido cognia_x/learn/ (continual.py: gate POR-DOMINIO + banda de incertidumbre k·sigma;
+  run_cycle8.py: demo dilución; DESIGN.md). Verificado (smoke): naive olvida el español (+0.96),
+  el promedio ve solo +0.25 (esconde 75% del daño); replay reduce el olvido 15× (+0.86→+0.058).
+- Estado: CYCLE 7 (char-LM corpus grande) terminando (~1:45 AM, val 2.23 bits/byte, generaliza,
+  genera inglés+español). cycle8 FULL en cola (corre cuando CYCLE 7 termine, sin thrashing).
+- Commits: dd8b3f3 (CYCLE 7 tooling), 1bd03ac (CYCLE 8 código). Pusheados.
+- Next: documentar CYCLE 7 al terminar; correr cycle8 full; actualizar H-SELF-2 con la evidencia.
