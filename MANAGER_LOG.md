@@ -3112,3 +3112,23 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   entrene cerca de la tarea. Resultado mixto/valioso (no engineered). El frontier sigue: entrenar/ajustar
   el encoder cerca de la tarea, o un LM más grande/in-domain.
 - Tests: 13 passed (cycle12/16/17/19). cycle16/17 corren idénticos; forward() intacto. Commit pusheado (cognia-x).
+
+## [2026-06-19] CYCLE 20 — encoder IN-DOMAIN: testear la lección de CYCLE 19 ("entrenar cerca de la tarea")
+- GOAL (misma sesión): follow-up científico de CYCLE 19. Entrenar un char-LM chico UNSUPERVISED sobre
+  los TEXTOS de los problemas (in-domain) y usar sus embeddings como encoder del router, vs keyword(A),
+  Naive-Bayes(B) y el encoder off-domain de CYCLE 19 (C). Usage 17%.
+- lm_router.py +train_indomain_encoder/save/load (puras adiciones). run_cycle20.py (6 brazos). Encoder
+  in-domain d=96/3-capas/~332k, next-byte loss 1.35→0.306 (~268s CPU, cacheado a runs/cycle20/encoder_indomain.pt).
+  Self-audit: corpus = [p["text"]] (sin label); trainer recibe solo strings; router lee solo el texto.
+- Resultado FULL (corpus=4000/steps=2000, test=600) — VERIFICADO:
+  * D(in-domain) le GANA a C(off-domain) en 2/3 niveles y lo CRUJE en ambig=0 (1.000 vs 0.787); pureza
+    más afilada (media 0.759 vs 0.666) → confirma que "entrenar cerca de la tarea" afila la representación.
+  * En ambig=0, D (1.000) hasta le GANA a Naive-Bayes B (0.920) — el único punto donde el encoder aprendido gana.
+  * PERO bajo ambigüedad (0.5/1.0) B se mantiene robusto (0.91-0.96) y D cae a 0.77-0.80 → D NO le gana
+    a B en todos los niveles (1/3). Razón real: unsupervised-vs-discriminativo (el char-LM modela
+    superficie/next-byte, los distractores lo ensucian; NB aprende P(palabra|cadena-correcta) del verificador).
+- VEREDICTO honesto: confirmación PARCIAL de la lección de CYCLE 19 — in-domain cierra casi toda la
+  brecha y la da vuelta con texto limpio, pero un encoder UNSUPERVISED diminuto todavía necesita señal
+  SUPERVISADA (fine-tune por el verificador) para dominar a un bag-of-words barato bajo ruido. Frontier
+  que abre CYCLE 20 → CYCLE 21: encoder fine-tuneado por el verificador.
+- Tests: 10 passed (cycle17/19/20). cycle17/19 corren idénticos. Commit pusheado (cognia-x).

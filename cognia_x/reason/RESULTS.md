@@ -516,3 +516,84 @@ features a mano": el encoder real ayuda contra keywords frágiles, no contra un 
 
 Reproducir: `python -m cognia_x.reason.run_cycle19` (full ~4 min) / `--smoke`.
 Test: `python -m pytest cognia_x/tests/test_cycle19_reason.py -q`. Datos: `runs/cycle19/`.
+
+
+## CYCLE 20 — entrenar el char-LM ENCODER IN-DOMAIN (sobre los propios enunciados) y testear la lección de CYCLE 19
+
+### La hipótesis
+CYCLE 19 usó el char-LM de CYCLE 7 (6.3M, entrenado sobre LIBROS — dominio AJENO) como encoder del router.
+Hallazgo: recuperó estructura de tipo (pureza 0.61–0.75 ≫ 0.25 azar) y le GANÓ a las keywords frágiles, pero
+PERDIÓ con un Naive-Bayes in-domain barato y solo EMPATÓ a la mejor cadena fija. La lección honesta que dejó:
+**"un encoder genérico off-domain NO domina features baratas in-domain salvo que esté entrenado CERCA de la
+tarea"**. CYCLE 20 la testea DE FRENTE: entrena un char-LM CHICO **IN-DOMAIN** (next-byte UNSUPERVISED sobre
+el corpus de enunciados parafraseados — nunca ve el `type`/`answer`) y usa SUS embeddings como encoder del
+MISMO `LMRouter` (NCM/whitened, online, premiado por el verificador, lee SOLO `problem["text"]`).
+**Pregunta:** ahora que el encoder está entrenado sobre el dominio, ¿le gana a keywords (A) y a off-domain
+(C), y CIERRA o supera la brecha con Naive-Bayes (B)?
+
+Cómo (concreto):
+- `train_indomain_encoder(texts, ...)` en lm_router.py: char-LM diminuto (d_model=96, 3 capas, ~332k params)
+  entrenado 2000 pasos por next-byte sobre `texts` (una lista de STRINGS). Es UNSUPERVISED: nunca toca
+  `type`/`answer`. Se guarda en `runs/cycle20/encoder_indomain.pt` (si existe, se recarga → reproducible).
+- El corpus del encoder (`build_encoder_corpus`) genera enunciados parafraseados a ambig 0.5, **semilla
+  77000 disjunta** de train/test de evaluación, y extrae SOLO `p["text"]` (descarta el resto del dict).
+- Mismo `LMRouter` que CYCLE 19, ahora con D=encoder in-domain como brazo nuevo junto a C=encoder off-domain.
+
+### Resultado REAL (held-out parafraseado, 6 brazos; FULL: encoder corpus=4000/steps=2000, train=800/test=600)
+
+| ambig | FIJA  | A:kw  | B:NB  | C:LM-off | D:LM-in  | CEIL  | pureza C | pureza D |
+|-------|-------|-------|-------|----------|----------|-------|----------|----------|
+| 0.00  | 0.787 | 0.800 | 0.920 | 0.787    | **1.000**| 1.000 | 0.750    | **1.000**|
+| 0.50  | 0.787 | 0.722 | 0.960 | 0.787    | 0.765    | 1.000 | 0.718    | 0.588    |
+| 1.00  | 0.798 | 0.663 | 0.912 | 0.750    | **0.803**| 1.000 | 0.528    | **0.688**|
+
+(azar-de-cadena ~0.57–0.58; ceiling=1.000. Encoder in-domain: ~332k params, loss next-byte final **0.306**,
+entrenado en **~268 s** CPU una sola vez. Off-domain C = char-LM de CYCLE 7, 6.3M.)
+
+### Veredicto HONESTO: confirmación PARCIAL de la lección de CYCLE 19 — entrenar in-domain AYUDA y a veces es DECISIVO, pero no domina al Naive-Bayes en todo el rango
+- **D le gana a C (off-domain) en 2/3 niveles** y a ambigüedad 0 lo APLASTA (1.000 vs 0.787): cuando el texto
+  no es ambiguo, el encoder in-domain separa los 4 tipos PERFECTO (pureza 1.000) — algo que el off-domain
+  nunca logró. **Entrenar el encoder cerca de la tarea SÍ afiló la estructura de tipo** (pureza media 0.759
+  vs 0.666 off-domain). Eso confirma la mitad central de la lección de CYCLE 19.
+- **D le gana a las keywords (A) en 3/3** y supera a la mejor cadena FIJA en 2/3 — el encoder aprendido
+  (in-domain, diminuto) ya es un ruteo útil, no solo "recupera estructura".
+- **A ambigüedad 0, D (1.000) hasta SUPERA al Naive-Bayes (0.920)** — el único punto donde el encoder
+  aprendido le gana al bag-of-words. Es la señal positiva más fuerte del ciclo: con texto limpio, una
+  representación in-domain aprendida bate a un contador de palabras.
+- **PERO bajo ambigüedad (0.5 / 1.0) el Naive-Bayes (B) sigue arriba (0.91–0.96, robustísimo) y D cae a
+  0.77–0.80.** El char-LM in-domain es UNSUPERVISED: modela la superficie del texto, no qué palabras
+  DISCRIMINAN el tipo; cuando entran distractores + vocabulario compartido, su representación se ensucia más
+  que la de un NB que aprendió directamente las palabras que predicen la cadena correcta (señal supervisada
+  del verificador). Por eso **D NO le gana a B en todos los niveles (1/3)**: la lección se confirma solo a
+  medias — entrenar cerca de la tarea cierra MUCHO la brecha (y la da vuelta con texto limpio), pero un
+  encoder diminuto **unsupervised** todavía no domina a un bag-of-words **discriminativo** in-domain bajo
+  ruido. Honesto y esperable a esta escala.
+
+### Por qué (interpretación)
+La diferencia clave entre D y B no es "in-domain vs off-domain" (ambos lo son ahora) sino **unsupervised vs
+discriminativo**. El encoder in-domain aprende P(byte siguiente): captura la estructura del enunciado (de ahí
+la pureza 1.000 con texto limpio), pero no sabe qué pistas IMPORTAN para rutear. El Naive-Bayes aprende
+P(palabra | la-cadena-acierta) directo del verificador → sus features ya están alineadas a la decisión, y los
+distractores (que aparecen en todas las clases) no lo confunden. La lección refinada: **entrenar el encoder
+cerca de la tarea ayuda mucho (y gana con señal limpia), pero para batir a un discriminativo barato bajo
+ruido el encoder necesitaría señal SUPERVISADA (fine-tune con el verificador), no solo next-byte.** Esa es la
+frontera natural que abre CYCLE 20.
+
+### Verificación
+- Encoder in-domain: ENTRENA (loss next-byte 1.35→**0.306**), GUARDA, RECARGA y `lm_embed` corre → shape
+  **(192,) = 2·d_model** (d_model=96), determinista; CHECK reload+embed impreso en el run.
+- **Self-audit (UNSUPERVISED):** el entrenamiento recibe `texts` (lista de STRINGS), no problems con label.
+  `build_encoder_corpus` extrae SOLO el texto: `return [p["text"] for p in probs]` (descarta type/answer). El
+  router lee SOLO el texto: `LMRouter._raw_embed` → `return lm_embed(self.model, problem["text"], ...)`.
+- cycle17 `--smoke` y cycle19 `--smoke` siguen corriendo idénticos (char-LM CYCLE 7 carga d=256/6.3M; tablas
+  intactas). lm_router.py solo AGREGA helpers (`train_indomain_encoder`/`save_encoder`/`load_encoder`).
+- Tests: `pytest test_cycle17 test_cycle19 test_cycle20 -q` → **10 passed**. El test de cycle20 afirma:
+  (i) encoder entrena+embebe con shape esperado y recarga reproduce; (ii) entrenamiento UNSUPERVISED (cuerpo
+  sin tocar type/answer; corpus solo texto); (iii) DIRECCIONAL: a ambig baja, D ≥ C (más D > azar y pureza
+  > 0.25 como cota mínima).
+- CPU-only (threads=3), 4 tipos sintéticos. Costo honesto: el encoder in-domain tarda ~268 s en CPU (una vez,
+  cacheado). No es una afirmación sobre LLMs reales.
+
+Reproducir: `python -m cognia_x.reason.run_cycle20` (full ~9–10 min con entrenamiento) / `--smoke` (encoder
+diminuto rápido). Test: `python -m pytest cognia_x/tests/test_cycle20_reason.py -q`. Datos + encoder guardado:
+`runs/cycle20/`.

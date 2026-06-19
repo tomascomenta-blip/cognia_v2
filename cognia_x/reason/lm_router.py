@@ -217,6 +217,66 @@ class LMRouter:
         return (pure / total if total else 0.0), len(buckets), per_cls
 
 
+def train_indomain_encoder(texts, d_model=96, n_layers=3, n_heads=4, window=64, attn_every=2,
+                           max_seq_len=192, L=128, batch=16, steps=2000, lr=1e-3,
+                           device="cpu", seed=0, log=print):
+    """
+    CYCLE 20 — entrena un char-LM CHICO IN-DOMAIN como ENCODER del router. UNSUPERVISED: el unico dato
+    que ve es la concatenacion de los TEXTOS de los enunciados (bytes); JAMAS lee problem["type"] ni
+    problem["answer"] (recibe `texts`, una lista de strings ya extraidos -> no hay acceso al label). Es
+    next-byte prediction puro (modela P(byte siguiente | bytes previos)), igual que charlm.train pero
+    chico y rapido en CPU. Determinista por `seed`. Devuelve (model, cfg).
+
+    WHY: CYCLE 19 uso un char-LM entrenado sobre LIBROS (off-domain) y su representacion recuperaba la
+    estructura de tipo pero perdia con un Naive-Bayes in-domain. La leccion: "un encoder generico no
+    domina features baratas in-domain salvo que este entrenado CERCA de la tarea". CYCLE 20 entrena el
+    encoder EXACTAMENTE sobre estos textos para testear esa leccion de frente.
+    """
+    torch.manual_seed(seed)
+    cfg = HybridConfig(vocab_size=256, d_model=d_model, n_layers=n_layers, n_heads=n_heads,
+                       window=window, attn_every=attn_every, max_seq_len=max_seq_len)
+    model = HybridLM(cfg).to(device)
+    # corpus = SOLO los textos (bytes), separados por \n. Nunca toca type/answer.
+    corpus = b"\n".join(t.encode("utf-8", errors="replace") for t in texts)
+    data = torch.frombuffer(bytearray(corpus), dtype=torch.uint8)
+    if data.numel() <= L + 1:
+        raise ValueError(f"corpus in-domain muy chico ({data.numel()}B) para L={L}")
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
+    model.train()
+    last_loss = float("nan")
+    log(f"[cycle20] entreno encoder IN-DOMAIN: d={d_model} layers={n_layers} params={model.num_params():,} "
+        f"corpus={data.numel():,}B steps={steps}")
+    for s in range(steps):
+        ix = torch.randint(0, data.numel() - L - 1, (batch,))
+        x = torch.stack([data[i:i + L] for i in ix]).long().to(device)
+        y = torch.stack([data[i + 1:i + 1 + L] for i in ix]).long().to(device)
+        _, loss = model(x, y)
+        opt.zero_grad(); loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        opt.step()
+        last_loss = loss.item()
+        if s % 200 == 0 or s == steps - 1:
+            log(f"[cycle20]   step {s} loss {last_loss:.4f}")
+    model.eval()
+    return model, cfg, last_loss
+
+
+def save_encoder(model, cfg, path):
+    """Guarda el encoder in-domain (mismo formato que charlm.py) para reproducibilidad/reuso."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    torch.save({"model": model.state_dict(), "cfg": cfg.__dict__}, path)
+
+
+def load_encoder(path, device="cpu"):
+    """Recarga el encoder in-domain guardado por save_encoder. Devuelve (model, cfg)."""
+    ck = torch.load(path, map_location=device)
+    cfg = HybridConfig(**ck["cfg"])
+    model = HybridLM(cfg).to(device)
+    model.load_state_dict(ck["model"])
+    model.eval()
+    return model, cfg
+
+
 def train_tiny_charlm_fallback(device="cpu", steps=400, seed=0, log=print):
     """
     FALLBACK honesto: si el checkpoint no carga, entrena IN-SCRIPT un char-LM diminuto y determinista
