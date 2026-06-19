@@ -432,3 +432,21 @@ real**, que aprende QUÉ estrategia desplegar y generaliza. Código en `cognia_x
   CYCLE 17 mostró degradación honesta (2/12 semillas el NB patina en cold-start).
 - Reproducir: `python -m cognia_x.reason.run_cycle{12..17} [--smoke]`. 19 tests (cycle12-17) passan.
   Detalle en `cognia_x/reason/RESULTS.md` y `cognia_x/reason/README.md`.
+
+### Sub-arco de ruteo por TEXTO (CYCLE 16→21) — ¿puede un encoder aprendido inferir la clase de problema?
+Pregunta: quitar la muleta del tipo (que la IA infiera QUÉ clase de problema es desde el enunciado) y
+ver qué representación gana. Recorrido honesto:
+- **16:** keyword-signature = almuerzo gratis (enunciados sintéticos trivialmente separables, pureza 1.0).
+- **17:** bajo PARÁFRASIS + vocabulario solapado, el keyword CONFUNDE (pureza 0.84→0.77); un Naive-Bayes
+  bag-of-words (B) degrada con gracia → B es el baseline a vencer.
+- **19:** encoder char-LM OFF-DOMAIN (CYCLE 7, libros) recupera estructura (pureza 0.61-0.75 >> azar
+  0.25) y le gana a keyword, pero PIERDE contra B y solo empata la mejor fija. Lección: encoder
+  genérico off-domain no domina features in-domain baratas.
+- **20:** encoder IN-DOMAIN unsupervised (char-LM entrenado sobre los textos) afila la pureza y le gana
+  a B en texto LIMPIO (1.000 vs 0.92), pero bajo ruido sigue perdiendo. Lección refinada: falta señal SUPERVISADA.
+- **21 (CAPSTONE):** encoder SUPERVISADO POR EL VERIFICADOR (cabeza que aprende por cadena si acierta,
+  target=is_correct) le GANA a B en TODOS los niveles de ambigüedad y alcanza el ceiling.
+- **CONCLUSIÓN:** un encoder aprendido le gana al bag-of-words UNA VEZ que recibe la MISMA señal del
+  verificador; la representación rica solo paga cuando el verificador la alinea a la tarea. Es la
+  respuesta concreta a "evaluá el resultado dentro del sistema". Caveats: cadenas exactas (E=1.0 por
+  construcción; claim relativo E≥ceiling≥B), char-LM congelado (solo la cabeza entrena), 4 tipos sintéticos.

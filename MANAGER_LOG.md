@@ -3156,3 +3156,13 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   en cadenas graduadas ni ceiling ni E serían 1.0 — el claim es RELATIVO (E ≥ ceiling ≥ B). char-LM
   congelado (solo la cabeza entrena); full fine-tune queda como frontier. 4 tipos sintéticos.
 - Tests: 13 passed (cycle17/19/20/21). Prior cycles idénticos. Commit pusheado (cognia-x).
+
+## [2026-06-19] Consolidación final del PILAR 5 (Razonamiento) — gate completo verde
+- Actualizado reason/README.md (arco 12-21 + sub-arco de texto 16→21 + conclusión), research_log.md
+  (recorrido 16→21) y la memoria del manager. GATE COMPLETO del pilar: 28 passed (9 archivos de test,
+  cycle12-21) en 190s — VERIFICADO. 10 cycles cerrados, todo pusheado a origin (rama cognia-x).
+- Estado del GOAL ("enseñarle a razonar probando cadenas y quedándose con la que funciona"): CUMPLIDO
+  como MECANISMO verificable y reproducible — elegir cadena por tipo (12), robustez ruido/OOD (13),
+  componer multi-paso (14), escala graduada que rompe el techo perfecto (15), inferir la clase desde
+  el texto bajo paráfrasis (16-17), y un encoder que aprende del verificador y le gana al baseline (19-21).
+- Frontier abierto y documentado: full fine-tune, LM real sobre tarea con señal, verificador real, planificación.
