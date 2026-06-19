@@ -220,3 +220,76 @@ sobrevive a un examinador no-circular).
 
 Reproducir: `python -m cognia_x.reason.run_cycle14` (full) / `--smoke` (rápido).
 Test: `python -m pytest cognia_x/tests/test_cycle14_reason.py -q`. Datos: `runs/cycle14/`.
+
+---
+
+## CYCLE 15 — ROMPER el techo perfecto: competencia GRADUADA (oráculo < 1.0, brecha honesta)
+
+**Esto RETIRA el caveat repetido de CYCLE 12/13/14** ("mecanismo, no escala; techo sintético perfecto").
+Aquellos ciclos tocaban TODOS 1.000 porque los solvers eran deterministas y exactos → oráculo=1.0 y
+política=1.0. El objetivo del dueño ("ve cuál le da mejores resultados") solo tiene sentido medido en una
+escala GRADUADA, no binaria-perfecta. CYCLE 15 introduce dureza real y controlable para que **ninguna
+estrategia sea perfecta**, el **oráculo caiga por debajo de 1.0**, y la cercanía del router al oráculo pase
+a ser un número con significado.
+
+### Mecanismo (real y documentado, no maquillado)
+- **Dificultad variable** (`gen_graded`, opt-in): cada problema trae `params["difficulty"]` ∈ [0,1] y se
+  ENDURECE (`_harden`) acercando la decisión al FILO según la dureza — comparaciones casi-empatadas
+  (precio por gramo, ahorro de descuentos), plazos al filo, presupuestos justo sobre un múltiplo entero de
+  viajes. La verdad-base se recomputa consistente (nunca empate exacto → sigue nítida).
+- **Competencia estocástica/parcial** (`graded_chain` en `chains.py`): cada cadena ACIERTA su tipo "de
+  casa" con prob `COMPETENCE_HOME=0.92` (ya no 1.0) y `0.55` fuera de casa, y esa competencia BAJA con la
+  dificultad (`-0.35 × difficulty`). Si no acierta, PATINA de forma realista: redondeo/estimación en
+  continuos (split_bill), flip en decisiones 0/1, ±1 en conteos. El patinazo es **determinista por
+  (cadena, instancia)** (semilla derivada del contenido) → oráculo, fija y router ven el MISMO mundo y la
+  comparación es JUSTA. `random.Random` local, nunca el global.
+- **Opt-in total**: `gen_problems`/`gen_composed` y `CHAINS` NO cambian. `Router(..., graded=True)` es nuevo
+  y por defecto `False`. **CYCLE 12/13/14 corren byte-a-byte iguales** (verificado: los tres siguen en 1.000).
+
+### Resultados — accuracy HELD-OUT GRADUADO (FULL: train=8000, held-out=4000, dificultad [0,1])
+| estrategia | accuracy held-out |
+|---|---:|
+| mejor cadena FIJA (`stepwise`) | 0.403 |
+| router CONFIDENCE (circular) | 0.307 |
+| **router VERIFIER (examinador real)** | **0.746** |
+| router VERIFIER + PREGUNTAR (presupuesto) | 0.802 |
+| **ORACLE (mejor cadena por instancia)** | **0.887** ← *ahora < 1.000* |
+
+**BRECHA AL ORÁCULO (oracle − router VERIFIER) = 0.141** — el número titular "qué tan bueno es el
+razonamiento aprendido". (Smoke da cifras del mismo orden: oracle ~0.89, router ~0.74, gap ~0.15.)
+
+**Lo que demuestra:**
+1. **ORACLE = 0.887 < 1.000**: con dureza real, incluso la mejor cadena por instancia patina a veces →
+   hay techo alcanzable real y HEADROOM. El "techo perfecto" quedó RETIRADO.
+2. **La mejor cadena FIJA (0.403) queda muy por debajo del oráculo** → elegir bien sigue importando, y
+   ahora con margen medible.
+3. **El router VERIFIER (0.746) le gana a TODA cadena fija y se acerca al oráculo SIN alcanzarlo**
+   (brecha 0.141). Rutea bien (aprende el mapa tipo→cadena de casa correcto) pero la cadena de casa
+   IGUAL patina en instancias duras — de ahí la brecha honesta. No está maquillado: es lo que cae del
+   setup realista.
+4. **Anti-Goodhart se sostiene bajo grading**: el router CONFIDENCE (circular) lo secuestra el fanfarrón
+   (`chain_direct`, conf ~0.95) y cae a 0.307 (peor que varias fijas).
+5. **Preguntar bajo presupuesto cierra PARTE de la brecha** (0.746 → 0.802 hacia 0.887): el presupuesto se
+   gasta SOLO en las instancias donde el router base falló, y como el patinazo es por (cadena, instancia),
+   consultar otras cadenas vía el verificador real rescata varias. No cierra toda la brecha (presupuesto
+   acotado) → honesto.
+
+### Caveats (honestidad)
+- La brecha del router (0.141) viene del PATINAZO, no de mal ruteo: el mapa tipo→cadena aprendido es el
+  correcto; la cadena de casa simplemente no es perfecta en lo duro. Es exactamente el régimen no-trivial
+  que se buscaba.
+- Los números concretos dependen de los parámetros de competencia (`COMPETENCE_HOME/AWAY`,
+  `DIFFICULTY_PENALTY`) — están elegidos para un régimen realista (oráculo ~0.85–0.90), no para que el
+  router se vea perfecto. Mover esos parámetros mueve el oráculo y la brecha de forma predecible.
+- Sigue siendo CPU-only, stdlib, solvers sintéticos: lo demostrado es el MECANISMO de medir "qué razonar
+  da mejores resultados" en una escala graduada creíble, no una afirmación de escala a LLMs reales.
+
+### Innovación
+Convierte el pilar de meta-razonamiento (CYCLE 12–14) de un juguete de techo perfecto a un régimen
+**creíble y graduado**: dificultad por instancia + competencia estocástica que decae con la dureza, con
+patinazo determinista por (cadena, instancia) para una comparación justa. El verdicto deja de ser "todo
+1.000" y pasa a una **brecha medible al oráculo** — el número honesto que responde "qué tan bueno es el
+razonamiento aprendido".
+
+Reproducir: `python -m cognia_x.reason.run_cycle15` (full) / `--smoke` (rápido).
+Test: `python -m pytest cognia_x/tests/test_cycle15_reason.py -q`. Datos: `runs/cycle15/`.

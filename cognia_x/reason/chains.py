@@ -14,6 +14,7 @@ Mapa de quien gana donde (por diseño):
   arrive_on_time        -> chain_decision   (estima tiempo y decide; stepwise tambien acierta a veces)
 """
 import math
+from random import Random
 
 BLUFFER_CONF = 0.95   # chain_direct reporta esto SIEMPRE, acierte o no (miscalibrado a proposito)
 
@@ -141,6 +142,76 @@ CHAINS = {
     "unit_rate": chain_unit_rate,
     "decision": chain_decision,
 }
+
+
+# ============================================================================
+# CYCLE 15 — competencia GRADUADA: hasta tu mejor estrategia PATINA a veces, y patina más en lo difícil.
+#
+# graded_chain envuelve una cadena de CHAINS y, con cierta probabilidad, le mete un PATINAZO realista:
+#   - en respuestas continuas (split_bill): un error de redondeo/estimación (suma/resta una fracción).
+#   - en decisiones 0/1 y conteos enteros: FLIPEA / corre en uno el resultado (el clásico "me equivoqué").
+# La probabilidad de patinar = (1 - competencia_de_casa) que CRECE con la dificultad del problema. Cada
+# cadena tiene una competencia base por tipo (alta en su tipo "de casa", menor afuera). El patinazo es
+# DETERMINISTA por (cadena, instancia) usando una semilla derivada del contenido del problema: así el
+# MISMO chain sobre la MISMA instancia patina (o no) SIEMPRE igual -> oráculo / fija / router ven el mismo
+# mundo y la comparación es JUSTA. random.Random local, nunca el global.
+#
+# INVARIANTE buscado: con difficulty>0 NINGUNA cadena es perfecta en su tipo -> oráculo (mejor cadena por
+# instancia, por el verificador real) cae < 1.0 -> la cercanía del router al oráculo es un número honesto.
+# ============================================================================
+
+# competencia "de casa" por (tipo, cadena) cuando difficulty=0; afuera de casa es más baja (la cadena
+# acierta menos seguido aun sin patinar). Estos números fijan el techo del oráculo (no es 1.0 ni con d=0).
+_HOME = {
+    "split_bill": "stepwise",
+    "cheaper_per_kg": "unit_rate",
+    "trips_within_budget": "backwards",
+    "arrive_on_time": "decision",
+    "discount_better": "unit_rate",
+}
+COMPETENCE_HOME = 0.92        # acierta el 92% en su tipo de casa con dificultad 0 (ya NO es perfecto)
+COMPETENCE_AWAY = 0.55       # afuera de casa, mucho menos
+DIFFICULTY_PENALTY = 0.35    # cuánto baja la competencia por unidad de dificultad (instancia más dura)
+
+
+def _instance_seed(problem):
+    # semilla estable del contenido de la instancia (no de su orden): mismo problema -> mismo patinazo
+    p = problem["params"]
+    key = (problem["type"], tuple(sorted((k, round(float(v), 4)) for k, v in p.items()
+                                         if isinstance(v, (int, float)))))
+    return hash(key) & 0x7FFFFFFF
+
+
+def competence(chain_name, problem):
+    """Probabilidad de que esta cadena ACIERTE esta instancia (antes de mirar si patina): baja con dureza."""
+    t = problem["type"]
+    base = COMPETENCE_HOME if _HOME.get(t) == chain_name else COMPETENCE_AWAY
+    difficulty = float(problem["params"].get("difficulty", 0.0))
+    comp = base - DIFFICULTY_PENALTY * difficulty
+    return max(0.05, min(1.0, comp))
+
+
+def graded_chain(chain_name, problem):
+    """
+    Corre la cadena `chain_name` con competencia GRADUADA y devuelve (pred, conf).
+    Con prob = competence(...) la cadena corre limpia (su pred base); si no, PATINA de forma realista:
+      - continuo -> error de redondeo (±); binario/entero -> flip o corrimiento en uno.
+    Determinista por (cadena, instancia). Si el problema NO trae difficulty, competence sube hacia la base
+    -> en el límite reproduce el comportamiento viejo (esta envoltura es opt-in, CYCLE 15 only).
+    """
+    pred, conf = CHAINS[chain_name](problem)
+    rng = Random(_instance_seed(problem) ^ (hash(chain_name) & 0x7FFFFFFF))
+    if rng.random() < competence(chain_name, problem):
+        return pred, conf                       # corre limpio
+    # PATINAZO: deteriora la predicción de forma característica
+    t = problem["type"]
+    if t in ("cheaper_per_kg", "arrive_on_time", "discount_better"):
+        slipped = 1.0 - float(pred)             # decisión: flipea (se equivocó de lado)
+    elif t == "trips_within_budget":
+        slipped = float(pred) + (1.0 if rng.random() < 0.5 else -1.0)   # conteo: ±1 (mal redondeo)
+    else:  # split_bill (continuo): error de redondeo/estimación
+        slipped = float(pred) * (1.0 + (0.03 + 0.05 * rng.random()) * (1 if rng.random() < 0.5 else -1))
+    return slipped, conf * 0.9                   # patinar baja un poco la confianza reportada
 
 
 # ============================================================================

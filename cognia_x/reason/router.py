@@ -15,16 +15,19 @@ pregunta MUCHO temprano y MENOS con el tiempo (a medida que aprende), manteniend
 import math
 from random import Random
 
-from cognia_x.reason.chains import CHAINS
+from cognia_x.reason.chains import CHAINS, graded_chain
 from cognia_x.reason.problems import is_correct
 
 
 class Router:
     def __init__(self, chain_names, mode="verifier", eps=0.1, seed=0,
-                 unsure_margin=0.05, ucb_c=0.0):
+                 unsure_margin=0.05, ucb_c=0.0, graded=False):
         self.chain_names = list(chain_names)
         self.mode = mode
         self.eps = eps
+        # CYCLE 15: graded=True corre las cadenas con competencia GRADUADA (patinan, más en lo difícil).
+        # Por defecto False -> comportamiento de CYCLE 12/13 intacto (corre CHAINS exactas).
+        self.graded = graded
         self.unsure_margin = unsure_margin
         self.ucb_c = ucb_c
         self.rng = Random(seed)
@@ -84,11 +87,17 @@ class Router:
             return True
         return abs(self._acc(ptype, top1) - self._acc(ptype, top2)) <= self.unsure_margin
 
+    def run_chain(self, chain, problem):
+        """Corre una cadena: GRADUADA (CYCLE 15, patina) si graded=True, exacta (CYCLE 12) si no."""
+        if self.graded:
+            return graded_chain(chain, problem)
+        return CHAINS[chain](problem)
+
     def train_one(self, problem):
         """Un paso de entrenamiento online: elige cadena, corre, premia según el modo."""
         ptype = problem["type"]
         chain = self.select(ptype)
-        pred, conf = CHAINS[chain](problem)
+        pred, conf = self.run_chain(chain, problem)
         if self.mode == "verifier":
             reward = 1.0 if is_correct(problem, pred) else 0.0
         elif self.mode == "confidence":

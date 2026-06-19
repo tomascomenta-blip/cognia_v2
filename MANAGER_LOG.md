@@ -3033,3 +3033,20 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   correcto por tipo y steps "casa" exactos → techo perfecto sintético; mecanismo (descubrir secuencia
   por verificación real), no escala.
 - Commit pusheado a origin (rama cognia-x).
+
+## [2026-06-19] CYCLE 15 — romper el TECHO PERFECTO: competencia graduada (oracle<1.0)
+- GOAL (misma sesión): retirar el caveat recurrente "techo perfecto sintético" de CYCLE 12/13/14 —
+  que "ve cuál le da mejores resultados" se mida en escala GRADUADA, no binaria. Usage 7%.
+- Construido sobre CYCLE 12-14 (opt-in; los 3 siguen dando 1.000 idéntico — verificado). problems.py
+  +gen_graded (difficulty∈[0,1], empuja la decisión al filo); chains.py +graded_chain (home 0.92 / away
+  0.55, decae con la dificultad; al patinar corrompe la predicción realista; slip DETERMINISTA por
+  (cadena,instancia) → oracle/fija/router ven el MISMO mundo); router.py +flag graded (default off).
+- Resultado FULL (train=8000, held-out=4000) — VERIFICADO corriendo el módulo:
+  * ORACLE 0.887-0.906 (< 1.000 ✓) → techo realista, hay headroom.
+  * mejor cadena fija ~0.40 < router VERIFIER ~0.75-0.77 < oráculo ~0.89-0.91.
+  * BRECHA AL ORÁCULO (oracle - router) ≈ 0.13 → el número honesto de "qué tan bueno es el
+    razonamiento aprendido"; chica pero NO cero (la cadena correcta igual patina en lo difícil).
+  * Preguntar al usuario bajo presupuesto cierra parte de la brecha (0.75→0.82), no toda (honesto).
+  * Anti-Goodhart sostenido bajo grading: router CONFIDENCE 0.30 (fanfarrón).
+- Tests: 12 passed (cycle12+13+14+15). RESULTS.md: sección CYCLE 15 RETIRA el caveat del techo perfecto.
+- Commit pusheado a origin (rama cognia-x).

@@ -196,6 +196,94 @@ def gen_problems(n, seed, types=None):
     return out
 
 
+# ============================================================================
+# CYCLE 15 — competencia GRADUADA: el mundo de todos los días no es perfecto.
+#
+# El problema honesto que arrastraban CYCLE 12/13/14: los solvers son DETERMINISTAS y EXACTOS, así que
+# el oráculo da 1.000 y la política aprendida también -> "techo sintético perfecto" como caveat repetido.
+# CYCLE 15 lo ROMPE introduciendo dificultad real y controlable: cada problema trae un parámetro
+# `difficulty` en [0,1] (un instance MÁS DURO: comparaciones casi-empatadas, plazos al filo, propinas que
+# obligan a redondeos finos). Sobre eso, una cadena "patina" a veces (ver chains.py graded_chain) y patina
+# MÁS cuanto más duro es el problema. Resultado: ninguna estrategia es perfecta, el oráculo cae < 1.0 y la
+# cercanía del router al oráculo pasa a ser un número con SIGNIFICADO (la brecha honesta).
+#
+# Esto es OPT-IN: gen_problems/gen_composed NO cambian (cycle12/13/14 corren byte-a-byte iguales). La
+# dureza se inyecta SOLO acá, marcando cada problema con params["difficulty"] (los generadores viejos no
+# lo ponen -> graded_chain trata "sin difficulty" como difficulty=0 = competencia base, comportamiento
+# antiguo). El generador graduado además fuerza instancias DUROS (cerca del filo) según la dificultad.
+# ============================================================================
+
+def _harden(problem, rng, difficulty):
+    """
+    Endurece una instancia ya generada según `difficulty` en [0,1]: acerca la decisión al FILO para que
+    un patinazo chico de la cadena pueda DAR VUELTA la respuesta (decisiones casi-empate / plazos ajustados).
+    No cambia el TIPO ni rompe la verdad-base: recomputa la answer de forma consistente con los params.
+    WHY: la dureza tiene que vivir en el problema (no solo en la cadena) para que el patinazo importe.
+    """
+    t = problem["type"]; p = problem["params"]
+    # margen objetivo: a más dificultad, MÁS cerca del filo (pero nunca empate exacto -> verdad-base nítida)
+    near = (1.0 - difficulty)            # 1.0 fácil (lejos del filo), ~0 duro (casi al filo)
+    if t == "cheaper_per_kg":
+        # acercar rate_b a rate_a proporcional a la dureza (casi-empate de precio por gramo)
+        rate_a = p["pa"] / p["ga"]
+        gap = rate_a * (0.02 + 0.30 * near)        # separación relativa deseada
+        sign = 1.0 if rng.random() < 0.5 else -1.0
+        rate_b = rate_a * (1.0 + sign * gap)
+        p["pb"] = round(max(0.01, rate_b * p["gb"]), 2)
+        rate_b = p["pb"] / p["gb"]
+        if abs(rate_a - rate_b) < 1e-6:
+            p["pb"] = round(p["pb"] + 0.01, 2); rate_b = p["pb"] / p["gb"]
+        problem["answer"] = 0.0 if rate_a < rate_b else 1.0
+    elif t == "arrive_on_time":
+        # poner el plazo H cerca del tiempo necesario (decisión al filo cuando es duro)
+        need = p["dist"] / p["speed"]
+        slack = need * (0.02 + 0.30 * near)
+        sign = 1.0 if rng.random() < 0.5 else -1.0
+        p["h"] = round(max(0.1, need + sign * slack), 1)
+        if abs(p["dist"] / p["speed"] - p["h"]) < 1e-3:
+            p["h"] = round(p["h"] + 0.1, 1)
+        problem["answer"] = 1.0 if need <= p["h"] else 0.0
+    elif t == "discount_better":
+        # acercar el descuento fijo Y al ahorro porcentual de A (casi-empate de ahorro)
+        save_a = p["price"] * p["x"] / 100.0
+        gap = save_a * (0.02 + 0.30 * near)
+        sign = 1.0 if rng.random() < 0.5 else -1.0
+        p["y"] = round(max(0.5, save_a + sign * gap), 2)
+        if abs(save_a - p["y"]) < 1e-3:
+            p["y"] = round(p["y"] + 0.5, 2)
+        problem["answer"] = 0.0 if save_a > p["y"] else 1.0
+    elif t == "trips_within_budget":
+        # dejar el presupuesto JUSTO sobre un múltiplo entero de viajes (resto chico -> floor sensible)
+        k = math.floor((p["b"] - p["f"]) / p["c"])
+        k = max(1, k)
+        resto = p["c"] * (0.05 + 0.40 * near)      # cuánto sobra por encima de k viajes (chico = duro)
+        p["b"] = round(p["f"] + k * p["c"] + resto, 2)
+        problem["answer"] = float(math.floor((p["b"] - p["f"]) / p["c"]))
+    elif t == "split_bill":
+        # split_bill no tiene "filo" binario; la dureza vive en el patinazo de redondeo de la cadena.
+        problem["answer"] = p["total"] * (1.0 + p["tip"]) / p["n"]
+    p["difficulty"] = float(difficulty)
+    return problem
+
+
+def gen_graded(n, seed, types=None, dmin=0.0, dmax=1.0):
+    """
+    CYCLE 15 — genera n problemas GRADUADOS: como gen_problems pero (a) marca cada uno con una dificultad
+    en [dmin,dmax] y (b) lo ENDURECE (acerca la decisión al filo según la dureza). Determinista por `seed`.
+    APARTE de gen_problems a propósito -> cycle12/13/14 nunca ven `difficulty` (siguen idénticos).
+    """
+    use = list(types) if types is not None else TYPES
+    rng = Random(seed)
+    out = []
+    for i in range(n):
+        t = use[i % len(use)]
+        prob = _GENS[t](rng)
+        difficulty = rng.uniform(dmin, dmax)
+        out.append(_harden(prob, rng, difficulty))
+    rng.shuffle(out)
+    return out
+
+
 def is_correct(problem, predicted, tol=1e-6):
     """Verificador de verdad-base: float con tolerancia; las decisiones 0/1 son exactas."""
     if predicted is None:
