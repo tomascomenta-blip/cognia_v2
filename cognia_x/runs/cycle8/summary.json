@@ -1,0 +1,178 @@
+{
+  "config": {
+    "d_model": 128,
+    "n_layers": 4,
+    "base_steps": 4000,
+    "learn_steps": 500,
+    "lr": 0.0005,
+    "k": 2.0,
+    "eps_floor": 0.05,
+    "L": 160
+  },
+  "old_domains": [
+    "en_alice",
+    "en_sherlock",
+    "en_pride",
+    "espanol"
+  ],
+  "new_train": "en_frankenstein",
+  "new_val": "en_dracula",
+  "results": {
+    "base": {
+      "old": {
+        "en_alice": 1.3594,
+        "en_sherlock": 1.4793,
+        "en_pride": 1.3831,
+        "espanol": 1.6421
+      },
+      "new": 1.6501
+    },
+    "A_naive": {
+      "old": {
+        "en_alice": 1.5738,
+        "en_sherlock": 1.5524,
+        "en_pride": 1.479,
+        "espanol": 2.8593
+      },
+      "new": 1.6923,
+      "deltas": {
+        "en_alice": 0.2144,
+        "en_sherlock": 0.0731,
+        "en_pride": 0.0959,
+        "espanol": 1.2172
+      },
+      "agg_delta": 0.4002,
+      "worst_delta": 1.2172,
+      "eps_demo": 0.809
+    },
+    "B_gate_agregado": {
+      "name": "B_agregado",
+      "gate": "AGREGADO",
+      "accepted": false,
+      "learned": false,
+      "no_harm": true,
+      "new_before": 1.6431,
+      "new_after": 1.6928,
+      "new_delta": 0.0497,
+      "new_sigma": 0.0054,
+      "replay": false,
+      "per_domain": {
+        "en_alice": {
+          "before": 1.3583,
+          "after": 1.5697,
+          "delta": 0.2114,
+          "thr": 0.809,
+          "harm": false
+        },
+        "en_sherlock": {
+          "before": 1.4816,
+          "after": 1.5563,
+          "delta": 0.0747,
+          "thr": 0.809,
+          "harm": false
+        },
+        "en_pride": {
+          "before": 1.3897,
+          "after": 1.4783,
+          "delta": 0.0886,
+          "thr": 0.809,
+          "harm": false
+        },
+        "espanol": {
+          "before": 1.6404,
+          "after": 2.8014,
+          "delta": 1.161,
+          "thr": 0.809,
+          "harm": true
+        }
+      },
+      "secs": 157.5
+    },
+    "C_gate_por_dominio": {
+      "name": "C_por_dominio",
+      "gate": "POR-DOMINIO",
+      "accepted": false,
+      "learned": false,
+      "no_harm": false,
+      "new_before": 1.6431,
+      "new_after": 1.7054,
+      "new_delta": 0.0623,
+      "new_sigma": 0.0054,
+      "replay": false,
+      "per_domain": {
+        "en_alice": {
+          "before": 1.3583,
+          "after": 1.5774,
+          "delta": 0.2191,
+          "thr": 0.809,
+          "harm": false
+        },
+        "en_sherlock": {
+          "before": 1.4816,
+          "after": 1.5599,
+          "delta": 0.0782,
+          "thr": 0.809,
+          "harm": false
+        },
+        "en_pride": {
+          "before": 1.3897,
+          "after": 1.4801,
+          "delta": 0.0904,
+          "thr": 0.809,
+          "harm": false
+        },
+        "espanol": {
+          "before": 1.6404,
+          "after": 2.8264,
+          "delta": 1.186,
+          "thr": 0.809,
+          "harm": true
+        }
+      },
+      "secs": 161.6
+    },
+    "D_por_dominio_replay": {
+      "name": "D_por_dominio_replay",
+      "gate": "POR-DOMINIO",
+      "accepted": true,
+      "learned": true,
+      "no_harm": true,
+      "new_before": 1.6431,
+      "new_after": 1.6131,
+      "new_delta": -0.03,
+      "new_sigma": 0.0054,
+      "replay": true,
+      "per_domain": {
+        "en_alice": {
+          "before": 1.3583,
+          "after": 1.4137,
+          "delta": 0.0555,
+          "thr": 0.809,
+          "harm": false
+        },
+        "en_sherlock": {
+          "before": 1.4816,
+          "after": 1.4659,
+          "delta": -0.0158,
+          "thr": 0.809,
+          "harm": false
+        },
+        "en_pride": {
+          "before": 1.3897,
+          "after": 1.3573,
+          "delta": -0.0324,
+          "thr": 0.809,
+          "harm": false
+        },
+        "espanol": {
+          "before": 1.6404,
+          "after": 1.6984,
+          "delta": 0.058,
+          "thr": 0.809,
+          "harm": false
+        }
+      },
+      "secs": 161.7
+    }
+  }
+}

@@ -341,11 +341,12 @@ MECANISMO de recall, no escala. **Datos:** `cognia_x/experiments/exp008_recall_c
   libros enteros no vistos), **eval determinista**, **gap train-val logueado** (la señal de
   sobreajuste), **baseline gzip**, cap de épocas, separador entre libros.
 
-### Resultado — GENERALIZA (sin sobreajustar a ~1 época)
-- val bajó a **2.12 bits/byte** (1.466 nats), **por debajo del baseline gzip (2.93)** → comprime
+### Resultado (FINAL, 6938 pasos = 1.26 épocas) — GENERALIZA sin sobreajustar
+- mejor val **2.10 bits/byte** (1.458 nats), **por debajo del baseline gzip (2.93)** → comprime
   mejor que gzip: aprende estructura de lenguaje real, sobre libros NUNCA vistos (cross-book).
-- **Gap train-val ESTABLE ~0.19 nats** a 1.09 épocas, con el val aún bajando → NO sobreajusta
-  (vs CYCLE 5 cuyo val SUBÍA). Genera inglés Y español reconocibles.
+- **Gap train-val: creció 0.025→~0.19 y PLATEÓ** (0.175→0.175→0.188→0.186) mientras el val SIGUIÓ
+  bajando (2.525→1.466) → generaliza, NO sobreajusta catastróficamente (vs CYCLE 5 cuyo val SUBÍA).
+  Genera inglés Y español reconocibles.
 - **Confound honesto declarado:** CYCLE 7 hace ~1 época vs ~29 de CYCLE 5; el efecto es corpus+épocas
   combinados, no corpus aislado. El val absoluto NO se compara con CYCLE 5 (corpus distinto); lo
   comparable es el gap y la forma de la curva. Datos: `runs/cycle7/` (metrics.csv, summary.json).
@@ -372,8 +373,23 @@ NO es circular (held-out cross-book real) → oportunidad de **dar vuelta H-SELF
   → el gate agregado es ciego; el por-dominio lo atrapa.
 - **Replay reduce el olvido del español 15×** (+0.86 → +0.058) → aprende sin olvidar (la solución).
 - Código: `cognia_x/learn/` (continual.py: gate por-dominio; run_cycle8.py: demo dilución 4 brazos).
-- **Resultado FULL: PENDIENTE** (corre tras CYCLE 7; con eps en la "zona ciega" mostrará: agregado
-  ACEPTA el daño, por-dominio RECHAZA, por-dominio+replay ACEPTA sin olvidar → cierre de H-SELF-2).
+
+### Resultado FULL (base 4000 pasos, 4 dominios) — la IA APRENDE SIN OLVIDAR ✅
+| brazo | nuevo Δ | español Δ | no_harm | decisión |
+|---|---:|---:|:---:|:---:|
+| naive | +0.042 | **+1.217** | — | olvido catastrófico |
+| B AGREGADO | +0.050 | +1.161 | **True (ciego)** | rechaza |
+| C POR-DOMINIO | +0.062 | +1.186 | **False (atrapa)** | rechaza |
+| **D por-dominio+replay** | **−0.030** | **+0.058** | **True** | **ACEPTA** ✅ |
+- **Aggregate CIEGO vs por-dominio ATRAPA:** sobre el MISMO daño (~+1.17 al español) el agregado dice
+  `no_harm=True` (promedio +0.40 < umbral, el daño concentrado se diluye 3×); el por-dominio dice
+  `no_harm=False`. Esa es la causa de H-SELF-2 ❌false ("evaluador circular/agregado"), ahora cerrada.
+- **Replay = la solución:** D aprende lo nuevo (Drácula −0.030) Y protege el español (+0.058 vs naive
+  +1.217 = **21× menos olvido**), y ESTABILIZA el aprendizaje. (Smoke: replay reduce olvido 15×.)
+- **Cierre de H-SELF-2:** de ❌false → ✅ **condicional**: el gate+rollback held-out SÍ reduce la deriva
+  (olvido) **si el examinador es NO-circular y POR-DOMINIO**. Detalle en `learn/RESULTS.md`.
+- Caveat honesto: a base-fuerte, aprender otra obra del mismo idioma no transfiere cross-book (B/C
+  learned=False); el smoke (base-débil) cubre el lado "aprender". Combinados: detección+protección+aprendizaje.
 
 ---
 

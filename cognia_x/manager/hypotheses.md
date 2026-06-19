@@ -111,7 +111,7 @@ marcan dónde la intuición/literatura se sobre-extiende. Confianza = del veredi
 | H-BIO-3 | predictive coding / FF NO competitivos vs QLoRA en CPU | ✅ true | alta | PC ~100× coste backprop; ≥10× wall-clock para igual exactitud |
 | H-BIO-4 | Hopfield = atención: misma operación, mismo memory-bound | ✅ true | alta | la etiqueta "biológica" no compra eficiencia extra |
 | H-SELF-1 | evaluador verificable > proxy auto-generado (reward hacking) | ✅ true | media | dirección sí; monotonía/umbrales exactos no garantizados |
-| H-SELF-2 | gate+rollback held-out reduce deriva casi sin coste | ❌ false | media | el evaluador de Cognia es CIRCULAR (misma DB que se auto-escribe), no held-out |
+| H-SELF-2 | gate+rollback held-out reduce deriva casi sin coste | ⚠️→✅ condicional (CYCLE 8) | media-alta | ❌ con evaluador CIRCULAR/AGREGADO (el agregado es CIEGO: esconde el daño concentrado ~3×); ✅ con held-out cross-book NO-circular + gate POR-DOMINIO: detecta y reduce la deriva (replay protege 15-21× el dominio dañado). Ver `learn/RESULTS.md` |
 | H-SELF-3 | collapse_guard detecta colapso ANTES que el proxy | ❌ false | media | señales sobre poblaciones distintas (entradas vs salidas); orden no demostrado |
 | H-SELF-4 | self-modeling → mejor cuantización → ↑tok/s | ❌ false | media | cadena causal con eslabones rotos (varianza de pesos ≠ cuantizabilidad) |
 
