@@ -197,6 +197,19 @@ class HybridLM(nn.Module):
         elif isinstance(m, nn.Embedding):
             nn.init.normal_(m.weight, mean=0.0, std=0.02)
 
+    def forward_features(self, idx):
+        """Devuelve los estados ocultos finales (post norm_f) ANTES de lm_head: (B,L,d_model).
+        WHY: el router-LM de CYCLE 19 usa el modelo como ENCODER (representacion del texto), no como
+        generador. No toca forward()/generate() -> ningun ciclo previo cambia."""
+        x = self.embed(idx)
+        L = idx.shape[1]
+        if self.pos_emb is not None:
+            x = x + self.pos_emb(torch.arange(L, device=idx.device))
+        cos, sin = self.rope_cos[:L].to(x.dtype), self.rope_sin[:L].to(x.dtype)
+        for b in self.blocks:
+            x = b(x, cos, sin)
+        return self.norm_f(x)            # (B,L,d_model) pre-lm_head
+
     def forward(self, idx, targets=None):
         x = self.embed(idx)
         L = idx.shape[1]

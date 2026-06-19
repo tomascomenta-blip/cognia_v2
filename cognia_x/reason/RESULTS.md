@@ -444,3 +444,75 @@ sigue al techo de "si supiera el tipo" — la robustez al fin se GANA, no se reg
 
 Reproducir: `python -m cognia_x.reason.run_cycle17` (full) / `--smoke` (rápido).
 Test: `python -m pytest cognia_x/tests/test_cycle17_reason.py -q`. Datos: `runs/cycle17/`.
+
+---
+
+## CYCLE 19 — el char-LM ENTRENADO de verdad como ENCODER del router (primera vez que el pilar toca el modelo real)
+
+### Qué pregunta
+Todo el pilar de meta-razonamiento (CYCLE 12–18) ruteó desde features HECHAS A MANO: keywords (16),
+bag-of-words Naive-Bayes (17). El caveat de pie de página de TODO el pilar: nunca tocó el MODELO real.
+La frontera declarada (reason/README.md, manager/future_work.md): usar un ENCODER APRENDIDO de verdad.
+CYCLE 19 lo ataca: usa el char-LM híbrido de CYCLE 7 (6.3M params, entrenado sobre LIBROS en/es — dominio
+AJENO a estos problemas de cuentas) como ENCODER del enunciado, y lo compara honesto contra keywords (A) y
+Naive-Bayes (B) sobre HELD-OUT parafraseado, a 3 niveles de ambigüedad.
+
+Cómo (concreto):
+- `forward_features(idx)` en hybrid.py expone los estados ocultos finales (post-`norm_f`, PRE-`lm_head`)
+  sin tocar `forward()`/`generate()` → ningún ciclo previo cambia.
+- `lm_embed(model, text)`: corre los BYTES del texto por el char-LM y devuelve `[mean-pool ‖ last-token]`
+  de esos estados → vector fijo de **512 = 2·d_model** (d_model=256). no_grad, CPU, determinista.
+- `LMRouter` (lm_router.py): clasificador **nearest-class-mean ONLINE** sobre los embeddings. Las clases
+  latentes se descubren solas; el bandit de CYCLE 12 se indexa por la CLASE predicha y aprende qué cadena
+  usar, premiado SOLO por el verificador real. Lee SOLO `problem["text"]` (vía `lm_embed`).
+- **WHITENING (clave honesta):** los embeddings crudos del char-LM tienen una componente común enorme
+  (coseno medio ~0.79 entre textos cualesquiera) que ahoga la señal de tipo → SIN whitening el NCM colapsa
+  a 1 clase (pureza = 0.25 = azar). Estandarizamos por dimensión (z-score con stats marginales del train;
+  NO miran el tipo) → la estructura de TIPO domina el coseno (off-diag pasa a span −0.56..0.99) y los tipos
+  se separan. Es lo que deja ver lo que el modelo REALMENTE sabe del texto.
+
+### Resultado REAL (FULL: train=1200/test=600 por nivel, semillas disjuntas)
+| ambig | FIJA | A:keyword | B:NaiveBayes | **C:LM-embed** | CEILING(tipo) | pureza-A | **pureza-C** |
+|------:|-----:|----------:|-------------:|---------------:|--------------:|---------:|-------------:|
+| 0.00  | 0.787 | 0.718    | 0.928        | **0.750**      | 1.000         | 0.845    | **0.750**    |
+| 0.50  | 0.787 | 0.762    | 0.930        | **0.787**      | 1.000         | 0.840    | **0.732**    |
+| 1.00  | 0.798 | 0.687    | 0.952        | **0.787**      | 1.000         | 0.777    | **0.608**    |
+
+(azar-de-cadena ~0.58 en los tres niveles; LM = 4→5→11 clases latentes.)
+
+### Veredicto HONESTO: el encoder real AYUDA A MEDIAS — recupera estructura y le gana a keywords, pero NO le gana al Naive-Bayes ni a la mejor cadena fija
+- **SÍ recupera estructura.** La representación del char-LM separa los tipos MUY por encima del azar
+  (pureza clase→tipo 0.75 / 0.73 / 0.61 vs 0.25 de azar) — y eso es un char-LM **fuera de dominio**, que
+  nunca vio una sola plantilla de estos problemas. Que un modelo de 6.3M entrenado sobre libros codifique
+  la clase de un problema de cuentas en su estado oculto es el hallazgo positivo del ciclo.
+- **Le GANA a las keywords (A) en accuracy en los 3 niveles** (0.750/0.787/0.787 vs 0.718/0.762/0.687) y es
+  ESTABLE bajo ambigüedad (no se derrumba como A: 0.69 a ambig máx).
+- **PERO pierde con el Naive-Bayes in-domain (B)** por un margen grande (B 0.93–0.95, imbatible acá) y solo
+  **EMPATA a la mejor cadena fija** (~0.79). El char-LM off-domain no le saca jugo a su representación tan
+  bien como un contador de palabras barato entrenado sobre el MISMO texto. Honesto: el almuerzo del encoder
+  aprendido no es gratis cuando el encoder es chico y ajeno al dominio.
+- **Fragilidad off-domain bajo ambigüedad alta y poco data.** A train=400, ambig=1.0 y semilla suelta, el
+  router-LM cae POR DEBAJO del azar-de-cadena (0.545 < 0.585): la representación se confunde cuando hay
+  pocas muestras y máximo solapamiento. El test de regresión mide la cota estable (ambig baja, train=500):
+  C > azar y pureza > 0.25 con ≥2 clases. La fragilidad a ambig alta queda DOCUMENTADA, no maquillada.
+
+### Por qué (interpretación)
+El char-LM codifica la clase del problema (lo prueba la pureza), pero su señal está mezclada con la enorme
+componente común del estilo prosa que aprendió de los libros — por eso necesita whitening solo para no
+colapsar, y por eso un Naive-Bayes que cuenta las palabras DISCRIMINATIVAS directamente sobre el dominio le
+gana. La lección: un encoder aprendido genérico **no domina** a features baratas in-domain salvo que esté
+entrenado (o fine-tuneado) cerca de la tarea. Es el primer dato real del pilar sobre "encoder aprendido vs
+features a mano": el encoder real ayuda contra keywords frágiles, no contra un modelo de palabras honesto.
+
+### Verificación
+- Checkpoint carga: `d=256 layers=8 params=6,328,576`; `lm_embed` → **shape (512,)**, determinista.
+- `forward()` original intacto + `forward_features()` nuevo OK; cycle16/17 `--smoke` siguen corriendo igual;
+  `charlm`/`run_cycle7` importan sin cambios.
+- Self-audit: el router-LM lee SOLO el texto en `LMRouter._raw_embed`:
+  `return lm_embed(self.model, problem["text"], device=self.device)`.
+- Tests: `pytest cognia_x/tests/test_cycle12 test_cycle16 test_cycle17 test_cycle19 -q` → **13 passed**.
+- Sigue CPU-only (threads=3), 4 tipos sintéticos. No es una afirmación sobre LLMs reales: es la primera
+  medición controlada de "modelo entrenado de verdad como encoder del router" en este lab.
+
+Reproducir: `python -m cognia_x.reason.run_cycle19` (full ~4 min) / `--smoke`.
+Test: `python -m pytest cognia_x/tests/test_cycle19_reason.py -q`. Datos: `runs/cycle19/`.

@@ -3092,3 +3092,23 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   el hilo anti-Goodhart + honestidad. future_work.md: el frontier real (envolver el LM real, verificador
   real vs oráculo perfecto, paráfrasis natural, componer largo>2). cognia_x/reason/README.md: síntesis del pilar.
 - Solo documentación (sin código). Pilar 5 cerrado y reproducible: 6 cycles, 19 tests, todo en origin (cognia-x).
+
+## [2026-06-19] CYCLE 19 — el modelo REAL como encoder del router (primer puente synthetic→real)
+- GOAL (misma sesión): atacar el frontier del pilar — que una pieza toque el LM REAL. Usar el char-LM
+  entrenado (CYCLE 7, runs/cycle7/charlm_best.pt, 6.3M) como ENCODER que infiere el tipo desde el texto,
+  vs keyword (A) y Naive-Bayes (B) bajo paráfrasis. Usage 14%.
+- hybrid.py +forward_features(idx) (hidden pre-lm_head; forward()/generate() intactos — verificado).
+  lm_router.py (lm_embed = mean-pool ‖ last-token = dim 512; LMRouter = NCM whitened, online, recompensa
+  is_correct; lee SOLO problem["text"]). run_cycle19.py (5 brazos). Checkpoint carga limpio.
+- Resultado FULL (train=1200/test=600 por nivel) — VERIFICADO:
+  * C(LM) RECUPERA estructura: pureza clase→tipo 0.75/0.73/0.61 (>> azar 0.25) desde un LM entrenado en
+    LIBROS, nunca en estos enunciados → hallazgo positivo real.
+  * C le GANA a A(keyword) en accuracy y es estable bajo ambigüedad (A colapsa a 0.69).
+  * C PIERDE contra B(Naive-Bayes 0.93-0.95) y solo EMPATA la mejor fija (~0.79). Un contador de
+    palabras in-domain barato le gana al encoder aprendido off-domain.
+  * Necesitó whitening (z-score por dim, stats marginales, nunca lee type) para exponer la estructura
+    (el embedding crudo tiene un componente común de "estilo prosa" dominante). Documentado honesto.
+- VEREDICTO honesto: un encoder genérico off-domain NO domina features in-domain baratas salvo que se
+  entrene cerca de la tarea. Resultado mixto/valioso (no engineered). El frontier sigue: entrenar/ajustar
+  el encoder cerca de la tarea, o un LM más grande/in-domain.
+- Tests: 13 passed (cycle12/16/17/19). cycle16/17 corren idénticos; forward() intacto. Commit pusheado (cognia-x).
