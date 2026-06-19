@@ -243,8 +243,11 @@ kernels especializados, no basta con cuantizar.
   cierre se hace a prof. ≥4.
 - **Diagnóstico del fallo previo:** SUB-RECURSOS (receta mala: sin warmup, h=8, n_queries=1), NO bug.
   Verificado por workflow adversarial (modelo/tarea correctos). Detalle en `results/results.md`.
-- Caveats: semilla única; híbrido principal 2:2 (50% atención) prueba el mecanismo — refuerzo a
-  prof. 6 (33% atención, mayoría-lineal) verifica el ratio D-007.
+- **Refuerzo prof. 6 (mayoría-lineal, 33% atención = ratio D-007):** np=8 híbrido 0.989 ✅ (recupera
+  con 33% atención) / lineal 0.251; **np=16 híbrido 0.191 ⚠️ NO cruzó** (atención sí, 0.998) → el
+  circuito del híbrido diluido se encarece de entrenar al subir asociaciones (honesto; límite del
+  ratio o falta de pasos — indistinguible sin GPU). No invalida el cierre principal.
+- Caveats: semilla única; modelo chico, tarea sintética (resultado sobre el MECANISMO, no escala).
 
 ### Conclusión
 **H-MEZ-4 cerrado en sus dos ejes:** el híbrido **recupera el recall** que el lineal puro pierde al

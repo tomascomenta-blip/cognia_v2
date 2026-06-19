@@ -55,9 +55,27 @@ de las capas de atención importa, no solo tenerlas. (Por eso el cierre se hace 
 - Modelo chico (201k params), tarea sintética. El resultado es sobre el MECANISMO de recall, no una
   afirmación de escala.
 
-## Refuerzo (profundidad 6, mayoría-lineal 33% atención) — EN CURSO
-`[lin,lin,attn,lin,lin,attn]` a np=8,16: ¿la versión mayoría-lineal también recupera el recall?
-Se completará al terminar.
+## Refuerzo (profundidad 6, mayoría-lineal 33% atención) — ✅ a np=8, ⚠️ límite de entrenamiento a np=16
+Híbrido `[lin,lin,attn,lin,lin,attn]` = **4 lineales + 2 atención (33% atención, el ratio D-007
+"mayoría lineal")**, mismo tamaño (302k params). Artefactos: `results_depth6.json`, `run_depth6.log`.
+
+| n_pairs | atención (6 attn) | híbrido (4 lin/2 attn) | lineal (6 lin) | cruce atención / híbrido |
+|--------:|------------------:|-----------------------:|---------------:|---|
+| 8  | 1.000 | **0.989** | 0.251 (falla) | att ~5250 pasos / hyb ~11250 |
+| 16 | 0.998 | **0.191** ⚠️ | ~0.18 (falla) | att ~6750 pasos / hyb **NO cruzó** (plano, cortado ~13555) |
+
+**A np=8** el híbrido mayoría-lineal **recupera el recall** (0.989) igual que la atención, mientras
+el lineal de 6 capas satura y falla — el mecanismo H-MEZ-4 aguanta con solo 33% de atención.
+
+**A np=16 (honesto):** la atención pura SÍ cruza (0.998, paso ~6750) pero el **híbrido mayoría-lineal
+NO cruzó** — quedó plano en ~0.19 los ~13.5k pasos (cortado por deadline), sin señal de transición.
+Interpretación honesta: el circuito de recall del híbrido 33%-atención se vuelve **mucho más difícil
+de entrenar** al subir el nº de asociaciones (2 capas de atención separadas por 4 lineales). No sé
+si es un límite real del ratio o solo necesita muchos más pasos/mejor optimización — haría falta más
+cómputo (GPU) para distinguirlo. **No invalida el cierre principal** (prof. 4, np=8: separación limpia
+con híbrido 2:2): ese demuestra el mecanismo. El refuerzo muestra que el mecanismo se **encarece de
+entrenar** cuanto más diluida la atención y más dura la tarea — un trade-off coste-de-entrenamiento
+real que el ratio D-007 debe respetar.
 
 ## Reproducir
 ```

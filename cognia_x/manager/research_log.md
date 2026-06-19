@@ -310,6 +310,21 @@ capacidad) las 3 resuelven → la transición es visible. **Esto cierra H-MEZ-4 
 
 **Hallazgo 2º (de profundidad 2):** el híbrido mínimo `[lin,attn]` (1 sola atención) FALLA como el
 lineal (0.52 a np=2); el recall exige **≥2 capas de atención** (circuito de inducción de 2 ops). Por
-eso el cierre se hace a prof. ≥4. **Caveats:** semilla única; el híbrido principal es 2:2 (50%
-atención) — prueba el mecanismo; refuerzo a prof. 6 (33% atención, mayoría-lineal D-007) en curso.
-Datos: `cognia_x/experiments/exp008_recall_control/results/` (results.md, results_depth4.json, run_depth4.log).
+eso el cierre se hace a prof. ≥4.
+
+**Refuerzo a profundidad 6 (híbrido mayoría-lineal `[lin,lin,attn,lin,lin,attn]`, 33% atención = el
+ratio D-007):**
+| np | atención(6) | híbrido(4lin/2attn) | lineal(6) |
+|---:|---:|---:|---:|
+| 8  | 1.000 | **0.989** ✅ | 0.251 |
+| 16 | 0.998 | **0.191** ⚠️ | ~0.18 |
+A **np=8 el mayoría-lineal recupera el recall** (0.989) — el mecanismo aguanta con 33% de atención.
+A **np=16 NO cruzó** (plano ~0.19, cortado a ~13.5k pasos) aunque la atención pura sí (paso ~6750):
+**honesto** — el circuito del híbrido 33%-atención se **encarece de entrenar** al subir asociaciones
+(2 atenciones separadas por 4 lineales); no sé si es límite del ratio o falta de pasos (haría falta
+GPU para distinguir). NO invalida el cierre principal (prof.4 np=8 separación limpia); muestra un
+trade-off coste-de-entrenamiento real del ratio.
+
+**Caveats:** semilla única; modelo chico (201-302k params), tarea sintética — resultado sobre el
+MECANISMO de recall, no escala. **Datos:** `cognia_x/experiments/exp008_recall_control/results/`
+(results.md, results_depth4.json/run_depth4.log, results_depth6.json/run_depth6.log).
