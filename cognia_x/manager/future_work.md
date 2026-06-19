@@ -41,3 +41,19 @@ CYCLE 10: loop como proceso sobre una secuencia). Lo que falta para "investigar 
   con tronco congelado (olvido imposible por construcción). Congelar-tronco ya da -25% (CYCLE 9).
 - **Resolver el learned=False a base-fuerte:** aprender una obra del mismo idioma no transfiere
   cross-book; probar dominios genuinamente nuevos (otro idioma, código) o examinador intra-dominio.
+
+## [2026-06-19] Tras PILAR 5 (Razonamiento, CYCLE 12-17): el frontier real
+El mecanismo de meta-razonamiento (probar cadenas, quedarse con la que el verificador real aprueba,
+elegir por tipo/texto, componer, bajo ruido/OOD, en escala graduada) está validado SOBRE SOLVERS
+sintéticos. Lo que falta para que sea razonamiento "de verdad":
+- **Envolver el LM real (no solvers de juguete).** Hoy las "cadenas" son procedimientos hand-coded.
+  El paso honesto: que las cadenas sean prompts/estrategias del char-LM (o del backend GGUF) sobre
+  una tarea que el modelo SÍ pueda intentar, y que el router aprenda cuál funciona. El char-LM (779k,
+  byte-level) NO hace aritmética de enunciados → o se sube de escala el modelo, o se elige una tarea
+  donde un modelo chico tenga señal (p.ej. transformaciones de texto verificables).
+- **Verificador real, no oráculo perfecto.** El "preguntar al usuario" usa hoy el ground-truth como
+  oráculo. Reemplazar por (a) verificadores chequeables (código→sandbox, hechos→≥2 fuentes) y (b) un
+  usuario simulado ruidoso/caro real (CYCLE 13 ya modeló el ruido; falta el costo asimétrico).
+- **Paráfrasis natural, no plantillas.** CYCLE 17 usó plantillas+sinónimos; el NB bag-of-words es
+  frágil a paráfrasis genuina. Encoder aprendido (no keyword) o el propio LM como clasificador de tipo.
+- **Componer cadenas de largo >2 y descubrir sub-metas** (planificación), no solo secuencias fijas.

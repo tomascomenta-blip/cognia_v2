@@ -403,3 +403,32 @@ NO es circular (held-out cross-book real) → oportunidad de **dar vuelta H-SELF
   (modesto).** Reduce el olvido ~25% (+0.80 vs +1.06) conservando ~94% del aprendizaje nuevo
   (+0.143 vs +0.152). Parameter-free, complementario al replay. (`freeze_recall_trunk`.)
 - Commits: 1bd03ac (CYCLE 8), f1a6a24 (sorpresa refutada), 3bcbcfb (congelar funciona). Pusheados.
+
+---
+
+## 2026-06-19 — PILAR 5 (RAZONAMIENTO): la IA prueba cadenas y aprende cuál funciona (CYCLE 12-17)
+
+Transformación del objetivo del dueño ("que prueba distintas cadenas de razonamiento y ve cuál le da
+mejores resultados, preguntando al usuario o evaluando dentro del sistema") a problemas COTIDIANOS
+(dividir cuenta con propina, más barato por kilo, viajes en presupuesto, llegar a tiempo) y a código.
+Mismo principio que cerró el aprendizaje continuo: **solo cuenta lo que sobrevive a un examinador NO
+circular.** Innovación: un **router de meta-razonamiento aprendido online, anclado al verificador
+real**, que aprende QUÉ estrategia desplegar y generaliza. Código en `cognia_x/reason/`.
+
+| CYCLE | qué demuestra | número clave (held-out) |
+|---|---|---|
+| 12 | elegir la cadena correcta por tipo; anti-Goodhart; preguntar bajo presupuesto | router-verifier 1.000 vs mejor fija 0.793; confidence-circular (fanfarrón) 0.432 |
+| 13 | robustez: oráculo RUIDOSO + tipo NO visto (saber lo que no sabés) | robust-aggregate 1.000 vs blind-single 0.56 @ruido 0.4; OOD escala→0.68→1.0 |
+| 14 | cadenas COMPUESTAS (multi-paso, encadenar estrategias) | una cadena sola ~0.196; composer descubre el programa→1.000 |
+| 15 | romper el TECHO perfecto: competencia GRADUADA | oracle ~0.89 (<1.0); router ~0.76; brecha honesta ~0.13 |
+| 16 | quitar la muleta del tipo: inferir la clase desde el TEXTO | router-texto = router-tipo (brecha 0.000; enunciados separables) |
+| 17 | ruteo por texto NO-trivial: paráfrasis + vocabulario solapado | keyword-frágil pureza 0.84→0.77; Naive-Bayes le gana en 5/5 niveles |
+
+- **Anti-Goodhart sostenido en todo el pilar:** aprender por la PROPIA confianza (circular) deja que un
+  "fanfarrón" (confianza alta y constante, aun equivocado) secuestre la política; el examinador real
+  lo desenmascara. Es la lección de H-SELF-2 aplicada a la *selección de razonamiento*.
+- **Honestidad:** solvers deterministas/sintéticos, 4-7 tipos, CPU/stdlib. Demuestra el MECANISMO de
+  "ve cuál le da mejores resultados", no escala a LLMs reales. CYCLE 15 retiró el techo perfecto;
+  CYCLE 17 mostró degradación honesta (2/12 semillas el NB patina en cold-start).
+- Reproducir: `python -m cognia_x.reason.run_cycle{12..17} [--smoke]`. 19 tests (cycle12-17) passan.
+  Detalle en `cognia_x/reason/RESULTS.md` y `cognia_x/reason/README.md`.

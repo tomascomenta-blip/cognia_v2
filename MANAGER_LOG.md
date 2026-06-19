@@ -3084,3 +3084,11 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Honestidad: B NO es infalible — en ~2/12 semillas el NB patina en cold-start y cae bajo A en
   ambigüedad alta (patrón dominante 10/12: B≫A). Degradación honesta documentada en RESULTS.md; test usa seed canónica.
 - Tests: 19 passed (cycle12-17). cycle12/15/16 corren sin cambios. Commit pusheado a origin (rama cognia-x).
+
+## [2026-06-19] CYCLE 18 — consolidación del PILAR 5 (Razonamiento) en docs canónicas
+- GOAL (misma sesión): cerrar el pilar con la closure que pide el protocolo del lab (research_log y
+  future_work son fuentes canónicas). Usage 11%.
+- research_log.md: tabla-resumen del arco CYCLE 12-17 (qué demuestra + número clave por cycle) +
+  el hilo anti-Goodhart + honestidad. future_work.md: el frontier real (envolver el LM real, verificador
+  real vs oráculo perfecto, paráfrasis natural, componer largo>2). cognia_x/reason/README.md: síntesis del pilar.
+- Solo documentación (sin código). Pilar 5 cerrado y reproducible: 6 cycles, 19 tests, todo en origin (cognia-x).
