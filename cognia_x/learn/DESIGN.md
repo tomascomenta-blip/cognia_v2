@@ -68,10 +68,18 @@ NO separa "novedad generalizable" de "ruido/contexto"; entrenar un subconjunto d
 gradiente más débil y sesgado → peor generalización. La supervisión DENSA aprende mejor. *Un fracaso
 es información: la curiosidad-por-pérdida-cruda no sirve para este modelo.*
 
-**Pendiente (no probado aún):** ancla de Fisher/EWC-light (leer `exp_avg_sq` de Adam como diagonal de
-Fisher, penalización `λ·F·(θ−θ_viejo)²` para volver rígidos los pesos importantes) y **adapters LoRA
-con tronco congelado** (olvido imposible por construcción). La solución VALIDADA hoy es el gate
-por-dominio + replay (arriba).
+## Mecanismo creativo #2: CONGELAR EL TRONCO DE RECALL — PROBADO y FUNCIONA ✅ (modesto)
+**Idea (cotidiano):** escribir lo nuevo en una hoja aparte sin tachar el cuaderno. Se congelan las
+partes caras de RECORDAR (embeddings atados + capas de ATENCIÓN softmax = recall exacto) y se aprende
+lo nuevo SOLO en las capas LINEALES + MLP plásticas. El conocimiento viejo del tronco congelado queda
+protegido por construcción. (`freeze_recall_trunk` en continual.py.)
+**Resultado (CYCLE 9, smoke d=128):** reduce el olvido del español **~25%** (+0.80 vs naive +1.06)
+conservando **~94% del aprendizaje nuevo** (+0.143 vs +0.152). Mecanismo real, **parameter-free** y
+**complementario al replay**. Modesto pero positivo — contrasta con la sorpresa (refutada).
+
+**Pendiente (no probado):** ancla de Fisher/EWC-light y adapters LoRA (olvido imposible por
+construcción, rollback = descartar adapter). La solución más fuerte validada es **gate por-dominio +
+replay** (reduce el olvido 15× en el smoke); **congelar-tronco** la complementa sin coste de params.
 
 ## El loop (Nivel 1) y la demostración
 `cognia_x/learn/continual.py` (gate) + `run_cycle8.py` (demo). Montaje: base sabe inglés+español;

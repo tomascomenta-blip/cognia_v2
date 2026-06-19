@@ -25,7 +25,8 @@ import torch
 
 from cognia_x.model.hybrid import HybridConfig, HybridLM
 from cognia_x.train.charlm import get_batch, load_corpus_dir
-from cognia_x.learn.continual import eval_at, learn_steps, learn_steps_surprise
+from cognia_x.learn.continual import (eval_at, freeze_recall_trunk, learn_steps,
+                                      learn_steps_surprise)
 from cognia_x.learn.run_cycle8 import book, tt, split
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -91,10 +92,15 @@ def main():
 
     def run_arm(kind, lo=None, hi=None):
         m = copy.deepcopy(base)
-        o = torch.optim.AdamW(m.parameters(), lr=args.lr, weight_decay=0.01)
-        if kind == "naive":
+        if kind == "congelar":
+            trainable = freeze_recall_trunk(m)
+            o = torch.optim.AdamW(trainable, lr=args.lr, weight_decay=0.01)
+            learn_steps(m, o, new_tr, args.learn_steps, args.L, args.batch, "cpu")
+        elif kind == "naive":
+            o = torch.optim.AdamW(m.parameters(), lr=args.lr, weight_decay=0.01)
             learn_steps(m, o, new_tr, args.learn_steps, args.L, args.batch, "cpu")
         else:
+            o = torch.optim.AdamW(m.parameters(), lr=args.lr, weight_decay=0.01)
             learn_steps_surprise(m, o, new_tr, args.learn_steps, args.L, args.batch, "cpu",
                                  low_q=lo, high_q=hi)
         new_a = eval_at(m, new_va, args.L, "cpu")
@@ -107,15 +113,14 @@ def main():
 
     results = {"base": {"espanol": round(b_es, 4), "nuevo": round(b_new, 4)},
                "naive": run_arm("naive"),
-               "topk_alto_RUIDO": run_arm("s", 0.5, 1.0),     # top-50% absoluto (incl. ruido): el que falló
-               "banda_50_95": run_arm("s", 0.5, 0.95),        # novel sin el extremo ruidoso
-               "banda_70_97": run_arm("s", 0.7, 0.97)}
+               "banda_50_95": run_arm("s", 0.5, 0.95),        # sorpresa (refutada): contraste
+               "congelar_tronco": run_arm("congelar")}        # congelar embed+atención (anti-olvido)
     with open(os.path.join(RUN_DIR, "summary.json"), "w", encoding="utf-8") as f:
         json.dump({"config": vars(args), "results": results}, f, indent=2)
 
     log("\n[cycle9] ===== RESUMEN: aprender arrastrando MENOS los pesos viejos =====")
     log(f"  {'brazo':>15} | {'gana nuevo':>10} | {'olvida esp':>10} | eficiencia (gana/olvida)")
-    for k in ("naive", "topk_alto_RUIDO", "banda_50_95", "banda_70_97"):
+    for k in ("naive", "banda_50_95", "congelar_tronco"):
         r = results[k]
         eff = r["new_gain"] / max(0.001, abs(r["es_forget"]))
         log(f"  {k:>15} | {r['new_gain']:>+10.3f} | {r['es_forget']:>+10.3f} | {eff:>6.2f}")

@@ -92,6 +92,23 @@ def learn_steps(model, opt, new_t, steps, L, batch, device, replay_t=None, repla
     return last
 
 
+def freeze_recall_trunk(model):
+    """Congela las partes caras de RECORDAR — embeddings atados (= lm_head) + las capas de ATENCIÓN
+    softmax (recall exacto, escasas) — dejando PLÁSTICAS las capas LINEALES + MLP + norms. El
+    conocimiento viejo guardado en el tronco congelado queda protegido por construcción; lo nuevo
+    entra por las capas baratas. Análogo: escribir lo nuevo en una hoja aparte sin tachar el cuaderno.
+    Devuelve la lista de params entrenables (para pasársela al optimizer)."""
+    for p in model.parameters():
+        p.requires_grad = True
+    for p in model.embed.parameters():     # embeddings atados (= lm_head)
+        p.requires_grad = False
+    for b in model.blocks:
+        if b.kind == "attn":               # capas de atención softmax: recall exacto
+            for p in b.mixer.parameters():
+                p.requires_grad = False
+    return [p for p in model.parameters() if p.requires_grad]
+
+
 def learn_steps_surprise(model, opt, new_t, steps, L, batch, device, low_q=0.5, high_q=0.95,
                          replay_t=None, replay_ratio=0.5, warmup=0, base_lr=None):
     """CURIOSIDAD: aprende los bytes de una BANDA de sorpresa — pérdida por-byte entre los cuantiles
