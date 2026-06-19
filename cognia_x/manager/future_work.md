@@ -26,3 +26,18 @@
 - Suite de micro-benchmarks reproducibles como gate de regresión de eficiencia.
 
 > Se ampliará con los `open_questions` del ciclo-1 (workflow).
+
+## [2026-06-19] Frontier siguiente: Nivel 2 — "INVESTIGAR por sí misma" (tras CYCLE 8/10)
+El aprendizaje continuo Nivel 1 está validado (CYCLE 8: aprende sin olvidar, gate por-dominio + replay;
+CYCLE 10: loop como proceso sobre una secuencia). Lo que falta para "investigar sola":
+- **Nivel 2 — verificar-antes-de-aprender** (anti-colapso): la IA propone/genera; solo aprende lo
+  que pasa un verificador chequeable contra la realidad (código→sandbox+oracle, `cognia_v3/core/
+  sandbox_tester.py`; texto→redundancia en ≥2 fuentes reales + filtro de degeneración KL/gzip).
+  Ledger de procedencia (origin∈{real,syn}, generación g≤1, cuota ≤15% sintético). Examinador
+  SIEMPRE 100% real (invariante). exp009_collapse_guard: 2 brazos (colapso vs guard) — ver workflow.
+- **Robustez del gate:** multi-seed (calibrar k·σ, eps), held-out rotativo + committee (anti-Goodhart),
+  canarios de sub-distribución (acentos/dígitos), snapshot del optimizer para loops largos.
+- **Mecanismos anti-olvido restantes:** Fisher/EWC-light (leer exp_avg_sq de Adam) y adapters LoRA
+  con tronco congelado (olvido imposible por construcción). Congelar-tronco ya da -25% (CYCLE 9).
+- **Resolver el learned=False a base-fuerte:** aprender una obra del mismo idioma no transfiere
+  cross-book; probar dominios genuinamente nuevos (otro idioma, código) o examinador intra-dominio.
