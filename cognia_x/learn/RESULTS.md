@@ -47,3 +47,21 @@ es por-dominio**.
 - Umbrales (k·σ, eps de la zona ciega) calibrados para la demo; a escala hay que recalibrarlos multi-seed.
 
 Reproducir: `python -m cognia_x.learn.run_cycle8` (full) / `--smoke` (rápido). Datos: `runs/cycle8/`.
+
+## CYCLE 10 — el loop como PROCESO en el tiempo (secuencia de lecciones)
+La IA recibe una SECUENCIA de 3 lecciones nuevas (Frankenstein, Sherlock, un libro español nuevo) y
+debe ACUMULAR conocimiento sin que el viejo (español) se degrade lección tras lección.
+
+| modo | español tras [base, L1, L2, L3] | deriva total |
+|---|---|---:|
+| NAIVE secuencial | 1.84 → **2.93 → 3.14** → 1.94 | +0.102 (picos a 3.14 = olvido catastrófico) |
+| **GATED secuencial** (gate por-dominio + replay creciente) | 1.84 → 1.83 → 1.86 → 1.81 | **−0.035 (plano)** |
+
+- El loop con gate **aceptó y aprendió las 3 lecciones** (todas learned=True) mientras el español
+  protegido se mantuvo PLANO (~1.84) toda la secuencia. El naive disparó el español a 3.14
+  (olvido catastrófico a mitad de camino, "recuperado" solo porque la 3ª lección era español).
+- **Demuestra el loop como PROCESO CONTINUO:** la IA sigue aprendiendo cosas nuevas sin olvidar lo
+  viejo, indefinidamente — la esencia de "aprender por sí misma". El replay crece con cada lección
+  aceptada (lo aprendido se vuelve parte de lo que se repasa).
+- Caveat: el examinador de cada lección es intra-libro (el "aprender" tiene algo de leakage); lo
+  limpio es la curva del español protegido (held-out). Reproducir: `python -m cognia_x.learn.run_cycle10 --smoke`.
