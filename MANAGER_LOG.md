@@ -3050,3 +3050,21 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   * Anti-Goodhart sostenido bajo grading: router CONFIDENCE 0.30 (fanfarrón).
 - Tests: 12 passed (cycle12+13+14+15). RESULTS.md: sección CYCLE 15 RETIRA el caveat del techo perfecto.
 - Commit pusheado a origin (rama cognia-x).
+
+## [2026-06-19] CYCLE 16 — quitar la muleta del tipo: inferir la clase de problema desde el TEXTO
+- GOAL (misma sesión): en CYCLE 12-15 al router se le DABA la etiqueta del tipo (problem["type"]).
+  Real es figurarte qué clase de problema es desde el enunciado. CYCLE 16 quita la muleta. Usage 9%.
+- text_router.py: features(text) extrae señales baratas SOLO del texto (keywords propina/kilo/viaje/km/h,
+  conteo de números, $/%, etc.), signature() agrupa por firma, TextRouter = bandit de CYCLE 12 indexado
+  por la firma INFERIDA (no por la etiqueta). Recompensa = examinador real. + control signature_blind.
+- Self-audit (confirmado por el manager): el router lee SOLO problem["text"]; nunca type/answer
+  (type se usa solo post-hoc para medir pureza firma→tipo). Test lo verifica.
+- Resultado FULL (held-out, semillas disjuntas) — VERIFICADO:
+  * EXACTO: mejor fija 0.797 < router-TIPO 1.000 = router-TEXTO 1.000, BRECHA 0.000, pureza firma→tipo 1.000.
+  * GRADUADO (bonus, sobre CYCLE 15): mejor fija ~0.42 < router-TIPO 0.738 = router-TEXTO 0.738, BRECHA 0.000.
+  -> infirió la clase desde el texto SIN que se la dieran, igualando al router que sí tiene la etiqueta.
+- Honestidad (caveat clave): brecha 0.000 / pureza 1.0 son reales pero los enunciados sintéticos son
+  trivialmente separables (cada tipo tiene su vocabulario); hasta el control crudo los separa. Demuestra
+  el MECANISMO (rutear sin la etiqueta, recompensado por verificador, recupera la estructura), NO
+  robustez a paráfrasis ni LLMs reales. Clasificador de firma discreta, no encoder aprendido.
+- Tests: 15 passed (cycle12-16). cycle12-15 corren sin cambios. Commit pusheado a origin (rama cognia-x).

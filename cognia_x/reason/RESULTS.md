@@ -293,3 +293,77 @@ razonamiento aprendido".
 
 Reproducir: `python -m cognia_x.reason.run_cycle15` (full) / `--smoke` (rápido).
 Test: `python -m pytest cognia_x/tests/test_cycle15_reason.py -q`. Datos: `runs/cycle15/`.
+
+---
+
+## CYCLE 16 — SACAR LA MULETA: rutear desde el TEXTO, no desde la etiqueta de tipo
+
+**Esto RETIRA la muleta de CYCLE 12–15.** En todos esos ciclos al router le PASABAN el `problem["type"]`
+como label (routeaba sobre la etiqueta). Razonar de verdad es DARSE CUENTA qué clase de problema tenés
+enfrente leyendo el enunciado. CYCLE 16 saca la muleta: el router solo ve `problem["text"]` (el string que
+ya producen los generadores) y debe INFERIR cómo razonar.
+
+### Mecanismo (concreto, stdlib, sin tocar CYCLE 12–15)
+- **`text_router.features(text)`**: extrae señales BARATAS del texto CRUDO — flags de palabras clave
+  ("propina", "$ por g", "viaje/tarjeta", "km/h", "descuento/oferta", "stock/por día", "supera/límite",
+  "envío"), presencia de `%`/`$`, formato de elección binaria, y un bucket discreto del conteo de números.
+  **Recibe SOLO el texto; jamás `type` ni `answer`.**
+- **`signature(text)`**: discretiza esas señales en una TUPLA de flags (la "firma" del problema). Problemas
+  del mismo tipo caen en la misma firma sin que nadie diga el tipo.
+- **`TextRouter`**: el MISMO bandit de CYCLE 12 (epsilon-greedy + verificador real) pero indexado por la
+  FIRMA inferida del texto en vez del tipo. Reusa `Router` tal cual (la firma actúa como "tipo" interno) y
+  premia con `is_correct` (la realidad, no la etiqueta). Así DESCUBRE la estructura de tipos desde el texto.
+- **Opt-in total**: `Router` (routea por tipo), `chains.py`, `problems.py` NO cambian. **CYCLE 12–15 corren
+  byte-a-byte iguales** (verificado: 12 toca 1.000; 13 escalación 1.000 en el tipo nuevo; 15 brecha ~0.136).
+
+### Resultados — accuracy HELD-OUT (FULL: train=4000, held-out=2000, semillas disjuntas)
+| estrategia | EXACTO (CYCLE 12) | GRADUADO (bonus, CYCLE 15) |
+|---|---:|---:|
+| mejor cadena FIJA | 0.793 (`backwards`) | 0.402 (`stepwise`) |
+| router de TIPO (le DAN la etiqueta) — referencia superior | 1.000 | 0.738 |
+| **router de TEXTO (infiere del enunciado)** | **1.000** | **0.738** |
+| **BRECHA (router-TIPO − router-TEXTO)** | **0.000** | **0.000** |
+| ALINEACIÓN firma->tipo (pureza) | 1.000 (4 firmas) | 1.000 (4 firmas) |
+
+(Smoke da exactamente lo mismo: brecha 0.000, pureza 1.000.)
+
+**Lo que demuestra:**
+1. **El router de TEXTO IGUALA al router de TIPO sin que le digan el tipo** (brecha 0.000 en ambos
+   regímenes) → infirió correctamente la clase de problema desde el enunciado. La muleta no era necesaria.
+2. **Le gana ampliamente a la mejor cadena fija** (1.000 vs 0.793 exacto; 0.738 vs 0.402 graduado) →
+   elegir cómo razonar sigue importando, y ahora lo hace leyendo el texto.
+3. **Pureza firma->tipo = 1.000 con 4 firmas**: cada tipo cae en su propia firma → recuperó la estructura
+   de tipos a partir del texto, sin supervisión de tipo.
+4. **Bonus graduado**: aún cuando las cadenas PATINAN (CYCLE 15), inferir desde el texto no cuesta nada
+   extra (misma accuracy y misma brecha 0.000 que el router de tipo). La brecha residual al ORÁCULO sigue
+   siendo el patinazo (CYCLE 15), no el ruteo.
+
+### Auto-auditoría (el router NUNCA lee type/answer)
+La ÚNICA lectura del problema para rutear es el texto:
+- `TextRouter._sig`: `return self.sig_fn(problem["text"])` (`text_router.py`), y `train_one` premia con
+  `is_correct(problem, pred)` (verificador real, no la etiqueta).
+- `features(text)` toma un solo argumento `text`; el test `test_features_only_depend_on_text` verifica la
+  firma y que dos problemas con el MISMO texto pero distinto `type`/`answer` rutean a la misma firma.
+- `signature_to_type_purity` SÍ mira `type`, pero solo para EVALUAR la alineación a posteriori — el router
+  nunca lo usó para decidir.
+
+### Caveats (honestidad)
+- **Brecha y pureza perfectas (0.000 / 1.000) porque los enunciados sintéticos son genuinamente
+  distinguibles.** No es maquillaje: cada tipo tiene vocabulario propio ("propina" vs "$ por g" vs "km/h"
+  vs "tarjeta/viaje"). Corrimos un CONTROL HONESTO (`signature_blind`: features POBRES, solo conteo de
+  números + `$`/`%`, sin vocabulario) y en este lab HASTA el control crudo separa los tipos (los textos
+  difieren incluso en señales gruesas) → no hay confusión que reportar acá. En un dominio con enunciados
+  ambiguos/solapados la pureza caería y la brecha se abriría; el control está listo para medir eso.
+- Es un clasificador por FIRMA discreta (reglas de keywords), no un encoder aprendido. El punto demostrado
+  es el MECANISMO: rutear sin la etiqueta de tipo, premiado por el verificador real, recuperando la
+  estructura desde el texto. No es una afirmación de robustez a paráfrasis libres ni a LLMs reales.
+- Sigue siendo CPU-only, stdlib, solvers sintéticos.
+
+### Innovación
+Cierra la última muleta del pilar de meta-razonamiento (CYCLE 12–15): el router ya no necesita que le
+digan QUÉ clase de problema es. Extrae features baratas del enunciado crudo, descubre la estructura de
+tipos por su cuenta (firma → bandit por firma) y aprende qué cadena usar por firma con el verificador real
+— igualando al router que SÍ conoce el tipo (brecha 0.000), tanto en el régimen exacto como en el graduado.
+
+Reproducir: `python -m cognia_x.reason.run_cycle16` (full) / `--smoke` (rápido).
+Test: `python -m pytest cognia_x/tests/test_cycle16_reason.py -q`. Datos: `runs/cycle16/`.
