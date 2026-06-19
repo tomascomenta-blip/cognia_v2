@@ -3068,3 +3068,19 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   el MECANISMO (rutear sin la etiqueta, recompensado por verificador, recupera la estructura), NO
   robustez a paráfrasis ni LLMs reales. Clasificador de firma discreta, no encoder aprendido.
 - Tests: 15 passed (cycle12-16). cycle12-15 corren sin cambios. Commit pusheado a origin (rama cognia-x).
+
+## [2026-06-19] CYCLE 17 — ruteo por texto NO-trivial: paráfrasis + vocabulario solapado
+- GOAL (misma sesión): retirar el caveat de CYCLE 16 (enunciados trivialmente separables). Hacer que
+  inferir la clase desde el texto IMPORTE: muchas paráfrasis por tipo + vocabulario compartido. Usage 11%.
+- problems.py +gen_paraphrased (opt-in; 4 templates/tipo, sinónimos, cláusulas reordenadas, distractores
+  de vocabulario compartido; knob ambiguity; mismo answer/type; generadores viejos intactos).
+  text_router.py +signature_keywords (frágil, solo keywords) +RobustTextRouter (Naive-Bayes sobre
+  bag-of-words, aprendido ONLINE del verificador). features/signature/TextRouter de CYCLE 16 intactos.
+- Resultado FULL (held-out, barrido de ambigüedad 0..1) — VERIFICADO:
+  * A keyword-frágil: pureza firma→tipo CAE 0.84→0.77 (confunde tipos) → el almuerzo gratis de CYCLE 16 desaparece.
+  * B texto-robusto le GANA a A en los 5 niveles; brecha al ceiling 0.01-0.13 (vs A 0.16-0.31); la
+    ventaja CRECE con la ambigüedad (amb 1.0: B-gap 0.083 vs A-gap 0.222).
+  * Verifier-grounded (recompensa is_correct, nunca la etiqueta). Self-audit: ambos leen solo problem["text"].
+- Honestidad: B NO es infalible — en ~2/12 semillas el NB patina en cold-start y cae bajo A en
+  ambigüedad alta (patrón dominante 10/12: B≫A). Degradación honesta documentada en RESULTS.md; test usa seed canónica.
+- Tests: 19 passed (cycle12-17). cycle12/15/16 corren sin cambios. Commit pusheado a origin (rama cognia-x).

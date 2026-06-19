@@ -367,3 +367,80 @@ tipos por su cuenta (firma → bandit por firma) y aprende qué cadena usar por 
 
 Reproducir: `python -m cognia_x.reason.run_cycle16` (full) / `--smoke` (rápido).
 Test: `python -m pytest cognia_x/tests/test_cycle16_reason.py -q`. Datos: `runs/cycle16/`.
+
+---
+
+## CYCLE 17 — rutear desde el TEXTO cuando el texto es DURO: paráfrasis + vocabulario ambiguo
+
+**Retira el caveat de CYCLE 16.** CYCLE 16 ruteaba desde el texto pero llegó a una brecha PERFECTA
+(pureza firma->tipo 1.000) porque cada tipo sintético usaba su PROPIO vocabulario único: hasta un control
+crudo separaba los tipos. Demostró el MECANISMO, no la ROBUSTEZ a paráfrasis / redacción ambigua. CYCLE 17
+hace el ruteo desde texto genuinamente DURO y muestra qué sobrevive.
+
+### Lo que se construyó (opt-in; CYCLE 12–16 corren byte-a-byte iguales)
+- **`gen_paraphrased(n, seed, ambiguity=...)`** (en `problems.py`): genera los 4 tipos base con MUCHAS
+  formas de superficie — 4 plantillas por tipo + sinónimos por ranura (`amigos`/`compañeros`/`comensales`,
+  `propina`/`de yapa`/`de tip`, `viaje`/`boleto`/`pasaje`...) + cláusulas reordenadas. Mismos params /
+  MISMA answer / MISMO type label (el label se usa SOLO para evaluar held-out, jamás para rutear).
+- **Knob `ambiguity` en [0,1]**: inyecta cláusulas DISTRACTORAS con vocabulario COMPARTIDO entre tipos
+  ("ojo con el presupuesto", "salí de oferta", "compará bien por kilo", "no llegues tarde"...). A más
+  ambigüedad, más solapamiento de palabras + más distractores -> una firma de keywords ingenua se confunde.
+- **Arm A (frágil)**: el `TextRouter` de CYCLE 16 indexado por `signature_keywords` (firma de KEYWORDS
+  pura, sin los buckets numéricos que igual separaban los tipos) — la representación que la paráfrasis ataca.
+- **Arm B (robusto, la contribución)**: `RobustTextRouter` en `text_router.py` — un **Naive-Bayes
+  multiclase** sobre **bag-of-words** del texto crudo, aprendido ONLINE con el verificador real. Una clase
+  por cadena; estima `P(palabra | esta-cadena-acierta)` contando palabras de los enunciados que la cadena
+  resolvió bien (premio = `is_correct`, nunca el label); predice `argmax_c sum_w log P(w|c)` con Laplace.
+  Reparte la decisión sobre TODAS las palabras (las compartidas/distractoras no discriminan) -> tolera
+  paráfrasis. **Recibe SOLO `problem["text"]`** (tokens vía `bag_of_words(text)`).
+
+### Resultados — accuracy HELD-OUT vs AMBIGÜEDAD (FULL: train=4000, test=2000, semillas disjuntas, seed 0)
+| ambig | mejor FIJA | A: keyword-frágil | **B: texto-robusto** | CEILING (tipo) | pureza-A (firma->tipo) | brecha A→ceil | brecha B→ceil |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0.00 | 0.783 | 0.811 | **0.872** | 1.000 | 0.842 | 0.189 | 0.128 |
+| 0.25 | 0.789 | 0.819 | **0.927** | 1.000 | 0.845 | 0.181 | 0.073 |
+| 0.50 | 0.793 | 0.839 | **0.986** | 1.000 | 0.821 | 0.161 | 0.014 |
+| 0.75 | 0.793 | 0.811 | **0.924** | 1.000 | 0.793 | 0.189 | 0.075 |
+| 1.00 | 0.796 | 0.778 | **0.917** | 1.000 | 0.768 | 0.222 | 0.083 |
+
+**Lo que demuestra:**
+1. **El keyword-router FRÁGIL (A) confunde tipos al subir la ambigüedad**: pureza firma->tipo cae
+   monótona **0.842 → 0.768** (< 1.0 en TODOS los niveles, ya con paráfrasis sin distractores). Su brecha
+   al ceiling se queda en 0.16–0.22 (peor en ambigüedad máxima). El "almuerzo gratis" de CYCLE 16
+   (pureza 1.000) DESAPARECE cuando el texto es duro: era vocabulario único, no robustez.
+2. **El texto-router ROBUSTO (B) SIGUE al ceiling mucho mejor**: accuracy 0.872–0.986, brecha al ceiling
+   **0.014–0.128** (vs 0.16–0.22 de A). **B le gana a A en los 5 niveles** (+0.06 a +0.15) y la ventaja
+   CRECE con la ambigüedad (en ambig 1.0: brecha B 0.083 vs A 0.222). El Naive-Bayes sobre bag-of-words
+   degrada suave porque promedia sobre muchas palabras; los distractores compartidos no discriminan.
+3. El **ceiling** (router de TIPO, le DAN la etiqueta) es 1.000 en todos los niveles (la answer no cambia
+   con la redacción) → es una cota honesta; B casi la toca a ambigüedad media.
+
+### Auto-auditoría (ambos routers de texto leen SOLO el texto)
+- `RobustTextRouter._words`: `return bag_of_words(problem["text"])` (`text_router.py`) — ÚNICA lectura del
+  problema para rutear; `train_one` premia con `is_correct(problem, pred)` (verificador real, no el label).
+- `bag_of_words(text)` y `signature_keywords(text)` toman un único argumento `text` (test
+  `test_feature_extractors_only_depend_on_text`: mismo texto con distinto `type`/`answer` da idéntica
+  bolsa/firma → imposible que hayan leído type/answer).
+- `signature_to_type_purity` SÍ mira `type`, pero solo para EVALUAR la confusión a posteriori.
+
+### Caveats (honestidad)
+- **B no es infalible**: en ~2/12 semillas (5, 7) el Naive-Bayes PATINA en el arranque (la exploración
+  epsilon sesga los conteos tempranos) y cae por debajo de A a ambigüedad alta. El patrón DOMINANTE
+  (10/12 semillas) es B ≫ A por +0.06..+0.17. El test de regresión usa la semilla canónica (0); el barrido
+  de 12 semillas está documentado acá y reproducible. No se maquilló el número: es degradación honesta.
+- **A no colapsa en accuracy aunque la pureza caiga**: con firmas impuras, su bandit por firma todavía
+  elige la cadena MAYORITARIA de cada firma, que acierta seguido → su accuracy baja poco aunque la
+  pureza (su capacidad de DISTINGUIR tipos) sí se derrumbe. El daño honesto se ve en la pureza y en la
+  brecha al ceiling, no solo en la accuracy cruda.
+- Sigue siendo CPU-only, stdlib, solvers sintéticos y 4 tipos. No es una afirmación sobre LLMs reales ni
+  paráfrasis en lenguaje natural abierto; es una demostración controlada de que un clasificador de palabras
+  aprendido tolera la ambigüedad que rompe a las keywords exactas.
+
+### Innovación
+Cierra el caveat de paráfrasis de CYCLE 16: el ruteo desde texto ya no es un almuerzo gratis. Bajo
+paráfrasis + vocabulario ambiguo, la firma de keywords exactas confunde tipos (pureza 1.000 → ~0.77),
+mientras un Naive-Bayes sobre bag-of-words aprendido online con el verificador real degrada con gracia y
+sigue al techo de "si supiera el tipo" — la robustez al fin se GANA, no se regala.
+
+Reproducir: `python -m cognia_x.reason.run_cycle17` (full) / `--smoke` (rápido).
+Test: `python -m pytest cognia_x/tests/test_cycle17_reason.py -q`. Datos: `runs/cycle17/`.

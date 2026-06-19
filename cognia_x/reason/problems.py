@@ -284,6 +284,150 @@ def gen_graded(n, seed, types=None, dmin=0.0, dmax=1.0):
     return out
 
 
+# ============================================================================
+# CYCLE 17 — PARÁFRASIS + VOCABULARIO AMBIGUO: que rutear desde el texto se GANE de verdad.
+#
+# CYCLE 16 ruteaba desde el texto, PERO llegó a una brecha PERFECTA (pureza 1.000) porque cada tipo
+# sintético usaba su PROPIO vocabulario único: hasta un control crudo separaba los tipos. El caveat
+# honesto: demostró el MECANISMO, no la robustez a paráfrasis / redacción ambigua. CYCLE 17 retira ese
+# caveat haciendo el ruteo desde texto genuinamente DURO:
+#   1) MUCHAS formas de superficie por tipo (varias plantillas, sinónimos, cláusulas reordenadas), todas
+#      con la MISMA answer y MISMO type label (el label se usa SOLO para evaluar held-out, nunca para rutear).
+#   2) un knob `ambiguity` en [0,1] que (a) hace que los tipos COMPARTAN vocabulario (mismas palabras de
+#      "presupuesto"/"plata"/"$" aparecen en varios tipos) y (b) inyecta palabras DISTRACTORAS, para que una
+#      firma de keywords ingenua CONFUNDA tipos. A más ambigüedad, más solapamiento + más distractores.
+#
+# Es OPT-IN total: gen_problems/gen_graded/gen_composed NO cambian (CYCLE 12–16 corren byte-a-byte iguales).
+# Solo paraphrasea los 4 tipos base (los que una cadena de un paso resuelve limpio), reusando los MISMOS
+# params/answers que _split_bill/_cheaper_per_kg/_trips_within_budget/_arrive_on_time.
+# ============================================================================
+
+# sinónimos por "ranura" semántica: variar la superficie SIN cambiar el significado ni la answer.
+_SYN = {
+    "amigos": ["amigos", "compañeros", "colegas", "personas", "comensales"],
+    "cuenta": ["la cuenta", "el total a pagar", "la factura", "lo que salió", "el ticket"],
+    "propina": ["propina", "de yapa para el mozo", "extra para el servicio", "de tip"],
+    "cada_uno": ["cada uno", "por cabeza", "por persona", "cada comensal"],
+    "paquete": ["paquete", "presentación", "envase", "bolsa"],
+    "conviene": ["conviene", "rinde más", "es mejor compra", "te sale mejor por kilo"],
+    "tenes": ["tenés", "disponés de", "contás con", "tu presupuesto es de"],
+    "viaje": ["viaje", "boleto", "pasaje", "trayecto"],
+    "tarjeta": ["la tarjeta", "la SUBE", "la tarjeta de transporte", "el abono"],
+    "enteros": ["enteros", "completos", "que entran"],
+    "recorrer": ["recorrer", "manejar", "viajar", "cubrir"],
+    "a_tiempo": ["a tiempo", "sin llegar tarde", "antes del plazo", "puntual"],
+}
+
+# pozo de palabras DISTRACTORAS compartidas entre tipos: cuando se inyectan, las firmas de keywords se
+# pisan (p.ej. "presupuesto"/"plata"/"oferta" aparecen en tipos donde no son la pista real). El verificador
+# y la answer NO cambian: el distractor va en una cláusula de relleno (contexto cotidiano irrelevante).
+_DISTRACTORS = [
+    "ojo con el presupuesto", "salí de oferta", "ese día estaba la promo",
+    "tené en cuenta la plata", "compará bien por kilo", "no llegues tarde",
+    "fijate los descuentos", "la tarjeta a veces falla", "andá rápido",
+    "calculá el ahorro", "es para varios amigos", "mirá el peso en gramos",
+]
+
+
+def _syn(rng, slot):
+    return rng.choice(_SYN[slot])
+
+
+def _maybe_distract(rng, ambiguity):
+    """Con probabilidad proporcional a la ambigüedad, devuelve 0..2 cláusulas distractoras (relleno)."""
+    if rng.random() >= ambiguity:
+        return ""
+    k = 1 if rng.random() > ambiguity else 2     # más ambigüedad -> a veces dos distractores
+    picks = [rng.choice(_DISTRACTORS) for _ in range(k)]
+    return " (" + "; ".join(picks) + ")"
+
+
+def _para_split_bill(rng, ambiguity):
+    # reusa la lógica/answer de _split_bill, pero con MUCHAS plantillas + sinónimos + distractores.
+    base = _split_bill(rng); p = base["params"]
+    n, total, tip = p["n"], p["total"], int(p["tip"] * 100)
+    amigos, cuenta, propina, cada = _syn(rng, "amigos"), _syn(rng, "cuenta"), _syn(rng, "propina"), _syn(rng, "cada_uno")
+    tmpls = [
+        f"Salimos {n} {amigos}; {cuenta} fue ${total:.2f} y sumamos {tip}% de {propina}. ¿Cuánto pone {cada}?",
+        f"Entre {n} {amigos} hay que dividir ${total:.2f}, más {tip}% {propina}. ¿{cada.capitalize()} cuánto abona?",
+        f"{cuenta.capitalize()} dio ${total:.2f}, le agregamos {tip}% {propina} y lo partimos entre {n}. ¿Cuánto sale {cada}?",
+        f"Con {tip}% {propina} sobre ${total:.2f}, repartido en {n} {amigos}, ¿qué monto va {cada}?",
+    ]
+    base["text"] = rng.choice(tmpls) + _maybe_distract(rng, ambiguity)
+    return base
+
+
+def _para_cheaper_per_kg(rng, ambiguity):
+    base = _cheaper_per_kg(rng); p = base["params"]
+    pa, ga, pb, gb = p["pa"], p["ga"], p["pb"], p["gb"]
+    paq, conv = _syn(rng, "paquete"), _syn(rng, "conviene")
+    tmpls = [
+        f"Un {paq} sale ${pa:.2f} por {ga} g y otro ${pb:.2f} por {gb} g. ¿Cuál {conv}? (0=A, 1=B)",
+        f"Comparando: A trae {ga} g a ${pa:.2f}, B trae {gb} g a ${pb:.2f}. ¿Qué {conv}? (0=A, 1=B)",
+        f"¿Me llevo el de {ga} g a ${pa:.2f} o el de {gb} g a ${pb:.2f}? Decime cuál {conv} (0=A, 1=B).",
+        f"Opción A: {ga} g cuestan ${pa:.2f}. Opción B: {gb} g cuestan ${pb:.2f}. ¿Cuál {conv}? (0=A, 1=B)",
+    ]
+    base["text"] = rng.choice(tmpls) + _maybe_distract(rng, ambiguity)
+    return base
+
+
+def _para_trips_within_budget(rng, ambiguity):
+    base = _trips_within_budget(rng); p = base["params"]
+    b, f, c = p["b"], p["f"], p["c"]
+    tenes, tarjeta, viaje, ent = _syn(rng, "tenes"), _syn(rng, "tarjeta"), _syn(rng, "viaje"), _syn(rng, "enteros")
+    tmpls = [
+        f"{tenes.capitalize()} ${b:.2f}. Sacar {tarjeta} cuesta ${f:.2f} una vez y cada {viaje} ${c:.2f}. ¿Cuántos {viaje}s {ent}?",
+        f"Con ${b:.2f} en el bolsillo, {tarjeta} sale ${f:.2f} fija y el {viaje} ${c:.2f}. ¿Cuántos {viaje}s {ent} hacés?",
+        f"Pagás ${f:.2f} por {tarjeta} y después ${c:.2f} por {viaje}. Si {tenes} ${b:.2f}, ¿cuántos {viaje}s {ent}?",
+        f"{tarjeta.capitalize()} ${f:.2f} de entrada, ${c:.2f} el {viaje}, {tenes} ${b:.2f}. ¿Cantidad de {viaje}s {ent}?",
+    ]
+    base["text"] = rng.choice(tmpls) + _maybe_distract(rng, ambiguity)
+    return base
+
+
+def _para_arrive_on_time(rng, ambiguity):
+    base = _arrive_on_time(rng); p = base["params"]
+    dist, speed, h = p["dist"], p["speed"], p["h"]
+    rec, atiempo = _syn(rng, "recorrer"), _syn(rng, "a_tiempo")
+    tmpls = [
+        f"Tenés que {rec} {dist:.1f} km a {speed:.1f} km/h y llegar {atiempo} en {h:.1f} horas. ¿Llegás? (1=sí, 0=no)",
+        f"Son {dist:.1f} km, vas a {speed:.1f} km/h y el plazo es {h:.1f} horas. ¿Llegás {atiempo}? (1=sí, 0=no)",
+        f"A {speed:.1f} km/h, ¿alcanzás a {rec} {dist:.1f} km en {h:.1f} horas y quedar {atiempo}? (1=sí, 0=no)",
+        f"El viaje es de {dist:.1f} km en {h:.1f} horas como mucho; tu velocidad {speed:.1f} km/h. ¿{atiempo.capitalize()}? (1=sí, 0=no)",
+    ]
+    base["text"] = rng.choice(tmpls) + _maybe_distract(rng, ambiguity)
+    return base
+
+
+# los 4 tipos base que SÍ paraphrasea CYCLE 17 (los que una cadena de un paso resuelve limpio).
+_PARA_GENS = {
+    "split_bill": _para_split_bill,
+    "cheaper_per_kg": _para_cheaper_per_kg,
+    "trips_within_budget": _para_trips_within_budget,
+    "arrive_on_time": _para_arrive_on_time,
+}
+
+
+def gen_paraphrased(n, seed, ambiguity=0.0, types=None):
+    """
+    CYCLE 17 — genera n problemas PARAFRASEADOS balanceados entre los 4 tipos base. Cada problema:
+      - usa los MISMOS params/answer/type que el generador original (verdad-base intacta),
+      - pero su TEXTO se redacta con una de varias plantillas + sinónimos (muchas formas de superficie),
+      - y según `ambiguity` (en [0,1]) inyecta cláusulas DISTRACTORAS con vocabulario COMPARTIDO entre
+        tipos (presupuesto/oferta/plata/kilo...) para que una firma de keywords ingenua los CONFUNDA.
+    El `type` queda en el dict SOLO para evaluación held-out (pureza/ceiling): los routers de texto jamás
+    lo leen. Determinista por `seed`. APARTE de gen_problems -> CYCLE 12–16 corren idénticos.
+    """
+    use = list(types) if types is not None else list(_PARA_GENS.keys())
+    rng = Random(seed)
+    out = []
+    for i in range(n):
+        t = use[i % len(use)]
+        out.append(_PARA_GENS[t](rng, ambiguity))
+    rng.shuffle(out)
+    return out
+
+
 def is_correct(problem, predicted, tol=1e-6):
     """Verificador de verdad-base: float con tolerancia; las decisiones 0/1 son exactas."""
     if predicted is None:
