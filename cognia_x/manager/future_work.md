@@ -143,3 +143,15 @@ pura es el remedio robusto. Genera **[[H-HYB-3]]** (arreglo/carga).
   el enfoque (tarea/verificador) antes de invertir varios ciclos.
 - Si se retoma el híbrido (H-HYB-3): exp016 = híbrido atención-primero vs lineal-primero a d=48, np=16
   (¿es el arreglo?) + un punto a np=8 (¿es la carga?). Barato, decisivo.
+
+## [2026-06-20] CYCLE 29 — F-LEARN-2 abierto: AUTO-MEJORA VERIFICADA funciona (H-LEARN-1 apoyada)
+exp016 (suma byte-level, n=4): verified (auto-generaciones verificado-correctas) es el ÚNICO brazo con
+ganancia neta sobre base (+0.110) en los 4 seeds; gana al control decisivo random_matched (t-pareado=3.22,
+p<0.05) → la CORRECCIÓN del oráculo es el motor (STaR), no el volumen ni el filtrado. Avanza CYCLE 11
+(prevención→habilitación). Verificado adversarialmente (4 lentes) + n=4.
+- **Siguiente (F-LEARN-2 continúa):** (a) tarea verificable MÁS DURA / mayor escala (¿el efecto crece o el
+  modelo satura?); (b) verificador RUIDOSO/PARCIAL (oráculo imperfecto) — ¿hasta qué ruido del verificador
+  sobrevive la auto-mejora? (puente hacia tareas no-aritméticas); (c) verificador chequeable real (código→
+  sandbox `cognia_v3/core/sandbox_tester.py`; hechos→redundancia ≥2 fuentes) en vez del oráculo aritmético;
+  (d) cuota de sintético + ledger de procedencia (origin/generación) para loops largos sin deriva.
+- **Cabos previos abiertos (menores):** H-HYB-3 (arreglo/carga del híbrido, pausado). 

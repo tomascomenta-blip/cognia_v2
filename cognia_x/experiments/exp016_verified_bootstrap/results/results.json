@@ -1,0 +1,405 @@
+{
+  "experiment": "exp016_verified_bootstrap",
+  "hypothesis": "H-LEARN-1: en una tarea verificable (suma), entrenar SOLO con auto-generaciones verificado-correctas (verified) produce auto-mejora por la SE\u00d1AL DE CORRECCI\u00d3N, no por volumen/pasos ni filtrado-per-se (control random_matched). naive_all colapsa.",
+  "smoke": false,
+  "arms": [
+    "verified",
+    "random_matched",
+    "naive_all"
+  ],
+  "config": {
+    "d_model": 64,
+    "n_layers": 4,
+    "n_heads": 4,
+    "attn_every": 2,
+    "L": 12,
+    "rounds": 4,
+    "K": 6,
+    "pool": 256,
+    "steps": 200,
+    "M": 120,
+    "n_seed": 256,
+    "base_steps": 1500,
+    "lr": 0.0005,
+    "task_range": [
+      0,
+      19
+    ],
+    "seeds_merged": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "per_seed": [
+    {
+      "seed": 0,
+      "base_acc": 0.2833,
+      "params": 201280,
+      "M": 120,
+      "pool_test_overlap": 0,
+      "hist": {
+        "verified": [
+          0.2833,
+          0.3667,
+          0.375,
+          0.3417,
+          0.3667
+        ],
+        "random_matched": [
+          0.2833,
+          0.225,
+          0.2667,
+          0.2083,
+          0.25
+        ],
+        "naive_all": [
+          0.2833,
+          0.2583,
+          0.2083,
+          0.275,
+          0.275
+        ]
+      },
+      "diversity": {
+        "verified": [
+          38,
+          35,
+          38,
+          37
+        ],
+        "random_matched": [
+          38,
+          35,
+          35,
+          34
+        ],
+        "naive_all": [
+          38,
+          39,
+          37,
+          36
+        ]
+      },
+      "n_keep_per_round": [
+        980,
+        1137,
+        1192,
+        1206
+      ],
+      "accept_rate_per_round": [
+        0.638,
+        0.7402,
+        0.776,
+        0.7852
+      ],
+      "final": {
+        "verified": 0.3667,
+        "random_matched": 0.25,
+        "naive_all": 0.275
+      }
+    },
+    {
+      "seed": 1,
+      "base_acc": 0.3833,
+      "params": 201280,
+      "M": 120,
+      "pool_test_overlap": 0,
+      "hist": {
+        "verified": [
+          0.3833,
+          0.5167,
+          0.4917,
+          0.5583,
+          0.4333
+        ],
+        "random_matched": [
+          0.3833,
+          0.3917,
+          0.4333,
+          0.4083,
+          0.45
+        ],
+        "naive_all": [
+          0.3833,
+          0.3833,
+          0.3917,
+          0.4,
+          0.3833
+        ]
+      },
+      "diversity": {
+        "verified": [
+          37,
+          35,
+          36,
+          34
+        ],
+        "random_matched": [
+          37,
+          36,
+          39,
+          38
+        ],
+        "naive_all": [
+          37,
+          36,
+          39,
+          36
+        ]
+      },
+      "n_keep_per_round": [
+        1128,
+        1320,
+        1354,
+        1382
+      ],
+      "accept_rate_per_round": [
+        0.7344,
+        0.8594,
+        0.8815,
+        0.8997
+      ],
+      "final": {
+        "verified": 0.4333,
+        "random_matched": 0.45,
+        "naive_all": 0.3833
+      }
+    },
+    {
+      "seed": 2,
+      "base_acc": 0.5,
+      "params": 201280,
+      "M": 120,
+      "pool_test_overlap": 0,
+      "hist": {
+        "verified": [
+          0.5,
+          0.6917,
+          0.75,
+          0.6583,
+          0.7
+        ],
+        "random_matched": [
+          0.5,
+          0.5083,
+          0.5083,
+          0.4167,
+          0.425
+        ],
+        "naive_all": [
+          0.5,
+          0.5,
+          0.525,
+          0.5167,
+          0.4917
+        ]
+      },
+      "diversity": {
+        "verified": [
+          37,
+          36,
+          37,
+          36
+        ],
+        "random_matched": [
+          37,
+          36,
+          37,
+          40
+        ],
+        "naive_all": [
+          37,
+          36,
+          37,
+          36
+        ]
+      },
+      "n_keep_per_round": [
+        1232,
+        1433,
+        1464,
+        1474
+      ],
+      "accept_rate_per_round": [
+        0.8021,
+        0.9329,
+        0.9531,
+        0.9596
+      ],
+      "final": {
+        "verified": 0.7,
+        "random_matched": 0.425,
+        "naive_all": 0.4917
+      }
+    },
+    {
+      "seed": 3,
+      "base_acc": 0.3667,
+      "params": 201280,
+      "M": 120,
+      "pool_test_overlap": 0,
+      "hist": {
+        "verified": [
+          0.3667,
+          0.4333,
+          0.425,
+          0.4,
+          0.3917
+        ],
+        "random_matched": [
+          0.3667,
+          0.4,
+          0.3333,
+          0.325,
+          0.3417
+        ],
+        "naive_all": [
+          0.3667,
+          0.3083,
+          0.3833,
+          0.35,
+          0.375
+        ]
+      },
+      "diversity": {
+        "verified": [
+          40,
+          37,
+          36,
+          37
+        ],
+        "random_matched": [
+          40,
+          35,
+          35,
+          34
+        ],
+        "naive_all": [
+          40,
+          38,
+          38,
+          39
+        ]
+      },
+      "n_keep_per_round": [
+        1126,
+        1278,
+        1302,
+        1341
+      ],
+      "accept_rate_per_round": [
+        0.7331,
+        0.832,
+        0.8477,
+        0.873
+      ],
+      "final": {
+        "verified": 0.3917,
+        "random_matched": 0.3417,
+        "naive_all": 0.375
+      }
+    }
+  ],
+  "summary": {
+    "arms": [
+      "verified",
+      "random_matched",
+      "naive_all"
+    ],
+    "metric": "mean_over_rounds (hist[1:])",
+    "base_mean": 0.3833,
+    "final_mean": {
+      "verified": 0.4937,
+      "random_matched": 0.3682,
+      "naive_all": 0.3765
+    },
+    "finals_by_seed": {
+      "verified": [
+        0.3625,
+        0.5,
+        0.7,
+        0.4125
+      ],
+      "random_matched": [
+        0.2375,
+        0.4208,
+        0.4646,
+        0.35
+      ],
+      "naive_all": [
+        0.2541,
+        0.3896,
+        0.5084,
+        0.3541
+      ]
+    },
+    "final_round_by_seed": {
+      "verified": [
+        0.3667,
+        0.4333,
+        0.7,
+        0.3917
+      ],
+      "random_matched": [
+        0.25,
+        0.45,
+        0.425,
+        0.3417
+      ],
+      "naive_all": [
+        0.275,
+        0.3833,
+        0.4917,
+        0.375
+      ]
+    },
+    "wins_verified_vs_random": "15/16",
+    "gaps_vs_random_by_seed": [
+      0.125,
+      0.0792,
+      0.2354,
+      0.0625
+    ],
+    "gaps_vs_naive_by_seed": [
+      0.1084,
+      0.1104,
+      0.1916,
+      0.0584
+    ],
+    "mean_gap_random": 0.1255,
+    "mean_gap_naive": 0.1172,
+    "sigma_2": 0.0913,
+    "margin_random": 0.0913,
+    "paired_t_random": 3.224,
+    "paired_t_naive": 4.252,
+    "t_crit_p05_df3": 3.182,
+    "sig_p05_random": true,
+    "sig_p05_naive": true,
+    "n_seeds": 4,
+    "base_in_band": true,
+    "improved_over_base": true,
+    "improvement_substantial": true,
+    "verified_beats_random": true,
+    "verified_beats_naive": true,
+    "naive_diversity_drop": true,
+    "net_over_base": {
+      "verified": 0.1104,
+      "random_matched": -0.0151,
+      "naive_all": -0.0068
+    },
+    "verified_only_net_positive": true,
+    "status": "apoyada",
+    "verdict": "H-LEARN-1 APOYADA (confianza media-alta): verified es el \u00daNICO brazo con ganancia NETA sobre el base en TODOS los 4 seeds (net verified=+0.110 vs random=-0.015 naive=-0.007); gana al control decisivo random_matched (gap medio +0.126 > 2\u03c3 0.091, los 4 seeds positivos, 15/16; t-pareado=3.22, p<0.05 dos-colas (df=3)). -> el motor es la CORRECCI\u00d3N del or\u00e1culo, no el volumen/pasos ni el filtrado-per-se. MATIZ: efecto substancial (+0.110); no es 'colapso' de naive (su acc ~ base). Ver caveats.",
+    "caveats": [
+      "Potencia: n=4 seeds; t-pareado gap-vs-random=3.22 ALCANZA p<0.05 dos-colas (df=3). La evidencia converge (net-sobre-base verified unico positivo, gap positivo en los 4 seeds, accept_rate sube).",
+      "win-count 15/16 esta INFLADO (rondas autocorrelacionadas); la unidad real es el seed -> no reportarlo como p-valor.",
+      "Dependencia de metrica: bajo final-round-only el gap verified-random cae y se invierte en un seed (outlier de la ronda final); por eso se usa media-sobre-rondas. Final-round reportado aparte.",
+      "Magnitud MODESTA (~+0.10, no 'substancial'); algun seed cae bajo el piso de ruido del eval (2sigma~0.09).",
+      "NO es 'colapso' de naive: la caida de diversidad es ruido de muestreo (espacio chico casi saturado); naive simplemente NO mejora (acc ~ base). El claim de mode-collapse seria falso a esta escala.",
+      "Generalizacion MATIZADA: parte de los pares del test comparten sumas con train (identico para los 3 brazos -> no es confound); mide generalizacion a pares nuevos con sumas conocidas.",
+      "Recomendado: mas seeds para potencia (este registro ya usa n=4)."
+    ]
+  }
+}

@@ -246,6 +246,32 @@
 
 ---
 
+### H-LEARN-1 (CYCLE 29 — frente F-LEARN-2, status='apoyada')
+- **Enunciado:** en una tarea VERIFICABLE (suma byte-level, oráculo chequeable int(A)+int(B)), entrenar
+  SOLO con las auto-generaciones VERIFICADO-CORRECTAS produce **auto-mejora** por la **señal de corrección**
+  del oráculo — NO por el volumen/pasos ni por el filtrado-per-se (control random_matched). (Tipo STaR /
+  rejection-sampling FT.)
+- **Predicción medible:** verified mejora sobre el base Y supera al control decisivo random_matched (mismo
+  N_keep + mismos pasos, subconjunto ALEATORIO) por > ruido, con signo consistente entre seeds. Refutado si
+  verified ~ random_matched (era filtrar/reducir, no corregir) o no supera al base.
+- **Estado:** **apoyada** (confianza media-alta).
+- **Confianza:** media-alta.
+- **Evidencia a favor:** [[arXiv:2203.14465]] (STaR) + **exp016** (suma byte-level, d=64, test held-out
+  DISJUNTO, **n=4 seeds**): verified es el **ÚNICO** brazo con ganancia neta sobre su base en los 4 seeds
+  (net +0.110; random −0.015, naive −0.007); gap verified−random [+0.125,+0.079,+0.235,+0.063] (4/4
+  positivos), media +0.126, **t-pareado=3.22 → p<0.05 (df=3)**, win-count 15/16; accept_rate sube cada ronda.
+- **Evidencia en contra:** [[arXiv:2305.17493]] (model collapse: self-train SIN filtro degrada — es el
+  brazo naive_all, que aquí NO mejora). El efecto es modesto (+0.11) y a escala tiny.
+- **Veredicto adversarial:** APOYADA. El control decisivo (random_matched) aísla que el motor es la
+  CORRECCIÓN (no volumen/pasos ni filtrado-per-se). Sobrevivió a verificación adversarial de 4 lentes
+  (metric-fishing / leakage / magnitud / colapso). MATIZ: efecto modesto, escala tiny; NO es 'colapso' de
+  naive (su acc ~ base; la caída de diversidad es ruido de muestreo). AVANCE sobre CYCLE 11 (de PREVENIR
+  colapso a HABILITAR auto-mejora en tarea verificable).
+- **Experimento:** exp016_verified_bootstrap (corrido, seeds 0-3, 4 rondas) ✅.
+- **Registro:** marcada por `cognia_x/research/cycles/cycle29_verified_bootstrap.py` vía `mark_supported`.
+
+---
+
 ## Ciclo-1 (workflow de 13 agentes) — hipótesis verificadas adversarialmente (2026-06-17)
 
 24 hipótesis generadas por 6 investigadores con evidencia web; cada una atacada por un

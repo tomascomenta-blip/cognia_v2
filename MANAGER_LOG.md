@@ -3303,3 +3303,20 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - ESTADO: línea de recall consolidada (lineal=estructural, atención=remedio; híbrido frágil a arreglo/carga
   documentado). Frente mayor: F-LEARN-2 (prioridad #2), espera orientación. 5 ciclos esta sesión (24-28).
 - Verificación: suite completa cognia_x; engine verify_no_loss=OK; experimento end-to-end con números reales.
+
+## [2026-06-20] CYCLE 29 — F-LEARN-2: AUTO-MEJORA VERIFICADA (H-LEARN-1 apoyada, n=4) [pivote de frente, ultracode]
+- Pivote del frente de recall (cerrado, CYCLE 22-28) a #2 aprendizaje continuo (F-LEARN-2). Scout: CYCLE 11
+  ya hizo collapse-guard (prevención); el frente nuevo = AUTO-MEJORA verificada (STaR) en tarea verificable.
+- Diseño por WORKFLOW (4 ángulos + literatura + crítica de confounds → spec; el control decisivo oracle_random/
+  random_matched fue su aporte). Implementación + corrida SECUENCIAL por mí (el entrenamiento no se paraleliza).
+- exp016 (suma byte-level, d=64, test held-out DISJUNTO, n=4): verified ÚNICO brazo con net+ sobre base
+  (+0.110) en los 4 seeds; gap verified−random media +0.126 (t-pareado=3.22, p<0.05; win 15/16). H-LEARN-1
+  APOYADA: el motor es la CORRECCIÓN del oráculo, no el volumen ni el filtrado-per-se. Avanza CYCLE 11.
+- VERIFICACIÓN ADVERSARIAL por WORKFLOW (4 lentes, todas holds=true) — clave: me frenó de sobre-afirmar.
+  Descartó un claim falso de "colapso" de naive; marcó el win-count 7/8 como inflado; detectó mi margen
+  perverso (rango-del-gap) y lo reemplacé por t-test pareado estándar; recomendó más seeds → corrí n=4 (p<0.05).
+- Engine cycle29_verified_bootstrap.py: H-LEARN-1 apoyada (DoD), D-LEARN-1 aceptada, techo 'asumido'
+  (requiere oráculo chequeable), verify_no_loss=OK. Test test_cycle29_addition (5 passed).
+- Caveats honestos registrados: efecto modesto (+0.11), escala tiny, métrica media-sobre-rondas (final-round
+  ruidoso), generalización a pares-nuevos-con-sumas-conocidas. Dirección sólida (4 seeds), no ley universal.
+- Verificación: suite completa cognia_x (gate); engine verify_no_loss=OK; experimento end-to-end n=4 con números reales.

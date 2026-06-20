@@ -75,3 +75,30 @@ literatura (Jelassi "Repeat After Me" ICML'24) que el workflow recuperó por una
 - exp003: validar A-001 (CPU memory-bandwidth-bound) + diseñar el experimento del híbrido (H-MEZ-4).
 - Integrar síntesis del ciclo-1 → `architecture.md`.
 - Derivar el primer boceto de arquitectura CPU-first defendible por evidencia.
+
+---
+
+## 7. Hallazgos CYCLE 22-29 (recall + aprendizaje continuo Nivel 2)
+
+### 7.1 Techo de recall del mezclador de estado fijo — ESTRUCTURAL (CYCLE 22-28)
+La línea H-CEIL convergió: el plateau de recall (~0.18) del mezclador lineal entrenado a d≤48 es robusto a
+**6 levers no-atención** (ancho exp010; forma del kernel Taylor + mimetic init exp011; profundidad +
+escala-d + optimizador exp012) Y la atención pura lo cruza (exp013: 0.95) donde el lineal no. → el techo es
+**estructural** (pigeonhole sobre el estado fijo); el remedio del recall a carga alta es **arquitectónico**
+(la atención del híbrido), no de tuning (D-CEIL-1/4). Matiz honesto: el híbrido naive es FRÁGIL — a d chico
+las capas lineales bottleneckean (exp014/015, H-HYB), no recupera robustamente (caveat a D-007). Incluyó una
+autocorrección de diagnóstico (CYCLE 26 'under-training' → CYCLE 27 refutó: era estructural).
+
+### 7.2 Auto-mejora verificada (STaR) — el verificador es el motor (CYCLE 29, F-LEARN-2)
+**H-LEARN-1 (apoyada):** en una tarea VERIFICABLE (suma byte-level, oráculo chequeable), entrenar SOLO con
+las auto-generaciones VERIFICADO-CORRECTAS produce auto-mejora; el control decisivo (random_matched: mismo
+N_keep + mismos pasos, subconjunto ALEATORIO) aísla que el motor es la **señal de corrección** del oráculo,
+no el volumen ni el filtrado-per-se. exp016 (d=64, test held-out disjunto, n=4): verified ÚNICO brazo con
+ganancia neta sobre base (+0.110) en los 4 seeds; gap verified−random media +0.126 (t-pareado=3.22, p<0.05;
+win 15/16). **Avanza CYCLE 11** (de PREVENIR colapso a HABILITAR auto-mejora en tarea verificable). Caveats:
+efecto modesto (+0.11), escala tiny, requiere oráculo chequeable. Verificado adversarialmente (workflow 4 lentes).
+
+### 7.3 Método (meta)
+Ambas líneas pasaron por el Investigation Engine (compuertas DoD, ledger, ceiling, verify_no_loss) y por
+verificación adversarial multi-agente (workflows). El proceso CORRIGIÓ sobre-afirmaciones del propio agente
+(narrativa falsa de 'colapso', estadística inflada, un margen perverso) — la evidencia decide, no la intuición.

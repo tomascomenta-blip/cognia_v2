@@ -37,8 +37,15 @@ La tesis es defendible en dirección; varias constantes ya se midieron en CPU:
 ## F5 — Aprendizaje continuo viable en CPU  ⬜ PENDIENTE
 RAG document-level + LoRA + fusión intra-cuenca, medido (sin olvido catastrófico).
 
-## F6 — Auto-mejora Nivel 1→2 con gates de estabilidad  ⬜ PENDIENTE
+## F6 — Auto-mejora Nivel 1→2 con gates de estabilidad  🟡 EN CURSO
 Observación → recomendaciones, con evaluador verificable + rollback antes de subir de nivel.
+- [x] Nivel 1: aprende sin olvido (CYCLE 8/10: gate por-dominio + replay + examinador no-circular).
+- [x] Anti-colapso (CYCLE 11): verify-before-learn PREVIENE colapso (examinador real + rollback).
+- [x] **Nivel 2 — AUTO-MEJORA verificada (CYCLE 29, H-LEARN-1 apoyada):** en tarea verificable, el modelo
+  aprende de su propia salida VERIFICADO-CORRECTA y MEJORA (STaR); la corrección del oráculo es el motor
+  (control random_matched lo aísla). exp016, n=4, t-pareado p<0.05. Avanza CYCLE 11 (prevención→habilitación).
+- [ ] Verificador RUIDOSO/PARCIAL + verificador chequeable real (código→sandbox; hechos→≥2 fuentes) en vez
+  del oráculo aritmético; cuota de sintético + ledger de procedencia para loops largos (F-LEARN-2 continúa).
 
 > Criterio de avance entre fases: hipótesis clave apoyada por experimento reproducible + 0
 > regresiones + reproducibilidad mantenida.

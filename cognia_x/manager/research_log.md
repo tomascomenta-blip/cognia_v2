@@ -814,3 +814,42 @@ H-HYB-2 `refutada` (mark_refuted, DoD), H-HYB-3 `abierta`, techo 'asumido' (cuel
 - `python -m cognia_x.experiments.exp015_hybrid_dscale.run --steps 6000` → results.json (3 brazos, barrido de d).
 - `python -m cognia_x.research.cycles.cycle28_hybrid_dscale` → CHECK + verify_no_loss=OK.
 - Suite completa de cognia_x como compuerta final.
+
+---
+
+## CYCLE 29 (2026-06-20) — F-LEARN-2: AUTO-MEJORA VERIFICADA (H-LEARN-1 APOYADA, n=4)
+
+### Pregunta (frente F-LEARN-2, aprendizaje continuo Nivel 2)
+CYCLE 11 mostró que verify-before-learn PREVIENE colapso en lenguaje (rechazando todo). H-LEARN-1: en una
+tarea VERIFICABLE, ¿el modelo APRENDE de su propia salida y MEJORA (STaR) si un oráculo chequeable filtra
+las correctas? ¿Y la ganancia es de la CORRECCIÓN o solo de menos/distintos datos?
+
+### Experimento (exp016_verified_bootstrap) — suma byte-level, modelo tiny d=64, test held-out DISJUNTO, n=4 seeds
+3 brazos PAREADOS (mismo base+RNG por seed; cada uno genera de SU red = loop STaR): verified (entrena con
+auto-generaciones VERIFICADO-CORRECTAS), random_matched (CONTROL DECISIVO: mismo N_keep+pasos, subconjunto
+ALEATORIO no por corrección), naive_all (todas, incl. incorrectas). 4 rondas, 200 pasos/ronda, oráculo int(A)+int(B).
+- media-sobre-rondas (acc oráculo held-out): verified=0.494, random_matched=0.368, naive_all=0.377, base=0.358.
+- **net-sobre-base: verified +0.110 (ÚNICO positivo en los 4 seeds); random −0.015, naive −0.007.**
+- gap verified−random por seed [+0.125,+0.079,+0.235,+0.063] (4/4 positivos), media +0.126, **t-pareado=3.22 → p<0.05 (df=3)**, win-count 15/16. accept_rate (correctas/generadas) SUBE cada ronda (bootstrapping).
+
+### Veredicto: H-LEARN-1 APOYADA (confianza media-alta)
+El motor de la auto-mejora es la SEÑAL DE CORRECCIÓN del oráculo — verified es el único brazo que neta
+ganancia; el control que iguala volumen+pasos pero filtra al azar NO mejora. AVANCE sobre CYCLE 11: el
+verificador no solo PREVIENE colapso, HABILITA auto-mejora en tarea verificable (STaR/RFT en el lab CPU).
+
+### Rigor: verificación adversarial (workflow, 4 lentes) + n=4
+El workflow de verificación (metric-fishing / leakage-pairing / magnitud-ruido / colapso) confirmó el núcleo
+PERO me frenó de sobre-afirmar: (a) la métrica media-sobre-rondas sobrevive a 3/4 métricas y el net-sobre-base
+es metric-INDEPENDIENTE; (b) corrigió mi margen perverso (usaba el rango del gap como umbral → un seed fuerte
+EMPEORABA el veredicto; lo reemplacé por t-test pareado estándar); (c) DESCARTÓ una narrativa falsa de
+"colapso" de naive (la caída de diversidad es ruido a esta escala); (d) marcó que el win-count 7/8 era
+estadísticamente inflado (rondas autocorrelacionadas). n=2→n=4 cerró la debilidad de potencia (p<0.05).
+
+### Honestidad (caveats que van al registro)
+Efecto MODESTO (+0.11) a escala tiny (suma 0..19, d=64); requiere oráculo chequeable (no aplica directo a
+tareas no-verificables, donde CYCLE 11 solo previene colapso); generalización a pares nuevos con sumas
+conocidas (idéntico para los 3 brazos, no confound). Dirección sólida y replicada en 4 seeds, no ley universal.
+
+### Verificación (real)
+- exp016 corrido n=4 (seeds 0-3); summary recomputado con t-test pareado. cycle29_verified_bootstrap.py →
+  H-LEARN-1 marcada apoyada (DoD), D-LEARN-1 aceptada, verify_no_loss=OK. Test test_cycle29_addition (5 passed).

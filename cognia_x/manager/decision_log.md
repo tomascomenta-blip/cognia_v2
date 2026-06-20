@@ -182,3 +182,18 @@
   `cognia_x/research/cycles/cycle28_hybrid_dscale.py`. Genera H-HYB-3 (arreglo/carga, pausada).
 - **Reversible:** N/A. NO refuta D-007 (el híbrido a d=64/np=8 sí recuperó, CYCLE 6); lo acota fuerte: el
   híbrido naive es FRÁGIL a arreglo/carga para recall — un hallazgo arquitectónico real para Cognia-X.
+
+## D-LEARN-1 (2026-06-20, CYCLE 29) — Adoptar verify-before-learn como MOTOR de auto-mejora (no solo guarda)
+- **Decisión:** en tareas VERIFICABLES, adoptar verify-before-learn como **motor de AUTO-MEJORA** de
+  Cognia-X (no solo como guarda anti-colapso, CYCLE 11): el modelo aprende de su propia salida
+  VERIFICADO-CORRECTA y mejora (bootstrapping tipo STaR). La señal de corrección del oráculo es la palanca.
+- **Razón:** exp016 (suma byte-level, modelo tiny d=64, test held-out DISJUNTO, **n=4 seeds**): verified
+  es el **ÚNICO** brazo con ganancia neta sobre su base en los 4 seeds (net +0.110); los controles NO
+  (random_matched −0.015, naive_all −0.007). gap verified−random_matched positivo en los 4 seeds (media
+  +0.126, **t-pareado=3.22, p<0.05 df=3**, win-count 15/16). El control decisivo (random_matched: mismo
+  N_keep+pasos, subconjunto ALEATORIO) aísla que el motor es la CORRECCIÓN, no el volumen ni el filtrado-per-se.
+- **Evidencia:** exp016 (tier-5) + [[arXiv:2203.14465]] STaR (tier-1) + [[arXiv:2305.17493]] model-collapse
+  (tier-1). ACEPTADA por el ledger. Verificada por workflow adversarial (4 lentes, todas holds=true).
+- **Caveats (honestos):** efecto MODESTO (+0.11) a escala tiny (suma, d=64); métrica = media-sobre-rondas
+  (el final-round es ruidoso, M=120); NO es 'colapso' de naive (su acc ~ base; la caída de diversidad es
+  ruido de muestreo). Avanza CYCLE 11 (prevención→habilitación). **Reversible:** sí (a otra escala/tarea).
