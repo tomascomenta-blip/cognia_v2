@@ -92,3 +92,19 @@
   alcanza el recall que la atención da). Registrada vía `cognia_x/research/cycles/cycle22_recall_ceiling.py`.
 - **Reversible:** sí; se revisa si un feature-map mejor (mimetic init, arXiv:2410.11135) cerrara la
   brecha entrenada y el estado fijo solo bastara para el recall a carga alta.
+
+## D-CEIL-2 (2026-06-19, CYCLE 23) — Descartar "ensanchar el feature-map ELU+1" (mejora descartada)
+- **Decisión:** **descartar** ensanchar el feature-map ELU+1 como vía para subir el recall del
+  mezclador lineal; **redirigir** el esfuerzo a **kernel Taylor + mimetic init** (H-CEIL-3).
+- **Razón:** exp010 (d=24 fijo, step-parity 6000 steps): ×4 ancho = **16× más estado (576→9216)** NO
+  movió el recall (**mult1=0.181 → mult4=0.181, Δ+0.000**, nulo). El cuello **no es ancho
+  ni tamaño de estado**, sino la **forma del kernel** y la **optimización/init** (Based usa Taylor,
+  arXiv:2402.18668; Trockman usa mimetic init, arXiv:2410.11135).
+- **Evidencia:** exp010 (tier-5, dato propio obtenido) + arXiv:2402.18668 (tier-1). ACEPTADA por el
+  `EvidenceLedger` (funda con tier-5 + tier-1 obtenidas; no lanza `OpinionOnlyError`). Registrada vía
+  `cognia_x/research/cycles/cycle23_feature_dim.py`.
+- **Tipo:** es una **mejora DESCARTADA** registrada explícitamente (la directiva pide documentar lo que
+  NO se persigue y por qué, no solo lo que sí). Continúa/afina D-CEIL-1 (el lineal solo no basta para
+  el recall a carga alta; ahora sabemos que tampoco lo arregla el ancho).
+- **Reversible:** sí; se reabre si un kernel mejor (Taylor) o init mimética levantara el plateau y el
+  estado fijo solo bastara para el recall — exactamente lo que mide H-CEIL-3.

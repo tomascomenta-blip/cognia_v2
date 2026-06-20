@@ -57,3 +57,17 @@ sintéticos. Lo que falta para que sea razonamiento "de verdad":
 - **Paráfrasis natural, no plantillas.** CYCLE 17 usó plantillas+sinónimos; el NB bag-of-words es
   frágil a paráfrasis genuina. Encoder aprendido (no keyword) o el propio LM como clasificador de tipo.
 - **Componer cadenas de largo >2 y descubrir sub-metas** (planificación), no solo secuencias fijas.
+
+## [2026-06-19] Siguiente experimento — H-CEIL-3: kernel Taylor + mimetic init (tras CYCLE 23)
+CYCLE 23 **refutó** que ensanchar el feature-map ELU+1 levante el plateau del recall lineal (exp010:
+16× estado → +0.005, null). El cuello **no es ancho ni tamaño de estado**. La hipótesis siguiente,
+afilada por ese fracaso, es **[[H-CEIL-3]]** (`abierta`): el plateau se levanta con un **KERNEL más
+rico** (feature-map **Taylor/2do orden**, Based arXiv:2402.18668) y/o **mimetic init** (Trockman 2024,
+arXiv:2410.11135), NO con el mero ancho. Experimento propuesto (siguiente del backlog):
+- **exp011 (propuesto)** — a `d=24` FIJO, `n_heads=1`, `n_pairs=16`, seed=0, **steps iguales** a
+  exp010 (6000): comparar el baseline ELU+1 (recall ~0.181) contra (a) un feature-map **Taylor de 2do
+  orden** (kernel de Based) y (b) **mimetic init** estructurada (A~1, Δ~1, WᶜᵀWᵇ~I). Predicción: alguno
+  sube el recall por encima de ~0.18 con steps iguales. **Refutado si** tampoco lo mueven → el plateau
+  sería un techo de optimización más profundo (o realmente de capacidad a esta escala).
+- Decisión que lo respalda: **D-CEIL-2** (descartar el ancho del ELU+1; redirigir a Taylor + mimetic
+  init). 100% CPU, modelo tiny, reproducible — mismo molde acotado que exp009/exp010.

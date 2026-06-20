@@ -106,6 +106,45 @@
 
 ---
 
+### H-CEIL-2 (CYCLE 23 — registrada por el Investigation Engine, status='refutada')
+- **Enunciado:** el plateau del recall lineal entrenado (~0.18, exp009) se levanta **ENSANCHANDO** el
+  feature-map de la atención lineal (lever "feature dimension" de Based).
+- **Predicción medible:** a d fijo, un feature-map más ancho (mult>1) da **mayor** recall entrenado que
+  el baseline ELU+1. **REFUTADO si** el ancho no mueve el recall.
+- **Estado:** **refutada.**
+- **Confianza:** media.
+- **Evidencia a favor:** [[arXiv:2402.18668]] (Based: la dimensión del feature-map es el lever para
+  recorrer la frontera recall-memoria).
+- **Evidencia en contra:** exp010 (d=24 fijo, lineal_puro, step-parity 6000 steps, seed0, chance
+  0.0625): ensanchar el ELU+1 ×4 → estado **576 → 9216 (16× más estado)** y el recall NO sube:
+  **mult1=0.181 vs mult4=0.181 (Δ +0.000; corridas más cortas dieron −0.002..+0.005, todas en el ruido ~0.01)**.
+- **Veredicto adversarial:** REFUTADA para el ANCHO: mult=4 da 16× más estado y el recall casi no se
+  mueve. Esto además **REFUTA** que el plateau sea un límite de tamaño de estado/capacidad cruda, y
+  APUNTA a la **FORMA del feature-map (kernel)** y/o optimización/init: Based usa kernel **Taylor** (no
+  ELU+1 ancho), Trockman usa **mimetic init**. El fracaso afina la pregunta → H-CEIL-3.
+- **Experimento:** exp010_feature_dim (corrido, seed=0, step-parity 6000 steps) ✅.
+- **Registro:** poblada por `cognia_x/research/cycles/cycle23_feature_dim.py` vía
+  `HypothesisRegistry.mark_refuted` (mismo gate DoD que apoyada/mixta — no se debilitó la compuerta).
+
+---
+
+### H-CEIL-3 (CYCLE 23 — generada por el fracaso de H-CEIL-2, status='abierta')
+- **Enunciado:** el plateau del recall lineal se levanta con un **KERNEL más rico** (feature-map
+  Taylor/2do orden, Based) y/o **mimetic init** (Trockman 2024) **a presupuesto de pasos igual** — NO
+  con el mero ancho del ELU+1.
+- **Predicción medible:** un feature-map Taylor (o init mimética) sube el recall lineal entrenado por
+  encima de ~0.18 a d fijo, con steps iguales. **Refutado si** tampoco lo mueve.
+- **Estado:** **abierta** (sin experimento aún → no se marca; el gate DoD solo aplica al dar veredicto).
+- **Confianza:** baja.
+- **Evidencia a favor:** [[arXiv:2402.18668]] (Based usa kernel Taylor de 2do orden, no ELU+1 ancho) +
+  [[arXiv:2410.11135]] (mimetic init desbloquea recall ya presente en SSMs).
+- **Evidencia en contra:** — (ninguna aún; es la hipótesis siguiente, sin experimento corrido).
+- **Veredicto adversarial:** — (pendiente del experimento).
+- **Experimento:** pendiente → kernel Taylor + mimetic init a steps iguales (siguiente del backlog).
+- **Registro:** añadida por `cognia_x/research/cycles/cycle23_feature_dim.py` (`status='abierta'`).
+
+---
+
 ## Ciclo-1 (workflow de 13 agentes) — hipótesis verificadas adversarialmente (2026-06-17)
 
 24 hipótesis generadas por 6 investigadores con evidencia web; cada una atacada por un

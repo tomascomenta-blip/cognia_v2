@@ -1,0 +1,63 @@
+{
+  "experiment": "exp010_feature_dim",
+  "hypothesis": "H-CEIL-2: subir la dimension del feature map de la atencion lineal sube el recall ENTRENADO del lineal a d fijo (el plateau de exp009 es feature-map-limited, no un techo duro). Lever: HybridConfig.linear_feature_mult.",
+  "smoke": false,
+  "seed": 0,
+  "d_model": 24,
+  "n_layers": 4,
+  "n_pairs": 16,
+  "recipe": {
+    "n_heads": 1,
+    "n_vals": 16,
+    "n_queries": 16,
+    "n_keys": 160,
+    "batch": 64,
+    "lr": 0.001
+  },
+  "steps": 6000,
+  "warmup": 250,
+  "early_stop": 0.95,
+  "chance": 0.0625,
+  "mults": [
+    1,
+    4
+  ],
+  "grid": [
+    {
+      "d_model": 24,
+      "linear_feature_mult": 1,
+      "state_size": 576,
+      "config": "lineal_puro",
+      "final_acc": 0.18115234375,
+      "chance": 0.0625,
+      "params": 27864
+    },
+    {
+      "d_model": 24,
+      "linear_feature_mult": 4,
+      "state_size": 9216,
+      "config": "lineal_puro",
+      "final_acc": 0.1814453125,
+      "chance": 0.0625,
+      "params": 46296
+    }
+  ],
+  "summary": {
+    "d_model": 24,
+    "chance": 0.0625,
+    "baseline_mult": 1,
+    "acc_by_mult": {
+      "1": 0.18115234375,
+      "4": 0.1814453125
+    },
+    "baseline_acc": 0.18115234375,
+    "widened_acc": 0.1814453125,
+    "delta": 0.0002929687500000111,
+    "raised": false,
+    "best_mult": 4,
+    "best_acc": 0.1814453125,
+    "all_near_floor": false,
+    "floor_thresh": 0.1125,
+    "headline": "PREDICCION REFUTADA a esta escala: ensanchar el feature map NO sube el recall entrenado sobre el baseline (el plateau ~0.18 no se mueve solo con el ancho). baseline mult=1 recall=0.181; mult=4 recall=0.181; delta(mult4-base)=+0.000."
+  }
+}

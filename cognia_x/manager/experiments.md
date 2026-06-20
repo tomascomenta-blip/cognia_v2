@@ -305,5 +305,48 @@ atención. Convergencia con **Based** (arXiv:2402.18668) por vía independiente.
 
 ---
 
+## exp010 — ¿El plateau del lineal es del ANCHO del feature-map?  ✅ CORRIDO (REFUTA H-CEIL-2)
+
+- **Estado:** completo (2026-06-19, manager CYCLE 23). PyTorch CPU. Registrado a través del
+  Investigation Engine (`cognia_x/research/cycles/cycle23_feature_dim.py`).
+- **Hipótesis:** [[H-CEIL-2]] — subir la dimensión del feature-map de la atención lineal SUBE el recall
+  ENTRENADO del lineal a d fijo (el plateau de exp009 sería feature-map-limited, no un techo duro).
+  Lever: `HybridConfig.linear_feature_mult`. Falsable: REFUTADA si ensanchar NO mueve el recall.
+- **Código:** `cognia_x/experiments/exp010_feature_dim/run.py`
+- **Cómo correr:**
+  `.\venv312\Scripts\python.exe -m cognia_x.experiments.exp010_feature_dim.run`
+- **Método (step-parity, una sola variable):** tarea MQAR. `d_model=24` **FIJO** (donde exp009 satura:
+  lineal_puro=0.183), `n_layers=4`, `n_heads=1`, `n_pairs=16`, `seed=0`, **6000 steps**, chance
+  **0.0625**, misma receta de optim que exp009 (lr=1e-3, batch=64, warmup~250). Única variable =
+  `linear_feature_mult ∈ {1 (baseline ELU+1), 4}`. Con mult>1 cada capa proyecta q,k a `d_head*mult`
+  ANTES del feature-map → estado recurrente `(mult·d_head)²` (n_heads=1). Solo `lineal_puro`
+  (attn_every=0) para aislar el efecto del ancho.
+
+### Resultado (verificado, results.json steps=6000) — H-CEIL-2 REFUTADA
+| feature_mult | estado ≈ (m·d_head)² | lineal_puro acc | Δ vs base | lectura |
+|-------------:|---------------------:|----------------:|----------:|---------|
+| 1 (ELU+1)    |                  576 | **0.181**       | +0.000    | baseline (= plateau de exp009) |
+| 4            |                 9216 | **0.181**       | **+0.000**| 16× estado, recall idéntico → **null** |
+- Ensanchar el feature-map ×4 da **16× más estado (576→9216)** y el recall **no se mueve** (Δ+0.000
+  en la corrida canónica de 6000 steps). **Ni el tamaño de estado ni el ancho** del feature-map mueven el plateau.
+- El plateau ~0.18 es **robusto** entre exp009 (barrido en d) y exp010 (ancho del feature-map a d fijo),
+  y entre corridas (4000 steps dio Δ−0.002; 6000 steps dio Δ+0.000 — el signo baila dentro del ruido ~0.01).
+
+### Amenazas a la validez (honestidad)
+- Semilla única (seed=0), modelo tiny (d=24, 4 capas), tarea sintética, solo 2 puntos de `mult` (1 y 4):
+  el resultado es sobre el **MECANISMO** (el ancho del ELU+1 no es la palanca), no una ley universal.
+- Un null a escala chica NO prueba que Taylor/mimetic SÍ funcionen — eso lo mide H-CEIL-3.
+- **Datos canónicos:** `cognia_x/experiments/exp010_feature_dim/results/results.json` (steps=6000,
+  seed0: mult1=0.181, mult4=0.181, Δ+0.000); `run.log` guarda el historial completo de corridas.
+
+### Conclusión
+**H-CEIL-2 REFUTADA** para el ANCHO. El null refuta DOS cosas: (a) que el plateau sea feature-map-limited
+por el ancho, y (b) que sea un límite de tamaño de estado/capacidad cruda. Lo que queda en pie es la
+**FORMA del kernel** (Based usa Taylor 2do orden, no ELU+1 ancho) y/o **optim/init** (mimetic init,
+Trockman 2024) → genera **H-CEIL-3** (abierta) y la decisión **D-CEIL-2** (descartar el ancho, ir a
+Taylor + mimetic init). El techo "el cuello NO es tamaño de estado" entra al backlog de refutación.
+
+---
+
 > Más fichas (E2 SWA vs full real con GGUF, E4 RAG vs LoRA, E5 peso de embedding en un GGUF real)
 > en `future_work.md`.

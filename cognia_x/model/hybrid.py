@@ -34,6 +34,13 @@ class HybridConfig:
     max_seq_len: int = 512
     tie_embeddings: bool = True
     abs_pos_emb: bool = False   # embeddings de posicion absolutos aprendidos (ademas de RoPE en attn)
+    # Lever de FRONTERA DE RECALL (Arora et al. 2024, "Based", arXiv:2402.18668): la dimension del
+    # FEATURE MAP de la atencion lineal controla cuanto recall asociativo entra en el estado. Con
+    # mult=1 (default) NADA cambia: q,k pasan directo por elu+1 sobre d_head (comportamiento previo).
+    # Con mult>1 se proyectan q,k a d_head*mult ANTES de elu+1 -> feature map mas ancho -> el estado
+    # recurrente crece de d_head^2 a (mult*d_head)^2. Coste por token O(d) -> O(mult*d). Solo afecta
+    # capas LINEALES (la atencion softmax no usa este lever). Ver exp010.
+    linear_feature_mult: int = 1
 
     def __post_init__(self):
         if self.d_ff is None:
@@ -100,20 +107,38 @@ class SwiGLU(nn.Module):
 
 class LinearAttention(nn.Module):
     """Atencion lineal causal multi-cabeza (feature map elu+1). Estado acotado d_head x d_head.
-    Forma paralela O(L^2) para entrenar = identica a la recurrente O(L) de inferencia."""
+    Forma paralela O(L^2) para entrenar = identica a la recurrente O(L) de inferencia.
 
-    def __init__(self, d, n_heads):
+    feature_mult (default 1): dimension del FEATURE MAP por cabeza (lever de frontera de recall,
+    Based/Arora 2024). Con mult==1 NO hay proyeccion extra y el codigo es identico al previo. Con
+    mult>1 se proyecta q,k de d_head a d_head*mult (Linear sin bias) ANTES de elu+1: feature map mas
+    ancho -> el estado recurrente crece de d_head^2 a (mult*d_head)^2 y el coste de la feature por
+    token de O(d_head) a O(mult*d_head). v y la salida o quedan en d_head (no cambia el ancho del
+    residual): solo cambia el ANCHO de q,k que arma el estado clave-valor."""
+
+    def __init__(self, d, n_heads, feature_mult=1):
         super().__init__()
         self.h = n_heads
         self.dh = d // n_heads
+        self.feature_mult = feature_mult
+        self.df = self.dh * feature_mult                  # dimension del feature map por cabeza
         self.qkv = nn.Linear(d, 3 * d, bias=False)
         self.o = nn.Linear(d, d, bias=False)
+        # Proyeccion de feature SOLO si mult>1 (mult==1 -> None -> exacto comportamiento previo).
+        if feature_mult > 1:
+            self.q_proj = nn.Linear(self.dh, self.df, bias=False)
+            self.k_proj = nn.Linear(self.dh, self.df, bias=False)
+        else:
+            self.q_proj = self.k_proj = None
 
     def forward(self, x, cos=None, sin=None):       # cos/sin ignorados (kernel positivo)
         B, L, D = x.shape
         qkv = self.qkv(x).view(B, L, 3, self.h, self.dh).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]           # B,h,L,dh
-        q = F.elu(q) + 1.0
+        if self.q_proj is not None:                # feature map ancho: q,k -> d_head*mult ANTES de elu+1
+            q = self.q_proj(q)
+            k = self.k_proj(k)
+        q = F.elu(q) + 1.0                          # B,h,L,df  (df = dh si mult==1)
         k = F.elu(k) + 1.0
         scores = torch.matmul(q, k.transpose(-1, -2))     # B,h,L,L  (no normalizado)
         mask = torch.tril(torch.ones(L, L, device=x.device, dtype=torch.bool))
@@ -163,7 +188,8 @@ class Block(nn.Module):
         if kind == "attn":
             self.mixer = SlidingWindowAttention(cfg.d_model, cfg.n_heads, cfg.window)
         else:
-            self.mixer = LinearAttention(cfg.d_model, cfg.n_heads)
+            self.mixer = LinearAttention(cfg.d_model, cfg.n_heads,
+                                         feature_mult=getattr(cfg, "linear_feature_mult", 1))
         self.norm2 = RMSNorm(cfg.d_model)
         self.mlp = SwiGLU(cfg.d_model, cfg.d_ff)
 

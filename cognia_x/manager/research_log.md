@@ -527,3 +527,88 @@ prueba nada. Honesto: semilla única, modelo chico, tarea sintética → resulta
   hypotheses 2 (add + transición mixta), ceilings 2, asumidos 1; **verify OK** (exit 0).
 - 20/20 tests de `test_research_engine.py` passan tras añadir `mark_mixta`.
 - Datos del experimento: `cognia_x/experiments/exp009_recall_ceiling/results/results.json`.
+
+---
+
+## 2026-06-19 — CYCLE 23: la palanca del "feature dim" REFUTADA → el cuello es el kernel/init
+
+### Pregunta (heredada del backlog de CYCLE 22)
+CYCLE 22 dejó un **límite ASUMIDO** en el backlog de refutación (`assumed_limits()`): el recall
+ENTRENADO del lineal satura ~0.18, MUY por debajo del d² ideal. La hipótesis de salida era que ese
+plateau era **feature-map-limited** y se levantaba con el lever explícito de Based: la **dimensión
+del feature-map** de la atención lineal. Este ciclo va a por ese ítem asumido y lo PRUEBA.
+
+### Novedad de proceso
+Igual que CYCLE 22, se registra A TRAVÉS del **Investigation Engine**: el script
+`cognia_x/research/cycles/cycle23_feature_dim.py` puebla el store pasando por las compuertas reales
+(ledger anti-opinión, DoD de hipótesis, 7 etapas de analogía, validación de techos, `verify_no_loss`).
+El headline de este ciclo es **una hipótesis EMPÍRICA REFUTADA que genera una más afilada** — el
+fracaso es información, no un callejón.
+
+### Las 2 fuentes tier-1 (papers peer-reviewed, citadas en el engine)
+- **arXiv:2402.18668** — Arora et al. 2024 (**Based**): la **dimensión del feature-map** de la atención
+  lineal es el LEVER para recorrer la frontera de Pareto recall-memoria; Based usa un feature-map de
+  **2do orden (Taylor)**, NO un ELU+1 ancho.
+- **arXiv:2410.11135** — Trockman et al. 2024 (**Mimetic Initialization**): la pobre recall de SSMs en
+  copy/AR puede deberse a **DIFICULTADES DE ENTRENAMIENTO**, no a límites de capacidad fundamentales
+  ("la capacidad existía pero no se accedía por la inicialización"); una init estructurada (A~1, Δ~1,
+  WᶜᵀWᵇ~I) hace que Mamba aprenda recall desde cero mucho más fácil.
+
+### exp010 — ensanchar el feature-map ELU+1 a d FIJO (step-parity, entrenado, CPU)
+Diseño: `d_model=24` FIJO (donde exp009 ya satura: lineal_puro=0.183), `n_layers=4`, `n_heads=1`,
+`n_pairs=16`, `seed=0`, **6000 steps** (misma receta de optim que exp009: lr=1e-3, batch=64,
+warmup~250, chance 0.0625). Única variable = `linear_feature_mult ∈ {1 (baseline ELU+1), 4}`. Con
+mult=4 cada capa proyecta q,k a `d_head*4` ANTES del feature-map → el ESTADO recurrente pasa de
+`24²=576` a `(4·24)²=9216` (**16× más estado**). Lever no-rompiente: `HybridConfig.linear_feature_mult`
+(default 1 = comportamiento previo exacto). Run canónico = corrida step-parity 6000 (HEADLINE
+"PREDICCIÓN REFUTADA") en `cognia_x/experiments/exp010_feature_dim/results/results.json` (steps=6000).
+
+| feature_mult | estado ≈ (m·d_head)² | lineal_puro acc | Δ vs base | lectura |
+|-------------:|---------------------:|----------------:|----------:|---------|
+| 1 (ELU+1)    |                  576 | **0.181**       | +0.000    | baseline (= plateau de exp009) |
+| 4            |                 9216 | **0.181**       | **+0.000**| 16× estado, recall idéntico → **null** |
+
+**Veredicto: PREDICCIÓN REFUTADA.** Ensanchar el feature-map ×4 da 16× más estado y el recall **no
+se mueve** (Δ+0.000 en la corrida canónica de 6000 steps; corridas más cortas dieron −0.002..+0.005,
+todas dentro del ruido ~0.01). Ni el tamaño de estado ni el ancho del feature-map mueven el plateau.
+
+### Por qué el fracaso es información (la pregunta se afila, no se cierra)
+El null **refuta DOS cosas a la vez**:
+1. Que el plateau sea **feature-map-limited por el ANCHO** (la palanca de Based, leída ingenuamente).
+2. Que el plateau sea un límite de **tamaño de estado / capacidad cruda** (16× estado no compra nada).
+Lo que queda en pie como candidato es la **FORMA del kernel** y/o la **optimización/init**: Based no usa
+un ELU+1 ancho sino un kernel **Taylor (2do orden)**; Trockman desbloquea recall ya presente con
+**mimetic init**. De ahí sale la hipótesis siguiente, más afilada que la refutada.
+
+### Hipótesis nueva (generada por el fracaso)
+- **H-CEIL-3** (`abierta`): el plateau del recall lineal se levanta con un **KERNEL más rico**
+  (feature-map Taylor/2do orden, Based) y/o **mimetic init** (Trockman 2024) a presupuesto de pasos
+  igual — NO con el mero ancho del ELU+1. Predicción: Taylor (o init mimética) sube el recall por
+  encima de ~0.18 a d fijo con steps iguales; refutado si tampoco lo mueve. Queda `abierta` (sin
+  experimento aún → no se marca; el gate DoD solo aplica al dar un veredicto).
+
+### Decisión y registro
+- **D-CEIL-2**: **descartar** "ensanchar el feature-map ELU+1" como vía para subir el recall del
+  mezclador lineal; redirigir el esfuerzo a **kernel Taylor + mimetic init** (H-CEIL-3). Es una mejora
+  DESCARTADA registrada explícitamente (como pide la directiva). ACEPTADA por el ledger (cita tier-5
+  exp010 + tier-1 arXiv:2402.18668, obtenidas → funda; sin `OpinionOnlyError`).
+- **H-CEIL-2** (`refutada`): DoD completo (a favor S1=Based; en contra S3=exp010; veredicto adversarial
+  + experiment_ref). Marcada vía `mark_refuted` — el mismo gate DoD que apoyada/mixta, no se debilitó.
+- **Techo (ASUMIDO)** añadido: "el cuello del recall lineal NO es tamaño de estado" — el límite efectivo
+  es la FORMA del kernel (ELU+1 vs Taylor) y/o optim/init. Reemplaza la lectura de CYCLE 22 (que aún
+  sospechaba del ancho) por una más precisa; sigue en el backlog de refutación.
+
+### Honestidad
+Semilla única (seed=0), modelo tiny (d=24, 4 capas), tarea sintética de recall, 2 puntos de `mult`
+(1 y 4): el resultado es sobre el **MECANISMO** (el ancho del ELU+1 no es la palanca), no una ley
+universal. Un null a una escala chica no prueba que Taylor/mimetic SÍ funcionen — eso es exactamente
+lo que mide H-CEIL-3. El plateau ~0.18 es robusto entre exp009 y exp010 (mismo valor, dos diseños).
+
+### Verificación (real, no solo prosa)
+- `python -m cognia_x.research.cycles.cycle23_feature_dim` → todas las CHECK + `verify_no_loss = OK`.
+- `python -m cognia_x.research.cli status/verify` sobre el store del ciclo → sources 3, decisions 1,
+  hypotheses 3 (H-CEIL-2 add + transición refutada + H-CEIL-3 add), ceilings 1, asumidos 1; **verify
+  OK** (exit 0). Re-correr es idempotente (mismos conteos).
+- Datos del experimento: `cognia_x/experiments/exp010_feature_dim/results/results.json` (corrida
+  canónica step-parity 6000, seed0; mult1=0.181, mult4=0.181, Δ+0.000; 576→9216) + `run.log` con el
+  historial completo de corridas (4000 y 6000 steps; todas dentro del ruido ~0.01 → mismo veredicto null).
