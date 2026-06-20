@@ -71,6 +71,7 @@ class VectorCache:
         now = time.time()
         if hasattr(self, '_hash_cache_ts') and (now - self._hash_cache_ts) < 2.0:
             return getattr(self, '_hash_cache_val', 0)
+        conn = None
         try:
             conn = db_connect(self.db_path)
             rows = conn.execute("""
@@ -80,7 +81,6 @@ class VectorCache:
                 ORDER BY id DESC
                 LIMIT 50
             """).fetchall()
-            conn.close()
 
             h = 0
             for ep_id, imp, conf in rows:
@@ -96,6 +96,12 @@ class VectorCache:
             return h
         except Exception:
             return 0
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
     def mark_dirty(self):
         """
@@ -117,6 +123,7 @@ class VectorCache:
         """Must be called with self._lock held."""
         t0 = time.perf_counter()
         cond = "" if include_forgotten else "WHERE forgotten = 0"
+        conn = None
         try:
             conn = db_connect(self.db_path)
             rows = conn.execute(f"""
@@ -125,13 +132,15 @@ class VectorCache:
                        COALESCE(feedback_weight, 1.0)
                 FROM episodic_memory {cond}
             """).fetchall()
-            conn.close()
         except Exception as exc:
             if "no such table" in str(exc):
                 logger.debug("vector_cache.build: tabla aun no inicializada, cache vacio")
             else:
                 log_db_error(logger, "vector_cache.build", exc)
             return
+        finally:
+            if conn is not None:
+                conn.close()
 
         if not rows:
             self._matrix = np.zeros((0, 384), dtype=np.float32)

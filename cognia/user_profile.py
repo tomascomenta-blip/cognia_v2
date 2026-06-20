@@ -384,13 +384,13 @@ class UserProfileManager:
             return self._cache[user_id]
 
         key = f"profile:{user_id}"
+        conn = None
         try:
             from storage.db_pool import db_connect_pooled
             conn = db_connect_pooled(self.db)
             row = conn.execute(
                 "SELECT value FROM user_profile WHERE key=?", (key,)
             ).fetchone()
-            conn.close()
 
             if row and row[0]:
                 data    = json.loads(row[0])
@@ -412,6 +412,9 @@ class UserProfileManager:
             log_db_error(logger, "profile_manager.load", exc,
                          extra_ctx=f"user={user_id}")
             profile = CognitiveProfile(user_id=user_id)
+        finally:
+            if conn is not None:
+                conn.close()
 
         with self._lock:
             self._cache[user_id] = profile
@@ -423,6 +426,7 @@ class UserProfileManager:
         value = json.dumps(profile.to_dict())
         now   = datetime.now().isoformat()
 
+        conn = None
         try:
             from storage.db_pool import db_connect_pooled
             conn = db_connect_pooled(self.db)
@@ -432,7 +436,7 @@ class UserProfileManager:
                 ON CONFLICT(key) DO UPDATE SET value=excluded.value,
                                                updated_at=excluded.updated_at
             """, (key, value, now))
-            conn.close()
+            conn.commit()  # sin esto el INSERT nunca se persiste (pool release usa commit=False)
 
             with self._lock:
                 self._cache[profile.user_id] = profile
@@ -448,15 +452,19 @@ class UserProfileManager:
             log_db_error(logger, "profile_manager.save", exc,
                          extra_ctx=f"user={profile.user_id}")
             return False
+        finally:
+            if conn is not None:
+                conn.close()
 
     def delete(self, user_id: str) -> bool:
         """Elimina el perfil de un usuario."""
         key = f"profile:{user_id}"
+        conn = None
         try:
             from storage.db_pool import db_connect_pooled
             conn = db_connect_pooled(self.db)
             conn.execute("DELETE FROM user_profile WHERE key=?", (key,))
-            conn.close()
+            conn.commit()  # sin esto el DELETE nunca se persiste (pool release usa commit=False)
             with self._lock:
                 self._cache.pop(user_id, None)
             return True
@@ -464,20 +472,26 @@ class UserProfileManager:
             log_db_error(logger, "profile_manager.delete", exc,
                          extra_ctx=f"user={user_id}")
             return False
+        finally:
+            if conn is not None:
+                conn.close()
 
     def list_users(self) -> list[str]:
         """Lista todos los user_id con perfil guardado."""
+        conn = None
         try:
             from storage.db_pool import db_connect_pooled
             conn = db_connect_pooled(self.db)
             rows = conn.execute(
                 "SELECT key FROM user_profile WHERE key LIKE 'profile:%'"
             ).fetchall()
-            conn.close()
             return [r[0].replace("profile:", "") for r in rows]
         except Exception as exc:
             log_db_error(logger, "profile_manager.list_users", exc)
             return []
+        finally:
+            if conn is not None:
+                conn.close()
 
 
 # ══════════════════════════════════════════════════════════════════════

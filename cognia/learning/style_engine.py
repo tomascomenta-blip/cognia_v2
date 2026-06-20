@@ -131,26 +131,30 @@ class StyleEngine:
         value = json.dumps({"user_id": self.user_id, "messages": self._messages[-self.WINDOW:],
                             "word_freq": dict(self._word_freq.most_common(500)), "hint": self._hint.to_dict()})
         now = datetime.datetime.now().isoformat()
+        conn = None
         try:
             from storage.db_pool import db_connect_pooled
             conn = db_connect_pooled(db_path)
             conn.execute("""INSERT INTO user_profile (key, value, updated_at) VALUES (?, ?, ?)
                 ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
             """, (key, value, now))
-            conn.close()
+            conn.commit()  # sin esto el INSERT nunca se persiste (pool release usa commit=False)
             return True
         except Exception as exc:
             logger.warning("StyleEngine.save error: %s", exc)
             return False
+        finally:
+            if conn is not None:
+                conn.close()
 
     @classmethod
     def load(cls, user_id: str, db_path: str) -> "StyleEngine":
         key = f"style_engine:{user_id}"
+        conn = None
         try:
             from storage.db_pool import db_connect_pooled
             conn = db_connect_pooled(db_path)
             row = conn.execute("SELECT value FROM user_profile WHERE key=?", (key,)).fetchone()
-            conn.close()
             if row and row[0]:
                 data   = json.loads(row[0])
                 engine = cls(user_id=user_id)
@@ -160,4 +164,7 @@ class StyleEngine:
                 return engine
         except Exception as exc:
             logger.warning("StyleEngine.load error: %s", exc)
+        finally:
+            if conn is not None:
+                conn.close()
         return cls(user_id=user_id)

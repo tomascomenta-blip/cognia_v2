@@ -101,16 +101,18 @@ class KnowledgeGraph:
     def _ensure_last_accessed_column(self):
         """Add last_accessed column if not present (idempotent migration)."""
         conn = db_connect(self.db)
-        c = conn.cursor()
         try:
-            c.execute(
-                "ALTER TABLE knowledge_graph ADD COLUMN last_accessed REAL DEFAULT 0.0"
-            )
-            conn.commit()
-        except Exception:
-            # Column already exists — ignore
-            pass
-        conn.close()
+            c = conn.cursor()
+            try:
+                c.execute(
+                    "ALTER TABLE knowledge_graph ADD COLUMN last_accessed REAL DEFAULT 0.0"
+                )
+                conn.commit()
+            except Exception:
+                # Column already exists — ignore
+                pass
+        finally:
+            conn.close()
 
     def _get_graph(self):
         if not HAS_NETWORKX:
@@ -118,11 +120,13 @@ class KnowledgeGraph:
         if self._dirty or self._graph is None:
             self._graph = nx.DiGraph()
             conn = db_connect(self.db)
-            c = conn.cursor()
-            c.execute("SELECT subject, predicate, object, weight FROM knowledge_graph")
-            for subj, pred, obj, weight in c.fetchall():
-                self._graph.add_edge(subj, obj, relation=pred, weight=weight)
-            conn.close()
+            try:
+                c = conn.cursor()
+                c.execute("SELECT subject, predicate, object, weight FROM knowledge_graph")
+                for subj, pred, obj, weight in c.fetchall():
+                    self._graph.add_edge(subj, obj, relation=pred, weight=weight)
+            finally:
+                conn.close()
             self._dirty = False
         return self._graph
 
@@ -140,55 +144,59 @@ class KnowledgeGraph:
         obj = obj.lower().strip()
 
         conn = db_connect(self.db)
-        c = conn.cursor()
-        now = datetime.now().isoformat()
-        c.execute("""
-            SELECT id, weight FROM knowledge_graph
-            WHERE subject=? AND predicate=? AND object=?
-        """, (subject, predicate, obj))
-        row = c.fetchone()
-        is_new = row is None
-
-        if row:
-            new_weight = min(3.0, row[1] + weight * 0.3)
-            c.execute("UPDATE knowledge_graph SET weight=? WHERE id=?", (new_weight, row[0]))
-        else:
+        try:
+            c = conn.cursor()
+            now = datetime.now().isoformat()
             c.execute("""
-                INSERT INTO knowledge_graph (subject, predicate, object, weight, source, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (subject, predicate, obj, weight, source, now))
+                SELECT id, weight FROM knowledge_graph
+                WHERE subject=? AND predicate=? AND object=?
+            """, (subject, predicate, obj))
+            row = c.fetchone()
+            is_new = row is None
 
-        conn.commit()
-        conn.close()
+            if row:
+                new_weight = min(3.0, row[1] + weight * 0.3)
+                c.execute("UPDATE knowledge_graph SET weight=? WHERE id=?", (new_weight, row[0]))
+            else:
+                c.execute("""
+                    INSERT INTO knowledge_graph (subject, predicate, object, weight, source, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (subject, predicate, obj, weight, source, now))
+
+            conn.commit()
+        finally:
+            conn.close()
         self._dirty = True
         return is_new
 
     def get_facts(self, concept: str, predicate: str = None) -> list:
         conn = db_connect(self.db)
-        c = conn.cursor()
-        if predicate:
-            c.execute("""
-                SELECT id, subject, predicate, object, weight FROM knowledge_graph
-                WHERE (subject=? OR object=?) AND predicate=?
-                ORDER BY weight DESC LIMIT 20
-            """, (concept, concept, predicate))
-        else:
-            c.execute("""
-                SELECT id, subject, predicate, object, weight FROM knowledge_graph
-                WHERE subject=? OR object=?
-                ORDER BY weight DESC LIMIT 20
-            """, (concept, concept))
-        raw = c.fetchall()
-        if raw:
-            now = time.time()
-            c.executemany(
-                "UPDATE knowledge_graph SET last_accessed=? WHERE id=?",
-                [(now, r[0]) for r in raw],
-            )
-            conn.commit()
-        rows = [{"subject": r[1], "predicate": r[2], "object": r[3], "weight": r[4]}
-                for r in raw]
-        conn.close()
+        try:
+            c = conn.cursor()
+            if predicate:
+                c.execute("""
+                    SELECT id, subject, predicate, object, weight FROM knowledge_graph
+                    WHERE (subject=? OR object=?) AND predicate=?
+                    ORDER BY weight DESC LIMIT 20
+                """, (concept, concept, predicate))
+            else:
+                c.execute("""
+                    SELECT id, subject, predicate, object, weight FROM knowledge_graph
+                    WHERE subject=? OR object=?
+                    ORDER BY weight DESC LIMIT 20
+                """, (concept, concept))
+            raw = c.fetchall()
+            if raw:
+                now = time.time()
+                c.executemany(
+                    "UPDATE knowledge_graph SET last_accessed=? WHERE id=?",
+                    [(now, r[0]) for r in raw],
+                )
+                conn.commit()
+            rows = [{"subject": r[1], "predicate": r[2], "object": r[3], "weight": r[4]}
+                    for r in raw]
+        finally:
+            conn.close()
         return rows
 
     def get_ancestors(self, concept: str, max_depth: int = 4) -> list:
@@ -196,20 +204,22 @@ class KnowledgeGraph:
         current = concept.lower()
         visited = {current}
         conn = db_connect(self.db)
-        c = conn.cursor()
-        for _ in range(max_depth):
-            c.execute("""
-                SELECT object FROM knowledge_graph
-                WHERE subject=? AND predicate='is_a' ORDER BY weight DESC LIMIT 1
-            """, (current,))
-            row = c.fetchone()
-            if not row or row[0] in visited:
-                break
-            parent = row[0]
-            visited.add(parent)
-            ancestors.append(parent)
-            current = parent
-        conn.close()
+        try:
+            c = conn.cursor()
+            for _ in range(max_depth):
+                c.execute("""
+                    SELECT object FROM knowledge_graph
+                    WHERE subject=? AND predicate='is_a' ORDER BY weight DESC LIMIT 1
+                """, (current,))
+                row = c.fetchone()
+                if not row or row[0] in visited:
+                    break
+                parent = row[0]
+                visited.add(parent)
+                ancestors.append(parent)
+                current = parent
+        finally:
+            conn.close()
         return ancestors
 
     def graph_path(self, source: str, target: str) -> Optional[list]:
@@ -223,24 +233,25 @@ class KnowledgeGraph:
 
     def get_neighbors(self, concept: str, predicate: str = None) -> list:
         conn = db_connect(self.db)
-        c = conn.cursor()
-        concept = concept.lower()
-        if predicate:
-            c.execute("""
-                SELECT object, weight FROM knowledge_graph
-                WHERE subject=? AND predicate=? ORDER BY weight DESC LIMIT 10
-            """, (concept, predicate))
-            rows = c.fetchall()
+        try:
+            c = conn.cursor()
+            concept = concept.lower()
+            if predicate:
+                c.execute("""
+                    SELECT object, weight FROM knowledge_graph
+                    WHERE subject=? AND predicate=? ORDER BY weight DESC LIMIT 10
+                """, (concept, predicate))
+                rows = c.fetchall()
+                return [{"concept": r[0], "weight": r[1]} for r in rows]
+            else:
+                c.execute("""
+                    SELECT object, predicate, weight FROM knowledge_graph
+                    WHERE subject=? ORDER BY weight DESC LIMIT 15
+                """, (concept,))
+                rows = c.fetchall()
+                return [{"concept": r[0], "relation": r[1], "weight": r[2]} for r in rows]
+        finally:
             conn.close()
-            return [{"concept": r[0], "weight": r[1]} for r in rows]
-        else:
-            c.execute("""
-                SELECT object, predicate, weight FROM knowledge_graph
-                WHERE subject=? ORDER BY weight DESC LIMIT 15
-            """, (concept,))
-            rows = c.fetchall()
-            conn.close()
-            return [{"concept": r[0], "relation": r[1], "weight": r[2]} for r in rows]
 
     def extract_triples_from_text(self, text: str, label: str) -> List[Tuple[str, str, str]]:
         """Extrae triples simples de texto usando patrones lingüísticos."""
@@ -293,41 +304,45 @@ class KnowledgeGraph:
     def _get_isa_parents(self, concept: str) -> list:
         """Return direct is_a parents of concept (one hop). Updates last_accessed."""
         conn = db_connect(self.db)
-        c = conn.cursor()
-        c.execute(
-            "SELECT id, object FROM knowledge_graph WHERE subject=? AND predicate='is_a' ORDER BY weight DESC",
-            (concept.lower(),),
-        )
-        rows = c.fetchall()
-        if rows:
-            now = time.time()
-            ids = [r[0] for r in rows]
-            c.executemany(
-                "UPDATE knowledge_graph SET last_accessed=? WHERE id=?",
-                [(now, rid) for rid in ids],
+        try:
+            c = conn.cursor()
+            c.execute(
+                "SELECT id, object FROM knowledge_graph WHERE subject=? AND predicate='is_a' ORDER BY weight DESC",
+                (concept.lower(),),
             )
-            conn.commit()
-        conn.close()
+            rows = c.fetchall()
+            if rows:
+                now = time.time()
+                ids = [r[0] for r in rows]
+                c.executemany(
+                    "UPDATE knowledge_graph SET last_accessed=? WHERE id=?",
+                    [(now, rid) for rid in ids],
+                )
+                conn.commit()
+        finally:
+            conn.close()
         return [r[1] for r in rows]
 
     def _get_direct_facts(self, concept: str) -> list:
         """Return non-is_a facts where concept is subject. Updates last_accessed."""
         conn = db_connect(self.db)
-        c = conn.cursor()
-        c.execute(
-            "SELECT id, predicate, object FROM knowledge_graph WHERE subject=? AND predicate != 'is_a' ORDER BY weight DESC LIMIT 10",
-            (concept.lower(),),
-        )
-        rows = c.fetchall()
-        if rows:
-            now = time.time()
-            ids = [r[0] for r in rows]
-            c.executemany(
-                "UPDATE knowledge_graph SET last_accessed=? WHERE id=?",
-                [(now, rid) for rid in ids],
+        try:
+            c = conn.cursor()
+            c.execute(
+                "SELECT id, predicate, object FROM knowledge_graph WHERE subject=? AND predicate != 'is_a' ORDER BY weight DESC LIMIT 10",
+                (concept.lower(),),
             )
-            conn.commit()
-        conn.close()
+            rows = c.fetchall()
+            if rows:
+                now = time.time()
+                ids = [r[0] for r in rows]
+                c.executemany(
+                    "UPDATE knowledge_graph SET last_accessed=? WHERE id=?",
+                    [(now, rid) for rid in ids],
+                )
+                conn.commit()
+        finally:
+            conn.close()
         return [f"{concept} {pred} {obj}" for pred, obj in [(r[1], r[2]) for r in rows]]
 
     def get_inherited_facts(self, concept: str, max_depth: int = 2) -> list:
@@ -351,14 +366,16 @@ class KnowledgeGraph:
 
     def stats(self) -> dict:
         conn = db_connect(self.db)
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM knowledge_graph")
-        total = c.fetchone()[0]
-        c.execute("SELECT predicate, COUNT(*) FROM knowledge_graph GROUP BY predicate ORDER BY COUNT(*) DESC")
-        by_rel = dict(c.fetchall())
-        c.execute("SELECT COUNT(DISTINCT subject) FROM knowledge_graph")
-        nodes = c.fetchone()[0]
-        conn.close()
+        try:
+            c = conn.cursor()
+            c.execute("SELECT COUNT(*) FROM knowledge_graph")
+            total = c.fetchone()[0]
+            c.execute("SELECT predicate, COUNT(*) FROM knowledge_graph GROUP BY predicate ORDER BY COUNT(*) DESC")
+            by_rel = dict(c.fetchall())
+            c.execute("SELECT COUNT(DISTINCT subject) FROM knowledge_graph")
+            nodes = c.fetchone()[0]
+        finally:
+            conn.close()
         return {"total_edges": total, "nodes": nodes, "by_relation": by_rel}
 
     # ── Auto-extraction from text ─────────────────────────────────────
@@ -409,40 +426,46 @@ class KnowledgeGraph:
     def get_all_triples(self, limit: int = 1000) -> list:
         """Return all triples ordered by weight descending."""
         conn = db_connect(self.db)
-        c = conn.cursor()
-        c.execute(
-            "SELECT subject, predicate, object, weight FROM knowledge_graph ORDER BY weight DESC LIMIT ?",
-            (limit,),
-        )
-        rows = c.fetchall()
-        conn.close()
+        try:
+            c = conn.cursor()
+            c.execute(
+                "SELECT subject, predicate, object, weight FROM knowledge_graph ORDER BY weight DESC LIMIT ?",
+                (limit,),
+            )
+            rows = c.fetchall()
+        finally:
+            conn.close()
         return rows
 
     def get_auto_facts_count(self) -> int:
         """Count of auto-extracted triples (source != 'learned' and != 'user')."""
         conn = db_connect(self.db)
-        c = conn.cursor()
-        c.execute(
-            "SELECT COUNT(*) FROM knowledge_graph WHERE source NOT IN ('learned', 'user')"
-        )
-        count = c.fetchone()[0]
-        conn.close()
+        try:
+            c = conn.cursor()
+            c.execute(
+                "SELECT COUNT(*) FROM knowledge_graph WHERE source NOT IN ('learned', 'user')"
+            )
+            count = c.fetchone()[0]
+        finally:
+            conn.close()
         return count
 
     def get_recent_auto_facts(self, limit: int = 10) -> list:
         """Most recently auto-extracted triples with timestamps."""
         conn = db_connect(self.db)
-        c = conn.cursor()
-        c.execute(
-            """SELECT subject, predicate, object, weight, source, timestamp
-               FROM knowledge_graph
-               WHERE source NOT IN ('learned', 'user')
-               ORDER BY timestamp DESC, id DESC
-               LIMIT ?""",
-            (limit,),
-        )
-        rows = c.fetchall()
-        conn.close()
+        try:
+            c = conn.cursor()
+            c.execute(
+                """SELECT subject, predicate, object, weight, source, timestamp
+                   FROM knowledge_graph
+                   WHERE source NOT IN ('learned', 'user')
+                   ORDER BY timestamp DESC, id DESC
+                   LIMIT ?""",
+                (limit,),
+            )
+            rows = c.fetchall()
+        finally:
+            conn.close()
         return [
             {
                 "subject":   r[0],

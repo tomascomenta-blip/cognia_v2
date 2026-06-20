@@ -46,6 +46,7 @@ class EpisodicMemory:
         final_importance = min(3.0, importance + emotion_boost + surprise_boost)
         next_review = self._next_review_date(review_count=0)
 
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
@@ -61,7 +62,6 @@ class EpisodicMemory:
                   next_review, json.dumps(context_tags)))
             ep_id = c.lastrowid
             conn.commit()
-            conn.close()
             # Invalidar cache para que la próxima búsqueda incluya este episodio
             if _USE_FAST_SEARCH:
                 get_vector_cache(self.db).mark_dirty()
@@ -74,6 +74,9 @@ class EpisodicMemory:
             log_db_error(logger, "episodic.store", exc,
                          extra_ctx=f"label={label} obs_len={len(observation)}")
             return -1
+        finally:
+            if conn is not None:
+                conn.close()
 
     def _next_review_date(self, review_count: int) -> str:
         intervals = [1, 3, 7, 14, 30, 60, 120]
@@ -106,6 +109,7 @@ class EpisodicMemory:
                 # fallthrough al método lento
 
         # ── Búsqueda lenta original (fallback o emotion_filter) ────────
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
@@ -122,11 +126,13 @@ class EpisodicMemory:
                 FROM episodic_memory {cond}
             """, params)
             rows = c.fetchall()
-            conn.close()
         except Exception as exc:
             log_db_error(logger, "episodic.retrieve_similar", exc,
                          extra_ctx=f"top_k={top_k} emotion_filter={emotion_filter}")
             return []
+        finally:
+            if conn is not None:
+                conn.close()
 
         scored = []
         for row in rows:
@@ -162,6 +168,7 @@ class EpisodicMemory:
     def _update_access(self, scored: list):
         """Actualiza access_count y last_access para los episodios recuperados."""
         top_ids = [s["id"] for s in scored]
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
@@ -173,12 +180,15 @@ class EpisodicMemory:
                     WHERE id = ?
                 """, (now, ep_id))
             conn.commit()
-            conn.close()
         except Exception as exc:
             log_db_error(logger, "episodic.update_access_count", exc,
                          extra_ctx=f"ep_ids={top_ids[:3]}")
+        finally:
+            if conn is not None:
+                conn.close()
 
     def get_due_for_review(self) -> list:
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
@@ -192,20 +202,22 @@ class EpisodicMemory:
             rows = [{"id": r[0], "observation": r[1], "label": r[2],
                      "confidence": r[3], "review_count": r[4]}
                     for r in c.fetchall()]
-            conn.close()
             return rows
         except Exception as exc:
             log_db_error(logger, "episodic.get_due_for_review", exc)
             return []
+        finally:
+            if conn is not None:
+                conn.close()
 
     def mark_reviewed(self, ep_id: int, correct: bool):
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
             c.execute("SELECT review_count, confidence FROM episodic_memory WHERE id=?", (ep_id,))
             row = c.fetchone()
             if not row:
-                conn.close()
                 logger.warning(
                     "Episodio no encontrado para marcar revisión",
                     extra={"op": "episodic.mark_reviewed", "context": f"ep_id={ep_id}"},
@@ -222,10 +234,12 @@ class EpisodicMemory:
                 WHERE id=?
             """, (new_count, new_conf, next_rev, ep_id))
             conn.commit()
-            conn.close()
         except Exception as exc:
             log_db_error(logger, "episodic.mark_reviewed", exc,
                          extra_ctx=f"ep_id={ep_id} correct={correct}")
+        finally:
+            if conn is not None:
+                conn.close()
 
     def get_in_window(
         self,
@@ -254,6 +268,7 @@ class EpisodicMemory:
             emotion_score, emotion_label, surprise
         Lista vacía si hay error o no hay resultados.
         """
+        conn = None
         try:
             from datetime import timedelta
             center = datetime.fromisoformat(timestamp)
@@ -275,11 +290,13 @@ class EpisodicMemory:
                 LIMIT ?
             """, (ts_min, ts_max, limit))
             rows = c.fetchall()
-            conn.close()
         except Exception as exc:
             log_db_error(logger, "episodic.get_in_window", exc,
                          extra_ctx=f"ts={timestamp} window={window_hours}h")
             return []
+        finally:
+            if conn is not None:
+                conn.close()
 
         result = []
         for row in rows:
@@ -303,17 +320,20 @@ class EpisodicMemory:
         return result
 
     def count(self, include_forgotten: bool = False) -> int:
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
             cond = "" if include_forgotten else "WHERE forgotten = 0"
             c.execute(f"SELECT COUNT(*) FROM episodic_memory {cond}")
             n = c.fetchone()[0]
-            conn.close()
             return n
         except Exception as exc:
             log_db_error(logger, "episodic.count", exc,
                          extra_ctx=f"include_forgotten={include_forgotten}")
             return 0
+        finally:
+            if conn is not None:
+                conn.close()
 
 

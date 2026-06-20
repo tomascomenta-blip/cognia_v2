@@ -5,22 +5,30 @@ CAMBIOS v2 respecto al original:
   - `get_pool()` ahora acepta db_path opcional (usa DB_PATH por defecto)
   - `db_connect_pooled()` es un drop-in replacement de `db_connect()`:
     devuelve una conexión del pool envuelta en un PooledConnection que
-    hace commit+release al llamar a .close(), sin romper el código existente.
+    devuelve la conexión al pool al llamar a .close(), sin romper el código existente.
   - `_PooledConnection` permite usar el patrón antiguo conn/conn.close()
     pero internamente devuelve la conexión al pool en vez de cerrarla.
+
+⚠️  CONTRATO DE COMMIT (NO CONFUNDIR — fue origen de un bug de pérdida de datos):
+    `.close()` NO hace commit. Llama a release(commit=False) para no hacer
+    doble commit. POR ESO, todo path de ESCRITURA debe llamar `conn.commit()`
+    EXPLÍCITAMENTE antes de `conn.close()`. Si no, el INSERT/UPDATE/DELETE se
+    pierde silenciosamente (la txn no se persiste) aunque el método retorne OK.
 
 USO EN MÓDULOS EXISTENTES (cambio mínimo):
     # Antes:
     from ..database import db_connect
     conn = db_connect(self.db)
-    ...
+    conn.execute(...)
+    conn.commit()        # ← imprescindible para escrituras
     conn.close()
 
     # Después (1 línea cambiada):
     from storage.db_pool import db_connect_pooled as db_connect
     conn = db_connect(self.db)
-    ...
-    conn.close()  # hace commit + devuelve al pool, no cierra la conexión física
+    conn.execute(...)
+    conn.commit()        # ← SIGUE siendo imprescindible para escrituras
+    conn.close()  # devuelve al pool (NO hace commit), no cierra la conexión física
 
 USO RECOMENDADO CON CONTEXT MANAGER:
     from storage.db_pool import get_pool
@@ -42,6 +50,19 @@ from typing import Optional
 MAX_CONNS = 5
 _pools: dict = {}
 _pools_lock = threading.Lock()
+
+# Contador de conexiones que el GC tuvo que devolver al pool porque el
+# caller olvidó close() (p.ej. close() solo en la rama de éxito). En
+# condiciones sanas debe quedarse en 0; si crece, señala un call site con la
+# fuga. Se expone en pool_stats() para que el manager/monitor lo vigile.
+_gc_reclaimed_count = 0
+_gc_reclaimed_lock = threading.Lock()
+
+
+def _note_gc_reclaim() -> None:
+    global _gc_reclaimed_count
+    with _gc_reclaimed_lock:
+        _gc_reclaimed_count += 1
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -152,6 +173,30 @@ class _PooledConnection:
             self._closed = True
             self._pool.release(self._conn, commit=False)  # no commit doble
 
+    def __del__(self):
+        # SAFETY NET contra fugas del pool: si un caller olvidó close() (p.ej.
+        # un `return` temprano en una rama de excepción dejó la conexión sin
+        # devolver), la reclamamos en el GC en vez de filtrarla. En CPython el
+        # refcount del local llega a 0 al salir de la función, así que esto
+        # reclama de inmediato y el pool nunca se agota de forma permanente.
+        # Se hace ROLLBACK (nunca commit) porque llegar a __del__ sin cerrar
+        # suele indicar una ruta de error: no persistir trabajo a medias.
+        # __dict__.get evita recursión con __getattr__ si __init__ falló a medias.
+        try:
+            if not self.__dict__.get("_closed", True):
+                self._closed = True
+                try:
+                    self._conn.rollback()
+                except Exception:
+                    pass
+                self._pool.release(self._conn, commit=False)
+                try:
+                    _note_gc_reclaim()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     def __getattr__(self, name):
         return getattr(self._conn, name)
 
@@ -221,8 +266,12 @@ def db_connect_pooled(db_path: str = None) -> _PooledConnection:
 
 
 def pool_stats() -> dict:
-    """Diagnóstico: tamaño y conexiones disponibles en cada pool activo."""
-    stats = {}
+    """Diagnóstico: tamaño y conexiones disponibles en cada pool activo.
+
+    Incluye `gc_reclaimed`: nº de conexiones que el GC tuvo que devolver al pool
+    porque un caller olvidó close(). Debe ser 0; si crece, hay una fuga viva.
+    """
+    stats = {"gc_reclaimed": _gc_reclaimed_count}
     for path, pool in _pools.items():
         stats[path] = {
             "size": pool.size,

@@ -25,6 +25,7 @@ class SemanticMemory:
     def update_concept(self, concept: str, vector: list,
                        description: str = "", confidence_delta: float = 0.1,
                        emotion_score: float = 0.0):
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
@@ -76,12 +77,15 @@ class SemanticMemory:
                 )
 
             conn.commit()
-            conn.close()
         except Exception as exc:
             log_db_error(logger, "semantic.update_concept", exc,
                          extra_ctx=f"concept={concept}")
+        finally:
+            if conn is not None:
+                conn.close()
 
     def add_association(self, concept_a: str, concept_b: str, strength: float = 0.5):
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
@@ -108,12 +112,15 @@ class SemanticMemory:
                     extra={"op": "semantic.add_association",
                            "context": f"concept_a={concept_a} concept_b={concept_b}"},
                 )
-            conn.close()
         except Exception as exc:
             log_db_error(logger, "semantic.add_association", exc,
                          extra_ctx=f"concept_a={concept_a} concept_b={concept_b}")
+        finally:
+            if conn is not None:
+                conn.close()
 
     def spreading_activation(self, concept: str, depth: int = 2) -> list:
+        conn = None
         try:
             visited = {}
             queue   = [(concept, 1.0)]
@@ -151,7 +158,6 @@ class SemanticMemory:
                             )
                 queue = next_queue
 
-            conn.close()
             return [{"concept": k, "activation": v}
                     for k, v in sorted(visited.items(), key=lambda x: -x[1])
                     if k != concept][:8]
@@ -160,18 +166,24 @@ class SemanticMemory:
             log_db_error(logger, "semantic.spreading_activation", exc,
                          extra_ctx=f"concept={concept} depth={depth}")
             return []
+        finally:
+            if conn is not None:
+                conn.close()
 
     def find_related(self, vector: list, top_k: int = 5) -> list:
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
             c.execute("SELECT concept, vector, confidence, emotion_avg FROM semantic_memory")
             rows = c.fetchall()
-            conn.close()
         except Exception as exc:
             log_db_error(logger, "semantic.find_related", exc,
                          extra_ctx=f"top_k={top_k}")
             return []
+        finally:
+            if conn is not None:
+                conn.close()
 
         scored = []
         for concept, vec_str, conf, emo in rows:
@@ -192,13 +204,13 @@ class SemanticMemory:
         return scored[:top_k]
 
     def get_concept(self, concept: str) -> Optional[dict]:
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
             c.execute("SELECT concept, description, vector, confidence, support, emotion_avg "
                       "FROM semantic_memory WHERE concept=?", (concept,))
             row = c.fetchone()
-            conn.close()
             if row:
                 try:
                     return {"concept": row[0], "description": row[1],
@@ -216,8 +228,12 @@ class SemanticMemory:
             log_db_error(logger, "semantic.get_concept", exc,
                          extra_ctx=f"concept={concept}")
             return None
+        finally:
+            if conn is not None:
+                conn.close()
 
     def list_all(self) -> list:
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
@@ -226,14 +242,17 @@ class SemanticMemory:
             rows = [{"concept": r[0], "confidence": r[1],
                      "support": r[2], "emotion_avg": r[3]}
                     for r in c.fetchall()]
-            conn.close()
             return rows
         except Exception as exc:
             log_db_error(logger, "semantic.list_all", exc)
             return []
+        finally:
+            if conn is not None:
+                conn.close()
 
     def get_crystallized(self, min_support: int = 5, min_confidence: float = 0.75) -> list:
         """Return concepts that have been validated enough times to be considered stable knowledge."""
+        conn = None
         try:
             conn = db_connect(self.db)
             c = conn.cursor()
@@ -243,10 +262,12 @@ class SemanticMemory:
                 (min_support, min_confidence)
             )
             rows = c.fetchall()
-            conn.close()
             return [{"concept": r[0], "confidence": r[1], "support": r[2]} for r in rows]
         except Exception:
             return []
+        finally:
+            if conn is not None:
+                conn.close()
 
     def detect_contradiction(self, concept: str, new_label: str, vector: list) -> Optional[dict]:
         existing = self.get_concept(concept)

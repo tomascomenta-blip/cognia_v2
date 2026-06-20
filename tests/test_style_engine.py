@@ -7,15 +7,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Stub out storage.db_pool before importing anything from cognia
-# ---------------------------------------------------------------------------
-_storage = types.ModuleType("storage")
-_db_pool = types.ModuleType("storage.db_pool")
-_db_pool.db_connect_pooled = MagicMock()
-sys.modules.setdefault("storage", _storage)
-sys.modules.setdefault("storage.db_pool", _db_pool)
-
+# NOTE: StyleEngine lazy-imports db_connect_pooled INSIDE its save()/load()
+# methods, so importing it here needs no DB stub. The "DB mocked" tests below
+# patch "storage.db_pool.db_connect_pooled" per-test instead. A previous version
+# injected an INCOMPLETE fake `storage.db_pool` module (only db_connect_pooled)
+# into sys.modules via setdefault; when this file collected before the real
+# module loaded, every later `from storage.db_pool import get_pool` failed with
+# "cannot import name 'get_pool'". Do NOT reintroduce a module-level stub here.
 from cognia.learning.style_engine import StyleHint, StyleEngine  # noqa: E402
 
 

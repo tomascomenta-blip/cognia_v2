@@ -150,30 +150,37 @@ class PersonalIndex:
         key = f"personal_index:{self.user_id}"
         value = json.dumps(self.to_dict())
         now = datetime.datetime.now().isoformat()
+        conn = None
         try:
             from storage.db_pool import db_connect_pooled
             conn = db_connect_pooled(db_path)
             conn.execute("""INSERT INTO user_profile (key, value, updated_at) VALUES (?, ?, ?)
                 ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
             """, (key, value, now))
-            conn.close()
+            conn.commit()  # sin esto el INSERT nunca se persiste (pool release usa commit=False)
             return True
         except Exception as exc:
             logger.warning("PersonalIndex.save error: %s", exc)
             return False
+        finally:
+            if conn is not None:
+                conn.close()
 
     @classmethod
     def load(cls, user_id: str, db_path: str) -> "PersonalIndex":
         key = f"personal_index:{user_id}"
+        conn = None
         try:
             from storage.db_pool import db_connect_pooled
             conn = db_connect_pooled(db_path)
             row = conn.execute("SELECT value FROM user_profile WHERE key=?", (key,)).fetchone()
-            conn.close()
             if row and row[0]:
                 return cls.from_dict(json.loads(row[0]))
         except Exception as exc:
             logger.warning("PersonalIndex.load error: %s", exc)
+        finally:
+            if conn is not None:
+                conn.close()
         return cls(user_id=user_id)
 
     def summary(self) -> dict:
