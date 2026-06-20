@@ -3193,3 +3193,25 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   ASUMIDA-permanente -> CYCLE 23 candidato: ¿mimetic init (arXiv:2410.11135) / mejor feature-map
   sube el recall lineal entrenado hacia d^2? Falsable, directo del backlog.
 - 3 commits pusheados (engine+directiva; ciclo). 0 regresiones. CLAUDE.md/método respetado.
+
+## [2026-06-19] CYCLE 23 — el fracaso es información: H-CEIL-2 REFUTADA (proceso acumulativo en acción)
+- GOAL: atacar el límite ASUMIDO que el engine encoló en CYCLE 22 (el plateau de recall del lineal
+  entrenado ~0.18 << d^2). Directiva v2 + ultracode. Usage 11%->18%.
+- Pregunta falsable (del backlog del engine): ¿ensanchar el feature-map de la atención lineal (el lever
+  de "feature dimension" de Based) sube el recall lineal entrenado? Evidencia tier-1: Trockman 2024
+  mimetic init (arXiv:2410.11135, "la pobre recall es dificultad de ENTRENAMIENTO, no capacidad");
+  Arora 2024 Based (arXiv:2402.18668, usa kernel Taylor, no ELU+1 ancho).
+- exp010 (lever no-rompiente linear_feature_mult en hybrid.py, default 1 = exacto, 25 tests green;
+  d=24 fijo, lineal_puro, step-parity 6000 steps canónicos, seed0, chance 0.0625): ensanchar el ELU+1
+  x4 = 16x más estado (576->9216) NO mueve el recall: mult1=0.181 vs mult4=0.181, delta +0.000
+  (corridas más cortas dieron -0.002..+0.005, todas en el ruido). H-CEIL-2 REFUTADA.
+- El fracaso AFILA la pregunta: el cuello NO es ancho ni tamaño de estado -> es la FORMA del kernel
+  y/o optimización/init. Genera H-CEIL-3 (abierta: Taylor + mimetic init, a steps iguales) -> CYCLE 24.
+- Engine (research/cycles/cycle23_feature_dim.py, reproducible): H-CEIL-2 refutada con DoD completo,
+  H-CEIL-3 abierta, D-CEIL-2 (mejora DESCARTADA, aceptada por el ledger), analogía 7 etapas (agenda
+  fija: el problema no es cuántas páginas sino cómo anotás/buscás), ceiling 'asumido' actualizado.
+  verify_no_loss=OK. Espejo humano en manager/{research_log,hypotheses,decision_log,experiments,future_work}.md.
+- Honestidad de datos: hubo runs concurrentes que dejaron results.json inconsistente; regeneré la
+  corrida canónica 6000-step (sin concurrencia) y alineé TODOS los registros a results.json (+0.000).
+- Lecciones de proceso: (1) diseño de experimento importa (carga vs estado, n_heads=1 para estado d×d
+  limpio); (2) bound de compute con deadline; (3) un solo writer por artefacto. Commit pusheado.
