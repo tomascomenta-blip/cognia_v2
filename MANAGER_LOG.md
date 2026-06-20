@@ -3166,3 +3166,30 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   componer multi-paso (14), escala graduada que rompe el techo perfecto (15), inferir la clase desde
   el texto bajo paráfrasis (16-17), y un encoder que aprende del verificador y le gana al baseline (19-21).
 - Frontier abierto y documentado: full fine-tune, LM real sobre tarea con señal, verificador real, planificación.
+
+## [2026-06-19] CYCLE 22 — Investigation Engine + 1er ciclo REAL (Directiva v2: el PROCESO como código)
+- GOAL: la directiva "Investigación, Aprendizaje y Mejora Continua" — construir un PROCESO de
+  investigación reproducible y acumulativo, no "una IA que funcione". "Mejora ESTE PROMPT y
+  EJECÚTALO". Ultracode ON (xhigh + workflows). Usage 25%->11% (reset 05:00Z).
+- (1) Mejoré el prompt: manager/_directiva_v2.md (imposibilidad con cota nombrada; jerarquía de
+  evidencia ENFORZADA; analogías de 7 etapas; techo físico/diseño/histórico + real/asumido;
+  escalabilidad obligatoria; registro con verify_no_loss) + changelog; puntero v2 en el protocolo.
+- (2) Investigation Engine (cognia_x/research/, stdlib, append-only JSONL) vía WORKFLOW
+  (build -> red-team adversarial -> fix): schema/ledger/hypotheses/analogy/ceiling/record/cli.
+  EXIGE el método: ledger rechaza decisión importante sin fuente tier<=4 o dato propio
+  (OpinionOnlyError); hypotheses exige DoD (predicción+evidencia a favor Y en contra+veredicto
+  adversarial+experimento) antes de cerrar; analogy exige 7 etapas + >=3 soluciones; ceiling
+  clasifica físico/diseño/histórico + real/asumido; record.verify_no_loss (content-hash) detecta
+  pérdida. El red-team encontró y se arregló un bug real (verify era count-based, ciego a delete+add).
+  20/20 tests. CLI status+verify exit 0.
+- (3) 1er ciclo REAL por el engine — techo de recall (H-CEIL-1): evidencia tier-1 (Arora 2024
+  arXiv:2402.18668; Okpekpe&Orvieto 2025 arXiv:2508.19029) + tier-5 (exp002 recall~d^2 + exp009
+  NUEVO). exp009 (d-sweep, n_heads=1, np=16, 6000 steps): recall lineal SUBE con el estado
+  (d8 0.059 -> d24 0.183) y SATURA ~0.18 (<< d^2 ideal); híbrido separa a d=48. Veredicto MIXTO.
+  Persistencia: el 1er diseño (carga baja, estado sin saturar) no separaba -> corregido (no-encontré
+  != no-existe). research/cycles/cycle22_recall_ceiling.py reproduce el ciclo por los gates
+  (verify_no_loss=OK). Espejo humano en research_log/hypotheses/decision_log/experiments.md.
+- Backlog que el engine surfacea (assumed): la capacidad ENTRENADA del feature-map (<< d^2) es
+  ASUMIDA-permanente -> CYCLE 23 candidato: ¿mimetic init (arXiv:2410.11135) / mejor feature-map
+  sube el recall lineal entrenado hacia d^2? Falsable, directo del backlog.
+- 3 commits pusheados (engine+directiva; ciclo). 0 regresiones. CLAUDE.md/método respetado.
