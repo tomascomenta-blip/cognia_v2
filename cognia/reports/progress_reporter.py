@@ -9,7 +9,7 @@ No LLM calls — all data is pulled directly from SQLite via db_pool.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -34,7 +34,7 @@ class ProgressReporter:
         if period_days < 0:
             period_days = 0
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         since = now - timedelta(days=period_days)
 
         lines: list[str] = []
@@ -223,7 +223,7 @@ class ProgressReporter:
         if period_days < 0:
             period_days = 0
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         since = now - timedelta(days=period_days)
         since_ts = int(since.timestamp())
 

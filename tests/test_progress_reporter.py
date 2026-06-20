@@ -7,7 +7,7 @@ Unit tests for ProgressReporter — all external dependencies mocked.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -88,7 +88,7 @@ def test_generate_json_stats_keys():
 
 def test_get_goals_section_returns_markdown():
     reporter = _make_reporter()
-    since = datetime.utcnow() - timedelta(days=7)
+    since = datetime.now(timezone.utc) - timedelta(days=7)
 
     mock_tracker = MagicMock()
     mock_tracker.get_goals.side_effect = lambda uid, status=None: (
@@ -127,7 +127,7 @@ def test_generate_report_zero_days_no_exception():
 
 def test_generate_report_contains_today():
     reporter = _make_reporter()
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     with patch("cognia.reports.progress_reporter.ProgressReporter._get_goals_section", return_value=""), \
          patch("cognia.reports.progress_reporter.ProgressReporter._get_conversation_stats", return_value=""), \
          patch("cognia.reports.progress_reporter.ProgressReporter._get_curiosity_section", return_value=""), \
