@@ -299,6 +299,34 @@
 
 ---
 
+### H-LEARN-3 (CYCLE 31 — frente F-LEARN-2, status='apoyada' núcleo; sub-claim hack NO observado)
+- **Enunciado:** la auto-mejora verificada (H-LEARN-1/2) generaliza de un oráculo de FORMA CERRADA a un
+  **VERIFICADOR CHEQUEABLE REAL** (un sandbox que EJECUTA la expresión generada por el modelo, regla #9).
+  Sub-claim (b): un verificador real DÉBIL (acepta el echo del target) se **reward-hackea**.
+- **Predicción medible:** verified (filtrado por el verificador real) sube real_acc sobre base (todos los
+  seeds) y supera a naive_all (sin filtro); el verificador débil eleva el 'degenerate' (echo). Refutado si
+  verified no mejora o no separa de naive.
+- **Estado:** **apoyada** (núcleo); el sub-claim del hack NO se observó (honesto).
+- **Confianza:** media-alta (efecto grande +0.23, robusto a la métrica, M=90).
+- **Evidencia a favor:** **exp018** (síntesis de expresiones "N=" → "a op b", VERIFICADOR REAL = sandbox que
+  EJECUTA la salida con intérprete propio sin eval(); test held-out DISJUNTO M=90, **n=3 seeds**): verified
+  sube real_acc **+0.230** sobre base (0.437) en los 3 seeds (strong=0.667, weak=0.672) y supera a naive_all
+  (**0.358, que CAE −0.08** = colapso sin filtro) por > margen (2σ=0.105). Robusto a la métrica (media-rondas
+  +0.23 y final-round +0.33 coinciden). + [[arXiv:2203.14465]] (STaR).
+- **Evidencia en contra:** [[arXiv:1606.06565]] (reward hacking) predecía que el verificador DÉBIL sería
+  gameado — **NO ocurrió** a esta escala (verified_weak ≈ verified_strong, degenerate=0 en todas las rondas):
+  el loop de auto-entrenamiento (no-RL) no descubrió el echo; el FP teórico del verificador débil no se
+  explotó. Caveat: tarea de síntesis sembrada con una regla canónica; escala tiny.
+- **Veredicto adversarial:** núcleo APOYADO — la auto-mejora verificada FUNCIONA con un verificador
+  chequeable REAL (ejecuta la salida), no solo con un oráculo de forma cerrada; naive_all (sin verificador)
+  DEGRADA → el verificador es el motor. Verificación INLINE (robusta a la API 529): robusto a la métrica,
+  3/3 seeds positivos, naive negativo. El sub-claim del reward-hack queda como **no observado** (honesto):
+  un verificador débil es gameable EN PRINCIPIO (Amodei 2016) pero un loop no-RL no lo explotó aquí.
+- **Experimento:** exp018_real_verifier (corrido, seeds 0-2, rango [2,300], 4 rondas) ✅.
+- **Registro:** marcada por `cognia_x/research/cycles/cycle31_real_verifier.py` vía `mark_supported`.
+
+---
+
 ## Ciclo-1 (workflow de 13 agentes) — hipótesis verificadas adversarialmente (2026-06-17)
 
 24 hipótesis generadas por 6 investigadores con evidencia web; cada una atacada por un

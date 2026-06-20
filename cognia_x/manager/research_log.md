@@ -890,3 +890,39 @@ el FN (rechazar correctas) solo reduciría datos. Dirección sólida (n=3, robus
 ### Verificación (real)
 - exp017 corrido (seeds 0-2, 5 ε × 4 rondas, n_kept=400 fijo). cycle30_noisy_verifier.py → H-LEARN-2 apoyada
   (DoD), D-LEARN-2 aceptada, techo 'asumido' (presupuesto ε* del verificador), verify_no_loss=OK. Test test_cycle30_noisy.
+
+---
+
+## CYCLE 31 (2026-06-20) — F-LEARN-2: auto-mejora con VERIFICADOR REAL (sandbox) — H-LEARN-3 núcleo APOYADA
+
+### Pregunta
+exp016/017 usaron un ORÁCULO de forma cerrada. ¿La auto-mejora generaliza a un VERIFICADOR CHEQUEABLE REAL
+(que EJECUTA la salida del modelo)? ¿Y un verificador real DÉBIL se reward-hackea?
+
+### Experimento (exp018_real_verifier) — síntesis de expresiones + sandbox ejecutor, n=3 seeds, M=90
+Tarea INVERSA: dado target N (prompt "N="), el modelo genera una EXPRESIÓN que lo iguala (ej "12="->"3*4").
+VERIFICADOR REAL = sandbox que EJECUTA la expresión con intérprete propio (allowlist + gramática acotada,
+SIN eval(); regla #9). DÉBIL: valor==N (acepta el echo "N"); FUERTE: valor==N Y operador. Brazos:
+verified_strong, verified_weak, naive_all. real_acc = frac que el FUERTE acepta en test held-out.
+
+### Veredicto: H-LEARN-3 (núcleo) APOYADA
+verified sube real_acc +0.230 sobre base (0.437) en los 3 seeds (strong 0.667, weak 0.672) y supera a
+naive_all (0.358, que CAE -0.08 = colapso sin filtro) por >2σ (0.105). Robusto a la métrica (media-rondas
++0.23 y final-round +0.33 coinciden). -> la auto-mejora FUNCIONA con un verificador chequeable REAL (ejecuta
+la salida), no solo con un oráculo; el verificador es el motor (naive degrada).
+
+### Sub-claim (reward-hack) NO observado (honesto)
+Amodei 2016 predecía que el verificador DÉBIL sería gameado (echo "N"). NO ocurrió: verified_weak ~=
+verified_strong, degenerate=0 en TODAS las rondas. El loop no-RL no descubrió el shortcut. Lo registro como
+no-observado, no lo fuerzo.
+
+### Honestidad / proceso
+Tarea dura para el modelo tiny: seed aleatorio -> base~0 (sin función aprendible) -> seed determinista (regla
+canónica "1+(N-1)"). Rango [2,40] -> M=12, NULL uninformativo (2σ~0.27). Re-corrí [2,300] (M=90, 2σ~0.10) +
+gramática 3 dígitos para potencia -> resultado limpio. Documenté los nulls intermedios (no los escondí); no
+acepté un null underpowered (ultracode: correcto > rápido). El design-workflow de exp018 falló por API 529.
+
+### Verificación
+exp018 (n=3, M=90). cycle31_real_verifier.py -> H-LEARN-3 apoyada (DoD), D-LEARN-3, techo 'asumido',
+verify_no_loss=OK. Verificación INLINE: robusto a la métrica, 3/3 seeds positivos, naive negativo,
+degenerate=0. Test test_cycle31_sandbox (4 passed; el sandbox no ejecuta código arbitrario).

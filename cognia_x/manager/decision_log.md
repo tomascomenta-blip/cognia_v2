@@ -210,3 +210,16 @@
 - **Evidencia:** exp017 (tier-5) + [[arXiv:2203.14465]] STaR (tier-1). ACEPTADA por el ledger. Verificación
   inline (confound de volumen controlado, robustez a métrica). Registrada vía cycle30_noisy_verifier.py.
 - **Reversible:** sí; ε\* es específico de la tarea/escala tiny — recalibrar para tareas/verificadores reales.
+
+## D-LEARN-3 (2026-06-20, CYCLE 31) — Adoptar verificadores chequeables REALES (sandbox de ejecución)
+- **Decisión:** la auto-mejora verificada puede usar verificadores chequeables REALES (que EJECUTAN la
+  salida del modelo en un sandbox), no solo oráculos de forma cerrada. Generaliza a un verificador real.
+  (Junto con D-LEARN-2: exigir verificadores FUERTES con FP-rate < ε*.)
+- **Razón:** exp018 (síntesis de expresiones, sandbox ejecutor con intérprete propio sin eval(); test
+  held-out DISJUNTO M=90, n=3): verified sube real_acc +0.230 sobre base (0.437) en los 3 seeds (strong
+  0.667, weak 0.672) y supera a naive_all (0.358, que CAE = colapso sin filtro) por >2σ. Robusto a la
+  métrica. El verificador real ES el motor.
+- **Sub-claim reward-hack NO observado:** un verificador real DÉBIL es gameable en principio (Amodei 2016)
+  pero el loop no-RL no descubrió el echo (verified_weak ~ strong, degenerate=0). Honesto: no forzar.
+- **Evidencia:** exp018 (tier-5) + [[arXiv:2203.14465]] STaR + [[arXiv:1606.06565]] reward-hacking (tier-1).
+  ACEPTADA por el ledger. Registrada vía cycle31_real_verifier.py. **Reversible:** sí (escala tiny).

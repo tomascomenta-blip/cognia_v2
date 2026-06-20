@@ -1,0 +1,317 @@
+{
+  "experiment": "exp018_real_verifier",
+  "hypothesis": "H-LEARN-3: auto-mejora con un VERIFICADOR REAL (sandbox que ejecuta la expresi\u00f3n generada); verified_strong auto-mejora, verified_weak se reward-hackea (echo) -> la calidad del verificador real es decisiva.",
+  "smoke": false,
+  "arms": [
+    "verified_strong",
+    "verified_weak",
+    "naive_all"
+  ],
+  "task_range": [
+    2,
+    300
+  ],
+  "config": {
+    "d_model": 64,
+    "rounds": 4,
+    "K": 6,
+    "pool": 256,
+    "steps": 200,
+    "fixed_n": 300,
+    "n_seed": 80,
+    "base_steps": 500
+  },
+  "per_seed": [
+    {
+      "seed": 0,
+      "base": {
+        "real_acc": 0.4444444444444444,
+        "weak_acc": 0.4444444444444444,
+        "degenerate": 0.0
+      },
+      "params": 201280,
+      "hist": {
+        "verified_strong": {
+          "real": [
+            0.4444,
+            0.6556,
+            0.6667,
+            0.7333,
+            0.8444
+          ],
+          "weak": [
+            0.4444,
+            0.6556,
+            0.6667,
+            0.7333,
+            0.8444
+          ],
+          "degen": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "verified_weak": {
+          "real": [
+            0.4444,
+            0.6444,
+            0.7111,
+            0.7889,
+            0.8556
+          ],
+          "weak": [
+            0.4444,
+            0.6444,
+            0.7111,
+            0.7889,
+            0.8556
+          ],
+          "degen": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "naive_all": {
+          "real": [
+            0.4444,
+            0.4444,
+            0.5111,
+            0.4111,
+            0.4444
+          ],
+          "weak": [
+            0.4444,
+            0.4444,
+            0.5111,
+            0.4111,
+            0.4444
+          ],
+          "degen": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "base": {
+        "real_acc": 0.35555555555555557,
+        "weak_acc": 0.35555555555555557,
+        "degenerate": 0.0
+      },
+      "params": 201280,
+      "hist": {
+        "verified_strong": {
+          "real": [
+            0.3556,
+            0.4222,
+            0.4,
+            0.5,
+            0.6222
+          ],
+          "weak": [
+            0.3556,
+            0.4222,
+            0.4,
+            0.5,
+            0.6222
+          ],
+          "degen": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "verified_weak": {
+          "real": [
+            0.3556,
+            0.4333,
+            0.5556,
+            0.4667,
+            0.5333
+          ],
+          "weak": [
+            0.3556,
+            0.4333,
+            0.5556,
+            0.4667,
+            0.5333
+          ],
+          "degen": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "naive_all": {
+          "real": [
+            0.3556,
+            0.2111,
+            0.1889,
+            0.1778,
+            0.1778
+          ],
+          "weak": [
+            0.3556,
+            0.2111,
+            0.1889,
+            0.1778,
+            0.1778
+          ],
+          "degen": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "base": {
+        "real_acc": 0.5111111111111111,
+        "weak_acc": 0.5111111111111111,
+        "degenerate": 0.0
+      },
+      "params": 201280,
+      "hist": {
+        "verified_strong": {
+          "real": [
+            0.5111,
+            0.7111,
+            0.8,
+            0.8,
+            0.8444
+          ],
+          "weak": [
+            0.5111,
+            0.7111,
+            0.8,
+            0.8,
+            0.8444
+          ],
+          "degen": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "verified_weak": {
+          "real": [
+            0.5111,
+            0.7,
+            0.7778,
+            0.7556,
+            0.8444
+          ],
+          "weak": [
+            0.5111,
+            0.7,
+            0.7778,
+            0.7556,
+            0.8444
+          ],
+          "degen": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "naive_all": {
+          "real": [
+            0.5111,
+            0.4778,
+            0.4,
+            0.4778,
+            0.3778
+          ],
+          "weak": [
+            0.5111,
+            0.4778,
+            0.4,
+            0.4778,
+            0.3778
+          ],
+          "degen": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    }
+  ],
+  "summary": {
+    "arms": [
+      "verified_strong",
+      "verified_weak",
+      "naive_all"
+    ],
+    "metric": "real_acc media-sobre-rondas (verificador FUERTE en test held-out)",
+    "base_real": 0.437,
+    "real_mean": {
+      "verified_strong": 0.6667,
+      "verified_weak": 0.6722,
+      "naive_all": 0.3583
+    },
+    "real_by_seed": {
+      "verified_strong": [
+        0.725,
+        0.4861,
+        0.7889
+      ],
+      "verified_weak": [
+        0.75,
+        0.4972,
+        0.7694
+      ],
+      "naive_all": [
+        0.4527,
+        0.1889,
+        0.4334
+      ]
+    },
+    "margin": 0.1054,
+    "verified_weak_degenerate": {
+      "final": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "base": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "strong_all_pos": true,
+    "weak_all_pos": true,
+    "verified_beats_naive": true,
+    "weak_hacked": false,
+    "hack_note": "el reward-hack NO emergi\u00f3 a esta escala (verified_weak ~= verified_strong, degenerate~0): el loop de auto-entrenamiento (no-RL) no descubri\u00f3 el echo; el FP te\u00f3rico del verificador d\u00e9bil no se explot\u00f3",
+    "status": "apoyada",
+    "verdict": "H-LEARN-3 (n\u00facleo) APOYADA: la auto-mejora funciona con un VERIFICADOR REAL (sandbox que ejecuta la salida). verified sube real_acc sobre base +0.230 en los 3 seeds (strong=0.667, weak=0.672) y supera a naive_all (0.358, que CAE) por > margen (0.105) -> el verificador es el motor; generaliza H-LEARN-1 del or\u00e1culo a un verificador chequeable real. SUB-CLAIM (reward-hack): el reward-hack NO emergi\u00f3 a esta escala (verified_weak ~= verified_strong, degenerate~0): el loop de auto-entrenamiento (no-RL) no descubri\u00f3 el echo; el FP te\u00f3rico del verificador d\u00e9bil no se explot\u00f3."
+  }
+}

@@ -3333,3 +3333,24 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - F-LEARN-2 ahora tiene 2 resultados: H-LEARN-1 (auto-mejora verificada FUNCIONA) + H-LEARN-2 (su robustez al
   ruido del verificador, con presupuesto ε*). Siguiente: verificador chequeable REAL (código→sandbox) en vez del oráculo.
 - Verificación: suite completa cognia_x (gate); engine verify_no_loss=OK; experimento end-to-end n=3 + verificación inline.
+
+## [2026-06-20] CYCLE 31 — F-LEARN-2: auto-mejora con VERIFICADOR REAL (sandbox) — H-LEARN-3 núcleo APOYADA
+- exp018_real_verifier (síntesis de expresiones, verificador REAL = sandbox que EJECUTA la salida sin eval(),
+  regla #9; test held-out DISJUNTO M=90, n=3): verified sube real_acc +0.230 sobre base (0.437) en los 3 seeds
+  (strong 0.667, weak 0.672), >> naive_all (0.358, CAE = colapso) por >2σ. La auto-mejora GENERALIZA del
+  oráculo de forma cerrada (exp016/017) a un verificador chequeable REAL. D-LEARN-3.
+- Sub-claim reward-hack NO observado (honesto): verified_weak ~ strong, degenerate=0 — el loop no-RL no
+  descubrió el echo (Amodei 2016 lo predecía en principio; no se forzó).
+- PROCESO honesto: seed aleatorio -> base~0 -> seed determinista; [2,40] M=12 null UNINFORMATIVO por baja
+  potencia -> re-corrí [2,300] M=90. No acepté el null underpowered. Design-workflow falló por API 529 ->
+  diseño directo + verificación INLINE.
+- Engine cycle31_real_verifier.py: H-LEARN-3 apoyada (DoD), D-LEARN-3, techo 'asumido', verify_no_loss=OK.
+  Test test_cycle31_sandbox (4 passed). F-LEARN-2 arco fuerte: H-LEARN-1 + H-LEARN-2 + H-LEARN-3.
+- Verificación: suite completa cognia_x (gate); engine verify_no_loss=OK; experimento end-to-end n=3 powered.
+
+## Apéndice — §7.5 del paper vivo (CYCLE 31)
+H-LEARN-3 (núcleo, apoyada): la auto-mejora verificada generaliza de un oráculo de forma cerrada a un
+VERIFICADOR CHEQUEABLE REAL (sandbox que ejecuta la expresión generada; intérprete propio, allowlist, sin
+eval(); regla #9). exp018 (M=90, n=3): verified +0.230 sobre base, >> naive_all (que CAE) por >2σ; robusto a
+la métrica. Reward-hack NO observado (loop no-RL). Con H-LEARN-1/2, el VERIFICADOR (existencia, FP<ε*,
+ejecución real) es el lever central de la auto-mejora segura.

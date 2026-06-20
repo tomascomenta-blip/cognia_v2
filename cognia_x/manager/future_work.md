@@ -165,3 +165,13 @@ su calidad es lever de 1ra clase). Robusto a la métrica; ε=0 reproduce exp016.
   (b) hechos → redundancia ≥2 fuentes. ¿La auto-mejora sobrevive con un verificador real (cuyo FP-rate efectivo
   hay que medir contra ε*≈0.15)? + cuota de sintético + ledger de procedencia (origin/generación) para loops largos.
 - Cabos previos: H-HYB-3 (arreglo/carga del híbrido, pausado); F-REASON-REAL (envolver el LM real en el router).
+
+## [2026-06-20] CYCLE 31 — H-LEARN-3 (núcleo) APOYADA: auto-mejora con VERIFICADOR REAL (sandbox)
+exp018 (síntesis de expresiones, sandbox ejecutor, M=90, n=3): verified +0.230 sobre base (los 3 seeds), >>
+naive_all (que CAE) por >2σ -> la auto-mejora generaliza del oráculo a un verificador chequeable REAL.
+Reward-hack NO observado (loop no-RL no descubrió el echo). D-LEARN-3.
+- **F-LEARN-2 arco fuerte:** H-LEARN-1 (funciona) + H-LEARN-2 (robustez al ruido, ε*) + H-LEARN-3 (verificador real).
+- **Siguiente:** (a) combinar H-LEARN-2+3: ruido en el verificador REAL (tests parciales) -> ¿emerge el hack
+  con un loop más agresivo (RL-lite/temperatura alta)? (b) cuota de sintético + ledger de procedencia para
+  loops largos; (c) verificador de CÓDIGO real (subprocess+tests con timeout).
+- Cabos previos: H-HYB-3 (híbrido, pausado); F-REASON-REAL (LM real en el router).
