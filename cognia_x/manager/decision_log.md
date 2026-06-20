@@ -139,3 +139,18 @@
 - **Reversible:** sí; se reabriría si a MAYOR escala (d≫48, modelos grandes) el lineal puro cruzara el
   plateau sin atención — pero a la escala del lab el remedio es arquitectónico. **Confirmación pendiente:**
   exp013 (lineal+≥2 atención a d=24) como control positivo end-to-end a esta misma escala.
+
+## D-CEIL-5 (2026-06-20, CYCLE 26) — Control positivo: la atención cruza el plateau (remedio confirmado)
+- **Decisión:** CONFIRMAR end-to-end, a la MISMA escala de la línea H-CEIL, que el remedio del recall a
+  carga alta es **ARQUITECTÓNICO**: la atención pura cruza el plateau ~0.18 que NINGÚN tuning del lineal
+  mueve. Cierra la línea de recall (D-CEIL-1/D-CEIL-4 confirmados directamente).
+- **Razón:** exp013 (d=24, n_pairs=16, seed0, steps=3000 step-parity): **atencion_h4 (pura) = 0.882** vs
+  baseline lineal 0.173 (6 levers refutados en exp010/011/012). Cruce masivo (0.18→0.88), no ruido.
+- **Caveat honesto (H-HYB-1):** el híbrido 50/50 (hibrido_h1=0.181, hibrido_h4=0.180) quedó UNDER-TRAINED
+  a step-parity — trayectoria ASCENDIENTE al cortar el budget (hibrido_h4 subía 0.15→0.19), NO plateau.
+  El híbrido CAN (CYCLE 6: 0.99) pero optimiza más lento a d chico. Diagnóstico antes que hallazgo: no es
+  falla estructural del híbrido, es budget. → H-HYB-1 (abierta).
+- **Evidencia:** exp013 (tier-5) + arXiv:2402.18668 (tier-1). ACEPTADA por el ledger. Registrada vía
+  `cognia_x/research/cycles/cycle26_hybrid_control.py`. El techo del estado fijo queda `real`/estructural
+  con control positivo DIRECTO.
+- **Reversible:** N/A (es una confirmación, no una apuesta). La línea de recall del estado fijo se cierra.

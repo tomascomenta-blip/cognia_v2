@@ -705,3 +705,39 @@ tamaño fijo: ningún tuning la arregla; hace falta otro instrumento = atención
 - `python -m cognia_x.experiments.exp012_depth_scale.run --steps 3000` → results.json (4 brazos).
 - `python -m cognia_x.research.cycles.cycle25_depth_scale` → CHECK + verify_no_loss=OK; asumidos→0.
 - Suite completa de cognia_x como compuerta final.
+
+---
+
+## CYCLE 26 (2026-06-20) — control POSITIVO: la atención cruza el plateau (línea de recall cerrada)
+
+### Pregunta
+Control positivo de la línea H-CEIL: ¿la ATENCIÓN cruza el plateau ~0.18 (6 levers lineales refutados) a
+la MISMA escala (d=24, n_pairs=16, steps=3000)? → conclusión autocontenida, no solo "por eliminación".
+
+### Experimento (exp013_hybrid_control) — 4 brazos, d=24, seed0, steps=3000 step-parity
+- `lineal_h1` (baseline) = 0.173 (plateau).
+- `hibrido_h1` (2 attn, h=1) = 0.181 ; `hibrido_h4` (2 attn, h=4) = 0.180 — **todavía ASCENDIENTE** al
+  cortar el budget (hibrido_h4: 0.06→0.105→0.152→0.190; trayectoria de subida, NO plateau).
+- `atencion_h4` (atención PURA) = **0.882** → cruzó a 0.85+ hacia el paso ~2100.
+
+### Veredicto: control positivo CONFIRMADO + matiz honesto
+La atención PURA cruza masivamente el plateau (0.18→0.88) que NINGÚN tuning del lineal movió → el remedio
+del recall es ARQUITECTÓNICO, confirmado end-to-end a la escala de la línea H-CEIL (D-CEIL-1/4 directos).
+**Diagnóstico antes que hallazgo:** el híbrido 50/50 NO "falla" — estaba SUBIENDO cuando se acabó el
+budget (under-trained), no plateau. El híbrido CAN (CYCLE 6: 0.99 con la receta adecuada) pero optimiza
+más LENTO a d chico (las capas lineales endurecen el landscape). → genera **H-HYB-1** (abierta).
+
+### Engine (research/cycles/cycle26_hybrid_control.py)
+DERIVA de exp013/results.json. H-HYB-1 añadida (abierta), techo `real` re-afirmado con control positivo
+DIRECTO, D-CEIL-5 aceptada (tier5 exp013 + tier1 Based), analogía 7 etapas. verify_no_loss=OK.
+
+### Honestidad
+- El número final del híbrido (0.18) ENGAÑA si no se lee la trayectoria: subía. Lección de proceso (ya en
+  la directiva v3 §4.2: sub-recursos disfrazados de techo). Por eso H-HYB-1 es 'abierta' (optimización),
+  no una refutación del híbrido. La atención pura (0.88) es la evidencia decisiva del control positivo.
+- Escala tiny (d=24). La conclusión (atención = remedio del recall) es robusta: cruce 5× sobre el plateau.
+
+### Verificación (real)
+- `python -m cognia_x.experiments.exp013_hybrid_control.run --steps 3000` → results.json (4 brazos).
+- `python -m cognia_x.research.cycles.cycle26_hybrid_control` → CHECK + verify_no_loss=OK.
+- Suite completa de cognia_x como compuerta final.

@@ -3258,3 +3258,17 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   es #2 aprendizaje continuo → F-LEARN-2 (verificar-antes-de-aprender, anti-colapso). exp013 (híbrido
   mínimo) queda como confirmación opcional no-bloqueante.
 - Verificación: suite completa cognia_x; engine verify_no_loss=OK; experimento end-to-end con números reales.
+
+## [2026-06-20] CYCLE 26 — control POSITIVO: la atención cruza el plateau (línea de recall CERRADA)
+- Continuación autónoma. exp013_hybrid_control (d=24, n_pairs=16, seed0, steps=3000 step-parity): atención
+  PURA = 0.882 (cruza masivamente el plateau ~0.18 que 6 levers lineales no movieron) → el remedio del
+  recall es ARQUITECTÓNICO, confirmado end-to-end a la escala de la línea H-CEIL. D-CEIL-1/4 confirmados.
+- MATIZ HONESTO (diagnóstico antes que hallazgo): el híbrido 50/50 (0.18) quedó UNDER-TRAINED — trayectoria
+  ASCENDIENTE al cortar el budget (hibrido_h4 subía 0.15→0.19), NO plateau. El híbrido CAN (CYCLE 6: 0.99)
+  pero optimiza más lento a d chico → H-HYB-1 (abierta: el híbrido es optimization-harder que atención pura).
+- Engine cycle26_hybrid_control.py: H-HYB-1 abierta, techo 'real' con control positivo directo, D-CEIL-5
+  aceptada, verify_no_loss=OK. Mirror humano: hypotheses/decision_log/future_work/research_log actualizados.
+- ESTADO: la línea de recall (H-CEIL, CYCLE 22-26) está CERRADA — techo estructural confirmado por
+  refutación (6 levers) Y por control positivo (atención cruza). Queda H-HYB-1 (menor) como follow-up.
+  Pivote a #2 aprendizaje continuo (F-LEARN-2) sigue siendo el siguiente frente mayor por prioridad.
+- Verificación: suite completa cognia_x; engine verify_no_loss=OK; experimento end-to-end real.

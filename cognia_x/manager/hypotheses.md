@@ -186,6 +186,26 @@
 
 ---
 
+### H-HYB-1 (CYCLE 26 — generada por el control positivo exp013, status='abierta')
+- **Enunciado:** a d chico (24), el recall del **HÍBRIDO** (mayoría lineal + pocas capas de atención) es
+  más **DURO de optimizar** que la atención pura: aprende recall **más lento** (las capas lineales
+  endurecen el landscape), aunque es representable (CYCLE 6 lo llevó a 0.99 con la receta/budget adecuados).
+- **Predicción medible:** con más steps (o mejor receta/proporción de atención), el híbrido a d=24 cierra
+  la brecha con la atención pura (0.882) por encima del plateau ~0.18. **Refutado si** más budget NO sube
+  el híbrido (sería una falla estructural del interleaving, no de optimización).
+- **Estado:** **abierta** (sin experimento de más-budget aún).
+- **Confianza:** baja.
+- **Evidencia a favor:** **exp013** (d=24, steps=3000 step-parity): atención pura=**0.882** (cruza), pero
+  hibrido_h1=0.181 / hibrido_h4=0.180 **todavía ASCENDIENTE al cortar el budget** (hibrido_h4: 0.06→0.105
+  →0.152→0.190, trayectoria de subida, NO plateau) → under-trained, no falla. + CYCLE 6 (el híbrido CAN: 0.99).
+- **Evidencia en contra:** — (ninguna aún; sin experimento de más-budget corrido).
+- **Veredicto adversarial:** — (pendiente; diagnóstico: leer la trayectoria, no solo el número final — el
+  híbrido subía cuando se acabó el budget → es optimización, no estructura).
+- **Experimento:** pendiente → híbrido a d=24 con más steps / distinta proporción de atención.
+- **Registro:** añadida por `cognia_x/research/cycles/cycle26_hybrid_control.py` (`status='abierta'`).
+
+---
+
 ## Ciclo-1 (workflow de 13 agentes) — hipótesis verificadas adversarialmente (2026-06-17)
 
 24 hipótesis generadas por 6 investigadores con evidencia web; cada una atacada por un

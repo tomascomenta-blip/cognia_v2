@@ -107,3 +107,13 @@ Aprendizaje continuo → F-LEARN-2 (Nivel 2: verificar-antes-de-aprender, anti-c
   colapso vs guard) — ya esbozado en un future_work previo.
 - Alternativa de menor prioridad pero barata: F-REASON-REAL (envolver el LM real en el router de
   meta-razonamiento) — el pilar 5 está validado solo sobre solvers sintéticos.
+
+## [2026-06-20] CYCLE 26 — control positivo CONFIRMADO: línea de recall CERRADA
+exp013: atención pura = **0.882** cruza el plateau ~0.18 (6 levers lineales refutados) a la MISMA escala →
+el remedio del recall es ARQUITECTÓNICO, confirmado directamente (no solo por eliminación). D-CEIL-5.
+- **Matiz (H-HYB-1, abierta, menor):** el híbrido 50/50 quedó under-trained a 3000 steps (ASCENDIENTE, no
+  plateau). El híbrido CAN (CYCLE 6: 0.99) pero optimiza más lento a d chico. Follow-up barato: híbrido a
+  d=24 con más steps / más proporción de atención (¿cierra la brecha con la atención pura?).
+- **Línea H-CEIL (CYCLE 22-26): CERRADA.** Techo del estado fijo = estructural (refutación de 6 levers +
+  control positivo). El siguiente frente MAYOR por prioridad (directiva v3 §1) sigue siendo **#2 F-LEARN-2**
+  (aprendizaje continuo Nivel 2: verificar-antes-de-aprender, anti-colapso).

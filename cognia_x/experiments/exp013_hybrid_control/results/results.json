@@ -1,0 +1,80 @@
+{
+  "experiment": "exp013_hybrid_control",
+  "hypothesis": "Control positivo de la linea H-CEIL: anadir ATENCION cruza el plateau ~0.18 del lineal puro (6 levers refutados) a d=24 -> el remedio del recall es arquitectonico.",
+  "smoke": false,
+  "seed": 0,
+  "d_model": 24,
+  "n_layers": 4,
+  "n_pairs": 16,
+  "recipe": {
+    "n_vals": 16,
+    "n_queries": 16,
+    "n_keys": 160,
+    "batch": 64,
+    "lr": 0.001
+  },
+  "steps": 3000,
+  "warmup": 250,
+  "early_stop": 0.95,
+  "chance": 0.0625,
+  "cross_thresh": 0.3,
+  "grid": [
+    {
+      "name": "lineal_h1",
+      "attn_every": 0,
+      "n_heads": 1,
+      "note": "BASELINE lineal puro (~0.173)",
+      "final_acc": 0.17333984375,
+      "chance": 0.0625,
+      "params": 27864
+    },
+    {
+      "name": "hibrido_h1",
+      "attn_every": 2,
+      "n_heads": 1,
+      "note": "2 capas atencion, h=1",
+      "final_acc": 0.18056640625,
+      "chance": 0.0625,
+      "params": 27864
+    },
+    {
+      "name": "hibrido_h4",
+      "attn_every": 2,
+      "n_heads": 4,
+      "note": "2 capas atencion, h=4 (receta CYCLE 6)",
+      "final_acc": 0.17998046875,
+      "chance": 0.0625,
+      "params": 27864
+    },
+    {
+      "name": "atencion_h4",
+      "attn_every": 1,
+      "n_heads": 4,
+      "note": "atencion pura, h=4 (cota superior)",
+      "final_acc": 0.8822265625,
+      "chance": 0.0625,
+      "params": 27864
+    }
+  ],
+  "summary": {
+    "chance": 0.0625,
+    "baseline": "lineal_h1",
+    "baseline_acc": 0.17333984375,
+    "acc_by_name": {
+      "lineal_h1": 0.17333984375,
+      "hibrido_h1": 0.18056640625,
+      "hibrido_h4": 0.17998046875,
+      "atencion_h4": 0.8822265625
+    },
+    "cross_thresh": 0.3,
+    "crossers": [
+      "atencion_h4"
+    ],
+    "best_attn": [
+      "atencion_h4",
+      0.8822265625
+    ],
+    "headline": "CONTROL POSITIVO CONFIRMADO: la ATENCION cruza el plateau ~0.18 del lineal puro (atencion_h4 alcanza(n) recall >= 0.3) -> el remedio del recall es arquitectonico (atencion), como concluyo CYCLE 25. Mejor: atencion_h4=0.882.",
+    "headline_full": "CONTROL POSITIVO CONFIRMADO: la ATENCION cruza el plateau ~0.18 del lineal puro (atencion_h4 alcanza(n) recall >= 0.3) -> el remedio del recall es arquitectonico (atencion), como concluyo CYCLE 25. Mejor: atencion_h4=0.882. lineal_h1=0.173; hibrido_h1=0.181; hibrido_h4=0.180; atencion_h4=0.882."
+  }
+}
