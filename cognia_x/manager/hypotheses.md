@@ -128,20 +128,53 @@
 
 ---
 
-### H-CEIL-3 (CYCLE 23 — generada por el fracaso de H-CEIL-2, status='abierta')
+### H-CEIL-3 (CYCLE 23 generó → CYCLE 24 REFUTÓ, status='refutada')
 - **Enunciado:** el plateau del recall lineal se levanta con un **KERNEL más rico** (feature-map
   Taylor/2do orden, Based) y/o **mimetic init** (Trockman 2024) **a presupuesto de pasos igual** — NO
   con el mero ancho del ELU+1.
 - **Predicción medible:** un feature-map Taylor (o init mimética) sube el recall lineal entrenado por
   encima de ~0.18 a d fijo, con steps iguales. **Refutado si** tampoco lo mueve.
-- **Estado:** **abierta** (sin experimento aún → no se marca; el gate DoD solo aplica al dar veredicto).
+- **Estado:** **refutada** (CYCLE 24).
+- **Confianza:** media.
+- **Evidencia a favor:** [[arXiv:2402.18668]] (Based: el kernel Taylor 2do orden es el más efectivo en
+  recall MQAR) + [[arXiv:2410.11135]] (mimetic init desbloquea recall ya presente en SSMs). La
+  literatura PREDECÍA que ayudaría — y NO se cumplió a esta escala.
+- **Evidencia en contra:** **exp011** (d=24 fijo, n_heads=1, n_pairs=16, seed0, steps=3000 step-parity,
+  chance 0.0625, params idénticos en los brazos sin proyección): baseline ELU+1=**0.173**;
+  **taylor=0.160 (Δ −0.013, por DEBAJO del baseline)**; elu_matched (dim 336 ≈ dim 325 de Taylor,
+  control de TAMAÑO)=0.181 (Δ +0.008, ruido); **mimetic=0.183 (Δ +0.0098, < umbral 0.02 → ruido)**.
+  taylor_vs_matched = −0.021 (el Taylor quedó por debajo del ELU de su misma dim).
+- **Veredicto adversarial:** REFUTADA a esta escala para AMBOS levers. La FORMA del kernel (Taylor) no
+  solo no levanta el plateau — lo baja levemente, y queda por debajo del ELU+1 size-matched (el
+  control aísla forma de tamaño: no es que falte estado). La INIT mimética da el mayor Δ positivo
+  (+0.0098) pero NO cruza el umbral de ruido. Junto con exp010 (ancho refutado), el plateau ~0.18 del
+  lineal puro a d=24 es robusto a **ancho, forma e init** → el cuello es más profundo (no del
+  feature-map). El fracaso afina la pregunta → **H-CEIL-4**.
+- **Experimento:** exp011_kernel_init (corrido, seed=0, steps=3000 step-parity) ✅.
+- **Registro:** marcada por `cognia_x/research/cycles/cycle24_kernel_init.py` vía
+  `HypothesisRegistry.mark_refuted` (mismo gate DoD; el ciclo DERIVA el veredicto de results.json).
+  Corroboración independiente: un agente paralelo reprodujo el null de Taylor (elu=0.173 vs taylor=0.166)
+  en `cognia_x/experiments/exp011_taylor_kernel/` (2 brazos, sin control de tamaño ni init).
+
+---
+
+### H-CEIL-4 (CYCLE 24 — generada por el fracaso de H-CEIL-3, status='abierta')
+- **Enunciado:** si ni el ancho (exp010) ni la forma del kernel ni la init (exp011) levantan el plateau
+  a esta escala tiny, el cuello del recall lineal entrenado a d=24 es de **PROFUNDIDAD/ESCALA** u
+  **OPTIMIZADOR** — o requiere la capa de **ATENCIÓN del híbrido** (no se resuelve con un mezclador de
+  estado fijo a d=24).
+- **Predicción medible:** subir profundidad/d/steps, o cambiar el optimizador, o añadir 1 capa de
+  atención (híbrido) sube el recall por encima de ~0.18 donde el lineal puro a d=24 no puede.
+  **Refutado si** tampoco.
+- **Estado:** **abierta** (sin experimento aún; el gate DoD solo aplica al dar veredicto).
 - **Confianza:** baja.
-- **Evidencia a favor:** [[arXiv:2402.18668]] (Based usa kernel Taylor de 2do orden, no ELU+1 ancho) +
-  [[arXiv:2410.11135]] (mimetic init desbloquea recall ya presente en SSMs).
-- **Evidencia en contra:** — (ninguna aún; es la hipótesis siguiente, sin experimento corrido).
+- **Evidencia a favor:** [[arXiv:2508.19029]] (Okpekpe & Orvieto 2025: gran parte de la brecha de
+  recall es de OPTIMIZACIÓN) + exp009 (el híbrido SÍ separa a d=48: 0.292 vs 0.181) + [[arXiv:2402.18668]]
+  (la frontera recall↔memoria se cruza con atención, no con el estado fijo solo).
+- **Evidencia en contra:** — (ninguna aún; hipótesis siguiente, sin experimento corrido).
 - **Veredicto adversarial:** — (pendiente del experimento).
-- **Experimento:** pendiente → kernel Taylor + mimetic init a steps iguales (siguiente del backlog).
-- **Registro:** añadida por `cognia_x/research/cycles/cycle23_feature_dim.py` (`status='abierta'`).
+- **Experimento:** pendiente → barrer profundidad/d/steps/optimizador, o 1 capa de atención, a d=24.
+- **Registro:** añadida por `cognia_x/research/cycles/cycle24_kernel_init.py` (`status='abierta'`).
 
 ---
 

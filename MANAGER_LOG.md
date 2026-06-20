@@ -3215,3 +3215,30 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   corrida canónica 6000-step (sin concurrencia) y alineé TODOS los registros a results.json (+0.000).
 - Lecciones de proceso: (1) diseño de experimento importa (carga vs estado, n_heads=1 para estado d×d
   limpio); (2) bound de compute con deadline; (3) un solo writer por artefacto. Commit pusheado.
+
+## [2026-06-19] CYCLE 24 — H-CEIL-3 REFUTADA (kernel Taylor + mimetic init) + Directiva v3 + docs faltantes
+- GOAL de la sesión: mejorar el MASTER DIRECTIVE a profundidad (descartar lo hecho, dejar lo pendiente)
+  + hacer lo que faltaba. Autonomía total autorizada.
+- **Meta-tarea (Directiva v3):** `cognia_x/manager/_directiva_v3.md` — §0 ledger HECHO/PENDIENTE
+  explícito; §3 DoD de ciclo atado a las compuertas del engine; §4 lecciones de 23 ciclos como REGLAS
+  (fracaso-es-información, sub-recursos-vs-techo, control anti-confound, step-parity, verdad adversarial,
+  sin inventar, honestidad sintético≠real); §7 backlog de frentes. v1/v2 conservadas (append-only).
+- **Investigación (CYCLE 24, H-CEIL-3):** completé la línea del techo de recall. exp011_kernel_init
+  (4 brazos, d=24, n_heads=1, n_pairs=16, seed0, steps=3000 step-parity): elu_base=0.173, taylor=0.160
+  (Δ−0.013), elu_matched(dim 336, control de tamaño)=0.181 (+0.008 ruido), mimetic=0.183 (+0.0098, <0.02).
+  taylor_vs_matched=−0.021. → **H-CEIL-3 REFUTADA**: ni forma del kernel ni init levantan el plateau.
+  Junto con exp010 (ancho), el plateau ~0.18 a d=24 es robusto a ancho/forma/init → el cuello es más
+  profundo. Genera **H-CEIL-4** (profundidad/escala/optimizador o atención del híbrido). Decisión D-CEIL-3.
+- **Engine:** cycle24_kernel_init.py DERIVA el veredicto de results.json (correcto por construcción);
+  H-CEIL-3 refutada (DoD), H-CEIL-4 abierta, ceiling 'asumido', D-CEIL-3 aceptada, verify_no_loss=OK.
+  Las 3 ramas (refutada/apoyada/mixta) validadas contra results.json sintéticos antes de correr.
+- **"Haz lo que falta":** creé los 5 archivos de /manager que la directiva exige y faltaban
+  (tools/reasoning/long_context/scaling/contradictions.md) con contenido REAL consolidado y citado.
+- **Implementación:** kernel Taylor (identidad exacta 1e-7) + cache de índices (anti-cómputo redundante)
+  + mimetic init (W_k:=W_q, W_o:=I, default OFF, cero coste inferencia). Test test_cycle24_kernel_init.py.
+- **Honestidad / concurrencia:** un agente paralelo previo corría su propio exp011 (2 brazos,
+  exp011_taylor_kernel/) sobre el mismo hybrid.py; frenó mi run al inicio pero todos los brazos
+  completaron 3000 pasos (step-parity intacta). Su null de Taylor (elu=0.173 vs taylor=0.166) CORROBORA
+  el mío independientemente. Lo dejo documentado (no borro conocimiento).
+- Verificación: suite completa de cognia_x como compuerta final; engine verify_no_loss=OK; experimento
+  corrido end-to-end con números reales. Commits chicos pusheados (infra+v3; docs; cierre del ciclo).

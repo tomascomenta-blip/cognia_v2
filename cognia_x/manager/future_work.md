@@ -58,16 +58,25 @@ sintéticos. Lo que falta para que sea razonamiento "de verdad":
   frágil a paráfrasis genuina. Encoder aprendido (no keyword) o el propio LM como clasificador de tipo.
 - **Componer cadenas de largo >2 y descubrir sub-metas** (planificación), no solo secuencias fijas.
 
-## [2026-06-19] Siguiente experimento — H-CEIL-3: kernel Taylor + mimetic init (tras CYCLE 23)
-CYCLE 23 **refutó** que ensanchar el feature-map ELU+1 levante el plateau del recall lineal (exp010:
-16× estado → +0.005, null). El cuello **no es ancho ni tamaño de estado**. La hipótesis siguiente,
-afilada por ese fracaso, es **[[H-CEIL-3]]** (`abierta`): el plateau se levanta con un **KERNEL más
-rico** (feature-map **Taylor/2do orden**, Based arXiv:2402.18668) y/o **mimetic init** (Trockman 2024,
-arXiv:2410.11135), NO con el mero ancho. Experimento propuesto (siguiente del backlog):
-- **exp011 (propuesto)** — a `d=24` FIJO, `n_heads=1`, `n_pairs=16`, seed=0, **steps iguales** a
-  exp010 (6000): comparar el baseline ELU+1 (recall ~0.181) contra (a) un feature-map **Taylor de 2do
-  orden** (kernel de Based) y (b) **mimetic init** estructurada (A~1, Δ~1, WᶜᵀWᵇ~I). Predicción: alguno
-  sube el recall por encima de ~0.18 con steps iguales. **Refutado si** tampoco lo mueven → el plateau
-  sería un techo de optimización más profundo (o realmente de capacidad a esta escala).
-- Decisión que lo respalda: **D-CEIL-2** (descartar el ancho del ELU+1; redirigir a Taylor + mimetic
-  init). 100% CPU, modelo tiny, reproducible — mismo molde acotado que exp009/exp010.
+## [2026-06-19] CYCLE 24 — H-CEIL-3 REFUTADA (kernel Taylor + mimetic init no levantan el plateau)
+exp011 (d=24, n_heads=1, n_pairs=16, seed0, steps=3000 step-parity) **refutó** [[H-CEIL-3]]: ni la
+FORMA del kernel (Taylor 2do orden) ni la INIT mimética suben el recall sobre el baseline ELU+1.
+Números: elu_base=**0.173**, taylor=**0.160** (Δ−0.013, por debajo), elu_matched(dim 336)=0.181 (+0.008
+ruido), mimetic=0.183 (+0.0098, < umbral 0.02). taylor_vs_matched=−0.021 (Taylor bajo su size-matched →
+el control de TAMAÑO aísla forma de tamaño: no falta estado). Junto con exp010 (ancho), el plateau
+~0.18 a d=24 es robusto a **ancho, forma e init** → el cuello NO es del feature-map. Decisión: **D-CEIL-3**
+(descartar forma+init a esta escala; redirigir a profundidad/escala/optimizador o atención del híbrido).
+
+## [2026-06-19] Siguiente experimento — H-CEIL-4: profundidad/escala/optimizador o atención (tras CYCLE 24)
+La triple refutación (ancho exp010, forma+init exp011) afila la pregunta → **[[H-CEIL-4]]** (`abierta`):
+el cuello del recall lineal entrenado a d=24 es de **profundidad/escala/optimizador** o requiere la
+**capa de atención** del híbrido (un mezclador de estado fijo a d=24 no llega). Experimentos propuestos:
+- **exp012 (propuesto)** — a `n_pairs=16`, seed0, steps step-parity: barrer (a) **profundidad** (4→8→12
+  capas lineales), (b) **d** (24→48→96, donde exp009 vio al híbrido separar a d=48), (c) **optimizador/LR**
+  (Okpekpe & Orvieto arXiv:2508.19029: la brecha es de optimización — LR alto, schedule). Predicción:
+  alguno cruza ~0.18 donde el lineal puro a d=24 satura. **Refutado si** ninguno.
+- **exp013 (propuesto)** — el **híbrido mínimo**: lineal puro a d=24 (0.173) vs lineal+1 capa de atención.
+  Si la atención cruza el plateau donde el lineal no puede, confirma D-CEIL-1 end-to-end a esta escala
+  (la atención es necesaria para el recall a carga alta; el estado fijo solo no basta).
+- 100% CPU, modelos tiny, reproducible — mismo molde acotado que exp009/exp010/exp011. Cuidado de coste:
+  el barrido de d/profundidad y la atención son baratos; NO repetir el kernel Taylor (dim 325, ~5× lento).

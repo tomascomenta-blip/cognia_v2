@@ -612,3 +612,54 @@ lo que mide H-CEIL-3. El plateau ~0.18 es robusto entre exp009 y exp010 (mismo v
 - Datos del experimento: `cognia_x/experiments/exp010_feature_dim/results/results.json` (corrida
   canónica step-parity 6000, seed0; mult1=0.181, mult4=0.181, Δ+0.000; 576→9216) + `run.log` con el
   historial completo de corridas (4000 y 6000 steps; todas dentro del ruido ~0.01 → mismo veredicto null).
+
+---
+
+## CYCLE 24 (2026-06-19) — H-CEIL-3 REFUTADA: ni la forma del kernel ni la init levantan el plateau
+
+### Pregunta
+H-CEIL-2 (CYCLE 23) refutó el ANCHO del ELU+1. H-CEIL-3: ¿lo levanta la FORMA del kernel (feature-map
+Taylor 2do orden, Based arXiv:2402.18668) y/o la mimetic init (Trockman arXiv:2410.11135) a steps
+iguales? Literatura tier-1 lo PREDECÍA.
+
+### Experimento (exp011_kernel_init) — 4 brazos, d=24 FIJO, n_heads=1, n_pairs=16, seed0, steps=3000 step-parity
+Diseño que SEPARA forma de tamaño (resuelve el confound de exp010) y testea la init por separado:
+- `elu_base` (ELU+1, dim 24) = **0.173** (plateau, reproduce exp010 0.181 dentro del ruido).
+- `taylor` (Taylor 2do orden, dim 325, params idénticos) = **0.160** → Δ **−0.013** (POR DEBAJO del baseline).
+- `elu_matched` (ELU+1 dim 336 ≈ dim 325 de Taylor, control de TAMAÑO) = **0.181** → Δ +0.008 (ruido).
+- `elu_mimetic` (ELU+1 + mimetic init: W_k:=W_q, W_o:=I) = **0.183** → Δ +0.0098 (< umbral 0.02 → ruido).
+- `taylor_vs_matched` = **−0.021**: el Taylor quedó por debajo del ELU de su MISMA dimensión → el control
+  aísla forma de tamaño: no es que falte estado; la forma Taylor directamente no ayuda (incluso resta).
+
+### Veredicto: H-CEIL-3 REFUTADA a esta escala (ambos levers)
+Ni la forma del kernel (Taylor) ni la init (mimetic) cruzan el umbral de ruido sobre el baseline. La
+mimetic da el mayor Δ positivo (+0.0098) pero no es significativo. Junto con exp010 (ancho), el plateau
+~0.18 del lineal puro a d=24 es robusto a **ancho, forma e init** → el cuello NO es del feature-map.
+El fracaso afina la pregunta → **H-CEIL-4** (abierta): profundidad/escala/optimizador o la capa de
+atención del híbrido. Decisión **D-CEIL-3** (descartar forma+init a esta escala; redirigir).
+
+### Engine (research/cycles/cycle24_kernel_init.py, reproducible)
+El ciclo DERIVA el veredicto de `exp011/results.json` (correcto por construcción, sin transcripción
+a mano): H-CEIL-3 marcada `refutada` con DoD completo (`mark_refuted`), H-CEIL-4 `abierta` generada por
+la refutación, analogía 7 etapas (la libreta: ni más páginas ni mejor taquigrafía ni índice inicial
+levantan el recall → el medio de tamaño fijo no alcanza), ceiling 'asumido' actualizado, D-CEIL-3
+aceptada por el ledger (tier5 exp011 + tier1 Based). `verify_no_loss = OK`. Validé las 3 ramas del
+ciclo (refutada/apoyada/mixta) contra results.json sintéticos antes de correrlo con los datos reales.
+
+### Honestidad
+- Semilla única (seed=0), modelo tiny (d=24, 4 capas), tarea sintética, steps=3000 (la mitad de exp010;
+  el baseline alcanza su plateau ~0.17 hacia 2400 → válido). Un null a escala chica refuta el MECANISMO
+  a ESTA escala (forma/init no son la palanca), NO prueba que a mayor escala/profundidad sigan sin serlo
+  — eso es exactamente H-CEIL-4. El kernel Taylor a dh=24 tiene dim 325 (estado ~105k, ~5× más lento):
+  d=24 es el mayor dh tratable en este CPU.
+- **Concurrencia (declarada):** un agente paralelo de una sesión previa corría su propio exp011 de 2
+  brazos (`exp011_taylor_kernel/`) sobre el MISMO hybrid.py; compartió CPU con mi run y lo frenó al
+  principio (elu_base tardó 7.2min vs 6 calibrado) — pero todos los brazos completaron sus 3000 pasos
+  dentro del deadline, sin cortar la step-parity. Su resultado **corrobora independientemente** el null
+  de Taylor (elu=0.173 vs taylor=0.166). Dos implementaciones independientes → mismo null = más fuerte.
+
+### Verificación (real, no solo prosa)
+- `python -m cognia_x.experiments.exp011_kernel_init.run --steps 3000` → results.json con los 4 brazos.
+- `python -m cognia_x.research.cycles.cycle24_kernel_init` → todas las CHECK + `verify_no_loss = OK`.
+- Identidad del kernel Taylor verificada EXACTA antes de entrenar: phi(q).phi(k) = 1+(q.k)+(q.k)^2/2,
+  error 1e-7. mimetic init verificada (W_k==W_q, W_o==I) y default intacto. Test `test_cycle24_kernel_init.py`.

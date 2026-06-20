@@ -1,0 +1,92 @@
+{
+  "experiment": "exp011_kernel_init",
+  "hypothesis": "H-CEIL-3: el plateau de recall del lineal (~0.18) se levanta con la FORMA del kernel (Taylor 2do orden, Based) Y/O mimetic init (Trockman 2024) a steps IGUALES \u2014 NO con el mero ancho del ELU+1 (refutado en exp010).",
+  "smoke": false,
+  "seed": 0,
+  "d_model": 24,
+  "n_layers": 4,
+  "n_pairs": 16,
+  "recipe": {
+    "n_heads": 1,
+    "n_vals": 16,
+    "n_queries": 16,
+    "n_keys": 160,
+    "batch": 64,
+    "lr": 0.001
+  },
+  "steps": 3000,
+  "warmup": 250,
+  "early_stop": 0.95,
+  "chance": 0.0625,
+  "taylor_feature_dim": 325,
+  "matched_mult": 14,
+  "grid": [
+    {
+      "name": "elu_base",
+      "feature_map": "elu",
+      "mult": 1,
+      "mimetic": false,
+      "feature_dim": 24,
+      "note": "BASELINE ELU+1 (plateau de exp010)",
+      "final_acc": 0.17333984375,
+      "chance": 0.0625,
+      "params": 27864
+    },
+    {
+      "name": "taylor",
+      "feature_map": "taylor",
+      "mult": 1,
+      "mimetic": false,
+      "feature_dim": 325,
+      "note": "FORMA: kernel Taylor 2do orden (Based)",
+      "final_acc": 0.1599609375,
+      "chance": 0.0625,
+      "params": 27864
+    },
+    {
+      "name": "elu_matched",
+      "feature_map": "elu",
+      "mult": 14,
+      "mimetic": false,
+      "feature_dim": 336,
+      "note": "CONTROL DE TAMANO: ELU+1 a la dim de Taylor",
+      "final_acc": 0.18095703125,
+      "chance": 0.0625,
+      "params": 92376
+    },
+    {
+      "name": "elu_mimetic",
+      "feature_map": "elu",
+      "mult": 1,
+      "mimetic": true,
+      "feature_dim": 24,
+      "note": "INIT: mimetic init (Trockman)",
+      "final_acc": 0.18310546875,
+      "chance": 0.0625,
+      "params": 27864
+    }
+  ],
+  "summary": {
+    "chance": 0.0625,
+    "baseline": "elu_base",
+    "baseline_acc": 0.17333984375,
+    "acc_by_name": {
+      "elu_base": 0.17333984375,
+      "taylor": 0.1599609375,
+      "elu_matched": 0.18095703125,
+      "elu_mimetic": 0.18310546875
+    },
+    "delta_taylor": -0.013378906249999989,
+    "delta_elu_matched": 0.007617187500000011,
+    "delta_mimetic": 0.009765625,
+    "taylor_vs_matched": -0.02099609375,
+    "rise_thresh": 0.02,
+    "floor_thresh": 0.1125,
+    "all_near_floor": false,
+    "lifts": [],
+    "kernel_verdict": "KERNEL REFUTADA: el kernel Taylor NO sube el recall sobre el baseline a esta escala",
+    "init_verdict": "INIT REFUTADA: la mimetic init NO sube el recall sobre el baseline a esta escala",
+    "headline": "H-CEIL-3 REFUTADA a esta escala: ni el kernel Taylor ni la mimetic init levantan el plateau (~0.18) a steps iguales",
+    "headline_full": "H-CEIL-3 REFUTADA a esta escala: ni el kernel Taylor ni la mimetic init levantan el plateau (~0.18) a steps iguales. KERNEL REFUTADA: el kernel Taylor NO sube el recall sobre el baseline a esta escala | INIT REFUTADA: la mimetic init NO sube el recall sobre el baseline a esta escala. base=0.173; taylor=0.160; elu_matched=0.181; mimetic=0.183."
+  }
+}
