@@ -359,3 +359,83 @@ new directory shard tests.
 4. Benchmark baseline: `python scripts/benchmark_inference.py` to confirm 4.8 tok/s
    with fast_kernels_omp.dll still holds after recent changes
 5. Phase 21 final validation: mark DONE in ROADMAP if benchmark passes clean
+
+---
+
+## Session: 2026-06-20  (BRANCH RECONCILIATION + LIVE DATA-LOSS FIX)
+
+### Context discovered — TWO divergent development lines were reconciled
+This working tree was a STALE local branch (10 commits of June bug-fixes based on
+`1b3ae78`, May), while `origin/main` had advanced INDEPENDENTLY to a different line:
+releases **3.3.0 -> 3.5.1 published to PyPI**, a tensor-parallel "v2" rework of the
+shattering layer, UX onboarding, agent tooling, etc. The two lines shared the
+ancestor `1b3ae78` and never merged. origin's CLAUDE_NOTES stops at 2026-05-29 and
+NEVER received the June fix sessions (pool-deadlock, data-loss, MLA RoPE).
+
+Push credentials now work (the wincredman blocker from prior sessions is gone).
+Backup of the old local line kept at branch `backup/local-fixes-2026-06-20`.
+
+### [CRITICAL - LIVE DATA-LOSS in shipped 3.x] Pooled writes never committed -- FIXED + PUSHED
+origin/main (shipping in PyPI 3.3.0-3.5.1) had the SAME silent data-loss bug the
+2026-06-16 local session found but which never reached origin: pooled writes did
+`conn.execute(INSERT) -> conn.close()` with NO `conn.commit()`, and
+`_PooledConnection.close()` releases with `commit=False`, so every write was rolled
+back. `save()` returned True, nothing persisted (user_profile, style_engine,
+personal_index, chat, memory modules). origin also LACKED the db_pool `__del__`
+GC safety net -> the pool-leak-on-exception 10s/query degradation was also live.
+Re-applied the full June fix-set onto origin (commit a9a6012):
+  - conn.commit() on all pooled write paths.
+  - try/finally close on every pooled DB op (semantic/episodic/episodic_fast/chat/graph).
+  - db_pool __del__ GC net + gc_reclaimed counter + corrected docstring.
+  - tests: test_persistence_commit, test_personal_index, test_db_pool_leak_on_error.
+graph.py + memory modules applied cleanly (origin had not touched them since base);
+chat.py + db_pool.py hand-merged against origin's newer versions.
+
+### Other fixes brought onto origin/main this session (all pushed, all green)
+- **22e22d6** fix(reports): progress_reporter datetime.utcnow() -> now(timezone.utc).
+  Naive utcnow().timestamp() was interpreted as LOCAL time vs UTC-epoch DB columns
+  -> the report time-window filter was off by the local UTC offset. (origin still had it.)
+- **b96439c** fix(mla): RLock on CompressedKVCache (dict-changed-size-during-iteration race).
+- **a761b90** fix(mla): q_offset = total_len - seq_len RoPE frame fix (uncached forward was
+  position-variant) + truncate_kv negative-len guard + tests/test_mla_rope.py.
+  (origin's shattering/mla.py was byte-identical to base 1b3ae78 -> still buggy; MLAModule
+  is still referenced by node/shard_engine.py + shattering/__init__.py, so the fix matters.)
+- **c6ca54c** test(isolation): test_public_api stops leaking sys.modules["app"] + sys.path.
+- **b62b876** test(isolation): test_phase9_security restores web_app module state after reload.
+  (origin had independently hardened the cli_goal_* tests, so those were SKIPPED.)
+- **f1ad5a5** fix(compression): try/finally around the pooled UPDATE in compress_label
+  (last write-path leak found by a full-tree audit).
+- **2d9e04b** test(ratchet): tests/test_no_bare_sqlite_connect.py -- AST guard enforcing the
+  CLAUDE.md no-bare-sqlite3.connect rule. Baseline of 33 files verified IDENTICAL on
+  origin's tree (origin added none), so it dropped in unchanged.
+
+### Audit performed (delegated, whole tree)
+- Full-tree audit of EVERY pooled-write site on origin: **0 remaining data-loss bugs**
+  after a9a6012 (every write commits). Only leak found was compression.py (fixed in f1ad5a5).
+- Remaining low-value hygiene (NOT done, deliberate): ~15 read-only methods in chat.py +
+  knowledge/reasoning modules close the pooled conn only on the success path (leak on a
+  mid-query exception). The db_pool __del__ net reclaims them; no data loss. Use
+  cognia/knowledge/graph.py (full try/finally) as the template if a sweep is desired.
+
+### Verification
+- Full fast suite on the integrated tree (origin/main + a9a6012..a761b90):
+  **2449 passed, 1 skipped, 0 failed** (315s). Later commits (public_api/phase9/
+  compression/ratchet) verified individually + combined (53 passed together, no pollution).
+
+### State at session end
+- origin/main is at **2d9e04b**, 8 commits ahead of the pre-session origin (fd6c189).
+  ALL PUSHED. Working tree clean except this docs commit.
+- Branch `backup/local-fixes-2026-06-20` holds the old pre-reconciliation local line.
+
+### Priority Order for Next Session (origin/main line)
+1. The origin 3.x line is now the source of truth. Future work builds on origin/main.
+   ROADMAP.md in THIS tree is the OLD line's roadmap; origin's release line (3.x, PyPI,
+   tensor-parallel v2) is tracked in its own commits/MANAGER_LOG -- reconcile ROADMAP if needed.
+2. (Optional, low severity) try/finally sweep of the ~15 read-only pooled-conn methods
+   (chat.py get_recent_turns/list_sessions/resolve_session_prefix/get_session_turns;
+   knowledge/reasoning write fns that commit but lack finally). graph.py is the template.
+3. (Optional) Migrate KNOWN_BARE_SQLITE files to db_pool one at a time; the ratchet test
+   (2d9e04b) keeps the baseline honest (it only shrinks).
+4. Review origin's NEW 3.x code (tensor-parallel v2, agent tooling, chat-offline INT4 path
+   from 3.5.1) for correctness -- it has NOT been through the June bug-hunt sessions.
+5. Re-run benchmark once a real shard/DB is present (still pending across sessions).

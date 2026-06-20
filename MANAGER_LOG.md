@@ -1768,3 +1768,27 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   4 tests de regresion; suite 2425 passed, 1 skipped, 0 failed. Wheel 3.5.1 incluye cognia/doctor.py
   y model_router con _llamar_shard_local. twine check PASSED. Subido a PyPI (token .env, redactado).
 - Commit 2a58e6e. PyPI: https://pypi.org/project/cognia-ai/3.5.1/  (pip install -U cognia-ai)
+
+## [2026-06-20] RECONCILIACION DE RAMAS + FIX DATA-LOSS LIVE EN 3.x
+- Contexto: el working tree local era una rama STALE (10 commits de fixes de junio sobre 1b3ae78)
+  mientras origin/main habia avanzado por OTRA linea hasta 3.5.1 (PyPI) + tensor-parallel v2.
+  Nunca se fusionaron. Credenciales de push ya funcionan (se cayo el bloqueo wincredman).
+  Backup de la linea vieja: branch backup/local-fixes-2026-06-20.
+- CRITICO: origin/main (en releases PyPI 3.3.0-3.5.1) tenia LIVE el bug de perdida de datos:
+  escrituras pooled hacian execute(INSERT)->close() SIN commit(), y close() libera con
+  commit=False -> toda escritura se revertia en silencio (user_profile, style_engine,
+  personal_index, chat, modulos de memoria). save() devolvia True sin persistir. Tambien
+  faltaba la red __del__ del db_pool -> degradacion 10s/query por fuga en excepciones.
+- Reapliqué el set de fixes de junio sobre origin (commit a9a6012): commit() en todas las
+  escrituras pooled, try/finally en cada op de DB, __del__ GC net + gc_reclaimed + docstring,
+  3 tests nuevos (persistence_commit, personal_index, db_pool_leak_on_error).
+- Otros fixes traidos a origin (todos pusheados, suite verde):
+  22e22d6 tz progress_reporter (utcnow->now(tz.utc), filtro de ventana off-by-offset),
+  b96439c lock CompressedKVCache, a761b90 MLA RoPE q_offset + truncate_kv guard + tests,
+  c6ca54c y b62b876 aislamiento de tests (public_api, phase9), f1ad5a5 try/finally en
+  compression.compress_label, 2d9e04b ratchet test no-bare-sqlite3.connect (baseline 33,
+  identica en el arbol de origin).
+- Auditoria (delegada, todo el arbol): 0 bugs de data-loss restantes tras a9a6012.
+- Verificado: suite rapida 2449 passed, 1 skipped, 0 failed (315s) sobre el arbol integrado;
+  commits posteriores verificados individualmente + combinados (53 passed juntos, sin polucion).
+- Estado: origin/main en 2d9e04b, 8 commits por delante de fd6c189. TODO PUSHEADO.
