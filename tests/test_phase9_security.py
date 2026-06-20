@@ -7,6 +7,8 @@ import sys
 import os
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -72,6 +74,24 @@ class TestEpisodicSQLInjection:
 
 class TestWebAppApiKeyMiddleware:
     """9.5: COGNIA_WEB_API_KEY gates /api/* routes when set."""
+
+    @pytest.fixture(autouse=True)
+    def _restore_web_app(self):
+        # Each test importlib.reload()s web_app with COGNIA_WEB_API_KEY set,
+        # which mutates the cached module IN PLACE. Without this teardown the
+        # module is left with the last test's API-key middleware active, so a
+        # later test (in any file) that does a bare `import web_app` would see
+        # leaked auth state. Reload once more with the env cleared to restore
+        # the pristine (no-key) module.
+        yield
+        import importlib
+        prev = os.environ.pop("COGNIA_WEB_API_KEY", None)
+        try:
+            import web_app as _wa
+            importlib.reload(_wa)
+        finally:
+            if prev is not None:
+                os.environ["COGNIA_WEB_API_KEY"] = prev
 
     def _reload_app(self, monkeypatch, api_key=""):
         monkeypatch.setenv("COGNIA_WEB_API_KEY", api_key)
