@@ -91,6 +91,12 @@ def real_expression(rng, n):
     return "1+{}".format(n - 1).encode("ascii")
 
 
+def echo_expression(n):
+    """El ECHO degenerado: el target literal (evalúa a n PERO sin computar = reward-hack del verificador
+    débil). Para sembrar el atajo en el repertorio del modelo (exp019: test de EXPLOTABILIDAD del verificador)."""
+    return "{}".format(n).encode("ascii")
+
+
 def sample_targets(rng, count, lo, hi):
     return [int(x) for x in rng.integers(lo, hi + 1, size=count)]
 

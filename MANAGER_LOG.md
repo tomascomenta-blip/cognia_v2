@@ -3354,3 +3354,16 @@ VERIFICADOR CHEQUEABLE REAL (sandbox que ejecuta la expresión generada; intérp
 eval(); regla #9). exp018 (M=90, n=3): verified +0.230 sobre base, >> naive_all (que CAE) por >2σ; robusto a
 la métrica. Reward-hack NO observado (loop no-RL). Con H-LEARN-1/2, el VERIFICADOR (existencia, FP<ε*,
 ejecución real) es el lever central de la auto-mejora segura.
+
+## [2026-06-20] CYCLE 32 — F-LEARN-2: el reward-hack NO emerge en STaR-imitación (H-LEARN-4 REFUTADA con insight)
+- exp019_reward_hack (atajo echo SEMBRADO en el base p_echo=0.35, weak vs strong vs naive, n=3, temp=1.1 para
+  máxima exploración): weak degenerate(final)=0.085 ≈ strong=0.004 (NO domina, sin snowball) → el reward-hack
+  NO emerge aun con el atajo en el repertorio. H-LEARN-4 REFUTADA.
+- INSIGHT (refina Amodei 2016): el reward-hack es patología de RL-MAXIMIZACIÓN, no de la IMITACIÓN STaR
+  (copiar lo aceptado != maximizar la aceptación → no caza el atajo). Resuelve el cabo de CYCLE 31.
+- Matiz: el verificador FUERTE igual es MUY superior (real 0.745 vs weak 0.474, +0.27; degenerate menor);
+  naive degrada. D-LEARN-4: la auto-mejora STaR es robusta al hack PERO preferir verificador fuerte igual.
+- Engine cycle32_reward_hack.py: H-LEARN-4 refutada (DoD), D-LEARN-4, verify_no_loss=OK.
+- F-LEARN-2 arco completo (CYCLE 29-32): H-LEARN-1 (funciona) + H-LEARN-2 (robustez al ruido ε*) + H-LEARN-3
+  (verificador real) + H-LEARN-4 (robusto al reward-hack bajo imitación). El verificador es el lever central.
+- Verificación: suite completa cognia_x (gate); engine verify_no_loss=OK; experimento n=3 + inline (no snowball).

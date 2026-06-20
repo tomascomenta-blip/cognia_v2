@@ -926,3 +926,33 @@ acepté un null underpowered (ultracode: correcto > rápido). El design-workflow
 exp018 (n=3, M=90). cycle31_real_verifier.py -> H-LEARN-3 apoyada (DoD), D-LEARN-3, techo 'asumido',
 verify_no_loss=OK. Verificación INLINE: robusto a la métrica, 3/3 seeds positivos, naive negativo,
 degenerate=0. Test test_cycle31_sandbox (4 passed; el sandbox no ejecuta código arbitrario).
+
+---
+
+## CYCLE 32 (2026-06-20) — F-LEARN-2: el reward-hack NO emerge en STaR-imitación (H-LEARN-4 REFUTADA con insight)
+
+### Pregunta
+CYCLE 31 dejó abierto: el reward-hack del verificador débil no emergió (el atajo no estaba en el repertorio).
+H-LEARN-4: SI se SIEMBRA el atajo (echo) en el repertorio, ¿el verificador débil se reward-hackea?
+
+### Experimento (exp019_reward_hack) — atajo SEMBRADO + weak vs strong, n=3, temp=1.1
+Base sembrado con MEZCLA real+echo (p_echo=0.35 → base degenerate=0.067 = atajo presente). Loop STaR con
+temperatura ALTA (1.1, máxima exploración para darle al hack su mejor chance). weak (acepta echo) vs strong
+(rechaza echo) vs naive_all. Métricas: real_acc + degenerate en test held-out DISJUNTO.
+
+### Veredicto: H-LEARN-4 REFUTADA (con insight)
+weak degenerate(final)=0.085 ≈ strong=0.004 (gap +0.082, NO domina; fluctúa ~0.1 sin snowball entre rondas)
+→ el echo NO se apodera aun SEMBRADO y con temp alta. El reward-hack NO emerge en un loop STaR de IMITACIÓN.
+RAZÓN (refina Amodei 2016): la imitación COPIA las auto-generaciones aceptadas (mayormente honestas), no
+MAXIMIZA la aceptación como RL → no caza el atajo más barato. El reward-hack es una patología de
+RL-maximización, no inherente a un verificador débil bajo imitación.
+
+### Matiz secundario (importante)
+El verificador FUERTE igual es MUY superior: real_acc 0.745 vs weak 0.474 (+0.27) y degenerate menor (0.004
+vs 0.085). naive_all (sin filtro) DEGRADA (0.178 < base 0.293). → la fuerza del verificador importa para la
+COMPETENCIA/pureza de señal aunque no haya hack catastrófico (D-LEARN-4: preferir verificador fuerte).
+
+### Verificación
+exp019 (n=3, temp=1.1). cycle32_reward_hack.py → H-LEARN-4 refutada (DoD), D-LEARN-4, techo 'asumido',
+verify_no_loss=OK. Inline: degenerate del weak fluctúa sin snowball (no hack); strong→0. Test echo (4+1 passed).
+Honesto: di al hack su mejor chance (atajo sembrado + temp alta) y NO emergió — null informativo, no forzado.

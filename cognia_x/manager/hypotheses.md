@@ -327,6 +327,31 @@
 
 ---
 
+### H-LEARN-4 (CYCLE 32 — frente F-LEARN-2, status='refutada' con insight)
+- **Enunciado:** un verificador real DÉBIL es EXPLOTABLE (reward-hack: el echo del target domina) cuando el
+  atajo está en el repertorio del modelo; el verificador FUERTE lo suprime.
+- **Predicción medible:** weak.degenerate(final) ≫ strong.degenerate(final) Y weak.real_acc < strong.real_acc.
+  Refutado si weak NO se hackea aun con el atajo sembrado.
+- **Estado:** **refutada** (con insight valioso).
+- **Confianza:** media.
+- **Evidencia a favor (que NO se cumplió):** [[arXiv:1606.06565]] (Amodei: un verificador débil sería gameado
+  si el agente MAXIMIZA su aceptación).
+- **Evidencia en contra:** **exp019** (atajo echo SEMBRADO en el base, p_echo=0.35, base degenerate=0.067;
+  test held-out DISJUNTO, n=3, loop STaR de imitación, **temp=1.1 para máxima exploración**): weak
+  degenerate(final)=**0.085** ≈ strong=**0.004** (gap solo +0.082, NO domina; fluctúa ~0.1 sin snowball entre
+  rondas) — el echo NO se apodera aun sembrado y con temperatura alta. [[arXiv:2203.14465]] (STaR es imitación).
+- **Veredicto adversarial:** REFUTADA con INSIGHT. El reward-hack NO emerge en un loop STaR de IMITACIÓN: la
+  imitación COPIA las auto-generaciones aceptadas (mayormente honestas), no MAXIMIZA la aceptación como RL →
+  no caza el atajo más barato. RAZÓN que refina Amodei 2016: el reward-hack es una patología de
+  **RL-maximización**, no inherente a un verificador débil bajo **imitación**. MATIZ SECUNDARIO importante: el
+  verificador FUERTE igual es MUY superior — real_acc 0.745 vs weak 0.474 (**+0.27**) y degenerate menor →
+  la fuerza del verificador importa para la COMPETENCIA/pureza de señal aunque no haya hack catastrófico.
+  naive_all (sin filtro) DEGRADA (0.178 < base 0.293).
+- **Experimento:** exp019_reward_hack (corrido, seeds 0-2, 6 rondas, temp=1.1) ✅.
+- **Registro:** marcada por `cognia_x/research/cycles/cycle32_reward_hack.py` vía `mark_refuted`.
+
+---
+
 ## Ciclo-1 (workflow de 13 agentes) — hipótesis verificadas adversarialmente (2026-06-17)
 
 24 hipótesis generadas por 6 investigadores con evidencia web; cada una atacada por un

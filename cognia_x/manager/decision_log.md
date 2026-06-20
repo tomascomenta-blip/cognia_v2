@@ -223,3 +223,15 @@
   pero el loop no-RL no descubrió el echo (verified_weak ~ strong, degenerate=0). Honesto: no forzar.
 - **Evidencia:** exp018 (tier-5) + [[arXiv:2203.14465]] STaR + [[arXiv:1606.06565]] reward-hacking (tier-1).
   ACEPTADA por el ledger. Registrada vía cycle31_real_verifier.py. **Reversible:** sí (escala tiny).
+
+## D-LEARN-4 (2026-06-20, CYCLE 32) — La auto-mejora STaR (imitación) es robusta al reward-hack; preferir verificador fuerte igual
+- **Decisión:** la auto-mejora STaR de Cognia-X (imitación de lo verificado-aceptado) es ROBUSTA al
+  reward-hack del verificador débil a esta escala (no caza el atajo como RL). AUN ASÍ, preferir verificadores
+  FUERTES: dan MÁS competencia real (señal más pura) y cierran el atajo. El riesgo de reward-hack es
+  RL-específico → tenerlo en cuenta SI se pasa a RL/maximización (no a imitación).
+- **Razón:** exp019 (atajo echo SEMBRADO, p_echo=0.35, temp=1.1, n=3): weak degenerate(final)=0.085 ≈ strong
+  0.004 (NO domina el echo, fluctúa sin snowball) → no hack. PERO strong real_acc=0.745 vs weak 0.474 (+0.27).
+  Imitación COPIA salidas aceptadas (mayormente honestas), no MAXIMIZA aceptación (RL) → no busca el atajo.
+- **Evidencia:** exp019 (tier-5) + [[arXiv:2203.14465]] STaR/imitación + [[arXiv:1606.06565]] reward-hacking.
+  ACEPTADA por el ledger. Verificación inline (degenerate del weak no snowballea). Registrada vía cycle32_reward_hack.py.
+- **Reversible:** sí; específico de escala tiny + loop no-RL. Refina Amodei 2016 (reward-hack = patología de RL).

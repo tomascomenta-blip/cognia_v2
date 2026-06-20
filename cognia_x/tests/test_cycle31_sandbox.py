@@ -46,3 +46,14 @@ def test_no_arbitrary_eval():
     for bad in (b"__import__", b"9-1", b"2/1", b"a+b", b"3 4", b"3**4"):
         val, has_op, ok = E.interpret(bad)
         assert ok is False and val is None
+
+
+def test_echo_expression():
+    # el echo (CYCLE 32): el target literal, degenerado (evalúa a n SIN operador = el atajo del reward-hack)
+    for n in (5, 12, 99, 200):
+        e = E.echo_expression(n)
+        val, has_op, ok = E.interpret(e)
+        assert ok and (not has_op) and val == n          # válido, sin operador, evalúa al target
+        p = E.make_prompt(n)
+        assert E.verify(p, e + b"\n", strong=False) is True   # weak ACEPTA el echo (hackeable)
+        assert E.verify(p, e + b"\n", strong=True) is False   # strong lo RECHAZA

@@ -175,3 +175,16 @@ Reward-hack NO observado (loop no-RL no descubrió el echo). D-LEARN-3.
   con un loop más agresivo (RL-lite/temperatura alta)? (b) cuota de sintético + ledger de procedencia para
   loops largos; (c) verificador de CÓDIGO real (subprocess+tests con timeout).
 - Cabos previos: H-HYB-3 (híbrido, pausado); F-REASON-REAL (LM real en el router).
+
+## [2026-06-20] CYCLE 32 — H-LEARN-4 REFUTADA: STaR-imitación robusto al reward-hack
+exp019 (atajo echo SEMBRADO, temp alta, n=3): el verificador débil NO se hackea (degenerate weak 0.085 ≈
+strong 0.004, sin snowball) → el reward-hack es patología de RL-maximización, no de la imitación STaR (refina
+Amodei 2016). Matiz: el strong igual da +0.27 real_acc. D-LEARN-4.
+- **F-LEARN-2 arco completo (CYCLE 29-32):** H-LEARN-1 (auto-mejora verificada funciona) + H-LEARN-2 (robustez
+  al ruido del verificador, ε*) + H-LEARN-3 (verificador chequeable REAL) + H-LEARN-4 (robusto al reward-hack
+  bajo imitación). Línea madura.
+- **Siguiente (nuevas direcciones):** (a) confirmar el contrapunto: un loop RL-lite (maximizar aceptación) SÍ
+  se hackearía con el verificador débil? (cerraría el insight de H-LEARN-4). (b) Pivotar a otra prioridad:
+  F-REASON-REAL (envolver el LM real en el router de razonamiento) o F-LONGCTX. (c) cuota de sintético +
+  ledger de procedencia para loops largos sin deriva.
+- Cabos previos: H-HYB-3 (híbrido, pausado).

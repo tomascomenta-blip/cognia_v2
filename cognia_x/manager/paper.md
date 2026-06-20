@@ -116,3 +116,13 @@ verificador es el motor incluso cuando EJECUTA la salida (no solo cuando conoce 
 (reward-hacking de un verificador débil, Amodei 2016): NO observado a esta escala (verified_weak ~= strong,
 degenerate=0) — el loop no-RL no descubrió el echo; honesto. Con H-LEARN-1/2, F-LEARN-2 cierra un arco: el
 VERIFICADOR (existencia, FP-rate < ε*, ejecución real) es el lever central de la auto-mejora segura.
+
+### 7.6 El reward-hack NO emerge en STaR-imitación (CYCLE 32, H-LEARN-4)
+**H-LEARN-4 (refutada con insight):** un verificador real DÉBIL NO se reward-hackea en un loop STaR de
+IMITACIÓN, aun SEMBRANDO el atajo (echo del target) en el repertorio y con temperatura alta. exp019 (n=3):
+weak degenerate(final)=0.085 ≈ strong=0.004 (el echo no domina, sin snowball). RAZÓN (refina Amodei 2016): la
+imitación COPIA las auto-generaciones aceptadas (mayormente honestas), no MAXIMIZA la aceptación como RL → no
+caza el atajo más barato; el reward-hack es patología de RL-maximización, no inherente a un verificador débil
+bajo imitación. Matiz: el verificador FUERTE igual es muy superior (real_acc 0.745 vs weak 0.474, +0.27;
+degenerate menor) y naive_all (sin filtro) degrada → la fuerza del verificador importa para la competencia.
+Con H-LEARN-1/2/3, F-LEARN-2 cierra un arco maduro: el VERIFICADOR es el lever central de la auto-mejora segura.
