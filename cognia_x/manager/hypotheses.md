@@ -80,6 +80,32 @@
 
 ---
 
+### H-CEIL-1 (CYCLE 22 — registrada por el Investigation Engine, status='mixta')
+- **Enunciado:** el recall asociativo de un mezclador de **estado fijo** (atención lineal) está
+  acotado por el **tamaño de su estado**; añadir atención (estado ∝ longitud) lo levanta — la
+  frontera recall↔throughput.
+- **Predicción medible:** Lineal: recall crece con el estado (~d²) y satura. Híbrido/atención: recall
+  ~independiente de la carga. **REFUTADO si** el lineal mantiene recall alto sin importar carga/estado,
+  o el híbrido no supera al lineal en el régimen saturado.
+- **Estado:** **mixta.**
+- **Confianza:** media.
+- **Evidencia a favor:** [[arXiv:2402.18668]] (Based: tradeoff estado↔recall, frontera de Pareto,
+  +6.22 pts) + exp002 (recall lineal ~d²) + exp009 (recall lineal SUBE con d: 0.059@d8 → 0.183@d24;
+  el híbrido separa a d=48: 0.292 vs 0.181, gap +0.111).
+- **Evidencia en contra:** [[arXiv:2508.19029]] (Okpekpe&Orvieto: gran parte de la brecha es de
+  OPTIMIZACIÓN, no expresividad; con LR ajustado Mamba resuelve recall aun en 1 capa) + exp009 (el
+  lineal SATURA ~0.18, MUY por debajo del d² ideal → la cota EFECTIVA no es d²). **exp009 es AMBAS:**
+  apoya la subida con d y refuta que la cota efectiva sea d².
+- **Veredicto adversarial:** HOLDS direccionalmente (recall escala con el estado; la atención lo
+  levanta) PERO la cota EFECTIVA en modelos entrenados chicos es la **capacidad del feature-map**
+  (<< d²), no el d² teórico. Distinción real (cota informacional d²) vs asumido (capacidad entrenada
+  limitada por optimización/feature-map).
+- **Experimento:** exp009_recall_ceiling (corrido, seed=0, 6000 steps) ✅.
+- **Registro:** poblada por `cognia_x/research/cycles/cycle22_recall_ceiling.py` vía
+  `HypothesisRegistry.mark_mixta` (mismo gate DoD que apoyada/refutada).
+
+---
+
 ## Ciclo-1 (workflow de 13 agentes) — hipótesis verificadas adversarialmente (2026-06-17)
 
 24 hipótesis generadas por 6 investigadores con evidencia web; cada una atacada por un

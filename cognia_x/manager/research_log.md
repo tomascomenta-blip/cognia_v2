@@ -450,3 +450,80 @@ ver qué representación gana. Recorrido honesto:
   verificador; la representación rica solo paga cuando el verificador la alinea a la tarea. Es la
   respuesta concreta a "evaluá el resultado dentro del sistema". Caveats: cadenas exactas (E=1.0 por
   construcción; claim relativo E≥ceiling≥B), char-LM congelado (solo la cabeza entrena), 4 tipos sintéticos.
+
+---
+
+## 2026-06-19 — CYCLE 22: el TECHO de recall del estado fijo, registrado A TRAVÉS del Investigation Engine
+
+### Pregunta
+¿El recall asociativo de un mezclador de **estado fijo** (atención lineal) está acotado por el
+**tamaño de su estado**, y añadir atención (estado ∝ longitud) lo levanta? Es la frontera
+recall↔throughput. Además: ¿la cota efectiva en modelos chicos entrenados es realmente el d² teórico?
+
+### Novedad de proceso (no solo de resultado)
+Este ciclo se REGISTRA por el **Investigation Engine** (`cognia_x/research/`), no solo por prosa: el
+script `cognia_x/research/cycles/cycle22_recall_ceiling.py` puebla el store del engine PASANDO por las
+compuertas reales (ledger anti-opinión, DoD de hipótesis, 7 etapas de analogía, validación de techos,
+`verify_no_loss`). Reproducible (resetea el store al arrancar; re-correr = mismos registros). El
+espejo humano es esta entrada + las fichas en `hypotheses.md`/`decision_log.md`/`experiments.md`.
+
+### Las 2 fuentes tier-1 (papers peer-reviewed, citadas en el engine)
+- **arXiv:2402.18668** — Arora et al. 2024 (**Based**): tradeoff clave estado-recurrente ↔ recall;
+  los modelos de estado fijo (Mamba/RWKV/H3) sufren en recall; Based (atención lineal + ventana
+  deslizante) recorre la frontera de Pareto recall-memoria (**+6.22 pts** en tareas recall-intensivas).
+- **arXiv:2508.19029** — Okpekpe & Orvieto 2025: la recall recurrente depende de cuán bien se comprime
+  el pasado en el estado; el límite duro (copia exacta requiere estado ∝ longitud, **Jelassi et al.**)
+  es **real**, PERO gran parte de la brecha práctica es de **OPTIMIZACIÓN** (con LR ajustado, Mamba
+  resuelve recall asociativo aun en 1 capa), no de expresividad.
+
+### exp009 — diseño CORREGIDO + barrido en d (entrenado end-to-end, CPU)
+Recipe: `n_heads=1` (single-head → estado d×d limpio, no d²/h), `n_pairs=16`, `seed=0`, **6000 steps**,
+6 capas, chance **0.0625**. Barre `d ∈ {8,16,24,32,48}` con lineal_puro vs híbrido_3to1.
+
+| d | state d×d | lineal_puro | híbrido_3to1 | gap (híb−lin) | lectura |
+|--:|----------:|------------:|-------------:|--------------:|---------|
+| 8  | 64   | 0.059 | 0.059 | 0.000  | **piso de aprendibilidad** (ambos en chance) |
+| 16 | 256  | 0.168 | 0.165 | −0.003 | lineal sube con d |
+| 24 | 576  | **0.183** | 0.178 | −0.005 | pico del lineal; satura |
+| 32 | 1024 | 0.182 | 0.184 | +0.002 | meseta |
+| 48 | 2304 | 0.181 | **0.292** | **+0.111** | **el híbrido se separa** (la atención forma el recall) |
+
+**Lectura honesta (veredicto MIXTO):**
+1. La **predicción HOLDS direccionalmente**: el recall del lineal **sube con el estado** (0.059@d8 →
+   0.183@d24) y la atención del híbrido **lo levanta** a d grande (gap +0.111 en d=48). La frontera
+   recall↔throughput es real y reproducida entrenando.
+2. PERO la cota **EFECTIVA** NO es el d² teórico: el lineal **satura ~0.18**, MUY por debajo de lo que
+   d²=2304 (d=48) permitiría. La capacidad **ENTRENADA** del feature-map (ELU+1) es el cuello real, no
+   el límite informacional. Parte de esa brecha es **optimización/inicialización**, no expresividad
+   (coincide con Okpekpe&Orvieto 2508.19029; mimetic init arXiv:2410.11135).
+3. **d=8 es piso de aprendibilidad**, NO techo de estado: ambas configs en chance porque la tarea no
+   se aprende a ese tamaño. Distinguirlo del techo evita una conclusión falsa.
+
+### El techo: REAL vs ASUMIDO (registrado como DOS techos)
+- **REAL** — cota informacional **O(d²)** (pigeonhole / Jelassi vía 2508.19029): el estado d×d no puede
+  almacenar más asociaciones que sus d² escalares sin interferencia. Probado, es una pared.
+- **ASUMIDO** — la capacidad **entrenada** del feature-map queda **<< d²** y es en parte de
+  optimización. Es un límite **asumido-permanente** = invitación a refutar (entra al backlog
+  `assumed_limits()`), no una pared. Es el **hallazgo nuevo** del ciclo.
+
+### Persistencia (un fracaso de diseño corregido, no escondido)
+El **primer** diseño de exp009 falló por **carga demasiado baja**: con `n_heads` >1 el estado real es
+d²/h (no d²) y con pocas asociaciones el lineal nunca saturaba → no había separación que medir. Se
+corrigió a single-head + n_pairs=16 + 6000 steps. Esto continúa la línea de CYCLE 6/8 (sub-recursos vs
+bug): la separación recall sólo aparece **por encima** de la capacidad del estado; medir por debajo no
+prueba nada. Honesto: semilla única, modelo chico, tarea sintética → resultado sobre el MECANISMO.
+
+### Decisión y registro
+- **D-CEIL-1**: mantener el **híbrido** (mayoría lineal + minoría atención) como arquitectura del lab.
+  ACEPTADA por el ledger (cita tier-1 arXiv:2402.18668 + tier-5 exp002/exp009, todas obtenidas → funda;
+  sin `OpinionOnlyError`). Coincide con Based: el lab llegó al mismo principio de forma independiente.
+- **H-CEIL-1**: `status='mixta'`, confianza media, DoD completo (3 a favor / 2 en contra; S4=exp009 es
+  AMBAS: apoya la subida con d, refuta que la cota efectiva sea d²). Marcada vía `mark_mixta` (mismo
+  gate DoD que apoyada/refutada — no se debilitó la compuerta).
+
+### Verificación (real, no solo prosa)
+- `python -m cognia_x.research.cycles.cycle22_recall_ceiling` → todas las CHECK + `verify_no_loss = OK`.
+- `python -m cognia_x.research.cli status/verify` sobre el store del ciclo → sources 4, decisions 1,
+  hypotheses 2 (add + transición mixta), ceilings 2, asumidos 1; **verify OK** (exit 0).
+- 20/20 tests de `test_research_engine.py` passan tras añadir `mark_mixta`.
+- Datos del experimento: `cognia_x/experiments/exp009_recall_ceiling/results/results.json`.

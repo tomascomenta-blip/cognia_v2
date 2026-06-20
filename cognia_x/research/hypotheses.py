@@ -98,3 +98,14 @@ class HypothesisRegistry:
     def mark_refuted(self, hid):
         """Marca status='refutada' solo si cumple falsabilidad + refutar-antes + DoD; si no, lanza."""
         return self._set_status(hid, 'refutada')
+
+    def mark_mixta(self, hid):
+        """Marca status='mixta' (evidencia en ambos lados) bajo el MISMO gate de DoD.
+
+        POR QUÉ: un veredicto 'mixta' es tan empírico como 'apoyada'/'refutada' — la evidencia a
+        favor Y en contra deben existir, debe haber pasado por crítica adversaria y por un
+        experimento corrido. Reutiliza _set_status (mismo _check_dod) para NO debilitar la compuerta:
+        'mixta' exige exactamente la misma falsabilidad + refutar-antes + DoD que las otras
+        transiciones. La diferencia es solo el veredicto, no el rigor.
+        """
+        return self._set_status(hid, 'mixta')

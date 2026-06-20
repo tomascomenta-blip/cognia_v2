@@ -77,3 +77,18 @@
   BPE" (D-008) es un upgrade de eficiencia de inferencia posterior.
 - **Reversible:** sí. La arquitectura híbrida (D-007) es la misma; portar a numpy para nodos o
   cambiar el front-end de representación es trabajo futuro.
+
+## D-CEIL-1 (2026-06-19, CYCLE 22) — Mantener el híbrido (mayoría lineal + minoría atención)
+- **Decisión:** mantener el **híbrido** (mayoría lineal barata + minoría de atención para recall
+  exacto) como arquitectura del lab; la atención es **necesaria** para recall a carga alta.
+- **Razón:** la frontera recall↔throughput (Arora 2024, arXiv:2402.18668) + exp002 (recall ~ d²) +
+  exp009 (lineal satura ~0.18, el híbrido separa a d=48: 0.292 vs 0.181) justifican mezclar: lo lineal
+  da coste O(L); las pocas capas de atención compran el recall que el estado fijo no escala. Coincide
+  con **Based** — el lab llegó al mismo principio de forma independiente.
+- **Evidencia:** arXiv:2402.18668 (tier-1) + exp002 + exp009 (tier-5, datos propios). ACEPTADA por el
+  `EvidenceLedger` (funda con tier-1 + tier-5 obtenidas; no lanza `OpinionOnlyError`).
+- **Matiz honesto:** exp009 muestra que la cota EFECTIVA del lineal entrenado es la capacidad del
+  feature-map (<< d²), no el d² teórico — refuerza la decisión (el lineal solo, aún a d grande, no
+  alcanza el recall que la atención da). Registrada vía `cognia_x/research/cycles/cycle22_recall_ceiling.py`.
+- **Reversible:** sí; se revisa si un feature-map mejor (mimetic init, arXiv:2410.11135) cerrara la
+  brecha entrenada y el estado fijo solo bastara para el recall a carga alta.

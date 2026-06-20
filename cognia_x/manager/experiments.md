@@ -256,5 +256,54 @@ predicción de exp002 (recall acotado por el estado, training-free) se confirma 
 
 ---
 
+## exp009 — Techo de recall del estado fijo: ¿sube con d y satura?  ✅ CORRIDO
+
+- **Estado:** completo (2026-06-19, manager CYCLE 22). PyTorch CPU. Registrado a través del
+  Investigation Engine (`cognia_x/research/cycles/cycle22_recall_ceiling.py`).
+- **Hipótesis:** [[H-CEIL-1]] — el recall del lineal puro escala con el **tamaño del estado** (~d²,
+  single-head) y satura; el híbrido se mantiene alto vía atención. Falsable: si el lineal mantuviera
+  recall alto sin importar carga/estado, o el híbrido no superara al lineal en el régimen saturado.
+- **Código:** `cognia_x/experiments/exp009_recall_ceiling/run.py`
+- **Cómo correr:**
+  `.\venv312\Scripts\python.exe cognia_x\experiments\exp009_recall_ceiling\run.py`
+- **Método (diseño CORREGIDO):** tarea MQAR (pares clave→valor). `n_heads=1` (single-head → estado
+  d×d limpio, NO d²/h como en exp008), `n_pairs=16`, `seed=0`, **6000 steps**, 6 capas, chance
+  **0.0625**. Barre `d ∈ {8,16,24,32,48}` con `lineal_puro` vs `hibrido_3to1`, mismo tamaño por d.
+- **Corrección de diseño previa (persistencia):** el primer diseño falló por **carga demasiado baja**
+  — con `n_heads`>1 el estado es d²/h y con pocas asociaciones el lineal nunca saturaba (sin
+  separación que medir). Se corrigió a single-head + n_pairs=16 + 6000 steps. La separación de recall
+  solo aparece **por encima** de la capacidad del estado.
+
+### Resultado (verificado, results.json) — H-CEIL-1 MIXTA
+| d | state d×d | lineal_puro | híbrido_3to1 | gap | lectura |
+|--:|----------:|------------:|-------------:|----:|---------|
+| 8  | 64   | 0.059 | 0.059 | 0.000  | **piso de aprendibilidad** (ambos en chance) |
+| 16 | 256  | 0.168 | 0.165 | −0.003 | lineal sube con d |
+| 24 | 576  | **0.183** | 0.178 | −0.005 | pico del lineal; satura |
+| 32 | 1024 | 0.182 | 0.184 | +0.002 | meseta |
+| 48 | 2304 | 0.181 | **0.292** | **+0.111** | **el híbrido se separa** |
+- El recall del lineal **SUBE con d** (0.059@d8 → 0.183@d24) y luego **SATURA ~0.18**: la capacidad
+  ENTRENADA del feature-map (ELU+1) queda **MUY por debajo del d² ideal** (d=48 → d²=2304 escalares).
+- El **híbrido solo separa claramente a d=48** (gap +0.111): la cabeza de atención forma el recall solo
+  cuando el modelo es lo bastante ancho.
+- **d=8 = piso de aprendibilidad**, NO techo de estado (ambas configs en chance → la tarea no se
+  aprende a ese tamaño; distinguirlo evita una conclusión falsa).
+
+### Amenazas a la validez (honestidad)
+- Semilla única, modelo chico, tarea sintética → resultado sobre el **MECANISMO** de recall, no escala.
+- La cota efectiva medida es la del feature-map ELU+1 entrenado; un feature-map mejor o mejor
+  optimización (mimetic init, arXiv:2410.11135) podría subir el techo entrenado (es por eso un límite
+  **asumido**, no real).
+
+### Conclusión
+**H-CEIL-1 mixta:** HOLDS direccionalmente (recall escala con el estado; la atención lo levanta) PERO
+la cota **EFECTIVA** en modelos entrenados chicos es la **capacidad del feature-map** (<< d²), no el d²
+teórico. Dos techos registrados: **real** (cota informacional d², pigeonhole/Jelassi vía
+arXiv:2508.19029) + **asumido** (capacidad entrenada del feature-map → backlog de refutación). Refuerza
+**D-CEIL-1** (mantener el híbrido): el estado fijo solo, aún a d grande, no alcanza el recall de la
+atención. Convergencia con **Based** (arXiv:2402.18668) por vía independiente.
+
+---
+
 > Más fichas (E2 SWA vs full real con GGUF, E4 RAG vs LoRA, E5 peso de embedding en un GGUF real)
 > en `future_work.md`.
