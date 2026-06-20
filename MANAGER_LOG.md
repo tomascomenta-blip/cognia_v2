@@ -3367,3 +3367,15 @@ ejecución real) es el lever central de la auto-mejora segura.
 - F-LEARN-2 arco completo (CYCLE 29-32): H-LEARN-1 (funciona) + H-LEARN-2 (robustez al ruido ε*) + H-LEARN-3
   (verificador real) + H-LEARN-4 (robusto al reward-hack bajo imitación). El verificador es el lever central.
 - Verificación: suite completa cognia_x (gate); engine verify_no_loss=OK; experimento n=3 + inline (no snowball).
+
+## [2026-06-20] CYCLE 33 — F-LEARN-2: contrapunto RL (H-LEARN-5 REFUTADA, null de MÉTODO)
+- exp020_rl_vs_imitation (mismo verificador débil + atajo que exp019; sólo cambia el algoritmo: imitación STaR
+  vs GRPO-lite RL; n=3): degenerate(final) imit_weak=0.115, rl_weak=0.059 (¡MENOR!), rl_strong=0.000. El hack
+  RL NO emergió bajo GRPO-lite. H-LEARN-5 REFUTADA como NULL DE MÉTODO (no del mecanismo).
+- CONFOUND honesto: GRPO estable apenas-entrena (para no colapsar); imit entrena a fondo → no hay ventana
+  limpia a igual presión (RL estable apenas-entrena; RL agresivo COLAPSA real~0). GRPO-lite a escala tiny no
+  demuestra el contrapunto. El mecanismo mantiene apoyo de literatura (Amodei); future work: RL estabilizado.
+- rl_strong degenerate=0.000 (el verificador FUERTE suprime el echo incluso bajo RL). El insight de H-LEARN-4
+  (imitación robusta) se sostiene solo. D-LEARN-5 (preferir imitación; RL solo con salvaguardas).
+- Bug arreglado: blocker.kind 'tecnologico' inválido en el engine → 'diseno'. Engine cycle33: verify_no_loss=OK.
+- Verificación: suite completa cognia_x (gate); engine verify_no_loss=OK; experimento n=3 + smoke de estabilización.

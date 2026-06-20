@@ -126,3 +126,14 @@ caza el atajo más barato; el reward-hack es patología de RL-maximización, no 
 bajo imitación. Matiz: el verificador FUERTE igual es muy superior (real_acc 0.745 vs weak 0.474, +0.27;
 degenerate menor) y naive_all (sin filtro) degrada → la fuerza del verificador importa para la competencia.
 Con H-LEARN-1/2/3, F-LEARN-2 cierra un arco maduro: el VERIFICADOR es el lever central de la auto-mejora segura.
+
+### 7.7 Contrapunto RL del reward-hack (CYCLE 33, H-LEARN-5 — null de método)
+**H-LEARN-5 (refutada como null de MÉTODO):** intento de confirmar causalmente que el reward-hack del
+verificador débil es patología de RL-MAXIMIZACIÓN (no de la imitación). exp020 (mismo verificador/atajo que
+exp019; sólo cambia el algoritmo: imitación STaR vs GRPO-lite RL; n=3): el hack NO emergió bajo GRPO-lite
+(rl_weak degenerate 0.059 < imit 0.115). CONFOUND: el GRPO estable apenas-entrena (para no colapsar) → sin
+ventana limpia a igual presión de optimización (RL estable apenas-entrena; RL agresivo colapsa real~0). Es un
+límite de MÉTODO, no del mecanismo (la literatura/Amodei lo apoya; rl_strong degenerate=0.000 = el fuerte
+suprime el echo incluso bajo RL). El contrapunto RL queda como future work (RL estabilizado / mayor escala);
+el insight de H-LEARN-4 (imitación robusta) se sostiene solo. F-LEARN-2 cierra: H-LEARN-1/2/3/4 apoyadas,
+H-LEARN-5 null de método → el VERIFICADOR es el lever central; la IMITACIÓN es la opción segura.

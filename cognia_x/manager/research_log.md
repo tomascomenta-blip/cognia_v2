@@ -956,3 +956,35 @@ COMPETENCIA/pureza de señal aunque no haya hack catastrófico (D-LEARN-4: prefe
 exp019 (n=3, temp=1.1). cycle32_reward_hack.py → H-LEARN-4 refutada (DoD), D-LEARN-4, techo 'asumido',
 verify_no_loss=OK. Inline: degenerate del weak fluctúa sin snowball (no hack); strong→0. Test echo (4+1 passed).
 Honesto: di al hack su mejor chance (atajo sembrado + temp alta) y NO emergió — null informativo, no forzado.
+
+---
+
+## CYCLE 33 (2026-06-20) — F-LEARN-2: contrapunto RL del reward-hack (H-LEARN-5 REFUTADA, null de método)
+
+### Pregunta
+H-LEARN-4 (CYCLE 32) mostró que la IMITACIÓN STaR no se reward-hackea. Contrapunto causal: ¿RL-MAXIMIZACIÓN
+SÍ se hackearía con el MISMO verificador débil + atajo? (confirmaría que el hack es de RL, no del verificador).
+
+### Experimento (exp020_rl_vs_imitation) — mismo verificador/atajo, sólo cambia el algoritmo, n=3
+imit_weak (imitación STaR) vs rl_weak (GRPO-lite, verificador débil) vs rl_strong (GRPO-lite, fuerte).
+GRPO-lite: ventaja group-relative normalizada, usa la señal NEGATIVA de lo rechazado. degenerate(final):
+imit_weak=0.115, rl_weak=0.059, rl_strong=0.000.
+
+### Veredicto: H-LEARN-5 REFUTADA (null de MÉTODO, no del mecanismo)
+El hack NO emergió bajo GRPO-lite (rl_weak degenerate 0.059 < imit 0.115 — incluso menor). CONFOUND honesto:
+el GRPO ESTABLE apenas-entrena (rl_steps=20/lr chico para no colapsar) → casi no se mueve del base; el imit
+entrena a fondo (200 steps). No hay ventana limpia a igual presión de optimización: RL estable apenas-entrena,
+RL agresivo COLAPSA el modelo (real~0, visto en el 1er smoke). Es un límite de MÉTODO: GRPO-lite a escala tiny
+no demuestra el contrapunto. El mecanismo (RL más hack-prone que imitación) mantiene apoyo de literatura
+(Amodei) + la asimetría estructural de H-LEARN-4; demostrarlo in-lab requiere RL estabilizado (KL/on-policy)
+o mayor escala. Nota: rl_strong degenerate=0.000 → el verificador FUERTE suprime el echo incluso bajo RL.
+
+### Honestidad
+Es un negativo de MÉTODO, registrado como tal (no se fuerza un "apoyada"). El insight central de H-LEARN-4
+(imitación robusta al reward-hack) se sostiene solo (CYCLE 32). El contrapunto RL queda como future work.
+Intenté estabilizar GRPO (ventajas normalizadas, pocos pasos, lr chico) tras ver el colapso del 1er smoke;
+no rabbit-holeé más tuneo de RL.
+
+### Verificación
+exp020 (n=3). cycle33_rl_vs_imitation.py → H-LEARN-5 refutada (DoD), D-LEARN-5, techo 'asumido' (método RL),
+verify_no_loss=OK.

@@ -188,3 +188,16 @@ Amodei 2016). Matiz: el strong igual da +0.27 real_acc. D-LEARN-4.
   F-REASON-REAL (envolver el LM real en el router de razonamiento) o F-LONGCTX. (c) cuota de sintético +
   ledger de procedencia para loops largos sin deriva.
 - Cabos previos: H-HYB-3 (híbrido, pausado).
+
+## [2026-06-20] CYCLE 33 — H-LEARN-5 REFUTADA (null de método): el contrapunto RL no se demostró
+exp020 (imitación vs GRPO-lite, mismo verificador débil + atajo): el hack RL NO emergió (rl_weak degenerate
+0.059 < imit 0.115) → null de MÉTODO (GRPO-lite inestable a escala tiny; RL estable apenas-entrena, RL
+agresivo colapsa). El mecanismo (RL más hack-prone que imitación) mantiene apoyo de literatura. D-LEARN-5.
+- **F-LEARN-2 — estado final del arco (CYCLE 29-33):** H-LEARN-1 (funciona) + H-LEARN-2 (robustez al ruido ε*)
+  + H-LEARN-3 (verificador real) + H-LEARN-4 (robusto al reward-hack bajo imitación) APOYADAS; H-LEARN-5
+  (contrapunto RL) REFUTADA como null de método. Tesis sólida: el VERIFICADOR es el lever central; la
+  IMITACIÓN es segura.
+- **Future work del frente:** (a) RL ESTABILIZADO (KL-reg, on-policy, budget igualado) para el contrapunto
+  H-LEARN-5 a mayor escala; (b) verificador de CÓDIGO real (subprocess+tests con timeout); (c) cuota de
+  sintético + ledger de procedencia para loops largos sin deriva.
+- **Pivotes a otras prioridades:** F-REASON-REAL (LM real en el router); F-LONGCTX. Cabos: H-HYB-3 (pausado).

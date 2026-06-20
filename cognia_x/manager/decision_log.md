@@ -235,3 +235,15 @@
 - **Evidencia:** exp019 (tier-5) + [[arXiv:2203.14465]] STaR/imitación + [[arXiv:1606.06565]] reward-hacking.
   ACEPTADA por el ledger. Verificación inline (degenerate del weak no snowballea). Registrada vía cycle32_reward_hack.py.
 - **Reversible:** sí; específico de escala tiny + loop no-RL. Refina Amodei 2016 (reward-hack = patología de RL).
+
+## D-LEARN-5 (2026-06-20, CYCLE 33) — La imitación STaR es la opción SEGURA; el RL exige salvaguardas (no demostrado in-lab)
+- **Decisión:** preferir IMITACIÓN STaR para la auto-mejora de Cognia-X (robusta al reward-hack, H-LEARN-4);
+  si alguna vez se usa RL-maximización, exigir verificador FUERTE + salvaguardas (KL-reg, on-policy, budget
+  controlado). El contrapunto RL (que RL SÍ se hackearía con verificador débil) NO se pudo demostrar in-lab a
+  escala tiny → future work, no adoptar RL sin esa demostración/salvaguarda.
+- **Razón:** exp020 (mismo verificador débil + atajo que exp019; sólo cambia el algoritmo): GRPO-lite no
+  demostró el hack (rl_weak degenerate 0.059 < imit 0.115). CONFOUND: el GRPO estable apenas-entrena (para no
+  colapsar) → no hay ventana limpia a igual presión que la imitación. Es un null de MÉTODO, no del mecanismo
+  (la literatura/Amodei lo apoya; rl_strong degenerate=0.000 = el fuerte suprime el echo incluso bajo RL).
+- **Evidencia:** exp020 (tier-5) + [[arXiv:2203.14465]] STaR + [[arXiv:1606.06565]] reward-hacking. ACEPTADA
+  por el ledger. Registrada vía cycle33_rl_vs_imitation.py. **Reversible:** sí (RL estabilizado / mayor escala).

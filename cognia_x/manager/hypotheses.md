@@ -352,6 +352,30 @@
 
 ---
 
+### H-LEARN-5 (CYCLE 33 — frente F-LEARN-2, status='refutada' como null de MÉTODO)
+- **Enunciado:** el reward-hack del verificador DÉBIL emerge bajo **RL-MAXIMIZACIÓN** (GRPO) pero NO bajo
+  **IMITACIÓN** (STaR), con el MISMO verificador y atajo → el hack es patología de RL, no del verificador
+  débil per se (contrapunto causal que cerraría el insight de H-LEARN-4).
+- **Predicción medible:** rl_weak.degenerate ≫ imit_weak y ≫ rl_strong. Refutado si rl_weak no separa.
+- **Estado:** **refutada** (null de MÉTODO, no del mecanismo).
+- **Confianza:** baja (límite de método).
+- **Evidencia a favor (que NO se demostró):** [[arXiv:1606.06565]] (Amodei: RL-maximización gamea verificadores débiles).
+- **Evidencia en contra:** **exp020** (mismo verificador débil + atajo que exp019; sólo cambia el algoritmo;
+  n=3): degenerate(final) imit_weak=0.115, rl_weak=**0.059** (¡MENOR!), rl_strong=0.000. El hack NO emergió
+  bajo GRPO-lite. CONFOUND honesto: el GRPO estable apenas-entrena (rl_steps=20/lr chico para no colapsar) →
+  casi no se mueve del base; el imit entrena a fondo (200 steps). No hay ventana limpia a igual presión de
+  optimización (RL estable apenas-entrena; RL agresivo COLAPSA el modelo a real~0).
+- **Veredicto adversarial:** REFUTADA como **null de MÉTODO, NO del mecanismo**: GRPO-lite a escala tiny es
+  inestable (colapsa con muchos pasos; señal nula/inconsistente con pocos) → no logra demostrar limpio el
+  contrapunto RL. El mecanismo (RL más hack-prone que imitación) mantiene apoyo de LITERATURA (Amodei) + la
+  asimetría estructural de H-LEARN-4; demostrarlo in-lab requiere RL ESTABILIZADO (KL-reg, on-policy, budget
+  igualado) o mayor escala → future work. nota: rl_strong degenerate=0.000 (el verificador FUERTE suprime el
+  echo incluso bajo RL — robusto). El insight de H-LEARN-4 (imitación robusta) **se sostiene solo** (CYCLE 32).
+- **Experimento:** exp020_rl_vs_imitation (corrido, seeds 0-2, GRPO-lite estabilizado) ✅.
+- **Registro:** marcada por `cognia_x/research/cycles/cycle33_rl_vs_imitation.py` vía `mark_refuted`.
+
+---
+
 ## Ciclo-1 (workflow de 13 agentes) — hipótesis verificadas adversarialmente (2026-06-17)
 
 24 hipótesis generadas por 6 investigadores con evidencia web; cada una atacada por un
