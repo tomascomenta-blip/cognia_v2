@@ -272,6 +272,33 @@
 
 ---
 
+### H-LEARN-2 (CYCLE 30 — frente F-LEARN-2, status='apoyada')
+- **Enunciado:** la auto-mejora verificada (H-LEARN-1) **decae** al subir el ruido de **FALSO POSITIVO** del
+  verificador (acepta generaciones incorrectas); sobrevive hasta un umbral **ε\*** y colapsa hacia el régimen
+  naive (ε=1). Con VOLUMEN y PASOS fijos, la única variable es la **contaminación** → mide la robustez de la
+  auto-mejora a la CALIDAD del verificador (puente hacia verificadores reales, ruidosos/parciales).
+- **Predicción medible:** net-sobre-base de verified decae monótono-ish con ε; net(ε=0) > net(ε=1) por > 2σ;
+  existe ε\*>0 con net>0 consistente. Refutado si la curva es PLANA en ε.
+- **Estado:** **apoyada**.
+- **Confianza:** media-alta (curva limpia, robusta a la métrica).
+- **Evidencia a favor:** **exp017** (dosis-respuesta, suma byte-level, test held-out DISJUNTO, **n=3 seeds**,
+  N de entrenamiento FIJO=400 por ronda → sólo varía la contaminación): net-sobre-base de verified por ε =
+  {0.0: **+0.116**, 0.15: +0.074, 0.30: +0.056, 0.50: +0.001, 1.0: −0.001} — **decaimiento monótono**, caída
+  ε0→ε1 = 0.117 > 2σ (0.091), ε\*=0.15 (net>0 consistente). ε=0 REPRODUCE exp016 (+0.116≈+0.110). + [[arXiv:2203.14465]] (STaR: el filtro por corrección es la clave).
+- **Evidencia en contra:** [[arXiv:2305.17493]] (model collapse: datos contaminados degradan — es el extremo
+  ε=1, que aquí da net~0). El ε\* es específico de esta tarea/escala tiny; a ε intermedio (0.3-0.5) la
+  consistencia entre seeds se rompe (la curva media decae pero los seeds individuales son ruidosos).
+- **Veredicto adversarial:** APOYADA. Verificación INLINE (recomputación objetiva): (1) confound de VOLUMEN
+  perfectamente controlado (n_kept=400 en TODOS los ε); (2) ROBUSTO a la métrica — final-round Y media-rondas
+  dan la MISMA curva decreciente (a diferencia de exp016, aquí no hay metric-dependence); (3) ε=0 reproduce
+  exp016. → **el verificador (su corrección) es CAUSALMENTE el motor**: degradar exactamente la corrección lo
+  degrada de forma graduada. Cierra una objeción a H-LEARN-1. (Workflow de diseño falló por API 529; diseño
+  directo confound-controlado + verificación inline.)
+- **Experimento:** exp017_noisy_verifier (corrido, seeds 0-2, 5 ε × 4 rondas) ✅.
+- **Registro:** marcada por `cognia_x/research/cycles/cycle30_noisy_verifier.py` vía `mark_supported`.
+
+---
+
 ## Ciclo-1 (workflow de 13 agentes) — hipótesis verificadas adversarialmente (2026-06-17)
 
 24 hipótesis generadas por 6 investigadores con evidencia web; cada una atacada por un

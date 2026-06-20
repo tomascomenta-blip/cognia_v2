@@ -197,3 +197,16 @@
 - **Caveats (honestos):** efecto MODESTO (+0.11) a escala tiny (suma, d=64); métrica = media-sobre-rondas
   (el final-round es ruidoso, M=120); NO es 'colapso' de naive (su acc ~ base; la caída de diversidad es
   ruido de muestreo). Avanza CYCLE 11 (prevención→habilitación). **Reversible:** sí (a otra escala/tarea).
+
+## D-LEARN-2 (2026-06-20, CYCLE 30) — La CALIDAD del verificador es un lever de primera clase (presupuesto ε*)
+- **Decisión:** la auto-mejora verificada tolera ruido del verificador SOLO hasta un umbral; al elegir
+  verificadores reales para Cognia-X, exigir **FP-rate < ε\*** (o compensar con más N/diversidad). El
+  verificador no es binario "existe/no existe": su CALIDAD gobierna la auto-mejora.
+- **Razón:** exp017 (dosis-respuesta, volumen+pasos FIJOS → sólo varía la contaminación): net-sobre-base de
+  verified decae monótono con el FP-rate ε = {0:+0.116, 0.15:+0.074, 0.3:+0.056, 0.5:+0.001, 1:−0.001};
+  caída ε0→ε1=0.117 > 2σ; **ε\*=0.15** (sobrevive con net>0 consistente). Robusto a la métrica (final-round
+  y media-rondas coinciden); ε=0 reproduce exp016. Confirma causalmente que el verificador (su corrección)
+  es el motor de H-LEARN-1.
+- **Evidencia:** exp017 (tier-5) + [[arXiv:2203.14465]] STaR (tier-1). ACEPTADA por el ledger. Verificación
+  inline (confound de volumen controlado, robustez a métrica). Registrada vía cycle30_noisy_verifier.py.
+- **Reversible:** sí; ε\* es específico de la tarea/escala tiny — recalibrar para tareas/verificadores reales.

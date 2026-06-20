@@ -102,3 +102,6 @@ efecto modesto (+0.11), escala tiny, requiere oráculo chequeable. Verificado ad
 Ambas líneas pasaron por el Investigation Engine (compuertas DoD, ledger, ceiling, verify_no_loss) y por
 verificación adversarial multi-agente (workflows). El proceso CORRIGIÓ sobre-afirmaciones del propio agente
 (narrativa falsa de 'colapso', estadística inflada, un margen perverso) — la evidencia decide, no la intuición.
+
+### 7.4 Robustez de la auto-mejora al ruido del verificador (CYCLE 30, H-LEARN-2)
+**H-LEARN-2 (apoyada):** la auto-mejora verificada DECAE al subir el ruido de falso-positivo del verificador (acepta incorrectas). exp017 (dosis-respuesta, volumen+pasos FIJOS → sólo varía la contaminación, n=3): net-sobre-base de verified por ε(FP-rate) = {0:+0.116, 0.15:+0.074, 0.3:+0.056, 0.5:+0.001, 1:−0.001}, decaimiento monótono (caída ε0→ε1=0.117 > 2σ), sobrevive hasta ε*≈0.15, colapsa a naive por ε≥0.5. Como el volumen es fijo, esto CONFIRMA CAUSALMENTE que el verificador (su corrección) es el motor de H-LEARN-1 (degradar la corrección degrada la mejora, graduado) — cierra una objeción a H-LEARN-1. Robusto a la métrica (final-round y media-rondas coinciden); ε=0 reproduce exp016. Implicación (D-LEARN-2): un verificador real necesita FP-rate < ε* para habilitar auto-mejora — la CALIDAD del verificador es un lever de primera clase.

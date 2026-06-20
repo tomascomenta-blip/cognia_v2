@@ -155,3 +155,13 @@ p<0.05) → la CORRECCIÓN del oráculo es el motor (STaR), no el volumen ni el 
   sandbox `cognia_v3/core/sandbox_tester.py`; hechos→redundancia ≥2 fuentes) en vez del oráculo aritmético;
   (d) cuota de sintético + ledger de procedencia (origin/generación) para loops largos sin deriva.
 - **Cabos previos abiertos (menores):** H-HYB-3 (arreglo/carga del híbrido, pausado). 
+
+## [2026-06-20] CYCLE 30 — H-LEARN-2 APOYADA: la auto-mejora tolera ruido del verificador hasta ε*≈0.15
+exp017 (dosis-respuesta, volumen FIJO): net-sobre-base de verified decae monótono con el FP-rate del
+verificador ({0:+0.116 … 1:−0.001}); ε*=0.15. Confirma causalmente que el verificador es el motor (D-LEARN-2:
+su calidad es lever de 1ra clase). Robusto a la métrica; ε=0 reproduce exp016.
+- **Siguiente (F-LEARN-2 continúa):** reemplazar el oráculo aritmético por un **verificador chequeable REAL**:
+  (a) código → sandbox+tests (`cognia_v3/core/sandbox_tester.py` como referencia, reimplementar cognia_x-native);
+  (b) hechos → redundancia ≥2 fuentes. ¿La auto-mejora sobrevive con un verificador real (cuyo FP-rate efectivo
+  hay que medir contra ε*≈0.15)? + cuota de sintético + ledger de procedencia (origin/generación) para loops largos.
+- Cabos previos: H-HYB-3 (arreglo/carga del híbrido, pausado); F-REASON-REAL (envolver el LM real en el router).

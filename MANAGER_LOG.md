@@ -3320,3 +3320,16 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
 - Caveats honestos registrados: efecto modesto (+0.11), escala tiny, métrica media-sobre-rondas (final-round
   ruidoso), generalización a pares-nuevos-con-sumas-conocidas. Dirección sólida (4 seeds), no ley universal.
 - Verificación: suite completa cognia_x (gate); engine verify_no_loss=OK; experimento end-to-end n=4 con números reales.
+
+## [2026-06-20] CYCLE 30 — F-LEARN-2: auto-mejora verificada tolera ruido del verificador hasta ε* (H-LEARN-2 apoyada)
+- exp017_noisy_verifier (dosis-respuesta al FALSO POSITIVO del verificador, n=3 seeds, VOLUMEN+pasos FIJOS):
+  net-sobre-base de verified por ε = {0:+0.116, 0.15:+0.074, 0.3:+0.056, 0.5:+0.001, 1:−0.001}. Decaimiento
+  MONÓTONO (caída ε0→ε1=0.117 > 2σ); ε*=0.15; colapsa a naive por ε≥0.5. Confirma CAUSALMENTE que el
+  verificador (su corrección) es el motor de H-LEARN-1. D-LEARN-2: la calidad del verificador es lever de 1ra clase.
+- METODO: diseño-workflow FALLÓ por API 529 (sobrecarga del servidor) → diseño directo confound-controlado +
+  VERIFICACIÓN INLINE (recomputación objetiva): volumen controlado (n_kept=400 en todos los ε), ROBUSTO a la
+  métrica (final-round y media-rondas coinciden, sin metric-dependence), ε=0 reproduce exp016. Honesto sobre el 529.
+- Engine cycle30_noisy_verifier.py: H-LEARN-2 apoyada (DoD), D-LEARN-2, techo ε*, verify_no_loss=OK. Test test_cycle30_noisy.
+- F-LEARN-2 ahora tiene 2 resultados: H-LEARN-1 (auto-mejora verificada FUNCIONA) + H-LEARN-2 (su robustez al
+  ruido del verificador, con presupuesto ε*). Siguiente: verificador chequeable REAL (código→sandbox) en vez del oráculo.
+- Verificación: suite completa cognia_x (gate); engine verify_no_loss=OK; experimento end-to-end n=3 + verificación inline.

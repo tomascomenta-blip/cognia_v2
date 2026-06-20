@@ -853,3 +853,40 @@ conocidas (idéntico para los 3 brazos, no confound). Dirección sólida y repli
 ### Verificación (real)
 - exp016 corrido n=4 (seeds 0-3); summary recomputado con t-test pareado. cycle29_verified_bootstrap.py →
   H-LEARN-1 marcada apoyada (DoD), D-LEARN-1 aceptada, verify_no_loss=OK. Test test_cycle29_addition (5 passed).
+
+---
+
+## CYCLE 30 (2026-06-20) — F-LEARN-2: la auto-mejora verificada tolera ruido del verificador hasta ε* (H-LEARN-2 APOYADA)
+
+### Pregunta
+El oráculo de exp016 era PERFECTO; los verificadores reales son ruidosos. H-LEARN-2: ¿hasta qué tasa de
+FALSO POSITIVO (aceptar incorrectas) sobrevive la auto-mejora antes de degradar hacia naive?
+
+### Experimento (exp017_noisy_verifier) — dosis-respuesta, n=3 seeds, VOLUMEN+pasos FIJOS
+Verificador ruidoso: acepta una generación si es correcta O (incorrecta con prob ε). Barrido ε∈{0,0.15,0.3,
+0.5,1.0} (ε=0=oráculo perfecto=exp016; ε=1=acepta todo=naive). CONTROL DE VOLUMEN: el set aceptado se
+submuestrea a N=400 FIJO por ronda y se entrenan 200 pasos FIJOS en todos los ε → la única variable es la
+CONTAMINACIÓN. net-sobre-base por ε: {0:+0.116, 0.15:+0.074, 0.3:+0.056, 0.5:+0.001, 1:−0.001}.
+
+### Veredicto: H-LEARN-2 APOYADA
+Decaimiento MONÓTONO de la auto-mejora con el ruido del verificador (caída ε0→ε1 = 0.117 > 2σ 0.091);
+sobrevive hasta ε*=0.15 (net>0 consistente en los 3 seeds), colapsa al nivel naive por ε≥0.5. Como el
+volumen y los pasos son fijos, la CONTAMINACIÓN es la causa → **confirma causalmente que el verificador (su
+CORRECCIÓN) es el motor de H-LEARN-1** (degradar exactamente la corrección degrada la mejora, graduado).
+Implicación de diseño (D-LEARN-2): un verificador real necesita FP-rate < ε* para habilitar auto-mejora.
+
+### Rigor (verificación INLINE; el workflow de diseño falló por API 529)
+Recomputación objetiva: (1) confound de VOLUMEN perfectamente controlado (n_kept=400 en TODOS los ε);
+(2) ROBUSTO a la métrica — final-round Y media-rondas dan la MISMA curva decreciente (a diferencia de
+exp016, sin metric-dependence aquí); (3) ε=0 reproduce exp016 (+0.116≈+0.110, consistencia entre experimentos);
+(4) monotonicidad confirmada. Diseño directo confound-controlado (no se pudo correr el design-workflow por 529).
+
+### Honestidad
+Efecto y ε* específicos de la escala tiny (suma 0..19, d=64); a ε intermedio (0.3-0.5) la consistencia
+entre seeds se rompe (la media decae pero los seeds individuales son ruidosos) — el headline robusto es el
+decaimiento ε0≫ε1 (>2σ) y ε*≈0.15, no el valor exacto en cada ε. Modelo de ruido = FP puro (el peligroso);
+el FN (rechazar correctas) solo reduciría datos. Dirección sólida (n=3, robusta a métrica), no ley universal.
+
+### Verificación (real)
+- exp017 corrido (seeds 0-2, 5 ε × 4 rondas, n_kept=400 fijo). cycle30_noisy_verifier.py → H-LEARN-2 apoyada
+  (DoD), D-LEARN-2 aceptada, techo 'asumido' (presupuesto ε* del verificador), verify_no_loss=OK. Test test_cycle30_noisy.
