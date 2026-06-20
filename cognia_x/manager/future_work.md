@@ -129,3 +129,17 @@ Corrige mi diagnóstico de under-training de CYCLE 26 (autocorrección honesta).
   lineal-primero) del híbrido a n_pairs=16 → encontrar el umbral de d donde el híbrido recupera recall, o
   mostrar que el arreglo lineal-primero es el cuello. Cierra H-HYB-2 y completa de verdad la línea de recall.
 - El pivote a #2 F-LEARN-2 sigue disponible, pero H-HYB-2 es el cabo honesto que falta de la línea de recall.
+
+## [2026-06-20] CYCLE 28 — H-HYB-2 REFUTADA (no es d); sub-línea del híbrido PAUSADA
+exp015 (barrido de d del híbrido a np=16): d24=0.189, d48=0.253, d64=0.190 — NO recupera a ningún d, no
+monótono. **H-HYB-2 refutada**: el cuello del híbrido es ARREGLO (lineal-primero) y/o CARGA (np), no d
+(reconcilia con CYCLE 6 a np=8). Caveat FUERTE a D-007: el híbrido naive es frágil para recall; la atención
+pura es el remedio robusto. Genera **[[H-HYB-3]]** (arreglo/carga).
+- **PAUSA (D-HYB-2):** la sub-línea H-HYB-1→2→3 está en rendimientos decrecientes. Consolido la línea de
+  recall (sólida: lineal=estructural + atención=remedio + híbrido-frágil documentado). H-HYB-3 queda para
+  retomar con orientación del dueño.
+- **Frente mayor abierto (prioridad #2):** **F-LEARN-2** — aprendizaje continuo Nivel 2 (verificar-antes-de-
+  aprender, anti-colapso). Es el siguiente salto sustantivo del proyecto; se beneficia de orientación sobre
+  el enfoque (tarea/verificador) antes de invertir varios ciclos.
+- Si se retoma el híbrido (H-HYB-3): exp016 = híbrido atención-primero vs lineal-primero a d=48, np=16
+  (¿es el arreglo?) + un punto a np=8 (¿es la carga?). Barato, decisivo.

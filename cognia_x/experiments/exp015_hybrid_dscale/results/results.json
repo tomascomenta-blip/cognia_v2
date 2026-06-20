@@ -1,0 +1,70 @@
+{
+  "experiment": "exp015_hybrid_dscale",
+  "hypothesis": "H-HYB-2: la recuperacion de recall del hibrido (2 lineal + 2 atencion) es d-dependiente -> sube d y el hibrido cruza el plateau ~0.18 que tiene a d=24.",
+  "smoke": false,
+  "seed": 0,
+  "n_layers": 4,
+  "attn_every": 2,
+  "n_pairs": 16,
+  "recipe": {
+    "n_heads": 4,
+    "n_vals": 16,
+    "n_queries": 16,
+    "n_keys": 160,
+    "batch": 64,
+    "lr": 0.001
+  },
+  "steps": 6000,
+  "warmup": 250,
+  "early_stop": 0.95,
+  "chance": 0.0625,
+  "recover_thresh": 0.4,
+  "grid": [
+    {
+      "name": "hibrido_d24",
+      "d_model": 24,
+      "attn_every": 2,
+      "note": "baseline bottleneckeado (exp014=0.186)",
+      "final_acc": 0.1888671875,
+      "chance": 0.0625,
+      "params": 27864
+    },
+    {
+      "name": "hibrido_d48",
+      "d_model": 48,
+      "attn_every": 2,
+      "note": "intermedio (exp009 separo a d=48)",
+      "final_acc": 0.253125,
+      "chance": 0.0625,
+      "params": 111024
+    },
+    {
+      "name": "hibrido_d64",
+      "d_model": 64,
+      "attn_every": 2,
+      "note": "d de CYCLE 6 (deberia recuperar ~0.99)",
+      "final_acc": 0.190234375,
+      "chance": 0.0625,
+      "params": 201280
+    }
+  ],
+  "summary": {
+    "chance": 0.0625,
+    "baseline": "hibrido_d24",
+    "baseline_acc": 0.1888671875,
+    "acc_by_name": {
+      "hibrido_d24": 0.1888671875,
+      "hibrido_d48": 0.253125,
+      "hibrido_d64": 0.190234375
+    },
+    "recover_thresh": 0.4,
+    "recovered": [],
+    "by_d": {
+      "hibrido_d24": 0.1888671875,
+      "hibrido_d48": 0.253125,
+      "hibrido_d64": 0.190234375
+    },
+    "headline": "H-HYB-2 REFUTADA a d<=64: el hibrido sigue ~0.18 aun a d=64 -> el cuello NO es solo d (seria el arreglo lineal-primero o la carga np); tension con CYCLE 6 a revisar.",
+    "headline_full": "H-HYB-2 REFUTADA a d<=64: el hibrido sigue ~0.18 aun a d=64 -> el cuello NO es solo d (seria el arreglo lineal-primero o la carga np); tension con CYCLE 6 a revisar. hibrido_d24=0.189; hibrido_d48=0.253; hibrido_d64=0.190."
+  }
+}

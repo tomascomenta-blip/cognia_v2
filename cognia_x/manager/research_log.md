@@ -779,3 +779,38 @@ chico era más rico de lo que cerré en CYCLE 26 → la línea NO estaba tan "ce
 - Trayectoria del híbrido inspeccionada (plateó @4000, no creció) → no es under-training.
 - `python -m cognia_x.research.cycles.cycle27_hybrid_budget` → CHECK + verify_no_loss=OK.
 - Suite completa de cognia_x como compuerta final.
+
+---
+
+## CYCLE 28 (2026-06-20) — H-HYB-2 REFUTADA: la recuperación del híbrido NO es d (es arreglo/carga); sub-línea pausada
+
+### Pregunta
+H-HYB-2 (CYCLE 27): subir d arreglaría el híbrido bottleneckeado a d=24 (reconciliando con CYCLE 6 a d=64).
+
+### Experimento (exp015_hybrid_dscale) — híbrido 2lin+2attn, n_heads=4, n_pairs=16, seed0, steps=6000
+- hibrido_d24 = 0.189 ; hibrido_d48 = 0.253 ; hibrido_d64 = **0.190**. NO recupera (umbral 0.40) a ningún
+  d, y NO monótono (d48 > d64). [Nota operativa: la corrida sufrió ~6h de contención con un agente
+  paralelo; sin él vuelve a ~12 steps/s. El RESULTADO no se afecta, solo el wall-time.]
+
+### Veredicto: H-HYB-2 REFUTADA — el cuello NO es d
+RECONCILIA la tensión con CYCLE 6 (d=64 → 0.99): aquel era **np=8** (carga baja), este **np=16**. La
+recuperación del híbrido depende de la CARGA (np) y/o el ARREGLO (lineal-primero destruye la asociación
+clave-valor antes de la atención), no de d. **Caveat REAL a D-007:** el híbrido naive es FRÁGIL para
+recall (no robusto a arreglo/carga); la atención pura recupera siempre (0.95). Genera H-HYB-3.
+
+### PAUSA deliberada de la sub-línea del híbrido (D-HYB-2)
+La sub-línea H-HYB-1→2→3 está en rendimientos decrecientes: cada ciclo refuta y genera el siguiente sobre
+una pregunta cada vez más estrecha (condiciones exactas de recuperación de un híbrido de 4 capas a d/np
+tiny). La conclusión CENTRAL de la línea de recall ya es sólida y multi-verificada (lineal=estructural por
+6 levers + atención=remedio por control positivo). Por honestidad de prioridades (la directiva v3 §1:
+eficiencia/recall ya cubierto), PAUSO el drilling y consolido. H-HYB-3 queda documentada para retomar con
+orientación; el frente mayor abierto es F-LEARN-2 (prioridad #2).
+
+### Engine (research/cycles/cycle28_hybrid_dscale.py)
+H-HYB-2 `refutada` (mark_refuted, DoD), H-HYB-3 `abierta`, techo 'asumido' (cuello=arreglo/carga), D-HYB-2
+(caveat fuerte a D-007 + pausa). verify_no_loss=OK.
+
+### Verificación (real)
+- `python -m cognia_x.experiments.exp015_hybrid_dscale.run --steps 6000` → results.json (3 brazos, barrido de d).
+- `python -m cognia_x.research.cycles.cycle28_hybrid_dscale` → CHECK + verify_no_loss=OK.
+- Suite completa de cognia_x como compuerta final.

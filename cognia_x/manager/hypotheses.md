@@ -209,20 +209,40 @@
 
 ---
 
-### H-HYB-2 (CYCLE 27 — generada por el fracaso de H-HYB-1, status='abierta')
-- **Enunciado:** la recuperación de recall del híbrido es **d-dependiente**: a d chico (24) las capas
-  LINEALES (recall ~0.18) bottleneckean el recall que las de atención darían; a d=64 (CYCLE 6) no. El
-  cuello es la capacidad de las capas lineales y/o el ARREGLO (lineal-primero destruye la asociación
-  clave-valor antes de la atención).
-- **Predicción medible:** subir d (24→48→64), o poner la atención PRIMERA (no lineal-primero), o subir el
-  ratio de atención hace que el híbrido cruce el plateau a esta carga. **Refutado si** ninguna lo mueve.
-- **Estado:** **abierta** (sin experimento aún).
+### H-HYB-2 (CYCLE 27 generó → CYCLE 28 REFUTÓ, status='refutada')
+- **Enunciado:** la recuperación de recall del híbrido es **d-dependiente**: subir d (24→48→64) hace que
+  el híbrido cruce el plateau ~0.18 que tiene a d=24.
+- **Predicción medible:** hibrido_d48/d64 recuperan recall (≥ 0.40). **Refutado si** siguen ~0.18 aun a d=64.
+- **Estado:** **refutada** (CYCLE 28).
+- **Confianza:** media.
+- **Evidencia a favor:** CYCLE 6 (híbrido funcionó a d=64) → predecía que d arreglaría el caso d=24.
+- **Evidencia en contra:** **exp015** (híbrido 2lin+2attn, n_heads=4, n_pairs=16, seed0, steps=6000,
+  barrido de d): **d24=0.189, d48=0.253, d64=0.190** — NO recupera (umbral 0.40) a ningún d, y **NO
+  monótono** en d (d48 > d64).
+- **Veredicto adversarial:** REFUTADA. El cuello del híbrido NO es solo d. **RECONCILIA la tensión con
+  CYCLE 6** (d=64 → 0.99): aquel era **np=8** (carga baja), este **np=16** → la recuperación del híbrido
+  depende de la **CARGA (np)** y/o el **ARREGLO** (lineal-primero destruye la asociación clave-valor antes
+  de la atención), no de d. **Caveat REAL a D-007:** el híbrido naive no recupera recall robustamente; la
+  atención pura sí (0.95). Genera **H-HYB-3**.
+- **Experimento:** exp015_hybrid_dscale (corrido, seed=0, steps=6000) ✅.
+- **Registro:** marcada por `cognia_x/research/cycles/cycle28_hybrid_dscale.py` vía `mark_refuted`.
+
+---
+
+### H-HYB-3 (CYCLE 28 — generada por el fracaso de H-HYB-2, status='abierta', sub-línea PAUSADA)
+- **Enunciado:** el cuello del híbrido a carga alta (np=16) es el **ARREGLO** (lineal-primero) y/o la
+  **CARGA** (np), no d: poner la atención PRIMERA (o subir el ratio de atención, o bajar np) hace que el
+  híbrido recupere recall donde el interleaved lineal-primero no.
+- **Predicción medible:** un híbrido atención-primero (o más atención, o np menor) cruza el plateau a d≤64.
+  **Refutado si** tampoco.
+- **Estado:** **abierta** — pero la **sub-línea del híbrido se PAUSA** (D-HYB-2): H-HYB-1→2→3 está en
+  rendimientos decrecientes (cada ciclo refuta y genera sobre una pregunta cada vez más estrecha); la
+  conclusión central de la línea de recall ya es sólida. Retomar con orientación o pivotar a F-LEARN-2.
 - **Confianza:** baja.
-- **Evidencia a favor:** CYCLE 6 (híbrido funcionó a d=64) + exp014 (falló a d=24) → contraste que apunta a d.
+- **Evidencia a favor:** CYCLE 6 (funcionó a np=8) + exp015 (no monótono en d → no es d).
 - **Evidencia en contra:** — (sin experimento aún).
-- **Veredicto adversarial:** — (pendiente).
-- **Experimento:** pendiente → barrer d / arreglo (atención-primero) / ratio del híbrido a n_pairs=16.
-- **Registro:** añadida por `cognia_x/research/cycles/cycle27_hybrid_budget.py` (`status='abierta'`).
+- **Experimento:** pendiente (pausado) → híbrido atención-primero / más ratio de atención / np menor.
+- **Registro:** añadida por `cognia_x/research/cycles/cycle28_hybrid_dscale.py` (`status='abierta'`).
 
 ---
 

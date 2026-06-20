@@ -3286,3 +3286,20 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   lineal=estructural 0.18), pero el comportamiento del HÍBRIDO a d chico es una sub-pregunta ACTIVA
   (H-HYB-2) — la línea NO estaba tan "cerrada" como dije en CYCLE 26. Esto justifica haber corrido exp014.
 - Verificación: suite completa cognia_x; engine verify_no_loss=OK; experimento end-to-end + trayectoria inspeccionada.
+
+## [2026-06-20] CYCLE 28 — H-HYB-2 REFUTADA (la recuperación del híbrido es arreglo/carga, no d); sub-línea PAUSADA
+- exp015_hybrid_dscale (híbrido 2lin+2attn, n_heads=4, n_pairs=16, seed0, steps=6000, barrido de d):
+  d24=0.189, d48=0.253, d64=0.190 — NO recupera recall a ningún d, NO monótono (d48 > d64). H-HYB-2 REFUTADA.
+- RECONCILIA con CYCLE 6 (d=64 → 0.99 a np=8): la recuperación del híbrido depende de la CARGA (np=8 vs 16)
+  y/o el ARREGLO (lineal-primero), no de d. Caveat REAL a D-007: el híbrido naive es FRÁGIL para recall;
+  la atención pura es el remedio robusto (0.95). Genera H-HYB-3 (arreglo/carga).
+- DECISIÓN D-HYB-2: PAUSAR la sub-línea del híbrido (H-HYB-1→2→3 en rendimientos decrecientes sobre una
+  pregunta cada vez más estrecha). La conclusión central de la línea de recall ya es sólida. Consolido.
+- NOTA operativa: la corrida sufrió ~6h de contención con un agente paralelo autónomo (ahora en reposo);
+  el reloj de ScheduleWakeup había drifteado (tiempos ~03:xx mostrados vs ~09:xx real). Sin contención
+  exp015 corre a ~12 steps/s normal. El RESULTADO no se afecta. El agente paralelo limpió el duplicado
+  exp011_taylor_kernel (redundante, conocimiento preservado en el log).
+- Engine cycle28: verify_no_loss=OK. Mirror humano: hypotheses/decision_log/future_work/research_log.
+- ESTADO: línea de recall consolidada (lineal=estructural, atención=remedio; híbrido frágil a arreglo/carga
+  documentado). Frente mayor: F-LEARN-2 (prioridad #2), espera orientación. 5 ciclos esta sesión (24-28).
+- Verificación: suite completa cognia_x; engine verify_no_loss=OK; experimento end-to-end con números reales.

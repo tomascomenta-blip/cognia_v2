@@ -168,3 +168,17 @@
   `cognia_x/research/cycles/cycle27_hybrid_budget.py`. Genera H-HYB-2 (¿d / arreglo / ratio?).
 - **Reversible:** N/A (es un caveat empírico). NO refuta D-007 (el híbrido a d adecuado sí recupera, CYCLE 6);
   lo acota: el híbrido a d chico no es free lunch para recall.
+
+## D-HYB-2 (2026-06-20, CYCLE 28) — Caveat FUERTE a D-007 + PAUSAR la sub-línea del híbrido
+- **Decisión:** reforzar el caveat a D-007: el híbrido naive (interleaved lineal-primero) **NO recupera
+  recall robustamente** — no lo arregla subir d (exp015: d24=0.189, d48=0.253, d64=0.190, np=16; no
+  monótono). Depende del ARREGLO (lineal-primero) y la CARGA (np); funcionó solo a d=64/np=8 (CYCLE 6). La
+  **atención pura** es el remedio robusto (0.95). **PAUSAR** la sub-línea del híbrido (H-HYB-3) por
+  rendimientos decrecientes; retomar con orientación del dueño o pivotar a F-LEARN-2 (prioridad #2).
+- **Razón:** exp015 refuta H-HYB-2 (no es d). La sub-línea H-HYB-1→2→3 refuta y genera sobre una pregunta
+  cada vez más estrecha (recuperación exacta de un híbrido de 4 capas a d/np tiny); la conclusión central
+  de la línea de recall (lineal=estructural, atención=remedio robusto) ya es sólida y multi-verificada.
+- **Evidencia:** exp015 (tier-5) + CYCLE6/H-MEZ-4 (tier-5). ACEPTADA por el ledger. Registrada vía
+  `cognia_x/research/cycles/cycle28_hybrid_dscale.py`. Genera H-HYB-3 (arreglo/carga, pausada).
+- **Reversible:** N/A. NO refuta D-007 (el híbrido a d=64/np=8 sí recuperó, CYCLE 6); lo acota fuerte: el
+  híbrido naive es FRÁGIL a arreglo/carga para recall — un hallazgo arquitectónico real para Cognia-X.
