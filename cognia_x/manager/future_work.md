@@ -80,3 +80,30 @@ el cuello del recall lineal entrenado a d=24 es de **profundidad/escala/optimiza
   (la atención es necesaria para el recall a carga alta; el estado fijo solo no basta).
 - 100% CPU, modelos tiny, reproducible — mismo molde acotado que exp009/exp010/exp011. Cuidado de coste:
   el barrido de d/profundidad y la atención son baratos; NO repetir el kernel Taylor (dim 325, ~5× lento).
+
+## [2026-06-19] CYCLE 25 — la línea H-CEIL CONVERGE: el techo de recall es ESTRUCTURAL
+exp012 (lineal PURO, d≤48) **refutó** la cláusula lineal de [[H-CEIL-4]]: ni profundidad (L8=0.181), ni
+escala-d (d48=0.183), ni optimizador (LR 3×=0.176) suben el lineal puro sobre ~0.18. Junto con exp010
+(ancho) y exp011 (forma+init), el plateau es robusto a **SEIS levers no-atención** → el techo del
+mezclador de estado fijo es **ESTRUCTURAL** (techo `real`: pigeonhole sobre el estado, exp002). H-CEIL-4
+**mixta**: la rama "requiere atención" gana por eliminación + CYCLE 6. **Decisión D-CEIL-4** (cerrar la
+línea de tuning del lineal; el remedio es la atención del híbrido, D-CEIL-1). Backlog de asumidos → 0.
+
+### Lo que cierra y lo que queda de la línea de recall
+- **CERRADO:** afinar el mezclador lineal de estado fijo para recall (6 levers refutados). El recall a
+  carga alta = atención (híbrido). El eje COSTE↔RECALL del híbrido está medido (exp005 + CYCLE 6).
+- **Confirmación opcional (exp013):** lineal puro d=24 (0.173) vs lineal+≥2 capas de atención a d=24
+  como control positivo end-to-end a ESTA escala (CYCLE 6 lo mostró a otra; baratísimo, sin Taylor).
+  No es bloqueante — la conclusión estructural ya está sólida.
+
+### Pivote: el siguiente frente por PRIORIDAD (la directiva v3 §1)
+Cerrado el eje de eficiencia/recall (prioridad #1), el frente abierto de mayor prioridad es **#2
+Aprendizaje continuo → F-LEARN-2 (Nivel 2: verificar-antes-de-aprender, anti-colapso)**:
+- La IA propone/genera; SOLO aprende lo que pasa un **verificador chequeable contra la realidad**
+  (código→sandbox+oráculo; texto→redundancia ≥2 fuentes + filtro de degeneración KL/gzip). Examinador
+  100% real (invariante). Ledger de procedencia (origin∈{real,syn}, generación g, cuota ≤15% sintético).
+- Nivel 1 ya validado (CYCLE 8/10: aprende sin olvido con gate por-dominio + replay + congelar-tronco).
+  Nivel 2 es el salto a "investigar/aprender sola sin colapsar". exp candidato: collapse_guard (2 brazos:
+  colapso vs guard) — ya esbozado en un future_work previo.
+- Alternativa de menor prioridad pero barata: F-REASON-REAL (envolver el LM real en el router de
+  meta-razonamiento) — el pilar 5 está validado solo sobre solvers sintéticos.

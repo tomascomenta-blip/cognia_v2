@@ -1,0 +1,82 @@
+{
+  "experiment": "exp012_depth_scale",
+  "hypothesis": "H-CEIL-4 (clausula lineal): el plateau de recall del lineal PURO (~0.18) se levanta con profundidad / escala-d / optimizador a steps iguales \u2014 o es estructural (solo la atencion, ya mostrada en CYCLE 6).",
+  "smoke": false,
+  "seed": 0,
+  "n_pairs": 16,
+  "recipe": {
+    "n_heads": 1,
+    "n_vals": 16,
+    "n_queries": 16,
+    "n_keys": 160,
+    "batch": 64
+  },
+  "steps": 3000,
+  "warmup": 250,
+  "early_stop": 0.95,
+  "chance": 0.0625,
+  "grid": [
+    {
+      "name": "lin_d24_L4",
+      "d_model": 24,
+      "n_layers": 4,
+      "lr": 0.001,
+      "note": "BASELINE (exp011 elu_base ~0.173)",
+      "final_acc": 0.17333984375,
+      "chance": 0.0625,
+      "params": 27864
+    },
+    {
+      "name": "lin_d24_L8",
+      "d_model": 24,
+      "n_layers": 8,
+      "lr": 0.001,
+      "note": "PROFUNDIDAD (2x capas)",
+      "final_acc": 0.180859375,
+      "chance": 0.0625,
+      "params": 55704
+    },
+    {
+      "name": "lin_d48_L4",
+      "d_model": 48,
+      "n_layers": 4,
+      "lr": 0.001,
+      "note": "ESCALA-d (estado 24^2->48^2)",
+      "final_acc": 0.1826171875,
+      "chance": 0.0625,
+      "params": 111024
+    },
+    {
+      "name": "lin_d24_L4_hi",
+      "d_model": 24,
+      "n_layers": 4,
+      "lr": 0.003,
+      "note": "OPTIMIZADOR (LR 3x)",
+      "final_acc": 0.17587890625,
+      "chance": 0.0625,
+      "params": 27864
+    }
+  ],
+  "summary": {
+    "chance": 0.0625,
+    "baseline": "lin_d24_L4",
+    "baseline_acc": 0.17333984375,
+    "acc_by_name": {
+      "lin_d24_L4": 0.17333984375,
+      "lin_d24_L8": 0.180859375,
+      "lin_d48_L4": 0.1826171875,
+      "lin_d24_L4_hi": 0.17587890625
+    },
+    "deltas": {
+      "lin_d24_L8": 0.007519531249999989,
+      "lin_d48_L4": 0.00927734375,
+      "lin_d24_L4_hi": 0.0025390624999999944
+    },
+    "lifts": [],
+    "rise_thresh": 0.02,
+    "floor_thresh": 0.1125,
+    "all_near_floor": false,
+    "headline": "H-CEIL-4 (clausula lineal) REFUTADA: ni profundidad ni escala-d ni optimizador suben el recall del lineal PURO sobre ~0.18 -> el plateau del estado fijo a esta escala es robusto; solo la ATENCION lo levanta (refuerza D-CEIL-1, estructural)",
+    "headline_full": "H-CEIL-4 (clausula lineal) REFUTADA: ni profundidad ni escala-d ni optimizador suben el recall del lineal PURO sobre ~0.18 -> el plateau del estado fijo a esta escala es robusto; solo la ATENCION lo levanta (refuerza D-CEIL-1, estructural). lin_d24_L4=0.173; lin_d24_L8=0.181; lin_d48_L4=0.183; lin_d24_L4_hi=0.176."
+  }
+}

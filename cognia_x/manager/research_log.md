@@ -663,3 +663,45 @@ ciclo (refutada/apoyada/mixta) contra results.json sintéticos antes de correrlo
 - `python -m cognia_x.research.cycles.cycle24_kernel_init` → todas las CHECK + `verify_no_loss = OK`.
 - Identidad del kernel Taylor verificada EXACTA antes de entrenar: phi(q).phi(k) = 1+(q.k)+(q.k)^2/2,
   error 1e-7. mimetic init verificada (W_k==W_q, W_o==I) y default intacto. Test `test_cycle24_kernel_init.py`.
+
+---
+
+## CYCLE 25 (2026-06-19) — la línea H-CEIL CONVERGE: el techo de recall del estado fijo es ESTRUCTURAL
+
+### Pregunta
+H-CEIL-4 (generada en CYCLE 24): ¿el plateau ~0.18 del lineal PURO se levanta con profundidad/escala-d/
+optimizador (sin atención)? Es la cláusula NOVEDOSA; la rama "requiere atención" ya está apoyada (CYCLE 6).
+
+### Experimento (exp012_depth_scale) — 4 brazos lineales puros, n_pairs=16, seed0, steps=3000 step-parity
+- `lin_d24_L4` (baseline) = **0.173** (= exp011 elu_base).
+- `lin_d24_L8` (profundidad 2×) = 0.181 (Δ +0.0075, ruido).
+- `lin_d48_L4` (escala d=48) = 0.183 (Δ +0.0093, ruido).
+- `lin_d24_L4_hi` (LR 3×) = 0.176 (Δ +0.0025, ruido).
+- Ninguno cruza el umbral 0.02. d=48 puro sigue ~0.18 → en exp009 era el HÍBRIDO el que separaba a d=48,
+  no la escala-d del lineal. Cuadra: el lift de exp009 era de la ATENCIÓN, no del tamaño del lineal.
+
+### Veredicto: H-CEIL-4 MIXTA — la línea CONVERGE
+La rama "profundidad/escala/optimizador" queda REFUTADA. Combinado con exp010 (ancho) y exp011
+(forma+init), el plateau del mezclador de estado fijo a d≤48 es robusto a **SEIS levers no-atención**.
+La rama "requiere atención" gana por ELIMINACIÓN + CYCLE 6 (la atención recupera 0.255→0.998). El techo
+pasa a **ESTRUCTURAL** (`real`): cota = pigeonhole sobre el estado fijo (exp002 ~d²) + robustez empírica
+a todo tuning probado. **D-CEIL-4:** cerrar la línea de afinar el lineal; el remedio del recall a carga
+alta es ARQUITECTÓNICO (la atención del híbrido). Backlog de límites asumidos → 0 (la línea no invita
+más refutación de tuning; el siguiente paso es confirmar el híbrido o pivotar de prioridad).
+
+### Engine (research/cycles/cycle25_depth_scale.py)
+DERIVA el veredicto de exp012/results.json. H-CEIL-4 `mixta` (mark_mixta, DoD completo), techo `real`
+estructural, D-CEIL-4 aceptada (tier5 exp012 + tier1 Okpekpe&Orvieto), analogía 7 etapas (la libreta de
+tamaño fijo: ningún tuning la arregla; hace falta otro instrumento = atención). verify_no_loss=OK.
+
+### Honestidad
+- Escala tiny (d≤48, n_pairs=16, steps=3000, seed0). El "estructural" es a ESTA escala; la cota última
+  real es el pigeonhole informacional (exp002). A escala MUY mayor (modelos grandes) la pregunta podría
+  reabrirse — pero a la escala del lab, 6 levers refutados son evidencia fuerte de que el remedio es
+  arquitectónico, no de tuning. Reversible (D-CEIL-4) si a d≫48 el lineal puro cruzara sin atención.
+- Confirmación opcional pendiente: exp013 (lineal+≥2 atención a d=24) como control positivo a esta escala.
+
+### Verificación (real)
+- `python -m cognia_x.experiments.exp012_depth_scale.run --steps 3000` → results.json (4 brazos).
+- `python -m cognia_x.research.cycles.cycle25_depth_scale` → CHECK + verify_no_loss=OK; asumidos→0.
+- Suite completa de cognia_x como compuerta final.

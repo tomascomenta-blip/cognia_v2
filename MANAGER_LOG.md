@@ -3242,3 +3242,19 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   el mío independientemente. Lo dejo documentado (no borro conocimiento).
 - Verificación: suite completa de cognia_x como compuerta final; engine verify_no_loss=OK; experimento
   corrido end-to-end con números reales. Commits chicos pusheados (infra+v3; docs; cierre del ciclo).
+
+## [2026-06-19] CYCLE 25 — la línea H-CEIL CONVERGE: techo de recall ESTRUCTURAL (H-CEIL-4 mixta)
+- Continuación autónoma del loop (tras cerrar CYCLE 24). GOAL: investigación acumulativa por evidencia.
+- exp012_depth_scale (lineal PURO, 4 brazos, n_pairs=16, seed0, steps=3000 step-parity): profundidad
+  (L8=0.181), escala-d (d48=0.183), optimizador (LR 3×=0.176) — NINGUNO cruza el plateau ~0.18 (baseline
+  0.173). Refuta la cláusula lineal de H-CEIL-4.
+- CONVERGENCIA: con exp010 (ancho) + exp011 (forma+init) + exp012 (profundidad/escala/optim), el plateau
+  del mezclador de estado fijo a d≤48 es robusto a SEIS levers no-atención → techo ESTRUCTURAL ('real':
+  pigeonhole sobre el estado, exp002). H-CEIL-4 MIXTA (rama atención apoyada por eliminación + CYCLE 6).
+  D-CEIL-4: cerrar la línea de tuning del lineal; el remedio es la atención del híbrido (D-CEIL-1/D-007).
+- Engine cycle25_depth_scale.py: H-CEIL-4 mixta (DoD), techo real, D-CEIL-4 aceptada, verify_no_loss=OK,
+  backlog de asumidos→0. Mirror humano: hypotheses/decision_log/future_work/research_log actualizados.
+- Pivote registrado: cerrado el eje eficiencia/recall (prioridad #1), el frente abierto de mayor prioridad
+  es #2 aprendizaje continuo → F-LEARN-2 (verificar-antes-de-aprender, anti-colapso). exp013 (híbrido
+  mínimo) queda como confirmación opcional no-bloqueante.
+- Verificación: suite completa cognia_x; engine verify_no_loss=OK; experimento end-to-end con números reales.

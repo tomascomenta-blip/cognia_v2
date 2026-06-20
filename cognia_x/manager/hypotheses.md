@@ -158,23 +158,31 @@
 
 ---
 
-### H-CEIL-4 (CYCLE 24 — generada por el fracaso de H-CEIL-3, status='abierta')
-- **Enunciado:** si ni el ancho (exp010) ni la forma del kernel ni la init (exp011) levantan el plateau
-  a esta escala tiny, el cuello del recall lineal entrenado a d=24 es de **PROFUNDIDAD/ESCALA** u
-  **OPTIMIZADOR** — o requiere la capa de **ATENCIÓN del híbrido** (no se resuelve con un mezclador de
-  estado fijo a d=24).
-- **Predicción medible:** subir profundidad/d/steps, o cambiar el optimizador, o añadir 1 capa de
-  atención (híbrido) sube el recall por encima de ~0.18 donde el lineal puro a d=24 no puede.
-  **Refutado si** tampoco.
-- **Estado:** **abierta** (sin experimento aún; el gate DoD solo aplica al dar veredicto).
-- **Confianza:** baja.
-- **Evidencia a favor:** [[arXiv:2508.19029]] (Okpekpe & Orvieto 2025: gran parte de la brecha de
-  recall es de OPTIMIZACIÓN) + exp009 (el híbrido SÍ separa a d=48: 0.292 vs 0.181) + [[arXiv:2402.18668]]
-  (la frontera recall↔memoria se cruza con atención, no con el estado fijo solo).
-- **Evidencia en contra:** — (ninguna aún; hipótesis siguiente, sin experimento corrido).
-- **Veredicto adversarial:** — (pendiente del experimento).
-- **Experimento:** pendiente → barrer profundidad/d/steps/optimizador, o 1 capa de atención, a d=24.
-- **Registro:** añadida por `cognia_x/research/cycles/cycle24_kernel_init.py` (`status='abierta'`).
+### H-CEIL-4 (CYCLE 24 generó → CYCLE 25 MIXTA, status='mixta') — la línea H-CEIL CONVERGE
+- **Enunciado:** el cuello del recall lineal entrenado a d≤48 es de **PROFUNDIDAD/ESCALA/OPTIMIZADOR** —
+  o requiere la capa de **ATENCIÓN del híbrido** (el mezclador de estado fijo no llega).
+- **Predicción medible:** subir profundidad/d/steps, o el optimizador, o añadir atención, sube el recall
+  por encima de ~0.18. exp012 testea profundidad/d/optim (la atención ya está apoyada en CYCLE 6).
+- **Estado:** **mixta** (CYCLE 25).
+- **Confianza:** media-alta.
+- **Evidencia a favor (rama "requiere atención"):** CYCLE 6 / H-MEZ-4 (a np=8 el lineal satura 0.255 y
+  el híbrido recupera 0.998) + exp009 (el híbrido separa a d=48: 0.292 vs 0.181) + [[arXiv:2402.18668]]
+  (la frontera recall↔memoria se cruza con atención). La atención SÍ levanta el techo.
+- **Evidencia en contra (rama "profundidad/escala/optim"):** **exp012** (lineal PURO, n_pairs=16, seed0,
+  steps=3000 step-parity): baseline 0.173; **lin_d24_L8=0.181 (Δ+0.0075)**, **lin_d48_L4=0.183
+  (Δ+0.0093)**, **lin_d24_L4_hi(LR 3×)=0.176 (Δ+0.0025)** — NINGUNO cruza el umbral 0.02. Ni profundidad
+  ni escala-d ni optimizador suben el lineal puro. (Okpekpe&Orvieto predecía que el tuning lo
+  arreglaría → refutado a esta escala.)
+- **Veredicto adversarial:** MIXTA. La rama lineal (profundidad/escala/optim) queda REFUTADA; la rama
+  "requiere atención" queda APOYADA por **eliminación** — el plateau ~0.18 del mezclador de estado fijo a
+  d≤48 es robusto a **SEIS levers no-atención** (ancho exp010; forma del kernel + init exp011;
+  profundidad + escala-d + optimizador exp012). El techo es **ESTRUCTURAL** (cota: pigeonhole sobre el
+  estado fijo, exp002 ~d²; + la cota efectiva entrenada robusta a todo tuning probado), no una brecha de
+  optimización. **La línea H-CEIL CONVERGE:** el remedio del recall a carga alta es ARQUITECTÓNICO (la
+  atención del híbrido, D-CEIL-1/D-007), no afinar el mezclador lineal. Decisión: **D-CEIL-4**.
+- **Experimento:** exp012_depth_scale (corrido, seed=0, steps=3000 step-parity) ✅.
+- **Registro:** marcada por `cognia_x/research/cycles/cycle25_depth_scale.py` vía `mark_mixta` (mismo
+  gate DoD). El techo pasó a `real_or_assumed='real'` (estructural) → backlog de asumidos = 0.
 
 ---
 

@@ -108,3 +108,34 @@
   el recall a carga alta; ahora sabemos que tampoco lo arregla el ancho).
 - **Reversible:** sí; se reabre si un kernel mejor (Taylor) o init mimética levantara el plateau y el
   estado fijo solo bastara para el recall — exactamente lo que mide H-CEIL-3.
+
+## D-CEIL-3 (2026-06-19, CYCLE 24) — Descartar "forma del kernel (Taylor) + mimetic init" (mejora descartada)
+- **Decisión:** **descartar** la forma del kernel (feature-map Taylor 2do orden) y la mimetic init como
+  vías para subir el recall del mezclador lineal a d=24; junto con el ancho (D-CEIL-2), redirigir a
+  profundidad/escala/optimizador o a la atención del híbrido (H-CEIL-4).
+- **Razón:** exp011 (d=24, n_heads=1, n_pairs=16, seed0, steps=3000 step-parity, control de TAMAÑO con
+  elu_matched a la dim de Taylor): baseline ELU+1=0.173; **taylor=0.160 (Δ−0.013, POR DEBAJO)**;
+  elu_matched(dim 336)=0.181 (+0.008 ruido); **mimetic=0.183 (+0.0098, < umbral 0.02)**. taylor_vs_matched
+  =−0.021. Ni la forma ni la init cruzan el ruido; el Taylor queda por debajo de su ELU size-matched
+  (el control aísla forma de tamaño). [[arXiv:2402.18668]] (Based) + [[arXiv:2410.11135]] (Trockman)
+  predecían que ayudaría → refutado a esta escala.
+- **Evidencia:** exp011 (tier-5 propio) + arXiv:2402.18668 (tier-1). ACEPTADA por el ledger. Registrada
+  vía `cognia_x/research/cycles/cycle24_kernel_init.py` (deriva el veredicto de results.json).
+- **Tipo:** mejora DESCARTADA registrada explícitamente. Continúa D-CEIL-2 (ahora sabemos que tampoco lo
+  arregla la forma del kernel ni la init, no solo el ancho). **Reversible:** sí (a otra escala/seed).
+
+## D-CEIL-4 (2026-06-19, CYCLE 25) — Cerrar la línea de tuning del mezclador lineal; el remedio es la atención
+- **Decisión:** **cerrar** la línea de afinar el mezclador lineal de estado fijo para subir su recall: el
+  techo ~0.18 es **ESTRUCTURAL**. El recall a carga alta se obtiene con la **ATENCIÓN del híbrido**
+  (D-CEIL-1/D-007), NO con tuning del mezclador lineal.
+- **Razón:** exp012 (lineal PURO, n_pairs=16, seed0, steps=3000): ni profundidad (L8=0.181, +0.0075), ni
+  escala-d (d48=0.183, +0.0093), ni optimizador (LR 3×=0.176, +0.0025) suben el lineal puro sobre ~0.18.
+  Junto con exp010 (ancho) y exp011 (forma+init), el plateau es robusto a **SEIS levers no-atención**. La
+  atención SÍ recupera (CYCLE 6: 0.255→0.998 a np alto; exp009: el híbrido separa a d=48). El techo pasa
+  a `real`/estructural (pigeonhole sobre el estado fijo). [[arXiv:2508.19029]] (Okpekpe&Orvieto) predecía
+  que el tuning lo arreglaría → refutado a esta escala.
+- **Evidencia:** exp012 (tier-5) + arXiv:2508.19029 (tier-1). ACEPTADA por el ledger. Registrada vía
+  `cognia_x/research/cycles/cycle25_depth_scale.py`. La línea H-CEIL (recall del estado fijo) CONVERGE.
+- **Reversible:** sí; se reabriría si a MAYOR escala (d≫48, modelos grandes) el lineal puro cruzara el
+  plateau sin atención — pero a la escala del lab el remedio es arquitectónico. **Confirmación pendiente:**
+  exp013 (lineal+≥2 atención a d=24) como control positivo end-to-end a esta misma escala.
