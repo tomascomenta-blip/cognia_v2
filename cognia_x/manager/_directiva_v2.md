@@ -1,5 +1,9 @@
 # Directiva de Investigación, Aprendizaje y Mejora Continua — v2 (mejorada y ejecutable)
 
+> **SUPERSEDIDA OPERATIVAMENTE POR `_directiva_v3.md` (2026-06-19).** v3 descarta el andamiaje ya
+> completado, deja explícito lo pendiente y absorbe las lecciones de 23 ciclos como reglas. Esta v2
+> se CONSERVA íntegra (regla append-only: nunca se borra historia); sigue siendo válida en espíritu.
+>
 > Versión mejorada del prompt-directiva entregado por el dueño el 2026-06-19.
 > El original se conserva al final (Apéndice). Esta v2 **no cambia el espíritu** — lo vuelve
 > *operativo, medible y enforzado por código* (`cognia_x/research/`). Regla raíz heredada:

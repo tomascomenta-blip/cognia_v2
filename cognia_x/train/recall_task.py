@@ -45,7 +45,8 @@ def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=
                    min_steps=0, warmup=0, early_stop=1.01,
                    d_model=96, n_layers=4, n_heads=4,
                    n_keys=96, n_vals=32, n_pairs=48, n_queries=8,
-                   batch=32, lr=3e-4, abs_pos=False, linear_feature_mult=1):
+                   batch=32, lr=3e-4, abs_pos=False, linear_feature_mult=1,
+                   linear_feature_map="elu", mimetic_init=False):
     rng = np.random.default_rng(seed)
     eval_rng = np.random.default_rng(seed + 10**6)   # eval aislado: reproducible sin importar #pasos
     torch.manual_seed(seed)
@@ -54,7 +55,9 @@ def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=
     chance = 1.0 / n_vals    # azar REAL: el modelo aprende que la respuesta es un token-valor
     cfg = HybridConfig(vocab_size=vocab, d_model=d_model, n_layers=n_layers, n_heads=n_heads,
                        window=L + 1, attn_every=attn_every, max_seq_len=L + 1, abs_pos_emb=abs_pos,
-                       linear_feature_mult=linear_feature_mult)
+                       linear_feature_mult=linear_feature_mult,
+                       linear_feature_map=linear_feature_map,
+                       mimetic_init=mimetic_init)
     model = HybridLM(cfg).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
     types = cfg.layer_types()

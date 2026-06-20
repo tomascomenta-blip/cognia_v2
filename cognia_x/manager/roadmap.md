@@ -1,6 +1,8 @@
 # roadmap.md — fases y estado de Cognia-X
 
 > Estado por fase. Una fase avanza solo con evidencia (no por intuición).
+> Constitución operativa vigente: `_directiva_v3.md` (descarta lo HECHO, deja lo PENDIENTE; absorbe
+> las lecciones de 23 ciclos como reglas). v1/v2 se conservan (append-only).
 
 ## F0 — Fundación del laboratorio  ✅ DONE (2026-06-17)
 - [x] Subproyecto independiente `cognia_x/` + rama `cognia-x`.
@@ -23,6 +25,9 @@ La tesis es defendible en dirección; varias constantes ya se midieron en CPU:
 - [x] exp005: frontera coste del híbrido (H-MEZ-4) — 3/24 full = ~12-15% del coste de full puro a L=8192.
 - [ ] E2 real: SWA vs atención full en llama.cpp con GGUF — tok/s(L) + KV-cache.
 - [ ] Cerrar el eje **recall** del híbrido (tarea multi-capa entrenada; entrenamiento en Kaggle GPU).
+- 🟡 **CYCLE 24 (exp011, EN CURSO):** ¿el plateau de recall lineal (~0.18) es de FORMA del kernel
+  (Taylor 2do orden) o de INIT (mimetic), no de tamaño de estado? 4 brazos a d=24, step-parity.
+  Cierra/afila la línea del techo de recall (H-CEIL-1/2/3).
 
 ## F4 — Boceto de arquitectura CPU-first v0  🟡 EN CURSO (implementado + entrenando)
 - [x] Modelo híbrido v0 en PyTorch CPU (`cognia_x/model/hybrid.py`): la arquitectura del ciclo-1 hecha código.
