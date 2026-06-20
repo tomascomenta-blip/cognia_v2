@@ -3272,3 +3272,17 @@ ast.parse de ambos archivos -> SYNTAX OK. Sin arrancar servidor ni inferencia
   refutación (6 levers) Y por control positivo (atención cruza). Queda H-HYB-1 (menor) como follow-up.
   Pivote a #2 aprendizaje continuo (F-LEARN-2) sigue siendo el siguiente frente mayor por prioridad.
 - Verificación: suite completa cognia_x; engine verify_no_loss=OK; experimento end-to-end real.
+
+## [2026-06-20] CYCLE 27 — H-HYB-1 REFUTADA: el híbrido a d=24 NO cierra con budget (autocorrección honesta)
+- exp014_hybrid_budget (d=24, n_heads=4, n_pairs=16, seed0, steps=10000 = 3.3× exp013): hibrido_h4=0.186
+  (PLATEÓ @4000, PLANO; NO under-training) vs atencion_h4=0.948. El híbrido interleaved a d=24 NO recupera
+  recall: las capas lineales bottleneckean.
+- AUTOCORRECCIÓN: en CYCLE 26 diagnostiqué el 0.18 del híbrido como under-training (ascendía a 3000 steps);
+  con 10000 steps se ve que era un plateau DURO. Diagnóstico corregido por más evidencia (proceso honesto).
+  ACOTA H-MEZ-4 (recuperaba a d=64): la recuperación del híbrido es d-dependiente.
+- Engine cycle27_hybrid_budget.py: H-HYB-1 refutada (DoD), H-HYB-2 abierta (¿d/arreglo/ratio?), techo
+  'asumido' (híbrido bottleneckea a d chico), D-HYB-1 (caveat a D-007), verify_no_loss=OK.
+- ESTADO corregido: la conclusión CENTRAL de la línea de recall se mantiene (atención=remedio claro 0.95;
+  lineal=estructural 0.18), pero el comportamiento del HÍBRIDO a d chico es una sub-pregunta ACTIVA
+  (H-HYB-2) — la línea NO estaba tan "cerrada" como dije en CYCLE 26. Esto justifica haber corrido exp014.
+- Verificación: suite completa cognia_x; engine verify_no_loss=OK; experimento end-to-end + trayectoria inspeccionada.

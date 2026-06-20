@@ -1,0 +1,54 @@
+{
+  "experiment": "exp014_hybrid_budget",
+  "hypothesis": "H-HYB-1: el hibrido (mayoria lineal + pocas atencion) a d=24 cierra la brecha con la atencion pura (0.882) si se le da mas budget -> el 0.18 de exp013 era under-training, no falla estructural.",
+  "smoke": false,
+  "seed": 0,
+  "d_model": 24,
+  "n_layers": 4,
+  "n_pairs": 16,
+  "recipe": {
+    "n_heads": 4,
+    "n_vals": 16,
+    "n_queries": 16,
+    "n_keys": 160,
+    "batch": 64,
+    "lr": 0.001
+  },
+  "steps": 10000,
+  "warmup": 250,
+  "early_stop": 0.95,
+  "chance": 0.0625,
+  "close_thresh": 0.4,
+  "grid": [
+    {
+      "name": "hibrido_h4",
+      "attn_every": 2,
+      "note": "2 lineales + 2 atencion (hipotesis H-HYB-1)",
+      "final_acc": 0.18583984375,
+      "chance": 0.0625,
+      "params": 27864
+    },
+    {
+      "name": "atencion_h4",
+      "attn_every": 1,
+      "note": "atencion pura (referencia; exp013=0.882)",
+      "final_acc": 0.9482421875,
+      "chance": 0.0625,
+      "params": 27864
+    }
+  ],
+  "summary": {
+    "chance": 0.0625,
+    "steps": 10000,
+    "close_thresh": 0.4,
+    "hibrido_acc": 0.18583984375,
+    "atencion_acc": 0.9482421875,
+    "closes": false,
+    "acc_by_name": {
+      "hibrido_h4": 0.18583984375,
+      "atencion_h4": 0.9482421875
+    },
+    "headline": "H-HYB-1 REFUTADA a 10000 steps: el hibrido sigue en 0.186 (~plateau) pese a 3.3x el budget -> apunta a falla ESTRUCTURAL del interleaving a d chico (las capas lineales bloquean el recall), no solo under-training. (atencion pura ref=0.948).",
+    "headline_full": "H-HYB-1 REFUTADA a 10000 steps: el hibrido sigue en 0.186 (~plateau) pese a 3.3x el budget -> apunta a falla ESTRUCTURAL del interleaving a d chico (las capas lineales bloquean el recall), no solo under-training. (atencion pura ref=0.948). hibrido_h4=0.186; atencion_h4=0.948."
+  }
+}

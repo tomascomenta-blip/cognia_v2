@@ -186,23 +186,43 @@
 
 ---
 
-### H-HYB-1 (CYCLE 26 — generada por el control positivo exp013, status='abierta')
-- **Enunciado:** a d chico (24), el recall del **HÍBRIDO** (mayoría lineal + pocas capas de atención) es
-  más **DURO de optimizar** que la atención pura: aprende recall **más lento** (las capas lineales
-  endurecen el landscape), aunque es representable (CYCLE 6 lo llevó a 0.99 con la receta/budget adecuados).
-- **Predicción medible:** con más steps (o mejor receta/proporción de atención), el híbrido a d=24 cierra
-  la brecha con la atención pura (0.882) por encima del plateau ~0.18. **Refutado si** más budget NO sube
-  el híbrido (sería una falla estructural del interleaving, no de optimización).
-- **Estado:** **abierta** (sin experimento de más-budget aún).
+### H-HYB-1 (CYCLE 26 generó → CYCLE 27 REFUTÓ, status='refutada') — autocorrección honesta
+- **Enunciado:** a d chico (24), el recall del híbrido cierra la brecha con la atención pura si se le da
+  más **BUDGET** (el 0.18 de exp013 sería under-training).
+- **Predicción medible:** con más steps (10000, 3.3×), hibrido_h4 a d=24 sube ≫ 0.18 hacia la atención
+  pura. **Refutado si** sigue ~0.18.
+- **Estado:** **refutada** (CYCLE 27).
+- **Confianza:** media.
+- **Evidencia a favor:** CYCLE 6 (el híbrido recupera recall a d=64: 0.99) → predecía que a d=24 también
+  cerraría con más budget. **No se cumplió.**
+- **Evidencia en contra:** **exp014** (d=24, n_heads=4, n_pairs=16, seed0, steps=**10000**, 3.3× el budget
+  de exp013): **hibrido_h4 = 0.186 — PLATEÓ** (0.180@4000 → 0.186@7500 → 0.186 final, PLANO; no
+  under-training) vs atencion_h4 = 0.948. El híbrido interleaved a d=24 NO recupera recall.
+- **Veredicto adversarial:** REFUTADA. Con 3.3× el budget el híbrido sigue en el plateau ~0.18 — **CORRIGE
+  el diagnóstico de CYCLE 26** (lo llamé "under-training" porque a 3000 steps ascendía; era el comienzo de
+  un plateau DURO). Las 2 capas LINEALES (baja capacidad a d=24, ~0.18) **BLOQUEAN** el recall que la
+  atención pura sí logra. Esto **ACOTA H-MEZ-4** (el híbrido recuperaba a d=64): la recuperación del híbrido
+  es **d-dependiente**. Genera **H-HYB-2**. (Lección de proceso: confirmar el "under-training" con más
+  budget ANTES de cerrar — directiva v3 §4.2.)
+- **Experimento:** exp014_hybrid_budget (corrido, seed=0, steps=10000) ✅.
+- **Registro:** marcada por `cognia_x/research/cycles/cycle27_hybrid_budget.py` vía `mark_refuted`.
+
+---
+
+### H-HYB-2 (CYCLE 27 — generada por el fracaso de H-HYB-1, status='abierta')
+- **Enunciado:** la recuperación de recall del híbrido es **d-dependiente**: a d chico (24) las capas
+  LINEALES (recall ~0.18) bottleneckean el recall que las de atención darían; a d=64 (CYCLE 6) no. El
+  cuello es la capacidad de las capas lineales y/o el ARREGLO (lineal-primero destruye la asociación
+  clave-valor antes de la atención).
+- **Predicción medible:** subir d (24→48→64), o poner la atención PRIMERA (no lineal-primero), o subir el
+  ratio de atención hace que el híbrido cruce el plateau a esta carga. **Refutado si** ninguna lo mueve.
+- **Estado:** **abierta** (sin experimento aún).
 - **Confianza:** baja.
-- **Evidencia a favor:** **exp013** (d=24, steps=3000 step-parity): atención pura=**0.882** (cruza), pero
-  hibrido_h1=0.181 / hibrido_h4=0.180 **todavía ASCENDIENTE al cortar el budget** (hibrido_h4: 0.06→0.105
-  →0.152→0.190, trayectoria de subida, NO plateau) → under-trained, no falla. + CYCLE 6 (el híbrido CAN: 0.99).
-- **Evidencia en contra:** — (ninguna aún; sin experimento de más-budget corrido).
-- **Veredicto adversarial:** — (pendiente; diagnóstico: leer la trayectoria, no solo el número final — el
-  híbrido subía cuando se acabó el budget → es optimización, no estructura).
-- **Experimento:** pendiente → híbrido a d=24 con más steps / distinta proporción de atención.
-- **Registro:** añadida por `cognia_x/research/cycles/cycle26_hybrid_control.py` (`status='abierta'`).
+- **Evidencia a favor:** CYCLE 6 (híbrido funcionó a d=64) + exp014 (falló a d=24) → contraste que apunta a d.
+- **Evidencia en contra:** — (sin experimento aún).
+- **Veredicto adversarial:** — (pendiente).
+- **Experimento:** pendiente → barrer d / arreglo (atención-primero) / ratio del híbrido a n_pairs=16.
+- **Registro:** añadida por `cognia_x/research/cycles/cycle27_hybrid_budget.py` (`status='abierta'`).
 
 ---
 

@@ -154,3 +154,17 @@
   `cognia_x/research/cycles/cycle26_hybrid_control.py`. El techo del estado fijo queda `real`/estructural
   con control positivo DIRECTO.
 - **Reversible:** N/A (es una confirmación, no una apuesta). La línea de recall del estado fijo se cierra.
+
+## D-HYB-1 (2026-06-20, CYCLE 27) — Caveat a D-007: el híbrido NO recupera recall automáticamente a d chico
+- **Decisión:** añadir un **caveat** a D-007 (backbone híbrido): el híbrido NO recupera recall de forma
+  automática. A d chico (24) las capas LINEALES bottleneckean y el híbrido platea como el lineal puro
+  (~0.18, exp014), mientras la atención pura cruza (0.95). El híbrido necesita **d suficiente** (funcionó
+  a d=64, CYCLE 6) y/o el arreglo/ratio adecuado (H-HYB-2). La atención pura sigue siendo el remedio claro.
+- **Razón:** exp014 (d=24, n_heads=4, n_pairs=16, seed0, steps=10000 = 3.3× exp013): hibrido_h4 platea en
+  0.186 (0.180@4000→0.186@7500, PLANO) vs atencion_h4=0.948. NO es budget (plateó por el paso 4000).
+  **Corrige el diagnóstico de under-training de CYCLE 26** (autocorrección por más evidencia). ACOTA H-MEZ-4
+  (que recuperaba a d=64): la recuperación del híbrido es d-dependiente.
+- **Evidencia:** exp014 (tier-5) + CYCLE6/H-MEZ-4 (tier-5). ACEPTADA por el ledger. Registrada vía
+  `cognia_x/research/cycles/cycle27_hybrid_budget.py`. Genera H-HYB-2 (¿d / arreglo / ratio?).
+- **Reversible:** N/A (es un caveat empírico). NO refuta D-007 (el híbrido a d adecuado sí recupera, CYCLE 6);
+  lo acota: el híbrido a d chico no es free lunch para recall.

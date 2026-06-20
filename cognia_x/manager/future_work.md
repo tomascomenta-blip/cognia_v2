@@ -117,3 +117,15 @@ el remedio del recall es ARQUITECTÓNICO, confirmado directamente (no solo por e
 - **Línea H-CEIL (CYCLE 22-26): CERRADA.** Techo del estado fijo = estructural (refutación de 6 levers +
   control positivo). El siguiente frente MAYOR por prioridad (directiva v3 §1) sigue siendo **#2 F-LEARN-2**
   (aprendizaje continuo Nivel 2: verificar-antes-de-aprender, anti-colapso).
+
+## [2026-06-20] CYCLE 27 — H-HYB-1 REFUTADA + corrección del "línea cerrada" de CYCLE 26
+exp014 (híbrido a d=24, 10000 steps): hibrido_h4=0.186 (PLATEÓ, no under-training) vs atencion pura=0.948.
+**H-HYB-1 refutada**: el híbrido interleaved a d=24 NO recupera recall — las capas lineales bottleneckean.
+Corrige mi diagnóstico de under-training de CYCLE 26 (autocorrección honesta). ACOTA H-MEZ-4 (d-dependiente).
+- **Corrección del cierre:** la conclusión central se mantiene (atención=remedio, lineal=estructural), PERO
+  la línea de recall NO está tan "cerrada": **[[H-HYB-2]]** queda abierta — ¿por qué el híbrido falla a d=24
+  pero funciona a d=64 (CYCLE 6)? Suspectos: d (capacidad lineal), arreglo (atención-primero), ratio.
+- **Siguiente experimento (exp015 propuesto, barato):** barrer d (24→48→64) y arreglo (atención-primero vs
+  lineal-primero) del híbrido a n_pairs=16 → encontrar el umbral de d donde el híbrido recupera recall, o
+  mostrar que el arreglo lineal-primero es el cuello. Cierra H-HYB-2 y completa de verdad la línea de recall.
+- El pivote a #2 F-LEARN-2 sigue disponible, pero H-HYB-2 es el cabo honesto que falta de la línea de recall.

@@ -741,3 +741,41 @@ DIRECTO, D-CEIL-5 aceptada (tier5 exp013 + tier1 Based), analogía 7 etapas. ver
 - `python -m cognia_x.experiments.exp013_hybrid_control.run --steps 3000` → results.json (4 brazos).
 - `python -m cognia_x.research.cycles.cycle26_hybrid_control` → CHECK + verify_no_loss=OK.
 - Suite completa de cognia_x como compuerta final.
+
+---
+
+## CYCLE 27 (2026-06-20) — H-HYB-1 REFUTADA: el híbrido a d=24 NO cierra con budget (autocorrección)
+
+### Pregunta
+H-HYB-1 (CYCLE 26): el 0.18 del híbrido en exp013 era under-training; con más budget cerraría la brecha
+con la atención pura. exp014 lo testea con 3.3× el budget (10000 steps).
+
+### Experimento (exp014_hybrid_budget) — d=24, n_heads=4, n_pairs=16, seed0, steps=10000
+- `hibrido_h4` (2 lineal + 2 atención) = **0.186** — PLATEÓ: 0.057@500 → 0.180@4000 → 0.186@7500 → 0.186
+  final. PLANO desde el paso ~4000. NO under-training.
+- `atencion_h4` (atención pura) = **0.948** — cruzó por ~4000, siguió subiendo.
+
+### Veredicto: H-HYB-1 REFUTADA (estructural, no budget) — AUTOCORRECCIÓN honesta
+Con 3.3× el budget el híbrido sigue en el plateau ~0.18. **CORRIGE mi diagnóstico de CYCLE 26** (llamé al
+0.18 "under-training" porque a 3000 steps ascendía — era el COMIENZO de un plateau DURO). El híbrido
+interleaved a d=24 NO recupera recall: las 2 capas LINEALES (baja capacidad a d=24, recall ~0.18)
+BLOQUEAN el recall que la atención pura sí logra. El proceso se autocorrigió con más evidencia (la lección
+de la directiva v3 §4.2 aplicada en su forma inversa: confirmar el "sub-recursos" con más budget ANTES de
+cerrar). ACOTA H-MEZ-4 (el híbrido recuperaba a d=64): la recuperación es **d-dependiente**. Genera H-HYB-2.
+
+### Engine (research/cycles/cycle27_hybrid_budget.py)
+DERIVA de exp014/results.json. H-HYB-1 `refutada` (mark_refuted, DoD), H-HYB-2 `abierta`, techo 'asumido'
+nuevo (el híbrido bottleneckea a d chico → backlog reabierto, asumidos=1), D-HYB-1 aceptada (caveat a
+D-007), analogía 7 etapas (cadena con eslabón débil). verify_no_loss=OK.
+
+### Honestidad — autocorrección de un diagnóstico
+Esto es el proceso funcionando: en CYCLE 26 di un diagnóstico ("under-training") que CYCLE 27 refutó con
+más datos. Lo registro explícitamente (no lo escondo). La conclusión CENTRAL de la línea de recall se
+mantiene (atención = remedio; lineal = estructuralmente acotado), pero el comportamiento del HÍBRIDO a d
+chico era más rico de lo que cerré en CYCLE 26 → la línea NO estaba tan "cerrada": queda H-HYB-2 abierta.
+
+### Verificación (real)
+- `python -m cognia_x.experiments.exp014_hybrid_budget.run --steps 10000` → results.json (2 brazos).
+- Trayectoria del híbrido inspeccionada (plateó @4000, no creció) → no es under-training.
+- `python -m cognia_x.research.cycles.cycle27_hybrid_budget` → CHECK + verify_no_loss=OK.
+- Suite completa de cognia_x como compuerta final.
