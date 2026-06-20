@@ -56,11 +56,13 @@ class ConceptCompressor:
 
         if to_compress:
             conn = db_connect(self.db)
-            c = conn.cursor()
-            placeholders = ",".join("?" * len(to_compress))
-            c.execute(f"UPDATE episodic_memory SET compressed=1 WHERE id IN ({placeholders})", to_compress)
-            conn.commit()
-            conn.close()
+            try:
+                c = conn.cursor()
+                placeholders = ",".join("?" * len(to_compress))
+                c.execute(f"UPDATE episodic_memory SET compressed=1 WHERE id IN ({placeholders})", to_compress)
+                conn.commit()
+            finally:
+                conn.close()
 
         avg_emo = sum(ep["emotion_score"] for ep in episodes) / len(episodes)
         self.semantic.update_concept(
