@@ -188,9 +188,11 @@ class ModelRouter:
         """
         t0 = time.perf_counter()
 
-        # Cache hit
+        # Cache hit: refrescar recencia (LRU) antes de devolver. Sin esto el
+        # OrderedDict nunca reordena en los hits y la evicción degrada a FIFO.
         cache_key = (question[:200] + code_context[:100])
         if cache_key in self._cache:
+            self._cache.move_to_end(cache_key)
             return self._cache[cache_key]
 
         # Combinar pregunta + contexto de código para el análisis
@@ -247,14 +249,12 @@ class ModelRouter:
             },
         )
 
-        # Guardar en cache con eviction LRU O(1)
-        if cache_key in self._cache:
-            self._cache.move_to_end(cache_key)
-        else:
-            self._cache[cache_key] = decision
-            if len(self._cache) > self._max_cache:
-                self._cache.popitem(last=False)  # eliminar LRU (el más antiguo)
-            return decision
+        # Guardar en cache con eviction LRU O(1). Aquí cache_key siempre es nuevo
+        # (un hit ya retornó arriba), así que insertamos como el más reciente y
+        # evictamos el menos usado si superamos el tope.
+        self._cache[cache_key] = decision
+        if len(self._cache) > self._max_cache:
+            self._cache.popitem(last=False)  # eliminar LRU (el más antiguo)
 
         return decision
 
@@ -572,7 +572,7 @@ def _test_router_codigo():
         assert d.mode == "modo_codigo", (
             f"FALLO: '{pregunta[:50]}' → {d.mode} (esperado modo_codigo)"
         )
-        print(f"  ✅ código detectado: '{pregunta[:50]}' → {d.model} (conf={d.confidence:.2f})")
+        print(f"  [OK] codigo detectado: '{pregunta[:50]}' -> {d.model} (conf={d.confidence:.2f})")
 
 
 def _test_router_general():
@@ -589,7 +589,7 @@ def _test_router_general():
         assert d.mode == "modo_general", (
             f"FALLO: '{pregunta[:50]}' → {d.mode} (esperado modo_general)"
         )
-        print(f"  ✅ general detectado: '{pregunta[:50]}' → {d.model}")
+        print(f"  [OK] general detectado: '{pregunta[:50]}' -> {d.model}")
 
 
 def _test_router_extension():
@@ -607,18 +607,18 @@ def _test_router_extension():
     )
     d = router.route("demuestra que la suma de los ángulos de un triángulo es 180°")
     assert d.mode == "modo_math", f"FALLO: esperado modo_math, obtenido {d.mode}"
-    print(f"  ✅ extensión funciona: modo_math detectado (conf={d.confidence:.2f})")
+    print(f"  [OK] extension funciona: modo_math detectado (conf={d.confidence:.2f})")
     # Limpiar para no afectar otros tests
     del MODEL_REGISTRY["modo_math"]
 
 
 def run_tests():
     """Ejecuta todos los tests del ModelRouter."""
-    print("\n🧪 Tests ModelRouter:")
+    print("\nTests ModelRouter:")
     _test_router_codigo()
     _test_router_general()
     _test_router_extension()
-    print("✅ Todos los tests pasaron.\n")
+    print("Todos los tests pasaron.\n")
 
 
 if __name__ == "__main__":

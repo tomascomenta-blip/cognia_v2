@@ -27,3 +27,30 @@ def test_local_shard_fallback_graceful_without_shards(monkeypatch):
     mr._LOCAL_ORCH = None                        # reset the lazy singleton
     # Must never raise; returns None when there is nothing to run.
     assert mr._llamar_shard_local("hola") is None
+
+
+def test_route_cache_is_lru_not_fifo():
+    """Regression: the route() cache claims LRU but the hit path never refreshed
+    recency, so eviction degraded to FIFO and evicted the just-used entry.
+    Re-accessing a key must protect it from eviction."""
+    import model_router as mr
+    r = mr.ModelRouter()
+    r._max_cache = 3
+    for q in ("aaa", "bbb", "ccc"):
+        r.route(q)
+    r.route("aaa")          # re-access -> "aaa" becomes most-recently-used
+    r.route("ddd")          # overflow -> evict the true LRU, which is "bbb"
+
+    keys = list(r._cache.keys())
+    assert any("aaa" in k for k in keys), "recently-used 'aaa' must survive eviction"
+    assert not any("bbb" in k for k in keys), "true-LRU 'bbb' must be evicted"
+    assert len(r._cache) == 3
+
+
+def test_route_cache_returns_same_decision_on_hit():
+    """A cache hit must return the cached decision (identity), not recompute."""
+    import model_router as mr
+    r = mr.ModelRouter()
+    first = r.route("escribe una funcion python para sumar")
+    second = r.route("escribe una funcion python para sumar")
+    assert first is second
