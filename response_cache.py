@@ -183,7 +183,8 @@ class ResponseCache:
         with self._lock:
             best_sim   = 0.0
             best_entry = None
-            for entry in self._ram.values():
+            best_key   = None
+            for key, entry in self._ram.items():
                 if entry.is_expired():
                     continue
                 try:
@@ -198,8 +199,12 @@ class ResponseCache:
                 if sim > best_sim and sim >= CACHE_SIMILARITY:
                     best_sim   = sim
                     best_entry = entry
-            if best_entry:
-                self._ram.move_to_end(id(best_entry).__str__())
+                    best_key   = key
+            if best_key is not None:
+                # LRU touch usando la clave REAL del dict. (Antes reconstruía
+                # str(id(entry)), que no coincide con la clave "{timestamp}_{id}"
+                # -> KeyError en cada hit de RAM.)
+                self._ram.move_to_end(best_key)
             return best_entry
 
     def _add_to_ram(self, entry: CacheEntry):
