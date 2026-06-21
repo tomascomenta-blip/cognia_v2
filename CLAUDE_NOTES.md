@@ -508,6 +508,14 @@ Replaced with `[OK]` / plain ASCII. Logic verified identical (all in-module test
 - Both bugs reproduced on the OLD code then verified fixed (KeyError / wrong-eviction).
 - Full fast suite (tests/ --ignore=test_e2e_inference.py): see commit message / next session.
 
+### Operational note — push credentials in non-interactive shells
+The `wincredman` credential store fails with no tty (both Bash and PowerShell tools):
+`git push` dies with "could not read Username for github.com". The 2026-06-20 note that
+"push credentials now work" only holds for an interactive terminal. WORKAROUND that works
+headless: `gh` is logged in (token scopes repo+workflow), so push via its credential
+helper — `git -c credential.helper='!gh auth git-credential' push origin HEAD:main`.
+(Local branch `integration/fixes-onto-origin` tracks `origin/main`; push HEAD:main.)
+
 ### Priority Order for Next Session
 1. Continue the 3.x cache/agent audit. Other OrderedDict caches checked this session
    (cognia_embedding.py, cognia/memory/adapter_store.py, shattering/fragment_manager.py)
