@@ -439,3 +439,82 @@ chat.py + db_pool.py hand-merged against origin's newer versions.
 4. Review origin's NEW 3.x code (tensor-parallel v2, agent tooling, chat-offline INT4 path
    from 3.5.1) for correctness -- it has NOT been through the June bug-hunt sessions.
 5. Re-run benchmark once a real shard/DB is present (still pending across sessions).
+
+---
+
+## Session: 2026-06-21  (CACHE CORRECTNESS BUG-HUNT on the un-audited 3.x code)
+
+### Context / approach
+Picked up priority #4 from the 2026-06-20 list: review origin's NEW 3.x code that
+never went through a bug-hunt session. Started from the leak-audit (`/tmp/audit_leak.py`,
+AST scan): re-confirmed the 2026-06-20 finding — **0 WRITE+NOCOMMIT data-loss paths
+remain** (36 close-without-finally sites exist but the db_pool __del__ net reclaims
+them; all WRITE paths commit). So the data layer is clean; moved to the un-audited
+3.x cache/router modules where real logic bugs were likely. Found two live bugs.
+
+NOTE on environment: there is NO `venv312/` in this checkout (CLAUDE.md references one
+that isn't present here). The system `python` IS Python 3.12.10 with numpy 1.26.4 +
+pytest 9.0.3 installed, so I used it directly. Verified tests run green.
+
+### [BUG-1 — LIVE, severe] response_cache._search_ram KeyError on EVERY RAM hit -- FIXED
+**File**: response_cache.py -- ResponseCache._search_ram()
+
+Root cause: entries are keyed in the RAM OrderedDict as `f"{entry.timestamp}_{id(entry)}"`
+(see _add_to_ram), but on a hit _search_ram called
+`self._ram.move_to_end(id(best_entry).__str__())` — i.e. `str(id(entry))`, WITHOUT the
+timestamp prefix. That key never exists in the dict, and `OrderedDict.move_to_end`
+raises `KeyError` on a missing key. So every in-RAM cache hit raised KeyError.
+`ResponseCache.get()` is called UNGUARDED from `LanguageEngine.process()`
+(language_engine.py:224) — a warm semantic cache crashed the chat path instead of
+serving the cached answer (and the two-layer RAM cache could never serve a RAM hit).
+
+Fix: track the real dict key while scanning (`for key, entry in self._ram.items()`)
+and `move_to_end(best_key)`. Reproduced the old KeyError + verified the fix.
+Regression test: tests/test_response_cache_ram_hit.py (3 tests: no-raise+returns entry,
+LRU recency refresh, recently-hit entry survives eviction).
+
+### [BUG-2 — LIVE] model_router route() cache was LRU-in-name, FIFO-in-fact -- FIXED
+**File**: model_router.py -- ModelRouter.route()
+
+Root cause: the cache is documented as "Cache LRU real con OrderedDict (no FIFO)" with a
+"FIX" comment claiming it fixed a 0%-hit-rate FIFO bug, but the cache-HIT path
+(`if cache_key in self._cache: return self._cache[cache_key]`) returned WITHOUT
+`move_to_end`, so recency was never refreshed and eviction degraded right back to FIFO —
+evicting the just-used entry. Reproduced: re-accessing a key did not protect it; the 4th
+insert evicted the most-recently-used entry instead of the true LRU.
+
+Fix: `move_to_end(cache_key)` on the hit path before returning; simplified the dead
+post-compute branch (a hit always returns early, so the tail key was always new).
+Regression test added to tests/test_model_router_local_fallback.py
+(test_route_cache_is_lru_not_fifo + test_route_cache_returns_same_decision_on_hit).
+
+### [HYGIENE] model_router self-tests crashed on Windows cp1252 -- FIXED
+`run_tests()` / `_test_*` printed emojis (🧪 ✅) — a CLAUDE.md ASCII-only violation that
+raised UnicodeEncodeError on the default Windows console when running `python model_router.py`.
+Replaced with `[OK]` / plain ASCII. Logic verified identical (all in-module tests pass).
+
+### Files Modified This Session (2026-06-21)
+- response_cache.py: _search_ram() uses the real dict key for the LRU touch (KeyError fix)
+- model_router.py: route() refreshes LRU recency on cache hit; dead tail branch removed;
+  emoji prints -> ASCII (cp1252-safe)
+- tests/test_response_cache_ram_hit.py: NEW — 3 tests for the RAM-hit KeyError + LRU
+- tests/test_model_router_local_fallback.py: +2 tests for the route() LRU behaviour
+
+### Verification
+- tests/test_response_cache_ram_hit.py -> 3 passed
+- tests/test_model_router_local_fallback.py -> 4 passed (2 old + 2 new)
+- tests/test_doctor_packaging.py -> 6 passed combined
+- model_router.run_tests() -> all pass, no cp1252 crash
+- Both bugs reproduced on the OLD code then verified fixed (KeyError / wrong-eviction).
+- Full fast suite (tests/ --ignore=test_e2e_inference.py): see commit message / next session.
+
+### Priority Order for Next Session
+1. Continue the 3.x cache/agent audit. Other OrderedDict caches checked this session
+   (cognia_embedding.py, cognia/memory/adapter_store.py, shattering/fragment_manager.py)
+   correctly move_to_end on get — only response_cache + model_router were broken.
+   Next: audit cognia/semantic_cache.py + cognia/reasoning/cache_warmer.py (call sites of
+   ResponseCache) and the agent tooling (cognia/agents/*) for similar key/recency bugs.
+2. (Still open) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
+3. (Still open) Review tensor-parallel v2 cross-process path (tp_allreduce float add order /
+   KV-cache-per-rank) — in-process golden path read this session and looks bit-exact-correct.
+4. Re-run benchmark once a real shard/DB is present (still pending across sessions).
