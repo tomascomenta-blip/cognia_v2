@@ -183,19 +183,7 @@ class TaskQueue:
 
     def save_subtasks(self, subtasks: list) -> None:
         """Persiste los SubTasks de una tarea (para recovery tras crash)."""
-        rows = [
-            (
-                st.id,
-                st.description.split(":")[0] if ":" in st.id else st.id,  # task_id
-                st.id,
-                st.description,
-                st.tool_required,
-                json.dumps(st.dependencies),
-                st.status,
-            )
-            for st in subtasks
-        ]
-        # task_id es el prefijo antes del primer '_'
+        # task_id es el prefijo de st.id antes del último '_'
         with self._conn() as conn:
             for st in subtasks:
                 task_id = "_".join(st.id.split("_")[:-1])
