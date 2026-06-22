@@ -14,6 +14,19 @@ def test_routing_sustantivo_deep():
         assert classify_turn(t) == "deep", t
 
 
+def test_cortos_sustantivos_no_van_a_fast():
+    # Regresión: antes 'words<=4 → fast' mandaba estas cortas-pero-sustantivas al 0.5B
+    # (poco fiable en hechos). Ahora SOLO social explícito va a fast → estas van al 3B.
+    for t in ["Resume esto", "Capital de Francia?", "Cuentame algo", "Dame un dato",
+              "Lista los pasos", "Quien gano"]:
+        assert classify_turn(t) == "deep", t
+
+
+def test_acks_sociales_van_a_fast():
+    for t in ["De acuerdo", "Me alegro", "Qué bueno", "Buenísimo", "Buenas tardes"]:
+        assert classify_turn(t) == "fast", t
+
+
 def test_try_load_off_por_defecto(monkeypatch):
     monkeypatch.delenv("COGNIA_SPEECH_CASCADE", raising=False)
     assert CascadeBackend.try_load() is None

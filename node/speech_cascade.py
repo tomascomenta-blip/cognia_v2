@@ -41,21 +41,23 @@ _DEEP_RE = re.compile(
     re.I)
 # señales SOCIALES/triviales → 0.5B (rápido, bajo riesgo)
 _SOCIAL_RE = re.compile(
-    r"\b(hola|buenos d[ií]as|buenas|qu[eé] tal|c[oó]mo est[aá]s|gracias|adi[oó]s|chau|"
-    r"hasta (luego|ma[ñn]ana)|encantado|mucho gusto|s[ií]|no|ok|vale|genial|perfecto|"
-    r"jaj\w*|hey|saludos|buenas noches)\b", re.I)
+    r"\b(hola|buenos d[ií]as|buenas (tardes|noches)?|qu[eé] tal|c[oó]mo est[aá]s|gracias|"
+    r"adi[oó]s|chau|hasta (luego|ma[ñn]ana|pronto)|encantad\w*|mucho gusto|s[ií]|no|ok|vale|"
+    r"genial|perfecto|jaj\w*|hey|saludos|de acuerdo|me alegro|qu[eé] bueno|buen[ií]simo)\b",
+    re.I)
 
 
 def classify_turn(turn: str) -> str:
-    """'fast' (0.5B) para turnos sociales/triviales; 'deep' (3B) para sustancia.
-    Conservador: ante la duda → 'deep' (calidad). Ver exp021 (el 0.5B no es fiable en hechos)."""
+    """'fast' (0.5B) SOLO para turnos sociales explícitos; 'deep' (3B) para todo lo demás.
+    Conservador por diseño (precisión > recall): el 0.5B no es fiable en hechos (exp021), así que
+    las cortas-pero-sustantivas ('Resume esto', 'Capital de Francia?') van al 3B. Antes una regla
+    'words<=4 → fast' las ruteaba mal al 0.5B; se quitó (consolidación F-SPEED)."""
     t = (turn or "").strip()
-    words = len(t.split())
     if _DEEP_RE.search(t):
         return "deep"
-    if "?" in t and words > 6:
+    if "?" in t and len(t.split()) > 6:
         return "deep"
-    if _SOCIAL_RE.search(t) or words <= 4:
+    if _SOCIAL_RE.search(t):
         return "fast"
     return "deep"
 

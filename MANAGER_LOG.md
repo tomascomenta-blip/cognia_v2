@@ -3499,3 +3499,13 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Insight honesto: la cascada gana en RESPONSIVIDAD percibida (social instantáneo) pero el throughput de la
   conversación COMPLETA lo dominan los turnos sustantivos (3B, techo de banda) → el gran lever del total
   sigue siendo la cabeza EAGLE (gated). Medición pura, sin tocar producción.
+
+## [2026-06-22] CONSOLIDACIÓN — classify_turn endurecido (precisión de routing): quitada la regla words<=4
+- Bug DEMOSTRADO: 'Resume esto'/'Capital de Francia?'/'Cuentame algo'/'Dame un dato' iban a FAST (0.5B,
+  poco fiable en hechos) por la regla 'words<=4 → fast'. Fix: fast SOLO con señal social explícita
+  (precisión > recall, coherente con 'ante la duda → 3B'). _SOCIAL ampliado con acks claros (de acuerdo,
+  me alegro, qué bueno, buenísimo, buenas tardes).
+- Verificación: tests/test_speech_cascade.py **8 passed** (2 nuevos: cortas-sustantivas→deep, acks→fast).
+  CHECK: los 4 misroutes ahora → deep; Hola/Gracias/De acuerdo → fast.
+- Solo el módulo node/speech_cascade.py (no es entrypoint crítico). El prototipo cascade_router.py queda
+  como artefacto histórico (sin tocar). Mejora la SEGURIDAD del routing (menos sustancia al 0.5B débil).
