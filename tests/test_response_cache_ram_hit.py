@@ -55,6 +55,22 @@ def test_ram_hit_refreshes_lru_recency(cache):
     assert set(keys_after) == set(keys_before)
 
 
+def test_db_layer_hits_with_full_dim_vector(cache):
+    """Regression for the persistent-layer dead-cache bug. _persist_to_db used to
+    store only entry.vector[:64] (a leftover from a 64-dim embedding era), while
+    _search_db compares the full query vector via _cosine(), which returns 0.0 on
+    any length mismatch. With today's 384-dim embeddings every DB comparison was a
+    length mismatch -> the SQLite layer NEVER hit, so anything evicted from RAM (or
+    any entry after a restart) was unrecoverable. Here we store with a >64-dim
+    vector, drop the RAM layer to force the DB path, and require a HIT."""
+    vec = [float((i * 37) % 11) for i in range(128)]  # 128 dims > 64
+    cache.store("pregunta larga", "respuesta persistida", vec, confidence=0.9)
+    cache._ram.clear()          # force the lookup through the SQLite layer
+    hit = cache.get("pregunta larga", vec)
+    assert hit is not None, "persistent DB layer must hit for a >64-dim vector"
+    assert hit.response == "respuesta persistida"
+
+
 def test_ram_eviction_keeps_recently_hit_entry(cache):
     # Fill past the RAM cap; each store evicts the oldest. A recently-hit entry
     # should be protected because the hit moved it to the back.

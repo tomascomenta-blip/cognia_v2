@@ -304,7 +304,15 @@ class ResponseCache:
                 VALUES (?,?,?,?,?,?,?,?,?)
             """, (
                 entry.question, entry.response,
-                json.dumps(entry.vector[:64]),
+                # Persist the FULL vector. _search_db compares the (384-dim)
+                # query vector against this one via _cosine(), which returns 0.0
+                # on any length mismatch. Truncating here to [:64] (a leftover
+                # from an older 64-dim embedding) made every DB-layer comparison
+                # length-mismatch -> 0.0, so the persistent cache layer NEVER hit:
+                # anything evicted from RAM or any entry after a restart was lost.
+                # Storing the full vector also keeps the DB threshold (0.88) on the
+                # same basis as the RAM layer, which compares full vectors too.
+                json.dumps(entry.vector),
                 entry.concept, entry.confidence,
                 int(entry.used_llm), entry.timestamp,
                 entry.hits, entry.ttl,
