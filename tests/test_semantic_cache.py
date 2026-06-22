@@ -99,6 +99,34 @@ def test_stats_after_stores(cache):
     assert 0.0 <= s["hit_rate"] <= 1.0
 
 
+def test_hit_survives_vocab_drift(cache):
+    """An early-cached question must STILL hit after later stores drift the
+    TF-IDF vocabulary. Regression for the stale-vector bug: lookup() used to
+    deserialize the persisted tfidf_vector (computed against the store-time
+    vocab snapshot) and compare it against qvec built from the current vocab —
+    a different basis — so any entry stored before the vocab last changed turned
+    into a silent MISS. The fix recomputes the candidate vector from its stored
+    tokens against the current vocab (same approach as thought_cache)."""
+    src, pool, _ = cache
+    q1 = "what is the capital of france paris europe"
+    r1 = "Paris is the capital of France."
+    src.store(q1, r1, model="test")
+    assert src.lookup(q1) == r1  # hits before any drift
+
+    # Store unrelated questions to grow + re-order the vocabulary
+    for o in (
+        "how do neural networks learn weights gradient descent backpropagation",
+        "what is photosynthesis chlorophyll plants sunlight energy conversion",
+        "explain quantum entanglement particles superposition measurement physics",
+        "best recipe chocolate cake flour sugar eggs butter baking oven heat",
+        "history of the roman empire caesar augustus senate legions conquest",
+    ):
+        src.store(o, "resp " + o[:15], model="test")
+
+    # The exact same early question must still be a HIT despite vocab drift
+    assert src.lookup(q1) == r1
+
+
 def test_max_entries_eviction(tmp_path):
     """When entries exceed max_entries, oldest entries are pruned."""
     db_file = str(tmp_path / "eviction_test.db")

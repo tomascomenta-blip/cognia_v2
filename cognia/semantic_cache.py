@@ -172,7 +172,7 @@ class SemanticResponseCache:
 
                     now = time.time()
                     rows = conn.execute(
-                        "SELECT id, tfidf_vector, response, timestamp "
+                        "SELECT id, question_norm, response, timestamp "
                         "FROM semantic_cache"
                     ).fetchall()
 
@@ -180,15 +180,21 @@ class SemanticResponseCache:
                     best_id   = None
                     best_resp = None
 
-                    for row_id, blob, response, ts in rows:
+                    for row_id, question_norm, response, ts in rows:
                         # skip expired entries
                         if now - ts > self._ttl:
                             continue
-                        try:
-                            cvec = _deserialize(blob)
-                        except Exception:
-                            continue
-                        if cvec.shape != qvec.shape:
+                        # Recompute the candidate vector from its stored tokens
+                        # against the CURRENT vocab. The persisted tfidf_vector blob
+                        # is computed against the vocab snapshot at store() time, but
+                        # the vocab drifts (grows + re-orders by frequency) as new
+                        # questions are cached, so a stale blob is in a different basis
+                        # than qvec — comparing them silently yields garbage similarity
+                        # (or a shape mismatch that skips the entry). Recomputing from
+                        # tokens keeps both vectors in the same basis (same fix as
+                        # thought_cache.py, which stores tokens for this reason).
+                        cvec = self._tfidf_vector(question_norm.split())
+                        if cvec is None or cvec.shape != qvec.shape:
                             continue
                         sim = _cosine_sim(qvec, cvec)
                         if sim > best_sim:
