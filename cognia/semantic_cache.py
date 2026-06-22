@@ -6,7 +6,6 @@ semantically close queries are answered in <5 ms instead of ~5 s.
 
 from __future__ import annotations
 
-import io
 import math
 import re
 import threading
@@ -33,17 +32,6 @@ def _normalize(text: str) -> list[str]:
     text = _PUNCT_RE.sub(" ", text)
     text = _WS_RE.sub(" ", text).strip()
     return [t for t in text.split() if t and t not in _STOPWORDS]
-
-
-def _serialize(arr: np.ndarray) -> bytes:
-    buf = io.BytesIO()
-    np.save(buf, arr)
-    return buf.getvalue()
-
-
-def _deserialize(blob: bytes) -> np.ndarray:
-    buf = io.BytesIO(blob)
-    return np.load(buf, allow_pickle=False)
 
 
 def _cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
@@ -220,33 +208,27 @@ class SemanticResponseCache:
                 if not tokens:
                     return
 
+                norm_text = " ".join(tokens)
                 with self._pool.get() as conn:
+                    # Mark the vocab dirty so the next lookup() rebuilds it from
+                    # ALL rows including this one. lookup() recomputes candidate
+                    # vectors from question_norm against the current vocab, so the
+                    # tfidf_vector column is no longer read — we store an empty
+                    # placeholder (the column is NOT NULL) instead of paying a full
+                    # vocab rebuild + TF-IDF + serialize on every store(). This also
+                    # removes the old "lag-by-one" where the vocab was rebuilt before
+                    # the new row was inserted, so brand-new tokens were invisible
+                    # until a later store triggered another rebuild.
                     self._vocab_dirty = True
-                    self._rebuild_vocab(conn)
-
-                    vec = self._tfidf_vector(tokens)
-                    if vec is None:
-                        # vocab still empty — build a minimal one from this question
-                        self._vocab = {t: i for i, t in enumerate(tokens[:2000])}
-                        N = 1
-                        idf = np.ones(len(self._vocab), dtype=np.float32)
-                        self._idf = idf
-                        vec = self._tfidf_vector(tokens)
-                        if vec is None:
-                            return
-
-                    blob = _serialize(vec)
-                    norm_text = " ".join(tokens)
                     conn.execute(
                         "INSERT INTO semantic_cache "
                         "(question_norm, tfidf_vector, response, model, timestamp, hits) "
                         "VALUES (?, ?, ?, ?, ?, 0)",
-                        (norm_text, blob, response, model, time.time()),
+                        (norm_text, b"", response, model, time.time()),
                     )
 
                     if self._entry_count(conn) > self._max_entries:
                         self._prune_oldest(conn)
-                        self._vocab_dirty = True
             except Exception:
                 pass
 
