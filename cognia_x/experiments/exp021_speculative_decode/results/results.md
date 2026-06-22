@@ -88,6 +88,30 @@ speculative sube tok/s pero **condicional al tipo de texto**; para el objetivo (
 rápida) los levers reales son **base pequeña + cascada** (medido 4.3×) y **cabezas
 entrenables MTP/EAGLE** (proyectado 2–3×), NO el draft separado (medido 0.37×).
 
+## 6. Calidad del 0.5B en habla española (CYCLE 5) y la rama difusión-en-CPU
+
+**Calidad (real, temp=0.7):** el 0.5B-Coder es **fluido** en español pero **menos preciso**
+que el 3B: falla "¿por qué el cielo es azul?" (repite la instrucción), da una definición vaga
+de gravedad y alguna palabra inventada. El 3B es más fiable (aunque también erró la física del
+cielo). ⇒ el lever 4.3× sirve para **habla fluida de bajo riesgo** (saludos, charla corta,
+backchannel), no para respuestas sustantivas. Diseño: **cascada con router por complejidad**
+(0.5B en turnos cortos/simples → 36 tok/s; escalar al 3B para sustancia).
+
+**3-vías (Coder-0.5B vs Instruct-0.5B vs 3B):** el 0.5B-Instruct general **NO es mejor** que el
+Coder — falla "cielo" (sin sentido), inventa con confianza en "dormir" ("espejo cálido…
+antiviral") y da gravedad incorrecta. **Ambos 0.5B son fluidos pero poco fiables en hechos.**
+⇒ el camino 0.5B sirve SOLO para habla social/relleno de bajo riesgo; el lever general robusto
+para *habla rápida Y precisa* es la **cabeza MTP/EAGLE sobre el 3B** (2–3×, conserva calidad).
+
+**Difusión en CPU (rama explorada → cerrada con cota nombrada):** llama.cpp YA soporta LLMs de
+difusión (Dream/LLaDA/RND1), pero vía `llama-diffusion-cli` (no el server, que es lo que
+tenemos) y con modelos ~8B (~5 GB Q4). En CPU *bandwidth-bound* (exp004) la difusión hace N
+pasadas de denoising por bloque, cada una leyendo TODOS los pesos. Para que un difusión-8B
+gane al AR-3B se necesita `bloque/N · (3B/8B) > 1` ⇒ `bloque/N > 2.7`; la difusión de calidad
+usa `bloque/N ≈ 1–2 < 2.7` ⇒ **el difusión-8B PIERDE contra el AR-3B en el i3**. Difusión gana
+en GPU (cómputo paralelo), no en CPU bandwidth-bound. Límite físico nombrado ⇒ no se persigue
+el download de 5 GB; el 0.5B AR (36 tok/s) es el mejor camino CPU para habla rápida.
+
 ## Reproducir
 ```
 venv312\Scripts\python.exe cognia_x\experiments\exp021_speculative_decode\bench_real.py
