@@ -3379,3 +3379,28 @@ ejecución real) es el lever central de la auto-mejora segura.
   (imitación robusta) se sostiene solo. D-LEARN-5 (preferir imitación; RL solo con salvaguardas).
 - Bug arreglado: blocker.kind 'tecnologico' inválido en el engine → 'diseno'. Engine cycle33: verify_no_loss=OK.
 - Verificación: suite completa cognia_x (gate); engine verify_no_loss=OK; experimento n=3 + smoke de estabilización.
+
+## [2026-06-21] CYCLE 34 — F-SPEED (nuevo frente): velocidad de decode para "hablar rápido" (H-SPEED-1 MIXTA)
+- GOAL de la sesión (manager): que Cognia X HABLE a velocidad alta + explorar el "nuevo método de Gemma"
+  (difusión) y un híbrido + buscar parámetros entrenables que funcionen con el sistema actual. Backend real:
+  llama-server b9391, Qwen2.5-Coder-3B Q4_K_M, ~8.3 tok/s (medido warm; el 8.09 documentado se reproduce).
+- exp021 (REAL, i3, temp=0, warm, salida verificada por SHA). Speculative sobre el 3B: **ngram-mod bit-idéntico**
+  al baseline (1.06-1.13×, riesgo 0); **ngram-simple** gran echo (**1.45× lossless**) pero **DAÑA habla** (0.81×);
+  **draft-0.5B SEPARADO HUNDE todo** (habla **0.367×**, echo 0.67×) — confirma empíricamente la pared de banda de
+  exp004 (un 2º modelo compite por banda + 2 núcleos). n-gram solo gana en texto repetitivo/RAG/código.
+- **LEVER RADICAL medido**: el **0.5B SOLO = 35.88 tok/s en habla = 4.3× el 3B** (exp004 lo predice: ¼ de
+  bytes/token ⇒ ~4× tok/s). → para "hablar rápido" en este HW el camino es **base pequeña + CASCADA al 3B**,
+  no speculative sobre el 3B.
+- Difusión (DiffusionGemma) = el "nuevo método" de Gemma: bloques en paralelo por denoising, 26B GPU-only →
+  inviable en i3; pero difusión y speculative son **DUALES** (ambos commitean varios tokens por lectura de pesos).
+  El binario YA soporta `draft-mtp`/`draft-eagle3`: las **cabezas entrenables** (params modificables sobre la base
+  congelada, ~0 banda) son el único speculative que respeta la banda → proyección calibrada **17.7-24.8 tok/s
+  (2.1-3.0×)**. Es la respuesta literal a "parámetros entrenados modificables que funcionan con el sistema actual".
+- Engine cycle34_speculative_decode.py: **H-SPEED-1 MIXTA** (DoD completo), **D-SPEED-1** (adoptar speculative
+  bandwidth-aware + cascada 0.5B + heads MTP/EAGLE; NO draft separado), techo F-SPEED 'real', analogía 7 etapas
+  (cartero/banda), verify_no_loss=OK. 5 fuentes (tier3 DiffusionGemma, tier1 spec-decode/EAGLE-3, tier5 exp004/exp021).
+- Archivos: cognia_x/experiments/exp021_speculative_decode/ (DESIGN.md + bench_real/bench_draft/bench_small_base/
+  cost_model/analyze + results/), cognia_x/research/cycles/cycle34_speculative_decode.py.
+- Verificación REAL: benchmarks end-to-end sobre el llama-server REAL (no solo modelo de coste); cold-mmap
+  detectado y corregido con warmup. Pendiente (CYCLE 5+): wire `ngram-mod` por defecto en node/llama_backend.py
+  (gratis, bit-idéntico) + cascada con base 0.5B + entrenar/convertir head MTP/EAGLE para Qwen2.5-Coder-3B.

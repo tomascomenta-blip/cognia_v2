@@ -1,0 +1,2 @@
+# logs de arranque del server (vacios por --log-disable; ruido)
+*.log

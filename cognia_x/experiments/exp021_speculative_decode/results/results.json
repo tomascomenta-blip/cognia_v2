@@ -1,0 +1,222 @@
+{
+  "experiment": "exp021_speculative_decode/bench_real",
+  "config": {
+    "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+    "threads": 3,
+    "ctx": 8192,
+    "n_predict": 160,
+    "temperature": 0.0,
+    "cpu_count": 4,
+    "binary": "llama-server.exe"
+  },
+  "hypothesis": "H-SPEC-1: en el sistema actual (i3 bandwidth-bound), speculative decoding con drafter ngram (0 modelo extra, 0 entrenamiento) sube tok/s de decode sin cambiar la salida (temp=0 lossless). El payoff depende del tipo de prompt.",
+  "runs": [
+    {
+      "config": "baseline",
+      "prompt": "code",
+      "decode_tps": 1.4342751952602082,
+      "predicted_n": 160,
+      "prompt_n": 61,
+      "prefill_tps": 4.127920884674349,
+      "wall_s": 126.54,
+      "content_sha": "4ea6c97d0c33",
+      "content_head": "Aquí tienes una implementación del algoritmo de ordenamiento QuickSort en Python"
+    },
+    {
+      "config": "baseline",
+      "prompt": "speech",
+      "decode_tps": 7.50628463681217,
+      "predicted_n": 160,
+      "prompt_n": 69,
+      "prefill_tps": 21.02520098873293,
+      "wall_s": 24.62,
+      "content_sha": "e9de347dd46e",
+      "content_head": "¡Hola, pequeño! Imagina que las plantas son como pequeños fotógrafos que trabaja"
+    },
+    {
+      "config": "baseline",
+      "prompt": "echo",
+      "decode_tps": 7.530313984913204,
+      "predicted_n": 160,
+      "prompt_n": 126,
+      "prefill_tps": 21.240627994338528,
+      "wall_s": 27.19,
+      "content_sha": "dad749a475a7",
+      "content_head": "1. La fotosintesis es el proceso por el cual las plantas, las algas y algunas ba"
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "code",
+      "decode_tps": 5.4924190542727205,
+      "predicted_n": 160,
+      "prompt_n": 61,
+      "prefill_tps": 18.64930141551255,
+      "wall_s": 32.4,
+      "content_sha": "dde7957bd6af",
+      "content_head": "Aquí tienes una implementación del algoritmo de ordenamiento QuickSort en Python"
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "speech",
+      "decode_tps": 6.549518700431401,
+      "predicted_n": 160,
+      "prompt_n": 69,
+      "prefill_tps": 21.64536793831635,
+      "wall_s": 27.62,
+      "content_sha": "f0a495cbecb4",
+      "content_head": "¡Hola, pequeño! Imagina que las plantas son como pequeños fotógrafos que trabaja"
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "echo",
+      "decode_tps": 10.891869872652258,
+      "predicted_n": 160,
+      "prompt_n": 126,
+      "prefill_tps": 22.31955437415438,
+      "wall_s": 20.34,
+      "content_sha": "dad749a475a7",
+      "content_head": "1. La fotosintesis es el proceso por el cual las plantas, las algas y algunas ba"
+    },
+    {
+      "config": "ngram-map-k",
+      "prompt": "code",
+      "decode_tps": 6.479981635732043,
+      "predicted_n": 160,
+      "prompt_n": 61,
+      "prefill_tps": 25.012711377913362,
+      "wall_s": 27.13,
+      "content_sha": "391fcbff6a15",
+      "content_head": "Aquí tienes una implementación del algoritmo de ordenamiento QuickSort en Python"
+    },
+    {
+      "config": "ngram-map-k",
+      "prompt": "speech",
+      "decode_tps": 7.490141919932162,
+      "predicted_n": 160,
+      "prompt_n": 69,
+      "prefill_tps": 22.02536300351895,
+      "wall_s": 24.5,
+      "content_sha": "6ac94e322edd",
+      "content_head": "¡Hola, pequeño! Imagina que las plantas son como pequeños fotógrafos que trabaja"
+    },
+    {
+      "config": "ngram-map-k",
+      "prompt": "echo",
+      "decode_tps": 9.688964263648101,
+      "predicted_n": 160,
+      "prompt_n": 126,
+      "prefill_tps": 21.91248709163211,
+      "wall_s": 22.27,
+      "content_sha": "dad749a475a7",
+      "content_head": "1. La fotosintesis es el proceso por el cual las plantas, las algas y algunas ba"
+    },
+    {
+      "config": "ngram-mod",
+      "prompt": "code",
+      "decode_tps": 7.970249449878439,
+      "predicted_n": 160,
+      "prompt_n": 61,
+      "prefill_tps": 25.62494407671016,
+      "wall_s": 22.46,
+      "content_sha": "4ea6c97d0c33",
+      "content_head": "Aquí tienes una implementación del algoritmo de ordenamiento QuickSort en Python"
+    },
+    {
+      "config": "ngram-mod",
+      "prompt": "speech",
+      "decode_tps": 7.925242377439966,
+      "predicted_n": 160,
+      "prompt_n": 69,
+      "prefill_tps": 22.481252590231275,
+      "wall_s": 23.26,
+      "content_sha": "e9de347dd46e",
+      "content_head": "¡Hola, pequeño! Imagina que las plantas son como pequeños fotógrafos que trabaja"
+    },
+    {
+      "config": "ngram-mod",
+      "prompt": "echo",
+      "decode_tps": 8.531701162023031,
+      "predicted_n": 160,
+      "prompt_n": 126,
+      "prefill_tps": 22.2185387255023,
+      "wall_s": 24.43,
+      "content_sha": "dad749a475a7",
+      "content_head": "1. La fotosintesis es el proceso por el cual las plantas, las algas y algunas ba"
+    }
+  ],
+  "errors": [],
+  "summary": [
+    {
+      "config": "ngram-simple",
+      "prompt": "code",
+      "baseline_tps": 1.43,
+      "spec_tps": 5.49,
+      "speedup": 3.829,
+      "lossless": false
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "speech",
+      "baseline_tps": 7.51,
+      "spec_tps": 6.55,
+      "speedup": 0.873,
+      "lossless": false
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "echo",
+      "baseline_tps": 7.53,
+      "spec_tps": 10.89,
+      "speedup": 1.446,
+      "lossless": true
+    },
+    {
+      "config": "ngram-map-k",
+      "prompt": "code",
+      "baseline_tps": 1.43,
+      "spec_tps": 6.48,
+      "speedup": 4.518,
+      "lossless": false
+    },
+    {
+      "config": "ngram-map-k",
+      "prompt": "speech",
+      "baseline_tps": 7.51,
+      "spec_tps": 7.49,
+      "speedup": 0.998,
+      "lossless": false
+    },
+    {
+      "config": "ngram-map-k",
+      "prompt": "echo",
+      "baseline_tps": 7.53,
+      "spec_tps": 9.69,
+      "speedup": 1.287,
+      "lossless": true
+    },
+    {
+      "config": "ngram-mod",
+      "prompt": "code",
+      "baseline_tps": 1.43,
+      "spec_tps": 7.97,
+      "speedup": 5.557,
+      "lossless": true
+    },
+    {
+      "config": "ngram-mod",
+      "prompt": "speech",
+      "baseline_tps": 7.51,
+      "spec_tps": 7.93,
+      "speedup": 1.056,
+      "lossless": true
+    },
+    {
+      "config": "ngram-mod",
+      "prompt": "echo",
+      "baseline_tps": 7.53,
+      "spec_tps": 8.53,
+      "speedup": 1.133,
+      "lossless": true
+    }
+  ]
+}

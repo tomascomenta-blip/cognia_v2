@@ -1,0 +1,125 @@
+{
+  "experiment": "exp021/bench_draft_v2",
+  "config": {
+    "threads": 3,
+    "ctx": 8192,
+    "n_predict": 160,
+    "draft_present": true
+  },
+  "runs": [
+    {
+      "config": "baseline",
+      "prompt": "code",
+      "decode_tps": 8.70250350357352,
+      "predicted_n": 160,
+      "sha": "4ea6c97d0c33"
+    },
+    {
+      "config": "baseline",
+      "prompt": "speech",
+      "decode_tps": 8.320773299387351,
+      "predicted_n": 160,
+      "sha": "e9de347dd46e"
+    },
+    {
+      "config": "baseline",
+      "prompt": "echo",
+      "decode_tps": 8.081836269977984,
+      "predicted_n": 160,
+      "sha": "dad749a475a7"
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "code",
+      "decode_tps": 6.263415698163178,
+      "predicted_n": 160,
+      "sha": "dde7957bd6af"
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "speech",
+      "decode_tps": 6.772487919151394,
+      "predicted_n": 160,
+      "sha": "f0a495cbecb4"
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "echo",
+      "decode_tps": 10.770638512397106,
+      "predicted_n": 160,
+      "sha": "dad749a475a7"
+    },
+    {
+      "config": "draft-0.5B",
+      "prompt": "code",
+      "decode_tps": 5.56858779117058,
+      "predicted_n": 160,
+      "sha": "dde7957bd6af"
+    },
+    {
+      "config": "draft-0.5B",
+      "prompt": "speech",
+      "decode_tps": 3.053563783756384,
+      "predicted_n": 160,
+      "sha": "b8cb2f87af21"
+    },
+    {
+      "config": "draft-0.5B",
+      "prompt": "echo",
+      "decode_tps": 5.4407554271280345,
+      "predicted_n": 160,
+      "sha": "dad749a475a7"
+    }
+  ],
+  "errors": [],
+  "summary": [
+    {
+      "config": "ngram-simple",
+      "prompt": "code",
+      "baseline_tps": 8.7,
+      "spec_tps": 6.26,
+      "speedup": 0.72,
+      "lossless": false
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "speech",
+      "baseline_tps": 8.32,
+      "spec_tps": 6.77,
+      "speedup": 0.814,
+      "lossless": false
+    },
+    {
+      "config": "ngram-simple",
+      "prompt": "echo",
+      "baseline_tps": 8.08,
+      "spec_tps": 10.77,
+      "speedup": 1.333,
+      "lossless": true
+    },
+    {
+      "config": "draft-0.5B",
+      "prompt": "code",
+      "baseline_tps": 8.7,
+      "spec_tps": 5.57,
+      "speedup": 0.64,
+      "lossless": false
+    },
+    {
+      "config": "draft-0.5B",
+      "prompt": "speech",
+      "baseline_tps": 8.32,
+      "spec_tps": 3.05,
+      "speedup": 0.367,
+      "lossless": false
+    },
+    {
+      "config": "draft-0.5B",
+      "prompt": "echo",
+      "baseline_tps": 8.08,
+      "spec_tps": 5.44,
+      "speedup": 0.673,
+      "lossless": true
+    }
+  ]
+}
