@@ -63,10 +63,15 @@ fiables en hechos** (el Instruct general no es mejor; incluso alucina con más c
 cascada 0.5B sirve SOLO para habla social/relleno de bajo riesgo. Para *habla rápida Y precisa*
 el lever robusto es la **cabeza MTP/EAGLE sobre el 3B** (prioridad sube).
 
-## Próximos pasos concretos
-1. **Entrenar/convertir la cabeza MTP/EAGLE-3 para Qwen2.5-Coder-3B** (lever general 2–3×, sin
-   perder calidad) — el camino principal. GPU unas horas (Kaggle).
-2. Router de cascada de habla (0.5B↔3B) acotado a turnos sociales/triviales (latencia baja).
-3. `ngram-mod` por defecto para flujos de código/RAG (gratis, bit-idéntico).
+## Estado de implementación (esta sesión, todo commiteado en rama `cognia-x`)
+- ✅ **`ngram-mod` por defecto** en `node/llama_backend.py` (gratis, bit-idéntico; acelera código/RAG).
+- ✅ **Cascada de habla** en `node/speech_cascade.py` (opt-in `COGNIA_SPEECH_CASCADE=1`): social→0.5B
+  (~28–36 tok/s), sustancia→3B. Verificada e2e. Falta el "last mile": conectarla al chat de `cognia/cli.py`.
+- 🔒 **Cabeza MTP/EAGLE-3** (lever general 2–3×): scopeada (`EAGLE_MTP_SCOPING.md`) pero **GATED** —
+  no hay head pública para el 3B-Coder; requiere tu OK para 1 sesión de Kaggle GPU.
+
+## Tu decisión pendiente
+Autorizar (o no) **1 sesión de Kaggle GPU** para un PoC de cabeza EAGLE-3 → convertir → medir el 2–3×
+real en tu i3. Si sí, el loop puede armarlo; si no, quedan los 3 levers ya realizados.
 
 *(Apagado programado 05:00; cancelar con `shutdown /a`.)*
