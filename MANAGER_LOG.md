@@ -3426,3 +3426,16 @@ ejecución real) es el lever central de la auto-mejora segura.
   reconfigure stdout a utf-8 (el results_cascade.json ya se escribía antes; los datos son válidos).
 - Caveat: el 0.5B es fiable solo en lo social (exp021). Pendiente: promover el router al entrypoint de
   chat (node) detrás de flag + validar el umbral con más turnos. Próximo: CYCLE 8 (head MTP/EAGLE).
+
+## [2026-06-22] CYCLE 38 — Scoping cabeza MTP/EAGLE-3 (lever general 2-3×): FACTIBLE pero GATED
+- EAGLE_MTP_SCOPING.md: la cabeza (2-5% del 3B, coste de banda ~0) es el único speculative que da habla
+  rápida Y precisa; proyección exp021 2.1-3.0×. Repo SafeAILab/EAGLE; entrena SOLO la head con las
+  activaciones del 3B (datos ShareGPT-es + código); ~1h26m en 1×H100 → ~12-17h en P100 Kaggle (2 sesiones).
+- Riesgo crítico: EAGLE3-en-CPU SIN VALIDAR (el único bench real de spec que hallé, GPU + MoE, dio 0 speedup).
+- Paso 1 ejecutado (búsqueda HF): NO hay head pública para Qwen2.5-Coder-3B ni Qwen2.5-3B-Instruct (sí para
+  14B / Qwen3 7B+, pero son target-específicas → no sirven). Sin atajo gratis para validar en CPU.
+- Veredicto: FACTIBLE y alto valor, pero **GATED** — requiere autorización del dueño para 1 sesión Kaggle
+  (PoC de head mínima → convertir con convert_hf_to_gguf que NO está en el repo, hay que clonar fuente
+  llama.cpp → medir en i3). Levers REALIZADOS hoy: cascada 0.5B (social) + ngram-mod (código/RAG) + 3B AR.
+- Arco F-SPEED de la sesión COMPLETO (CYCLE 34-38): investigación + exp021 + ngram-mod shippeado + cascada
+  verificada + scoping del lever general. Lo siguiente requiere decisión del dueño (autorizar GPU Kaggle).
