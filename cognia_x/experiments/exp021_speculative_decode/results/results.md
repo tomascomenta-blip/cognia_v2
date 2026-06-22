@@ -112,6 +112,20 @@ usa `bloque/N ≈ 1–2 < 2.7` ⇒ **el difusión-8B PIERDE contra el AR-3B en e
 en GPU (cómputo paralelo), no en CPU bandwidth-bound. Límite físico nombrado ⇒ no se persigue
 el download de 5 GB; el 0.5B AR (36 tok/s) es el mejor camino CPU para habla rápida.
 
+## 7. Lever de cuantización (CYCLE 11): REFUTADO para el 3B
+
+Q3_K_S (1.354 GiB) vs Q4_K_M (1.797 GiB) en el i3, medido (warm, ignore_eos):
+- speech 9.08 vs 8.37 tok/s = **1.085×**; code 8.52 vs 8.67 = 0.98×. **NO** el 1.33× que
+  sugería el ratio de tamaño.
+- Calidad Q3_K_S: **ROTA** (salida incoherente: "23 La frase 'El 3' no tiene significado…").
+
+Insight (refina el modelo de banda, que era una COTA SUPERIOR): tok/s **no** es ∝
+1/bytes-del-GGUF. Hay coste por token FIJO fuera del weight-streaming (lm_head O(V=151936),
+dequant Q3 más caro que Q4, atención/KV) que domina cuando la reducción de tamaño es modesta
+(Q4→Q3 = solo 1.33× menos bytes). Por eso bajar de cuantización casi no acelera Y degrada la
+calidad. El lever real es reducir el **TAMAÑO** del modelo (0.5B = 6× menos params → 4.3×), no
+la cuantización. **Branch cerrada** (fracaso = información).
+
 ## Reproducir
 ```
 venv312\Scripts\python.exe cognia_x\experiments\exp021_speculative_decode\bench_real.py

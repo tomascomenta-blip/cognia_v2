@@ -3462,3 +3462,12 @@ ejecución real) es el lever central de la auto-mejora segura.
   EXACTA del CLI (stream_chat sobre el 0.5B): "Hola, estoy bien gracias. ¿Cómo te va?" CHECK OK.
 - F-SPEED END-TO-END COMPLETO: ngram-mod (código/RAG) + cascada 0.5B (habla social, ahora EN el CLI) están
   shippeados y opt-in. Único pendiente: el lever general EAGLE (GATED — requiere OK del dueño para Kaggle).
+
+## [2026-06-22] CYCLE 41 — Lever de cuantización Q3_K_S: REFUTADO (1.08× + calidad rota)
+- bench_quant.py (REAL, i3): Q3_K_S (1.354 GiB) vs Q4_K_M (1.797 GiB): speech 9.08 vs 8.37 = **1.085×**,
+  code 0.98×. NO el 1.33× que proyectaba el ratio de tamaño. Calidad Q3_K_S **ROTA** (incoherente).
+- Insight: tok/s NO es ∝ 1/bytes; un coste por token FIJO (lm_head O(V=151936), dequant Q3 caro,
+  atención/KV) domina cuando la reducción es modesta. Reducir el TAMAÑO del modelo (0.5B, 6× menos
+  params → 4.3×) sí funciona; bajar la cuantización no. Branch cuantización CERRADA (fracaso=información).
+- Refina el modelo de banda de exp021 (era cota superior). Levers vivos: cascada 0.5B + ngram-mod +
+  (gated) cabeza EAGLE. Apagado 05:00 sigue programado.
