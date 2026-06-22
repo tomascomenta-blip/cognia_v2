@@ -526,3 +526,123 @@ helper — `git -c credential.helper='!gh auth git-credential' push origin HEAD:
 3. (Still open) Review tensor-parallel v2 cross-process path (tp_allreduce float add order /
    KV-cache-per-rank) — in-process golden path read this session and looks bit-exact-correct.
 4. Re-run benchmark once a real shard/DB is present (still pending across sessions).
+
+---
+
+## Session: 2026-06-22  (CACHE-EFFECTIVENESS BUG-HUNT — persistent layers never hit)
+
+### Context / approach
+Picked up priority #1 from 2026-06-21: audit cognia/semantic_cache.py +
+cognia/reasoning/cache_warmer.py + the agent tooling (cognia/agents/*) for the
+same key/recency cache bugs found earlier. Environment unchanged: no venv312 in
+this checkout; system `python` is 3.12.10 (numpy 1.26.4 + pytest), used directly.
+Found a NEW class beyond LRU-recency: store-vs-search **basis/dimension mismatch**
+that makes a cache's PERSISTENT layer silently never hit (every repeat query then
+pays the full ~5s LLM path instead of <5ms cache). Found two LIVE instances, both
+in the response-cache subsystem, both fixed + regression-tested.
+
+### [BUG-1 — LIVE, severe] semantic_cache lookup compared vectors across drifted vocab -- FIXED + PUSHED (b511e02)
+**File**: cognia/semantic_cache.py -- SemanticResponseCache.lookup()
+
+Root cause: lookup() deserialized the persisted `tfidf_vector` blob (computed
+against the vocab snapshot at store() time) and compared it against qvec built
+from the CURRENT vocab. The TF-IDF vocab DRIFTS as questions are cached: it grows
+toward the 2000-token cap and is re-sorted by frequency, so token->index mapping
+changes on every store(). A stored vector therefore lives in a different basis
+than qvec -> either dims differ (entry skipped -> MISS) or dims coincide but the
+basis differs (cosine across mismatched axes -> garbage). Net: any entry cached
+before the vocab last changed became unreachable. Reproduced: an exact-match query
+turned MISS after 5 unrelated stores drifted the vocab. ResponseCache-style cache
+is on the chat hot path (LanguageEngine).
+
+Fix: recompute the candidate vector at lookup time from its stored tokens
+(question_norm, already persisted) against the current vocab — same approach
+thought_cache.py already uses (it stores question_tokens for exactly this reason).
+Regression: tests/test_semantic_cache.py::test_hit_survives_vocab_drift.
+
+### [BUG-2 — LIVE, severe] response_cache persisted only vector[:64] -- FIXED + PUSHED (cd950a8)
+**File**: response_cache.py -- ResponseCache._persist_to_db()
+
+Root cause: `_persist_to_db` stored `json.dumps(entry.vector[:64])` (first 64
+dims) while `_search_db` compares the FULL query vector via `_cosine()`, which
+returns 0.0 on any length mismatch. Embeddings today are 384-dim
+(cognia.vectors.text_to_vector), so EVERY DB-layer comparison was a length
+mismatch -> 0.0, and the persistent (SQLite) half of the two-layer cache NEVER
+hit. The `64` was a magic number left from an older 64-dim embedding era. Net:
+anything evicted from the 200-entry RAM layer, and every entry after a process
+restart, was unrecoverable (and the DB path still scanned up to 100 rows per
+lookup, all scoring 0.0). Reproduced: store -> fresh ResponseCache on same DB file
+-> get() was a MISS before, a HIT after.
+
+Fix: persist the full vector. Keeps the 0.88 threshold on the same basis as the
+RAM layer (which compares full vectors). Regression:
+tests/test_response_cache_ram_hit.py::test_db_layer_hits_with_full_dim_vector.
+
+### [REFACTOR] semantic_cache.store() stopped computing the now-unused blob -- PUSHED (ab2fd1a)
+**File**: cognia/semantic_cache.py -- store()
+
+After BUG-1, lookup() never reads the tfidf_vector blob. store() was still doing a
+full _rebuild_vocab + _tfidf_vector + _serialize on every call just to write a blob
+nobody reads, AND it rebuilt the vocab BEFORE inserting the new row (lag-by-one:
+the new question's tokens stayed invisible until a later store rebuilt again).
+Simplified: store() now just marks the vocab dirty (next lookup rebuilds from all
+rows incl. this one) and inserts an empty placeholder for the NOT NULL column.
+Removed the now-dead _serialize/_deserialize helpers + unused `io` import.
+
+### [HYGIENE] task_queue.save_subtasks dead, misleading rows comprehension -- PUSHED (a9047f9)
+**File**: cognia/agents/task_queue.py
+
+A `rows` list comprehension was built and discarded (the real insert loop below
+recomputes everything). The dead block derived task_id incorrectly
+(`st.description.split(":")[0]`), a trap for future maintainers. Removed it; live
+loop (task_id = "_".join(st.id.split("_")[:-1])) verified: subtask task_id matches
+parent task id.
+
+### Audits performed (delegated, whole subsystems) — both came back CLEAN
+- **agents + remaining OrderedDict caches** (cognia/agents/*, self_architect.py,
+  cognia_v3.py, cognia_code.py, cognia/vectors.py, intent_predictor.py): NO
+  LRU-recency / key-mismatch / write-without-commit bugs. task_queue._conn() DOES
+  commit; supervisor stores/reads results under the same st.id key; the only
+  "LRU dict" in self_architect.py is inside a pseudocode STRING the architect
+  proposes (never executed). cache_warmer.py has no cache of its own (fire-and-
+  forget); intent_predictor.py is stateless.
+- **semantic-memory retrieval dim/basis** (episodic, episodic_fast, semantic,
+  memory_compressor, conversation_memory, consolidation_engine x2, code_memory,
+  cognia_v3, decision_gate, goal_and_pattern_engine): all consistent — store dim
+  == query dim == 384, same basis. Root cause closed at source: VECTOR_DIM pinned
+  to 384 (config.py:82, cognia_v3.py:82); scripts/migrate_vector_dim.py re-embeds
+  legacy rows; episodic_fast.VectorCache rebuilds on dominant dim + skips off-dim
+  rows. Two LATENT traps noted (not live): GoalManager.goal_aware_memory_boost is
+  dead code with a stored-vs-passed cosine that would mismatch if ever wired to a
+  different embedding source; AsyncEmbeddingQueue singleton's n-gram fallback dim
+  is only safe because every call site passes 384 today.
+
+### Verification
+- Reproduced both bugs on the OLD code (MISS), verified fixed (HIT).
+- Per-module suites green: test_semantic_cache.py 8 passed, test_response_cache_ram_hit.py
+  4 passed; cache-area (-k semantic_cache/response_cache/thought/warmer) 38 passed.
+- Full fast suite after commits 1-3: 2458 passed, 1 skipped, 0 failed (250s).
+- Full fast suite AFTER all 4 commits (final gate): **2458 passed, 1 skipped, 0 failed** (200s).
+
+### State at session end
+- origin/main advanced by 4 commits: b511e02, cd950a8, a9047f9, ab2fd1a (all pushed
+  via `git -c credential.helper='!gh auth git-credential' push origin HEAD:main`,
+  the headless workaround — wincredman still fails with no tty).
+- Local branch integration/fixes-onto-origin tracks origin/main.
+
+### Priority Order for Next Session
+1. The cache subsystem (response_cache, semantic_cache, thought_cache, model_router,
+   embedding/adapter/fragment LRUs) is now fully audited + fixed. Memory retrieval
+   and agents are clean. Next un-audited 3.x surface: the inference orchestration
+   (shattering/orchestrator.py infer/astream, inference_pipeline, distributed path)
+   and the agent EXECUTION loop (supervisor/daemon runtime behavior), not just the
+   cache shapes.
+2. (Optional cleanup) GoalManager.goal_aware_memory_boost is dead code — either wire
+   it correctly (ensure mem["_vec"] uses the same embedding source as goal.vector) or
+   delete it, to remove the latent dim-mismatch trap.
+3. (Still open) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
+4. (Still open) tensor-parallel v2 cross-process path: tp_allreduce.py read this
+   session and is correct (commutative sum + NaN/inf screen; accept-order float
+   non-determinism is acknowledged in the design, not a bug). The per-rank KV-cache
+   path is still un-reviewed.
+5. Re-run benchmark once a real shard/DB is present (still pending across sessions).
