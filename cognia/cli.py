@@ -6534,6 +6534,18 @@ def repl():
                             except Exception:
                                 pass
                         if _llama is not None:
+                            # Fast-path de habla (opt-in COGNIA_SPEECH_CASCADE): turnos
+                            # sociales/triviales -> 0.5B (~28-36 tok/s); el resto sigue en
+                            # el 3B. Reusa el 3B como 'deep' (no lo duplica). exp021/cycle39.
+                            _llama_turn = _llama
+                            try:
+                                from node.speech_cascade import classify_turn, fast_speech_backend
+                                if classify_turn(raw) == "fast":
+                                    _fb = fast_speech_backend()
+                                    if _fb is not None:
+                                        _llama_turn = _fb
+                            except Exception:
+                                _llama_turn = _llama
                             from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
                             from cognia.user_prefs import personalize_prompt
                             _system = personalize_prompt(build_adaptive_system_prompt(ai))
@@ -6554,15 +6566,20 @@ def repl():
                             # Temperatura explicita (no el default implicito del
                             # backend): visible y auditable en model_constants.
                             from shattering.model_constants import GEN_CHAT_TEMPERATURE
-                            _use_chat = hasattr(_llama, "stream_chat")
+                            _use_chat = hasattr(_llama_turn, "stream_chat")
                             # Memoria real en el fast-path: el bloque HYDRA del
                             # band router va DENTRO del ultimo mensaje user
                             # (ver _build_stream_messages: posicion obligada
                             # para no invalidar el prefijo KV cacheado).
                             _messages = _build_stream_messages(
                                 ai, raw, _system, _hist_ctx)
+                            # Fast-path 0.5B: prompt minimo (sin historia/HYDRA) para que
+                            # el prefill no coma la ventaja de velocidad en turnos sociales.
+                            if _llama_turn is not _llama:
+                                _messages = [{"role": "system", "content": _system},
+                                             {"role": "user", "content": raw}]
                             if _use_chat:
-                                _stream_src = lambda: _llama.stream_chat(
+                                _stream_src = lambda: _llama_turn.stream_chat(
                                     _messages, max_tokens=1024,
                                     temperature=GEN_CHAT_TEMPERATURE)
                             else:
@@ -6570,7 +6587,7 @@ def repl():
                                 _formatted = _apply_qwen_template(
                                     _messages[-1]["content"], _system,
                                     history=_hist_ctx or None)
-                                _stream_src = lambda: _llama.stream_generate(
+                                _stream_src = lambda: _llama_turn.stream_generate(
                                     _formatted, max_tokens=1024,
                                     temperature=GEN_CHAT_TEMPERATURE)
                             _tokens_buf = []

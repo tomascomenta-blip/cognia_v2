@@ -19,6 +19,13 @@ def test_try_load_off_por_defecto(monkeypatch):
     assert CascadeBackend.try_load() is None
 
 
+def test_fast_speech_backend_off_por_defecto(monkeypatch):
+    import node.speech_cascade as sc
+    monkeypatch.delenv("COGNIA_SPEECH_CASCADE", raising=False)
+    sc._FAST_SINGLETON = None
+    assert sc.fast_speech_backend() is None   # OFF por defecto → el chat usa el 3B normal
+
+
 def test_try_load_con_flag_no_crashea(monkeypatch):
     # con flag ON devuelve instancia si los GGUF existen, o None si no — NUNCA crashea,
     # y NO arranca servers (son lazy en _backend, no en __init__/try_load).

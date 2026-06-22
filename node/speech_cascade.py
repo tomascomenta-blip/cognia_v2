@@ -126,6 +126,27 @@ class CascadeBackend:
                     proc.kill()
 
 
+# ── Fast-path reutilizable para el chat (reusa el 3B existente como 'deep') ──
+_FAST_SINGLETON: Optional[_LlamaServerBackend] = None
+
+
+def fast_speech_backend() -> Optional[_LlamaServerBackend]:
+    """Backend del 0.5B para el fast-path de habla, o None si COGNIA_SPEECH_CASCADE está
+    OFF o falta el GGUF. Singleton lazy (arranca el server 0.5B una sola vez). Pensado
+    para que un chat que YA tiene el 3B solo añada el 0.5B en turnos sociales
+    (classify_turn=='fast'), SIN duplicar el 3B."""
+    global _FAST_SINGLETON
+    flag = os.environ.get("COGNIA_SPEECH_CASCADE", "").strip().lower()
+    if flag not in ("1", "true", "on", "yes"):
+        return None
+    if not _FAST_GGUF.is_file():
+        logger.warning("[speech_cascade] fast-path pedido pero falta %s", _FAST_GGUF.name)
+        return None
+    if _FAST_SINGLETON is None:
+        _FAST_SINGLETON = _LlamaServerBackend(_FAST_GGUF, port=_FAST_PORT)
+    return _FAST_SINGLETON
+
+
 def _self_check() -> int:
     """Verificación REAL: enruta y genera un turno social (→0.5B) y uno sustantivo (→3B)."""
     try:

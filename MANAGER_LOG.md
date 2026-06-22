@@ -3451,3 +3451,14 @@ ejecución real) es el lever central de la auto-mejora segura.
   CHECK OK (warm: 0.5B ~28-36, 3B ~8 según exp021).
 - Pendiente (no-gated): wire en el chat entrypoint (cognia/cli.py usa LlamaBackend) — llamar
   CascadeBackend.try_load() y rutear ahí si no es None. Default OFF = cero riesgo hasta opt-in del dueño.
+
+## [2026-06-22] CYCLE 40 — Cascada CONECTADA al chat real (cognia/cli.py, opt-in) — last mile
+- node/speech_cascade.py: fast_speech_backend() (singleton lazy del 0.5B; None si OFF/falta GGUF) → el chat,
+  que YA tiene el 3B, añade SOLO el 0.5B para turnos sociales SIN duplicar el 3B.
+- cognia/cli.py (fast-path de chat, ~6536): si COGNIA_SPEECH_CASCADE=1 y classify_turn(raw)=='fast', rutea
+  ese turno al 0.5B (_llama_turn) con prompt MÍNIMO (sin historia/HYDRA → prefill chico). 3 ediciones
+  quirúrgicas (_llama_turn en _use_chat + 2 _stream_src). Default OFF → comportamiento idéntico (cero riesgo).
+- Verificación: cli.py **py_compile OK**; tests/test_speech_cascade.py **5 passed**; e2e REAL de la ruta
+  EXACTA del CLI (stream_chat sobre el 0.5B): "Hola, estoy bien gracias. ¿Cómo te va?" CHECK OK.
+- F-SPEED END-TO-END COMPLETO: ngram-mod (código/RAG) + cascada 0.5B (habla social, ahora EN el CLI) están
+  shippeados y opt-in. Único pendiente: el lever general EAGLE (GATED — requiere OK del dueño para Kaggle).
