@@ -3471,3 +3471,14 @@ ejecución real) es el lever central de la auto-mejora segura.
   params → 4.3×) sí funciona; bajar la cuantización no. Branch cuantización CERRADA (fracaso=información).
 - Refina el modelo de banda de exp021 (era cota superior). Levers vivos: cascada 0.5B + ngram-mod +
   (gated) cabeza EAGLE. Apagado 05:00 sigue programado.
+
+## [2026-06-22] CYCLE 42 — Verificada la COBERTURA de ngram-mod en todos los entrypoints llama.cpp
+- shattering/orchestrator._try_load_llama() (L489) usa LlamaBackend.try_load() → _LlamaServerBackend →
+  _spec_args(). La CLI chat usa ese _llama; generate/generate_long/hierarchical/stream_chat corren sobre el
+  MISMO server → TODOS heredan ngram-mod. CHECK: _spec_args() default = ['--spec-type','ngram-mod'].
+- llama_cpp (in-process) NO está en venv312 → LlamaBackend SIEMPRE cae en _LlamaServerBackend (server) →
+  ngram-mod SIEMPRE activo en el path real. Caveat honesto: si algún día se instala llama-cpp-python, el
+  path in-process no usaría speculative (no aplica hoy; documentado).
+- app/routes/chat.py usa Ollama (+ fallback articulado): backend DISTINTO → fuera de alcance F-SPEED/llama.cpp.
+- Conclusión: cobertura de ngram-mod COMPLETA. Ciclo de VERIFICACIÓN (sin cambio de código). Backlog
+  no-gated restante: solo warm-up del 0.5B. El lever general (EAGLE) sigue GATED (decisión del dueño).
