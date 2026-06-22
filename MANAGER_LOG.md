@@ -3414,3 +3414,15 @@ ejecución real) es el lever central de la auto-mejora segura.
   texto real. CHECK OK (ngram-mod ya estaba probado end-to-end en exp021: bit-idéntico, nunca más lento).
 - Entrega el 1er hallazgo de F-SPEED al PRODUCTO: flujos de código/RAG/tool-calls (uso principal de Cognia,
   modelo Coder) ganan gratis. Habla general sigue pendiente (cascada 0.5B social + head MTP/EAGLE).
+
+## [2026-06-22] CYCLE 37 — Router de cascada de habla (prototipo verificado): 0.5B social ↔ 3B sustancia
+- cascade_router.py: classify() (heurística regex, default 'deep' ante la duda) manda turnos sociales/
+  triviales al 0.5B (rápido) y los sustantivos al 3B (calidad). Operativiza el lever medido en exp021.
+- Demo REAL e2e (8 turnos): fast (0.5B) social FLUIDO a media **24.6 tok/s** (warm ~28); deep (3B)
+  sustantivo y correcto a **7.6 tok/s** (cielo azul, fotosíntesis, bubble sort; declina apropiadamente
+  "historia de Roma en detalle"). Las 8 decisiones de routing, correctas. ~3.2× en la porción social.
+- Test tests/test_cascade_router.py: **3 passed** (sociales→fast, sustantivos→deep, default→deep).
+- Bug arreglado (causa raíz): UnicodeEncodeError en el print final ('→' vs cp1252 de la consola) →
+  reconfigure stdout a utf-8 (el results_cascade.json ya se escribía antes; los datos son válidos).
+- Caveat: el 0.5B es fiable solo en lo social (exp021). Pendiente: promover el router al entrypoint de
+  chat (node) detrás de flag + validar el umbral con más turnos. Próximo: CYCLE 8 (head MTP/EAGLE).
