@@ -4922,6 +4922,14 @@ def repl():
         def _get_input():
             return input(_G + "cognia> " + _R).strip()
 
+    # Warm-up del 0.5B de la cascada de habla en background (opt-in COGNIA_SPEECH_CASCADE):
+    # el 1er turno social arranca warm (~30 tok/s) en vez de cold (~18). No bloquea el REPL.
+    try:
+        from node.speech_cascade import prewarm_fast_speech
+        prewarm_fast_speech()
+    except Exception:
+        pass
+
     # -----------------------------------------------------------------------
     # Main loop
     # -----------------------------------------------------------------------

@@ -147,6 +147,26 @@ def fast_speech_backend() -> Optional[_LlamaServerBackend]:
     return _FAST_SINGLETON
 
 
+def prewarm_fast_speech() -> None:
+    """Si la cascada está ON, arranca y faultea el 0.5B en BACKGROUND (hilo daemon) para
+    que el 1er turno social ya esté warm (~30 tok/s en vez de ~18 cold). No bloquea ni
+    rompe el arranque del REPL (todo en try/except). OFF → no-op."""
+    flag = os.environ.get("COGNIA_SPEECH_CASCADE", "").strip().lower()
+    if flag not in ("1", "true", "on", "yes"):
+        return
+    import threading
+
+    def _warm():
+        try:
+            fb = fast_speech_backend()
+            if fb is not None:
+                fb.generate(_chatml("Hola.", None), max_tokens=8, temperature=0.0)
+        except Exception:
+            pass
+
+    threading.Thread(target=_warm, daemon=True).start()
+
+
 def _self_check() -> int:
     """Verificación REAL: enruta y genera un turno social (→0.5B) y uno sustantivo (→3B)."""
     try:

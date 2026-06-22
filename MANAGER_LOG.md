@@ -3482,3 +3482,13 @@ ejecución real) es el lever central de la auto-mejora segura.
 - app/routes/chat.py usa Ollama (+ fallback articulado): backend DISTINTO → fuera de alcance F-SPEED/llama.cpp.
 - Conclusión: cobertura de ngram-mod COMPLETA. Ciclo de VERIFICACIÓN (sin cambio de código). Backlog
   no-gated restante: solo warm-up del 0.5B. El lever general (EAGLE) sigue GATED (decisión del dueño).
+
+## [2026-06-22] CYCLE 43 — Warm-up del 0.5B en el arranque del CLI: 1er turno social YA warm
+- node/speech_cascade.prewarm_fast_speech(): si COGNIA_SPEECH_CASCADE=1, arranca+faultea el 0.5B en hilo
+  DAEMON (no bloquea el REPL; OFF=no-op). cognia/cli.py repl(): lo llama antes del main loop (try/except).
+- Verificación: cli.py py_compile OK; tests/test_speech_cascade.py **6 passed** (+ prewarm OFF=no-op);
+  CHECK REAL: tras warm-up, la 1ª gen social = **29.5 tok/s** (warm) vs ~18 cold. "¡De nada! ¿En qué puedo
+  ayudarte hoy?". CHECK OK.
+- BACKLOG no-gated AGOTADO. Arco F-SPEED COMPLETO: ngram-mod (código/RAG) + cascada 0.5B warm (habla social,
+  en el CLI, opt-in) shippeados y verificados; cuantización/draft/difusión refutados con cota nombrada.
+  Único lever vivo: cabeza MTP/EAGLE (2-3×), GATED por autorización GPU del dueño (Kaggle).
