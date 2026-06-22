@@ -3404,3 +3404,13 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Verificación REAL: benchmarks end-to-end sobre el llama-server REAL (no solo modelo de coste); cold-mmap
   detectado y corregido con warmup. Pendiente (CYCLE 5+): wire `ngram-mod` por defecto en node/llama_backend.py
   (gratis, bit-idéntico) + cascada con base 0.5B + entrenar/convertir head MTP/EAGLE para Qwen2.5-Coder-3B.
+
+## [2026-06-22] CYCLE 36 — SHIP: ngram-mod por defecto en node/llama_backend.py (gratis, bit-idéntico)
+- _spec_args() agrega `--spec-type ngram-mod` por defecto al cmd de llama-server (env COGNIA_SPEC_TYPE;
+  'none' desactiva). PROHIBE `draft-*` (un draft separado mide 0.37× en habla en CPU, exp021). Coste 0.
+- Test de regresión tests/test_spec_args.py (5 passed): default ngram-mod, none desactiva, override
+  ngram-simple, draft-* prohibido, basura ignorada. Regresión del área: test_llama_backend.py **79 passed**.
+- Verificación REAL e2e (verify_spec_wiring.py): el backend arrancó con `--spec-type ngram-mod` y generó
+  texto real. CHECK OK (ngram-mod ya estaba probado end-to-end en exp021: bit-idéntico, nunca más lento).
+- Entrega el 1er hallazgo de F-SPEED al PRODUCTO: flujos de código/RAG/tool-calls (uso principal de Cognia,
+  modelo Coder) ganan gratis. Habla general sigue pendiente (cascada 0.5B social + head MTP/EAGLE).

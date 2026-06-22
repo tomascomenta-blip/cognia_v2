@@ -206,6 +206,32 @@ def _lora_args() -> list:
     return []
 
 
+# ── Speculative decoding args ─────────────────────────────────────────────────
+
+# Solo drafters de coste de banda ~0 (variantes ngram): escanean el contexto, sin
+# modelo extra ni entrenamiento. Se PROHIBE 'draft-*' (draft model separado): en CPU
+# bandwidth-bound compite por banda + nucleos y mide 0.37x en habla (exp021/cycle34).
+_SPEC_NGRAM_ALLOWED = {"ngram-mod", "ngram-simple", "ngram-map-k", "ngram-map-k4v", "ngram-cache"}
+
+
+def _spec_args() -> list:
+    """Args de speculative decoding para el cmd de llama-server, o [].
+
+    Default 'ngram-mod': drafter n-gram que escanea el contexto y resulta BIT-IDENTICO
+    a la salida normal a temp=0 (verificacion exacta); gana en texto repetitivo/codigo/
+    RAG sin coste de modelo extra ni entrenamiento (exp021/cycle34: hasta 1.45x lossless
+    en eco; ngram-mod nunca mas lento en lo medido). COGNIA_SPEC_TYPE=none lo desactiva.
+    'draft-*' queda prohibido (en CPU bandwidth-bound un draft separado mide 0.37x).
+    """
+    spec = os.environ.get("COGNIA_SPEC_TYPE", "ngram-mod").strip()
+    if spec in _SPEC_NGRAM_ALLOWED:
+        return ["--spec-type", spec]
+    if spec and spec != "none":
+        logger.warning("[llama_backend] COGNIA_SPEC_TYPE=%r ignorado (solo variantes "
+                       "ngram; draft-* prohibido en CPU); speculative OFF", spec)
+    return []
+
+
 # ── Backend 1: llama-cpp-python (in-process) ─────────────────────────────────
 
 class _LlamaCppBackend:
@@ -330,6 +356,9 @@ class _LlamaServerBackend:
             "--flash-attn", "on",
             "--log-disable",
         ]
+        # Speculative decoding (exp021/cycle34): ngram-mod por defecto — bit-identico,
+        # gratis, gana en texto repetitivo/codigo/RAG. COGNIA_SPEC_TYPE=none lo desactiva.
+        cmd += _spec_args()
         # Adapter LoRA local opcional (env LLAMA_LORA_PATH -> ["--lora", path])
         cmd += _lora_args()
         self._proc = subprocess.Popen(
