@@ -3509,3 +3509,10 @@ ejecución real) es el lever central de la auto-mejora segura.
   CHECK: los 4 misroutes ahora → deep; Hola/Gracias/De acuerdo → fast.
 - Solo el módulo node/speech_cascade.py (no es entrypoint crítico). El prototipo cascade_router.py queda
   como artefacto histórico (sin tocar). Mejora la SEGURIDAD del routing (menos sustancia al 0.5B débil).
+
+## [2026-06-22] CONSOLIDACIÓN — README índice de exp021 (docs)
+- cognia_x/experiments/exp021_speculative_decode/README.md: índice navegable de los 10 scripts + hallazgos +
+  mapa de levers + reproduce + estado en producción + docs. Cierra la consolidación de F-SPEED.
+- **F-SPEED en standby: arco completo, pendiente solo la decisión del dueño sobre la cabeza EAGLE
+  (autorización GPU).** Backlog no-gated/seguro AGOTADO; próximos ciclos del cron: sin cambios salvo nueva
+  instrucción del dueño.
