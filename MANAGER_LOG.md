@@ -3439,3 +3439,15 @@ ejecución real) es el lever central de la auto-mejora segura.
   llama.cpp → medir en i3). Levers REALIZADOS hoy: cascada 0.5B (social) + ngram-mod (código/RAG) + 3B AR.
 - Arco F-SPEED de la sesión COMPLETO (CYCLE 34-38): investigación + exp021 + ngram-mod shippeado + cascada
   verificada + scoping del lever general. Lo siguiente requiere decisión del dueño (autorizar GPU Kaggle).
+
+## [2026-06-22] CYCLE 39 — Cascada de habla PROMOVIDA a producción (node/speech_cascade.py, opt-in)
+- node/speech_cascade.py: CascadeBackend (opt-in COGNIA_SPEECH_CASCADE=1, default OFF → el flujo del 3B
+  queda INTACTO). classify_turn() enruta social→0.5B / sustancia→3B; servers LAZY (el deep no arranca hasta
+  el 1er turno sustantivo); try_load() devuelve None si OFF o falta GGUF (fallback limpio). Reusa
+  _LlamaServerBackend; NO usa draft separado (0.37×) ni difusión.
+- Verificación: tests/test_speech_cascade.py **4 passed** (routing fast/deep + gating OFF-por-defecto +
+  no-crash con flag). Auto-check REAL e2e (`-m node.speech_cascade`): social→0.5B "Hola, gracias por
+  preguntar..." (18.7 tok/s cold), sustancia→3B "El cielo es azul por la reflección..." (5.6 tok/s cold).
+  CHECK OK (warm: 0.5B ~28-36, 3B ~8 según exp021).
+- Pendiente (no-gated): wire en el chat entrypoint (cognia/cli.py usa LlamaBackend) — llamar
+  CascadeBackend.try_load() y rutear ahí si no es None. Default OFF = cero riesgo hasta opt-in del dueño.
