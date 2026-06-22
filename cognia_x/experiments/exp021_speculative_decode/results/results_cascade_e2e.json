@@ -1,0 +1,95 @@
+{
+  "experiment": "exp021/cascade_e2e",
+  "convo": [
+    "Hola, ¿cómo estás?",
+    "¿Por qué el cielo es azul?",
+    "Gracias, muy claro.",
+    "Explícame en breve qué es la fotosíntesis.",
+    "Perfecto, ¿algo más?",
+    "Escribe una función para invertir una cadena en Python."
+  ],
+  "rounds": {
+    "sin_cascada": {
+      "per_turn": [
+        {
+          "turn": "Hola, ¿cómo estás?",
+          "model": "3B",
+          "wall_s": 2.46
+        },
+        {
+          "turn": "¿Por qué el cielo es azul?",
+          "model": "3B",
+          "wall_s": 10.43
+        },
+        {
+          "turn": "Gracias, muy claro.",
+          "model": "3B",
+          "wall_s": 2.74
+        },
+        {
+          "turn": "Explícame en breve qué es la fotosíntesis.",
+          "model": "3B",
+          "wall_s": 6.63
+        },
+        {
+          "turn": "Perfecto, ¿algo más?",
+          "model": "3B",
+          "wall_s": 1.86
+        },
+        {
+          "turn": "Escribe una función para invertir una cadena en Python.",
+          "model": "3B",
+          "wall_s": 10.8
+        }
+      ],
+      "total_s": 34.92
+    },
+    "con_cascada": {
+      "per_turn": [
+        {
+          "turn": "Hola, ¿cómo estás?",
+          "route": "fast",
+          "model": "0.5B",
+          "wall_s": 0.63
+        },
+        {
+          "turn": "¿Por qué el cielo es azul?",
+          "route": "deep",
+          "model": "3B",
+          "wall_s": 11.89
+        },
+        {
+          "turn": "Gracias, muy claro.",
+          "route": "fast",
+          "model": "0.5B",
+          "wall_s": 0.68
+        },
+        {
+          "turn": "Explícame en breve qué es la fotosíntesis.",
+          "route": "deep",
+          "model": "3B",
+          "wall_s": 5.9
+        },
+        {
+          "turn": "Perfecto, ¿algo más?",
+          "route": "fast",
+          "model": "0.5B",
+          "wall_s": 0.48
+        },
+        {
+          "turn": "Escribe una función para invertir una cadena en Python.",
+          "route": "deep",
+          "model": "3B",
+          "wall_s": 11.97
+        }
+      ],
+      "total_s": 31.55
+    }
+  },
+  "summary": {
+    "total_sin_s": 34.92,
+    "total_con_s": 31.55,
+    "speedup_conversacion": 1.11,
+    "ahorro_s": 3.37
+  }
+}

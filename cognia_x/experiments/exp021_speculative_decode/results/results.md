@@ -126,6 +126,18 @@ dequant Q3 más caro que Q4, atención/KV) que domina cuando la reducción de ta
 calidad. El lever real es reducir el **TAMAÑO** del modelo (0.5B = 6× menos params → 4.3×), no
 la cuantización. **Branch cerrada** (fracaso = información).
 
+## 8. Latencia conversacional real CON vs SIN cascada (consolidación)
+
+Conversación de 6 turnos (3 sociales + 3 sustantivos), wall-time real medido:
+- **Turnos sociales:** SIN 2.46/2.74/1.86 s → CON **0.63/0.68/0.48 s** = **~4-5× (sub-segundo)**. La
+  cascada hace las respuestas sociales/backchannel **casi instantáneas** — clave para el "feel" de habla.
+- **Turnos sustantivos (3B):** ~6-12 s, **sin cambio** (los domina el techo de ~8 tok/s del 3B).
+- **Conversación total:** SIN 34.92 s → CON 31.55 s = **1.11×** (ahorro 3.37 s).
+
+**Lección honesta:** la cascada gana en **responsividad percibida** (social instantáneo), no en throughput
+total — la conversación completa la dominan los turnos sustantivos. El gran lever del total sigue siendo
+acelerar el 3B (cabeza EAGLE, gated). (Estimación conservadora: single-turn sin historia en ambos casos.)
+
 ## Reproducir
 ```
 venv312\Scripts\python.exe cognia_x\experiments\exp021_speculative_decode\bench_real.py

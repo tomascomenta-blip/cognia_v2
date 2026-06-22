@@ -3492,3 +3492,10 @@ ejecución real) es el lever central de la auto-mejora segura.
 - BACKLOG no-gated AGOTADO. Arco F-SPEED COMPLETO: ngram-mod (código/RAG) + cascada 0.5B warm (habla social,
   en el CLI, opt-in) shippeados y verificados; cuantización/draft/difusión refutados con cota nombrada.
   Único lever vivo: cabeza MTP/EAGLE (2-3×), GATED por autorización GPU del dueño (Kaggle).
+
+## [2026-06-22] CONSOLIDACIÓN — latencia conversacional real CON vs SIN cascada (e2e, solo medición)
+- bench_cascade_e2e.py (REAL, 6 turnos): sociales SIN 2.5/2.7/1.9s → CON 0.6/0.7/0.5s (**~4-5×, sub-segundo**);
+  sustantivos (3B) ~6-12s sin cambio. Total SIN 34.9s → CON 31.6s = **1.11×** (ahorro 3.4s).
+- Insight honesto: la cascada gana en RESPONSIVIDAD percibida (social instantáneo) pero el throughput de la
+  conversación COMPLETA lo dominan los turnos sustantivos (3B, techo de banda) → el gran lever del total
+  sigue siendo la cabeza EAGLE (gated). Medición pura, sin tocar producción.
