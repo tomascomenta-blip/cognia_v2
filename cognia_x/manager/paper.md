@@ -220,3 +220,14 @@ Cuatro ciclos de evidencia propia + literatura convergen en un North Star cohere
   consecuencia + test-time compute guiado por verificador barato. El verificador/consecuencia, no los
   parámetros, es la pieza. **Próximo:** H-V4-1d (empowerment mejora una tarea downstream) y el integrador
   hacia el sustrato de lenguaje.
+
+### 8.6 H-V4-1d (CYCLE 39, exp025) — el empowerment como VALOR mejora la tarea (R-VALOR aplicado)
+Falta el paso de "mecanismo" a "útil". Agente con CAPACIDAD LIMITADA k (atiende/controla sólo k de D
+factores) que debe llevar los controlables a un objetivo. **APOYADA, contundente:** a k=n_ctrl=4 el score
+de tarea es **EMPOWERMENT 1.000 / PREDICTIBILIDAD 0.250 (=azar puro) / AZAR 0.453** (emp−pred=+0.75; 0.835 s
+CPU). Asignar por **predictibilidad es ANTI-útil** (peor que el azar: se va al reloj predecible-inútil). A
+capacidad PLENA (k=D) las tres empatan en 1.0 → **la ventaja del valor existe sólo bajo recursos limitados**
+(el régimen del lab). **Conclusión:** el valor endógeno (empowerment) no sólo mide (exp024) — **mejora al
+agente** (exp025). El arco R-VALOR queda cerrado: real como mecanismo Y como lever. Justifica el integrador:
+un razonador act-and-verify que asigna su cómputo/atención limitada por controlabilidad/consecuencia.
+**Próximo (H-V4-1e / integrador):** dar el salto al sustrato de lenguaje.

@@ -1119,3 +1119,33 @@ NO-lever: predicción pasiva (exp022), info-gain (exp023), escalar params (lit.)
 (R-INTERVENCIÓN) con valor de CONTROLABILIDAD (R-VALOR=empowerment). Arquitectura objetivo: substrato chico
 CPU (híbrido/RWKV en llama.cpp) + act-and-verify barato con valor de controlabilidad + TTS verifier-based.
 Próximo: H-V4-1d (empowerment mejora downstream) y el integrador hacia lenguaje.
+
+---
+
+## CYCLE 39 (2026-06-24) — RESET v4: H-V4-1d (empowerment mejora la tarea) APOYADA → cierra el arco R-VALOR
+
+### Pregunta
+exp024 mostró el MECANISMO (empowerment≠predictibilidad). ¿MEJORA una tarea? Si no, R-VALOR sería medición,
+no lever. H-V4-1d: un agente con CAPACIDAD LIMITADA k (atiende/controla k de D factores) que debe llevar los
+controlables a un objetivo — ¿asignar por empowerment gana a por predictibilidad y al azar?
+
+### Experimento (exp025_empowerment_downstream) — reusa exp024, 12 seeds
+n_ctrl=4 controlables + 4 relojes + 4 random (D=12). score = fracción de controlables llevados al objetivo.
+Estrategias: top-k por empowerment / por predictibilidad / azar. Barrido de capacidad k. Pre-registro:
+APOYADA si a k=n_ctrl emp-pred>0.3, emp>=azar, emp>0.9.
+
+### Veredicto: H-V4-1d APOYADA (contundente)
+A k=n_ctrl=4: EMPOWERMENT 1.000 / PREDICTIBILIDAD 0.250 (=azar puro) / AZAR 0.453 (emp-pred=+0.75; 0.835s
+CPU). Asignar por PREDICTIBILIDAD es ANTI-útil (peor que el azar: se va al reloj). A capacidad PLENA (k=D)
+las tres empatan en 1.0 → la ventaja del valor existe SÓLO bajo recursos limitados (el régimen del lab).
+=> el valor endógeno (empowerment) MEJORA al agente, no sólo lo mide. **Arco R-VALOR cerrado** (mecanismo
+exp024 + utilidad exp025). R-VALOR aplicado → techo 'real'. D-V4-4 (el integrador asignará cómputo por
+controlabilidad/consecuencia).
+
+### Honestidad
+Tarea tabular de juguete; a capacidad plena no hay ventaja (la ventaja es del régimen limitado). El salto a
+lenguaje (estimar empowerment/consecuencia sobre rollouts de un modelo chico) es el integrador, aún pendiente.
+
+### Verificación
+exp025 (12 seeds). cycle39 → H-V4-1d 'apoyada' (DoD), D-V4-4 ACEPTADA, 1 techo 'real', analogía, verify=OK.
+Test `test_cycle39_empowerment_downstream.py` 4/4.

@@ -1,0 +1,1037 @@
+{
+  "experiment": "exp025_empowerment_downstream",
+  "hypothesis": "H-V4-1d",
+  "question": "¿Asignar un presupuesto de atención/control LIMITADO por EMPOWERMENT mejora una tarea vs asignarlo por predictibilidad o al azar?",
+  "env": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "platform": "Windows-11-10.0.26100-SP0"
+  },
+  "params": {
+    "K": 4,
+    "eta": 0.05,
+    "n_ctrl": 4,
+    "n_clock": 4,
+    "n_rand": 4,
+    "samples": 4000,
+    "caps": [
+      2,
+      4,
+      6,
+      8,
+      12
+    ],
+    "seeds": 12
+  },
+  "wall_secs": 0.835,
+  "per_seed": [
+    {
+      "seed": 0,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 4,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 5,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 6,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 7,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 8,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 9,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 10,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "by_cap": {
+        "2": {
+          "empowerment": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "4": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.25,
+            "attended_ctrl": 0
+          },
+          "azar": {
+            "score": 0.4375,
+            "attended_ctrl": 1
+          }
+        },
+        "6": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "azar": {
+            "score": 0.8125,
+            "attended_ctrl": 3
+          }
+        },
+        "8": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          },
+          "azar": {
+            "score": 0.625,
+            "attended_ctrl": 2
+          }
+        },
+        "12": {
+          "empowerment": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "predictibilidad": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          },
+          "azar": {
+            "score": 1.0,
+            "attended_ctrl": 4
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "D": 12,
+    "n_ctrl": 4,
+    "caps": [
+      2,
+      4,
+      6,
+      8,
+      12
+    ],
+    "by_cap": {
+      "2": {
+        "empowerment": {
+          "score_mean": 0.625,
+          "score_std": 0.0
+        },
+        "predictibilidad": {
+          "score_mean": 0.25,
+          "score_std": 0.0
+        },
+        "azar": {
+          "score_mean": 0.359375,
+          "score_std": 0.14235052467412967
+        },
+        "emp_minus_pred": 0.375,
+        "emp_minus_rand": 0.265625,
+        "pred_minus_rand": -0.109375
+      },
+      "4": {
+        "empowerment": {
+          "score_mean": 1.0,
+          "score_std": 0.0
+        },
+        "predictibilidad": {
+          "score_mean": 0.25,
+          "score_std": 0.0
+        },
+        "azar": {
+          "score_mean": 0.453125,
+          "score_std": 0.120017902310447
+        },
+        "emp_minus_pred": 0.75,
+        "emp_minus_rand": 0.546875,
+        "pred_minus_rand": -0.203125
+      },
+      "6": {
+        "empowerment": {
+          "score_mean": 1.0,
+          "score_std": 0.0
+        },
+        "predictibilidad": {
+          "score_mean": 0.359375,
+          "score_std": 0.120017902310447
+        },
+        "azar": {
+          "score_mean": 0.703125,
+          "score_std": 0.1616262567623219
+        },
+        "emp_minus_pred": 0.640625,
+        "emp_minus_rand": 0.296875,
+        "pred_minus_rand": -0.34375
+      },
+      "8": {
+        "empowerment": {
+          "score_mean": 1.0,
+          "score_std": 0.0
+        },
+        "predictibilidad": {
+          "score_mean": 0.5625,
+          "score_std": 0.11692679333668567
+        },
+        "azar": {
+          "score_mean": 0.765625,
+          "score_std": 0.13531646934131855
+        },
+        "emp_minus_pred": 0.4375,
+        "emp_minus_rand": 0.234375,
+        "pred_minus_rand": -0.203125
+      },
+      "12": {
+        "empowerment": {
+          "score_mean": 1.0,
+          "score_std": 0.0
+        },
+        "predictibilidad": {
+          "score_mean": 1.0,
+          "score_std": 0.0
+        },
+        "azar": {
+          "score_mean": 1.0,
+          "score_std": 0.0
+        },
+        "emp_minus_pred": 0.0,
+        "emp_minus_rand": 0.0,
+        "pred_minus_rand": 0.0
+      }
+    },
+    "kstar": "4",
+    "checks": {
+      "emp_beats_pred_at_kstar(>0.3)": true,
+      "emp_ge_rand_at_kstar": true,
+      "emp_high_at_kstar(>0.9)": true,
+      "pred_anti_useful(pred<rand)": true,
+      "REFUTE_emp_not_beats_pred(<=0.1)": false
+    },
+    "interpretation": "Si APOYADA: repartir un presupuesto de atención/control LIMITADO por EMPOWERMENT (controlabilidad) logra la tarea; repartirlo por PREDICTIBILIDAD falla (se va al reloj) — incluso PEOR que al azar. => el valor endógeno (empowerment) no sólo MIDE: MEJORA al agente en una tarea, barato. Es R-VALOR APLICADO. Límite honesto: tarea tabular de juguete; el salto a lenguaje sigue pendiente (integrador).",
+    "verdict": "apoyada"
+  }
+}

@@ -69,7 +69,11 @@ queda como restricción de VIABILIDAD, no como dirección.
   limpia: el empowerment (Blahut-Arimoto, sin reward/verificador externo) aísla lo CONTROLABLE (1.71 bits) y
   da 0 al reloj predecible-inútil; la predicción pasiva hace lo contrario. controlabilidad≠predictibilidad.
   R-VALOR forma-fuerte → techo 'real'; unificado con R-INTERVENCIÓN. D-V4-3. 0.57s CPU.
-- [ ] H-V4-1d (P0): el empowerment como VALOR MEJORA una tarea downstream (no sólo identifica el mecanismo).
+- [x] **CYCLE 39 (exp025) — H-V4-1d: APOYADA. El empowerment como VALOR mejora la tarea.** A capacidad
+  limitada k=n_ctrl: empowerment 1.000 / predictibilidad 0.250 (=azar) / azar 0.453; predictibilidad
+  ANTI-útil. R-VALOR aplicado → 'real' (bajo recursos limitados). Arco R-VALOR cerrado (mecanismo+utilidad). D-V4-4.
+- [ ] **H-V4-1e / INTEGRADOR (P0): salto al sustrato de LENGUAJE** — razonador act-and-verify barato que
+  asigna su cómputo/atención limitada por controlabilidad/consecuencia (empowerment), sobre un modelo chico.
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
 - [ ] INTEGRADOR (P1): lazo act-and-verify barato con valor endógeno de CONTROLABILIDAD sobre el sustrato de
   lenguaje (unifica R-VALOR+R-INTERVENCIÓN; convergente con TTS verifier-based). H-V4-3/4/5/6: ver `_directiva_v4.md` §3.

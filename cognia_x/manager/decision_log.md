@@ -292,3 +292,16 @@
   ACEPTADA por el ledger. Registrada vía cycle38_empowerment.py. **Reversible:** sí; el mecanismo está
   demostrado pero la utilidad downstream/lenguaje (H-V4-1d) sigue 'asumida' — si no mejora una tarea real, se
   revisa el peso de R-VALOR frente a R-INTERVENCIÓN sola.
+
+## D-V4-4 (2026-06-24, CYCLE 39) — R-VALOR aplicado confirmado: el integrador asigna cómputo por controlabilidad
+- **Decisión:** R-VALOR queda confirmado COMPLETO (mecanismo exp024 + utilidad exp025). El INTEGRADOR del
+  reset v4 será un razonador ACT-AND-VERIFY barato que asigna su cómputo/atención LIMITADA por
+  controlabilidad/consecuencia (empowerment), sobre un sustrato chico CPU (híbrido/RWKV en llama.cpp) con
+  verificador barato (TTS). Próximo: salto al sustrato de LENGUAJE (H-V4-1e): estimar empowerment/consecuencia
+  sobre rollouts de un modelo chico y medir mejora de tarea vs costo.
+- **Razón:** exp025 (12 seeds): a capacidad limitada k=n_ctrl, asignar por EMPOWERMENT logra la tarea (1.000)
+  vs PREDICTIBILIDAD (0.250 = azar puro, ANTI-útil) vs AZAR (0.453). A capacidad plena todas empatan → la
+  ventaja del valor es del régimen de recursos LIMITADOS (el del lab). El valor endógeno MEJORA al agente.
+- **Evidencia:** exp025 (tier-5) + exp024 (tier-5) + [[arXiv:2606.20104]] action-grounded + [[arXiv:2408.03314]]
+  TTS verifier-based. ACEPTADA por el ledger. Registrada vía cycle39_empowerment_downstream.py. **Reversible:**
+  sí; si el salto a lenguaje (H-V4-1e) no mostrara mejora vs costo, se revisa el diseño del integrador.

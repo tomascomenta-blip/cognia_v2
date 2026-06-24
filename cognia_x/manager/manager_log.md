@@ -120,3 +120,8 @@
 - exp024/cycle38/H-V4-1c APOYADA: inversión limpia empowerment(ctrl 1.71/reloj 0) vs predicción pasiva
   (reloj 1.71/ctrl 0). controlabilidad != predictibilidad. R-VALOR real (forma fuerte), unificado con
   R-INTERVENCIÓN. D-V4-3. verify=OK, test 4/4. Próximo: H-V4-1d (downstream) + integrador a lenguaje.
+
+## [2026-06-24] CYCLE 39 — R-VALOR aplicado (empowerment mejora la tarea)
+- exp025/cycle39/H-V4-1d APOYADA: a capacidad limitada, empowerment 1.000 vs predictibilidad 0.250 (anti-útil)
+  vs azar 0.453. Arco R-VALOR cerrado (mecanismo+utilidad). D-V4-4. verify=OK, test 4/4.
+- Próximo: integrador act-and-verify hacia lenguaje (H-V4-1e).

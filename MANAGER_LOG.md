@@ -3554,3 +3554,11 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Síntesis reset (CYCLE 35-38): NO-lever = predicción pasiva / info-gain / escalar params. SÍ-lever = ACTUAR
   con valor de CONTROLABILIDAD. Rumbo: substrato chico CPU + act-and-verify + TTS verifier-based.
 - Próximo: H-V4-1d (empowerment mejora downstream) + integrador hacia lenguaje.
+
+## [2026-06-24] COGNIA-X — CYCLE 39: R-VALOR aplicado confirmado (empowerment MEJORA la tarea)
+- exp025_empowerment_downstream / H-V4-1d APOYADA: a capacidad limitada k=n_ctrl, asignar atención/control
+  por EMPOWERMENT logra la tarea (1.000) vs PREDICTIBILIDAD (0.250 = azar puro, ANTI-útil) vs AZAR (0.453).
+  A capacidad plena todas empatan → la ventaja del valor es del régimen de recursos LIMITADOS. 0.835s CPU.
+- Cierra el ARCO R-VALOR: real como mecanismo (exp024) Y como lever (exp025). D-V4-4: el integrador asignará
+  cómputo por controlabilidad/consecuencia. cycle39 por compuertas (verify=OK), test 4/4.
+- PRÓXIMO (P0): H-V4-1e / INTEGRADOR — salto al sustrato de LENGUAJE (razonador act-and-verify barato).
