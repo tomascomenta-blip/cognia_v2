@@ -194,3 +194,29 @@ Barrido web citado (`literature_v4.md`). Tres convergencias que mueven el rumbo:
    GPU-medido). Backprop-alternativas: NO valen salvo que el cuello sea RAM (MeZO 12× memoria) — confirma
    H-BIO-3. → **El verificador (no los parámetros) es la pieza; eso ES R-INTERVENCIÓN.** Rumbo: substrato
    chico CPU + lazo act-and-verify barato.
+
+### 8.4 H-V4-1c (CYCLE 38, exp024) — R-VALOR es REAL: el valor endógeno es la CONTROLABILIDAD (empowerment)
+El info-gain no era el valor (exp023). Pero el **empowerment** (capacidad de canal acción→futuro, vía
+Blahut-Arimoto, **sin reward ni verificador externo**) sí. Mundo con 3 tipos de factor: *controlable* (lo
+fija la acción), *reloj* (predecible pero NO controlable), *aleatorio*. **APOYADA — inversión limpia:**
+EMPOWERMENT = ctrl **1.71** bits / reloj **0.0** / rand 0.0; PREDICCIÓN pasiva = ctrl **0.0** / reloj
+**1.71** / rand 0.0 (std ~0.005; costo **0.57 s** CPU). El empowerment **aísla lo controlable** y descarta
+el reloj predecible-inútil; la predicción pasiva hace lo contrario — **ni siquiera VE lo controlable**.
+**Conclusión:** para un AGENTE el valor de la información es **controlabilidad ≠ predictibilidad**; un valor
+AUTO-generado existe, es CPU-barato y, a diferencia del info-gain, se distingue de lo trivial. **R-VALOR
+confirmado real en su forma fuerte**, y se **unifica con R-INTERVENCIÓN** (el valor endógeno es sobre la
+acción/control). Límite honesto: muestra el MECANISMO, no aún mejora downstream ni escala a lenguaje
+(→ H-V4-1d / integrador).
+
+### 8.5 Síntesis del reset v4 (estado al CYCLE 38) — el rumbo consolidado
+Cuatro ciclos de evidencia propia + literatura convergen en un North Star coherente y barato:
+- **Qué NO es el lever:** la predicción pasiva (muro informacional, exp022) ni el info-gain diseñado
+  (≈ azar, exp023). Escalar parámetros tampoco (lit.: verifier-based TTS > params).
+- **Qué SÍ:** **ACTUAR/INTERVENIR** (R-INTERVENCIÓN, exp022/023) con un valor endógeno de **CONTROLABILIDAD**
+  (R-VALOR=empowerment, exp024). Las dos raíces se unifican: *el valor es sobre lo que puedo afectar; el
+  mecanismo es actuar y aprender de la consecuencia.*
+- **Arquitectura objetivo (fast+cheap+intelligent que habla):** substrato chico CPU (híbrido SSM / RWKV-7
+  en llama.cpp, ya viable) + lazo **act-and-verify** barato con valor endógeno de controlabilidad/
+  consecuencia + test-time compute guiado por verificador barato. El verificador/consecuencia, no los
+  parámetros, es la pieza. **Próximo:** H-V4-1d (empowerment mejora una tarea downstream) y el integrador
+  hacia el sustrato de lenguaje.

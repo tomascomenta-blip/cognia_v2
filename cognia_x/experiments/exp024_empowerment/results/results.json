@@ -1,0 +1,209 @@
+{
+  "experiment": "exp024_empowerment",
+  "hypothesis": "H-V4-1c",
+  "question": "¿Un valor AUTO-generado (empowerment, sin reward/verificador externo) captura la CONTROLABILIDAD ('lo que puedo afectar') que la predicción pasiva no puede?",
+  "env": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "platform": "Windows-11-10.0.26100-SP0"
+  },
+  "params": {
+    "K": 4,
+    "eta": 0.05,
+    "n_factors": 2,
+    "samples": 20000,
+    "seeds": 12
+  },
+  "wall_secs": 0.567,
+  "per_seed": [
+    {
+      "seed": 0,
+      "emp": {
+        "ctrl": 1.7125052311947195,
+        "clock": 0.0003607714726549179,
+        "rand": 0.00032495276370792116
+      },
+      "pred": {
+        "ctrl": 0.0003078763571314456,
+        "clock": 1.7122407801651,
+        "rand": 0.0004810530654970742
+      }
+    },
+    {
+      "seed": 1,
+      "emp": {
+        "ctrl": 1.7098463945630922,
+        "clock": 0.00043868300437673903,
+        "rand": 0.00042057301236270855
+      },
+      "pred": {
+        "ctrl": 0.00016771590233041528,
+        "clock": 1.7092031081687042,
+        "rand": 0.00019377169192687102
+      }
+    },
+    {
+      "seed": 2,
+      "emp": {
+        "ctrl": 1.7182241949577615,
+        "clock": 0.00032545096975537834,
+        "rand": 0.0003271680835213824
+      },
+      "pred": {
+        "ctrl": 0.00034260647340113347,
+        "clock": 1.7097197406438147,
+        "rand": 0.0001646210933131105
+      }
+    },
+    {
+      "seed": 3,
+      "emp": {
+        "ctrl": 1.7109932371434886,
+        "clock": 0.0003539724563814356,
+        "rand": 0.0002491613551667485
+      },
+      "pred": {
+        "ctrl": 0.0003800598575196924,
+        "clock": 1.7105011025294554,
+        "rand": 0.0005362947785059986
+      }
+    },
+    {
+      "seed": 4,
+      "emp": {
+        "ctrl": 1.7127445014522193,
+        "clock": 0.000519772622382545,
+        "rand": 0.00036163928427760425
+      },
+      "pred": {
+        "ctrl": 0.0003221342340233545,
+        "clock": 1.7180062758517094,
+        "rand": 0.00043501958344574997
+      }
+    },
+    {
+      "seed": 5,
+      "emp": {
+        "ctrl": 1.6996606894629367,
+        "clock": 0.00010596167889892255,
+        "rand": 0.0004104859414131973
+      },
+      "pred": {
+        "ctrl": 0.0002306252344214383,
+        "clock": 1.7003912474387093,
+        "rand": 0.00039417292660014853
+      }
+    },
+    {
+      "seed": 6,
+      "emp": {
+        "ctrl": 1.7125669392730303,
+        "clock": 0.000372518431946523,
+        "rand": 0.0004512295431249005
+      },
+      "pred": {
+        "ctrl": 0.00024884339202469114,
+        "clock": 1.7059760957425278,
+        "rand": 0.00018237538765017935
+      }
+    },
+    {
+      "seed": 7,
+      "emp": {
+        "ctrl": 1.7086406853157803,
+        "clock": 0.00027186949013150265,
+        "rand": 0.000388138086380866
+      },
+      "pred": {
+        "ctrl": 0.00017493640008113575,
+        "clock": 1.7176891603220508,
+        "rand": 0.00021100385044483096
+      }
+    },
+    {
+      "seed": 8,
+      "emp": {
+        "ctrl": 1.7129814786426794,
+        "clock": 0.00035089387980583004,
+        "rand": 0.0002487888783426187
+      },
+      "pred": {
+        "ctrl": 0.00023589984436054527,
+        "clock": 1.7138595474884963,
+        "rand": 0.00025892484022240137
+      }
+    },
+    {
+      "seed": 9,
+      "emp": {
+        "ctrl": 1.7057384074966877,
+        "clock": 0.0005337078775102366,
+        "rand": 0.00041150686671315433
+      },
+      "pred": {
+        "ctrl": 0.000357849159429859,
+        "clock": 1.7112882507684435,
+        "rand": 0.00030231802103181874
+      }
+    },
+    {
+      "seed": 10,
+      "emp": {
+        "ctrl": 1.7140378423631446,
+        "clock": 0.00015528528582381905,
+        "rand": 0.00017877311589273455
+      },
+      "pred": {
+        "ctrl": 0.00041021085761382733,
+        "clock": 1.7053125384807963,
+        "rand": 0.00020461230049011967
+      }
+    },
+    {
+      "seed": 11,
+      "emp": {
+        "ctrl": 1.703667911522349,
+        "clock": 0.0002809081281685992,
+        "rand": 0.00039693482882980345
+      },
+      "pred": {
+        "ctrl": 0.0005203923586471977,
+        "clock": 1.7136751089453623,
+        "rand": 0.00027994371856522224
+      }
+    }
+  ],
+  "summary": {
+    "K": 4,
+    "max_bits": 2.0,
+    "by_kind": {
+      "ctrl": {
+        "emp_mean": 1.7101339594489906,
+        "emp_std": 0.004839324886909166,
+        "pred_mean": 0.00030826250591539466,
+        "pred_std": 9.861628029747851e-05
+      },
+      "clock": {
+        "emp_mean": 0.0003391496081530374,
+        "emp_std": 0.00012200141902239115,
+        "pred_mean": 1.7106552463787643,
+        "pred_std": 0.0048700752597724654
+      },
+      "rand": {
+        "emp_mean": 0.0003474459799778033,
+        "emp_std": 8.024111190759854e-05,
+        "pred_mean": 0.00030367593814112706,
+        "pred_std": 0.00012183099227061953
+      }
+    },
+    "checks": {
+      "emp_finds_control(E_ctrl-max(otros)>0.8)": true,
+      "passive_locks_clock_inversion(P_clock-P_ctrl>0.8)": true,
+      "REFUTE_emp_fails(E_ctrl-E_clock<=0.8)": false,
+      "E_ctrl_minus_E_clock": 1.71,
+      "P_clock_minus_P_ctrl": 1.71
+    },
+    "interpretation": "Si APOYADA: el EMPOWERMENT (valor AUTO-generado, sin reward/verificador externo) identifica el factor CONTROLABLE y descarta el reloj predecible-pero-inútil; la PREDICCIÓN pasiva hace lo contrario (se queda con el reloj, pierde el controlable). => para un AGENTE, un valor endógeno captura 'lo que puedo afectar', que la predicción pasiva fundamentalmente no puede. Es la forma FUERTE de R-VALOR, y a diferencia del info-gain (exp023) SÍ se distingue de lo trivial. Límite honesto: muestra el MECANISMO (controlabilidad != predictibilidad), no aún que mejore una tarea downstream ni que escale a lenguaje.",
+    "verdict": "apoyada"
+  }
+}

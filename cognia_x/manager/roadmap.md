@@ -65,8 +65,15 @@ queda como restricción de VIABILIDAD, no como dirección.
   R-VALOR 'asumido' refinado (info-gain descartado). D-V4-2 (pivote a act-and-verify).
 - [x] **CYCLE 37 — barrido de literatura** (`literature_v4.md`): corrobora exp023 (CAASL ~5-6% a d=10);
   R-VALOR forma-fuerte (empowerment) tiene soporte; camino barato = substrato chico + verificador (TTS).
-- [ ] H-V4-1c (P0): empowerment (Blahut-Arimoto) vs reconstrucción en gridworld con distractores — test de
-  R-VALOR forma-FUERTE (el info-gain quedó descartado; el null a batir es la predicción pasiva).
+- [x] **CYCLE 38 (exp024) — H-V4-1c: APOYADA. R-VALOR es REAL en su forma fuerte (empowerment).** Inversión
+  limpia: el empowerment (Blahut-Arimoto, sin reward/verificador externo) aísla lo CONTROLABLE (1.71 bits) y
+  da 0 al reloj predecible-inútil; la predicción pasiva hace lo contrario. controlabilidad≠predictibilidad.
+  R-VALOR forma-fuerte → techo 'real'; unificado con R-INTERVENCIÓN. D-V4-3. 0.57s CPU.
+- [ ] H-V4-1d (P0): el empowerment como VALOR MEJORA una tarea downstream (no sólo identifica el mecanismo).
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
-- [ ] INTEGRADOR (P1): lazo act-and-verify barato sobre el sustrato de lenguaje (R-INTERVENCIÓN aplicada;
-  convergente con TTS verifier-based de la literatura). H-V4-3/4/5/6: ver `_directiva_v4.md` §3.
+- [ ] INTEGRADOR (P1): lazo act-and-verify barato con valor endógeno de CONTROLABILIDAD sobre el sustrato de
+  lenguaje (unifica R-VALOR+R-INTERVENCIÓN; convergente con TTS verifier-based). H-V4-3/4/5/6: ver `_directiva_v4.md` §3.
+
+> Estado del reset (CYCLE 35-38): NO-lever = predicción pasiva / info-gain / escalar params. SÍ-lever =
+> ACTUAR (R-INTERVENCIÓN) con valor de CONTROLABILIDAD (R-VALOR=empowerment). Arquitectura objetivo:
+> substrato chico CPU (híbrido/RWKV en llama.cpp) + act-and-verify barato + TTS verifier-based.

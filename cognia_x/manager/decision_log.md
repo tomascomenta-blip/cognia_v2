@@ -276,3 +276,19 @@
 - **Evidencia:** exp023 (tier-5) + exp022 (tier-5) + [[arXiv:2408.03314]] TTS + [[arXiv:2606.20104]]
   action-grounded. ACEPTADA por el ledger. Registrada vía cycle36_value_isolation.py. **Reversible:** sí; si el
   régimen grande/denso/ruido-bajo mostrara que el valor SÍ gana (Choo&Shiragur O(log n)), se reabre.
+
+## D-V4-3 (2026-06-24, CYCLE 38) — R-VALOR confirmado REAL: el valor endógeno es la CONTROLABILIDAD
+- **Decisión:** R-VALOR queda CONFIRMADO real en su forma fuerte: el valor endógeno de un agente es la
+  CONTROLABILIDAD (empowerment), NO el info-gain (descartado, exp023) ni la predicción pasiva. Se UNIFICA con
+  R-INTERVENCIÓN (el valor que sobrevive es sobre la acción). Rumbo v4 CONSOLIDADO: construir un lazo
+  ACT-AND-VERIFY barato cuyo valor endógeno sea la controlabilidad/consecuencia, sobre un sustrato chico CPU
+  (híbrido/RWKV en llama.cpp), guiado por verificador barato (TTS, convergente con la literatura). Próximo:
+  H-V4-1d (empowerment MEJORA una tarea downstream) y el integrador hacia lenguaje.
+- **Razón:** exp024 (12 seeds): inversión limpia — EMPOWERMENT ctrl 1.71 bits vs reloj 0.0; PREDICCIÓN pasiva
+  reloj 1.71 vs ctrl 0.0. El empowerment aísla lo controlable, la predicción pasiva lo PIERDE
+  (controlabilidad≠predictibilidad). A diferencia del info-gain (exp023, ≈azar), el empowerment SÍ se
+  distingue de lo trivial. Barato: 0.57s CPU.
+- **Evidencia:** exp024 (tier-5) + [[arXiv:2606.20104]] action-grounded + [[arXiv:2510.05996]] empowerment-BA.
+  ACEPTADA por el ledger. Registrada vía cycle38_empowerment.py. **Reversible:** sí; el mecanismo está
+  demostrado pero la utilidad downstream/lenguaje (H-V4-1d) sigue 'asumida' — si no mejora una tarea real, se
+  revisa el peso de R-VALOR frente a R-INTERVENCIÓN sola.

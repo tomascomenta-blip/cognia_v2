@@ -1081,3 +1081,41 @@ Barrido web citado (`literature_v4.md`, sin citas inventadas). Tres convergencia
 
 Próximo (selector): H-V4-1c (empowerment Blahut-Arimoto vs reconstrucción en gridworld con distractores —
 test de R-VALOR forma-fuerte) y/o empezar el integrador act-and-verify sobre el sustrato de lenguaje.
+
+---
+
+## CYCLE 38 (2026-06-24) — RESET v4: H-V4-1c (empowerment = R-VALOR forma fuerte) APOYADA
+
+### Pregunta
+El info-gain no era el valor (exp023). ¿Lo es el EMPOWERMENT — un valor AUTO-generado (capacidad de canal
+acción→futuro, Blahut-Arimoto, SIN reward/verificador externo)? Forma FUERTE de R-VALOR; si tampoco, el reset
+pivota del todo a R-INTERVENCIÓN.
+
+### Experimento (exp024_empowerment) — numpy puro, 12 seeds
+Mundo con 3 tipos de factor: CONTROLABLE (f'=acción), RELOJ (f'=(f+1)%K, predecible pero NO controlable),
+ALEATORIO. Dos medidas por factor: EMPOWERMENT (Blahut-Arimoto, capacidad a→f') y PREDICTIBILIDAD pasiva
+(I(f_t;f_{t+1})). Pre-registro: APOYADA si E_ctrl≫E_reloj Y la inversión P_reloj≫P_ctrl (>0.8 bits).
+
+### Veredicto: H-V4-1c APOYADA (inversión limpia)
+EMPOWERMENT: ctrl 1.71 bits / reloj 0.0 / rand 0.0. PREDICCIÓN pasiva: ctrl 0.0 / reloj 1.71 / rand 0.0
+(std ~0.005; costo 0.57s CPU). El empowerment aísla lo CONTROLABLE y descarta el reloj predecible-inútil; la
+predicción pasiva hace lo contrario (ni VE lo controlable). **controlabilidad ≠ predictibilidad** = justo lo
+que un agente necesita. A diferencia del info-gain (exp023, ≈azar), el empowerment SÍ se distingue de lo
+trivial. **R-VALOR confirmado real en su forma fuerte**, unificado con R-INTERVENCIÓN (el valor es sobre la
+acción). R-VALOR forma-fuerte → techo 'real'; R-VALOR aplicado (downstream/lenguaje) → 'asumido'. D-V4-3.
+
+### Honestidad
+Muestra el MECANISMO (controlabilidad≠predictibilidad), no aún que el empowerment MEJORE una tarea downstream
+ni que escale a lenguaje (→ H-V4-1d / integrador). El factor ctrl'=acción es simple a propósito: el punto es
+que la predicción pasiva, con el MISMO mundo, lo PIERDE.
+
+### Verificación
+exp024 (12 seeds). cycle38_empowerment.py → H-V4-1c 'apoyada' (DoD), D-V4-3 ACEPTADA, 2 techos, analogía
+7-etapas, verify_no_loss=OK. Test `test_cycle38_empowerment.py` 4/4 (incluye Blahut-Arimoto vs capacidades
+conocidas: identidad=log2(K), canal plano=0).
+
+### Síntesis del reset (CYCLE 35-38)
+NO-lever: predicción pasiva (exp022), info-gain (exp023), escalar params (lit.). SÍ-lever: ACTUAR
+(R-INTERVENCIÓN) con valor de CONTROLABILIDAD (R-VALOR=empowerment). Arquitectura objetivo: substrato chico
+CPU (híbrido/RWKV en llama.cpp) + act-and-verify barato con valor de controlabilidad + TTS verifier-based.
+Próximo: H-V4-1d (empowerment mejora downstream) y el integrador hacia lenguaje.

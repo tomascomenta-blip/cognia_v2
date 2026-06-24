@@ -115,3 +115,8 @@
   act-and-verify). R-INTERVENCIÓN reforzada 'real'; R-VALOR 'asumido' (info-gain descartado; abierto en forma
   fuerte = empowerment → H-V4-1c). Test 4/4, verify=OK.
 - literature_v4.md (CYCLE 37): SOTA corrobora; rumbo = substrato chico CPU + verificador barato (TTS).
+
+## [2026-06-24] CYCLE 38 — R-VALOR REAL (empowerment), forma fuerte
+- exp024/cycle38/H-V4-1c APOYADA: inversión limpia empowerment(ctrl 1.71/reloj 0) vs predicción pasiva
+  (reloj 1.71/ctrl 0). controlabilidad != predictibilidad. R-VALOR real (forma fuerte), unificado con
+  R-INTERVENCIÓN. D-V4-3. verify=OK, test 4/4. Próximo: H-V4-1d (downstream) + integrador a lenguaje.

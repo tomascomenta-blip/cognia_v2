@@ -3541,3 +3541,16 @@ ejecución real) es el lever central de la auto-mejora segura.
   substrato chico (RWKV-7/híbrido SSM en llama.cpp) + VERIFICADOR barato (TTS verifier-based, arXiv:2408.03314).
   El verificador, no los params, es la pieza = R-INTERVENCIÓN.
 - Próximo: H-V4-1c (empowerment Blahut-Arimoto vs reconstrucción) y/o integrador act-and-verify sobre lenguaje.
+
+## [2026-06-24] COGNIA-X — CYCLE 38: R-VALOR CONFIRMADO REAL (empowerment), forma fuerte
+- exp024_empowerment / H-V4-1c APOYADA (inversión limpia): EMPOWERMENT ctrl 1.71 bits / reloj 0.0 / rand 0.0;
+  PREDICCIÓN pasiva ctrl 0.0 / reloj 1.71 / rand 0.0. El empowerment (valor AUTO-generado, Blahut-Arimoto, sin
+  reward/verificador externo) aísla lo CONTROLABLE; la predicción pasiva se queda con el reloj predecible-inútil
+  y PIERDE lo controlable. controlabilidad != predictibilidad. A diferencia del info-gain (exp023, ≈azar), el
+  empowerment SÍ se distingue de lo trivial. 0.57s CPU.
+- R-VALOR confirmado real (forma fuerte), UNIFICADO con R-INTERVENCIÓN (el valor es sobre la acción). D-V4-3.
+  cycle38 por las compuertas (DoD, 2 techos: R-VALOR forma-fuerte 'real' + R-VALOR aplicado 'asumido', verify=OK).
+  Test 4/4 (incl. Blahut-Arimoto vs capacidades conocidas).
+- Síntesis reset (CYCLE 35-38): NO-lever = predicción pasiva / info-gain / escalar params. SÍ-lever = ACTUAR
+  con valor de CONTROLABILIDAD. Rumbo: substrato chico CPU + act-and-verify + TTS verifier-based.
+- Próximo: H-V4-1d (empowerment mejora downstream) + integrador hacia lenguaje.
