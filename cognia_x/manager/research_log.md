@@ -1182,3 +1182,38 @@ son idénticas por construcción → el discriminante es el menor avg>n_probe (p
 ### Verificación
 exp026 (4 seeds, M=120, modelo propio HybridLM). cycle40 → H-V4-1e 'apoyada' (DoD), D-V4-5 ACEPTADA, 1 techo
 'real' (R-VALOR aplicado al lenguaje), analogía 7 etapas, verify_no_loss=OK. Test `test_cycle40_ttc_allocation.py` 4/4.
+
+## CYCLE 41 — H-V4-1f: realismo del verificador (ruidoso/parcial) en act-and-verify TTS
+
+### Pregunta
+¿La ventaja de asignar cómputo test-time por CONTROLABILIDAD (exp026, verificador perfecto) SOBREVIVE a un
+verificador RUIDOSO/PARCIAL, y hasta qué nivel de ruido? (el techo que dejó exp026)
+
+### Diseño
+Extiende exp026 (mismo HybridLM byte-level, suma). Verificador NOISY simétrico vnoise: una respuesta
+verdadera-correcta se acepta con prob 1-vnoise (FN=vnoise); una verdadera-incorrecta se acepta con prob
+vnoise (FP=vnoise). Act-and-verify: COMMIT = primer sample aceptado por el verificador ruidoso. ACCURACY
+REAL = el commit es verdaderamente correcto (oráculo) → castiga falsos positivos. 3 políticas reparten el
+mismo presupuesto B=M·avg (avg=3, escaso discriminante); probe y señal de consecuencia usan el verificador
+RUIDOSO (lo único que el agente observa). Barrido vnoise∈{0,0.05,0.1,0.2}, 4 seeds, M=120. Predicción
+pre-registrada: APOYADA si a vnoise=0.10 CONSEC≥AZAR y ≥PASIVA (>2σ) sin colapso bajo greedy; REFUTADA si
+CONSEC≤AZAR a 0.10 o colapsa; MIXTA si parcial.
+
+### Resultado — MIXTA (matizada, muy informativa)
+Curva vnoise→CONSEC/AZAR/PASIVA/greedy: 0.0:0.544/0.490/0.483/0.317 | 0.05:0.502/0.452/0.483/0.317 |
+0.10:0.444/0.440/0.435/0.317 | 0.20:0.358/0.385/0.398/0.317. (1) A vnoise=0 reproduce exp026 (CONSEC mejor,
+validación cruzada). (2) ROBUSTEZ: el lazo act-and-verify nunca cae bajo greedy en ningún ruido → degrada con
+gracia. (3) FRAGILIDAD del lever: la ventaja del control es significativa a error≤~5% (Δazar +0.05), se
+diluye a ~10% (Δazar +0.004, dentro de 2σ) y se INVIERTE a 20% (la consecuencia pasa a ser la peor). Mecanismo:
+la señal de consecuencia usa solved_observed (depende del verificador) → hereda su ruido; la pasiva-entropía
+no, por eso resiste mejor (pero es peor en ausencia de ruido).
+
+### Límites (honestos)
+Verificador SINTÉTICO (flip simétrico); falta verificador real-chequeable ruidoso (código→sandbox, exp018)
+sobre lenguaje. Umbral de tolerancia (~5-10%) medido en tarea de 1 paso; en multi-paso el ruido se compone.
+La regla commit-first-accepted no es el artefacto (a vnoise=0 = best-of-k y reproduce exp026).
+
+### Verificación
+exp027 (4 seeds, M=120, HybridLM propio + verificador ruidoso). cycle41 → H-V4-1f 'mixta' (DoD), D-V4-6
+ACEPTADA, 1 techo 'real' (lazo robusto / lever condicional), analogía, verify_no_loss=OK. Test
+`test_cycle41_noisy_verifier_ttc.py` 3/3.

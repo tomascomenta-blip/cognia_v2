@@ -81,8 +81,17 @@ queda como restricción de VIABILIDAD, no como dirección.
   lenguaje. Caveat honesto (curva): a avg>=6 + verificador perfecto el azar alcanza (techo) → la ventaja vive
   bajo ESCASEZ (misma forma que exp025). Unifica R-INTERVENCIÓN+R-VALOR; convergente con TTS verifier-based
   (arXiv:2408.03314). ~50s/seed CPU. D-V4-5. Techo 'real': R-VALOR aplicado al lenguaje.
-- [ ] **H-V4-1f (P0): realismo del verificador** — repetir exp026 con verificador RUIDOSO/PARCIAL (exp017/018)
-  en vez del oráculo perfecto, y con una señal de consecuencia más BARATA (sin probe que consuma presupuesto).
+- [x] **CYCLE 41 (exp027) — H-V4-1f: MIXTA (matizada).** Verificador RUIDOSO simétrico (vnoise=FP=FN) sobre el
+  act-and-verify de exp026; accuracy REAL del commit (castiga falsos positivos). 4 seeds in-band, avg=3.
+  Curva vnoise→CONSEC/AZAR/PASIVA/greedy: 0.0:0.544/0.490/0.483/0.317 | 0.05:0.502/0.452/0.483 |
+  0.10:0.444/0.440/0.435 | 0.20:0.358/0.385/0.398. DOS caras: (ROBUSTEZ) el lazo NUNCA cae bajo greedy en
+  ningún ruido → degrada con gracia; (FRAGILIDAD) la ventaja del lever de CONTROL es CONDICIONAL a la calidad
+  del verificador: significativa a error≤~5%, diluida a ~10%, invertida a 20% (la señal de consecuencia
+  depende del verificador; la pasiva-entropía no). A vnoise=0 reproduce exp026 (validación cruzada). D-V4-6,
+  techo 'real'. → el integrador debe priorizar verificador preciso/auto-calibrado o una señal de control
+  robusta-al-ruido.
+- [ ] **H-V4-1g (P0): señal de control robusta-al-ruido** — consecuencia estimada por DIVERGENCIA de rollouts
+  (sin depender del veredicto del verificador) y/o verificador real-chequeable (código→sandbox, exp018).
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
 - [ ] INTEGRADOR (P1): lazo act-and-verify barato con valor endógeno de CONTROLABILIDAD sobre el sustrato de
   lenguaje (unifica R-VALOR+R-INTERVENCIÓN; convergente con TTS verifier-based). H-V4-3/4/5/6: ver `_directiva_v4.md` §3.

@@ -3581,3 +3581,19 @@ ejecución real) es el lever central de la auto-mejora segura.
   DoD, D-V4-5 ACEPTADA, 1 techo 'real'), test_cycle40 4/4.
 - PRÓXIMO (P0): H-V4-1f — realismo del verificador (ruidoso/parcial, exp017/018) + señal de consecuencia
   barata (sin probe que consuma presupuesto) + razonamiento multi-paso.
+
+## CYCLE 41 (RESET v4) — H-V4-1f: realismo del verificador (2026-06-24)
+- exp027_noisy_verifier_ttc / H-V4-1f MIXTA (matizada): verificador RUIDOSO simétrico (vnoise=FP=FN) sobre el
+  act-and-verify de exp026; accuracy REAL del commit (primer aceptado por el verificador ruidoso; castiga
+  falsos positivos). 4 seeds in-band, M=120, presupuesto escaso avg=3.
+- Curva vnoise→CONSEC/AZAR/PASIVA/greedy: 0.0:0.544/0.490/0.483/0.317 | 0.05:0.502/0.452/0.483 |
+  0.10:0.444/0.440/0.435 | 0.20:0.358/0.385/0.398.
+- TRES hallazgos: (1) a vnoise=0 REPRODUCE exp026 (CONSEC +0.054, validación cruzada). (2) ROBUSTEZ: el lazo
+  act-and-verify NUNCA cae bajo greedy en ningún ruido (0.358>0.317 aun a 0.20) → degrada con gracia, no daña.
+  (3) FRAGILIDAD del LEVER: la ventaja del CONTROL es CONDICIONAL a la calidad del verificador — significativa
+  a error≤~5%, diluida a ~10%, INVERTIDA a 20% (la señal de consecuencia depende de solved_observed = del
+  verificador; la pasiva-entropía no, por eso es más robusta-pero-peor).
+- Implicación integrador: la CALIDAD del verificador es prerequisito del lever de control, no un detalle.
+  cycle41 por compuertas (verify=OK, DoD MIXTA, D-V4-6 ACEPTADA, 1 techo 'real'), test_cycle41 3/3.
+- PRÓXIMO (P0): H-V4-1g — señal de consecuencia ROBUSTA-al-ruido (divergencia de rollouts, sin depender del
+  veredicto del verificador) y/o verificador real-chequeable (código→sandbox, exp018) sobre lenguaje.

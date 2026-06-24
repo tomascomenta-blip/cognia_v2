@@ -255,3 +255,24 @@ recursos limitados). **Conclusión:** primer ladrillo de "algo que razona barato
 (convergente con arXiv:2408.03314) **guiado por controlabilidad**, sobre el modelo propio, unificando
 R-INTERVENCIÓN + R-VALOR. **Próximo (H-V4-1f):** verificador ruidoso/parcial (exp017/018), señal de
 consecuencia sin probe caro, y razonamiento multi-paso.
+
+### CYCLE 41 — H-V4-1f: ¿el lever de control sobrevive a un verificador imperfecto?
+
+exp026 demostró el lever con un **oráculo perfecto** — irreal. **H-V4-1f** mete ruido: verificador simétrico
+`vnoise` (acepta una correcta con prob 1−vnoise; acepta una incorrecta con prob vnoise). El act-and-verify
+**commitea el primer sample que el verificador acepta**; la accuracy se mide REAL (oráculo) → un falso
+positivo commitea una respuesta mala y se castiga. Mismo presupuesto escaso (avg=3), barrido de ruido, 4
+seeds in-band. **Resultado MIXTA, de dos caras.** Curva vnoise→CONSEC/AZAR/PASIVA/greedy:
+`0.0:0.544/0.490/0.483/0.317 · 0.05:0.502/0.452/0.483 · 0.10:0.444/0.440/0.435 · 0.20:0.358/0.385/0.398`.
+
+**Cara buena (robustez del método):** el lazo act-and-verify **nunca cae por debajo del greedy** en ningún
+nivel de ruido probado (0.358 > 0.317 incluso a vnoise=0.20) — *samplear+verificar degrada con gracia, no
+hace daño*. Y a vnoise=0 **reproduce exp026** (validación cruzada del lever). **Cara mala (fragilidad del
+lever):** la *ventaja* de asignar por controlabilidad es **condicional a la calidad del verificador** —
+significativa con error ≤~5% (Δazar +0.05), diluida a ~10% e **invertida** a 20% (la consecuencia pasa a ser
+la peor). **Mecanismo:** la señal de consecuencia usa `solved_observed` (depende del veredicto del
+verificador) → **hereda su ruido**; la pasiva-entropía no depende del verificador y por eso resiste mejor el
+ruido (aunque es peor sin ruido). **Conclusión para el integrador:** la **calidad del verificador es
+prerequisito** del lever de control, no un detalle de ingeniería. **Próximo (H-V4-1g):** una señal de
+consecuencia **robusta-al-ruido** (divergencia de rollouts, sin etiquetar correctas) y/o un verificador
+real-chequeable (código→sandbox, exp018) sobre lenguaje.

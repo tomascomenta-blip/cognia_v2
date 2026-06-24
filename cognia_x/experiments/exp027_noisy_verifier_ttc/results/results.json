@@ -1,0 +1,258 @@
+{
+  "exp": "exp027_noisy_verifier_ttc",
+  "cycle": 41,
+  "hypothesis": "H-V4-1f",
+  "claim": "la ventaja de asignar cómputo test-time por controlabilidad sobrevive a un verificador ruidoso/parcial moderado y degrada con gracia (no colapsa por falsos positivos)",
+  "verdict": "MIXTA",
+  "stats": {
+    "mod_noise": 0.1,
+    "at_mod": {
+      "consequence": 0.44375,
+      "uniform": 0.4395833333333334,
+      "passive": 0.4354166666666667,
+      "greedy": 0.31666666666666665,
+      "d_vs_uniform": 0.004166666666666596,
+      "d_vs_passive": 0.008333333333333304,
+      "two_sigma": 0.0453537886601917
+    },
+    "curve": {
+      "0.0": {
+        "consequence": 0.54375,
+        "uniform": 0.48958333333333337,
+        "passive": 0.4833333333333333,
+        "greedy": 0.31666666666666665,
+        "d_vs_uniform": 0.054166666666666585,
+        "d_vs_passive": 0.060416666666666674,
+        "two_sigma": 0.045468481528417024
+      },
+      "0.05": {
+        "consequence": 0.5020833333333333,
+        "uniform": 0.45208333333333334,
+        "passive": 0.48333333333333334,
+        "greedy": 0.31666666666666665,
+        "d_vs_uniform": 0.04999999999999999,
+        "d_vs_passive": 0.01874999999999999,
+        "two_sigma": 0.045643150245703375
+      },
+      "0.1": {
+        "consequence": 0.44375,
+        "uniform": 0.4395833333333334,
+        "passive": 0.4354166666666667,
+        "greedy": 0.31666666666666665,
+        "d_vs_uniform": 0.004166666666666596,
+        "d_vs_passive": 0.008333333333333304,
+        "two_sigma": 0.0453537886601917
+      },
+      "0.2": {
+        "consequence": 0.35833333333333334,
+        "uniform": 0.38541666666666663,
+        "passive": 0.3979166666666667,
+        "greedy": 0.31666666666666665,
+        "d_vs_uniform": -0.027083333333333293,
+        "d_vs_passive": -0.03958333333333336,
+        "two_sigma": 0.04377314202753742
+      }
+    },
+    "n_seeds_used": 4,
+    "n_in_band": 4
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "M": 120,
+    "avg": 3,
+    "n_probe": 2,
+    "noises": "0,0.05,0.1,0.2",
+    "mod_noise": 0.1,
+    "top_k": 16,
+    "temperature": 1.0,
+    "margin": 0.03,
+    "n_seed": 256,
+    "base_steps": 600,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "lo": 0,
+    "hi": 19,
+    "test_frac": 0.3
+  },
+  "noises": [
+    0.0,
+    0.05,
+    0.1,
+    0.2
+  ],
+  "seeds": [
+    {
+      "seed": 0,
+      "greedy_acc": 0.21666666666666667,
+      "in_band": true,
+      "M": 120,
+      "B": 360,
+      "npar": 201280,
+      "secs": 42.8,
+      "by_noise": {
+        "0.0": {
+          "uniform": 0.4,
+          "passive": 0.375,
+          "consequence": 0.44166666666666665,
+          "greedy": 0.21666666666666667
+        },
+        "0.05": {
+          "uniform": 0.375,
+          "passive": 0.375,
+          "consequence": 0.39166666666666666,
+          "greedy": 0.21666666666666667
+        },
+        "0.1": {
+          "uniform": 0.35833333333333334,
+          "passive": 0.35833333333333334,
+          "consequence": 0.38333333333333336,
+          "greedy": 0.21666666666666667
+        },
+        "0.2": {
+          "uniform": 0.2916666666666667,
+          "passive": 0.35833333333333334,
+          "consequence": 0.3,
+          "greedy": 0.21666666666666667
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "greedy_acc": 0.26666666666666666,
+      "in_band": true,
+      "M": 120,
+      "B": 360,
+      "npar": 201280,
+      "secs": 44.02,
+      "by_noise": {
+        "0.0": {
+          "uniform": 0.5083333333333333,
+          "passive": 0.4583333333333333,
+          "consequence": 0.5,
+          "greedy": 0.26666666666666666
+        },
+        "0.05": {
+          "uniform": 0.4083333333333333,
+          "passive": 0.4666666666666667,
+          "consequence": 0.5,
+          "greedy": 0.26666666666666666
+        },
+        "0.1": {
+          "uniform": 0.45,
+          "passive": 0.375,
+          "consequence": 0.375,
+          "greedy": 0.26666666666666666
+        },
+        "0.2": {
+          "uniform": 0.3333333333333333,
+          "passive": 0.3416666666666667,
+          "consequence": 0.30833333333333335,
+          "greedy": 0.26666666666666666
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "greedy_acc": 0.4166666666666667,
+      "in_band": true,
+      "M": 120,
+      "B": 360,
+      "npar": 201280,
+      "secs": 44.21,
+      "by_noise": {
+        "0.0": {
+          "uniform": 0.5333333333333333,
+          "passive": 0.575,
+          "consequence": 0.6583333333333333,
+          "greedy": 0.4166666666666667
+        },
+        "0.05": {
+          "uniform": 0.5666666666666667,
+          "passive": 0.5833333333333334,
+          "consequence": 0.5916666666666667,
+          "greedy": 0.4166666666666667
+        },
+        "0.1": {
+          "uniform": 0.5333333333333333,
+          "passive": 0.525,
+          "consequence": 0.5583333333333333,
+          "greedy": 0.4166666666666667
+        },
+        "0.2": {
+          "uniform": 0.5416666666666666,
+          "passive": 0.525,
+          "consequence": 0.44166666666666665,
+          "greedy": 0.4166666666666667
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "greedy_acc": 0.36666666666666664,
+      "in_band": true,
+      "M": 120,
+      "B": 360,
+      "npar": 201280,
+      "secs": 44.19,
+      "by_noise": {
+        "0.0": {
+          "uniform": 0.5166666666666667,
+          "passive": 0.525,
+          "consequence": 0.575,
+          "greedy": 0.36666666666666664
+        },
+        "0.05": {
+          "uniform": 0.4583333333333333,
+          "passive": 0.5083333333333333,
+          "consequence": 0.525,
+          "greedy": 0.36666666666666664
+        },
+        "0.1": {
+          "uniform": 0.4166666666666667,
+          "passive": 0.48333333333333334,
+          "consequence": 0.4583333333333333,
+          "greedy": 0.36666666666666664
+        },
+        "0.2": {
+          "uniform": 0.375,
+          "passive": 0.36666666666666664,
+          "consequence": 0.38333333333333336,
+          "greedy": 0.36666666666666664
+        }
+      }
+    }
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp027] CYCLE 41 / H-V4-1f — verificador RUIDOSO sobre act-and-verify TTS (HybridLM propio)",
+    "[exp027] suma [0,19] test=120 avg=3 n_probe=2 noises=[0.0, 0.05, 0.1, 0.2] mod=0.1 seeds=[0, 1, 2, 3]",
+    "[exp027]   seed=0 vnoise=0.0: AZAR=0.400 PASIVA=0.375 CONSEC=0.442 (greedy=0.217)",
+    "[exp027]   seed=0 vnoise=0.05: AZAR=0.375 PASIVA=0.375 CONSEC=0.392 (greedy=0.217)",
+    "[exp027]   seed=0 vnoise=0.1: AZAR=0.358 PASIVA=0.358 CONSEC=0.383 (greedy=0.217)",
+    "[exp027]   seed=0 vnoise=0.2: AZAR=0.292 PASIVA=0.358 CONSEC=0.300 (greedy=0.217)",
+    "[exp027] seed=0 greedy=0.217 (EN-banda) 42.8s npar=201280",
+    "[exp027]   seed=1 vnoise=0.0: AZAR=0.508 PASIVA=0.458 CONSEC=0.500 (greedy=0.267)",
+    "[exp027]   seed=1 vnoise=0.05: AZAR=0.408 PASIVA=0.467 CONSEC=0.500 (greedy=0.267)",
+    "[exp027]   seed=1 vnoise=0.1: AZAR=0.450 PASIVA=0.375 CONSEC=0.375 (greedy=0.267)",
+    "[exp027]   seed=1 vnoise=0.2: AZAR=0.333 PASIVA=0.342 CONSEC=0.308 (greedy=0.267)",
+    "[exp027] seed=1 greedy=0.267 (EN-banda) 44.0s npar=201280",
+    "[exp027]   seed=2 vnoise=0.0: AZAR=0.533 PASIVA=0.575 CONSEC=0.658 (greedy=0.417)",
+    "[exp027]   seed=2 vnoise=0.05: AZAR=0.567 PASIVA=0.583 CONSEC=0.592 (greedy=0.417)",
+    "[exp027]   seed=2 vnoise=0.1: AZAR=0.533 PASIVA=0.525 CONSEC=0.558 (greedy=0.417)",
+    "[exp027]   seed=2 vnoise=0.2: AZAR=0.542 PASIVA=0.525 CONSEC=0.442 (greedy=0.417)",
+    "[exp027] seed=2 greedy=0.417 (EN-banda) 44.2s npar=201280",
+    "[exp027]   seed=3 vnoise=0.0: AZAR=0.517 PASIVA=0.525 CONSEC=0.575 (greedy=0.367)",
+    "[exp027]   seed=3 vnoise=0.05: AZAR=0.458 PASIVA=0.508 CONSEC=0.525 (greedy=0.367)",
+    "[exp027]   seed=3 vnoise=0.1: AZAR=0.417 PASIVA=0.483 CONSEC=0.458 (greedy=0.367)",
+    "[exp027]   seed=3 vnoise=0.2: AZAR=0.375 PASIVA=0.367 CONSEC=0.383 (greedy=0.367)",
+    "[exp027] seed=3 greedy=0.367 (EN-banda) 44.2s npar=201280",
+    "[exp027] VEREDICTO H-V4-1f (ruido moderado vnoise=0.1): MIXTA | CONSEC=0.444 AZAR=0.440 PASIVA=0.435 greedy=0.317 | Δazar=+0.004 Δpasiva=+0.008 (2σ=0.045)",
+    "[exp027] CURVA vnoise->CONSEC/AZAR/PASIVA/greedy: 0.0:0.544/0.490/0.483/0.317 | 0.05:0.502/0.452/0.483/0.317 | 0.1:0.444/0.440/0.435/0.317 | 0.2:0.358/0.385/0.398/0.317"
+  ]
+}
