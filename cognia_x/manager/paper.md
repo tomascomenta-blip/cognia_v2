@@ -316,3 +316,24 @@ verificador (43). El integrador de un paso queda diseñado y verificado sobre el
 **Límite honesto:** el test-retest detecta ruido *aleatorio*, no *sesgo sistemático*. **Próximo gran salto
 (H-V4-1i):** razonamiento **multi-paso** (donde control y ruido se componen) y verificador real-chequeable
 (código→sandbox).
+
+### CYCLE 44 — H-V4-1i: el salto a MULTI-PASO — ¿verificar el proceso o el resultado?
+
+Cerrado el integrador de un paso (40-43), **H-V4-1i** da el gran salto a razonamiento de varios pasos, donde
+los errores se **componen**. Tarea: una cadena de K sumas mod 20 (cada paso in-distribution) sobre el modelo
+propio; la respuesta correcta es la **traza completa** [r₁..r_K] (no un único número — eso evita el piso de
+suerte que una primera versión tenía). Dos estrategias a **igual cómputo** (k·K llamadas): **step-wise
+act-and-verify** (verifica y corrige CADA paso) vs **end-to-end best-of-k** (verifica sólo la traza final).
+**Resultado MIXTA.** Curva K→END_TO_END/STEP_WISE/gap: `K1:0.667/0.692/+0.025 · K2:0.317/0.448/+0.131 ·
+K4:0.046/0.219/+0.173 · K6:0.004/0.092/+0.088`.
+
+El **gap absoluto** no crece monótono (cae a K=6) — pero por una razón honesta: con presupuesto por-paso
+**fijo** (k=4), *ambas* estrategias colapsan a 0 en cadenas largas. La señal real está en la **ventaja
+relativa** `step_wise/end_to_end`, que crece **monótona y enorme**: 1.04× → 4.8× (K4) → **23× (K6)**. La
+verificación intermedia (**supervisión de proceso**, convergente con *Let's Verify Step by Step*, Lightman
+2023) **frena drásticamente el compounding pero no lo elimina** a presupuesto por-paso fijo: end-to-end se
+desploma como ≈p^K mientras step-wise decae mucho más lento. **Conclusión:** el lever del razonamiento
+multi-paso es verificar el **proceso**, no sólo el resultado; y para cadenas largas hay que **escalar/adaptar
+el presupuesto por paso** — exactamente el control adaptativo del CYCLE 43 aplicado per-step. **Próximo
+(H-V4-1j):** control adaptativo per-step en cadenas largas + backtracking/abstención + verificador ruidoso
+per-step.

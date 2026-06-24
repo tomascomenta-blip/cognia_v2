@@ -1282,3 +1282,35 @@ exp029 (4 seeds, M=120, HybridLM propio). cycle43 → H-V4-1h 'apoyada' (DoD), D
 
 > SUB-ARCO INTEGRADOR 40-43 CERRADO: control REAL (40) → frágil al verificador (41) → sin señal única
 > dominante (42) → resuelto con adaptación calibrada por la consistencia del verificador (43, no-regret).
+
+## CYCLE 44 — H-V4-1i: razonamiento MULTI-PASO (verif intermedia vs sólo-final)
+
+### Pregunta
+¿La verificación INTERMEDIA (step-wise act-and-verify) supera a la SÓLO-FINAL (end-to-end best-of-k) a igual
+cómputo, y la ventaja crece con la longitud de cadena porque los errores se COMPONEN?
+
+### Diseño
+Cadena de K sumas mod 20 (cada paso in-distribution: r_{i-1}∈[0,19] + a_i∈[0,9], wrap mod 20) sobre el modelo
+propio (reusa build_base/exp016). Correcto = la TRAZA completa [r_1..r_K] coincide con la referencia (sin piso
+de suerte). STEP_WISE: en cada paso hasta k muestras, verifica el paso (oráculo), commitea el primero correcto;
+END_TO_END: k cadenas completas (1 muestra/paso, sin verificar pasos), acepta si alguna da la traza correcta.
+Mismo presupuesto k·K. Barrido K∈{1,2,4,6}, k=4, 4 seeds. Pre-registrado: APOYADA si gap crece monótono y
+>0.20 en Kmax.
+
+### Resultado — MIXTA
+Curva K→END_TO_END/STEP_WISE/gap: K1:0.667/0.692/+0.025 | K2:0.317/0.448/+0.131 | K4:0.046/0.219/+0.173 |
+K6:0.004/0.092/+0.088. El gap ABSOLUTO no es monótono (cae a K=6) porque AMBAS estrategias colapsan a 0 con
+presupuesto por-paso fijo (k=4 no garantiza cada paso). Pero la ventaja RELATIVA (step_wise/end_to_end) crece
+monótona y enorme: 1.04×→1.4×→4.8×→23× a K=6. La verificación intermedia (supervisión de proceso) frena
+drásticamente el compounding pero no lo elimina a presupuesto por-paso fijo.
+
+### Disciplina / límites (honestos)
+BUG de diseño detectado y corregido: con mod-20 y verificación sólo-del-último-número había un piso de SUERTE
+(~0.19) que inflaba end-to-end; corregido a verificación de la TRAZA COMPLETA, el efecto real emergió.
+Verificador perfecto per-step (el ruido per-step que se compone es el siguiente realismo). Cuando un paso no
+tiene ningún sample correcto, step-wise commitea uno malo y descarrila (falta backtracking/abstención).
+
+### Verificación
+exp030 (4 seeds, modelo propio). cycle44 → H-V4-1i 'mixta' (DoD), D-V4-9 ACEPTADA, 1 techo 'real' (verif
+intermedia frena pero no elimina el compounding), analogía, verify_no_loss=OK. Test
+`test_cycle44_multistep_reasoning.py` 4/4. Convergente con 'Let's Verify Step by Step' (Lightman 2023).

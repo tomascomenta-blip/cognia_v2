@@ -3634,3 +3634,22 @@ ejecución real) es el lever central de la auto-mejora segura.
 - cycle43 por compuertas (verify=OK, DoD APOYADA, D-V4-8 ACEPTADA, 1 techo 'real'), test_cycle43 4/4.
 - PRÓXIMO (P0, GRAN salto): H-V4-1i — razonamiento MULTI-PASO (control intermedio + ruido se componen) +
   verificador real-chequeable (código→sandbox, exp018). Pendiente menor: estimador de sesgo sistemático.
+
+## CYCLE 44 (RESET v4) — H-V4-1i: razonamiento MULTI-PASO (2026-06-24)
+- exp030_multistep_reasoning / H-V4-1i MIXTA: primer ciclo MULTI-PASO (gran salto tras cerrar el integrador de
+  1 paso 40-43). Cadena de K sumas mod 20 (in-distribution) sobre el modelo propio; step-wise act-and-verify
+  (verifica CADA paso, commitea el correcto) vs end-to-end best-of-k (verifica sólo la TRAZA final) a IGUAL
+  cómputo k·K. 4 seeds.
+- Curva K→END_TO_END/STEP_WISE/gap: K1:0.667/0.692/+0.025 | K2:0.317/0.448/+0.131 | K4:0.046/0.219/+0.173 |
+  K6:0.004/0.092/+0.088. El gap ABSOLUTO crece hasta K=4 y cae a K=6 (MIXTA vs la predicción de gap>0.20
+  monótono) porque AMBAS colapsan a 0 con presupuesto por-paso FIJO. Pero la ventaja RELATIVA
+  (step_wise/end_to_end) crece MONÓTONA y enorme: 1.04×→1.4×→4.8×→23× a K=6.
+- LECCIÓN: la verificación intermedia (supervisión de PROCESO, cf. Lightman 2023 'Let's Verify Step by Step')
+  frena drásticamente el compounding, pero NO lo elimina a presupuesto por-paso fijo → cadenas largas exigen
+  ESCALAR/ADAPTAR el presupuesto per-step (conecta con el control de 43).
+- Disciplina: se detectó y corrigió un BUG de diseño — con mod-20 y verif sólo-del-último-número había un PISO
+  DE SUERTE (~0.19, acertar el final por azar) que inflaba end-to-end; corregido a verif de la TRAZA COMPLETA,
+  el efecto real emergió. cycle44 por compuertas (verify=OK, DoD MIXTA, D-V4-9 ACEPTADA, 1 techo 'real'),
+  test_cycle44 4/4.
+- PRÓXIMO (P0): H-V4-1j — control adaptativo PER-STEP en cadenas largas (más presupuesto a los pasos difíciles)
+  + backtracking/abstención cuando un paso no verifica + verificador ruidoso/real-chequeable per-step.

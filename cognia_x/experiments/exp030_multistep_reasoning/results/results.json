@@ -1,0 +1,202 @@
+{
+  "exp": "exp030_multistep_reasoning",
+  "cycle": 44,
+  "hypothesis": "H-V4-1i",
+  "claim": "la verificación intermedia (step-wise act-and-verify) supera a la sólo-final (end-to-end) a igual cómputo, y la ventaja crece con la longitud de cadena (compounding de errores)",
+  "verdict": "MIXTA",
+  "stats": {
+    "Kmax": 6,
+    "curve": {
+      "1": {
+        "end_to_end": 0.6666666666666666,
+        "step_wise": 0.6916666666666667,
+        "gap": 0.025000000000000022
+      },
+      "2": {
+        "end_to_end": 0.31666666666666665,
+        "step_wise": 0.44791666666666663,
+        "gap": 0.13124999999999998
+      },
+      "4": {
+        "end_to_end": 0.04583333333333333,
+        "step_wise": 0.21875,
+        "gap": 0.17291666666666666
+      },
+      "6": {
+        "end_to_end": 0.004166666666666667,
+        "step_wise": 0.09166666666666667,
+        "gap": 0.08750000000000001
+      }
+    },
+    "gaps_grow_monotonic": false,
+    "gap_at_Kmax": 0.08750000000000001,
+    "big_at_max": false,
+    "e2e_decays": true,
+    "n_seeds": 4
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "M": 120,
+    "k": 4,
+    "Ks": "1,2,4,6",
+    "top_k": 16,
+    "temperature": 1.0,
+    "margin": 0.2,
+    "n_seed": 256,
+    "base_steps": 600,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "lo": 0,
+    "hi": 19,
+    "test_frac": 0.3
+  },
+  "Ks": [
+    1,
+    2,
+    4,
+    6
+  ],
+  "seeds": [
+    {
+      "seed": 0,
+      "npar": 201280,
+      "secs": 111.72,
+      "by_K": {
+        "1": {
+          "end_to_end": 0.55,
+          "step_wise": 0.5916666666666667,
+          "gap": 0.04166666666666663
+        },
+        "2": {
+          "end_to_end": 0.18333333333333332,
+          "step_wise": 0.2833333333333333,
+          "gap": 0.1
+        },
+        "4": {
+          "end_to_end": 0.0,
+          "step_wise": 0.09166666666666666,
+          "gap": 0.09166666666666666
+        },
+        "6": {
+          "end_to_end": 0.0,
+          "step_wise": 0.03333333333333333,
+          "gap": 0.03333333333333333
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "npar": 201280,
+      "secs": 111.39,
+      "by_K": {
+        "1": {
+          "end_to_end": 0.7166666666666667,
+          "step_wise": 0.6583333333333333,
+          "gap": -0.05833333333333335
+        },
+        "2": {
+          "end_to_end": 0.35,
+          "step_wise": 0.49166666666666664,
+          "gap": 0.14166666666666666
+        },
+        "4": {
+          "end_to_end": 0.05,
+          "step_wise": 0.275,
+          "gap": 0.22500000000000003
+        },
+        "6": {
+          "end_to_end": 0.008333333333333333,
+          "step_wise": 0.10833333333333334,
+          "gap": 0.1
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "npar": 201280,
+      "secs": 110.01,
+      "by_K": {
+        "1": {
+          "end_to_end": 0.7333333333333333,
+          "step_wise": 0.7916666666666666,
+          "gap": 0.05833333333333335
+        },
+        "2": {
+          "end_to_end": 0.4,
+          "step_wise": 0.525,
+          "gap": 0.125
+        },
+        "4": {
+          "end_to_end": 0.09166666666666666,
+          "step_wise": 0.30833333333333335,
+          "gap": 0.21666666666666667
+        },
+        "6": {
+          "end_to_end": 0.008333333333333333,
+          "step_wise": 0.16666666666666666,
+          "gap": 0.15833333333333333
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "npar": 201280,
+      "secs": 109.42,
+      "by_K": {
+        "1": {
+          "end_to_end": 0.6666666666666666,
+          "step_wise": 0.725,
+          "gap": 0.05833333333333335
+        },
+        "2": {
+          "end_to_end": 0.3333333333333333,
+          "step_wise": 0.49166666666666664,
+          "gap": 0.15833333333333333
+        },
+        "4": {
+          "end_to_end": 0.041666666666666664,
+          "step_wise": 0.2,
+          "gap": 0.15833333333333335
+        },
+        "6": {
+          "end_to_end": 0.0,
+          "step_wise": 0.058333333333333334,
+          "gap": 0.058333333333333334
+        }
+      }
+    }
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp030] CYCLE 44 / H-V4-1i — razonamiento MULTI-PASO: verif intermedia vs sólo-final (modelo propio)",
+    "[exp030] cadena de sumas mod 20, M=120 k=4 (cómputo k·K) Ks=[1, 2, 4, 6] seeds=[0, 1, 2, 3]",
+    "[exp030]   seed=0 K=1: END_TO_END=0.550 STEP_WISE=0.592 gap=+0.042",
+    "[exp030]   seed=0 K=2: END_TO_END=0.183 STEP_WISE=0.283 gap=+0.100",
+    "[exp030]   seed=0 K=4: END_TO_END=0.000 STEP_WISE=0.092 gap=+0.092",
+    "[exp030]   seed=0 K=6: END_TO_END=0.000 STEP_WISE=0.033 gap=+0.033",
+    "[exp030] seed=0 111.7s npar=201280",
+    "[exp030]   seed=1 K=1: END_TO_END=0.717 STEP_WISE=0.658 gap=-0.058",
+    "[exp030]   seed=1 K=2: END_TO_END=0.350 STEP_WISE=0.492 gap=+0.142",
+    "[exp030]   seed=1 K=4: END_TO_END=0.050 STEP_WISE=0.275 gap=+0.225",
+    "[exp030]   seed=1 K=6: END_TO_END=0.008 STEP_WISE=0.108 gap=+0.100",
+    "[exp030] seed=1 111.4s npar=201280",
+    "[exp030]   seed=2 K=1: END_TO_END=0.733 STEP_WISE=0.792 gap=+0.058",
+    "[exp030]   seed=2 K=2: END_TO_END=0.400 STEP_WISE=0.525 gap=+0.125",
+    "[exp030]   seed=2 K=4: END_TO_END=0.092 STEP_WISE=0.308 gap=+0.217",
+    "[exp030]   seed=2 K=6: END_TO_END=0.008 STEP_WISE=0.167 gap=+0.158",
+    "[exp030] seed=2 110.0s npar=201280",
+    "[exp030]   seed=3 K=1: END_TO_END=0.667 STEP_WISE=0.725 gap=+0.058",
+    "[exp030]   seed=3 K=2: END_TO_END=0.333 STEP_WISE=0.492 gap=+0.158",
+    "[exp030]   seed=3 K=4: END_TO_END=0.042 STEP_WISE=0.200 gap=+0.158",
+    "[exp030]   seed=3 K=6: END_TO_END=0.000 STEP_WISE=0.058 gap=+0.058",
+    "[exp030] seed=3 109.4s npar=201280",
+    "[exp030] VEREDICTO H-V4-1i: MIXTA | gap@K=6=+0.088 (req>=0.2) crece_monotono=False e2e_decae=True",
+    "[exp030] CURVA K->END_TO_END/STEP_WISE/gap: K1:0.667/0.692/+0.025 | K2:0.317/0.448/+0.131 | K4:0.046/0.219/+0.173 | K6:0.004/0.092/+0.088"
+  ]
+}

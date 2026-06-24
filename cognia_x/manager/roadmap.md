@@ -107,9 +107,17 @@ queda como restricción de VIABILIDAD, no como dirección.
   CONSEC_V) Y escapes_collapse a ruido alto (ADAPT 0.437 > CONSEC_V 0.415, hasta supera a las dos puras);
   worst_regret +0.008. r calibra monótona 1.00→0.39. D-V4-8, techo 'real'. Límite honesto: detecta ruido
   ALEATORIO, no SESGO sistemático.
-- [ ] **H-V4-1i (P0, próximo GRAN salto): razonamiento MULTI-PASO** — llevar el lazo act-and-verify + control
-  adaptativo a cadenas de varios pasos (donde el control intermedio y el ruido se COMPONEN); + verificador
-  real-chequeable (código→sandbox, exp018). Pendiente menor: estimador de SESGO sistemático del verificador.
+- [x] **CYCLE 44 (exp030) — H-V4-1i: MIXTA. La verificación INTERMEDIA frena el compounding.** Cadena de sumas
+  mod 20 sobre el modelo propio; step-wise act-and-verify vs end-to-end best-of-k a IGUAL cómputo (k·K).
+  Curva K→END_TO_END/STEP_WISE/gap: K1:0.667/0.692/+0.025 | K2:0.317/0.448/+0.131 | K4:0.046/0.219/+0.173 |
+  K6:0.004/0.092/+0.088. El gap ABSOLUTO no es monótono (cae a K=6 porque AMBAS colapsan a 0 con presupuesto
+  por-paso fijo), pero la ventaja RELATIVA crece monótona y es enorme (1.04×→4.8×→23× a K=6). La verif
+  intermedia (supervisión de PROCESO, cf. Lightman 2023) frena el compounding pero no lo elimina a presupuesto
+  por-paso fijo. (Se detectó y corrigió un piso de suerte mod-20 → verif de TRAZA COMPLETA.) D-V4-9, techo
+  'real'. → integrador multi-paso necesita presupuesto per-step ESCALADO/ADAPTATIVO.
+- [ ] **H-V4-1j (P0): control adaptativo PER-STEP en cadenas largas** — asignar más presupuesto a los pasos
+  difíciles (el control de 43 aplicado por paso) + backtracking/abstención cuando un paso no verifica +
+  verificador ruidoso/real-chequeable per-step.
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
 
 > Sub-arco INTEGRADOR (CYCLE 40-43) CERRADO: el lever de control es REAL (40, APOYADA), FRÁGIL al verificador
