@@ -296,3 +296,23 @@ regresión cazó que mi primera señal `p_top·(1−p_top)` era *simétrica* (no
 2/3); corregida a consenso-emergente monótono, el MIXTA se mantuvo → el null es del fenómeno, no del bug.
 **Próximo (H-V4-1h):** una política **adaptativa** que estime la fiabilidad del verificador (acuerdo
 verificador-vs-consenso) y **mezcle** las señales según ese estimado.
+
+### CYCLE 43 — H-V4-1h: la política adaptativa que cierra el integrador (capstone 40-43)
+
+exp028 cerró que no hay señal de asignación única dominante. **H-V4-1h** da la salida: una política
+**adaptativa** que estima cuánto confiar en el verificador y mezcla las señales. La fiabilidad `r` se estima
+**sin ground-truth** por **test-retest**: se consulta el verificador dos veces sobre cada muestra del probe y
+se mide su auto-acuerdo (`r = clip(2·P(coinciden)−1, 0, 1)`). Crucial: este estimador NO depende del consenso
+del modelo (un primer intento basado en "el verificador aprueba el consenso del modelo" **fracasó** —el modelo
+débil tiene mal consenso, dando r≈0 aun con verificador perfecto; el smoke lo expuso y se reemplazó). El peso
+de asignación es `w = r·CONSEC_V + (1−r)·CONSEC_FREE`. **Resultado APOYADA, no-regret.** Curva
+vnoise→CONSEC_V/CONSEC_FREE/ADAPT(r_est): `0.0:0.690/0.621/0.688(r=1.00) · 0.1:0.527/0.550/0.535(r=0.61) ·
+0.2:0.415/0.415/0.437(r=0.39)`. A verificador bueno (r≈1) ADAPT **mantiene el edge** de CONSEC_V (0.688≈0.690);
+a ruido alto (r≈0.39) **escapa el colapso** y hasta **supera a las dos puras** (0.437 > 0.415) — la mezcla
+hedgea. `worst_regret = +0.008`: ADAPT nunca queda por debajo del mínimo de sus componentes. **Cierra el
+sub-arco integrador 40-43:** el lever de control es **real** (40), **frágil** al verificador (41), **sin señal
+única dominante** (42) y se **resuelve** con una política adaptativa calibrada por la consistencia del
+verificador (43). El integrador de un paso queda diseñado y verificado sobre el modelo propio del lab.
+**Límite honesto:** el test-retest detecta ruido *aleatorio*, no *sesgo sistemático*. **Próximo gran salto
+(H-V4-1i):** razonamiento **multi-paso** (donde control y ruido se componen) y verificador real-chequeable
+(código→sandbox).

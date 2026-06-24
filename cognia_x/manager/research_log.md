@@ -1247,3 +1247,38 @@ verificador sintético; falta multi-paso y verificador real-chequeable.
 exp028 (4 seeds, M=120, HybridLM propio). cycle42 → H-V4-1g 'mixta' (DoD), D-V4-7 ACEPTADA, 1 techo 'real'
 (no hay señal única dominante → política adaptativa), analogía, verify_no_loss=OK. Test
 `test_cycle42_robust_control_signal.py` 3/3.
+
+## CYCLE 43 — H-V4-1h: política ADAPTATIVA (capstone del sub-arco integrador 40-43)
+
+### Pregunta
+¿Una política que estima ONLINE la fiabilidad del verificador (sin ground-truth) y mezcla la señal de control
+verifier-dependiente con la verifier-free logra no-regret — lo mejor de ambas en todo el rango de ruido?
+
+### Diseño
+Extiende exp028 (mismo HybridLM + verificador ruidoso, commit verifier-based igual para todas). Fiabilidad
+GLOBAL r por TEST-RETEST: se consulta el verificador DOS veces por sample del probe y se mide su auto-acuerdo;
+r=clip(2·P(coinciden)−1,0,1). Peso w_adapt=r·w_CONSEC_V+(1−r)·w_CONSEC_FREE. Políticas: CONSEC_V, CONSEC_FREE,
+ADAPT (+ oracle_best = best-of por nivel, referencia no implementable). Barrido vnoise∈{0,0.1,0.2}, 4 seeds.
+Pre-registrado: APOYADA si ADAPT≥CONSEC_V−0.02 a vnoise=0 (keeps edge) Y ADAPT≥CONSEC_V+0.02 a vnoise alto
+(escapes collapse) Y r baja con el ruido.
+
+### Resultado — APOYADA (no-regret)
+Curva vnoise→CONSEC_V/CONSEC_FREE/ADAPT(r_est): 0.0:0.690/0.621/0.688(r=1.00) | 0.1:0.527/0.550/0.535(r=0.61)
+| 0.2:0.415/0.415/0.437(r=0.39). keeps_edge SÍ (ADAPT≈CONSEC_V a r≈1), escapes_collapse SÍ (ADAPT 0.437 >
+CONSEC_V 0.415 a ruido alto, hasta supera a las dos puras), r calibra monótona, worst_regret +0.008 (ADAPT
+nunca por debajo del mínimo de sus componentes). Resuelve la no-dominancia de exp028.
+
+### Disciplina / límites (honestos)
+El PRIMER estimador (acuerdo verificador-vs-consenso del modelo) FALLÓ — r≈0 aun a vnoise=0 porque el modelo
+débil tiene mal consenso (la self-consistency no aplica). El smoke lo expuso; se reemplazó por test-retest,
+que calibra correcto y NO depende de la corrección del modelo. Límite: test-retest detecta ruido ALEATORIO,
+no SESGO sistemático (un verificador siempre-acepta se vería consistente). Verificador sintético; tarea de 1
+paso (el multi-paso es el próximo gran salto).
+
+### Verificación
+exp029 (4 seeds, M=120, HybridLM propio). cycle43 → H-V4-1h 'apoyada' (DoD), D-V4-8 ACEPTADA, 1 techo 'real'
+(política adaptativa no-regret, cierra 40-43), analogía, verify_no_loss=OK. Test
+`test_cycle43_adaptive_allocation.py` 4/4.
+
+> SUB-ARCO INTEGRADOR 40-43 CERRADO: control REAL (40) → frágil al verificador (41) → sin señal única
+> dominante (42) → resuelto con adaptación calibrada por la consistencia del verificador (43, no-regret).

@@ -3616,3 +3616,21 @@ ejecución real) es el lever central de la auto-mejora segura.
 - cycle42 por compuertas (verify=OK, DoD MIXTA, D-V4-7 ACEPTADA, 1 techo 'real'), test_cycle42 3/3.
 - PRÓXIMO (P0): H-V4-1h — política ADAPTATIVA: estimar la fiabilidad del verificador (acuerdo verificador-vs-
   consenso) y MEZCLAR control-verifier-dependiente / verifier-free / pasiva según ese estimado.
+
+## CYCLE 43 (RESET v4) — H-V4-1h: política ADAPTATIVA, capstone integrador (2026-06-24)
+- exp029_adaptive_allocation / H-V4-1h APOYADA: resuelve la no-dominancia de CYCLE 42. Política que estima la
+  fiabilidad r del verificador por TEST-RETEST (re-consultarlo dos veces por sample y medir auto-acuerdo;
+  r=clip(2·P(coinciden)−1,0,1)) — SIN ground-truth, NO depende del consenso del modelo débil — y mezcla
+  w=r·CONSEC_V+(1−r)·CONSEC_FREE. 4 seeds in-band, avg=5, n_probe=3.
+- Curva vnoise→CONSEC_V/CONSEC_FREE/ADAPT(r_est): 0.0:0.690/0.621/0.688(r=1.00) | 0.1:0.527/0.550/0.535(r=0.61)
+  | 0.2:0.415/0.415/0.437(r=0.39). NO-REGRET: keeps_edge (ADAPT≈CONSEC_V a r≈1) Y escapes_collapse (ADAPT
+  0.437 > CONSEC_V 0.415 a ruido alto, hasta supera a las dos puras = hedge); worst_regret +0.008; r calibra
+  monótona 1.00→0.39.
+- Disciplina: el PRIMER estimador (acuerdo verificador-vs-consenso del modelo) FALLÓ (r≈0 aun a vnoise=0,
+  porque el modelo débil tiene mal consenso); el smoke lo expuso y se reemplazó por test-retest, que calibra
+  correcto. Límite honesto: detecta ruido ALEATORIO, no SESGO sistemático.
+- SUB-ARCO INTEGRADOR 40-43 CERRADO: control REAL (40) → FRÁGIL al verificador (41) → sin señal única
+  dominante (42) → RESUELTO con adaptación calibrada (43). Integrador de 1 paso diseñado y verificado.
+- cycle43 por compuertas (verify=OK, DoD APOYADA, D-V4-8 ACEPTADA, 1 techo 'real'), test_cycle43 4/4.
+- PRÓXIMO (P0, GRAN salto): H-V4-1i — razonamiento MULTI-PASO (control intermedio + ruido se componen) +
+  verificador real-chequeable (código→sandbox, exp018). Pendiente menor: estimador de sesgo sistemático.

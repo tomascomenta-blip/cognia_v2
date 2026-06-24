@@ -99,9 +99,22 @@ queda como restricción de VIABILIDAD, no como dirección.
   confiable y colapsa sin él; el verifier-free es robusto pero no un free lunch. (El test de regresión cazó un
   bug: la señal p_top·(1−p_top) era simétrica; corregida a consenso-emergente monótono el MIXTA se mantuvo →
   null real.) D-V4-7, techo 'real'. → integrador necesita política ADAPTATIVA.
-- [ ] **H-V4-1h (P0): política ADAPTATIVA** — estimar la fiabilidad del verificador (acuerdo verificador-vs-
-  consenso) y MEZCLAR control-verifier-dependiente / verifier-free / pasiva según ese estimado.
+- [x] **CYCLE 43 (exp029) — H-V4-1h: APOYADA. CAPSTONE del sub-arco integrador (cierra 40-43).** Política
+  ADAPTATIVA que estima la fiabilidad r del verificador por TEST-RETEST (re-consultarlo y medir su auto-acuerdo;
+  SIN ground-truth, NO depende del consenso del modelo débil) y mezcla w=r·CONSEC_V+(1−r)·CONSEC_FREE. Logra
+  NO-REGRET. Curva vnoise→CONSEC_V/CONSEC_FREE/ADAPT(r_est): 0.0:0.690/0.621/0.688(r=1.00) |
+  0.1:0.527/0.550/0.535(r=0.61) | 0.2:0.415/0.415/0.437(r=0.39). keeps_edge a verificador bueno (r≈1→usa
+  CONSEC_V) Y escapes_collapse a ruido alto (ADAPT 0.437 > CONSEC_V 0.415, hasta supera a las dos puras);
+  worst_regret +0.008. r calibra monótona 1.00→0.39. D-V4-8, techo 'real'. Límite honesto: detecta ruido
+  ALEATORIO, no SESGO sistemático.
+- [ ] **H-V4-1i (P0, próximo GRAN salto): razonamiento MULTI-PASO** — llevar el lazo act-and-verify + control
+  adaptativo a cadenas de varios pasos (donde el control intermedio y el ruido se COMPONEN); + verificador
+  real-chequeable (código→sandbox, exp018). Pendiente menor: estimador de SESGO sistemático del verificador.
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
+
+> Sub-arco INTEGRADOR (CYCLE 40-43) CERRADO: el lever de control es REAL (40, APOYADA), FRÁGIL al verificador
+> (41, MIXTA), sin señal única dominante (42, MIXTA) y se RESUELVE con una política adaptativa calibrada por la
+> consistencia del verificador (43, APOYADA, no-regret). El integrador de 1 paso queda diseñado y verificado.
 - [ ] INTEGRADOR (P1): lazo act-and-verify barato con valor endógeno de CONTROLABILIDAD sobre el sustrato de
   lenguaje (unifica R-VALOR+R-INTERVENCIÓN; convergente con TTS verifier-based). H-V4-3/4/5/6: ver `_directiva_v4.md` §3.
 
