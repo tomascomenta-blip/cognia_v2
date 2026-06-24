@@ -350,3 +350,42 @@ Taylor + mimetic init). El techo "el cuello NO es tamaño de estado" entra al ba
 
 > Más fichas (E2 SWA vs full real con GGUF, E4 RAG vs LoRA, E5 peso de embedding en un GGUF real)
 > en `future_work.md`.
+
+---
+
+## exp022 — H-V4-1 (RESET v4): valor endógeno vs predicción pasiva, bajo intervención
+
+### Pregunta
+¿Un valor ENDÓGENO (info-gain sobre el propio modelo, SIN verificador externo de la verdad) construye una
+representación más causal que la predicción PASIVA, visible bajo INTERVENCIÓN e invisible i.i.d.?
+
+### Diseño (control anti-confound §4.3 + step-parity §4.4)
+Mundo causal confundido: D=12 features binarias; un CLÚSTER de 4 vale TODO la causa latente z en el stream
+observacional (confusión perfecta), una es la causa verdadera c; el resto son distractores i.i.d. Mecánica
+y=x[c] con ruido de observación p_obs=0.10. Tres agentes COMPARTEN la misma clase de modelo (posterior
+bayesiano sobre las 12 hipótesis "y=x_i") y el MISMO update; lo ÚNICO que cambia es la POLÍTICA que genera
+la experiencia: **A pasivo** (recibe el stream observacional confundido), **B info-gain** (elige la config
+que maximiza la información esperada sobre su propio posterior — valor endógeno), **C azar-activo**
+(elige al azar; ablación). Se barre el presupuesto K∈{2,4,8,16,32,64}, 24 seeds, n_test=4000.
+
+### Cómo correr
+`.\venv312\Scripts\python.exe -m cognia_x.experiments.exp022_endogenous_value.run`
+
+### Resultado (MIXTA)
+- **Intervención** (configs uniformes que rompen la confusión): A PLANO 0.65→0.69 en todo K (flatness
+  Kmid→Kmax=0.013) → muro INFORMACIONAL; B/C → 1.000; B−A=+0.31 a Kmax.
+- **i.i.d.**: |A−B|=0.04 → el hueco es INVISIBLE sin intervención.
+- **Valor específico NO aislado**: B−C(K chico)=−0.007 → el azar-activo basta con presupuesto; el
+  experimento no separa "info-gain" de "intervención activa".
+
+### Amenazas a la validez (honestidad)
+- Mundo tabular sintético, mecánica determinista + ruido de observación; tarea de identificación de causa,
+  no "razonamiento real".
+- Dos checks PRE-REGISTRADOS estaban mal especificados (nivel-absoluto/convergencia en vez de
+  planitud/gap); se conservan visibles y se agregaron diagnósticos correctos. Veredicto MIXTA con ambos.
+- Datos canónicos: `cognia_x/experiments/exp022_endogenous_value/results/results.json`.
+
+### Conclusión
+Demuestra **R-INTERVENCIÓN** (intervenir rompe el muro informacional que observar no puede; → techo
+'real'). **R-VALOR** específico queda 'asumido' (backlog) y genera **H-V4-1b** (aislar info-gain vs azar en
+régimen presupuesto-chico/ruido-alto/espacio-grande). Registrado vía `cycle35_endogenous_value.py`.

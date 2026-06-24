@@ -3516,3 +3516,16 @@ ejecución real) es el lever central de la auto-mejora segura.
 - **F-SPEED en standby: arco completo, pendiente solo la decisión del dueño sobre la cabeza EAGLE
   (autorización GPU).** Backlog no-gated/seguro AGOTADO; próximos ciclos del cron: sin cambios salvo nueva
   instrucción del dueño.
+
+## [2026-06-24] COGNIA-X — RESET v4: árbol de descomposición raíz + H-V4-1 (valor endógeno) MIXTA
+- El dueño autorizó "Reset a v4 (raíz pura)". Se produjo el artefacto que faltaba: el árbol de
+  descomposición recursiva de "¿qué es una inteligencia y por qué los enfoques actuales no llegan a la
+  raíz?" (cognia_x/manager/decomposition_tree.md), por 6 lentes + auditoría adversarial + síntesis,
+  anclado al código (cazó 4 errores de fidelidad propios). Convergencia 5/6 lentes: R-VALOR (función de
+  valor endógena) es el primer problema; la tesis bytes-por-token queda como SÍNTOMA/viabilidad.
+- CYCLE 35 (exp022_endogenous_value): H-V4-1 MIXTA. R-INTERVENCIÓN demostrada (pasivo PLANO bajo
+  intervención por más presupuesto → muro informacional, flatness 0.013, B-A=+0.31, gap invisible i.i.d.);
+  R-VALOR específico NO aislado (azar-activo basta, B-C=-0.007) → hija H-V4-1b. Pasó por las compuertas del
+  engine (DoD, ledger D-V4-1, 2 techos, analogía, verify_no_loss=OK). Test regresión 5/5; engine 20/20.
+- Nuevo: _directiva_v4.md (conserva v1/v2/v3). PENDIENTE: H-V4-1b (aislar valor vs azar), H-V4-2
+  (identificabilidad sin cuerpo). Verificado end-to-end con venv312.

@@ -247,3 +247,18 @@
   (la literatura/Amodei lo apoya; rl_strong degenerate=0.000 = el fuerte suprime el echo incluso bajo RL).
 - **Evidencia:** exp020 (tier-5) + [[arXiv:2203.14465]] STaR + [[arXiv:1606.06565]] reward-hacking. ACEPTADA
   por el ledger. Registrada vía cycle33_rl_vs_imitation.py. **Reversible:** sí (RL estabilizado / mayor escala).
+
+## D-V4-1 (2026-06-24, CYCLE 35) — RESET v4: R-VALOR como North Star; ACTUAR/INTERVENIR como primer motor
+- **Decisión:** el reset v4 adopta **R-VALOR** (función de valor endógena: qué información importa, generada
+  por el propio sistema) como North Star del laboratorio, y como PRIMER motor verificado adopta
+  **ACTUAR/INTERVENIR** (R-INTERVENCIÓN). La tesis previa (bytes-por-token / híbrido) se conserva como
+  restricción de **VIABILIDAD** (todo corre en CPU finita), NO como dirección a la raíz. Próximo: H-V4-1b
+  (aislar el VALOR info-gain del azar-activo) y H-V4-2 (identificabilidad sin cuerpo).
+- **Razón:** el árbol de descomposición raíz (`decomposition_tree.md`, 6 lentes + auditoría adversarial)
+  converge en R-VALOR (5/6 lentes). exp022 (CYCLE 35): bajo intervención el pasivo queda PLANO por más
+  presupuesto (flatness 0.013; muro informacional), las políticas activas → 1.0 (B−A=+0.31), gap invisible
+  i.i.d. → R-INTERVENCIÓN demostrada (techo 'real'). R-VALOR específico aún 'asumido' (el azar-activo basta;
+  B−C=−0.007) → backlog.
+- **Evidencia:** exp022 (tier-5) + exp017 (tier-5, el lab solo había demostrado valor EXTERNO). ACEPTADA por
+  el ledger. Registrada vía cycle35_endogenous_value.py. **Reversible:** sí; v1/v2/v3 conservadas
+  (append-only); si H-V4-1b/H-V4-2 refutaran R-VALOR/R-INTERVENCIÓN, se reabre el rumbo.

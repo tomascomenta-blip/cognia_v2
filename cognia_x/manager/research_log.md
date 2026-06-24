@@ -988,3 +988,48 @@ no rabbit-holeé más tuneo de RL.
 ### Verificación
 exp020 (n=3). cycle33_rl_vs_imitation.py → H-LEARN-5 refutada (DoD), D-LEARN-5, techo 'asumido' (método RL),
 verify_no_loss=OK.
+
+---
+
+> (CYCLE 34 F-SPEED / speculative decoding en standby — su bitácora vive en `manager_log.md` y el README de exp021.)
+
+## CYCLE 35 (2026-06-24) — RESET v4: el árbol de descomposición raíz + H-V4-1 (valor endógeno) MIXTA
+
+### Contexto — el RESET
+El dueño autorizó "Reset a v4 (raíz pura)". Antes de codear, se produjo el artefacto que el prompt
+fundacional pedía y no existía: el **árbol de descomposición recursiva** de "¿qué es una inteligencia y por
+qué los enfoques actuales no llegan a la raíz?" (`decomposition_tree.md`), por excavación de **6 lentes
+independientes + auditoría adversarial por lente + síntesis**, anclado al código del lab (las lentes
+bajaron a los resultados reales y cazaron 4 errores de fidelidad: el techo d² ya refutado por exp010; "no
+hay do() en el repo" falso por exp020; exp019/020 citadas al revés; "backprop=patología" contra H-BIO-3).
+**Convergencia (5/6 lentes): R-VALOR** — la ausencia de una función-de-valor ENDÓGENA que defina qué
+información importa — es el verdadero primer problema. La tesis previa (bytes-por-token/híbrido) queda como
+SÍNTOMA (restricción de viabilidad, no dirección).
+
+### Pregunta (H-V4-1)
+¿Un valor ENDÓGENO (info-gain sobre el propio modelo, SIN verificador externo de la verdad) construye una
+representación más causal que la predicción PASIVA, visible bajo INTERVENCIÓN?
+
+### Experimento (exp022_endogenous_value) — control anti-confound + step-parity, 24 seeds, CPU/numpy
+Mundo causal confundido (clúster de 4 features = causa latente z en el stream observacional; 1 es la causa
+verdadera). Tres agentes con la MISMA clase de modelo (posterior bayesiano sobre "y=x_i") y MISMO update;
+sólo cambia la POLÍTICA: A pasivo (stream confundido), B info-gain (consulta activa por información),
+C azar-activo (ablación). Se barre el presupuesto K∈{2,4,8,16,32,64}.
+
+### Veredicto: H-V4-1 MIXTA
+- **R-INTERVENCIÓN demostrada (limpia):** A queda PLANO bajo intervención por más presupuesto (0.65→0.69;
+  flatness Kmid→Kmax = 0.013) → muro INFORMACIONAL, no de recursos; B/C activos → 1.000; B−A=+0.31 a Kmax;
+  gap INVISIBLE i.i.d. (|A−B|=0.04). → R-INTERVENCIÓN sube a techo 'real'.
+- **R-VALOR específico NO aislado:** el azar-activo (C) también llega a 1.000 con presupuesto suficiente y
+  empata/gana a info-gain a presupuesto chico (B−C=−0.007). El experimento NO separa "valor info-gain" de
+  "intervención activa". → R-VALOR queda 'asumido' (backlog). Genera la hija **H-V4-1b**.
+
+### Honestidad
+Dos checks PRE-REGISTRADOS estaban mal especificados (nivel-absoluto/convergencia en vez de planitud/gap);
+se conservan visibles y se agregaron diagnósticos correctos — el veredicto es MIXTA con ambos (no
+goalpost-moving). El experimento bundlea dos claims y solo aísla uno: MIXTA honesta, no apoyada.
+
+### Verificación
+exp022 (24 seeds). cycle35_endogenous_value.py → H-V4-1 marcada 'mixta' (DoD completo), D-V4-1 ACEPTADA por
+el ledger (tier5 exp022 + tier5 exp017), 2 techos (R-INTERVENCIÓN 'real', R-VALOR 'asumido'), analogía
+7-etapas, verify_no_loss=OK. Test de regresión `test_cycle35_endogenous_value.py` 5/5; engine 20/20.

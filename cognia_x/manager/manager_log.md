@@ -104,3 +104,8 @@
   varios probes sub-óptimos al detectarlos (no esperé a que fallaran del todo).
 - Next: refuerzo a prof. 6 (híbrido mayoría-lineal 33% atención) corriendo; correr tests como
   compuerta final; documentar en memoria. char-LM corpus mayor sigue pendiente (CYCLE 7).
+
+## [2026-06-24] RESET v4 — R-VALOR como North Star (CYCLE 35)
+- Árbol de descomposición raíz (decomposition_tree.md): 6 lentes + auditoría adversarial → R-VALOR (5/6).
+- exp022 / cycle35 / H-V4-1: MIXTA — R-INTERVENCIÓN 'real' (muro informacional del pasivo), R-VALOR
+  'asumido' (azar-activo basta → H-V4-1b). D-V4-1 registrada. _directiva_v4.md vigente (conserva v1/v2/v3).

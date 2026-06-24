@@ -49,3 +49,16 @@ Observación → recomendaciones, con evaluador verificable + rollback antes de 
 
 > Criterio de avance entre fases: hipótesis clave apoyada por experimento reproducible + 0
 > regresiones + reproducibilidad mantenida.
+
+## F-V4 — RESET a la raíz (R-VALOR como North Star)  🟡 EN CURSO (2026-06-24)
+Tras excavar el árbol de descomposición raíz (`decomposition_tree.md`, 6 lentes + auditoría adversarial),
+el verdadero primer problema es **R-VALOR** (función de valor endógena), no la eficiencia del decode (que
+es un SÍNTOMA). Constitución vigente: `_directiva_v4.md` (conserva v1/v2/v3). La tesis bytes-por-token
+queda como restricción de VIABILIDAD, no como dirección.
+- [x] **CYCLE 35 (exp022) — H-V4-1: MIXTA.** R-INTERVENCIÓN demostrada (el pasivo queda PLANO bajo
+  intervención por más presupuesto → muro informacional; flatness ~0.013; B-A=+0.31; gap invisible i.i.d.).
+  R-VALOR específico NO aislado (el azar-activo basta con presupuesto). R-INTERVENCIÓN → techo 'real';
+  R-VALOR → 'asumido'. D-V4-1 registrada.
+- [ ] H-V4-1b (P0): aislar info-gain vs azar-activo en régimen presupuesto-chico/ruido-alto/espacio-grande.
+- [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
+- [ ] H-V4-3/4/5/6 + rama control-vs-predicción: ver `_directiva_v4.md` §3 y `decomposition_tree.md`.

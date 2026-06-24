@@ -415,3 +415,20 @@ marcan dónde la intuición/literatura se sobre-extiende. Confianza = del veredi
 ICML'24, Arora "Zoology" ICLR'24) **coincide con mi exp002 empírico** (capacidad = d²/32). Dos
 caminos independientes (micro-experimento propio + revisión de literatura verificada) llegan al
 mismo techo estructural. Esto eleva la confianza en P4 y en la decisión del backbone híbrido.
+
+---
+
+## Hipótesis v4 (RESET — R-VALOR como North Star, 2026-06-24)
+
+> Ver `decomposition_tree.md` (árbol raíz) y `_directiva_v4.md`. El North Star pasa a R-VALOR (función de
+> valor endógena); la tesis bytes-por-token queda como restricción de viabilidad, no como dirección.
+
+| id | enunciado | estado | conf. | nota / evidencia |
+|----|-----------|:-----:|:-----:|------------------|
+| **H-V4-1** | un valor ENDÓGENO (info-gain, sin verificador externo) construye un modelo más causal que la predicción pasiva, visible bajo intervención | ⚖️ **mixta** | media | **exp022** (24 seeds): R-INTERVENCIÓN demostrada (A pasivo PLANO bajo intervención, flatness 0.013, B−A=+0.31, gap invisible i.i.d.); R-VALOR específico NO aislado (azar-activo basta, B−C=−0.007) → hija H-V4-1b |
+| H-V4-1b | el VALOR info-gain supera al azar-activo en régimen presupuesto-chico/ruido-alto/espacio-grande (donde el azar NO alcance) | ⬜ abierta | — | aísla VALOR de ACTIVIDAD; test crítico de R-VALOR |
+| H-V4-2 | la identificabilidad causal exige variación de distribución, NO cuerpo: interventor > pasivo con 100× datos (SCM de juguete) | ⬜ abierta | — | formaliza R-INTERVENCIÓN; refuta el supuesto "se necesita encarnación" |
+| H-V4-3 | la CALIDAD del prior (no su forma) fija la eficiencia muestral; equivarianza iguala a MDL a fracción del costo | ⬜ abierta | — | ataca R-PRIOR; separa "prior necesario" de "MDL/programas" (NFL) |
+| H-V4-4 | el techo de recall es de OPTIMIZACIÓN, no d²: un currículo mueve el plateau, agrandar el estado no | ⬜ abierta | — | limpieza de deriva (C-02/exp010 ya lo apuntaban) |
+| H-V4-5 | escribir≡olvidar (rate-distortion dirigido por valor); quitar la utilidad mata la ventaja | ⬜ abierta | — | ablación que ata la memoria a R-VALOR |
+| H-V4-6 | el reward-hack no es la barrera temida (exp019/020 refutadas); sólo emerge si el atajo es más barato | ⬜ abierta | — | limpieza; barrer el costo del atajo |

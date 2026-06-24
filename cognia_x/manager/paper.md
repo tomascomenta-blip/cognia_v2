@@ -137,3 +137,29 @@ límite de MÉTODO, no del mecanismo (la literatura/Amodei lo apoya; rl_strong d
 suprime el echo incluso bajo RL). El contrapunto RL queda como future work (RL estabilizado / mayor escala);
 el insight de H-LEARN-4 (imitación robusta) se sostiene solo. F-LEARN-2 cierra: H-LEARN-1/2/3/4 apoyadas,
 H-LEARN-5 null de método → el VERIFICADOR es el lever central; la IMITACIÓN es la opción segura.
+
+## 8. RESET v4 — del síntoma (eficiencia) a la raíz (R-VALOR) (2026-06-24)
+
+Tras 34 ciclos centrados en la eficiencia (tesis "bytes-por-token / híbrido"), el dueño autorizó un RESET a
+primeros principios. Se construyó el artefacto que el prompt fundacional pedía y faltaba: el **árbol de
+descomposición raíz** (`decomposition_tree.md`) de *"¿qué es una inteligencia y por qué los enfoques
+actuales no llegan a la raíz?"*, por excavación de **6 lentes independientes + auditoría adversarial +
+síntesis**, anclado al código del lab (cazó 4 errores de fidelidad propios).
+
+**Hallazgo central — convergencia (5/6 lentes): R-VALOR.** El verdadero primer problema no es la eficiencia
+del decode (un SÍNTOMA), sino la **ausencia de una función-de-valor ENDÓGENA** que defina qué información
+importa: comprimir-asimétrico, escribir/olvidar-selectivo, asignar-cómputo y consolidar son indefinibles
+sin un escalar de valor. Raíces convergentes subordinadas: **R-INTERVENCIÓN** (la causa solo es
+identificable si la distribución varía — límite informacional) y **R-PRIOR** (un prior fuerte es necesario;
+su calidad fija la eficiencia muestral). La tesis bytes-por-token queda como restricción de **viabilidad**.
+
+### 8.1 H-V4-1 (CYCLE 35, exp022) — valor endógeno vs predicción pasiva: MIXTA
+Primer ataque a R-VALOR, en CPU, SIN verificador externo (mundo causal confundido; 3 agentes con idéntica
+clase de modelo y update; sólo cambia la política: pasivo / info-gain / azar-activo; 24 seeds, step-parity).
+**Resultado MIXTA:** demuestra limpiamente **R-INTERVENCIÓN** — la política PASIVA queda PLANA bajo
+intervención por más presupuesto que reciba (flatness 0.013 → muro INFORMACIONAL, no de recursos), mientras
+las políticas activas identifican la causa (B−A=+0.31); el hueco es INVISIBLE i.i.d. (|A−B|=0.04). Pero el
+VALOR específico (info-gain) **no se aísla** de la "intervención activa": el azar-activo también lo logra
+con presupuesto suficiente (B−C=−0.007). → R-INTERVENCIÓN a techo 'real'; R-VALOR 'asumido' (backlog);
+genera **H-V4-1b** (aislar el valor en régimen presupuesto-chico/ruido-alto/espacio-grande). Es el patrón
+"fracaso/mixta es información" (un bundle que aísla una mitad y afila la siguiente hipótesis).
