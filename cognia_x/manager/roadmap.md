@@ -90,8 +90,17 @@ queda como restricción de VIABILIDAD, no como dirección.
   depende del verificador; la pasiva-entropía no). A vnoise=0 reproduce exp026 (validación cruzada). D-V4-6,
   techo 'real'. → el integrador debe priorizar verificador preciso/auto-calibrado o una señal de control
   robusta-al-ruido.
-- [ ] **H-V4-1g (P0): señal de control robusta-al-ruido** — consecuencia estimada por DIVERGENCIA de rollouts
-  (sin depender del veredicto del verificador) y/o verificador real-chequeable (código→sandbox, exp018).
+- [x] **CYCLE 42 (exp028) — H-V4-1g: MIXTA. No hay señal de asignación única dominante.** Señal de control
+  VERIFIER-FREE (consenso emergente p_top de rollouts, sin tocar el verificador) vs la verifier-dependiente,
+  bajo verificador ruidoso. 4 seeds in-band, avg=5, n_probe=3. Curva vnoise→AZAR/PASIVA/CONSEC_V/CONSEC_FREE:
+  0.0:0.642/0.629/0.710/0.640 | 0.1:0.529/0.525/0.560/0.531 | 0.2:0.446/0.485/0.412/0.444. ROBUSTA SÍ
+  (FREE−CONSEC_V=+0.031 a vnoise=0.2, donde CONSEC_V colapsa a la peor); RECUPERA-EL-EDGE NO (CONSEC_V domina
+  a verificador bueno; CONSEC_FREE sólo empata baselines). El control verifier-dependiente paga con verificador
+  confiable y colapsa sin él; el verifier-free es robusto pero no un free lunch. (El test de regresión cazó un
+  bug: la señal p_top·(1−p_top) era simétrica; corregida a consenso-emergente monótono el MIXTA se mantuvo →
+  null real.) D-V4-7, techo 'real'. → integrador necesita política ADAPTATIVA.
+- [ ] **H-V4-1h (P0): política ADAPTATIVA** — estimar la fiabilidad del verificador (acuerdo verificador-vs-
+  consenso) y MEZCLAR control-verifier-dependiente / verifier-free / pasiva según ese estimado.
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
 - [ ] INTEGRADOR (P1): lazo act-and-verify barato con valor endógeno de CONTROLABILIDAD sobre el sustrato de
   lenguaje (unifica R-VALOR+R-INTERVENCIÓN; convergente con TTS verifier-based). H-V4-3/4/5/6: ver `_directiva_v4.md` §3.

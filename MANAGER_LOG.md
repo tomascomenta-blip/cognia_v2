@@ -3597,3 +3597,22 @@ ejecución real) es el lever central de la auto-mejora segura.
   cycle41 por compuertas (verify=OK, DoD MIXTA, D-V4-6 ACEPTADA, 1 techo 'real'), test_cycle41 3/3.
 - PRÓXIMO (P0): H-V4-1g — señal de consecuencia ROBUSTA-al-ruido (divergencia de rollouts, sin depender del
   veredicto del verificador) y/o verificador real-chequeable (código→sandbox, exp018) sobre lenguaje.
+
+## CYCLE 42 (RESET v4) — H-V4-1g: señal de control verifier-free (2026-06-24)
+- exp028_robust_control_signal / H-V4-1g MIXTA: señal de control VERIFIER-FREE (consenso emergente p_top de
+  rollouts, sin usar el veredicto del verificador) vs la verifier-dependiente (exp026) y baselines, bajo
+  verificador ruidoso. COMMIT verifier-based igual para todas (aísla la ASIGNACIÓN). 4 seeds in-band, avg=5,
+  n_probe=3.
+- Curva vnoise→AZAR/PASIVA/CONSEC_V/CONSEC_FREE: 0.0:0.642/0.629/0.710/0.640 | 0.1:0.529/0.525/0.560/0.531 |
+  0.2:0.446/0.485/0.412/0.444.
+- ROBUSTA SÍ (FREE−CONSEC_V=+0.031 a vnoise=0.2, donde CONSEC_V es la PEOR): la asignación verifier-free no se
+  corrompe con el ruido. RECUPERA-EL-EDGE NO: a verificador bueno (≤0.1) CONSEC_V DOMINA (0.710/0.560);
+  CONSEC_FREE sólo empata a azar/pasiva. LECCIÓN: no hay señal de asignación única dominante — el control
+  verifier-dependiente paga cuando el verificador es confiable y colapsa cuando no; el verifier-free es
+  robusto pero no un free lunch.
+- Disciplina: el test de regresión cazó un BUG conceptual — la señal p_top·(1−p_top) era SIMÉTRICA (no
+  distinguía caos 1/3 de consenso 2/3). Corregida a consenso-emergente monótono; el MIXTA se mantuvo → el null
+  es del fenómeno, no del bug. (También se reusó MODE_OFFSET determinista, evitando el hash() randomizado.)
+- cycle42 por compuertas (verify=OK, DoD MIXTA, D-V4-7 ACEPTADA, 1 techo 'real'), test_cycle42 3/3.
+- PRÓXIMO (P0): H-V4-1h — política ADAPTATIVA: estimar la fiabilidad del verificador (acuerdo verificador-vs-
+  consenso) y MEZCLAR control-verifier-dependiente / verifier-free / pasiva según ese estimado.

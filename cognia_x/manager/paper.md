@@ -276,3 +276,23 @@ ruido (aunque es peor sin ruido). **Conclusión para el integrador:** la **calid
 prerequisito** del lever de control, no un detalle de ingeniería. **Próximo (H-V4-1g):** una señal de
 consecuencia **robusta-al-ruido** (divergencia de rollouts, sin etiquetar correctas) y/o un verificador
 real-chequeable (código→sandbox, exp018) sobre lenguaje.
+
+### CYCLE 42 — H-V4-1g: ¿una señal de control sin verificador es la cura a la fragilidad?
+
+exp027 mostró que la señal de control de exp026 hereda el ruido del verificador. **H-V4-1g** prueba una señal
+**verifier-free**: asignar por **consenso emergente** de los rollouts (peso = p_top si p_top<1, si no 0; p_top
+= fracción de la respuesta plural en el probe — *self-consistency*, Wang 2022), que no toca el verificador. 4
+políticas (azar/pasiva/CONSEC_V verifier-dependiente/CONSEC_FREE verifier-free), commit verifier-based igual
+para todas (aísla la asignación), barrido de ruido, 4 seeds in-band. **Resultado MIXTA.** Curva
+vnoise→AZAR/PASIVA/CONSEC_V/CONSEC_FREE: `0.0:0.642/0.629/0.710/0.640 · 0.1:0.529/0.525/0.560/0.531 ·
+0.2:0.446/0.485/0.412/0.444`.
+
+**Robusta, sí:** a vnoise=0.2 CONSEC_FREE (0.444) supera a CONSEC_V (0.412, ya la peor) por +0.031 — su
+asignación no se corrompe con el ruido. **¿Recupera el edge? No:** a verificador bueno (≤0.1) CONSEC_V
+**domina** (0.710/0.560) y CONSEC_FREE sólo **empata** a azar/pasiva. **Conclusión honesta:** no existe una
+señal de asignación única dominante — el control verifier-dependiente paga cuando el verificador es confiable
+y colapsa cuando no; el verifier-free es robusto pero **no es un free lunch**. **Nota de método:** el test de
+regresión cazó que mi primera señal `p_top·(1−p_top)` era *simétrica* (no distinguía caos 1/3 de consenso
+2/3); corregida a consenso-emergente monótono, el MIXTA se mantuvo → el null es del fenómeno, no del bug.
+**Próximo (H-V4-1h):** una política **adaptativa** que estime la fiabilidad del verificador (acuerdo
+verificador-vs-consenso) y **mezcle** las señales según ese estimado.

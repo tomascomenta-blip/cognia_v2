@@ -1217,3 +1217,33 @@ La regla commit-first-accepted no es el artefacto (a vnoise=0 = best-of-k y repr
 exp027 (4 seeds, M=120, HybridLM propio + verificador ruidoso). cycle41 → H-V4-1f 'mixta' (DoD), D-V4-6
 ACEPTADA, 1 techo 'real' (lazo robusto / lever condicional), analogía, verify_no_loss=OK. Test
 `test_cycle41_noisy_verifier_ttc.py` 3/3.
+
+## CYCLE 42 — H-V4-1g: señal de control verifier-free (auto-consistencia) vs ruido del verificador
+
+### Pregunta
+¿Una señal de control que NO usa el veredicto del verificador (consenso emergente de rollouts) recupera la
+ventaja de exp026 Y resiste el ruido que hundió a la señal verifier-dependiente (exp027)?
+
+### Diseño
+Extiende exp027 (mismo HybridLM + verificador ruidoso para el COMMIT, igual para todas → aísla la ASIGNACIÓN).
+4 políticas de asignación del mismo presupuesto B=M·avg (avg=5, n_probe=3): AZAR, PASIVA (entropía),
+CONSEC_V (control verifier-dependiente de exp026), CONSEC_FREE (consenso emergente: peso = p_top si p_top<1
+si no 0; p_top=fracción de la respuesta plural). Barrido vnoise∈{0,0.1,0.2}, 4 seeds, M=120. Pre-registrado:
+APOYADA si CONSEC_FREE (a) a vnoise=0 ≥ pasiva y azar Y (b) a vnoise alto > CONSEC_V por ≥0.02.
+
+### Resultado — MIXTA
+Curva vnoise→AZAR/PASIVA/CONSEC_V/CONSEC_FREE: 0.0:0.642/0.629/0.710/0.640 | 0.1:0.529/0.525/0.560/0.531 |
+0.2:0.446/0.485/0.412/0.444. ROBUSTA SÍ (FREE−CONSEC_V=+0.031 a vnoise=0.2, donde CONSEC_V colapsa a la peor).
+RECUPERA-EL-EDGE NO (a verificador bueno CONSEC_V domina; CONSEC_FREE empata baselines). No hay señal de
+asignación única dominante: el régimen de calidad del verificador decide cuál gana.
+
+### Disciplina / límites (honestos)
+El test de regresión cazó un BUG: p_top·(1−p_top) es SIMÉTRICA (1/3 y 2/3 dan el mismo peso → no distingue
+caos de consenso emergente). Corregida a consenso-emergente monótono; el MIXTA se mantuvo → el null es del
+fenómeno. Reuso de MODE_OFFSET determinista (no hash() randomizado). n_probe=3 da p_top de baja resolución;
+verificador sintético; falta multi-paso y verificador real-chequeable.
+
+### Verificación
+exp028 (4 seeds, M=120, HybridLM propio). cycle42 → H-V4-1g 'mixta' (DoD), D-V4-7 ACEPTADA, 1 techo 'real'
+(no hay señal única dominante → política adaptativa), analogía, verify_no_loss=OK. Test
+`test_cycle42_robust_control_signal.py` 3/3.
