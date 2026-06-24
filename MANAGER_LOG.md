@@ -3653,3 +3653,18 @@ ejecución real) es el lever central de la auto-mejora segura.
   test_cycle44 4/4.
 - PRÓXIMO (P0): H-V4-1j — control adaptativo PER-STEP en cadenas largas (más presupuesto a los pasos difíciles)
   + backtracking/abstención cuando un paso no verifica + verificador ruidoso/real-chequeable per-step.
+
+## CYCLE 45 (RESET v4) — H-V4-1j: presupuesto ADAPTATIVO per-step (2026-06-24)
+- exp031_adaptive_perstep / H-V4-1j MIXTA (rescate fuerte): aplica el control adaptativo (43) ACROSS la cadena.
+  Presupuesto ADAPTATIVO per-step (gastar-hasta-verificar con pool compartido: parar al verificar, reinvertir
+  en los pasos difíciles, reserva 1/paso anti-starvation) vs UNIFORME, a IGUAL cómputo total B=avg·K. 4 seeds.
+- Curva K→UNIFORME/ADAPT/gain: K2:0.446/0.598/+0.152 | K4:0.190/0.423/+0.233 | K6:0.119/0.333/+0.215 |
+  K8:0.058/0.240/+0.181. El adaptativo GANA en TODA K (+0.15..+0.23) y RESCATA cadenas largas (a K=8 el
+  uniforme colapsa a 0.058, el adaptativo aguanta 0.240 = 4.1×). MIXTA solo porque el gain absoluto no es
+  monótono (pico K=4, satura a K extremo a presupuesto total fijo); la ventaja RELATIVA sí crece 1.3×→4.1×.
+- LECCIÓN: reasignar por dificultad (parar al verificar libera cómputo para los difíciles) es un lever fuerte
+  para multi-paso. El integrador multi-paso = verificación de PROCESO (44) + presupuesto ADAPTATIVO per-step
+  (45). Cota: a K extremo hace falta más B total o casi-perfeccionar el paso.
+- cycle45 por compuertas (verify=OK, DoD MIXTA, D-V4-10 ACEPTADA, 1 techo 'real'), test_cycle45 4/4.
+- PRÓXIMO (P0): H-V4-1k — backtracking/abstención cuando un paso agota su presupuesto sin verificar + reusar
+  la política adaptativa calibrada de 43 POR PASO bajo verificador RUIDOSO (el ruido per-step se compone).

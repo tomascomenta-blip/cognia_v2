@@ -115,10 +115,21 @@ queda como restricción de VIABILIDAD, no como dirección.
   intermedia (supervisión de PROCESO, cf. Lightman 2023) frena el compounding pero no lo elimina a presupuesto
   por-paso fijo. (Se detectó y corrigió un piso de suerte mod-20 → verif de TRAZA COMPLETA.) D-V4-9, techo
   'real'. → integrador multi-paso necesita presupuesto per-step ESCALADO/ADAPTATIVO.
-- [ ] **H-V4-1j (P0): control adaptativo PER-STEP en cadenas largas** — asignar más presupuesto a los pasos
-  difíciles (el control de 43 aplicado por paso) + backtracking/abstención cuando un paso no verifica +
-  verificador ruidoso/real-chequeable per-step.
+- [x] **CYCLE 45 (exp031) — H-V4-1j: MIXTA (rescate fuerte).** Presupuesto ADAPTATIVO per-step (gastar-hasta-
+  verificar con pool compartido: parar al verificar, reinvertir en los pasos difíciles) vs UNIFORME, a IGUAL
+  cómputo total B=avg·K. Curva K→UNIFORME/ADAPT/gain: K2:0.446/0.598/+0.152 | K4:0.190/0.423/+0.233 |
+  K6:0.119/0.333/+0.215 | K8:0.058/0.240/+0.181. El adaptativo GANA en TODA K (+0.15..+0.23) y RESCATA cadenas
+  largas (a K=8 uniforme colapsa a 0.058, adaptativo aguanta 0.240 = 4.1×). MIXTA solo porque el gain absoluto
+  no es monótono (pico K=4, satura a K extremo); la ventaja RELATIVA sí crece (1.3×→4.1×). D-V4-10, techo
+  'real'. → integrador multi-paso = verificación de PROCESO (44) + presupuesto ADAPTATIVO per-step (45).
+- [ ] **H-V4-1k (P0): backtracking/abstención + verificador RUIDOSO per-step** — cuando un paso agota su
+  presupuesto sin verificar (commitea uno malo y descarrila): backtrack o abstención; y reusar la política
+  adaptativa calibrada de 43 POR PASO bajo verificador ruidoso (el ruido per-step se compone).
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
+
+> Sub-arco MULTI-PASO (CYCLE 44-45) en curso: la verificación de PROCESO frena el compounding (44, MIXTA,
+> ventaja relativa creciente) y el presupuesto ADAPTATIVO per-step rescata cadenas largas (45, MIXTA, rescate
+> fuerte 4.1×). El integrador multi-paso = proceso + presupuesto adaptativo. Cota: a K extremo hace falta más B.
 
 > Sub-arco INTEGRADOR (CYCLE 40-43) CERRADO: el lever de control es REAL (40, APOYADA), FRÁGIL al verificador
 > (41, MIXTA), sin señal única dominante (42, MIXTA) y se RESUELVE con una política adaptativa calibrada por la

@@ -1314,3 +1314,36 @@ tiene ningún sample correcto, step-wise commitea uno malo y descarrila (falta b
 exp030 (4 seeds, modelo propio). cycle44 → H-V4-1i 'mixta' (DoD), D-V4-9 ACEPTADA, 1 techo 'real' (verif
 intermedia frena pero no elimina el compounding), analogía, verify_no_loss=OK. Test
 `test_cycle44_multistep_reasoning.py` 4/4. Convergente con 'Let's Verify Step by Step' (Lightman 2023).
+
+## CYCLE 45 — H-V4-1j: presupuesto ADAPTATIVO per-step en cadenas largas
+
+### Pregunta
+¿Gastar el cómputo "hasta verificar" con un pool COMPARTIDO entre pasos (más a los difíciles, menos a los
+fáciles) rescata las cadenas largas que el presupuesto por-paso FIJO dejaba colapsar (exp030), a IGUAL cómputo
+total?
+
+### Diseño
+Extiende exp030 (misma cadena de sumas mod 20). Presupuesto TOTAL B=avg·K por cadena. UNIFORME: cada paso
+recibe `avg` muestras. ADAPTATIVO: reserva 1/paso futuro (anti-starvation); en cada paso dibuja hasta
+cap=min(per_step_cap, 1+pool_extra) pero PARA al primer verificado; el costo real = índice del primer
+verificado +1; lo no gastado queda en el pool para los pasos difíciles. Mismo B total. Barrido K∈{2,4,6,8},
+avg=4, 4 seeds. Pre-registrado: APOYADA si ADAPT>UNIFORME en Kmax (>=0.03) y el gain crece/no-decrece.
+
+### Resultado — MIXTA (rescate fuerte)
+Curva K→UNIFORME/ADAPT/gain: K2:0.446/0.598/+0.152 | K4:0.190/0.423/+0.233 | K6:0.119/0.333/+0.215 |
+K8:0.058/0.240/+0.181. El adaptativo gana en TODA K (+0.15..+0.23) y rescata cadenas largas (a K=8 uniforme
+0.058 vs adaptativo 0.240 = 4.1×). MIXTA solo porque el gain absoluto no es monótono (pico K=4, satura a K
+extremo a presupuesto total fijo); la ventaja relativa sí crece monótona 1.3×→4.1×.
+
+### Límites (honestos)
+A K extremo, con presupuesto TOTAL fijo, incluso el adaptativo satura hacia 0 (hace falta escalar B o
+casi-perfeccionar el paso). Cuando un paso agota su presupuesto sin verificar, commitea uno malo y descarrila
+(falta backtracking/abstención). Verificador perfecto per-step (el ruidoso per-step es el siguiente realismo).
+
+### Verificación
+exp031 (4 seeds, modelo propio). cycle45 → H-V4-1j 'mixta' (DoD), D-V4-10 ACEPTADA, 1 techo 'real' (rescate de
+cadenas largas; satura a K extremo), analogía, verify_no_loss=OK. Test `test_cycle45_adaptive_perstep.py` 4/4.
+Convergente con asignación adaptativa de test-time compute (arXiv:2408.03314).
+
+> Sub-arco MULTI-PASO 44-45: verificación de PROCESO frena el compounding (44) + presupuesto ADAPTATIVO
+> per-step rescata cadenas largas (45). El integrador multi-paso = proceso + presupuesto adaptativo.

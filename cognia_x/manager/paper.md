@@ -337,3 +337,22 @@ multi-paso es verificar el **proceso**, no sólo el resultado; y para cadenas la
 el presupuesto por paso** — exactamente el control adaptativo del CYCLE 43 aplicado per-step. **Próximo
 (H-V4-1j):** control adaptativo per-step en cadenas largas + backtracking/abstención + verificador ruidoso
 per-step.
+
+### CYCLE 45 — H-V4-1j: presupuesto adaptativo per-step — rescatar las cadenas largas
+
+CYCLE 44 dejó un techo: con presupuesto por-paso **fijo**, las cadenas largas colapsan igual (se malgasta
+cómputo en los pasos fáciles). **H-V4-1j** aplica el control adaptativo (43) *a lo largo de la cadena*: a
+**igual cómputo total** `B=avg·K`, ¿gastar **hasta verificar** con un pool compartido (parar en cuanto un
+paso verifica, reinvertir lo ahorrado en los pasos difíciles) rescata las cadenas largas? **Resultado MIXTA,
+rescate fuerte.** Curva K→UNIFORME/ADAPT/gain: `K2:0.446/0.598/+0.152 · K4:0.190/0.423/+0.233 ·
+K6:0.119/0.333/+0.215 · K8:0.058/0.240/+0.181`.
+
+El presupuesto adaptativo **gana en todas las longitudes** (+0.15..+0.23) y **rescata las cadenas largas**:
+a K=8 el uniforme colapsa a 0.058 mientras el adaptativo aguanta **0.240 (4.1×)**, *sin gastar un solo
+sample más*. Es MIXTA solo porque el gain **absoluto** no es estrictamente monótono (pico en K=4, baja a K=8
+porque a presupuesto total fijo incluso el adaptativo satura) — la ventaja **relativa** sí crece monótona
+(1.3×→4.1×). **Mecanismo:** parar en cuanto un paso verifica libera cómputo para los pasos difíciles. **El
+integrador multi-paso queda definido:** verificación de **proceso** (44) + presupuesto **adaptativo per-step**
+(45). **Cota honesta:** a K extremo hace falta más presupuesto total, y cuando un paso agota su presupuesto
+sin verificar, descarrila (falta backtracking/abstención). **Próximo (H-V4-1k):** backtracking/abstención +
+verificador ruidoso per-step (reusando la política calibrada de 43 por paso).
