@@ -1149,3 +1149,36 @@ lenguaje (estimar empowerment/consecuencia sobre rollouts de un modelo chico) es
 ### Verificación
 exp025 (12 seeds). cycle39 → H-V4-1d 'apoyada' (DoD), D-V4-4 ACEPTADA, 1 techo 'real', analogía, verify=OK.
 Test `test_cycle39_empowerment_downstream.py` 4/4.
+
+## CYCLE 40 — H-V4-1e (INTEGRADOR): act-and-verify TTS sobre el modelo PROPIO, en LENGUAJE
+
+### Pregunta
+¿El valor de CONTROLABILIDAD/CONSECUENCIA (empowerment, CYCLE 38-39) sirve para asignar CÓMPUTO de
+test-time sobre el MODELO PROPIO del lab (HybridLM byte-level desde cero) y convierte cómputo barato en
+respuestas correctas mejor que el AZAR y la PREDICCIÓN-PASIVA, a igual presupuesto? (salto al lenguaje)
+
+### Diseño
+Base débil-pero-bootstrappable (banda acc∈[0.20,0.50]) en suma byte-level; oráculo int(A)+int(B) como
+verificador chequeable. Sobre M=120 problemas held-out, cada política reparte el MISMO presupuesto B=M·avg
+de samples (intervenciones). RESUELTO = algún sample pasa el verificador (best-of-k con checker). Políticas:
+AZAR (uniforme) / PASIVA (extra ∝ entropía del probe = incertidumbre) / CONSECUENCIA (extra ∝ empowerment
+sobre el resultado verificado: 0 si ya resuelto, ∝ diversidad alcanzable si no). Probe de n_probe=2 cuenta
+al presupuesto y se reusa. Barrido avg∈{2,3,4,6,8}, 4 seeds. Predicción pre-registrada: APOYADA si en el
+régimen escaso (menor avg>n_probe) CONSEC supera a AZAR Y a PASIVA por ≥0.03 y >2σ.
+
+### Resultado — APOYADA (en el régimen discriminante)
+Régimen escaso avg=3 (4 seeds in-band): CONSEC 0.562 / AZAR 0.506 (+0.056) / PASIVA 0.490 (+0.073), ambos
+>2σ(0.045). Curva: avg2 0.417/0.413/0.417 (degenerado, extra=0) | avg3 0.562/0.506/0.490 | avg4 0.608/0.581/
+0.550 | avg6 0.687/0.700/0.627 | avg8 0.702/0.735/0.633. La PASIVA-incertidumbre es la PEOR en todo el rango
+discriminante (anti-útil). A avg≥6 + verificador perfecto el AZAR alcanza/supera (efecto techo): la ventaja
+del valor existe SÓLO bajo ESCASEZ — misma forma que exp025 (capacidad limitada).
+
+### Límites (honestos)
+Verificador PERFECTO (oráculo); falta verificador ruidoso/parcial (exp017/018) sobre lenguaje. La señal de
+consecuencia usa un probe que consume presupuesto (falta señal más barata). Tarea de 1 paso; falta
+razonamiento multi-paso. El avg escaso NO se eligió a posteriori: a avg≤n_probe el extra=0 y las políticas
+son idénticas por construcción → el discriminante es el menor avg>n_probe (pre-definido).
+
+### Verificación
+exp026 (4 seeds, M=120, modelo propio HybridLM). cycle40 → H-V4-1e 'apoyada' (DoD), D-V4-5 ACEPTADA, 1 techo
+'real' (R-VALOR aplicado al lenguaje), analogía 7 etapas, verify_no_loss=OK. Test `test_cycle40_ttc_allocation.py` 4/4.

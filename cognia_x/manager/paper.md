@@ -231,3 +231,27 @@ capacidad PLENA (k=D) las tres empatan en 1.0 → **la ventaja del valor existe 
 agente** (exp025). El arco R-VALOR queda cerrado: real como mecanismo Y como lever. Justifica el integrador:
 un razonador act-and-verify que asigna su cómputo/atención limitada por controlabilidad/consecuencia.
 **Próximo (H-V4-1e / integrador):** dar el salto al sustrato de lenguaje.
+
+### CYCLE 40 — H-V4-1e (INTEGRADOR): el salto al LENGUAJE, sobre el modelo propio
+
+Hasta acá el arco R-VALOR (controlabilidad>predictibilidad) se demostró en mundos tabulares de juguete
+(exp022-025). **H-V4-1e** lo cruza al **sustrato de lenguaje** y al **modelo propio del lab** (HybridLM
+byte-level, entrenado desde cero en CPU), no a un GGUF externo. Tarea: suma byte-level con oráculo
+chequeable como **verificador**. Lazo **act-and-verify** = *muestrear* (cada sample es una intervención en
+la respuesta = R-INTERVENCIÓN) + *verificar* (quedarse con un sample sólo si pasa el checker). Pregunta: a
+**igual presupuesto** de cómputo de test-time, ¿asignarlo por **controlabilidad/consecuencia** (empowerment
+sobre el resultado verificado) gana al **azar** (uniforme) y a la **predicción-pasiva** (incertidumbre)?
+
+**APOYADA en el régimen discriminante.** Barrido de presupuesto avg∈{2,3,4,6,8} samples/problema, 4 seeds
+in-band (M=120 held-out). En el presupuesto ESCASO real (avg=3, el menor con cómputo libre para asignar):
+**CONSEC 0.562 / AZAR 0.506 (+0.056) / PASIVA 0.490 (+0.073)**, ambas diferencias > 2σ(0.045) y > margen.
+La **predicción-pasiva (incertidumbre) es la PEOR** de las tres en todo el rango discriminante — *anti-útil*,
+porque malgasta cómputo en lo incierto-pero-no-controlable (ya resuelto o irresoluble). Es el control
+DECISIVO del arco v4, ahora confirmado **en lenguaje**: controlabilidad ≠ predictibilidad. **Caveat honesto
+(la curva completa):** a avg≤n_probe el extra=0 y las políticas son idénticas por construcción (degenerado);
+a presupuesto generoso (avg≥6) + verificador perfecto el **azar alcanza/supera** (efecto techo). La ventaja
+del valor vive **bajo ESCASEZ de cómputo** — exactamente la forma de exp025 (la ventaja era del régimen de
+recursos limitados). **Conclusión:** primer ladrillo de "algo que razona barato" — TTS verifier-based
+(convergente con arXiv:2408.03314) **guiado por controlabilidad**, sobre el modelo propio, unificando
+R-INTERVENCIÓN + R-VALOR. **Próximo (H-V4-1f):** verificador ruidoso/parcial (exp017/018), señal de
+consecuencia sin probe caro, y razonamiento multi-paso.

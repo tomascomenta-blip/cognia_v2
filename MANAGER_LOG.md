@@ -3562,3 +3562,22 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Cierra el ARCO R-VALOR: real como mecanismo (exp024) Y como lever (exp025). D-V4-4: el integrador asignará
   cómputo por controlabilidad/consecuencia. cycle39 por compuertas (verify=OK), test 4/4.
 - PRÓXIMO (P0): H-V4-1e / INTEGRADOR — salto al sustrato de LENGUAJE (razonador act-and-verify barato).
+
+## CYCLE 40 (RESET v4) — H-V4-1e INTEGRADOR: el salto al LENGUAJE (2026-06-24)
+- exp026_ttc_allocation / H-V4-1e APOYADA: PRIMER ciclo sobre el MODELO PROPIO del lab (HybridLM byte-level
+  desde cero, PyTorch CPU) + oráculo de suma como verificador. Act-and-verify TTS = muestrear (actuar/
+  intervenir) + verificar (quedarse con lo correcto). Tres políticas reparten el MISMO presupuesto B; solo
+  cambia la DISTRIBUCIÓN: AZAR (uniforme) / PASIVA (∝ incertidumbre del probe) / CONSECUENCIA (∝ control sobre
+  el resultado verificado: 0 si ya resuelto, ∝ diversidad alcanzable si no).
+- Régimen ESCASO discriminante avg=3 (4 seeds in-band, M=120): CONSEC 0.562 / AZAR 0.506 (+0.056) / PASIVA
+  0.490 (+0.073), ambos > 2σ(0.045) y > margen(0.03) → APOYADA. La PASIVA-incertidumbre es la PEOR de las
+  tres (anti-útil): malgasta cómputo en lo incierto-pero-no-controlable. Confirma el arco v4
+  (controlabilidad ≠ predictibilidad) AHORA en lenguaje.
+- Caveat HONESTO (barrido de presupuesto avg∈{2,3,4,6,8}): a avg≤n_probe el extra=0 (políticas idénticas por
+  construcción, NO discriminante → por eso el escaso real es avg=3); a avg≥6 + verificador perfecto el AZAR
+  alcanza/supera (efecto techo). La ventaja del valor vive bajo ESCASEZ de cómputo — misma forma que exp025.
+- Unifica R-INTERVENCIÓN (muestrear+verificar) + R-VALOR (controlabilidad como criterio de gasto);
+  convergente con TTS verifier-based (arXiv:2408.03314). ~50s/seed CPU. cycle40 por compuertas (verify=OK,
+  DoD, D-V4-5 ACEPTADA, 1 techo 'real'), test_cycle40 4/4.
+- PRÓXIMO (P0): H-V4-1f — realismo del verificador (ruidoso/parcial, exp017/018) + señal de consecuencia
+  barata (sin probe que consuma presupuesto) + razonamiento multi-paso.

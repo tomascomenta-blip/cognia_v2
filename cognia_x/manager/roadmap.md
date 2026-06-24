@@ -72,12 +72,23 @@ queda como restricción de VIABILIDAD, no como dirección.
 - [x] **CYCLE 39 (exp025) — H-V4-1d: APOYADA. El empowerment como VALOR mejora la tarea.** A capacidad
   limitada k=n_ctrl: empowerment 1.000 / predictibilidad 0.250 (=azar) / azar 0.453; predictibilidad
   ANTI-útil. R-VALOR aplicado → 'real' (bajo recursos limitados). Arco R-VALOR cerrado (mecanismo+utilidad). D-V4-4.
-- [ ] **H-V4-1e / INTEGRADOR (P0): salto al sustrato de LENGUAJE** — razonador act-and-verify barato que
-  asigna su cómputo/atención limitada por controlabilidad/consecuencia (empowerment), sobre un modelo chico.
+- [x] **CYCLE 40 (exp026) — H-V4-1e INTEGRADOR: APOYADA. El salto al LENGUAJE funciona.** Sobre el MODELO
+  PROPIO del lab (HybridLM byte-level desde cero) + oráculo de suma como verificador, asignar el cómputo de
+  test-time (act-and-verify: muestrear=actuar + verificar=quedarse con lo correcto) por CONTROLABILIDAD/
+  CONSECUENCIA supera al AZAR y a la PREDICCIÓN-PASIVA a IGUAL presupuesto, bajo ESCASEZ. Régimen
+  discriminante avg=3 (4 seeds in-band, M=120): CONSEC 0.562 / AZAR 0.506 (+0.056) / PASIVA 0.490 (+0.073),
+  ambos >2σ(0.045). La PASIVA-incertidumbre es la PEOR (anti-útil) — control decisivo del arco v4 AHORA en
+  lenguaje. Caveat honesto (curva): a avg>=6 + verificador perfecto el azar alcanza (techo) → la ventaja vive
+  bajo ESCASEZ (misma forma que exp025). Unifica R-INTERVENCIÓN+R-VALOR; convergente con TTS verifier-based
+  (arXiv:2408.03314). ~50s/seed CPU. D-V4-5. Techo 'real': R-VALOR aplicado al lenguaje.
+- [ ] **H-V4-1f (P0): realismo del verificador** — repetir exp026 con verificador RUIDOSO/PARCIAL (exp017/018)
+  en vez del oráculo perfecto, y con una señal de consecuencia más BARATA (sin probe que consuma presupuesto).
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
 - [ ] INTEGRADOR (P1): lazo act-and-verify barato con valor endógeno de CONTROLABILIDAD sobre el sustrato de
   lenguaje (unifica R-VALOR+R-INTERVENCIÓN; convergente con TTS verifier-based). H-V4-3/4/5/6: ver `_directiva_v4.md` §3.
 
-> Estado del reset (CYCLE 35-38): NO-lever = predicción pasiva / info-gain / escalar params. SÍ-lever =
-> ACTUAR (R-INTERVENCIÓN) con valor de CONTROLABILIDAD (R-VALOR=empowerment). Arquitectura objetivo:
-> substrato chico CPU (híbrido/RWKV en llama.cpp) + act-and-verify barato + TTS verifier-based.
+> Estado del reset (CYCLE 35-40): NO-lever = predicción pasiva / info-gain / escalar params. SÍ-lever =
+> ACTUAR (R-INTERVENCIÓN) con valor de CONTROLABILIDAD (R-VALOR=empowerment). DEMOSTRADO en tabular (exp024/
+> 025) Y EN LENGUAJE sobre el modelo propio (exp026: act-and-verify TTS guiado por control gana bajo escasez).
+> Arquitectura objetivo: substrato chico CPU propio + act-and-verify barato + TTS verifier-based, asignando
+> cómputo por controlabilidad. Próximo realismo: verificador ruidoso/parcial + señal de control sin probe caro.

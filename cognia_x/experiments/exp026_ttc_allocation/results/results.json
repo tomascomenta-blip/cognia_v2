@@ -1,0 +1,264 @@
+{
+  "exp": "exp026_ttc_allocation",
+  "cycle": 40,
+  "hypothesis": "H-V4-1e",
+  "claim": "el valor de controlabilidad/consecuencia (empowerment) asigna cómputo test-time mejor que azar y que predicción-pasiva, a igual presupuesto, sobre el modelo propio del lab",
+  "verdict": "APOYADA",
+  "stats": {
+    "scarce_avg": 3,
+    "scarce": {
+      "consequence": 0.5625,
+      "uniform": 0.50625,
+      "passive": 0.4895833333333333,
+      "d_vs_uniform": 0.05625000000000002,
+      "d_vs_passive": 0.07291666666666669,
+      "two_sigma": 0.045285552331842
+    },
+    "curve": {
+      "2": {
+        "consequence": 0.4166666666666667,
+        "uniform": 0.41250000000000003,
+        "passive": 0.4166666666666667,
+        "d_vs_uniform": 0.004166666666666652,
+        "d_vs_passive": 0.0,
+        "two_sigma": 0.04500514373894347
+      },
+      "3": {
+        "consequence": 0.5625,
+        "uniform": 0.50625,
+        "passive": 0.4895833333333333,
+        "d_vs_uniform": 0.05625000000000002,
+        "d_vs_passive": 0.07291666666666669,
+        "two_sigma": 0.045285552331842
+      },
+      "4": {
+        "consequence": 0.6083333333333333,
+        "uniform": 0.58125,
+        "passive": 0.55,
+        "d_vs_uniform": 0.027083333333333237,
+        "d_vs_passive": 0.05833333333333324,
+        "two_sigma": 0.04455931336328476
+      },
+      "6": {
+        "consequence": 0.6874999999999999,
+        "uniform": 0.7000000000000001,
+        "passive": 0.6270833333333333,
+        "d_vs_uniform": -0.012500000000000178,
+        "d_vs_passive": 0.06041666666666656,
+        "two_sigma": 0.04231270002414563
+      },
+      "8": {
+        "consequence": 0.7020833333333334,
+        "uniform": 0.7354166666666666,
+        "passive": 0.6333333333333333,
+        "d_vs_uniform": -0.033333333333333215,
+        "d_vs_passive": 0.06875000000000009,
+        "two_sigma": 0.041749483668353
+      }
+    },
+    "n_seeds_used": 4,
+    "n_in_band": 4
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "M": 160,
+    "budgets": "2,3,4,6,8",
+    "n_probe": 2,
+    "top_k": 16,
+    "temperature": 1.0,
+    "margin": 0.03,
+    "n_seed": 256,
+    "base_steps": 600,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "lo": 0,
+    "hi": 19,
+    "test_frac": 0.3
+  },
+  "budgets": [
+    2,
+    3,
+    4,
+    6,
+    8
+  ],
+  "seeds": [
+    {
+      "seed": 0,
+      "greedy_acc": 0.21666666666666667,
+      "in_band": true,
+      "M": 120,
+      "npar": 201280,
+      "secs": 49.92,
+      "by_budget": {
+        "2": {
+          "uniform": 0.35833333333333334,
+          "passive": 0.35833333333333334,
+          "consequence": 0.35833333333333334
+        },
+        "3": {
+          "uniform": 0.4,
+          "passive": 0.39166666666666666,
+          "consequence": 0.4583333333333333
+        },
+        "4": {
+          "uniform": 0.45,
+          "passive": 0.425,
+          "consequence": 0.5083333333333333
+        },
+        "6": {
+          "uniform": 0.6416666666666667,
+          "passive": 0.55,
+          "consequence": 0.6166666666666667
+        },
+        "8": {
+          "uniform": 0.6083333333333333,
+          "passive": 0.525,
+          "consequence": 0.6166666666666667
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "greedy_acc": 0.26666666666666666,
+      "in_band": true,
+      "M": 120,
+      "npar": 201280,
+      "secs": 50.57,
+      "by_budget": {
+        "2": {
+          "uniform": 0.35833333333333334,
+          "passive": 0.4583333333333333,
+          "consequence": 0.3333333333333333
+        },
+        "3": {
+          "uniform": 0.4666666666666667,
+          "passive": 0.45,
+          "consequence": 0.49166666666666664
+        },
+        "4": {
+          "uniform": 0.5916666666666667,
+          "passive": 0.5333333333333333,
+          "consequence": 0.5416666666666666
+        },
+        "6": {
+          "uniform": 0.6833333333333333,
+          "passive": 0.5833333333333334,
+          "consequence": 0.6666666666666666
+        },
+        "8": {
+          "uniform": 0.7333333333333333,
+          "passive": 0.6583333333333333,
+          "consequence": 0.7083333333333334
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "greedy_acc": 0.4166666666666667,
+      "in_band": true,
+      "M": 120,
+      "npar": 201280,
+      "secs": 49.55,
+      "by_budget": {
+        "2": {
+          "uniform": 0.5,
+          "passive": 0.49166666666666664,
+          "consequence": 0.5583333333333333
+        },
+        "3": {
+          "uniform": 0.6166666666666667,
+          "passive": 0.6916666666666667,
+          "consequence": 0.6916666666666667
+        },
+        "4": {
+          "uniform": 0.7416666666666667,
+          "passive": 0.675,
+          "consequence": 0.725
+        },
+        "6": {
+          "uniform": 0.75,
+          "passive": 0.7333333333333333,
+          "consequence": 0.8
+        },
+        "8": {
+          "uniform": 0.8666666666666667,
+          "passive": 0.7166666666666667,
+          "consequence": 0.7916666666666666
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "greedy_acc": 0.36666666666666664,
+      "in_band": true,
+      "M": 120,
+      "npar": 201280,
+      "secs": 50.24,
+      "by_budget": {
+        "2": {
+          "uniform": 0.43333333333333335,
+          "passive": 0.35833333333333334,
+          "consequence": 0.4166666666666667
+        },
+        "3": {
+          "uniform": 0.5416666666666666,
+          "passive": 0.425,
+          "consequence": 0.6083333333333333
+        },
+        "4": {
+          "uniform": 0.5416666666666666,
+          "passive": 0.5666666666666667,
+          "consequence": 0.6583333333333333
+        },
+        "6": {
+          "uniform": 0.725,
+          "passive": 0.6416666666666667,
+          "consequence": 0.6666666666666666
+        },
+        "8": {
+          "uniform": 0.7333333333333333,
+          "passive": 0.6333333333333333,
+          "consequence": 0.6916666666666667
+        }
+      }
+    }
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp026] CYCLE 40 / H-V4-1e INTEGRADOR — act-and-verify TTS sobre HybridLM propio",
+    "[exp026] tarea suma [0,19] test_heldout=120 budgets(avg)=[2, 3, 4, 6, 8] n_probe=2 top_k=16 seeds=[0, 1, 2, 3]",
+    "[exp026]   seed=0 avg=2 B=240: AZAR=0.358 PASIVA=0.358 CONSEC=0.358",
+    "[exp026]   seed=0 avg=3 B=360: AZAR=0.400 PASIVA=0.392 CONSEC=0.458",
+    "[exp026]   seed=0 avg=4 B=480: AZAR=0.450 PASIVA=0.425 CONSEC=0.508",
+    "[exp026]   seed=0 avg=6 B=720: AZAR=0.642 PASIVA=0.550 CONSEC=0.617",
+    "[exp026]   seed=0 avg=8 B=960: AZAR=0.608 PASIVA=0.525 CONSEC=0.617",
+    "[exp026] seed=0 greedy=0.217 (EN-banda) 49.9s npar=201280",
+    "[exp026]   seed=1 avg=2 B=240: AZAR=0.358 PASIVA=0.458 CONSEC=0.333",
+    "[exp026]   seed=1 avg=3 B=360: AZAR=0.467 PASIVA=0.450 CONSEC=0.492",
+    "[exp026]   seed=1 avg=4 B=480: AZAR=0.592 PASIVA=0.533 CONSEC=0.542",
+    "[exp026]   seed=1 avg=6 B=720: AZAR=0.683 PASIVA=0.583 CONSEC=0.667",
+    "[exp026]   seed=1 avg=8 B=960: AZAR=0.733 PASIVA=0.658 CONSEC=0.708",
+    "[exp026] seed=1 greedy=0.267 (EN-banda) 50.6s npar=201280",
+    "[exp026]   seed=2 avg=2 B=240: AZAR=0.500 PASIVA=0.492 CONSEC=0.558",
+    "[exp026]   seed=2 avg=3 B=360: AZAR=0.617 PASIVA=0.692 CONSEC=0.692",
+    "[exp026]   seed=2 avg=4 B=480: AZAR=0.742 PASIVA=0.675 CONSEC=0.725",
+    "[exp026]   seed=2 avg=6 B=720: AZAR=0.750 PASIVA=0.733 CONSEC=0.800",
+    "[exp026]   seed=2 avg=8 B=960: AZAR=0.867 PASIVA=0.717 CONSEC=0.792",
+    "[exp026] seed=2 greedy=0.417 (EN-banda) 49.6s npar=201280",
+    "[exp026]   seed=3 avg=2 B=240: AZAR=0.433 PASIVA=0.358 CONSEC=0.417",
+    "[exp026]   seed=3 avg=3 B=360: AZAR=0.542 PASIVA=0.425 CONSEC=0.608",
+    "[exp026]   seed=3 avg=4 B=480: AZAR=0.542 PASIVA=0.567 CONSEC=0.658",
+    "[exp026]   seed=3 avg=6 B=720: AZAR=0.725 PASIVA=0.642 CONSEC=0.667",
+    "[exp026]   seed=3 avg=8 B=960: AZAR=0.733 PASIVA=0.633 CONSEC=0.692",
+    "[exp026] seed=3 greedy=0.367 (EN-banda) 50.2s npar=201280",
+    "[exp026] VEREDICTO H-V4-1e (régimen ESCASO avg=3): APOYADA | CONSEC=0.562 AZAR=0.506 PASIVA=0.490 | Δvs_azar=+0.056 Δvs_pasiva=+0.073 (2σ=0.045, margen_req=0.03) in_band=4/4",
+    "[exp026] CURVA (CONSEC/AZAR/PASIVA por avg): avg2:0.417/0.413/0.417 | avg3:0.562/0.506/0.490 | avg4:0.608/0.581/0.550 | avg6:0.687/0.700/0.627 | avg8:0.702/0.735/0.633"
+  ]
+}
