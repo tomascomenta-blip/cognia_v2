@@ -163,3 +163,34 @@ VALOR específico (info-gain) **no se aísla** de la "intervención activa": el 
 con presupuesto suficiente (B−C=−0.007). → R-INTERVENCIÓN a techo 'real'; R-VALOR 'asumido' (backlog);
 genera **H-V4-1b** (aislar el valor en régimen presupuesto-chico/ruido-alto/espacio-grande). Es el patrón
 "fracaso/mixta es información" (un bundle que aísla una mitad y afila la siguiente hipótesis).
+
+### 8.2 H-V4-1b (CYCLE 36, exp023) — el valor info-gain NO está aislado: el lever es ACTUAR
+Régimen DURO (D=40, clúster=8, ruido 0.25, 24 seeds) donde el azar NO cubre por fuerza bruta. **MIXTA,
+inclinada a refutar el valor-como-info-gain:** el margen info-gain − azar-activo oscila alrededor de 0
+(media **+0.004**; único pico K=16 +0.099 dentro del ruido std~0.18 y contradicho en K=32). Lo que SÍ
+aguanta (replicado) es **ACTUAR ≫ observar** (C−A=+0.07→+0.36; A pasivo plano ~0.58-0.64). **El lever
+robusto es la INTERVENCIÓN per se, NO el valor info-gain DISEÑADO** → "valor endógeno = info-gain" queda
+descartado como lever; R-VALOR sigue abierto sólo en su forma fuerte (valor AUTO-generado). **Costo:** 360
+modelos causales en **1.0 s** de CPU (~2.8 ms c/u). **Pivote (D-V4-2):** explotar R-INTERVENCIÓN como motor
+barato (act-and-verify, ya apoyado por exp016-018).
+
+### 8.3 Barrido de literatura v4 (CYCLE 37) — la convergencia con lo más actual (2023-2026)
+Barrido web citado (`literature_v4.md`). Tres convergencias que mueven el rumbo:
+1. **Corrobora exp023:** la literatura de active causal discovery dice que el muestreo activo gana al azar
+   sólo en grafos GRANDES/DENSOS + presupuesto escaso + ruido bajo; a grafo chico/ruido alto **"random se
+   vuelve muy competitivo"** (CAASL, arXiv:2405.16718, ~5-6% a d=10) — exactamente mi régimen. Mi null no es
+   un bug: es el corner conocido. (Pero adaptativo puede usar O(log n) vs O(n): Choo&Shiragur UAI'23 → hay
+   un régimen donde el valor SÍ ganaría; aún no lo medí.)
+2. **R-VALOR en su forma fuerte tiene soporte:** objetivos ACTION-GROUNDED (no reconstrucción) sí tallan
+   estructura causal — inverse-dynamics encoder 84% vs 59% a ~5M params CPU-scale (arXiv:2606.20104);
+   empowerment correlaciona con desempeño SIN reward (EELMA, arXiv:2509.22504); Blahut-Arimoto hace
+   empowerment SIN gradiente, corrible en CPU (arXiv:2510.05996). El info-gain que probé NO es buen proxy;
+   el **empowerment** sí es candidato. Caveat (el null real): un transformer next-token YA induce SCMs
+   en juguete (OpenReview tHr0vFbS3K) → R-VALOR debe batir a la predicción pasiva en la MISMA tarea.
+3. **Camino barato a "inteligente que habla":** test-time compute óptimo con VERIFICADOR barato bate a
+   escalar parámetros (Qwen2.5-0.5B > GPT-4o en mate dura con TTS verifier-based, >4× eficiente,
+   arXiv:2408.03314); **"verifier-based ≫ verifier-free, la brecha crece con el cómputo"**. Backbone híbrido
+   SSM-atención / RWKV-7 (corre en llama.cpp en CPU HOY) mata la pared del KV-cache (3-6× throughput
+   GPU-medido). Backprop-alternativas: NO valen salvo que el cuello sea RAM (MeZO 12× memoria) — confirma
+   H-BIO-3. → **El verificador (no los parámetros) es la pieza; eso ES R-INTERVENCIÓN.** Rumbo: substrato
+   chico CPU + lazo act-and-verify barato.

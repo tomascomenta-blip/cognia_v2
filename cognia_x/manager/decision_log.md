@@ -262,3 +262,17 @@
 - **Evidencia:** exp022 (tier-5) + exp017 (tier-5, el lab solo había demostrado valor EXTERNO). ACEPTADA por
   el ledger. Registrada vía cycle35_endogenous_value.py. **Reversible:** sí; v1/v2/v3 conservadas
   (append-only); si H-V4-1b/H-V4-2 refutaran R-VALOR/R-INTERVENCIÓN, se reabre el rumbo.
+
+## D-V4-2 (2026-06-24, CYCLE 36) — Pivote: explotar R-INTERVENCIÓN (act-and-verify); info-gain descartado
+- **Decisión:** dejar de buscar un VALOR de exploración astuto (info-gain quedó descartado como lever, exp023)
+  y EXPLOTAR R-INTERVENCIÓN como motor de inteligencia BARATO: act-and-verify (el agente ACTÚA y aprende de la
+  CONSECUENCIA), que el lab ya apoya (exp016-018, H-LEARN-1) y la literatura confirma (TTS verifier-based ≫
+  verifier-free, arXiv:2408.03314). R-VALOR queda abierto sólo en su forma FUERTE (valor AUTO-generado =
+  empowerment, no info-gain) → H-V4-1c. Próximo integrador: lazo act-and-verify sobre el sustrato de lenguaje.
+- **Razón:** exp023 (régimen duro D=40/clúster=8/ruido0.25, 24 seeds): info-gain NO supera de forma robusta al
+  azar-activo (margen medio +0.004); lo robusto es ACTUAR≫observar (C-A hasta +0.36, A plano). Corroborado por
+  la literatura (CAASL ~5-6% a d=10; active gana sólo en grafo grande/denso/ruido-bajo). Barato: 360 modelos
+  causales en 1.0s CPU.
+- **Evidencia:** exp023 (tier-5) + exp022 (tier-5) + [[arXiv:2408.03314]] TTS + [[arXiv:2606.20104]]
+  action-grounded. ACEPTADA por el ledger. Registrada vía cycle36_value_isolation.py. **Reversible:** sí; si el
+  régimen grande/denso/ruido-bajo mostrara que el valor SÍ gana (Choo&Shiragur O(log n)), se reabre.

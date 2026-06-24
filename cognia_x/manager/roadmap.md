@@ -59,6 +59,14 @@ queda como restricción de VIABILIDAD, no como dirección.
   intervención por más presupuesto → muro informacional; flatness ~0.013; B-A=+0.31; gap invisible i.i.d.).
   R-VALOR específico NO aislado (el azar-activo basta con presupuesto). R-INTERVENCIÓN → techo 'real';
   R-VALOR → 'asumido'. D-V4-1 registrada.
-- [ ] H-V4-1b (P0): aislar info-gain vs azar-activo en régimen presupuesto-chico/ruido-alto/espacio-grande.
+- [x] **CYCLE 36 (exp023) — H-V4-1b: MIXTA→refuta el valor-como-info-gain.** En régimen duro (D=40,
+  clúster=8, ruido 0.25) el info-gain NO supera de forma robusta al azar-activo (margen medio +0.004); lo
+  robusto es ACTUAR≫observar. Lever = INTERVENCIÓN, no el valor diseñado. R-INTERVENCIÓN reforzada (real);
+  R-VALOR 'asumido' refinado (info-gain descartado). D-V4-2 (pivote a act-and-verify).
+- [x] **CYCLE 37 — barrido de literatura** (`literature_v4.md`): corrobora exp023 (CAASL ~5-6% a d=10);
+  R-VALOR forma-fuerte (empowerment) tiene soporte; camino barato = substrato chico + verificador (TTS).
+- [ ] H-V4-1c (P0): empowerment (Blahut-Arimoto) vs reconstrucción en gridworld con distractores — test de
+  R-VALOR forma-FUERTE (el info-gain quedó descartado; el null a batir es la predicción pasiva).
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
-- [ ] H-V4-3/4/5/6 + rama control-vs-predicción: ver `_directiva_v4.md` §3 y `decomposition_tree.md`.
+- [ ] INTEGRADOR (P1): lazo act-and-verify barato sobre el sustrato de lenguaje (R-INTERVENCIÓN aplicada;
+  convergente con TTS verifier-based de la literatura). H-V4-3/4/5/6: ver `_directiva_v4.md` §3.

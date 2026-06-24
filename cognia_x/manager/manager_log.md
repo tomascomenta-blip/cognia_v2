@@ -109,3 +109,9 @@
 - Árbol de descomposición raíz (decomposition_tree.md): 6 lentes + auditoría adversarial → R-VALOR (5/6).
 - exp022 / cycle35 / H-V4-1: MIXTA — R-INTERVENCIÓN 'real' (muro informacional del pasivo), R-VALOR
   'asumido' (azar-activo basta → H-V4-1b). D-V4-1 registrada. _directiva_v4.md vigente (conserva v1/v2/v3).
+
+## [2026-06-24] CYCLE 36-37 — H-V4-1b MIXTA (refuta valor-info-gain) + literatura v4
+- exp023/cycle36: info-gain NO bate al azar-activo (margen +0.004); lever = INTERVENCIÓN. D-V4-2 (pivote a
+  act-and-verify). R-INTERVENCIÓN reforzada 'real'; R-VALOR 'asumido' (info-gain descartado; abierto en forma
+  fuerte = empowerment → H-V4-1c). Test 4/4, verify=OK.
+- literature_v4.md (CYCLE 37): SOTA corrobora; rumbo = substrato chico CPU + verificador barato (TTS).

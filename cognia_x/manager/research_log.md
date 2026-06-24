@@ -1033,3 +1033,51 @@ goalpost-moving). El experimento bundlea dos claims y solo aísla uno: MIXTA hon
 exp022 (24 seeds). cycle35_endogenous_value.py → H-V4-1 marcada 'mixta' (DoD completo), D-V4-1 ACEPTADA por
 el ledger (tier5 exp022 + tier5 exp017), 2 techos (R-INTERVENCIÓN 'real', R-VALOR 'asumido'), analogía
 7-etapas, verify_no_loss=OK. Test de regresión `test_cycle35_endogenous_value.py` 5/5; engine 20/20.
+
+---
+
+## CYCLE 36 (2026-06-24) — RESET v4: H-V4-1b (aislamiento del valor info-gain) MIXTA→refuta el valor
+
+### Pregunta
+exp022 dejó abierto si el VALOR (info-gain) está aislado de la "intervención activa per se". H-V4-1b: en un
+régimen DURO (D=40, clúster=8, ruido 0.25, 24 seeds) donde el azar NO cubra por fuerza bruta, ¿info-gain
+supera al azar-activo? Predicción PRE-REGISTRADA: APOYADA si B-C>0.08 (chico/medio) y prom>0.05; REFUTADA si
+máx<=0.05; MIXTA si parcial.
+
+### Experimento (exp023_value_isolation) — reusa el mundo+agentes de exp022, sólo cambia el régimen
+### Veredicto: H-V4-1b MIXTA (inclinada a refutar el valor-como-info-gain)
+El margen info-gain−azar oscila alrededor de 0 (media +0.004; único pico K=16 +0.099 DENTRO del ruido
+std~0.18 y contradicho en K=32). Lo ROBUSTO (replicado): ACTUAR>>observar (C-A=+0.07..+0.36; A plano
+~0.58-0.64). **El lever es la INTERVENCIÓN per se, NO el valor info-gain DISEÑADO.** R-INTERVENCIÓN reforzada
+(real); R-VALOR 'asumido' refinado (info-gain descartado como lever; abierto sólo en forma fuerte:
+valor AUTO-generado). Costo: 360 modelos causales en 1.0s CPU (~2.8ms c/u) → la dirección es barata.
+
+### Honestidad
+Honré el pre-registro (máx 0.099>0.05 → MIXTA, no refutada) aunque la lectura honesta refuta el valor-como-
+info-gain. Pivote D-V4-2: explotar R-INTERVENCIÓN (act-and-verify, ya apoyado por exp016-018).
+
+### Verificación
+exp023 (24 seeds). cycle36_value_isolation.py → H-V4-1b 'mixta' (DoD), D-V4-2 ACEPTADA, 2 techos refinados,
+analogía 7-etapas, verify_no_loss=OK. Test `test_cycle36_value_isolation.py` 4/4.
+
+---
+
+## CYCLE 37 (2026-06-24) — RESET v4: barrido de literatura (convergencia con SOTA 2023-2026)
+
+Barrido web citado (`literature_v4.md`, sin citas inventadas). Tres convergencias:
+1. **Corrobora exp022/023:** active causal discovery gana al azar SÓLO en grafo grande/denso + presupuesto
+   escaso + ruido bajo; a grafo chico/ruido alto "random se vuelve competitivo" (CAASL arXiv:2405.16718,
+   ~5-6% a d=10). Mi null es el corner conocido, no un bug. (Choo&Shiragur UAI'23: adaptativo O(log n) vs
+   O(n) → hay un régimen donde el valor SÍ ganaría; pendiente medirlo.)
+2. **R-VALOR forma-fuerte tiene soporte:** objetivos ACTION-GROUNDED tallan estructura causal (inverse-
+   dynamics 84% vs 59% a ~5M params CPU-scale, arXiv:2606.20104; empowerment correlaciona con desempeño SIN
+   reward, EELMA arXiv:2509.22504; Blahut-Arimoto = empowerment SIN gradiente, CPU, arXiv:2510.05996). El
+   info-gain NO es buen proxy; el EMPOWERMENT sí es candidato. NULL a batir: next-token ya induce SCMs en
+   juguete (OpenReview tHr0vFbS3K).
+3. **Camino barato a "habla+razona":** TTS óptimo con VERIFICADOR barato bate a escalar params
+   (arXiv:2408.03314; "verifier-based >> verifier-free"); híbrido SSM-atención/RWKV-7 corre en llama.cpp CPU
+   hoy. Backprop-alts no valen salvo cuello de RAM (confirma H-BIO-3). → el verificador (no los params) es la
+   pieza = R-INTERVENCIÓN. **Rumbo: substrato chico CPU + lazo act-and-verify barato.**
+
+Próximo (selector): H-V4-1c (empowerment Blahut-Arimoto vs reconstrucción en gridworld con distractores —
+test de R-VALOR forma-fuerte) y/o empezar el integrador act-and-verify sobre el sustrato de lenguaje.

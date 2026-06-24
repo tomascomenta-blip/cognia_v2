@@ -3529,3 +3529,15 @@ ejecución real) es el lever central de la auto-mejora segura.
   engine (DoD, ledger D-V4-1, 2 techos, analogía, verify_no_loss=OK). Test regresión 5/5; engine 20/20.
 - Nuevo: _directiva_v4.md (conserva v1/v2/v3). PENDIENTE: H-V4-1b (aislar valor vs azar), H-V4-2
   (identificabilidad sin cuerpo). Verificado end-to-end con venv312.
+
+## [2026-06-24] COGNIA-X — CYCLE 36-37: H-V4-1b (valor info-gain) MIXTA→refuta; barrido de literatura
+- CYCLE 36 (exp023_value_isolation): régimen DURO (D=40, clúster=8, ruido 0.25, 24 seeds). El info-gain NO
+  supera de forma robusta al azar-activo (margen B-C medio +0.004); lo robusto es ACTUAR>>observar
+  (C-A hasta +0.36; A plano). El lever es la INTERVENCIÓN per se, NO el valor info-gain diseñado.
+  cycle36 por las compuertas (H-V4-1b 'mixta', D-V4-2 pivote a act-and-verify, 2 techos, verify=OK).
+  Test 4/4. Costo: 360 modelos causales en 1.0s CPU.
+- CYCLE 37 (barrido web, literature_v4.md): corrobora exp023 (CAASL ~5-6% a d=10); R-VALOR forma-fuerte
+  (empowerment) tiene soporte (arXiv:2606.20104/2509.22504/2510.05996); camino barato a "habla+razona" =
+  substrato chico (RWKV-7/híbrido SSM en llama.cpp) + VERIFICADOR barato (TTS verifier-based, arXiv:2408.03314).
+  El verificador, no los params, es la pieza = R-INTERVENCIÓN.
+- Próximo: H-V4-1c (empowerment Blahut-Arimoto vs reconstrucción) y/o integrador act-and-verify sobre lenguaje.
