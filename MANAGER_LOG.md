@@ -3975,3 +3975,10 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: memoria m=10/n=50. value_directed=0.507 >> random=0.184; ablar el valor -> ablation=0.200 (=random);
   anti_value=0.086 (<random). La ventaja de la memoria finita ES el valor; escribir≡olvidar es rate-distortion
   dirigido por valor. Cierra el lazo R-VALOR x memoria y la última raíz abierta del v4 (sólo H-V4-4 diferida).
+
+## [2026-06-25] CYCLE 71 — CONSOLIDACIÓN FINAL: thesis v4 + síntesis global de la corrida 51-70
+- Archivos: cognia_x/manager/decomposition_tree.md, cognia_x/manager/paper.md, MANAGER_LOG.md
+- Resultado tests: PASS — 40/40 (cycles 60-70, compuerta). git diff solo-docs.
+- Notas: VEREDICTO DE LA CORRIDA en el thesis y paper: el thesis v4 quedó SUSTANCIALMENTE VALIDADO en juguete --
+  R-VALOR resoluble (evidencia positiva) y ATERRIZA memoria/verificador/prior; R-INTERVENCIÓN y R-PRIOR
+  confirmadas. R-VALOR de confianza BAJA->MEDIA. Pendiente: la ESCALA y un mundo no-de-juguete; H-V4-4 diferida.

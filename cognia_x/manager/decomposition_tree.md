@@ -208,3 +208,34 @@ señales endógenas del lazo de valor.
 - DIFERIDA: H-V4-4 (recall = optimización; el recall a d=32 está en piso de aprendibilidad, necesita miles de
   steps; retomar con currículo escalonado + más cómputo).
 - ABIERTAS: H-V4-3 (calidad del prior), H-V4-5 (escribir≡olvidar -- con evidencia PARCIAL del arco memoria).
+
+## VEREDICTO DE LA CORRIDA 51-70 (síntesis global — el thesis v4 sustancialmente validado en juguete)
+20 ciclos verificados (todos por las compuertas del engine, verify_no_loss=OK, tests verdes). El reset v4 puso a
+R-VALOR como raíz primera con confianza ALTA en que es la convergencia pero BAJA en que sea RESOLUBLE. La corrida
+ataca esa duda y la mueve a confianza MEDIA, mostrando además que R-VALOR ATERRIZA las demás raíces:
+
+- **R-VALOR es resoluble (evidencia POSITIVA, juguete):** el valor endógeno (info-gain) se AÍSLA de la mera
+  actividad con el instrumento fiel (56), es MEDIBLE por la confianza calibrada del propio agente sin oráculo
+  (57), y la sorpresa (su contracara) dirige el olvido en mundos no-estacionarios (58-66). Antes el lab sólo
+  tenía verificador EXTERNO (exp017); ahora hay valor ENDÓGENO.
+- **R-VALOR aterriza la MEMORIA:** escribir≡olvidar es rate-distortion dirigido por valor (70, H-V4-5: ablar el
+  valor colapsa la ventaja de la memoria a aleatoria); el QUÉ/CUÁNDO/CÓMO recordar se decide del valor/sorpresa
+  endógenos (selector de estrategia, 66).
+- **R-VALOR aterriza el VERIFICADOR:** el arco verificador-real (51-55) muestra que la auto-mejora es robusta con
+  un verificador chequeable real (ruido, cold-start, sesgo) vía la guardia dedup+replay; y la confianza endógena
+  REEMPLAZA PARCIALMENTE al verificador externo gateada por calibración (60-62) -- el verificador es un caso de
+  valor (señal de corrección).
+- **R-VALOR aterriza el PRIOR:** la calidad/corrección del prior fija la eficiencia muestral (69, H-V4-3); un buen
+  prior es valor a priori sobre qué estructura importa (un prior falso hunde).
+- **R-INTERVENCIÓN confirmada** (exp022/CYCLE 35): la pasiva queda plana bajo intervención; sólo las políticas
+  activas identifican.
+
+**Lo que NO se resolvió (honesto):** la ESCALA (todo es bayesiano numpy + HybridLM tiny; falta un mundo
+no-de-juguete y modelos más ricos). H-V4-4 (techo de recall = optimización) quedó DIFERIDA (el recall a d=32 está
+en piso de aprendibilidad, necesita miles de steps). El selector de 3 estrategias (1j) es MIXTA (clasificar el
+régimen intermedio es difícil). El olvido por modulación de TASA tiene un techo (1h REFUTADA: el trade-off
+estabilidad-plasticidad es fundamental; hay que elegir la ESTRATEGIA, no el ritmo).
+
+**Tesis final:** R-VALOR es la raíz que aterriza la inteligencia bajo recursos finitos: un escalar de valor
+endógeno (estimable de info-gain/confianza/sorpresa, sin oráculo) define qué predecir, qué escribir/olvidar, cómo
+recordar, qué verificar y qué prior elegir. La corrida lo demuestra en juguete; la frontera es la escala.

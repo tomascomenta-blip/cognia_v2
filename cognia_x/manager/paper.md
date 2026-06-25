@@ -564,3 +564,31 @@ D-V4-16..D-V4-30 aceptadas por el ledger. Diferido: H-V4-4 (recall=optimización
 (calidad del prior). Todo en juguete (bayesiano numpy + HybridLM tiny): la escala y un mundo no-de-juguete siguen
 pendientes, pero R-VALOR pasó de "resoluble = confianza BAJA" a "resoluble con evidencia positiva = confianza
 MEDIA" en el sustrato disponible.
+
+---
+
+# Veredicto de la corrida 51-70 — R-VALOR aterriza la inteligencia (síntesis global)
+
+20 ciclos (todos verificados, verify_no_loss=OK). El reset v4 nombró a R-VALOR raíz primera con confianza ALTA en
+que es la convergencia pero BAJA en que sea RESOLUBLE. Esta corrida la mueve a confianza MEDIA y muestra que
+R-VALOR aterriza las demás raíces:
+
+- **R-VALOR resoluble (evidencia positiva):** valor endógeno (info-gain) AISLADO de la actividad con el
+  instrumento fiel (56), MEDIBLE por la confianza calibrada del agente sin oráculo (57), con la sorpresa dirigiendo
+  el olvido en no-estacionariedad (58-66).
+- **aterriza la MEMORIA:** escribir≡olvidar es rate-distortion por valor (70) -- ablar el valor colapsa la ventaja
+  de la memoria a aleatoria; el selector de estrategia (66) elige cómo recordar del régimen clasificado de la sorpresa.
+- **aterriza el VERIFICADOR:** auto-mejora robusta con verificador real + guardia (51-55); la confianza endógena
+  reemplaza parcialmente al verificador externo gateada por calibración (60-62).
+- **aterriza el PRIOR:** la calidad del prior fija la eficiencia muestral (69); un buen prior es valor a priori
+  sobre la estructura.
+
+Honesto: la ESCALA y un mundo no-de-juguete quedan pendientes; H-V4-4 (recall) diferida; el selector de 3
+regímenes MIXTA; la modulación de tasa de olvido tiene un techo (el trade-off es fundamental -> elegir la
+ESTRATEGIA, no el ritmo).
+
+**Cierre:** R-VALOR -- un escalar de valor endógeno, estimable sin oráculo de info-gain/confianza/sorpresa --
+define qué predecir, qué escribir/olvidar, cómo recordar, qué verificar y qué prior elegir. Demostrado en juguete;
+la frontera es la escala. (Método research-as-code: cada ciclo con hipótesis pre-registrada, DoD, decisión por el
+ledger, techo real, analogía, test de regresión y verify_no_loss=OK; honestidad anti-Goodhart -- MIXTAS/REFUTADA
+reportadas tal cual, H-V4-4 diferida con su razón.)
