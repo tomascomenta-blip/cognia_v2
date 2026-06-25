@@ -1836,3 +1836,47 @@ forgetting/discounted-Bayes en no-estacionariedad (tier1).
 > decisión de VALOR necesaria con recursos finitos cuando el mundo cambia; el committed Bayesiano clásico falla
 > justo ahí. Sweet spot estabilidad-plasticidad. Sub-arco R-VALOR 56-58: valor endógeno (56) + señal medible por
 > el agente (57) + olvido para adaptarse en no-estacionariedad (58).
+
+## CYCLE 59 — H-V4-1e (North-Star R-VALOR x memoria, cierre sub-arco): olvido ADAPTATIVO dirigido por SORPRESA
+
+### Pregunta
+exp044 (CYCLE 58) mostró que el olvido FIJO adapta donde el committed se atasca — pero el decay fijo hay que
+elegirlo a priori y olvida SIEMPRE (un decay agresivo estropea la fase 1). Límites #1/#2 de exp044: olvido
+ADAPTATIVO + detección de cambio ENDÓGENA. ¿El agente puede detectar SOLO que el mundo cambió (sus predicciones
+se contradicen = sorpresa, contracara de la confianza calibrada del CYCLE 57) y subir el olvido automáticamente,
+sin que le digan cuándo cambió la causa?
+
+### Diseño
+Reusa exp044/exp022. Mundo no-estacionario (c_old K1=60, c_new K2=12). 4 brazos, MISMA política (info-gain),
+distinto OLVIDO: committed (decay=1), fixed_mild (0.9), fixed_aggressive (0.6 CONSTANTE), ADAPTIVE (decay=floor
+0.6 si la obs CONTRADICE P(y_obs|posterior)<0.5, si no 1.0). Métricas: post causa NUEVA final (adaptación) y
+post causa vieja midpoint (estabilidad fase 1). 24 seeds. Pre-registrado: APOYADA si adaptive adapta
+(post_c_new>=0.40, +>0.20 sobre committed) Y mantiene fase 1 (midpoint>=0.80, dominando al fixed_aggressive).
+
+### Resultado — APOYADA
+committed post_c_new=0.000/midpoint=1.000 (atascado, estable); fixed_mild post_c_new=0.448/midpoint=0.989
+(adapta, estable, pero decay tuneado a priori); fixed_aggressive (0.6 CONSTANTE) post_c_new=0.197/midpoint=0.201
+(olvida SIEMPRE -> DESTRUYE la fase 1); ADAPTIVE (floor 0.6 por SORPRESA) post_c_new=0.449/midpoint=0.843. El
+ADAPTIVE logra el trade-off estabilidad-plasticidad ENDÓGENO: ADAPTA (0.449, igual que el mejor decay fijo
+TUNEADO fixed_mild 0.448) pero SIN tunear ni saber el punto de cambio, Y mantiene la fase 1 (0.843) MUY por
+encima del MISMO floor constante (0.201). HALLAZGO CLAVE: olvido SELECTIVO (por sorpresa) >> olvido CONSTANTE:
+committea cuando confirma, olvida cuando se contradice (~25 pasos de olvido). El sistema detecta el cambio por
+su PROPIA sorpresa y modula el olvido sin supervisión.
+
+### Límites (honestos)
+El adaptive IGUALA (no SUPERA) al mejor decay fijo en adaptación; su ventaja es ser ENDÓGENO/untuned + dominar
+en estabilidad, no ser más plástico. El trigger es un umbral BINARIO (P<0.5); falta olvido GRADUADO por magnitud
+de sorpresa y ventana acumulada (robustez al ruido). Mundo de juguete con UN solo cambio; falta no-estacionariedad
+recurrente/gradual.
+
+### Verificación
+exp045 (24 seeds, bayesiano numpy, reusa exp022/exp044). cycle59 -> H-V4-1e 'apoyada' (DoD), D-V4-24 ACEPTADA,
+1 techo 'real', analogía, verify_no_loss=OK. Test `test_cycle59_adaptive_forgetting.py` 4/4. Convergente con
+surprise/change-point (Bayesian online change-point, tier1); une CYCLE 57 (confianza/sorpresa) + 58 (olvido).
+
+> CIERRE del sub-arco R-VALOR (56-59): valor endógeno aislado (56) + medible por la confianza calibrada del
+> agente (57) + olvido necesario en no-estacionariedad (58) + olvido ADAPTATIVO por sorpresa que detecta el
+> cambio SIN supervisión (59). El lab tiene un lazo de VALOR ENDÓGENO cerrado: el sistema juzga qué información
+> vale (confianza calibrada) y cuándo dejó de valer (sorpresa -> olvido), sin oráculo ni aviso externo. Conecta
+> R-VALOR con MEMORIA (escribir≡olvidar, H-V4-5) y con el arco de auto-mejora (el verificador externo es, en
+> parte, reemplazable por la confianza/sorpresa endógena).

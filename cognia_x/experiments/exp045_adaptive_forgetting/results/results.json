@@ -1,0 +1,817 @@
+{
+  "exp": "exp045_adaptive_forgetting",
+  "cycle": 59,
+  "hypothesis": "H-V4-1e",
+  "claim": "el olvido adaptativo dirigido por sorpresa logra el trade-off estabilidad-plasticidad endógeno (adapta sin saber cuándo cambió la causa, sin perder la fase 1)",
+  "verdict": "apoyada",
+  "summary": {
+    "arms": [
+      "committed",
+      "fixed_mild",
+      "fixed_aggressive",
+      "adaptive"
+    ],
+    "n_seeds": 24,
+    "by_arm": {
+      "committed": {
+        "post_c_new_final": 0.0,
+        "post_c_old_final": 1.0,
+        "post_c_old_midpoint": 1.0,
+        "n_forget_steps": 0.0
+      },
+      "fixed_mild": {
+        "post_c_new_final": 0.4477,
+        "post_c_old_final": 0.0394,
+        "post_c_old_midpoint": 0.989,
+        "n_forget_steps": 0.0
+      },
+      "fixed_aggressive": {
+        "post_c_new_final": 0.1973,
+        "post_c_old_final": 0.0413,
+        "post_c_old_midpoint": 0.2011,
+        "n_forget_steps": 0.0
+      },
+      "adaptive": {
+        "post_c_new_final": 0.4494,
+        "post_c_old_final": 0.0387,
+        "post_c_old_midpoint": 0.8429,
+        "n_forget_steps": 25.4583
+      }
+    },
+    "adapts": true,
+    "stable_phase1": true,
+    "beats_aggressive_stability": true,
+    "status": "apoyada",
+    "verdict": "H-V4-1e APOYADA: el OLVIDO ADAPTATIVO dirigido por SORPRESA logra el trade-off estabilidad-plasticidad ENDÓGENO, SIN saber cuándo cambió la causa. ADAPTA (post_c_new adaptive=0.449 vs committed=0.000, +0.449) Y mantiene la fase 1 (midpoint adaptive=0.843 >> fixed_aggressive=0.201). El agente OLVIDA sólo cuando sus predicciones se contradicen (25.5 pasos de olvido de 12 de adaptación) -> detección de cambio endógena. Une CYCLE 57 (sorpresa/confianza) + CYCLE 58 (olvido)."
+  },
+  "per_seed": [
+    {
+      "seed": 0,
+      "c_old": 4,
+      "c_new": 19,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 2.7548756480543045e-14,
+          "post_c_old_final": 0.9999999998330404,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.3905503080259659,
+          "post_c_old_final": 0.13822516390576128,
+          "post_c_old_midpoint": 0.9976218070208698,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.23273077019410895,
+          "post_c_old_final": 0.020629429546438482,
+          "post_c_old_midpoint": 0.14546734417169443,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.3216556342727457,
+          "post_c_old_final": 0.006614461271093218,
+          "post_c_old_midpoint": 0.9999942625023893,
+          "n_forget_steps": 14
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "c_old": 1,
+      "c_new": 10,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 1.5610962008227546e-13,
+          "post_c_old_final": 0.9999999999987299,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.13467047395006856,
+          "post_c_old_final": 0.05379946554084303,
+          "post_c_old_midpoint": 0.9992967408535345,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.349283090934404,
+          "post_c_old_final": 0.006274488952223563,
+          "post_c_old_midpoint": 0.08608061579759868,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.9940536190844987,
+          "post_c_old_final": 0.001165984222394201,
+          "post_c_old_midpoint": 0.22933306446575177,
+          "n_forget_steps": 28
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "c_old": 6,
+      "c_new": 18,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 2.591079073889104e-20,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.39840085434389777,
+          "post_c_old_final": 0.028892567045446876,
+          "post_c_old_midpoint": 0.9998230628321416,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.1165962280188819,
+          "post_c_old_final": 0.010903340636558737,
+          "post_c_old_midpoint": 0.3376086495720658,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.22783814713200576,
+          "post_c_old_final": 0.0069616564849759015,
+          "post_c_old_midpoint": 0.9993943751403017,
+          "n_forget_steps": 26
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "c_old": 16,
+      "c_new": 12,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 1.4239595968859096e-22,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.09793467785301735,
+          "post_c_old_final": 0.045702630996360565,
+          "post_c_old_midpoint": 0.9996625803877396,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.16703044963327843,
+          "post_c_old_final": 0.13469457724456374,
+          "post_c_old_midpoint": 0.16878890253002088,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.9652537831849362,
+          "post_c_old_final": 0.002403597173526661,
+          "post_c_old_midpoint": 0.9972244181014085,
+          "n_forget_steps": 22
+        }
+      }
+    },
+    {
+      "seed": 4,
+      "c_old": 0,
+      "c_new": 13,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 1.5139760331749196e-16,
+          "post_c_old_final": 0.9999999999999998,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.05804605969362213,
+          "post_c_old_final": 0.0057754500810146365,
+          "post_c_old_midpoint": 0.9979079676519249,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.04436726388936047,
+          "post_c_old_final": 0.00859680750311037,
+          "post_c_old_midpoint": 0.12486630540339476,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.14761700338439573,
+          "post_c_old_final": 0.008709487815825099,
+          "post_c_old_midpoint": 0.9999275334806288,
+          "n_forget_steps": 32
+        }
+      }
+    },
+    {
+      "seed": 5,
+      "c_old": 9,
+      "c_new": 18,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 5.168870482994537e-09,
+          "post_c_old_final": 0.999999961731061,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.20603760248600284,
+          "post_c_old_final": 0.02420774058611011,
+          "post_c_old_midpoint": 0.9854600882430546,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.20934253255999727,
+          "post_c_old_final": 0.13518260580500707,
+          "post_c_old_midpoint": 0.21815331644896727,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.7523708433697137,
+          "post_c_old_final": 0.007237245507146867,
+          "post_c_old_midpoint": 0.9129095473302815,
+          "n_forget_steps": 15
+        }
+      }
+    },
+    {
+      "seed": 6,
+      "c_old": 2,
+      "c_new": 18,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 4.714804255561987e-18,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.7560303907886256,
+          "post_c_old_final": 0.0001928388026510454,
+          "post_c_old_midpoint": 0.9987608690199042,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.3253446251535931,
+          "post_c_old_final": 0.026230655379793303,
+          "post_c_old_midpoint": 0.07674101592634665,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.0491786350219978,
+          "post_c_old_final": 0.006988459536005047,
+          "post_c_old_midpoint": 0.9999134965767931,
+          "n_forget_steps": 30
+        }
+      }
+    },
+    {
+      "seed": 7,
+      "c_old": 3,
+      "c_new": 8,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 4.434476253277906e-24,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.09940786645734821,
+          "post_c_old_final": 0.0021631962623299126,
+          "post_c_old_midpoint": 0.9998232127111307,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.23593437119052754,
+          "post_c_old_final": 0.04554376386312934,
+          "post_c_old_midpoint": 0.019742790695024513,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.9961266648514835,
+          "post_c_old_final": 0.0001764635221163501,
+          "post_c_old_midpoint": 0.9999968922931299,
+          "n_forget_steps": 26
+        }
+      }
+    },
+    {
+      "seed": 8,
+      "c_old": 15,
+      "c_new": 8,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 2.6717224114851392e-17,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.9939669520798752,
+          "post_c_old_final": 0.00010964360709267383,
+          "post_c_old_midpoint": 0.9427303235467719,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.1972607985355999,
+          "post_c_old_final": 0.0187450509158401,
+          "post_c_old_midpoint": 0.4736938789377813,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.17639019327152702,
+          "post_c_old_final": 0.05326500457314238,
+          "post_c_old_midpoint": 0.9999998104909812,
+          "n_forget_steps": 32
+        }
+      }
+    },
+    {
+      "seed": 9,
+      "c_old": 14,
+      "c_new": 3,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 4.5724924833336895e-21,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.09227465130834106,
+          "post_c_old_final": 0.002471045289419874,
+          "post_c_old_midpoint": 0.9955654064815197,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.24733694208025286,
+          "post_c_old_final": 0.02057680696596177,
+          "post_c_old_midpoint": 0.4237235249330824,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.046395811693337605,
+          "post_c_old_final": 0.023187361560016797,
+          "post_c_old_midpoint": 0.9999999999999425,
+          "n_forget_steps": 28
+        }
+      }
+    },
+    {
+      "seed": 10,
+      "c_old": 9,
+      "c_new": 5,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 8.846211804608965e-13,
+          "post_c_old_final": 0.9999999999927054,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.20754804171017172,
+          "post_c_old_final": 0.021926713032619755,
+          "post_c_old_midpoint": 0.9958777830487575,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.01599389230387722,
+          "post_c_old_final": 0.021543682485496925,
+          "post_c_old_midpoint": 0.042962509516872506,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.9993499605783264,
+          "post_c_old_final": 2.4841070401358454e-05,
+          "post_c_old_midpoint": 0.9999916530440853,
+          "n_forget_steps": 25
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "c_old": 18,
+      "c_new": 2,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 2.5128698768574748e-23,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.972813996836445,
+          "post_c_old_final": 0.0028629295708254214,
+          "post_c_old_midpoint": 0.9997129729114176,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.2277711386112467,
+          "post_c_old_final": 0.008239463548132995,
+          "post_c_old_midpoint": 0.14966381847636775,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.2168198377249851,
+          "post_c_old_final": 0.01987628972979558,
+          "post_c_old_midpoint": 0.9989610392338184,
+          "n_forget_steps": 13
+        }
+      }
+    },
+    {
+      "seed": 12,
+      "c_old": 4,
+      "c_new": 12,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 1.5610962008242114e-13,
+          "post_c_old_final": 0.9999999999996596,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.08868634228499779,
+          "post_c_old_final": 0.019650750346497665,
+          "post_c_old_midpoint": 0.8755989938913453,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.04812627108561779,
+          "post_c_old_final": 0.010848725582145094,
+          "post_c_old_midpoint": 0.1220213752711887,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.3528307282605603,
+          "post_c_old_final": 0.004544053484041974,
+          "post_c_old_midpoint": 0.48978130378104656,
+          "n_forget_steps": 39
+        }
+      }
+    },
+    {
+      "seed": 13,
+      "c_old": 13,
+      "c_new": 3,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 4.714804255561987e-18,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.26143915671317525,
+          "post_c_old_final": 0.04387021979787077,
+          "post_c_old_midpoint": 0.9985104381929181,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.04695592757548315,
+          "post_c_old_final": 0.01107682079756474,
+          "post_c_old_midpoint": 0.27322040081758,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.14603622684809348,
+          "post_c_old_final": 0.05188169700533086,
+          "post_c_old_midpoint": 0.11941404799272691,
+          "n_forget_steps": 26
+        }
+      }
+    },
+    {
+      "seed": 14,
+      "c_old": 16,
+      "c_new": 14,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 1.4682781418704998e-19,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.8504249561842234,
+          "post_c_old_final": 0.006248219147702254,
+          "post_c_old_midpoint": 0.9999420850575917,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.10904884160947657,
+          "post_c_old_final": 0.034856829719329956,
+          "post_c_old_midpoint": 0.28918907917500536,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.21277566525254948,
+          "post_c_old_final": 0.1097075682548927,
+          "post_c_old_midpoint": 0.9998487827862563,
+          "n_forget_steps": 22
+        }
+      }
+    },
+    {
+      "seed": 15,
+      "c_old": 8,
+      "c_new": 15,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 8.579197521324583e-16,
+          "post_c_old_final": 0.9999999999999991,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.937443203789187,
+          "post_c_old_final": 0.0014947507234840671,
+          "post_c_old_midpoint": 0.999700938792211,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.2995290541694306,
+          "post_c_old_final": 0.02526664539301938,
+          "post_c_old_midpoint": 0.25337608092044256,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.9935319773230188,
+          "post_c_old_final": 0.00029229805824490697,
+          "post_c_old_midpoint": 0.999957958071299,
+          "n_forget_steps": 31
+        }
+      }
+    },
+    {
+      "seed": 16,
+      "c_old": 17,
+      "c_new": 16,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 4.714804255561987e-18,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.9755288276110011,
+          "post_c_old_final": 0.0031960338765631576,
+          "post_c_old_midpoint": 0.9792816121526363,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.21188267464212113,
+          "post_c_old_final": 0.013641009280535863,
+          "post_c_old_midpoint": 0.18623300964105938,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.08154911431877342,
+          "post_c_old_final": 0.3371073247838357,
+          "post_c_old_midpoint": 0.999999649756735,
+          "n_forget_steps": 23
+        }
+      }
+    },
+    {
+      "seed": 17,
+      "c_old": 5,
+      "c_new": 6,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 8.579197521324583e-16,
+          "post_c_old_final": 0.9999999999999991,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.9849795200960185,
+          "post_c_old_final": 0.00020559356139125478,
+          "post_c_old_midpoint": 0.9953310822685154,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.212167556870357,
+          "post_c_old_final": 0.013929602767966136,
+          "post_c_old_midpoint": 0.45935883492674867,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.9520319437819231,
+          "post_c_old_final": 0.004178754717000258,
+          "post_c_old_midpoint": 0.9999997497311508,
+          "n_forget_steps": 34
+        }
+      }
+    },
+    {
+      "seed": 18,
+      "c_old": 11,
+      "c_new": 8,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 9.121536239848153e-10,
+          "post_c_old_final": 0.9999999719691594,
+          "post_c_old_midpoint": 0.999999999999972,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.35279316583970954,
+          "post_c_old_final": 0.022425024709256614,
+          "post_c_old_midpoint": 0.9962544256894104,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.2707858979752847,
+          "post_c_old_final": 0.023507831887145492,
+          "post_c_old_midpoint": 0.0399923032387641,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.9082303562112224,
+          "post_c_old_final": 0.004085888898718717,
+          "post_c_old_midpoint": 0.9999987986777424,
+          "n_forget_steps": 18
+        }
+      }
+    },
+    {
+      "seed": 19,
+      "c_old": 16,
+      "c_new": 12,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 2.9290261890425386e-08,
+          "post_c_old_final": 0.9999998190257419,
+          "post_c_old_midpoint": 0.9999999999999931,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.027834624212415483,
+          "post_c_old_final": 0.024459020323110415,
+          "post_c_old_midpoint": 0.9954384950646161,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.32676352106645745,
+          "post_c_old_final": 0.10699362842280015,
+          "post_c_old_midpoint": 0.02873285538765409,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.1356194605995824,
+          "post_c_old_final": 0.11652563164556279,
+          "post_c_old_midpoint": 0.1018180327585757,
+          "n_forget_steps": 33
+        }
+      }
+    },
+    {
+      "seed": 20,
+      "c_old": 2,
+      "c_new": 16,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 4.714804255561987e-18,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.6633312420440202,
+          "post_c_old_final": 0.002157105680457875,
+          "post_c_old_midpoint": 0.9983906162854973,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.28414715362609655,
+          "post_c_old_final": 0.09132535463010806,
+          "post_c_old_midpoint": 0.2173600559810822,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.0861492489079909,
+          "post_c_old_final": 0.018542575381715515,
+          "post_c_old_midpoint": 0.9999729080971644,
+          "n_forget_steps": 20
+        }
+      }
+    },
+    {
+      "seed": 21,
+      "c_old": 4,
+      "c_new": 11,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 1.6096829098937612e-10,
+          "post_c_old_final": 0.9999999993274677,
+          "post_c_old_midpoint": 0.9999999999999993,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.9748692152122966,
+          "post_c_old_final": 0.004608499988931601,
+          "post_c_old_midpoint": 0.9860135583981811,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.33100940699260806,
+          "post_c_old_final": 0.03703241629762532,
+          "post_c_old_midpoint": 0.05381306197289893,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.4260028512509575,
+          "post_c_old_final": 0.00941104464490326,
+          "post_c_old_midpoint": 0.9779307600937409,
+          "n_forget_steps": 26
+        }
+      }
+    },
+    {
+      "seed": 22,
+      "c_old": 16,
+      "c_new": 5,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 2.591079073889104e-20,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.13119285218686194,
+          "post_c_old_final": 0.24178436420575095,
+          "post_c_old_midpoint": 0.9998449936226657,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.04658634009119615,
+          "post_c_old_final": 0.13185676640266303,
+          "post_c_old_midpoint": 0.27693900279773176,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.48588628141725115,
+          "post_c_old_final": 0.03019673663603115,
+          "post_c_old_midpoint": 0.9999565001506414,
+          "n_forget_steps": 28
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "c_old": 1,
+      "c_new": 19,
+      "by_arm": {
+        "committed": {
+          "post_c_new_final": 1.4682781418704998e-19,
+          "post_c_old_final": 1.0,
+          "post_c_old_midpoint": 1.0,
+          "n_forget_steps": 0
+        },
+        "fixed_mild": {
+          "post_c_new_final": 0.08755008877836994,
+          "post_c_old_final": 0.24952675847314987,
+          "post_c_old_midpoint": 0.9998869217213887,
+          "n_forget_steps": 0
+        },
+        "fixed_aggressive": {
+          "post_c_new_final": 0.17907767652900833,
+          "post_c_old_final": 0.03292300969582889,
+          "post_c_old_midpoint": 0.3588025014388705,
+          "n_forget_steps": 0
+        },
+        "adaptive": {
+          "post_c_new_final": 0.11249635763852349,
+          "post_c_old_final": 0.10495800631964057,
+          "post_c_old_midpoint": 0.4038200513762121,
+          "n_forget_steps": 20
+        }
+      }
+    }
+  ],
+  "params": {
+    "D": 20,
+    "cluster": 5,
+    "p_obs": 0.15,
+    "K1": 60,
+    "K2": 12,
+    "seeds": 24,
+    "candidates": 128
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp045] CYCLE 59 / H-V4-1e — olvido ADAPTATIVO dirigido por sorpresa (detección de cambio endógena)",
+    "[exp045] D=20 cluster=5 p_obs=0.15 K1=60 K2=12 seeds=24",
+    "[exp045] por brazo (ADAPTACIÓN = post causa nueva final; ESTABILIDAD = post causa vieja midpoint):",
+    "[exp045]          committed: post_c_new=0.000 midpoint=1.000 n_forget=0.0",
+    "[exp045]         fixed_mild: post_c_new=0.448 midpoint=0.989 n_forget=0.0",
+    "[exp045]   fixed_aggressive: post_c_new=0.197 midpoint=0.201 n_forget=0.0",
+    "[exp045]           adaptive: post_c_new=0.449 midpoint=0.843 n_forget=25.5",
+    "[exp045] VEREDICTO H-V4-1e: APOYADA",
+    "[exp045] H-V4-1e APOYADA: el OLVIDO ADAPTATIVO dirigido por SORPRESA logra el trade-off estabilidad-plasticidad ENDÓGENO, SIN saber cuándo cambió la causa. ADAPTA (post_c_new adaptive=0.449 vs committed=0.000, +0.449) Y mantiene la fase 1 (midpoint adaptive=0.843 >> fixed_aggressive=0.201). El agente OLVIDA sólo cuando sus predicciones se contradicen (25.5 pasos de olvido de 12 de adaptación) -> detección de cambio endógena. Une CYCLE 57 (sorpresa/confianza) + CYCLE 58 (olvido)."
+  ]
+}

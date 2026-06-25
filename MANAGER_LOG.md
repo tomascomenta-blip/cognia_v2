@@ -3862,3 +3862,13 @@ ejecución real) es el lever central de la auto-mejora segura.
   (K2=12), el COMMITTED queda atascado (post_c_new=0.000) y el OLVIDO (decay=0.9) adapta (0.553). MIXTA honesta:
   gap enorme pero adaptación parcial (<0.60 pre-registrado). Sweet spot estabilidad-plasticidad. Liga R-VALOR a
   memoria (escribir≡olvidar). Boundary: con adaptación larga el committed adapta solo.
+
+## [2026-06-25] CYCLE 59 — H-V4-1e APOYADA (North-Star, cierre sub-arco R-VALOR): olvido adaptativo por sorpresa
+- Archivos: cognia_x/experiments/exp045_adaptive_forgetting/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle59_adaptive_forgetting.py, cognia_x/tests/test_cycle59_adaptive_forgetting.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle59). Recorder verify_no_loss=OK. Experimento APOYADA (24 seeds).
+- Notas: cierra límites #1/#2 de exp044 (olvido adaptativo + detección endógena). El agente olvida sólo cuando
+  sus predicciones se contradicen (sorpresa) -> trade-off estabilidad-plasticidad endógeno: adapta (0.449, =
+  mejor fijo tuneado) sin saber el punto de cambio, y mantiene la fase 1 (0.843) dominando al mismo floor
+  constante (0.201). Olvido selectivo >> constante. Cierra el sub-arco R-VALOR 56-59 (lazo de valor endógeno).
