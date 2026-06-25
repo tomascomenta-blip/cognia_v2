@@ -375,3 +375,24 @@ abstenciones **flagueadas**. **Pero** es dependiente de régimen: en cadenas lar
 como el verificador que lo dispara). **Cierra el barrido de realismos del integrador multi-paso:** proceso
 (44) + presupuesto adaptativo (45) + **modo honesto** (46). **Próximo (H-V4-1l):** **backtracking** —
 reintentar el paso fallido en vez de abstener la cadena entera, para recuperar cobertura sin perder precisión.
+
+### CYCLE 47 — H-V4-1l: backtracking/retry — ¿insistir rescata la cobertura?
+
+CYCLE 46 dejó el colapso de cobertura: en cadenas largas, abstenerse al primer paso fallido abstiene *todo*.
+**H-V4-1l** prueba el remedio obvio: **retry** — ante un paso que no verifica, darle una segunda tanda de
+muestras del pool (con contabilidad gastar-hasta-verificar, los pasos fáciles dejan holgura) antes de abstener.
+**Resultado MIXTA.** Curva K|vn→ABST_cov/RETRY_cov(Δcov) prec: `6|0.0:0.30/0.37(+0.07)p1.00 ·
+6|0.1:0.51/0.70(+0.19)p0.18 · 6|0.2:0.75/0.86(+0.11)p0.04`.
+
+Retry **recupera cobertura** material en cadenas largas (Δcov **+0.19** a K=6/vn=0.1) **sin dañar precisión**
+— cumple literalmente lo pre-registrado. **Pero** su valor está **gateado por el verificador**: donde recupera
+mucho (ruido alto) la precisión absoluta es baja (0.18, 0.04 — *rescata cadenas confiadamente-mal*), y donde
+la precisión es alta (verificador perfecto) el gain es sub-margen (+0.07). El colapso de cobertura **no se
+arregla insistiendo**. *(Nota de método: el piso de "cobertura útil" (precisión ≥0.5) es post-hoc; lo reporto
+y NO lo uso para forzar un refutado — la pre-registración se cumple, de ahí MIXTA y no REFUTADA.)*
+
+**Cierra el barrido de mecanismos del integrador multi-paso (44-47):** proceso (44) + presupuesto adaptativo
+(45) + abstención (46) + backtracking (47). **Los cuatro convergen al mismo cuello de botella:** la
+**calidad/precisión del verificador y del paso**. **Giro estratégico del roadmap:** el próximo lever NO es más
+orquestación de cómputo, sino el **sustrato** — un verificador **real-chequeable** (código→sandbox, estilo
+exp018) y **mejor precisión por paso** (H-V4-2).

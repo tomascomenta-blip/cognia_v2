@@ -3688,3 +3688,22 @@ ejecución real) es el lever central de la auto-mejora segura.
   'real'), test_cycle46 4/4.
 - PRÓXIMO (P0): H-V4-1l — BACKTRACKING (reintentar el paso fallido en vez de abstener la cadena entera) para
   recuperar cobertura sin perder precisión; disparar abstención/backtrack con la política adaptativa de 43.
+
+## CYCLE 47 (RESET v4) — H-V4-1l: backtracking/RETRY del paso fallido (2026-06-24)
+- exp033_backtrack_retry / H-V4-1l MIXTA: ataca el colapso de cobertura de exp032. RETRY = ante un paso que no
+  verifica, segunda tanda desde el pool (gastar-hasta-verificar deja holgura) antes de abstener, a IGUAL B=avg·K.
+  vs ABSTAIN. 4 seeds. (Se corrigió un confound de muestreo alineando el estado de RNG de torch entre las dos
+  políticas; y se pasó a contabilidad gastar-hasta-verificar para que el retry tenga pool real.)
+- Curva K|vn→ABST_cov/RETRY_cov(Δcov) prec: 2|0.0:0.54/0.54(+0.00)p1.00 | 4|0.1:0.62/0.69(+0.08)p0.28 |
+  6|0.0:0.30/0.37(+0.07)p1.00 | 6|0.1:0.51/0.70(+0.19)p0.18 | 6|0.2:0.75/0.86(+0.11)p0.04.
+- RETRY recupera cobertura material en cadenas largas (Δcov +0.19 a K6/vn0.1) SIN dañar precisión -> cumple lo
+  pre-registrado. PERO su VALOR está gateado por el verificador: donde recupera mucho (ruido alto) la precisión
+  es baja (rescata cadenas confiadamente-MAL); donde la precisión es alta (vn=0) el gain es sub-margen. No hay
+  régimen con Δcov≥0.10 Y precisión útil (≥0.5). MIXTA.
+- NOTA DE MÉTODO (honesta): el piso de precisión útil (retry_prec≥0.5) NO estaba pre-registrado; se agregó al
+  ver el rescate de basura, se REPORTA explícitamente y NO se usó para forzar REFUTADA (la pre-registración
+  Δcov≥0.10 sin caída de precisión SÍ se cumple → MIXTA, no REFUTADA; el piso sólo impide el APOYADA limpio).
+- GIRO ESTRATÉGICO: los 4 mecanismos del sub-arco multi-paso (44-47) convergen al mismo cuello de botella — la
+  CALIDAD/PRECISIÓN del verificador y del paso, no la orquestación de cómputo. El próximo lever es el SUSTRATO.
+- cycle47 por compuertas (verify=OK, DoD MIXTA, D-V4-12 ACEPTADA, 1 techo 'real'), test_cycle47 4/4.
+- PRÓXIMO (P0): H-V4-2 — verificador REAL-chequeable (código→sandbox, exp018) + mejor precisión por paso.

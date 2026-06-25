@@ -129,14 +129,24 @@ queda como restricción de VIABILIDAD, no como dirección.
   (precisión 1.000 vs commit 0.252 = +0.748, cobertura útil 0.248; a vn=0.1: 0.647 vs 0.217). PERO la cobertura
   COLAPSA a K largo (a K=6 ~0.01-0.02: abstiene todo) y la precisión se erosiona con ruido. Lever real de
   honestidad ("saber cuándo no sé") pero dependiente de régimen. D-V4-11, techo 'real'.
-- [ ] **H-V4-1l (P0): BACKTRACKING** — reintentar el paso fallido (en vez de abstener la cadena entera) para
-  recuperar cobertura sin perder precisión; disparar abstención/backtrack con la política adaptativa de 43.
-- [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
+- [x] **CYCLE 47 (exp033) — H-V4-1l: MIXTA.** RETRY del paso fallido (segunda tanda desde el pool en vez de
+  abstener) recupera COBERTURA material en cadenas largas (Δcov +0.19 a K6/vn0.1, +0.11 a K6/vn0.2) SIN dañar
+  precisión — cumple la pre-registración. PERO su UTILIDAD está gateada por el verificador: donde recupera
+  mucho (ruido alto) la precisión es baja (0.18/0.04 = rescata cadenas confiadamente-MAL); donde la precisión
+  es alta (vn=0) el gain es sub-margen (+0.07). El colapso de cobertura NO se arregla insistiendo. (Nota de
+  método: el piso de utilidad retry_prec≥0.5 es post-hoc, reportado, NO usado para forzar REFUTADA.) D-V4-12,
+  techo 'real'. → **GIRO ESTRATÉGICO: el cuello de botella de TODO el integrador multi-paso (44-47) es la
+  CALIDAD/PRECISIÓN del verificador y del paso, no la orquestación de cómputo.**
+- [ ] **H-V4-2 (P0, próximo gran salto — sustrato): verificador REAL-chequeable + mejor precisión por paso.**
+  Reemplazar el verificador SINTÉTICO por uno real (código→sandbox, estilo exp018) y/o mejorar la precisión
+  por paso del modelo base; es el lever que los 4 mecanismos (44-47) señalan como cuello de botella.
+- [ ] H-V4-3 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
 
-> Sub-arco MULTI-PASO (CYCLE 44-46): verificación de PROCESO frena el compounding (44) + presupuesto ADAPTATIVO
-> per-step rescata cadenas largas (45) + ABSTENCIÓN honesta sube la precisión-sobre-respondidas (46). El
-> integrador multi-paso = proceso + presupuesto adaptativo + modo honesto. Cota recurrente: cadenas largas y
-> ruido del verificador degradan todo -> falta backtracking + mejor precisión por paso.
+> Sub-arco MULTI-PASO (CYCLE 44-47) CERRADO en mecanismos: verificación de PROCESO frena el compounding (44) +
+> presupuesto ADAPTATIVO per-step rescata cadenas largas (45) + ABSTENCIÓN honesta sube la precisión-sobre-
+> respondidas (46) + BACKTRACKING/RETRY recupera cobertura (47). Los CUATRO convergen al mismo cuello de
+> botella: la CALIDAD/PRECISIÓN del verificador y del paso. CONCLUSIÓN ESTRATÉGICA: el próximo lever NO es más
+> orquestación de cómputo sino el SUSTRATO — verificador real-chequeable + mejor precisión por paso (H-V4-2).
 
 > Sub-arco MULTI-PASO (CYCLE 44-45) en curso: la verificación de PROCESO frena el compounding (44, MIXTA,
 > ventaja relativa creciente) y el presupuesto ADAPTATIVO per-step rescata cadenas largas (45, MIXTA, rescate

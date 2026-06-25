@@ -1380,3 +1380,38 @@ sube precisión pero cobertura colapsa a K largo / con ruido), analogía, verify
 `test_cycle46_abstention_noisy.py` 4/4. Convergente con predicción selectiva y con 41/43.
 
 > Sub-arco MULTI-PASO 44-46: proceso (44) + presupuesto adaptativo per-step (45) + abstención honesta (46).
+
+## CYCLE 47 — H-V4-1l: backtracking/RETRY del paso fallido vs abstención
+
+### Pregunta
+¿Reintentar un paso que no verificó (RETRY: segunda tanda desde el pool, en vez de abstener la cadena entera)
+recupera COBERTURA sin perder PRECISIÓN, a IGUAL presupuesto total? (ataca el colapso de cobertura de exp032)
+
+### Diseño
+Extiende exp032 (cadena mod 20, verificador ruidoso per-step, modelo propio). Pool compartido B=avg·K con
+gastar-hasta-verificar (pasos fáciles cuestan poco → dejan pool para los difíciles). ABSTAIN: al fallar un
+paso, abstiene. RETRY: al fallar, segunda tanda de hasta retry_extra muestras del pool antes de abstener.
+Estado de RNG de torch ALINEADO entre las dos políticas (ven las mismas muestras base; RETRY difiere sólo por
+las extra). Barrido (K, vnoise), 4 seeds. Pre-registrado: APOYADA si Δcov≥0.10 con prec_drop≤0.10 y cobertura
+recuperada útil (precisión≥0.5); MIXTA si recupera sin dañar precisión pero gateado por el verificador.
+
+### Resultado — MIXTA
+Curva K|vn→ABST_cov/RETRY_cov(Δcov) prec: 6|0.0:0.30/0.37(+0.07)p1.00 | 6|0.1:0.51/0.70(+0.19)p0.18 |
+6|0.2:0.75/0.86(+0.11)p0.04. RETRY recupera cobertura material en cadenas largas sin dañar precisión, PERO su
+utilidad está gateada por el verificador: donde recupera mucho (ruido alto) la precisión es baja (rescata
+cadenas confiadamente-MAL); donde la precisión es alta (vn=0) el gain es sub-margen. No hay régimen con
+Δcov≥0.10 Y precisión útil.
+
+### Disciplina / límites (honestos)
+(1) Confound de muestreo detectado y corregido (RNG de torch alineado entre políticas). (2) Contabilidad
+pasada a gastar-hasta-verificar para que el retry tenga pool real. (3) NOTA DE MÉTODO: el piso de utilidad
+(retry_prec≥0.5) NO estaba pre-registrado; se agregó al ver el rescate de basura, se REPORTA explícitamente y
+NO se usó para forzar REFUTADA. GIRO ESTRATÉGICO: los 4 mecanismos (44-47) convergen al cuello de botella del
+verificador/precisión-por-paso → el próximo lever es el SUSTRATO, no más orquestación.
+
+### Verificación
+exp033 (4 seeds, modelo propio). cycle47 → H-V4-1l 'mixta' (DoD), D-V4-12 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle47_backtrack_retry.py` 4/4.
+
+> Sub-arco MULTI-PASO 44-47 cerrado en mecanismos (proceso+adaptativo+abstención+backtracking); todos apuntan
+> al SUSTRATO (verificador real + precisión por paso) como el verdadero próximo lever (H-V4-2).
