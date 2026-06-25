@@ -201,3 +201,28 @@ agresivo colapsa). El mecanismo (RL más hack-prone que imitación) mantiene apo
   H-LEARN-5 a mayor escala; (b) verificador de CÓDIGO real (subprocess+tests con timeout); (c) cuota de
   sintético + ledger de procedencia para loops largos sin deriva.
 - **Pivotes a otras prioridades:** F-REASON-REAL (LM real en el router); F-LONGCTX. Cabos: H-HYB-3 (pausado).
+
+## [2026-06-25] ARCO VERIFICADOR-REAL cerrado (CYCLE 51-55) — síntesis + próximas direcciones
+SÍNTESIS: el lazo de auto-mejora del lab, con un VERIFICADOR CHEQUEABLE REAL (sandbox que EJECUTA la salida,
+exp018) en vez del oráculo aritmético, es ROBUSTO y la GUARDIA (dedup + replay limpio de la verdad) es el
+mecanismo central de robustez:
+- CYCLE 51 (H-V4-2d, APOYADA): generaliza del oráculo EXACTO al verificador real sobre iteración (sin colapso/hack).
+- CYCLE 52 (H-V4-2e, APOYADA): bootstrapea un base DÉBIL (0.08->0.93); la guardia es crítica al cold-start.
+- CYCLE 53 (H-V4-2f, APOYADA): tolera ruido falso-positivo UNIFORME; la guardia sube ε* de 0.0 a 0.50.
+- CYCLE 54 (H-V4-2g, APOYADA, CAPSTONE): ruido x cold-start COEXISTEN (ε*_coldstart=0.30).
+- CYCLE 55 (H-V4-2h, MIXTA): defiende contra SESGO SISTEMÁTICO (off-by-one); daño por PIN, no deriva runaway.
+TESIS: el VERIFICADOR (su CORRECCIÓN) es el lever de 1ra clase; el tipo de oráculo (exacto vs ejecutable) no
+importa; la guardia (replay limpio) compra robustez ante verificadores imperfectos (ruido, cold-start, sesgo).
+
+PRÓXIMAS DIRECCIONES (prioridad):
+1. [P1, cierra el arco] Verificador de CÓDIGO real con un bug real (no el off-by-one de juguete) y tests
+   parciales -> el FP-rate efectivo medido vs ε*≈0.5. Limitación dura: el HybridLM tiny (d=64) no genera Python;
+   la síntesis de expresiones es el proxy máximo a esta escala. Documentar el techo de capacidad del modelo.
+2. [P1] Sesgo EMERGENTE (no sembrado): ¿algún verificador buggy induce un sesgo que el lazo DESCUBRA solo?
+   (exp019/exp041 sugieren que la DISCOVERY es la barrera -> probablemente robusto, pero falta el test).
+3. [P0, PIVOTE NORTH-STAR] R-VALOR / valor endógeno: retomar H-V4-1b (aislar info-gain vs azar-activo en
+   régimen presupuesto-chico/ruido-alto/espacio-grande) desde exp022/CYCLE 35 (MIXTA). Es la raíz convergente
+   del árbol de descomposición; el arco verificador es una rama de H-V4-2. Mayor valor de BREADTH para el lab.
+4. [P1] H-V4-3 (calidad del prior > forma), H-V4-4 (techo de recall es de optimización), H-V4-5 (escribir≡olvidar).
+RECOMENDACIÓN: el arco verificador está maduro; el siguiente ciclo de mayor valor es el PIVOTE a R-VALOR (3) o
+el cierre con verificador de código real documentando el techo de capacidad del modelo (1).
