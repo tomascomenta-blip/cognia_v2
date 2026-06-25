@@ -219,3 +219,14 @@
 - Notas: PIVOTE fuera del sub-tema memoria. Test adversarial que la corrida nunca hizo (38/39 aceptaron empowerment
   sin él). Acota el rival CONTESTADO del árbol bajo R-VALOR. Sirve al GOAL (R-VALOR como raíz general). Próximo:
   empowerment ESTIMADO online; reconstruir R-VALOR combinando control+relevancia estimada.
+
+## [2026-06-25] CYCLE 80 — H-V4-6b APOYADA (capstone R-CONTROL): R-VALOR reconstruido de control_est × relevancia_est
+- Archivos: cognia_x/experiments/exp064_value_reconstruction/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle80_value_reconstruction.py (new),
+  cognia_x/tests/test_cycle80_value_reconstruction.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle80 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp (48 seeds): rho=0 rvalue_est=0.984 vence a empowerment=0.709 y relevance=0.729 (+0.255), recupera 98%
+  del oráculo; converge con muestras [0.686→0.984]. R-VALOR = producto de dos marginales endógenas.
+- Notas: cierra el par R-CONTROL (79 acotó, 80 reconstruye). El valor se CONSTRUYE de la experiencia (control +
+  recompensa estimados), no se postula. Resuelve el rival contestado bajo R-VALOR. Sirve al GOAL (R-VALOR raíz
+  general constructiva). Próximo: lazo real acción-consecuencia; ligar relevancia con el verificador de auto-mejora.

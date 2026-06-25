@@ -321,3 +321,16 @@ y acota la rama:
   del valor. => el empowerment es la MARGINAL-de-controlabilidad de R-VALOR, NO un valor universal: ni control ni
   predicción puro es el valor; el general es R-VALOR (referido al objetivo). Resuelve el rival CONTESTADO bajo R-VALOR
   (empowerment es un COMPONENTE, no reemplazo). Cota 'real'; D-V4-41; test 4/4. Próximo: empowerment estimado online.
+
+- **CYCLE 80 — H-V4-6b APOYADA (capstone CONSTRUCTIVO del par R-CONTROL 79-80).** R-VALOR se RECONSTRUYE de dos
+  marginales ENDÓGENAS. El agente estima controlabilidad (empowerment, de consecuencias) Y relevancia (de recompensa)
+  con S muestras y las COMBINA. En rho=0 (control ⊥ relevancia): rvalue_est (ctrl_est × rel_est) = 0.984 vence a cada
+  marginal sola (empowerment 0.709, relevance 0.729) por +0.255 y recupera 98% del oráculo; converge con muestras
+  [0.686→0.984]. => R-VALOR (referido al objetivo) se CONSTRUYE combinando dos estimadores endógenos baratos, SIN
+  oráculo; empowerment y predicción/relevancia son sus DOS marginales. Cierra el par R-CONTROL: 79 acotó, 80
+  reconstruye. El valor se construye de la experiencia, no se postula. Cota 'real'; D-V4-42; test 4/4.
+
+> PAR R-CONTROL (79-80) CERRADO: el empowerment es la marginal-de-controlabilidad de R-VALOR (79, acota el rival
+> contestado), y R-VALOR se reconstruye como el PRODUCTO de las marginales endógenas control × relevancia (80,
+> constructivo). Resuelve la rama CONTESTADA del árbol bajo R-VALOR: control y predicción no son rivales de R-VALOR
+> sino sus dos marginales. Frontera: lazo real acción-consecuencia/recompensa; valor no-factorizable; escala.

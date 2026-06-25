@@ -264,3 +264,7 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
   D-V4-41; test 4/4.
 - [ ] CYCLE 80+: empowerment ESTIMADO online (¿sobrevive como el valor de memoria del 72?); reconstruir R-VALOR
   combinando control + relevancia estimada sin oráculo.
+- [x] **CYCLE 80 (exp064) — H-V4-6b: APOYADA. Capstone CONSTRUCTIVO del par R-CONTROL.** R-VALOR se reconstruye de dos
+  marginales endógenas: rho=0 rvalue_est (ctrl_est × rel_est) = 0.984 vence a empowerment=0.709 y relevance=0.729
+  (+0.255), recupera 98% del oráculo, converge con muestras. El valor se CONSTRUYE de control + relevancia estimados,
+  sin oráculo. Cierra el par R-CONTROL (79 acotó, 80 reconstruye). Cota 'real'; D-V4-42; test 4/4.

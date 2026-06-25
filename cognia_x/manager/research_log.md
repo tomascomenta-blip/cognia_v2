@@ -2566,3 +2566,42 @@ empowerment/intrinsic-motivation (tier1) acotado bajo R-VALOR.
 > SÓLO cuando control≈valor y degrada al desalinearse, igual que la predicción. Unifica el rival contestado bajo
 > R-VALOR (objetivo-referido). Próximo: empowerment ESTIMADO online; reconstruir R-VALOR combinando control +
 > relevancia estimada sin oráculo.
+
+## CYCLE 80 — H-V4-6b (rama R-CONTROL, capstone CONSTRUCTIVO del par 79-80): R-VALOR reconstruido de marginales endógenas — APOYADA
+
+### Pregunta
+CYCLE 79 (exp063, H-V4-6a) acotó: el empowerment es la marginal-de-controlabilidad de R-VALOR (ctrl×rel), no el
+valor universal; ni control ni predicción/relevancia solos bastan. La pieza POSITIVA: si el agente ESTIMA AMBAS
+marginales -- controlabilidad (de sus consecuencias) Y relevancia (de la recompensa) -- y las COMBINA (ctrl_est ×
+rel_est), ¿reconstruye el valor COMPLETO y vence a cualquier marginal sola, justo donde control ⊥ relevancia?
+
+### Diseño
+Numpy. n=40 levers (ctrl, rel; valor=ctrl×rel), atender k=8. El agente observa S muestras ruidosas de cada marginal
+(ctrl_est = ctrl + ruido/√S; rel_est igual). 5 brazos: oracle_value, empowerment (ctrl_est solo), relevance
+(rel_est solo), rvalue_est (ctrl_est × rel_est), random. Sweep S∈{1,4,16,64}. DOS regímenes: rho=0 (divergen) y
+rho=1 (alineadas). 48 seeds. Pre-registrado: APOYADA si en rho=0, S>=16, rvalue_est > ambas marginales (+>0.05) Y
+recupera >=85% del oráculo.
+
+### Resultado — APOYADA
+rho=0 (control ⊥ relevancia, S=64): oracle=1.000 empowerment=0.709 relevance=0.729 rvalue_est=0.984 random=0.391.
+rvalue_est (el producto) VENCE a cada marginal sola por +0.255 y recupera 98% del oráculo; ninguna marginal pasa de
+~0.73 (no reconstruye el valor). Curva por muestras [0.686, 0.831, 0.956, 0.984] CONVERGE al oráculo (paralelo a la
+estimación online del CYCLE 72). rho=1 (alineadas): todas ~0.98 (control basta = exp024/025). => R-VALOR (ctrl×rel,
+referido al objetivo) se CONSTRUYE combinando dos estimadores endógenos baratos (control + relevancia), SIN oráculo;
+empowerment y relevancia/predicción son sus DOS marginales, ninguna suficiente sola donde divergen.
+
+### Límites (honestos)
+El valor multiplicativo ctrl×rel se ASUME (factorización de diseño; en general el valor podría no factorizar limpio);
+las marginales se estiman con ruido ~1/√S abstracto (falta un lazo REAL de acción-consecuencia y de recompensa);
+juguete (selección estática, objetivo escalar).
+
+### Verificación
+exp064 (48 seeds, numpy). cycle80 -> H-V4-6b 'apoyada' (DoD), D-V4-42 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle80_value_reconstruction.py` 4/4 (producto vence marginales + converge + 3 ramas).
+Convergente con descomposición de valor / successor-features (tier1) y con CYCLE 79 (tier5).
+
+> CIERRA el par R-CONTROL (79-80) con la pieza POSITIVA: 79 ACOTÓ (empowerment = marginal-de-controlabilidad), 80
+> RECONSTRUYE (R-VALOR = producto de dos marginales ENDÓGENAS: control + relevancia, ambas estimables, ninguna
+> suficiente sola donde divergen). El valor se CONSTRUYE de la experiencia (consecuencias + recompensa), no se
+> postula. Próximo: estimación en un lazo REAL de acción-consecuencia; ligar con el lazo de auto-mejora (el
+> verificador = la señal de relevancia); empowerment estimado online; valor que no factorice limpio.
