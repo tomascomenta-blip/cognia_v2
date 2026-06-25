@@ -1792,3 +1792,22 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
 - Verificado: suite rapida 2449 passed, 1 skipped, 0 failed (315s) sobre el arbol integrado;
   commits posteriores verificados individualmente + combinados (53 passed juntos, sin polucion).
 - Estado: origin/main en 2d9e04b, 8 commits por delante de fd6c189. TODO PUSHEADO.
+
+## 2026-06-25 — Inferencia (LPC) + loop de agentes (auditoria runtime, no shapes)
+- Tomé prioridad #1 del 2026-06-22: auditar orquestación de inferencia + execution loop de agentes.
+- Delegué 2 Explore en paralelo, VERIFIQUÉ cada claim contra el código real antes de tocar nada
+  (varios "bugs" del sub-agente eran FALSOS: temp=0 es estable por flat-=max; bypass del verifier
+  inalcanzable sin code_executor; fallback distribuido es por diseño; vr "uninitialized" inalcanzable).
+- 85d5163 fix(orchestrator): LPC solo reusa KV-cache si el prompt VERIFICADAMENTE extiende el
+  prefijo cacheado. Antes comparaba solo conteo de tokens y _LPCEntry no guardaba los IDs ->
+  reuso de prefijo obsoleto = corrupción cross-turn. Ahora guarda prefix_ids y valida
+  np.array_equal(all_ids[:cached_n], prefix); helper _lpc_plan() unifica los 2 sitios. Repro+CHECK.
+- 24162ae fix(agents): _Executor.run() finaliza la tarea como FAILED ante CUALQUIER excepción no
+  controlada (antes quedaba colgada en EXECUTING y la excepción tumbaba el tick() del daemon).
+  Repro: plan_task que lanza -> tick() ya no propaga, tarea FAILED con EXECUTOR_ERROR. CHECK.
+- BUG-3 documentado NO embarcado: off-by-one en truncate_kv del speculative decoding (caso de
+  divergencia conserva el slot KV del candidato rechazado). REAL pero solo se activa con draft
+  model + shards reales (ausentes en este checkout) -> no verificable end-to-end; documentado con
+  repro determinista (fake engine) para la próxima sesión. Honestidad sobre límites (regla 10).
+- Verificado: suite rápida 2459 passed, 1 skipped, 0 failed (204s). Tests dirigidos verdes.
+- Pendiente: push a origin/main via gh credential helper (wincredman falla headless).

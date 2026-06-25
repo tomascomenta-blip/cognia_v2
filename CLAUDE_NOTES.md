@@ -646,3 +646,133 @@ parent task id.
    non-determinism is acknowledged in the design, not a bug). The per-rank KV-cache
    path is still un-reviewed.
 5. Re-run benchmark once a real shard/DB is present (still pending across sessions).
+
+---
+
+## Session: 2026-06-25  (INFERENCE ORCHESTRATION + AGENT EXECUTION-LOOP BUG-HUNT)
+
+### Context / approach
+Picked up priority #1 from 2026-06-22: audit the un-audited inference orchestration
+(shattering/orchestrator.py infer/astream/LPC/speculative) and the agent EXECUTION
+loop (supervisor/daemon RUNTIME behaviour), not just cache shapes. Env unchanged:
+no venv312 in this checkout; system `python` is 3.12.10 (numpy 1.26.4 + pytest 9.0.3),
+used directly. Delegated two parallel Explore audits (inference + agents), then
+VERIFIED every key claim against the real code before touching anything (CLAUDE.md
+rule 2). Several sub-agent "bugs" were FALSE on inspection and deliberately dropped
+(see below). Fixed two real, fully-verified correctness bugs; one real-but-unverifiable
+speculative-decoding bug is documented precisely for next session instead of shipped.
+
+### [BUG-1 — LIVE, severe correctness] LPC reused KV-cache without verifying the prefix -- FIXED + PUSHED (85d5163)
+**File**: shattering/orchestrator.py -- LatentPersistenceCache + _shard_infer_stream + _generate_local
+
+Root cause: the Latent Persistence Cache (cross-turn KV-cache reuse, public API
+`infer/astream(prompt, lpc_session_id=...)`) decided to skip the cached prefix purely
+by comparing token COUNTS — `cached_n < len(all_ids)` — and reused the MLA KV-cache
+for the first `cached_n` tokens WITHOUT ever checking that `all_ids[:cached_n]`
+matched the previously-cached tokens. `_LPCEntry` only stored `token_count`, never the
+token IDs, so the check was impossible. Any caller reusing an lpc_session_id with a
+different (but longer) prompt — and even legitimate multi-turn chat whose template
+boundary tokens differ — silently attended over a STALE prefix and corrupted output.
+The designer's own `invalidate()` docstring documents the intended guard ("clear when
+prompt is not an extension of cached prefix") but nothing enforced it. The e2e test
+already reused one sid across two non-extension prompts ("Explain recursion."→"Give an
+example."), exercising the buggy path (it only asserted no-crash, not correctness).
+
+Fix: `_LPCEntry` now stores `prefix_ids` (full prompt+generated token IDs of the cached
+turn); `update()` persists the IDs and derives token_count from len. New shared
+`_lpc_plan()` helper validates `np.array_equal(all_ids[:cached_n], prefix)` before
+reuse; on ANY mismatch (divergent / identical / shorter) it evicts the MLA session,
+invalidates the entry and reprocesses the full prompt. Both LPC decision sites now call
+the one helper (dedup bonus). Reproduced stale-prefix reuse on old logic, confirmed new
+logic reprocesses-full on non-extension / skips only on real extension (explicit e2e
+CHECK printed). Regression: tests/test_e2e_inference.py::TestLPCPlanPrefixValidation
+(4 tests) + TestLatentPersistenceCache updated to the prefix-IDs signature.
+
+### [BUG-2 — robustness] Agent executor left tasks dangling on any uncaught exception -- FIXED + PUSHED (24162ae)
+**File**: cognia/agents/supervisor.py -- _Executor.run()
+
+Root cause: `_Executor.run()` set PLANNING/EXECUTING then only reached a terminal state
+(DONE/FAILED/ABORTED) on the happy path. Any uncaught exception (plan_task raising, a DB
+error in update_status/save_subtasks, an unexpected tool/verify failure) propagated
+straight out of `CogniaAgentRuntime.tick()`, which `AgentDaemon.tick()` calls with no
+guard. Two consequences: the popped task was lost from the in-memory queue and stuck in
+a non-terminal state (only recoverable on full process restart via _reload_pending),
+AND the exception bubbled up and could take down the daemon/idle tick loop.
+
+Fix: run() now wraps the real body (`_run()`) and on any exception marks the task FAILED
+with `EXECUTOR_ERROR:<type>:<msg>` (the FAILED write itself guarded so the except path
+can't raise). Honors the lifecycle contract and keeps the daemon alive across a bad task.
+Verified end-to-end: monkeypatched plan_task to raise; tick() no longer propagates and
+the task ends FAILED with the captured reason (explicit CHECK). Regression:
+tests/test_phase23.py::test_executor_error_marks_failed_not_dangling.
+
+### [BUG-3 — REAL but UNVERIFIABLE here, documented not shipped] Speculative KV-cache off-by-one on draft divergence
+**File**: shattering/orchestrator.py -- _token_loop() (and the twin block in _shard_infer_stream ~lines 660-700)
+
+Root cause (verified by reading qwen2_ops.truncate_kv/kv_len + the batch forward):
+the batch verifies N_DRAFT draft candidates and the KV-cache grows by N_DRAFT (one slot
+per candidate, positions kv_before..kv_before+N_DRAFT-1). On DIVERGENCE at position j
+(`pred_j != candidates[j]`), `accepted = [c0..c_{j-1}, pred_j]`, k=j+1, and the code does
+`truncate_kv(session_id, kv_before + k)` = kv_before+j+1 — which KEEPS the KV slot for
+the REJECTED candidate c_j (position j) even though the committed token at that index is
+pred_j. So position j holds the wrong token's KV (a phantom), making the KV sequence
+length one longer than the committed token sequence from that point on → corrupts the
+rest of the turn. Secondary: `prev_output = out_batch[k-1]` then uses c_j's logits (the
+rejected token's output) as the seed for the next step.
+  - The all-match+bonus case is accidentally correct: k=N_DRAFT+1 overshoots the actual
+    length N_DRAFT, truncate clamps to a no-op, leaving the N_DRAFT valid slots. Only the
+    DIVERGENCE branch is buggy.
+Correct fix sketch: truncate to `kv_before + matched` (matched = # of as-is accepted
+candidates, EXCLUDING the final correction/bonus), then reprocess the correction token
+(accepted[-1] = current_ids) through a NORMAL single-token step so its KV + prev_output
+are computed correctly, before continuing.
+WHY NOT SHIPPED THIS SESSION: this path only activates with a real draft model
+(nano_draft.npz) + loaded shards, NEITHER of which is present in this checkout, so it
+CANNOT be verified end-to-end against the real model (CLAUDE.md rules 2 & 4). Shipping
+an unverifiable change to a working perf path is the wrong trade. NEXT SESSION should
+fix it WITH a deterministic reproducer: a fake engine implementing kv_len/truncate_kv +
+a stub `_forward_through_swarm` that appends one KV slot per input token, asserting the
+invariant `kv_len(session) == len(committed_tokens_forwarded)` after a forced-divergence
+step (fails on current code, passes after the fix). That pins the bug at the KV-bookkeeping
+layer where it lives, independent of model weights.
+
+### Sub-agent claims VERIFIED FALSE and deliberately dropped (don't re-chase)
+- "temperature=0 → div-by-1e-8 overflow → NaN": FALSE. `_sample` does `flat -= flat.max()`
+  BEFORE exp, so temp=0 degrades to a numerically-stable argmax. No overflow. Not a bug.
+- "verifier ImportError skips the blocked-import scan → security bypass": MOOT. The real
+  sandbox+allowlist is in code_executor; if code_executor isn't importable the
+  `execute_python` tool isn't even registered (tool_registry.py:84) → the subtask fails
+  with "Unknown tool". There is no path to execute generated code without code_executor.
+- "silent distributed→local fallback masks swarm bugs": by DESIGN (resilience), logged at
+  WARNING. Not a correctness bug.
+- "uninitialized `vr` → NameError at supervisor.py:195": unreachable. MAX_SUBTASK_RETRIES=3
+  guarantees the loop body sets `vr` at least once before that line; if verify() raises it
+  propagates earlier (and is now caught by the new run() wrapper anyway).
+- LOOP_DETECTOR in _run_subtask is effectively dead (key = md5(subtask.id:attempt) is
+  unique per attempt, set is per-Executor) — REAL but harmless: range(MAX_SUBTASK_RETRIES)
+  already bounds the loop, no infinite spin. Left as-is (low value); noted for cleanup.
+
+### Verification
+- Reproduced BUG-1 + BUG-2 on old logic, verified fixed (explicit end-to-end CHECK output).
+- Targeted: test_e2e_inference.py (LPC) 10 passed; test_phase23.py 31 passed;
+  affected set (phase23+phase24+self_improvement+e2e_inference+shattering) 164 passed, 7 skipped.
+- Full fast suite (tests/ --ignore=test_e2e_inference.py) BEFORE agent fix: 2458 passed,
+  1 skipped, 0 failed (279s). FINAL gate AFTER both fixes: **2459 passed, 1 skipped,
+  0 failed** (204s) — the +1 is the new test_phase23 regression (the e2e_inference LPC
+  tests are excluded from this command but pass under the targeted run: 10 passed).
+
+### State at session end
+- Two commits on local branch integration/fixes-onto-origin: 85d5163 (LPC), 24162ae (agents).
+- Push protocol unchanged (wincredman fails headless):
+  `git -c credential.helper='!gh auth git-credential' push origin HEAD:main`.
+
+### Priority Order for Next Session
+1. **Fix BUG-3 (speculative KV off-by-one on divergence)** using the deterministic
+   fake-engine reproducer described above. Highest-value un-fixed correctness bug found.
+2. Continue the inference-runtime audit not yet covered: the DISTRIBUTED token loop
+   (node/inference_pipeline.py _single_forward_pass / session create / route) and the
+   per-rank KV-cache of tensor-parallel v2 (still un-reviewed). Verify wire-protocol
+   PTYPE_LOGITS shape handling on the real relay if a multi-node setup is available.
+3. (Optional) wire or delete GoalManager.goal_aware_memory_boost (dead, latent dim trap).
+4. (Optional) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
+5. Re-run benchmark once a real shard/DB is present (still pending across sessions).
