@@ -736,6 +736,24 @@ invariant `kv_len(session) == len(committed_tokens_forwarded)` after a forced-di
 step (fails on current code, passes after the fix). That pins the bug at the KV-bookkeeping
 layer where it lives, independent of model weights.
 
+### [BUG-4 — functional, live feature] FS watcher analyzed each file only ONCE per session -- FIXED + PUSHED (ee1bd5a)
+**File**: cognia/agents/daemon.py -- _fs_watch_loop()
+
+Root cause: the loop tracked already-queued files in a PERMANENT set (`pending_tasks`)
+cleared only on watcher shutdown. After a file was analyzed once,
+`if path in pending_tasks: continue` suppressed EVERY later change to it for the rest
+of the watcher's life. The watcher is wired live (cognia_idle.py:461
+`start_fs_watcher(".")`), so the iterative save→analyze→save→analyze dev flow broke
+after the first edit of any file.
+
+Fix: replaced the permanent path-set with (path→mtime) dedup; the same file VERSION is
+never re-queued but a later modification (new mtime) re-triggers. Extracted the decision
+into a pure, thread-free helper `_changed_paths(current, previous, submitted)` for
+deterministic testing. Startup stays quiet (unseen files not analyzed) and two rapid
+edits within one poll window still collapse to one task (preserves
+test_watcher_deduplicates_per_path). Verified with explicit CHECK (old=1 / new=2 analyses
+for two separate-window edits). Regression: tests/test_phase25.py::TestChangedPaths (5).
+
 ### Sub-agent claims VERIFIED FALSE and deliberately dropped (don't re-chase)
 - "temperature=0 → div-by-1e-8 overflow → NaN": FALSE. `_sample` does `flat -= flat.max()`
   BEFORE exp, so temp=0 degrades to a numerically-stable argmax. No overflow. Not a bug.
@@ -762,7 +780,8 @@ layer where it lives, independent of model weights.
   tests are excluded from this command but pass under the targeted run: 10 passed).
 
 ### State at session end
-- Two commits on local branch integration/fixes-onto-origin: 85d5163 (LPC), 24162ae (agents).
+- Four commits on local branch integration/fixes-onto-origin: 85d5163 (LPC),
+  24162ae (agent executor finalize), ee1bd5a (FS watcher re-trigger), + docs.
 - Push protocol unchanged (wincredman fails headless):
   `git -c credential.helper='!gh auth git-credential' push origin HEAD:main`.
 

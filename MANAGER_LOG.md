@@ -1811,3 +1811,10 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   repro determinista (fake engine) para la próxima sesión. Honestidad sobre límites (regla 10).
 - Verificado: suite rápida 2459 passed, 1 skipped, 0 failed (204s). Tests dirigidos verdes.
 - Pendiente: push a origin/main via gh credential helper (wincredman falla headless).
+
+## 2026-06-25 (cont.) — Fix-3: FS watcher del daemon
+- ee1bd5a fix(agents/daemon): el FS watcher analizaba cada archivo UNA sola vez por sesión.
+  El set permanente `pending_tasks` suprimía para siempre el 2do cambio de cualquier archivo
+  (watcher vivo en cognia_idle.py:461). Reemplazado por dedup (path→mtime) + helper puro
+  _changed_paths() testeable sin hilos. CHECK: vieja=1 / nueva=2 análisis para 2 ediciones.
+  Regresión: TestChangedPaths (5 tests deterministas). Suite: ver gate final.
