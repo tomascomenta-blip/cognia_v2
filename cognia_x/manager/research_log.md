@@ -1415,3 +1415,33 @@ verify_no_loss=OK. Test `test_cycle47_backtrack_retry.py` 4/4.
 
 > Sub-arco MULTI-PASO 44-47 cerrado en mecanismos (proceso+adaptativo+abstención+backtracking); todos apuntan
 > al SUSTRATO (verificador real + precisión por paso) como el verdadero próximo lever (H-V4-2).
+
+## CYCLE 48 — H-V4-2: SUSTRATO — auto-mejora verificada + amplificación multi-paso (CAPSTONE arco v4)
+
+### Pregunta
+¿El lazo act-and-verify mejora el sustrato barato (precisión por paso) desde sus propias salidas VERIFICADO-
+correctas (señal de corrección, no volumen), y esa mejora se AMPLIFICA en razonamiento multi-paso (p^K)?
+
+### Diseño
+Modelo propio (HybridLM). (1) Base débil. (2) Genera K completaciones por prompt de train; arma VERIFIED (sólo
+correctas por oráculo) y CONTROL (subconjunto aleatorio de TODAS, mismo tamaño → aísla volumen). (3) Fine-tune
+2 copias (verified/control), mismos N_steps. (4) Mide PRECISIÓN POR PASO (held-out) y ACCURACY DE CADENA greedy
+(sin orquestación → aísla el sustrato) a K=1,2,3. Pre-registrado: APOYADA si verified > base y > control en el
+paso (≥0.03) Y el ratio verified/base en cadena crece de K=1 a Kmax.
+
+### Resultado — APOYADA
+PASO: base 0.317 → VERIFIED 0.419 (+0.102) vs CONTROL 0.258. Verified supera base Y control (el control sin
+verificar EMPEORA el base) → la señal de CORRECCIÓN, no el volumen. AMPLIFICACIÓN: ratio verified/base crece
+monótono 1.32×(K1) → 1.93×(K2) → 2.71×(K3). Una mejora modesta del paso (+0.10) rinde compuesta en multi-paso.
+
+### Límites (honestos)
+Base débil (CPU) → cadena greedy a K≥4 cae a ~0 (piso de medición); la amplificación se demostró a K≤3 (donde
+el ratio ya llega a 2.71×). Una sola ronda de STaR (falta iterar y ver saturación). Tarea aritmética con
+oráculo exacto (falta verificador real-chequeable y razonamiento no-aritmético).
+
+### Verificación
+exp034 (4 seeds, modelo propio). cycle48 → H-V4-2 'apoyada' (DoD), D-V4-13 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle48_substrate_amplify.py` 3/3. Convergente con STaR (Zelikman 2022) y exp016.
+
+> ARCO v4 CERRADO (40-48): el integrador es un LAZO DE AUTO-MEJORA — orquestación test-time (40-43) + multi-paso
+> (44-47) + mejora del sustrato amplificada (48). Unifica R-INTERVENCIÓN + R-VALOR sobre el modelo propio.

@@ -396,3 +396,26 @@ y NO lo uso para forzar un refutado — la pre-registración se cumple, de ahí 
 **calidad/precisión del verificador y del paso**. **Giro estratégico del roadmap:** el próximo lever NO es más
 orquestación de cómputo, sino el **sustrato** — un verificador **real-chequeable** (código→sandbox, estilo
 exp018) y **mejor precisión por paso** (H-V4-2).
+
+### CYCLE 48 — H-V4-2: el sustrato se mejora a sí mismo, y la mejora se amplifica (capstone del arco v4)
+
+El sub-arco 44-47 concluyó que toda la orquestación de cómputo topa con la **precisión por paso**. **H-V4-2**
+cierra el círculo: el lazo act-and-verify **no sólo asigna cómputo — genera datos verificados que mejoran el
+sustrato barato**, y esa mejora se **amplifica** en multi-paso. Sobre el modelo propio: se generan auto-salidas,
+se separan las **verificado-correctas** (oráculo) de un **control** del mismo tamaño con salidas sin verificar,
+y se fine-tunean dos copias. **Resultado APOYADA.** Precisión **por paso**: base 0.317 → **verified 0.419**
+(+0.102) vs **control 0.258** — el control sin verificar incluso **empeora** el base, así que el motor es la
+**señal de corrección, no el volumen** (replica exp016 en este sustrato). Y la mejora **se amplifica**: en
+cadena greedy (sin orquestación, para aislar el sustrato) el ratio verified/base **crece monótono** con la
+longitud — `1.32× (K1) → 1.93× (K2) → 2.71× (K3)`. Una mejora *modesta* del paso (+0.10) rinde una mejora
+*compuesta* en multi-paso.
+
+**Cierra el arco v4 (CYCLE 40-48):** el integrador del lab es un **lazo de auto-mejora**, no sólo orquestación.
+(1) Asigna cómputo test-time por **controlabilidad** + fiabilidad del verificador (40-43). (2) Lo extiende a
+**multi-paso** — proceso, presupuesto adaptativo, abstención, backtracking (44-47). (3) Genera datos
+**verificados** que mejoran la **precisión por paso** del sustrato barato, mejora que se **amplifica** en lo
+largo (48). Unifica **R-INTERVENCIÓN** (actuar+verificar) y **R-VALOR** (valor de controlabilidad) sobre el
+modelo propio CPU-first. *(Cota honesta: base débil → la cadena greedy a K≥4 cae al piso de medición; la
+amplificación se demostró a K≤3.)* **Próximo (H-V4-2b):** iterar el lazo varias rondas, verificador
+real-chequeable (código→sandbox) y razonamiento no-aritmético — el camino hacia *"algo que habla y razona,
+barato"*.

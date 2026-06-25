@@ -3707,3 +3707,22 @@ ejecución real) es el lever central de la auto-mejora segura.
   CALIDAD/PRECISIÓN del verificador y del paso, no la orquestación de cómputo. El próximo lever es el SUSTRATO.
 - cycle47 por compuertas (verify=OK, DoD MIXTA, D-V4-12 ACEPTADA, 1 techo 'real'), test_cycle47 4/4.
 - PRÓXIMO (P0): H-V4-2 — verificador REAL-chequeable (código→sandbox, exp018) + mejor precisión por paso.
+
+## CYCLE 48 (RESET v4) — H-V4-2: SUSTRATO, auto-mejora verificada + amplificación (CAPSTONE arco v4) (2026-06-24)
+- exp034_substrate_amplify / H-V4-2 APOYADA: cierra el arco v4. El lazo act-and-verify no sólo asigna cómputo
+  (40-47) — genera datos VERIFICADOS que mejoran el sustrato barato (STaR por la señal de CORRECCIÓN, no el
+  volumen), y esa mejora del paso se AMPLIFICA en cadenas largas (p^K). 4 seeds, modelo propio.
+- PASO (suma held-out): base 0.317 → VERIFIED 0.419 (+0.102) vs CONTROL 0.258 (Δvs_ctl=+0.160). Verified supera
+  base Y control → es la corrección (el control entrenando con salidas sin verificar EMPEORA el base). Replica
+  exp016/CYCLE 29 en este sustrato.
+- AMPLIFICACIÓN (cadena greedy, sin orquestación → aísla el sustrato): ratio verified/base crece monótono con K:
+  K1 1.32× → K2 1.93× → K3 2.71×. Curva K→BASE/VERIFIED: K1 0.438/0.578 | K2 0.183/0.353 | K3 0.080/0.217. Una
+  mejora modesta del paso (+0.10) rinde compuesta (2.71× a K=3). Cota honesta: base débil → cadena greedy a K≥4
+  ~0 (piso de medición; amplificación demostrada a K≤3).
+- CIERRE DEL ARCO v4: el integrador es un LAZO DE AUTO-MEJORA: (1) asigna cómputo test-time por controlabilidad
+  + fiabilidad del verificador (40-43); (2) multi-paso con proceso+adaptativo+abstención+backtracking (44-47);
+  (3) mejora el sustrato desde sus salidas verificadas, amplificado en multi-paso (48). Unifica R-INTERVENCIÓN +
+  R-VALOR sobre el modelo propio CPU-first.
+- cycle48 por compuertas (verify=OK, DoD APOYADA, D-V4-13 ACEPTADA, 1 techo 'real'), test_cycle48 3/3.
+- PRÓXIMO (P0): H-V4-2b — iterar el lazo de auto-mejora varias rondas (¿satura?) + verificador real-chequeable
+  (código→sandbox) + razonamiento no-aritmético = "algo que habla y razona, barato".

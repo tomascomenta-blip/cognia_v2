@@ -137,16 +137,28 @@ queda como restricción de VIABILIDAD, no como dirección.
   método: el piso de utilidad retry_prec≥0.5 es post-hoc, reportado, NO usado para forzar REFUTADA.) D-V4-12,
   techo 'real'. → **GIRO ESTRATÉGICO: el cuello de botella de TODO el integrador multi-paso (44-47) es la
   CALIDAD/PRECISIÓN del verificador y del paso, no la orquestación de cómputo.**
-- [ ] **H-V4-2 (P0, próximo gran salto — sustrato): verificador REAL-chequeable + mejor precisión por paso.**
-  Reemplazar el verificador SINTÉTICO por uno real (código→sandbox, estilo exp018) y/o mejorar la precisión
-  por paso del modelo base; es el lever que los 4 mecanismos (44-47) señalan como cuello de botella.
+- [x] **CYCLE 48 (exp034) — H-V4-2: APOYADA. CAPSTONE del arco v4 (cierra el lazo verify→sustrato→razonamiento).**
+  El lazo act-and-verify genera datos VERIFICADOS que mejoran el sustrato barato (auto-mejora STaR por la señal
+  de CORRECCIÓN, no el volumen) y esa mejora se AMPLIFICA en multi-paso. PASO: base 0.317→VERIFIED 0.419
+  (+0.102) vs CONTROL 0.258 (el control sin verificar EMPEORA el base → es la corrección). AMPLIFICACIÓN (cadena
+  greedy, aísla el sustrato): ratio verified/base K1 1.32× → K2 1.93× → K3 2.71× (creciente). Una mejora modesta
+  del paso (+0.10) rinde compuesta en lo largo. D-V4-13, techo 'real'. Cota honesta: base débil → cadena greedy
+  a K≥4 cae a ~0 (piso; amplificación demostrada a K≤3).
+- [ ] **H-V4-2b (P0): iterar el lazo de auto-mejora** — varias rondas de STaR (¿hasta dónde sube el paso? ¿satura?)
+  + verificador REAL-chequeable (código→sandbox, exp018) para tareas más ricas que la suma + razonamiento no-aritmético.
 - [ ] H-V4-3 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
 
 > Sub-arco MULTI-PASO (CYCLE 44-47) CERRADO en mecanismos: verificación de PROCESO frena el compounding (44) +
 > presupuesto ADAPTATIVO per-step rescata cadenas largas (45) + ABSTENCIÓN honesta sube la precisión-sobre-
 > respondidas (46) + BACKTRACKING/RETRY recupera cobertura (47). Los CUATRO convergen al mismo cuello de
-> botella: la CALIDAD/PRECISIÓN del verificador y del paso. CONCLUSIÓN ESTRATÉGICA: el próximo lever NO es más
-> orquestación de cómputo sino el SUSTRATO — verificador real-chequeable + mejor precisión por paso (H-V4-2).
+> botella: la CALIDAD/PRECISIÓN del verificador y del paso.
+
+> **ARCO v4 CERRADO (CYCLE 40-48):** el integrador del lab es un LAZO DE AUTO-MEJORA, no sólo orquestación.
+> (1) Asigna cómputo test-time por controlabilidad + fiabilidad del verificador (40-43). (2) Lo extiende a
+> multi-paso: proceso+presupuesto adaptativo+abstención+backtracking (44-47). (3) Genera datos VERIFICADOS que
+> mejoran la precisión por paso del sustrato barato, mejora que se AMPLIFICA en multi-paso (48). Unifica
+> R-INTERVENCIÓN (actuar+verificar) + R-VALOR (controlabilidad) sobre el modelo propio CPU-first. Próximo:
+> ITERAR el lazo (H-V4-2b) + verificador real-chequeable + razonamiento no-aritmético = "algo que habla y razona, barato".
 
 > Sub-arco MULTI-PASO (CYCLE 44-45) en curso: la verificación de PROCESO frena el compounding (44, MIXTA,
 > ventaja relativa creciente) y el presupuesto ADAPTATIVO per-step rescata cadenas largas (45, MIXTA, rescate
