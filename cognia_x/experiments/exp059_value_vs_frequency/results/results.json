@@ -1,0 +1,52 @@
+{
+  "exp": "exp059_value_vs_frequency",
+  "cycle": 75,
+  "hypothesis": "H-V4-5e",
+  "claim": "el valor de recordar es task-definido (frecuencia×costo), no la frecuencia: cuando el valor diverge de la frecuencia, estimar el VALOR vence a estimar la frecuencia (LFU)",
+  "verdict": "apoyada",
+  "summary": {
+    "uniform": {
+      "oracle_value": 0.5059,
+      "lfu_freq": 0.502,
+      "value_est": 0.5019,
+      "recency": 0.3698,
+      "random": 0.1803
+    },
+    "varying": {
+      "oracle_value": 0.6393,
+      "lfu_freq": 0.489,
+      "value_est": 0.636,
+      "recency": 0.3515,
+      "random": 0.1693
+    },
+    "oracle_advantage_varying": 0.47,
+    "fraction_recovered_varying": 0.993,
+    "value_beats_lfu": true,
+    "value_recovers": true,
+    "no_divergence_uniform": true,
+    "lfu_suboptimal_varying": true,
+    "status": "apoyada",
+    "verdict": "H-V4-5e APOYADA: el VALOR != FRECUENCIA -- el valor es task-definido (frecuencia×costo). COST_VARYING (v!=f): value_est (estima el costo acumulado) 0.636 recupera 99% de la ventaja del oráculo (0.639); lfu_freq (sólo frecuencia) se queda en 0.489 (+0.147 a favor de value_est) -- LFU deja 0.150 de valor sobre la mesa porque optimiza la señal EQUIVOCADA (guarda lo frecuente-barato, falla lo raro-caro). COST_UNIFORM (v proporcional a f): value_est 0.502 ~ lfu_freq 0.502 (|dif| 0.000): SIN divergencia no hay ventaja -> la ventaja la DRIVE que el valor diverja de la frecuencia, no que value_est sea genéricamente mejor. => estimar la FRECUENCIA es un PROXY que falla; hay que estimar el VALOR de la tarea. Rebate 'esto es sólo LFU': LFU es óptimo SÓLO cuando valor=frecuencia."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "m": 10,
+    "alpha_f": 1.5,
+    "alpha_c": 1.5,
+    "T": 4000
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp059] CYCLE 75 / H-V4-5e — el VALOR != FRECUENCIA (valor task-definido = frecuencia×costo de fallar)",
+    "[exp059] n=50 m=10 alpha_f=1.5 alpha_c=1.5 T=4000 seeds=48",
+    "[exp059] COST_UNIFORM   hit-rate pond.costo: oracle=0.506 lfu_freq=0.502 value_est=0.502 recency=0.370 random=0.180",
+    "[exp059] COST_VARYING   hit-rate pond.costo: oracle=0.639 lfu_freq=0.489 value_est=0.636 recency=0.351 random=0.169",
+    "[exp059] cuando v!=f: value_est recupera 99% del oráculo; lfu deja 0.150 sobre la mesa. cuando v~f: value~lfu (True)",
+    "[exp059] VEREDICTO H-V4-5e: APOYADA | H-V4-5e APOYADA: el VALOR != FRECUENCIA -- el valor es task-definido (frecuencia×costo). COST_VARYING (v!=f): value_est (estima el costo acumulado) 0.636 recupera 99% de la ventaja del oráculo (0.639); lfu_freq (sólo frecuencia) se queda en 0.489 (+0.147 a favor de value_est) -- LFU deja 0.150 de valor sobre la mesa porque optimiza la señal EQUIVOCADA (guarda lo frecuente-barato, falla lo raro-caro). COST_UNIFORM (v proporcional a f): value_est 0.502 ~ lfu_freq 0.502 (|dif| 0.000): SIN divergencia no hay ventaja -> la ventaja la DRIVE que el valor diverja de la frecuencia, no que value_est sea genéricamente mejor. => estimar la FRECUENCIA es un PROXY que falla; hay que estimar el VALOR de la tarea. Rebate 'esto es sólo LFU': LFU es óptimo SÓLO cuando valor=frecuencia."
+  ]
+}

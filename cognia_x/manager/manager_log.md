@@ -161,3 +161,15 @@
 - Notas: cierra el sub-arco R-VALOR-estimador (72-73-74) y la muleta 'decay fijo' del 73. Sirve al GOAL (R-VALOR
   bajo realismo). El selector DISCRETO (no la tasa continua) logra no-regret, replicando CYCLE 66 sobre el estimador
   de valor. Próximo: valor endógeno más rico (info-gain/confianza) o escala no-IID; o pivotar a otra muleta.
+
+## [2026-06-25] CYCLE 75 — H-V4-5e APOYADA (el valor != frecuencia, task-definido; capstone conceptual)
+- Archivos: cognia_x/experiments/exp059_value_vs_frequency/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle75_value_vs_frequency.py (new),
+  cognia_x/tests/test_cycle75_value_vs_frequency.py (new),
+  research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle75 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp (48 seeds): COST_VARYING value_est=0.636 (99% del oráculo 0.639) > lfu=0.489 (+0.147); COST_UNIFORM
+  value_est=0.502 = lfu=0.502. El valor es task-definido; estimar la frecuencia falla cuando v!=f.
+- Notas: capstone CONCEPTUAL del arco realismo (72-75); eleva el arco más allá de "LFU textbook". Sirve al GOAL
+  (R-VALOR task-definido). Liga memoria con R-INTERVENCIÓN (valor aprendido de consecuencias). Próxima hija: costo
+  revelado sólo al fallar (exploración); valor endógeno más rico (info-gain/confianza).

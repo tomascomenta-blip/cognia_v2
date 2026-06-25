@@ -276,3 +276,11 @@ sobreviven al quitar los oráculos perfectos, acercándose a un mundo menos de j
   olvidar (selector, 74), todo endógeno. Replica el selector de estrategia (CYCLE 66) sobre el estimador de valor.
   Caveat: selecciona (no mejora; hereda el techo del oráculo); sólo 2 expertos; frecuencia pura. Cota 'real'; D-V4-36;
   test 4/4. SUB-ARCO R-VALOR-estimador (72-73-74) CERRADO: R-VALOR × OLVIDO cerrado endógenamente sin hiperparámetro.
+
+- **CYCLE 75 — H-V4-5e APOYADA (capstone CONCEPTUAL del arco realismo).** El VALOR != FRECUENCIA. Separando
+  frecuencia f_i de costo-de-fallar c_i (valor v=f×c): COST_VARYING (v!=f) value_est (estima costo acumulado) 0.636
+  recupera 99% del oráculo (0.639), lfu_freq (sólo frecuencia) 0.489 deja 0.150 sobre la mesa (señal equivocada:
+  guarda lo frecuente-barato, falla lo raro-caro); COST_UNIFORM (v~f) value_est 0.502 ~ lfu 0.502 (la ventaja la
+  DRIVE la divergencia). => R-VALOR es task-definido; estimar la frecuencia (proxy) falla cuando el valor diverge.
+  Rebate "esto es sólo LFU": LFU óptimo SÓLO si valor=frecuencia. El agente aprende valor de sus CONSECUENCIAS ->
+  liga memoria con R-INTERVENCIÓN (CYCLE 40-48). Cota 'real'; D-V4-37; test 4/4. Capstone del arco realismo 72-75.

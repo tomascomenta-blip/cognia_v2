@@ -2363,3 +2363,45 @@ no-regret (tier1) y con el selector de estrategia CYCLE 66 (tier5).
 > El SELECTOR discreto (no la modulación continua de tasa) es lo que logra no-regret, replicando CYCLE 66 sobre el
 > estimador de valor. Próximo: subir de frecuencia a un valor endógeno más rico (info-gain/confianza, CYCLE 56-57)
 > o escalar a un downstream no-IID; o pivotar a otra muleta del arco realismo.
+
+## CYCLE 75 — H-V4-5e (arco "R-VALOR bajo realismo", capstone CONCEPTUAL): el VALOR != FRECUENCIA (task-definido)
+
+### Pregunta
+El sub-arco 72-74 estimó el valor por FRECUENCIA -- pero ahí el valor ERA la frecuencia (prob de consulta), así que
+la frecuencia era un estimador perfecto. El thesis v4 dice que el valor es task-definido (info mutua con consultas/
+RECOMPENSAS FUTURAS), no un proxy de frecuencia. ¿Si SEPARAMOS frecuencia de valor (cada item con frecuencia f_i Y
+costo-de-fallar c_i independiente, valor v=f×c), estimar la FRECUENCIA sola falla y hay que estimar el VALOR?
+
+### Diseño
+Numpy. Memoria online m=10/n=50. En cada consulta (IID ~ f) el agente OBSERVA el costo c del item (stakes
+reveladas). Objetivo = maximizar el HIT-RATE PONDERADO POR COSTO (fracción del costo de consulta cubierta). DOS
+escenarios: COST_UNIFORM (c=1 -> v proporcional a f) y COST_VARYING (c ~ Pareto indep. de f -> v != f). 5 brazos:
+oracle_value (top-m por v=f×c, cota), lfu_freq (top-m por frecuencia observada = ignora costo), value_est (top-m por
+COSTO ACUMULADO observado = estimador MC de f×c), recency, random. 48 seeds. Pre-registrado: APOYADA si en
+cost-varying value_est>lfu (+>0.05) Y recupera >=70% del oráculo Y en cost-uniform value_est~lfu (|dif|<0.04).
+
+### Resultado — APOYADA
+COST_UNIFORM (v~f): oracle=0.506 lfu_freq=0.502 value_est=0.502 (|dif|=0.000) -- convergen: SIN divergencia no hay
+ventaja. COST_VARYING (v!=f): oracle=0.639 lfu_freq=0.489 value_est=0.636 (recupera 99% del oráculo) random=0.169 --
+value_est vence a lfu por +0.147; LFU deja 0.150 de valor sobre la mesa porque guarda lo frecuente-BARATO y falla lo
+raro-CARO (optimiza la señal EQUIVOCADA). La ventaja la DRIVE que el valor diverja de la frecuencia (control uniform
+limpio), no que value_est sea genéricamente mejor. => el valor es task-definido; estimar la FRECUENCIA (proxy) falla
+cuando el valor diverge; estimar el VALOR (frecuencia×costo de consecuencia observado) acierta.
+
+### Límites (honestos)
+(1) El costo se OBSERVA en cada consulta (stakes reveladas); la versión dura sólo lo revela al FALLAR (tensión de
+exploración: actuar para aprender el valor, R-INTERVENCIÓN) -- queda como hija. (2) costo INDEPENDIENTE de la
+frecuencia (divergencia máxima); correlación parcial atenuaría la ventaja. (3) estacionario; valor = frecuencia×costo
+(falta info-gain/confianza, CYCLE 56-57); juguete (Pareto, n=50, IID).
+
+### Verificación
+exp059 (48 seeds, numpy). cycle75 -> H-V4-5e 'apoyada' (DoD), D-V4-37 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle75_value_vs_frequency.py` 4/4 (crossover varying/uniform + 3 ramas). Gate
+dirigido (ciclos 72-75 + research engine). Convergente con cost-aware caching/value-of-information (tier1) y con el
+thesis R-VALOR task-definido (tier5).
+
+> CAPSTONE CONCEPTUAL del arco realismo: eleva el arco más allá de "LFU textbook". El valor de recordar es
+> task-definido (frecuencia × costo), NO la frecuencia; estimar un PROXY (frecuencia) falla cuando el valor diverge,
+> y LFU es óptimo SÓLO cuando valor=frecuencia. El agente aprende el valor de sus CONSECUENCIAS (costo observado) ->
+> liga el arco MEMORIA con R-INTERVENCIÓN (CYCLE 40-48). Próxima hija: costo revelado SÓLO al fallar (exploración);
+> valor endógeno más rico (info-gain/confianza).

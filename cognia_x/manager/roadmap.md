@@ -226,3 +226,13 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > el estimador DEBE olvidar (decay), crossover full/decay; (74) el estimador AUTO-selecciona su tasa de olvido por su
 > propio acierto reciente (no-regret), sin hiperparámetro de régimen. R-VALOR × MEMORIA × OLVIDO queda atado a un
 > valor ENDÓGENO ESTIMADO (no un oráculo). Frontera: valor más rico (info-gain/confianza) + downstream no-IID + escala.
+- [x] **CYCLE 75 (exp059) — H-V4-5e: APOYADA. CAPSTONE CONCEPTUAL del arco realismo.** El VALOR != FRECUENCIA
+  (task-definido = frecuencia × costo de fallar). COST_VARYING (v!=f): value_est=0.636 recupera 99% del oráculo, lfu
+  (sólo frecuencia) 0.489 deja 0.150 sobre la mesa; COST_UNIFORM (v~f): value_est=lfu (la divergencia DRIVE la
+  ventaja). Rebate "esto es sólo LFU": LFU óptimo SÓLO si valor=frecuencia. Liga memoria con R-INTERVENCIÓN. Techo
+  'real'; D-V4-37; test 4/4.
+
+> ARCO "R-VALOR BAJO REALISMO" (CYCLE 72-75) -- estado: el thesis R-VALOR×memoria sobrevive al quitar las muletas de
+> juguete una por una: valor ESTIMADO online no oráculo (72), debe OLVIDAR bajo no-estacionariedad (73), AUTO-elige
+> su tasa de olvido (74, no-regret), y el valor es TASK-DEFINIDO no un proxy de frecuencia (75). Frontera: costo
+> revelado sólo al fallar (exploración/R-INTERVENCIÓN); valor endógeno más rico (info-gain/confianza); escala no-IID.
