@@ -170,3 +170,41 @@ optimización) siguen ABIERTAS. H-V4-5 (escribir≡olvidar) tiene evidencia PARC
 memoria a R-VALOR). Escala: todo es en juguete (bayesiano numpy + HybridLM tiny); falta un mundo no-de-juguete y
 un verificador de código real (gated por la capacidad del modelo tiny). Gating EXPLÍCITO por calibración
 estimada (usar el filtro endógeno sólo donde es confiable) es el siguiente paso natural de la unificación.
+
+## Estado v4 tras la corrida 61-66 (addendum — arco UNIFICACIÓN/gating + arco R-VALOR x MEMORIA)
+Continúa la corrida 51-60. Otros 6 ciclos (61-66), todos por las compuertas del engine (verify_no_loss=OK), tests verdes.
+
+**UNIFICACIÓN/gating (60-62):** la confianza endógena reemplaza PARCIALMENTE al verificador externo del lazo de
+auto-mejora, GATEADA por la calibración (60, H-V4-2i MIXTA); el agente puede DECIDIR cuándo confiar en su
+auto-consistencia estimando su calibración con un probe (62, H-V4-2j MIXTA: robusto/no-colapsa, pero la
+estimación es ruidosa). (61 = consolidación.)
+
+**Arco R-VALOR x MEMORIA (58·63-66) — el valor de QUÉ recordar/olvidar, todo de señales ENDÓGENAS:**
+- 58 (H-V4-1d MIXTA): el olvido dirigido por valor adapta a UN cambio de causa donde el committed se atasca.
+- 59 (H-V4-1e APOYADA): el olvido ADAPTATIVO por sorpresa detecta el cambio sin supervisión (óptimo para un cambio AISLADO).
+- 63 (H-V4-1f APOYADA): en no-estacionariedad RECURRENTE el committed se atasca PROGRESIVAMENTE; el óptimo de
+  olvido DEPENDE del régimen (constante para recurrente, surprise-gated para aislado).
+- 64 (H-V4-1g MIXTA): el META-olvido (estima la tasa de cambio de su sorpresa y modula el decay) adapta en
+  dirección correcta pero NO iguala el óptimo de cada régimen (asimétrico).
+- 65 (H-V4-1h REFUTADA): un piso constante + sorpresa NO cierra el caveat -> el trade-off estabilidad-plasticidad
+  es FUNDAMENTAL para un controlador que sólo modula la TASA de olvido.
+- 66 (H-V4-1i APOYADA, CIERRE): un SELECTOR de ESTRATEGIA (clasifica el régimen de su sorpresa y CONMUTA
+  committear<->olvidar-fuerte, decisión DISCRETA) alcanza el ÓPTIMO en ambos regímenes, lo que la modulación de
+  tasa no pudo. El valor endógeno elige la ESTRATEGIA de memoria (modo), no la intensidad.
+
+**TESIS del arco memoria:** R-VALOR no sólo decide QUÉ información vale y CUÁNDO deja de valer, sino CÓMO
+recordar/olvidar -- y eso es una decisión de ESTRATEGIA (committear vs olvidar-fuerte) seleccionada del propio
+régimen de no-estacionariedad, estimado de la sorpresa endógena. Liga R-VALOR (raíz primera) con MEMORIA
+(escribir≡olvidar, H-V4-5): la confianza calibrada (qué vale) + la sorpresa (cuándo/cómo olvidar) son las dos
+señales endógenas del lazo de valor.
+
+**Estado de las hipótesis v4 (tras 51-66):**
+- APOYADAS: H-V4-1b (info-gain aislado), H-V4-1c (confianza calibrada), H-V4-1e (olvido adaptativo), H-V4-1i
+  (selector de estrategia), H-V4-2d (verificador real generaliza), H-V4-2e (bootstrap base débil), H-V4-2f
+  (tolera ruido), H-V4-2g (ruido x cold-start).
+- MIXTAS: H-V4-1d (olvido un cambio), H-V4-1f (recurrente), H-V4-1g (meta-olvido), H-V4-2h (sesgo verificador),
+  H-V4-2i (auto-consistencia gateada), H-V4-2j (gate explícito).
+- REFUTADA: H-V4-1h (piso constante + sorpresa).
+- DIFERIDA: H-V4-4 (recall = optimización; el recall a d=32 está en piso de aprendibilidad, necesita miles de
+  steps; retomar con currículo escalonado + más cómputo).
+- ABIERTAS: H-V4-3 (calidad del prior), H-V4-5 (escribir≡olvidar -- con evidencia PARCIAL del arco memoria).

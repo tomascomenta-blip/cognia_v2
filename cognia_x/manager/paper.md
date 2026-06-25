@@ -522,3 +522,45 @@ tiene evidencia PARCIAL (falta la ablación que ate la memoria a R-VALOR). Todo 
 HybridLM tiny): falta escala, un mundo no-de-juguete, y un verificador de código real (gated por la capacidad del
 modelo). El siguiente paso natural de la unificación es el GATING EXPLÍCITO: usar el filtro endógeno (confianza)
 sólo donde la calibración estimada es alta, reservando el verificador externo para el resto.
+
+---
+
+# Corrida 61-66 — gating explícito y el arco de la MEMORIA (síntesis)
+
+Tras la corrida 51-60 (verificador-real + R-VALOR + unificación), otros seis ciclos cerraron el gating explícito
+y el arco R-VALOR x memoria.
+
+## Gating explícito (62) — el agente que sabe cuándo confiar en sí mismo
+- **62 (H-V4-2j, MIXTA):** el agente estima su calibración con un probe barato y DECIDE: usa la auto-consistencia
+  (endógeno) donde es confiable y cae al verificador externo donde no. Es ROBUSTO (nunca colapsa como la
+  auto-consistencia pura), aunque la estimación ruidosa no iguala al verificador en el régimen débil. Es
+  meta-cognición barata: saber cuándo sabe.
+
+## Arco R-VALOR x MEMORIA (58·63-66) — qué/cuándo/cómo recordar, de señales endógenas
+El North-Star pide un valor que decida "qué información merece predecirse, escribirse, recordarse u olvidarse".
+Este arco lo ataca en un mundo no-estacionario:
+- **58 (H-V4-1d):** el olvido dirigido por valor adapta a un cambio donde el committed se atasca (parcial).
+- **59 (H-V4-1e):** el olvido ADAPTATIVO por SORPRESA detecta el cambio sin supervisión -- óptimo para un cambio aislado.
+- **63 (H-V4-1f):** en no-estacionariedad RECURRENTE el committed se atasca PROGRESIVAMENTE; el óptimo de olvido
+  DEPENDE del régimen (constante para recurrente, surprise-gated para aislado).
+- **64 (H-V4-1g):** el meta-olvido (modula el decay por su sorpresa) adapta en dirección correcta pero no iguala
+  el óptimo (el trade-off lo limita).
+- **65 (H-V4-1h, REFUTADA):** un piso constante + sorpresa no cierra el caveat -- el trade-off estabilidad-
+  plasticidad es FUNDAMENTAL para un controlador que sólo modula la TASA.
+- **66 (H-V4-1i, CIERRE):** un SELECTOR de ESTRATEGIA (clasifica el régimen de su sorpresa y conmuta committear
+  <->olvidar-fuerte) alcanza el ÓPTIMO en ambos regímenes -- la decisión DISCRETA vence el trade-off donde el
+  escalar fallaba.
+
+**Tesis del arco:** la meta-cognición de memoria es una decisión de MODO (committear vs olvidar-fuerte), no de
+intensidad, seleccionada del régimen de no-estacionariedad que el agente clasifica de su PROPIA sorpresa. Junto a
+la confianza calibrada (qué información vale, CYCLE 57), la sorpresa (cuándo/cómo olvidar) completa el lazo de
+VALOR ENDÓGENO: el sistema juzga qué vale, cuándo deja de valer y cómo recordarlo, sin oráculo ni aviso externo.
+Conecta R-VALOR (raíz primera) con H-V4-5 (escribir≡olvidar).
+
+## Estado global (51-66)
+Cuatro arcos cerrados: VERIFICADOR-REAL (51-55), R-VALOR (56-59), UNIFICACIÓN/gating (60-62), R-VALOR x MEMORIA
+(58·63-66). 16 ciclos, todos por las compuertas del engine (verify_no_loss=OK), tests verdes, decisiones
+D-V4-16..D-V4-30 aceptadas por el ledger. Diferido: H-V4-4 (recall=optimización, por cómputo). Abierto: H-V4-3
+(calidad del prior). Todo en juguete (bayesiano numpy + HybridLM tiny): la escala y un mundo no-de-juguete siguen
+pendientes, pero R-VALOR pasó de "resoluble = confianza BAJA" a "resoluble con evidencia positiva = confianza
+MEDIA" en el sustrato disponible.

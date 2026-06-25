@@ -3940,3 +3940,11 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: un selector que clasifica el régimen de su sorpresa y conmuta committear<->olvidar-fuerte alcanza el
   ÓPTIMO en ambos regímenes (estacionario 1.000=committed; recurrente 0.511>=fixed), lo que la modulación de tasa
   (CYCLE 64/65) no pudo. El valor endógeno elige la ESTRATEGIA de memoria (decisión discreta). CIERRA el arco.
+
+## [2026-06-25] CYCLE 67 — CONSOLIDACIÓN: thesis v4 (decomposition_tree.md + paper.md) integran los ciclos 61-66
+- Archivos: cognia_x/manager/decomposition_tree.md, cognia_x/manager/paper.md, MANAGER_LOG.md
+- Resultado tests: PASS — 27/27 (cycles 60-66, compuerta). git diff solo-docs.
+- Notas: ciclo de consolidación. Agrega al thesis v4 el addendum 61-66 (UNIFICACIÓN/gating 60-62 + arco R-VALOR x
+  MEMORIA 58·63-66) y el estado completo de hipótesis (8 APOYADAS, 6 MIXTAS, 1 REFUTADA, 1 DIFERIDA, H-V4-3/5
+  abiertas). paper.md: síntesis prosa del gating y el arco memoria. Integra los 16 ciclos en los documentos
+  centrales del lab.
