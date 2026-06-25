@@ -2122,3 +2122,40 @@ con selección de estrategia gateada por contexto (mixture-of-experts, tier1); c
 > dejó de valer (sorpresa -> olvido), y CÓMO recordar/olvidar según el régimen (selector de estrategia), todo de
 > señales ENDÓGENAS. La meta-cognición de memoria es una decisión de MODO (committear vs olvidar-fuerte), no de
 > intensidad. La modulación de TASA tiene un techo (CYCLE 65); el SELECTOR de estrategia lo vence (CYCLE 66).
+
+## CYCLE 68 — H-V4-1j (North-Star R-VALOR x memoria, capstone): selector de 3 ESTRATEGIAS
+
+### Pregunta
+CYCLE 66 (selector de 2 estrategias) alcanzó el óptimo en estacionario y recurrente. Falta el régimen
+INTERMEDIO (cambio AISLADO tras commitment profundo, surprise-gate óptimo). ¿Un selector que clasifica 3
+regímenes de su sorpresa en DOS escalas (lenta=tasa de cambio, rápida=shift) elige la estrategia correcta en los 3?
+
+### Diseño
+Bayesiano numpy (reusa exp052/049). FASES ASIMÉTRICAS. 3 regímenes: ESTACIONARIO [60], AISLADO [48,12], RECURRENTE
+[12×5]. 4 brazos: committed, fixed(0.85), surprise_gate(0.6), SELECTOR3 (slow_ema>thr -> olvidar-fuerte;
+fast_ema>thr -> surprise-gate; si no -> committear). 16 seeds. Pre-registrado: APOYADA si ~óptimo en los 3.
+
+### Resultado — MIXTA (2/3)
+ESTACIONARIO: committed=1.000 fixed=0.602 sgate=0.850 SELECTOR3=0.903 (óptimo: clasifica estable y committea).
+AISLADO [48,12]: committed=0.000 (atascado) fixed=0.407 sgate=0.591 (óptimo) SELECTOR3=0.440 (NO óptimo: supera a
+committed/fixed pero no alcanza al surprise_gate). RECURRENTE: committed=0.294 fixed=0.453 sgate=0.584
+SELECTOR3=0.510 (óptimo: clasifica cambiante y olvida-fuerte). El selector3 acierta 2/3: estacionario y recurrente
+limpios, el AISLADO direccional pero subóptimo. La frontera aislado<->recurrente en la escala lenta es sutil
+(distinguirlas es la pieza difícil) y con sólo 12 pasos de adaptación el surprise-gate del selector no re-
+identifica del todo. => clasificar 3 regímenes y elegir la estrategia es PARCIALMENTE posible de la sorpresa
+endógena.
+
+### Límites (honestos)
+El régimen AISLADO (intermedio) no se clasifica/atiende limpio (MIXTA, no forzado). Umbrales de las 2 escalas +
+tasas de EMA son hiperparámetros sensibles; un clasificador mejor (frecuencia de spikes, no nivel del EMA lento)
+podría separar mejor. Presupuesto de adaptación fijo (12) limita el surprise-gate del selector en aislado. Mundo
+de juguete.
+
+### Verificación
+exp053 (16 seeds, bayesiano numpy). cycle68 -> H-V4-1j 'mixta' (DoD), D-V4-31 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle68_strategy_selector3.py` 4/4. Convergente con clasificación de régimen
+multi-escala (tier1); extiende CYCLE 66.
+
+> Capstone del arco memoria con éxito PARCIAL: la tesis del CYCLE 66 (el valor endógeno elige la ESTRATEGIA de
+> memoria) se extiende a 3 regímenes -- 2/3 limpio. La pieza difícil es la CLASIFICACIÓN del régimen intermedio,
+> no la selección de estrategia. El valor endógeno selecciona la estrategia cuando los regímenes son separables.

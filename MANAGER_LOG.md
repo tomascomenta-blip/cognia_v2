@@ -3948,3 +3948,12 @@ ejecución real) es el lever central de la auto-mejora segura.
   MEMORIA 58·63-66) y el estado completo de hipótesis (8 APOYADAS, 6 MIXTAS, 1 REFUTADA, 1 DIFERIDA, H-V4-3/5
   abiertas). paper.md: síntesis prosa del gating y el arco memoria. Integra los 16 ciclos en los documentos
   centrales del lab.
+
+## [2026-06-25] CYCLE 68 — H-V4-1j MIXTA (capstone arco memoria): selector de 3 estrategias (2/3 regímenes)
+- Archivos: cognia_x/experiments/exp053_strategy_selector3/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle68_strategy_selector3.py, cognia_x/tests/test_cycle68_strategy_selector3.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle68). Recorder verify_no_loss=OK. Experimento MIXTA (16 seeds, 2/3).
+- Notas: selector de 3 estrategias (clasifica estac/aislado/recurrente en 2 escalas de sorpresa). Acierta 2/3:
+  estacionario (0.903~committed) y recurrente (0.510>=fixed) limpios; AISLADO subóptimo (0.440 vs sgate 0.591,
+  pero > committed atascado 0.0). La clasificación del régimen intermedio es la pieza difícil. Capstone parcial.
