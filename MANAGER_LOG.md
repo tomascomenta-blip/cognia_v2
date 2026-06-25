@@ -3883,3 +3883,12 @@ ejecución real) es el lever central de la auto-mejora segura.
   calibrado (calib 0.76) sc 0.592 > naive 0.515; débil/mal-calibrado (calib 0.16) sc 0.038 << naive 0.090 (colapsa,
   refuerza errores). MIXTA honesta: gating nítido (contraste 0.595) pero umbrales estrictos borderline (sin mover
   postes). Confirma el CYCLE 57.
+
+## [2026-06-25] CYCLE 61 — CONSOLIDACIÓN: thesis v4 (decomposition_tree.md) + paper.md integran los 10 ciclos
+- Archivos: cognia_x/manager/decomposition_tree.md, cognia_x/manager/paper.md, MANAGER_LOG.md
+- Resultado tests: PASS — suite del arco completo 40/40 (8 de cycle51-52 torch + 32 de cycle53-60).
+- Notas: ciclo de consolidación (docs). Actualiza R-VALOR en el thesis (ya NO 'valor endógeno nunca': hay
+  evidencia positiva 56-60); marca el estado del backlog v4 (H-V4-1b/1c/1e APOYADAS, 1d/2i MIXTAS, 5 PARCIAL);
+  agrega §"Estado v4 tras la corrida 51-60" al thesis y la síntesis "Corrida 51-60" a paper.md (los dos arcos +
+  unificación). R-VALOR sube de confianza BAJA a MEDIA (resoluble con evidencia positiva en juguete). Sirve al
+  GOAL: integra los 10 ciclos en el documento central del lab.

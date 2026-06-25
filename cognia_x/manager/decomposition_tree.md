@@ -31,7 +31,12 @@ un objetivo que el sistema persigue en el tiempo.**
   saber dónde importa; consolidar exige saber qué proteger. **Todas son indefinibles sin un escalar de
   valor.** El valor de una traza = su información mutua esperada con consultas/recompensas FUTURAS.
 - **No la resuelve un "verificador externo":** las 6 lentes se rescatan apelando a un examinador externo
-  — el atajo que critican. El lab SOLO demostró verificador externo (exp017); valor endógeno nunca.
+  — el atajo que critican. El lab demostró verificador externo (exp017) ANTES del v4. **ACTUALIZACIÓN
+  (corrida CYCLE 56-60): YA HAY evidencia POSITIVA de valor endógeno** — info-gain aislado del azar-activo
+  con el instrumento fiel (exp042/H-V4-1b), medible por la CONFIANZA CALIBRADA del propio agente sin oráculo
+  (exp043/H-V4-1c), con OLVIDO dirigido por valor en mundos no-estacionarios (exp044-045/H-V4-1d-1e), y
+  PARCIALMENTE sustituyendo al verificador externo en la auto-mejora cuando el modelo está calibrado
+  (exp046/H-V4-2i). Ver §Estado v4 tras la corrida 51-60.
 
 ### R-INTERVENCIÓN — convergente, fuerte  · **medida real en exp022 (CYCLE 35)**
 **La estructura causal/invariante solo es identificable si la distribución generadora VARÍA — por
@@ -94,18 +99,33 @@ la tesis central como rumbo; toda raíz anclada en d²; las conclusiones de exp0
 (refutadas, citadas al revés por una lente); el rival nunca entretenido **inteligencia = control/acción**
 (active inference / empowerment).
 
-## Hipótesis v4 (backlog del reset)
+## Hipótesis v4 (backlog del reset) — ESTADO tras la corrida 51-60
 - **H-V4-1 · P0** — valor endógeno (info-gain) vs predicción pasiva, bajo intervención, sin verificador
   externo. → **exp022/CYCLE 35: MIXTA** (R-INTERVENCIÓN demostrada; valor-específico no aislado).
-- **H-V4-1b · P0** (hija) — aislar info-gain vs azar-activo en régimen presupuesto-chico / ruido-alto /
-  espacio-grande (donde el azar NO alcance).
-- **H-V4-2 · P0** — identificabilidad causal SIN cuerpo: el brazo que interviene recupera la dirección
-  que el pasivo con 100× más datos no puede (SCM de juguete).
-- **H-V4-3 · P1** — calidad del prior > forma: equivarianza correcta iguala a MDL a fracción del costo.
-- **H-V4-4 · P1** — limpieza de deriva: techo de recall es de optimización (currículo mueve el plateau).
-- **H-V4-5 · P1** — escribir≡olvidar (rate-distortion dirigido por valor); quitar la utilidad mata la
-  ventaja (ablación que ata la memoria a R-VALOR).
-- **H-V4-6 · P2** — limpieza: reward-hack no es la barrera temida (exp019/020 refutadas).
+- **H-V4-1b · P0** (hija) — aislar info-gain vs azar-activo en régimen duro. → **exp042/CYCLE 56: APOYADA.**
+  El valor de info-gain se AÍSLA del de la actividad con el instrumento FIEL (post_on_cause, no accuracy, que
+  saturaba y enmascaraba en exp022). La accuracy enmascaraba: ése era el bug de la MIXTA de CYCLE 35.
+- **H-V4-1c · P0** (nueva) — proxy ENDÓGENO sin oráculo. → **exp043/CYCLE 57: APOYADA.** La confianza calibrada
+  del agente (max posterior) rankea políticas igual que el oráculo y es confiable con la política correcta;
+  el azar-activo da confianza engañosa (confiado-pero-equivocado).
+- **H-V4-1d · P0** (nueva, R-VALOR×memoria) — olvido en no-estacionariedad. → **exp044/CYCLE 58: MIXTA.**
+  Bajo commitment profundo + adaptación corta, el committed se atasca y el olvido FIJO adapta (parcial); sweet
+  spot estabilidad-plasticidad. (Liga R-VALOR a H-V4-5.)
+- **H-V4-1e · P0** (nueva) — olvido ADAPTATIVO por sorpresa. → **exp045/CYCLE 59: APOYADA.** Detección de
+  cambio ENDÓGENA (olvida sólo cuando se contradice) -> trade-off estabilidad-plasticidad sin saber el punto
+  de cambio. Une CYCLE 57 (sorpresa) + 58 (olvido).
+- **H-V4-2 · P0** — identificabilidad causal SIN cuerpo. → cubierto por exp022 (R-INTERVENCIÓN). NOTA: el
+  rótulo H-V4-2 también se usó para el ARCO de AUTO-MEJORA con verificador (CYCLE 48-55, H-V4-2*): el
+  verificador (su corrección) es el motor; la guardia dedup+replay compra robustez (ruido ε*=0.50, cold-start,
+  sesgo). Y **H-V4-2i/CYCLE 60: MIXTA** — la confianza endógena reemplaza PARCIALMENTE al verificador externo,
+  gateada por calibración (conecta el arco de auto-mejora con R-VALOR).
+- **H-V4-3 · P1** — calidad del prior > forma: equivarianza correcta iguala a MDL a fracción del costo. (ABIERTA.)
+- **H-V4-4 · P1** — limpieza de deriva: techo de recall es de optimización (currículo mueve el plateau). (ABIERTA.)
+- **H-V4-5 · P1** — escribir≡olvidar (rate-distortion dirigido por valor). → **PARCIAL (CYCLE 58-59):** el
+  olvido dirigido por valor/sorpresa es necesario para adaptarse en no-estacionariedad; falta la ablación que
+  ate explícitamente la memoria a R-VALOR (quitar la utilidad mata la ventaja).
+- **H-V4-6 · P2** — limpieza: reward-hack no es la barrera temida (exp019/020 refutadas). (Reconfirmado por
+  exp041/CYCLE 55: el sesgo sembrado no deriva runaway; la guardia defiende.)
 
 ## Correcciones de fidelidad que la auditoría cazó contra el código (no inventar, verificar)
 1. El techo de recall = d² estaba refutado por exp010 (16× estado → +0.0003); citarlo como raíz es deriva.
@@ -118,3 +138,35 @@ predicción-compresión · adaptación-bajo-recursos-finitos · agencia/causalid
 física/termodinámica/eficiencia · abstracción/generalización-muestra-eficiente ·
 memoria/representación/binding/tiempo. Detalle adversarial por lente: ver `research_log.md` (CYCLE 35) y
 el journal del workflow `cogniax-v4-decomposition-tree`.
+
+## Estado v4 tras la corrida 51-60 (síntesis — actualiza el thesis)
+La corrida produjo DOS arcos verificados (10 ciclos, todos por las compuertas del engine, verify_no_loss=OK):
+
+**ARCO VERIFICADOR-REAL (51-55) — el verificador externo y su robustez.** El lazo de auto-mejora con un
+verificador chequeable REAL (sandbox que ejecuta la salida, no el oráculo aritmético) es robusto, y la GUARDIA
+(dedup de verificados + replay limpio de la verdad) es el mecanismo central de robustez: generaliza del oráculo
+exacto al verificador real (51), bootstrapea un base débil 0.08→0.93 (52), tolera ruido falso-positivo hasta
+ε*=0.50 (53), ruido×cold-start coexisten (54), y defiende contra sesgo SISTEMÁTICO del verificador (55, MIXTA:
+daño por pin no runaway). TESIS: el VERIFICADOR (su corrección) es el lever de 1ra clase; el tipo de oráculo no
+importa; la guardia compra robustez.
+
+**SUB-ARCO R-VALOR (56-59) — el lazo de valor ENDÓGENO (la RAÍZ PRIMERA), AHORA con evidencia POSITIVA.**
+Primera demostración del lab de un valor endógeno (no un verificador externo): info-gain construye un modelo más
+causal que la mera actividad, AISLADO con el instrumento fiel post_on_cause (56); el agente puede MEDIR ese
+valor por su PROPIA confianza calibrada sin oráculo (57); el olvido dirigido por valor es necesario para
+adaptarse en mundos NO-estacionarios (58), y el olvido ADAPTATIVO por sorpresa detecta el cambio sin supervisión
+(59). El lazo de R-VALOR queda cerrado endógenamente: el sistema juzga QUÉ información vale (confianza calibrada)
+y CUÁNDO dejó de valer (sorpresa → olvido), sin oráculo ni aviso externo. Esto MUEVE R-VALOR de "convergente
+pero resoluble = confianza BAJA" (estado del reset) a "**resoluble con evidencia positiva en juguete = confianza
+MEDIA**" (sigue pendiente la escala y un mundo no-de-juguete).
+
+**UNIFICACIÓN (60) — los dos arcos se tocan por la CALIBRACIÓN.** La confianza endógena (R-VALOR) reemplaza
+PARCIALMENTE al verificador externo del lazo de auto-mejora (arco 51-55), GATEADA por la calibración: usable
+cuando el modelo está calibrado, peligrosa (refuerza errores confiados) cuando no. Confirma el CYCLE 57 en el
+sustrato de auto-mejora.
+
+**Qué queda (próximas raíces/hipótesis):** H-V4-3 (calidad del prior > forma) y H-V4-4 (techo de recall es de
+optimización) siguen ABIERTAS. H-V4-5 (escribir≡olvidar) tiene evidencia PARCIAL (falta la ablación que ate la
+memoria a R-VALOR). Escala: todo es en juguete (bayesiano numpy + HybridLM tiny); falta un mundo no-de-juguete y
+un verificador de código real (gated por la capacidad del modelo tiny). Gating EXPLÍCITO por calibración
+estimada (usar el filtro endógeno sólo donde es confiable) es el siguiente paso natural de la unificación.

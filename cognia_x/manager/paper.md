@@ -460,3 +460,65 @@ iterar es un **motor estable y fuerte** (49) + una **guardia barata controla el 
 lo que pide el North Star (*intelligent que mejora, barato*). **Próximo (H-V4-3):** salto a una tarea más
 **rica** con **verificador real-chequeable** (código→sandbox), donde el verificador es real y la diversidad no
 está acotada por un vocab chico.
+
+---
+
+# Corrida 51-60 — el verificador, el valor endógeno, y su unión (síntesis)
+
+Esta corrida (autónoma, hacia un deadline) produjo dos arcos verificados y su unificación. Todos los ciclos
+pasaron por las compuertas del engine (hipótesis pre-registrada con DoD, decisión aceptada por el ledger, techo
+real, analogía de 7 etapas, `verify_no_loss=OK`) y tienen test de regresión.
+
+## Arco VERIFICADOR-REAL (51-55) — el verificador es el motor; la guardia compra robustez
+El sub-arco de auto-mejora (48-50) se había probado sobre la SUMA con oráculo EXACTO. La corrida lo llevó a un
+**verificador chequeable REAL** (un sandbox que EJECUTA la expresión generada, no un oráculo que ya sabe la
+respuesta) y lo estresó:
+- **51 (H-V4-2d, APOYADA):** el lazo iterado + guardia GENERALIZA del oráculo exacto al verificador ejecutable,
+  sin colapso ni reward-hack — el VERIFICADOR (no el tipo de oráculo) es el motor.
+- **52 (H-V4-2e, APOYADA):** desde un base DÉBIL (0.08) el lazo bootstrapea a 0.93; con base débil la GUARDIA
+  (replay limpio de la verdad) es CRÍTICA — resuelve el cold-start que el lazo plano no puede.
+- **53 (H-V4-2f, APOYADA):** la tolerancia al ruido del verificador TRANSFIERE del oráculo (ε*≈0.15) al
+  verificador real, y la guardia SUBE el umbral a ε*=0.50 (el replay limpio diluye la contaminación).
+- **54 (H-V4-2g, APOYADA — capstone):** los dos estresores realistas (ruido + arranque débil) COEXISTEN — el
+  lazo bootstrapea bajo 30% de falsos positivos desde casi-cero (ε*_coldstart=0.30).
+- **55 (H-V4-2h, MIXTA):** ante un verificador con SESGO sistemático (off-by-one sembrado), el lazo plano queda
+  PINNED (no deriva runaway, consistente con la barrera de discovery) y la guardia DEFIENDE (recupera precisión,
+  suprime el sesgo). El replay limpio es defensa también contra sesgo estructural, no sólo ruido.
+
+**Tesis del arco:** el verificador (su corrección) es el lever de 1ra clase; la guardia *dedup+replay-limpio* es
+el mecanismo de robustez ante verificadores imperfectos (ruido, cold-start, sesgo).
+
+## Sub-arco R-VALOR (56-59) — la RAÍZ PRIMERA, ahora con evidencia POSITIVA
+El reset v4 nombró a **R-VALOR** (un valor ENDÓGENO que defina qué información importa) como la raíz primera, con
+confianza ALTA en que es la convergencia pero BAJA en que sea *resoluble*. Esta corrida la atacó y obtuvo la
+primera evidencia positiva del lab:
+- **56 (H-V4-1b, APOYADA):** el valor de *info-gain* (elegir qué consultar) se AÍSLA del de *intervenir*
+  (actividad) — pero sólo con el INSTRUMENTO FIEL (post_on_cause, masa sobre la causa verdadera). La *accuracy*
+  downstream SATURABA y enmascaraba el valor: ése era el bug de la MIXTA de exp022 (CYCLE 35).
+- **57 (H-V4-1c, APOYADA):** el agente puede MEDIR ese valor por su PROPIA confianza calibrada, SIN oráculo —
+  rankea políticas igual que la verdad y es confiable con la política correcta; el azar-activo da confianza
+  engañosa (confiado-pero-equivocado).
+- **58 (H-V4-1d, MIXTA):** en un mundo NO-estacionario (la causa cambia tras un commitment profundo), el agente
+  committed se atasca y el OLVIDO dirigido por valor adapta (parcial, presupuesto corto); sweet spot
+  estabilidad-plasticidad. Liga R-VALOR a la MEMORIA (escribir≡olvidar).
+- **59 (H-V4-1e, APOYADA):** el OLVIDO ADAPTATIVO por SORPRESA (olvidar sólo cuando las predicciones se
+  contradicen) detecta el cambio SIN supervisión y logra el trade-off estabilidad-plasticidad endógeno. Une la
+  confianza/sorpresa (57) con el olvido (58).
+
+**Tesis del sub-arco:** existe un lazo de valor endógeno cerrado — el sistema juzga QUÉ información vale
+(confianza calibrada) y CUÁNDO dejó de valer (sorpresa → olvido), sin oráculo ni aviso externo. R-VALOR pasa de
+"resoluble = confianza BAJA" a "resoluble con evidencia positiva en juguete = confianza MEDIA".
+
+## Unificación (60) — los dos arcos se tocan por la CALIBRACIÓN
+- **60 (H-V4-2i, MIXTA):** la confianza endógena (auto-consistencia del modelo) reemplaza PARCIALMENTE al
+  verificador externo del lazo de auto-mejora, GATEADA por la calibración: con base calibrada supera a no-filtrar
+  y captura parte del beneficio sin oráculo; con base mal-calibrada COLAPSA (consistente-pero-equivocado refuerza
+  errores). Confirma el CYCLE 57 en el sustrato de auto-mejora: la confianza propia sólo sirve donde el modelo ya
+  es competente.
+
+## Qué queda
+H-V4-3 (calidad del prior) y H-V4-4 (techo de recall = optimización) siguen ABIERTAS. H-V4-5 (escribir≡olvidar)
+tiene evidencia PARCIAL (falta la ablación que ate la memoria a R-VALOR). Todo es en juguete (bayesiano numpy +
+HybridLM tiny): falta escala, un mundo no-de-juguete, y un verificador de código real (gated por la capacidad del
+modelo). El siguiente paso natural de la unificación es el GATING EXPLÍCITO: usar el filtro endógeno (confianza)
+sólo donde la calibración estimada es alta, reservando el verificador externo para el resto.
