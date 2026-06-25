@@ -1,0 +1,77 @@
+{
+  "exp": "exp056_estimated_value_memory",
+  "cycle": 72,
+  "hypothesis": "H-V4-5b",
+  "claim": "la ventaja de la memoria dirigida por valor sobrevive con valor ESTIMADO online (frecuencia observada = valor endógeno) y supera a una heuristica value-free (recencia/LRU)",
+  "verdict": "apoyada",
+  "summary": {
+    "by_arm": {
+      "oracle": 0.5083,
+      "estimated": 0.5057,
+      "recency": 0.3705,
+      "random": 0.2192,
+      "anti_value": 0.0881
+    },
+    "chance_m_over_n": 0.2,
+    "oracle_advantage": 0.2891,
+    "fraction_recovered": 0.991,
+    "est_beats_random": true,
+    "recovers_most": true,
+    "beats_recency": true,
+    "anti_below_random": true,
+    "status": "apoyada",
+    "verdict": "H-V4-5b APOYADA: la ventaja por valor SOBREVIVE a estimarlo ONLINE sin oráculo. estimated (LFU = valor endógeno por frecuencia) llega a hit-rate 0.506 en estado estacionario, recuperando 99% de la ventaja del oráculo (0.508) sobre random (0.219); +0.287 sobre aleatoria. Vence a recency (0.370, LRU value-free) por +0.135: estimar el VALOR por frecuencia > una memoria sin valor. anti_value 0.088 (< random): la DIRECCIÓN del valor estimado importa. => R-VALOR no necesita oráculo: la frecuencia observada es un valor endógeno que aterriza la memoria online (conecta con info-gain/confianza de CYCLE 56-57)."
+  },
+  "curves": {
+    "oracle": [
+      0.508,
+      0.5088,
+      0.5085,
+      0.5083
+    ],
+    "estimated": [
+      0.4726,
+      0.4853,
+      0.4925,
+      0.4957
+    ],
+    "recency": [
+      0.3676,
+      0.3689,
+      0.3695,
+      0.37
+    ],
+    "random": [
+      0.2205,
+      0.2203,
+      0.2201,
+      0.2199
+    ],
+    "anti_value": [
+      0.1048,
+      0.1005,
+      0.0983,
+      0.096
+    ]
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "m": 10,
+    "alpha": 1.5,
+    "T": 3000
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp056] CYCLE 72 / H-V4-5b — memoria por valor ESTIMADO online (LFU) vs oráculo / recency / random",
+    "[exp056] n=50 m=10 (capacidad 10/50) alpha=1.5 T=3000 seeds=48",
+    "[exp056] hit-rate online (ventana final 20%): oracle=0.508 estimated=0.506 recency=0.370 random=0.219 anti_value=0.088 (azar m/n=0.200)",
+    "[exp056] curva estimated (cumulativa por checkpoint): [0.4726, 0.4853, 0.4925, 0.4957] (converge hacia oracle 0.508)",
+    "[exp056] fracción de la ventaja del oráculo recuperada por estimated: 0.991",
+    "[exp056] VEREDICTO H-V4-5b: APOYADA | H-V4-5b APOYADA: la ventaja por valor SOBREVIVE a estimarlo ONLINE sin oráculo. estimated (LFU = valor endógeno por frecuencia) llega a hit-rate 0.506 en estado estacionario, recuperando 99% de la ventaja del oráculo (0.508) sobre random (0.219); +0.287 sobre aleatoria. Vence a recency (0.370, LRU value-free) por +0.135: estimar el VALOR por frecuencia > una memoria sin valor. anti_value 0.088 (< random): la DIRECCIÓN del valor estimado importa. => R-VALOR no necesita oráculo: la frecuencia observada es un valor endógeno que aterriza la memoria online (conecta con info-gain/confianza de CYCLE 56-57)."
+  ]
+}

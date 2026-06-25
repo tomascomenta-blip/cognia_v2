@@ -125,3 +125,15 @@
 - exp025/cycle39/H-V4-1d APOYADA: a capacidad limitada, empowerment 1.000 vs predictibilidad 0.250 (anti-útil)
   vs azar 0.453. Arco R-VALOR cerrado (mecanismo+utilidad). D-V4-4. verify=OK, test 4/4.
 - Próximo: integrador act-and-verify hacia lenguaje (H-V4-1e).
+
+## [2026-06-25] CYCLE 72 — H-V4-5b APOYADA (abre arco "R-VALOR bajo realismo")
+- Archivos: cognia_x/experiments/exp056_estimated_value_memory/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle72_estimated_value_memory.py (new),
+  cognia_x/tests/test_cycle72_estimated_value_memory.py (new),
+  research_log.md / decomposition_tree.md / roadmap.md / paper.md (append).
+- Resultado tests: PASS — test dirigido 5/5; cycle72 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp: oracle=0.508 estimated(LFU)=0.506 (recupera 99%) recency=0.370 random=0.219 anti=0.088 (48 seeds).
+- Notas: ataca el caveat #1 del techo de CYCLE 70 (valor PERFECTO + selección estática). El valor de consulta es
+  ESTIMABLE online de la frecuencia (valor endógeno) y recupera ~la ventaja del oráculo en estacionario, venciendo
+  a una memoria value-free (LRU). Sirve al GOAL (R-VALOR) quitando la muleta de oráculo-de-valor. Caveat honesto:
+  régimen estacionario; la no-estacionariedad es la próxima hija (CYCLE 73).

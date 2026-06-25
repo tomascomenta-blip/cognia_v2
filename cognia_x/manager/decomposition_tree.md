@@ -239,3 +239,22 @@ estabilidad-plasticidad es fundamental; hay que elegir la ESTRATEGIA, no el ritm
 **Tesis final:** R-VALOR es la raíz que aterriza la inteligencia bajo recursos finitos: un escalar de valor
 endógeno (estimable de info-gain/confianza/sorpresa, sin oráculo) define qué predecir, qué escribir/olvidar, cómo
 recordar, qué verificar y qué prior elegir. La corrida lo demuestra en juguete; la frontera es la escala.
+
+## Addendum — arco "R-VALOR bajo realismo" (CYCLE 72+): quitar las muletas de juguete una por una
+La corrida 51-71 validó el thesis v4 en juguete CON oráculos/valores perfectos. Este arco ataca la debilidad
+honesta #1 (todo es juguete con oráculo) removiendo las muletas de a una y midiendo si la tesis sobrevive.
+
+- **CYCLE 72 — H-V4-5b APOYADA (abre el arco).** Ataca el caveat #1 del techo de CYCLE 70 (el valor se daba
+  PERFECTO + selección estática). En una memoria ONLINE (m=10/n=50, stream T=3000), un agente que NO conoce el
+  valor y lo ESTIMA de la frecuencia observada (LFU = valor endógeno) recupera **99%** de la ventaja del oráculo
+  (0.508) sobre random (0.219), y le gana a recency/LRU value-free (0.370) por +0.135; anti_value (0.088) < random.
+  => R-VALOR×memoria NO necesita oráculo de valor en régimen estacionario; la frecuencia observada es un valor
+  endógeno que aterriza la memoria online (conecta con info-gain/confianza de CYCLE 56-57). Caveat real: el régimen
+  es ESTACIONARIO (LFU≈óptimo es clásico ahí); la frontera es la NO-estacionariedad, donde la frecuencia-de-toda-
+  la-historia es un valor sesgado y hace falta olvido (CYCLE 58-66). Cota 'real' en el ledger. Test 5/5.
+
+**Próximas hijas del arco (backlog):** (73) atar el estimador de valor a la NO-estacionariedad (frecuencia con
+ventana/decay adaptativo, combinada con el olvido por sorpresa de CYCLE 59 / el selector de estrategia de CYCLE
+66); (74+) subir de frecuencia pura a valores endógenos más ricos (info-gain/confianza) y a un downstream con
+estructura/correlación en las consultas (no IID). El North Star del arco: mostrar que las piezas del thesis v4
+sobreviven al quitar los oráculos perfectos, acercándose a un mundo menos de juguete.

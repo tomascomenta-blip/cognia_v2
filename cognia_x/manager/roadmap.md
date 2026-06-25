@@ -198,3 +198,15 @@ queda como restricción de VIABILIDAD, no como dirección.
 > 025) Y EN LENGUAJE sobre el modelo propio (exp026: act-and-verify TTS guiado por control gana bajo escasez).
 > Arquitectura objetivo: substrato chico CPU propio + act-and-verify barato + TTS verifier-based, asignando
 > cómputo por controlabilidad. Próximo realismo: verificador ruidoso/parcial + señal de control sin probe caro.
+
+## F-V4b — Arco "R-VALOR bajo realismo" (CYCLE 72+)  🟡 EN CURSO (2026-06-25)
+La corrida 51-71 validó el thesis v4 en juguete con oráculos/valores PERFECTOS. Este arco quita las muletas una
+por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete con oráculo).
+- [x] **CYCLE 72 (exp056) — H-V4-5b: APOYADA.** Ataca el caveat #1 del techo de CYCLE 70 (valor PERFECTO +
+  selección estática). En memoria ONLINE (m=10/n=50, T=3000), estimar el valor de la frecuencia observada
+  (LFU = valor endógeno) recupera 99% de la ventaja del oráculo (0.508) sobre random (0.219), +0.135 vs recency
+  value-free; anti_value < random. R-VALOR×memoria no necesita oráculo en estacionario. Caveat: régimen
+  estacionario (LFU≈óptimo clásico); la no-estacionariedad es la próxima hija. Techo 'real'; test 5/5.
+- [ ] CYCLE 73: atar el estimador a la NO-estacionariedad (frecuencia con ventana/decay adaptativo + olvido por
+  sorpresa de CYCLE 59 / selector de estrategia de CYCLE 66).
+- [ ] CYCLE 74+: valores endógenos más ricos (info-gain/confianza) + downstream con consultas correlacionadas.

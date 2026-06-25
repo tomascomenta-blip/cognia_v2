@@ -2232,3 +2232,47 @@ thesis R-VALOR/escribir≡olvidar.
 > olvidar/recordar/consolidar) son indefinibles sin valor, y aquí se muestra empíricamente que la ventaja de la
 > memoria ES el valor -> R-VALOR es, en efecto, la raíz que aterriza la memoria. Conecta con el valor endógeno
 > medible (CYCLE 56-57) y el selector de estrategia (CYCLE 66): el valor decide qué/cuándo/cómo recordar.
+
+## CYCLE 72 — H-V4-5b (ABRE el arco "R-VALOR bajo realismo"): valor ESTIMADO online recupera la ventaja del oráculo
+
+### Pregunta
+El CYCLE 70 (exp055, H-V4-5 APOYADA) cerró "la ventaja de una memoria finita ES el valor" PERO con dos muletas de
+juguete que su propio techo 'real' registró como blockers: el valor de consulta se daba PERFECTO y la selección
+era ESTÁTICA. ¿Sobrevive la ventaja si el agente NO conoce el valor y debe ESTIMARLO online de su propia
+experiencia, en una memoria dinámica? ¿Y le gana a una heurística value-free (recencia)?
+
+### Diseño
+Numpy. Memoria ONLINE de capacidad m=10/n=50; stream de T=3000 consultas IID ~ valor (power-law Pareto alpha=1.5).
+HIT si el item consultado está en memoria ANTES de verlo. Métrica = hit-rate online en la ventana FINAL 20%
+(estado estacionario), un downstream más rico que la masa exacta de exp055. 5 brazos de escritura/evicción:
+oracle (top-m por valor VERDADERO, fijo = cota superior = value_directed de exp055), estimated (top-m por
+FRECUENCIA observada = LFU = valor endógeno estimado online), recency (los m más recientes = LRU, value-FREE),
+random (m fijos al azar), anti_value (top-m por frecuencia más BAJA = control de dirección). 48 seeds.
+Pre-registrado: APOYADA si estimated recupera >=70% de la ventaja del oráculo Y +>0.15 vs random Y +>0.03 vs recency.
+
+### Resultado — APOYADA
+hit-rate ventana final: oracle=0.508 (cross-valida exp055 value_directed=0.507), estimated=0.506, recency=0.370,
+random=0.219, anti_value=0.088 (azar m/n=0.200). estimated recupera **99%** de la ventaja del oráculo (0.508) sobre
+random (0.219) SIN conocer el valor verdadero; +0.287 sobre aleatoria; +0.135 sobre recency (LRU value-free);
+anti_value 0.088 < random (la dirección del valor estimado importa). La curva cumulativa de estimated
+[0.473, 0.485, 0.493, 0.496] muestra al estimador CONVERGER al oráculo. => la ventaja por valor SOBREVIVE a
+estimarlo online de la frecuencia observada (valor endógeno), sin oráculo, y vence a una memoria sin valor.
+
+### Límites (honestos)
+(1) Régimen ESTACIONARIO: bajo popularidad FIJA, LFU≈óptimo es un resultado clásico de caching; la frontera real
+es la NO-estacionariedad, donde la frecuencia de TODA la historia es un valor SESGADO y hace falta olvido dirigido
+por sorpresa -- eso YA lo estudió el lab (CYCLE 58-66: el TIPO de olvido se elige del régimen). Por eso el valor
+de este ciclo es quitar la muleta de valor-PERFECTO, no descubrir LFU. (2) El estimador es FRECUENCIA pura; CYCLE
+56-57 ya mostraron valores endógenos más ricos (info-gain/confianza). (3) Juguete (Pareto, n=50, consultas IID;
+sin estructura/correlación en las consultas).
+
+### Verificación
+exp056 (48 seeds, numpy, T=3000). cycle72 -> H-V4-5b 'apoyada' (DoD), D-V4-34 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle72_estimated_value_memory.py` 5/5 (incluye oracle≈masa-top-m y las 3 ramas del
+veredicto). Convergente con LFU/rate-distortion (tier1) y con el techo de CYCLE 70 (tier5).
+
+> ABRE el arco "R-VALOR bajo realismo" (quitar las muletas de juguete una por una): la tesis R-VALOR×memoria NO
+> depende de un oráculo de valor -- un estimador endógeno barato (frecuencia/uso) recupera ~99% de la ventaja en
+> régimen estacionario y le gana a una memoria value-free. Próxima hija (CYCLE 73): atar el estimador a la
+> NO-estacionariedad combinándolo con el olvido dirigido por sorpresa (CYCLE 59) y el selector de estrategia
+> (CYCLE 66) -- frecuencia con ventana/decay adaptativo donde la frecuencia-de-toda-la-historia falla.
