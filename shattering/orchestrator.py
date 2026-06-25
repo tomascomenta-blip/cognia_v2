@@ -23,7 +23,7 @@ import urllib.request
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from shattering.manifest import AppManifest, FragmentSpec, ManifestLoader
 from shattering.fragment_manager import FragmentManager
@@ -46,6 +46,8 @@ class _LPCEntry:
     mla_session_id: str   # internal key used in MLA KV-cache
     token_count:    int   # tokens already cached (prompt prefix length)
     last_access:    float # monotonic time
+    prefix_ids:     Any = None  # np.ndarray of the cached token IDs (prompt+generated)
+                                # so the next turn can verify it is a real extension
 
 
 class LatentPersistenceCache:
@@ -79,11 +81,17 @@ class LatentPersistenceCache:
                 entry.last_access = time.monotonic()
             return entry
 
-    def update(self, lpc_session_id: str, new_token_count: int) -> None:
+    def update(self, lpc_session_id: str, prefix_ids) -> None:
+        """Record the full cached token sequence (prompt + generated) for this turn.
+
+        Storing the actual IDs (not just the count) lets the next turn verify the
+        new prompt really extends this prefix before reusing the MLA KV-cache.
+        """
         with self._lock:
             entry = self._entries.get(lpc_session_id)
             if entry is not None:
-                entry.token_count  = new_token_count
+                entry.prefix_ids   = prefix_ids
+                entry.token_count  = len(prefix_ids)
                 entry.last_access  = time.monotonic()
 
     def invalidate(self, lpc_session_id: str) -> None:
@@ -456,6 +464,52 @@ class ShatteringOrchestrator:
             if hasattr(engine, "clear_cache"):
                 engine.clear_cache(mla_session_id)
 
+    def _lpc_plan(self, lpc_session_id: str, all_ids):
+        """Decide the MLA session_id and which tokens to feed the shard chain for
+        an LPC (cross-turn) call.
+
+        Crucially, this VERIFIES that the new prompt actually extends the cached
+        prefix before reusing the KV-cache. The entry only knew the token *count*
+        before, so a session id reused with an unrelated (but longer) prompt — or
+        even a legitimate multi-turn prompt whose template boundary tokens differ —
+        would silently attend over a stale prefix and corrupt the output. We now
+        keep the cached token IDs and reset the KV-cache on any prefix mismatch.
+
+        Returns (session_id, current_ids, lpc_entry).
+        """
+        import numpy as np
+        lpc_entry  = self._lpc.get_or_create(lpc_session_id)
+        session_id = lpc_entry.mla_session_id
+        cached_n   = lpc_entry.token_count
+        prefix     = lpc_entry.prefix_ids
+
+        is_extension = (
+            cached_n > 0
+            and prefix is not None
+            and len(prefix) == cached_n
+            and cached_n <= len(all_ids)
+            and np.array_equal(all_ids[:cached_n], prefix)
+        )
+
+        if is_extension and cached_n < len(all_ids):
+            current_ids = all_ids[cached_n:]
+            logger.info("[LPC] session=%s: skipping %d cached tokens, processing %d new",
+                        lpc_session_id, cached_n, len(current_ids))
+            return session_id, current_ids, lpc_entry
+
+        # Prompt is identical to the cache, shorter, or diverges from the cached
+        # prefix → the KV-cache is invalid for this prompt. Reset and reprocess.
+        if cached_n > 0:
+            reason = ("identical to cache" if is_extension else
+                      "not an extension of cached prefix")
+            logger.info("[LPC] session=%s: %s — resetting KV-cache",
+                        lpc_session_id, reason)
+            self._evict_one_mla_session(session_id)
+            self._lpc.invalidate(lpc_session_id)
+            lpc_entry  = self._lpc.get_or_create(lpc_session_id)
+            session_id = lpc_entry.mla_session_id
+        return session_id, all_ids, lpc_entry
+
     # ── Local inference ─────────────────────────────────────────────────
 
     def _try_load_llama(self) -> None:
@@ -614,21 +668,7 @@ class ShatteringOrchestrator:
         # LPC: reuse cross-turn KV-cache when lpc_session_id is provided
         lpc_entry = None
         if lpc_session_id is not None:
-            lpc_entry  = self._lpc.get_or_create(lpc_session_id)
-            session_id = lpc_entry.mla_session_id
-            cached_n   = lpc_entry.token_count
-            if cached_n > 0 and cached_n < len(all_ids):
-                current_ids = all_ids[cached_n:]
-                logger.info("[LPC/stream] session=%s: skipping %d cached tokens, processing %d new",
-                            lpc_session_id, cached_n, len(current_ids))
-            elif cached_n >= len(all_ids):
-                self._evict_one_mla_session(lpc_entry.mla_session_id)
-                self._lpc.invalidate(lpc_session_id)
-                lpc_entry  = self._lpc.get_or_create(lpc_session_id)
-                session_id = lpc_entry.mla_session_id
-                current_ids = all_ids
-            else:
-                current_ids = all_ids
+            session_id, current_ids, lpc_entry = self._lpc_plan(lpc_session_id, all_ids)
         else:
             session_id  = "intra_" + uuid.uuid4().hex[:8]
             current_ids = all_ids
@@ -743,9 +783,13 @@ class ShatteringOrchestrator:
 
         text = pipeline._decode(generated_ids)
 
-        # Update LPC so the next streaming call can skip the cached prefix
+        # Update LPC so the next streaming call can skip the cached prefix.
+        # Store the FULL token sequence (prompt + generated) so the next turn can
+        # verify it is a real extension before reusing this KV-cache.
         if lpc_entry is not None and lpc_session_id is not None:
-            self._lpc.update(lpc_session_id, len(all_ids) + tokens_generated)
+            full_prefix = (np.concatenate([all_ids, np.array(generated_ids, dtype=all_ids.dtype)])
+                           if generated_ids else all_ids)
+            self._lpc.update(lpc_session_id, full_prefix)
         else:
             # Intra-turn session — evict immediately so MLA cache doesn't leak
             self._evict_one_mla_session(session_id)
@@ -822,27 +866,7 @@ class ShatteringOrchestrator:
 
         # ── LPC: decide session_id and which tokens to process ────────────
         if lpc_session_id is not None:
-            lpc_entry  = self._lpc.get_or_create(lpc_session_id)
-            session_id = lpc_entry.mla_session_id
-            cached_n   = lpc_entry.token_count
-
-            if cached_n > 0 and cached_n < len(all_ids):
-                # Skip the cached prefix — only feed new tokens to the shard chain
-                current_ids = all_ids[cached_n:]
-                logger.info(
-                    "[LPC] session=%s: skipping %d cached tokens, processing %d new",
-                    lpc_session_id, cached_n, len(current_ids),
-                )
-            elif cached_n >= len(all_ids):
-                # Prompt shrank (e.g. new conversation topic) — reset LPC entry
-                logger.info("[LPC] session=%s: prompt shorter than cache, resetting", lpc_session_id)
-                self._evict_one_mla_session(session_id)
-                self._lpc.invalidate(lpc_session_id)
-                lpc_entry  = self._lpc.get_or_create(lpc_session_id)
-                session_id = lpc_entry.mla_session_id
-                current_ids = all_ids
-            else:
-                current_ids = all_ids
+            session_id, current_ids, lpc_entry = self._lpc_plan(lpc_session_id, all_ids)
         else:
             session_id  = "intra_" + uuid.uuid4().hex[:8]
             current_ids = all_ids
@@ -853,9 +877,13 @@ class ShatteringOrchestrator:
             temperature=temperature
         )
 
-        # ── LPC: update cached token count ───────────────────────────────
+        # ── LPC: update cached token sequence ─────────────────────────────
+        # Persist the FULL token IDs (prompt + generated) so the next turn can
+        # verify the new prompt extends this prefix before reusing the KV-cache.
         if lpc_entry is not None:
-            self._lpc.update(lpc_session_id, len(all_ids) + tokens_generated)
+            full_prefix = (np.concatenate([all_ids, np.array(generated_ids, dtype=all_ids.dtype)])
+                           if generated_ids else all_ids)
+            self._lpc.update(lpc_session_id, full_prefix)
         else:
             # Intra-turn session — evict immediately so MLA cache doesn't leak
             self._evict_one_mla_session(session_id)

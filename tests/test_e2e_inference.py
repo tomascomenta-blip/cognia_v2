@@ -278,23 +278,93 @@ class TestLatentPersistenceCache:
         assert e1.mla_session_id == e2.mla_session_id
 
     def test_update_token_count(self):
+        import numpy as np
         self.lpc.get_or_create("ses_3")
-        self.lpc.update("ses_3", 42)
+        self.lpc.update("ses_3", np.arange(42, dtype=np.int32))
         e = self.lpc.get_or_create("ses_3")
         assert e.token_count == 42
 
+    def test_update_stores_prefix_ids(self):
+        import numpy as np
+        self.lpc.get_or_create("ses_3b")
+        ids = np.array([5, 9, 13], dtype=np.int32)
+        self.lpc.update("ses_3b", ids)
+        e = self.lpc.get_or_create("ses_3b")
+        assert np.array_equal(e.prefix_ids, ids)
+        assert e.token_count == 3
+
     def test_invalidate_resets_entry(self):
+        import numpy as np
         self.lpc.get_or_create("ses_4")
-        self.lpc.update("ses_4", 10)
+        self.lpc.update("ses_4", np.arange(10, dtype=np.int32))
         self.lpc.invalidate("ses_4")
         e = self.lpc.get_or_create("ses_4")
         assert e.token_count == 0
+        assert e.prefix_ids is None
 
     def test_different_sessions_independent(self):
+        import numpy as np
         e1 = self.lpc.get_or_create("a")
         e2 = self.lpc.get_or_create("b")
-        self.lpc.update("a", 100)
+        self.lpc.update("a", np.arange(100, dtype=np.int32))
         assert self.lpc.get_or_create("b").token_count == 0
+
+
+class TestLPCPlanPrefixValidation:
+    """Regression for the cross-turn KV-cache corruption bug: _lpc_plan must only
+    reuse the cached prefix when the new prompt actually extends it (token-level),
+    not merely when it is longer."""
+
+    def _orch(self):
+        from shattering.orchestrator import ShatteringOrchestrator, LatentPersistenceCache
+        orch = ShatteringOrchestrator.__new__(ShatteringOrchestrator)
+        orch._lpc = LatentPersistenceCache()
+        # _evict_one_mla_session iterates self._fragments._engines; give it an empty stub
+        class _Frag:
+            _engines = {}
+        orch._fragments = _Frag()
+        return orch
+
+    def test_real_extension_reuses_prefix(self):
+        import numpy as np
+        orch = self._orch()
+        cached = np.array([1, 2, 3, 4], dtype=np.int32)
+        orch._lpc.get_or_create("s")
+        orch._lpc.update("s", cached)
+        # new prompt = cached prefix + 2 new tokens
+        new = np.array([1, 2, 3, 4, 5, 6], dtype=np.int32)
+        sid, current_ids, entry = orch._lpc_plan("s", new)
+        assert np.array_equal(current_ids, np.array([5, 6], dtype=np.int32))
+        assert entry.token_count == 4  # cache preserved (not reset)
+
+    def test_non_extension_resets_and_reprocesses_full(self):
+        import numpy as np
+        orch = self._orch()
+        orch._lpc.get_or_create("s")
+        orch._lpc.update("s", np.array([1, 2, 3, 4], dtype=np.int32))
+        # longer prompt but DIFFERENT tokens — must NOT reuse the stale KV-cache
+        new = np.array([9, 8, 7, 6, 5, 4], dtype=np.int32)
+        sid, current_ids, entry = orch._lpc_plan("s", new)
+        assert np.array_equal(current_ids, new)   # full reprocess
+        assert entry.token_count == 0             # entry was reset
+
+    def test_identical_prompt_reprocesses(self):
+        import numpy as np
+        orch = self._orch()
+        orch._lpc.get_or_create("s")
+        ids = np.array([1, 2, 3, 4], dtype=np.int32)
+        orch._lpc.update("s", ids)
+        sid, current_ids, entry = orch._lpc_plan("s", ids.copy())
+        assert np.array_equal(current_ids, ids)   # nothing to skip → full
+        assert entry.token_count == 0
+
+    def test_fresh_session_processes_full(self):
+        import numpy as np
+        orch = self._orch()
+        new = np.array([1, 2, 3], dtype=np.int32)
+        sid, current_ids, entry = orch._lpc_plan("fresh", new)
+        assert np.array_equal(current_ids, new)
+        assert entry.token_count == 0
 
 
 # ══════════════════════════════════════════════════════════════════════════════
