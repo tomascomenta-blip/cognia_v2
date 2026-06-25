@@ -3795,3 +3795,13 @@ ejecución real) es el lever central de la auto-mejora segura.
   guarded 0.441->0.941 (no-decreciente), supera plano (0.867) y cobertura (144 vs 140), degenerate=0 en todas
   las rondas (sin reward-hack con verificador FUERTE). => el VERIFICADOR es el motor, no el tipo de oráculo.
   Sirve al GOAL: avanza cognia-x desde donde se dejó (CYCLE 50 -> 51) con verificación real, test y registro.
+
+## [2026-06-24] CYCLE 52 — H-V4-2e APOYADA: el lazo con VERIFICADOR REAL bootstrapea un base débil a techo alto (0.93)
+- Archivos: cognia_x/experiments/exp038_real_verifier_ceiling/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle52_real_verifier_ceiling.py,
+  cognia_x/tests/test_cycle52_real_verifier_ceiling.py, cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle52). Recorder verify_no_loss=OK. Experimento APOYADA (3 seeds, R=10).
+- Notas: cierra el límite #1 del CYCLE 51 (medir el techo desde base débil bajo el verificador real). GUARDED
+  bootstrapea base 0.081 -> 0.933 (gain +0.852), platea en r3, degenerate=0 (sin hack). Plano sólo llega 0.693
+  -> con base débil la guardia (replay de la verdad) es CRÍTICA (resuelve el cold-start). Mismo poder que el
+  oráculo (CYCLE 49) pero con verificador chequeable real. Sirve al GOAL: avanza cognia-x 51 -> 52.

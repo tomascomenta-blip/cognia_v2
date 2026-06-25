@@ -1552,3 +1552,42 @@ analogía, verify_no_loss=OK. Test `test_cycle51_iterated_real_verifier.py` 4/4.
 > Une el sub-arco AUTO-MEJORA (48-50, oráculo EXACTO) con el frente VERIFICADOR-REAL (exp018/H-LEARN-3): el
 > lazo de auto-mejora + guardia es robusto al cambio oráculo-exacto -> verificador-chequeable-real sobre
 > iteración. El VERIFICADOR (no el tipo de oráculo) es el motor.
+
+## CYCLE 52 — H-V4-2e: el TECHO del lazo iterado + guardia con VERIFICADOR REAL desde un base DÉBIL
+
+### Pregunta
+CYCLE 49 mostró que un base DÉBIL se bootstrapea a ~0.78 con el lazo iterado — pero con el ORÁCULO EXACTO.
+CYCLE 51 mostró que el lazo iterado + guardia generaliza a un VERIFICADOR REAL, pero desde un base MODERADO
+(~0.44) y R=6 (su límite #1: "falta base débil bajo el verificador real para medir el techo"). ¿El lazo con el
+VERIFICADOR REAL tiene el mismo poder de bootstrapping desde un base DÉBIL (~0.08), y DÓNDE PLATEA con R=10?
+
+### Diseño
+Modelo propio (reusa exp037). base_steps=125 -> base real_acc~0.08 (DÉBIL, calibrado). Lazo de R=10 rondas
+in-place, PLANO vs GUARDED (dedup+replay), verificador FUERTE real (síntesis de expresiones). Por ronda:
+real_acc (held-out), cobertura, degenerate. 3 seeds. Pre-registrado: APOYADA si guarded bootstrapea (final-base
+>=0.30 Y final>=0.50) Y platea (no-decreciente, últimas rondas aplanadas).
+
+### Resultado — APOYADA
+GUARDED: base 0.081 -> [0.711,0.785,0.885,0.893,0.893,0.922,0.941,0.933,0.896,0.933] final 0.933 (gain +0.852),
+PLATEA en r3 (bootstrapping RÁPIDO), no-decreciente, sin colapso. degenerate=0.000 en las 10 rondas (sin
+reward-hack con el verificador FUERTE aun bootstrapeando desde casi-cero). MISMO poder de bootstrapping que el
+oráculo exacto (CYCLE 49, ~0.78) ahora con un verificador chequeable REAL. HALLAZGO EXTRA: el lazo PLANO desde
+el MISMO base débil sólo llega a 0.693 (más lento, sigue subiendo a r10) -> con base débil la GUARDIA (replay de
+ejemplos CORRECTOS de la verdad) es CRÍTICA: resuelve el COLD-START (el plano débil genera pocas verificadas y
+arranca lento; el replay reinyecta señal de la verdad). Ventaja de la guardia: +0.241 en techo final y platea
+~7 rondas antes.
+
+### Límites (honestos)
+La regla canónica de replay '1+(n-1)' hace la tarea aprendible pero ESTRECHA (falta verificación más rica:
+código real con tests para un techo no-de-juguete). El techo medido es de ESTA tarea, no universal. Falta el
+puente a un verificador real PARCIAL/ruidoso (ε*≈0.15) bajo bootstrapping desde base débil. Cobertura acotada
+por |test|=90.
+
+### Verificación
+exp038 (3 seeds, R=10, modelo propio). cycle52 -> H-V4-2e 'apoyada' (DoD), D-V4-17 ACEPTADA, 1 techo 'real',
+analogía, verify_no_loss=OK. Test `test_cycle52_real_verifier_ceiling.py` 4/4. Convergente con exp035 (oráculo,
+bootstrapping desde base débil) y exp037 (verificador real).
+
+> Cierra el límite #1 del CYCLE 51: el lazo de auto-mejora con verificador REAL bootstrapea desde casi-cero a un
+> techo alto y plateable; con base débil la GUARDIA (dedup+replay) es parte del motor (resuelve el cold-start),
+> no un refinamiento opcional.
