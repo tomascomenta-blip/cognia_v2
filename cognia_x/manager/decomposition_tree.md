@@ -456,3 +456,22 @@ suposición más cargante del arco). CYCLE 83 la ataca por primera vez con valor
 > complementariedad) Y extendido a valor no-factorizable por un combinador aprendido barato. Frontera abierta (gaps
 > #1/#3/SCALE): valor no-factorizable y feedback de un lazo de acción-consecuencia REAL (verificador chequeable exp018);
 > objetivo no-escalar; SCALE a sustrato no-juguete (GPU/Kaggle, fuera de la corrida CPU).
+
+## Addendum — CYCLE 87: puente a gaps #1/#3 (feedback de acción-consecuencia)
+Primer paso del thesis gap #2 hacia el feedback REAL: ¿la política always-learn sobrevive cuando el agente sólo observa
+el valor de lo que SELECCIONA (action-gated), no m al azar?
+
+- **CYCLE 87 — H-V4-7e REFUTADA (informativa; robustez POSITIVA de la política gap #2).** Predicción: bajo feedback
+  action-gated la explotación GREEDY del prior se auto-atrapa (sólo observa both-high -> no aprende max) y la EXPLORACIÓN
+  la rescata (R-INTERVENCIÓN). REFUTADA: learned_greedy=0.979 recupera sustitutos SIN explorar, IGUALANDO al buffer
+  insesgado/feedback-libre (learned_random=0.979) y a ε-explore (0.979); todos > producto (0.929). NO hay trampa; la
+  exploración NO aporta. MECANISMO: la selección top-k por un score continuo igual ABARCA un rango 2D del espacio
+  (ctrl,rel) -> overlap de soporte suficiente -> el ridge-poly2 generaliza max(); el trap sólo aparecería con
+  concentración EXTREMA del soporte. => (1) ACOTA R-INTERVENCIÓN: 'explorar para aprender el valor' NO se sostiene aquí
+  (cf. 77-78, donde intervenir tampoco pagaba); (2) REFUERZA la política gap #2: always-learn es robusta también bajo
+  feedback de acción-consecuencia, sin maquinaria de exploración. Caveat: no se probó concentración extrema (k chico /
+  valor adversarialmente lejos del prior) ni un lazo secuencial REAL con costo de muestreo. Cota 'real'; D-V4-49; test 4/4.
+
+> Hacia gaps #1/#3: la política gap #2 sobrevive el action-gating SIN explorar (greedy basta). Falta el lazo de
+> acción-consecuencia REAL con verificador chequeable (sandbox exp018) -- feedback con costo, dinámica secuencial -- y
+> SCALE (GPU). El producto sigue de baseline con feedback pobre; con feedback adecuado, always-learn (incluso greedy).

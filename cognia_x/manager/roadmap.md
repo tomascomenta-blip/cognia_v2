@@ -318,3 +318,10 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > domina y la detección de régimen es innecesaria (86). POLÍTICA: producto por DEFECTO con feedback pobre, combinador
 > aprendido (nesta el producto) con feedback adecuado. R-VALOR=control×relevancia queda caracterizado Y extendido a valor
 > no-factorizable. Frontera abierta: gaps #1/#3 (lazo real) y SCALE (GPU).
+
+- [x] **CYCLE 87 (exp071) — H-V4-7e: REFUTADA (puente a gaps #1/#3; robustez positiva).** Bajo feedback ACTION-GATED (el
+  agente sólo observa el valor de lo que selecciona) la explotación GREEDY del prior NO se auto-atrapa: learned_greedy=0.979
+  recupera sustitutos SIN explorar = learned_random(insesgado)=0.979 = explore=0.979 > product=0.929. La selección top-k
+  abarca suficiente espacio de features para generalizar max(). ACOTA R-INTERVENCIÓN (explorar no hace falta aquí) y
+  REFUERZA la política gap #2 (robusta al action-gating, sin maquinaria de exploración). Caveat: no se probó concentración
+  extrema del soporte. Cota 'real'; D-V4-49; test 4/4. Próximo: lazo de acción-consecuencia REAL (verificador exp018), SCALE.

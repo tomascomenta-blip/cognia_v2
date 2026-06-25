@@ -2841,3 +2841,38 @@ con nesting/no-regret (tier2) y con la calidad-feedback de CYCLE 85 (tier5).
 > innecesaria (86). POLÍTICA FINAL: reconstruir R-VALOR con el combinador aprendido cuando el feedback es adecuado, caer
 > al producto con feedback pobre; sin detector de régimen. Próximo: el valor no-factorizable y el feedback de un lazo de
 > acción-consecuencia REAL (gaps #1/#3, verificador chequeable exp018) y SCALE (GPU).
+
+## CYCLE 87 — H-V4-7e (rama R-VALOR, puente a gaps #1/#3): feedback action-gated — REFUTADA (robustez positiva)
+
+### Pregunta
+El arco gap #2 (83-86) asumió feedback LIBRE (m observaciones al azar). Un agente real sólo observa el valor de lo que
+SELECCIONA (action-gated). ¿La explotación greedy del prior se AUTO-ATRAPA por sesgo de selección (sólo ve both-high ->
+no aprende max) y la exploración la rescata (R-INTERVENCIÓN), o la política always-learn sobrevive?
+
+### Diseño
+Numpy, online (ítems frescos por ronda), calidad q2 (S=32, σr=0.05). Sustitutos (g=max) + complementos de control. FASE
+LEARNING (T=40 rondas): cada ronda el agente SELECCIONA k=10 para observar su valor real (action-gated), acumula buffer,
+refit ridge poly2. Estrategias de observación: greedy (por el combinador aprendido, bootstrap del producto -> buffer
+sesgado), explore (ε=0.3-greedy), random (insesgado, = feedback libre). FASE EVAL (E=20 rondas frescas): rankea por el
+combinador final, perf promedio. Brazos: oracle, product, learned_{greedy,explore,random}, random. 48 seeds.
+Pre-registrado: APOYADA si trap (greedy<=product+0.02) Y explore rescata (>greedy+0.03 y >=random-0.03).
+
+### Resultado — REFUTADA (no hay trampa)
+Sustitutos: learned_greedy=0.979 = learned_explore=0.979 = learned_random=0.979 (insesgado) > product=0.929. NO hay
+trampa de sesgo de selección (greedy recupera SIN explorar); la exploración NO aporta. MECANISMO: la selección top-k por
+un score continuo igual ABARCA un rango 2D del espacio (ctrl,rel) -> overlap de soporte suficiente -> el ridge-poly2
+generaliza max() desde ahí. => ACOTA R-INTERVENCIÓN ('explorar para aprender el valor' no se sostiene aquí, cf. 77-78) y
+REFUERZA la política gap #2 (always-learn robusta también bajo feedback de acción-consecuencia, sin exploración).
+
+### Límites (honestos)
+NO se probó concentración EXTREMA del soporte (k muy chico / valor adversarialmente lejos del prior), donde el trap
+podría reaparecer. Feedback sin costo de muestreo y dinámica no-secuencial real; falta el lazo de acción-consecuencia
+REAL (sandbox exp018). g=max sintético, objetivo escalar, base poly2 que nesta el producto.
+
+### Verificación
+exp071 (48 seeds, numpy). cycle87 → H-V4-7e 'refutada' (DoD), D-V4-49 ACEPTADA, 1 techo 'real', analogía 7 etapas,
+verify_no_loss=OK. Test `test_cycle87_action_gated_feedback.py` 4/4 (no-trap real + 3 ramas). Convergente con
+covariate-shift/overlap (tier2) y con la política gap #2 de CYCLE 86 (tier5).
+
+> La política gap #2 sobrevive el action-gating sin explorar (greedy basta). Próximo: el lazo de acción-consecuencia
+> REAL con verificador chequeable (sandbox exp018) -- feedback con costo, dinámica secuencial -- y SCALE (GPU).

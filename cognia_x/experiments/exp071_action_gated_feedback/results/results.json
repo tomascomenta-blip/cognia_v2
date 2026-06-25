@@ -1,0 +1,59 @@
+{
+  "exp": "exp071_action_gated_feedback",
+  "cycle": 87,
+  "hypothesis": "H-V4-7e",
+  "claim": "bajo feedback action-gated la explotacion greedy del prior se auto-atrapa por sesgo de seleccion; explorar (actuar mas alla del prior) es necesario para aprender R-VALOR no-factorizable (R-INTERVENCION)",
+  "verdict": "refutada",
+  "summary": {
+    "grid": {
+      "subs": {
+        "oracle": 1.0,
+        "product": 0.9288,
+        "learned_greedy": 0.9792,
+        "learned_explore": 0.9791,
+        "learned_random": 0.9794,
+        "random": 0.7083
+      },
+      "comp": {
+        "oracle": 1.0,
+        "product": 0.9727,
+        "learned_greedy": 0.9843,
+        "learned_explore": 0.9807,
+        "learned_random": 0.9806,
+        "random": 0.4849
+      }
+    },
+    "subs_product": 0.9288,
+    "subs_greedy": 0.9792,
+    "subs_explore": 0.9791,
+    "subs_random": 0.9794,
+    "trap": false,
+    "explore_rescues": false,
+    "explore_minus_greedy": -0.0001,
+    "random_minus_explore": 0.0003,
+    "status": "refutada",
+    "verdict": "H-V4-7e REFUTADA (no hay trampa): learned_greedy 0.979 supera a product 0.929 por >0.02 sin explorar -> el sesgo de selección NO atrapa; la explotación del prior ya aprende la forma de sustitutos."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k": 10,
+    "T": 40,
+    "E": 20,
+    "eps": 0.3,
+    "ctrl_noise": 0.5
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp071] CYCLE 87 / H-V4-7e — feedback ACTION-GATED: ¿sesgo de selección atrapa? ¿explorar rescata? (R-INTERVENCIÓN)",
+    "[exp071] n=50 k=10 T=40 E=20 eps=0.3 ctrl_noise=0.5 seeds=48 (q2: S=32 σr=0.05, λ=1.0)",
+    "[exp071] subs: product=0.929 greedy=0.979 explore=0.979 random(insesgado)=0.979 rand=0.708",
+    "[exp071] comp: product=0.973 greedy=0.984 explore=0.981 random(insesgado)=0.981 rand=0.485",
+    "[exp071] sustitutos: trap(greedy<=prod+0.02)=False explore_rescues=False (explore−greedy=-0.000, random−explore=0.000)",
+    "[exp071] VEREDICTO H-V4-7e: REFUTADA | H-V4-7e REFUTADA (no hay trampa): learned_greedy 0.979 supera a product 0.929 por >0.02 sin explorar -> el sesgo de selección NO atrapa; la explotación del prior ya aprende la forma de sustitutos."
+  ]
+}

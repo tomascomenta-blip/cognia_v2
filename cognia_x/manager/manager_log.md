@@ -302,3 +302,16 @@
 - Notas: ARCO gap #2 (83-86) CERRADO. Política FINAL de reconstrucción de R-VALOR = COMPUERTA DE CALIDAD DE FEEDBACK
   (aprendido si feedback adecuado, producto si pobre), sin switch por régimen. Sirve al GOAL (R-VALOR). Próximo: valor
   no-factorizable y feedback de un lazo de acción-consecuencia REAL (gaps #1/#3, verificador exp018) y SCALE (GPU).
+
+## [2026-06-25] CYCLE 87 — H-V4-7e REFUTADA (puente gaps #1/#3): feedback action-gated NO atrapa; exploración innecesaria
+- Archivos: cognia_x/experiments/exp071_action_gated_feedback/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle87_action_gated_feedback.py (new),
+  cognia_x/tests/test_cycle87_action_gated_feedback.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; arco 85-87 + engine 32/32; cycle87 por el engine REFUTADA, verify_no_loss=OK.
+- Resultado exp (48 seeds): bajo feedback action-gated, sustitutos learned_greedy=0.979 = learned_random(insesgado)=0.979
+  = explore=0.979 > product=0.929. NO hay trampa de sesgo de selección; la exploración NO aporta. La selección top-k
+  abarca suficiente espacio de features para generalizar max().
+- Notas: REFUTADA informativa (robustez POSITIVA): ACOTA R-INTERVENCIÓN ('explorar para aprender el valor' no hace falta
+  aquí) y REFUERZA la política gap #2 (always-learn robusta también bajo feedback de acción-consecuencia, sin maquinaria
+  de exploración). Caveat: no se probó concentración extrema del soporte. Sirve al GOAL (R-VALOR). Próximo: lazo de
+  acción-consecuencia REAL con verificador chequeable (sandbox exp018), feedback con costo, dinámica secuencial.
