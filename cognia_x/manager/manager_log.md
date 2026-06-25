@@ -197,3 +197,14 @@
 - Notas: REFUTADA = ciclo exitoso (fracaso-es-información). Complementa el 76: el problema drift+obs-gateada es real,
   la intervención por slot fijo no paga. Sirve al GOAL (honestidad sobre R-INTERVENCIÓN sobre memoria). Próxima hija:
   intervención sorpresa-gateada (barata). Con esto el arco realismo 72-77 cierra el sub-tema memoria; pivotar.
+
+## [2026-06-25] CYCLE 78 — H-V4-5h REFUTADA (cierra sub-tema memoria): ni la intervención barata paga en la cache
+- Archivos: cognia_x/experiments/exp062_surprise_intervention/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle78_surprise_intervention.py (new),
+  cognia_x/tests/test_cycle78_surprise_intervention.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle78 por el engine REFUTADA (DoD), verify_no_loss=OK.
+- Resultado exp (32 seeds): DRIFT surprise=0.545 > explore=0.532 (barata<burda) pero < miss=0.561 (no paga);
+  ESTAC surprise=0.618 < miss=0.653 (falsos positivos). El gap de obs (0.051) es muy chico para que intervenir pague.
+- Notas: cierra el sub-tema R-INTERVENCIÓN-sobre-memoria con null firme; la observación pasiva del contrafáctico es
+  robusta aun con drift. PIVOTE: sub-tema memoria saturado (72-78). Próximo: valor endógeno más rico (info-gain/
+  confianza) o la rama control/empowerment, donde R-INTERVENCIÓN es de primer orden.

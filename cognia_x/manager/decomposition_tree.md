@@ -300,3 +300,11 @@ sobreviven al quitar los oráculos perfectos, acercándose a un mundo menos de j
   (recupera ~0% del gap) y cuesta -0.065 sin drift. => REFUTADA el mecanismo, real el problema. La intervención sobre
   la memoria, si paga, debe ser CHEAP/TARGETED (sorpresa-gateada, reusar CYCLE 59), no un slot fijo. NO se sobre-vende
   R-INTERVENCIÓN sobre la memoria. Cota 'real'; D-V4-39; test 4/4. Próxima hija: intervención sorpresa-gateada.
+
+- **CYCLE 78 — H-V4-5h REFUTADA (CIERRA el sub-tema memoria con null firme).** ¿Intervención BARATA sorpresa-gateada
+  (re-sondar ocasional, no slot fijo)? La barata VENCE al slot fijo del 77 (DRIFT surprise=0.545>explore=0.532; ESTAC
+  0.618>0.588) PERO no supera al baseline PASIVO (DRIFT surprise<miss=0.561; ESTAC surprise<miss=0.653 por falsos
+  positivos). El gap de obs bajo drift (0.051) es muy chico para que CUALQUIER intervención lo recupere. => en la
+  cache con obs gateada, la observación PASIVA del contrafáctico es ROBUSTA aun con drift; intervenir NO paga, ni
+  barato. Los efectos fuertes de R-INTERVENCIÓN viven en el aprendizaje causal ACTIVO (exp022), no aquí. Cota 'real';
+  D-V4-40; test 4/4. **SUB-TEMA MEMORIA SATURADO (72-78) -> PIVOTE** (valor más rico / rama control-empowerment).

@@ -2486,3 +2486,42 @@ costo-de-exploración/partial-monitoring (tier1).
 > intervención sobre la memoria, si paga, debe ser CHEAP/TARGETED (re-sondeo OCASIONAL gateado por SORPRESA, reusar
 > el detector de cambio de CYCLE 59), no un slot fijo. NO se sobre-vende R-INTERVENCIÓN sobre la memoria. Próxima
 > hija: intervención dirigida por sorpresa (barata). Cierra honestamente la pregunta que abrió el 76.
+
+## CYCLE 78 — H-V4-5h (arco realismo, CIERRA el sub-tema memoria): intervención barata sorpresa-gateada — REFUTADA
+
+### Pregunta
+CYCLE 77 (exp061, H-V4-5g) refutó el re-sondeo por SLOT FIJO (cuesta ~1/m permanente > el gap) pero dejó la hija:
+¿una intervención BARATA gateada por sorpresa (re-sondar OCASIONAL sólo tras detectar caída de hit-rate, full el
+resto) paga donde el slot fijo no pudo? Reusa el detector de cambio del CYCLE 59.
+
+### Diseño
+Numpy (idéntico a exp061). 7 brazos incluyendo value_surprise: capacidad full normal; EMA rápida vs lenta del hit;
+si la rápida cae bajo la lenta - margen (sorpresa) dispara una ráfaga de probe_len=40 pasos re-sondando el cacheado
+más viejo. DOS escenarios (estacionario/drift). 32 seeds. Pre-registrado: APOYADA si en drift surprise>miss (+>0.02)
+Y >explore Y en estacionario ~miss.
+
+### Resultado — REFUTADA (cierre firme con null)
+COST_STATIONARY: oracle=0.662 full=0.653 miss=0.653 explore=0.588 surprise=0.618 lfu=0.502. COST_DRIFT: oracle=0.660
+full=0.613 miss=0.561 explore=0.532 surprise=0.545 lfu=0.503. DOS hallazgos: (A) la barata SÍ es menos derrochadora
+que la burda -- value_surprise supera a value_explore en AMBOS (DRIFT 0.545>0.532; ESTAC 0.618>0.588): re-sondar
+ocasional cuesta menos que el slot fijo. (B) PERO aun la barata NO supera al baseline PASIVO: DRIFT surprise 0.545 <
+miss 0.561; ESTAC surprise 0.618 < miss 0.653 (falsos positivos del detector). El gap de obs bajo drift (0.051) es
+demasiado chico para que CUALQUIER intervención lo recupere. => en la cache con observación gateada, la observación
+PASIVA del contrafáctico es ROBUSTA aun bajo drift; intervenir NO paga, ni barato.
+
+### Límites (honestos)
+La dirección 'cheap/targeted' era correcta (la barata vence a la burda) pero insuficiente; un detector mejor-
+calibrado reduciría los falsos positivos en estacionario, PERO aun en DRIFT (donde el gap existe) surprise queda
+BAJO miss -> el null no es sólo artefacto de tuning. Drift abrupto recurrente; valor=frecuencia×costo; juguete.
+
+### Verificación
+exp062 (32 seeds, numpy). cycle78 -> H-V4-5h 'refutada' (DoD; cierra el sub-tema = ciclo exitoso, v3 §4.1), D-V4-40
+ACEPTADA, 1 techo 'real', analogía, verify_no_loss=OK. Test `test_cycle78_surprise_intervention.py` 4/4. Convergente
+con value-of-information (tier1).
+
+> CIERRA el sub-tema R-INTERVENCIÓN-sobre-memoria con un NULL honesto: en el sustrato de cache con observación
+> gateada, ninguna intervención paga (ni barata) -- la observación pasiva del contrafáctico es robusta aun con
+> drift, porque el gap de observación es chico. Los efectos FUERTES de R-INTERVENCIÓN (exp022/CYCLE 35: la pasiva
+> queda PLANA) viven en el aprendizaje causal ACTIVO, no en esta cache. SEÑAL DE PIVOTE: el sub-tema memoria queda
+> SATURADO (72-78); ir a un valor endógeno más rico (info-gain/confianza, CYCLE 56-57) o a la rama control/
+> empowerment (la rama faltante más grande del árbol), donde R-INTERVENCIÓN sí es de primer orden.

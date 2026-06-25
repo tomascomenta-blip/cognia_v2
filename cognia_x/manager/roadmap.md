@@ -251,3 +251,7 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > observación gateada por la acción (76), y la intervención naive sobre lo cacheado NO paga aunque el drift sea real
 > (77 REFUTADA). Frontera para PIVOTAR: intervención sorpresa-gateada barata; valor endógeno más rico
 > (info-gain/confianza, CYCLE 56-57); SCALE a un sustrato no-juguete (HybridLM); o la rama control/empowerment.
+- [x] **CYCLE 78 (exp062) — H-V4-5h: REFUTADA (cierra el sub-tema memoria).** La intervención BARATA sorpresa-gateada
+  vence al slot fijo del 77 pero NO al baseline pasivo (DRIFT surprise=0.545 < miss=0.561). El gap de obs (0.051) es
+  muy chico para que intervenir pague. La observación pasiva del contrafáctico es robusta aun con drift. SUB-TEMA
+  MEMORIA SATURADO (72-78) -> PIVOTE (valor más rico / control-empowerment). Cota 'real'; D-V4-40; test 4/4.
