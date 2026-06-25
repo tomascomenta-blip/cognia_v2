@@ -305,3 +305,16 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > aprender el combinador recupera, viable pero noise-gated (84); el noise-gating es una pendiente que la calidad del
 > feedback destraba (85). El thesis R-VALOR=control×relevancia del arco 79-82 queda con su dominio caracterizado y una
 > construcción que lo extiende a valor no-factorizable cuando el feedback es nítido.
+
+- [x] **CYCLE 86 (exp070) — H-V4-7d: APOYADA. CAPSTONE del gap #2 (arco 83-86 cerrado).** El combinador aprendido (que
+  NESTA el producto: cr es feature de poly2) DOMINA al producto sobre una compuerta de feedback (gate=q1): a q2 iguala en
+  complementos (+0.006) y vence en sustitutos (+0.051). El oracle_selector (detector PERFECTO) supera a always_learned por
+  +0.001 y el selector real por −0.002 -> la DETECCIÓN de régimen es INNECESARIA. Política FINAL: reconstruir R-VALOR con
+  el combinador aprendido cuando el feedback es adecuado, caer al producto con feedback pobre; sin switch por régimen.
+  Cota 'real'; D-V4-48; test 6/6. Próximo: lazo de acción-consecuencia REAL (gaps #1/#3, verificador exp018), SCALE (GPU).
+
+> ARCO gap #2 (83-86) CERRADO: el producto es un prior de complementariedad (83); aprender el combinador recupera bajo
+> sustitutos, noise-gated (84); el noise-gating es una pendiente que la calidad del feedback destraba (85); el aprendido
+> domina y la detección de régimen es innecesaria (86). POLÍTICA: producto por DEFECTO con feedback pobre, combinador
+> aprendido (nesta el producto) con feedback adecuado. R-VALOR=control×relevancia queda caracterizado Y extendido a valor
+> no-factorizable. Frontera abierta: gaps #1/#3 (lazo real) y SCALE (GPU).

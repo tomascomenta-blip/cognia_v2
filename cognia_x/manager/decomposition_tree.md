@@ -435,3 +435,24 @@ suposición más cargante del arco). CYCLE 83 la ataca por primera vez con valor
 > del lab: producto por DEFECTO (barato, robusto); invertir en calidad de feedback + combinador aprendido cuando hay
 > régimen de sustitutos. Frontera abierta: detección AUTOMÁTICA del régimen (conmutar producto<->aprendido sin saberlo a
 > priori) y el valor no-factorizable de un lazo de acción-consecuencia REAL (gaps #1/#3).
+
+- **CYCLE 86 — H-V4-7d APOYADA (CAPSTONE del gap #2; cierra el arco 83-86).** ¿Hace falta DETECTAR el régimen para
+  conmutar producto<->aprendido? NO. El combinador aprendido (ridge poly2) DOMINA al producto por encima de una compuerta
+  de calidad de feedback (gate=q1): a calidad q2 iguala en complementos (dom +0.006) y vence en sustitutos (dom +0.051).
+  Lo decisivo: el oracle_selector (un detector de régimen PERFECTO) supera a 'siempre aprender' por sólo +0.001, y el
+  selector real (CV held-out) por −0.002 (ambos <= tol 0.02). MECANISMO: poly2 NESTA el producto (el término cr es una de
+  sus features) -> lo iguala donde el producto es correcto (complementos) y lo supera donde no (sustitutos); por eso
+  'siempre aprender' ya alcanza el techo de un selector. => la política práctica de reconstrucción de R-VALOR es una
+  COMPUERTA DE CALIDAD DE FEEDBACK (aprendido si el feedback es adecuado, producto si es pobre), NO un switch por régimen.
+  Caveat: el aprendido nesta al producto por DISEÑO de la base; con feedback pobre (q0) el producto iguala/supera (define
+  la compuerta). Cota 'real'; D-V4-48; test 6/6.
+
+> ARCO gap #2 (83-86) CERRADO — CUADRO FINAL: (83) el producto fijo es un prior de COMPLEMENTARIEDAD, robusto salvo bajo
+> sustitutos; (84) un combinador APRENDIDO recupera bajo sustitutos, viable pero NOISE-GATED; (85) el noise-gating es una
+> PENDIENTE que la calidad del feedback destraba; (86) el aprendido (que NESTA el producto) DOMINA sobre una compuerta de
+> feedback -> la detección de régimen es INNECESARIA. POLÍTICA FINAL del lab: reconstruir R-VALOR con el combinador
+> aprendido (nesta el producto) cuando el feedback es adecuado; caer al producto sólo con feedback pobre; SIN detector de
+> régimen. El thesis R-VALOR=control×relevancia del arco 79-82 queda con su dominio caracterizado (prior de
+> complementariedad) Y extendido a valor no-factorizable por un combinador aprendido barato. Frontera abierta (gaps
+> #1/#3/SCALE): valor no-factorizable y feedback de un lazo de acción-consecuencia REAL (verificador chequeable exp018);
+> objetivo no-escalar; SCALE a sustrato no-juguete (GPU/Kaggle, fuera de la corrida CPU).

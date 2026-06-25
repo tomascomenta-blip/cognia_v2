@@ -290,3 +290,15 @@
   destraba la recuperación decisiva. SUB-ARCO gap #2 CERRADO (83 acota / 84 construye-noise-gated / 85 destraba). Política:
   producto por DEFECTO; calidad de feedback + combinador aprendido en régimen de sustitutos. Sirve al GOAL (R-VALOR).
   Próximo (CYCLE 86): detección AUTOMÁTICA del régimen (conmutar producto<->aprendido sin saberlo a priori).
+
+## [2026-06-25] CYCLE 86 — H-V4-7d APOYADA (CAPSTONE gap #2): el aprendido domina; detectar el régimen es innecesario
+- Archivos: cognia_x/experiments/exp070_regime_policy/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle86_regime_policy.py (new),
+  cognia_x/tests/test_cycle86_regime_policy.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 6/6; arco 84-86 + engine 34/34; cycle86 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp (48 seeds): always_learned DOMINA sobre gate=q1 (a q2 dom comp=+0.006, subs=+0.051); el oracle_selector
+  (detector PERFECTO) supera a always_learned por sólo +0.001 y el selector real por −0.002 (<=0.02) -> detección
+  INNECESARIA. Mecanismo: poly2 NESTA el producto (cr es feature).
+- Notas: ARCO gap #2 (83-86) CERRADO. Política FINAL de reconstrucción de R-VALOR = COMPUERTA DE CALIDAD DE FEEDBACK
+  (aprendido si feedback adecuado, producto si pobre), sin switch por régimen. Sirve al GOAL (R-VALOR). Próximo: valor
+  no-factorizable y feedback de un lazo de acción-consecuencia REAL (gaps #1/#3, verificador exp018) y SCALE (GPU).

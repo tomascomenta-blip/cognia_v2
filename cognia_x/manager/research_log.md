@@ -2799,3 +2799,45 @@ errors-in-variables/atenuación (tier2) y con el noise-gating de CYCLE 84 (tier5
 > bajo sustitutos pero noise-gated (84); el noise-gating es una pendiente — subir la calidad del feedback lo destraba
 > (85). Política: producto por DEFECTO; calidad de feedback + combinador aprendido en régimen de sustitutos. Próximo:
 > detección AUTOMÁTICA del régimen (conmutar producto<->aprendido sin saberlo a priori).
+
+## CYCLE 86 — H-V4-7d (rama R-VALOR, CAPSTONE del gap #2): ¿detectar régimen o el aprendido domina? — APOYADA
+
+### Pregunta
+Tras 85, lo natural era 'detectar el régimen (complementos vs sustitutos) para conmutar producto<->aprendido'. Pero
+84-85 mostraron incidentalmente que bajo complementos aprendido ≈ producto. Si el aprendido DOMINA (≥ producto en
+complementos, > en sustitutos) por encima de una compuerta de feedback, un detector de régimen sería INNECESARIO: la
+política sería una COMPUERTA DE CALIDAD DE FEEDBACK, no un switch por régimen. ¿Es así?
+
+### Diseño
+Numpy. Familias comp(min)/subs(max), λ=1.0, calidad de feedback q0..clean (como exp069), combinador aprendido ridge
+poly2 de m=20 obs. Brazos: oracle, always_product, always_learned, selector (detecta vía CV held-out: corr con valor
+observado, elige producto vs aprendido), oracle_selector (por seed el mejor de los dos por perf REAL = cota de un
+detector PERFECTO), random. 48 seeds. Pre-registrado (q_ref=q2, tol=0.02): APOYADA si hay compuerta donde always_learned
+>= producto en comp (>=-0.01) y > en subs (+>0.02) Y la detección es innecesaria (oracle_selector y selector <=
+always_learned + tol).
+
+### Resultado — APOYADA
+El combinador aprendido DOMINA al producto por encima de gate=q1: a q2 dom comp=+0.006 (iguala), dom subs=+0.051 (vence).
+Lo decisivo: el oracle_selector (detector PERFECTO) supera a always_learned por sólo +0.001, y el selector real por
+−0.002 (ambos <= tol). => ni un detector perfecto aporta sobre 'siempre aprender'. MECANISMO: poly2 NESTA el producto (el
+término cr es una de sus features) → lo iguala donde el producto es correcto (complementos) y lo supera donde no
+(sustitutos); por eso always_learned ya alcanza el techo de un selector. La política práctica de reconstrucción de
+R-VALOR es una COMPUERTA DE CALIDAD DE FEEDBACK (aprendido si el feedback es adecuado, producto si es pobre), NO un switch
+por régimen.
+
+### Límites (honestos)
+El aprendido nesta al producto por DISEÑO de la base poly2; con una base que no lo nestara, la dominación/no-regret
+podría no valer. Con feedback POBRE (q0) el producto iguala/supera al aprendido: la compuerta de calidad es real y
+depende del costo de muestrear el lazo real. Juguete (g sintético min/max, objetivo escalar).
+
+### Verificación
+exp070 (48 seeds, numpy). cycle86 → H-V4-7d 'apoyada' (DoD), D-V4-48 ACEPTADA, 1 techo 'real', analogía 7 etapas,
+verify_no_loss=OK. Test `test_cycle86_regime_policy.py` 6/6 (dominación + detección innecesaria + 3 ramas). Convergente
+con nesting/no-regret (tier2) y con la calidad-feedback de CYCLE 85 (tier5).
+
+> ARCO gap #2 (83-86) CERRADO. CUADRO FINAL: el producto fijo es un prior de complementariedad (83); un combinador
+> aprendido recupera bajo sustitutos, noise-gated (84); el noise-gating es una pendiente que la calidad del feedback
+> destraba (85); el aprendido (que nesta el producto) DOMINA sobre una compuerta de feedback, la detección de régimen es
+> innecesaria (86). POLÍTICA FINAL: reconstruir R-VALOR con el combinador aprendido cuando el feedback es adecuado, caer
+> al producto con feedback pobre; sin detector de régimen. Próximo: el valor no-factorizable y el feedback de un lazo de
+> acción-consecuencia REAL (gaps #1/#3, verificador chequeable exp018) y SCALE (GPU).
