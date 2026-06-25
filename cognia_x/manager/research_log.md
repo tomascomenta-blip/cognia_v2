@@ -2159,3 +2159,40 @@ multi-escala (tier1); extiende CYCLE 66.
 > Capstone del arco memoria con éxito PARCIAL: la tesis del CYCLE 66 (el valor endógeno elige la ESTRATEGIA de
 > memoria) se extiende a 3 regímenes -- 2/3 limpio. La pieza difícil es la CLASIFICACIÓN del régimen intermedio,
 > no la selección de estrategia. El valor endógeno selecciona la estrategia cuando los regímenes son separables.
+
+## CYCLE 69 — H-V4-3 (raíz FRESCA R-PRIOR): la CALIDAD del prior > su forma
+
+### Pregunta
+El thesis v4 lista R-PRIOR como raíz convergente ("un prior fuerte es necesario; su CALIDAD, no su forma, fija
+la eficiencia muestral; MDL/programas es una apuesta de diseño, no la raíz"). ¿Un prior con la SIMETRÍA correcta
+(equivarianza) es muy eficiente muestralmente, y un prior EQUIVOCADO hunde por debajo de no asumir nada?
+
+### Diseño
+Numpy (logreg). Tarea perm-invariante: x in {0,1}^20, y=1 si sum(x)>=10 (depende sólo del CONTEO). 3 priors = 3
+feature maps: correcto (1 feature = conteo), general (20 features crudas), equivocado (sólo k=3 primeras
+posiciones). Métrica: test acc vs nº de ejemplos {4,8,16,32,64,128}. 24 seeds.
+
+### Resultado — APOYADA
+correcto acc vs n: 0.806/0.917/0.912/0.942/0.968/1.000. general: 0.548/0.569/0.601/0.656/0.809/0.917.
+equivocado: 0.547/0.552/0.580/0.607/0.622/0.635. El prior CORRECTO alcanza 0.917 con sólo 8 ejemplos (general
+0.569 ahí: +0.348 de eficiencia); el general necesita ~128 ejemplos (~16x más) para igualar lo que el correcto
+logra con 8. El prior EQUIVOCADO se clava en 0.635 aun a 128 ejemplos, MUY por DEBAJO del general (0.917) -- un
+prior FALSO es SESGO IRREDUCIBLE que hunde por debajo de no asumir nada. => la CALIDAD/corrección del prior (la
+simetría correcta) es el lever de la eficiencia muestral, no tenerlo ni su forma.
+
+### Límites (honestos)
+Tarea de juguete (1 simetría perm-invariante, logreg lineal). El techo del correcto depende de entrenar bien:
+con sobre-regularización (l2=1e-3) se topaba en ~0.82; con l2 chico (1e-4) llega a ~1.0 -- el prior correcto SÍ
+puede representar la verdad, la regularización lo ocultaba; se reporta el techo real (artefacto de entrenamiento,
+no de la hipótesis). No se comparó contra un buscador-de-programas/MDL real (sólo se argumenta el costo). La
+simetría se da de antemano (falta APRENDERLA = meta-prior).
+
+### Verificación
+exp054 (24 seeds, logreg numpy). cycle69 -> H-V4-3 'apoyada' (DoD), D-V4-32 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle69_prior_quality.py` 5/5. Convergente con no-free-lunch/equivariancia (tier1) y
+con el thesis R-PRIOR.
+
+> Raíz FRESCA R-PRIOR confirmada en juguete: la calidad/corrección del prior fija la eficiencia muestral; un prior
+> barato con la equivarianza correcta vence a la fuerza bruta de datos, y un prior falso hunde. Conecta R-PRIOR
+> con R-VALOR (un buen prior es valor a priori sobre qué estructura importa). Da BREADTH a la corrida más allá del
+> arco verificador/R-VALOR/memoria.

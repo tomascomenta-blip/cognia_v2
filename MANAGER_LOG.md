@@ -3957,3 +3957,12 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: selector de 3 estrategias (clasifica estac/aislado/recurrente en 2 escalas de sorpresa). Acierta 2/3:
   estacionario (0.903~committed) y recurrente (0.510>=fixed) limpios; AISLADO subóptimo (0.440 vs sgate 0.591,
   pero > committed atascado 0.0). La clasificación del régimen intermedio es la pieza difícil. Capstone parcial.
+
+## [2026-06-25] CYCLE 69 — H-V4-3 APOYADA (raíz FRESCA R-PRIOR): la calidad del prior fija la eficiencia muestral
+- Archivos: cognia_x/experiments/exp054_prior_quality/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle69_prior_quality.py, cognia_x/tests/test_cycle69_prior_quality.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 5 passed (test_cycle69). Recorder verify_no_loss=OK. Experimento APOYADA (24 seeds).
+- Notas: raíz fresca (breadth). Tarea perm-invariante. El prior correcto (1 feature) alcanza 0.917 con 8 ejemplos
+  (general necesita ~128 = 16x); el prior equivocado se clava en 0.635 << general 0.917 (sesgo irreducible). La
+  calidad/corrección del prior es el lever, no tenerlo ni su forma. Conecta R-PRIOR con R-VALOR.
