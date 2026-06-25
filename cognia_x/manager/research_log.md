@@ -2405,3 +2405,42 @@ thesis R-VALOR task-definido (tier5).
 > y LFU es óptimo SÓLO cuando valor=frecuencia. El agente aprende el valor de sus CONSECUENCIAS (costo observado) ->
 > liga el arco MEMORIA con R-INTERVENCIÓN (CYCLE 40-48). Próxima hija: costo revelado SÓLO al fallar (exploración);
 > valor endógeno más rico (info-gain/confianza).
+
+## CYCLE 76 — H-V4-5f (arco realismo, hija del 75): el valor con OBSERVACIÓN GATEADA POR LA ACCIÓN
+
+### Pregunta
+CYCLE 75 (exp059, H-V4-5e) asumió el costo OBSERVABLE en cada consulta. En la realidad, cachear un item te CIEGA a
+su costo: si lo tenés, no sentís el dolor de fallarlo -> el costo se revela SÓLO al FALLAR (miss). La acción del
+agente (cachear) decide qué observa (estructura tipo R-INTERVENCIÓN). ¿Estimar el valor task-definido SOBREVIVE a
+esta observación gateada, o hace falta exploración (intervenir) para aprender?
+
+### Diseño
+Numpy (idéntico a exp059 cost-varying). Memoria online m=10/n=50, valor v=f×c. Métrica = hit-rate ponderado por
+costo. 6 brazos: oracle_value, value_full (costo en cada consulta), value_miss (costo SÓLO al fallar = observación
+gateada), value_explore (value_miss + sacrifica 1 slot a re-sondar el cacheado más viejo), lfu_freq, random. 48
+seeds. Pre-registrado: APOYADA si value_miss recupera >=70% del oráculo Y >> lfu Y ~ value_full (|dif|<0.05).
+
+### Resultado — APOYADA (matizado, honesto)
+oracle=0.639 value_full=0.634 value_miss=0.634 value_explore=0.572 lfu_freq=0.490 random=0.231. value_miss recupera
+99% del oráculo e IGUALA a value_full (|dif|=0.000): la observación gateada por la acción NO rompe el aprendizaje
+del valor bajo ESTACIONARIEDAD. Mecanismo: el agente observa los costos de justo lo que NO cachea (su CONTRAFÁCTICO,
+la info que necesita para decidir si cambiarlo) y el cold-start (cache vacía -> todo falla) observa todo una vez.
+value_explore RESTA -0.063: sacrificar un slot a re-sondar NO ayuda con costos estacionarios. => el valor es
+aprendible aunque la acción de cachear ciegue su observación; la intervención extra no hace falta acá.
+
+### Límites (honestos)
+MATIZ CLAVE: este resultado NIEGA la intuición fuerte "aprender valor EXIGE intervenir" EN ESTE RÉGIMEN -- la
+observación pasiva del contrafáctico basta. La intervención (re-sondar) sería necesaria SÓLO con costos
+NO-ESTACIONARIOS (un item cacheado cuyo costo DERIVA pasa desapercibido porque no se observa) -> ése es el caso
+R-INTERVENCIÓN real y la próxima hija (combinar exp060 con la no-estacionariedad de exp057/CYCLE 73). La conexión
+con R-INTERVENCIÓN es DÉBIL aquí; no se sobre-vende. Costos estacionarios; juguete (Pareto, n=50, IID).
+
+### Verificación
+exp060 (48 seeds, numpy). cycle76 -> H-V4-5f 'apoyada' (DoD), D-V4-38 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle76_action_gated_value.py` 4/4 (miss~full, >lfu, 3 ramas). Convergente con
+active-sensing/partial-monitoring (tier1) y con el caveat de CYCLE 75 (tier5).
+
+> Hija honesta del 75 que MATIZA R-INTERVENCIÓN sobre la memoria: bajo estacionariedad, observar el costo de lo que
+> NO cacheás (tu regret/contrafáctico) basta para aprender el valor -- no hace falta intervenir, y la exploración
+> extra resta. R-INTERVENCIÓN sobre la memoria aparece sólo cuando los costos de lo cacheado-no-observado DERIVAN
+> (no-estacionariedad). Próxima hija: costos no-estacionarios + observación gateada (combinar CYCLE 73 + 76).

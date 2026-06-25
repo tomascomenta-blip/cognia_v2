@@ -1,0 +1,45 @@
+{
+  "exp": "exp060_action_gated_value",
+  "cycle": 76,
+  "hypothesis": "H-V4-5f",
+  "claim": "estimar el valor task-definido sobrevive a la observación gateada por la accion (costo revelado solo al fallar): el agente observa el costo de lo que NO cachea (su contrafactual) y eso basta",
+  "verdict": "apoyada",
+  "summary": {
+    "by_arm": {
+      "oracle_value": 0.6388,
+      "value_full": 0.6345,
+      "value_miss": 0.6345,
+      "value_explore": 0.5715,
+      "lfu_freq": 0.4903,
+      "random": 0.2313
+    },
+    "oracle_advantage": 0.4075,
+    "fraction_recovered_miss": 0.9894,
+    "miss_recovers": true,
+    "miss_beats_lfu": true,
+    "miss_matches_full": true,
+    "explore_helps": false,
+    "status": "apoyada",
+    "verdict": "H-V4-5f APOYADA: estimar el valor task-definido SOBREVIVE a la observación gateada por la acción. value_miss (costo observado SÓLO al fallar) 0.634 recupera 99% de la ventaja del oráculo (0.639) y vence a lfu_freq (0.490) por +0.144; ~ value_full (0.634, costo siempre visible, |dif| 0.000) -> la observación gateada NO rompe el aprendizaje del valor bajo estacionariedad. Mecanismo: el agente observa los costos justo de lo que NO cachea (su CONTRAFÁCTICO -- lo que necesita para decidir si cambiarlo), y el cold-start observa todo una vez. value_explore 0.572 no agrega (Δ -0.063): no hace falta exploración extra con costos estacionarios. => el valor es aprendible aun cuando la acción de cachear ciega su observación; liga R-VALOR (qué vale) con la acción (R-INTERVENCIÓN débil: la acción decide qué se observa)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "m": 10,
+    "alpha_f": 1.5,
+    "alpha_c": 1.5,
+    "T": 4000
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp060] CYCLE 76 / H-V4-5f — valor con OBSERVACIÓN GATEADA POR LA ACCIÓN (costo revelado sólo al fallar)",
+    "[exp060] n=50 m=10 alpha_f=1.5 alpha_c=1.5 T=4000 seeds=48",
+    "[exp060] hit-rate pond.costo: oracle=0.639 value_full=0.634 value_miss=0.634 value_explore=0.572 lfu_freq=0.490 random=0.231",
+    "[exp060] value_miss recupera 99% del oráculo; ~value_full (True); explore agrega -0.063",
+    "[exp060] VEREDICTO H-V4-5f: APOYADA | H-V4-5f APOYADA: estimar el valor task-definido SOBREVIVE a la observación gateada por la acción. value_miss (costo observado SÓLO al fallar) 0.634 recupera 99% de la ventaja del oráculo (0.639) y vence a lfu_freq (0.490) por +0.144; ~ value_full (0.634, costo siempre visible, |dif| 0.000) -> la observación gateada NO rompe el aprendizaje del valor bajo estacionariedad. Mecanismo: el agente observa los costos justo de lo que NO cachea (su CONTRAFÁCTICO -- lo que necesita para decidir si cambiarlo), y el cold-start observa todo una vez. value_explore 0.572 no agrega (Δ -0.063): no hace falta exploración extra con costos estacionarios. => el valor es aprendible aun cuando la acción de cachear ciega su observación; liga R-VALOR (qué vale) con la acción (R-INTERVENCIÓN débil: la acción decide qué se observa)."
+  ]
+}

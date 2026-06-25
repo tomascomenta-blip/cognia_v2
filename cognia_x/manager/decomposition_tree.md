@@ -284,3 +284,11 @@ sobreviven al quitar los oráculos perfectos, acercándose a un mundo menos de j
   DRIVE la divergencia). => R-VALOR es task-definido; estimar la frecuencia (proxy) falla cuando el valor diverge.
   Rebate "esto es sólo LFU": LFU óptimo SÓLO si valor=frecuencia. El agente aprende valor de sus CONSECUENCIAS ->
   liga memoria con R-INTERVENCIÓN (CYCLE 40-48). Cota 'real'; D-V4-37; test 4/4. Capstone del arco realismo 72-75.
+
+- **CYCLE 76 — H-V4-5f APOYADA (hija del 75; MATIZA R-INTERVENCIÓN sobre la memoria).** Cuando cachear un item CIEGA
+  a su costo (revelado sólo al FALLAR), el valor task-definido igual se aprende: value_miss=0.634 recupera 99% del
+  oráculo e IGUALA a value_full=0.634 (observación gateada NO rompe el aprendizaje bajo estacionariedad), vence a
+  lfu=0.490; value_explore=0.572 RESTA (la exploración extra no hace falta). Mecanismo: el agente observa el costo de
+  lo que NO cachea (su contrafáctico) + cold-start observa todo una vez. MATIZ HONESTO: niega "aprender valor exige
+  intervenir" en estacionario; R-INTERVENCIÓN sobre la memoria aparece SÓLO con costos NO-estacionarios de lo
+  cacheado-no-observado (próxima hija: combinar CYCLE 73 + 76). Cota 'real'; D-V4-38; test 4/4.

@@ -173,3 +173,15 @@
 - Notas: capstone CONCEPTUAL del arco realismo (72-75); eleva el arco más allá de "LFU textbook". Sirve al GOAL
   (R-VALOR task-definido). Liga memoria con R-INTERVENCIÓN (valor aprendido de consecuencias). Próxima hija: costo
   revelado sólo al fallar (exploración); valor endógeno más rico (info-gain/confianza).
+
+## [2026-06-25] CYCLE 76 — H-V4-5f APOYADA (valor con observación gateada por la acción)
+- Archivos: cognia_x/experiments/exp060_action_gated_value/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle76_action_gated_value.py (new),
+  cognia_x/tests/test_cycle76_action_gated_value.py (new),
+  research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle76 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp (48 seeds): value_miss=0.634 (99% del oráculo) = value_full=0.634 > lfu=0.490; value_explore=0.572
+  resta. La observación gateada por la acción NO rompe el aprendizaje del valor bajo estacionariedad.
+- Notas: hija del 75; MATIZA honestamente R-INTERVENCIÓN sobre la memoria (la observación pasiva del contrafáctico
+  basta; la intervención no hace falta en estacionario). Sirve al GOAL (R-VALOR bajo realismo). Próxima hija real de
+  R-INTERVENCIÓN: costos NO-estacionarios + observación gateada (combinar CYCLE 73 + 76).

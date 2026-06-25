@@ -236,3 +236,7 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > juguete una por una: valor ESTIMADO online no oráculo (72), debe OLVIDAR bajo no-estacionariedad (73), AUTO-elige
 > su tasa de olvido (74, no-regret), y el valor es TASK-DEFINIDO no un proxy de frecuencia (75). Frontera: costo
 > revelado sólo al fallar (exploración/R-INTERVENCIÓN); valor endógeno más rico (info-gain/confianza); escala no-IID.
+- [x] **CYCLE 76 (exp060) — H-V4-5f: APOYADA (matizada).** El valor task-definido SOBREVIVE a la observación gateada
+  por la acción (costo revelado sólo al fallar): value_miss=0.634 (99% del oráculo) = value_full=0.634 > lfu=0.490;
+  value_explore RESTA. El agente observa el costo de lo que NO cachea (su contrafáctico) -> no hace falta intervenir
+  bajo estacionariedad. MATIZA R-INTERVENCIÓN sobre la memoria (débil acá). Techo 'real'; D-V4-38; test 4/4.
