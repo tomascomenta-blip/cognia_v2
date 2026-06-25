@@ -7,6 +7,16 @@ Solo detenerse ante: borrar datos del usuario, romper producción en Railway, o 
 Subir todo a GitHub **excepto información sensible** (tokens, claves, `.env`, secretos).
 Publicar a PyPI u otros servicios externos solo con **autorización explícita** del dueño (es irreversible).
 
+### REGLA — Autonomía Total hasta Deadline (VINCULANTE)
+Cuando se active `/manager` con una **HORA LÍMITE**, regir la corrida por `MANAGER_AUTONOMIA_TOTAL.md`:
+mejoras **INDEFINIDAS**, **100% autónomas**, **SIN preguntar NADA** al usuario y **SIN detenerse en ningún
+momento**, hasta el deadline (donde se programa el apagado). El usuario está 100% inactivo: ante toda
+bifurcación, tomar la mejor decisión y seguir; encadenar ciclos sin checkpoints ni esperas; commitear+pushear
+cada unidad verificada para que el corte a deadline sea seguro. Las ÚNICAS excepciones que desvían (no
+detienen) el bucle son las 4 líneas duras de arriba (datos del usuario / producción / dinero / secretos). La
+autonomía total NO relaja el método (verificación REAL, tests, honestidad, logs append-only). Ver
+`MANAGER_AUTONOMIA_TOTAL.md` para el protocolo completo y la Config de la corrida.
+
 ## Método de trabajo — OBLIGATORIO para TODAS las sesiones de Claude
 Así se modifica este repo (es el método demostrado en las sesiones autónomas; seguirlo siempre):
 

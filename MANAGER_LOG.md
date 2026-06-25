@@ -3767,3 +3767,12 @@ ejecución real) es el lever central de la auto-mejora segura.
   guardia de corrección, compatibilidad Transformer, escalabilidad modular). Contenido verbatim + Apéndice A
   que mapea cada pieza a la evidencia ya producida en el arco v4 (40-50) y al engine de investigación.
 - North Star de INGENIERÍA para la fase de entrenamiento; complementa el North Star de INVESTIGACIÓN (R-VALOR).
+
+## DOC — Regla de Autonomía Total del Manager hasta Deadline (2026-06-24)
+- Guardado `MANAGER_AUTONOMIA_TOTAL.md` (raíz del repo): REGLA VINCULANTE. Al activar /manager con HORA LÍMITE
+  → mejoras INDEFINIDAS, 100% autónomas, SIN preguntar nada y SIN detenerse, hasta el deadline (apagado
+  programado a esa hora). Usuario 100% inactivo. Cero preguntas, cero paradas, encadenar ciclos, commitear+
+  pushear cada unidad para corte seguro. Únicas excepciones que DESVÍAN (no detienen) el bucle: borrar datos
+  del usuario / romper producción / gastar dinero / secretos. La autonomía total NO relaja el método.
+- Hecha efectiva: puntero VINCULANTE agregado en CLAUDE.md (sección Modo Manager Autónomo) → se carga en cada
+  sesión. Incluye Config de la corrida (DEADLINE, OBJETIVO, mecanismos de reanudación y apagado) a rellenar.
