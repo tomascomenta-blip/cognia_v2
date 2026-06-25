@@ -3668,3 +3668,23 @@ ejecución real) es el lever central de la auto-mejora segura.
 - cycle45 por compuertas (verify=OK, DoD MIXTA, D-V4-10 ACEPTADA, 1 techo 'real'), test_cycle45 4/4.
 - PRÓXIMO (P0): H-V4-1k — backtracking/abstención cuando un paso agota su presupuesto sin verificar + reusar
   la política adaptativa calibrada de 43 POR PASO bajo verificador RUIDOSO (el ruido per-step se compone).
+
+## CYCLE 46 (RESET v4) — H-V4-1k: abstención calibrada + verificador ruidoso per-step (2026-06-24)
+- exp032_abstention_noisy / H-V4-1k MIXTA (lever de honestidad): cierra los dos cabos de exp031 (commit-de-
+  basura que descarrila + verificador perfecto). Verificador RUIDOSO per-step; cuando ningún sample de un paso
+  verifica, la cadena ABSTIENE en vez de commitear basura. Mide PRECISIÓN-sobre-respondidas y COBERTURA vs
+  accuracy COMMIT-SIEMPRE. 4 seeds.
+- Curva K|vnoise→COMMIT/PREC/COV: 2|0.0:0.252/1.000/0.248 | 2|0.1:0.217/0.647/0.317 | 2|0.2:0.169/0.295/0.338
+  | 4|0.0:0.050/1.000/0.050 | 4|0.1:0.054/0.293/0.081 | 6|0.1:0.002/0.125/0.017.
+- FUNCIONA FUERTE a cadenas cortas + verificador decente: mejor régimen [K=2/vn=0] precisión 1.000 vs commit
+  0.252 (+0.748), cobertura útil 0.248; a vn=0.1 precisión 0.647 vs 0.217 (+0.43). Las cadenas respondidas son
+  mucho más confiables (saber cuándo no sé). PERO la cobertura COLAPSA a K largo (a K=6 ~0.01-0.02: abstiene
+  todo) y la precisión se erosiona con ruido (falsos positivos pasan) -> conecta con 41/43 (depende del
+  verificador).
+- Disciplina: el código de verdict miraba SOLO Kmax y marcaba REFUTADA, pero el TEXTO pre-registrado dice
+  "MIXTA si la cobertura colapsa salvo en cadenas cortas"; se corrigió verdict para honrar el texto (mirar toda
+  la curva: APOYADA si se sostiene en el duro, MIXTA si funciona en algún régimen, REFUTADA si en ninguno) y se
+  re-corrió FULL para consistencia. cycle46 por compuertas (verify=OK, DoD MIXTA, D-V4-11 ACEPTADA, 1 techo
+  'real'), test_cycle46 4/4.
+- PRÓXIMO (P0): H-V4-1l — BACKTRACKING (reintentar el paso fallido en vez de abstener la cadena entera) para
+  recuperar cobertura sin perder precisión; disparar abstención/backtrack con la política adaptativa de 43.

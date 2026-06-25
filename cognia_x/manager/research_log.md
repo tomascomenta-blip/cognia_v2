@@ -1347,3 +1347,36 @@ Convergente con asignación adaptativa de test-time compute (arXiv:2408.03314).
 
 > Sub-arco MULTI-PASO 44-45: verificación de PROCESO frena el compounding (44) + presupuesto ADAPTATIVO
 > per-step rescata cadenas largas (45). El integrador multi-paso = proceso + presupuesto adaptativo.
+
+## CYCLE 46 — H-V4-1k: abstención calibrada + verificador ruidoso per-step
+
+### Pregunta
+¿Abstenerse (decir "no sé") cuando ningún sample de un paso verifica convierte errores silenciosos en
+abstenciones flagueadas, subiendo la PRECISIÓN-sobre-respondidas — incluso con verificador RUIDOSO per-step?
+
+### Diseño
+Extiende exp031 (cadena mod 20, presupuesto adaptativo per-step, modelo propio). Verificador RUIDOSO per-step
+(vnoise=FP=FN). Se commitea el primer sample NOISY-aceptado. COMMIT-SIEMPRE: si ninguno se acepta, commitea el
+primero igual y sigue (accuracy de la traza). ABSTENER: si ningún sample de un paso se acepta, la cadena
+ABSTIENE; métricas COBERTURA (fracción respondida) y PRECISIÓN (correctas entre respondidas). Barrido (K,
+vnoise), 4 seeds. Pre-registrado: APOYADA si precisión−commit≥0.15 en Kmax y ruido moderado con cobertura≥0.2;
+MIXTA si sube fuerte pero la cobertura colapsa salvo cadenas cortas/verificador bueno.
+
+### Resultado — MIXTA (lever de honestidad, dependiente de régimen)
+Curva K|vnoise→COMMIT/PREC/COV: 2|0.0:0.252/1.000/0.248 | 2|0.1:0.217/0.647/0.317 | 2|0.2:0.169/0.295/0.338 |
+4|0.1:0.054/0.293/0.081 | 6|0.1:0.002/0.125/0.017. Funciona fuerte a cadenas cortas + verificador decente
+(precisión 1.000 vs commit 0.252 = +0.748, cobertura útil 0.248; a vn=0.1: 0.647 vs 0.217). Pero la cobertura
+colapsa a K largo (a K=6 ~0.01-0.02: abstiene todo) y la precisión se erosiona con ruido.
+
+### Disciplina / límites (honestos)
+El código de verdict miraba SOLO Kmax (cobertura colapsada) y marcaba REFUTADA, contradiciendo el TEXTO
+pre-registrado ("MIXTA si la cobertura colapsa salvo cadenas cortas"); se corrigió verdict para mirar toda la
+curva y se re-corrió FULL para consistencia. Precisión 1.0 a vn=0 es por construcción (verificador perfecto);
+el valor real está en el régimen ruidoso (precisión alta pero <1). Falta backtracking para recuperar cobertura.
+
+### Verificación
+exp032 (4 seeds, modelo propio). cycle46 → H-V4-1k 'mixta' (DoD), D-V4-11 ACEPTADA, 1 techo 'real' (abstención
+sube precisión pero cobertura colapsa a K largo / con ruido), analogía, verify_no_loss=OK. Test
+`test_cycle46_abstention_noisy.py` 4/4. Convergente con predicción selectiva y con 41/43.
+
+> Sub-arco MULTI-PASO 44-46: proceso (44) + presupuesto adaptativo per-step (45) + abstención honesta (46).

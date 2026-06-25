@@ -122,10 +122,21 @@ queda como restricción de VIABILIDAD, no como dirección.
   largas (a K=8 uniforme colapsa a 0.058, adaptativo aguanta 0.240 = 4.1×). MIXTA solo porque el gain absoluto
   no es monótono (pico K=4, satura a K extremo); la ventaja RELATIVA sí crece (1.3×→4.1×). D-V4-10, techo
   'real'. → integrador multi-paso = verificación de PROCESO (44) + presupuesto ADAPTATIVO per-step (45).
-- [ ] **H-V4-1k (P0): backtracking/abstención + verificador RUIDOSO per-step** — cuando un paso agota su
-  presupuesto sin verificar (commitea uno malo y descarrila): backtrack o abstención; y reusar la política
-  adaptativa calibrada de 43 POR PASO bajo verificador ruidoso (el ruido per-step se compone).
+- [x] **CYCLE 46 (exp032) — H-V4-1k: MIXTA (lever de honestidad).** Abstención calibrada + verificador RUIDOSO
+  per-step. Cuando ningún sample de un paso verifica, ABSTENER (decir "no sé") en vez de commitear basura.
+  Curva K|vnoise→COMMIT/PREC/COV: 2|0.0:0.252/1.000/0.248 | 2|0.1:0.217/0.647/0.317 | 2|0.2:0.169/0.295/0.338 |
+  4|0.1:0.054/0.293/0.081 | 6|0.1:0.002/0.125/0.017. FUNCIONA fuerte a cadenas cortas + verificador decente
+  (precisión 1.000 vs commit 0.252 = +0.748, cobertura útil 0.248; a vn=0.1: 0.647 vs 0.217). PERO la cobertura
+  COLAPSA a K largo (a K=6 ~0.01-0.02: abstiene todo) y la precisión se erosiona con ruido. Lever real de
+  honestidad ("saber cuándo no sé") pero dependiente de régimen. D-V4-11, techo 'real'.
+- [ ] **H-V4-1l (P0): BACKTRACKING** — reintentar el paso fallido (en vez de abstener la cadena entera) para
+  recuperar cobertura sin perder precisión; disparar abstención/backtrack con la política adaptativa de 43.
 - [ ] H-V4-2 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
+
+> Sub-arco MULTI-PASO (CYCLE 44-46): verificación de PROCESO frena el compounding (44) + presupuesto ADAPTATIVO
+> per-step rescata cadenas largas (45) + ABSTENCIÓN honesta sube la precisión-sobre-respondidas (46). El
+> integrador multi-paso = proceso + presupuesto adaptativo + modo honesto. Cota recurrente: cadenas largas y
+> ruido del verificador degradan todo -> falta backtracking + mejor precisión por paso.
 
 > Sub-arco MULTI-PASO (CYCLE 44-45) en curso: la verificación de PROCESO frena el compounding (44, MIXTA,
 > ventaja relativa creciente) y el presupuesto ADAPTATIVO per-step rescata cadenas largas (45, MIXTA, rescate

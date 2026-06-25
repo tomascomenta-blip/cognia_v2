@@ -356,3 +356,22 @@ integrador multi-paso queda definido:** verificación de **proceso** (44) + pres
 (45). **Cota honesta:** a K extremo hace falta más presupuesto total, y cuando un paso agota su presupuesto
 sin verificar, descarrila (falta backtracking/abstención). **Próximo (H-V4-1k):** backtracking/abstención +
 verificador ruidoso per-step (reusando la política calibrada de 43 por paso).
+
+### CYCLE 46 — H-V4-1k: abstención calibrada — "saber cuándo no sé" en multi-paso
+
+CYCLE 45 dejó dos cabos: cuando un paso agota su presupuesto sin verificar, el sistema commitea basura y
+descarrila *en silencio*; y el verificador per-step era perfecto. **H-V4-1k** los ataca juntos: verificador
+**ruidoso** per-step + **abstención** (si ningún sample de un paso verifica, la cadena dice "no sé" en vez de
+seguir). Métricas: **precisión** sobre lo respondido y **cobertura**, vs la accuracy de commitear-siempre.
+**Resultado MIXTA, lever de honestidad.** Curva K|vnoise→COMMIT/PREC/COV: `2|0.0:0.252/1.000/0.248 ·
+2|0.1:0.217/0.647/0.317 · 2|0.2:0.169/0.295/0.338 · 6|0.1:0.002/0.125/0.017`.
+
+A cadenas cortas + verificador decente la abstención es un **lever fuerte de honestidad**: las cadenas que
+responde son mucho más confiables — precisión **1.000** (vs 0.252 commitando-siempre) a verificador perfecto,
+y **0.647** (vs 0.217) a ruido moderado, con cobertura útil (~0.3). Convierte errores **silenciosos** en
+abstenciones **flagueadas**. **Pero** es dependiente de régimen: en cadenas largas la cobertura **colapsa**
+(a K=6, ~0.01 — abstiene casi todo, porque toda cadena larga falla en *algún* paso) y bajo ruido la precisión
+**se erosiona** (los falsos positivos pasan el filtro), conectando de nuevo con 41/43 (el lever es tan bueno
+como el verificador que lo dispara). **Cierra el barrido de realismos del integrador multi-paso:** proceso
+(44) + presupuesto adaptativo (45) + **modo honesto** (46). **Próximo (H-V4-1l):** **backtracking** —
+reintentar el paso fallido en vez de abstener la cadena entera, para recuperar cobertura sin perder precisión.
