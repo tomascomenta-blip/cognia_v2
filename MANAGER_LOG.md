@@ -3902,3 +3902,14 @@ ejecución real) es el lever central de la auto-mejora segura.
   0.733 sin perder. DÉBIL: elige externo 67%, gated 0.328 EVITA el colapso (self_cons 0.038) pero no iguala a
   verified (0.557) -> estimador ruidoso. MIXTA honesta: garantiza SEGURIDAD (no colapsar), no recuperación
   perfecta. Cierra la unificación (60-62): el agente sabe cuándo confiar en sí mismo.
+
+## [2026-06-25] CYCLE 63 — H-V4-1f APOYADA (North-Star, recurrente): olvido en no-estacionariedad recurrente
+- Archivos: cognia_x/experiments/exp049_recurrent_nonstationary/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle63_recurrent_nonstationary.py,
+  cognia_x/tests/test_cycle63_recurrent_nonstationary.py, cognia_x/manager/research_log.md
+- Resultado tests: PASS — 5 passed (test_cycle63). Recorder verify_no_loss=OK. Experimento APOYADA (16 seeds).
+- Notas: la causa cambia 4 veces. El committed se atasca PROGRESIVAMENTE (post-cambio 0.315); el adaptive sigue
+  (0.488); HALLAZGO: el olvido CONSTANTE es el mejor (0.517) -> refina CYCLE 59 (surprise-gating óptimo para
+  cambio aislado, constante para recurrente). NOTA: antes se intentó H-V4-4 (recall=optimización, exp048) pero
+  el recall a d=32 está en piso de aprendibilidad (necesita miles de steps) -> DIFERIDO por el deadline, no
+  commiteado.

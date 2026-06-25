@@ -1967,3 +1967,47 @@ meta-cognición / selective prediction (saber cuándo sabe) (tier1).
 > cuándo su propio juicio reemplaza al verificador externo y cuándo deferir, estimando su calibración. Es
 > ROBUSTO (nunca colapsa): endógeno barato cuando es confiable, externo seguro cuando no. Meta-cognición barata
 > (saber cuándo sabe). Es la conexión operativa entre los dos arcos de la corrida.
+
+## CYCLE 63 — H-V4-1f (North-Star R-VALOR x memoria): olvido en no-estacionariedad RECURRENTE
+
+### Pregunta
+exp044/045 (CYCLE 58/59) probaron UN solo cambio de causa. ¿El olvido maneja no-estacionariedad RECURRENTE (la
+causa cambia varias veces)? ¿El committed se atasca, el adaptativo por sorpresa sigue la causa vigente, y cuál
+tipo de olvido es mejor?
+
+### Diseño
+Bayesiano numpy (reusa exp022/exp044). Mundo recurrente: clúster confundido; causas = clúster[:n_phases]; y =
+x[causa_de_la_fase] por K_phase=12 pasos por fase (corto: a budget largo el committed re-adapta solo). 5 fases (4
+cambios). MISMA política (info-gain); sólo cambia el OLVIDO: committed (decay=1), fixed (0.85), adaptive (floor
+0.6 por sorpresa). Métrica: post sobre la causa VIGENTE al final de cada fase. 16 seeds.
+
+### Resultado — APOYADA (con hallazgo honesto que refina el CYCLE 59)
+post-vigente por fase: committed [0.841,0.408,0.480,0.238,0.134] -> se atasca PROGRESIVAMENTE (acumular
+commitment lo deja cada vez más trabado, post-cambio 0.315); adaptive [0.691,0.497,0.526,0.531,0.398] SIGUE la
+causa vigente (post-cambio 0.488 >> committed) sin que le digan cuándo cambia; fixed [0.650,0.703,0.460,0.579,
+0.326] es el MEJOR (post-cambio 0.517). HALLAZGO CLAVE (refina CYCLE 59): el olvido CONSTANTE supera al
+surprise-gating en el mundo RECURRENTE -- cuando el mundo NUNCA se estabiliza, 'committear cuando confirma' (la
+virtud del surprise-gating para UN cambio aislado) se vuelve un VICIO (sobre-committea en sub-fases). => el TIPO
+óptimo de olvido DEPENDE del régimen: surprise-gated para cambios AISLADOS (CYCLE 59), constante para RECURRENTES.
+
+### Límites (honestos)
+El adaptive (surprise-gated) NO es el mejor olvido aquí (lo es el constante); el veredicto APOYADA es por 'el
+olvido maneja recurrencia y el committed se atasca progresivamente'. A budget por fase LARGO (K_phase~30) el
+committed re-adapta solo por desconfirmación (boundary del CYCLE 58); el efecto requiere fases cortas. Mundo de
+juguete. Falta un agente que ESTIME la tasa de cambio y elija el tipo/ritmo de olvido (meta-decisión de valor).
+
+### Verificación
+exp049 (16 seeds, bayesiano numpy, reusa exp022/exp044). cycle63 -> H-V4-1f 'apoyada' (DoD), D-V4-27 ACEPTADA, 1
+techo 'real', analogía, verify_no_loss=OK. Test `test_cycle63_recurrent_nonstationary.py` 5/5. Convergente con
+tracking no-estacionario / constant-forgetting (tier1); refina CYCLE 59.
+
+### NOTA — intento previo H-V4-4 (techo de recall = optimización) DIFERIDO
+Antes de exp049 se intentó H-V4-4 (currículo mueve el plateau de recall, exp048). Calibración honesta: el recall
+a d=32 apenas aprende incluso en n_pairs=16 (0.136) con 700 steps -> la tarea está en el piso de aprendibilidad
+y necesitaría miles de steps para mostrar el efecto del currículo limpio; el currículo lineal a n_pairs=40 no lo
+sacó del piso. Demasiado lento/incierto para el deadline -> DIFERIDO (no commiteado). Retomar con más cómputo:
+easy muy fácil (n_pairs=4) + currículo ESCALONADO + más steps.
+
+> El olvido es necesario en no-estacionariedad recurrente y el committed clásico falla PROGRESIVAMENTE; el TIPO
+> óptimo de olvido (constante vs adaptativo) depende del régimen -- un meta-parámetro que un VALOR endógeno
+> debería elegir (estimar la tasa de cambio del mundo). Profundiza el sub-arco R-VALOR x memoria (58-59-63).
