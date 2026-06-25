@@ -1670,3 +1670,43 @@ exp039 (ruido ε*=0.50).
 > a verificador-imperfecto Y arranque-débil SIMULTÁNEOS; la guardia (dedup+replay limpio) es el mecanismo
 > central que compra ambas robusteces. El VERIFICADOR (no el tipo de oráculo) es el motor, y la guardia lo
 > sostiene bajo ruido y desde casi-cero.
+
+## CYCLE 55 — H-V4-2h: ¿un verificador con SESGO SISTEMÁTICO (off-by-one) daña el lazo, y la guardia lo defiende?
+
+### Pregunta
+exp039/040 mostraron robustez al ruido falso-positivo UNIFORME. Pero un verificador real puede fallar
+CORRELACIONADO: un bug consistente que SIEMPRE acepta cierta respuesta incorrecta (un test suite con off-by-one
+que aprueba la implementación mal). ¿Ese sesgo SISTEMÁTICO daña el lazo, y la GUARDIA (replay limpio) lo
+defiende? (límite abierto de exp039: ruido correlacionado).
+
+### Diseño
+Modelo propio (funde exp019 + exp037). Base SEMBRADO con mezcla: mayoría '1+(n-1)' (correcto) + p_bug=0.35 de
+'1+(n-2)' (off-by-one, valor target-1, USA operador) -> el sesgo está en el repertorio (base real~0.39,
+offbyone~0.24, calibrado). Verificador FUERTE pero BUGGY: acepta si usa operador Y valor==target O target-1.
+Dos lazos R=6: PLANO (entrena con buggy-aceptadas) vs GUARDED (dedup + replay de '1+(n-1)' CORRECTO de la
+verdad). Por ronda: real_acc (valor==target, CLEAN) y offbyone (valor==target-1 = la deriva). 3 seeds.
+Pre-registrado con DOS modos de daño: APOYADA si deriva runaway; MIXTA si pin/estancamiento; REFUTADA si sin daño.
+
+### Resultado — MIXTA
+PLANO real [0.393,0.530,0.544,0.519,0.541,0.533,0.489] (PINNED: no despega, ~0.49-0.54) offbyone
+[0.241,...,0.322] (el sesgo PERSISTE y sube a 0.32). GUARDED real [0.393,0.696,...,0.759] (recupera a 0.76)
+offbyone [0.241,0.170,...,0.148] (el sesgo BAJA a 0.15). plain_drifts=False (no hay deriva runaway: offbyone
+sube +0.081 < margen), plain_pinned=True, plain_harmed=True, guard_defends=True. => el verificador sesgado DAÑA
+el lazo plano por ESTANCAMIENTO + persistencia del sesgo (no por deriva runaway), y la GUARDIA (replay limpio)
+DEFIENDE: reancla en la regla correcta y diluye el sesgo estructural. El replay limpio es defensa NO sólo contra
+ruido uniforme (exp039) sino contra SESGO ESTRUCTURAL del verificador.
+
+### Límites (honestos)
+El sesgo no causa DERIVA runaway, sólo PIN/persistencia -> el daño es estancamiento (menos grave que la
+hipótesis fuerte; consistente con la barrera de DISCOVERY de exp019: el sesgo sembrado no se amplifica de
+novo). El sesgo está SEMBRADO artificialmente (p_bug=0.35), no emergente. Falta verificador de CÓDIGO real con
+un bug real (no el off-by-one de juguete). Tarea acotada (test=90).
+
+### Verificación
+exp041 (3 seeds, R=6, modelo propio). cycle55 -> H-V4-2h 'mixta' (DoD), D-V4-20 ACEPTADA, 1 techo 'real',
+analogía, verify_no_loss=OK. Test `test_cycle55_biased_verifier.py` 5/5. Convergente con exp019 (discovery),
+exp039 (ruido uniforme) y exp037 (guardia).
+
+> Completa la robustez del lazo de auto-mejora ante verificadores imperfectos: ruido uniforme (exp039),
+> ruido+cold-start (exp040) y SESGO sistemático (exp041) — en los tres la GUARDIA (dedup+replay limpio) es el
+> mecanismo de defensa. El sesgo estructural daña por estancamiento, no por deriva runaway.

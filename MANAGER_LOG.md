@@ -3823,3 +3823,12 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: cierra el límite abierto de exp039 (ruido + cold-start juntos). Desde base débil 0.08 el lazo GUARDED
   bootstrapea a 0.66 aun con 30% de falsos positivos (ε*_coldstart=0.30). Las robusteces al ruido y al
   cold-start COEXISTEN; la guardia (replay limpio) las compra ambas. Capstone del arco verificador-real 51-54.
+
+## [2026-06-25] CYCLE 55 — H-V4-2h MIXTA: la guardia defiende contra SESGO sistemático del verificador (no sólo ruido)
+- Archivos: cognia_x/experiments/exp041_biased_verifier/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle55_biased_verifier.py, cognia_x/tests/test_cycle55_biased_verifier.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 5 passed (test_cycle55). Recorder verify_no_loss=OK. Experimento MIXTA (3 seeds, R=6).
+- Notas: verificador FUERTE pero BUGGY (acepta off-by-one sembrado). El plano queda PINNED (real ~0.49-0.54,
+  sesgo persiste 0.24->0.32); la guardia DEFIENDE (real->0.76, sesgo->0.15). No hay deriva runaway (consistente
+  con discovery de exp019). El replay limpio es defensa contra sesgo estructural, no sólo ruido uniforme.
