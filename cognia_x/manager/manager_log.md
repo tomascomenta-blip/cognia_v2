@@ -265,3 +265,15 @@
 - Notas: ataca y ACOTA el gap #2 (value=ctrl×rel asumido). La reconstrucción-producto del arco 79-82 es un PRIOR DE
   COMPLEMENTARIEDAD: robusto salvo bajo sustitutos puros; tolera no-factorizabilidad moderada (λ≤0.5). Sirve al GOAL
   (R-VALOR). Próximo (CYCLE 84): combinador APRENDIDO que recupere lo perdido bajo sustitutos.
+
+## [2026-06-25] CYCLE 84 — H-V4-7b MIXTA (construcción gap #2): combinador APRENDIDO recupera parcial/noise-gated
+- Archivos: cognia_x/experiments/exp068_learned_combiner/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle84_learned_combiner.py (new),
+  cognia_x/tests/test_cycle84_learned_combiner.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 7/7; arco 82-84 + engine 36/36; cycle84 por el engine MIXTA, verify_no_loss=OK.
+- Resultado exp (64 seeds): subs λ1.0 m20 learned_poly2=0.953 es el mejor brazo no-oráculo (> producto 0.926 +0.028,
+  > marginal 0.939) pero <+0.03 decisivo bajo ruido; CLEAN recupera pleno (0.994 vs 0.932, +0.062); no sacrifica
+  complementos. Recuperación NOISE-GATED.
+- Notas: la construcción que cierra el gap #2 es VIABLE pero paga decisivamente sólo con feedback limpio/abundante; el
+  producto (prior de complementariedad) sigue siendo baseline por DEFECTO. Sirve al GOAL (R-VALOR). Próximo (CYCLE 85):
+  subir la calidad del feedback (más S de control, re-observación sorpresa-gateada) para volver la recuperación decisiva.

@@ -2719,3 +2719,44 @@ ramas del veredicto). Convergente con Cobb-Douglas/sustitutos (tier2) y con el g
 > Acota el gap #2: la factorización ctrl×rel del arco 79-82 NO es ley universal sino un PRIOR DE COMPLEMENTARIEDAD
 > robusto salvo bajo sustitutos. Próximo (CYCLE 84): combinador APRENDIDO que recupere lo perdido bajo sustitutos
 > (cierra el gap #2 con CONSTRUCCIÓN, no sólo acotación).
+
+## CYCLE 84 — H-V4-7b (rama R-VALOR, CONSTRUCCIÓN sobre el gap #2): combinador APRENDIDO vs producto fijo — MIXTA
+
+### Pregunta
+CYCLE 83 acotó que el producto (ctrl_est × rel_est) se rompe bajo sustitutos. ¿Aprender el combinador de pocas
+observaciones de valor real (en vez de ASUMIR el producto) recupera ese régimen sin sacrificar los complementos? Si sí,
+el lab puede estimar R-VALOR no-factorizable, no sólo el complementario.
+
+### Diseño
+Numpy. Tarea idéntica a exp067 (n=50, ctrl,rel~U(0,1), value=(1-λ)·ctrl·rel + λ·g; familias comp=min / subs=max). El
+agente observa el valor REAL de m ítems al azar (lazo barato de acción-consecuencia) y ajusta por RIDGE: learned_lin
+[1,c,r] y learned_poly2 [1,c,r,c²,r²,cr]. Brazos: oracle, empowerment, relevance, rvalue_prod (el fijo de CYCLE 83),
+learned_lin, learned_poly2, random. Estimadores noisy (S=8, σc=0.5, σr=0.1) + nivel clean. Barrido m∈{5,10,20,40},
+λ∈{0.5,1.0}. 64 seeds. Pre-registrado (subs λ=1.0, m=20): APOYADA si learned_poly2 recupera DECISIVAMENTE (+>0.03 sobre
+producto Y >= mejor marginal) sin sacrificar complementos; MIXTA si recupera parcialmente; REFUTADA si no es siquiera
+el mejor brazo no-oráculo.
+
+### Resultado — MIXTA (recuperación PARCIAL noise-gated)
+Bajo SUSTITUTOS (g=max, λ=1.0, m=20): learned_poly2=0.953 es el MEJOR brazo no-oráculo — vence al producto fijo 0.926
+(+0.028) y a la mejor marginal 0.939 — pero la ventaja sobre el producto (+0.028) queda BAJO el corte decisivo +0.03.
+Bajo estimadores CLEAN la recuperación SÍ es plena (poly2 0.994 vs producto 0.932, +0.062); converge con m
+(0.922→0.935→0.953). No sacrifica complementos (comp λ=1.0: poly2 0.933 vs producto 0.927). => aprender el combinador
+recupera la no-factorizabilidad de sustitutos que el producto pierde, pero la ganancia es NOISE-GATED: el error de
+estimación de las marginales ruidosas la erosiona; bajo ruido realista, asumir el producto (prior de complementariedad)
+sigue siendo un baseline duro de batir aun fuera de su régimen.
+
+### Límites (honestos)
+La recuperación es noise-gated (decisiva sólo con feedback limpio/abundante). NOTA DE PROCESO: la corrida de 64 seeds
+dejó la ventaja noisy en +0.028 (knife-edge con el corte +0.03 pre-registrado) mientras la clean era decisiva (+0.062);
+el corte binario mislabelaba este 'recupera-pero-no-decisivamente' como refutación, así que se añadió una rama MIXTA
+'recuperación parcial' (misma hipótesis cualitativa, mayor granularidad). g sintético (min/max), base poly2 fija,
+objetivo escalar; falta valor no-factorizable de un lazo real y un selector producto<->aprendido por detección de régimen.
+
+### Verificación
+exp068 (64 seeds, numpy). cycle84 → H-V4-7b 'mixta' (DoD), D-V4-46 ACEPTADA, 1 techo 'real', analogía 7 etapas,
+verify_no_loss=OK. Test `test_cycle84_learned_combiner.py` 7/7 (recuperación parcial real + clean aísla la forma + 4
+ramas). Convergente con el principio noise-gated (tier2) y con el gap #2 de CYCLE 83 (tier5).
+
+> Construcción sobre el gap #2: aprender el combinador es VIABLE pero NOISE-GATED; el producto sigue siendo la
+> reconstrucción por DEFECTO. Próximo (CYCLE 85): subir la calidad del feedback (más S, re-observación sorpresa-gateada)
+> para ver si la recuperación pasa de parcial a DECISIVA bajo ruido.

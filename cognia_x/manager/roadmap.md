@@ -288,3 +288,9 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
   (crossover λ*=0.75; relevancia 0.942 > producto 0.915). Las filas 'clean' (estimadores perfectos) aíslan la
   factorización del ruido. Tolera no-factorizabilidad moderada (λ≤0.5). Cota 'real'; D-V4-45; test 6/6. Próximo:
   combinador APRENDIDO que recupere lo perdido bajo sustitutos (CYCLE 84).
+- [x] **CYCLE 84 (exp068) — H-V4-7b: MIXTA. Construcción sobre el gap #2 (aprender el combinador vs asumir el producto).**
+  Un combinador APRENDIDO (ridge poly2, m obs de valor real) recupera el régimen de SUSTITUTOS donde el producto se
+  rompía: subs λ1.0 m20 learned_poly2=0.953 es el mejor brazo no-oráculo (> producto 0.926, > marginal 0.939) y recupera
+  PLENO con estimadores clean (0.994 vs 0.932), pero bajo ruido realista la ventaja (+0.028) NO es decisiva: recuperación
+  PARCIAL NOISE-GATED. No sacrifica complementos. El producto (prior de complementariedad) sigue siendo baseline por
+  DEFECTO. Cota 'real'; D-V4-46; test 7/7. Próximo: subir la calidad del feedback (más S, sorpresa-gateada) → CYCLE 85.

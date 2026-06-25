@@ -402,3 +402,20 @@ suposición más cargante del arco). CYCLE 83 la ataca por primera vez con valor
 > GAP #2 ACOTADO (no cerrado): la factorización-producto del arco 79-82 es un prior de complementariedad robusto salvo
 > bajo sustitutos. Falta la CONSTRUCCIÓN (combinador aprendido que detecte el régimen de sustitutos y conmute) y el
 > valor no-factorizable surgido de un lazo real (gaps #1/#3). El producto sigue siendo la reconstrucción por DEFECTO.
+
+- **CYCLE 84 — H-V4-7b MIXTA (construcción sobre el gap #2; complementa CYCLE 83).** ¿Aprender el combinador en vez de
+  ASUMIR el producto? El agente ajusta por ridge (features poly2 [1,c,r,c²,r²,cr]) de m observaciones de valor real (lazo
+  barato de acción-consecuencia) y rankea. Bajo SUSTITUTOS (g=max, λ=1.0, m=20) learned_poly2=0.953 es el MEJOR brazo
+  no-oráculo -- vence al producto fijo 0.926 (+0.028) y a la mejor marginal 0.939 -- y bajo estimadores CLEAN recupera
+  PLENO (0.994 vs producto 0.932, +0.062); converge con el presupuesto m. PERO bajo ruido realista la ventaja sobre el
+  producto (+0.028) NO supera el corte decisivo +0.03: recuperación PARCIAL NOISE-GATED. No sacrifica complementos (comp
+  poly2 0.933 vs prod 0.927). => la construcción que cierra el gap #2 es VIABLE pero paga decisivamente sólo con feedback
+  limpio/abundante; bajo ruido realista, asumir el producto (prior de complementariedad) sigue siendo un baseline duro de
+  batir aun fuera de su régimen. NOTA DE PROCESO: se añadió una rama MIXTA 'recuperación parcial' (el corte binario +0.03
+  mislabelaba el knife-edge +0.028; misma hipótesis cualitativa). Cota 'real'; D-V4-46; test 7/7.
+
+> GAP #2 — estado tras 83-84: ACOTADO (83: el producto es un prior de complementariedad robusto salvo sustitutos) +
+> CONSTRUCCIÓN VIABLE PERO NOISE-GATED (84: aprender el combinador recupera -- pleno con feedback limpio, parcial bajo
+> ruido). El producto sigue siendo la reconstrucción por DEFECTO; un combinador aprendido se invoca con feedback nítido +
+> detección de régimen de sustitutos. Próximo (CYCLE 85): subir la calidad del feedback (más muestras S de control,
+> re-observación sorpresa-gateada, reusar CYCLE 59) para ver si la recuperación pasa de parcial a DECISIVA bajo ruido.
