@@ -1,0 +1,53 @@
+{
+  "exp": "exp057_nonstationary_value_memory",
+  "cycle": 73,
+  "hypothesis": "H-V4-5c",
+  "claim": "el estimador de valor por frecuencia debe OLVIDAR (decay) para rastrear valor no-estacionario: lfu_full degrada bajo cambio de popularidad y lfu_decay recupera la ventaja (ata R-VALOR con olvido)",
+  "verdict": "apoyada",
+  "summary": {
+    "stationary": {
+      "oracle_current": 0.5209,
+      "lfu_full": 0.511,
+      "lfu_decay": 0.4432,
+      "recency": 0.3816,
+      "random": 0.2069
+    },
+    "nonstationary": {
+      "oracle_current": 0.5162,
+      "lfu_full": 0.3405,
+      "lfu_decay": 0.4303,
+      "recency": 0.3794,
+      "random": 0.1909
+    },
+    "oracle_advantage_ns": 0.3253,
+    "fraction_recovered_ns": 0.7359,
+    "decay_beats_full_ns": true,
+    "decay_recovers_ns": true,
+    "decay_beats_recency_ns": true,
+    "tradeoff_real_stationary": true,
+    "status": "apoyada",
+    "verdict": "H-V4-5c APOYADA: el estimador de valor debe OLVIDAR para rastrear valor NO-estacionario. NO-ESTACIONARIO: lfu_full (no olvida) DEGRADA de 0.511 (estacionario) a 0.341, cayendo hacia random (0.191) al promediar épocas; lfu_decay (olvida) recupera 74% de la ventaja del oráculo (0.516) -> 0.430, +0.090 sobre full y +0.051 sobre recency value-free (0.379). ESTACIONARIO (control): lfu_full 0.511 >= lfu_decay 0.443 -> olvidar tiene un COSTO cuando NO hay cambio (tradeoff real, no dominación). => el valor endógeno por frecuencia se ATA al olvido (CYCLE 58-66): el estimador de valor con decay rastrea popularidad no-estacionaria; full la promedia y se confunde. Crossover limpio."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 32,
+    "n": 50,
+    "m": 10,
+    "alpha": 1.5,
+    "K_phase": 300,
+    "n_phases": 6,
+    "decay": 0.97
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp057] CYCLE 73 / H-V4-5c — el estimador de valor debe OLVIDAR (decay) para rastrear valor no-estacionario",
+    "[exp057] n=50 m=10 alpha=1.5 K_phase=300 n_phases=6 decay=0.97 seeds=32 (ventana decay ~33 pasos)",
+    "[exp057] ESTACIONARIO   hit-rate: oracle=0.521 lfu_full=0.511 lfu_decay=0.443 recency=0.382 random=0.207",
+    "[exp057] NO-ESTACIONARIO hit-rate: oracle=0.516 lfu_full=0.341 lfu_decay=0.430 recency=0.379 random=0.191",
+    "[exp057] CROSSOVER: en no-estac. decay recupera 74% del oráculo; full cae hacia random. En estac. full>=decay (olvidar cuesta): True",
+    "[exp057] VEREDICTO H-V4-5c: APOYADA | H-V4-5c APOYADA: el estimador de valor debe OLVIDAR para rastrear valor NO-estacionario. NO-ESTACIONARIO: lfu_full (no olvida) DEGRADA de 0.511 (estacionario) a 0.341, cayendo hacia random (0.191) al promediar épocas; lfu_decay (olvida) recupera 74% de la ventaja del oráculo (0.516) -> 0.430, +0.090 sobre full y +0.051 sobre recency value-free (0.379). ESTACIONARIO (control): lfu_full 0.511 >= lfu_decay 0.443 -> olvidar tiene un COSTO cuando NO hay cambio (tradeoff real, no dominación). => el valor endógeno por frecuencia se ATA al olvido (CYCLE 58-66): el estimador de valor con decay rastrea popularidad no-estacionaria; full la promedia y se confunde. Crossover limpio."
+  ]
+}

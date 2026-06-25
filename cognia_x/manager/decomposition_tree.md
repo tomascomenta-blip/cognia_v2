@@ -258,3 +258,12 @@ ventana/decay adaptativo, combinada con el olvido por sorpresa de CYCLE 59 / el 
 66); (74+) subir de frecuencia pura a valores endógenos más ricos (info-gain/confianza) y a un downstream con
 estructura/correlación en las consultas (no IID). El North Star del arco: mostrar que las piezas del thesis v4
 sobreviven al quitar los oráculos perfectos, acercándose a un mundo menos de juguete.
+
+- **CYCLE 73 — H-V4-5c APOYADA (hija del 72; ata el estimador de valor con el OLVIDO).** El caveat del 72 era el
+  régimen ESTACIONARIO. Aquí la popularidad CAMBIA (re-permuta item->valor cada fase, recurrente cf. CYCLE 63).
+  CROSSOVER: estacionario lfu_full=0.511 (~oracle) gana, lfu_decay=0.443 paga el costo de olvidar; no-estacionario
+  lfu_full DEGRADA a 0.341 (cae hacia random 0.191), lfu_decay (frecuencia con decay=0.97) recupera 74% de la
+  ventaja del oráculo (0.516) -> 0.430, +0.090 sobre full, +0.051 sobre recency value-free (0.379). => el estimador
+  de valor endógeno DEBE olvidar (descontar) para rastrear valor no-estacionario; R-VALOR (qué vale) y OLVIDO
+  (cuándo dejó de valer) son la MISMA señal en dos tiempos -> unifica CYCLE 72 con el arco 58-66. Caveat: decay FIJO
+  (óptimo depende de la tasa de cambio); LRU competitiva bajo cambio fuerte. Cota 'real'; D-V4-35; test 4/4.

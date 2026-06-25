@@ -137,3 +137,15 @@
   ESTIMABLE online de la frecuencia (valor endógeno) y recupera ~la ventaja del oráculo en estacionario, venciendo
   a una memoria value-free (LRU). Sirve al GOAL (R-VALOR) quitando la muleta de oráculo-de-valor. Caveat honesto:
   régimen estacionario; la no-estacionariedad es la próxima hija (CYCLE 73).
+
+## [2026-06-25] CYCLE 73 — H-V4-5c APOYADA (estimador de valor con olvido bajo no-estacionariedad)
+- Archivos: cognia_x/experiments/exp057_nonstationary_value_memory/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle73_nonstationary_value_memory.py (new),
+  cognia_x/tests/test_cycle73_nonstationary_value_memory.py (new),
+  research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle73 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp (32 seeds): no-estac lfu_decay=0.430 > lfu_full=0.341 (+0.090) > recency=0.379; recupera 74% del
+  oráculo (0.516). estac full=0.511 >= decay=0.443 (olvidar cuesta -> tradeoff real). CROSSOVER limpio.
+- Notas: hija del CYCLE 72; ata el estimador de valor (frecuencia) con el arco de olvido (CYCLE 58-66). Sirve al
+  GOAL (R-VALOR bajo realismo) quitando la muleta de estacionariedad del 72. Caveat honesto: decay fijo; LRU
+  competitiva bajo cambio fuerte. Próxima hija (CYCLE 74): decay ADAPTATIVO (meta-olvido del estimador).

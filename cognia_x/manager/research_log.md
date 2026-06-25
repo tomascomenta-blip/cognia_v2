@@ -2276,3 +2276,47 @@ veredicto). Convergente con LFU/rate-distortion (tier1) y con el techo de CYCLE 
 > régimen estacionario y le gana a una memoria value-free. Próxima hija (CYCLE 73): atar el estimador a la
 > NO-estacionariedad combinándolo con el olvido dirigido por sorpresa (CYCLE 59) y el selector de estrategia
 > (CYCLE 66) -- frecuencia con ventana/decay adaptativo donde la frecuencia-de-toda-la-historia falla.
+
+## CYCLE 73 — H-V4-5c (arco "R-VALOR bajo realismo", hija del 72): el estimador de valor debe OLVIDAR (decay) bajo no-estacionariedad
+
+### Pregunta
+El CYCLE 72 (exp056, H-V4-5b) cerró que el valor es estimable de la frecuencia observada -- PERO sólo en régimen
+ESTACIONARIO. Su caveat honesto: bajo NO-estacionariedad la frecuencia de TODA la historia es un valor SESGADO
+(mezcla épocas). El lab ya mostró (CYCLE 58-66) que el TIPO de olvido se elige del régimen. ¿Olvidar (decay) en el
+conteo de frecuencia recupera la ventaja cuando la popularidad CAMBIA? ¿Y le gana a una memoria value-free (LRU)?
+
+### Diseño
+Numpy. Memoria online m=10/n=50. Popularidad power-law (Pareto) PERO la asignación item->valor se RE-PERMUTA cada
+K_phase=300 pasos (régimen RECURRENTE, cf. CYCLE 63): la forma de la distribución es fija, QUÉ items son populares
+cambia. DOS escenarios -- ESTACIONARIO (asignación fija) y NO-ESTACIONARIO (re-permuta cada fase) -- para exhibir
+el CROSSOVER. 5 brazos: oracle_current (top-m por valor verdadero de la fase, cota), lfu_full (frecuencia acumulada
+de toda la historia = estimador del 72, NO olvida), lfu_decay (frecuencia con decay=0.97, ventana ~33, OLVIDA),
+recency (LRU value-free), random. Métrica = hit-rate online tras warm-up (1 fase). 32 seeds. Pre-registrado:
+APOYADA si en no-estac. decay>full (+>0.05) Y recupera >=55% del oráculo Y >recency (+>0.03), con el control de que
+en estac. full>=decay (olvidar cuesta).
+
+### Resultado — APOYADA
+ESTACIONARIO: oracle=0.521 lfu_full=0.511 (~oracle, como CYCLE 72) lfu_decay=0.443 recency=0.382 random=0.207.
+NO-ESTACIONARIO: oracle=0.516 lfu_full=0.341 (DEGRADA de 0.511, cae hacia random 0.191 al promediar épocas)
+lfu_decay=0.430 (recupera 74% de la ventaja del oráculo) recency=0.379 random=0.191. CROSSOVER limpio: lfu_decay
+vence a lfu_full por +0.090 y a recency value-free por +0.051 bajo cambio; lfu_full gana sin cambio (estac.
+0.511>=decay 0.443 -> olvidar tiene un COSTO, tradeoff estabilidad-plasticidad real, NO dominación de decay). => el
+estimador de valor endógeno por frecuencia DEBE olvidar (descontar el pasado) para servir bajo no-estacionariedad.
+
+### Límites (honestos)
+(1) El decay es FIJO (0.97); el óptimo depende de la tasa de cambio -- un decay ADAPTATIVO/meta lo elegiría
+(CYCLE 64/66 ya lo hicieron para el olvido de memoria; queda como hija CYCLE 74). (2) Bajo cambio FUERTE la recency
+value-free (LRU) queda competitiva (decay sólo +0.051): el valor estimado tiene poco tiempo de acumularse; honesto,
+no se infló a APOYADA-fuerte. (3) Cambio ABRUPTO recurrente (no deriva gradual); juguete (Pareto, n=50, IID dentro
+de fase).
+
+### Verificación
+exp057 (32 seeds, numpy, decay=0.97). cycle73 -> H-V4-5c 'apoyada' (DoD), D-V4-35 ACEPTADA, 1 techo 'real',
+analogía, verify_no_loss=OK. Test `test_cycle73_nonstationary_value_memory.py` 4/4 (incluye crossover full/decay y
+las 3 ramas del veredicto). Convergente con decay/tracking no-estacionario (tier1) y con el caveat de CYCLE 72 (tier5).
+
+> ATA R-VALOR (el estimador endógeno del 72) con el arco de OLVIDO (CYCLE 58-66): qué información VALE (frecuencia)
+> y CUÁNDO dejó de valer (descontar el pasado) son la MISMA señal vista en dos tiempos. El estimador de valor con
+> decay rastrea popularidad no-estacionaria; full la promedia y se confunde. Próxima hija (CYCLE 74): decay
+> ADAPTATIVO -- elegir la tasa de olvido del estimador de la propia sorpresa/tasa de cambio (meta-olvido CYCLE 64 /
+> selector de estrategia CYCLE 66 aplicados sobre el estimador de valor), para no pagar el costo del olvido sin cambio.

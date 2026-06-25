@@ -210,3 +210,8 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 - [ ] CYCLE 73: atar el estimador a la NO-estacionariedad (frecuencia con ventana/decay adaptativo + olvido por
   sorpresa de CYCLE 59 / selector de estrategia de CYCLE 66).
 - [ ] CYCLE 74+: valores endógenos más ricos (info-gain/confianza) + downstream con consultas correlacionadas.
+- [x] **CYCLE 73 (exp057) — H-V4-5c: APOYADA.** Hija del 72: el estimador de valor (frecuencia) debe OLVIDAR (decay)
+  bajo no-estacionariedad. CROSSOVER: estac. lfu_full=0.511 gana (decay paga costo 0.443); no-estac. lfu_full
+  DEGRADA a 0.341, lfu_decay=0.430 recupera 74% del oráculo, +0.090 sobre full y +0.051 sobre recency value-free.
+  Ata R-VALOR (estimador) con el OLVIDO (CYCLE 58-66). Caveat: decay fijo; LRU competitiva con cambio fuerte. Techo
+  'real'; D-V4-35; test 4/4.
