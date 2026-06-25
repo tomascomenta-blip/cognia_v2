@@ -1,0 +1,49 @@
+{
+  "exp": "exp051_combined_forgetting",
+  "cycle": 65,
+  "hypothesis": "H-V4-1h",
+  "claim": "el olvido combinado (piso constante + boost por sorpresa) cierra el caveat del meta: robusto en ambos regímenes (mejora recurrente sin romper estacionario)",
+  "verdict": "refutada",
+  "summary": {
+    "margin": 0.05,
+    "ceiling": 0.92,
+    "stationary": {
+      "committed": 1.0,
+      "fixed": 0.6096,
+      "meta": 0.8664,
+      "combined": 0.7975
+    },
+    "recurrent": {
+      "committed": 0.315,
+      "fixed": 0.5168,
+      "meta": 0.4083,
+      "combined": 0.404
+    },
+    "fixes_recurrent": false,
+    "keeps_stationary": true,
+    "robust_both": false,
+    "status": "refutada",
+    "verdict": "H-V4-1h REFUTADA: el combined no mejora al meta en recurrente (combined 0.404 ~ meta 0.408) -> el piso constante no cierra el caveat."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 16,
+    "D": 20,
+    "cluster": 5,
+    "p_obs": 0.15,
+    "K_phase": 12,
+    "n_phases_recur": 5,
+    "candidates": 128
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp051] CYCLE 65 / H-V4-1h — olvido COMBINADO (piso constante 0.92 + boost por sorpresa)",
+    "[exp051] D=20 cluster=5 p_obs=0.15 | ESTAC K=60 | RECUR n_phases=5 K_phase=12 | seeds=16",
+    "[exp051] ESTACIONARIO: committed=1.000 fixed=0.610 meta=0.866 COMBINED=0.797",
+    "[exp051] RECURRENTE  : committed=0.315 fixed=0.517 meta=0.408 COMBINED=0.404",
+    "[exp051] VEREDICTO H-V4-1h: REFUTADA | H-V4-1h REFUTADA: el combined no mejora al meta en recurrente (combined 0.404 ~ meta 0.408) -> el piso constante no cierra el caveat."
+  ]
+}

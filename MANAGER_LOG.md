@@ -3922,3 +3922,12 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: el agente estima la tasa de cambio de su sorpresa y elige su olvido. ESTACIONARIO meta 0.866 (committea
   más que constante 0.610); RECURRENTE meta 0.408 (olvida más que committed 0.315). Adapta en dirección correcta
   (robusto, nunca el peor) pero no iguala el óptimo de cada régimen (asimétrico). Cierra el loop del CYCLE 63.
+
+## [2026-06-25] CYCLE 65 — H-V4-1h REFUTADA (negativo informativo): el piso de olvido constante + sorpresa NO cierra el caveat del CYCLE 64
+- Archivos: cognia_x/experiments/exp051_combined_forgetting/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle65_combined_forgetting.py, cognia_x/tests/test_cycle65_combined_forgetting.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle65). Recorder verify_no_loss=OK. Experimento REFUTADA (16 seeds).
+- Notas: el combined (piso 0.92 + sorpresa) no mejora al meta en recurrente (0.404~0.408) y hunde el estacionario
+  (0.797<0.866). El trade-off estabilidad-plasticidad es FUNDAMENTAL: modular la TASA de olvido tiene un techo;
+  hace falta DETECTAR el régimen y cambiar de ESTRATEGIA. Negativo honesto que afina el CYCLE 64.

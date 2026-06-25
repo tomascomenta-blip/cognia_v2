@@ -2048,3 +2048,40 @@ cierra el loop del CYCLE 63.
 > Cierra el loop R-VALOR x memoria (58-63-64): el agente estima la no-estacionariedad de su propia SORPRESA y
 > mueve su olvido en la dirección correcta (robustez entre regímenes sin saber cuál). El VALOR (cuánto olvidar)
 > es endógenamente estimable, parcialmente -- igualar el óptimo del régimen requiere un meta-controlador mejor.
+
+## CYCLE 65 — H-V4-1h (R-VALOR x memoria): ¿un piso de olvido constante + sorpresa cierra el caveat del CYCLE 64? (NEGATIVO informativo)
+
+### Pregunta
+CYCLE 64: el meta-olvido (sólo sorpresa) es robusto pero DÉBIL en recurrente (entre cambios su decay sube y
+deja de olvidar). Fix propuesto: un PISO CONSTANTE de olvido (nunca committear del todo) + el boost por sorpresa.
+¿Da robustez óptima en ambos regímenes?
+
+### Diseño
+Bayesiano numpy (reusa exp050). DOS regímenes (ESTACIONARIO / RECURRENTE). 4 brazos: committed, fixed (0.85),
+meta (CYCLE 64), COMBINED (piso 0.92 + sorpresa). 16 seeds. Pre-registrado: APOYADA si combined mejora al meta
+en recurrente sin romper estacionario.
+
+### Resultado — REFUTADA (negativo informativo)
+ESTACIONARIO: committed=1.000 fixed=0.610 meta=0.866 COMBINED=0.797. RECURRENTE: committed=0.315 fixed=0.517
+meta=0.408 COMBINED=0.404. El COMBINED (piso 0.92 + sorpresa) NO mejora al meta en recurrente (0.404 ~ 0.408; el
+piso suave no alcanza al fixed 0.517 que olvida más) y HUNDE el estacionario (0.797 < meta 0.866). Un piso suave
+es CONTRAPRODUCENTE; un piso agresivo (~0.85) simplemente SE CONVIERTE en el olvido-constante (fixed), perdiendo
+el estacionario. INTERPRETACIÓN: el trade-off estabilidad-plasticidad es FUNDAMENTAL para un meta-controlador que
+sólo modula la TASA de olvido -- no existe un escalar de olvido óptimo en ESTACIONARIO (committear) y RECURRENTE
+(olvidar mucho) a la vez. Para lograr ambos haría falta DETECTAR el régimen y CAMBIAR de ESTRATEGIA (decisión
+DISCRETA), no modular un escalar.
+
+### Límites (honestos)
+Sólo se probó un piso (0.92); el argumento "un piso agresivo se convierte en el constante" es razonado, no
+barrido exhaustivamente (pero el sentido del trade-off lo soporta). Mundo de juguete. Falta el SELECTOR de
+estrategia gateado por la clasificación del régimen (estacionario/aislado/recurrente).
+
+### Verificación
+exp051 (16 seeds, bayesiano numpy). cycle65 -> H-V4-1h 'refutada' (DoD), D-V4-29 ACEPTADA, 1 techo 'real',
+analogía, verify_no_loss=OK. Test `test_cycle65_combined_forgetting.py` 4/4. Convergente con stability-plasticity
+trade-off (Grossberg, tier1).
+
+> Resultado NEGATIVO que AFINA el CYCLE 64: la meta-decisión de olvido por modulación de TASA tiene un TECHO (el
+> trade-off estabilidad-plasticidad). El valor endógeno tendría que elegir la ESTRATEGIA de memoria (committear
+> vs olvidar-fuerte) gateada por la detección de régimen, no sólo el ritmo. (Honestidad anti-Goodhart: negativo
+> reportado tal cual.)
