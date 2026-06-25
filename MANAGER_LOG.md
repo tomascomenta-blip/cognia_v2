@@ -3842,3 +3842,13 @@ ejecución real) es el lever central de la auto-mejora segura.
   la accuracy SATURA y enmascara el valor; el instrumento fiel es post_on_cause (masa sobre la causa verdadera).
   En el régimen duro info-gain B-C post crece a +0.306 (79% seeds) mientras la accuracy sólo +0.139 -> R-VALOR
   (qué consultar) se aísla de R-INTERVENCIÓN (intervenir). Primera evidencia POSITIVA de valor endógeno específico.
+
+## [2026-06-25] CYCLE 57 — H-V4-1c APOYADA (North-Star R-VALOR): señal de valor endógena (confianza calibrada) sin oráculo
+- Archivos: cognia_x/experiments/exp043_endogenous_signal/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle57_endogenous_signal.py, cognia_x/tests/test_cycle57_endogenous_signal.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle57). Recorder verify_no_loss=OK. Experimento APOYADA (48 seeds).
+- Notas: cierra el límite #1 de CYCLE 56. La confianza endógena (max posterior, sin oráculo) rankea info-gain>azar
+  igual que el oráculo y está calibrada para info-gain (95% correcto cuando confiado, 4% confiado-equivocado) vs
+  azar (71%, 21%). El agente puede elegir la mejor política por su propia confianza, sin verificador externo.
+  Hallazgo: la confianza es confiable sólo con la política correcta. Sub-arco R-VALOR 56-57 cerrado.

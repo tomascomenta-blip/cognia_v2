@@ -1752,3 +1752,44 @@ EIG (active inference, tier1) y refina exp022/CYCLE 35.
 > método: la accuracy downstream puede enmascarar el valor de una mejor representación; medir por la masa sobre
 > el objetivo. Conecta con el arco de auto-mejora (el verificador es un caso de valor) y abre H-V4-5 (memoria
 > dirigida por valor).
+
+## CYCLE 57 — H-V4-1c (North-Star R-VALOR): señal de valor ENDÓGENA (confianza calibrada) sin oráculo
+
+### Pregunta
+exp042 (CYCLE 56) aisló el valor de info-gain con post_on_cause = masa sobre la causa VERDADERA — pero eso usa
+un ORÁCULO (conocer c). Límite #1: ¿el AGENTE puede saber que construyó mejor modelo SIN conocer c? Su única
+señal endógena es su PROPIA confianza (max del posterior). ¿Esa confianza (a) rankea info-gain>azar igual que el
+oráculo, y (b) está CALIBRADA (confiado => correcto, sin confiado-pero-equivocado)?
+
+### Diseño
+Reusa exp022.run_agent/make_world. Régimen DURO (D=48,cluster=14,p_obs=0.20) y FÁCIL. Por (seed,K,agente):
+conf=max(posterior) [ENDÓGENA], correct=(argmax==c) [oráculo, SÓLO para validar calibración], entropy. Agrega:
+conf media, P(correct|confiado>=τ) [calibración], confidently_wrong=P(conf>=τ AND wrong). 48 seeds, τ=0.5.
+Pre-registrado: APOYADA si conf_B>conf_C Y B calibrado (P(correct|confiado)>=0.80, confiado-equivocado<0.15 y <C).
+
+### Resultado — APOYADA
+DURO @Kmax=24: A_pasivo conf=0.107 correct=0.146 (queda INCIERTO, sabe que no puede distinguir el clúster);
+B_infogain conf=0.883 correct=0.917 calib=0.95 confiado-equivocado=0.04; C_aleatorio conf=0.699 correct=0.625
+calib=0.71 confiado-equivocado=0.21. La conf endógena RANKEA B>C>A en TODO K (B 0.352->0.883 vs C 0.319->0.699),
+igual que el oráculo de exp042. B está CALIBRADO (confiado=>95% correcto). HALLAZGO CLAVE: la confianza endógena
+es CONFIABLE SÓLO CON LA POLÍTICA CORRECTA — el azar-activo (C) da confianza ENGAÑOSA (21% confiado-pero-
+equivocado: se concentra a veces en una feature ESPURIA del clúster). => el agente puede SELECCIONAR la mejor
+política por su propia confianza calibrada, SIN oráculo de la verdad. Cierra el lazo de R-VALOR.
+
+### Límites (honestos)
+La calibración bayesiana está ayudada por construcción (modelo bien especificado); falta un mundo con modelo MAL
+especificado (donde la confianza podría engañar más). No se USÓ la confianza para SELECCIONAR política online
+(sólo se midió que se podría); falta el lazo de selección endógena. Mundo ESTACIONARIO; el North-Star pide
+no-estacionario. La 'corrección' se valida con c (sólo para medir calibración; el agente no la usa).
+
+### Verificación
+exp043 (48 seeds, bayesiano numpy, reusa exp022). cycle57 -> H-V4-1c 'apoyada' (DoD), D-V4-22 ACEPTADA, 1 techo
+'real', analogía, verify_no_loss=OK. Test `test_cycle57_endogenous_signal.py` 4/4. Convergente con calibración
+bayesiana (tier1); cierra el límite #1 de exp042.
+
+> North-Star R-VALOR: existe una señal de VALOR ENDÓGENA usable SIN oráculo — la confianza calibrada del propio
+> modelo. Rankea políticas igual que el oráculo y es confiable con la política correcta (info-gain); el
+> azar-activo da confianza engañosa. El sistema puede juzgar qué política construyó mejor modelo sin verificador
+> externo -> conecta el North-Star (R-VALOR) con el arco de auto-mejora (el verificador externo es, en parte,
+> reemplazable por la confianza calibrada). Sub-arco R-VALOR 56-57: el valor endógeno existe Y es medible por el
+> propio agente.

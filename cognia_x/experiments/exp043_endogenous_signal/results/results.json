@@ -1,0 +1,319 @@
+{
+  "exp": "exp043_endogenous_signal",
+  "cycle": 57,
+  "hypothesis": "H-V4-1c",
+  "claim": "la confianza endógena del agente (max posterior, sin oráculo) rankea info-gain>azar y está calibrada -> señal de valor endógena usable para elegir política",
+  "verdict": "apoyada",
+  "summary": {
+    "budgets": [
+      8,
+      12,
+      16,
+      20,
+      24
+    ],
+    "n_seeds": 48,
+    "tau": 0.5,
+    "easy_regime": {
+      "D": 12,
+      "cluster": 4,
+      "p_obs": 0.1
+    },
+    "hard_regime": {
+      "D": 48,
+      "cluster": 14,
+      "p_obs": 0.2
+    },
+    "easy_by_K": {
+      "8": {
+        "A_pasivo": {
+          "conf_mean": 0.2551195304193308,
+          "correct_mean": 0.16666666666666666,
+          "frac_confident": 0.020833333333333332,
+          "calibration_P_correct_given_confident": 0.0,
+          "confidently_wrong": 0.020833333333333332,
+          "entropy_mean": 2.103440257404086
+        },
+        "B_infogain": {
+          "conf_mean": 0.9303009862382942,
+          "correct_mean": 0.8958333333333334,
+          "frac_confident": 0.9166666666666666,
+          "calibration_P_correct_given_confident": 0.9772727272727273,
+          "confidently_wrong": 0.020833333333333332,
+          "entropy_mean": 0.2965983788131254
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.7940451510910181,
+          "correct_mean": 0.7916666666666666,
+          "frac_confident": 0.8333333333333334,
+          "calibration_P_correct_given_confident": 0.85,
+          "confidently_wrong": 0.125,
+          "entropy_mean": 0.8542758693791321
+        }
+      },
+      "12": {
+        "A_pasivo": {
+          "conf_mean": 0.26041030303118823,
+          "correct_mean": 0.10416666666666667,
+          "frac_confident": 0.041666666666666664,
+          "calibration_P_correct_given_confident": 0.0,
+          "confidently_wrong": 0.041666666666666664,
+          "entropy_mean": 2.063198544893447
+        },
+        "B_infogain": {
+          "conf_mean": 0.9752653017085976,
+          "correct_mean": 0.9583333333333334,
+          "frac_confident": 0.9791666666666666,
+          "calibration_P_correct_given_confident": 0.9574468085106383,
+          "confidently_wrong": 0.041666666666666664,
+          "entropy_mean": 0.11078341701960552
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.9107962472895045,
+          "correct_mean": 0.9166666666666666,
+          "frac_confident": 0.8958333333333334,
+          "calibration_P_correct_given_confident": 0.9767441860465116,
+          "confidently_wrong": 0.020833333333333332,
+          "entropy_mean": 0.3236237231683768
+        }
+      },
+      "16": {
+        "A_pasivo": {
+          "conf_mean": 0.2653239985058422,
+          "correct_mean": 0.14583333333333334,
+          "frac_confident": 0.020833333333333332,
+          "calibration_P_correct_given_confident": 0.0,
+          "confidently_wrong": 0.020833333333333332,
+          "entropy_mean": 1.986670409244363
+        },
+        "B_infogain": {
+          "conf_mean": 0.9956595555329774,
+          "correct_mean": 1.0,
+          "frac_confident": 1.0,
+          "calibration_P_correct_given_confident": 1.0,
+          "confidently_wrong": 0.0,
+          "entropy_mean": 0.023196989258515963
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.9468186704936401,
+          "correct_mean": 0.9583333333333334,
+          "frac_confident": 0.9375,
+          "calibration_P_correct_given_confident": 1.0,
+          "confidently_wrong": 0.0,
+          "entropy_mean": 0.19061639120513466
+        }
+      },
+      "20": {
+        "A_pasivo": {
+          "conf_mean": 0.24961585052367022,
+          "correct_mean": 0.1875,
+          "frac_confident": 0.0,
+          "calibration_P_correct_given_confident": NaN,
+          "confidently_wrong": 0.0,
+          "entropy_mean": 2.0087719034150706
+        },
+        "B_infogain": {
+          "conf_mean": 0.9998967768811212,
+          "correct_mean": 1.0,
+          "frac_confident": 1.0,
+          "calibration_P_correct_given_confident": 1.0,
+          "confidently_wrong": 0.0,
+          "entropy_mean": 0.0011957695523859232
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.9796996090984132,
+          "correct_mean": 0.9583333333333334,
+          "frac_confident": 0.9791666666666666,
+          "calibration_P_correct_given_confident": 0.9787234042553191,
+          "confidently_wrong": 0.020833333333333332,
+          "entropy_mean": 0.07592093860438888
+        }
+      },
+      "24": {
+        "A_pasivo": {
+          "conf_mean": 0.24993989874849917,
+          "correct_mean": 0.1875,
+          "frac_confident": 0.0,
+          "calibration_P_correct_given_confident": NaN,
+          "confidently_wrong": 0.0,
+          "entropy_mean": 2.0020455257228513
+        },
+        "B_infogain": {
+          "conf_mean": 0.999999996461563,
+          "correct_mean": 1.0,
+          "frac_confident": 1.0,
+          "calibration_P_correct_given_confident": 1.0,
+          "confidently_wrong": 0.0,
+          "entropy_mean": 9.550675041551113e-08
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.9994217614055424,
+          "correct_mean": 1.0,
+          "frac_confident": 1.0,
+          "calibration_P_correct_given_confident": 1.0,
+          "confidently_wrong": 0.0,
+          "entropy_mean": 0.004896386694299087
+        }
+      }
+    },
+    "hard_by_K": {
+      "8": {
+        "A_pasivo": {
+          "conf_mean": 0.14456126956514967,
+          "correct_mean": 0.08333333333333333,
+          "frac_confident": 0.020833333333333332,
+          "calibration_P_correct_given_confident": 0.0,
+          "confidently_wrong": 0.020833333333333332,
+          "entropy_mean": 4.246048254618612
+        },
+        "B_infogain": {
+          "conf_mean": 0.3523129419730429,
+          "correct_mean": 0.3333333333333333,
+          "frac_confident": 0.20833333333333334,
+          "calibration_P_correct_given_confident": 0.7,
+          "confidently_wrong": 0.0625,
+          "entropy_mean": 3.3580489199944257
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.31884191848414595,
+          "correct_mean": 0.4166666666666667,
+          "frac_confident": 0.14583333333333334,
+          "calibration_P_correct_given_confident": 0.7142857142857143,
+          "confidently_wrong": 0.041666666666666664,
+          "entropy_mean": 3.5207724299757466
+        }
+      },
+      "12": {
+        "A_pasivo": {
+          "conf_mean": 0.14615503587230474,
+          "correct_mean": 0.041666666666666664,
+          "frac_confident": 0.020833333333333332,
+          "calibration_P_correct_given_confident": 0.0,
+          "confidently_wrong": 0.020833333333333332,
+          "entropy_mean": 4.031072631739078
+        },
+        "B_infogain": {
+          "conf_mean": 0.5329063054782015,
+          "correct_mean": 0.625,
+          "frac_confident": 0.3333333333333333,
+          "calibration_P_correct_given_confident": 0.875,
+          "confidently_wrong": 0.041666666666666664,
+          "entropy_mean": 2.458539611290953
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.4605421683668797,
+          "correct_mean": 0.4583333333333333,
+          "frac_confident": 0.3541666666666667,
+          "calibration_P_correct_given_confident": 0.6470588235294118,
+          "confidently_wrong": 0.125,
+          "entropy_mean": 2.6294826479561224
+        }
+      },
+      "16": {
+        "A_pasivo": {
+          "conf_mean": 0.15563296565672882,
+          "correct_mean": 0.10416666666666667,
+          "frac_confident": 0.08333333333333333,
+          "calibration_P_correct_given_confident": 0.0,
+          "confidently_wrong": 0.08333333333333333,
+          "entropy_mean": 3.8476343278888225
+        },
+        "B_infogain": {
+          "conf_mean": 0.69958475981966,
+          "correct_mean": 0.7291666666666666,
+          "frac_confident": 0.75,
+          "calibration_P_correct_given_confident": 0.8888888888888888,
+          "confidently_wrong": 0.08333333333333333,
+          "entropy_mean": 1.6206603078586266
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.6241244383662947,
+          "correct_mean": 0.6666666666666666,
+          "frac_confident": 0.6458333333333334,
+          "calibration_P_correct_given_confident": 0.8064516129032258,
+          "confidently_wrong": 0.125,
+          "entropy_mean": 1.9509378160353152
+        }
+      },
+      "20": {
+        "A_pasivo": {
+          "conf_mean": 0.12822462616845862,
+          "correct_mean": 0.125,
+          "frac_confident": 0.041666666666666664,
+          "calibration_P_correct_given_confident": 0.0,
+          "confidently_wrong": 0.041666666666666664,
+          "entropy_mean": 3.819117380169748
+        },
+        "B_infogain": {
+          "conf_mean": 0.7670354321368779,
+          "correct_mean": 0.7708333333333334,
+          "frac_confident": 0.7291666666666666,
+          "calibration_P_correct_given_confident": 0.9428571428571428,
+          "confidently_wrong": 0.041666666666666664,
+          "entropy_mean": 1.166022589423582
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.6318431680295743,
+          "correct_mean": 0.5833333333333334,
+          "frac_confident": 0.625,
+          "calibration_P_correct_given_confident": 0.7666666666666667,
+          "confidently_wrong": 0.14583333333333334,
+          "entropy_mean": 1.639334317712968
+        }
+      },
+      "24": {
+        "A_pasivo": {
+          "conf_mean": 0.10716337777543339,
+          "correct_mean": 0.14583333333333334,
+          "frac_confident": 0.041666666666666664,
+          "calibration_P_correct_given_confident": 0.0,
+          "confidently_wrong": 0.041666666666666664,
+          "entropy_mean": 3.7942382080268637
+        },
+        "B_infogain": {
+          "conf_mean": 0.883039723584834,
+          "correct_mean": 0.9166666666666666,
+          "frac_confident": 0.8958333333333334,
+          "calibration_P_correct_given_confident": 0.9534883720930233,
+          "confidently_wrong": 0.041666666666666664,
+          "entropy_mean": 0.64810697959491
+        },
+        "C_aleatorio": {
+          "conf_mean": 0.6990797267930263,
+          "correct_mean": 0.625,
+          "frac_confident": 0.7083333333333334,
+          "calibration_P_correct_given_confident": 0.7058823529411765,
+          "confidently_wrong": 0.20833333333333334,
+          "entropy_mean": 1.2903695470498626
+        }
+      }
+    },
+    "endo_ranks_BgtC": true,
+    "calibration_B": 0.9535,
+    "confidently_wrong_B": 0.0417,
+    "confidently_wrong_C": 0.2083,
+    "well_calibrated": true,
+    "Kmax": 24,
+    "status": "apoyada",
+    "verdict": "H-V4-1c APOYADA: la confianza ENDÓGENA (max posterior, SIN oráculo) es una señal de VALOR usable: (a) RANKEA info-gain > azar (conf B=0.883 > C=0.699, igual que el oráculo de exp042) Y (b) está CALIBRADA (P(correct|confiado)_B=0.95, confidently_wrong_B=0.04 < C=0.21). El agente puede SELECCIONAR la mejor política por su propia confianza, sin conocer la causa -> base de R-VALOR endógeno."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "budgets": "8,12,16,20,24",
+    "candidates": 128,
+    "tau": 0.5
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp043] CYCLE 57 / H-V4-1c — señal de valor ENDÓGENA (confianza del agente) + calibración",
+    "[exp043] DURO={'D': 48, 'cluster': 14, 'p_obs': 0.2} budgets=[8, 12, 16, 20, 24] seeds=48 tau=0.5",
+    "[exp043] DURO @Kmax=24: A_pasivo: conf=0.107 correct=0.146 calib=0.00 conf_wrong=0.04 | B_infogain: conf=0.883 correct=0.917 calib=0.95 conf_wrong=0.04 | C_aleatorio: conf=0.699 correct=0.625 calib=0.71 conf_wrong=0.21",
+    "[exp043] conf endógena por K (DURO B vs C): K8:0.352/0.319 K12:0.533/0.461 K16:0.700/0.624 K20:0.767/0.632 K24:0.883/0.699",
+    "[exp043] VEREDICTO H-V4-1c: APOYADA",
+    "[exp043] H-V4-1c APOYADA: la confianza ENDÓGENA (max posterior, SIN oráculo) es una señal de VALOR usable: (a) RANKEA info-gain > azar (conf B=0.883 > C=0.699, igual que el oráculo de exp042) Y (b) está CALIBRADA (P(correct|confiado)_B=0.95, confidently_wrong_B=0.04 < C=0.21). El agente puede SELECCIONAR la mejor política por su propia confianza, sin conocer la causa -> base de R-VALOR endógeno."
+  ]
+}
