@@ -1507,3 +1507,48 @@ analogía, verify_no_loss=OK. Test `test_cycle50_diversity_guard.py` 4/4. Conver
 
 > Sub-arco AUTO-MEJORA 48-50 CERRADO: mejora+amplifica (48) + motor estable iterado (49) + guardia controla
 > narrowing y sube techo (50). El lazo de auto-mejora es autónomo, sostenible y controlable sin modelo más grande.
+
+## CYCLE 51 — H-V4-2d: ¿el lazo iterado + guardia sobrevive con un VERIFICADOR REAL-CHEQUEABLE (sandbox)?
+
+### Pregunta
+El sub-arco AUTO-MEJORA (48-50) probó el lazo iterado + guardia SÓLO sobre la SUMA con oráculo EXACTO (límite
+honesto #1 del CYCLE 50). exp018 (H-LEARN-3) ya mostró que UNA ronda de auto-mejora funciona con un
+VERIFICADOR REAL (sandbox que EJECUTA la expresión). ¿El lazo ITERADO con guardia GENERALIZA del oráculo
+exacto a ese verificador chequeable real SOBRE ITERACIÓN — sin colapso y sin reward-hack?
+
+### Diseño
+Modelo propio (HybridLM, exp018). Funde exp018 (verificador real, síntesis de expresiones: dado "N=", generar
+"a op b" que iguale N; FUERTE = valor==N Y usa operador, bloquea el echo) + exp036 (guardia dedup+replay). Por
+seed, dos lazos de R=6 rondas in-place desde el MISMO base: PLANO (entrena con todas las STRONG-verificadas con
+frecuencia) vs GUARDED (STRONG-verificadas DEDUP + replay de replay_n=128 ejemplos semilla CORRECTOS de la
+verdad). Métricas por ronda: real_acc (verificador FUERTE en test held-out disjunto), COBERTURA = nº de prompts
+distintos verificados, degenerate (echo = reward-hack). base calibrado a real_acc~0.44 (banda) para tener
+margen. 3 seeds. Pre-registrado: APOYADA si real_acc sube sobre base y es no-decreciente, la guardia mantiene
+cobertura >= plano sin costo de real_acc, y degenerate no trepa con las rondas.
+
+### Resultado — APOYADA
+REAL_acc por ronda: PLANO [0.441,0.737,0.833,0.848,0.881,0.848,0.867] GUARDED [0.441,0.830,0.867,0.885,0.896,
+0.893,0.941]. El lazo con el VERIFICADOR REAL SUBE sobre base (+0.50 hasta guarded final 0.941) y es
+NO-DECRECIENTE (no colapsa al iterar con un verificador ejecutable, no solo con el oráculo). GUARDED supera a
+PLANO en techo (0.941 vs 0.867) y cobertura (144 vs 140), sin costo de precisión. DEGENERATE = 0.000 en TODAS
+las rondas y AMBOS brazos: el verificador FUERTE (exige operador) bloquea el echo aun iterando (consistente con
+exp018 + H-LEARN-4: la imitación STaR no descubre el atajo). => el motor de auto-mejora depende del VERIFICADOR,
+no del tipo de oráculo (exacto vs ejecutable).
+
+### Límites (honestos)
+base seed0 alto (0.722, cerca del techo) -> el margen por iteración promedio es menor y el plateau llega
+relativamente temprano; falta un base débil bajo el verificador real para medir el TECHO real. plain_narrows=
+False: en ESTA tarea con el verificador real el lazo plano NO estrecha la cobertura en R=6 (a diferencia de la
+suma del CYCLE 50) -> la guardia gana por techo más alto, no por frenar un narrowing que aquí no aparece. La
+regla canónica de replay '1+(n-1)' hace la tarea aprendible pero ESTRECHA (falta verificación más rica: código
+real con tests). Falta el puente a un verificador real PARCIAL/ruidoso (H-LEARN-2 ε*≈0.15 con un verificador
+ejecutable).
+
+### Verificación
+exp037 (3 seeds, R=6, modelo propio). cycle51 -> H-V4-2d 'apoyada' (DoD), D-V4-16 ACEPTADA, 1 techo 'real',
+analogía, verify_no_loss=OK. Test `test_cycle51_iterated_real_verifier.py` 4/4. Convergente con exp018
+(verificador real 1-ronda), exp036 (guardia/oráculo) y STaR (Zelikman 2022).
+
+> Une el sub-arco AUTO-MEJORA (48-50, oráculo EXACTO) con el frente VERIFICADOR-REAL (exp018/H-LEARN-3): el
+> lazo de auto-mejora + guardia es robusto al cambio oráculo-exacto -> verificador-chequeable-real sobre
+> iteración. El VERIFICADOR (no el tipo de oráculo) es el motor.

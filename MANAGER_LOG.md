@@ -3776,3 +3776,22 @@ ejecución real) es el lever central de la auto-mejora segura.
   del usuario / romper producción / gastar dinero / secretos. La autonomía total NO relaja el método.
 - Hecha efectiva: puntero VINCULANTE agregado en CLAUDE.md (sección Modo Manager Autónomo) → se carga en cada
   sesión. Incluye Config de la corrida (DEADLINE, OBJETIVO, mecanismos de reanudación y apagado) a rellenar.
+
+## [2026-06-24] Manager AUTONOMÍA TOTAL hasta deadline 05:30 — arranque
+- GOAL: "continua y programa con python un apagado a las 5:30 am". Deadline = 2026-06-25 05:30 (-05), ~7h.
+- Apagado ARMADO con Python: `cognia_x/manager/apagado_deadline.py 05:30` -> `shutdown /s /t 25437`
+  (2026-06-25T05:30:00). Idempotente (cancela con `--cancel`). Mecanismo de apagado = apagado del SO.
+- Régimen: `MANAGER_AUTONOMIA_TOTAL.md` (mejoras indefinidas, sin preguntar, sin parar hasta deadline).
+- Continuidad entre turnos: ScheduleWakeup re-disparando el bucle del manager; corte a deadline.
+
+## [2026-06-24] CYCLE 51 — H-V4-2d APOYADA: el lazo iterado + guardia generaliza a un VERIFICADOR REAL
+- Archivos: cognia_x/experiments/exp037_iterated_real_verifier/{__init__.py,run.py,results/*},
+  cognia_x/research/cycles/cycle51_iterated_real_verifier.py,
+  cognia_x/tests/test_cycle51_iterated_real_verifier.py, cognia_x/manager/research_log.md,
+  cognia_x/manager/apagado_deadline.py
+- Resultado tests: PASS — 4 passed (test_cycle51). Recorder verify_no_loss=OK. Experimento APOYADA (3 seeds).
+- Notas: ataca el límite honesto #1 del sub-arco AUTO-MEJORA (48-50: todo sobre la suma con oráculo EXACTO).
+  Funde exp018 (verificador real sandbox) + exp036 (guardia dedup+replay) en un lazo iterado R=6. real_acc
+  guarded 0.441->0.941 (no-decreciente), supera plano (0.867) y cobertura (144 vs 140), degenerate=0 en todas
+  las rondas (sin reward-hack con verificador FUERTE). => el VERIFICADOR es el motor, no el tipo de oráculo.
+  Sirve al GOAL: avanza cognia-x desde donde se dejó (CYCLE 50 -> 51) con verificación real, test y registro.
