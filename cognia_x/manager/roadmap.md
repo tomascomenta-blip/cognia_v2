@@ -215,3 +215,14 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
   DEGRADA a 0.341, lfu_decay=0.430 recupera 74% del oráculo, +0.090 sobre full y +0.051 sobre recency value-free.
   Ata R-VALOR (estimador) con el OLVIDO (CYCLE 58-66). Caveat: decay fijo; LRU competitiva con cambio fuerte. Techo
   'real'; D-V4-35; test 4/4.
+- [x] **CYCLE 74 (exp058) — H-V4-5d: APOYADA. CIERRA el sub-arco 72-73-74.** El estimador de valor elige su tasa de
+  olvido: un selector full<->decay gateado por el hit-rate reciente de cada experto (endógeno) logra NO-REGRET --
+  ESTAC selector=0.507~full (usa decay 6%), NO-ESTAC selector=0.425~decay (usa decay 88%); ningún fijo gana en ambos.
+  Replica el selector de estrategia (CYCLE 66) sobre el estimador de valor. R-VALOR × OLVIDO cerrado endógenamente.
+  Techo 'real'; D-V4-36; test 4/4.
+
+> SUB-ARCO R-VALOR-ESTIMADOR (CYCLE 72-73-74) CERRADO: (72) el valor es estimable de la frecuencia observada y
+> recupera la ventaja del oráculo en estacionario, venciendo a una memoria value-free; (73) bajo no-estacionariedad
+> el estimador DEBE olvidar (decay), crossover full/decay; (74) el estimador AUTO-selecciona su tasa de olvido por su
+> propio acierto reciente (no-regret), sin hiperparámetro de régimen. R-VALOR × MEMORIA × OLVIDO queda atado a un
+> valor ENDÓGENO ESTIMADO (no un oráculo). Frontera: valor más rico (info-gain/confianza) + downstream no-IID + escala.

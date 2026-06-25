@@ -267,3 +267,12 @@ sobreviven al quitar los oráculos perfectos, acercándose a un mundo menos de j
   de valor endógeno DEBE olvidar (descontar) para rastrear valor no-estacionario; R-VALOR (qué vale) y OLVIDO
   (cuándo dejó de valer) son la MISMA señal en dos tiempos -> unifica CYCLE 72 con el arco 58-66. Caveat: decay FIJO
   (óptimo depende de la tasa de cambio); LRU competitiva bajo cambio fuerte. Cota 'real'; D-V4-35; test 4/4.
+
+- **CYCLE 74 — H-V4-5d APOYADA (CIERRA el sub-arco 72-73-74; muleta 'decay fijo' del 73).** Un meta-SELECTOR
+  full<->decay gateado por el hit-rate reciente de cada experto (endógeno, EMA de sus propios aciertos, sin oráculo
+  ni aviso de régimen) logra NO-REGRET: ESTAC selector=0.507 iguala a full=0.511 (usa decay 6%); NO-ESTAC
+  selector=0.425 iguala a decay=0.430 (usa decay 88%, supera a full=0.341). Ningún decay FIJO es el mejor en ambos;
+  el selector sí. => el estimador de valor elige QUÉ vale (frecuencia, 72), CUÁNDO dejó de valer y a qué RITMO
+  olvidar (selector, 74), todo endógeno. Replica el selector de estrategia (CYCLE 66) sobre el estimador de valor.
+  Caveat: selecciona (no mejora; hereda el techo del oráculo); sólo 2 expertos; frecuencia pura. Cota 'real'; D-V4-36;
+  test 4/4. SUB-ARCO R-VALOR-estimador (72-73-74) CERRADO: R-VALOR × OLVIDO cerrado endógenamente sin hiperparámetro.

@@ -149,3 +149,15 @@
 - Notas: hija del CYCLE 72; ata el estimador de valor (frecuencia) con el arco de olvido (CYCLE 58-66). Sirve al
   GOAL (R-VALOR bajo realismo) quitando la muleta de estacionariedad del 72. Caveat honesto: decay fijo; LRU
   competitiva bajo cambio fuerte. Próxima hija (CYCLE 74): decay ADAPTATIVO (meta-olvido del estimador).
+
+## [2026-06-25] CYCLE 74 — H-V4-5d APOYADA (el estimador de valor elige su tasa de olvido; cierra 72-73-74)
+- Archivos: cognia_x/experiments/exp058_adaptive_value_memory/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle74_adaptive_value_memory.py (new),
+  cognia_x/tests/test_cycle74_adaptive_value_memory.py (new),
+  research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle74 por el engine APOYADA, verify_no_loss=OK; gate ciclos+engine 33/33.
+- Resultado exp (32 seeds): ESTAC selector=0.507~full=0.511 (usa decay 6%); NO-ESTAC selector=0.425~decay=0.430
+  (usa decay 88%). NO-REGRET: iguala al mejor en cada régimen; ningún fijo lo logra en ambos.
+- Notas: cierra el sub-arco R-VALOR-estimador (72-73-74) y la muleta 'decay fijo' del 73. Sirve al GOAL (R-VALOR
+  bajo realismo). El selector DISCRETO (no la tasa continua) logra no-regret, replicando CYCLE 66 sobre el estimador
+  de valor. Próximo: valor endógeno más rico (info-gain/confianza) o escala no-IID; o pivotar a otra muleta.

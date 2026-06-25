@@ -2320,3 +2320,46 @@ las 3 ramas del veredicto). Convergente con decay/tracking no-estacionario (tier
 > decay rastrea popularidad no-estacionaria; full la promedia y se confunde. Próxima hija (CYCLE 74): decay
 > ADAPTATIVO -- elegir la tasa de olvido del estimador de la propia sorpresa/tasa de cambio (meta-olvido CYCLE 64 /
 > selector de estrategia CYCLE 66 aplicados sobre el estimador de valor), para no pagar el costo del olvido sin cambio.
+
+## CYCLE 74 — H-V4-5d (arco "R-VALOR bajo realismo", CIERRA el sub-arco 72-73-74): el estimador de valor elige su tasa de olvido
+
+### Pregunta
+CYCLE 73 (exp057, H-V4-5c) mostró el CROSSOVER (full gana sin cambio, decay con cambio) pero con decay FIJO (su
+caveat #1: el óptimo depende de la tasa de cambio). El lab ya mostró (CYCLE 64 meta-olvido MIXTA; CYCLE 66 selector
+de estrategia alcanza el óptimo) que ELEGIR la estrategia (discreto) vence a modular la tasa. ¿Un selector discreto
+full<->decay, gateado por la sorpresa endógena, logra NO-REGRET en ambos regímenes sobre el ESTIMADOR DE VALOR?
+
+### Diseño
+Numpy (idéntico a exp057). Memoria online m=10/n=50, popularidad que re-permuta cada K_phase=300 (no-estac.) o fija
+(estac.). 6 brazos: oracle_current, lfu_full, lfu_decay (decay=0.97), SELECTOR, recency, random. El selector corre
+AMBOS expertos (full+decay) en SOMBRA y en cada paso usa la memoria del experto con mayor hit-rate RECIENTE (EMA
+beta=0.98 de sus PROPIOS aciertos -- endógeno, sin oráculo ni aviso de régimen). Diagnóstico: fracción de pasos que
+el selector eligió decay. 32 seeds. Pre-registrado: APOYADA si el selector iguala al mejor experto en CADA régimen
+(dentro de 0.03) Y supera al fijo equivocado en cada uno (+>0.02) = NO-REGRET.
+
+### Resultado — APOYADA (no-regret)
+ESTACIONARIO: oracle=0.521 full=0.511 decay=0.443 SELECTOR=0.507 (usa decay 6%) recency=0.382 random=0.208 -> el
+selector iguala a full (mejor) dentro de 0.004 y supera a decay. NO-ESTACIONARIO: oracle=0.516 full=0.341 decay=0.430
+SELECTOR=0.425 (usa decay 88%) recency=0.379 random=0.205 -> iguala a decay (mejor) dentro de 0.005 y supera a full
+por +0.084. Ningún experto FIJO es el mejor en AMBOS regímenes; el SELECTOR sí. El diagnóstico confirma detección
+ENDÓGENA del régimen: usó decay 6% del tiempo en estacionario vs 88% en no-estacionario. => el estimador de valor
+elige su propia tasa de olvido de su propio acierto reciente, sin hiperparámetro de régimen.
+
+### Límites (honestos)
+(1) El selector NO supera al mejor experto (es selección, no mejora) y hereda el techo del oráculo; su valor es la
+ROBUSTEZ entre regímenes, no un techo más alto. (2) Sólo DOS expertos (full/decay); un continuo de tasas necesitaría
+más expertos o un meta-continuo (CYCLE 64 fue MIXTA ahí -> el discreto es lo que funciona, cf. CYCLE 66). (3) el
+valor estimado sigue siendo FRECUENCIA pura; cambio abrupto recurrente; juguete (Pareto, n=50, IID dentro de fase).
+
+### Verificación
+exp058 (32 seeds, numpy, beta=0.98). cycle74 -> H-V4-5d 'apoyada' (DoD), D-V4-36 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle74_adaptive_value_memory.py` 4/4 (no-regret + detección de régimen + 3 ramas).
+Gate dirigido (tests de ciclos 72/73/74 + research engine) 33/33. Convergente con prediction-with-expert-advice/
+no-regret (tier1) y con el selector de estrategia CYCLE 66 (tier5).
+
+> CIERRA el sub-arco R-VALOR-estimador (72-73-74) y la muleta 'decay fijo' del 73: el estimador de valor endógeno
+> elige QUÉ información vale (frecuencia, 72), CUÁNDO dejó de valer y a qué RITMO olvidar (selector, 74) -- todo de
+> su propia experiencia, sin oráculo ni hiperparámetro de régimen. R-VALOR × OLVIDO queda cerrado endógenamente.
+> El SELECTOR discreto (no la modulación continua de tasa) es lo que logra no-regret, replicando CYCLE 66 sobre el
+> estimador de valor. Próximo: subir de frecuencia a un valor endógeno más rico (info-gain/confianza, CYCLE 56-57)
+> o escalar a un downstream no-IID; o pivotar a otra muleta del arco realismo.
