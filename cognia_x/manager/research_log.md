@@ -2085,3 +2085,40 @@ trade-off (Grossberg, tier1).
 > trade-off estabilidad-plasticidad). El valor endógeno tendría que elegir la ESTRATEGIA de memoria (committear
 > vs olvidar-fuerte) gateada por la detección de régimen, no sólo el ritmo. (Honestidad anti-Goodhart: negativo
 > reportado tal cual.)
+
+## CYCLE 66 — H-V4-1i (North-Star R-VALOR x memoria, CIERRE del arco): SELECTOR DE ESTRATEGIA de memoria
+
+### Pregunta
+CYCLE 65 mostró que modular la TASA de olvido tiene un techo (trade-off estabilidad-plasticidad) y concluyó:
+hace falta DETECTAR el régimen y CAMBIAR de ESTRATEGIA (decisión discreta). ¿Un selector que clasifica el régimen
+de su propia sorpresa y conmuta committear<->olvidar-fuerte alcanza el óptimo en ambos regímenes?
+
+### Diseño
+Bayesiano numpy (reusa exp050/051). DOS regímenes (ESTACIONARIO / RECURRENTE). 3 brazos: committed (decay=1),
+fixed (0.85), SELECTOR (clasifica el régimen de su sorpresa sostenida -> estable: committear decay=1; cambiante:
+olvidar-fuerte decay=0.85). 16 seeds. Pre-registrado: APOYADA si selector ~committed en estacionario Y ~fixed en
+recurrente (óptimo en ambos).
+
+### Resultado — APOYADA (cierra el arco con la solución correcta)
+ESTACIONARIO (committear óptimo): committed=1.000 fixed=0.602 SELECTOR=1.000 -> clasifica ESTABLE y committea
+(= committed EXACTO, >> fixed). RECURRENTE (olvidar óptimo): committed=0.294 fixed=0.453 SELECTOR=0.511 ->
+clasifica CAMBIANTE y olvida-fuerte (>= fixed, >> committed; incluso un poco MEJOR que el constante porque
+consolida en las sub-fases estables y olvida en las transiciones). El SELECTOR alcanza el ÓPTIMO de cada régimen,
+lo que la modulación de TASA (meta CYCLE 64, combined CYCLE 65) NO pudo. => el VALOR endógeno (de la propia
+sorpresa sostenida) elige la ESTRATEGIA de memoria (committear vs olvidar-fuerte), una decisión DISCRETA que
+vence el trade-off donde el escalar continuo fallaba.
+
+### Límites (honestos)
+Sólo DOS estrategias y DOS regímenes; un régimen INTERMEDIO (cambio aislado) necesitaría una 3ra estrategia (el
+surprise-gating del CYCLE 59). El umbral de clasificación (p_obs+buffer) y la EMA son hiperparámetros; una tasa
+de cambio cerca del umbral confundiría al selector. Mundo de juguete.
+
+### Verificación
+exp052 (16 seeds, bayesiano numpy, reusa exp050/051/049/044/022). cycle66 -> H-V4-1i 'apoyada' (DoD), D-V4-30
+ACEPTADA, 1 techo 'real', analogía, verify_no_loss=OK. Test `test_cycle66_strategy_selector.py` 4/4. Convergente
+con selección de estrategia gateada por contexto (mixture-of-experts, tier1); confirma la conclusión del CYCLE 65.
+
+> CIERRA el arco R-VALOR x memoria (58·63-66): el sistema juzga QUÉ información vale (confianza calibrada), CUÁNDO
+> dejó de valer (sorpresa -> olvido), y CÓMO recordar/olvidar según el régimen (selector de estrategia), todo de
+> señales ENDÓGENAS. La meta-cognición de memoria es una decisión de MODO (committear vs olvidar-fuerte), no de
+> intensidad. La modulación de TASA tiene un techo (CYCLE 65); el SELECTOR de estrategia lo vence (CYCLE 66).

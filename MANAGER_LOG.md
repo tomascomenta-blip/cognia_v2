@@ -3931,3 +3931,12 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: el combined (piso 0.92 + sorpresa) no mejora al meta en recurrente (0.404~0.408) y hunde el estacionario
   (0.797<0.866). El trade-off estabilidad-plasticidad es FUNDAMENTAL: modular la TASA de olvido tiene un techo;
   hace falta DETECTAR el régimen y cambiar de ESTRATEGIA. Negativo honesto que afina el CYCLE 64.
+
+## [2026-06-25] CYCLE 66 — H-V4-1i APOYADA (CIERRE arco R-VALOR x memoria): selector de estrategia de memoria
+- Archivos: cognia_x/experiments/exp052_strategy_selector/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle66_strategy_selector.py, cognia_x/tests/test_cycle66_strategy_selector.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle66). Recorder verify_no_loss=OK. Experimento APOYADA (16 seeds).
+- Notas: un selector que clasifica el régimen de su sorpresa y conmuta committear<->olvidar-fuerte alcanza el
+  ÓPTIMO en ambos regímenes (estacionario 1.000=committed; recurrente 0.511>=fixed), lo que la modulación de tasa
+  (CYCLE 64/65) no pudo. El valor endógeno elige la ESTRATEGIA de memoria (decisión discreta). CIERRA el arco.
