@@ -774,10 +774,11 @@ for two separate-window edits). Regression: tests/test_phase25.py::TestChangedPa
 - Reproduced BUG-1 + BUG-2 on old logic, verified fixed (explicit end-to-end CHECK output).
 - Targeted: test_e2e_inference.py (LPC) 10 passed; test_phase23.py 31 passed;
   affected set (phase23+phase24+self_improvement+e2e_inference+shattering) 164 passed, 7 skipped.
-- Full fast suite (tests/ --ignore=test_e2e_inference.py) BEFORE agent fix: 2458 passed,
-  1 skipped, 0 failed (279s). FINAL gate AFTER both fixes: **2459 passed, 1 skipped,
-  0 failed** (204s) — the +1 is the new test_phase23 regression (the e2e_inference LPC
-  tests are excluded from this command but pass under the targeted run: 10 passed).
+- Full fast suite (tests/ --ignore=test_e2e_inference.py): 2458 passed before this session.
+  After LPC+agent-executor fixes: 2459 (+1 phase23 regression). FINAL gate after ALL THREE
+  fixes (incl. FS watcher): **2464 passed, 1 skipped, 0 failed** (203s) — +5 from
+  TestChangedPaths. The e2e_inference LPC tests are excluded from this command but pass
+  under the targeted run (TestLPCPlanPrefixValidation + updated TestLatentPersistenceCache).
 
 ### State at session end
 - Four commits on local branch integration/fixes-onto-origin: 85d5163 (LPC),
