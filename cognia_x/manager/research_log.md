@@ -2444,3 +2444,45 @@ active-sensing/partial-monitoring (tier1) y con el caveat de CYCLE 75 (tier5).
 > NO cacheás (tu regret/contrafáctico) basta para aprender el valor -- no hace falta intervenir, y la exploración
 > extra resta. R-INTERVENCIÓN sobre la memoria aparece sólo cuando los costos de lo cacheado-no-observado DERIVAN
 > (no-estacionariedad). Próxima hija: costos no-estacionarios + observación gateada (combinar CYCLE 73 + 76).
+
+## CYCLE 77 — H-V4-5g (arco realismo, complemento del 76): bajo drift + obs gateada, ¿intervenir? — REFUTADA (informativa)
+
+### Pregunta
+CYCLE 76 (exp060, H-V4-5f) mostró que con observación gateada (costo sólo al fallar) PERO costos ESTACIONARIOS, la
+intervención NO hace falta. Su caveat: si los costos DERIVAN, un item cacheado cuyo costo cambia pasa desapercibido
+(cacheado=nunca falla=nunca se re-observa) -> ahí la intervención (re-sondar) debería pagar. ¿Bajo drift de costos +
+obs gateada, re-sondar lo cacheado se vuelve necesario? (R-INTERVENCIÓN sobre la memoria.)
+
+### Diseño
+Numpy. Memoria online m=10/n=50, frecuencia f estacionaria, costo c que en DRIFT se re-permuta entre items cada
+K_phase=300. Costo observado SÓLO al fallar; cost_est = último observado. Métrica = hit-rate ponderado por el costo
+ACTUAL. DOS escenarios: COST_STATIONARY (control, = CYCLE 76) y COST_DRIFT. 6 brazos: oracle_value, value_full (obs
+en cada consulta), value_miss (obs sólo al fallar, sin re-sondar), value_explore (value_miss + sacrifica 1 slot a
+re-sondar el cacheado más viejo), lfu_freq, random. 32 seeds. Pre-registrado: APOYADA si con drift value_explore >
+value_miss (+>0.05) con control de que sin drift explore<=miss.
+
+### Resultado — REFUTADA (con matiz informativo)
+COST_STATIONARY: oracle=0.662 full=0.653 miss=0.653 (=full, = CYCLE 76) explore=0.588 (resta) lfu=0.503.
+COST_DRIFT: oracle=0.660 full=0.613 miss=0.561 explore=0.532 lfu=0.503. DOS hallazgos: (A) el PROBLEMA es REAL --
+bajo drift value_miss pierde 0.051 vs value_full (en estacionario miss=full): la ceguera al drift de lo CACHEADO es
+un efecto medible que NO existía sin drift. (B) PERO la intervención propuesta (re-sondar sacrificando 1 de m=10
+slots permanentemente) NO paga: value_explore 0.532 ni siquiera supera a value_miss 0.561 bajo drift (recupera ~0%
+del gap) y cuesta -0.065 en estacionario. El slot-sacrifice fijo cuesta más capacidad (~1/m) que el gap (0.051) que
+recupera. => la hipótesis (este mecanismo es necesario/útil) queda REFUTADA, PERO el efecto subyacente es real.
+
+### Límites (honestos)
+La REFUTACIÓN es del MECANISMO (slot fijo), no del problema: el drift+obs-gateada SÍ degrada (gap ~0.05). Pero el
+gap es CHICO -> la observación pasiva del contrafáctico sigue siendo casi suficiente aun con drift. Drift abrupto
+recurrente; valor=frecuencia×costo; juguete (Pareto, n=50).
+
+### Verificación
+exp061 (32 seeds, numpy). cycle77 -> H-V4-5g 'refutada' (DoD; un REFUTADA que afila la pregunta es ciclo EXITOSO,
+directiva v3 §4.1), D-V4-39 ACEPTADA, 1 techo 'real', analogía, verify_no_loss=OK. Test
+`test_cycle77_intervention_value.py` 4/4 (problema real + mecanismo no paga + 3 ramas). Convergente con
+costo-de-exploración/partial-monitoring (tier1).
+
+> Complementa el 76 y MATIZA R-INTERVENCIÓN sobre la memoria: el problema (drift+obs gateada degrada lo cacheado-no-
+> observado) es REAL, pero la intervención BURDA (slot fijo) NO paga -- cuesta más capacidad de la que recupera. La
+> intervención sobre la memoria, si paga, debe ser CHEAP/TARGETED (re-sondeo OCASIONAL gateado por SORPRESA, reusar
+> el detector de cambio de CYCLE 59), no un slot fijo. NO se sobre-vende R-INTERVENCIÓN sobre la memoria. Próxima
+> hija: intervención dirigida por sorpresa (barata). Cierra honestamente la pregunta que abrió el 76.

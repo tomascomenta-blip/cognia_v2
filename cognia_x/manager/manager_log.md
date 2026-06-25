@@ -185,3 +185,15 @@
 - Notas: hija del 75; MATIZA honestamente R-INTERVENCIÓN sobre la memoria (la observación pasiva del contrafáctico
   basta; la intervención no hace falta en estacionario). Sirve al GOAL (R-VALOR bajo realismo). Próxima hija real de
   R-INTERVENCIÓN: costos NO-estacionarios + observación gateada (combinar CYCLE 73 + 76).
+
+## [2026-06-25] CYCLE 77 — H-V4-5g REFUTADA (informativa): intervención naive sobre memoria bajo drift no paga
+- Archivos: cognia_x/experiments/exp061_intervention_value/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle77_intervention_value.py (new),
+  cognia_x/tests/test_cycle77_intervention_value.py (new),
+  research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle77 por el engine REFUTADA (DoD), verify_no_loss=OK.
+- Resultado exp (32 seeds): DRIFT value_miss=0.561 pierde 0.051 vs value_full=0.613 (problema real); value_explore=
+  0.532 no supera a miss (mecanismo burdo no paga); ESTAC miss=full=0.653 (control).
+- Notas: REFUTADA = ciclo exitoso (fracaso-es-información). Complementa el 76: el problema drift+obs-gateada es real,
+  la intervención por slot fijo no paga. Sirve al GOAL (honestidad sobre R-INTERVENCIÓN sobre memoria). Próxima hija:
+  intervención sorpresa-gateada (barata). Con esto el arco realismo 72-77 cierra el sub-tema memoria; pivotar.

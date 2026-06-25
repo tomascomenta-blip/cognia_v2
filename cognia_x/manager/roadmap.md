@@ -240,3 +240,14 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
   por la acción (costo revelado sólo al fallar): value_miss=0.634 (99% del oráculo) = value_full=0.634 > lfu=0.490;
   value_explore RESTA. El agente observa el costo de lo que NO cachea (su contrafáctico) -> no hace falta intervenir
   bajo estacionariedad. MATIZA R-INTERVENCIÓN sobre la memoria (débil acá). Techo 'real'; D-V4-38; test 4/4.
+- [x] **CYCLE 77 (exp061) — H-V4-5g: REFUTADA (informativa).** ¿Drift+obs gateada -> intervenir? El problema es REAL
+  (DRIFT value_miss=0.561 pierde 0.051 vs full=0.613; ESTAC miss=full) PERO la intervención naive (slot fijo) NO paga
+  (value_explore=0.532 < miss). La intervención sobre la memoria, si paga, debe ser cheap/targeted (sorpresa-gateada,
+  CYCLE 59), no un slot fijo. Cota 'real'; D-V4-39; test 4/4.
+
+> ARCO "R-VALOR BAJO REALISMO" (CYCLE 72-77) CERRADO (sub-tema memoria): el thesis R-VALOR×memoria sobrevive al quitar
+> 4 muletas (72-75) y se acota honestamente en 2 (76-77): el valor es estimable online (72), debe olvidar bajo
+> no-estacionariedad (73) auto-seleccionando la tasa (74), es task-definido no frecuencia (75), aprendible con
+> observación gateada por la acción (76), y la intervención naive sobre lo cacheado NO paga aunque el drift sea real
+> (77 REFUTADA). Frontera para PIVOTAR: intervención sorpresa-gateada barata; valor endógeno más rico
+> (info-gain/confianza, CYCLE 56-57); SCALE a un sustrato no-juguete (HybridLM); o la rama control/empowerment.

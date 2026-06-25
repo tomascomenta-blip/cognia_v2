@@ -292,3 +292,11 @@ sobreviven al quitar los oráculos perfectos, acercándose a un mundo menos de j
   lo que NO cachea (su contrafáctico) + cold-start observa todo una vez. MATIZ HONESTO: niega "aprender valor exige
   intervenir" en estacionario; R-INTERVENCIÓN sobre la memoria aparece SÓLO con costos NO-estacionarios de lo
   cacheado-no-observado (próxima hija: combinar CYCLE 73 + 76). Cota 'real'; D-V4-38; test 4/4.
+
+- **CYCLE 77 — H-V4-5g REFUTADA (informativa; complementa el 76).** ¿Bajo drift de costos + obs gateada, intervenir
+  (re-sondar) se vuelve necesario? DOS hallazgos: (A) el PROBLEMA es REAL -- DRIFT value_miss=0.561 pierde 0.051 vs
+  value_full=0.613 (en ESTAC miss=full=0.653: la ceguera al drift de lo cacheado existe sólo con drift). (B) PERO la
+  intervención naive (re-sondar sacrificando 1 slot fijo) NO paga: value_explore=0.532 < value_miss bajo drift
+  (recupera ~0% del gap) y cuesta -0.065 sin drift. => REFUTADA el mecanismo, real el problema. La intervención sobre
+  la memoria, si paga, debe ser CHEAP/TARGETED (sorpresa-gateada, reusar CYCLE 59), no un slot fijo. NO se sobre-vende
+  R-INTERVENCIÓN sobre la memoria. Cota 'real'; D-V4-39; test 4/4. Próxima hija: intervención sorpresa-gateada.
