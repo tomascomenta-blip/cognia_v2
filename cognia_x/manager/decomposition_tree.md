@@ -308,3 +308,16 @@ sobreviven al quitar los oráculos perfectos, acercándose a un mundo menos de j
   cache con obs gateada, la observación PASIVA del contrafáctico es ROBUSTA aun con drift; intervenir NO paga, ni
   barato. Los efectos fuertes de R-INTERVENCIÓN viven en el aprendizaje causal ACTIVO (exp022), no aquí. Cota 'real';
   D-V4-40; test 4/4. **SUB-TEMA MEMORIA SATURADO (72-78) -> PIVOTE** (valor más rico / rama control-empowerment).
+
+## Addendum — rama R-CONTROL abierta y acotada bajo R-VALOR (CYCLE 79+)
+La corrida 51-78 trabajó R-VALOR (predicción/memoria). El árbol marcaba "inteligencia=control/acción (empowerment)"
+como la rama CONTESTADA / faltante más grande, y CYCLE 38/39 la habían aceptado sin test adversarial. CYCLE 79 abre
+y acota la rama:
+
+- **CYCLE 79 — H-V4-6a MIXTA (abre R-CONTROL).** Test adversarial de empowerment-como-valor (valor=ctrl×rel, sweep de
+  correlación control↔relevancia). El empowerment recupera el óptimo cuando control≈valor (rho=1: 1.000, = exp024/025)
+  pero degrada MONÓTONO al desalinearse (rho=0: 0.724; -0.5: 0.565), malgastando en lo controlable-inútil (simétrico a
+  la predicción en lo predecible-inútil). NO colapsa a random porque la controlabilidad ES un componente multiplicativo
+  del valor. => el empowerment es la MARGINAL-de-controlabilidad de R-VALOR, NO un valor universal: ni control ni
+  predicción puro es el valor; el general es R-VALOR (referido al objetivo). Resuelve el rival CONTESTADO bajo R-VALOR
+  (empowerment es un COMPONENTE, no reemplazo). Cota 'real'; D-V4-41; test 4/4. Próximo: empowerment estimado online.

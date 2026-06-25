@@ -208,3 +208,14 @@
 - Notas: cierra el sub-tema R-INTERVENCIÓN-sobre-memoria con null firme; la observación pasiva del contrafáctico es
   robusta aun con drift. PIVOTE: sub-tema memoria saturado (72-78). Próximo: valor endógeno más rico (info-gain/
   confianza) o la rama control/empowerment, donde R-INTERVENCIÓN es de primer orden.
+
+## [2026-06-25] CYCLE 79 — H-V4-6a MIXTA (PIVOTE: abre rama R-CONTROL): empowerment = marginal-de-controlabilidad de R-VALOR
+- Archivos: cognia_x/experiments/exp063_empowerment_limits/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle79_empowerment_limits.py (new),
+  cognia_x/tests/test_cycle79_empowerment_limits.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle79 por el engine MIXTA (DoD), verify_no_loss=OK.
+- Resultado exp (48 seeds): empowerment captura del óptimo rho=1 1.000 (recupera exp024/025), degrada monótono a
+  rho=0 0.724 (random 0.431); proxy parcial = marginal-de-controlabilidad de R-VALOR, no valor universal.
+- Notas: PIVOTE fuera del sub-tema memoria. Test adversarial que la corrida nunca hizo (38/39 aceptaron empowerment
+  sin él). Acota el rival CONTESTADO del árbol bajo R-VALOR. Sirve al GOAL (R-VALOR como raíz general). Próximo:
+  empowerment ESTIMADO online; reconstruir R-VALOR combinando control+relevancia estimada.

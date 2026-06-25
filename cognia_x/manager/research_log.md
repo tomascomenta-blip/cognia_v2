@@ -2525,3 +2525,44 @@ con value-of-information (tier1).
 > queda PLANA) viven en el aprendizaje causal ACTIVO, no en esta cache. SEÑAL DE PIVOTE: el sub-tema memoria queda
 > SATURADO (72-78); ir a un valor endógeno más rico (info-gain/confianza, CYCLE 56-57) o a la rama control/
 > empowerment (la rama faltante más grande del árbol), donde R-INTERVENCIÓN sí es de primer orden.
+
+## CYCLE 79 — H-V4-6a (PIVOTE: abre la rama R-CONTROL): test ADVERSARIAL de empowerment-como-valor — MIXTA
+
+### Pregunta
+El árbol marca "inteligencia=control/acción (empowerment)" como la rama CONTESTADA / faltante más grande. CYCLE 38/39
+(exp024/025) ACEPTARON "empowerment > predicción como valor" PERO sólo donde lo controlable era útil. La crítica
+SIMÉTRICA nunca hecha: así como la predicción malgasta en lo predecible-INÚTIL (exp024), ¿el empowerment malgasta en
+lo controlable-INÚTIL? ¿Es el empowerment un valor endógeno UNIVERSAL?
+
+### Diseño
+Numpy. n=40 levers, cada uno con CONTROLABILIDAD ctrl_i y RELEVANCIA rel_i (cópula gaussiana, correlación rho).
+Valor verdadero = ctrl×rel (rinde sólo si controlable Y relevante). El agente atiende k=8/n; recompensa = masa de
+valor de los k / óptimo. 3 señales: oracle_value (top-k por ctrl×rel), empowerment (top-k por ctrl), random. Sweep
+rho in {1.0,0.7,0.3,0.0,-0.5}. 48 seeds. Pre-registrado: APOYADA si empowerment recupera el óptimo en rho=1 Y
+colapsa a random en rho=0.
+
+### Resultado — MIXTA (matiz más fino que el pre-registro)
+empowerment captura del óptimo: rho=1 1.000 (recupera exp024/025 perfecto), 0.7->0.932, 0.3->0.821, 0.0->0.724,
+-0.5->0.565; random ~0.43 plano. swing 0.276 monótono. MATIZ HONESTO: el empowerment NO colapsa a random aun con
+control ⊥ relevancia (rho=0: 0.724 >> random 0.431), porque la controlabilidad ES un componente MULTIPLICATIVO del
+valor (ctrl×rel) -- el empowerment captura SIEMPRE el factor ctrl, le falta el factor REL. => el empowerment es un
+PROXY PARCIAL = la MARGINAL-de-controlabilidad de R-VALOR, no un valor universal ni inútil. Ni control ni predicción
+PURO es el valor: la predicción malgasta en lo predecible-inútil, el empowerment en lo controlable-inútil (simétrico);
+el general es R-VALOR (referido al OBJETIVO), del que ambos son marginales. Resuelve el rival CONTESTADO: empowerment
+es un COMPONENTE de R-VALOR, no su reemplazo.
+
+### Límites (honestos)
+Juguete (selección estática, valor multiplicativo ctrl×rel asumido); falta empowerment ESTIMADO online (¿sobrevive
+como el valor de memoria en 72?) y un objetivo no-escalar. La corrida había aceptado empowerment como valor (38/39)
+sin este test -> sesgo corregido.
+
+### Verificación
+exp063 (48 seeds, numpy). cycle79 -> H-V4-6a 'mixta' (DoD), D-V4-41 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle79_empowerment_limits.py` 4/4 (recupera/degrada + 3 ramas). Convergente con
+empowerment/intrinsic-motivation (tier1) acotado bajo R-VALOR.
+
+> ABRE la rama R-CONTROL y la ACOTA bajo R-VALOR: el empowerment es la marginal-de-controlabilidad del valor, no el
+> valor universal. La corrida lo había aceptado (38/39) sin el test adversarial; aquí se ve que recupera el óptimo
+> SÓLO cuando control≈valor y degrada al desalinearse, igual que la predicción. Unifica el rival contestado bajo
+> R-VALOR (objetivo-referido). Próximo: empowerment ESTIMADO online; reconstruir R-VALOR combinando control +
+> relevancia estimada sin oráculo.

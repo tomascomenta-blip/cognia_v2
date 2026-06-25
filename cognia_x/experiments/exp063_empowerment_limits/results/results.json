@@ -1,0 +1,62 @@
+{
+  "exp": "exp063_empowerment_limits",
+  "cycle": 79,
+  "hypothesis": "H-V4-6a",
+  "claim": "el empowerment no es un valor endogeno universal: rinde solo cuando lo controlable coincide con lo util; cuando divergen malgasta en lo controlable-inutil (igual que la prediccion en lo predecible-inutil). El general es R-VALOR (referido al objetivo)",
+  "verdict": "mixta",
+  "summary": {
+    "by_rho": {
+      "1.0": {
+        "empowerment": 1.0,
+        "random": 0.4016
+      },
+      "0.7": {
+        "empowerment": 0.932,
+        "random": 0.4208
+      },
+      "0.3": {
+        "empowerment": 0.821,
+        "random": 0.4298
+      },
+      "0.0": {
+        "empowerment": 0.724,
+        "random": 0.4315
+      },
+      "-0.5": {
+        "empowerment": 0.5645,
+        "random": 0.4435
+      }
+    },
+    "emp_high_rho": 1.0,
+    "emp_low_rho": 0.724,
+    "random_low_rho": 0.4315,
+    "swing": 0.276,
+    "monotonic": true,
+    "recovers_when_aligned": true,
+    "collapses_when_orthogonal": false,
+    "big_swing": true,
+    "status": "mixta",
+    "verdict": "H-V4-6a MIXTA (matiz más fino que el pre-registro): el empowerment es un PROXY PARCIAL del valor, no universal ni inútil. Captura SIEMPRE el componente de CONTROLABILIDAD (valor=ctrl×rel), por eso es EXACTO cuando control≈valor (rho=1 1.000, recupera exp024/025) y NUNCA cae a random aun con control ⊥ valor (rho=0 0.724 vs random 0.431: sigue capturando el factor ctrl). Degrada MONÓTONO al desalinearse (swing 0.276, monótono); sólo con control ANTI-valor se acerca a random. Le falta el componente de RELEVANCIA. => ni control ni predicción PURO es el valor universal: la predicción malgasta en lo predecible-inútil (exp024), el empowerment en lo controlable-inútil; el general es R-VALOR (ctrl×rel, referido al OBJETIVO) y el empowerment es su MARGINAL-de-controlabilidad. Acota honestamente el rival CONTESTADO (aceptado sin este test en CYCLE 38/39) y lo UNIFICA bajo R-VALOR: empowerment es un COMPONENTE de R-VALOR, no su reemplazo."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 40,
+    "k": 8
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp063] CYCLE 79 / H-V4-6a — test ADVERSARIAL de empowerment-como-valor (controlable != util)",
+    "[exp063] n=40 k=8 seeds=48 rhos=[1.0, 0.7, 0.3, 0.0, -0.5]",
+    "[exp063] rho=+1.0: empowerment=1.000 random=0.402 (frac del oraculo)",
+    "[exp063] rho=+0.7: empowerment=0.932 random=0.421 (frac del oraculo)",
+    "[exp063] rho=+0.3: empowerment=0.821 random=0.430 (frac del oraculo)",
+    "[exp063] rho=+0.0: empowerment=0.724 random=0.431 (frac del oraculo)",
+    "[exp063] rho=-0.5: empowerment=0.565 random=0.444 (frac del oraculo)",
+    "[exp063] swing empowerment (rho=1 -> rho=0): 1.000 -> 0.724 (random 0.431); monotono=True",
+    "[exp063] VEREDICTO H-V4-6a: MIXTA | H-V4-6a MIXTA (matiz más fino que el pre-registro): el empowerment es un PROXY PARCIAL del valor, no universal ni inútil. Captura SIEMPRE el componente de CONTROLABILIDAD (valor=ctrl×rel), por eso es EXACTO cuando control≈valor (rho=1 1.000, recupera exp024/025) y NUNCA cae a random aun con control ⊥ valor (rho=0 0.724 vs random 0.431: sigue capturando el factor ctrl). Degrada MONÓTONO al desalinearse (swing 0.276, monótono); sólo con control ANTI-valor se acerca a random. Le falta el componente de RELEVANCIA. => ni control ni predicción PURO es el valor universal: la predicción malgasta en lo predecible-inútil (exp024), el empowerment en lo controlable-inútil; el general es R-VALOR (ctrl×rel, referido al OBJETIVO) y el empowerment es su MARGINAL-de-controlabilidad. Acota honestamente el rival CONTESTADO (aceptado sin este test en CYCLE 38/39) y lo UNIFICA bajo R-VALOR: empowerment es un COMPONENTE de R-VALOR, no su reemplazo."
+  ]
+}

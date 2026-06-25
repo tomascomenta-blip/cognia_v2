@@ -255,3 +255,12 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
   vence al slot fijo del 77 pero NO al baseline pasivo (DRIFT surprise=0.545 < miss=0.561). El gap de obs (0.051) es
   muy chico para que intervenir pague. La observación pasiva del contrafáctico es robusta aun con drift. SUB-TEMA
   MEMORIA SATURADO (72-78) -> PIVOTE (valor más rico / control-empowerment). Cota 'real'; D-V4-40; test 4/4.
+
+## F-V4c — Rama R-CONTROL (empowerment) acotada bajo R-VALOR (CYCLE 79+)  🟡 EN CURSO (2026-06-25)
+- [x] **CYCLE 79 (exp063) — H-V4-6a: MIXTA. Abre la rama R-CONTROL.** Test adversarial de empowerment-como-valor: es
+  un PROXY PARCIAL (la marginal-de-controlabilidad de R-VALOR), no universal. Recupera el óptimo cuando control≈valor
+  (rho=1: 1.000 = exp024/025), degrada monótono al desalinearse (rho=0: 0.724), malgasta en lo controlable-inútil
+  (simétrico a la predicción en lo predecible-inútil). El general es R-VALOR (referido al objetivo). Cota 'real';
+  D-V4-41; test 4/4.
+- [ ] CYCLE 80+: empowerment ESTIMADO online (¿sobrevive como el valor de memoria del 72?); reconstruir R-VALOR
+  combinando control + relevancia estimada sin oráculo.
