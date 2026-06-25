@@ -3966,3 +3966,12 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: raíz fresca (breadth). Tarea perm-invariante. El prior correcto (1 feature) alcanza 0.917 con 8 ejemplos
   (general necesita ~128 = 16x); el prior equivocado se clava en 0.635 << general 0.917 (sesgo irreducible). La
   calidad/corrección del prior es el lever, no tenerlo ni su forma. Conecta R-PRIOR con R-VALOR.
+
+## [2026-06-25] CYCLE 70 — H-V4-5 APOYADA (cierra la última raíz abierta): escribir≡olvidar dirigido por valor
+- Archivos: cognia_x/experiments/exp055_value_memory/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle70_value_memory.py, cognia_x/tests/test_cycle70_value_memory.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle70). Recorder verify_no_loss=OK. Experimento APOYADA (48 seeds).
+- Notas: memoria m=10/n=50. value_directed=0.507 >> random=0.184; ablar el valor -> ablation=0.200 (=random);
+  anti_value=0.086 (<random). La ventaja de la memoria finita ES el valor; escribir≡olvidar es rate-distortion
+  dirigido por valor. Cierra el lazo R-VALOR x memoria y la última raíz abierta del v4 (sólo H-V4-4 diferida).

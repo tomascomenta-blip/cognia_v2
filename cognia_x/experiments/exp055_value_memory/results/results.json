@@ -1,0 +1,38 @@
+{
+  "exp": "exp055_value_memory",
+  "cycle": 70,
+  "hypothesis": "H-V4-5",
+  "claim": "la ventaja de una memoria finita está atada a R-VALOR: la escritura dirigida por valor >> aleatoria y ablar el valor colapsa la ventaja (escribir≡olvidar es rate-distortion por valor)",
+  "verdict": "apoyada",
+  "summary": {
+    "by_arm": {
+      "value_directed": 0.5068,
+      "random": 0.1836,
+      "ablation": 0.2003,
+      "anti_value": 0.0858
+    },
+    "chance_m_over_n": 0.2,
+    "vd_beats_random": true,
+    "ablation_collapses": true,
+    "anti_below_random": true,
+    "status": "apoyada",
+    "verdict": "H-V4-5 APOYADA: la ventaja de una memoria finita está ATADA a R-VALOR. La escritura value_directed cubre 0.507 del valor de consulta con sólo m=10/50 items (random 0.184 ~ m/n=0.200); +0.323 sobre aleatoria. ABLAR el valor (todos iguales -> azar) COLAPSA a 0.200 (= random 0.184): sin la señal de valor, la memoria selectiva = aleatoria -> la ventaja ES el valor. anti_value (guardar lo de MENOR valor) cae a 0.086 (< random): la DIRECCIÓN del valor importa. => escribir≡olvidar es rate-distortion dirigido por valor; quitar la utilidad mata la ventaja. Conecta MEMORIA con R-VALOR (raíz primera)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "m": 10,
+    "alpha": 1.5
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp055] CYCLE 70 / H-V4-5 — escribir≡olvidar (memoria dirigida por valor; ablar el valor mata la ventaja)",
+    "[exp055] n=50 m=10 (capacidad 10/50) alpha=1.5 seeds=48",
+    "[exp055] hit-rate ponderado por valor: value_directed=0.507 random=0.184 ablation=0.200 anti_value=0.086 (azar m/n=0.200)",
+    "[exp055] VEREDICTO H-V4-5: APOYADA | H-V4-5 APOYADA: la ventaja de una memoria finita está ATADA a R-VALOR. La escritura value_directed cubre 0.507 del valor de consulta con sólo m=10/50 items (random 0.184 ~ m/n=0.200); +0.323 sobre aleatoria. ABLAR el valor (todos iguales -> azar) COLAPSA a 0.200 (= random 0.184): sin la señal de valor, la memoria selectiva = aleatoria -> la ventaja ES el valor. anti_value (guardar lo de MENOR valor) cae a 0.086 (< random): la DIRECCIÓN del valor importa. => escribir≡olvidar es rate-distortion dirigido por valor; quitar la utilidad mata la ventaja. Conecta MEMORIA con R-VALOR (raíz primera)."
+  ]
+}

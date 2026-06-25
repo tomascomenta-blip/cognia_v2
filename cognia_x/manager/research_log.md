@@ -2196,3 +2196,39 @@ con el thesis R-PRIOR.
 > barato con la equivarianza correcta vence a la fuerza bruta de datos, y un prior falso hunde. Conecta R-PRIOR
 > con R-VALOR (un buen prior es valor a priori sobre qué estructura importa). Da BREADTH a la corrida más allá del
 > arco verificador/R-VALOR/memoria.
+
+## CYCLE 70 — H-V4-5 (cierra la última raíz abierta del v4): escribir≡olvidar es rate-distortion dirigido por VALOR
+
+### Pregunta
+El thesis v4 (R-VALOR raíz primera): escribir/olvidar es selectivo, "consolidar exige saber qué proteger --
+indefinible sin un escalar de valor". H-V4-5: ¿la ventaja de una memoria finita está ATADA a R-VALOR -- ablar
+el valor mata la ventaja?
+
+### Diseño
+Numpy. Memoria de capacidad m=10/n=50 items; cada item con VALOR (prob de consulta, power-law alpha=1.5). 4
+políticas de escritura: value_directed (top-m por valor), random, ablation (valor removido = azar), anti_value
+(bottom-m). Métrica: hit-rate ponderado por valor (masa de valor cubierta por lo guardado). 48 seeds.
+Pre-registrado: APOYADA si value_directed >> random Y ablar el valor colapsa a random Y anti_value < random.
+
+### Resultado — APOYADA
+value_directed=0.507 (cubre 50% del valor de consulta con sólo 10/50 items), random=0.184 (~m/n=0.20),
+ablation=0.200 (= random: ablar el valor colapsa la ventaja), anti_value=0.086 (< random: la dirección importa).
+La escritura por valor da +0.323 sobre aleatoria; ABLAR la señal de valor la colapsa exactamente a random -> la
+ventaja de la memoria ES el valor, no la capacidad ni la 'selectividad' abstracta. anti_value < random confirma
+que la DIRECCIÓN del valor importa. => escribir≡olvidar es rate-distortion dirigido por valor; quitar la utilidad
+mata la ventaja.
+
+### Límites (honestos)
+El valor (prob de consulta) se da PERFECTO; falta valor ESTIMADO ruidoso (aunque CYCLE 56-57 ya mostraron que el
+valor endógeno -- info-gain/confianza -- es estimable). Tarea de juguete (selección estática, power-law). Métrica
+= masa de valor cubierta (exacta); falta un downstream más rico y memoria dinámica online.
+
+### Verificación
+exp055 (48 seeds, numpy). cycle70 -> H-V4-5 'apoyada' (DoD), D-V4-33 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle70_value_memory.py` 4/4. Convergente con rate-distortion (tier1) y con el
+thesis R-VALOR/escribir≡olvidar.
+
+> CIERRA la última raíz abierta del v4 y el lazo R-VALOR x MEMORIA: las cuatro operaciones de memoria (escribir/
+> olvidar/recordar/consolidar) son indefinibles sin valor, y aquí se muestra empíricamente que la ventaja de la
+> memoria ES el valor -> R-VALOR es, en efecto, la raíz que aterriza la memoria. Conecta con el valor endógeno
+> medible (CYCLE 56-57) y el selector de estrategia (CYCLE 66): el valor decide qué/cuándo/cómo recordar.
