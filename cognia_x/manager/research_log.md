@@ -1631,3 +1631,42 @@ oráculo) y exp037/038 (verificador real + guardia).
 > Une H-LEARN-2 (ruido/oráculo) con H-V4-2d/e (verificador real + guardia): el resultado central del lab (el
 > VERIFICADOR es el lever de 1ra clase; su CALIDAD decide la auto-mejora) se sostiene con un verificador REAL y
 > RUIDOSO, y la guardia (replay limpio) compra robustez al ruido (ε* 0.0 -> 0.50).
+
+## CYCLE 54 — H-V4-2g (CAPSTONE robustez): ruido del VERIFICADOR REAL × cold-start (base débil)
+
+### Pregunta
+exp038 (CYCLE 52): la guardia bootstrapea un base débil (~0.08) a ~0.93 con un verificador REAL PERFECTO.
+exp039 (CYCLE 53): con base MODERADO la guardia tolera ruido hasta ε*=0.50. Límite abierto EXPLÍCITO de
+exp039: no se combinaron los dos estresores. ¿La robustez al ruido SOBREVIVE cuando además se arranca desde
+casi-cero? (peor caso realista: verificador imperfecto Y modelo casi sin saber la tarea).
+
+### Diseño
+Modelo propio (reusa exp039). base_steps=125 -> base real_acc~0.08 (DÉBIL). Lazo GUARDED (dedup+replay limpio)
+R=8, barriendo ε en {0.0,0.15,0.30,0.50} (verificador FUERTE real con ruido falso-positivo). Métrica: real_acc
+CLEAN final y gain-sobre-base por ε. 3 seeds. ε*_coldstart = mayor ε con bootstrapping fuerte consistente
+(gain>=0.30 en cada seed). Pre-registrado: APOYADA si ε*_coldstart>=0.30; REFUTADA si ε=0.15 ya lo destruye;
+MIXTA si 0<ε*_coldstart<0.30.
+
+### Resultado — APOYADA (CAPSTONE)
+final por ε: {0.0:0.933, 0.15:0.844, 0.30:0.659, 0.50:0.437}; gain por ε: {0.0:+0.852, 0.15:+0.763,
+0.30:+0.578, 0.50:+0.356}. bootstrapea fuerte (3/3 seeds, gain>=0.30) hasta ε=0.30; ε*_coldstart=0.30. Desde un
+base DÉBIL (0.082) el lazo GUARDED bootstrapea a 0.66 AUN con 30% de falsos positivos del verificador. La
+robustez al RUIDO (exp039 ε*=0.50 base moderada) y al COLD-START (exp038) COEXISTEN: el replay limpio de la
+verdad ANCLA el lazo y arranca el motor aun con el corrector fallando; los dos estresores NO se componen
+catastróficamente (el techo baja con ε pero el cold-start SOBREVIVE, degradación graceful y monótona).
+
+### Límites (honestos)
+A ε=0.50 el bootstrapping ya no es consistente entre seeds (gain medio +0.356 pero no 3/3) -> el arranque débil
+SÍ baja la tolerancia al ruido vs base moderada (ε*=0.30 aquí vs ε*=0.50 con base moderada): la fragilidad del
+cold-start cuesta ~0.20 de ε* tolerable. Ruido falso-positivo UNIFORME (falta correlacionado). Regla canónica
+de replay '1+(n-1)' estrecha. Tarea acotada (test=90).
+
+### Verificación
+exp040 (3 seeds, R=8, modelo propio). cycle54 -> H-V4-2g 'apoyada' (DoD), D-V4-19 ACEPTADA, 1 techo 'real',
+analogía, verify_no_loss=OK. Test `test_cycle54_noise_coldstart.py` 3/3. Convergente con exp038 (cold-start) y
+exp039 (ruido ε*=0.50).
+
+> CAPSTONE del arco VERIFICADOR-REAL (51-54): el lazo de auto-mejora con verificador chequeable REAL es robusto
+> a verificador-imperfecto Y arranque-débil SIMULTÁNEOS; la guardia (dedup+replay limpio) es el mecanismo
+> central que compra ambas robusteces. El VERIFICADOR (no el tipo de oráculo) es el motor, y la guardia lo
+> sostiene bajo ruido y desde casi-cero.

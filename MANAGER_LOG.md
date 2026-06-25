@@ -3814,3 +3814,12 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: replica el dosis-respuesta de exp017 (ε*≈0.15 oráculo) con el VERIFICADOR REAL (sandbox). El net decae
   con ε (>2σ) -> transfiere. La guardia (replay limpio) SUBE ε* de 0.0 (plano) a 0.50 (guarded): el replay
   diluye la contaminación -> robustez al verificador imperfecto. Cierra el hilo abierto de exp037/038. GOAL: 52 -> 53.
+
+## [2026-06-24] CYCLE 54 — H-V4-2g APOYADA (CAPSTONE): robustez ruido×cold-start coexisten (ε*_coldstart=0.30)
+- Archivos: cognia_x/experiments/exp040_noise_coldstart/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle54_noise_coldstart.py, cognia_x/tests/test_cycle54_noise_coldstart.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 3 passed (test_cycle54). Recorder verify_no_loss=OK. Experimento APOYADA (3 seeds, R=8).
+- Notas: cierra el límite abierto de exp039 (ruido + cold-start juntos). Desde base débil 0.08 el lazo GUARDED
+  bootstrapea a 0.66 aun con 30% de falsos positivos (ε*_coldstart=0.30). Las robusteces al ruido y al
+  cold-start COEXISTEN; la guardia (replay limpio) las compra ambas. Capstone del arco verificador-real 51-54.
