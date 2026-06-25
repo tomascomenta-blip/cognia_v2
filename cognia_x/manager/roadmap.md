@@ -294,3 +294,14 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
   PLENO con estimadores clean (0.994 vs 0.932), pero bajo ruido realista la ventaja (+0.028) NO es decisiva: recuperación
   PARCIAL NOISE-GATED. No sacrifica complementos. El producto (prior de complementariedad) sigue siendo baseline por
   DEFECTO. Cota 'real'; D-V4-46; test 7/7. Próximo: subir la calidad del feedback (más S, sorpresa-gateada) → CYCLE 85.
+- [x] **CYCLE 85 (exp069) — H-V4-7c: APOYADA. Cierra el noise-gating del gap #2 (sub-arco 83-85 cerrado).** Subir la
+  CALIDAD DEL FEEDBACK (S de control ↑, σr ↓) vuelve la recuperación del combinador aprendido de PARCIAL a DECISIVA bajo
+  sustitutos: adv(poly2−producto) crece monótona q0=+0.017 → q2=+0.052 → clean=+0.059 y cruza +0.03 sin feedback
+  perfecto, sin sacrificar complementos. El noise-gating es una PENDIENTE, no una pared. Política: producto por DEFECTO;
+  calidad de feedback + combinador aprendido en régimen de sustitutos. Cota 'real'; D-V4-47; test 7/7. Próximo: detección
+  AUTOMÁTICA del régimen sustitutos/complementos (conmutar producto<->aprendido) → CYCLE 86.
+
+> SUB-ARCO gap #2 (83-85) CERRADO: el producto fijo es un prior de complementariedad robusto salvo bajo sustitutos (83);
+> aprender el combinador recupera, viable pero noise-gated (84); el noise-gating es una pendiente que la calidad del
+> feedback destraba (85). El thesis R-VALOR=control×relevancia del arco 79-82 queda con su dominio caracterizado y una
+> construcción que lo extiende a valor no-factorizable cuando el feedback es nítido.

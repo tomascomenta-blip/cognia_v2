@@ -277,3 +277,16 @@
 - Notas: la construcción que cierra el gap #2 es VIABLE pero paga decisivamente sólo con feedback limpio/abundante; el
   producto (prior de complementariedad) sigue siendo baseline por DEFECTO. Sirve al GOAL (R-VALOR). Próximo (CYCLE 85):
   subir la calidad del feedback (más S de control, re-observación sorpresa-gateada) para volver la recuperación decisiva.
+
+## [2026-06-25] CYCLE 85 — H-V4-7c APOYADA (cierra el noise-gating del gap #2): la calidad del feedback destraba la recuperación
+- Archivos: cognia_x/experiments/exp069_feedback_quality/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle85_feedback_quality.py (new),
+  cognia_x/tests/test_cycle85_feedback_quality.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 7/7; arco 83-85 + engine 36/36; cycle85 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp (64 seeds): adv(poly2−producto) bajo sustitutos crece monótona con la calidad del feedback q0=+0.017 →
+  q1=+0.038 → q2=+0.052 → q3=+0.059 → clean=+0.059; cruza el umbral decisivo (+0.03) en feedback no-perfecto, sin
+  sacrificar complementos.
+- Notas: el noise-gating de CYCLE 84 es una PENDIENTE, no una pared — subir la calidad del feedback (no sólo el volumen)
+  destraba la recuperación decisiva. SUB-ARCO gap #2 CERRADO (83 acota / 84 construye-noise-gated / 85 destraba). Política:
+  producto por DEFECTO; calidad de feedback + combinador aprendido en régimen de sustitutos. Sirve al GOAL (R-VALOR).
+  Próximo (CYCLE 86): detección AUTOMÁTICA del régimen (conmutar producto<->aprendido sin saberlo a priori).

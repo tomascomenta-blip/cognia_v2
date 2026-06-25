@@ -2760,3 +2760,42 @@ ramas). Convergente con el principio noise-gated (tier2) y con el gap #2 de CYCL
 > Construcción sobre el gap #2: aprender el combinador es VIABLE pero NOISE-GATED; el producto sigue siendo la
 > reconstrucción por DEFECTO. Próximo (CYCLE 85): subir la calidad del feedback (más S, re-observación sorpresa-gateada)
 > para ver si la recuperación pasa de parcial a DECISIVA bajo ruido.
+
+## CYCLE 85 — H-V4-7c (rama R-VALOR, cierra el noise-gating del gap #2): calidad del feedback — APOYADA
+
+### Pregunta
+CYCLE 84 dejó la recuperación del combinador aprendido como PARCIAL/noise-gated bajo sustitutos (decisiva sólo con
+estimadores limpios). El constraint vinculante es el RUIDO DE LAS FEATURES (ctrl_est, rel_est), no el presupuesto m.
+¿Subir la calidad del feedback (más muestras S de control, menos ruido σr de relevancia) vuelve la recuperación de
+PARCIAL a DECISIVA, y a partir de qué nivel — hace falta feedback perfecto o alcanza con moderado?
+
+### Diseño
+Numpy. Régimen SUSTITUTOS (g=max, λ=1.0) + COMPLEMENTOS de control. Combinador aprendido por ridge poly2 de m=20 obs.
+Eje primario: CALIDAD DEL FEEDBACK, niveles (S, σr): q0=(2,0.20), q1=(8,0.10) [el punto de CYCLE 84], q2=(32,0.05),
+q3=(128,0.02), clean=(perfecto). 64 seeds. Métrica: adv = learned_poly2 − rvalue_prod; crossover = primer nivel NO-clean
+con adv>0.03. Pre-registrado: APOYADA si cruza +0.03 en feedback MODERADO (q2 o antes) y crece monótono, sin sacrificar
+complementos; MIXTA si sólo cruza en q3; REFUTADA si sólo con feedback perfecto/nunca.
+
+### Resultado — APOYADA
+adv(poly2 − producto) bajo sustitutos crece MONÓTONA con la calidad del feedback: q0=+0.017, q1=+0.038, q2=+0.052,
+q3=+0.059, clean=+0.059. Cruza el umbral decisivo (+0.03) en feedback NO perfecto, sin sacrificar complementos (comp:
+poly2 ≈ producto en todos los niveles). => el noise-gating de CYCLE 84 es una PENDIENTE (función decreciente del ruido
+de features), no una pared dura: con features algo más nítidas (más muestras de control, menos ruido de relevancia),
+aprender la forma no-factorizable recupera DECISIVAMENTE el valor de sustitutos.
+
+### Límites (honestos)
+El punto REALISTA q1 (adv +0.038) queda apenas por encima de +0.03, y el mismo punto en CYCLE 84 dio +0.028 (justo por
+debajo): el realista está SOBRE la frontera de decisión — lo robusto es la TENDENCIA monótona (q2/q3 claramente
+decisivos), no la lectura puntual de q1. 'Subir S' asume que el lazo real puede muestrear más el control / mejorar el
+sensor (costo no modelado). g sintético (max), base poly2 fija, objetivo escalar; falta detección automática del
+régimen y un lazo de acción-consecuencia real (gaps #1/#3).
+
+### Verificación
+exp069 (64 seeds, numpy). cycle85 → H-V4-7c 'apoyada' (DoD), D-V4-47 ACEPTADA, 1 techo 'real', analogía 7 etapas,
+verify_no_loss=OK. Test `test_cycle85_feedback_quality.py` 7/7 (calidad sube recuperación + 3 ramas). Convergente con
+errors-in-variables/atenuación (tier2) y con el noise-gating de CYCLE 84 (tier5).
+
+> SUB-ARCO gap #2 CERRADO (83-85): el producto es un prior de complementariedad (83); aprender el combinador recupera
+> bajo sustitutos pero noise-gated (84); el noise-gating es una pendiente — subir la calidad del feedback lo destraba
+> (85). Política: producto por DEFECTO; calidad de feedback + combinador aprendido en régimen de sustitutos. Próximo:
+> detección AUTOMÁTICA del régimen (conmutar producto<->aprendido sin saberlo a priori).

@@ -419,3 +419,19 @@ suposición más cargante del arco). CYCLE 83 la ataca por primera vez con valor
 > ruido). El producto sigue siendo la reconstrucción por DEFECTO; un combinador aprendido se invoca con feedback nítido +
 > detección de régimen de sustitutos. Próximo (CYCLE 85): subir la calidad del feedback (más muestras S de control,
 > re-observación sorpresa-gateada, reusar CYCLE 59) para ver si la recuperación pasa de parcial a DECISIVA bajo ruido.
+
+- **CYCLE 85 — H-V4-7c APOYADA (cierra el noise-gating del gap #2; completa el sub-arco 83-85).** ¿El noise-gating de
+  CYCLE 84 es una pared o una pendiente? Se sube la CALIDAD DEL FEEDBACK (S muestras de control ↑, σr de relevancia ↓) y
+  se mide adv = learned_poly2 − producto bajo sustitutos (g=max, λ=1.0): crece MONÓTONA q0=+0.017 → q1=+0.038 → q2=+0.052
+  → q3=+0.059 → clean=+0.059 y cruza el umbral DECISIVO (+0.03) en feedback NO perfecto (crossover en feedback moderado),
+  sin sacrificar complementos. => el noise-gating es una PENDIENTE (función decreciente del ruido de features, no una
+  pared): con features algo más nítidas aprender la forma no-factorizable recupera DECISIVAMENTE el valor de sustitutos.
+  Caveat honesto: el punto realista q1 (+0.038) queda apenas sobre +0.03 (y CYCLE 84 mismo punto dio +0.028) -> lo robusto
+  es la TENDENCIA monótona (q2/q3 claramente decisivos), no la lectura de q1. Cota 'real'; D-V4-47; test 7/7.
+
+> GAP #2 — estado tras 83-85 (SUB-ARCO CERRADO): (83) el producto es un prior de complementariedad robusto salvo
+> sustitutos; (84) aprender el combinador recupera, viable pero noise-gated; (85) el noise-gating es una pendiente --
+> subir la calidad del feedback (no sólo el volumen) destraba la recuperación DECISIVA sin feedback perfecto. POLÍTICA
+> del lab: producto por DEFECTO (barato, robusto); invertir en calidad de feedback + combinador aprendido cuando hay
+> régimen de sustitutos. Frontera abierta: detección AUTOMÁTICA del régimen (conmutar producto<->aprendido sin saberlo a
+> priori) y el valor no-factorizable de un lazo de acción-consecuencia REAL (gaps #1/#3).
