@@ -241,3 +241,15 @@
 - Notas: UNIFICA el arco verificador (48-55) con la reconstrucción de R-VALOR (79-80) y R-INTERVENCIÓN: act-and-verify
   estima R-VALOR = control × verificador-relevancia. Sirve al GOAL (R-VALOR raíz que aterriza el verificador). Próximo:
   control estimado online; verificador chequeable REAL (sandbox exp018) como relevancia.
+
+## [2026-06-25] CYCLE 82 — H-V4-6d APOYADA (capstone unificación): R-VALOR totalmente endógeno (control_est × verificador)
+- Archivos: cognia_x/experiments/exp066_endogenous_rvalue/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle82_endogenous_rvalue.py (new),
+  cognia_x/tests/test_cycle82_endogenous_rvalue.py (new), research_log.md / decomposition_tree.md (+consolidación 72-82) / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle82 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp (48 seeds): punto realista (S=8,ε=0.1) rvalue_full=0.822 vence a empowerment=0.400 y verifier=0.637
+  (+0.185), recupera 82% del óptimo; vence a ambas en TODO el grid de ruido. Sin oráculo en ningún lado.
+- Notas: capstone empírico de la unificación 79-82; cierra la rama R-CONTROL y el caveat 'control exacto' del 81.
+  Agregada CONSOLIDACIÓN canónica de la corrida 72-82 al decomposition_tree (tesis unificada: R-VALOR=control×relevancia,
+  marginales=empowerment+verificador). Sirve al GOAL. Próximo: lazo real acción-consecuencia + verificador real; valor
+  no-factorizable; SCALE (GPU/Kaggle, fuera de la corrida CPU).

@@ -2644,3 +2644,39 @@ TTS (tier1) y con CYCLE 80 + arco 48-55 (tier5).
 > la relevancia no necesita oráculo, la da el verificador chequeable (ruidoso pero tolerable hasta ~30% de error).
 > La auto-mejora verificada ES asignación de cómputo por R-VALOR estimado. Próximo: control TAMBIÉN estimado online;
 > verificador chequeable REAL (sandbox) como relevancia.
+
+## CYCLE 82 — H-V4-6d (rama R-CONTROL, capstone EMPÍRICO de la unificación 79-82): R-VALOR totalmente endógeno — APOYADA
+
+### Pregunta
+La corrida 79-81 estableció R-VALOR = control × relevancia, con el empowerment estimando la controlabilidad (79-80)
+y el verificador la relevancia (81), cada uno acotado/validado por SEPARADO (el 81 usó control EXACTO para aislar el
+ruido del verificador). ¿Sobrevive con AMBAS marginales ruidosas a la vez -- el caso realista, sin NINGUNA señal exacta?
+
+### Diseño
+Numpy. n=50 levers, ctrl continuo, rel binario (p_rel=0.3). valor=ctrl×rel. El agente estima AMBAS: ctrl_est = ctrl +
+ruido/√S (control de consecuencias) y rel_hat = rel flipeado con prob ε (verificador). 5 brazos: oracle, empowerment
+(ctrl_est), verifier (rel_hat), rvalue_full (ctrl_est × rel_hat = R-VALOR totalmente endógeno), random. Grid de ruido
+S∈{2,8,32} × ε∈{0.1,0.3}. 48 seeds. Pre-registrado: APOYADA si en el punto realista (S=8,ε=0.1) rvalue_full supera a
+ambas marginales (+>0.05) y recupera >=80% del óptimo.
+
+### Resultado — APOYADA
+Punto realista (S=8, ε=0.1): oracle=1.000 empowerment=0.400 verifier=0.637 rvalue_full=0.822 random=0.203. El R-VALOR
+totalmente endógeno (control_est × verificador, AMBOS ruidosos, SIN oráculo) VENCE a cada marginal sola por +0.185 y
+recupera 82% del óptimo. Y vence a AMBAS marginales en TODAS las celdas del grid de ruido (incluso a ruido alto
+S=2/ε=0.3 donde el absoluto cae). Mecanismo: las dos marginales capturan señal ORTOGONAL (control + relevancia);
+ninguna sola basta (el control solo capta poco con pocos relevantes, la relevancia sola ignora qué es controlable)
+pero su PRODUCTO recupera el valor. => prueba EMPÍRICA de la unificación: el agente que estima control (empowerment)
+Y relevancia (verificador) y los combina CONSTRUYE Y USA R-VALOR endógeno, sin ninguna señal exacta.
+
+### Límites (honestos)
+Valor multiplicativo ctrl×rel asumido (factorización de diseño); relevancia binaria; estimadores con ruido abstracto
+(falta un lazo REAL de acción-consecuencia y un verificador chequeable real); juguete (selección estática, objetivo
+escalar). La frontera de SCALE (sustrato no-juguete) requiere GPU/Kaggle, fuera de la corrida CPU.
+
+### Verificación
+exp066 (48 seeds, numpy). cycle82 -> H-V4-6d 'apoyada' (DoD), D-V4-44 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle82_endogenous_rvalue.py` 4/4 (vence en todo el grid + 3 ramas). Convergente con
+combinar-marginales (tier1) y con la unificación 79-81 (tier5).
+
+> Cierra la rama R-CONTROL con la demostración positiva TOTAL: R-VALOR es construible Y usable de dos marginales
+> endógenas ruidosas (empowerment_est × verificador), sin ningún oráculo. Cierra el caveat 'control exacto' del 81.

@@ -272,3 +272,12 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
   marginal-de-relevancia de R-VALOR. rvalue_verifier (ctrl × verificador) reconstruye el óptimo en ε=0 (1.000 vs
   control 0.387) y tolera el ruido del verificador hasta ε*=0.30, degradando con gracia al control. act-and-verify
   estima R-VALOR = control × verificador-relevancia. Une TRES arcos. Cota 'real'; D-V4-43; test 4/4.
+- [x] **CYCLE 82 (exp066) — H-V4-6d: APOYADA. Capstone EMPÍRICO de la unificación; cierra la rama R-CONTROL.** R-VALOR
+  totalmente endógeno (control_est × verificador, ambos ruidosos, sin oráculo): punto realista rvalue_full=0.822 vence
+  a empowerment=0.400 y verifier=0.637 (+0.185), recupera 82%; vence a ambas en TODO el grid. Cierra el caveat 'control
+  exacto' del 81. Cota 'real'; D-V4-44; test 4/4.
+
+> CONSOLIDACIÓN 72-82: TESIS UNIFICADA -- R-VALOR (referido al objetivo) = CONTROLABILIDAD × RELEVANCIA; sus marginales
+> son estimables endógenamente (empowerment=control, verificador=relevancia). Predicción y control no son rivales de
+> R-VALOR sino sus marginales. Une R-INTERVENCIÓN + verificador + R-VALOR. Frontera abierta: SCALE (GPU), valor
+> no-factorizable, lazo real acción-consecuencia/verificador real. Ver decomposition_tree "ESTADO v4 tras la corrida 72-82".

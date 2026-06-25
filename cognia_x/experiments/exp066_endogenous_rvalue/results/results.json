@@ -1,0 +1,90 @@
+{
+  "exp": "exp066_endogenous_rvalue",
+  "cycle": 82,
+  "hypothesis": "H-V4-6d",
+  "claim": "R-VALOR totalmente endogeno (control estimado x verificador, ambos ruidosos, sin oraculo) supera a cada marginal sola; prueba empirica de la unificacion 79-81",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "S2_e0.1": {
+        "oracle_value": 1.0,
+        "empowerment": 0.3341,
+        "verifier": 0.63,
+        "rvalue_full": 0.7612,
+        "random": 0.2347
+      },
+      "S2_e0.3": {
+        "oracle_value": 1.0,
+        "empowerment": 0.3338,
+        "verifier": 0.3856,
+        "rvalue_full": 0.467,
+        "random": 0.2295
+      },
+      "S8_e0.1": {
+        "oracle_value": 1.0,
+        "empowerment": 0.3995,
+        "verifier": 0.637,
+        "rvalue_full": 0.8218,
+        "random": 0.2033
+      },
+      "S8_e0.3": {
+        "oracle_value": 1.0,
+        "empowerment": 0.3553,
+        "verifier": 0.3905,
+        "rvalue_full": 0.5579,
+        "random": 0.2266
+      },
+      "S32_e0.1": {
+        "oracle_value": 1.0,
+        "empowerment": 0.3853,
+        "verifier": 0.587,
+        "rvalue_full": 0.8459,
+        "random": 0.2466
+      },
+      "S32_e0.3": {
+        "oracle_value": 1.0,
+        "empowerment": 0.3816,
+        "verifier": 0.3783,
+        "rvalue_full": 0.5388,
+        "random": 0.2149
+      }
+    },
+    "rep_point": "S8_e0.1",
+    "rep": {
+      "oracle_value": 1.0,
+      "empowerment": 0.3995,
+      "verifier": 0.637,
+      "rvalue_full": 0.8218,
+      "random": 0.2033
+    },
+    "beats_both": true,
+    "recovers": true,
+    "beats_all_cells": true,
+    "status": "apoyada",
+    "verdict": "H-V4-6d APOYADA: R-VALOR TOTALMENTE ENDÓGENO supera a cada marginal sola. En el punto realista (S=8, ε=0.1): rvalue_full (ctrl_est × verificador, AMBOS ruidosos, SIN oráculo) 0.822 vence a empowerment 0.400 (control estimado solo) y verifier 0.637 (relevancia sola) por +0.185, y recupera >=80% del oráculo. rvalue_full vence a ambas marginales en TODAS las celdas del grid de ruido: sí. => combinar las DOS marginales ENDÓGENAS (ninguna suficiente: el control solo capta poco con pocos relevantes, la relevancia sola ignora el control) supera a cualquiera sola, SIN ninguna señal exacta. Prueba EMPÍRICA de la unificación 79-81: el agente que estima control (empowerment) Y relevancia (verificador) y los combina reconstruye y USA R-VALOR endógeno. Cierra el caveat 'control exacto' del CYCLE 81."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k": 10,
+    "p_rel": 0.3,
+    "ctrl_noise": 0.5
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp066] CYCLE 82 / H-V4-6d — R-VALOR totalmente ENDÓGENO (control_est × verificador, ambos ruidosos)",
+    "[exp066] n=50 k=10 p_rel=0.3 ctrl_noise=0.5 seeds=48 S=[2, 8, 32] eps=[0.1, 0.3]",
+    "[exp066] S2_e0.1: oracle=1.000 empowerment=0.334 verifier=0.630 rvalue_full=0.761 random=0.235",
+    "[exp066] S8_e0.1: oracle=1.000 empowerment=0.400 verifier=0.637 rvalue_full=0.822 random=0.203",
+    "[exp066] S32_e0.1: oracle=1.000 empowerment=0.385 verifier=0.587 rvalue_full=0.846 random=0.247",
+    "[exp066] S2_e0.3: oracle=1.000 empowerment=0.334 verifier=0.386 rvalue_full=0.467 random=0.230",
+    "[exp066] S8_e0.3: oracle=1.000 empowerment=0.355 verifier=0.391 rvalue_full=0.558 random=0.227",
+    "[exp066] S32_e0.3: oracle=1.000 empowerment=0.382 verifier=0.378 rvalue_full=0.539 random=0.215",
+    "[exp066] punto realista S8_e0.1: rvalue_full=0.822 vence a ambas marginales (beats_both=True); en TODAS las celdas=True",
+    "[exp066] VEREDICTO H-V4-6d: APOYADA | H-V4-6d APOYADA: R-VALOR TOTALMENTE ENDÓGENO supera a cada marginal sola. En el punto realista (S=8, ε=0.1): rvalue_full (ctrl_est × verificador, AMBOS ruidosos, SIN oráculo) 0.822 vence a empowerment 0.400 (control estimado solo) y verifier 0.637 (relevancia sola) por +0.185, y recupera >=80% del oráculo. rvalue_full vence a ambas marginales en TODAS las celdas del grid de ruido: sí. => combinar las DOS marginales ENDÓGENAS (ninguna suficiente: el control solo capta poco con pocos relevantes, la relevancia sola ignora el control) supera a cualquiera sola, SIN ninguna señal exacta. Prueba EMPÍRICA de la unificación 79-81: el agente que estima control (empowerment) Y relevancia (verificador) y los combina reconstruye y USA R-VALOR endógeno. Cierra el caveat 'control exacto' del CYCLE 81."
+  ]
+}

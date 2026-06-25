@@ -342,3 +342,42 @@ y acota la rama:
   gracia al control en ε=0.5. => act-and-verify (R-INTERVENCIÓN + verificador) estima IMPLÍCITAMENTE R-VALOR = control
   × verificador-relevancia, sin oráculo. UNE TRES arcos (R-INTERVENCIÓN + verificador 48-55 + R-VALOR 79-80). Cota
   'real'; D-V4-43; test 4/4. La auto-mejora verificada ES asignación por R-VALOR estimado.
+
+- **CYCLE 82 — H-V4-6d APOYADA (capstone EMPÍRICO de la unificación; cierra la rama R-CONTROL).** R-VALOR TOTALMENTE
+  ENDÓGENO (control estimado ruidoso × verificador ruidoso, SIN oráculo en ningún lado). Punto realista (S=8, ε=0.1):
+  rvalue_full=0.822 vence a empowerment=0.400 (control solo) y verifier=0.637 (relevancia sola) por +0.185, recupera
+  82% del óptimo; vence a ambas en TODAS las celdas del grid de ruido. => el agente que estima control Y relevancia y
+  los combina CONSTRUYE Y USA R-VALOR endógeno, sin ninguna señal exacta. Cierra el caveat 'control exacto' del 81.
+  Cota 'real'; D-V4-44; test 4/4.
+
+## ESTADO v4 tras la corrida 72-82 (síntesis/consolidación — el cuadro UNIFICADO de R-VALOR)
+11 ciclos verificados (todos por las compuertas del engine, verify_no_loss=OK, tests verdes). La corrida extendió el
+thesis v4 en DOS arcos y produjo un CUADRO UNIFICADO de R-VALOR:
+
+**ARCO "R-VALOR bajo realismo" (72-78, memoria) — el thesis R-VALOR×memoria sobrevive al quitar las muletas de
+juguete:** el valor es estimable ONLINE sin oráculo (72, LFU recupera 99%); el estimador DEBE olvidar bajo
+no-estacionariedad (73, crossover full/decay) AUTO-seleccionando su tasa de olvido (74, selector no-regret); el VALOR
+≠ FRECUENCIA -- es task-definido (75, valor=frecuencia×costo, rebate "es sólo LFU"). Acotaciones HONESTAS: el valor es
+aprendible con observación GATEADA por la acción (76, el agente observa su contrafáctico) y la INTERVENCIÓN sobre la
+cache NO paga ni barata (77-78 REFUTADAS: la observación pasiva del contrafáctico es robusta; los efectos fuertes de
+R-INTERVENCIÓN viven en el aprendizaje causal activo, no en la cache).
+
+**ARCO "R-CONTROL → unificación bajo R-VALOR" (79-82) — el rival CONTESTADO del árbol resuelto:** el empowerment NO es
+un valor universal sino la MARGINAL-de-controlabilidad de R-VALOR (79, MIXTA; corrige el sesgo de 38/39); R-VALOR se
+RECONSTRUYE como el producto de dos marginales endógenas, control × relevancia (80, APOYADA); el VERIFICADOR de
+auto-mejora (48-55) ES la marginal-de-relevancia (81, APOYADA, tolera ε*≈0.30); y el R-VALOR TOTALMENTE ENDÓGENO
+(ambas marginales ruidosas, sin oráculo) supera a cada marginal sola (82, APOYADA, en todo el grid de ruido).
+
+**TESIS UNIFICADA (lo nuevo de esta corrida):** R-VALOR (referido al objetivo) = CONTROLABILIDAD × RELEVANCIA. Sus dos
+marginales son estimables ENDÓGENAMENTE: la controlabilidad por el empowerment (R-CONTROL) y la relevancia por el
+verificador (auto-mejora). PREDICCIÓN y CONTROL no son RIVALES de R-VALOR sino sus dos MARGINALES -- la predicción
+pasiva malgasta en lo predecible-inútil, el empowerment en lo controlable-inútil; ninguna sola es el valor. Esto UNE
+tres arcos del lab (R-INTERVENCIÓN/actuar + verificador/relevancia + R-VALOR/control×relevancia): un agente de
+act-and-verify estima IMPLÍCITAMENTE R-VALOR = control × verificador-relevancia y lo usa para asignar memoria/
+atención/cómputo, sin oráculo. R-VALOR sube de "convergente, resoluble = confianza MEDIA" (estado tras 51-71) hacia
+"resoluble Y CONSTRUIBLE de marginales endógenas en juguete = confianza MEDIA-ALTA".
+
+**Lo que NO se resolvió (honesto):** la ESCALA (todo numpy/juguete; un sustrato no-juguete requiere GPU/Kaggle, fuera
+de la corrida CPU); el valor MULTIPLICATIVO ctrl×rel se asume (factorización de diseño; falta valor no-factorizable);
+los estimadores usan ruido ABSTRACTO (falta un lazo real de acción-consecuencia y un verificador chequeable real,
+sandbox exp018); objetivo escalar. La intervención sobre la memoria-cache quedó como NULL firme (77-78).
