@@ -3892,3 +3892,13 @@ ejecución real) es el lever central de la auto-mejora segura.
   agrega §"Estado v4 tras la corrida 51-60" al thesis y la síntesis "Corrida 51-60" a paper.md (los dos arcos +
   unificación). R-VALOR sube de confianza BAJA a MEDIA (resoluble con evidencia positiva en juguete). Sirve al
   GOAL: integra los 10 ciclos en el documento central del lab.
+
+## [2026-06-25] CYCLE 62 — H-V4-2j MIXTA (cierre unificación): gating explícito por calibración estimada
+- Archivos: cognia_x/experiments/exp047_gated_self_verifier/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle62_gated_self_verifier.py, cognia_x/tests/test_cycle62_gated_self_verifier.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 5 passed (test_cycle62). Recorder verify_no_loss=OK. Experimento MIXTA (3 seeds, 2 regímenes).
+- Notas: el agente estima su calibración (probe 15%) y decide. FUERTE: elige endógeno 92% (oracle 0.22), gated
+  0.733 sin perder. DÉBIL: elige externo 67%, gated 0.328 EVITA el colapso (self_cons 0.038) pero no iguala a
+  verified (0.557) -> estimador ruidoso. MIXTA honesta: garantiza SEGURIDAD (no colapsar), no recuperación
+  perfecta. Cierra la unificación (60-62): el agente sabe cuándo confiar en sí mismo.

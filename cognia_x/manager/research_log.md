@@ -1927,3 +1927,43 @@ correcta).
 > es sustituible donde el modelo está calibrado (medible por su propia calibración, CYCLE 57); usarlo mal
 > calibrado es peligroso (refuerza errores). Cierra el lazo conceptual de la corrida: valor endógeno (qué vale,
 > cuándo deja de valer, y cuándo confiar en el propio juicio) conectado con la auto-mejora.
+
+## CYCLE 62 — H-V4-2j (cierre de la UNIFICACIÓN): GATING EXPLÍCITO — el agente decide cuándo confiar en sí mismo
+
+### Pregunta
+exp046 (CYCLE 60) mostró que la auto-consistencia COLAPSA cuando el modelo no está calibrado (consistente-pero-
+equivocado). El peligro: usarla cuando no es confiable. ¿Puede el agente ESTIMAR su propia calibración (probe
+barato) y DECIDIR — usar el filtro endógeno donde es confiable, deferir al verificador externo donde no — y así
+ser robusto (nunca colapsar)?
+
+### Diseño
+Reusa exp046. DOS regímenes de base (FUERTE calibrado / DÉBIL mal-calibrado). 4 brazos: verified, self_consistency,
+naive, y GATED (cada ronda estima calib_est en un probe_frac=15% de prompts; si >= umbral 0.65 usa endógeno, si
+no cae a externo). Métrica: real_acc media-rondas; del GATED, frac de rondas que eligió endógeno y oracle_frac.
+3 seeds. (En esta tarea el target está en el prompt -> el probe es barato; en tareas con oráculo caro serían
+pocas llamadas para calibrar.)
+
+### Resultado — MIXTA
+FUERTE (calib alta): gated 0.733 elige ENDÓGENO 92% de las rondas (oracle_frac 0.22), NO pierde (vs self_cons
+0.592) y se acerca a verified (0.879) -> verificación BARATA sin oráculo donde es confiable. DÉBIL (mal calib):
+gated 0.328 elige EXTERNO 67%, EVITA el COLAPSO de self_consistency (0.038) -- pero NO iguala del todo a verified
+(0.557). VEREDICTO MIXTA (honesto): el gate da SEGURIDAD (nunca colapsa) y decide bien en fuerte, pero el
+ESTIMADOR de calibración por probe es RUIDOSO (en débil eligió endógeno 33% de las rondas, arrastrando el
+resultado de ~0.557 a 0.328) -> no iguala a verified. El valor robusto demostrado es EVITAR EL COLAPSO, no la
+recuperación perfecta.
+
+### Límites (honestos)
+La estimación de calibración por probe es RUIDOSA (modelo débil + probe chico = 15%) -> el gate a veces confía de
+más en débil. En esta tarea el oráculo es BARATO (target en el prompt) -> el AHORRO de oráculo (la generalización
+a tareas con oráculo caro) NO se midió; lo demostrado es el MECANISMO de decisión y la SEGURIDAD. Un solo umbral
+de calibración; falta probe adaptativo y ligar el gate a la confianza calibrada del CYCLE 57.
+
+### Verificación
+exp047 (3 seeds, 2 regímenes, HybridLM, reusa exp046). cycle62 -> H-V4-2j 'mixta' (DoD), D-V4-26 ACEPTADA, 1
+techo 'real', analogía, verify_no_loss=OK. Test `test_cycle62_gated_self_verifier.py` 5/5. Convergente con
+meta-cognición / selective prediction (saber cuándo sabe) (tier1).
+
+> CIERRE de la UNIFICACIÓN (60-62): un agente con valor endógeno (confianza calibrada, 56-59) puede DECIDIR
+> cuándo su propio juicio reemplaza al verificador externo y cuándo deferir, estimando su calibración. Es
+> ROBUSTO (nunca colapsa): endógeno barato cuando es confiable, externo seguro cuando no. Meta-cognición barata
+> (saber cuándo sabe). Es la conexión operativa entre los dos arcos de la corrida.

@@ -1,0 +1,299 @@
+{
+  "exp": "exp047_gated_self_verifier",
+  "cycle": 62,
+  "hypothesis": "H-V4-2j",
+  "claim": "el agente que estima su propia calibración decide cuándo confiar en su auto-consistencia y es robusto en ambos regímenes (endógeno barato calibrado, externo seguro mal-calibrado)",
+  "verdict": "mixta",
+  "summary": {
+    "margin": 0.1054,
+    "strong": {
+      "base": 0.6333,
+      "verified": 0.8787,
+      "self_consistency": 0.5917,
+      "gated": 0.7334,
+      "naive": 0.5148,
+      "frac_endo": 0.9167,
+      "oracle_frac": 0.2208
+    },
+    "weak": {
+      "base": 0.1815,
+      "verified": 0.5574,
+      "self_consistency": 0.038,
+      "gated": 0.3278,
+      "naive": 0.0898,
+      "frac_endo": 0.3333,
+      "oracle_frac": 0.7167
+    },
+    "strong_chooses_endo": true,
+    "strong_no_loss": true,
+    "weak_chooses_ext": true,
+    "weak_avoids_collapse": true,
+    "weak_matches_verified": false,
+    "n_seeds": 3,
+    "status": "mixta",
+    "verdict": "H-V4-2j MIXTA: el gated evita el colapso en débil (gated 0.328 vs self_cons 0.038) y no pierde en fuerte (gated 0.733 vs self_cons 0.592), pero la decisión por régimen no es del todo limpia (fuerte endo 92%, débil endo 33%)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2",
+    "rounds": 4,
+    "K": 6,
+    "pool": 256,
+    "steps": 200,
+    "lr": 0.0005,
+    "top_k": 20,
+    "temperature": 0.9,
+    "tau": 0.5,
+    "calib_threshold": 0.65,
+    "probe_frac": 0.15,
+    "n_seed": 256,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "regimes": {
+    "strong": [
+      {
+        "seed": 0,
+        "base": 0.8,
+        "hist": {
+          "verified": [
+            0.8,
+            0.8667,
+            0.9556,
+            0.9333,
+            0.9222
+          ],
+          "self_consistency": [
+            0.8,
+            0.7667,
+            0.8889,
+            0.8556,
+            0.8
+          ],
+          "gated": [
+            0.8,
+            0.7667,
+            0.8889,
+            0.8556,
+            0.8
+          ],
+          "naive": [
+            0.8,
+            0.8667,
+            0.7111,
+            0.8,
+            0.7778
+          ]
+        },
+        "frac_endo": 1.0,
+        "oracle_frac": 0.15
+      },
+      {
+        "seed": 1,
+        "base": 0.5667,
+        "hist": {
+          "verified": [
+            0.5667,
+            0.8556,
+            0.8,
+            0.7667,
+            0.8222
+          ],
+          "self_consistency": [
+            0.5667,
+            0.4222,
+            0.4,
+            0.3778,
+            0.3778
+          ],
+          "gated": [
+            0.5667,
+            0.8556,
+            0.8222,
+            0.8,
+            0.8
+          ],
+          "naive": [
+            0.5667,
+            0.4111,
+            0.3778,
+            0.3667,
+            0.3222
+          ]
+        },
+        "frac_endo": 0.75,
+        "oracle_frac": 0.3625
+      },
+      {
+        "seed": 2,
+        "base": 0.5333,
+        "hist": {
+          "verified": [
+            0.5333,
+            0.9,
+            0.9,
+            0.9,
+            0.9222
+          ],
+          "self_consistency": [
+            0.5333,
+            0.5778,
+            0.5667,
+            0.5778,
+            0.4889
+          ],
+          "gated": [
+            0.5333,
+            0.5778,
+            0.5667,
+            0.5778,
+            0.4889
+          ],
+          "naive": [
+            0.5333,
+            0.4222,
+            0.4,
+            0.3667,
+            0.3556
+          ]
+        },
+        "frac_endo": 1.0,
+        "oracle_frac": 0.15
+      }
+    ],
+    "weak": [
+      {
+        "seed": 0,
+        "base": 0.3556,
+        "hist": {
+          "verified": [
+            0.3556,
+            0.7778,
+            0.9556,
+            0.8889,
+            0.9111
+          ],
+          "self_consistency": [
+            0.3556,
+            0.0667,
+            0.1111,
+            0.0667,
+            0.0556
+          ],
+          "gated": [
+            0.3556,
+            0.0667,
+            0.3778,
+            0.5333,
+            0.5889
+          ],
+          "naive": [
+            0.3556,
+            0.2222,
+            0.1889,
+            0.1111,
+            0.0889
+          ]
+        },
+        "frac_endo": 0.25,
+        "oracle_frac": 0.7875
+      },
+      {
+        "seed": 1,
+        "base": 0.1222,
+        "hist": {
+          "verified": [
+            0.1222,
+            0.3556,
+            0.4111,
+            0.4889,
+            0.6
+          ],
+          "self_consistency": [
+            0.1222,
+            0.0111,
+            0.0,
+            0.0222,
+            0.0333
+          ],
+          "gated": [
+            0.1222,
+            0.3556,
+            0.2556,
+            0.3889,
+            0.2778
+          ],
+          "naive": [
+            0.1222,
+            0.1,
+            0.0778,
+            0.0778,
+            0.0667
+          ]
+        },
+        "frac_endo": 0.5,
+        "oracle_frac": 0.575
+      },
+      {
+        "seed": 2,
+        "base": 0.0667,
+        "hist": {
+          "verified": [
+            0.0667,
+            0.2333,
+            0.3111,
+            0.3222,
+            0.4333
+          ],
+          "self_consistency": [
+            0.0667,
+            0.0333,
+            0.0222,
+            0.0222,
+            0.0111
+          ],
+          "gated": [
+            0.0667,
+            0.2333,
+            0.3111,
+            0.2,
+            0.3444
+          ],
+          "naive": [
+            0.0667,
+            0.0333,
+            0.0556,
+            0.0222,
+            0.0333
+          ]
+        },
+        "frac_endo": 0.25,
+        "oracle_frac": 0.7875
+      }
+    ]
+  },
+  "task_range": [
+    2,
+    300
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp047] CYCLE 62 / H-V4-2j — GATING EXPLÍCITO: el agente decide cuándo confiar en su auto-consistencia",
+    "[exp047] regímenes={'strong': 250, 'weak': 150} rounds=4 tau=0.5 calib_thr=0.65 probe_frac=0.15 seeds=[0, 1, 2]",
+    "[exp047] STRONG seed=0 base=0.800 -> verified=0.922 self_cons=0.800 gated=0.800 naive=0.778 | gated_endo=1.00 oracle_frac=0.15 calib_est=0.94",
+    "[exp047] STRONG seed=1 base=0.567 -> verified=0.822 self_cons=0.378 gated=0.800 naive=0.322 | gated_endo=0.75 oracle_frac=0.36 calib_est=0.89",
+    "[exp047] STRONG seed=2 base=0.533 -> verified=0.922 self_cons=0.489 gated=0.489 naive=0.356 | gated_endo=1.00 oracle_frac=0.15 calib_est=0.73",
+    "[exp047] WEAK seed=0 base=0.356 -> verified=0.911 self_cons=0.056 gated=0.589 naive=0.089 | gated_endo=0.25 oracle_frac=0.79 calib_est=0.57",
+    "[exp047] WEAK seed=1 base=0.122 -> verified=0.600 self_cons=0.033 gated=0.278 naive=0.067 | gated_endo=0.50 oracle_frac=0.57 calib_est=0.51",
+    "[exp047] WEAK seed=2 base=0.067 -> verified=0.433 self_cons=0.011 gated=0.344 naive=0.033 | gated_endo=0.25 oracle_frac=0.79 calib_est=0.46",
+    "[exp047] FUERTE: {'base': 0.6333, 'verified': 0.8787, 'self_consistency': 0.5917, 'gated': 0.7334, 'naive': 0.5148, 'frac_endo': 0.9167, 'oracle_frac': 0.2208}",
+    "[exp047] DÉBIL : {'base': 0.1815, 'verified': 0.5574, 'self_consistency': 0.038, 'gated': 0.3278, 'naive': 0.0898, 'frac_endo': 0.3333, 'oracle_frac': 0.7167}",
+    "[exp047] VEREDICTO H-V4-2j: MIXTA | H-V4-2j MIXTA: el gated evita el colapso en débil (gated 0.328 vs self_cons 0.038) y no pierde en fuerte (gated 0.733 vs self_cons 0.592), pero la decisión por régimen no es del todo limpia (fuerte endo 92%, débil endo 33%)."
+  ]
+}
