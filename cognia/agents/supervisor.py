@@ -116,6 +116,25 @@ class _Executor:
         self._results: Dict[str, Any] = {}    # subtask_id → output
 
     def run(self) -> None:
+        """Ejecuta la tarea completa. NUNCA deja la tarea en estado no-terminal:
+        cualquier excepción no controlada (plan_task, error de DB, tool inesperada)
+        se captura y la tarea se marca FAILED en vez de quedar colgada en
+        PLANNING/EXECUTING y propagar el error hasta el daemon/idle loop."""
+        try:
+            self._run()
+        except Exception as exc:
+            # El contrato del lifecycle exige un estado terminal. Sin esto, una
+            # tarea quedaría EXECUTING para siempre (solo recuperable tras reinicio)
+            # y la excepción tumbaría el tick() del daemon.
+            try:
+                self._queue.update_status(
+                    self._task.task_id, FAILED,
+                    result=f"EXECUTOR_ERROR:{type(exc).__name__}:{str(exc)[:200]}",
+                )
+            except Exception:
+                pass
+
+    def _run(self) -> None:
         t_start = time.monotonic()
 
         # ── 1. Planning ──────────────────────────────────────────────────────

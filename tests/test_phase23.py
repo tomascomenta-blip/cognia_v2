@@ -216,3 +216,23 @@ class TestCogniaAgentRuntime:
         # Puede ser DONE o FAILED (si Wikipedia no está disponible en tests)
         assert record.status in {DONE, FAILED, ABORTED}
         assert record.result is not None
+
+    def test_executor_error_marks_failed_not_dangling(self, tmp_db, monkeypatch):
+        """Regresión: una excepción no controlada en el cuerpo del executor debe
+        dejar la tarea en FAILED (estado terminal) y NO propagarse hasta tick()/daemon."""
+        from cognia.agents import supervisor as sv_mod
+
+        def _boom(*a, **k):
+            raise RuntimeError("planner exploded")
+
+        monkeypatch.setattr(sv_mod, "plan_task", _boom)
+
+        runtime = CogniaAgentRuntime(db_path=tmp_db)
+        tid = runtime.submit("tarea que rompe el planner")
+        # tick() no debe lanzar pese a la excepción interna
+        result_id = runtime.tick()
+        assert result_id == tid
+        record = runtime.status(tid)
+        assert record.status == FAILED
+        assert "EXECUTOR_ERROR" in (record.result or "")
+        assert "planner exploded" in (record.result or "")
