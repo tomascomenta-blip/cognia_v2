@@ -1476,3 +1476,34 @@ verify_no_loss=OK. Test `test_cycle49_iterated_star.py` 3/3. Convergente con STa
 
 > ARCO v4: el integrador del lab es un LAZO DE AUTO-MEJORA autónomo y sostenible (orquestación 40-47 + sustrato
 > 48 + iteración estable 49), con guardia de diversidad pendiente.
+
+## CYCLE 50 — H-V4-2c: guardia de diversidad (dedup+replay) en el lazo iterado
+
+### Pregunta
+¿Una guardia barata (dedup de verificados + replay de datos semilla de la verdad) previene el narrowing del
+lazo iterado (caveat de CYCLE 49) y/o sube el techo del bootstrapping?
+
+### Diseño
+Modelo propio. Dos lazos de R=6 rondas in-place desde el MISMO base: PLANO (entrena con todos los verificados
+con frecuencia) vs GUARDED (verificados DEDUP + replay de replay_n ejemplos semilla CORRECTOS de la verdad).
+Métricas por ronda: precisión por paso (held-out), COBERTURA = nº de prompts distintos en el set verificado,
+diversidad de respuestas. 3 seeds. Pre-registrado: APOYADA si la guardia mantiene más cobertura/diversidad que
+el plano al final Y su precisión final ≥ la del plano.
+
+### Resultado — APOYADA
+PLANO step [0.300,0.442,0.475,0.536,0.425,0.547,0.642] — trepa ERRÁTICO (cae a 0.425 en r4), cobertura
+estancada ~180. GUARDED [0.300,0.531,0.525,0.586,0.656,0.697,0.692] — suave y MÁS ALTO, cobertura CRECIENTE
+175→202, sin costo de precisión. La narrowing del 49 era real; dedup+replay la arregla (el plano se machaca en
+los verificados frecuentes; el dedup quita la frecuencia y el replay reinyecta señal de la verdad).
+
+### Límites (honestos)
+La diversidad-de-respuestas colapsa para AMBOS (acotada por el vocab chico de la suma ~39 valores) → la señal
+válida de narrowing es la COBERTURA de prompts. No se midió el techo real (cuántas rondas hasta plateau con la
+guardia). Tarea aritmética con oráculo exacto (falta verificador real-chequeable y tarea más rica).
+
+### Verificación
+exp036 (3 seeds, R=6, modelo propio). cycle50 → H-V4-2c 'apoyada' (DoD), D-V4-15 ACEPTADA, 1 techo 'real',
+analogía, verify_no_loss=OK. Test `test_cycle50_diversity_guard.py` 4/4. Convergente con replay/anti-colapso y CYCLE 11.
+
+> Sub-arco AUTO-MEJORA 48-50 CERRADO: mejora+amplifica (48) + motor estable iterado (49) + guardia controla
+> narrowing y sube techo (50). El lazo de auto-mejora es autónomo, sostenible y controlable sin modelo más grande.

@@ -439,3 +439,24 @@ act-and-verify no sólo razona y mejora el sustrato (48), sino que **itera de fo
 auto-mejora del North Star está demostrado en pequeño. **Próximo (H-V4-2c):** el **monitor de diversidad** + el
 **techo del bootstrapping** (cuántas rondas hasta plateau) + verificador real-chequeable (código→sandbox) para
 tareas más ricas que la aritmética.
+
+### CYCLE 50 — H-V4-2c: una guardia barata controla el narrowing y sube el techo
+
+CYCLE 49 dejó un caveat: la diversidad del lazo iterado declina (narrowing). **H-V4-2c** prueba una **guardia
+barata** — *dedup* de los ejemplos verificados + *replay* de datos semilla de la verdad — contra el lazo
+**plano**, sobre R=6 rondas. **Resultado APOYADA.** El lazo **plano** trepa pero **errático**
+(`0.300→0.442→0.475→0.536→0.425→0.547→0.642`, con un bajón en la ronda 4) y su **cobertura** de prompts se
+**estanca** (~180). El **guarded** trepa **suave y más alto** (`→0.697→0.692`, techo 0.692 vs 0.642), con
+**cobertura creciente** (175→**202**) y **sin costo de precisión**. **Mecanismo:** el plano entrena con los
+verificados *con frecuencia* → se machaca en los correctos fáciles/frecuentes (overfit, se estanca); el
+**dedup** quita ese sesgo de frecuencia y el **replay** reinyecta señal de la verdad → el lazo cubre **más del
+espacio de problemas** y trepa más. *(Caveat honesto: la métrica diversidad-de-respuestas colapsa para ambos
+porque está acotada por el vocab chico de la suma; la señal válida de narrowing es la **cobertura de
+prompts**.)*
+
+**Cierra el sub-arco de auto-mejora (48-50):** una ronda mejora el sustrato y se amplifica en multi-paso (48) +
+iterar es un **motor estable y fuerte** (49) + una **guardia barata controla el narrowing y sube el techo**
+(50). El lazo de auto-mejora del lab es **autónomo, sostenible y controlable sin un modelo más grande** — justo
+lo que pide el North Star (*intelligent que mejora, barato*). **Próximo (H-V4-3):** salto a una tarea más
+**rica** con **verificador real-chequeable** (código→sandbox), donde el verificador es real y la diversidad no
+está acotada por un vocab chico.

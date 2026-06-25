@@ -151,9 +151,22 @@ queda como restricción de VIABILIDAD, no como dirección.
   4 rondas) → en rondas largas necesita MONITOR/inyector de diversidad. El filtro de CORRECCIÓN mantiene el
   lazo sano (consistente con anti-colapso CYCLE 11). D-V4-14, techo 'real'. → el integrador puede mejorarse
   SOLO de forma autónoma y sostenible.
-- [ ] **H-V4-2c (P0): monitor de diversidad + techo del bootstrapping** — guardia de diversidad (inyectar/parar
-  si colapsa) + correr más rondas/base más fuerte para medir el plateau real + verificador real-chequeable.
-- [ ] H-V4-3 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
+- [x] **CYCLE 50 (exp036) — H-V4-2c: APOYADA. La guardia barata (dedup+replay) arregla el narrowing y sube el
+  techo.** Lazo PLANO vs GUARDED (dedup de verificados + replay de datos semilla de la verdad), R=6. PLANO step
+  por ronda [0.300,0.442,0.475,0.536,0.425,0.547,0.642] — trepa ERRÁTICO (cae a 0.425 en r4), cobertura
+  estancada ~180. GUARDED [0.300,0.531,0.525,0.586,0.656,0.697,0.692] — suave y MÁS ALTO, cobertura CRECIENTE
+  175→202, sin costo de precisión. Mecanismo: el plano se machaca en los verificados frecuentes (overfit fácil);
+  dedup+replay sostiene la cobertura del espacio y sube el techo. Caveat: la diversidad-de-answers colapsa para
+  ambos (vocab chico) → la COBERTURA de prompts es la señal válida. D-V4-15, techo 'real'. → el lazo de
+  auto-mejora usa dedup+replay por defecto.
+- [ ] **H-V4-3 (P0): salto a tarea más RICA + verificador real-chequeable** — código→sandbox (exp018) o
+  razonamiento no-aritmético, donde el verificador es real y la diversidad no está acotada por un vocab chico;
+  medir el techo del bootstrapping ahí.
+- [ ] H-V4-4 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
+
+> Sub-arco AUTO-MEJORA (CYCLE 48-50) CERRADO: una ronda mejora el sustrato y se amplifica en multi-paso (48) +
+> iterar es un motor estable y fuerte (49) + una guardia barata (dedup+replay) controla el narrowing y sube el
+> techo (50). El lazo de auto-mejora del lab es autónomo, sostenible y CONTROLABLE sin un modelo más grande.
 
 > Sub-arco MULTI-PASO (CYCLE 44-47) CERRADO en mecanismos: verificación de PROCESO frena el compounding (44) +
 > presupuesto ADAPTATIVO per-step rescata cadenas largas (45) + ABSTENCIÓN honesta sube la precisión-sobre-

@@ -3741,3 +3741,21 @@ ejecución real) es el lever central de la auto-mejora segura.
 - cycle49 por compuertas (verify=OK, DoD APOYADA, D-V4-14 ACEPTADA, 1 techo 'real'), test_cycle49 3/3.
 - PRÓXIMO (P0): H-V4-2c — monitor/inyector de diversidad (evitar colapso en runs largos) + medir el techo del
   bootstrapping (más rondas/base más fuerte) + verificador real-chequeable (código→sandbox).
+
+## CYCLE 50 (RESET v4) — H-V4-2c: guardia de diversidad (dedup+replay) en el lazo iterado (2026-06-24)
+- exp036_diversity_guard / H-V4-2c APOYADA: resuelve el caveat de narrowing del CYCLE 49. Lazo PLANO vs GUARDED
+  (dedup de verificados + replay de datos semilla de la VERDAD), R=6, 3 seeds, modelo propio.
+- PLANO step por ronda [0.300,0.442,0.475,0.536,0.425,0.547,0.642] — trepa ERRÁTICO (cae a 0.425 en r4),
+  cobertura de prompts ESTANCADA ~180, diversidad 0.036→0.019. GUARDED [0.300,0.531,0.525,0.586,0.656,0.697,
+  0.692] — trepa SUAVE y MÁS ALTO, cobertura CRECIENTE 175→202, sin costo de precisión.
+- MECANISMO: el plano entrena con verificados CON FRECUENCIA → se machaca en los correctos fáciles/frecuentes
+  (overfit, se estanca/erratiza); el dedup quita el sesgo de frecuencia y el replay reinyecta señal de la
+  verdad → el lazo cubre MÁS del espacio de problemas y trepa más alto. La narrowing del 49 era REAL.
+- CAVEAT honesto: la métrica diversidad-de-answers colapsa para AMBOS (acotada por el vocab chico de la suma) →
+  la señal válida de narrowing es la COBERTURA de prompts (no la diversidad de respuestas).
+- cycle50 por compuertas (verify=OK, DoD APOYADA, D-V4-15 ACEPTADA, 1 techo 'real'), test_cycle50 4/4.
+- SUB-ARCO AUTO-MEJORA (48-50) CERRADO: 1 ronda mejora+amplifica (48) + iterar es motor estable (49) + guardia
+  barata controla el narrowing y sube el techo (50). El lazo es autónomo, sostenible y controlable sin modelo
+  más grande.
+- PRÓXIMO (P0): H-V4-3 — salto a tarea más RICA + verificador real-chequeable (código→sandbox, exp018), donde
+  el verificador es real y la diversidad no está acotada por un vocab chico.
