@@ -281,3 +281,10 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > son estimables endógenamente (empowerment=control, verificador=relevancia). Predicción y control no son rivales de
 > R-VALOR sino sus marginales. Une R-INTERVENCIÓN + verificador + R-VALOR. Frontera abierta: SCALE (GPU), valor
 > no-factorizable, lazo real acción-consecuencia/verificador real. Ver decomposition_tree "ESTADO v4 tras la corrida 72-82".
+
+- [x] **CYCLE 83 (exp067) — H-V4-7a: APOYADA. Ataca y acota el gap #2 (factorización ctrl×rel asumida).** La
+  reconstrucción-PRODUCTO de R-VALOR (ctrl_est × rel_est) es un PRIOR DE COMPLEMENTARIEDAD: bajo complementos (g=min)
+  vence a cada marginal en TODO λ (crossover=nunca, adv 0.197→0.244); bajo sustitutos (g=max) se rompe en λ=1.0
+  (crossover λ*=0.75; relevancia 0.942 > producto 0.915). Las filas 'clean' (estimadores perfectos) aíslan la
+  factorización del ruido. Tolera no-factorizabilidad moderada (λ≤0.5). Cota 'real'; D-V4-45; test 6/6. Próximo:
+  combinador APRENDIDO que recupere lo perdido bajo sustitutos (CYCLE 84).

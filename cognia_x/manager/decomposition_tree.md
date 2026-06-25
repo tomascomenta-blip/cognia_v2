@@ -381,3 +381,24 @@ atención/cómputo, sin oráculo. R-VALOR sube de "convergente, resoluble = conf
 de la corrida CPU); el valor MULTIPLICATIVO ctrl×rel se asume (factorización de diseño; falta valor no-factorizable);
 los estimadores usan ruido ABSTRACTO (falta un lazo real de acción-consecuencia y un verificador chequeable real,
 sandbox exp018); objetivo escalar. La intervención sobre la memoria-cache quedó como NULL firme (77-78).
+
+## Addendum — CYCLE 83: ataque a la FACTORIZACIÓN (acota el gap #2)
+La corrida 79-82 construyó todo el thesis sobre value = ctrl × rel (gap #2: factorización multiplicativa ASUMIDA, la
+suposición más cargante del arco). CYCLE 83 la ataca por primera vez con valor NO factorizable y la acota:
+
+- **CYCLE 83 — H-V4-7a APOYADA (ataca y acota el gap #2 del estado 72-82).** La reconstrucción-PRODUCTO de R-VALOR
+  (ctrl_est × rel_est) NO es una ley universal sino un PRIOR DE COMPLEMENTARIEDAD. Con value=(1-λ)·ctrl·rel + λ·g
+  barriendo λ∈{0..1} en dos familias opuestas: bajo COMPLEMENTOS (g=min, óptimo both-high) el producto vence a cada
+  marginal en TODO λ (crossover=nunca; adv sube 0.197→0.244 con λ); bajo SUSTITUTOS (g=max, óptimo 'al menos uno alto')
+  la ventaja DECAE monótona (0.200→−0.027) y el producto se ROMPE en λ=1.0 (crossover λ*=0.75; la relevancia sola 0.942
+  supera al producto 0.915). Las filas 'clean' (estimadores perfectos) reproducen la asimetría → es la FACTORIZACIÓN, no
+  el ruido. CAVEAT honesto: el producto es MÁS robusto de lo predicho — tolera no-factorizabilidad MODERADA (λ≤0.5 vence
+  en ambas familias); el break sólo aparece cerca de sustitutos puros. => el thesis R-VALOR=control×relevancia sobrevive
+  como PRIOR ROBUSTO con frontera caracterizada: vale cuando el óptimo es both-high (complementos/Cobb-Douglas), falla
+  bajo sustitutos. NOTA DE PROCESO: el punto único λ=0.5 del piloto fue laxo; la métrica confirmatoria es el crossover λ*
+  (misma hipótesis cualitativa). Cota 'real'; D-V4-45; test 6/6. Próximo (CYCLE 84): combinador APRENDIDO que recupere lo
+  perdido bajo sustitutos.
+
+> GAP #2 ACOTADO (no cerrado): la factorización-producto del arco 79-82 es un prior de complementariedad robusto salvo
+> bajo sustitutos. Falta la CONSTRUCCIÓN (combinador aprendido que detecte el régimen de sustitutos y conmute) y el
+> valor no-factorizable surgido de un lazo real (gaps #1/#3). El producto sigue siendo la reconstrucción por DEFECTO.

@@ -253,3 +253,15 @@
   Agregada CONSOLIDACIÓN canónica de la corrida 72-82 al decomposition_tree (tesis unificada: R-VALOR=control×relevancia,
   marginales=empowerment+verificador). Sirve al GOAL. Próximo: lazo real acción-consecuencia + verificador real; valor
   no-factorizable; SCALE (GPU/Kaggle, fuera de la corrida CPU).
+
+## [2026-06-25] CYCLE 83 — H-V4-7a APOYADA (ataque a la factorización): R-VALOR producto = prior de complementariedad
+- Archivos: cognia_x/experiments/exp067_nonfactorizable_value/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle83_nonfactorizable_value.py (new),
+  cognia_x/tests/test_cycle83_nonfactorizable_value.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 6/6; arco 79-83 + engine 42/42; cycle83 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp (48 seeds): adv(prod−mejor marginal) COMPLEMENTOS {0.197..0.244} (crossover=nunca, robusto) vs SUSTITUTOS
+  {0.200..−0.027} (crossover λ*=0.75; en λ=1.0 la relevancia 0.942 supera al producto 0.915). Filas 'clean' reproducen
+  la asimetría → es la FACTORIZACIÓN, no el ruido.
+- Notas: ataca y ACOTA el gap #2 (value=ctrl×rel asumido). La reconstrucción-producto del arco 79-82 es un PRIOR DE
+  COMPLEMENTARIEDAD: robusto salvo bajo sustitutos puros; tolera no-factorizabilidad moderada (λ≤0.5). Sirve al GOAL
+  (R-VALOR). Próximo (CYCLE 84): combinador APRENDIDO que recupere lo perdido bajo sustitutos.

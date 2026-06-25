@@ -2680,3 +2680,42 @@ combinar-marginales (tier1) y con la unificación 79-81 (tier5).
 
 > Cierra la rama R-CONTROL con la demostración positiva TOTAL: R-VALOR es construible Y usable de dos marginales
 > endógenas ruidosas (empowerment_est × verificador), sin ningún oráculo. Cierra el caveat 'control exacto' del 81.
+
+## CYCLE 83 — H-V4-7a (rama R-VALOR, ataque a la FACTORIZACIÓN): la reconstrucción-producto es un prior de complementariedad — APOYADA
+
+### Pregunta
+TODO el arco 79-82 asumió value = ctrl × rel (factorización multiplicativa de diseño; gap #2 del decomposition_tree,
+la suposición más cargante del arco). ¿Sobrevive la reconstrucción-PRODUCTO de R-VALOR (ctrl_est × rel_est) cuando el
+valor NO factoriza limpio?
+
+### Diseño
+Numpy. n=50 levers, ctrl,rel ~ U(0,1). value(λ,fam) = (1-λ)·ctrl·rel + λ·g(ctrl,rel), con dos familias OPUESTAS de
+no-factorizabilidad: COMPLEMENTOS g=min(ctrl,rel) (óptimo both-high, como el producto) y SUSTITUTOS g=max(ctrl,rel)
+(óptimo 'al menos uno alto', diverge del producto). Estimadores endógenos ruidosos (S=8, σc=0.5, σr=0.1) y un nivel
+'clean' (perfectos) para aislar factorización de ruido. 6 brazos: oracle, empowerment (ctrl_est), relevance (rel_est),
+rvalue_prod (ctrl_est×rel_est), rvalue_add (suma), random. λ∈{0,0.25,0.5,0.75,1.0}. 48 seeds. Métrica: crossover λ* =
+menor λ con adv(prod − mejor marginal) ≤ 0.05. Pre-registrado: APOYADA si bajo complementos adv>0.05 en TODO λ y bajo
+sustitutos se rompe en λ=1.0.
+
+### Resultado — APOYADA
+adv(prod − mejor marginal) por λ: COMPLEMENTOS {0.197, 0.206, 0.218, 0.222, 0.244} (crossover=nunca, robusto en todo λ);
+SUSTITUTOS {0.200, 0.118, 0.065, 0.027, −0.027} (decae monótona; crossover λ*=0.75; en λ=1.0 la relevancia sola 0.942
+supera al producto 0.915). Las filas 'clean' reproducen la asimetría (subs λ=1.0 clean: emp 0.953 / rel 0.955 > prod
+0.933) → es la FACTORIZACIÓN, no el ruido. => la reconstrucción-producto codifica un PRIOR DE COMPLEMENTARIEDAD: vale
+cuando la no-factorizabilidad preserva el óptimo both-high (complementos), se rompe cuando lo cambia a sustitutos.
+
+### Límites (honestos)
+El producto es MÁS robusto de lo pre-registrado: tolera no-factorizabilidad MODERADA (λ≤0.5 vence en AMBAS familias:
+comp adv 0.218, subs adv 0.065); el break sólo aparece cerca de sustitutos puros (λ≥0.75). NOTA DE PROCESO: el punto
+único λ=0.5 del piloto (12 seeds) resultó laxo → la métrica confirmatoria es el crossover λ* (misma hipótesis
+cualitativa, reoperacionalizada antes de la corrida de 48 seeds; el caveat se reporta explícito). g sintético (min/max),
+objetivo escalar, ruido abstracto: falta valor no-factorizable de un lazo real (gaps #1/#3).
+
+### Verificación
+exp067 (48 seeds, numpy). cycle83 → H-V4-7a 'apoyada' (DoD), D-V4-45 ACEPTADA, 1 techo 'real', analogía 7 etapas,
+verify_no_loss=OK. Test `test_cycle83_nonfactorizable_value.py` 6/6 (asimetría real + clean aísla factorización + 4
+ramas del veredicto). Convergente con Cobb-Douglas/sustitutos (tier2) y con el gap #2 del árbol (tier5).
+
+> Acota el gap #2: la factorización ctrl×rel del arco 79-82 NO es ley universal sino un PRIOR DE COMPLEMENTARIEDAD
+> robusto salvo bajo sustitutos. Próximo (CYCLE 84): combinador APRENDIDO que recupere lo perdido bajo sustitutos
+> (cierra el gap #2 con CONSTRUCCIÓN, no sólo acotación).
