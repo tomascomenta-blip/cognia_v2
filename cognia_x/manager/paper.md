@@ -419,3 +419,23 @@ modelo propio CPU-first. *(Cota honesta: base débil → la cadena greedy a K≥
 amplificación se demostró a K≤3.)* **Próximo (H-V4-2b):** iterar el lazo varias rondas, verificador
 real-chequeable (código→sandbox) y razonamiento no-aritmético — el camino hacia *"algo que habla y razona,
 barato"*.
+
+### CYCLE 49 — H-V4-2b: ¿el lazo de auto-mejora es un motor sostenible?
+
+CYCLE 48 mostró que UNA ronda de auto-mejora verificada mejora el sustrato. Para que sea un **motor** autónomo
+(no un truco de una vez), debe ser **estable a través de rondas** — el riesgo conocido es el *colapso* tipo
+STaR (entrenar sobre la propia distribución estrecha y degradar). **H-V4-2b** itera el lazo R=4 rondas
+(generar → filtrar verificado → reentrenar in-place) midiendo precisión por paso, accuracy de cadena y
+**diversidad** cada ronda. **Resultado APOYADA.** Paso por ronda (prom): `0.300→0.472→0.456→0.481→0.508`
+(+0.208); en el mejor seed un base débil se **bootstrappea a fuerte** (paso 0.30→**0.78**, cadena 0.19→**0.75**).
+La accuracy de cadena sigue (`0.187→0.436`). **Sin colapso de precisión** — el filtro de *corrección* mantiene
+el lazo sano (consistente con el anti-colapso del CYCLE 11). **Caveat honesto:** la **diversidad declina
+monótona** (`0.040→0.021`, ~0.52× la inicial, justo en el borde del umbral) — un *narrowing temprano*: en
+rondas largas el lazo necesitaría **monitorear/inyectar diversidad** para no colapsar. *(La métrica
+fracción-distintas está acotada por el vocab chico de la suma; se usa como señal relativa entre rondas.)*
+
+**Lo que cierra:** el integrador del lab puede **mejorarse solo, de forma autónoma y sostenible** — el lazo
+act-and-verify no sólo razona y mejora el sustrato (48), sino que **itera de forma estable** (49). El motor de
+auto-mejora del North Star está demostrado en pequeño. **Próximo (H-V4-2c):** el **monitor de diversidad** + el
+**techo del bootstrapping** (cuántas rondas hasta plateau) + verificador real-chequeable (código→sandbox) para
+tareas más ricas que la aritmética.

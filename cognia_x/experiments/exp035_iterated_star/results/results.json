@@ -1,0 +1,218 @@
+{
+  "exp": "exp035_iterated_star",
+  "cycle": 49,
+  "hypothesis": "H-V4-2b",
+  "claim": "iterar el lazo de auto-mejora verificada es un motor ESTABLE (la precisión por paso sube y platea sin colapsar diversidad/precisión)",
+  "verdict": "APOYADA",
+  "stats": {
+    "step": [
+      0.3,
+      0.47222222222222227,
+      0.45555555555555555,
+      0.4805555555555556,
+      0.5083333333333333
+    ],
+    "chain": [
+      0.18666666666666668,
+      0.4066666666666667,
+      0.3266666666666667,
+      0.41111111111111115,
+      0.43555555555555553
+    ],
+    "diversity": [
+      0.03978587962962963,
+      0.03342013888888889,
+      0.02459490740740741,
+      0.022569444444444448,
+      0.021267361111111115
+    ],
+    "peak": 0.5083333333333333,
+    "peak_round": 4,
+    "final": 0.5083333333333333,
+    "base": 0.3,
+    "improves": true,
+    "collapses_acc": false,
+    "div_collapse": false,
+    "non_decreasing": true,
+    "saturates_immediately": false,
+    "n_seeds": 3
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2",
+    "rounds": 4,
+    "M": 150,
+    "n_prompts": 384,
+    "K": 6,
+    "star_steps": 200,
+    "star_lr": 0.0005,
+    "top_k": 16,
+    "temperature": 1.0,
+    "margin": 0.03,
+    "n_seed": 256,
+    "base_steps": 600,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "lo": 0,
+    "hi": 19,
+    "test_frac": 0.3
+  },
+  "seeds": [
+    {
+      "seed": 0,
+      "npar": 201280,
+      "secs": 71.5,
+      "rounds": [
+        {
+          "round": 0,
+          "step": 0.21666666666666667,
+          "chain": 0.10666666666666667,
+          "diversity": 0.03732638888888889,
+          "n_verified": 0
+        },
+        {
+          "round": 1,
+          "step": 0.275,
+          "chain": 0.19333333333333333,
+          "diversity": 0.03125,
+          "n_verified": 675
+        },
+        {
+          "round": 2,
+          "step": 0.325,
+          "chain": 0.26666666666666666,
+          "diversity": 0.026909722222222224,
+          "n_verified": 1122
+        },
+        {
+          "round": 3,
+          "step": 0.3333333333333333,
+          "chain": 0.3333333333333333,
+          "diversity": 0.023003472222222224,
+          "n_verified": 1293
+        },
+        {
+          "round": 4,
+          "step": 0.325,
+          "chain": 0.2866666666666667,
+          "diversity": 0.018663194444444444,
+          "n_verified": 1423
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "npar": 201280,
+      "secs": 71.38,
+      "rounds": [
+        {
+          "round": 0,
+          "step": 0.26666666666666666,
+          "chain": 0.16,
+          "diversity": 0.030381944444444444,
+          "n_verified": 0
+        },
+        {
+          "round": 1,
+          "step": 0.525,
+          "chain": 0.5133333333333333,
+          "diversity": 0.027777777777777776,
+          "n_verified": 699
+        },
+        {
+          "round": 2,
+          "step": 0.5333333333333333,
+          "chain": 0.4,
+          "diversity": 0.022135416666666668,
+          "n_verified": 1369
+        },
+        {
+          "round": 3,
+          "step": 0.4,
+          "chain": 0.26,
+          "diversity": 0.022135416666666668,
+          "n_verified": 1568
+        },
+        {
+          "round": 4,
+          "step": 0.4166666666666667,
+          "chain": 0.26666666666666666,
+          "diversity": 0.022135416666666668,
+          "n_verified": 1410
+        }
+      ]
+    },
+    {
+      "seed": 2,
+      "npar": 201280,
+      "secs": 72.73,
+      "rounds": [
+        {
+          "round": 0,
+          "step": 0.4166666666666667,
+          "chain": 0.29333333333333333,
+          "diversity": 0.05164930555555555,
+          "n_verified": 0
+        },
+        {
+          "round": 1,
+          "step": 0.6166666666666667,
+          "chain": 0.5133333333333333,
+          "diversity": 0.04123263888888889,
+          "n_verified": 879
+        },
+        {
+          "round": 2,
+          "step": 0.5083333333333333,
+          "chain": 0.31333333333333335,
+          "diversity": 0.024739583333333332,
+          "n_verified": 1349
+        },
+        {
+          "round": 3,
+          "step": 0.7083333333333334,
+          "chain": 0.64,
+          "diversity": 0.022569444444444444,
+          "n_verified": 1356
+        },
+        {
+          "round": 4,
+          "step": 0.7833333333333333,
+          "chain": 0.7533333333333333,
+          "diversity": 0.023003472222222224,
+          "n_verified": 1831
+        }
+      ]
+    }
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp035] CYCLE 49 / H-V4-2b — ITERAR el lazo de auto-mejora verificada (modelo propio)",
+    "[exp035] suma [0,19] test=120 rounds=4 M=150 n_prompts=384 star_steps=200 seeds=[0, 1, 2]",
+    "[exp035]   seed=0 round=0 (base): step=0.217 chain=0.107 div=0.037",
+    "[exp035]   seed=0 round=1: step=0.275 chain=0.193 div=0.031 n_ver=675",
+    "[exp035]   seed=0 round=2: step=0.325 chain=0.267 div=0.027 n_ver=1122",
+    "[exp035]   seed=0 round=3: step=0.333 chain=0.333 div=0.023 n_ver=1293",
+    "[exp035]   seed=0 round=4: step=0.325 chain=0.287 div=0.019 n_ver=1423",
+    "[exp035] seed=0 71.5s npar=201280",
+    "[exp035]   seed=1 round=0 (base): step=0.267 chain=0.160 div=0.030",
+    "[exp035]   seed=1 round=1: step=0.525 chain=0.513 div=0.028 n_ver=699",
+    "[exp035]   seed=1 round=2: step=0.533 chain=0.400 div=0.022 n_ver=1369",
+    "[exp035]   seed=1 round=3: step=0.400 chain=0.260 div=0.022 n_ver=1568",
+    "[exp035]   seed=1 round=4: step=0.417 chain=0.267 div=0.022 n_ver=1410",
+    "[exp035] seed=1 71.4s npar=201280",
+    "[exp035]   seed=2 round=0 (base): step=0.417 chain=0.293 div=0.052",
+    "[exp035]   seed=2 round=1: step=0.617 chain=0.513 div=0.041 n_ver=879",
+    "[exp035]   seed=2 round=2: step=0.508 chain=0.313 div=0.025 n_ver=1349",
+    "[exp035]   seed=2 round=3: step=0.708 chain=0.640 div=0.023 n_ver=1356",
+    "[exp035]   seed=2 round=4: step=0.783 chain=0.753 div=0.023 n_ver=1831",
+    "[exp035] seed=2 72.7s npar=201280",
+    "[exp035] VEREDICTO H-V4-2b: APOYADA | PASO por ronda=['0.300', '0.472', '0.456', '0.481', '0.508'] (base=0.300 pico=0.508@r4 final=0.508)",
+    "[exp035] CADENA por ronda=['0.187', '0.407', '0.327', '0.411', '0.436'] | DIVERSIDAD=['0.040', '0.033', '0.025', '0.023', '0.021'] (colapso_acc=False colapso_div=False no_decrece=True)"
+  ]
+}

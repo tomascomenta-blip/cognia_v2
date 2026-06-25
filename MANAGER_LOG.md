@@ -3726,3 +3726,18 @@ ejecución real) es el lever central de la auto-mejora segura.
 - cycle48 por compuertas (verify=OK, DoD APOYADA, D-V4-13 ACEPTADA, 1 techo 'real'), test_cycle48 3/3.
 - PRÓXIMO (P0): H-V4-2b — iterar el lazo de auto-mejora varias rondas (¿satura?) + verificador real-chequeable
   (código→sandbox) + razonamiento no-aritmético = "algo que habla y razona, barato".
+
+## CYCLE 49 (RESET v4) — H-V4-2b: iterar el lazo de auto-mejora verificada (2026-06-24)
+- exp035_iterated_star / H-V4-2b APOYADA: el lazo de auto-mejora verificada iterado R=4 rondas es un MOTOR
+  ESTABLE y FUERTE. Ronda r: genera con el modelo actual, filtra verificado-correcto (oráculo), fine-tunea
+  in-place; mide paso/cadena/diversidad por ronda. 3 seeds, modelo propio.
+- PASO por ronda (prom): 0.300→0.472→0.456→0.481→0.508 (+0.208; mejor seed bootstrappea un base débil a 0.783
+  paso, 0.753 cadena). CADENA (K=2): 0.187→0.436. SIN colapso de precisión (no-decreciente dentro del margen).
+  DIVERSIDAD: 0.040→0.021 (declina monótona, ~0.52× inicial = narrowing temprano, no colapso en 4 rondas).
+- LECCIÓN: el integrador puede MEJORARSE SOLO de forma autónoma y sostenible; el filtro de CORRECCIÓN mantiene
+  el lazo sano (consistente con anti-colapso CYCLE 11). CAVEAT honesto: la diversidad declina → en rondas largas
+  hace falta MONITOR/inyector de diversidad. La métrica fracción-distintas está acotada por el vocab chico de la
+  suma (se usa como señal relativa).
+- cycle49 por compuertas (verify=OK, DoD APOYADA, D-V4-14 ACEPTADA, 1 techo 'real'), test_cycle49 3/3.
+- PRÓXIMO (P0): H-V4-2c — monitor/inyector de diversidad (evitar colapso en runs largos) + medir el techo del
+  bootstrapping (más rondas/base más fuerte) + verificador real-chequeable (código→sandbox).

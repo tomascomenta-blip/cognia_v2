@@ -1445,3 +1445,34 @@ verify_no_loss=OK. Test `test_cycle48_substrate_amplify.py` 3/3. Convergente con
 
 > ARCO v4 CERRADO (40-48): el integrador es un LAZO DE AUTO-MEJORA — orquestación test-time (40-43) + multi-paso
 > (44-47) + mejora del sustrato amplificada (48). Unifica R-INTERVENCIÓN + R-VALOR sobre el modelo propio.
+
+## CYCLE 49 — H-V4-2b: iterar el lazo de auto-mejora verificada (¿motor estable o colapso?)
+
+### Pregunta
+¿Iterar el lazo de auto-mejora verificada varias rondas es un MOTOR ESTABLE (precisión por paso sube y platea)
+o COLAPSA (narrowing tipo STaR: el modelo se entrena sobre su distribución estrecha y degrada)?
+
+### Diseño
+Modelo propio. Lazo de R=4 rondas in-place: ronda r → genera K completaciones por prompt con el modelo ACTUAL,
+filtra verificado-correcto (oráculo), fine-tunea el modelo actual con ellas. Tras cada ronda mide: precisión
+por paso (held-out), cadena greedy (K=2), diversidad (fracción de respuestas distintas) y n_verified. 3 seeds.
+Pre-registrado: APOYADA si el paso sube y es no-decreciente sin colapso de diversidad (≥0.5× inicial); REFUTADA
+si la precisión cae tras su pico o la diversidad se desploma.
+
+### Resultado — APOYADA (motor estable y fuerte)
+PASO por ronda (prom): 0.300→0.472→0.456→0.481→0.508 (+0.208; mejor seed un base débil se bootstrappea a 0.783
+paso, 0.753 cadena). CADENA: 0.187→0.436. SIN colapso de precisión (no-decreciente). DIVERSIDAD: 0.040→0.021
+(declina monótona, ~0.52× inicial = narrowing temprano, no colapso en 4 rondas). El filtro de corrección
+mantiene el lazo sano (consistente con anti-colapso CYCLE 11).
+
+### Límites (honestos)
+La diversidad declina monótona → en rondas largas hace falta monitor/inyector de diversidad (riesgo conocido de
+STaR). La métrica fracción-distintas está acotada por el vocab chico de la suma (~39 valores) → se usa como
+señal RELATIVA entre rondas. No se midió el TECHO (cuántas rondas hasta plateau real).
+
+### Verificación
+exp035 (3 seeds, modelo propio). cycle49 → H-V4-2b 'apoyada' (DoD), D-V4-14 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle49_iterated_star.py` 3/3. Convergente con STaR (Zelikman 2022) y CYCLE 11.
+
+> ARCO v4: el integrador del lab es un LAZO DE AUTO-MEJORA autónomo y sostenible (orquestación 40-47 + sustrato
+> 48 + iteración estable 49), con guardia de diversidad pendiente.

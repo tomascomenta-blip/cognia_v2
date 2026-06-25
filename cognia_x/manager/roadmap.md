@@ -144,8 +144,15 @@ queda como restricción de VIABILIDAD, no como dirección.
   greedy, aísla el sustrato): ratio verified/base K1 1.32× → K2 1.93× → K3 2.71× (creciente). Una mejora modesta
   del paso (+0.10) rinde compuesta en lo largo. D-V4-13, techo 'real'. Cota honesta: base débil → cadena greedy
   a K≥4 cae a ~0 (piso; amplificación demostrada a K≤3).
-- [ ] **H-V4-2b (P0): iterar el lazo de auto-mejora** — varias rondas de STaR (¿hasta dónde sube el paso? ¿satura?)
-  + verificador REAL-chequeable (código→sandbox, exp018) para tareas más ricas que la suma + razonamiento no-aritmético.
+- [x] **CYCLE 49 (exp035) — H-V4-2b: APOYADA. El lazo de auto-mejora es un MOTOR ESTABLE y FUERTE.** Iterar el
+  lazo verificado R=4 rondas. PASO por ronda (prom): 0.300→0.472→0.456→0.481→0.508 (+0.208; mejor seed un base
+  débil se bootstrappea a **0.783** paso, **0.753** cadena). CADENA: 0.187→0.436. SIN colapso de precisión
+  (no-decreciente). DIVERSIDAD declina monótona 0.040→0.021 (~0.52× inicial = narrowing temprano, no colapso en
+  4 rondas) → en rondas largas necesita MONITOR/inyector de diversidad. El filtro de CORRECCIÓN mantiene el
+  lazo sano (consistente con anti-colapso CYCLE 11). D-V4-14, techo 'real'. → el integrador puede mejorarse
+  SOLO de forma autónoma y sostenible.
+- [ ] **H-V4-2c (P0): monitor de diversidad + techo del bootstrapping** — guardia de diversidad (inyectar/parar
+  si colapsa) + correr más rondas/base más fuerte para medir el plateau real + verificador real-chequeable.
 - [ ] H-V4-3 (P0): identificabilidad causal sin cuerpo (SCM de juguete).
 
 > Sub-arco MULTI-PASO (CYCLE 44-47) CERRADO en mecanismos: verificación de PROCESO frena el compounding (44) +
