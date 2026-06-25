@@ -3872,3 +3872,14 @@ ejecución real) es el lever central de la auto-mejora segura.
   sus predicciones se contradicen (sorpresa) -> trade-off estabilidad-plasticidad endógeno: adapta (0.449, =
   mejor fijo tuneado) sin saber el punto de cambio, y mantiene la fase 1 (0.843) dominando al mismo floor
   constante (0.201). Olvido selectivo >> constante. Cierra el sub-arco R-VALOR 56-59 (lazo de valor endógeno).
+
+## [2026-06-25] CYCLE 60 — H-V4-2i MIXTA (UNIFICA los dos arcos): auto-consistencia como verificador parcial gateado por calibración
+- Archivos: cognia_x/experiments/exp046_self_consistency_verifier/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle60_self_consistency_verifier.py,
+  cognia_x/tests/test_cycle60_self_consistency_verifier.py, cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle60). Recorder verify_no_loss=OK. Experimento MIXTA (3 seeds, 2 regímenes).
+- Notas: conecta el arco VERIFICADOR-REAL (51-55) con R-VALOR (56-59). La auto-consistencia (confianza endógena)
+  reemplaza PARCIALMENTE al verificador externo en el lazo de auto-mejora, GATEADA por calibración: fuerte/
+  calibrado (calib 0.76) sc 0.592 > naive 0.515; débil/mal-calibrado (calib 0.16) sc 0.038 << naive 0.090 (colapsa,
+  refuerza errores). MIXTA honesta: gating nítido (contraste 0.595) pero umbrales estrictos borderline (sin mover
+  postes). Confirma el CYCLE 57.

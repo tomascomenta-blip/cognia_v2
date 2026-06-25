@@ -1880,3 +1880,50 @@ surprise/change-point (Bayesian online change-point, tier1); une CYCLE 57 (confi
 > vale (confianza calibrada) y cuándo dejó de valer (sorpresa -> olvido), sin oráculo ni aviso externo. Conecta
 > R-VALOR con MEMORIA (escribir≡olvidar, H-V4-5) y con el arco de auto-mejora (el verificador externo es, en
 > parte, reemplazable por la confianza/sorpresa endógena).
+
+## CYCLE 60 — H-V4-2i (UNIFICACIÓN de los dos arcos): auto-consistencia como verificador PARCIAL gateado por calibración
+
+### Pregunta
+La corrida cerró dos arcos: VERIFICADOR-REAL (51-55, el verificador EXTERNO es el motor) y R-VALOR (56-59, hay
+señal de valor ENDÓGENA — confianza calibrada — usable sin oráculo, pero confiable sólo con la competencia
+correcta, CYCLE 57). Insight del CYCLE 57: "el verificador externo es, en parte, reemplazable por la confianza
+calibrada". ¿Se sostiene en el sustrato de AUTO-MEJORA? ¿Filtrar las auto-generaciones por AUTO-CONSISTENCIA
+(¿el modelo produce el mismo VALOR consistentemente?) en vez del verificador externo funciona — y está GATEADO
+por la calibración?
+
+### Diseño
+Reusa exp018/exp037. DOS regímenes de base: FUERTE (base_steps=250 -> ~0.63, calibrado) y DÉBIL (150 -> ~0.18,
+mal calibrado). En cada uno, lazo R=4, 3 brazos (mismo base+RNG): verified (sandbox EXTERNO), self_consistency
+(ENDÓGENO: valor mayoritario con acuerdo >= tau, SIN chequear target), naive (todas). Métrica: real_acc externo
+clean media-rondas; CALIBRACIÓN de la consistencia (frac de consistentes cuyo valor==target). 3 seeds. (Afinado
+tras smoke al claim de GATING por calibración.)
+
+### Resultado — MIXTA
+FUERTE (base 0.633, calib 0.76): verified 0.879, self_consistency 0.592 (>naive 0.515, +0.077), naive 0.515.
+DÉBIL (base 0.182, calib 0.16): verified 0.557, self_consistency 0.038 (<<naive 0.090, menos de la mitad), naive
+0.090. GATING por calibración NÍTIDO (contraste 0.595): con base fuerte/calibrada la auto-consistencia SUPERA a
+naive sin degradar la base (captura PARTE del beneficio del verificador externo, que sigue siendo mejor 0.879);
+con base débil/mal-calibrada COLAPSA muy por debajo de naive (consistente-pero-equivocado refuerza errores
+confiados = el peligro del CYCLE 57 manifiesto en el lazo). VEREDICTO MIXTA (honesto): el fenómeno (gating +
+colapso débil + usabilidad fuerte) es claro, PERO los umbrales estrictos no se cruzan todos limpiamente — el
+'weak_collapses' (sc < naive - 2σ/2) falló por 0.0007 (naive es tan chico, 0.090, que el buffer 2σ/2=0.053 lo
+hace borderline; en términos absolutos sc=0.038 es <50% de naive = colapso claro) y la ventaja fuerte-sobre-naive
+(+0.077) no cruza 2σ (0.105). NO se movió ningún umbral.
+
+### Límites (honestos)
+La ventaja FUERTE-sobre-naive es MODESTA (no 2σ): la auto-consistencia PREVIENE la degradación de naive más que
+IGUALAR al verificador externo (que sigue siendo claramente superior). Acuerdo sobre el VALOR en tarea de vocab
+chico (puede sobre-estimar consistencia). Un solo umbral tau. No se hizo el gating EXPLÍCITO (usar el filtro
+endógeno SÓLO cuando la calibración estimada es alta) ni combinar endógeno+externo.
+
+### Verificación
+exp046 (3 seeds, 2 regímenes, HybridLM, reusa exp018/exp037). cycle60 -> H-V4-2i 'mixta' (DoD), D-V4-25
+ACEPTADA, 1 techo 'real', analogía, verify_no_loss=OK. Test `test_cycle60_self_consistency_verifier.py` 4/4.
+Convergente con self-consistency (tier1) y confirma el CYCLE 57 (la confianza es confiable con la competencia
+correcta).
+
+> UNE los dos arcos de la corrida: la confianza endógena (R-VALOR 56-59) reemplaza PARCIALMENTE al verificador
+> externo del lazo de auto-mejora (VERIFICADOR-REAL 51-55), GATEADA por la calibración. El verificador externo
+> es sustituible donde el modelo está calibrado (medible por su propia calibración, CYCLE 57); usarlo mal
+> calibrado es peligroso (refuerza errores). Cierra el lazo conceptual de la corrida: valor endógeno (qué vale,
+> cuándo deja de valer, y cuándo confiar en el propio juicio) conectado con la auto-mejora.
