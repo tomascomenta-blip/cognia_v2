@@ -1591,3 +1591,43 @@ bootstrapping desde base débil) y exp037 (verificador real).
 > Cierra el límite #1 del CYCLE 51: el lazo de auto-mejora con verificador REAL bootstrapea desde casi-cero a un
 > techo alto y plateable; con base débil la GUARDIA (dedup+replay) es parte del motor (resuelve el cold-start),
 > no un refinamiento opcional.
+
+## CYCLE 53 — H-V4-2f: ¿la tolerancia al RUIDO del verificador (ε*≈0.15, oráculo) transfiere al VERIFICADOR REAL?
+
+### Pregunta
+exp017 (H-LEARN-2, CYCLE 30) halló que la auto-mejora verificada DECAE con el ruido falso-positivo y sobrevive
+hasta ε*≈0.15 — pero con el ORÁCULO aritmético EXACTO. Hilo abierto más citado por exp037 Y exp038: el
+verificador real PARCIAL/RUIDOSO. ¿La dosis-respuesta al ruido TRANSFIERE a un VERIFICADOR REAL-CHEQUEABLE
+(sandbox), y la GUARDIA (replay limpio de la verdad) SUBE el umbral ε*?
+
+### Diseño
+Modelo propio (funde exp017 + exp037). Mismo modelo de ruido que exp017: verificador con ruido ε acepta si es
+STRONG-correcta (sandbox: valor==target Y usa operador) o si NO lo es con prob ε; volumen FIJO (submuestreo a
+fixed_n=400) + pasos fijos -> la única variable es la contaminación. base_steps=200 -> base~0.44. Por seed y ε
+en {0.0,0.15,0.30,0.50}: dos lazos R=4, PLANO vs GUARDED (dedup+replay limpio). Métrica: real_acc CLEAN
+(verificador FUERTE sin ruido, held-out) -> net-sobre-base media-sobre-rondas. 3 seeds. ε* por brazo = mayor ε
+con net>0 consistente entre seeds.
+
+### Resultado — APOYADA
+net-sobre-base por ε: PLANO {+0.316@0, +0.079@0.15, -0.008@0.3, -0.123@0.5} ε*=0.0; GUARDED {+0.431@0,
++0.312@0.15, +0.187@0.3, +0.155@0.5} ε*=0.50. El net DECAE con ε (caída guarded 0.431->0.155, >2σ=0.105) -> la
+dosis-respuesta TRANSFIERE del oráculo al verificador REAL: el verificador (su CORRECCIÓN) sigue siendo el
+MOTOR. HALLAZGO CENTRAL: la GUARDIA SUBE ε* de 0.0 (plano) a 0.50 (guarded) -> el replay limpio de la verdad
+DILUYE la contaminación del verificador, así el lazo aguanta hasta un 50% de falsos positivos donde el plano
+(base moderada) muere ante CUALQUIER ruido. La guardia no es un refinamiento: compra robustez al verificador
+imperfecto (que es lo que son los verificadores reales).
+
+### Límites (honestos)
+Modelo de ruido = falso-positivo UNIFORME; un verificador real puede fallar de forma CORRELACIONADA (aceptar
+siempre cierto patrón), que es más peligroso. La regla canónica de replay '1+(n-1)' es estrecha (falta
+verificador de CÓDIGO real con tests parciales, FP-rate medido). No se combinó ruido + bootstrapping desde base
+débil (interacción ε* x cold-start). Tarea acotada (test=90).
+
+### Verificación
+exp039 (3 seeds, R=4, modelo propio). cycle53 -> H-V4-2f 'apoyada' (DoD), D-V4-18 ACEPTADA, 1 techo 'real',
+analogía, verify_no_loss=OK. Test `test_cycle53_noisy_real_verifier.py` 4/4. Convergente con exp017 (ε*≈0.15
+oráculo) y exp037/038 (verificador real + guardia).
+
+> Une H-LEARN-2 (ruido/oráculo) con H-V4-2d/e (verificador real + guardia): el resultado central del lab (el
+> VERIFICADOR es el lever de 1ra clase; su CALIDAD decide la auto-mejora) se sostiene con un verificador REAL y
+> RUIDOSO, y la guardia (replay limpio) compra robustez al ruido (ε* 0.0 -> 0.50).

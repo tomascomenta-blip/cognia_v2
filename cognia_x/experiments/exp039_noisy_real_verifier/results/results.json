@@ -1,0 +1,363 @@
+{
+  "exp": "exp039_noisy_real_verifier",
+  "cycle": 53,
+  "hypothesis": "H-V4-2f",
+  "claim": "la tolerancia al ruido del verificador (ε*≈0.15, exp017/oráculo) transfiere a un verificador REAL-CHEQUEABLE; la guardia (replay limpio) sube/mantiene el umbral de ruido",
+  "verdict": "apoyada",
+  "summary": {
+    "eps_sweep": [
+      0.0,
+      0.15,
+      0.3,
+      0.5
+    ],
+    "arms": [
+      "plain",
+      "guarded"
+    ],
+    "sigma_2": 0.1054,
+    "n_seeds": 3,
+    "net_mean": {
+      "plain": {
+        "0.0": 0.3157,
+        "0.15": 0.0787,
+        "0.3": -0.0083,
+        "0.5": -0.1231
+      },
+      "guarded": {
+        "0.0": 0.4315,
+        "0.15": 0.312,
+        "0.3": 0.187,
+        "0.5": 0.1547
+      }
+    },
+    "net_per_seed": {
+      "plain": {
+        "0.0": [
+          0.1806,
+          0.3166,
+          0.45
+        ],
+        "0.15": [
+          0.1167,
+          -0.0222,
+          0.1416
+        ],
+        "0.3": [
+          0.0167,
+          -0.0333,
+          -0.0084
+        ],
+        "0.5": [
+          -0.1972,
+          -0.0944,
+          -0.0778
+        ]
+      },
+      "guarded": {
+        "0.0": [
+          0.2167,
+          0.5139,
+          0.5639
+        ],
+        "0.15": [
+          0.1611,
+          0.3861,
+          0.3889
+        ],
+        "0.3": [
+          0.1084,
+          0.1583,
+          0.2944
+        ],
+        "0.5": [
+          0.1056,
+          0.0889,
+          0.2695
+        ]
+      }
+    },
+    "sign_consistent": {
+      "plain": {
+        "0.0": true,
+        "0.15": false,
+        "0.3": false,
+        "0.5": false
+      },
+      "guarded": {
+        "0.0": true,
+        "0.15": true,
+        "0.3": true,
+        "0.5": true
+      }
+    },
+    "eps_star": {
+      "plain": 0.0,
+      "guarded": 0.5
+    },
+    "clean_improves": true,
+    "decays": true,
+    "guard_raises_eps_star": true,
+    "status": "apoyada",
+    "verdict": "H-V4-2f APOYADA: la tolerancia al ruido del verificador TRANSFIERE del oráculo (exp017, ε*≈0.15) al VERIFICADOR REAL. net guarded DECAE con ε (+0.431@0 -> +0.155@0.50, caída 0.277 > 2σ 0.105); sobrevive hasta ε*=0.5 (guarded) vs ε*=0.0 (plano). guard_raises_eps*=True -> la guardia (replay limpio) sube/mantiene el umbral de ruido. El verificador (su CORRECCIÓN) sigue siendo el motor con un verificador REAL."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2",
+    "rounds": 4,
+    "K": 6,
+    "pool": 256,
+    "replay_n": 128,
+    "fixed_n": 400,
+    "steps": 200,
+    "lr": 0.0005,
+    "top_k": 20,
+    "temperature": 0.9,
+    "n_seed": 256,
+    "base_steps": 200,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "seeds": [
+    {
+      "seed": 0,
+      "base_acc": 0.7222,
+      "npar": 201280,
+      "secs": 330.41,
+      "hist": {
+        "plain": {
+          "0.0": [
+            0.7222,
+            0.9444,
+            0.9222,
+            0.8778,
+            0.8667
+          ],
+          "0.15": [
+            0.7222,
+            0.8556,
+            0.8556,
+            0.8778,
+            0.7667
+          ],
+          "0.3": [
+            0.7222,
+            0.6889,
+            0.7222,
+            0.7333,
+            0.8111
+          ],
+          "0.5": [
+            0.7222,
+            0.5,
+            0.5111,
+            0.5333,
+            0.5556
+          ]
+        },
+        "guarded": {
+          "0.0": [
+            0.7222,
+            0.9333,
+            0.9333,
+            0.9222,
+            0.9667
+          ],
+          "0.15": [
+            0.7222,
+            0.8556,
+            0.8222,
+            0.9222,
+            0.9333
+          ],
+          "0.3": [
+            0.7222,
+            0.7556,
+            0.7889,
+            0.9,
+            0.8778
+          ],
+          "0.5": [
+            0.7222,
+            0.7889,
+            0.8,
+            0.8222,
+            0.9
+          ]
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "base_acc": 0.3,
+      "npar": 201280,
+      "secs": 331.74,
+      "hist": {
+        "plain": {
+          "0.0": [
+            0.3,
+            0.5222,
+            0.6333,
+            0.6111,
+            0.7
+          ],
+          "0.15": [
+            0.3,
+            0.2556,
+            0.2889,
+            0.2778,
+            0.2889
+          ],
+          "0.3": [
+            0.3,
+            0.2556,
+            0.2222,
+            0.2889,
+            0.3
+          ],
+          "0.5": [
+            0.3,
+            0.2556,
+            0.1778,
+            0.2111,
+            0.1778
+          ]
+        },
+        "guarded": {
+          "0.0": [
+            0.3,
+            0.8222,
+            0.7444,
+            0.8556,
+            0.8333
+          ],
+          "0.15": [
+            0.3,
+            0.4889,
+            0.6778,
+            0.7,
+            0.8778
+          ],
+          "0.3": [
+            0.3,
+            0.3333,
+            0.3667,
+            0.5444,
+            0.5889
+          ],
+          "0.5": [
+            0.3,
+            0.2333,
+            0.4333,
+            0.4444,
+            0.4444
+          ]
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "base_acc": 0.3,
+      "npar": 201280,
+      "secs": 330.08,
+      "hist": {
+        "plain": {
+          "0.0": [
+            0.3,
+            0.6333,
+            0.7222,
+            0.8222,
+            0.8222
+          ],
+          "0.15": [
+            0.3,
+            0.4333,
+            0.4667,
+            0.3333,
+            0.5333
+          ],
+          "0.3": [
+            0.3,
+            0.2889,
+            0.2444,
+            0.2889,
+            0.3444
+          ],
+          "0.5": [
+            0.3,
+            0.3111,
+            0.2,
+            0.1444,
+            0.2333
+          ]
+        },
+        "guarded": {
+          "0.0": [
+            0.3,
+            0.7667,
+            0.7889,
+            0.9333,
+            0.9667
+          ],
+          "0.15": [
+            0.3,
+            0.5667,
+            0.5667,
+            0.7444,
+            0.8778
+          ],
+          "0.3": [
+            0.3,
+            0.4222,
+            0.6444,
+            0.6333,
+            0.6778
+          ],
+          "0.5": [
+            0.3,
+            0.4778,
+            0.5667,
+            0.6556,
+            0.5778
+          ]
+        }
+      }
+    }
+  ],
+  "task_range": [
+    2,
+    300
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp039] CYCLE 53 / H-V4-2f — dosis-respuesta al RUIDO del VERIFICADOR REAL (plano vs guardia)",
+    "[exp039] exprs [2,300] test=90 eps=[0.0, 0.15, 0.3, 0.5] rounds=4 fixed_n=400 base_steps=200 seeds=[0, 1, 2]",
+    "[exp039] seed=0 base real_acc=0.722 params=201,280",
+    "[exp039] seed=0 eps=0.0: plain=0.867 guarded=0.967",
+    "[exp039] seed=0 eps=0.15: plain=0.767 guarded=0.933",
+    "[exp039] seed=0 eps=0.3: plain=0.811 guarded=0.878",
+    "[exp039] seed=0 eps=0.5: plain=0.556 guarded=0.900",
+    "[exp039] seed=0 330.4s",
+    "[exp039] seed=1 base real_acc=0.300 params=201,280",
+    "[exp039] seed=1 eps=0.0: plain=0.700 guarded=0.833",
+    "[exp039] seed=1 eps=0.15: plain=0.289 guarded=0.878",
+    "[exp039] seed=1 eps=0.3: plain=0.300 guarded=0.589",
+    "[exp039] seed=1 eps=0.5: plain=0.178 guarded=0.444",
+    "[exp039] seed=1 331.7s",
+    "[exp039] seed=2 base real_acc=0.300 params=201,280",
+    "[exp039] seed=2 eps=0.0: plain=0.822 guarded=0.967",
+    "[exp039] seed=2 eps=0.15: plain=0.533 guarded=0.878",
+    "[exp039] seed=2 eps=0.3: plain=0.344 guarded=0.678",
+    "[exp039] seed=2 eps=0.5: plain=0.233 guarded=0.578",
+    "[exp039] seed=2 330.1s",
+    "[exp039] VEREDICTO: H-V4-2f APOYADA: la tolerancia al ruido del verificador TRANSFIERE del oráculo (exp017, ε*≈0.15) al VERIFICADOR REAL. net guarded DECAE con ε (+0.431@0 -> +0.155@0.50, caída 0.277 > 2σ 0.105); sobrevive hasta ε*=0.5 (guarded) vs ε*=0.0 (plano). guard_raises_eps*=True -> la guardia (replay limpio) sube/mantiene el umbral de ruido. El verificador (su CORRECCIÓN) sigue siendo el motor con un verificador REAL.",
+    "[exp039]   plain net-sobre-base por ε: e0.0=+0.316 e0.15=+0.079 e0.3=-0.008 e0.5=-0.123  ε*=0.0",
+    "[exp039] guarded net-sobre-base por ε: e0.0=+0.431 e0.15=+0.312 e0.3=+0.187 e0.5=+0.155  ε*=0.5"
+  ]
+}

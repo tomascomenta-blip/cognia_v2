@@ -3805,3 +3805,12 @@ ejecución real) es el lever central de la auto-mejora segura.
   bootstrapea base 0.081 -> 0.933 (gain +0.852), platea en r3, degenerate=0 (sin hack). Plano sólo llega 0.693
   -> con base débil la guardia (replay de la verdad) es CRÍTICA (resuelve el cold-start). Mismo poder que el
   oráculo (CYCLE 49) pero con verificador chequeable real. Sirve al GOAL: avanza cognia-x 51 -> 52.
+
+## [2026-06-24] CYCLE 53 — H-V4-2f APOYADA: la tolerancia al ruido del verificador transfiere al verificador REAL; la guardia sube ε* (0.0 -> 0.50)
+- Archivos: cognia_x/experiments/exp039_noisy_real_verifier/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle53_noisy_real_verifier.py,
+  cognia_x/tests/test_cycle53_noisy_real_verifier.py, cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle53). Recorder verify_no_loss=OK. Experimento APOYADA (3 seeds).
+- Notas: replica el dosis-respuesta de exp017 (ε*≈0.15 oráculo) con el VERIFICADOR REAL (sandbox). El net decae
+  con ε (>2σ) -> transfiere. La guardia (replay limpio) SUBE ε* de 0.0 (plano) a 0.50 (guarded): el replay
+  diluye la contaminación -> robustez al verificador imperfecto. Cierra el hilo abierto de exp037/038. GOAL: 52 -> 53.
