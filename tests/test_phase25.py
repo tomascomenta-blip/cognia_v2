@@ -12,6 +12,7 @@ import pytest
 from cognia.agents.daemon import (
     AgentDaemon,
     get_fatigue_score,
+    _changed_paths,
     PAUSE_THRESHOLD,
     SLOW_THRESHOLD,
     NORMAL_INTERVAL,
@@ -160,6 +161,38 @@ class TestFsWatcher:
         time.sleep(FS_POLL_INTERVAL + 0.2)
         daemon.stop_fs_watcher()
         assert daemon.pending() == 0
+
+
+class TestChangedPaths:
+    """Detección de cambios determinista (función pura, sin hilos/timing)."""
+
+    def test_unseen_file_not_reported_on_startup(self):
+        # Archivo nunca visto → no se analiza (evita analizar todo el dir al arrancar)
+        assert _changed_paths({"a.py": 1.0}, {}, {}) == []
+
+    def test_modified_file_reported_once(self):
+        prev = {"a.py": 1.0}
+        cur  = {"a.py": 2.0}
+        assert _changed_paths(cur, prev, {}) == ["a.py"]
+
+    def test_same_version_not_requeued(self):
+        # Ya encolado en mtime 2.0 → no re-encolar la misma versión
+        prev = {"a.py": 1.0}
+        cur  = {"a.py": 2.0}
+        assert _changed_paths(cur, prev, {"a.py": 2.0}) == []
+
+    def test_second_modification_retriggers(self):
+        # REGRESIÓN del bug: un archivo ya analizado que cambia de nuevo (mtime nuevo)
+        # DEBE re-dispararse. El set permanente anterior lo suprimía para siempre.
+        prev = {"a.py": 2.0}          # snapshot tras el primer análisis
+        cur  = {"a.py": 3.0}          # segunda modificación
+        submitted = {"a.py": 2.0}     # ya se encoló la versión 2.0
+        assert _changed_paths(cur, prev, submitted) == ["a.py"]
+
+    def test_unchanged_file_not_reported(self):
+        prev = {"a.py": 2.0}
+        cur  = {"a.py": 2.0}
+        assert _changed_paths(cur, prev, {"a.py": 2.0}) == []
 
 
 # ── get_fatigue_score ─────────────────────────────────────────────────────────

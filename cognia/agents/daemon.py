@@ -141,28 +141,46 @@ class AgentDaemon:
     def _fs_watch_loop(self, watch_path: str) -> None:
         """
         Polling loop: registra mtimes de archivos relevantes.
-        Al detectar cambio encola tarea de análisis (deduplica por path).
+        Al detectar un cambio (mtime nuevo) encola una tarea de análisis.
+
+        Dedup por (path, mtime): la MISMA versión de un archivo no se re-encola, pero
+        una modificación POSTERIOR (mtime nuevo) sí re-dispara el análisis. Antes se
+        usaba un set permanente de paths que suprimía para siempre el segundo cambio
+        de cualquier archivo, rompiendo el flujo iterativo guardar→analizar→guardar.
         """
         snapshots: dict[str, float] = {}
-        pending_tasks: set[str] = set()   # paths ya encolados (evita flood)
+        submitted: dict[str, float] = {}   # path → mtime ya encolado (evita re-encolar la misma versión)
 
         while not self._watcher_stop.is_set():
             try:
                 current = _snapshot(watch_path)
-                for path, mtime in current.items():
-                    if path in pending_tasks:
-                        continue
-                    if path in snapshots and snapshots[path] != mtime:
-                        # Archivo modificado → encolar análisis
-                        self.submit(f"analiza el archivo {path}", priority=0.5)
-                        pending_tasks.add(path)
+                for path in _changed_paths(current, snapshots, submitted):
+                    self.submit(f"analiza el archivo {path}", priority=0.5)
+                    submitted[path] = current[path]
                 snapshots = current
             except Exception:
                 pass
             self._watcher_stop.wait(FS_POLL_INTERVAL)
 
-        # Al salir: limpiar pending_tasks para que próximos cambios se detecten
-        pending_tasks.clear()
+
+def _changed_paths(
+    current: dict[str, float],
+    previous: dict[str, float],
+    submitted: dict[str, float],
+) -> list[str]:
+    """Paths cuyo mtime cambió respecto al snapshot previo y que no fueron ya
+    encolados en ese mismo mtime. Función pura (testeable sin hilos).
+
+    - Ignora archivos vistos por primera vez (no analiza todo el dir al arrancar).
+    - Re-dispara cuando un archivo ya analizado vuelve a cambiar (mtime nuevo).
+    """
+    out: list[str] = []
+    for path, mtime in current.items():
+        if submitted.get(path) == mtime:
+            continue                       # esta versión exacta ya está encolada
+        if path in previous and previous[path] != mtime:
+            out.append(path)
+    return out
 
 
 def _snapshot(root: str) -> dict[str, float]:
