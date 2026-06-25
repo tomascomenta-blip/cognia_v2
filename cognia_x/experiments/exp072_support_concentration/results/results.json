@@ -1,0 +1,129 @@
+{
+  "exp": "exp072_support_concentration",
+  "cycle": 88,
+  "hypothesis": "H-V4-7f",
+  "claim": "el trap de sesgo de seleccion (y la necesidad de explorar) es real pero condicional a observacion correlacionada (pool fijo): bajo pool fijo + k_obs chico el greedy se atrapa; con tareas frescas no",
+  "verdict": "refutada",
+  "summary": {
+    "grid": {
+      "fixed_kobs1": {
+        "product": 0.9304,
+        "learned_greedy": 0.9459,
+        "learned_explore": 0.9459,
+        "learned_random": 0.9831
+      },
+      "fixed_kobs2": {
+        "product": 0.9304,
+        "learned_greedy": 0.9487,
+        "learned_explore": 0.9823,
+        "learned_random": 0.9822
+      },
+      "fixed_kobs3": {
+        "product": 0.9304,
+        "learned_greedy": 0.9519,
+        "learned_explore": 0.981,
+        "learned_random": 0.9836
+      },
+      "fixed_kobs5": {
+        "product": 0.9304,
+        "learned_greedy": 0.9607,
+        "learned_explore": 0.983,
+        "learned_random": 0.9849
+      },
+      "fixed_kobs10": {
+        "product": 0.9304,
+        "learned_greedy": 0.9839,
+        "learned_explore": 0.9821,
+        "learned_random": 0.9856
+      },
+      "fresh_kobs1": {
+        "product": 0.9273,
+        "learned_greedy": 0.9529,
+        "learned_explore": 0.9529,
+        "learned_random": 0.9768
+      },
+      "fresh_kobs2": {
+        "product": 0.9281,
+        "learned_greedy": 0.9586,
+        "learned_explore": 0.9772,
+        "learned_random": 0.9787
+      },
+      "fresh_kobs3": {
+        "product": 0.9273,
+        "learned_greedy": 0.9628,
+        "learned_explore": 0.9784,
+        "learned_random": 0.9787
+      },
+      "fresh_kobs5": {
+        "product": 0.9282,
+        "learned_greedy": 0.9739,
+        "learned_explore": 0.9781,
+        "learned_random": 0.9791
+      },
+      "fresh_kobs10": {
+        "product": 0.9285,
+        "learned_greedy": 0.9793,
+        "learned_explore": 0.9793,
+        "learned_random": 0.9792
+      },
+      "comp_fixed_kobs1": {
+        "product": 0.9742,
+        "learned_greedy": 0.9583,
+        "learned_explore": 0.9583,
+        "learned_random": 0.9829
+      }
+    },
+    "gap_fixed_random_minus_greedy": {
+      "1": 0.0372,
+      "2": 0.0335,
+      "3": 0.0317,
+      "5": 0.0242,
+      "10": 0.0017
+    },
+    "gap_fresh_random_minus_greedy": {
+      "1": 0.0239,
+      "2": 0.0201,
+      "3": 0.0159,
+      "5": 0.0052,
+      "10": -0.0001
+    },
+    "trap_fixed_kobs": null,
+    "fixed_traps_low": false,
+    "fresh_robust_low": true,
+    "explore_rescues_fixed": false,
+    "comp_control_ok": true,
+    "status": "refutada",
+    "verdict": "H-V4-7f REFUTADA: ni el POOL FIJO a k_obs=1 atrapa (greedy 0.946 ≈ random 0.983, gap 0.037 <= 0.05) — la robustez de CYCLE 87 es TOTAL: aun re-observando la misma región estrecha, el greedy recupera max()."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k_eval": 10,
+    "T": 40,
+    "E": 20,
+    "eps": 0.3,
+    "ctrl_noise": 0.5
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp072] CYCLE 88 / H-V4-7f — concentración del soporte: pool FIJO vs FRESH (cierra caveat CYCLE 87)",
+    "[exp072] n=50 k_eval=10 T=40 E=20 eps=0.3 seeds=48 k_obs=[1, 2, 3, 5, 10] pools=['fixed', 'fresh'] (q2: S=32 σr=0.05, λ=1.0)",
+    "[exp072] fixed k_obs=1: product=0.930 greedy=0.946 explore=0.946 random=0.983 (random−greedy=0.037)",
+    "[exp072] fixed k_obs=2: product=0.930 greedy=0.949 explore=0.982 random=0.982 (random−greedy=0.034)",
+    "[exp072] fixed k_obs=3: product=0.930 greedy=0.952 explore=0.981 random=0.984 (random−greedy=0.032)",
+    "[exp072] fixed k_obs=5: product=0.930 greedy=0.961 explore=0.983 random=0.985 (random−greedy=0.024)",
+    "[exp072] fixed k_obs=10: product=0.930 greedy=0.984 explore=0.982 random=0.986 (random−greedy=0.002)",
+    "[exp072] fresh k_obs=1: product=0.927 greedy=0.953 explore=0.953 random=0.977 (random−greedy=0.024)",
+    "[exp072] fresh k_obs=2: product=0.928 greedy=0.959 explore=0.977 random=0.979 (random−greedy=0.020)",
+    "[exp072] fresh k_obs=3: product=0.927 greedy=0.963 explore=0.978 random=0.979 (random−greedy=0.016)",
+    "[exp072] fresh k_obs=5: product=0.928 greedy=0.974 explore=0.978 random=0.979 (random−greedy=0.005)",
+    "[exp072] fresh k_obs=10: product=0.928 greedy=0.979 explore=0.979 random=0.979 (random−greedy=-0.000)",
+    "[exp072] comp fixed k_obs=1 (control): product=0.974 greedy=0.958 random=0.983",
+    "[exp072] fixed_traps_low=False fresh_robust_low=True explore_rescues_fixed=False trap_fixed_kobs*=None comp_ok=True",
+    "[exp072] VEREDICTO H-V4-7f: REFUTADA | H-V4-7f REFUTADA: ni el POOL FIJO a k_obs=1 atrapa (greedy 0.946 ≈ random 0.983, gap 0.037 <= 0.05) — la robustez de CYCLE 87 es TOTAL: aun re-observando la misma región estrecha, el greedy recupera max()."
+  ]
+}

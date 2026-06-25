@@ -2876,3 +2876,40 @@ covariate-shift/overlap (tier2) y con la política gap #2 de CYCLE 86 (tier5).
 
 > La política gap #2 sobrevive el action-gating sin explorar (greedy basta). Próximo: el lazo de acción-consecuencia
 > REAL con verificador chequeable (sandbox exp018) -- feedback con costo, dinámica secuencial -- y SCALE (GPU).
+
+## CYCLE 88 — H-V4-7f (rama R-VALOR, cierra el caveat de CYCLE 87): concentración del soporte (pool fijo) — REFUTADA
+
+### Pregunta
+CYCLE 87 dejó como caveat que usaba ítems FRESCOS (diversifican el soporte aunque observes top-1). ¿Reaparece el trap de
+sesgo de selección bajo el verdadero peor caso — un POOL FIJO (los mismos n ítems recurren cada ronda -> observación
+CORRELACIONADA, el greedy re-observa siempre la región both-high) + k_obs chico?
+
+### Diseño
+Numpy, online (reusa exp071). Sustitutos (g=max), q2 (S=32, σr=0.05). Eje 1: POOL ∈ {fixed (mismos n ítems toda la
+corrida), fresh (nuevos por ronda)}. Eje 2: k_obs ∈ {1,2,3,5,10}. Estrategias greedy/explore(ε)/random observan k_obs
+ítems/ronda, refit ridge poly2; eval fixed=rank del pool fijo, fresh=promedio sobre E rondas frescas. Control comp/fixed/
+k_obs=1. 48 seeds. Pre-registrado: APOYADA si fixed/k_obs=1 atrapa (greedy<random−0.05) y fresh no; REFUTADA si ni el
+pool fijo a k_obs=1 atrapa.
+
+### Resultado — REFUTADA (robustez TOTAL)
+Ni el pool FIJO a k_obs=1 atrapa: gap random−greedy fixed/k_obs=1 = 0.037 (<= 0.05, sin trap; umbral k_obs*=ninguno);
+fresh/k_obs=1 gap ≈ 0.03. El greedy recupera max() aun re-observando una región estrecha. MECANISMO: el ridge-poly2
+sobre pocos puntos both-high (que igual tienen SPREAD en (ctrl,rel)) aproxima un target suave (max) en todo el dominio;
+el trap severo exigiría que el soporte COLAPSARA a casi un punto. => robustez total a través de tipo-de-pool y amplitud
+de observación; R-INTERVENCIÓN no liga aquí (2ª refutación consecutiva, 87-88).
+
+### Límites (honestos)
+Hay un costo MILD sub-umbral de concentración (~0.03-0.04 bajo fixed/k_obs=1) que la exploración cierra (explore alcanza
+el techo insesgado), pero NUNCA llega a trap (>0.05). Soporte realmente DEGENERADO (1 ítem idéntico repetido) o una base
+que no nestara el target sí podrían atrapar; no testeados. g=max sintético, base poly2, objetivo escalar, espacio 2D
+chico (n=50).
+
+### Verificación
+exp072 (48 seeds, numpy). cycle88 → H-V4-7f 'refutada' (DoD), D-V4-50 ACEPTADA, 1 techo 'real', analogía 7 etapas,
+verify_no_loss=OK. Test `test_cycle88_support_concentration.py` 4/4 (no-trap fixed real + 3 ramas). Convergente con
+aproximación-sobre-spread (tier2) y con CYCLE 87 (tier5).
+
+> SUB-TEMA FEEDBACK-REALISMO (87-88) CERRADO: la política gap #2 (always-learn/greedy) es robusta bajo feedback
+> action-gated (87) y bajo concentración extrema/observación correlacionada (88). El SALTO GRANDE pendiente: lazo de
+> acción-consecuencia REAL con verificador chequeable (sandbox exp018) -- feedback con costo, dinámica secuencial,
+> target no-sintético -- y SCALE (GPU).

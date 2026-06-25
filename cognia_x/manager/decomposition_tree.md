@@ -475,3 +475,20 @@ el valor de lo que SELECCIONA (action-gated), no m al azar?
 > Hacia gaps #1/#3: la política gap #2 sobrevive el action-gating SIN explorar (greedy basta). Falta el lazo de
 > acción-consecuencia REAL con verificador chequeable (sandbox exp018) -- feedback con costo, dinámica secuencial -- y
 > SCALE (GPU). El producto sigue de baseline con feedback pobre; con feedback adecuado, always-learn (incluso greedy).
+
+- **CYCLE 88 — H-V4-7f REFUTADA (cierra el caveat de CYCLE 87 con robustez MÁS fuerte; cierra el sub-tema 87-88).** El
+  caveat de 87 era que usaba ítems FRESCOS (diversifican aunque observes top-1). exp072 prueba el verdadero peor caso:
+  POOL FIJO (los mismos n ítems recurren -> observación CORRELACIONADA, el greedy re-observa siempre la región both-high)
+  + k_obs=1. RESULTADO: ni así se atrapa -- fixed/k_obs=1 gap random−greedy=0.037 (<= 0.05, sin trap; umbral k_obs*=ninguno);
+  fresh/k_obs=1 gap≈0.03. El greedy recupera max() aun re-observando una región estrecha. MECANISMO: el ridge-poly2 sobre
+  pocos puntos both-high (que igual tienen SPREAD en (ctrl,rel)) aproxima un target suave (max) en todo el dominio; el
+  trap severo exigiría que el soporte COLAPSARA a casi un punto. => robustez TOTAL a través de tipo-de-pool y amplitud de
+  observación; R-INTERVENCIÓN no liga aquí (2ª refutación consecutiva 87-88). Matiz honesto: hay un costo MILD sub-umbral
+  de concentración (~0.03-0.04) que la exploración cierra, pero nunca llega a trap. Caveats: soporte degenerado (1 ítem
+  idéntico) o base que no nestara el target sí podrían atrapar; no testeados. Cota 'real'; D-V4-50; test 4/4.
+
+> SUB-TEMA FEEDBACK-REALISMO (87-88) CERRADO: la política gap #2 (always-learn/greedy, sin maquinaria de exploración) es
+> robusta bajo feedback ACTION-GATED (87) y bajo CONCENTRACIÓN EXTREMA del soporte / observación correlacionada (88). El
+> producto queda de baseline con feedback pobre. El SALTO GRANDE pendiente (gaps #1/#3): lazo de acción-consecuencia REAL
+> con verificador chequeable (sandbox exp018) -- feedback con costo, dinámica secuencial, target no-sintético -- y SCALE
+> (GPU). Soporte degenerado y bases no-nesting quedan como sub-caveats menores.

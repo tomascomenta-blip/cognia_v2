@@ -315,3 +315,15 @@
   aquí) y REFUERZA la política gap #2 (always-learn robusta también bajo feedback de acción-consecuencia, sin maquinaria
   de exploración). Caveat: no se probó concentración extrema del soporte. Sirve al GOAL (R-VALOR). Próximo: lazo de
   acción-consecuencia REAL con verificador chequeable (sandbox exp018), feedback con costo, dinámica secuencial.
+
+## [2026-06-25] CYCLE 88 — H-V4-7f REFUTADA (cierra caveat CYCLE 87): ni la concentración extrema del soporte atrapa
+- Archivos: cognia_x/experiments/exp072_support_concentration/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle88_support_concentration.py (new),
+  cognia_x/tests/test_cycle88_support_concentration.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; arco 86-88 + engine 32/32; cycle88 por el engine REFUTADA, verify_no_loss=OK.
+- Resultado exp (48 seeds): probando el peor caso (POOL FIJO + k_obs=1) el greedy NO se atrapa — gap random−greedy=0.037
+  (<=0.05, sin trap); fresh tampoco. El ridge-poly2 sobre pocos puntos both-high con SPREAD generaliza max().
+- Notas: cierra el caveat de CYCLE 87 con robustez MÁS fuerte; cierra el SUB-TEMA feedback-realismo (87-88). R-INTERVENCIÓN
+  no liga aquí (2ª refutación consecutiva). Matiz: costo MILD sub-umbral de concentración que la exploración cierra.
+  Sirve al GOAL (R-VALOR). Próximo (el salto grande): lazo de acción-consecuencia REAL con verificador chequeable
+  (sandbox exp018) y SCALE (GPU).

@@ -325,3 +325,13 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
   abarca suficiente espacio de features para generalizar max(). ACOTA R-INTERVENCIÓN (explorar no hace falta aquí) y
   REFUERZA la política gap #2 (robusta al action-gating, sin maquinaria de exploración). Caveat: no se probó concentración
   extrema del soporte. Cota 'real'; D-V4-49; test 4/4. Próximo: lazo de acción-consecuencia REAL (verificador exp018), SCALE.
+- [x] **CYCLE 88 (exp072) — H-V4-7f: REFUTADA. Cierra el caveat de CYCLE 87 (sub-tema feedback-realismo 87-88 cerrado).**
+  Probando el verdadero peor caso (POOL FIJO + k_obs=1: el greedy re-observa siempre la región both-high) NI ASÍ se
+  atrapa: gap random−greedy fixed/k_obs=1=0.037 (<=0.05, sin trap); fresh tampoco. El ridge-poly2 sobre pocos puntos
+  both-high con SPREAD generaliza max(). Robustez TOTAL a través de pool fijo/fresh y amplitud de observación; exploración
+  innecesaria (R-INTERVENCIÓN no liga, 2ª refutación). Matiz: costo MILD sub-umbral de concentración. Caveat: soporte
+  degenerado / base no-nesting no testeados. Cota 'real'; D-V4-50; test 4/4. Próximo: el salto grande (exp018, SCALE).
+
+> SUB-TEMA FEEDBACK-REALISMO (87-88) CERRADO: la política gap #2 (always-learn/greedy) es robusta bajo feedback
+> action-gated (87) y bajo concentración extrema del soporte / observación correlacionada (88). El salto grande pendiente
+> (gaps #1/#3): lazo de acción-consecuencia REAL con verificador chequeable (sandbox exp018) y SCALE (GPU).
