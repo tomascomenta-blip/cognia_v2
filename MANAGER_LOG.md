@@ -3852,3 +3852,13 @@ ejecución real) es el lever central de la auto-mejora segura.
   igual que el oráculo y está calibrada para info-gain (95% correcto cuando confiado, 4% confiado-equivocado) vs
   azar (71%, 21%). El agente puede elegir la mejor política por su propia confianza, sin verificador externo.
   Hallazgo: la confianza es confiable sólo con la política correcta. Sub-arco R-VALOR 56-57 cerrado.
+
+## [2026-06-25] CYCLE 58 — H-V4-1d MIXTA (North-Star R-VALOR x memoria): olvido dirigido por valor en mundo no-estacionario
+- Archivos: cognia_x/experiments/exp044_nonstationary_forgetting/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle58_nonstationary_forgetting.py,
+  cognia_x/tests/test_cycle58_nonstationary_forgetting.py, cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle58). Recorder verify_no_loss=OK. Experimento MIXTA (24 seeds).
+- Notas: introduce la no-estacionariedad del North-Star. Bajo commitment profundo (K1=60) + adaptación corta
+  (K2=12), el COMMITTED queda atascado (post_c_new=0.000) y el OLVIDO (decay=0.9) adapta (0.553). MIXTA honesta:
+  gap enorme pero adaptación parcial (<0.60 pre-registrado). Sweet spot estabilidad-plasticidad. Liga R-VALOR a
+  memoria (escribir≡olvidar). Boundary: con adaptación larga el committed adapta solo.

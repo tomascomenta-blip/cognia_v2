@@ -1793,3 +1793,46 @@ bayesiana (tier1); cierra el límite #1 de exp042.
 > externo -> conecta el North-Star (R-VALOR) con el arco de auto-mejora (el verificador externo es, en parte,
 > reemplazable por la confianza calibrada). Sub-arco R-VALOR 56-57: el valor endógeno existe Y es medible por el
 > propio agente.
+
+## CYCLE 58 — H-V4-1d (North-Star R-VALOR x memoria): olvido dirigido por valor en mundo NO-estacionario
+
+### Pregunta
+El North-Star pide un valor endógeno "persiguiendo un objetivo en un mundo NO-ESTACIONARIO ... qué información
+merece recordarse u OLVIDARSE". CYCLE 56/57 mostraron valor endógeno en mundo ESTACIONARIO. ¿En un mundo donde
+la causa CAMBIA tras un commitment profundo y con presupuesto de adaptación corto, el OLVIDO dirigido por valor
+(descontar evidencia vieja) permite ADAPTARSE, donde el agente COMMITTED (acumula todo) queda ATASCADO? Conecta
+R-VALOR con MEMORIA (escribir≡olvidar, H-V4-5).
+
+### Diseño
+Bayesiano (reusa primitivas de exp022). Mundo no-estacionario: clúster confundido; c_old (fase 1, K1=60 =
+commitment profundo), c_new (fase 2, K2=12 = adaptación corta). MISMA política (info-gain) para todos; lo ÚNICO
+que cambia es el OLVIDO: update descontado logpost = decay*logpost + log(verosimilitud). decay=1 = COMMITTED;
+decay<1 = OLVIDO. Barrido decay {1.0,0.9,0.8,0.7}. Métrica: post sobre la causa NUEVA al final (adaptación) y
+post sobre la vieja al fin de fase 1 (que identificó). 24 seeds. Pre-registrado: APOYADA si committed atascado
+(post_c_new<=0.40) Y algún olvido adapta (post_c_new>=0.60, +>0.20), fase 1 OK.
+
+### Resultado — MIXTA
+COMMITTED (decay=1): post_c_new_final=0.000, post_c_old_final=1.000 -> TOTALMENTE ATASCADO (60 consultas de
+commitment no se mueven con 12 de adaptación). OLVIDO (decay=0.9): post_c_new_final=0.553, post_c_old_final=
+0.041, midpoint fase1=0.941 -> ADAPTA (gap +0.553 sobre committed) habiendo identificado la vieja. decay 0.8/0.7:
+adaptan menos y desestabilizan (midpoint cae 0.669/0.389 = olvidan demasiado) -> SWEET SPOT estabilidad-
+plasticidad en 0.9. VEREDICTO MIXTA (honesto): el GAP sobre committed es enorme y el committed está totalmente
+atascado, PERO la adaptación absoluta (0.553) no llega al umbral pre-registrado 0.60 -> adaptación PARCIAL en
+presupuesto corto (no muevo el poste). El hallazgo cualitativo es fuerte: olvidar es necesario para adaptarse.
+
+### Límites (honestos)
+La adaptación es PARCIAL (K2=12 corto; re-identificar del todo desde el clúster necesita más). BOUNDARY observado
+en calibración: con presupuesto de adaptación LARGO (K2~K1) el committed se adapta SOLO (la evidencia nueva
+DESCONFIRMA la causa vieja) -> el olvido sólo es necesario bajo commitment profundo + adaptación corta. No se
+midió olvido ADAPTATIVO (decay según la sorpresa) ni detección de cambio endógena (el experimento sabe cuándo
+cambia). Mundo de juguete.
+
+### Verificación
+exp044 (24 seeds, bayesiano numpy, reusa exp022). cycle58 -> H-V4-1d 'mixta' (DoD), D-V4-23 ACEPTADA, 1 techo
+'real', analogía, verify_no_loss=OK. Test `test_cycle58_nonstationary_forgetting.py` 4/4. Convergente con
+forgetting/discounted-Bayes en no-estacionariedad (tier1).
+
+> Extiende R-VALOR a la NO-ESTACIONARIEDAD (lo que pide el North-Star) y lo liga a MEMORIA: olvidar es una
+> decisión de VALOR necesaria con recursos finitos cuando el mundo cambia; el committed Bayesiano clásico falla
+> justo ahí. Sweet spot estabilidad-plasticidad. Sub-arco R-VALOR 56-58: valor endógeno (56) + señal medible por
+> el agente (57) + olvido para adaptarse en no-estacionariedad (58).
