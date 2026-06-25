@@ -1,0 +1,47 @@
+{
+  "exp": "exp050_meta_forgetting",
+  "cycle": 64,
+  "hypothesis": "H-V4-1g",
+  "claim": "el olvido meta-adaptativo estima la tasa de cambio (sorpresa sostenida) y elige el olvido (committea si estable, olvida si cambia) sin que le digan el régimen",
+  "verdict": "mixta",
+  "summary": {
+    "margin": 0.1,
+    "stationary": {
+      "committed": 1.0,
+      "fixed": 0.6096,
+      "meta": 0.8664
+    },
+    "recurrent": {
+      "committed": 0.315,
+      "fixed": 0.5168,
+      "meta": 0.4083
+    },
+    "adapts_dir_stat": true,
+    "adapts_dir_recur": true,
+    "matches_stat": false,
+    "matches_recur": false,
+    "status": "mixta",
+    "verdict": "H-V4-1g MIXTA: el META adapta su olvido al régimen en DIRECCIÓN correcta (es ROBUSTO, nunca el peor) pero no IGUALA al óptimo. ESTACIONARIO: meta 0.866 COMMITTEA más que el olvido-constante (0.610) aunque no llega a committed (1.000). RECURRENTE: meta 0.408 OLVIDA más que committed (0.315) aunque no llega a fixed (0.517). El agente estima la tasa de cambio por su sorpresa y mueve su olvido en la dirección correcta, pero el compromiso no alcanza el óptimo de cada régimen."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 16,
+    "D": 20,
+    "cluster": 5,
+    "p_obs": 0.15,
+    "K_phase": 12,
+    "n_phases_recur": 5,
+    "candidates": 128
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp050] CYCLE 64 / H-V4-1g — olvido META-ADAPTATIVO (estima la tasa de cambio y elige el olvido)",
+    "[exp050] D=20 cluster=5 p_obs=0.15 | ESTACIONARIO K=60 (1 fase) | RECURRENTE n_phases=5 K_phase=12 | seeds=16",
+    "[exp050] ESTACIONARIO (committear es mejor): committed=1.000 fixed=0.610 META=0.866",
+    "[exp050] RECURRENTE   (olvidar es mejor)   : committed=0.315 fixed=0.517 META=0.408",
+    "[exp050] VEREDICTO H-V4-1g: MIXTA | H-V4-1g MIXTA: el META adapta su olvido al régimen en DIRECCIÓN correcta (es ROBUSTO, nunca el peor) pero no IGUALA al óptimo. ESTACIONARIO: meta 0.866 COMMITTEA más que el olvido-constante (0.610) aunque no llega a committed (1.000). RECURRENTE: meta 0.408 OLVIDA más que committed (0.315) aunque no llega a fixed (0.517). El agente estima la tasa de cambio por su sorpresa y mueve su olvido en la dirección correcta, pero el compromiso no alcanza el óptimo de cada régimen."
+  ]
+}

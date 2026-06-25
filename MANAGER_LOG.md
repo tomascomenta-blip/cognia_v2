@@ -3913,3 +3913,12 @@ ejecución real) es el lever central de la auto-mejora segura.
   cambio aislado, constante para recurrente). NOTA: antes se intentó H-V4-4 (recall=optimización, exp048) pero
   el recall a d=32 está en piso de aprendibilidad (necesita miles de steps) -> DIFERIDO por el deadline, no
   commiteado.
+
+## [2026-06-25] CYCLE 64 — H-V4-1g MIXTA (North-Star, cierre loop 58-63): olvido meta-adaptativo por sorpresa estimada
+- Archivos: cognia_x/experiments/exp050_meta_forgetting/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle64_meta_forgetting.py, cognia_x/tests/test_cycle64_meta_forgetting.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 5 passed (test_cycle64). Recorder verify_no_loss=OK. Experimento MIXTA (16 seeds).
+- Notas: el agente estima la tasa de cambio de su sorpresa y elige su olvido. ESTACIONARIO meta 0.866 (committea
+  más que constante 0.610); RECURRENTE meta 0.408 (olvida más que committed 0.315). Adapta en dirección correcta
+  (robusto, nunca el peor) pero no iguala el óptimo de cada régimen (asimétrico). Cierra el loop del CYCLE 63.

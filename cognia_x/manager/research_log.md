@@ -2011,3 +2011,40 @@ easy muy fácil (n_pairs=4) + currículo ESCALONADO + más steps.
 > El olvido es necesario en no-estacionariedad recurrente y el committed clásico falla PROGRESIVAMENTE; el TIPO
 > óptimo de olvido (constante vs adaptativo) depende del régimen -- un meta-parámetro que un VALOR endógeno
 > debería elegir (estimar la tasa de cambio del mundo). Profundiza el sub-arco R-VALOR x memoria (58-59-63).
+
+## CYCLE 64 — H-V4-1g (North-Star R-VALOR x memoria, cierre del loop 58-63): olvido META-ADAPTATIVO
+
+### Pregunta
+CYCLE 63 (exp049) dejó que el ÓPTIMO de olvido DEPENDE del régimen (constante para recurrente, surprise-gated
+para aislado). Pero un agente real no sabe en qué régimen está. ¿Puede ESTIMARLO (de su propia sorpresa
+sostenida por encima del piso de ruido) y ELEGIR su ritmo de olvido SIN que le digan el régimen?
+
+### Diseño
+Bayesiano numpy (reusa exp022/exp044/exp049). DOS regímenes: ESTACIONARIO (1 causa, committear es lo mejor) y
+RECURRENTE (5 fases, K_phase=12, olvidar constante es lo mejor). 3 brazos (misma política info-gain): committed
+(decay=1), fixed (0.85), META (surprise_ema por encima del piso de ruido p_obs -> decay = 1-(1-floor)*excess/ref).
+16 seeds. Pre-registrado: APOYADA si meta IGUALA al mejor brazo de cada régimen; MIXTA si adapta en DIRECCIÓN
+correcta en ambos (robusto) sin igualar; REFUTADA si no adapta.
+
+### Resultado — MIXTA
+ESTACIONARIO: committed=1.000 fixed=0.610 META=0.866 -> el meta COMMITTEA mucho más que el olvido-constante
+(detecta estabilidad), aunque no llega al committed perfecto. RECURRENTE: committed=0.315 fixed=0.517 META=0.408
+-> el meta OLVIDA más que committed (sigue algo los cambios), aunque NO llega al fixed. El META adapta su olvido
+en DIRECCIÓN correcta en AMBOS regímenes SIN que le digan cuál, y es ROBUSTO (nunca el peor brazo). PERO es
+ASIMÉTRICO: detecta ESTABILIDAD y committea MUY bien (0.866 vs constante 0.610), mientras su olvido bajo
+RECURRENCIA es DÉBIL (0.408, lejos del constante 0.517) porque entre cambios su decay vuelve a subir. =>
+MIXTA honesta: la meta-decisión de olvido es un VALOR endógeno computable de la propia sorpresa, parcialmente.
+
+### Límites (honestos)
+El meta NO iguala el óptimo de cada régimen (compromiso); asimétrico (commitea bien, olvido recurrente débil). El
+mapeo sorpresa->decay tiene hiperparámetros (ref=0.15, ema=0.25, floor=0.7) no barridos -> un meta-controlador
+mejor podría acercarse al óptimo. Mundo de juguete.
+
+### Verificación
+exp050 (16 seeds, bayesiano numpy). cycle64 -> H-V4-1g 'mixta' (DoD), D-V4-28 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle64_meta_forgetting.py` 5/5. Convergente con adaptive forgetting-rate (tier1);
+cierra el loop del CYCLE 63.
+
+> Cierra el loop R-VALOR x memoria (58-63-64): el agente estima la no-estacionariedad de su propia SORPRESA y
+> mueve su olvido en la dirección correcta (robustez entre regímenes sin saber cuál). El VALOR (cuánto olvidar)
+> es endógenamente estimable, parcialmente -- igualar el óptimo del régimen requiere un meta-controlador mejor.
