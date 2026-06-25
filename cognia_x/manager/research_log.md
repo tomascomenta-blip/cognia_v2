@@ -1710,3 +1710,45 @@ exp039 (ruido uniforme) y exp037 (guardia).
 > Completa la robustez del lazo de auto-mejora ante verificadores imperfectos: ruido uniforme (exp039),
 > ruido+cold-start (exp040) y SESGO sistemático (exp041) — en los tres la GUARDIA (dedup+replay limpio) es el
 > mecanismo de defensa. El sesgo estructural daña por estancamiento, no por deriva runaway.
+
+## CYCLE 56 — H-V4-1b (PIVOTE North-Star R-VALOR): aislar el valor de info-gain con post_on_cause
+
+### Pregunta
+exp022 (CYCLE 35, H-V4-1) quedó MIXTA: demostró R-INTERVENCIÓN (el pasivo se queda plano; las políticas
+activas identifican) pero NO aisló R-VALOR — medido por ACCURACY, el azar-activo (C) alcanzaba a info-gain (B).
+DIAGNÓSTICO: la accuracy SATURA (descartado el clúster confundido, el voto acierta aunque el posterior no esté
+concentrado en la causa exacta) -> enmascara el valor. ¿Con el instrumento FIEL (post_on_cause = masa del
+posterior sobre la causa VERDADERA) se AÍSLA el valor de info-gain del de intervenir, en el régimen DURO?
+
+### Diseño
+Reusa exp022.run (máquina validada). Dos regímenes: FÁCIL (D=12,cluster=4,p_obs=0.10) y DURO
+(D=48,cluster=14,p_obs=0.20). Barrido K={8,12,16,20,24}. Métrica PRIMARIA: post_on_cause de B (info-gain) vs C
+(azar-activo) vs A (pasivo). Secundaria: interv accuracy (para mostrar que satura y enmascara). 48 seeds.
+Pre-registrado: APOYADA si DURO B-C post > 0.15 a Kmax, signo-consistente (>=70%), creciente con K, y la
+accuracy enmascara; REFUTADA si B-C post <= 0; MIXTA si positivo pero bajo umbral.
+
+### Resultado — APOYADA
+DURO post_on_cause B-C por K: -0.002@8, +0.134@12, +0.125@16, +0.180@20, +0.306@24 (CRECE con K; a Kmax 79%
+seeds B>C). DURO accuracy B-C@24 = +0.139 (<< post +0.306) -> la accuracy ENMASCARA (satura: B acc 0.947, C acc
+0.808, ambas altas). FÁCIL post B-C se cierra rápido (+0.198@8 -> +0.001@24; la accuracy satura aún antes). =>
+con el instrumento FIEL, info-gain (B) concentra MÁS masa en la causa VERDADERA que el azar-activo (C) en el
+régimen duro, creciente con el presupuesto: el VALOR de *qué* consultar (info-gain) se SEPARA del de *intervenir*
+(actividad). Primera evidencia POSITIVA de R-VALOR específico en el lab. Explica la MIXTA de exp022: instrumento
+equivocado (accuracy en vez de masa-sobre-causa).
+
+### Límites (honestos)
+El efecto es robusto en DIRECCIÓN (media crece, 79% seeds) pero MODESTO por seed individual -> la actividad
+capta el grueso; el valor de info-gain afina. Mundo de juguete (hipótesis lineal y=x_i, clúster confundido
+sintético). El eval usa la causa VERDADERA c (oráculo de evaluación, no de la política): falta un proxy ENDÓGENO
+de "mejor modelo" sin conocer c. El aislamiento depende del régimen (en el fácil el azar alcanza).
+
+### Verificación
+exp042 (48 seeds, bayesiano numpy, reusa exp022). cycle56 -> H-V4-1b 'apoyada' (DoD), D-V4-21 ACEPTADA, 1 techo
+'real', analogía, verify_no_loss=OK. Test `test_cycle56_value_isolation_post.py` 4/4. Convergente con info-gain/
+EIG (active inference, tier1) y refina exp022/CYCLE 35.
+
+> PIVOTE al North-Star (R-VALOR): primera evidencia POSITIVA de un valor ENDÓGENO (info-gain) que construye un
+> modelo más causal que la mera actividad, AISLADO con el instrumento fiel (masa sobre la causa). La lección de
+> método: la accuracy downstream puede enmascarar el valor de una mejor representación; medir por la masa sobre
+> el objetivo. Conecta con el arco de auto-mejora (el verificador es un caso de valor) y abre H-V4-5 (memoria
+> dirigida por valor).

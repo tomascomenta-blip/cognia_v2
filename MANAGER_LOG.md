@@ -3832,3 +3832,13 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: verificador FUERTE pero BUGGY (acepta off-by-one sembrado). El plano queda PINNED (real ~0.49-0.54,
   sesgo persiste 0.24->0.32); la guardia DEFIENDE (real->0.76, sesgo->0.15). No hay deriva runaway (consistente
   con discovery de exp019). El replay limpio es defensa contra sesgo estructural, no sólo ruido uniforme.
+
+## [2026-06-25] CYCLE 56 — H-V4-1b APOYADA (PIVOTE North-Star R-VALOR): info-gain aísla su valor con post_on_cause
+- Archivos: cognia_x/experiments/exp042_value_isolation_post/{__init__.py,run.py,results/results.json},
+  cognia_x/research/cycles/cycle56_value_isolation_post.py, cognia_x/tests/test_cycle56_value_isolation_post.py,
+  cognia_x/manager/research_log.md
+- Resultado tests: PASS — 4 passed (test_cycle56). Recorder verify_no_loss=OK. Experimento APOYADA (48 seeds).
+- Notas: PIVOTE del arco verificador al North-Star R-VALOR. Reabre la hija de exp022/CYCLE 35 (MIXTA). Diagnóstico:
+  la accuracy SATURA y enmascara el valor; el instrumento fiel es post_on_cause (masa sobre la causa verdadera).
+  En el régimen duro info-gain B-C post crece a +0.306 (79% seeds) mientras la accuracy sólo +0.139 -> R-VALOR
+  (qué consultar) se aísla de R-INTERVENCIÓN (intervenir). Primera evidencia POSITIVA de valor endógeno específico.
