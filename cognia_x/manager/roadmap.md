@@ -268,3 +268,7 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
   marginales endógenas: rho=0 rvalue_est (ctrl_est × rel_est) = 0.984 vence a empowerment=0.709 y relevance=0.729
   (+0.255), recupera 98% del oráculo, converge con muestras. El valor se CONSTRUYE de control + relevancia estimados,
   sin oráculo. Cierra el par R-CONTROL (79 acotó, 80 reconstruye). Cota 'real'; D-V4-42; test 4/4.
+- [x] **CYCLE 81 (exp065) — H-V4-6c: APOYADA. Une verificador + R-VALOR.** El verificador de auto-mejora (48-55) es la
+  marginal-de-relevancia de R-VALOR. rvalue_verifier (ctrl × verificador) reconstruye el óptimo en ε=0 (1.000 vs
+  control 0.387) y tolera el ruido del verificador hasta ε*=0.30, degradando con gracia al control. act-and-verify
+  estima R-VALOR = control × verificador-relevancia. Une TRES arcos. Cota 'real'; D-V4-43; test 4/4.

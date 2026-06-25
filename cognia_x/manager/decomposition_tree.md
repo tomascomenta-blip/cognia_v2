@@ -334,3 +334,11 @@ y acota la rama:
 > contestado), y R-VALOR se reconstruye como el PRODUCTO de las marginales endógenas control × relevancia (80,
 > constructivo). Resuelve la rama CONTESTADA del árbol bajo R-VALOR: control y predicción no son rivales de R-VALOR
 > sino sus dos marginales. Frontera: lazo real acción-consecuencia/recompensa; valor no-factorizable; escala.
+
+- **CYCLE 81 — H-V4-6c APOYADA (UNIFICA verificador + R-VALOR).** El VERIFICADOR de auto-mejora (48-55) es la
+  marginal-de-RELEVANCIA de R-VALOR. Con la relevancia provista por un verificador ruidoso (error ε), rvalue_verifier
+  (ctrl × verificador) en ε=0 reconstruye el óptimo (1.000) y vence a empowerment (0.387, control solo) por +0.613
+  (enorme: con p_rel=0.3 el control solo capta poco), tolera el ruido del verificador hasta ε*=0.30, y degrada con
+  gracia al control en ε=0.5. => act-and-verify (R-INTERVENCIÓN + verificador) estima IMPLÍCITAMENTE R-VALOR = control
+  × verificador-relevancia, sin oráculo. UNE TRES arcos (R-INTERVENCIÓN + verificador 48-55 + R-VALOR 79-80). Cota
+  'real'; D-V4-43; test 4/4. La auto-mejora verificada ES asignación por R-VALOR estimado.

@@ -2605,3 +2605,42 @@ Convergente con descomposición de valor / successor-features (tier1) y con CYCL
 > suficiente sola donde divergen). El valor se CONSTRUYE de la experiencia (consecuencias + recompensa), no se
 > postula. Próximo: estimación en un lazo REAL de acción-consecuencia; ligar con el lazo de auto-mejora (el
 > verificador = la señal de relevancia); empowerment estimado online; valor que no factorice limpio.
+
+## CYCLE 81 — H-V4-6c (rama R-CONTROL, UNIFICA verificador + R-VALOR): el verificador como marginal-de-relevancia — APOYADA
+
+### Pregunta
+CYCLE 80 (exp064) reconstruyó R-VALOR = control × relevancia y dejó pre-registrado "el verificador = la señal de
+relevancia". El arco 51-55 mostró que el lazo de auto-mejora tolera un verificador ruidoso (ε*≈0.50). ¿La relevancia
+de R-VALOR la puede proveer un VERIFICADOR ruidoso (error ε)? ¿La reconstrucción control × verificador sobrevive el
+ruido del verificador, y hasta qué ε*?
+
+### Diseño
+Numpy. n=50 levers, ctrl continuo (EXACTO, para aislar el ruido del verificador), rel BINARIO (p_rel=0.3 relevantes).
+valor=ctrl×rel. Un verificador reporta rel_hat = rel con error simétrico ε. 5 brazos: oracle, empowerment (ctrl),
+verifier_only (rel_hat), rvalue_verifier (ctrl × rel_hat), random. Sweep ε∈{0,0.1,0.2,0.3,0.5}. 48 seeds.
+Pre-registrado: APOYADA si ε=0 reconstruye (>=85%) Y vence al control Y ε*>=0.2.
+
+### Resultado — APOYADA
+ε=0: oracle=1.000 empowerment=0.387 verifier_only=0.812 rvalue_verifier=1.000. El producto control×verificador
+RECONSTRUYE el óptimo y vence a empowerment (control solo) por +0.613 -- enorme porque con sólo 30% relevantes el
+control solo capta poco valor (la mayoría de lo controlable es irrelevante): el verificador-relevancia es ESENCIAL.
+Tolerancia: rvalue_verifier supera al control hasta ε*=0.30 (aguanta ~30% de error del verificador; mismo régimen de
+tolerancia que exp053, algo menor que su ε*≈0.50, métrica/tarea distintas). ε=0.5 (verificador inútil):
+rvalue_verifier 0.356 ~ empowerment 0.400 (degrada con gracia al control solo). => el verificador ES la marginal-de-
+relevancia de R-VALOR.
+
+### Límites (honestos)
+El control se da EXACTO (para aislar el ruido del verificador); falta control TAMBIÉN estimado (empowerment online).
+Verificador SINTÉTICO (error ε binario); falta un verificador chequeable REAL (sandbox exp018) como relevancia.
+Valor multiplicativo ctrl×rel asumido; relevancia binaria; juguete.
+
+### Verificación
+exp065 (48 seeds, numpy). cycle81 -> H-V4-6c 'apoyada' (DoD), D-V4-43 ACEPTADA, 1 techo 'real', analogía,
+verify_no_loss=OK. Test `test_cycle81_verifier_relevance.py` 4/4. Convergente con verificador-como-señal-de-valor /
+TTS (tier1) y con CYCLE 80 + arco 48-55 (tier5).
+
+> UNIFICA TRES arcos del lab: R-INTERVENCIÓN (actuar) + VERIFICADOR (48-55, corrección/relevancia) + R-VALOR (79-80,
+> control×relevancia). El agente de act-and-verify estima IMPLÍCITAMENTE R-VALOR = control × verificador-relevancia:
+> la relevancia no necesita oráculo, la da el verificador chequeable (ruidoso pero tolerable hasta ~30% de error).
+> La auto-mejora verificada ES asignación de cómputo por R-VALOR estimado. Próximo: control TAMBIÉN estimado online;
+> verificador chequeable REAL (sandbox) como relevancia.

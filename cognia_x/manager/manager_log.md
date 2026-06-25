@@ -230,3 +230,14 @@
 - Notas: cierra el par R-CONTROL (79 acotó, 80 reconstruye). El valor se CONSTRUYE de la experiencia (control +
   recompensa estimados), no se postula. Resuelve el rival contestado bajo R-VALOR. Sirve al GOAL (R-VALOR raíz
   general constructiva). Próximo: lazo real acción-consecuencia; ligar relevancia con el verificador de auto-mejora.
+
+## [2026-06-25] CYCLE 81 — H-V4-6c APOYADA: el verificador como marginal-de-relevancia de R-VALOR (une 3 arcos)
+- Archivos: cognia_x/experiments/exp065_verifier_relevance/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle81_verifier_relevance.py (new),
+  cognia_x/tests/test_cycle81_verifier_relevance.py (new), research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 4/4; cycle81 por el engine APOYADA, verify_no_loss=OK.
+- Resultado exp (48 seeds): ε=0 rvalue_verifier=1.000 (reconstruye) vs empowerment=0.387 (+0.613); tolera ε*=0.30;
+  ε=0.5 cae al control (0.356~0.400). El verificador es la marginal-de-relevancia.
+- Notas: UNIFICA el arco verificador (48-55) con la reconstrucción de R-VALOR (79-80) y R-INTERVENCIÓN: act-and-verify
+  estima R-VALOR = control × verificador-relevancia. Sirve al GOAL (R-VALOR raíz que aterriza el verificador). Próximo:
+  control estimado online; verificador chequeable REAL (sandbox exp018) como relevancia.
