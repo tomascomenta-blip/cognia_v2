@@ -3982,3 +3982,55 @@ ejecución real) es el lever central de la auto-mejora segura.
 - Notas: VEREDICTO DE LA CORRIDA en el thesis y paper: el thesis v4 quedó SUSTANCIALMENTE VALIDADO en juguete --
   R-VALOR resoluble (evidencia positiva) y ATERRIZA memoria/verificador/prior; R-INTERVENCIÓN y R-PRIOR
   confirmadas. R-VALOR de confianza BAJA->MEDIA. Pendiente: la ESCALA y un mundo no-de-juguete; H-V4-4 diferida.
+
+# ════════════════════════════════════════════════════════════════════════════
+# CIERRE DE CORRIDA — Manager AUTONOMÍA TOTAL hasta deadline 05:30 (2026-06-24/25)
+# ════════════════════════════════════════════════════════════════════════════
+
+## Resumen
+GOAL: "continua y programa con python un apagado a las 5:30 am". Corrida 100% autónoma, sin preguntar nada, sin
+parar, encadenando ciclos entre turnos vía ScheduleWakeup, hasta el deadline. Inicio ~22:23 (-05), deadline 05:30.
+
+## Apagado (parte del GOAL) — HECHO y CONFIRMADO
+cognia_x/manager/apagado_deadline.py (Python). Apagado del SO ARMADO y RE-CONFIRMADO para 2026-06-25 05:30:00
+(shutdown /s /t). Idempotente, cancelable con --cancel. Mecanismo de corte a deadline.
+
+## Trabajo de investigación: 21 ciclos (CYCLE 51-71), 4 arcos + 2 raíces frescas + 3 consolidaciones
+Todos por las compuertas del engine (hipótesis pre-registrada, DoD, decisión por el ledger, techo real, analogía
+7-etapas, verify_no_loss=OK) y con test de regresión verde.
+
+- ARCO VERIFICADOR-REAL (51-55): la auto-mejora con verificador chequeable REAL (sandbox) es robusta; la guardia
+  dedup+replay-limpio compra robustez ante ruido (ε*=0.50), cold-start, ruido×cold-start y sesgo sistemático.
+- SUB-ARCO R-VALOR (56-59): valor endógeno (info-gain) AISLADO con el instrumento fiel (post_on_cause); MEDIBLE
+  por la confianza calibrada del agente sin oráculo; olvido por sorpresa en no-estacionariedad.
+- UNIFICACIÓN/gating (60-62): la confianza endógena reemplaza PARCIALMENTE al verificador externo, gateada por
+  calibración; el agente decide cuándo confiar en sí mismo (gating explícito).
+- R-VALOR x MEMORIA (58·63-68): el committed se atasca en no-estacionariedad; el olvido óptimo DEPENDE del régimen
+  (modular la TASA tiene un techo -1h REFUTADA-; el SELECTOR de ESTRATEGIA lo vence -1i APOYADA-).
+- R-PRIOR (69, H-V4-3 APOYADA): la calidad/corrección del prior fija la eficiencia muestral (un prior falso hunde).
+- ESCRIBIR≡OLVIDAR (70, H-V4-5 APOYADA): la ventaja de la memoria finita ES el valor (rate-distortion dirigido por
+  valor; ablar el valor la colapsa a aleatoria).
+- Consolidaciones (61, 67, 71): thesis v4 (decomposition_tree.md) + paper.md al día + veredicto global.
+
+## Hipótesis v4 (estado final)
+- APOYADAS (10): H-V4-1b, 1c, 1e, 1i, 2d, 2e, 2f, 2g, 3, 5.
+- MIXTAS (7): H-V4-1d, 1f, 1g, 1j, 2h, 2i, 2j.
+- REFUTADA (1): H-V4-1h (piso constante + sorpresa; el trade-off es fundamental).
+- DIFERIDA (1): H-V4-4 (techo de recall = optimización; el recall a d=32 está en piso de aprendibilidad, necesita
+  miles de steps -- sondeado y confirmado intractable en el tiempo del deadline; retomar con currículo escalonado).
+- Decisiones D-V4-16 .. D-V4-33 ACEPTADAS por el ledger.
+
+## Commits
+21 commits a origin/cognia-x (3d9b140..HEAD). Todo commiteado+pusheado por ciclo -> el corte a deadline es seguro
+en cualquier momento. Tests verdes; verify_no_loss=OK en los 20 recorders.
+
+## VEREDICTO
+El thesis v4 quedó SUSTANCIALMENTE VALIDADO en juguete: R-VALOR (raíz primera) pasa de confianza BAJA a MEDIA en
+RESOLUBILIDAD -- hay evidencia POSITIVA de un valor endógeno (estimable de info-gain/confianza/sorpresa, sin
+oráculo) que ATERRIZA las demás raíces (memoria, verificador, prior). La frontera pendiente es la ESCALA y un
+mundo no-de-juguete. Método research-as-code respetado, honestidad anti-Goodhart (MIXTAS/REFUTADA/DIFERIDA
+reportadas tal cual).
+
+## Cierre
+Loop autónomo terminado en cierre limpio (~04:17, -05). Apagado del SO armado para 05:30 -> cerrará todo. No se
+reprograma wakeup. FIN.
