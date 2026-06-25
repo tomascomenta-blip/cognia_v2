@@ -3759,3 +3759,11 @@ ejecución real) es el lever central de la auto-mejora segura.
   más grande.
 - PRÓXIMO (P0): H-V4-3 — salto a tarea más RICA + verificador real-chequeable (código→sandbox, exp018), donde
   el verificador es real y la diversidad no está acotada por un vocab chico.
+
+## DOC — Arquitectura Objetivo del dueño (2026-06-24)
+- Guardado `cognia_x/manager/ARQUITECTURA_OBJETIVO.md`: visión del dueño para entrenar Cognia-X (jerarquía de
+  expertos N1/N2/N3, planificador rápido + verificador profundo, separar razonamiento↔comunicación,
+  metarrazonamiento, generación+clasificación de hipótesis, autoevaluación, aprendizaje de coordinación,
+  guardia de corrección, compatibilidad Transformer, escalabilidad modular). Contenido verbatim + Apéndice A
+  que mapea cada pieza a la evidencia ya producida en el arco v4 (40-50) y al engine de investigación.
+- North Star de INGENIERÍA para la fase de entrenamiento; complementa el North Star de INVESTIGACIÓN (R-VALOR).

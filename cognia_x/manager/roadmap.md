@@ -3,6 +3,9 @@
 > Estado por fase. Una fase avanza solo con evidencia (no por intuición).
 > Constitución operativa vigente: `_directiva_v3.md` (descarta lo HECHO, deja lo PENDIENTE; absorbe
 > las lecciones de 23 ciclos como reglas). v1/v2 se conservan (append-only).
+> **North Star de INGENIERÍA (visión del dueño para entrenar):** `ARQUITECTURA_OBJETIVO.md` — jerarquía de
+> expertos + planificador/verificador + metarrazonamiento + hipótesis + auto-mejora. El arco v4 (40-50) ya
+> demostró sus piezas centrales en pequeño (ver Apéndice A de ese doc).
 
 ## F0 — Fundación del laboratorio  ✅ DONE (2026-06-17)
 - [x] Subproyecto independiente `cognia_x/` + rama `cognia-x`.
