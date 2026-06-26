@@ -775,3 +775,13 @@ señal de valor (que ningún estimador intrínseco sostiene solo, 116). Esto aco
 señal ENDÓGENA: es endógena y útil por tramos, pero su CALIBRACIÓN sostenida requiere re-anclaje externo. FRONTERA:
 señales que SÍ se recalibren con grounding externo periódico (incluir negativos verificados / contrastivo); curva
 horizonte-vs-colapso; detectar el modo consistentemente-equivocado; y SCALE.
+
+## 3.AO Coda — el targeting del replay positivo mitiga pero no cura (117)
+117 (H-V4-8w, APOYADA DÉBIL) cierra el sub-arco de fragilidad: dirigir el replay de verdad canónica a los FALLOS del modelo
+(donde la confianza engaña) mejora MARGINALMENTE la calibración (corr +0.055) y el downstream (+0.050) sobre el replay
+aleatorio, pero AMBOS siguen colapsando -- MITIGA, no CURA. Imitar positivos (aun dirigidos) enseña a subir lo correcto,
+no a BAJAR la confianza en lo incorrecto. Conclusión del sub-arco 115-117: la durabilidad de la señal de valor endógena
+NO se logra con imitación de positivos; la cura queda como FRONTERA -- señal NEGATIVA/contrastiva (unlikelihood sobre lo
+verificado-incorrecto) o recalibración externa explícita. R-VALOR endógena es útil por tramos cortos + re-anclaje externo
+del outcome. [Nota metodológica honesta: en 115/116/117 el smoke de pocos seeds fue ruidoso/engañoso y el full (4 seeds)
+mandó -- los framings se corrigieron al ver el full, no al revés.]
