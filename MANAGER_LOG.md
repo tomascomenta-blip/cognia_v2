@@ -4164,3 +4164,34 @@ TEORÍA DE ASIGNACIÓN R-VALOR completa bajo realismo + trilogía conceptual (qu
 estimador + puente a la generación + robustez/aprender-agregación + 2 validaciones toy→real + el stress-test de fragilidad
 que la acota honestamente. Frontera para la próxima sesión: señal negativa/contrastiva para la durabilidad; objetivo
 no-sintético; validar extensiones restantes en el lazo real; y SCALE (GPU/Kaggle).
+
+---
+
+## [2026-06-26] Addendum — CYCLES 118-119: la fragilidad de R-VALOR tiene CURA (resolución constructiva)
+Cierre del sub-arco de fragilidad (115-117) con la pieza concreta que faltaba.
+
+- **118 (H-V4-8x, REFUTADA-inestable pero informativa):** los NEGATIVOS verificados curan la calibración DRAMÁTICAMENTE
+  (corr_gain +0.398: la dirección es exactamente correcta) pero el contrastivo NAIVE (ascenso de gradiente sobre el CE de
+  negativos) DESTRUYE la capacidad (real_acc 0.014 vs 0.239, modelo degenerado). La cura viable queda concreta: un
+  unlikelihood ACOTADO, no ascenso de CE crudo.
+- **119 (H-V4-8y, APOYADA — CAPSTONE constructivo):** el unlikelihood ACOTADO (minimizar -log(1-p(token_incorrecto)) en las
+  posiciones supervisadas de los negativos) CURA la durabilidad de la señal SIN sacrificar la capacidad: corr unlik=0.816
+  (tend +0.175) vs pos_only=0.174 (tend -0.296, colapsa), ganancia +0.642; capacidad preservada (real_acc 0.181 vs 0.183,
+  Δ-0.003). LA DURABILIDAD ENDÓGENA DE R-VALOR ES ALCANZABLE.
+
+### Conclusión (cierra el arco de fragilidad de forma CONSTRUCTIVA)
+115 problema (la señal colapsa) -> 116-117 diagnóstico (los intrínsecos positivos no curan) -> 118 dirección (los negativos
+curan pero el método crudo destruye) -> 119 CURA estable (unlikelihood acotado: calibración preservada a cero costo de
+capacidad). El lazo de auto-mejora durable = likelihood(verificado-correcto) + unlikelihood-ACOTADO(verificado-incorrecto).
+R-VALOR no es un free lunch endógeno perpetuo, pero su fragilidad TIENE CURA.
+
+### Verificación / honestidad
+118/119 PyTorch CPU (4 seeds, 6 rondas). DoD + verify_no_loss=OK + test (3 c/u). D-V4-80..81 aceptadas (tier5). Honestidad:
+118 es un fracaso de implementación que igualmente informó fuerte; framings de smoke corregidos al ver el full (en TODO el
+arco 115-119, los pocos-seeds eran ruidosos/engañosos -> el full mandó). Un bug menor de .format ('n' faltante) en cycle119
+detectado y corregido. Commits: 3269943(118) b116838(119). paper.md + memoria sincronizadas a 119.
+
+### Estado de la corrida 89-119 (31 ciclos)
+TEORÍA DE ASIGNACIÓN R-VALOR completa+robusta bajo realismo + validada toy→real + STRESS-TEST honesto del fundamento +
+RESOLUCIÓN constructiva de la fragilidad. Frontera para la próxima: sintonizar el balance calibración/capacidad (neg_w);
+horizontes más largos; objetivo no-sintético; combinar el unlikelihood con la teoría de asignación; y SCALE (GPU/Kaggle).
