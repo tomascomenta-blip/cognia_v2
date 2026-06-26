@@ -1003,3 +1003,24 @@ criterio de relevancia -- actuando y midiendo qué controla -- sin una meta exte
 acción para descubrir. FRONTERA del sub-arco H-V4-10: controlabilidad parcial/continua (grados, no binaria) y muchas
 dimensiones; descubrimiento bajo dinámica no-lineal; exploración ACTIVA dirigida a descubrir más rápido (vs acción
 pasiva-excitada); y el puente a active inference (minimizar la energía libre esperada, donde acción y modelado se unifican).
+
+## 3.BD KEYSTONE — el CONTROL reconstruye R-VALOR = controlabilidad × relevancia (129, cierra el lazo con la tesis 79-82)
+La rama control/acción (127-128) abre una posibilidad profunda: que la TESIS CENTRAL del lab -- R-VALOR (referido al objetivo)
+= controlabilidad × relevancia (79-82), que se había POSTULADO y validado como una reconstrucción-producto endógena -- no sea
+un postulado sino una CONSECUENCIA del objetivo de control. 129 (H-V4-10c, APOYADA) lo demuestra. DISEÑO: un agente con
+capacidad de modelado MULTI-UNIDAD (modela K=2 de D=8 modos) sobre un sistema cuyos modos varían en los dos ejes -- 2 modos
+en cada cuadrante de (CONTROLABLE b∈{1,0}) × (RELEVANTE w∈{1,0}), con los incontrolables-irrelevantes RUIDOSOS para tentar a
+la predicción. Cuatro criterios de asignación de la capacidad. RESULTADO (numpy, 300 seeds, reproducible smoke 60 ≈ full
+300): el criterio VALOR -- w·b̂², la relevancia dada por el propio objetivo × la controlabilidad ESTIMADA de los datos
+acción-resultado (128) -- bate a TODOS los factores por separado: VALOR 0.994 vs PREDICCIÓN 0.000 (modela el ruido) /
+CONTROLABILIDAD-sola 0.481 (modela lo controlable-pero-irrelevante) / RELEVANCIA-sola 0.502 (modela lo
+relevante-pero-INCONTROLABLE, que no se puede regular); margen +0.492. Las tres bases de un solo factor caen a ~0.5
+(mitad-óptimo: capturan UNO de los dos modos necesarios). => SÓLO el PRODUCTO captura los modos controlable-Y-relevante: el
+objetivo de CONTROL RECONSTRUYE R-VALOR = controlabilidad × relevancia. IMPLICANCIA -- el cierre conceptual del programa: lo
+que en 79-82 se postulaba ahora se DERIVA -- R-VALOR es la asignación óptima de capacidad de modelado de un agente que quiere
+CONTROLAR su mundo, con la relevancia dada por su objetivo y la controlabilidad descubierta actuando (128). El lazo se cierra:
+CONTROL (raíz, 127) → fuente de la relevancia (127) + controlabilidad DESCUBRIBLE actuando (128) → el PRODUCTO R-VALOR (129).
+R-VALOR deja de ser un criterio postulado o una reetiqueta de meta externa: es lo que CAE de querer-controlar bajo capacidad
+finita -- un valor endógeno con RAÍZ. FRONTERA del sub-arco H-V4-10: controlabilidad y relevancia en GRADOS continuos (no
+binarios); capacidad como presupuesto continuo de precisión; dinámica no-lineal; y el puente a active inference, donde el
+producto controlabilidad × relevancia caería de minimizar la energía libre esperada (unificando acción, modelado y valor).

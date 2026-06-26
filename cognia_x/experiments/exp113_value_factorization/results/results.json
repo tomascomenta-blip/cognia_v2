@@ -1,0 +1,42 @@
+{
+  "exp": "exp113_value_factorization",
+  "cycle": 129,
+  "hypothesis": "H-V4-10c",
+  "claim": "un objetivo de CONTROL con capacidad de modelado limitada asigna su capacidad por el PRODUCTO controlabilidad x relevancia (w·b^2 estimado), batiendo a cada factor por separado (prediccion=varianza, controlabilidad-sola, relevancia-sola) -> el objetivo de control RECONSTRUYE R-VALOR = controlabilidad x relevancia; la tesis central 79-82 emerge de la raiz del control",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "valor": 0.9943,
+      "prediccion": 0.0,
+      "controlabilidad": 0.4815,
+      "relevancia": 0.5024
+    },
+    "value": 0.9943,
+    "best_base": 0.5024,
+    "best_base_name": "relevancia",
+    "margin": 0.4919,
+    "value_wins": true,
+    "status": "apoyada",
+    "verdict": "H-V4-10c APOYADA (el control reconstruye R-VALOR = ctrl × rel): el criterio VALOR (relevancia × controlabilidad estimada, w·b̂²) asigna la capacidad de modelado MEJOR que cualquier factor por separado -- VALOR 0.994 vs mejor base (relevancia) 0.502 (margen +0.492). Sólo el PRODUCTO captura los modos controlable-Y-relevante: la PREDICCIÓN 0.000 modela el ruido, CONTROLABILIDAD-sola 0.481 modela controlable-pero-irrelevante, RELEVANCIA-sola 0.502 modela relevante-pero-incontrolable (no se puede regular). => el objetivo de CONTROL RECONSTRUYE R-VALOR = controlabilidad × relevancia: la tesis central del lab (79-82) EMERGE de la raíz del control, no se postula."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 300
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp113] CYCLE 129 / H-V4-10c — ¿el objetivo de CONTROL reconstruye R-VALOR = controlabilidad × relevancia? (keystone: une la rama control con la tesis 79-82)",
+    "[exp113] seeds=300 D=8 K=2 a=0.6 T=300 eval=300",
+    "[exp113] modos (b,w,s): [(1.0, 1.0, 1.0), (1.0, 1.0, 1.0), (1.0, 0.0, 1.0), (1.0, 0.0, 1.0), (0.0, 1.0, 1.0), (0.0, 1.0, 1.0), (0.0, 0.0, 3.0), (0.0, 0.0, 3.0)]",
+    "[exp113]            valor (perf de control ponderada): 0.994",
+    "[exp113]       prediccion (perf de control ponderada): 0.000",
+    "[exp113]  controlabilidad (perf de control ponderada): 0.481",
+    "[exp113]       relevancia (perf de control ponderada): 0.502",
+    "[exp113] VALOR=0.994 vs mejor base (relevancia)=0.502 | margen +0.492",
+    "[exp113] value_wins=True",
+    "[exp113] VEREDICTO H-V4-10c: APOYADA | H-V4-10c APOYADA (el control reconstruye R-VALOR = ctrl × rel): el criterio VALOR (relevancia × controlabilidad estimada, w·b̂²) asigna la capacidad de modelado MEJOR que cualquier factor por separado -- VALOR 0.994 vs mejor base (relevancia) 0.502 (margen +0.492). Sólo el PRODUCTO captura los modos controlable-Y-relevante: la PREDICCIÓN 0.000 modela el ruido, CONTROLABILIDAD-sola 0.481 modela controlable-pero-irrelevante, RELEVANCIA-sola 0.502 modela relevante-pero-incontrolable (no se puede regular). => el objetivo de CONTROL RECONSTRUYE R-VALOR = controlabilidad × relevancia: la tesis central del lab (79-82) EMERGE de la raíz del control, no se postula."
+  ]
+}

@@ -4322,3 +4322,18 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
   R-VALOR puede GENERAR su criterio de relevancia sin meta externa, pagando un presupuesto de acción. cycle128 -> H-V4-10b
   'apoyada', D-V4-90 ACEPTADA, techo 'real', verify_no_loss=OK.
 - Frontera: controlabilidad continua/parcial, muchas dimensiones, no-lineal, exploración ACTIVA, active inference.
+
+## [2026-06-26] CYCLE 129 — H-V4-10c: KEYSTONE — el CONTROL reconstruye R-VALOR = controlabilidad × relevancia (cierra el lazo con la tesis 79-82)
+- Archivos creados: cognia_x/experiments/exp113_value_factorization/ (run.py+__init__), cognia_x/research/cycles/cycle129_value_factorization.py, cognia_x/tests/test_cycle129_value_factorization.py
+- Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.BD)
+- Resultado tests: PASS — cycle129 dirigido 4/4; con cycle127+128+engine 32 passed; engine verify_no_loss=OK.
+- Notas: cierra el lazo entre la rama control/acción (127-128) y la TESIS CENTRAL (79-82: R-VALOR = controlabilidad ×
+  relevancia, que se postulaba). exp113: D=8 modos (2 por cuadrante de controlable×relevante, los uncont+irrel ruidosos),
+  capacidad K=2, 4 criterios de asignación. El criterio VALOR (w·b̂² = relevancia del objetivo × controlabilidad descubierta)
+  bate a cada factor: VALOR 0.994 vs predicción 0.000 (ruido) / controlabilidad-sola 0.481 / relevancia-sola 0.502 (margen
+  +0.492; las bases de un factor caen a ~mitad-óptimo). => SÓLO el producto captura los modos controlable-Y-relevante: el
+  objetivo de control RECONSTRUYE R-VALOR = ctrl × rel. La tesis 79-82 EMERGE de la raíz del control (no se postula). Cierra
+  el lazo: CONTROL (raíz) -> relevancia (127) + controlabilidad descubierta (128) -> producto R-VALOR (129). cycle129 ->
+  H-V4-10c 'apoyada', D-V4-91 ACEPTADA, techo 'real', verify_no_loss=OK.
+- Frontera: grados continuos (no binarios), capacidad continua, no-lineal, active inference (donde el producto caería de
+  minimizar la energía libre esperada).

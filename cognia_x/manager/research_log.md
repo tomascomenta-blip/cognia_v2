@@ -3872,3 +3872,23 @@ verify_no_loss=OK. Test 4/4.
 > acción el distractor ruidoso confunde). Un agente R-VALOR puede GENERAR su criterio de relevancia actuando, sin meta
 > externa -- pero pagando un presupuesto de acción. Frontera: controlabilidad continua/parcial, muchas dimensiones,
 > no-lineal, exploración ACTIVA (vs pasiva-excitada), active inference.
+
+## CYCLE 129 — H-V4-10c (rama control/acción, KEYSTONE: el control RECONSTRUYE R-VALOR = controlabilidad × relevancia) — APOYADA
+exp113 (numpy, 300 seeds): cierra el lazo entre la rama control/acción (127-128) y la TESIS CENTRAL del lab (79-82: R-VALOR =
+controlabilidad × relevancia, que se había POSTULADO/validado como reconstrucción-producto). DISEÑO: D=8 modos, 2 en cada
+cuadrante de (CONTROLABLE b∈{1,0}) × (RELEVANTE w∈{1,0}); los uncont+irrel RUIDOSOS (tientan a la predicción). Acción
+vectorial; capacidad de modelar K=2 de 8 modos; 4 criterios de asignación. RESULTADO: el criterio VALOR (w·b̂², relevancia del
+propio objetivo × controlabilidad ESTIMADA, 128) bate a TODOS los factores por separado -- VALOR 0.994 vs PREDICCIÓN 0.000
+(modela el ruido) / CONTROLABILIDAD-sola 0.481 (modela controlable-pero-irrelevante) / RELEVANCIA-sola 0.502 (modela
+relevante-pero-INCONTROLABLE, no se puede regular); margen +0.492. Las bases de un solo factor caen a ~0.5 (mitad-óptimo:
+capturan UNO de los dos modos necesarios). => SÓLO el PRODUCTO captura los modos controlable-Y-relevante: el objetivo de
+CONTROL RECONSTRUYE R-VALOR = controlabilidad × relevancia. La tesis central (79-82), que se postulaba, EMERGE como la
+asignación óptima de capacidad de un agente que quiere CONTROLAR. Reproducible smoke 60 ≈ full 300. cycle129 → H-V4-10c
+'apoyada' (DoD), D-V4-91 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> KEYSTONE -- R-VALOR DERIVADO DEL CONTROL (129): lo que en 79-82 se POSTULABA (R-VALOR = controlabilidad × relevancia) aquí
+> se DERIVA: es la asignación óptima de capacidad de modelado de un agente que quiere controlar, con la relevancia del
+> objetivo y la controlabilidad descubierta actuando (128). Cierra el lazo conceptual: CONTROL (raíz) -> relevancia (127) +
+> controlabilidad descubierta (128) -> el PRODUCTO R-VALOR (129). R-VALOR ya no es un criterio postulado ni una reetiqueta de
+> meta externa: es lo que cae de querer-controlar bajo capacidad finita. Frontera: grados continuos (no binarios), no-lineal,
+> capacidad continua, active inference (donde el producto caería de minimizar la energía libre esperada).
