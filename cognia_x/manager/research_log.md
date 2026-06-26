@@ -3569,3 +3569,17 @@ D-V4-73 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3. (Gotcha blocker.kin
 > muestrear ancho (random) gana; pool ruidoso -> el filtro de confianza paga. La guardia de diversidad (94) ayuda al
 > filtro pero no lo vuelve óptimo global. Frontera: régimen de pool-no-limpio-barato (tarea dura/base débil); tasa base
 > como señal de control; SCALE.
+
+## CYCLE 112 — H-V4-8q (rama R-VALOR, R-VALOR RECURSIVO: el COSTO/ROI de ESTIMAR el valor) — APOYADA
+Todo el arco supuso un estimador de valor DADO. exp096 (numpy, 64 seeds) sube un nivel: ¿conviene PAGAR por estimar el
+valor (y asignar bien) vs ACTUAR sobre un PRIOR barato (al azar)? Barrido heterogeneidad(spread)×costo(c_est).
+RESULTADO: cruce claro -- a c_est=0.05 estimar paga desde spread 0.3; a c_est=0.15 recién desde spread 0.6 (el umbral SUBE
+con el costo). A baja heterogeneidad (todos valen parecido) o alto costo, el PRIOR gana (estimar es plata tirada); a alta
+heterogeneidad y costo bajo, estimar gana (elegir el mejor agrega mucho). => decidir SI estimar el valor es ella misma una
+decisión R-VALOR (ROI = ganancia-por-heterogeneidad − costo-de-estimar); el 'valor de la información sobre el valor'
+(metarazonamiento). Cierra el lazo conceptual: R-VALOR gobierna QUÉ elegir (83-103), CUÁNDO gastar (104) y SI vale estimar
+(112). cycle112 → H-V4-8q 'apoyada' (DoD), D-V4-74 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3.
+
+> R-VALOR RECURSIVO (112): la decisión de ESTIMAR el valor tiene su propio costo/retorno; hay un régimen (baja
+> heterogeneidad o alto costo de estimar) donde conviene NO estimar y usar el prior. Frontera: prior informado; costo
+> por-ítem; estimación adaptativa (estimar más donde más cambia la decisión); SCALE.

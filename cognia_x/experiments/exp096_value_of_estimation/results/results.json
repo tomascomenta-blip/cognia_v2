@@ -1,0 +1,84 @@
+{
+  "exp": "exp096_value_of_estimation",
+  "cycle": 112,
+  "hypothesis": "H-V4-8q",
+  "claim": "decidir SI estimar el valor es una decision R-VALOR (ROI = ganancia-por-heterogeneidad - costo-de-estimar): hay un regimen (baja heterogeneidad o alto costo de estimar) donde conviene NO estimar y actuar sobre el prior; el cruce sube con el costo de estimar",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "c0.05_s0.1": {
+        "estimate": 0.4613,
+        "prior": 0.5001,
+        "oracle": 0.4891
+      },
+      "c0.05_s0.3": {
+        "estimate": 0.5277,
+        "prior": 0.5027,
+        "oracle": 0.5663
+      },
+      "c0.05_s0.6": {
+        "estimate": 0.6563,
+        "prior": 0.4948,
+        "oracle": 0.6873
+      },
+      "c0.05_s1.0": {
+        "estimate": 0.8181,
+        "prior": 0.4862,
+        "oracle": 0.8368
+      },
+      "c0.15_s0.1": {
+        "estimate": 0.3611,
+        "prior": 0.5015,
+        "oracle": 0.389
+      },
+      "c0.15_s0.3": {
+        "estimate": 0.4313,
+        "prior": 0.5078,
+        "oracle": 0.4704
+      },
+      "c0.15_s0.6": {
+        "estimate": 0.5548,
+        "prior": 0.5044,
+        "oracle": 0.5868
+      },
+      "c0.15_s1.0": {
+        "estimate": 0.7253,
+        "prior": 0.4919,
+        "oracle": 0.7479
+      }
+    },
+    "prior_wins_low_het": true,
+    "estimate_wins_high_het": true,
+    "crossover_spread_lo_cost": 0.3,
+    "crossover_spread_hi_cost": 0.6,
+    "cross_rises_with_cost": true,
+    "has_crossover": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8q APOYADA: decidir SI estimar el valor es ella misma una decisión R-VALOR (ROI = ganancia-por-heterogeneidad − costo-de-estimar). A c_est=0.05: a BAJA heterogeneidad prior gana (estimate=0.461 <= prior=0.500: no vale la pena estimar, todos valen parecido) y a ALTA heterogeneidad estimate gana (estimate=0.818 > prior=0.486: vale pagar por estimar y elegir el mejor). El spread del CRUCE sube con el costo (c=0.05->cruce@0.3, c=0.15->cruce@0.6). => hay un RÉGIMEN donde conviene NO estimar y actuar sobre el prior; la estimación misma es una acción con costo/retorno gobernada por R-VALOR."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 64,
+    "n": 50,
+    "k": 10,
+    "sigma": 0.1
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp096] CYCLE 112 / H-V4-8q — ROI de ESTIMAR el valor: ¿cuándo conviene pagar por estimar vs actuar sobre el prior?",
+    "[exp096] n=50 k=10 sigma=0.1 base=0.5 spreads=[0.1, 0.3, 0.6, 1.0] c_ests=[0.05, 0.15] seeds=64",
+    "[exp096] c_est=0.05 spread=0.1: estimate=0.461 prior=0.500 oracle=0.489 -> gana PRIOR",
+    "[exp096] c_est=0.05 spread=0.3: estimate=0.528 prior=0.503 oracle=0.566 -> gana estimate",
+    "[exp096] c_est=0.05 spread=0.6: estimate=0.656 prior=0.495 oracle=0.687 -> gana estimate",
+    "[exp096] c_est=0.05 spread=1.0: estimate=0.818 prior=0.486 oracle=0.837 -> gana estimate",
+    "[exp096] c_est=0.15 spread=0.1: estimate=0.361 prior=0.501 oracle=0.389 -> gana PRIOR",
+    "[exp096] c_est=0.15 spread=0.3: estimate=0.431 prior=0.508 oracle=0.470 -> gana PRIOR",
+    "[exp096] c_est=0.15 spread=0.6: estimate=0.555 prior=0.504 oracle=0.587 -> gana estimate",
+    "[exp096] c_est=0.15 spread=1.0: estimate=0.725 prior=0.492 oracle=0.748 -> gana estimate",
+    "[exp096] cruce(spread donde estimate>prior): c=0.05->@0.3 | c=0.15->@0.6 (sube con costo=True)",
+    "[exp096] VEREDICTO H-V4-8q: APOYADA | H-V4-8q APOYADA: decidir SI estimar el valor es ella misma una decisión R-VALOR (ROI = ganancia-por-heterogeneidad − costo-de-estimar). A c_est=0.05: a BAJA heterogeneidad prior gana (estimate=0.461 <= prior=0.500: no vale la pena estimar, todos valen parecido) y a ALTA heterogeneidad estimate gana (estimate=0.818 > prior=0.486: vale pagar por estimar y elegir el mejor). El spread del CRUCE sube con el costo (c=0.05->cruce@0.3, c=0.15->cruce@0.6). => hay un RÉGIMEN donde conviene NO estimar y actuar sobre el prior; la estimación misma es una acción con costo/retorno gobernada por R-VALOR."
+  ]
+}
