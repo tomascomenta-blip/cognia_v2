@@ -742,3 +742,36 @@ Con dos propiedades del estimador (la CALIBRACIÓN importa para valor-vs-escala 
 depende de la tasa base del pool, 110-111). VALIDADO toy→real en sus piezas centrales (costo 105, receta compuesta 107).
 FRONTERA: validar las extensiones restantes (no-estacionariedad 97-99, vector 100, timing 104) en el lazo real; objetivo
 no-sintético; estimación adaptativa (estimar más donde más cambia la decisión); y SCALE (GPU/Kaggle).
+
+---
+
+# Extensión 113-116 — robustez de la agregación y la FRAGILIDAD del fundamento (2026-06-26)
+
+## 3.AL Robustez a la agregación INCIERTA (113-114)
+113 (H-V4-8r, APOYADA regime-dependiente): el arco halló la política correcta por agregación CONOCIDA (95/100/101); bajo
+agregación INCIERTA no hay supuesto universalmente seguro -- el default minimax depende del ratio presupuesto/diversidad
+k/T (asumir cobertura si k<T, valor si k>T). 114 (H-V4-8s, APOYADA): mejor que ELEGIR un supuesto, APRENDERLO del feedback
+con un bandit (no-regret) vence al hedge fijo -- confirmando el patrón general 92/102/114: la META-DECISIÓN (prior /
+política / agregación) es aprendible del feedback cuando ninguna opción domina a priori.
+
+## 3.AM La FRAGILIDAD del fundamento — la señal de valor COLAPSA bajo auto-entrenamiento (115-116)
+El resultado más importante/honesto del tramo: un stress-test adversarial del fundamento del arco (la confianza endógena
+como señal de valor).
+- 115 (H-V4-8t, MIXTA/alarmante): en un lazo sostenido la corr(confianza, corrección) COLAPSA ronda a ronda (0.59->0.08 en
+  6 rondas: sobreconfianza al entrenar sobre las propias salidas). La guardia de verdad canónica (94) NO frena el colapso
+  de la SEÑAL (colapsa casi igual) pero RESCATA el DOWNSTREAM (real_acc 0.25 vs 0.02 colapsado) anclando los DATOS de
+  entrenamiento. => REFRAME del rol de la guardia: desacopla el outcome del selector degradado; no mantiene honesta la
+  señal. Consecuencia: la asignación-por-confianza del lazo real (93/105/107) es confiable sólo por POCAS rondas.
+- 116 (H-V4-8u, MIXTA): la AUTO-CONSISTENCIA (acuerdo entre K generaciones) es un selector de MEJOR NIVEL que la confianza
+  single-shot (domina la corr en todas las rondas, +0.15) PERO NO más DURABLE (degrada al mismo ritmo; ambas colapsan). El
+  colapso es propiedad del entrenar-sobre-sí-mismo (consistentemente-equivocado), no del estimador puntual. => ningún
+  estimador INTRÍNSECO evita el colapso por sí solo; la durabilidad en lazos largos necesita GROUNDING EXTERNO periódico.
+
+## 3.AN Implicancia para el arco
+Las validaciones toy→real (105/107) y el lazo real (93/110) son sólidas en horizontes CORTOS (pocas rondas, donde la señal
+de valor aún discrimina). Para lazos SOSTENIDOS, el arco tiene una dependencia CRÍTICA: el grounding externo (verdad/
+verificador) es necesario para la durabilidad -- tanto del outcome (ancla de datos, 115) como, en última instancia, de la
+señal de valor (que ningún estimador intrínseco sostiene solo, 116). Esto acota honestamente el alcance de R-VALOR como
+señal ENDÓGENA: es endógena y útil por tramos, pero su CALIBRACIÓN sostenida requiere re-anclaje externo. FRONTERA:
+señales que SÍ se recalibren con grounding externo periódico (incluir negativos verificados / contrastivo); curva
+horizonte-vs-colapso; detectar el modo consistentemente-equivocado; y SCALE.
