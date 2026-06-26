@@ -4034,3 +4034,46 @@ reportadas tal cual).
 ## Cierre
 Loop autónomo terminado en cierre limpio (~04:17, -05). Apagado del SO armado para 05:30 -> cerrará todo. No se
 reprograma wakeup. FIN.
+
+---
+
+# SESIÓN MANAGER AUTÓNOMO — 2026-06-25 (cognia-x, continuar desde CYCLE 88)
+
+GOAL: "continua trabajando en el proyecto (cognia-x) continuando desde donde se quedó". Modo manager autónomo +
+ultracode. Arrancó en CYCLE 88 (último commiteado). 6 ciclos nuevos (89-94), todos por las compuertas del Investigation
+Engine (DoD + verify_no_loss=OK + test de regresión), commiteados+pusheados por unidad. Uso < 25% en toda la corrida.
+
+## El arco de la sesión: EL SALTO GRANDE (lazo de acción-consecuencia REAL) + R-PRIOR
+La frontera tras CYCLE 88 era el "salto grande": aterrizar la política R-VALOR (asignar el feedback escaso por valor
+estimado, arco 83-92) en un VERIFICADOR CHEQUEABLE REAL (sandbox exp018) y un lazo CERRADO con el modelo propio.
+
+- **CYCLE 89 — H-V4-7g APOYADA** (exp073): la política R-VALOR sobrevive el salto de un valor sintético SUAVE a un
+  verificador REAL DISCRETO (sandbox ejecuta; v∈{0,1}). STRONG (conjuntivo, E[v]=c·r): producto Bayes-óptimo, aprendido
+  lo iguala (no-regret). WEAK (echo): aprendido recupera (+0.106). El feedback discreto no rompe el aprendizaje.
+- **CYCLE 90 — H-V4-7h MIXTA** (exp074): con media condicional NO-nesteable por poly2 (dos bandas interiores), el poly2
+  default FALLA (no es universal); una base rica genérica (bin) recupera parcial y DATA-HUNGRY. Liga R-PRIOR/H-V4-3.
+- **CYCLE 91 — H-V4-3a APOYADA** (exp075): la FORMA del prior fija la eficiencia muestral. Un prior MATCHEADO (rbf local)
+  recupera a FRACCIÓN del feedback de la base genérica. Avanza R-PRIOR/H-V4-3 (ABIERTA desde el reset).
+- **CYCLE 92 — H-V4-3b MIXTA** (exp076): META-PRIOR. El agente DESCUBRE el prior de sus datos por CV (no-regret vs un
+  selector perfecto) PERO un prior flexible-suficiente lo hace innecesario (espeja CYCLE 86). Cierra el arco R-PRIOR.
+- **CYCLE 93 — H-V4-7i MIXTA** (exp077, PyTorch CPU): LAZO CERRADO con el GENERADOR de MODELO REAL. La CONFIANZA ENDÓGENA
+  (logprob, CYCLE 57/60) asigna la verificación escasa MUCHo mejor que el azar (yield +35, corr 0.59 REAL) PERO el
+  downstream regresiona por narrowing (CYCLE 49-50): tensión allocation↔diversidad.
+- **CYCLE 94 — H-V4-7j APOYADA** (exp078, PyTorch CPU): la GUARDIA dedup+replay (CYCLE 50) RESCATA el downstream
+  (+0.206 sobre conf, ≈ random) SIN perder el yield → RECETA COMPLETA del lazo: R-VALOR-allocation + guardia de
+  diversidad. CIERRA el salto grande.
+
+## Resultado neto
+El SALTO GRANDE quedó CERRADO: la política R-VALOR funciona en un lazo de auto-mejora REAL (modelo propio genera, sandbox
+verifica, entrena), con la confianza endógena como señal de asignación bajo presupuesto + la guardia de diversidad para
+el downstream. R-PRIOR/H-V4-3 pasó de ABIERTA a APOYADA-en-juguete. Se unificaron CINCO hilos del lab (allocation 83-92 +
+confianza endógena 57/60 + verificador-real 48-55 + diversidad 49-50 + R-PRIOR 89-92).
+
+Frontera para la próxima sesión: barrer replay_frac/budget (curva costo-beneficio del lazo); objetivo NO-escalar (gap #4,
+todo usa perf escalar); y SCALE (GPU/Kaggle, fuera de la corrida CPU).
+
+Commits (rama cognia-x, pusheados): 2026f83 (89), d0d57db (90), 13a34f9 (91), 226734f (92), f6de83b (93), e05c096 (94).
+Decisiones D-V4-51..56 aceptadas por el ledger (tier5 propio). Suite cognia_x/tests: 283 passed (verificada tras 89);
+tests dirigidos de cada ciclo nuevo verdes. Honestidad anti-Goodhart respetada (3 MIXTA / 3 APOYADA reportadas tal cual,
+caveats explícitos: modelo tiny, tarea sembrada, parte del rescate por replay de verdad, CPU). Memoria de estado
+actualizada ([[cognia-x-v4-reset]]).
