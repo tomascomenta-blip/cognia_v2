@@ -3644,3 +3644,20 @@ verify_no_loss=OK. Test 3/3.
 > (vale usarla, compra más rondas útiles) pero NO más durable; ningún estimador intrínseco evita el colapso por
 > auto-entrenamiento -> la durabilidad en lazos largos necesita grounding externo periódico. Frontera: señales que SÍ se
 > recalibren con grounding externo; detectar el modo consistentemente-equivocado; SCALE.
+
+## CYCLE 117 — H-V4-8w (rama R-VALOR, cierre del sub-arco de fragilidad 115-116) — APOYADA DÉBIL
+exp101 (PyTorch CPU, lazo real exp018, 4 seeds, 6 rondas): ¿DIRIGIR el grounding (replay de verdad canónica) a los FALLOS
+del modelo -- donde está sobreconfiado-equivocado -- re-calibra la señal mejor que el replay ALEATORIO (guardia 115)?
+RESULTADO: APOYADA pero con efecto CHICO -- corr final targeted=0.180 (tend -0.293) vs random=0.125 (tend -0.328): ganancia
+corr +0.055, downstream real_acc +0.050. PERO ambos siguen COLAPSANDO fuerte (de ~0.59 a ~0.13-0.18): MITIGA, NO CURA.
+=> dirigir el replay a los fallos es una mejora PRÁCTICA marginal sobre el aleatorio, pero NO resuelve la fragilidad: imitar
+positivos (aun dirigidos) enseña a subir lo correcto, no a BAJAR la confianza en lo incorrecto. La durabilidad real sigue
+necesitando señal NEGATIVA/contrastiva (unlikelihood sobre lo verificado-incorrecto) o recalibración externa -- hipótesis
+viva, no testeada (riesgo de cambiar el objetivo en el tiny model). HONESTIDAD: el smoke (2 seeds) invirtió el signo
+(ruido); la afirmación robusta es 'ayuda un poco, no cura'. cycle117 → H-V4-8w 'apoyada' (DoD), D-V4-79 ACEPTADA, techo
+'real', verify_no_loss=OK. Test 3/3.
+
+> CIERRE FRAGILIDAD (115-117): la señal de valor endógena colapsa bajo auto-entrenamiento (115); la auto-consistencia es
+> mejor nivel pero no más durable (116); dirigir el replay a los fallos ayuda marginalmente pero no cura (117). La cura de
+> la durabilidad queda como FRONTERA: señal negativa/contrastiva o recalibración externa explícita. Interino: el selector
+> endógeno vale por tramos cortos + re-anclaje externo del outcome.
