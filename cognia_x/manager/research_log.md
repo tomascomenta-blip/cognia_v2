@@ -3728,3 +3728,20 @@ cycle121 → H-V4-9a 'refutada' (DoD), D-V4-83 ACEPTADA, techo 'real', verify_no
 > RE-LOCALIZACIÓN HONESTA (121): la durabilidad de la señal (cura 119) NO acelera el self-training downstream (ancla-bound);
 > el valor de R-VALOR es DECISIONAL -- asignar/abstener (83-114, 106), no descender el loss. R-VALOR = brújula decisional.
 > Frontera: medir el payoff de la señal calibrada EN una decisión de asignación con presupuesto externo; SCALE.
+
+## CYCLE 122 — H-V4-9b (rama R-VALOR, intenta el capstone POSITIVO de 121) — MIXTA (null/inconclusivo)
+exp106 (PyTorch CPU, lazo real exp018, 4 seeds, 8 rondas): intenta DEMOSTRAR positivamente que el selector durable
+(calibrado, 119) PAGA en una decisión de asignación de recurso EXTERNO (submission budget: someter las top-m por confianza
+a recompensa externa). RESULTADO: NO se pudo aislar en la tarea toy. El payoff de submission no separa los brazos limpio --
+el smoke SATURA (≈1.0 ambos: la tarea que el modelo SABE hacer tiene correctos ABUNDANTES, someter top-m es trivial) y el
+full a 4 seeds da señales MIXTAS/RUIDOSAS (final -0.250, AUC +0.019, corr +0.003); subir la temperatura para escasear los
+correctos DESESTABILIZA el durable (corr->0). DIAGNÓSTICO HONESTO: el payoff DECISIONAL de la calibración sólo se manifiesta
+bajo ESCASEZ de buenas opciones relativa al presupuesto -- la MISMA precondición de toda la teoría de asignación (el valor
+importa bajo escasez/presupuesto, 83-114). La tarea toy (que el modelo domina) no provee esa escasez. => la re-localización
+de 121 (R-VALOR es decisional) queda como inferencia LÓGICA sólida -- apoyada por las mediciones de calibración del arco --
+pero su demostración POSITIVA en una decisión con payoff es FRONTERA (tarea con escasez genuina o SCALE). cycle122 →
+H-V4-9b 'mixta' (DoD), D-V4-84 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3.
+
+> FRONTERA (122): demostrar POSITIVAMENTE el payoff decisional de R-VALOR necesita una tarea con ESCASEZ genuina de buenas
+> opciones (la toy las tiene abundantes -> la decisión satura). La re-localización de 121 se sostiene por lógica +
+> calibración; la demostración positiva queda para una tarea dura / SCALE.
