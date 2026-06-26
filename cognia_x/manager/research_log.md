@@ -3913,3 +3913,27 @@ artefacto de lo binario: generaliza a grados + costo, y MÁS importa cuanto más
 > la DISOCIACIÓN controlabilidad-relevancia (anti +0.368 vs corr +0.044). El costo introduce la controlabilidad-descontada
 > (cost-aware 101); el escalado con la disociación es la firma de la complementariedad (83-86). Honestidad: REFUTADA inicial
 > + bug de pareo cazados -> reformulación a la correlación. Frontera: no-lineal, capacidad continua, active inference.
+
+## CYCLE 131 — H-V4-10e (rama control/acción, PUENTE a ACTIVE INFERENCE) — MIXTA (reencuadrada por VERIFICACIÓN ADVERSARIAL)
+exp115 (numpy, 1000 seeds, brazos PAREADOS): EJEMPLO DEL MÉTODO funcionando. La 1ra versión daba "APOYADA: el sondeo activo
+dirigido por valor paga en ESCASEZ". Un workflow de VERIFICACIÓN ADVERSARIAL (4 agentes independientes, ultracode) la DEMOLIÓ
+y cazó 4 problemas: (1) el "win en escasez" era ARTEFACTO -- a presupuesto chico la pasiva reparte <3 probes/dim (umbral de
+lstsq) y su controlador queda no-op (perf 0.000 por construcción): "activa vs brazo-muerto"; (2) los brazos NO estaban
+PAREADOS (semillas distintas), ocultando que a escasez-fiteable la activa EMPATA/PIERDE (gap pareado negativo significativo);
+(3) la grilla SALTABA presupuestos (B=75-90) donde la activa PIERDE feo (-0.073, -0.099); (4) veredicto inestable por seeds
+(REFUTADA@50 -> APOYADA@250 -> MIXTA@2000) por umbrales-filo. La versión HONESTA (brazos PAREADOS, sin presupuestos
+degenerados, criterio basado en la FORMA estable) da MIXTA: el sondeo dirigido por valor compra eficiencia muestral MODERADA
+(~20-40% relativo) SÓLO cuando la CONTROLABILIDAD debe DESCUBRIRSE (régimen 'descubrir') y a presupuesto MEDIO, con una
+U-INVERTIDA ROBUSTA (estable 40-1000 seeds): gaps por B [0.008, 0.056, 0.133, 0.134, 0.045], pico +0.13/+0.18 interior, bordes
+~+0.05, la activa rinde ~1.2-1.4× la pasiva. En 'conocida' (la relevancia DA la selección) el efecto es chico (+0.04-0.07).
+MECANISMO: en escasez genuina el bootstrap dirigido es ruido; en abundancia ambos saturan; con relevancia conocida la
+selección ya está resuelta. La afirmación original 'paga en escasez' quedó REFUTADA. La activa NAIVE (commit duro) HACE DAÑO;
+sólo la robusta iterativa con piso paga. cycle131 → H-V4-10e 'mixta' (DoD), D-V4-93 ACEPTADA, techo 'real', verify_no_loss=OK.
+Test 5/5.
+
+> META-LECCIÓN (131): la VERIFICACIÓN ADVERSARIAL (workflow de 4 agentes) atrapó un FALSO POSITIVO (APOYADA por artefacto de
+> presupuesto degenerado + brazos no pareados + grilla sesgada + umbrales-filo) ANTES de contaminar el ledger append-only. El
+> hallazgo honesto es ACOTADO: active inference (sondeo dirigido por valor) compra eficiencia muestral MODERADA sólo en el
+> régimen de DESCUBRIMIENTO a presupuesto MEDIO (U-invertida); con relevancia conocida apenas aporta y en escasez genuina
+> daña/empata. Frontera: costo de arranque del bootstrap (cuánta exploración antes de dirigir), no-lineal, active inference
+> formal (energía libre esperada). Institucionalizar la verificación adversarial.

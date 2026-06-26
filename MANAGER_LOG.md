@@ -4338,6 +4338,22 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
 - Frontera: grados continuos (no binarios), capacidad continua, no-lineal, active inference (donde el producto caería de
   minimizar la energía libre esperada).
 
+## [2026-06-26] CYCLE 131 — H-V4-10e: active inference como colector de datos — MIXTA (reencuadrada por VERIFICACIÓN ADVERSARIAL)
+- Archivos creados: cognia_x/experiments/exp115_active_probing/ (run.py+__init__), cognia_x/research/cycles/cycle131_active_probing.py, cognia_x/tests/test_cycle131_active_probing.py
+- Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.BF)
+- Resultado tests: PASS — cycle131 dirigido 5/5; con cycle130+engine 29 passed (55s, el barrido B=5120 es pesado); engine verify_no_loss=OK.
+- Notas: EJEMPLO DEL MÉTODO. La 1ra versión daba APOYADA ('el sondeo activo dirigido por valor paga en ESCASEZ'). En ultracode
+  lancé un WORKFLOW de VERIFICACIÓN ADVERSARIAL (4 agentes) que la DEMOLIÓ: (1) el win en escasez era ARTEFACTO (pasiva=0.000
+  por construcción, <3 probes/dim < umbral lstsq -> 'activa vs brazo-muerto'); (2) brazos NO pareados ocultaban que a escasez
+  genuina la activa empata/pierde; (3) grilla saltaba B=75-90 donde la activa pierde (-0.073,-0.099); (4) veredicto inestable
+  por seeds (umbrales-filo). Reescribí honesto (pareado, sin presupuestos degenerados, criterio de forma) -> MIXTA: el sondeo
+  dirigido por valor compra eficiencia muestral MODERADA (~20-40%) SÓLO al DESCUBRIR la controlabilidad y a presupuesto MEDIO
+  (U-invertida robusta 40-1000 seeds, ~1.2-1.4×); con relevancia conocida apenas aporta; la naive HACE DAÑO. La afirmación
+  original 'paga en escasez' quedó REFUTADA. META: la verificación adversarial atrapó un FALSO POSITIVO antes del ledger.
+  cycle131 -> H-V4-10e 'mixta', D-V4-93 ACEPTADA, techo 'real', verify_no_loss=OK.
+- Frontera: costo de arranque del bootstrap; no-lineal; active inference formal (energía libre esperada). Institucionalizar
+  la verificación adversarial.
+
 ## [2026-06-26] CYCLE 130 — H-V4-10d: el producto R-VALOR generaliza a GRADOS+COSTO; su ventaja escala con la DISOCIACIÓN ctrl-rel
 - Archivos creados: cognia_x/experiments/exp114_graded_value/ (run.py+__init__), cognia_x/research/cycles/cycle130_graded_value.py, cognia_x/tests/test_cycle130_graded_value.py
 - Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.BE)

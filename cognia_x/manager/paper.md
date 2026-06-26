@@ -1044,3 +1044,29 @@ cuanto más DISOCIADAS están controlabilidad y relevancia. Esto conecta tres hi
 introduce) y la COMPLEMENTARIEDAD (83-86: el producto es un prior de complementariedad, decisivo bajo no-factorizabilidad --
 el escalado con la disociación es justamente esa firma). FRONTERA: dinámica no-lineal (donde la forma del factor de control
 podría cambiar); capacidad como presupuesto continuo de precisión; y el puente a active inference.
+
+## 3.BF ACTIVE INFERENCE como colector de datos — un hallazgo ACOTADO y una lección de MÉTODO (131)
+La frontera de la rama control/acción incluía el puente a active inference (actuar para aprender). 131 (H-V4-10e, MIXTA) lo
+ataca y termina siendo, además del hallazgo, un EJEMPLO del método del lab funcionando. PREGUNTA: ¿el sondeo de datos
+DIRIGIDO POR VALOR (concentrar los probes en las dimensiones que vas a controlar, w·b̂²/(b̂²+ρ)) compra eficiencia muestral
+sobre la observación uniforme pasiva? La PRIMERA versión daba "APOYADA: paga a presupuesto ESCASO". Antes de registrarla se
+corrió una VERIFICACIÓN ADVERSARIAL (workflow de 4 agentes independientes, en paralelo) que la DEMOLIÓ y cazó cuatro
+problemas concretos: (1) el "win en escasez" era un ARTEFACTO -- a presupuesto chico la pasiva reparte menos de 3 probes por
+dim, por debajo del umbral del ajuste por mínimos cuadrados, y su controlador queda no-op (perf 0.000 POR CONSTRUCCIÓN): el
+"gap" era "activa vs brazo-muerto", no eficiencia; (2) los brazos NO estaban PAREADOS (semillas distintas), lo que OCULTABA
+que a presupuesto escaso-pero-fiteable la activa empata o PIERDE (gap pareado negativo significativo); (3) la grilla de
+presupuestos SALTABA la región donde la activa pierde claramente; (4) el veredicto era inestable por nº de seeds
+(REFUTADA→APOYADA→MIXTA) por umbrales-filo cerca del tamaño del efecto. La versión HONESTA -- brazos PAREADOS sobre las
+mismas instancias, sin presupuestos degenerados, criterio basado en la FORMA estable -- da MIXTA: el sondeo dirigido por
+valor compra eficiencia muestral MODERADA (~20-40% relativo) SÓLO cuando la CONTROLABILIDAD debe DESCUBRIRSE (régimen donde la
+relevancia es uniforme y hay que hallar qué se controla) y a presupuesto MEDIO, con una U-INVERTIDA ROBUSTA (estable 40-1000
+seeds): el gap es bajo en escasez genuina (el bootstrap dirigido-por-valor es ruido sin datos), PICA a presupuesto medio
+(~+0.13 a +0.18, la activa rinde ~1.2-1.4× la pasiva), y se achica en abundancia (ambos saturan). Cuando la relevancia es
+CONOCIDA (la selección ya está resuelta por w) el efecto es chico. Y la versión NAIVE (commit duro a una estimación temprana)
+HACE DAÑO -- sólo la robusta iterativa con piso de exploración paga. CONCLUSIÓN HONESTA: active inference (actuar para
+aprender lo relevante al control) sí compra eficiencia muestral, pero es un beneficio MODERADO y ACOTADO al régimen de
+descubrimiento a presupuesto medio -- NO el "paga en escasez" original, que quedó REFUTADO. META-LECCIÓN registrada: la
+verificación adversarial atrapó un FALSO POSITIVO antes de que contaminara el ledger append-only; conviene institucionalizarla.
+FRONTERA: cuantificar el costo de arranque del bootstrap (cuánta exploración uniforme antes de que dirigir deje de ser ruido);
+dinámica no-lineal; y el puente FORMAL a active inference (minimizar la energía libre esperada, donde acción, modelado y valor
+se unifican).
