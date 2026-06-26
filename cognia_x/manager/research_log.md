@@ -3745,3 +3745,19 @@ H-V4-9b 'mixta' (DoD), D-V4-84 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3
 > FRONTERA (122): demostrar POSITIVAMENTE el payoff decisional de R-VALOR necesita una tarea con ESCASEZ genuina de buenas
 > opciones (la toy las tiene abundantes -> la decisión satura). La re-localización de 121 se sostiene por lógica +
 > calibración; la demostración positiva queda para una tarea dura / SCALE.
+
+## CYCLE 123 — H-V4-9c (rama R-VALOR, CAPSTONE POSITIVO del arco) — APOYADA
+exp107 (numpy, 200 seeds): demuestra POSITIVAMENTE -- en una abstracción CONTROLADA -- lo que el toy torch de 122 no pudo
+aislar. Barre calibración ρ del selector × escasez q de buenas opciones; decisión = someter las top-m por el estimador,
+payoff = buenas elegidas / oracle. RESULTADO: bajo ESCASEZ (q=0.08) el payoff sube de 0.091 (ρ=0, azar) a 0.995 (ρ=0.9,
+calibrado) -- la calibración PAGA +0.904 (de azar a casi-óptimo); bajo ABUNDANCIA (q=0.9) el payoff 0.903->1.000 (+0.097)
+-- SATURA, la calibración es IRRELEVANTE. => DEMUESTRA POSITIVAMENTE que R-VALOR es DECISIONAL (121): la señal de valor
+calibrada PAGA en la DECISIÓN de asignar un recurso ESCASO, exactamente donde la teoría de asignación (83-114) dice que el
+valor importa (bajo escasez/presupuesto); y CONFIRMA el diagnóstico de 122 (el toy no podía aislarlo porque el modelo
+DOMINA la tarea -> régimen saturado). cycle123 → H-V4-9c 'apoyada' (DoD), D-V4-85 ACEPTADA, techo 'real', verify_no_loss=OK.
+Test 4/4.
+
+> CAPSTONE POSITIVO (123): la calibración del selector PAGA en la decisión EXACTAMENTE bajo ESCASEZ (de azar a casi-óptimo),
+> satura bajo abundancia. Cierra el arco R-VALOR coherentemente: el valor endógeno calibrado es una BRÚJULA DECISIONAL para
+> ASIGNAR bajo escasez (presupuesto de verificación/atención/cómputo), y la cura de durabilidad (119) la mantiene confiable.
+> Frontera: re-medir el payoff decisional en un lazo real con escasez genuina o a SCALE.
