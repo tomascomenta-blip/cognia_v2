@@ -592,3 +592,68 @@ define qué predecir, qué escribir/olvidar, cómo recordar, qué verificar y qu
 la frontera es la escala. (Método research-as-code: cada ciclo con hipótesis pre-registrada, DoD, decisión por el
 ledger, techo real, analogía, test de regresión y verify_no_loss=OK; honestidad anti-Goodhart -- MIXTAS/REFUTADA
 reportadas tal cual, H-V4-4 diferida con su razón.)
+
+---
+
+# Síntesis 79-103 — R-VALOR = control×relevancia: reconstrucción endógena y TEORÍA DE ASIGNACIÓN bajo realismo (2026-06-25/26)
+
+> 25 ciclos verificados (engine: hipótesis pre-registrada + DoD + decisión por el ledger + techo real + analogía 7
+> etapas + test de regresión + verify_no_loss=OK). Honestidad anti-Goodhart: MIXTAS/REFUTADAS reportadas tal cual,
+> caveats explícitos, reformulaciones de métrica documentadas sin mover el poste. Todo CPU; numpy (<pocos s, 48 seeds)
+> salvo el lazo cerrado real (PyTorch CPU, ~min, 4 seeds).
+
+## 3.X TESIS UNIFICADA: R-VALOR = CONTROLABILIDAD × RELEVANCIA (79-82)
+R-VALOR (el valor referido al objetivo) se RECONSTRUYE de dos marginales ENDÓGENAS: la controlabilidad (empowerment,
+R-CONTROL) y la relevancia (el verificador de auto-mejora). Predicción y control NO son rivales de R-VALOR sino sus dos
+marginales (la predicción pasiva malgasta en lo predecible-inútil, el empowerment en lo controlable-inútil). 79 acota
+(empowerment = marginal-de-controlabilidad, no valor universal), 80 reconstruye (producto de marginales), 81 unifica el
+verificador como marginal-de-relevancia, 82 lo hace totalmente endógeno (ambas marginales ruidosas, sin oráculo).
+
+## 3.Y GAP #2 — la factorización producto (83-86)
+El producto ctrl×rel es un PRIOR DE COMPLEMENTARIEDAD: robusto salvo bajo sustitutos (83); un combinador APRENDIDO
+(ridge poly2) recupera bajo sustitutos, noise-gated (84); el noise-gating es una pendiente que la calidad del feedback
+destraba (85); el aprendido NESTA el producto y lo DOMINA sobre una compuerta de feedback -> detectar el régimen es
+innecesario (86). Política: combinador aprendido si el feedback es adecuado, producto si es pobre.
+
+## 3.Z FEEDBACK-REALISMO (87-88)
+La política always-learn/greedy es robusta bajo feedback ACTION-GATED (87) y bajo CONCENTRACIÓN extrema del soporte (88):
+el greedy recupera la forma de sustitutos sin explorar; R-INTERVENCIÓN no liga en régimen ESTACIONARIO.
+
+## 3.AA EL SALTO GRANDE — lazo de acción-consecuencia REAL (89-94)
+La política R-VALOR se aterriza de un valor sintético suave a un VERIFICADOR CHEQUEABLE REAL (sandbox exp018 que EJECUTA
+el candidato) y a un LAZO CERRADO con el GENERADOR de MODELO REAL (HybridLM propio):
+- 89: sobrevive el salto smooth→discrete (no-regret donde el producto es Bayes-óptimo; recupera donde el echo lo vuelve
+  relevancia-dominante; el veredicto discreto no rompe el aprendizaje).
+- 90-92 (R-PRIOR): el poly2 NO es universal (falla en media no-nesteable, 90); la FORMA del prior fija la eficiencia
+  muestral (un prior matcheado recupera a fracción del costo, 91); el agente puede DESCUBRIR el prior de sus datos por CV
+  (no-regret) pero un prior flexible lo hace innecesario (92). R-PRIOR/H-V4-3 de ABIERTA a APOYADA-en-juguete.
+- 93: en el LAZO CERRADO real, la CONFIANZA ENDÓGENA (calibrada, corr~0.6 real) asigna la verificación escasa MUCHo mejor
+  que el azar (yield) — pero confidence-greedy COLAPSA la diversidad (narrowing).
+- 94: la guardia dedup+replay (CYCLE 50) rescata el downstream sin perder el yield -> RECETA del lazo: allocation por
+  confianza + guardia de diversidad.
+
+## 3.AB TEORÍA DE ASIGNACIÓN R-VALOR bajo realismo (95-103) — la REGLA GENERAL
+La asignación de un recurso escaso por valor estimado, caracterizada axis por axis:
+- **Objetivo NO-aditivo (gap #4):** el valor es MARGINAL en la AGREGACIÓN verdadera, no absoluto: top-k falla bajo
+  submodular/cobertura (95) y bajo vector egalitario asimétrico (100); el greedy por ganancia marginal recupera. El
+  'balance' multi-objetivo es la forma vectorial de la cobertura/diversidad.
+- **Costo de acción HETEROGÉNEO:** R-VALOR es valor-POR-COSTO (knapsack) para objetivos ADITIVOS; para objetivos que
+  SATURAN (cobertura) el costo importa menos (cubrir manda). Objeto-dependiente (101).
+- **No-estacionariedad:** el combinador debe OLVIDAR (decay > full-history, 97); bajo drift + observación estrecha la
+  EXPLORACIÓN liga (98, R-INTERVENCIÓN reconciliada — la distribución debe VARIAR); la exploración SURPRISE-GATED domina
+  al ε-fijo (99). La ABLACIÓN (103) revela que el OLVIDO es la pieza DOMINANTE y la exploración un sustituto redundante
+  dado decay (bajo reward action-gated) — composición parcial, honesta.
+- **Meta-nivel:** cuando ningún brazo de asignación domina (per-costo objeto-dependiente), el agente DESCUBRE la política
+  correcta del feedback con un bandit no-regret (102, converso de 92 donde un default flexible la hacía innecesaria).
+
+**REGLA GENERAL (83-103):** asignar por la GANANCIA MARGINAL en la AGREGACIÓN verdadera, dividida por el COSTO si el
+objetivo es aditivo; con la base/prior que matchee la estructura del valor; bajo no-estacionariedad, descontar lo viejo
+(decay) y, si no se puede olvidar o explorar es barato, explorar gateado por sorpresa; en el lazo cerrado real, con
+guardia de diversidad / selección marginal por cobertura. La meta-decisión (qué política) es ella misma aprendible del
+feedback cuando ninguna domina.
+
+## 3.AC Lo que NO se resolvió (honesto)
+La ESCALA (todo CPU/juguete; numpy + HybridLM tiny) — el salto a un sustrato no-juguete requiere GPU/Kaggle, fuera de la
+corrida CPU. La integración de TODAS las piezas de la regla general en UN lazo cerrado real (cada axis se validó por
+separado; el core 93-94/96 en el lazo real, las extensiones 95/97-103 en numpy). Objetivos sintéticos (cobertura/vector
+/bump) — falta un objetivo de un lazo real no-sintético. H-V4-4 (techo de recall = optimización) sigue DIFERIDA.
