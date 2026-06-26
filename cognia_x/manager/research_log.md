@@ -3129,3 +3129,44 @@ lazo verificador-real de exp018 (tier5).
 > confidence-greedy COLAPSA la diversidad (49-50) → el downstream se gatea. UNIFICA R-VALOR-allocation (83-92) +
 > confianza endógena (57/60) + verificador-real (48-55) + diversidad (49-50). Próximo (CYCLE 94): añadir la guardia
 > dedup+replay (CYCLE 50) al lazo bajo presupuesto → ¿rescata el downstream sin perder el yield? Y SCALE (GPU).
+
+## CYCLE 94 — H-V4-7j (rama R-VALOR, CIERRA la tensión de CYCLE 93; RECETA COMPLETA): la guardia rescata el downstream — APOYADA
+
+### Pregunta
+CYCLE 93 reveló la tensión allocation↔diversidad: la asignación por confianza maximiza el yield pero COLAPSA la
+diversidad (narrowing) → el downstream regresiona. ¿La GUARDIA dedup+replay (CYCLE 50) RESCATA el downstream del lazo
+cerrado SIN perder el yield?
+
+### Diseño
+PyTorch CPU; reusa exp018/exp077 (mismo lazo: base débil + temp alta → pool con mix; presupuesto B=102/512; asignación
+por confianza). Brazos (mismo base/RNG; mismo B): conf_alloc (greedy, baseline de 93), conf_alloc_guard (greedy + dedup
+de verificados + replay de verdad canónica), random_alloc, verify_all (techo). La guardia sólo cambia la COMPOSICIÓN del
+entrenamiento, NO la asignación. 4 seeds.
+
+### Resultado — APOYADA
+La guardia RESCATA el downstream sin perder el yield. real_acc guard=0.591 > conf=0.384 (+0.206, deshace el narrowing de
+CYCLE 93) Y ≈ random=0.615 (−0.024, dentro de tolerancia → la confianza-greedy se vuelve VIABLE; la confianza sola NO lo
+era en 93); el yield se MANTIENE/sube (guard=93.8 vs conf=86.8, Δ=+7.0; ambos >> random ~53). verify_all (presupuesto
+infinito) techo=0.773: la guardia se acerca al techo a una FRACCIÓN del presupuesto. MECANISMO: el dedup colapsa las picks
+repetitivas de alta confianza a su soporte ÚNICO (ntr cae a ~15 de ~100) y el replay re-inyecta cobertura → la selección
+por valor (yield) y la diversidad (downstream) se DESACOPLAN. => RECETA COMPLETA del lazo bajo presupuesto:
+R-VALOR-allocation (confianza endógena, alto yield) + guardia de diversidad (dedup+replay) → alto yield Y downstream sano.
+
+### Límites (honestos)
+La guardia iguala (no supera) el downstream de random — su valor neto es lograr ese downstream sano A ALTO YIELD (≈2× el
+de random) y más cerca del techo. PARTE del rescate proviene del REPLAY de verdad canónica (datos-semilla clean), no sólo
+del dedup (no se aisló dedup vs replay). replay_frac/budget_frac FIJOS (curva costo-beneficio sin barrer). Modelo tiny,
+tarea sembrada, CPU.
+
+### Verificación
+exp078 (4 seeds, PyTorch CPU, lazo cerrado real exp018). cycle94 → H-V4-7j 'apoyada' (DoD), D-V4-56 ACEPTADA, 1 techo
+'real', analogía 7 etapas, verify_no_loss=OK. Test `test_cycle94_closed_loop_guard.py` 4/4 (lógica del veredicto +
+helpers de la guardia). Convergente con la guardia dedup+replay/CYCLE 50 (tier2) y con la tensión de CYCLE 93 (tier5).
+
+> SALTO GRANDE CERRADO (89-94): la política R-VALOR se aterrizó de un verificador REAL discreto (89), por el análisis del
+> prior/base (90-92, R-PRIOR), hasta el LAZO CERRADO con el GENERADOR de MODELO REAL (93-94). RECETA COMPLETA del lazo de
+> auto-mejora bajo presupuesto: asignar la verificación escasa por R-VALOR (confianza endógena, CYCLE 57/60) para el
+> YIELD + guardia dedup+replay (CYCLE 50) para el downstream → alto yield Y diversidad sana, cerca del techo verify-all a
+> fracción del presupuesto. UNIFICA cinco hilos del lab (allocation 83-92 + confianza endógena 57/60 + verificador-real
+> 48-55 + diversidad 49-50 + R-PRIOR 89-92). Frontera restante: barrer replay_frac/budget (costo-beneficio); objetivo
+> NO-escalar (gap #4); y SCALE (GPU/Kaggle, fuera de la corrida CPU).

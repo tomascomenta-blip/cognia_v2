@@ -594,3 +594,23 @@ REAL (HybridLM de exp018): el modelo genera, el sandbox verifica, las correctas 
 > confidence-greedy COLAPSA la diversidad (49-50) → el downstream se gatea. UNIFICA cuatro hilos del lab (R-VALOR-allocation
 > 83-92 + confianza endógena 57/60 + verificador-real 48-55 + diversidad 49-50). Próximo (CYCLE 94): añadir la guardia
 > dedup+replay (CYCLE 50) al lazo bajo presupuesto (¿rescata el downstream sin perder el yield?); objetivo no-escalar; SCALE.
+
+- **CYCLE 94 — H-V4-7j APOYADA (cierra la tensión de CYCLE 93; RECETA COMPLETA del lazo).** ¿La guardia dedup+replay
+  (CYCLE 50) rescata el downstream de la asignación confidence-greedy sin perder el yield? Mismo lazo cerrado real +
+  brazo conf_alloc_guard (greedy + dedup de verificados + replay de verdad canónica). RESULTADO: la guardia RESCATA el
+  downstream — real_acc guard=0.591 > conf=0.384 (+0.206, deshace el narrowing) Y ≈ random=0.615 (−0.024, viable; la
+  confianza sola NO lo era) manteniendo/subiendo el yield (guard 93.8 vs conf 86.8, ambos >> random ~53); se acerca al
+  techo verify_all (0.773) a fracción del presupuesto. MECANISMO: el dedup colapsa las picks repetitivas (ntr ~15 de
+  ~100) y el replay re-inyecta cobertura → la selección por valor (yield) y la diversidad (downstream) se DESACOPLAN.
+  Caveat: parte del rescate es el replay de verdad canónica (no sólo dedup); hiperparámetros fijos. Cota 'real'; D-V4-56;
+  test 4/4.
+
+> SALTO GRANDE CERRADO (89-94) — CUADRO FINAL: la política R-VALOR (asignar el feedback escaso por valor estimado) se
+> aterrizó de un verificador REAL discreto (89), por el análisis del prior/base (90-92, R-PRIOR), hasta el LAZO CERRADO
+> con el GENERADOR de MODELO REAL (93-94). RECETA COMPLETA del lazo de auto-mejora bajo presupuesto: asignar la
+> verificación escasa por R-VALOR (CONFIANZA ENDÓGENA, CYCLE 57/60) para el YIELD + guardia dedup+replay (CYCLE 50) para
+> el downstream → alto yield Y diversidad sana, cerca del techo verify-all a fracción del presupuesto. UNIFICA CINCO
+> hilos del lab: R-VALOR-allocation (83-92) + confianza endógena (57/60) + verificador-real (48-55) + diversidad (49-50)
+> + R-PRIOR (89-92). Frontera restante: barrer replay_frac/budget (costo-beneficio); objetivo NO-escalar (gap #4); y
+> SCALE (GPU/Kaggle, fuera de la corrida CPU). Todo 89-94 con semilla fija; 89-92 numpy + sandbox (<pocos s), 93-94
+> PyTorch CPU (lazo real, ~min).
