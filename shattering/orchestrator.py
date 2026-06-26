@@ -510,6 +510,58 @@ class ShatteringOrchestrator:
             session_id = lpc_entry.mla_session_id
         return session_id, all_ids, lpc_entry
 
+    @staticmethod
+    def _spec_resolve(candidates, out_batch, vocab_size: int, eos_set: set):
+        """Resolve a speculative verification batch into the committed token list
+        and the number of KV slots that must be KEPT.
+
+        The batch forwards every one of the ``N_DRAFT`` ``candidates`` and grows the
+        KV-cache by ``N_DRAFT`` slots (positions ``kv_before .. kv_before+N-1``, one
+        per candidate). Only the candidates accepted EXACTLY as drafted have a valid
+        KV slot. On divergence at index ``j`` the committed token is the model's
+        correction ``pred_j`` — but slot ``kv_before+j`` holds the REJECTED candidate
+        ``c_j``. Truncating to the committed length (``+k``) would keep that phantom
+        slot, leaving the KV one token longer than (and mis-aligned with) the
+        committed sequence and corrupting the rest of the turn. So we return
+        ``matched`` (= candidates accepted as-is) and the caller truncates to
+        ``kv_before + matched``, dropping every un-forwarded/rejected slot.
+
+        Returns ``(accepted, matched, eos_hit)``:
+          * ``accepted`` — committed tokens this batch, in order. Unless ``eos_hit``,
+            the LAST element is an UN-forwarded token (a divergence correction, or
+            the free "bonus" token predicted after a full accept run); the caller
+            must forward it via a normal single-token step (``prev_output=None``).
+          * ``matched``  — # of valid KV slots to keep (truncate to ``kv_before+matched``).
+          * ``eos_hit``  — model predicted EOS after the accepted run → stop.
+        """
+        import numpy as np
+        n = len(candidates)
+        accepted = [int(candidates[0])]          # d_0 already verified vs prev_output
+        diverged = False
+        for i in range(1, n):
+            pred = int(np.argmax(out_batch[i - 1].flatten()[:vocab_size]))
+            if pred == candidates[i]:
+                accepted.append(int(candidates[i]))
+            else:
+                accepted.append(pred)            # correction token (NO valid KV slot)
+                diverged = True
+                break
+
+        # Candidates accepted exactly as drafted have valid KV slots; a trailing
+        # correction does not (its slot belongs to the rejected candidate).
+        matched = len(accepted) - 1 if diverged else len(accepted)
+
+        eos_hit = False
+        if not diverged:
+            # All N accepted → the model's next prediction is a free bonus token,
+            # but it was never forwarded, so it has no KV slot either.
+            bonus = int(np.argmax(out_batch[-1].flatten()[:vocab_size]))
+            if bonus in eos_set:
+                eos_hit = True
+            else:
+                accepted.append(bonus)           # un-forwarded trailing token
+        return accepted, matched, eos_hit
+
     # ── Local inference ─────────────────────────────────────────────────
 
     def _try_load_llama(self) -> None:
@@ -708,48 +760,40 @@ class ShatteringOrchestrator:
                     )
 
                     if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
-                        accepted = [candidates[0]]
-                        for i in range(1, _N_DRAFT):
-                            pred = int(np.argmax(out_batch[i - 1].flatten()[:vocab_size]))
-                            if pred == candidates[i]:
-                                accepted.append(candidates[i])
-                            else:
-                                accepted.append(pred)
-                                break
-
-                        # Bonus token when all N accepted
-                        if len(accepted) == _N_DRAFT:
-                            bonus = int(np.argmax(out_batch[-1].flatten()[:vocab_size]))
-                            if bonus not in eos_set:
-                                accepted.append(bonus)
-
-                        k = len(accepted)
-                        # Truncate KV-cache to accepted length
+                        accepted, matched, eos_hit = self._spec_resolve(
+                            candidates, out_batch, vocab_size, eos_set
+                        )
+                        # Keep ONLY the matched (validly-forwarded) KV slots; drop
+                        # the phantom slot of any rejected/un-forwarded candidate.
                         for eng in _LOCAL_ENGINES:
                             if hasattr(eng, "truncate_kv"):
-                                eng.truncate_kv(session_id, kv_before + k)
+                                eng.truncate_kv(session_id, kv_before + matched)
 
-                        prev_output = out_batch[k - 1] if k <= _N_DRAFT else out_batch[-1]
-                        tokens_generated += k
-                        done = False
+                        done = eos_hit
                         for tok_id in accepted:
                             if tok_id in eos_set:
                                 done = True
                                 break
                             generated_ids.append(tok_id)
+                            tokens_generated += 1
                         # Decode cumulatively; emit only the new suffix
                         _full = pipeline._decode(generated_ids)
                         _new  = _full[_prev_text_len:]
                         _prev_text_len = len(_full)
                         if _new:
                             loop.call_soon_threadsafe(queue.put_nowait, (_new, None))
+
+                        # The trailing committed token (correction or bonus) was NOT
+                        # forwarded — force a normal step to build its KV and recompute
+                        # prev_output from its real logits.
                         current_ids = np.array([accepted[-1]], dtype=np.int32)
+                        prev_output = None
 
                         if tokens_generated % 10 == 0:
                             elapsed = _time.perf_counter() - t_loop
                             rate    = tokens_generated / elapsed if elapsed > 0 else 0
-                            logger.info("[SpecLoop] %d tokens, %.2f tok/s (accepted %d/%d drafts)",
-                                        tokens_generated, rate, k, _N_DRAFT)
+                            logger.info("[SpecLoop] %d tokens, %.2f tok/s (matched %d/%d drafts)",
+                                        tokens_generated, rate, matched, _N_DRAFT)
                         if done:
                             break
                         continue   # skip normal path below
@@ -929,35 +973,29 @@ class ShatteringOrchestrator:
                         np.array(candidates, dtype=np.int32), session_id, route, hidden_dim
                     )
                     if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
-                        accepted = [candidates[0]]
-                        for i in range(1, _N_DRAFT):
-                            pred = int(np.argmax(out_batch[i - 1].flatten()[:vocab_size]))
-                            if pred == candidates[i]:
-                                accepted.append(candidates[i])
-                            else:
-                                accepted.append(pred)
-                                break
-                        if len(accepted) == _N_DRAFT:
-                            bonus = int(np.argmax(out_batch[-1].flatten()[:vocab_size]))
-                            if bonus not in eos_set:
-                                accepted.append(bonus)
-                        k = len(accepted)
+                        accepted, matched, eos_hit = self._spec_resolve(
+                            candidates, out_batch, vocab_size, eos_set
+                        )
+                        # Keep ONLY the matched (validly-forwarded) KV slots; drop
+                        # the phantom slot of any rejected/un-forwarded candidate.
                         for eng in _LOCAL_ENGINES:
                             if hasattr(eng, "truncate_kv"):
-                                eng.truncate_kv(session_id, kv_before + k)
-                        prev_output      = out_batch[k - 1] if k <= _N_DRAFT else out_batch[-1]
-                        tokens_generated += k
-                        done = False
+                                eng.truncate_kv(session_id, kv_before + matched)
+                        done = eos_hit
                         for tok_id in accepted:
                             if tok_id in eos_set:
                                 done = True
                                 break
                             generated_ids.append(tok_id)
+                            tokens_generated += 1
+                        # Trailing committed token (correction/bonus) is un-forwarded:
+                        # force a normal step to build its KV + recompute prev_output.
                         current_ids = np.array([accepted[-1]], dtype=np.int32)
+                        prev_output = None
                         if tokens_generated % 10 == 0:
                             elapsed = _time.perf_counter() - t0
                             rate    = tokens_generated / elapsed if elapsed > 0 else 0
-                            logger.info("[SpecLoop] %d tokens, %.2f tok/s (k=%d)", tokens_generated, rate, k)
+                            logger.info("[SpecLoop] %d tokens, %.2f tok/s (matched=%d)", tokens_generated, rate, matched)
                         if done:
                             break
                         continue

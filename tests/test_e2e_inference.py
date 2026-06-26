@@ -368,6 +368,133 @@ class TestLPCPlanPrefixValidation:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Speculative-decoding KV-cache bookkeeping (BUG-3 regression)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _onehot(tok: int, vocab: int = 300):
+    import numpy as np
+    v = np.zeros(vocab, dtype=np.float32)
+    v[tok] = 1.0
+    return v
+
+
+def _plus_one_out_batch(candidates, vocab: int = 300, bonus_tok=None):
+    """Build out_batch for a '+1 counter' model: out_batch[i] predicts candidates[i]+1,
+    except the last row predicts `bonus_tok` when given (to drive the all-accept bonus)."""
+    import numpy as np
+    rows = [_onehot(c + 1, vocab) for c in candidates]
+    if bonus_tok is not None:
+        rows[-1] = _onehot(bonus_tok, vocab)
+    return np.stack(rows, axis=0)
+
+
+class TestSpecResolveContract:
+    """_spec_resolve must report the committed tokens AND the number of valid KV
+    slots (`matched`) — never counting a divergence correction or an un-forwarded
+    bonus as a kept slot."""
+
+    def test_divergence_returns_matched_excluding_correction(self):
+        from shattering.orchestrator import ShatteringOrchestrator
+        cands = [10, 11, 99, 13, 14, 15]          # 11+1=12 != 99 → diverge at idx 2
+        out_batch = _plus_one_out_batch(cands)
+        accepted, matched, eos = ShatteringOrchestrator._spec_resolve(
+            cands, out_batch, vocab_size=300, eos_set=set()
+        )
+        assert accepted == [10, 11, 12]           # correction 12 replaces 99
+        assert matched == 2                        # only 10,11 have valid KV slots
+        assert eos is False
+
+    def test_all_accept_appends_bonus_but_matched_is_n(self):
+        from shattering.orchestrator import ShatteringOrchestrator
+        cands = [10, 11, 12, 13, 14, 15]
+        out_batch = _plus_one_out_batch(cands, bonus_tok=16)
+        accepted, matched, eos = ShatteringOrchestrator._spec_resolve(
+            cands, out_batch, vocab_size=300, eos_set=set()
+        )
+        assert accepted == [10, 11, 12, 13, 14, 15, 16]   # bonus appended
+        assert matched == 6                                # bonus has NO KV slot
+        assert eos is False
+
+    def test_all_accept_eos_bonus_stops_without_appending(self):
+        from shattering.orchestrator import ShatteringOrchestrator
+        cands = [10, 11, 12, 13, 14, 15]
+        out_batch = _plus_one_out_batch(cands, bonus_tok=2)   # EOS as next prediction
+        accepted, matched, eos = ShatteringOrchestrator._spec_resolve(
+            cands, out_batch, vocab_size=300, eos_set={2}
+        )
+        assert accepted == [10, 11, 12, 13, 14, 15]
+        assert matched == 6
+        assert eos is True
+
+
+class _FakeKVEngine:
+    """Minimal stand-in for a ShardEngine's KV bookkeeping: tracks the EXACT token
+    order forwarded into the cache so a test can assert KV/commit alignment."""
+    def __init__(self):
+        self.fwd = {}
+
+    def kv_len(self, sid):
+        return len(self.fwd.get(sid, []))
+
+    def truncate_kv(self, sid, n):
+        self.fwd[sid] = self.fwd.get(sid, [])[: max(0, n)]
+
+    def forward(self, sid, ids):           # appends one KV slot per token
+        self.fwd.setdefault(sid, []).extend(int(t) for t in ids)
+
+
+class TestSpeculativeKVAlignment:
+    """BUG-3: on a draft divergence the loop must keep only `matched` KV slots so the
+    cache stays aligned with the committed token sequence. Truncating to the committed
+    length (`+k`) keeps the rejected candidate's phantom slot → KV one token too long."""
+
+    SID = "spec"
+
+    def _run_one_spec_step(self, prefix, candidates, truncate_to):
+        """Simulate exactly one speculative batch + the follow-up normal step that
+        forwards the trailing correction. `truncate_to` is a callable
+        (kv_before, matched, k) -> int, letting us contrast the fixed vs buggy policy."""
+        from shattering.orchestrator import ShatteringOrchestrator
+        eng = _FakeKVEngine()
+        eng.forward(self.SID, prefix)                       # committed+forwarded so far
+        kv_before = eng.kv_len(self.SID)
+        eng.forward(self.SID, candidates)                   # batch forwards all N
+        out_batch = _plus_one_out_batch(candidates)
+        accepted, matched, eos = ShatteringOrchestrator._spec_resolve(
+            candidates, out_batch, vocab_size=300, eos_set=set()
+        )
+        k = len(accepted)
+        eng.truncate_kv(self.SID, truncate_to(kv_before, matched, k))
+        # The trailing un-forwarded token (correction/bonus) is forwarded next.
+        if not eos:
+            eng.forward(self.SID, [accepted[-1]])
+        committed = list(prefix) + accepted
+        return eng.fwd[self.SID], committed
+
+    def test_fixed_matched_truncate_keeps_kv_aligned(self):
+        # divergence at idx 2: 103+1=104 != 99 → correction 104, matched 2
+        kv, committed = self._run_one_spec_step(
+            prefix=[100, 101],
+            candidates=[102, 103, 99, 105, 106, 107],
+            truncate_to=lambda kv_before, matched, k: kv_before + matched,   # FIX
+        )
+        assert kv == committed == [100, 101, 102, 103, 104]
+
+    def test_buggy_committed_length_truncate_misaligns_kv(self):
+        # Same step under the OLD `+k` policy keeps the rejected candidate (99) →
+        # KV is one token too long and holds a phantom token. Locks the bug shape.
+        kv, committed = self._run_one_spec_step(
+            prefix=[100, 101],
+            candidates=[102, 103, 99, 105, 106, 107],
+            truncate_to=lambda kv_before, matched, k: kv_before + k,         # BUG
+        )
+        assert committed == [100, 101, 102, 103, 104]
+        assert kv == [100, 101, 102, 103, 99, 104]    # phantom 99 + off-by-one length
+        assert kv != committed
+        assert len(kv) == len(committed) + 1
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # _shards_available env logic
 # ══════════════════════════════════════════════════════════════════════════════
 
