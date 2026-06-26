@@ -1,0 +1,105 @@
+{
+  "exp": "exp097_aggregation_robust",
+  "cycle": 113,
+  "hypothesis": "H-V4-8r",
+  "claim": "bajo incertidumbre de la agregacion verdadera, asumir SUBMODULAR (cobertura/ganancia marginal con rendimientos decrecientes) es el default SEGURO (mejor peor-caso): top-value colapsa bajo verdad submodular mientras cobertura pierde poco bajo verdad additive",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "kf0.5": {
+        "k": 4,
+        "cells": {
+          "assume_additive": {
+            "additive": 1.0,
+            "submodular": 0.6691
+          },
+          "assume_submodular": {
+            "additive": 0.9653,
+            "submodular": 1.0
+          }
+        }
+      },
+      "kf1.0": {
+        "k": 8,
+        "cells": {
+          "assume_additive": {
+            "additive": 1.0,
+            "submodular": 0.6965
+          },
+          "assume_submodular": {
+            "additive": 0.8068,
+            "submodular": 1.0
+          }
+        }
+      },
+      "kf1.5": {
+        "k": 12,
+        "cells": {
+          "assume_additive": {
+            "additive": 1.0,
+            "submodular": 0.7934
+          },
+          "assume_submodular": {
+            "additive": 0.7217,
+            "submodular": 1.0
+          }
+        }
+      }
+    },
+    "per_k": {
+      "kf0.5": {
+        "k": 4,
+        "wc_add": 0.6691,
+        "wc_sub": 0.9653,
+        "margin_sub_minus_add": 0.2962
+      },
+      "kf1.0": {
+        "k": 8,
+        "wc_add": 0.6965,
+        "wc_sub": 0.8068,
+        "margin_sub_minus_add": 0.1103
+      },
+      "kf1.5": {
+        "k": 12,
+        "wc_add": 0.7934,
+        "wc_sub": 0.7217,
+        "margin_sub_minus_add": -0.0717
+      }
+    },
+    "safer_by_k": {
+      "kf0.5": "submodular",
+      "kf1.0": "submodular",
+      "kf1.5": "additive"
+    },
+    "low_k_safer": "submodular",
+    "hi_k_safer": "additive",
+    "regime_dependent": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8r APOYADA (regime-dependiente): el DEFAULT seguro bajo incertidumbre de agregación DEPENDE del ratio presupuesto/diversidad k/T. A k BAJO (k<T, k=4: el presupuesto no alcanza a cubrir las categorías) el supuesto SEGURO es SUBMODULAR/cobertura (peor-caso sub=0.965 > add=0.669); a k ALTO (k>T, k=12: la cobertura SATURA) el supuesto seguro es ADDITIVE/top-value (peor-caso add=0.793 > sub=0.722). => no hay un default universal: con presupuesto ESCASO frente a la diversidad, hedgeá con cobertura; con presupuesto que excede la diversidad (cobertura saturada), asigná por valor. Refina la regla del arco (asignar por la agregación verdadera): bajo agregación INCIERTA, el hedge correcto depende de k/T."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 64,
+    "n": 60,
+    "T": 8
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp097] CYCLE 113 / H-V4-8r — robustez a MIS-ESPECIFICAR la agregación: ¿el default seguro depende de k/T?",
+    "[exp097] n=60 T=8 k_fracs=[0.5, 1.0, 1.5] seeds=64 truths=['additive', 'submodular'] policies=['assume_additive', 'assume_submodular']",
+    "[exp097] k= 4 (k/T=0.50)    assume_additive: additive=1.000 submodular=0.669 (peor-caso=0.669)",
+    "[exp097] k= 4 (k/T=0.50)  assume_submodular: additive=0.965 submodular=1.000 (peor-caso=0.965)",
+    "[exp097]   -> k=4: peor-caso assume_submodular=0.965 vs assume_additive=0.669 -> seguro: submodular",
+    "[exp097] k= 8 (k/T=1.00)    assume_additive: additive=1.000 submodular=0.697 (peor-caso=0.697)",
+    "[exp097] k= 8 (k/T=1.00)  assume_submodular: additive=0.807 submodular=1.000 (peor-caso=0.807)",
+    "[exp097]   -> k=8: peor-caso assume_submodular=0.807 vs assume_additive=0.697 -> seguro: submodular",
+    "[exp097] k=12 (k/T=1.50)    assume_additive: additive=1.000 submodular=0.793 (peor-caso=0.793)",
+    "[exp097] k=12 (k/T=1.50)  assume_submodular: additive=0.722 submodular=1.000 (peor-caso=0.722)",
+    "[exp097]   -> k=12: peor-caso assume_submodular=0.722 vs assume_additive=0.793 -> seguro: additive",
+    "[exp097] regime_dependent=True (low_k seguro=submodular, hi_k seguro=additive)",
+    "[exp097] VEREDICTO H-V4-8r: APOYADA | H-V4-8r APOYADA (regime-dependiente): el DEFAULT seguro bajo incertidumbre de agregación DEPENDE del ratio presupuesto/diversidad k/T. A k BAJO (k<T, k=4: el presupuesto no alcanza a cubrir las categorías) el supuesto SEGURO es SUBMODULAR/cobertura (peor-caso sub=0.965 > add=0.669); a k ALTO (k>T, k=12: la cobertura SATURA) el supuesto seguro es ADDITIVE/top-value (peor-caso add=0.793 > sub=0.722). => no hay un default universal: con presupuesto ESCASO frente a la diversidad, hedgeá con cobertura; con presupuesto que excede la diversidad (cobertura saturada), asigná por valor. Refina la regla del arco (asignar por la agregación verdadera): bajo agregación INCIERTA, el hedge correcto depende de k/T."
+  ]
+}

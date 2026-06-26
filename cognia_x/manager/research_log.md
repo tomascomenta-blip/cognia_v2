@@ -3583,3 +3583,17 @@ decisión R-VALOR (ROI = ganancia-por-heterogeneidad − costo-de-estimar); el '
 > R-VALOR RECURSIVO (112): la decisión de ESTIMAR el valor tiene su propio costo/retorno; hay un régimen (baja
 > heterogeneidad o alto costo de estimar) donde conviene NO estimar y usar el prior. Frontera: prior informado; costo
 > por-ítem; estimación adaptativa (estimar más donde más cambia la decisión); SCALE.
+
+## CYCLE 113 — H-V4-8r (rama R-VALOR, robustez a MIS-ESPECIFICAR la agregación) — APOYADA (regime-dependiente)
+El arco halló la política correcta para cada agregación CONOCIDA (95/100/101). exp097 (numpy, 64 seeds) aborda la
+agregación INCIERTA: peor-caso (minimax) de assume_additive (top-value) vs assume_submodular (marginal-cobertura) bajo
+ambas verdades, barriendo k/T. RESULTADO: el default seguro DEPENDE de k/T -- a k=4 (k/T=0.5<1) seguro=SUBMODULAR/cobertura
+(peor-caso 0.965 vs 0.669: top-value clava en pocas categorías ricas), a k=12 (k/T=1.5>1, cobertura SATURA) seguro=
+ADDITIVE/valor (peor-caso 0.793 vs 0.722: forzar diversidad deja valor en la mesa); cruce cerca de k≈T. => NO hay default
+universal: presupuesto escaso vs diversidad -> hedgeá con cobertura; presupuesto que la excede -> asigná por valor. NOTA
+(honestidad regla #4): un primer test sólo a k>T dio REFUTADA artefactual; el barrido k/T reveló la reversión a k bajo.
+cycle113 → H-V4-8r 'apoyada' (DoD), D-V4-75 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3.
+
+> ROBUSTEZ a agregación incierta (113): no hay supuesto de agregación universalmente seguro; el default minimax depende de
+> k/T (cobertura si k<T, valor si k>T). Mejor que elegir un supuesto: APRENDER la agregación del feedback (cf. 102).
+> Frontera: aprender la agregación; cruce exacto de k/T; SCALE.
