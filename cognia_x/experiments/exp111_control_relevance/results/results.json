@@ -1,0 +1,50 @@
+{
+  "exp": "exp111_control_relevance",
+  "cycle": 127,
+  "hypothesis": "H-V4-10a",
+  "claim": "un objetivo de CONTROL provee el criterio endogeno de RELEVANCIA (que vale la pena modelar) que la prediccion pura no tiene: bajo capacidad limitada + distractor irrelevante de alta varianza, predecir gasta la capacidad en el distractor ruidoso y colapsa el control, mientras controlar enfoca el modo accionable y se mantiene (good-regulator) -> el control es la fuente de la relevancia; une la rama control/accion con R-VALOR",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "prediccion": {
+        "0.5": 0.9932,
+        "1.0": 0.9904,
+        "2.0": 0.0,
+        "4.0": 0.0
+      },
+      "control": {
+        "0.5": 0.9928,
+        "1.0": 0.9905,
+        "2.0": 0.9886,
+        "4.0": 0.9942
+      }
+    },
+    "gap_hi": 0.9942,
+    "gap_lo": -0.0004,
+    "pred_collapse": 0.9932,
+    "ctrl_stable": -0.0014,
+    "crossover": true,
+    "pred_collapses": true,
+    "ctrl_holds": true,
+    "status": "apoyada",
+    "verdict": "H-V4-10a APOYADA (control = fuente de RELEVANCIA): CROSSOVER al crecer el distractor irrelevante. A distractor DÉBIL (s2=0.5) PREDICCIÓN y CONTROL son comparables (0.993 vs 0.993, gap -0.000: ambos modelan el modo accionable). A distractor FUERTE (s2=4.0) la PREDICCIÓN COLAPSA (0.000, cae 0.993: gasta su capacidad en el distractor ruidoso pero irrelevante e incontrolable) mientras CONTROL se MANTIENE (0.994, gap 0.994). => un objetivo de CONTROL provee el criterio endógeno de RELEVANCIA -- modela lo CONTROL-relevante, no lo más RUIDOSO; la predicción pura carece de ese criterio. Un buen regulador modela sólo la parte control-relevante (good-regulator). UNE la rama control/acción con R-VALOR: el CONTROL es la fuente de la relevancia (qué vale la pena modelar)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp111] CYCLE 127 / H-V4-10a — ¿el CONTROL provee el criterio de RELEVANCIA (qué modelar) que la predicción no tiene? (abre rama control/acción)",
+    "[exp111] seeds=200 a=0.6 b=1.0 s1=1.0 s2_sweep=[0.5, 1.0, 2.0, 4.0] T=200 eval=200",
+    "[exp111] prediccion (control-perf de x1): s2=0.5:0.993 s2=1.0:0.990 s2=2.0:0.000 s2=4.0:0.000",
+    "[exp111]    control (control-perf de x1): s2=0.5:0.993 s2=1.0:0.991 s2=2.0:0.989 s2=4.0:0.994",
+    "[exp111] distractor DÉBIL (s2=0.5): gap control-pred=-0.000 | distractor FUERTE (s2=4.0): gap=+0.994",
+    "[exp111] colapso de PREDICCIÓN al crecer distractor=+0.993 | caída de CONTROL=-0.001",
+    "[exp111] crossover=True pred_collapses=True ctrl_holds=True",
+    "[exp111] VEREDICTO H-V4-10a: APOYADA | H-V4-10a APOYADA (control = fuente de RELEVANCIA): CROSSOVER al crecer el distractor irrelevante. A distractor DÉBIL (s2=0.5) PREDICCIÓN y CONTROL son comparables (0.993 vs 0.993, gap -0.000: ambos modelan el modo accionable). A distractor FUERTE (s2=4.0) la PREDICCIÓN COLAPSA (0.000, cae 0.993: gasta su capacidad en el distractor ruidoso pero irrelevante e incontrolable) mientras CONTROL se MANTIENE (0.994, gap 0.994). => un objetivo de CONTROL provee el criterio endógeno de RELEVANCIA -- modela lo CONTROL-relevante, no lo más RUIDOSO; la predicción pura carece de ese criterio. Un buen regulador modela sólo la parte control-relevante (good-regulator). UNE la rama control/acción con R-VALOR: el CONTROL es la fuente de la relevancia (qué vale la pena modelar)."
+  ]
+}

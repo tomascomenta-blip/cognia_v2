@@ -962,3 +962,25 @@ delatan bajo cambio de distribución; por eso las defensas son la recalibración
 no-lineal / SCALE (objetivo no-sintético), y demostrar end-to-end que el auto-entrenamiento produce el atajo espurio.
 H-V4-4 (techo de recall = optimización) sigue DIFERIDA; la rama abierta "inteligencia = control/acción" (active inference /
 empowerment / good-regulator) sigue siendo la mayor pendiente del árbol de descomposición.
+
+## 3.BB NUEVO ARCO — CONTROL como fuente de la RELEVANCIA (127, abre la rama control/acción y la une con R-VALOR)
+Tras madurar el sub-arco decisional, el lab abre la mayor pendiente del árbol de descomposición -- "inteligencia =
+control/acción (active inference / empowerment / good-regulator)" -- con una pregunta que la UNIFICA con todo el programa
+R-VALOR en vez de tratarla como rival separado: ¿un objetivo de CONTROL provee el criterio endógeno de RELEVANCIA (qué vale
+la pena modelar) que la PREDICCIÓN pura no tiene? 127 (H-V4-10a, APOYADA) lo demuestra con un modelo-del-mundo de CAPACIDAD
+LIMITADA (cuello de botella de 1 modo) sobre un sistema 2D con un modo CONTROLABLE-relevante (x1, responde a la acción) y un
+distractor INCONTROLABLE-irrelevante (x2) cuya varianza se barre. El objetivo PREDICCIÓN elige modelar el modo de mayor
+varianza (minimiza el MSE de predicción); el objetivo CONTROL elige el modo accionable. RESULTADO (numpy, 200 seeds,
+reproducible smoke 50 ≈ full 200): CROSSOVER. A distractor débil (s2=0.5) ambos controlan x1 igual de bien (0.993 ≈ 0.993). A
+distractor fuerte (s2=4.0) la PREDICCIÓN COLAPSA el control (0.000: gasta su única unidad de capacidad en el distractor
+ruidoso pero irrelevante e incontrolable) mientras CONTROL se MANTIENE (0.994). => un objetivo de CONTROL provee el criterio
+endógeno de RELEVANCIA -- modela lo control-relevante, no lo más ruidoso; la predicción pura carece de ese criterio (el
+good-regulator de Conant&Ashby: un buen regulador modela sólo la parte control-relevante del sistema). IMPLICANCIA
+UNIFICADORA: el CONTROL es candidato a ser la FUENTE de la "relevancia" que la tesis central del lab (R-VALOR =
+controlabilidad × relevancia, 79-82) presuponía dada -- la relevancia tendría origen endógeno en el objetivo de control, no
+en la predicción. (Eco de CYCLE 40: control > predicción-pasiva bajo escasez, ahora en el dominio del MODELO -qué estructura
+se aprende- y no del cómputo test-time.) Nota de método (honestidad): la primera métrica saturaba por el piso de ruido de
+proceso; se reemplazó por la fracción del beneficio de control ALCANZABLE (normalizada por el oráculo, independiente del
+ruido) -- el mecanismo cualitativo ya era claro antes del cambio. FRONTERA del sub-arco H-V4-10: control multi-paso /
+no-lineal; capacidad como presupuesto continuo (no elegir-1-de-2); ¿el control DESCUBRE la partición controlable/
+incontrolable sin saberla de antemano?; y el puente a active inference (minimizar la energía libre esperada).

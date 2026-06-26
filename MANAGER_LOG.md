@@ -4293,3 +4293,19 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
   H-V4-9f 'apoyada', D-V4-88 ACEPTADA, techo 'real', verify_no_loss=OK.
 - Frontera: estimador no-lineal / lazo real (modelo de lenguaje) / SCALE; detectar el atajo espurio por su firma bajo
   intervención; demostrar que el auto-entrenamiento produce el atajo espurio.
+
+## [2026-06-26] CYCLE 127 — H-V4-10a: ABRE la rama NEGLECTADA (control/acción) y la une con R-VALOR — el CONTROL es la fuente de la RELEVANCIA
+- Archivos creados: cognia_x/experiments/exp111_control_relevance/ (run.py+__init__), cognia_x/research/cycles/cycle127_control_relevance.py, cognia_x/tests/test_cycle127_control_relevance.py
+- Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.BB)
+- Resultado tests: PASS — cycle127 dirigido 4/4; con cycle126+engine 28 passed; engine verify_no_loss=OK.
+- Notas: PIVOT estratégico tras saturar el sub-arco decisional (123-126). Abre la mayor pendiente del árbol ("inteligencia =
+  control/acción") con una pregunta que la UNIFICA con R-VALOR: ¿el CONTROL provee el criterio de RELEVANCIA (qué modelar)
+  que la predicción no tiene? exp111: modelo-del-mundo con cuello de botella (capacidad-1) sobre sistema 2D (modo controlable
+  x1 + distractor incontrolable x2 de varianza creciente). CROSSOVER (200 seeds): a distractor débil predicción≈control
+  (0.993≈0.993); a distractor fuerte la PREDICCIÓN colapsa el control (0.000, modela el distractor ruidoso) y el CONTROL se
+  mantiene (0.994, gap +0.994). => el control es la FUENTE de la relevancia (good-regulator, Conant&Ashby); la 'relevancia'
+  de R-VALOR (79-82) tiene origen endógeno en el control. Honestidad: la 1ra métrica saturaba por el piso de ruido -> se
+  reemplazó por la fracción del beneficio ALCANZABLE (normalizada por oráculo); el mecanismo ya era claro. cycle127 ->
+  H-V4-10a 'apoyada', D-V4-89 ACEPTADA, techo 'real', verify_no_loss=OK.
+- Frontera (sub-arco H-V4-10): control multi-paso/no-lineal; capacidad continua; ¿el control DESCUBRE la partición
+  controlable/incontrolable?; puente a active inference (energía libre esperada).

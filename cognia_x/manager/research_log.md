@@ -3827,3 +3827,27 @@ D-V4-88 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
 > fragilidad (115-118) + R-INTERVENCIÓN (la señal espuria sólo se delata bajo shift). Defensas: recalibración/durabilidad
 > (119) + detección de shift; bajo abundancia, además ensanchar el presupuesto (125). Frontera: estimador no-lineal / lazo
 > real / SCALE; detectar el atajo espurio por su firma bajo intervención.
+
+## CYCLE 127 — H-V4-10a (ABRE la rama NEGLECTADA del árbol: CONTROL/ACCIÓN como raíz de la RELEVANCIA, unificada con R-VALOR) — APOYADA
+exp111 (numpy, 200 seeds): la directiva v4 marca "inteligencia = control/acción (active inference / empowerment /
+good-regulator)" como la mayor pendiente del árbol de descomposición -- tocada (38/39/79) pero nunca entretenida como la RAÍZ
+de la relevancia. Este ciclo la abre con una pregunta que la UNE con R-VALOR: ¿un objetivo de CONTROL provee el criterio
+endógeno de RELEVANCIA (qué vale la pena modelar) que la PREDICCIÓN pura no tiene? DISEÑO: modelo-del-mundo con CUELLO DE
+BOTELLA (capacidad-1) sobre un sistema 2D con un modo CONTROLABLE-relevante (x1, responde a la acción) y un distractor
+INCONTROLABLE-irrelevante (x2) de varianza creciente; PREDICCIÓN elige modelar el modo de mayor varianza (minimiza el MSE),
+CONTROL elige el modo accionable. RESULTADO: CROSSOVER nítido (smoke 50 ≈ full 200). A distractor DÉBIL (s2=0.5) ambos empatan
+(pred 0.993 ≈ ctrl 0.993: los dos modelan x1). A distractor FUERTE (s2=4.0) la PREDICCIÓN COLAPSA el control (0.000, cae
+0.993: gasta su capacidad-1 en el distractor ruidoso pero irrelevante e incontrolable) mientras CONTROL se MANTIENE (0.994,
+gap +0.994). => un objetivo de CONTROL provee el criterio endógeno de RELEVANCIA -- modela lo CONTROL-relevante, no lo más
+RUIDOSO; la predicción pura carece de ese criterio (good-regulator, Conant&Ashby). UNE la rama control/acción con R-VALOR: el
+CONTROL es la FUENTE de la relevancia (qué importa) que el arco R-VALOR (relevancia × controlabilidad, 79-82) presuponía
+dada. NOTA de método: la 1ra métrica (reducción de error cruda) saturaba por el piso de ruido S1 -> se reemplazó por la
+fracción del BENEFICIO de control ALCANZABLE (normalizada por el oráculo, independiente de S1); el mecanismo cualitativo ya
+era claro en la 1ra corrida. cycle127 → H-V4-10a 'apoyada' (DoD), D-V4-89 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> ABRE LA RAMA CONTROL/ACCIÓN (127): el CONTROL es candidato a RAÍZ de la RELEVANCIA -- bajo capacidad finita, predecir
+> persigue la varianza (modela el distractor ruidoso, colapsa el control) y controlar persigue la consecuencia (modela lo
+> accionable, se mantiene; good-regulator). Une la rama más grande pendiente del árbol con R-VALOR: la 'relevancia' de
+> R-VALOR (79-82) tiene origen endógeno en el CONTROL. Frontera (sub-arco H-V4-10): control multi-paso/no-lineal; capacidad
+> continua (no elegir-1-de-2); ¿el control DESCUBRE la partición controlable/incontrolable sin saberla?; puente a active
+> inference (energía libre esperada).
