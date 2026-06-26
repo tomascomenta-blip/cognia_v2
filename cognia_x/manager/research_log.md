@@ -3279,3 +3279,41 @@ crossover full/decay de la MEMORIA (CYCLE 73, tier5).
 > valor, igual que el estimador de MEMORIA (CYCLE 73). En el lazo de auto-mejora real (93-96), si lo que vale verificar
 > DERIVA, el combinador de confianza/cobertura debe descontar la experiencia vieja. Próximo: selector de tasa no-regret
 > (CYCLE 74) sobre el combinador; drift gradual; integrar con el lazo cerrado real; objetivo VECTOR; y SCALE (GPU).
+
+## CYCLE 98 — H-V4-7k (rama R-VALOR/R-INTERVENCIÓN): la exploración LIGA bajo drift + observación estrecha — APOYADA (revierte 87-88 condicionalmente)
+
+### Pregunta
+CYCLE 87-88 REFUTARON la necesidad de explorar (greedy bastaba) bajo feedback action-gated — pero en régimen
+ESTACIONARIO. CYCLE 97 mostró que el valor DERIVA. ¿Bajo action-gated + DRIFT el greedy se ATRAPA (combinador stale del
+viejo óptimo, nunca re-observa el valor movido) y la exploración RESCATA — revirtiendo 87-88?
+
+### Diseño
+Numpy, online. Combina drift (97) + action-gating (87): valor = bump gaussiano cuyo centro se mueve cada D=8 rondas; el
+agente OBSERVA k_obs ítems SELECCIONADOS (action-gated), ajusta ridge poly2 con decay (97). Se BARRE k_obs ∈ {1,2,4,8}.
+Estrategias: greedy (top-k por combinador), explore (ε-greedy), random (insesgado), oracle. Régimen drift vs estacionario
+(control 87-88). 48 seeds.
+
+### Resultado — APOYADA (reversión CONDICIONAL, como el trap de CYCLE 88)
+Bajo DRIFT + observación ESTRECHA (k_obs=2) el greedy se ATRAPA: greedy=0.757 << random insesgado=0.812 (gap +0.055) — re-
+observa siempre la misma región estrecha y el decay no rastrea lo que no se observa; la EXPLORACIÓN RESCATA: explore=0.811
+(+0.054). PERO a observación AMPLIA (k_obs=8) el greedy es ROBUSTO (gap +0.012: observa suficiente para auto-corregir) y
+bajo ESTACIONARIO no atrapa a ningún k_obs (k_obs=2: −0.008; reproduce 87-88). Umbral trap_kobs*≤2. => la exploración
+(R-INTERVENCIÓN) es NECESARIA bajo NO-estacionariedad + observación estrecha; el 'exploración innecesaria' de 87-88 era
+específico de la ESTACIONARIEDAD o de observación amplia. VINDICA la raíz R-INTERVENCIÓN (la estructura sólo es
+identificable si la distribución VARÍA — el drift ES variación) y RECONCILIA los nulls de 77-78/87-88 (eran estacionarios).
+
+### Límites (honestos)
+Efecto CONDICIONAL y modesto (~0.05): emerge sólo con observación estrecha (k_obs≤~2-4) + drift. A k_obs=1 (extremo) ni la
+exploración rescata (señal insuficiente; sólo el random insesgado ayuda). Bump sintético, drift abrupto por fases, eps
+fijo, numpy/juguete.
+
+### Verificación
+exp082 (48 seeds, numpy, barrido k_obs). cycle98 → H-V4-7k 'apoyada' (DoD), D-V4-60 ACEPTADA, 1 techo 'real', analogía 7
+etapas, verify_no_loss=OK. Test `test_cycle98_drift_exploration.py` 4/4. Convergente con R-INTERVENCIÓN/exploración-bajo-
+drift (tier2) y con el no-trap estacionario de 87-88 (tier5).
+
+> R-INTERVENCIÓN LIGA (finalmente, condicionado): la exploración es necesaria bajo no-estacionariedad + observación
+> estrecha (el greedy se atrapa, explorar rescata); reconcilia los nulls estacionarios de 77-78/87-88 con la raíz del
+> árbol (la distribución debe VARIAR para que la intervención/exploración importe). Política del lazo: añadir exploración
+> (idealmente SURPRISE-GATED, CYCLE 59) bajo drift + observación estrecha; greedy basta con observación amplia o régimen
+> estable. Frontera: exploración surprise-gated; integrar con el lazo cerrado real; objetivo VECTOR; y SCALE (GPU).

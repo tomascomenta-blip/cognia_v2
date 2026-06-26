@@ -660,3 +660,17 @@ Todo el arco de asignación (83-96) asumió valor ESTACIONARIO. CYCLE 97 lo une 
 > SÍNTESIS del lab (allocation × forgetting): el estimador de valor para ASIGNAR (83-96) y para RECORDAR (58-74) obedece
 > el mismo principio bajo no-estacionariedad — DESCONTAR lo viejo (decay). Frontera: selector de tasa no-regret (CYCLE 74)
 > sobre el combinador de asignación; integrar olvido en el lazo cerrado real (93-96); objetivo VECTOR; y SCALE (GPU).
+
+- **CYCLE 98 — H-V4-7k APOYADA (revierte 87-88 condicionalmente; R-INTERVENCIÓN LIGA).** Bajo feedback action-gated +
+  DRIFT (combina 87 + 97) y barriendo k_obs: a observación ESTRECHA (k_obs=2) el greedy se ATRAPA (greedy 0.757 <<
+  random 0.812, +0.055; re-observa el viejo barrio, el decay no rastrea lo no observado) y la EXPLORACIÓN rescata
+  (explore 0.811, +0.054); a observación AMPLIA (k_obs=8) el greedy es robusto (+0.012, auto-corrige) y estacionario no
+  atrapa a ningún k_obs (87-88). trap_kobs*≤2. => la exploración (R-INTERVENCIÓN) es necesaria bajo no-estacionariedad +
+  observación estrecha; los nulls de 77-78/87-88 eran por regímenes ESTACIONARIOS. VINDICA la raíz R-INTERVENCIÓN (la
+  estructura es identificable sólo si la distribución VARÍA — el drift ES variación). Cota 'real'; D-V4-60; test 4/4.
+
+> R-INTERVENCIÓN RECONCILIADA (77-78/87-88/98): la exploración/intervención NO ligaba en los nulls porque eran
+> ESTACIONARIOS; bajo DRIFT + observación estrecha SÍ liga (greedy se atrapa, explorar rescata) — exactamente lo que la
+> raíz R-INTERVENCIÓN del árbol predice (la distribución debe VARIAR). Política del lazo: añadir exploración (idealmente
+> surprise-gated, CYCLE 59) bajo drift + observación estrecha; greedy con observación amplia o régimen estable. Frontera:
+> exploración surprise-gated; integrar con el lazo cerrado real; objetivo VECTOR; y SCALE (GPU).
