@@ -3536,3 +3536,20 @@ CYCLE 55 (verificador sesgado = order-breaking) y 106 (monótono no afecta ranki
 > PRINCIPIO (108-109): para ASIGNAR (rankear), lo que daña es ROMPER EL ORDEN, no 'sesgo vs ruido'. order-preserving
 > (constante/monótono) benigno; order-breaking aleatorio (ruido) intermedio; order-breaking sistemático (sesgo
 > no-monótono) el peor. Para decisiones de UMBRAL/costo (101/104) el offset SÍ importa (106) -> decisión-dependiente.
+
+## CYCLE 110 — H-V4-8o (rama R-VALOR, PIVOT generación↔asignación, bridge a creatividad pillar #4) — APOYADA
+Todo el arco 93-107 asignó sobre un pool DADO. exp094 (PyTorch CPU, lazo cerrado real exp018, 4 seeds) abre la palanca de
+GENERACIÓN (diversidad/temperatura) y mide su interacción con la asignación: 2×2 (temp∈{low,high} × alloc∈{conf,random}),
+downstream real_acc. RESULTADO: subir la temperatura del generador rinde +0.232 bajo conf-alloc vs −0.373 bajo random-alloc
+-> INTERACCIÓN temp×alloc = +0.606 (100% seeds positiva). => diversidad del generador y calidad de asignación
+COMPLEMENTARIAS: con filtro (conf) la diversidad alta paga (descubre buenos, descarta ruido); sin filtro (random) inunda de
+basura y colapsa el downstream. R-VALOR gobierna cuánta EXPLORACIÓN del generador conviene -- puente generación–selección
+(creatividad sólo paga con buen juez). MECANISMO DE DOS LADOS + caveat HONESTO: conf-alloc a baja diversidad NARROWS
+(93/94) y por eso NECESITA diversidad para destrabarse; y el MEJOR config absoluto es RANDOM+LOW (pool limpio+diverso) ->
+'más diversidad mejor' NO es incondicional: lo robusto es la INTERACCIÓN/co-sintonía, no un óptimo global de 'conf+high';
+el filtro 'bueno' completo incluiría la guardia de diversidad (94). cycle110 → H-V4-8o 'apoyada' (DoD), D-V4-72 ACEPTADA,
+techo 'real', verify_no_loss=OK. Test 3/3.
+
+> BRIDGE generación–selección (110): R-VALOR no sólo decide QUÉ verificar, también cuánta DIVERSIDAD del generador
+> conviene; co-sintonizar filtro y diversidad (más filtro -> más exploración). Conecta el lazo de auto-mejora con la
+> creatividad (pillar #4). Frontera: barrido fino del óptimo de temperatura por asignación; diversidad como objetivo; SCALE.
