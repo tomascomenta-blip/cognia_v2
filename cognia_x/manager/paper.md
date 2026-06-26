@@ -933,3 +933,32 @@ señal no-causal/espuria sólo se descubre variando la distribución). Defensas 
 acotada 119) + detección de shift; y bajo abundancia, además, ensanchar el presupuesto (125). FRONTERA: re-medir el grounding
 con un estimador NO-lineal / en un lazo real (modelo de lenguaje) y a SCALE; detectar el atajo espurio por su firma bajo
 intervención; demostrar end-to-end que el auto-entrenamiento PRODUCE este atajo espurio.
+
+## 3.BA CONCLUSIÓN DEFINITIVA actualizada del arco R-VALOR (89-126, 38 ciclos)
+La conclusión de §3.AW (89-123) se sostiene y se PROFUNDIZA con el sub-arco de las APUESTAS DECISIONALES (124-126), que
+caracteriza POR COMPLETO cuándo y cómo la señal de valor calibrada importa en una decisión de asignación:
+1. **Qué es y cómo se usa (teoría de asignación, 83-114; validada toy→real 105/107):** R-VALOR es la señal para ASIGNAR
+   recursos escasos -- qué elegir / cuándo gastar / si vale estimar, con las propiedades del estimador (lo que daña es romper
+   el orden) y la co-sintonía con la generación.
+2. **Su fragilidad y cura (115-119):** la señal COLAPSA bajo auto-entrenamiento; la cura es un unlikelihood ACOTADO sobre lo
+   verificado-incorrecto (mantiene la calibración a cero costo de capacidad).
+3. **Dónde vale, en TODO su detalle decisional (120-126):** la calibración NO acelera el descenso del loss (ancla-bound,
+   120-121); su valor es DECISIONAL y se realiza bajo ESCASEZ (123: de azar a casi-óptimo). Pero las APUESTAS son
+   REGIME-DIRECCIONALES (124): la escasez hace pesar el UPSIDE (capturar gemas raras), la abundancia hace pesar el DOWNSIDE
+   (un selector anti-calibrado encuentra fiablemente las raras minas) -- la señal de valor es de DOBLE FILO, y "irrelevante
+   bajo abundancia" vale sólo para ganar, no para perder. Ese doble filo es ASIMÉTRICO en el PRESUPUESTO (125): la cara
+   catastrófica (downside abundante) es BUDGET-FRÁGIL (mitigable barato ensanchando el presupuesto sobre el nº de minas),
+   la cara valiosa (upside escaso) es BUDGET-ROBUSTA (sin sustituto de presupuesto) -- presupuesto y calibración son
+   SUSTITUTOS bajo abundancia, COMPLEMENTOS bajo escasez. Y todo esto NO es artefacto del ρ impuesto (126): con un estimador
+   APRENDIDO, ρ se GANA de la calidad del feature (el payoff bajo escasez lo trackea) y la anti-calibración peligrosa se gana
+   de un atajo ESPURIO que se invierte bajo cambio de distribución -- uniendo el sub-arco decisional con la fragilidad
+   "confiadamente equivocado" (115-118) y con R-INTERVENCIÓN (35).
+TESIS FINAL (actualizada): R-VALOR es una BRÚJULA DECISIONAL endógena de DOBLE FILO. Estima el valor para ASIGNAR bajo
+escasez/presupuesto; bajo escasez su CALIDAD paga (capturar gemas) y no hay sustituto de presupuesto; bajo abundancia su
+FIABILIDAD protege (evitar minas) y un presupuesto holgado la sustituye barato. Su ρ no es un knob -- se gana de la calidad/
+integridad del estimador -- y su modo de falla peligroso (confiadamente-equivocado) se gana de atajos espurios que sólo se
+delatan bajo cambio de distribución; por eso las defensas son la recalibración acotada (119), la detección de shift
+(R-INTERVENCIÓN) y, bajo abundancia, el presupuesto holgado. FRONTERA del arco: llevar TODO esto a un lazo real / estimador
+no-lineal / SCALE (objetivo no-sintético), y demostrar end-to-end que el auto-entrenamiento produce el atajo espurio.
+H-V4-4 (techo de recall = optimización) sigue DIFERIDA; la rama abierta "inteligencia = control/acción" (active inference /
+empowerment / good-regulator) sigue siendo la mayor pendiente del árbol de descomposición.
