@@ -4381,3 +4381,11 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
   complementariedad 83-86). Une control/acción con cost-aware (101). cycle130 -> H-V4-10d 'apoyada', D-V4-92 ACEPTADA, techo
   'real', verify_no_loss=OK.
 - Frontera: no-lineal, capacidad continua, active inference.
+
+## [2026-06-26] CYCLE 133 — H-V4-10g MIXTA ACOTADA: el keystone sobrevive a un SUSTRATO ACOPLADO sólo con controlabilidad de ALCANCE-POR-LA-RED + selección ADAPTATIVA (corregida por verificación adversarial, 3er ciclo seguido)
+- Archivos creados: cognia_x/experiments/exp117_coupled_substrate/{__init__.py,run.py,results/results.json}, cognia_x/research/cycles/cycle133_coupled_substrate.py, cognia_x/tests/test_cycle133_coupled_substrate.py
+- Archivos modificados: cognia_x/manager/{research_log.md,paper.md (§3.BH)}, MANAGER_LOG.md, memoria cognia-x-v4-reset
+- Resultado tests: PASS — 5/5 (test_cycle133); vecinos 131/132 PASS 9/9; cycle mirror verify_no_loss=OK, D-V4-95 ACEPTADA
+- GOAL servido: North Star R-VALOR. Ataca la frontera explícita de 132 ("estructura/no-linealidad en el SUSTRATO, no sólo en el control"). Rompe el supuesto de modos INDEPENDIENTES que se mantenía desde CYCLE 127: el sustrato ACOPLA los modos. Hallazgo: el PRINCIPIO valor=ctrl×rel sobrevive, pero la controlabilidad debe ser de ALCANCE-POR-LA-RED (generaliza el alcance-al-esfuerzo de 132) y la selección debe ser ADAPTATIVA; el keystone LOCAL 129 falla porque la relevancia directa es proxy infiel del alcance (robusto con distractor, no knife-edge).
+- Método: COMPUERTA de verificación adversarial (Workflow, 4 agentes) ejecutada ANTES del ledger. ACOTÓ una MIXTA FUERTE inicial con 3 hallazgos reproducidos (reach≡oracle por construcción; top-K-standalone no robusto bajo redundancia → selección adaptativa; magnitud knife-edge en w=0 → proxy infiel). Resistió: _reduction correcto (MC<0.21%), sin leakage, la falla del local no es de horizonte. 3er ciclo consecutivo (131/132/133) en que la verificación adversarial acota un toy antes del ledger → institucionalizada.
+- Numeración: exp117=cycle133. Próximo: exp118=cycle134. Decisiones aceptadas hasta D-V4-95. Próxima hipótesis: H-V4-10h o familia nueva. Frontera: acople NO-LINEAL en el sustrato, relevancia estimada, lazo real, active inference formal.

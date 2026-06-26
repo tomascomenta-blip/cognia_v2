@@ -3958,3 +3958,37 @@ controlabilidad-descontada-por-costo de 130 (la saturación es la forma no-linea
 > compuerta para los toys (la lección de 131/132 sobre los juguetes que engañan). Hallazgo honesto: bajo no-linealidad la
 > controlabilidad de R-VALOR es de ALCANCE/ESFUERZO (sondear a la escala del control), no pendiente local. Frontera:
 > no-linealidad en el SUSTRATO (no sólo el control), lazo real, active inference formal.
+
+## CYCLE 133 — H-V4-10g (rama control/acción, ROBUSTEZ del keystone 129 a un SUSTRATO ACOPLADO) — MIXTA ACOTADA (corregida por VERIFICACIÓN ADVERSARIAL, 3er ciclo seguido)
+exp117 (numpy, 200 seeds, post-verificación de 4 agentes): la frontera explícita de 132 era "estructura/no-linealidad en el
+SUSTRATO, no sólo en el control". Desde CYCLE 127 todos los toys asumían modos INDEPENDIENTES; este los ACOPLA (x'=A·x+b⊙u+ruido,
+A no diagonal: actuar un modo propaga a otros) y pregunta si el keystone (129: el control reconstruye R-VALOR = controlabilidad ×
+relevancia) sobrevive. RESULTADO VERIFICADO: el PRINCIPIO valor=ctrl×rel SOBREVIVE pero (a) su factor de controlabilidad debe ser
+de ALCANCE-POR-LA-RED (cuánta relevancia regulás propagando por el acople) y (b) la selección debe ser ADAPTATIVA (greedy).
+reach_greedy (alcance acoplado de horizonte completo + greedy) es robusto en TODAS las estructuras (base/multihop/redundant/
+distractor, min 1.000). (i) El keystone LOCAL 129 (valor_local=w·b̂²) recupera 129 sin acople (κ=0: 1.000) pero FALLA bajo acople
+(base 0.474 vs greedy 1.000; pd_local=0.00: nunca elige al DRIVER controlable-pero-irrelevante que regula al TARGET relevante);
+la falla es ROBUSTA/no-knife-edge — con un modo DISTRACTOR (vanidad ctrl+rel-directo sin acople) el local cae a 0.561 vs greedy
+1.000 — la relevancia DIRECTA es un PROXY INFIEL de la relevancia-POR-ALCANCE. (ii) El reach NAIVE (top-K-standalone) NO basta:
+bajo REDUNDANCIA submodular (2 drivers→1 target) COLAPSA a 0.575 vs greedy 1.000 → la selección debe ser adaptativa. (iii) El
+reach de 1-HOP NO basta: bajo MULTI-HOP (driver→relay→target) cae a ~0.70 vs greedy 1.000 → la controlabilidad debe ser de
+horizonte/alcance completo. => bajo acople del sustrato la controlabilidad del keystone es el ALCANCE-POR-LA-RED, que GENERALIZA
+el alcance-al-esfuerzo de 132 (el ALCANCE vuelve a ser la respuesta, ahora en la RED, no en la saturación del control). cycle133
+→ H-V4-10g 'mixta' (DoD), D-V4-95 ACEPTADA, techo 'real', verify_no_loss=OK. Test 5/5.
+
+> META-PATRÓN (133, 3er seguido con 131/132): la 1ra versión (un único arco de acople, w_driver=0 exacto, criterio reach=top-K-
+> standalone) daba una MIXTA FUERTE ("reach robusto en TODO κ, local ciego, ventaja +0.526"). Una VERIFICACIÓN ADVERSARIAL (4
+> agentes, ultracode) la ACOTÓ con TRES hallazgos reproducidos: (1) reach≡ORACLE por construcción en esa estructura (subset-match
+> 100% a κ>0) → "reach=1.000 exacto" NO es evidencia ortogonal; el contenido sustantivo es el FALLO del local. (2) El criterio
+> IMPLEMENTADO top-K-standalone NO es robusto: COLAPSA a 0.575 bajo redundancia submodular donde un greedy ADAPTATIVO mantiene
+> 1.000 (si la estructura tuviera redundancia, el clasificador habría dado una REFUTADA FALSA) → la robustez pertenece al
+> PRINCIPIO reach×rel CON selección adaptativa. (3) La magnitud titular era un FILO de medida cero en w_driver=0 EXACTO (con 1%
+> de relevancia directa el local→0.997) → el mecanismo correcto es "la relevancia directa es un PROXY INFIEL del alcance",
+> robusto con un DISTRACTOR. RESISTIÓ (Angle C, auditoría matemática + leakage): _reduction correcto (MC <0.21%), sin leakage
+> (reach estimado = reach verdadero), y la falla del local NO es "1-paso vs multi-paso" (un local-multipaso sobre su propio modo
+> tampoco elige al driver: es crédito de relevancia-propia vs relevancia-por-la-red). Hallazgo honesto: el keystone sobrevive al
+> acople sólo con controlabilidad de ALCANCE-POR-LA-RED + selección ADAPTATIVA; el local falla porque la relevancia directa es
+> proxy infiel del alcance. Caveats al ledger: reach_greedy ≈ oracle estimado por construcción; el 1.000 es condicional a
+> system-ID adecuado (N_PROBE≳50-100, costo de datos coherente con 128) y a relevancia conocida; MIXTA requiere K≥2; acople
+> LINEAL en el sustrato. Institucionalizar la verificación adversarial (3er ciclo seguido que acota un hallazgo). Frontera:
+> acople NO-LINEAL en el sustrato, relevancia ESTIMADA (no dada), lazo real, active inference formal.

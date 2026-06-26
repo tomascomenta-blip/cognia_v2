@@ -1090,3 +1090,45 @@ adversarial (workflow de 3 agentes) lo detectó y restauró la conclusión corre
 reencuadre). Dos ciclos seguidos en que la verificación adversarial atrapa un artefacto de un toy antes de que contamine el
 ledger -> se institucionaliza como compuerta para los experimentos de juguete. FRONTERA: llevar la no-linealidad al SUSTRATO
 (no sólo al control); el lazo real; y el puente formal a active inference.
+
+## 3.BH ROBUSTEZ del keystone a un SUSTRATO ACOPLADO — la controlabilidad es ALCANCE-POR-LA-RED y la selección debe ser ADAPTATIVA (133)
+La frontera explícita de 132 era llevar la estructura al SUSTRATO, no sólo al control. Desde la apertura de la rama
+control/acción (CYCLE 127) todos los toys asumían modos INDEPENDIENTES: cada modo tenía su controlabilidad y su relevancia
+propias, sin interacción. 133 (H-V4-10g, MIXTA acotada) rompe ese supuesto: el sustrato ACOPLA los modos (x' = A·x + b⊙u +
+ruido, con A no diagonal — actuar un modo propaga a otros) y pregunta si el keystone (129: el control reconstruye R-VALOR =
+controlabilidad × relevancia) sobrevive. RESULTADO VERIFICADO: el PRINCIPIO valor = controlabilidad × relevancia SOBREVIVE, pero
+con DOS correcciones — su factor de controlabilidad debe ser de ALCANCE-POR-LA-RED (cuánta relevancia podés regular propagando
+por el acople) y la selección de qué modelar/actuar debe ser ADAPTATIVA (greedy sobre el alcance acoplado). El criterio correcto
+(reach_greedy) es robustamente óptimo en cuatro estructuras de acople distintas (arco simple, cadena multi-hop, redundancia de
+dos drivers, y un distractor). La versión LOCAL del keystone 129 (valor_local = w·b̂², controlabilidad por la pendiente directa)
+recupera 129 sin acople (κ=0) pero FALLA bajo acople: no acredita a un actuador controlable-pero-directamente-irrelevante (un
+DRIVER) que regula un modo relevante (un TARGET) al que está acoplado. La falla es robusta y no un artefacto del caso w=0 exacto:
+con un modo DISTRACTOR (vanidad — controlable y directamente relevante pero sin acople) el local sigue cayendo (≈0.56 vs 1.00),
+porque la relevancia DIRECTA es un PROXY INFIEL de la relevancia-POR-ALCANCE. => bajo acople del sustrato la controlabilidad de
+R-VALOR es el ALCANCE-POR-LA-RED, que GENERALIZA el alcance-al-esfuerzo de 132 (saturación del control): el ALCANCE vuelve a ser
+la respuesta, ahora en la RED y no en el transfer del control.
+
+LECCIÓN DE MÉTODO (tercera consecutiva, con 131 y 132). La primera versión de este ciclo — un único arco de acople, driver con
+relevancia exactamente cero, criterio de alcance por selección top-K marginal — daba una MIXTA FUERTE ("reach robustamente
+óptimo en todo κ, local ciego al acople, ventaja +0.526"). Una verificación adversarial (workflow de cuatro agentes
+independientes) la ACOTÓ con tres hallazgos, todos reproducidos ejecutando código: (1) en esa estructura el criterio de alcance
+elegía el subconjunto del oracle el 100% de las semillas (reach ≡ oracle por construcción), así que su "1.000 exacto" no era
+evidencia ortogonal de robustez — el contenido sustantivo del experimento es el FALLO del local, no el éxito del alcance; (2) el
+criterio IMPLEMENTADO (top-K marginal) no es robusto: bajo redundancia submodular (dos drivers acoplados al mismo target) COLAPSA
+(gasta la capacidad en drivers redundantes) mientras una selección greedy ADAPTATIVA mantiene el óptimo — la robustez pertenece
+al PRINCIPIO alcance × relevancia con selección adaptativa, no al heurístico marginal (de hecho, con redundancia el clasificador
+del propio experimento habría producido una refutación FALSA); (3) la magnitud titular era un filo de medida cero en w_driver = 0
+exacto — con apenas 1% de relevancia directa en el driver el local se recupera al óptimo —, de modo que el mecanismo correcto no
+es "ceguera estructural al acople" sino "la relevancia directa es un proxy infiel del alcance". Lo que RESISTIÓ el ataque (la
+auditoría matemática del cuarto agente): la forma cerrada de la reducción de costo es correcta (coincide con Monte-Carlo a <0.21%
+de error), no hay leakage (el alcance con dinámica estimada iguala al alcance con dinámica verdadera), y la falla del local no es
+de horizonte (un agente local honesto que integra su controlabilidad multi-paso sobre su propio modo TAMPOCO elige al driver: la
+brecha es genuinamente de crédito de relevancia-propia versus relevancia-por-la-red). La versión registrada incorpora los tres
+fixes antes del ledger: selección greedy adaptativa, las cuatro estructuras de acople (incluida la redundancia donde el top-K
+colapsa y el multi-hop donde un criterio de un solo salto falla), y el barrido de w_driver que documenta el filo. Tres ciclos
+seguidos en que la verificación adversarial acota un hallazgo de un toy antes de que contamine el ledger append-only — se
+institucionaliza como compuerta obligatoria. CAVEATS al ledger: el criterio de alcance es, por construcción, el oracle estimado
+(el resultado sustantivo es el fallo del local); su optimalidad es condicional a un sistema-ID adecuado (umbral de datos
+coherente con el presupuesto de acción de 128) y a relevancia conocida; la disociación requiere capacidad K ≥ 2; el acople es
+lineal en el sustrato. FRONTERA: acople NO-LINEAL en el sustrato; relevancia ESTIMADA (no dada); el lazo real; y el puente formal
+a active inference.
