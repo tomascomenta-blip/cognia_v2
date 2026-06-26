@@ -1,0 +1,341 @@
+{
+  "exp": "exp120_learned_basis",
+  "cycle": 136,
+  "hypothesis": "H-V4-10j",
+  "claim": "MIXTA (refutacion ACOTADA, post-verificacion adversarial de 3 agentes). El cuello R-PRIOR es REGIME-DEPENDENT. EN ABUNDANCIA (T>>#columnas): un aprendiz que NO conoce la forma (cross-valida la regularizacion -rich_cv- y/o selecciona la base -select_cv-) NEUTRALIZA EL GRUESO de la ventaja del oracle-prior (cierra ~83% del gap de 135); la fairness no lo derriba (matched_cv apenas mejora). PERO 'IGUALA' es 'CASI IGUALA': el residual matched_cv-rich_cv ~+0.04 a sigma_g=20 es chico pero SIGNIFICATIVO (costo de varianza de las columnas extra). Y EL PRIOR REAPARECE BAJO ESCASEZ (T~#columnas, ruido moderado): rich_cv colapsa y el prior paga +0.3. select_cv NO es del todo form-agnostic (su menu ES un prior grueso). => R-PRIOR no es cuello en abundancia pero su valor escala inversamente con el ratio datos/parametros; se DEBILITA de forma-exacta a menu-de-formas, no desaparece. Acota la pregunta abierta de la MIXTA de 135",
+  "verdict": "mixta",
+  "summary": {
+    "by_form": {
+      "linear": {
+        "linear": 1.0,
+        "matched": 1.0,
+        "matched_cv": 1.0,
+        "rich_fix": 1.0,
+        "rich_cv": 1.0,
+        "select_cv": 1.0,
+        "ctrl_solo": 0.47,
+        "select_chose": {
+          "linear": 1.0,
+          "even": 0.0,
+          "relu": 0.0
+        },
+        "paired_mcv_richcv": [
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "even": {
+        "linear": 0.66,
+        "matched": 1.0,
+        "matched_cv": 1.0,
+        "rich_fix": 1.0,
+        "rich_cv": 1.0,
+        "select_cv": 1.0,
+        "ctrl_solo": 0.5275,
+        "select_chose": {
+          "linear": 0.0,
+          "even": 1.0,
+          "relu": 0.0
+        },
+        "paired_mcv_richcv": [
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "relu": {
+        "linear": 1.0,
+        "matched": 1.0,
+        "matched_cv": 1.0,
+        "rich_fix": 0.9975,
+        "rich_cv": 0.995,
+        "select_cv": 1.0,
+        "ctrl_solo": 0.55,
+        "select_chose": {
+          "linear": 0.0,
+          "even": 0.0,
+          "relu": 1.0
+        },
+        "paired_mcv_richcv": [
+          0.005,
+          1.42,
+          1.0
+        ]
+      },
+      "mixed": {
+        "linear": 0.9725,
+        "matched": 1.0,
+        "matched_cv": 1.0,
+        "rich_fix": 1.0,
+        "rich_cv": 1.0,
+        "select_cv": 1.0,
+        "ctrl_solo": 0.495,
+        "select_chose": {
+          "linear": 0.0,
+          "even": 0.725,
+          "relu": 0.275
+        },
+        "paired_mcv_richcv": [
+          0.0,
+          0.0,
+          1.0
+        ]
+      }
+    },
+    "by_sg": {
+      "0.5": {
+        "linear": 0.66,
+        "matched": 1.0,
+        "matched_cv": 1.0,
+        "rich_fix": 1.0,
+        "rich_cv": 1.0,
+        "select_cv": 1.0,
+        "ctrl_solo": 0.5275,
+        "select_chose": {
+          "linear": 0.0,
+          "even": 1.0,
+          "relu": 0.0
+        },
+        "paired_mcv_richcv": [
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "2.0": {
+        "linear": 0.6625,
+        "matched": 1.0,
+        "matched_cv": 1.0,
+        "rich_fix": 1.0,
+        "rich_cv": 0.995,
+        "select_cv": 1.0,
+        "ctrl_solo": 0.5,
+        "select_chose": {
+          "linear": 0.0,
+          "even": 1.0,
+          "relu": 0.0
+        },
+        "paired_mcv_richcv": [
+          0.005,
+          1.42,
+          1.0
+        ]
+      },
+      "5.0": {
+        "linear": 0.61,
+        "matched": 1.0,
+        "matched_cv": 1.0,
+        "rich_fix": 0.9075,
+        "rich_cv": 0.9525,
+        "select_cv": 1.0,
+        "ctrl_solo": 0.5075,
+        "select_chose": {
+          "linear": 0.0,
+          "even": 1.0,
+          "relu": 0.0
+        },
+        "paired_mcv_richcv": [
+          0.0475,
+          4.33,
+          1.0
+        ]
+      },
+      "20.0": {
+        "linear": 0.5475,
+        "matched": 0.81,
+        "matched_cv": 0.8125,
+        "rich_fix": 0.565,
+        "rich_cv": 0.7725,
+        "select_cv": 0.755,
+        "ctrl_solo": 0.49,
+        "select_chose": {
+          "linear": 0.14,
+          "even": 0.695,
+          "relu": 0.165
+        },
+        "paired_mcv_richcv": [
+          0.04,
+          2.16,
+          0.9
+        ]
+      }
+    },
+    "by_T_scarce": {
+      "24": {
+        "linear": 0.5625,
+        "matched": 0.7025,
+        "matched_cv": 0.7425,
+        "rich_fix": 0.5525,
+        "rich_cv": 0.5,
+        "select_cv": 0.6875,
+        "ctrl_solo": 0.5025,
+        "select_chose": {
+          "linear": 0.2,
+          "even": 0.61,
+          "relu": 0.19
+        },
+        "paired_mcv_richcv": [
+          0.2425,
+          8.24,
+          0.88
+        ]
+      },
+      "30": {
+        "linear": 0.575,
+        "matched": 0.755,
+        "matched_cv": 0.8,
+        "rich_fix": 0.55,
+        "rich_cv": 0.49,
+        "select_cv": 0.7525,
+        "ctrl_solo": 0.5,
+        "select_chose": {
+          "linear": 0.115,
+          "even": 0.7,
+          "relu": 0.185
+        },
+        "paired_mcv_richcv": [
+          0.31,
+          11.73,
+          0.95
+        ]
+      },
+      "50": {
+        "linear": 0.59,
+        "matched": 0.89,
+        "matched_cv": 0.9,
+        "rich_fix": 0.625,
+        "rich_cv": 0.835,
+        "select_cv": 0.855,
+        "ctrl_solo": 0.4675,
+        "select_chose": {
+          "linear": 0.07,
+          "even": 0.84,
+          "relu": 0.09
+        },
+        "paired_mcv_richcv": [
+          0.065,
+          3.88,
+          0.95
+        ]
+      },
+      "100": {
+        "linear": 0.605,
+        "matched": 0.9975,
+        "matched_cv": 0.995,
+        "rich_fix": 0.7175,
+        "rich_cv": 0.9675,
+        "select_cv": 0.9825,
+        "ctrl_solo": 0.495,
+        "select_chose": {
+          "linear": 0.01,
+          "even": 0.97,
+          "relu": 0.02
+        },
+        "paired_mcv_richcv": [
+          0.0275,
+          3.4,
+          1.0
+        ]
+      },
+      "300": {
+        "linear": 0.61,
+        "matched": 1.0,
+        "matched_cv": 1.0,
+        "rich_fix": 0.9075,
+        "rich_cv": 0.9525,
+        "select_cv": 1.0,
+        "ctrl_solo": 0.5075,
+        "select_chose": {
+          "linear": 0.0,
+          "even": 1.0,
+          "relu": 0.0
+        },
+        "paired_mcv_richcv": [
+          0.0475,
+          4.33,
+          1.0
+        ]
+      }
+    },
+    "random_baseline": 0.2552,
+    "even_matched": 1.0,
+    "even_rich_fix": 1.0,
+    "even_rich_cv": 1.0,
+    "even_select_cv": 1.0,
+    "even_linear": 0.66,
+    "even_ctrl_solo": 0.5275,
+    "even_select_chose": {
+      "linear": 0.0,
+      "even": 1.0,
+      "relu": 0.0
+    },
+    "richcv_linear": 1.0,
+    "richcv_even": 1.0,
+    "richcv_relu": 0.995,
+    "richcv_mixed": 1.0,
+    "hi_sg_matched": 0.81,
+    "hi_sg_matched_cv": 0.8125,
+    "hi_sg_rich_fix": 0.565,
+    "hi_sg_rich_cv": 0.7725,
+    "hi_sg_select_cv": 0.755,
+    "hi_sg_select_chose": {
+      "linear": 0.14,
+      "even": 0.695,
+      "relu": 0.165
+    },
+    "scarce_T": 30,
+    "scarce_sg": 5.0,
+    "scarce_matched_cv": 0.8,
+    "scarce_rich_cv": 0.49,
+    "scarce_select_cv": 0.7525,
+    "gap_scarce": 0.31,
+    "gap_richfix": 0.245,
+    "gap_richcv": 0.0375,
+    "gap_selectcv": 0.055,
+    "gap_matchedcv_richcv": 0.04,
+    "closed_frac": 0.847,
+    "paired_mcv_richcv": [
+      0.04,
+      2.16,
+      0.9
+    ],
+    "rich_cv_robust": true,
+    "select_cv_robust": true,
+    "abundant_neutralizes": true,
+    "scarce_prior_pays": true,
+    "status": "mixta",
+    "verdict": "H-V4-10j MIXTA (REFUTACIÓN ACOTADA AL RÉGIMEN ABUNDANTE; post-verificación adversarial de 3 agentes, 6to ciclo; refutación genuina sin leakage -3 controles nulos-): el cuello R-PRIOR es REGIME-DEPENDENT. NEUTRALIZADO EN ABUNDANCIA: con dato amplio (T=300) un aprendiz que NO conoce la forma -cross-validando la regularización (rich_cv) y/o seleccionando la base (select_cv)- NEUTRALIZA EL GRUESO de la ventaja del oracle-prior. Bajo meta even limpio rich_cv=1.000/select_cv=1.000=matched (sobre ctrl_solo 0.527); bajo ruido σ_g=20 el gap de 135 (+0.245 a ridge fijo) se CIERRA ~85% al cross-validar (rich_cv +0.038, select_cv +0.055). La fairness NO lo derriba: dar a la matched el MISMO CV-ridge (matched_cv) apenas la mueve (gap a rich_cv +0.040) -> el 'prior paga' de 135 NO era artefacto del ridge-fijo, ERA sub-regularización de la base rica. rich_cv robusto a TODA forma (lin 1.000/even 1.000/relu 0.995/mixed 1.000). PERO 'IGUALA' es 'CASI IGUALA': el residual matched_cv-rich_cv a σ_g=20 es +0.040 (t=2.16, frac(m_cv≥rich)=0.9) -- chico pero SIGNIFICATIVO, costo de varianza irreducible de las 2 columnas extra de la base rica. Y EL PRIOR REAPARECE BAJO ESCASEZ: a T=30~#columnas con ruido moderado (σ_g=5.0) el aprendiz genuinamente sin-forma (rich_cv) COLAPSA y matched_cv le gana +0.310 -- la ventaja del prior escala INVERSAMENTE con el ratio datos/parámetros. Caveat: select_cv NO es del todo form-agnostic (su menú {linear,even,relu} ES un prior grueso de la forma). => H-V4-10j (R-PRIOR es cuello) REFUTADA EN ABUNDANCIA pero el prior NO es prescindible: se DEBILITA de forma-exacta a menú-de-formas y su valor escala con la escasez de datos. El factor RELEVANCIA es discoverable bajo no-linealidad sin prior privilegiado CUANDO T>>#columnas; bajo escasez conocer la forma paga."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp120] CYCLE 136 / H-V4-10j — ¿es la relevancia bajo no-linealidad un cuello de R-PRIOR? Un aprendiz-CV sin-forma vs el oracle-prior, en ABUNDANCIA y en ESCASEZ (MIXTA post-verificación adversarial)",
+    "[exp120] seeds=200 D=8 K=2 ridge_fix=0.01 ridge_grid=[0.001, 0.01, 0.1, 0.3, 1.0, 3.0, 10.0] folds=5 forms=['linear', 'even', 'relu', 'mixed'] sigma_gs=[0.5, 2.0, 5.0, 20.0] scarce(T=[24, 30, 50, 100, 300],σ_g=5.0) (T_abund=300)",
+    "[exp120] random_baseline = 0.255",
+    "[exp120] --- (1) FORMA × ESTIMADOR (T=300, σ_g=0.5) — ¿recuperan los aprendices-sin-forma cada forma? ---",
+    "[exp120] meta=linear: ctrl=0.470 | lin=1.000 matched=1.000 m_cv=1.000 rich_fix=1.000 rich_cv=1.000 select_cv=1.000 | select_chose={'linear': 1.0, 'even': 0.0, 'relu': 0.0}",
+    "[exp120] meta=  even: ctrl=0.527 | lin=0.660 matched=1.000 m_cv=1.000 rich_fix=1.000 rich_cv=1.000 select_cv=1.000 | select_chose={'linear': 0.0, 'even': 1.0, 'relu': 0.0}",
+    "[exp120] meta=  relu: ctrl=0.550 | lin=1.000 matched=1.000 m_cv=1.000 rich_fix=0.998 rich_cv=0.995 select_cv=1.000 | select_chose={'linear': 0.0, 'even': 0.0, 'relu': 1.0}",
+    "[exp120] meta= mixed: ctrl=0.495 | lin=0.973 matched=1.000 m_cv=1.000 rich_fix=1.000 rich_cv=1.000 select_cv=1.000 | select_chose={'linear': 0.0, 'even': 0.725, 'relu': 0.275}",
+    "[exp120] --- (2) BARRIDO σ_g bajo EVEN (T=300, ABUNDANTE) — ¿neutraliza el CV el gap del 'prior' de 135? ---",
+    "[exp120] σ_g=  0.5: matched=1.000 m_cv=1.000 rich_fix=1.000 rich_cv=1.000 select_cv=1.000 | gap(m_cv-richcv)=+0.000",
+    "[exp120] σ_g=  2.0: matched=1.000 m_cv=1.000 rich_fix=1.000 rich_cv=0.995 select_cv=1.000 | gap(m_cv-richcv)=+0.005",
+    "[exp120] σ_g=  5.0: matched=1.000 m_cv=1.000 rich_fix=0.907 rich_cv=0.953 select_cv=1.000 | gap(m_cv-richcv)=+0.047",
+    "[exp120] σ_g= 20.0: matched=0.810 m_cv=0.812 rich_fix=0.565 rich_cv=0.772 select_cv=0.755 | gap(m_cv-richcv)=+0.040",
+    "[exp120] --- (3) BARRIDO T bajo EVEN (σ_g=5.0, ESCASEZ) — ¿REAPARECE la ventaja del prior con CV hambriento? ---",
+    "[exp120] T=  24: matched_cv=0.743 rich_cv=0.500 select_cv=0.688 | gap(m_cv-richcv)=+0.243",
+    "[exp120] T=  30: matched_cv=0.800 rich_cv=0.490 select_cv=0.752 | gap(m_cv-richcv)=+0.310",
+    "[exp120] T=  50: matched_cv=0.900 rich_cv=0.835 select_cv=0.855 | gap(m_cv-richcv)=+0.065",
+    "[exp120] T= 100: matched_cv=0.995 rich_cv=0.968 select_cv=0.983 | gap(m_cv-richcv)=+0.027",
+    "[exp120] T= 300: matched_cv=1.000 rich_cv=0.953 select_cv=1.000 | gap(m_cv-richcv)=+0.047",
+    "[exp120] CHECK rich_cv_robust=True select_cv_robust=True | ABUNDANTE σ_g=20: rich_fix(135)=+0.245 -> rich_cv=+0.037 (cierra 85%) select_cv=+0.055; residual m_cv-richcv [0.04, 2.16, 0.9] | ESCASEZ T=30: gap=+0.310 -> abundant_neutralizes=True scarce_prior_pays=True",
+    "[exp120] VEREDICTO H-V4-10j: MIXTA | H-V4-10j MIXTA (REFUTACIÓN ACOTADA AL RÉGIMEN ABUNDANTE; post-verificación adversarial de 3 agentes, 6to ciclo; refutación genuina sin leakage -3 controles nulos-): el cuello R-PRIOR es REGIME-DEPENDENT. NEUTRALIZADO EN ABUNDANCIA: con dato amplio (T=300) un aprendiz que NO conoce la forma -cross-validando la regularización (rich_cv) y/o seleccionando la base (select_cv)- NEUTRALIZA EL GRUESO de la ventaja del oracle-prior. Bajo meta even limpio rich_cv=1.000/select_cv=1.000=matched (sobre ctrl_solo 0.527); bajo ruido σ_g=20 el gap de 135 (+0.245 a ridge fijo) se CIERRA ~85% al cross-validar (rich_cv +0.038, select_cv +0.055). La fairness NO lo derriba: dar a la matched el MISMO CV-ridge (matched_cv) apenas la mueve (gap a rich_cv +0.040) -> el 'prior paga' de 135 NO era artefacto del ridge-fijo, ERA sub-regularización de la base rica. rich_cv robusto a TODA forma (lin 1.000/even 1.000/relu 0.995/mixed 1.000). PERO 'IGUALA' es 'CASI IGUALA': el residual matched_cv-rich_cv a σ_g=20 es +0.040 (t=2.16, frac(m_cv≥rich)=0.9) -- chico pero SIGNIFICATIVO, costo de varianza irreducible de las 2 columnas extra de la base rica. Y EL PRIOR REAPARECE BAJO ESCASEZ: a T=30~#columnas con ruido moderado (σ_g=5.0) el aprendiz genuinamente sin-forma (rich_cv) COLAPSA y matched_cv le gana +0.310 -- la ventaja del prior escala INVERSAMENTE con el ratio datos/parámetros. Caveat: select_cv NO es del todo form-agnostic (su menú {linear,even,relu} ES un prior grueso de la forma). => H-V4-10j (R-PRIOR es cuello) REFUTADA EN ABUNDANCIA pero el prior NO es prescindible: se DEBILITA de forma-exacta a menú-de-formas y su valor escala con la escasez de datos. El factor RELEVANCIA es discoverable bajo no-linealidad sin prior privilegiado CUANDO T>>#columnas; bajo escasez conocer la forma paga."
+  ]
+}

@@ -345,9 +345,16 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > artefacto de sub-regularización; 'no hay base fija universal' = falso, un relu fijo es casi-universal; 'une R-VALOR con
 > R-PRIOR' = puente no testeado).
 >
-> FRONTERA ACTIVA (post-135): (1) **R-PRIOR EXPLÍCITO** — aprender/seleccionar la base del credit-assignment de un menú
-> (model selection / cross-validación / prior jerárquico) y medir si un aprendiz que NO conoce la forma de la meta IGUALA a
-> la base matched; si lo iguala, 'la relevancia bajo no-linealidad es un cuello de R-PRIOR' queda REFUTADO. (2) relevancia
-> bajo sustrato ACOPLADO (133, colinealidad del credit-assignment). (3) lazo de acción-consecuencia REAL (sandbox exp018).
-> (4) active inference formal. (5) SCALE (GPU/Kaggle). MÉTODO institucionalizado: verificación adversarial de 4 agentes
-> antes del ledger (5 ciclos seguidos -131..135- corrigiendo overclaims).
+> CYCLE 136 (H-V4-10j MIXTA / refutación ACOTADA) RESUELVE el frente R-PRIOR-explícito: un aprendiz que cross-valida la
+> regularización (rich_cv) y/o selecciona la base (select_cv) -SIN conocer la forma de la meta- NEUTRALIZA el grueso de la
+> ventaja del oracle-prior EN ABUNDANCIA (T>>#columnas: cierra ~85% del gap de 135; la fairness no lo derriba -> el 'prior
+> paga' de 135 era sub-regularización), pero el prior REAPARECE bajo ESCASEZ (T~#columnas: +0.31) y el residual en abundancia
+> es chico-pero-significativo. El cuello R-PRIOR de la relevancia bajo no-linealidad es REGIME-DEPENDENT: escala inversamente
+> con el ratio datos/parámetros; el prior se DEBILITA de forma-exacta a menú-de-formas, no desaparece. ARCO no-linealidad de
+> R-VALOR (134->135->136) CERRADO/ACOTADO: la relevancia es discoverable bajo no-linealidad sin prior privilegiado CUANDO hay
+> dato abundante. Refutación GENUINA (verificación adversarial de 3 agentes: 3 controles nulos sin leakage).
+>
+> FRONTERA ACTIVA (post-136): (1) relevancia bajo sustrato ACOPLADO (133, colinealidad del credit-assignment). (2) lazo de
+> acción-consecuencia REAL (sandbox exp018). (3) active inference formal. (4) SCALE (GPU/Kaggle). (5) [abierto] el régimen de
+> ESCASEZ donde el prior SÍ paga: ¿un prior jerárquico/transferido lo cubre? MÉTODO institucionalizado: verificación
+> adversarial (3-4 agentes) antes del ledger — 6 ciclos seguidos (131..136) corrigiendo/acotando overclaims.

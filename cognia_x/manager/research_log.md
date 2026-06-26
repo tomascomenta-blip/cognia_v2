@@ -4055,3 +4055,33 @@ discoverable bajo no-linealidad con una base suficientemente expresiva. cycle135
 > / prior jerárquico) y medir si un aprendiz que NO conoce la forma IGUALA a la base matched (lo que esta MIXTA predice; si lo
 > iguala, 'la relevancia bajo no-linealidad es un cuello de R-PRIOR' queda REFUTADO). También: relevancia bajo sustrato acoplado
 > (133), lazo real, active inference formal.
+
+## CYCLE 136 — H-V4-10j (rama control/acción, ACOTA la pregunta R-PRIOR abierta por la MIXTA de 135) — MIXTA (refutación ACOTADA al régimen abundante; verificación adversarial de 3 agentes, 6to ciclo seguido)
+exp120 (numpy, 200 seeds, sustrato de exp119, post-verificación de 3 agentes). 135 dejó abierto: ¿el 'prior paga' bajo no-linealidad
+(que 135 atribuyó a sub-regularización de la base rica) lo cierra solo un aprendiz que CROSS-VALIDA sin conocer la forma? Se prueban
+estimadores de relevancia: linear (134), matched (oracle-prior, ridge fijo), matched_cv (oracle-prior con CV), rich_fix (base rica
+ridge fijo = 135), rich_cv (base rica, ridge por K-fold CV — NO conoce la forma), select_cv (elige la base por CV — NO conoce la
+forma). RESULTADO: el cuello R-PRIOR es REGIME-DEPENDENT. EN ABUNDANCIA (T=300): el aprendiz-CV sin-forma NEUTRALIZA el grueso de la
+ventaja del oracle-prior -- even limpio rich_cv=select_cv=matched=1.000; σ_g=20 el gap de 135 (+0.245 a ridge fijo) CIERRA ~85%
+(rich_cv +0.04); la fairness no lo derriba (matched_cv apenas mejora -> el 'prior paga' ERA sub-regularización, no ridge-fijo);
+rich_cv robusto a TODA forma. PERO 'IGUALA'='CASI IGUALA': el residual matched_cv-rich_cv ~+0.04 (t~2.2) es chico pero SIGNIFICATIVO
+(costo de varianza de las 2 columnas extra de la base rica). EN ESCASEZ (T~24-30~#columnas, σ_g=5): rich_cv COLAPSA (0.49) y
+matched_cv le gana +0.31 -- el prior REAPARECE. Refutación GENUINA sin leakage (3 controles nulos: G-decoy -> colapso a ctrl_solo;
+G-ruido -> sin ventaja; CV-bloqueada -> mismo gap; el CV usa SOLO G). cycle136 → H-V4-10j 'mixta' (DoD), D-V4-98 ACEPTADA, techo
+'real', verify_no_loss=OK. Test 5/5.
+
+> META-PATRÓN (136, 6to seguido con 131-135): una 1ra versión vendía REFUTADA LIMPIA ("un aprendiz-CV sin-forma IGUALA al oracle-
+> prior; R-PRIOR NO es cuello"). Una VERIFICACIÓN ADVERSARIAL FOCALIZADA (3 agentes, lentes leakage-CV/fairness/robustez) CONFIRMÓ
+> la refutación GENUINA (sin bug/leakage: 3 controles nulos pasan; el CV es held-out honesto; matched_cv apenas mejora -> el 'prior
+> paga' de 135 era de verdad sub-regularización, no asimetría de ridge-fijo) pero la ACOTÓ a MIXTA: (1) 'IGUALA' es 'CASI IGUALA' --
+> el residual matched_cv-rich_cv ~+0.04 a σ_g=20 es chico pero estadísticamente SIGNIFICATIVO (t~2.2, no se cierra ni con ridge
+> hasta 10): es el costo de varianza IRREDUCIBLE de las 2 columnas extra de la base rica vs la matched de 1 columna; (2) la
+> refutación es REGIME-DEPENDENT -- bajo ESCASEZ (T~#columnas de la base rica, ruido moderado) el aprendiz genuinamente sin-forma
+> (rich_cv) COLAPSA y el prior paga +0.31; el valor del prior escala INVERSAMENTE con el ratio datos/parámetros; (3) select_cv NO es
+> del todo form-agnostic -- su menú {linear,even,relu} ES un prior grueso de la forma (recupera bajo escasez por parsimonia, pero su
+> selección se ensucia bajo ruido alto, ~74% correcta a σ_g=20). El experimento se REESCRIBIÓ para AUTO-DOCUMENTAR la MIXTA (agregó
+> matched_cv, barrido-T de escasez a σ_g=5, t pareado del residual). MIXTA EXITOSA: localiza DÓNDE importa el prior (ratio datos/
+> parámetros) -- más informativa que la REFUTADA limpia. CIERRA/ACOTA el arco no-linealidad de R-VALOR (134->135->136): la relevancia
+> ES discoverable bajo no-linealidad sin prior privilegiado de la forma CUANDO el dato es abundante respecto a los parámetros; bajo
+> escasez conocer la forma paga. Frontera: relevancia bajo sustrato ACOPLADO (133, colinealidad del credit-assignment); el lazo de
+> acción-consecuencia REAL; active inference formal; SCALE.

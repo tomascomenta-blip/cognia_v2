@@ -349,3 +349,19 @@
   MIXTA (probe robustez-a-ridge + relu peor-caso en run.py). Sirve al GOAL (R-VALOR; acota el factor RELEVANCIA bajo no-linealidad).
   Próximo: testear R-PRIOR EXPLÍCITO (aprender/seleccionar la base; ¿iguala un aprendiz sin-forma a la base matched? si sí, el
   cuello R-PRIOR queda refutado).
+
+## [2026-06-26] CYCLE 136 — H-V4-10j MIXTA (refutación ACOTADA al régimen abundante; verificación adversarial de 3 agentes, 6to ciclo): el cuello R-PRIOR de la relevancia bajo no-linealidad es REGIME-DEPENDENT (neutralizado en abundancia, reaparece en escasez)
+- Archivos: cognia_x/experiments/exp120_learned_basis/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle136_learned_basis.py (new), cognia_x/tests/test_cycle136_learned_basis.py (new),
+  research_log.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 5/5; cycle136 por el engine MIXTA, D-V4-98 aceptada, verify_no_loss=OK.
+- Resultado exp (200 seeds): testea si un aprendiz que cross-valida (rich_cv: ridge por K-fold CV; select_cv: elige base por CV)
+  -SIN conocer la forma de la meta- iguala al oracle-prior. ABUNDANCIA (T=300): neutraliza ~85% del gap de 135 (σ_g=20: +0.245 ->
+  +0.04); la fairness no lo derriba (matched_cv apenas mejora -> el 'prior paga' de 135 ERA sub-regularización). ESCASEZ
+  (T~24-30~#columnas, σ_g=5): rich_cv colapsa (0.49), el prior paga +0.31. Refutación genuina sin leakage (3 controles nulos).
+- Notas: VERIFICACIÓN ADVERSARIAL de 3 agentes (6to ciclo seguido) confirmó la refutación GENUINA pero la ACOTÓ a MIXTA: (1)
+  'IGUALA'='CASI IGUALA' (residual +0.04 a σ_g=20 chico pero significativo, t~2.2 -- varianza de columnas extra); (2) regime-
+  dependent (el prior reaparece bajo escasez, escala con datos/parámetros); (3) select_cv no es del todo form-agnostic (su menú ES
+  un prior grueso). El experimento se reescribió para AUTO-DOCUMENTAR (matched_cv + barrido-T escasez + t pareado). CIERRA/ACOTA el
+  arco no-linealidad de R-VALOR (134->135->136). Sirve al GOAL (R-VALOR). Próximo: relevancia bajo sustrato ACOPLADO (133); lazo
+  acción-consecuencia REAL; active inference; SCALE.
