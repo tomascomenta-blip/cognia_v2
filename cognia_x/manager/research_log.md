@@ -3937,3 +3937,24 @@ Test 5/5.
 > régimen de DESCUBRIMIENTO a presupuesto MEDIO (U-invertida); con relevancia conocida apenas aporta y en escasez genuina
 > daña/empata. Frontera: costo de arranque del bootstrap (cuánta exploración antes de dirigir), no-lineal, active inference
 > formal (energía libre esperada). Institucionalizar la verificación adversarial.
+
+## CYCLE 132 — H-V4-10f (rama control/acción, ROBUSTEZ del keystone a la NO-LINEALIDAD) — MIXTA (corregida por VERIFICACIÓN ADVERSARIAL)
+exp116 (numpy, 200 seeds): ¿sobrevive el keystone (129: el control reconstruye R-VALOR = controlabilidad × relevancia) a
+control NO-LINEAL saturante (x'=a·x+b·τ·tanh(u/τ)+ruido, efecto satura en ±b·τ)? RESULTADO VERIFICADO: el PRINCIPIO
+valor=ctrl×rel SOBREVIVE (le gana a relevancia-sola y predicción bajo saturación) PERO la controlabilidad debe ser de
+ALCANCE/ESFUERZO, NO la pendiente local. La controlabilidad de ALCANCE (valor_eff = alcance al esfuerzo U_max) es robustamente
+óptima en TODO ancho de probe y régimen (min 0.988). La PENDIENTE LOCAL del keystone 129 (valor_lin) es CIEGA a la saturación:
+a probe GENUINAMENTE LOCAL (σ_p=0.05≪τ) en saturación COLAPSA a 0.700≈relevancia (0.710); su robustez es PROBE-WIDTH-
+CONTINGENTE (sube +0.300 al ensanchar el probe a σ_p=1.5 -- ahí b̂ deja de ser local y siente el alcance encubiertamente); y
+con ganancia/alcance ANTI-correlacionados (régimen break: pendiente alta, alcance bajo) valor_lin a probe local cae a 0.615 --
+PEOR que relevancia (0.816). => bajo no-linealidad la controlabilidad del keystone es el ALCANCE, que GENERALIZA la
+controlabilidad-descontada-por-costo de 130 (la saturación es la forma no-lineal del costo). cycle132 → H-V4-10f 'mixta'
+(DoD), D-V4-94 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> META-PATRÓN (132, 2do seguido): la 1ra versión daba "APOYADA: la pendiente local basta" -- ARTEFACTO de un ancho de probe
+> σ_p=0.4 HARDCODEADO (no-local respecto de τ=0.3, que daba reach-awareness encubierta a la pendiente "local"). Una
+> VERIFICACIÓN ADVERSARIAL (3 agentes) lo corrigió; la intuición ORIGINAL ('necesita reach-aware') era correcta. Con 131, son
+> DOS ciclos seguidos en que la verificación adversarial atrapa un artefacto mío ANTES del ledger -> INSTITUCIONALIZARLA como
+> compuerta para los toys (la lección de 131/132 sobre los juguetes que engañan). Hallazgo honesto: bajo no-linealidad la
+> controlabilidad de R-VALOR es de ALCANCE/ESFUERZO (sondear a la escala del control), no pendiente local. Frontera:
+> no-linealidad en el SUSTRATO (no sólo el control), lazo real, active inference formal.

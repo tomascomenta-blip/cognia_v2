@@ -1070,3 +1070,23 @@ verificación adversarial atrapó un FALSO POSITIVO antes de que contaminara el 
 FRONTERA: cuantificar el costo de arranque del bootstrap (cuánta exploración uniforme antes de que dirigir deje de ser ruido);
 dinámica no-lineal; y el puente FORMAL a active inference (minimizar la energía libre esperada, donde acción, modelado y valor
 se unifican).
+
+## 3.BG ROBUSTEZ del keystone a la NO-LINEALIDAD — la controlabilidad debe ser de ALCANCE, no pendiente local (132)
+La rama control/acción es lineal; su frontera más importante es "salir del juguete lineal". 132 (H-V4-10f, MIXTA) testea la
+robustez del keystone (129) a control NO-LINEAL saturante (x' = a·x + b·τ·tanh(u/τ) + ruido, el efecto satura en ±b·τ) y
+termina, como 131, siendo además un ejemplo del método. RESULTADO VERIFICADO: el PRINCIPIO valor = controlabilidad × relevancia
+SOBREVIVE a la no-linealidad (le gana a relevancia-sola y a predicción bajo saturación), PERO la controlabilidad debe medirse
+como ALCANCE/ESFUERZO (cuán lejos podés empujar un modo al esfuerzo de control disponible), NO como PENDIENTE LOCAL. La
+controlabilidad de alcance (valor_eff) es robustamente óptima en todo ancho de probe y régimen (perf ≥ 0.988). La pendiente
+local de la versión lineal 129 (valor_lin) es CIEGA a la saturación: a un probe genuinamente local (σ_p ≪ τ) colapsa al nivel
+de relevancia-sola (≈0.70) y su aparente robustez es probe-width-contingente (sube +0.30 al ensanchar el probe, porque ahí b̂
+deja de ser local y siente el alcance encubiertamente); y con ganancia y alcance ANTI-correlacionados (modos de pendiente alta
+pero alcance bajo) es PEOR que mirar sólo la relevancia (0.62 vs 0.82), porque prefiere activamente los modos inalcanzables.
+=> bajo no-linealidad la controlabilidad de R-VALOR es el ALCANCE, que GENERALIZA la controlabilidad-descontada-por-costo de
+130 (la saturación es la forma no-lineal del costo/esfuerzo). LECCIÓN DE MÉTODO (segunda consecutiva, con 131): la primera
+versión de este ciclo daba "APOYADA: la pendiente local basta", pero era un ARTEFACTO de un ancho de probe hardcodeado (σ_p =
+0.4, no-local respecto de τ = 0.3) que le daba una conciencia-de-alcance encubierta a la pendiente "local"; una verificación
+adversarial (workflow de 3 agentes) lo detectó y restauró la conclusión correcta (que era la intuición ORIGINAL antes del
+reencuadre). Dos ciclos seguidos en que la verificación adversarial atrapa un artefacto de un toy antes de que contamine el
+ledger -> se institucionaliza como compuerta para los experimentos de juguete. FRONTERA: llevar la no-linealidad al SUSTRATO
+(no sólo al control); el lazo real; y el puente formal a active inference.

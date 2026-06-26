@@ -4354,6 +4354,20 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
 - Frontera: costo de arranque del bootstrap; no-lineal; active inference formal (energía libre esperada). Institucionalizar
   la verificación adversarial.
 
+## [2026-06-26] CYCLE 132 — H-V4-10f: robustez del keystone a la NO-LINEALIDAD — MIXTA (corregida por VERIFICACIÓN ADVERSARIAL, 2do ciclo seguido)
+- Archivos creados: cognia_x/experiments/exp116_nonlinear_keystone/ (run.py+__init__), cognia_x/research/cycles/cycle132_nonlinear_keystone.py, cognia_x/tests/test_cycle132_nonlinear_keystone.py
+- Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.BG)
+- Resultado tests: PASS — cycle132 dirigido 4/4; con engine 24 passed (26s); engine verify_no_loss=OK.
+- Notas: testea si el keystone (129) sobrevive a control NO-LINEAL saturante (tanh). RESULTADO VERIFICADO: el PRINCIPIO
+  valor=ctrl×rel sobrevive PERO la controlabilidad debe ser de ALCANCE/ESFUERZO, no pendiente local. valor_eff (alcance al
+  esfuerzo U_max) robusto en todo ancho de probe (min 0.988); valor_lin (pendiente local, la de 129) CIEGA a la saturación: a
+  probe local colapsa a 0.700≈relevancia (0.710), probe-width-contingente (+0.300 al ensanchar), y con ganancia/alcance
+  anti-correlados 0.615 < relevancia (0.816). Generaliza la controlabilidad-descontada-por-costo de 130. META: la 1ra versión
+  daba APOYADA por ARTEFACTO (ancho de probe σ_p=0.4 hardcodeado, no-local respecto de τ=0.3 -> reach-awareness encubierta); un
+  WORKFLOW de VERIFICACIÓN ADVERSARIAL (3 agentes) lo corrigió. 2do ciclo seguido (con 131) que la verificación adversarial
+  caza un artefacto mío -> institucionalizarla. cycle132 -> H-V4-10f 'mixta', D-V4-94 ACEPTADA, techo 'real', verify_no_loss=OK.
+- Frontera: no-linealidad en el SUSTRATO (no sólo el control), lazo real, active inference formal.
+
 ## [2026-06-26] CYCLE 130 — H-V4-10d: el producto R-VALOR generaliza a GRADOS+COSTO; su ventaja escala con la DISOCIACIÓN ctrl-rel
 - Archivos creados: cognia_x/experiments/exp114_graded_value/ (run.py+__init__), cognia_x/research/cycles/cycle130_graded_value.py, cognia_x/tests/test_cycle130_graded_value.py
 - Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.BE)
