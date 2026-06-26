@@ -3085,3 +3085,47 @@ con el caveat de diseño de CYCLE 91 (tier5).
 > selección sino TENER en el menú un prior FLEXIBLE-suficiente (rbf) que nesta los regímenes esperados (always-rbf ≈
 > selector, espeja CYCLE 86); la selección explícita se reserva para cuando ninguna base domine. Frontera: un régimen
 > fuera del span de rbf (donde la selección SÍ pague); el generador de MODELO real (lazo cerrado exp018); y SCALE (GPU).
+
+## CYCLE 93 — H-V4-7i (rama R-VALOR, EL CAPSTONE del salto grande, gaps #1/#3): lazo CERRADO con MODELO REAL — MIXTA
+
+### Pregunta
+Todo el arco 83-92 desarrolló la política R-VALOR (asignar el feedback escaso por valor estimado) pero con candidatos
+SINTÉTICOS y sin lazo secuencial cerrado. El verdadero SALTO GRANDE: cerrar el lazo con el GENERADOR de MODELO REAL — el
+modelo GENERA candidatos, el sandbox los VERIFICA, las correctas lo ENTRENAN, el modelo cambia. Bajo presupuesto de
+verificación (B≪pool), ¿asignar la verificación por la CONFIANZA ENDÓGENA del modelo (logprob de su generación, señal
+R-VALOR de CYCLE 57/60) rinde más datos correctos por verificación y mejor auto-mejora que al azar?
+
+### Diseño
+PyTorch CPU; reusa exp018 (build_base, generate_pool, train_arm, eval_metrics, sandbox). Base DÉBIL + temp ALTA → pool con
+MIX (correctas/malformadas/echo/valor-mal) para que la asignación importe. Por ronda: el modelo genera M=512 candidatos;
+se computa la CONFIANZA (mean logprob de la expr emitida, sin ejecutar); presupuesto B=102 (20%). Brazos (mismo base/RNG;
+mismo B): conf_alloc (top-B por confianza), random_alloc (B al azar), verify_all (techo, B=M). Métrica primaria YIELD
+(#correctas por ronda con B verificaciones); secundaria real_acc held-out. 4 seeds.
+
+### Resultado — MIXTA (dos hallazgos honestos)
+(1) ASIGNACIÓN — la confianza endógena asigna MUCHo mejor: YIELD conf=86.2 vs random=50.8 por ronda (+35.4, todos los 4
+seeds) a igual presupuesto B=102/512; corr(confianza,strong)=0.59 (la confianza PREDICE la corrección → calibración real,
+confirma CYCLE 57/60 sobre el modelo propio EN el lazo). El azar desperdicia el presupuesto en el pool desordenado; la
+confianza lo concentra en lo probablemente correcto. (2) DOWNSTREAM — pero real_acc conf=0.397 < random=0.563 (Δ=-0.166):
+la selección de ALTA confianza NARROWING (entrena siempre lo típico/repetitivo) → COLAPSO de diversidad (CYCLE 49-50);
+verify_all (presupuesto infinito, máxima diversidad) es el techo (0.766). => la asignación R-VALOR funciona para su
+objetivo directo (yield) PERO el downstream del lazo cerrado queda GATEADO por diversidad; el remedio conocido es la
+guardia dedup+replay (CYCLE 50), no combinada aquí.
+
+### Límites (honestos)
+NO es APOYADA (el downstream regresiona por narrowing) ni REFUTADA (el yield mejora robustamente y la confianza está
+calibrada, corr 0.59). Modelo tiny (HybridLM d=64, ~200k params), tarea de síntesis sembrada, pool forzado a un mix
+(base débil + temp alta), CPU, 4 seeds. Verificación de costo MODELADO (presupuesto sobre un sandbox barato).
+
+### Verificación
+exp077 (4 seeds, PyTorch CPU, lazo cerrado real exp018). cycle93 → H-V4-7i 'mixta' (DoD), D-V4-55 ACEPTADA, 1 techo
+'real', analogía 7 etapas, verify_no_loss=OK. Test `test_cycle93_closed_loop_budget.py` 4/4 (lógica del veredicto +
+features; el run torch real se verifica al correr). Convergente con confianza-calibrada/active-learning (tier2) y con el
+lazo verificador-real de exp018 (tier5).
+
+> EL SALTO GRANDE — CAPSTONE (lazo CERRADO real): la política R-VALOR (asignar el feedback escaso por valor estimado,
+> 83-92) FUNCIONA en un lazo de auto-mejora REAL usando la CONFIANZA ENDÓGENA (57/60) como señal de asignación bajo
+> presupuesto — yield muy superior al azar (corr confianza-strong 0.59 real). PERO revela una TENSIÓN: la asignación
+> confidence-greedy COLAPSA la diversidad (49-50) → el downstream se gatea. UNIFICA R-VALOR-allocation (83-92) +
+> confianza endógena (57/60) + verificador-real (48-55) + diversidad (49-50). Próximo (CYCLE 94): añadir la guardia
+> dedup+replay (CYCLE 50) al lazo bajo presupuesto → ¿rescata el downstream sin perder el yield? Y SCALE (GPU).

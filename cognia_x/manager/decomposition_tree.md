@@ -573,3 +573,24 @@ prior MATCHEADO recupera BARATO — la tesis central de R-PRIOR/H-V4-3 (ABIERTA 
 > los regímenes esperados (rbf por defecto), no una maquinaria de selección; reservar la selección para cuando ninguna
 > base domine. R-PRIOR/H-V4-3 pasa de ABIERTA a APOYADA-en-juguete. Frontera: un régimen fuera del span de rbf; el
 > generador de MODELO real (lazo cerrado exp018); objetivo no-escalar; y SCALE (GPU).
+
+## Addendum — CYCLE 93: EL CAPSTONE del salto grande (lazo CERRADO con el GENERADOR de MODELO REAL)
+El arco 83-92 desarrolló la política R-VALOR con candidatos SINTÉTICOS. CYCLE 93 cierra el lazo con el GENERADOR de MODELO
+REAL (HybridLM de exp018): el modelo genera, el sandbox verifica, las correctas lo entrenan, el modelo cambia.
+
+- **CYCLE 93 — H-V4-7i MIXTA (capstone del salto grande).** Bajo presupuesto de verificación (B=102/512), ¿asignar la
+  verificación por la CONFIANZA ENDÓGENA del modelo (logprob de su generación, CYCLE 57/60) rinde más correctas/
+  verificación que al azar? DOS HALLAZGOS: (1) ASIGNACIÓN — la confianza asigna MUCHo mejor: YIELD conf=86.2 vs random=
+  50.8 (+35.4, todos los 4 seeds); corr(confianza,strong)=0.59 → la confianza endógena PREDICE la corrección EN el lazo
+  real (confirma 57/60 sobre el modelo propio). (2) DOWNSTREAM — pero real_acc conf=0.397 < random=0.563 (Δ=-0.166): la
+  selección de alta confianza NARROWING → COLAPSO de diversidad (CYCLE 49-50; verify_all techo 0.766). => la asignación
+  R-VALOR funciona para su objetivo directo PERO el downstream del lazo cerrado queda GATEADO por diversidad; remedio
+  conocido = guardia dedup+replay (CYCLE 50), no combinada aquí. Cota 'real'; D-V4-55; test 4/4.
+
+> SALTO GRANDE — CAPSTONE (89-93): la política R-VALOR (allocation del feedback escaso por valor estimado) se aterrizó de
+> un verificador REAL discreto (89) y un análisis del prior/base (90-92, R-PRIOR) hasta un LAZO CERRADO con el GENERADOR
+> de MODELO REAL (93). En el lazo real, la CONFIANZA ENDÓGENA (57/60) asigna la verificación escasa MUCHo mejor que el
+> azar (corr 0.59 real) — R-VALOR-allocation FUNCIONA sobre el modelo propio. PERO emerge la TENSIÓN allocation↔diversidad:
+> confidence-greedy COLAPSA la diversidad (49-50) → el downstream se gatea. UNIFICA cuatro hilos del lab (R-VALOR-allocation
+> 83-92 + confianza endógena 57/60 + verificador-real 48-55 + diversidad 49-50). Próximo (CYCLE 94): añadir la guardia
+> dedup+replay (CYCLE 50) al lazo bajo presupuesto (¿rescata el downstream sin perder el yield?); objetivo no-escalar; SCALE.
