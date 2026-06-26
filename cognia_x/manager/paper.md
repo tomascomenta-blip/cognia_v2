@@ -806,3 +806,23 @@ por HORIZONTES CORTOS; en lazos sostenidos la señal de valor (confianza/auto-co
 y su durabilidad requiere GROUNDING EXTERNO -- cuya forma viable (unlikelihood acotado sobre negativos verificados, o
 recalibración externa) es la frontera concreta identificada. R-VALOR no es un free lunch endógeno perpetuo: es una brújula
 endógena potente que necesita re-calibrarse contra el mundo cada tanto.
+
+## 3.AR RESOLUCIÓN — la durabilidad endógena ES alcanzable: unlikelihood ACOTADO (119)
+119 (H-V4-8y, APOYADA) RESUELVE la frontera que 118 dejó concreta. La forma ESTABLE de usar negativos es un unlikelihood
+ACOTADO: minimizar -log(1-p(token_incorrecto)) en las posiciones supervisadas de las respuestas verificado-incorrectas
+(una pérdida acotada a minimizar, NO un ascenso de gradiente sobre el CE). RESULTADO contundente: cura la durabilidad de la
+señal -- corr(confianza,corrección) unlik=0.816 (tendencia +0.175, se MANTIENE/mejora) vs pos_only=0.174 (tendencia -0.296,
+COLAPSA): ganancia +0.642 -- a CERO costo de capacidad (real_acc unlik=0.181 vs pos=0.183, Δ-0.003), a diferencia del
+contrastivo naive de 118 (real_acc->0). => la durabilidad ENDÓGENA de R-VALOR ES ALCANZABLE: el lazo de auto-mejora durable
+= likelihood sobre verificado-correcto + unlikelihood ACOTADO sobre verificado-incorrecto, que mantiene el selector
+calibrado en lazos sostenidos sin degenerar.
+
+## 3.AS Cierre actualizado de la corrida 89-119 (31 ciclos)
+La narrativa completa de R-VALOR: (1) una TEORÍA DE ASIGNACIÓN completa y robusta bajo realismo (qué elegir / cuándo gastar
+/ si vale estimar; marginal-en-la-agregación, costo, cobertura, timing, no-estacionariedad, meta-aprendizaje de prior/
+política/agregación), VALIDADA toy→real en sus piezas centrales (105/107); (2) un STRESS-TEST honesto del fundamento que
+halló que la señal de valor endógena COLAPSA bajo auto-entrenamiento (115-118); y (3) la RESOLUCIÓN CONSTRUCTIVA de esa
+fragilidad: la durabilidad endógena se logra con un unlikelihood acotado sobre verificado-incorrecto (119). R-VALOR no es un
+free lunch endógeno perpetuo, PERO su fragilidad tiene cura: una brújula endógena potente que se mantiene calibrada
+penalizando de forma ACOTADA lo que el verificador marca como incorrecto. FRONTERA: sintonizar el balance
+calibración/capacidad (neg_w); horizontes más largos; objetivo no-sintético; y SCALE (donde el balance puede mejorar).
