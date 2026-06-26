@@ -3490,3 +3490,21 @@ Precisa el rol de 57/60: la calibración no es un requisito general; es necesari
 > PROPIEDADES del estimador R-VALOR por decisión: para ELEGIR (ranking/top-k, 83-103) basta el ORDEN (ordinal); para
 > DECIDIR SI actuar (abstención 104) o comparar con un COSTO (101) hace falta la ESCALA (cardinal/calibrado, 57/60).
 > Invertir en calibrar el valor sólo cuando la decisión compara con una escala externa.
+
+## CYCLE 107 — H-V4-8l (rama R-VALOR, CAPSTONE toy→real: la RECETA COMPUESTA en el lazo cerrado real) — APOYADA
+El arco 95-106 desarrolló la regla de asignación pieza por pieza. exp091 (PyTorch CPU, lazo cerrado real exp018, 4 seeds)
+integra TRES piezas y mide si COMPONEN sobre el modelo REAL: confianza (93) -> +costo-por-valor (105) -> +cobertura de
+targets (96), bajo costo de verificación heterogéneo y presupuesto de costo. RESULTADO: el compuesto COMPONE y alcanza el
+techo de verificación-total a fracción del presupuesto. Downstream: conf=0.390 -> +costo ratio=0.520 (Δ +0.131) ->
++cobertura ratio_coverage=0.741 (Δ +0.220); compuesto vs confianza +0.351; verify_all=0.748 (gap 0.007). AMBAS piezas
+aportan (a base fuerte): la COBERTURA es el lever MAYOR del downstream (diversidad de targets -> mejor cobertura del test),
+el COSTO aporta yield-eficiencia (105) que a base fuerte también sube el downstream (en el smoke de base débil el
+paso-costo fue ~plano, base-dependiente). => el arco de asignación 95-106 COMPONE sobre el modelo REAL: las piezas atacan
+ejes distintos (eficiencia de verificación + diversidad del entrenamiento) y se suman en una política que iguala al
+verify-all a fracción del presupuesto. corr(conf,strong)=0.59. cycle107 → H-V4-8l 'apoyada' (DoD), D-V4-69 ACEPTADA, techo
+'real', verify_no_loss=OK. Test 3/3.
+
+> CAPSTONE del arco de asignación (83-107): la regla general (asignar la verificación escasa por confianza-positiva/costo
+> + cobertura de targets) no es sólo teoría de juguete -- COMPONE sobre el modelo REAL e iguala al verify-all a fracción
+> del presupuesto. 2 validaciones toy→real (105 costo, 107 receta compuesta). Frontera: validar las extensiones restantes
+> (no-estacionariedad 97-99, vector 100, timing 104) en el lazo real; objetivo no-sintético; y SCALE (GPU).

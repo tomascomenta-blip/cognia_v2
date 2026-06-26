@@ -1,0 +1,114 @@
+{
+  "exp": "exp091_composed_recipe",
+  "cycle": 107,
+  "hypothesis": "H-V4-8l",
+  "claim": "la receta compuesta de asignacion (confianza + costo-por-valor + cobertura de targets) COMPONE en el lazo cerrado real: cada pieza anadida no regresiona y el compuesto supera a confianza sola en el downstream -> el arco 95-106 transfiere/compone sobre el modelo real",
+  "verdict": "apoyada",
+  "summary": {
+    "arms": [
+      "conf",
+      "ratio",
+      "ratio_coverage",
+      "verify_all"
+    ],
+    "n_seeds": 4,
+    "conf_strong_corr_by_seed": [
+      0.6159,
+      0.5577,
+      0.5418,
+      0.6543
+    ],
+    "real_conf": [
+      0.456,
+      0.3,
+      0.356,
+      0.448
+    ],
+    "real_ratio": [
+      0.707,
+      0.404,
+      0.459,
+      0.511
+    ],
+    "real_ratio_coverage": [
+      0.815,
+      0.67,
+      0.689,
+      0.789
+    ],
+    "real_verify_all": [
+      0.815,
+      0.667,
+      0.744,
+      0.767
+    ],
+    "yield_conf": [
+      115.3,
+      85.3,
+      79.3,
+      119.3
+    ],
+    "yield_ratio_coverage": [
+      92.0,
+      77.3,
+      76.0,
+      91.7
+    ],
+    "cost_step": 0.1305,
+    "cov_step": 0.2204,
+    "composed_vs_conf": 0.3509,
+    "va_gap": 0.0074,
+    "composes": true,
+    "partial": false,
+    "status": "apoyada",
+    "verdict": "H-V4-8l APOYADA: la RECETA COMPUESTA (confianza+costo+cobertura) COMPONE en el LAZO CERRADO REAL. Downstream: conf=0.390 -> +costo ratio=0.520 (Δ 0.131) -> +cobertura ratio_coverage=0.741 (Δ 0.220); el compuesto SUPERA a confianza sola por +0.351 y se acerca al techo verify_all=0.748 (gap 0.007). Cada pieza añadida no regresiona. => el arco de asignación 95-106 (marginal/cobertura, costo-por-valor) COMPONE sobre el modelo REAL, no es sólo teoría de juguete. corr(conf,strong)=0.592."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "rounds": 3,
+    "K": 8,
+    "pool": 64,
+    "budget_frac": 0.2,
+    "temp": 1.3,
+    "top_k": null,
+    "steps": 120,
+    "n_seed": 200,
+    "base_steps": 250,
+    "base_lr": 0.001,
+    "lr": 0.0005,
+    "warmup": 40,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp091] CYCLE 107 / H-V4-8l — CAPSTONE: receta compuesta (confianza+costo+cobertura) en el lazo cerrado real",
+    "[exp091] seeds=[0, 1, 2, 3] rango=[2,300] rounds=3 K=8 pool=64 budget_frac=0.2 temp=1.3 base_steps=250",
+    "[exp091] seed=0 base real_acc=0.722 params=201,280",
+    "[exp091] seed=0 ronda 1: conf: y=104 real=0.811 | ratio: y=103 real=0.867 | ratio_coverage: y=76 real=0.844 | verify_all: y=142 real=0.900",
+    "[exp091] seed=0 ronda 2: conf: y=119 real=0.444 | ratio: y=154 real=0.700 | ratio_coverage: y=100 real=0.800 | verify_all: y=381 real=0.822",
+    "[exp091] seed=0 ronda 3: conf: y=123 real=0.111 | ratio: y=153 real=0.556 | ratio_coverage: y=100 real=0.800 | verify_all: y=464 real=0.722",
+    "[exp091] seed=1 base real_acc=0.567 params=201,280",
+    "[exp091] seed=1 ronda 1: conf: y=83 real=0.511 | ratio: y=81 real=0.589 | ratio_coverage: y=54 real=0.700 | verify_all: y=101 real=0.700",
+    "[exp091] seed=1 ronda 2: conf: y=86 real=0.289 | ratio: y=151 real=0.400 | ratio_coverage: y=89 real=0.656 | verify_all: y=364 real=0.678",
+    "[exp091] seed=1 ronda 3: conf: y=87 real=0.100 | ratio: y=162 real=0.222 | ratio_coverage: y=89 real=0.656 | verify_all: y=466 real=0.622",
+    "[exp091] seed=2 base real_acc=0.700 params=201,280",
+    "[exp091] seed=2 ronda 1: conf: y=75 real=0.722 | ratio: y=69 real=0.644 | ratio_coverage: y=53 real=0.733 | verify_all: y=80 real=0.767",
+    "[exp091] seed=2 ronda 2: conf: y=94 real=0.256 | ratio: y=146 real=0.444 | ratio_coverage: y=87 real=0.733 | verify_all: y=342 real=0.789",
+    "[exp091] seed=2 ronda 3: conf: y=69 real=0.089 | ratio: y=156 real=0.289 | ratio_coverage: y=88 real=0.600 | verify_all: y=425 real=0.678",
+    "[exp091] seed=3 base real_acc=0.667 params=201,280",
+    "[exp091] seed=3 ronda 1: conf: y=103 real=0.711 | ratio: y=109 real=0.711 | ratio_coverage: y=81 real=0.822 | verify_all: y=144 real=0.844",
+    "[exp091] seed=3 ronda 2: conf: y=127 real=0.456 | ratio: y=144 real=0.489 | ratio_coverage: y=97 real=0.811 | verify_all: y=378 real=0.778",
+    "[exp091] seed=3 ronda 3: conf: y=128 real=0.178 | ratio: y=150 real=0.333 | ratio_coverage: y=97 real=0.733 | verify_all: y=465 real=0.678",
+    "[exp091] corr(conf,strong)=[0.6159, 0.5577, 0.5418, 0.6543]",
+    "[exp091] real_acc: conf=[0.456, 0.3, 0.356, 0.448] ratio=[0.707, 0.404, 0.459, 0.511] ratio_coverage=[0.815, 0.67, 0.689, 0.789] verify_all=[0.815, 0.667, 0.744, 0.767]",
+    "[exp091] pasos: +costo=+0.131 +cobertura=+0.220 | compuesto−conf=+0.351 | verify_all_gap=0.007",
+    "[exp091] composes=True partial=False",
+    "[exp091] VEREDICTO H-V4-8l: APOYADA | H-V4-8l APOYADA: la RECETA COMPUESTA (confianza+costo+cobertura) COMPONE en el LAZO CERRADO REAL. Downstream: conf=0.390 -> +costo ratio=0.520 (Δ 0.131) -> +cobertura ratio_coverage=0.741 (Δ 0.220); el compuesto SUPERA a confianza sola por +0.351 y se acerca al techo verify_all=0.748 (gap 0.007). Cada pieza añadida no regresiona. => el arco de asignación 95-106 (marginal/cobertura, costo-por-valor) COMPONE sobre el modelo REAL, no es sólo teoría de juguete. corr(conf,strong)=0.592."
+  ]
+}
