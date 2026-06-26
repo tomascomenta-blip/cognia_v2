@@ -3445,3 +3445,19 @@ H-V4-8h 'mixta' (DoD), D-V4-65 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4
 > explorar (98-99). Política: priorizar el olvido (decay/selector CYCLE 74); exploración condicional. Honestidad: la
 > ablación reveló SUSTITUIBILIDAD, no complementariedad. Frontera: regímenes donde olvidar no baste (re-muestreo activo);
 > lazo cerrado real; SCALE.
+
+## CYCLE 104 — H-V4-8i (rama R-VALOR, dimensión TEMPORAL: TIMING del presupuesto / ABSTENCIÓN) — APOYADA
+Todo el arco (83-103) gastó presupuesto FIJO por ronda (QUÉ elegir DENTRO de una ronda). exp088 (numpy, 48 seeds) añade la
+dimensión TEMPORAL: con presupuesto GLOBAL sobre T rondas de RIQUEZA heterogénea, ¿CUÁNDO gastar? RESULTADO: bajo riquezas
+VARIADAS, asignar el presupuesto por el valor estimado de cada ronda — gastar donde rinde, ABSTENERSE donde no —
+threshold=0.985 ≈ oracle (gap 0.015) >> uniform=0.418 (+0.567: el uniforme malgasta en rondas pobres); bajo riqueza FLAT
+coinciden (Δ 0.023). => R-VALOR gobierna CUÁNDO gastar (timing/abstención), no sólo QUÉ elegir; el VALOR DE NO ACTUAR
+(abstenerse en rondas pobres para guardar el presupuesto) es REAL. Dimensión temporal del arco; conecta con la abstención
+del razonamiento (CYCLE 46). Caveat: condicional a la heterogeneidad temporal; rendimiento lineal (sin saturación
+intra-ronda); riqueza estimada observable antes de gastar (no optimal-stopping ciego). cycle104 → H-V4-8i 'apoyada'
+(DoD), D-V4-66 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> ASIGNACIÓN R-VALOR COMPLETA (within + across): estimar el valor de cada oportunidad y gastar el presupuesto donde rinde
+> — DENTRO de cada ronda (qué elegir: marginal en la agregación / costo, 83-103) y ENTRE rondas (cuándo gastar:
+> timing/abstención, 104). Abstenerse en oportunidades pobres. Frontera: optimal-stopping ciego (riqueza no-observable);
+> saturación intra-ronda; integrar todo en el lazo cerrado real; y SCALE.
