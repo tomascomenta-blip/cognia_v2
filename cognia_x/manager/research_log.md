@@ -3170,3 +3170,42 @@ helpers de la guardia). Convergente con la guardia dedup+replay/CYCLE 50 (tier2)
 > fracción del presupuesto. UNIFICA cinco hilos del lab (allocation 83-92 + confianza endógena 57/60 + verificador-real
 > 48-55 + diversidad 49-50 + R-PRIOR 89-92). Frontera restante: barrer replay_frac/budget (costo-beneficio); objetivo
 > NO-escalar (gap #4); y SCALE (GPU/Kaggle, fuera de la corrida CPU).
+
+## CYCLE 95 — H-V4-8a (rama R-VALOR, gap #4: objetivo NO-aditivo): el valor debe ser MARGINAL — APOYADA
+
+### Pregunta
+Todo el arco 83-94 asignó "top-k por valor estimado" y midió perf_of = suma de valores INDEPENDIENTES (objetivo ADITIVO).
+El caso REAL es a menudo SUBMODULAR (cobertura / rendimientos decrecientes: no sirve elegir 10 copias de lo mismo). ¿La
+asignación por valor ABSOLUTO (top-k) FALLA bajo submodularidad, y el valor MARGINAL (greedy por ganancia respecto del
+conjunto) la recupera?
+
+### Diseño
+Numpy. n=50 ítems con TIPO t∈{0..4} y CALIDAD q∈[0,1]; objetivo submodular value(S)=Σ_t max_{i∈S,t_i=t} q_i (cobertura;
+sólo cuenta el mejor por tipo) vs additive (Σ q, control). q ruidosa observable, tipos observables, k=10 (k>T → cobertura
+importa). Brazos: additive_greedy (top-k por q_est, la política implícita), marginal_greedy (greedy por ganancia marginal),
+oracle (q real), random. 48 seeds.
+
+### Resultado — APOYADA
+Bajo SUBMODULAR el valor MARGINAL recupera el óptimo y el absoluto falla: marginal_greedy=0.991 ≈ oracle (gap 0.009) >>
+additive_greedy=0.915 (+0.075; additive pierde 0.085 vs oracle, desperdicia picks en redundantes del mismo tipo). Bajo
+ADDITIVE COINCIDEN (gap 0.000: sin redundancia, top-k = óptimo) → el gap es ESPECÍFICO de la no-aditividad. => R-VALOR
+debe ser MARGINAL (contextual al conjunto), no absoluto, cuando el objetivo no es aditivo. CONECTA: (1) formaliza la
+DIVERSIDAD (49-50/94, antes matiz empírico) como la estructura del VALOR en cobertura — la diversidad ES el valor; (2)
+reconcilia con que empowerment/info-gain (24/56/79-80) YA eran valores MARGINALES.
+
+### Límites (honestos)
+g de cobertura sintético, tipos+calidad uniformes (correlacionar calidad↔tipo agrandaría el gap), óptimo submodular vía
+greedy (1−1/e) + cota type-max (exacto es NP-hard). El gap absoluto (~0.075) es modesto bajo uniformidad (top-k cubre por
+azar a k>T) pero robusto y direccional. No se combinó con el lazo cerrado real (la guardia dedup+replay de 94 es una
+aproximación a la selección marginal).
+
+### Verificación
+exp079 (48 seeds, numpy). cycle95 → H-V4-8a 'apoyada' (DoD), D-V4-57 ACEPTADA, 1 techo 'real', analogía 7 etapas,
+verify_no_loss=OK. Test `test_cycle95_submodular_value.py` 5/5. Convergente con submodular/marginal greedy (tier2,
+Nemhauser 1978) y con la suposición aditiva del arco (tier5).
+
+> GAP #4 ABIERTO (objetivo no-aditivo): bajo objetivos SUBMODULARES (cobertura/diversidad, los realistas) la asignación
+> R-VALOR usa valor MARGINAL (greedy por ganancia), no top-k absoluto; bajo aditivo coinciden. Formaliza la diversidad
+> como estructura del valor y reconcilia con empowerment/info-gain (ya marginales). La guardia dedup+replay (94) es una
+> aproximación; la versión principista es greedy-marginal. Próximo: selección marginal en el lazo cerrado real;
+> calidad↔tipo correlacionados; objetivo VECTOR (multi-objetivo); y SCALE (GPU).

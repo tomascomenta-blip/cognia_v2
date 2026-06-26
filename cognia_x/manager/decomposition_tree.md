@@ -614,3 +614,19 @@ REAL (HybridLM de exp018): el modelo genera, el sandbox verifica, las correctas 
 > + R-PRIOR (89-92). Frontera restante: barrer replay_frac/budget (costo-beneficio); objetivo NO-escalar (gap #4); y
 > SCALE (GPU/Kaggle, fuera de la corrida CPU). Todo 89-94 con semilla fija; 89-92 numpy + sandbox (<pocos s), 93-94
 > PyTorch CPU (lazo real, ~min).
+
+## Addendum — CYCLE 95: gap #4 (objetivo NO-aditivo) — el valor debe ser MARGINAL
+Todo el arco 83-94 asumió un objetivo ADITIVO (perf_of = suma de valores independientes). CYCLE 95 ataca esa suposición.
+
+- **CYCLE 95 — H-V4-8a APOYADA (abre gap #4).** Bajo un objetivo SUBMODULAR (cobertura, value(S)=Σ_t max por tipo) la
+  asignación por valor ABSOLUTO (top-k, la política implícita) DESPERDICIA picks en redundantes del mismo tipo
+  (additive_greedy=0.915) mientras el valor MARGINAL (greedy por ganancia respecto del conjunto) cubre los tipos y
+  recupera el óptimo (marginal_greedy=0.991 ≈ oracle, +0.075). Bajo objetivo ADITIVO coinciden (gap 0.000) → el gap es
+  específico de la no-aditividad. => R-VALOR debe ser MARGINAL bajo objetivos no-aditivos. FORMALIZA la diversidad
+  (49-50/94) como la estructura del valor (la diversidad ES el valor en cobertura) y reconcilia con empowerment/info-gain
+  (ya marginales). Cota 'real'; D-V4-57; test 5/5.
+
+> GAP #4 (objetivo no-aditivo): el valor es MARGINAL, no absoluto, bajo submodularidad/cobertura. La guardia dedup+replay
+> del lazo (94) era una aproximación a la selección marginal; la versión principista es greedy-marginal sobre un objetivo
+> de cobertura. Frontera: selección marginal DENTRO del lazo cerrado real; calidad↔tipo correlacionados; objetivo VECTOR
+> (multi-objetivo, no sólo escalar-no-aditivo); y SCALE (GPU).
