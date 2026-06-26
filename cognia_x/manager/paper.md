@@ -1132,3 +1132,41 @@ institucionaliza como compuerta obligatoria. CAVEATS al ledger: el criterio de a
 coherente con el presupuesto de acción de 128) y a relevancia conocida; la disociación requiere capacidad K ≥ 2; el acople es
 lineal en el sustrato. FRONTERA: acople NO-LINEAL en el sustrato; relevancia ESTIMADA (no dada); el lazo real; y el puente formal
 a active inference.
+
+## 3.BI El R-VALOR COMPLETO es DESCUBRIBLE de una experiencia — cierra el supuesto 'relevancia dada', con dos ejes de fallo (134)
+Todo el arco control/acción (127-133) generalizó repetidamente el factor de CONTROLABILIDAD del keystone (pendiente local 129 →
+controlabilidad-descontada-por-costo 130 → alcance-al-esfuerzo bajo saturación 132 → alcance-por-la-red bajo acople 133) mientras
+la RELEVANCIA se daba por CONOCIDA en todos los toys. 134 (H-V4-10h, APOYADA) cierra ese supuesto. CYCLE 128 había mostrado que la
+controlabilidad se DESCUBRE actuando (el mapa acción→estado, |b̂|); 134 muestra que el OTRO factor, la relevancia, se descubre del
+mapa estado→META por credit assignment (regresar una señal escalar de meta G —de pesos ocultos— sobre el estado x → ŵ), y que el
+PRODUCTO con AMBOS factores estimados de la MISMA experiencia gobierna la asignación. RESULTADO: valor_ambos (ŵ·b̂²/(b̂²+ρ)) bate a
+cada factor por separado (vs controlabilidad-sola +0.51, vs relevancia-sola +0.55), converge al oracle (perf 1.000 desde ~30 pasos
+de experiencia), es GENUINAMENTE peor que el oracle a presupuesto bajo y cae al azar exacto (0.255) sin acción —no es el oracle
+re-etiquetado, lo que cierra el confound del CYCLE 133— y la relevancia es GENUINAMENTE descubierta: sobrevive a una señal de meta
+BINARIA (1 bit por paso), muy ruidosa y observada de forma esparsa. Un escalar de meta no es "relevancia por-modo dada"; el agente
+hace credit assignment para inferir qué importa. => el keystone R-VALOR = controlabilidad × relevancia es TOTALMENTE endógeno: sus
+DOS factores caen de un único stream de experiencia de acción, sin meta externa que asigne la relevancia.
+
+LECCIÓN DE MÉTODO (cuarta consecutiva, con 131/132/133). La primera versión titulaba una ASIMETRÍA limpia —"la controlabilidad es
+action-gated, la relevancia es pasivamente barata"—. Una verificación adversarial (workflow de cuatro agentes) la halló INVERTIDA
+y contingente, con cuatro hallazgos reproducidos ejecutando código: (1) "relevancia pasivamente barata" es contingente a que el
+sustrato inyecte varianza pasiva en los modos relevantes (un parámetro de ruido hardcodeado); con modos relevantes excitados sólo
+al actuarlos, la relevancia colapsa SIMÉTRICAMENTE con la controlabilidad sin acción (corr(ŵ,w) 0.99→0.00). (2) En COSTO DE DATOS
+—a exploración positiva— el cuello de botella es la RELEVANCIA, no la controlabilidad: la ablación que sólo estima controlabilidad
+rinde 1.000 en todo el barrido de ruido de meta, mientras la que sólo estima relevancia se desploma (a ruido de meta alto cuesta
+~100× más datos); el "action-gating" de la controlabilidad es real sólo en el corner degenerado de exploración nula, un eje
+distinto del costo de datos. (3) El descubrimiento de relevancia requiere una meta aproximadamente LINEAL-descomponible en el
+estado observado: bajo una meta PAR (G=Σ w·x²) el credit assignment lineal recupera 0.00 y valor_ambos cae al azar sin
+recuperarse —simétrico al CYCLE 132, que estresó la no-linealidad del factor CONTROLABILIDAD; aquí faltaba la del factor
+RELEVANCIA—. (4) A exploración nula la relevancia es estimable (corr(ŵ,w)=0.99) pero la decisión MULTIPLICATIVA no la cobra
+(b̂=0 → 0·ŵ → azar), y la recuperación al actuar es una dosis-respuesta GRADUAL, no un escalón (el escalón aparente era artefacto
+de una grilla de cuatro puntos). Lo que RESISTIÓ el ataque (auditoría matemática del cuarto agente): no hay leakage (los
+estimadores nunca ven los parámetros verdaderos; el oracle y el eval sí, correctamente), los brazos están pareados sobre la misma
+experiencia, y valor_ambos es genuinamente sub-óptimo a presupuesto bajo. La versión registrada reemplaza la asimetría invertida
+por la caracterización honesta de DOS EJES de fallo COMPLEMENTARIOS —la controlabilidad se paga con ACCIÓN (R-INTERVENCIÓN, barata
+una vez que se actúa), la relevancia con DATOS+SEÑAL (el cuello del costo de datos, y requiere una meta lineal-descomponible)— e
+incorpora los cinco barridos que lo exhiben (T, ruido de meta, exploración fina, excitación pasiva, forma de la meta). Cuatro
+ciclos seguidos en que la verificación adversarial corrige un overclaim de un toy antes de que contamine el ledger append-only;
+queda institucionalizada como compuerta obligatoria. FRONTERA: la relevancia bajo un sustrato ACOPLADO (133), donde el credit
+assignment sufre colinealidad; una meta no-lineal aprendible con una base rica (R-PRIOR, 89-92); el lazo real; y active inference
+formal (donde acción, modelado de controlabilidad e inferencia de preferencias se unificarían).

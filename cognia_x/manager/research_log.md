@@ -3992,3 +3992,32 @@ el alcance-al-esfuerzo de 132 (el ALCANCE vuelve a ser la respuesta, ahora en la
 > system-ID adecuado (N_PROBE≳50-100, costo de datos coherente con 128) y a relevancia conocida; MIXTA requiere K≥2; acople
 > LINEAL en el sustrato. Institucionalizar la verificación adversarial (3er ciclo seguido que acota un hallazgo). Frontera:
 > acople NO-LINEAL en el sustrato, relevancia ESTIMADA (no dada), lazo real, active inference formal.
+
+## CYCLE 134 — H-V4-10h (rama control/acción, CIERRA el supuesto 'relevancia DADA' del arco 127-133) — APOYADA (caracterización corregida por VERIFICACIÓN ADVERSARIAL, 4to ciclo seguido)
+exp118 (numpy, 200 seeds, post-verificación de 4 agentes): todo el arco control/acción generalizó el factor de CONTROLABILIDAD
+(129 pendiente -> 130 cost-descontada -> 132 alcance-al-esfuerzo -> 133 alcance-por-la-red) pero la RELEVANCIA siempre fue DADA.
+128 mostró que la controlabilidad se DESCUBRE actuando (mapa acción->estado). Este ciclo cierra el OTRO factor: ¿el agente
+descubre el R-VALOR COMPLETO -- AMBOS factores del keystone -- de UN solo stream de experiencia-acción? La controlabilidad del
+mapa acción->estado (|b̂|, 128) y la relevancia del mapa estado->META (credit assignment lineal: regresar la señal escalar de meta
+G, de pesos OCULTOS, sobre el estado x -> ŵ). NÚCLEO VERIFICADO: valor_ambos (ŵ·b̂²/(b̂²+ρ), ambos estimados de la misma
+experiencia) bate a cada factor solo (vs ctrl +0.51, vs rel +0.55, vs predicción +1.000), converge al oracle (1.000, sube +0.135;
+genuinamente peor que oracle a T bajo y = azar 0.255 a σ_u=0 -> NO oracle relabeled, cierra el confound de 133), y la relevancia es
+GENUINAMENTE descubierta (sobrevive a G binario de 1 bit/paso, ruidoso y sparse: un escalar de meta NO es relevancia por-modo
+dada). => cierra el supuesto 'relevancia DADA' del arco 127-133: R-VALOR=ctrl×rel TOTALMENTE endógeno de una experiencia.
+cycle134 → H-V4-10h 'apoyada' (DoD), D-V4-96 ACEPTADA, techo 'real', verify_no_loss=OK. Test 5/5.
+
+> META-PATRÓN (134, 4to seguido con 131/132/133): la 1ra versión titulaba una ASIMETRÍA ("controlabilidad action-gated, relevancia
+> pasivamente barata"). Una VERIFICACIÓN ADVERSARIAL (4 agentes, ultracode) la halló INVERTIDA y contingente, reproduciendo: (1)
+> "relevancia barata" es CONTINGENTE a la excitación pasiva del sustrato (s=0.3 hardcodeado) -- con s_rel->0 colapso SIMÉTRICO
+> (corr(ŵ,w) 0.99->-0.01 a σ_u=0, igual que corr(b̂,b)); (2) en COSTO DE DATOS la RELEVANCIA es el cuello, NO la controlabilidad
+> (abl_ctrl=1.0 en todo σ_g; abl_rel se desploma a 0.74 a σ_g=20, ~100× más cara) -- el "action-gating" de la ctrl es sólo el
+> corner degenerado σ_u=0; (3) el descubrimiento de relevancia requiere meta ~LINEAL-descomponible -- bajo meta PAR (G=Σw·x²) el
+> credit-assignment lineal recupera 0.00 y valor_ambos cae a azar; (4) a σ_u=0 la decisión MULTIPLICATIVA no cobra la relevancia
+> conocida (0·ŵ) y la recuperación al actuar es dosis-respuesta GRADUAL, no escalón. RESISTIÓ (auditoría matemática del 4to
+> agente): sin leakage (b̂,ŵ nunca ven b,w,s; oracle/eval con verdaderos), arms PAREADOS, valor_ambos genuinamente < oracle (no
+> relabeled). REENCUADRE HONESTO: el R-VALOR completo es descubrible de una experiencia, con DOS EJES de fallo COMPLEMENTARIOS --
+> EJE1 la controlabilidad es ACTION-gated (necesita Var(u)>0; sin actuar no se identifica) pero BARATA al actuar (T~30 para todo
+> σ_g); EJE2 la relevancia es el CUELLO del COSTO DE DATOS (escala con el ruido de la meta) y requiere meta lineal-descomponible.
+> La controlabilidad se paga con ACCIÓN (R-INTERVENCIÓN), la relevancia con DATOS+SEÑAL. Institucionalizar la verificación
+> adversarial (4 ciclos seguidos corrigiendo overclaims). Frontera: relevancia bajo sustrato ACOPLADO (133, colinealidad del
+> credit-assignment), meta no-lineal aprendible (base rica, R-PRIOR 89-92), lazo real, active inference formal.
