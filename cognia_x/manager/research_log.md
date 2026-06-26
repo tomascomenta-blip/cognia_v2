@@ -3597,3 +3597,17 @@ cycle113 → H-V4-8r 'apoyada' (DoD), D-V4-75 ACEPTADA, techo 'real', verify_no_
 > ROBUSTEZ a agregación incierta (113): no hay supuesto de agregación universalmente seguro; el default minimax depende de
 > k/T (cobertura si k<T, valor si k>T). Mejor que elegir un supuesto: APRENDER la agregación del feedback (cf. 102).
 > Frontera: aprender la agregación; cruce exacto de k/T; SCALE.
+
+## CYCLE 114 — H-V4-8s (rama R-VALOR, cierra el pointer de 113) — APOYADA
+exp098 (numpy, 48 seeds): bajo agregación INCIERTA, en vez de ELEGIR un supuesto (hedge fijo, 113), un bandit ε-greedy
+APRENDE cuál agregación es la verdadera del feedback (reward = valor-verdadero de la selección). RESULTADO: promediado
+sobre ambas verdades, learn=0.984 ≈ best_fixed=1.000 (no-regret, gap 0.016) y > hedge fijo=0.945 (+0.039). El hedge (regla
+k/T -> submodular) acierta bajo verdad submodular (1.0) pero falla bajo additive (0.89); el learner se adapta a la verdad
+real y gana en ambas. => DESCUBRIR la agregación del feedback domina a comprometerse a un supuesto. Cierra 113 (converso,
+como 102 cerró 92). PATRÓN GENERAL CONFIRMADO (92/102/114): la META-DECISIÓN (prior / política de asignación / agregación)
+es APRENDIBLE del feedback cuando ninguna opción domina a priori. cycle114 → H-V4-8s 'apoyada' (DoD), D-V4-76 ACEPTADA,
+techo 'real', verify_no_loss=OK. Test 3/3.
+
+> META-DECISIÓN APRENDIBLE (92/102/114): el prior (92), la política de asignación (102) y la agregación (114) se aprenden
+> del feedback con un bandit no-regret cuando ningún default domina. Frontera: agregación con drift (+olvido 97); espacio
+> más rico de agregaciones; SCALE.

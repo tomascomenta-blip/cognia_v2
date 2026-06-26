@@ -1,0 +1,67 @@
+{
+  "exp": "exp098_learn_aggregation",
+  "cycle": 114,
+  "hypothesis": "H-V4-8s",
+  "claim": "bajo agregacion incierta, APRENDER la agregacion verdadera del feedback (bandit) logra no-regret y vence a comprometerse a un supuesto (hedge fijo), promediado sobre ambas verdades -> cierra 113 (converso, como 102 cerro 92)",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "per_truth": {
+        "additive": {
+          "learn": 0.9922,
+          "always_add": 1.0,
+          "always_sub": 0.8897,
+          "hedge": 0.8897,
+          "best_fixed": 1.0
+        },
+        "submodular": {
+          "learn": 0.9759,
+          "always_add": 0.6481,
+          "always_sub": 1.0,
+          "hedge": 1.0,
+          "best_fixed": 1.0
+        }
+      },
+      "avg": {
+        "learn": 0.984,
+        "always_add": 0.8241,
+        "always_sub": 0.9448,
+        "hedge": 0.9448,
+        "best_fixed": 1.0
+      },
+      "k": 6,
+      "T": 8
+    },
+    "learn": 0.984,
+    "hedge": 0.9448,
+    "best_fixed": 1.0,
+    "no_regret_gap": 0.016,
+    "learn_vs_hedge": 0.0392,
+    "no_regret": true,
+    "beats_hedge": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8s APOYADA: bajo agregación INCIERTA, APRENDER la agregación del feedback vence a comprometerse a un supuesto (hedge). Promediado sobre ambas verdades: learn=0.984 ≈ best_fixed=1.000 (no-regret, gap 0.016) y > hedge=0.945 (+0.039). El hedge fijo acierta en una verdad y falla en la otra (always_add=0.824, always_sub=0.945); el learner se ADAPTA a la verdad real con un bandit ε-greedy. => cierra CYCLE 113 (converso, como 102 cerró 92): cuando ningún supuesto de agregación domina, DESCUBRIRLO del feedback es mejor que hedgear."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 60,
+    "k": 6,
+    "T": 8,
+    "rounds": 60,
+    "eps": 0.1
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp098] CYCLE 114 / H-V4-8s — APRENDER la agregación del feedback vs HEDGE fijo (cierra 113)",
+    "[exp098] n=60 k=6 T=8 rounds=60 eps=0.1 seeds=48 truths=['additive', 'submodular']",
+    "[exp098] verdad=  additive: learn=0.992 always_add=1.000 always_sub=0.890 hedge=0.890 best_fixed=1.000",
+    "[exp098] verdad=submodular: learn=0.976 always_add=0.648 always_sub=1.000 hedge=1.000 best_fixed=1.000",
+    "[exp098] PROMEDIO: learn=0.984 hedge=0.945 best_fixed=1.000 | no_regret_gap=0.016 learn−hedge=+0.039",
+    "[exp098] no_regret=True beats_hedge=True",
+    "[exp098] VEREDICTO H-V4-8s: APOYADA | H-V4-8s APOYADA: bajo agregación INCIERTA, APRENDER la agregación del feedback vence a comprometerse a un supuesto (hedge). Promediado sobre ambas verdades: learn=0.984 ≈ best_fixed=1.000 (no-regret, gap 0.016) y > hedge=0.945 (+0.039). El hedge fijo acierta en una verdad y falla en la otra (always_add=0.824, always_sub=0.945); el learner se ADAPTA a la verdad real con un bandit ε-greedy. => cierra CYCLE 113 (converso, como 102 cerró 92): cuando ningún supuesto de agregación domina, DESCUBRIRLO del feedback es mejor que hedgear."
+  ]
+}
