@@ -646,3 +646,17 @@ Todo el arco 83-94 asumió un objetivo ADITIVO (perf_of = suma de valores indepe
 > de auto-mejora bajo presupuesto: asignar la verificación por CONFIANZA + COBERTURA de targets (valor marginal). La
 > guardia (94) queda como alternativa para base débil + datos clean. Esto FORMALIZA y SUPERA el manejo de diversidad
 > (49-50/94) con el principio submodular. Frontera: cobertura confidence-aware; objetivo VECTOR (multi-objetivo); SCALE.
+
+## Addendum — CYCLE 97: no-estacionariedad en la ASIGNACIÓN (unifica allocation 83-96 + forgetting 58-74)
+Todo el arco de asignación (83-96) asumió valor ESTACIONARIO. CYCLE 97 lo une con el arco de olvido (58-74).
+
+- **CYCLE 97 — H-V4-8c APOYADA.** Bajo DRIFT de la estructura del valor (un bump gaussiano cuyo centro se mueve cada D
+  rondas), el combinador R-VALOR de asignación debe OLVIDAR: decay=0.841 >> full_history=0.569 (+0.272; el full stale cae
+  −0.399 del estacionario, mezcla fases; el decay rastrea ≈ oracle). Bajo ESTACIONARIO coinciden (full=0.968 ≥ decay=0.966,
+  costo 0.002). Crossover idéntico al de la MEMORIA (CYCLE 73), ahora en la ASIGNACIÓN. => qué vale (R-VALOR) y cuándo
+  dejó de valer (olvido) son la misma señal en dos tiempos también para asignar. Caveat: decay FIJO (selector CYCLE 74
+  sería el cierre); bump sintético; drift abrupto. Cota 'real'; D-V4-59; test 4/4.
+
+> SÍNTESIS del lab (allocation × forgetting): el estimador de valor para ASIGNAR (83-96) y para RECORDAR (58-74) obedece
+> el mismo principio bajo no-estacionariedad — DESCONTAR lo viejo (decay). Frontera: selector de tasa no-regret (CYCLE 74)
+> sobre el combinador de asignación; integrar olvido en el lazo cerrado real (93-96); objetivo VECTOR; y SCALE (GPU).

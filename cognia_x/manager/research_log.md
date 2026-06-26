@@ -3246,3 +3246,36 @@ submodular/diversidad principista (tier2) y con el crutch de la guardia de CYCLE
 > RECETA del lazo de auto-mejora bajo presupuesto, versión principista: asignar la verificación por CONFIANZA + COBERTURA
 > de targets (valor marginal). La guardia queda como alternativa para base débil + datos clean. Frontera: cobertura
 > confidence-aware (robustez de yield en base débil); objetivo VECTOR; y SCALE (GPU).
+
+## CYCLE 97 — H-V4-8c (rama R-VALOR, unifica ALLOCATION 83-96 + FORGETTING 58-74): el combinador debe OLVIDAR bajo drift — APOYADA
+
+### Pregunta
+Todo el arco de asignación R-VALOR (83-96) asumió que la estructura del valor es ESTACIONARIA. El valor real DERIVA. ¿El
+combinador R-VALOR aprendido debe OLVIDAR (decay, reusando CYCLE 73) bajo drift, y el full-history se vuelve stale?
+
+### Diseño
+Numpy, online. Valor = bump gaussiano cuyo centro (mu,nu) se MUEVE cada D=8 rondas (drift) vs fijo (estacionario). El
+agente observa k_obs al azar, ajusta ridge poly2; rankea el pool. Brazos: full_history (toda la experiencia), decay
+(pesos por recencia decay^antigüedad), oracle, chance. perf_of vs el valor ACTUAL, promedio sobre rondas. 48 seeds.
+
+### Resultado — APOYADA (crossover, cf. CYCLE 73)
+Bajo DRIFT decay=0.841 >> full_history=0.569 (+0.272): el full se vuelve STALE (mezcla bumps de fases distintas; cae de
+0.968 estacionario a 0.569 con drift, −0.399), el decay RASTREA (≈ oracle, gap 0.159). Bajo ESTACIONARIO full=0.968 >=
+decay=0.966 (costo de olvidar 0.002). => UNIFICA el arco de ASIGNACIÓN con el de FORGETTING: el estimador de valor (qué
+vale, R-VALOR) y el olvido (cuándo dejó de valer) son la MISMA señal en dos tiempos también para la ASIGNACIÓN, no sólo
+para la memoria (replica el crossover full/decay de CYCLE 73 en el combinador de allocation).
+
+### Límites (honestos)
+decay FIJO (0.8; el óptimo depende de la tasa de drift → el selector no-regret de CYCLE 74 sería el cierre); valor bump
+sintético nesteable por poly2; feedback observado al azar (insesgado, no action-gated); drift abrupto por fases; el decay
+no alcanza el oracle bajo drift (lag de re-aprendizaje tras cada cambio, gap 0.159). Numpy/juguete.
+
+### Verificación
+exp081 (48 seeds, numpy). cycle97 → H-V4-8c 'apoyada' (DoD), D-V4-59 ACEPTADA, 1 techo 'real', analogía 7 etapas,
+verify_no_loss=OK. Test `test_cycle97_nonstationary_value.py` 4/4. Convergente con concept-drift/recencia (tier2) y con el
+crossover full/decay de la MEMORIA (CYCLE 73, tier5).
+
+> SÍNTESIS allocation×forgetting: el combinador R-VALOR de ASIGNACIÓN debe olvidar (decay) bajo drift de la estructura del
+> valor, igual que el estimador de MEMORIA (CYCLE 73). En el lazo de auto-mejora real (93-96), si lo que vale verificar
+> DERIVA, el combinador de confianza/cobertura debe descontar la experiencia vieja. Próximo: selector de tasa no-regret
+> (CYCLE 74) sobre el combinador; drift gradual; integrar con el lazo cerrado real; objetivo VECTOR; y SCALE (GPU).

@@ -1,0 +1,55 @@
+{
+  "exp": "exp081_nonstationary_value",
+  "cycle": 97,
+  "hypothesis": "H-V4-8c",
+  "claim": "bajo no-estacionariedad (drift de la estructura del valor) el combinador R-VALOR de asignacion debe OLVIDAR (decay): el full-history se vuelve stale y falla, el decay rastrea -> unifica el arco de asignacion (83-96) con el arco de forgetting (58-74)",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "stationary": {
+        "full_history": 0.9681,
+        "decay": 0.9663,
+        "oracle": 1.0,
+        "chance": 0.3411
+      },
+      "drift": {
+        "full_history": 0.5691,
+        "decay": 0.8407,
+        "oracle": 1.0,
+        "chance": 0.3477
+      }
+    },
+    "drift_gain": 0.2716,
+    "stat_cost": 0.0018,
+    "full_degrades": 0.399,
+    "decay_oracle_gap_drift": 0.1593,
+    "decay_wins_drift": true,
+    "full_ok_stat": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8c APOYADA: el combinador R-VALOR de asignación DEBE OLVIDAR bajo no-estacionariedad. Bajo DRIFT (el valor se mueve) decay=0.841 >> full_history=0.569 (+0.272): el full se vuelve STALE (mezcla bumps de fases distintas; cae de 0.968 estacionario a 0.569 con drift, −0.399) y el decay RASTREA (≈ oracle, gap 0.159). Bajo ESTACIONARIO full_history=0.968 >= decay=0.966 (costo de olvidar 0.002). => unifica el arco de ASIGNACIÓN (83-96) con el de FORGETTING (58-74): el estimador de valor (qué vale) y el olvido (cuándo dejó de valer) son la misma señal en dos tiempos también para la asignación, no sólo para la memoria."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "T": 40,
+    "D": 8,
+    "warmup": 4,
+    "k_obs": 10,
+    "k_eval": 10,
+    "decay": 0.8
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp081] CYCLE 97 / H-V4-8c — no-estacionariedad en la asignación: ¿el combinador R-VALOR debe olvidar?",
+    "[exp081] n=50 T=40 D=8 warmup=4 k_obs=10 k_eval=10 decay=0.8 sigma=0.25 seeds=48 regimes=['stationary', 'drift']",
+    "[exp081] stationary: full_history=0.968 decay=0.966 oracle=1.000 chance=0.341",
+    "[exp081]      drift: full_history=0.569 decay=0.841 oracle=1.000 chance=0.348",
+    "[exp081] drift_gain(decay−full)=+0.272 | stat_cost(full−decay)=+0.002 | full_degrades(stat−drift)=0.399 | decay_oracle_gap_drift=0.159",
+    "[exp081] decay_wins_drift=True full_ok_stat=True",
+    "[exp081] VEREDICTO H-V4-8c: APOYADA | H-V4-8c APOYADA: el combinador R-VALOR de asignación DEBE OLVIDAR bajo no-estacionariedad. Bajo DRIFT (el valor se mueve) decay=0.841 >> full_history=0.569 (+0.272): el full se vuelve STALE (mezcla bumps de fases distintas; cae de 0.968 estacionario a 0.569 con drift, −0.399) y el decay RASTREA (≈ oracle, gap 0.159). Bajo ESTACIONARIO full_history=0.968 >= decay=0.966 (costo de olvidar 0.002). => unifica el arco de ASIGNACIÓN (83-96) con el de FORGETTING (58-74): el estimador de valor (qué vale) y el olvido (cuándo dejó de valer) son la misma señal en dos tiempos también para la asignación, no sólo para la memoria."
+  ]
+}
