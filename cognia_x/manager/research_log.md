@@ -3892,3 +3892,24 @@ asignación óptima de capacidad de un agente que quiere CONTROLAR. Reproducible
 > controlabilidad descubierta (128) -> el PRODUCTO R-VALOR (129). R-VALOR ya no es un criterio postulado ni una reetiqueta de
 > meta externa: es lo que cae de querer-controlar bajo capacidad finita. Frontera: grados continuos (no binarios), no-lineal,
 > capacidad continua, active inference (donde el producto caería de minimizar la energía libre esperada).
+
+## CYCLE 130 — H-V4-10d (rama control/acción, GENERALIZA el keystone 129 a GRADOS+COSTO y halla CUÁNDO importa el producto) — APOYADA
+exp114 (numpy, 300 seeds, eval pareado): 129 reconstruyó R-VALOR = ctrl × rel desde el control pero en régimen BINARIO/
+disociado. Este ciclo lo generaliza a GRADOS continuos (b,w∈(0,1)) + COSTO cuadrático de acción ρ·u² -- que es lo que hace
+que la controlabilidad GRADUADA importe (sin costo, cualquier b>0 regula perfecto). Derivación del control de 1 paso con
+costo: u*=b(target−a·x)/(b²+ρ), beneficio de regular i = w_i·b_i²/(b_i²+ρ) = relevancia × controlabilidad-DESCONTADA. HALLAZGO
+PRECURSOR HONESTO: el 1er diseño (factores independientes) dio REFUTADA -- con factores independientes cada uno ya es
+informativo del producto -- y cazó un bug de pareo (valor_simple>oracle por usar instancias distintas por arm). Eso
+RE-ENFOCÓ la pregunta a CUÁNDO importa el producto: con TODOS los arms PAREADOS, se barre la CORRELACIÓN controlabilidad-
+relevancia. RESULTADO: VALOR_COST (w·b̂²/(b̂²+ρ)) es DOMINANTE en toda la correlación y su MARGEN sobre la mejor base de un solo
+factor ESCALA con la DISOCIACIÓN: ANTI-correlacionados +0.368 (lo fácil de controlar ≠ lo importante -> un solo factor falla
+feo), INDEP +0.188, CORRELACIONADOS +0.044 (cuando coinciden, un solo factor casi basta). => el producto R-VALOR (129) NO era
+artefacto de lo binario: generaliza a grados + costo, y MÁS importa cuanto más DISOCIADAS están controlabilidad y relevancia
+(firma de la complementariedad 83-86). Une control/acción con la asignación cost-aware (101). Reproducible smoke 60 ≈ full
+300. cycle130 → H-V4-10d 'apoyada' (DoD), D-V4-92 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> GRADOS+COSTO Y CUÁNDO IMPORTA (130): el producto relevancia × controlabilidad-descontada-por-costo (w·b²/(b²+ρ)) generaliza
+> el keystone al régimen graduado con costo de acción; es DOMINANTE y su ventaja sobre asignar por un solo factor ESCALA con
+> la DISOCIACIÓN controlabilidad-relevancia (anti +0.368 vs corr +0.044). El costo introduce la controlabilidad-descontada
+> (cost-aware 101); el escalado con la disociación es la firma de la complementariedad (83-86). Honestidad: REFUTADA inicial
+> + bug de pareo cazados -> reformulación a la correlación. Frontera: no-lineal, capacidad continua, active inference.

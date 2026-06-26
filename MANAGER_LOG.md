@@ -4337,3 +4337,17 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
   H-V4-10c 'apoyada', D-V4-91 ACEPTADA, techo 'real', verify_no_loss=OK.
 - Frontera: grados continuos (no binarios), capacidad continua, no-lineal, active inference (donde el producto caería de
   minimizar la energía libre esperada).
+
+## [2026-06-26] CYCLE 130 — H-V4-10d: el producto R-VALOR generaliza a GRADOS+COSTO; su ventaja escala con la DISOCIACIÓN ctrl-rel
+- Archivos creados: cognia_x/experiments/exp114_graded_value/ (run.py+__init__), cognia_x/research/cycles/cycle130_graded_value.py, cognia_x/tests/test_cycle130_graded_value.py
+- Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.BE)
+- Resultado tests: PASS — cycle130 dirigido 4/4; con cycle129+engine 28 passed; engine verify_no_loss=OK.
+- Notas: generaliza el keystone 129 (binario) al régimen GRADUADO continuo + COSTO de acción ρ·u². Derivación: beneficio de
+  regular el modo i = w·b²/(b²+ρ) = relevancia × controlabilidad-descontada. HONESTIDAD: el 1er diseño (factores
+  independientes) dio REFUTADA + cazó un bug de pareo (valor_simple>oracle por instancias distintas por arm) -> reformulé a
+  arms PAREADOS + barrido de la CORRELACIÓN ctrl-rel. RESULTADO: VALOR_COST (w·b̂²/(b̂²+ρ)) DOMINANTE; margen sobre el mejor
+  factor solo ESCALA con la disociación: anti +0.368, indep +0.188, corr +0.044. => el producto generaliza a grados+costo y
+  MÁS importa cuanto más disociadas controlabilidad y relevancia (lo fácil de controlar ≠ lo importante; firma de
+  complementariedad 83-86). Une control/acción con cost-aware (101). cycle130 -> H-V4-10d 'apoyada', D-V4-92 ACEPTADA, techo
+  'real', verify_no_loss=OK.
+- Frontera: no-lineal, capacidad continua, active inference.

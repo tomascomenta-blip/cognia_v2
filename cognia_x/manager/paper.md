@@ -1024,3 +1024,23 @@ R-VALOR deja de ser un criterio postulado o una reetiqueta de meta externa: es l
 finita -- un valor endógeno con RAÍZ. FRONTERA del sub-arco H-V4-10: controlabilidad y relevancia en GRADOS continuos (no
 binarios); capacidad como presupuesto continuo de precisión; dinámica no-lineal; y el puente a active inference, donde el
 producto controlabilidad × relevancia caería de minimizar la energía libre esperada (unificando acción, modelado y valor).
+
+## 3.BE GRADOS + COSTO y CUÁNDO importa el producto (130, generaliza el keystone y precisa su régimen)
+El keystone 129 derivó R-VALOR = controlabilidad × relevancia del control, pero en régimen BINARIO y DISOCIADO (los 4
+cuadrantes). 130 (H-V4-10d, APOYADA) lo generaliza a GRADOS continuos (b,w∈(0,1)) y añade un COSTO cuadrático de acción ρ·u²,
+que es lo que hace que la controlabilidad GRADUADA importe: sin costo, cualquier b>0 regula perfecto; con costo, la
+derivación del control de 1 paso (u*=b(target−a·x)/(b²+ρ)) da un beneficio de regular el modo i = w_i·b_i²/(b_i²+ρ) =
+relevancia × controlabilidad-DESCONTADA-por-costo. Un hallazgo precursor honesto reorientó el ciclo: el primer diseño (con
+controlabilidad y relevancia INDEPENDIENTES) dio REFUTADA -- porque con factores independientes cada uno por separado ya es
+informativo del producto -- y cazó un bug de pareo (un arm superaba al oracle por evaluarse sobre instancias distintas). Con
+los arms PAREADOS sobre las mismas instancias, la pregunta correcta es CUÁNDO importa el producto, y se responde barriendo la
+CORRELACIÓN controlabilidad-relevancia. RESULTADO (numpy, 300 seeds, reproducible smoke 60 ≈ full 300): el criterio VALOR_COST
+(w·b̂²/(b̂²+ρ)) es DOMINANTE en toda la correlación y su MARGEN sobre la mejor base de un solo factor ESCALA con la DISOCIACIÓN:
+ANTI-correlacionados +0.368 (lo fácil de controlar ≠ lo importante → asignar por un solo factor falla feo), INDEPENDIENTES
++0.188, CORRELACIONADOS +0.044 (cuando controlar e importar coinciden, un solo factor casi basta). => el producto R-VALOR que
+el control reconstruye (129) NO era artefacto de lo binario: generaliza al régimen GRADUADO con costo de acción, y MÁS importa
+cuanto más DISOCIADAS están controlabilidad y relevancia. Esto conecta tres hilos del programa: la rama control/acción
+(127-129), la asignación COST-AWARE (101: la controlabilidad-descontada-por-costo es el factor de control que el costo
+introduce) y la COMPLEMENTARIEDAD (83-86: el producto es un prior de complementariedad, decisivo bajo no-factorizabilidad --
+el escalado con la disociación es justamente esa firma). FRONTERA: dinámica no-lineal (donde la forma del factor de control
+podría cambiar); capacidad como presupuesto continuo de precisión; y el puente a active inference.
