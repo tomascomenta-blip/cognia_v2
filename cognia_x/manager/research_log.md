@@ -3553,3 +3553,19 @@ techo 'real', verify_no_loss=OK. Test 3/3.
 > BRIDGE generación–selección (110): R-VALOR no sólo decide QUÉ verificar, también cuánta DIVERSIDAD del generador
 > conviene; co-sintonizar filtro y diversidad (más filtro -> más exploración). Conecta el lazo de auto-mejora con la
 > creatividad (pillar #4). Frontera: barrido fino del óptimo de temperatura por asignación; diversidad como objetivo; SCALE.
+
+## CYCLE 111 — H-V4-8p (rama R-VALOR, intenta resolver el caveat de 110 con la guardia de diversidad 94) — MIXTA
+exp095 (PyTorch CPU, lazo real exp018, 4 seeds): ¿conf + GUARDIA (94: dedup+replay) + alta diversidad vence a random_low
+(ganador de 110)? RESULTADO MIXTO: la guardia AYUDA claramente (conf_guard_high=0.513 > conf_high=0.349, +0.164: destraba
+el narrowing de conf -> confirma que 94 transfiere) PERO NO alcanza a random_low=0.701 (−0.188). => el filtro completo NO
+resuelve el caveat de 110 en este régimen. REFINAMIENTO (lección real): el valor del FILTRO de confianza depende de la TASA
+BASE de calidad del pool -- cuando un pool LIMPIO es barato (baja temp + base decente -> mayormente correctos), generar
+prolijo y muestrear ANCHO (random) vence a generar diverso y filtrar (que sesga hacia lo confiado y paga el costo de
+filtrar la basura de la alta temp); el filtro paga bajo pool RUIDOSO. Concilia con 110: la interacción temp×alloc sigue
+positiva, pero el óptimo global en pool-limpio-barato es generar-limpio+muestrear-ancho. cycle111 → H-V4-8p 'mixta' (DoD),
+D-V4-73 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3. (Gotcha blocker.kind='real'→'fisico' corregido.)
+
+> REFINAMIENTO (111): el valor de FILTRAR por valor depende de la TASA BASE de calidad del pool. Pool limpio barato ->
+> muestrear ancho (random) gana; pool ruidoso -> el filtro de confianza paga. La guardia de diversidad (94) ayuda al
+> filtro pero no lo vuelve óptimo global. Frontera: régimen de pool-no-limpio-barato (tarea dura/base débil); tasa base
+> como señal de control; SCALE.

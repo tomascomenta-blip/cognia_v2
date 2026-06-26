@@ -1,0 +1,95 @@
+{
+  "exp": "exp095_guard_diversity",
+  "cycle": 111,
+  "hypothesis": "H-V4-8p",
+  "claim": "el filtro COMPLETO (asignacion por valor + guardia de diversidad CYCLE 94) habilita que la alta diversidad del generador sea el optimo global: conf+guardia+alta-diversidad destraba el narrowing de conf e iguala/vence a random_low (ganador de 110) -> resuelve el caveat de 110",
+  "verdict": "mixta",
+  "summary": {
+    "configs": [
+      "random_low",
+      "conf_high",
+      "conf_guard_high"
+    ],
+    "n_seeds": 4,
+    "conf_strong_corr_by_seed": [
+      0.3904,
+      0.2912,
+      0.2235,
+      0.3904
+    ],
+    "real_random_low": [
+      0.733,
+      0.563,
+      0.685,
+      0.822
+    ],
+    "real_conf_high": [
+      0.57,
+      0.204,
+      0.152,
+      0.47
+    ],
+    "real_conf_guard_high": [
+      0.707,
+      0.363,
+      0.344,
+      0.637
+    ],
+    "guard_vs_plain": 0.1639,
+    "guard_vs_random": -0.188,
+    "guard_best_all_seeds": false,
+    "guard_helps": true,
+    "matches_or_beats_random": false,
+    "status": "mixta",
+    "verdict": "H-V4-8p MIXTA: la guardia ayuda (+0.164) pero conf_guard_high=0.513 queda por debajo de random_low=0.701 (-0.188) -> el filtro completo mejora pero no alcanza al pool limpio+diverso."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "rounds": 3,
+    "K": 8,
+    "pool": 64,
+    "budget_frac": 0.15,
+    "temp_low": 0.9,
+    "temp_high": 1.7,
+    "replay_frac": 0.5,
+    "top_k": null,
+    "steps": 120,
+    "n_seed": 200,
+    "base_steps": 250,
+    "base_lr": 0.001,
+    "lr": 0.0005,
+    "warmup": 40,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp095] CYCLE 111 / H-V4-8p — ¿conf+GUARDIA+alta-diversidad vence a random_low? (resuelve el caveat de 110)",
+    "[exp095] seeds=[0, 1, 2, 3] rango=[2,300] rounds=3 K=8 pool=64 budget_frac=0.15 temp_low=0.9 temp_high=1.7 replay_frac=0.5 base_steps=250",
+    "[exp095] seed=0 base real_acc=0.722 params=201,280",
+    "[exp095] seed=0 ronda 1: random_low: y=51 ntr=51 real=0.778 | conf_high: y=11 ntr=11 real=0.656 | conf_guard_high: y=11 ntr=17 real=0.711",
+    "[exp095] seed=0 ronda 2: random_low: y=69 ntr=69 real=0.733 | conf_high: y=61 ntr=61 real=0.633 | conf_guard_high: y=69 ntr=42 real=0.722",
+    "[exp095] seed=0 ronda 3: random_low: y=76 ntr=76 real=0.689 | conf_high: y=76 ntr=76 real=0.422 | conf_guard_high: y=74 ntr=27 real=0.689",
+    "[exp095] seed=1 base real_acc=0.567 params=201,280",
+    "[exp095] seed=1 ronda 1: random_low: y=50 ntr=50 real=0.567 | conf_high: y=6 ntr=6 real=0.233 | conf_guard_high: y=6 ntr=9 real=0.289",
+    "[exp095] seed=1 ronda 2: random_low: y=54 ntr=54 real=0.567 | conf_high: y=39 ntr=39 real=0.211 | conf_guard_high: y=41 ntr=23 real=0.456",
+    "[exp095] seed=1 ronda 3: random_low: y=59 ntr=59 real=0.556 | conf_high: y=61 ntr=61 real=0.167 | conf_guard_high: y=65 ntr=19 real=0.344",
+    "[exp095] seed=2 base real_acc=0.700 params=201,280",
+    "[exp095] seed=2 ronda 1: random_low: y=49 ntr=49 real=0.622 | conf_high: y=4 ntr=4 real=0.211 | conf_guard_high: y=4 ntr=6 real=0.289",
+    "[exp095] seed=2 ronda 2: random_low: y=56 ntr=56 real=0.711 | conf_high: y=39 ntr=39 real=0.144 | conf_guard_high: y=44 ntr=25 real=0.356",
+    "[exp095] seed=2 ronda 3: random_low: y=71 ntr=71 real=0.722 | conf_high: y=64 ntr=64 real=0.100 | conf_guard_high: y=60 ntr=21 real=0.389",
+    "[exp095] seed=3 base real_acc=0.667 params=201,280",
+    "[exp095] seed=3 ronda 1: random_low: y=56 ntr=56 real=0.822 | conf_high: y=13 ntr=13 real=0.622 | conf_guard_high: y=13 ntr=19 real=0.667",
+    "[exp095] seed=3 ronda 2: random_low: y=70 ntr=70 real=0.856 | conf_high: y=66 ntr=66 real=0.489 | conf_guard_high: y=69 ntr=37 real=0.756",
+    "[exp095] seed=3 ronda 3: random_low: y=75 ntr=75 real=0.789 | conf_high: y=64 ntr=64 real=0.300 | conf_guard_high: y=66 ntr=18 real=0.489",
+    "[exp095] corr(conf,strong)=[0.3904, 0.2912, 0.2235, 0.3904]",
+    "[exp095] real_acc: random_low=[0.733, 0.563, 0.685, 0.822] conf_high=[0.57, 0.204, 0.152, 0.47] conf_guard_high=[0.707, 0.363, 0.344, 0.637]",
+    "[exp095] guard_vs_plain=+0.164 | guard_vs_random=-0.188 | guard_best_all_seeds=False",
+    "[exp095] VEREDICTO H-V4-8p: MIXTA | H-V4-8p MIXTA: la guardia ayuda (+0.164) pero conf_guard_high=0.513 queda por debajo de random_low=0.701 (-0.188) -> el filtro completo mejora pero no alcanza al pool limpio+diverso."
+  ]
+}
