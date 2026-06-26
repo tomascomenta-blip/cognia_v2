@@ -3461,3 +3461,18 @@ intra-ronda); riqueza estimada observable antes de gastar (no optimal-stopping c
 > — DENTRO de cada ronda (qué elegir: marginal en la agregación / costo, 83-103) y ENTRE rondas (cuándo gastar:
 > timing/abstención, 104). Abstenerse en oportunidades pobres. Frontera: optimal-stopping ciego (riqueza no-observable);
 > saturación intra-ronda; integrar todo en el lazo cerrado real; y SCALE.
+
+## CYCLE 105 — H-V4-8j (rama R-VALOR, 1ra VALIDACIÓN toy→real de una extensión del arco) — APOYADA
+El honest gap de 95-104: casi todo es numpy/juguete. exp089 (PyTorch CPU, lazo cerrado real exp018, 4 seeds) valida el
+costo-por-valor (CYCLE 101) en el LAZO CERRADO con el modelo REAL: costo de verificación heterogéneo (∝ target),
+presupuesto de COSTO; asignar por VALOR-POSITIVO/COSTO (exp(confianza)/costo) vs por valor solo. RESULTADO: ratio yield=
+131.5 > conf=99.8 (+31.7, todos los seeds; verifica más candidatos baratos, nverif 150.8 vs 116.8) y MEJORA el downstream
+(ratio=0.520 > conf=0.390, +0.131); corr(conf,strong)=0.59 (calibrada). => el costo-por-valor (101) TRANSFIERE al lazo de
+auto-mejora real (el yield de datos correctos es aditivo). NOTA DE MÉTODO (honestidad, regla #4): un primer intento usó
+mean-LOGPROB (negativa) en el ratio -> ranking INVERTIDO -> REFUTADA ARTEFACTUAL; se detectó (corr(valor,costo)≈0
+desmentía el mecanismo) y se corrigió con VALOR POSITIVO. El artefacto se cazó verificando, no se reportó. cycle105 →
+H-V4-8j 'apoyada' (DoD), D-V4-67 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> TOY→REAL: la 1ra extensión del arco (costo-por-valor, 101) TRANSFIERE al lazo cerrado real -> el arco de asignación
+> (95-104) no es sólo teoría de juguete. Frontera: validar las DEMÁS extensiones (no-estacionariedad 97-99, vector 100,
+> timing 104, meta 102) en el lazo real; costo MEDIDO (no modelado); y SCALE (GPU).
