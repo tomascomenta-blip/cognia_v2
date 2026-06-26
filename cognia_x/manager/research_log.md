@@ -3693,3 +3693,20 @@ cycle119 → H-V4-8y 'apoyada' (DoD), D-V4-81 ACEPTADA, techo 'real', verify_no_
 > 119 el unlikelihood ACOTADO cura la calibración (+0.642) a CERO costo de capacidad. LA DURABILIDAD ENDÓGENA DE R-VALOR
 > ES ALCANZABLE: lazo = likelihood(verificado-correcto) + unlikelihood-acotado(verificado-incorrecto). Frontera: neg_w/
 > balance, horizonte mayor, SCALE.
+
+## CYCLE 120 — H-V4-8z (rama R-VALOR, payoff end-to-end del selector durable) — REFUTADA (informativa, completa la receta)
+exp104 (PyTorch CPU, lazo real exp018, 4 seeds, 8 rondas, presupuesto AJUSTADO, SIN replay): ¿el selector durable
+(unlikelihood, 119) sostiene la auto-mejora bajo presupuesto ajustado sin ancla? RESULTADO: el selector durable mejora la
+calibración (corr final 0.297 vs naive 0.112) y el yield (6.00 vs 5.06, +0.94) PERO el downstream NO mejora (real_acc AUC
+durable 0.056 < naive 0.089; ambos colapsan bajo el régimen sin-ancla+presupuesto-ajustado). MECANISMO: en 119 ambos arms
+tenían el ANCLA de replay que compensaba el costo de capacidad del unlikelihood; SIN ancla ese costo no se compensa y
+arrastra el downstream pese a mejor calibración+yield. => CALIBRACIÓN y CAPACIDAD son ejes SEPARADOS con mecanismos
+separados: el unlikelihood-acotado cura la CALIBRACIÓN (119) y el replay-ancla sostiene la CAPACIDAD (115); el lazo de
+auto-mejora durable necesita AMBOS. RECETA COMPLETA = likelihood(verificado-correcto) + replay-ancla(verdad canónica) +
+unlikelihood-acotado(verificado-incorrecto). cycle120 → H-V4-8z 'refutada' (DoD), D-V4-82 ACEPTADA, techo 'real',
+verify_no_loss=OK. Test 2/2. (El diseño quitó el ancla a propósito para aislar el selector; NO refuta la receta de 119, la
+complementa.)
+
+> RECETA DEL LAZO DURABLE (115-120): el lazo de auto-mejora endógeno durable necesita TRES términos -- likelihood(correcto)
+> + replay-ancla(capacidad/115) + unlikelihood-acotado(calibración/119). Calibración y capacidad son ejes separados;
+> ninguna pieza sola basta (120). Frontera: balance de los tres términos, horizontes largos, SCALE.
