@@ -1,0 +1,67 @@
+{
+  "exp": "exp092_bias_vs_noise",
+  "cycle": 108,
+  "hypothesis": "H-V4-8m",
+  "claim": "a error RMS igualado, el SESGO sistematico del estimador de valor degrada la asignacion (ranking) mas que el RUIDO aleatorio: el ruido se promedia en el ranking, el sesgo no -> mis-asignacion consistente. calibrado-pero-ruidoso > sesgado-pero-preciso (debiasear importa mas que reducir ruido)",
+  "verdict": "refutada",
+  "summary": {
+    "grid": {
+      "s0.1": {
+        "noisy": 0.9723,
+        "biased": 0.9716,
+        "oracle": 1.0,
+        "chance": 0.5748
+      },
+      "s0.2": {
+        "noisy": 0.9275,
+        "biased": 0.9171,
+        "oracle": 1.0,
+        "chance": 0.5935
+      },
+      "s0.3": {
+        "noisy": 0.8658,
+        "biased": 0.8906,
+        "oracle": 1.0,
+        "chance": 0.5575
+      },
+      "s0.4": {
+        "noisy": 0.8321,
+        "biased": 0.8729,
+        "oracle": 1.0,
+        "chance": 0.5584
+      }
+    },
+    "gaps_noisy_minus_biased": {
+      "0.1": 0.0007,
+      "0.2": 0.0104,
+      "0.3": -0.0248,
+      "0.4": -0.0408
+    },
+    "gap_mid": -0.0248,
+    "gap_hi": -0.0408,
+    "grows": false,
+    "bias_worse": false,
+    "status": "refutada",
+    "verdict": "H-V4-8m REFUTADA (con REVERSIÓN informativa): el SESGO NO degrada más que el ruido a RMS igualado; de hecho a σ ALTO el sesgado es MEJOR (brechas noisy−biased por σ: σ0.1=0.001, σ0.2=0.010, σ0.3=-0.025, σ0.4=-0.041 -> negativas a σ alto). MECANISMO: el sesgo por-tipo es un OFFSET CONSTANTE -> preserva el ORDEN DENTRO de cada tipo (sólo desplaza tipos entre sí), así que el top-k aún toma los MEJORES de cada tipo; el RUIDO aleatorio corrompe TODOS los órdenes -> mete ítems genuinamente bajos. => lo que daña la asignación (ranking) es el error que ROMPE EL ORDEN (ruido, o sesgo NO-monótono), NO un offset sistemático order-preserving. Refina la intuición 'bias peor que noise': un sesgo CONSTANTE es benigno para rankear (cf. 106: transformaciones monótonas preservan el ranking); sólo el sesgo que DISTORSIONA el orden dañaría. (Hipótesis original REFUTADA: el sesgo constante no es peor que el ruido -- es mejor.)"
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k": 10
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp092] CYCLE 108 / H-V4-8m — SESGO vs RUIDO del estimador de valor (a error RMS igualado, ¿cuál degrada más?)",
+    "[exp092] n=50 k=10 sigmas=[0.1, 0.2, 0.3, 0.4] seeds=48",
+    "[exp092] σ=0.1: noisy=0.972 biased=0.972 oracle=1.000 chance=0.575 (noisy−biased=+0.001)",
+    "[exp092] σ=0.2: noisy=0.927 biased=0.917 oracle=1.000 chance=0.594 (noisy−biased=+0.010)",
+    "[exp092] σ=0.3: noisy=0.866 biased=0.891 oracle=1.000 chance=0.557 (noisy−biased=-0.025)",
+    "[exp092] σ=0.4: noisy=0.832 biased=0.873 oracle=1.000 chance=0.558 (noisy−biased=-0.041)",
+    "[exp092] brecha crece con σ=False | bias_worse=False",
+    "[exp092] VEREDICTO H-V4-8m: REFUTADA | H-V4-8m REFUTADA (con REVERSIÓN informativa): el SESGO NO degrada más que el ruido a RMS igualado; de hecho a σ ALTO el sesgado es MEJOR (brechas noisy−biased por σ: σ0.1=0.001, σ0.2=0.010, σ0.3=-0.025, σ0.4=-0.041 -> negativas a σ alto). MECANISMO: el sesgo por-tipo es un OFFSET CONSTANTE -> preserva el ORDEN DENTRO de cada tipo (sólo desplaza tipos entre sí), así que el top-k aún toma los MEJORES de cada tipo; el RUIDO aleatorio corrompe TODOS los órdenes -> mete ítems genuinamente bajos. => lo que daña la asignación (ranking) es el error que ROMPE EL ORDEN (ruido, o sesgo NO-monótono), NO un offset sistemático order-preserving. Refina la intuición 'bias peor que noise': un sesgo CONSTANTE es benigno para rankear (cf. 106: transformaciones monótonas preservan el ranking); sólo el sesgo que DISTORSIONA el orden dañaría. (Hipótesis original REFUTADA: el sesgo constante no es peor que el ruido -- es mejor.)"
+  ]
+}

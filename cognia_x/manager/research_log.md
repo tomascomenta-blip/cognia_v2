@@ -3508,3 +3508,16 @@ verify-all a fracción del presupuesto. corr(conf,strong)=0.59. cycle107 → H-V
 > + cobertura de targets) no es sólo teoría de juguete -- COMPONE sobre el modelo REAL e iguala al verify-all a fracción
 > del presupuesto. 2 validaciones toy→real (105 costo, 107 receta compuesta). Frontera: validar las extensiones restantes
 > (no-estacionariedad 97-99, vector 100, timing 104) en el lazo real; objetivo no-sintético; y SCALE (GPU).
+
+## CYCLE 108 — H-V4-8m (rama R-VALOR, calidad del estimador: SESGO vs RUIDO) — REFUTADA (con reversión informativa)
+Hipótesis (intuición + sesgo del verificador CYCLE 55): un SESGO sistemático del estimador de valor degrada la asignación
+(ranking) MÁS que el RUIDO equivalente. exp092 (numpy, 48 seeds): noisy (v+N(0,σ)) vs biased (v + σ·offset por tipo,
+RMS=σ), top-k, barriendo σ. RESULTADO al REVÉS: a error RMS igualado el sesgado NO es peor; a σ alto es MEJOR (brechas
+noisy−biased: σ0.1=+0.001, σ0.2=+0.010, σ0.3=−0.025, σ0.4=−0.041). MECANISMO: un offset CONSTANTE por tipo PRESERVA el
+ORDEN DENTRO de cada tipo (sólo desplaza tipos entre sí) → el top-k toma los mejores de cada tipo; el RUIDO aleatorio
+corrompe TODAS las comparaciones → mete ítems genuinamente bajos. => lo que daña la asignación (ranking/top-k) es el error
+que ROMPE EL ORDEN (ruido, o sesgo NO-monótono/correlacionado con el valor), NO un sesgo sistemático order-preserving.
+REFINA la intuición 'bias peor que noise' y la lección de CYCLE 55 (el sesgo del verificador dañaba porque DISTORSIONA qué
+se acepta). Consistente con 106 (transformaciones monótonas preservan el ranking). Caveat: para decisiones de UMBRAL/costo
+(101/104) el offset SÍ importa (106) → decisión-dependiente; un sesgo no-monótono daría lo opuesto. cycle108 → H-V4-8m
+'refutada' (DoD), D-V4-70 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
