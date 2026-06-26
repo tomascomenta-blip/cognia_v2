@@ -354,7 +354,18 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > R-VALOR (134->135->136) CERRADO/ACOTADO: la relevancia es discoverable bajo no-linealidad sin prior privilegiado CUANDO hay
 > dato abundante. Refutación GENUINA (verificación adversarial de 3 agentes: 3 controles nulos sin leakage).
 >
-> FRONTERA ACTIVA (post-136): (1) relevancia bajo sustrato ACOPLADO (133, colinealidad del credit-assignment). (2) lazo de
-> acción-consecuencia REAL (sandbox exp018). (3) active inference formal. (4) SCALE (GPU/Kaggle). (5) [abierto] el régimen de
-> ESCASEZ donde el prior SÍ paga: ¿un prior jerárquico/transferido lo cubre? MÉTODO institucionalizado: verificación
-> adversarial (3-4 agentes) antes del ledger — 6 ciclos seguidos (131..136) corrigiendo/acotando overclaims.
+> CYCLE 137 (H-V4-10k APOYADA con caracterización honesta) CIERRA el frente 'relevancia bajo sustrato ACOPLADO' (133/134): el
+> agente descubre b̂ (ctrl), Â (acople, system-ID) y ŵ (relevancia, credit-assignment) de UN stream y los compone en la
+> reach-relevancia |b̂·(I-Â)^-T ŵ|. Lo load-bearing: la estimación de un stream basta (composed converge desde abajo) + la forma
+> reach es necesaria (la transpuesta incorrecta falla, el 1-hop falla en multihop, el local falla). La COLINEALIDAD del
+> credit-assignment NO confunde ŵ (OLS sobre el estado completo es insesgado); el fallo del local es porque la relevancia
+> DIRECTA ≠ relevancia-de-decisión bajo acople. ARCO control/acción 127-137 UNIFICADO: el R-VALOR ACOPLADO (=ctrl × reach-
+> relevancia) es endógeno de una experiencia de acción. Verificación adversarial de 3 agentes (leakage-free; acotó el baseline:
+> reach_net +0.49 sobre control puro, no +0.59 sobre el local que se auto-sabotea; fallo del local condicional al extremo
+> adversarial; válido con radio espectral<1).
+>
+> FRONTERA ACTIVA (post-137): (1) acople con CICLOS / autovalores de Â cerca de radio 1 (donde (I-Â)^-1 explota). (2) lazo de
+> acción-consecuencia REAL (sandbox exp018). (3) active inference formal (¿emerge el producto ctrl×rel de minimizar energía
+> libre esperada?; 131 lo tocó, MIXTA). (4) SCALE (GPU/Kaggle). (5) [abierto] régimen de ESCASEZ donde el prior paga (136):
+> ¿prior jerárquico/transferido? MÉTODO institucionalizado: verificación adversarial (3-4 agentes) antes del ledger — 7 ciclos
+> seguidos (131..137) corrigiendo/acotando overclaims.

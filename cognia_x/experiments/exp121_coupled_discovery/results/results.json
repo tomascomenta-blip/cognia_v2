@@ -1,0 +1,260 @@
+{
+  "exp": "exp121_coupled_discovery",
+  "cycle": 137,
+  "hypothesis": "H-V4-10k",
+  "claim": "APOYADA (caracterizacion honesta post-verificacion adversarial de 3 agentes). El agente DESCUBRE el R-VALOR de un sustrato ACOPLADO de UN solo stream (controlabilidad b̂, acople Â por system-ID, relevancia ŵ por credit-assignment, todos estimados) y los COMPONE en la REACH-relevancia |b̂·(I-Â)^-T ŵ|. Lo load-bearing son los GAPS y la NECESIDAD DE LA FORMA, no el nivel 1.000 (la forma composed coincide con el oracle por construccion): se prueba (i) estimacion de un stream basta (composed converge desde abajo) y (ii) la forma es necesaria (la transpuesta INCORRECTA falla, el 1-hop falla en multihop, el local falla). Baseline JUSTO: la contribucion NETA del reach sobre control puro (ctrl_only=|b̂|) es ~+0.34 (el gap sobre el local sobre-vende: el local se auto-sabotea). La colinealidad NO confunde ŵ (corr_w=1.0): el fallo del local es porque la relevancia DIRECTA != relevancia-de-decision bajo acople. Unifica 128+133+134; cierra la frontera de 134. Caveats: gap maximo en el extremo adversarial (driver direct-rel=0); valido con sustrato estable (radio<1)",
+  "verdict": "apoyada",
+  "summary": {
+    "by_kappa": {
+      "0.0": {
+        "composed": 1.0,
+        "composed_noT": 1.0,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.495,
+        "local": 1.0,
+        "relevancia": 1.0,
+        "prediccion": 0.0,
+        "corr_w": 0.9998,
+        "corr_m": 0.9916
+      },
+      "0.25": {
+        "composed": 1.0,
+        "composed_noT": 0.7115,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5246,
+        "local": 0.6577,
+        "relevancia": 0.6154,
+        "prediccion": 0.0,
+        "corr_w": 0.9998,
+        "corr_m": 0.9907
+      },
+      "0.5": {
+        "composed": 1.0,
+        "composed_noT": 0.5917,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.4856,
+        "local": 0.5083,
+        "relevancia": 0.4444,
+        "prediccion": 0.0,
+        "corr_w": 0.9998,
+        "corr_m": 0.9911
+      },
+      "0.9": {
+        "composed": 1.0,
+        "composed_noT": 0.4912,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5085,
+        "local": 0.415,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 0.9999,
+        "corr_m": 0.9928
+      }
+    },
+    "by_T": {
+      "30": {
+        "composed": 0.7573,
+        "composed_noT": 0.4012,
+        "reach_1hop": 0.9412,
+        "ctrl_only": 0.4592,
+        "local": 0.3838,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 0.9902,
+        "corr_m": 0.6884
+      },
+      "100": {
+        "composed": 0.9585,
+        "composed_noT": 0.4496,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.4815,
+        "local": 0.3769,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 0.9981,
+        "corr_m": 0.93
+      },
+      "300": {
+        "composed": 1.0,
+        "composed_noT": 0.4946,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5446,
+        "local": 0.3873,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 0.9995,
+        "corr_m": 0.9772
+      },
+      "1000": {
+        "composed": 1.0,
+        "composed_noT": 0.4912,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5085,
+        "local": 0.415,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 0.9999,
+        "corr_m": 0.9928
+      },
+      "3000": {
+        "composed": 1.0,
+        "composed_noT": 0.5327,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5058,
+        "local": 0.4254,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 1.0,
+        "corr_m": 0.9974
+      }
+    },
+    "by_sg": {
+      "0.5": {
+        "composed": 1.0,
+        "composed_noT": 0.4912,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5085,
+        "local": 0.415,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 0.9999,
+        "corr_m": 0.9928
+      },
+      "2.0": {
+        "composed": 1.0,
+        "composed_noT": 0.5569,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5088,
+        "local": 0.5604,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 0.9975,
+        "corr_m": 0.9919
+      },
+      "5.0": {
+        "composed": 1.0,
+        "composed_noT": 0.5708,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5204,
+        "local": 0.5535,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 0.9852,
+        "corr_m": 0.9887
+      }
+    },
+    "by_struct": {
+      "base": {
+        "composed": 1.0,
+        "composed_noT": 0.4912,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5085,
+        "local": 0.415,
+        "relevancia": 0.3077,
+        "prediccion": 0.0,
+        "corr_w": 0.9999,
+        "corr_m": 0.9928
+      },
+      "multihop": {
+        "composed": 0.9984,
+        "composed_noT": 0.5031,
+        "reach_1hop": 0.3654,
+        "ctrl_only": 0.6616,
+        "local": 0.2986,
+        "relevancia": 0.1649,
+        "prediccion": 0.0,
+        "corr_w": 0.9999,
+        "corr_m": 0.9939
+      },
+      "distractor": {
+        "composed": 1.0,
+        "composed_noT": 0.3972,
+        "reach_1hop": 1.0,
+        "ctrl_only": 0.5468,
+        "local": 0.3881,
+        "relevancia": 0.2985,
+        "prediccion": 0.0,
+        "corr_w": 0.9998,
+        "corr_m": 0.9918
+      }
+    },
+    "random_baseline": 0.2422,
+    "k0_composed": 1.0,
+    "k0_local": 1.0,
+    "khi_composed": 1.0,
+    "khi_local": 0.415,
+    "khi_ctrl_only": 0.5085,
+    "khi_composed_noT": 0.4912,
+    "khi_corr_w": 0.9999,
+    "khi_corr_m": 0.9928,
+    "gap_hi": 0.585,
+    "reach_net": 0.4915,
+    "wrongform_gap": 0.5088,
+    "struct_composed": {
+      "base": 1.0,
+      "multihop": 0.9984,
+      "distractor": 1.0
+    },
+    "struct_local": {
+      "base": 0.415,
+      "multihop": 0.2986,
+      "distractor": 0.3881
+    },
+    "struct_1hop": {
+      "base": 1.0,
+      "multihop": 0.3654,
+      "distractor": 1.0
+    },
+    "Tmin_composed": 0.7573,
+    "Tmax_composed": 1.0,
+    "multihop_composed": 0.9984,
+    "multihop_1hop": 0.3654,
+    "base_1hop": 1.0,
+    "indep_recovers": true,
+    "composed_recovers_hi": true,
+    "reach_beats_ctrl": true,
+    "wrongform_fails": true,
+    "local_fails_hi": true,
+    "composed_robust_struct": true,
+    "composed_beats_local_struct": true,
+    "needs_data": true,
+    "full_reach_needed": true,
+    "onehop_ok_base": true,
+    "status": "apoyada",
+    "verdict": "H-V4-10k APOYADA (con caracterización HONESTA tras verificación adversarial de 3 agentes, 7mo ciclo; leakage-free): el agente DESCUBRE el R-VALOR de un sustrato ACOPLADO de UN solo stream -- controlabilidad (b̂), ACOPLE (Â por system-ID) y relevancia (ŵ por credit-assignment) todos estimados-, y los COMPONE en la REACH-relevancia |b̂·(I-Â)^{-T}ŵ|. Lo LOAD-BEARING son los GAPS y la NECESIDAD DE LA FORMA, NO el nivel 1.000 (que es el beneficio saturado del top-K, y la forma composed COINCIDE con el oracle por construcción): lo que se prueba es (i) que la ESTIMACIÓN DE UN STREAM BASTA y (ii) que la FORMA es NECESARIA. (i) composed converge GENUINAMENTE DESDE ABAJO (T=30 0.757, sub-identificado -> 1.000 a T>=300; NO oracle-relabeled, cierra el caveat de 133). (ii) la FORMA correcta es necesaria: la transpuesta INCORRECTA |b̂·(I-Â)^{-1}ŵ| (reach hacia adelante) FALLA (0.491, +0.509); el reach de 1-salto FALLA en MULTIHOP (0.365 vs 0.998; el reach de profundidad>=diámetro es necesario, (I-Â)^{-1} lo implementa agnóstico al diámetro); y el LOCAL (b̂·ŵ) FALLA (0.415). BASELINE JUSTO: la contribución NETA del reach es sobre CONTROL PURO (|b̂|=0.508): reach_net=+0.491 (el +0.585 sobre el local sobre-vende porque el local se AUTO-SABOTEA -- b̂·ŵ anula al driver con ŵ_driver≈0, cae por DEBAJO de control puro). Robusto a estructura (composed base 1.000/multihop 0.998/distractor 1.000), a seeds, a a∈{0.3,0.6,0.9} y a D∈{8,16,24}; el shuffle de ŵ colapsa composed a ctrl_only (la relevancia es load-bearing, no espuria). HALLAZGO sobre la frontera de 134: la COLINEALIDAD del credit-assignment NO confunde ŵ (corr_w=1.000; OLS sobre el estado completo es insesgado -- el target absorbe el crédito), así que el fallo del local NO es por ŵ confundido sino porque la relevancia DIRECTA ≠ relevancia-de-decisión bajo acople. CAVEATS: el gap sobre el local es máximo en el extremo adversarial (driver direct-rel=0; con direct-rel moderada el local se recupera); el costo D² del system-ID es para la fidelidad del reach completo, la DECISIÓN recupera barato (T_recover sub-cuadrático en D); válido mientras el sustrato sea dinámicamente ESTABLE (radio espectral<1; el DAG lo garantiza, radio=a=0.6; acople con ciclos cerca de radio 1 degrada -- frontera). => unifica 128+133+134: el R-VALOR ACOPLADO es endógeno de una experiencia (estimación de un stream basta + la forma reach es necesaria)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp121] CYCLE 137 / H-V4-10k — ¿descubre el agente el R-VALOR de un sustrato ACOPLADO (b̂+Â+ŵ de un stream) y lo COMPONE en la reach-relevancia? ¿la colinealidad del credit-assignment lo rompe?",
+    "[exp121] seeds=200 a=0.6 D=8 K=2 kappas=[0.0, 0.25, 0.5, 0.9] Ts=[30, 100, 300, 1000, 3000] sigma_gs=[0.5, 2.0, 5.0] structs=['base', 'multihop', 'distractor'] (T_fixed=1000, κ_fixed=0.9)",
+    "[exp121] random_baseline (base, κ=0.9) = 0.242",
+    "[exp121] --- (1) BARRIDO κ acople (base, T=1000) — composed vs falsador-forma (noT) vs ctrl_only (baseline justo) vs local ---",
+    "[exp121] κ= 0.0: composed=1.000 composed_noT=1.000 ctrl_only=0.495 local=1.000 relev=1.000 | corr_w=1.00 corr_m=0.99",
+    "[exp121] κ=0.25: composed=1.000 composed_noT=0.712 ctrl_only=0.525 local=0.658 relev=0.615 | corr_w=1.00 corr_m=0.99",
+    "[exp121] κ= 0.5: composed=1.000 composed_noT=0.592 ctrl_only=0.486 local=0.508 relev=0.444 | corr_w=1.00 corr_m=0.99",
+    "[exp121] κ= 0.9: composed=1.000 composed_noT=0.491 ctrl_only=0.508 local=0.415 relev=0.308 | corr_w=1.00 corr_m=0.99",
+    "[exp121] --- (2) BARRIDO T (base, κ=0.9) — colinealidad/system-ID = costo de datos ---",
+    "[exp121] T=   30: composed=0.757 local=0.384 | corr_w=0.99 corr_m=0.69",
+    "[exp121] T=  100: composed=0.959 local=0.377 | corr_w=1.00 corr_m=0.93",
+    "[exp121] T=  300: composed=1.000 local=0.387 | corr_w=1.00 corr_m=0.98",
+    "[exp121] T= 1000: composed=1.000 local=0.415 | corr_w=1.00 corr_m=0.99",
+    "[exp121] T= 3000: composed=1.000 local=0.425 | corr_w=1.00 corr_m=1.00",
+    "[exp121] --- (3) BARRIDO σ_g (base, κ=0.9) ---",
+    "[exp121] σ_g= 0.5: composed=1.000 local=0.415 | corr_w=1.00 corr_m=0.99",
+    "[exp121] σ_g= 2.0: composed=1.000 local=0.560 | corr_w=1.00 corr_m=0.99",
+    "[exp121] σ_g= 5.0: composed=1.000 local=0.553 | corr_w=0.99 corr_m=0.99",
+    "[exp121] --- (4) ESTRUCTURA (κ=0.9, T=1000) — base/multihop/distractor; reach COMPLETO vs 1-hop ---",
+    "[exp121]       base: composed=1.000 reach_1hop=1.000 local=0.415 | corr_m=0.99",
+    "[exp121]   multihop: composed=0.998 reach_1hop=0.365 local=0.299 | corr_m=0.99",
+    "[exp121] distractor: composed=1.000 reach_1hop=1.000 local=0.388 | corr_m=0.99",
+    "[exp121] CHECK indep_recovers=True composed_recovers_hi=True | reach_beats_ctrl=True (NET sobre ctrl_only +0.491; gap sobre local +0.585) wrongform_fails=True (composed 1.000 vs noT 0.491, gap +0.509) | local_fails_hi=True robust_struct=True full_reach_needed=True (multihop composed 0.998 vs 1hop 0.365) needs_data=True",
+    "[exp121] VEREDICTO H-V4-10k: APOYADA | H-V4-10k APOYADA (con caracterización HONESTA tras verificación adversarial de 3 agentes, 7mo ciclo; leakage-free): el agente DESCUBRE el R-VALOR de un sustrato ACOPLADO de UN solo stream -- controlabilidad (b̂), ACOPLE (Â por system-ID) y relevancia (ŵ por credit-assignment) todos estimados-, y los COMPONE en la REACH-relevancia |b̂·(I-Â)^{-T}ŵ|. Lo LOAD-BEARING son los GAPS y la NECESIDAD DE LA FORMA, NO el nivel 1.000 (que es el beneficio saturado del top-K, y la forma composed COINCIDE con el oracle por construcción): lo que se prueba es (i) que la ESTIMACIÓN DE UN STREAM BASTA y (ii) que la FORMA es NECESARIA. (i) composed converge GENUINAMENTE DESDE ABAJO (T=30 0.757, sub-identificado -> 1.000 a T>=300; NO oracle-relabeled, cierra el caveat de 133). (ii) la FORMA correcta es necesaria: la transpuesta INCORRECTA |b̂·(I-Â)^{-1}ŵ| (reach hacia adelante) FALLA (0.491, +0.509); el reach de 1-salto FALLA en MULTIHOP (0.365 vs 0.998; el reach de profundidad>=diámetro es necesario, (I-Â)^{-1} lo implementa agnóstico al diámetro); y el LOCAL (b̂·ŵ) FALLA (0.415). BASELINE JUSTO: la contribución NETA del reach es sobre CONTROL PURO (|b̂|=0.508): reach_net=+0.491 (el +0.585 sobre el local sobre-vende porque el local se AUTO-SABOTEA -- b̂·ŵ anula al driver con ŵ_driver≈0, cae por DEBAJO de control puro). Robusto a estructura (composed base 1.000/multihop 0.998/distractor 1.000), a seeds, a a∈{0.3,0.6,0.9} y a D∈{8,16,24}; el shuffle de ŵ colapsa composed a ctrl_only (la relevancia es load-bearing, no espuria). HALLAZGO sobre la frontera de 134: la COLINEALIDAD del credit-assignment NO confunde ŵ (corr_w=1.000; OLS sobre el estado completo es insesgado -- el target absorbe el crédito), así que el fallo del local NO es por ŵ confundido sino porque la relevancia DIRECTA ≠ relevancia-de-decisión bajo acople. CAVEATS: el gap sobre el local es máximo en el extremo adversarial (driver direct-rel=0; con direct-rel moderada el local se recupera); el costo D² del system-ID es para la fidelidad del reach completo, la DECISIÓN recupera barato (T_recover sub-cuadrático en D); válido mientras el sustrato sea dinámicamente ESTABLE (radio espectral<1; el DAG lo garantiza, radio=a=0.6; acople con ciclos cerca de radio 1 degrada -- frontera). => unifica 128+133+134: el R-VALOR ACOPLADO es endógeno de una experiencia (estimación de un stream basta + la forma reach es necesaria)."
+  ]
+}

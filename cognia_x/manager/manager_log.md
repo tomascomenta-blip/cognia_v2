@@ -365,3 +365,20 @@
   un prior grueso). El experimento se reescribió para AUTO-DOCUMENTAR (matched_cv + barrido-T escasez + t pareado). CIERRA/ACOTA el
   arco no-linealidad de R-VALOR (134->135->136). Sirve al GOAL (R-VALOR). Próximo: relevancia bajo sustrato ACOPLADO (133); lazo
   acción-consecuencia REAL; active inference; SCALE.
+
+## [2026-06-26] CYCLE 137 — H-V4-10k APOYADA (con caracterización HONESTA tras verificación adversarial de 3 agentes, 7mo ciclo): el agente DESCUBRE el R-VALOR de un sustrato ACOPLADO de UN stream (b̂+Â+ŵ) y lo compone en la reach-relevancia; unifica 128+133+134
+- Archivos: cognia_x/experiments/exp121_coupled_discovery/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle137_coupled_discovery.py (new), cognia_x/tests/test_cycle137_coupled_discovery.py (new),
+  research_log.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 7/7; cycle137 por el engine APOYADA, D-V4-99 aceptada, verify_no_loss=OK.
+- Resultado exp (200 seeds): intersección de la frontera de 134 (relevancia bajo sustrato ACOPLADO): el agente descubre b̂ (ctrl),
+  Â (acople, system-ID) y ŵ (relevancia, credit-assignment) de UN stream y compone |b̂·(I-Â)^-T ŵ|. Load-bearing = (i) estimación
+  de un stream basta (composed converge desde abajo, T=30 0.76 -> 1.000) y (ii) la forma es necesaria (transpuesta incorrecta 0.49,
+  1-hop falla en multihop, local 0.42 falla). Reach_net sobre control puro +0.49. Colinealidad NO confunde ŵ (corr_w=1.00).
+- Notas: VERIFICACIÓN ADVERSARIAL de 3 agentes (7mo ciclo) confirmó el núcleo leakage-free (decoy/ruido colapsan a ctrl_solo; la
+  transpuesta incorrecta falla) pero ACOTÓ la presentación a APOYADA-CON-CARACTERIZACIÓN-HONESTA: no sobre-vender el 1.000 (forma=
+  oracle por construcción, lo load-bearing son los gaps); baseline justo (reach_net +0.49 sobre control puro, el +0.59 sobre el
+  local sobre-vende porque el local se auto-sabotea); fallo del local condicional (extremo adversarial); válido con radio<1 (DAG).
+  El experimento se reescribió para AUTO-DOCUMENTAR (composed_noT + ctrl_only + reach_net). CIERRA la frontera de 134 y UNIFICA el
+  arco control/acción 127-137. Sirve al GOAL (R-VALOR). Próximo: acople con CICLOS; lazo acción-consecuencia REAL; active inference;
+  SCALE.

@@ -4085,3 +4085,37 @@ G-ruido -> sin ventaja; CV-bloqueada -> mismo gap; el CV usa SOLO G). cycle136 �
 > ES discoverable bajo no-linealidad sin prior privilegiado de la forma CUANDO el dato es abundante respecto a los parámetros; bajo
 > escasez conocer la forma paga. Frontera: relevancia bajo sustrato ACOPLADO (133, colinealidad del credit-assignment); el lazo de
 > acción-consecuencia REAL; active inference formal; SCALE.
+
+## CYCLE 137 — H-V4-10k (rama control/acción, UNIFICA el sustrato ACOPLADO de 133 con la relevancia DESCUBIERTA de 134) — APOYADA (con caracterización HONESTA tras verificación adversarial de 3 agentes, 7mo ciclo seguido)
+exp121 (numpy, 200 seeds, post-verificación de 3 agentes). Intersección de la frontera explícita de 134 ('relevancia bajo sustrato
+ACOPLADO, colinealidad del credit-assignment'): el agente DESCUBRE de UN solo stream la controlabilidad (b̂), el ACOPLE (Â por
+system-ID: x_{t+1,j}~[x_t,u_j]) y la relevancia directa (ŵ por credit-assignment: G~x), y los COMPONE en la REACH-relevancia
+|b̂·(I-Â)^{-T}ŵ| que 133 mostró necesaria. Sustrato lineal acoplado (DAG, x_{t+1}=A·x+b⊙u+ruido; A=a·I+κ·E_{target<-driver}); el
+valor-de-decisión es la sensibilidad de estado-estacionario dG/du_i=b_i·m_i, m=(I-A)^{-T}w. RESULTADO (load-bearing = GAPS +
+NECESIDAD DE LA FORMA, NO el nivel 1.000 -beneficio saturado del top-K; la forma composed coincide con el oracle por construcción-):
+(i) la ESTIMACIÓN DE UN STREAM BASTA -- composed converge GENUINAMENTE DESDE ABAJO (T=30 0.76, corr_m≈0.69 -> 1.000 a T>=300; NO
+oracle-relabeled, cierra el caveat de 133); (ii) la FORMA es NECESARIA por TRES falsadores -- la transpuesta INCORRECTA
+|b̂·(I-Â)^{-1}ŵ| FALLA (composed_noT 0.49, gap +0.51), el reach de 1-salto FALLA en MULTIHOP (0.37 vs 1.00; reach de
+profundidad>=diámetro necesario, (I-Â)^{-1} agnóstico al diámetro), y el LOCAL (b̂·ŵ, keystone de 134) FALLA (0.42). BASELINE JUSTO
+(corrección de la verificación): la contribución NETA del reach es sobre CONTROL PURO (ctrl_only=|b̂|≈0.51): reach_net=+0.49 (el
++0.59 sobre el local sobre-vende -- el local se auto-sabotea, cae por DEBAJO de control puro porque b̂·ŵ anula al driver con
+ŵ_driver≈0). HALLAZGO sobre la frontera de 134: la COLINEALIDAD del credit-assignment NO confunde ŵ (corr_w=1.00; OLS sobre el
+estado completo es insesgado, el target absorbe el crédito) -- el fallo del local es porque la relevancia DIRECTA ≠ relevancia-de-
+decisión bajo acople, no por ŵ confundido. cycle137 → H-V4-10k 'apoyada' (DoD), D-V4-99 ACEPTADA, techo 'real', verify_no_loss=OK.
+Test 7/7.
+
+> META-PATRÓN (137, 7mo seguido con 131-136): una 1ra versión lideraba con 'composed RECUPERA el oracle (1.000)' y el +0.585 sobre
+> el local. Una VERIFICACIÓN ADVERSARIAL (3 agentes, lentes tautología-oracle/fairness/leakage-robustez) CONFIRMÓ el núcleo
+> (core_survives en las 3; leakage-free: decoy/ruido-G colapsan a ctrl_solo; la transpuesta incorrecta falla; converge desde abajo)
+> pero ACOTÓ la presentación a APOYADA-CON-CARACTERIZACIÓN-HONESTA: (1) NO sobre-vender '1.000' -- la forma composed = oracle por
+> construcción, lo que se prueba es suficiencia-de-estimación + necesidad-de-forma (los GAPS son lo load-bearing); (2) BASELINE
+> INJUSTO -- el local es un foil débil (peor que control puro); la contribución honesta del reach es +0.49 sobre ctrl_only=|b̂|, no
+> +0.59 sobre el local que se auto-sabotea; (3) KNIFE-EDGE CONDICIONADO -- el fallo del local es máximo en el extremo adversarial
+> (driver direct-rel=0); con relevancia directa moderada el local se recupera (umbral = direct-rel del competidor); (4) ESTABILIDAD
+> -- válido con radio espectral<1 (el DAG lo garantiza, radio=a=0.6); acople con CICLOS cerca de radio 1 degrada (frontera fuera del
+> dominio); (5) el costo D² del system-ID es para la fidelidad del reach completo, la DECISIÓN recupera barato (sub-cuadrático en D).
+> El experimento se REESCRIBIÓ para AUTO-DOCUMENTAR (agregó composed_noT -falsador anti-tautología-, ctrl_only -baseline justo-, y
+> el reporte de reach_net). RESPONDE el caveat estrella de 133 (composed≢oracle, la forma es testeable). CIERRA la frontera
+> 'relevancia bajo sustrato acoplado' de 134 y UNIFICA el arco control/acción 127-137: el R-VALOR ACOPLADO (=ctrl × reach-relevancia)
+> es endógeno de una experiencia de acción (estimación de un stream basta + la forma reach es necesaria). Frontera: acople con
+> CICLOS / autovalores ~1; el lazo de acción-consecuencia REAL; active inference formal; SCALE.
