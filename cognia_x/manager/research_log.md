@@ -3710,3 +3710,21 @@ complementa.)
 > RECETA DEL LAZO DURABLE (115-120): el lazo de auto-mejora endógeno durable necesita TRES términos -- likelihood(correcto)
 > + replay-ancla(capacidad/115) + unlikelihood-acotado(calibración/119). Calibración y capacidad son ejes separados;
 > ninguna pieza sola basta (120). Frontera: balance de los tres términos, horizontes largos, SCALE.
+
+## CYCLE 121 — H-V4-9a (rama R-VALOR, payoff de la receta completa; RE-LOCALIZA el valor de R-VALOR) — REFUTADA (informativa)
+exp105 (PyTorch CPU, lazo real exp018, 4 seeds, 8 rondas, presupuesto ajustado, ANCLA en ambos): corrige el confound de
+120 (que quitó el ancla). Con el ancla presente, ¿añadir el unlikelihood (calibración, 119) mejora el downstream sobre la
+ancla-sola (115)? RESULTADO: el unlikelihood mejora la CALIBRACIÓN (corr final 0.182 vs 0.124, +0.059) y el YIELD (7.16 vs
+5.97, +1.19) PERO NO el downstream (real_acc AUC 0.180 vs 0.200 ≈ igual, levemente menor). MECANISMO: con el ANCLA
+saturando los datos de training con verdad canónica, los correctos-MARGINALES del mejor selector NO componen (la señal de
+training está dominada por el ancla, no por el selector). SÍNTESIS HONESTA 120+121: la cura de calibración (119) fija la
+SEÑAL pero NO acelera el self-training downstream en NINGÚN régimen -- sin ancla el costo de capacidad la hunde (120), con
+ancla el ancla satura los datos (121). El downstream del self-training es ANCLA-bound (lo marcan los datos verdaderos, no
+el selector). => RE-LOCALIZA el valor de R-VALOR: la señal de valor calibrada vale por las DECISIONES que la USAN --
+ASIGNACIÓN de recursos escasos (teoría 83-114) y UMBRAL/ABSTENCIÓN (106) -- NO por boostear el descenso del loss. R-VALOR
+es una BRÚJULA DECISIONAL, no un motor de aprendizaje. (Smoke 2-seeds dio gap positivo, ruido no confirmado por el full.)
+cycle121 → H-V4-9a 'refutada' (DoD), D-V4-83 ACEPTADA, techo 'real', verify_no_loss=OK. Test 2/2.
+
+> RE-LOCALIZACIÓN HONESTA (121): la durabilidad de la señal (cura 119) NO acelera el self-training downstream (ancla-bound);
+> el valor de R-VALOR es DECISIONAL -- asignar/abstener (83-114, 106), no descender el loss. R-VALOR = brújula decisional.
+> Frontera: medir el payoff de la señal calibrada EN una decisión de asignación con presupuesto externo; SCALE.
