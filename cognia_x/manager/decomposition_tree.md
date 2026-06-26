@@ -674,3 +674,19 @@ Todo el arco de asignación (83-96) asumió valor ESTACIONARIO. CYCLE 97 lo une 
 > raíz R-INTERVENCIÓN del árbol predice (la distribución debe VARIAR). Política del lazo: añadir exploración (idealmente
 > surprise-gated, CYCLE 59) bajo drift + observación estrecha; greedy con observación amplia o régimen estable. Frontera:
 > exploración surprise-gated; integrar con el lazo cerrado real; objetivo VECTOR; y SCALE (GPU).
+
+- **CYCLE 99 — H-V4-7l APOYADA (cierra el sub-arco 97-99).** ¿La exploración SURPRISE-GATED (explorar sólo cuando la
+  sorpresa indica cambio, CYCLE 59) logra no-regret, cerrando el caveat 'ε fijo' de CYCLE 98? Con métrica de REWARD
+  action-gated (la calidad de lo SELECCIONADO; explorar cuesta): la surprise-gated DOMINA al ε-fijo y es no-regret —
+  AHORRA en estacionario (surprise=0.859 vs explore-ε-fijo=0.559, +0.299; ≈ greedy=0.900) y RESCATA en drift
+  (surprise=0.550 >= explore=0.437, > greedy=0.532); surprise_avg=0.704 mejor (supera al ε-fijo +0.206). => exploración
+  endógena gateada por sorpresa, el análogo de CYCLE 59 (olvido) y CYCLE 66/74 (selector) para la EXPLORACIÓN. Caveat:
+  margen vs greedy chico (greedy robusto, CYCLE 98); tradeoff de umbral de detección. Cota 'real'; D-V4-61; test 4/4.
+
+> SUB-ARCO 97-99 CERRADO (no-estacionariedad en la ASIGNACIÓN) — espeja el arco de MEMORIA (58→59→66/74): (97) el
+> combinador R-VALOR debe OLVIDAR bajo drift (decay > full); (98) la EXPLORACIÓN liga bajo drift + observación estrecha
+> (greedy se atrapa, explorar rescata — R-INTERVENCIÓN reconciliada con sus nulls estacionarios); (99) la exploración
+> SURPRISE-GATED domina al ε-fijo y es no-regret (explorar sólo al detectar cambio por sorpresa). El estimador de valor
+> para ASIGNAR obedece, bajo no-estacionariedad, los MISMOS principios que para RECORDAR: descontar lo viejo (decay) +
+> explorar/olvidar gateado por sorpresa. Frontera: calibrar el umbral; integrar con el lazo cerrado real; objetivo
+> VECTOR; y SCALE (GPU).

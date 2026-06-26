@@ -3317,3 +3317,42 @@ drift (tier2) y con el no-trap estacionario de 87-88 (tier5).
 > árbol (la distribución debe VARIAR para que la intervención/exploración importe). Política del lazo: añadir exploración
 > (idealmente SURPRISE-GATED, CYCLE 59) bajo drift + observación estrecha; greedy basta con observación amplia o régimen
 > estable. Frontera: exploración surprise-gated; integrar con el lazo cerrado real; objetivo VECTOR; y SCALE (GPU).
+
+## CYCLE 99 — H-V4-7l (rama R-VALOR/R-INTERVENCIÓN, CIERRA el sub-arco 97-99): exploración SURPRISE-GATED — APOYADA
+
+### Pregunta
+CYCLE 98 mostró que bajo drift + observación estrecha la exploración (ε FIJO) rescata al greedy atrapado — pero el ε
+fijo paga exploración SIEMPRE (también en estacionario, donde no hace falta). ¿Una exploración SURPRISE-GATED (explorar
+sólo cuando la sorpresa indica cambio, reusando CYCLE 59) logra NO-REGRET — rescata bajo drift como el ε-fijo, sin pagar
+el costo bajo estacionario como el greedy?
+
+### Diseño
+Numpy, online, k_obs=2 (estrecho). Valor = bump gaussiano fijo (estacionario) o que se mueve cada D rondas (drift).
+Combinador ridge poly2 con decay. Estrategias: greedy (ε=0), explore (ε fijo), surprise_explore (ε gateado por spike de
+sorpresa = el combinador SOBRE-predijo el valor de lo que eligió greedy → cambio), random, oracle. MÉTRICA = REWARD
+action-gated (perf_of de lo SELECCIONADO; explorar tiene costo de oportunidad real, framing bandit). 48 seeds.
+
+### Resultado — APOYADA (la surprise-gated DOMINA al ε-fijo y es no-regret)
+AHORRA en ESTACIONARIO: surprise=0.859 vs explore-ε-fijo=0.559 (+0.299; el ε-fijo malgasta explorando cuando no hace
+falta) ≈ greedy=0.900 (−0.042). RESCATA en DRIFT: surprise=0.550 >= explore=0.437 (+0.112) y > greedy=0.532 (+0.017).
+Promediando, surprise_avg=0.704 es la mejor (vs greedy 0.716/explore 0.498; supera al ε-fijo por +0.206). => exploración
+endógena gateada por SORPRESA — el análogo del olvido por sorpresa (CYCLE 59) y del selector no-regret (CYCLE 66/74) para
+la EXPLORACIÓN; cierra el caveat 'ε fijo' de CYCLE 98.
+
+### Límites (honestos)
+El margen vs GREEDY es chico (greedy es ROBUSTO, CYCLE 98: se auto-corrige bajo drift mild; surprise_avg 0.704 ≈ greedy_avg
+0.716, margen −0.012 dentro de tolerancia). Hay un TRADEOFF de umbral de detección (estricto baja el falso-positivo
+estacionario pero sub-detecta el drift; laxo al revés) → el cierre pleno sería calibrar/seleccionar el umbral (CYCLE 74).
+La clara victoria es sobre el ε-FIJO (la pregunta del ciclo: qué ESQUEMA de exploración). Bump sintético, drift abrupto,
+k_obs=2, numpy/juguete.
+
+### Verificación
+exp083 (48 seeds, numpy, reward action-gated). cycle99 → H-V4-7l 'apoyada' (DoD), D-V4-61 ACEPTADA, 1 techo 'real',
+analogía 7 etapas, verify_no_loss=OK. Test `test_cycle99_surprise_explore.py` 4/4. Convergente con detección por
+sorpresa/exploración adaptativa (tier2, análogo CYCLE 59) y con el ε-fijo de CYCLE 98 (tier5).
+
+> SUB-ARCO 97-99 CERRADO (no-estacionariedad en la asignación): (97) el combinador R-VALOR debe OLVIDAR bajo drift
+> (decay > full); (98) bajo drift + observación estrecha la EXPLORACIÓN liga (greedy se atrapa, explorar rescata —
+> R-INTERVENCIÓN reconciliada); (99) la exploración SURPRISE-GATED domina al ε-fijo y es no-regret (explorar sólo al
+> detectar cambio). Espeja el arco de MEMORIA (58 olvido → 59 olvido-por-sorpresa → 66/74 selector no-regret) en la
+> ASIGNACIÓN. Frontera: calibrar el umbral de sorpresa; integrar con el lazo cerrado real (93-96); objetivo VECTOR; SCALE.

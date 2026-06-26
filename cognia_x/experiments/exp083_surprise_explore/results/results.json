@@ -1,0 +1,65 @@
+{
+  "exp": "exp083_surprise_explore",
+  "cycle": 99,
+  "hypothesis": "H-V4-7l",
+  "claim": "la exploracion SURPRISE-GATED (explorar solo cuando la sorpresa indica cambio, CYCLE 59) logra no-regret a traves de estacionario/drift: rescata bajo drift como el eps-fijo y no paga el costo bajo estacionario como el greedy -> exploracion endogena sin eps fijo (cierra el caveat de CYCLE 98)",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "stationary": {
+        "greedy": 0.9003,
+        "explore": 0.5594,
+        "surprise_explore": 0.8588,
+        "random": 0.2684,
+        "oracle": 1.0
+      },
+      "drift": {
+        "greedy": 0.5325,
+        "explore": 0.4373,
+        "surprise_explore": 0.5496,
+        "random": 0.2737,
+        "oracle": 1.0
+      }
+    },
+    "drift_rescue": 0.0171,
+    "drift_vs_explore": 0.1123,
+    "stat_savings": 0.2994,
+    "stat_vs_greedy": -0.0415,
+    "surprise_avg": 0.7042,
+    "greedy_avg": 0.7164,
+    "explore_avg": 0.4984,
+    "noregret_margin": -0.0122,
+    "dominates_explore": true,
+    "beats_explore_avg": true,
+    "no_regret": true,
+    "status": "apoyada",
+    "verdict": "H-V4-7l APOYADA (cierra el sub-arco 97-99): la exploración SURPRISE-GATED DOMINA al ε-fijo y es NO-REGRET, sin ε fijo. AHORRA en ESTACIONARIO: surprise=0.859 vs explore-ε-fijo=0.559 (+0.299; el ε-fijo malgasta explorando cuando no hace falta) y ≈ greedy=0.900 (-0.042). RESCATA en DRIFT: surprise=0.550 >= explore=0.437 (0.112) y > greedy=0.532 (+0.017). Promediando, surprise_avg=0.704 es la MEJOR (vs greedy 0.716/explore 0.498, margen -0.012). => exploración endógena gateada por SORPRESA (el combinador sobre-predijo lo que eligió greedy -> cambio detectado), el análogo del selector no-regret de CYCLE 66/74 para la EXPLORACIÓN; cierra el caveat 'ε fijo' de CYCLE 98. CAVEAT: hay un tradeoff de umbral de detección (sensibilidad-drift vs especificidad-estacionario); greedy es una referencia ROBUSTA (CYCLE 98: se auto-corrige bajo drift mild), por eso el margen vs greedy es chico."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "T": 40,
+    "D": 8,
+    "warmup": 4,
+    "k_obs": 2,
+    "k_eval": 10,
+    "decay": 0.8,
+    "eps_fixed": 0.5,
+    "eps_high": 0.5
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp083] CYCLE 99 / H-V4-7l — exploración SURPRISE-GATED: no-regret estacionario/drift (cierra el caveat ε-fijo de 98)",
+    "[exp083] n=50 T=40 D=8 warmup=4 k_obs=2 k_eval=10 decay=0.8 eps_fixed=0.5 eps_high=0.5 sigma=0.25 seeds=48",
+    "[exp083] stationary: greedy=0.900 explore=0.559 surprise_explore=0.859 random=0.268 oracle=1.000",
+    "[exp083]      drift: greedy=0.532 explore=0.437 surprise_explore=0.550 random=0.274 oracle=1.000",
+    "[exp083] DRIFT: rescue(surp−greedy)=+0.017 vs_explore=+0.112 | ESTAC: savings(surp−explore)=+0.299 vs_greedy=-0.042",
+    "[exp083] no-regret: surprise_avg=0.704 vs best_fixed(greedy 0.716/explore 0.498) margin=-0.012",
+    "[exp083] dominates_explore=True beats_explore_avg=True no_regret=True",
+    "[exp083] VEREDICTO H-V4-7l: APOYADA | H-V4-7l APOYADA (cierra el sub-arco 97-99): la exploración SURPRISE-GATED DOMINA al ε-fijo y es NO-REGRET, sin ε fijo. AHORRA en ESTACIONARIO: surprise=0.859 vs explore-ε-fijo=0.559 (+0.299; el ε-fijo malgasta explorando cuando no hace falta) y ≈ greedy=0.900 (-0.042). RESCATA en DRIFT: surprise=0.550 >= explore=0.437 (0.112) y > greedy=0.532 (+0.017). Promediando, surprise_avg=0.704 es la MEJOR (vs greedy 0.716/explore 0.498, margen -0.012). => exploración endógena gateada por SORPRESA (el combinador sobre-predijo lo que eligió greedy -> cambio detectado), el análogo del selector no-regret de CYCLE 66/74 para la EXPLORACIÓN; cierra el caveat 'ε fijo' de CYCLE 98. CAVEAT: hay un tradeoff de umbral de detección (sensibilidad-drift vs especificidad-estacionario); greedy es una referencia ROBUSTA (CYCLE 98: se auto-corrige bajo drift mild), por eso el margen vs greedy es chico."
+  ]
+}
