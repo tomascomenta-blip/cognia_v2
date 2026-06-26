@@ -848,3 +848,30 @@ frame del arco entero: desde el principio (83) el trabajo fue sobre CÓMO ASIGNA
 importa porque mantiene la brújula CONFIABLE para esas decisiones en lazos sostenidos, no porque acelere el aprendizaje.
 FRONTERA: medir el payoff de la señal calibrada DENTRO de una decisión de asignación con presupuesto EXTERNO (donde la
 señal es el único recurso de decisión, sin ancla que la sustituya); horizontes largos; objetivo no-sintético; y SCALE.
+
+## 3.AV CAPSTONE POSITIVO — la calibración PAGA en la decisión bajo ESCASEZ (123)
+122 no pudo demostrar el payoff decisional en el toy (saturaba / desestabilizaba) y diagnosticó que necesita ESCASEZ. 123
+(H-V4-9c, APOYADA) lo demuestra POSITIVAMENTE en una abstracción numpy CONTROLADA que aísla los dos ejes -- calibración ρ
+del selector × escasez q de buenas opciones. RESULTADO: bajo ESCASEZ (q=0.08) la calibración lleva el payoff de la decisión
+(buenas elegidas al someter las top-m por el estimador) de AZAR (0.091, ρ=0) a CASI-ÓPTIMO (0.995, ρ=0.9): +0.904. Bajo
+ABUNDANCIA (q=0.9) el payoff SATURA (0.903->1.000, +0.097): la calibración es IRRELEVANTE porque cualquier selector captura
+casi todas las buenas. => DEMUESTRA POSITIVAMENTE que R-VALOR (la señal de valor calibrada) PAGA en la DECISIÓN de asignar
+un recurso ESCASO, exactamente donde la teoría de asignación (83-114) dice que el valor importa; y confirma por qué el toy
+de 122 (que el modelo domina -> abundancia) no podía aislarlo.
+
+## 3.AW CONCLUSIÓN DEFINITIVA del arco R-VALOR (89-123, 35 ciclos)
+El arco entero converge en una tesis coherente y honesta sobre el VALOR ENDÓGENO (R-VALOR = controlabilidad × relevancia):
+1. **Qué es y cómo se usa (teoría de asignación, 83-114, validada toy→real 105/107):** R-VALOR es la señal para ASIGNAR
+   recursos escasos -- qué elegir (ganancia marginal en la agregación / costo), cuándo gastar (timing/abstención), si vale
+   estimar (ROI), con las propiedades del estimador (calibración para umbral/costo; lo que daña es romper el orden) y la
+   co-sintonía con la generación.
+2. **Su fragilidad y cura (115-119):** la señal de valor COLAPSA si el sistema se auto-entrena sobre ella; la cura es un
+   unlikelihood ACOTADO sobre lo verificado-incorrecto (mantiene la calibración a cero costo de capacidad).
+3. **Dónde vale (re-localización 120-121 + demostración 122-123):** la calibración NO acelera el descenso del loss
+   (ancla-bound); su valor es DECISIONAL y se REALIZA bajo ESCASEZ -- la calibración del selector lleva el payoff de una
+   decisión de azar a casi-óptimo cuando las buenas opciones escasean, y es irrelevante bajo abundancia.
+TESIS FINAL: R-VALOR es una BRÚJULA DECISIONAL endógena -- estima el valor para ASIGNAR bajo escasez/presupuesto; no es un
+free lunch que acelere el aprendizaje, pero sí una guía potente y RE-CALIBRABLE (penalizando de forma acotada lo
+verificado-incorrecto) para decidir dónde gastar los recursos escasos de un sistema. FRONTERA: re-medir el payoff decisional
+en un lazo real con escasez genuina (tarea dura) y a SCALE; integrar el unlikelihood-acotado con la teoría de asignación;
+horizontes largos; objetivo no-sintético. H-V4-4 (techo de recall = optimización) sigue DIFERIDA.
