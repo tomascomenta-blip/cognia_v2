@@ -2961,3 +2961,47 @@ y con la política gap #2 de CYCLE 86 (tier5).
 > donde el verificador es conjuntivo (strong); el aprendido recupera donde el echo lo vuelve relevancia-dominante (weak).
 > El feedback discreto no rompe el aprendizaje. Falta el eje NO-NESTEABLE: un target cuya media condicional el poly2 no
 > nesta y/o un generador de MODELO real con lazo cerrado (hija H-V4-7h) — y SCALE (GPU).
+
+## CYCLE 90 — H-V4-7h (rama R-VALOR, hija de CYCLE 89; liga R-PRIOR/H-V4-3): media NO-NESTEABLE — MIXTA
+
+### Pregunta
+CYCLE 89 dejó como caveat que la ESPERANZA E[v|c,r] del verificador real seguía SUAVE y nesteable por el poly2 (generador
+sintético). ¿La política R-VALOR todavía recupera el valor cuando la media condicional del verificador REAL NO es
+nesteable por el poly2 — y de qué depende?
+
+### Diseño
+Numpy + sandbox REAL de exp018. La feature estructural c controla una estructura de DOS BANDAS INTERIORES
+(well_formed = c en [0.2,0.4) ∪ [0.6,0.8), no-monótona), que derrota al prior MONÓTONO (product, apuesta a c alto ->
+extremo rechazado) Y a la PARÁBOLA (poly2, un solo pico -> centro rechazado). El sandbox EJECUTA el candidato y decide v;
+E[v|c,r] = 1{c en banda}·r. Feedback COSTOSO (K=10/ronda, random insesgado, buffer compartido). Brazos: product,
+learned_poly2 (gap #2), learned_poly4, learned_bin (no-paramétrica 8×8), bayes (techo: rankea por E[v|c,r] real), oracle
+(v realizado), chance. Eje de presupuesto B ∈ {low T=20, high T=80}. 48 seeds. Pre-registrado.
+
+### Resultado — MIXTA (dos hallazgos honestos)
+(1) El poly2 FALLA: short del techo bayes (0.824) por 0.330 (poly2=0.494) — sólo captura el eje r nesteable, no la
+estructura c. CONFIRMA que el poly2 default del gap #2 NO es universal: existen valores REALES donde su base no llega
+(cierra el eje no-nesteable del caveat de CYCLE 89). El producto monótono falla aún más (0.325). (2) La base RICA
+no-paramétrica (binned) recupera PARCIALMENTE (+0.117 sobre poly2) y es DATA-HUNGRY (+0.076 low->high vs +0.024 de poly2)
+PERO NO alcanza el techo bayes (short 0.214) ni con T grande (probado hasta T=1000: satura ~0.65) ni con features casi
+limpias (satura ~0.69): el tope lo pone la DISCRETIZACIÓN de la grilla (celdas que cruzan bordes de banda + promedian el
+eje r). => recuperar un valor no-nesteable es CARO: exige una base que matchee la estructura Y feedback/resolución
+suficientes. El lever es el MATCH+RESOLUCIÓN del prior (la base) con la estructura del valor — exactamente R-PRIOR/H-V4-3.
+
+### Límites (honestos)
+g determinista-banda sintético, espacio 2D, base binned cuadrada (un prior MATCHEADO a la estructura — features de banda
+/ kernel — recuperaría más barato; no testeado). Falta el generador de MODELO real (lazo cerrado exp018), objetivo
+no-escalar y SCALE (GPU). NO es APOYADA (la base rica no recupera del todo) ni REFUTADA (poly2 sí falla y la base rica sí
+mejora con presupuesto).
+
+### Verificación
+exp074 (48 seeds, numpy + sandbox exp018). cycle90 → H-V4-7h 'mixta' (DoD), D-V4-52 ACEPTADA, 1 techo 'real' (2 blockers
+'fisico' = sesgo de aproximación irreducible + discretización), analogía 7 etapas, verify_no_loss=OK. Test
+`test_cycle90_nonnested_value.py` 5/5 (bandas derrotan monótono+parábola + poly2-no-universal + 3 ramas). Convergente con
+base=prior/sesgo-aproximación (tier2) y con el caveat no-nesteable de CYCLE 89 (tier5).
+
+> ACOTACIÓN del gap #2 (liga R-PRIOR/H-V4-3): el combinador poly2 que dominaba en 83-89 NO es universal — falla cuando la
+> media condicional del valor real no entra en su span (estructura no-monótona/multi-banda). Una base más rica recupera
+> PARCIALMENTE a costa de feedback/resolución. POLÍTICA: poly2 por DEFECTO (barato, robusto donde el valor es
+> suave/conjuntivo, CYCLE 89); escalar a una base más rica/MATCHEADA SÓLO con evidencia de estructura no-nesteable +
+> presupuesto. Próximo: un prior MATCHEADO a la estructura (features de banda/kernel) que recupere barato; el generador
+> de MODELO real (lazo cerrado exp018); y SCALE (GPU).

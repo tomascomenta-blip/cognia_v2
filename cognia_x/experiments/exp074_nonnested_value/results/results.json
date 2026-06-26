@@ -1,0 +1,64 @@
+{
+  "exp": "exp074_nonnested_value",
+  "cycle": 90,
+  "hypothesis": "H-V4-7h",
+  "claim": "cuando la media condicional del verificador REAL NO es nesteable por el poly2 (estructura multi-banda), el poly2 default del gap #2 falla pero una base rica no-parametrica (binned) recupera a costa de mas feedback: el lever es el match del prior con la estructura del valor (R-PRIOR)",
+  "verdict": "mixta",
+  "summary": {
+    "grid": {
+      "low": {
+        "product": 0.3253,
+        "learned_poly2": 0.4701,
+        "learned_poly4": 0.4844,
+        "learned_bin": 0.5344,
+        "bayes": 0.8295,
+        "oracle": 1.0,
+        "chance": 0.2273
+      },
+      "high": {
+        "product": 0.3254,
+        "learned_poly2": 0.4938,
+        "learned_poly4": 0.5201,
+        "learned_bin": 0.6105,
+        "bayes": 0.8242,
+        "oracle": 1.0,
+        "chance": 0.2309
+      }
+    },
+    "bayes": 0.8242,
+    "poly2_short_vs_bayes": 0.3304,
+    "bin_short_vs_bayes": 0.2137,
+    "bin_recovers_vs_poly2": 0.1167,
+    "poly4_recovers": 0.0263,
+    "bin_budget_cost": 0.0761,
+    "poly2_budget_cost": 0.0237,
+    "poly2_failed": true,
+    "bin_recovered": false,
+    "rich_costs_more": true,
+    "status": "mixta",
+    "verdict": "H-V4-7h MIXTA: poly2_failed=True (short=0.330) bin_recovered=False (+0.117 sobre poly2, short bayes 0.214). La base rica recupera PARCIALMENTE (no alcanza el techo bayes a este presupuesto)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k_budget": 10,
+    "k_eval": 10,
+    "E": 20,
+    "ctrl_noise": 0.2
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp074] CYCLE 90 / H-V4-7h — R-VALOR sobre media NO-NESTEABLE (verificador REAL multi-banda; conecta R-PRIOR)",
+    "[exp074] n=50 k_budget=10 k_eval=10 E=20 seeds=48 bands=[0.2,0.4)U[0.6,0.8) GBINS=8 budgets={'low': 20, 'high': 80} ctrl_noise=0.2 targets=[2,300]",
+    "[exp074]  low (T=20): product=0.325 poly2=0.470 poly4=0.484 bin=0.534 bayes=0.830 oracle=1.000 chance=0.227",
+    "[exp074] high (T=80): product=0.325 poly2=0.494 poly4=0.520 bin=0.611 bayes=0.824 oracle=1.000 chance=0.231",
+    "[exp074] poly2_short(vs bayes)=0.330 | bin_recovers(vs poly2)=+0.117 | bin_short(vs bayes)=0.214 | poly4_recovers=+0.026",
+    "[exp074] budget_cost: bin +0.076 vs poly2 +0.024 (rich_costs_more=True)",
+    "[exp074] poly2_failed=True bin_recovered=False",
+    "[exp074] VEREDICTO H-V4-7h: MIXTA | H-V4-7h MIXTA: poly2_failed=True (short=0.330) bin_recovered=False (+0.117 sobre poly2, short bayes 0.214). La base rica recupera PARCIALMENTE (no alcanza el techo bayes a este presupuesto)."
+  ]
+}

@@ -517,3 +517,22 @@ EJECUTA el candidato; valor DISCRETO v∈{0,1}).
 > (umbral agudo / no-monotonía) y/o un GENERADOR de MODELO real (exp018 HybridLM) con lazo cerrado de entrenamiento
 > (verificado-correcto -> training -> el generador cambia). Y SCALE (GPU). El producto sigue de baseline con feedback
 > pobre; con feedback adecuado, el combinador aprendido (incluso greedy) — ahora confirmado contra un juez real.
+
+- **CYCLE 90 — H-V4-7h MIXTA (hija de 89, ataca el eje NO-NESTEABLE; liga R-PRIOR/H-V4-3).** ¿La política R-VALOR
+  recupera cuando la media condicional del verificador REAL NO es nesteable por el poly2? exp074 hace que la feature
+  estructural c controle DOS BANDAS INTERIORES ([0.2,0.4)∪[0.6,0.8), no-monótona) que derrotan al monótono (product) y a
+  la parábola (poly2); el sandbox decide v. DOS HALLAZGOS: (1) poly2 FALLA — short del techo bayes (rankear por E[v|c,r]
+  real) por 0.330 (poly2=0.494 vs bayes=0.824); sólo capta el eje r nesteable. CONFIRMA que el poly2 del gap #2 NO es
+  universal (cierra el eje no-nesteable del caveat de 89). (2) una base RICA no-paramétrica (binned 8×8) recupera
+  PARCIALMENTE (+0.117 sobre poly2) y es DATA-HUNGRY (+0.076 low->high vs +0.024 de poly2) PERO no alcanza bayes (short
+  0.214) ni con T=1000 (satura ~0.65) ni con features casi limpias (satura ~0.69): tope por DISCRETIZACIÓN de la grilla.
+  => recuperar un valor no-nesteable es CARO: exige una base que matchee la estructura Y feedback/resolución suficientes;
+  el lever es el MATCH+RESOLUCIÓN del prior (la base), exactamente R-PRIOR/H-V4-3. Cota 'real' (2 blockers 'fisico':
+  sesgo de aproximación irreducible + discretización); D-V4-52; test 5/5.
+
+> ACOTACIÓN del gap #2 (89-90) — el combinador poly2 que dominaba en 83-89 NO es universal: vale donde el valor es
+> suave/conjuntivo (89, verificador real strong/weak) pero FALLA donde la media condicional no entra en su span (90,
+> multi-banda), y una base más rica recupera sólo PARCIAL y caro. POLÍTICA: poly2 por DEFECTO; escalar a una base
+> MATCHEADA sólo con evidencia de estructura no-nesteable + presupuesto. Esto ABRE la conexión gap #2 ↔ R-PRIOR/H-V4-3
+> (ABIERTA): la calidad/forma del prior (la base) fija la eficiencia muestral. Frontera: un prior matcheado a la
+> estructura (features de banda/kernel) que recupere barato; el generador de MODELO real (lazo cerrado exp018); y SCALE.
