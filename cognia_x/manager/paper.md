@@ -657,3 +657,52 @@ La ESCALA (todo CPU/juguete; numpy + HybridLM tiny) — el salto a un sustrato n
 corrida CPU. La integración de TODAS las piezas de la regla general en UN lazo cerrado real (cada axis se validó por
 separado; el core 93-94/96 en el lazo real, las extensiones 95/97-103 en numpy). Objetivos sintéticos (cobertura/vector
 /bump) — falta un objetivo de un lazo real no-sintético. H-V4-4 (techo de recall = optimización) sigue DIFERIDA.
+
+---
+
+# Extensión 104-110 — cierre del arco de asignación + 2 validaciones toy→real + puente a la generación (2026-06-26)
+
+> 7 ciclos más (engine intacto: DoD + verify_no_loss=OK + test). Completan la teoría de asignación, la VALIDAN sobre el
+> modelo real y la conectan con la generación/creatividad. Honestidad: 1 REFUTADA con reversión, 1 artefacto cazado.
+
+## 3.AD Dimensión TEMPORAL — TIMING / ABSTENCIÓN del presupuesto (104)
+Todo 83-103 gastó un presupuesto FIJO por ronda (QUÉ elegir DENTRO de una ronda). 104 (H-V4-8i, APOYADA) añade el CUÁNDO:
+con un presupuesto GLOBAL sobre rondas de RIQUEZA heterogénea, asignar por el valor estimado de cada ronda -- gastar donde
+rinde, ABSTENERSE en las pobres -- supera masivamente al gasto uniforme (≈ oracle). El valor de NO actuar es real. La
+asignación R-VALOR completa = within-round (qué) + across-round (cuándo).
+
+## 3.AE VALIDACIÓN toy→real (105, 107) — el arco no es sólo teoría de juguete
+El honest gap de 95-104 era que casi todo es numpy. Dos ciclos lo cierran sobre el LAZO CERRADO con el GENERADOR de MODELO
+REAL (HybridLM exp018):
+- 105 (H-V4-8j, APOYADA): el costo-por-valor (101) TRANSFIERE al lazo real -- asignar la verificación por VALOR-POSITIVO/
+  costo rinde más datos correctos por presupuesto y mejora el downstream. (Método: un artefacto de logprob-negativo en el
+  ratio dio un REFUTADA falso, cazado por el mecanismo -corr(valor,costo)≈0- y corregido con valor positivo.)
+- 107 (H-V4-8l, APOYADA, CAPSTONE): la RECETA COMPUESTA (confianza + costo-por-valor + cobertura de targets) COMPONE sobre
+  el modelo real y ALCANZA el techo de verificación-total (compuesto 0.741 ≈ verify_all 0.748) a una FRACCIÓN del
+  presupuesto. Cobertura = lever dominante del downstream; costo = yield-eficiencia (base-dependiente).
+
+## 3.AF Propiedades del estimador de valor: CALIBRACIÓN y ORDER-BREAKING (106, 108-109)
+Qué propiedad del estimador importa para qué decisión:
+- 106 (H-V4-8k, APOYADA): la CALIBRACIÓN (la ESCALA) importa EXACTAMENTE para decisiones valor-vs-escala-externa
+  (abstención 104 / costo 101); para RANKING (top-k) sólo cuenta el ORDEN -> la calibración es irrelevante. Precisa el rol
+  de la confianza calibrada (57/60): invertir en calibrar sólo cuando la decisión compara con una escala externa.
+- 108 (H-V4-8m, REFUTADA con reversión) + 109 (H-V4-8n, APOYADA): a error RMS igualado, lo que daña la ASIGNACIÓN
+  (ranking) es el error que ROMPE EL ORDEN, no 'sesgo vs ruido'. Orden de daño: sesgo order-PRESERVING (offset constante,
+  el MEJOR) > ruido (order-breaking aleatorio, intermedio) > sesgo order-BREAKING sistemático (el PEOR, mete siempre los
+  mismos equivocados). La métrica relevante es el desacuerdo de orden (Kendall-tau), no el RMS. Reconcilia CYCLE 55
+  (verificador sesgado = order-breaking) y 106 (monótono no afecta ranking pero sí umbral).
+
+## 3.AG PUENTE generación↔selección (110) — bridge a la creatividad (pillar #4)
+110 (H-V4-8o, APOYADA): la DIVERSIDAD del generador (temperatura) y la CALIDAD de la asignación son COMPLEMENTARIAS
+(interacción temp×alloc = +0.606, 100% seeds): subir la diversidad paga bajo buena asignación (el filtro descubre lo bueno
+y descarta el ruido) y DAÑA bajo asignación pobre (inunda de basura). R-VALOR gobierna cuánta EXPLORACIÓN del generador
+conviene -- co-sintonizar filtro y diversidad. Caveat honesto: el mejor config absoluto es random+low (lo robusto es la
+INTERACCIÓN/co-sintonía, no un óptimo global), y conf-alloc sola narrows (93/94) -> el filtro completo incluiría la guardia
+de diversidad. La creatividad sólo paga si hay un buen juez que la filtre.
+
+## 3.AH Estado y frontera al CYCLE 110
+La teoría de asignación R-VALOR está COMPLETA bajo realismo (estimación: ctrl×rel, calibración, order-breaking; asignación:
+marginal/agregación, costo, cobertura, timing, no-estacionariedad, meta; generación: co-sintonía con el filtro) y VALIDADA
+toy→real en sus piezas centrales (costo 105, receta compuesta 107). FRONTERA: validar las extensiones restantes
+(no-estacionariedad 97-99, vector 100, timing 104) en el lazo real; barrido del óptimo de diversidad; objetivo no-sintético;
+y SCALE (GPU/Kaggle, fuera de la corrida CPU). H-V4-4 (techo de recall = optimización) sigue DIFERIDA.
