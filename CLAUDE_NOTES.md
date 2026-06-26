@@ -796,3 +796,134 @@ for two separate-window edits). Regression: tests/test_phase25.py::TestChangedPa
 3. (Optional) wire or delete GoalManager.goal_aware_memory_boost (dead, latent dim trap).
 4. (Optional) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
 5. Re-run benchmark once a real shard/DB is present (still pending across sessions).
+
+---
+
+## Session: 2026-06-26  (BUG-3 FIXED + BUG-5 discovered: speculative decoding is effectively DEAD)
+
+### Context / approach
+Picked up priority #1 from 2026-06-25: fix BUG-3 (speculative KV off-by-one on draft
+divergence) with the deterministic fake-engine reproducer the prior session designed.
+Env unchanged: NO venv312 in this checkout; system `python` is 3.12.10 (numpy 1.26.4 +
+pytest 9.0.3), used directly. Read the FULL KV path before touching anything
+(orchestrator `_token_loop`/`_shard_infer_stream` → `_forward_through_swarm` →
+`ShardEngine.process` → `RealTransformerLayer._attention`/`truncate_kv`/`kv_len`, and
+`nano_draft.draft`) to confirm the exact KV bookkeeping (one slot appended per token
+forwarded). Fixed BUG-3 (verified, pushed). While tracing the loop to build the test I
+found BUG-5 — a much bigger PERF issue: the spec path almost never executes — and proved
+it deterministically. BUG-5 is documented (not shipped) because enabling it risks
+sampling correctness and the real speed payoff can't be measured without the model.
+
+### [BUG-3 — LIVE correctness, FIXED + PUSHED (0d4d057)] Speculative KV off-by-one on divergence
+**File**: shattering/orchestrator.py — `_spec_resolve` (NEW helper) + `_token_loop` + `_shard_infer_stream`
+
+Root cause (exactly as the 2026-06-25 note predicted): the batch forwards N_DRAFT
+candidates and the KV grows by N_DRAFT slots (one per candidate, positions
+kv_before..kv_before+N-1). On a divergence at index j the committed token is the model's
+correction `pred_j`, but slot kv_before+j holds the REJECTED candidate `c_j`. The loop
+truncated to the *committed* length `kv_before + k` (k = j+1), KEEPING that phantom slot
+→ KV one token longer than & mis-aligned with the committed sequence → corrupts the rest
+of the turn. Worse, prev_output stayed non-None so the next iteration re-entered the spec
+path WITHOUT ever forwarding the correction token (its KV never got built).
+
+Fix: extracted a shared `_spec_resolve(candidates, out_batch, vocab_size, eos_set)`
+helper returning `(accepted, matched, eos_hit)` where `matched` = candidates accepted
+EXACTLY as drafted (= the only valid KV slots). Both loops now (a) `truncate_kv(sid,
+kv_before + matched)` dropping every rejected/un-forwarded slot, (b) set `prev_output =
+None` after the batch so the next iteration takes the NORMAL path and forwards the
+trailing committed token (divergence correction OR the un-forwarded bonus), building its
+KV + recomputing prev_output from real logits, (c) stop cleanly when the model predicts
+EOS as the post-accept bonus. Invariant restored: `kv_len(session) == len(committed
+tokens forwarded)`. The all-accept+bonus case was only *accidentally* correct before
+(the `+k` overshoot clamps to a no-op and relied on a fragile d0 mismatch); now it is
+explicit.
+
+Verified (no real draft/shards needed — pinned at the KV-bookkeeping layer):
+  - Deterministic fake-engine reproducer (tests/test_e2e_inference.py::
+    TestSpeculativeKVAlignment): under OLD `+k` the rejected candidate (99) survives and
+    the cache is one token too long; under `+matched` the cache stays exactly aligned.
+  - `_spec_resolve` contract tests (TestSpecResolveContract: divergence / all-accept+bonus
+    / EOS-bonus).
+  - Real `_token_loop` run end-to-end with fake engine+draft+pipeline (+1 counter model):
+    spec path active for 60 tokens, the phantom rejected candidate NEVER leaks into KV,
+    cache length bounded (explicit CHECK).
+  - Full fast suite: **2464 passed, 1 skipped, 0 failed** (259s) — no regression (new
+    tests live in test_e2e_inference.py, run targeted: 9 passed incl. the 4 LPC tests).
+
+### [BUG-5 — DISCOVERED, PROVEN, NOT shipped] Speculative decoding effectively never triggers
+**File**: shattering/orchestrator.py — `_token_loop` / `_shard_infer_stream` spec guard
+
+Root cause (off-by-one in the DRAFT CONTEXT, distinct from BUG-3's KV off-by-one):
+after a normal step the last committed token `next_id` is un-forwarded; `prev_output`
+predicts it, so `d0_expected = argmax(prev_output) = next_id`. But the draft context
+`ctx = prompt[-32:] + generated_ids` INCLUDES `next_id`, so `draft(ctx)` predicts the
+token AFTER `next_id` → `candidates[0] = token-after-next_id`. The entry guard
+`if d0_expected == candidates[0]` is therefore almost never true (only on an immediate
+token repeat, e.g. runs of spaces/newlines/`==`), so the batch never runs and the spec
+path is skipped. Because every normal step leaves the next committed token un-forwarded,
+the loop falls into normal steps and STAYS there. Net: the speculative-decoding feature
+delivers ~zero benefit in normal generation.
+
+PROOF (deterministic, model-free): ran the real `_token_loop` with a PERFECT draft (one
+that returns the exact correct future tokens under a +1-counter model) + fake engine.
+Result: **spec batch entered 0 times out of 40 generated tokens.** Even a perfect draft
+never triggers it. (Repro lived in /tmp/spec_trigger.py — re-creatable from this note.)
+
+WHY NOT SHIPPED: the correct fix makes the batch start with the un-forwarded committed
+token as the anchor (`candidates = [current_ids[-1]] + draft(ctx)[:N-1]`, and accept only
+the verified speculation, NOT re-appending the anchor — needs a `_spec_resolve` rework to
+separate "anchor" from "newly committed"). That ENABLES a path that is currently dead, and
+two things make it unsafe to ship blind here:
+  1. **Sampling correctness.** The spec path verifies via argmax-matching, which is only
+     exact for GREEDY decoding. The normal path SAMPLES (`_sample`, default temperature
+     0.5 in `_token_loop`). Enabling spec under temperature>0 would silently bias accepted
+     runs toward greedy — a behavior change, not a pure acceleration. Proper spec-under-
+     sampling needs the modified rejection-sampling acceptance test, not argmax==.
+  2. The real speed payoff (acceptance rate) is unmeasurable without nano_draft.npz +
+     loaded shards, NEITHER present in this checkout (CLAUDE.md rules 2 & 4).
+The greedy-EXACTNESS of a fix IS verifiable model-free (run greedy vs spec on the +1
+fake model, assert identical token sequences). NEXT SESSION with the real model should:
+fix the anchor offset, GATE spec to temperature≈0 (or implement rejection-sampling
+acceptance), prove greedy-equivalence with the fake model, then measure acceptance rate
+on a real prompt before enabling by default. NOTE: BUG-3's fix is still correct & needed
+— it makes the spec path safe for the rare repeat-token case today and for whenever BUG-5
+is fixed.
+
+### Items checked and deliberately NOT actioned (with corrected reasoning)
+- **GoalManager.goal_aware_memory_boost "latent dim trap" (prior #3): the trap is BENIGN.**
+  The chain `goal_aware_boost (facade) → goal_aware_memory_boost` is fully dead (the facade
+  is only named in a docstring at goal_and_pattern_engine.py:729, never invoked; no test
+  references it). The prior note called it a dim-mismatch trap, but `_cosine` (line 911)
+  already guards `len(a) != len(b)` → returns 0.0, so a mismatch yields a 0 boost, never a
+  crash or garbage. Harmless dead code; deleting it is pure cosmetics (removes a documented
+  "PASO 7" method) so I left it. Drop this from the priority list unless wiring it for real.
+
+### Operational notes
+- Push protocol unchanged (wincredman fails headless):
+  `git -c credential.helper='!gh auth git-credential' push origin HEAD:main`.
+- **site-packages shadow**: there is an INSTALLED copy of the `shattering` package at
+  `...\AppData\Local\Python\pythoncore-3.12-64\Lib\site-packages\shattering\` that LACKS
+  these fixes. It only shadows the repo when cwd is NOT the repo root (e.g. running a
+  script from /tmp puts the script dir on sys.path[0]). pytest + any `python` run from the
+  repo root correctly use the local repo (confirmed: `_spec_resolve` resolves to the repo
+  file). Harmless for dev/tests, but a reminder that the repo — not the installed pkg — is
+  the source of truth; the installed copy is stale.
+
+### State at session end
+- origin/main advanced by 1 commit: **0d4d057** (BUG-3 fix + tests), pushed & green.
+- Local branch integration/fixes-onto-origin tracks origin/main. Working tree clean
+  except this docs commit.
+
+### Priority Order for Next Session
+1. **Fix BUG-5 (spec path never triggers)** — highest-value PERF bug. Fix the draft-anchor
+   offset, GATE to greedy (temp≈0) or add rejection-sampling acceptance, prove greedy-
+   equivalence on the fake +1 model (model-free), then measure acceptance rate on a real
+   prompt WITH nano_draft.npz + shards before enabling by default. BUG-3's `_spec_resolve`
+   helper is the right place to add the anchor/newly-committed split.
+2. Continue the inference-runtime audit not yet covered: the DISTRIBUTED token loop
+   (node/inference_pipeline.py _single_forward_pass / session create / route) and the
+   per-rank KV-cache of tensor-parallel v2 (still un-reviewed). Verify wire-protocol
+   PTYPE_LOGITS shape handling on the real relay if a multi-node setup is available.
+3. (Optional) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
+4. Re-run benchmark once a real shard/DB is present (still pending across sessions).
+5. (Dropped) GoalManager dead-code: benign, see above — only revisit if wiring it for real.
