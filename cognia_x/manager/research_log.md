@@ -3804,3 +3804,26 @@ Test 5/5.
 > cara VALIOSA (upside bajo escasez) es BUDGET-ROBUSTA -- sin sustituto de presupuesto, hay que invertir en la calibración.
 > Presupuesto y calibración: SUSTITUTOS bajo abundancia (evitar minas), COMPLEMENTOS bajo escasez (capturar gemas). Frontera:
 > medir la asimetría en un lazo real / a SCALE; costo conjunto presupuesto×señal por régimen.
+
+## CYCLE 126 — H-V4-9f (rama R-VALOR, GROUNDING del sub-arco 123-125: ρ EARNED, no impuesto) — APOYADA
+exp110 (numpy, 200 seeds, probe lineal por mínimos cuadrados): la crítica más fuerte a 123-125 es que la calibración ρ era
+IMPUESTA (estimador sintético con corr-ρ). Este ciclo la ANCLA con un estimador APRENDIDO (probe ajustado sobre features,
+entrenado balanceado q=0.5, desplegado bajo escaso/abundante). DOS GROUNDINGS. (A) ρ ES GANADO Y MONÓTONO EN LA CALIDAD: al
+barrer el ruido del feature genuino, el ρ EARNED crece (σ=0.4: ρ=0.543, paga-escasez=0.816; σ=2.0: ρ=0.134, paga=0.183) y el
+payoff bajo escasez TRACKEA el ρ ganado -- reproduce 123 demostrando que ρ NO es un knob sino consecuencia de la calidad del
+estimador. ANTI-GOODHART: no se eligió un σ; se muestra la CURVA -- el primer parámetro probado (σ_sig=1.4) dio ρ=0.17
+insuficiente y, en vez de tunear a 'apoyada', se barrió la calidad (honestidad registrada). (B) LA ANTI-CALIBRACIÓN PELIGROSA
+SE GANA DE CORRELACIÓN ESPURIA + SHIFT: un probe que aprende un atajo limpio en train que se INVIERTE en deployment GANA
+ρ=-0.517<0 (anti-calibrado, 'confiadamente equivocado') y es CATASTRÓFICO bajo abundancia (payoff m3=0.232) pero
+BUDGET-FRÁGIL (m20=0.710) -- reproduce 124-125 con ρ ganado. => las apuestas decisionales 123-125 NO son artefacto del ρ
+impuesto; ρ se gana de la calidad/integridad del estimador, y la dirección peligrosa surge NATURALMENTE de un atajo espurio
+que sólo se delata bajo cambio de distribución -- conectando el sub-arco decisional con la fragilidad 'confiadamente
+equivocado' (115-118) y con R-INTERVENCIÓN (CYCLE 35). Reproducible smoke(50)≈full(200). cycle126 → H-V4-9f 'apoyada' (DoD),
+D-V4-88 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> GROUNDING EARNED (126): el sub-arco decisional 123-125 NO dependía del ρ impuesto. Con un estimador APRENDIDO: (A) ρ se
+> GANA de la calidad del feature (monótono) y el payoff bajo escasez lo trackea -- ρ no es un knob; (B) la anti-calibración
+> peligrosa se GANA de un atajo ESPURIO que se invierte en deployment (shift), uniendo apuestas decisionales (123-125) +
+> fragilidad (115-118) + R-INTERVENCIÓN (la señal espuria sólo se delata bajo shift). Defensas: recalibración/durabilidad
+> (119) + detección de shift; bajo abundancia, además ensanchar el presupuesto (125). Frontera: estimador no-lineal / lazo
+> real / SCALE; detectar el atajo espurio por su firma bajo intervención.

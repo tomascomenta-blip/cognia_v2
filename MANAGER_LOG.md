@@ -4277,3 +4277,19 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
   verify_no_loss=OK.
 - Frontera: medir la asimetría en un lazo real / a SCALE; costo conjunto presupuesto×señal por régimen; dependencia del codo
   de fragilidad con (q,n).
+
+## [2026-06-26] CYCLE 126 — H-V4-9f: GROUNDING del sub-arco 123-125 con ρ EARNED (no impuesto)
+- Archivos creados: cognia_x/experiments/exp110_earned_calibration/ (run.py+__init__), cognia_x/research/cycles/cycle126_earned_calibration.py, cognia_x/tests/test_cycle126_earned_calibration.py
+- Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.AZ)
+- Resultado tests: PASS — cycle126 dirigido 4/4; con cycle124+125+engine 32 passed; engine verify_no_loss=OK.
+- Notas: responde la crítica más fuerte a 123-125 ('ρ era impuesto'). exp110 usa un estimador APRENDIDO (probe lstsq sobre
+  features, train balanceado q=0.5, deploy escaso/abundante). (A) ρ EARNED crece con la calidad del feature (σ=0.4: ρ=0.543,
+  paga-escasez 0.816; σ=2.0: ρ=0.134, 0.183) y el payoff bajo escasez lo TRACKEA -> ρ NO es un knob (reproduce 123).
+  ANTI-GOODHART: el primer σ probado dio ρ insuficiente -> en vez de tunear a 'apoyada' se barrió la calidad y se mostró la
+  curva (honestidad). (B) un probe que aprende un atajo ESPURIO que se invierte en deployment GANA ρ=-0.517<0 (anti-calibrado)
+  y es catastrófico bajo abundancia (m3=0.232) pero budget-frágil (m20=0.710) -> reproduce 124-125. => las apuestas
+  decisionales no son artefacto del ρ impuesto; la anti-calibración peligrosa surge de correlación espuria + shift, uniendo
+  el sub-arco decisional (123-125) + fragilidad 'confiadamente equivocado' (115-118) + R-INTERVENCIÓN (CYCLE 35). cycle126 ->
+  H-V4-9f 'apoyada', D-V4-88 ACEPTADA, techo 'real', verify_no_loss=OK.
+- Frontera: estimador no-lineal / lazo real (modelo de lenguaje) / SCALE; detectar el atajo espurio por su firma bajo
+  intervención; demostrar que el auto-entrenamiento produce el atajo espurio.

@@ -1,0 +1,142 @@
+{
+  "exp": "exp110_earned_calibration",
+  "cycle": 126,
+  "hypothesis": "H-V4-9f",
+  "claim": "con un estimador APRENDIDO (probe lineal ajustado, rho EARNED no impuesto) se anclan las apuestas decisionales 123-125: (A) el rho earned crece con la calidad del feature y el payoff bajo escasez lo trackea (rho no es un knob; reproduce 123); (B) un probe que aprendio un feature ESPURIO que se invierte en deployment gana rho<0 (anti-calibrado) y es catastrofico-pero-budget-fragil bajo abundancia (reproduce 124-125) -> la anti-calibracion peligrosa surge de correlacion espuria + shift (R-INTERVENCION + fragilidad 115-118)",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "robusto": {
+        "0.4": {
+          "escaso": {
+            "3": {
+              "payoff": 0.8158,
+              "rho": 0.5427
+            },
+            "20": {
+              "payoff": 0.9638,
+              "rho": 0.5433
+            }
+          },
+          "abundante": {
+            "3": {
+              "payoff": 1.0,
+              "rho": 0.5992
+            },
+            "20": {
+              "payoff": 0.9995,
+              "rho": 0.5867
+            }
+          }
+        },
+        "1.0": {
+          "escaso": {
+            "3": {
+              "payoff": 0.3442,
+              "rho": 0.2594
+            },
+            "20": {
+              "payoff": 0.684,
+              "rho": 0.2562
+            }
+          },
+          "abundante": {
+            "3": {
+              "payoff": 0.9883,
+              "rho": 0.2887
+            },
+            "20": {
+              "payoff": 0.9722,
+              "rho": 0.2778
+            }
+          }
+        },
+        "2.0": {
+          "escaso": {
+            "3": {
+              "payoff": 0.1833,
+              "rho": 0.1338
+            },
+            "20": {
+              "payoff": 0.4987,
+              "rho": 0.1273
+            }
+          },
+          "abundante": {
+            "3": {
+              "payoff": 0.9633,
+              "rho": 0.1449
+            },
+            "20": {
+              "payoff": 0.9442,
+              "rho": 0.1434
+            }
+          }
+        }
+      },
+      "espurio": {
+        "escaso": {
+          "3": {
+            "payoff": 0.0,
+            "rho": -0.4809
+          },
+          "20": {
+            "payoff": 0.0063,
+            "rho": -0.4791
+          }
+        },
+        "abundante": {
+          "3": {
+            "payoff": 0.2317,
+            "rho": -0.5171
+          },
+          "20": {
+            "payoff": 0.71,
+            "rho": -0.5275
+          }
+        }
+      }
+    },
+    "rho_best": 0.5427,
+    "rho_worst": 0.1338,
+    "pay_best": 0.8158,
+    "pay_worst": 0.1833,
+    "esp_rho_abund": -0.5171,
+    "esp_pay_abund_tight": 0.2317,
+    "esp_pay_abund_mod": 0.71,
+    "rho_monotone": true,
+    "payoff_tracks_rho": true,
+    "best_pays_scarce": true,
+    "espurio_anticalibrated": true,
+    "espurio_catastrophic": true,
+    "espurio_budget_fragile": true,
+    "groundingA": true,
+    "groundingB": true,
+    "status": "apoyada",
+    "verdict": "H-V4-9f APOYADA (ρ EARNED ancla 123-125): (A) el ρ EARNED del probe robusto CRECE con la calidad del feature (σ=0.4: ρ=0.543, paga-escasez=0.816) vs (σ=2.0: ρ=0.134, paga=0.183) -- el payoff bajo escasez TRACKEA el ρ ganado (reproduce 123: mejor estimador -> más ρ -> paga más bajo escasez; ρ NO es un knob). (B) el probe ESPURIO -- que aprendió un feature limpio en train que se INVIERTE en deployment -- GANA ρ=-0.517<0 (anti-calibrado) y es CATASTRÓFICO bajo abundancia (payoff m3=0.232) pero BUDGET-FRÁGIL (m20=0.710) (reproduce 124-125 con ρ ganado). => las apuestas decisionales 123-125 NO son artefacto del ρ impuesto: ρ se gana de la calidad/integridad del estimador, y la anti-calibración peligrosa surge NATURALMENTE de correlación ESPURIA + cambio de distribución (R-INTERVENCIÓN + fragilidad 115-118)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp110] CYCLE 126 / H-V4-9f — ρ EARNED (probe ajustado): ¿ancla 123-125? (A) ρ monótono en calidad (B) espurio->anti-calibrado por shift",
+    "[exp110] seeds=200 sig_sweep=[0.4, 1.0, 2.0] ms=[3, 20] qs={'escaso': 0.08, 'abundante': 0.9} sig_sig_esp=1.2 sig_dec=0.4 n_train=400 n_test=60",
+    "[exp110] (A) probe ROBUSTO (ρ earned crece al bajar σ; payoff bajo escasez trackea ρ):",
+    "[exp110]    σ= 0.4 q=    escaso: m3:pay=0.816,ρ=+0.543 m20:pay=0.964,ρ=+0.543",
+    "[exp110]    σ= 0.4 q= abundante: m3:pay=1.000,ρ=+0.599 m20:pay=1.000,ρ=+0.587",
+    "[exp110]    σ= 1.0 q=    escaso: m3:pay=0.344,ρ=+0.259 m20:pay=0.684,ρ=+0.256",
+    "[exp110]    σ= 1.0 q= abundante: m3:pay=0.988,ρ=+0.289 m20:pay=0.972,ρ=+0.278",
+    "[exp110]    σ= 2.0 q=    escaso: m3:pay=0.183,ρ=+0.134 m20:pay=0.499,ρ=+0.127",
+    "[exp110]    σ= 2.0 q= abundante: m3:pay=0.963,ρ=+0.145 m20:pay=0.944,ρ=+0.143",
+    "[exp110] (B) probe ESPURIO (gana ρ<0 por shift; catastrófico bajo abundancia pero budget-frágil):",
+    "[exp110]    q=    escaso: m3:pay=0.000,ρ=-0.481 m20:pay=0.006,ρ=-0.479",
+    "[exp110]    q= abundante: m3:pay=0.232,ρ=-0.517 m20:pay=0.710,ρ=-0.527",
+    "[exp110] groundingA(ρ ganado ancla 123)=True groundingB(espurio->anti ancla 124-125)=True",
+    "[exp110] VEREDICTO H-V4-9f: APOYADA | H-V4-9f APOYADA (ρ EARNED ancla 123-125): (A) el ρ EARNED del probe robusto CRECE con la calidad del feature (σ=0.4: ρ=0.543, paga-escasez=0.816) vs (σ=2.0: ρ=0.134, paga=0.183) -- el payoff bajo escasez TRACKEA el ρ ganado (reproduce 123: mejor estimador -> más ρ -> paga más bajo escasez; ρ NO es un knob). (B) el probe ESPURIO -- que aprendió un feature limpio en train que se INVIERTE en deployment -- GANA ρ=-0.517<0 (anti-calibrado) y es CATASTRÓFICO bajo abundancia (payoff m3=0.232) pero BUDGET-FRÁGIL (m20=0.710) (reproduce 124-125 con ρ ganado). => las apuestas decisionales 123-125 NO son artefacto del ρ impuesto: ρ se gana de la calidad/integridad del estimador, y la anti-calibración peligrosa surge NATURALMENTE de correlación ESPURIA + cambio de distribución (R-INTERVENCIÓN + fragilidad 115-118)."
+  ]
+}

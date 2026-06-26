@@ -912,3 +912,24 @@ cura 119). La cara CATASTRÓFICA del doble filo resulta ser la BARATA de neutral
 en calibración. Esto unifica 123+124 bajo el eje del presupuesto y da una política concreta por régimen. FRONTERA: medir la
 asimetría en un lazo real / a SCALE; el costo CONJUNTO (presupuesto m × calidad de señal ρ) y la dependencia del codo de
 fragilidad con (q, n).
+
+## 3.AZ GROUNDING del sub-arco decisional — ρ es GANADO, no impuesto (126)
+La crítica más fuerte a todo el sub-arco 123-125 es que la calibración ρ era IMPUESTA (estimador sintético con corr-ρ). 126
+(H-V4-9f, APOYADA) la responde anclando la caracterización con un estimador APRENDIDO -- un probe lineal ajustado por mínimos
+cuadrados sobre features, entrenado en un régimen balanceado (q=0.5) y desplegado bajo regímenes de test escaso/abundante.
+Dos groundings. (A) ρ ES GANADO Y MONÓTONO EN LA CALIDAD DEL ESTIMADOR: al barrer el ruido del feature genuino, el ρ EARNED
+crece (σ=0.4 → ρ=0.543, payoff bajo escasez 0.816; σ=1.0 → ρ=0.259, 0.344; σ=2.0 → ρ=0.134, 0.183) y el payoff bajo escasez
+TRACKEA el ρ ganado -- reproduce 123 (mejor estimador → más ρ → paga más bajo escasez) demostrando que ρ no es un parámetro
+libre sino una consecuencia de la calidad del estimador. (Anti-Goodhart, registrado en honestidad: el primer parámetro
+probado dio ρ insuficiente y, en vez de tunear a 'apoyada', se barrió la calidad y se mostró la CURVA.) (B) LA
+ANTI-CALIBRACIÓN PELIGROSA SE GANA DE UNA CORRELACIÓN ESPURIA + CAMBIO DE DISTRIBUCIÓN: un probe que aprende un atajo limpio
+en entrenamiento que se INVIERTE en deployment GANA ρ=-0.517<0 (anti-calibrado, "confiadamente equivocado") y es CATASTRÓFICO
+bajo abundancia (payoff m3=0.232) pero BUDGET-FRÁGIL (recupera a m20=0.710) -- reproduce 124-125 con ρ ganado. =>
+CONSECUENCIA: las apuestas decisionales 123-125 no son un artefacto del ρ impuesto; ρ se gana de la calidad/integridad del
+estimador, y la dirección peligrosa (ρ<0) surge NATURALMENTE de un atajo espurio que sólo se delata bajo cambio de
+distribución. Esto UNE tres hilos del programa: el sub-arco decisional (123-125), la fragilidad "confiadamente equivocado"
+(115-118, donde la señal endógena se vuelve sobreconfiada-incorrecta bajo auto-entrenamiento) y R-INTERVENCIÓN (CYCLE 35: una
+señal no-causal/espuria sólo se descubre variando la distribución). Defensas correctas: recalibración/durabilidad (la cura
+acotada 119) + detección de shift; y bajo abundancia, además, ensanchar el presupuesto (125). FRONTERA: re-medir el grounding
+con un estimador NO-lineal / en un lazo real (modelo de lenguaje) y a SCALE; detectar el atajo espurio por su firma bajo
+intervención; demostrar end-to-end que el auto-entrenamiento PRODUCE este atajo espurio.
