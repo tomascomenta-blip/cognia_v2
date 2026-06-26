@@ -1,0 +1,60 @@
+{
+  "exp": "exp085_cost_aware_value",
+  "cycle": 101,
+  "hypothesis": "H-V4-8f",
+  "claim": "bajo costo de accion HETEROGENEO, R-VALOR es valor-POR-COSTO para objetivos ADITIVOS (knapsack: asignar por valor solo malgasta en items caros); para objetivos que SATURAN (cobertura) el costo importa menos (cubrir manda) -> el costo-por-valor es objeto-dependiente",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "additive_uniform": {
+        "value_greedy": 0.9496,
+        "ratio_greedy": 0.9725,
+        "oracle": 1.0,
+        "random": 0.5577
+      },
+      "additive_hetero": {
+        "value_greedy": 0.8849,
+        "ratio_greedy": 0.9448,
+        "oracle": 1.0,
+        "random": 0.7697
+      },
+      "coverage_hetero": {
+        "value_greedy": 0.9765,
+        "ratio_greedy": 0.9396,
+        "oracle": 1.0,
+        "random": 0.6234
+      }
+    },
+    "add_hetero_gain": 0.0599,
+    "add_oracle_gap": 0.0552,
+    "add_uniform_coincide": 0.0229,
+    "cov_hetero_gain": -0.0369,
+    "ratio_wins_additive": true,
+    "near_oracle_add": true,
+    "coincide_uniform": true,
+    "coverage_ratio_no_help": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8f APOYADA (objeto-dependiente): bajo objetivo ADITIVO + costo HETEROGÉNEO (lo valioso es caro), asignar por VALOR solo DESPERDICIA el presupuesto en ítems caros -- value_greedy=0.885 -- mientras valor-POR-COSTO recupera: ratio_greedy=0.945 (+0.060, ≈ cota LP gap 0.055). Bajo costo UNIFORME coinciden (Δ 0.023). PERO bajo COBERTURA que SATURA + costo hetero el ratio NO ayuda (ratio=0.940 vs value=0.977, Δ -0.037<=0.03): hay que CUBRIR los tipos sin importar el costo. => R-VALOR bajo costo de acción heterogéneo es valor-POR-COSTO para objetivos ADITIVOS (knapsack); para objetivos que SATURAN (cobertura) el costo importa menos (cubrir manda). El costo-por-valor es OBJETO-DEPENDIENTE."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "B": 10.0,
+    "noise": 0.05
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp085] CYCLE 101 / H-V4-8f — R-VALOR bajo COSTO de acción HETEROGÉNEO: valor-por-costo (objeto-dependiente)",
+    "[exp085] n=50 B=10.0 T_types=5 noise=0.05 seeds=48 cells=['additive_uniform', 'additive_hetero', 'coverage_hetero']",
+    "[exp085] additive_uniform: value_greedy=0.950 ratio_greedy=0.973 oracle=1.000 random=0.558",
+    "[exp085]  additive_hetero: value_greedy=0.885 ratio_greedy=0.945 oracle=1.000 random=0.770",
+    "[exp085]  coverage_hetero: value_greedy=0.977 ratio_greedy=0.940 oracle=1.000 random=0.623",
+    "[exp085] ADITIVO+hetero: ratio−value=+0.060 oracle_gap=0.055 | ADITIVO+uniforme: coincide Δ=0.023 | COBERTURA+hetero: ratio−value=-0.037",
+    "[exp085] ratio_wins_additive=True near_oracle=True coincide_uniform=True coverage_ratio_no_help=True",
+    "[exp085] VEREDICTO H-V4-8f: APOYADA | H-V4-8f APOYADA (objeto-dependiente): bajo objetivo ADITIVO + costo HETEROGÉNEO (lo valioso es caro), asignar por VALOR solo DESPERDICIA el presupuesto en ítems caros -- value_greedy=0.885 -- mientras valor-POR-COSTO recupera: ratio_greedy=0.945 (+0.060, ≈ cota LP gap 0.055). Bajo costo UNIFORME coinciden (Δ 0.023). PERO bajo COBERTURA que SATURA + costo hetero el ratio NO ayuda (ratio=0.940 vs value=0.977, Δ -0.037<=0.03): hay que CUBRIR los tipos sin importar el costo. => R-VALOR bajo costo de acción heterogéneo es valor-POR-COSTO para objetivos ADITIVOS (knapsack); para objetivos que SATURAN (cobertura) el costo importa menos (cubrir manda). El costo-por-valor es OBJETO-DEPENDIENTE."
+  ]
+}

@@ -3393,3 +3393,22 @@ marginal escalar de CYCLE 95 (tier5).
 > de asignación R-VALOR queda caracterizado bajo: feedback real (89), prior/base (90-92), lazo cerrado (93-96),
 > no-estacionariedad (97-99) y objetivo no-aditivo/vector (95,100). Frontera: agregaciones Nash/ponderadas con pesos
 > inciertos; >2 objetivos; integrar todo en el lazo cerrado real; y SCALE (GPU/Kaggle, fuera de CPU).
+
+## CYCLE 101 — H-V4-8f (rama R-VALOR, COSTO de acción HETEROGÉNEO) — APOYADA (objeto-dependiente)
+
+Todo el arco asumió COSTO UNIFORME por pick. Las acciones reales tienen costo HETEROGÉNEO (lo valioso es caro). exp085
+(numpy, 48 seeds): bajo presupuesto de COSTO total, celdas additive_uniform / additive_hetero / coverage_hetero; brazos
+value_greedy (ignora costo) vs ratio_greedy (valor/costo) vs oracle (cota LP fraccionaria / mejor heurística) vs random.
+RESULTADO objeto-dependiente: ADITIVO+hetero ratio=0.945 > value=0.885 (+0.060, ≈ cota LP gap 0.055) — asignar por valor
+solo malgasta en ítems caros; ADITIVO+uniforme coinciden (Δ 0.023); COBERTURA que SATURA + hetero el ratio NO ayuda
+(ratio=0.940 < value=0.977, Δ −0.037: hay que CUBRIR los tipos sin importar el costo). => R-VALOR bajo costo heterogéneo
+es valor-POR-COSTO para objetivos ADITIVOS (knapsack); para objetivos que SATURAN el costo importa menos (cubrir manda).
+El costo-por-valor es OBJETO-DEPENDIENTE. Caveat: ratio no alcanza la cota LP (greedy≠óptimo); costo correlacionado con
+valor (caso específico); objetivos sintéticos. cycle101 → H-V4-8f 'apoyada' (DoD), D-V4-63 ACEPTADA, techo 'real',
+verify_no_loss=OK. Test 5/5.
+
+> REGLA GENERAL de asignación R-VALOR (83-101): asignar por la GANANCIA MARGINAL en la AGREGACIÓN VERDADERA (CYCLE
+> 95/100), dividida por el COSTO si el objetivo es ADITIVO (CYCLE 101); bajo no-estacionariedad, con decay + exploración
+> surprise-gated (97-99); con la base/prior que matchee la estructura del valor (90-92); en el lazo cerrado real con
+> guardia de diversidad (93-96). Frontera: integrar TODO en el lazo cerrado real con el modelo; pesos inciertos / >2
+> objetivos; y SCALE (GPU/Kaggle, fuera de CPU).
