@@ -3045,3 +3045,43 @@ la base genérica data-hungry de CYCLE 90 (tier5).
 > esperada del valor: poly2 si suave/conjuntivo (89), base local/matcheada si multi-banda (91), nunca una genérica
 > data-hungry por defecto. Liga gap #2 con R-PRIOR. Frontera: de DÓNDE viene el prior correcto (meta-prior / selección de
 > base de los datos); el generador de MODELO real (lazo cerrado exp018); y SCALE (GPU).
+
+## CYCLE 92 — H-V4-3b (rama R-PRIOR, hija de CYCLE 91; META-PRIOR): ¿elegir la base de los datos? — MIXTA
+
+### Pregunta
+CYCLE 91 matcheó el prior por conocimiento de DISEÑO y dejó abierto de DÓNDE viene el prior correcto. ¿Puede el agente
+SELECCIONAR la base/prior de SUS PROPIOS datos (CV held-out, sin aviso de régimen) con no-regret a través de regímenes,
+y superar a cualquier base fija única? (META-PRIOR; replica el patrón del selector no-regret de CYCLE 86.)
+
+### Diseño
+Numpy + sandbox REAL de exp018. DOS regímenes que el agente NO conoce: SMOOTH (conjuntivo E[v]=c·r, poly2 barato/óptimo)
+y BAND (multi-banda E[v]=band(c)·r, rbf matcheado). El agente tiene un MENÚ {poly2, rbf, bin} y ELIGE por CV held-out
+(split 70/30, rankea el fold held-out por cada base ajustada en train, perf_of, elige la mejor; refit en todo el buffer).
+Brazos: always_{poly2,rbf,bin}, selector, oracle_selector (mejor base fija por seed = techo de un selector perfecto),
+bayes, product, chance. Feedback costoso (K=10/ronda). 48 seeds. Pre-registrado.
+
+### Resultado — MIXTA (no-regret SÍ, pero selección INNECESARIA)
+(1) El META-PRIOR FUNCIONA — NO-REGRET: el selector iguala a la mejor base POR RÉGIMEN (regret SMOOTH 0.007 / BAND 0.000)
+y a un oracle_selector PERFECTO (regret S=0.011/B=0.000); elige poly2 en smooth y rbf en band SIN aviso → el agente
+DESCUBRE el prior correcto de sus datos, cerrando el caveat de diseño de CYCLE 91. (2) PERO la selección es PRÁCTICAMENTE
+INNECESARIA: una base FLEXIBLE suficiente (rbf) casi DOMINA ambos regímenes (avg 0.655) porque NESTA tanto c·r (smooth,
+rbf 0.600 ≈ poly2 0.612) como band(c)·r (band, rbf mejor) → always-rbf ≈ selector (el selector la supera sólo +0.002).
+=> ESPEJA CYCLE 86 al nivel meta: un prior flexible que nesta los regímenes hace innecesaria la selección/detección
+explícita; la selección sólo paga cuando NINGUNA base única domina.
+
+### Límites (honestos)
+NO es APOYADA (la maquinaria de selección no compra ventaja neta sobre un buen default flexible; a presupuesto MUY bajo la
+CV ruidosa puede incluso restar). NO es REFUTADA (el selector SÍ logra no-regret y elige correctamente por régimen). g
+sintético, 2 regímenes, base binned cuadrada; un régimen FUERA del span de rbf haría la selección necesaria; falta el
+generador de MODELO real y SCALE.
+
+### Verificación
+exp076 (48 seeds, numpy + sandbox exp018). cycle92 → H-V4-3b 'mixta' (DoD), D-V4-54 ACEPTADA, 1 techo 'real', analogía 7
+etapas, verify_no_loss=OK. Test `test_cycle92_prior_selector.py` 4/4. Convergente con CV/clase-flexible-nesta (tier2) y
+con el caveat de diseño de CYCLE 91 (tier5).
+
+> META-PRIOR (cierre del arco R-PRIOR 89-92): el prior correcto se DESCUBRE de los datos (CV no-regret) — no hace falta
+> matchearlo a mano (cierra el caveat de diseño de 91). PERO la política práctica de R-PRIOR NO es una maquinaria de
+> selección sino TENER en el menú un prior FLEXIBLE-suficiente (rbf) que nesta los regímenes esperados (always-rbf ≈
+> selector, espeja CYCLE 86); la selección explícita se reserva para cuando ninguna base domine. Frontera: un régimen
+> fuera del span de rbf (donde la selección SÍ pague); el generador de MODELO real (lazo cerrado exp018); y SCALE (GPU).

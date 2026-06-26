@@ -557,3 +557,19 @@ prior MATCHEADO recupera BARATO — la tesis central de R-PRIOR/H-V4-3 (ABIERTA 
 > genérica data-hungry por defecto. Esto liga gap #2 con R-PRIOR/H-V4-3 y la mueve de ABIERTA a APOYADA-en-juguete.
 > Frontera: de DÓNDE viene el prior correcto (meta-prior / selección de base de los datos); el generador de MODELO real
 > (lazo cerrado exp018); y SCALE (GPU).
+
+- **CYCLE 92 — H-V4-3b MIXTA (META-PRIOR; cierra el caveat de diseño de CYCLE 91).** ¿Puede el agente ELEGIR la base de
+  SUS datos (CV held-out, sin aviso de régimen) con no-regret y superar a cualquier base fija? Menú {poly2, rbf, bin} +
+  CV held-out sobre DOS regímenes (smooth E[v]=c·r; band E[v]=band(c)·r), valor del sandbox REAL exp018. RESULTADO: (1)
+  el meta-prior FUNCIONA — NO-REGRET: el selector iguala a la mejor base por régimen (regret S=0.007/B=0.000) y a un
+  oracle_selector PERFECTO (S=0.011/B=0.000); elige poly2 en smooth y rbf en band SIN aviso → DESCUBRE el prior de sus
+  datos (cierra el caveat de diseño de 91). (2) PERO la selección es PRÁCTICAMENTE INNECESARIA: rbf (flexible) casi
+  DOMINA ambos regímenes (nesta c·r Y band(c)·r) → always-rbf ≈ selector (+0.002). Cota 'real'; D-V4-54; test 4/4.
+
+> ARCO R-PRIOR (89-92) — CUADRO FINAL: (89) la política R-VALOR sobrevive un verificador REAL discreto; (90) el poly2 no
+> es universal (falla en media no-nesteable); (91) la FORMA del prior fija la eficiencia muestral (un prior matcheado
+> recupera a fracción del costo); (92) el agente puede DESCUBRIR el prior de sus datos por CV (no-regret) PERO un prior
+> flexible-suficiente lo hace innecesario (espeja CYCLE 86). POLÍTICA R-PRIOR: TENER en el menú un prior flexible para
+> los regímenes esperados (rbf por defecto), no una maquinaria de selección; reservar la selección para cuando ninguna
+> base domine. R-PRIOR/H-V4-3 pasa de ABIERTA a APOYADA-en-juguete. Frontera: un régimen fuera del span de rbf; el
+> generador de MODELO real (lazo cerrado exp018); objetivo no-escalar; y SCALE (GPU).
