@@ -4077,3 +4077,55 @@ Decisiones D-V4-51..56 aceptadas por el ledger (tier5 propio). Suite cognia_x/te
 tests dirigidos de cada ciclo nuevo verdes. Honestidad anti-Goodhart respetada (3 MIXTA / 3 APOYADA reportadas tal cual,
 caveats explícitos: modelo tiny, tarea sembrada, parte del rescate por replay de verdad, CPU). Memoria de estado
 actualizada ([[cognia-x-v4-reset]]).
+
+---
+
+## [2026-06-26] Sesión autónoma (AUTONOMÍA TOTAL hasta 5:30am) — CYCLES 95-114: TEORÍA DE ASIGNACIÓN R-VALOR completa + validación toy→real
+Continuación de la corrida anterior (89-94). North Star: R-VALOR (valor endógeno = controlabilidad × relevancia).
+Modo: autonomía total hasta deadline, 100% autónomo, commit+push por unidad verificada. Método intacto (venv312, engine
+research-as-code con DoD + verify_no_loss + test de regresión por ciclo, honestidad anti-Goodhart).
+
+### Qué se construyó (20 ciclos: 95-114)
+- **Teoría de ASIGNACIÓN R-VALOR bajo realismo (95-104):** valor MARGINAL en la agregación verdadera (95 submodular,
+  100 vector egalitario); costo-por-valor/knapsack para objetivos aditivos (101, object-dependiente); no-estacionariedad
+  (97 decay > full-history; 98 exploración liga bajo drift; 99 surprise-gated > ε-fijo; 103 ablación: decay dominante);
+  meta-selección de la política aprendible del feedback (102); dimensión TEMPORAL = timing/abstención del presupuesto
+  global (104). Regla general: asignar por la ganancia marginal en la agregación verdadera / costo si aditivo; olvidar
+  bajo drift; abstenerse en oportunidades pobres.
+- **Validación toy→real en el LAZO CERRADO con el modelo REAL (HybridLM de exp018):** el costo-por-valor TRANSFIERE
+  (105); la RECETA COMPUESTA (confianza/costo + cobertura) COMPONE y alcanza el techo verify-all a fracción del
+  presupuesto (107, CAPSTONE). [El arco 95-104 deja de ser sólo teoría de juguete en sus piezas centrales.]
+- **Propiedades del estimador de valor:** la CALIBRACIÓN importa para decisiones valor-vs-escala (abstención/costo), no
+  para ranking (106); el daño a la asignación lo causa ROMPER EL ORDEN, no 'sesgo vs ruido' — order-preserving (mejor) >
+  ruido > order-breaking sistemático (peor) (108 REFUTADA-con-reversión, 109 APOYADA).
+- **Puente generación↔selección (creatividad, pillar #4):** diversidad del generador y calidad de asignación
+  COMPLEMENTARIAS (110); el valor del FILTRO depende de la tasa base de calidad del pool — la guardia de diversidad (94)
+  ayuda pero no vence al pool-limpio-barato (111 MIXTA).
+- **R-VALOR recursivo y robustez:** decidir SI estimar el valor es una decisión R-VALOR (ROI = heterogeneidad − costo;
+  hay un régimen de no-estimar) (112); bajo agregación INCIERTA el default seguro depende de k/T (113), y APRENDER la
+  agregación del feedback vence al hedge (114) — confirmando el patrón general 92/102/114: la meta-decisión
+  (prior/política/agregación) es aprendible del feedback.
+
+### Cierre conceptual
+TRILOGÍA R-VALOR: gobierna QUÉ elegir (asignación within/across, 83-104), CUÁNDO gastar (timing/abstención, 104) y SI vale
+estimar (ROI de la estimación, 112). + propiedades del estimador (calibración, order-breaking) + puente a la generación.
+paper.md sincronizado a 112 (síntesis 79-103 + extensiones 104-110 + 111-112 con el cierre de la trilogía). Memoria de
+estado actualizada a CYCLE 112 ([[cognia-x-v4-reset]]).
+
+### Verificación / honestidad
+Cada ciclo: DoD completo + verify_no_loss=OK + test de regresión (3-5, verdes). Regresión de la corrida (cycles 95-110):
+63 passed. numpy: 95/97-104/106/108-109/112-114 (48-64 seeds, segundos). PyTorch CPU lazo real: 96/105/107/110/111 (4
+seeds). Honestidad: veredictos tal cual — ~14 APOYADA, 3 MIXTA, 1 REFUTADA-informativa (108) + 1 REFUTADA-artefactual
+corregida a APOYADA-regime-dependiente (113); 2 artefactos cazados y corregidos (logprob-negativo en 105; k>T-only en 113);
+gotcha blocker.kind='real'→'fisico' (110/111). Caveats explícitos en todos: modelo/tarea juguete, CPU, SCALE pendiente.
+
+### Frontera para la próxima sesión
+Validar las extensiones restantes (no-estacionariedad 97-99, vector 100, timing 104) en el lazo cerrado real; objetivo
+NO-sintético (todo usa objetivos sembrados); agregación con DRIFT (combinar aprender-agregación 114 + olvido 97);
+estimación adaptativa (estimar más donde más cambia la decisión); y SCALE (GPU/Kaggle, fuera de la corrida CPU). H-V4-4
+(techo de recall = optimización) sigue DIFERIDA.
+
+Commits (rama cognia-x, pusheados): a47cfa7(95) 47ec272(96) 420c2a7(97) 766de02(98) 74b8ee4(99) df3e363(100) 0879fbd(101)
+55275df(102) c78bcb0(103) 7577c28(paper) e1d9a72(104) 5b1d3f3(105) 10ea1a8(106) 7258ade(107) 5a4c699(108) adee86a(109)
+772a580(110) b66b2e4(paper) ad80e62(111) 951d2fd(112) 6601b5e(paper) 31563eb(113) 7c3feeb(114). D-V4-57..76 aceptadas por
+el ledger (tier5 propio).
