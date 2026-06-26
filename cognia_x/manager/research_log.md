@@ -3677,3 +3677,19 @@ tokens no deseados) que obtenga el beneficio de calibración SIN degenerar, o re
 > FRONTERA SHARPEADA (118): los negativos CURAN la calibración (corr_gain +0.398, dirección exactamente correcta) pero el
 > contrastivo NAIVE (ascenso de CE) destruye la capacidad (real_acc→0). La cura viable = unlikelihood ACOTADO (-log(1-p))
 > o recalibración externa, NO ascenso de gradiente crudo. Es la pieza concreta que falta para la durabilidad de R-VALOR.
+
+## CYCLE 119 — H-V4-8y (rama R-VALOR, RESUELVE la frontera de 118; CAPSTONE constructivo del arco de fragilidad) — APOYADA
+exp103 (PyTorch CPU, lazo real exp018, 4 seeds, 6 rondas): testea la forma ESTABLE de usar negativos que 118 dejó como
+frontera -- un unlikelihood ACOTADO (minimizar -log(1-p(token_incorrecto)) en las posiciones supervisadas de los
+negativos, NO ascenso de CE). RESULTADO contundente: el unlikelihood acotado CURA la durabilidad de la señal SIN sacrificar
+la capacidad. corr(confianza,corrección) unlik=0.816 (tendencia +0.175, se mantiene/mejora) vs pos_only=0.174 (tendencia
+-0.296, colapsa): ganancia corr final +0.642; capacidad PRESERVADA (real_acc unlik=0.181 vs pos=0.183, Δ-0.003 -- a
+diferencia del naive de 118 que iba a ~0). => penalizar lo verificado-incorrecto con una pérdida ACOTADA mantiene la
+confianza calibrada en lazos sostenidos sin degenerar: LA PIEZA que faltaba para la durabilidad ENDÓGENA de R-VALOR.
+cycle119 → H-V4-8y 'apoyada' (DoD), D-V4-81 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3.
+
+> CIERRE CONSTRUCTIVO del arco de fragilidad (115-119): 115 la señal colapsa; 116 la auto-consistencia es mejor nivel pero
+> no durable; 117 el replay dirigido mitiga marginal; 118 los negativos curan pero el método crudo destruye la capacidad;
+> 119 el unlikelihood ACOTADO cura la calibración (+0.642) a CERO costo de capacidad. LA DURABILIDAD ENDÓGENA DE R-VALOR
+> ES ALCANZABLE: lazo = likelihood(verificado-correcto) + unlikelihood-acotado(verificado-incorrecto). Frontera: neg_w/
+> balance, horizonte mayor, SCALE.
