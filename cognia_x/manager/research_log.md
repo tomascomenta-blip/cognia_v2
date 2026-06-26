@@ -3521,3 +3521,18 @@ REFINA la intuición 'bias peor que noise' y la lección de CYCLE 55 (el sesgo d
 se acepta). Consistente con 106 (transformaciones monótonas preservan el ranking). Caveat: para decisiones de UMBRAL/costo
 (101/104) el offset SÍ importa (106) → decisión-dependiente; un sesgo no-monótono daría lo opuesto. cycle108 → H-V4-8m
 'refutada' (DoD), D-V4-70 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+## CYCLE 109 — H-V4-8n (rama R-VALOR, COMPLETA el principio de 108) — APOYADA
+exp093 (numpy, 48 seeds): TRES errores a RMS igualado -- biased_mono (offset constante, order-preserving), noisy (ruido,
+order-breaking aleatorio), biased_nonmono (boost de banda-media, order-breaking SISTEMÁTICO). RESULTADO: a σ=0.4 el daño
+sigue el orden predicho -- biased_mono=0.871 (MEJOR) > noisy=0.826 (intermedio, +0.045) > biased_nonmono=0.645 (PEOR,
++0.180). => el LEVER del daño a la asignación (ranking/top-k) es ROMPER EL ORDEN, no 'sesgo vs ruido': la SISTEMATICIDAD
+AYUDA si es order-preserving (sesgo constante = mejor) y AGRAVA si es order-breaking (sesgo no-monótono = peor, mete
+SIEMPRE los mismos ítems equivocados). LECCIÓN COMPLETA (108+109): la categoría correcta para juzgar un estimador de valor
+de ASIGNACIÓN es order-preserving vs order-breaking (métrica: DESACUERDO DE ORDEN / Kendall-tau, no RMS); reconcilia
+CYCLE 55 (verificador sesgado = order-breaking) y 106 (monótono no afecta ranking pero sí umbral). cycle109 → H-V4-8n
+'apoyada' (DoD), D-V4-71 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> PRINCIPIO (108-109): para ASIGNAR (rankear), lo que daña es ROMPER EL ORDEN, no 'sesgo vs ruido'. order-preserving
+> (constante/monótono) benigno; order-breaking aleatorio (ruido) intermedio; order-breaking sistemático (sesgo
+> no-monótono) el peor. Para decisiones de UMBRAL/costo (101/104) el offset SÍ importa (106) -> decisión-dependiente.

@@ -1,0 +1,65 @@
+{
+  "exp": "exp093_order_breaking",
+  "cycle": 109,
+  "hypothesis": "H-V4-8n",
+  "claim": "a error RMS igualado el dano a la asignacion sigue order-preserving>ruido>order-breaking-sistematico: el lever es ROMPER EL ORDEN (no sesgo-vs-ruido); la sistematicidad ayuda si preserva el orden y agrava si lo rompe. completa CYCLE 108",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "s0.1": {
+        "biased_mono": 0.9736,
+        "noisy": 0.9717,
+        "biased_nonmono": 0.9822,
+        "oracle": 1.0,
+        "chance": 0.5574
+      },
+      "s0.2": {
+        "biased_mono": 0.9039,
+        "noisy": 0.9226,
+        "biased_nonmono": 0.7875,
+        "oracle": 1.0,
+        "chance": 0.567
+      },
+      "s0.3": {
+        "biased_mono": 0.8891,
+        "noisy": 0.8694,
+        "biased_nonmono": 0.638,
+        "oracle": 1.0,
+        "chance": 0.5488
+      },
+      "s0.4": {
+        "biased_mono": 0.8705,
+        "noisy": 0.8258,
+        "biased_nonmono": 0.6454,
+        "oracle": 1.0,
+        "chance": 0.5541
+      }
+    },
+    "mono_vs_noisy_hi": 0.0447,
+    "noisy_vs_nonmono_hi": 0.1804,
+    "order_holds_hi": true,
+    "order_holds_mid": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8n APOYADA: a RMS igualado el daño a la asignación sigue el orden ROMPER-EL-ORDEN, no 'sesgo vs ruido'. A σ=0.4: biased_mono=0.871 (order-PRESERVING sistemático = MEJOR) > noisy=0.826 (ruido order-breaking ALEATORIO = intermedio, +0.045) > biased_nonmono=0.645 (order-BREAKING SISTEMÁTICO = PEOR, +0.180). => el lever del daño es ROMPER EL ORDEN; la SISTEMATICIDAD AYUDA si es order-preserving (mono mejor que ruido) y AGRAVA si es order-breaking (nonmono peor que ruido, porque mete SIEMPRE los mismos ítems equivocados). COMPLETA CYCLE 108: ni 'sesgo' ni 'ruido' es la categoría correcta -- es order-preserving vs order-breaking. (Para decisiones de UMBRAL/costo, el offset constante SÍ importa, 106.)"
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k": 10
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp093] CYCLE 109 / H-V4-8n — order-breaking es el lever: mono(preserva) > ruido > nonmono(rompe sistemático)",
+    "[exp093] n=50 k=10 sigmas=[0.1, 0.2, 0.3, 0.4] seeds=48",
+    "[exp093] σ=0.1: biased_mono=0.974 noisy=0.972 biased_nonmono=0.982 oracle=1.000 chance=0.557",
+    "[exp093] σ=0.2: biased_mono=0.904 noisy=0.923 biased_nonmono=0.787 oracle=1.000 chance=0.567",
+    "[exp093] σ=0.3: biased_mono=0.889 noisy=0.869 biased_nonmono=0.638 oracle=1.000 chance=0.549",
+    "[exp093] σ=0.4: biased_mono=0.871 noisy=0.826 biased_nonmono=0.645 oracle=1.000 chance=0.554",
+    "[exp093] @σ=0.4: mono−noisy=+0.045 | noisy−nonmono=+0.180 | order_holds_hi=True order_holds_mid=True",
+    "[exp093] VEREDICTO H-V4-8n: APOYADA | H-V4-8n APOYADA: a RMS igualado el daño a la asignación sigue el orden ROMPER-EL-ORDEN, no 'sesgo vs ruido'. A σ=0.4: biased_mono=0.871 (order-PRESERVING sistemático = MEJOR) > noisy=0.826 (ruido order-breaking ALEATORIO = intermedio, +0.045) > biased_nonmono=0.645 (order-BREAKING SISTEMÁTICO = PEOR, +0.180). => el lever del daño es ROMPER EL ORDEN; la SISTEMATICIDAD AYUDA si es order-preserving (mono mejor que ruido) y AGRAVA si es order-breaking (nonmono peor que ruido, porque mete SIEMPRE los mismos ítems equivocados). COMPLETA CYCLE 108: ni 'sesgo' ni 'ruido' es la categoría correcta -- es order-preserving vs order-breaking. (Para decisiones de UMBRAL/costo, el offset constante SÍ importa, 106.)"
+  ]
+}
