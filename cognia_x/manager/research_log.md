@@ -3476,3 +3476,17 @@ H-V4-8j 'apoyada' (DoD), D-V4-67 ACEPTADA, techo 'real', verify_no_loss=OK. Test
 > TOY→REAL: la 1ra extensión del arco (costo-por-valor, 101) TRANSFIERE al lazo cerrado real -> el arco de asignación
 > (95-104) no es sólo teoría de juguete. Frontera: validar las DEMÁS extensiones (no-estacionariedad 97-99, vector 100,
 > timing 104, meta 102) en el lazo real; costo MEDIDO (no modelado); y SCALE (GPU).
+
+## CYCLE 106 — H-V4-8k (rama R-VALOR, ata CALIBRACIÓN con el arco de asignación) — APOYADA
+El lab usó la confianza CALIBRADA como señal de valor (57/60), pero el arco usa el valor de DOS formas: RANKEAR (top-k,
+83-103) y comparar con una ESCALA EXTERNA (costo 101, umbral/abstención 104). exp090 (numpy, 48 seeds): estimador
+calibrado (v_est≈v) vs miscalibrado (g(v)=v², mismo ORDEN, escala mal), en decisiones rank (top-k) vs abstain (actuar sii
+v_est>c). RESULTADO: RANK calibrado=0.992 ≈ miscalibrado=0.997 (Δ 0.005, calibración IRRELEVANTE — sólo cuenta el orden);
+ABSTAIN calibrado=0.989 >> miscalibrado=0.821 (+0.168, la escala mal corre el umbral y hace abstener/actuar mal). => la
+CALIBRACIÓN importa EXACTAMENTE para decisiones valor-vs-escala (abstención/costo, 101/104), NO para ranking (83-103).
+Precisa el rol de 57/60: la calibración no es un requisito general; es necesaria para umbral/costo. cycle106 → H-V4-8k
+'apoyada' (DoD), D-V4-68 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> PROPIEDADES del estimador R-VALOR por decisión: para ELEGIR (ranking/top-k, 83-103) basta el ORDEN (ordinal); para
+> DECIDIR SI actuar (abstención 104) o comparar con un COSTO (101) hace falta la ESCALA (cardinal/calibrado, 57/60).
+> Invertir en calibrar el valor sólo cuando la decisión compara con una escala externa.

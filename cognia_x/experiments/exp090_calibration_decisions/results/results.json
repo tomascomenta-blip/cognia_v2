@@ -1,0 +1,50 @@
+{
+  "exp": "exp090_calibration_decisions",
+  "cycle": 106,
+  "hypothesis": "H-V4-8k",
+  "claim": "la calibracion (escala) del valor estimado importa exactamente para decisiones valor-vs-escala-externa (abstencion/umbral CYCLE 104, costo-vs-valor CYCLE 101), NO para ranking (top-k, donde solo cuenta el orden): un estimador miscalibrado pero bien-ordenado rankea igual pero abstiene/actua mal",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "rank": {
+        "calibrated": 0.9923,
+        "miscalibrated": 0.9971,
+        "oracle": 1.0,
+        "chance": 0.5793
+      },
+      "abstain": {
+        "calibrated": 0.989,
+        "miscalibrated": 0.8213,
+        "oracle": 1.0,
+        "chance": -0.0867
+      }
+    },
+    "rank_gap": 0.0048,
+    "abstain_gain": 0.1677,
+    "rank_indiff": true,
+    "abstain_needs_calib": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8k APOYADA: la CALIBRACIÓN del valor estimado importa EXACTAMENTE para decisiones valor-vs-escala (abstención/umbral), NO para ranking. RANK (top-k, sólo orden): calibrado=0.992 ≈ miscalibrado=0.997 (Δ 0.005: la calibración es IRRELEVANTE -- el orden basta). ABSTAIN (actuar sii v_est>c, escala externa): calibrado=0.989 >> miscalibrado=0.821 (+0.168: la escala mal hace actuar/abstener mal). => para rankear (qué elegir) sólo se necesita el ORDEN del valor; para abstener / comparar con un costo se necesita la ESCALA correcta (calibración, CYCLE 57/60). Distingue qué propiedad del estimador R-VALOR importa para qué decisión del arco (ranking 83-103 vs costo 101 / abstención 104)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k": 10,
+    "c": 0.5,
+    "noise": 0.05
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp090] CYCLE 106 / H-V4-8k — calibración del valor: irrelevante para ranking, necesaria para abstención/escala",
+    "[exp090] n=50 k=10 c=0.5 noise=0.05 seeds=48 decisiones=['rank', 'abstain']",
+    "[exp090] decision=    rank: calibrated=0.992 miscalibrated=0.997 oracle=1.000 chance=0.579",
+    "[exp090] decision= abstain: calibrated=0.989 miscalibrated=0.821 oracle=1.000 chance=-0.087",
+    "[exp090] RANK: |calib−miscal|=0.005 (calibración irrelevante) | ABSTAIN: calib−miscal=+0.168 (calibración necesaria)",
+    "[exp090] rank_indiff=True abstain_needs_calib=True",
+    "[exp090] VEREDICTO H-V4-8k: APOYADA | H-V4-8k APOYADA: la CALIBRACIÓN del valor estimado importa EXACTAMENTE para decisiones valor-vs-escala (abstención/umbral), NO para ranking. RANK (top-k, sólo orden): calibrado=0.992 ≈ miscalibrado=0.997 (Δ 0.005: la calibración es IRRELEVANTE -- el orden basta). ABSTAIN (actuar sii v_est>c, escala externa): calibrado=0.989 >> miscalibrado=0.821 (+0.168: la escala mal hace actuar/abstener mal). => para rankear (qué elegir) sólo se necesita el ORDEN del valor; para abstener / comparar con un costo se necesita la ESCALA correcta (calibración, CYCLE 57/60). Distingue qué propiedad del estimador R-VALOR importa para qué decisión del arco (ranking 83-103 vs costo 101 / abstención 104)."
+  ]
+}
