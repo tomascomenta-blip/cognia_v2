@@ -630,3 +630,19 @@ Todo el arco 83-94 asumió un objetivo ADITIVO (perf_of = suma de valores indepe
 > del lazo (94) era una aproximación a la selección marginal; la versión principista es greedy-marginal sobre un objetivo
 > de cobertura. Frontera: selección marginal DENTRO del lazo cerrado real; calidad↔tipo correlacionados; objetivo VECTOR
 > (multi-objetivo, no sólo escalar-no-aditivo); y SCALE (GPU).
+
+- **CYCLE 96 — H-V4-8b APOYADA (sintetiza 94+95; versión PRINCIPISTA del lazo).** ¿La selección MARGINAL (cobertura de
+  targets, el principio de CYCLE 95) en el lazo cerrado real subsume a la guardia dedup+replay (94) sin su crutch de
+  replay clean? RESULTADO: la cobertura marginal SUBSUME y SUPERA a la guardia, a yield pleno: real_acc marginal=0.756
+  >> conf=0.383 (+0.372) y > guard=0.584 (+0.171) SIN replay clean; yield mantenido (marginal 85.7 ≈ conf 86.8); alcanza
+  el techo verify_all (0.764) a fracción del presupuesto. => diversificar QUÉ se verifica (cobertura) cubre la diversidad
+  del entrenamiento sin datos externos: la versión principista (valor marginal) domina a la heurística con crutch.
+  Caveat: en el smoke (base débil) la cobertura costaba yield (gastaba en targets irresolubles); robustez de yield en
+  base débil pendiente (cobertura confidence-aware). Cota 'real'; D-V4-58; test 4/4.
+
+> GAP #4 — CUADRO (95-96): (95) bajo objetivo no-aditivo (submodular/cobertura) el valor debe ser MARGINAL, no absoluto;
+> (96) aplicado al LAZO CERRADO real, la selección por COBERTURA (marginal) SUBSUME y SUPERA a la guardia dedup+replay de
+> 94 SIN su crutch, a yield pleno, alcanzando el techo verify-all a fracción del presupuesto. RECETA PRINCIPISTA del lazo
+> de auto-mejora bajo presupuesto: asignar la verificación por CONFIANZA + COBERTURA de targets (valor marginal). La
+> guardia (94) queda como alternativa para base débil + datos clean. Esto FORMALIZA y SUPERA el manejo de diversidad
+> (49-50/94) con el principio submodular. Frontera: cobertura confidence-aware; objetivo VECTOR (multi-objetivo); SCALE.

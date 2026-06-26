@@ -3209,3 +3209,40 @@ Nemhauser 1978) y con la suposición aditiva del arco (tier5).
 > como estructura del valor y reconcilia con empowerment/info-gain (ya marginales). La guardia dedup+replay (94) es una
 > aproximación; la versión principista es greedy-marginal. Próximo: selección marginal en el lazo cerrado real;
 > calidad↔tipo correlacionados; objetivo VECTOR (multi-objetivo); y SCALE (GPU).
+
+## CYCLE 96 — H-V4-8b (rama R-VALOR, sintetiza 94+95; versión PRINCIPISTA del lazo): cobertura marginal — APOYADA
+
+### Pregunta
+CYCLE 94 rescató el downstream del lazo con la guardia dedup+replay, pero parte del rescate viene del REPLAY de verdad
+canónica clean (crutch). CYCLE 95 mostró que el valor es MARGINAL bajo cobertura. ¿Aplicar el principio marginal a la
+SELECCIÓN del lazo real — seleccionar qué verificar por CONFIANZA + COBERTURA de TARGETS, sin datos clean — subsume a la
+guardia?
+
+### Diseño
+PyTorch CPU; reusa exp018/exp077/exp078. Mismo lazo (base débil + temp alta; presupuesto B=102/512). Brazos: conf_alloc
+(top-B confianza, baseline 93), marginal_alloc (cobertura de targets: ronda-robin tomando el mejor-confianza de cada
+target no-cubierto; sólo dedup, SIN replay clean), conf_alloc_guard (94, referencia), verify_all (techo). 4 seeds.
+
+### Resultado — APOYADA
+La selección MARGINAL SUBSUME y SUPERA a la guardia, sin crutch, a yield pleno: real_acc marginal=0.756 >> conf=0.383
+(+0.372, rescata el narrowing) y > guard=0.584 (vs_guard +0.171) SIN el replay clean; el yield se MANTIENE (marginal=85.7
+≈ conf=86.8, Δ=-1.08); marginal (0.756) ≈ techo verify_all (0.764) → alcanza el techo a fracción del presupuesto. =>
+diversificar QUÉ se verifica (cobertura de targets) cubre la diversidad del entrenamiento SIN datos externos: la versión
+principista (valor marginal, CYCLE 95) domina a la aproximación heurística con crutch (guardia, 94).
+
+### Límites (honestos)
+En el SMOKE (base más débil, 2 seeds) la cobertura SÍ costaba yield (~20%) porque gastaba en targets duros/irresolubles
+→ el resultado depende de la fracción de targets resolubles (a base fuerte casi todos lo son); una cobertura
+confidence-aware que saltee targets sin candidato correcto recuperaría el yield en base débil (no testeada). Modelo tiny,
+tarea sembrada, 4 seeds, CPU; cobertura sobre UNA dimensión (target); balance confianza↔cobertura sin barrer.
+
+### Verificación
+exp080 (4 seeds, PyTorch CPU, lazo cerrado real exp018). cycle96 → H-V4-8b 'apoyada' (DoD), D-V4-58 ACEPTADA, 1 techo
+'real', analogía 7 etapas, verify_no_loss=OK. Test `test_cycle96_marginal_loop.py` 4/4. Convergente con cobertura
+submodular/diversidad principista (tier2) y con el crutch de la guardia de CYCLE 94 (tier5).
+
+> GAP #4 — el valor MARGINAL es el principio del lazo: la selección por COBERTURA (marginal) subsume y supera a la
+> guardia dedup+replay (94) SIN crutch, a yield pleno, alcanzando el techo verify-all a fracción del presupuesto.
+> RECETA del lazo de auto-mejora bajo presupuesto, versión principista: asignar la verificación por CONFIANZA + COBERTURA
+> de targets (valor marginal). La guardia queda como alternativa para base débil + datos clean. Frontera: cobertura
+> confidence-aware (robustez de yield en base débil); objetivo VECTOR; y SCALE (GPU).
