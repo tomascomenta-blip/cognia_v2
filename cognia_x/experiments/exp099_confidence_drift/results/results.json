@@ -1,0 +1,100 @@
+{
+  "exp": "exp099_confidence_drift",
+  "cycle": 115,
+  "hypothesis": "H-V4-8t",
+  "claim": "el lazo de confianza-asignacion no es auto-sostenido: sin guardia la corr(confianza,correccion) degrada ronda a ronda (sobreconfianza al entrenar sobre si misma); la guardia (replay de verdad canonica CYCLE 94) la mantiene honesta -> dependencia critica del arco",
+  "verdict": "mixta",
+  "summary": {
+    "arms": [
+      "conf_plain",
+      "conf_guard"
+    ],
+    "n_seeds": 4,
+    "trend_plain": -0.3585,
+    "trend_guard": -0.3402,
+    "guard_minus_plain": 0.0183,
+    "corr_first": {
+      "conf_plain": 0.5924,
+      "conf_guard": 0.5924
+    },
+    "corr_last": {
+      "conf_plain": 0.0775,
+      "conf_guard": 0.1501
+    },
+    "real_last": {
+      "conf_plain": 0.0222,
+      "conf_guard": 0.25
+    },
+    "trend_plain_by_seed": [
+      -0.347,
+      -0.2988,
+      -0.3792,
+      -0.4092
+    ],
+    "plain_degrades": true,
+    "guard_helps": false,
+    "status": "mixta",
+    "verdict": "H-V4-8t MIXTA: conf_plain degrada (tendencia -0.358) pero la guardia no lo corrige limpio (guard−plain 0.018); conf_guard tendencia -0.340."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "rounds": 6,
+    "K": 8,
+    "pool": 64,
+    "budget_frac": 0.15,
+    "temp": 1.3,
+    "replay_frac": 0.5,
+    "top_k": null,
+    "steps": 120,
+    "n_seed": 200,
+    "base_steps": 250,
+    "base_lr": 0.001,
+    "lr": 0.0005,
+    "warmup": 40,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp099] CYCLE 115 / H-V4-8t — STRESS-TEST: ¿la confianza (señal de valor) degrada al entrenar sobre sí misma?",
+    "[exp099] seeds=[0, 1, 2, 3] rango=[2,300] rounds=6 K=8 pool=64 budget_frac=0.15 temp=1.3 replay_frac=0.5 base_steps=250",
+    "[exp099] seed=0 base real_acc=0.722 params=201,280",
+    "[exp099] seed=0 ronda 1: conf_plain: corr=0.616 real=0.578 | conf_guard: corr=0.616 real=0.800",
+    "[exp099] seed=0 ronda 2: conf_plain: corr=0.526 real=0.200 | conf_guard: corr=0.725 real=0.356",
+    "[exp099] seed=0 ronda 3: conf_plain: corr=0.149 real=0.078 | conf_guard: corr=0.226 real=0.444",
+    "[exp099] seed=0 ronda 4: conf_plain: corr=0.097 real=0.056 | conf_guard: corr=0.317 real=0.400",
+    "[exp099] seed=0 ronda 5: conf_plain: corr=0.082 real=0.011 | conf_guard: corr=0.196 real=0.411",
+    "[exp099] seed=0 ronda 6: conf_plain: corr=0.070 real=0.022 | conf_guard: corr=0.196 real=0.278",
+    "[exp099] seed=1 base real_acc=0.567 params=201,280",
+    "[exp099] seed=1 ronda 1: conf_plain: corr=0.558 real=0.489 | conf_guard: corr=0.558 real=0.589",
+    "[exp099] seed=1 ronda 2: conf_plain: corr=0.454 real=0.278 | conf_guard: corr=0.552 real=0.233",
+    "[exp099] seed=1 ronda 3: conf_plain: corr=0.256 real=0.133 | conf_guard: corr=0.226 real=0.278",
+    "[exp099] seed=1 ronda 4: conf_plain: corr=0.160 real=0.111 | conf_guard: corr=0.176 real=0.211",
+    "[exp099] seed=1 ronda 5: conf_plain: corr=0.131 real=0.067 | conf_guard: corr=0.148 real=0.133",
+    "[exp099] seed=1 ronda 6: conf_plain: corr=0.081 real=0.044 | conf_guard: corr=0.138 real=0.111",
+    "[exp099] seed=2 base real_acc=0.700 params=201,280",
+    "[exp099] seed=2 ronda 1: conf_plain: corr=0.542 real=0.711 | conf_guard: corr=0.542 real=0.711",
+    "[exp099] seed=2 ronda 2: conf_plain: corr=0.656 real=0.178 | conf_guard: corr=0.709 real=0.489",
+    "[exp099] seed=2 ronda 3: conf_plain: corr=0.202 real=0.100 | conf_guard: corr=0.439 real=0.278",
+    "[exp099] seed=2 ronda 4: conf_plain: corr=0.099 real=0.011 | conf_guard: corr=0.224 real=0.222",
+    "[exp099] seed=2 ronda 5: conf_plain: corr=0.087 real=0.000 | conf_guard: corr=0.218 real=0.111",
+    "[exp099] seed=2 ronda 6: conf_plain: corr=0.076 real=0.000 | conf_guard: corr=0.112 real=0.178",
+    "[exp099] seed=3 base real_acc=0.667 params=201,280",
+    "[exp099] seed=3 ronda 1: conf_plain: corr=0.654 real=0.633 | conf_guard: corr=0.654 real=0.678",
+    "[exp099] seed=3 ronda 2: conf_plain: corr=0.557 real=0.311 | conf_guard: corr=0.699 real=0.556",
+    "[exp099] seed=3 ronda 3: conf_plain: corr=0.265 real=0.122 | conf_guard: corr=0.480 real=0.522",
+    "[exp099] seed=3 ronda 4: conf_plain: corr=0.109 real=0.111 | conf_guard: corr=0.276 real=0.411",
+    "[exp099] seed=3 ronda 5: conf_plain: corr=0.056 real=0.056 | conf_guard: corr=0.186 real=0.333",
+    "[exp099] seed=3 ronda 6: conf_plain: corr=0.084 real=0.022 | conf_guard: corr=0.154 real=0.433",
+    "[exp099] corr(conf,strong) conf_plain: 0.592->0.077 (tendencia -0.358)",
+    "[exp099] corr(conf,strong) conf_guard: 0.592->0.150 (tendencia -0.340)",
+    "[exp099] guard−plain (tendencia)=+0.018 | plain_degrades=True guard_helps=False",
+    "[exp099] real_acc final: plain=0.022 guard=0.250",
+    "[exp099] VEREDICTO H-V4-8t: MIXTA | H-V4-8t MIXTA: conf_plain degrada (tendencia -0.358) pero la guardia no lo corrige limpio (guard−plain 0.018); conf_guard tendencia -0.340."
+  ]
+}

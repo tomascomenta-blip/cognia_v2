@@ -3611,3 +3611,20 @@ techo 'real', verify_no_loss=OK. Test 3/3.
 > META-DECISIÓN APRENDIBLE (92/102/114): el prior (92), la política de asignación (102) y la agregación (114) se aprenden
 > del feedback con un bandit no-regret cuando ningún default domina. Frontera: agregación con drift (+olvido 97); espacio
 > más rico de agregaciones; SCALE.
+
+## CYCLE 115 — H-V4-8t (rama R-VALOR, STRESS-TEST adversarial del FUNDAMENTO del arco) — MIXTA (alarmante)
+Toda la validación real (93/105/107/110) asume corr(confianza,corrección)~0.6 estable. exp099 (PyTorch CPU, lazo real
+exp018, 4 seeds, 6 rondas) la stress-testea: ¿la confianza se auto-socava al entrenar sobre sus propias salidas? RESULTADO
+(más alarmante que la hipótesis): (1) la confianza COLAPSA fuerte -- corr conf_plain 0.592->0.077 (tendencia -0.358, casi a
+CERO en 6 rondas: sobreconfianza, la confianza se decorrelaciona de la corrección). (2) la GUARDIA (replay de verdad
+canónica, 94) NO frena el colapso de la SEÑAL: conf_guard 0.592->0.150 (tendencia -0.340, guard−plain sólo +0.018). (3)
+PERO la guardia RESCATA el DOWNSTREAM: real_acc final plain=0.022 (colapsado) vs guard=0.250. => REFRAME del rol de la
+guardia: NO mantiene honesta la SEÑAL (falla), sino que DESACOPLA el outcome del selector degradado anclando los DATOS de
+entrenamiento con verdad limpia. CONSECUENCIA: la asignación-por-confianza del lazo real es confiable sólo por POCAS rondas
+(mientras corr~0.5-0.6); en lazos SOSTENIDOS la señal colapsa y el downstream depende del ANCLA de verdad, no de la
+confianza. cycle115 → H-V4-8t 'mixta' (DoD), D-V4-77 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3.
+
+> FRAGILIDAD del fundamento (115): la confianza-como-señal NO es durable en lazos largos (colapsa casi a cero); la guardia
+> de verdad canónica rescata el OUTCOME (ancla los datos), NO la SEÑAL. La asignación-por-confianza sirve por pocas rondas;
+> en lazos sostenidos depender del ancla y monitorear/recalibrar. Frontera: anclas que SÍ recalibren la señal (verificador
+> independiente / auto-consistencia); curva horizonte-vs-colapso; SCALE.
