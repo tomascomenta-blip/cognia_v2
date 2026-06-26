@@ -1,0 +1,64 @@
+{
+  "exp": "exp075_matched_prior",
+  "cycle": 91,
+  "hypothesis": "H-V4-3a",
+  "claim": "la forma/calidad del prior (la base del estimador), no el volumen de datos ni la capacidad cruda, fija la eficiencia muestral: un prior matcheado a la estructura (rbf local en c x lineal en r) recupera el valor no-nesteable a una fraccion del feedback que una base no-parametrica generica (bin)",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "low": {
+        "product": 0.3296,
+        "learned_poly2": 0.462,
+        "learned_bin": 0.5404,
+        "learned_rbf": 0.6871,
+        "bayes": 0.8251,
+        "oracle": 1.0,
+        "chance": 0.227
+      },
+      "high": {
+        "product": 0.3325,
+        "learned_poly2": 0.4993,
+        "learned_bin": 0.6197,
+        "learned_rbf": 0.7201,
+        "bayes": 0.8332,
+        "oracle": 1.0,
+        "chance": 0.2195
+      }
+    },
+    "rbf_sample_eff_vs_bin_low": 0.1467,
+    "rbf_fraction_cost_vs_bin_high": 0.0674,
+    "rbf_saturates": 0.033,
+    "bin_data_hungry": 0.0793,
+    "rbf_vs_poly2": 0.2208,
+    "rbf_bayes_gap": 0.1131,
+    "bin_bayes_gap": 0.2135,
+    "sample_efficient": true,
+    "fraction_of_cost": true,
+    "beats_poly2": true,
+    "status": "apoyada",
+    "verdict": "H-V4-3a APOYADA: la FORMA/CALIDAD del prior fija la eficiencia muestral. El prior MATCHEADO (rbf: bumps locales en c × lineal en r) es SAMPLE-EFFICIENT: a presupuesto BAJO rbf=0.687 ya iguala/supera a la base genérica bin a presupuesto ALTO (0.620) -- rbf a FRACCIÓN del costo (Δ=0.067) -- y gana a bin a igual bajo presupuesto (+0.147). rbf SATURA rápido (high−low +0.033) mientras bin es DATA-HUNGRY (+0.079). rbf supera a la base equivocada poly2 (+0.221) y queda más cerca del techo bayes (gap rbf 0.113 vs bin 0.213). => el lever NO es el volumen de datos ni la capacidad cruda sino el MATCH del prior con la estructura del valor (R-PRIOR/H-V4-3)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k_budget": 10,
+    "k_eval": 10,
+    "E": 20,
+    "ctrl_noise": 0.2
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp075] CYCLE 91 / H-V4-3a — la FORMA del prior fija la eficiencia muestral (prior MATCHEADO rbf vs bin/poly2)",
+    "[exp075] n=50 k_budget=10 k_eval=10 E=20 seeds=48 RBF(centros=9,w=0.08) GBINS=8 budgets={'low': 20, 'high': 80} ctrl_noise=0.2 targets=[2,300]",
+    "[exp075]  low (T=20): product=0.330 poly2=0.462 bin=0.540 rbf=0.687 bayes=0.825 chance=0.227",
+    "[exp075] high (T=80): product=0.333 poly2=0.499 bin=0.620 rbf=0.720 bayes=0.833 chance=0.220",
+    "[exp075] rbf_sample_eff(vs bin_low)=+0.147 | rbf_fraction_cost(vs bin_high)=0.067 | rbf_saturates=+0.033 vs bin_data_hungry=+0.079",
+    "[exp075] rbf_vs_poly2=+0.221 | rbf_bayes_gap=0.113 vs bin_bayes_gap=0.213",
+    "[exp075] sample_efficient=True fraction_of_cost=True beats_poly2=True",
+    "[exp075] VEREDICTO H-V4-3a: APOYADA | H-V4-3a APOYADA: la FORMA/CALIDAD del prior fija la eficiencia muestral. El prior MATCHEADO (rbf: bumps locales en c × lineal en r) es SAMPLE-EFFICIENT: a presupuesto BAJO rbf=0.687 ya iguala/supera a la base genérica bin a presupuesto ALTO (0.620) -- rbf a FRACCIÓN del costo (Δ=0.067) -- y gana a bin a igual bajo presupuesto (+0.147). rbf SATURA rápido (high−low +0.033) mientras bin es DATA-HUNGRY (+0.079). rbf supera a la base equivocada poly2 (+0.221) y queda más cerca del techo bayes (gap rbf 0.113 vs bin 0.213). => el lever NO es el volumen de datos ni la capacidad cruda sino el MATCH del prior con la estructura del valor (R-PRIOR/H-V4-3)."
+  ]
+}

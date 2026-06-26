@@ -3005,3 +3005,43 @@ base=prior/sesgo-aproximación (tier2) y con el caveat no-nesteable de CYCLE 89 
 > suave/conjuntivo, CYCLE 89); escalar a una base más rica/MATCHEADA SÓLO con evidencia de estructura no-nesteable +
 > presupuesto. Próximo: un prior MATCHEADO a la estructura (features de banda/kernel) que recupere barato; el generador
 > de MODELO real (lazo cerrado exp018); y SCALE (GPU).
+
+## CYCLE 91 — H-V4-3a (rama R-PRIOR, ataca H-V4-3 ABIERTA; hija de CYCLE 90): la FORMA del prior fija la eficiencia muestral — APOYADA
+
+### Pregunta
+CYCLE 90 dejó que una base RICA GENÉRICA (binned) recupera el valor no-nesteable sólo PARCIAL y CARO (data-hungry).
+¿Un prior MATCHEADO a la estructura recupera BARATO? Esto es R-PRIOR / H-V4-3 (ABIERTA desde el reset): "la calidad/forma
+del prior fija la eficiencia muestral; un prior correcto iguala a un método general caro a una fracción del costo".
+
+### Diseño
+Numpy + sandbox REAL de exp018, MISMO sustrato no-nesteable de exp074 (dos bandas interiores en c, E[v|c,r]=band(c)·r).
+Tres PRIORS compitiendo con el MISMO feedback costoso (K random/ronda, buffer compartido): poly2 (base global equivocada),
+bin (no-paramétrica genérica 8×8), rbf (prior MATCHEADO = bumps gaussianos LOCALES en c × LINEAL en r, encode el TIPO de
+estructura SIN conocer las bandas exactas; 9 centros equiespaciados). Eje de presupuesto B ∈ {low T=20, high T=80}.
+Brazos extra: bayes (techo), product, oracle, chance. 48 seeds. Pre-registrado.
+
+### Resultado — APOYADA
+La FORMA del prior FIJA la eficiencia muestral. (1) SAMPLE EFFICIENCY: rbf a presupuesto BAJO (0.687) ya SUPERA a la base
+genérica bin a presupuesto ALTO (0.620) — recupera a una FRACCIÓN del costo (Δ=+0.067); y gana a bin a igual bajo
+presupuesto (+0.147). (2) rbf SATURA rápido (high−low +0.033) mientras bin es DATA-HUNGRY (+0.079). (3) rbf >> poly2
+(base global equivocada, +0.221) y queda MÁS CERCA del techo bayes (gap 0.113 vs bin 0.213: el prior suave también
+promedia el ruido de features que la grilla dura del bin sufre). => el lever de la eficiencia muestral NO es el volumen de
+datos ni la capacidad cruda, sino el MATCH del prior (la base) con la estructura del valor — R-PRIOR/H-V4-3.
+
+### Límites (honestos)
+(a) el rbf NO alcanza bayes (gap 0.113): el prior matcheado es eficiente, no perfecto (ruido de features + bumps finitos);
+(b) el prior está MATCHEADO por conocimiento de DISEÑO (se sabía que la estructura era local-en-c); de DÓNDE viene el
+prior correcto (descubrirlo/aprenderlo, meta-prior) es la pregunta más profunda de R-PRIOR, no resuelta; (c) un bin con
+kernel-smoothing tendería al rbf → confirma que el lever es la SUAVIDAD/estructura, no la etiqueta paramétrico-vs-no.
+g sintético de bandas, espacio 2D, objetivo escalar; falta el generador de MODELO real y SCALE.
+
+### Verificación
+exp075 (48 seeds, numpy + sandbox exp018). cycle91 → H-V4-3a 'apoyada' (DoD), D-V4-53 ACEPTADA, 1 techo 'real', analogía
+7 etapas, verify_no_loss=OK. Test `test_cycle91_matched_prior.py` 5/5. Convergente con sesgo-inductivo/NFL (tier2) y con
+la base genérica data-hungry de CYCLE 90 (tier5).
+
+> R-PRIOR AVANZA (H-V4-3 deja de estar sólo ABIERTA): la forma/calidad del prior (la base) fija la eficiencia muestral.
+> Combinado con CYCLE 90 (poly2 no universal), la política de reconstrucción de R-VALOR ELIGE la BASE por la ESTRUCTURA
+> esperada del valor: poly2 si suave/conjuntivo (89), base local/matcheada si multi-banda (91), nunca una genérica
+> data-hungry por defecto. Liga gap #2 con R-PRIOR. Frontera: de DÓNDE viene el prior correcto (meta-prior / selección de
+> base de los datos); el generador de MODELO real (lazo cerrado exp018); y SCALE (GPU).

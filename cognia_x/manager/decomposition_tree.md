@@ -536,3 +536,24 @@ EJECUTA el candidato; valor DISCRETO v∈{0,1}).
 > MATCHEADA sólo con evidencia de estructura no-nesteable + presupuesto. Esto ABRE la conexión gap #2 ↔ R-PRIOR/H-V4-3
 > (ABIERTA): la calidad/forma del prior (la base) fija la eficiencia muestral. Frontera: un prior matcheado a la
 > estructura (features de banda/kernel) que recupere barato; el generador de MODELO real (lazo cerrado exp018); y SCALE.
+
+## Addendum — CYCLE 91: ataca R-PRIOR/H-V4-3 (la forma del prior fija la eficiencia muestral)
+CYCLE 90 dejó que una base rica GENÉRICA (bin) recupera el valor no-nesteable sólo parcial y caro. CYCLE 91 testea si un
+prior MATCHEADO recupera BARATO — la tesis central de R-PRIOR/H-V4-3 (ABIERTA desde el reset).
+
+- **CYCLE 91 — H-V4-3a APOYADA (avanza R-PRIOR/H-V4-3).** Sobre el MISMO sustrato no-nesteable de CYCLE 90 (verificador
+  REAL exp018, dos bandas interiores), tres priors compiten con el MISMO feedback costoso: poly2 (global equivocada), bin
+  (no-paramétrica genérica), rbf (MATCHEADO = bumps locales en c × lineal en r, encode el TIPO de estructura sin conocer
+  las bandas). RESULTADO: la FORMA del prior fija la eficiencia muestral. rbf a presupuesto BAJO (0.687) SUPERA a bin a
+  presupuesto ALTO (0.620) — recupera a FRACCIÓN del costo (Δ=+0.067); gana a bin a igual bajo presupuesto (+0.147); rbf
+  SATURA rápido (+0.033) vs bin DATA-HUNGRY (+0.079); rbf >> poly2 (+0.221) y más cerca de bayes (gap 0.113 vs bin 0.213,
+  el prior suave promedia el ruido de features). => el lever NO es el volumen ni la capacidad cruda sino el MATCH del
+  prior con la estructura del valor. Caveat: no alcanza bayes (gap 0.113); el prior está matcheado por DISEÑO (de dónde
+  viene el prior correcto = la pregunta profunda de R-PRIOR, abierta). Cota 'real'; D-V4-53; test 5/5.
+
+> R-PRIOR AVANZA (89-91): el poly2 no es universal (90); la forma/calidad del prior fija la eficiencia muestral (91, un
+> prior matcheado recupera a fracción del costo de una base genérica). POLÍTICA de reconstrucción de R-VALOR: ELEGIR la
+> BASE por la ESTRUCTURA esperada del valor (poly2 si suave/conjuntivo 89; local/matcheada si multi-banda 91), nunca una
+> genérica data-hungry por defecto. Esto liga gap #2 con R-PRIOR/H-V4-3 y la mueve de ABIERTA a APOYADA-en-juguete.
+> Frontera: de DÓNDE viene el prior correcto (meta-prior / selección de base de los datos); el generador de MODELO real
+> (lazo cerrado exp018); y SCALE (GPU).
