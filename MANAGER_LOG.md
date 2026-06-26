@@ -4245,3 +4245,19 @@ endógena -- estima el valor para ASIGNAR recursos escasos (teoría completa+val
 señal colapsa bajo auto-entrenamiento) con CURA de calibración (unlikelihood acotado, 119), y su valor se REALIZA bajo
 ESCASEZ (123); NO es un motor que acelere el aprendizaje. Frontera próxima sesión: payoff decisional en lazo real con
 escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes largos; objetivo no-sintético.
+
+## [2026-06-26] CYCLE 124 — H-V4-9d: el LADO OSCURO del capstone — las apuestas de la calibración son REGIME-DIRECCIONALES
+- Archivos creados: cognia_x/experiments/exp108_calibration_stakes/ (run.py+__init__), cognia_x/research/cycles/cycle124_calibration_stakes.py, cognia_x/tests/test_cycle124_calibration_stakes.py
+- Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.AX)
+- Resultado tests: PASS — área R-VALOR 104 passed (cycle100-124 numpy + research_engine + cycle123) en 10.69s; cycle124 dirigido 5/5; engine verify_no_loss=OK.
+- Notas: ESTRÉS ADVERSARIAL de 123. 123 demostró que la calibración PAGA bajo escasez y SATURA bajo abundancia, pero sólo
+  barrió ρ≥0. exp108 extiende a ρ<0 (estimador ACTIVAMENTE MAL-CALIBRADO, el peligro 'confiadamente equivocado' del sub-arco
+  de fragilidad 115-119) y halla un patrón ANTI-DIAGONAL (200 seeds, reproducible smoke 40 ≈ full 200): ESCASEZ (q=0.08)
+  UPSIDE +0.908 / DOWNSIDE +0.087; ABUNDANCIA (q=0.9) UPSIDE +0.108 (satura) / DOWNSIDE +0.806 (CATASTRÓFICO -- el selector
+  anti-calibrado encuentra fiablemente las raras opciones MALAS). => las apuestas de la calibración son REGIME-DIRECCIONALES:
+  escasez pesa el UPSIDE (gemas raras), abundancia pesa el DOWNSIDE (minas raras). REFINA 123: 'irrelevante bajo abundancia'
+  vale sólo para el upside; una señal de valor endógena MAL-calibrada es más peligrosa JUSTO bajo abundancia. JUSTIFICA la
+  cura de durabilidad (119): la fiabilidad de la brújula protege en AMBOS regímenes por razones opuestas. La señal de valor
+  endógena es de DOBLE FILO. cycle124 → H-V4-9d 'apoyada', D-V4-86 ACEPTADA, techo 'real', verify_no_loss=OK.
+- Frontera: re-medir el doble filo en un lazo real (ρ provisto por 119, no exógeno) / a SCALE; costo esperado de una señal
+  anti-calibrada por presupuesto m; caracterizar la transición upside↔downside por régimen.

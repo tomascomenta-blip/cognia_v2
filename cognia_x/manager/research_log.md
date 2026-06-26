@@ -3761,3 +3761,25 @@ Test 4/4.
 > satura bajo abundancia. Cierra el arco R-VALOR coherentemente: el valor endógeno calibrado es una BRÚJULA DECISIONAL para
 > ASIGNAR bajo escasez (presupuesto de verificación/atención/cómputo), y la cura de durabilidad (119) la mantiene confiable.
 > Frontera: re-medir el payoff decisional en un lazo real con escasez genuina o a SCALE.
+
+## CYCLE 124 — H-V4-9d (rama R-VALOR, ESTRÉS ADVERSARIAL del capstone 123; el LADO OSCURO) — APOYADA
+exp108 (numpy, 200 seeds): el capstone 123 sólo barrió ρ≥0 (de azar a buena calibración) y concluyó "la calibración es
+irrelevante bajo abundancia". Este ciclo EXTIENDE el barrido a ρ<0 -- un estimador ACTIVAMENTE MAL-CALIBRADO ("confiadamente
+equivocado", el peligro del sub-arco de fragilidad 115-119: ρ<0 => e ANTI-correlacionado con la bondad => el top-m elige los
+MENOS buenos) -- y pregunta si las apuestas de la calibración son simétricas o el RÉGIMEN decide qué DIRECCIÓN importa.
+RESULTADO contundente y reproducible (smoke 40 ≈ full 200): patrón ANTI-DIAGONAL. Bajo ESCASEZ (q=0.08): UPSIDE(azar→bien)
++0.908 (azar 0.087 → bien 0.995) pero DOWNSIDE(azar→anti) sólo +0.087 (el suelo aleatorio ya es ~0, la anti-calibración no
+puede empeorarlo mucho). Bajo ABUNDANCIA (q=0.9): UPSIDE SATURA +0.108 (irrelevante, cualquier selector positivo acierta)
+PERO DOWNSIDE CATASTRÓFICO +0.806 (azar 0.892 → anti 0.086 -- un selector anti-calibrado elige preferentemente las raras
+opciones MALAS, que son pocas pero las encuentra fiablemente). => las apuestas de la calibración son REGIME-DIRECCIONALES: la
+ESCASEZ hace pesar el UPSIDE (capturar gemas raras), la ABUNDANCIA hace pesar el DOWNSIDE (no pisar las raras minas). REFINA
+123: "irrelevante bajo abundancia" vale SÓLO para el upside; una señal de valor endógena MAL-calibrada es más peligrosa
+JUSTO bajo abundancia, donde uno se sentiría a salvo. JUSTIFICA la cura de durabilidad (119): mantener la señal calibrada no
+es un lujo de lazos largos -- protege en AMBOS regímenes por razones opuestas. cycle124 → H-V4-9d 'apoyada' (DoD), D-V4-86
+ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> LADO OSCURO DEL CAPSTONE (124): las apuestas de la calibración son REGIME-DIRECCIONALES (anti-diagonal) -- escasez pesa el
+> UPSIDE (gemas raras), abundancia pesa el DOWNSIDE (minas raras). La señal de valor endógena es de DOBLE FILO: "irrelevante
+> bajo abundancia" (123) sólo vale para ganar, no para perder. Esto justifica la cura de durabilidad (119) en AMBOS
+> regímenes. Frontera: re-medir el doble filo en un lazo real (ρ provisto por 119, no exógeno) / a SCALE; costo esperado de
+> una señal anti-calibrada por presupuesto.

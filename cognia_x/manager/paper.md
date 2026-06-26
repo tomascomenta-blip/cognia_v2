@@ -875,3 +875,22 @@ free lunch que acelere el aprendizaje, pero sí una guía potente y RE-CALIBRABL
 verificado-incorrecto) para decidir dónde gastar los recursos escasos de un sistema. FRONTERA: re-medir el payoff decisional
 en un lazo real con escasez genuina (tarea dura) y a SCALE; integrar el unlikelihood-acotado con la teoría de asignación;
 horizontes largos; objetivo no-sintético. H-V4-4 (techo de recall = optimización) sigue DIFERIDA.
+
+## 3.AX EL LADO OSCURO DEL CAPSTONE — las apuestas de la calibración son REGIME-DIRECCIONALES (124)
+123 cerró con "la calibración es irrelevante bajo abundancia", pero sólo barrió ρ≥0 (de azar a buena calibración). 124
+(H-V4-9d, APOYADA) estresa adversarialmente ese capstone extendiendo el barrido a ρ<0 -- un estimador ACTIVAMENTE
+MAL-CALIBRADO ("confiadamente equivocado", el peligro que halló el sub-arco de fragilidad 115-119): ρ<0 hace que el
+estimador esté ANTI-correlacionado con la bondad, de modo que someter las top-m elige los MENOS buenos. exp108 (numpy, 200
+seeds, reproducible smoke 40 ≈ full 200) halla un patrón ANTI-DIAGONAL: bajo ESCASEZ (q=0.08) el UPSIDE de la buena
+calibración es grande (+0.908: de azar 0.087 a casi-óptimo 0.995) pero el DOWNSIDE de la anti-calibración es chico (+0.087:
+el suelo aleatorio ya es ~0); bajo ABUNDANCIA (q=0.9) el UPSIDE SATURA (+0.108, irrelevante) pero el DOWNSIDE es CATASTRÓFICO
+(+0.806: de azar 0.892 a anti 0.086 -- el selector anti-calibrado encuentra fiablemente las raras opciones MALAS). =>
+las apuestas de la calibración son REGIME-DIRECCIONALES: la ESCASEZ hace pesar el UPSIDE (capturar las gemas raras), la
+ABUNDANCIA hace pesar el DOWNSIDE (NO pisar las raras minas). Esto REFINA 123 de forma importante: "la calibración es
+irrelevante bajo abundancia" vale SÓLO para el upside (para ganar); para el downside (para perder) es exactamente lo
+contrario -- una señal de valor endógena MAL-calibrada es más peligrosa JUSTO bajo abundancia, donde uno se sentiría a salvo.
+Y JUSTIFICA operativamente la cura de durabilidad (119): mantener la señal calibrada no es un lujo de "lazos largos" sino una
+protección en AMBOS regímenes por razones opuestas -- bajo escasez para capturar lo raro bueno, bajo abundancia para no
+seleccionar lo raro malo. La señal de valor endógena es de DOBLE FILO. FRONTERA: re-medir el doble filo en un lazo real
+(donde el ρ -incl. anti- lo fija la dinámica de auto-entrenamiento y la cura 119, no es exógeno) y a SCALE; cuantificar el
+COSTO ESPERADO de una señal anti-calibrada según el presupuesto m y caracterizar la transición upside↔downside por régimen.

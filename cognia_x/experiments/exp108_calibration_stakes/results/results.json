@@ -1,0 +1,58 @@
+{
+  "exp": "exp108_calibration_stakes",
+  "cycle": 124,
+  "hypothesis": "H-V4-9d",
+  "claim": "las apuestas de la calibracion del selector son REGIME-DIRECCIONALES: bajo escasez importa el UPSIDE de la buena calibracion (gemas raras), bajo abundancia importa el DOWNSIDE de la anti-calibracion (encuentra fiablemente las raras minas) -> una senal de valor endogena es de doble filo; refina 123 ('irrelevante bajo abundancia' solo vale para el upside)",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "escaso": {
+        "-0.9": 0.0,
+        "-0.6": 0.0,
+        "-0.3": 0.006,
+        "0.0": 0.0866,
+        "0.3": 0.4635,
+        "0.6": 0.8814,
+        "0.9": 0.995
+      },
+      "abundante": {
+        "-0.9": 0.086,
+        "-0.6": 0.258,
+        "-0.3": 0.639,
+        "0.0": 0.892,
+        "0.3": 0.986,
+        "0.6": 1.0,
+        "0.9": 1.0
+      }
+    },
+    "upside_scarce": 0.9084,
+    "downside_scarce": 0.0866,
+    "upside_abund": 0.108,
+    "downside_abund": 0.806,
+    "anti_diagonal": true,
+    "abund_downside_real": true,
+    "scarce_upside_real": true,
+    "status": "apoyada",
+    "verdict": "H-V4-9d APOYADA (anti-diagonal): las apuestas de la calibración son REGIME-DIRECCIONALES. ESCASEZ (q=0.08): UPSIDE +0.908 (azar 0.087->bien 0.995), DOWNSIDE +0.087 (azar->anti 0.000) -> importa el UPSIDE (capturar gemas raras), el suelo ya es bajo. ABUNDANCIA (q=0.9): UPSIDE +0.108 (satura, azar 0.892->bien 1.000: irrelevante), DOWNSIDE +0.806 (azar->anti 0.086) -> importa el DOWNSIDE (un selector anti-calibrado encuentra fiablemente las raras MINAS -> catástrofe). => una señal de valor endógena es de DOBLE FILO; su fiabilidad importa en AMBOS regímenes pero por razones OPUESTAS. REFINA 123: 'irrelevante bajo abundancia' vale SÓLO para el upside; una señal MALA es más peligrosa justo donde te sentís seguro."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200,
+    "n": 60,
+    "m": 5
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp108] CYCLE 124 / H-V4-9d — apuestas de la calibración: ¿escasez->UPSIDE, abundancia->DOWNSIDE? (ρ incl. anti)",
+    "[exp108] n=60 m=5 seeds=200 rhos=[-0.9, -0.6, -0.3, 0.0, 0.3, 0.6, 0.9] qs={'escaso': 0.08, 'abundante': 0.9}",
+    "[exp108] q=    escaso (=0.08): ρ-0.9=0.000 ρ-0.6=0.000 ρ-0.3=0.006 ρ+0.0=0.087 ρ+0.3=0.464 ρ+0.6=0.881 ρ+0.9=0.995",
+    "[exp108] q= abundante (=0.9): ρ-0.9=0.086 ρ-0.6=0.258 ρ-0.3=0.639 ρ+0.0=0.892 ρ+0.3=0.986 ρ+0.6=1.000 ρ+0.9=1.000",
+    "[exp108] ESCASEZ:   upside(0->+.9)=+0.908  downside(0->-.9)=+0.087",
+    "[exp108] ABUNDANCIA: upside(0->+.9)=+0.108  downside(0->-.9)=+0.806",
+    "[exp108] anti_diagonal=True (escasez->UPSIDE, abundancia->DOWNSIDE)",
+    "[exp108] VEREDICTO H-V4-9d: APOYADA | H-V4-9d APOYADA (anti-diagonal): las apuestas de la calibración son REGIME-DIRECCIONALES. ESCASEZ (q=0.08): UPSIDE +0.908 (azar 0.087->bien 0.995), DOWNSIDE +0.087 (azar->anti 0.000) -> importa el UPSIDE (capturar gemas raras), el suelo ya es bajo. ABUNDANCIA (q=0.9): UPSIDE +0.108 (satura, azar 0.892->bien 1.000: irrelevante), DOWNSIDE +0.806 (azar->anti 0.086) -> importa el DOWNSIDE (un selector anti-calibrado encuentra fiablemente las raras MINAS -> catástrofe). => una señal de valor endógena es de DOBLE FILO; su fiabilidad importa en AMBOS regímenes pero por razones OPUESTAS. REFINA 123: 'irrelevante bajo abundancia' vale SÓLO para el upside; una señal MALA es más peligrosa justo donde te sentís seguro."
+  ]
+}
