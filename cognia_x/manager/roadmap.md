@@ -335,3 +335,19 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > SUB-TEMA FEEDBACK-REALISMO (87-88) CERRADO: la política gap #2 (always-learn/greedy) es robusta bajo feedback
 > action-gated (87) y bajo concentración extrema del soporte / observación correlacionada (88). El salto grande pendiente
 > (gaps #1/#3): lazo de acción-consecuencia REAL con verificador chequeable (sandbox exp018) y SCALE (GPU).
+
+> CONTINUIDAD 89–135 (log canónico: `research_log.md` + engine store; este roadmap quedó en 88). Arco posterior:
+> consolidación R-VALOR (asignación vector/cost-aware 100-114) → FRAGILIDAD del auto-entrenamiento (115-121) → payoff
+> DECISIONAL bajo escasez (122-126) → rama CONTROL/ACCIÓN (127-134: keystone valor=ctrl×rel; el agente descubre AMBOS
+> factores -controlabilidad del mapa acción→estado, relevancia del mapa estado→meta- de UNA experiencia) → CYCLE 135
+> (H-V4-10i MIXTA): la relevancia bajo meta NO-LINEAL es discoverable con una BASE de credit-assignment expresiva (cierra
+> el caveat EJE2 de 134), pero 3 claims secundarios fueron retractados por verificación adversarial ('el prior paga' =
+> artefacto de sub-regularización; 'no hay base fija universal' = falso, un relu fijo es casi-universal; 'une R-VALOR con
+> R-PRIOR' = puente no testeado).
+>
+> FRONTERA ACTIVA (post-135): (1) **R-PRIOR EXPLÍCITO** — aprender/seleccionar la base del credit-assignment de un menú
+> (model selection / cross-validación / prior jerárquico) y medir si un aprendiz que NO conoce la forma de la meta IGUALA a
+> la base matched; si lo iguala, 'la relevancia bajo no-linealidad es un cuello de R-PRIOR' queda REFUTADO. (2) relevancia
+> bajo sustrato ACOPLADO (133, colinealidad del credit-assignment). (3) lazo de acción-consecuencia REAL (sandbox exp018).
+> (4) active inference formal. (5) SCALE (GPU/Kaggle). MÉTODO institucionalizado: verificación adversarial de 4 agentes
+> antes del ledger (5 ciclos seguidos -131..135- corrigiendo overclaims).

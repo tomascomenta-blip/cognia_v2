@@ -4021,3 +4021,37 @@ cycle134 → H-V4-10h 'apoyada' (DoD), D-V4-96 ACEPTADA, techo 'real', verify_no
 > La controlabilidad se paga con ACCIÓN (R-INTERVENCIÓN), la relevancia con DATOS+SEÑAL. Institucionalizar la verificación
 > adversarial (4 ciclos seguidos corrigiendo overclaims). Frontera: relevancia bajo sustrato ACOPLADO (133, colinealidad del
 > credit-assignment), meta no-lineal aprendible (base rica, R-PRIOR 89-92), lazo real, active inference formal.
+
+## CYCLE 135 — H-V4-10i (rama control/acción, ATACA el caveat EJE2 de 134: la relevancia NO se descubre bajo meta NO-LINEAL con credit-assignment lineal) — MIXTA (núcleo apoyado + 3 overclaims retractados por VERIFICACIÓN ADVERSARIAL, 5to ciclo seguido)
+exp119 (numpy, 200 seeds, post-verificación de 4 agentes). 134 dejó un caveat agudo: el credit-assignment LINEAL (regresar la señal
+de meta G ~ x) recupera la relevancia sólo si la meta es ~lineal-descomponible; bajo meta PAR (G=Σw·x²) recupera corr(ŵ,w)≈0 y la
+decisión cae a azar. Este ciclo ataca el caveat cambiando la BASE del credit-assignment (las features sobre las que se regresa G),
+no el sustrato ni la decisión. Bases: linear [x], even [x²], relu [relu(x)], rich [x,x²,relu]; metas: linear/even/relu/mixed.
+NÚCLEO VERIFICADO (leakage-free): una base RICA -o de paridad-mixta- recupera el factor RELEVANCIA del R-VALOR bajo meta no-lineal.
+La base LINEAL de 134 queda fuertemente DEGRADADA bajo meta PAR (ambos=0.640 vs ctrl_solo=0.490, corr_w=0.18; recupera ~29% del
+gap) por ORTOGONALIDAD-DE-PARIDAD (una función impar no representa una par); la MATCHED (ambos=1.000) y la RICA genérica -que NO
+sabe la forma- (ambos=1.000, +0.360 sobre la lineal, t~17.6, frac(rich≥lin)=1.0) la RESUCITAN, robustas a TODA forma (linear/even/
+relu/mixed = 1.000); con dato amplio/limpio la generalidad es GRATIS, y el núcleo sobrevive a sustratos más duros (pesos graduados,
+disociación genuina ctrl-rel ctrl_solo→0.20, D=16 K=4). 4 controles nulos pasan (decoy-w → colapso a ctrl_solo; G ruido → sin
+ventaja; uniform-s → idéntico; identificabilidad even coef=w·std(x²) ratio 0.99). => cierra el caveat EJE2: la relevancia ES
+discoverable bajo no-linealidad con una base suficientemente expresiva. cycle135 → H-V4-10i 'mixta' (DoD), D-V4-97 ACEPTADA, techo
+'real', verify_no_loss=OK. Test 5/5.
+
+> META-PATRÓN (135, 5to seguido con 131/132/133/134): una 1ra versión vendía APOYADA con un marco R-PRIOR atractivo ("la base
+> matched es el óptimo data-eficiente / el prior PAGA / no hay base fija universal / une R-VALOR con R-PRIOR"). Una VERIFICACIÓN
+> ADVERSARIAL (4 agentes, ultracode, lentes leakage/efecto/overclaim/identificabilidad) confirmó el NÚCLEO leakage-free pero CAZÓ
+> 3 OVERCLAIMS y bajó el veredicto a MIXTA (directiva v4: bundle de claims donde sólo el núcleo se aísla = MIXTA): (1) 'el PRIOR
+> PAGA / costo de DATOS escala con la riqueza' — el eje DATOS es NULO (gap matched-rica ~0 a T≥30; sólo a T≤15 la base rica de 24
+> cols es rank-deficiente) y el eje RUIDO (σ_g=20: gap +0.29 a ridge 0.01) es ~80% ARTEFACTO de sub-regularizar la base rica:
+> subiendo el ridge a 0.3 (cross-validable, GRATIS en el régimen fácil) el gap cae a ~0.07 y el propio build_summary vira a MIXTA.
+> El mecanismo es VARIANZA por colinealidad x²/relu, no un costo intrínseco de la generalidad. (2) 'NO hay base FIJA universal' es
+> FALSO: la base FIJA relu (1 columna, paridad-mixta) es casi-universal sobre las formas probadas (peor caso 0.99); sólo fallan las
+> bases de PARIDAD-PURA ORTOGONALES (linear↔even, E[x·x²]=0). El fenómeno real es ORTOGONALIDAD-DE-PARIDAD. (3) 'une R-VALOR con
+> R-PRIOR' es un PUENTE SUGERIDO, no testeado: el experimento hace ingeniería de features (cambiar columnas de una regresión
+> ridge), no APRENDE/SELECCIONA la base ni varía un prior. Diagnóstico secundario: corr_w bajo (~0.6) con decisión perfecta es el
+> sesgo positivo de la norma-del-bloque ŵ_i=‖coef‖ (no usar como criterio). El experimento se REESCRIBIÓ para AUTO-DOCUMENTAR la
+> MIXTA (probe robustez-a-ridge + relu peor-caso en el propio run.py). MIXTA EXITOSA (directiva v4 §4): el núcleo apoyado afila el
+> PRÓXIMO ciclo. Frontera: testear R-PRIOR EXPLÍCITO — aprender/seleccionar la base de un menú (model selection / cross-validación
+> / prior jerárquico) y medir si un aprendiz que NO conoce la forma IGUALA a la base matched (lo que esta MIXTA predice; si lo
+> iguala, 'la relevancia bajo no-linealidad es un cuello de R-PRIOR' queda REFUTADO). También: relevancia bajo sustrato acoplado
+> (133), lazo real, active inference formal.

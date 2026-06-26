@@ -327,3 +327,25 @@
   no liga aquí (2ª refutación consecutiva). Matiz: costo MILD sub-umbral de concentración que la exploración cierra.
   Sirve al GOAL (R-VALOR). Próximo (el salto grande): lazo de acción-consecuencia REAL con verificador chequeable
   (sandbox exp018) y SCALE (GPU).
+
+> NOTA DE CONTINUIDAD: los CYCLES 89–134 se registraron en `research_log.md` (log canónico de investigación) +
+> `decomposition_tree.md` / `roadmap.md`, no en este manager_log. Resumen del arco 89–134: consolidación R-VALOR
+> (asignación vector/cost-aware 100-114), arco de FRAGILIDAD del auto-entrenamiento (115-121), payoff DECISIONAL bajo
+> escasez (122-126), y la rama CONTROL/ACCIÓN (127-134: keystone valor=ctrl×rel, el agente descubre AMBOS factores de
+> una experiencia). Ver research_log para el detalle por ciclo.
+
+## [2026-06-26] CYCLE 135 — H-V4-10i MIXTA (núcleo apoyado + 3 overclaims retractados por verificación adversarial, 5to ciclo): la relevancia bajo meta NO-LINEAL es discoverable con una BASE de credit-assignment expresiva (cierra el caveat EJE2 de 134)
+- Archivos: cognia_x/experiments/exp119_basis_relevance/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle135_basis_relevance.py (new), cognia_x/tests/test_cycle135_basis_relevance.py (new),
+  research_log.md / decomposition_tree.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 5/5; engine 20/20; cycle135 por el engine MIXTA, D-V4-97 aceptada, verify_no_loss=OK.
+- Resultado exp (200 seeds): bajo meta PAR la base LINEAL de 134 cae (ambos=0.640 vs ctrl_solo 0.490, corr_w 0.18) por
+  ORTOGONALIDAD-DE-PARIDAD; la base MATCHED y la RICA genérica la RESUCITAN (ambos=1.000, +0.360, t~17.6), robustas a las 4 formas
+  y a sustratos más duros (graded, disociado, D=16); leakage-free (4 controles nulos). NÚCLEO APOYADO.
+- Notas: VERIFICACIÓN ADVERSARIAL de 4 agentes (5to ciclo seguido) confirmó el núcleo y CAZÓ 3 overclaims -> MIXTA (directiva v4,
+  bundle de claims): (1) 'el prior paga' es ~80% artefacto de sub-regularizar la base rica (gap σ_g=20 +0.29@ridge0.01 -> +0.07@
+  ridge0.3, cross-validable); (2) 'no hay base fija universal' FALSO (relu fijo peor-caso 0.99; sólo falla la paridad-PURA
+  ortogonal); (3) 'une R-VALOR con R-PRIOR' = puente sugerido, no testeado. El experimento se reescribió para AUTO-DOCUMENTAR la
+  MIXTA (probe robustez-a-ridge + relu peor-caso en run.py). Sirve al GOAL (R-VALOR; acota el factor RELEVANCIA bajo no-linealidad).
+  Próximo: testear R-PRIOR EXPLÍCITO (aprender/seleccionar la base; ¿iguala un aprendiz sin-forma a la base matched? si sí, el
+  cuello R-PRIOR queda refutado).
