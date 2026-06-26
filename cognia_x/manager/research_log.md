@@ -2913,3 +2913,51 @@ aproximación-sobre-spread (tier2) y con CYCLE 87 (tier5).
 > action-gated (87) y bajo concentración extrema/observación correlacionada (88). El SALTO GRANDE pendiente: lazo de
 > acción-consecuencia REAL con verificador chequeable (sandbox exp018) -- feedback con costo, dinámica secuencial,
 > target no-sintético -- y SCALE (GPU).
+
+## CYCLE 89 — H-V4-7g (rama R-VALOR, EL SALTO GRANDE / gaps #1/#3): R-VALOR sobre un VERIFICADOR REAL — APOYADA
+
+### Pregunta
+Todo el arco gap #2 (83-88) construyó R-VALOR=control×relevancia con un valor SINTÉTICO SUAVE (g=min/max) y ruido
+abstracto. El caveat HONESTO más repetido: "g=max sintético, base poly2 que NESTA el target". El salto grande (frontera
+tras 88): ¿la política R-VALOR (aprender un combinador barato + asignar el feedback ESCASO/costoso por él) sobrevive
+cuando el valor lo decide un VERIFICADOR CHEQUEABLE REAL — el sandbox de exp018 EJECUTA el candidato y devuelve v∈{0,1},
+DISCRETO, no una fórmula suave?
+
+### Diseño
+Numpy + el sandbox REAL de exp018 (`interpret`/`verify`, parser propio, sin eval). Cada candidato es una EXPRESIÓN
+generada con dos latentes: estructura c (P[bien-formada con operador]) y valor r (P[su valor==target]); el verificador
+real la ejecuta y decide v. Dos regímenes ANÁLOGOS a comp/subs pero con valor REAL: STRONG (exige operador Y
+valor==target -> conjuntivo, E[v|c,r]=c·r, producto Bayes-óptimo) y WEAK (acepta el echo del target sin operador ->
+E[v|c,r]=r, relevancia-dominante, el producto mis-rankea los echoes high-r/low-c). El agente ve features RUIDOSAS
+(c_est, r_est), con presupuesto K=10/ronda SELECCIONA qué verificar (action-gated + costoso), observa el v REAL
+(Bernoulli), refit ridge-poly2; eval = rankea un pool fresh por el combinador final (perf_of con v discreto). Brazos:
+product, learned_{greedy,explore,random}, oracle, chance. 48 seeds. Pre-registrado.
+
+### Resultado — APOYADA
+La política SOBREVIVE el verificador real. STRONG: learned_greedy=0.603 ≈ product=0.615 (no-regret Δ=-0.011, el
+producto es Bayes-óptimo en el régimen conjuntivo). WEAK: learned_greedy=0.885 > product=0.779 (recupera +0.106 la
+relevancia-dominancia que el producto pierde al multiplicar por la estructura irrelevante de los echoes — paralelo REAL
+al régimen 'sustitutos' del gap #2, pero por la rama echo/reward-hack de exp018, no por un g=max de juguete). El feedback
+DISCRETO (Bernoulli) NO rompe el aprendizaje (>> chance: +0.343/+0.384); greedy NO se atrapa bajo feedback costoso
+(trap S=0.001/W=0.002 <= 0.03), confirmando 87-88 con valor REAL. => el mecanismo del arco gap #2 NO era un artefacto
+del g suave.
+
+### Límites (honestos)
+La ESPERANZA del valor E[v|c,r] sigue siendo SUAVE y NESTEABLE por el poly2 (c·r y r son sus features), porque el
+GENERADOR de candidatos es sintético (latentes c,r -> Bernoulli): se probó que la VARIANZA Bernoulli del verificador
+real no rompe el mecanismo, NO un target cuya MEDIA condicional el poly2 no pueda nestar (umbral agudo / no-monotonía).
+Falta un GENERADOR de MODELO real (exp018 HybridLM) con lazo cerrado de entrenamiento, objetivo no-escalar, y SCALE
+(GPU). El gap al oracle en strong es grande (0.397: positivos c·r escasos, sin saturación trivial).
+
+### Verificación
+exp073 (48 seeds, numpy + sandbox exp018). cycle89 → H-V4-7g 'apoyada' (DoD), D-V4-51 ACEPTADA, 1 techo 'real',
+analogía 7 etapas, verify_no_loss=OK. Test `test_cycle89_real_verifier_value.py` 5/5 (sandbox real decide el valor +
+supervivencia smooth→discrete + 3 ramas). Convergente con el principio verificador-conjuntivo/media-condicional (tier2)
+y con la política gap #2 de CYCLE 86 (tier5).
+
+> EL SALTO GRANDE — primer aterrizaje en un verificador REAL (eje smooth→discrete CERRADO): la política R-VALOR del arco
+> gap #2 (combinador aprendido que nesta el producto; always-learn/greedy bajo feedback costoso) sobrevive el salto de
+> un valor sintético suave a un verificador chequeable REAL (sandbox exp018, valor discreto). El producto es Bayes-óptimo
+> donde el verificador es conjuntivo (strong); el aprendido recupera donde el echo lo vuelve relevancia-dominante (weak).
+> El feedback discreto no rompe el aprendizaje. Falta el eje NO-NESTEABLE: un target cuya media condicional el poly2 no
+> nesta y/o un generador de MODELO real con lazo cerrado (hija H-V4-7h) — y SCALE (GPU).

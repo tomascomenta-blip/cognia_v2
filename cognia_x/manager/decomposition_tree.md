@@ -492,3 +492,28 @@ el valor de lo que SELECCIONA (action-gated), no m al azar?
 > producto queda de baseline con feedback pobre. El SALTO GRANDE pendiente (gaps #1/#3): lazo de acción-consecuencia REAL
 > con verificador chequeable (sandbox exp018) -- feedback con costo, dinámica secuencial, target no-sintético -- y SCALE
 > (GPU). Soporte degenerado y bases no-nesting quedan como sub-caveats menores.
+
+## Addendum — CYCLE 89: EL SALTO GRANDE (gaps #1/#3) — primer aterrizaje de R-VALOR en un VERIFICADOR REAL
+Todo el arco gap #2 (83-88) construyó R-VALOR=control×relevancia con un valor SINTÉTICO SUAVE (g=min/max) que el poly2
+nesta — el caveat más repetido. CYCLE 89 quita esa muleta usando el verificador chequeable REAL de exp018 (el sandbox
+EJECUTA el candidato; valor DISCRETO v∈{0,1}).
+
+- **CYCLE 89 — H-V4-7g APOYADA (EL SALTO GRANDE, eje smooth→discrete).** ¿La política R-VALOR (combinador aprendido +
+  asignación del feedback escaso/costoso por el valor estimado) sobrevive cuando el valor lo decide un verificador
+  chequeable REAL en vez del g suave? Cada candidato es una EXPRESIÓN con latentes (c=estructura, r=valor); el sandbox la
+  ejecuta y decide v. Dos regímenes ANÁLOGOS a comp/subs pero con valor REAL: STRONG (operador Y valor==target ->
+  conjuntivo, E[v|c,r]=c·r, producto Bayes-óptimo) y WEAK (acepta el echo -> E[v|c,r]=r, relevancia-dom, el producto
+  mis-rankea). RESULTADO: la política SOBREVIVE. STRONG learned_greedy=0.603 ≈ product=0.615 (no-regret Δ=-0.011); WEAK
+  learned_greedy=0.885 > product=0.779 (recupera +0.106 la relevancia-dom vía la rama echo/reward-hack, paralelo REAL al
+  'sustitutos' del gap #2). El feedback DISCRETO (Bernoulli) NO rompe el aprendizaje (>> chance +0.34/+0.38); greedy NO
+  se atrapa bajo feedback costoso (trap S=0.001/W=0.002), confirma 87-88 con valor real. => el mecanismo del arco no era
+  artefacto del g suave. CAVEAT HONESTO: la ESPERANZA del valor sigue SUAVE y nesteable por el poly2 (generador
+  sintético c,r->Bernoulli) — se probó que la VARIANZA Bernoulli no rompe el mecanismo, NO una media condicional
+  no-nesteable. Cota 'real'; D-V4-51; test 5/5. Genera la hija H-V4-7h.
+
+> SALTO GRANDE — estado tras 89: el eje SMOOTH→DISCRETE está CERRADO (la política R-VALOR sobrevive un verificador real
+> conjuntivo: producto Bayes-óptimo en strong, aprendido recupera en weak; el veredicto discreto no rompe el
+> aprendizaje). El eje NO-NESTEABLE queda abierto (hija H-V4-7h): un target cuya media condicional el poly2 NO nesta
+> (umbral agudo / no-monotonía) y/o un GENERADOR de MODELO real (exp018 HybridLM) con lazo cerrado de entrenamiento
+> (verificado-correcto -> training -> el generador cambia). Y SCALE (GPU). El producto sigue de baseline con feedback
+> pobre; con feedback adecuado, el combinador aprendido (incluso greedy) — ahora confirmado contra un juez real.
