@@ -785,3 +785,24 @@ NO se logra con imitación de positivos; la cura queda como FRONTERA -- señal N
 verificado-incorrecto) o recalibración externa explícita. R-VALOR endógena es útil por tramos cortos + re-anclaje externo
 del outcome. [Nota metodológica honesta: en 115/116/117 el smoke de pocos seeds fue ruidoso/engañoso y el full (4 seeds)
 mandó -- los framings se corrigieron al ver el full, no al revés.]
+
+## 3.AP Frontera concreta — los negativos CURAN la calibración, pero el método importa (118)
+118 (H-V4-8x, REFUTADA-inestable pero MUY informativa) ataca la frontera de durabilidad: ¿una señal NEGATIVA/contrastiva
+cura el colapso de la señal? Con el contrastivo NAIVE (ascenso de gradiente sobre el CE de los verificado-incorrectos): los
+negativos PRESERVAN DRAMÁTICAMENTE la calibración -- corr(confianza,corrección) +0.398 sobre la imitación-positiva: la
+DIRECCIÓN es EXACTAMENTE correcta, los negativos SÍ curan la sobreconfianza -- PERO el método crudo DESTRUYE la capacidad
+(real_acc 0.014 vs 0.239, modelo degenerado). => la pieza concreta que falta para la durabilidad de R-VALOR es un
+unlikelihood ACOTADO (-log(1-p) sobre los tokens no deseados) que capture el beneficio de calibración SIN colapsar la
+capacidad, o una recalibración externa explícita. El ascenso de CE crudo NO es viable. Esto convierte la frontera abierta
+de 115-117 ("hace falta algo más") en una hipótesis CONCRETA y accionable (unlikelihood acotado) para la próxima corrida
+(idealmente con SCALE, donde la inestabilidad del contrastivo puede ser menos severa que en el tiny model).
+
+## 3.AQ Cierre de la corrida 89-118 — qué se sabe de R-VALOR
+Tras 30 ciclos: R-VALOR (valor endógeno = controlabilidad × relevancia) admite una TEORÍA DE ASIGNACIÓN completa y
+robusta bajo realismo (qué elegir / cuándo gastar / si vale estimar; marginal-en-la-agregación, costo, cobertura, timing,
+no-estacionariedad, meta-aprendizaje de prior/política/agregación), VALIDADA toy→real en sus piezas centrales (costo 105,
+receta compuesta 107 que iguala al verify-all a fracción del presupuesto). Su LÍMITE honesto: como señal ENDÓGENA es útil
+por HORIZONTES CORTOS; en lazos sostenidos la señal de valor (confianza/auto-consistencia) COLAPSA por auto-entrenamiento,
+y su durabilidad requiere GROUNDING EXTERNO -- cuya forma viable (unlikelihood acotado sobre negativos verificados, o
+recalibración externa) es la frontera concreta identificada. R-VALOR no es un free lunch endógeno perpetuo: es una brújula
+endógena potente que necesita re-calibrarse contra el mundo cada tanto.
