@@ -3628,3 +3628,19 @@ confianza. cycle115 → H-V4-8t 'mixta' (DoD), D-V4-77 ACEPTADA, techo 'real', v
 > de verdad canónica rescata el OUTCOME (ancla los datos), NO la SEÑAL. La asignación-por-confianza sirve por pocas rondas;
 > en lazos sostenidos depender del ancla y monitorear/recalibrar. Frontera: anclas que SÍ recalibren la señal (verificador
 > independiente / auto-consistencia); curva horizonte-vs-colapso; SCALE.
+
+## CYCLE 116 — H-V4-8u (rama R-VALOR, cierra el pointer de 115: ¿señal intrínseca durable?) — MIXTA
+exp100 (PyTorch CPU, lazo real exp018, 4 seeds, 6 rondas): ¿la AUTO-CONSISTENCIA (acuerdo entre K generaciones) es más
+durable que la confianza single-shot (que colapsa, 115)? RESULTADO MIXTO: self_consist es de MEJOR NIVEL pero NO más
+durable. corr confidence 0.592->0.169 (tend -0.342) vs self_consist 0.703->0.320 (tend -0.343). self_consist DOMINA en
+todas las rondas (arranca y termina más alto, brecha final +0.151) -> es mejor selector; PERO degrada al MISMO ritmo
+(durabilidad Δtendencia ≈0): AMBAS colapsan, sólo que self_consist desde más arriba. El colapso es propiedad del
+entrenar-sobre-sí-mismo (consistentemente-equivocado), no del estimador puntual -> la durabilidad en lazos largos sigue
+necesitando grounding externo (refuerza 115). NOTA: el smoke (4 rondas) mostró self_consist estable; el full (6 rondas)
+reveló su colapso a horizonte mayor -> MIXTA. cycle116 → H-V4-8u 'mixta' (DoD), D-V4-78 ACEPTADA, techo 'real',
+verify_no_loss=OK. Test 3/3.
+
+> SEÑAL DURABLE (115-116): la auto-consistencia es un selector intrínseco de MEJOR NIVEL que la confianza single-shot
+> (vale usarla, compra más rondas útiles) pero NO más durable; ningún estimador intrínseco evita el colapso por
+> auto-entrenamiento -> la durabilidad en lazos largos necesita grounding externo periódico. Frontera: señales que SÍ se
+> recalibren con grounding externo; detectar el modo consistentemente-equivocado; SCALE.
