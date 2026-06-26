@@ -3412,3 +3412,19 @@ verify_no_loss=OK. Test 5/5.
 > surprise-gated (97-99); con la base/prior que matchee la estructura del valor (90-92); en el lazo cerrado real con
 > guardia de diversidad (93-96). Frontera: integrar TODO en el lazo cerrado real con el modelo; pesos inciertos / >2
 > objetivos; y SCALE (GPU/Kaggle, fuera de CPU).
+
+## CYCLE 102 — H-V4-8g (rama R-VALOR, META-ALLOCATION; converso de CYCLE 92) — APOYADA
+La regla general (83-101) supone que el agente CONOCE la estructura del objetivo, pero el mejor brazo DIFIERE por régimen
+(per-costo ayuda en ADITIVO, estorba en COBERTURA que satura, 101) -> ningún brazo domina. exp086 (numpy, 48 seeds): un
+BANDIT (ε-greedy) sobre estrategias {value, ratio, marginal, marginal_per_cost}, guiado por el reward de outcomes, en
+regímenes additive_hetero (mejor: ratio=0.948) y coverage_hetero (mejor: value=0.978). RESULTADO: la mejor estrategia
+DIFIERE (ningún brazo domina); el bandit logra NO-REGRET (regret vs oracle_selector ADD=0.006/COV=0.006) y supera a la
+mejor estrategia FIJA única (ratio=0.942) por +0.015. => a diferencia de CYCLE 92 (meta-PRIOR: un default flexible dominaba
+y la selección era INNECESARIA), AQUÍ ninguna política de asignación domina y la selección ES NECESARIA — el agente la
+DESCUBRE del feedback de outcomes. La META-DECISIÓN (qué política de asignación) es ella misma R-VALOR-aprendible (bandit
+no-regret). Caveat: margen modesto; bandit estacionario (bajo CAMBIO de régimen necesitaría surprise-gating de CYCLE 99);
+objetivos sintéticos. cycle102 → H-V4-8g 'apoyada' (DoD), D-V4-64 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3.
+
+> META-REGLA del lab (92 + 102): ELEGIR la política (prior/asignación) del feedback SÓLO cuando ningún default domina
+> (102, converso de 92 donde un default flexible la hacía innecesaria). La meta-decisión es R-VALOR-aprendible. Frontera:
+> meta-selección bajo CAMBIO de régimen (surprise-gated); integrar en el lazo cerrado real; y SCALE.
