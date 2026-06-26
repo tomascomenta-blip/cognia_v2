@@ -4129,3 +4129,38 @@ Commits (rama cognia-x, pusheados): a47cfa7(95) 47ec272(96) 420c2a7(97) 766de02(
 55275df(102) c78bcb0(103) 7577c28(paper) e1d9a72(104) 5b1d3f3(105) 10ea1a8(106) 7258ade(107) 5a4c699(108) adee86a(109)
 772a580(110) b66b2e4(paper) ad80e62(111) 951d2fd(112) 6601b5e(paper) 31563eb(113) 7c3feeb(114). D-V4-57..76 aceptadas por
 el ledger (tier5 propio).
+
+---
+
+## [2026-06-26] Addendum sesión autónoma — CYCLES 115-117: la FRAGILIDAD del fundamento de R-VALOR (stress-test honesto)
+Continuación de la misma corrida (tras 95-114). Tres ciclos de stress-test adversarial del FUNDAMENTO del arco: la
+asunción load-bearing de que la confianza endógena es una buena señal de valor (corr~0.6).
+
+- **115 (H-V4-8t, MIXTA/alarmante):** en un lazo sostenido la corr(confianza,corrección) COLAPSA (0.59->0.08 en 6 rondas:
+  sobreconfianza al entrenar sobre las propias salidas). La guardia de verdad canónica (94) NO frena el colapso de la
+  SEÑAL pero RESCATA el DOWNSTREAM (real_acc 0.25 vs 0.02) anclando los DATOS. REFRAME del rol de la guardia: desacopla el
+  outcome del selector degradado, no mantiene honesta la señal.
+- **116 (H-V4-8u, MIXTA):** la auto-consistencia (acuerdo entre K generaciones) es un selector de MEJOR NIVEL que la
+  confianza single-shot (+0.15 corr, en todas las rondas) pero NO más durable (degrada al mismo ritmo; ambas colapsan).
+  El colapso es propiedad del entrenar-sobre-sí-mismo; ningún estimador intrínseco lo evita solo.
+- **117 (H-V4-8w, APOYADA DÉBIL):** dirigir el replay canónico a los FALLOS del modelo (donde la confianza engaña) ayuda
+  MARGINALMENTE (corr +0.055, downstream +0.050) sobre el replay aleatorio, pero ambos siguen colapsando: MITIGA, no CURA.
+
+### Conclusión honesta (acota R-VALOR)
+R-VALOR como señal ENDÓGENA es útil por tramos CORTOS (las validaciones toy→real 105/107 y el lazo real 93/110 son sólidas
+en pocas rondas), pero su CALIBRACIÓN SOSTENIDA requiere RE-ANCLAJE EXTERNO. Ningún corrector basado en imitación de
+POSITIVOS (replay canónico, random o dirigido a fallos) restaura la señal; la cura de la durabilidad queda como FRONTERA:
+señal NEGATIVA/contrastiva (unlikelihood sobre lo verificado-incorrecto) o recalibración externa explícita (requiere
+cambiar el objetivo de entrenamiento, fuera del alcance de esta corrida CPU/tiny por riesgo de inestabilidad).
+
+### Verificación / honestidad
+Cada ciclo: DoD + verify_no_loss=OK + test (3 c/u). 115/116/117 PyTorch CPU (4 seeds, 6 rondas). 2 MIXTA + 1 APOYADA-débil
+reportadas tal cual; framings de smoke corregidos al ver el full en los TRES (115, 116, 117 -- los resultados de pocos
+seeds eran ruidosos/engañosos, el full mandó). D-V4-77..79 aceptadas (tier5). Commits: c0ef68b(115) 2c10698(116)
+2030d2c(117). paper.md + memoria sincronizadas a 116-117.
+
+### Estado de la corrida 89-117 (29 ciclos)
+TEORÍA DE ASIGNACIÓN R-VALOR completa bajo realismo + trilogía conceptual (qué/cuándo/si-estimar) + propiedades del
+estimador + puente a la generación + robustez/aprender-agregación + 2 validaciones toy→real + el stress-test de fragilidad
+que la acota honestamente. Frontera para la próxima sesión: señal negativa/contrastiva para la durabilidad; objetivo
+no-sintético; validar extensiones restantes en el lazo real; y SCALE (GPU/Kaggle).
