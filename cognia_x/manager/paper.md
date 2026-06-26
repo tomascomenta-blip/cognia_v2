@@ -706,3 +706,39 @@ marginal/agregación, costo, cobertura, timing, no-estacionariedad, meta; genera
 toy→real en sus piezas centrales (costo 105, receta compuesta 107). FRONTERA: validar las extensiones restantes
 (no-estacionariedad 97-99, vector 100, timing 104) en el lazo real; barrido del óptimo de diversidad; objetivo no-sintético;
 y SCALE (GPU/Kaggle, fuera de la corrida CPU). H-V4-4 (techo de recall = optimización) sigue DIFERIDA.
+
+---
+
+# Extensión 111-112 — el valor del filtro depende del pool, y R-VALOR RECURSIVO (cierre de la trilogía) (2026-06-26)
+
+## 3.AI El valor del FILTRO depende de la TASA BASE de calidad del pool (111)
+111 (H-V4-8p, MIXTA) intenta resolver el caveat de 110 (random_low fue el mejor) añadiendo la GUARDIA de diversidad (94)
+al filtro de confianza. La guardia AYUDA (conf_guard_high 0.513 > conf_high 0.349, +0.164: destraba el narrowing -> 94
+transfiere) pero NO alcanza a random_low (0.701). REFINAMIENTO: el valor del FILTRO de confianza depende de la TASA BASE de
+calidad del pool. Con pool LIMPIO barato (baja temperatura + base decente -> mayormente correctos), generar prolijo y
+muestrear ANCHO (random) vence a generar diverso y filtrar (que sesga hacia lo confiado y paga el costo de filtrar la
+basura). El filtro paga bajo pool RUIDOSO. Concilia con 110: la interacción temp×alloc sigue positiva, pero el óptimo
+global en pool-limpio-barato es generar-limpio + muestrear-ancho.
+
+## 3.AJ R-VALOR RECURSIVO — el COSTO/ROI de ESTIMAR el valor (112)
+112 (H-V4-8q, APOYADA) sube un nivel: todo el arco supuso un estimador de valor DADO, pero ESTIMAR no es gratis. ¿Conviene
+pagar por estimar (y asignar bien) vs actuar sobre un PRIOR barato? RESULTADO: hay un CRUCE gobernado por la HETEROGENEIDAD
+del valor y el COSTO de estimar -- a costo bajo estimar paga desde spread 0.3, a costo alto recién desde spread 0.6 (el
+umbral sube con el costo). A baja heterogeneidad (todo vale parecido) o alto costo, el PRIOR gana (estimar es plata
+tirada). => decidir SI estimar el valor es ella misma una decisión R-VALOR (ROI = ganancia-por-heterogeneidad −
+costo-de-estimar): el 'valor de la información sobre el valor' (metarazonamiento).
+
+## 3.AK CIERRE — la TRILOGÍA conceptual R-VALOR
+R-VALOR gobierna tres decisiones, que juntas cierran el lazo conceptual del arco:
+1. **QUÉ elegir** (asignación within/across-round): ganancia MARGINAL en la agregación verdadera / COSTO si aditivo;
+   prior matcheado; bajo drift olvidar (decay dominante) + explorar gateado por sorpresa; meta-selección aprendible
+   (83-103).
+2. **CUÁNDO gastar** (timing/abstención del presupuesto global): gastar donde rinde, abstenerse en oportunidades pobres
+   (104).
+3. **SI vale la pena estimar** el valor (ROI de la estimación; régimen de no-estimar bajo baja heterogeneidad o alto
+   costo) (112).
+Con dos propiedades del estimador (la CALIBRACIÓN importa para valor-vs-escala 106; el daño al ranking es el ORDER-BREAKING
+108-109) y un puente a la GENERACIÓN (diversidad del generador y calidad del filtro complementarias; el valor del filtro
+depende de la tasa base del pool, 110-111). VALIDADO toy→real en sus piezas centrales (costo 105, receta compuesta 107).
+FRONTERA: validar las extensiones restantes (no-estacionariedad 97-99, vector 100, timing 104) en el lazo real; objetivo
+no-sintético; estimación adaptativa (estimar más donde más cambia la decisión); y SCALE (GPU/Kaggle).
