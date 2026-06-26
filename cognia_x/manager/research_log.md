@@ -3783,3 +3783,24 @@ ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
 > bajo abundancia" (123) sólo vale para ganar, no para perder. Esto justifica la cura de durabilidad (119) en AMBOS
 > regímenes. Frontera: re-medir el doble filo en un lazo real (ρ provisto por 119, no exógeno) / a SCALE; costo esperado de
 > una señal anti-calibrada por presupuesto.
+
+## CYCLE 125 — H-V4-9e (rama R-VALOR, EJE DEL PRESUPUESTO; unifica 123+124) — APOYADA
+exp109 (numpy, 200 seeds): 123 (escasez) y 124 (direcciones) FIJARON el presupuesto (m=5). Este ciclo barre el presupuesto m
+(∈[1..40], n=60) × régimen q × dirección ρ∈{anti,azar,bien} y halla una ASIMETRÍA entre las dos caras del doble filo. El
+DOWNSIDE bajo ABUNDANCIA es BUDGET-FRÁGIL: grande a presupuesto ajustado (m=3: +0.885) pero DECAE fuerte a presupuesto
+moderado (m=20: +0.184, decae 0.701). MECANISMO: bajo abundancia la minoría son las opciones MALAS (~6 de 60); una vez que m
+supera ese número, el selector anti-calibrado se ve FORZADO a incluir buenas (no hay suficientes malas para llenar el
+presupuesto) y el daño se desvanece -- la curva anti se recupera: m6=0.152, m10=0.416, m20=0.708, m40=0.853. El UPSIDE bajo
+ESCASEZ es BUDGET-ROBUSTO: sigue alto al MISMO m moderado (m=3: +0.892 -> m=20: +0.667). MECANISMO: bajo escasez la minoría
+son las BUENAS (fracción ínfima); ensanchar el presupuesto casi no ayuda al azar a alcanzarlas (azar escaso m3=0.098 ->
+m20=0.333), así que la calibración sigue marcando la diferencia. => REFINA 124: presupuesto y calibración son SUSTITUTOS bajo
+abundancia (un presupuesto holgado tapa una señal posiblemente-rota -- mitigación barata del downside catastrófico) y
+COMPLEMENTOS bajo escasez (no hay sustituto de presupuesto para la calidad de la calibración; invertir en la cura 119).
+Reproducible smoke(40)≈full(200). cycle125 → H-V4-9e 'apoyada' (DoD), D-V4-87 ACEPTADA, techo 'real', verify_no_loss=OK.
+Test 5/5.
+
+> EJE DEL PRESUPUESTO (125): el doble filo (124) es ASIMÉTRICO en el presupuesto. La cara CATASTRÓFICA (downside de una señal
+> anti-calibrada bajo abundancia) es BUDGET-FRÁGIL -- barata de mitigar ensanchando el presupuesto sobre el nº de malas. La
+> cara VALIOSA (upside bajo escasez) es BUDGET-ROBUSTA -- sin sustituto de presupuesto, hay que invertir en la calibración.
+> Presupuesto y calibración: SUSTITUTOS bajo abundancia (evitar minas), COMPLEMENTOS bajo escasez (capturar gemas). Frontera:
+> medir la asimetría en un lazo real / a SCALE; costo conjunto presupuesto×señal por régimen.

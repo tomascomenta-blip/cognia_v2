@@ -1,0 +1,99 @@
+{
+  "exp": "exp109_selective_budget",
+  "cycle": 125,
+  "hypothesis": "H-V4-9e",
+  "claim": "el doble filo de la calibracion tiene una ASIMETRIA del presupuesto: el DOWNSIDE bajo abundancia es BUDGET-FRAGIL (decae apenas m supera el nro de opciones malas, que son pocas), el UPSIDE bajo escasez es BUDGET-ROBUSTO (persiste casi hasta m=n). Bajo abundancia ensanchar un poco el presupuesto mitiga barato una senal posiblemente-rota; bajo escasez no hay sustituto de presupuesto para la calibracion",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "escaso": {
+        "anti": {
+          "1": 0.0,
+          "3": 0.0,
+          "6": 0.0,
+          "10": 0.0,
+          "20": 0.0,
+          "40": 0.0
+        },
+        "azar": {
+          "1": 0.065,
+          "3": 0.0975,
+          "6": 0.1095,
+          "10": 0.136,
+          "20": 0.3329,
+          "40": 0.6432
+        },
+        "bien": {
+          "1": 0.985,
+          "3": 0.99,
+          "6": 0.995,
+          "10": 1.0,
+          "20": 1.0,
+          "40": 0.99
+        }
+      },
+      "abundante": {
+        "anti": {
+          "1": 0.005,
+          "3": 0.0267,
+          "6": 0.1525,
+          "10": 0.4165,
+          "20": 0.7075,
+          "40": 0.8528
+        },
+        "azar": {
+          "1": 0.865,
+          "3": 0.9117,
+          "6": 0.9058,
+          "10": 0.8895,
+          "20": 0.8915,
+          "40": 0.9006
+        },
+        "bien": {
+          "1": 1.0,
+          "3": 1.0,
+          "6": 1.0,
+          "10": 1.0,
+          "20": 1.0,
+          "40": 1.0
+        }
+      }
+    },
+    "n_bad_abund": 6,
+    "tight_m": 3,
+    "moderate_m": 20,
+    "down_abund_tight": 0.885,
+    "down_abund_mod": 0.184,
+    "down_decay": 0.701,
+    "up_scarce_tight": 0.8925,
+    "up_scarce_mod": 0.6671,
+    "downside_was_big": true,
+    "downside_budget_fragile": true,
+    "upside_budget_robust": true,
+    "status": "apoyada",
+    "verdict": "H-V4-9e APOYADA: ASIMETRÍA DEL PRESUPUESTO entre las dos caras del doble filo. El DOWNSIDE bajo ABUNDANCIA es BUDGET-FRÁGIL: grande a presupuesto ajustado (m=3: +0.885) pero DECAE a presupuesto moderado (m=20: +0.184, decae 0.701) -- una vez que m supera el nº de opciones malas (~6), el selector anti-calibrado se ve FORZADO a incluir buenas y el daño se desvanece. El UPSIDE bajo ESCASEZ es BUDGET-ROBUSTO: sigue alto al MISMO m moderado (m=20: +0.667 vs m=3: +0.892) -- como lo bueno es una fracción ínfima, ensanchar el presupuesto casi no ayuda al azar a alcanzarlo. => bajo abundancia, ensanchar un poco el presupuesto es una MITIGACIÓN BARATA de una señal posiblemente-rota; bajo escasez no hay sustituto de presupuesto para la CALIDAD de la calibración. Refina 124 con el eje del presupuesto."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200,
+    "n": 60
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp109] CYCLE 125 / H-V4-9e — eje del PRESUPUESTO: ¿downside abundante budget-frágil, upside escaso budget-robusto?",
+    "[exp109] n=60 seeds=200 ms=[1, 3, 6, 10, 20, 40] rhos={'anti': -0.9, 'azar': 0.0, 'bien': 0.9} qs={'escaso': 0.08, 'abundante': 0.9} moderate_m=20",
+    "[exp109] q=    escaso ρ= anti(-0.9): m1=0.000 m3=0.000 m6=0.000 m10=0.000 m20=0.000 m40=0.000",
+    "[exp109] q=    escaso ρ= azar(+0.0): m1=0.065 m3=0.098 m6=0.110 m10=0.136 m20=0.333 m40=0.643",
+    "[exp109] q=    escaso ρ= bien(+0.9): m1=0.985 m3=0.990 m6=0.995 m10=1.000 m20=1.000 m40=0.990",
+    "[exp109] q= abundante ρ= anti(-0.9): m1=0.005 m3=0.027 m6=0.152 m10=0.416 m20=0.708 m40=0.853",
+    "[exp109] q= abundante ρ= azar(+0.0): m1=0.865 m3=0.912 m6=0.906 m10=0.889 m20=0.891 m40=0.901",
+    "[exp109] q= abundante ρ= bien(+0.9): m1=1.000 m3=1.000 m6=1.000 m10=1.000 m20=1.000 m40=1.000",
+    "[exp109] DOWNSIDE abundante: ajustado(m3)=+0.885 -> moderado(m20)=+0.184 (decae 0.701; #malas≈6)",
+    "[exp109] UPSIDE escaso:      ajustado(m3)=+0.892 -> moderado(m20)=+0.667",
+    "[exp109] downside_budget_fragile=True upside_budget_robust=True",
+    "[exp109] VEREDICTO H-V4-9e: APOYADA | H-V4-9e APOYADA: ASIMETRÍA DEL PRESUPUESTO entre las dos caras del doble filo. El DOWNSIDE bajo ABUNDANCIA es BUDGET-FRÁGIL: grande a presupuesto ajustado (m=3: +0.885) pero DECAE a presupuesto moderado (m=20: +0.184, decae 0.701) -- una vez que m supera el nº de opciones malas (~6), el selector anti-calibrado se ve FORZADO a incluir buenas y el daño se desvanece. El UPSIDE bajo ESCASEZ es BUDGET-ROBUSTO: sigue alto al MISMO m moderado (m=20: +0.667 vs m=3: +0.892) -- como lo bueno es una fracción ínfima, ensanchar el presupuesto casi no ayuda al azar a alcanzarlo. => bajo abundancia, ensanchar un poco el presupuesto es una MITIGACIÓN BARATA de una señal posiblemente-rota; bajo escasez no hay sustituto de presupuesto para la CALIDAD de la calibración. Refina 124 con el eje del presupuesto."
+  ]
+}

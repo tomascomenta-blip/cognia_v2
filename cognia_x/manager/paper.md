@@ -894,3 +894,21 @@ protección en AMBOS regímenes por razones opuestas -- bajo escasez para captur
 seleccionar lo raro malo. La señal de valor endógena es de DOBLE FILO. FRONTERA: re-medir el doble filo en un lazo real
 (donde el ρ -incl. anti- lo fija la dinámica de auto-entrenamiento y la cura 119, no es exógeno) y a SCALE; cuantificar el
 COSTO ESPERADO de una señal anti-calibrada según el presupuesto m y caracterizar la transición upside↔downside por régimen.
+
+## 3.AY EL EJE DEL PRESUPUESTO — una ASIMETRÍA entre las dos caras del doble filo (125)
+123 (escasez) y 124 (direcciones) fijaron el presupuesto de la decisión (m=5). 125 (H-V4-9e, APOYADA) barre el presupuesto m
+(∈[1..40], n=60) × régimen q × dirección ρ∈{anti,azar,bien} y halla que el doble filo de 124 es ASIMÉTRICO en el presupuesto.
+El DOWNSIDE bajo ABUNDANCIA (la cara catastrófica) es BUDGET-FRÁGIL: grande a presupuesto ajustado (m=3: +0.885) pero DECAE
+fuerte a presupuesto moderado (m=20: +0.184). El mecanismo es nítido en la curva del selector anti-calibrado bajo abundancia
+(m1=0.005, m3=0.027, m6=0.152, m10=0.416, m20=0.708, m40=0.853): bajo abundancia la minoría son las opciones MALAS (~6 de
+60), y una vez que el presupuesto m supera ese número, el selector anti-calibrado se ve FORZADO a incluir buenas (no quedan
+malas para llenar el presupuesto) y el daño se desvanece -- hay un CODO en m≈#malas. El UPSIDE bajo ESCASEZ (la cara valiosa)
+es BUDGET-ROBUSTO: persiste al mismo presupuesto moderado (m=3: +0.892 → m=20: +0.667), porque bajo escasez la minoría son
+las BUENAS (fracción ínfima) y ensanchar el presupuesto casi no ayuda al azar a alcanzarlas (azar escaso m3=0.098 →
+m20=0.333). => CONSECUENCIA OPERATIVA y unificadora: presupuesto y calibración son SUSTITUTOS bajo abundancia (un presupuesto
+de selección un poco holgado es una MITIGACIÓN BARATA contra una brújula posiblemente-rota -- basta superar el nº de malas) y
+COMPLEMENTOS bajo escasez (no hay sustituto de presupuesto para la calidad de la calibración: hay que invertir en la señal,
+cura 119). La cara CATASTRÓFICA del doble filo resulta ser la BARATA de neutralizar; la cara VALIOSA es la que exige invertir
+en calibración. Esto unifica 123+124 bajo el eje del presupuesto y da una política concreta por régimen. FRONTERA: medir la
+asimetría en un lazo real / a SCALE; el costo CONJUNTO (presupuesto m × calidad de señal ρ) y la dependencia del codo de
+fragilidad con (q, n).

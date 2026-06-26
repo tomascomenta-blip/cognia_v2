@@ -4261,3 +4261,19 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
   endógena es de DOBLE FILO. cycle124 → H-V4-9d 'apoyada', D-V4-86 ACEPTADA, techo 'real', verify_no_loss=OK.
 - Frontera: re-medir el doble filo en un lazo real (ρ provisto por 119, no exógeno) / a SCALE; costo esperado de una señal
   anti-calibrada por presupuesto m; caracterizar la transición upside↔downside por régimen.
+
+## [2026-06-26] CYCLE 125 — H-V4-9e: el EJE DEL PRESUPUESTO — asimetría entre las dos caras del doble filo
+- Archivos creados: cognia_x/experiments/exp109_selective_budget/ (run.py+__init__), cognia_x/research/cycles/cycle125_selective_budget.py, cognia_x/tests/test_cycle125_selective_budget.py
+- Archivos modificados: cognia_x/manager/research_log.md, cognia_x/manager/paper.md (§3.AY)
+- Resultado tests: PASS — cycle125 dirigido 5/5; con cycle124+engine 28 passed; engine verify_no_loss=OK.
+- Notas: UNIFICA 123 (escasez) y 124 (direcciones) bajo el eje del PRESUPUESTO. exp109 barre m∈[1..40] × q × ρ∈{anti,azar,
+  bien} (200 seeds, smoke 40 ≈ full 200) y halla una ASIMETRÍA: el DOWNSIDE bajo abundancia es BUDGET-FRÁGIL (m3=+0.885 ->
+  m20=+0.184; codo en #malas≈6: la curva anti se recupera m6=0.152->m20=0.708->m40=0.853, porque al superar el nº de malas el
+  selector se ve forzado a incluir buenas); el UPSIDE bajo escasez es BUDGET-ROBUSTO (m3=+0.892 -> m20=+0.667; el azar no
+  alcanza a las gemas raras por ensanchar el presupuesto). => presupuesto y calibración son SUSTITUTOS bajo abundancia
+  (presupuesto holgado = mitigación barata de una señal posiblemente-rota) y COMPLEMENTOS bajo escasez (no hay sustituto de
+  presupuesto para la calidad de la señal; invertir en la cura 119). La cara CATASTRÓFICA del doble filo es la BARATA de
+  neutralizar; la VALIOSA exige invertir en calibración. cycle125 → H-V4-9e 'apoyada', D-V4-87 ACEPTADA, techo 'real',
+  verify_no_loss=OK.
+- Frontera: medir la asimetría en un lazo real / a SCALE; costo conjunto presupuesto×señal por régimen; dependencia del codo
+  de fragilidad con (q,n).
