@@ -3851,3 +3851,24 @@ era claro en la 1ra corrida. cycle127 → H-V4-10a 'apoyada' (DoD), D-V4-89 ACEP
 > R-VALOR (79-82) tiene origen endógeno en el CONTROL. Frontera (sub-arco H-V4-10): control multi-paso/no-lineal; capacidad
 > continua (no elegir-1-de-2); ¿el control DESCUBRE la partición controlable/incontrolable sin saberla?; puente a active
 > inference (energía libre esperada).
+
+## CYCLE 128 — H-V4-10b (rama control/acción, CIERRA el caveat principal de 127) — APOYADA
+exp112 (numpy, 200 seeds): 127 le DABA al agente la partición (sabía cuál modo era controlable). Este ciclo la cierra: ¿el
+agente DESCUBRE qué es controlable de sus PROPIOS datos acción-resultado, sin que se le diga? Tercer arm CONTROL-DISCOVERY:
+estima la controlabilidad |b̂| de cada modo (regresión del next-state sobre [estado, acción]) y asigna su capacidad-1 al modo
+de mayor |b̂| ESTIMADO. RESULTADO: con DATA SUFICIENTE (T=200) y distractor FUERTE (s2=4.0), DISCOVERY iguala al
+CONTROL-ORACLE (0.992≈0.993) y supera a la PREDICCIÓN que colapsa (0.000), eligiendo el modo controlable correcto el 100% de
+las veces -- SIN que se le diga la partición. => la PARTICIÓN de relevancia (qué es controlable) es DESCUBRIBLE de los datos
+acción-resultado ACTUANDO; cierra el caveat de 127 y fortalece "control = fuente de relevancia" a "control DESCUBRE la
+relevancia ACTUANDO". Y lo ANCLA en R-INTERVENCIÓN de forma MEDIDA: con POCA data (T=12) el acierto del modo correcto se
+degrada al crecer el distractor (pick 0.97→0.57) y la perf cae a 0.499 (Δ0.492) -- un distractor de alta varianza confunde la
+estimación de controlabilidad cuando no actuaste lo suficiente: la auto-construcción de la relevancia es un PRESUPUESTO DE
+ACCIÓN, no gratis. Reproducible smoke 50 ≈ full 200. cycle128 → H-V4-10b 'apoyada' (DoD), D-V4-90 ACEPTADA, techo 'real',
+verify_no_loss=OK. Test 4/4.
+
+> DESCUBRIR LA RELEVANCIA ACTUANDO (128): la partición controlable/incontrolable es DESCUBRIBLE de los datos acción-resultado
+> del propio agente (estimar |b̂| por modo), SIN supervisión -- con suficiente data interventiva. Convierte 127 ('control =
+> fuente de relevancia') en 'control DESCUBRE la relevancia actuando', y lo ancla en R-INTERVENCIÓN de forma medida (con poca
+> acción el distractor ruidoso confunde). Un agente R-VALOR puede GENERAR su criterio de relevancia actuando, sin meta
+> externa -- pero pagando un presupuesto de acción. Frontera: controlabilidad continua/parcial, muchas dimensiones,
+> no-lineal, exploración ACTIVA (vs pasiva-excitada), active inference.

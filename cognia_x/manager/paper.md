@@ -984,3 +984,22 @@ proceso; se reemplazó por la fracción del beneficio de control ALCANZABLE (nor
 ruido) -- el mecanismo cualitativo ya era claro antes del cambio. FRONTERA del sub-arco H-V4-10: control multi-paso /
 no-lineal; capacidad como presupuesto continuo (no elegir-1-de-2); ¿el control DESCUBRE la partición controlable/
 incontrolable sin saberla de antemano?; y el puente a active inference (minimizar la energía libre esperada).
+
+## 3.BC CONTROL DESCUBRE la relevancia ACTUANDO (128, cierra el caveat de 127)
+127 dejó un caveat central: le DABA al agente de control la partición (sabía qué modo era controlable). 128 (H-V4-10b,
+APOYADA) lo cierra: ¿el agente DESCUBRE qué es controlable de sus PROPIOS datos acción-resultado, sin que se le diga? Un tercer
+arm CONTROL-DISCOVERY estima la controlabilidad de cada modo -- |b̂|, cuánto influye su acción sobre el next-state de ese modo
+(regresión del next-state sobre [estado, acción]) -- y asigna su capacidad-1 al modo de mayor |b̂| ESTIMADO. RESULTADO (numpy,
+200 seeds, reproducible smoke 50 ≈ full 200): con DATA suficiente (T=200) y distractor fuerte (s2=4.0), DISCOVERY iguala al
+CONTROL-ORACLE (0.992 ≈ 0.993) y supera a la PREDICCIÓN que colapsa (0.000), eligiendo el modo controlable correcto el 100% de
+las veces -- SIN que se le diga la partición. => la partición de relevancia (qué es controlable) es DESCUBRIBLE de los datos
+acción-resultado ACTUANDO: "control = fuente de relevancia" (127) se fortalece a "control DESCUBRE la relevancia ACTUANDO". Y
+lo ANCLA en R-INTERVENCIÓN de forma MEDIDA: con POCA data (T=12) el acierto del modo correcto se degrada al crecer el
+distractor (pick 0.97 → 0.57) y la perf cae a 0.499 (Δ0.492 vs data abundante) -- un distractor de alta varianza confunde la
+estimación de controlabilidad cuando el agente no actuó lo suficiente. La auto-construcción de la relevancia es por tanto un
+PRESUPUESTO DE ACCIÓN (R-INTERVENCIÓN), no gratis: aprendés qué controlás interviniendo BASTANTE. IMPLICANCIA para el
+programa: un agente que se auto-asigna por R-VALOR (relevancia × controlabilidad, 79-82) puede GENERAR endógenamente su propio
+criterio de relevancia -- actuando y midiendo qué controla -- sin una meta externa que se la dé; el costo es el presupuesto de
+acción para descubrir. FRONTERA del sub-arco H-V4-10: controlabilidad parcial/continua (grados, no binaria) y muchas
+dimensiones; descubrimiento bajo dinámica no-lineal; exploración ACTIVA dirigida a descubrir más rápido (vs acción
+pasiva-excitada); y el puente a active inference (minimizar la energía libre esperada, donde acción y modelado se unifican).
