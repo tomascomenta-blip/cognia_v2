@@ -4195,3 +4195,38 @@ detectado y corregido. Commits: 3269943(118) b116838(119). paper.md + memoria si
 TEORÍA DE ASIGNACIÓN R-VALOR completa+robusta bajo realismo + validada toy→real + STRESS-TEST honesto del fundamento +
 RESOLUCIÓN constructiva de la fragilidad. Frontera para la próxima: sintonizar el balance calibración/capacidad (neg_w);
 horizontes más largos; objetivo no-sintético; combinar el unlikelihood con la teoría de asignación; y SCALE (GPU/Kaggle).
+
+---
+
+## [2026-06-26] Addendum — CYCLES 120-122: RE-LOCALIZACIÓN de R-VALOR como BRÚJULA DECISIONAL (cierre del arco)
+Tras la cura de calibración (119), tres ciclos que precisan honestamente DÓNDE vale la cura.
+
+- **120 (H-V4-8z, REFUTADA):** el selector durable SIN ancla no paga downstream (calibración y capacidad = ejes
+  separados; sin ancla el costo de capacidad del unlikelihood hunde el downstream).
+- **121 (H-V4-9a, REFUTADA — re-localización clave):** CON ancla, el unlikelihood mejora calibración (+0.059) y yield
+  (+1.19) pero NO el downstream (el ancla satura los datos de training). SÍNTESIS 120+121: la cura de calibración (119)
+  fija la SEÑAL pero NO acelera el self-training downstream en NINGÚN régimen (el downstream es ANCLA-bound). => el VALOR
+  de R-VALOR es DECISIONAL -- vale por las decisiones que USAN la señal (asignación 83-114, umbral/abstención 106), NO por
+  boostear el descenso del loss. R-VALOR = BRÚJULA DECISIONAL. Esto VALIDA retrospectivamente el frame del arco entero.
+- **122 (H-V4-9b, MIXTA-null):** intenta DEMOSTRAR positivamente el payoff decisional (submission budget externo) pero la
+  tarea toy no lo aísla (satura por correctos abundantes, o la temp alta desestabiliza). El payoff decisional necesita
+  ESCASEZ genuina (precondición de la asignación) -> demostración positiva = FRONTERA (tarea dura / SCALE).
+
+### Conclusión del arco R-VALOR (89-122)
+R-VALOR (valor endógeno = controlabilidad × relevancia) admite (1) una TEORÍA DE ASIGNACIÓN completa+robusta bajo realismo,
+validada toy→real; (2) un fundamento FRÁGIL (la señal de valor colapsa bajo auto-entrenamiento) con CURA de calibración
+(unlikelihood acotado, 119); y (3) la LECCIÓN profunda: el valor de R-VALOR es DECISIONAL (asignar/abstener), no un motor
+de aprendizaje -- la cura mantiene la BRÚJULA confiable para esas decisiones. R-VALOR no es un free lunch endógeno
+perpetuo; es una brújula decisional potente que se re-calibra penalizando de forma acotada lo verificado-incorrecto.
+
+### Verificación / honestidad
+120-122 PyTorch CPU (4 seeds, lazo real). DoD + verify_no_loss=OK + test (2-3 c/u). D-V4-82..84 aceptadas (tier5). 2
+REFUTADA + 1 MIXTA-null reportadas tal cual; framings de smoke corregidos al ver el full (121 flipeó APOYADA->REFUTADA al
+pasar de 2 a 4 seeds; 122 smoke saturó / full ruidoso). Commits: 88bced5(120) e7779c1(121) 4a68c52(122). paper.md a 121,
+memoria a 122.
+
+### Estado de la corrida 89-122 (34 ciclos) y frontera
+TEORÍA DE ASIGNACIÓN completa + fragilidad diagnosticada + cura de calibración + re-localización decisional. Frontera para
+la próxima sesión: demostrar el payoff decisional de R-VALOR en una tarea con ESCASEZ genuina de buenas opciones (o SCALE);
+balance de los tres términos del lazo (likelihood + ancla + unlikelihood); horizontes largos; objetivo no-sintético; y
+SCALE (GPU/Kaggle, fuera de la corrida CPU). H-V4-4 (techo de recall = optimización) sigue DIFERIDA.
