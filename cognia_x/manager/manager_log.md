@@ -382,3 +382,19 @@
   El experimento se reescribió para AUTO-DOCUMENTAR (composed_noT + ctrl_only + reach_net). CIERRA la frontera de 134 y UNIFICA el
   arco control/acción 127-137. Sirve al GOAL (R-VALOR). Próximo: acople con CICLOS; lazo acción-consecuencia REAL; active inference;
   SCALE.
+
+## [2026-06-26] CYCLE 138 — H-V4-10l MIXTA (puente TEÓRICO a active inference válido + emergencia EMPÍRICA tautológica; verificación adversarial de 3 agentes, 8vo ciclo): el keystone es el límite binary+uniforme de la EFE pragmática, pero la corrección robusta es la varianza-prior v, no el cuadrado w²
+- Archivos: cognia_x/experiments/exp122_active_inference/{__init__,run}.py (new),
+  cognia_x/research/cycles/cycle138_active_inference.py (new), cognia_x/tests/test_cycle138_active_inference.py (new),
+  research_log.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 5/5; cycle138 por el engine MIXTA, D-V4-100 aceptada, verify_no_loss=OK.
+- Resultado exp (400 seeds): ¿emerge el keystone de minimizar la energía libre esperada? PUENTE TEÓRICO válido: el término
+  pragmático de la EFE (modelo lineal-gaussiano + preferencia gaussiana) = w²·v·ctrl; el keystone (w·ctrl, 129) es su LÍMITE
+  binary+uniforme (w²=w, v=1) -> grounding normativo del producto. El producto es learnable leakage-free (T=10 0.67 -> 1.00).
+- Notas: VERIFICACIÓN ADVERSARIAL de 3 agentes (8vo ciclo) confirmó el puente teórico pero cazó un OVERCLAIM MAYOR -> MIXTA: la
+  'emergencia EMPÍRICA' es TAUTOLÓGICA (el scorer efe_pragmatic ES byte-idéntico a la métrica del eval -> efe=oracle por
+  construcción); el '+0.43 refinamiento' es artefacto de un canónico hand-tuned (mediana ~0 en 200 configs aleatorias); el mecanismo
+  w² es FALSO (la varianza-prior v hace el grueso; bajo estimación el cuadrado DAÑA: w·v·ctrl > w²·v·ctrl) -> la corrección robusta
+  es incluir v; la unificación con exploración es conjetura. El experimento se reescribió para AUTO-DOCUMENTAR. APORTE NETO: el
+  puente normativo (keystone=límite EFE) + la corrección por varianza-prior v. Sirve al GOAL (R-VALOR; grounding normativo). Próximo:
+  extender el puente EFE a no-lineal/acoplado; lazo acción-consecuencia REAL; SCALE.

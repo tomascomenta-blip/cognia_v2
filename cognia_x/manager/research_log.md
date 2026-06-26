@@ -4119,3 +4119,34 @@ Test 7/7.
 > 'relevancia bajo sustrato acoplado' de 134 y UNIFICA el arco control/acción 127-137: el R-VALOR ACOPLADO (=ctrl × reach-relevancia)
 > es endógeno de una experiencia de acción (estimación de un stream basta + la forma reach es necesaria). Frontera: acople con
 > CICLOS / autovalores ~1; el lazo de acción-consecuencia REAL; active inference formal; SCALE.
+
+## CYCLE 138 — H-V4-10l (rama control/acción, PUENTE FORMAL a ACTIVE INFERENCE: ¿emerge el keystone de minimizar la energía libre esperada?) — MIXTA (puente TEÓRICO válido + emergencia EMPÍRICA tautológica/artefacto; verificación adversarial de 3 agentes, 8vo ciclo seguido)
+exp122 (numpy, 400 seeds, post-verificación de 3 agentes). La directiva predijo que "el producto ctrl×rel caería de minimizar la
+energía libre esperada". Este ciclo lo testea -- DISTINTO de 131 (active inference como colector de datos/probing, MIXTA): aquí la
+DERIVACIÓN NORMATIVA. Modelo generativo lineal-gaussiano (x~N(0,diag(v)), meta G=w·x, preferencia gaussiana ⇒ costo pragmático=E[G²]
+cuadrático); controlar el modo i reduce E[G²] en w²·v·b²/(b²+ρ). SOBREVIVE (puente teórico): el término PRAGMÁTICO de la EFE =
+w²·v·ctrl; el keystone del lab (w·ctrl, 129) es su LÍMITE binary+uniforme (binary efe=keystone=1.000, por la identidad w²=w, v=1) ->
+active inference SUBSUME el keystone como caso especial = grounding normativo del producto (la directiva acertó DERIVACIONALMENTE).
+El producto-estructurado es LEARNABLE leakage-free (converge desde abajo, T=10 0.67 -> T=1500 1.00); las factores simples FALLAN
+(graded relev 0.00/ctrl 0.64/pred 0.48). cycle138 → H-V4-10l 'mixta' (DoD), D-V4-100 ACEPTADA, techo 'real', verify_no_loss=OK.
+Test 5/5.
+
+> META-PATRÓN (138, 8vo seguido con 131-137): una 1ra versión vendía APOYADA ("el keystone EMERGE de la EFE; refina al keystone vía
+> w²; active inference unifica explotación+exploración"). Una VERIFICACIÓN ADVERSARIAL (3 agentes, lentes tautología/framing/
+> robustez-leakage) CONFIRMÓ el PUENTE TEÓRICO pero CAZÓ un OVERCLAIM MAYOR -- el modo de fallo más sutil hasta ahora, una
+> TAUTOLOGÍA -> MIXTA: (1) la 'emergencia EMPÍRICA' es TAUTOLÓGICA -- el scorer efe_pragmatic (w²·v·ctrl) es BYTE-IDÉNTICO a la
+> métrica del eval (_true_reduction), así que efe=oracle=1.000 por construcción en todo régimen/seed; 'efe>keystone' es álgebra, no
+> un hallazgo; las 400 seeds sólo reconfirman álgebra bajo permutaciones. (2) 'emerge bajo binary' es la identidad trivial w²=w. (3)
+> el '+0.43 refinamiento' es ARTEFACTO de un canónico HAND-TUNED para maximizar la divergencia w vs w²·v: en 200 configs graded
+> ALEATORIAS la MEDIANA del gap efe-keystone es ~0 (el canónico era percentil-100). (4) el MECANISMO 'w² refina' es FALSO -- la
+> VARIANZA-PRIOR v hace ~85-100% de la corrección y el cuadrado ~1.5%; PEOR, bajo params ESTIMADOS (el único régimen no-tautológico)
+> el cuadrado es NEUTRO-A-DAÑINO: w·v·ctrl GANA a w²·v·ctrl en todo T finito (el cuadrado amplifica el ruido de ŵ) -> la corrección
+> ROBUSTA y LEARNABLE sobre el keystone es incluir la varianza-prior v (w·v·ctrl), NO el cuadrado. (5) la unificación exploración/
+> empowerment es CONJETURA: el epistémico modelado no era canónico; con info-gain PURO (σ²) la exploración apenas paga y la
+> predicción 'concentración amplifica' FALLÓ. (6) ALCANCE: lineal-gaussiano, modos independientes (no cubre 135-136/137). El
+> experimento se REESCRIBIÓ para AUTO-DOCUMENTAR la MIXTA (agregó el arm v_correction=w·v·ctrl, la distribución del gap sobre 200
+> configs aleatorias, la comparación efe-vs-vcorr bajo params estimados, y el epistémico canónico σ²). APORTE NETO honesto: (i) el
+> PUENTE NORMATIVO (keystone = límite binary+uniforme de la EFE pragmática; la directiva acertó en lo teórico), (ii) una corrección
+> empírica ROBUSTA sobre el keystone del lab: incluir la varianza-prior v. MIXTA EXITOSA: la verificación atrapó una TAUTOLOGÍA (la
+> métrica = el scorer) antes del ledger. Frontera: extender el puente EFE a sustrato no-lineal (135-136)/acoplado (137); el lazo de
+> acción-consecuencia REAL; SCALE.

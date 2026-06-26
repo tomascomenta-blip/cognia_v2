@@ -364,8 +364,17 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > reach_net +0.49 sobre control puro, no +0.59 sobre el local que se auto-sabotea; fallo del local condicional al extremo
 > adversarial; válido con radio espectral<1).
 >
-> FRONTERA ACTIVA (post-137): (1) acople con CICLOS / autovalores de Â cerca de radio 1 (donde (I-Â)^-1 explota). (2) lazo de
-> acción-consecuencia REAL (sandbox exp018). (3) active inference formal (¿emerge el producto ctrl×rel de minimizar energía
-> libre esperada?; 131 lo tocó, MIXTA). (4) SCALE (GPU/Kaggle). (5) [abierto] régimen de ESCASEZ donde el prior paga (136):
-> ¿prior jerárquico/transferido? MÉTODO institucionalizado: verificación adversarial (3-4 agentes) antes del ledger — 7 ciclos
-> seguidos (131..137) corrigiendo/acotando overclaims.
+> CYCLE 138 (H-V4-10l MIXTA) RESUELVE el frente 'active inference formal': el keystone valor=ctrl×rel es el LÍMITE
+> binary+uniforme del término PRAGMÁTICO de la energía libre esperada (w²·v·ctrl, modelo lineal-gaussiano + preferencia
+> gaussiana) -> active inference SUBSUME el keystone como caso especial = GROUNDING NORMATIVO del producto (la directiva acertó
+> DERIVACIONALMENTE). PERO la verificación adversarial (3 agentes) cazó que la 'emergencia EMPÍRICA' es TAUTOLÓGICA (el scorer
+> efe_pragmatic = la métrica del eval), el '+0.43 refinamiento' es artefacto (mediana ~0 en configs aleatorias) y el mecanismo
+> w² es FALSO -- la corrección robusta/learnable sobre el keystone es la VARIANZA-PRIOR v (w·v·ctrl), no el cuadrado (que daña
+> bajo estimación). APORTE NETO: el puente normativo + la corrección por v. La unificación con exploración (empowerment) queda
+> como conjetura (epistémico canónico σ² apenas paga).
+>
+> FRONTERA ACTIVA (post-138): (1) extender el puente EFE a sustrato NO-LINEAL (135-136) / ACOPLADO (137) -- donde el producto
+> LOCAL necesita revisión. (2) acople con CICLOS / autovalores ~1. (3) lazo de acción-consecuencia REAL (sandbox exp018).
+> (4) SCALE (GPU/Kaggle). (5) [abierto] la corrección por varianza-prior v en el lazo real; prior jerárquico para escasez (136).
+> MÉTODO institucionalizado: verificación adversarial (3-4 agentes) antes del ledger — 8 ciclos seguidos (131..138) corrigiendo/
+> acotando overclaims (138 cazó una TAUTOLOGÍA, el modo de fallo más sutil).
