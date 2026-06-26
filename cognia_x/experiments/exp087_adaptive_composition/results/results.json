@@ -1,0 +1,50 @@
+{
+  "exp": "exp087_adaptive_composition",
+  "cycle": 103,
+  "hypothesis": "H-V4-8h",
+  "claim": "las piezas de no-estacionariedad (olvido por decay + exploracion surprise-gated) COMPONEN y cada una es NECESARIA: el asignador full-adaptive supera al naive y ablar cada pieza lo degrada -> la composicion del sub-arco 97-99 es real",
+  "verdict": "mixta",
+  "summary": {
+    "cell": {
+      "naive": 0.3785,
+      "decay_only": 0.5418,
+      "explore_only": 0.394,
+      "full_adaptive": 0.5423,
+      "oracle": 1.0
+    },
+    "full_vs_naive": 0.1638,
+    "full_vs_decay": 0.0005,
+    "full_vs_explore": 0.1483,
+    "oracle_gap": 0.4577,
+    "full_best": true,
+    "explore_needed": false,
+    "decay_needed": true,
+    "status": "mixta",
+    "verdict": "H-V4-8h MIXTA: full_best=True (vs naive +0.164) explore_needed=False(+0.001) decay_needed=True(+0.148) -- una pieza domina y la otra aporta sub-umbral (composición parcial)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "T": 40,
+    "D": 8,
+    "warmup": 4,
+    "k_obs": 2,
+    "k_eval": 10,
+    "decay": 0.8,
+    "eps_high": 0.5,
+    "noise": 0.05
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp087] CYCLE 103 / H-V4-8h — ablación/composición del asignador adaptativo (decay × surprise-explore) bajo drift",
+    "[exp087] n=50 T=40 D=8 warmup=4 k_obs=2 decay=0.8 eps_high=0.5 noise=0.05 seeds=48",
+    "[exp087] naive=0.379 decay_only=0.542 explore_only=0.394 full_adaptive=0.542 oracle=1.000",
+    "[exp087] full_vs_naive=+0.164 | full_vs_decay_only=+0.001 (explore aporta) | full_vs_explore_only=+0.148 (decay aporta) | oracle_gap=0.458",
+    "[exp087] full_best=True explore_needed=False decay_needed=True",
+    "[exp087] VEREDICTO H-V4-8h: MIXTA | H-V4-8h MIXTA: full_best=True (vs naive +0.164) explore_needed=False(+0.001) decay_needed=True(+0.148) -- una pieza domina y la otra aporta sub-umbral (composición parcial)."
+  ]
+}

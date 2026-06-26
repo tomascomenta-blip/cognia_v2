@@ -3428,3 +3428,20 @@ objetivos sintéticos. cycle102 → H-V4-8g 'apoyada' (DoD), D-V4-64 ACEPTADA, t
 > META-REGLA del lab (92 + 102): ELEGIR la política (prior/asignación) del feedback SÓLO cuando ningún default domina
 > (102, converso de 92 donde un default flexible la hacía innecesaria). La meta-decisión es R-VALOR-aprendible. Frontera:
 > meta-selección bajo CAMBIO de régimen (surprise-gated); integrar en el lazo cerrado real; y SCALE.
+
+## CYCLE 103 — H-V4-8h (rama R-VALOR, ablación/composición del sub-arco 97-99) — MIXTA (composición parcial; califica 98-99)
+97-99 mostraron PIEZA por PIEZA (decay 97, explorar rescata 98, surprise-gated domina 99). exp087 (numpy, 48 seeds) hace
+la ABLACIÓN 2×2 (decay × surprise-explore) bajo drift+action-gated con métrica de REWARD action-gated. RESULTADO: el
+OLVIDO (decay) es la pieza DOMINANTE — decay_only=0.542 ≈ full_adaptive=0.542 >> naive=0.379 (+0.164); la EXPLORACIÓN
+añade ~0 sobre decay (full−decay_only=+0.001) y sola apenas supera al naive (explore_only=0.394). => las dos piezas son
+SUSTITUTOS (no complementos): una vez que el combinador OLVIDA bien, la exploración es casi redundante (su costo de
+oportunidad no se paga). CALIFICA honestamente 98-99: el rescate por exploración se medía sobre el RANKING del pool (sin
+costo de explorar); con decay + reward action-gated, no paga. Composición NO aditiva-trivial: decay carga el peso. MIXTA
+(full_adaptive es el mejor y decay es necesario, pero explore no aporta en composición bajo esta métrica). cycle103 →
+H-V4-8h 'mixta' (DoD), D-V4-65 ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> SUB-ARCO 97-103 (no-estacionariedad) — SÍNTESIS: el OLVIDO (decay) es la pieza de 1ra clase para adaptarse al drift en
+> la asignación; la exploración surprise-gated es un sustituto que sólo paga sin decay o bajo métrica sin costo de
+> explorar (98-99). Política: priorizar el olvido (decay/selector CYCLE 74); exploración condicional. Honestidad: la
+> ablación reveló SUSTITUIBILIDAD, no complementariedad. Frontera: regímenes donde olvidar no baste (re-muestreo activo);
+> lazo cerrado real; SCALE.
