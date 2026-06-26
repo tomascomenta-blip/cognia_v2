@@ -3356,3 +3356,40 @@ sorpresa/exploración adaptativa (tier2, análogo CYCLE 59) y con el ε-fijo de 
 > R-INTERVENCIÓN reconciliada); (99) la exploración SURPRISE-GATED domina al ε-fijo y es no-regret (explorar sólo al
 > detectar cambio). Espeja el arco de MEMORIA (58 olvido → 59 olvido-por-sorpresa → 66/74 selector no-regret) en la
 > ASIGNACIÓN. Frontera: calibrar el umbral de sorpresa; integrar con el lazo cerrado real (93-96); objetivo VECTOR; SCALE.
+
+## CYCLE 100 — H-V4-8e (rama R-VALOR, gap #4 EXTENDIDO a objetivo VECTOR/multi-objetivo) — APOYADA
+
+### Pregunta
+Todo el arco asumió un objetivo ESCALAR. El valor real suele ser un VECTOR (varios objetivos) bajo una agregación que
+exige BALANCE (egalitaria: te juzga por tu objetivo PEOR, min(ΣV1,ΣV2)). ¿Seleccionar por un objetivo o por la suma naive
+FALLA bajo un objetivo vector balance-requiriente, y la selección R-VALOR MARGINAL (balancea el rezagado) recupera?
+
+### Diseño
+Numpy. n=50 ítems con valor VECTOR (v1,v2) ANTI-correlacionados; se BARRE la ASIMETRÍA de escala. Agregación 'min'
+(egalitaria) vs 'sum' (lineal, control). Brazos: obj1_greedy (top v1), sum_greedy (top v1+v2), marginal_greedy (greedy
+por ganancia marginal en la agregación real), oracle, random. Celdas: min_sym, min_asym, sum_lin. 48 seeds.
+
+### Resultado — APOYADA (caracterizado por asimetría)
+Bajo objetivo egalitario min Y ASIMÉTRICO: la suma naive DESBALANCEA (carga el objetivo grande, ΣV1≫ΣV2) y falla
+(sum_greedy=0.519), la selección MARGINAL sube el objetivo REZAGADO y recupera (marginal_greedy=0.981, +0.462 vs sum,
++0.746 vs obj1, ≈ oracle gap 0.019). Bajo SIMÉTRICO la suma YA balancea (marginal ≈ sum, Δ 0.029: por simetría max-suma ≈
+balanceado). Bajo LINEAL todos coinciden (Δ 0.000). => R-VALOR bajo objetivo VECTOR balance-requiriente y asimétrico es
+la selección MARGINAL en la agregación real; la suma naive sólo basta bajo simetría/linealidad; un solo objetivo falla
+siempre. GENERALIZA CYCLE 95 (marginal escalar) a vector y conecta con CYCLE 83 (complementos g=min) a nivel de CONJUNTO:
+el 'balance' entre objetivos es la forma VECTORIAL de la cobertura/diversidad.
+
+### Límites (honestos)
+Condicional a la ASIMETRÍA (bajo simetría la suma basta). Objetivos anti-corr sintéticos (k=2), agregación min pura
+(Nash/ponderada podrían diferir), >2 objetivos sin testear, greedy-marginal como oracle (óptimo exacto NP-hard), juguete.
+
+### Verificación
+exp084 (48 seeds, numpy). cycle100 → H-V4-8e 'apoyada' (DoD), D-V4-62 ACEPTADA, 1 techo 'real', analogía 7 etapas,
+verify_no_loss=OK. Test `test_cycle100_vector_value.py` 5/5. Convergente con bienestar egalitario/max-min (tier2) y con el
+marginal escalar de CYCLE 95 (tier5).
+
+> GAP #4 UNIFICADO (95-100): el valor R-VALOR es MARGINAL en la AGREGACIÓN VERDADERA, sea escalar-submodular (CYCLE 95) o
+> vector-egalitaria-asimétrica (CYCLE 100); optimizar un objetivo o asumir aditividad/linealidad falla cuando la
+> agregación no es aditiva. El 'balance' multi-objetivo es la forma vectorial de la cobertura/diversidad (95/96). El arco
+> de asignación R-VALOR queda caracterizado bajo: feedback real (89), prior/base (90-92), lazo cerrado (93-96),
+> no-estacionariedad (97-99) y objetivo no-aditivo/vector (95,100). Frontera: agregaciones Nash/ponderadas con pesos
+> inciertos; >2 objetivos; integrar todo en el lazo cerrado real; y SCALE (GPU/Kaggle, fuera de CPU).

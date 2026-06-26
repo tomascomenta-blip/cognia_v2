@@ -690,3 +690,18 @@ Todo el arco de asignación (83-96) asumió valor ESTACIONARIO. CYCLE 97 lo une 
 > para ASIGNAR obedece, bajo no-estacionariedad, los MISMOS principios que para RECORDAR: descontar lo viejo (decay) +
 > explorar/olvidar gateado por sorpresa. Frontera: calibrar el umbral; integrar con el lazo cerrado real; objetivo
 > VECTOR; y SCALE (GPU).
+
+- **CYCLE 100 — H-V4-8e APOYADA (gap #4 EXTENDIDO a objetivo VECTOR).** Bajo un objetivo VECTOR balance-requiriente
+  (egalitario min(ΣV1,ΣV2)) Y ASIMÉTRICO (objetivos de escala distinta), la SUMA naive desbalancea (carga el objetivo
+  grande) y falla (sum_greedy=0.519); la selección R-VALOR MARGINAL en la agregación real sube el objetivo rezagado y
+  recupera (marginal=0.981 ≈ oracle, +0.462 vs sum, +0.746 vs un-solo-objetivo). Bajo SIMETRÍA la suma ya balancea
+  (Δ 0.029); bajo LINEAL coinciden (Δ 0.000). => R-VALOR bajo objetivo vector es MARGINAL en la agregación; la suma naive
+  sólo basta bajo simetría/linealidad. Generaliza CYCLE 95 (marginal escalar) a vector y conecta con CYCLE 83
+  (complementos g=min) a nivel de conjunto. Cota 'real'; D-V4-62; test 5/5.
+
+> GAP #4 UNIFICADO (95-100) — el valor R-VALOR es MARGINAL en la AGREGACIÓN VERDADERA, sea escalar-submodular (95) o
+> vector-egalitaria-asimétrica (100); optimizar un objetivo o asumir aditividad/linealidad falla cuando la agregación no
+> es aditiva. El 'balance' multi-objetivo es la forma VECTORIAL de la cobertura/diversidad (95/96). El arco de asignación
+> R-VALOR queda caracterizado bajo: feedback real (89), prior/base R-PRIOR (90-92), lazo cerrado real (93-96),
+> no-estacionariedad (97-99) y objetivo no-aditivo/vector (95,100). Frontera: agregaciones Nash/ponderadas con pesos
+> inciertos; >2 objetivos; integrar todo en el lazo cerrado real; y SCALE (GPU/Kaggle, fuera de CPU).
