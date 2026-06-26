@@ -4230,3 +4230,18 @@ TEORÍA DE ASIGNACIÓN completa + fragilidad diagnosticada + cura de calibració
 la próxima sesión: demostrar el payoff decisional de R-VALOR en una tarea con ESCASEZ genuina de buenas opciones (o SCALE);
 balance de los tres términos del lazo (likelihood + ancla + unlikelihood); horizontes largos; objetivo no-sintético; y
 SCALE (GPU/Kaggle, fuera de la corrida CPU). H-V4-4 (techo de recall = optimización) sigue DIFERIDA.
+
+## [2026-06-26] Addendum — CYCLE 123: CAPSTONE POSITIVO (la calibración paga en la decisión bajo escasez) — cierra el arco
+123 (H-V4-9c, APOYADA) RESUELVE la frontera que 122 dejó abierta: demuestra POSITIVAMENTE -en una abstracción numpy
+controlada que aísla calibración ρ × escasez q- que la calibración del selector PAGA en una decisión de asignación de
+recurso ESCASO. Bajo ESCASEZ (q=0.08) el payoff va de AZAR (0.091, ρ=0) a CASI-ÓPTIMO (0.995, ρ=0.9, +0.904); bajo
+ABUNDANCIA (q=0.9) SATURA (irrelevante). => R-VALOR es una BRÚJULA DECISIONAL: la señal de valor calibrada paga al asignar
+bajo escasez, exactamente donde la teoría de asignación (83-114) opera. Confirma 121 (decisional) y el diagnóstico de 122
+(el toy saturaba porque el modelo domina la tarea). cycle123 → H-V4-9c 'apoyada', D-V4-85 ACEPTADA, verify_no_loss=OK,
+test 4/4. Commit 0aa8506 (123) + paper a 123 (d64bdf3).
+
+TESIS FINAL del arco (89-123, 35 ciclos): R-VALOR (valor endógeno = controlabilidad × relevancia) es una BRÚJULA DECISIONAL
+endógena -- estima el valor para ASIGNAR recursos escasos (teoría completa+validada toy→real), tiene una fragilidad (la
+señal colapsa bajo auto-entrenamiento) con CURA de calibración (unlikelihood acotado, 119), y su valor se REALIZA bajo
+ESCASEZ (123); NO es un motor que acelere el aprendizaje. Frontera próxima sesión: payoff decisional en lazo real con
+escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes largos; objetivo no-sintético.
