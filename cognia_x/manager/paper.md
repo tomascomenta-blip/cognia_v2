@@ -826,3 +826,25 @@ fragilidad: la durabilidad endógena se logra con un unlikelihood acotado sobre 
 free lunch endógeno perpetuo, PERO su fragilidad tiene cura: una brújula endógena potente que se mantiene calibrada
 penalizando de forma ACOTADA lo que el verificador marca como incorrecto. FRONTERA: sintonizar el balance
 calibración/capacidad (neg_w); horizontes más largos; objetivo no-sintético; y SCALE (donde el balance puede mejorar).
+
+## 3.AT RE-LOCALIZACIÓN honesta — la señal calibrada es DECISIONAL, no un motor de loss (120-121)
+119 curó la CALIBRACIÓN de la señal de valor. ¿Esa calibración se traduce en un lazo de auto-mejora que descienda el loss
+más rápido? 120-121 lo testean honestamente y la respuesta es NO:
+- 120 (H-V4-8z, REFUTADA): SIN ancla, el selector durable mejora calibración+yield pero el costo de capacidad del
+  unlikelihood hunde el downstream (calibración y capacidad son ejes separados).
+- 121 (H-V4-9a, REFUTADA): CON ancla (corrige el confound de 120), el unlikelihood mejora calibración (+0.059) y yield
+  (+1.19) PERO el downstream NO mejora (AUC ≈) -- el ANCLA satura los datos de training con verdad canónica, así que los
+  correctos-marginales del mejor selector no componen.
+SÍNTESIS: la cura de calibración (119) fija la SEÑAL pero NO acelera el self-training downstream en NINGÚN régimen. El
+downstream del self-training es ANCLA-bound (lo marcan los datos verdaderos, no el selector).
+
+## 3.AU CONCLUSIÓN del arco R-VALOR — una BRÚJULA DECISIONAL
+La re-localización 120-121 cierra el arco con su lección más profunda y honesta: el valor de R-VALOR (la señal de valor
+endógena) NO está en boostear el descenso del loss, sino en las DECISIONES que la USAN -- ASIGNAR la verificación/recursos
+escasos (la teoría de asignación 83-114), decidir CUÁNDO gastar (timing/abstención 104) y SI vale estimar (112), y comparar
+con UMBRALES/costos (106). R-VALOR es una BRÚJULA DECISIONAL, no un motor de aprendizaje. Esto VALIDA retrospectivamente el
+frame del arco entero: desde el principio (83) el trabajo fue sobre CÓMO ASIGNAR por valor, y el stress-test de fragilidad
+(115-121) confirma que ahí -- en la decisión, no en el descenso del loss -- está el valor. La cura de durabilidad (119)
+importa porque mantiene la brújula CONFIABLE para esas decisiones en lazos sostenidos, no porque acelere el aprendizaje.
+FRONTERA: medir el payoff de la señal calibrada DENTRO de una decisión de asignación con presupuesto EXTERNO (donde la
+señal es el único recurso de decisión, sin ancla que la sustituya); horizontes largos; objetivo no-sintético; y SCALE.
