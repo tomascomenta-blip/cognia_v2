@@ -3661,3 +3661,19 @@ viva, no testeada (riesgo de cambiar el objetivo en el tiny model). HONESTIDAD: 
 > mejor nivel pero no más durable (116); dirigir el replay a los fallos ayuda marginalmente pero no cura (117). La cura de
 > la durabilidad queda como FRONTERA: señal negativa/contrastiva o recalibración externa explícita. Interino: el selector
 > endógeno vale por tramos cortos + re-anclaje externo del outcome.
+
+## CYCLE 118 — H-V4-8x (rama R-VALOR, ataca la FRONTERA contrastiva de 115-117) — REFUTADA (inestable, informativa)
+exp102 (PyTorch CPU, lazo real exp018, 4 seeds, 6 rondas): ¿una señal NEGATIVA/CONTRASTIVA (penalizar lo
+verificado-incorrecto) cura el colapso de la señal que la imitación-positiva no cura? Implementación: contrastivo NAIVE =
+ascenso de gradiente sobre el CE de los negativos (peso chico + grad-clip). RESULTADO: DESESTABILIZA -- real_acc
+contrastive=0.014 vs pos_only=0.239 (Δ-0.225). DATO INFORMATIVO FUERTE: la señal de calibración se preserva DRAMÁTICAMENTE
+en la dirección correcta (corr_gain +0.398: la confianza SE MANTIENE correlacionada con la corrección) PERO al costo de
+DESTRUIR la capacidad (modelo degenerado, real_acc→~0). => la DIRECCIÓN (usar negativos para curar la sobreconfianza) es
+EXACTAMENTE correcta -- los negativos SÍ curan la calibración -- pero el contrastivo NAIVE (ascenso de CE crudo) SACRIFICA
+toda la capacidad por ella; no es viable. La frontera se sharpea: hace falta un unlikelihood ACOTADO (-log(1-p) sobre los
+tokens no deseados) que obtenga el beneficio de calibración SIN degenerar, o recalibración externa. cycle118 → H-V4-8x
+'refutada' (DoD), D-V4-80 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3.
+
+> FRONTERA SHARPEADA (118): los negativos CURAN la calibración (corr_gain +0.398, dirección exactamente correcta) pero el
+> contrastivo NAIVE (ascenso de CE) destruye la capacidad (real_acc→0). La cura viable = unlikelihood ACOTADO (-log(1-p))
+> o recalibración externa, NO ascenso de gradiente crudo. Es la pieza concreta que falta para la durabilidad de R-VALOR.
