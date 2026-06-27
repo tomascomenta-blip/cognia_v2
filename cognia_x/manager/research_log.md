@@ -4227,3 +4227,42 @@ calibración REAL pero MODESTO. cycle140 → H-V4-9g 'mixta' (DoD), D-V4-102 ACE
 > adversarial cazó un CONFOUND (el modo de fallo de un lazo real con dos generadores distintos) + un mecanismo falso + framing sobre-
 > vendido antes del ledger (10mo ciclo seguido). Frontera: re-correr con N>=8 + base-rate emparejado o ranking-AUC como métrica primaria;
 > SCALE (GPU); verificador de dominio rico (código->sandbox); lazo de acción-consecuencia SECUENCIAL (no impulso-a-impulso).
+
+## CYCLE 141 — H-V4-9h (rama R-VALOR, SALIR DEL ORÁCULO, POWERED: ¿la ventaja de ranking del CYCLE 140 sobrevive a N=8?) — MIXTA (núcleo real + 5 sub-claims retractados por VERIFICACIÓN ADVERSARIAL, 11mo ciclo seguido)
+exp125 (PyTorch CPU, lazo cerrado REAL -reusa run_seed de exp124-, 8 seeds × 8 rondas, post-verificación de 3 agentes). El CYCLE 140
+dejó la ventaja de RANKING base-rate-INVARIANTE del durable (cura de unlikelihood 119) en el lazo torch REAL como MIXTA por
+UNDERPOWERED (N=4: AUROC +0.083, 4/4 seeds, pero el sign-test tope a 4 seeds es p=0.125). Este ciclo la POTENCIA a N=8 para
+resolverlo. NÚCLEO VERIFICADO: la ventaja de RANKING del durable EXISTE (AUROC 0.878 vs naive 0.827, gap +0.050, 7/8 seeds) y es
+base-rate-INVARIANTE -- NO un confound (corr(nc,AUROC) DENTRO de cada brazo ≈0: durable -0.008, naive 0.036 -> invariancia empírica,
+la defensa correcta). cycle141 → H-V4-9h 'mixta' (DoD), D-V4-103 ACEPTADA, techo 'real', verify_no_loss=OK. Test 6/6.
+
+> META-PATRÓN (141, 11mo seguido con 131-140): una 1ra versión vendía APOYADA ("a N=8 la ventaja AUROC es significativa -t=2.799 >
+> tcrit 2.365-, resuelve el underpowered de 140; el gap CRECE por ronda -la cura PREVIENE el colapso-; base-rate emparejado"). Una
+> VERIFICACIÓN ADVERSARIAL (3 agentes independientes, lentes significancia-poder / base-rate-invariancia / mecanismo-trayectoria-
+> fairness; TODOS con probes reales sobre el log) CONFIRMÓ que la ventaja de ranking EXISTE y es base-rate-INVARIANTE (corr(nc,auroc)
+> dentro de brazo ≈0, OLS intercepto-a-nc-emparejado >= gap crudo -> el gap de generación NO contamina el AUROC) pero CAZÓ 5
+> OVERCLAIMS y bajó a MIXTA: (1) la SIGNIFICANCIA es FRÁGIL -- el t pareado 2.799 apenas cruza, PERO el SIGN-TEST (no-paramétrico,
+> robusto, 7/8) da p=0.070 -> NO significativo a 0.05; y ese es JUSTO el test cuyo tope (p=0.125 a N=4) definió el 'underpowered' de
+> 140 -> el underpowered NO se resolvió, sólo se migró al t-paramétrico (el más sensible a 2 seeds fuertes); el jackknife tumba la
+> significancia al sacar seed0 o seed1 (2/8). (2) la magnitud se DILUYE con N (winner's curse): 1ra mitad de seeds +0.083 vs 2da
+> mitad +0.018 (los 4 seeds nuevos ~4× más débiles); de +0.083 a N=4 bajó a +0.050 a N=8 -> doblar N ENCOGIÓ el efecto, señal de que
+> el +0.083 original era una sub-muestra optimista. (3) el 'base-rate emparejado' es FALSO y auto-contradictorio (la 1ra versión
+> decía 'EMPAREJADO' y el flag decía False; gap -16.4, el durable genera MENOS correctas -> trade-off de generación); la defensa
+> CORRECTA es la INVARIANCIA empírica, no el emparejamiento. (4) el MECANISMO 'el gap crece / la cura PREVIENE el colapso' es un
+> ARTEFACTO del cero-estructural de la ronda-1 (ambos brazos idénticos pre-divergencia -> gap=0 por construcción): la pendiente
+> per-seed SIN la ronda-1 es -0.003 (t=-0.404, NO significativa, FLIPEA a plana/negativa); AMBOS brazos COLAPSAN su AUROC (durable
+> 0.982->0.805, naive 0.982->0.761) y el corr-gap converge a ~0 en la última ronda; el efecto REAL es una VENTAJA INMEDIATA (gap
+> máximo en rondas 2-3 +0.085 vs tardío +0.062) que se EROSIONA -- el unlikelihood limpia los confident-wrong en la 1ra tanda (bump
+> inmediato de un paso), no previene un colapso acumulado. (5) casi-TAUTOLÓGICO + STRAWMAN: el unlikelihood optimiza DIRECTAMENTE la
+> separación confianza-correcto/incorrecto que AUROC mide (es supresión de confident-wrong, no ranking emergente), y sólo se probó
+> contra el baseline-que-COLAPSA (no contra un regularizador de calibración alternativo -temperature scaling, penalización de
+> entropía- eco del CYCLE 139 'la forma no era privilegiada'). El experimento se REESCRIBIÓ para AUTO-DOCUMENTAR la MIXTA (agregó el
+> sign-test no-paramétrico, la pendiente per-seed SIN la ronda-1, la invariancia empírica corr(nc,auroc), la dilución 1ra-vs-2da
+> mitad, y la lógica núcleo+retracciones). APORTE NETO honesto: (i) la HONESTIDAD de que potenciar NO rescató el efecto -- se DILUYÓ
+> (winner's curse), el sign-test robusto sigue no-significativo, y el 'mecanismo creciente' era un artefacto; (ii) el mecanismo
+> CORREGIDO (ventaja INMEDIATA de un paso del unlikelihood que se erosiona, NO prevención acumulada del colapso) + la INVARIANCIA
+> empírica como defensa correcta del 'no es confound'. El payoff/ventaja decisional LIMPIO del R-VALOR sigue SIN establecerse robusto
+> fuera del juguete. META-LECCIÓN: potenciar (más seeds) es una compuerta tan reveladora como un control nulo -- aquí reveló dilución
+> y fragilidad, no robustez. MIXTA EXITOSA: la verificación cazó significancia-frágil + mecanismo-artefacto + premisa-falsa antes del
+> ledger (11mo ciclo seguido). Frontera: N=16 para zanjar la dilución; baseline regularizador-de-calibración alternativo (¿es la cura
+> 119 privilegiada o cualquier regularización sirve?); SCALE; verificador de dominio rico; lazo de acción-consecuencia secuencial.

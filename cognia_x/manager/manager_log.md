@@ -442,3 +442,21 @@
   (decisión endógena + verificador real) + una ventaja AUROC modesta + la LECCIÓN (controlar base-rate con AUROC/lift + N suficiente).
   El payoff decisional LIMPIO del R-VALOR sigue SIN aterrizar fuera del juguete. Sirve al GOAL (R-VALOR; ataca el hueco #1 de la
   auditoría). Próximo: re-correr con N>=8 + base-rate emparejado; SCALE; verificador rico; lazo secuencial.
+
+## [2026-06-27] CYCLE 141 — H-V4-9h MIXTA (SALIR DEL ORÁCULO POWERED; 5 sub-claims retractados por verificación adversarial de 3 agentes, 11mo ciclo): potenciar a N=8 NO resuelve limpio el underpowered de 140 — la ventaja de ranking AUROC de la cura 119 en el lazo real EXISTE y es base-rate-invariante, pero su significancia es FRÁGIL (sign-test no la sostiene, magnitud diluyéndose con N) y el 'mecanismo creciente' es un artefacto del cero de la ronda-1 (efecto inmediato, no acumulado)
+- Archivos: cognia_x/experiments/exp125_decisional_powered/{__init__.py,run.py,results/results.json} (nuevo);
+  cognia_x/research/cycles/cycle141_decisional_powered.py (nuevo); cognia_x/tests/test_cycle141_decisional_powered.py (nuevo);
+  research_log.md / manager_log.md / roadmap.md (append). Continuación natural de 140 (autonomía total hasta deadline).
+- Resultado tests: PASS — test dirigido 6/6 (lógica de veredicto powered sobre per_seed sintético; el lazo torch es lento ~60min y
+  se verifica corriendo el experimento); cycle141 por el engine MIXTA, D-V4-103 aceptada, verify_no_loss=OK.
+- Resultado exp (8 seeds × 8 rondas, PyTorch CPU): potencia a N=8 la ventaja de ranking del durable que 140 dejó underpowered.
+  AUROC durable 0.878 vs naive 0.827 (gap +0.050, 7/8 seeds), base-rate-INVARIANTE (corr(nc,auroc) dentro de brazo ≈0).
+- Notas: VERIFICACIÓN ADVERSARIAL de 3 agentes (11mo ciclo; lentes significancia/base-rate/mecanismo, todos con probes reales sobre
+  el log) confirmó que la ventaja EXISTE y es base-rate-invariante pero CAZÓ 5 OVERCLAIMS -> MIXTA: (1) significancia FRÁGIL (sign-
+  test p=0.070 NO sig -el test que definió el underpowered de 140-; jackknife tumba 2/8); (2) magnitud DILUYÉNDOSE con N (1ra mitad
+  +0.083 vs 2da +0.018; winner's curse); (3) 'base-rate emparejado' FALSO (la defensa es invariancia empírica); (4) 'mecanismo
+  crece/previene colapso' ARTEFACTO del cero de la ronda-1 (pendiente sin ronda-1 -0.003 t=-0.4; ambos colapsan; efecto INMEDIATO no
+  acumulado); (5) casi-tautológico (el unlikelihood optimiza lo que AUROC mide) + strawman. El experimento se REESCRIBIÓ para
+  AUTO-DOCUMENTAR. APORTE: honestidad de que potenciar NO rescató el efecto (se diluyó) + mecanismo corregido (inmediato) +
+  invariancia empírica como defensa correcta. El underpowered de 140 no se resuelve limpio. Sirve al GOAL (R-VALOR; rigor sobre el
+  payoff decisional en el lazo real). Próximo: N=16; baseline regularizador alternativo; SCALE.

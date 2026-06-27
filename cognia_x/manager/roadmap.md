@@ -401,10 +401,21 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > la LECCIÓN metodológica (controlar base-rate con AUROC/lift, loguear el confound de ambos brazos, N>=8). D-V4-102, techo 'real',
 > verify_no_loss=OK, test 6/6.
 >
-> FRONTERA ACTIVA (post-140): (1) SALIR DEL ORÁCULO en serio -- re-correr el lazo real con N>=8 + base-rate emparejado (o ranking-AUC
-> como métrica primaria) para establecer (o refutar) el payoff decisional LIMPIO del R-VALOR; verificador de dominio rico
-> (código->sandbox); lazo de acción-consecuencia SECUENCIAL (no impulso-a-impulso). (2) extender el puente EFE a NO-LINEAL (135-136)
-> / ACOPLADO (137). (3) AISLAR la relevancia bajo ciclos + el efecto de la CAPACIDAD K (139). (4) SCALE (GPU/Kaggle) -- la frontera
-> #1 que jamás se tocó (0% de la auditoría). (5) [abierto] varianza-prior v en el lazo real (138); EFE bajo condicionamiento (139);
-> prior jerárquico (136). MÉTODO institucionalizado: verificación adversarial (3-4 agentes) antes del ledger — 10 ciclos seguidos
-> (131..140) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K=1; 140 CONFOUND de base-rate en un lazo real).
+> CYCLE 141 (H-V4-9h MIXTA) POTENCIA a N=8 el hallazgo de 140 (la ventaja de RANKING base-rate-INVARIANTE de la cura 119 en el lazo
+> torch REAL) para resolver su underpowered. NÚCLEO: la ventaja EXISTE (AUROC durable 0.878 vs naive 0.827, +0.050, 7/8 seeds) y es
+> base-rate-INVARIANTE (corr(nc,auroc) dentro de brazo ≈0). PERO la verificación adversarial (3 agentes, 11mo ciclo) CAZÓ 5
+> OVERCLAIMS -> MIXTA: (1) significancia FRÁGIL (sign-test p=0.070 NO sig -el test que definió el underpowered de 140-; jackknife
+> tumba 2/8); (2) magnitud DILUYÉNDOSE con N (1ra mitad +0.083 vs 2da +0.018; winner's curse -- potenciar ENCOGIÓ el efecto); (3)
+> 'base-rate emparejado' FALSO (la defensa es invariancia empírica); (4) 'mecanismo crece/previene colapso' ARTEFACTO del cero de la
+> ronda-1 (sin ella la pendiente flipea; ambos brazos colapsan; el efecto es INMEDIATO de un paso, no acumulado); (5) casi-
+> tautológico (el unlikelihood optimiza lo que AUROC mide) + strawman (sólo vs el baseline-que-colapsa). El underpowered de 140 NO se
+> resuelve limpio. D-V4-103, techo 'real', verify_no_loss=OK, test 6/6.
+>
+> FRONTERA ACTIVA (post-141): (1) SALIR DEL ORÁCULO -- N=16 para zanjar la DILUCIÓN de 141 + un baseline regularizador-de-calibración
+> ALTERNATIVO (temperature scaling / entropía: ¿es la cura 119 privilegiada o cualquier regularización da la ventaja de ranking?
+> eco del 139); des-confundir la métrica de DECISIÓN (sólo el ranking AUROC es limpio); verificador de dominio rico; lazo SECUENCIAL.
+> (2) extender el puente EFE a NO-LINEAL (135-136)/ACOPLADO (137). (3) AISLAR la relevancia bajo ciclos + efecto de K (139). (4) SCALE
+> (GPU/Kaggle) -- frontera #1 jamás tocada (0% de la auditoría). (5) [abierto] varianza-prior v en el lazo real (138); EFE bajo
+> condicionamiento (139). MÉTODO institucionalizado: verificación adversarial (3-4 agentes) antes del ledger — 11 ciclos seguidos
+> (131..141) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K; 140 CONFOUND de base-rate; 141 significancia-frágil +
+> mecanismo-artefacto-del-cero-de-ronda-1 + dilución/winner's-curse).
