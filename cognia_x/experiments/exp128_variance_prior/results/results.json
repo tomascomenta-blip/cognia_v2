@@ -1,0 +1,224 @@
+{
+  "exp": "exp128_variance_prior",
+  "cycle": 144,
+  "hypothesis": "H-V4-10p",
+  "claim": "MIXTA (mi hipotesis -w·v·ctrl la eleccion robusta que bate a AMBOS- REFUTADA; mapa de regimen honesto tras verificacion adversarial de 2 agentes). La varianza-prior v MODULA el valor bajo heterogeneidad (params clean, monotono) PERO: (1) 'incluir v bate al keystone' es en gran medida DEFINICIONAL (el oracle=w²·v·ctrl contiene v; sacarlo invierte el signo) -- lo genuino es la estimabilidad de v̂=Var(x), CONTAMINADA por el control (corr con b²); bajo BAJA heterogeneidad el v̂ ruidoso DAÑA. (2) el claim de 138 'el cuadrado dania bajo estimacion' NO se refuta, se CONFIRMA regime-especificamente (con w_hat RUIDOSO -sigma_g alto, T chico- el cuadrado dania); mi 1ra version muestreo el rincon limpio y lo llamo 'wash' por error. (3) a BAJA heterogeneidad el cuadrado AYUDA -> el cuadrado es REGIME-DEPENDENT. (4) la eleccion robusta a traves del eje es la EFE-COMPLETA w²·v·ctrl, NO la simplificada w·v·ctrl. La verificacion cazo mi overclaim BIDIRECCIONAL y protegio la autoconsistencia con 138",
+  "verdict": "mixta",
+  "summary": {
+    "D": 10,
+    "K": 3,
+    "by_hetero_est": {
+      "uniform": {
+        "efe": 0.9409,
+        "v_corr": 0.8861,
+        "keystone": 0.9381,
+        "rel": 0.8985,
+        "corr_vhat_vtrue": NaN,
+        "corr_vhat_b2": 0.5753
+      },
+      "mild": {
+        "efe": 0.9219,
+        "v_corr": 0.8787,
+        "keystone": 0.8399,
+        "rel": 0.9127,
+        "corr_vhat_vtrue": 0.7486,
+        "corr_vhat_b2": 0.3848
+      },
+      "strong": {
+        "efe": 0.8824,
+        "v_corr": 0.8818,
+        "keystone": 0.6607,
+        "rel": 0.9519,
+        "corr_vhat_vtrue": 0.9284,
+        "corr_vhat_b2": 0.2151
+      }
+    },
+    "by_hetero_clean": {
+      "uniform": {
+        "efe": 1.0,
+        "v_corr": 0.9805,
+        "keystone": 0.9805,
+        "rel": 0.8821
+      },
+      "mild": {
+        "efe": 1.0,
+        "v_corr": 0.969,
+        "keystone": 0.8702,
+        "rel": 0.8893
+      },
+      "strong": {
+        "efe": 1.0,
+        "v_corr": 0.9797,
+        "keystone": 0.6844,
+        "rel": 0.9461
+      }
+    },
+    "by_T": {
+      "10": {
+        "efe": 0.6789,
+        "v_corr": 0.7296,
+        "keystone": 0.5571,
+        "rel": 0.7818,
+        "corr_vhat_vtrue": 0.7753,
+        "corr_vhat_b2": 0.1652
+      },
+      "25": {
+        "efe": 0.8212,
+        "v_corr": 0.8164,
+        "keystone": 0.6307,
+        "rel": 0.9037,
+        "corr_vhat_vtrue": 0.8694,
+        "corr_vhat_b2": 0.2193
+      },
+      "60": {
+        "efe": 0.8824,
+        "v_corr": 0.8818,
+        "keystone": 0.6607,
+        "rel": 0.9519,
+        "corr_vhat_vtrue": 0.9284,
+        "corr_vhat_b2": 0.2151
+      },
+      "150": {
+        "efe": 0.9192,
+        "v_corr": 0.9147,
+        "keystone": 0.6821,
+        "rel": 0.9591,
+        "corr_vhat_vtrue": 0.953,
+        "corr_vhat_b2": 0.2051
+      },
+      "500": {
+        "efe": 0.945,
+        "v_corr": 0.9339,
+        "keystone": 0.694,
+        "rel": 0.9773,
+        "corr_vhat_vtrue": 0.9695,
+        "corr_vhat_b2": 0.2235
+      }
+    },
+    "by_sigma_g": {
+      "0.5": {
+        "efe": 0.8212,
+        "v_corr": 0.8164,
+        "keystone": 0.6307,
+        "rel": 0.9037,
+        "corr_vhat_vtrue": 0.8694,
+        "corr_vhat_b2": 0.2193
+      },
+      "2.0": {
+        "efe": 0.7166,
+        "v_corr": 0.7713,
+        "keystone": 0.5264,
+        "rel": 0.8241,
+        "corr_vhat_vtrue": 0.8799,
+        "corr_vhat_b2": 0.1699
+      },
+      "5.0": {
+        "efe": 0.5525,
+        "v_corr": 0.6483,
+        "keystone": 0.4459,
+        "rel": 0.6984,
+        "corr_vhat_vtrue": 0.862,
+        "corr_vhat_b2": 0.2099
+      }
+    },
+    "by_het_est_fine": {
+      "0.0": {
+        "efe": 0.9409,
+        "v_corr": 0.8861,
+        "keystone": 0.9381,
+        "rel": 0.8985,
+        "corr_vhat_vtrue": NaN,
+        "corr_vhat_b2": 0.5753
+      },
+      "0.2": {
+        "efe": 0.9299,
+        "v_corr": 0.8708,
+        "keystone": 0.9223,
+        "rel": 0.8823,
+        "corr_vhat_vtrue": 0.383,
+        "corr_vhat_b2": 0.5521
+      },
+      "0.4": {
+        "efe": 0.9266,
+        "v_corr": 0.8837,
+        "keystone": 0.8925,
+        "rel": 0.9202,
+        "corr_vhat_vtrue": 0.6183,
+        "corr_vhat_b2": 0.451
+      },
+      "0.6": {
+        "efe": 0.9219,
+        "v_corr": 0.8787,
+        "keystone": 0.8399,
+        "rel": 0.9127,
+        "corr_vhat_vtrue": 0.7486,
+        "corr_vhat_b2": 0.3848
+      },
+      "1.0": {
+        "efe": 0.893,
+        "v_corr": 0.866,
+        "keystone": 0.7413,
+        "rel": 0.9347,
+        "corr_vhat_vtrue": 0.8756,
+        "corr_vhat_b2": 0.2576
+      },
+      "1.4": {
+        "efe": 0.8824,
+        "v_corr": 0.8818,
+        "keystone": 0.6607,
+        "rel": 0.9519,
+        "corr_vhat_vtrue": 0.9284,
+        "corr_vhat_b2": 0.2151
+      }
+    },
+    "v_pays_strong_clean": 0.2953,
+    "v_mild_clean": 0.0988,
+    "square_harms_noisy_sgmax": 0.0958,
+    "square_helps_lowhet": 0.0591,
+    "vhat_lowhet_penalty": 0.052,
+    "corr_vhat_vtrue": 0.9284,
+    "corr_vhat_b2": 0.2151,
+    "v_modulates": true,
+    "square_harms_noisy": true,
+    "square_helps_lowhet_flag": true,
+    "vhat_harms_lowhet": true,
+    "efe_dominates": true,
+    "status": "mixta",
+    "verdict": "H-V4-10p MIXTA (mi hipótesis -w·v·ctrl la elección robusta que bate a AMBOS- REFUTADA; mapa de régimen honesto tras verificación adversarial de 2 agentes; 14mo ciclo). La varianza-prior v MODULA el valor bajo heterogeneidad (params clean: v_corr-keystone +0.295 strong vs +0.099 mild, monótono) -- PERO la verificación re-acotó TODO: (1) 'incluir v bate al keystone' es en gran medida DEFINICIONAL -- el oracle (w²·v·ctrl) CONTIENE v; sacar v del oracle invierte el signo de la 'ventaja'. Lo genuino es la estimabilidad de v̂=Var(x) (corr con v_true 0.928) PERO está CONTAMINADO por el control (corr con b² 0.215), y bajo BAJA heterogeneidad estimada el v̂ ruidoso DAÑA (keystone 0.938 > v_corr 0.886 a uniforme). (2) el claim secundario de 138 ('el cuadrado w² DAÑA bajo estimación') NO se refuta -- se CONFIRMA, regime-específicamente: con ŵ RUIDOSO (σ_g=5.000, T=25) el cuadrado DAÑA (v_corr-efe +0.096); mi 1ra versión muestreó el rincón LIMPIO (σ_g=0.5, T≥25) y lo llamó 'wash' por error. (3) PERO a BAJA heterogeneidad el cuadrado AYUDA (efe bate a v_corr +0.059) -> el cuadrado NO es 'siempre daña' (138) NI 'wash' (mi 1ra versión): es REGIME-DEPENDENT (ayuda a baja-het, wash a alta-het+limpio, daña con ŵ-ruidoso). (4) la elección REALMENTE robusta a través del eje es la forma EFE-COMPLETA w²·v·ctrl (efe), que DOMINA débilmente todo (efe_dominates=True); w·v·ctrl es una simplificación justificada SÓLO bajo heterogeneidad fuerte + estimación limpia. => RESULTADO HONESTO: la varianza-prior v importa bajo heterogeneidad (pero 'incluir v' es casi definicional + v̂ contaminado); la forma robusta es la EFE-completa w²·v·ctrl, NO la simplificada w·v·ctrl que yo proponía; el cuadrado es regime-dependent (138 confirmado en el régimen ruidoso). MIXTA EXITOSA: la verificación cazó mi overclaim BIDIRECCIONAL (definicional + refutación-deshonesta) y protegió la AUTOCONSISTENCIA con 138 (que yo contradecía erróneamente)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 300
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp128] CYCLE 144 / H-V4-10p — ¿es w·v·ctrl (corrección por VARIANZA-PRIOR) la elección PRÁCTICA robusta entre el keystone w·ctrl y la EFE-óptima w²·v·ctrl? (caracteriza el hallazgo neto de 138)",
+    "[exp128] seeds=300 D=10 K=3 Ts=[10, 25, 60, 150, 500] hetero=['uniform', 'mild', 'strong']",
+    "[exp128] --- (1) INCLUIR v: params CLEAN (aísla del ruido del cuadrado), por heterogeneidad de varianza ---",
+    "[exp128]  uniform: v_corr=0.981 keystone=0.981 (v_corr-keystone +0.000) | efe(oracle)=1.000",
+    "[exp128]     mild: v_corr=0.969 keystone=0.870 (v_corr-keystone +0.099) | efe(oracle)=1.000",
+    "[exp128]   strong: v_corr=0.980 keystone=0.684 (v_corr-keystone +0.295) | efe(oracle)=1.000",
+    "[exp128] --- (2) ¿el CUADRADO daña bajo ESTIMACIÓN? por T (hetero=strong) ---",
+    "[exp128] T=   10: v_corr=0.730 efe=0.679 (v_corr-efe +0.051) keystone=0.557",
+    "[exp128] T=   25: v_corr=0.816 efe=0.821 (v_corr-efe +-0.005) keystone=0.631",
+    "[exp128] T=   60: v_corr=0.882 efe=0.882 (v_corr-efe +-0.001) keystone=0.661",
+    "[exp128] T=  150: v_corr=0.915 efe=0.919 (v_corr-efe +-0.005) keystone=0.682",
+    "[exp128] T=  500: v_corr=0.934 efe=0.945 (v_corr-efe +-0.011) keystone=0.694",
+    "[exp128] --- (2b) el CUADRADO con ŵ RUIDOSO (σ_g sweep, hetero=strong, T=25): ¿daña? (138 CONFIRMADO) ---",
+    "[exp128] σ_g= 0.5: v_corr=0.816 efe=0.821 (v_corr-efe +-0.005) keystone=0.631",
+    "[exp128] σ_g= 2.0: v_corr=0.771 efe=0.717 (v_corr-efe +0.055) keystone=0.526",
+    "[exp128] σ_g= 5.0: v_corr=0.648 efe=0.552 (v_corr-efe +0.096) keystone=0.446",
+    "[exp128] --- (3) heterogeneidad FINA en régimen ESTIMADO (T=60): efe vs v_corr vs keystone (¿efe domina? ¿v̂ daña a baja-het?) ---",
+    "[exp128] σ_log= 0.0: efe=0.941 v_corr=0.886 keystone=0.938 | efe-v_corr +0.055 v_corr-keystone +-0.052 | corr(v̂,v)=nan corr(v̂,b²)=0.58",
+    "[exp128] σ_log= 0.2: efe=0.930 v_corr=0.871 keystone=0.922 | efe-v_corr +0.059 v_corr-keystone +-0.051 | corr(v̂,v)=0.38 corr(v̂,b²)=0.55",
+    "[exp128] σ_log= 0.4: efe=0.927 v_corr=0.884 keystone=0.892 | efe-v_corr +0.043 v_corr-keystone +-0.009 | corr(v̂,v)=0.62 corr(v̂,b²)=0.45",
+    "[exp128] σ_log= 0.6: efe=0.922 v_corr=0.879 keystone=0.840 | efe-v_corr +0.043 v_corr-keystone +0.039 | corr(v̂,v)=0.75 corr(v̂,b²)=0.38",
+    "[exp128] σ_log= 1.0: efe=0.893 v_corr=0.866 keystone=0.741 | efe-v_corr +0.027 v_corr-keystone +0.125 | corr(v̂,v)=0.88 corr(v̂,b²)=0.26",
+    "[exp128] σ_log= 1.4: efe=0.882 v_corr=0.882 keystone=0.661 | efe-v_corr +0.001 v_corr-keystone +0.221 | corr(v̂,v)=0.93 corr(v̂,b²)=0.22",
+    "[exp128] CHECK v_modulates=True | square_harms_noisy=True (σ_g max +0.096) square_helps_lowhet=True (+0.059) vhat_harms_lowhet=True efe_dominates=True | corr(v̂,v)=0.93 corr(v̂,b²)=0.22",
+    "[exp128] VEREDICTO H-V4-10p: MIXTA | H-V4-10p MIXTA (mi hipótesis -w·v·ctrl la elección robusta que bate a AMBOS- REFUTADA; mapa de régimen honesto tras verificación adversarial de 2 agentes; 14mo ciclo). La varianza-prior v MODULA el valor bajo heterogeneidad (params clean: v_corr-keystone +0.295 strong vs +0.099 mild, monótono) -- PERO la verificación re-acotó TODO: (1) 'incluir v bate al keystone' es en gran medida DEFINICIONAL -- el oracle (w²·v·ctrl) CONTIENE v; sacar v del oracle invierte el signo de la 'ventaja'. Lo genuino es la estimabilidad de v̂=Var(x) (corr con v_true 0.928) PERO está CONTAMINADO por el control (corr con b² 0.215), y bajo BAJA heterogeneidad estimada el v̂ ruidoso DAÑA (keystone 0.938 > v_corr 0.886 a uniforme). (2) el claim secundario de 138 ('el cuadrado w² DAÑA bajo estimación') NO se refuta -- se CONFIRMA, regime-específicamente: con ŵ RUIDOSO (σ_g=5.000, T=25) el cuadrado DAÑA (v_corr-efe +0.096); mi 1ra versión muestreó el rincón LIMPIO (σ_g=0.5, T≥25) y lo llamó 'wash' por error. (3) PERO a BAJA heterogeneidad el cuadrado AYUDA (efe bate a v_corr +0.059) -> el cuadrado NO es 'siempre daña' (138) NI 'wash' (mi 1ra versión): es REGIME-DEPENDENT (ayuda a baja-het, wash a alta-het+limpio, daña con ŵ-ruidoso). (4) la elección REALMENTE robusta a través del eje es la forma EFE-COMPLETA w²·v·ctrl (efe), que DOMINA débilmente todo (efe_dominates=True); w·v·ctrl es una simplificación justificada SÓLO bajo heterogeneidad fuerte + estimación limpia. => RESULTADO HONESTO: la varianza-prior v importa bajo heterogeneidad (pero 'incluir v' es casi definicional + v̂ contaminado); la forma robusta es la EFE-completa w²·v·ctrl, NO la simplificada w·v·ctrl que yo proponía; el cuadrado es regime-dependent (138 confirmado en el régimen ruidoso). MIXTA EXITOSA: la verificación cazó mi overclaim BIDIRECCIONAL (definicional + refutación-deshonesta) y protegió la AUTOCONSISTENCIA con 138 (que yo contradecía erróneamente)."
+  ]
+}

@@ -428,10 +428,19 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > incondicionalmente; la relevancia es load-bearing sólo bajo escasez de capacidad (consistente con 142). D-V4-105, techo 'real',
 > verify_no_loss=OK, test 5/5.
 >
-> FRONTERA ACTIVA (post-143): (1) aislar la relevancia bajo ciclos SIN dependencia de K=1 (capacidad CONTINUA / decoys ASIMÉTRICOS) --
-> el cierre INCONDICIONAL del caveat de 139 queda abierto. (2) SALIR DEL ORÁCULO -- N=16 para la DILUCIÓN de 141 + baseline
-> regularizador-de-calibración ALTERNATIVO; verificador de dominio rico; lazo SECUENCIAL. (3) extender el puente EFE a NO-LINEAL
-> (135-136)/ACOPLADO (137). (4) SCALE (GPU/Kaggle) -- frontera #1 jamás tocada (0% de la auditoría). (5) [abierto] varianza-prior v
-> (138). MÉTODO institucionalizado: verificación adversarial (2-4 agentes) antes del ledger — 13 ciclos seguidos (131..143)
+> CYCLE 144 (H-V4-10p MIXTA) caracteriza la frontera #5 (corrección por varianza-prior v de 138). RESULTADO: mi hipótesis (la forma
+> simplificada w·v·ctrl es la elección robusta que bate a keystone Y a la EFE-óptima) REFUTADA + mapa de régimen que VINDICA el 138.
+> La varianza-prior v modula el valor bajo heterogeneidad, PERO: 'incluir v' es casi DEFINICIONAL (el oracle contiene v) + v̂=Var(x)
+> CONTAMINADO por el control (corr b²~0.2-0.6, daña a baja-het); el cuadrado es REGIME-DEPENDENT (daña con ŵ ruidoso +0.096 -138
+> CONFIRMADO-, ayuda a baja-het +0.059); la forma robusta a través del eje es la EFE-COMPLETA w²·v·ctrl. La verificación adversarial
+> (2 agentes, 14mo ciclo) cazó mi overclaim BIDIRECCIONAL y PROTEGIÓ LA AUTOCONSISTENCIA con 138 (que yo refutaba erróneamente
+> muestreando el rincón limpio). D-V4-106, techo 'real', verify_no_loss=OK, test 5/5.
+>
+> FRONTERA ACTIVA (post-144): (1) la varianza-prior v como mecanismo de SALIENCIA/atención en un sustrato no-juguete. (2) aislar la
+> relevancia bajo ciclos SIN dependencia de K=1 (capacidad continua / decoys asimétricos; el cierre incondicional del caveat de 139
+> queda abierto). (3) SALIR DEL ORÁCULO -- N=16 para la dilución de 141 + baseline regularizador alternativo; verificador rico; lazo
+> secuencial. (4) extender el puente EFE a NO-LINEAL (135-136)/ACOPLADO (137). (5) SCALE (GPU/Kaggle) -- frontera #1 jamás tocada (0%
+> de la auditoría). MÉTODO institucionalizado: verificación adversarial (2-4 agentes) antes del ledger — 14 ciclos seguidos (131..144)
 > corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K; 140 CONFOUND de base-rate; 141 significancia-frágil + dilución; 142
-> trivialidad + recombinación + validity-limit; 143 RE-USO del artefacto K=1 ya retractado -la verificación protege la autoconsistencia del ledger-).
+> trivialidad + recombinación; 143 RE-USO del artefacto K=1 ya retractado; 144 overclaim BIDIRECCIONAL + refutación-deshonesta de un
+> ciclo previo -la verificación protege la AUTOCONSISTENCIA del ledger-).

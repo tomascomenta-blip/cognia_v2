@@ -4320,3 +4320,28 @@ leakage-free. cycle143 → H-V4-10o 'mixta' (DoD), D-V4-105 ACEPTADA, techo 'rea
 > disociación, el mismo principio. La verificación protegió la AUTOCONSISTENCIA del ledger: cazó el RE-USO de un artefacto (K=1
 > winner-take-all) que el propio lab había retractado en 139. MIXTA EXITOSA: 13mo ciclo seguido. Frontera: un test del aislamiento
 > que NO dependa de K=1 (capacidad continua / decoys asimétricos); SCALE.
+
+## CYCLE 144 — H-V4-10p (rama control/acción, CARACTERIZA el hallazgo NETO de 138: la corrección por VARIANZA-PRIOR v) — MIXTA (mi hipótesis REFUTADA + mapa de régimen honesto que VINDICA el 138; VERIFICACIÓN ADVERSARIAL de 2 agentes, 14mo ciclo seguido)
+exp128 (numpy, 300 seeds, post-verificación de 2 agentes). 138 halló (al refutar el overclaim del cuadrado) que la corrección robusta
+sobre el keystone es la varianza-prior v (w·v·ctrl), no el cuadrado (w²·v·ctrl daña bajo estimación). Este ciclo intentaba mostrar que
+la forma simplificada w·v·ctrl es la elección PRÁCTICA robusta que BATE al keystone Y a la EFE-óptima. RESULTADO: HIPÓTESIS REFUTADA +
+mapa de régimen honesto. cycle144 → H-V4-10p 'mixta' (DoD), D-V4-106 ACEPTADA, techo 'real', verify_no_loss=OK. Test 5/5.
+
+> META-PATRÓN (144, 14mo seguido con 131-143): una 1ra versión daba MIXTA pero con un overclaim BIDIRECCIONAL ("CONFIRMADO: incluir v
+> es load-bearing; REFUTADO: el claim de 138 -el cuadrado daña- NO generaliza, es un wash"). Una VERIFICACIÓN ADVERSARIAL (2 agentes,
+> lentes tautología-definicional / robustez-régimen; probes reales numpy, incluido portar el sustrato de 138) CAZÓ que AMBAS patas
+> estaban mal: (1) 'incluir v bate al keystone' es en gran medida DEFINICIONAL -- el oracle (w²·v·ctrl) CONTIENE v; sacar v del oracle
+> INVIERTE el signo de la 'ventaja' (factor-matching algebraico). Lo genuino es que v̂=Var(x) es estimable (corr con v_true 0.93 bajo
+> heterogeneidad fuerte) PERO CONTAMINADO por el control (corr con b² ~0.2-0.6: Var(x) conflaciona la varianza-prior con la varianza
+> inducida por u), y bajo BAJA heterogeneidad el v̂ ruidoso DAÑA (keystone > v_corr). (2) mi 'refutación de 138' era FALSA/deshonesta
+> -- muestreé el RINCÓN LIMPIO (σ_g=0.5, T≥25); con ŵ RUIDOSO (σ_g=5, T=25) el cuadrado DAÑA (v_corr-efe +0.096) -> 138 CONFIRMADO
+> regime-específicamente, NO refutado. (3) PERO a BAJA heterogeneidad el cuadrado AYUDA (efe-v_corr +0.059) -> el cuadrado NO es
+> 'siempre daña' (138) NI 'wash' (mi error): es REGIME-DEPENDENT (ayuda baja-het, wash alta-het+limpio, daña ŵ-ruidoso). (4) la
+> elección REALMENTE robusta a través del eje es la forma EFE-COMPLETA w²·v·ctrl (efe), que DOMINA débilmente todo; w·v·ctrl es una
+> simplificación justificada SÓLO bajo heterogeneidad fuerte + estimación limpia. El experimento se REESCRIBIÓ para AUTO-DOCUMENTAR
+> (agregó el barrido de σ_g -el cuadrado daña con ŵ ruidoso-, la heterogeneidad fina estimada -efe domina, v̂ daña a baja-het-, y la
+> contaminación corr(v̂,b²)). APORTE NETO honesto: el MAPA DE RÉGIMEN del cuadrado (ayuda/wash/daña según ruido×heterogeneidad) + la
+> VINDICACIÓN de 138 (su mecanismo es correcto, regime-específico) + el reconocimiento de que 'incluir v' es casi definicional con un
+> v̂ contaminado. META-LECCIÓN crucial: 14mo ciclo seguido con verificación adversarial -- aquí cazó un overclaim BIDIRECCIONAL
+> (definicional + refutación-deshonesta de un ciclo PREVIO) y PROTEGIÓ LA AUTOCONSISTENCIA del ledger: yo estaba REFUTANDO erróneamente
+> el 138 muestreando el rincón conveniente. Frontera: la varianza-prior como saliencia/atención en un sustrato no-juguete; SCALE.
