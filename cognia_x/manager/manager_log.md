@@ -496,3 +496,9 @@
 - Qué: estado HONESTO del arco 79-146 anclado en veredictos reales commiteados — PROBADO (§1: keystone como límite EFE 138, forma robusta w²·v·ctrl 144, ventaja no-discreto-específica 145, sesgo inductivo útil-si-matchea 146, brújula decisional 120-123) / ASUMIDO-ACOTADO (§2) / REFUTADO-RETRACTADO (§3: tabla de los 9 overclaims cazados 138-146) / SATURACIÓN + FRONTERA REAL (§4: lazo real / salir-del-oráculo / SCALE) / % honesto (§5: ~70% mapa toy, ~10-15% real, 0% SCALE).
 - Por qué sirve al GOAL: tras 6 MIXTA seguidos el toy lineal está saturado; la síntesis evita que el próximo ciclo re-derive lo establecido y apunta a la frontera real. Patrón completeness-critic. Decisión de no arrancar el lazo torch (~60 min + agentes) con uso 75% para no pasar el presupuesto y poder cerrar limpio.
 - Resultado: documento permanente, grounded; no requiere pytest (no es código ejecutable). Regla registrada: el próximo ciclo ataca §4 o declara el bloqueo de hardware; verificación adversarial innegociable.
+
+## [2026-06-27] CYCLE 148 — VERIFICACIÓN DE INTEGRIDAD de la corrida (barato: solo pytest, sin torch ni agentes — uso ~76%)
+- Qué: corrí los tests de regresión de los 5 ciclos numpy de esta corrida (142-146) juntos -> 26 passed (5+5+5+5+6) en 233s. "Código que corre o no cuenta" aplicado a la obra de la sesión.
+- Por qué sirve al GOAL: confirma que los 5 ciclos toy agregados (cada uno ya con su test 5/5 al cerrarse + verify_no_loss=OK en el engine) siguen verdes juntos -> la base acumulada es sólida antes del corte por deadline/reset.
+- Resultado tests: PASS — 26/26. (140-141 son torch-lentos vía exp124/exp106; ya verificados al cerrarse, no re-corridos por presupuesto.)
+- Notas: decisión de manager de hacer un ciclo barato de integridad en vez del lazo torch caro (~60 min + agentes) con uso 76% cerca del umbral 80%, para cerrar la corrida limpio. Capstone STATUS_RVALOR (147) + integridad (148) dejan la corrida en estado consultable y sólido.
