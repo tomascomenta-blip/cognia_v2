@@ -387,10 +387,24 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > COMPETENCIA de escalas temporales (un único lazo no falla hasta radio 0.99). ACOTA -- no cierra -- la frontera 'ciclos' de 137.
 > D-V4-101, techo 'real', verify_no_loss=OK, test 7/7.
 >
-> FRONTERA ACTIVA (post-139): (1) extender el puente EFE a sustrato NO-LINEAL (135-136) / ACOPLADO (137) -- donde el producto
-> LOCAL necesita revisión. (2) AISLAR la relevancia bajo ciclos (estructura donde reach != relevancia) + el efecto de la CAPACIDAD
-> K sobre el valor de decisión (139 reveló que K=1 es load-bearing en la selección). (3) lazo de acción-consecuencia REAL (sandbox
-> exp018). (4) SCALE (GPU/Kaggle). (5) [abierto] la corrección por varianza-prior v en el lazo real (138); el puente EFE bajo
-> CONDICIONAMIENTO/ciclos (139); prior jerárquico para escasez (136). MÉTODO institucionalizado: verificación adversarial (3-4
-> agentes) antes del ledger — 9 ciclos seguidos (131..139) corrigiendo/acotando overclaims (138 cazó una TAUTOLOGÍA; 139 cazó un
-> gap-artefacto-de-K=1 + un control nulo mal elegido + un baseline strawman).
+> CYCLE 140 (H-V4-9g MIXTA) ATACA el HUECO #1 de la AUDITORÍA de la teoría (post-139): SALIR DEL ORÁCULO -- aterrizar el payoff
+> decisional del R-VALOR (que vivía 100% en numpy SINTÉTICO con oráculo, exp107/123 +0.904) en un LAZO CERRADO REAL (exp124: HybridLM
+> byte-level genera 'N=a*b' -> verificador REAL sandbox aritmético exp018 -> confianza ENDÓGENA -> self-train con/sin cura de
+> unlikelihood 119). NÚCLEO (leakage-free): la DECISIÓN de submission es genuinamente ENDÓGENA (top-m por confianza del modelo; el
+> oráculo sólo MIDE) + verificador REAL; ventaja de RANKING base-rate-INVARIANTE del durable (AUROC 0.885 vs naive 0.802, +0.083,
+> 4/4 seeds, jackknife-min +0.058), MODESTA. PERO la verificación adversarial (4 agentes, 10mo ciclo) CAZÓ 4 OVERCLAIMS -> MIXTA:
+> (1) CONFOUND DE BASE-RATE -- el titular precision@m estaba confundido (los brazos generan distinto #correctas; la 1ra versión NI
+> siquiera logueaba el del naive -> irrecuperable); corregido con AUROC/lift/base-rate de ambos brazos. (2) NO significativo a N=4
+> (underpowered). (3) MECANISMO FALSO (no hay pico en f=1; pico en f=0.5 trivial, monótono-decreciente; gate decision_driven vacuo).
+> (4) FRAMING sobre-vendido ('sale del oráculo' acotado -el verificador supervisa TODO el lazo, sólo el ranking es endógeno-;
+> 'transfiere' es eco atenuado vs exp107). APORTE NETO: el PASO real (decisión endógena + verificador real) + ventaja AUROC modesta +
+> la LECCIÓN metodológica (controlar base-rate con AUROC/lift, loguear el confound de ambos brazos, N>=8). D-V4-102, techo 'real',
+> verify_no_loss=OK, test 6/6.
+>
+> FRONTERA ACTIVA (post-140): (1) SALIR DEL ORÁCULO en serio -- re-correr el lazo real con N>=8 + base-rate emparejado (o ranking-AUC
+> como métrica primaria) para establecer (o refutar) el payoff decisional LIMPIO del R-VALOR; verificador de dominio rico
+> (código->sandbox); lazo de acción-consecuencia SECUENCIAL (no impulso-a-impulso). (2) extender el puente EFE a NO-LINEAL (135-136)
+> / ACOPLADO (137). (3) AISLAR la relevancia bajo ciclos + el efecto de la CAPACIDAD K (139). (4) SCALE (GPU/Kaggle) -- la frontera
+> #1 que jamás se tocó (0% de la auditoría). (5) [abierto] varianza-prior v en el lazo real (138); EFE bajo condicionamiento (139);
+> prior jerárquico (136). MÉTODO institucionalizado: verificación adversarial (3-4 agentes) antes del ledger — 10 ciclos seguidos
+> (131..140) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K=1; 140 CONFOUND de base-rate en un lazo real).

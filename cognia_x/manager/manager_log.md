@@ -420,3 +420,25 @@
   regularización bajo ciclos), pero la forma no es única, el efecto vive bajo K=1 y la relevancia no se aísla aquí. ACOTA -- no
   cierra -- la frontera 'ciclos' de 137. Sirve al GOAL (R-VALOR; caracteriza el dominio del factor de controlabilidad-reach).
   Próximo: aislar la relevancia bajo ciclos; el efecto de la capacidad K; el puente EFE (138) bajo condicionamiento; lazo real; SCALE.
+
+## [2026-06-26] CYCLE 140 — H-V4-9g MIXTA (SALIR DEL ORÁCULO; 4 retracciones por verificación adversarial de 4 agentes, 10mo ciclo): primer intento de aterrizar el payoff decisional del R-VALOR en un LAZO TORCH REAL — el paso (decisión endógena + verificador real) es real y hay una ventaja de ranking AUROC modesta del durable, pero el titular precision@m estaba CONFUNDIDO con el base-rate, no es significativo a N=4, el mecanismo era falso y el framing sobre-vendido
+- Archivos: cognia_x/experiments/exp124_decisional_real_loop/{__init__.py,run.py,results/results.json} (nuevo);
+  cognia_x/research/cycles/cycle140_decisional_real_loop.py (nuevo); cognia_x/tests/test_cycle140_decisional_real_loop.py (nuevo);
+  research_log.md / manager_log.md / roadmap.md (append). Rumbo elegido por autonomía ("haz lo que quieras"): atacar el hueco #1
+  de la auditoría de la teoría (salir del numpy-con-oráculo hacia un lazo real).
+- Resultado tests: PASS — test dirigido 6/6 (lógica de veredicto sobre per_seed sintético; el lazo torch real es lento ~30min y se
+  verifica corriendo el experimento, no en el test); cycle140 por el engine MIXTA, D-V4-102 aceptada, verify_no_loss=OK.
+- Resultado exp (4 seeds × 8 rondas, PyTorch CPU): reusa el lazo cerrado REAL (HybridLM genera 'N=a*b' -> verificador REAL sandbox
+  exp018 -> confianza ENDÓGENA -> self-train con/sin cura 119). NÚCLEO: la decisión es endógena (ranking por confianza, el oráculo
+  sólo mide) + verificador real; ventaja de RANKING base-rate-INVARIANTE del durable AUROC 0.885 vs naive 0.802 (+0.083, 4/4 seeds,
+  jackknife-min +0.058, t=3.23), MODESTA.
+- Notas: VERIFICACIÓN ADVERSARIAL de 4 agentes (10mo ciclo; lentes confound/tautología/robustez/framing, todos con probes reales)
+  confirmó el núcleo (sin leakage; decisión endógena + verificador real) pero CAZÓ 4 OVERCLAIMS -> MIXTA: (1) CONFOUND DE BASE-RATE
+  -- el titular precision@m estaba confundido (los brazos generan distinto #correctas; la 1ra versión NI logueaba el del naive ->
+  irrecuperable); corregido con AUROC/lift/base-rate de ambos brazos (en el régimen completo el confound resultó chico). (2) NO
+  significativo a N=4 (underpowered). (3) MECANISMO FALSO (no hay pico en f=1; pico en f=0.5 trivial, monótono-decreciente; el gate
+  decision_driven era vacuo). (4) FRAMING sobre-vendido ('sale del oráculo' acotado -el verificador supervisa todo el lazo-;
+  'transfiere' es eco atenuado vs exp107). El experimento se REESCRIBIÓ para AUTO-DOCUMENTAR. APORTE NETO: el paso metodológico real
+  (decisión endógena + verificador real) + una ventaja AUROC modesta + la LECCIÓN (controlar base-rate con AUROC/lift + N suficiente).
+  El payoff decisional LIMPIO del R-VALOR sigue SIN aterrizar fuera del juguete. Sirve al GOAL (R-VALOR; ataca el hueco #1 de la
+  auditoría). Próximo: re-correr con N>=8 + base-rate emparejado; SCALE; verificador rico; lazo secuencial.

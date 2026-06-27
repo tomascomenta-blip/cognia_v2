@@ -4186,3 +4186,44 @@ radio<1 con buen condicionamiento). cycle139 → H-V4-10m 'mixta' (DoD), D-V4-10
 > 9no ciclo seguido en que la verificación adversarial corrige overclaims antes del ledger (aquí 4, incluido un control nulo mal
 > elegido). Frontera: aislar la relevancia bajo ciclos (estructura donde reach != relevancia); el efecto de la CAPACIDAD K sobre el
 > valor de decisión; el puente EFE (138) bajo condicionamiento; el lazo de acción-consecuencia REAL; SCALE.
+
+## CYCLE 140 — H-V4-9g (rama R-VALOR, SALIR DEL ORÁCULO: primer intento de aterrizar el payoff decisional en un LAZO CERRADO REAL) — MIXTA (núcleo real + 4 retracciones por VERIFICACIÓN ADVERSARIAL, 10mo ciclo seguido)
+exp124 (PyTorch CPU, lazo cerrado REAL, 4 seeds × 8 rondas, post-verificación de 4 agentes). La auditoría de la teoría (post-139)
+marcó el HUECO #1: TODO el payoff decisional del R-VALOR vivía en numpy SINTÉTICO con oráculo (exp107/123, +0.904 bajo escasez con ρ
+IMPUESTO); el único intento en el lazo torch REAL (exp106/122) dio REFUTADA por saturación. Este ciclo reusa el lazo cerrado REAL
+(HybridLM byte-level genera 'N=a*b' -> verificador REAL sandbox aritmético exp018 -> confianza ENDÓGENA del modelo -> self-train con
+ancla; el brazo 'durable' agrega unlikelihood-acotado sobre lo verificado-incorrecto = cura 119, el 'naive' no) y pregunta si la
+mejor calibración del durable PAGA en la decisión real de submission. NÚCLEO VERIFICADO: (a) la DECISIÓN es genuinamente ENDÓGENA
+(el top-m se elige por la confianza del modelo, mean-logprob; el oráculo sólo MIDE el payoff) y el verificador es REAL (la
+verificación confirmó: sin leakage/tautología); (b) hay una ventaja de RANKING base-rate-INVARIANTE del durable -- AUROC(confianza,
+correcto) 0.885 vs naive 0.802, gap +0.083, 4/4 seeds positivos, mediana +0.065, jackknife-min +0.058, t=3.23 -- un efecto de
+calibración REAL pero MODESTO. cycle140 → H-V4-9g 'mixta' (DoD), D-V4-102 ACEPTADA, techo 'real', verify_no_loss=OK. Test 6/6.
+
+> META-PATRÓN (140, 10mo seguido con 131-139): una 1ra versión vendía APOYADA ("el payoff decisional del R-VALOR TRANSFIERE al lazo
+> real; el durable paga en el régimen recall-crítico f=1; sale del oráculo"). Una VERIFICACIÓN ADVERSARIAL (4 agentes independientes,
+> lentes confound-mecanismo / tautología-leakage / robustez-seed / fairness-framing; TODOS con probes reales sobre el experimento y su
+> log) CONFIRMÓ el núcleo (decisión endógena + verificador real, sin leakage; ventaja de ranking AUROC del durable) pero CAZÓ 4
+> OVERCLAIMS y bajó a MIXTA: (1) CONFOUND DE BASE-RATE -- el titular previo (payoff precision@m a f=1, +0.075) estaba CONFUNDIDO: el
+> durable y el naive son modelos DISTINTOS que generan pools con distinto #correctas, y precision@m es base-rate-SENSIBLE (un Δbase-rate
+> con CERO diferencia de calibración reproduce el titular). PEOR: la 1ra versión NI SIQUIERA logueaba el #correctas del brazo naive -> el
+> confound era IRRECUPERABLE de los artefactos. Corregido reescribiendo el experimento con AUROC (ranking, base-rate-INVARIANTE) + lift-
+> sobre-azar + base-rate de AMBOS brazos (en el régimen completo el confound resultó CHICO, durable 228 vs naive 223, así que la ventaja
+> AUROC NO es artefacto de base-rate). (2) NO SIGNIFICATIVO a N=4 (underpowered): el t-test pareado apenas roza el umbral y el sign-test
+> tope con 4 seeds es p=0.125; el código se endureció para NO reclamar significancia con N<8. (3) MECANISMO FALSO -- NO hay 'pico recall-
+> crítico en f=1': el gap del payoff es MÁXIMO en f≈0.5 (zona que el propio grid llama trivial) y monótono-decreciente; el gate
+> 'decision_driven' (se anula a f=4) era VACUO (4·#correctas>pool -> a f=4 se somete todo por construcción). (4) FRAMING -- 'sale del
+> oráculo' es ACOTADO (el verificador supervisa el self-train, etiqueta las generaciones y NORMALIZA la métrica; SÓLO el ranking de
+> submission es endógeno) y 'transfiere' es un ECO MUY ATENUADO vs exp107 (+0.904 random-vs-best, escasez q=0.08; acá entre dos señales
+> ya-positivas a ~44% correctas = abundancia, no escasez); el régimen f≈1 se eligió POST-HOC tras refutarse 'presupuesto chico' en el
+> smoke (Texas sharpshooter). NOTA DE PROCESO honesta: durante la depuración cambié la métrica de calibración de corr_final (engañosa, los
+> brazos convergen en la última ronda) a corr_AUC sobre rondas; la verificación señaló (con razón) que cambiar la métrica tras ver los
+> números es sospechoso -> por eso el veredicto descansa en AUROC (base-rate-invariante, no en corr ni en precision@m). El experimento se
+> REESCRIBIÓ para AUTO-DOCUMENTAR la MIXTA (agregó AUROC, lift, base-rate de ambos brazos, estadística por-seed con jackknife/t-stat, y la
+> lógica núcleo+retracciones). APORTE NETO honesto: (i) el PASO metodológico REAL (la decisión es endógena y el verificador real -- el
+> primer paso fuera del ρ-sintético) + una ventaja de ranking base-rate-invariante (AUROC) MODESTA del durable; (ii) la LECCIÓN
+> METODOLÓGICA, que es el verdadero aporte del ciclo: medir el payoff decisional de R-VALOR en un lazo de auto-entrenamiento EXIGE
+> controlar el base-rate (AUROC/lift, NO precision@m), loguear el confound de AMBOS brazos, y N suficiente (>=8). El payoff decisional
+> LIMPIO del R-VALOR sigue SIN establecerse fuera del juguete (sólo una señal AUROC modesta, underpowered). MIXTA EXITOSA: la verificación
+> adversarial cazó un CONFOUND (el modo de fallo de un lazo real con dos generadores distintos) + un mecanismo falso + framing sobre-
+> vendido antes del ledger (10mo ciclo seguido). Frontera: re-correr con N>=8 + base-rate emparejado o ranking-AUC como métrica primaria;
+> SCALE (GPU); verificador de dominio rico (código->sandbox); lazo de acción-consecuencia SECUENCIAL (no impulso-a-impulso).
