@@ -460,3 +460,9 @@
   AUTO-DOCUMENTAR. APORTE: honestidad de que potenciar NO rescató el efecto (se diluyó) + mecanismo corregido (inmediato) +
   invariancia empírica como defensa correcta. El underpowered de 140 no se resuelve limpio. Sirve al GOAL (R-VALOR; rigor sobre el
   payoff decisional en el lazo real). Próximo: N=16; baseline regularizador alternativo; SCALE.
+
+## [2026-06-27] CYCLE 142 — H-V4-10n MIXTA (EJE DE CAPACIDAD del keystone; 3 acotaciones por verificación adversarial de 2 agentes, 12mo ciclo): el producto R-VALOR importa bajo la INTERACCIÓN de capacidad escasa (K bajo) × disociación (ctrl≠rel) -explica el K=1-load-bearing de 139- pero el decaimiento-en-K es parcialmente trivial (random también decae a K=D), es una RECOMBINACIÓN de escasez (123-126) + disociación (130), y vale sólo para marginales graduadas (binarias invierten el orden)
+- Archivos: cognia_x/experiments/exp126_capacity_keystone/{__init__.py,run.py,results/results.json} (nuevo); cognia_x/research/cycles/cycle142_capacity_keystone.py (nuevo); cognia_x/tests/test_cycle142_capacity_keystone.py (nuevo); research_log/manager_log/roadmap (append). Pivote a numpy-rápido tras el arco torch 140-141 (autonomía total).
+- Resultado tests: PASS — 6/6; cycle142 por el engine MIXTA, D-V4-104 aceptada, verify_no_loss=OK.
+- Resultado exp (numpy, 300 seeds): AUC ventaja anti=0.202>indep=0.107>corr=0.015 (monótona/suave en ρ_bw); K* relativo ≈0.7·D.
+- Notas: verificación adversarial de 2 agentes confirmó el núcleo (graduado, robusto en D/RHO/seeds) pero acotó 3 cosas (decaimiento parcialmente trivial -random también decae-; recombinación -forma universal-; binario invierte) -> MIXTA. El experimento se reescribió para auto-documentar. Aporte: la síntesis capacidad×disociación que explica el K=1-load-bearing de 139. Sirve al GOAL (R-VALOR; unifica el eje de capacidad). Próximo: aislar la relevancia bajo ciclos (resto de 139); SCALE.

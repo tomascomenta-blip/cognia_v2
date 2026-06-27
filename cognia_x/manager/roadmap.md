@@ -411,11 +411,18 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > tautológico (el unlikelihood optimiza lo que AUROC mide) + strawman (sólo vs el baseline-que-colapsa). El underpowered de 140 NO se
 > resuelve limpio. D-V4-103, techo 'real', verify_no_loss=OK, test 6/6.
 >
-> FRONTERA ACTIVA (post-141): (1) SALIR DEL ORÁCULO -- N=16 para zanjar la DILUCIÓN de 141 + un baseline regularizador-de-calibración
-> ALTERNATIVO (temperature scaling / entropía: ¿es la cura 119 privilegiada o cualquier regularización da la ventaja de ranking?
-> eco del 139); des-confundir la métrica de DECISIÓN (sólo el ranking AUROC es limpio); verificador de dominio rico; lazo SECUENCIAL.
-> (2) extender el puente EFE a NO-LINEAL (135-136)/ACOPLADO (137). (3) AISLAR la relevancia bajo ciclos + efecto de K (139). (4) SCALE
-> (GPU/Kaggle) -- frontera #1 jamás tocada (0% de la auditoría). (5) [abierto] varianza-prior v en el lazo real (138); EFE bajo
-> condicionamiento (139). MÉTODO institucionalizado: verificación adversarial (3-4 agentes) antes del ledger — 11 ciclos seguidos
-> (131..141) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K; 140 CONFOUND de base-rate; 141 significancia-frágil +
-> mecanismo-artefacto-del-cero-de-ronda-1 + dilución/winner's-curse).
+> CYCLE 142 (H-V4-10n MIXTA) estudia el EJE DE CAPACIDAD del keystone (frontera 'efecto de K' de 139). NÚCLEO (graduado, robusto en
+> D/RHO/seeds/correlación-fina): el producto R-VALOR (ctrl×rel) importa bajo la INTERACCIÓN de DOS escaseces -- CAPACIDAD (K bajo) y
+> DISOCIACIÓN (ctrl≠rel); AUC ventaja anti=0.202>indep=0.107>corr=0.015; K* relativo ≈0.7·D; EXPLICA el K=1-load-bearing de 139 y
+> unifica el eje de capacidad con escasez (123-126) + disociación (130). PERO la verificación adversarial (2 agentes, 12mo ciclo)
+> acotó: el decaimiento-en-K es parcialmente TRIVIAL (random también decae a K=D), es una RECOMBINACIÓN (forma de decaimiento
+> universal; regime-específico = adv(K=1)=disociación 130) no un mecanismo nuevo, y vale sólo para (b,w) GRADUADOS (binarios invierten
+> el orden). D-V4-104, techo 'real', verify_no_loss=OK, test 6/6.
+>
+> FRONTERA ACTIVA (post-142): (1) AISLAR la relevancia bajo ciclos donde reach≠relevancia (el resto de la frontera de 139). (2) SALIR
+> DEL ORÁCULO -- N=16 para la DILUCIÓN de 141 + baseline regularizador-de-calibración ALTERNATIVO (¿la cura 119 es privilegiada?);
+> des-confundir la métrica de DECISIÓN; verificador de dominio rico; lazo SECUENCIAL. (3) extender el puente EFE a NO-LINEAL
+> (135-136)/ACOPLADO (137). (4) SCALE (GPU/Kaggle) -- frontera #1 jamás tocada (0% de la auditoría). (5) [abierto] varianza-prior v en
+> el lazo real (138); EFE bajo condicionamiento (139). MÉTODO institucionalizado: verificación adversarial (2-4 agentes) antes del
+> ledger — 12 ciclos seguidos (131..142) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K; 140 CONFOUND de base-rate;
+> 141 significancia-frágil + mecanismo-artefacto + dilución; 142 trivialidad-parcial + recombinación + validity-limit-binario).

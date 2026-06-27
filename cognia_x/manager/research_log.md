@@ -4266,3 +4266,30 @@ la defensa correcta). cycle141 → H-V4-9h 'mixta' (DoD), D-V4-103 ACEPTADA, tec
 > y fragilidad, no robustez. MIXTA EXITOSA: la verificación cazó significancia-frágil + mecanismo-artefacto + premisa-falsa antes del
 > ledger (11mo ciclo seguido). Frontera: N=16 para zanjar la dilución; baseline regularizador-de-calibración alternativo (¿es la cura
 > 119 privilegiada o cualquier regularización sirve?); SCALE; verificador de dominio rico; lazo de acción-consecuencia secuencial.
+
+## CYCLE 142 — H-V4-10n (rama control/acción, EJE DE CAPACIDAD del keystone: ¿cómo escala la ventaja del producto ctrl×rel con la capacidad K?) — MIXTA (núcleo organizador real + novedad/especificidad acotada por VERIFICACIÓN ADVERSARIAL, 12mo ciclo seguido)
+exp126 (numpy, 300 seeds, post-verificación de 2 agentes). Estudia la frontera 'efecto de la CAPACIDAD K' que 139 dejó abierta (139
+reveló que K=1 era load-bearing -- el gap del keystone evaporaba a K≥2). Sobre el sustrato canónico del keystone (129/130): barre K
+de 1 a D=12 × la correlación ctrl-rel (anti/indep/corr) y mide la ventaja del producto sobre el mejor factor-solo. NÚCLEO VERIFICADO
+(robusto en el régimen GRADUADO, confirmado en D/RHO/seeds/correlación-fina por la verificación): el R-VALOR (producto) importa bajo
+DOS escaseces que INTERACTÚAN -- CAPACIDAD (K bajo) y DISOCIACIÓN (ctrl≠rel); AUC ventaja anti=0.202 > indep=0.107 > corr=0.015
+(monótona y suave en ρ_bw); K* (capacidad a la que un factor basta) relativo ≈0.7·D; EXPLICA el K=1-load-bearing de 139. cycle142 →
+H-V4-10n 'mixta' (DoD), D-V4-104 ACEPTADA, techo 'real', verify_no_loss=OK. Test 6/6.
+
+> META-PATRÓN (142, 12mo seguido con 131-141): una 1ra versión vendía APOYADA ("la ventaja del producto DECAE con K y se DESVANECE a
+> K=D; el R-VALOR importa bajo escasez de capacidad"). Una VERIFICACIÓN ADVERSARIAL (2 agentes, lentes tautología-novedad-trivialidad
+> / robustez-sensibilidad; probes reales numpy) CONFIRMÓ que el núcleo organizador es robusto en el régimen GRADUADO pero CAZÓ 3
+> acotaciones que bajan a MIXTA: (1) 'decae con K / se desvanece a K=D' es PARCIALMENTE TRIVIAL -- la (1−payoff) de la selección
+> ALEATORIA también decae a ~0 en K=D (a K=D se eligen TODOS los modos -> payoff=1 por construcción para CUALQUIER criterio); el
+> contenido no-trivial es adv(K=1) y la pendiente interior, no el endpoint. (2) RECOMBINACIÓN, no mecanismo nuevo: las curvas de
+> ventaja anti/indep NORMALIZADAS por adv(K=1) son ~idénticas (max-diff 0.035) -> el eje-K aporta UNA forma universal de decaimiento;
+> lo regime-específico es sólo el NIVEL adv(K=1) = el mis-ranking de un-factor de la DISOCIACIÓN (130). El aporte es la SÍNTESIS
+> (escasez 123-126 × disociación 130 interactúan + explica 139), no un mecanismo nuevo. (3) VALIDITY-LIMIT: vale para (b,w) GRADUADOS
+> (el régimen canónico del keystone 130) -- con (b,w) BINARIOS (estilo 129) el orden anti>indep se INVIERTE (binario AUC anti=0.146 <=
+> indep=0.149) porque la controlabilidad b²/(b²+ρ) satura; y K* es RELATIVO (≈0.7·D), no absoluto (9/8). El experimento se REESCRIBIÓ
+> para AUTO-DOCUMENTAR la MIXTA (agregó el arm random -trivialidad-, la forma-universal-normalizada -recombinación-, el probe binario
+> -validity-limit- y K*/D). APORTE NETO honesto: la SÍNTESIS organizadora (el producto R-VALOR importa bajo la INTERACCIÓN de
+> capacidad escasa × disociación) que EXPLICA el K=1-load-bearing de 139 y unifica el eje de capacidad con el arco escasez (123-126) y
+> disociación (130) -- SIN venderlo como mecanismo novel (es recombinación), reconociendo que el decaimiento-en-K es parcialmente
+> trivial y que sólo vale para marginales graduadas. MIXTA EXITOSA: la verificación acotó NOVEDAD + TRIVIALIDAD + VALIDITY-LIMIT antes
+> del ledger (12mo ciclo). Frontera: el resto de la frontera de 139 (aislar la relevancia bajo ciclos donde reach≠relevancia); SCALE.
