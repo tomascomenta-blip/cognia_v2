@@ -443,11 +443,20 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > disuelve, se REINTERPRETA como concentración-bajo-escasez; residual permanente; decaimiento g-dependiente (g=√a plana); value=oracle
 > (recombinación de 142). D-V4-107, techo 'real', verify_no_loss=OK, test 5/5.
 >
-> NOTA DE RUMBO (post-145): 5 MIXTA seguidos (141-145) en la vena keystone/capacidad, todos acotados por tautología/recombinación/
-> régimen/concentración -> RENDIMIENTOS DECRECIENTES en el toy. Las próximas iteraciones deberían PIVOTAR: (1) la ventaja del valor /
-> varianza-prior en un mecanismo de asignación REAL (atención/cómputo en un modelo), no toy. (2) SALIR DEL ORÁCULO -- N=16 dilución de
-> 141 + baseline regularizador alternativo; lazo secuencial. (3) extender el puente EFE a NO-LINEAL (135-136)/ACOPLADO (137). (4)
-> SCALE (GPU/Kaggle) -- frontera #1 jamás tocada (0% de la auditoría). MÉTODO institucionalizado: verificación adversarial (2-4
-> agentes) antes del ledger — 15 ciclos seguidos (131..145) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K; 140
-> CONFOUND base-rate; 141 significancia-frágil + dilución; 142 trivialidad + recombinación; 143 RE-USO del artefacto K=1; 144 overclaim
-> BIDIRECCIONAL + refutación-deshonesta de un ciclo previo; 145 'sin winner-take-all / decae igual' -> concentración + g-dependencia).
+> CYCLE 146 (H-V4-10r MIXTA) PIVOTA fuera de la vena saturada: ¿la FACTORIZACIÓN del keystone ayuda a APRENDER el valor (no a usarlo)?
+> NÚCLEO (robusto λ-justo/δ/noise/grado/seeds): la factorización producto es un sesgo inductivo de BAJA CAPACIDAD útil para ESTIMAR el
+> valor bajo escasez (bate a un flexible que sobreajusta y a separables sin producto; minimalidad load-bearing; comparación justa).
+> PERO la verificación adversarial (2 agentes, 16mo ciclo) re-acotó TRIPLEMENTE: (1) CONDICIONAL a la alineación-con-el-producto (con
+> residuo ortogonal STRUCT se hunde en todos los N -- no free lunch); (2) anti-tautología DÉBIL (misespecificación ~0.95 colineal con
+> w·c); (3) decisión CONFUNDIDA (top-K perfecto = suficiencia de w·c para el orden, no robustez; pairwise gana con prod2 pero colapsa
+> con ortogonal). D-V4-108, techo 'real', verify_no_loss=OK, test 5/5. El keystone toy, incluso fuera de la vena selección/capacidad,
+> da el resultado bias-variance ESTÁNDAR (prior útil-SI-MATCHEA).
+>
+> NOTA DE RUMBO (post-146): 6 MIXTA seguidos (141-146); el PIVOTE confirmó que el toy lineal del keystone está SATURADO (da resultados
+> estándar acotados en toda dirección). La frontera REAL (la única que movería la aguja) sigue siendo: (1) un sesgo inductivo /
+> función de valor APRENDIDA desde experiencia en un sistema REAL (no asumida a mano, no toy lineal) -- el lazo real (exp018 verifier +
+> HybridLM) es lo más cercano disponible en CPU. (2) SALIR DEL ORÁCULO -- N=16 dilución de 141. (3) SCALE (GPU/Kaggle) -- frontera #1
+> jamás tocada (0% de la auditoría, hardware-bloqueado en i3 sin CUDA). MÉTODO institucionalizado: verificación adversarial (2-4
+> agentes) antes del ledger — 16 ciclos seguidos (131..146) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-K; 140 CONFOUND; 141
+> dilución; 142 recombinación; 143 RE-USO del artefacto K=1; 144 BIDIRECCIONAL + refutación-deshonesta de ciclo previo; 145
+> concentración + g-dependencia; 146 overclaim TRIPLE -anti-tautología vacua + decisión mis-caracterizada + incondicionalidad-).

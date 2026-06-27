@@ -1,0 +1,360 @@
+{
+  "exp": "exp130_inductive_bias",
+  "cycle": 146,
+  "hypothesis": "H-V4-10r",
+  "claim": "PIVOTE (aprender el valor, no usarlo), MIXTA post-verificacion de 2 agentes. NUCLEO (robusto lambda-justo/delta/noise/grado/seeds): la factorizacion keystone w·ctrl es un sesgo inductivo de BAJA CAPACIDAD util para ESTIMAR el valor bajo ESCASEZ -- bajo N chico STRUCT (2 params) tiene menor MSE que FLEX (sobreajusta) y separables (sin producto), FLEX lo alcanza bajo abundancia (bias-variance), y la MINIMALIDAD es load-bearing. RE-ACOTADO: (1) CONDICIONAL a la alineacion-con-el-producto (caveat estandar 'ayuda si matchea'): con misespecificacion ORTOGONAL STRUCT se HUNDE en todos los N; (2) la 'anti-tautologia' es DEBIL (la misespecificacion prod2 es ~0.95 colineal con w·c); (3) la DECISION esta CONFUNDIDA: el top-K perfecto es la SUFICIENCIA de w·c para el orden (v_true monotona en w·c), no robustez; en pairwise STRUCT gana bajo escasez con prod2 pero colapsa con ortogonal",
+  "verdict": "mixta",
+  "summary": {
+    "NS": [
+      6,
+      12,
+      25,
+      50,
+      100,
+      400
+    ],
+    "K": 3,
+    "DELTA": 0.6,
+    "NOISE": 0.05,
+    "by_n": {
+      "6": {
+        "mse": {
+          "struct": 0.005,
+          "add": 0.04384,
+          "flex": 0.01444
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9845,
+          "flex": 0.9948
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.8792,
+          "flex": 0.9084
+        }
+      },
+      "12": {
+        "mse": {
+          "struct": 0.0027,
+          "add": 0.02937,
+          "flex": 0.00381
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9983,
+          "flex": 0.9996
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.8992,
+          "flex": 0.9471
+        }
+      },
+      "25": {
+        "mse": {
+          "struct": 0.00155,
+          "add": 0.02295,
+          "flex": 0.00098
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9996,
+          "flex": 0.9998
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9086,
+          "flex": 0.9667
+        }
+      },
+      "50": {
+        "mse": {
+          "struct": 0.00124,
+          "add": 0.02061,
+          "flex": 0.00042
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9998,
+          "flex": 0.9999
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9131,
+          "flex": 0.9741
+        }
+      },
+      "100": {
+        "mse": {
+          "struct": 0.00113,
+          "add": 0.01945,
+          "flex": 0.00022
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9999,
+          "flex": 0.9999
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9145,
+          "flex": 0.9809
+        }
+      },
+      "400": {
+        "mse": {
+          "struct": 0.00105,
+          "add": 0.01877,
+          "flex": 7e-05
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 1.0,
+          "flex": 1.0
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9158,
+          "flex": 0.9885
+        }
+      }
+    },
+    "by_delta": {
+      "0.0": {
+        "mse": {
+          "struct": 0.00024,
+          "add": 0.00875,
+          "flex": 0.00104
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9997,
+          "flex": 0.9996
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9095,
+          "flex": 0.9599
+        }
+      },
+      "0.6": {
+        "mse": {
+          "struct": 0.00155,
+          "add": 0.02295,
+          "flex": 0.00098
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9996,
+          "flex": 0.9998
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9086,
+          "flex": 0.9667
+        }
+      },
+      "1.5": {
+        "mse": {
+          "struct": 0.00834,
+          "add": 0.05935,
+          "flex": 0.00164
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9993,
+          "flex": 0.9999
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9084,
+          "flex": 0.9646
+        }
+      }
+    },
+    "by_noise": {
+      "0.0": {
+        "mse": {
+          "struct": 0.00133,
+          "add": 0.02241,
+          "flex": 8e-05
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9997,
+          "flex": 1.0
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9098,
+          "flex": 0.9916
+        }
+      },
+      "0.05": {
+        "mse": {
+          "struct": 0.00155,
+          "add": 0.02295,
+          "flex": 0.00098
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9996,
+          "flex": 0.9998
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9086,
+          "flex": 0.9667
+        }
+      },
+      "0.2": {
+        "mse": {
+          "struct": 0.00498,
+          "add": 0.02793,
+          "flex": 0.01336
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9979,
+          "flex": 0.9931
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.9,
+          "flex": 0.8897
+        }
+      }
+    },
+    "by_misspec": {
+      "prod2": {
+        "mse": {
+          "struct": 0.005,
+          "add": 0.04384,
+          "flex": 0.01444
+        },
+        "payoff": {
+          "struct": 1.0,
+          "add": 0.9845,
+          "flex": 0.9948
+        },
+        "pairwise": {
+          "struct": 1.0,
+          "add": 0.8792,
+          "flex": 0.9084
+        }
+      },
+      "w_only": {
+        "mse": {
+          "struct": 0.02799,
+          "add": 0.01865,
+          "flex": 0.00992
+        },
+        "payoff": {
+          "struct": 0.993,
+          "add": 0.992,
+          "flex": 0.9971
+        },
+        "pairwise": {
+          "struct": 0.8709,
+          "add": 0.9296,
+          "flex": 0.9459
+        }
+      },
+      "wmc2": {
+        "mse": {
+          "struct": 0.02111,
+          "add": 0.01153,
+          "flex": 0.00678
+        },
+        "payoff": {
+          "struct": 0.9842,
+          "add": 0.9909,
+          "flex": 0.9883
+        },
+        "pairwise": {
+          "struct": 0.8186,
+          "add": 0.8873,
+          "flex": 0.9284
+        }
+      }
+    },
+    "colinearity_prod2": 0.9467,
+    "mse_struct": [
+      0.005,
+      0.0027,
+      0.00155,
+      0.00124,
+      0.00113,
+      0.00105
+    ],
+    "mse_add": [
+      0.04384,
+      0.02937,
+      0.02295,
+      0.02061,
+      0.01945,
+      0.01877
+    ],
+    "mse_flex": [
+      0.01444,
+      0.00381,
+      0.00098,
+      0.00042,
+      0.00022,
+      7e-05
+    ],
+    "adv_flex": [
+      0.00944,
+      0.00111,
+      -0.00057,
+      -0.00082,
+      -0.00091,
+      -0.00098
+    ],
+    "scarce_struct_beats_flex": true,
+    "scarce_struct_beats_add": true,
+    "flex_catches_up": true,
+    "adv_decays": true,
+    "core_estimator": true,
+    "conditional_on_alignment": true,
+    "weak_antitaut": true,
+    "struct_pairwise_wins_aligned": true,
+    "struct_pairwise_sinks_ortho": true,
+    "status": "mixta",
+    "verdict": "H-V4-10r MIXTA (núcleo del ESTIMADOR robusto + RE-ACOTADO BIDIRECCIONALMENTE por verificación adversarial de 2 agentes; 16mo ciclo). NÚCLEO (robusto en λ-justo/δ/noise/grado/seeds): bajo ESCASEZ (N=6) el aprendiz ESTRUCTURADO (asume el producto w·ctrl, 2 params) tiene MENOR MSE de test (0.005) que el FLEXIBLE (polinomio grado-3, 0.014: sobreajusta) Y que el ADITIVO/separables (0.044: sin producto); la ventaja DECRECE con N (+0.009->-0.001, bias-variance) y FLEX lo ALCANZA bajo ABUNDANCIA -> la factorización producto es un sesgo inductivo útil de BAJA CAPACIDAD para ESTIMAR el valor con pocos datos (la verificación confirmó: FLEX con λ óptimo sigue ~3x peor a N=6, no es artefacto de regularización; y la MINIMALIDAD -2 params- es lo load-bearing, no sólo 'tener el producto'). PERO RE-ACOTADO: (1) la ventaja es CONDICIONAL a la ALINEACIÓN-CON-EL-PRODUCTO -- es el caveat ESTÁNDAR de sesgo inductivo ('ayuda sólo si matchea'): con misespecificación ORTOGONAL al producto (v=w·c+δ·w, o +δ·(w-c)²) STRUCT es el PEOR aprendiz en TODOS los N (struct_sinks=True); el prior de baja capacidad se vuelve sesgo impagable. (2) la 'anti-tautología' es DÉBIL: la misespecificación 'prod2' δ·(w·c)² está ~0.947 CORRELACIONADA con la única feature de STRUCT (w·c) -> su sesgo irreducible es minúsculo POR DISEÑO (la elegí favorable). (3) la DECISIÓN está CONFUNDIDA: el top-K perfecto de TODOS (payoff ~1.0) NO es 'ranking robusto al MSE' como dije -- es la SUFICIENCIA de w·c para el ORDEN (v_true es monótona en w·c, así que el feature de STRUCT ordena perfecto por construcción; a N=100 STRUCT decide perfecto con MSE PEOR que flex). En decisión DURA (pairwise) STRUCT SÍ gana bajo escasez con prod2 (struct 1.000 vs flex 0.908) -> el 'no se traslada' era artefacto del top-K fácil; PERO también COLAPSA con misespecificación ortogonal (sinks=True). => RESULTADO HONESTO: el keystone ES un sesgo inductivo útil (minimalidad+producto) para ESTIMAR el valor bajo escasez CUANDO el valor está alineado con el producto -- el caveat estándar 'no free lunch'; con residuo ortogonal el prior HUNDE al estimador; y el pago decisional, donde existe, está mediado por la suficiencia de w·c (tautológica para v_true monótona en el producto). MIXTA EXITOSA: la verificación cazó (a) el over-framing 'anti-tautología' (misespecificación ~colineal), (b) la mis-caracterización de la decisión (suficiencia, no robustez), (c) la incondicionalidad (es condicional a la alineación). Frontera: un sesgo inductivo APRENDIDO (no asumido); SCALE."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 300
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp130] CYCLE 146 / H-V4-10r — ¿es la factorización keystone ctrl×rel un SESGO INDUCTIVO ÚTIL para APRENDER el valor bajo escasez de datos? (PIVOTE: aprender el valor, no usarlo)",
+    "[exp130] seeds=300 Ns=[6, 12, 25, 50, 100, 400] K=3 lam=0.01 delta=0.6 noise=0.05 learners=('struct', 'add', 'flex')",
+    "[exp130] --- MSE de test por N (escasez->abundancia): STRUCT vs ADD vs FLEX ---",
+    "[exp130] N=   6: struct=0.0050 add=0.0438 flex=0.0144 | flex-struct=+0.0094",
+    "[exp130] N=  12: struct=0.0027 add=0.0294 flex=0.0038 | flex-struct=+0.0011",
+    "[exp130] N=  25: struct=0.0015 add=0.0230 flex=0.0010 | flex-struct=+-0.0006",
+    "[exp130] N=  50: struct=0.0012 add=0.0206 flex=0.0004 | flex-struct=+-0.0008",
+    "[exp130] N= 100: struct=0.0011 add=0.0194 flex=0.0002 | flex-struct=+-0.0009",
+    "[exp130] N= 400: struct=0.0010 add=0.0188 flex=0.0001 | flex-struct=+-0.0010",
+    "[exp130] --- DECISIÓN por N: payoff top-K (FÁCIL) vs pairwise (DURA) ---",
+    "[exp130] N=   6: topK[struct=1.000 add=0.985 flex=0.995] pairwise[struct=1.000 add=0.879 flex=0.908]",
+    "[exp130] N=  12: topK[struct=1.000 add=0.998 flex=1.000] pairwise[struct=1.000 add=0.899 flex=0.947]",
+    "[exp130] N=  25: topK[struct=1.000 add=1.000 flex=1.000] pairwise[struct=1.000 add=0.909 flex=0.967]",
+    "[exp130] N=  50: topK[struct=1.000 add=1.000 flex=1.000] pairwise[struct=1.000 add=0.913 flex=0.974]",
+    "[exp130] N= 100: topK[struct=1.000 add=1.000 flex=1.000] pairwise[struct=1.000 add=0.914 flex=0.981]",
+    "[exp130] N= 400: topK[struct=1.000 add=1.000 flex=1.000] pairwise[struct=1.000 add=0.916 flex=0.989]",
+    "[exp130] --- CONDICIONAL a la alineación: MSE a N=6 por forma de misespecificación (prod2 ~colineal vs ORTOGONALES) ---",
+    "[exp130]   prod2: struct=0.0050 add=0.0438 flex=0.0144 -> STRUCT GANA",
+    "[exp130]  w_only: struct=0.0280 add=0.0186 flex=0.0099 -> STRUCT SE HUNDE",
+    "[exp130]    wmc2: struct=0.0211 add=0.0115 flex=0.0068 -> STRUCT SE HUNDE",
+    "[exp130] colinealidad prod2 corr(w·c,(w·c)²)=0.947 (anti-tautología débil si >0.85)",
+    "[exp130] CHECK core_estimator=True | conditional_on_alignment=True weak_antitaut=True struct_pairwise_wins_aligned=True struct_pairwise_sinks_ortho=True",
+    "[exp130] VEREDICTO H-V4-10r: MIXTA | H-V4-10r MIXTA (núcleo del ESTIMADOR robusto + RE-ACOTADO BIDIRECCIONALMENTE por verificación adversarial de 2 agentes; 16mo ciclo). NÚCLEO (robusto en λ-justo/δ/noise/grado/seeds): bajo ESCASEZ (N=6) el aprendiz ESTRUCTURADO (asume el producto w·ctrl, 2 params) tiene MENOR MSE de test (0.005) que el FLEXIBLE (polinomio grado-3, 0.014: sobreajusta) Y que el ADITIVO/separables (0.044: sin producto); la ventaja DECRECE con N (+0.009->-0.001, bias-variance) y FLEX lo ALCANZA bajo ABUNDANCIA -> la factorización producto es un sesgo inductivo útil de BAJA CAPACIDAD para ESTIMAR el valor con pocos datos (la verificación confirmó: FLEX con λ óptimo sigue ~3x peor a N=6, no es artefacto de regularización; y la MINIMALIDAD -2 params- es lo load-bearing, no sólo 'tener el producto'). PERO RE-ACOTADO: (1) la ventaja es CONDICIONAL a la ALINEACIÓN-CON-EL-PRODUCTO -- es el caveat ESTÁNDAR de sesgo inductivo ('ayuda sólo si matchea'): con misespecificación ORTOGONAL al producto (v=w·c+δ·w, o +δ·(w-c)²) STRUCT es el PEOR aprendiz en TODOS los N (struct_sinks=True); el prior de baja capacidad se vuelve sesgo impagable. (2) la 'anti-tautología' es DÉBIL: la misespecificación 'prod2' δ·(w·c)² está ~0.947 CORRELACIONADA con la única feature de STRUCT (w·c) -> su sesgo irreducible es minúsculo POR DISEÑO (la elegí favorable). (3) la DECISIÓN está CONFUNDIDA: el top-K perfecto de TODOS (payoff ~1.0) NO es 'ranking robusto al MSE' como dije -- es la SUFICIENCIA de w·c para el ORDEN (v_true es monótona en w·c, así que el feature de STRUCT ordena perfecto por construcción; a N=100 STRUCT decide perfecto con MSE PEOR que flex). En decisión DURA (pairwise) STRUCT SÍ gana bajo escasez con prod2 (struct 1.000 vs flex 0.908) -> el 'no se traslada' era artefacto del top-K fácil; PERO también COLAPSA con misespecificación ortogonal (sinks=True). => RESULTADO HONESTO: el keystone ES un sesgo inductivo útil (minimalidad+producto) para ESTIMAR el valor bajo escasez CUANDO el valor está alineado con el producto -- el caveat estándar 'no free lunch'; con residuo ortogonal el prior HUNDE al estimador; y el pago decisional, donde existe, está mediado por la suficiencia de w·c (tautológica para v_true monótona en el producto). MIXTA EXITOSA: la verificación cazó (a) el over-framing 'anti-tautología' (misespecificación ~colineal), (b) la mis-caracterización de la decisión (suficiencia, no robustez), (c) la incondicionalidad (es condicional a la alineación). Frontera: un sesgo inductivo APRENDIDO (no asumido); SCALE."
+  ]
+}

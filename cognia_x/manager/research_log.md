@@ -4373,3 +4373,31 @@ H-V4-10q 'mixta' (DoD), D-V4-107 ACEPTADA, techo 'real', verify_no_loss=OK. Test
 > (15mo ciclo). NOTA DE RUMBO: 5 MIXTA seguidos (141-145) en la vena keystone/capacidad, todos acotados por tautología/recombinación/
 > régimen -> rendimientos decrecientes en el toy; las próximas iteraciones deberían PIVOTAR a un mecanismo de asignación REAL
 > (atención/cómputo) o a SCALE. Frontera: la ventaja del valor en un mecanismo real, no toy; SCALE.
+
+## CYCLE 146 — H-V4-10r (PIVOTE fuera de la vena keystone/capacidad saturada: ¿la FACTORIZACIÓN del keystone ayuda a APRENDER el valor?) — MIXTA (núcleo del estimador robusto + RE-ACOTADO BIDIRECCIONALMENTE por VERIFICACIÓN ADVERSARIAL de 2 agentes, 16mo ciclo)
+exp130 (numpy/ridge, 300 seeds, post-verificación de 2 agentes). El arco 127-145 USÓ el keystone como CRITERIO conocido (5 MIXTA
+seguidos al preguntar si bate a los factores al seleccionar). Este ciclo PIVOTA a una pregunta distinta y central al North Star ("¿un
+sistema CONSTRUYE su función de valor?"): ¿es la estructura PRODUCTO ctrl×rel un SESGO INDUCTIVO útil para un APRENDIZ que ESTIMA el
+valor desde experiencia ESCASA? NÚCLEO VERIFICADO (robusto λ-justo/δ/noise/grado/seeds): bajo escasez (N=6) STRUCT (asume w·ctrl, 2
+params) MSE 0.005 < FLEX (polinomio grado-3, 0.014: sobreajusta) < ADD/separables (0.044: sin producto); FLEX alcanza bajo abundancia
+(bias-variance); minimalidad load-bearing. cycle146 → H-V4-10r 'mixta' (DoD), D-V4-108 ACEPTADA, techo 'real', verify_no_loss=OK. Test 5/5.
+
+> META-PATRÓN (146, 16mo seguido con 131-145): una 1ra versión vendía APOYADA ("el keystone es un sesgo inductivo útil para aprender
+> el valor; anti-tautología porque la misespecificación está fuera del span de STRUCT; mejor estimador Y mejor decisión"). Una
+> VERIFICACIÓN ADVERSARIAL (2 agentes, lentes comparación-justa/regularización + robustez/decisión; probes reales numpy) CONFIRMÓ el
+> núcleo del ESTIMADOR (robusto: FLEX con λ ÓPTIMO sigue ~3x peor a N=6 -no es artefacto de regularización-; la MINIMALIDAD es
+> load-bearing -un bilineal de 4 params CON el producto es 5x peor-; robusto a δ/noise/grado/seeds; δ>0 esencial y no-tautológico)
+> pero RE-ACOTÓ TRIPLEMENTE y bajó a MIXTA: (1) la ventaja es CONDICIONAL a la ALINEACIÓN-CON-EL-PRODUCTO -- el caveat ESTÁNDAR 'no
+> free lunch / ayuda sólo si matchea': con misespecificación ORTOGONAL al producto (v=w·c+δ·w struct 0.028 vs flex 0.010; o +δ·(w-c)²)
+> STRUCT es el PEOR aprendiz en TODOS los N. (2) la 'anti-tautología' que reivindiqué es DÉBIL: la misespecificación 'prod2' δ·(w·c)²
+> está ~0.947 CORRELACIONADA con la única feature de STRUCT (w·c) -> su sesgo irreducible es minúsculo POR DISEÑO (la elegí favorable;
+> 'fuera del span' es cierto pero vacuo en magnitud). (3) la DECISIÓN estaba MAL CARACTERIZADA: el top-K perfecto de TODOS (payoff
+> ~1.0) NO es 'ranking robusto al MSE' -- es la SUFICIENCIA de w·c para el ORDEN (v_true monótona en w·c -> el feature de STRUCT
+> ordena perfecto por construcción; a N=100 STRUCT decide perfecto con MSE PEOR que flex). En decisión DURA (pairwise) STRUCT SÍ gana
+> bajo escasez con prod2 -> el 'no se traslada' era artefacto del top-K fácil; PERO también COLAPSA con misespecificación ortogonal.
+> El experimento se REESCRIBIÓ para AUTO-DOCUMENTAR (barrido de misespecificación ortogonal, colinealidad, decisión pairwise).
+> APORTE NETO honesto: el resultado bias-variance ESTÁNDAR (el keystone es un prior útil-SI-MATCHEA, no algo especial) + la conexión
+> con el arco (estimar≠decidir; la decisión está mediada por suficiencia). MIXTA EXITOSA: la verificación cazó un overclaim TRIPLE
+> (anti-tautología vacua + decisión mis-caracterizada + incondicionalidad), 16mo ciclo. NOTA DE RUMBO: el PIVOTE confirmó que incluso
+> fuera de la vena selección/capacidad, el keystone toy da resultados estándar acotados -> la frontera REAL sigue siendo un sesgo
+> inductivo APRENDIDO (no asumido) y SCALE (0% de la auditoría, hardware-bloqueado). Frontera: sesgo inductivo aprendido; SCALE.
