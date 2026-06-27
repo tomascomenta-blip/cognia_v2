@@ -4401,3 +4401,14 @@ params) MSE 0.005 < FLEX (polinomio grado-3, 0.014: sobreajusta) < ADD/separable
 > (anti-tautología vacua + decisión mis-caracterizada + incondicionalidad), 16mo ciclo. NOTA DE RUMBO: el PIVOTE confirmó que incluso
 > fuera de la vena selección/capacidad, el keystone toy da resultados estándar acotados -> la frontera REAL sigue siendo un sesgo
 > inductivo APRENDIDO (no asumido) y SCALE (0% de la auditoría, hardware-bloqueado). Frontera: sesgo inductivo aprendido; SCALE.
+
+## CYCLE 147 — SÍNTESIS-CAPSTONE (no-experimental): estado honesto del arco R-VALOR (79-146)
+Tras 6 MIXTA seguidos (141-146) — incluido un PIVOTE deliberado (146) — el toy LINEAL del keystone está SATURADO: da el resultado
+ESTÁNDAR acotado en cada dirección (tautología/recombinación/régimen/concentración/no-free-lunch). Escribí `research/STATUS_RVALOR.md`
+anclado en los veredictos REALES commiteados: PROBADO (keystone=límite EFE 138; forma robusta w²·v·ctrl 144; ventaja no-discreto-
+específica 145; sesgo inductivo útil-si-matchea 146; brújula decisional 120-123) / ASUMIDO-ACOTADO / REFUTADO (tabla de 9 overclaims
+cazados por verificación adversarial 138-146) / SATURACIÓN + FRONTERA REAL (lazo real exp018+HybridLM / salir-del-oráculo N≥16 / SCALE).
+% honesto: ~70% mapa toy, ~10-15% sistema real, 0% SCALE (hardware-bloqueado). Decisión de manager: con uso 75% (cerca del umbral 80%)
+NO arranco el lazo torch caro (~60 min + agentes) para no pasar el presupuesto y cerrar limpio; la síntesis es el aporte barato y de
+alto valor que el arco necesitaba (completeness-critic). Regla para el próximo ciclo: NO re-derivar §1-3; atacar §4 o declarar el
+bloqueo de hardware; la verificación adversarial es innegociable.
