@@ -4150,3 +4150,39 @@ Test 5/5.
 > empírica ROBUSTA sobre el keystone del lab: incluir la varianza-prior v. MIXTA EXITOSA: la verificación atrapó una TAUTOLOGÍA (la
 > métrica = el scorer) antes del ledger. Frontera: extender el puente EFE a sustrato no-lineal (135-136)/acoplado (137); el lazo de
 > acción-consecuencia REAL; SCALE.
+
+## CYCLE 139 — H-V4-10m (rama control/acción, EXTIENDE el sustrato ACOPLADO de 137 al régimen con CICLOS / radio espectral->1) — MIXTA (núcleo apoyado + 4 overclaims retractados por VERIFICACIÓN ADVERSARIAL, 9no ciclo seguido)
+exp123 (numpy, 200 seeds, post-verificación de 4 agentes). Ataca el caveat EXPLÍCITO de 137 ("válido con radio espectral<1; acople con
+CICLOS cerca de radio 1 degrada — frontera"). Sustrato lineal con un CICLO de feedback driver_s<->target_s (radio=a+g, sube hacia 1) que
+COMPITE con un lazo FAST de 1-hop por la capacidad K. NÚCLEO VERIFICADO (leakage-free, sim-validado): la reach de estado-estacionario
+CRUDA del 137 (R_inf=(I-Â)^{-1}) es NUMÉRICAMENTE FRÁGIL cerca de radio 1 -- el modo casi-crítico la infla (∝1/(1-radio)) y bajo K=1
+(winner-take-all) MIS-RANKEA el modo top (a radio 0.95: reach_inf 0.43 vs reach_H 1.00); ES LA FORMA, no la estimación (con params
+VERDADEROS reach_inf_true 0.43 vs reach_H_true 1.00, ventana a∈[~0.45,0.65]); una REGULARIZACIÓN la cura (reach_disc 1.00, reach_inf_reg
+cap-de-autovalor SIN-H 1.00). Estimable leakage-free (converge desde abajo T=12 0.42 -> T=1000 1.00; Â:=0 colapsa a 0.06); sim_check
+1.00/1.00 (la fórmula del oracle = la física simulada impulso-a-impulso). => caveat REAL de CONDICIONAMIENTO al 137 (cuyo dominio es
+radio<1 con buen condicionamiento). cycle139 → H-V4-10m 'mixta' (DoD), D-V4-101 ACEPTADA, techo 'real', verify_no_loss=OK. Test 7/7.
+
+> META-PATRÓN (139, 9no seguido con 131-138): una 1ra versión vendía APOYADA ("bajo ciclos la controlabilidad del keystone es el ALCANCE
+> DE HORIZONTE FINITO; reach_inf falla cerca de radio 1; es la FORMA; converge leakage-free; crossover fast/slow"). Una VERIFICACIÓN
+> ADVERSARIAL (4 agentes independientes, lentes tautología-oracle / leakage-control-nulo / fairness-baseline / robustez-configs; TODOS
+> con probes reales reproducidos) CONFIRMÓ el NÚCLEO (la reach-∞ cruda es frágil cerca de radio 1, es la forma -reach_inf_true falla-, la
+> regularización la cura, estimable leakage-free, sim-validada) pero CAZÓ 4 OVERCLAIMS y bajó a MIXTA (directiva v4 §4: bundle donde sólo
+> el núcleo se aísla = MIXTA): (1) el GAP titular (reach_H>>reach_inf, +0.57) es un ARTEFACTO de K=1 WINNER-TAKE-ALL -- a K>=2 EVAPORA
+> (gap_true K1 +0.57 -> K2 +0.00, en todo el barrido de H, hat Y true): reach_inf identifica el CONJUNTO correcto de modos relevantes,
+> sólo invierte el orden #1<->#2 que la selección top-1 castiga al máximo; el experimento NO barría K -> no revelaba la evaporación. (2)
+> la forma HORIZONTE-H específica NO es privilegiada -- una reach-∞ REGULARIZADA por cap-de-autovalor SIN conocer H IGUALA a reach_H
+> (reach_inf_reg 1.00 ≈ reach_H 1.00); la novedad genuina es REGULARIZAR el modo casi-crítico (cualquier freno: horizonte, descuento,
+> cap), no el horizonte; el baseline ctrl_only era un strawman. (3) la RELEVANCIA es COLINEAL / no-aislada -- con ŵ≡unos (relevancia
+> ELIMINADA manteniendo la estructura) reach_H 0.99 (NO colapsa a ctrl_only 0.50); el control shuffle-ŵ daba un FALSO POSITIVO (inyecta
+> un patrón activamente-equivocado, no elimina la relevancia, la lección de 134: el control correcto ELIMINA el factor, no lo permuta);
+> el factor load-bearing demostrado es la CONTROLABILIDAD-REACH, no la relevancia (que 134-137 ya aisló por separado). (4) 'falla cerca
+> de radio 1' requiere COMPETENCIA de escalas temporales -- con un ÚNICO lazo (slow_only/fast_only) reach_inf NO falla hasta radio 0.99;
+> el driver real es H < tiempo-de-mezcla del lazo lento CON un competidor más rápido por la capacidad K, no 'radio alto rompe la
+> fórmula'. (+) el pilar 'es la FORMA' tiene ventana angosta a∈[~0.45,0.65] (a=0.7 lo rompe). El experimento se REESCRIBIÓ para
+> AUTO-DOCUMENTAR la MIXTA (agregó el barrido de K -evaporación-, reach_inf_reg -forma no privilegiada-, el control ŵ≡unos -relevancia
+> colineal-, el barrido de estructura -competencia necesaria- y la lógica de veredicto núcleo+overclaims). HALLAZGO honesto: la reach-∞
+> de estado-estacionario del 137 necesita REGULARIZACIÓN bajo ciclos (caveat de condicionamiento), pero la forma específica no es única,
+> el efecto vive bajo selección K=1, y la relevancia no se aísla aquí. ACOTA -- no cierra -- la frontera 'ciclos' de 137. MIXTA EXITOSA:
+> 9no ciclo seguido en que la verificación adversarial corrige overclaims antes del ledger (aquí 4, incluido un control nulo mal
+> elegido). Frontera: aislar la relevancia bajo ciclos (estructura donde reach != relevancia); el efecto de la CAPACIDAD K sobre el
+> valor de decisión; el puente EFE (138) bajo condicionamiento; el lazo de acción-consecuencia REAL; SCALE.

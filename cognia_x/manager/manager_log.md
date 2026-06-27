@@ -398,3 +398,25 @@
   es incluir v; la unificación con exploración es conjetura. El experimento se reescribió para AUTO-DOCUMENTAR. APORTE NETO: el
   puente normativo (keystone=límite EFE) + la corrección por varianza-prior v. Sirve al GOAL (R-VALOR; grounding normativo). Próximo:
   extender el puente EFE a no-lineal/acoplado; lazo acción-consecuencia REAL; SCALE.
+
+## [2026-06-26] CYCLE 139 — H-V4-10m MIXTA (núcleo apoyado + 4 overclaims retractados por verificación adversarial de 4 agentes, 9no ciclo): la reach de estado-estacionario CRUDA del 137 es NUMÉRICAMENTE FRÁGIL cerca de radio espectral 1 (necesita regularización), pero el gap es artefacto de K=1, la forma horizonte no es única, y la relevancia es colineal
+- Archivos: cognia_x/experiments/exp123_cyclic_substrate/{__init__.py,run.py,results/results.json} (nuevo);
+  cognia_x/research/cycles/cycle139_cyclic_substrate.py (nuevo); cognia_x/tests/test_cycle139_cyclic_substrate.py (nuevo);
+  research_log.md / manager_log.md / roadmap.md (append).
+- Resultado tests: PASS — test dirigido 7/7; cycle139 por el engine MIXTA, D-V4-101 aceptada, verify_no_loss=OK.
+- Resultado exp (200 seeds): ataca el caveat EXPLÍCITO de 137 ("acople con ciclos cerca de radio 1 degrada"). Sustrato lineal con
+  un CICLO de feedback (radio=a+g->1) que COMPITE con un lazo FAST de 1-hop por la capacidad K. NÚCLEO (leakage-free, sim-validado):
+  la reach de estado-estacionario CRUDA del 137 ((I-Â)^-1) es NUMÉRICAMENTE FRÁGIL cerca de radio 1 -- el modo casi-crítico la infla
+  y bajo K=1 mis-rankea el modo top (radio 0.95: reach_inf 0.43 vs reach_H 1.00); ES LA FORMA (reach_inf_true 0.43 vs 1.00); una
+  REGULARIZACIÓN la cura (descontada, cap-de-autovalor SIN-H). Estimable (T=12 0.42 -> T=1000 1.00; Â:=0 -> 0.06); sim_check 1.00.
+- Notas: VERIFICACIÓN ADVERSARIAL de 4 agentes (9no ciclo; lentes tautología/leakage/fairness/robustez, todos con probes reales)
+  confirmó el núcleo pero CAZÓ 4 OVERCLAIMS -> MIXTA: (1) el gap titular es ARTEFACTO de K=1 winner-take-all (a K>=2 evapora:
+  gap_true +0.57 -> +0.00; reach_inf identifica el conjunto correcto, sólo invierte #1<->#2); (2) la forma horizonte-H NO es
+  privilegiada (una reach-∞ regularizada por cap-de-autovalor SIN H la iguala -> la novedad es regularizar el modo casi-crítico, no
+  el horizonte); (3) la RELEVANCIA es COLINEAL (ŵ≡unos no colapsa a ctrl_only -> el control shuffle daba falso positivo; load-bearing
+  = la controlabilidad-reach, no la relevancia); (4) 'falla cerca de radio 1' requiere COMPETENCIA de escalas temporales (un único
+  lazo no falla hasta radio 0.99). El experimento se REESCRIBIÓ para AUTO-DOCUMENTAR la MIXTA (agregó barrido de K, reach_inf_reg,
+  control ŵ≡unos, barrido de estructura). HALLAZGO honesto: caveat REAL de CONDICIONAMIENTO al 137 (la reach-∞ cruda necesita
+  regularización bajo ciclos), pero la forma no es única, el efecto vive bajo K=1 y la relevancia no se aísla aquí. ACOTA -- no
+  cierra -- la frontera 'ciclos' de 137. Sirve al GOAL (R-VALOR; caracteriza el dominio del factor de controlabilidad-reach).
+  Próximo: aislar la relevancia bajo ciclos; el efecto de la capacidad K; el puente EFE (138) bajo condicionamiento; lazo real; SCALE.

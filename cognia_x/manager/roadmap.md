@@ -373,8 +373,24 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > bajo estimación). APORTE NETO: el puente normativo + la corrección por v. La unificación con exploración (empowerment) queda
 > como conjetura (epistémico canónico σ² apenas paga).
 >
-> FRONTERA ACTIVA (post-138): (1) extender el puente EFE a sustrato NO-LINEAL (135-136) / ACOPLADO (137) -- donde el producto
-> LOCAL necesita revisión. (2) acople con CICLOS / autovalores ~1. (3) lazo de acción-consecuencia REAL (sandbox exp018).
-> (4) SCALE (GPU/Kaggle). (5) [abierto] la corrección por varianza-prior v en el lazo real; prior jerárquico para escasez (136).
-> MÉTODO institucionalizado: verificación adversarial (3-4 agentes) antes del ledger — 8 ciclos seguidos (131..138) corrigiendo/
-> acotando overclaims (138 cazó una TAUTOLOGÍA, el modo de fallo más sutil).
+> CYCLE 139 (H-V4-10m MIXTA) ATACA la frontera (2) 'acople con CICLOS / autovalores ~1': sustrato lineal con un CICLO de feedback
+> (radio espectral=a+g->1) que COMPITE con un lazo FAST de 1-hop por la capacidad K. NÚCLEO (leakage-free, sim-validado): la reach
+> de estado-estacionario CRUDA del 137 ((I-Â)^-1) es NUMÉRICAMENTE FRÁGIL cerca de radio 1 -- el modo casi-crítico la infla
+> (∝1/(1-radio)) y bajo K=1 (winner-take-all) MIS-RANKEA el modo top; ES LA FORMA (reach_inf_true también falla, ventana
+> a∈[~0.45,0.65]); una REGULARIZACIÓN la cura (reach horizonte-finito Σ_{k<H}Â^k, descontada (I-γÂ)^-1, o cap-de-autovalor SIN H).
+> Caveat REAL de CONDICIONAMIENTO al 137 (cuyo dominio es radio<1 con buen condicionamiento). PERO la verificación adversarial (4
+> agentes, 9no ciclo) CAZÓ 4 OVERCLAIMS -> MIXTA: (1) el gap titular es ARTEFACTO de K=1 winner-take-all (a K>=2 EVAPORA: gap_true
+> +0.57->+0.00; reach_inf identifica el conjunto correcto, sólo invierte #1<->#2); (2) la forma horizonte-H NO es privilegiada (una
+> reach-∞ regularizada por cap-de-autovalor SIN conocer H la iguala -> la novedad es REGULARIZAR el modo casi-crítico, no el
+> horizonte); (3) la RELEVANCIA es COLINEAL/no-aislada (ŵ≡unos no colapsa a ctrl_only -> el control shuffle daba falso positivo; el
+> factor load-bearing demostrado es la controlabilidad-reach, que 134-137 ya aisló); (4) 'falla cerca de radio 1' requiere
+> COMPETENCIA de escalas temporales (un único lazo no falla hasta radio 0.99). ACOTA -- no cierra -- la frontera 'ciclos' de 137.
+> D-V4-101, techo 'real', verify_no_loss=OK, test 7/7.
+>
+> FRONTERA ACTIVA (post-139): (1) extender el puente EFE a sustrato NO-LINEAL (135-136) / ACOPLADO (137) -- donde el producto
+> LOCAL necesita revisión. (2) AISLAR la relevancia bajo ciclos (estructura donde reach != relevancia) + el efecto de la CAPACIDAD
+> K sobre el valor de decisión (139 reveló que K=1 es load-bearing en la selección). (3) lazo de acción-consecuencia REAL (sandbox
+> exp018). (4) SCALE (GPU/Kaggle). (5) [abierto] la corrección por varianza-prior v en el lazo real (138); el puente EFE bajo
+> CONDICIONAMIENTO/ciclos (139); prior jerárquico para escasez (136). MÉTODO institucionalizado: verificación adversarial (3-4
+> agentes) antes del ledger — 9 ciclos seguidos (131..139) corrigiendo/acotando overclaims (138 cazó una TAUTOLOGÍA; 139 cazó un
+> gap-artefacto-de-K=1 + un control nulo mal elegido + un baseline strawman).
