@@ -419,10 +419,19 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > universal; regime-específico = adv(K=1)=disociación 130) no un mecanismo nuevo, y vale sólo para (b,w) GRADUADOS (binarios invierten
 > el orden). D-V4-104, techo 'real', verify_no_loss=OK, test 6/6.
 >
-> FRONTERA ACTIVA (post-142): (1) AISLAR la relevancia bajo ciclos donde reach≠relevancia (el resto de la frontera de 139). (2) SALIR
-> DEL ORÁCULO -- N=16 para la DILUCIÓN de 141 + baseline regularizador-de-calibración ALTERNATIVO (¿la cura 119 es privilegiada?);
-> des-confundir la métrica de DECISIÓN; verificador de dominio rico; lazo SECUENCIAL. (3) extender el puente EFE a NO-LINEAL
-> (135-136)/ACOPLADO (137). (4) SCALE (GPU/Kaggle) -- frontera #1 jamás tocada (0% de la auditoría). (5) [abierto] varianza-prior v en
-> el lazo real (138); EFE bajo condicionamiento (139). MÉTODO institucionalizado: verificación adversarial (2-4 agentes) antes del
-> ledger — 12 ciclos seguidos (131..142) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K; 140 CONFOUND de base-rate;
-> 141 significancia-frágil + mecanismo-artefacto + dilución; 142 trivialidad-parcial + recombinación + validity-limit-binario).
+> CYCLE 143 (H-V4-10o MIXTA) ATACA la frontera #1 de 139 (aislar la relevancia bajo ciclos donde reach≠relevancia): construye un
+> sustrato disociado (relevante-ALCANZABLE / relevante-INALCANZABLE / alcanzable-IRRELEVANTE). NÚCLEO (robusto radio 0.75-0.99/T/
+> seeds): bajo capacidad ESCASA K=1 + decoys competidores la relevancia es LOAD-BEARING (el agente aísla la reach-relevancia leakage-
+> free; ambos controles nulos rompen). PERO la verificación adversarial (2 agentes, 13mo ciclo) cazó que EVAPORA a K>=#drivers (el
+> MISMO artefacto K=1 winner-take-all que 139 retractó -- no se barría K), que el cierre depende de los DECOYS (n_decoy=0 reproduce
+> 139), y que reach=oracle es tautológico (sin sim_check; rel_only=0 estructural) -> MIXTA: NO cierra el caveat de 139
+> incondicionalmente; la relevancia es load-bearing sólo bajo escasez de capacidad (consistente con 142). D-V4-105, techo 'real',
+> verify_no_loss=OK, test 5/5.
+>
+> FRONTERA ACTIVA (post-143): (1) aislar la relevancia bajo ciclos SIN dependencia de K=1 (capacidad CONTINUA / decoys ASIMÉTRICOS) --
+> el cierre INCONDICIONAL del caveat de 139 queda abierto. (2) SALIR DEL ORÁCULO -- N=16 para la DILUCIÓN de 141 + baseline
+> regularizador-de-calibración ALTERNATIVO; verificador de dominio rico; lazo SECUENCIAL. (3) extender el puente EFE a NO-LINEAL
+> (135-136)/ACOPLADO (137). (4) SCALE (GPU/Kaggle) -- frontera #1 jamás tocada (0% de la auditoría). (5) [abierto] varianza-prior v
+> (138). MÉTODO institucionalizado: verificación adversarial (2-4 agentes) antes del ledger — 13 ciclos seguidos (131..143)
+> corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K; 140 CONFOUND de base-rate; 141 significancia-frágil + dilución; 142
+> trivialidad + recombinación + validity-limit; 143 RE-USO del artefacto K=1 ya retractado -la verificación protege la autoconsistencia del ledger-).

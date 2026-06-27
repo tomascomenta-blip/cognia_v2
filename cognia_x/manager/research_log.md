@@ -4293,3 +4293,30 @@ H-V4-10n 'mixta' (DoD), D-V4-104 ACEPTADA, techo 'real', verify_no_loss=OK. Test
 > disociación (130) -- SIN venderlo como mecanismo novel (es recombinación), reconociendo que el decaimiento-en-K es parcialmente
 > trivial y que sólo vale para marginales graduadas. MIXTA EXITOSA: la verificación acotó NOVEDAD + TRIVIALIDAD + VALIDITY-LIMIT antes
 > del ledger (12mo ciclo). Frontera: el resto de la frontera de 139 (aislar la relevancia bajo ciclos donde reach≠relevancia); SCALE.
+
+## CYCLE 143 — H-V4-10o (rama control/acción, ATACA el caveat de 139: aislar la relevancia bajo CICLOS donde reach≠relevancia) — MIXTA (núcleo real bajo escasez + 3 acotaciones por VERIFICACIÓN ADVERSARIAL, 13mo ciclo seguido)
+exp127 (numpy, 200 seeds, post-verificación de 2 agentes). El CYCLE 139 dejó como caveat #1 que bajo ciclos la relevancia era
+COLINEAL con la reach (el control ŵ≡unos NO rompía -> el factor load-bearing demostrado era la reach, no la relevancia). Este ciclo
+construye un sustrato cíclico con reach≠relevancia GENUINA (modos relevante-ALCANZABLE, relevante-INALCANZABLE b=0, alcanzable-
+IRRELEVANTE w=0) y pregunta si el agente, descubriendo b̂/Â/ŵ de un stream, aísla AMBOS factores. NÚCLEO VERIFICADO (robusto en
+radio 0.75-0.99/T/seeds): bajo CAPACIDAD ESCASA K=1 con drivers irrelevantes COMPITIENDO, la reach-relevancia estimada aísla el
+driver relevante-alcanzable (reach 1.000, +0.725 sobre ctrl_only, +1.000 sobre rel_only; shuffle-ŵ Y ŵ≡unos rompen); estimable
+leakage-free. cycle143 → H-V4-10o 'mixta' (DoD), D-V4-105 ACEPTADA, techo 'real', verify_no_loss=OK. Test 5/5.
+
+> META-PATRÓN (143, 13mo seguido con 131-142): una 1ra versión vendía APOYADA ("CIERRA el caveat de 139 -- bajo reach≠relevancia el
+> agente aísla AMBOS factores; ahora ŵ≡unos TAMBIÉN rompe a diferencia de 139"). Una VERIFICACIÓN ADVERSARIAL (2 agentes, lentes
+> tautología-definicional / robustez-K-decoys; probes reales numpy) CONFIRMÓ el núcleo robusto (radio/T/seeds: el agente aísla la
+> reach leakage-free, la fragilidad de (I-A)^-1 de 139 NO materializa) pero CAZÓ 3 acotaciones y bajó a MIXTA: (1) el aislamiento es
+> CONDICIONAL a K<#drivers -- a K=#drivers (3) EVAPORA (reach-ctrl_only 0.000, reach-ones 0.000): ctrl_only captura el relevante por
+> barrido bruto y ŵ≡unos deja de romper; es EXACTAMENTE el artefacto K=1 winner-take-all que la verificación de 139 YA RETRACTÓ -- la
+> 1ra versión NO barría K (hardcodeaba KSEL=1) -> auto-INCONSISTENCIA con el propio ledger, cazada. (2) el 'cierre de 139' depende de
+> los DECOYS, no de la disociación per se: con n_decoy=0 (un solo driver) ŵ≡unos NO rompe (ones-break 0.000) -- REPRODUCE 139 EXACTO;
+> el 'ŵ≡unos rompe' es un artefacto de decoys SIMÉTRICOS (clones geométricos -> reach les da score idéntico -> 1/#drivers). (3)
+> TAUTOLOGÍA: reach con params VERDADEROS = oracle por construcción (sin sim_check, a diferencia de 139); rel_only=0 es ESTRUCTURAL
+> (b,w nunca co-localizados) -> 'reach bate a rel_only' es definicional. El experimento se REESCRIBIÓ para AUTO-DOCUMENTAR la MIXTA
+> (agregó el barrido de K -evaporación a K=#drivers-, el control n_decoy=0 -reproduce 139- y declaró la tautología reach=oracle).
+> APORTE NETO honesto: (i) la HONESTIDAD de que el 'cierre' del caveat de 139 es CONDICIONAL (escasez de capacidad K<#drivers +
+> decoys competidores), NO incondicional; (ii) la conexión con 142 -- la relevancia es load-bearing bajo ESCASEZ de capacidad×
+> disociación, el mismo principio. La verificación protegió la AUTOCONSISTENCIA del ledger: cazó el RE-USO de un artefacto (K=1
+> winner-take-all) que el propio lab había retractado en 139. MIXTA EXITOSA: 13mo ciclo seguido. Frontera: un test del aislamiento
+> que NO dependa de K=1 (capacidad continua / decoys asimétricos); SCALE.
