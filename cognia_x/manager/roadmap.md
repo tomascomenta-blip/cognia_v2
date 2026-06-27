@@ -436,11 +436,18 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > (2 agentes, 14mo ciclo) cazó mi overclaim BIDIRECCIONAL y PROTEGIÓ LA AUTOCONSISTENCIA con 138 (que yo refutaba erróneamente
 > muestreando el rincón limpio). D-V4-106, techo 'real', verify_no_loss=OK, test 5/5.
 >
-> FRONTERA ACTIVA (post-144): (1) la varianza-prior v como mecanismo de SALIENCIA/atención en un sustrato no-juguete. (2) aislar la
-> relevancia bajo ciclos SIN dependencia de K=1 (capacidad continua / decoys asimétricos; el cierre incondicional del caveat de 139
-> queda abierto). (3) SALIR DEL ORÁCULO -- N=16 para la dilución de 141 + baseline regularizador alternativo; verificador rico; lazo
-> secuencial. (4) extender el puente EFE a NO-LINEAL (135-136)/ACOPLADO (137). (5) SCALE (GPU/Kaggle) -- frontera #1 jamás tocada (0%
-> de la auditoría). MÉTODO institucionalizado: verificación adversarial (2-4 agentes) antes del ledger — 14 ciclos seguidos (131..144)
-> corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K; 140 CONFOUND de base-rate; 141 significancia-frágil + dilución; 142
-> trivialidad + recombinación; 143 RE-USO del artefacto K=1 ya retractado; 144 overclaim BIDIRECCIONAL + refutación-deshonesta de un
-> ciclo previo -la verificación protege la AUTOCONSISTENCIA del ledger-).
+> CYCLE 145 (H-V4-10q MIXTA) ataca el artefacto recurrente K=1 (139/142/143) con capacidad CONTINUA (water-filling). NÚCLEO (robusto
+> g/D/RHO/seeds): la ventaja del criterio de VALOR sobre el mejor factor-solo SOBREVIVE a presupuesto escaso + escala con la
+> disociación -> NO es específica del top-K discreto (refuta 'todo era winner-take-all'). PERO la verificación adversarial (2 agentes,
+> 15mo ciclo) re-acotó el claim central: escaso-continuo ES concentrado (~soft top-k, participación 1.84 a B chico) -> el K=1 NO se
+> disuelve, se REINTERPRETA como concentración-bajo-escasez; residual permanente; decaimiento g-dependiente (g=√a plana); value=oracle
+> (recombinación de 142). D-V4-107, techo 'real', verify_no_loss=OK, test 5/5.
+>
+> NOTA DE RUMBO (post-145): 5 MIXTA seguidos (141-145) en la vena keystone/capacidad, todos acotados por tautología/recombinación/
+> régimen/concentración -> RENDIMIENTOS DECRECIENTES en el toy. Las próximas iteraciones deberían PIVOTAR: (1) la ventaja del valor /
+> varianza-prior en un mecanismo de asignación REAL (atención/cómputo en un modelo), no toy. (2) SALIR DEL ORÁCULO -- N=16 dilución de
+> 141 + baseline regularizador alternativo; lazo secuencial. (3) extender el puente EFE a NO-LINEAL (135-136)/ACOPLADO (137). (4)
+> SCALE (GPU/Kaggle) -- frontera #1 jamás tocada (0% de la auditoría). MÉTODO institucionalizado: verificación adversarial (2-4
+> agentes) antes del ledger — 15 ciclos seguidos (131..145) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-artefacto-de-K; 140
+> CONFOUND base-rate; 141 significancia-frágil + dilución; 142 trivialidad + recombinación; 143 RE-USO del artefacto K=1; 144 overclaim
+> BIDIRECCIONAL + refutación-deshonesta de un ciclo previo; 145 'sin winner-take-all / decae igual' -> concentración + g-dependencia).

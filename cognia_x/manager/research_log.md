@@ -4345,3 +4345,31 @@ mapa de régimen honesto. cycle144 → H-V4-10p 'mixta' (DoD), D-V4-106 ACEPTADA
 > v̂ contaminado. META-LECCIÓN crucial: 14mo ciclo seguido con verificación adversarial -- aquí cazó un overclaim BIDIRECCIONAL
 > (definicional + refutación-deshonesta de un ciclo PREVIO) y PROTEGIÓ LA AUTOCONSISTENCIA del ledger: yo estaba REFUTANDO erróneamente
 > el 138 muestreando el rincón conveniente. Frontera: la varianza-prior como saliencia/atención en un sustrato no-juguete; SCALE.
+
+## CYCLE 145 — H-V4-10q (rama control/acción, ATACA el artefacto recurrente K=1 de 139/142/143 con capacidad CONTINUA) — MIXTA (núcleo real: la ventaja del valor NO es discreto-específica; pero el claim central RE-ACOTADO por VERIFICACIÓN ADVERSARIAL de 2 agentes, 15mo ciclo)
+exp129 (numpy, 300 seeds, post-verificación de 2 agentes). Los CYCLEs 139/142/143 hallaron repetidamente que la ventaja del criterio
+de VALOR (keystone w·ctrl) sobre un factor de un eje EVAPORA a K>=#modos buenos en la selección DISCRETA top-K ('artefacto K=1
+winner-take-all'). Este ciclo pregunta: ¿es una patología del top-K, o sólo escasez? Lo testea con capacidad CONTINUA (water-filling
+de un presupuesto B). NÚCLEO VERIFICADO (robusto g/D/RHO/seeds): bajo capacidad continua la ventaja SOBREVIVE a presupuesto escaso
+(anti +0.385) y ESCALA con la disociación (AUC anti=0.215>indep=0.142>corr=0.041) -> NO es específica del top-K discreto. cycle145 →
+H-V4-10q 'mixta' (DoD), D-V4-107 ACEPTADA, techo 'real', verify_no_loss=OK. Test 5/5.
+
+> META-PATRÓN (145, 15mo seguido con 131-144): una 1ra versión vendía APOYADA ("el artefacto K=1 es ESCASEZ, NO winner-take-all;
+> bajo continuo la ventaja sobrevive y decae con B EXACTAMENTE como con K -> QUITA el caveat K=1 de medio arco"). Una VERIFICACIÓN
+> ADVERSARIAL (2 agentes, lentes tautología-concentración / robustez-g; probes reales numpy) CONFIRMÓ el núcleo (robusto g/D/RHO/
+> seeds: la ventaja sobrevive continuo + escala con disociación, water-filling correcto) pero RE-ACOTÓ el claim central
+> BIDIRECCIONALMENTE y bajó a MIXTA: (1) escaso-continuo ES CONCENTRADO -- a presupuesto escaso el water-filling reparte ~soft top-k
+> (ratio de participación 1.84 a B=0.5 ≈ 1.8 modos efectivos, top-1 share ~70%; sube a 7.1 a B=32). B-chico = winner-take-all BLANDO,
+> NO 'sin concentración'. El K=1 NO se DISUELVE: se REINTERPRETA como concentración-bajo-escasez (K=1 ≈ B-chico). (2) la continua NO
+> decae 'igual que la discreta': RESIDUAL PERMANENTE (anti +0.076 a B=32, ~log; +0.036 a B=256) mientras la discreta llega a 0 sólo
+> en K=D (el punto TRIVIAL select-all). (3) el decaimiento-en-B es g-DEPENDIENTE -- con g=√a (marginal infinita en 0) la ventaja es
+> INVARIANTE en B (anti 0.105->0.105, plana); sólo decae con g de marginal FINITA en 0 (log/exp/frac). (4) value=oracle por
+> construcción (tautológico) y el contenido es ÁLGEBRA DE PRODUCTO (un producto w·ctrl no se aproxima por un factor, peor al
+> decorrelacionar w,ctrl = el ρ_wb barrido) -> RECOMBINACIÓN de 142 (capacidad×disociación) en forma continua. El experimento se
+> REESCRIBIÓ para AUTO-DOCUMENTAR (agregó el ratio de participación -concentración-, la prueba con g=√a -g-dependencia- y el residual
+> permanente). APORTE NETO honesto: (i) la ventaja del valor NO es un artefacto de la selección DISCRETA (sobrevive continuo + escala
+> con disociación, robusto) -- esto refuta la lectura 'todo era top-K'; (ii) el marco honesto 'escasez = concentración blanda' (el
+> K=1 se reinterpreta, no se quita). MIXTA EXITOSA: la verificación cazó el overclaim 'sin winner-take-all / decae exactamente igual'
+> (15mo ciclo). NOTA DE RUMBO: 5 MIXTA seguidos (141-145) en la vena keystone/capacidad, todos acotados por tautología/recombinación/
+> régimen -> rendimientos decrecientes en el toy; las próximas iteraciones deberían PIVOTAR a un mecanismo de asignación REAL
+> (atención/cómputo) o a SCALE. Frontera: la ventaja del valor en un mecanismo real, no toy; SCALE.
