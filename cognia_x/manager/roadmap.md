@@ -460,3 +460,12 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > agentes) antes del ledger — 16 ciclos seguidos (131..146) corrigiendo overclaims (138 TAUTOLOGÍA; 139 gap-K; 140 CONFOUND; 141
 > dilución; 142 recombinación; 143 RE-USO del artefacto K=1; 144 BIDIRECCIONAL + refutación-deshonesta de ciclo previo; 145
 > concentración + g-dependencia; 146 overclaim TRIPLE -anti-tautología vacua + decisión mis-caracterizada + incondicionalidad-).
+
+> CYCLE 149 (H-V4-9i APOYADA) — ¡PRIMER APOYADA limpio del arco de fragilidad! Ataca la FRONTERA REAL §4.2 (salir del oráculo con
+> potencia) aprovechando el reset de uso. Descubrimiento habilitante: el lazo torch real es RÁPIDO (~2-3 min/seed) -> el 'underpowered'
+> de 140-141 no era tiempo. RESUELVE a N=16: la confianza endógena del durable (unlikelihood=cura 119) es MÁS INFORMATIVA sobre la
+> correctness real que la del naive -- ventaja AUROC base-rate-invariante, gap +0.047, CI bootstrap [+0.027,+0.069] EXCLUYE 0, t=4.22;
+> REPLICA out-of-sample (6/6 seeds frescos -> N=22 t=5.87). Verificación adversarial CONFIRMATORIA (5 métodos de CI, jackknife,
+> mecanismo persistente, base-rate-invariante) -- ratificó por 1ra vez en el arco. Acotación de régimen: concentrado donde el base-acc
+> tiene margen. D-V4-109, techo 'real', verify_no_loss=OK, test 4/4. Cierra el hueco #1 de la auditoría. Frontera abierta: ¿la cura
+> 119 es PRIVILEGIADA (tercer brazo: regularizador genérico)?; régimen base-acc alta; SCALE.

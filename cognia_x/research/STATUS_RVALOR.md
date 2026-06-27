@@ -30,6 +30,15 @@ Todo en CPU, acumulativo, reproducible, honesto.
   las decisiones de asignación/abstención que USAN la señal.
 - **El R-VALOR es una BRÚJULA DECISIONAL, no un acelerador de loss (re-localización, 120-123).** Vale por las decisiones
   que usan la señal, no por boostear el self-training (que es ANCLA-bound, 120-121).
+- **[NUEVO 149 — PRIMER APOYADA limpio, en el LAZO REAL] La cura 119 (unlikelihood) produce una señal de valor ENDÓGENA
+  más calibrada sobre la correctness REAL en un sistema con self-training.** En el lazo torch real (HybridLM → verificador
+  real → confianza endógena → self-train), la confianza del brazo durable rankea la correctness real mejor que el naive:
+  ventaja AUROC base-rate-INVARIANTE, gap +0.047 a N=16 (CI bootstrap [+0.027,+0.069] excluye 0, t=4.22), REPLICA
+  out-of-sample (6/6 seeds frescos → N=22 t=5.87). Verificación adversarial CONFIRMATORIA (5 métodos de CI, jackknife,
+  mecanismo persistente, base-rate-invariante). Resuelve el limbo 'underpowered/diluyendo' de 140-141 (era N chico; el lazo
+  es rápido). ACOTADO: magnitud modesta (+0.05) y régimen-dependiente (concentrado donde el base-acc tiene margen; se apaga
+  en base-acc alta, corr -0.32). Cierra el hueco #1 de la auditoría (salir del oráculo). FRONTERA: ¿la cura es PRIVILEGIADA
+  vs un regularizador genérico (tercer brazo)?
 
 ## 2. ASUMIDO / ACOTADO (real pero condicional — el grueso del arco)
 
@@ -74,7 +83,8 @@ deliberado (146, aprender el valor en vez de usarlo), dan todos el resultado EST
 
 - **Mapa conceptual del valor endógeno (toy):** ~70% (forma, grounding EFE, capacidad/escasez, varianza-prior, sesgo
   inductivo, decisión bajo escasez — todos caracterizados con sus acotaciones).
-- **Sistema real escalado:** ~10-15% (el lazo real existe y da señal modesta; no hay escala).
+- **Sistema real escalado:** ~20% (149 estableció a POTENCIA + out-of-sample que la cura 119 da una señal de valor endógena
+  genuinamente más calibrada en el lazo real -primer APOYADA limpio fuera del oráculo-; sigue siendo juguete-real, sin escala).
 - **SCALE:** 0% (hardware-bloqueado).
 
 > Regla para el próximo ciclo: NO re-derivar lo de §1-3. Atacar §4 (lazo real / salir-del-oráculo / SCALE) o declarar

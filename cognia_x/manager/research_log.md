@@ -4412,3 +4412,29 @@ cazados por verificación adversarial 138-146) / SATURACIÓN + FRONTERA REAL (la
 NO arranco el lazo torch caro (~60 min + agentes) para no pasar el presupuesto y cerrar limpio; la síntesis es el aporte barato y de
 alto valor que el arco necesitaba (completeness-critic). Regla para el próximo ciclo: NO re-derivar §1-3; atacar §4 o declarar el
 bloqueo de hardware; la verificación adversarial es innegociable.
+
+## CYCLE 149 — H-V4-9i (FRONTERA REAL §4.2: RESOLVER a potencia el limbo del lazo real) — APOYADA (¡PRIMER APOYADA limpio del arco de fragilidad!; confirmado OUT-OF-SAMPLE + verificación adversarial CONFIRMATORIA de 1 agente)
+exp131 (lazo torch REAL, N=16 + 6 out-of-sample). Los CYCLEs 140-141 hallaron una ventaja de ranking AUROC del brazo durable
+(unlikelihood = cura 119) sobre el naive en el lazo torch real pero la dejaron MIXTA (significancia frágil sign-test p=0.07 a N=8;
+magnitud que DILUÍA con más seeds -> sospecha de winner's curse). DESCUBRIMIENTO HABILITANTE: el lazo es RÁPIDO (~2-3 min/seed; el
+HybridLM byte-level es diminuto) -> el 'underpowered' NO era restricción de tiempo. cycle149 → H-V4-9i 'apoyada' (DoD), D-V4-109
+ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
+
+> RESULTADO (a N=16, métrica de potencia LIMPIA): la confianza ENDÓGENA del durable es MÁS INFORMATIVA sobre la correctness REAL que
+> la del naive -- ventaja AUROC base-rate-INVARIANTE, gap medio +0.047 (mediana +0.042, 14/16 seeds positivos, t=4.22), CI bootstrap
+> 95% [+0.027, +0.069] EXCLUYE el cero; tercios [+0.063/+0.030/+0.049] NO diluyen. CONFIRMADO OUT-OF-SAMPLE (el test decisivo contra
+> la dilución de 141): 6 seeds NUNCA vistos (16-21) -> 6/6 positivos (mean +0.055, MÁS fuerte) -> combinado N=22 t=5.87, CI
+> [+0.034, +0.066], 20/22 positivos. La 'dilución/winner's curse' de 141 era artefacto de N chico.
+>
+> VERIFICACIÓN ADVERSARIAL (1 agente, probes reales sobre los datos -- CONFIRMÓ, no demolió, POR PRIMERA VEZ EN EL ARCO): el CI
+> excluye 0 por 5 MÉTODOS (t / percentil / BCa / Wilcoxon p=0.0008 / sign-test p=0.004; el percentil ni siquiera es el más
+> optimista); t=4.22 robusto a jackknife (todas las leave-1-out >0, no outlier-driven); el MECANISMO PERSISTE por rondas (R1=0 por
+> construcción -mismo modelo base- -> el gap está SUBESTIMADO ~8/7×, conservador); AUROC empíricamente base-rate-INVARIANTE (el
+> durable genera MENOS correctas -226 vs 243- pero pooled corr(nc,auroc)=-0.03 -> NO es el confound de base-rate que 141 temía). UNA
+> ACOTACIÓN de régimen (refina, NO degrada): el efecto se CONCENTRA donde el modelo base tiene MARGEN (abundancia de incorrectas que
+> el unlikelihood empuja); se desvanece/invierte en los 2 seeds de base-acc MÁS alta (corr base_acc×gap=-0.32), mecanísticamente
+> coherente y paralelo al patrón regime-dependent de 135-136. => en un sistema REAL con self-training, la cura 119 produce una señal
+> de valor ENDÓGENA genuinamente más calibrada sobre la correctness REAL. Cierra el hueco #1 de la auditoría (payoff/calibración del
+> R-VALOR FUERA del numpy sintético). META: la verificación adversarial RATIFICÓ por primera vez -- el método no sólo caza
+> overclaims, también confirma lo real. Frontera: ¿la cura 119 es PRIVILEGIADA (tercer brazo: regularizador genérico)?; el régimen
+> de base-acc alta; SCALE.
