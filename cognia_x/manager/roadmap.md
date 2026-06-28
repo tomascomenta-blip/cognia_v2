@@ -493,3 +493,12 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > del arco con verificación adversarial antes del ledger. NET deflacionario: el lazo real NO es enteramente artefacto pero lo
 > no-artefacto es genérico, mínimo y no robusto; la atribución del 149 cae. Frontera: ¿el residuo PAGA DOWNSTREAM bajo escasez?; N≥8
 > con t-test; régimen base-acc alta; ranking held-out; SCALE.
+
+> CYCLE 152 (H-V4-9l MIXTA-ACOTADA) — intento de pago DOWNSTREAM del residuo del 151 (precision@top-m sobre 2 pools fijos balanceados
+> 48/48 INDIST+HELDOUT). El residuo NO paga ROBUSTAMENTE, PERO la verificación adversarial (4 sondas, design_valid=False) cazó un
+> DEFECTO DE DISEÑO (sev ALTA): el pool balanceado 50/50 SATURA precision@top-m (INDIST gap CERO ESTRUCTURAL) y NO es escaso (f<=0.5,
+> nunca f≈1; "m chico=escasez" contradice exp124) → la tesis 123 NUNCA se testeó → MIXTA-ACOTADA, no refutación-plana. HELDOUT
+> (informativo) da señal débil borderline no-robusta (m=6 +0.028 t=2.0<2.015). HALLAZGO ROBUSTO: el durable se INVIERTE también
+> downstream (indist m=8 −0.042 t=−2.70) → confirma 151 fuera-de-forma. D-V4-112, techo 'real', verify_no_loss=OK, test 4/4. 19no
+> ciclo con verificación adversarial. Añadí detección de SATURACIÓN al gate + reporte f=m/#correct. Frontera (CYCLE 153): pool fijo
+> COMPARTIDO de BAJA base-rate (q≈0.1) o medir a f≈1, preservando el desconfound; subir N.

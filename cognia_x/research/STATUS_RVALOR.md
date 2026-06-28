@@ -1,4 +1,4 @@
-# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-151)
+# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-152)
 
 > Síntesis-capstone (CYCLE 147, 2026-06-27). Anclada en los veredictos REALES commiteados (no en intuición).
 > Escrita tras 6 MIXTA seguidos (141-146) que evidencian SATURACIÓN del toy. Append-only; no reemplaza al ledger
@@ -79,6 +79,20 @@ Todo en CPU, acumulativo, reproducible, honesto.
   payoff del lazo real NO es ENTERAMENTE artefacto (queda señal de signo genérica) pero lo no-artefacto es genérico, mínimo y no
   robusto; el componente que MOTIVÓ el arco (la cura 119 del 149) SÍ era artefacto. CIERRA el caveat load-bearing del 150. FRONTERA:
   ¿el residuo genérico PAGA downstream bajo escasez?; N≥8 con t-test; régimen base-acc alta; transferencia; SCALE.
+- **[NUEVO 152 — pago DOWNSTREAM, MIXTA-ACOTADA: el residuo NO paga robustamente, PERO el test SATURA y NO instancia la escasez real;
+  + hallazgo robusto: el durable se INVIERTE también downstream]** exp134 (N=6, mismo lazo real, 2 pools fijos balanceados 48/48:
+  INDIST -forma canónica- y HELDOUT -forma novel '2+(n-2)' no entrenada, ataca la acotación in-distribution de la sonda-A del 151-;
+  precision@top-m). Intento de medir si el residuo genérico (ls_lo) del 151 PAGA en una decisión bajo escasez (tesis brújula-decisional
+  123). RESULTADO MIXTA-ACOTADA: (a) el residuo NO paga ROBUSTAMENTE (falla CI+t-test+6/6); (b) PERO **defecto de DISEÑO cazado por la
+  verificación (sonda-A, sev ALTA)**: el pool balanceado 50/50 -necesario para el desconfound- SATURA precision@top-m (INDIST naive ya
+  en techo 1.0 → gap CERO ESTRUCTURAL, no-informativo) y NO es escaso (por la lección de exp124, f=m/#correct<=0.5, nunca f≈1 → la
+  tesis 123 de q-bajo **NUNCA se testeó**); (c) el único pool informativo (HELDOUT, con headroom) da señal DÉBIL BORDERLINE no-robusta
+  (m=6, +0.028, t=2.0 < t_crit 2.015; 3/6 seeds+, 0 neg); (d) **HALLAZGO ROBUSTO**: el durable (cura 119) es robustamente NEGATIVO
+  downstream en AMBOS pools (indist m=8 −0.042, t=−2.70) → confirma su INVERSIÓN del 151, ahora también en la decisión y fuera-de-forma.
+  Verificación adversarial de 4 sondas (design_valid=False, recomendó MIXTA, cazó el mislabel "m chico=escasez" vs exp124 + el
+  overstatement de negatividad). NET: el pago downstream del residuo queda SIN RESOLVER en el régimen escaso real (defecto de diseño,
+  no evidencia adversa); la inversión del durable se confirma. FRONTERA (CYCLE 153): pool fijo COMPARTIDO de BAJA base-rate (q≈0.1) o
+  f≈1, preservando el desconfound; subir N; reportar f=m/#correct.
 
 ## 2. ASUMIDO / ACOTADO (real pero condicional — el grueso del arco)
 
@@ -107,6 +121,7 @@ Todo en CPU, acumulativo, reproducible, honesto.
 | 146 | "sesgo inductivo incondicional + anti-tautología" | overclaim TRIPLE: anti-tautología vacua (~0.95 colineal) + decisión = suficiencia (no robustez) + condicional a la alineación |
 | 149 | "APOYADA limpia: la confianza del durable es calibración endógena más informativa" | DESCONFUNDIDO por 151: el AUROC_own era riqueza de generación; el durable se INVIERTE (−0.210) en un pool fijo balanceado → atribución a 'calibración' REFUTADA (la observación durable>naive OWN persiste) |
 | 151 | "APOYADA: hay señal de ranking genuina (CI excluye 0)" (regla pre-registrada) | la regla "CI bootstrap excluye 0" es TAUTOLÓGICA con gaps un-signo; el t-test pareado real es sub-significativo (t=1.98<2.015) → re-etiquetada MIXTA; + error factual "generados desde el base" (eran CONSTRUIDOS) |
+| 152 | "REFUTADA-downstream: el residuo tampoco paga en la decisión" | DEFECTO DE DISEÑO (sev ALTA): el pool balanceado 50/50 SATURA precision@top-m (INDIST gap CERO ESTRUCTURAL) y NO es escaso (f<=0.5, nunca f≈1) → la tesis 123 NUNCA se testeó; "m chico=escasez" contradice exp124 → re-etiquetada MIXTA-ACOTADA |
 
 ## 4. SATURACIÓN del toy + FRONTERA REAL
 
@@ -120,22 +135,25 @@ deliberado (146, aprender el valor en vez de usarlo), dan todos el resultado EST
 2. **SALIR DEL ORÁCULO con potencia:** N≥16 para la dilución de 141 + baseline regularizador-de-calibración ALTERNATIVO
    (¿la cura unlikelihood de 119 es privilegiada o cualquier regularizador sirve?); lazo SECUENCIAL.
    → AVANCE 150-151: la cura NO es privilegiada (150) y su ventaja AUROC era riqueza de generación (151, desconfundida con pool fijo).
-   QUEDA: ¿el residuo genérico de calibración PAGA DOWNSTREAM en una decisión real bajo escasez (precision@top-m sobre el pool fijo)?
-   — 'sobrevive en AUROC de signo' no es 'importa en la decisión'; N≥8 con t-test pareado (no el CI tautológico); ranking held-out.
+   → 152 INTENTÓ el pago downstream (precision@top-m) pero el pool balanceado SATURÓ el test y NO instanció la escasez (f<=0.5) →
+   MIXTA-ACOTADA, la tesis 123 sin testear (la inversión del durable SÍ se confirmó downstream). QUEDA (CYCLE 153): pool fijo
+   COMPARTIDO de BAJA base-rate (q≈0.1) o medir a f≈1, preservando el desconfound; subir N; reportar f=m/#correct.
 3. **SCALE (GPU/Kaggle):** la frontera #1 de la auditoría, JAMÁS tocada (0%), hardware-bloqueada en este i3 sin CUDA.
 
 ## 5. Mapa conceptual — % honesto
 
 - **Mapa conceptual del valor endógeno (toy):** ~70% (forma, grounding EFE, capacidad/escasez, varianza-prior, sesgo
   inductivo, decisión bajo escasez — todos caracterizados con sus acotaciones).
-- **Sistema real escalado:** ~26% (149 estableció que el durable bate al naive en AUROC_own en el lazo real; 150 ACOTÓ -la cura NO es
+- **Sistema real escalado:** ~27% (149 estableció que el durable bate al naive en AUROC_own en el lazo real; 150 ACOTÓ -la cura NO es
   privilegiada, un target-smoothing genérico la iguala- y SOSPECHÓ el confound de generación; 151 lo CERRÓ con el desconfound limpio
   (pool fijo balanceado): la ventaja AUROC_own del durable era ENTERAMENTE riqueza de generación -se INVIERTE a −0.210 en el pool
   fijo, t=−10.6, 6/6 seeds- → la atribución 'calibración endógena' del 149 queda REFUTADA; sólo un residuo GENÉRICO de signo (ls_lo
   +0.018) sobrevive, no robusto por t-test. El % SUBE respecto al 22% no porque haya MÁS payoff sino porque una pregunta load-bearing
   está RESUELTA: ahora SABEMOS que el payoff del lazo real es mayormente artefacto de generación + un residuo genérico mínimo —
-  entendimiento honesto, deflacionario. Falta: el pago DOWNSTREAM del residuo en una decisión real; potencia N≥8 con t-test; régimen
-  base-acc alta; ranking held-out -no in-distribution-; transferencia; escala).
+  entendimiento honesto, deflacionario. 152 intentó el pago DOWNSTREAM del residuo (precision@top-m) pero el pool balanceado SATURÓ el
+  test y NO instanció la escasez real (f<=0.5) → MIXTA-ACOTADA, la tesis brújula-decisional (123) bajo escasez SIN testear (defecto de
+  diseño, no evidencia adversa); sí se CONFIRMÓ la inversión del durable downstream y fuera-de-forma (held-out). Falta: el pago
+  downstream en el régimen ESCASO real (q bajo / f≈1, CYCLE 153); potencia N≥8; régimen base-acc alta; transferencia; escala. ~27%.
 - **SCALE:** 0% (hardware-bloqueado en este i3 sin CUDA — la frontera #1 de la auditoría, intocada).
 
 > Regla para el próximo ciclo: NO re-derivar lo de §1-3. Atacar §4 (lazo real: el PAGO DOWNSTREAM del residuo genérico bajo escasez —

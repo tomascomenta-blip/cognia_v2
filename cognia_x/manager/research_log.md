@@ -4495,3 +4495,20 @@ cycle150 → H-V4-9j 'refutada' (DoD), D-V4-110 ACEPTADA, techo 'real', verify_n
 > era artefacto de generación. CIERRA el caveat load-bearing del 150. Lección transversal: 'CI excluye 0' NO prueba robustez con
 > gaps un-signo — usar t-test pareado. Frontera: ¿el residuo genérico PAGA DOWNSTREAM bajo escasez (precision@top-m sobre el pool
 > fijo)?; N≥8 con t-test; régimen base-acc alta; ranking held-out; SCALE.
+
+## [2026-06-28] CYCLE 152 — H-V4-9l MIXTA-ACOTADA (¿el residuo paga DOWNSTREAM bajo escasez? el test SATURA y no instancia la escasez)
+> exp134 (lazo torch real, N=6, 3 brazos, 2 pools fijos balanceados 48/48 INDIST/HELDOUT; precision@top-m). Intento de medir si el
+> residuo genérico (ls_lo) del 151 PAGA en una decisión bajo escasez (tesis brújula-decisional 123). RESULTADO MIXTA-ACOTADA: el
+> residuo NO paga ROBUSTAMENTE, PERO la verificación adversarial (4 sondas, design_valid=False, recomendó MIXTA) cazó un DEFECTO DE
+> DISEÑO load-bearing (sev ALTA): (1) el pool balanceado 50/50 SATURA precision@top-m — INDIST near-ceiling (naive payoff de escasez
+> =1.0) → gap CERO ESTRUCTURAL (no-informativo), el criterio APOYADA inalcanzable ahí; (2) el pool NO es escaso — por la lección del
+> propio exp124 (f=m/#correct; m<<#correct es trivial), con #correct=48 todo m de escasez → f<=0.17 y el grid (m_max=24) sólo llega a
+> f=0.5; el f≈1 calibración-crítico NUNCA se midió → la tesis 123 (q-bajo) SIN testear. exp134 regresó al m-absoluto que exp124 había
+> abandonado. (3) HELDOUT (único informativo, headroom) da señal DÉBIL BORDERLINE no-robusta: m=6 +0.028 (t=2.0 < t_crit 2.015; 3/6
+> seeds+, 0 neg; el CI excluye 0 sólo por discretización 0.5^6<2.5%). (4) HALLAZGO ROBUSTO: el durable (cura 119) es robustamente
+> NEGATIVO downstream en AMBOS pools (indist m=8 −0.042 t=−2.70) → confirma su INVERSIÓN del 151, también en la decisión y
+> fuera-de-forma (held-out novel). NET: un ciclo FALLIDO-INSTRUCTIVO — el defecto de diseño impide responder la pregunta (régimen
+> escaso sin medir), pero confirma la inversión del durable y siembra el diseño correcto. REACCIÓN: añadí detección de SATURACIÓN al
+> gate (pool near-ceiling = no-informativo) + reporte de f=m/#correct. Lección: 'm chico' NO es 'escasez' (es f=m/#correct≈1); una
+> métrica saturada no puede ni apoyar ni refutar (inconcluso). Frontera (CYCLE 153): pool fijo COMPARTIDO de BAJA base-rate (q≈0.1) o
+> medir a f≈1, preservando el desconfound del 151; subir N; reportar f.
