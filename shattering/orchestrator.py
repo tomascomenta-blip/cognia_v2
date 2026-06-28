@@ -511,56 +511,90 @@ class ShatteringOrchestrator:
         return session_id, all_ids, lpc_entry
 
     @staticmethod
-    def _spec_resolve(candidates, out_batch, vocab_size: int, eos_set: set):
-        """Resolve a speculative verification batch into the committed token list
-        and the number of KV slots that must be KEPT.
+    def _softmax_temp(logits, vocab_size: int, temperature: float):
+        """Target token distribution from a row of logits, using the SAME numerics as
+        ``DistributedInferencePipeline._sample`` so the speculative path samples from
+        the exact distribution the normal path would. ``temperature -> 0`` collapses to
+        a point mass at the argmax (greedy)."""
+        import numpy as np
+        flat = logits.flatten().astype(np.float32)
+        if len(flat) > vocab_size:
+            flat = flat[:vocab_size]
+        elif len(flat) < vocab_size:
+            flat = np.pad(flat, (0, vocab_size - len(flat)))
+        flat  = flat / max(temperature, 1e-8)
+        flat -= flat.max()
+        e = np.exp(flat)
+        return e / e.sum()
 
-        The batch forwards every one of the ``N_DRAFT`` ``candidates`` and grows the
-        KV-cache by ``N_DRAFT`` slots (positions ``kv_before .. kv_before+N-1``, one
-        per candidate). Only the candidates accepted EXACTLY as drafted have a valid
-        KV slot. On divergence at index ``j`` the committed token is the model's
-        correction ``pred_j`` — but slot ``kv_before+j`` holds the REJECTED candidate
-        ``c_j``. Truncating to the committed length (``+k``) would keep that phantom
-        slot, leaving the KV one token longer than (and mis-aligned with) the
-        committed sequence and corrupting the rest of the turn. So we return
-        ``matched`` (= candidates accepted as-is) and the caller truncates to
-        ``kv_before + matched``, dropping every un-forwarded/rejected slot.
+    @staticmethod
+    def _spec_resolve(candidates, out_batch, vocab_size: int, eos_set: set,
+                      temperature: float = 1e-8):
+        """Resolve a speculative verification batch via distribution-preserving
+        speculative sampling, returning the NEWLY committed tokens and the number of
+        KV slots that must be KEPT.
 
-        Returns ``(accepted, matched, eos_hit)``:
-          * ``accepted`` — committed tokens this batch, in order. Unless ``eos_hit``,
-            the LAST element is an UN-forwarded token (a divergence correction, or
-            the free "bonus" token predicted after a full accept run); the caller
-            must forward it via a normal single-token step (``prev_output=None``).
-          * ``matched``  — # of valid KV slots to keep (truncate to ``kv_before+matched``).
-          * ``eos_hit``  — model predicted EOS after the accepted run → stop.
+        ``candidates[0]`` is the ANCHOR: the already-committed, un-forwarded token whose
+        KV slot this batch builds (always valid — it is the real committed token, just
+        not yet forwarded). ``candidates[1..N-1]`` are the deterministic (argmax) draft
+        proposals for the future. Because the draft is greedy its proposal distribution
+        ``q`` is a point mass, so the standard speculative-sampling acceptance test
+        (Leviathan/Chen) reduces to: accept draft ``d_i`` with probability ``p_i(d_i)``
+        where ``p_i = softmax(out_batch[i-1] / T)`` is the TARGET distribution at that
+        position; on rejection sample the correction from the residual ``p_i`` with
+        ``d_i`` removed (renormalised) and STOP. If every draft is accepted, sample the
+        free bonus token from ``p_N = softmax(out_batch[N-1] / T)``. This makes the
+        committed tokens distributed EXACTLY as the normal sampling path would produce
+        them, for ANY temperature (``T -> 0`` degrades to argmax-matching = greedy).
+
+        The batch forwards all ``N`` candidates, growing the KV-cache by ``N`` slots
+        (positions ``kv_before .. kv_before+N-1``). The anchor slot is always valid; a
+        draft slot is valid only if that draft was accepted as-is. A divergence
+        correction / un-forwarded bonus has NO slot, so the caller truncates to
+        ``kv_before + matched`` to drop every phantom slot (BUG-3 invariant).
+
+        Returns ``(new_tokens, matched, eos_hit)``:
+          * ``new_tokens`` — tokens committed THIS batch, EXCLUDING the anchor (already
+            committed). Unless ``eos_hit``, the LAST element is an UN-forwarded token
+            (a divergence correction, or the free bonus after a full accept run); the
+            caller forwards it next as the new anchor.
+          * ``matched``    — valid KV slots to keep = 1 (anchor) + drafts accepted as-is.
+          * ``eos_hit``    — the trailing bonus token is EOS → caller stops.
         """
         import numpy as np
         n = len(candidates)
-        accepted = [int(candidates[0])]          # d_0 already verified vs prev_output
-        diverged = False
+        new_tokens = []
+        acc        = 0            # drafts accepted as-is (valid KV slots beyond anchor)
+        diverged   = False
         for i in range(1, n):
-            pred = int(np.argmax(out_batch[i - 1].flatten()[:vocab_size]))
-            if pred == candidates[i]:
-                accepted.append(int(candidates[i]))
+            p = ShatteringOrchestrator._softmax_temp(out_batch[i - 1], vocab_size, temperature)
+            d = int(candidates[i])
+            if np.random.random() < p[d]:
+                new_tokens.append(d)
+                acc += 1
             else:
-                accepted.append(pred)            # correction token (NO valid KV slot)
+                # Reject: sample the correction from the residual (target with the
+                # rejected draft removed, renormalised), then stop.
+                p[d] = 0.0
+                s = p.sum()
+                corr = int(np.argmax(p)) if s <= 0.0 else int(np.random.choice(len(p), p=p / s))
+                new_tokens.append(corr)
                 diverged = True
                 break
 
-        # Candidates accepted exactly as drafted have valid KV slots; a trailing
-        # correction does not (its slot belongs to the rejected candidate).
-        matched = len(accepted) - 1 if diverged else len(accepted)
-
         eos_hit = False
         if not diverged:
-            # All N accepted → the model's next prediction is a free bonus token,
-            # but it was never forwarded, so it has no KV slot either.
-            bonus = int(np.argmax(out_batch[-1].flatten()[:vocab_size]))
+            # Every draft accepted → the free bonus token, sampled from the target
+            # distribution after the last draft. It was never forwarded (no KV slot).
+            p = ShatteringOrchestrator._softmax_temp(out_batch[-1], vocab_size, temperature)
+            bonus = int(np.random.choice(len(p), p=p))
             if bonus in eos_set:
                 eos_hit = True
             else:
-                accepted.append(bonus)           # un-forwarded trailing token
-        return accepted, matched, eos_hit
+                new_tokens.append(bonus)        # un-forwarded trailing token
+
+        matched = 1 + acc                        # anchor slot + accepted-draft slots
+        return new_tokens, matched, eos_hit
 
     # ── Local inference ─────────────────────────────────────────────────
 
@@ -713,7 +747,7 @@ class ShatteringOrchestrator:
         system     = COGNIA_SYSTEM_PROMPT
         formatted  = _apply_qwen_template(prompt, system) if is_qwen else prompt
         vocab_size = 151936 if is_qwen else 32000
-        _N_DRAFT   = 6
+        _N_DRAFT   = self._SPEC_N_DRAFT
 
         all_ids = np.array(pipeline._encode(formatted), dtype=np.int32)
 
@@ -731,72 +765,75 @@ class ShatteringOrchestrator:
         generated_ids    = []
         tokens_generated = 0
         t_loop           = _time.perf_counter()
-        prev_output      = None   # output from previous forward pass (for spec d_0 verify)
+        prev_output      = None   # set after first forward; gates the speculative path
         _prev_text_len   = 0      # cumulative decode length for streaming diff
+        spec_on          = self._draft is not None
+        spec_attempts    = 0      # adaptive guard: disable a weak draft mid-turn
+        spec_acc_total   = 0
 
         for _ in range(self._max_tokens):
             # ── Speculative path ──────────────────────────────────────────
-            if self._draft is not None and prev_output is not None:
+            # The anchor is the last committed-but-un-forwarded token; the draft
+            # proposes what follows it. candidates = [anchor, d_1 .. d_{N-1}].
+            if spec_on and prev_output is not None:
                 gen_arr = np.array(generated_ids, dtype=np.int32)
                 ctx_for_draft = np.concatenate([prompt_ids[-32:], gen_arr]) \
                     if len(gen_arr) else prompt_ids[-64:]
+                anchor     = int(current_ids[-1])
+                candidates = [anchor] + list(self._draft.draft(ctx_for_draft, n=_N_DRAFT - 1))
 
-                candidates = self._draft.draft(ctx_for_draft, n=_N_DRAFT)
+                kv_before = max((eng.kv_len(session_id) for eng in _LOCAL_ENGINES
+                                 if hasattr(eng, "kv_len")), default=0)
+                batch_ids = np.array(candidates, dtype=np.int32)
+                out_batch, ok = pipeline._forward_through_swarm(
+                    batch_ids, session_id, route, hidden_dim
+                )
 
-                # Verify d_0 against previous step's output
-                prev_flat    = prev_output[-1].flatten() if prev_output.ndim == 2 else prev_output.flatten()
-                d0_expected  = int(np.argmax(prev_flat[:vocab_size]))
-
-                if d0_expected != candidates[0]:
-                    # Draft missed d_0 — fall through to normal single-token step
-                    pass
-                else:
-                    # d_0 correct — run batch verification for d_1..d_{N-1}
-                    kv_before = max((eng.kv_len(session_id) for eng in _LOCAL_ENGINES
-                                     if hasattr(eng, "kv_len")), default=0)
-                    batch_ids = np.array(candidates, dtype=np.int32)
-                    out_batch, ok = pipeline._forward_through_swarm(
-                        batch_ids, session_id, route, hidden_dim
+                if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
+                    new_tokens, matched, eos_hit = self._spec_resolve(
+                        candidates, out_batch, vocab_size, eos_set, temperature
                     )
+                    # Keep ONLY the matched (validly-forwarded) KV slots; drop
+                    # the phantom slot of any rejected/un-forwarded candidate.
+                    for eng in _LOCAL_ENGINES:
+                        if hasattr(eng, "truncate_kv"):
+                            eng.truncate_kv(session_id, kv_before + matched)
 
-                    if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
-                        accepted, matched, eos_hit = self._spec_resolve(
-                            candidates, out_batch, vocab_size, eos_set
-                        )
-                        # Keep ONLY the matched (validly-forwarded) KV slots; drop
-                        # the phantom slot of any rejected/un-forwarded candidate.
-                        for eng in _LOCAL_ENGINES:
-                            if hasattr(eng, "truncate_kv"):
-                                eng.truncate_kv(session_id, kv_before + matched)
-
-                        done = eos_hit
-                        for tok_id in accepted:
-                            if tok_id in eos_set:
-                                done = True
-                                break
-                            generated_ids.append(tok_id)
-                            tokens_generated += 1
-                        # Decode cumulatively; emit only the new suffix
-                        _full = pipeline._decode(generated_ids)
-                        _new  = _full[_prev_text_len:]
-                        _prev_text_len = len(_full)
-                        if _new:
-                            loop.call_soon_threadsafe(queue.put_nowait, (_new, None))
-
-                        # The trailing committed token (correction or bonus) was NOT
-                        # forwarded — force a normal step to build its KV and recompute
-                        # prev_output from its real logits.
-                        current_ids = np.array([accepted[-1]], dtype=np.int32)
-                        prev_output = None
-
-                        if tokens_generated % 10 == 0:
-                            elapsed = _time.perf_counter() - t_loop
-                            rate    = tokens_generated / elapsed if elapsed > 0 else 0
-                            logger.info("[SpecLoop] %d tokens, %.2f tok/s (matched %d/%d drafts)",
-                                        tokens_generated, rate, matched, _N_DRAFT)
-                        if done:
+                    done = eos_hit
+                    for tok_id in new_tokens:
+                        if tok_id in eos_set:
+                            done = True
                             break
-                        continue   # skip normal path below
+                        generated_ids.append(tok_id)
+                        tokens_generated += 1
+                    # Decode cumulatively; emit only the new suffix
+                    _full = pipeline._decode(generated_ids)
+                    _new  = _full[_prev_text_len:]
+                    _prev_text_len = len(_full)
+                    if _new:
+                        loop.call_soon_threadsafe(queue.put_nowait, (_new, None))
+
+                    # Trailing committed token becomes the next anchor (un-forwarded;
+                    # its KV is built by the next batch or a normal step).
+                    current_ids = np.array([new_tokens[-1]], dtype=np.int32)
+
+                    # Adaptive guard: disable a weak draft for the rest of the turn.
+                    spec_attempts  += 1
+                    spec_acc_total += matched - 1
+                    if (spec_attempts >= self._SPEC_WARMUP and
+                            spec_acc_total / spec_attempts < self._SPEC_MIN_MEAN_ACCEPT):
+                        spec_on = False
+                        logger.info("[SpecLoop] draft weak (mean accept %.2f) — "
+                                    "disabling speculative decoding for this turn",
+                                    spec_acc_total / spec_attempts)
+                    if tokens_generated % 10 == 0:
+                        elapsed = _time.perf_counter() - t_loop
+                        rate    = tokens_generated / elapsed if elapsed > 0 else 0
+                        logger.info("[SpecLoop] %d tokens, %.2f tok/s (matched %d/%d drafts)",
+                                    tokens_generated, rate, matched, _N_DRAFT)
+                    if done:
+                        break
+                    continue   # skip normal path below
 
             # ── Normal single-token path ──────────────────────────────────
             output, success = pipeline._forward_through_swarm(
@@ -949,56 +986,71 @@ class ShatteringOrchestrator:
         from node.inference_pipeline import _LOCAL_ENGINES
 
         vocab_size       = 151936
-        _N_DRAFT         = 6
+        _N_DRAFT         = self._SPEC_N_DRAFT
         prompt_ids_local = current_ids.copy()  # save full prompt for draft context
         generated_ids    = []
         tokens_generated = 0
         t0               = _time.perf_counter()
         prev_output      = None
+        spec_on          = self._draft is not None
+        spec_attempts    = 0           # adaptive guard: disable a weak draft mid-turn
+        spec_acc_total   = 0
 
         for _ in range(self._max_tokens):
-            # Speculative path
-            if self._draft is not None and prev_output is not None:
+            # ── Speculative path ──────────────────────────────────────────
+            # The anchor is the last committed-but-un-forwarded token; the draft
+            # proposes what follows it. candidates = [anchor, d_1 .. d_{N-1}].
+            if spec_on and prev_output is not None:
                 gen_arr = np.array(generated_ids, dtype=np.int32)
                 ctx = np.concatenate([prompt_ids_local[-32:], gen_arr]) \
                     if len(gen_arr) else prompt_ids_local[-64:]
-                candidates  = self._draft.draft(ctx, n=_N_DRAFT)
-                prev_flat   = prev_output[-1].flatten() if prev_output.ndim == 2 else prev_output.flatten()
-                d0_expected = int(np.argmax(prev_flat[:vocab_size]))
+                anchor     = int(current_ids[-1])
+                candidates = [anchor] + list(self._draft.draft(ctx, n=_N_DRAFT - 1))
 
-                if d0_expected == candidates[0]:
-                    kv_before = max((e.kv_len(session_id) for e in _LOCAL_ENGINES
-                                     if hasattr(e, "kv_len")), default=0)
-                    out_batch, ok = pipeline._forward_through_swarm(
-                        np.array(candidates, dtype=np.int32), session_id, route, hidden_dim
+                kv_before = max((e.kv_len(session_id) for e in _LOCAL_ENGINES
+                                 if hasattr(e, "kv_len")), default=0)
+                out_batch, ok = pipeline._forward_through_swarm(
+                    np.array(candidates, dtype=np.int32), session_id, route, hidden_dim
+                )
+                if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
+                    new_tokens, matched, eos_hit = self._spec_resolve(
+                        candidates, out_batch, vocab_size, eos_set, temperature
                     )
-                    if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
-                        accepted, matched, eos_hit = self._spec_resolve(
-                            candidates, out_batch, vocab_size, eos_set
-                        )
-                        # Keep ONLY the matched (validly-forwarded) KV slots; drop
-                        # the phantom slot of any rejected/un-forwarded candidate.
-                        for eng in _LOCAL_ENGINES:
-                            if hasattr(eng, "truncate_kv"):
-                                eng.truncate_kv(session_id, kv_before + matched)
-                        done = eos_hit
-                        for tok_id in accepted:
-                            if tok_id in eos_set:
-                                done = True
-                                break
-                            generated_ids.append(tok_id)
-                            tokens_generated += 1
-                        # Trailing committed token (correction/bonus) is un-forwarded:
-                        # force a normal step to build its KV + recompute prev_output.
-                        current_ids = np.array([accepted[-1]], dtype=np.int32)
-                        prev_output = None
-                        if tokens_generated % 10 == 0:
-                            elapsed = _time.perf_counter() - t0
-                            rate    = tokens_generated / elapsed if elapsed > 0 else 0
-                            logger.info("[SpecLoop] %d tokens, %.2f tok/s (matched=%d)", tokens_generated, rate, matched)
-                        if done:
+                    # Keep ONLY the matched (validly-forwarded) KV slots; drop
+                    # the phantom slot of any rejected/un-forwarded candidate.
+                    for eng in _LOCAL_ENGINES:
+                        if hasattr(eng, "truncate_kv"):
+                            eng.truncate_kv(session_id, kv_before + matched)
+                    done = eos_hit
+                    for tok_id in new_tokens:
+                        if tok_id in eos_set:
+                            done = True
                             break
-                        continue
+                        generated_ids.append(tok_id)
+                        tokens_generated += 1
+                    # Trailing committed token becomes the next anchor; it is
+                    # un-forwarded, so its KV is built by the next batch (or a
+                    # normal step if spec is disabled below).
+                    current_ids = np.array([new_tokens[-1]], dtype=np.int32)
+
+                    # Adaptive guard: a draft that rarely lands wastes a wide batch
+                    # per committed token. Disable spec for the rest of the turn if
+                    # the mean accepted-draft count stays below threshold after warmup.
+                    spec_attempts  += 1
+                    spec_acc_total += matched - 1
+                    if (spec_attempts >= self._SPEC_WARMUP and
+                            spec_acc_total / spec_attempts < self._SPEC_MIN_MEAN_ACCEPT):
+                        spec_on = False
+                        logger.info("[SpecLoop] draft weak (mean accept %.2f) — "
+                                    "disabling speculative decoding for this turn",
+                                    spec_acc_total / spec_attempts)
+                    if tokens_generated % 10 == 0:
+                        elapsed = _time.perf_counter() - t0
+                        rate    = tokens_generated / elapsed if elapsed > 0 else 0
+                        logger.info("[SpecLoop] %d tokens, %.2f tok/s (matched=%d)", tokens_generated, rate, matched)
+                    if done:
+                        break
+                    continue
 
             # Normal single-token step
             output, success = pipeline._forward_through_swarm(
@@ -1137,6 +1189,16 @@ class ShatteringOrchestrator:
         "techne": 0.15,
         "rhetor": 0.7,
     }
+
+    # ── Speculative-decoding tuning ───────────────────────────────────────
+    # _SPEC_N_DRAFT: width of each verification batch (1 anchor + N-1 draft tokens).
+    # The adaptive guard disables spec for the rest of a turn when, after
+    # _SPEC_WARMUP attempts, the mean number of accepted draft tokens per batch
+    # falls below _SPEC_MIN_MEAN_ACCEPT — a weak draft makes the wide batch cost
+    # more than the tokens it saves, so we fall back to plain single-token steps.
+    _SPEC_N_DRAFT        = 6
+    _SPEC_WARMUP         = 8
+    _SPEC_MIN_MEAN_ACCEPT = 1.0
 
     def _ollama_infer(self, prompt: str, sub_model: str, n_passes: int = 1) -> str:
         """

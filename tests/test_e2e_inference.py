@@ -389,42 +389,95 @@ def _plus_one_out_batch(candidates, vocab: int = 300, bonus_tok=None):
 
 
 class TestSpecResolveContract:
-    """_spec_resolve must report the committed tokens AND the number of valid KV
-    slots (`matched`) — never counting a divergence correction or an un-forwarded
-    bonus as a kept slot."""
+    """_spec_resolve (anchor contract): candidates[0] is the already-committed ANCHOR
+    (excluded from the returned new_tokens); candidates[1..] are draft proposals. It
+    reports the NEWLY committed tokens and the number of valid KV slots (`matched` =
+    1 anchor + drafts accepted as-is), never counting a correction or bonus as a slot.
+    Greedy temperature (default 1e-8) makes acceptance a deterministic argmax match."""
 
-    def test_divergence_returns_matched_excluding_correction(self):
+    def test_divergence_excludes_anchor_and_correction_from_matched(self):
         from shattering.orchestrator import ShatteringOrchestrator
-        cands = [10, 11, 99, 13, 14, 15]          # 11+1=12 != 99 → diverge at idx 2
+        cands = [10, 11, 99, 13, 14, 15]   # anchor 10; 11+1=12 != 99 → diverge at idx 2
         out_batch = _plus_one_out_batch(cands)
-        accepted, matched, eos = ShatteringOrchestrator._spec_resolve(
+        new_tokens, matched, eos = ShatteringOrchestrator._spec_resolve(
             cands, out_batch, vocab_size=300, eos_set=set()
         )
-        assert accepted == [10, 11, 12]           # correction 12 replaces 99
-        assert matched == 2                        # only 10,11 have valid KV slots
+        assert new_tokens == [11, 12]      # anchor 10 excluded; correction 12 replaces 99
+        assert matched == 2                 # anchor slot + 1 accepted draft (11)
         assert eos is False
 
     def test_all_accept_appends_bonus_but_matched_is_n(self):
         from shattering.orchestrator import ShatteringOrchestrator
-        cands = [10, 11, 12, 13, 14, 15]
+        cands = [10, 11, 12, 13, 14, 15]   # anchor 10 + 5 drafts, all land
         out_batch = _plus_one_out_batch(cands, bonus_tok=16)
-        accepted, matched, eos = ShatteringOrchestrator._spec_resolve(
+        new_tokens, matched, eos = ShatteringOrchestrator._spec_resolve(
             cands, out_batch, vocab_size=300, eos_set=set()
         )
-        assert accepted == [10, 11, 12, 13, 14, 15, 16]   # bonus appended
-        assert matched == 6                                # bonus has NO KV slot
+        assert new_tokens == [11, 12, 13, 14, 15, 16]   # anchor excluded; bonus appended
+        assert matched == 6                              # anchor + 5 drafts (bonus has NO slot)
         assert eos is False
 
     def test_all_accept_eos_bonus_stops_without_appending(self):
         from shattering.orchestrator import ShatteringOrchestrator
         cands = [10, 11, 12, 13, 14, 15]
         out_batch = _plus_one_out_batch(cands, bonus_tok=2)   # EOS as next prediction
-        accepted, matched, eos = ShatteringOrchestrator._spec_resolve(
+        new_tokens, matched, eos = ShatteringOrchestrator._spec_resolve(
             cands, out_batch, vocab_size=300, eos_set={2}
         )
-        assert accepted == [10, 11, 12, 13, 14, 15]
+        assert new_tokens == [11, 12, 13, 14, 15]
         assert matched == 6
         assert eos is True
+
+    def test_immediate_divergence_keeps_only_anchor_slot(self):
+        from shattering.orchestrator import ShatteringOrchestrator
+        cands = [10, 77, 12, 13, 14, 15]   # 10+1=11 != 77 → diverge at the FIRST draft
+        out_batch = _plus_one_out_batch(cands)
+        new_tokens, matched, eos = ShatteringOrchestrator._spec_resolve(
+            cands, out_batch, vocab_size=300, eos_set=set()
+        )
+        assert new_tokens == [11]          # correction only; nothing drafted survives
+        assert matched == 1                 # just the anchor slot
+        assert eos is False
+
+
+class TestSpecResolveSampling:
+    """Distribution preservation: with a deterministic (argmax) draft, the speculative
+    acceptance test must make the committed token distributed EXACTLY as the normal
+    sampling path (softmax at the same temperature) would produce it — for any T."""
+
+    def test_first_committed_token_matches_target_distribution(self):
+        from shattering.orchestrator import ShatteringOrchestrator
+        vocab, T = 5, 0.8
+        logits = np.array([2.0, 1.0, 0.5, 0.0, -1.0], dtype=np.float32)  # target for pos 1
+        target = ShatteringOrchestrator._softmax_temp(logits, vocab, T)
+        # anchor=0, first draft=1; later rows are irrelevant to new_tokens[0]
+        cands = [0, 1, 2, 3, 4, 0]
+        out_batch = np.zeros((6, vocab), dtype=np.float32)
+        out_batch[0] = logits
+        counts = np.zeros(vocab)
+        np.random.seed(1234)
+        N = 40000
+        for _ in range(N):
+            new_tokens, _, _ = ShatteringOrchestrator._spec_resolve(
+                cands, out_batch, vocab_size=vocab, eos_set=set(), temperature=T
+            )
+            counts[new_tokens[0]] += 1
+        empirical = counts / N
+        assert np.allclose(empirical, target, atol=0.01), (empirical, target)
+
+    def test_greedy_temperature_reduces_to_argmax(self):
+        from shattering.orchestrator import ShatteringOrchestrator
+        # token 3 has the max logit at position 1 → greedy must commit 3, not the draft 1
+        vocab = 5
+        out_batch = np.zeros((6, vocab), dtype=np.float32)
+        out_batch[0] = np.array([0.1, 0.2, 0.3, 9.0, 0.0], dtype=np.float32)
+        cands = [0, 1, 2, 3, 4, 0]
+        np.random.seed(0)
+        new_tokens, matched, _ = ShatteringOrchestrator._spec_resolve(
+            cands, out_batch, vocab_size=vocab, eos_set=set(), temperature=1e-8
+        )
+        assert new_tokens[0] == 3      # argmax correction, draft 1 rejected
+        assert matched == 1            # immediate divergence → only the anchor slot
 
 
 class _FakeKVEngine:
@@ -444,54 +497,174 @@ class _FakeKVEngine:
 
 
 class TestSpeculativeKVAlignment:
-    """BUG-3: on a draft divergence the loop must keep only `matched` KV slots so the
-    cache stays aligned with the committed token sequence. Truncating to the committed
-    length (`+k`) keeps the rejected candidate's phantom slot → KV one token too long."""
+    """BUG-3 + BUG-5: a spec batch forwards [anchor, d_1..d_{N-1}] (anchor = the last
+    committed-but-un-forwarded token). Keeping only `matched = 1 + accepted` slots must
+    leave the KV holding EXACTLY the committed-and-forwarded tokens (everything except
+    the trailing un-forwarded next-anchor). Truncating to the committed length keeps a
+    phantom rejected slot → KV one token too long."""
 
     SID = "spec"
 
-    def _run_one_spec_step(self, prefix, candidates, truncate_to):
-        """Simulate exactly one speculative batch + the follow-up normal step that
-        forwards the trailing correction. `truncate_to` is a callable
-        (kv_before, matched, k) -> int, letting us contrast the fixed vs buggy policy."""
+    def _run_one_spec_step(self, forwarded, anchor, drafts, truncate_to):
+        """Simulate one speculative batch. `forwarded` = committed+forwarded tokens
+        BEFORE this step; `anchor` = the committed-but-un-forwarded token; `drafts` =
+        the draft proposals after the anchor. `truncate_to(kv_before, matched, k)`
+        chooses the truncation policy (fixed vs buggy)."""
         from shattering.orchestrator import ShatteringOrchestrator
         eng = _FakeKVEngine()
-        eng.forward(self.SID, prefix)                       # committed+forwarded so far
+        eng.forward(self.SID, forwarded)                    # KV before the batch
         kv_before = eng.kv_len(self.SID)
+        candidates = [anchor] + list(drafts)
         eng.forward(self.SID, candidates)                   # batch forwards all N
         out_batch = _plus_one_out_batch(candidates)
-        accepted, matched, eos = ShatteringOrchestrator._spec_resolve(
+        new_tokens, matched, eos = ShatteringOrchestrator._spec_resolve(
             candidates, out_batch, vocab_size=300, eos_set=set()
         )
-        k = len(accepted)
+        k = len(new_tokens)
         eng.truncate_kv(self.SID, truncate_to(kv_before, matched, k))
-        # The trailing un-forwarded token (correction/bonus) is forwarded next.
-        if not eos:
-            eng.forward(self.SID, [accepted[-1]])
-        committed = list(prefix) + accepted
+        committed = list(forwarded) + [anchor] + new_tokens
+        # All committed tokens are forwarded EXCEPT the trailing un-forwarded next-anchor.
         return eng.fwd[self.SID], committed
 
     def test_fixed_matched_truncate_keeps_kv_aligned(self):
-        # divergence at idx 2: 103+1=104 != 99 → correction 104, matched 2
+        # anchor 101; drafts [102,103,99,..]: 103+1=104 != 99 → correction 104, matched 2
         kv, committed = self._run_one_spec_step(
-            prefix=[100, 101],
-            candidates=[102, 103, 99, 105, 106, 107],
+            forwarded=[100],
+            anchor=101,
+            drafts=[102, 103, 99, 105, 106],
             truncate_to=lambda kv_before, matched, k: kv_before + matched,   # FIX
         )
-        assert kv == committed == [100, 101, 102, 103, 104]
+        assert committed == [100, 101, 102, 103, 104]
+        # KV = everything committed except the trailing un-forwarded token (104).
+        assert kv == committed[:-1] == [100, 101, 102, 103]
 
     def test_buggy_committed_length_truncate_misaligns_kv(self):
         # Same step under the OLD `+k` policy keeps the rejected candidate (99) →
-        # KV is one token too long and holds a phantom token. Locks the bug shape.
+        # KV holds a phantom token and is mis-aligned. Locks the bug shape.
         kv, committed = self._run_one_spec_step(
-            prefix=[100, 101],
-            candidates=[102, 103, 99, 105, 106, 107],
-            truncate_to=lambda kv_before, matched, k: kv_before + k,         # BUG
+            forwarded=[100],
+            anchor=101,
+            drafts=[102, 103, 99, 105, 106],
+            truncate_to=lambda kv_before, matched, k: kv_before + 1 + k,     # BUG (+anchor+k)
         )
         assert committed == [100, 101, 102, 103, 104]
-        assert kv == [100, 101, 102, 103, 99, 104]    # phantom 99 + off-by-one length
-        assert kv != committed
-        assert len(kv) == len(committed) + 1
+        assert kv == [100, 101, 102, 103, 99]         # phantom 99 instead of trailing drop
+        assert kv != committed[:-1]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BUG-5: the speculative loop must actually TRIGGER and stay greedy-equivalent.
+# A deterministic "+1 counter" model + a perfect draft drive the real _token_loop.
+# ══════════════════════════════════════════════════════════════════════════════
+
+class _PlusOneEngine:
+    """KV bookkeeping for the +1 model: records every forwarded token in order."""
+    def __init__(self):
+        self.kv = {}
+
+    def kv_len(self, sid):
+        return len(self.kv.get(sid, []))
+
+    def truncate_kv(self, sid, n):
+        self.kv[sid] = self.kv.get(sid, [])[: max(0, n)]
+
+    def _record(self, sid, ids):
+        self.kv.setdefault(sid, []).extend(int(t) for t in ids)
+
+
+class _PlusOnePipeline:
+    """Deterministic '+1 counter' model: forwarding token t yields logits whose argmax
+    is t+1. Records forwards into the paired engine so KV bookkeeping is observable."""
+    model_name = "fake-counter"
+
+    def __init__(self, engine, vocab=512):
+        self._engine = engine
+        self._vocab = vocab
+
+    def _forward_through_swarm(self, ids, sid, route, hidden_dim):
+        ids = np.atleast_1d(np.asarray(ids)).astype(int)
+        self._engine._record(sid, ids)
+        out = np.zeros((len(ids), self._vocab), dtype=np.float32)
+        for i, t in enumerate(ids):
+            out[i, (int(t) + 1) % self._vocab] = 10.0
+        return out, True
+
+    def _sample(self, output, temperature):
+        flat = output[-1] if output.ndim == 2 else output.flatten()
+        return int(np.argmax(flat[: self._vocab]))
+
+
+class _PerfectPlusOneDraft:
+    """Perfect draft for the +1 model: ctx ending at t → [t+1, t+2, ...]."""
+    def __init__(self):
+        self.calls = 0
+
+    def draft(self, ctx, n=6):
+        self.calls += 1
+        last = int(np.asarray(ctx)[-1])
+        return [(last + 1 + k) for k in range(n)]
+
+
+class _WeakDraft:
+    """Always-wrong draft: proposes a token the +1 model never predicts."""
+    def __init__(self):
+        self.calls = 0
+
+    def draft(self, ctx, n=6):
+        self.calls += 1
+        return [0 for _ in range(n)]
+
+
+def _make_orch(draft, max_tokens):
+    from shattering.orchestrator import ShatteringOrchestrator
+    o = ShatteringOrchestrator.__new__(ShatteringOrchestrator)
+    o._draft = draft
+    o._max_tokens = max_tokens
+    return o
+
+
+class TestSpecGreedyEquivalence:
+    def _run(self, draft, engine, pipeline, sid, max_tokens):
+        import node.inference_pipeline as ip
+        saved = list(ip._LOCAL_ENGINES)
+        ip._LOCAL_ENGINES[:] = [engine]
+        try:
+            orch = _make_orch(draft, max_tokens)
+            prompt = np.array([100], dtype=np.int32)
+            return orch._token_loop(pipeline, [], sid, prompt, 8, set(), temperature=1e-8)
+        finally:
+            ip._LOCAL_ENGINES[:] = saved
+
+    def test_spec_triggers_and_matches_greedy_token_for_token(self):
+        eng_g = _PlusOneEngine()
+        gen_g, _ = self._run(None, eng_g, _PlusOnePipeline(eng_g), "g", 18)
+
+        eng_s = _PlusOneEngine()
+        draft = _PerfectPlusOneDraft()
+        gen_s, _ = self._run(draft, eng_s, _PlusOnePipeline(eng_s), "s", 18)
+
+        # BUG-5 fixed: the draft was actually consulted and the spec batch committed
+        # several tokens per loop iteration (so spec generated more than greedy).
+        assert draft.calls > 0
+        assert len(gen_s) > len(gen_g)
+        # Greedy equivalence on the shared prefix — spec changes speed, not output.
+        K = min(len(gen_s), len(gen_g))
+        assert K >= 10
+        assert gen_s[:K] == gen_g[:K]
+        assert gen_g[:5] == [101, 102, 103, 104, 105]   # the +1 counter sequence
+        # KV stays aligned: every forwarded token = committed minus the trailing anchor.
+        assert eng_s.kv["s"] == ([100] + gen_s)[:-1]
+
+    def test_weak_draft_is_disabled_after_warmup_but_output_stays_correct(self):
+        eng = _PlusOneEngine()
+        draft = _WeakDraft()
+        from shattering.orchestrator import ShatteringOrchestrator
+        gen, _ = self._run(draft, eng, _PlusOnePipeline(eng), "w", 20)
+        # The adaptive guard stops attempting spec once the draft proves weak: exactly
+        # _SPEC_WARMUP draft calls, then plain single-token steps for the rest of the turn.
+        assert draft.calls == ShatteringOrchestrator._SPEC_WARMUP
+        # Output is still the exact greedy +1 sequence (corrections == the real argmax).
+        assert gen[:8] == [101, 102, 103, 104, 105, 106, 107, 108]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
