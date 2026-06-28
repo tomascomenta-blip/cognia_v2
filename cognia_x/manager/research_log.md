@@ -4547,3 +4547,11 @@ cycle150 → H-V4-9j 'refutada' (DoD), D-V4-110 ACEPTADA, techo 'real', verify_n
 > 'no se detecta reliability residual vía ECE', no 'demostrado imposible'. Lecciones del arco 151-154: tautología-CI (151), m≠escasez
 > (152), rank-only≠calibración (153), reliability(ECE)≠resolution(Brier/NET) (154). Frontera: réplica N≥12 + umbral EV-óptimo por-brazo;
 > o PIVOTE (base-acc alta / transferencia / SCALE).
+
+## [2026-06-28] CYCLE 155 — ROBUSTEZ: N=12 CONFIRMA el capstone 154 (REFUTADA-de-reliability) y resuelve la batch-fragilidad
+> Réplica de potencia de H-V4-9n (no hipótesis nueva): extendí exp136 a N=12 (seeds 6-11). La REFUTADA-de-reliability SE SOSTIENE
+> (robust_ece=False, rank_only=True). ECE indist −0.0014 (t=−0.46, plano-a-peor); heldout +0.0017 (t=1.98, 9/12) — una TRAZA positiva
+> MINÚSCULA emerge con más potencia pero negligible y no robusta (no unánime, no Bonferroni). El payoff dominante sigue RANKING (AUROC
+> indist t=2.25 / heldout t=2.73). La batch-fragilidad del N=6 se RESUELVE hacia REFUTADA (el artefacto APOYADA de seeds 3-5 se lava).
+> El residuo del lazo real es ranking; la reliability, a lo sumo, una traza negligible. test_cycle154 4/4 contra N=12. Capstone firme.
+> Próximo: PIVOTE de frontera (régimen base-acc alta / transferencia) — arco downstream CERRADO; SCALE sigue hardware-bloqueado.

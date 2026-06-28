@@ -123,6 +123,11 @@ Todo en CPU, acumulativo, reproducible, honesto.
   calibrada; **la tesis 123 ("la calibración paga en la decisión") NO queda tocada por este residuo** en el lazo real desconfundido.
   ACOTADO: "no se detecta reliability residual vía ECE", no "demostrado imposible" (N=6 batch-frágil). FRONTERA: réplica N≥12 con barra
   SIMÉTRICA + umbral EV-óptimo POR-BRAZO (no τ fijo, que degenera OOD); o PIVOTE (régimen base-acc alta / transferencia / SCALE).
+  → **CONFIRMADO a N=12 (CYCLE 155, robustez):** la REFUTADA-de-reliability se SOSTIENE y la batch-fragilidad se RESUELVE hacia REFUTADA
+  (el artefacto APOYADA de seeds 3-5 se lava). ECE indist −0.0014 (t=−0.46, plano-a-peor); heldout +0.0017 (t=1.98, 9/12) — emerge una
+  TRAZA positiva MINÚSCULA con más potencia PERO negligible en magnitud y no robusta (no unánime, no Bonferroni). El payoff dominante
+  sigue RANKING (AUROC indist t=2.25 / heldout t=2.73; −Brier=resolution t=4.24/2.85). El residuo es ranking; la reliability, a lo sumo,
+  una traza negligible. Capstone firme.
 
 ## 2. ASUMIDO / ACOTADO (real pero condicional — el grueso del arco)
 
