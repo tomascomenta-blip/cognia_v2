@@ -4531,3 +4531,19 @@ cycle150 → H-V4-9j 'refutada' (DoD), D-V4-110 ACEPTADA, techo 'real', verify_n
 > métrica rank-only NO testea calibración; el 1er positivo tras una racha deflacionaria es el de mayor riesgo de overclaim. Frontera
 > (CYCLE 154): métrica decisional NO invariante-a-monótonas (cost-weighted / umbral-abstención) que SEPARE calibración de ranking; N≥12;
 > LOO + Bonferroni; réplica out-of-sample.
+
+## [2026-06-28] CYCLE 154 — H-V4-9n REFUTADA-de-RELIABILITY (CAPSTONE): el residuo del lazo real es RANKING, no CALIBRACIÓN
+> exp136 (lazo torch real, N=6) aplica el test DECISIVO que el 153 definió: sobre el pool fijo escaso del 153, métricas SENSIBLES A
+> MAGNITUDES (NO rank-invariantes) que SEPARAN reliability de ranking — Brier, ECE (reliability PURA, threshold-free), NET umbral-
+> abstención — vs AUROC rank-only. RESULTADO: (a) la reliability PURA (ECE) del residuo genérico (ls_lo) NO paga — plano-a-PEOR en
+> AMBOS pools (indist −0.006 t=−1.28, ls_lo levemente peor; heldout +0.0004; el durable también); (b) el único payoff ROBUSTO es
+> RANKING (heldout AUROC +0.017 t=3.74, disociación limpia: AUROC robusto con ECE/Brier nulos). VERIFICACIÓN ADVERSARIAL (4 sondas;
+> recomendó REFUTADA-de-reliability, net_degenerate=True): la conclusión de fondo (la reliability NO paga) es CORRECTA y las métricas
+> VÁLIDAS, PERO acotó el OVERSELL: (1) el −Brier/NET indist NO se desvanecen (CI excl 0) → son RESOLUTION=ranking (co-mueven con AUROC
+> ~0.82), no reliability; (2) el NET heldout es DEGENERADO (nadie cruza τ OOD) → cero estructural, no-evidencia; (3) FRAGILIDAD N=6 (el
+> label flipea por lote). REACCIÓN: anclé el veredicto en ECE (reliability pura), marqué net_degenerate, reframé Brier/NET como
+> resolution. NET: CIERRA el arco downstream '¿calibración o ranking?' (149-154) del lado RANKING — lo que sobrevivió al desconfound del
+> 151 es ranking/discriminación, NO una señal de valor más calibrada; la tesis 123 NO la toca este residuo. ACOTADO N=6 batch-frágil →
+> 'no se detecta reliability residual vía ECE', no 'demostrado imposible'. Lecciones del arco 151-154: tautología-CI (151), m≠escasez
+> (152), rank-only≠calibración (153), reliability(ECE)≠resolution(Brier/NET) (154). Frontera: réplica N≥12 + umbral EV-óptimo por-brazo;
+> o PIVOTE (base-acc alta / transferencia / SCALE).

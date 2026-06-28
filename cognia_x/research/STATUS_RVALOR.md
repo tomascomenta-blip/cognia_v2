@@ -1,4 +1,4 @@
-# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-153)
+# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-154)
 
 > Síntesis-capstone (CYCLE 147, 2026-06-27). Anclada en los veredictos REALES commiteados (no en intuición).
 > Escrita tras 6 MIXTA seguidos (141-146) que evidencian SATURACIÓN del toy. Append-only; no reemplaza al ledger
@@ -109,6 +109,20 @@ Todo en CPU, acumulativo, reproducible, honesto.
   sugestivo-no-concluyente y rank-only → la pregunta "¿la calibración paga downstream?" queda BIEN PLANTEADA y abierta. FRONTERA
   (CYCLE 154): métrica decisional NO invariante-a-monótonas (cost-weighted / umbral-abstención) que separe CALIBRACIÓN de RANKING; N≥12;
   LOO + Bonferroni; réplica out-of-sample.
+- **[NUEVO 154 — CAPSTONE del arco downstream: el residuo es RANKING, no CALIBRACIÓN (REFUTADA-de-RELIABILITY)]** exp136 (N=6, el test
+  DECISIVO que el 153 definió: sobre el pool fijo escaso del 153, métricas SENSIBLES A MAGNITUDES -Brier, **ECE = reliability PURA
+  threshold-free**, NET umbral-abstención- vs AUROC rank-only, que SEPARAN calibración de ranking). RESULTADO: la reliability del
+  residuo genérico (ls_lo) NO paga — el **ECE es plano-a-PEOR** en AMBOS pools (indist −0.006 t=−1.28, ls_lo levemente peor; heldout
+  +0.0004; el durable también peor). El **único payoff ROBUSTO es RANKING** (heldout AUROC +0.017, t=3.74, disociación limpia: AUROC
+  robusto con ECE/Brier nulos). ACOTACIÓN load-bearing (verificación, 3 sondas ACOTA + 1 REFUTA): NO "todo se desvanece" — en indist
+  −Brier (+0.007, t=2.21, CI excl 0) y NET(λ3) (+0.081, CI excl 0) SÍ son positivos sub-robustos PERO por Brier=reliability−resolution
+  +uncertainty con ECE plano son **RESOLUTION (ranking re-expresado**, co-mueve con AUROC ~0.82); el **NET heldout es DEGENERADO** (cero
+  estructural, nadie cruza τ OOD) → no-evidencia. FRAGILIDAD: N=6 smoke, el label flipea REFUTADA↔APOYADA por lote (seeds 3-5 darían
+  APOYADA vía Brier/resolution = falso positivo del gate). NET: **CIERRA el arco downstream "¿calibración o ranking?" (149-154) del
+  lado RANKING** — lo que sobrevivió al desconfound del 151 es una señal de RANKING/discriminación, NO una señal de valor más
+  calibrada; **la tesis 123 ("la calibración paga en la decisión") NO queda tocada por este residuo** en el lazo real desconfundido.
+  ACOTADO: "no se detecta reliability residual vía ECE", no "demostrado imposible" (N=6 batch-frágil). FRONTERA: réplica N≥12 con barra
+  SIMÉTRICA + umbral EV-óptimo POR-BRAZO (no τ fijo, que degenera OOD); o PIVOTE (régimen base-acc alta / transferencia / SCALE).
 
 ## 2. ASUMIDO / ACOTADO (real pero condicional — el grueso del arco)
 
@@ -139,6 +153,7 @@ Todo en CPU, acumulativo, reproducible, honesto.
 | 151 | "APOYADA: hay señal de ranking genuina (CI excluye 0)" (regla pre-registrada) | la regla "CI bootstrap excluye 0" es TAUTOLÓGICA con gaps un-signo; el t-test pareado real es sub-significativo (t=1.98<2.015) → re-etiquetada MIXTA; + error factual "generados desde el base" (eran CONSTRUIDOS) |
 | 152 | "REFUTADA-downstream: el residuo tampoco paga en la decisión" | DEFECTO DE DISEÑO (sev ALTA): el pool balanceado 50/50 SATURA precision@top-m (INDIST gap CERO ESTRUCTURAL) y NO es escaso (f<=0.5, nunca f≈1) → la tesis 123 NUNCA se testeó; "m chico=escasez" contradice exp124 → re-etiquetada MIXTA-ACOTADA |
 | 153 | "APOYADA-downstream: el residuo paga bajo escasez (la brújula-123 vale)" | ERROR DE CATEGORÍA (sev media): precision@top-m es RANK-ONLY (invariante a monótonas, como AUROC) → NO testea calibración, RE-EXPRESA el AUROC del 151 (r≈0.87); + no robusto (falla LOO/Bonferroni/6-de-6) → re-etiquetada MIXTA (1er positivo-leaning, sugestivo no concluyente) |
+| 154 | "REFUTADA-calibración: ECE/Brier/NET se desvanecen (disociación limpia)" | OVERSELL DEL NEGATIVO (3 sondas ACOTA): el −Brier/NET indist NO se desvanecen (CI excl 0) -son RESOLUTION=ranking, no reliability-; el NET heldout es DEGENERADO (no-evidencia); el label es batch-frágil (un sub-lote daría APOYADA) → re-etiquetada REFUTADA-de-RELIABILITY (anclada en ECE, la única reliability pura) |
 
 ## 4. SATURACIÓN del toy + FRONTERA REAL
 
@@ -155,15 +170,15 @@ deliberado (146, aprender el valor en vez de usarlo), dan todos el resultado EST
    → 152 INTENTÓ el pago downstream (precision@top-m) pero el pool balanceado SATURÓ el test y NO instanció la escasez (f<=0.5) →
    MIXTA-ACOTADA, la tesis 123 sin testear (la inversión del durable SÍ se confirmó downstream). 153 lo rehízo bien (pool ESCASO + f≈1):
    1er POSITIVO-LEANING del arco (ls_lo−naive a f=1.0 t-sig sin corregir en ambos pools) PERO no robusto (LOO/Bonferroni) y RANK-ONLY
-   (precision@top-m re-expresa el AUROC del 151, no testea calibración). QUEDA (CYCLE 154): métrica decisional NO invariante-a-monótonas
-   (cost-weighted / umbral-abstención) que SEPARE calibración de ranking — el único test que de verdad tocaría la 123; N≥12; LOO+Bonferroni.
+   (precision@top-m re-expresa el AUROC del 151, no testea calibración). 154 lo RESOLVIÓ (métricas magnitude-sensitive, ECE=reliability pura): la calibración del residuo NO paga (ECE plano-a-peor); el
+   único payoff robusto es RANKING → la tesis 123 no la toca este residuo. ARCO DOWNSTREAM CERRADO del lado ranking (ACOTADO N=6). QUEDA: réplica N≥12 + umbral EV-óptimo por-brazo; o PIVOTE (base-acc alta / transferencia / SCALE).
 3. **SCALE (GPU/Kaggle):** la frontera #1 de la auditoría, JAMÁS tocada (0%), hardware-bloqueada en este i3 sin CUDA.
 
 ## 5. Mapa conceptual — % honesto
 
 - **Mapa conceptual del valor endógeno (toy):** ~70% (forma, grounding EFE, capacidad/escasez, varianza-prior, sesgo
   inductivo, decisión bajo escasez — todos caracterizados con sus acotaciones).
-- **Sistema real escalado:** ~29% (149 estableció que el durable bate al naive en AUROC_own en el lazo real; 150 ACOTÓ -la cura NO es
+- **Sistema real escalado:** ~31% (149 estableció que el durable bate al naive en AUROC_own en el lazo real; 150 ACOTÓ -la cura NO es
   privilegiada, un target-smoothing genérico la iguala- y SOSPECHÓ el confound de generación; 151 lo CERRÓ con el desconfound limpio
   (pool fijo balanceado): la ventaja AUROC_own del durable era ENTERAMENTE riqueza de generación -se INVIERTE a −0.210 en el pool
   fijo, t=−10.6, 6/6 seeds- → la atribución 'calibración endógena' del 149 queda REFUTADA; sólo un residuo GENÉRICO de signo (ls_lo
@@ -171,11 +186,20 @@ deliberado (146, aprender el valor en vez de usarlo), dan todos el resultado EST
   está RESUELTA: ahora SABEMOS que el payoff del lazo real es mayormente artefacto de generación + un residuo genérico mínimo —
   entendimiento honesto, deflacionario. 152 intentó el pago DOWNSTREAM del residuo (precision@top-m) pero el pool balanceado SATURÓ el
   test y NO instanció la escasez real (f<=0.5) → MIXTA-ACOTADA, la tesis brújula-decisional (123) bajo escasez SIN testear (defecto de
-  diseño, no evidencia adversa); sí se CONFIRMÓ la inversión del durable downstream y fuera-de-forma (held-out). Falta: el pago
-  downstream en el régimen ESCASO real (q bajo / f≈1, CYCLE 153); potencia N≥8; régimen base-acc alta; transferencia; escala. ~27%.
+  diseño, no evidencia adversa); sí se CONFIRMÓ la inversión del durable downstream y fuera-de-forma (held-out). 153 rehízo el downstream
+  bien (pool ESCASO + f≈1): 1er POSITIVO-LEANING del arco PERO no robusto (LOO/Bonferroni) y RANK-ONLY (precision@top-m re-expresa el
+  AUROC del 151). 154 (CAPSTONE) lo RESOLVIÓ con métricas SENSIBLES A MAGNITUDES (ECE=reliability pura): la calibración del residuo NO
+  paga -ECE plano-a-peor en ambos pools-; el único payoff robusto es RANKING (heldout AUROC +0.017 t=3.74). CIERRA el arco downstream
+  '¿calibración o ranking?' (149-154) del lado RANKING: lo que sobrevivió al desconfound es ranking, NO calibración → la tesis 123 NO
+  la toca este residuo. ACOTADO N=6 batch-frágil ('no se detecta', no 'imposible'). Falta: réplica N≥12 + umbral EV-óptimo por-brazo;
+  régimen base-acc alta; transferencia; escala. ~31%.
 - **SCALE:** 0% (hardware-bloqueado en este i3 sin CUDA — la frontera #1 de la auditoría, intocada).
 
-> Regla para el próximo ciclo: NO re-derivar lo de §1-3. Atacar §4 (lazo real: el PAGO DOWNSTREAM del residuo genérico bajo escasez —
-> la pregunta viva que el 151 dejó explícita / régimen base-acc alta / ranking held-out / transferencia / SCALE) o declarar
-> honestamente el bloqueo de hardware. El método (verificación adversarial antes del ledger) es INNEGOCIABLE. Lección transversal del
-> 151: 'CI bootstrap excluye 0' NO prueba robustez con gaps un-signo (tautológico) — usar t-test pareado como compuerta dura.
+> Regla para el próximo ciclo: NO re-derivar lo de §1-3. El ARCO DOWNSTREAM (151-154) está CERRADO: el residuo del lazo real es
+> RANKING, no calibración; la tesis 123 no la toca este residuo. Próximas fronteras §4 (elegir una): (a) RÉPLICA N≥12 del 154 con barra
+> SIMÉTRICA + umbral EV-óptimo por-brazo (confirmar el cierre, hoy ACOTADO N=6 batch-frágil); (b) régimen base-acc ALTA (donde el 149
+> se apagaba); (c) transferencia a otra tarea/modelo; (d) SCALE (hardware-bloqueado en este i3 — declararlo honestamente). El método
+> (verificación adversarial antes del ledger) es INNEGOCIABLE. Lecciones transversales del arco 151-154: (151) 'CI bootstrap excluye 0'
+> NO prueba robustez con gaps un-signo (tautológico) → t-test pareado; (152) 'm chico' NO es 'escasez' (es f=m/#correct≈1); una métrica
+> saturada no puede ni apoyar ni refutar; (153) precision@top-m/AUROC son RANK-ONLY → no testean calibración; (154) separar reliability
+> (ECE) de resolution (Brier/NET mezclan ranking) exige una métrica threshold-free; un umbral fijo compartido degenera OOD.

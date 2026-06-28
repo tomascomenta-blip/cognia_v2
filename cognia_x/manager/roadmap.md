@@ -512,3 +512,13 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > 123, sólo la APUNTA. Durable robusto NEG downstream (t=−8.58) confirma su inversión. D-V4-113, techo 'real', verify_no_loss=OK, test
 > 5/5. 20mo ciclo con verificación adversarial. Frontera (CYCLE 154): métrica decisional NO invariante-a-monótonas (cost-weighted /
 > umbral-abstención) que SEPARE calibración de ranking; N≥12; LOO + Bonferroni.
+
+> CYCLE 154 (H-V4-9n REFUTADA-de-RELIABILITY) — CAPSTONE del arco downstream. exp136 aplica el test decisivo del 153: métricas
+> SENSIBLES A MAGNITUDES (Brier, ECE=reliability pura threshold-free, NET umbral-abstención) vs AUROC rank-only, sobre el pool escaso
+> del 153. La reliability PURA (ECE) del residuo NO paga (plano-a-peor en ambos pools); el único payoff ROBUSTO es RANKING (heldout
+> AUROC +0.017 t=3.74). Las trazas −Brier/NET indist son RESOLUTION=ranking (co-mueven con AUROC ~0.82); el NET heldout DEGENERADO.
+> Verificación adversarial (4 sondas; recomendó REFUTADA-de-reliability, net_degenerate=True) acotó el oversell del negativo y la
+> fragilidad de lote (N=6). CIERRA el arco downstream '¿calibración o ranking?' (149-154) del lado RANKING: lo que sobrevivió al
+> desconfound es ranking, NO calibración → la tesis 123 no la toca este residuo. D-V4-114, techo 'real', verify_no_loss=OK, test 4/4.
+> 21er ciclo con verificación adversarial. ACOTADO N=6 batch-frágil. Frontera: réplica N≥12 + umbral EV-óptimo por-brazo; o PIVOTE
+> (régimen base-acc alta / transferencia / SCALE).
