@@ -4438,3 +4438,38 @@ ACEPTADA, techo 'real', verify_no_loss=OK. Test 4/4.
 > R-VALOR FUERA del numpy sintético). META: la verificación adversarial RATIFICÓ por primera vez -- el método no sólo caza
 > overclaims, también confirma lo real. Frontera: ¿la cura 119 es PRIVILEGIADA (tercer brazo: regularizador genérico)?; el régimen
 > de base-acc alta; SCALE.
+
+## CYCLE 150 — H-V4-9j (FRONTERA REAL §4.2: el hueco que el 149 dejó EXPLÍCITO — ¿la cura 119 es PRIVILEGIADA?) — REFUTADA (la cura NO es privilegiada; verificación adversarial de 4 sondas CONFIRMATORIA, cazó un error factual + un overclaim, 17mo ciclo)
+exp132 (lazo torch REAL, mismo harness que exp124/exp131, N=8 reducido). El 149 cerró APOYADA que el brazo durable (naive +
+unlikelihood ACOTADO sobre lo verificado-incorrecto = la cura 119, LABEL-AWARE) bate al naive en AUROC en el lazo real, pero dejó
+EXPLÍCITO el hueco: el durable = naive + unlikelihood, sin testear si la unlikelihood ESPECÍFICAMENTE ayuda o si cualquier
+regularizador de calibración GENÉRICO (label-agnostic) daría lo mismo. Este ciclo añade el TERCER (cuarto/quinto) brazo: ent_lo
+(confidence-penalty/entropy bonus), ls_lo/ls_hi (label smoothing); temperature DESCARTADA a priori (AUROC-invariante por monotonía).
+cycle150 → H-V4-9j 'refutada' (DoD), D-V4-110 ACEPTADA, techo 'real', verify_no_loss=OK. Test 3/3.
+
+> RESULTADO (lazo torch real, N=8 — rounds=5/steps=70 reducidos por el costo en CPU): privilege_gap = AUROC(durable) − AUROC(mejor
+> genérico por seed) = −0.040, CI bootstrap 95% [−0.070, −0.012] ENTERAMENTE NEGATIVO (t=−2.48, 2/8 pos) → el genérico es
+> SIGNIFICATIVAMENTE mejor, no empatado. AUROC durable 0.956 ≤ mejor-genérico 0.996 > naive 0.895. SANITY: durable_vs_naive +0.060
+> (7/8, CI [+0.022,+0.098] excluye 0, t=2.85) REPRODUCE el 149 → harness válido. real_acc final: ls_lo 0.654 >> naive 0.174 >
+> durable 0.129 (la cura termina DEBAJO del naive en accuracy — su tradeoff de generación).
+>
+> VERIFICACIÓN ADVERSARIAL (Workflow, 4 sondas + síntesis — CONFIRMÓ el binario REFUTADA, lo AFINÓ): (1) SANITY-149: el harness
+> reproduce el 149. (2) DEGENERACIÓN: el privilege_gap GATED (−0.040, sólo rondas con ≥5 correctas y ≥5 incorrectas) ~ raw, y
+> ENDURECER el gate (min_class 30) lo hace MÁS negativo → tirar rondas degeneradas FORTALECE la refutación; la firma de degeneración
+> (corr ncorrect-AUROC negativa) está en el DURABLE (−0.91 within), NO en ls_lo (+0.57/+0.72). (3) JUSTICIA: el durable pierde vs
+> ls_lo SOLO (−0.039, CI enteramente negativo, sin winner's curse; ls_lo nunca degenera); contra el genérico más débil (entropy)
+> sólo EMPATA. (4) MECANISMO (ACOTA, severidad media — la sonda load-bearing): el AUROC está CONFUNDIDO con la riqueza de generación
+> (corr pooled −0.54; durable y ls_lo en regímenes de ncorrect casi DISJUNTOS —IQR 18-246 vs 59-75—, IGUALES en la banda de solape
+> nc 30-110: 0.9964 vs 0.9969) → lo que el label smoothing 'recupera' es EN PARTE un efecto de pool-más-magro/estable, NO calibración
+> limpiamente aislada. REGIME-DEPENDENCIA: corr(base_acc×priv_gap)=−0.72; en base-acc BAJA el durable EMPATA al genérico (ahí
+> 'sostiene' AUROC pero pagando el colapso de generación, corr −0.96), en base-acc ALTA el genérico lo APLASTA; en AMBOS
+> regímenes genérico≥cura.
+>
+> LA SÍNTESIS CAZÓ: (a) un ERROR FACTUAL en mi prosa del veredicto ("el CI incluye el cero" — FALSO, es enteramente negativo; bug
+> `ci_excludes_zero=lo>0` sólo testea exclusión positiva → corregido con `ci_below_zero`); (b) un OVERCLAIM (re-localizar a
+> "regularización de calibración EN GENERAL" sobre-vende: el AUROC no aísla calibración por el confound de generación). DOS CAPAS
+> HONESTAS: (a) LIMPIO — la cura NO es privilegiada; específicamente el LABEL SMOOTHING (target-smoothing) la reemplaza y preserva
+> mejor la capacidad (el entropy sólo empata). (b) NO ESTABLECIDO — que el mecanismo sea 'calibración'; el payoff AUROC del lazo real
+> (149 incluido) está entangled con la riqueza de generación → CUALIFICA RETROACTIVAMENTE el +0.047 del 149 (sigue en pie como
+> FENÓMENO, pero su atribución a 'calibración pura' se debilita). Frontera: DESCONFUNDIR calibración-de-generación (controlar
+> #correctas); régimen base-acc alta; pago downstream; SCALE.

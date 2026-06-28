@@ -1,4 +1,4 @@
-# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-146)
+# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-150)
 
 > Síntesis-capstone (CYCLE 147, 2026-06-27). Anclada en los veredictos REALES commiteados (no en intuición).
 > Escrita tras 6 MIXTA seguidos (141-146) que evidencian SATURACIÓN del toy. Append-only; no reemplaza al ledger
@@ -37,8 +37,26 @@ Todo en CPU, acumulativo, reproducible, honesto.
   out-of-sample (6/6 seeds frescos → N=22 t=5.87). Verificación adversarial CONFIRMATORIA (5 métodos de CI, jackknife,
   mecanismo persistente, base-rate-invariante). Resuelve el limbo 'underpowered/diluyendo' de 140-141 (era N chico; el lazo
   es rápido). ACOTADO: magnitud modesta (+0.05) y régimen-dependiente (concentrado donde el base-acc tiene margen; se apaga
-  en base-acc alta, corr -0.32). Cierra el hueco #1 de la auditoría (salir del oráculo). FRONTERA: ¿la cura es PRIVILEGIADA
-  vs un regularizador genérico (tercer brazo)?
+  en base-acc alta, corr -0.32). Cierra el hueco #1 de la auditoría (salir del oráculo). FRONTERA ¿la cura es PRIVILEGIADA
+  vs un regularizador genérico? → RESUELTA por 150 (abajo): NO privilegiada.
+- **[NUEVO 150 — la cura 119 NO es PRIVILEGIADA; RE-LOCALIZA el 149] En el lazo torch real, un regularizador de calibración
+  GENÉRICO (label smoothing, label-agnostic) IGUALA/SUPERA la ventaja AUROC del durable (cura 119, label-aware).** exp132 (N=8, mismo
+  harness, 5 brazos que difieren SÓLO en el regularizador del self-train; temperature descartada a priori -AUROC-invariante por
+  monotonía-): privilege_gap = AUROC(durable) − AUROC(mejor genérico) = −0.040 (CI bootstrap 95% [−0.070, −0.012] EXCLUYE el cero del
+  lado NEGATIVO -el genérico gana-, t=−2.48). Verificación adversarial de 4 sondas CONFIRMATORIA: (a) SANITY durable_vs_naive +0.060
+  (7/8) reproduce el 149 → harness válido; (b) sobrevive el control de DEGENERACIÓN (gated −0.040 ~ raw; endurecer el gate lo
+  FORTALECE; la firma de degeneración está en el DURABLE -corr ncorrect-AUROC −0.58-, no en los genéricos -ls_lo +0.57-); (c) sin
+  winner's curse (durable pierde vs ls_lo SOLO −0.039, CI ENTERAMENTE negativo). DOS CAPAS HONESTAS (afinado de la verificación —
+  sonda-mecanismo ACOTA): (a) LO QUE QUEDA LIMPIO: la cura NO es la pieza privilegiada — específicamente el LABEL SMOOTHING (target-
+  smoothing) la iguala en AUROC y la SUPERA en capacidad (real_acc 0.654 vs durable 0.129; el entropy-penalty sólo EMPATA). (b) LO
+  QUE NO SE ESTABLECE: que el mecanismo sea 'calibración' — el AUROC está CONFUNDIDO con la riqueza de generación (corr pooled −0.54;
+  durable y ls_lo en regímenes de ncorrect casi DISJUNTOS, IGUALES en la banda de solape) → el payoff AUROC del lazo real (149
+  incluido) está entangled con la supresión/riqueza de generación, lo que CUALIFICA RETROACTIVAMENTE el +0.047 del 149 (sigue en pie
+  como FENÓMENO —durable>naive se reproduce, sanity +0.060— pero su atribución a 'calibración pura' se debilita). ACOTACIÓN regime-
+  dependiente (paralela al 149): la refutación se concentra en base-acc ALTA (corr base_acc×priv_gap −0.72); en base-acc BAJA el
+  durable EMPATA (ahí 'sostiene' AUROC pero pagando el colapso de generación, corr −0.96); en AMBOS regímenes genérico≥cura. N=8,
+  settings reducidos (rounds=5, steps=70, por debajo de la config powered anunciada); AUROC del genérico cerca del techo (0.998).
+  FRONTERA: régimen base-acc alta; transferencia; SCALE.
 
 ## 2. ASUMIDO / ACOTADO (real pero condicional — el grueso del arco)
 
@@ -83,9 +101,14 @@ deliberado (146, aprender el valor en vez de usarlo), dan todos el resultado EST
 
 - **Mapa conceptual del valor endógeno (toy):** ~70% (forma, grounding EFE, capacidad/escasez, varianza-prior, sesgo
   inductivo, decisión bajo escasez — todos caracterizados con sus acotaciones).
-- **Sistema real escalado:** ~20% (149 estableció a POTENCIA + out-of-sample que la cura 119 da una señal de valor endógena
-  genuinamente más calibrada en el lazo real -primer APOYADA limpio fuera del oráculo-; sigue siendo juguete-real, sin escala).
-- **SCALE:** 0% (hardware-bloqueado).
+- **Sistema real escalado:** ~22% (149 estableció a POTENCIA + out-of-sample que el durable bate al naive en AUROC en el lazo real
+  -primer APOYADA limpio fuera del oráculo-; 150 AFINÓ y ACOTÓ: la cura NO es privilegiada -un target-smoothing genérico la iguala/
+  supera-, PERO descubrió que el AUROC del lazo real está CONFUNDIDO con la riqueza de generación → NO se aísla 'calibración' como
+  mecanismo, lo que cualifica retroactivamente el 149. Net: entendemos el payoff del lazo real MÁS HONESTAMENTE -más acotado de lo
+  que el 149 sugería-. Sigue juguete-real sin escala; falta DESCONFUNDIR calibración-de-generación, el pago DOWNSTREAM y el régimen
+  base-acc alta).
+- **SCALE:** 0% (hardware-bloqueado en este i3 sin CUDA — la frontera #1 de la auditoría, intocada).
 
-> Regla para el próximo ciclo: NO re-derivar lo de §1-3. Atacar §4 (lazo real / salir-del-oráculo / SCALE) o declarar
-> honestamente el bloqueo de hardware. El método (verificación adversarial antes del ledger) es INNEGOCIABLE.
+> Regla para el próximo ciclo: NO re-derivar lo de §1-3. Atacar §4 (lazo real: pago downstream / régimen base-acc alta /
+> transferencia / SCALE) o declarar honestamente el bloqueo de hardware. El método (verificación adversarial antes del ledger) es
+> INNEGOCIABLE.

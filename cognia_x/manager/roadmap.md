@@ -469,3 +469,15 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > mecanismo persistente, base-rate-invariante) -- ratificó por 1ra vez en el arco. Acotación de régimen: concentrado donde el base-acc
 > tiene margen. D-V4-109, techo 'real', verify_no_loss=OK, test 4/4. Cierra el hueco #1 de la auditoría. Frontera abierta: ¿la cura
 > 119 es PRIVILEGIADA (tercer brazo: regularizador genérico)?; régimen base-acc alta; SCALE.
+
+> CYCLE 150 (H-V4-9j REFUTADA) — cierra el hueco que el 149 dejó EXPLÍCITO: ¿la cura 119 es PRIVILEGIADA? NO lo es. exp132 (mismo
+> lazo torch real, 5 brazos que difieren sólo en el regularizador del self-train; temperature descartada a priori AUROC-invariante):
+> un regularizador de TARGET-SMOOTHING genérico (label smoothing, label-agnostic) IGUALA el ranking AUROC del durable y lo SUPERA en
+> capacidad (privilege_gap −0.040, CI [−0.070,−0.012] enteramente negativo; el entropy sólo empata; real_acc ls_lo 0.654 vs durable
+> 0.129). Verificación adversarial de 4 sondas (Workflow) CONFIRMATORIA — cazó un error factual (la prosa decía "CI incluye 0", es
+> enteramente negativo) y un OVERCLAIM (la re-localización a "calibración en general" sobre-vende). ACOTACIÓN load-bearing: el AUROC
+> está CONFUNDIDO con la riqueza de generación (arms en regímenes de ncorrect disjuntos, iguales en la banda de solape) → el
+> experimento NO aísla 'calibración' como mecanismo, y el payoff AUROC del lazo real (149 incluido) está entangled con la
+> supresión/riqueza de generación → CUALIFICA RETROACTIVAMENTE el 149 (sigue en pie como fenómeno). D-V4-110, techo 'real',
+> verify_no_loss=OK, test 3/3. 17mo ciclo del arco con verificación adversarial antes del ledger. Frontera: DESCONFUNDIR
+> calibración-de-generación (controlar #correctas); régimen base-acc alta; pago downstream; SCALE.
