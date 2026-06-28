@@ -927,3 +927,88 @@ is fixed.
 3. (Optional) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
 4. Re-run benchmark once a real shard/DB is present (still pending across sessions).
 5. (Dropped) GoalManager dead-code: benign, see above — only revisit if wiring it for real.
+
+---
+
+## Session: 2026-06-28  (BUG-5 FIXED: speculative decoding now triggers + is distribution-preserving)
+
+### Context / approach
+Picked up priority #1 from 2026-06-26: fix BUG-5 (the speculative path almost never
+triggers, AND the draft-anchor offset). Env unchanged: NO venv312 in this checkout;
+system `python` is 3.12.10 (numpy 1.26.4 + pytest 9.0.3), used directly. Read the FULL
+spec path in both loops (`_token_loop`, `_shard_infer_stream`), `_sample`, `nano_draft.draft`
+(confirmed deterministic argmax) before touching anything. Decided AGAINST the prior
+note's fallback of "gate to greedy" because the production sub-model temps are 0.15–0.7
+(`_TEMPERATURES`) — greedy-gating would leave the feature DEAD in practice. Implemented
+the stronger fix: distribution-preserving speculative sampling, correct for ALL temps.
+
+### [BUG-5 — FIXED + PUSHED (8bb4cc6)] Spec path never triggered; argmax-only verification
+**File**: shattering/orchestrator.py — `_spec_resolve` (rewritten) + `_softmax_temp` (new)
+  + `_token_loop` + `_shard_infer_stream` + class spec constants
+
+Root cause (exactly as the 2026-06-26 note proved): after a normal step the committed-but-
+un-forwarded token `next_id` is predicted by `prev_output` (so `d0_expected=argmax=next_id`),
+but the draft context `ctx = prompt[-32:] + generated_ids` INCLUDES next_id, so
+`draft(ctx)[0]` = the token AFTER next_id. The guard `d0_expected == candidates[0]` thus only
+passed on an immediate repeat → the batch almost never ran. Proven model-free again here.
+
+Fix (two parts):
+1. **Anchor offset.** candidates[0] is now the ANCHOR = the un-forwarded committed token
+   (`int(current_ids[-1])`); the draft proposes candidates[1..N-1] (`draft(ctx, n=N-1)`).
+   The batch forwards the anchor (building its KV) + verifies the drafts. The path now
+   triggers every primed step and CHAINS (the trailing token becomes the next anchor; no
+   forced normal step — removed the `prev_output=None` reset). The old `d0_expected` guard
+   is gone.
+2. **Distribution-preserving speculative sampling.** `_spec_resolve` rewritten: because the
+   draft is deterministic (argmax), its proposal q is a point mass, so the Leviathan/Chen
+   acceptance test reduces to "accept draft d_i with prob p_i(d_i)" where
+   `p_i = softmax(out_batch[i-1]/T)` is the TARGET dist; on rejection sample the correction
+   from the residual p_i with d_i removed (renormalised) and stop; on full accept sample the
+   bonus from p_N. New `_softmax_temp` mirrors `_sample`'s exact numerics, so committed tokens
+   are distributed EXACTLY as the normal sampling path — for ANY temperature (T→0 = argmax =
+   greedy). This makes spec correct for the production temps, not just greedy.
+   `_spec_resolve` now returns NEW tokens EXCLUDING the anchor and `matched = 1 + accepted
+   drafts`; BUG-3's KV invariant (`kv_len == committed-forwarded length`) is preserved.
+3. **Adaptive guard** (new, protects the unmeasurable perf path): after `_SPEC_WARMUP`(=8)
+   attempts, if the mean accepted-draft count < `_SPEC_MIN_MEAN_ACCEPT`(=1.0) the loop
+   disables spec for the rest of the turn → a weak draft can't regress a wide batch into a
+   per-token cost. Constants on the class (`_SPEC_N_DRAFT`/`_SPEC_WARMUP`/`_SPEC_MIN_MEAN_ACCEPT`).
+
+Verified (no real draft/shards needed — pinned at the loop+KV layer):
+  - `_spec_resolve` contract (anchor excluded; matched excludes correction/bonus; immediate
+    divergence keeps only the anchor slot) — TestSpecResolveContract (4).
+  - **Distribution preservation**: 40k-trial empirical dist of the first committed token
+    matches `softmax(target/T)` within atol 0.01; greedy reduces to argmax —
+    TestSpecResolveSampling (2).
+  - **KV alignment**: fixed `+matched` keeps `kv == committed[:-1]`; old policy keeps a
+    phantom — TestSpeculativeKVAlignment (2).
+  - **Greedy equivalence + trigger**: the REAL `_token_loop` with a +1 fake model + perfect
+    draft TRIGGERS the spec batch (draft consulted, commits >1/iter) and is token-for-token
+    identical to plain greedy; a weak draft disables after exactly `_SPEC_WARMUP` attempts
+    and the output stays the correct greedy sequence — TestSpecGreedyEquivalence (2).
+  - test_e2e_inference.py: 61 passed, 7 skipped. Fast suite (excl. e2e):
+    **2464 passed, 1 skipped, 0 failed** (264s) — no regression (new tests live in
+    test_e2e_inference.py, excluded from that command; run targeted above).
+
+WHAT IS STILL UNMEASURED: the real acceptance RATE / speed payoff needs `nano_draft.npz` +
+loaded shards (absent here). The path stays dormant without that artifact; CORRECTNESS is
+proven model-free, PERF is left to measure on real weights. The adaptive guard makes
+enabling-by-default safe even if a real draft turns out weak.
+
+### State at session end
+- origin/main advanced by 1 commit: **8bb4cc6** (BUG-5 fix + tests), pushed & green.
+- Push protocol unchanged (wincredman fails headless):
+  `git -c credential.helper='!gh auth git-credential' push origin HEAD:main`.
+- Local branch integration/fixes-onto-origin tracks origin/main.
+
+### Priority Order for Next Session
+1. **Measure spec acceptance rate + speed on real weights** (the one thing this session
+   couldn't): with `nano_draft.npz` + loaded shards, run a real prompt, log `[SpecLoop]`
+   matched/tok-s, confirm a net speedup (and that the adaptive guard doesn't false-trip on a
+   genuinely-good draft). Tune `_SPEC_N_DRAFT`/`_SPEC_MIN_MEAN_ACCEPT` if needed.
+2. Continue the inference-runtime audit not yet covered: the DISTRIBUTED token loop
+   (node/inference_pipeline.py `_single_forward_pass` / session create / route) and the
+   per-rank KV-cache of tensor-parallel v2 (still un-reviewed). Verify PTYPE_LOGITS shape
+   handling on the real relay if a multi-node setup is available.
+3. (Optional) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
+4. (Dropped) GoalManager dead-code: benign — only revisit if wiring it for real.

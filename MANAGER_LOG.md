@@ -1818,3 +1818,30 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   (watcher vivo en cognia_idle.py:461). Reemplazado por dedup (path→mtime) + helper puro
   _changed_paths() testeable sin hilos. CHECK: vieja=1 / nueva=2 análisis para 2 ediciones.
   Regresión: TestChangedPaths (5 tests deterministas). Suite: ver gate final.
+
+## 2026-06-28 — BUG-5: speculative decoding ahora SÍ dispara + preserva distribución
+- Tomé prioridad #1 del 2026-06-26: arreglar BUG-5 (la ruta especulativa casi nunca disparaba +
+  offset del anchor del draft). Leí el path completo en ambos loops (_token_loop, _shard_infer_stream),
+  _sample y nano_draft.draft (confirmado: argmax determinista) ANTES de tocar nada.
+- Descarté el fallback "gate a greedy" del note previo: las temps de producción son 0.15–0.7
+  (_TEMPERATURES) -> greedy-gating dejaría la feature MUERTA. Implementé el fix fuerte:
+  speculative sampling preservador de distribución, correcto para CUALQUIER temperatura.
+- 8bb4cc6 fix(shattering): (1) anchor offset — candidates[0] = token comprometido-no-forwardeado;
+  el draft propone candidates[1..N-1]; el batch forwardea el anchor (construye su KV) y verifica
+  los drafts; ahora encadena pasos spec (sin forzar paso normal). (2) _spec_resolve reescrito como
+  speculative sampling: draft determinista => q es masa puntual => aceptar d_i con prob p_i(d_i),
+  p_i = softmax(out_batch[i-1]/T) (dist OBJETIVO); en rechazo muestrea la corrección del residual;
+  en aceptación total muestrea el bonus de p_N. Nuevo _softmax_temp espeja la numérica de _sample
+  => tokens distribuidos EXACTO como el path normal, para cualquier T (T->0 = argmax = greedy).
+  (3) guard adaptativo: tras _SPEC_WARMUP(8) intentos, si la media de drafts aceptados < 1.0,
+  desactiva spec el resto del turno (un draft débil no regresiona el batch ancho a costo por token).
+- Verificación model-free (sin draft/shards): contrato de _spec_resolve (anchor excluido; matched
+  excluye corrección/bonus); PRESERVACIÓN DE DISTRIBUCIÓN (40k trials, dist empírica del 1er token
+  comprometido == softmax(target/T) atol 0.01); alineación KV (kv == committed[:-1]); EQUIVALENCIA
+  GREEDY: _token_loop real con modelo +1 falso + draft perfecto DISPARA el batch (>1 token/iter) y
+  es idéntico token-a-token al greedy puro; draft débil se desactiva tras exactamente 8 intentos y
+  el output sigue correcto. test_e2e_inference.py: 61 passed, 7 skipped.
+- Gate final: suite rápida (excl. e2e) 2464 passed, 1 skipped, 0 failed (264s). Sin regresión.
+- NO medible aquí: el acceptance RATE / payoff de velocidad real necesita nano_draft.npz + shards
+  (ausentes). El path queda dormido sin ese artefacto; CORRECCIÓN probada, PERF pendiente de medir
+  sobre pesos reales (regla 10: honestidad sobre límites). Pusheado a origin/main (8bb4cc6).
