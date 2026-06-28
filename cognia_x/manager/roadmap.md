@@ -502,3 +502,13 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > downstream (indist m=8 −0.042 t=−2.70) → confirma 151 fuera-de-forma. D-V4-112, techo 'real', verify_no_loss=OK, test 4/4. 19no
 > ciclo con verificación adversarial. Añadí detección de SATURACIÓN al gate + reporte f=m/#correct. Frontera (CYCLE 153): pool fijo
 > COMPARTIDO de BAJA base-rate (q≈0.1) o medir a f≈1, preservando el desconfound; subir N.
+
+> CYCLE 153 (H-V4-9m MIXTA) — 1er POSITIVO-LEANING del arco. exp135 corrige el 152: pool fijo COMPARTIDO ESCASO (base-rate 0.125,
+> desconfound del 151 preservado) + precision@top-m por f=m/#correct, régimen discriminante f≈1. El DISEÑO funciona (pools no saturan) y
+> da la 1ª señal positiva: ls_lo−naive a f=1.0 pre-registrado positivo t-sig SIN corregir en AMBOS pools (indist +0.054 t=2.29, heldout
+> +0.029 t=2.36), monótono en indist. PERO no robusto (falla 6/6 -5/6-, leave-one-out -t→1.8<2.015-, Bonferroni -t_crit 4.382-) y
+> RANK-ONLY: la verificación adversarial (4 sondas, signal_is_real=FALSE, overclaim_risk=ALTO) cazó un ERROR DE CATEGORÍA — precision@
+> top-m es invariante a transformaciones monótonas → NO testea calibración, RE-EXPRESA el AUROC del 151 (r≈0.87) → NO prueba la tesis
+> 123, sólo la APUNTA. Durable robusto NEG downstream (t=−8.58) confirma su inversión. D-V4-113, techo 'real', verify_no_loss=OK, test
+> 5/5. 20mo ciclo con verificación adversarial. Frontera (CYCLE 154): métrica decisional NO invariante-a-monótonas (cost-weighted /
+> umbral-abstención) que SEPARE calibración de ranking; N≥12; LOO + Bonferroni.

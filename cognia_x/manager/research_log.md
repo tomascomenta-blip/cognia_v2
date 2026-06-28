@@ -4512,3 +4512,22 @@ cycle150 → H-V4-9j 'refutada' (DoD), D-V4-110 ACEPTADA, techo 'real', verify_n
 > gate (pool near-ceiling = no-informativo) + reporte de f=m/#correct. Lección: 'm chico' NO es 'escasez' (es f=m/#correct≈1); una
 > métrica saturada no puede ni apoyar ni refutar (inconcluso). Frontera (CYCLE 153): pool fijo COMPARTIDO de BAJA base-rate (q≈0.1) o
 > medir a f≈1, preservando el desconfound del 151; subir N; reportar f.
+
+## [2026-06-28] CYCLE 153 — H-V4-9m MIXTA (1er POSITIVO-LEANING del arco): el diseño escaso/f≈1 FUNCIONA y da la 1ª señal positiva, pero NO robusta y RANK-ONLY (re-expresa el AUROC del 151)
+> exp135 (lazo torch real, N=6) corrige el defecto del 152: pool fijo COMPARTIDO ESCASO (base-rate 0.125, desconfound del 151
+> preservado) + precision@top-m por f=m/#correct, régimen discriminante f≈1. RESULTADO en 3 capas: (a) el DISEÑO funciona (pools NO
+> saturan, f≈1 discrimina); (b) 1ª SEÑAL POSITIVA del arco — ls_lo−naive a f=1.0 pre-registrado positivo t-significativo SIN corregir
+> en AMBOS pools (indist +0.054 t=2.29, heldout +0.029 t=2.36), monótono en indist; (c) PERO NO robusta — falla el bar 6/6 (5/6),
+> leave-one-out del seed más favorable (t→1.83/1.77 < t_crit 2.015), Bonferroni (familia 14 gaps, t_crit 4.382); indist cargado 77% por
+> 2 seeds con correlación cruzada ~0; monótono no replica en heldout; N=6 smoke. HALLAZGO ROBUSTO (multiplicity-survivor): durable (cura
+> 119) NEGATIVO robusto downstream (indist f=1.0 −0.271, t=−8.58) → confirma su inversión del 151/152.
+> VERIFICACIÓN ADVERSARIAL (Workflow, 4 sondas; recomendó MIXTA, signal_is_real=FALSE, overclaim_risk=ALTO): 1 CONFIRMA + 3 ACOTA. EL
+> HALLAZGO LOAD-BEARING (sonda-mecanismo): ERROR DE CATEGORÍA — precision@top-m (vía np.argsort) es RANK-ONLY, invariante a
+> transformaciones monótonas de la confianza (igual que AUROC) → NO testea CALIBRACIÓN, testea RANKING; la ventaja del ls_lo a f≈1 es
+> la MISMA ventaja AUROC del 151 (+0.018) RE-EXPRESADA en el punto recall (co-mueven round-level r≈0.87) → 0 información decisional
+> independiente del 151 → NO prueba la tesis 123, sólo la APUNTA. Cazó además: el t_crit Bonferroni subestimado (4.382 no ~3.0); 'no es
+> artefacto de 1-2 seeds' FALSO para indist. NET: el arco toca su 1er positivo (el diseño escaso/f≈1 desbloqueó el régimen que el 152 no
+> alcanzó) pero sugestivo-no-concluyente y rank-only → la pregunta '¿la calibración paga downstream?' queda BIEN PLANTEADA. Lección: una
+> métrica rank-only NO testea calibración; el 1er positivo tras una racha deflacionaria es el de mayor riesgo de overclaim. Frontera
+> (CYCLE 154): métrica decisional NO invariante-a-monótonas (cost-weighted / umbral-abstención) que SEPARE calibración de ranking; N≥12;
+> LOO + Bonferroni; réplica out-of-sample.

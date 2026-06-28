@@ -1,4 +1,4 @@
-# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-152)
+# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-153)
 
 > Síntesis-capstone (CYCLE 147, 2026-06-27). Anclada en los veredictos REALES commiteados (no en intuición).
 > Escrita tras 6 MIXTA seguidos (141-146) que evidencian SATURACIÓN del toy. Append-only; no reemplaza al ledger
@@ -93,6 +93,22 @@ Todo en CPU, acumulativo, reproducible, honesto.
   overstatement de negatividad). NET: el pago downstream del residuo queda SIN RESOLVER en el régimen escaso real (defecto de diseño,
   no evidencia adversa); la inversión del durable se confirma. FRONTERA (CYCLE 153): pool fijo COMPARTIDO de BAJA base-rate (q≈0.1) o
   f≈1, preservando el desconfound; subir N; reportar f=m/#correct.
+- **[NUEVO 153 — 1er POSITIVO-LEANING del arco (MIXTA), pero RANK-ONLY → re-expresa el 151, no prueba calibración]** exp135 (N=6, el
+  diseño CORRECTO que el 152 sembró: pool fijo COMPARTIDO **ESCASO** base-rate 0.125 -1 pos + 7 neg/prompt, desconfound del 151
+  preservado- + precision@top-m por **f=m/#correct**, régimen discriminante f≈1; INDIST + HELDOUT). Corrige la saturación del 152 (pools
+  NO saturan, informativos). RESULTADO en 3 capas: (a) el DISEÑO funciona; (b) **1ª señal positiva del arco**: ls_lo−naive a f=1.0
+  pre-registrado positivo y t-significativo SIN corregir en AMBOS pools (indist +0.054 t=2.29, heldout +0.029 t=2.36) y monótono en
+  indist; (c) PERO **NO robusta** (falla 6/6 -5/6-, leave-one-out del seed más favorable -t→1.8<2.015-, Bonferroni -familia 14, t_crit
+  4.382-; indist cargado por 2 seeds, monótono no replica en heldout; N=6 smoke) **Y RANK-ONLY** (error de categoría cazado por la
+  verificación, sev media): precision@top-m vía argsort es invariante a transformaciones monótonas de la confianza -igual que AUROC- →
+  NO testea CALIBRACIÓN, testea RANKING; la ventaja del ls_lo RE-EXPRESA el AUROC del 151 (+0.018, co-mueven round-level r≈0.87) → 0
+  información decisional independiente; **NO prueba la tesis 123, sólo la APUNTA**. (d) HALLAZGO ROBUSTO (multiplicity-survivor): el
+  durable (cura 119) es NEGATIVO robusto downstream (indist f=1.0 −0.271, t=−8.58) → confirma su inversión del 151/152 también en la
+  decisión y fuera-de-forma. Verificación adversarial de 4 sondas (design_valid=True, signal_is_real=FALSE, overclaim_risk=ALTO,
+  recomendó MIXTA; cazó el error de categoría rank-only + el t_crit Bonferroni subestimado). NET: el arco toca su 1er positivo, pero
+  sugestivo-no-concluyente y rank-only → la pregunta "¿la calibración paga downstream?" queda BIEN PLANTEADA y abierta. FRONTERA
+  (CYCLE 154): métrica decisional NO invariante-a-monótonas (cost-weighted / umbral-abstención) que separe CALIBRACIÓN de RANKING; N≥12;
+  LOO + Bonferroni; réplica out-of-sample.
 
 ## 2. ASUMIDO / ACOTADO (real pero condicional — el grueso del arco)
 
@@ -122,6 +138,7 @@ Todo en CPU, acumulativo, reproducible, honesto.
 | 149 | "APOYADA limpia: la confianza del durable es calibración endógena más informativa" | DESCONFUNDIDO por 151: el AUROC_own era riqueza de generación; el durable se INVIERTE (−0.210) en un pool fijo balanceado → atribución a 'calibración' REFUTADA (la observación durable>naive OWN persiste) |
 | 151 | "APOYADA: hay señal de ranking genuina (CI excluye 0)" (regla pre-registrada) | la regla "CI bootstrap excluye 0" es TAUTOLÓGICA con gaps un-signo; el t-test pareado real es sub-significativo (t=1.98<2.015) → re-etiquetada MIXTA; + error factual "generados desde el base" (eran CONSTRUIDOS) |
 | 152 | "REFUTADA-downstream: el residuo tampoco paga en la decisión" | DEFECTO DE DISEÑO (sev ALTA): el pool balanceado 50/50 SATURA precision@top-m (INDIST gap CERO ESTRUCTURAL) y NO es escaso (f<=0.5, nunca f≈1) → la tesis 123 NUNCA se testeó; "m chico=escasez" contradice exp124 → re-etiquetada MIXTA-ACOTADA |
+| 153 | "APOYADA-downstream: el residuo paga bajo escasez (la brújula-123 vale)" | ERROR DE CATEGORÍA (sev media): precision@top-m es RANK-ONLY (invariante a monótonas, como AUROC) → NO testea calibración, RE-EXPRESA el AUROC del 151 (r≈0.87); + no robusto (falla LOO/Bonferroni/6-de-6) → re-etiquetada MIXTA (1er positivo-leaning, sugestivo no concluyente) |
 
 ## 4. SATURACIÓN del toy + FRONTERA REAL
 
@@ -136,15 +153,17 @@ deliberado (146, aprender el valor en vez de usarlo), dan todos el resultado EST
    (¿la cura unlikelihood de 119 es privilegiada o cualquier regularizador sirve?); lazo SECUENCIAL.
    → AVANCE 150-151: la cura NO es privilegiada (150) y su ventaja AUROC era riqueza de generación (151, desconfundida con pool fijo).
    → 152 INTENTÓ el pago downstream (precision@top-m) pero el pool balanceado SATURÓ el test y NO instanció la escasez (f<=0.5) →
-   MIXTA-ACOTADA, la tesis 123 sin testear (la inversión del durable SÍ se confirmó downstream). QUEDA (CYCLE 153): pool fijo
-   COMPARTIDO de BAJA base-rate (q≈0.1) o medir a f≈1, preservando el desconfound; subir N; reportar f=m/#correct.
+   MIXTA-ACOTADA, la tesis 123 sin testear (la inversión del durable SÍ se confirmó downstream). 153 lo rehízo bien (pool ESCASO + f≈1):
+   1er POSITIVO-LEANING del arco (ls_lo−naive a f=1.0 t-sig sin corregir en ambos pools) PERO no robusto (LOO/Bonferroni) y RANK-ONLY
+   (precision@top-m re-expresa el AUROC del 151, no testea calibración). QUEDA (CYCLE 154): métrica decisional NO invariante-a-monótonas
+   (cost-weighted / umbral-abstención) que SEPARE calibración de ranking — el único test que de verdad tocaría la 123; N≥12; LOO+Bonferroni.
 3. **SCALE (GPU/Kaggle):** la frontera #1 de la auditoría, JAMÁS tocada (0%), hardware-bloqueada en este i3 sin CUDA.
 
 ## 5. Mapa conceptual — % honesto
 
 - **Mapa conceptual del valor endógeno (toy):** ~70% (forma, grounding EFE, capacidad/escasez, varianza-prior, sesgo
   inductivo, decisión bajo escasez — todos caracterizados con sus acotaciones).
-- **Sistema real escalado:** ~27% (149 estableció que el durable bate al naive en AUROC_own en el lazo real; 150 ACOTÓ -la cura NO es
+- **Sistema real escalado:** ~29% (149 estableció que el durable bate al naive en AUROC_own en el lazo real; 150 ACOTÓ -la cura NO es
   privilegiada, un target-smoothing genérico la iguala- y SOSPECHÓ el confound de generación; 151 lo CERRÓ con el desconfound limpio
   (pool fijo balanceado): la ventaja AUROC_own del durable era ENTERAMENTE riqueza de generación -se INVIERTE a −0.210 en el pool
   fijo, t=−10.6, 6/6 seeds- → la atribución 'calibración endógena' del 149 queda REFUTADA; sólo un residuo GENÉRICO de signo (ls_lo
