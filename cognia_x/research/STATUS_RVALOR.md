@@ -1,4 +1,4 @@
-# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-150)
+# STATUS_RVALOR.md — Estado honesto del arco R-VALOR (CYCLEs 79-151)
 
 > Síntesis-capstone (CYCLE 147, 2026-06-27). Anclada en los veredictos REALES commiteados (no en intuición).
 > Escrita tras 6 MIXTA seguidos (141-146) que evidencian SATURACIÓN del toy. Append-only; no reemplaza al ledger
@@ -38,7 +38,10 @@ Todo en CPU, acumulativo, reproducible, honesto.
   mecanismo persistente, base-rate-invariante). Resuelve el limbo 'underpowered/diluyendo' de 140-141 (era N chico; el lazo
   es rápido). ACOTADO: magnitud modesta (+0.05) y régimen-dependiente (concentrado donde el base-acc tiene margen; se apaga
   en base-acc alta, corr -0.32). Cierra el hueco #1 de la auditoría (salir del oráculo). FRONTERA ¿la cura es PRIVILEGIADA
-  vs un regularizador genérico? → RESUELTA por 150 (abajo): NO privilegiada.
+  vs un regularizador genérico? → RESUELTA por 150: NO privilegiada. ⚠️ ATRIBUCIÓN REFUTADA por 151: el AUROC_own que sostenía este
+  "APOYADA limpio" estaba CONFUNDIDO con la riqueza de generación; en un pool fijo balanceado el durable se INVIERTE (−0.210) → la
+  ventaja del 149 era generación, NO calibración endógena. La observación (durable>naive OWN) se reproduce; su interpretación cae.
+  Re-clasificar: el 149 NO es ya un "APOYADA limpio" sino "efecto-real-pero-mal-atribuido".
 - **[NUEVO 150 — la cura 119 NO es PRIVILEGIADA; RE-LOCALIZA el 149] En el lazo torch real, un regularizador de calibración
   GENÉRICO (label smoothing, label-agnostic) IGUALA/SUPERA la ventaja AUROC del durable (cura 119, label-aware).** exp132 (N=8, mismo
   harness, 5 brazos que difieren SÓLO en el regularizador del self-train; temperature descartada a priori -AUROC-invariante por
@@ -56,7 +59,26 @@ Todo en CPU, acumulativo, reproducible, honesto.
   dependiente (paralela al 149): la refutación se concentra en base-acc ALTA (corr base_acc×priv_gap −0.72); en base-acc BAJA el
   durable EMPATA (ahí 'sostiene' AUROC pero pagando el colapso de generación, corr −0.96); en AMBOS regímenes genérico≥cura. N=8,
   settings reducidos (rounds=5, steps=70, por debajo de la config powered anunciada); AUROC del genérico cerca del techo (0.998).
-  FRONTERA: régimen base-acc alta; transferencia; SCALE.
+  FRONTERA: régimen base-acc alta; transferencia; SCALE. → DESCONFUNDIDO por 151 (abajo): el AUROC_own del 149/150 estaba
+  CONFUNDIDO con la riqueza de generación; el durable se INVIERTE en un pool fijo balanceado.
+- **[NUEVO 151 — DESCONFOUND, MIXTA: el payoff de calibración del lazo real es MAYORMENTE riqueza de generación; la atribución del
+  149 queda REFUTADA] El AUROC_own del 149/150 confundía 'calibración' con riqueza de generación (cada brazo rankea SU pool, de
+  dificultad endógena).** exp133 (N=6, mismo harness, 3 brazos rankean además un POOL FIJO COMPARTIDO Y BALANCEADO 48/48 —candidatos
+  CONSTRUIDOS + etiquetados por el verificador real—): el AUROC_fixed desconfunde. (a) La CURA 119 (durable) se INVIERTE: durable−naive
+  OWN +0.057 → FIXED **−0.210** (CI [−0.245,−0.175], t=−10.6, 6/6 seeds NEG; AUROC_fixed durable 0.760 vs naive 0.970) → su ventaja
+  del 149 era ENTERAMENTE riqueza de generación (genera 11.8 correctas vs naive 95.9 → su pool propio es magro/fácil → AUROC_own
+  inflada). El colapso entrenado es aún más profundo (trained-only ~0.62, última ronda ~0.57 ≈ azar). → la atribución 'calibración
+  endógena' del durable-149 queda **REFUTADA** por el desconfound (la OBSERVACIÓN durable>naive OWN se reproduce; la INTERPRETACIÓN
+  no). (b) El ÚNICO residuo que sobrevive es el GENÉRICO ls_lo y SÓLO EN SIGNO: ls_lo−naive FIXED +0.018 (6/6 gaps positivos, sign-
+  test p=0.016) PERO t-test pareado t=1.98 < t_crit(df=5)=2.015 (SUB-significativo); 'CI bootstrap excluye 0' es TAUTOLÓGICO con gaps
+  un-signo; la media se partió a la mitad N=3→N=6; cargado en 2/6 seeds; régimen-dependiente (cae a +0.003 donde naive_fixed roza el
+  techo). Verificación adversarial de 4 sondas (1 CONFIRMA inversión + 3 ACOTAN; recomendó MIXTA, "NO usar APOYADA"; cazó 5 errores
+  factuales/framing — el docstring decía "generados desde el base" siendo CONSTRUIDOS, y la compuerta "CI excluye 0" tautológica
+  reemplazada por t-test). ACOTACIÓN: N=6 escala SMOKE; AUROC_fixed es un sondeo IN-DISTRIBUTION casi-en-techo (misma forma canónica
+  con que cada brazo se re-entrena vía replay) → desconfunde la riqueza-de-pool (válido) pero NO certifica ranking held-out. NET: el
+  payoff del lazo real NO es ENTERAMENTE artefacto (queda señal de signo genérica) pero lo no-artefacto es genérico, mínimo y no
+  robusto; el componente que MOTIVÓ el arco (la cura 119 del 149) SÍ era artefacto. CIERRA el caveat load-bearing del 150. FRONTERA:
+  ¿el residuo genérico PAGA downstream bajo escasez?; N≥8 con t-test; régimen base-acc alta; transferencia; SCALE.
 
 ## 2. ASUMIDO / ACOTADO (real pero condicional — el grueso del arco)
 
@@ -83,6 +105,8 @@ Todo en CPU, acumulativo, reproducible, honesto.
 | 144 | "w·v·ctrl bate a ambos; refuta el cuadrado de 138" | overclaim BIDIRECCIONAL: incluir-v definicional + refutación deshonesta de 138 (muestreé el rincón limpio) |
 | 145 | "el continuo QUITA el winner-take-all / decae igual" | escaso-continuo ES concentrado (soft top-k); decaimiento g-dependiente; residual permanente |
 | 146 | "sesgo inductivo incondicional + anti-tautología" | overclaim TRIPLE: anti-tautología vacua (~0.95 colineal) + decisión = suficiencia (no robustez) + condicional a la alineación |
+| 149 | "APOYADA limpia: la confianza del durable es calibración endógena más informativa" | DESCONFUNDIDO por 151: el AUROC_own era riqueza de generación; el durable se INVIERTE (−0.210) en un pool fijo balanceado → atribución a 'calibración' REFUTADA (la observación durable>naive OWN persiste) |
+| 151 | "APOYADA: hay señal de ranking genuina (CI excluye 0)" (regla pre-registrada) | la regla "CI bootstrap excluye 0" es TAUTOLÓGICA con gaps un-signo; el t-test pareado real es sub-significativo (t=1.98<2.015) → re-etiquetada MIXTA; + error factual "generados desde el base" (eran CONSTRUIDOS) |
 
 ## 4. SATURACIÓN del toy + FRONTERA REAL
 
@@ -95,20 +119,26 @@ deliberado (146, aprender el valor en vez de usarlo), dan todos el resultado EST
    lineal). Lo más cercano en CPU: el lazo real (exp018 verifier + HybridLM byte-level). Costo: torch lento (~60 min/corrida).
 2. **SALIR DEL ORÁCULO con potencia:** N≥16 para la dilución de 141 + baseline regularizador-de-calibración ALTERNATIVO
    (¿la cura unlikelihood de 119 es privilegiada o cualquier regularizador sirve?); lazo SECUENCIAL.
+   → AVANCE 150-151: la cura NO es privilegiada (150) y su ventaja AUROC era riqueza de generación (151, desconfundida con pool fijo).
+   QUEDA: ¿el residuo genérico de calibración PAGA DOWNSTREAM en una decisión real bajo escasez (precision@top-m sobre el pool fijo)?
+   — 'sobrevive en AUROC de signo' no es 'importa en la decisión'; N≥8 con t-test pareado (no el CI tautológico); ranking held-out.
 3. **SCALE (GPU/Kaggle):** la frontera #1 de la auditoría, JAMÁS tocada (0%), hardware-bloqueada en este i3 sin CUDA.
 
 ## 5. Mapa conceptual — % honesto
 
 - **Mapa conceptual del valor endógeno (toy):** ~70% (forma, grounding EFE, capacidad/escasez, varianza-prior, sesgo
   inductivo, decisión bajo escasez — todos caracterizados con sus acotaciones).
-- **Sistema real escalado:** ~22% (149 estableció a POTENCIA + out-of-sample que el durable bate al naive en AUROC en el lazo real
-  -primer APOYADA limpio fuera del oráculo-; 150 AFINÓ y ACOTÓ: la cura NO es privilegiada -un target-smoothing genérico la iguala/
-  supera-, PERO descubrió que el AUROC del lazo real está CONFUNDIDO con la riqueza de generación → NO se aísla 'calibración' como
-  mecanismo, lo que cualifica retroactivamente el 149. Net: entendemos el payoff del lazo real MÁS HONESTAMENTE -más acotado de lo
-  que el 149 sugería-. Sigue juguete-real sin escala; falta DESCONFUNDIR calibración-de-generación, el pago DOWNSTREAM y el régimen
-  base-acc alta).
+- **Sistema real escalado:** ~26% (149 estableció que el durable bate al naive en AUROC_own en el lazo real; 150 ACOTÓ -la cura NO es
+  privilegiada, un target-smoothing genérico la iguala- y SOSPECHÓ el confound de generación; 151 lo CERRÓ con el desconfound limpio
+  (pool fijo balanceado): la ventaja AUROC_own del durable era ENTERAMENTE riqueza de generación -se INVIERTE a −0.210 en el pool
+  fijo, t=−10.6, 6/6 seeds- → la atribución 'calibración endógena' del 149 queda REFUTADA; sólo un residuo GENÉRICO de signo (ls_lo
+  +0.018) sobrevive, no robusto por t-test. El % SUBE respecto al 22% no porque haya MÁS payoff sino porque una pregunta load-bearing
+  está RESUELTA: ahora SABEMOS que el payoff del lazo real es mayormente artefacto de generación + un residuo genérico mínimo —
+  entendimiento honesto, deflacionario. Falta: el pago DOWNSTREAM del residuo en una decisión real; potencia N≥8 con t-test; régimen
+  base-acc alta; ranking held-out -no in-distribution-; transferencia; escala).
 - **SCALE:** 0% (hardware-bloqueado en este i3 sin CUDA — la frontera #1 de la auditoría, intocada).
 
-> Regla para el próximo ciclo: NO re-derivar lo de §1-3. Atacar §4 (lazo real: pago downstream / régimen base-acc alta /
-> transferencia / SCALE) o declarar honestamente el bloqueo de hardware. El método (verificación adversarial antes del ledger) es
-> INNEGOCIABLE.
+> Regla para el próximo ciclo: NO re-derivar lo de §1-3. Atacar §4 (lazo real: el PAGO DOWNSTREAM del residuo genérico bajo escasez —
+> la pregunta viva que el 151 dejó explícita / régimen base-acc alta / ranking held-out / transferencia / SCALE) o declarar
+> honestamente el bloqueo de hardware. El método (verificación adversarial antes del ledger) es INNEGOCIABLE. Lección transversal del
+> 151: 'CI bootstrap excluye 0' NO prueba robustez con gaps un-signo (tautológico) — usar t-test pareado como compuerta dura.

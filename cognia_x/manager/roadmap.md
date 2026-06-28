@@ -481,3 +481,15 @@ por una y mide si la tesis sobrevive (la debilidad honesta #1: todo es juguete c
 > supresión/riqueza de generación → CUALIFICA RETROACTIVAMENTE el 149 (sigue en pie como fenómeno). D-V4-110, techo 'real',
 > verify_no_loss=OK, test 3/3. 17mo ciclo del arco con verificación adversarial antes del ledger. Frontera: DESCONFUNDIR
 > calibración-de-generación (controlar #correctas); régimen base-acc alta; pago downstream; SCALE.
+
+> CYCLE 151 (H-V4-9k MIXTA) — DESCONFOUND, cierra el caveat load-bearing del 150 y REFUTA la atribución del 149. exp133 (mismo lazo
+> torch real, N=6, 3 brazos rankean además un POOL FIJO COMPARTIDO Y BALANCEADO 48/48 construido+etiquetado por el verificador real):
+> el AUROC_own del 149/150 confundía 'calibración' con riqueza de generación. La CURA 119 (durable) se INVIERTE en el pool fijo —
+> durable−naive OWN +0.057 → FIXED −0.210 (CI [−0.245,−0.175], t=−10.6, 6/6 seeds; AUROC_fixed 0.760 vs naive 0.970) → su ventaja del
+> 149 era ENTERAMENTE riqueza de generación (11.8 correctas vs naive 95.9). El ÚNICO residuo es el GENÉRICO ls_lo y SÓLO EN SIGNO
+> (FIXED +0.018, 6/6 positivos pero t=1.98 < t_crit 2.015, no robusto). Verificación adversarial de 4 sondas (Workflow) recomendó
+> MIXTA ("NO usar APOYADA"); cazó 5 errores factuales/framing (incl. "generados desde el base"→CONSTRUIDOS, y la compuerta "CI excluye
+> 0" TAUTOLÓGICA con gaps un-signo → reemplazada por t-test pareado). D-V4-111, techo 'real', verify_no_loss=OK, test 4/4. 18vo ciclo
+> del arco con verificación adversarial antes del ledger. NET deflacionario: el lazo real NO es enteramente artefacto pero lo
+> no-artefacto es genérico, mínimo y no robusto; la atribución del 149 cae. Frontera: ¿el residuo PAGA DOWNSTREAM bajo escasez?; N≥8
+> con t-test; régimen base-acc alta; ranking held-out; SCALE.

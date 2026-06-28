@@ -4473,3 +4473,25 @@ cycle150 → H-V4-9j 'refutada' (DoD), D-V4-110 ACEPTADA, techo 'real', verify_n
 > (149 incluido) está entangled con la riqueza de generación → CUALIFICA RETROACTIVAMENTE el +0.047 del 149 (sigue en pie como
 > FENÓMENO, pero su atribución a 'calibración pura' se debilita). Frontera: DESCONFUNDIR calibración-de-generación (controlar
 > #correctas); régimen base-acc alta; pago downstream; SCALE.
+
+## [2026-06-28] CYCLE 151 — H-V4-9k MIXTA (DESCONFOUND: el payoff de calibración del lazo real es mayormente generación; la atribución del 149 REFUTADA)
+> exp133 (lazo torch real, N=6, 3 brazos): el DESCONFOUND que el 150 dejó pendiente. Además del AUROC_own (pool propio, métrica
+> confundida del 149/150), TODOS los brazos rankean un POOL FIJO COMPARTIDO Y BALANCEADO (candidatos CONSTRUIDOS + etiquetados por el
+> verificador real, 48/48 exacto, idéntico para los 3 brazos) → AUROC_fixed aísla la separación-de-confianza de la riqueza de
+> generación. RESULTADO (dos capas): (a) la CURA 119 (durable) se INVIERTE — durable−naive OWN +0.057 → FIXED −0.210 (CI
+> [−0.245,−0.175], t=−10.6, 6/6 seeds NEG; AUROC_fixed durable 0.760 vs naive 0.970) → su ventaja del 149 era ENTERAMENTE riqueza de
+> generación (genera 11.8 correctas vs naive 95.9 → pool propio magro/fácil → AUROC_own inflada); el colapso entrenado es aún más
+> profundo (trained-only ~0.62, ≈ azar). La atribución 'calibración endógena' del durable-149 queda REFUTADA (la observación OWN
+> persiste). (b) el ÚNICO residuo es el GENÉRICO ls_lo y SÓLO EN SIGNO — ls_lo−naive FIXED +0.018 (6/6 positivos, sign-test p=0.016)
+> PERO t-test pareado t=1.98 < t_crit(df=5)=2.015 (sub-significativo); régimen-dependiente.
+> VERIFICACIÓN ADVERSARIAL (Workflow, 4 sondas + síntesis; recomendó MIXTA, "NO usar APOYADA"): 1 CONFIRMA + 3 ACOTA. CAZÓ: (1) un
+> ERROR FACTUAL — docstring/claim decían "candidatos generados desde el modelo BASE" siendo CONSTRUIDOS deterministicamente
+> (corregido); (2) la compuerta pre-registrada "CI bootstrap excluye 0" es TAUTOLÓGICA con 6/6 gaps positivos (P(boot≤0)=0%) — no
+> mide robustez; reemplazada por t-test pareado (compuerta dura) → el veredicto baja de APOYADA a MIXTA; (3) AUROC_fixed es un sondeo
+> IN-DISTRIBUTION casi-en-techo (misma forma canónica con que cada brazo se re-entrena vía replay) → desconfunde la riqueza-de-pool
+> (válido) pero NO certifica ranking held-out; (4) la etiqueta 'APOYADA-calibración del 149/150' LAVANDERIZA (agrupa el 149 refutado
+> con un residuo genérico mínimo del 150). NET HONESTO y DEFLACIONARIO: el lazo real NO es ENTERAMENTE artefacto (queda señal de
+> signo genérica) pero lo no-artefacto es genérico, mínimo y no robusto; el componente que MOTIVÓ el arco (la cura 119 del 149) SÍ
+> era artefacto de generación. CIERRA el caveat load-bearing del 150. Lección transversal: 'CI excluye 0' NO prueba robustez con
+> gaps un-signo — usar t-test pareado. Frontera: ¿el residuo genérico PAGA DOWNSTREAM bajo escasez (precision@top-m sobre el pool
+> fijo)?; N≥8 con t-test; régimen base-acc alta; ranking held-out; SCALE.

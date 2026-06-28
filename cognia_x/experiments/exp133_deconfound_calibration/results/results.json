@@ -1,0 +1,613 @@
+{
+  "exp": "exp133_deconfound_calibration",
+  "cycle": 151,
+  "hypothesis": "H-V4-9k",
+  "claim": "DESCONFOUND del payoff de calibracion del lazo real (149/150): el AUROC esta confundido con la riqueza de generacion (cada brazo rankea SU pool, de dificultad distinta segun cuantas correctas genera). Test: que TODOS los brazos rankeen un POOL FIJO COMPARTIDO (candidatos generados una vez desde el base) -> AUROC_fixed aisla la calidad de ranking de la riqueza de generacion. REFUTADA-calibracion si las ventajas FIXED se desvanecen (el payoff era riqueza de generacion); APOYADA si alguna sobrevive (señal de ranking genuina).",
+  "verdict": "mixta",
+  "summary": {
+    "n": 6,
+    "arms": [
+      "naive",
+      "durable",
+      "ls_lo"
+    ],
+    "auroc_own": {
+      "naive": 0.9362,
+      "durable": 0.9933,
+      "ls_lo": 0.9886
+    },
+    "auroc_fixed": {
+      "naive": 0.9704,
+      "durable": 0.7605,
+      "ls_lo": 0.9879
+    },
+    "mean_ncorrect": {
+      "naive": 95.9,
+      "durable": 11.8,
+      "ls_lo": 32.0
+    },
+    "own_durable_vs_naive": {
+      "arm": "durable",
+      "key": "auroc_own",
+      "mean": 0.0571,
+      "ci95": [
+        0.0338,
+        0.0774
+      ],
+      "n_positive": 6,
+      "n": 6,
+      "tstat": 4.617,
+      "ci_excludes_zero": true,
+      "gaps": [
+        0.0922,
+        0.0713,
+        0.067,
+        0.0705,
+        0.01,
+        0.0315
+      ]
+    },
+    "own_lslo_vs_naive": {
+      "arm": "ls_lo",
+      "key": "auroc_own",
+      "mean": 0.0524,
+      "ci95": [
+        0.0326,
+        0.0707
+      ],
+      "n_positive": 6,
+      "n": 6,
+      "tstat": 4.894,
+      "ci_excludes_zero": true,
+      "gaps": [
+        0.0856,
+        0.0603,
+        0.0567,
+        0.0679,
+        0.0124,
+        0.0318
+      ]
+    },
+    "fixed_durable_vs_naive": {
+      "arm": "durable",
+      "key": "auroc_fixed",
+      "mean": -0.2098,
+      "ci95": [
+        -0.2454,
+        -0.1745
+      ],
+      "n_positive": 0,
+      "n": 6,
+      "tstat": -10.619,
+      "ci_excludes_zero": true,
+      "gaps": [
+        -0.2594,
+        -0.2675,
+        -0.1968,
+        -0.2216,
+        -0.1535,
+        -0.1603
+      ]
+    },
+    "fixed_lslo_vs_naive": {
+      "arm": "ls_lo",
+      "key": "auroc_fixed",
+      "mean": 0.0175,
+      "ci95": [
+        0.0033,
+        0.0345
+      ],
+      "n_positive": 6,
+      "n": 6,
+      "tstat": 1.982,
+      "ci_excludes_zero": true,
+      "gaps": [
+        0.0356,
+        0.0076,
+        0.0531,
+        0.0025,
+        0.0001,
+        0.0062
+      ]
+    },
+    "atten_durable": 0.2669,
+    "atten_lslo": 0.0349,
+    "t_crit_one_tail_05": 2.015,
+    "fixed_robust": false,
+    "fixed_sign": true,
+    "durable_inverts": true,
+    "fixed_survives": false,
+    "own_had_advantage": true,
+    "status": "mixta",
+    "verdict": "H-V4-9k MIXTA (desconfound PARCIAL): el durable (cura 119) se INVIERTE sobre el pool fijo balanceado -- durable−naive OWN 0.057 -> FIXED -0.210 (CI [-0.2454, -0.1745], excluye 0 del lado NEGATIVO) -> su ventaja del 149 era ENTERAMENTE riqueza de generación. El ÚNICO sobreviviente es el GENÉRICO ls_lo, y SÓLO EN SIGNO (todos los gaps positivos, sign-test) pero NO robusto -- ls_lo−naive OWN 0.052 -> FIXED 0.018 (CI [0.0033, 0.0345], t=1.982 < t_crit 2.015 one-tail 0.05; magnitud near-zero, régimen-dependiente). => el payoff del lazo real NO es puro artefacto (hay una señal de signo genuina, generación-independiente) PERO es chico, genérico (no la cura) y sub-significativo por t-test. NOTA: 'CI excluye 0' aquí es tautológico (gaps un-signo); la compuerta dura es el t-test. AUROC_fixed: naive=0.970 durable=0.760 ls_lo=0.988."
+  },
+  "raw": [
+    {
+      "seed": 0,
+      "base_real_acc": 0.5778,
+      "fixed_ncorrect": 48,
+      "fixed_npool": 96,
+      "auroc_own": {
+        "naive": [
+          0.9792,
+          0.9542,
+          0.887,
+          0.7882
+        ],
+        "durable": [
+          0.9792,
+          0.9981,
+          1.0,
+          1.0
+        ],
+        "ls_lo": [
+          0.9792,
+          0.9948,
+          0.9844,
+          0.9925
+        ]
+      },
+      "auroc_fixed": {
+        "naive": [
+          0.9913,
+          0.9627,
+          0.9284,
+          0.9158
+        ],
+        "durable": [
+          0.9913,
+          0.6641,
+          0.5556,
+          0.5495
+        ],
+        "ls_lo": [
+          0.9913,
+          0.9848,
+          0.9727,
+          0.9918
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          19,
+          96,
+          85,
+          110
+        ],
+        "durable": [
+          19,
+          7,
+          9,
+          12
+        ],
+        "ls_lo": [
+          19,
+          23,
+          35,
+          45
+        ]
+      }
+    },
+    {
+      "seed": 1,
+      "base_real_acc": 0.3556,
+      "fixed_ncorrect": 48,
+      "fixed_npool": 96,
+      "auroc_own": {
+        "naive": [
+          0.9878,
+          0.9564,
+          0.9097,
+          0.8486
+        ],
+        "durable": [
+          0.9878,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "ls_lo": [
+          0.9878,
+          0.9865,
+          0.9827,
+          0.9865
+        ]
+      },
+      "auroc_fixed": {
+        "naive": [
+          0.9926,
+          0.9865,
+          0.9618,
+          0.9466
+        ],
+        "durable": [
+          0.9926,
+          0.6788,
+          0.5712,
+          0.5751
+        ],
+        "ls_lo": [
+          0.9926,
+          0.9744,
+          0.9857,
+          0.9653
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          11,
+          64,
+          85,
+          108
+        ],
+        "durable": [
+          11,
+          2,
+          6,
+          11
+        ],
+        "ls_lo": [
+          11,
+          17,
+          21,
+          36
+        ]
+      }
+    },
+    {
+      "seed": 2,
+      "base_real_acc": 0.3111,
+      "fixed_ncorrect": 48,
+      "fixed_npool": 96,
+      "auroc_own": {
+        "naive": [
+          0.9757,
+          0.9598,
+          0.932,
+          0.8392
+        ],
+        "durable": [
+          0.9757,
+          1.0,
+          1.0,
+          0.9992
+        ],
+        "ls_lo": [
+          0.9757,
+          0.9684,
+          0.9958,
+          0.9937
+        ]
+      },
+      "auroc_fixed": {
+        "naive": [
+          0.9948,
+          0.9727,
+          0.931,
+          0.8385
+        ],
+        "durable": [
+          0.9948,
+          0.7565,
+          0.6207,
+          0.5777
+        ],
+        "ls_lo": [
+          0.9948,
+          0.99,
+          0.9809,
+          0.9835
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          9,
+          56,
+          88,
+          79
+        ],
+        "durable": [
+          9,
+          6,
+          9,
+          10
+        ],
+        "ls_lo": [
+          9,
+          24,
+          23,
+          27
+        ]
+      }
+    },
+    {
+      "seed": 3,
+      "base_real_acc": 0.4444,
+      "fixed_ncorrect": 48,
+      "fixed_npool": 96,
+      "auroc_own": {
+        "naive": [
+          0.9688,
+          0.9458,
+          0.9041,
+          0.8338
+        ],
+        "durable": [
+          0.9688,
+          0.9683,
+          1.0,
+          0.9974
+        ],
+        "ls_lo": [
+          0.9688,
+          0.9818,
+          0.9818,
+          0.9917
+        ]
+      },
+      "auroc_fixed": {
+        "naive": [
+          0.997,
+          0.987,
+          0.9857,
+          0.9661
+        ],
+        "durable": [
+          0.997,
+          0.9188,
+          0.5647,
+          0.569
+        ],
+        "ls_lo": [
+          0.997,
+          0.9891,
+          0.9874,
+          0.9722
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          28,
+          71,
+          105,
+          123
+        ],
+        "durable": [
+          28,
+          5,
+          10,
+          2
+        ],
+        "ls_lo": [
+          28,
+          25,
+          30,
+          53
+        ]
+      }
+    },
+    {
+      "seed": 4,
+      "base_real_acc": 0.7778,
+      "fixed_ncorrect": 48,
+      "fixed_npool": 96,
+      "auroc_own": {
+        "naive": [
+          0.9999,
+          0.9986,
+          0.9895,
+          0.9617
+        ],
+        "durable": [
+          0.9999,
+          1.0,
+          0.9993,
+          0.9905
+        ],
+        "ls_lo": [
+          0.9999,
+          1.0,
+          1.0,
+          0.9995
+        ]
+      },
+      "auroc_fixed": {
+        "naive": [
+          0.9987,
+          0.9991,
+          0.9909,
+          0.99
+        ],
+        "durable": [
+          0.9987,
+          0.8451,
+          0.6866,
+          0.8342
+        ],
+        "ls_lo": [
+          0.9987,
+          0.9996,
+          0.9905,
+          0.9905
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          33,
+          122,
+          201,
+          223
+        ],
+        "durable": [
+          33,
+          7,
+          8,
+          5
+        ],
+        "ls_lo": [
+          33,
+          45,
+          50,
+          52
+        ]
+      }
+    },
+    {
+      "seed": 5,
+      "base_real_acc": 0.6,
+      "fixed_ncorrect": 48,
+      "fixed_npool": 96,
+      "auroc_own": {
+        "naive": [
+          0.979,
+          0.9936,
+          0.9866,
+          0.8897
+        ],
+        "durable": [
+          0.979,
+          0.9973,
+          0.9989,
+          0.9996
+        ],
+        "ls_lo": [
+          0.979,
+          0.9983,
+          0.9994,
+          0.9993
+        ]
+      },
+      "auroc_fixed": {
+        "naive": [
+          0.99,
+          0.9983,
+          0.9961,
+          0.967
+        ],
+        "durable": [
+          0.99,
+          0.9423,
+          0.6719,
+          0.7062
+        ],
+        "ls_lo": [
+          0.99,
+          0.9957,
+          0.9957,
+          0.9948
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          36,
+          153,
+          203,
+          193
+        ],
+        "durable": [
+          36,
+          9,
+          17,
+          13
+        ],
+        "ls_lo": [
+          36,
+          33,
+          38,
+          55
+        ]
+      }
+    }
+  ],
+  "args": {
+    "smoke": false,
+    "seeds": "0-5 (merge 0-2 smoke + 3-5)",
+    "rounds": 4,
+    "K": 8,
+    "pool": 48,
+    "fixed_pool": 48,
+    "budget_frac": 0.15,
+    "temp": 1.3,
+    "replay_frac": 0.5,
+    "neg_w": 0.5,
+    "top_k": null,
+    "steps": 50,
+    "n_seed": 200,
+    "base_steps": 180,
+    "base_lr": 0.001,
+    "lr": 0.0005,
+    "warmup": 40,
+    "batch": 32,
+    "test_frac": 0.3,
+    "n_merged": 6
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp133 MERGE N=6] CYCLE 151 / H-V4-9k — DESCONFOUND (pool FIJO balanceado compartido); merge seeds 0-2 + 3-5",
+    "[exp133 MERGE] seeds=[0, 1, 2, 3, 4, 5] n=6",
+    "[exp133 MERGE] AUROC_own:   {'naive': 0.9362, 'durable': 0.9933, 'ls_lo': 0.9886}",
+    "[exp133 MERGE] AUROC_fixed: {'naive': 0.9704, 'durable': 0.7605, 'ls_lo': 0.9879}",
+    "[exp133 MERGE] #correctas (pool propio): {'naive': 95.9, 'durable': 11.8, 'ls_lo': 32.0}",
+    "[exp133] CYCLE 151 / H-V4-9k — DESCONFOUND: ¿el payoff de calibración del lazo real es real o riqueza de generación? (pool FIJO compartido)",
+    "[exp133] arms=['naive', 'durable', 'ls_lo'] seeds=[0, 1, 2] rounds=4 pool=48 fixed_pool=48",
+    "[exp133] seed=0 base real_acc=0.578 params=201,280",
+    "[exp133] seed=0 pool FIJO controlado: 96 cands (48 correctas / 48 incorrectas, balanceado)",
+    "[exp133] seed=0 ronda 1: naive own=0.979 fix=0.991 | durable own=0.979 fix=0.991 | ls_lo own=0.979 fix=0.991",
+    "[exp133] seed=0 ronda 2: naive own=0.954 fix=0.963 | durable own=0.998 fix=0.664 | ls_lo own=0.995 fix=0.985",
+    "[exp133] seed=0 ronda 3: naive own=0.887 fix=0.928 | durable own=1.000 fix=0.556 | ls_lo own=0.984 fix=0.973",
+    "[exp133] seed=0 ronda 4: naive own=0.788 fix=0.916 | durable own=1.000 fix=0.549 | ls_lo own=0.993 fix=0.992",
+    "[exp133] seed=1 base real_acc=0.356 params=201,280",
+    "[exp133] seed=1 pool FIJO controlado: 96 cands (48 correctas / 48 incorrectas, balanceado)",
+    "[exp133] seed=1 ronda 1: naive own=0.988 fix=0.993 | durable own=0.988 fix=0.993 | ls_lo own=0.988 fix=0.993",
+    "[exp133] seed=1 ronda 2: naive own=0.956 fix=0.987 | durable own=1.000 fix=0.679 | ls_lo own=0.987 fix=0.974",
+    "[exp133] seed=1 ronda 3: naive own=0.910 fix=0.962 | durable own=1.000 fix=0.571 | ls_lo own=0.983 fix=0.986",
+    "[exp133] seed=1 ronda 4: naive own=0.849 fix=0.947 | durable own=1.000 fix=0.575 | ls_lo own=0.987 fix=0.965",
+    "[exp133] seed=2 base real_acc=0.311 params=201,280",
+    "[exp133] seed=2 pool FIJO controlado: 96 cands (48 correctas / 48 incorrectas, balanceado)",
+    "[exp133] seed=2 ronda 1: naive own=0.976 fix=0.995 | durable own=0.976 fix=0.995 | ls_lo own=0.976 fix=0.995",
+    "[exp133] seed=2 ronda 2: naive own=0.960 fix=0.973 | durable own=1.000 fix=0.756 | ls_lo own=0.968 fix=0.990",
+    "[exp133] seed=2 ronda 3: naive own=0.932 fix=0.931 | durable own=1.000 fix=0.621 | ls_lo own=0.996 fix=0.981",
+    "[exp133] seed=2 ronda 4: naive own=0.839 fix=0.839 | durable own=0.999 fix=0.578 | ls_lo own=0.994 fix=0.984",
+    "[exp133] --- AUROC OWN (pool propio, métrica CONFUNDIDA del 149/150) vs AUROC FIXED (pool compartido, DESCONFUNDIDA) ---",
+    "[exp133] AUROC_own:   {'naive': 0.9181, 'durable': 0.995, 'ls_lo': 0.9857}",
+    "[exp133] AUROC_fixed: {'naive': 0.9519, 'durable': 0.7107, 'ls_lo': 0.984}",
+    "[exp133] #correctas (pool propio): {'naive': 67.5, 'durable': 9.2, 'ls_lo': 24.2}",
+    "[exp133] durable−naive: OWN +0.077 (CI [0.067, 0.0922], excl0=True) -> FIXED -0.241 (CI [-0.2675, -0.1968], excl0=True)  [atenúa +0.318]",
+    "[exp133] ls_lo−naive:  OWN +0.068 (CI [0.0567, 0.0856], excl0=True) -> FIXED +0.032 (CI [0.0076, 0.0531], excl0=True)  [atenúa +0.035]",
+    "[exp133] VEREDICTO H-V4-9k: APOYADA | H-V4-9k APOYADA-calibración (hay señal de ranking GENUINA, no sólo riqueza de generación): sobre el POOL FIJO compartido SOBREVIVE una ventaja de AUROC -- durable−naive FIXED -0.241 (CI [-0.2675, -0.1968]), ls_lo−naive FIXED 0.032 (CI [0.0076, 0.0531]). => cuando todos los brazos rankean los MISMOS candidatos, al menos un regularizador produce una confianza que rankea MEJOR por correctness, independiente de la riqueza de su propia generación. El payoff de calibración del 149/150 NO es puro artefacto. AUROC_fixed: naive=0.952 durable=0.711 ls_lo=0.984.",
+    "[exp133] CYCLE 151 / H-V4-9k — DESCONFOUND: ¿el payoff de calibración del lazo real es real o riqueza de generación? (pool FIJO compartido)",
+    "[exp133] arms=['naive', 'durable', 'ls_lo'] seeds=[3, 4, 5] rounds=4 pool=48 fixed_pool=48",
+    "[exp133] seed=3 base real_acc=0.444 params=201,280",
+    "[exp133] seed=3 pool FIJO controlado: 96 cands (48 correctas / 48 incorrectas, balanceado)",
+    "[exp133] seed=3 ronda 1: naive own=0.969 fix=0.997 | durable own=0.969 fix=0.997 | ls_lo own=0.969 fix=0.997",
+    "[exp133] seed=3 ronda 2: naive own=0.946 fix=0.987 | durable own=0.968 fix=0.919 | ls_lo own=0.982 fix=0.989",
+    "[exp133] seed=3 ronda 3: naive own=0.904 fix=0.986 | durable own=1.000 fix=0.565 | ls_lo own=0.982 fix=0.987",
+    "[exp133] seed=3 ronda 4: naive own=0.834 fix=0.966 | durable own=0.997 fix=0.569 | ls_lo own=0.992 fix=0.972",
+    "[exp133] seed=4 base real_acc=0.778 params=201,280",
+    "[exp133] seed=4 pool FIJO controlado: 96 cands (48 correctas / 48 incorrectas, balanceado)",
+    "[exp133] seed=4 ronda 1: naive own=1.000 fix=0.999 | durable own=1.000 fix=0.999 | ls_lo own=1.000 fix=0.999",
+    "[exp133] seed=4 ronda 2: naive own=0.999 fix=0.999 | durable own=1.000 fix=0.845 | ls_lo own=1.000 fix=1.000",
+    "[exp133] seed=4 ronda 3: naive own=0.990 fix=0.991 | durable own=0.999 fix=0.687 | ls_lo own=1.000 fix=0.991",
+    "[exp133] seed=4 ronda 4: naive own=0.962 fix=0.990 | durable own=0.991 fix=0.834 | ls_lo own=1.000 fix=0.991",
+    "[exp133] seed=5 base real_acc=0.600 params=201,280",
+    "[exp133] seed=5 pool FIJO controlado: 96 cands (48 correctas / 48 incorrectas, balanceado)",
+    "[exp133] seed=5 ronda 1: naive own=0.979 fix=0.990 | durable own=0.979 fix=0.990 | ls_lo own=0.979 fix=0.990",
+    "[exp133] seed=5 ronda 2: naive own=0.994 fix=0.998 | durable own=0.997 fix=0.942 | ls_lo own=0.998 fix=0.996",
+    "[exp133] seed=5 ronda 3: naive own=0.987 fix=0.996 | durable own=0.999 fix=0.672 | ls_lo own=0.999 fix=0.996",
+    "[exp133] seed=5 ronda 4: naive own=0.890 fix=0.967 | durable own=1.000 fix=0.706 | ls_lo own=0.999 fix=0.995",
+    "[exp133] --- AUROC OWN (pool propio, métrica CONFUNDIDA del 149/150) vs AUROC FIXED (pool compartido, DESCONFUNDIDA) ---",
+    "[exp133] AUROC_own:   {'naive': 0.9543, 'durable': 0.9916, 'ls_lo': 0.9916}",
+    "[exp133] AUROC_fixed: {'naive': 0.9888, 'durable': 0.8104, 'ls_lo': 0.9918}",
+    "[exp133] #correctas (pool propio): {'naive': 124.2, 'durable': 14.4, 'ls_lo': 39.8}",
+    "[exp133] durable−naive: OWN +0.037 (CI [0.01, 0.0705], excl0=True) -> FIXED -0.178 (CI [-0.2216, -0.1535], excl0=True)  [atenúa +0.216]",
+    "[exp133] ls_lo−naive:  OWN +0.037 (CI [0.0124, 0.0679], excl0=True) -> FIXED +0.003 (CI [0.0001, 0.0062], excl0=True)  [atenúa +0.035]",
+    "[exp133] VEREDICTO H-V4-9k: APOYADA | H-V4-9k APOYADA-calibración (hay señal de ranking GENUINA, no sólo riqueza de generación): sobre el POOL FIJO compartido SOBREVIVE una ventaja de AUROC -- durable−naive FIXED -0.178 (CI [-0.2216, -0.1535]), ls_lo−naive FIXED 0.003 (CI [0.0001, 0.0062]). => cuando todos los brazos rankean los MISMOS candidatos, al menos un regularizador produce una confianza que rankea MEJOR por correctness, independiente de la riqueza de su propia generación. El payoff de calibración del 149/150 NO es puro artefacto. AUROC_fixed: naive=0.989 durable=0.810 ls_lo=0.992.",
+    "[exp133 RESUM N=6] durable-naive: OWN +0.057 -> FIXED -0.210 (CI [-0.2454, -0.1745], t=-10.619) INVIERTE",
+    "[exp133 RESUM N=6] ls_lo-naive:  OWN +0.052 -> FIXED +0.018 (CI [0.0033, 0.0345], t=1.982, t_crit=2.015) sign=True robust=False",
+    "[exp133 RESUM N=6] VEREDICTO H-V4-9k: MIXTA | H-V4-9k MIXTA (desconfound PARCIAL): el durable (cura 119) se INVIERTE sobre el pool fijo balanceado -- durable−naive OWN 0.057 -> FIXED -0.210 (CI [-0.2454, -0.1745], excluye 0 del lado NEGATIVO) -> su ventaja del 149 era ENTERAMENTE riqueza de generación. El ÚNICO sobreviviente es el GENÉRICO ls_lo, y SÓLO EN SIGNO (todos los gaps positivos, sign-test) pero NO robusto -- ls_lo−naive OWN 0.052 -> FIXED 0.018 (CI [0.0033, 0.0345], t=1.982 < t_crit 2.015 one-tail 0.05; magnitud near-zero, régimen-dependiente). => el payoff del lazo real NO es puro artefacto (hay una señal de signo genuina, generación-independiente) PERO es chico, genérico (no la cura) y sub-significativo por t-test. NOTA: 'CI excluye 0' aquí es tautológico (gaps un-signo); la compuerta dura es el t-test. AUROC_fixed: naive=0.970 durable=0.760 ls_lo=0.988."
+  ]
+}
