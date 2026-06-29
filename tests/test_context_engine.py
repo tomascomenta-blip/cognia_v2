@@ -83,3 +83,32 @@ def test_stats(db_path):
     assert isinstance(s, dict)
     assert "pointers" in s
     assert s["pointers"] >= 1
+
+
+def test_list_projects(db_path):
+    ai = FakeAI(db_path)
+    ContextMap(db_path=db_path, project="proj_a").add_pointer(
+        "text", "", inline_text="algo del proyecto a", vector=[0.0, 1.0])
+    ContextMap(db_path=db_path, project="proj_b").add_pointer(
+        "text", "", inline_text="algo del proyecto b", vector=[0.0, 1.0])
+
+    projs = ce.list_projects(ai)
+
+    assert "proj_a" in projs
+    assert "proj_b" in projs
+
+
+def test_retrieve_all(db_path):
+    ai = FakeAI(db_path)
+    ContextMap(db_path=db_path, project="proj_a").add_pointer(
+        "text", "", inline_text="esta es la frase buscada por el usuario",
+        vector=[0.0, 1.0])
+    ContextMap(db_path=db_path, project="proj_b").add_pointer(
+        "text", "", inline_text="texto sin relacion con la consulta",
+        vector=[0.0, 1.0])
+
+    res = ce.retrieve_all(ai, "frase buscada")
+
+    assert res
+    assert "frase buscada" in res[0]["text"]
+    assert res[0]["project"] == "proj_a"

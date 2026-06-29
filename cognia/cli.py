@@ -425,6 +425,9 @@ _CMD_DESCRIPTIONS = {
     "/resumen-sesion":  "Resumen completo de la sesion actual",
     "/limpiar-sesion":  "Limpiar historial de sesion en memoria (no borra datos persistentes)",
     "/ver-contexto":    "Ver que contexto inyectaria Cognia para una pregunta",
+    "/contexto":        "Buscar en el mapa de contexto   <consulta>",
+    "/contexto-mapa":   "Regenerar el archivo de contexto (cognia_context.md)",
+    "/contexto-stats":  "Ver punteros del mapa de contexto por project",
     "/limpiar":         "Limpiar pantalla",
     "/compactar":       "Resumir historial de sesión",
     "/resumir":         "Resume la conversacion actual y guarda en memoria",
@@ -1634,6 +1637,56 @@ def _slash_contexto_semantico(ai, args: str) -> None:
             _print_ctx(SemanticMemorySearch(db_path=ai.db).search_context(args.strip(), window=3))
         except Exception as _e:
             print(f"Contexto semantico local fallo: {_e}")
+
+
+def _slash_contexto(ai, args):
+    # /contexto <consulta>: busca en el context map (todos los projects) y muestra los top spans
+    q = (args or "").strip()
+    if not q:
+        print("Uso: /contexto <consulta>")
+        return
+    from cognia.context import context_engine
+    hits = context_engine.retrieve_all(ai, q, budget_tokens=1200, top_k=20)
+    if not hits:
+        print("Sin resultados en el mapa de contexto. Usa /leer o /proyecto para indexar.")
+        return
+    print("Top spans del mapa de contexto (%d):" % len(hits))
+    for i, h in enumerate(hits[:5], 1):
+        txt = (h.get("text") or "").replace("\n", " ")
+        if len(txt) > 200:
+            txt = txt[:200] + "..."
+        print("  %d. [score %.3f | %s] %s" % (i, h.get("score", 0.0), h.get("project", "?"), txt))
+
+
+def _slash_contexto_mapa(ai, args):
+    # /contexto-mapa: regenera cognia_context.md (un archivo por project)
+    from cognia.context import context_engine
+    projs = context_engine.list_projects(ai)
+    if not projs:
+        print("El mapa de contexto esta vacio. Usa /leer o /proyecto para indexar.")
+        return
+    import os
+    paths = []
+    for p in projs:
+        safe = p.replace(":", "_").replace("/", "_").replace("\\", "_")
+        outp = os.path.join(os.getcwd(), "cognia_context_%s.md" % safe)
+        context_engine.refresh_map(ai, project=p, out_path=outp)
+        paths.append(outp)
+    print("Mapa de contexto regenerado (%d projects):" % len(projs))
+    for pth in paths:
+        print("  " + pth)
+
+
+def _slash_contexto_stats(ai, args):
+    from cognia.context import context_engine
+    projs = context_engine.list_projects(ai)
+    total = 0
+    print("Mapa de contexto por project:")
+    for p in projs:
+        s = context_engine.stats(ai, project=p)
+        total += s.get("pointers", 0)
+        print("  %s: %d punteros, %d fuentes" % (p, s.get("pointers", 0), s.get("covered_sources", 0)))
+    print("Total punteros: %d" % total)
 
 
 def _slash_sintetizar(ai, args: str) -> None:
@@ -6482,6 +6535,14 @@ def repl():
             _slash_cognia_info("")
         elif raw == "/inicio-dia":
             _slash_inicio_dia("")
+
+        # ── /contexto / /contexto-mapa / /contexto-stats (mapa de contexto) ────
+        elif raw == "/contexto" or raw.startswith("/contexto "):
+            _slash_contexto(ai, raw[len("/contexto "):] if raw.startswith("/contexto ") else "")
+        elif raw == "/contexto-mapa":
+            _slash_contexto_mapa(ai, "")
+        elif raw == "/contexto-stats":
+            _slash_contexto_stats(ai, "")
 
         # ── /ver-contexto / /limpiar-sesion ──────────────────────────────────
         elif raw == "/ver-contexto" or raw.startswith("/ver-contexto "):

@@ -43,6 +43,35 @@ def retrieve(ai, query, project="default", budget_tokens=4000, top_k=50,
     return res
 
 
+def list_projects(ai):
+    """Lista los projects distintos presentes en el context map."""
+    cm = ContextMap(db_path=getattr(ai, "db", None))
+    return cm.list_projects()
+
+
+def retrieve_all(ai, query, budget_tokens=4000, top_k=50):
+    """Recupera spans relevantes ACROSS todos los projects del context map
+    (hibrido por project, merge por score). Devuelve lista
+    [{id,score,text,source_ref,project}]."""
+    results = []
+    for p in list_projects(ai):
+        cm = ContextMap(db_path=getattr(ai, "db", None), project=p)
+        for r in cm.query_text_hybrid(query, _embed_fn(ai), budget_tokens=budget_tokens, top_k=top_k):
+            r = dict(r)
+            r["project"] = p
+            results.append(r)
+    results.sort(key=lambda r: r["score"], reverse=True)
+    # empaquetar hasta budget (~4 chars/token) sobre el merge global
+    out, used = [], 0
+    for r in results:
+        est = max(1, len(r.get("text") or "") // 4)
+        if used + est > budget_tokens:
+            break
+        out.append(r)
+        used += est
+    return out
+
+
 def refresh_map(ai, project="default", out_path=None):
     """Regenera el archivo de contexto legible (cognia_context.md). Devuelve la ruta."""
     cm = ContextMap(db_path=getattr(ai, "db", None), project=project)

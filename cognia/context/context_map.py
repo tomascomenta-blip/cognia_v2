@@ -364,6 +364,14 @@ class ContextMap:
         return self.query_hybrid(query_text, vec, budget_tokens=budget_tokens,
                                  top_k=top_k, vec_weight=vec_weight)
 
+    def list_projects(self):
+        """SELECT DISTINCT project FROM context_pointers (ignora self.project)."""
+        with get_pool(self.db_path).get() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT project FROM context_pointers ORDER BY project"
+            ).fetchall()
+        return [r[0] for r in rows]
+
     def stats(self):
         with get_pool(self.db_path).get() as conn:
             n_ptr = conn.execute(
