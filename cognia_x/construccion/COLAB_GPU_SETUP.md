@@ -45,8 +45,13 @@ provisiona VMs (CPU/T4/L4/A100/TPU), corre scripts/notebooks, monta Drive, recup
 
 **Cómo usarlo (lo que hace el dueño — requiere login de Google, no automatizable por el agente):**
 ```powershell
-# 1) autenticar (abre el navegador con tu cuenta de Google). Por defecto usa ADC; oauth2 también sirve:
-colab auth                       # o:  colab --auth oauth2 new -s g2 --gpu T4
+# 1) AUTENTICAR EL CLI (flujo oauth2 copy-paste, NO necesita gcloud). Corré esto en una terminal
+#    PowerShell normal (necesita que pegues un código interactivamente). NO crea ninguna VM:
+colab --auth oauth2 whoami
+#    -> imprime una URL; abrila, logueá con tu Google, copiá el CÓDIGO que te muestra, pegalo en la
+#       terminal y Enter. Token cacheado en ~/.config/colab-cli/token.json (una sola vez).
+#       Si imprime tu email/scopes = autenticado OK.
+#    NOTA: 'colab auth' (sin --auth) es OTRA cosa: autentica la VM remota para GCP, no el CLI.
 # 2) provisionar una VM con GPU T4 + correr G2:
 colab new -s g2 --gpu T4
 colab install -s g2 torch numpy
