@@ -27,6 +27,13 @@ Harness con AMP-safe + compile + AdamW fused + **CHECKPOINT ATÓMICO REANUDABLE*
 step+rng+config; `os.replace`). Resume verificado: entrena 40 → "muere" → reanuda en 40 → 80, loss continuo.
 Config declarativa. Es el "fácilmente reentrenable" del goal.
 
+### 4b. CAPSTONE end-to-end (PROBADO) — `m0_train_capstone.py`
+El modelo CANÓNICO `HybridLM` (fp16-seguro) entrenado VÍA `fast_harness` (config declarativa, wd=0 = el
+que grokea más rápido, checkpoints atómicos) alcanza **recall acc 1.000** (azar 0.125): meseta ~0.35
+(steps 500-2500) → transición (step 3000: 0.938) → 0.991 (3500) → **1.000 (4500)**. Junta TODO lo medido:
+modelo fp16-safe + harness reentrenable + data-efficiency (wd bajo). El "ENTRENÁ la IA, rápida y
+reentrenable" demostrado con un checkpoint convergido reanudable.
+
 ## 5. GROKKING — el hallazgo que reorienta el costo de convergencia (PROBADO local)
 El recall asociativo **GROKEA**: meseta larga a acc baja (~0.35) y luego transición ABRUPTA a >0.9
 (validado: 0.125→meseta(~3300 pasos)→0.79(step 3663)→0.97(3996)). Implicaciones:
