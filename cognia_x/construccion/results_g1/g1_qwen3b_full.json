@@ -1,0 +1,55 @@
+{
+  "label": "qwen3b_full",
+  "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "threads": 3,
+  "n_predict": 96,
+  "cpu_count": 4,
+  "binary": "llama-server.exe",
+  "points": [
+    {
+      "L": 512,
+      "ctx": 864,
+      "kv_mib": null,
+      "rss_mib": 3280.9,
+      "decode_tps": 7.670899858080362,
+      "prefill_tps": 24.417666750182168,
+      "prompt_n": 391,
+      "predicted_n": 96,
+      "wall_s": 28.6
+    },
+    {
+      "L": 2048,
+      "ctx": 2400,
+      "kv_mib": null,
+      "rss_mib": 3346.8,
+      "decode_tps": 5.19373272272349,
+      "prefill_tps": 20.151811951914446,
+      "prompt_n": 1561,
+      "predicted_n": 96,
+      "wall_s": 95.97
+    },
+    {
+      "L": 4096,
+      "ctx": 4448,
+      "kv_mib": null,
+      "rss_mib": 3420.8,
+      "decode_tps": 3.7891566414857474,
+      "prefill_tps": 15.45635643171836,
+      "prompt_n": 3160,
+      "predicted_n": 96,
+      "wall_s": 229.79
+    },
+    {
+      "L": 8192,
+      "ctx": 8544,
+      "kv_mib": null,
+      "rss_mib": 3582.5,
+      "decode_tps": 2.724444645372237,
+      "prefill_tps": 13.099044485688053,
+      "prompt_n": 6358,
+      "predicted_n": 96,
+      "wall_s": 520.62
+    }
+  ],
+  "errors": []
+}

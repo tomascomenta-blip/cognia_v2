@@ -187,10 +187,25 @@ def gen(prompt: str, n_predict: int) -> dict:
 def measure_model(gguf: Path, label: str, lengths: list[int], n_predict: int) -> dict:
     assert BINARY.is_file(), f"falta binario: {BINARY}"
     assert gguf.is_file(), f"falta GGUF: {gguf}"
+    json_path = OUT / f"g1_{label}.json"
     out = {"label": label, "model": gguf.name, "threads": N_THREADS,
            "n_predict": n_predict, "cpu_count": os.cpu_count(), "binary": BINARY.name,
            "points": [], "errors": []}
+    # RESUMIBLE: si ya hay json parcial (un run anterior se cortó), retomar los L que faltan.
+    done_L = set()
+    if json_path.is_file():
+        try:
+            prev = json.loads(json_path.read_text(encoding="utf-8"))
+            out["points"] = prev.get("points", [])
+            out["errors"] = prev.get("errors", [])
+            done_L = {p["L"] for p in out["points"]}
+            if done_L:
+                print(f"[g1] {label}: retomando, ya medidos L={sorted(done_L)}", flush=True)
+        except Exception:  # noqa: BLE001
+            pass
     for L in lengths:
+        if L in done_L:
+            continue
         if not _port_free():
             print(f"[g1] puerto {PORT} ocupado; abortando", flush=True)
             break
@@ -221,8 +236,8 @@ def measure_model(gguf: Path, label: str, lengths: list[int], n_predict: int) ->
             except Exception:  # noqa: BLE001
                 proc.kill()
             time.sleep(1.0)
-    (OUT / f"g1_{label}.json").write_text(json.dumps(out, indent=2, ensure_ascii=False),
-                                          encoding="utf-8")
+        json_path.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")  # incremental
+    json_path.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
     return out
 
 
