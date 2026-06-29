@@ -232,12 +232,16 @@ def make_recall_batch(rng, batch, n_pairs, n_queries, n_keys, n_vals, device):
 
 
 @torch.no_grad()
-def eval_recall(model, rng, p, device, batches=20):
+def eval_recall(model, rng, p, device, batches=20, amp=False):
     model.eval()
     hits = total = 0
     for _ in range(batches):
         x, y = make_recall_batch(rng, p["batch"], p["n_pairs"], p["n_queries"], p["n_keys"], p["n_vals"], device)
-        logits, _ = model(x)
+        if amp:
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                logits, _ = model(x)
+        else:
+            logits, _ = model(x)
         pred = logits.argmax(-1)
         m = y != -100
         hits += int((pred[m] == y[m]).sum())
@@ -247,7 +251,13 @@ def eval_recall(model, rng, p, device, batches=20):
 
 
 def train_one(name, attn_every, arrangement, window_frac, p, steps, warmup, device, seed, deadline, log,
-              early_stop=0.97):
+              early_stop=0.97, amp=True, use_compile=False, patience=4, plateau_eps=0.01):
+    """Entrena UNA config. VELOCIDAD (medido en T4, ver M0_G2_PROFILE_RESULTADO.md / results_g2):
+      - AMP fp16 (autocast + GradScaler): ~1.9x en T4 (tensor cores), neutral en calidad. Default ON en cuda.
+      - plateau early-stop: corta una config que está CLARAMENTE estancada (best<0.5 y `patience` evals sin
+        mejora) -> no sesga el veredicto (un config plano lejos de 0.8 no va a cruzar) y acorta el sweep.
+      - use_compile (torch.compile): ~2x extra PERO recompila por cada estructura de modelo distinta -> caro
+        en un sweep de muchas configs cortas; default OFF (reservar para corridas largas de UN solo modelo)."""
     rng = np.random.default_rng(seed)
     eval_rng = np.random.default_rng(seed + 10**6)
     torch.manual_seed(seed)
@@ -258,51 +268,76 @@ def train_one(name, attn_every, arrangement, window_frac, p, steps, warmup, devi
     layer_types = build_layer_types(p["n_layers"], attn_every, arrangement)
     n_attn = layer_types.count("attn")
     model = HybridLM(vocab, p["d_model"], p["n_heads"], layer_types, window, L + 1).to(device)
+    if use_compile and device == "cuda":
+        model = torch.compile(model)
     opt = torch.optim.AdamW(model.parameters(), lr=p["lr"], weight_decay=0.01)
+    use_amp = amp and device == "cuda"
+    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
     attn_frac = n_attn / p["n_layers"]
     log(f"[{name}] params={model.num_params():,} L={L} capas={layer_types.count('linear')}lin/{n_attn}attn "
         f"({attn_frac:.0%} attn) arreglo={arrangement} window={window}{'(global)' if window > L else '(SWA)'} "
-        f"azar={chance:.4f}")
+        f"azar={chance:.4f} amp={use_amp} compile={use_compile}")
     model.train()
     acc = 0.0
+    best_acc = 0.0
+    stale = 0
+    eval_every = max(1, steps // 12)
     for step in range(1, steps + 1):
         if warmup > 0 and step <= warmup:
             for g in opt.param_groups:
                 g["lr"] = p["lr"] * step / warmup
         x, y = make_recall_batch(rng, p["batch"], p["n_pairs"], p["n_queries"], p["n_keys"], p["n_vals"], device)
-        _, loss = model(x, y)
-        opt.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        opt.step()
-        if step % max(1, steps // 12) == 0 or step == steps:
-            acc = eval_recall(model, eval_rng, p, device, batches=12)
+        if use_amp:
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                _, loss = model(x, y)
+            opt.zero_grad(set_to_none=True)
+            scaler.scale(loss).backward()
+            scaler.unscale_(opt)                                  # unscale ANTES del clip (gradiente real)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            scaler.step(opt)
+            scaler.update()
+        else:
+            _, loss = model(x, y)
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            opt.step()
+        if step % eval_every == 0 or step == steps:
+            acc = eval_recall(model, eval_rng, p, device, batches=12, amp=use_amp)
             log(f"[{name}] step {step}/{steps} loss {loss.item():.3f} acc {acc:.3f} (azar {chance:.4f})")
             if acc >= early_stop and step >= warmup:
-                log(f"[{name}] early-stop step {step} (acc {acc:.3f})")
+                log(f"[{name}] early-stop ÉXITO step {step} (acc {acc:.3f})")
+                break
+            if acc > best_acc + plateau_eps:        # seguimiento de plateau (solo corta no-aprendices claros)
+                best_acc, stale = acc, 0
+            else:
+                stale += 1
+            if stale >= patience and best_acc < 0.5 and step >= warmup + 2 * eval_every:
+                log(f"[{name}] plateau early-stop step {step} (best {best_acc:.3f}, {stale} evals sin mejora)")
                 break
         if deadline and time.time() > deadline and step >= warmup:
             log(f"[{name}] deadline en step {step}")
             break
-    acc = eval_recall(model, eval_rng, p, device, batches=24)
+    acc = eval_recall(model, eval_rng, p, device, batches=24, amp=use_amp)
     log(f"[{name}] FINAL acc {acc:.3f} (azar {chance:.4f}) attn_frac {attn_frac:.0%}")
     return {"name": name, "attn_every": attn_every, "arrangement": arrangement, "window": window,
             "window_global": window > L, "attn_layers": n_attn, "n_layers": p["n_layers"],
-            "attn_frac": round(attn_frac, 3), "final_acc": round(acc, 4), "chance": round(chance, 4),
-            "params": model.num_params()}
+            "attn_frac": round(attn_frac, 3), "final_acc": round(acc, 4), "best_acc": round(best_acc, 4),
+            "chance": round(chance, 4), "params": model.num_params(), "amp": use_amp}
 
 
 # ───────────────────────── el sweep G2 ──────────────────────────────────────────────────────────────
 
 
-def sweep(p, steps, warmup, per_cfg_sec, device, seed, log):
+def sweep(p, steps, warmup, per_cfg_sec, device, seed, log, amp=True, use_compile=False):
     """3 ejes: (1) RATIO -> ¿mínima cuota de atención que cruza recall?; (2) ARREGLO; (3) VENTANA (SWA vs global)."""
     runs = []
 
     def run(name, ae, arr="linear_first", wf=1.0):
         dl = time.time() + per_cfg_sec
         try:
-            r = train_one(name, ae, arr, wf, p, steps, warmup, device, seed, dl, log)
+            r = train_one(name, ae, arr, wf, p, steps, warmup, device, seed, dl, log,
+                          amp=amp, use_compile=use_compile)
         except Exception as e:  # noqa: BLE001
             log(f"[{name}] ERROR {e!r}")
             r = {"name": name, "attn_every": ae, "arrangement": arr, "error": repr(e)}
@@ -367,6 +402,8 @@ def main():
     ap.add_argument("--smoke", action="store_true", help="tiny en CPU para verificar que corre")
     ap.add_argument("--steps", type=int, default=None)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--no-amp", action="store_true", help="desactivar AMP fp16 (default ON en cuda)")
+    ap.add_argument("--compile", action="store_true", help="torch.compile (caro en sweep multi-config; OFF default)")
     args = ap.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -377,18 +414,20 @@ def main():
         p = dict(d_model=64, n_heads=4, n_layers=4, n_keys=64, n_vals=16, n_pairs=12, n_queries=8, batch=32, lr=1e-3)
         steps = args.steps or 60
         warmup, per_cfg = 10, 60.0
-    else:                            # escala objetivo (Colab T4) — task LEARNABLE + deadline holgado (rely on early-stop)
+    else:                            # escala objetivo (Colab T4). AMP fp16 (~1.9x medido) + plateau early-stop.
         p = dict(d_model=256, n_heads=8, n_layers=12, n_keys=256, n_vals=32, n_pairs=32, n_queries=16, batch=64, lr=1e-3)
-        steps = args.steps or 8000
-        warmup, per_cfg = 200, 1500.0   # 1500s = red de seguridad; con data-gen vectorizada + early-stop NO se llega
+        steps = args.steps or 5000      # ample para converger este recall sintético; los learners early-stop antes
+        warmup, per_cfg = 200, 600.0    # 600s = red de seguridad por config; el plateau/early-stop corta mucho antes
 
+    amp = (not args.no_amp)
     t0 = time.time()
-    print(f"[g2] device={device} smoke={args.smoke} steps={steps} scale={p}", flush=True)
+    print(f"[g2] device={device} smoke={args.smoke} steps={steps} amp={amp and device=='cuda'} "
+          f"compile={args.compile} scale={p}", flush=True)
 
     def log(s):
         print(s, flush=True)
 
-    runs = sweep(p, steps, warmup, per_cfg, device, args.seed, log)
+    runs = sweep(p, steps, warmup, per_cfg, device, args.seed, log, amp=amp, use_compile=args.compile)
     verdict = _verdict(runs)
     out = {"experiment": "m0_g2_recall", "device": device, "params": p, "steps": steps,
            "seed": args.seed, "runs": runs, "verdict": verdict, "minutes": round((time.time() - t0) / 60, 1)}
