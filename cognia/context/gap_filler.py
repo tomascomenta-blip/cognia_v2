@@ -52,6 +52,23 @@ def fill_gaps(cm, ai, project=None, max_sources=10):
     return total
 
 
+def fill_gaps_ondisk(cm, ai, project=None, max_sources=50):
+    """Detecta huecos por el TAMANO ACTUAL del archivo en disco (no por coverage
+    almacenado): para cada fuente conocida, si el archivo on-disk es mas largo que
+    indexed_through, indexa la cola [indexed_through:]. Devuelve total de punteros
+    agregados. Solo aplica a fuentes que son archivos legibles (las 'text'/inline se saltan)."""
+    proj = project if project is not None else cm.project
+    total = 0
+    for (source_ref, indexed_through, total_chars) in cm.all_coverage(proj)[:max_sources]:
+        try:
+            cur_len = len(Path(source_ref).read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            continue  # no es archivo legible (p.ej. fuente 'msg' o borrada)
+        if cur_len > (indexed_through or 0):
+            total += index_source_range(cm, ai, source_ref, proj, start=indexed_through or 0)
+    return total
+
+
 def query_with_gap_fill(cm, ai, query_text, embed_fn, budget_tokens=4000,
                         top_k=50, min_score=0.5):
     """Query the index; if the best score < min_score (nothing good found),

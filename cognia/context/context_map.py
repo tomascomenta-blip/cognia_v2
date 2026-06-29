@@ -181,6 +181,19 @@ class ContextMap:
             ).fetchall()
         return [(r[0], r[1], r[2]) for r in rows]
 
+    def all_coverage(self, project=None):
+        """Every coverage row of `project` (NOT only the ones with a gap), for
+        on-disk gap detection: returns a list of
+        (source_ref, indexed_through, total_chars) ordered by source_ref."""
+        proj = project if project is not None else self.project
+        with get_pool(self.db_path).get() as conn:
+            rows = conn.execute(
+                "SELECT source_ref, indexed_through, total_chars "
+                "FROM context_coverage WHERE project = ? ORDER BY source_ref",
+                (proj,),
+            ).fetchall()
+        return [(r[0], r[1], r[2]) for r in rows]
+
     def pointers(self, project=None):
         proj = project if project is not None else self.project
         with get_pool(self.db_path).get() as conn:
