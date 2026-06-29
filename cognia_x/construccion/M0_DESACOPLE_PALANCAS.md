@@ -106,7 +106,15 @@ palanca "desacopla" si mueve un punto FUERA de la curva baseline params↔veloci
 |---|---|---|---|---|---|---|
 | AMP fp16 (T4) | 67k (vs 35.8k) | **1.9×** throughput | **NO neutral**: daba NaN (atención lineal sin normalizar overflow fp16) -> arreglado con núcleo fp32 (calidad intacta) | sí (precisión) | g2_profile_results.json | [PROBADO + corregido] |
 | +torch.compile | 147.8k | **4.1×** throughput | neutral (misma matemática) | sí (fusión) | g2_profile_results.json | [PROBADO] |
-| curva params↔vel | — | α=? | — | baseline | g2_paramspeed_results.json | [pendiente: corre tras G2] |
+| curva params↔vel (CPU, d=64→256, L8) | 9005→1706 train; 25627→5153 fwd | **α≈0.6** (sub-lineal: tok/s ∝ params^-0.6) | — | BASELINE (la raíz medida) | results_g2/g2_paramspeed_results.json | [PROBADO CPU] |
+| data-efficiency / grokking (wd) | grok @3600(wd=0) / 3700(wd=0.01) pasos | wd no acelera a escala chica (2/5 pts) | igual final ~0.81-0.84 | parcial | results_g2/g2_grok_accel_partial.json | [PROBADO parcial CPU] |
+
+**Curva params↔velocidad (la RAÍZ, MEDIDA en CPU):** α≈0.6 → "más params = más lento" es REAL pero
+**sub-lineal** en este rango (10× params ≈ 4× más lento, no 10×), porque a escala chica domina el overhead
+fijo (consistente con el T4: overhead-bound a ~6% del pico). Implicación: a escala chica el lever dominante
+NO es reducir params (ganás poco) sino matar el overhead (compile/fusión) y la convergencia (grokking);
+a escala grande (α→1, compute-bound) sí pesan cuant/MoE. **Un lever desacopla si mueve un punto FUERA de
+esta curva**: el MoE naive cayó DEBAJO (0.42-0.5×, ruteo) = NO desacopla sin kernels.
 | MoE top-1 E4/E8 (CPU smoke) | 0.42-0.50× denso | **NEGATIVO a escala chica** | recall neutral (~igual) | NO (ruteo Python domina) | g2_moe_results.json | [PROBADO parcial CPU] |
 
 **Lección MoE (preliminar, CPU):** con E× params totales a activo igualado, el MoE naive corre a **0.42-0.50×**

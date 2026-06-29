@@ -1,0 +1,54 @@
+{
+  "device": "cpu",
+  "torch": "2.12.0+cpu",
+  "amp": false,
+  "alpha_train": 0.597,
+  "alpha_fwd": 0.599,
+  "rows": [
+    {
+      "d_model": 64,
+      "n_layers": 8,
+      "params": 402496,
+      "train_ms_step": 568.548,
+      "train_tok_s": 9005.4,
+      "fwd_ms": 199.791,
+      "fwd_tok_s": 25626.8
+    },
+    {
+      "d_model": 96,
+      "n_layers": 8,
+      "params": 886368,
+      "train_ms_step": 942.858,
+      "train_tok_s": 5430.3,
+      "fwd_ms": 264.784,
+      "fwd_tok_s": 19336.5
+    },
+    {
+      "d_model": 128,
+      "n_layers": 8,
+      "params": 1558656,
+      "train_ms_step": 1195.398,
+      "train_tok_s": 4283.1,
+      "fwd_ms": 390.365,
+      "fwd_tok_s": 13115.9
+    },
+    {
+      "d_model": 192,
+      "n_layers": 8,
+      "params": 3542208,
+      "train_ms_step": 2062.949,
+      "train_tok_s": 2481.9,
+      "fwd_ms": 675.401,
+      "fwd_tok_s": 7580.7
+    },
+    {
+      "d_model": 256,
+      "n_layers": 8,
+      "params": 6328576,
+      "train_ms_step": 3000.704,
+      "train_tok_s": 1706.3,
+      "fwd_ms": 993.607,
+      "fwd_tok_s": 5152.9
+    }
+  ]
+}

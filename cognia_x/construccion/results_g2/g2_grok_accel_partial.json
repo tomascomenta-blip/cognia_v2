@@ -1,0 +1,31 @@
+{
+  "task": {
+    "d_model": 64,
+    "n_heads": 4,
+    "n_layers": 4,
+    "n_keys": 24,
+    "n_vals": 8,
+    "n_pairs": 6,
+    "n_queries": 6,
+    "batch": 64
+  },
+  "lr": 0.0003,
+  "runs": [
+    {
+      "weight_decay": 0.0,
+      "lr": 0.0003,
+      "grok_step": 3600,
+      "best_acc": 0.8158,
+      "final_acc": 0.8107,
+      "sec": 256.4
+    },
+    {
+      "weight_decay": 0.01,
+      "lr": 0.0003,
+      "grok_step": 3700,
+      "best_acc": 0.8366,
+      "final_acc": 0.8353,
+      "sec": 435.8
+    }
+  ]
+}

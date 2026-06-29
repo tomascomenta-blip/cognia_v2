@@ -136,6 +136,10 @@ def main():
         sizes = [64, 128]
         n_layers = 4
         steps, warmup, iters = 5, 2, 5
+    elif device == "cpu":                      # CPU-first: tamaños/pasos que caben rápido (evidencia CPU)
+        sizes = [64, 96, 128, 192, 256]
+        n_layers = 8
+        steps, warmup, iters = 12, 4, 12
     else:
         sizes = [128, 192, 256, 384, 512, 768]
         steps, warmup, iters = 25, 8, 25
