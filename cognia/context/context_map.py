@@ -78,7 +78,13 @@ class ContextMap:
     def add_pointer(self, source_kind, source_ref, char_start=None, char_end=None,
                     chunk_ord=0, label=None, summary=None, inline_text=None,
                     vector=None, importance=1.0):
-        vector_json = json.dumps(vector) if isinstance(vector, list) else None
+        if vector is None:
+            vector_json = None
+        else:
+            try:
+                vector_json = json.dumps([float(x) for x in vector])
+            except (TypeError, ValueError):
+                vector_json = None
         with get_pool(self.db_path).get() as conn:
             cur = conn.execute(
                 """
@@ -146,6 +152,21 @@ class ContextMap:
         if total_chars > indexed_through:
             return (indexed_through, total_chars)
         return None
+
+    def uncovered_sources(self, project=None):
+        """Sources of `project` with an unindexed tail, for gap-filling.
+        Returns a list of (source_ref, indexed_through, total_chars) where
+        total_chars > indexed_through."""
+        proj = project if project is not None else self.project
+        with get_pool(self.db_path).get() as conn:
+            rows = conn.execute(
+                "SELECT source_ref, indexed_through, total_chars "
+                "FROM context_coverage "
+                "WHERE project = ? AND total_chars > indexed_through "
+                "ORDER BY source_ref",
+                (proj,),
+            ).fetchall()
+        return [(r[0], r[1], r[2]) for r in rows]
 
     def pointers(self, project=None):
         proj = project if project is not None else self.project
