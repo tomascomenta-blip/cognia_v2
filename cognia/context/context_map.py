@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
+from cognia.context.lexical_index import bm25_scores
 from storage.db_pool import get_pool
 
 try:
@@ -252,6 +253,103 @@ class ContextMap:
         if vec is None:
             return []
         return self.query(vec, budget_tokens, top_k)
+
+    def query_hybrid(self, query_text, query_vector, budget_tokens=4000, top_k=50,
+                     candidate_k=150, vec_weight=0.5):
+        """Hybrid retrieval: take vector-similarity candidates (up to candidate_k),
+        resolve each to its raw span, score query_text lexically (BM25) over those
+        spans, then fuse (vec_weight*vec_norm + (1-vec_weight)*bm25_norm) with
+        min-max normalization of each signal to [0,1]. Pack the best up to
+        budget_tokens (~4 chars/token). Returns a list of dicts
+        {id, score, vec_score, bm25_score, source_kind, source_ref, text} in
+        descending fused-score order. Empty query_vector -> BM25 only over ALL of
+        the project's pointers (resolved). No pointers -> []."""
+        candidates = []  # (id, vec_score, source_kind, source_ref)
+        if query_vector is not None and len(query_vector) > 0:
+            q = np.asarray(query_vector, dtype=float)
+            qn = np.linalg.norm(q)
+            if qn != 0:
+                with get_pool(self.db_path).get() as conn:
+                    rows = conn.execute(
+                        "SELECT id, vector, source_kind, source_ref "
+                        "FROM context_pointers "
+                        "WHERE project = ? AND vector IS NOT NULL",
+                        (self.project,),
+                    ).fetchall()
+                scored = []
+                for pid, vector_json, source_kind, source_ref in rows:
+                    try:
+                        v = np.asarray(json.loads(vector_json), dtype=float)
+                    except (TypeError, ValueError):
+                        continue
+                    if v.shape != q.shape:
+                        continue
+                    vn = np.linalg.norm(v)
+                    if vn == 0:
+                        continue
+                    vec_score = float(np.dot(q, v) / (qn * vn))
+                    scored.append((pid, vec_score, source_kind, source_ref))
+                scored.sort(key=lambda x: x[1], reverse=True)
+                candidates = scored[:candidate_k]
+        if not candidates:
+            candidates = [(p["id"], 0.0, p["source_kind"], p["source_ref"])
+                          for p in self.pointers(self.project)]
+
+        resolved = []  # (id, vec_score, source_kind, source_ref, text)
+        for pid, vec_score, source_kind, source_ref in candidates:
+            text = self.resolve(pid)
+            if not text:
+                continue
+            resolved.append((pid, vec_score, source_kind, source_ref, text))
+        if not resolved:
+            return []
+
+        bm25 = bm25_scores(query_text, [r[4] for r in resolved])
+        # Raw clamped cosine for the vector signal and max-normalized BM25 keep the
+        # RELATIVE margin between candidates. min-max would flatten 2 candidates to
+        # 1 vs 0 on each axis, fusing both to exactly 0.5 at vec_weight=0.5 (a tie
+        # the stable sort breaks toward the worse, vector-only winner -- an e2e bug).
+        max_bm25 = max(bm25) if bm25 else 0.0
+
+        items = []
+        for i, (pid, vec_score, source_kind, source_ref, text) in enumerate(resolved):
+            vec_clamped = max(0.0, vec_score)
+            bm25_norm = bm25[i] / max_bm25 if max_bm25 > 0 else 0.0
+            fused = vec_weight * vec_clamped + (1 - vec_weight) * bm25_norm
+            items.append({
+                "id": pid,
+                "score": fused,
+                "vec_score": vec_score,
+                "bm25_score": bm25[i],
+                "source_kind": source_kind,
+                "source_ref": source_ref,
+                "text": text,
+            })
+        items.sort(key=lambda d: d["score"], reverse=True)
+        items = items[:top_k]
+
+        out = []
+        used_tokens = 0
+        for it in items:
+            est_tokens = max(1, len(it["text"]) // 4)
+            if used_tokens + est_tokens > budget_tokens:
+                break
+            used_tokens += est_tokens
+            out.append(it)
+        return out
+
+    def query_text_hybrid(self, query_text, embed_fn, budget_tokens=4000,
+                          top_k=50, vec_weight=0.5):
+        """Convenience wrapper: embed query_text with embed_fn then delegate to
+        query_hybrid. embed_fn failure or None -> empty vector (falls to BM25)."""
+        try:
+            vec = embed_fn(query_text)
+        except Exception:
+            vec = []
+        if vec is None:
+            vec = []
+        return self.query_hybrid(query_text, vec, budget_tokens=budget_tokens,
+                                 top_k=top_k, vec_weight=vec_weight)
 
     def stats(self):
         with get_pool(self.db_path).get() as conn:
