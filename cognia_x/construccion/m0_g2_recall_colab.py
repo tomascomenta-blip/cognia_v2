@@ -264,13 +264,17 @@ def eval_recall(model, rng, p, device, batches=20, amp=False):
 
 
 def train_one(name, attn_every, arrangement, window_frac, p, steps, warmup, device, seed, deadline, log,
-              early_stop=0.97, amp=True, use_compile=False, patience=4, plateau_eps=0.01):
+              early_stop=0.97, amp=True, use_compile=False, plateau_stop=False, patience=4, plateau_eps=0.01):
     """Entrena UNA config. VELOCIDAD (medido en T4, ver M0_G2_PROFILE_RESULTADO.md / results_g2):
-      - AMP fp16 (autocast + GradScaler): ~1.9x en T4 (tensor cores), neutral en calidad. Default ON en cuda.
-      - plateau early-stop: corta una config que está CLARAMENTE estancada (best<0.5 y `patience` evals sin
-        mejora) -> no sesga el veredicto (un config plano lejos de 0.8 no va a cruzar) y acorta el sweep.
+      - AMP fp16 (autocast + GradScaler): ~1.9x en T4 (tensor cores), fp16-SEGURO (núcleo de atención en
+        fp32, ver hybrid.py / M0_G2_RESULTADO.md). Default ON en cuda.
       - use_compile (torch.compile): ~2x extra PERO recompila por cada estructura de modelo distinta -> caro
-        en un sweep de muchas configs cortas; default OFF (reservar para corridas largas de UN solo modelo)."""
+        en un sweep de muchas configs cortas; default OFF (reservar para corridas largas de UN solo modelo).
+      - plateau_stop: DEFAULT OFF. ⚠️ La tarea de recall GROKEA: hay una meseta larga (~miles de pasos a
+        acc baja) seguida de una transición ABRUPTA a >0.9 (validado local: 0.125->meseta 0.35->0.97 al
+        step ~3600). Un plateau early-stop CORTA a los learners en plena meseta -> FALSO 'no cruza' (sesgó
+        el veredicto del sweep del 2026-06-29). Sólo cortar por ÉXITO (early_stop) o deadline; entrenar
+        LARGO para dar lugar a la transición."""
     rng = np.random.default_rng(seed)
     eval_rng = np.random.default_rng(seed + 10**6)
     torch.manual_seed(seed)
@@ -321,11 +325,12 @@ def train_one(name, attn_every, arrangement, window_frac, p, steps, warmup, devi
             if acc >= early_stop and step >= warmup:
                 log(f"[{name}] early-stop ÉXITO step {step} (acc {acc:.3f})")
                 break
-            if acc > best_acc + plateau_eps:        # seguimiento de plateau (solo corta no-aprendices claros)
+            if acc > best_acc + plateau_eps:
                 best_acc, stale = acc, 0
             else:
                 stale += 1
-            if stale >= patience and best_acc < 0.5 and step >= warmup + 2 * eval_every:
+            # plateau early-stop OPT-IN (default OFF): la tarea GROKEA -> cortar en la meseta = falso negativo.
+            if plateau_stop and stale >= patience and best_acc < 0.5 and step >= warmup + 2 * eval_every:
                 log(f"[{name}] plateau early-stop step {step} (best {best_acc:.3f}, {stale} evals sin mejora)")
                 break
         if deadline and time.time() > deadline and step >= warmup:

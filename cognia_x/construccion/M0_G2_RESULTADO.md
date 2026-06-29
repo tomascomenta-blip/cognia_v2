@@ -34,6 +34,32 @@ aprende. Candidatos (probar 10×, ir a la raíz):
    Test: fp32 puro.
 4. **Más pasos**: 4000 quizás insuficiente si forma induction tarde (pero best_acc plano sugiere que no).
 
+## RESOLUCIÓN (2026-06-29) — es GROKKING: la tarea SÍ se resuelve, pero tras una transición tardía
+Validación LOCAL decisiva (CPU, sin riesgo de Colab; atención pura, tarea chica d=64/n_pairs=6/n_vals=8,
+lr=3e-4, SIN plateau-stop, 4000 pasos):
+```
+step 333-3330:  acc ~0.35  (meseta larga, sobre azar 0.125 pero sin resolver)
+step 3663:      acc 0.793   <- transición ABRUPTA
+step 3996:      acc 0.967   (RESUELTO)
+```
+→ **El recall asociativo GROKEA**: meseta larga a acc baja y luego salto súbito a >0.9. Esto explica TODO:
+- El "ninguna config cruza" del sweep era un **FALSO NEGATIVO**: (a) mi **plateau early-stop cortaba a los
+  learners en ~2080 pasos**, en plena meseta; (b) los runs de Colab estaban deadline-capeados a ~3150-4000
+  pasos, **justo antes/sobre la transición** (que a escala mayor llega aún más tarde).
+- La regla 10× evitó el overclaim: casi fijo "RAMA B por recall" sobre un artefacto de medición.
+
+**Correcciones aplicadas:**
+1. `m0_g2_recall_colab.py`: `plateau_stop` ahora **DEFAULT OFF** (era letal para grokking). Sólo se corta
+   por ÉXITO o deadline.
+2. Para el veredicto de arquitectura (mínima cuota de atención) hace falta entrenar LARGO y ESTABLE
+   (cada config debe poder cruzar su transición). **Colab free es DEMASIADO INESTABLE** (murió a 13-67 min
+   en 3 sesiones) → ese sweep largo es candidato para **Kaggle** (sesiones 9-12 h, briefing §4), no Colab.
+
+**Hallazgo para el goal de VELOCIDAD (importante):** el costo de convergencia de esta tarea = **cruzar la
+transición de grokking**. Entonces **data-efficiency = acelerar el grokking** (menos pasos hasta el salto)
+es una palanca de velocidad DIRECTA y MEDIBLE (la literatura: weight-decay y LR son los aceleradores
+clásicos del grokking). Candidato fuerte para el ledger de palancas.
+
 ## Implicación para el goal (velocidad)
 G2 NO está cerrado como veredicto de arquitectura, PERO la corrida ya entregó valor al goal de VELOCIDAD:
 fp16-seguro corre 40 min sin NaN para 12×4000 pasos en T4. El diagnóstico de "por qué la atención no
