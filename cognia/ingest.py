@@ -1,3 +1,4 @@
+import logging
 import re
 from pathlib import Path
 from typing import List
@@ -33,6 +34,55 @@ def _chunk_text(text: str) -> List[str]:
     if current:
         chunks.append("\n\n".join(current))
     return [c for c in chunks if len(c.strip()) >= 40]
+
+
+def _chunk_text_with_offsets(text: str):
+    """Lossless variant of _chunk_text: returns (chunk_text, char_start, char_end)
+    where chunk_text == text[char_start:char_end] EXACTLY, so a ContextMap
+    'file' pointer re-read by offset matches byte for byte. Same grouping as
+    _chunk_text, but tracked over the ORIGINAL text instead of stripped copies.
+    """
+    # 1) paragraph spans in the original text, tracking offsets
+    para_spans = []
+    pos = 0
+    for sep in re.finditer(r"\n{2,}", text):
+        seg = text[pos:sep.start()]
+        if seg.strip():
+            lead = len(seg) - len(seg.lstrip())
+            trail = len(seg) - len(seg.rstrip())
+            para_spans.append((pos + lead, sep.start() - trail))
+        pos = sep.end()
+    seg = text[pos:len(text)]
+    if seg.strip():
+        lead = len(seg) - len(seg.lstrip())
+        trail = len(seg) - len(seg.rstrip())
+        para_spans.append((pos + lead, len(text) - trail))
+
+    # 2) group consecutive paragraphs into ~_CHUNK_CHARS chunks (as _chunk_text)
+    spans = []
+    group_start = None
+    group_end = None
+    current_len = 0
+    for (s, e) in para_spans:
+        plen = e - s
+        if group_start is not None and current_len + plen > _CHUNK_CHARS:
+            spans.append((group_start, group_end))
+            group_start, group_end, current_len = s, e, plen
+        else:
+            if group_start is None:
+                group_start = s
+            group_end = e
+            current_len += plen
+    if group_start is not None:
+        spans.append((group_start, group_end))
+
+    # 3) raw slice per chunk; drop short ones (same threshold as _chunk_text)
+    result = []
+    for (s, e) in spans:
+        chunk_text = text[s:e]
+        if len(chunk_text.strip()) >= 40:
+            result.append((chunk_text, s, e))
+    return result
 
 
 def _read_raw(path: Path) -> str:
@@ -96,6 +146,36 @@ def _store_anchor(ai, path: Path, label: str, chunks: List[str]) -> None:
     ai.episodic.store(anchor, label, vec, confidence=0.9, importance=2.5)
 
 
+def _store_pointers(ai, path: Path, text: str, label: str, is_pdf: bool) -> None:
+    """Cycle 2: write one ContextMap pointer per chunk + mark coverage.
+
+    Additive to episodic ingestion. For text files the pointer is lossless by
+    offset (source_kind='file'); for PDFs the extracted text is not offsetable
+    to the .pdf bytes, so the chunk is stored inline (source_kind='text').
+    Never raises: episodic ingestion already happened, the context map is a
+    best-effort index on top of it.
+    """
+    try:
+        from cognia.context.context_map import ContextMap
+
+        db_path = getattr(ai, "db", None)
+        cm = ContextMap(db_path=db_path, project=label)
+        spans = _chunk_text_with_offsets(text)
+        for ord, (chunk_text, s, e) in enumerate(spans):
+            summary = chunk_text[:120].replace("\n", " ").strip()
+            if is_pdf:
+                cm.add_pointer("text", str(path), inline_text=chunk_text,
+                               chunk_ord=ord, label=label, summary=summary)
+            else:
+                cm.add_pointer("file", str(path), char_start=s, char_end=e,
+                               chunk_ord=ord, label=label, summary=summary)
+        cm.mark_coverage(str(path), indexed_through=len(text),
+                         total_chars=len(text), mtime=path.stat().st_mtime)
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "context map pointers skipped for %s: %s", path, exc)
+
+
 def ingest_file(ai, path_str: str) -> dict:
     path = Path(path_str).expanduser().resolve()
     if not path.exists():
@@ -112,11 +192,13 @@ def ingest_file(ai, path_str: str) -> dict:
     label = _make_label(path)
     _store_chunks(ai, chunks, label)
     _store_anchor(ai, path, label, chunks)
+    _store_pointers(ai, path, text, label, is_pdf=(path.suffix.lower() == ".pdf"))
     return {
-        "archivo": path.name,
-        "label":   label,
-        "chunks":  len(chunks),
-        "chars":   sum(len(c) for c in chunks),
+        "archivo":  path.name,
+        "label":    label,
+        "chunks":   len(chunks),
+        "chars":    sum(len(c) for c in chunks),
+        "pointers": len(_chunk_text_with_offsets(text)),
     }
 
 
@@ -135,9 +217,10 @@ def ingest_directory(ai, path_str: str, recursive: bool = True) -> dict:
     ]
     if not files:
         return {"error": "No se encontraron archivos de texto en el directorio"}
-    processed    = 0
-    total_chunks = 0
-    error_count  = 0
+    processed      = 0
+    total_chunks   = 0
+    total_pointers = 0
+    error_count    = 0
     for f in files:
         try:
             text   = _read_raw(f)
@@ -146,8 +229,10 @@ def ingest_directory(ai, path_str: str, recursive: bool = True) -> dict:
                 continue
             _store_chunks(ai, chunks, label)
             _store_anchor(ai, f, label, chunks)
-            total_chunks += len(chunks)
-            processed    += 1
+            _store_pointers(ai, f, text, label, is_pdf=(f.suffix.lower() == ".pdf"))
+            total_chunks   += len(chunks)
+            total_pointers += len(_chunk_text_with_offsets(text))
+            processed      += 1
         except Exception:
             error_count += 1
     result = {
@@ -155,6 +240,7 @@ def ingest_directory(ai, path_str: str, recursive: bool = True) -> dict:
         "label":    label,
         "archivos": processed,
         "chunks":   total_chunks,
+        "pointers": total_pointers,
     }
     if error_count:
         result["omitidos"] = error_count
