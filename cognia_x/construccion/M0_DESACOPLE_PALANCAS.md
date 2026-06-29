@@ -104,6 +104,13 @@ palanca "desacopla" si mueve un punto FUERA de la curva baseline params↔veloci
 
 | candidato | train tok/s | Δ vs baseline | calidad (recall/loss) | ¿desacopla? | archivo | estado |
 |---|---|---|---|---|---|---|
-| AMP fp16 (T4) | 67k (vs 35.8k) | **1.9×** | neutral (fp16+GradScaler) | sí (precisión) | g2_profile_results.json | [PROBADO] |
-| +torch.compile | 147.8k | **4.1×** | neutral (misma matemática) | sí (fusión) | g2_profile_results.json | [PROBADO] |
-| curva params↔vel | — | α=? | — | baseline | g2_paramspeed_results.json | [corriendo] |
+| AMP fp16 (T4) | 67k (vs 35.8k) | **1.9×** throughput | **NO neutral**: daba NaN (atención lineal sin normalizar overflow fp16) -> arreglado con núcleo fp32 (calidad intacta) | sí (precisión) | g2_profile_results.json | [PROBADO + corregido] |
+| +torch.compile | 147.8k | **4.1×** throughput | neutral (misma matemática) | sí (fusión) | g2_profile_results.json | [PROBADO] |
+| curva params↔vel | — | α=? | — | baseline | g2_paramspeed_results.json | [pendiente: corre tras G2] |
+| MoE top-1 E4/E8 (CPU smoke) | 0.42-0.50× denso | **NEGATIVO a escala chica** | recall neutral (~igual) | NO (ruteo Python domina) | g2_moe_results.json | [PROBADO parcial CPU] |
+
+**Lección MoE (preliminar, CPU):** con E× params totales a activo igualado, el MoE naive corre a **0.42-0.50×**
+la velocidad del denso — el dispatch (loop Python sobre expertos + gather/scatter `index_add`) DOMINA a
+escala chica. Es el mismo patrón que la cuantización: **el desacople EXIGE kernels** (grouped/batched GEMM
+de expertos, no un loop Python). A re-medir en T4 a escala (más tokens amortizan el ruteo) — pero la
+implementación naive ya muestra que el desacople MoE no es gratis: necesita infra de kernels.
