@@ -119,7 +119,19 @@ class ContextMap:
         if source_kind == "text":
             return inline_text
         if source_kind == "msg":
-            return None
+            try:
+                with get_pool(self.db_path).get() as conn:
+                    row2 = conn.execute(
+                        "SELECT content FROM chat_history WHERE id = ?", (source_ref,)
+                    ).fetchone()
+            except Exception:
+                return None
+            if row2 is None:
+                return None
+            content = row2[0]
+            if char_start is not None and char_end is not None:
+                return content[char_start:char_end]
+            return content
         return None
 
     def mark_coverage(self, source_ref, indexed_through, total_chars, mtime=0.0):
@@ -252,3 +264,34 @@ class ContextMap:
                 (self.project,),
             ).fetchone()[0]
         return {"pointers": n_ptr, "covered_sources": n_cov}
+
+    def write_markdown(self, out_path, project=None):
+        """Write the pointer index (NOT the full text) of `project` to out_path
+        as an ASCII markdown file. Pointers are grouped by source_ref so the
+        file reads as a map: which span of which source each pointer covers.
+        Returns out_path."""
+        proj = project if project is not None else self.project
+        ptrs = self.pointers(proj)
+        groups = {}
+        for p in ptrs:
+            groups.setdefault(p["source_ref"], []).append(p)
+        lines = []
+        lines.append("# Mapa de contexto: " + str(proj))
+        lines.append("")
+        lines.append(
+            str(len(ptrs)) + " punteros, " + str(len(groups)) + " fuentes cubiertas"
+        )
+        lines.append("")
+        for source_ref in sorted(groups.keys()):
+            lines.append("## " + str(source_ref))
+            for p in groups[source_ref]:
+                cs = "" if p["char_start"] is None else str(p["char_start"])
+                ce = "" if p["char_end"] is None else str(p["char_end"])
+                summary = p["summary"] if p["summary"] is not None else ""
+                lines.append(
+                    "- [" + str(p["source_kind"]) + " " + cs + ":" + ce +
+                    " | id " + str(p["id"]) + "] " + summary
+                )
+            lines.append("")
+        Path(out_path).write_text("\n".join(lines), encoding="utf-8")
+        return out_path
