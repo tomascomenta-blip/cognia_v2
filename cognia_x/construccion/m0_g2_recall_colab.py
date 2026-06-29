@@ -211,23 +211,23 @@ class HybridLM(nn.Module):
 
 
 def make_recall_batch(rng, batch, n_pairs, n_queries, n_keys, n_vals, device):
+    """VECTORIZADO (sin loop Python por muestra) -> la generación deja de ser el cuello y la GPU vuela.
+    Layout por fila: [k0,v0, ..., k_{P-1},v_{P-1}, q0,...,q_{Q-1}]; target = val asociado en la pos de cada query."""
     KEY0, VAL0 = 1, 1 + n_keys
-    seqs, tgts = [], []
-    for _ in range(batch):
-        keys = rng.choice(n_keys, size=n_pairs, replace=False)
-        vals = rng.integers(0, n_vals, size=n_pairs)
-        kv = {int(k): int(v) for k, v in zip(keys, vals)}
-        seq, tgt = [], []
-        for k, v in zip(keys, vals):
-            seq += [KEY0 + int(k), VAL0 + int(v)]
-            tgt += [-100, -100]
-        for k in rng.choice(keys, size=n_queries, replace=True):
-            seq.append(KEY0 + int(k))
-            tgt.append(VAL0 + kv[int(k)])
-        seqs.append(seq)
-        tgts.append(tgt)
-    x = torch.tensor(seqs, dtype=torch.long, device=device)
-    y = torch.tensor(tgts, dtype=torch.long, device=device)
+    B, P, Q = batch, n_pairs, n_queries
+    keys = np.argsort(rng.random((B, n_keys)), axis=1)[:, :P]      # (B,P) claves distintas por fila
+    vals = rng.integers(0, n_vals, size=(B, P))                    # (B,P)
+    qidx = rng.integers(0, P, size=(B, Q))                         # a qué par apunta cada query (con reemplazo)
+    qkeys = np.take_along_axis(keys, qidx, axis=1)                 # (B,Q)
+    qvals = np.take_along_axis(vals, qidx, axis=1)                 # (B,Q)
+    pair = np.empty((B, 2 * P), dtype=np.int64)
+    pair[:, 0::2] = KEY0 + keys
+    pair[:, 1::2] = VAL0 + vals
+    seq = np.concatenate([pair, KEY0 + qkeys], axis=1)             # (B, 2P+Q)
+    tgt = np.full((B, 2 * P + Q), -100, dtype=np.int64)
+    tgt[:, 2 * P:] = VAL0 + qvals
+    x = torch.from_numpy(seq).to(device)
+    y = torch.from_numpy(tgt).to(device)
     return x, y
 
 
@@ -377,10 +377,10 @@ def main():
         p = dict(d_model=64, n_heads=4, n_layers=4, n_keys=64, n_vals=16, n_pairs=12, n_queries=8, batch=32, lr=1e-3)
         steps = args.steps or 60
         warmup, per_cfg = 10, 60.0
-    else:                            # escala objetivo (Colab T4)
-        p = dict(d_model=256, n_heads=8, n_layers=12, n_keys=512, n_vals=64, n_pairs=64, n_queries=16, batch=64, lr=1e-3)
-        steps = args.steps or 6000
-        warmup, per_cfg = 300, 420.0
+    else:                            # escala objetivo (Colab T4) — task LEARNABLE + deadline holgado (rely on early-stop)
+        p = dict(d_model=256, n_heads=8, n_layers=12, n_keys=256, n_vals=32, n_pairs=32, n_queries=16, batch=64, lr=1e-3)
+        steps = args.steps or 8000
+        warmup, per_cfg = 200, 1500.0   # 1500s = red de seguridad; con data-gen vectorizada + early-stop NO se llega
 
     t0 = time.time()
     print(f"[g2] device={device} smoke={args.smoke} steps={steps} scale={p}", flush=True)
