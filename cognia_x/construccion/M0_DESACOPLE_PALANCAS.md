@@ -107,7 +107,15 @@ palanca "desacopla" si mueve un punto FUERA de la curva baseline params↔veloci
 | AMP fp16 (T4) | 67k (vs 35.8k) | **1.9×** throughput | **NO neutral**: daba NaN (atención lineal sin normalizar overflow fp16) -> arreglado con núcleo fp32 (calidad intacta) | sí (precisión) | g2_profile_results.json | [PROBADO + corregido] |
 | +torch.compile | 147.8k | **4.1×** throughput | neutral (misma matemática) | sí (fusión) | g2_profile_results.json | [PROBADO] |
 | curva params↔vel (CPU, d=64→256, L8) | 9005→1706 train; 25627→5153 fwd | **α≈0.6** (sub-lineal: tok/s ∝ params^-0.6) | — | BASELINE (la raíz medida) | results_g2/g2_paramspeed_results.json | [PROBADO CPU] |
-| data-efficiency / grokking (wd) | grok @3600(wd=0) / 3700(wd=0.01) pasos | wd no acelera a escala chica (2/5 pts) | igual final ~0.81-0.84 | parcial | results_g2/g2_grok_accel_partial.json | [PROBADO parcial CPU] |
+| data-efficiency / grokking (weight_decay) | grok @ 3600/3700/4200/8900/nunca pasos (wd 0/0.01/0.1/0.3/1.0) | **wd ALTO RETRASA/IMPIDE el grok** (lo opuesto al grokking clásico) | final ~0.79-0.86 (wd=1.0 no aprende) | lever = wd BAJO | results_g2/g2_grok_accel_{partial,hi}.json | [PROBADO CPU] |
+
+**Data-efficiency (grokking del recall), COMPLETO:** steps-to-grok vs weight_decay = 3600(0), 3700(0.01),
+4200(0.1), 8900(0.3), nunca(1.0). En esta tarea **weight_decay NO acelera — RETRASA y a wd=1.0 IMPIDE** el
+grokking. Es lo OPUESTO al grokking clásico (Power et al., aritmética modular) porque acá hay **datos
+frescos infinitos**: no hay fase de memorización/overfit (que el wd ayuda a escapar); el "grokking" es
+**formación tardía del circuito de inducción**, y el wd solo agrega presión que la frena. → **lever de
+data-efficiency = weight_decay BAJO (≈0-0.01)** para converger en menos pasos a igual calidad. (Honesto:
+medido en tarea chica CPU; a escala mayor re-medir, pero el mecanismo —infinite-data, sin overfit— se mantiene.)
 
 **Curva params↔velocidad (la RAÍZ, MEDIDA en CPU):** α≈0.6 → "más params = más lento" es REAL pero
 **sub-lineal** en este rango (10× params ≈ 4× más lento, no 10×), porque a escala chica domina el overhead
