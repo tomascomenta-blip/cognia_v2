@@ -1,0 +1,31 @@
+{
+  "runs": [
+    {
+      "weight_decay": 0.0,
+      "lr": 0.001,
+      "grok_step": null,
+      "best_acc": 0.3828,
+      "final_acc": 0.3488,
+      "sec": 456.7,
+      "note": "lr=0.001"
+    },
+    {
+      "weight_decay": 0.0,
+      "lr": 0.003,
+      "grok_step": null,
+      "best_acc": 0.3799,
+      "final_acc": 0.354,
+      "sec": 448.6,
+      "note": "lr=0.003"
+    },
+    {
+      "weight_decay": 0.0,
+      "lr": 0.01,
+      "grok_step": 7600,
+      "best_acc": 0.8597,
+      "final_acc": 0.8652,
+      "sec": 476.5,
+      "note": "lr=0.01"
+    }
+  ]
+}

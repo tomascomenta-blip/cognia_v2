@@ -117,6 +117,13 @@ frescos infinitos**: no hay fase de memorización/overfit (que el wd ayuda a esc
 data-efficiency = weight_decay BAJO (≈0-0.01)** para converger en menos pasos a igual calidad. (Honesto:
 medido en tarea chica CPU; a escala mayor re-medir, pero el mecanismo —infinite-data, sin overfit— se mantiene.)
 
+**Learning rate (wd=0):** grok @ 3600(lr=3e-4), NUNCA(1e-3), NUNCA(3e-3), 7600(1e-2). Subir el LR **NO
+acelera** — retrasa o impide el grokking. **lr=3e-4 + wd bajo es near-óptimo** (~3600 pasos). CONCLUSIÓN
+data-efficiency: los 2 knobs obvios (wd, lr) ya están cerca del óptimo en el baseline; reducir el
+steps-to-grok por debajo de ~3600 necesitaría cambios arquitectónicos/currículo (no los hiperparámetros
+estándar). Honesto: single-seed CPU (la no-monotonía 1e-3/3e-3 vs 1e-2 es ruido de seed; lo robusto es
+"3e-4 gana, subir LR no ayuda"). results_g2/g2_grok_lr.json.
+
 **Curva params↔velocidad (la RAÍZ, MEDIDA en CPU):** α≈0.6 → "más params = más lento" es REAL pero
 **sub-lineal** en este rango (10× params ≈ 4× más lento, no 10×), porque a escala chica domina el overhead
 fijo (consistente con el T4: overhead-bound a ~6% del pico). Implicación: a escala chica el lever dominante
