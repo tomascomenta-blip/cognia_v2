@@ -112,3 +112,23 @@ def test_retrieve_all(db_path):
     assert res
     assert "frase buscada" in res[0]["text"]
     assert res[0]["project"] == "proj_a"
+
+
+def test_record_conversation(db_path):
+    ai = FakeAI(db_path)
+
+    n = ce.record_conversation(ai, "pregunta del usuario", "respuesta del asistente")
+    assert n == 2
+
+    cm = ContextMap(db_path=db_path, project="conversacion")
+    ptrs = cm.pointers()
+    assert len(ptrs) == 2
+    assert all(p["source_kind"] == "text" for p in ptrs)
+    assert all(p["vector"] is not None for p in ptrs)
+    textos = {p["inline_text"] for p in ptrs}
+    assert "pregunta del usuario" in textos
+    assert "respuesta del asistente" in textos
+
+    # un turno con assistant vacio -> solo cuenta el user
+    n2 = ce.record_conversation(ai, "otra pregunta", "")
+    assert n2 == 1

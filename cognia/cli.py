@@ -174,6 +174,10 @@ _HISTORY_SEED_N = 20
 _SESSION_ID: str = ""
 _SESSION_CWD: str = ""
 
+# Auto-record de la conversacion al mapa de contexto (toggle /contexto-auto).
+# Apagado por defecto: el dueno lo enciende explicitamente con /contexto-auto on.
+_CONTEXT_AUTO = False
+
 
 def _persist_turn(ai, user_text: str, assistant_text: str) -> None:
     """
@@ -195,6 +199,13 @@ def _persist_turn(ai, user_text: str, assistant_text: str) -> None:
             ch.log(role="assistant", content=assistant_text)
     except Exception:
         pass
+
+    if _CONTEXT_AUTO:
+        try:
+            from cognia.context import context_engine
+            context_engine.record_conversation(ai, user_text, assistant_text)
+        except Exception:
+            pass
 
     # FASE 6 (O3): recapitulacion automatica extractiva (sin LLM) cuando se cumplen los
     # disparadores (turnos/contexto). Se cachea en _session_recap; /recap la muestra.
@@ -428,6 +439,7 @@ _CMD_DESCRIPTIONS = {
     "/contexto":        "Buscar en el mapa de contexto   <consulta>",
     "/contexto-mapa":   "Regenerar el archivo de contexto (cognia_context.md)",
     "/contexto-stats":  "Ver punteros del mapa de contexto por project",
+    "/contexto-auto":   "Auto-indexar cada turno de conversacion   on|off",
     "/limpiar":         "Limpiar pantalla",
     "/compactar":       "Resumir historial de sesión",
     "/resumir":         "Resume la conversacion actual y guarda en memoria",
@@ -1687,6 +1699,19 @@ def _slash_contexto_stats(ai, args):
         total += s.get("pointers", 0)
         print("  %s: %d punteros, %d fuentes" % (p, s.get("pointers", 0), s.get("covered_sources", 0)))
     print("Total punteros: %d" % total)
+
+
+def _slash_contexto_auto(ai, args):
+    global _CONTEXT_AUTO
+    a = (args or "").strip().lower()
+    if a == "on":
+        _CONTEXT_AUTO = True
+        print("Auto-record del contexto: ON (cada turno se indexa en el mapa).")
+    elif a == "off":
+        _CONTEXT_AUTO = False
+        print("Auto-record del contexto: OFF.")
+    else:
+        print("Estado auto-record: " + ("ON" if _CONTEXT_AUTO else "OFF") + ". Uso: /contexto-auto on|off")
 
 
 def _slash_sintetizar(ai, args: str) -> None:
@@ -6536,13 +6561,15 @@ def repl():
         elif raw == "/inicio-dia":
             _slash_inicio_dia("")
 
-        # ── /contexto / /contexto-mapa / /contexto-stats (mapa de contexto) ────
+        # ── /contexto / /contexto-mapa / /contexto-stats / /contexto-auto ──────
         elif raw == "/contexto" or raw.startswith("/contexto "):
             _slash_contexto(ai, raw[len("/contexto "):] if raw.startswith("/contexto ") else "")
         elif raw == "/contexto-mapa":
             _slash_contexto_mapa(ai, "")
         elif raw == "/contexto-stats":
             _slash_contexto_stats(ai, "")
+        elif raw == "/contexto-auto" or raw.startswith("/contexto-auto "):
+            _slash_contexto_auto(ai, raw[len("/contexto-auto "):] if raw.startswith("/contexto-auto ") else "")
 
         # ── /ver-contexto / /limpiar-sesion ──────────────────────────────────
         elif raw == "/ver-contexto" or raw.startswith("/ver-contexto "):

@@ -83,3 +83,22 @@ def refresh_map(ai, project="default", out_path=None):
 
 def stats(ai, project="default"):
     return ContextMap(db_path=getattr(ai, "db", None), project=project).stats()
+
+
+def record_conversation(ai, user_text, assistant_text, project="conversacion"):
+    """Guarda el turno (user + assistant) como punteros 'text' inline rankeables.
+    Best-effort: try/except -> 0; nunca levanta. Devuelve cuantos punteros agrego."""
+    n = 0
+    try:
+        cm = ContextMap(db_path=getattr(ai, "db", None), project=project)
+        embed = _embed_fn(ai)
+        for role, txt in (("user", user_text), ("assistant", assistant_text)):
+            if not txt or not txt.strip():
+                continue
+            vec = embed(txt)
+            cm.add_pointer("text", "", inline_text=txt, vector=vec,
+                           label=project, summary=(role + ": " + txt[:100]).replace("\n", " "))
+            n += 1
+    except Exception:
+        pass
+    return n
