@@ -89,14 +89,20 @@ class LinearAttention(nn.Module):
         B, L, D = x.shape
         qkv = self.qkv(x).view(B, L, 3, self.h, self.dh).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
-        q = F.elu(q) + 1.0
-        k = F.elu(k) + 1.0
-        scores = torch.matmul(q, k.transpose(-1, -2))
-        mask = torch.tril(torch.ones(L, L, device=x.device, dtype=torch.bool))
-        scores = scores.masked_fill(~mask, 0.0)
-        denom = scores.sum(-1, keepdim=True) + 1e-6
-        out = torch.matmul(scores, v) / denom
-        out = out.transpose(1, 2).reshape(B, L, D)
+        # fp16-SEGURO (medido: bajo AMP fp16 esta atención produce NaN). La atención lineal NO está
+        # normalizada (q@k^T con features elu+1, SIN 1/sqrt(d)) -> los scores y el denom OVERFLOWean el
+        # rango de fp16 (>65504) -> inf -> NaN. El núcleo (elu/scores/sum/normalización) se computa en
+        # fp32 con autocast OFF; las proyecciones qkv/o quedan en fp16 (tensor cores) = casi toda la FLOPs.
+        with torch.autocast(device_type=x.device.type, enabled=False):
+            q = F.elu(q.float()) + 1.0
+            k = F.elu(k.float()) + 1.0
+            v = v.float()
+            scores = torch.matmul(q, k.transpose(-1, -2))
+            mask = torch.tril(torch.ones(L, L, device=x.device, dtype=torch.bool))
+            scores = scores.masked_fill(~mask, 0.0)
+            denom = scores.sum(-1, keepdim=True) + 1e-6
+            out = torch.matmul(scores, v) / denom
+        out = out.transpose(1, 2).reshape(B, L, D).to(x.dtype)
         return self.o(out)
 
 
@@ -115,18 +121,25 @@ class SlidingWindowAttention(nn.Module):
         B, L, D = x.shape
         qkv = self.qkv(x).view(B, L, 3, self.h, self.dh).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
-        if cos is not None:
-            q = apply_rope(q, cos, sin)
-            k = apply_rope(k, cos, sin)
-        scores = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(self.dh)
-        idx = torch.arange(L, device=x.device)
-        causal = idx[None, :] <= idx[:, None]
-        windowed = idx[None, :] > (idx[:, None] - self.window)
-        mask = causal & windowed
-        scores = scores.masked_fill(~mask, float("-inf"))
-        attn = F.softmax(scores, dim=-1)
-        out = torch.matmul(attn, v)
-        out = out.transpose(1, 2).reshape(B, L, D)
+        # fp16-SEGURO (consistente con LinearAttention): núcleo de la atención softmax en fp32 (rope +
+        # scores + masked_fill(-inf) + softmax), proyecciones qkv/o en fp16. softmax sobre fp16 con -inf
+        # es frágil; en fp32 es estable.
+        with torch.autocast(device_type=x.device.type, enabled=False):
+            q = q.float()
+            k = k.float()
+            v = v.float()
+            if cos is not None:
+                q = apply_rope(q, cos.float(), sin.float())
+                k = apply_rope(k, cos.float(), sin.float())
+            scores = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(self.dh)
+            idx = torch.arange(L, device=x.device)
+            causal = idx[None, :] <= idx[:, None]
+            windowed = idx[None, :] > (idx[:, None] - self.window)
+            mask = causal & windowed
+            scores = scores.masked_fill(~mask, float("-inf"))
+            attn = F.softmax(scores, dim=-1)
+            out = torch.matmul(attn, v)
+        out = out.transpose(1, 2).reshape(B, L, D).to(x.dtype)
         return self.o(out)
 
 

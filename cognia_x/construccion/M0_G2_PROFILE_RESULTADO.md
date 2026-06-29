@@ -61,6 +61,20 @@ GPU mem máx @batch512 = 8.6 GB (de 15 GB del T4). `cuda_available=True`, `GPU=T
 **Efecto:** AMP (1.9×) × plateau (corta no-aprendices ~2-3×) → el sweep G2 cierra en ~15-20 min en T4
 (antes proyectaba >2 h). Sin tocar la calidad (AMP fp16 es matemáticamente equivalente con GradScaler).
 
+## CORRECCIÓN (2026-06-29, honestidad) — AMP fp16 NO era "neutral en calidad"
+La afirmación inicial "AMP fp16 es neutral en calidad" era **[ASUMIDA]** (medí throughput, no calidad).
+La corrida real de G2 con AMP la **REFUTÓ**: apareció `loss nan` (config ratio_ae4, step 1664). Causa raíz:
+la **`LinearAttention` NO está normalizada** (q@k^T con features elu+1, SIN 1/sqrt(d)) → bajo fp16 los
+scores y el denominador **OVERFLOWean** el rango de fp16 (>65504) → inf → NaN. La `SlidingWindowAttention`
+con softmax sobre fp16 y -inf también es frágil. Es exactamente la trampa que la regla "calidad↔velocidad
+MATCHED" busca cazar: una optimización de velocidad que **rompe el entreno**.
+- **FIX (fp16-SEGURO):** el núcleo de ambas atenciones se computa en **fp32** (autocast OFF) y las
+  proyecciones qkv/o quedan en fp16 (tensor cores = casi toda la FLOPs). Aplicado a `m0_g2_recall_colab.py`.
+  Trade-off: algo menos de 1.9× (la parte fp32 del core no usa tensor cores) pero SIN NaN y con la
+  calidad del recall intacta. El speedup real fp16-seguro se re-mide en la corrida corregida.
+- **Lección:** "AMP da 1.9×" sigue PROBADO para THROUGHPUT, pero el speedup utilizable EXIGE numerics
+  seguros. El profile midió velocidad; la corrida de entreno midió calidad. Ambas medidas hacen falta.
+
 ## Lo que esto significa para el goal "más params = más lento"
 Esta es la PRIMERA palanca de entreno-eficiente MEDIDA: **AMP fp16 + torch.compile = 4.1×** en T4 para
 este modelo, gratis en calidad. Y deja una lección de método: el "muro" de 1 step/s era un **error propio**
