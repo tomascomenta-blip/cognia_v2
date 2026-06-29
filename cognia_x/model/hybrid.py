@@ -227,20 +227,29 @@ class LinearAttention(nn.Module):
         if self.q_proj is not None:                # feature map ancho: q,k -> d_head*mult ANTES del map
             q = self.q_proj(q)
             k = self.k_proj(k)
-        if self.feature_map == "taylor":
-            # Escalar q,k por 1/sqrt(df) (como Based) mantiene q.k acotado -> Taylor de exp valido.
-            inv = 1.0 / math.sqrt(self.df)
-            q = taylor_feature_map(q * inv)             # B,h,L,Df  (Df = taylor_feature_dim(df))
-            k = taylor_feature_map(k * inv)
-        else:                                           # "elu": comportamiento previo EXACTO
-            q = F.elu(q) + 1.0                          # B,h,L,df  (df = dh si mult==1)
-            k = F.elu(k) + 1.0
-        scores = torch.matmul(q, k.transpose(-1, -2))     # B,h,L,L  (no normalizado)
-        mask = torch.tril(torch.ones(L, L, device=x.device, dtype=torch.bool))
-        scores = scores.masked_fill(~mask, 0.0)
-        denom = scores.sum(-1, keepdim=True) + 1e-6
-        out = torch.matmul(scores, v) / denom             # B,h,L,dh
-        out = out.transpose(1, 2).reshape(B, L, D)
+        # fp16-SEGURO (medido en G2): la atencion lineal NO esta normalizada (scores = q@k^T con features
+        # elu+1/taylor, SIN 1/sqrt(d)) -> bajo AMP fp16 los scores y el denom OVERFLOWean el rango de fp16
+        # (>65504) -> inf -> NaN. El NUCLEO (feature map + scores + normalizacion) se computa en fp32 con
+        # autocast OFF; las proyecciones qkv/q_proj/o quedan en fp16 (tensor cores). En fp32 (sin AMP) esto
+        # es un no-op numerico (comportamiento previo EXACTO).
+        with torch.autocast(device_type=x.device.type, enabled=False):
+            q = q.float()
+            k = k.float()
+            v = v.float()
+            if self.feature_map == "taylor":
+                # Escalar q,k por 1/sqrt(df) (como Based) mantiene q.k acotado -> Taylor de exp valido.
+                inv = 1.0 / math.sqrt(self.df)
+                q = taylor_feature_map(q * inv)             # B,h,L,Df  (Df = taylor_feature_dim(df))
+                k = taylor_feature_map(k * inv)
+            else:                                           # "elu": comportamiento previo EXACTO
+                q = F.elu(q) + 1.0                          # B,h,L,df  (df = dh si mult==1)
+                k = F.elu(k) + 1.0
+            scores = torch.matmul(q, k.transpose(-1, -2))     # B,h,L,L  (no normalizado)
+            mask = torch.tril(torch.ones(L, L, device=x.device, dtype=torch.bool))
+            scores = scores.masked_fill(~mask, 0.0)
+            denom = scores.sum(-1, keepdim=True) + 1e-6
+            out = torch.matmul(scores, v) / denom             # B,h,L,dh
+        out = out.transpose(1, 2).reshape(B, L, D).to(x.dtype)
         return self.o(out)
 
 
@@ -260,18 +269,25 @@ class SlidingWindowAttention(nn.Module):
         B, L, D = x.shape
         qkv = self.qkv(x).view(B, L, 3, self.h, self.dh).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
-        if cos is not None:
-            q = apply_rope(q, cos, sin)
-            k = apply_rope(k, cos, sin)
-        scores = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(self.dh)   # B,h,L,L
-        idx = torch.arange(L, device=x.device)
-        causal = idx[None, :] <= idx[:, None]
-        windowed = idx[None, :] > (idx[:, None] - self.window)
-        mask = causal & windowed                                            # L,L
-        scores = scores.masked_fill(~mask, float("-inf"))
-        attn = F.softmax(scores, dim=-1)
-        out = torch.matmul(attn, v)
-        out = out.transpose(1, 2).reshape(B, L, D)
+        # fp16-SEGURO (consistente con LinearAttention): nucleo softmax en fp32 (rope + scores +
+        # masked_fill(-inf) + softmax + att@v), proyecciones qkv/o en fp16. softmax sobre fp16 con -inf
+        # es fragil; en fp32 es estable. En fp32 (sin AMP) es no-op (comportamiento previo EXACTO).
+        with torch.autocast(device_type=x.device.type, enabled=False):
+            q = q.float()
+            k = k.float()
+            v = v.float()
+            if cos is not None:
+                q = apply_rope(q, cos.float(), sin.float())
+                k = apply_rope(k, cos.float(), sin.float())
+            scores = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(self.dh)   # B,h,L,L
+            idx = torch.arange(L, device=x.device)
+            causal = idx[None, :] <= idx[:, None]
+            windowed = idx[None, :] > (idx[:, None] - self.window)
+            mask = causal & windowed                                            # L,L
+            scores = scores.masked_fill(~mask, float("-inf"))
+            attn = F.softmax(scores, dim=-1)
+            out = torch.matmul(attn, v)
+        out = out.transpose(1, 2).reshape(B, L, D).to(x.dtype)
         return self.o(out)
 
 
