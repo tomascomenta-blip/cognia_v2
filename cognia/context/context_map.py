@@ -13,6 +13,8 @@ import json
 import time
 from pathlib import Path
 
+import numpy as np
+
 from storage.db_pool import get_pool
 
 try:
@@ -154,6 +156,69 @@ class ContextMap:
                 (proj,),
             ).fetchall()
         return [dict(zip(_POINTER_COLUMNS, r)) for r in rows]
+
+    def query(self, query_vector, budget_tokens=4000, top_k=50):
+        """Rank this project's pointers by cosine similarity to query_vector and
+        return the raw spans (resolved lossless) that fit in budget_tokens.
+        Tokens are estimated at ~4 chars/token. Returns a list of dicts
+        {id, score, source_kind, source_ref, text} in descending score order.
+        Empty query_vector or no vectorized pointers -> []."""
+        if query_vector is None or len(query_vector) == 0:
+            return []
+        q = np.asarray(query_vector, dtype=float)
+        qn = np.linalg.norm(q)
+        if qn == 0:
+            return []
+        with get_pool(self.db_path).get() as conn:
+            rows = conn.execute(
+                "SELECT id, vector, source_kind, source_ref FROM context_pointers "
+                "WHERE project = ? AND vector IS NOT NULL",
+                (self.project,),
+            ).fetchall()
+        scored = []
+        for pid, vector_json, source_kind, source_ref in rows:
+            try:
+                v = np.asarray(json.loads(vector_json), dtype=float)
+            except (TypeError, ValueError):
+                continue
+            if v.shape != q.shape:
+                continue
+            vn = np.linalg.norm(v)
+            if vn == 0:
+                continue
+            score = float(np.dot(q, v) / (qn * vn))
+            scored.append((pid, score, source_kind, source_ref))
+        scored.sort(key=lambda x: x[1], reverse=True)
+        scored = scored[:top_k]
+        out = []
+        used_tokens = 0
+        for pid, score, source_kind, source_ref in scored:
+            text = self.resolve(pid)
+            if not text:
+                continue
+            est_tokens = max(1, len(text) // 4)
+            if used_tokens + est_tokens > budget_tokens:
+                break
+            used_tokens += est_tokens
+            out.append({
+                "id": pid,
+                "score": score,
+                "source_kind": source_kind,
+                "source_ref": source_ref,
+                "text": text,
+            })
+        return out
+
+    def query_text(self, text, embed_fn, budget_tokens=4000, top_k=50):
+        """Convenience wrapper: embed text with embed_fn (returns a list of
+        floats) then delegate to query(). embed_fn failure or None -> []."""
+        try:
+            vec = embed_fn(text)
+        except Exception:
+            return []
+        if vec is None:
+            return []
+        return self.query(vec, budget_tokens, top_k)
 
     def stats(self):
         with get_pool(self.db_path).get() as conn:

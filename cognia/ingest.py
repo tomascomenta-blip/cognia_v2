@@ -163,12 +163,15 @@ def _store_pointers(ai, path: Path, text: str, label: str, is_pdf: bool) -> None
         spans = _chunk_text_with_offsets(text)
         for ord, (chunk_text, s, e) in enumerate(spans):
             summary = chunk_text[:120].replace("\n", " ").strip()
+            vec = ai.perception.extract_features(chunk_text)["vector"]
             if is_pdf:
                 cm.add_pointer("text", str(path), inline_text=chunk_text,
-                               chunk_ord=ord, label=label, summary=summary)
+                               chunk_ord=ord, label=label, summary=summary,
+                               vector=vec)
             else:
                 cm.add_pointer("file", str(path), char_start=s, char_end=e,
-                               chunk_ord=ord, label=label, summary=summary)
+                               chunk_ord=ord, label=label, summary=summary,
+                               vector=vec)
         cm.mark_coverage(str(path), indexed_through=len(text),
                          total_chars=len(text), mtime=path.stat().st_mtime)
     except Exception as exc:
