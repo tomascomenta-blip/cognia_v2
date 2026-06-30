@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognia-ai"
-version = "3.6.1"
+version = "3.7.0"
 description = "Local cognitive AI with episodic memory, distributed inference, and swarm learning"
 readme = "README.md"
 license = { text = "MIT" }
@@ -62,7 +62,28 @@ cognia-coordinator = "coordinator.run:main"
 
 [tool.setuptools.packages.find]
 where   = ["."]
-include = ["cognia*", "cognia_v3*", "node*", "coordinator*", "shattering*", "app*", "security*", "storage*", "network*"]
+# IMPORTANTE: usar nombres explicitos + ".*", NO globs anchos ("cognia*").
+# "cognia*" capturaba ademas cognia_desktop (bundle Electron + node_modules),
+# cognia_x (lab de investigacion), cognia_game, cognia_mobile y cognia_public_api,
+# inflando el paquete con ~8MB de codigo NO destinado a publicarse. (v3.7.0)
+include = [
+    "cognia", "cognia.*",
+    "cognia_v3", "cognia_v3.*",
+    "node", "node.*",
+    "coordinator", "coordinator.*",
+    "shattering", "shattering.*",
+    "app", "app.*",
+    "security", "security.*",
+    "storage", "storage.*",
+    "network", "network.*",
+]
+exclude = [
+    "cognia_x", "cognia_x.*",
+    "cognia_desktop", "cognia_desktop.*",
+    "cognia_game", "cognia_game.*",
+    "cognia_mobile", "cognia_mobile.*",
+    "cognia_public_api", "cognia_public_api.*",
+]
 
 [tool.setuptools.package-data]
 "shattering" = ["manifests/*.json"]
