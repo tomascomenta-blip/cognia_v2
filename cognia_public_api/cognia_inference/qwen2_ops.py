@@ -608,7 +608,9 @@ class RealTransformerLayer:
             # keys some query here can reach — the union of all per-query windows is
             # [past_len - W + 1, total). Lower keys are masked for every query anyway,
             # so this slice is numerically identical to full K/V while bounding the
-            # batch to <= seq + W - 1 keys. The banded mask enforces each window below.
+            # batch to <= seq + W - 1 keys (a small batch over a long cached past then
+            # scores ~W keys, not the whole context). The banded mask enforces each
+            # per-query window below.
             key_lo = max(0, past_len - SWA_WINDOW + 1)
             K_attn, V_attn = K[key_lo:], V[key_lo:]
             attn_offset = key_lo
@@ -753,6 +755,8 @@ class RealTransformerLayer:
 
     def truncate_kv(self, session_id: str, max_len: int) -> None:
         """Truncate KV-cache to max_len tokens (speculative decoding rollback)."""
+        if max_len < 0:
+            raise ValueError(f"max_len must be non-negative, got {max_len}")
         kv = self._kv_cache.get(session_id)
         if kv is not None:
             K, V = kv
