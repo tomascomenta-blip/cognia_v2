@@ -4533,3 +4533,43 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
 - Resultado tests: PASS — 19 passed in 7.08s (4 nuevos test_tui_training.py + 4 test_tui_chat.py + 8 test_tui_foundation.py + 3 test_tui_metrics.py). Los 15 previos siguen verdes.
 - Verificacion REAL end-to-end (run_test headless): IDLE -> "Sin entrenamiento activo"; RUNNING(g2) -> "EPOCH 2/5  STEP 1,200/5,000  TOK/S 8.3  LOSS 1.42  LR 3.0e-04  BATCH 8  ETA 10m  VRAM --", barras epoch=40%/step=24%; ERROR(vram 41.7) -> "VRAM 42%", badge "[ error ]". Helpers: format_eta(600)=10m, (5000)=1h 23m, (45)=45s, (None)=--; format_count(1200)=1,200. Smoke: TRAIN_OK.
 - Notas: NO se commiteo (lo hace el manager). Sin tocar cognia/cli.py. ASCII en codigo Python; acentos solo en strings de UI.
+
+## [2026-06-30] TUI CP7 — palette/toasts/modales/ayuda
+- Tarea: capa de UX/polish de la TUI (Textual 8.2.7), idiomatico, testeada.
+- Archivos NUEVOS:
+  - `cognia/tui/commands.py` — `CogniaCommands(Provider)`: discover() + search(query) con
+    matcher difuso; comandos "Ir a Chat/Entrenamiento/Memoria/Modelos/Logs/Ayuda", "Limpiar
+    chat", "Salir". Cada callback llama una accion real de la App (comparte confirmacion).
+  - `cognia/tui/widgets/modals.py` — `ConfirmModal(ModalScreen[bool])`: pregunta + [Si]/[No];
+    y/s/enter -> True, n/escape -> False, click. AUTO_FOCUS=None para que 'enter' lo maneje la
+    pantalla (= Si) y no un boton enfocado. dismiss(bool).
+  - `tests/test_tui_ux.py` — 5 tests async (palette/toast/modal/ayuda/quit-confirm).
+- Archivos MODIFICADOS:
+  - `cognia/tui/app.py` — COMMANDS = App.COMMANDS | {CogniaCommands}; helpers notify_ok/
+    notify_info/notify_warn/notify_err (severidad semantica; Textual no tiene toast 'success'
+    -> ok usa severidad informativa con titulo "Listo"); `confirm()` = push_screen_wait(
+    ConfirmModal); acciones @work `action_request_quit` y `action_clear_chat` (workers: el
+    push_screen_wait NO bloquea el loop); toast "Vista: X" al cambiar de vista (guardado para
+    no notificar el sync del boot). Binding 'q' -> request_quit (CONFIRMA antes de salir);
+    'ctrl+l' -> clear_chat; 'ctrl+p' y 'colon' (:) -> command_palette.
+  - `cognia/tui/widgets/mainview.py` — HelpView re-escrita: lee `App.BINDINGS` en on_mount y
+    agrupa atajos (Navegacion/Chat/Acciones/Global) para no desactualizarse; agrega las teclas
+    que no son bindings de la App (j/k del Sidebar, ctrl+p/: de la paleta).
+  - `cognia/tui/widgets/chat.py` — `ChatView.clear()` (resetea historial + restaura
+    empty-state); toast notify_warn al fallar el backend (defensivo con getattr).
+  - `cognia/tui/widgets/__init__.py` — exporta ConfirmModal.
+  - `cognia/tui/app.tcss` — estilo del ConfirmModal (panel centrado, borde round, botones).
+  - `tests/test_tui_foundation.py` — test_quit_binding actualizado: 'q' ya NO sale directo,
+    abre ConfirmModal y se confirma con 'y' (documentado en el test).
+- CAMBIO DE BINDING 'q' (SI): ahora pide confirmacion (ConfirmModal "Seguro que quieres salir
+  de Cognia?") en vez de salir directo. test viejo (foundation) actualizado y verde.
+- HALLAZGO Textual 8.2.7: agregar un binding con action "command_palette" SUPRIME el default
+  ctrl+p que App.__init__ pone solo (rompe el bind). Fix: declarar ctrl+p explicito ademas de ':'.
+- Resultado tests: PASS — 24 passed in 11.58s (5 nuevos test_tui_ux + 8 foundation + 4 chat +
+  4 training + 3 metrics). Sin romper los existentes (el quit se actualizo por el cambio de 'q').
+- Verificacion REAL end-to-end (run_test headless): ctrl+p abre CommandPalette (is_open=True);
+  search("chat") -> 2 hits (Ir a Chat / Limpiar chat); 'q' -> ConfirmModal (no sale directo),
+  'y'/'enter' confirma -> return_code 0, 'n'/'escape' cancela; cambiar de vista -> 1 toast
+  "Vista: Memoria"; Ayuda lista q/Salir, ?/Ayuda, ctrl+p/paleta agrupados. Smoke: UX_OK.
+- Notas: NO se commiteo (lo hace el manager). Sin tocar cognia/cli.py. ASCII en codigo Python;
+  acentos solo en strings de UI. Modales async via push_screen_wait (no bloquean el loop).

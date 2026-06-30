@@ -171,6 +171,44 @@ Screen {
     margin: 1 0 0 0;
 }
 
+/* ---- Modal de confirmacion (ConfirmModal) ----------------------------- */
+
+ConfirmModal {
+    align: center middle;
+    background: $background 60%;
+}
+
+#confirm-box {
+    width: auto;
+    min-width: 48;
+    max-width: 70;
+    height: auto;
+    padding: 2 4;
+    background: $panel;
+    border: round $primary;
+    border-title-align: center;
+}
+
+#confirm-question {
+    width: 100%;
+    height: auto;
+    margin: 0 0 2 0;
+    content-align: center middle;
+    text-align: center;
+    color: $foreground;
+}
+
+#confirm-actions {
+    width: 100%;
+    height: auto;
+    align: center middle;
+}
+
+#confirm-actions Button {
+    margin: 0 2;
+    min-width: 12;
+}
+
 /* ---- Status bar (sobre el Footer nativo) ------------------------------ */
 
 #statusbar {

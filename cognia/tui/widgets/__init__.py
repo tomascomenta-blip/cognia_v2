@@ -9,12 +9,14 @@ from .header import CogniaHeader
 from .logspanel import LogsPanel
 from .mainview import VIEWS, MainView
 from .metrics import SystemMetrics
+from .modals import ConfirmModal
 from .sidebar import Sidebar, view_key_from_item
 from .statusbar import StatusBar
 from .training import TrainingDashboard
 
 __all__ = [
     "CogniaHeader",
+    "ConfirmModal",
     "LogsPanel",
     "MainView",
     "VIEWS",

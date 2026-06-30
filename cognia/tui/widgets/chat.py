@@ -77,6 +77,18 @@ class ChatView(Vertical):
         """Rol del ultimo mensaje mostrado (user / assistant / system), o None."""
         return self._messages[-1]["role"] if self._messages else None
 
+    def clear(self) -> None:
+        """Borra el historial mostrado y restaura el empty-state inicial."""
+        self._messages.clear()
+        for bubble in self.query("#chat-messages .msg"):
+            bubble.remove()
+        self._set_thinking(False)
+        try:
+            self.query_one("#chat-empty", Static).remove_class("hidden")
+        except Exception:
+            pass
+        self._empty_hidden = False
+
     # -- entrada del usuario ----------------------------------------------
 
     @on(Input.Submitted, "#chat-input")
@@ -107,6 +119,12 @@ class ChatView(Vertical):
         self._set_thinking(False)
         role = "system" if reply.startswith(_UNAVAILABLE_PREFIX) else "assistant"
         self._add_message(role, reply)
+        # Un fallo del backend tambien se avisa por toast (sin romper si la app
+        # host no expone el helper).
+        if role == "system":
+            notify_warn = getattr(self.app, "notify_warn", None)
+            if callable(notify_warn):
+                notify_warn("El backend no esta disponible")
 
     # -- render del historial ---------------------------------------------
 

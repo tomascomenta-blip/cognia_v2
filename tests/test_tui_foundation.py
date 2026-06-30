@@ -111,9 +111,13 @@ async def test_logs_panel_write_levels():
 
 @pytest.mark.asyncio
 async def test_quit_binding():
+    # CP7: 'q' ahora PIDE CONFIRMACION (ConfirmModal) en vez de salir directo.
+    # Se confirma con 'y' (ver test_tui_ux.test_quit_confirms para el modal).
     app = CogniaTUI()
     async with app.run_test() as pilot:
-        await pilot.press("q")
+        await pilot.press("q")   # abre el modal de confirmacion
         await pilot.pause()
-    # Si run_test() sale del contexto sin colgar, 'q' cerro la app.
+        await pilot.press("y")   # confirma la salida
+        await pilot.pause()
+    # Si run_test() sale del contexto sin colgar, la salida confirmada cerro la app.
     assert app.return_code == 0

@@ -69,30 +69,79 @@ class PlaceholderView(Vertical):
 
 
 class HelpView(Vertical):
-    """Vista de Ayuda: lista los atajos de teclado (no es un empty-state)."""
+    """Vista de Ayuda: lista TODOS los atajos agrupados, leidos de BINDINGS.
 
-    SHORTCUTS: tuple[tuple[str, str], ...] = (
-        ("q", "Salir de Cognia"),
-        ("?", "Mostrar esta ayuda"),
-        ("tab / shift+tab", "Mover el foco entre paneles"),
-        ("j / k  o  flechas", "Navegar la lista del menu"),
-        ("1 .. 6", "Ir directo a una seccion"),
-        ("enter", "Activar el item del menu"),
+    Los atajos de la App (navegacion, salir, ayuda) se leen de `App.BINDINGS` en
+    tiempo de montaje, asi la ayuda no se desactualiza cuando cambian. Las teclas
+    que no son BINDINGS de la App (las provee Textual -- paleta de comandos -- o
+    el Sidebar -- j/k) se agregan explicitas en _EXTRA para que la lista quede
+    completa. El orden de los grupos lo fija _GROUP_ORDER.
+    """
+
+    # action de un Binding de la App -> grupo de la ayuda.
+    _ACTION_GROUP: dict[str, str] = {
+        "show_view": "Navegacion",
+        "focus_next": "Navegacion",
+        "focus_previous": "Navegacion",
+        "help": "Global",
+        "quit": "Global",
+        "request_quit": "Global",
+        "clear_chat": "Chat",
+    }
+
+    # Teclas que NO son BINDINGS de la App (Textual/Sidebar): (grupo, tecla, desc).
+    _EXTRA: tuple[tuple[str, str, str], ...] = (
+        ("Navegacion", "j / k", "Bajar / subir en el menu"),
+        ("Navegacion", "flechas", "Mover el cursor del menu"),
+        ("Navegacion", "enter", "Activar el item resaltado"),
+        ("Chat", "enter", "Enviar el mensaje al asistente"),
+        ("Acciones", "ctrl+p  o  :", "Abrir la paleta de comandos"),
     )
+
+    _GROUP_ORDER: tuple[str, ...] = ("Navegacion", "Chat", "Acciones", "Global")
+
+    # Nombre interno de tecla -> simbolo visible.
+    _KEY_DISPLAY: dict[str, str] = {"question_mark": "?"}
 
     def __init__(self) -> None:
         super().__init__(id="ayuda", classes="view")
         self.border_title = "Ayuda"
 
     def compose(self) -> ComposeResult:
-        yield Static(self._build_help(), classes="help-body")
+        yield Static(id="help-body", classes="help-body")
+
+    def on_mount(self) -> None:
+        # En on_mount ya hay App: se pueden leer sus BINDINGS reales.
+        self.query_one("#help-body", Static).update(self._build_help())
+
+    def _grouped_shortcuts(self) -> dict[str, list[tuple[str, str]]]:
+        """Junta los atajos por grupo: BINDINGS de la App + teclas _EXTRA."""
+        groups: dict[str, list[tuple[str, str]]] = {g: [] for g in self._GROUP_ORDER}
+        for binding in type(self.app).BINDINGS:
+            key = getattr(binding, "key", None)
+            action = getattr(binding, "action", "")
+            desc = getattr(binding, "description", "")
+            if key is None:  # forma tupla (key, action, description)
+                key, action, desc = binding
+            group = self._ACTION_GROUP.get(str(action).split("(", 1)[0])
+            if group and desc:
+                groups[group].append((self._KEY_DISPLAY.get(key, key), desc))
+        for group, key, desc in self._EXTRA:
+            groups[group].append((key, desc))
+        return groups
 
     def _build_help(self) -> Text:
         text = Text()
-        text.append("Atajos de teclado\n\n", style=f"bold {COLORS['accent']}")
-        for keys, desc in self.SHORTCUTS:
-            text.append(f"  {keys:<20}", style=f"bold {COLORS['info']}")
-            text.append(f"{desc}\n", style=COLORS["text"])
+        text.append("Atajos de teclado\n", style=f"bold {COLORS['accent']}")
+        groups = self._grouped_shortcuts()
+        for group in self._GROUP_ORDER:
+            rows = groups.get(group)
+            if not rows:
+                continue
+            text.append(f"\n{group}\n", style=f"bold {COLORS['accent']}")
+            for keys, desc in rows:
+                text.append(f"  {keys:<16}", style=f"bold {COLORS['info']}")
+                text.append(f"{desc}\n", style=COLORS["text"])
         return text
 
 
