@@ -22,6 +22,7 @@ from textual.widgets import ContentSwitcher, Static
 from ..theme import COLORS
 from .chat import ChatView
 from .logspanel import LogsPanel
+from .training import TrainingDashboard
 
 # Fuente de verdad de la navegacion: (clave de vista, titulo visible, icono ASCII).
 # La clave es el id del child del ContentSwitcher y la base del id del item del
@@ -37,10 +38,10 @@ VIEWS: tuple[tuple[str, str, str], ...] = (
 
 DEFAULT_VIEW = VIEWS[0][0]
 
-# Empty-state por seccion: (icono grande, mensaje, pista de accion). La seccion
-# "chat" ya no usa PlaceholderView (la hospeda ChatView con su propio empty-state).
+# Empty-state por seccion: (icono grande, mensaje, pista de accion). Las secciones
+# "chat" y "entrenamiento" ya no usan PlaceholderView (las hospedan ChatView y
+# TrainingDashboard con su propio empty-state).
 _EMPTY_STATE: dict[str, tuple[str, str, str]] = {
-    "entrenamiento": ("[~]", "Sin corridas de entrenamiento", "Las metricas de training apareceran aqui."),
     "memoria": ("{ }", "Sin memorias indexadas", "La memoria episodica/semantica se mostrara aqui."),
     "modelos": ("< >", "Sin modelos cargados", "Los shards y modelos disponibles apareceran aqui."),
 }
@@ -105,6 +106,8 @@ class MainView(ContentSwitcher):
         for key, title, _icon in VIEWS:
             if key == "chat":
                 yield ChatView()
+            elif key == "entrenamiento":
+                yield TrainingDashboard()
             elif key == "logs":
                 yield LogsPanel(id="logs", classes="view")
             elif key == "ayuda":

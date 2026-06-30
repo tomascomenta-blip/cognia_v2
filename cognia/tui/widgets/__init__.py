@@ -11,6 +11,7 @@ from .mainview import VIEWS, MainView
 from .metrics import SystemMetrics
 from .sidebar import Sidebar, view_key_from_item
 from .statusbar import StatusBar
+from .training import TrainingDashboard
 
 __all__ = [
     "CogniaHeader",
@@ -21,4 +22,5 @@ __all__ = [
     "Sidebar",
     "view_key_from_item",
     "StatusBar",
+    "TrainingDashboard",
 ]

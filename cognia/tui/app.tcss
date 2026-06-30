@@ -136,6 +136,41 @@ Screen {
     display: none;
 }
 
+/* ---- Training dashboard (cabecera + tiles + barras + metricas) -------- */
+
+#train-header {
+    width: 100%;
+    height: 1;
+    margin: 0 0 1 0;
+    text-style: bold;
+}
+
+#train-body {
+    width: 100%;
+    height: 1fr;
+}
+
+#train-tiles {
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+#train-body ProgressBar {
+    width: 100%;
+    margin: 0 0 1 0;
+}
+
+#train-body Bar {
+    width: 1fr;
+}
+
+#train-sysmetrics {
+    width: 100%;
+    height: 1;
+    margin: 1 0 0 0;
+}
+
 /* ---- Status bar (sobre el Footer nativo) ------------------------------ */
 
 #statusbar {
