@@ -589,10 +589,17 @@ class RealTransformerLayer:
 
         total = K.shape[0]
 
-        # SWA: when context exceeds SWA_WINDOW, truncate K/V for attention scoring only.
+        # SWA: Sliding Window Attention — each query attends to at most the last
+        # SWA_WINDOW keys ending at ITS OWN position, i.e. the window (p-W, p].
         # The full K/V is kept in _kv_cache for LPC cross-turn persistence.
-        # Reduces attention from O(total) to O(SWA_WINDOW) at long contexts.
-        if total > SWA_WINDOW:
+        #   - Decode (seq == 1): the single query IS the last token, so its window
+        #     is exactly K[-SWA_WINDOW:]; truncate K/V to keep attention O(W).
+        #   - Prefill / multi-token batch (seq > 1): a global K[-W:] truncation
+        #     would give every EARLIER query a window ending at the last token
+        #     (not its own) — those queries would see only future keys and collapse
+        #     to a uniform softmax (garbage). Keep full K/V and apply a per-query
+        #     banded causal mask below instead.
+        if total > SWA_WINDOW and seq == 1:
             K_attn = K[-SWA_WINDOW:]
             V_attn = V[-SWA_WINDOW:]
             attn_offset = total - SWA_WINDOW  # first absolute position in the window
@@ -614,8 +621,11 @@ class RealTransformerLayer:
         if seq > 1:
             q_abs = np.arange(past_len, past_len + seq, dtype=np.int32).reshape(-1, 1)
             k_abs = np.arange(attn_offset, attn_offset + attn_total, dtype=np.int32).reshape(1, -1)
-            future = (k_abs > q_abs).astype(np.float32) * -1e9
-            scores = scores + future[None, :, None, :]
+            # Mask a key when it is in the FUTURE (k_abs > q_abs) OR older than the
+            # sliding window (k_abs <= q_abs - SWA_WINDOW). Every query keeps at
+            # least its own position, so no row is ever fully masked.
+            masked = (k_abs > q_abs) | (k_abs <= q_abs - SWA_WINDOW)
+            scores = scores + masked.astype(np.float32)[None, :, None, :] * -1e9
         scores -= scores.max(-1, keepdims=True)
         probs   = np.exp(scores); probs /= probs.sum(-1, keepdims=True)
         # out: (KH, seq, group, D) → (seq, H, D) → (seq, H*D)
@@ -688,7 +698,10 @@ class RealTransformerLayer:
 
         total = K.shape[0]
 
-        if total > SWA_WINDOW:
+        # SWA: truncate to the last-W window only for the decode step (seq == 1,
+        # where the single query IS the last token); for a multi-token prefill keep
+        # the full K/V and band-mask per query (see _attention for the full rationale).
+        if total > SWA_WINDOW and seq == 1:
             K_attn = K[-SWA_WINDOW:]
             V_attn = V[-SWA_WINDOW:]
             attn_offset = total - SWA_WINDOW
@@ -706,8 +719,10 @@ class RealTransformerLayer:
         if seq > 1:
             q_abs  = np.arange(past_len, past_len + seq, dtype=np.int32).reshape(-1, 1)
             k_abs  = np.arange(attn_offset, attn_offset + attn_total, dtype=np.int32).reshape(1, -1)
-            future = (k_abs > q_abs).astype(np.float32) * -1e9
-            scores = scores + future[None, :, None, :]
+            # Future (k_abs > q_abs) OR outside the sliding window
+            # (k_abs <= q_abs - SWA_WINDOW) → masked. Each query keeps its own slot.
+            masked = (k_abs > q_abs) | (k_abs <= q_abs - SWA_WINDOW)
+            scores = scores + masked.astype(np.float32)[None, :, None, :] * -1e9
         scores -= scores.max(-1, keepdims=True)
         probs   = np.exp(scores); probs /= probs.sum(-1, keepdims=True)
 
