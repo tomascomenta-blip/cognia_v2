@@ -1012,3 +1012,136 @@ enabling-by-default safe even if a real draft turns out weak.
    handling on the real relay if a multi-node setup is available.
 3. (Optional) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
 4. (Dropped) GoalManager dead-code: benign — only revisit if wiring it for real.
+
+---
+
+## Session: 2026-06-30  (SWA PREFILL CORRUPTION — severe long-prompt bug, fixed in BOTH engine copies)
+
+### Context / approach
+Priority #1 from 2026-06-28 (measure spec acceptance on real weights) is BLOCKED —
+no `nano_draft.npz`/shards in this checkout. Took priority #2 instead (audit the
+un-reviewed inference paths: distributed token loop + tensor-parallel v2 per-rank
+KV). Env unchanged: NO venv312; system `python` is 3.12.10 (numpy 1.26.4 +
+pytest 9.0.3), used from the repo root (so the repo — not the stale site-packages
+`shattering` shadow — is imported; verified via `__file__`). Read the full
+attention path (`node/qwen2_ops.py` `_attention`/`_attention_normed`, the TP
+partition path `shattering/tensor_parallel.py`, `shard_engine.process`/KV methods,
+`node/inference_pipeline.py`). The TP per-rank KV path turned out already CORRECT
+and TESTED (test_tp_generate_distributed asserts greedy-equivalence to reference);
+the real bug was one layer deeper, in the Sliding-Window-Attention block shared by
+every inference path. Found it, proved it model-free, fixed it, propagated to the
+shipped public copy, then bounded its cost.
+
+### [SWA-BUG — LIVE, SEVERE correctness, FIXED + PUSHED (c9e66d0, 2521be0)] SWA prefill corrupted every non-last position
+**Files**: node/qwen2_ops.py — `_attention` + `_attention_normed`;
+  cognia_public_api/cognia_inference/qwen2_ops.py (vendored copy) — same two methods.
+
+Root cause: SWA (Phase 21.2, `SWA_WINDOW=512`) bounded long-context cost by
+truncating K/V to the global last-W keys `K[-SWA_WINDOW:]`. That window is correct
+ONLY for the decode step (seq == 1, where the single query IS the last token). For a
+multi-token prefill (seq > 1) with `total > SWA_WINDOW`, the SAME global truncation
+gave EVERY earlier query a window ending at the LAST token instead of at its own
+position: those queries saw only future keys, the causal mask zeroed every score,
+and softmax collapsed to a uniform average — garbage. The corruption propagates
+through the layer stack (early/mid positions feed the last position's attention in
+the next layer) and reaches the final-position logits, so ANY prompt longer than
+512 tokens (a few hundred lines of code + the ChatML system prompt easily exceeds
+512) produced wrong next-token predictions. This is the PRODUCTION hot path: this
+checkout ships `fast_kernels_omp.dll` → `_CLIB_FUSED` is True → `forward()` runs
+`_attention_normed` (the fused variant), which had the identical bug. The real model
+(Qwen2.5-Coder-3B) has `use_sliding_window:false` — SWA is a Cognia-added approx, so
+this was never matching the reference for >512 contexts AND was mathematically wrong.
+
+Fix: keep the O(W) last-window truncation ONLY for the decode step (seq == 1,
+exactly correct, byte-identical to before). For a multi-token batch (seq > 1) keep
+the K/V and apply a per-query BANDED sliding-window causal mask:
+  `masked = (k_abs > q_abs) | (k_abs <= q_abs - SWA_WINDOW)`
+Every query keeps at least its own slot → no row is ever fully masked. Behavior is
+byte-identical for the decode path and for short prefills (total <= W); only the
+buggy `seq>1 & total>W` case changes. Both `_attention` and `_attention_normed`
+fixed in node/ AND in the shipped public copy.
+
+Verified (model-free — pinned at the attention layer, no real shards needed):
+  - Oracle = position-consistency of causal attention: a one-shot prefill MUST equal
+    feeding the same tokens one-at-a-time (the seq==1 path, correct in old & new
+    code). OLD code diverged at every position but the last (up to 0.56 abs); FIXED
+    matches the incremental oracle to ~3e-8 for both methods.
+  - END-TO-END 4-layer stack on the FUSED production path (`_attention_normed`,
+    window=8, 20-token prompt): OLD final-position hidden diverged from the oracle by
+    7.8e-2 (corrupts the next-token prediction); FIXED matches to 1.2e-7. This proves
+    the bug reached the output logits, not just early positions.
+  - New suite tests/test_swa_attention.py (6 tests: prefill>W & prefill<=W for both
+    methods, batch-after-long-past, decode-still-truncates). Full fast suite:
+    **2470 passed, 1 skipped, 0 failed** (was 2464 — +6).
+
+### [SWA-PERF — FIXED + PUSHED (da17549)] Bound the multi-token batch to reachable keys
+Follow-up: the seq>1 branch attended over FULL K/V (O(seq*total)) — wasteful for a
+small batch over a long cached past (a speculative-decoding verify batch of ~5
+tokens after 1000+ generated tokens scored against the WHOLE context) and a memory
+risk for long continuation prefills. The union of all per-query windows in one call
+is `[past_len - W + 1, total)`; lower keys are masked for EVERY query anyway, so
+slicing K/V to `key_lo = max(0, past_len - SWA_WINDOW + 1)` is NUMERICALLY EXACT
+while bounding attn_total to <= seq + W - 1. A spec batch now scores ~W keys, not
+the whole context; a pure prefill (past_len=0) is unchanged (key_lo=0); decode
+(seq==1) untouched. Verified numerically identical to full-K (3e-8 vs oracle;
+attn_total 11 vs 34 full on a 4-tok batch over 30-tok past). Applied to both methods
+in both files. Full suite stayed 2470 passed.
+
+### [DRIFT — FIXED + PUSHED (cbe3585)] Vendored public engine had silently drifted
+`cognia_public_api/cognia_inference/qwen2_ops.py` is a HAND-MAINTAINED copy of
+node/qwen2_ops.py shipped as the public/HF-Space package (README_HF.md,
+local_runner.py with a numpy fallback that DOES use it). It carried the SWA bug
+untouched AND lacked the truncate_kv negative-len guard. Synced both; the two files
+now differ ONLY in their 3 import lines (`shattering.*` vs `cognia_inference.*`), so
+any future logic divergence is immediately visible in a plain `diff`. RECOMMEND a
+future session generate/import this copy from node/ instead of hand-maintaining it.
+
+### Items checked and deliberately NOT actioned
+- **Tensor-parallel v2 per-rank KV (prior priority #2): already CORRECT + tested.**
+  partition_layer gives each rank a real RealTransformerLayer holding only its heads'
+  KV under session_id (isolated per-rank dicts); test_tp_generate_distributed asserts
+  the T=2/T=4 socket all-reduce run is greedy-IDENTICAL to the single-device
+  reference. No bug. (The SWA fix also benefits the TP path since each rank's
+  `_attention` shares the fixed block.)
+- **Distributed token loop (node/inference_pipeline.py): in-process path reads clean.**
+  The HTTP cross-process branch has a latent protocol-detection ambiguity
+  (`result_bytes[0] in (0,1,2)` to pick decode_wire vs decode_hidden_state — legacy
+  `>HHII` frames with shard_index<256 also start with byte 0), but in practice the
+  relay returns PTYPE_LOGITS(2) so it resolves correctly; unverifiable without a real
+  multi-node relay → not touched (CLAUDE.md rules 2 & 4).
+- **MLA module**: does not use SWA_WINDOW → no SWA bug there.
+
+### Verification summary
+- Bug reproduced on OLD code (0.56 single-layer / 7.8e-2 end-to-end), verified fixed
+  (~3e-8 / 1.2e-7) — both single-layer and through a 4-layer fused-path stack.
+- tests/test_swa_attention.py: 6 passed. Targeted attention/tp/inference suites: 103
+  passed, 7 skipped. Full fast suite (excl. e2e): 2470 passed, 1 skipped, 0 failed
+  (309s), re-run after the key_lo refinement: still 2470/1/0.
+
+### State at session end
+- origin/main advanced by 4 commits: **c9e66d0** (SWA fix node/), **2521be0** (SWA
+  fix public), **da17549** (key_lo bound, both), **cbe3585** (drift sync) — all pushed
+  & green. Push protocol unchanged (wincredman fails headless):
+  `git -c credential.helper='!gh auth git-credential' push origin HEAD:main`.
+- Local branch integration/fixes-onto-origin tracks origin/main; working tree clean
+  except this docs commit.
+
+### Priority Order for Next Session
+1. **Measure spec acceptance rate + speed on real weights** (still the one thing no
+   session can do without `nano_draft.npz` + loaded shards). With them: run a real
+   prompt > 512 tokens to CONFIRM the SWA fix produces coherent long-prompt output
+   end-to-end against the real model (this session proved correctness model-free; a
+   real-weights CHECK is the missing end-to-end gate), then log `[SpecLoop]`
+   matched/tok-s for the spec path.
+2. **(Optional optimization) memory-bounded long PREFILL.** The fix makes a single
+   long prefill (past_len=0, seq>W) correct but O(seq^2) — fine for realistic prompts
+   (public caps n_ctx=2048 ≈ 268MB transient; numpy is a slow fallback) but it would
+   OOM on a 32k prefill. A chunked query-block banded prefill would restore O(seq*W)
+   memory while staying correct. Only needed if very long numpy-path prefills become
+   real; the key_lo bound already covers the continuation/spec-batch case.
+3. **De-duplicate the vendored public engine** (generate cognia_inference/qwen2_ops.py
+   from node/ or import it) so the SWA-style "fix one copy, miss the other" trap can't
+   recur. The files are now identical apart from 3 import lines — a good moment.
+4. Continue the un-audited DISTRIBUTED cross-process path (relay PTYPE_LOGITS shape +
+   the protocol-detection ambiguity above) IF a multi-node setup becomes available.
+5. (Optional) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
