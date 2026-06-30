@@ -4644,3 +4644,33 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
   Modelos solo hace stat() de archivos locales (nunca carga un GGUF); carga del modelo de
   memoria perezosa (numpy/DB recien en la 1a stats/search, al ABRIR la vista, no en el boot).
 - Notas: NO se commiteo (lo hace el manager). No se toco cognia/cli.py.
+
+## [2026-06-30] CP10 — puente entreno->dashboard (training_progress.json)
+- Que: el harness de Cognia-X ahora escribe en vivo el JSON que la TUI ya sabe leer
+  (cognia/tui/training_monitor.py:TrainingMonitor), con metricas REALES medidas.
+- Archivos:
+  - NUEVO cognia_x/training_progress.py — class ProgressWriter (start/update/finish).
+    Escritura ATOMICA (.tmp + os.replace), best-effort (todo en try/except: ningun fallo
+    de IO rompe el entreno). Ruta por defecto == la que TrainingMonitor usa por defecto
+    (<repo>/cognia_x/training_progress.json) -> enchufar es cero-config. eta_s por ritmo
+    REAL entre writes; tokens_per_s = tokens_por_paso * sps MEDIDO; vram_pct via pynvml
+    (None en CPU, honesto). update() persiste cada write_every pasos / cambio de epoch /
+    paso final.
+  - cognia_x/train/fast_harness.py — engancha de forma MINIMA y OPCIONAL: nuevo param
+    progress=None (True->ruta default; str/Path->esa ruta). cfg_train acepta run_name,
+    progress_every, total_epochs. writer.start() antes del loop, writer.update(step, epoch=1,
+    loss REAL, lr REAL de opt.param_groups, batch_size REAL de x.shape[0], tokens_per_step
+    de x.numel()) dentro del loop, writer.finish('done') al terminar (y 'error' si el loop
+    lanza). NO se cambio la logica de entreno.
+  - NUEVO tests/test_training_progress.py — 5 tests (atomic write+read, write_every,
+    never_raises, E2E harness real, TUI lee el archivo y sale de idle).
+- Metricas REALES vs None: step, loss, lr, batch_size, total_steps, tokens_per_s, eta_s,
+  started_at, updated_at = REALES (medidas). epoch=1/total_epochs=1 (harness step-based,
+  honesto). vram_pct = None local (sin GPU/pynvml; se lee si corre en GPU con pynvml).
+- Resultado tests: PASS.
+  - tests/test_training_progress.py: 5 passed.
+  - -k tui: 33 passed (los 32 previos + el nuevo test de la TUI leyendo el puente).
+  - Regresion harness: `python -m cognia_x.train.fast_harness --smoke` REANUDA 40->80 OK.
+- E2E REAL (CPU, 30 steps): loss BAJA 3.91->2.95 sobre steps 5..30, tokens/s ~9k-14k MEDIDO,
+  eta_s -> 0, status running->done. JSON final leido por TrainingMonitor identico al de disco.
+- Notas: NO se commiteo (lo hace el manager).

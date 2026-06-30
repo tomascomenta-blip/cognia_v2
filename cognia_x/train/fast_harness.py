@@ -24,6 +24,7 @@ import torch
 
 from cognia_x.model.hybrid import HybridConfig, HybridLM
 from cognia_x.train.recall_task import make_recall_batch, eval_recall
+from cognia_x.training_progress import ProgressWriter
 
 
 def _device():
@@ -58,10 +59,14 @@ def load_ckpt(path, base_model, opt, scaler, map_location):
     return blob["step"]
 
 
-def train(cfg_model, cfg_train, out_dir, batch_fn, device=None, log=print, eval_fn=None):
+def train(cfg_model, cfg_train, out_dir, batch_fn, device=None, log=print, eval_fn=None,
+          progress=None):
     """Entrena HybridLM(cfg_model) con AMP-safe + compile + checkpoints atómicos reanudables.
     cfg_train: dict con steps, lr, weight_decay, warmup, ckpt_every, amp, compile, fused, grad_clip.
-    batch_fn(step)->(x,y) en CPU o device. Reanuda solo si out_dir/ckpt.pt existe."""
+    batch_fn(step)->(x,y) en CPU o device. Reanuda solo si out_dir/ckpt.pt existe.
+    progress: opcional. True -> escribe el JSON de progreso para la TUI en la ruta por defecto;
+    str/Path -> escribe en esa ruta. cfg_train['run_name']/'progress_every'/'total_epochs' ajustan el
+    writer. NO altera la lógica de entreno: solo agrega start()/update()/finish() best-effort."""
     device = device or _device()
     os.makedirs(out_dir, exist_ok=True)
     ckpt_path = os.path.join(out_dir, "ckpt.pt")
@@ -94,39 +99,61 @@ def train(cfg_model, cfg_train, out_dir, batch_fn, device=None, log=print, eval_
     log(f"[harness] params={base_model.num_params():,} device={device} amp={use_amp} "
         f"compile={use_compile} fused={use_fused} steps={steps} (desde {start})")
 
+    writer = None
+    if progress:
+        writer = ProgressWriter(
+            path=None if progress is True else progress,
+            run_name=cfg_train.get("run_name") or os.path.basename(os.path.abspath(out_dir)),
+            total_epochs=cfg_train.get("total_epochs", 1),
+            total_steps=steps,
+            write_every=cfg_train.get("progress_every", 10),
+        )
+        writer.start()
+
     model.train()
     t0 = time.time()
     last = start
-    for step in range(start + 1, steps + 1):
-        if warmup > 0 and step <= warmup:
-            for g in opt.param_groups:
-                g["lr"] = lr * step / warmup
-        x, y = batch_fn(step)
-        if x.device.type != device:
-            x, y = x.to(device), y.to(device)
-        if use_amp:
-            with torch.autocast(device_type="cuda", dtype=torch.float16):
+    try:
+        for step in range(start + 1, steps + 1):
+            if warmup > 0 and step <= warmup:
+                for g in opt.param_groups:
+                    g["lr"] = lr * step / warmup
+            x, y = batch_fn(step)
+            if x.device.type != device:
+                x, y = x.to(device), y.to(device)
+            if use_amp:
+                with torch.autocast(device_type="cuda", dtype=torch.float16):
+                    _, loss = model(x, y)
+                opt.zero_grad(set_to_none=True)
+                scaler.scale(loss).backward()
+                scaler.unscale_(opt)
+                torch.nn.utils.clip_grad_norm_(base_model.parameters(), grad_clip)
+                scaler.step(opt)
+                scaler.update()
+            else:
                 _, loss = model(x, y)
-            opt.zero_grad(set_to_none=True)
-            scaler.scale(loss).backward()
-            scaler.unscale_(opt)
-            torch.nn.utils.clip_grad_norm_(base_model.parameters(), grad_clip)
-            scaler.step(opt)
-            scaler.update()
-        else:
-            _, loss = model(x, y)
-            opt.zero_grad(set_to_none=True)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(base_model.parameters(), grad_clip)
-            opt.step()
-        if step % ckpt_every == 0 or step == steps:
-            save_ckpt(ckpt_path, base_model, opt, scaler, step, cfg_model, cfg_train)
-            dt = time.time() - t0
-            sps = (step - last) / dt if dt > 0 else 0.0
-            extra = f" {eval_fn(base_model):.3f} acc" if eval_fn else ""
-            log(f"[harness] step {step}/{steps} loss {float(loss.detach()):.4f}{extra} "
-                f"| {sps:.1f} step/s ckpt-> {ckpt_path}")
-            t0, last = time.time(), step
+                opt.zero_grad(set_to_none=True)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(base_model.parameters(), grad_clip)
+                opt.step()
+            if writer is not None:  # step-based: epoch=1/1; tokens/s y eta REALES por ritmo
+                writer.update(step=step, epoch=1, loss=float(loss.detach()),
+                              lr=opt.param_groups[0]["lr"], batch_size=int(x.shape[0]),
+                              tokens_per_step=int(x.numel()))
+            if step % ckpt_every == 0 or step == steps:
+                save_ckpt(ckpt_path, base_model, opt, scaler, step, cfg_model, cfg_train)
+                dt = time.time() - t0
+                sps = (step - last) / dt if dt > 0 else 0.0
+                extra = f" {eval_fn(base_model):.3f} acc" if eval_fn else ""
+                log(f"[harness] step {step}/{steps} loss {float(loss.detach()):.4f}{extra} "
+                    f"| {sps:.1f} step/s ckpt-> {ckpt_path}")
+                t0, last = time.time(), step
+    except Exception:
+        if writer is not None:
+            writer.finish("error")
+        raise
+    if writer is not None:
+        writer.finish("done")
     return base_model, ckpt_path
 
 
