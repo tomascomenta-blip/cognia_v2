@@ -8,6 +8,7 @@ Cada widget vive en su propio archivo y se exporta aca para imports cortos:
 from .header import CogniaHeader
 from .logspanel import LogsPanel
 from .mainview import VIEWS, MainView
+from .metrics import SystemMetrics
 from .sidebar import Sidebar, view_key_from_item
 from .statusbar import StatusBar
 
@@ -16,6 +17,7 @@ __all__ = [
     "LogsPanel",
     "MainView",
     "VIEWS",
+    "SystemMetrics",
     "Sidebar",
     "view_key_from_item",
     "StatusBar",

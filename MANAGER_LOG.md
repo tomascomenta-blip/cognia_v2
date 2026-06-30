@@ -4497,3 +4497,16 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
   2) PlaceholderView/HelpView definian _render() y LogsPanel _format() -> _render es interno de Widget (render de contenido). Fix: renombrar a _build_empty/_build_help/_format_line.
   Leccion: nombres con guion bajo en subclases de Widget/MessagePump pueden pisar internals de Textual; verificar SIEMPRE con run_test, no solo importar.
 - Reglas duras: ASCII en codigo; textos de UI con acentos (Textual renderiza UTF-8) sin emojis; sin sqlite3.connect; sin tocar cognia/cli.py; NO se commiteo (lo hace el manager). Sin half-implementations: todas las vistas tienen empty-state, navegacion 100% teclado, tests verdes.
+
+## [2026-06-30] TUI CP4 — metricas reales psutil
+- Objetivo: widget reutilizable de metricas de sistema REALES y en vivo en la TUI (Textual 8.2.7), sin bloquear la UI, coloreado por umbral semantico, con GPU empty-state honesto.
+- Archivos tocados:
+  - NUEVO cognia/tui/widgets/metrics.py — SystemMetrics(Static): lee CPU/RAM/DISK con psutil (cpu_percent(interval=None) no bloquea; 1a lectura 0.0 se corrige al 2do tick), reactive() para cpu/ram/disk/gpu, set_interval(1.0, refresh_metrics) en on_mount, render() con Rich Text. Helper threshold_color(pct)->ok/warn/err (<60/60-85/>85). snapshot()->dict {cpu,ram,disk,gpu}. Drive del repo via Path(__file__).resolve().anchor ('D:\' en win). Valores redondeados a entero (float) -> reactive solo cambia cuando el entero cambia -> re-render minimo, sin flicker; ancho fijo %3.0f.
+  - cognia/tui/widgets/header.py — reemplazado el placeholder Static('CPU -- RAM -- DISK --') por SystemMetrics(id='metrics'); marca 'Cognia' a la izquierda intacta; quitado el codigo muerto (_render_metrics/_value_style/update_metrics).
+  - cognia/tui/widgets/__init__.py — exporta SystemMetrics.
+  - NUEVO tests/test_tui_metrics.py — 3 tests: lee valores reales (float 0..100), umbrales de color (45->ok/70->warn/95->err), sin GPU falsa (snapshot['gpu'] None o '--').
+  - app.tcss SIN cambios: el rule #metrics (width:1fr; content-align:right middle) ya alinea a la derecha y SystemMetrics conserva id='metrics'.
+- GPU empty-state HONESTO: deteccion lazy una sola vez (_gpu_percent): try import pynvml -> nvmlInit -> count>0 -> util; cualquier ImportError/fallo/sin-GPU -> None. pynvml ABSENTE en este entorno -> gpu=None -> render muestra 'GPU --' en muted. NUNCA numeros inventados.
+- Resultado tests: PASS — 11 passed in 3.88s (8 previos de test_tui_foundation.py + 3 nuevos de test_tui_metrics.py).
+- Verificacion REAL end-to-end (run_test headless): SNAPSHOT {'cpu':45.0,'ram':80.0,'disk':31.0,'gpu':None}; RENDER 'CPU  45%  RAM  80%  DISK  31%  GPU --'. Smoke: METRICS_OK.
+- Notas: NO se commiteo (lo hace el manager). Sin tocar cognia/cli.py. ASCII en codigo; % y etiquetas de UI ok.
