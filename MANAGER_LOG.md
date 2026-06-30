@@ -4573,3 +4573,42 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
   "Vista: Memoria"; Ayuda lista q/Salir, ?/Ayuda, ctrl+p/paleta agrupados. Smoke: UX_OK.
 - Notas: NO se commiteo (lo hace el manager). Sin tocar cognia/cli.py. ASCII en codigo Python;
   acentos solo en strings de UI. Modales async via push_screen_wait (no bloquean el loop).
+
+## [2026-06-30] TUI CP8 — quality pass + docs + entry (cierre FASE 1)
+- Tarea: pulido de calidad del paquete `cognia/tui/`, documentacion y verificacion del entry
+  point. Cambios quirurgicos, SIN tocar comportamiento ni APIs publicas.
+- QUALITY PASS:
+  - Imports sin usar (pyflakes-confirmados, eliminados):
+    `Optional` en `cognia/tui/backend.py`; `ComposeResult` en `cognia/tui/widgets/sidebar.py`.
+  - Codigo muerto eliminado: funcion `markup()` en `cognia/tui/theme.py` — 0 callers en TODO
+    el repo (verificado con grep `\bmarkup\b` sobre *.py: solo su def + el kwarg `markup=False`
+    de RichLog, no relacionado). Era un helper olvidado; el coloreo de logs ya lo hace
+    `level_color` + Rich `Text` en logspanel.py.
+  - DUPLICACION factorizada: 3 builders de empty-state identicos en estructura
+    (`PlaceholderView._build_empty`, `ChatView._build_empty`, `TrainingDashboard._build_empty`)
+    -> nuevo helper unico `theme.empty_state(icon, message, hint) -> Text` (misma fuente de
+    verdad del look; sin sobre-abstraer). Las 3 vistas ahora lo llaman; el texto plano
+    renderizado es identico (tests verdes).
+  - Consistencia verificada: CERO hex hardcodeado fuera de theme.py (grep `#[0-9a-fA-F]{6}`
+    solo matchea COLORS en theme.py). Naming/ids/clases CSS ya consistentes.
+  - DECISION (no se borro): `respond_stream`/`is_ready`/`status` en backend.py no tienen
+    callers pero son la API publica documentada del adaptador CogniaBackend; borrarlas
+    cambiaria una API publica (prohibido por la tarea). Se conservan.
+- DOCS: nuevo `cognia/tui/README.md` (que es, como correr, arquitectura por componente, tabla
+  de atajos, paleta semantica, estado hecho/pendiente FASE 1).
+- Archivos modificados: `cognia/tui/theme.py` (- markup, + empty_state, + import rich.Text,
+  docstring), `cognia/tui/backend.py` (- import), `cognia/tui/widgets/sidebar.py` (- import),
+  `cognia/tui/widgets/mainview.py` (PlaceholderView usa empty_state, -_build_empty),
+  `cognia/tui/widgets/chat.py` (_build_empty -> empty_state), `cognia/tui/widgets/training.py`
+  (_build_empty -> empty_state). Nuevo: `cognia/tui/README.md`.
+- VERIFICACION:
+  - pyflakes `cognia/tui/`: limpio (exit 0, sin warnings) tras la limpieza.
+  - ENTRY_OK: `from cognia.tui.app import CogniaTUI; CogniaTUI()` -> ENTRY_OK CogniaTUI.
+  - BOOT_OK: `async with CogniaTUI().run_test() as pilot: await pilot.pause()` -> BOOT_OK
+    (la app arranca el loop headless sin crashear).
+  - Suite TUI completa: 24 passed in 11.02s (test_tui_ux + training + chat + foundation +
+    metrics). 0 regresiones.
+- Resultado tests: PASS — 24 passed.
+- Notas: NO se commiteo (lo hace el manager). FASE 1 cerrada como MVP pulido y documentado;
+  pendiente = migracion incremental del resto de comandos del cli.py viejo + FASE 2
+  (training_progress.json en vivo).

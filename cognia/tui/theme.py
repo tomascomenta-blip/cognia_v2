@@ -3,8 +3,10 @@ theme.py -- Sistema de diseno (paleta semantica) de la TUI de Cognia.
 
 Que: define COLORS, la paleta semantica unica de toda la interfaz (hex), y
 construye a partir de ella un textual.theme.Theme registrable en la App. Asi la
-misma fuente de verdad alimenta tanto el codigo Python (markup de logs, indicadores
-del header) como el CSS (app.tcss via variables $primary, $success, etc.).
+misma fuente de verdad alimenta tanto el codigo Python (logs, empty-states,
+indicadores del header) como el CSS (app.tcss via variables $primary, $success,
+etc.). Tambien expone helpers que usan esa paleta: level_color (color por nivel
+de log) y empty_state (el renderable uniforme de los empty-states de las vistas).
 
 Por que: evitar que los colores se dupliquen y diverjan entre Python y el .tcss.
 Cambiar un hex aca cambia toda la TUI de forma consistente.
@@ -15,6 +17,7 @@ textos de UI (renderizados por Textual en UTF-8) pueden llevar acentos.
 
 from __future__ import annotations
 
+from rich.text import Text
 from textual.theme import Theme
 
 # Paleta semantica. Base oscura estilo "terminal pro" (GitHub-dark-ish), con un
@@ -53,10 +56,15 @@ def level_color(level: str) -> str:
     return COLORS[_LEVEL_TO_KEY.get(level.lower(), "info")]
 
 
-def markup(text: str, color: str) -> str:
-    """Envuelve `text` en markup de Rich con `color` (hex o clave de COLORS)."""
-    hex_color = COLORS.get(color, color)
-    return f"[{hex_color}]{text}[/]"
+def empty_state(icon: str, message: str, hint: str) -> Text:
+    """Renderable centrado y uniforme de un empty-state: icono (accent) + mensaje
+    (bold) + pista (muted). Fuente unica del look de los empty-states de todas las
+    vistas (chat / memoria / modelos / entrenamiento) para que no se dupliquen."""
+    text = Text(justify="center")
+    text.append(f"{icon}\n\n", style=f"bold {COLORS['accent']}")
+    text.append(f"{message}\n", style=f"bold {COLORS['text']}")
+    text.append(hint, style=COLORS["muted"])
+    return text
 
 
 def cognia_theme() -> Theme:

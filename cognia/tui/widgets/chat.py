@@ -29,7 +29,7 @@ from textual.containers import Vertical, VerticalScroll
 from textual.widgets import Input, Static
 
 from ..backend import CogniaBackend
-from ..theme import COLORS
+from ..theme import COLORS, empty_state
 
 # Prefijo (etiqueta) y color por rol del mensaje. usuario / asistente / sistema.
 _ROLE_LABEL = {
@@ -176,8 +176,8 @@ class ChatView(Vertical):
 
     @staticmethod
     def _build_empty() -> Text:
-        out = Text(justify="center")
-        out.append("[ ]\n\n", style=f"bold {COLORS['accent']}")
-        out.append("Sin conversacion todavia\n", style=f"bold {COLORS['text']}")
-        out.append("Escribi para empezar a hablar con Cognia", style=COLORS["muted"])
-        return out
+        return empty_state(
+            "[ ]",
+            "Sin conversacion todavia",
+            "Escribi para empezar a hablar con Cognia",
+        )

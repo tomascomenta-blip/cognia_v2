@@ -22,7 +22,7 @@ crashear por un fallo del backend.
 from __future__ import annotations
 
 import threading
-from typing import Iterator, List, Optional
+from typing import Iterator, List
 
 # Tope de tokens por turno y nro de mensajes de historial reenviados al modelo.
 # Mismos valores que el fast-path del REPL (cognia/cli.py): 1024 tokens y los

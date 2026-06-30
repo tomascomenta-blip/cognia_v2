@@ -12,7 +12,6 @@ puede traducir highlighted -> ContentSwitcher.current sin tablas extra.
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.widgets import Label, ListItem, ListView
 

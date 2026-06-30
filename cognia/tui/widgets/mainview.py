@@ -19,7 +19,7 @@ from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import ContentSwitcher, Static
 
-from ..theme import COLORS
+from ..theme import COLORS, empty_state
 from .chat import ChatView
 from .logspanel import LogsPanel
 from .training import TrainingDashboard
@@ -54,18 +54,10 @@ class PlaceholderView(Vertical):
         super().__init__(id=key, classes="view")
         self.border_title = title
         icon, message, hint = _EMPTY_STATE[key]
-        self._empty_text = self._build_empty(icon, message, hint)
+        self._empty_text = empty_state(icon, message, hint)
 
     def compose(self) -> ComposeResult:
         yield Static(self._empty_text, classes="empty-state")
-
-    @staticmethod
-    def _build_empty(icon: str, message: str, hint: str) -> Text:
-        text = Text(justify="center")
-        text.append(f"{icon}\n\n", style=f"bold {COLORS['accent']}")
-        text.append(f"{message}\n", style=f"bold {COLORS['text']}")
-        text.append(hint, style=COLORS["muted"])
-        return text
 
 
 class HelpView(Vertical):

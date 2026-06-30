@@ -31,7 +31,7 @@ from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual.widgets import ProgressBar, Static
 
-from ..theme import COLORS
+from ..theme import COLORS, empty_state
 from ..training_monitor import (
     TrainingMonitor,
     default_progress,
@@ -230,11 +230,8 @@ class TrainingDashboard(Vertical):
 
     @staticmethod
     def _build_empty() -> Text:
-        out = Text(justify="center")
-        out.append("[ ^ ]\n\n", style=f"bold {COLORS['accent']}")
-        out.append("Sin entrenamiento activo\n", style=f"bold {COLORS['text']}")
-        out.append(
+        return empty_state(
+            "[ ^ ]",
+            "Sin entrenamiento activo",
             "Inicia una corrida (FASE 2) y las metricas apareceran aqui en vivo.",
-            style=COLORS["muted"],
         )
-        return out
