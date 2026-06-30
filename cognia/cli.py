@@ -366,7 +366,7 @@ _CMD_DESCRIPTIONS = {
     "/ejecutar":        "Ejecutar comando shell     <cmd>",
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
-    "/largo":           "Generacion larga (hasta 5000 tokens) con progreso  [--jerarquico] <pedido>",
+    "/largo":           "Generacion larga (hasta 5000 tokens) con progreso  [--jerarquico|--delegado] <pedido>",
     "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
@@ -577,6 +577,8 @@ _CMD_DETAILS = {
         "Lento (~10 min a 8 tok/s). Requiere llama-server/GGUF disponible. "
         "Con --jerarquico genera un outline y luego cada seccion con un prompt fresco "
         "(prefill acotado por seccion -> rompe el techo de ctx, longitud cuasi-ilimitada). "
+        "Con --delegado descompone en un outline y cada subtarea la genera un worker de "
+        "contexto LIMPIO (ciego a las demas) + una cabeza que teje la introduccion. "
         "Ejemplo: /largo --jerarquico Escribe una guia completa de asyncio en Python"
     ),
     "/experimento": (
@@ -2918,6 +2920,13 @@ def _slash_largo(ai, pedido: str) -> None:
     if pedido.strip().lower().startswith("--jerarquico"):
         jerarquico = True
         pedido = pedido.strip()[len("--jerarquico"):].strip()
+    # Modo delegado (outline -> workers de contexto limpio + cabeza que teje;
+    # generate_delegated) con el flag --delegado al inicio del pedido. Mutuamente
+    # excluyente con --jerarquico en la practica.
+    delegado = False
+    if pedido.strip().lower().startswith("--delegado"):
+        delegado = True
+        pedido = pedido.strip()[len("--delegado"):].strip()
     # Mismo fast-path que el chat libre: orquestador cacheado en ai si existe,
     # si no uno local, y _try_load_llama() para obtener el backend llama.cpp.
     _llama = None
@@ -2943,6 +2952,9 @@ def _slash_largo(ai, pedido: str) -> None:
         _print_line("[warn_cl]backend llama no disponible (GGUF o llama-server "
                     "faltante) -- /largo necesita el fast-path llama.cpp[/warn_cl]")
         return
+    if delegado and not hasattr(_llama, "generate_delegated"):
+        _print_line("[warn_cl]backend sin generate_delegated -- actualiza node/llama_backend.py[/warn_cl]")
+        return
 
     # Prompt ChatML igual que el fallback del fast-path de chat (sin historial:
     # el pedido largo es one-shot, el contexto entero se gasta en la respuesta).
@@ -2955,7 +2967,10 @@ def _slash_largo(ai, pedido: str) -> None:
     from node.inference_pipeline import _apply_qwen_template
     _prompt = _apply_qwen_template(pedido, _system)
 
-    if jerarquico:
+    if delegado:
+        _print_line("[detail]Generacion delegada (outline -> workers de contexto "
+                    "limpio + cabeza que teje)...[/detail]")
+    elif jerarquico:
         _print_line("[detail]Generacion jerarquica (outline -> secciones con prompt "
                     "fresco; prefill acotado por seccion)...[/detail]")
     else:
@@ -2963,11 +2978,20 @@ def _slash_largo(ai, pedido: str) -> None:
                     f"(continuacion automatica, ~10 min a 8 tok/s)...[/detail]")
     t0 = time.time()
 
-    if jerarquico:
+    if delegado:
+        def _on_task(idx, total, titulo, toks):
+            print(f"  worker {idx}/{total}: {titulo[:60]} ({toks} tokens)", flush=True)
+        # pedido CRUDO (no _prompt): generate_delegated arma sus propios prompts
+        # (outline/sec) sobre el texto base; el ChatML rompe el outline.
+        result = _llama.generate_delegated(
+            pedido, temperature=GEN_CHAT_TEMPERATURE, on_task=_on_task,
+        )
+    elif jerarquico:
         def _on_section(idx, total, titulo, toks):
             print(f"  seccion {idx}/{total}: {titulo[:60]} ({toks} tokens)", flush=True)
+        # pedido CRUDO (no _prompt): igual que delegado, construye sus prompts.
         result = _llama.generate_hierarchical(
-            _prompt, temperature=GEN_CHAT_TEMPERATURE, on_section=_on_section,
+            pedido, temperature=GEN_CHAT_TEMPERATURE, on_section=_on_section,
         )
     else:
         def _on_chunk(ronda, chunk_toks, total, reason):
@@ -2988,8 +3012,12 @@ def _slash_largo(ai, pedido: str) -> None:
         _print_line("[warn_cl]La generacion larga devolvio texto vacio.[/warn_cl]")
         return
     _show_response(texto, _ACCENT)
-    _meta = (f"{result.get('sections')} secciones" if jerarquico
-             else f"stop={result.get('stop_reason')}")
+    if delegado:
+        _meta = f"{result.get('sections')} subtareas, cabeza={'si' if result.get('head') else 'no'}"
+    elif jerarquico:
+        _meta = f"{result.get('sections')} secciones"
+    else:
+        _meta = f"stop={result.get('stop_reason')}"
     print(f"  [{result['total_tokens']} tokens, {result['rounds']} rondas, "
           f"{elapsed:.0f}s, {_meta}]")
     _session_log.append({"input": f"/largo {pedido}", "output": texto,
