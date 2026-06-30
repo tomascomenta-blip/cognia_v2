@@ -845,6 +845,110 @@ class LlamaBackend:
             "rounds":       rounds,
         }
 
+    def generate_delegated(self, prompt: str, target_tokens: int = None,
+                           n_tasks: int = None, per_task_cap: int = None,
+                           aggregate: bool = True, temperature: float = 0.7,
+                           on_task=None) -> Optional[dict]:
+        """
+        Generacion larga por DELEGACION (orchestrator-workers). Descompone en un outline
+        de N subtareas (spec compartido) y genera cada una con un worker de CONTEXTO LIMPIO:
+        el prompt de cada worker es prompt + outline + SOLO esa subtarea, SIN arrastrar el
+        resumen de las previas (a diferencia de generate_hierarchical). Cada worker corre
+        hasta per_task_cap (<= GEN_LONG_MAX_TOKENS), asi el output TOTAL = suma de subtareas
+        y deja de estar acotado por el ctx de 16k.
+
+        Si aggregate y hay >1 subtarea, una CABEZA final teje: recibe el outline + un extracto
+        acotado de cada draft y escribe una introduccion unificadora (y marca inconsistencias
+        si las nota). El cuerpo (drafts completos) se CONSERVA -> la cabeza ENMARCA, no
+        reescribe (no entraria todo en la ventana). Honesto: los workers son ciegos entre si;
+        la coherencia global la aporta el outline compartido + el frame de la cabeza, no una
+        reescritura global.
+
+        Returns {"text","outline","sections","total_tokens","rounds","head"}; None si falla
+        el outline o la primera subtarea (mismo contrato de None que generate()).
+        """
+        from shattering.model_constants import (
+            GEN_LONG_MAX_TOKENS, GEN_HIERARCHICAL_SECTIONS, GEN_SECTION_SUMMARY_CHARS,
+        )
+        if n_tasks is None:
+            n_tasks = GEN_HIERARCHICAL_SECTIONS
+        if target_tokens is None:
+            target_tokens = GEN_LONG_MAX_TOKENS
+        if per_task_cap is None:
+            per_task_cap = GEN_LONG_MAX_TOKENS
+
+        outline_prompt = (
+            f"{prompt}\n\n"
+            f"Primero, devuelve SOLO un esquema de exactamente {n_tasks} secciones "
+            f"para responder lo anterior: una por linea, numeradas (1., 2., ...), con un "
+            f"titulo corto cada una. Sin texto adicional."
+        )
+        outline_text = self.generate(outline_prompt,
+                                     max_tokens=max(128, n_tasks * 32),
+                                     temperature=temperature)
+        if outline_text is None:
+            return None
+        tasks = self._parse_outline(outline_text, n_tasks) or [prompt]
+
+        outline_block = "\n".join(f"{i+1}. {s}" for i, s in enumerate(tasks))
+        per_task = min(per_task_cap, max(256, target_tokens // max(1, len(tasks))))
+        parts: list = []
+        drafts: list = []
+        total_tokens = 0
+        rounds = 0
+
+        for i, sec in enumerate(tasks):
+            # CAMBIO 1 vs generate_hierarchical: worker de CONTEXTO LIMPIO ->
+            # NO se incluye prev_summary; cada subtarea arranca con el outline puro.
+            sec_prompt = (
+                f"{prompt}\n\nEsquema:\n{outline_block}\n\n"
+                f"Escribe SOLO la seccion {i+1}: {sec}. No repitas las otras secciones."
+            )
+            res = self.generate_long(sec_prompt, max_total_tokens=per_task,
+                                     temperature=temperature)
+            if res is None:
+                if not parts:
+                    return None
+                break
+            parts.append(f"## {sec}\n{res['text']}")
+            drafts.append((sec, res["text"] or ""))
+            total_tokens += res["total_tokens"]
+            rounds += res["rounds"]
+            if on_task is not None:
+                try:
+                    on_task(i + 1, len(tasks), sec, res["total_tokens"])
+                except Exception:
+                    pass
+
+        body = "\n\n".join(parts)
+        head = ""
+        # CAMBIO 2 vs generate_hierarchical: cabeza que teje (reemplaza el join crudo).
+        if aggregate and len(drafts) > 1:
+            excerpts = "\n".join(
+                f"{i+1}. {t}: {(txt[:GEN_SECTION_SUMMARY_CHARS * 2]).strip()}"
+                for i, (t, txt) in enumerate(drafts)
+            ).replace("\n\n", " ")
+            # Prompt POSITIVO (sin negaciones) + repeat_penalty: las negaciones
+            # ("No repitas...") inducian un loop degenerado en el 3B ("No incluye...
+            # No incluye...") y max_tokens alto le daba espacio para degenerar.
+            head_prompt = (
+                f"{prompt}\n\nUn documento tiene estas secciones (extractos):\n{excerpts}\n\n"
+                f"Escribe una introduccion breve de 2 a 4 frases que presente de que trata el "
+                f"documento y como se conectan sus secciones."
+            )
+            head = self.generate(head_prompt, max_tokens=220, temperature=temperature,
+                                 repeat_penalty=1.3) or ""
+
+        text = (head.strip() + "\n\n" + body) if head.strip() else body
+        return {
+            "text":         text,
+            "outline":      tasks,
+            "sections":     len(parts),
+            "total_tokens": total_tokens,
+            "rounds":       rounds,
+            "head":         head.strip(),
+        }
+
     def stream_generate(self, prompt: str, max_tokens: int = 256,
                         temperature: float = 0.7, top_p=None, top_k=None,
                         min_p=None, repeat_penalty=None, seed=None,
