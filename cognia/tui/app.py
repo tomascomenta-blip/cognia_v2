@@ -16,6 +16,8 @@ Nota: este es un frontend NUEVO y paralelo. NO reemplaza ni toca cognia/cli.py.
 
 from __future__ import annotations
 
+import logging
+
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -23,6 +25,7 @@ from textual.containers import Horizontal
 from textual.widgets import Footer
 
 from .commands import CogniaCommands
+from .log_handler import TuiLogHandler
 from .theme import COGNIA_THEME_NAME, cognia_theme
 from .widgets import CogniaHeader, ConfirmModal, MainView, Sidebar, StatusBar
 from .widgets.chat import ChatView
@@ -70,12 +73,64 @@ class CogniaTUI(App):
         yield StatusBar()
         yield Footer()
 
+    # Handler de logging instalado en los loggers de la app (vista Logs en vivo).
+    _log_handler: TuiLogHandler | None = None
+    _prev_root_level: int | None = None
+    # Se instala en el root (libs/genericos) Y en "cognia" (su logger usa
+    # propagate=False en logger_config.py: sus logs NO llegan al root, asi que hay
+    # que enganchar tambien ahi para ver los logs REALES de Cognia en la vista).
+    _LOG_TARGETS: tuple[str, ...] = ("", "cognia")
+
     def on_mount(self) -> None:
         self.register_theme(cognia_theme())
         self.theme = COGNIA_THEME_NAME
         self.query_one(Sidebar).focus()
         self._current_view_key = VIEWS[0][0]
         self._sync_context(VIEWS[0][0])
+        self._install_log_handler()
+
+    def on_unmount(self) -> None:
+        self._remove_log_handler()
+
+    # --- Logging en vivo: root logger -> LogsPanel (vista Logs) ----------------
+
+    def _install_log_handler(self) -> None:
+        """Conecta los loggers de la app al LogsPanel para ver logs reales en vivo.
+
+        Se ejecuta en on_mount (hilo de la UI), asi el handler captura el id de
+        ese hilo para distinguir logs de la UI (escritura directa) de logs de un
+        worker (call_from_thread). Engancha el MISMO handler al root (libs) y al
+        logger "cognia" (propagate=False -> no llega al root). Baja el nivel del
+        root a INFO si estaba mas alto (default WARNING) y guarda el previo.
+        """
+        try:
+            root = logging.getLogger()
+            self._prev_root_level = root.level
+            if root.level == logging.NOTSET or root.level > logging.INFO:
+                root.setLevel(logging.INFO)
+            self._log_handler = TuiLogHandler(self, level=logging.INFO)
+            for name in self._LOG_TARGETS:
+                logger = logging.getLogger(name) if name else root
+                # Higiene: sacar handlers de la TUI de apps previas (tests secuenciales).
+                for h in list(logger.handlers):
+                    if isinstance(h, TuiLogHandler):
+                        logger.removeHandler(h)
+                logger.addHandler(self._log_handler)
+        except Exception:
+            self._log_handler = None  # best-effort: la TUI funciona sin logs en vivo
+
+    def _remove_log_handler(self) -> None:
+        """Quita el handler de todos los loggers y restaura el nivel del root."""
+        try:
+            if self._log_handler is not None:
+                for name in self._LOG_TARGETS:
+                    logging.getLogger(name).removeHandler(self._log_handler)
+                self._log_handler = None
+            if self._prev_root_level is not None:
+                logging.getLogger().setLevel(self._prev_root_level)
+                self._prev_root_level = None
+        except Exception:
+            pass
 
     # --- Navegacion: sidebar -> ContentSwitcher -------------------------------
 

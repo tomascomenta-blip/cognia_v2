@@ -4612,3 +4612,35 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
 - Notas: NO se commiteo (lo hace el manager). FASE 1 cerrada como MVP pulido y documentado;
   pendiente = migracion incremental del resto de comandos del cli.py viejo + FASE 2
   (training_progress.json en vivo).
+
+## [2026-06-30] TUI CP9 — vistas Memoria/Modelos/Logs cableadas
+- Archivos nuevos:
+  - cognia/tui/log_handler.py (TuiLogHandler: logging.Handler -> LogsPanel, thread-safe
+    via call_from_thread, mapea levelno->nivel de color).
+  - cognia/tui/widgets/models_view.py (ModelsView: registry GGUF real, existencia/tamano
+    en disco, activo resaltado, conmutacion via LLAMA_GGUF_PATH en RowSelected).
+  - cognia/tui/widgets/memory_view.py (MemoryView + MemoryBackend perezoso: stats del
+    context-map por proyecto + busqueda hibrida BM25 real, todo en workers).
+  - tests/test_tui_views.py (8 tests headless con Pilot, backends mockeados).
+- Archivos modificados:
+  - cognia/tui/widgets/mainview.py (cablea MemoryView/ModelsView/LogsPanel; elimina
+    PlaceholderView y _EMPTY_STATE muertos: las 6 vistas ya son reales).
+  - cognia/tui/app.py (instala/quita TuiLogHandler en root Y en logger "cognia"
+    [propagate=False] en on_mount/on_unmount; baja root a INFO y restaura).
+  - cognia/tui/widgets/logspanel.py (FIX bug real: write(msg,level) chocaba
+    posicionalmente con RichLog.write(content,width,...) en el replay de renders
+    diferidos -> crash al abrir la vista Logs; ahora discrimina por tipo de `level`).
+  - cognia/tui/widgets/__init__.py, app.tcss (exports + CSS de las nuevas vistas).
+- Resultado tests: PASS — 32 passed (24 previos + 8 nuevos), -k tui.
+- Verificacion REAL (headless Pilot): Modelos muestra 3b/7b reales (1.8GB/4.4GB en disco,
+  activo=3b); Logs recibe un cognia.* INFO real en vivo; Memoria lee stats reales del DB y
+  la busqueda corre en worker (hilo!=main) — BM25 rankea el span relevante (0.500) sobre el
+  ruido (0.000) en un context-map poblado.
+- Real vs placeholder: Logs=100% real. Modelos=100% real (read-only registry + stat;
+  conmutar = solo env var, afecta la PROXIMA carga, no recarga en caliente). Memoria: stats
+  y busqueda LEXICA (BM25 sobre spans reales) = reales; mitad SEMANTICA (re-rank por
+  embedding) = placeholder documentado (degrada limpio a BM25; embed_fn inyectable).
+- No-bloqueo: stats y busqueda en @work(thread=True) + call_from_thread (patron de chat.py);
+  Modelos solo hace stat() de archivos locales (nunca carga un GGUF); carga del modelo de
+  memoria perezosa (numpy/DB recien en la 1a stats/search, al ABRIR la vista, no en el boot).
+- Notas: NO se commiteo (lo hace el manager). No se toco cognia/cli.py.

@@ -2,14 +2,14 @@
 mainview.py -- Area principal: ContentSwitcher con una vista por seccion.
 
 Que: VIEWS define las secciones (clave, titulo, icono ASCII) que comparten el
-sidebar y este switcher. MainView monta una vista por seccion; cada una es un
-placeholder con titulo y un empty-state claro (icono + "Sin datos aun" + pista),
-nunca una pantalla vacia. La seccion "Logs" hospeda el LogsPanel real; "Ayuda"
-muestra los atajos de teclado.
+sidebar y este switcher. MainView monta una vista REAL por seccion: ChatView
+(chat), TrainingDashboard (entrenamiento), MemoryView (memoria), ModelsView
+(modelos), LogsPanel (logs) y HelpView (ayuda). Cada vista trae su propio
+empty-state claro -- nunca una pantalla vacia.
 
-Por que: separar el contenido (placeholders verificables) del chrome (header,
-sidebar, status). El contenido real (chat, metricas, memoria) se cablea en
-checkpoints siguientes reemplazando cada PlaceholderView por su widget definitivo.
+Por que: separar el contenido (cada widget con sus datos reales) del chrome
+(header, sidebar, status). Ya no quedan placeholders: las seis secciones estan
+cableadas a su backend (modelo, context-map, registry de GGUF, logger).
 """
 
 from __future__ import annotations
@@ -19,9 +19,11 @@ from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import ContentSwitcher, Static
 
-from ..theme import COLORS, empty_state
+from ..theme import COLORS
 from .chat import ChatView
 from .logspanel import LogsPanel
+from .memory_view import MemoryView
+from .models_view import ModelsView
 from .training import TrainingDashboard
 
 # Fuente de verdad de la navegacion: (clave de vista, titulo visible, icono ASCII).
@@ -37,27 +39,6 @@ VIEWS: tuple[tuple[str, str, str], ...] = (
 )
 
 DEFAULT_VIEW = VIEWS[0][0]
-
-# Empty-state por seccion: (icono grande, mensaje, pista de accion). Las secciones
-# "chat" y "entrenamiento" ya no usan PlaceholderView (las hospedan ChatView y
-# TrainingDashboard con su propio empty-state).
-_EMPTY_STATE: dict[str, tuple[str, str, str]] = {
-    "memoria": ("{ }", "Sin memorias indexadas", "La memoria episodica/semantica se mostrara aqui."),
-    "modelos": ("< >", "Sin modelos cargados", "Los shards y modelos disponibles apareceran aqui."),
-}
-
-
-class PlaceholderView(Vertical):
-    """Panel con titulo y empty-state centrado (icono + mensaje + pista)."""
-
-    def __init__(self, key: str, title: str) -> None:
-        super().__init__(id=key, classes="view")
-        self.border_title = title
-        icon, message, hint = _EMPTY_STATE[key]
-        self._empty_text = empty_state(icon, message, hint)
-
-    def compose(self) -> ComposeResult:
-        yield Static(self._empty_text, classes="empty-state")
 
 
 class HelpView(Vertical):
@@ -144,14 +125,16 @@ class MainView(ContentSwitcher):
         super().__init__(initial=DEFAULT_VIEW, id="mainview")
 
     def compose(self) -> ComposeResult:
-        for key, title, _icon in VIEWS:
+        for key, _title, _icon in VIEWS:
             if key == "chat":
                 yield ChatView()
             elif key == "entrenamiento":
                 yield TrainingDashboard()
+            elif key == "memoria":
+                yield MemoryView()
+            elif key == "modelos":
+                yield ModelsView()
             elif key == "logs":
                 yield LogsPanel(id="logs", classes="view")
             elif key == "ayuda":
                 yield HelpView()
-            else:
-                yield PlaceholderView(key, title)

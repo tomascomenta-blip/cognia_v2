@@ -7,7 +7,9 @@ La firma extiende (no rompe) a RichLog.write: si no se pasa `level`, delega tal 
 
 Por que: centralizar el formato de logs de la TUI en un solo lugar. Cualquier
 subsistema (chat, training, daemon) escribira aqui sin saber de colores ni de
-Rich. Por ahora se siembra con lineas placeholder para que no quede vacio.
+Rich. app.py conecta el root logger a este panel via TuiLogHandler, asi los logs
+REALES de Cognia aparecen en vivo; al boot se siembra una linea de empty-state
+("Sin logs todavia") para que el panel nunca arranque vacio.
 """
 
 from __future__ import annotations
@@ -40,14 +42,21 @@ class LogsPanel(RichLog):
         self.border_title = "Logs"
 
     def on_mount(self) -> None:
-        self.write("Panel de logs listo.", "info")
-        self.write("Datos en tiempo real se conectan en el proximo checkpoint.", "muted")
+        self.write("Panel de logs conectado al logger de Cognia.", "info")
+        self.write("Sin logs todavia. Los eventos de Cognia apareceran aqui en vivo.", "muted")
 
-    def write(self, content, level: str | None = None, **kwargs):
-        """Escribe una linea. Con `level` (str), formatea con timestamp + color."""
-        if level is not None and isinstance(content, str):
-            content = self._format_line(content, level)
-        return super().write(content, **kwargs)
+    def write(self, content, level=None, *args, **kwargs):
+        """Escribe una linea. Con `level` (str) formatea con timestamp + color.
+
+        Convive con la firma nativa de RichLog.write(content, width, expand,
+        shrink, scroll_end, ...): su replay de renders diferidos (on_resize) llama
+        write() con esos args POSICIONALES, y `width` es int|None. El 2do arg solo
+        es un 'nivel' de Cognia cuando es un str -> ese chequeo discrimina ambas
+        firmas y evita el crash al mostrar la vista Logs por primera vez.
+        """
+        if isinstance(level, str) and isinstance(content, str):
+            return super().write(self._format_line(content, level), *args, **kwargs)
+        return super().write(content, level, *args, **kwargs)
 
     @staticmethod
     def _format_line(msg: str, level: str) -> Text:

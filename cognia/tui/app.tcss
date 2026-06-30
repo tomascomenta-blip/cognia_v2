@@ -171,6 +171,50 @@ Screen {
     margin: 1 0 0 0;
 }
 
+/* ---- Memory view (stats + busqueda + resultados) --------------------- */
+
+#memory-stats {
+    width: 100%;
+    height: 1;
+    margin: 0 0 1 0;
+    text-style: bold;
+}
+
+#memory-input {
+    width: 100%;
+    margin: 0 0 1 0;
+    border: round $border;
+}
+
+#memory-input:focus {
+    border: round $primary;
+}
+
+#memory-results {
+    width: 100%;
+    height: 1fr;
+    padding: 0 1;
+}
+
+#memory-output {
+    width: 100%;
+    height: auto;
+}
+
+/* ---- Models view (resumen + tabla del registry GGUF) ----------------- */
+
+#models-summary {
+    width: 100%;
+    height: 1;
+    margin: 0 0 1 0;
+    text-style: bold;
+}
+
+#models-table {
+    width: 100%;
+    height: 1fr;
+}
+
 /* ---- Modal de confirmacion (ConfirmModal) ----------------------------- */
 
 ConfirmModal {
