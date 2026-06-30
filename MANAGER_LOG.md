@@ -4510,3 +4510,14 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
 - Resultado tests: PASS — 11 passed in 3.88s (8 previos de test_tui_foundation.py + 3 nuevos de test_tui_metrics.py).
 - Verificacion REAL end-to-end (run_test headless): SNAPSHOT {'cpu':45.0,'ram':80.0,'disk':31.0,'gpu':None}; RENDER 'CPU  45%  RAM  80%  DISK  31%  GPU --'. Smoke: METRICS_OK.
 - Notas: NO se commiteo (lo hace el manager). Sin tocar cognia/cli.py. ASCII en codigo; % y etiquetas de UI ok.
+
+## [2026-06-30] TUI CP5 — chat wired backend
+- Archivos nuevos: cognia/tui/backend.py (CogniaBackend), cognia/tui/widgets/chat.py (ChatView), tests/test_tui_chat.py (4 tests).
+- Archivos modificados: cognia/tui/widgets/mainview.py (ChatView reemplaza el PlaceholderView de "chat"; resto de vistas igual), cognia/tui/app.tcss (estilos #chat-messages/.msg/#chat-thinking/#chat-input/.hidden).
+- PATH de backend elegido: LlamaBackend.try_load() + stream_chat (node/llama_backend.py). El path por ShatteringOrchestrator NO carga en sandbox; try_load() carga DIRECTO, es multi-turno (plantilla Qwen via /v1/chat/completions) y NUNCA levanta (devuelve None si no hay GGUF/runtime). NO se toco cognia/cli.py.
+- Carga PEREZOSA: CogniaBackend.__init__ NO carga nada (boot instantaneo); el GGUF/llama-server se construye en ensure_loaded() la PRIMERA vez que se pide respond(), dentro del worker. Verificado: antes is_ready=False/status='sin cargar'.
+- UI NO bloquea (REQUISITO DURO): @work(thread=True) corre backend.respond() en un worker-thread; el resultado vuelve al hilo de la UI via app.call_from_thread(_show_reply). El indicador "Cognia esta pensando..." se muestra al Enter y se quita al volver. Test test_ui_not_blocked verifica que respond() corre fuera del hilo principal (threading.main_thread()).
+- Manejo elegante sin backend: respond() devuelve "[backend no disponible: <razon>]" (jamas levanta); ChatView lo muestra como mensaje de SISTEMA (color warn), no como crash.
+- Resultado tests: PASS — 15 passed in 5.48s (4 nuevos test_tui_chat.py + 8 test_tui_foundation.py + 3 test_tui_metrics.py). Los 11 previos siguen verdes (empty-state conserva "Sin conversacion todavia" para test_empty_state_present).
+- Verificacion REAL end-to-end (NO mockeada): CogniaBackend().respond('...quien te creo?') cargo el backend real (try_load) -> status 'listo', is_ready True, REPLY 'Cognia fue creado por Tomas Montes.' CHECK_REAL_BACKEND: OK. Smoke: CHAT_OK.
+- Notas: NO se commiteo (lo hace el manager). ASCII en codigo Python; acentos solo en strings de UI.
