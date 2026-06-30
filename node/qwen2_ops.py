@@ -604,8 +604,16 @@ class RealTransformerLayer:
             V_attn = V[-SWA_WINDOW:]
             attn_offset = total - SWA_WINDOW  # first absolute position in the window
         else:
-            K_attn, V_attn = K, V
-            attn_offset = 0
+            # Multi-token batch (prefill / speculative verify): attend over only the
+            # keys some query here can reach — the union of all per-query windows is
+            # [past_len - W + 1, total). Lower keys are masked for every query anyway,
+            # so this slice is numerically identical to full K/V while bounding the
+            # batch to <= seq + W - 1 keys (a small batch over a long cached past then
+            # scores ~W keys, not the whole context). The banded mask enforces each
+            # per-query window below.
+            key_lo = max(0, past_len - SWA_WINDOW + 1)
+            K_attn, V_attn = K[key_lo:], V[key_lo:]
+            attn_offset = key_lo
 
         attn_total = K_attn.shape[0]
 
@@ -706,8 +714,12 @@ class RealTransformerLayer:
             V_attn = V[-SWA_WINDOW:]
             attn_offset = total - SWA_WINDOW
         else:
-            K_attn, V_attn = K, V
-            attn_offset = 0
+            # Multi-token batch: keep only the keys some query can reach (union of
+            # per-query windows = [past_len - W + 1, total)). Numerically identical
+            # to full K/V; bounds attn_total to seq + W - 1. See _attention.
+            key_lo = max(0, past_len - SWA_WINDOW + 1)
+            K_attn, V_attn = K[key_lo:], V[key_lo:]
+            attn_offset = key_lo
 
         attn_total = K_attn.shape[0]
 
