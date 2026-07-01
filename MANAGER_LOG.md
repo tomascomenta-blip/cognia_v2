@@ -4773,3 +4773,21 @@ RESULTADO reentreno v4 (Kaggle GPU 2x T4, MODE GPU/4-bit/3B, 161 pares, eval 10 
 Honestidad: eval chico (10 tareas, 1 sample, greedy); el 3B base ya es fuerte (80%);
 el adapter paga en la SELECCION fina entre tools parecidas. Adapter -> checkpoints/
 tooluse/final_adapter/ (gitignoreado). Pendiente: convertir a GGUF + deploy (LLAMA_LORA_PATH).
+
+### G. 2026-07-01 (2da sesion, cont.): DEPLOY del adapter 3B v4 (GGUF + LLAMA_LORA_PATH)
+Pedido: "hazlo" (deployar el adapter para que Cognia lo use). Convertido el adapter PEFT
+a GGUF con convert_lora_to_gguf.py del MISMO tag b9391 (clonado; checkout parcial fallo en
+tools/ui por rutas largas de Windows pero los converters salieron OK). Deps: transformers
+5.12.1 + gguf (del clone) + safetensors en venv312. --base-model-id Qwen/Qwen2.5-Coder-3B-
+Instruct baja solo el config (no pesos). Salida: model_shards/qwen-coder-3b-q4/
+tooluse_adapter_v4_f16.gguf (7.4 MB, 288 tensores, gitignoreado). Activado persistente:
+LLAMA_LORA_PATH (User scope); _lora_args() lo pasa como --lora al server.
+VERIFICACION E2E REAL (verify_lora.py, server con --lora vs base):
+  search_word: base leer_archivo (mal) -> adapter escribir_archivo (bien) = el LoRA SE APLICA.
+  PERO parcial en Q4_K_M: anotar_eval sigue 'memorizar' en el server (el kernel en NF4 lo
+  corregia a 'anotar'). La cuantizacion del deploy diluye parte del delta del adapter r=8.
+GOTCHA hallado: LlamaBackend ADOPTA un server ya vivo en el puerto SIN reiniciarlo con --lora
+(y el server queda huerfano en Windows) -> el 1er test dio byte-identico; matar llama-server.exe
+antes de testear un cambio de adapter. Revertir deploy: borrar la env var LLAMA_LORA_PATH.
+Honestidad: efecto real pero parcial; considerar entrenar/exportar el adapter para Q4_K_M o
+subir r/target_modules si se quiere el delta completo en el deploy.

@@ -39,10 +39,36 @@ probable: **falta verificación de teléfono en la cuenta de Kaggle** (o cuota d
    ```
    Salida: `checkpoints/tooluse/final_adapter/` + `eval_tooluse.json` (con delta_correct_tool).
 
-## Deploy local del adapter (pendiente)
-Convertir `final_adapter/` (PEFT) a GGUF con `convert_lora_to_gguf.py` de llama.cpp y cargarlo
-vía `LLAMA_LORA_PATH` (el `node/llama-server.exe` pineado en b9391 soporta `--lora`). Cuidar la
-compatibilidad de versión del converter con b9391.
+## Deploy local del adapter (HECHO, 2026-07-01)
+El adapter PEFT (`checkpoints/tooluse/final_adapter/`) se convirtió a GGUF y se activó en el
+`node/llama-server.exe` (b9391, soporta `--lora`) vía `LLAMA_LORA_PATH`.
+
+Conversión (converter del MISMO tag b9391 para compat; `--base-model-id` baja solo el config):
+```
+pip install transformers gguf safetensors      # deps del converter
+python <llama.cpp b9391>/convert_lora_to_gguf.py checkpoints/tooluse/final_adapter \
+      --base-model-id Qwen/Qwen2.5-Coder-3B-Instruct --outtype f16 \
+      --outfile model_shards/qwen-coder-3b-q4/tooluse_adapter_v4_f16.gguf
+```
+Salida: `tooluse_adapter_v4_f16.gguf` (7.4 MB, 288 tensores, gitignoreado → regenerable).
+
+Activación (persistente, User scope; `_lora_args()` en `node/llama_backend.py` lo pasa como
+`--lora`):
+```
+[Environment]::SetEnvironmentVariable("LLAMA_LORA_PATH", "<...>/tooluse_adapter_v4_f16.gguf", "User")
+```
+**Revertir** (volver al base sin adapter): borrar la env var:
+```
+[Environment]::SetEnvironmentVariable("LLAMA_LORA_PATH", $null, "User")
+```
+
+**Verificación E2E REAL (honesta):** con el server arrancado con `--lora`, `search_word` pasó de
+`leer_archivo` (base, mal) → `escribir_archivo` (adapter, bien) → el LoRA SÍ se aplica en el deploy.
+PERO el efecto es **parcial en Q4_K_M**: `anotar_eval` sigue en `memorizar` en el server, aunque el
+eval del kernel (4-bit NF4) sí lo corregía a `anotar`. La cuantización Q4_K_M del deploy diluye
+parte del delta del adapter r=8. GOTCHA de deploy: `LlamaBackend` **adopta** un server ya vivo en
+el puerto SIN reiniciarlo con `--lora` (y el server queda huérfano en Windows) → matar
+`llama-server.exe` antes de probar un cambio de adapter.
 
 ## Fase B: trayectorias EXPERTAS (`gen_expert.py`)
 El 3B base da **0% accept** en las multi-paso (append/count/json/py) — por más samples
