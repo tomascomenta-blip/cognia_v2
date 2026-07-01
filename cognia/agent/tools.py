@@ -28,6 +28,7 @@ import operator
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 # Gate de escritura compartido con los workers Tier 1: confina TODA escritura
@@ -103,14 +104,20 @@ def _orch(ctx: dict):
 @tool("leer_archivo", "leer_archivo <path>                 -- leer un archivo (hasta 4000 chars)")
 def _leer_archivo(args, ctx):
     path = Path(args.strip())
-    content = path.read_text(encoding="utf-8", errors="replace")[:4000]
+    full = path.read_text(encoding="utf-8", errors="replace")
+    content = full[:4000]
+    if len(full) > 4000:
+        # Marcador explicito: sin esto el modelo cree que vio el archivo entero y
+        # lo sobrescribe con una version mas corta (perdida de datos en read-mod-write).
+        content += (f"\n... [TRUNCADO: mostrando 4000 de {len(full)} chars; el archivo NO "
+                    f"esta completo. NO lo sobrescribas entero; usa 'buscar' para ubicar]")
     return f"RESULTADO leer_archivo {path}: {content}"
 
 
 @tool("escribir_archivo",
       "escribir_archivo <path> | <contenido>  -- crea/sobrescribe en el workspace (crea dirs)")
 def _escribir_archivo(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO escribir_archivo ERROR: formato (usa ruta | contenido)"
     try:
@@ -137,7 +144,7 @@ def _escribir_archivo(args, ctx):
 @tool("apendar_archivo",
       "apendar_archivo <path> | <texto>      -- agrega texto al final (en el workspace)")
 def _apendar_archivo(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO apendar_archivo ERROR: formato (usa ruta | texto)"
     try:
@@ -160,7 +167,7 @@ def _apendar_archivo(args, ctx):
 
 @tool("copiar_archivo", "copiar_archivo <src> | <dst>          -- copia un archivo (dst en el workspace)")
 def _copiar_archivo(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO copiar_archivo ERROR: formato (usa src | dst)"
     import shutil
@@ -213,7 +220,7 @@ def _contar_lineas(args, ctx):
 
 @tool("buscar", "buscar <patron> | <directorio>        -- busca texto en archivos")
 def _buscar(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     patron = parts[0].strip()
     directorio = parts[1].strip() if len(parts) > 1 else "."
     results = []
@@ -257,19 +264,29 @@ def _buscar(args, ctx):
 # ══════════════════════════════════════════════════════════════════════
 
 _BLOCK = [
-    "rm -rf", "format", "del /s", "del /q", "del /f", ":(){",
+    "rm -rf", "del /s", "del /q", "del /f", ":(){",
     "mkfs", "dd if=", "> /dev/", "shutdown", "reboot", "rmdir /s",
 ]
+# 'format' NO va como substring: bloqueaba comandos benignos comunes de un agente
+# de codigo ('ruff format .', 'git log --pretty=format:%H', 'reformat.py'). Solo
+# el 'format C:' real (borrado de disco Windows) via limite de palabra.
+_BLOCK_RE = [re.compile(r"\bformat\s+[a-zA-Z]:")]
 
 
 def _shell(cmd: str, ctx: dict, timeout: int = 30) -> str:
     norm = re.sub(r"\s+", " ", cmd.lower())
-    if any(b in norm for b in _BLOCK):
+    if any(b in norm for b in _BLOCK) or any(rx.search(norm) for rx in _BLOCK_RE):
         return "RESULTADO ejecutar: BLOQUEADO por seguridad"
     pf = ctx.get("print_fn")
     if callable(pf):
         pf(f"[detail]$ {cmd}[/detail]")
-    r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    try:
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # Timeout accionable en vez de un stacktrace generico: el modelo necesita
+        # saber que debe ACOTAR el comando (ruta/test mas especifico) y reintentar.
+        return (f"RESULTADO ejecutar ERROR: timeout tras {timeout}s. "
+                f"Acota el comando (ruta/target mas especifico) y reintenta.")
     out = (r.stdout + r.stderr).strip()
     code = "" if r.returncode == 0 else f" (exit {r.returncode})"
     return f"RESULTADO ejecutar{code}: {out[:1500] or '(sin output)'}"
@@ -280,10 +297,18 @@ def _ejecutar(args, ctx):
     return _shell(args.strip(), ctx)
 
 
-@tool("tests", "tests <ruta>                          -- corre pytest sobre una ruta")
+@tool("tests", "tests <ruta>                          -- corre pytest sobre una ruta ESPECIFICA (archivo o dir)")
 def _tests(args, ctx):
-    ruta = args.strip() or "tests/"
-    return _shell(f"python -m pytest {ruta} -q --no-header", ctx, timeout=180)
+    ruta = args.strip()
+    if not ruta:
+        # Sin ruta corria 'tests/' (toda la suite, ~min) con timeout 180s ->
+        # SIEMPRE timeout, 0 senal, 180s quemados. Exigir una ruta especifica.
+        return ("RESULTADO tests ERROR: pasa una ruta ESPECIFICA (archivo o dir), "
+                "p.ej. 'tests/test_foo.py'. Correr toda la suite tarda minutos y "
+                "agota el timeout.")
+    # sys.executable (no 'python' pelado): el 'python' del PATH puede ser el venv
+    # roto 3.14 / no traer pytest; el interprete que corre el agente es el correcto.
+    return _shell(f'"{sys.executable}" -m pytest {ruta} -q --no-header', ctx, timeout=180)
 
 
 @tool("py_validar", "py_validar <path>                     -- chequea sintaxis de un .py")
@@ -411,7 +436,7 @@ def _kg_buscar(args, ctx):
 
 @tool("kg_agregar", "kg_agregar <sujeto> | <relacion> | <objeto>  -- agrega un hecho al grafo")
 def _kg_agregar(args, ctx):
-    parts = [p.strip() for p in args.split(" | ")]
+    parts = [p.strip() for p in re.split(r"\s*\|\s*", args)]
     if len(parts) != 3:
         return "RESULTADO kg_agregar ERROR: formato (sujeto | relacion | objeto)"
     subj, rel, obj = parts
@@ -425,7 +450,7 @@ def _kg_agregar(args, ctx):
 
 @tool("anotar", "anotar <clave> | <valor>              -- guarda nota en memoria de trabajo")
 def _anotar(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO anotar ERROR: formato (clave | valor)"
     ctx.setdefault("working_memory", {})[parts[0].strip()] = parts[1].strip()

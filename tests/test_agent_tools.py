@@ -5,6 +5,7 @@ Pins that every tool is callable, returns a RESULTADO string, that the registry
 doc and dispatch stay in sync, and that the safety blocks hold.
 """
 
+import sys
 import types
 
 import pytest
@@ -78,6 +79,56 @@ def test_calcular_rejects_non_arithmetic():
 def test_ejecutar_blocks_dangerous_commands():
     for bad in ("rm -rf /", "shutdown now", "mkfs.ext4 /dev/sda"):
         assert "BLOQUEADO" in T.run_tool("ejecutar", bad, _ctx())
+
+
+def test_ejecutar_blocks_windows_disk_format_only():
+    # El borrado de disco real SI se bloquea...
+    for bad in ("format c:", "format d: /q"):
+        assert "BLOQUEADO" in T.run_tool("ejecutar", bad, _ctx())
+
+
+def test_ejecutar_allows_benign_format_substrings():
+    # ...pero 'format' como substring de comandos benignos NO (antes se bloqueaba
+    # 'ruff format .', 'git log --pretty=format:%H'). Se usa echo para no tener
+    # efectos: prueba que el gate NO bloquea, no que ruff/git corran.
+    out = T.run_tool("ejecutar", "echo ruff format aca", _ctx())
+    assert "BLOQUEADO" not in out and "ruff format aca" in out
+    out2 = T.run_tool("ejecutar", "echo pretty=format:%H", _ctx())
+    assert "BLOQUEADO" not in out2
+
+
+def test_tests_requires_explicit_path_and_uses_sys_executable(monkeypatch):
+    captured = {}
+
+    def fake_shell(cmd, ctx, timeout=30):
+        captured["cmd"] = cmd
+        return "RESULTADO ejecutar: ok"
+
+    monkeypatch.setattr(T, "_shell", fake_shell)
+    # sin ruta -> error accionable, NO ejecuta la suite entera
+    out = T.run_tool("tests", "", _ctx())
+    assert "ruta ESPECIFICA" in out and "cmd" not in captured
+    # con ruta -> usa el interprete que corre el agente (no 'python' pelado)
+    T.run_tool("tests", "tests/test_foo.py", _ctx())
+    assert f'"{sys.executable}"' in captured["cmd"]
+
+
+def test_escribir_tolerant_pipe_separator(workspace):
+    # El 3B suele emitir 'path|contenido' sin espacios alrededor del pipe.
+    assert "OK" in T.run_tool("escribir_archivo", "a.txt|hola", _ctx())
+    assert (workspace / "a.txt").read_text(encoding="utf-8") == "hola"
+    assert "OK" in T.run_tool("escribir_archivo", "b.txt |mundo", _ctx())
+    assert (workspace / "b.txt").read_text(encoding="utf-8") == "mundo"
+
+
+def test_leer_archivo_marks_truncation(workspace):
+    big = workspace / "big.txt"
+    big.write_text("x" * 5000, encoding="utf-8")
+    out = T.run_tool("leer_archivo", str(big), _ctx())
+    assert "TRUNCADO" in out and "5000" in out
+    small = workspace / "small.txt"
+    small.write_text("hola corto", encoding="utf-8")
+    assert "TRUNCADO" not in T.run_tool("leer_archivo", str(small), _ctx())
 
 
 def test_unknown_tool_is_handled():
