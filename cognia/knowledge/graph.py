@@ -164,6 +164,14 @@ class KnowledgeGraph:
         return is_new
 
     def get_facts(self, concept: str, predicate: str = None) -> list:
+        # add_triple/_normalize_entity guardan subject/object SIEMPRE en minusculas
+        # y la columna es TEXT con collation BINARY (case-sensitive). Sin normalizar
+        # aca, get_facts('Python') no matcheaba la fila 'python' y devolvia [] ->
+        # kg_buscar reportaba 'sin hechos' para cualquier concepto capitalizado
+        # (nombres propios, el caso comun). Igualar a como se almacena.
+        concept = concept.lower().strip()
+        if predicate:
+            predicate = predicate.lower().strip()
         conn = db_connect(self.db)
         c = conn.cursor()
         if predicate:

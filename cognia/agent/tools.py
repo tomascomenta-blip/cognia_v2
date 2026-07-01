@@ -433,6 +433,13 @@ def _recordar(args, ctx):
         from vectors import text_to_vector
     vec = text_to_vector(query)
     hits = ai.episodic.retrieve_similar(vec, top_k=5)
+    # retrieve_similar rankea por un score fusionado (sim+conf+imp+emocion) y SIEMPRE
+    # devuelve top_k, asi que sin un piso de relevancia una consulta nueva surfacea
+    # recuerdos no relacionados como si lo fueran. Piso conservador de coseno: descarta
+    # solo lo ~0 (ruido), ordena por la similitud mostrada para que los numeros bajen.
+    SIM_FLOOR = 0.1
+    hits = sorted((h for h in hits if h.get("similarity", 0.0) >= SIM_FLOOR),
+                  key=lambda h: h.get("similarity", 0.0), reverse=True)
     if not hits:
         return f"RESULTADO recordar '{query}': sin recuerdos relevantes"
     lines = [f"  ({h.get('similarity', 0):.2f}) {h.get('observation', '')[:120]}" for h in hits]
@@ -441,8 +448,31 @@ def _recordar(args, ctx):
 
 @tool("memorizar", "memorizar <texto>                     -- guarda en memoria episodica")
 def _memorizar(args, ctx):
-    ctx["ai"].observe(args.strip(), provided_label="agente_tarea")
+    # observe() RECHAZA entradas muy cortas ({"status":"rejected","reason":...});
+    # antes se ignoraba el retorno y siempre se reportaba 'guardado' (mentira al
+    # modelo). Reportar el rechazo real; en cualquier otro caso, guardado.
+    res = ctx["ai"].observe(args.strip(), provided_label="agente_tarea")
+    if isinstance(res, dict) and res.get("status") == "rejected":
+        reason = res.get("reason", "desconocido")
+        return (f"RESULTADO memorizar: NO se guardo (razon: {reason}). "
+                "El texto debe ser mas largo (min ~5 chars y 2 palabras).")
     return "RESULTADO memorizar: guardado en memoria episodica"
+
+
+def _fmt_kg_fact(d) -> str:
+    """Formatea un hecho del KG legible para el modelo. Maneja las dos formas de
+    dict (get_facts: subject/predicate/object; get_neighbors: concept/relation).
+    Antes se usaba str(d)[:80], que volcaba el repr crudo de Python truncado."""
+    if not isinstance(d, dict):
+        return str(d)[:100]
+    subj = d.get("subject", "")
+    pred = d.get("predicate") or d.get("relation", "")
+    obj = d.get("object") or d.get("concept", "")
+    core = " ".join(str(p) for p in (subj, pred, obj) if p)
+    w = d.get("weight")
+    if isinstance(w, (int, float)):
+        core += f" (w={w:g})"
+    return core or str(d)[:100]
 
 
 @tool("kg_buscar", "kg_buscar <concepto>                  -- hechos del grafo sobre un concepto")
@@ -452,7 +482,7 @@ def _kg_buscar(args, ctx):
     facts = ai.kg.get_facts(concept) or ai.kg.get_neighbors(concept)
     if not facts:
         return f"RESULTADO kg_buscar '{concept}': sin hechos"
-    return f"RESULTADO kg_buscar '{concept}': " + " | ".join(str(f)[:80] for f in facts[:10])
+    return f"RESULTADO kg_buscar '{concept}': " + " | ".join(_fmt_kg_fact(f) for f in facts[:10])
 
 
 @tool("kg_agregar", "kg_agregar <sujeto> | <relacion> | <objeto>  -- agrega un hecho al grafo")
@@ -461,12 +491,16 @@ def _kg_agregar(args, ctx):
     if len(parts) != 3:
         return "RESULTADO kg_agregar ERROR: formato (sujeto | relacion | objeto)"
     subj, rel, obj = parts
+    rel = rel.lower()   # add_triple normaliza con .lower(); igualar el pre-check
     from cognia.knowledge.graph import KnowledgeGraph
     if rel not in KnowledgeGraph.VALID_RELATIONS:
         return ("RESULTADO kg_agregar ERROR: relacion invalida. Validas: "
                 + ", ".join(KnowledgeGraph.VALID_RELATIONS))
+    # add_triple devuelve is_new: True=hecho nuevo, False=ya existia (lo REFUERZA,
+    # sube weight). Antes False se reportaba 'no agregado' (falso: si esta en el KG).
     ok = ctx["ai"].kg.add_triple(subj, rel, obj, source="agente")
-    return f"RESULTADO kg_agregar: ({subj} {rel} {obj}) {'OK' if ok else 'no agregado'}"
+    estado = "OK (nuevo)" if ok else "OK (ya existia, reforzado)"
+    return f"RESULTADO kg_agregar: ({subj} {rel} {obj}) {estado}"
 
 
 @tool("anotar", "anotar <clave> | <valor>              -- guarda nota en memoria de trabajo")
