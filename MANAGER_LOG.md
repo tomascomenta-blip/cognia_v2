@@ -4817,3 +4817,18 @@ TAREA 2 EN CURSO: exp049_learning_rules (harness comun, protocolo pre-registrado
 (bp, dfa, ff, pc, dtp, eqprop, es) implementados y smokeados (commit d4cef84); corrida full 3
 seeds x 5 epochs corriendo local. Hallazgos tempranos: PC 0.788 > BP 0.661 en smoke a ~6x costo
 (el repo tenia "~100x" de literatura sin medir); DFA de libro COLAPSA (0.054) sin salida-en-cero.
+
+### I. 2026-07-01 (3ra sesion, cont.): TAREA 2 CERRADA - exp049 alternativas a backprop MEDIDAS
+Corrida full (7 metodos x 3 seeds x 5 epochs, MNIST 60k, protocolo pre-registrado, decide MIN ratio,
+umbral 0.95 = precedente SDPC E1). VEREDICTOS: PC 0.993 de BP a 4.26x wall (PASS, empata calidad);
+EqProp 0.985 a 4.94x (PASS); DFA 0.963 a 1.17x (PASS, la barata); DTP 0.953 a 2.32x (PASS justo);
+FF 0.944 a 2.23x (NO cruza; wide 784-500-500 = 0.930, la angosta la alcanza a 5 epochs);
+ES 0.484 con budget 3x wall de BP (DESCARTADO <0.80: 30 direcciones antiteticas en R^244k no alcanzan).
+HALLAZGO CENTRAL: la cifra heredada de H-BIO-3 ("PC ~100x el costo de backprop", de literatura, sin
+medir) era FALSA en nuestro regimen: medido 4.26x (T=16, vectorizado). hypotheses.md actualizada
+(true/alta -> parcial/media con numeros). La poda de la rama learning-rules por COSTO sigue valida
+(nadie GANA a BP: 1.17-4.94x para igual o menor calidad) pero el "100x prohibitivo" exageraba 20x.
+Fragilidad documentada: DFA de libro (salida He, lr parejo) COLAPSA a 0.054; necesita salida-en-cero
++ B ortonormal (mismo sintoma que el SDPC historico). Limites honestos en RESULTADO.md: MLP/MNIST/CPU,
+nada extrapola a LMs a escala; PC usa W^T (transporte simetrico); 1 pase de tuning documentado en
+dfa/pc/dtp. Sintesis: cognia_x/experiments/exp049_learning_rules/RESULTADO.md + results/results.json.

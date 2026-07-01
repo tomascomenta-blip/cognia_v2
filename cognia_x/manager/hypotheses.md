@@ -404,7 +404,7 @@ marcan dónde la intuición/literatura se sobre-extiende. Confianza = del veredi
 | H-CF-4 | fusión cruza barreras; TIES degrada antes que task-arith | ❌ false | media | lo OPUESTO: TIES degrada MENOS rápido que task-arithmetic |
 | H-BIO-1 | sparsity impuesta (ReLU) > truco de picos en CPU | ❌ false | media | dirección correcta; >70%/<2ppl/1.5× no se sostiene a ≤1.5B |
 | H-BIO-2 | gating por contexto: barato SOLO con señal fiable | ✅ true | media | XdG (PNAS 2018); sin task-ID → recae en olvido |
-| H-BIO-3 | predictive coding / FF NO competitivos vs QLoRA en CPU | ✅ true | alta | PC ~100× coste backprop; ≥10× wall-clock para igual exactitud |
+| H-BIO-3 | predictive coding / FF NO competitivos vs QLoRA en CPU | ⚠️→parcial (exp049) | media | las CIFRAS de literatura eran falsas en nuestro régimen: exp049 MIDIÓ (MLP/MNIST CPU, 3 seeds) PC=0.993 de BP a 4.26× wall (no ~100×; T=16 vectorizado), FF=0.944 a 2.23×, DFA=0.963 a 1.17×, EqProp=0.985 a 4.94×. Lo que SÍ sobrevive: ninguno GANA a BP en costo; a escala LM sigue sin evidencia. Ver exp049_learning_rules/RESULTADO.md |
 | H-BIO-4 | Hopfield = atención: misma operación, mismo memory-bound | ✅ true | alta | la etiqueta "biológica" no compra eficiencia extra |
 | H-SELF-1 | evaluador verificable > proxy auto-generado (reward hacking) | ✅ true | media | dirección sí; monotonía/umbrales exactos no garantizados |
 | H-SELF-2 | gate+rollback held-out reduce deriva casi sin coste | ⚠️→✅ condicional (CYCLE 8) | media-alta | ❌ con evaluador CIRCULAR/AGREGADO (el agregado es CIEGO: esconde el daño concentrado ~3×); ✅ con held-out cross-book NO-circular + gate POR-DOMINIO: detecta y reduce la deriva (replay protege 15-21× el dominio dañado). Ver `learn/RESULTS.md` |
