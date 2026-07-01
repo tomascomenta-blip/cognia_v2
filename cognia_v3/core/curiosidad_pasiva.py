@@ -394,14 +394,17 @@ class CuriosidadPasiva:
                 self._registrar(resultado)
                 
                 if resultado["investigado"]:
-                    print(f"[CuriosidadPasiva] ✨ Investigué '{resultado['titulo_wiki']}' "
+                    # ASCII-only: los emojis crasheaban con UnicodeEncodeError en la
+                    # consola cp1252 de Windows (y el except de abajo, que tambien
+                    # imprimia un emoji, re-lanzaba -> el error se perdia).
+                    print(f"[CuriosidadPasiva] Investigue '{resultado['titulo_wiki']}' "
                           f"(concepto: {resultado['concepto']}, "
                           f"+{resultado['hechos_guardados']} hechos)")
                 elif resultado.get("razon_skip"):
-                    print(f"[CuriosidadPasiva] ⏭ Salté: {resultado['razon_skip']}")
-                    
+                    print(f"[CuriosidadPasiva] Salte: {resultado['razon_skip']}")
+
             except Exception as e:
-                print(f"[CuriosidadPasiva] ❌ Error en ciclo: {e}")
+                print(f"[CuriosidadPasiva] Error en ciclo: {e}")
             
             # Dormir hasta el siguiente ciclo
             # Usar sleep(1) en loop para poder detener el hilo rápido

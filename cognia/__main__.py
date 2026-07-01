@@ -384,7 +384,23 @@ Variables de entorno:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
+def _harden_console_encoding() -> None:
+    """Hace stdout/stderr a prueba de crash en la consola cp1252 de Windows.
+
+    Muchos print() del repo llevan emojis/simbolos fuera de cp1252; sin esto,
+    escribirlos LANZA UnicodeEncodeError y puede tumbar hilos de fondo (p.ej. la
+    Curiosidad Pasiva) o abortar un comando. errors='replace' nunca crashea (los
+    chars no representables pasan a '?'), y en terminales modernas UTF-8 se ven
+    bien. Idempotente con el wrap existente del REPL (cli.py)."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main() -> None:
+    _harden_console_encoding()
     from cognia.first_run import apply_config
     apply_config()
 
