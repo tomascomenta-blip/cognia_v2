@@ -44,7 +44,33 @@ Convertir `final_adapter/` (PEFT) a GGUF con `convert_lora_to_gguf.py` de llama.
 vía `LLAMA_LORA_PATH` (el `node/llama-server.exe` pineado en b9391 soporta `--lora`). Cuidar la
 compatibilidad de versión del converter con b9391.
 
+## Fase B: trayectorias EXPERTAS (`gen_expert.py`)
+El 3B base da **0% accept** en las multi-paso (append/count/json/py) — por más samples
+que se tiren, no genera datos para ellas. Y las tools de memoria/KG estaban deshabilitadas.
+`gen_expert.py` llena ambos huecos con **trayectorias expertas scripted**: la secuencia
+CORRECTA de acciones (en `tasks.py:EXPERT_STEPS`) se **ejecuta contra las tools reales**
+(mismo `run_tool` del deploy) y se conserva solo si la postcondición (`verify`) pasa. No
+usa el 3B → **no cuesta la hora de CPU**.
+
+- **Aislamiento:** workspace temporal por trayectoria; las tareas de KG (`NEEDS_AI_KG`)
+  corren sobre un `KnowledgeGraph` en **DB temporal** (`init_db`) → NUNCA tocan la memoria
+  del usuario. Fuga de ruta del venv scrubeada (`sys.executable` → `python`).
+- **Formato idéntico** al del 3B (prompt/completion/cierre `responder`) → se mezclan sin
+  mismatch train/inference.
+- Regresión: `tests/test_tooluse_expert.py` (cada trayectoria pasa su verify + sin fuga).
+
+```
+# genera expertas + mezcla con las del 3B (dedup) -> train_v2
+venv312\Scripts\python.exe -m cognia_v3.training.tooluse.gen_expert \
+      --merge cognia_v3/training/tooluse/data/tooluse_train.jsonl \
+      --out   cognia_v3/training/tooluse/data/tooluse_train_v2.jsonl
+venv312\Scripts\python.exe -m cognia_v3.training.tooluse.make_eval_prompts   # eval 6->10 tareas
+venv312\Scripts\python.exe -m cognia_v3.training.kaggle.run_kaggle_tooluse \
+      --push-only --train-file cognia_v3/training/tooluse/data/tooluse_train_v2.jsonl
+```
+
 ## Estado del dataset
-`data/tooluse_train.jsonl` (gitignoreado, regenerable): ~99 pares únicos del 3B local.
-Cobertura fuerte en responder/escribir/calcular/leer; débil en apendar/buscar/contar/json
-(el 3B base falla esas multi-paso — un teacher 7B o few-shot las levantaría).
+`data/tooluse_train.jsonl` (gitignoreado, regenerable): ~99 pares del 3B local. Cobertura
+fuerte en responder/escribir/calcular/leer; débil en apendar/buscar/contar/json.
+`data/tooluse_train_v2.jsonl` (Fase B): **161 pares** = 99 del 3B + 64 expertos (multi-paso
++ memoria de trabajo + KG), dedup. Es el que se entrena en el run GPU del 3B.

@@ -4739,3 +4739,37 @@ observe() rechazaba, recordar sin piso de similitud surfaceaba ruido ~0.
 Verificacion: 10 tests nuevos (get_facts case real via KG+temp DB) + 46 tests KG
 existentes + 27 tool tests PASS (sin regresiones). Total sesion: ~19 bugs reales del
 agente arreglados en 12 commits push origin/cognia-x, cada uno con test + verificacion.
+
+### E. 2026-07-01 (2da sesion): GPU Kaggle destrabada -> 3B entrenado de verdad
+El dueno verifico el telefono en Kaggle (kaggle.com/settings) y se destrabo la GPU.
+Verificacion REAL (no asumida): push de un kernel probe minimo (gpu_probe.py, enable_gpu)
+-> cuda_available=true, 2x Tesla T4 (15.6 GB c/u), torch 2.10.0+cu128.
+Antes de lanzar, verifique la logica del kernel: _find_model_dir(prefer_small=not HAS_GPU)
+elige el 3B con GPU; eval mide correct_tool con expected_tools presente. Lance
+run_kaggle_tooluse --push-only (dataset v-nueva + kernel v3), monitoreo en background.
+RESULTADO (eval_tooluse.json, MODE: GPU/4-bit/3B, 99 pares, ~8 min):
+  correct_tool: base 83.3% -> adapter 100% (delta +16.7%)
+  valid_single_accion: 1.0 -> 1.0 (satura, no informativa - esperado)
+Honestidad: mejora real pero MODESTA; eval de solo 6 tareas held-out; el 3B base ya es
+fuerte (a diferencia del 0.5B con base 16.7%). Adapter -> checkpoints/tooluse/final_adapter/
+(14.4 MB, gitignoreado). Techo real ahora = DATASET (multi-paso append/count/json 0% accept;
+memoria/KG sin cubrir). Proximo: enriquecer dataset + reentrenar; o convertir a GGUF y deploy.
+
+### F. 2026-07-01 (2da sesion, cont.): dataset enriquecido Fase B -> 3B v4
+Goal /goal: enriquecer el dataset (multi-paso + memoria/KG) y reentrenar el 3B.
+Hallazgo raiz: el 3B base da 0% accept en multi-paso (append/count/json/py) -> mas
+samples del modelo NO generan datos. Solucion: trayectorias EXPERTAS scripted
+(gen_expert.py): la secuencia correcta escrita a mano, EJECUTADA contra las tools
+reales, conservada solo si la postcondicion pasa. No usa el 3B -> no cuesta la hora
+de CPU. tasks.py: +9 tareas (memoria de trabajo anotar/notas, KG kg_agregar/kg_buscar,
++eval held-out), EXPERT_STEPS (19 secuencias), NEEDS_AI_KG. KG aislado en DB temporal
+(init_db) -> no toca memoria del usuario. Fix fuga: py_write_run guardaba la ruta abs
+del python del venv -> scrub a 'python'. Test nuevo test_tooluse_expert.py: 41 passed.
+Dataset v2 = 99 (3B) + 64 expertos, dedup = 161 pares, 0 fugas. Commit 0525bfa push.
+RESULTADO reentreno v4 (Kaggle GPU 2x T4, MODE GPU/4-bit/3B, 161 pares, eval 10 tareas):
+  correct_tool: base 80% (8/10) -> adapter 100% (10/10), DELTA +20%
+  Aprendizaje NUEVO demostrado: anotar_eval base eligio 'memorizar' (episodica, mal)
+  -> adapter 'anotar' (memoria de trabajo, bien); search_word leer->escribir.
+Honestidad: eval chico (10 tareas, 1 sample, greedy); el 3B base ya es fuerte (80%);
+el adapter paga en la SELECCION fina entre tools parecidas. Adapter -> checkpoints/
+tooluse/final_adapter/ (gitignoreado). Pendiente: convertir a GGUF + deploy (LLAMA_LORA_PATH).
