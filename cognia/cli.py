@@ -6807,7 +6807,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     from cognia.agent.tools import run_tool, build_tools_doc
     from cognia.agent.loop import (
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
-        first_action_block,
+        first_action_block, objective_context, register_action,
     )
     # Pull in any tools Cognia synthesized and verified in the background, so the
     # agent can use its own self-made tools. Best-effort.
@@ -6904,7 +6904,8 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                 "Reply with ONLY a numbered list, one step per line, no explanations.\n\n"
                 f"Task: {task}"
             )
-            _steps_text = orch.infer(_decomp_prompt).text.strip()
+            _steps_text = orch.infer(_decomp_prompt, max_tokens=160,
+                                     temperature=0.0).text.strip()
             if _steps_text and len(_steps_text) > 20:
                 history.append(f"PLAN DE SUBTAREAS:\n{_steps_text}")
                 _print_fn(f"[detail]Plan: {_steps_text[:200]}[/detail]")
@@ -6912,8 +6913,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             pass
 
     total_steps = 0
-    _last_sig = None
-    _repeat = 0
+    _ctx_lo = 1               # primer indice de la cola (no-fijada) del contexto
+    _sig_counts: dict = {}    # detector de estancamiento por conteo de acciones
+    _last_prose = ""          # ultima respuesta en prosa (candidata a final)
+    _no_action_streak = 0     # respuestas seguidas sin ACCION
     while total_steps < AGENT_HARD_CAP:
         # Out of budget: ask the model if it actually needs more steps.
         if total_steps >= budget:
@@ -6924,11 +6927,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _print_fn(f"[detail]El agente pidio {extra} pasos mas (presupuesto {budget})[/detail]")
 
         total_steps += 1
-        ctx_text = "\n".join(history[-6:])
+        # Contexto que FIJA el objetivo (history[0]) y crece append-only
+        # (cache-friendly). Antes history[-6:] desalojaba el objetivo en tareas
+        # largas y rompia el prefix-cache cada paso. Ver cognia/agent/loop.py.
+        ctx_text, _ctx_lo = objective_context(history, _ctx_lo)
         prompt = f"{TOOLS_DOC}\n\nContexto de la tarea:\n{ctx_text}\n\nSiguiente ACCION:"
 
         try:
-            raw_response = orch.infer(prompt).text.strip()
+            # temperature=0.0: seleccion de herramienta DETERMINISTA (el agente
+            # debe seguir un formato estricto; el sampling alto lo hacia divagar).
+            raw_response = orch.infer(prompt, temperature=0.0).text.strip()
         except Exception as e:
             _print_fn(f"[err_cl]Agente: error LLM: {e}[/err_cl]")
             break
@@ -6953,8 +6961,18 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         raw_response = first_action_block(raw_response)
         m = re.search(r"ACCI[OÓ]N:\s*(\w+)\s*(.*)", raw_response, re.IGNORECASE | re.DOTALL)
         if not m:
+            # Respuesta en prosa (sin ACCION). Antes se descartaba y el loop
+            # devolvia el fallo generico aunque fuera la respuesta final. Guardar
+            # la prosa como candidata; si el modelo insiste (2 veces) tomarla y
+            # cortar en vez de quemar presupuesto reintentando.
+            _last_prose = raw_response
+            _no_action_streak += 1
             history.append(f"RESULTADO: (respuesta no estructurada) {raw_response[:200]}")
+            if _no_action_streak >= 2:
+                result_text = raw_response
+                break
             continue
+        _no_action_streak = 0
 
         action = m.group(1).lower().strip()
         args = m.group(2).strip()
@@ -6963,21 +6981,17 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             result_text = args
             break
 
-        # Stuck-detector: same action+args repeated -> nudge, then stop.
-        sig = (action, args[:60])
-        if sig == _last_sig:
-            _repeat += 1
-            if _repeat >= 2:
-                history.append(
-                    "AVISO: estas repitiendo la misma accion sin progreso. "
-                    "Cambia de enfoque o usa responder."
-                )
-            if _repeat >= 3:
-                _print_fn("[warn_cl]Agente estancado (accion repetida), deteniendo.[/warn_cl]")
-                break
-        else:
-            _repeat = 0
-        _last_sig = sig
+        # Stuck-detector: cuenta ocurrencias de (action, args) COMPLETOS en toda
+        # la tarea -> caza tambien ciclos oscilantes A,B,A,B. Ver agent/loop.py.
+        _verdict = register_action(_sig_counts, action, args)
+        if _verdict == "warn":
+            history.append(
+                "AVISO: estas repitiendo la misma accion sin progreso. "
+                "Cambia de enfoque o usa responder."
+            )
+        elif _verdict == "stop":
+            _print_fn("[warn_cl]Agente estancado (accion repetida), deteniendo.[/warn_cl]")
+            break
 
         result = run_tool(action, args, ctx)
         history.append(result)
@@ -7034,7 +7048,12 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             "[detail]Tip: usa /ejecutar git add . && git commit -m '<msg>' para guardar los cambios[/detail]"
         )
 
-    return result_text or "(el agente no produjo una respuesta final)"
+    # Fallback: si no hubo 'responder' explicito, salvar la prosa final del
+    # modelo o el ultimo RESULTADO real (el agente pudo haber hecho el trabajo y
+    # solo faltar el formato) antes de rendir el fallo generico.
+    _last_result = next((h for h in reversed(history) if h.startswith("RESULTADO ")), "")
+    return (result_text or _last_prose or _last_result
+            or "(el agente no produjo una respuesta final)")
 
 
 if __name__ == "__main__":
