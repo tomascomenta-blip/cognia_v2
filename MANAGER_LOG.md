@@ -4726,3 +4726,16 @@ terminación limpia via `responder` la aporta el FINE-TUNE, no el runtime (compl
 ### C. Estado
 Apagado programado 05:30 (shutdown /s, cancelable shutdown /a). 6 commits pusheados.
 El de-risk validó pipeline + eficacia del fine-tune. Rumbo: GPU 3B + escalar dataset.
+
+### D. 2da auditoria: 6 bugs de las herramientas de memoria/KG del agente (commit 7f9f22e)
+Auditoria focalizada (memoria/KG no cubierta en la 1ra por necesitar el cerebro Cognia):
+8 hallazgos -> 8 confirmados (todos small_and_safe). El ALTO: get_facts() en
+knowledge/graph.py NO normalizaba a minusculas mientras add_triple guarda todo en
+minusculas (columna TEXT BINARY) -> kg_buscar('Python') devolvia 'sin hechos' para
+CUALQUIER nombre propio capitalizado (el caso comun que tipea un modelo). Repro real.
+Tambien: kg_agregar relacion case-sensitive + mensaje 'no agregado' enganoso (era
+reforzado), kg_buscar volcaba repr de dict crudo, memorizar mentia 'guardado' cuando
+observe() rechazaba, recordar sin piso de similitud surfaceaba ruido ~0.
+Verificacion: 10 tests nuevos (get_facts case real via KG+temp DB) + 46 tests KG
+existentes + 27 tool tests PASS (sin regresiones). Total sesion: ~19 bugs reales del
+agente arreglados en 12 commits push origin/cognia-x, cada uno con test + verificacion.
