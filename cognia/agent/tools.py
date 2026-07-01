@@ -97,6 +97,27 @@ def _orch(ctx: dict):
     return ShatteringOrchestrator(mode="local")
 
 
+def _disp(path) -> str:
+    """Ruta para MOSTRAR al modelo en el RESULTADO: relativa al workspace si esta
+    adentro, si no absoluta.
+
+    El 3B copiaba el path ABSOLUTO que devolvia escribir_archivo
+    (C:\\Users\\...\\x.txt) y luego lo re-usaba/leia en loop (verificado en e2e del
+    agente 2026-07-01). Mostrar la ruta relativa evita esa confusion y ademas
+    coincide con los datos de fine-tune (sanitizados a relativo)."""
+    try:
+        import cognia.agents.workers.dev_tools as _dv
+        root = Path(_dv.AGENT_WORKSPACE_ROOT).resolve()
+        p = Path(path).resolve()
+        if p == root:
+            return "."
+        if root in p.parents:
+            return str(p.relative_to(root)).replace("\\", "/")
+    except Exception:
+        pass
+    return str(path)
+
+
 # ══════════════════════════════════════════════════════════════════════
 # FILE TOOLS
 # ══════════════════════════════════════════════════════════════════════
@@ -111,7 +132,7 @@ def _leer_archivo(args, ctx):
         # lo sobrescribe con una version mas corta (perdida de datos en read-mod-write).
         content += (f"\n... [TRUNCADO: mostrando 4000 de {len(full)} chars; el archivo NO "
                     f"esta completo. NO lo sobrescribas entero; usa 'buscar' para ubicar]")
-    return f"RESULTADO leer_archivo {path}: {content}"
+    return f"RESULTADO leer_archivo {_disp(path)}: {content}"
 
 
 @tool("escribir_archivo",
@@ -138,7 +159,7 @@ def _escribir_archivo(args, ctx):
     if str(wpath) not in ft:
         ft.append(str(wpath))
         ctx["agent_state"]["files_touched"] = ft[-15:]
-    return f"RESULTADO escribir_archivo {wpath}: OK ({len(content)} chars)"
+    return f"RESULTADO escribir_archivo {_disp(wpath)}: OK ({len(content)} chars)"
 
 
 @tool("apendar_archivo",
@@ -162,7 +183,7 @@ def _apendar_archivo(args, ctx):
             prefix = "\n"
     with wpath.open("a", encoding="utf-8") as fh:
         fh.write(prefix + (text if text.endswith("\n") else text + "\n"))
-    return f"RESULTADO apendar_archivo {wpath}: OK (+{len(text)} chars)"
+    return f"RESULTADO apendar_archivo {_disp(wpath)}: OK (+{len(text)} chars)"
 
 
 @tool("copiar_archivo", "copiar_archivo <src> | <dst>          -- copia un archivo (dst en el workspace)")
@@ -179,7 +200,7 @@ def _copiar_archivo(args, ctx):
         return f"RESULTADO copiar_archivo ERROR: {e}"
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
-    return f"RESULTADO copiar_archivo: {src} -> {dst} OK"
+    return f"RESULTADO copiar_archivo: {src} -> {_disp(dst)} OK"
 
 
 @tool("listar", "listar <directorio>                   -- lista archivos/carpetas")

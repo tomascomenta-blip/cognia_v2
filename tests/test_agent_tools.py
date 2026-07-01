@@ -121,6 +121,17 @@ def test_escribir_tolerant_pipe_separator(workspace):
     assert (workspace / "b.txt").read_text(encoding="utf-8") == "mundo"
 
 
+def test_result_shows_relative_path_not_absolute(workspace):
+    # escribir/leer deben MOSTRAR la ruta relativa al workspace en el RESULTADO,
+    # no el path absoluto (el 3B lo copiaba y entraba en loop). Ver _disp().
+    out = T.run_tool("escribir_archivo", "sub/x.txt | data", _ctx())
+    assert "OK" in out and "sub/x.txt" in out
+    assert str(workspace) not in out
+    out2 = T.run_tool("leer_archivo", str(workspace / "sub" / "x.txt"), _ctx())
+    assert "data" in out2 and "sub/x.txt" in out2
+    assert str(workspace) not in out2
+
+
 def test_leer_archivo_marks_truncation(workspace):
     big = workspace / "big.txt"
     big.write_text("x" * 5000, encoding="utf-8")
