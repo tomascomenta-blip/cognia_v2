@@ -1145,3 +1145,143 @@ future session generate/import this copy from node/ instead of hand-maintaining 
 4. Continue the un-audited DISTRIBUTED cross-process path (relay PTYPE_LOGITS shape +
    the protocol-detection ambiguity above) IF a multi-node setup becomes available.
 5. (Optional) try/finally sweep of the ~17 read-only pooled-conn methods (graph.py template).
+
+---
+
+## Session: 2026-07-01  (VENDORED-ENGINE DRIFT GUARD + memory-bounded prefill + INT4 tests + intra-turn KV leak)
+
+### Context / approach
+Priorities #1/#4 from 2026-06-30 are still BLOCKED (no nano_draft.npz/shards, no
+multi-node relay in this checkout). Took the non-blocked, verifiable priorities #3 and
+#2, plus two gaps found while working. Env unchanged: NO venv312 in this checkout; system
+`python` is 3.12.10 (numpy 1.26.4 + pytest 9.0.3), used from the repo root (repo wins over
+the stale site-packages `shattering` shadow). Four focused commits, all pushed & green.
+
+### [DRIFT-GUARD — priority #3 DONE + PUSHED (7312237)] Vendored public engine now derivable from node/
+**Files**: scripts/sync_public_engine.py (NEW), tests/test_public_engine_sync.py (NEW)
+
+cognia_public_api/cognia_inference/ ships a HAND-MAINTAINED copy of the numpy engine
+(qwen2_ops.py + quantization.py); the 2026-06-30 SWA bug had to be fixed in BOTH copies by
+hand. Closed that "fix one copy, miss the other" trap for good WITHOUT dropping the
+standalone copies (the public package must import as `cognia_inference.*`):
+  - `scripts/sync_public_engine.py` regenerates the vendored copies from the canonical
+    sources (node/qwen2_ops.py, shattering/quantization.py) by applying declared full-line
+    import rewrites (shattering./node. -> cognia_inference.). `render_vendored` refuses to
+    emit output if a declared transform line is missing/duplicated OR if any un-rewritten
+    canonical import survives (a NEW/renamed import the spec missed) -> fails loudly, never
+    ships a stale/broken engine. `--check` exits 1 on drift.
+  - `tests/test_public_engine_sync.py` (10 tests) enforces it every run: on-disk vendored
+    == freshly-rendered canonical (byte-for-byte, CRLF preserved), render-guard behaviours,
+    and model_constants.py (a curated SUBSET in the vendored copy -- it omits the persona
+    prompt) never drifts on any SHARED constant (e.g. SWA_WINDOW).
+Verified end-to-end: injected a real edit into node/qwen2_ops.py -> guard FAILED pointing
+at the sync command; git restore -> green. Corrupted the vendored copy -> `sync`
+regenerated it to the exact 3-import-line diff. Vendored pkg imports standalone
+(cd cognia_public_api): engine loads, quantize_int4 round-trips, SWA fix present.
+The two units below then EXERCISED this infra: edit node/, run sync, guard proves match.
+
+### [PERF — priority #2 DONE + PUSHED (ff09b23)] Memory-bounded chunked prefill + SWA consolidation
+**Files**: node/qwen2_ops.py + vendored copy; tests/test_swa_attention.py
+
+The 2026-06-30 SWA fix made a long single prefill (past_len=0, seq>W) CORRECT but O(seq^2)
+in memory (one (H,seq,seq) scores matrix per layer: ~1GB at n_ctx=2048, ~4GB at the
+llama_backend n_ctx=4096, OOM on a big paste). Fixed + de-duplicated in one change:
+  - Extracted the scores/mask/softmax/output block that was DUPLICATED in `_attention`
+    AND `_attention_normed` into shared module helpers `_swa_sdpa` + `_swa_banded_block`.
+    Both methods now call `_swa_sdpa` -> a future SWA change happens in ONE place (same
+    drift-prevention theme). The single banded block also subsumes the decode step
+    (seq==1: the block slice is already the last <=W keys, no mask), unifying all cases.
+  - `_swa_sdpa` tiles the query axis into `_SWA_QCHUNK`(=SWA_WINDOW)-row blocks when
+    seq > _SWA_QCHUNK; each block slices K/V to only the keys some query in it can reach
+    ([max(0,qa0-W+1), qa1)), so the transient scores matrix is bounded to
+    O(_SWA_QCHUNK*(chunk+W-1)) regardless of seq (~8x less at 2048, ~128x at 4096).
+  - CORRECTNESS is numerically-equivalent, NOT bit-identical: numpy pairwise summation's
+    reduction tree depends on the key-axis length, so interspersing masked-0.0 keys
+    differently shifts where nonzero terms land -> ~1e-7 float reassociation (same class
+    the notes already accept for tp_allreduce). Decode + short prefills (seq<=W, incl. ALL
+    spec-verify batches) take the exact prior single-block path.
+Verified model-free at real scale (SWA_WINDOW=512, seq=1100, production fused
+`_attention_normed`): one-shot chunked prefill vs the per-token incremental oracle
+max|diff| = 2.98e-08; peak keys/block = 1023 (=QCHUNK+W-1), bounded < seq. New tests
+(chunked-vs-incremental oracle both methods, chunked==nonchunked <1e-5 with/without a
+cached past, per-block key-count bound). SWA suite 11 passed. NOTE: this made priority #2
+of 2026-06-30 (memory-bounded prefill) DONE for the continuation/spec case AND the pure
+long prefill; a 32k+ prefill is now bounded too. (The prior note's "only needed if very
+long prefills become real" -> done proactively; the win already applies at n_ctx=2048.)
+
+### [COVERAGE DONE + PUSHED (74bbcfc)] Foundational NPQ quantization math was untested
+**File**: tests/test_quantization.py (NEW, 16 tests)
+
+shattering/quantization.py -- INT4 (nibble-packed; EVERY transformer projection), INT8,
+ternary -- had NO dedicated tests despite every model weight passing through it. The code
+is CORRECT (read it in full: nibble packing high=even/low=odd, per-row symmetric scale,
+odd-col padding trimmed via orig_cols, clip(1e-9) zero-row guard all sound) -- so this is
+a coverage gap, not a bug. 16 tests pin the round-trip error bounds (|err|<=scale/2), the
+signed code ranges, odd-column trimming, zero-row safety, exact-on-grid round-trip, the
+packing byte, INT8>INT4 precision, ternary sign/scale, AND INT4Weights.linear(x) ==
+x@dequant(W).T on the live backend tier. Vendored quantization.py is byte-identical
+(enforced by the new sync guard), so covering the canonical module protects both.
+
+### [BUG — LIVE (error path), FIXED + PUSHED (68d9862)] Intra-turn KV leaks when generation raises
+**Files**: shattering/orchestrator.py (_generate_local, _shard_infer_stream);
+  node/qwen2_ops.py comment + vendored sync; tests/test_e2e_inference.py
+
+Found while auditing the KV lifecycle (a misleading `_kv_cache` comment: "single-session:
+replace all other entries" -- the code never replaces others). Root cause: the REAL
+production KV (RealTransformerLayer._kv_cache) is cleared ONLY by clear_cache(session_id);
+the periodic backstop `_evict_mla_caches` age-evicts the OPTIONAL MLA CompressedKVCache,
+NOT the layer KV. Both local generation paths evicted an intra-turn session only AFTER the
+token loop, on the success path. Any exception mid-loop (forward/sample/decode error)
+skipped the eviction, and intra-turn session_ids are unique UUIDs with NO age/TTL backstop
+for the layer KV -> each failed turn leaked its layer KV (O(seq*KH*D*n_layers), ~MBs) for
+the engine's lifetime, unbounded across repeated failures.
+Fix: wrapped both generation bodies in try/finally; the finally evicts iff the session is
+intra-turn (lpc_entry is None). LPC sessions deliberately persist (reclaimed by the
+2026-06-25 prefix-mismatch guard or TTL eviction). Success-path behaviour unchanged. Also
+corrected the misleading comment to state the real per-session lifecycle. The
+`_shard_infer_stream` wrap was done via a deterministic programmatic re-indent (loop is
+inline, 113 lines) then diff-reviewed. Regression: TestIntraTurnKVEvictedOnError (5 tests,
+both paths x {exception, success} + LPC-not-evicted); the two exception-path tests FAIL on
+the pre-fix code (evicted==[], proving the leak) and pass after.
+
+### Items checked and deliberately NOT actioned (with reasoning)
+- **`_sample` padding-with-0** (node/inference_pipeline.py): pads logits to vocab_size with
+  0.0, which could make an out-of-range token the argmax IF real logits are all negative.
+  But the padding branch is only reachable in SIMULATION mode (hidden-state proxy) -- the
+  real last shard always returns exactly vocab_size logits -- so it's defensive dead code
+  in production. Same "unreachable in practice" class as the protocol ambiguity; left it.
+- **Distributed protocol-detection ambiguity** (`result_bytes[0] in (0,1,2)`): re-confirmed
+  latent-not-live (relay always returns PTYPE_LOGITS(2)); unverifiable without a relay.
+- **try/finally sweep of read-only pooled-conn reads** (prior #5): still deferred -- the
+  db_pool __del__ net reclaims them, genuinely low value vs the work.
+
+### Verification summary
+- Full fast suite (tests/ --ignore=test_e2e_inference.py): **2501 passed, 1 skipped, 0
+  failed** (277s) -- was 2470 at session start (+31: 10 sync + 5 SWA chunking + 16 quant).
+- test_e2e_inference.py: 72 passed, 7 skipped (includes the 5 new KV-eviction tests).
+- Each fix reproduced on pre-fix code then verified fixed (drift injection, KV leak).
+
+### State at session end
+- origin/main advanced by 4 commits: **7312237** (drift guard), **ff09b23** (chunked
+  prefill + SWA consolidation), **74bbcfc** (quantization tests), **68d9862** (intra-turn
+  KV leak) -- all pushed & green. Push protocol unchanged (wincredman fails headless):
+  `git -c credential.helper='!gh auth git-credential' push origin HEAD:main`.
+- Local branch integration/fixes-onto-origin tracks origin/main; working tree clean
+  except this docs commit.
+
+### Priority Order for Next Session
+1. **Measure spec acceptance rate + speed on real weights** (still the one thing no session
+   can do without nano_draft.npz + loaded shards). With them: run a real prompt > 512 tokens
+   to CONFIRM the SWA fix + chunked prefill produce coherent long-prompt output end-to-end
+   against the real model (all proven model-free so far; a real-weights CHECK is the missing
+   gate), then log `[SpecLoop]` matched/tok-s.
+2. **Whenever ANY engine file (node/qwen2_ops.py, shattering/quantization.py) is edited, run
+   `python scripts/sync_public_engine.py`** before committing -- test_public_engine_sync
+   fails otherwise. To add a vendored file or a new cross-package import, extend
+   VENDORED_FILES in that script (the render-guard will tell you if you missed one).
+3. Continue the un-audited DISTRIBUTED cross-process path (relay PTYPE_LOGITS shape +
+   protocol-detection ambiguity) IF a multi-node setup becomes available.
+4. (Optional) chunked long PREFILL is now DONE; the remaining attention perf lever is the
+   decode path (already O(W)) -- nothing pending there.
+5. (Optional, still deferred) try/finally sweep of the ~17 read-only pooled-conn methods
+   (graph.py template) -- low value (db_pool __del__ net reclaims).
