@@ -1,0 +1,315 @@
+{
+  "experiment": "xspeed_bench",
+  "device": "cuda",
+  "torch": "2.10.0+cu128",
+  "gpu_name": "Tesla T4",
+  "gpu_count": 2,
+  "capability": [
+    7,
+    5
+  ],
+  "scale": {
+    "d_model": 256,
+    "n_heads": 8,
+    "n_layers": 12,
+    "n_keys": 256,
+    "n_vals": 32,
+    "n_pairs": 32,
+    "n_queries": 16,
+    "batch": 64,
+    "lr": 0.001
+  },
+  "breakdown": {
+    "fp32_ae0": {
+      "datagen": 0.8197625478108724,
+      "fwd": 43.936848640441895,
+      "bwd": 91.14546775817871,
+      "opt": 4.070274035135905,
+      "total_ms": 139.97235298156738,
+      "steps_per_s": 7.144267983633079,
+      "tok_per_s": 36578.65207620137
+    },
+    "amp_safe_ae0": {
+      "datagen": 0.8419036865234375,
+      "fwd": 27.6608943939209,
+      "bwd": 54.37856515248617,
+      "opt": 4.72265084584554,
+      "total_ms": 87.60401407877605,
+      "steps_per_s": 11.415002046604522,
+      "tok_per_s": 58444.81047861515
+    }
+  },
+  "levers": {
+    "baseline_fp32_b64": {
+      "ms_per_step": 140.24,
+      "steps_per_s": 7.13,
+      "tok_per_s": 36508,
+      "batch": 64,
+      "warmup_s": 1.4,
+      "loss_finite": true,
+      "mem_max_mb": 1942
+    },
+    "amp_safe_b64": {
+      "ms_per_step": 86.24,
+      "steps_per_s": 11.6,
+      "tok_per_s": 59372,
+      "batch": 64,
+      "warmup_s": 0.9,
+      "loss_finite": true,
+      "mem_max_mb": 1487
+    },
+    "amp_UNSAFE_fp16_b64": {
+      "ms_per_step": 74.9,
+      "steps_per_s": 13.35,
+      "tok_per_s": 68358,
+      "batch": 64,
+      "warmup_s": 0.8,
+      "loss_finite": true,
+      "mem_max_mb": 1245
+    },
+    "amp_gpugen_b64": {
+      "ms_per_step": 86.52,
+      "steps_per_s": 11.56,
+      "tok_per_s": 59175,
+      "batch": 64,
+      "warmup_s": 1.0,
+      "loss_finite": true,
+      "mem_max_mb": 1487
+    },
+    "amp_gpugen_b256": {
+      "ms_per_step": 317.63,
+      "steps_per_s": 3.15,
+      "tok_per_s": 64477,
+      "batch": 256,
+      "warmup_s": 3.2,
+      "loss_finite": true,
+      "mem_max_mb": 5322
+    },
+    "amp_gpugen_b512": {
+      "ms_per_step": 630.95,
+      "steps_per_s": 1.58,
+      "tok_per_s": 64918,
+      "batch": 512,
+      "warmup_s": 6.3,
+      "loss_finite": true,
+      "mem_max_mb": 10466
+    },
+    "amp_gpugen_b768": {
+      "error": "OutOfMemoryError('CUDA out of memory. Tried to allocate 30.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 12.81 MiB is free. Including non-PyTorch memory, this process has 14.55 GiB memory in use. Of the allocated memory 14.25 GiB is allocated by PyTorch, and 165.00 MiB is reserved by PyTo",
+      "oom": true
+    },
+    "amp_gpugen_b1024": {
+      "error": "OutOfMemoryError('CUDA out of memory. Tried to allocate 80.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 72.81 MiB is free. Including non-PyTorch memory, this process has 14.49 GiB memory in use. Of the allocated memory 14.24 GiB is allocated by PyTorch, and 115.78 MiB is reserved by PyTo",
+      "oom": true
+    },
+    "amp_gpugen_b512_fused": {
+      "ms_per_step": 647.0,
+      "steps_per_s": 1.55,
+      "tok_per_s": 63308,
+      "batch": 512,
+      "warmup_s": 6.4,
+      "loss_finite": true,
+      "mem_max_mb": 10466
+    },
+    "amp_gpugen_b512_gradckpt": {
+      "ms_per_step": 944.92,
+      "steps_per_s": 1.06,
+      "tok_per_s": 43348,
+      "batch": 512,
+      "warmup_s": 8.9,
+      "loss_finite": true,
+      "mem_max_mb": 1610
+    },
+    "ae1_amp_b512_manual": {
+      "ms_per_step": 779.47,
+      "steps_per_s": 1.28,
+      "tok_per_s": 52548,
+      "batch": 512,
+      "warmup_s": 8.3,
+      "loss_finite": true,
+      "mem_max_mb": 8936
+    },
+    "ae1_amp_b512_sdpa": {
+      "ms_per_step": 571.53,
+      "steps_per_s": 1.75,
+      "tok_per_s": 71668,
+      "batch": 512,
+      "warmup_s": 5.8,
+      "loss_finite": true,
+      "mem_max_mb": 7705
+    },
+    "amp_gpugen_b512_compile": {
+      "ms_per_step": 373.66,
+      "steps_per_s": 2.68,
+      "tok_per_s": 109620,
+      "batch": 512,
+      "warmup_s": 44.4,
+      "loss_finite": true,
+      "mem_max_mb": 5992
+    },
+    "amp_gpugen_b512_compile_reduce": {
+      "ms_per_step": 393.4,
+      "steps_per_s": 2.54,
+      "tok_per_s": 104119,
+      "batch": 512,
+      "warmup_s": 32.2,
+      "loss_finite": true,
+      "mem_max_mb": 5983
+    },
+    "amp_gpugen_b64_compile_reduce": {
+      "ms_per_step": 47.31,
+      "steps_per_s": 21.14,
+      "tok_per_s": 108228,
+      "batch": 64,
+      "warmup_s": 32.3,
+      "loss_finite": true,
+      "mem_max_mb": 881
+    },
+    "amp_gpugen_b512_compile_maxauto": {
+      "ms_per_step": 422.0,
+      "steps_per_s": 2.37,
+      "tok_per_s": 97061,
+      "batch": 512,
+      "warmup_s": 175.8,
+      "loss_finite": true,
+      "mem_max_mb": 6034
+    },
+    "combo_b512_reduce_fused": {
+      "ms_per_step": 359.01,
+      "steps_per_s": 2.79,
+      "tok_per_s": 114091,
+      "batch": 512,
+      "warmup_s": 7.4,
+      "loss_finite": true,
+      "mem_max_mb": 5983
+    },
+    "combo_b1024_reduce_fused": {
+      "ms_per_step": 750.88,
+      "steps_per_s": 1.33,
+      "tok_per_s": 109098,
+      "batch": 1024,
+      "warmup_s": 44.0,
+      "loss_finite": true,
+      "mem_max_mb": 11825
+    },
+    "dp2_amp_gpugen_b1024": {
+      "error": "OutOfMemoryError('Caught OutOfMemoryError in replica 0 on device 0.\\nOriginal Traceback (most recent call last):\\n  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/parallel/parallel_apply.py\", line 103, in _worker\\n    output = module(*input, **kwargs)\\n             ^^^^^^^^^^^^^^^^^^^^^^^^\\n",
+      "oom": true
+    }
+  },
+  "parity": {
+    "fp32": {
+      "losses": [
+        3.4925,
+        3.4806,
+        3.4821,
+        3.4477,
+        3.4487,
+        3.3947,
+        3.3556,
+        3.3834,
+        3.3328,
+        3.3296,
+        3.3206,
+        3.2802,
+        3.2486,
+        3.2516,
+        3.2529,
+        3.2509,
+        3.2368,
+        3.2527,
+        3.2122,
+        3.1963,
+        3.1717,
+        3.14,
+        3.2149,
+        3.1715
+      ],
+      "final_loss": 3.1745,
+      "eval_acc": 0.1001,
+      "wall_s": 105.7
+    },
+    "amp_safe": {
+      "losses": [
+        3.4928,
+        3.4804,
+        3.4863,
+        3.4325,
+        3.4201,
+        3.3533,
+        3.3382,
+        3.37,
+        3.2927,
+        3.3007,
+        3.2894,
+        3.2429,
+        3.2213,
+        3.2325,
+        3.2106,
+        3.2041,
+        3.1863,
+        3.2204,
+        3.1566,
+        3.1614,
+        3.1271,
+        3.1241,
+        3.1714,
+        3.1483
+      ],
+      "final_loss": 3.1427,
+      "eval_acc": 0.1015,
+      "wall_s": 58.8
+    },
+    "amp_safe_compile": {
+      "losses": [
+        3.4926,
+        3.4807,
+        3.483,
+        3.4457,
+        3.4277,
+        3.3474,
+        3.3178,
+        3.3554,
+        3.3029,
+        3.2852,
+        3.2855,
+        3.2561,
+        3.2263,
+        3.2265,
+        3.212,
+        3.1988,
+        3.21,
+        3.2088,
+        3.1708,
+        3.1651,
+        3.1309,
+        3.114,
+        3.1886,
+        3.1395
+      ],
+      "final_loss": 3.1433,
+      "eval_acc": 0.1019,
+      "wall_s": 80.1
+    },
+    "rel_diff_amp_safe": 0.01,
+    "rel_diff_amp_safe_compile": 0.0098
+  },
+  "grok_quality": {
+    "fp32": {
+      "grok_step": null,
+      "best_acc": 0.3037,
+      "steps_run": 6000,
+      "wall_s": 102.8
+    },
+    "amp_safe": {
+      "grok_step": null,
+      "best_acc": 0.3035,
+      "steps_run": 6000,
+      "wall_s": 123.3
+    },
+    "amp_safe_compile_reduce": {
+      "error": "RuntimeError('Error: accessing tensor output of CUDAGraphs that has been overwritten by a subsequent run. Stack trace: File \"/kaggle/src/script.py\", line 227, in forward\\n    loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-100). To prevent overwriting, clone "
+    }
+  },
+  "minutes_total": 18.5
+}
