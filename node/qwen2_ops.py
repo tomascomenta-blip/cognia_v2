@@ -497,6 +497,76 @@ def _gate_up_silu(w_gate: "INT4Weights", w_up: "INT4Weights",
     return out
 
 
+# ── Sliding-window attention (shared by _attention and _attention_normed) ─────
+
+# Query-block size for the memory-bounded prefill path. A prefill longer than this
+# is tiled along the query axis so the transient scores matrix stays O(QCHUNK * W)
+# instead of O(seq * total). Chosen == SWA_WINDOW so each block scores <= 2W-1 keys.
+_SWA_QCHUNK = SWA_WINDOW
+
+
+def _swa_banded_block(Qb: np.ndarray, K: np.ndarray, V: np.ndarray,
+                      qa0: int, qa1: int,
+                      H: int, KH: int, D: int) -> np.ndarray:
+    """GQA scaled dot-product attention for ONE query block against full K/V.
+
+    Qb : (sb, H, D) queries for absolute positions [qa0, qa1) (RoPE already applied).
+    K,V: (total, KH, D) full cached+new tensors (RoPE applied to K).
+    Returns (sb, H*D) float32.
+
+    Each query at absolute position p attends to the sliding window (p-W, p]. Only the
+    keys some query in this block can reach are sliced in ([max(0, qa0-W+1), qa1)); a
+    per-query banded causal mask enforces each individual window. This subsumes the
+    decode step (sb == 1: the slice is already exactly the last <=W keys, no mask).
+    """
+    group = H // KH
+    sb = qa1 - qa0
+    klo = max(0, qa0 - SWA_WINDOW + 1)
+    K_attn, V_attn = K[klo:qa1], V[klo:qa1]
+    attn_total = K_attn.shape[0]
+
+    # GQA-native: Q (sb, H, D) -> (sb, KH, group, D); K/V stay (attn_total, KH, D).
+    Q_gqa = Qb.reshape(sb, KH, group, D)
+    # scores: (KH, sb, group, attn_total). k is the shared KH axis (not summed).
+    scores = np.einsum("kqgd,tkd->kqgt", Q_gqa.transpose(1, 0, 2, 3),
+                       K_attn) / np.sqrt(D)
+    if sb > 1:
+        q_abs = np.arange(qa0, qa1, dtype=np.int32).reshape(-1, 1)
+        k_abs = np.arange(klo, qa1, dtype=np.int32).reshape(1, -1)
+        # Mask a key in the FUTURE (k_abs > q_abs) or older than the sliding window
+        # (k_abs <= q_abs - SWA_WINDOW). Every query keeps its own slot (never fully
+        # masked). sb == 1 needs no mask: the slice above is exactly its window.
+        masked = (k_abs > q_abs) | (k_abs <= q_abs - SWA_WINDOW)
+        scores = scores + masked.astype(np.float32)[None, :, None, :] * -1e9
+    scores -= scores.max(-1, keepdims=True)
+    probs = np.exp(scores); probs /= probs.sum(-1, keepdims=True)
+    # out: (KH, sb, group, D) -> (sb, H, D) -> (sb, H*D)
+    return np.einsum("kqgt,ktd->kqgd", probs,
+                     V_attn.transpose(1, 0, 2)).transpose(1, 0, 2, 3).reshape(sb, H * D)
+
+
+def _swa_sdpa(Q: np.ndarray, K: np.ndarray, V: np.ndarray,
+              seq: int, past_len: int,
+              H: int, KH: int, D: int) -> np.ndarray:
+    """Sliding-window attention over full K/V; returns (seq, H*D) float32 (pre w_o).
+
+    - Decode (seq == 1) and short prefills go through a single banded block (the
+      block slice already bounds a decode step to the last <=W keys).
+    - A long prefill (seq > _SWA_QCHUNK) is tiled along the query axis so the
+      transient scores matrix is bounded to O(_SWA_QCHUNK * W) instead of O(seq*total).
+      This is numerically identical: every query row attends to exactly its own window
+      regardless of tiling (masked keys contribute exp(-1e9)==0.0, an exact no-op).
+    """
+    if seq > _SWA_QCHUNK:
+        out = np.empty((seq, H * D), dtype=np.float32)
+        for q0 in range(0, seq, _SWA_QCHUNK):
+            q1 = min(q0 + _SWA_QCHUNK, seq)
+            out[q0:q1] = _swa_banded_block(
+                Q[q0:q1], K, V, past_len + q0, past_len + q1, H, KH, D)
+        return out
+    return _swa_banded_block(Q, K, V, past_len, past_len + seq, H, KH, D)
+
+
 # ── Qwen2 decoder layer ──────────────────────────────────────────────────────
 
 class RealTransformerLayer:
@@ -550,7 +620,6 @@ class RealTransformerLayer:
     def _attention(self, x: np.ndarray, session_id: str = "") -> np.ndarray:
         seq   = x.shape[0]
         H, KH, D = self.n_heads, self.n_kv_heads, self.head_dim
-        group = H // KH
 
         # Determine past length for RoPE offset
         past_len = 0
@@ -587,58 +656,10 @@ class RealTransformerLayer:
         if session_id:
             self._kv_cache[session_id] = (K, V)
 
-        total = K.shape[0]
-
-        # SWA: Sliding Window Attention — each query attends to at most the last
-        # SWA_WINDOW keys ending at ITS OWN position, i.e. the window (p-W, p].
-        # The full K/V is kept in _kv_cache for LPC cross-turn persistence.
-        #   - Decode (seq == 1): the single query IS the last token, so its window
-        #     is exactly K[-SWA_WINDOW:]; truncate K/V to keep attention O(W).
-        #   - Prefill / multi-token batch (seq > 1): a global K[-W:] truncation
-        #     would give every EARLIER query a window ending at the last token
-        #     (not its own) — those queries would see only future keys and collapse
-        #     to a uniform softmax (garbage). Keep full K/V and apply a per-query
-        #     banded causal mask below instead.
-        if total > SWA_WINDOW and seq == 1:
-            K_attn = K[-SWA_WINDOW:]
-            V_attn = V[-SWA_WINDOW:]
-            attn_offset = total - SWA_WINDOW  # first absolute position in the window
-        else:
-            # Multi-token batch (prefill / speculative verify): attend over only the
-            # keys some query here can reach — the union of all per-query windows is
-            # [past_len - W + 1, total). Lower keys are masked for every query anyway,
-            # so this slice is numerically identical to full K/V while bounding the
-            # batch to <= seq + W - 1 keys (a small batch over a long cached past then
-            # scores ~W keys, not the whole context). The banded mask enforces each
-            # per-query window below.
-            key_lo = max(0, past_len - SWA_WINDOW + 1)
-            K_attn, V_attn = K[key_lo:], V[key_lo:]
-            attn_offset = key_lo
-
-        attn_total = K_attn.shape[0]
-
-        # GQA-native attention: avoid np.repeat expansion of K/V to full H heads.
-        # Q: (seq, H, D) → (seq, KH, group, D); K/V stay at (attn_total, KH, D).
-        # Saves ~5.7MB/layer of temporary arrays vs the expand path.
-        Q_gqa = Q.reshape(seq, KH, group, D)
-        # scores: (KH, seq, group, attn_total)
-        # Q_gqa.T is (KH, seq, group, D); K_attn is (attn_total, KH, D).
-        # Use k for the shared KH axis so it is NOT summed over.
-        scores = np.einsum("kqgd,tkd->kqgt", Q_gqa.transpose(1, 0, 2, 3),
-                           K_attn) / np.sqrt(D)
-        if seq > 1:
-            q_abs = np.arange(past_len, past_len + seq, dtype=np.int32).reshape(-1, 1)
-            k_abs = np.arange(attn_offset, attn_offset + attn_total, dtype=np.int32).reshape(1, -1)
-            # Mask a key when it is in the FUTURE (k_abs > q_abs) OR older than the
-            # sliding window (k_abs <= q_abs - SWA_WINDOW). Every query keeps at
-            # least its own position, so no row is ever fully masked.
-            masked = (k_abs > q_abs) | (k_abs <= q_abs - SWA_WINDOW)
-            scores = scores + masked.astype(np.float32)[None, :, None, :] * -1e9
-        scores -= scores.max(-1, keepdims=True)
-        probs   = np.exp(scores); probs /= probs.sum(-1, keepdims=True)
-        # out: (KH, seq, group, D) → (seq, H, D) → (seq, H*D)
-        out = np.einsum("kqgt,ktd->kqgd", probs,
-                        V_attn.transpose(1, 0, 2)).transpose(1, 0, 2, 3).reshape(seq, H * D)
+        # Sliding-window attention (decode-truncate / multi-token banded / chunked
+        # prefill), shared with _attention_normed. Full K/V stays in _kv_cache for
+        # LPC cross-turn persistence; _swa_sdpa only bounds what each query attends to.
+        out = _swa_sdpa(Q, K, V, seq, past_len, H, KH, D)
         return self.w_o.linear(out)
 
     # ── 21.4 fused paths ─────────────────────────────────────────────────────
@@ -651,7 +672,6 @@ class RealTransformerLayer:
         """
         seq = x.shape[0]
         H, KH, D = self.n_heads, self.n_kv_heads, self.head_dim
-        group = H // KH
 
         past_len = 0
         K_past: Optional[np.ndarray] = None
@@ -704,42 +724,9 @@ class RealTransformerLayer:
         if session_id:
             self._kv_cache[session_id] = (K, V)
 
-        total = K.shape[0]
-
-        # SWA: truncate to the last-W window only for the decode step (seq == 1,
-        # where the single query IS the last token); for a multi-token prefill keep
-        # the full K/V and band-mask per query (see _attention for the full rationale).
-        if total > SWA_WINDOW and seq == 1:
-            K_attn = K[-SWA_WINDOW:]
-            V_attn = V[-SWA_WINDOW:]
-            attn_offset = total - SWA_WINDOW
-        else:
-            # Multi-token batch: keep only the keys some query can reach (union of
-            # per-query windows = [past_len - W + 1, total)). Numerically identical
-            # to full K/V; bounds attn_total to seq + W - 1. See _attention.
-            key_lo = max(0, past_len - SWA_WINDOW + 1)
-            K_attn, V_attn = K[key_lo:], V[key_lo:]
-            attn_offset = key_lo
-
-        attn_total = K_attn.shape[0]
-
-        Q_gqa = Q.reshape(seq, KH, group, D)
-        # K_attn shape is (attn_total, KH, D) = (t, k, d) — no transpose needed.
-        # Use k for the shared KH axis so it is NOT summed over.
-        scores = np.einsum("kqgd,tkd->kqgt", Q_gqa.transpose(1, 0, 2, 3),
-                           K_attn) / np.sqrt(D)
-        if seq > 1:
-            q_abs  = np.arange(past_len, past_len + seq, dtype=np.int32).reshape(-1, 1)
-            k_abs  = np.arange(attn_offset, attn_offset + attn_total, dtype=np.int32).reshape(1, -1)
-            # Future (k_abs > q_abs) OR outside the sliding window
-            # (k_abs <= q_abs - SWA_WINDOW) → masked. Each query keeps its own slot.
-            masked = (k_abs > q_abs) | (k_abs <= q_abs - SWA_WINDOW)
-            scores = scores + masked.astype(np.float32)[None, :, None, :] * -1e9
-        scores -= scores.max(-1, keepdims=True)
-        probs   = np.exp(scores); probs /= probs.sum(-1, keepdims=True)
-
-        out = np.einsum("kqgt,ktd->kqgd", probs,
-                        V_attn.transpose(1, 0, 2)).transpose(1, 0, 2, 3).reshape(seq, H * D)
+        # Sliding-window attention shared with _attention (see _swa_sdpa): decode
+        # truncation, multi-token banded masking, and memory-bounded chunked prefill.
+        out = _swa_sdpa(Q, K, V, seq, past_len, H, KH, D)
         return self.w_o.linear(out)
 
     def _mlp_normed(self, x: np.ndarray) -> np.ndarray:
