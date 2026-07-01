@@ -297,6 +297,69 @@ TASKS = [
         "answer": "Guarde 144 en cuadrado.txt.",
         "verify": lambda ws, t, a: "144" in _read(ws, "cuadrado.txt"),
     },
+    # ══ FASE B (2026-07-01): memoria de trabajo, KG, y mas multi-paso ══
+    # Cubren tools que el dataset Fase A no tocaba (anotar/notas/kg_*) o que el
+    # 3B base falla (multi-paso). Se generan con trayectorias EXPERTAS (gen_expert.py,
+    # ver EXPERT_STEPS abajo), no con el 3B, porque el base no las resuelve.
+    # ── memoria de trabajo (anotar/notas): estado en ctx["working_memory"], aislado ──
+    {
+        "id": "anotar_recuperar",
+        "prompt": "Anota en tu memoria de trabajo que la clave 'color' vale 'azul'. Despues consulta tus notas para confirmarlo.",
+        "tools": ["anotar", "notas"],
+        "answer": "En mis notas quedo: color = azul.",
+        "verify": lambda ws, t, a: "color: azul" in t.lower(),
+    },
+    {
+        "id": "anotar_dos",
+        "prompt": "Anota dos cosas en tu memoria de trabajo: 'tarea1' es 'comprar' y 'tarea2' es 'vender'. Despues lee tus notas.",
+        "tools": ["anotar", "notas"],
+        "answer": "Mis notas: tarea1=comprar, tarea2=vender.",
+        "verify": lambda ws, t, a: _has(t, "comprar") and _has(t, "vender") and _has(t, "tarea1"),
+    },
+    {
+        "id": "anotar_eval",
+        "prompt": "Guarda en tu memoria de trabajo que la clave 'ciudad' vale 'lima'. Despues revisa tus notas.",
+        "tools": ["anotar", "notas"],
+        "answer": "En mis notas quedo: ciudad = lima.",
+        "verify": lambda ws, t, a: "ciudad: lima" in t.lower(),
+    },
+    # ── grafo de conocimiento (kg_agregar/kg_buscar): KG en DB temporal aislada ──
+    {
+        "id": "kg_agregar_buscar",
+        "prompt": "Agrega al grafo de conocimiento el hecho: Python is_a lenguaje. Despues busca en el grafo que sabe sobre Python.",
+        "tools": ["kg_agregar", "kg_buscar"],
+        "answer": "El grafo ahora sabe que Python is_a lenguaje.",
+        "verify": lambda ws, t, a: _has(t, "python") and _has(t, "lenguaje") and not _has(t, "sin hechos"),
+    },
+    {
+        "id": "kg_dos_hechos",
+        "prompt": "Agrega dos hechos al grafo de conocimiento: 'perro is_a animal' y 'perro has_property leal'. Despues busca en el grafo sobre perro.",
+        "tools": ["kg_agregar", "kg_buscar"],
+        "answer": "El grafo sabe que perro is_a animal y tiene la propiedad leal.",
+        "verify": lambda ws, t, a: _has(t, "animal") and not _has(t, "sin hechos"),
+    },
+    {
+        "id": "kg_eval",
+        "prompt": "Agrega al grafo de conocimiento el hecho: Paris located_in Francia. Despues busca en el grafo sobre Paris.",
+        "tools": ["kg_agregar", "kg_buscar"],
+        "answer": "El grafo sabe que Paris located_in Francia.",
+        "verify": lambda ws, t, a: _has(t, "paris") and _has(t, "francia") and not _has(t, "sin hechos"),
+    },
+    # ── multi-paso held-out para EVAL (miden generalizacion; NO van a train) ──
+    {
+        "id": "json_eval",
+        "prompt": "Crea ajustes.json con un JSON valido que tenga la clave \"activo\" con valor true. Despues validalo.",
+        "tools": ["escribir_archivo", "json_validar"],
+        "answer": "ajustes.json es valido con activo=true.",
+        "verify": lambda ws, t, a: (_json_load(ws, "ajustes.json") or {}).get("activo") is True and _has(t, "json valido"),
+    },
+    {
+        "id": "append_eval",
+        "prompt": "Crea registro.txt con la linea 'inicio'. Agrega al final la linea 'fin'. Despues conta cuantas lineas tiene.",
+        "tools": ["escribir_archivo", "apendar_archivo", "contar_lineas"],
+        "answer": "registro.txt tiene 2 lineas.",
+        "verify": lambda ws, t, a: len(_lines(_read(ws, "registro.txt"))) == 2 and _has(t, "2 lineas"),
+    },
 ]
 
 
@@ -334,11 +397,74 @@ def by_id(task_id: str):
     return None
 
 
+# ══════════════════════════════════════════════════════════════════════
+# TRAYECTORIAS EXPERTAS (scripted) — para gen_expert.py
+# ══════════════════════════════════════════════════════════════════════
+# La secuencia CORRECTA de (tool, args) para cada tarea. gen_expert.py las
+# EJECUTA contra las tools reales (mismo run_tool del deploy) y solo conserva
+# la trayectoria si la postcondicion (verify) pasa. Se usa donde el 3B base
+# falla (multi-paso: 0% accept en el report) o donde la tool necesita estado
+# aislado (memoria de trabajo / KG). '\n' en el contenido = varias lineas.
+EXPERT_STEPS = {
+    # multi-paso de archivos / json / py (el 3B base no las resolvia)
+    "file_write_multiline": [("escribir_archivo", "frutas.txt | manzana\npera\nuva")],
+    "append_two_lines": [("escribir_archivo", "diario.txt | dia 1"),
+                         ("apendar_archivo", "diario.txt | dia 2")],
+    "count_lines_4": [("escribir_archivo", "lista.txt | rojo\nverde\nazul\nnegro"),
+                      ("contar_lineas", "lista.txt")],
+    "json_make_key": [("escribir_archivo", 'config.json | {"puerto": 8080}'),
+                      ("json_validar", "config.json")],
+    "json_make_list": [("escribir_archivo", "datos.json | [1, 2, 3]"),
+                       ("json_validar", "datos.json")],
+    "json_anidado": [("escribir_archivo", 'cfg.json | {"db": {"host": "local", "port": 5432}}'),
+                     ("json_validar", "cfg.json")],
+    "py_write_validate": [("escribir_archivo", "hola.py | def saludar():\n    return 'hola'"),
+                          ("py_validar", "hola.py")],
+    "py_sumar": [("escribir_archivo", "suma.py | def sumar(a, b):\n    return a + b"),
+                 ("py_validar", "suma.py")],
+    "py_write_run": [("escribir_archivo", "calc.py | print(6*7)"),
+                     ("py_validar", "calc.py"),
+                     ("ejecutar", f'"{__import__("sys").executable}" calc.py')],
+    "math_to_file": [("calcular", "15 * 4"), ("escribir_archivo", "resultado.txt | 60")],
+    "math_to_file2": [("calcular", "12 * 12"), ("escribir_archivo", "cuadrado.txt | 144")],
+    "append_then_count": [("escribir_archivo", "tareas.txt | comprar pan"),
+                          ("apendar_archivo", "tareas.txt | lavar ropa"),
+                          ("contar_lineas", "tareas.txt")],
+    "append_tres": [("escribir_archivo", "agenda.txt | lunes"),
+                    ("apendar_archivo", "agenda.txt | martes"),
+                    ("apendar_archivo", "agenda.txt | miercoles")],
+    "contar_seis": [("escribir_archivo", "colores.txt | rojo\nverde\nazul\nnegro\nblanco\ngris"),
+                    ("contar_lineas", "colores.txt")],
+    "copiar_dos_veces": [("escribir_archivo", "plantilla.txt | contenido_base"),
+                         ("copiar_archivo", "plantilla.txt | copia1.txt"),
+                         ("copiar_archivo", "plantilla.txt | copia2.txt")],
+    "listar_dir": [("escribir_archivo", "a.txt | x"), ("escribir_archivo", "b.txt | x"),
+                   ("escribir_archivo", "c.txt | x"), ("listar", ".")],
+    # memoria de trabajo (anotar/notas) — sin ai, estado en ctx
+    "anotar_recuperar": [("anotar", "color | azul"), ("notas", "")],
+    "anotar_dos": [("anotar", "tarea1 | comprar"), ("anotar", "tarea2 | vender"),
+                   ("notas", "")],
+    # grafo de conocimiento (kg_agregar/kg_buscar) — requiere ctx["ai"].kg aislado
+    "kg_agregar_buscar": [("kg_agregar", "Python | is_a | lenguaje"),
+                          ("kg_buscar", "Python")],
+    "kg_dos_hechos": [("kg_agregar", "perro | is_a | animal"),
+                      ("kg_agregar", "perro | has_property | leal"),
+                      ("kg_buscar", "perro")],
+}
+
+# Tareas expertas que necesitan un grafo de conocimiento aislado en ctx["ai"].kg
+# (gen_expert.py inyecta un KnowledgeGraph sobre una DB temporal por trayectoria,
+# para NO tocar la memoria real del usuario).
+NEEDS_AI_KG = {"kg_agregar_buscar", "kg_dos_hechos", "kg_eval"}
+
+
 # Tareas reservadas SOLO para evaluación (nunca aportan datos de entrenamiento),
 # elegidas para cubrir herramientas diversas -> mide GENERALIZACIÓN, no memoria.
+# Fase B suma held-out de memoria de trabajo, KG y multi-paso (json/append).
 EVAL_IDS = {
     "math_pow", "append_two_lines", "copy_file",
     "search_word", "count_5_lines", "shell_echo",
+    "anotar_eval", "kg_eval", "json_eval", "append_eval",
 }
 
 
@@ -348,3 +474,9 @@ def train_tasks():
 
 def eval_tasks():
     return [t for t in TASKS if t["id"] in EVAL_IDS]
+
+
+def expert_tasks():
+    """Tareas con trayectoria experta scripted (para gen_expert.py). Excluye las
+    reservadas a eval (no deben aportar datos de entrenamiento)."""
+    return [t for t in TASKS if t["id"] in EXPERT_STEPS and t["id"] not in EVAL_IDS]
