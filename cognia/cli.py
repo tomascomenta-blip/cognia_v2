@@ -6807,6 +6807,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     from cognia.agent.tools import run_tool, build_tools_doc
     from cognia.agent.loop import (
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
+        first_action_block,
     )
     # Pull in any tools Cognia synthesized and verified in the background, so the
     # agent can use its own self-made tools. Best-effort.
@@ -6946,6 +6947,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
 
         _print_fn(f"[detail]paso {total_steps}: {raw_response[:120]}[/detail]")
 
+        # El modelo suele emitir VARIAS lineas ACCION: en una respuesta; quedarse
+        # con el primer bloque evita ejecutar una accion corrupta (args con el
+        # rambling de las ACCION siguientes). Ver cognia/agent/loop.py.
+        raw_response = first_action_block(raw_response)
         m = re.search(r"ACCI[OÓ]N:\s*(\w+)\s*(.*)", raw_response, re.IGNORECASE | re.DOTALL)
         if not m:
             history.append(f"RESULTADO: (respuesta no estructurada) {raw_response[:200]}")

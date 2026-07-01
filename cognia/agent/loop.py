@@ -14,6 +14,43 @@ from __future__ import annotations
 
 import re
 
+# ── Parsing de la respuesta del modelo ─────────────────────────────────
+_ACCION_MARK = re.compile(r"ACCI[OÓ]N:", re.IGNORECASE)
+_ACCION_LINE = re.compile(r"\s*ACCI[OÓ]N:", re.IGNORECASE)
+
+
+def first_action_block(raw: str) -> str:
+    """Devuelve SOLO el primer bloque de accion de la respuesta del modelo.
+
+    El 3B (y a veces el 7B) emite VARIAS lineas ``ACCION:`` en una sola respuesta.
+    El parser DOTALL del loop (``ACCION:\\s*(\\w+)\\s*(.*)``) junta todo lo que
+    sigue al primer nombre de herramienta -- incluidas las ACCION posteriores --
+    y ejecuta una accion corrupta (p.ej. escribe un archivo cuyo contenido es el
+    resto del rambling). Esta funcion recorta desde el primer ``ACCION:`` hasta
+    justo antes de la siguiente linea que EMPIEZA con ``ACCION:``.
+
+    Conserva el contenido multi-linea legitimo (el de ``escribir_archivo`` tras
+    ``|`` puede tener varias lineas) porque solo corta en lineas que arrancan con
+    ``ACCION:``. Si no hay ninguna ``ACCION:`` devuelve el texto sin cambios.
+    """
+    if not raw:
+        return raw
+    lines = raw.splitlines()
+    start = None
+    for i, ln in enumerate(lines):
+        if _ACCION_MARK.search(ln):
+            start = i
+            break
+    if start is None:
+        return raw
+    block = [lines[start]]
+    for ln in lines[start + 1:]:
+        if _ACCION_LINE.match(ln):
+            break
+        block.append(ln)
+    return "\n".join(block).strip()
+
+
 # Absolute safety ceiling -- the loop can never exceed this regardless of the
 # model's estimate or extension requests. Prevents a stuck agent from looping
 # forever while still being "effectively unlimited" for real tasks.
