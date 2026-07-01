@@ -239,43 +239,49 @@ def generate(tasks, samples: int, temperature: float, max_steps: int,
     tools_doc = build_tools_doc_full()
     system = COGNIA_SYSTEM_PROMPT
 
-    all_pairs = []
     per_task = {}
+    seen = set()          # (prompt, completion) ya escritos -> dedup incremental
+    n_written = 0
     t0 = time.time()
 
-    for ti, task in enumerate(tasks, 1):
-        succ = 0
-        task_pairs = []
-        for s in range(samples):
-            seed = 1000 * ti + s
-            r = run_one_trajectory(task, backend, tools_doc, system, max_steps,
-                                   temperature, seed, verbose=verbose)
-            status = "OK " if r["ok"] else "xx "
-            if r["ok"]:
-                succ += 1
-                task_pairs.extend(r["pairs"])
-            print(f"[{ti}/{len(tasks)}] {status}{task['id']:<20} "
-                  f"sample {s+1}/{samples}  pasos={r['steps']} "
-                  f"tools={r['tools_used']}")
-        per_task[task["id"]] = {"success": succ, "samples": samples,
-                                "accept_rate": round(succ / samples, 3)}
-        if not eval_only:
-            all_pairs.extend(task_pairs)
-
-    # Dedup exacto (prompt+completion): evita que tareas triviales aporten N copias
-    # identicas y desbalanceen el dataset. Conserva el orden de primera aparicion.
+    # ESCRITURA INCREMENTAL (deadline-safe): se abre el archivo y se vuelca por
+    # tarea con flush, de modo que un corte (p.ej. apagado programado) conserva
+    # todo lo generado hasta ese punto, no se pierde la corrida entera.
+    fh = None
     if not eval_only:
-        seen = set()
-        deduped = []
-        for p in all_pairs:
-            k = (p["prompt"], p["completion"])
-            if k in seen:
-                continue
-            seen.add(k)
-            deduped.append(p)
-        raw_n = len(all_pairs)
-        all_pairs = deduped
-        print(f"[gen] dedup: {raw_n} -> {len(all_pairs)} pares unicos")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        fh = out_path.open("w", encoding="utf-8")
+
+    try:
+        for ti, task in enumerate(tasks, 1):
+            succ = 0
+            task_pairs = []
+            for s in range(samples):
+                seed = 1000 * ti + s
+                r = run_one_trajectory(task, backend, tools_doc, system, max_steps,
+                                       temperature, seed, verbose=verbose)
+                status = "OK " if r["ok"] else "xx "
+                if r["ok"]:
+                    succ += 1
+                    task_pairs.extend(r["pairs"])
+                print(f"[{ti}/{len(tasks)}] {status}{task['id']:<20} "
+                      f"sample {s+1}/{samples}  pasos={r['steps']} "
+                      f"tools={r['tools_used']}")
+            per_task[task["id"]] = {"success": succ, "samples": samples,
+                                    "accept_rate": round(succ / samples, 3)}
+            # Volcar los pares UNICOS de esta tarea de una, con flush.
+            if fh is not None:
+                for p in task_pairs:
+                    k = (p["prompt"], p["completion"])
+                    if k in seen:
+                        continue
+                    seen.add(k)
+                    fh.write(json.dumps(p, ensure_ascii=False) + "\n")
+                    n_written += 1
+                fh.flush()
+    finally:
+        if fh is not None:
+            fh.close()
 
     dt = time.time() - t0
     accepted_tasks = sum(1 for v in per_task.values() if v["success"] > 0)
@@ -287,18 +293,14 @@ def generate(tasks, samples: int, temperature: float, max_steps: int,
         "temperature": temperature,
         "trajectory_accept_rate": round(total_success / max(1, total_tries), 3),
         "tasks_with_any_success": f"{accepted_tasks}/{len(tasks)}",
-        "sft_pairs": len(all_pairs),
+        "sft_pairs": n_written,
         "elapsed_sec": round(dt, 1),
         "per_task": per_task,
         "model": gg.name if gg else None,
     }
 
     if not eval_only:
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with out_path.open("w", encoding="utf-8") as f:
-            for p in all_pairs:
-                f.write(json.dumps(p, ensure_ascii=False) + "\n")
-        print(f"\n[gen] {len(all_pairs)} pares SFT -> {out_path}")
+        print(f"\n[gen] {n_written} pares SFT (unicos) -> {out_path}")
         report_path = out_path.with_suffix(".report.json")
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[gen] reporte -> {report_path}")
