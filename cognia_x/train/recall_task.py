@@ -46,7 +46,8 @@ def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=
                    d_model=96, n_layers=4, n_heads=4,
                    n_keys=96, n_vals=32, n_pairs=48, n_queries=8,
                    batch=32, lr=3e-4, abs_pos=False, linear_feature_mult=1,
-                   linear_feature_map="elu", mimetic_init=False):
+                   linear_feature_map="elu", mimetic_init=False,
+                   amp_linear_core="safe32", attn_sdpa=False):
     rng = np.random.default_rng(seed)
     eval_rng = np.random.default_rng(seed + 10**6)   # eval aislado: reproducible sin importar #pasos
     torch.manual_seed(seed)
@@ -57,7 +58,8 @@ def train_and_eval(name, attn_every, steps, log, device="cpu", seed=0, deadline=
                        window=L + 1, attn_every=attn_every, max_seq_len=L + 1, abs_pos_emb=abs_pos,
                        linear_feature_mult=linear_feature_mult,
                        linear_feature_map=linear_feature_map,
-                       mimetic_init=mimetic_init)
+                       mimetic_init=mimetic_init,
+                       amp_linear_core=amp_linear_core, attn_sdpa=attn_sdpa)
     model = HybridLM(cfg).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
     types = cfg.layer_types()

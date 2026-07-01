@@ -57,11 +57,28 @@ class HybridConfig:
     # estandar, cada capa LINEAL se re-inicializa cerca de una copia asociativa (W_k:=W_q -> q,k del
     # mismo contenido alineadas; W_o:=I). Solo cambia la INIT; cero coste en inferencia. Ver exp011.
     mimetic_init: bool = False
+    # Lever de VELOCIDAD (XSPEED v2, construccion/results_xspeed): nucleo de la atencion lineal bajo AMP.
+    #   "safe32" (default): fix fp16-seguro previo EXACTO (nucleo en fp32 con autocast OFF).
+    #   "cheap16": nucleo TODO fp16 con escala NEUTRA post-feature-map (phi(q) *= 1/(L*sqrt(df))): la
+    #     salida es el cociente (scores@v)/denom y numerador/denominador escalan IGUAL -> matematica
+    #     identica (invariancia medida: rel diff 7e-06); encoge las sumas O(L*df) lejos del techo fp16
+    #     (65504, la causa del NaN original) y los matmul fp16 ya acumulan en fp32 (tensor cores).
+    #     Medido en T4: recupera el 100% del costo del fix (68.1k vs 59.4k tok/s a b64); con compile+
+    #     fused = 148.7k tok/s (4.10x fp32). Gates: NaN-watch 3000 steps limpio en la config que NaNeaba,
+    #     paridad de loss 1.3%, grokking e2e en el MISMO step 3600 que fp32.
+    #     Solo aplica con feature_map="elu" (taylor NO es kernel positivo total: su denom puede ser
+    #     chico y escalar lo acerca al eps -> taylor se queda en safe32 aunque se pida cheap16).
+    amp_linear_core: str = "safe32"
+    # Lever de VELOCIDAD (XSPEED v1): atencion softmax via F.scaled_dot_product_attention (kernel
+    # fusionado; +36% medido en T4 vs nucleo manual, estable en fp16 sin upcast). Default False =
+    # nucleo manual fp16-seguro previo EXACTO.
+    attn_sdpa: bool = False
 
     def __post_init__(self):
         if self.d_ff is None:
             self.d_ff = max(16, int(round(8 * self.d_model / 3 / 16)) * 16)
         assert self.d_model % self.n_heads == 0, "d_model debe ser divisible por n_heads"
+        assert self.amp_linear_core in ("safe32", "cheap16"), self.amp_linear_core
         # RoPE rota pares (i, i+d_head/2): d_head debe ser par o apply_rope rompe por shape.
         assert (self.d_model // self.n_heads) % 2 == 0, \
             "d_head (d_model//n_heads) debe ser par para RoPE"
@@ -184,12 +201,13 @@ class LinearAttention(nn.Module):
     escalan por 1/sqrt(d) ANTES del map (como Based: mantiene q.k acotado para que la aproximacion de
     Taylor de exp sea valida). dim del feature de Taylor = 1 + dh + dh*(dh+1)/2 (NO depende de mult)."""
 
-    def __init__(self, d, n_heads, feature_mult=1, feature_map="elu"):
+    def __init__(self, d, n_heads, feature_mult=1, feature_map="elu", amp_core="safe32"):
         super().__init__()
         self.h = n_heads
         self.dh = d // n_heads
         self.feature_mult = feature_mult
         self.feature_map = feature_map
+        self.amp_core = amp_core
         self.df = self.dh * feature_mult                  # dimension del input al feature map por cabeza
         self.qkv = nn.Linear(d, 3 * d, bias=False)
         self.o = nn.Linear(d, d, bias=False)
@@ -227,28 +245,44 @@ class LinearAttention(nn.Module):
         if self.q_proj is not None:                # feature map ancho: q,k -> d_head*mult ANTES del map
             q = self.q_proj(q)
             k = self.k_proj(k)
-        # fp16-SEGURO (medido en G2): la atencion lineal NO esta normalizada (scores = q@k^T con features
-        # elu+1/taylor, SIN 1/sqrt(d)) -> bajo AMP fp16 los scores y el denom OVERFLOWean el rango de fp16
-        # (>65504) -> inf -> NaN. El NUCLEO (feature map + scores + normalizacion) se computa en fp32 con
-        # autocast OFF; las proyecciones qkv/q_proj/o quedan en fp16 (tensor cores). En fp32 (sin AMP) esto
-        # es un no-op numerico (comportamiento previo EXACTO).
-        with torch.autocast(device_type=x.device.type, enabled=False):
-            q = q.float()
-            k = k.float()
-            v = v.float()
-            if self.feature_map == "taylor":
-                # Escalar q,k por 1/sqrt(df) (como Based) mantiene q.k acotado -> Taylor de exp valido.
-                inv = 1.0 / math.sqrt(self.df)
-                q = taylor_feature_map(q * inv)             # B,h,L,Df  (Df = taylor_feature_dim(df))
-                k = taylor_feature_map(k * inv)
-            else:                                           # "elu": comportamiento previo EXACTO
-                q = F.elu(q) + 1.0                          # B,h,L,df  (df = dh si mult==1)
-                k = F.elu(k) + 1.0
-            scores = torch.matmul(q, k.transpose(-1, -2))     # B,h,L,L  (no normalizado)
+        if self.amp_core == "cheap16" and self.feature_map == "elu":
+            # cheap16 (XSPEED v2): nucleo en el dtype AMBIENTE (fp16 bajo AMP) con escala NEUTRA de
+            # phi(q): out = (scores@v)/denom es un cociente y numerador/denominador escalan igual ->
+            # matematica IDENTICA a safe32 (verificado rel diff 7e-06); la escala 1/(L*sqrt(df)) encoge
+            # las sumas O(L*df) (la causa del overflow fp16 >65504 -> NaN) y los matmul fp16 acumulan
+            # en fp32 (tensor cores) asi que la precision no se degrada. Sin AMP es no-op numerico.
+            q = F.elu(q) + 1.0                              # B,h,L,df
+            k = F.elu(k) + 1.0
+            q = q * (1.0 / (L * math.sqrt(self.df)))
+            scores = torch.matmul(q, k.transpose(-1, -2))   # B,h,L,L
             mask = torch.tril(torch.ones(L, L, device=x.device, dtype=torch.bool))
             scores = scores.masked_fill(~mask, 0.0)
             denom = scores.sum(-1, keepdim=True) + 1e-6
-            out = torch.matmul(scores, v) / denom             # B,h,L,dh
+            out = torch.matmul(scores, v) / denom           # B,h,L,dh
+        else:
+            # fp16-SEGURO (medido en G2): la atencion lineal NO esta normalizada (scores = q@k^T con
+            # features elu+1/taylor, SIN 1/sqrt(d)) -> bajo AMP fp16 los scores y el denom OVERFLOWean el
+            # rango de fp16 (>65504) -> inf -> NaN. El NUCLEO (feature map + scores + normalizacion) se
+            # computa en fp32 con autocast OFF; las proyecciones qkv/q_proj/o quedan en fp16 (tensor
+            # cores). En fp32 (sin AMP) esto es un no-op numerico (comportamiento previo EXACTO).
+            # taylor SIEMPRE cae aca aunque se pida cheap16 (no es kernel positivo total, ver config).
+            with torch.autocast(device_type=x.device.type, enabled=False):
+                q = q.float()
+                k = k.float()
+                v = v.float()
+                if self.feature_map == "taylor":
+                    # Escalar q,k por 1/sqrt(df) (como Based) mantiene q.k acotado -> Taylor de exp valido.
+                    inv = 1.0 / math.sqrt(self.df)
+                    q = taylor_feature_map(q * inv)         # B,h,L,Df  (Df = taylor_feature_dim(df))
+                    k = taylor_feature_map(k * inv)
+                else:                                       # "elu": comportamiento previo EXACTO
+                    q = F.elu(q) + 1.0                      # B,h,L,df  (df = dh si mult==1)
+                    k = F.elu(k) + 1.0
+                scores = torch.matmul(q, k.transpose(-1, -2))     # B,h,L,L  (no normalizado)
+                mask = torch.tril(torch.ones(L, L, device=x.device, dtype=torch.bool))
+                scores = scores.masked_fill(~mask, 0.0)
+                denom = scores.sum(-1, keepdim=True) + 1e-6
+                out = torch.matmul(scores, v) / denom             # B,h,L,dh
         out = out.transpose(1, 2).reshape(B, L, D).to(x.dtype)
         return self.o(out)
 
@@ -257,11 +291,12 @@ class SlidingWindowAttention(nn.Module):
     """Atencion softmax causal restringida a una ventana W (KV-cache O(W) en inferencia).
     Si window >= L, es atencion global."""
 
-    def __init__(self, d, n_heads, window):
+    def __init__(self, d, n_heads, window, use_sdpa=False):
         super().__init__()
         self.h = n_heads
         self.dh = d // n_heads
         self.window = window
+        self.use_sdpa = use_sdpa
         self.qkv = nn.Linear(d, 3 * d, bias=False)
         self.o = nn.Linear(d, d, bias=False)
 
@@ -269,6 +304,21 @@ class SlidingWindowAttention(nn.Module):
         B, L, D = x.shape
         qkv = self.qkv(x).view(B, L, 3, self.h, self.dh).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
+        if self.use_sdpa:
+            # SDPA (XSPEED v1/v2): F.scaled_dot_product_attention fusionado (+36% medido en T4);
+            # su softmax interno es estable en fp16 sin el upcast manual. Misma matematica que el
+            # nucleo manual (softmax causal con ventana); con window>=L usa el fast-path is_causal.
+            if cos is not None:
+                q = apply_rope(q, cos, sin)
+                k = apply_rope(k, cos, sin)
+            if self.window >= L:
+                out = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+            else:
+                idx = torch.arange(L, device=x.device)
+                mask = (idx[None, :] <= idx[:, None]) & (idx[None, :] > (idx[:, None] - self.window))
+                out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask)
+            out = out.transpose(1, 2).reshape(B, L, D).to(x.dtype)
+            return self.o(out)
         # fp16-SEGURO (consistente con LinearAttention): nucleo softmax en fp32 (rope + scores +
         # masked_fill(-inf) + softmax + att@v), proyecciones qkv/o en fp16. softmax sobre fp16 con -inf
         # es fragil; en fp32 es estable. En fp32 (sin AMP) es no-op (comportamiento previo EXACTO).
@@ -297,11 +347,13 @@ class Block(nn.Module):
         self.kind = kind
         self.norm1 = RMSNorm(cfg.d_model)
         if kind == "attn":
-            self.mixer = SlidingWindowAttention(cfg.d_model, cfg.n_heads, cfg.window)
+            self.mixer = SlidingWindowAttention(cfg.d_model, cfg.n_heads, cfg.window,
+                                                use_sdpa=getattr(cfg, "attn_sdpa", False))
         else:
             self.mixer = LinearAttention(cfg.d_model, cfg.n_heads,
                                          feature_mult=getattr(cfg, "linear_feature_mult", 1),
-                                         feature_map=getattr(cfg, "linear_feature_map", "elu"))
+                                         feature_map=getattr(cfg, "linear_feature_map", "elu"),
+                                         amp_core=getattr(cfg, "amp_linear_core", "safe32"))
         self.norm2 = RMSNorm(cfg.d_model)
         self.mlp = SwiGLU(cfg.d_model, cfg.d_ff)
 

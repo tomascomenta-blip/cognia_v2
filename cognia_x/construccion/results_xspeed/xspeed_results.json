@@ -1,0 +1,302 @@
+{
+  "experiment": "xspeed_bench_v2",
+  "device": "cuda",
+  "torch": "2.10.0+cu128",
+  "gpu_name": "Tesla T4",
+  "gpu_count": 2,
+  "scale": {
+    "d_model": 256,
+    "n_heads": 8,
+    "n_layers": 12,
+    "n_keys": 256,
+    "n_vals": 32,
+    "n_pairs": 32,
+    "n_queries": 16,
+    "batch": 64,
+    "lr": 0.001
+  },
+  "invariance": {
+    "max_abs_diff": 8.597970008850098e-06,
+    "max_rel_diff": 6.933961384396515e-06,
+    "pass": true
+  },
+  "levers": {
+    "baseline_fp32_b64": {
+      "ms_per_step": 141.02,
+      "steps_per_s": 7.09,
+      "tok_per_s": 36306,
+      "batch": 64,
+      "warmup_s": 1.8,
+      "loss_finite": true,
+      "mem_max_mb": 1935
+    },
+    "cheap16_amp_b64": {
+      "ms_per_step": 75.2,
+      "steps_per_s": 13.3,
+      "tok_per_s": 68085,
+      "batch": 64,
+      "warmup_s": 1.0,
+      "loss_finite": true,
+      "mem_max_mb": 1243
+    },
+    "cheap16_amp_gpugen_bmid": {
+      "ms_per_step": 537.23,
+      "steps_per_s": 1.86,
+      "tok_per_s": 76243,
+      "batch": 512,
+      "warmup_s": 5.5,
+      "loss_finite": true,
+      "mem_max_mb": 8581
+    },
+    "safe_bmid_compile_fused": {
+      "ms_per_step": 301.47,
+      "steps_per_s": 3.32,
+      "tok_per_s": 135869,
+      "batch": 512,
+      "warmup_s": 45.3,
+      "loss_finite": true,
+      "mem_max_mb": 5993
+    },
+    "safe_bmid_reduce_fused": {
+      "ms_per_step": 308.81,
+      "steps_per_s": 3.24,
+      "tok_per_s": 132639,
+      "batch": 512,
+      "warmup_s": 32.6,
+      "loss_finite": true,
+      "mem_max_mb": 5983
+    },
+    "cheap16_bmid_compile_fused": {
+      "ms_per_step": 275.45,
+      "steps_per_s": 3.63,
+      "tok_per_s": 148700,
+      "batch": 512,
+      "warmup_s": 33.9,
+      "loss_finite": true,
+      "mem_max_mb": 6501
+    },
+    "cheap16_bmid_reduce_fused": {
+      "ms_per_step": 289.58,
+      "steps_per_s": 3.45,
+      "tok_per_s": 141444,
+      "batch": 512,
+      "warmup_s": 30.7,
+      "loss_finite": true,
+      "mem_max_mb": 6493
+    },
+    "cheap16_bhi_reduce_fused": {
+      "ms_per_step": 628.71,
+      "steps_per_s": 1.59,
+      "tok_per_s": 130299,
+      "batch": 1024,
+      "warmup_s": 42.1,
+      "loss_finite": true,
+      "mem_max_mb": 12842
+    },
+    "ae4_safe_bmid_reduce_fused": {
+      "ms_per_step": 322.42,
+      "steps_per_s": 3.1,
+      "tok_per_s": 127038,
+      "batch": 512,
+      "warmup_s": 42.3,
+      "loss_finite": true,
+      "mem_max_mb": 6014
+    },
+    "ae4_fast16_bmid_reduce_fused": {
+      "ms_per_step": 292.2,
+      "steps_per_s": 3.42,
+      "tok_per_s": 140177,
+      "batch": 512,
+      "warmup_s": 35.0,
+      "loss_finite": true,
+      "mem_max_mb": 6284
+    },
+    "dp2_safe_bmid": {
+      "ms_per_step": 359.81,
+      "steps_per_s": 2.78,
+      "tok_per_s": 113839,
+      "batch": 512,
+      "warmup_s": 4.5,
+      "loss_finite": true,
+      "mem_max_mb": 5365
+    },
+    "dp2_cheap16_bhi": {
+      "error": "OutOfMemoryError('CUDA out of memory. Tried to allocate 46.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 28.81 MiB is free. Including non-PyTorch memory, this process has 14.53 GiB memory in use. Of the allocated memory 14.04 GiB is allocated by PyTorch, with 6.06 GiB allocated in private",
+      "oom": true
+    }
+  },
+  "nan_watch_fast16": {
+    "steps_run": 3000,
+    "first_nan_step": null,
+    "loss_every100": [
+      2.9976,
+      2.9922,
+      2.9616,
+      2.9019,
+      2.9452,
+      2.9552,
+      2.9902,
+      2.9642,
+      2.9534,
+      2.9642
+    ],
+    "final_loss": 2.9642,
+    "wall_s": 244.5
+  },
+  "parity": {
+    "fp32": {
+      "losses": [
+        3.4925,
+        3.4806,
+        3.4821,
+        3.4477,
+        3.4487,
+        3.3947,
+        3.3556,
+        3.3834,
+        3.3328,
+        3.3296,
+        3.3206,
+        3.2802,
+        3.2486,
+        3.2516,
+        3.2529,
+        3.2509,
+        3.2368,
+        3.2527,
+        3.2122,
+        3.1963,
+        3.1717,
+        3.14,
+        3.2149,
+        3.1715
+      ],
+      "final_loss": 3.1745,
+      "eval_acc": 0.1001,
+      "wall_s": 98.2
+    },
+    "amp_safe": {
+      "losses": [
+        3.4928,
+        3.4804,
+        3.4863,
+        3.4325,
+        3.4201,
+        3.3533,
+        3.3382,
+        3.37,
+        3.2927,
+        3.3007,
+        3.2894,
+        3.2429,
+        3.2213,
+        3.2325,
+        3.2106,
+        3.2041,
+        3.1863,
+        3.2204,
+        3.1566,
+        3.1614,
+        3.1271,
+        3.1241,
+        3.1714,
+        3.1483
+      ],
+      "final_loss": 3.1427,
+      "eval_acc": 0.1015,
+      "wall_s": 58.3
+    },
+    "amp_fast16": {
+      "losses": [
+        3.4927,
+        3.4804,
+        3.4885,
+        3.4274,
+        3.4092,
+        3.3437,
+        3.319,
+        3.3267,
+        3.2918,
+        3.2726,
+        3.2757,
+        3.2237,
+        3.2011,
+        3.2048,
+        3.2038,
+        3.1869,
+        3.1895,
+        3.1838,
+        3.1514,
+        3.1527,
+        3.1061,
+        3.108,
+        3.1828,
+        3.1367
+      ],
+      "final_loss": 3.1334,
+      "eval_acc": 0.0999,
+      "wall_s": 49.2
+    },
+    "amp_fast16_compile": {
+      "losses": [
+        3.4926,
+        3.4806,
+        3.4828,
+        3.4328,
+        3.4049,
+        3.3385,
+        3.3129,
+        3.3389,
+        3.2924,
+        3.2742,
+        3.2709,
+        3.2409,
+        3.2233,
+        3.2227,
+        3.2209,
+        3.1969,
+        3.1963,
+        3.1975,
+        3.1639,
+        3.1676,
+        3.1342,
+        3.1076,
+        3.1916,
+        3.1414
+      ],
+      "final_loss": 3.1437,
+      "eval_acc": 0.102,
+      "wall_s": 69.9
+    },
+    "rel_diff_amp_safe": 0.01,
+    "rel_diff_amp_fast16": 0.0129,
+    "rel_diff_amp_fast16_compile": 0.0097
+  },
+  "grok_quality": {
+    "fp32": {
+      "grok_step": 3600,
+      "best_acc": 0.8158,
+      "steps_run": 3600,
+      "wall_s": 67.5
+    },
+    "amp_safe": {
+      "grok_step": 3600,
+      "best_acc": 0.8271,
+      "steps_run": 3600,
+      "wall_s": 79.5
+    },
+    "amp_fast16": {
+      "grok_step": 3600,
+      "best_acc": 0.8135,
+      "steps_run": 3600,
+      "wall_s": 68.4
+    },
+    "amp_fast16_compile_reduce": {
+      "grok_step": 3600,
+      "best_acc": 0.8118,
+      "steps_run": 3600,
+      "wall_s": 34.5
+    }
+  },
+  "minutes_total": 19.6
+}

@@ -4791,3 +4791,29 @@ GOTCHA hallado: LlamaBackend ADOPTA un server ya vivo en el puerto SIN reiniciar
 antes de testear un cambio de adapter. Revertir deploy: borrar la env var LLAMA_LORA_PATH.
 Honestidad: efecto real pero parcial; considerar entrenar/exportar el adapter para Q4_K_M o
 subir r/target_modules si se quiere el delta completo en el deploy.
+
+### H. 2026-07-01 (3ra sesion): XSPEED - entrenamiento 4.10x en Kaggle T4 (TAREA 1 del goal CogniaX)
+Goal persistente (comando goal) de 3 tareas: velocidad T4, alternativas a backprop, limitaciones
+de respuestas. TAREA 1 CERRADA con verificacion real en 2 rondas de kernel Kaggle (cognia-xspeed-bench):
+  Ronda 1 (18.5 min T4): re-midio el AMP POST-fix fp16-seguro (el 4.1x del 2026-06-29 era del
+  path inseguro que NaNea en step 1664): fp32 36.5k tok/s, safe 59.4k (1.63x), ganador seguro
+  amp+gpugen+b512+compile+fused = 114.1k (3.13x). Confirmado launch-bound: CUDA-graphs a b64
+  rinde 108k (~= b512). Descartes medidos: max-autotune 97k < default 109.6k; grad-ckpt 1.19x
+  (palanca de memoria: 10.4GB a 1.6GB); b768+ OOM sin compile; DP 2xT4 b1024 OOM.
+  Ronda 2 (19.6 min T4): atencion lineal CHEAP16 = nucleo todo-fp16 con escala NEUTRA de phi(q)
+  post-feature-map (el cociente scores*v sobre denom no cambia; las sumas O(L*df) eran el
+  overflow; matmul fp16 acumula fp32). GANADOR: cheap16+SDPA+b512+compile+fused = 148.7k tok/s
+  = 4.10x fp32, superando al 147.8k invalido pre-fix. 4 GATES: invariancia 7e-06; NaN-watch
+  3000 steps limpio en la config exacta del NaN original; paridad de loss 1.3% y 0.97% (banda de
+  amp_safe); grokking e2e las 4 variantes en el MISMO step 3600 (config validada m0_grok_accel;
+  el gate v1 uso una tarea mas dificil por error, falso negativo del GATE, corregido).
+  DP 2xT4 b512 DESCARTADO con numeros: 113.8k < 132-136k de UNA GPU (scatter/gather come mas).
+PORTADO al canon: hybrid.py levers opt-in amp_linear_core="cheap16" + attn_sdpa (defaults
+intactos; taylor cae a safe32 documentado); train_and_eval los expone; 6 tests nuevos
+(test_xspeed_levers.py) + 6 de regresion previa = 12 de 12. Sintesis: M0_XSPEED_RESULTADO.md.
+Commits: 9c2bb6b (kernel v1) 2ebc379 (results v1) 91467e3 (kernel v2) + este. Fix operativo:
+el kaggle CLI lee code_file en cp1252, se fuerza PYTHONUTF8=1 en el orquestador.
+TAREA 2 EN CURSO: exp049_learning_rules (harness comun, protocolo pre-registrado) con 7 metodos
+(bp, dfa, ff, pc, dtp, eqprop, es) implementados y smokeados (commit d4cef84); corrida full 3
+seeds x 5 epochs corriendo local. Hallazgos tempranos: PC 0.788 > BP 0.661 en smoke a ~6x costo
+(el repo tenia "~100x" de literatura sin medir); DFA de libro COLAPSA (0.054) sin salida-en-cero.
