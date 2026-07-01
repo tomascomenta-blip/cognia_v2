@@ -844,3 +844,104 @@ class TestRealShardInference:
         result = orch.infer("Say one word.", lpc_session_id="e2e_eos_test")
         assert "<|im_end|>" not in result.text
         assert "<|endoftext|>" not in result.text
+
+
+class TestIntraTurnKVEvictedOnError:
+    """Intra-turn sessions have NO age/TTL backstop for the RealTransformerLayer
+    KV-cache (only the optional MLA cache is age-evicted), so a generation that raises
+    mid-loop must still evict its session or its layer KV leaks for the engine's
+    lifetime. LPC sessions, by contrast, persist across turns and must NOT be evicted.
+    Both _generate_local and _shard_infer_stream share the same try/finally guard.
+    """
+
+    def _orch(self):
+        from shattering.orchestrator import ShatteringOrchestrator, LatentPersistenceCache
+        orch = ShatteringOrchestrator.__new__(ShatteringOrchestrator)
+        orch._lpc = LatentPersistenceCache()
+
+        class _Frag:
+            _engines = {}
+        orch._fragments = _Frag()
+        orch._evicted = []
+        orch._evict_one_mla_session = lambda sid: orch._evicted.append(sid)
+        return orch
+
+    class _FakePipe:
+        model_name = "qwen2.5-coder-3b"
+
+        def __init__(self, raise_forward=False):
+            self._raise_forward = raise_forward
+
+        def _get_model_config(self):
+            return {"hidden_dim": 8, "vocab_size": 16}
+
+        def _encode(self, text):
+            return [1, 2, 3]
+
+        def _decode(self, ids):
+            return "ok"
+
+        def _forward_through_swarm(self, *a, **k):
+            if self._raise_forward:
+                raise RuntimeError("forward blew up")
+            return np.zeros((1, 8), dtype=np.float32), True
+
+    # ── non-streaming path (_generate_local) ──────────────────────────────────
+
+    def test_generate_local_evicts_intra_turn_on_exception(self):
+        orch = self._orch()
+        orch._token_loop = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+        with pytest.raises(RuntimeError):
+            orch._generate_local("hi", self._FakePipe(), [], lpc_session_id=None)
+        assert len(orch._evicted) == 1
+        assert orch._evicted[0].startswith("intra_")
+
+    def test_generate_local_does_not_evict_lpc_on_exception(self):
+        orch = self._orch()
+        orch._lpc.get_or_create("sess")
+        orch._lpc.update("sess", np.array([1, 2], dtype=np.int32))  # real prefix of [1,2,3]
+        orch._token_loop = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+        with pytest.raises(RuntimeError):
+            orch._generate_local("hi", self._FakePipe(), [], lpc_session_id="sess")
+        assert orch._evicted == []   # LPC session persists across turns
+
+    def test_generate_local_evicts_intra_turn_on_success(self):
+        orch = self._orch()
+        orch._token_loop = lambda *a, **k: ([5, 6], 2)
+        res = orch._generate_local("hi", self._FakePipe(), [], lpc_session_id=None)
+        assert res["ok"] is True
+        assert len(orch._evicted) == 1 and orch._evicted[0].startswith("intra_")
+
+    # ── streaming path (_shard_infer_stream) ──────────────────────────────────
+
+    def _prime_stream(self, orch, pipe):
+        orch._pipeline = pipe
+        orch._local_route = []
+        orch._draft = None            # spec off -> normal single-token path only
+        orch._max_tokens = 4
+        orch._SPEC_N_DRAFT = 4
+
+    class _Loop:
+        def call_soon_threadsafe(self, fn, arg):
+            fn(arg)
+
+    class _Queue:
+        def put_nowait(self, item):
+            pass
+
+    def test_shard_infer_stream_evicts_intra_turn_on_exception(self):
+        orch = self._orch()
+        self._prime_stream(orch, self._FakePipe(raise_forward=True))
+        with pytest.raises(RuntimeError):
+            orch._shard_infer_stream("hi", self._Queue(), self._Loop(), lpc_session_id=None)
+        assert len(orch._evicted) == 1
+        assert orch._evicted[0].startswith("intra_")
+
+    def test_shard_infer_stream_does_not_evict_lpc_on_exception(self):
+        orch = self._orch()
+        orch._lpc.get_or_create("sess")
+        orch._lpc.update("sess", np.array([1, 2], dtype=np.int32))
+        self._prime_stream(orch, self._FakePipe(raise_forward=True))
+        with pytest.raises(RuntimeError):
+            orch._shard_infer_stream("hi", self._Queue(), self._Loop(), lpc_session_id="sess")
+        assert orch._evicted == []

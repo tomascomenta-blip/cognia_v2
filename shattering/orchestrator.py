@@ -771,119 +771,124 @@ class ShatteringOrchestrator:
         spec_attempts    = 0      # adaptive guard: disable a weak draft mid-turn
         spec_acc_total   = 0
 
-        for _ in range(self._max_tokens):
-            # ── Speculative path ──────────────────────────────────────────
-            # The anchor is the last committed-but-un-forwarded token; the draft
-            # proposes what follows it. candidates = [anchor, d_1 .. d_{N-1}].
-            if spec_on and prev_output is not None:
-                gen_arr = np.array(generated_ids, dtype=np.int32)
-                ctx_for_draft = np.concatenate([prompt_ids[-32:], gen_arr]) \
-                    if len(gen_arr) else prompt_ids[-64:]
-                anchor     = int(current_ids[-1])
-                candidates = [anchor] + list(self._draft.draft(ctx_for_draft, n=_N_DRAFT - 1))
+        try:
+            for _ in range(self._max_tokens):
+                # ── Speculative path ──────────────────────────────────────────
+                # The anchor is the last committed-but-un-forwarded token; the draft
+                # proposes what follows it. candidates = [anchor, d_1 .. d_{N-1}].
+                if spec_on and prev_output is not None:
+                    gen_arr = np.array(generated_ids, dtype=np.int32)
+                    ctx_for_draft = np.concatenate([prompt_ids[-32:], gen_arr]) \
+                        if len(gen_arr) else prompt_ids[-64:]
+                    anchor     = int(current_ids[-1])
+                    candidates = [anchor] + list(self._draft.draft(ctx_for_draft, n=_N_DRAFT - 1))
 
-                kv_before = max((eng.kv_len(session_id) for eng in _LOCAL_ENGINES
-                                 if hasattr(eng, "kv_len")), default=0)
-                batch_ids = np.array(candidates, dtype=np.int32)
-                out_batch, ok = pipeline._forward_through_swarm(
-                    batch_ids, session_id, route, hidden_dim
-                )
-
-                if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
-                    new_tokens, matched, eos_hit = self._spec_resolve(
-                        candidates, out_batch, vocab_size, eos_set, temperature
+                    kv_before = max((eng.kv_len(session_id) for eng in _LOCAL_ENGINES
+                                     if hasattr(eng, "kv_len")), default=0)
+                    batch_ids = np.array(candidates, dtype=np.int32)
+                    out_batch, ok = pipeline._forward_through_swarm(
+                        batch_ids, session_id, route, hidden_dim
                     )
-                    # Keep ONLY the matched (validly-forwarded) KV slots; drop
-                    # the phantom slot of any rejected/un-forwarded candidate.
-                    for eng in _LOCAL_ENGINES:
-                        if hasattr(eng, "truncate_kv"):
-                            eng.truncate_kv(session_id, kv_before + matched)
 
-                    done = eos_hit
-                    for tok_id in new_tokens:
-                        if tok_id in eos_set:
-                            done = True
+                    if ok and out_batch.ndim == 2 and out_batch.shape[0] == _N_DRAFT:
+                        new_tokens, matched, eos_hit = self._spec_resolve(
+                            candidates, out_batch, vocab_size, eos_set, temperature
+                        )
+                        # Keep ONLY the matched (validly-forwarded) KV slots; drop
+                        # the phantom slot of any rejected/un-forwarded candidate.
+                        for eng in _LOCAL_ENGINES:
+                            if hasattr(eng, "truncate_kv"):
+                                eng.truncate_kv(session_id, kv_before + matched)
+
+                        done = eos_hit
+                        for tok_id in new_tokens:
+                            if tok_id in eos_set:
+                                done = True
+                                break
+                            generated_ids.append(tok_id)
+                            tokens_generated += 1
+                        # Decode cumulatively; emit only the new suffix
+                        _full = pipeline._decode(generated_ids)
+                        _new  = _full[_prev_text_len:]
+                        _prev_text_len = len(_full)
+                        if _new:
+                            loop.call_soon_threadsafe(queue.put_nowait, (_new, None))
+
+                        # Trailing committed token becomes the next anchor (un-forwarded;
+                        # its KV is built by the next batch or a normal step).
+                        current_ids = np.array([new_tokens[-1]], dtype=np.int32)
+
+                        # Adaptive guard: disable a weak draft for the rest of the turn.
+                        spec_attempts  += 1
+                        spec_acc_total += matched - 1
+                        if (spec_attempts >= self._SPEC_WARMUP and
+                                spec_acc_total / spec_attempts < self._SPEC_MIN_MEAN_ACCEPT):
+                            spec_on = False
+                            logger.info("[SpecLoop] draft weak (mean accept %.2f) — "
+                                        "disabling speculative decoding for this turn",
+                                        spec_acc_total / spec_attempts)
+                        if tokens_generated % 10 == 0:
+                            elapsed = _time.perf_counter() - t_loop
+                            rate    = tokens_generated / elapsed if elapsed > 0 else 0
+                            logger.info("[SpecLoop] %d tokens, %.2f tok/s (matched %d/%d drafts)",
+                                        tokens_generated, rate, matched, _N_DRAFT)
+                        if done:
                             break
-                        generated_ids.append(tok_id)
-                        tokens_generated += 1
-                    # Decode cumulatively; emit only the new suffix
-                    _full = pipeline._decode(generated_ids)
-                    _new  = _full[_prev_text_len:]
-                    _prev_text_len = len(_full)
-                    if _new:
-                        loop.call_soon_threadsafe(queue.put_nowait, (_new, None))
+                        continue   # skip normal path below
 
-                    # Trailing committed token becomes the next anchor (un-forwarded;
-                    # its KV is built by the next batch or a normal step).
-                    current_ids = np.array([new_tokens[-1]], dtype=np.int32)
+                # ── Normal single-token path ──────────────────────────────────
+                output, success = pipeline._forward_through_swarm(
+                    current_ids, session_id, route, hidden_dim
+                )
+                if not success:
+                    break
+                next_id     = pipeline._sample(output, temperature=temperature)
+                prev_output = output
+                tokens_generated += 1
 
-                    # Adaptive guard: disable a weak draft for the rest of the turn.
-                    spec_attempts  += 1
-                    spec_acc_total += matched - 1
-                    if (spec_attempts >= self._SPEC_WARMUP and
-                            spec_acc_total / spec_attempts < self._SPEC_MIN_MEAN_ACCEPT):
-                        spec_on = False
-                        logger.info("[SpecLoop] draft weak (mean accept %.2f) — "
-                                    "disabling speculative decoding for this turn",
-                                    spec_acc_total / spec_attempts)
-                    if tokens_generated % 10 == 0:
-                        elapsed = _time.perf_counter() - t_loop
-                        rate    = tokens_generated / elapsed if elapsed > 0 else 0
-                        logger.info("[SpecLoop] %d tokens, %.2f tok/s (matched %d/%d drafts)",
-                                    tokens_generated, rate, matched, _N_DRAFT)
-                    if done:
-                        break
-                    continue   # skip normal path below
+                if tokens_generated % 10 == 0:
+                    elapsed = _time.perf_counter() - t_loop
+                    rate    = tokens_generated / elapsed if elapsed > 0 else 0
+                    logger.info("[TokenLoop] %d tokens, %.2f tok/s", tokens_generated, rate)
 
-            # ── Normal single-token path ──────────────────────────────────
-            output, success = pipeline._forward_through_swarm(
-                current_ids, session_id, route, hidden_dim
+                if next_id in eos_set:
+                    break
+                generated_ids.append(next_id)
+                # Decode cumulatively; emit only the new suffix so byte-level BPE
+                # tokens that form partial UTF-8 sequences are never sent as empty strings.
+                _full = pipeline._decode(generated_ids)
+                _new  = _full[_prev_text_len:]
+                _prev_text_len = len(_full)
+                if _new:
+                    loop.call_soon_threadsafe(queue.put_nowait, (_new, None))
+                current_ids = np.array([next_id], dtype=np.int32)
+
+            text = pipeline._decode(generated_ids)
+
+            # Update LPC so the next streaming call can skip the cached prefix.
+            # Store the FULL token sequence (prompt + generated) so the next turn can
+            # verify it is a real extension before reusing this KV-cache.
+            if lpc_entry is not None and lpc_session_id is not None:
+                full_prefix = (np.concatenate([all_ids, np.array(generated_ids, dtype=all_ids.dtype)])
+                               if generated_ids else all_ids)
+                self._lpc.update(lpc_session_id, full_prefix)
+
+            return InferResult(
+                text             = text,
+                sub_model        = "logos",
+                confidence       = 0.0,
+                latency_ms       = round((_time.perf_counter() - t0) * 1000, 1),
+                mode             = "local",
+                route_reason     = "shard_stream",
+                tokens_generated = tokens_generated,
             )
-            if not success:
-                break
-            next_id     = pipeline._sample(output, temperature=temperature)
-            prev_output = output
-            tokens_generated += 1
-
-            if tokens_generated % 10 == 0:
-                elapsed = _time.perf_counter() - t_loop
-                rate    = tokens_generated / elapsed if elapsed > 0 else 0
-                logger.info("[TokenLoop] %d tokens, %.2f tok/s", tokens_generated, rate)
-
-            if next_id in eos_set:
-                break
-            generated_ids.append(next_id)
-            # Decode cumulatively; emit only the new suffix so byte-level BPE
-            # tokens that form partial UTF-8 sequences are never sent as empty strings.
-            _full = pipeline._decode(generated_ids)
-            _new  = _full[_prev_text_len:]
-            _prev_text_len = len(_full)
-            if _new:
-                loop.call_soon_threadsafe(queue.put_nowait, (_new, None))
-            current_ids = np.array([next_id], dtype=np.int32)
-
-        text = pipeline._decode(generated_ids)
-
-        # Update LPC so the next streaming call can skip the cached prefix.
-        # Store the FULL token sequence (prompt + generated) so the next turn can
-        # verify it is a real extension before reusing this KV-cache.
-        if lpc_entry is not None and lpc_session_id is not None:
-            full_prefix = (np.concatenate([all_ids, np.array(generated_ids, dtype=all_ids.dtype)])
-                           if generated_ids else all_ids)
-            self._lpc.update(lpc_session_id, full_prefix)
-        else:
-            # Intra-turn session — evict immediately so MLA cache doesn't leak
-            self._evict_one_mla_session(session_id)
-
-        return InferResult(
-            text             = text,
-            sub_model        = "logos",
-            confidence       = 0.0,
-            latency_ms       = round((_time.perf_counter() - t0) * 1000, 1),
-            mode             = "local",
-            route_reason     = "shard_stream",
-            tokens_generated = tokens_generated,
-        )
+        finally:
+            # Intra-turn sessions have NO age/TTL backstop for the
+            # RealTransformerLayer KV-cache, so evict here even if the loop
+            # raised mid-generation (otherwise a failed turn leaks its layer
+            # KV for the engine's lifetime). LPC sessions persist deliberately.
+            if lpc_entry is None:
+                self._evict_one_mla_session(session_id)
 
     def _shard_infer(self, prompt: str, lpc_session_id: Optional[str] = None,
                      temperature: float = 0.5) -> tuple:
@@ -953,29 +958,35 @@ class ShatteringOrchestrator:
             current_ids = all_ids
             lpc_entry   = None
 
-        generated_ids, tokens_generated = self._token_loop(
-            pipeline, route, session_id, current_ids, hidden_dim, eos_set,
-            temperature=temperature
-        )
+        try:
+            generated_ids, tokens_generated = self._token_loop(
+                pipeline, route, session_id, current_ids, hidden_dim, eos_set,
+                temperature=temperature
+            )
 
-        # ── LPC: update cached token sequence ─────────────────────────────
-        # Persist the FULL token IDs (prompt + generated) so the next turn can
-        # verify the new prompt extends this prefix before reusing the KV-cache.
-        if lpc_entry is not None:
-            full_prefix = (np.concatenate([all_ids, np.array(generated_ids, dtype=all_ids.dtype)])
-                           if generated_ids else all_ids)
-            self._lpc.update(lpc_session_id, full_prefix)
-        else:
-            # Intra-turn session — evict immediately so MLA cache doesn't leak
-            self._evict_one_mla_session(session_id)
+            # ── LPC: update cached token sequence ─────────────────────────────
+            # Persist the FULL token IDs (prompt + generated) so the next turn can
+            # verify the new prompt extends this prefix before reusing the KV-cache.
+            if lpc_entry is not None:
+                full_prefix = (np.concatenate([all_ids, np.array(generated_ids, dtype=all_ids.dtype)])
+                               if generated_ids else all_ids)
+                self._lpc.update(lpc_session_id, full_prefix)
 
-        text = pipeline._decode(generated_ids)
-        return {
-            "ok":               True,
-            "text":             text,
-            "tokens_generated": tokens_generated,
-            "latency_ms":       round((_time.perf_counter() - t0) * 1000, 1),
-        }
+            text = pipeline._decode(generated_ids)
+            return {
+                "ok":               True,
+                "text":             text,
+                "tokens_generated": tokens_generated,
+                "latency_ms":       round((_time.perf_counter() - t0) * 1000, 1),
+            }
+        finally:
+            # Intra-turn sessions have NO age/TTL backstop for the RealTransformerLayer
+            # KV-cache (only the optional MLA cache is age-evicted), so evict here even
+            # if _token_loop raised mid-generation — otherwise a failed turn leaks its
+            # layer KV for the engine's lifetime. LPC sessions persist deliberately
+            # (cleared on prefix-mismatch or by TTL eviction).
+            if lpc_entry is None:
+                self._evict_one_mla_session(session_id)
 
     def _token_loop(self, pipeline, route: list, session_id: str,
                     current_ids, hidden_dim: int, eos_set: set,

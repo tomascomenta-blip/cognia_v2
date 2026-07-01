@@ -652,7 +652,10 @@ class RealTransformerLayer:
         else:
             K, V = K_new, V_new
 
-        # Store updated cache (single-session: replace all other entries)
+        # Store the full K/V under session_id for LPC cross-turn reuse. Entries are
+        # keyed PER session and are NOT auto-limited to one; callers must evict via
+        # clear_cache(session_id) (the orchestrator does so per-turn and on TTL) or
+        # the dict grows for the engine's lifetime.
         if session_id:
             self._kv_cache[session_id] = (K, V)
 
