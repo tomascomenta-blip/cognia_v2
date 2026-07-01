@@ -2,6 +2,26 @@
 
 ---
 
+## [3.7.1] - 2026-07-01
+
+### Fix — Agente (loop + herramientas) y backend; feature — pipeline tool-use
+
+Publica los cambios acumulados desde 3.7.0 en el codigo empaquetado.
+
+- **Agente mas robusto** (`cognia/agent/loop.py`, `cognia/agent/tools.py`,
+  `cognia/__main__.py`, `cognia/cli.py`): loop que fija el objetivo, salva la prosa,
+  detecta ciclos y usa stop-sequence en cada paso (elimina generate-then-discard);
+  RESULTADO muestra ruta relativa al workspace; robustez de las herramientas.
+- **Memoria / grafo de conocimiento** (`cognia/knowledge/graph.py`): 6 bugs de las
+  herramientas de memoria/KG arreglados (auditados).
+- **Backend** (`node/llama_backend.py`, `shattering/orchestrator.py`): ajustes de
+  robustez del backend llama.cpp / orquestador.
+- **Feature — fine-tune tool-use** (`cognia_v3/training/tooluse/`,
+  `cognia_v3/training/kaggle/`): pipeline de generacion de trayectorias verificadas por
+  ejecucion, banco de tareas y scripts de entreno en Kaggle.
+
+---
+
 ## [3.5.1] - 2026-06-08
 
 ### Fix — Chat offline (sin Ollama) + `/doctor` instalado por pip
