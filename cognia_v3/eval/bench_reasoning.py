@@ -129,9 +129,9 @@ def gen(backend, user_prompt, max_tokens, temperature, seed):
     return out, time.time() - t0
 
 
-def run_condition(backend, items, cond, log):
-    """cond: 'direct' | 'cot' | 'sc3'. Devuelve {id: {pred, ok, wall_s, [votes]}}."""
-    res = {}
+def run_condition(backend, items, cond, log, res=None, on_item=None):
+    """cond: 'direct' | 'cot' | 'sc3'. Llena res {id: {pred, ok, wall_s, [votes]}} in-place."""
+    res = {} if res is None else res
     for iid, q, ans in items:
         if cond == "direct":
             out, dt = gen(backend, q + ANSWER_TAG, 96, 0.0, 0)
@@ -152,6 +152,8 @@ def run_condition(backend, items, cond, log):
         if cond == "sc3":
             res[iid]["votes"] = votes
         log(f"  [{cond}:{iid}] pred={pred} esperado={ans} {'OK' if ok else 'X'} ({dt:.0f}s)")
+        if on_item:
+            on_item()           # guardado incremental: sobrevive kills/timeouts
     return res
 
 
@@ -178,6 +180,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true", help="3 items, solo direct")
     ap.add_argument("--conds", type=str, default="direct,cot,sc3")
+    ap.add_argument("--out", type=str, default=None, help="nombre fijo del json de salida")
     args = ap.parse_args()
 
     from node.llama_backend import LlamaBackend
@@ -193,7 +196,7 @@ def main():
            "backend_info": str(info), "n_items": len(items), "conds": conds, "results": {},
            "format": {}, "summary": {}}
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-    out_path = EVAL_DIR / f"results_reasoning_{ts}.json"
+    out_path = EVAL_DIR / (args.out or f"results_reasoning_{ts}.json")
 
     def log(s):
         print(s, flush=True)
@@ -203,8 +206,14 @@ def main():
 
     for cond in conds:
         log(f"\n==== {cond} ====")
-        out["results"][cond] = run_condition(backend, items, cond, log)
-        out["summary"][cond] = summarize(out["results"][cond])
+        block = {}
+        out["results"][cond] = block
+
+        def save_item(block=block, cond=cond):
+            out["summary"][cond] = summarize(block)
+            save()
+
+        run_condition(backend, items, cond, log, res=block, on_item=save_item)
         save()
 
     if not args.smoke:
