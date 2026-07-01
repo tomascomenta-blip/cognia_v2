@@ -28,7 +28,8 @@ class _FakeLlama:
         self.last_tokens_predicted = 7
         self.last_stop_reason = "eos"
 
-    def generate(self, prompt, max_tokens=256, temperature=0.7):
+    def generate(self, prompt, max_tokens=256, temperature=0.7, stop=None):
+        # stop=None: refleja la firma real del facade (Commit C: threading de stop).
         self.calls.append({"method": "generate", "max_tokens": max_tokens})
         return "respuesta"
 

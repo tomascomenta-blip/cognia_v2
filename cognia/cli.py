@@ -6936,7 +6936,13 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         try:
             # temperature=0.0: seleccion de herramienta DETERMINISTA (el agente
             # debe seguir un formato estricto; el sampling alto lo hacia divagar).
-            raw_response = orch.infer(prompt, temperature=0.0).text.strip()
+            # stop='\nACCION:': corta apenas el modelo empieza un 2do bloque de
+            # accion (donde first_action_block ya truncaba) -> elimina el
+            # generate-then-discard del rambling. NO se incluye '\nRESULTADO'
+            # porque el contenido multi-linea de escribir_archivo puede contenerlo.
+            raw_response = orch.infer(
+                prompt, temperature=0.0, stop=["\nACCION:", "\nACCIÓN:"],
+            ).text.strip()
         except Exception as e:
             _print_fn(f"[err_cl]Agente: error LLM: {e}[/err_cl]")
             break

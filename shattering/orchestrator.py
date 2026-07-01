@@ -212,7 +212,8 @@ class ShatteringOrchestrator:
 
     def infer(self, prompt: str, lpc_session_id: Optional[str] = None,
               max_tokens: Optional[int] = None,
-              temperature: Optional[float] = None) -> InferResult:
+              temperature: Optional[float] = None,
+              stop: Optional[list] = None) -> InferResult:
         """
         Route the prompt, load the right sub-model, and return generated text.
 
@@ -259,6 +260,7 @@ class ShatteringOrchestrator:
                 prompt, decision, lpc_session_id=lpc_session_id,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                stop=stop,
             )
 
         return InferResult(
@@ -512,7 +514,8 @@ class ShatteringOrchestrator:
     def _local_infer(self, prompt: str, decision: RouteDecision,
                      lpc_session_id: Optional[str] = None,
                      temperature: Optional[float] = None,
-                     max_tokens: Optional[int] = None):
+                     max_tokens: Optional[int] = None,
+                     stop: Optional[list] = None):
         """Returns (text, mode, tokens_generated). max_tokens=None uses self._max_tokens."""
         if temperature is None:
             temperature = self._TEMPERATURES.get(decision.sub_model, 0.5)
@@ -524,7 +527,7 @@ class ShatteringOrchestrator:
             system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
             result = self._llama.generate(formatted, max_tokens=_max_toks,
-                                          temperature=temperature)
+                                          temperature=temperature, stop=stop)
             if result is not None:
                 # Prefer the real count reported by llama-server (tokens_predicted);
                 # fall back to a len//4 estimate if the backend doesn't expose it

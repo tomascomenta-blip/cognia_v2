@@ -257,7 +257,8 @@ class _LlamaCppBackend:
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
                  min_p=None, repeat_penalty=None, seed=None,
-                 cache_prompt: bool = True, grammar: str = None) -> Optional[str]:
+                 cache_prompt: bool = True, grammar: str = None,
+                 stop=None) -> Optional[str]:
         # cache_prompt se ignora: backend in-process, no hay KV-cache de server.
         # grammar se ignora: el binding exige un objeto LlamaGrammar, no el
         # string GBNF crudo que acepta llama-server (fuera de alcance aca).
@@ -273,8 +274,8 @@ class _LlamaCppBackend:
                 temperature = temperature,
                 echo        = False,
                 # Mismos stop strings que el server backend: corta en fin de turno
-                # ChatML en vez de seguir generando texto del siguiente turno.
-                stop        = ["<|im_end|>", "<|endoftext|>"],
+                # ChatML; MERGE con los stops extra del caller (nunca reemplaza).
+                stop        = ["<|im_end|>", "<|endoftext|>"] + list(stop or []),
                 **extra,
             )
             # Mismo contrato que el server backend: token count real + stop reason.
@@ -415,13 +416,16 @@ class _LlamaServerBackend:
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
                  min_p=None, repeat_penalty=None, seed=None,
-                 cache_prompt: bool = True, grammar: str = None) -> Optional[str]:
+                 cache_prompt: bool = True, grammar: str = None,
+                 stop=None) -> Optional[str]:
         import urllib.error
         payload = self._json.dumps({
             "prompt":      prompt,
             "n_predict":   max_tokens,
             "temperature": temperature,
-            "stop":        ["<|im_end|>", "<|endoftext|>"],
+            # MERGE (no reemplazo): siempre corta en fin-de-turno, y ademas en los
+            # stops extra que pase el caller (p.ej. '\nACCION:' del agente).
+            "stop":        ["<|im_end|>", "<|endoftext|>"] + list(stop or []),
             # cache_prompt True (default): no re-prefilla el historial entero.
             # False: prefill completo — el KV-cache reusado cambia los logits
             # (experimento 2026-06-11), necesario para benchmarks deterministas.
@@ -651,7 +655,8 @@ class LlamaBackend:
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
                  min_p=None, repeat_penalty=None, seed=None,
-                 cache_prompt: bool = True, grammar: str = None) -> Optional[str]:
+                 cache_prompt: bool = True, grammar: str = None,
+                 stop=None) -> Optional[str]:
         # Sampling params: se reenvian SOLO si no son None, asi un impl viejo
         # sin esos kwargs sigue funcionando con la llamada posicional de siempre.
         extra = _sampling_payload(top_p=top_p, top_k=top_k, min_p=min_p,
@@ -663,6 +668,10 @@ class LlamaBackend:
         # grammar (string GBNF): solo si se pasa, mismo criterio que arriba.
         if grammar is not None:
             extra["grammar"] = grammar
+        # stop extra (p.ej. '\nACCION:' del loop del agente): solo si se pasa. El
+        # impl lo MERGEA con los stops de fin-de-turno, nunca los reemplaza.
+        if stop is not None:
+            extra["stop"] = stop
         return self._impl.generate(prompt, max_tokens, temperature, **extra)
 
     def generate_long(self, prompt: str, max_total_tokens: int = None,
