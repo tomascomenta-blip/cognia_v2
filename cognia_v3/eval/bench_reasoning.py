@@ -78,6 +78,12 @@ ANSWER_TAG = ("\n\nEscribí la respuesta final en la ÚLTIMA línea con este for
               "RESPUESTA: <número>")
 COT_TAG = ("\n\nPensá paso a paso: mostrá el razonamiento en pasos numerados y recién al final "
            "escribí la ÚLTIMA línea con este formato exacto:\nRESPUESTA: <número>")
+# Variante deployable SIN routing por query: el CoT vive en el SYSTEM prompt, con cláusula de
+# excepción de formato (medido: el CoT por turno rompe compliance 0.75 -> 0.25).
+SYS_COT_EXTRA = (" Cuando la pregunta requiera cálculo o razonamiento de varios pasos, razoná "
+                 "paso a paso mostrando los pasos antes de dar la respuesta final. Pero si el "
+                 "usuario pide un formato exacto de salida (solo un número, un JSON, etc.), "
+                 "respondé ÚNICAMENTE en ese formato, sin razonamiento visible ni texto extra.")
 
 
 def extract_int(text):
@@ -119,10 +125,10 @@ def check_format(kind, expected, text):
     return False, False
 
 
-def gen(backend, user_prompt, max_tokens, temperature, seed):
+def gen(backend, user_prompt, max_tokens, temperature, seed, system=None):
     from node.inference_pipeline import _apply_qwen_template
     from shattering.model_constants import COGNIA_SYSTEM_PROMPT
-    prompt = _apply_qwen_template(user_prompt, system=COGNIA_SYSTEM_PROMPT)
+    prompt = _apply_qwen_template(user_prompt, system=system or COGNIA_SYSTEM_PROMPT)
     t0 = time.time()
     out = backend.generate(prompt, max_tokens=max_tokens, temperature=temperature,
                            seed=seed, cache_prompt=False)
@@ -138,6 +144,9 @@ def run_condition(backend, items, cond, log, res=None, on_item=None):
             pred = extract_int(out)
         elif cond == "cot":
             out, dt = gen(backend, q + COT_TAG, 400, 0.0, 0)
+            pred = extract_int(out)
+        elif cond == "cot_system":              # CoT en el SYSTEM prompt; el turno de usuario = direct
+            out, dt = gen(backend, q + ANSWER_TAG, 400, 0.0, 0, system=_sys_cot())
             pred = extract_int(out)
         else:                                   # sc3: CoT a temp 0.7, 3 seeds, voto mayoría
             votes, dt = [], 0.0
@@ -157,12 +166,19 @@ def run_condition(backend, items, cond, log, res=None, on_item=None):
     return res
 
 
+def _sys_cot():
+    from shattering.model_constants import COGNIA_SYSTEM_PROMPT
+    return COGNIA_SYSTEM_PROMPT + SYS_COT_EXTRA
+
+
 def run_format(backend, cond, log):
     res = {}
     for fid, q, kind, expected in FORMAT_ITEMS:
         extra = COT_TAG.replace("RESPUESTA: <número>", "tu respuesta en el formato pedido") \
             if cond == "cot" else ""
-        out, dt = gen(backend, q + extra, 300 if cond == "cot" else 120, 0.0, 0)
+        system = _sys_cot() if cond == "cot_system" else None
+        out, dt = gen(backend, q + extra, 300 if cond in ("cot", "cot_system") else 120, 0.0, 0,
+                      system=system)
         comp, corr = check_format(kind, expected, out)
         res[fid] = {"compliance": comp, "correct": corr, "wall_s": round(dt, 1),
                     "raw": out[:200]}
@@ -217,7 +233,8 @@ def main():
         save()
 
     if not args.smoke:
-        for cond in ("direct", "cot"):
+        fmt_conds = [c for c in conds if c in ("direct", "cot", "cot_system")] or ["direct", "cot"]
+        for cond in fmt_conds:
             log(f"\n==== formato ({cond}) ====")
             fr = run_format(backend, cond, log)
             out["format"][cond] = fr
