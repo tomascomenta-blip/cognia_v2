@@ -1,19 +1,26 @@
 r"""
-XSPEED BENCH — matriz de palancas de velocidad de entreno del HybridLM en Kaggle T4 (TAREA 1).
+XSPEED BENCH v2 — palancas de velocidad de entreno del HybridLM en Kaggle T4 (TAREA 1, ronda 2).
 
-Qué cierra (huecos explícitos de M0_VELOCIDAD_SINTESIS.md §8 y M0_G2_PROFILE_RESULTADO.md):
-  1. Re-mide el speedup AMP con el fix fp16-SEGURO aplicado (el 1.9x/4.1x previo era PRE-fix).
-  2. Mide palancas NUEVAS en T4: torch.compile mode="reduce-overhead" (CUDA graphs — apunta directo
-     al diagnóstico raíz "overhead/launch-bound"), max-autotune, batch 768/1024, AdamW fused,
-     gradient checkpointing (costo vs memoria), SDPA (F.scaled_dot_product_attention) para la
-     atención softmax, y DataParallel 2x T4.
-  3. GATES DE CALIDAD: (a) paridad de loss fp32 vs fp16-seguro vs +compile (misma seed, mismos
-     datos, mismo batch) sobre el híbrido ae4; (b) grokking end-to-end a escala tiny (la config
-     rápida debe cruzar el mismo recall que fp32 en ~los mismos steps).
+Ronda 1 (results_xspeed/xspeed_results_v1.json): ganador seguro = AMP fp16-seguro + gpugen + b512 +
+compile + fused = 114.1k tok/s (3.13x vs fp32 36.5k). El fix fp16-SEGURO (núcleo en fp32) cuesta
+13-23% y duplica memoria (b512=10.4GB, b768 OOM). CUDA-graphs a b64 rinde ~b512 (launch-bound
+confirmado). Descartados con números: max-autotune, grad-ckpt, DP b1024.
 
-Self-contained (embebe HybridLM fiel a cognia_x/model/hybrid.py con el fix fp16-seguro, y la tarea
-de recall de cognia_x/train/recall_task.py). Corre como kernel "script" de Kaggle (2x T4) sin
-internet ni datasets. Resultados incrementales a xspeed_results.json (sobrevive cortes).
+Ronda 2 prueba las apuestas que salen de esos números:
+  1. LinearAttention "cheap16": TODO fp16 con pre-escalado NEUTRO de q — out = (q@k^T·v)/denom es
+     invariante a escalar q (numerador y denominador escalan igual), así que q *= 1/(L·sqrt(dh))
+     mantiene scores y denom lejos del techo fp16 (65504, el overflow eran las SUMAS O(L·dh)) sin
+     cambiar la matemática. La precisión no se degrada: los matmul fp16 acumulan en fp32 (tensor
+     cores). Se VERIFICA la invariancia numérica (safe32 vs cheap16 en fp32, mismos pesos) y la
+     estabilidad (NaN-watch 3000 steps en la config exacta que NaNeaba: ae4 a escala, AMP).
+  2. Híbrido "fast16" = cheap16 (capas lineales) + SDPA (capas de atención) — el combo del backbone real.
+  3. Fix del crash CUDA-graphs en los gates (leer float(loss) por step, no tensores stale).
+  4. Gate de grokking con la config VALIDADA de m0_grok_accel (n_keys=24/n_vals=8, grokea ~3600 local);
+     la v1 usó una tarea más difícil por error y nadie cruzó.
+  5. DP 2xT4 a b512 (el b1024 dio OOM).
+
+Self-contained (modelo fiel a cognia_x/model/hybrid.py + tarea de recall). Kernel "script" de Kaggle
+sin internet. Resultados incrementales a xspeed_results.json.
 
 USO Kaggle:  push via cognia_x/construccion/run_kaggle_xspeed.py
 USO local:   venv312\Scripts\python.exe cognia_x/construccion/xspeed_bench_kernel.py --smoke
@@ -29,12 +36,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint as torch_checkpoint
 
 RESULTS_PATH = "xspeed_results.json"
 TIME_BUDGET_MIN = 75.0          # red de seguridad: pasado esto, las variantes restantes se marcan skipped
 
-# ───────────────────────── modelo (fiel a hybrid.py, path elu, fix fp16-seguro) ─────────────────────
+# ───────────────────────── modelo (fiel a hybrid.py, path elu) ──────────────────────────────────────
 
 
 def build_rope_cache(seq_len, dh, device, base=10000.0):
@@ -79,14 +85,16 @@ class SwiGLU(nn.Module):
 
 
 class LinearAttention(nn.Module):
-    """Atención lineal causal (elu+1). fp16_safe=True = fix canónico (núcleo en fp32, ver hybrid.py).
-    fp16_safe=False existe SOLO para medir el costo de velocidad del fix (calidad INVÁLIDA: NaN ~step 1664)."""
+    """Atención lineal causal (elu+1). Modos:
+      safe32  = fix canónico (núcleo en fp32 con autocast OFF; el que corre hoy en hybrid.py)
+      cheap16 = núcleo fp16 con pre-escalado NEUTRO de q (invariante: numerador y denominador de
+                out=(q@k^T·v)/denom escalan igual) -> sin overflow y sin pagar el upcast."""
 
-    def __init__(self, d, n_heads, fp16_safe=True):
+    def __init__(self, d, n_heads, lin_mode="safe32"):
         super().__init__()
         self.h = n_heads
         self.dh = d // n_heads
-        self.fp16_safe = fp16_safe
+        self.lin_mode = lin_mode
         self.qkv = nn.Linear(d, 3 * d, bias=False)
         self.o = nn.Linear(d, d, bias=False)
 
@@ -94,13 +102,17 @@ class LinearAttention(nn.Module):
         B, L, D = x.shape
         qkv = self.qkv(x).view(B, L, 3, self.h, self.dh).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
-        ctx = (torch.autocast(device_type=x.device.type, enabled=False) if self.fp16_safe
+        ctx = (torch.autocast(device_type=x.device.type, enabled=False) if self.lin_mode == "safe32"
                else contextlib.nullcontext())
         with ctx:
-            if self.fp16_safe:
+            if self.lin_mode == "safe32":
                 q, k, v = q.float(), k.float(), v.float()
             q = F.elu(q) + 1.0
             k = F.elu(k) + 1.0
+            if self.lin_mode == "cheap16":
+                # el overflow fp16 (>65504) venía de las sumas O(L·dh) de scores/denom, no de los
+                # productos; escalar q los encoge a ambos por igual y el cociente NO cambia.
+                q = q * (1.0 / (L * math.sqrt(self.dh)))
             scores = torch.matmul(q, k.transpose(-1, -2))
             mask = torch.tril(torch.ones(L, L, device=x.device, dtype=torch.bool))
             scores = scores.masked_fill(~mask, 0.0)
@@ -111,16 +123,14 @@ class LinearAttention(nn.Module):
 
 
 class SlidingWindowAttention(nn.Module):
-    """Atención softmax causal con ventana W. use_sdpa=True reemplaza el núcleo manual por
-    F.scaled_dot_product_attention (kernel fusionado; en sm75 usa mem-efficient attention, estable
-    en fp16 SIN el upcast manual a fp32 — palanca que recupera el costo del fix fp16-seguro)."""
+    """Atención softmax causal con ventana W. use_sdpa=True usa F.scaled_dot_product_attention
+    (kernel fusionado, +36% medido en v1; estable en fp16 sin upcast manual)."""
 
-    def __init__(self, d, n_heads, window, fp16_safe=True, use_sdpa=False):
+    def __init__(self, d, n_heads, window, use_sdpa=False):
         super().__init__()
         self.h = n_heads
         self.dh = d // n_heads
         self.window = window
-        self.fp16_safe = fp16_safe
         self.use_sdpa = use_sdpa
         self.qkv = nn.Linear(d, 3 * d, bias=False)
         self.o = nn.Linear(d, d, bias=False)
@@ -141,16 +151,12 @@ class SlidingWindowAttention(nn.Module):
                 out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask)
             out = out.transpose(1, 2).reshape(B, L, D).to(x.dtype)
             return self.o(out)
-        ctx = (torch.autocast(device_type=x.device.type, enabled=False) if self.fp16_safe
-               else contextlib.nullcontext())
-        with ctx:
-            if self.fp16_safe:
-                q, k, v = q.float(), k.float(), v.float()
+        # núcleo fp16-SEGURO (softmax con -inf en fp32); consistente con hybrid.py
+        with torch.autocast(device_type=x.device.type, enabled=False):
+            q, k, v = q.float(), k.float(), v.float()
             if cos is not None:
-                c = cos.float() if self.fp16_safe else cos
-                s = sin.float() if self.fp16_safe else sin
-                q = apply_rope(q, c, s)
-                k = apply_rope(k, c, s)
+                q = apply_rope(q, cos.float(), sin.float())
+                k = apply_rope(k, cos.float(), sin.float())
             scores = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(self.dh)
             idx = torch.arange(L, device=x.device)
             causal = idx[None, :] <= idx[:, None]
@@ -164,12 +170,12 @@ class SlidingWindowAttention(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, d_model, n_heads, d_ff, kind, window, fp16_safe=True, use_sdpa=False):
+    def __init__(self, d_model, n_heads, d_ff, kind, window, lin_mode="safe32", use_sdpa=False):
         super().__init__()
         self.kind = kind
         self.norm1 = RMSNorm(d_model)
-        self.mixer = (SlidingWindowAttention(d_model, n_heads, window, fp16_safe, use_sdpa) if kind == "attn"
-                      else LinearAttention(d_model, n_heads, fp16_safe))
+        self.mixer = (SlidingWindowAttention(d_model, n_heads, window, use_sdpa) if kind == "attn"
+                      else LinearAttention(d_model, n_heads, lin_mode))
         self.norm2 = RMSNorm(d_model)
         self.mlp = SwiGLU(d_model, d_ff)
 
@@ -189,11 +195,11 @@ def build_layer_types(n_layers, attn_every, arrangement="linear_first"):
 
 class HybridLM(nn.Module):
     def __init__(self, vocab, d_model, n_heads, layer_types, window, max_seq_len, d_ff=None,
-                 fp16_safe=True, use_sdpa=False, grad_ckpt=False):
+                 lin_mode="safe32", use_sdpa=False):
         super().__init__()
         d_ff = d_ff or max(16, int(round(8 * d_model / 3 / 16)) * 16)
         self.embed = nn.Embedding(vocab, d_model)
-        self.blocks = nn.ModuleList([Block(d_model, n_heads, d_ff, t, window, fp16_safe, use_sdpa)
+        self.blocks = nn.ModuleList([Block(d_model, n_heads, d_ff, t, window, lin_mode, use_sdpa)
                                      for t in layer_types])
         self.dh = d_model // n_heads
         cos, sin = build_rope_cache(max_seq_len, self.dh, device="cpu")
@@ -203,7 +209,6 @@ class HybridLM(nn.Module):
         self.lm_head = nn.Linear(d_model, vocab, bias=False)
         self.lm_head.weight = self.embed.weight     # tied
         self.layer_types = layer_types
-        self.grad_ckpt = grad_ckpt
         self.apply(self._init)
 
     @staticmethod
@@ -216,10 +221,7 @@ class HybridLM(nn.Module):
         L = idx.shape[1]
         cos, sin = self.rope_cos[:L].to(x.dtype), self.rope_sin[:L].to(x.dtype)
         for b in self.blocks:
-            if self.grad_ckpt and self.training and torch.is_grad_enabled():
-                x = torch_checkpoint(b, x, cos, sin, use_reentrant=False)
-            else:
-                x = b(x, cos, sin)
+            x = b(x, cos, sin)
         x = self.norm_f(x)
         logits = self.lm_head(x)
         loss = None
@@ -304,13 +306,13 @@ def make_scaler(enabled):
         return torch.cuda.amp.GradScaler(enabled=enabled)
 
 
-def build_model(p, attn_every, device, fp16_safe=True, use_sdpa=False, grad_ckpt=False):
+def build_model(p, attn_every, device, lin_mode="safe32", use_sdpa=False):
     layer_types = build_layer_types(p["n_layers"], attn_every)
     L = 2 * p["n_pairs"] + p["n_queries"]
     vocab = 1 + p["n_keys"] + p["n_vals"]
     window = L + 1
     return HybridLM(vocab, p["d_model"], p["n_heads"], layer_types, window, L + 1,
-                    fp16_safe=fp16_safe, use_sdpa=use_sdpa, grad_ckpt=grad_ckpt).to(device)
+                    lin_mode=lin_mode, use_sdpa=use_sdpa).to(device)
 
 
 def cleanup(device):
@@ -320,67 +322,8 @@ def cleanup(device):
         torch.cuda.reset_peak_memory_stats()
 
 
-def component_breakdown(p, attn_every, device, amp=False, steps=30, warmup=10):
-    """Desglosa el step en datagen(+H2D)/fwd/bwd/opt con sync entre componentes."""
-    model = build_model(p, attn_every, device)
-    opt = torch.optim.AdamW(model.parameters(), lr=p["lr"], weight_decay=0.01)
-    use_amp = amp and device == "cuda"
-    scaler = make_scaler(use_amp)
-    rng = np.random.default_rng(0)
-    L = 2 * p["n_pairs"] + p["n_queries"]
-    tok = p["batch"] * L
-
-    def fwd_bwd_opt(x, y, timers=None):
-        t1 = time.time()
-        if use_amp:
-            with torch.autocast(device_type="cuda", dtype=torch.float16):
-                _, loss = model(x, y)
-        else:
-            _, loss = model(x, y)
-        sync(device)
-        t2 = time.time()
-        opt.zero_grad(set_to_none=True)
-        if use_amp:
-            scaler.scale(loss).backward()
-        else:
-            loss.backward()
-        sync(device)
-        t3 = time.time()
-        if use_amp:
-            scaler.step(opt)
-            scaler.update()
-        else:
-            opt.step()
-        sync(device)
-        t4 = time.time()
-        if timers is not None:
-            timers["fwd"] += t2 - t1
-            timers["bwd"] += t3 - t2
-            timers["opt"] += t4 - t3
-
-    for _ in range(warmup):
-        x, y = make_recall_batch(rng, p["batch"], p["n_pairs"], p["n_queries"], p["n_keys"], p["n_vals"], device)
-        fwd_bwd_opt(x, y)
-    sync(device)
-    t = {"datagen": 0.0, "fwd": 0.0, "bwd": 0.0, "opt": 0.0}
-    for _ in range(steps):
-        t0 = time.time()
-        x, y = make_recall_batch(rng, p["batch"], p["n_pairs"], p["n_queries"], p["n_keys"], p["n_vals"], device)
-        sync(device)
-        t["datagen"] += time.time() - t0
-        fwd_bwd_opt(x, y, t)
-    for k in t:
-        t[k] = t[k] / steps * 1000.0
-    total = sum(t.values())
-    t["total_ms"] = total
-    t["steps_per_s"] = 1000.0 / total
-    t["tok_per_s"] = tok / (total / 1000.0)
-    return t
-
-
 def time_variant(p, attn_every, device, amp=False, gpu_gen=False, batch=None, compile_mode=None,
-                 fused=False, grad_ckpt=False, sdpa=False, fp16_safe=True, dp=False,
-                 steps=30, warmup=10):
+                 fused=False, lin_mode="safe32", sdpa=False, dp=False, steps=30, warmup=10):
     """Mide UNA config de palancas: ms/step, steps/s, tok/s, memoria pico y costo de warmup (compile)."""
     pp = dict(p)
     if batch is not None:
@@ -388,7 +331,7 @@ def time_variant(p, attn_every, device, amp=False, gpu_gen=False, batch=None, co
     if device == "cuda":
         torch.cuda.reset_peak_memory_stats()
     torch.manual_seed(0)
-    model = build_model(pp, attn_every, device, fp16_safe=fp16_safe, use_sdpa=sdpa, grad_ckpt=grad_ckpt)
+    model = build_model(pp, attn_every, device, lin_mode=lin_mode, use_sdpa=sdpa)
     if compile_mode is not None:
         torch._dynamo.reset()
         model = torch.compile(model, mode=None if compile_mode == "default" else compile_mode)
@@ -449,14 +392,74 @@ def time_variant(p, attn_every, device, amp=False, gpu_gen=False, batch=None, co
     return out
 
 
+# ───────────────────────── verificaciones de la apuesta cheap16 ─────────────────────────────────────
+
+
+@torch.no_grad()
+def invariance_check(p, device):
+    """safe32 vs cheap16 con LOS MISMOS pesos, en fp32 puro: la matemática es idéntica (el escalado
+    de q se cancela en el cociente) -> la diferencia debe ser solo redondeo float."""
+    torch.manual_seed(0)
+    m_safe = build_model(p, 0, device, lin_mode="safe32")
+    torch.manual_seed(0)
+    m_cheap = build_model(p, 0, device, lin_mode="cheap16")
+    m_cheap.load_state_dict(m_safe.state_dict())
+    rng = np.random.default_rng(7)
+    x, _ = make_recall_batch(rng, 8, p["n_pairs"], p["n_queries"], p["n_keys"], p["n_vals"], device)
+    la, _ = m_safe(x)
+    lb, _ = m_cheap(x)
+    diff = (la - lb).abs().max().item()
+    rel = diff / la.abs().max().item()
+    return {"max_abs_diff": diff, "max_rel_diff": rel, "pass": rel < 1e-3}
+
+
+def nan_watch(p, device, steps=3000, log=print):
+    """Estabilidad de cheap16+SDPA (fast16) bajo AMP en la config exacta que NaNeaba con fp16 pleno
+    (híbrido ae4 a escala, batch 64, lr 1e-3, wd 0.01, clip 1.0; el NaN original fue en step 1664)."""
+    torch.manual_seed(0)
+    model = build_model(p, 4, device, lin_mode="cheap16", use_sdpa=True)
+    opt = torch.optim.AdamW(model.parameters(), lr=p["lr"], weight_decay=0.01)
+    use_amp = device == "cuda"
+    scaler = make_scaler(use_amp)
+    rng = np.random.default_rng(0)
+    losses, first_nan = [], None
+    t0 = time.time()
+    for step in range(1, steps + 1):
+        x, y = make_recall_batch(rng, p["batch"], p["n_pairs"], p["n_queries"], p["n_keys"], p["n_vals"], device)
+        if use_amp:
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                _, loss = model(x, y)
+            opt.zero_grad(set_to_none=True)
+            scaler.scale(loss).backward()
+            scaler.unscale_(opt)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            scaler.step(opt)
+            scaler.update()
+        else:
+            _, loss = model(x, y)
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            opt.step()
+        lv = float(loss.detach())
+        if not math.isfinite(lv) and first_nan is None:
+            first_nan = step
+            log(f"    NaN/inf en step {step}")
+            break
+        if step % 100 == 0:
+            losses.append(round(lv, 4))
+    return {"steps_run": step, "first_nan_step": first_nan, "loss_every100": losses[-10:],
+            "final_loss": losses[-1] if losses else None, "wall_s": round(time.time() - t0, 1)}
+
+
 # ───────────────────────── gates de calidad ─────────────────────────────────────────────────────────
 
 
-def parity_run(p, attn_every, device, amp, compile_mode, steps, log_every=25):
-    """Entrena con seed y DATOS idénticos (numpy rng CPU) y devuelve la curva de loss.
-    Compara numéricamente fp32 vs fp16-seguro vs +compile: misma init (manual_seed), mismo batch."""
+def parity_run(p, attn_every, device, amp, compile_mode, steps, lin_mode="safe32", sdpa=False,
+               log_every=25):
+    """Entrena con seed y DATOS idénticos (numpy rng CPU) y devuelve la curva de loss."""
     torch.manual_seed(0)
-    model = build_model(p, attn_every, device)
+    model = build_model(p, attn_every, device, lin_mode=lin_mode, use_sdpa=sdpa)
     if compile_mode is not None:
         torch._dynamo.reset()
         model = torch.compile(model, mode=None if compile_mode == "default" else compile_mode)
@@ -483,8 +486,9 @@ def parity_run(p, attn_every, device, amp, compile_mode, steps, log_every=25):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
+        lv = float(loss.detach())       # leer YA (con CUDA graphs el tensor se pisa en el próximo step)
         if step % log_every == 0:
-            losses.append(round(loss.item(), 4))
+            losses.append(round(lv, 4))
     tail = losses[-4:]
     eval_rng = np.random.default_rng(999)
     acc = eval_recall(model, eval_rng, p, device, batches=12, amp=use_amp)
@@ -492,13 +496,14 @@ def parity_run(p, attn_every, device, amp, compile_mode, steps, log_every=25):
             "eval_acc": round(acc, 4), "wall_s": round(time.time() - t0, 1)}
 
 
-def grok_run(p, device, amp, compile_mode, steps, eval_every, target=0.8, stop=0.95, log=print):
-    """Calidad END-TO-END: la config debe CRUZAR el recall (grokking) igual que fp32.
-    Devuelve el step del cruce (primera eval >= target) y best_acc."""
+def grok_run(p, device, amp, compile_mode, steps, eval_every, lin_mode="safe32", sdpa=False,
+             target=0.8, log=print):
+    """Calidad END-TO-END con la config VALIDADA de m0_grok_accel (grokea ~3600 local): la config
+    rápida debe CRUZAR el recall igual que fp32. Corta al cruzar target (ese step ES el dato)."""
     torch.manual_seed(0)
     rng = np.random.default_rng(0)
     eval_rng = np.random.default_rng(10**6)
-    model = build_model(p, 1, device)      # atención pura: grokea confiable (g2_confirm)
+    model = build_model(p, 1, device, lin_mode=lin_mode, use_sdpa=sdpa)   # atención pura (como m0_grok_accel)
     if compile_mode is not None:
         torch._dynamo.reset()
         model = torch.compile(model, mode=None if compile_mode == "default" else compile_mode)
@@ -528,13 +533,15 @@ def grok_run(p, device, amp, compile_mode, steps, eval_every, target=0.8, stop=0
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
+        lv = float(loss.detach())       # leer YA (CUDA graphs pisa el buffer en el próximo step)
         if step % eval_every == 0 or step == steps:
             acc = eval_recall(model, eval_rng, p, device, batches=8, amp=use_amp)
             best_acc = max(best_acc, acc)
+            if step % (eval_every * 5) == 0:
+                log(f"    step {step}/{steps} loss {lv:.3f} acc {acc:.3f}")
             if grok_step is None and acc >= target:
                 grok_step = step
-            log(f"    step {step}/{steps} loss {loss.item():.3f} acc {acc:.3f}")
-            if acc >= stop:
+                log(f"    GROK en step {step} (acc {acc:.3f})")
                 break
     return {"grok_step": grok_step, "best_acc": round(best_acc, 4), "steps_run": step,
             "wall_s": round(time.time() - t0, 1)}
@@ -552,96 +559,83 @@ def save(out):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="XSPEED — matriz de palancas de velocidad en T4")
+    ap = argparse.ArgumentParser(description="XSPEED v2 — cheap16/fast16 + gates corregidos en T4")
     ap.add_argument("--smoke", action="store_true", help="tiny en CPU para verificar que corre")
     ap.add_argument("--steps", type=int, default=30)
     args = ap.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     t_start = time.time()
-    out = {"experiment": "xspeed_bench", "device": device, "torch": torch.__version__}
-    print(f"[xspeed] torch={torch.__version__} cuda={torch.cuda.is_available()}", flush=True)
+    out = {"experiment": "xspeed_bench_v2", "device": device, "torch": torch.__version__}
+    print(f"[xspeed2] torch={torch.__version__} cuda={torch.cuda.is_available()}", flush=True)
     n_gpu = 0
     if device == "cuda":
         n_gpu = torch.cuda.device_count()
         out["gpu_name"] = torch.cuda.get_device_name(0)
         out["gpu_count"] = n_gpu
-        out["capability"] = list(torch.cuda.get_device_capability(0))
-        print(f"[xspeed] GPU={out['gpu_name']} x{n_gpu} cap={out['capability']}", flush=True)
     else:
         torch.set_num_threads(3)
-        print("[xspeed] CPU (smoke)", flush=True)
+        print("[xspeed2] CPU (smoke)", flush=True)
 
     if args.smoke:
         p = dict(d_model=64, n_heads=4, n_layers=4, n_keys=64, n_vals=16, n_pairs=12,
                  n_queries=8, batch=32, lr=1e-3)
-        steps, warmup, parity_steps = 4, 2, 30
-        grok_p = dict(d_model=64, n_heads=4, n_layers=4, n_keys=64, n_vals=16, n_pairs=6,
-                      n_queries=8, batch=32, lr=3e-4, wd=0.0, warmup=10)
-        grok_steps, grok_eval = 40, 20
+        steps, warmup, parity_steps, nan_steps = 4, 2, 30, 60
+        grok_p = dict(d_model=64, n_heads=4, n_layers=4, n_keys=24, n_vals=8, n_pairs=6,
+                      n_queries=6, batch=32, lr=3e-4, wd=0.0, warmup=10)
+        grok_steps, grok_eval = 60, 20
+        b_hi, b_mid = 64, 48
     else:
         p = dict(d_model=256, n_heads=8, n_layers=12, n_keys=256, n_vals=32, n_pairs=32,
                  n_queries=16, batch=64, lr=1e-3)
-        steps, warmup, parity_steps = args.steps, 10, 600
-        # config de grokking validada (g2_grok_accel: wd=0 grokea ~step 3600 a esta escala tiny)
-        grok_p = dict(d_model=64, n_heads=4, n_layers=4, n_keys=64, n_vals=16, n_pairs=6,
-                      n_queries=8, batch=64, lr=3e-4, wd=0.0, warmup=100)
-        grok_steps, grok_eval = 6000, 200
+        steps, warmup, parity_steps, nan_steps = args.steps, 10, 600, 3000
+        # config VALIDADA de m0_grok_accel (grokea ~3600 local con wd=0.01; chance=0.125)
+        grok_p = dict(d_model=64, n_heads=4, n_layers=4, n_keys=24, n_vals=8, n_pairs=6,
+                      n_queries=6, batch=64, lr=3e-4, wd=0.0, warmup=100)
+        grok_steps, grok_eval = 10000, 100
+        b_hi, b_mid = 1024, 512
     out["scale"] = p
     L = 2 * p["n_pairs"] + p["n_queries"]
-    print(f"[xspeed] scale d={p['d_model']} layers={p['n_layers']} batch={p['batch']} L={L}", flush=True)
+    print(f"[xspeed2] scale d={p['d_model']} layers={p['n_layers']} batch={p['batch']} L={L}", flush=True)
 
     def over_budget():
         return (time.time() - t_start) / 60.0 > TIME_BUDGET_MIN
 
-    # ── 1) DESGLOSE por componente: fp32 y AMP fp16-SEGURO (el hueco: números POST-fix) ──
-    print("\n==== DESGLOSE (ae0 lineal-puro): fp32 vs AMP fp16-seguro ====", flush=True)
-    out["breakdown"] = {}
-    for tag, amp in [("fp32_ae0", False), ("amp_safe_ae0", True)]:
-        bd = component_breakdown(p, 0, device, amp=amp, steps=steps, warmup=warmup)
-        out["breakdown"][tag] = bd
-        print(f"  [{tag}] datagen={bd['datagen']:.2f} fwd={bd['fwd']:.2f} bwd={bd['bwd']:.2f} "
-              f"opt={bd['opt']:.2f} | {bd['total_ms']:.1f}ms -> {bd['steps_per_s']:.1f} step/s "
-              f"({bd['tok_per_s']:.0f} tok/s)", flush=True)
-        cleanup(device)
-        save(out)
+    # ── 0) INVARIANCIA cheap16 (mismos pesos, fp32: la diferencia debe ser redondeo) ──
+    out["invariance"] = invariance_check(p, device)
+    print(f"[xspeed2] invariancia cheap16: rel={out['invariance']['max_rel_diff']:.2e} "
+          f"pass={out['invariance']['pass']}", flush=True)
+    save(out)
+    cleanup(device)
 
-    # ── 2) MATRIZ DE PALANCAS (ae0 salvo indicado) ──
-    print("\n==== PALANCAS (30 steps medidos con sync; warmup incluye compile) ====", flush=True)
+    # ── 1) MATRIZ DE PALANCAS v2 ──
+    print("\n==== PALANCAS v2 ====", flush=True)
     is_cuda = device == "cuda"
     variants = [
-        # (nombre, attn_every, kwargs) — los primeros replican el profile previo para comparabilidad
-        ("baseline_fp32_b64",            0, dict()),
-        ("amp_safe_b64",                 0, dict(amp=True)),
-        ("amp_UNSAFE_fp16_b64",          0, dict(amp=True, fp16_safe=False)),   # SOLO velocidad: mide el costo del fix
-        ("amp_gpugen_b64",               0, dict(amp=True, gpu_gen=True)),
-        ("amp_gpugen_b256",              0, dict(amp=True, gpu_gen=True, batch=256)),
-        ("amp_gpugen_b512",              0, dict(amp=True, gpu_gen=True, batch=512)),
-        ("amp_gpugen_b768",              0, dict(amp=True, gpu_gen=True, batch=768)),
-        ("amp_gpugen_b1024",             0, dict(amp=True, gpu_gen=True, batch=1024)),
-        ("amp_gpugen_b512_fused",        0, dict(amp=True, gpu_gen=True, batch=512, fused=True)),
-        ("amp_gpugen_b512_gradckpt",     0, dict(amp=True, gpu_gen=True, batch=512, grad_ckpt=True)),
-        ("ae1_amp_b512_manual",          1, dict(amp=True, gpu_gen=True, batch=512)),
-        ("ae1_amp_b512_sdpa",            1, dict(amp=True, gpu_gen=True, batch=512, sdpa=True)),
+        ("baseline_fp32_b64",             0, dict()),                                            # ref v1
+        ("cheap16_amp_b64",               0, dict(amp=True, lin_mode="cheap16")),                # vs safe 59k / unsafe 68k
+        ("cheap16_amp_gpugen_bmid",       0, dict(amp=True, gpu_gen=True, batch=b_mid, lin_mode="cheap16")),
     ]
     if is_cuda:
         variants += [
-            ("amp_gpugen_b512_compile",         0, dict(amp=True, gpu_gen=True, batch=512, compile_mode="default")),
-            ("amp_gpugen_b512_compile_reduce",  0, dict(amp=True, gpu_gen=True, batch=512, compile_mode="reduce-overhead")),
-            ("amp_gpugen_b64_compile_reduce",   0, dict(amp=True, gpu_gen=True, batch=64, compile_mode="reduce-overhead")),
-            ("amp_gpugen_b512_compile_maxauto", 0, dict(amp=True, gpu_gen=True, batch=512, compile_mode="max-autotune")),
-            ("combo_b512_reduce_fused",         0, dict(amp=True, gpu_gen=True, batch=512, compile_mode="reduce-overhead", fused=True)),
-            ("combo_b1024_reduce_fused",        0, dict(amp=True, gpu_gen=True, batch=1024, compile_mode="reduce-overhead", fused=True)),
+            ("safe_bmid_compile_fused",       0, dict(amp=True, gpu_gen=True, batch=b_mid, compile_mode="default", fused=True)),
+            ("safe_bmid_reduce_fused",        0, dict(amp=True, gpu_gen=True, batch=b_mid, compile_mode="reduce-overhead", fused=True)),  # ganador v1
+            ("cheap16_bmid_compile_fused",    0, dict(amp=True, gpu_gen=True, batch=b_mid, compile_mode="default", fused=True, lin_mode="cheap16")),
+            ("cheap16_bmid_reduce_fused",     0, dict(amp=True, gpu_gen=True, batch=b_mid, compile_mode="reduce-overhead", fused=True, lin_mode="cheap16")),
+            ("cheap16_bhi_reduce_fused",      0, dict(amp=True, gpu_gen=True, batch=b_hi, compile_mode="reduce-overhead", fused=True, lin_mode="cheap16")),
+            ("ae4_safe_bmid_reduce_fused",    4, dict(amp=True, gpu_gen=True, batch=b_mid, compile_mode="reduce-overhead", fused=True)),
+            ("ae4_fast16_bmid_reduce_fused",  4, dict(amp=True, gpu_gen=True, batch=b_mid, compile_mode="reduce-overhead", fused=True, lin_mode="cheap16", sdpa=True)),
         ]
     if is_cuda and n_gpu >= 2:
         variants += [
-            ("dp2_amp_gpugen_b1024",     0, dict(amp=True, gpu_gen=True, batch=1024, dp=True)),
+            ("dp2_safe_bmid",             0, dict(amp=True, gpu_gen=True, batch=b_mid, dp=True)),
+            ("dp2_cheap16_bhi",           0, dict(amp=True, gpu_gen=True, batch=b_hi, dp=True, lin_mode="cheap16")),
         ]
     out["levers"] = {}
     for name, ae, kw in variants:
         if over_budget():
             out["levers"][name] = {"skipped": "time_budget"}
-            print(f"  [{name:34}] SKIPPED (budget {TIME_BUDGET_MIN} min)", flush=True)
+            print(f"  [{name:34}] SKIPPED (budget)", flush=True)
             continue
         wu = max(15, warmup) if kw.get("compile_mode") else warmup
         try:
@@ -658,57 +652,76 @@ def main():
         cleanup(device)
         save(out)
 
-    # ── 3) GATE calidad A: paridad de loss (híbrido ae4, mismos datos/seed/batch) ──
-    print("\n==== PARIDAD DE LOSS (ae4 híbrido, batch fijo, mismos datos) ====", flush=True)
+    # ── 2) NaN-WATCH: fast16 en la config que NaNeaba (ae4 a escala, AMP, 3000 steps) ──
+    print("\n==== NaN-WATCH fast16 (ae4, AMP, config del NaN original step 1664) ====", flush=True)
+    try:
+        out["nan_watch_fast16"] = nan_watch(p, device, steps=nan_steps, log=lambda s: print(s, flush=True))
+        print(f"  steps={out['nan_watch_fast16']['steps_run']} first_nan={out['nan_watch_fast16']['first_nan_step']} "
+              f"final_loss={out['nan_watch_fast16']['final_loss']}", flush=True)
+    except Exception as e:  # noqa: BLE001
+        out["nan_watch_fast16"] = {"error": repr(e)[:300]}
+    cleanup(device)
+    save(out)
+
+    # ── 3) GATE calidad A: paridad de loss (ae4 híbrido, mismos datos/seed/batch) ──
+    print("\n==== PARIDAD DE LOSS (ae4, batch fijo, mismos datos) ====", flush=True)
     out["parity"] = {}
-    parity_variants = [("fp32", False, None)]
+    parity_variants = [("fp32", False, None, "safe32", False)]
     if is_cuda:
-        parity_variants += [("amp_safe", True, None), ("amp_safe_compile", True, "default")]
-    for tag, amp, cm in parity_variants:
+        parity_variants += [
+            ("amp_safe", True, None, "safe32", False),
+            ("amp_fast16", True, None, "cheap16", True),
+            ("amp_fast16_compile", True, "default", "cheap16", True),
+        ]
+    for tag, amp, cm, lm, sd in parity_variants:
         if over_budget():
             out["parity"][tag] = {"skipped": "time_budget"}
             continue
         try:
-            r = parity_run(p, 4, device, amp, cm, parity_steps)
+            r = parity_run(p, 4, device, amp, cm, parity_steps, lin_mode=lm, sdpa=sd)
             out["parity"][tag] = r
-            print(f"  [{tag:18}] final_loss={r['final_loss']} eval_acc={r['eval_acc']} wall={r['wall_s']}s", flush=True)
+            print(f"  [{tag:20}] final_loss={r['final_loss']} eval_acc={r['eval_acc']} wall={r['wall_s']}s", flush=True)
         except Exception as e:  # noqa: BLE001
             out["parity"][tag] = {"error": repr(e)[:300]}
-            print(f"  [{tag:18}] ERROR {e!r}", flush=True)
+            print(f"  [{tag:20}] ERROR {e!r}", flush=True)
         cleanup(device)
         save(out)
     base = out["parity"].get("fp32", {}).get("final_loss")
     if base:
-        for tag in ("amp_safe", "amp_safe_compile"):
+        for tag in ("amp_safe", "amp_fast16", "amp_fast16_compile"):
             fl = out["parity"].get(tag, {}).get("final_loss")
             if fl:
                 out["parity"][f"rel_diff_{tag}"] = round(abs(fl - base) / base, 4)
 
-    # ── 4) GATE calidad B: grokking end-to-end (la config rápida cruza el mismo recall) ──
-    print("\n==== GROKKING E2E (tiny, wd=0, la config rápida debe cruzar igual) ====", flush=True)
+    # ── 4) GATE calidad B: grokking e2e con la config VALIDADA (m0_grok_accel) ──
+    print("\n==== GROKKING E2E (config m0_grok_accel: n_keys=24/n_vals=8, ~3600 local) ====", flush=True)
     out["grok_quality"] = {}
-    grok_variants = [("fp32", False, None)]
+    grok_variants = [("fp32", False, None, "safe32", False)]
     if is_cuda:
-        grok_variants += [("amp_safe", True, None), ("amp_safe_compile_reduce", True, "reduce-overhead")]
-    for tag, amp, cm in grok_variants:
+        grok_variants += [
+            ("amp_safe", True, None, "safe32", False),
+            ("amp_fast16", True, None, "cheap16", True),
+            ("amp_fast16_compile_reduce", True, "reduce-overhead", "cheap16", True),
+        ]
+    for tag, amp, cm, lm, sd in grok_variants:
         if over_budget():
             out["grok_quality"][tag] = {"skipped": "time_budget"}
             continue
         print(f"  [{tag}]", flush=True)
         try:
-            r = grok_run(grok_p, device, amp, cm, grok_steps, grok_eval,
+            r = grok_run(grok_p, device, amp, cm, grok_steps, grok_eval, lin_mode=lm, sdpa=sd,
                          log=lambda s: print(s, flush=True))
             out["grok_quality"][tag] = r
-            print(f"  [{tag:24}] grok_step={r['grok_step']} best_acc={r['best_acc']} wall={r['wall_s']}s", flush=True)
+            print(f"  [{tag:26}] grok_step={r['grok_step']} best_acc={r['best_acc']} wall={r['wall_s']}s", flush=True)
         except Exception as e:  # noqa: BLE001
             out["grok_quality"][tag] = {"error": repr(e)[:300]}
-            print(f"  [{tag:24}] ERROR {e!r}", flush=True)
+            print(f"  [{tag:26}] ERROR {e!r}", flush=True)
         cleanup(device)
         save(out)
 
     out["minutes_total"] = round((time.time() - t_start) / 60.0, 1)
     save(out)
-    print(f"\n[xspeed] LISTO en {out['minutes_total']} min. Resultados en {RESULTS_PATH}", flush=True)
+    print(f"\n[xspeed2] LISTO en {out['minutes_total']} min. Resultados en {RESULTS_PATH}", flush=True)
     print(">>> JSON:", flush=True)
     print(json.dumps(out, ensure_ascii=False))
 
