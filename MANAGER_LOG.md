@@ -4674,3 +4674,55 @@ escasez genuina / SCALE; integrar el unlikelihood con la asignación; horizontes
 - E2E REAL (CPU, 30 steps): loss BAJA 3.91->2.95 sobre steps 5..30, tokens/s ~9k-14k MEDIDO,
   eta_s -> 0, status running->done. JSON final leido por TrainingMonitor identico al de disco.
 - Notas: NO se commiteo (lo hace el manager).
+
+================================================================================
+## 2026-07-01 — Fine-tune tool-use de Qwen + arreglo de 13 bugs del agente (autónomo /goal, deadline 05:30)
+================================================================================
+OBJETIVO (/goal): avanzar con Kaggle para el fine-tune de tool-use; solucionar TODOS
+los bugs de rendimiento del agente; apagado programado 05:30; luego avanzar libre.
+
+### A. Pipeline de fine-tune de TOOL-USE (nuevo, cognia_v3/training/tooluse/ + kaggle/)
+Meta: enseñarle a Qwen a usar las herramientas en el formato REAL de Cognia (línea
+`ACCION: <tool> <args>`, NO function-calling JSON). Datos generados y VERIFICADOS POR
+EJECUCIÓN (método "código que corre o no cuenta"):
+  - tasks.py: 21 tareas con verificador determinista (postcondición) + split train/eval.
+  - gen_trajectories.py: corre el agent loop real contra tools reales en workspace
+    aislado; relabeling HINDSIGHT (verifica tras cada paso, trunca en 1er éxito, descarta
+    pasos con ERROR, cierra con `responder`); sanitiza paths abs->rel; dedup.
+  - train_tooluse_kaggle.py: QLoRA con ChatML+SYSTEM del deploy y COMPLETION-ONLY
+    masking (el TOOLS_DOC no entra en la loss); eval correct_tool. Fix torchao 0.10
+    (peft exige >0.16, lanzaba ImportError) -> _disable_torchao.
+  - run_kaggle_tooluse.py: orquestador con slugs propios.
+Dataset run 1: 65 pares únicos (121 crudos, dedup), 51% accept, 11/16 tareas.
+KAGGLE run 1: la T4 NO se adjuntó (DEVICE: CPU -> entrenó el 0.5B, no el 3B; probable
+verif. de teléfono o cuota). AUN ASÍ el pipeline corre end-to-end, produce adapter LoRA
+válido, sin crash. RESULTADO REAL (métrica correct_tool = herramienta elegida ∈ esperadas):
+  base 16.7% -> adapter 83.3%  (DELTA +66.7%)
+El base emite formato válido pero elige MAL (default leer_archivo); el adapter elige la
+herramienta correcta (calcular para mates, escribir para archivos). DE-RISK EXITOSO.
+PENDIENTE (necesita el dueño): activar GPU en Kaggle (verif. teléfono) para entrenar el 3B
+real; escalar el dataset (más tareas/variaciones).
+
+### B. Auditoría + arreglo de 13 bugs de rendimiento/comportamiento del agente
+Auditoría multi-agente (4 finders + verificación adversarial): 18 hallazgos -> 13
+confirmados. Arreglados en 5 commits (todos con test + e2e + push a origin/cognia-x):
+  - 317493d: over-captura multi-ACCION (first_action_block) — el 3B emite varias ACCION;
+    el parser DOTALL ejecutaba una acción corrupta.
+  - d6c4db8 (A): goal-drift (history[-6:] desalojaba el objetivo -> objective_context lo
+    fija y crece append-only, cache-friendly); terminación en prosa (se salva en vez de
+    devolver fallo genérico); stuck-detector por conteo (caza ciclos A,B,A,B); caps de
+    helpers 768->16 tok; greedy (temp=0). +7 tests.
+  - 06e2f8a (B): `python` pelado->sys.executable (venv312); `tests` exige ruta + timeout
+    accionable; `format` block por palabra (no bloquea `ruff format`); separador `|`
+    tolerante; marcador de truncado en leer_archivo. +6 tests.
+  - 7911d5f (C): stop-sequence en pasos del agente (`\nACCION:`) — elimina el
+    generate-then-discard del rambling. e2e real: stop honrado por el server. 85 tests.
+  - e724ffd (D): file tools muestran ruta RELATIVA (bug hallado en e2e: el 3B copiaba el
+    path absoluto y loopeaba). +1 test.
+VERIFICACIÓN: 147 tests agente/tools/loop PASS + 85 orchestrator/backend PASS; e2e del
+loop completo resuelve tareas reales (archivo creado, cálculo 437). Confirmado que la
+terminación limpia via `responder` la aporta el FINE-TUNE, no el runtime (complementarios).
+
+### C. Estado
+Apagado programado 05:30 (shutdown /s, cancelable shutdown /a). 6 commits pusheados.
+El de-risk validó pipeline + eficacia del fine-tune. Rumbo: GPU 3B + escalar dataset.
