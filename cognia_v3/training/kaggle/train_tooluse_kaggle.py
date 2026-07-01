@@ -88,6 +88,22 @@ def _ensure_bitsandbytes() -> bool:
         return False
 
 
+def _disable_torchao() -> None:
+    """La imagen de Kaggle trae torchao 0.10, pero el peft reciente EXIGE >0.16 y
+    su is_torchao_available() LANZA ImportError (no devuelve False) al crear cada
+    modulo LoRA -> get_peft_model crashea (run 1 del tooluse, 2026-06-30). No
+    usamos torchao (QLoRA usa bitsandbytes nf4), asi que lo DESINSTALAMOS: peft
+    entonces salta el dispatcher torchao y sigue con el camino bnb/default."""
+    try:
+        r = subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "torchao"],
+                           capture_output=True, text=True, timeout=300)
+        tail = (r.stdout or r.stderr or "").strip().splitlines()
+        print("[torchao] uninstall -> rc=%d (%s)" %
+              (r.returncode, tail[-1] if tail else "sin output"), flush=True)
+    except Exception as e:
+        print("[torchao] uninstall fallo: %s" % e, flush=True)
+
+
 def _find_one(patterns) -> str:
     for pat in patterns:
         hits = glob.glob(pat, recursive=True)
@@ -114,10 +130,16 @@ def _chatml_prefix(prompt: str) -> str:
 
 
 def eval_tooluse(model, tokenizer, prompts, label: str) -> dict:
-    """Mide, greedy, la fraccion de prompts held-out donde el modelo emite UNA
-    sola linea ACCION con una herramienta valida (el skill que entrenamos)."""
+    """Eval greedy de tool-use en prompts held-out. Mide DOS cosas:
+      - valid_single_accion: emite UNA linea ACCION con herramienta valida (formato).
+      - correct_tool: la herramienta elegida esta entre las esperadas de la tarea
+        (SELECCION correcta). Esta es la metrica que importa: el base suele emitir
+        formato valido pero elige mal (default a leer_archivo); el fine-tune ensena
+        a elegir la herramienta correcta."""
     model.eval()
-    ok = 0
+    ok_fmt = 0
+    ok_tool = 0
+    n_expect = 0
     details = []
     for e in prompts:
         text = _chatml_prefix(e["prompt"])
@@ -130,21 +152,32 @@ def eval_tooluse(model, tokenizer, prompts, label: str) -> dict:
                                 skip_special_tokens=True).strip()
         first = resp.splitlines()[0] if resp else ""
         m = re.match(r"ACCI[OÓ]N:\s*(\w+)", first, re.IGNORECASE)
-        valid = bool(m) and m.group(1).lower() in VALID_TOOLS
+        tool = m.group(1).lower() if m else None
+        valid = bool(tool) and tool in VALID_TOOLS
         single = len(re.findall(r"ACCI[OÓ]N:", resp, re.IGNORECASE)) == 1
-        good = bool(valid and single)
-        ok += good
-        details.append({"task_id": e.get("task_id"), "valid": valid,
-                        "single": single, "resp": resp[:120]})
-    rate = ok / max(1, len(prompts))
-    print(f"[eval:{label}] valid_single_accion={rate:.1%} (n={len(prompts)})", flush=True)
+        expected = [t.lower() for t in (e.get("expected_tools") or [])]
+        correct = bool(valid and expected and tool in expected)
+        ok_fmt += bool(valid and single)
+        if expected:
+            n_expect += 1
+            ok_tool += correct
+        details.append({"task_id": e.get("task_id"), "valid": valid, "single": single,
+                        "tool": tool, "expected": expected, "correct_tool": correct,
+                        "resp": resp[:120]})
+    rate_fmt = ok_fmt / max(1, len(prompts))
+    rate_tool = ok_tool / max(1, n_expect)
+    print(f"[eval:{label}] valid_single_accion={rate_fmt:.1%} correct_tool={rate_tool:.1%} "
+          f"(n={len(prompts)})", flush=True)
     for d in details:
-        print(f"   {d['task_id']:<20} valid={d['valid']} single={d['single']} :: {d['resp']!r}", flush=True)
-    return {"label": label, "valid_single_accion": rate, "details": details}
+        print(f"   {d['task_id']:<20} tool={d['tool']} correct={d['correct_tool']} :: {d['resp']!r}", flush=True)
+    return {"label": label, "valid_single_accion": rate_fmt,
+            "correct_tool": rate_tool, "details": details}
 
 
 def main():
     use_bnb = HAS_GPU and _ensure_bitsandbytes()
+    # Debe ir ANTES de importar peft (peft cachea la deteccion de torchao al import).
+    _disable_torchao()
 
     from transformers import (AutoModelForCausalLM, AutoTokenizer,
                               DataCollatorForSeq2Seq, Trainer, TrainingArguments)
@@ -153,6 +186,11 @@ def main():
     mode = ("GPU/4-bit/3B" if (HAS_GPU and use_bnb)
             else "GPU/fp16/3B" if HAS_GPU else "CPU/fp32/0.5B")
     print(f"MODE: {mode}")
+    # Diagnostico de GPU: si CUDA no esta disponible, Kaggle NO adjunto la T4
+    # (cuota de GPU agotada, falta verificacion de telefono, o machine_shape sin
+    # efecto) -> cae a CPU + 0.5B. Se necesita GPU para entrenar el 3B real.
+    print(f"[gpu] torch={torch.__version__} cuda_available={torch.cuda.is_available()} "
+          f"device_count={torch.cuda.device_count()}", flush=True)
     print("DEVICE:", torch.cuda.get_device_name(0) if HAS_GPU else "CPU")
     print("MODEL DIR:", MODEL)
     print("TRAIN:", TRAIN_PATH, "| EVAL:", EVAL_PATH)
@@ -160,6 +198,10 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    # Right-padding OBLIGATORIO para entrenar causal LM con labels: con left-pad
+    # el padding se antepone y desalinea la shift interna de la loss respecto de
+    # los -100 del prompt. (Qwen suele venir right, pero lo forzamos por las dudas.)
+    tokenizer.padding_side = "right"
 
     if HAS_GPU and use_bnb:
         from transformers import BitsAndBytesConfig
@@ -245,7 +287,11 @@ def main():
     if eval_base and eval_adapter:
         compare["delta_valid_single_accion"] = (
             eval_adapter["valid_single_accion"] - eval_base["valid_single_accion"])
+        compare["delta_correct_tool"] = (
+            eval_adapter["correct_tool"] - eval_base["correct_tool"])
         print(f"\nDELTA valid_single_accion: {compare['delta_valid_single_accion']:+.1%}", flush=True)
+        print(f"DELTA correct_tool:        {compare['delta_correct_tool']:+.1%}  "
+              f"(base {eval_base['correct_tool']:.1%} -> adapter {eval_adapter['correct_tool']:.1%})", flush=True)
     with open(f"{OUT}/eval_tooluse.json", "w", encoding="utf-8") as f:
         json.dump(compare, f, indent=2, ensure_ascii=False)
     print("DONE", flush=True)
