@@ -1,0 +1,148 @@
+{
+  "experiment": "bench_reasoning",
+  "timestamp": "2026-07-01T17:52:26.924070",
+  "backend_info": "{}",
+  "n_items": 16,
+  "conds": [
+    "cot_system"
+  ],
+  "results": {
+    "cot_system": {
+      "m01": {
+        "pred": 100,
+        "expected": 470,
+        "ok": false,
+        "wall_s": 9.6
+      },
+      "m02": {
+        "pred": 1235,
+        "expected": 1225,
+        "ok": false,
+        "wall_s": 10.5
+      },
+      "m03": {
+        "pred": 10,
+        "expected": 9,
+        "ok": false,
+        "wall_s": 11.0
+      },
+      "m04": {
+        "pred": 1500,
+        "expected": 1600,
+        "ok": false,
+        "wall_s": 11.4
+      },
+      "m05": {
+        "pred": 28,
+        "expected": 28,
+        "ok": true,
+        "wall_s": 10.2
+      },
+      "m06": {
+        "pred": 36,
+        "expected": 36,
+        "ok": true,
+        "wall_s": 36.7
+      },
+      "m07": {
+        "pred": 1080,
+        "expected": 540,
+        "ok": false,
+        "wall_s": 10.7
+      },
+      "m08": {
+        "pred": 101,
+        "expected": 103,
+        "ok": false,
+        "wall_s": 10.7
+      },
+      "m09": {
+        "pred": 1080,
+        "expected": 1080,
+        "ok": true,
+        "wall_s": 11.1
+      },
+      "m10": {
+        "pred": 28,
+        "expected": 25,
+        "ok": false,
+        "wall_s": 10.4
+      },
+      "m11": {
+        "pred": 50,
+        "expected": 50,
+        "ok": true,
+        "wall_s": 11.3
+      },
+      "m12": {
+        "pred": 16,
+        "expected": 20,
+        "ok": false,
+        "wall_s": 10.0
+      },
+      "l01": {
+        "pred": 2,
+        "expected": 2,
+        "ok": true,
+        "wall_s": 10.3
+      },
+      "l02": {
+        "pred": 5,
+        "expected": 8,
+        "ok": false,
+        "wall_s": 10.6
+      },
+      "l03": {
+        "pred": 5,
+        "expected": 1,
+        "ok": false,
+        "wall_s": 10.5
+      },
+      "l04": {
+        "pred": 11,
+        "expected": 14,
+        "ok": false,
+        "wall_s": 10.6
+      }
+    }
+  },
+  "format": {
+    "cot_system": {
+      "f01": {
+        "compliance": true,
+        "correct": true,
+        "wall_s": 9.7,
+        "raw": "{\"respuesta\": 391}"
+      },
+      "f02": {
+        "compliance": true,
+        "correct": true,
+        "wall_s": 11.0,
+        "raw": "{\"primos\": [2, 3, 5, 7, 11]}"
+      },
+      "f03": {
+        "compliance": true,
+        "correct": false,
+        "wall_s": 9.2,
+        "raw": "105"
+      },
+      "f04": {
+        "compliance": true,
+        "correct": true,
+        "wall_s": 8.6,
+        "raw": "hola,hola,hola"
+      }
+    }
+  },
+  "summary": {
+    "cot_system": {
+      "acc": 0.3125,
+      "n": 16,
+      "wall_s": 195.6
+    },
+    "format_cot_system": {
+      "compliance": 1.0,
+      "correct": 0.75
+    }
+  }
+}

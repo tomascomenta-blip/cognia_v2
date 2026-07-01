@@ -6695,13 +6695,22 @@ def repl():
                             # band router va DENTRO del ultimo mensaje user
                             # (ver _build_stream_messages: posicion obligada
                             # para no invalidar el prefijo KV cacheado).
+                            # CoT dirigido (bench_reasoning 2026-07-01: direct 0.3125 ->
+                            # CoT por turno 0.8125; en system prompt no hace nada; y NO se
+                            # aplica si piden formato exacto porque rompe compliance).
+                            # Solo cambia el texto que VE el LLM; _history guarda `raw`.
+                            try:
+                                from cognia.agent.stepwise import augment_stepwise
+                                _raw_llm = augment_stepwise(raw)
+                            except Exception:
+                                _raw_llm = raw
                             _messages = _build_stream_messages(
-                                ai, raw, _system, _hist_ctx)
+                                ai, _raw_llm, _system, _hist_ctx)
                             # Fast-path 0.5B: prompt minimo (sin historia/HYDRA) para que
                             # el prefill no coma la ventaja de velocidad en turnos sociales.
                             if _llama_turn is not _llama:
                                 _messages = [{"role": "system", "content": _system},
-                                             {"role": "user", "content": raw}]
+                                             {"role": "user", "content": _raw_llm}]
                             if _use_chat:
                                 _stream_src = lambda: _llama_turn.stream_chat(
                                     _messages, max_tokens=1024,

@@ -4832,3 +4832,22 @@ Fragilidad documentada: DFA de libro (salida He, lr parejo) COLAPSA a 0.054; nec
 + B ortonormal (mismo sintoma que el SDPC historico). Limites honestos en RESULTADO.md: MLP/MNIST/CPU,
 nada extrapola a LMs a escala; PC usa W^T (transporte simetrico); 1 pase de tuning documentado en
 dfa/pc/dtp. Sintesis: cognia_x/experiments/exp049_learning_rules/RESULTADO.md + results/results.json.
+
+### J. 2026-07-01 (3ra sesion, cont.): TAREA 3 CERRADA - la mejora de respuestas que sobrevivio e2e
+Raiz medida (bench_reasoning.py, 16 problemas respuesta entera exacta + 4 formato, sistema
+deployado 3B Q4_K_M): respondiendo DIRECTO el 3B resuelve 5 de 16 (0.3125) - no computa
+cadenas multi-paso sin externalizarlas como tokens. Mejoras probadas: CoT POR TURNO temp=0
+= 0.8125 (+50 pts) QUEDA; self-consistency k=3 temp 0.7 = 0.6875 a 3x costo DESCARTADA
+(peor que CoT greedy); CoT en SYSTEM prompt = 0.3125 (baseline exacto) DESCARTADA como
+palanca (el 3B no se auto-dispara; la clausula de formato en system SI subio compliance
+0.75 a 1.0 pero n=4, candidata sin integrar). Hallazgo clave: el CoT por turno ROMPE el
+formato estricto (0.75 a 0.25) -> la integracion es DIRIGIDA: cognia/agent/stepwise.py
+(detector regex: pregunta cuantitativa SI, pedido de formato exacto NO) + wiring en el
+chat de cli.py (el historial guarda el raw original). Verificado: tests/test_stepwise.py
+4/4 (los 16 items activan, los 4 de formato no, social no) + e2e real con el tag deployado:
+recupera 4 de 5 items que direct fallaba. Sintesis: cognia_v3/eval/RESULTADO_reasoning.md.
+Operativo: los runs largos del bench van DESACOPLADOS (Start-Process + Monitor) porque los
+comandos bg del harness capean a 10 min (el 1er run full murio ahi; guardado incremental
+por item agregado). GOAL DE 3 TAREAS COMPLETO: TAREA 1 (4.10x T4), TAREA 2 (exp049),
+TAREA 3 (CoT dirigido integrado). Frontera anotada: eval multi-turno, GSM8K a escala,
+clausula formato-en-system (n=4), cascada 3B-7B sobre razonamiento.
