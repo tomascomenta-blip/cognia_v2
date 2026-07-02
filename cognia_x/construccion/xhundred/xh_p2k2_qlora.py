@@ -38,6 +38,14 @@ HERMES_N = 1500
 MGSM_PROMPT = ("Resuelve el siguiente problema paso a paso y termina tu respuesta "
                "con la línea '#### <número>'.\n\n{q}")
 FEWSHOT_IDX = (0, 1, 2)
+LETTERS = (" A", " B", " C", " D")
+
+
+def prompt_letter_belebele(r):
+    """D6: formato LETRA (diag: 74.5% vs 32% continuación en el base) — idéntico ambos lados."""
+    ops = "\n".join(f"{letter}) {r[f'mc_answer{k}']}" for letter, k in zip("ABCD", (1, 2, 3, 4)))
+    return (f"Pasaje: {r['flores_passage']}\n\nPregunta: {r['question']}\n\n{ops}\n\n"
+            f"Responde únicamente con la letra de la opción correcta.", list(LETTERS))
 
 
 # ───────────────────────── util compartido con P2-K1 (extracción/normalización) ────────────────────
@@ -471,10 +479,9 @@ def main():
         print(f"[adapter] save fallo: {e!r}", flush=True)
     save(out)
 
-    # ── eval (mismo harness que P2-K1) ──
-    bele_items = [(f"Pasaje: {r['flores_passage']}\n\nPregunta: {r['question']}\nRespuesta:",
-                   [" " + r[f"mc_answer{k}"] for k in (1, 2, 3, 4)],
-                   int(r["correct_answer_num"]) - 1) for r in bele]
+    # ── eval (mismo harness que P2-K1; Belebele en formato LETRA por D6) ──
+    bele_items = [prompt_letter_belebele(r) + (int(r["correct_answer_num"]) - 1,)
+                  for r in bele]
     xsc_items = [((r["input_sentence_1"] + " " + r["input_sentence_2"] + " "
                    + r["input_sentence_3"] + " " + r["input_sentence_4"]
                    + "\n\n¿Cómo termina la historia?"),
@@ -485,18 +492,19 @@ def main():
                 (mg_tr[i]["answer"] or "") + f"\n#### {mg_tr[i]['answer_number']}")
                for i in FEWSHOT_IDX]
     base_eval = find_base_eval()
-    # espejo de recortes GP2-2 del base: mismas suites y tamaños que P2-K1 haya corrido
-    if base_eval:
-        n_bele = base_eval["suites"].get("belebele", {}).get("n", len(bele_items))
-        bele_items = bele_items[:n_bele]
-        ran_3shot = "mgsm_3shot" in base_eval["suites"]
-    else:
-        ran_3shot = False
+    ran_3shot = bool(base_eval) and "mgsm_3shot" in base_eval["suites"]
 
     score_options = build_nll_scorer(model, tokenizer, device)
     run_mgsm("mgsm_0shot", mgsm_items, [], model, tokenizer, device, out, t0, BUDGET_MIN)
     run_mc_suite("xstorycloze", xsc_items, score_options, out, t0, BUDGET_MIN * 0.85)
     run_mc_suite("belebele", bele_items, score_options, out, t0, BUDGET_MIN * 0.95)
+    # D6: el base se re-evalúa en Belebele-LETRA acá mismo (P2-K1 usó el formato descartado)
+    try:
+        with model.disable_adapter():
+            run_mc_suite("belebele_base_letra", bele_items, score_options, out, t0,
+                         BUDGET_MIN * 0.99)
+    except Exception as e:  # noqa: BLE001
+        print(f"[belebele_base] fallo: {e!r}", flush=True)
     if ran_3shot and (time.time() - t0) / 60 < BUDGET_MIN * 0.85:
         run_mgsm("mgsm_3shot", mgsm_items, fewshot, model, tokenizer, device, out, t0, BUDGET_MIN)
 
@@ -514,8 +522,9 @@ def main():
                                        - b["mgsm_3shot"]["acc_lax"]) * 100, 1)
         if "xstorycloze" in b and "xstorycloze" in f:
             d["P4_xsc"] = round((f["xstorycloze"]["acc"] - b["xstorycloze"]["acc"]) * 100, 1)
-        if "belebele" in b and "belebele" in f:
-            d["P5_belebele"] = round((f["belebele"]["acc"] - b["belebele"]["acc"]) * 100, 1)
+        if "belebele" in f and "belebele_base_letra" in f:      # D6: delta intra-kernel
+            d["P5_belebele"] = round((f["belebele"]["acc"]
+                                      - f["belebele_base_letra"]["acc"]) * 100, 1)
         out["deltas_pts"] = d
         out["veredicto"] = {
             "gana_nicho": bool(d.get("P1_mgsm_strict", -99) >= 6 and d.get("P2_mgsm_lax", -99) >= 4),

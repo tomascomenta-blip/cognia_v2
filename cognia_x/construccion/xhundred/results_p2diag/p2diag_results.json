@@ -1,0 +1,11 @@
+{
+  "experiment": "xh_p2diag",
+  "n": 200,
+  "acc": {
+    "A_cont_media": 0.32,
+    "B_cont_suma": 0.36,
+    "C_letra": 0.745
+  },
+  "eval_minutes": 2.8,
+  "minutes_total": 3.8
+}

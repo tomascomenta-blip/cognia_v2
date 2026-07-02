@@ -46,6 +46,21 @@ OOMeó a 15.13GB donde b48 compilado usa 13.05GB; inductor reutiliza buffers). E
 bf16-en-T4 se sostiene por arquitectura (SM75 sin tensor cores bf16) + este OOM; se declara
 que no hay medición limpia de su velocidad.
 
+## D6 — 2026-07-02 — GP2-1 FALLÓ en Belebele (35.2% < 40%) → diagnóstico → formato LETRA
+**Medido P2-K1:** MGSM-es 0-shot 39.6/45.6 (rango predicho ✓), 3-shot 69.2 (✓), XSC 65.3 (✓),
+pero Belebele 35.2% < gate 40% → regla pre-registrada aplicada: NO entrenar, diagnosticar.
+**Diagnóstico (xh_p2diag, 200 ítems, mismo base NF4):** continuación-NLL media 32.0% /
+continuación-NLL suma 36.0% / **letra-NLL con opciones listadas 74.5%** (en el rango predicho
+62-75%). Causa raíz: el protocolo congelado en 02_FASE2_PLAN §2 ("NO extracción generativa de
+letra") era correcto en descartar la EXTRACCIÓN generativa, pero el scoring de la respuesta
+como continuación libre tampoco discrimina en un instruct-3B — el formato que funciona es
+opciones listadas + NLL de ' A'..' D'.
+**Resolución:** Belebele pasa a formato LETRA para base y adapter POR IGUAL; la elección se
+hizo mirando SOLO el base (delta P5 insesgado). Como P2-K1 midió Belebele con el formato
+descartado, P2-K2 re-evalúa Belebele-letra del BASE en el mismo kernel (disable_adapter) y el
+delta P5 se computa intra-kernel. XSC y MGSM no se tocan (pasaron sus gates con el protocolo
+congelado). El 35.2% de P2-K1 queda como dato del formato descartado, no se borra.
+
 ## D2 — 2026-07-02 — G2: los 5 prompts nuevos, fijados antes de K1
 00_DISENO.md §3-G2 exige 5 prompts nuevos "fijados antes de correr". Quedan congelados acá:
 1. "Había una vez un niño que " (apertura de cuento)
