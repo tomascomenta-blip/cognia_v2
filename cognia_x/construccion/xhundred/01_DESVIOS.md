@@ -31,6 +31,21 @@ el recompute), PYTORCH_ALLOC_CONF=expandable_segments, hard_cleanup() (dynamo re
 entre brazos, compile fullgraph=False, paridad a b16. El presupuesto de memoria de §4.4 queda
 corregido por la medición real.
 
+## D5 — 2026-07-02 — Gate K1-2b (overhead NS <10%) estaba mal diseñado; decide K2-A, no el gate
+**Medido K1v4:** Muon 1480 ms/step vs AdamW 1264.9 (overhead 17.0% > 10% → gate FAIL formal).
+PERO a los mismos ~110 steps: loss Muon 4.61 vs AdamW 5.92 — la calidad por step paga el
+overhead con creces. El gate asumía que el overhead del Newton-Schulz era desperdicio puro;
+ignoraba la data-efficiency, que es LA razón de Muon. **Resolución:** el gate correcto ya
+estaba pre-registrado — el brazo A de K2 (AdamW tuneado vs v1 a IGUAL wall de 12 min) decide.
+El fallo formal del gate queda registrado y NO se oculta.
+**Bonus medidos K1v4:** paridad fp16/fp32 rel 0.00096 (PASS, 0 skips — régimen LR agresivo
+estable); b48+compile = 19,429 tok/s (MFU 19.7%, 13.05GB) → batch de K2/K3 = 48 CONFIRMADO;
+compile warmup 45.2s (PASS). bf16 quedó SIN número de velocidad: OOM a b48 sin compile
+(pico 14.86GB) — hallazgo colateral: torch.compile es también palanca de MEMORIA (b32 eager
+OOMeó a 15.13GB donde b48 compilado usa 13.05GB; inductor reutiliza buffers). El descarte
+bf16-en-T4 se sostiene por arquitectura (SM75 sin tensor cores bf16) + este OOM; se declara
+que no hay medición limpia de su velocidad.
+
 ## D2 — 2026-07-02 — G2: los 5 prompts nuevos, fijados antes de K1
 00_DISENO.md §3-G2 exige 5 prompts nuevos "fijados antes de correr". Quedan congelados acá:
 1. "Había una vez un niño que " (apertura de cuento)

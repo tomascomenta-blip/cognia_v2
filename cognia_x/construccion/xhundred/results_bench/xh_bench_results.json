@@ -34,39 +34,77 @@
       "max_rel_diff": 0.00317,
       "pass": true
     },
+    "g2b_ns_overhead": {
+      "muon_ms": 1480.0,
+      "adamw_ms": 1264.9,
+      "overhead": 0.1701,
+      "pass": false
+    },
+    "g3_compile_warmup": {
+      "max_s": 45.2,
+      "pass": true
+    },
     "g4_parity": {
       "fp32": {
-        "loss": 5.045836925506592,
+        "loss": 5.0427703857421875,
         "skips": 0
       },
       "fp16": {
-        "loss": 5.045601844787598,
+        "loss": 5.047615051269531,
         "skips": 0
       },
-      "rel_diff": 5e-05,
+      "rel_diff": 0.00096,
       "pass": true
     }
   },
   "arms": [
     {
       "name": "adamw_b48_compile",
-      "oom": true
+      "batch": 48,
+      "opt": "adamw",
+      "amp": true,
+      "compile": true,
+      "params_total": 110121216,
+      "params_nonemb": 84955392,
+      "ms_per_step": 1264.9,
+      "tok_per_s": 19429,
+      "mfu_approx": 0.197,
+      "vram_gb": 13.05,
+      "compile_warmup_s": 45.2,
+      "loss_first": 14.9511,
+      "loss_last": 5.9233,
+      "loss_finite": true,
+      "scaler_scale": 65536.0
     },
     {
       "name": "muon_b48_compile",
-      "oom": true
-    },
-    {
-      "name": "adamw_b64_compile",
-      "oom": true
+      "batch": 48,
+      "opt": "muon",
+      "amp": true,
+      "compile": true,
+      "params_total": 110121216,
+      "params_nonemb": 84955392,
+      "ms_per_step": 1480.0,
+      "tok_per_s": 16606,
+      "mfu_approx": 0.169,
+      "vram_gb": 12.71,
+      "compile_warmup_s": 3.3,
+      "loss_first": 14.9511,
+      "loss_last": 4.6056,
+      "loss_finite": true,
+      "scaler_scale": 32768.0
     },
     {
       "name": "bf16_b48_nocompile",
-      "oom": true
+      "oom": true,
+      "peak_gb": 14.86,
+      "msg": "CUDA out of memory. Tried to allocate 576.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 504.81 MiB is free. Including non-PyTorch memory, this process has 14.07 GiB memory in use. Of the al"
     },
     {
       "name": "adamw_b32_nocompile",
-      "oom": true
+      "oom": true,
+      "peak_gb": 15.13,
+      "msg": "CUDA out of memory. Tried to allocate 512.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 292.81 MiB is free. Including non-PyTorch memory, this process has 14.27 GiB memory in use. Of the al"
     }
   ],
   "arch": {
@@ -75,5 +113,12 @@
     "vocab": 32768,
     "ln_vocab": 10.4
   },
-  "minutes_total": 15.6
+  "best": {
+    "name": "adamw_b48_compile",
+    "batch": 48,
+    "tok_per_s": 19429,
+    "tokens_in_25min": 29143500,
+    "mfu": 0.197
+  },
+  "minutes_total": 20.2
 }

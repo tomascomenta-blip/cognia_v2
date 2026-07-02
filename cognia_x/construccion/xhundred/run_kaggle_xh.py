@@ -12,11 +12,16 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 
+QWEN3B = "qwen-lm/qwen2.5/transformers/3b-instruct/1"
 KERNELS = {
     "data":   {"file": "xh_data_kernel.py",   "slug": "cognia-xh-data",   "gpu": False, "sources": []},
     "bench":  {"file": "xh_bench_kernel.py",  "slug": "cognia-xh-bench",  "gpu": True,  "sources": ["cognia-xh-data"]},
     "ablate": {"file": "xh_ablate_kernel.py", "slug": "cognia-xh-ablate", "gpu": True,  "sources": ["cognia-xh-data"]},
     "final":  {"file": "xh_final_kernel.py",  "slug": "cognia-xh-final",  "gpu": True,  "sources": ["cognia-xh-data"]},
+    "p2k1":   {"file": "xh_p2k1_evalbase.py", "slug": "cognia-xh-p2k1",   "gpu": True,  "sources": [],
+               "models": [QWEN3B]},
+    "p2k2":   {"file": "xh_p2k2_qlora.py",    "slug": "cognia-xh-p2k2",   "gpu": True,  "sources": [],
+               "models": [QWEN3B]},
 }
 
 
@@ -60,7 +65,8 @@ def main():
         "kernel_type": "script", "is_private": "true",
         "enable_gpu": "true" if spec["gpu"] else "false",
         "enable_internet": "true",
-        "dataset_sources": [], "competition_sources": [], "model_sources": [],
+        "dataset_sources": [], "competition_sources": [],
+        "model_sources": spec.get("models", []),
         "kernel_sources": [f"{user}/{s}" for s in spec["sources"]],
     }
     if spec["gpu"]:
