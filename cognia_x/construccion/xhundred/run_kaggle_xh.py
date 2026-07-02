@@ -20,8 +20,8 @@ KERNELS = {
     "final":  {"file": "xh_final_kernel.py",  "slug": "cognia-xh-final",  "gpu": True,  "sources": ["cognia-xh-data"]},
     "p2k1":   {"file": "xh_p2k1_evalbase.py", "slug": "cognia-xh-p2k1",   "gpu": True,  "sources": [],
                "models": [QWEN3B]},
-    "p2k2":   {"file": "xh_p2k2_qlora.py",    "slug": "cognia-xh-p2k2",   "gpu": True,  "sources": [],
-               "models": [QWEN3B]},
+    "p2k2":   {"file": "xh_p2k2_qlora.py",    "slug": "cognia-xh-p2k2",   "gpu": True,
+               "sources": ["cognia-xh-p2k1"], "models": [QWEN3B]},
 }
 
 
