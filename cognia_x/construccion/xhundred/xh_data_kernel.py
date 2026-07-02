@@ -252,10 +252,11 @@ def main():
         ids_mix.tofile(f"train_mix_{tag}.bin")
         ids_vw.tofile(f"val_wiki_{tag}.bin")
         ids_vs.tofile(f"val_stories_{tag}.bin")
-        if v == max(vocabs):
-            ids_g = encode_corpus(tok, wiki_solo, eos_id, f"wikisolo-{tag}")
-            ids_g.tofile(f"train_wiki_{tag}.bin")
-            meta["train_wiki_tokens"] = int(len(ids_g))
+        # wiki-solo en TODOS los vocabs (K3 usa 35/65 con 16k tras el veredicto E de K2)
+        ids_g = encode_corpus(tok, wiki_solo, eos_id, f"wikisolo-{tag}")
+        ids_g.tofile(f"train_wiki_{tag}.bin")
+        meta["vocabs"].setdefault(tag, {})
+        meta[f"train_wiki_tokens_{tag}"] = int(len(ids_g))
         tok.save(f"tokenizer_{tag}.json")
         # fertilidad MEDIDA en el held-out real (§8-R11): la fórmula bpb del kernel GPU usa ESTO
         fert_vw = meta["val_wiki_bytes"] / max(1, len(ids_vw))

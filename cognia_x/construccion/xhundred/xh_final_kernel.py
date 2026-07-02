@@ -47,22 +47,29 @@ def find_data_dir():
     raise FileNotFoundError("xh_data_meta.json no está bajo /kaggle/input")
 
 
-# ── RECETA GANADORA (fijar según xh_ablate_results.json ANTES de pushear) ──
+# ── RECETA GANADORA (fijada con xh_ablate_results.json 2026-07-02, reglas pre-registradas) ──
+# Muon 0.02 (gana a AdamW-tuneado por 0.072 bpb a igual wall) · BPE-16k (gana a 32k por 0.019)
+# · mezcla 35% cuentos (regla del brazo G: 50/50 costaba +0.16 de wiki-bpb) · d=768 12L (F empató)
+# · buffer-mask (chunked +0.9% no paga; causal_full pierde banded) · EMA 0.995 (0.998 mal
+# calibrado a pocos steps: 2.14 vs last 1.54) · batch 48 (K1v4)
 ARCH_D = 768
 ARCH_HEADS = 12
 ARCH_LAYERS = 12
 ARCH_WINDOW = 256
 GLOBAL_LAYERS = (3, 7, 11)
 SEQ = 512
-BATCH = 48                       # <- confirmar con bench/ablate
-OPTIMIZER = "muon"               # "muon" | "adamw_ctl"  <- según brazo ganador
+BATCH = 48
+OPTIMIZER = "muon"
 MUON_LR = 0.02
 ADAMW_LR = 3e-3
-DATA_KIND = "mix"                # "mix" | "wiki" | "16k" | "bytes"  <- según brazos D/E/G
-ATTN_MODE = "mask"               # "mask" | "chunked"  <- según brazo H (con gate extrapolación)
+DATA_KIND = "mix35"              # 34 filas de mix(50/50) + 14 de wiki-solo = 35.4% cuentos
+TAG = "16k"
+WIKI_ROWS = 14                   # de BATCH filas, cuántas salen del bin wiki-solo
+OPTIMIZER_CTL = False
+ATTN_MODE = "mask"
 ZLOSS = 1e-4
 WARMUP_STEPS = 200
-EMA_DECAY = 0.998
+EMA_DECAY = 0.995
 TRAIN_WALL_S = 1500.0            # 25 min de train puro
 TIME_BUDGET_MIN = 45.0           # tope duro del kernel (colchón sobre los 30)
 
@@ -395,35 +402,28 @@ def set_lrs(opts, base_lrs, factor):
 
 
 def load_data(device, smoke):
+    """→ (tr_mix, tr_wiki|None, val_wiki, val_stories, vocab, tpb_w, tpb_s, tok_path, eos)."""
     if smoke:
         g = torch.Generator().manual_seed(0)
         tr = torch.randint(1, 500, (300_000,), generator=g).to(torch.int32).to(device)
+        tw = torch.randint(1, 500, (100_000,), generator=g).to(torch.int32).to(device)
         va = torch.randint(1, 500, (30_000,), generator=g).to(torch.int32).to(device)
-        return tr, va, va, 500, 1.0, 1.0, None, 0
+        return tr, tw, va, va, 500, 1.0, 1.0, None, 0
     data_dir = find_data_dir()
     meta = json.loads(open(f"{data_dir}/xh_data_meta.json", encoding="utf-8").read())
-    if DATA_KIND == "bytes":
-        tr = np.fromfile(f"{data_dir}/train_bytes.bin", dtype=np.uint8)
-        vw = np.frombuffer(open(f"{data_dir}/val_wiki.txt", encoding="utf-8").read()
-                           .encode("utf-8"), dtype=np.uint8)
-        vs = np.frombuffer(open(f"{data_dir}/val_stories.txt", encoding="utf-8").read()
-                           .encode("utf-8"), dtype=np.uint8)
-        return (torch.from_numpy(tr.astype(np.int32)).to(device),
-                torch.from_numpy(vw.astype(np.int32).copy()).to(device),
-                torch.from_numpy(vs.astype(np.int32).copy()).to(device),
-                256, 1.0, 1.0, None, 0)
-    tag = "16k" if DATA_KIND == "16k" else "32k"
-    fn = f"train_wiki_{tag}.bin" if DATA_KIND == "wiki" else f"train_mix_{tag}.bin"
-    m = meta["vocabs"][tag]
-    tr = np.fromfile(f"{data_dir}/{fn}", dtype=np.uint16)
-    vw = np.fromfile(f"{data_dir}/val_wiki_{tag}.bin", dtype=np.uint16)
-    vs = np.fromfile(f"{data_dir}/val_stories_{tag}.bin", dtype=np.uint16)
+    m = meta["vocabs"][TAG]
+    tr = np.fromfile(f"{data_dir}/train_mix_{TAG}.bin", dtype=np.uint16)
+    tw = (np.fromfile(f"{data_dir}/train_wiki_{TAG}.bin", dtype=np.uint16)
+          if DATA_KIND == "mix35" else None)
+    vw = np.fromfile(f"{data_dir}/val_wiki_{TAG}.bin", dtype=np.uint16)
+    vs = np.fromfile(f"{data_dir}/val_stories_{TAG}.bin", dtype=np.uint16)
     return (torch.from_numpy(tr.astype(np.int32)).to(device),
+            torch.from_numpy(tw.astype(np.int32)).to(device) if tw is not None else None,
             torch.from_numpy(vw.astype(np.int32)).to(device),
             torch.from_numpy(vs.astype(np.int32)).to(device),
             m["vocab_size"], m["val_wiki_tokens"] / meta["val_wiki_bytes"],
             m["val_stories_tokens"] / meta["val_stories_bytes"],
-            f"{data_dir}/tokenizer_{tag}.json", m["eos_id"])
+            f"{data_dir}/tokenizer_{TAG}.json", m["eos_id"])
 
 
 @torch.no_grad()
@@ -505,11 +505,14 @@ def main():
            "receta": {"d": ARCH_D, "layers": ARCH_LAYERS, "heads": ARCH_HEADS,
                       "window": ARCH_WINDOW, "globals": list(GLOBAL_LAYERS), "seq": SEQ,
                       "batch": BATCH, "opt": OPTIMIZER, "muon_lr": MUON_LR,
-                      "adamw_lr": ADAMW_LR, "data": DATA_KIND, "attn": ATTN_MODE,
+                      "adamw_lr": ADAMW_LR, "data": DATA_KIND, "vocab_tag": TAG,
+                      "wiki_rows": WIKI_ROWS, "attn": ATTN_MODE,
                       "warmup": WARMUP_STEPS, "ema": EMA_DECAY,
-                      "train_wall_s": TRAIN_WALL_S}, "wall": {}}
+                      "train_wall_s": TRAIN_WALL_S,
+                      "veredicto_k2": "muon>adamw 0.072; bpe>byte 0.24; 16k>32k 0.019; "
+                                      "cuentos->35%; d768; mask; ema 0.995"}, "wall": {}}
 
-    tr, vw, vs, vocab, tpb_w, tpb_s, tok_path, eos_id = load_data(device, smoke)
+    tr, trw, vw, vs, vocab, tpb_w, tpb_s, tok_path, eos_id = load_data(device, smoke)
     torch.manual_seed(0)
     if smoke:
         model = XHLM(vocab, d=64, n_heads=4, n_layers=2, global_layers=(1,))
@@ -546,10 +549,24 @@ def main():
         step += 1
         progress = (time.time() - t0) / wall
         set_lrs(opts, base_lrs, lr_factor(step, progress))
-        starts = torch.randint(0, len(tr) - seq - 1, (batch,), generator=g,
+        if trw is not None:
+            # 35/65: WIKI_ROWS filas del bin wiki-solo + el resto del mix 50/50 (§brazo G)
+            n_w = max(1, round(WIKI_ROWS * batch / BATCH))
+            sm = torch.randint(0, len(tr) - seq - 1, (batch - n_w,), generator=g,
                                device=device, dtype=torch.int32)
-        idx = starts[:, None] + arange[None, :]
-        x, y = tr[idx].long(), tr[idx + 1].long()
+            sw = torch.randint(0, len(trw) - seq - 1, (n_w,), generator=g,
+                               device=device, dtype=torch.int32)
+            xm = tr[sm[:, None] + arange[None, :]]
+            xw = trw[sw[:, None] + arange[None, :]]
+            ym = tr[sm[:, None] + arange[None, :] + 1]
+            yw = trw[sw[:, None] + arange[None, :] + 1]
+            x = torch.cat([xm, xw]).long()
+            y = torch.cat([ym, yw]).long()
+        else:
+            starts = torch.randint(0, len(tr) - seq - 1, (batch,), generator=g,
+                                   device=device, dtype=torch.int32)
+            idx = starts[:, None] + arange[None, :]
+            x, y = tr[idx].long(), tr[idx + 1].long()
         with torch.autocast(device_type=device, dtype=torch.float16, enabled=device == "cuda"):
             _, ce, tot = model(x, y)
         for o in opts:

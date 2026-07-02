@@ -1,0 +1,688 @@
+{
+  "experiment": "xh_ablate",
+  "device": "cuda",
+  "torch": "2.10.0+cu128",
+  "config": {
+    "d": 768,
+    "layers": 12,
+    "window": 256,
+    "seq": 512,
+    "batch": 48,
+    "compile": true,
+    "muon_lr": 0.02,
+    "adamw_lr": 0.003,
+    "warmup": 200,
+    "train_wall_s": 720.0,
+    "ema": 0.998
+  },
+  "arms": [
+    {
+      "name": "v1_muon",
+      "arm": {
+        "name": "v1_muon",
+        "free_rider": "True"
+      },
+      "vocab": 32768,
+      "params_total": 110121216,
+      "params_nonemb": 84955392,
+      "curve": [
+        {
+          "s": 122,
+          "step": 58,
+          "loss": 5.426,
+          "bpb_wiki": 2.1722,
+          "tokens_seen": 1425408,
+          "lr_factor": 0.29
+        },
+        {
+          "s": 241,
+          "step": 135,
+          "loss": 4.6649,
+          "bpb_wiki": 1.9471,
+          "tokens_seen": 3317760,
+          "lr_factor": 0.675
+        },
+        {
+          "s": 361,
+          "step": 212,
+          "loss": 4.07,
+          "bpb_wiki": 1.809,
+          "tokens_seen": 5210112,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 481,
+          "step": 289,
+          "loss": 3.7816,
+          "bpb_wiki": 1.7026,
+          "tokens_seen": 7102464,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 601,
+          "step": 365,
+          "loss": 3.8707,
+          "bpb_wiki": 1.6371,
+          "tokens_seen": 8970240,
+          "lr_factor": 0.843
+        },
+        {
+          "s": 721,
+          "step": 442,
+          "loss": 3.2235,
+          "bpb_wiki": 1.5428,
+          "tokens_seen": 10862592,
+          "lr_factor": 0.007
+        }
+      ],
+      "died": null,
+      "scaler_skips": 0,
+      "steps": 442,
+      "tokens_seen": 10862592,
+      "compile_warmup_s": 47.2,
+      "tok_per_s": 15066,
+      "train_wall_s": 721.0,
+      "bpb_wiki": 1.5428,
+      "bpb_stories": 0.7604,
+      "free_rider_W": {
+        "last": 1.5428,
+        "ema": 2.1447,
+        "lawa": 1.5486
+      },
+      "free_rider_best": "last",
+      "samples": [
+        {
+          "prompt": "Había una vez un niño que ",
+          "text": "Había una vez un niño que  estaba muy emocionado. Quería ir a dar un paseo.\n\nAsí que lo llevó de vuelta a la cocina. ¡Quería ver qué había dentro del pastel! El niño estaba tan emocionado que rápidamente abrió el pastel. ¡Tenía una sorpresa!\n\n¡El niño estaba tan emocionado! Quería comer un pastel y comerlo.\n\nPero el niño no escuchó. Estaba tan emocionado que gritó de alegría. ¡Era una deliciosa galleta!\n\nEl niño estaba tan feliz y le agradeció a su mamá. ¡Él estaba muy agradecido por su sorpresa!\n\nFin.",
+          "distinct2": 0.833,
+          "distinct3": 0.924
+        },
+        {
+          "prompt": "La historia de ",
+          "text": "La historia de  creó el , que utiliza la evolución que permite a los manuales de la historia.\n\nEste fenómeno se conoce también en la naturaleza del arte (que los utilizan como ejemplos de tipologías, como en la naturaleza de la sociedad, la evolución de la vida, etc.).\n\nLa cultura de la literatura\n\nEl arte de la filosofía del \nEl arte de la filosofía es el de su creación de la filosofía, su forma en el arte. Se sabe que son elementos específicos, que se consideran como elementos históricos y religiosas y sociales.\n\nGeografía \n\nEl sistema de filosofía es el origen de las artes de Aristóteles (como el de la filosofía). Su origen ha sido descrito en la época de la filosofía desde la filosofía (se conoce como el estudio de la vida).\n\nPésino es el último de la ciencia que se dedicó a su estudio social, los principales testimonios de la filosofía, la filosofía y la filosofía.\n\n\nLa filosofía y la filosofía \n\nLa filosofía",
+          "distinct2": 0.768,
+          "distinct3": 0.921
+        }
+      ]
+    },
+    {
+      "name": "A_adamw_ctl",
+      "arm": {
+        "name": "A_adamw_ctl",
+        "opt": "adamw_ctl"
+      },
+      "vocab": 32768,
+      "params_total": 110121216,
+      "params_nonemb": 84955392,
+      "curve": [
+        {
+          "s": 121,
+          "step": 84,
+          "loss": 5.6392,
+          "bpb_wiki": 2.1671,
+          "tokens_seen": 2064384,
+          "lr_factor": 0.42
+        },
+        {
+          "s": 241,
+          "step": 167,
+          "loss": 4.7412,
+          "bpb_wiki": 1.9656,
+          "tokens_seen": 4104192,
+          "lr_factor": 0.835
+        },
+        {
+          "s": 361,
+          "step": 251,
+          "loss": 4.3073,
+          "bpb_wiki": 1.8471,
+          "tokens_seen": 6168576,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 481,
+          "step": 335,
+          "loss": 4.2218,
+          "bpb_wiki": 1.7706,
+          "tokens_seen": 8232960,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 602,
+          "step": 419,
+          "loss": 3.5165,
+          "bpb_wiki": 1.7084,
+          "tokens_seen": 10297344,
+          "lr_factor": 0.834
+        },
+        {
+          "s": 721,
+          "step": 502,
+          "loss": 3.3352,
+          "bpb_wiki": 1.6147,
+          "tokens_seen": 12337152,
+          "lr_factor": 0.009
+        }
+      ],
+      "died": null,
+      "scaler_skips": 0,
+      "steps": 502,
+      "tokens_seen": 12337152,
+      "compile_warmup_s": 3.1,
+      "tok_per_s": 17121,
+      "train_wall_s": 720.6,
+      "bpb_wiki": 1.6147,
+      "bpb_stories": 0.8109,
+      "samples": [
+        {
+          "prompt": "Había una vez un niño que ",
+          "text": "Había una vez un niño que  tenía un coche de juguete. Su nombre era Lily. Cada día, el niño se ponía el coche y corría afuera.\n\nUn día, la mamá de Lily le pidió que ayudara a su hija a construir una bolsa grande de barro. Lily lo pensó que el coche era muy importante y le dio una barra de barro. ¡Estaba tan feliz!\n\nLily se acercó a la tienda y compró una foto de un delicioso pastel. ¡Estaba tan rica! Pero cuando llegó a la casa de su mamá, accidentalmente derramó las piezas con el aceite y se rompió.\n\nEl niño se sintió muy triste. Su mamá lo abrazó y le dijo que tenía que encontrar un lugar perfecto.\n\nLily se puso muy triste y jugó con sus juguetes todo el día. No quería que su mamá volviera a parar a la cama, pero aún así no quedó bien.",
+          "distinct2": 0.883,
+          "distinct3": 0.961
+        },
+        {
+          "prompt": "La historia de ",
+          "text": "La historia de  años de duración de      8 25  5  000 4 000 000 4540 85 a. C.\nUn año antes se conoce como el calendario gregoriano. Su dominio es el municipio de Áng.\n\nGeografía \n1 a. C.:\n\nGeografía \nSe conserva en tres áreas del año , cuando el terremoto de Molda es de 223 km², así como el Guadiana tiene casi 25 km², el norte del Reino Unido. Los ríos de Montecan son el taco de los ríos y el Guadiana. La costa de la isla es de 30 km de altitud.\n\nHistoria \nLa cuenca del Tajo se encuentra y se produjo un corto en extensión.\n\nHistoria \nLa primera isla de Gajez es la isla de Buy se remonta a la costa de la isla de los Tandres durante el período de la isla de",
+          "distinct2": 0.773,
+          "distinct3": 0.881
+        }
+      ]
+    },
+    {
+      "name": "D_byte256",
+      "arm": {
+        "name": "D_byte256",
+        "data": "bytes"
+      },
+      "vocab": 256,
+      "params_total": 85152000,
+      "params_nonemb": 84955392,
+      "curve": [
+        {
+          "s": 120,
+          "step": 67,
+          "loss": 2.0425,
+          "bpb_wiki": 3.0766,
+          "tokens_seen": 1646592,
+          "lr_factor": 0.335
+        },
+        {
+          "s": 241,
+          "step": 160,
+          "loss": 1.2412,
+          "bpb_wiki": 2.1816,
+          "tokens_seen": 3932160,
+          "lr_factor": 0.8
+        },
+        {
+          "s": 361,
+          "step": 252,
+          "loss": 1.1347,
+          "bpb_wiki": 2.051,
+          "tokens_seen": 6193152,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 481,
+          "step": 345,
+          "loss": 1.1279,
+          "bpb_wiki": 1.9318,
+          "tokens_seen": 8478720,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 602,
+          "step": 438,
+          "loss": 1.0981,
+          "bpb_wiki": 1.8995,
+          "tokens_seen": 10764288,
+          "lr_factor": 0.834
+        },
+        {
+          "s": 721,
+          "step": 530,
+          "loss": 0.9618,
+          "bpb_wiki": 1.785,
+          "tokens_seen": 13025280,
+          "lr_factor": 0.007
+        }
+      ],
+      "died": null,
+      "scaler_skips": 1,
+      "steps": 530,
+      "tokens_seen": 13025280,
+      "compile_warmup_s": 34.2,
+      "tok_per_s": 18075,
+      "train_wall_s": 720.6,
+      "bpb_wiki": 1.785,
+      "bpb_stories": 1.0492,
+      "samples": [
+        {
+          "prompt": "Había una vez un niño que ",
+          "text": "Había una vez un niño que amaba a su familia y no tenía la idea. Le pidió al niño al niño que amaba a su perro y no se despidió del nido. Le explicó a su madre que lo ayudara, pero la pequeña portada estaba construida c",
+          "distinct2": 0.467,
+          "distinct3": 0.699
+        },
+        {
+          "prompt": "La historia de ",
+          "text": "La historia de Timomy fue alimentado por las carreras que habían disputado en la provincia de Meridio y que se produjo a Timmy en los que había tenido un receptor de conciliación en la Calle Records. En la primer",
+          "distinct2": 0.519,
+          "distinct3": 0.775
+        }
+      ]
+    },
+    {
+      "name": "G_wiki_solo",
+      "arm": {
+        "name": "G_wiki_solo",
+        "data": "wiki"
+      },
+      "vocab": 32768,
+      "params_total": 110121216,
+      "params_nonemb": 84955392,
+      "curve": [
+        {
+          "s": 122,
+          "step": 77,
+          "loss": 6.2081,
+          "bpb_wiki": 1.9771,
+          "tokens_seen": 1892352,
+          "lr_factor": 0.385
+        },
+        {
+          "s": 241,
+          "step": 153,
+          "loss": 5.3818,
+          "bpb_wiki": 1.7871,
+          "tokens_seen": 3760128,
+          "lr_factor": 0.765
+        },
+        {
+          "s": 361,
+          "step": 231,
+          "loss": 5.051,
+          "bpb_wiki": 1.648,
+          "tokens_seen": 5677056,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 481,
+          "step": 308,
+          "loss": 4.8093,
+          "bpb_wiki": 1.5807,
+          "tokens_seen": 7569408,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 601,
+          "step": 385,
+          "loss": 4.4436,
+          "bpb_wiki": 1.5122,
+          "tokens_seen": 9461760,
+          "lr_factor": 0.837
+        },
+        {
+          "s": 721,
+          "step": 462,
+          "loss": 4.2128,
+          "bpb_wiki": 1.3826,
+          "tokens_seen": 11354112,
+          "lr_factor": 0.009
+        }
+      ],
+      "died": null,
+      "scaler_skips": 0,
+      "steps": 462,
+      "tokens_seen": 11354112,
+      "compile_warmup_s": 3.2,
+      "tok_per_s": 15755,
+      "train_wall_s": 720.7,
+      "bpb_wiki": 1.3826,
+      "bpb_stories": 1.7503,
+      "samples": [
+        {
+          "prompt": "Había una vez un niño que ",
+          "text": "Había una vez un niño que  se había obtenido en el año 1267, el cementerio de los Imperios y los primeros versículos del , además de otros autores, en el llamado  o en el  y principios del , han sido objeto de \"portaciones\", por ejemplo , y quizás , y los objetos y propiedades de su propia filosofía. Sin embargo, la fotografía de la historia de la industria no estuvo completamente desarrollada sino porque no se pensó, por tanto, se hallaban nuevas ideas que fueron reveladas posteriormente en el año 861. La educación y el desarrollo de las funciones de la escuela deberían estar consistentes.\n\nLas primeras investigaciones sobre la generación de los seres humanos de la vida de la familia de la familia, especialmente durante el parto, se ha convertido en un hogar de mediano y en parte, además de un pequeño animal que vivía en el estudio de la vida y la vida. Los estudios de la familia de los dioses, incluida la historia de la vida, se habían atribuido a la vida de su",
+          "distinct2": 0.845,
+          "distinct3": 0.956
+        },
+        {
+          "prompt": "La historia de ",
+          "text": "La historia de  los monjes budistas y budistas son destacados de la historia imperial, como la de los judíos, la Revolución de Independencia, la Unión Soviética, la Guerra de Independencia y la Guerra de Independencia, entre los tres grandes edificios de la ciudad. En 2005, durante una etapa de tiempo de gobierno, los de los indios del noreste estaban involucrando una gran labor a la subcultura con tal de compartir la obra.\n\nEn un principio, en el . Pocos años después, la Oficina de Impresarios de la ONU ordenó la creación de la ciudad, que fueron los primeros intentos de hacerse cargo. El estado fue derrotado y llevado a cabo por el obispo inglés Leucik, líder de la Marina de los Estados Unidos. La construcción de la ciudad fue absorbida por el gobierno del Parlamento de la República.\n\nTras la toma de esta ciudad, la ciudad fue creada en 2006 por el mariscal Richard F. B. Chald, presidente de la República de la República de la República.\n\nLa",
+          "distinct2": 0.823,
+          "distinct3": 0.926
+        }
+      ]
+    },
+    {
+      "name": "E_bpe16k",
+      "arm": {
+        "name": "E_bpe16k",
+        "data": "16k"
+      },
+      "vocab": 16384,
+      "params_total": 97538304,
+      "params_nonemb": 84955392,
+      "curve": [
+        {
+          "s": 121,
+          "step": 61,
+          "loss": 5.3108,
+          "bpb_wiki": 2.243,
+          "tokens_seen": 1499136,
+          "lr_factor": 0.305
+        },
+        {
+          "s": 241,
+          "step": 145,
+          "loss": 4.2365,
+          "bpb_wiki": 1.9465,
+          "tokens_seen": 3563520,
+          "lr_factor": 0.725
+        },
+        {
+          "s": 360,
+          "step": 229,
+          "loss": 4.2029,
+          "bpb_wiki": 1.794,
+          "tokens_seen": 5627904,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 481,
+          "step": 314,
+          "loss": 3.7674,
+          "bpb_wiki": 1.7052,
+          "tokens_seen": 7716864,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 601,
+          "step": 398,
+          "loss": 3.6354,
+          "bpb_wiki": 1.6423,
+          "tokens_seen": 9781248,
+          "lr_factor": 0.838
+        },
+        {
+          "s": 721,
+          "step": 482,
+          "loss": 3.0682,
+          "bpb_wiki": 1.5236,
+          "tokens_seen": 11845632,
+          "lr_factor": 0.008
+        }
+      ],
+      "died": null,
+      "scaler_skips": 0,
+      "steps": 482,
+      "tokens_seen": 11845632,
+      "compile_warmup_s": 35.2,
+      "tok_per_s": 16438,
+      "train_wall_s": 720.6,
+      "bpb_wiki": 1.5236,
+      "bpb_stories": 0.7635,
+      "samples": [
+        {
+          "prompt": "Había una vez un niño que ",
+          "text": "Había una vez un niño que ondeaba en el parque. Mientras caminaba, se dio cuenta de que era un gran árbol.\n\nEl niño pensó que era un juguete. Pensó que era divertido y quería jugar con él. Así que siguió el árbol hasta que encontró un árbol enorme. Se detuvo y el niño vio que el árbol se había caído. El niño estaba muy feliz y agradeció al árbol por haberle jugado.\n\nLa mamá de el niño le dio un gran abrazo y le dijo: \"Ahora tengo algo que hacer con quién jugar\".\n\nEl niño sonrió y se despidió. Se fue a la cama, sintiéndose feliz y orgulloso. ¡El niño estaba tan feliz!",
+          "distinct2": 0.891,
+          "distinct3": 0.971
+        },
+        {
+          "prompt": "La historia de ",
+          "text": "La historia de  y  se establecieron en la primera parte de la primera vez en la primera mitad del .\n\nToponimia \n\nEl término \"merl\" es su origen actual del alfabeto latino «o» de la escritura griega de los siglos  y , que deriva del alfabeto latino, que significa \"dodl\" o \"sigmática del árabe.\n\nEtimología \nEl nombre japonés es usado en el alfabeto latino del alfabeto latino (sigs: , , , o , - y /a/, y el alfabeto sch-sw, o , el alfabeto skw. El término árabe viene del alfabeto árabe, compuesto por dos consonantes. El alfabeto árabe deriva de la del alfabeto latino, que usa la alfabeto, el alfabeto latino, etc.\n\nPara los fonemas, el alfabeto árabe y el alfabeto árabe, se debe a la pronunciación del alfabeto árabe, que significa «lo que es la escritura de / en inglés» o «bah»",
+          "distinct2": 0.778,
+          "distinct3": 0.916
+        }
+      ]
+    },
+    {
+      "name": "C_muon_lr04",
+      "arm": {
+        "name": "C_muon_lr04",
+        "muon_lr": "0.04"
+      },
+      "vocab": 32768,
+      "params_total": 110121216,
+      "params_nonemb": 84955392,
+      "curve": [
+        {
+          "s": 121,
+          "step": 77,
+          "loss": 4.988,
+          "bpb_wiki": 2.1066,
+          "tokens_seen": 1892352,
+          "lr_factor": 0.385
+        },
+        {
+          "s": 242,
+          "step": 154,
+          "loss": 4.4341,
+          "bpb_wiki": 1.9127,
+          "tokens_seen": 3784704,
+          "lr_factor": 0.77
+        },
+        {
+          "s": 361,
+          "step": 231,
+          "loss": 4.2114,
+          "bpb_wiki": 1.7614,
+          "tokens_seen": 5677056,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 481,
+          "step": 308,
+          "loss": 3.726,
+          "bpb_wiki": 1.6649,
+          "tokens_seen": 7569408,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 601,
+          "step": 385,
+          "loss": 3.4514,
+          "bpb_wiki": 1.6275,
+          "tokens_seen": 9461760,
+          "lr_factor": 0.841
+        },
+        {
+          "s": 721,
+          "step": 462,
+          "loss": 3.2096,
+          "bpb_wiki": 1.5348,
+          "tokens_seen": 11354112,
+          "lr_factor": 0.009
+        }
+      ],
+      "died": null,
+      "scaler_skips": 0,
+      "steps": 462,
+      "tokens_seen": 11354112,
+      "compile_warmup_s": 3.2,
+      "tok_per_s": 15754,
+      "train_wall_s": 720.7,
+      "bpb_wiki": 1.5348,
+      "bpb_stories": 0.7532,
+      "samples": [
+        {
+          "prompt": "Había una vez un niño que ",
+          "text": "Había una vez un niño que  estaba muy preocupado. Quería saber qué había en el bosque, así que le preguntó a su mamá si podían encontrar el camino a casa.\n\n\"Ten cuidado, pero no podemos encontrar el camino de vuelta,\" dijo su mamá con un firme golpe.\n\nAsí que ambos comenzaron a buscar el camino a casa. Caminaron y caminaron hasta que llegaron a la casa de su padre. ¡Estaba tan sorprendido de que su papá hubiera visto el camino de vuelta a casa!\n\nPronto, el niño estaba de pie en el suelo y lo había visto por completo. Estaba tan emocionado y sabía que nunca olvidaría. Estaba seguro de que nunca olvidaría el camino de vuelta a casa y se había vuelto tan feliz.",
+          "distinct2": 0.837,
+          "distinct3": 0.918
+        },
+        {
+          "prompt": "La historia de ",
+          "text": "La historia de \nDesde la conquista de los francos, la ciudad de Troya disfrutó del reino de su reino, adquiriendo un importante santuario en el año 379.\n\nEl asentamiento de los griegos \n\nLa ciudad de Troya I, actualmente la ciudad de Troya II, es hoy en día el año de un año, en la actualidad en el año 1181. La ciudad fue un año más en el año 567, cuando la ciudad de Troya VII (hasta la fecha, pero la mayor de las crónicas griegas de la ciudad) fue en el año 875, en la ciudad de Monal Nova.\n\nIña IV, una de las cuales se demoró con su hijo, como no se dice de su actual símbolo, en el año 124, cuando se convirtió en el primer rey de la ciudad. También hubo una comparación entre los griegos, que se quedarían hasta el . El primer rey, a veces fue el primer rey de Tabel, que llegó a más de 1133, y",
+          "distinct2": 0.808,
+          "distinct3": 0.926
+        }
+      ]
+    },
+    {
+      "name": "F_8Lx1024",
+      "arm": {
+        "name": "F_8Lx1024",
+        "shape": "{'d': 1024, 'heads': 16, 'layers': 8, 'd_ff': 2048, 'globals': (3, 7)}"
+      },
+      "vocab": 32768,
+      "params_total": 117458944,
+      "params_nonemb": 83904512,
+      "curve": [
+        {
+          "s": 121,
+          "step": 61,
+          "loss": 5.227,
+          "bpb_wiki": 2.1315,
+          "tokens_seen": 1499136,
+          "lr_factor": 0.305
+        },
+        {
+          "s": 242,
+          "step": 138,
+          "loss": 4.7446,
+          "bpb_wiki": 1.9497,
+          "tokens_seen": 3391488,
+          "lr_factor": 0.69
+        },
+        {
+          "s": 361,
+          "step": 214,
+          "loss": 4.1195,
+          "bpb_wiki": 1.812,
+          "tokens_seen": 5259264,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 481,
+          "step": 291,
+          "loss": 3.9649,
+          "bpb_wiki": 1.6957,
+          "tokens_seen": 7151616,
+          "lr_factor": 1.0
+        },
+        {
+          "s": 601,
+          "step": 368,
+          "loss": 3.7451,
+          "bpb_wiki": 1.6348,
+          "tokens_seen": 9043968,
+          "lr_factor": 0.841
+        },
+        {
+          "s": 721,
+          "step": 445,
+          "loss": 3.4118,
+          "bpb_wiki": 1.5399,
+          "tokens_seen": 10936320,
+          "lr_factor": 0.005
+        }
+      ],
+      "died": null,
+      "scaler_skips": 0,
+      "steps": 445,
+      "tokens_seen": 10936320,
+      "compile_warmup_s": 26.8,
+      "tok_per_s": 15162,
+      "train_wall_s": 721.3,
+      "bpb_wiki": 1.5399,
+      "bpb_stories": 0.7629,
+      "samples": [
+        {
+          "prompt": "Había una vez un niño que ",
+          "text": "Había una vez un niño que  tenía un verdadero amigo. Un día, la mamá de Timmy le pidió que enviara su juguete favorito, el niño pequeño. Timmy estaba muy emocionado.\n\nCuando llegaron a la tienda, Timmy vio a su amigo, Billy, intentando jugar con él. Billy comenzó a contar las dos palabras y el amigo dijo: \"No, Timmy. No quiero dejar de jugar contigo\". Timmy se puso triste, pero sabía que no quería compartir.\n\nDespués de unos días, Timmy llegó a casa con un pastel grande. Comenzó a reír. Timmy se rió y dijo: \"¡Gracias, Billy! Eres tan amable de mi hermana\". Billy sonrió y dijo: \"De nada, Timmy. Me alegro de que hayas hecho algo tan impresionante.\"",
+          "distinct2": 0.915,
+          "distinct3": 0.974
+        },
+        {
+          "prompt": "La historia de ",
+          "text": "La historia de  es que los dos lados son así:\n\nSe puede usar como un sistema más largo y estamos próximos a medida que el sistema de control de tiempo.\n\nLa historia de un sistema son dos tipos de estructuras:\n\n El problema de la historia:\n al tiempo, con el objetivo de representar una palabra de juego.\n El sistema de juego en que no sea una varita o un tercero, sino también de una forma de juego.\n El objetivo es establecer una imagen de una manera de hacer trucos, a la que no es un sistema de juego.\n\nEste dispositivo también puede ser la aplicación de un juego.\n\nAsí que el sistema de juego es una herramienta que se permite resolverse para saber que no sea un juego.\n\nCuando se muestra el sistema de juego, el juego de juego se abre y se especifica para que se le sea el juego con ganar, y también recibe un juego con el que solo se haga de juego.\n\nTea de juego al juego",
+          "distinct2": 0.764,
+          "distinct3": 0.891
+        }
+      ]
+    }
+  ],
+  "h_micro": {
+    "name": "H_attn_micro",
+    "variants": [
+      {
+        "mode": "mask",
+        "tok_per_s": 15858,
+        "warmup_s": 16.9,
+        "bpb_512": 1.9176,
+        "bpb_1024": 1.9146,
+        "bpb_1024_ntk2": 1.9144
+      },
+      {
+        "mode": "causal_full",
+        "tok_per_s": 16705,
+        "warmup_s": 45.6,
+        "bpb_512": 1.9215,
+        "bpb_1024": 1.9244,
+        "bpb_1024_ntk2": 1.9223
+      },
+      {
+        "mode": "chunked",
+        "tok_per_s": 16008,
+        "warmup_s": 53.4,
+        "bpb_512": 1.9089,
+        "bpb_1024": 1.9057,
+        "bpb_1024_ntk2": 1.9056
+      }
+    ]
+  },
+  "ranking_bpb_wiki": [
+    {
+      "name": "G_wiki_solo",
+      "bpb_wiki": 1.3826,
+      "bpb_stories": 1.7503,
+      "tokens_seen": 11354112,
+      "tok_per_s": 15755
+    },
+    {
+      "name": "E_bpe16k",
+      "bpb_wiki": 1.5236,
+      "bpb_stories": 0.7635,
+      "tokens_seen": 11845632,
+      "tok_per_s": 16438
+    },
+    {
+      "name": "C_muon_lr04",
+      "bpb_wiki": 1.5348,
+      "bpb_stories": 0.7532,
+      "tokens_seen": 11354112,
+      "tok_per_s": 15754
+    },
+    {
+      "name": "F_8Lx1024",
+      "bpb_wiki": 1.5399,
+      "bpb_stories": 0.7629,
+      "tokens_seen": 10936320,
+      "tok_per_s": 15162
+    },
+    {
+      "name": "v1_muon",
+      "bpb_wiki": 1.5428,
+      "bpb_stories": 0.7604,
+      "tokens_seen": 10862592,
+      "tok_per_s": 15066
+    },
+    {
+      "name": "A_adamw_ctl",
+      "bpb_wiki": 1.6147,
+      "bpb_stories": 0.8109,
+      "tokens_seen": 12337152,
+      "tok_per_s": 17121
+    },
+    {
+      "name": "D_byte256",
+      "bpb_wiki": 1.785,
+      "bpb_stories": 1.0492,
+      "tokens_seen": 13025280,
+      "tok_per_s": 18075
+    }
+  ],
+  "minutes_total": 98.1
+}

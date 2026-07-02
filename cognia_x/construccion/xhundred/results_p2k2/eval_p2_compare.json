@@ -1,0 +1,27 @@
+{
+  "experiment": "xh_p2k2_qlora",
+  "suites": {},
+  "gates": {
+    "GP2_3_calidad_gsm": {
+      "bad_of_20": 0,
+      "pass": true
+    },
+    "decontaminacion": {
+      "interseccion": 0,
+      "pass": true
+    }
+  },
+  "config": {
+    "lora_r": 16,
+    "lora_alpha": 32,
+    "dropout": 0.05,
+    "lr": 0.0002,
+    "seq": 1024,
+    "micro_b": 4,
+    "accum": 4,
+    "train_wall_s": 2700.0,
+    "targets": "q,k,v,o,gate,up,down_proj",
+    "trainable_params": 29933568
+  },
+  "train_tokens_available": 4575244
+}
