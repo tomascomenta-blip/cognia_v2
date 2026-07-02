@@ -127,8 +127,39 @@ SIN degradación (banded 3:1 re-validada a ~100M).
 tied (~97.5M) · mezcla 35% cuentos / 65% wiki (34 filas mix + 14 wiki-solo por batch) · d=768
 12L banded mask · b48 · WSD · QK-norm/zero-init/z-loss · EMA 0.995.
 
-### 4.4 K3 — corrida final ≤30 min con gates G1-G4
-**[PENDIENTE — tras veredicto K2]**
+### 4.4 K3 — corrida final: 97.5M params, 25.7 min total de T4 — FUNCIONAL PARCIAL
+
+**Wall (contabilidad honesta):** setup 10.6s + compile 51.5s + train 25.0 min + batería de evals
+30.9s = **25.7 min TOTAL < 30** ✓ (la preparación de datos es one-time en cognia-xh-data,
+pre-registrado). 1,055 steps, 25.9M tokens (0.266 tok/param), 17,269 tok/s, **0 skips del
+scaler**. Pesos: results_final/xh_model.pt (fp16). Averaging: ganó **EMA-0.995** (1.2888 vs
+last 1.2902 vs LAWA 1.2958) — la recalibración de D5/W funcionó.
+
+| gate pre-registrado | resultado | veredicto |
+|---|---|---|
+| G1 bpb wiki ≤ 1.35 (falsación >1.45) | **1.2888** | **PASS** (stretch 1.25 no alcanzado) |
+| G2 coherencia ≥7/10 (checklist congelado) | **5/10** | **FAIL** — pasan los 5 prompts de registro narrativo (cuento del zorro, Sofía, niño, sol, planetas); fallan 4/5 enciclopédicos: atractor "… … …" (1), deriva Madrid→Barcelona (1), ensalada técnica con griego corrupto (1), lista de películas en inglés (1), corte final (1) |
+| G3 no-degeneración | d2 0.743 ✓, d3 0.835 ✓, pero 4/10 muestras con 4-grama ≥4 (una con 71) | **FAIL** |
+| G4 cloze-es ≥65% (precedente 62.5%) | **85.0%** — concordancia 91.7 / semántica 100 / sintaxis 100 / conocimiento 58.3 | **PASS** (stretch 85% TOCADO) |
+| wall ≤30 min | 25.7 min | **PASS** |
+
+**Extrapolación (bonus):** bpb_wiki a 1024 = **1.2491 MEJOR que a 512** (1.2888), NTK ni hace
+falta (1.2482) — banded 3:1 re-validada a ~100M por tercera vez.
+
+**Vs el precedente 37.7M (23.2 min):** bpb wiki 1.2888 vs 1.478 (−0.19), cloze 85% vs 62.5%
+(+22.5 pts), coherencia narrativa MUY superior (diálogos, arcos de cuento) — con 2 min más de
+wall. Las palancas medidas (BPE, Muon, mezcla, WSD, EMA) pagaron.
+
+**Por qué PARCIAL y no se re-corre (anti p-hacking):** el atractor "…" no tiene bug de datos
+identificable (el held-out de 2MB no contiene líneas de puntos repetidos) — es la repetición
+clásica de un LM sub-entrenado en generación libre a temp 0.8. Los fallos G2 son TODOS del
+registro enciclopédico: a 0.266 tok/param el registro difícil (hechos, fechas, tecnicismos)
+no llega, mientras el narrativo (simple, TinyStories-style) generaliza completo — exactamente
+la lógica TinyStories que motivó la mezcla. La contingencia pre-registrada §8-R4 (subir
+cuentos) empeoraría el registro que falla, así que no se aplica (anotado en D7). **Este es el
+límite honesto del goal de 30 minutos**: un ~100M en 25.7 min queda funcional en gramática
+(cloze 85%), compresión (bpb 1.29) y narrativa libre; NO domina generación libre enciclopédica
+— eso pide más tokens de wall, no otra receta.
 
 ### 4.5 Fase 2 — QLoRA 3B (P2-K1 corriendo / P2-K2 listo)
 **[PENDIENTE]** Plan y predicciones P1-P5 congeladas en `02_FASE2_PLAN.md`. Ya establecido con

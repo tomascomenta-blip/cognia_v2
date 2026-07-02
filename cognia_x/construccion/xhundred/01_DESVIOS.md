@@ -61,6 +61,17 @@ descartado, P2-K2 re-evalúa Belebele-letra del BASE en el mismo kernel (disable
 delta P5 se computa intra-kernel. XSC y MGSM no se tocan (pasaron sus gates con el protocolo
 congelado). El 35.2% de P2-K1 queda como dato del formato descartado, no se borra.
 
+## D7 — 2026-07-02 — Veredicto K3: PARCIAL (G1✓ G4✓ wall✓, G2 5/10 ✗, G3 ✗) y NO se re-corre
+Desglose G2 por muestra en 03_INVESTIGACION §4.4. Decisiones: (1) NO se re-corre K3 buscando
+mejores muestras — sin causa raíz de datos identificada (el held-out no contiene el patrón
+"… … …"), un re-run sería lotería de sampling = p-hacking; (2) la contingencia §8-R4 (si falla
+G2 → subir cuentos a 65%) NO se aplica: los 5 prompts narrativos pasan 5/5 y los enciclopédicos
+fallan 4/5 — más cuentos = menos wiki = peor el registro que falla. La contingencia estaba
+diseñada para "no llega la coherencia" global, no para este patrón; se documenta en vez de
+aplicarse a ciegas. (3) El resultado PARCIAL se reporta tal cual: el límite del goal de 30 min
+es el registro enciclopédico en generación libre, no la gramática (cloze 85%) ni la compresión
+(bpb 1.2888) ni la narrativa.
+
 ## D2 — 2026-07-02 — G2: los 5 prompts nuevos, fijados antes de K1
 00_DISENO.md §3-G2 exige 5 prompts nuevos "fijados antes de correr". Quedan congelados acá:
 1. "Había una vez un niño que " (apertura de cuento)
