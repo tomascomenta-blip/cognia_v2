@@ -57,7 +57,7 @@ harness ya estaba bien; su cuello real era byte-level + warmup-only + datos con 
 |---|---|---|---|
 | AMP fp16 + GradScaler | tensor cores (8× fp32 pico) | **ADOPTADA** | XSPEED 4.1× con gates; paridad K1v4 rel 0.00096, 0 skips |
 | torch.compile default + AdamW fused | mata launch/elementwise-bound | **ADOPTADA** | XSPEED (1.95× combinado); K1: warmup 45s; **además palanca de MEMORIA** (b32 eager OOM 15.1GB vs b48 compilado 13.05GB) |
-| batch 48×512 | GEMMs llenos sin OOM | **ADOPTADA** | K1v4: 19,429 tok/s, 13.05GB; b64 OOM (medido) |
+| batch 48×512 | GEMMs llenos sin OOM | **ADOPTADA** | K1v4: 19,429 tok/s, 13.05GB; b64 OOMeó solo en la cascada de K1v2 (evidencia contaminada, no re-probado en v4) |
 | gather vectorizado del dataloader | 1 kernel vs loop de 48 slices | **ADOPTADA** | diseño (el loop era de xfinal); sin costo |
 | BPE-32k propio (tied) | 4.5× texto/wall vs bytes | adoptada, **brazo D la falsea** | fertilidad medida 4.508 B/tok; K2-D byte-256 a igual wall |
 | Muon (NS-fp16) + AdamW dual | data-efficiency (updates ortogonalizados) | **brazo K2-A decide** | K1: loss 4.61 vs 5.92 a mismos ~110 steps, overhead 17%/step; NS-fp16 invariante (0.003) |
@@ -99,7 +99,7 @@ Mezcla 256MB (147,668 docs; TinyStories-es cargó sin fallback) + wiki-solo 256M
 | overhead NS por step | 17.0% → FAIL formal, PERO loss 4.61 (Muon) vs 5.92 (AdamW) a mismos ~110 steps → el gate ignoraba data-efficiency; decide K2-A a igual wall (D5) |
 | dual-optimizer schedule | ambos grupos decaen → PASS |
 
-### 4.3 K2 — ablaciones pre-registradas (98.1 min T4; 0 NaN, 0 skips del scaler en 7 brazos)
+### 4.3 K2 — ablaciones pre-registradas (98.1 min T4; 0 NaN; skips del scaler: 0 en 6 brazos, 1 en D_byte256)
 
 Igual wall (12 min de train/brazo); métrica primaria bpb wiki held-out normalizado por bytes:
 
@@ -117,31 +117,39 @@ Igual wall (12 min de train/brazo); métrica primaria bpb wiki held-out normaliz
 sobre ~240 steps efectivos quedó dominado por pesos tempranos (mal calibrado, como advertía la
 regla) → K3 usa EMA 0.995 y elige por bpb entre {last, EMA, LAWA}.
 
-**H micro (atención, 150 steps/variante)**: buffer-mask 15,858 tok/s · causal-full 16,705
-(+5.3%, pero sacrifica banded = la pieza de extrapolación del programa) · chunked-SWA 16,008
-(+0.9%, extrapolación 512→1024 impecable: 1.9089→1.9057). Chunked pasa su gate pero +0.9% no
-paga la complejidad → **queda buffer-mask**. Dato extra: las tres variantes extrapolan a 1024
-SIN degradación (banded 3:1 re-validada a ~100M).
+**H micro (atención, 150 steps/variante — el diseño decía 500; recorte registrado en D9)**:
+buffer-mask 15,858 tok/s · causal-full 16,705 (+5.3%, pero sacrifica banded = la pieza de
+extrapolación del programa) · chunked-SWA 16,008 (+0.9%, extrapolación 512→1024 impecable:
+1.9089→1.9057). Chunked pasa su gate pero +0.9% no paga la complejidad → **queda buffer-mask**.
+Dato extra: mask y chunked extrapolan a 1024 MEJORANDO; causal-full empeora +0.003 (dentro del
+gate) — banded 3:1 re-validada a ~100M.
 
 **Receta final K3 (fijada por las reglas, no por gusto):** Muon 0.02 + AdamW 3e-3 dual · BPE-16k
 tied (~97.5M) · mezcla 35% cuentos / 65% wiki (34 filas mix + 14 wiki-solo por batch) · d=768
 12L banded mask · b48 · WSD · QK-norm/zero-init/z-loss · EMA 0.995.
 
-### 4.4 K3 — corrida final: 97.5M params, 25.7 min total de T4 — FUNCIONAL PARCIAL
+### 4.4 K3 — corrida final: 97.5M params, 25.7 min total de T4 — NO FUNCIONAL (2/4 gates)
 
-**Wall (contabilidad honesta):** setup 10.6s + compile 51.5s + train 25.0 min + batería de evals
-30.9s = **25.7 min TOTAL < 30** ✓ (la preparación de datos es one-time en cognia-xh-data,
-pre-registrado). 1,055 steps, 25.9M tokens (0.266 tok/param), 17,269 tok/s, **0 skips del
-scaler**. Pesos: results_final/xh_model.pt (fp16). Averaging: ganó **EMA-0.995** (1.2888 vs
-last 1.2902 vs LAWA 1.2958) — la recalibración de D5/W funcionó.
+**Veredicto por la definición CONGELADA (00_DISENO §3: FUNCIONAL = G1∧G2∧G3∧G4; 3/4 =
+"parcial"):** G1 ✓, G2 ✗, G3 ✗, G4 ✓ = **2/4 → NO FUNCIONAL**. Una versión previa de este doc
+decía "PARCIAL" contando el gate de wall (que no es parte de la definición) — corregido por la
+verificación adversarial (D9). Lo que sí quedó: gramática, compresión y wall pasan con margen;
+la generación libre no-narrativa falla.
+
+**Wall (contabilidad honesta):** setup 10.6s + train 25.0 min (el compile de 51.5s ocurre
+DENTRO del primer step del train) + batería de evals 30.9s = **25.7 min TOTAL < 30** ✓ (la
+preparación de datos es one-time en cognia-xh-data, pre-registrado). 1,055 steps, 25.9M tokens
+(0.266 tok/param), 17,269 tok/s, 0 skips del scaler. Pesos: results_final/xh_model.pt (fp16).
+Averaging: ganó **EMA-0.995** (1.2888 vs last 1.2902 vs LAWA 1.2958) — la recalibración W/D5
+funcionó.
 
 | gate pre-registrado | resultado | veredicto |
 |---|---|---|
 | G1 bpb wiki ≤ 1.35 (falsación >1.45) | **1.2888** | **PASS** (stretch 1.25 no alcanzado) |
-| G2 coherencia ≥7/10 (checklist congelado) | **5/10** | **FAIL** — pasan los 5 prompts de registro narrativo (cuento del zorro, Sofía, niño, sol, planetas); fallan 4/5 enciclopédicos: atractor "… … …" (1), deriva Madrid→Barcelona (1), ensalada técnica con griego corrupto (1), lista de películas en inglés (1), corte final (1) |
-| G3 no-degeneración | d2 0.743 ✓, d3 0.835 ✓, pero 4/10 muestras con 4-grama ≥4 (una con 71) | **FAIL** |
-| G4 cloze-es ≥65% (precedente 62.5%) | **85.0%** — concordancia 91.7 / semántica 100 / sintaxis 100 / conocimiento 58.3 | **PASS** (stretch 85% TOCADO) |
-| wall ≤30 min | 25.7 min | **PASS** |
+| G2 coherencia ≥7/10 (checklist congelado) | **5/10** | **FAIL** — pasan 5 (los 4 de corte narrativo: zorro, sol, niño, Sofía + el enciclopédico "planetas"); fallan 5: tres del precedente (atractor "… … …" en "historia", deriva Madrid→Barcelona, ensalada técnica con griego corrupto en "ciencia"), el enciclopédico "agua" (corte final) y el descriptivo "ventana" (deriva a lista de películas en inglés) |
+| G3 no-degeneración | d2 0.743 ✓, d3 0.835 ✓, pero **5/10** muestras con 4-grama ≥4 (71, 4, 9, 4, 5) | **FAIL** |
+| G4 cloze-es ≥65% (precedente 62.5%) | **85.0%** — concordancia 91.7 / semántica 100 / sintaxis 100 / conocimiento 58.3 | **PASS** (supera también el stretch ≥75% de D1) |
+| wall ≤30 min (gate operativo, NO parte de la definición de FUNCIONAL) | 25.7 min | **PASS** |
 
 **Extrapolación (bonus):** bpb_wiki a 1024 = **1.2491 MEJOR que a 512** (1.2888), NTK ni hace
 falta (1.2482) — banded 3:1 re-validada a ~100M por tercera vez.
@@ -150,16 +158,17 @@ falta (1.2482) — banded 3:1 re-validada a ~100M por tercera vez.
 (+22.5 pts), coherencia narrativa MUY superior (diálogos, arcos de cuento) — con 2 min más de
 wall. Las palancas medidas (BPE, Muon, mezcla, WSD, EMA) pagaron.
 
-**Por qué PARCIAL y no se re-corre (anti p-hacking):** el atractor "…" no tiene bug de datos
+**Por qué no se re-corre (anti p-hacking):** el atractor "…" no tiene bug de datos
 identificable (el held-out de 2MB no contiene líneas de puntos repetidos) — es la repetición
-clásica de un LM sub-entrenado en generación libre a temp 0.8. Los fallos G2 son TODOS del
-registro enciclopédico: a 0.266 tok/param el registro difícil (hechos, fechas, tecnicismos)
-no llega, mientras el narrativo (simple, TinyStories-style) generaliza completo — exactamente
-la lógica TinyStories que motivó la mezcla. La contingencia pre-registrada §8-R4 (subir
-cuentos) empeoraría el registro que falla, así que no se aplica (anotado en D7). **Este es el
-límite honesto del goal de 30 minutos**: un ~100M en 25.7 min queda funcional en gramática
-(cloze 85%), compresión (bpb 1.29) y narrativa libre; NO domina generación libre enciclopédica
-— eso pide más tokens de wall, no otra receta.
+clásica de un LM sub-entrenado en generación libre a temp 0.8. Los fallos G2 se concentran en
+los registros wiki/descriptivo (el corte narrativo pasa 5/5): a 0.266 tok/param el registro
+difícil (hechos, fechas, tecnicismos) no llega, mientras el narrativo (simple,
+TinyStories-style) generaliza — la lógica TinyStories que motivó la mezcla. La contingencia
+pre-registrada §8-R4 (subir cuentos) empeoraría los registros que fallan, así que no se aplica
+(anotado en D7). **Este es el límite honesto del goal de 30 minutos**: un ~100M en 25.7 min
+queda fuerte en gramática (cloze 85%), compresión (bpb 1.29) y narrativa libre; NO alcanza la
+definición congelada de FUNCIONAL porque la generación libre no-narrativa degenera — eso pide
+más tokens de wall, no otra receta.
 
 ### 4.5 Fase 2 — QLoRA sobre Qwen2.5-3B-Instruct: GANA el nicho pre-registrado, sin milagros
 
@@ -184,14 +193,22 @@ del gate encontrada y el formato letra adoptado para AMBOS lados.
 | P4 XSC (empate ±2) | −0.4 | ✓ |
 | P5 Belebele-letra (−4..+2) | −2.6 (75.7→73.1) | ✓ no-catástrofe |
 
+**Sesgo de truncación (regla del plan §2, anotado por la verificación adversarial):** el base
+truncó 28/250 = 11.2% de sus respuestas 0-shot a 384 tokens (divaga sin la convención `####`);
+el adapter, 3/250 = 1.2%. La regla pre-registrada exige anotarlo como sesgo CONTRA el modelo
+que trunca: parte del Δ+14.8 refleja que el base no termina a tiempo, no solo que razona peor.
+El Δ laxa (+9.6) y la comparación 3-shot (donde el base trunca menos, 7.2%) acotan el efecto,
+pero el número primario queda declarado con este asterisco.
+
 **Lectura honesta (reglas congeladas §4 del plan):** el QLoRA de 45 min en T4 SÍ supera al
 mismo Qwen2.5-3B en el nicho y protocolo pre-registrados (0-shot instruido), sin catástrofe
-general — el "sí se puede" de la Fase 2. PERO el P3 negativo revela el mecanismo: el adapter
-FIJA el modo 0-shot (su 3-shot colapsa a su 0-shot) y el techo del base con exemplars (69.6)
-queda por encima del FT en cualquier modo. Conclusión: **QLoRA-en-T4 compra especialización de
-modo/formato/idioma, no razonamiento nuevo** — exactamente lo que la lista de honestidad del
-plan prohibía sobre-reclamar. Higiene verificada activa: decontaminación train∩test = 0 por
-hash normalizado; calidad gsm8k-ES 0/20 malos.
+general — el "sí se puede" de la Fase 2, con el asterisco de truncación de arriba. PERO el P3
+negativo revela el mecanismo: el adapter FIJA el modo 0-shot (su 3-shot colapsa a su 0-shot) y
+el techo del base con exemplars (69.6) queda por encima del FT en cualquier modo. Conclusión:
+**QLoRA-en-T4 compra especialización de modo/formato/idioma, no razonamiento nuevo** —
+exactamente lo que la lista de honestidad del plan prohibía sobre-reclamar. Higiene verificada
+activa: decontaminación train∩test = 0 por hash normalizado; calidad gsm8k-ES 0/20 malos.
+Desvíos de config declarados (D9): AdamW-fp32 en vez de paged_8bit; GC ON en vez de sin-GC.
 
 ## 5. Descartado con evidencia (no re-medir sin razón nueva)
 
@@ -210,7 +227,7 @@ hash normalizado; calidad gsm8k-ES 0/20 malos.
 - **grad accum**: solo amortiza el optimizer step (~2%) si el batch YA cabe — no usar.
 - **Sophia** (no replica con baseline tuneado, 2509.02046), **SOAP/Shampoo** (eigendecomp fp32
   sin TC en T4), **Adafactor/Adam-mini** (ahorran memoria que no falta).
-- **Tokenizers ajenos**: GPT-2 rinde 2.915 B/tok en español (medido) vs 4.68 propio; XLM-R
+- **Tokenizers ajenos**: GPT-2 rinde 2.915 B/tok en español (medido) vs 4.508 del propio; XLM-R
   requiere 192M de embeddings.
 - **Curriculum fácil→difícil / seq-len warmup**: descartado por diseño (la distribución final
   domina el estado; predicción pre-registrada anotada por si alguien lo prueba).
@@ -240,9 +257,90 @@ venv312\Scripts\python.exe cognia_x/construccion/xhundred/run_kaggle_xh.py push 
 venv312\Scripts\python.exe cognia_x/construccion/xhundred/run_kaggle_xh.py download final
 ```
 Receta completa en las constantes de `xh_final_kernel.py` (fijadas por las ablaciones K2, no a
-mano). Smokes locales: cada kernel corre con `--smoke` sin GPU. Los resultados crudos de cada
-etapa quedan en `results_{data,bench,ablate,final}/`.
+mano). Smokes locales: cada kernel corre con `--smoke` sin GPU. Los resultados crudos quedan en
+`results_{bench,ablate,final}/`; los de K0 son el output del kernel cognia-xh-data (copia local
+de tokenizers/meta/vals en `_check_k0/`).
 
 ## 7. Conclusión honesta
-**[PENDIENTE — al cierre de Fase 2]** Qué de la teoría CogniaX se validó, qué se descartó,
-qué queda abierto.
+
+### 7.1 El goal duro, contra sus propios gates
+
+Un modelo de **97.5M params quedó entrenado en 25.7 minutos TOTALES de una T4** (incluyendo
+compile y la batería de evaluación). Contra la definición congelada, el veredicto es
+**NO FUNCIONAL: 2/4 gates** (G1 compresión ✓ 1.2888, G4 cloze 85% ✓, G2 coherencia libre ✗
+5/10, G3 no-degeneración ✗ 5/10) — el pre-registro exigía los cuatro y ni siquiera se alcanzó
+el 3/4 de "parcial". Lo que el modelo SÍ demostró en esos 25.7 min: gramática y selección
+léxica excelentes (cloze 85% vs 62.5% del precedente y 33% de azar), compresión mejor que el
+precedente por 0.19 bpb, y narrativa libre coherente con diálogos y arcos. Lo que no: la
+generación libre wiki/descriptiva degenera. No se maquilló: a 0.27 tokens/param el registro
+difícil pide más minutos de wall, no otra receta. El "≤30 min" se cumplió con margen; el
+"funcional", según sus propios gates, NO.
+
+### 7.2 La raíz de la lentitud, respondida
+
+El wall de entrenamiento es `6·N·D_necesario / (MFU·pico)` y las DOS palancas se midieron:
+
+- **MFU (síntomas de kernel):** de 17% (precedente) a 19.7% con compile+fused+batch correcto —
+  y el hallazgo de que compile es también palanca de MEMORIA. Pero el techo práctico en T4 a
+  esta escala ronda 20-25%: por acá ya no había 2× más.
+- **D_necesario (la raíz de verdad):** acá vivía todo lo grande. Tokenización BPE propia
+  (+0.24 bpb vs bytes a igual reloj — LA palanca estructural), Muon (+0.072 vs AdamW tuneado
+  que hizo 13% MÁS steps), mezcla de datos con motor de coherencia (TinyStories-es), WSD+EMA.
+  **Sobre un harness que ya tiene los kernels optimizados (AMP+compile+fused, el 4.1× de
+  XSPEED), todo el margen restante vino de data-efficiency** — la inversa de la intuición con
+  la que se suele atacar. (Los porcentajes exactos no son medibles: mezclan unidades — Δbpb vs
+  tok/s; lo medible es que ninguna palanca de kernel restante daba >1.25× y las de datos
+  movieron el bpb 0.07-0.24 a igual reloj.)
+
+### 7.3 Fase 2, sin autoengaño
+
+"Superar a Qwen3-3B" era imposible de enunciar (ese modelo no existe) e imposible de cumplir en
+general (36T tokens de pretrain vs nuestro presupuesto: 6 órdenes de magnitud). Lo que SÍ se
+logró, pre-registrado: **un QLoRA de 45 min supera al mismo Qwen2.5-3B-Instruct en el nicho
+elegido (+14.8 pts MGSM-es 0-shot, 4.7×SE; con el asterisco de truncación de §4.5) sin
+catástrofe general** — y la evidencia de sus
+límites quedó igual de clara: el adapter fija el MODO (su capacidad few-shot se degrada −15.2)
+y no expande el techo de razonamiento del base. QLoRA-en-T4 = especialización, no inteligencia
+nueva. Para cerrar la brecha real contra un 3B moderno harían falta ~10⁴× más cómputo de
+pretrain — no hay receta que lo esquive.
+
+### 7.4 Teoría CogniaX: validado / descartado / abierto
+
+**Validado con números nuevos:**
+- Banded 3:1 como pieza de contexto largo: tercera validación e2e, ahora a ~100M — la
+  extrapolación 512→1024 MEJORA el bpb (1.2888→1.2491) sin NTK.
+- "Data-efficiency es palanca de velocidad" (la tesis M0): confirmada como LA palanca (BPE,
+  Muon, mezcla — §7.2).
+- "El grokking propio es costo de convergencia evitable": X1 falseó "pagar el plateau" **en el
+  harness propio (tarea MQAR, como acota el pre-registro)** — init-scale α=0.25 grokea en 900
+  steps vs 3600 (−75%) con calidad final comparable (0.975 vs 0.989); y de paso mostró que
+  nuestro fenómeno es abrupt-learning (el gap no adelanta), no grokking post-overfit.
+- El método mismo: pre-registro + gates + igual-wall + desvíos append-only cazó **5**
+  predicciones fallidas propias (16k>32k, α-grande-acelera, gap-no-adelanta, EMA-0.998-pierde,
+  P3-negativo) y 4 bugs de sistema — sin él, cada uno habría sido una conclusión falsa o un
+  OOM misterioso. Y la verificación adversarial final cazó al propio documento inflando el
+  veredicto de K3 (D9).
+
+**Descartado con evidencia:**
+- Alternativas a backprop para ESTE régimen (exp049: todas ≥1.17× wall — con 30 min, BP+AMP
+  domina por costo).
+- bf16/fp8 en T4 (arquitectura), checkpointing-del-CE bajo compile (usa MÁS memoria — lección
+  K1v3→v4, D9), batch 64 (OOM solo en la cascada K1v2, evidencia contaminada; b48 es lo medido
+  limpio), DataParallel 2×T4, curriculum fácil→difícil, byte-level para este presupuesto,
+  Sophia/Lion/SOAP (evidencia externa + prioridad), fusión-de-logits como calibrador (pendiente
+  X4, pero la evidencia externa ya carga contra).
+
+**Abierto (con experimento definido):**
+- X2-X5 del programa MoM (aceleradores en el harness; expertos densos vs LoRA a igual wall;
+  selector vs fusionador; el nicho-grokking real con D_crit).
+- El registro enciclopédico del 100M: ¿cuántos minutos más pide? (la curva seguía cayendo
+  fuerte al corte — hay pendiente sin cosechar).
+- Export GGUF de la arquitectura banded para servir en la red Cognia (P6 de 04_MOM_GROKKING).
+
+### 7.5 La lección de método (para la próxima corrida)
+
+De 10 lanzamientos GPU, 4 fallaron (K1 v1/v2/v3 y P2-K2 v1) — y los 4 diagnósticos salieron del
+log crudo, no de teoría: mount path de Kaggle, retención de logits del CE, AC+compile que
+retiene más, activaciones sin GC en el 3B. El costo total de esos fallos fue ~1h de GPU y cero
+conclusiones falsas, porque los resultados parciales se guardaban incrementalmente y los gates
+estaban escritos ANTES. Ese es el retorno del método: los errores cuestan tiempo, no verdad.

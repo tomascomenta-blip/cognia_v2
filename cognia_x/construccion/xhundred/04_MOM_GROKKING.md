@@ -179,9 +179,10 @@ por default.*
   igual costo de entrenamiento**. [c-BTM](https://arxiv.org/abs/2303.14177): expertos de 1.3B con
   clusters no supervisados igualan a un denso 6.7B con **~29% de los FLOPs**. Es el mejor pedigrí
   empírico de todas las variantes.
-- Costo unitario ya en casa: receta K3 congelada = **1 experto ~97.5M funcional por ≤30 min T4**
-  (`03_INVESTIGACION.md`, `xh_ablate_results.json`: 19,429 tok/s, MFU 19.7%, 13.05GB b48, b64
-  OOM). Quota Kaggle 30 h/semana ⇒ ~60 expertos/semana en teoría.
+- Costo unitario ya en casa: receta K3 congelada = **1 experto ~97.5M entrenado por ≤30 min T4**
+  (`03_INVESTIGACION.md`; `xh_bench_results.json`: 19,429 tok/s, MFU 19.7%, 13.05GB b48; el K3
+  real quedó 2/4 gates — fuerte en gramática/compresión/narrativa, no en generación libre
+  wiki). Quota Kaggle 30 h/semana ⇒ ~60 expertos/semana en teoría.
 - La especialización del corpus paga la métrica del nicho: brazo G, wiki-solo bpb 1.3826 vs mezcla
   1.5428 (Δ0.16) — con el costo cualitativo anotado (reproduce la deriva de plantillas).
 

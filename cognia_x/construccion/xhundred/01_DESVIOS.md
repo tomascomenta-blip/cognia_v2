@@ -1,5 +1,27 @@
 # XHUNDRED — Desvíos del pre-registro (append-only, nunca editar 00_DISENO.md)
 
+## D9 — 2026-07-02 — Correcciones de la VERIFICACIÓN ADVERSARIAL final (3 agentes vs JSONs)
+La verificación del documento contra los resultados crudos cazó y se corrigió en 03_INVESTIGACION:
+1. **Veredicto K3 corregido: "FUNCIONAL PARCIAL" → NO FUNCIONAL (2/4).** La definición congelada
+   (00_DISENO §3) es G1∧G2∧G3∧G4 con 3/4="parcial"; el resultado real es G1✓G2✗G3✗G4✓ = 2/4.
+   La versión previa contaba el gate de wall (que no integra la definición). D7 queda
+   supersedido en ese punto.
+2. "0 skips en 7 brazos" de K2 era falso: D_byte256 tuvo 1 skip (los otros 6, cero).
+3. G3: eran 5/10 muestras con 4-grama ≥4 (no 4/10); clasificación de prompts G2 corregida
+   según D2 (planetas=enciclopédico PASA; ventana=descriptivo FALLA).
+4. Sesgo de truncación MGSM anotado per regla 02_FASE2 §2: base 0-shot 28/250=11.2% truncado
+   vs adapter 3/250 — infla parcialmente el Δ+14.8 (asterisco en §4.5/§7.3).
+5. Desglose del wall K3: el compile (51.5s) ocurre DENTRO de train_s; el desglose previo lo
+   doble-contaba.
+6. "b64 OOM (medido)" degradado a "OOM solo en la cascada K1v2, evidencia contaminada".
+7. Registro formal de desvíos operativos que solo estaban en JSONs/commits: revert del
+   checkpoint-del-CE v3→v4 (AC+compile retiene MÁS — supersede la resolución de D4; commit
+   912e7c2); paridad 250 steps (diseño: 300); H-micro 150 steps/variante (diseño: 500);
+   P2-K2 con AdamW-fp32 (plan: paged_8bit) y GC ON (plan: sin GC, imposible en 14.5GB).
+8. Menores: stretch G4 vigente = 75% (D1), no 85%; "predicciones fallidas cazadas" son 5, no 3;
+   fertilidad propia citada = 4.508 (no 4.68); atribución de números de K1 al JSON de bench
+   (no ablate) en 04 §4a; conteo honesto de fallos GPU = 4 de 10 lanzamientos.
+
 ## D1 — 2026-07-02 — G4 (mini-cloze) sustituido por batería ya medida
 **Qué dice 00_DISENO.md §3-G4:** 40 pares de 2 alternativas (azar 50%), gate ≥75%.
 **Desvío:** en paralelo a la síntesis del diseño se codificó `xh_cloze_es.py`: 40 ítems de
