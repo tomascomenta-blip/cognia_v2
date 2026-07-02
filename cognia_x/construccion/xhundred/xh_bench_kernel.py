@@ -16,6 +16,7 @@ import argparse
 import gc
 import json
 import math
+import os
 import time
 
 import numpy as np
@@ -24,7 +25,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 RESULTS_PATH = "xh_bench_results.json"
-DATA_DIR = "/kaggle/input/cognia-xh-data"
+
+
+def find_data_dir():
+    """El mount de kernel_sources no siempre cae en /kaggle/input/<slug> — descubrir en runtime."""
+    base = "/kaggle/input"
+    try:
+        print(f"[data] /kaggle/input: {os.listdir(base)}", flush=True)
+    except OSError:
+        pass
+    for root, _dirs, files in os.walk(base):
+        if "xh_data_meta.json" in files:
+            print(f"[data] dir: {root}", flush=True)
+            return root
+    raise FileNotFoundError("xh_data_meta.json no está bajo /kaggle/input (¿attach falló?)")
 TIME_BUDGET_MIN = 38.0
 T4_PEAK_FP16 = 65e12
 T4_PEAK_FP32 = 8.1e12
@@ -278,8 +292,9 @@ def load_tokens(smoke, device):
     if smoke:
         g = torch.Generator().manual_seed(0)
         return torch.randint(0, 500, (300_000,), generator=g).to(torch.int32).to(device), 512
-    arr = np.fromfile(f"{DATA_DIR}/train_mix_32k.bin", dtype=np.uint16)
-    meta = json.loads(open(f"{DATA_DIR}/xh_data_meta.json", encoding="utf-8").read())
+    data_dir = find_data_dir()
+    arr = np.fromfile(f"{data_dir}/train_mix_32k.bin", dtype=np.uint16)
+    meta = json.loads(open(f"{data_dir}/xh_data_meta.json", encoding="utf-8").read())
     vocab = meta["vocabs"]["32k"]["vocab_size"]
     print(f"[data] {len(arr):,} tokens mezcla (vocab {vocab})", flush=True)
     return torch.from_numpy(arr.astype(np.int32)).to(device), vocab
