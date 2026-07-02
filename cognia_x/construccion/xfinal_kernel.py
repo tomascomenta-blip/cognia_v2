@@ -33,7 +33,11 @@ ARCH_HEADS = 8
 ARCH_WINDOW = 256
 ARCH_LAYER_WINDOWS = [ARCH_WINDOW, ARCH_WINDOW, ARCH_WINDOW, None,
                       ARCH_WINDOW, ARCH_WINDOW, ARCH_WINDOW, None,
-                      ARCH_WINDOW, ARCH_WINDOW, ARCH_WINDOW, None]   # banded 3:1 (placeholder)
+                      ARCH_WINDOW, ARCH_WINDOW, ARCH_WINDOW, None]
+# GANADOR del A/B (xarch_results.json, criterio PRE-registrado): banded 3:1 escalado.
+# banded8 vs vanilla8: bpb 1.5488 vs 1.5555 (C1 OK) y extrapolación 512->1024 +0.5% vs +7.3% (C3).
+# H-LOOP cayó: looped2x4 gana a vanilla2 (-0.041 bpb, el mecanismo existe) pero no alcanza
+# vanilla8+0.05 y paga el mismo cómputo que vanilla8 -> loops=1.
 ARCH_LOOPS = 1
 TRAIN_SEQ = 512
 TRAIN_BATCH = 32
