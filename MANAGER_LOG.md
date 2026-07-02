@@ -4851,3 +4851,27 @@ comandos bg del harness capean a 10 min (el 1er run full murio ahi; guardado inc
 por item agregado). GOAL DE 3 TAREAS COMPLETO: TAREA 1 (4.10x T4), TAREA 2 (exp049),
 TAREA 3 (CoT dirigido integrado). Frontera anotada: eval multi-turno, GSM8K a escala,
 clausula formato-en-system (n=4), cascada 3B-7B sobre razonamiento.
+
+### K. 2026-07-02 (corrida nocturna hasta 05:30, apagado programado): OLMo x Loop x Chimera
+Goal: OLMo como banco de pruebas e2e + Loop Transformer + Chimera-contexto + entreno desde cero.
+AMBIGUEDAD RESUELTA: el Kimera Transformer NO existe publicado (Kimera MIT = SLAM); el correcto es
+el Chimera INTERNO (fase 53, band router + memoria jerarquica); trasladable: banded, gating, write-gate.
+OLMO-1B MEDIDO en T4 (kernel xolmo): PPL 13.1@2048 nativa; COLAPSO RoPE-OOD 32.8 -> 5013 en
+2048-4096 (la raiz del muro de contexto de la teoria CogniaX, confirmada 400x); linear-PI x2
+zero-shot DESCARTADA (+50% in-window); dynamic-NTK x2 GANADORA (plano 9.7-15, in-window intacto =
+2x contexto GRATIS). Passkey v1 no concluyente por bug propio de truncado -> harness reescrito por
+tokens y re-corrido en v2 (+NTK x4 hasta 8192).
+A/B DE ARQUITECTURAS (kernel xarch, criterio PRE-registrado en goal-state ANTES de los datos):
+H-CHIMERA PASA (banded 3:1 = 1.5488 bpb < vanilla8 1.5555 y extrapolacion 512->1024 +0.5% vs +7.3%);
+H-LOOP CAE (looped2x4 gana a su control de params -0.041 bpb pero no alcanza vanilla8+0.05 y paga
+el MISMO computo: a esta escala el cuello es computo, no params); C2 recall no discrimino (todas
+~azar, grokking, contingencia prevista).
+FASE FINAL CUMPLIDA (kernel xfinal): 37.66M params DESDE CERO (banded 3:1, d=512, 12 capas,
+byte-level) sobre 65.5M byte-tokens de es-wiki en 23.2 min de T4 (~49k tok/s, receta XSPEED):
+val_bpb 1.885 -> 1.478; extrapolacion a 2x el largo de entreno con CERO degradacion (1.4768@1024,
+1.4721 con NTK) vs +7.3% del control; MUESTRAS GENERADAS con oraciones coherentes en espanol
+(sintaxis, concordancia, discurso wiki) = el criterio minimo del goal, verificado con muestras
+reales en results_xfinal. Pesos: xfinal_model.pt (75MB, descargado, fuera del repo).
+Sintesis completa: construccion/M_OLMO_CHIMERA_RESULTADO.md (balance validado/expandido/descartado).
+Operativo: PowerShell 5.1 rompe here-strings con comillas dobles internas al pasarlas a git; el
+hook del sandbox bloquea mensajes con barra espaciada o slash+palabra (usar comas).
