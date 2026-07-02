@@ -22,6 +22,8 @@ KERNELS = {
                "models": [QWEN3B]},
     "p2k2":   {"file": "xh_p2k2_qlora.py",    "slug": "cognia-xh-p2k2",   "gpu": True,
                "sources": ["cognia-xh-p2k1"], "models": [QWEN3B]},
+    "p2diag": {"file": "xh_p2diag_kernel.py", "slug": "cognia-xh-p2diag", "gpu": True,
+               "sources": [], "models": [QWEN3B]},
 }
 
 
