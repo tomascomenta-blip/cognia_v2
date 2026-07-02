@@ -99,8 +99,33 @@ Mezcla 256MB (147,668 docs; TinyStories-es cargó sin fallback) + wiki-solo 256M
 | overhead NS por step | 17.0% → FAIL formal, PERO loss 4.61 (Muon) vs 5.92 (AdamW) a mismos ~110 steps → el gate ignoraba data-efficiency; decide K2-A a igual wall (D5) |
 | dual-optimizer schedule | ambos grupos decaen → PASS |
 
-### 4.3 K2 — ablaciones pre-registradas (7 brazos + H micro)
-**[PENDIENTE — corriendo en T4]** Predicciones congeladas en `00_DISENO.md` §5.
+### 4.3 K2 — ablaciones pre-registradas (98.1 min T4; 0 NaN, 0 skips del scaler en 7 brazos)
+
+Igual wall (12 min de train/brazo); métrica primaria bpb wiki held-out normalizado por bytes:
+
+| brazo | bpb wiki | bpb cuentos | steps | veredicto (regla pre-registrada) |
+|---|---|---|---|---|
+| **v1_muon** (mezcla 50/50, 32k) | 1.5428 | 0.7604 | 442 | referencia |
+| A_adamw_ctl (1.5e-3, wd 0.1) | 1.6147 | 0.8109 | 502 | **Muon CONFIRMADO**: Δ 0.072 (rango predicho 0.03-0.08 ✓); AdamW hizo +13% steps y perdió igual — la data-efficiency paga el 17% de overhead del NS con creces |
+| D_byte256 | 1.7850 | 1.0492 | 530 | **BPE CONFIRMADO**: Δ 0.24 ≫ 0.10 predicho; muestras byte rotas (d2 0.47 vs 0.83) — la decisión estructural quedó falseada a favor con margen |
+| G_wiki_solo | **1.3826** | 1.7503 | 462 | gana wiki-bpb (+0.16 la mezcla ≫ +0.05 tolerado) PERO sus muestras reproducen la deriva de plantillas ("cementerio de los Imperios… año 1267"); regla congelada → **cuentos bajan a 35%** |
+| E_bpe16k | 1.5236 | 0.7635 | 482 | **PREDICCIÓN FALLIDA (honesto)**: 16k GANA a 32k por 0.019 (predicho: perdía ≤0.05) → se adopta 16k (~97.5M totales); menos head + más steps/s ganan a la calidad-por-token del 32k a este presupuesto |
+| C_muon_lr04 | 1.5348 | 0.7532 | 462 | gana 0.008 < umbral 0.01 → queda LR 0.02 |
+| F_8Lx1024 (~117M) | 1.5399 | 0.7629 | 445 | empate (Δ 0.003 ≤ 0.02) → queda d=768 (regla: calidad/token manda) |
+
+**Free-rider W**: last 1.5428 / LAWA-k5 1.5486 / EMA-0.998 **2.1447** — EMA con horizonte 500
+sobre ~240 steps efectivos quedó dominado por pesos tempranos (mal calibrado, como advertía la
+regla) → K3 usa EMA 0.995 y elige por bpb entre {last, EMA, LAWA}.
+
+**H micro (atención, 150 steps/variante)**: buffer-mask 15,858 tok/s · causal-full 16,705
+(+5.3%, pero sacrifica banded = la pieza de extrapolación del programa) · chunked-SWA 16,008
+(+0.9%, extrapolación 512→1024 impecable: 1.9089→1.9057). Chunked pasa su gate pero +0.9% no
+paga la complejidad → **queda buffer-mask**. Dato extra: las tres variantes extrapolan a 1024
+SIN degradación (banded 3:1 re-validada a ~100M).
+
+**Receta final K3 (fijada por las reglas, no por gusto):** Muon 0.02 + AdamW 3e-3 dual · BPE-16k
+tied (~97.5M) · mezcla 35% cuentos / 65% wiki (34 filas mix + 14 wiki-solo por batch) · d=768
+12L banded mask · b48 · WSD · QK-norm/zero-init/z-loss · EMA 0.995.
 
 ### 4.4 K3 — corrida final ≤30 min con gates G1-G4
 **[PENDIENTE — tras veredicto K2]**
