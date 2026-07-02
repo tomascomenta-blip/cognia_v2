@@ -25,7 +25,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 
 RESULTS_PATH = "xh_bench_results.json"
 
@@ -195,13 +194,10 @@ class XHLM(nn.Module):
         ce = xf.new_zeros((), dtype=torch.float32)
         zl = xf.new_zeros((), dtype=torch.float32)
         for i in range(4):
-            # CE chunked ×4 (§4.4) CON checkpoint: sin él los 4 chunks de logits fp32
-            # (~4.8GB a b48/vocab 32k) viven hasta el backward — causa raíz del OOM de K1 v2
+            # CE chunked ×4. SIN checkpoint: compile+checkpoint OOMeó a b48 donde el no-checkpoint
+            # corría a 13.08GB (medido K1 v2 vs v3) — AOTAutograd+AC retiene MÁS, no menos.
             sl = slice(i * n // 4, (i + 1) * n // 4)
-            if self.training and torch.is_grad_enabled():
-                ce_i, zl_i = checkpoint(self._ce_chunk, xf[sl], tf[sl], use_reentrant=False)
-            else:
-                ce_i, zl_i = self._ce_chunk(xf[sl], tf[sl])
+            ce_i, zl_i = self._ce_chunk(xf[sl], tf[sl])
             ce = ce + ce_i
             zl = zl + zl_i
         ce = ce / n
@@ -353,8 +349,7 @@ def bench_arm(name, data, vocab, device, batch, opt_kind="adamw", use_amp=True,
     model = XHLM(vocab, **kw).to(device)
     total, nonemb = model.num_params()
     if compile_ and not smoke:
-        # fullgraph=False: el checkpoint del CE puede cortar el grafo (el cuerpo compila igual)
-        model = torch.compile(model, mode="default", fullgraph=False, dynamic=False)
+        model = torch.compile(model, mode="default", fullgraph=True, dynamic=False)
     if opt_kind == "muon":
         muon, adamw, _ = make_v1_optimizers(model, device)
         opts = [muon, adamw]
@@ -522,10 +517,9 @@ def main():
     arms = [
         ("adamw_b48_compile", 48, "adamw", True, True),
         ("muon_b48_compile", 48, "muon", True, True),      # gate 2b: overhead NS vs adamw_b48
-        ("adamw_b64_compile", 64, "adamw", True, True),
         ("bf16_b48_nocompile", 48, "adamw", True, False),  # gate 5: número del descarte bf16
         ("adamw_b32_nocompile", 32, "adamw", True, False),
-    ]
+    ]                                                       # b64: OOM probado en K1 v2 — fuera
     if args.smoke:
         arms = [("smoke_adamw", 4, "adamw", False, False),
                 ("smoke_muon", 4, "muon", False, False)]
@@ -538,11 +532,12 @@ def main():
             out["arms"].append(bench_arm(name, data, vocab, device, b, opt_kind=ok,
                                          use_amp=amp, compile_=comp, smoke=args.smoke,
                                          amp_dtype=dtype))
-        except torch.cuda.OutOfMemoryError:
-            print(f"[{name}] OOM", flush=True)
-            out["arms"].append({"name": name, "oom": True})
-            gc.collect()
-            torch.cuda.empty_cache()
+        except torch.cuda.OutOfMemoryError as e:
+            peak = torch.cuda.max_memory_allocated() / 1e9
+            print(f"[{name}] OOM (pico {peak:.2f}GB): {str(e)[:200]}", flush=True)
+            out["arms"].append({"name": name, "oom": True, "peak_gb": round(peak, 2),
+                                "msg": str(e)[:200]})
+            hard_cleanup(device)
         with open(RESULTS_PATH, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, ensure_ascii=False)
 

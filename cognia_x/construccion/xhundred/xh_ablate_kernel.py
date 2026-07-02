@@ -30,7 +30,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 
 RESULTS_PATH = "xh_ablate_results.json"
 _DATA_DIR_CACHE = []
@@ -250,12 +249,10 @@ class XHLM(nn.Module):
         ce = xf.new_zeros((), dtype=torch.float32)
         zl = xf.new_zeros((), dtype=torch.float32)
         for i in range(4):
-            # checkpoint: sin él los 4 chunks de logits fp32 viven hasta el backward (OOM K1 v2)
+            # SIN checkpoint: compile+checkpoint OOMeó a b48 donde el no-checkpoint corría a
+            # 13.08GB (medido K1 v2 vs v3) — AOTAutograd+AC retiene MÁS, no menos.
             sl = slice(i * n // 4, (i + 1) * n // 4)
-            if self.training and torch.is_grad_enabled():
-                ce_i, zl_i = checkpoint(self._ce_chunk, xf[sl], tf[sl], use_reentrant=False)
-            else:
-                ce_i, zl_i = self._ce_chunk(xf[sl], tf[sl])
+            ce_i, zl_i = self._ce_chunk(xf[sl], tf[sl])
             ce = ce + ce_i
             zl = zl + zl_i
         ce = ce / n
@@ -474,7 +471,7 @@ def run_arm(arm, device, smoke, dynamo_reset):
     total, nonemb = model.num_params()
     base = model
     if BASE_COMPILE and not smoke:
-        model = torch.compile(model, mode="default", fullgraph=False, dynamic=False)
+        model = torch.compile(model, mode="default", fullgraph=True, dynamic=False)
     opts, base_lrs = make_optimizers(model, arm, device)
     scaler = torch.amp.GradScaler(device, enabled=device == "cuda")
     g = torch.Generator(device=device)
@@ -622,7 +619,7 @@ def run_h_micro(device, smoke):
         model = XHLM(vocab, attn_mode=mode, **kw).to(device)
         base = model
         if BASE_COMPILE and not smoke:
-            model = torch.compile(model, mode="default", fullgraph=False, dynamic=False)
+            model = torch.compile(model, mode="default", fullgraph=True, dynamic=False)
         opts, base_lrs = make_optimizers(model, {}, device)
         scaler = torch.amp.GradScaler(device, enabled=device == "cuda")
         g = torch.Generator(device=device)
@@ -720,11 +717,11 @@ def main():
             out["arms"].append(run_arm(arm, device, args.smoke,
                                        dynamo_reset=shape_key != prev_shape_key))
             prev_shape_key = shape_key
-        except torch.cuda.OutOfMemoryError:
-            print(f"[{arm['name']}] OOM", flush=True)
-            out["arms"].append({"name": arm["name"], "oom": True})
-            gc.collect()
-            torch.cuda.empty_cache()
+        except torch.cuda.OutOfMemoryError as e:
+            peak = torch.cuda.max_memory_allocated() / 1e9
+            print(f"[{arm['name']}] OOM (pico {peak:.2f}GB): {str(e)[:200]}", flush=True)
+            out["arms"].append({"name": arm["name"], "oom": True, "peak_gb": round(peak, 2)})
+            hard_cleanup(device)
         with open(RESULTS_PATH, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, ensure_ascii=False)
 

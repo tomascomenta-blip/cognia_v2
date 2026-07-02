@@ -26,7 +26,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 
 RESULTS_PATH = "xh_final_results.json"
 MODEL_PATH = "xh_model.pt"
@@ -279,12 +278,10 @@ class XHLM(nn.Module):
         ce = xf.new_zeros((), dtype=torch.float32)
         zl = xf.new_zeros((), dtype=torch.float32)
         for i in range(4):
-            # checkpoint: sin él los 4 chunks de logits fp32 viven hasta el backward (OOM K1 v2)
+            # SIN checkpoint: compile+checkpoint OOMeó a b48 donde el no-checkpoint corría a
+            # 13.08GB (medido K1 v2 vs v3) — AOTAutograd+AC retiene MÁS, no menos.
             sl = slice(i * n // 4, (i + 1) * n // 4)
-            if self.training and torch.is_grad_enabled():
-                ce_i, zl_i = checkpoint(self._ce_chunk, xf[sl], tf[sl], use_reentrant=False)
-            else:
-                ce_i, zl_i = self._ce_chunk(xf[sl], tf[sl])
+            ce_i, zl_i = self._ce_chunk(xf[sl], tf[sl])
             ce = ce + ce_i
             zl = zl + zl_i
         ce = ce / n
@@ -526,7 +523,7 @@ def main():
     print(f"[xh-final] params={total / 1e6:.1f}M (nonemb {nonemb / 1e6:.1f}M) vocab={vocab} "
           f"ln(V)={li:.2f}", flush=True)
     if not smoke:
-        model = torch.compile(model, mode="default", fullgraph=False, dynamic=False)
+        model = torch.compile(model, mode="default", fullgraph=True, dynamic=False)
     opts, base_lrs = make_optimizers(model, device)
     scaler = torch.amp.GradScaler(device, enabled=device == "cuda")
     g = torch.Generator(device=device)

@@ -33,33 +33,23 @@
       ],
       "max_rel_diff": 0.00317,
       "pass": true
+    },
+    "g4_parity": {
+      "fp32": {
+        "loss": 5.045836925506592,
+        "skips": 0
+      },
+      "fp16": {
+        "loss": 5.045601844787598,
+        "skips": 0
+      },
+      "rel_diff": 5e-05,
+      "pass": true
     }
   },
   "arms": [
     {
       "name": "adamw_b48_compile",
-      "batch": 48,
-      "opt": "adamw",
-      "amp": true,
-      "compile": true,
-      "params_total": 110121216,
-      "params_nonemb": 84955392,
-      "ms_per_step": 1295.7,
-      "tok_per_s": 18968,
-      "mfu_approx": 0.193,
-      "vram_gb": 13.08,
-      "compile_warmup_s": 45.7,
-      "loss_first": 14.9511,
-      "loss_last": 5.9214,
-      "loss_finite": true,
-      "scaler_scale": 65536.0
-    },
-    {
-      "name": "adamw_b64_compile",
-      "oom": true
-    },
-    {
-      "name": "adamw_b32_nocompile",
       "oom": true
     },
     {
@@ -67,7 +57,15 @@
       "oom": true
     },
     {
+      "name": "adamw_b64_compile",
+      "oom": true
+    },
+    {
       "name": "bf16_b48_nocompile",
+      "oom": true
+    },
+    {
+      "name": "adamw_b32_nocompile",
       "oom": true
     }
   ],
@@ -76,5 +74,6 @@
     "layers": 12,
     "vocab": 32768,
     "ln_vocab": 10.4
-  }
+  },
+  "minutes_total": 15.6
 }
