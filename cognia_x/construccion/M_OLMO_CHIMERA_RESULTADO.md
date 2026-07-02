@@ -32,8 +32,12 @@ OLMo-1B-hf (ventana nativa 2048, RoPE), wikitext-2, T4:
 | linear/PI ×2 | plana ~15-19 | **+50%** (19.7 vs 13.1) | **DESCARTADA zero-shot** (PI necesita fine-tune) |
 | **dynamic-NTK ×2** | **plana 9.7-15** | **≈0** (12.94 vs 13.10) | **QUEDA: 2× contexto GRATIS** |
 
-- Ronda 2 (`--v2`): passkey con harness ARREGLADO (v1 truncaba el needle → no concluyente, defecto
-  documentado y corregido) + NTK ×4 hasta 8192. **[completar con results_xolmo v2]**
+- Ronda 2 (`--v2`, harness de passkey ARREGLADO — el v1 truncaba el needle y su 0/3 era bug propio,
+  ahora demostrado): **base in-window 3/3** (1024, 1792); **NTK×2: passkey 3/3 en 3072 y 4096** —
+  recuperación FUNCIONAL al doble de ventana, zero-shot; **NTK×4: PPL sin colapso hasta 8192**
+  (14-25 vs 5013 del base), in-window +15% (15.0), passkey degradando con gracia (1/3@6144, 2/3@8192).
+  → Contexto de OLMo extendido 2× gratis (PPL y retrieval intactos) y 4× utilizable con degradación
+  medida (`results_xolmo/xolmo_results_v2.json`).
 
 ## 3. A/B de arquitecturas (tiny, desde cero, criterio PRE-registrado)
 
