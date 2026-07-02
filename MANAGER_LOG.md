@@ -4920,3 +4920,18 @@ la generacion libre enciclopedica pide mas tokens, no otra receta. Fase 2 en vue
 medido (MGSM 39.6/45.6 y 69.2 3-shot, XSC 65.3), gate Belebele fallo -> diag 3 formatos ->
 letra-NLL 74.5 (D6), P2-K2 v2 (QLoRA gsm8k-ES, GC on tras OOM v1) entrenando. Ademas: pedido
 nuevo del dueno (MoM + grokking) -> workflow de investigacion corriendo -> 04_MOM_GROKKING.md.
+
+### N. 2026-07-02 (cierre): XHUNDRED completo con verificacion adversarial; pausa por uso 83%
+Entregables del goal CERRADOS: (1) 03_INVESTIGACION.md completo (raiz de la lentitud, ledger de
+palancas, K0-K3, Fase 2, lecciones de sistema, conclusion honesta 7.1-7.5); (2) pipeline
+reproducible <=30 min (kernels + run_kaggle_xh.py + seccion 6b); (3) Fase 2 documentada: QLoRA
+45 min gana el nicho pre-registrado (+14.8 MGSM-es 0-shot, 4.7xSE, CON asterisco de truncacion
+del base 11.2 pct) pero fija el modo (3-shot -15.2) = especializacion, no razonamiento nuevo;
+(4) conclusion honesta con teoria validada/descartada/abierta. VERIFICACION ADVERSARIAL FINAL
+(3 agentes vs JSONs) cazo al propio documento: veredicto K3 corregido de PARCIAL a NO FUNCIONAL
+(2/4 gates congelados: G1 bpb 1.2888 y G4 cloze 85 SI; G2 5/10 y G3 5/10 NO) + 12 correcciones
+mas, todo en D9. Bonus MoM (pedido del dueno): 04_MOM_GROKKING con veredicto honesto de la idea
++ X1 CORRIDO (la premisa pagar-el-plateau FALSEADA en el harness propio: alpha 0.25 -> -75 pct)
++ X2 corriendo local al cierre (interim: baseline con alta varianza por seed 3600/1700;
+grokfast_l2 no grokea = riesgo pre-registrado confirmado). Pausa por regla del dueno: uso 83
+pct de la ventana 5h (umbral 84; reset 01:10 UTC). Commits del goal: 4647b9d..f5899bc.
