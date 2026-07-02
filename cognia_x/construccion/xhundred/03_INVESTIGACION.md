@@ -161,11 +161,37 @@ límite honesto del goal de 30 minutos**: un ~100M en 25.7 min queda funcional e
 (cloze 85%), compresión (bpb 1.29) y narrativa libre; NO domina generación libre enciclopédica
 — eso pide más tokens de wall, no otra receta.
 
-### 4.5 Fase 2 — QLoRA 3B (P2-K1 corriendo / P2-K2 listo)
-**[PENDIENTE]** Plan y predicciones P1-P5 congeladas en `02_FASE2_PLAN.md`. Ya establecido con
-aritmética (00_DISENO §7): pretrain 3B desde cero en T4 = 641 días GPU (Chinchilla) y 48GB de
-estados vs 15.6GB disponibles — INVIABLE por doble muro; "Qwen3-3B" no existe (se usa
-Qwen2.5-3B-Instruct y se declara).
+### 4.5 Fase 2 — QLoRA sobre Qwen2.5-3B-Instruct: GANA el nicho pre-registrado, sin milagros
+
+Ya establecido con aritmética (00_DISENO §7): pretrain 3B desde cero en T4 = 641 días GPU
+(Chinchilla) + 48GB de estados vs 15.6GB — INVIABLE por doble muro. "Qwen3-3B" NO existe (se usó
+Qwen2.5-3B-Instruct NF4 y se declara). Lo viable era ESPECIALIZAR: QLoRA r=16 all-linear sobre
+gsm8k-ES (85%) + OpenHermes-es (15%), 45 min de train (0.5 épocas, 1.15M tokens — la condición
+de ≥1.5 épocas NO se cumplió por el costo del gradient checkpointing; se reporta, D8).
+
+**Base medido (P2-K1, 37.4 min):** MGSM-es 0-shot 39.6/45.6 (estricta/laxa), 3-shot 69.2,
+XSC 65.3. Belebele exigió diagnóstico (D6): el formato continuación-NLL del plan daba 35.2%
+(gate GP2-1 FAIL); el diagnóstico de 3 formatos (200 ítems) dio letra-NLL 74.5% — causa raíz
+del gate encontrada y el formato letra adoptado para AMBOS lados.
+
+**Deltas (adapter − mismo checkpoint base, mismo harness NF4; P2-K2, 106.9 min):**
+
+| pre-registro | Δ medido | veredicto |
+|---|---|---|
+| P1 MGSM 0-shot estricta (+10..+18, gate ≥+6) | **+14.8** (39.6→54.4) | **GANA** (4.7×SE) |
+| P2 MGSM 0-shot laxa (+6..+12, gate ≥+4) | **+9.6** (45.6→55.2) | ✓ no-solo-formato |
+| P3 control 3-shot (+2..+8) | **−15.2** (69.6→54.4) | **predicción FALLIDA** |
+| P4 XSC (empate ±2) | −0.4 | ✓ |
+| P5 Belebele-letra (−4..+2) | −2.6 (75.7→73.1) | ✓ no-catástrofe |
+
+**Lectura honesta (reglas congeladas §4 del plan):** el QLoRA de 45 min en T4 SÍ supera al
+mismo Qwen2.5-3B en el nicho y protocolo pre-registrados (0-shot instruido), sin catástrofe
+general — el "sí se puede" de la Fase 2. PERO el P3 negativo revela el mecanismo: el adapter
+FIJA el modo 0-shot (su 3-shot colapsa a su 0-shot) y el techo del base con exemplars (69.6)
+queda por encima del FT en cualquier modo. Conclusión: **QLoRA-en-T4 compra especialización de
+modo/formato/idioma, no razonamiento nuevo** — exactamente lo que la lista de honestidad del
+plan prohibía sobre-reclamar. Higiene verificada activa: decontaminación train∩test = 0 por
+hash normalizado; calidad gsm8k-ES 0/20 malos.
 
 ## 5. Descartado con evidencia (no re-medir sin razón nueva)
 

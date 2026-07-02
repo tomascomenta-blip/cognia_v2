@@ -1,6 +1,46 @@
 {
   "experiment": "xh_p2k2_qlora",
-  "suites": {},
+  "suites": {
+    "mgsm_0shot": {
+      "acc_strict": 0.544,
+      "acc_lax": 0.552,
+      "n": 250,
+      "se": 0.0315,
+      "truncated": 3,
+      "minutes": 13.7,
+      "partial": false
+    },
+    "xstorycloze": {
+      "acc": 0.6492,
+      "n": 1511,
+      "se": 0.0123,
+      "minutes": 5.8,
+      "partial": false
+    },
+    "belebele": {
+      "acc": 0.7311,
+      "n": 900,
+      "se": 0.0148,
+      "minutes": 13.3,
+      "partial": false
+    },
+    "belebele_base_letra": {
+      "acc": 0.7567,
+      "n": 900,
+      "se": 0.0143,
+      "minutes": 10.9,
+      "partial": false
+    },
+    "mgsm_3shot": {
+      "acc_strict": 0.384,
+      "acc_lax": 0.544,
+      "n": 250,
+      "se": 0.0315,
+      "truncated": 2,
+      "minutes": 15.9,
+      "partial": false
+    }
+  },
   "gates": {
     "GP2_3_calidad_gsm": {
       "bad_of_20": 0,
@@ -23,5 +63,51 @@
     "targets": "q,k,v,o,gate,up,down_proj",
     "trainable_params": 29933568
   },
-  "train_tokens_available": 4575244
+  "train_tokens_available": 4575244,
+  "desvios": [
+    "optimizer=AdamW fp32 (no paged_8bit): estados ~0.5GB",
+    "GC ON desde el arranque (b4 sin GC OOMeo en v1, log vacio)"
+  ],
+  "curve": [
+    {
+      "step": 20,
+      "loss": 1.1562,
+      "tokens": 327680,
+      "s": 768
+    },
+    {
+      "step": 40,
+      "loss": 0.8868,
+      "tokens": 655360,
+      "s": 1541
+    },
+    {
+      "step": 60,
+      "loss": 0.8107,
+      "tokens": 983040,
+      "s": 2313
+    }
+  ],
+  "train": {
+    "micro_b": 4,
+    "micro_batches": 1124,
+    "tokens_seen": 1150976,
+    "epochs_done": 0.5,
+    "minutes": 45.2,
+    "loss_final": 0.8246
+  },
+  "deltas_pts": {
+    "P1_mgsm_strict": 14.8,
+    "P2_mgsm_lax": 9.6,
+    "P3_mgsm3_lax": -15.2,
+    "P4_xsc": -0.4,
+    "P5_belebele": -2.6
+  },
+  "veredicto": {
+    "gana_nicho": true,
+    "solo_formato": false,
+    "no_catastrofe": true,
+    "sospecha_harness": false
+  },
+  "minutes_total": 106.9
 }

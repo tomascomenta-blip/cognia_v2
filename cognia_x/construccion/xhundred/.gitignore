@@ -3,3 +3,4 @@ _staging_*/
 # bins pesados descargados de Kaggle (reproducibles con run_kaggle_xh.py download)
 *.bin
 *.pt
+*.safetensors

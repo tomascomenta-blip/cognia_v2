@@ -72,6 +72,18 @@ aplicarse a ciegas. (3) El resultado PARCIAL se reporta tal cual: el límite del
 es el registro enciclopédico en generación libre, no la gramática (cloze 85%) ni la compresión
 (bpb 1.2888) ni la narrativa.
 
+## D8 — 2026-07-02 — Veredicto Fase 2: GANA el nicho en el protocolo primario, con dos caveats
+**Medido P2-K2 v2 (106.9 min):** P1 +14.8 pts MGSM-es 0-shot estricta (gate ≥+6 ✓, 4.7×SE),
+P2 +9.6 laxa (gate ≥+4 ✓), P4 −0.4 XSC ✓, P5 −2.6 Belebele-letra ✓ (no-catástrofe).
+**Caveat 1 (P3, predicción FALLIDA):** el control 3-shot dio **−15.2** (predicho +2..+8) — el
+adapter fija el modo 0-shot y el modelo pierde el uso de exemplars; su 3-shot (54.4) colapsa a
+su 0-shot (55.2). El base con exemplars (69.6) sigue por ENCIMA del FT en cualquier modo →
+el claim se degrada según las reglas: el QLoRA especializa el MODO, no expande el techo de
+razonamiento. **Caveat 2 (condición de épocas):** entrenó 0.5 épocas (1.15M tokens a ~424 tok/s
+con GC; la condición pedía ≥1.5) → los rangos predichos quedan formalmente no-testeados aunque
+los gates se alcanzaron igual; se reporta tal cual, sin extrapolar. Gates de higiene: GP2-3
+0/20, decontaminación 0. Adapter en results_p2k2/final_adapter/ (solo adapter, licencia §6).
+
 ## D2 — 2026-07-02 — G2: los 5 prompts nuevos, fijados antes de K1
 00_DISENO.md §3-G2 exige 5 prompts nuevos "fijados antes de correr". Quedan congelados acá:
 1. "Había una vez un niño que " (apertura de cuento)

@@ -360,3 +360,29 @@ hora de cómputo total.
 
 **Cierre del pre-registro.** Este documento se congela antes de correr X1. Cambios posteriores van
 en `01_DESVIOS.md` append-only con fecha y razón — nunca editando las predicciones de acá.
+
+---
+
+## 8. Resultados (post-registro, no editan las predicciones de arriba)
+
+### X1 — CORRIDO 2026-07-02 (9.6 min CPU, `results_x1/xh_x1_results.json`)
+
+| α init | steps-to-grok | final_acc |
+|---|---|---|
+| 0.25 | **900** (−75%) | 0.975 |
+| 0.5 | 1000 (−72%) | 0.963 |
+| 1.0 | 3600 (= baseline conocido, réplica exacta) | 0.989 |
+| 2.0 | 1100 (−69%) | 1.000 |
+| 4.0 | 1500 (−58%) | 0.999 |
+
+**Veredicto de la pieza más riesgosa: "hay que pagar el plateau" queda FALSEADO** (en este
+harness): α=0.25 reduce el plateau 75% (predicción pedía ≥30%) sin sacrificar calidad final.
+**Dos predicciones FALLIDAS (honesto):** (1) α>1 NO alarga — también acelera (curva no-monótona
+con el PEOR caso en la init por defecto α=1); difiere del Omnigrok canónico y re-confirma la
+regla pre-registrada: los aceleradores son régimen-dependientes, se miden acá. (2) el logit-gap
+NO adelanta el salto (lead 0-100 steps ≪ 1000 predicho): nuestra transición es abrupta también
+en la progress measure — consistente con §1: el fenómeno propio es "abrupt learning" (formación
+de induction head), otro animal que el grokking post-overfit de Power et al.
+**Consecuencia para la receta MoM (criterio de cierre §6):** se escribe SIN presupuesto de
+plateau — "grokking inducido o evitado, nunca esperado". Barrer α al armar el harness de un
+experto cuesta minutos y puede comprar 4×.
