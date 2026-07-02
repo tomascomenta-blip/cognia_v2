@@ -187,10 +187,11 @@ def passkey_eval(model, tok, target_len_tokens, depths=(0.2, 0.5, 0.8), smoke=Fa
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
-    ap.add_argument("--v2", action="store_true",
-                    help="ronda 2: passkey ARREGLADO + NTK x4 hasta 8192 (salta lo ya medido en v1)")
+    ap.add_argument("--v1", action="store_true",
+                    help="repetir la ronda 1 completa (default: ronda 2 = passkey fix + NTK x4 a 8192)")
     args = ap.parse_args()
     smoke = args.smoke
+    args.v2 = not args.v1          # v2 es el DEFAULT (los kernels de Kaggle corren sin args)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if smoke and device == "cpu":
         torch.set_num_threads(3)

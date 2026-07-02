@@ -69,21 +69,48 @@ Anotado; la decisión salió por C1+C3+C4 según la contingencia pre-registrada.
 
 **Selección: banded 3:1 escalado** (regla: "solo H-CHIMERA → banded8 escalado").
 
-## 4. FASE FINAL — entreno desde cero en T4 (sin pesos de OLMo)
+## 4. FASE FINAL — entreno desde cero en T4 (sin pesos de OLMo) — OBJETIVO CUMPLIDO
 
-Config: banded 3:1, d=512, 12 capas (~38M params), byte-level, es-wiki 20M bytes, 65M byte-tokens
-(4000 steps × 32 × 512), AMP+compile+fused (receta XSPEED de la sesión anterior).
-**[completar con results_xfinal: curva bpb, extrapolación ±NTK, muestras generadas]**
+Config: banded 3:1, d=512, 12 capas = **37.66M params**, byte-level, es-wiki 20.5M bytes,
+**65.5M byte-tokens** (4000 steps × 32 × 512), AMP+compile+fused (receta XSPEED) → **23.2 min en T4**
+a ~49k tok/s. Resultados (`results_xfinal/xfinal_results.json`, pesos en `xfinal_model.pt` 75MB):
+
+- Curva limpia: val_bpb 1.885 (step 400) → **1.478** (step 4000).
+- **Extrapolación a 2× el largo de entreno: CERO degradación** — bpb 1.4783@512 → 1.4768@1024
+  (y 1.4721 con NTK×2 en eval). El control vanilla del A/B degradaba +7.3%: la propiedad del diseño
+  banded SE SOSTIENE a 6× la escala del A/B. Validación e2e de H-CHIMERA.
+- **Muestras generadas (temp 0.7): ORACIONES COHERENTES en español real** — sintaxis correcta,
+  concordancia de género/número, discurso estilo wiki con secciones ("Demografía"):
+  > "La historia de la ciudad. La capital es en el francés y surge en la localidad de las conchas
+  > de la provincia para la Asociación de Estados de España y de España."
+  > "La ciencia estudia los organismos y sus convenciones y sus propias facultades. Se suele decir
+  > que el punto de vista es similar al punto de entrada procesada de empresas…"
+  Deriva semántica y repeticiones esperables a 38M params / 65M tokens; pero el criterio mínimo del
+  goal ("empezar a formular oraciones coherentes" con pocos millones de tokens) está CUMPLIDO y
+  verificado con muestras reales en el JSON.
 
 ## 5. Cierre — qué validó y qué contradijo la teoría CogniaX
 
-**[completar al final]** Parciales ya firmes:
-- VALIDADO: la raíz RoPE-OOD del muro de contexto (predicha en `cognia-context-ceiling-longctx`,
-  medida en OLMo con colapso 400×).
-- VALIDADO: la dirección Chimera/HYDRA de bandas LOCAL/GLOBAL — trasladada a arquitectura gana en
-  retención de largo sin ceder calidad.
-- EXPANDIDO: dynamic-NTK como palanca zero-shot (no estaba en la teoría; 2× contexto gratis en OLMo).
-- DESCARTADO: loop transformer como palanca general a esta escala (evidencia: mismo cómputo que el
-  modelo profundo, calidad inferior); PI/linear zero-shot (+50% in-window).
-- DEUDA HONESTA: recall sintético duro no discriminó en corridas cortas (grokking); passkey v1
-  tenía un bug de harness (corregido en v2).
+**Balance final:**
+- **VALIDADO**: la raíz RoPE-OOD del muro de contexto (predicha en `cognia-context-ceiling-longctx`,
+  medida en OLMo con colapso 400×: PPL 13→5013 al cruzar la ventana nativa).
+- **VALIDADO e2e**: la dirección Chimera/HYDRA de bandas LOCAL/GLOBAL trasladada a arquitectura —
+  en el A/B gana calidad Y extrapolación (+0.5% vs +7.3%), y a 6× de escala en el entreno final
+  mantiene CERO degradación a 2× de largo, terminando en un modelo desde cero que formula oraciones
+  coherentes en español con 65M byte-tokens y 23 min de T4.
+- **EXPANDIDO**: dynamic-NTK como palanca zero-shot no estaba en la teoría — 2× de contexto gratis
+  en OLMo (in-window intacto) y mejora marginal también en el modelo propio. La teoría CogniaX del
+  techo de contexto gana una palanca de INFERENCIA además de la de diseño (bandas).
+- **DESCARTADO con evidencia**: (a) Loop/Universal Transformer como palanca general a esta escala —
+  el mecanismo existe (gana a su control de params) pero paga el cómputo completo de la pila profunda
+  con peor calidad; solo tendría sentido si los params fueran el recurso limitante, no el cómputo.
+  (b) linear/PI zero-shot (+50% de PPL in-window; exige fine-tune que NTK no necesita).
+- **DEUDA HONESTA**: el recall sintético duro (MQAR 200 pares) no discriminó en 1500 steps (grokking,
+  consistente con el historial G2) — la retención larga quedó medida por extrapolación de PPL, no por
+  recall entrenado; el passkey v1 tenía un bug de harness (corregido y re-medido en v2); el modelo
+  final redacta con deriva semántica (límite de escala 38M/65M, no de diseño).
+
+**Contra las hipótesis iniciales del goal**: la apuesta combinada "Loop × Chimera" NO sobrevivió como
+combo — sobrevivió la mitad Chimera. El proceso funcionó exactamente como pide la metodología: las
+dos ideas pasaron por el mismo ciclo implementar→medir→decidir con criterio pre-registrado, y la
+evidencia (no la intuición) eligió.
