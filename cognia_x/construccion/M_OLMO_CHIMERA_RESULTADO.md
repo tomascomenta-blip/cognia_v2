@@ -93,6 +93,17 @@ a ~49k tok/s. Resultados (`results_xfinal/xfinal_results.json`, pesos en `xfinal
   goal ("empezar a formular oraciones coherentes" con pocos millones de tokens) está CUMPLIDO y
   verificado con muestras reales en el JSON.
 
+## 4b. BONUS — memoria recurrente (RMT) sobre el banded (H-RMT pre-registrada)
+
+3 brazos, mismo banded 3:1 (d=256), bpb SOLO del 2do segmento de 512 (`results_xrmt/`):
+full1024 (cota superior, ve todo) **1.5425** · seg_ciego (2×512 independientes) **1.5723** ·
+seg_rmt (+16 memory tokens BPTT, +0.13% params) **1.5513**.
+**H-RMT PASA: recupera el 70.5% del gap** (umbral pre-registrado 30%). La tercera idea del Chimera
+interno (write-gate/memoria comprimida con presupuesto fijo) también funciona a nivel arquitectura:
+16 tokens bastan para transportar la mayoría de la información útil del segmento anterior.
+Frontera: componer banded+RMT a la escala del modelo final (requiere su propio A/B — el método
+exige madurar antes de escalar, y el deadline corta acá).
+
 ## 5. Cierre — qué validó y qué contradijo la teoría CogniaX
 
 **Balance final:**

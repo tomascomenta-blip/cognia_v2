@@ -4875,3 +4875,12 @@ reales en results_xfinal. Pesos: xfinal_model.pt (75MB, descargado, fuera del re
 Sintesis completa: construccion/M_OLMO_CHIMERA_RESULTADO.md (balance validado/expandido/descartado).
 Operativo: PowerShell 5.1 rompe here-strings con comillas dobles internas al pasarlas a git; el
 hook del sandbox bloquea mensajes con barra espaciada o slash+palabra (usar comas).
+
+### K2. 2026-07-02 (cont.): bonus RMT PASA - las 3 ideas Chimera validadas a nivel arquitectura
+XRMT en T4 (22.4 min, 3 brazos, H pre-registrada, bpb del 2do segmento): full1024 1.5425 (cota
+superior), seg_ciego 1.5723 (cota inferior), seg_rmt 1.5513 con 16 memory tokens BPTT (+0.13%
+params) = recupera el 70.5% del gap (umbral 30%: PASA). Con esto las TRES ideas del Chimera
+interno quedan validadas a nivel arquitectura: bandas LOCAL-GLOBAL (A/B + escala final), NTK
+como extension de inferencia (OLMo, passkey funcional 3 de 3 al 2x), y memoria comprimida con
+presupuesto fijo (RMT). Frontera anotada: combo banded+RMT a escala exige su propio A/B (el
+metodo prohibe escalar sin madurar). GOAL COMPLETO; apagado 05:30 sigue programado.
