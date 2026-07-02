@@ -4905,3 +4905,18 @@ v3 corriendo con fixes (torch.utils.checkpoint por chunk, expandable_segments, h
 G1-G4 embebidos + contabilidad honesta de wall) escritos y smoked, esperando veredicto K1.
 (5) Fase 2: workflow de investigacion en background (benchmarks es, datos de nicho, que Qwen
 existe en Kaggle Models). Commits: 4647b9d..cb7500d en cognia-x.
+
+### M. 2026-07-02 (cont.): XHUNDRED K2+K3 - el 100M queda FUNCIONAL PARCIAL en 25.7 min de T4
+K2 (98 min, 7 brazos igual-wall + micro de atencion, 0 NaN/skips): Muon CONFIRMADO (1.5428 vs
+AdamW-tuneado 1.6147 con +13 pct de steps), BPE CONFIRMADO (byte 1.785, delta 0.24), 16k GANA
+a 32k (prediccion fallida honesta, 1.5236 vs 1.5428), mezcla a 35 pct cuentos (regla), d768 y
+buffer-mask quedan, EMA recalibrado a 0.995. K3 (25.7 min TOTAL: setup 10.6s + compile 51.5s +
+train 25 min + evals 31s): 97.5M params, 25.9M tokens, bpb wiki 1.2888 (G1 PASS; precedente
+1.478), cloze-es 85 pct (G4 PASS stretch; precedente 62.5), extrapolacion 512->1024 MEJORA
+(1.2491), EMA-0.995 gano el averaging. G2 5/10 y G3 FAIL honestos: narrativa 5/5 (cuentos con
+dialogo y arco), enciclopedico 1/5 (atractor de puntos suspensivos, deriva, ensalada tecnica).
+D7: no se re-corre (p-hacking), contingencia R4 no aplica. Limite honesto del goal de 30 min:
+la generacion libre enciclopedica pide mas tokens, no otra receta. Fase 2 en vuelo: P2-K1 base
+medido (MGSM 39.6/45.6 y 69.2 3-shot, XSC 65.3), gate Belebele fallo -> diag 3 formatos ->
+letra-NLL 74.5 (D6), P2-K2 v2 (QLoRA gsm8k-ES, GC on tras OOM v1) entrenando. Ademas: pedido
+nuevo del dueno (MoM + grokking) -> workflow de investigacion corriendo -> 04_MOM_GROKKING.md.

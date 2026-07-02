@@ -204,6 +204,19 @@ Qwen2.5-3B-Instruct y se declara).
 5. **Los gates de un solo número mienten**: el gate "overhead NS <10%" habría matado a Muon,
    que a mismos steps lleva 1.3 nats de ventaja. El gate correcto es SIEMPRE a igual wall-clock.
 
+## 6b. Reproducción (entregable 2: pipeline ≤30 min en T4)
+
+```
+# one-time: corpus + tokenizers (kernel CPU de Kaggle, ~6 min, sin quota GPU)
+venv312\Scripts\python.exe cognia_x/construccion/xhundred/run_kaggle_xh.py push data
+# la corrida final (T4, 25.7 min medidos: train 25 min + gates G1-G4 + pesos fp16)
+venv312\Scripts\python.exe cognia_x/construccion/xhundred/run_kaggle_xh.py push final
+venv312\Scripts\python.exe cognia_x/construccion/xhundred/run_kaggle_xh.py download final
+```
+Receta completa en las constantes de `xh_final_kernel.py` (fijadas por las ablaciones K2, no a
+mano). Smokes locales: cada kernel corre con `--smoke` sin GPU. Los resultados crudos de cada
+etapa quedan en `results_{data,bench,ablate,final}/`.
+
 ## 7. Conclusión honesta
-**[PENDIENTE — al cierre de K3 y Fase 2]** Qué de la teoría CogniaX se validó, qué se descartó,
+**[PENDIENTE — al cierre de Fase 2]** Qué de la teoría CogniaX se validó, qué se descartó,
 qué queda abierto.
