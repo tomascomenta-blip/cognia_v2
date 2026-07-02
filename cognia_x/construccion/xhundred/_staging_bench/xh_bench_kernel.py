@@ -19,13 +19,10 @@ import math
 import os
 import time
 
-os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")  # anti-fragmentación T4
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 
 RESULTS_PATH = "xh_bench_results.json"
 
@@ -173,11 +170,6 @@ class XHLM(nn.Module):
         if isinstance(m, (nn.Linear, nn.Embedding)):
             nn.init.normal_(m.weight, mean=0.0, std=0.02)
 
-    def _ce_chunk(self, xc, tc):
-        lg = self.lm_head(xc).float()
-        return (F.cross_entropy(lg, tc, reduction="sum"),
-                (torch.logsumexp(lg, dim=-1) ** 2).sum())
-
     def forward(self, idx, targets=None):
         x = self.embed(idx)
         L = idx.shape[1]
@@ -194,16 +186,11 @@ class XHLM(nn.Module):
         n = xf.shape[0]
         ce = xf.new_zeros((), dtype=torch.float32)
         zl = xf.new_zeros((), dtype=torch.float32)
-        for i in range(4):
-            # CE chunked ×4 (§4.4) CON checkpoint: sin él los 4 chunks de logits fp32
-            # (~4.8GB a b48/vocab 32k) viven hasta el backward — causa raíz del OOM de K1 v2
+        for i in range(4):                          # CE chunked ×4 (§4.4)
             sl = slice(i * n // 4, (i + 1) * n // 4)
-            if self.training and torch.is_grad_enabled():
-                ce_i, zl_i = checkpoint(self._ce_chunk, xf[sl], tf[sl], use_reentrant=False)
-            else:
-                ce_i, zl_i = self._ce_chunk(xf[sl], tf[sl])
-            ce = ce + ce_i
-            zl = zl + zl_i
+            lg = self.lm_head(xf[sl]).float()
+            ce = ce + F.cross_entropy(lg, tf[sl], reduction="sum")
+            zl = zl + (torch.logsumexp(lg, dim=-1) ** 2).sum()
         ce = ce / n
         total = ce + ZLOSS * (zl / n)               # z-loss fp32 (§4.2)
         return None, ce, total
@@ -337,24 +324,15 @@ def make_step_fn(model, data, opts, scaler, batch, seq, device, g, use_amp):
     return step
 
 
-def hard_cleanup(device):
-    """Suelta cachés de dynamo (retienen VRAM tras un OOM — lección K1 v2) + allocator."""
-    torch._dynamo.reset()
-    gc.collect()
-    if device == "cuda":
-        torch.cuda.empty_cache()
-
-
 def bench_arm(name, data, vocab, device, batch, opt_kind="adamw", use_amp=True,
               compile_=True, n_steps=100, seq=SEQ, smoke=False, amp_dtype=torch.float16):
-    hard_cleanup(device)
     torch.manual_seed(0)
     kw = dict(d=64, n_heads=4, n_layers=2, global_layers=(1,)) if smoke else {}
     model = XHLM(vocab, **kw).to(device)
     total, nonemb = model.num_params()
     if compile_ and not smoke:
-        # fullgraph=False: el checkpoint del CE puede cortar el grafo (el cuerpo compila igual)
-        model = torch.compile(model, mode="default", fullgraph=False, dynamic=False)
+        torch._dynamo.reset()
+        model = torch.compile(model, mode="default", fullgraph=True, dynamic=False)
     if opt_kind == "muon":
         muon, adamw, _ = make_v1_optimizers(model, device)
         opts = [muon, adamw]
@@ -422,12 +400,10 @@ def bench_arm(name, data, vocab, device, batch, opt_kind="adamw", use_amp=True,
     return res
 
 
-def parity_gate(data, vocab, device, batch=16, n_steps=250, smoke=False):
-    """fp16 vs fp32, mismo seed/datos → diff relativa de loss final ≤1% (método XSPEED).
-    b16: el fp32 duplica activaciones — a b32 reventaba la T4 (OOM de K1 v2)."""
+def parity_gate(data, vocab, device, batch=32, n_steps=250, smoke=False):
+    """fp16 vs fp32, mismo seed/datos → diff relativa de loss final ≤1% (método XSPEED)."""
     finals = {}
     for tag, amp in (("fp32", False), ("fp16", True)):
-        hard_cleanup(device)
         torch.manual_seed(0)
         kw = dict(d=64, n_heads=4, n_layers=2, global_layers=(1,)) if smoke else {}
         model = XHLM(vocab, **kw).to(device)
@@ -518,13 +494,13 @@ def main():
     out["arch"] = {"d": ARCH_D, "layers": ARCH_LAYERS, "vocab": vocab,
                    "ln_vocab": round(loss_ini_esperada, 2)}
 
-    # gate 1 — batch sweep (orden por prioridad: si algo OOMea, lo crítico ya corrió)
+    # gate 1 — batch sweep (48 y 64 compilados; 32 sin compile como fallback OOM)
     arms = [
         ("adamw_b48_compile", 48, "adamw", True, True),
-        ("muon_b48_compile", 48, "muon", True, True),      # gate 2b: overhead NS vs adamw_b48
         ("adamw_b64_compile", 64, "adamw", True, True),
-        ("bf16_b48_nocompile", 48, "adamw", True, False),  # gate 5: número del descarte bf16
         ("adamw_b32_nocompile", 32, "adamw", True, False),
+        ("muon_b48_compile", 48, "muon", True, True),      # gate 2b: overhead NS vs adamw_b48
+        ("bf16_b48_nocompile", 48, "adamw", True, False),  # gate 5: número del descarte bf16
     ]
     if args.smoke:
         arms = [("smoke_adamw", 4, "adamw", False, False),
@@ -562,13 +538,8 @@ def main():
 
     # gate 4 — paridad fp16 vs fp32 con la receta v1 (Muon+AdamW, LRs reales)
     if (time.time() - t0) / 60 < TIME_BUDGET_MIN:
-        try:
-            out["gates"]["g4_parity"] = parity_gate(data, vocab, device, smoke=args.smoke)
-            print(f"[gate4] paridad: {out['gates']['g4_parity']}", flush=True)
-        except torch.cuda.OutOfMemoryError:
-            out["gates"]["g4_parity"] = {"oom": True, "pass": False}
-            print("[gate4] OOM", flush=True)
-            hard_cleanup(device)
+        out["gates"]["g4_parity"] = parity_gate(data, vocab, device, smoke=args.smoke)
+        print(f"[gate4] paridad: {out['gates']['g4_parity']}", flush=True)
 
     ok_arms = [a for a in out["arms"] if a.get("tok_per_s") and a.get("loss_finite")
                and not a["name"].startswith("bf16")]

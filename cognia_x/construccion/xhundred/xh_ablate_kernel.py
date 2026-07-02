@@ -24,10 +24,13 @@ import math
 import os
 import time
 
+os.environ.setdefault("PYTORCH_ALLOC_CONF", "expandable_segments:True")  # anti-fragmentación T4
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 
 RESULTS_PATH = "xh_ablate_results.json"
 _DATA_DIR_CACHE = []
@@ -247,12 +250,21 @@ class XHLM(nn.Module):
         ce = xf.new_zeros((), dtype=torch.float32)
         zl = xf.new_zeros((), dtype=torch.float32)
         for i in range(4):
+            # checkpoint: sin él los 4 chunks de logits fp32 viven hasta el backward (OOM K1 v2)
             sl = slice(i * n // 4, (i + 1) * n // 4)
-            lg = self.lm_head(xf[sl]).float()
-            ce = ce + F.cross_entropy(lg, tf[sl], reduction="sum")
-            zl = zl + (torch.logsumexp(lg, dim=-1) ** 2).sum()
+            if self.training and torch.is_grad_enabled():
+                ce_i, zl_i = checkpoint(self._ce_chunk, xf[sl], tf[sl], use_reentrant=False)
+            else:
+                ce_i, zl_i = self._ce_chunk(xf[sl], tf[sl])
+            ce = ce + ce_i
+            zl = zl + zl_i
         ce = ce / n
         return None, ce, ce + ZLOSS * (zl / n)
+
+    def _ce_chunk(self, xc, tc):
+        lg = self.lm_head(xc).float()
+        return (F.cross_entropy(lg, tc, reduction="sum"),
+                (torch.logsumexp(lg, dim=-1) ** 2).sum())
 
     @torch.no_grad()
     def generate(self, idx, n_new, temperature=0.8, top_p=0.95, eos_id=None):
@@ -437,7 +449,16 @@ def swap_eval(base, new_params, fn):
     return out
 
 
+def hard_cleanup(device):
+    """Suelta cachés de dynamo (retienen VRAM tras un OOM — lección K1 v2) + allocator."""
+    torch._dynamo.reset()
+    gc.collect()
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+
 def run_arm(arm, device, smoke, dynamo_reset):
+    hard_cleanup(device)
     kind = arm.get("data", "mix")
     tr, vw, vs, vocab, tpb_w, tpb_s, tok_path, eos_id = load_arm_data(kind, device, smoke)
     torch.manual_seed(0)
@@ -453,9 +474,7 @@ def run_arm(arm, device, smoke, dynamo_reset):
     total, nonemb = model.num_params()
     base = model
     if BASE_COMPILE and not smoke:
-        if dynamo_reset:
-            torch._dynamo.reset()
-        model = torch.compile(model, mode="default", fullgraph=True, dynamic=False)
+        model = torch.compile(model, mode="default", fullgraph=False, dynamic=False)
     opts, base_lrs = make_optimizers(model, arm, device)
     scaler = torch.amp.GradScaler(device, enabled=device == "cuda")
     g = torch.Generator(device=device)
@@ -597,13 +616,13 @@ def run_h_micro(device, smoke):
     tr, vw, _, vocab, tpb_w, _, _, _ = load_arm_data("mix", device, smoke)
     n_steps = 8 if smoke else 150
     for mode in ("mask", "causal_full", "chunked"):
+        hard_cleanup(device)
         torch.manual_seed(0)
         kw = dict(d=64, n_heads=4, n_layers=2, global_layers=(1,), window=16) if smoke else {}
         model = XHLM(vocab, attn_mode=mode, **kw).to(device)
         base = model
         if BASE_COMPILE and not smoke:
-            torch._dynamo.reset()
-            model = torch.compile(model, mode="default", fullgraph=True, dynamic=False)
+            model = torch.compile(model, mode="default", fullgraph=False, dynamic=False)
         opts, base_lrs = make_optimizers(model, {}, device)
         scaler = torch.amp.GradScaler(device, enabled=device == "cuda")
         g = torch.Generator(device=device)

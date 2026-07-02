@@ -1,0 +1,80 @@
+{
+  "experiment": "xh_bench_v2",
+  "device": "cuda",
+  "torch": "2.10.0+cu128",
+  "gates": {
+    "g6_dual_schedule": {
+      "factor": 0.4999999999999999,
+      "pass": true
+    },
+    "g2a_ns_invariance": {
+      "shapes": [
+        {
+          "shape": [
+            2304,
+            768
+          ],
+          "rel_diff": 0.00304
+        },
+        {
+          "shape": [
+            2048,
+            768
+          ],
+          "rel_diff": 0.00301
+        },
+        {
+          "shape": [
+            768,
+            2048
+          ],
+          "rel_diff": 0.00317
+        }
+      ],
+      "max_rel_diff": 0.00317,
+      "pass": true
+    }
+  },
+  "arms": [
+    {
+      "name": "adamw_b48_compile",
+      "batch": 48,
+      "opt": "adamw",
+      "amp": true,
+      "compile": true,
+      "params_total": 110121216,
+      "params_nonemb": 84955392,
+      "ms_per_step": 1295.7,
+      "tok_per_s": 18968,
+      "mfu_approx": 0.193,
+      "vram_gb": 13.08,
+      "compile_warmup_s": 45.7,
+      "loss_first": 14.9511,
+      "loss_last": 5.9214,
+      "loss_finite": true,
+      "scaler_scale": 65536.0
+    },
+    {
+      "name": "adamw_b64_compile",
+      "oom": true
+    },
+    {
+      "name": "adamw_b32_nocompile",
+      "oom": true
+    },
+    {
+      "name": "muon_b48_compile",
+      "oom": true
+    },
+    {
+      "name": "bf16_b48_nocompile",
+      "oom": true
+    }
+  ],
+  "arch": {
+    "d": 768,
+    "layers": 12,
+    "vocab": 32768,
+    "ln_vocab": 10.4
+  }
+}
