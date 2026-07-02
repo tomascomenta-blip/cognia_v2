@@ -155,30 +155,30 @@ def ppl_by_position(model, ids, total_len=4096, bucket=512, n_windows=6):
             for b in range(total_len // bucket)}, done
 
 
+def _encode(tok, text, smoke):
+    if smoke:
+        return list(tok(text))
+    return tok(text, add_special_tokens=False).input_ids
+
+
 @torch.no_grad()
 def passkey_eval(model, tok, target_len_tokens, depths=(0.2, 0.5, 0.8), smoke=False):
-    """Inserta el código a distintas profundidades y pregunta al final. Devuelve hits/total."""
+    """v2 (fix): construye la secuencia POR TOKENS — bloques de filler + needle ENTERO insertado a la
+    profundidad pedida + pregunta al final. El v1 truncaba del medio y podía CORTAR el needle
+    (por eso el 0/3 era no concluyente). Devuelve hits/total."""
+    device = next(model.parameters()).device
+    fill_ids = _encode(tok, FILLER, smoke)
+    needle_ids = _encode(tok, NEEDLE, smoke)
+    q_ids = _encode(tok, QUESTION, smoke)
+    budget = target_len_tokens - len(needle_ids) - len(q_ids)
+    n_fill = max(2, budget // len(fill_ids))
     hits = 0
     for d in depths:
-        n_fill = max(4, int(target_len_tokens / 12))       # ~12 tokens por oración de filler
-        fillers = [FILLER] * n_fill
-        pos = int(len(fillers) * d)
-        text = "".join(fillers[:pos]) + NEEDLE + "".join(fillers[pos:]) + QUESTION
-        if smoke:
-            ids = torch.tensor(tok(text)[:target_len_tokens], dtype=torch.long,
-                               device=next(model.parameters()).device).unsqueeze(0)
-        else:
-            ids = tok(text, return_tensors="pt").input_ids
-            if ids.shape[1] > target_len_tokens:            # recortar del MEDIO (conserva needle+pregunta)
-                keep_head = target_len_tokens // 2
-                keep_tail = target_len_tokens - keep_head
-                ids = torch.cat([ids[:, :keep_head], ids[:, -keep_tail:]], dim=1)
-            ids = ids.to("cuda")
-        gen = model.generate(ids, max_new_tokens=8, do_sample=False,
-                             pad_token_id=getattr(getattr(tok, "pad_token_id", None), "__int__", lambda: 0)()
-                             if not smoke else 0)
-        new = gen[0, ids.shape[1]:].tolist()
-        txt = tok.decode(new) if not smoke else tok.decode(new)
+        k = max(1, min(n_fill - 1, int(n_fill * d)))
+        ids_list = (fill_ids * k) + needle_ids + (fill_ids * (n_fill - k)) + q_ids
+        ids = torch.tensor(ids_list, dtype=torch.long, device=device).unsqueeze(0)
+        gen = model.generate(ids, max_new_tokens=8, do_sample=False, pad_token_id=0)
+        txt = tok.decode(gen[0, ids.shape[1]:].tolist())
         if PASSKEY in txt:
             hits += 1
     return hits, len(depths)
@@ -187,6 +187,8 @@ def passkey_eval(model, tok, target_len_tokens, depths=(0.2, 0.5, 0.8), smoke=Fa
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--v2", action="store_true",
+                    help="ronda 2: passkey ARREGLADO + NTK x4 hasta 8192 (salta lo ya medido en v1)")
     args = ap.parse_args()
     smoke = args.smoke
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -208,26 +210,32 @@ def main():
     out["corpus_tokens"] = int(len(ids))
     save(out)
 
-    # ── 1) PPL en ventana nativa ──
+    # ── 1) PPL en ventana nativa (v2 la salta: ya medida en v1) ──
     ctxs = [16, 32, 64] if smoke else [512, 1024, 2048]
-    out["ppl_native"] = {}
-    for c in ctxs:
-        p, n = ppl_at_ctx(model, ids, c, max_eval_tokens=2000 if smoke else 60_000)
-        out["ppl_native"][f"ctx_{c}"] = {"ppl": p, "tokens": n}
-        print(f"  [ppl] ctx={c}: {p} ({n} toks)", flush=True)
-        save(out)
-
-    # ── 2) colapso por posición + 3) passkey, para cada config de RoPE ──
-    total = 128 if smoke else 4096
-    bucket = 32 if smoke else 512
-    pk_lens = [64, 96] if smoke else [1024, 1792, 3072, 4096]
-    rope_cfgs = [("base", None)]
-    if not smoke:
-        rope_cfgs += [("linear_x2", ("linear", 2.0)), ("ntk_dynamic_x2", ("dynamic", 2.0))]
+    if args.v2 and not smoke:
+        out["ppl_native"] = "medida en v1 (results_xolmo v1: 17.3@512, 14.7@1024, 13.1@2048)"
     else:
-        rope_cfgs += [("linear_x2", ("linear", 2.0))]
+        out["ppl_native"] = {}
+        for c in ctxs:
+            p, n = ppl_at_ctx(model, ids, c, max_eval_tokens=2000 if smoke else 60_000)
+            out["ppl_native"][f"ctx_{c}"] = {"ppl": p, "tokens": n}
+            print(f"  [ppl] ctx={c}: {p} ({n} toks)", flush=True)
+            save(out)
+
+    # ── 2) plan por config de RoPE: (nombre, scaling, total_posppl|None, largos de passkey) ──
+    bucket = 32 if smoke else 512
+    if smoke:
+        plan = [("base", None, 128, [64, 96]), ("linear_x2", ("linear", 2.0), 128, [64, 96])]
+    elif args.v2:
+        plan = [("base", None, None, [1024, 1792]),
+                ("ntk_dynamic_x2", ("dynamic", 2.0), None, [3072, 4096]),
+                ("ntk_dynamic_x4", ("dynamic", 4.0), 8192, [6144, 8192])]
+    else:
+        pk = [1024, 1792, 3072, 4096]
+        plan = [("base", None, 4096, pk), ("linear_x2", ("linear", 2.0), 4096, pk),
+                ("ntk_dynamic_x2", ("dynamic", 2.0), 4096, pk)]
     out["rope"] = {}
-    for name, rs in rope_cfgs:
+    for name, rs, total, pk_lens in plan:
         if over():
             out["rope"][name] = {"skipped": "budget"}
             save(out)
@@ -240,11 +248,12 @@ def main():
                     torch.cuda.empty_cache()
                 model, _ = load_model(rope_scaling=rs, smoke=smoke, device=device)
             r = {}
-            pos_ppl, nw = ppl_by_position(model, ids, total_len=total, bucket=bucket,
-                                          n_windows=2 if smoke else 6)
-            r["ppl_by_position"] = pos_ppl
-            r["windows"] = nw
-            print(f"  [pos-ppl] {pos_ppl}", flush=True)
+            if total:
+                pos_ppl, nw = ppl_by_position(model, ids, total_len=total, bucket=bucket,
+                                              n_windows=2 if smoke else (3 if total > 4096 else 6))
+                r["ppl_by_position"] = pos_ppl
+                r["windows"] = nw
+                print(f"  [pos-ppl] {pos_ppl}", flush=True)
             r["passkey"] = {}
             for L in pk_lens:
                 h, t = passkey_eval(model, tok, L, smoke=smoke)
