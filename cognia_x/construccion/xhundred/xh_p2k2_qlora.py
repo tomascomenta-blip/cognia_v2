@@ -396,8 +396,12 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(
         model_dir, quantization_config=quant, torch_dtype=torch.float16,
         device_map={"": 0}, trust_remote_code=True)
-    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=False)
+    # GC ON: sin él, b4×1024 en un 3B no entra (activaciones MLP-11008 ~10GB + logits 151k
+    # ~2.5GB fp32 > 14.5GB — P2-K2 v1 murió con log vacío, kernel matado). Desvío del plan
+    # ("b4 sin GC") declarado; con GC el reloj de 45 min sigue cubriendo las 2 épocas.
+    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
     model.config.use_cache = False
+    print(f"[vram] tras load: {torch.cuda.memory_allocated() / 1e9:.2f}GB", flush=True)
     lcfg = LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05, bias="none",
                       task_type="CAUSAL_LM",
                       target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
@@ -415,57 +419,79 @@ def main():
     out["train_tokens_available"] = int(len(stream))
     save(out)
 
-    # ── train con corte por reloj (el wall manda) ──
-    opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad],
-                            lr=LR, betas=(0.9, 0.95), weight_decay=0.0)
+    # ── train con corte por reloj (el wall manda); retry b2 si OOM ──
     # micro-desvío declarado: AdamW fp32 sobre ~30M params LoRA (~0.5GB) en vez de
     # paged_adamw_8bit del plan — misma matemática, sin dependencia extra; se anota.
     out.setdefault("desvios", []).append("optimizer=AdamW fp32 (no paged_8bit): estados ~0.5GB")
-    scaler = torch.amp.GradScaler("cuda")
-    n_blocks = (len(stream) - 1) // SEQ
-    order = list(range(n_blocks))
-    total_micro_planned = n_blocks // MICRO_B * MICRO_B
-    warmup_micro = max(8, int(0.03 * total_micro_planned))
-    model.train()
-    t_train = time.time()
-    micro = 0
-    tokens_seen = 0
-    losses = []
-    out["curve"] = []
+    out["desvios"].append("GC ON desde el arranque (b4 sin GC OOMeo en v1, log vacio)")
     stream_t = torch.from_numpy(stream.astype(np.int64))
-    while micro < total_micro_planned and (time.time() - t_train) < TRAIN_WALL_S:
-        rows = [stream_t[order[(micro + j) % n_blocks] * SEQ:
-                         order[(micro + j) % n_blocks] * SEQ + SEQ]
-                for j in range(MICRO_B)]
-        micro += MICRO_B
-        x = torch.stack(rows).to(device)
-        with torch.autocast(device_type="cuda", dtype=torch.float16):
-            loss = model(input_ids=x, labels=x).loss / ACCUM   # media sobre la acumulación
-        scaler.scale(loss).backward()
-        tokens_seen += MICRO_B * SEQ
-        losses.append(float(loss.detach()) * ACCUM)
-        if micro % (MICRO_B * ACCUM) == 0:
-            step = micro // (MICRO_B * ACCUM)
-            progress = (time.time() - t_train) / TRAIN_WALL_S
-            f = (step / max(1, warmup_micro // ACCUM) if step <= warmup_micro // ACCUM
-                 else 0.5 * (1 + math.cos(math.pi * min(1.0, progress))))
-            for gr in opt.param_groups:
-                gr["lr"] = LR * f
-            scaler.unscale_(opt)
-            torch.nn.utils.clip_grad_norm_(
-                [p for p in model.parameters() if p.requires_grad], 1.0)
-            scaler.step(opt)
-            scaler.update()
-            opt.zero_grad(set_to_none=True)
-            if step % 20 == 0:
-                mean_l = sum(losses[-80:]) / len(losses[-80:])
-                el = time.time() - t_train
-                print(f"[train] step {step} loss {mean_l:.4f} lr_f {f:.3f} "
-                      f"{tokens_seen / el:.0f} tok/s ({el / 60:.1f} min)", flush=True)
-                out["curve"].append({"step": step, "loss": round(mean_l, 4),
-                                     "tokens": tokens_seen, "s": round(el)})
-                save(out)
-    out["train"] = {"micro_batches": micro, "tokens_seen": tokens_seen,
+    n_blocks = (len(stream) - 1) // SEQ
+    t_train = time.time()
+
+    def do_train(micro_b):
+        import gc as _gc
+        opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad],
+                                lr=LR, betas=(0.9, 0.95), weight_decay=0.0)
+        scaler = torch.amp.GradScaler("cuda")
+        total_micro_planned = n_blocks // micro_b * micro_b
+        warmup_eff = max(2, int(0.03 * total_micro_planned) // ACCUM)
+        model.train()
+        micro = tokens_seen = 0
+        losses = []
+        out["curve"] = []
+        print(f"[train] arrancando (b{micro_b}, GC=on, {n_blocks} bloques)", flush=True)
+        while micro < total_micro_planned and (time.time() - t_train) < TRAIN_WALL_S:
+            rows = [stream_t[((micro + j) % n_blocks) * SEQ:
+                             ((micro + j) % n_blocks) * SEQ + SEQ] for j in range(micro_b)]
+            micro += micro_b
+            x = torch.stack(rows).to(device)
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                loss = model(input_ids=x, labels=x).loss / ACCUM
+            scaler.scale(loss).backward()
+            tokens_seen += micro_b * SEQ
+            losses.append(float(loss.detach()) * ACCUM)
+            if micro % (micro_b * ACCUM) == 0:
+                step = micro // (micro_b * ACCUM)
+                progress = (time.time() - t_train) / TRAIN_WALL_S
+                f = (step / warmup_eff if step <= warmup_eff
+                     else 0.5 * (1 + math.cos(math.pi * min(1.0, progress))))
+                for gr in opt.param_groups:
+                    gr["lr"] = LR * f
+                scaler.unscale_(opt)
+                torch.nn.utils.clip_grad_norm_(
+                    [p for p in model.parameters() if p.requires_grad], 1.0)
+                scaler.step(opt)
+                scaler.update()
+                opt.zero_grad(set_to_none=True)
+                if step == 1:
+                    print(f"[vram] pico primer step: "
+                          f"{torch.cuda.max_memory_allocated() / 1e9:.2f}GB", flush=True)
+                if step % 20 == 0:
+                    mean_l = sum(losses[-80:]) / len(losses[-80:])
+                    el = time.time() - t_train
+                    print(f"[train] step {step} loss {mean_l:.4f} lr_f {f:.3f} "
+                          f"{tokens_seen / el:.0f} tok/s ({el / 60:.1f} min)", flush=True)
+                    out["curve"].append({"step": step, "loss": round(mean_l, 4),
+                                         "tokens": tokens_seen, "s": round(el)})
+                    save(out)
+        del opt, scaler
+        _gc.collect()
+        torch.cuda.empty_cache()
+        return micro, tokens_seen, losses
+
+    try:
+        micro, tokens_seen, losses = do_train(MICRO_B)
+        micro_b_used = MICRO_B
+    except torch.cuda.OutOfMemoryError as e:
+        print(f"[train] OOM a b{MICRO_B} (pico "
+              f"{torch.cuda.max_memory_allocated() / 1e9:.2f}GB): {str(e)[:150]}", flush=True)
+        import gc as _gc
+        _gc.collect()
+        torch.cuda.empty_cache()
+        out["desvios"].append(f"OOM a b{MICRO_B} -> retry b2 (adapter parte de updates parciales)")
+        micro, tokens_seen, losses = do_train(2)
+        micro_b_used = 2
+    out["train"] = {"micro_b": micro_b_used, "micro_batches": micro, "tokens_seen": tokens_seen,
                     "epochs_done": round(tokens_seen / max(1, len(stream) / 2), 2),
                     "minutes": round((time.time() - t_train) / 60, 1),
                     "loss_final": round(sum(losses[-80:]) / max(1, len(losses[-80:])), 4)}
