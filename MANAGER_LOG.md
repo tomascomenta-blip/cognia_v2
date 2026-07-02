@@ -4884,3 +4884,24 @@ interno quedan validadas a nivel arquitectura: bandas LOCAL-GLOBAL (A/B + escala
 como extension de inferencia (OLMo, passkey funcional 3 de 3 al 2x), y memoria comprimida con
 presupuesto fijo (RMT). Frontera anotada: combo banded+RMT a escala exige su propio A/B (el
 metodo prohibe escalar sin madurar). GOAL COMPLETO; apagado 05:30 sigue programado.
+
+### L. 2026-07-02: XHUNDRED en marcha - goal nuevo (100M funcional en <=30 min T4, escalable)
+Goal activado (skill goal): investigacion de raiz del costo de entrenamiento + meta dura 100M
+<=30 min en 1 T4 + Fase 2 aspiracional (QLoRA 3B vs Qwen, honestidad total). Hecho hasta ahora:
+(1) Investigacion multi-agente (8 agentes, 409k tokens) -> construccion/xhundred/00_DISENO.md
+PRE-REGISTRADO: modelo de costo wall=6ND/(MFU*pico) con MFU medidos del repo (13-18.6%), receta
+v1 (Muon dual + QK-norm + zero-init + z-loss + WSD + EMA/LAWA + BPE propio 32k + mezcla 50/50
+tinystories_spanish+wiki filtrada), 8 brazos K2 con predicciones, aritmetica 3B honesta (641
+dias GPU Chinchilla -> inviable; QLoRA si). Desvios en 01_DESVIOS.md (G4 = cloze 3-opciones
+ANCLADA: baseline 37.7M medido 62.5 por ciento).
+(2) K0 datos COMPLETO en Kaggle (5.2 min CPU): 256MB mezcla + 256MB wiki-solo + bins 32k/16k/
+bytes + vals dobles; fertilidad medida 4.508 B/tok (prediccion 4.513).
+(3) K1 gates: v1 ERROR (mount de kernel_sources no es kaggle-input/slug -> find_data_dir);
+v2 ERROR (OOM cascada; raiz REAL: CE chunked sin checkpoint deja 4 chunks de logits fp32 ~4.8GB
+vivos hasta el backward + cache dynamo retiene VRAM tras OOM). Dato real rescatado: 110M a
+b48+compile = 18,968 tok/s (MFU 19.3 por ciento, 13.08GB) -> 28.4M tokens en 25 min, meta viva.
+v3 corriendo con fixes (torch.utils.checkpoint por chunk, expandable_segments, hard_cleanup).
+(4) K2 (7 brazos pre-registrados + H micro con chunked-SWA de invariancia exacta) y K3 (gates
+G1-G4 embebidos + contabilidad honesta de wall) escritos y smoked, esperando veredicto K1.
+(5) Fase 2: workflow de investigacion en background (benchmarks es, datos de nicho, que Qwen
+existe en Kaggle Models). Commits: 4647b9d..cb7500d en cognia-x.
