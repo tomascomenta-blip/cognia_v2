@@ -20,14 +20,18 @@ def tri_profile(text, k=NGRAM, top=TOP_GRAMS):
 
 
 class Selector:
-    def __init__(self, profiles, threshold=0.45, fallback="gen"):
+    def __init__(self, profiles, threshold=0.45, fallback="gen", temperature=1.0):
         """profiles: {dominio: {trigram: freq}}. threshold: si el posterior máximo no llega,
-        se rutea al fallback (asimetría medida en X4)."""
+        se rutea al fallback (asimetría medida en X4). temperature: calibración M1 — el score
+        crudo n-grams es brutalmente sub-confiado (ECE 47.7%); con T=0.05 medido queda en
+        ECE 1.8% (05_DSPARK_ANALISIS §7). T=1.0 = sin calibrar (compat v0)."""
         self.profiles = profiles
         self.threshold = threshold
         self.fallback = fallback
+        self.temperature = temperature
 
     def posterior(self, text, k=NGRAM):
+        import math
         t = re.sub(r"\s+", " ", text.lower())
         if len(t) < k + 1:
             return {d: 1.0 / len(self.profiles) for d in self.profiles}
@@ -37,7 +41,14 @@ class Selector:
         tot = sum(scores.values())
         if tot <= 0:
             return {d: 1.0 / len(self.profiles) for d in self.profiles}
-        return {d: s / tot for d, s in scores.items()}
+        post = {d: s / tot for d, s in scores.items()}
+        if self.temperature != 1.0:                # temperature scaling (M1)
+            logs = {d: math.log(max(v, 1e-9)) / self.temperature for d, v in post.items()}
+            mx = max(logs.values())
+            ex = {d: math.exp(v - mx) for d, v in logs.items()}
+            z = sum(ex.values())
+            post = {d: v / z for d, v in ex.items()}
+        return post
 
     def select(self, text):
         """→ (destino, posterior). destino = dominio ganador o fallback si hay ambigüedad."""
@@ -49,15 +60,17 @@ class Selector:
 
     def to_dict(self):
         return {"profiles": self.profiles, "threshold": self.threshold,
-                "fallback": self.fallback}
+                "fallback": self.fallback, "temperature": self.temperature}
 
     @classmethod
     def from_dict(cls, d):
-        return cls(d["profiles"], d.get("threshold", 0.45), d.get("fallback", "gen"))
+        return cls(d["profiles"], d.get("threshold", 0.45), d.get("fallback", "gen"),
+                   d.get("temperature", 1.0))
 
     @classmethod
-    def from_texts(cls, dom_texts, threshold=0.45, fallback="gen"):
-        return cls({d: tri_profile(t) for d, t in dom_texts.items()}, threshold, fallback)
+    def from_texts(cls, dom_texts, threshold=0.45, fallback="gen", temperature=1.0):
+        return cls({d: tri_profile(t) for d, t in dom_texts.items()}, threshold, fallback,
+                   temperature)
 
 
 def eval_selector(selector, dom_texts, chunk=400, max_chunks=40):

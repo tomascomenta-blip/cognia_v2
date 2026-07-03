@@ -36,6 +36,20 @@ def test_selector_rutea_y_fallback():
     assert dest3 == "gen"
 
 
+def test_selector_temperatura_calibra():
+    sel_raw = Selector.from_texts({"code": CODE, "stories": STORY, "wiki": WIKI},
+                                  temperature=1.0)
+    sel_cal = Selector.from_texts({"code": CODE, "stories": STORY, "wiki": WIKI},
+                                  temperature=0.05)
+    txt = "def bar(y):\n    return y * 2"
+    p_raw = sel_raw.posterior(txt)
+    p_cal = sel_cal.posterior(txt)
+    # el sharpening M1 sube la confianza del top-1 sin cambiar el ranking
+    assert max(p_cal, key=p_cal.get) == max(p_raw, key=p_raw.get) == "code"
+    assert max(p_cal.values()) > max(p_raw.values())
+    assert abs(sum(p_cal.values()) - 1.0) < 1e-6
+
+
 def test_selector_serializacion_roundtrip():
     sel = Selector.from_texts({"code": CODE, "stories": STORY}, threshold=0.5)
     sel2 = Selector.from_dict(json.loads(json.dumps(sel.to_dict())))

@@ -29,7 +29,8 @@ def _build(args):
         t = (XH / "results_x3" / f"val_{d}.txt").read_text(encoding="utf-8")
         halves_train[d] = t[:len(t) // 2]
         halves_eval[d] = t[len(t) // 2:]
-    sel = Selector.from_texts(halves_train, threshold=args.threshold)
+    sel = Selector.from_texts(halves_train, threshold=args.threshold,
+                              temperature=args.temperature)
     rep = eval_selector(sel, halves_eval)
     names = {"gen": f"{args.prefix}_gen.pt",
              **{d: f"{args.prefix}_exp_{d}.pt" for d in DOMS}}
@@ -114,6 +115,8 @@ def main():
     b.add_argument("--prefix", default="x3", choices=("x3", "fleet"))
     b.add_argument("--out", default=None)
     b.add_argument("--threshold", type=float, default=0.45)
+    b.add_argument("--temperature", type=float, default=0.05,
+                   help="calibración M1 (ECE 47.7%%->1.8%% medido); 1.0 = sin calibrar")
     for name in ("route", "gen"):
         p = sub.add_parser(name)
         p.add_argument("text")
