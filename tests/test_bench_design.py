@@ -55,3 +55,27 @@ def test_html_sin_estilo_falla_css():
     assert results[0]["ok"] is True
     assert results[1]["ok"] is False
     assert results[2]["ok"] is False
+
+
+# ── Brazo v1 repair (eje-3 CP1): describe_failed sin leakage ─────────────
+
+def test_describe_failed_lenguaje_de_requisito():
+    """describe_failed devuelve requisitos incumplidos (no el HTML correcto):
+    cada linea traza a un requisito del prompt, no revela una respuesta oculta."""
+    from cognia_v3.eval.bench_design import describe_failed, check_page, SPECS, full_asserts
+    html = ("<!DOCTYPE html><html lang=en><head><title>x</title>"
+            "<meta name=viewport content='width=device-width'>"
+            "<style>body{margin:0}</style></head><body><h1>CloudBox</h1></body></html>")
+    res = check_page(html, full_asserts(SPECS[0]))
+    txt = describe_failed(res)
+    assert txt  # hay requisitos incumplidos
+    # es lenguaje de requisito, no markup de solucion
+    assert "<article" not in txt and "```" not in txt
+    assert "Falta" in txt or "debe" in txt.lower()
+
+
+def test_describe_failed_pagina_perfecta_vacio():
+    """Una pagina que pasa todo no genera feedback de repair."""
+    from cognia_v3.eval.bench_design import describe_failed, check_page, GOOD_PAGE
+    res = check_page(GOOD_PAGE, [{"type": "doc_basics"}, {"type": "lang_attr"}])
+    assert describe_failed(res) == ""

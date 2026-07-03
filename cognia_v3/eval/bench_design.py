@@ -1195,17 +1195,76 @@ def build_prompt(spec_prompt):
                                 system=SYSTEM_PROMPT)
 
 
-def run_benchmark(specs, label, max_tokens=DEFAULT_MAX_TOKENS, seed=None):
+def describe_failed(results):
+    """Requisitos NO cumplidos, en lenguaje de requisito (no de fix): cada
+    assert fallido traza a un requisito YA escrito en el prompt, asi que
+    devolverlo es feedback de verificacion (como un traceback), no leakear
+    una respuesta oculta. Es el 'el assert ES el traceback del diseño' del
+    plan §4 eje-3."""
+    lines = []
+    for r in results:
+        if r["ok"]:
+            continue
+        t = r["type"]
+        if t == "element":
+            lines.append(f"- Falta el/los elemento(s) que matcheen '{r['sel']}' "
+                         f"(requerido: {r.get('min', 1)}+).")
+        elif t == "text":
+            lines.append(f"- Un '{r['sel']}' debe contener el texto "
+                         f"'{r['contains']}'.")
+        elif t == "css_rule":
+            sel = r.get("sel") or "(alguna regla)"
+            val = ("/".join(r["val"]) if isinstance(r.get("val"), list)
+                   else r.get("val", ""))
+            lines.append(f"- Falta una regla CSS para '{sel}' con "
+                         f"'{r['prop']}{': ' + val if val else ''}'.")
+        elif t == "css_media":
+            lines.append(f"- Falta una @media query que contenga "
+                         f"'{r.get('contains', '')}'.")
+        elif t == "labels":
+            lines.append("- Todo input visible necesita un <label> asociado "
+                         "(for/id) o aria-label.")
+        elif t == "heading_order":
+            lines.append("- Debe haber exactamente un <h1> y no saltar niveles "
+                         "de heading.")
+        elif t == "img_alt":
+            lines.append("- Toda <img> necesita un atributo alt descriptivo.")
+        elif t == "no_inline_styles":
+            lines.append("- No uses atributos style= inline; todo el CSS en el "
+                         "<style> del <head>.")
+        elif t in ("doc_basics", "lang_attr", "meta_viewport", "single_file"):
+            lines.append(f"- Incumplido: {r['detail'][:80]}")
+    return "\n".join(lines)
+
+
+DESIGN_REPAIR_SYSTEM = ("You are an expert web designer fixing a page to meet "
+                        "ALL stated requirements. Reply with ONLY the complete "
+                        "corrected single-file HTML document. No explanations.")
+
+
+def build_repair_prompt(spec_prompt, prev_html, failed_text):
+    from node.inference_pipeline import _apply_qwen_template
+    msg = (spec_prompt + BASE_REQUIREMENTS
+           + "\n\nYour previous page was:\n```html\n" + prev_html[:6000]
+           + "\n```\n\nIt did NOT satisfy these requirements:\n" + failed_text
+           + "\n\nReply with the COMPLETE corrected HTML document that fixes "
+             "these while keeping everything that already worked.")
+    return _apply_qwen_template(msg, system=DESIGN_REPAIR_SYSTEM)
+
+
+def run_benchmark(specs, label, max_tokens=DEFAULT_MAX_TOKENS, seed=None,
+                  repair=False):
     from cognia_v3.eval.benchmark_code import make_backend
     backend, gguf_name = make_backend()
     if backend is None:
         print("ERROR: no llama backend available")
         sys.exit(1)
     print(f"[bench_design] backend OK, model={gguf_name}, specs={len(specs)}, "
-          f"max_tokens={max_tokens}, seed={seed}", flush=True)
+          f"max_tokens={max_tokens}, seed={seed}, repair={repair}", flush=True)
 
     by_spec = []
     total_pass = total_asserts = 0
+    n_repaired = 0
     for i, spec in enumerate(specs, 1):
         asserts = full_asserts(spec)
         print(f"[{i}/{len(specs)}] {spec['id']} ({spec['title']}) "
@@ -1217,14 +1276,35 @@ def run_benchmark(specs, label, max_tokens=DEFAULT_MAX_TOKENS, seed=None):
                                     temperature=BASE_TEMPERATURE, seed=seed,
                                     cache_prompt=False) or ""
         gen_s = time.perf_counter() - t0
-        tokens = backend.last_tokens_predicted
+        tokens = backend.last_tokens_predicted or 0
         html_doc = extract_html(response)
         results = check_page(html_doc, asserts)
         n_ok = sum(1 for r in results if r["ok"])
+        did_repair = False
+        # Repair dirigido por assert fallido (v1, plan §4 eje-3): si faltan
+        # requisitos, UN reintento con los requisitos incumplidos como feedback.
+        # Se adopta solo si mejora el conteo de asserts (nunca empeora).
+        if repair and n_ok < len(results):
+            failed_text = describe_failed(results)
+            t1 = time.perf_counter()
+            retry = backend.generate(
+                build_repair_prompt(spec["prompt"], html_doc, failed_text),
+                max_tokens=max_tokens, temperature=BASE_TEMPERATURE,
+                seed=seed, cache_prompt=False) or ""
+            gen_s += time.perf_counter() - t1
+            tokens += backend.last_tokens_predicted or 0
+            retry_html = extract_html(retry)
+            retry_results = check_page(retry_html, asserts)
+            retry_ok = sum(1 for r in retry_results if r["ok"])
+            if retry_ok > n_ok:
+                response, html_doc = retry, retry_html
+                results, n_ok = retry_results, retry_ok
+                did_repair = True
+                n_repaired += 1
         total_pass += n_ok
         total_asserts += len(results)
-        print(f"    -> {n_ok}/{len(results)} asserts "
-              f"({gen_s:.0f}s)", flush=True)
+        print(f"    -> {n_ok}/{len(results)} asserts"
+              f"{' [repaired]' if did_repair else ''} ({gen_s:.0f}s)", flush=True)
         for r in results:
             if not r["ok"]:
                 print(f"       FAIL {r['type']}"
@@ -1233,6 +1313,7 @@ def run_benchmark(specs, label, max_tokens=DEFAULT_MAX_TOKENS, seed=None):
         by_spec.append({
             "id": spec["id"], "title": spec["title"],
             "asserts_passed": n_ok, "asserts_total": len(results),
+            "repaired": did_repair,
             "failed": [{k: v for k, v in r.items() if k != "ok"}
                        for r in results if not r["ok"]],
             "gen_seconds": round(gen_s, 2), "tokens_predicted": tokens,
@@ -1248,6 +1329,8 @@ def run_benchmark(specs, label, max_tokens=DEFAULT_MAX_TOKENS, seed=None):
         "temperature": BASE_TEMPERATURE,
         "seed": seed,
         "n_specs": len(specs),
+        "repair": repair,
+        "n_repaired": n_repaired,
         "asserts_passed": total_pass,
         "asserts_total": total_asserts,
         "score": round(score, 4),
@@ -1270,6 +1353,10 @@ def main():
     ap.add_argument("--label", default="design")
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
+    ap.add_argument("--repair", action="store_true",
+                    help="brazo v1: UN reintento por spec con los requisitos "
+                         "incumplidos como feedback (el assert = traceback del "
+                         "diseño); se adopta solo si mejora el conteo")
     args = ap.parse_args()
 
     errors = validate_specs()
@@ -1290,7 +1377,7 @@ def main():
 
     specs = SPECS[:args.limit] if args.limit else SPECS
     run_benchmark(specs, args.label, max_tokens=args.max_tokens,
-                  seed=args.seed)
+                  seed=args.seed, repair=args.repair)
 
 
 if __name__ == "__main__":
