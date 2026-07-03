@@ -300,10 +300,25 @@ ARBITER_SYSTEM = ("Sos un arbitro que diagnostica pipelines de software. El "
                   "etapa culpable: plan, design, code o test.")
 
 
+def _observed_outcome(case):
+    """Sintoma REAL observado al ejecutar el codigo contra los tests de la
+    etapa (honesto: para una falla de design con code correcto los tests
+    PASAN — no se le miente al arbitro diciendo que fallan)."""
+    from cognia_v3.eval.benchmark_code import run_task_tests
+    t = case["pipeline"]["test"]
+    passed, err_type, err_detail = run_task_tests(
+        case["pipeline"]["code"].get("code", ""), t.get("tests", ""),
+        t.get("entry_point", ""))
+    if passed:
+        return "Los tests PASAN (no hay fallo observable en la salida final)."
+    return f"Los tests FALLAN ({err_type}): {err_detail[:120]}"
+
+
 def _arbiter_prompt(case, with_trace):
     p = case["pipeline"]
     t = p["test"]
-    parts = ["El pipeline produjo una salida final INCORRECTA (los tests fallan)."]
+    parts = ["En este pipeline UNA etapa introdujo un error.",
+             _observed_outcome(case)]
     if with_trace:
         parts += [
             "\n[PLAN]\n" + p["plan"].get("text", ""),
@@ -314,8 +329,10 @@ def _arbiter_prompt(case, with_trace):
             "\n[TEST]\n" + t.get("tests", ""),
         ]
     else:
+        # brazo global: solo la 'salida final' (code + tests), sin el plan/
+        # design intermedios — asimetria de informacion deliberada (ii).
         parts += ["\n[CODE FINAL]\n" + p["code"].get("code", ""),
-                  "\n[TESTS QUE FALLAN]\n" + t.get("tests", "")]
+                  "\n[TESTS]\n" + t.get("tests", "")]
     parts.append("\n¿Que etapa (plan/design/code/test) introdujo el error? "
                  "Responde SOLO la palabra.")
     return "\n".join(parts)
