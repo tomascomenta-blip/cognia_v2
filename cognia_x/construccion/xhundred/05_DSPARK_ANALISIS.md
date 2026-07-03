@@ -359,3 +359,27 @@ semana de quota, con M1–M4 ejecutables hoy sin lanzar entrenamiento nuevo salv
 
 **Cierre del pre-registro.** Este documento se congela antes de correr M1. Cambios posteriores van
 a `01_DESVIOS.md` append-only con fecha y razón — nunca editando las predicciones de acá.
+
+
+---
+
+## 7. Resultados post-registro
+
+### M1 — CORRIDO 2026-07-03 (37.8 min CPU, `results_x3/xh_m1_results.json`; presupuesto era ~25)
+
+| predicción congelada | medido | veredicto |
+|---|---|---|
+| (a) ECE crudo >5%, calibrado ≤2% | **47.7% → 1.8%** (T=0.05) | **CONFIRMADA** con margen — la señal n-grams estaba brutalmente sub-confiada; la práctica de calibración adoptada de DSpark paga |
+| (c) AUC margen→misroute ≥0.70 | **0.868** (3 misroutes/150; router calibrado 98%) | **CONFIRMADA** |
+| (b) 3-zonas: código ≤ fusión-siempre con cuentos/wiki ≈ oracle | 3-zonas colapsó a selección pura (fwd 1.0); fusión gana en código **1.048 vs 1.112**; cuentos/wiki = oracle ✓ | **FALLIDA en código** — declarada |
+
+**Causa raíz de (b):** la calibración por sharpening global (T=0.05) satura los márgenes
+post-calibración (~1.0 para casi todo) → la zona B nunca se activa con el grid congelado, y el
+optimizador de pérdida esperada en cal eligió selección pura. La falsación prevista en (c)
+("si la zona B no paga → selección+fallback puro") se activó por otra vía: no por AUC bajo,
+sino por saturación del margen calibrado. **v2 pre-registrada (no corrida, anti-scope-creep):**
+zonificar sobre el margen CRUDO (donde vive el AUC 0.868) o calibrar con isotónica que preserve
+granularidad; predicción: la zona B se activa en ~5-10% de queries y recupera ≥0.03 bpb en
+código con ≤1.15 fwd promedio. **Lo que ya es adoptable HOY para el CLI:** la calibración T
+(ECE 1.8%) y la confirmación de que selección-pura calibrada ≈ oracle en cuentos/wiki con 1
+forward — el selector del MoM queda con base medida más sólida que la v0.
