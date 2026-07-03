@@ -28,6 +28,8 @@ KERNELS = {
                "sources": []},
     "x3":     {"file": "xh_x3_mom.py",        "slug": "cognia-xh-x3mom",  "gpu": True,
                "sources": ["cognia-xh-x3data"]},
+    "fleet":  {"file": "xh_fleet_kernel.py",  "slug": "cognia-xh-fleet",  "gpu": True,
+               "sources": ["cognia-xh-x3data"]},
 }
 
 
