@@ -330,12 +330,22 @@ pretrain — no hay receta que lo esquive.
   Sophia/Lion/SOAP (evidencia externa + prioridad), fusión-de-logits como calibrador (pendiente
   X4, pero la evidencia externa ya carga contra).
 
+**Cerrado después (2026-07-03, programa MoM X1-X4 — detalles en 04_MOM_GROKKING §8-9):**
+- X2: ningún acelerador de paper transfiere (grokfast MATA la transición, stablemax la
+  retrasa 3×, Muon no grokea el tiny que Muon-gana-en-LM) — todo se mide en el harness propio.
+- X3: el MoM DENSO PAGA — experto ~100M gana su nicho en 3/3 dominios (≥0.10 bpb congelado) y
+  el LoRA-control no lo empata; fuera de nicho se derrumba (el selector es estructural).
+- X4: el calibrador ES un selector (n-grams estático ≈ oracle en 2/3 dominios; la fusión
+  cuesta 4× y el bandit no converge a 90 queries — predicción formal fallida y declarada).
+
 **Abierto (con experimento definido):**
-- X2-X5 del programa MoM (aceleradores en el harness; expertos densos vs LoRA a igual wall;
-  selector vs fusionador; el nicho-grokking real con D_crit).
+- X5 (nicho-grokking real con D_crit): condición pre-registrada no cumplida, pre-registro
+  intacto en 04 §6 por si aparece razón nueva.
 - El registro enciclopédico del 100M: ¿cuántos minutos más pide? (la curva seguía cayendo
   fuerte al corte — hay pendiente sin cosechar).
 - Export GGUF de la arquitectura banded para servir en la red Cognia (P6 de 04_MOM_GROKKING).
+- Construcción del MoM real (flota de expertos + selector integrado): fase nueva, con la
+  receta y los veredictos de este programa como base.
 
 ### 7.5 La lección de método (para la próxima corrida)
 

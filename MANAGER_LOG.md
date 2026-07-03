@@ -4935,3 +4935,18 @@ mas, todo en D9. Bonus MoM (pedido del dueno): 04_MOM_GROKKING con veredicto hon
 + X2 corriendo local al cierre (interim: baseline con alta varianza por seed 3600/1700;
 grokfast_l2 no grokea = riesgo pre-registrado confirmado). Pausa por regla del dueno: uso 83
 pct de la ventana 5h (umbral 84; reset 01:10 UTC). Commits del goal: 4647b9d..f5899bc.
+
+### O. 2026-07-03: programa MoM X1-X4 COMPLETO - la idea del dueno sobrevive con 2 correcciones
+X3 en T4 (66.7 min, 7 modelos, matriz bpb 7x3): el MoM DENSO PAGA - experto ~100M gana su
+nicho en los 3 dominios (cuentos +0.169, wiki +0.177, codigo +0.297 bpb; umbral congelado
+0.10) y el LoRA-control r32 NO lo empata (+0.05..+0.15); fuera de nicho el especialista se
+derrumba (+0.9..+3.5) -> el selector es estructural. X4 local (15.4 min): el calibrador ES un
+selector - router n-grams trivial (96.7 acc, <5ms CPU) empata al ORACLE en 2 de 3 dominios;
+la fusion c-BTM cuesta 4 forwards por turno y solo cubre donde el router duda; el bandit no
+converge a 90 queries (prediccion de regret fallida, declarada - necesita trafico real).
+X2 habia cerrado: ningun acelerador de paper transfiere. X5 no se corre (condicion
+pre-registrada no cumplida; pre-registro intacto). Receta MoM final en 04 seccion 9: flota
+de expertos densos con la receta K3 (<=30 min por experto, ~60 por semana de quota) +
+selector estatico con fallback + herramientas LATM. Las 2 correcciones a la idea original:
+el eureka se INDUCE con parametrizacion (X1, no se espera pagando 10-100x) y el calibrador
+SELECCIONA (no fusiona). Goal completo: entregables 1-4 verificados + programa MoM cerrado.
