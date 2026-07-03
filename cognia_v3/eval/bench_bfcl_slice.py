@@ -133,11 +133,86 @@ def question_text_of(item: dict) -> str:
     return "\n".join(f"{m['role']}: {m['content']}" for m in turn)
 
 
-def build_prompt(functions: list, question_text: str) -> str:
-    """ChatML (Qwen) con las tools disponibles (JSON) + la pregunta."""
+# ── Few-shot para el brazo v1 (--fewshot): ejemplos GENERICOS de tool-call ──
+# NO salen de la slice (cero leakage — funciones inventadas). Modelan lo que
+# el baseline falla: copiar el nombre EXACTO de la funcion (wrong_func_name)
+# y el separador ';' para llamadas paralelas (no_calls_parsed en paralelas).
+FEWSHOT_EXEMPLARS_BFCL = [
+    ('[{"name": "get_weather", "description": "Current weather for a city.", '
+     '"parameters": {"type": "object", "properties": {"city": {"type": '
+     '"string"}, "unit": {"type": "string", "enum": ["celsius", '
+     '"fahrenheit"]}}, "required": ["city"]}}]',
+     "What is the weather in Paris in celsius?",
+     'get_weather(city="Paris", unit="celsius")'),
+    ('[{"name": "add_numbers", "description": "Add two integers.", '
+     '"parameters": {"type": "object", "properties": {"a": {"type": '
+     '"integer"}, "b": {"type": "integer"}}, "required": ["a", "b"]}}]',
+     "Add 2 and 3, and also add 10 and 20.",
+     "add_numbers(a=2, b=3); add_numbers(a=10, b=20)"),
+]
+
+
+def build_fewshot_prefix_bfcl(n: int) -> str:
+    """Prefijo con n ejemplos resueltos (nombre EXACTO + ';' en paralelas)."""
+    if n <= 0:
+        return ""
+    parts = ["Examples of the exact format expected:\n\n"]
+    for funcs, q, ans in FEWSHOT_EXEMPLARS_BFCL[:n]:
+        parts.append(f"Available functions:\n{funcs}\nQuestion: {q}\nAnswer: {ans}\n\n")
+    parts.append("Now answer the real request the same way.\n\n")
+    return "".join(parts)
+
+
+def build_prompt(functions: list, question_text: str, fewshot: int = 0) -> str:
+    """ChatML (Qwen) con las tools disponibles (JSON) + la pregunta.
+    fewshot=0 => prompt byte-identico al baseline (prefijo vacio)."""
     from node.inference_pipeline import _apply_qwen_template
-    user_msg = ("Available functions:\n" + json.dumps(functions, indent=2)
+    user_msg = (build_fewshot_prefix_bfcl(fewshot)
+                + "Available functions:\n" + json.dumps(functions, indent=2)
                 + "\n\nQuestion: " + question_text)
+    return _apply_qwen_template(user_msg, system=SYSTEM_PROMPT)
+
+
+def available_names(functions: list) -> set:
+    """Nombres de funcion disponibles + su variante mangled (. -> _), para
+    validar la llamada del modelo con la misma tolerancia que el checker."""
+    names = set()
+    for fd in functions:
+        n = fd.get("name", "")
+        names.add(n)
+        names.add(n.replace(".", "_"))
+    return names
+
+
+def validate_calls(calls: list, error_type, functions: list) -> str | None:
+    """Error ACCIONABLE si la respuesta no es una tool-call usable contra las
+    funciones dadas, o None si sirve. Generate-then-structure: NO chequea si
+    los ARGS son correctos (eso es el checker/oraculo, no se filtra), solo el
+    formato: que se parseo >=1 llamada y que el/los nombre(s) existen."""
+    if error_type is not None or not calls:
+        return ("no se parseo ninguna llamada valida en formato "
+                "func(param=value)")
+    names = available_names(functions)
+    for call in calls:
+        for fname in call:
+            if fname not in names:
+                return (f"la funcion '{fname}' no esta en la lista; "
+                        f"nombres validos: {sorted(names)[:8]}")
+    return None
+
+
+def build_repair_prompt(functions: list, question_text: str, prev: str,
+                        error: str, fewshot: int = 0) -> str:
+    """Retry (1 solo) con el error de formato/nombre real en el prompt."""
+    from node.inference_pipeline import _apply_qwen_template
+    user_msg = (build_fewshot_prefix_bfcl(fewshot)
+                + "Available functions:\n" + json.dumps(functions, indent=2)
+                + "\n\nQuestion: " + question_text
+                + "\n\nYour previous answer was:\n" + (prev or "(empty)")
+                + "\n\nThat is INVALID: " + error
+                + "\nReply again with ONLY the call(s) in the exact format "
+                  "func(param=value), copying the function name EXACTLY from "
+                  "the list. Separate multiple calls with ';'.")
     return _apply_qwen_template(user_msg, system=SYSTEM_PROMPT)
 
 
@@ -346,8 +421,14 @@ def run_check_only(slice_items: list, label: str) -> tuple[dict, bool]:
 # ---------------------------------------------------------------------------
 
 def run_benchmark(slice_items: list, label: str = "baseline",
-                  max_tokens: int = DEFAULT_MAX_TOKENS, seed: int = 42) -> dict:
-    """Corre las items de la slice contra el modelo real y guarda JSON."""
+                  max_tokens: int = DEFAULT_MAX_TOKENS, seed: int = 42,
+                  fewshot: int = 0, repair: bool = False) -> dict:
+    """Corre las items de la slice contra el modelo real y guarda JSON.
+
+    fewshot>0 y/o repair=True => BRAZO v1 (andamiaje, plan §4 eje-1):
+    ejemplos genericos del formato exacto + validacion de la llamada +
+    UN retry con el error real (generate-then-structure). El checker/oraculo
+    es el MISMO (slice congelada); solo cambia el andamiaje de generacion."""
     backend, gguf_name = make_backend()
     if backend is None:
         print("ERROR: no llama backend available (GGUF o llama-server faltante)")
@@ -357,31 +438,55 @@ def run_benchmark(slice_items: list, label: str = "baseline",
     answers_cache = {c: load_category_answers(c) for c in CATEGORIES}
 
     print(f"[bench_bfcl_slice] backend OK, model={gguf_name}, "
-          f"items={len(slice_items)}, max_tokens={max_tokens}, seed={seed}", flush=True)
+          f"items={len(slice_items)}, max_tokens={max_tokens}, seed={seed}, "
+          f"fewshot={fewshot}, repair={repair}", flush=True)
 
+    n_repaired = 0
     results = []
     for i, entry in enumerate(slice_items, 1):
         category, item_id = entry["category"], entry["id"]
         item = items_cache[category][item_id]
         ground_truth = answers_cache[category][item_id]
         functions = item["function"]
-        prompt = build_prompt(functions, question_text_of(item))
+        q = question_text_of(item)
+        prompt = build_prompt(functions, q, fewshot=fewshot)
         print(f"[{i}/{len(slice_items)}] {item_id} ({category}) generating...", flush=True)
         t0 = time.perf_counter()
         # cache_prompt=False: mismo cuidado de reproducibilidad que benchmark_code.py
         response = backend.generate(prompt, max_tokens=max_tokens,
                                     temperature=BASE_TEMPERATURE, seed=seed,
                                     cache_prompt=False) or ""
+        did_repair = False
+        # Generate-then-structure: si la llamada no es usable (formato/nombre),
+        # UN retry con el error real. NO se usa la ground_truth (cero leakage):
+        # la validacion es solo de forma, el oraculo sigue siendo el checker.
+        if repair:
+            calls0, err0 = parse_model_response(response)
+            struct_err = validate_calls(calls0, err0, functions)
+            if struct_err is not None:
+                retry = backend.generate(
+                    build_repair_prompt(functions, q, response, struct_err,
+                                        fewshot=fewshot),
+                    max_tokens=max_tokens, temperature=BASE_TEMPERATURE,
+                    seed=seed, cache_prompt=False) or ""
+                calls1, err1 = parse_model_response(retry)
+                # adoptar el retry solo si mejora la validez de forma
+                if validate_calls(calls1, err1, functions) is None:
+                    response = retry
+                    did_repair = True
+                    n_repaired += 1
         gen_s = time.perf_counter() - t0
         calls, _parse_err = parse_model_response(response)
         passed, error_type, error_detail = check_response(
             category, functions, ground_truth, response)
         status = "PASS" if passed else f"FAIL ({error_type})"
-        print(f"    -> {status} {error_detail[:80]}", flush=True)
+        print(f"    -> {status}{' [repaired]' if did_repair else ''} "
+              f"{error_detail[:70]}", flush=True)
         results.append({
             "id": item_id, "category": category, "prompt_len": len(prompt),
             "response": response, "parsed_calls": calls, "passed": passed,
             "error_type": error_type, "error_detail": error_detail,
+            "repaired": did_repair,
             "gen_seconds": round(gen_s, 2),
         })
 
@@ -397,7 +502,8 @@ def run_benchmark(slice_items: list, label: str = "baseline",
     output = {
         "label": label, "timestamp": datetime.datetime.now().isoformat(),
         "model": gguf_name, "max_tokens": max_tokens, "temperature": BASE_TEMPERATURE,
-        "seed": seed, "n_items": n, "n_passed": n_pass, "accuracy": round(accuracy, 4),
+        "seed": seed, "fewshot": fewshot, "repair": repair, "n_repaired": n_repaired,
+        "n_items": n, "n_passed": n_pass, "accuracy": round(accuracy, 4),
         "by_category": by_cat, "results": results,
     }
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
@@ -413,6 +519,8 @@ def run_benchmark(slice_items: list, label: str = "baseline",
         print(f"   {cat:<20}: {d['passed']}/{d['total']}")
     print("-" * 72)
     print(f" accuracy GLOBAL: {n_pass}/{n} = {accuracy:.1%}")
+    if repair:
+        print(f" reparados (retry de formato): {n_repaired}/{n}")
     print(f" JSON: {out_path}")
     print("=" * 72)
     return output
@@ -434,6 +542,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--check-only", action="store_true",
                         help="self-test del checker contra las ground-truth de "
                              "possible_answer -- NO carga el modelo")
+    parser.add_argument("--fewshot", type=int, default=0,
+                        choices=range(len(FEWSHOT_EXEMPLARS_BFCL) + 1),
+                        help="brazo v1: N ejemplos GENERICOS del formato exacto "
+                             "(nombre exacto + ';' en paralelas; cero leakage de "
+                             "la slice) antes de la pregunta (default 0)")
+    parser.add_argument("--repair", action="store_true",
+                        help="brazo v1: si la llamada no es usable (no parsea o "
+                             "nombre inexistente), UN retry con el error real "
+                             "(generate-then-structure; no usa la ground-truth)")
     return parser
 
 
@@ -451,7 +568,8 @@ def main():
             raise SystemExit(1)
         return
 
-    run_benchmark(slice_items, label=args.label, max_tokens=args.max_tokens, seed=args.seed)
+    run_benchmark(slice_items, label=args.label, max_tokens=args.max_tokens,
+                  seed=args.seed, fewshot=args.fewshot, repair=args.repair)
 
 
 if __name__ == "__main__":

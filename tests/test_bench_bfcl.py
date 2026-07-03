@@ -232,3 +232,39 @@ class TestHarnessSlice:
         slice_items = build_slice()
         ids = [entry["id"] for entry in slice_items]
         assert len(ids) == len(set(ids))
+
+
+# ── Brazo v1 (fewshot + validate/repair) — CP1 eje-1, sin modelo ni red ──
+
+def test_validate_calls_v1():
+    from cognia_v3.eval.bench_bfcl_slice import validate_calls, available_names
+    from cognia_v3.eval.bfcl_ast_checker import parse_model_response
+    funcs = [{"name": "get_weather",
+              "parameters": {"type": "object",
+                             "properties": {"city": {"type": "string"}}}}]
+    # llamada valida -> None
+    calls, err = parse_model_response('get_weather(city="Paris")')
+    assert validate_calls(calls, err, funcs) is None
+    # nombre inexistente -> error accionable
+    calls, err = parse_model_response('get_wether(city="Paris")')
+    assert validate_calls(calls, err, funcs) is not None
+    # nada parseable -> error
+    calls, err = parse_model_response("solo prosa sin llamadas")
+    assert validate_calls(calls, err, funcs) is not None
+    # mangling . -> _ tolerado
+    assert "math_hypot" in available_names([{"name": "math.hypot"}])
+
+
+def test_fewshot_prefix_cero_leakage():
+    """El prompt con fewshot=0 no lleva ejemplos (baseline byte-identico);
+    fewshot>0 los agrega. Los ejemplos NO son de la slice."""
+    from cognia_v3.eval.bench_bfcl_slice import (
+        FEWSHOT_EXEMPLARS_BFCL, build_fewshot_prefix_bfcl, build_prompt)
+    assert build_fewshot_prefix_bfcl(0) == ""
+    assert "get_weather" in build_fewshot_prefix_bfcl(2)
+    funcs = [{"name": "f", "parameters": {}}]
+    assert "Examples" not in build_prompt(funcs, "q", fewshot=0)
+    assert "Examples" in build_prompt(funcs, "q", fewshot=2)
+    # los exemplars usan funciones inventadas, no de BFCL
+    joined = " ".join(e[2] for e in FEWSHOT_EXEMPLARS_BFCL)
+    assert "get_weather" in joined and "add_numbers" in joined
