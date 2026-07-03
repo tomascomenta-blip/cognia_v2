@@ -76,8 +76,11 @@ def auto_fix(action: str, args: str) -> str:
     rule = RULES.get(action)
     if not rule:
         return fixed
-    # comillas/backticks envolventes en args de una sola parte y una linea
-    if "parts" not in rule and "\n" not in fixed and len(fixed) < 300:
+    # comillas/backticks envolventes en args de una sola parte y una linea.
+    # NO en 'responder': su arg es la respuesta final literal al usuario y
+    # puede ser un string entrecomillado legitimo que no hay que recortar.
+    if (action != "responder" and "parts" not in rule
+            and "\n" not in fixed and len(fixed) < 300):
         m = re.fullmatch(r"[`\"']+(.*?)[`\"']+", fixed)
         if m:
             fixed = m.group(1).strip()

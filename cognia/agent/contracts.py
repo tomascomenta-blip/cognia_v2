@@ -65,7 +65,13 @@ def _defined_signatures(code: str) -> dict:
         return sigs
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            sigs[node.name] = [a.arg for a in node.args.args]
+            # Contar TODOS los parametros nombrados: pos-only + pos-o-kw +
+            # kw-only (antes solo .args -> `def f(a, *, b)` contaba aridad 1
+            # y disparaba un falso 'aridad incompatible' contra un diseño de 2).
+            a = node.args
+            sigs[node.name] = ([p.arg for p in getattr(a, "posonlyargs", [])]
+                               + [p.arg for p in a.args]
+                               + [p.arg for p in a.kwonlyargs])
     return sigs
 
 

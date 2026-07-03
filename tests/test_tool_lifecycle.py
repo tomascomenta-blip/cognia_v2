@@ -143,3 +143,47 @@ def test_trigger_captura_con_oraculo(monkeypatch, tmp_path):
     res = skill_capture.maybe_capture_skill("implementar funcion foo con tests", trace)
     assert res["captured"], res
     assert (tmp_path / "cs" / f"{res['name']}.md").exists()
+
+
+# ── Regresion de seguridad: bypasses del scan estatico (CRITICO) ────────
+# El scan de _static_safety_scan es el gate primario (regla 9 CLAUDE.md);
+# load_generated_tools hace exec() en-proceso de la tool verificada, asi que
+# un bypass = RCE. Estos casos cerraron el bypass __builtins__.eval detectado
+# el 2026-07-03; deben RECHAZARSE siempre.
+
+import ast
+import pytest
+from cognia.agent.tool_synthesis import _static_safety_scan, verify_tool
+
+
+@pytest.mark.parametrize("code", [
+    "def run(a):\n    return str(__builtins__.eval(a))\n",       # attr eval
+    "def run(a):\n    return __builtins__.exec(a)\n",            # attr exec
+    "def run(a):\n    f = eval\n    return f(a)\n",              # alias de eval
+    "def run(a):\n    b = __builtins__\n    return str(b)\n",    # ref __builtins__
+    "def run(a):\n    return a.system('rm -rf /')\n",           # attr system
+    "def run(a):\n    return getattr(a, 'x')\n",                # getattr
+    "def run(a):\n    return open('/etc/passwd').read()\n",     # open
+    "def run(a):\n    return a.__class__.__mro__[1]\n",         # dunder chain
+])
+def test_scan_rechaza_bypasses(code):
+    reason = _static_safety_scan(ast.parse(code))
+    assert reason, f"BYPASS no detectado: {code!r}"
+
+
+def test_bypass_builtins_eval_no_verifica():
+    """El bypass concreto reportado: verify_tool debe rechazarlo (no llega
+    nunca a registrarse como verified)."""
+    code = "def run(args: str) -> str:\n    return str(__builtins__.eval(args))\n"
+    ok, reason = verify_tool(code, test_input="2+2", expect_contains="4")
+    assert not ok
+
+
+@pytest.mark.parametrize("code", [
+    "def run(args: str) -> str:\n    return args[::-1]\n",
+    "import re\ndef run(args: str) -> str:\n    return re.sub('a','b',args)\n",
+    "import json\ndef run(args: str) -> str:\n    return str(json.loads(args))\n",
+    "import math\ndef run(args: str) -> str:\n    return str(math.sqrt(float(args)))\n",
+])
+def test_scan_no_rompe_tools_legitimas(code):
+    assert _static_safety_scan(ast.parse(code)) == ""

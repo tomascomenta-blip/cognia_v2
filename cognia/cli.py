@@ -7005,8 +7005,17 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _print_fn("[detail]args reparados (retry de formato con error real)[/detail]")
 
         if action == "responder":
-            result_text = args
-            break
+            # 'responder' con args validos cierra la tarea. Si el validador
+            # marco error (respuesta vacia tras auto_fix + retry fallido), NO
+            # cerrar con una respuesta en blanco: registrar el error y seguir
+            # el loop (mismo trato que cualquier otra accion invalida).
+            if not _struct.get("error"):
+                result_text = args
+                break
+            history.append(f"RESULTADO responder ERROR: {_struct['error']}")
+            _actions_trace.append({"action": "responder", "args": args[:200],
+                                   "ok": False, "result_head": _struct["error"][:160]})
+            continue
 
         # Stuck-detector: cuenta ocurrencias de (action, args) COMPLETOS en toda
         # la tarea -> caza tambien ciclos oscilantes A,B,A,B. Ver agent/loop.py.
@@ -7028,11 +7037,13 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         else:
             result = run_tool(action, args, ctx)
         history.append(result)
-        # Traza para el trigger de skills nivel-2 (CP2): un paso es 'ok' si
-        # el resultado no es un ERROR de la tool ni del validador.
+        # Traza para el trigger de skills nivel-2 (CP2): un paso es 'ok' si el
+        # resultado no es un ERROR de la tool/validador. Se usa \bERROR\b (borde
+        # de palabra) para NO confundir un nombre como 'ERROR_LOG.txt' en un
+        # RESULTADO exitoso con el marcador de error 'RESULTADO x ERROR: ...'.
         _actions_trace.append({
             "action": action, "args": args[:200],
-            "ok": " ERROR" not in result[:100],
+            "ok": not re.search(r"\bERROR\b", result[:120]),
             "result_head": result[:160],
         })
         if action == "escribir_archivo" and result.startswith("RESULTADO escribir_archivo") and "OK" in result:

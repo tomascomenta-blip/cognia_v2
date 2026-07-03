@@ -145,33 +145,43 @@ def skill_guidance(skill: SkillSpec, max_chars: int = 2000) -> str:
 
 # ── Escritura de skills nivel-2 (CP2, 06_AGENTE_PLAN §3) ────────────────
 # Un skill nivel-2 es markdown (instrucciones, no codigo): blast radius
-# cero por construccion. Aun asi, NADA se persiste si el cuerpo contiene
-# patrones peligrosos que el agente podria luego obedecer — blocklist
-# SIEMPRE activo, sin flag para saltearlo (a diferencia del diseño de
-# Hermes de confiar en el contenedor: defensa en profundidad).
+# cero por construccion — NO se ejecuta directamente. El blocklist de abajo
+# es DEFENSA EN PROFUNDIDAD sobre esa garantia estructural: reduce el riesgo
+# de persistir instrucciones que un agente futuro podria obedecer, pero NO
+# es un gate hermetico (un regex de patrones peligrosos siempre es evadible
+# con ofuscacion; ver P8 del plan). El gate REAL de ejecucion vive en la capa
+# de tools (allowlist de imports + sandbox de tool_synthesis, blocklist de
+# _shell en tools.py). Aca se cazan las formas mas obvias.
 
 DANGEROUS_PATTERNS = [
-    # borrado/destruccion de disco o arbol
+    # borrado/destruccion de disco o arbol (flags juntos o separados)
+    re.compile(r"\brm\s+(-\w+\s+)*-?\w*[rf]\w*\s+(-\w+\s+)*-?\w*[rf]", re.IGNORECASE),
     re.compile(r"\brm\s+(-[a-z]*r[a-z]*f|-[a-z]*f[a-z]*r)\b", re.IGNORECASE),
+    re.compile(r"\brm\s+--(recursive|force)\b", re.IGNORECASE),
     re.compile(r"\b(del|erase)\s+/[sqf]", re.IGNORECASE),
     re.compile(r"\brmdir\s+/s", re.IGNORECASE),
     re.compile(r"\bmkfs(\.\w+)?\b", re.IGNORECASE),
     re.compile(r"\bdd\s+if=", re.IGNORECASE),
     re.compile(r"\bformat\s+[a-z]:", re.IGNORECASE),
     re.compile(r">\s*/dev/(sd|nvme|null\b.{0,20}<)", re.IGNORECASE),
-    # pipe-a-shell desde la red (instalacion ciega)
-    re.compile(r"\b(curl|wget|iwr|invoke-webrequest)\b[^\n|]{0,200}\|\s*"
-               r"(sh|bash|zsh|iex|powershell)\b", re.IGNORECASE),
+    # pipe-a-interprete desde la red (instalacion ciega; tolera sudo/env
+    # entre el pipe y el interprete, y python/perl/ruby ademas de shells)
+    re.compile(r"\b(curl|wget|iwr|invoke-webrequest)\b[^\n]{0,200}\|\s*"
+               r"(sudo\s+|env\s+\S+\s+)*"
+               r"(sh|bash|zsh|iex|powershell|python\d?|perl|ruby|node)\b",
+               re.IGNORECASE),
     # apagado / persistencia de sistema
-    re.compile(r"\b(shutdown|reboot)\b", re.IGNORECASE),
+    re.compile(r"\b(shutdown|reboot|halt|poweroff)\b", re.IGNORECASE),
     re.compile(r"\breg\s+add\s+hklm", re.IGNORECASE),
     re.compile(r":\(\)\s*\{.*\};\s*:", re.DOTALL),  # fork bomb
-    # escritura fuera del workspace via la tool de archivos
-    re.compile(r"escribir_archivo\s+([a-z]:\\|/etc/|/usr/|~[/\\]\.|"
-               r"c:\\windows)", re.IGNORECASE),
-    # exfiltracion de secretos tipicos
-    re.compile(r"(\.env\b|id_rsa|\.ssh[/\\]|api[_-]?key).{0,80}"
-               r"(http_get|curl|wget|post)", re.IGNORECASE | re.DOTALL),
+    # escritura fuera del workspace via la tool de archivos (back o forward slash)
+    re.compile(r"escribir_archivo\s+([a-z]:[\\/]windows|/etc/|/usr/|/bin/|"
+               r"~[/\\]\.)", re.IGNORECASE),
+    # exfiltracion de secretos tipicos (marcador o verbo de red en cualquier orden)
+    re.compile(r"(\.env\b|id_rsa|\.ssh[/\\]|api[_-]?key)[^\n]{0,80}"
+               r"(http_get|curl|wget|\bpost\b|@)", re.IGNORECASE),
+    re.compile(r"(curl|wget|http_get)[^\n]{0,80}(\.env\b|id_rsa|\.ssh[/\\])",
+               re.IGNORECASE),
 ]
 
 _SKILL_NAME_RE = re.compile(r"^[a-z][a-z0-9\-]{2,40}$")

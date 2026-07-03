@@ -46,9 +46,36 @@ _ALLOWED_IMPORTS = {
 _FORBIDDEN_NAMES = {"open", "eval", "exec", "__import__", "compile", "input",
                     "globals", "locals", "vars", "getattr", "setattr"}
 
+# CUALQUIER referencia (no solo llamada) a estos nombres se rechaza. Cierra el
+# bypass `__builtins__.eval(args)` (verificado 2026-07-03): antes el scan solo
+# miraba llamadas con func=ast.Name y atributos que EMPIEZAN con "__"; una
+# Attribute `__builtins__.eval` esquivaba ambos (attr 'eval' no empieza con
+# "__", y el nodo no es una Call-de-Name). Ahora se caza el Name `__builtins__`
+# en si (aunque no se llame) y el acceso por atributo a nombres peligrosos.
+# Tambien `f = eval; f(x)` cae: la referencia Name('eval') se rechaza sola.
+_NAME_BLOCKLIST = _FORBIDDEN_NAMES | {
+    "__builtins__", "__globals__", "__loader__", "__spec__", "breakpoint",
+    "delattr", "memoryview", "globals", "locals",
+}
+# Acceso por ATRIBUTO a estos (obj.<attr>) se rechaza aunque obj sea benigno.
+# NO se incluyen nombres genericos que colisionan con metodos de modulos
+# permitidos (json.loads, functools.reduce, etc.): los modulos peligrosos
+# (os/subprocess/pickle) ya estan fuera del allowlist de imports, asi que su
+# unico camino seria via __builtins__ (bloqueado por _NAME_BLOCKLIST).
+_ATTR_BLOCKLIST = {
+    "eval", "exec", "system", "popen", "spawn", "spawnl", "spawnv", "fdopen",
+    "__import__", "compile", "open", "getattr", "setattr", "delattr",
+    "check_output", "Popen", "startfile",
+}
+
 
 def _static_safety_scan(tree: ast.AST) -> str:
-    """Return '' if the AST is safe, else a human reason. No execution."""
+    """Return '' if the AST is safe, else a human reason. No execution.
+
+    Defensa: allowlist de imports + blocklist de nombres peligrosos EN
+    CUALQUIER POSICION (referencia, no solo llamada) + blocklist de acceso por
+    atributo. El objetivo es que ningun camino a un builtin de ejecucion
+    (eval/exec/open/__import__/os.system) sobreviva el scan estatico."""
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -59,11 +86,14 @@ def _static_safety_scan(tree: ast.AST) -> str:
             mod = node.module or ""
             if mod not in _ALLOWED_IMPORTS and mod.split(".")[0] not in _ALLOWED_IMPORTS:
                 return f"import no permitido: from {mod}"
+        elif isinstance(node, ast.Name) and node.id in _NAME_BLOCKLIST:
+            return f"nombre prohibido: {node.id}"
         elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             if node.func.id in _FORBIDDEN_NAMES:
                 return f"llamada prohibida: {node.func.id}()"
-        elif isinstance(node, ast.Attribute) and node.attr.startswith("__"):
-            return f"acceso a dunder prohibido: .{node.attr}"
+        elif isinstance(node, ast.Attribute):
+            if node.attr.startswith("__") or node.attr in _ATTR_BLOCKLIST:
+                return f"acceso a atributo prohibido: .{node.attr}"
     return ""
 
 
@@ -145,9 +175,16 @@ def _load_manifest() -> list:
 
 def _save_manifest(entries: list) -> None:
     GENERATED_DIR.mkdir(parents=True, exist_ok=True)
-    MANIFEST_PATH.write_text(
-        json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    # Escritura ATOMICA (temp + os.replace): el repo corre managers
+    # autonomos en paralelo; un write_text directo puede dejar el manifest a
+    # medio escribir si dos procesos coinciden. os.replace es atomico en el
+    # mismo volumen, asi que un lector nunca ve JSON truncado (no elimina la
+    # carrera de lost-update entre dos writers, pero evita corromper el archivo).
+    import os
+    tmp = MANIFEST_PATH.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(entries, ensure_ascii=False, indent=2),
+                   encoding="utf-8")
+    os.replace(tmp, MANIFEST_PATH)
 
 
 # ── verification (the heart) ───────────────────────────────────────────
