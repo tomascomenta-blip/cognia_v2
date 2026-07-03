@@ -59,9 +59,20 @@ def test_tests_first_no_activa_fuera_de_codigo():
 
 def test_tests_first_respeta_veto_de_formato():
     from cognia.agent.stepwise import tests_first_applies
+    # pedido EXPLICITO de responder en JSON -> veta
     s = ("Write a Python function `f(x)` and reply ONLY with JSON in this "
-         "exact formato: {\"code\": ...}")
+         "exact format: {\"code\": ...}")
     assert not tests_first_applies(s)
+
+
+def test_tests_first_no_veta_json_topico():
+    """Una tarea de codigo que MENCIONA json como tema (no como formato de
+    salida) SI debe activar — regresion de LONG3 del bench duro."""
+    from cognia.agent.stepwise import bon_applies, tests_first_applies
+    s = ("Write a Python function `parse_json(s)` that parses a JSON document "
+         "into Python objects WITHOUT importing the json module.")
+    assert tests_first_applies(s)
+    assert bon_applies(s)
 
 
 def test_repair_applies_solo_con_veredicto_externo():

@@ -85,11 +85,25 @@ def extract_entry_point(task: str):
     return None
 
 
+# Veto de formato para la ruta de CODIGO: mas estricto que _FORMAT_RX. En una
+# tarea de codigo, la salida ES una funcion; una MENCION TOPICA de json/xml
+# ("parsea un JSON", "genera XML") no es un pedido de formato de salida. Solo
+# veta el pedido EXPLICITO de responder en un formato ("reply only with JSON",
+# "responde en formato ...", "una sola palabra"). No se toca _FORMAT_RX porque
+# lo comparte needs_stepwise, que esta medido (test_stepwise).
+_CODE_FORMAT_VETO_RX = re.compile(
+    r"(reply\s+(only\s+)?(with|in)\s+(json|xml|yaml)|"
+    r"responde\s+(solo\s+)?(con|en)\s+(json|xml|yaml|formato)|"
+    r"only\s+(a\s+)?(json|xml|yaml)|una sola palabra|"
+    r"sin ning[uú]n otro texto)",
+    re.IGNORECASE)
+
+
 def tests_first_applies(task: str) -> bool:
     """True si conviene generar el test ANTES del codigo (palanca #2):
-    tarea de codigo con entry point explicito y sin pedido de formato
-    exacto (mismo veto medido que el CoT)."""
-    if wants_exact_format(task):
+    tarea de codigo con entry point explicito y sin pedido EXPLICITO de
+    formato de salida (una mencion topica de json/xml NO veta)."""
+    if _CODE_FORMAT_VETO_RX.search(task or ""):
         return False
     return bool(_CODE_TASK_RX.search(task or "")) and \
         extract_entry_point(task) is not None
