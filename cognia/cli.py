@@ -6927,6 +6927,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     _sig_counts: dict = {}    # detector de estancamiento por conteo de acciones
     _last_prose = ""          # ultima respuesta en prosa (candidata a final)
     _no_action_streak = 0     # respuestas seguidas sin ACCION
+    _actions_trace: list = [] # traza (action, args, ok) para skill_capture (CP2)
     while total_steps < AGENT_HARD_CAP:
         # Out of budget: ask the model if it actually needs more steps.
         if total_steps >= budget:
@@ -7027,6 +7028,13 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         else:
             result = run_tool(action, args, ctx)
         history.append(result)
+        # Traza para el trigger de skills nivel-2 (CP2): un paso es 'ok' si
+        # el resultado no es un ERROR de la tool ni del validador.
+        _actions_trace.append({
+            "action": action, "args": args[:200],
+            "ok": " ERROR" not in result[:100],
+            "result_head": result[:160],
+        })
         if action == "escribir_archivo" and result.startswith("RESULTADO escribir_archivo") and "OK" in result:
             _print_fn(f"[ok_cl]{result.split(':', 1)[0].replace('RESULTADO ', '')}[/ok_cl]")
 
@@ -7034,6 +7042,18 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     summary = f"Tarea: {task[:100]} | Pasos: {total_steps} | Resultado: {result_text[:200]}"
     try:
         ai.observe(summary, provided_label="agente_tarea_completada")
+    except Exception:
+        pass
+
+    # Trigger de skills nivel-2 (CP2, plan §3.3): si la tarea cerro con
+    # oraculo duro y >=4 tool-calls exitosos, persistir el procedimiento
+    # como skill markdown (gates: blocklist + dedupe + evidencia real).
+    try:
+        from cognia.agent.skill_capture import maybe_capture_skill
+        _cap = maybe_capture_skill(task, _actions_trace)
+        if _cap.get("captured"):
+            _print_fn(f"[ok_cl]Skill nivel-2 capturada: {_cap['name']} "
+                      f"({_cap['path']})[/ok_cl]")
     except Exception:
         pass
 

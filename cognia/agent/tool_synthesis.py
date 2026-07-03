@@ -77,6 +77,61 @@ class ToolSpec:
     expect_contains: str  # substring the output must contain to pass
 
 
+# ── ciclo de vida (CP2, 06_AGENTE_PLAN §3): tiers + gate crear-vs-reusar ──
+# Tiers de confianza: builtin (tools.py) > verified (generada, sandbox OK y
+# >= VERIFY_AFTER_OK usos exitosos) > staged (generada, sin historial).
+# Una staged que acumula >= RETIRE_AFTER_FAIL fallos se retira (no se carga
+# mas). Explicitamente NO se imita el skip-por-contenedor de Hermes:
+# defensa en profundidad, el sandbox y el scan corren SIEMPRE.
+
+VERIFY_AFTER_OK = 3      # usos exitosos para ascender staged -> verified
+RETIRE_AFTER_FAIL = 2    # fallos para retirar una staged
+
+
+def find_similar_tool(name: str, doc: str = "", threshold: float = 0.75):
+    """Gate crear-vs-reusar (§3.2): entry del manifest cuyo nombre (o doc)
+    se parece al pedido, o None. Barato: difflib sobre nombre + primera
+    linea de doc. Evita acumular near-duplicados en el registry."""
+    import difflib
+    target = (name or "").lower().strip()
+    if not target:
+        return None
+    for entry in _load_manifest():
+        if entry.get("tier") == "retired":
+            continue
+        existing = entry.get("name", "").lower()
+        ratio = difflib.SequenceMatcher(None, target, existing).ratio()
+        if ratio >= threshold:
+            return entry
+        if doc and entry.get("doc"):
+            dratio = difflib.SequenceMatcher(
+                None, doc.lower()[:60], entry["doc"].lower()[:60]).ratio()
+            if dratio >= max(threshold, 0.8):
+                return entry
+    return None
+
+
+def record_tool_use(name: str, ok: bool) -> str:
+    """Registra un uso de una tool generada y aplica las transiciones de
+    tier. Devuelve el tier resultante ('' si la tool no esta en el
+    manifest). staged -> verified con VERIFY_AFTER_OK exitos; staged ->
+    retired con RETIRE_AFTER_FAIL fallos (una retirada no vuelve sola)."""
+    entries = _load_manifest()
+    for entry in entries:
+        if entry.get("name") != name:
+            continue
+        entry["uses_ok"] = entry.get("uses_ok", 0) + (1 if ok else 0)
+        entry["uses_fail"] = entry.get("uses_fail", 0) + (0 if ok else 1)
+        tier = entry.get("tier", "staged")
+        if tier == "staged" and entry["uses_fail"] >= RETIRE_AFTER_FAIL:
+            entry["tier"] = "retired"
+        elif tier == "staged" and entry["uses_ok"] >= VERIFY_AFTER_OK:
+            entry["tier"] = "verified"
+        _save_manifest(entries)
+        return entry["tier"]
+    return ""
+
+
 # ── manifest helpers ───────────────────────────────────────────────────
 
 def _load_manifest() -> list:
@@ -216,7 +271,17 @@ def _write_verified(spec: ToolSpec, code: str, reason: str) -> dict:
     )
     tool_file.write_text(header + code + "\n", encoding="utf-8")
 
+    prev = next((e for e in _load_manifest() if e.get("name") == spec.name), None)
     entries = [e for e in _load_manifest() if e.get("name") != spec.name]
+    # Version semver simple: re-registrar una tool existente sube el minor
+    # (historia de evolucion auditable en el manifest, §3.7).
+    version = "0.1.0"
+    if prev and prev.get("version"):
+        try:
+            major, minor, patch = prev["version"].split(".")
+            version = f"{major}.{int(minor) + 1}.{patch}"
+        except Exception:
+            pass
     entries.append({
         "name": spec.name,
         "doc": spec.doc,
@@ -224,6 +289,11 @@ def _write_verified(spec: ToolSpec, code: str, reason: str) -> dict:
         "test_input": spec.test_input,
         "expect_contains": spec.expect_contains,
         "verified": True,
+        # ciclo de vida CP2: toda tool nueva nace staged con contadores en 0
+        "tier": "staged",
+        "version": version,
+        "uses_ok": 0,
+        "uses_fail": 0,
     })
     _save_manifest(entries)
     return {"ok": True, "name": spec.name, "reason": reason, "file": str(tool_file)}
@@ -242,6 +312,16 @@ def synthesize_and_register(spec: ToolSpec, orch=None, code: str = None,
     """
     if not _NAME_RE.match(spec.name):
         return {"ok": False, "name": spec.name, "reason": "nombre invalido"}
+
+    # Gate crear-vs-reusar (§3.2): un near-duplicado existente se reusa en
+    # vez de duplicarse. Re-registrar EXACTAMENTE el mismo nombre es una
+    # actualizacion legitima (sube version) y pasa de largo.
+    similar = find_similar_tool(spec.name, spec.doc)
+    if similar and similar.get("name") != spec.name:
+        return {"ok": False, "name": spec.name,
+                "reason": f"similar existente: {similar['name']} "
+                          f"(tier {similar.get('tier', 'staged')}) — reusar o editar esa",
+                "existing": similar["name"]}
 
     # Deterministic single-shot path (tests / known code).
     if code is not None:
@@ -305,6 +385,10 @@ def load_generated_tools(registry: dict = None) -> int:
     for entry in _load_manifest():
         if not entry.get("verified"):
             continue
+        # Una tool retirada (staged con >= RETIRE_AFTER_FAIL fallos) no se
+        # carga mas: la degradacion es efectiva, no decorativa (§3.7).
+        if entry.get("tier") == "retired":
+            continue
         name = entry.get("name", "")
         tool_file = GENERATED_DIR / f"{name}.py"
         if not _NAME_RE.match(name) or not tool_file.exists():
@@ -320,16 +404,28 @@ def load_generated_tools(registry: dict = None) -> int:
 
         def _make(run_fn, tool_name):
             def _wrapped(args, ctx):
+                # Cada uso alimenta los contadores de tier (ascenso staged->
+                # verified / retiro). Best-effort: el registro nunca rompe
+                # la ejecucion de la tool.
                 try:
-                    return f"RESULTADO {tool_name}: {run_fn(args)}"
+                    out = f"RESULTADO {tool_name}: {run_fn(args)}"
+                    ok = True
                 except Exception as exc:
-                    return f"RESULTADO {tool_name} ERROR: {exc}"
+                    out = f"RESULTADO {tool_name} ERROR: {exc}"
+                    ok = False
+                try:
+                    record_tool_use(tool_name, ok)
+                except Exception:
+                    pass
+                return out
             return _wrapped
 
+        tier = entry.get("tier", "staged")
         reg[name] = {
             "fn": _make(run, name),
-            "doc": f"{entry.get('doc', name)}  [auto-generada]",
+            "doc": f"{entry.get('doc', name)}  [auto-generada, {tier}]",
             "danger": False,
+            "tier": tier,
         }
         loaded += 1
     return loaded
