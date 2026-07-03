@@ -387,3 +387,25 @@ de induction head), otro animal que el grokking post-overfit de Power et al.
 **Consecuencia para la receta MoM (criterio de cierre §6):** se escribe SIN presupuesto de
 plateau — "grokking inducido o evitado, nunca esperado". Barrer α al armar el harness de un
 experto cuesta minutos y puede comprar 4×.
+
+### X2 — CORRIDO 2026-07-02 (94.6 min CPU, `results_x1/xh_x2_results.json`; desvío declarado:
+local en vez de T4, mismo harness que X1)
+
+| brazo | grok_steps (seeds 0,1) | final_acc | veredicto |
+|---|---|---|---|
+| adamw (baseline) | 3600, 1700 (media 2650) | 0.81, 0.88 | referencia; **alta varianza por seed** |
+| grokfast λ=2 | NUNCA, NUNCA | 0.36, 0.36 | **MATA la transición** |
+| grokfast λ=5 | NUNCA, NUNCA | 0.37, 0.36 | ídem |
+| stablemax | NUNCA, 8800 | 0.37, 0.86 | retrasa (0.3× vs baseline) |
+| muon | NUNCA, NUNCA (+40%/step) | 0.42, 0.29 | no grokea esta tarea |
+
+**Veredicto (el fallback pre-registrado): los aceleradores de paper NO transfieren a este
+harness — todos empeoran o matan la transición.** El riesgo pre-registrado de Grokfast
+(inestable) quedó confirmado en su versión fuerte. El contraste más instructivo es Muon: GANA
+el entrenamiento LM a 100M (K2, Δ0.072 bpb) y NO grokea el MQAR tiny — no hay optimizador
+"universalmente más rápido"; la regla "medí en TU harness" queda validada dos veces (X1: α>1
+acelera contra Omnigrok; X2: todos los aceleradores fallan contra sus papers). **La receta de
+aceleración de transiciones queda en: parametrización de init (X1, hasta 4×) + datos — no en
+el optimizador.** Nota de método: la varianza por seed del baseline (3600 vs 1700) implica que
+TODA comparación futura de grok-steps necesita ≥2 seeds (X1 corrió seed única; sus −75% con
+α=0.25 superan con margen la varianza observada, pero se anota).
