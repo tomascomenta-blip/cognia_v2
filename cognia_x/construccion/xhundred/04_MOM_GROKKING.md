@@ -409,3 +409,26 @@ aceleración de transiciones queda en: parametrización de init (X1, hasta 4×) 
 el optimizador.** Nota de método: la varianza por seed del baseline (3600 vs 1700) implica que
 TODA comparación futura de grok-steps necesita ≥2 seeds (X1 corrió seed única; sus −75% con
 α=0.25 superan con margen la varianza observada, pero se anota).
+
+### X3 — CORRIDO 2026-07-03 (66.7 min T4, `results_x3/xh_x3_results.json`)
+
+Corpus 3 dominios (cuentos, wiki filtrada, Python de codeparrot; tokenizer 3dom 16k propio;
+fertilidades reales: 4.35 / 5.94 / 2.68 B/tok según meta). Matriz bpb (fila entrena, columna
+evalúa; menor mejor):
+
+| modelo (12 min c/u; LoRA 6 min sobre gen) | cuentos | wiki | código |
+|---|---|---|---|
+| generalista (mezcla tercios) | 0.8742 | 1.4757 | 1.3008 |
+| **experto denso del dominio** | **0.7054** | **1.2986** | **1.0035** |
+| LoRA r=32 del dominio sobre gen | 0.8104 | 1.3518 | 1.1515 |
+
+**Veredicto pre-registrado: `mom_denso_paga = TRUE`** — el experto denso gana su nicho en los
+TRES dominios (Δ +0.169/+0.177/+0.297 ≥ 0.10 congelado) **y `lora_empata = FALSE`**: el LoRA
+mejora al generalista pero queda a +0.05/+0.11/+0.15 del denso. La regla de decisión del §6
+("si (c) empata a (b), los expertos servibles son LoRA") NO se activó: **a este presupuesto,
+la pieza central de la idea del dueño — expertos DENSOS chicos por dominio — queda validada
+en pequeño.** El costo del especialista también quedó medido: fuera de su dominio se derrumba
+(+0.94 a +3.5 bpb) — el router/selector no es opcional, es estructural. Matiz de fairness
+anotado: el LoRA entrenó 6 min de dominio (más los 12 del gen compartido, amortizado 12/3+6=10
+min/dominio) vs 12 del denso; la config es la pre-registrada, pero un LoRA de 12 min queda
+como control pendiente si se re-abre la decisión.
