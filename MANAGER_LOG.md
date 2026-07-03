@@ -4966,3 +4966,65 @@ con causa raiz declarada (sharpening satura margenes) y v2 pre-registrada. CLI c
 el experto de codigo paso de degenerar a escribir Python estructuralmente valido; cuentos narra
 con arco. Pendiente declarado: M2/M3/M5 (mejoras DSpark), v2 de zona-B, flag en CLI principal
 (opcional, no intentado: riesgo/beneficio desfavorable con deadline). Apagado 05:30 vigente.
+
+================================================================================
+[2026-07-03 ~10:20-11:15] AGENTE MoM DE PROGRAMACION — CP0-CP3 (codigo+tests)
+================================================================================
+Corrida /goal (Fable 5, ultracode). Objetivo: agente MoM muy bueno programando
+(codigo/diseño/tool-calling), teoria primero, benchmarks vs GLM-5.2, auto-tools
+estilo HERMES, usage dinamico, flujos regulados por dificultad. Base: plan
+pre-registrado 06_AGENTE_PLAN.md (commit b4ff424) + 3 informes de verificacion
+independiente (HERMES/GLM-5.2/ingenieria-barata) que CONFIRMARON el pre-registro:
+- HERMES (NousResearch): skill_manage create/patch, trust tiers, escaner de
+  seguridad, evolucion GEPA en repo APARTE con gates+PR humano, SIN benchmarks.
+- GLM-5.2 (Zhipu, 753B MoE, 2026-06-13): SWE-Pro 62.1, Terminal-Bench 81.0,
+  tau3 27%; NO publica BFCL/LiveCodeBench (proxy GLM-4.5 BFCL 76.7). Imposible
+  correr el modelo en i3/T4 — solo el harness de eval es local.
+- ingenieria-barata: en 0.5-3B paga el SCAFFOLDING deterministico del harness
+  (test-gating, roles fijos, errores como feedback), NO el prompt libre (CoT/
+  self-consistency/debate degradan <8-10B). Confirma el diseño del plan.
+
+CP0 (benchmarks congelados + baselines):
+- bench_design.py CONGELADO (commit cea4944): 25 specs -> HTML/CSS single-file,
+  363 asserts DUROS, checker mini-DOM+CSS 100% mecanico (CERO juez LLM). Self-
+  test del oraculo 33/33, pytest 5. Smoke real D01 = 16/16. Baseline pelado 25
+  specs: EN CURSO al cierre de esta entrada.
+- bench_bfcl_slice.py CONGELADO (commit db9738d): slice BFCL v3 200 items (40x5),
+  seed 42, checker AST vendorizado (gorilla @cd9429cc). Self-test 200/200 +
+  negativos. pytest 21. Harness delegado a agente sonnet (flujo regulado),
+  oraculo re-verificado por el manager (fix del nombre de JSON check-only).
+  Baseline pelado del modelo: pendiente (server serializado).
+
+CP1 (palancas 1-5, commit 213900d + fix 4f1239c):
+- candidates.py: test-first + BoN + juez por EJECUCION de tests visibles
+  (jerarquia tests>bpb>greedy; sin tests degrada a greedy DECLARADO).
+- structure.py: generate-then-structure (auto_fix mecanico + validate_action
+  contra firma + 1 retry con error real). Wired en cli.py.
+- stepwise.py extendido: detectores bon/tests_first/repair. Fix: veto de
+  formato estricto (json topico no veta) -> bon_applies 20/20 en tasks_hard.
+- benchmark_code.py: brazo --bon N (activa por task segun detector).
+- Re-bench eje 1/2 con el modelo: PENDIENTE (server).
+
+CP2 (ciclo de vida auto-tools, commit 676777c):
+- tool_synthesis.py: tiers staged->verified(3 ok)/retired(2 fail), version
+  semver, gate crear-vs-reusar (difflib). load_generated_tools cablea conteo.
+- skills.py: blocklist DURO (SIEMPRE activo, no se imita el skip de Hermes) +
+  persist_skill con 4 gates (slug/dedupe/blocklist/EVIDENCIA de oraculo duro).
+- skill_capture.py: trigger >=4 tool-calls exitosos + oraculo duro en traza.
+  Wired en cli.py (traza + maybe_capture_skill).
+
+CP3 (AG-ARB — falsacion del arbitro del paper, commit 971b768):
+- contracts.py: attribute_failure con CONTROL (instancia la idea "renderizados
+  de control" del paper §4.2) que desambigua el borde design/code.
+- bench_arbitro.py: 32 casos (8 base x 4 etapas), falla seeded, VERIFICADO en
+  build (0 descartados). BRAZO CONTRATOS = 16/32 GLOBAL pero 100% (16/16) en
+  design+code (etapas con oraculo ejecutable) y 0% en plan/test (raiz propagada
+  / oraculo corrupto — limite REAL declarado). Cumple prediccion §5.
+  Brazos LLM (ii/iii): PENDIENTE (server).
+
+Verificacion: 135 tests dirigidos verdes. 6 commits pusheados a origin/cognia-x.
+Usage 24%->? (reset 5h ~20:10 UTC), monitor 84% activo. Regulacion de modelos
+respetada: harness mecanico -> sonnet; oraculos/umbrales/seguridad/atribucion ->
+Fable. PENDIENTE (server serializado, 1 solo llama-server): fin baseline diseño,
+smokes e2e (/hacer, --bon), baseline BFCL, brazos LLM de AG-ARB, eje-2 nocturno,
+mejora del paper con resultados.
