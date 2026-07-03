@@ -24,6 +24,10 @@ KERNELS = {
                "sources": ["cognia-xh-p2k1"], "models": [QWEN3B]},
     "p2diag": {"file": "xh_p2diag_kernel.py", "slug": "cognia-xh-p2diag", "gpu": True,
                "sources": [], "models": [QWEN3B]},
+    "x3data": {"file": "xh_x3data_kernel.py", "slug": "cognia-xh-x3data", "gpu": False,
+               "sources": []},
+    "x3":     {"file": "xh_x3_mom.py",        "slug": "cognia-xh-x3mom",  "gpu": True,
+               "sources": ["cognia-xh-x3data"]},
 }
 
 
