@@ -856,13 +856,33 @@ def swap_server_model(backend, key: str):
     return new_backend, real
 
 
+def make_raw_gen_fn(backend, max_tokens: int, system: str, counter: dict,
+                    grammar: str = None):
+    """Adapta el backend al contrato gen_fn(prompt, temperature, seed) -> str
+    de cognia/agent/candidates.py: aplica el template ChatML con el system
+    dado y acumula tokens/segundos en ``counter`` (el BoN hace varias
+    llamadas; last_tokens_predicted solo del backend no alcanza)."""
+    from node.inference_pipeline import _apply_qwen_template
+
+    def gen(raw_prompt, temperature, seed):
+        t0 = time.perf_counter()
+        out = backend.generate(_apply_qwen_template(raw_prompt, system=system),
+                               max_tokens=max_tokens, temperature=temperature,
+                               seed=seed, cache_prompt=False, grammar=grammar)
+        counter["seconds"] += time.perf_counter() - t0
+        counter["tokens"] += backend.last_tokens_predicted or 0
+        counter["calls"] += 1
+        return out or ""
+    return gen
+
+
 def run_benchmark(tasks: list[dict], label: str = "baseline",
                   max_tokens: int = DEFAULT_MAX_TOKENS,
                   repair_rounds: int = 0,
                   repair_temperature: float = 0.5,
                   seed: int = None, use_grammar: bool = False,
                   repair_mode: str = "regen", fewshot: int = 0,
-                  cascade_key: str = None) -> dict:
+                  cascade_key: str = None, bon_n: int = 0) -> dict:
     """Corre todas las tasks contra el modelo real y guarda JSON con resultados."""
     # use_grammar: restringe el sampling a un bloque ```python ...``` exacto
     # (base y repair) — elimina prosa y fences rotos sin tocar el modelo.
@@ -881,27 +901,66 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
           f"tasks={len(tasks)}, max_tokens={max_tokens}, seed={seed}, "
           f"grammar={use_grammar}, fewshot={fewshot}", flush=True)
 
+    # ── Brazo BoN (CP1 palanca #1+#2): test-first + N candidatos + juez ──
+    # por tests visibles ejecutados. Activa POR TASK segun el detector
+    # barato (bon_applies); si no activa, esa task corre identica al
+    # baseline (single greedy) — el pipeline real incluye al detector.
+    if bon_n > 0:
+        from cognia.agent.candidates import best_of_n
+        from cognia.agent.stepwise import bon_applies
+
     results = []
     for i, task in enumerate(tasks, 1):
         print(f"[{i}/{len(tasks)}] {task['id']} ({task['difficulty']}) "
               f"generating...", flush=True)
-        t0 = time.perf_counter()
-        # cache_prompt=False: el KV-cache reusado cambia los logits
-        # (experimento 2026-06-11) -- prefill completo para reproducibilidad
-        response = backend.generate(build_prompt(task["prompt"], fewshot=fewshot),
-                                    max_tokens=max_tokens,
-                                    temperature=BASE_TEMPERATURE, seed=seed,
-                                    cache_prompt=False, grammar=grammar)
-        gen_s = time.perf_counter() - t0
-        response = response or ""
-        tokens = backend.last_tokens_predicted  # None si el impl no lo reporta
+        bon_meta = None
+        if bon_n > 0 and bon_applies(task["prompt"]):
+            counter = {"tokens": 0, "seconds": 0.0, "calls": 0}
+            code_gen = make_raw_gen_fn(backend, max_tokens, SYSTEM_PROMPT,
+                                       counter, grammar=grammar)
+            from cognia.agent.candidates import TEST_GEN_SYSTEM
+            test_gen = make_raw_gen_fn(backend, 256, TEST_GEN_SYSTEM, counter)
+            bon_out = best_of_n(code_gen,
+                                build_fewshot_prefix(fewshot) + task["prompt"],
+                                task["prompt"], task["entry_point"],
+                                extract_code, n=bon_n, seed=seed,
+                                test_gen_fn=test_gen)
+            response = bon_out["response"]
+            code = bon_out["code"]
+            gen_s = counter["seconds"]
+            tokens = counter["tokens"]
+            best = bon_out["ranking"][0] if bon_out["ranking"] else {}
+            bon_meta = {
+                "rank_mode": bon_out["rank_mode"],
+                "n_generated": bon_out["n_generated"],
+                "n_unique": bon_out["n_unique"],
+                "visible_tests": bon_out["visible_tests"],
+                "best_idx": bon_out["best_idx"],
+                "best_score": best.get("score"),
+                "best_total": best.get("total"),
+                "gen_calls": counter["calls"],
+            }
+        else:
+            t0 = time.perf_counter()
+            # cache_prompt=False: el KV-cache reusado cambia los logits
+            # (experimento 2026-06-11) -- prefill completo para reproducibilidad
+            response = backend.generate(build_prompt(task["prompt"], fewshot=fewshot),
+                                        max_tokens=max_tokens,
+                                        temperature=BASE_TEMPERATURE, seed=seed,
+                                        cache_prompt=False, grammar=grammar)
+            gen_s = time.perf_counter() - t0
+            response = response or ""
+            tokens = backend.last_tokens_predicted  # None si el impl no lo reporta
+            code = extract_code(response)
         tok_s = (tokens / gen_s) if (tokens and gen_s > 0) else None
 
-        code = extract_code(response)
         passed, err_type, err_detail = run_task_tests(
             code, task["tests"], task["entry_point"])
         status = "PASS" if passed else f"FAIL ({err_type})"
-        print(f"    -> {status} {err_detail[:80]}", flush=True)
+        extra = (f" [bon {bon_meta['rank_mode']} "
+                 f"{bon_meta['best_score']}/{bon_meta['best_total']}]"
+                 if bon_meta else "")
+        print(f"    -> {status} {err_detail[:80]}{extra}", flush=True)
 
         results.append({
             "id": task["id"], "difficulty": task["difficulty"],
@@ -910,6 +969,7 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
             "gen_seconds": round(gen_s, 2), "tokens_predicted": tokens,
             "tok_per_s": round(tok_s, 2) if tok_s else None,
             "response": response, "extracted_code": code,
+            **({"bon": bon_meta} if bon_meta else {}),
         })
 
     # -- Repair (opcional): regenerar FAILs con el error real --------------
@@ -1014,6 +1074,8 @@ def run_benchmark(tasks: list[dict], label: str = "baseline",
         "grammar": use_grammar,
         # N ejemplos resueltos antepuestos al enunciado (0 = single-shot)
         "fewshot": fewshot,
+        # Brazo BoN (0 = apagado): N candidatos + juez por tests visibles
+        "bon_n": bon_n,
         "repair_temperature": repair_temperature if repair_rounds > 0 else None,
         # "regen" | "edit" | "lineedit" (solo significativo si repair_rounds > 0)
         "repair_mode": repair_mode if repair_rounds > 0 else None,
@@ -1167,6 +1229,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
                              "regeneracion FRESCA de SOLO las tasks que "
                              "fallaron, mismo protocolo determinista (mismo "
                              "prompt/seed/max_tokens, cache off; NO es repair)")
+    parser.add_argument("--bon", type=int, default=0, metavar="N",
+                        help="brazo BoN (CP1): test-first + N candidatos "
+                             "(0 greedy + N-1 a temp 0.7) + juez por tests "
+                             "visibles ejecutados en sandbox; activa por task "
+                             "segun el detector bon_applies (default 0 = off)")
     return parser
 
 
@@ -1188,11 +1255,15 @@ def main():
     if args.limit:
         tasks = tasks[:args.limit]
 
+    if args.bon and args.cascade:
+        parser.error("--bon no se combina con --cascade (combinacion sin medir; "
+                     "el BoN es de etapa 1 y la cascada re-genera single-shot)")
+
     out = run_benchmark(tasks, label=args.label, max_tokens=args.max_tokens,
                         repair_rounds=args.repair, repair_temperature=args.repair_temp,
                         seed=args.seed, use_grammar=args.grammar,
                         repair_mode=args.repair_mode, fewshot=args.fewshot,
-                        cascade_key=args.cascade)
+                        cascade_key=args.cascade, bon_n=args.bon)
     # Swap de la cascada abortado: la etapa 1 quedo persistida en el JSON,
     # pero el run NO es un resultado de cascada valido -> exit code 1.
     if out.get("cascade_error"):

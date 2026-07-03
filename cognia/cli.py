@@ -6818,6 +6818,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
         first_action_block, objective_context, register_action,
     )
+    from cognia.agent.structure import structure_action
     # Pull in any tools Cognia synthesized and verified in the background, so the
     # agent can use its own self-made tools. Best-effort.
     try:
@@ -6992,6 +6993,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         action = m.group(1).lower().strip()
         args = m.group(2).strip()
 
+        # Generate-then-structure (CP1 palanca #3): normalizacion mecanica de
+        # args + validacion contra la firma de la tool + a lo sumo UN retry
+        # con el error del validador en el prompt. Ver cognia/agent/structure.py.
+        def _reinfer_fix(hint, _p=prompt, _r=raw_response):
+            return orch.infer(_p + "\n" + _r[:600] + hint, temperature=0.0,
+                              stop=["\nACCION:", "\nACCIÓN:"]).text.strip()
+        action, args, _struct = structure_action(action, args, _reinfer_fix)
+        if _struct.get("repaired"):
+            _print_fn("[detail]args reparados (retry de formato con error real)[/detail]")
+
         if action == "responder":
             result_text = args
             break
@@ -7008,7 +7019,13 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _print_fn("[warn_cl]Agente estancado (accion repetida), deteniendo.[/warn_cl]")
             break
 
-        result = run_tool(action, args, ctx)
+        if _struct.get("error"):
+            # Args invalidos aun tras el retry: el error del validador ES el
+            # resultado del paso (señal precisa, estilo parser; el stuck-detector
+            # de arriba ya conto esta accion, asi que no puede ciclar gratis).
+            result = f"RESULTADO {action} ERROR: {_struct['error']}"
+        else:
+            result = run_tool(action, args, ctx)
         history.append(result)
         if action == "escribir_archivo" and result.startswith("RESULTADO escribir_archivo") and "OK" in result:
             _print_fn(f"[ok_cl]{result.split(':', 1)[0].replace('RESULTADO ', '')}[/ok_cl]")

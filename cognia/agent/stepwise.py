@@ -47,3 +47,63 @@ def needs_stepwise(text: str) -> bool:
 def augment_stepwise(text: str) -> str:
     """Texto del turno de usuario que va al LLM (el historial guarda el original)."""
     return text + STEP_TAG if needs_stepwise(text) else text
+
+
+# ── Detectores CP1 (06_AGENTE_PLAN §2 #5): cada palanca cara corre SOLO ──
+# donde aplica. Mismo patron que needs_stepwise: regex, cero LLM.
+
+# nombre de funcion pedido explicitamente. Patrones ESTRICTOS (backticks o
+# parentesis obligatorios): "function so that..." NO debe extraer 'so' —
+# mejor None (la palanca no activa) que un entry point inventado que
+# envenena los tests visibles.
+_ENTRY_RX = [
+    re.compile(r"`(\w+)\s*\("),                                        # `foo(...)`
+    re.compile(r"(?:function|funci[oó]n|method|m[eé]todo|class|clase)\s+`(\w+)`",
+               re.IGNORECASE),                                         # function `foo`
+    re.compile(r"(?:function|funci[oó]n|method|m[eé]todo)\s+(\w+)\s*\(",
+               re.IGNORECASE),                                         # function foo(
+    re.compile(r"\bdef\s+(\w+)\s*\("),                                 # def foo(
+    re.compile(r"(?:name|nombre|llamada|named|called)\s+`(\w+)`",
+               re.IGNORECASE),                                         # name `foo`
+]
+
+_CODE_TASK_RX = re.compile(
+    r"(write|escrib[ií]|implement|fix|arregl[aá]|corrig[eí]|debug)\w*\b.*?"
+    r"(function|funci[oó]n|class|clase|method|m[eé]todo|c[oó]digo|code)|"
+    r"\bdef\s+\w+\s*\(",
+    re.IGNORECASE | re.DOTALL)
+
+
+def extract_entry_point(task: str):
+    """Nombre de la funcion/clase objetivo si la tarea lo pide explicito,
+    None si no. Es el prerequisito de test-first y BoN: sin entry point no
+    hay asserts ejecutables que sirvan de oraculo."""
+    for rx in _ENTRY_RX:
+        m = rx.search(task or "")
+        if m and m.group(1).lower() not in ("python", "return", "def"):
+            return m.group(1)
+    return None
+
+
+def tests_first_applies(task: str) -> bool:
+    """True si conviene generar el test ANTES del codigo (palanca #2):
+    tarea de codigo con entry point explicito y sin pedido de formato
+    exacto (mismo veto medido que el CoT)."""
+    if wants_exact_format(task):
+        return False
+    return bool(_CODE_TASK_RX.search(task or "")) and \
+        extract_entry_point(task) is not None
+
+
+def bon_applies(task: str) -> bool:
+    """True si conviene Best-of-N (palanca #1). Misma señal que test-first
+    porque el juez de BoN SON los tests visibles: sin oraculo ejecutable,
+    BoN degrada a 'elegir a ojo' (prohibido, P8/CYCLE 12)."""
+    return tests_first_applies(task)
+
+
+def repair_applies(err_type: str) -> bool:
+    """True si el ciclo repair paga (palanca #4): hay veredicto EXTERNO real
+    (traceback/assert/timeout de ejecucion). 'empty' y 'missing_func' no
+    son reparables con feedback (no hay nada que trazar) -> regenerar."""
+    return err_type in ("syntax", "assert", "runtime", "timeout")
