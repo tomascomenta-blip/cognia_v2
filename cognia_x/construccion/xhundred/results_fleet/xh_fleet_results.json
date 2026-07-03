@@ -1,0 +1,68 @@
+{
+  "experiment": "xh_fleet",
+  "device": "cuda",
+  "vocab": 16384,
+  "config": {
+    "lora_r": 32,
+    "lora_alpha": 64,
+    "lora_lr": 0.002,
+    "wall_full_s": 1500.0,
+    "wall_lora_s": 360.0
+  },
+  "models": {
+    "gen": {
+      "steps": 953,
+      "tokens": 23420928,
+      "ok": true
+    },
+    "exp_stories": {
+      "steps": 978,
+      "tokens": 24035328,
+      "ok": true
+    },
+    "exp_wiki": {
+      "steps": 977,
+      "tokens": 24010752,
+      "ok": true
+    },
+    "exp_code": {
+      "steps": 980,
+      "tokens": 24084480,
+      "ok": true
+    }
+  },
+  "bpb_matrix": {
+    "gen": {
+      "stories": 0.7429,
+      "wiki": 1.2415,
+      "code": 1.0079
+    },
+    "exp_stories": {
+      "stories": 0.6288,
+      "wiki": 3.0125,
+      "code": 4.5945
+    },
+    "exp_wiki": {
+      "stories": 1.6444,
+      "wiki": 1.0994,
+      "code": 2.9422
+    },
+    "exp_code": {
+      "stories": 2.7976,
+      "wiki": 2.7403,
+      "code": 0.8291
+    }
+  },
+  "veredicto": {
+    "stories": {
+      "experto_gana_nicho_bpb": 0.1141
+    },
+    "wiki": {
+      "experto_gana_nicho_bpb": 0.1421
+    },
+    "code": {
+      "experto_gana_nicho_bpb": 0.1788
+    }
+  },
+  "minutes_total": 100.4
+}

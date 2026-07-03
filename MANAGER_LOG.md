@@ -4950,3 +4950,19 @@ de expertos densos con la receta K3 (<=30 min por experto, ~60 por semana de quo
 selector estatico con fallback + herramientas LATM. Las 2 correcciones a la idea original:
 el eureka se INDUCE con parametrizacion (X1, no se espera pagando 10-100x) y el calibrador
 SELECCIONA (no fusiona). Goal completo: entregables 1-4 verificados + programa MoM cerrado.
+
+### P. 2026-07-03 (goal MoM real, deadline 05:30): flota entrenada + selector calibrado en CLI
+Goal nuevo del dueno (22:48): construir el MoM real. HECHO: (1) FLOTA FULL en T4 (100.4 min,
+~24M tokens por modelo, receta K3 25 min c/u): gen 0.743/1.242/1.008 y expertos 0.629 cuentos,
+1.099 wiki, 0.829 codigo - TODOS mejoran fuerte vs los 12-min de X3 y el nicho sigue pagando
+mas de 0.10 bpb en los 3 dominios a doble presupuesto. (2) Paquete cognia_x/mom (selector
+n-grams + umbral + fallback asimetrico, fleet lazy-load, manifest con perfiles serializados,
+CLI build-manifest route gen eval chat) verificado E2E real; 7 tests. (3) Pedido Dspark del
+dueno: investigado SIN copiar (DSpark = framework de speculative decoding de DeepSeek
+2026-06-27, claims sin replica independiente), 3 practicas de proceso adoptadas y 5 mejoras
+propias pre-registradas (05_DSPARK_ANALISIS). M1 CORRIDA: calibracion del selector CONFIRMADA
+(ECE 47.7 a 1.8 pct, T=0.05) e INTEGRADA al CLI -> acc held-out 95 a 98.3 pct; zona-B fallida
+con causa raiz declarada (sharpening satura margenes) y v2 pre-registrada. CLI con flota full:
+el experto de codigo paso de degenerar a escribir Python estructuralmente valido; cuentos narra
+con arco. Pendiente declarado: M2/M3/M5 (mejoras DSpark), v2 de zona-B, flag en CLI principal
+(opcional, no intentado: riesgo/beneficio desfavorable con deadline). Apagado 05:30 vigente.
