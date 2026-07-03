@@ -432,3 +432,52 @@ en pequeño.** El costo del especialista también quedó medido: fuera de su dom
 anotado: el LoRA entrenó 6 min de dominio (más los 12 del gen compartido, amortizado 12/3+6=10
 min/dominio) vs 12 del denso; la config es la pre-registrada, pero un LoRA de 12 min queda
 como control pendiente si se re-abre la decisión.
+
+### X4 — CORRIDO 2026-07-03 (15.4 min CPU local, `results_x3/xh_x4_results.json`)
+
+90 ventanas (30/dominio, dominio oculto), 4 modelos de X3. Router n-grams: **96.7% acc**
+(gate ≥95% ✓). bpb por dominio del método (menor mejor):
+
+| método | cuentos | wiki | código |
+|---|---|---|---|
+| oracle (mejor modelo por ventana) | 0.7138 | 1.3432 | 0.8774 |
+| selección router n-grams | **0.7138** | **1.3432** | 1.1708 |
+| fusión de logits c-BTM (posterior del router) | 0.8279 | 1.4256 | **1.1045** |
+| bandit ε-greedy + verificador (90 queries) | 1.1199 | 1.5980 | 1.4073 |
+| generalista siempre | 0.8843 | 1.5156 | 1.1718 |
+
+**Predicción congelada FALLIDA en su forma literal (honesto):** "(iii) no supera a (ii)" —
+la fusión SÍ superó al bandit en los 3 dominios (`fusion_supera_seleccion=True`). Pero la
+causa medida es que el bandit NO converge a 90 queries (regret 1.05 ≫ 0.01 predicho: 12
+pares cluster×brazo con ~7 pulls c/u — la predicción de regret venía de exp029/086 con miles
+de pulls). El selector fuerte real es el ESTÁTICO: **empata al oracle en cuentos y wiki** y
+le gana a la fusión en 2/3 dominios; la fusión solo gana en código, donde el router decodifica
+peor las ventanas (3.3% de error concentrado ahí). Y el costo: la fusión son 4 forwards por
+turno (mata el argumento de velocidad del MoM); la selección es 1 forward + router <5ms.
+**Lectura operativa para el diseño: el calibrador ES un selector** (n-grams estático hoy;
+verificador/bandit solo con volumen de tráfico real que le dé pulls) — la conclusión de
+diseño coincide con la pre-registrada aunque el camino formal de la predicción falló, y se
+declara así.
+
+---
+
+## 9. Cierre del programa experimental MoM (2026-07-03)
+
+- **X1 ✓** el plateau del grokking es evitable (init α: −75%) — "grokking inducido o evitado,
+  nunca esperado". **X2 ✓** ningún acelerador de paper transfiere (grokfast mata, stablemax
+  retrasa, muon no grokea el tiny) — todo se mide en el harness propio, con ≥2 seeds.
+- **X3 ✓** el MoM DENSO PAGA: experto chico gana su nicho en 3/3 dominios (+0.17/+0.18/+0.30
+  bpb ≥ umbral 0.10) y el LoRA-control no lo empata. El derrumbe fuera de nicho (+0.9 a +3.5)
+  hace del selector una pieza estructural.
+- **X4 ✓** el calibrador es un SELECTOR (estático n-grams ≈ oracle en 2/3; la fusión cuesta 4×
+  y solo cubre al router donde duda; el bandit necesita tráfico). Predicción formal fallida y
+  declarada.
+- **X5 NO SE CORRE (condición pre-registrada no cumplida):** estaba condicionado a que X1/X2
+  "dejaran vivo el régimen" de esperar la transición — X1/X2 mostraron que nuestro fenómeno es
+  abrupt-learning con delay evitable y que el diseño ya no depende del grokking. Queda ABIERTO
+  con su pre-registro intacto (§6) para cuando haya una razón nueva.
+- **Receta MoM final (evidencia de hoy):** flota de expertos DENSOS ~100M entrenados con la
+  receta K3 (≤30 min c/u en T4; hasta ~60/semana de quota) + selector estático barato con
+  fallback al generalista + herramientas creadas por el modelo grande (LATM). Sin presupuesto
+  de plateau. La idea original del dueño sobrevive con dos correcciones: el "eureka" se induce
+  con parametrización (no se espera), y el calibrador selecciona (no fusiona).
