@@ -1,0 +1,769 @@
+{
+  "label": "argb_full",
+  "timestamp": "2026-07-03T11:32:25.522567",
+  "n_cases": 32,
+  "by_stage_total": {
+    "plan": 8,
+    "design": 8,
+    "code": 8,
+    "test": 8
+  },
+  "discarded": [],
+  "seed": 42,
+  "prediction_frozen": {
+    "contracts": ">=0.80",
+    "arbiter_global": "<=0.55",
+    "arbiter_trace": "entre ambos"
+  },
+  "summary": {
+    "contracts": {
+      "accuracy": 0.5,
+      "correct": 16,
+      "n": 32,
+      "per_stage": {
+        "plan": {
+          "correct": 0,
+          "total": 8
+        },
+        "design": {
+          "correct": 8,
+          "total": 8
+        },
+        "code": {
+          "correct": 8,
+          "total": 8
+        },
+        "test": {
+          "correct": 0,
+          "total": 8
+        }
+      }
+    },
+    "arbiter_global": {
+      "accuracy": 0.3125,
+      "correct": 10,
+      "n": 32,
+      "per_stage": {
+        "plan": {
+          "correct": 0,
+          "total": 8
+        },
+        "design": {
+          "correct": 0,
+          "total": 8
+        },
+        "code": {
+          "correct": 8,
+          "total": 8
+        },
+        "test": {
+          "correct": 2,
+          "total": 8
+        }
+      }
+    },
+    "arbiter_trace": {
+      "accuracy": 0.3125,
+      "correct": 10,
+      "n": 32,
+      "per_stage": {
+        "plan": {
+          "correct": 0,
+          "total": 8
+        },
+        "design": {
+          "correct": 0,
+          "total": 8
+        },
+        "code": {
+          "correct": 8,
+          "total": 8
+        },
+        "test": {
+          "correct": 2,
+          "total": 8
+        }
+      }
+    }
+  },
+  "details": {
+    "contracts": [
+      {
+        "id": "AC01_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC01_design",
+        "ground_truth": "design",
+        "pred": "design",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC01_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC01_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC02_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC02_design",
+        "ground_truth": "design",
+        "pred": "design",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC02_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC02_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC03_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC03_design",
+        "ground_truth": "design",
+        "pred": "design",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC03_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC03_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC04_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC04_design",
+        "ground_truth": "design",
+        "pred": "design",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC04_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC04_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC05_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC05_design",
+        "ground_truth": "design",
+        "pred": "design",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC05_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC05_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC06_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC06_design",
+        "ground_truth": "design",
+        "pred": "design",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC06_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC06_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC07_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC07_design",
+        "ground_truth": "design",
+        "pred": "design",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC07_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC07_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC08_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      },
+      {
+        "id": "AC08_design",
+        "ground_truth": "design",
+        "pred": "design",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC08_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": ""
+      },
+      {
+        "id": "AC08_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": ""
+      }
+    ],
+    "arbiter_global": [
+      {
+        "id": "AC01_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC01_design",
+        "ground_truth": "design",
+        "pred": "test",
+        "correct": false,
+        "raw": "test"
+      },
+      {
+        "id": "AC01_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC01_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC02_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC02_design",
+        "ground_truth": "design",
+        "pred": "test",
+        "correct": false,
+        "raw": "test"
+      },
+      {
+        "id": "AC02_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC02_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC03_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC03_design",
+        "ground_truth": "design",
+        "pred": "test",
+        "correct": false,
+        "raw": "test"
+      },
+      {
+        "id": "AC03_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC03_test",
+        "ground_truth": "test",
+        "pred": "test",
+        "correct": true,
+        "raw": "test"
+      },
+      {
+        "id": "AC04_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC04_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC04_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC04_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC05_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC05_design",
+        "ground_truth": "design",
+        "pred": "test",
+        "correct": false,
+        "raw": "test"
+      },
+      {
+        "id": "AC05_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC05_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC06_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC06_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC06_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC06_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC07_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC07_design",
+        "ground_truth": "design",
+        "pred": "test",
+        "correct": false,
+        "raw": "test"
+      },
+      {
+        "id": "AC07_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC07_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC08_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC08_design",
+        "ground_truth": "design",
+        "pred": "test",
+        "correct": false,
+        "raw": "test"
+      },
+      {
+        "id": "AC08_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC08_test",
+        "ground_truth": "test",
+        "pred": "test",
+        "correct": true,
+        "raw": "test"
+      }
+    ],
+    "arbiter_trace": [
+      {
+        "id": "AC01_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC01_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC01_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC01_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC02_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC02_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC02_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC02_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC03_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC03_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC03_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC03_test",
+        "ground_truth": "test",
+        "pred": "test",
+        "correct": true,
+        "raw": "test"
+      },
+      {
+        "id": "AC04_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC04_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC04_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC04_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC05_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC05_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC05_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC05_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC06_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC06_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC06_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC06_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC07_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC07_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC07_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC07_test",
+        "ground_truth": "test",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC08_plan",
+        "ground_truth": "plan",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC08_design",
+        "ground_truth": "design",
+        "pred": "code",
+        "correct": false,
+        "raw": "code"
+      },
+      {
+        "id": "AC08_code",
+        "ground_truth": "code",
+        "pred": "code",
+        "correct": true,
+        "raw": "code"
+      },
+      {
+        "id": "AC08_test",
+        "ground_truth": "test",
+        "pred": "test",
+        "correct": true,
+        "raw": "test"
+      }
+    ]
+  }
+}
