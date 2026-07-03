@@ -5028,3 +5028,36 @@ respetada: harness mecanico -> sonnet; oraculos/umbrales/seguridad/atribucion ->
 Fable. PENDIENTE (server serializado, 1 solo llama-server): fin baseline diseño,
 smokes e2e (/hacer, --bon), baseline BFCL, brazos LLM de AG-ARB, eje-2 nocturno,
 mejora del paper con resultados.
+
+================================================================================
+[2026-07-03 15:00-15:45] REANUDACION tras reinicio de sesion + fixes de revision
+================================================================================
+La sesion previa cayo (teardown mato la cadena nohup + llama-server). Reanudado:
+- Uso RESETEO a 4% (era 86% en throttle). Presupuesto completo.
+- BoN verificado e2e contra el modelo real (2/2 PASS; juez por tests visibles
+  rankea bien). El "cuelgue" previo fue el teardown, no un bug.
+- Cadena v1 RELANZADA robusta (Start-Process detachado): hard baseline ->
+  hard --bon 8 -> BFCL v1 fewshot+repair.
+
+BASELINE DURO (eje-2) = 8/20 = 40.0% -> reproduce EXACTO el 40% pre-registrado.
+El --bon 8 (gate CP1 +8pp, umbral v1 >=55%) corre ahora (~3h).
+
+REVISION ADVERSARIAL (sonnet, adjudicada por Fable) de CP1-CP3. El codigo
+critico para los NUMEROS (BoN, brazo v1) CONFIRMADO limpio (sin leaks de
+ground-truth, contabilidad correcta). 6 bugs corregidos (commit 5544c07):
+  CRITICO: bypass RCE `__builtins__.eval` pasaba el scan estatico de auto-tools
+    (load_generated_tools hace exec en-proceso) -> blocklist de nombre+atributo.
+  ALTO: responder con args invalidos cerraba tarea en blanco -> registra y sigue.
+  MEDIO: ok-detection ' ERROR' falso-negativo con ERROR_LOG.txt -> \bERROR\b.
+  MEDIO: manifest sin escritura atomica -> temp+os.replace.
+  BAJO: contracts aridad kwonly/posonly; auto_fix no recorta comillas de
+    responder; blocklist de skills reforzada + framing honesto (defensa en
+    profundidad, no gate hermetico).
+123 tests dirigidos verdes (10 nuevos de regresion de seguridad).
+
+BASELINES PELADOS de los 3 ejes (para CP4): diseño 93.7% (pred 55-65% fallo,
+muy pesimista), BFCL 24% (artefacto func() literal, 93% fallos de formato),
+codigo duro 40% (=pre-reg). AG-ARB completo (contratos 50%/100%-en-oraculo vs
+arbitro-LLM 31%, sesgo culpar-codigo). 12 commits en origin/cognia-x.
+PENDIENTE: fin cadena v1 (bon8 + BFCL v1) -> CP4 informe 3 ejes vs umbrales;
+demo e2e CP2 self-tooling (necesita server).
