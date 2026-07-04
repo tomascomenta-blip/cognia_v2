@@ -5135,3 +5135,61 @@ en AG-ARB. Enviadas muestras al dueño.
 REVISION de codigo (sonnet) hallo antes: RCE en auto-tools (cerrado). Lecciones
 entorno: Start-Process sobrevive teardown, PYTHONUTF8 obligatorio, PowerShell
 -match caza fantasmas. Usage dinamico OK (18%). Tests dirigidos: todos verdes.
+
+================================================================================
+CORRIDA 2026-07-04 "MoM AL TECHO TEORICO" (/goal, Fable 5, ultracode)
+================================================================================
+OBJETIVO del dueño: llevar el sistema MoM a su techo teorico en creacion de
+herramientas/skills/agentes, llamada de tools/agentes/skills y monitores;
+outputs ilimitados/muy extensos (meta 100k); manejar workflows segun dificultad
+(modelo por complejidad, Fable 5 solo lo que lo requiere); vigilar el usage y
+esperar el reset cerca del limite.
+
+METODO: workflow de mapeo (7 lectores sonnet paralelos, 680k tok) -> 7
+subsistemas mapeados (capacidades/gaps/quick-wins con file:line). Plan de 13
+checkpoints. Delegacion por dificultad: mecanico/lectura->sonnet, codigo con
+tests->sonnet en paralelo (3 agentes sobre archivos disjuntos), diseño/wire/
+seguridad/claims->Fable 5 (el manager). Baseline 246 tests agent verdes.
+
+ENTREGADO (14 commits, todos con tests + push origin/cognia-x):
+- ctx nativo 32k env-overridable (44a78b7): dobla el prefill para generacion
+  larga (n_ctx_train, sin RoPE OOD).
+- CLAUDE_NOTES al dia (335efd6): entrada retroactiva de las sesiones MoM.
+- BoN early-stop lossless (d670497): greedy perfecto / sin oraculo -> no genera
+  N-1 candidatos (empates los gana el idx menor). ~20-30s CPU/candidato ahorrado.
+- clasificador de errores de ejecucion + hint de repair dirigido (47da6aa):
+  la mitad-modulo de la palanca #4 que el plan declaraba pendiente.
+- derive_criteria_from_task en GoalContract (cbcb77f): criterios verificables
+  desde la letra de la tarea (2 bugs cazados por los tests).
+- banco de few-shots ACCION por tool (692335e): la palanca +62pp lista.
+- HERMES al techo, 6 gaps (ce8394f): puente wanted_tools->tool_ideas (cierra el
+  lazo de auto-mejora), crear_herramienta EN VIVO, version history+rollback,
+  repair-on-live-failure, contador de uso builtin+generadas, RULES autoderivadas.
+  146 tests; ambos caminos nuevos rutean por scan+sandbox (RCE-safe verificado).
+- skills al techo (608eed8): oraculos pluggables (pytest/BoN/contratos), uso+
+  decay (record_skill_use), similitud semantica (umbrales calibrados EMPIRICAM.
+  contra el fallback n-gram real). 77 tests.
+- BoN adaptativo por dificultad + telemetria JSONL en generar_codigo (4266ac4):
+  N=f(dificultad) via model_router; dataset real para recalibrar el umbral.
+- /largo escala 100k + checkpoint incremental + --continuar + effort en chat
+  (ac3d68e): outputs resumibles; suite completa 3280 passed. (subagente)
+- wire del loop /hacer (3715c97): repair dirigido + few-shot + monitor
+  GoalContract (anti alucinacion de progreso) + record_skill_use.
+- delegar_subtarea (cf57e3a): sub-agente acotado por ROL (investigador solo
+  lectura / implementador +escritura), sub-presupuesto, profundidad<=2.
+- FIX CRITICO cazado por el gate e2e (70e6bef): generate_delegated/hierarchical
+  metian la instruccion (outline/seccion/cabeza) DENTRO del turno del asistente
+  con prompt templado -> el modelo devolvia VACIO con el modelo real. Los tests
+  con fakes no lo cazaron (prompts crudos). _append_to_user_turn en 5 puntos.
+  Verificado CON MODELO REAL: outline 0->4 secciones; gate 2500tok/3tareas PASS
+  (incremental write OK, 6 tok/s).
+- /agente estado (47aaeee): visibilidad del subsistema (daemon, tools por tier,
+  wishlist, uso, telemetria BoN).
+
+EN CURSO: gate 100k lanzado detached (PID, LARGO_TASKS=24, ~4.6h, escritura
+incremental a e2e_100k_output.txt, sidecar de estado). Outline de 24 subtareas
+OK, avanzando. Se reporta el total real al cierre (honesto: si las secciones
+cierran natural antes del cap, el total puede quedar bajo 100k; el mecanismo y
+el cap de 200k lo soportan estructuralmente).
+
+USAGE monitoreado toda la corrida: 3%->56% (7d) sin acercarse al umbral 84%.
