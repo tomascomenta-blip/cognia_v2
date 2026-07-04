@@ -48,6 +48,11 @@ Leer en este orden; cada plano asume los anteriores.
 12. **[11_plan_maestro_build.md](11_plan_maestro_build.md)** — *Plan maestro de build.* La secuencia
     ejecutable: milestones M0…M6, gates G1-G3 y el orden del Apéndice A. **Terminar aquí** para
     ejecutar.
+13. **[12_HERRAMIENTAS_IA_LCD_MOM.md](12_HERRAMIENTAS_IA_LCD_MOM.md)** — *Herramientas virtuales para
+    IAs (LCD+MOM adaptado).* Reencuadre del plan LCD+MOM: no un generador de imágenes para humanos,
+    sino una **biblioteca de herramientas AI-nativas** (IR estructurada → verificación por etapa →
+    re-ejecución selectiva) que cualquier IA invoca para ser mejor. LCD es la primera familia; el
+    patrón se generaliza (código, web, docs). Visión a futuro + catálogo de tools + fases CPU-first.
 
 ---
 
