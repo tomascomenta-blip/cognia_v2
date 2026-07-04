@@ -530,3 +530,65 @@ def _resumir(args, ctx):
     prompt = f"Resume en 2-3 frases claras, en espanol:\n\n{text[:3000]}"
     out = _orch(ctx).infer(prompt).text.strip()
     return f"RESULTADO resumir: {out[:800]}"
+
+
+# Best-of-N + juez EXPUESTO como tool (wire de BoN al loop /hacer, CORRIDA-2).
+# Integracion aditiva: en vez de reescribir el loop ReAct (accion-por-accion),
+# el agente INVOCA esta tool para escribir una funcion nueva; adentro corre el
+# pipeline medido (test-first -> N candidatos temp>0 -> juez por EJECUCION de
+# los tests visibles -> escribe el MEJOR). Mismo mecanismo que dio +10pp en el
+# bench (cognia/agent/candidates.py), ahora usable en vivo.
+_BON_N = 6  # candidatos por llamada (N-1 a temp 0.7 + 1 greedy); ~2-3 min CPU
+
+
+@tool("generar_codigo",
+      "generar_codigo <ruta.py> | <descripcion con el nombre exacto `func(args)`>  "
+      "-- genera N candidatos con test-first y ESCRIBE el mejor por tests")
+def _generar_codigo(args, ctx):
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO generar_codigo ERROR: formato (ruta.py | descripcion)"
+    path_s, desc = parts[0].strip(), parts[1].strip()
+    from cognia.agent.stepwise import extract_entry_point
+    entry = extract_entry_point(desc) or extract_entry_point(path_s)
+    if not entry:
+        return ("RESULTADO generar_codigo ERROR: no identifique el nombre de la "
+                "funcion; inclui `nombre(args)` en la descripcion.")
+    try:
+        wpath = _resolve_write_path(path_s)
+    except ValueError as e:
+        return f"RESULTADO generar_codigo ERROR: {e}"
+
+    orch = _orch(ctx)
+
+    def _code_gen(prompt, temperature=0.0, seed=None):
+        return orch.infer(prompt, max_tokens=768, temperature=temperature).text or ""
+
+    def _test_gen(prompt, temperature=0.0, seed=None):
+        return orch.infer(prompt, max_tokens=256, temperature=temperature).text or ""
+
+    from cognia.agent.candidates import best_of_n
+    from cognia_v3.eval.benchmark_code import extract_code
+    code_prompt = ("Escribe UNA funcion Python COMPLETA que cumpla esto. Responde "
+                   "SOLO con un bloque ```python ...``` con la funcion, sin "
+                   "explicaciones.\n\n" + desc)
+    try:
+        out = best_of_n(_code_gen, code_prompt, desc, entry, extract_code,
+                        n=_BON_N, seed=42, test_gen_fn=_test_gen)
+    except Exception as exc:
+        return f"RESULTADO generar_codigo ERROR: {exc}"
+    code = out.get("code", "")
+    if not code.strip() or f"def {entry}" not in code:
+        return (f"RESULTADO generar_codigo ERROR: no se genero una funcion "
+                f"'{entry}' valida en {out.get('n_generated', 0)} candidatos.")
+    wpath.parent.mkdir(parents=True, exist_ok=True)
+    wpath.write_text(code + "\n", encoding="utf-8")
+    ft = ctx.setdefault("agent_state", {}).setdefault("files_touched", [])
+    if str(wpath) not in ft:
+        ft.append(str(wpath))
+        ctx["agent_state"]["files_touched"] = ft[-15:]
+    best = out.get("ranking", [{}])[0] if out.get("ranking") else {}
+    return (f"RESULTADO generar_codigo {_disp(wpath)}: OK (mejor de "
+            f"{out.get('n_unique', '?')} candidatos unicos, rank={out.get('rank_mode')}, "
+            f"tests visibles {best.get('score', '?')}/{best.get('total', '?')}, "
+            f"{len(code)} chars)")

@@ -81,3 +81,22 @@ def test_repair_applies_solo_con_veredicto_externo():
         assert repair_applies(et), et
     for et in ("empty", "missing_func", ""):
         assert not repair_applies(et), et
+
+
+def test_bon_applies_verbos_espanol():
+    """Regresion: 'Escribe/Crea/Genera una funcion X' (imperativo español) debe
+    activar bon_applies. El regex viejo (escrib[ií]) NO matcheaba 'Escribe'
+    (terminado en e) -> BoN nunca disparaba en tareas en español (smoke live)."""
+    from cognia.agent.stepwise import bon_applies, extract_entry_point
+    activan = [
+        "Escribe en primo.py una funcion es_primo(n) que devuelva True si n es primo",
+        "Crea una funcion factorial(n) recursiva",
+        "Genera la funcion suma(a, b)",
+        "Programa la funcion ordenar(lista)",
+    ]
+    for t in activan:
+        assert bon_applies(t), t
+        assert extract_entry_point(t) is not None, t
+    # sin funcion/entry point NO activa (aunque tenga el verbo)
+    for t in ("escribe un poema sobre el mar", "crea una carpeta nueva"):
+        assert not bon_applies(t), t

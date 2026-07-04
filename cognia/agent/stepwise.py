@@ -67,8 +67,14 @@ _ENTRY_RX = [
                re.IGNORECASE),                                         # name `foo`
 ]
 
+# Verbos de "producir codigo": STEMS + \w* para cubrir conjugaciones (escrib->
+# escribe/escribir/escribi; crea->crea/crear; genera->genera/generar). El
+# `[ií]` viejo exigia que "escrib" siguiera con i/í y NO matcheaba "Escribe"
+# (imperativo español) -> bon_applies daba False en tareas en español. Gated
+# por (function|funcion|...) + entry point, asi que ampliar el verbo no mete
+# falsos positivos ("escribe un poema" no tiene funcion/entry point).
 _CODE_TASK_RX = re.compile(
-    r"(write|escrib[ií]|implement|fix|arregl[aá]|corrig[eí]|debug)\w*\b.*?"
+    r"(write|escrib|implement|fix|arregl|corrig|debug|crea|genera|program|hac)\w*\b.*?"
     r"(function|funci[oó]n|class|clase|method|m[eé]todo|c[oó]digo|code)|"
     r"\bdef\s+\w+\s*\(",
     re.IGNORECASE | re.DOTALL)

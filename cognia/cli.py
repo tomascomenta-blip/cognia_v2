@@ -6819,6 +6819,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         first_action_block, objective_context, register_action,
     )
     from cognia.agent.structure import structure_action
+    from cognia.agent.stepwise import bon_applies, extract_entry_point
     # Pull in any tools Cognia synthesized and verified in the background, so the
     # agent can use its own self-made tools. Best-effort.
     try:
@@ -6838,6 +6839,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         "Rules:\n"
         "- escribir_archivo crea directorios solo. NO uses mkdir.\n"
         "- Para escribir_archivo, pone codigo COMPLETO y REAL despues de | (varias lineas ok).\n"
+        "- Para escribir una FUNCION NUEVA a partir de una descripcion, PREFERI "
+        "generar_codigo (genera varios candidatos y elige el mejor por tests) en "
+        "vez de escribir_archivo con codigo a mano.\n"
         "- Usa anotar para guardar resultados intermedios; notas para recordarlos.\n"
         "- Usa recordar/kg_buscar para consultar la memoria de Cognia.\n"
         "- responder solo cuando termines. Nada de texto fuera de la linea ACCION."
@@ -6898,6 +6902,11 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     try:
         from shattering.orchestrator import ShatteringOrchestrator as Orchestrator
         orch = getattr(ai, "_orchestrator", None) or Orchestrator(mode="local")
+        # que las tools (generar_codigo, resumir) reusen ESTE orch, no construyan otro
+        try:
+            ai._orchestrator = orch
+        except Exception:
+            pass
     except Exception as e:
         _print_fn(f"[err_cl]Agente: no hay orquestador: {e}[/err_cl]")
         return "(el agente no pudo iniciar el modelo)"
@@ -6922,13 +6931,49 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         except Exception:
             pass
 
+    # Wire de BoN al loop live (corrida-2): si la tarea es escribir una funcion
+    # con nombre explicito, aplicar BoN de forma DETERMINISTA (pre-ejecutar
+    # generar_codigo como paso 0) en vez de esperar que el 3B elija la tool —
+    # medido: el 3B no la elige de forma fiable en el loop ReAct. generar_codigo
+    # corre test-first + N candidatos + juez por ejecucion (+10pp en bench) y
+    # escribe el mejor; despues el loop sigue normal (testear/responder).
+    _bon_ok = False           # True si BoN resolvio la tarea (short-circuit)
+    _bon_result_text = ""
+    _ep = extract_entry_point(task)
+    if _ep and bon_applies(task):
+        _m = re.search(r"([\w./\\-]+\.py)", task)
+        _codefile = _m.group(1) if _m else f"{_ep}.py"
+        _print_fn(f"[detail]tarea de codigo -> BoN (generar_codigo) para "
+                  f"'{_ep}'...[/detail]")
+        try:
+            _bon_res = run_tool("generar_codigo", f"{_codefile} | {task}", ctx)
+        except Exception as _e:
+            _bon_res = f"RESULTADO generar_codigo ERROR: {_e}"
+        history.append(_bon_res)
+        _tag = _bon_res.split(":", 1)[0].replace("RESULTADO ", "")
+        _print_fn(f"[ok_cl]{_tag}[/ok_cl]" if " ERROR" not in _bon_res[:60]
+                  else f"[warn_cl]{_bon_res[:120]}[/warn_cl]")
+        # Short-circuit SOLO si BoN cerro bien Y la tarea es PURAMENTE escribir
+        # la funcion (sin pedir tests/ejecucion/pasos extra): la salida de BoN
+        # (mejor candidato por tests) ES el entregable, y el 3B en el loop tiende
+        # a PISARLA con codigo peor. Para tareas multi-parte, el loop sigue normal.
+        _pure = not re.search(
+            r"\b(test|prueba|ejecut|corr[eé]|adem[aá]s|luego|then|tambi[eé]n|"
+            r"commit|git)\b", task, re.IGNORECASE)
+        if (" ERROR" not in _bon_res[:60]) and _pure:
+            _bon_ok = True
+            _bon_result_text = _bon_res
+            _print_fn("[ok_cl]tarea de codigo resuelta por BoN (short-circuit, "
+                      "no se deja pisar por el loop)[/ok_cl]")
+
     total_steps = 0
     _ctx_lo = 1               # primer indice de la cola (no-fijada) del contexto
     _sig_counts: dict = {}    # detector de estancamiento por conteo de acciones
     _last_prose = ""          # ultima respuesta en prosa (candidata a final)
     _no_action_streak = 0     # respuestas seguidas sin ACCION
     _actions_trace: list = [] # traza (action, args, ok) para skill_capture (CP2)
-    while total_steps < AGENT_HARD_CAP:
+    result_text = _bon_result_text  # si BoN corto, este es el resultado final
+    while not _bon_ok and total_steps < AGENT_HARD_CAP:
         # Out of budget: ask the model if it actually needs more steps.
         if total_steps >= budget:
             extra = wants_more_steps(task, "\n".join(history[-3:]), orch)

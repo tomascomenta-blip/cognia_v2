@@ -34,6 +34,7 @@ import re
 #   url     -> la parte 0 debe empezar con http:// o https://
 RULES = {
     "escribir_archivo": {"parts": 2, "names": ("ruta", "contenido"), "path0": True},
+    "generar_codigo":   {"parts": 2, "names": ("ruta.py", "descripcion"), "path0": True},
     "apendar_archivo":  {"parts": 2, "names": ("ruta", "texto"), "path0": True},
     "copiar_archivo":   {"parts": 2, "names": ("src", "dst"), "path0": True, "path1": True},
     "kg_agregar":       {"parts": 3, "names": ("sujeto", "relacion", "objeto")},
