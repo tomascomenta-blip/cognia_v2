@@ -6119,6 +6119,16 @@ def repl():
             else:
                 _print_line("[warn_cl]Uso: /largo <pedido>[/warn_cl]")
 
+        # -- Estado del subsistema agente (daemon, tools generadas, wishlist) --
+        elif raw == "/agente" or raw == "/agente estado" or raw.startswith("/agente "):
+            try:
+                from cognia.agent.agent_status import (
+                    agent_status_snapshot, format_agent_status,
+                )
+                _show_response(format_agent_status(agent_status_snapshot()), "cyan")
+            except Exception as _e:
+                _print_line(f"[warn_cl]No se pudo leer el estado del agente: {_e}[/warn_cl]")
+
         # -- Model switching ---------------------------------------------------
         elif raw == "/modelo" or raw.startswith("/modelo "):
             _slash_modelo(ai, raw[len("/modelo "):] if raw.startswith("/modelo ") else "")
