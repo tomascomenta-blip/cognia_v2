@@ -7193,7 +7193,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         first_action_block, objective_context, register_action,
     )
     from cognia.agent.structure import structure_action
-    from cognia.agent.stepwise import bon_applies, extract_entry_point
+    from cognia.agent.stepwise import (
+        bon_applies, extract_entry_point, classify_exec_error,
+        build_exec_repair_hint, repair_applies,
+    )
     # Pull in any tools Cognia synthesized and verified in the background, so the
     # agent can use its own self-made tools. Best-effort.
     try:
@@ -7221,6 +7224,19 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         "- responder solo cuando termines. Nada de texto fuera de la linea ACCION."
     )
 
+    # Few-shot ACCION dirigido (palanca +62pp, cognia/agent/fewshot.py): SOLO
+    # cuando hay una pista fuerte de la tool inicial (hint de intent o entry
+    # point detectado) -- siempre-on inflaria el prefill de CADA paso. Le
+    # muestra al 3B el formato EXACTO de esa tool (concreto >> abstracto).
+    try:
+        from cognia.agent.fewshot import fewshot_for
+        _fewshot_tool = hint or ("generar_codigo" if extract_entry_point(task) else "")
+        _fs = fewshot_for(_fewshot_tool)
+        if _fs:
+            TOOLS_DOC = TOOLS_DOC + "\n\n" + _fs
+    except Exception:
+        pass
+
     # Load persistent agent state
     _AGENT_STATE_PATH = Path.home() / ".cognia_agent_state.json"
     _agent_state: dict = {"tasks": [], "files_touched": [], "key_facts": []}
@@ -7243,12 +7259,14 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # Skill guidance: an explicit one (from /skill) wins; otherwise auto-apply a
     # skill whose description matches this task, so Claude/Cognia skills shape the
     # agent without an explicit command.
+    _applied_skill = ""   # nombre de la skill aplicada -> record_skill_use al cierre
     if not guidance:
         try:
             from cognia.agent.skills import find_skill, skill_guidance
             _matched = find_skill(task)
             if _matched:
                 guidance = skill_guidance(_matched)
+                _applied_skill = _matched.name
                 _print_fn(f"[detail]Aplicando skill '{_matched.name}'[/detail]")
         except Exception:
             pass
@@ -7468,10 +7486,47 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         if action == "escribir_archivo" and result.startswith("RESULTADO escribir_archivo") and "OK" in result:
             _print_fn(f"[ok_cl]{result.split(':', 1)[0].replace('RESULTADO ', '')}[/ok_cl]")
 
+        # Repair dirigido (palanca #4, wire al loop live): si una tool de
+        # EJECUCION (tests/ejecutar/py_validar) dio un veredicto externo real
+        # de fallo, inyectar UN hint con el traceback real y la instruccion de
+        # arreglar SOLO la causa (concreto >> 'intentalo de nuevo'). Se hace
+        # una sola vez por error real (no re-dispara sobre su propio hint: el
+        # hint no es una tool de ejecucion) para no ciclar. Ver stepwise.py.
+        _err_type = classify_exec_error(action, result)
+        if _err_type and repair_applies(_err_type):
+            history.append(build_exec_repair_hint(_err_type, result))
+            _print_fn(f"[detail]error de ejecucion ({_err_type}) -> repair dirigido[/detail]")
+
     # Save summary to episodic memory
     summary = f"Tarea: {task[:100]} | Pasos: {total_steps} | Resultado: {result_text[:200]}"
     try:
         ai.observe(summary, provided_label="agente_tarea_completada")
+    except Exception:
+        pass
+
+    # Monitor de objetivo (GoalContract): derivar criterios VERIFICABLES de la
+    # letra de la tarea (archivo mencionado -> debe existir; ruta de test +
+    # pedido de tests -> pytest debe pasar) y chequearlos con evidencia REAL de
+    # filesystem/comando -- no el auto-reporte del modelo. Anti alucinacion de
+    # progreso: si la tarea prometia un archivo/tests y no estan, se DICE.
+    # _task_ok alimenta record_skill_use (abajo). Ver cognia/agents/goal_contract.
+    _task_ok = None
+    try:
+        from cognia.agents.goal_contract import (
+            GoalContract, derive_criteria_from_task,
+        )
+        _criteria = derive_criteria_from_task(task)
+        if _criteria:
+            _st = GoalContract.from_spec(task[:120], _criteria).check()
+            _task_ok = _st.complete
+            if _st.complete:
+                _print_fn(f"[ok_cl]Objetivo verificado: {_st.satisfied_count}/"
+                          f"{_st.total} criterios reales cumplidos[/ok_cl]")
+            else:
+                _faltan = [r.criterion.description for r in _st.results
+                           if not r.satisfied]
+                _print_fn(f"[warn_cl]Objetivo NO verificado ({_st.satisfied_count}/"
+                          f"{_st.total}): falta {'; '.join(_faltan)[:200]}[/warn_cl]")
     except Exception:
         pass
 
@@ -7486,6 +7541,21 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                       f"({_cap['path']})[/ok_cl]")
     except Exception:
         pass
+
+    # Uso real de la skill aplicada (decay/aprendizaje): si /hacer aplico una
+    # skill auto-matcheada, registrar si la tarea salio bien. Señal de exito:
+    # el contrato verificable si hubo criterios; si no, proxy = hubo un
+    # resultado real (no el fallo generico). find_skill despenaliza/poda con
+    # esto (skills que fallan repetido dejan de ganar el match).
+    if _applied_skill:
+        try:
+            from cognia.agent.skills import record_skill_use
+            _ok_signal = _task_ok if _task_ok is not None else bool(
+                result_text and "no produjo una respuesta" not in result_text
+                and "sin backend" not in result_text)
+            record_skill_use(_applied_skill, _ok_signal)
+        except Exception:
+            pass
 
     # Register agent task as a conversation turn so follow-up questions work
     try:
