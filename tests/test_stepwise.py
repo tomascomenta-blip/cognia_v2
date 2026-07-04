@@ -100,3 +100,89 @@ def test_bon_applies_verbos_espanol():
     # sin funcion/entry point NO activa (aunque tenga el verbo)
     for t in ("escribe un poema sobre el mar", "crea una carpeta nueva"):
         assert not bon_applies(t), t
+
+
+# ── classify_exec_error + build_exec_repair_hint (wire palanca #4) ────────
+
+from cognia.agent.stepwise import build_exec_repair_hint, classify_exec_error
+
+
+def test_classify_timeout():
+    r = ("RESULTADO ejecutar ERROR: timeout tras 30s. "
+         "Acota el comando (ruta/target mas especifico) y reintenta.")
+    assert classify_exec_error("ejecutar", r) == "timeout"
+
+
+def test_classify_syntax_py_validar():
+    r = "RESULTADO py_validar foo.py: ERROR linea 3: invalid syntax"
+    assert classify_exec_error("py_validar", r) == "syntax"
+
+
+def test_classify_syntax_en_pytest():
+    r = ("RESULTADO ejecutar (exit 2): E     SyntaxError: invalid syntax\n"
+         "1 error in 0.12s")
+    assert classify_exec_error("ejecutar", r) == "syntax"
+
+
+def test_classify_assert_pytest_failed():
+    r = ("RESULTADO ejecutar (exit 1): FAILED tests/test_x.py::test_a - "
+         "AssertionError: assert 3 == 4\n1 failed, 2 passed in 0.30s")
+    assert classify_exec_error("tests", r) == "assert"
+
+
+def test_classify_runtime_traceback():
+    r = ("RESULTADO ejecutar (exit 1): Traceback (most recent call last):\n"
+         "  File \"foo.py\", line 2, in <module>\nNameError: name 'x' is not defined")
+    assert classify_exec_error("ejecutar", r) == "runtime"
+
+
+def test_classify_exit_no_cero_sin_traceback_es_runtime():
+    r = "RESULTADO ejecutar (exit 1): comando fallo sin mas detalle"
+    assert classify_exec_error("ejecutar", r) == "runtime"
+
+
+def test_classify_exito_es_none():
+    assert classify_exec_error("ejecutar", "RESULTADO ejecutar: 42") is None
+    assert classify_exec_error("tests",
+        "RESULTADO ejecutar: 3 passed in 0.5s") is None
+    assert classify_exec_error("py_validar",
+        "RESULTADO py_validar foo.py: sintaxis OK") is None
+
+
+def test_classify_error_de_uso_es_none():
+    # el aviso de uso de `tests` sin ruta no es un fallo de ejecucion
+    r = ("RESULTADO tests ERROR: pasa una ruta ESPECIFICA (archivo o dir), "
+         "p.ej. 'tests/test_foo.py'.")
+    assert classify_exec_error("tests", r) is None
+
+
+def test_classify_bloqueado_es_none():
+    assert classify_exec_error("ejecutar",
+        "RESULTADO ejecutar: BLOQUEADO por seguridad") is None
+
+
+def test_classify_tool_no_ejecutora_es_none():
+    # un grep que ENCUENTRA 'SyntaxError' en un archivo no es un error
+    r = "RESULTADO buscar 'SyntaxError': foo.py:12: raise SyntaxError(...)"
+    assert classify_exec_error("buscar", r) is None
+
+
+def test_repair_hint_trae_el_error_real_y_la_instruccion():
+    r = "RESULTADO ejecutar (exit 1): Traceback ...\nNameError: name 'x'"
+    h = build_exec_repair_hint("runtime", r)
+    assert "REPARACION (runtime)" in h
+    assert "NameError: name 'x'" in h
+    assert "escribir_archivo" in h and "generar_codigo" in h
+
+
+def test_repair_hint_acota_la_cola():
+    r = "X" * 5000
+    h = build_exec_repair_hint("assert", r, max_chars=200)
+    assert h.count("X") == 200
+
+
+def test_clasificador_alimenta_repair_applies():
+    # los 4 tipos que emite el clasificador son exactamente los reparables
+    from cognia.agent.stepwise import repair_applies
+    for t in ("timeout", "syntax", "assert", "runtime"):
+        assert repair_applies(t)

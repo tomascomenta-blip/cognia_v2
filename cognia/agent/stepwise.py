@@ -127,3 +127,48 @@ def repair_applies(err_type: str) -> bool:
     (traceback/assert/timeout de ejecucion). 'empty' y 'missing_func' no
     son reparables con feedback (no hay nada que trazar) -> regenerar."""
     return err_type in ("syntax", "assert", "runtime", "timeout")
+
+
+# ── Clasificador de errores de EJECUCION (wire de la palanca #4 al loop) ──
+# repair_applies() decide SI el repair paga; esto decide QUE tipo de error
+# hay, a partir del texto RESULTADO real de las tools de ejecucion. Solo
+# esas 3 tools dan veredicto externo ejecutable: clasificar 'buscar' u
+# otras meteria falsos positivos (un grep que ENCUENTRA 'SyntaxError' en un
+# archivo no es un error del agente).
+
+_EXEC_TOOLS = ("ejecutar", "tests", "py_validar")
+
+
+def classify_exec_error(action: str, result: str):
+    """err_type ('timeout'|'syntax'|'assert'|'runtime') o None si el
+    RESULTADO no es un fallo de ejecucion real. Formatos tomados de
+    tools.py: _shell emite 'ERROR: timeout tras Ns' y '(exit N)';
+    py_validar emite 'ERROR linea N'; pytest -q emite 'M failed' /
+    'AssertionError' / 'SyntaxError' / 'Traceback'. Un ' ERROR' generico
+    SIN evidencia de ejecucion (p.ej. el aviso de uso de `tests` sin ruta,
+    o 'BLOQUEADO por seguridad') devuelve None: ahi no hay nada que
+    reparar, el propio mensaje ya dice que hacer."""
+    if action not in _EXEC_TOOLS or not result:
+        return None
+    if "ERROR: timeout tras" in result:
+        return "timeout"
+    if "SyntaxError" in result or "ERROR linea" in result:
+        return "syntax"
+    if "AssertionError" in result or re.search(r"\b\d+ failed\b", result):
+        return "assert"
+    if "Traceback" in result or "(exit " in result:
+        return "runtime"
+    return None
+
+
+def build_exec_repair_hint(err_type: str, result: str, max_chars: int = 600) -> str:
+    """Hint de reparacion dirigida para history: el error REAL (cola del
+    RESULTADO) + instruccion de arreglar SOLO la causa. Mismo principio que
+    build_repair_hint de structure.py (el error real en el prompt >> pedir
+    'que lo intente de nuevo'), aplicado a errores de ejecucion."""
+    tail = (result or "")[-max_chars:]
+    return (f"REPARACION ({err_type}): la ejecucion fallo de verdad. Error real:\n"
+            f"{tail}\n"
+            "Arregla SOLO la causa del error (no reescribas todo): corregi el "
+            "archivo con escribir_archivo (o regenera con generar_codigo) y "
+            "despues re-corre la MISMA verificacion que fallo.")
