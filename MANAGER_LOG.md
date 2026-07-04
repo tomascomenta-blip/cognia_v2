@@ -5061,3 +5061,40 @@ codigo duro 40% (=pre-reg). AG-ARB completo (contratos 50%/100%-en-oraculo vs
 arbitro-LLM 31%, sesgo culpar-codigo). 12 commits en origin/cognia-x.
 PENDIENTE: fin cadena v1 (bon8 + BFCL v1) -> CP4 informe 3 ejes vs umbrales;
 demo e2e CP2 self-tooling (necesita server).
+
+================================================================================
+[2026-07-03 17:00-22:35] CP1-CP4 COMPLETOS con datos + demo HERMES + CP4 informe
+================================================================================
+Los 3 ejes medidos con el modelo real (Qwen-3B, CPU), umbrales pre-registrados:
+- TOOL-CALLING (BFCL slice 200): baseline 24% -> v1 (fewshot2+repair) 86% (+62pp).
+  Supera umbral 65.2%. Causa raiz del 24%: artefacto de prompt func() literal
+  (142/152 fallos = formato); fewshot lo colapso a 5 fallos de formato (23 de
+  valor). LECCION: concreto > abstracto para modelos chicos. Caveats honestos:
+  slice mas facil que GLM-overall, posible contaminacion -> NO paridad con 76.7%.
+  El BFCL v1 CRASHEO 1ra vez (UnicodeEncodeError cp1252, perdio el JSON) -> fix
+  stdout utf-8; rehecho limpio.
+- PROGRAMACION DURA (tasks_hard 20): baseline 40% -> v1 (bon8) 50% (+10pp). Gate
+  CP1 >=+8pp PASADO. 2 flips (ALG4,LONG4), 0 regresiones, 20/20 rank_mode=tests.
+  NO llega al target 55%.
+- DISEÑO (25 specs, 363 asserts): baseline 93.7% -> v1 (--repair) 96.1% (+2.4pp).
+  Ya sobre umbral 85% desde baseline. Prediccion 55-65% FALLO (pesimista). Repair
+  recupero 9 asserts en 7 specs, 16/25 perfectas, 0 regresiones.
+- AG-ARB (32 casos): contratos 50% (100% en design+code con oraculo) vs
+  arbitro-LLM 31% (sesgo culpar-codigo). Gana verificacion por etapa -> mejora el
+  paper del dueño (07_ARBITRO_MEJORA_PAPER.md).
+
+CP2 HERMES self-tooling: demo e2e (cp2_selftooling_demo.py) TODOS los checks OK
+con el modelo real: genera tool -> verifica sandbox -> registra staged -> reusa
+-> verified -> gate crea-vs-reusa rechaza dup -> captura skill nivel-2. Fix
+habilitante _clean_code (el 3B cierra con fences anidados que rompian ast.parse).
+
+REVISION ADVERSARIAL (sonnet) hallo un RCE real: bypass __builtins__.eval en el
+scan estatico de auto-tools -> cerrado (blocklist nombre+atributo) + 5 bugs mas.
+Codigo de benchmark CONFIRMADO limpio (sin leaks, contabilidad correcta).
+
+CP4 informe (08_CP4_INFORME.md): los 3 ejes vs umbrales, honesto. Veredicto: NO
+paridad global con MoE 753B; "cerca" por-eje; predicciones fallidas/run perdido/
+RCE declarados. LECCIONES DE ENTORNO: solo Start-Process detachado sobrevive el
+teardown; PowerShell -match caza sus propios procesos de query (filtrar
+Name='python.exe'); PYTHONUTF8=1 obligatorio. ~21 commits en origin/cognia-x.
+Usage manejado dinamicamente (throttle a 86%, reanudado tras reset a 4%).

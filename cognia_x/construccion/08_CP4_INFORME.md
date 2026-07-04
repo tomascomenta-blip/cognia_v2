@@ -14,7 +14,7 @@ umbrales. Las predicciones que fallaron se declaran como tales.
 |---|---|---|---|---|---|
 | **tool-calling** (BFCL slice) | 24.0% (48/200) | **86.0%** (172/200) | **+62pp** | ≥65.2% | **SÍ** (con caveat, §2) |
 | **programación** (bench duro) | 40.0% (8/20) | **50.0%** (10/20) | **+10pp** | gate ≥+8pp; target 55% | **gate SÍ**, target no |
-| **diseño** (HTML/CSS por spec) | 93.7% (340/363) | [pendiente --repair] | — | ≥85% | **SÍ ya en baseline** |
+| **diseño** (HTML/CSS por spec) | 93.7% (340/363) | **96.1%** (349/363) | +2.4pp | ≥85% | **SÍ** (baseline y v1) |
 | **AG-ARB** (árbitro del paper) | — | contratos 50% vs LLM 31% | — | contratos ≥80% en oráculo | **SÍ** (100% design+code) |
 
 **Titular honesto:** el andamiaje (ingeniería barata: ejemplos concretos,
@@ -120,9 +120,14 @@ umbral "cerca" ≥85% SIN andamiaje.**
 **Predicción que FALLÓ (declarada):** predije baseline 55-65% — fue **demasiado
 pesimista**. El 3B (coder-tuned) es genuinamente bueno en HTML/CSS por spec
 explícita. Consecuencia honesta: **en este eje el margen del andamiaje es chico**
-(23 asserts de headroom). El v1 (--repair dirigido por assert fallido) está
-corriendo; se espera un incremento pequeño (~93.7% → ~96%). [PENDIENTE: número
-final del v1.]
+(23 asserts de headroom).
+
+**v1 (--repair dirigido por assert fallido) = 96.1%** (349/363, +2.4pp). El
+repair (el assert fallido = "traceback del diseño", sin leakage: los requisitos
+ya estaban en el prompt) recuperó 9 asserts en 7 specs (D15/D17/D18/D20/D22/D23/
+D25), subiendo specs perfectas de 12/25 → 16/25, con 0 regresiones (el score solo
+sube porque se adopta el retry únicamente si mejora el conteo). Confirma la
+predicción de headroom chico: la palanca funciona pero el techo estaba cerca.
 
 **GLM:** no hay benchmark de diseño publicado para GLM-5.2; el eje se mide contra
 el bar absoluto de asserts, no contra GLM (declarado).
@@ -163,7 +168,7 @@ fallback. Hallazgo nuevo que mejora el paper: más contexto EMPEORA al juez chic
    absoluto (86%) tiene caveats de slice-más-fácil y contaminación.
 3. **eje-2 no llegó al target absoluto 55%** (llegó a 50%); pasó el gate de
    transferencia (+10pp), que es lo que se pre-registró como prueba.
-4. **eje-3 v1 con headroom chico** (baseline ya 93.7%).
+4. **eje-3 v1 con headroom chico** (baseline ya 93.7% → v1 96.1%, +2.4pp).
 5. **Multi-turn agentic no se midió** (el frontier mismo saca 27% en tau3; no era
    una apuesta ganable, declarado en el plan).
 6. **Wire de BoN al loop /hacer en vivo** validado por unit-tests + demo; la
