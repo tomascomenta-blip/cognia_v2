@@ -45,6 +45,18 @@ _EXAMPLES = {
     "crear_herramienta": [
         "ACCION: crear_herramienta contar_vocales | cuenta las vocales de un texto | hola mundo | 4",
     ],
+    "escena_crear": [
+        "ACCION: escena_crear una taza roja sobre una mesa azul",
+    ],
+    "escena_editar": [
+        "ACCION: escena_editar cup | color=green",
+    ],
+    "atribuir_fallo": [
+        "ACCION: atribuir_fallo",
+    ],
+    "reejecutar_etapa": [
+        "ACCION: reejecutar_etapa plan",
+    ],
 }
 
 
