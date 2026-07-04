@@ -45,9 +45,11 @@ logger = logging.getLogger(__name__)
 # ── Config ────────────────────────────────────────────────────────────────────
 
 _DEFAULT_PORT   = 8088
-# 90s: la carga fria del GGUF de 1.9GB desde disco excede 30s (fallo el E2E del
-# 2026-06-11 al primer intento); con el archivo en cache de disco carga en segundos.
-_SERVER_TIMEOUT = 90      # seconds to wait for llama-server to start
+# 90s cubria el GGUF 3B de 1.9GB, pero el 7B (4.7GB) tarda >90s en carga fria en
+# el i3 (falla "did not start within 90s", medido 2026-07-04). El wait es un
+# poll a /health que CORTA apenas responde, asi que un timeout mas alto NO
+# ralentiza un arranque rapido — solo tolera cargas lentas. Env-overridable.
+_SERVER_TIMEOUT = int(os.environ.get("LLAMA_SERVER_TIMEOUT", "240"))  # seg
 # 16384: GGUF n_ctx_train=32768; Qwen2.5-3B uses GQA (2 KV heads) so KV cache is
 # ~36KB/token => ~590MB at 16k on a 12GB machine. Enables large file/repo prompts.
 _CTX_SIZE       = 16384

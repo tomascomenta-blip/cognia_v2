@@ -1,0 +1,170 @@
+{
+  "n": 20,
+  "always_3b": 8,
+  "always_7b": 10,
+  "cascade": 12,
+  "router": 9,
+  "n_to_7b": 17,
+  "rows": [
+    {
+      "id": "ALG1",
+      "difficulty": 0.7,
+      "model": "7b",
+      "p3b": true,
+      "p7b": true,
+      "router": true
+    },
+    {
+      "id": "ALG2",
+      "difficulty": 0.3,
+      "model": "7b",
+      "p3b": true,
+      "p7b": true,
+      "router": true
+    },
+    {
+      "id": "ALG3",
+      "difficulty": 0.3,
+      "model": "7b",
+      "p3b": false,
+      "p7b": false,
+      "router": false
+    },
+    {
+      "id": "ALG4",
+      "difficulty": 0.273,
+      "model": "3b",
+      "p3b": false,
+      "p7b": true,
+      "router": false
+    },
+    {
+      "id": "ALG5",
+      "difficulty": 0.233,
+      "model": "3b",
+      "p3b": true,
+      "p7b": true,
+      "router": true
+    },
+    {
+      "id": "ALG6",
+      "difficulty": 0.268,
+      "model": "3b",
+      "p3b": true,
+      "p7b": true,
+      "router": true
+    },
+    {
+      "id": "LONG1",
+      "difficulty": 0.3,
+      "model": "7b",
+      "p3b": false,
+      "p7b": true,
+      "router": true
+    },
+    {
+      "id": "LONG2",
+      "difficulty": 0.3,
+      "model": "7b",
+      "p3b": false,
+      "p7b": false,
+      "router": false
+    },
+    {
+      "id": "LONG3",
+      "difficulty": 0.475,
+      "model": "7b",
+      "p3b": false,
+      "p7b": false,
+      "router": false
+    },
+    {
+      "id": "LONG4",
+      "difficulty": 0.725,
+      "model": "7b",
+      "p3b": false,
+      "p7b": true,
+      "router": true
+    },
+    {
+      "id": "LONG5",
+      "difficulty": 0.325,
+      "model": "7b",
+      "p3b": false,
+      "p7b": false,
+      "router": false
+    },
+    {
+      "id": "DBG1",
+      "difficulty": 0.325,
+      "model": "7b",
+      "p3b": false,
+      "p7b": false,
+      "router": false
+    },
+    {
+      "id": "DBG2",
+      "difficulty": 0.642,
+      "model": "7b",
+      "p3b": true,
+      "p7b": true,
+      "router": true
+    },
+    {
+      "id": "DBG3",
+      "difficulty": 0.35,
+      "model": "7b",
+      "p3b": true,
+      "p7b": true,
+      "router": true
+    },
+    {
+      "id": "DBG4",
+      "difficulty": 0.3,
+      "model": "7b",
+      "p3b": true,
+      "p7b": false,
+      "router": false
+    },
+    {
+      "id": "DBG5",
+      "difficulty": 0.425,
+      "model": "7b",
+      "p3b": false,
+      "p7b": true,
+      "router": true
+    },
+    {
+      "id": "SPEC1",
+      "difficulty": 0.3,
+      "model": "7b",
+      "p3b": true,
+      "p7b": false,
+      "router": false
+    },
+    {
+      "id": "SPEC2",
+      "difficulty": 0.3,
+      "model": "7b",
+      "p3b": false,
+      "p7b": false,
+      "router": false
+    },
+    {
+      "id": "SPEC3",
+      "difficulty": 0.3,
+      "model": "7b",
+      "p3b": false,
+      "p7b": false,
+      "router": false
+    },
+    {
+      "id": "SPEC4",
+      "difficulty": 0.3,
+      "model": "7b",
+      "p3b": false,
+      "p7b": false,
+      "router": false
+    }
+  ]
+}
