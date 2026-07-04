@@ -215,6 +215,61 @@ class GoalContract:
             return ""
 
 
+# --- derivación mecánica de criterios desde la tarea -------------------------
+# WHY: para que el loop /hacer pueda armar un contrato SIN pedirle criterios al
+# usuario ni gastar una llamada LLM. Conservador a propósito: solo criterios
+# NECESARIOS obvios (archivo mencionado -> file_exists; pedido de tests con una
+# ruta de test -> command_succeeds pytest). Puede devolver [] — mejor ningún
+# contrato que uno inventado que bloquee 'responder' con falsos negativos.
+
+import re as _re
+
+# WHY el prefijo de unidad opcional y el ~: las tareas reales traen rutas
+# absolutas de Windows (C:\..., TOMANQ~1) ademas de relativas.
+_TASK_FILE_RX = _re.compile(
+    r"((?:[A-Za-z]:[/\\])?[\w.~/\\-]+\.(?:py|md|txt|json|html|css|js|yaml|yml|csv))\b")
+_TASK_TEST_RX = _re.compile(r"\b(test|tests|pytest|prueba|pruebas)\b",
+                            _re.IGNORECASE)
+_MAX_DERIVED = 3
+
+
+def derive_criteria_from_task(task: str, py_exe: Optional[str] = None) -> list:
+    """Specs (para GoalContract.from_spec) derivadas de la letra de la tarea.
+
+    - ruta con pinta de test (test_*.py o bajo tests/) + mención de tests
+      -> command_succeeds: pytest sobre esa ruta (oráculo ejecutable real);
+    - cualquier otra ruta mencionada -> file_exists (necesario, no suficiente);
+    - tope _MAX_DERIVED criterios, dedupe por ruta.
+    """
+    specs = []
+    seen = set()
+    # WHY quitar las rutas antes de buscar intencion de tests: la palabra
+    # 'tests' DENTRO de una ruta (tests/test_foo.py) no es un pedido de
+    # correrlos ("lee tests/test_foo.py y explicalo" no debe armar pytest).
+    stripped = _TASK_FILE_RX.sub(" ", task or "")
+    wants_tests = bool(_TASK_TEST_RX.search(stripped))
+    py = py_exe or sys.executable
+    for m in _TASK_FILE_RX.finditer(task or ""):
+        path = m.group(1)
+        if path in seen or len(specs) >= _MAX_DERIVED:
+            continue
+        seen.add(path)
+        name = os.path.basename(path)
+        is_testfile = name.startswith("test_") or "tests" in path.replace("\\", "/").split("/")
+        if wants_tests and is_testfile and path.endswith(".py"):
+            specs.append({
+                "kind": "command_succeeds",
+                "command": '"' + py + '" -m pytest ' + path + " -q --no-header",
+                "description": "los tests mencionados pasan: " + path,
+            })
+        else:
+            specs.append({
+                "kind": "file_exists", "path": path,
+                "description": "la tarea menciona " + path + " -> debe existir",
+            })
+    return specs
+
+
 def format_status(status: ContractStatus) -> str:
     lines = []
     lines.append("GOAL: " + status.goal)
