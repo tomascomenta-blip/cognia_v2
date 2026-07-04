@@ -680,7 +680,7 @@ class LlamaBackend:
 
     def generate_long(self, prompt: str, max_total_tokens: int = None,
                       chunk_tokens: int = None, temperature: float = 0.7,
-                      on_chunk=None) -> Optional[dict]:
+                      on_chunk=None, resume_text: str = None) -> Optional[dict]:
         """
         Long-form generation via auto-continuation (FASE 1, target 5000 tokens).
 
@@ -695,8 +695,16 @@ class LlamaBackend:
         reenviar el texto completo y manda prompt + la cola mas reciente, de modo
         que el prefill nunca desborda la ventana (el output sigue siendo completo).
 
+        resume_text: cola YA ESCRITA de una corrida anterior (p.ej. /largo
+        --continuar retomando desde un archivo). Se usa SOLO como contexto de
+        re-anclaje (se antepone a lo acumulado en ESTA llamada antes de aplicar
+        la guarda de ctx); NO se re-emite en el "text" devuelto -- el caller ya
+        la tiene persistida. Default None = comportamiento actual (sin cola previa).
+
         on_chunk: optional callback on_chunk(round, chunk_tokens, total_tokens,
-        stop_reason) for progress reporting.
+        stop_reason, chunk_text) for progress reporting AND escritura incremental
+        (chunk_text es el texto crudo generado en esa ronda, para poder appendearlo
+        a un archivo a medida que llega).
 
         Returns {"text", "total_tokens", "stop_reason", "rounds"}; None only if
         the FIRST round fails (same contract as generate()).
@@ -709,6 +717,7 @@ class LlamaBackend:
             max_total_tokens = GEN_LONG_MAX_TOKENS
         if chunk_tokens is None:
             chunk_tokens = GEN_CONTINUATION_CHUNK
+        resume_text = resume_text or ""
 
         text_parts: list = []
         total_tokens = 0
@@ -724,8 +733,9 @@ class LlamaBackend:
             # Guarda de ctx: si prompt+acumulado no entra bajo el techo, no reenviar
             # TODO -> mandar prompt + la cola mas reciente. text_parts conserva el
             # texto completo (la cola es solo input al modelo, no recorta el output).
+            # resume_text (si hay) cuenta como acumulado YA ESCRITO -> va primero.
             budget = min(prefill_cap, _CTX_SIZE - ask - GEN_CTX_MARGIN_TOKENS)
-            accumulated = "".join(text_parts)
+            accumulated = resume_text + "".join(text_parts)
             if (len(prompt) + len(accumulated)) // 4 > budget:
                 keep_tokens = max(0, budget - len(prompt) // 4)
                 accumulated = accumulated[-(keep_tokens * 4):] if keep_tokens else ""
@@ -745,7 +755,7 @@ class LlamaBackend:
             stop_reason = self.last_stop_reason
             if on_chunk is not None:
                 try:
-                    on_chunk(rounds, chunk_toks, total_tokens, stop_reason)
+                    on_chunk(rounds, chunk_toks, total_tokens, stop_reason, chunk)
                 except Exception:
                     pass
             if stop_reason != "limit":
@@ -786,7 +796,7 @@ class LlamaBackend:
 
     def generate_hierarchical(self, prompt: str, target_tokens: int = None,
                               n_sections: int = None, temperature: float = 0.7,
-                              on_section=None) -> Optional[dict]:
+                              on_section=None, on_outline=None) -> Optional[dict]:
         """
         Generacion larga JERARQUICA (FASE 7a): pide un outline de N secciones y genera
         cada seccion con un prompt FRESCO = prompt + outline + resumen corto de lo previo.
@@ -794,7 +804,13 @@ class LlamaBackend:
         total deja de estar limitada por el ctx de 16k -> generacion cuasi-infinita; el
         unico limite real pasa a ser el tiempo de pared (~8 tok/s).
 
-        on_section: callback opcional on_section(idx, total, titulo, tokens).
+        on_outline: callback opcional on_outline(sections) invocado UNA vez, apenas se
+        parsea el esquema (antes de generar ninguna seccion) -- permite persistir el
+        plan completo (p.ej. el sidecar de /largo --continuar) sin esperar a que termine
+        la primera seccion.
+        on_section: callback opcional on_section(idx, total, titulo, tokens, texto,
+        stop_reason) por cada seccion COMPLETA (texto = el texto de esa seccion,
+        stop_reason = el de su generate_long interno; para escritura incremental).
         Returns {"text","outline","sections","total_tokens","rounds"}; None si falla el
         outline o la primera seccion (mismo contrato de None que generate()).
         """
@@ -818,6 +834,11 @@ class LlamaBackend:
         if outline_text is None:
             return None
         sections = self._parse_outline(outline_text, n_sections) or [prompt]
+        if on_outline is not None:
+            try:
+                on_outline(sections)
+            except Exception:
+                pass
 
         outline_block = "\n".join(f"{i+1}. {s}" for i, s in enumerate(sections))
         per_section = max(256, target_tokens // max(1, len(sections)))
@@ -846,7 +867,8 @@ class LlamaBackend:
                             ).replace("\n", " ")
             if on_section is not None:
                 try:
-                    on_section(i + 1, len(sections), sec, res["total_tokens"])
+                    on_section(i + 1, len(sections), sec, res["total_tokens"],
+                              res["text"], res["stop_reason"])
                 except Exception:
                     pass
 
@@ -861,7 +883,7 @@ class LlamaBackend:
     def generate_delegated(self, prompt: str, target_tokens: int = None,
                            n_tasks: int = None, per_task_cap: int = None,
                            aggregate: bool = True, temperature: float = 0.7,
-                           on_task=None) -> Optional[dict]:
+                           on_task=None, on_outline=None) -> Optional[dict]:
         """
         Generacion larga por DELEGACION (orchestrator-workers). Descompone en un outline
         de N subtareas (spec compartido) y genera cada una con un worker de CONTEXTO LIMPIO:
@@ -876,6 +898,13 @@ class LlamaBackend:
         reescribe (no entraria todo en la ventana). Honesto: los workers son ciegos entre si;
         la coherencia global la aporta el outline compartido + el frame de la cabeza, no una
         reescritura global.
+
+        on_outline: callback opcional on_outline(tasks) invocado UNA vez, apenas se parsea
+        el esquema (antes de correr ningun worker) -- persistir el plan completo temprano
+        (p.ej. sidecar de /largo --continuar) sin esperar la primera subtarea.
+        on_task: callback opcional on_task(idx, total, titulo, tokens, texto, stop_reason)
+        por cada subtarea COMPLETA (texto = el texto de esa subtarea, stop_reason = el de
+        su generate_long interno; para escritura incremental).
 
         Returns {"text","outline","sections","total_tokens","rounds","head"}; None si falla
         el outline o la primera subtarea (mismo contrato de None que generate()).
@@ -902,6 +931,11 @@ class LlamaBackend:
         if outline_text is None:
             return None
         tasks = self._parse_outline(outline_text, n_tasks) or [prompt]
+        if on_outline is not None:
+            try:
+                on_outline(tasks)
+            except Exception:
+                pass
 
         outline_block = "\n".join(f"{i+1}. {s}" for i, s in enumerate(tasks))
         per_task = min(per_task_cap, max(256, target_tokens // max(1, len(tasks))))
@@ -929,7 +963,8 @@ class LlamaBackend:
             rounds += res["rounds"]
             if on_task is not None:
                 try:
-                    on_task(i + 1, len(tasks), sec, res["total_tokens"])
+                    on_task(i + 1, len(tasks), sec, res["total_tokens"],
+                           res["text"], res["stop_reason"])
                 except Exception:
                     pass
 

@@ -256,16 +256,43 @@ class TestGenerateLong:
         assert result["rounds"] == 1
 
     def test_on_chunk_callback_invoked_per_round(self):
+        """on_chunk recibe tambien el TEXTO del chunk (5to arg, para escritura
+        incremental de /largo -- cambio de contrato, unico caller real es cli.py)."""
         calls = []
         impl = _FakeLongImpl([
             ("A", 100, "limit"),
             ("B", 60,  "eos"),
         ])
         backend = _make_backend(impl)
-        backend.generate_long("P", max_total_tokens=500, chunk_tokens=100,
-                              on_chunk=lambda r, ct, tt, sr: calls.append((r, ct, tt, sr)))
+        backend.generate_long(
+            "P", max_total_tokens=500, chunk_tokens=100,
+            on_chunk=lambda r, ct, tt, sr, txt: calls.append((r, ct, tt, sr, txt)))
 
-        assert calls == [(1, 100, 100, "limit"), (2, 60, 160, "eos")]
+        assert calls == [(1, 100, 100, "limit", "A"), (2, 60, 160, "eos", "B")]
+
+    def test_resume_text_default_none_preserves_behavior(self):
+        """resume_text=None (default) -> identico al comportamiento previo (regresion)."""
+        impl = _FakeLongImpl([
+            ("AAA ", 100, "limit"),
+            ("BBB.", 50,  "eos"),
+        ])
+        backend = _make_backend(impl)
+        result = backend.generate_long("P: ", max_total_tokens=1000, chunk_tokens=100)
+
+        assert result["text"] == "AAA BBB."
+        assert impl.prompts[1][0] == "P: AAA "   # sin cola previa, igual que siempre
+
+    def test_resume_text_used_as_reanchor_context(self):
+        """resume_text antepone una cola YA ESCRITA (p.ej. /largo --continuar) como
+        contexto de re-anclaje; NO se re-emite en el texto devuelto (el caller ya la
+        tiene persistida en el archivo)."""
+        impl = _FakeLongImpl([("nuevo texto.", 20, "eos")])
+        backend = _make_backend(impl)
+        result = backend.generate_long("P: ", max_total_tokens=1000, chunk_tokens=100,
+                                       resume_text="cola previa ")
+
+        assert impl.prompts[0][0] == "P: cola previa "
+        assert result["text"] == "nuevo texto."   # solo lo NUEVO, no la cola
 
     def test_ctx_guard_caps_resent_prefix(self):
         """FASE 1b: al acercarse a _CTX_SIZE deja de reenviar TODO y manda
@@ -339,6 +366,42 @@ class TestGenerateHierarchical:
         result = backend.generate_hierarchical("tema X", target_tokens=300, n_sections=3)
         assert result["sections"] == 1
         assert "contenido unico" in result["text"]
+
+    def test_on_outline_called_once_before_any_section(self):
+        """on_outline(sections) se llama UNA vez, apenas se parsea el esquema -- permite
+        persistir el plan completo (checkpoint de /largo) antes de la 1ra seccion."""
+        impl = _FakeLongImpl([
+            ("1. Alpha\n2. Beta", 12, "eos"),
+            ("texto alpha", 40, "eos"),
+            ("texto beta", 40, "eos"),
+        ])
+        backend = _make_backend(impl)
+        outlines_seen = []
+        backend.generate_hierarchical(
+            "tema X", target_tokens=300, n_sections=2,
+            on_outline=lambda secs: outlines_seen.append(list(secs)))
+        assert outlines_seen == [["Alpha", "Beta"]]
+
+    def test_on_section_receives_text_and_stop_reason(self):
+        """on_section trae ademas el TEXTO de la seccion y su stop_reason interno
+        (para escritura incremental + deteccion de corte por presupuesto). Beta pega
+        EXACTO en su per_section cap (256, el piso de generate_hierarchical) con
+        stop_reason='limit' -> el generate_long interno de esa seccion cierra en 1
+        ronda sin pedir mas (total_tokens == max_total_tokens)."""
+        impl = _FakeLongImpl([
+            ("1. Alpha\n2. Beta", 12, "eos"),
+            ("texto alpha", 40, "eos"),
+            ("texto beta", 256, "limit"),
+        ])
+        backend = _make_backend(impl)
+        calls = []
+        backend.generate_hierarchical(
+            "tema X", target_tokens=512, n_sections=2,
+            on_section=lambda idx, tot, tit, toks, txt, sr: calls.append((idx, tot, tit, toks, txt, sr)))
+        assert calls == [
+            (1, 2, "Alpha", 40, "texto alpha", "eos"),
+            (2, 2, "Beta",  256, "texto beta", "limit"),
+        ]
 
 
 # ---------------------------------------------------------------------------

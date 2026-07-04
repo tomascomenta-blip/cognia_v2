@@ -104,6 +104,10 @@ GEN_CTX_MARGIN_TOKENS:  int   = 64    # margen extra reservado por debajo del ct
 # corto de lo previo), no del texto completo acumulado.
 GEN_HIERARCHICAL_SECTIONS: int = 5    # secciones por defecto en generate_hierarchical
 GEN_SECTION_SUMMARY_CHARS: int = 200  # chars del resumen de la seccion previa (continuidad)
+# Tope de entrada de usuario para /largo --tokens (validacion de la CLI, no del backend):
+# 200k tokens es "generacion de un libro corto"; por encima de eso el pedido casi seguro es
+# un error de tipeo. El modo plano sigue acotado ademas por GEN_LONG_MAX_TOKENS (ver _slash_largo).
+GEN_USER_MAX_TOKENS_CAP: int = 200000
 # Temperatura del chat interactivo. Explicitarla (en vez de heredar el default
 # 0.7 del backend) alinea producto y metrica: el benchmark mide a temp=0.0 y
 # el chat samplea a 0.7 — con la constante esa diferencia queda visible y

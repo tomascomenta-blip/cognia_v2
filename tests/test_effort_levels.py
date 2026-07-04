@@ -94,3 +94,21 @@ def test_active_effort_reflects_set_level(cli_tmp_config):
     assert cli_tmp_config._active_effort() == EFFORT_LEVELS["alto"]
     # max_tokens del nivel activo es lo que /pensar pasa a infer()
     assert cli_tmp_config._active_effort()["max_tokens"] == EFFORT_LEVELS["alto"]["max_tokens"]
+
+
+# ── FASE X: /esfuerzo tiene efecto real en el chat interactivo (fast-path) ─────
+
+def test_chat_streaming_uses_active_effort_max_tokens_not_hardcoded():
+    """El chat interactivo (dentro de repl(), rama de streaming del fast-path llama)
+    debe pasar max_tokens del nivel /esfuerzo activo, no el literal 1024 de antes --
+    asi /esfuerzo maximo realmente alarga la respuesta del chat. repl() es un loop
+    interactivo que lee stdin: no se puede invocar de punta a punta en un test
+    unitario, asi que esto es un test de regresion a nivel de fuente (falla si se
+    revierte al literal hardcodeado)."""
+    import inspect
+    import cognia.cli as cli_mod
+    src = inspect.getsource(cli_mod.repl)
+    assert "max_tokens=1024" not in src
+    assert '_active_effort()["max_tokens"]' in src
+    # se usa en AMBAS ramas (stream_chat y stream_generate), no solo declarado
+    assert src.count("_effort_max_tokens") >= 3

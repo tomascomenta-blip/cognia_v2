@@ -366,7 +366,7 @@ _CMD_DESCRIPTIONS = {
     "/ejecutar":        "Ejecutar comando shell     <cmd>",
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
-    "/largo":           "Generacion larga (hasta 5000 tokens) con progreso  [--jerarquico|--delegado] <pedido>",
+    "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
     "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
@@ -572,14 +572,18 @@ _CMD_DETAILS = {
         "Ejemplo: /hacer Investiga las ventajas de FastAPI vs Flask"
     ),
     "/largo": (
-        "Genera una respuesta larga (hasta 5000 tokens) con el fast-path llama.cpp "
-        "y continuacion automatica por rondas, mostrando progreso. "
-        "Lento (~10 min a 8 tok/s). Requiere llama-server/GGUF disponible. "
-        "Con --jerarquico genera un outline y luego cada seccion con un prompt fresco "
-        "(prefill acotado por seccion -> rompe el techo de ctx, longitud cuasi-ilimitada). "
-        "Con --delegado descompone en un outline y cada subtarea la genera un worker de "
-        "contexto LIMPIO (ciego a las demas) + una cabeza que teje la introduccion. "
-        "Ejemplo: /largo --jerarquico Escribe una guia completa de asyncio en Python"
+        "Genera una respuesta larga (por defecto hasta 5000 tokens, --tokens N escala "
+        "hasta 200000) con el fast-path llama.cpp y continuacion automatica por rondas, "
+        "mostrando progreso. Lento (~10 min a 8 tok/s por cada 5000 tokens). Requiere "
+        "llama-server/GGUF disponible. Escribe INCREMENTALMENTE a un archivo (uno por "
+        "defecto derivado del pedido) + un sidecar de checkpoint <archivo>.largo_state.json. "
+        "Con --jerarquico genera un outline (--secciones N) y luego cada seccion con un "
+        "prompt fresco (prefill acotado por seccion -> rompe el techo de ctx, longitud "
+        "cuasi-ilimitada). Con --delegado descompone en un outline (--tareas N, o derivado "
+        "de --tokens) y cada subtarea la genera un worker de contexto LIMPIO (ciego a las "
+        "demas) + una cabeza que teje la introduccion. Si la generacion queda CORTADA "
+        "(limite de presupuesto), /largo --continuar <archivo> retoma SOLO lo que falta. "
+        "Ejemplo: /largo --delegado --tokens 100000 Escribe una guia completa de asyncio en Python"
     ),
     "/experimento": (
         "Pone a prueba una afirmacion de forma EMPIRICA. El LLM disena un "
@@ -2905,30 +2909,70 @@ def _call_articulated(ai, prompt: str) -> str:
         return f"Error: {e}"
 
 
-def _slash_largo(ai, pedido: str) -> None:
+def _parse_largo_flags(pedido: str) -> dict:
+    """Extrae los flags de escala de /largo del INICIO del pedido, en cualquier orden
+    (mismo estilo que el parseo original: strip de prefijos conocidos, sin argparse):
+
+      --jerarquico            modo jerarquico (outline -> secciones, generate_hierarchical)
+      --delegado              modo delegado (outline -> workers + cabeza, generate_delegated)
+      --tokens N              target_tokens total del pedido
+      --secciones N           n_sections (aplica con --jerarquico)
+      --tareas N              n_tasks (aplica con --delegado; si falta y hay --tokens,
+                               _slash_largo lo deriva de target_tokens/per_task_cap)
+      --continuar <archivo>   retoma una generacion truncada (ver _slash_largo_continuar)
+
+    Devuelve un dict con esas claves + "pedido" (el texto restante, el pedido real).
+    Un valor numerico invalido (no entero) deja el flag en None sin consumir el resto.
     """
-    /largo <pedido>: generacion larga (hasta GEN_LONG_MAX_TOKENS tokens) via el
-    fast-path llama.cpp con continuacion automatica (LlamaBackend.generate_long).
-    Imprime progreso ASCII por ronda y el texto completo al final.
-    """
-    from shattering.model_constants import (
-        COGNIA_SYSTEM_PROMPT, GEN_CHAT_TEMPERATURE, GEN_LONG_MAX_TOKENS,
-    )
-    # Modo jerarquico (outline -> secciones con prompt fresco; rompe el techo de ctx)
-    # con el flag --jerarquico al inicio del pedido.
-    jerarquico = False
-    if pedido.strip().lower().startswith("--jerarquico"):
-        jerarquico = True
-        pedido = pedido.strip()[len("--jerarquico"):].strip()
-    # Modo delegado (outline -> workers de contexto limpio + cabeza que teje;
-    # generate_delegated) con el flag --delegado al inicio del pedido. Mutuamente
-    # excluyente con --jerarquico en la practica.
-    delegado = False
-    if pedido.strip().lower().startswith("--delegado"):
-        delegado = True
-        pedido = pedido.strip()[len("--delegado"):].strip()
-    # Mismo fast-path que el chat libre: orquestador cacheado en ai si existe,
-    # si no uno local, y _try_load_llama() para obtener el backend llama.cpp.
+    out = {"jerarquico": False, "delegado": False, "tokens": None,
+          "secciones": None, "tareas": None, "continuar": None}
+    rest = pedido.strip()
+
+    def _pop_int(s: str):
+        parts = s.split(None, 1)
+        if parts and parts[0].lstrip("-").isdigit():
+            return int(parts[0]), (parts[1] if len(parts) > 1 else "")
+        return None, s
+
+    while True:
+        low = rest.lower()
+        if low.startswith("--jerarquico"):
+            out["jerarquico"] = True
+            rest = rest[len("--jerarquico"):].strip()
+        elif low.startswith("--delegado"):
+            out["delegado"] = True
+            rest = rest[len("--delegado"):].strip()
+        elif low.startswith("--continuar"):
+            rest = rest[len("--continuar"):].strip()
+            parts = rest.split(None, 1)
+            out["continuar"] = parts[0] if parts else ""
+            rest = parts[1] if len(parts) > 1 else ""
+        elif low.startswith("--tokens"):
+            rest = rest[len("--tokens"):].strip()
+            val, rest = _pop_int(rest)
+            if val is not None:
+                out["tokens"] = val
+        elif low.startswith("--secciones"):
+            rest = rest[len("--secciones"):].strip()
+            val, rest = _pop_int(rest)
+            if val is not None:
+                out["secciones"] = val
+        elif low.startswith("--tareas"):
+            rest = rest[len("--tareas"):].strip()
+            val, rest = _pop_int(rest)
+            if val is not None:
+                out["tareas"] = val
+        else:
+            break
+
+    out["pedido"] = rest
+    return out
+
+
+def _resolve_largo_backend(ai):
+    """Backend llama.cpp para /largo (y /largo --continuar): orquestador cacheado en
+    ai si existe, si no uno local, con _try_load_llama() para levantar el fast-path.
+    Devuelve el LlamaBackend, o None si no hay backend disponible."""
     _llama = None
     try:
         from shattering.orchestrator import ShatteringOrchestrator as _SO
@@ -2948,6 +2992,130 @@ def _slash_largo(ai, pedido: str) -> None:
                     pass
     except Exception:
         pass
+    return _llama
+
+
+def _largo_default_path(pedido: str) -> Path:
+    """Nombre de archivo por defecto para /largo cuando no hay uno explicito (hoy no
+    existe un flag de destino): largo_<slug-del-pedido>_<timestamp>.txt en el cwd."""
+    slug = re.sub(r"[^a-z0-9]+", "_", pedido.strip().lower()).strip("_")[:40] or "pedido"
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Path(f"largo_{slug}_{stamp}.txt")
+
+
+def _largo_state_path(out_path: Path) -> Path:
+    """Ruta del sidecar de checkpoint de /largo para el archivo de salida `out_path`."""
+    return out_path.with_name(out_path.name + ".largo_state.json")
+
+
+def _largo_save_state(out_path: Path, state: dict) -> None:
+    """Escritura ATOMICA del sidecar (temp + os.replace) -- mismo patron que
+    tool_synthesis._save_manifest: un lector nunca ve JSON a medio escribir."""
+    state_path = _largo_state_path(out_path)
+    tmp = state_path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, state_path)
+
+
+def _largo_load_state(out_path: Path):
+    """Sidecar de /largo para `out_path`, o None si no existe / esta corrupto."""
+    state_path = _largo_state_path(out_path)
+    if not state_path.exists():
+        return None
+    try:
+        return json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _largo_append_text(out_path: Path, text: str) -> None:
+    """Appendea texto al archivo de salida de /largo (utf-8, flush inmediato: si el
+    proceso se corta a mitad de camino, lo ya escrito sobrevive en disco)."""
+    if not text:
+        return
+    with out_path.open("a", encoding="utf-8") as f:
+        f.write(text)
+        f.flush()
+
+
+def _largo_es_completo(mode: str, result: dict) -> bool:
+    """True si /largo termino por fin NATURAL, False si corto por presupuesto (CORTADO).
+
+    Modo plano: stop_reason del propio generate_long ('limit'/'error' = CORTADO).
+    Modo jerarquico/delegado: no hay stop_reason a nivel del resultado agregado (cada
+    seccion/tarea corre su propio generate_long interno); el proxy es si se generaron
+    TODAS las secciones/tareas planificadas -- lo unico que corta el loop antes de
+    cubrir el outline completo es una falla de generate_long a mitad de camino.
+    """
+    if mode == "plano":
+        return result.get("stop_reason") not in ("limit", "error")
+    outline = result.get("outline") or []
+    return len(outline) > 0 and result.get("sections", 0) >= len(outline)
+
+
+def _slash_largo(ai, pedido: str) -> None:
+    """
+    /largo [--jerarquico|--delegado] [--tokens N] [--secciones N|--tareas N] <pedido>:
+    generacion larga via el fast-path llama.cpp con continuacion automatica
+    (LlamaBackend.generate_long/generate_hierarchical/generate_delegated).
+
+    Escribe INCREMENTALMENTE a un archivo (por defecto uno derivado del pedido en el
+    cwd) a medida que llega cada ronda/seccion/tarea, con un sidecar de checkpoint
+    <archivo>.largo_state.json -- si se corta (limite de presupuesto o el proceso
+    muere), /largo --continuar <archivo> retoma desde ahi (ver _slash_largo_continuar).
+    Imprime progreso ASCII por ronda y el texto completo al final.
+    """
+    from shattering.model_constants import (
+        COGNIA_SYSTEM_PROMPT, GEN_CHAT_TEMPERATURE, GEN_LONG_MAX_TOKENS,
+        GEN_USER_MAX_TOKENS_CAP,
+    )
+    flags = _parse_largo_flags(pedido)
+
+    # --continuar es un modo aparte (retoma un archivo existente); no pasa por el
+    # resto del parseo/validacion de un pedido nuevo.
+    if flags["continuar"]:
+        _slash_largo_continuar(ai, flags["continuar"])
+        return
+
+    jerarquico = flags["jerarquico"]
+    delegado   = flags["delegado"]
+    pedido     = flags["pedido"]
+    if not pedido:
+        _print_line("[warn_cl]Uso: /largo [--jerarquico|--delegado] [--tokens N] "
+                    "[--secciones N|--tareas N] <pedido>[/warn_cl]")
+        return
+
+    # Validacion sana de --tokens: tope absoluto de entrada (GEN_USER_MAX_TOKENS_CAP).
+    target_tokens = flags["tokens"]
+    if target_tokens is not None:
+        if target_tokens < 1:
+            _print_line("[warn_cl]--tokens debe ser >= 1; se ignora.[/warn_cl]")
+            target_tokens = None
+        elif target_tokens > GEN_USER_MAX_TOKENS_CAP:
+            _print_line(f"[warn_cl]--tokens {target_tokens} supera el tope "
+                        f"{GEN_USER_MAX_TOKENS_CAP}; se recorta a ese tope.[/warn_cl]")
+            target_tokens = GEN_USER_MAX_TOKENS_CAP
+
+    # Modo plano: acotado a GEN_LONG_MAX_TOKENS -- sin outline no hay estructura que
+    # sostenga un pedido gigante de forma coherente (re-anclaje de cola sin plan).
+    # Para pedidos mas grandes: --delegado o --jerarquico.
+    if not jerarquico and not delegado and target_tokens is not None \
+            and target_tokens > GEN_LONG_MAX_TOKENS:
+        _print_line(f"[warn_cl]El modo plano esta acotado a {GEN_LONG_MAX_TOKENS} "
+                    f"tokens (sin --jerarquico/--delegado no hay outline que sostenga "
+                    f"pedidos mas grandes). Prueba: /largo --delegado --tokens "
+                    f"{target_tokens} {pedido}[/warn_cl]")
+        target_tokens = GEN_LONG_MAX_TOKENS
+
+    n_sections = flags["secciones"]
+    n_tasks    = flags["tareas"]
+    if delegado and n_tasks is None and target_tokens is not None:
+        # Derivar n_tasks del target y el cap por tarea (default = GEN_LONG_MAX_TOKENS,
+        # el mismo default interno de generate_delegated.per_task_cap).
+        import math
+        n_tasks = math.ceil(target_tokens / GEN_LONG_MAX_TOKENS)
+
+    _llama = _resolve_largo_backend(ai)
     if _llama is None or not hasattr(_llama, "generate_long"):
         _print_line("[warn_cl]backend llama no disponible (GGUF o llama-server "
                     "faltante) -- /largo necesita el fast-path llama.cpp[/warn_cl]")
@@ -2967,6 +3135,26 @@ def _slash_largo(ai, pedido: str) -> None:
     from node.inference_pipeline import _apply_qwen_template
     _prompt = _apply_qwen_template(pedido, _system)
 
+    mode = "delegado" if delegado else ("jerarquico" if jerarquico else "plano")
+    out_path = _largo_default_path(pedido)
+    out_path.write_text("", encoding="utf-8")   # archivo nuevo y vacio: escritura incremental
+    _print_line(f"[detail]Salida incremental: {out_path}[/detail]")
+
+    state = {
+        "mode":           mode,
+        "pedido":         pedido,
+        "target_tokens":  target_tokens,
+        "outline":        [],
+        "done_indices":   [],
+        "prev_summary":   "",
+        "completed":      0,
+        "total_tokens":   0,
+        "stop_reason":    None,
+        "done":           False,
+        "timestamp":      datetime.datetime.now().isoformat(),
+    }
+    _largo_save_state(out_path, state)
+
     if delegado:
         _print_line("[detail]Generacion delegada (outline -> workers de contexto "
                     "limpio + cabeza que teje)...[/detail]")
@@ -2974,31 +3162,68 @@ def _slash_largo(ai, pedido: str) -> None:
         _print_line("[detail]Generacion jerarquica (outline -> secciones con prompt "
                     "fresco; prefill acotado por seccion)...[/detail]")
     else:
-        _print_line(f"[detail]Generando hasta {GEN_LONG_MAX_TOKENS} tokens "
-                    f"(continuacion automatica, ~10 min a 8 tok/s)...[/detail]")
+        _print_line(f"[detail]Generando hasta {target_tokens or GEN_LONG_MAX_TOKENS} "
+                    f"tokens (continuacion automatica, ~10 min a 8 tok/s)...[/detail]")
     t0 = time.time()
 
+    def _on_outline(items):
+        state["outline"] = list(items)
+        _largo_save_state(out_path, state)
+
     if delegado:
-        def _on_task(idx, total, titulo, toks):
+        def _on_task(idx, total, titulo, toks, texto, stop_reason):
             print(f"  worker {idx}/{total}: {titulo[:60]} ({toks} tokens)", flush=True)
+            sep = "\n\n" if state["done_indices"] else ""
+            _largo_append_text(out_path, f"{sep}## {titulo}\n{texto}")
+            state["done_indices"].append(idx - 1)
+            state["completed"] = len(state["done_indices"])
+            state["total_tokens"] += toks
+            state["stop_reason"] = stop_reason
+            state["timestamp"] = datetime.datetime.now().isoformat()
+            _largo_save_state(out_path, state)
         # pedido CRUDO (no _prompt): generate_delegated arma sus propios prompts
         # (outline/sec) sobre el texto base; el ChatML rompe el outline.
         result = _llama.generate_delegated(
-            pedido, temperature=GEN_CHAT_TEMPERATURE, on_task=_on_task,
+            pedido, target_tokens=target_tokens, n_tasks=n_tasks,
+            temperature=GEN_CHAT_TEMPERATURE, on_task=_on_task, on_outline=_on_outline,
         )
+        # Cabeza que teje: se conoce recien al final (necesita TODOS los drafts). La
+        # escritura incremental es append-only -> se appendea al FINAL del archivo
+        # (no al principio como en result["text"]), con un encabezado que lo aclara.
+        if result is not None and result.get("head"):
+            _largo_append_text(out_path, f"\n\n## Introduccion (resumen)\n{result['head']}")
     elif jerarquico:
-        def _on_section(idx, total, titulo, toks):
+        def _on_section(idx, total, titulo, toks, texto, stop_reason):
             print(f"  seccion {idx}/{total}: {titulo[:60]} ({toks} tokens)", flush=True)
+            sep = "\n\n" if state["done_indices"] else ""
+            _largo_append_text(out_path, f"{sep}## {titulo}\n{texto}")
+            state["done_indices"].append(idx - 1)
+            state["completed"] = len(state["done_indices"])
+            state["total_tokens"] += toks
+            state["stop_reason"] = stop_reason
+            from shattering.model_constants import GEN_SECTION_SUMMARY_CHARS
+            state["prev_summary"] = (
+                titulo + ": " + (texto or "")[:GEN_SECTION_SUMMARY_CHARS]
+            ).replace("\n", " ")
+            state["timestamp"] = datetime.datetime.now().isoformat()
+            _largo_save_state(out_path, state)
         # pedido CRUDO (no _prompt): igual que delegado, construye sus prompts.
         result = _llama.generate_hierarchical(
-            pedido, temperature=GEN_CHAT_TEMPERATURE, on_section=_on_section,
+            pedido, target_tokens=target_tokens, n_sections=n_sections,
+            temperature=GEN_CHAT_TEMPERATURE, on_section=_on_section, on_outline=_on_outline,
         )
     else:
-        def _on_chunk(ronda, chunk_toks, total, reason):
+        def _on_chunk(ronda, chunk_toks, total, reason, texto):
             # Progreso ASCII puro (consola Windows CP1252)
             print(f"  ronda {ronda}: {chunk_toks} tokens, total {total}", flush=True)
+            _largo_append_text(out_path, texto)
+            state["completed"] += len(texto or "")
+            state["total_tokens"] = total
+            state["stop_reason"] = reason
+            state["timestamp"] = datetime.datetime.now().isoformat()
+            _largo_save_state(out_path, state)
         result = _llama.generate_long(
-            _prompt,
+            _prompt, max_total_tokens=target_tokens,
             temperature=GEN_CHAT_TEMPERATURE,
             on_chunk=_on_chunk,
         )
@@ -3012,6 +3237,11 @@ def _slash_largo(ai, pedido: str) -> None:
         _print_line("[warn_cl]La generacion larga devolvio texto vacio.[/warn_cl]")
         return
     _show_response(texto, _ACCENT)
+
+    completo = _largo_es_completo(mode, result)
+    state["done"] = completo
+    _largo_save_state(out_path, state)
+
     if delegado:
         _meta = f"{result.get('sections')} subtareas, cabeza={'si' if result.get('head') else 'no'}"
     elif jerarquico:
@@ -3020,9 +3250,149 @@ def _slash_largo(ai, pedido: str) -> None:
         _meta = f"stop={result.get('stop_reason')}"
     print(f"  [{result['total_tokens']} tokens, {result['rounds']} rondas, "
           f"{elapsed:.0f}s, {_meta}]")
+    # Banner de cierre: COMPLETO (fin natural) vs CORTADO (presupuesto/budget).
+    if completo:
+        _print_line(f"[detail]COMPLETO -- fin natural. Archivo: {out_path}[/detail]")
+    else:
+        _print_line(f"[warn_cl]CORTADO (limite de presupuesto alcanzado). "
+                    f"Para seguir: /largo --continuar {out_path}[/warn_cl]")
     _session_log.append({"input": f"/largo {pedido}", "output": texto,
                          "elapsed": elapsed})
     _persist_turn(ai, f"/largo {pedido}", texto)
+
+
+def _slash_largo_continuar(ai, archivo: str) -> None:
+    """
+    /largo --continuar <archivo>: retoma una generacion larga CORTADA leyendo el
+    sidecar <archivo>.largo_state.json que dejo _slash_largo.
+
+    Modo plano: re-ancla con la cola del archivo (ultimos ~1500 chars) como contexto
+    (generate_long(resume_text=...)) y sigue hasta completar target_tokens.
+    Modo jerarquico/delegado: genera SOLO las secciones/tareas planificadas que faltan
+    (outline menos done_indices), una por una via generate_long directo (mismo prompt
+    por-unidad que generate_hierarchical/generate_delegated arman internamente), y las
+    appendea. La cabeza que teje de --delegado NO se regenera en un --continuar (solo
+    se genera en una corrida que termina sin cortes) -- limitacion conocida.
+    """
+    from shattering.model_constants import (
+        COGNIA_SYSTEM_PROMPT, GEN_CHAT_TEMPERATURE, GEN_LONG_MAX_TOKENS,
+    )
+    out_path = Path(archivo)
+    if not out_path.exists():
+        _print_line(f"[warn_cl]No existe el archivo: {out_path}[/warn_cl]")
+        return
+    state = _largo_load_state(out_path)
+    if state is None:
+        _print_line(f"[warn_cl]No hay checkpoint valido para continuar (falta o esta "
+                    f"corrupto {_largo_state_path(out_path)}).[/warn_cl]")
+        return
+    if state.get("done"):
+        _print_line(f"[detail]{out_path} ya esta COMPLETO -- nada que continuar.[/detail]")
+        return
+
+    _llama = _resolve_largo_backend(ai)
+    if _llama is None or not hasattr(_llama, "generate_long"):
+        _print_line("[warn_cl]backend llama no disponible -- /largo --continuar "
+                    "necesita el fast-path llama.cpp[/warn_cl]")
+        return
+
+    mode          = state.get("mode", "plano")
+    pedido        = state.get("pedido", "")
+    target_tokens = state.get("target_tokens") or GEN_LONG_MAX_TOKENS
+    t0 = time.time()
+
+    if mode == "plano":
+        try:
+            from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
+            from cognia.user_prefs import personalize_prompt
+            _system = personalize_prompt(build_adaptive_system_prompt(ai))
+        except Exception:
+            _system = COGNIA_SYSTEM_PROMPT
+        from node.inference_pipeline import _apply_qwen_template
+        _prompt = _apply_qwen_template(pedido, _system)
+        tail = out_path.read_text(encoding="utf-8")[-1500:]
+        remaining = max(256, target_tokens - int(state.get("total_tokens", 0)))
+
+        def _on_chunk(ronda, chunk_toks, total, reason, texto):
+            print(f"  ronda {ronda}: {chunk_toks} tokens, total {total}", flush=True)
+            _largo_append_text(out_path, texto)
+            state["completed"]    = state.get("completed", 0) + len(texto or "")
+            state["total_tokens"] = int(state.get("total_tokens", 0)) + chunk_toks
+            state["stop_reason"]  = reason
+            state["timestamp"]    = datetime.datetime.now().isoformat()
+            _largo_save_state(out_path, state)
+
+        result = _llama.generate_long(
+            _prompt, max_total_tokens=remaining, resume_text=tail,
+            temperature=GEN_CHAT_TEMPERATURE, on_chunk=_on_chunk,
+        )
+        if result is None:
+            _print_line("[warn_cl]La continuacion fallo (backend sin respuesta).[/warn_cl]")
+            return
+        completo = _largo_es_completo("plano", result)
+
+    else:
+        outline      = state.get("outline") or []
+        done_idx_set = set(state.get("done_indices") or [])
+        faltan       = [(i, t) for i, t in enumerate(outline) if i not in done_idx_set]
+        if not faltan:
+            completo = True
+        else:
+            outline_block = "\n".join(f"{i+1}. {s}" for i, s in enumerate(outline))
+            # Mismo cociente que generate_hierarchical/generate_delegated arman
+            # internamente: jerarquico NO capa per-seccion (por diseno, cuasi-infinito);
+            # delegado si capa por-tarea a GEN_LONG_MAX_TOKENS (su per_task_cap default).
+            if mode == "jerarquico":
+                per_unit = max(256, target_tokens // max(1, len(outline)))
+            else:
+                per_unit = min(GEN_LONG_MAX_TOKENS,
+                               max(256, target_tokens // max(1, len(outline))))
+            prev_summary = state.get("prev_summary", "")
+            for idx, titulo in faltan:
+                if mode == "jerarquico":
+                    sec_prompt = (
+                        f"{pedido}\n\nEsquema:\n{outline_block}\n\n"
+                        + (f"Resumen de lo ya escrito: {prev_summary}\n\n" if prev_summary else "")
+                        + f"Escribe SOLO la seccion {idx+1}: {titulo}"
+                    )
+                else:  # delegado: worker de contexto limpio (sin prev_summary)
+                    sec_prompt = (
+                        f"{pedido}\n\nEsquema:\n{outline_block}\n\n"
+                        f"Escribe SOLO la seccion {idx+1}: {titulo}. No repitas las otras secciones."
+                    )
+                res = _llama.generate_long(sec_prompt, max_total_tokens=per_unit,
+                                           temperature=GEN_CHAT_TEMPERATURE)
+                if res is None:
+                    _print_line(f"[warn_cl]Fallo generando la seccion/tarea faltante "
+                                f"{idx+1} ({titulo[:60]}); se detiene (lo generado "
+                                f"hasta ahora ya esta guardado).[/warn_cl]")
+                    break
+                print(f"  seccion/tarea {idx+1}/{len(outline)}: {titulo[:60]} "
+                      f"({res['total_tokens']} tokens)", flush=True)
+                sep = "\n\n" if state["done_indices"] else ""
+                _largo_append_text(out_path, f"{sep}## {titulo}\n{res['text']}")
+                state["done_indices"].append(idx)
+                state["completed"]    = len(state["done_indices"])
+                state["total_tokens"] = int(state.get("total_tokens", 0)) + res["total_tokens"]
+                state["stop_reason"]  = res["stop_reason"]
+                if mode == "jerarquico":
+                    from shattering.model_constants import GEN_SECTION_SUMMARY_CHARS
+                    prev_summary = (
+                        titulo + ": " + (res["text"] or "")[:GEN_SECTION_SUMMARY_CHARS]
+                    ).replace("\n", " ")
+                    state["prev_summary"] = prev_summary
+                state["timestamp"] = datetime.datetime.now().isoformat()
+                _largo_save_state(out_path, state)
+            completo = len(state["done_indices"]) >= len(outline)
+
+    elapsed = time.time() - t0
+    state["done"] = completo
+    _largo_save_state(out_path, state)
+    if completo:
+        _print_line(f"[detail]COMPLETO -- {out_path} ({elapsed:.0f}s)[/detail]")
+    else:
+        _print_line(f"[warn_cl]Sigue CORTADO. Para seguir: "
+                    f"/largo --continuar {out_path}[/warn_cl]")
 
 
 def _modelo_activo_nombre(_llama) -> str:
@@ -6711,9 +7081,13 @@ def repl():
                             if _llama_turn is not _llama:
                                 _messages = [{"role": "system", "content": _system},
                                              {"role": "user", "content": _raw_llm}]
+                            # max_tokens del nivel /esfuerzo activo (no un literal fijo):
+                            # asi /esfuerzo maximo realmente alarga la respuesta del chat
+                            # (medio=1024 preserva el comportamiento historico por default).
+                            _effort_max_tokens = _active_effort()["max_tokens"]
                             if _use_chat:
                                 _stream_src = lambda: _llama_turn.stream_chat(
-                                    _messages, max_tokens=1024,
+                                    _messages, max_tokens=_effort_max_tokens,
                                     temperature=GEN_CHAT_TEMPERATURE)
                             else:
                                 from node.inference_pipeline import _apply_qwen_template
@@ -6721,7 +7095,7 @@ def repl():
                                     _messages[-1]["content"], _system,
                                     history=_hist_ctx or None)
                                 _stream_src = lambda: _llama_turn.stream_generate(
-                                    _formatted, max_tokens=1024,
+                                    _formatted, max_tokens=_effort_max_tokens,
                                     temperature=GEN_CHAT_TEMPERATURE)
                             _tokens_buf = []
                             t0 = time.time()

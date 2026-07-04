@@ -71,7 +71,7 @@ def main() -> int:
 
     t0 = time.perf_counter()
 
-    def on_chunk(round_idx, chunk_toks, total, reason):
+    def on_chunk(round_idx, chunk_toks, total, reason, chunk_text=""):
         elapsed = time.perf_counter() - t0
         print(f"  round {round_idx}: chunk_tokens={chunk_toks} "
               f"stop_reason={reason} total={total} elapsed={elapsed:.0f}s",

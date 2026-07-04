@@ -99,3 +99,38 @@ def test_delegated_outline_fail_returns_none():
     be = LlamaBackend(FakeImplNoOutline())
     res = be.generate_delegated("escribe sobre X", n_tasks=3)
     assert res is None
+
+
+def test_on_outline_called_once_before_any_task():
+    """on_outline(tasks) se llama UNA vez, apenas se parsea el esquema -- persiste el
+    plan completo (checkpoint de /largo) antes de correr el primer worker."""
+    be = LlamaBackend(FakeImpl())
+    seen = []
+    be.generate_delegated("escribe sobre X", n_tasks=3,
+                          on_outline=lambda tasks: seen.append(list(tasks)))
+    assert seen == [["Introduccion", "Desarrollo", "Conclusion"]]
+
+
+def test_on_task_receives_text_and_stop_reason():
+    """on_task trae ademas el TEXTO de la subtarea y su stop_reason interno (para
+    escritura incremental + deteccion de corte por presupuesto)."""
+    be = LlamaBackend(FakeImpl())
+    calls = []
+    be.generate_delegated(
+        "escribe sobre X", n_tasks=3, aggregate=False,
+        on_task=lambda idx, tot, tit, toks, txt, sr: calls.append((idx, tot, tit, toks, txt, sr)))
+    assert len(calls) == 3
+    for idx, tot, tit, toks, txt, sr in calls:
+        assert tot == 3
+        assert "Contenido generado" in txt
+        assert sr == "eos"
+
+
+def test_target_tokens_and_per_task_cap_still_accepted_defaults_unchanged():
+    """Regresion: target_tokens/per_task_cap ya existian en la firma antes de esta
+    tarea; los defaults (None -> GEN_LONG_MAX_TOKENS) siguen intactos."""
+    be = LlamaBackend(FakeImpl())
+    res = be.generate_delegated("escribe sobre X", n_tasks=2,
+                                target_tokens=1000, per_task_cap=600)
+    assert res is not None
+    assert res["sections"] == 2
