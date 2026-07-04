@@ -2909,6 +2909,13 @@ def _call_articulated(ai, prompt: str) -> str:
         return f"Error: {e}"
 
 
+# Tope de pasadas del auto-continuar de /largo (D1): cognia encadena sola las
+# continuaciones de una respuesta larga CORTADA hasta completarla. 0 = solo
+# manual. 6 pasadas x ~5k tok = ~30k extra por pedido, suficiente para lo
+# cotidiano sin permitir un loop sin fin si el modelo nunca cierra.
+_LARGO_AUTO_PASADAS = int(os.environ.get("COGNIA_LARGO_AUTO_PASADAS", "6"))
+
+
 def _parse_largo_flags(pedido: str) -> dict:
     """Extrae los flags de escala de /largo del INICIO del pedido, en cualquier orden
     (mismo estilo que el parseo original: strip de prefijos conocidos, sin argparse):
@@ -2920,12 +2927,14 @@ def _parse_largo_flags(pedido: str) -> dict:
       --tareas N              n_tasks (aplica con --delegado; si falta y hay --tokens,
                                _slash_largo lo deriva de target_tokens/per_task_cap)
       --continuar <archivo>   retoma una generacion truncada (ver _slash_largo_continuar)
+      --manual                desactiva el auto-continuar de ESTA corrida (por defecto
+                               cognia encadena sola las continuaciones hasta completar)
 
     Devuelve un dict con esas claves + "pedido" (el texto restante, el pedido real).
     Un valor numerico invalido (no entero) deja el flag en None sin consumir el resto.
     """
     out = {"jerarquico": False, "delegado": False, "tokens": None,
-          "secciones": None, "tareas": None, "continuar": None}
+          "secciones": None, "tareas": None, "continuar": None, "manual": False}
     rest = pedido.strip()
 
     def _pop_int(s: str):
@@ -2942,6 +2951,9 @@ def _parse_largo_flags(pedido: str) -> dict:
         elif low.startswith("--delegado"):
             out["delegado"] = True
             rest = rest[len("--delegado"):].strip()
+        elif low.startswith("--manual"):
+            out["manual"] = True
+            rest = rest[len("--manual"):].strip()
         elif low.startswith("--continuar"):
             rest = rest[len("--continuar"):].strip()
             parts = rest.split(None, 1)
@@ -3256,6 +3268,27 @@ def _slash_largo(ai, pedido: str) -> None:
     else:
         _print_line(f"[warn_cl]CORTADO (limite de presupuesto alcanzado). "
                     f"Para seguir: /largo --continuar {out_path}[/warn_cl]")
+        # AUTO-CONTINUAR (default ON): cognia encadena SOLA las continuaciones
+        # hasta completar el pedido, con tope de pasadas para no correr sin fin
+        # (env COGNIA_LARGO_AUTO_PASADAS; 0 o --manual = desactivado). Cada
+        # pasada relee el sidecar: si otro proceso lo completo, corta. Portable:
+        # todo va por Path/el sidecar, sin nada especifico del OS.
+        _auto_pasadas = 0 if flags.get("manual") else _LARGO_AUTO_PASADAS
+        for _pasada in range(_auto_pasadas):
+            _st = _largo_load_state(out_path)
+            if _st is None or _st.get("done"):
+                break
+            _print_line(f"[detail]auto-continuar: pasada {_pasada + 1}/"
+                        f"{_auto_pasadas}...[/detail]")
+            _slash_largo_continuar(ai, str(out_path))
+        _st = _largo_load_state(out_path)
+        if _st is not None and _st.get("done"):
+            _print_line(f"[detail]COMPLETO tras auto-continuar. "
+                        f"Archivo: {out_path}[/detail]")
+        elif _auto_pasadas:
+            _print_line(f"[warn_cl]Sigue INCOMPLETO tras {_auto_pasadas} pasadas "
+                        f"de auto-continuar. Para seguir a mano: /largo "
+                        f"--continuar {out_path}[/warn_cl]")
     _session_log.append({"input": f"/largo {pedido}", "output": texto,
                          "elapsed": elapsed})
     _persist_turn(ai, f"/largo {pedido}", texto)

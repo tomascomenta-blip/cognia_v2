@@ -446,3 +446,102 @@ class TestSlashLargoContinuar:
         state = json.loads((tmp_path / "plano_parcial.txt.largo_state.json").read_text(encoding="utf-8"))
         assert state["done"] is True
         assert state["total_tokens"] == 150
+
+
+# ---------------------------------------------------------------------------
+# (e) AUTO-CONTINUAR (D1): cognia encadena sola las continuaciones
+# ---------------------------------------------------------------------------
+
+class _FakeLongImplRounds:
+    """generate() devuelve tuplas (texto, tokens, stop) en orden; registra
+    cuantas veces lo llamaron. Sin snapshots (aca importa el ENCADENADO)."""
+
+    def __init__(self, rounds):
+        self._rounds = list(rounds)
+        self.calls = 0
+        self.last_tokens_predicted = None
+        self.last_stop_reason = None
+
+    def generate(self, prompt, max_tokens=256, temperature=0.7, **kw):
+        self.calls += 1
+        if not self._rounds:
+            return None
+        text, toks, reason = self._rounds.pop(0)
+        self.last_tokens_predicted = toks
+        self.last_stop_reason = reason
+        return text
+
+
+def _capture_lines(cli_mod, monkeypatch):
+    lines = []
+    monkeypatch.setattr(cli_mod, "_print_line", lambda s: lines.append(s))
+    return lines
+
+
+class TestAutoContinuar:
+    def test_cortado_encadena_solo_hasta_completar(self, tmp_path, monkeypatch):
+        """CORTADO -> auto-continuar corre pasadas hasta que el sidecar queda
+        done (fin natural en la continuacion) SIN intervencion del usuario."""
+        import cognia.cli as cli_mod
+        monkeypatch.chdir(tmp_path)
+        out_path = tmp_path / "salida.txt"
+        monkeypatch.setattr(cli_mod, "_largo_default_path", lambda pedido: out_path)
+        lines = _capture_lines(cli_mod, monkeypatch)
+
+        # corrida inicial: 2 rondas limit (5200 >= target 5000) -> CORTADO;
+        # continuacion: 1 ronda eos -> COMPLETO
+        impl = _FakeLongImplRounds([
+            ("A" * 40, 2600, "limit"), ("B" * 40, 2600, "limit"),
+            ("C" * 40, 500, "eos"),
+        ])
+        backend = LlamaBackend(impl)
+        cli_mod._slash_largo(_ai_con_llama(backend), "escribe algo")
+
+        state = json.loads((tmp_path / "salida.txt.largo_state.json")
+                           .read_text(encoding="utf-8"))
+        assert state["done"] is True
+        contenido = out_path.read_text(encoding="utf-8")
+        assert "A" * 40 in contenido and "C" * 40 in contenido
+        assert any("auto-continuar" in ln for ln in lines)
+        assert any("COMPLETO tras auto-continuar" in ln for ln in lines)
+
+    def test_manual_desactiva_el_encadenado(self, tmp_path, monkeypatch):
+        import cognia.cli as cli_mod
+        monkeypatch.chdir(tmp_path)
+        out_path = tmp_path / "salida.txt"
+        monkeypatch.setattr(cli_mod, "_largo_default_path", lambda pedido: out_path)
+        lines = _capture_lines(cli_mod, monkeypatch)
+
+        impl = _FakeLongImplRounds([
+            ("A" * 40, 2600, "limit"), ("B" * 40, 2600, "limit"),
+            ("C" * 40, 500, "eos"),   # NO deberia consumirse
+        ])
+        backend = LlamaBackend(impl)
+        cli_mod._slash_largo(_ai_con_llama(backend), "--manual escribe algo")
+
+        state = json.loads((tmp_path / "salida.txt.largo_state.json")
+                           .read_text(encoding="utf-8"))
+        assert state["done"] is False           # quedo CORTADO, sin encadenar
+        assert impl.calls == 2                  # solo la corrida inicial
+        assert not any("auto-continuar" in ln for ln in lines)
+
+    def test_tope_de_pasadas_evita_loop_sin_fin(self, tmp_path, monkeypatch):
+        """Modelo que NUNCA cierra (siempre limit): el auto-continuar corta en
+        el tope y lo declara INCOMPLETO con el comando manual para seguir."""
+        import cognia.cli as cli_mod
+        monkeypatch.chdir(tmp_path)
+        out_path = tmp_path / "salida.txt"
+        monkeypatch.setattr(cli_mod, "_largo_default_path", lambda pedido: out_path)
+        monkeypatch.setattr(cli_mod, "_LARGO_AUTO_PASADAS", 2)
+        lines = _capture_lines(cli_mod, monkeypatch)
+
+        impl = _FakeLongImplRounds([("X" * 20, 2600, "limit")] * 10)
+        backend = LlamaBackend(impl)
+        cli_mod._slash_largo(_ai_con_llama(backend), "escribe algo")
+
+        state = json.loads((tmp_path / "salida.txt.largo_state.json")
+                           .read_text(encoding="utf-8"))
+        assert state["done"] is False
+        # inicial (2 rondas hasta el target) + 2 pasadas de 1 ronda c/u
+        assert impl.calls == 4
+        assert any("Sigue INCOMPLETO tras 2 pasadas" in ln for ln in lines)
