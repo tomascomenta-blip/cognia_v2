@@ -225,6 +225,24 @@ def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None):
         ao = ao.filter(ImageFilter.GaussianBlur(max(1, int(H * 0.06))))
         img.paste(ao, (0, 0), ao)
 
+        # --- GRANO procedural (research: Noise para micro-textura/imperfeccion):
+        # ruido fino determinista (seed fija) modulando el brillo dentro del
+        # lapiz. Sube la entropia de alta frecuencia hacia lo fotografico sin
+        # deformar la figura. Enmascarado a la bbox del cuerpo+madera.
+        import numpy as _np
+        rng = _np.random.default_rng(7)
+        gx0, gx1 = int(er0), int(gr1)
+        gw, gh = max(1, gx1 - gx0), max(1, ty1 - ty0)
+        noise = rng.normal(0, 10, size=(gh, gw))          # +-10 niveles
+        arr = _np.asarray(img).astype(_np.float32).copy()
+        reg = arr[ty0:ty0 + gh, gx0:gx0 + gw, :3]
+        # aplicar solo donde el pixel NO es fondo (dif. con el background)
+        bg = _np.array(img.getpixel((2, 2))[:3], dtype=_np.float32)
+        mask = (_np.abs(reg - bg).sum(axis=2) > 40)[:, :, None]
+        reg += noise[:, :, None] * mask
+        arr[ty0:ty0 + gh, gx0:gx0 + gw, :3] = _np.clip(reg, 0, 255)
+        img.paste(Image.fromarray(arr.astype("uint8"), "RGB"), (0, 0))
+
 
 # canonical_name -> drawer detallado (el renderer lo consulta primero)
 DETAILED = {

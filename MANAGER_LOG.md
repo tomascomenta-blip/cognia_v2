@@ -5280,3 +5280,33 @@ RESULTADO_PULIDO.md con numeros + alcance honesto (fisica de asentamiento no
 dinamica; sin pared; undo/redo por checkpoint). Metodo: 2 subagentes sonnet en
 paralelo (archivos disjuntos) para tools mecanicas; Fable para fisica/eval/
 similitud/claims. Regulacion de uso OK (reset esperado antes, reanudado).
+
+================================================================================
+CORRIDA 2026-07-05d "HERRAMIENTAS DE BLENDER AI-NATIVAS -> LAPIZ" (/goal, Fable 5)
+================================================================================
+OBJETIVO del dueño: investigar las herramientas de Blender, recrearlas como
+AI-nativas, iterar hasta un lapiz al nivel de difusion pixel por pixel.
+
+ENTREGADO (commits fb248ff..siguiente, ~40 tests LCD nuevos):
+- INVESTIGACION Blender (workflow 4 areas sonnet): taxonomia real (modelado/
+  modificadores/materiales/render/calidad) mapeada a ops AI-nativas CPU.
+- MODELADO AI-nativo (modeling.py + tools_modeling.py, 8 tools): escena_biselar
+  (Bevel), _subdividir, _suavizar (Subsurf/Chaikin), _insertar (Inset), _extruir
+  (Extrude), _espejar (Mirror), _array (Array), _poligono (ngon). Funciones puras
+  sobre vertices. Wireadas al loop.
+- SHADING (shading.py): cylinder_gradient (volumen), specular_streak (glossy),
+  render con SUPERSAMPLING (scale=3/4, anti-aliasing) + toggle labels.
+- LAPIZ (draw_pencil) iterado 4 veces VIENDO el PNG: v1 partes+gradiente+specular+
+  SS3x; v2 sombra proyectada+punta fina; v3 doble specular+rim light+AO uniones+
+  grano madera+SS4x; v4 grano procedural (Noise). Se ve como render de producto.
+- EVALUACION HONESTA (RESULTADO_LAPIZ.md): render 19ms(1x)/372ms(4x); micro-
+  textura MEDIDA 2.00 bits vs 3.5-4.5 de una foto/difusion. VEREDICTO: calidad de
+  render de producto SI, difusion pixel-por-pixel NO -> limite FUNDAMENTAL, no de
+  esfuerzo (la micro-textura estocastica pixel-a-pixel requiere un modelo
+  generativo aprendido o texturas reales; el ruido procedural sube a ~2 bits y
+  mas empieza a verse artificial). Cerrar el gap = el refinador neuronal
+  SD+ControlNet (FUERA en CPU), que es justo el rol del refinador del pipeline
+  LCD: procedural da estructura+control, difusion daria fotorrealismo; se
+  complementan. HONESTIDAD cuantificada, sin overclaim.
+Metodo: workflow research paralelo; render/shading/iteracion visual/claims en
+Fable 5. Regulacion de uso OK. 28 tests modeling+shapes verdes.
