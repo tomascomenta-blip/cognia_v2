@@ -22,6 +22,7 @@ prompt text so the doc and the code can never drift apart.
 from __future__ import annotations
 
 import ast
+import atexit
 import glob as _glob
 import json
 import operator
@@ -54,6 +55,58 @@ def build_tools_doc() -> str:
     return "\n".join(f"  {spec['doc']}" for spec in TOOLS.values())
 
 
+# ── contador de uso liviano (TAREA 5) ──────────────────────────────────
+# Dict en memoria {tool: {calls, ok, fail, last}} + flush ATOMICO (mismo
+# patron _save_manifest de tool_synthesis: temp + os.replace, nunca deja el
+# archivo a medio escribir) cada _USAGE_FLUSH_EVERY llamadas y en atexit.
+# Best-effort: si el disco falla, el loop del agente no se entera.
+_USAGE_PATH = Path(__file__).parent / "generated_tools" / "_tool_usage.json"
+_USAGE: dict = {}
+_usage_calls_since_flush = 0
+_USAGE_FLUSH_EVERY = 20
+
+
+def _usage_load() -> None:
+    global _USAGE
+    try:
+        if _USAGE_PATH.exists():
+            _USAGE = json.loads(_USAGE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        _USAGE = {}
+
+
+def _usage_flush() -> None:
+    try:
+        _USAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _USAGE_PATH.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(_USAGE, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, _USAGE_PATH)
+    except Exception:
+        pass
+
+
+def _record_usage(name: str, ok: bool) -> None:
+    global _usage_calls_since_flush
+    import datetime
+    entry = _USAGE.setdefault(name, {"calls": 0, "ok": 0, "fail": 0, "last": None})
+    entry["calls"] += 1
+    entry["ok" if ok else "fail"] += 1
+    entry["last"] = datetime.datetime.now().isoformat(timespec="seconds")
+    _usage_calls_since_flush += 1
+    if _usage_calls_since_flush >= _USAGE_FLUSH_EVERY:
+        _usage_calls_since_flush = 0
+        _usage_flush()
+
+
+def get_tool_usage() -> dict:
+    """Lectura de los contadores de uso (copia; no expone el dict interno)."""
+    return {k: dict(v) for k, v in _USAGE.items()}
+
+
+_usage_load()
+atexit.register(_usage_flush)
+
+
 def run_tool(name: str, args: str, ctx: dict) -> str:
     """Dispatch one tool by name. Unknown name -> a helpful error string."""
     spec = TOOLS.get(name)
@@ -68,9 +121,18 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
         valid = ", ".join(TOOLS.keys())
         return f"ERROR: herramienta '{name}' no existe. Validas: {valid}"
     try:
-        return spec["fn"](args, ctx)
+        out = spec["fn"](args, ctx)
+        # \bERROR\b sobre la cabeza (misma convencion que la traza de cli.py):
+        # un RESULTADO exitoso que menciona 'ERROR_LOG.txt' no es un fallo.
+        ok = not re.search(r"\bERROR\b", out[:120])
     except Exception as exc:  # a broken tool must not kill the loop
-        return f"RESULTADO {name} ERROR: {exc}"
+        out = f"RESULTADO {name} ERROR: {exc}"
+        ok = False
+    try:
+        _record_usage(name, ok)
+    except Exception:
+        pass
+    return out
 
 
 # ── small shared helpers ───────────────────────────────────────────────
@@ -592,3 +654,35 @@ def _generar_codigo(args, ctx):
             f"{out.get('n_unique', '?')} candidatos unicos, rank={out.get('rank_mode')}, "
             f"tests visibles {best.get('score', '?')}/{best.get('total', '?')}, "
             f"{len(code)} chars)")
+
+
+# HERMES self-tooling EN VIVO: el agente puede pedir una tool nueva sin salir
+# del loop /hacer. Reusa el mismo pipeline generar->scan->sandbox->registrar
+# de cognia.agent.tool_synthesis (regla 8 CLAUDE.md: nada auto-generado se
+# vuelve ejecutable sin pasar _static_safety_scan + sandbox); esta tool NO
+# agrega un camino nuevo de ejecucion, solo lo dispara desde el loop. danger=True
+# porque el resultado queda invocable (staged) sin revision humana previa.
+@tool("crear_herramienta",
+      "crear_herramienta <nombre> | <proposito> | <test_input> | <resultado_esperado>  "
+      "-- sintetiza y REGISTRA una tool nueva (sandbox-verificada, queda staged)",
+      danger=True)
+def _crear_herramienta(args, ctx):
+    parts = re.split(r"\s*\|\s*", args, maxsplit=3)
+    if len(parts) != 4 or any(not p.strip() for p in parts):
+        return ("RESULTADO crear_herramienta ERROR: formato (usa nombre | proposito | "
+                "test_input | resultado_esperado), 4 partes separadas por '|'")
+    nombre, proposito, test_input, esperado = (p.strip() for p in parts)
+
+    from cognia.agent.tool_synthesis import ToolSpec, synthesize_and_register, load_generated_tools
+    spec = ToolSpec(name=nombre, doc=proposito[:60], purpose=proposito,
+                    test_input=test_input, expect_contains=esperado)
+    res = synthesize_and_register(spec, orch=_orch(ctx), max_attempts=2)
+    if not res.get("ok"):
+        # motivo REAL (scan estatico, sandbox, o repair agotado) -- nunca un
+        # "no se pudo" generico; el modelo/usuario necesita saber que fallo.
+        return f"RESULTADO crear_herramienta ERROR: {res.get('reason', 'desconocido')}"
+
+    load_generated_tools()  # la deja invocable YA en este proceso (TOOLS global)
+    return (f"RESULTADO crear_herramienta: '{nombre}' creada y verificada "
+            f"(version {res.get('version', '?')}, tier {res.get('tier', 'staged')}). "
+            "Ya es invocable con su nombre.")

@@ -6,8 +6,10 @@ verificada de skills nivel-2 (skills / skill_capture).
 La verificacion de tools (sandbox) ya tiene su test en test_tool_synthesis;
 aca se fija la GOBERNANZA que CP2 agrega encima.
 """
+import types
+
 import cognia.agent.tool_synthesis as ts
-from cognia.agent import skill_capture, skills
+from cognia.agent import skill_capture, skills, structure
 
 
 # ── tiers + crear-vs-reusar (manifest aislado por tmp_path) ─────────────
@@ -80,6 +82,145 @@ def test_verified_se_carga_y_corre(monkeypatch, tmp_path):
     assert ts.load_generated_tools(reg) == 1
     out = reg["reversa"]["fn"]("hola", {})
     assert "aloh" in out
+
+
+# ── version history + rollback (TAREA 3) ────────────────────────────────
+
+def test_version_history_and_rollback(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    res1 = ts.synthesize_and_register(_reversa_spec(), code=REVERSA_CODE)
+    assert res1["ok"] and res1["version"] == "0.1.0" and res1["tier"] == "staged"
+    v1_content = (ts.GENERATED_DIR / "reversa.py").read_text(encoding="utf-8")
+
+    code_v2 = "def run(args: str) -> str:\n    return args[::-1] + '!'\n"
+    res2 = ts.synthesize_and_register(_reversa_spec(), code=code_v2)
+    assert res2["ok"] and res2["version"] == "0.2.0"
+
+    hist_file = ts.GENERATED_DIR / "_history" / "reversa_v0.1.0.py"
+    assert hist_file.exists()
+    assert hist_file.read_text(encoding="utf-8") == v1_content
+    assert (ts.GENERATED_DIR / "reversa.py").read_text(encoding="utf-8") != v1_content
+
+    # rollback a v1: restaura el archivo activo y el manifest
+    rb = ts.rollback_tool("reversa", "0.1.0")
+    assert rb["ok"]
+    assert (ts.GENERATED_DIR / "reversa.py").read_text(encoding="utf-8") == v1_content
+    entry = ts._load_manifest()[0]
+    assert entry["version"] == "0.1.0"
+    assert entry["tier"] == "staged"
+    assert entry["uses_ok"] == 0 and entry["uses_fail"] == 0
+
+
+def test_rollback_a_version_inexistente_falla(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    ts.synthesize_and_register(_reversa_spec(), code=REVERSA_CODE)
+    res = ts.rollback_tool("reversa", "9.9.9")
+    assert not res["ok"] and "historial" in res["reason"]
+
+
+# ── repair-on-live-failure (TAREA 4) ─────────────────────────────────────
+
+def _duplicar_spec(name="duplicar"):
+    return ts.ToolSpec(name=name, doc="duplicar <n> -- duplica un numero",
+                       purpose="duplica un numero entero", test_input="4",
+                       expect_contains="8")
+
+DUPLICAR_CRASHEA = "def run(args: str) -> str:\n    return str(int(args) * 2)\n"
+
+
+def test_live_failure_con_orch_repara_y_no_cuenta_fallo(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    res1 = ts.synthesize_and_register(_duplicar_spec(), code=DUPLICAR_CRASHEA)
+    assert res1["ok"]
+
+    fixed_code = (
+        "def run(args: str) -> str:\n"
+        "    try:\n"
+        "        n = int(args.strip())\n"
+        "    except ValueError:\n"
+        "        return '0'\n"
+        "    return str(n * 2)\n"
+    )
+    orch = types.SimpleNamespace(infer=lambda p: types.SimpleNamespace(text=fixed_code))
+
+    reg = {}
+    ts.load_generated_tools(reg)
+    ctx = {"ai": types.SimpleNamespace(_orchestrator=orch)}
+    out = reg["duplicar"]["fn"]("no-es-numero", ctx)
+    assert "ERROR" in out  # la llamada que fallo sigue reportando el error real
+
+    entries = ts._load_manifest()
+    entry = next(e for e in entries if e["name"] == "duplicar")
+    assert entry["version"] == "0.2.0"   # se re-registro con el fix
+    assert entry["uses_fail"] == 0       # el fallo NO cuenta para el retiro
+
+    # la version reparada corre bien con el input que antes crasheaba
+    reg2 = {}
+    ts.load_generated_tools(reg2)
+    assert "0" in reg2["duplicar"]["fn"]("no-es-numero", {})
+
+
+def test_live_failure_sin_orch_cuenta_como_antes(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    ts.synthesize_and_register(_duplicar_spec("duplicar2"), code=DUPLICAR_CRASHEA)
+    reg = {}
+    ts.load_generated_tools(reg)
+    # ctx sin 'ai' -> sin orquestador disponible -> regresion: cuenta igual
+    # que record_tool_use(name, False) de siempre.
+    reg["duplicar2"]["fn"]("no-es-numero", {})
+    reg["duplicar2"]["fn"]("otra-vez-mal", {})
+    entry = next(e for e in ts._load_manifest() if e["name"] == "duplicar2")
+    assert entry["uses_fail"] == ts.RETIRE_AFTER_FAIL
+    assert entry["tier"] == "retired"
+
+
+def test_live_failure_guarda_caso_extra_en_manifest(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    ts.synthesize_and_register(_duplicar_spec("duplicar3"), code=DUPLICAR_CRASHEA)
+    reg = {}
+    ts.load_generated_tools(reg)
+    reg["duplicar3"]["fn"]("no-es-numero", {})  # sin orch -> no repara, pero guarda el caso
+    entry = next(e for e in ts._load_manifest() if e["name"] == "duplicar3")
+    assert len(entry["extra_cases"]) == 1
+    assert entry["extra_cases"][0]["test_input"] == "no-es-numero"
+    assert entry["extra_cases"][0]["error"]  # error real, no vacio
+
+
+# ── RULES automaticas para tools sintetizadas (TAREA 6) ──────────────────
+
+def test_synthesize_deriva_regla_parts_en_structure(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr(structure, "RULES", dict(structure.RULES))
+    spec = ts.ToolSpec(name="convertir_par", doc="convertir_par <a> | <b>",
+                       purpose="a | b", test_input="x", expect_contains="x")
+    res = ts.synthesize_and_register(spec, code="def run(args):\n    return args\n")
+    assert res["ok"]
+    assert structure.RULES["convertir_par"] == {"parts": 2, "names": ("a", "b")}
+    assert structure.validate_action("convertir_par", "solo_una_parte") is not None
+    assert structure.validate_action("convertir_par", "1 | 2") is None
+
+
+def test_synthesize_sin_pipe_deriva_regla_nonempty(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr(structure, "RULES", dict(structure.RULES))
+    spec = ts.ToolSpec(name="saludar", doc="saluda", purpose="saluda a alguien",
+                       test_input="x", expect_contains="x")
+    ts.synthesize_and_register(spec, code="def run(args):\n    return args\n")
+    assert structure.RULES["saludar"] == {"nonempty": "saludar"}
+    assert structure.validate_action("saludar", "") is not None
+
+
+def test_load_generated_tools_re_deriva_la_regla(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr(structure, "RULES", dict(structure.RULES))
+    spec = ts.ToolSpec(name="simple_tool", doc="d", purpose="hace algo simple",
+                       test_input="x", expect_contains="x")
+    ts.synthesize_and_register(spec, code="def run(args):\n    return args\n")
+    # simular un reinicio del proceso: RULES en memoria se pierde
+    structure.RULES.pop("simple_tool", None)
+    reg = {}
+    ts.load_generated_tools(reg)
+    assert structure.RULES["simple_tool"] == {"nonempty": "simple_tool"}
 
 
 # ── blocklist duro + captura de skills nivel-2 ──────────────────────────

@@ -5,6 +5,7 @@ Pins that every tool is callable, returns a RESULTADO string, that the registry
 doc and dispatch stay in sync, and that the safety blocks hold.
 """
 
+import json
 import sys
 import types
 
@@ -245,3 +246,45 @@ def test_copiar_src_fuera_dst_dentro_permitido(workspace, tmp_path_factory):
     out = T.run_tool("copiar_archivo", f"{src} | traido.txt", _ctx())
     assert "OK" in out
     assert (workspace / "traido.txt").read_text(encoding="utf-8") == "contenido externo"
+
+
+# ── contador de uso liviano para tools builtin (TAREA 5) ────────────────
+
+@pytest.fixture
+def usage_isolated(tmp_path, monkeypatch):
+    """Aisla el contador global de tools.py: dict en memoria + archivo de
+    flush, para que este test no lea/escriba el uso REAL del proceso."""
+    monkeypatch.setattr(T, "_USAGE", {})
+    monkeypatch.setattr(T, "_usage_calls_since_flush", 0)
+    monkeypatch.setattr(T, "_USAGE_PATH", tmp_path / "_tool_usage.json")
+    return tmp_path
+
+
+def test_run_tool_counts_calls_ok_fail_and_last(usage_isolated):
+    ctx = _ctx()
+    for _ in range(3):
+        T.run_tool("calcular", "1+1", ctx)          # ok
+    T.run_tool("calcular", "__import__('os').system('x')", ctx)  # ERROR -> fail
+    usage = T.get_tool_usage()
+    assert usage["calcular"]["calls"] == 4
+    assert usage["calcular"]["ok"] == 3
+    assert usage["calcular"]["fail"] == 1
+    assert usage["calcular"]["last"] is not None
+
+
+def test_usage_flushes_to_disk_every_n_calls(usage_isolated, monkeypatch):
+    monkeypatch.setattr(T, "_USAGE_FLUSH_EVERY", 3)
+    ctx = _ctx()
+    for _ in range(3):
+        T.run_tool("calcular", "2+2", ctx)
+    assert (usage_isolated / "_tool_usage.json").exists()
+    data = json.loads((usage_isolated / "_tool_usage.json").read_text(encoding="utf-8"))
+    assert data["calcular"]["calls"] == 3
+    assert data["calcular"]["ok"] == 3
+
+
+def test_get_tool_usage_returns_a_copy(usage_isolated):
+    T.run_tool("fecha", "", _ctx())
+    usage = T.get_tool_usage()
+    usage["fecha"]["calls"] = 999   # mutar la copia
+    assert T.get_tool_usage()["fecha"]["calls"] == 1  # el interno no cambio

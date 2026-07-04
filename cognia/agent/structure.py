@@ -53,6 +53,8 @@ RULES = {
     "responder":        {"nonempty": "respuesta"},
     "buscar":           {"nonempty": "patron"},
     "http_get":         {"nonempty": "url", "url": True},
+    "crear_herramienta": {"parts": 4,
+                          "names": ("nombre", "proposito", "test_input", "resultado_esperado")},
 }
 
 # Una "ruta" plausible: sin saltos de linea, sin 'ACCION:' colado, largo sano.
@@ -60,6 +62,15 @@ _PATH_BAD_RE = re.compile(r"ACCI[OÓ]N:", re.IGNORECASE)
 # 1ra linea que parece ruta: token sin espacios con extension o separador de
 # directorios (lo que un modelo emite cuando olvido el '|' antes del contenido).
 _PATHLIKE_RE = re.compile(r"^[\w.\-/\\:~]+\.[A-Za-z0-9]{1,8}$|^[\w.\-~]+[/\\][\w.\-/\\]+$")
+
+
+def register_rule(name: str, rule: dict) -> None:
+    """Agrega o sobreescribe una regla de validacion EN VIVO (TAREA 6, puente
+    auto-mejora: tool_synthesis la llama al registrar/cargar una tool
+    sintetizada). RULES sigue siendo la base estatica de las tools escritas a
+    mano; esto la EXTIENDE sin tocar el dict a mano -- una tool que Cognia se
+    construye a si misma entra al MISMO validador que las demas."""
+    RULES[name] = rule
 
 
 def _split(args: str, maxsplit: int) -> list:
