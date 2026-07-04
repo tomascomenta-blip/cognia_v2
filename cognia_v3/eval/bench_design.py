@@ -1345,7 +1345,18 @@ def run_benchmark(specs, label, max_tokens=DEFAULT_MAX_TOKENS, seed=None,
     return output
 
 
+def _safe_stdout():
+    """Windows cp1252: evita que un print() de texto no-ASCII crashee el run
+    (el JSON se escribe tras el loop). Ver bench_bfcl_slice._safe_stdout."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main():
+    _safe_stdout()
     ap = argparse.ArgumentParser(description="Cognia design benchmark (eje 3)")
     ap.add_argument("--check-only", action="store_true",
                     help="self-test del checker + validacion de specs, sin modelo")

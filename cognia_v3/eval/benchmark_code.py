@@ -1238,6 +1238,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def main():
+    # Windows cp1252: un print() de texto no-ASCII del modelo crashea el run
+    # (el JSON se escribe tras el loop). Reconfigurar a utf-8/replace.
+    for _s in (sys.stdout, sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     parser = build_arg_parser()
     args = parser.parse_args()
     err = check_cascade_args(args.cascade, args.repair)

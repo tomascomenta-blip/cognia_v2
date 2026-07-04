@@ -36,6 +36,7 @@ import argparse
 import datetime
 import json
 import random
+import sys
 import time
 from pathlib import Path
 
@@ -554,7 +555,20 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _safe_stdout():
+    """Windows: stdout es cp1252 y un print() de texto del modelo/datos con un
+    caracter no-ASCII crasha con UnicodeEncodeError (paso el run entero a
+    perder — el JSON se escribe DESPUES del loop). Reconfigurar a utf-8 con
+    errors='replace' hace que ningun print rompa la corrida."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main():
+    _safe_stdout()
     parser = build_arg_parser()
     args = parser.parse_args()
 
