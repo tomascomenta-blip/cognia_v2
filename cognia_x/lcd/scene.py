@@ -142,6 +142,8 @@ class Obj:
     rotation: float = 0.0         # grados (0 = sin rotar)
     material: str = ""            # madera/metal/vidrio/... (editable)
     id: str = ""                  # identidad unica; si vacia, se usa name
+    points: list = None           # vertices custom (shape='polygon'): [[x,y],...]
+                                  # en coords LOCALES del objeto [-0.5,0.5] (0=centro)
 
     def key(self) -> str:
         return self.id or self.name
@@ -237,7 +239,7 @@ class Scene:
         # solo los campos que Obj conoce (compat: escenas viejas sin rotation/
         # material/id no rompen; campos extra se ignoran).
         _fields = {"name", "shape", "x", "y", "w", "h", "color", "z",
-                   "relation", "ref", "rotation", "material", "id"}
+                   "relation", "ref", "rotation", "material", "id", "points"}
         for od in d.get("objects", []):
             od = {k: v for k, v in dict(od).items() if k in _fields}
             od["color"] = tuple(od.get("color", (150, 150, 150)))

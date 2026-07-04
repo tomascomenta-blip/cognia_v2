@@ -628,6 +628,52 @@ def _escena_fisica(args, ctx):
             f"inestables={chk['inestables']}")
 
 
+@tool("escena_forma",
+      "escena_forma <objeto> | <rect|ellipse|circle|triangle|polygon>  -- cambia la "
+      "figura de un objeto (edicion de figuras)")
+def _escena_forma(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_forma ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args, maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO escena_forma ERROR: formato (objeto | forma)"
+    name, forma = parts[0].strip(), parts[1].strip().lower()
+    if forma not in ("rect", "ellipse", "circle", "triangle", "polygon"):
+        return ("RESULTADO escena_forma ERROR: forma invalida "
+                "(rect|ellipse|circle|triangle|polygon)")
+    if not scene.edit(name, shape=forma):
+        return f"RESULTADO escena_forma ERROR: no existe el objeto '{name}'"
+    return f"RESULTADO escena_forma: '{name}' ahora es {forma}"
+
+
+@tool("escena_vertices",
+      "escena_vertices <objeto> | x1,y1 x2,y2 x3,y3 ...  -- define los VERTICES de un "
+      "objeto (coords locales -0.5..0.5, 0=centro); lo vuelve un polygon")
+def _escena_vertices(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_vertices ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args, maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO escena_vertices ERROR: formato (objeto | x1,y1 x2,y2 ...)"
+    name = parts[0].strip()
+    pts = []
+    for tok in parts[1].split():
+        m = _re.match(r"(-?[\d.]+),(-?[\d.]+)$", tok.strip())
+        if not m:
+            return f"RESULTADO escena_vertices ERROR: vertice mal formado '{tok}' (usa x,y)"
+        pts.append([float(m.group(1)), float(m.group(2))])
+    if len(pts) < 3:
+        return "RESULTADO escena_vertices ERROR: hacen falta al menos 3 vertices"
+    o = scene.get(name)
+    if o is None:
+        return f"RESULTADO escena_vertices ERROR: no existe el objeto '{name}'"
+    o.shape = "polygon"
+    o.points = pts
+    return f"RESULTADO escena_vertices: '{name}' con {len(pts)} vertices (ahora polygon)"
+
+
 # Import de este modulo = registro de las tools en el registry global (via el
 # @tool decorator). load_lcd_tools() existe para llamarlo explicito y contar.
 def load_lcd_tools() -> int:
@@ -640,5 +686,6 @@ def load_lcd_tools() -> int:
                            "escena_mover", "escena_rotar", "escena_escalar",
                            "escena_material", "escena_capa", "escena_camara",
                            "escena_luz", "escena_fondo", "escena_alinear",
-                           "escena_distribuir", "escena_relacionar", "escena_fisica")
+                           "escena_distribuir", "escena_relacionar", "escena_fisica",
+                           "escena_forma", "escena_vertices")
                if n in TOOLS)

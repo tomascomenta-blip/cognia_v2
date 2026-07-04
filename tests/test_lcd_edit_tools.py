@@ -34,7 +34,7 @@ def test_tools_nuevas_registradas_en_el_registry():
 
 
 def test_load_lcd_tools_cuenta_todas():
-    assert lcd_tools.load_lcd_tools() == 21   # 6 originales + 15 de edicion total
+    assert lcd_tools.load_lcd_tools() == 23   # 6 base + 15 edicion + forma + vertices
 
 
 # ── escena_agregar ────────────────────────────────────────────────────────
