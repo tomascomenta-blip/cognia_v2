@@ -113,3 +113,81 @@ def test_prompt_de_tests_no_pide_la_funcion():
     p = build_test_gen_prompt("Write double(n).", "double", k=3)
     assert "Do NOT write the function" in p
     assert "double(" in p
+
+def test_best_of_n_early_stop_greedy_perfecto():
+    """Si el greedy pasa TODOS los tests visibles, no se genera el resto del
+    pool (lossless: los empates los gana el idx menor). Se declara en
+    rank_mode y n_generated deja la evidencia."""
+    calls = []
+
+    def fake_gen(prompt, temperature, seed):
+        calls.append(temperature)
+        if len(calls) == 1:                     # paso test-first
+            return "assert double(2) == 4\nassert double(5) == 10"
+        return "```python\n" + GOOD_CODE + "```"
+
+    from cognia_v3.eval.benchmark_code import extract_code
+    out = best_of_n(fake_gen, "PROMPT", "task: double a number", "double",
+                    extract_code, n=8, seed=7)
+    assert out["rank_mode"] == "tests_greedy_early"
+    assert out["best_idx"] == 0
+    assert out["n_generated"] == 1
+    assert len(calls) == 2                      # tests + SOLO el greedy
+
+
+def test_best_of_n_greedy_imperfecto_genera_el_pool_completo():
+    """Regresion: si el greedy NO pasa todo, el pipeline genera los N
+    candidatos y rankea como siempre (el correcto gana aunque llegue 2do)."""
+    calls = []
+
+    def fake_gen(prompt, temperature, seed):
+        calls.append(temperature)
+        if len(calls) == 1:
+            return "assert double(2) == 4\nassert double(5) == 10"
+        if len(calls) == 2:                     # greedy: buggy (pasa 1/2)
+            return "```python\n" + BAD_CODE + "```"
+        return "```python\n" + GOOD_CODE + "```"
+
+    from cognia_v3.eval.benchmark_code import extract_code
+    out = best_of_n(fake_gen, "PROMPT", "task: double a number", "double",
+                    extract_code, n=3, seed=7)
+    assert out["rank_mode"] == "tests"
+    assert out["best_idx"] == 1
+    assert out["n_generated"] == 3
+    assert len(calls) == 4                      # tests + 3 candidatos
+
+
+def test_best_of_n_early_stop_no_aplica_con_bpb():
+    """Con bpb_fn el desempate puede preferir otro candidato -> el corte
+    temprano NO es lossless y no debe aplicarse."""
+    calls = []
+
+    def fake_gen(prompt, temperature, seed):
+        calls.append(temperature)
+        if len(calls) == 1:
+            return "assert double(2) == 4"
+        return "```python\n" + GOOD_CODE + "```"
+
+    from cognia_v3.eval.benchmark_code import extract_code
+    out = best_of_n(fake_gen, "PROMPT", "task: double a number", "double",
+                    extract_code, n=3, seed=7, bpb_fn=lambda c: 1.0)
+    assert out["n_generated"] == 3              # pool completo, sin corte
+
+
+def test_best_of_n_sin_tests_visibles_corta_en_greedy():
+    """Sin oraculo el ranking siempre elige el primer unico no-vacio (=el
+    greedy): generar N-1 extra es CPU tirada. Corta y lo declara."""
+    calls = []
+
+    def fake_gen(prompt, temperature, seed):
+        calls.append(temperature)
+        if len(calls) == 1:
+            return "no tests here, sorry"       # test-gen no produce asserts
+        return "```python\n" + GOOD_CODE + "```"
+
+    from cognia_v3.eval.benchmark_code import extract_code
+    out = best_of_n(fake_gen, "PROMPT", "task: double a number", "double",
+                    extract_code, n=8, seed=7)
+    assert out["rank_mode"] == "greedy_fallback_early"
+    assert out["n_generated"] == 1
+    assert len(calls) == 2

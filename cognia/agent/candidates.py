@@ -167,11 +167,54 @@ def best_of_n(gen_fn, prompt, task_prompt, entry_point, extract_code_fn,
     candidatos, rankea por ejecucion real. Devuelve dict con el elegido y
     la traza completa (para el JSON del bench y el post-mortem AG-ARB).
 
+    Early-stop SIN PERDIDA (solo sin bpb_fn): el candidato 0 es greedy y los
+    empates de score los gana el idx menor, asi que si greedy pasa TODOS los
+    tests visibles ningun otro candidato puede rankear por encima — generar
+    los N-1 restantes es tirar CPU (~20-30s c/u en el i3). Igual para el caso
+    sin tests visibles: rank_candidates elige keep[0], que con greedy no-vacio
+    ES el candidato 0. Ambos cortes se declaran en rank_mode (*_early).
+
     ``test_gen_fn``: generador para el paso test-first (suele llevar OTRO
     system prompt — asserts-only vs code-only); default = gen_fn."""
     visible = generate_visible_tests(test_gen_fn or gen_fn, task_prompt,
                                      entry_point, k=test_k, seed=seed)
-    raws = generate_candidates(gen_fn, prompt, n=n, seed=seed)
+
+    # Candidato 0 (greedy) primero, solo: decide si hace falta el resto.
+    raws = [gen_fn(prompt, temperature=0.0, seed=seed) or ""]
+    codes = [extract_code_fn(raws[0])]
+    if bpb_fn is None and codes[0].strip():
+        if visible:
+            n_pass, n_total = score_candidate(codes[0], visible, entry_point)
+            if n_total > 0 and n_pass == n_total:
+                return {
+                    "best_idx": 0,
+                    "code": codes[0],
+                    "response": raws[0],
+                    "rank_mode": "tests_greedy_early",
+                    "visible_tests": visible,
+                    "ranking": [{"idx": 0, "score": n_pass,
+                                 "total": n_total, "bpb": None}],
+                    "n_generated": 1,
+                    "n_unique": 1,
+                }
+        else:
+            # Sin oraculo, el ranking degrada a "primer unico no-vacio" = el
+            # greedy: los N-1 extra jamas ganarian. Se corta y se declara.
+            return {
+                "best_idx": 0,
+                "code": codes[0],
+                "response": raws[0],
+                "rank_mode": "greedy_fallback_early",
+                "visible_tests": [],
+                "ranking": [{"idx": 0, "score": 0, "total": 0, "bpb": None}],
+                "n_generated": 1,
+                "n_unique": 1,
+            }
+
+    # Camino completo: generar el resto del pool (el 0 ya esta) y rankear.
+    for i in range(1, max(1, n)):
+        s = (seed + i) if seed is not None else None
+        raws.append(gen_fn(prompt, temperature=SAMPLE_TEMPERATURE, seed=s) or "")
     codes = [extract_code_fn(r) for r in raws]
     best_idx, ranking, mode = rank_candidates(codes, visible, entry_point,
                                               bpb_fn=bpb_fn)
