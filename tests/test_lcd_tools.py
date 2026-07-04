@@ -91,3 +91,39 @@ def test_render_aprox_escribe_png(tmp_path):
 
 def test_render_aprox_sin_escena_es_error():
     assert "ERROR" in run_tool("render_aprox", "", _ctx())
+
+
+# ── CP3: planner-LLM como fallback en lenguaje natural (fuera de reglas) ──
+
+class _FakeInfer:
+    def __init__(self, text): self.text = text
+
+
+class _FakeOrchScene:
+    """orch.infer que devuelve una escena JSON valida (simula el 3B planner)."""
+    def infer(self, prompt, **kw):
+        return _FakeInfer('{"objects":[{"name":"dragon","shape":"triangle",'
+                          '"x":0.5,"y":0.6,"w":0.2,"h":0.2,"color":[200,60,60]}]}')
+
+
+def test_escena_crear_usa_reglas_cuando_reconoce():
+    ctx = _ctx()
+    out = run_tool("escena_crear", "a red cup on a blue table", ctx)
+    assert "(reglas)" in out          # ruta de reglas, no LLM
+
+
+def test_escena_crear_cae_a_planner_llm_fuera_de_vocabulario():
+    # 'dragon' no esta en la gramatica de reglas -> plan() da 0 objetos ->
+    # con orch en ctx, usa el planner-LLM.
+    class _AI:
+        _orchestrator = _FakeOrchScene()
+    ctx = {"working_memory": {}, "agent_state": {}, "ai": _AI()}
+    out = run_tool("escena_crear", "un dragon en el centro", ctx)
+    assert "planner-LLM" in out
+    assert "dragon" in ctx["working_memory"]["_lcd_scene"]["escena"].get("dragon").name
+
+
+def test_escena_crear_sin_orch_ni_reglas_es_error():
+    # fuera de vocabulario y sin modelo -> error claro
+    out = run_tool("escena_crear", "un dragon en el centro", _ctx())
+    assert "ERROR" in out

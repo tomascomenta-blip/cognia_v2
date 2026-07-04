@@ -33,6 +33,9 @@ HIDDEN_IN_SIMPLE = frozenset({
     "http_get",
     "notas", "anotar",
     "delegar_subtarea", "crear_herramienta",
+    # diagnostico del pipeline de escena (util para una IA/dev, ruido para el
+    # usuario comun, que solo quiere crear/editar la escena):
+    "atribuir_fallo", "reejecutar_etapa",
 })
 
 

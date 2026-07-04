@@ -93,17 +93,37 @@ def _escena_crear(args, ctx):
     desc = args.strip()
     if not desc:
         return "RESULTADO escena_crear ERROR: falta la descripcion de la escena"
+    # 1) planner de REGLAS primero (control exacto por construccion, cero costo).
     scene = plan(desc)
+    via = "reglas"
+    # 2) si las reglas no reconocen objetos (vocabulario fuera de la gramatica) Y
+    #    hay orquestador en ctx, intentar el planner-LLM (el 3B, 7/8 medido) como
+    #    ruta de lenguaje natural. El checker cero-LLM sigue siendo el oraculo.
+    if not scene.objects:
+        orch = _orch_from_ctx(ctx)
+        if orch is not None:
+            from cognia_x.lcd.planner import plan_with_llm
+            llm_scene, _raw = plan_with_llm(desc, orch)
+            if llm_scene is not None and llm_scene.objects:
+                scene, via = llm_scene, "planner-LLM"
     if not scene.objects:
         return ("RESULTADO escena_crear ERROR: no reconoci objetos en la "
-                "descripcion (vocabulario acotado: taza/mesa/pelota/caja/... )")
+                "descripcion (vocabulario de reglas acotado; el planner-LLM "
+                "tampoco produjo escena valida o no hay modelo disponible)")
     _scenes(ctx)["escena"] = scene
     _scenes(ctx)["_desc"] = desc          # la descripcion origen (arbitro/reejecutar)
     chk = control_check(scene, desc)
-    return (f"RESULTADO escena_crear: {len(scene.objects)} objetos [{_describe(scene)}] "
-            f"| control {chk['score']}/{chk['total']} "
+    return (f"RESULTADO escena_crear ({via}): {len(scene.objects)} objetos "
+            f"[{_describe(scene)}] | control {chk['score']}/{chk['total']} "
             f"(presentes={chk['present']}, conteo={chk['count_ok']}, "
             f"relacion={chk['relation_ok']})")
+
+
+def _orch_from_ctx(ctx):
+    """Orquestador YA vivo en el ctx del loop (ai._orchestrator), o None. NO crea
+    uno (una tool de escena no debe levantar el modelo como efecto secundario)."""
+    ai = ctx.get("ai") if isinstance(ctx, dict) else None
+    return getattr(ai, "_orchestrator", None) if ai is not None else None
 
 
 @tool("escena_editar",
