@@ -7177,7 +7177,8 @@ def repl():
 
 
 def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
-                    hint: str = "", guidance: str = "") -> str:
+                    hint: str = "", guidance: str = "",
+                    allowed_tools: set = None, delegation_depth: int = 0) -> str:
     """
     ReAct-style agent loop with a CONCRETE tool registry (cognia/agent/tools.py)
     and DYNAMIC step budgeting (cognia/agent/loop.py).
@@ -7186,6 +7187,11 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     the agent can request more when it runs out, and AGENT_HARD_CAP is the only
     absolute limit. Tools come from the registry, so adding one never touches
     this function.
+
+    ``allowed_tools``/``delegation_depth``: seteados cuando esta corrida es un
+    SUB-AGENTE lanzado por la tool delegar_subtarea -- el rol restringe las tools
+    (build_tools_doc + run_tool via ctx['_allowed_tools']) y la profundidad acota
+    la recursion de delegacion.
     """
     from cognia.agent.tools import run_tool, build_tools_doc
     from cognia.agent.loop import (
@@ -7211,7 +7217,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         "You are an autonomous agent. Start your reply with ACCION: on the first line.\n\n"
         "ACCION: <tool> <args>\n\n"
         "Tools (ONLY these -- do NOT invent others):\n"
-        + build_tools_doc()
+        + build_tools_doc(allowed_tools)
         + "\n  responder <respuesta final>          -- usar SOLO cuando la tarea esta completa\n\n"
         "Rules:\n"
         "- escribir_archivo crea directorios solo. NO uses mkdir.\n"
@@ -7288,6 +7294,15 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         "agent_state": _agent_state,
         "print_fn": _print_fn,
         "show_diff": (lambda old, new, path: _show_file_diff(old, new, path, _print_fn)),
+        # Sub-agente acotado (delegar_subtarea): el rol restringe run_tool y el
+        # runner recursivo se inyecta aca (evita el import circular tools<->cli).
+        "_allowed_tools": allowed_tools,
+        "_delegation_depth": delegation_depth,
+        "_run_agent": (lambda subtask, allowed_tools=None, max_steps=None,
+                       delegation_depth=0: _run_agent_task(
+                           ai, subtask, _print_fn, max_steps=max_steps,
+                           allowed_tools=allowed_tools,
+                           delegation_depth=delegation_depth)),
     }
 
     # Orchestrator (reused for planning + steps)
@@ -7332,7 +7347,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     _bon_ok = False           # True si BoN resolvio la tarea (short-circuit)
     _bon_result_text = ""
     _ep = extract_entry_point(task)
-    if _ep and bon_applies(task):
+    # el pre-BoN usa generar_codigo: saltarlo si el rol del sub-agente no la
+    # permite (p.ej. investigador) -- si no, devolveria un ERROR de rol inutil.
+    _bon_allowed = allowed_tools is None or "generar_codigo" in allowed_tools
+    if _ep and bon_applies(task) and _bon_allowed:
         _m = re.search(r"([\w./\\-]+\.py)", task)
         _codefile = _m.group(1) if _m else f"{_ep}.py"
         _print_fn(f"[detail]tarea de codigo -> BoN (generar_codigo) para "
@@ -7366,6 +7384,8 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     _actions_trace: list = [] # traza (action, args, ok) para skill_capture (CP2)
     result_text = _bon_result_text  # si BoN corto, este es el resultado final
     while not _bon_ok and total_steps < AGENT_HARD_CAP:
+        # pasos que quedan -> sub-presupuesto de delegar_subtarea
+        ctx["_steps_remaining"] = max(0, budget - total_steps)
         # Out of budget: ask the model if it actually needs more steps.
         if total_steps >= budget:
             extra = wants_more_steps(task, "\n".join(history[-3:]), orch)

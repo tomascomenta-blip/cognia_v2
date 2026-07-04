@@ -52,9 +52,27 @@ def tool(name: str, doc: str, danger: bool = False):
     return deco
 
 
-def build_tools_doc() -> str:
-    """The tool list block injected into the agent prompt, built from the registry."""
-    return "\n".join(f"  {spec['doc']}" for spec in TOOLS.values())
+def build_tools_doc(allowed: set = None) -> str:
+    """The tool list block injected into the agent prompt, built from the registry.
+
+    ``allowed``: si se pasa, muestra SOLO esas tools (sub-agente acotado por
+    rol -- delegar_subtarea). None = todas (comportamiento por defecto)."""
+    return "\n".join(f"  {spec['doc']}" for name, spec in TOOLS.items()
+                     if allowed is None or name in allowed)
+
+
+# Roles para sub-agentes acotados (delegar_subtarea): cada rol expone SOLO un
+# subconjunto de tools -- un investigador no puede escribir/ejecutar, un
+# implementador si. Acota el blast-radius de una subtarea delegada.
+ROLE_TOOLS = {
+    "investigador": {"leer_archivo", "listar", "arbol", "contar_lineas",
+                     "buscar", "recordar", "kg_buscar", "notas", "anotar",
+                     "resumir", "responder"},
+    "implementador": {"leer_archivo", "listar", "buscar", "escribir_archivo",
+                      "apendar_archivo", "copiar_archivo", "generar_codigo",
+                      "py_validar", "json_validar", "tests", "ejecutar",
+                      "notas", "anotar", "responder"},
+}
 
 
 # ── contador de uso liviano (TAREA 5) ──────────────────────────────────
@@ -111,6 +129,13 @@ atexit.register(_usage_flush)
 
 def run_tool(name: str, args: str, ctx: dict) -> str:
     """Dispatch one tool by name. Unknown name -> a helpful error string."""
+    # Sub-agente acotado: si el ctx trae un set de tools permitidas (rol de
+    # delegar_subtarea), una tool fuera del rol se rechaza con señal clara --
+    # el modelo ve que no la tiene y elige otra (mismo estilo que 'no existe').
+    _allowed = ctx.get("_allowed_tools") if isinstance(ctx, dict) else None
+    if _allowed is not None and name not in _allowed and name != "responder":
+        return (f"ERROR: '{name}' no esta permitida para este rol. "
+                f"Validas: {', '.join(sorted(_allowed))}")
     spec = TOOLS.get(name)
     if spec is None:
         # Signal: the agent wanted a tool that doesn't exist yet. Logged so the
@@ -730,3 +755,52 @@ def _crear_herramienta(args, ctx):
     return (f"RESULTADO crear_herramienta: '{nombre}' creada y verificada "
             f"(version {res.get('version', '?')}, tier {res.get('tier', 'staged')}). "
             "Ya es invocable con su nombre.")
+
+
+# Sub-agente acotado: delega una SUBTAREA a una corrida anidada de _run_agent_task
+# con (a) un ROL que restringe las tools disponibles (investigador=solo lectura,
+# implementador=+escritura/ejecucion), (b) un sub-presupuesto de pasos, y (c) el
+# router de modelo por dificultad (el runner elige 3B/7B). El runner recursivo se
+# inyecta en ctx['_run_agent'] desde cli.py (evita el import circular tools<->cli).
+# Profundidad acotada (ctx['_delegation_depth']) para que un sub-agente no delegue
+# infinitamente.
+_MAX_DELEGATION_DEPTH = 2
+
+
+@tool("delegar_subtarea",
+      "delegar_subtarea <investigador|implementador> | <subtarea>  "
+      "-- corre la subtarea en un sub-agente con tools acotadas por rol y su propio presupuesto")
+def _delegar_subtarea(args, ctx):
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
+    if len(parts) != 2 or not parts[1].strip():
+        return ("RESULTADO delegar_subtarea ERROR: formato (rol | subtarea); "
+                "rol = investigador | implementador")
+    rol, subtarea = parts[0].strip().lower(), parts[1].strip()
+    if rol not in ROLE_TOOLS:
+        return (f"RESULTADO delegar_subtarea ERROR: rol '{rol}' desconocido "
+                f"(usa: {', '.join(ROLE_TOOLS)})")
+
+    runner = ctx.get("_run_agent")
+    if not callable(runner):
+        return ("RESULTADO delegar_subtarea ERROR: delegacion no disponible en "
+                "este contexto")
+
+    depth = ctx.get("_delegation_depth", 0)
+    if depth >= _MAX_DELEGATION_DEPTH:
+        return (f"RESULTADO delegar_subtarea ERROR: profundidad maxima de "
+                f"delegacion ({_MAX_DELEGATION_DEPTH}) alcanzada; resolve la "
+                "subtarea directamente.")
+
+    # Sub-presupuesto: la mitad de lo que quede (o un piso), para que la
+    # subtarea no se coma el presupuesto entero del padre.
+    remaining = ctx.get("_steps_remaining", 8)
+    sub_budget = max(3, int(remaining) // 2)
+    pf = ctx.get("print_fn")
+    if callable(pf):
+        pf(f"[detail]delegando a sub-agente '{rol}' (presupuesto {sub_budget})[/detail]")
+    try:
+        sub_result = runner(subtarea, allowed_tools=ROLE_TOOLS[rol],
+                            max_steps=sub_budget, delegation_depth=depth + 1)
+    except Exception as exc:
+        return f"RESULTADO delegar_subtarea ERROR: {exc}"
+    return f"RESULTADO delegar_subtarea ({rol}): {str(sub_result)[:600]}"
