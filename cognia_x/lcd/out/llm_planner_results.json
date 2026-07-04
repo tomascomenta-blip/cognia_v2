@@ -1,0 +1,64 @@
+{
+  "n": 8,
+  "json_valid": 7,
+  "objs_ok": 7,
+  "rows": [
+    {
+      "prompt": "a red cup on a blue table",
+      "json_valid": true,
+      "n_objs": 2,
+      "objs_ok": true,
+      "raw": "{\"objects\":[{\"name\":\"cup\",\"shape\":\"circle\",\"x\":0.5,\"y\":0.6,\"w\":0.1,\"h\":0.1,\"color\":[255,0,0]},{\"name\":\"table\",\"shape\":\"r"
+    },
+    {
+      "prompt": "una taza roja sobre una mesa azul",
+      "json_valid": true,
+      "n_objs": 2,
+      "objs_ok": true,
+      "raw": "{\"objects\":[{\"name\":\"table\",\"shape\":\"rect\",\"x\":0.5,\"y\":0.7,\"w\":0.5,\"h\":0.12,\"color\":[60,110,220]},{\"name\":\"cup\",\"shape\":"
+    },
+    {
+      "prompt": "a green ball to the left of a yellow box",
+      "json_valid": true,
+      "n_objs": 2,
+      "objs_ok": true,
+      "raw": "{\"objects\":[{\"name\":\"ball\",\"shape\":\"circle\",\"x\":0.3,\"y\":0.5,\"w\":0.1,\"h\":0.1,\"color\":[0,255,0]},{\"name\":\"box\",\"shape\":\"re"
+    },
+    {
+      "prompt": "a book on a table",
+      "json_valid": true,
+      "n_objs": 2,
+      "objs_ok": true,
+      "raw": "{\"objects\":[{\"name\":\"table\",\"shape\":\"rect\",\"x\":0.5,\"y\":0.7,\"w\":0.5,\"h\":0.12,\"color\":[60,110,220]},{\"name\":\"book\",\"shape\""
+    },
+    {
+      "prompt": "un plato sobre una mesa",
+      "json_valid": false,
+      "n_objs": 0,
+      "objs_ok": false,
+      "raw": "json/parse error: Expecting ',' delimiter: line 1 column 108 (char 107)"
+    },
+    {
+      "prompt": "a lamp to the right of a chair",
+      "json_valid": true,
+      "n_objs": 2,
+      "objs_ok": true,
+      "raw": "{\"objects\":[{\"name\":\"chair\",\"shape\":\"rect\",\"x\":0.3,\"y\":0.6,\"w\":0.2,\"h\":0.1,\"color\":[120,120,120]},{\"name\":\"lamp\",\"shape\""
+    },
+    {
+      "prompt": "a sun above a house",
+      "json_valid": true,
+      "n_objs": 2,
+      "objs_ok": true,
+      "raw": "{\"objects\":[{\"name\":\"sun\",\"shape\":\"circle\",\"x\":0.5,\"y\":0.9,\"w\":0.1,\"h\":0.1,\"color\":[255,255,0]},{\"name\":\"house\",\"shape\":"
+    },
+    {
+      "prompt": "una pelota debajo de una mesa",
+      "json_valid": true,
+      "n_objs": 2,
+      "objs_ok": true,
+      "raw": "{\"objects\":[{\"name\":\"table\",\"shape\":\"rect\",\"x\":0.5,\"y\":0.7,\"w\":0.5,\"h\":0.12,\"color\":[60,110,220]},{\"name\":\"ball\",\"shape\""
+    }
+  ],
+  "rule_based_reference": "8/8"
+}

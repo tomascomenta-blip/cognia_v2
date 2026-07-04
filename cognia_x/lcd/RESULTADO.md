@@ -40,9 +40,13 @@ por objeto. Ver `out/edit_before.png` vs `out/edit_after_green.png`.
   paper mide contra difusión (FID/LPIPS de calidad perceptual) NO se toca; se
   miden control y editabilidad, que son las ganancias que LCD reclama y que este
   esqueleto SÍ entrega.
-- El planner es de reglas (gramática acotada); el planner-LLM (§4.1 mod 1) está
-  cableado (`plan_with_llm`) pero el default determinista mide el pipeline sin el
-  ruido de formato del 3B.
+- El planner es de reglas (gramática acotada) por default; el planner-LLM (§4.1
+  mod 1, el diseño del paper) está cableado (`plan_with_llm`) y MEDIDO
+  (`eval_llm_planner.py`): el **3B produce escena JSON válida en 7/8 specs** (con
+  suficientes objetos), cerca del 8/8 exacto de las reglas — o sea, el modelo
+  local SÍ puede hacer la etapa de planificación de LCD (la 1 falla es de formato,
+  mismo patrón "concreto > abstracto" de BFCL). El default de reglas se mantiene
+  para que el número de control mida el pipeline sin ruido del modelo.
 - El **árbitro** (§4.2, credit assignment entre etapas) ya se estudió aparte en
   AG-ARB (`cognia_x/construccion/07_ARBITRO_MEJORA_PAPER.md`): verificación por
   etapa domina al crítico-LLM donde hay oráculo — aplicable a este pipeline
