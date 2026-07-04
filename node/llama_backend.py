@@ -771,6 +771,28 @@ class LlamaBackend:
         }
 
     @staticmethod
+    def _append_to_user_turn(prompt: str, extra: str) -> str:
+        """Agrega ``extra`` al TURNO DE USUARIO de un prompt ChatML.
+
+        Bug real (medido 2026-07-04): generate_delegated/hierarchical hacian
+        f'{prompt}\\n\\n{instruccion}', pero cuando el caller (el CLI) pasa un
+        prompt YA templado que termina en '<|im_start|>assistant\\n', la
+        instruccion caia DENTRO del turno del asistente -> el modelo creia que
+        ya habia terminado y devolvia vacio (eos inmediato). Las sub-generaciones
+        del outline/secciones salian de 1 token. Los tests con backends FALSOS no
+        lo cazaron (usaban prompts crudos).
+
+        Fix: si el prompt trae el marcador de apertura del asistente al final,
+        insertar ``extra`` antes del cierre del turno de usuario (para que el
+        modelo lo vea como parte del pedido). Si NO esta templado (prompt crudo),
+        se appendea como antes -> compat total con los callers de test."""
+        tail = "<|im_end|>\n<|im_start|>assistant\n"
+        if prompt.endswith(tail):
+            head = prompt[:-len(tail)]
+            return f"{head}\n\n{extra}{tail}"
+        return f"{prompt}\n\n{extra}"
+
+    @staticmethod
     def _parse_outline(text: str, max_sections: int) -> list:
         """Extrae titulos de seccion de un outline LLM. Robusto al 3B (que a veces no
         respeta 'uno por linea'): (1) lineas numeradas/vinetas; (2) si hay <2 items,
@@ -822,8 +844,8 @@ class LlamaBackend:
         if n_sections is None:
             n_sections = GEN_HIERARCHICAL_SECTIONS
 
-        outline_prompt = (
-            f"{prompt}\n\n"
+        outline_prompt = self._append_to_user_turn(
+            prompt,
             f"Primero, devuelve SOLO un esquema de exactamente {n_sections} secciones "
             f"para responder lo anterior: una por linea, numeradas (1., 2., ...), con un "
             f"titulo corto cada una. Sin texto adicional."
@@ -848,8 +870,9 @@ class LlamaBackend:
         prev_summary = ""
 
         for i, sec in enumerate(sections):
-            sec_prompt = (
-                f"{prompt}\n\nEsquema:\n{outline_block}\n\n"
+            sec_prompt = self._append_to_user_turn(
+                prompt,
+                f"Esquema:\n{outline_block}\n\n"
                 + (f"Resumen de lo ya escrito: {prev_summary}\n\n" if prev_summary else "")
                 + f"Escribe SOLO la seccion {i+1}: {sec}"
             )
@@ -919,8 +942,8 @@ class LlamaBackend:
         if per_task_cap is None:
             per_task_cap = GEN_LONG_MAX_TOKENS
 
-        outline_prompt = (
-            f"{prompt}\n\n"
+        outline_prompt = self._append_to_user_turn(
+            prompt,
             f"Primero, devuelve SOLO un esquema de exactamente {n_tasks} secciones "
             f"para responder lo anterior: una por linea, numeradas (1., 2., ...), con un "
             f"titulo corto cada una. Sin texto adicional."
@@ -947,8 +970,9 @@ class LlamaBackend:
         for i, sec in enumerate(tasks):
             # CAMBIO 1 vs generate_hierarchical: worker de CONTEXTO LIMPIO ->
             # NO se incluye prev_summary; cada subtarea arranca con el outline puro.
-            sec_prompt = (
-                f"{prompt}\n\nEsquema:\n{outline_block}\n\n"
+            sec_prompt = self._append_to_user_turn(
+                prompt,
+                f"Esquema:\n{outline_block}\n\n"
                 f"Escribe SOLO la seccion {i+1}: {sec}. No repitas las otras secciones."
             )
             res = self.generate_long(sec_prompt, max_total_tokens=per_task,
@@ -979,8 +1003,9 @@ class LlamaBackend:
             # Prompt POSITIVO (sin negaciones) + repeat_penalty: las negaciones
             # ("No repitas...") inducian un loop degenerado en el 3B ("No incluye...
             # No incluye...") y max_tokens alto le daba espacio para degenerar.
-            head_prompt = (
-                f"{prompt}\n\nUn documento tiene estas secciones (extractos):\n{excerpts}\n\n"
+            head_prompt = self._append_to_user_turn(
+                prompt,
+                f"Un documento tiene estas secciones (extractos):\n{excerpts}\n\n"
                 f"Escribe una introduccion breve de 2 a 4 frases que presente de que trata el "
                 f"documento y como se conectan sus secciones."
             )

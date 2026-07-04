@@ -134,3 +134,29 @@ def test_target_tokens_and_per_task_cap_still_accepted_defaults_unchanged():
                                 target_tokens=1000, per_task_cap=600)
     assert res is not None
     assert res["sections"] == 2
+
+
+# ── _append_to_user_turn: fix del bug de instruccion-en-turno-asistente ──
+
+def test_append_to_user_turn_prompt_templado():
+    """Con un prompt ChatML que termina en el marcador del asistente, la
+    instruccion se inserta en el TURNO DE USUARIO (antes del <|im_end|>), no
+    despues del marcador del asistente (donde el modelo la ignora / cierra)."""
+    from node.llama_backend import LlamaBackend
+    tmpl = ("<|im_start|>system\nEres util<|im_end|>\n"
+            "<|im_start|>user\nEscribe algo<|im_end|>\n<|im_start|>assistant\n")
+    out = LlamaBackend._append_to_user_turn(tmpl, "Dame un esquema de 3 puntos")
+    # la instruccion queda ANTES del cierre del turno de usuario
+    assert "Dame un esquema de 3 puntos<|im_end|>\n<|im_start|>assistant\n" in out
+    # y el turno del asistente sigue abierto y VACIO al final
+    assert out.endswith("<|im_start|>assistant\n")
+    # no debe aparecer la instruccion DESPUES del marcador del asistente
+    assert "assistant\nDame un esquema" not in out
+
+
+def test_append_to_user_turn_prompt_crudo():
+    """Sin marcador ChatML (prompt crudo, como en los tests con fakes), se
+    appendea como antes -> compat total."""
+    from node.llama_backend import LlamaBackend
+    out = LlamaBackend._append_to_user_turn("Escribe algo", "Dame un esquema")
+    assert out == "Escribe algo\n\nDame un esquema"
