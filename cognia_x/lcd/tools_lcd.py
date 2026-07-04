@@ -98,6 +98,7 @@ def _escena_crear(args, ctx):
         return ("RESULTADO escena_crear ERROR: no reconoci objetos en la "
                 "descripcion (vocabulario acotado: taza/mesa/pelota/caja/... )")
     _scenes(ctx)["escena"] = scene
+    _scenes(ctx)["_desc"] = desc          # la descripcion origen (arbitro/reejecutar)
     chk = control_check(scene, desc)
     return (f"RESULTADO escena_crear: {len(scene.objects)} objetos [{_describe(scene)}] "
             f"| control {chk['score']}/{chk['total']} "
@@ -176,11 +177,58 @@ def _render_aprox(args, ctx):
     return f"RESULTADO render_aprox: PNG escrito en {path} ({len(scene.objects)} objetos)"
 
 
-# Import de este modulo = registro de las 4 tools en el registry global (via el
+@tool("atribuir_fallo",
+      "atribuir_fallo                        -- si la escena no cumple lo pedido, "
+      "señala la ETAPA culpable (plan/geometria/render) con oraculo cero-LLM")
+def _atribuir_fallo(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO atribuir_fallo ERROR: no hay escena activa (usa escena_crear primero)"
+    desc = _scenes(ctx).get("_desc", "")
+    from cognia_x.lcd.arbiter import attribute_scene_failure
+    v = attribute_scene_failure(desc, scene)
+    if v["stage"] is None:
+        return "RESULTADO atribuir_fallo: todos los contratos pasan (la escena cumple la spec)"
+    return (f"RESULTADO atribuir_fallo: etapa culpable = {v['stage']} "
+            f"({v['contract']}): {v['reason']}. Usa reejecutar_etapa {v['stage']}.")
+
+
+@tool("reejecutar_etapa",
+      "reejecutar_etapa <plan|geometria|render>  -- re-corre SOLO esa etapa sobre la "
+      "escena activa (no regenera el resto)")
+def _reejecutar_etapa(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO reejecutar_etapa ERROR: no hay escena activa (usa escena_crear primero)"
+    stage = args.strip().lower()
+    if stage not in ("plan", "geometria", "render"):
+        return "RESULTADO reejecutar_etapa ERROR: etapa = plan | geometria | render"
+    desc = _scenes(ctx).get("_desc", "")
+    if stage in ("plan", "geometria"):
+        # re-planifica desde la descripcion (repara objetos faltantes y posiciones
+        # mal puestas de una) sin que el usuario reescriba nada.
+        if not desc:
+            return "RESULTADO reejecutar_etapa ERROR: no hay descripcion origen para re-planificar"
+        nueva = plan(desc)
+        _scenes(ctx)["escena"] = nueva
+        chk = control_check(nueva, desc)
+        return (f"RESULTADO reejecutar_etapa {stage}: escena re-planificada "
+                f"({len(nueva.objects)} objetos), control {chk['score']}/{chk['total']}")
+    # render: re-render de la escena actual (sin tocar la geometria)
+    from cognia_x.lcd.renderer import render_to
+    try:
+        path = render_to(scene, "escena_lcd.png")
+    except Exception as e:
+        return f"RESULTADO reejecutar_etapa render ERROR: {e}"
+    return f"RESULTADO reejecutar_etapa render: PNG re-generado en {path}"
+
+
+# Import de este modulo = registro de las tools en el registry global (via el
 # @tool decorator). load_lcd_tools() existe para llamarlo explicito y contar.
 def load_lcd_tools() -> int:
     """Devuelve cuantas tools LCD estan registradas (idempotente: el @tool ya
     corrio al importar). Sirve de hook explicito para el loop del agente."""
     from cognia.agent.tools import TOOLS
     return sum(1 for n in ("escena_crear", "escena_editar", "escena_consultar",
-                           "render_aprox") if n in TOOLS)
+                           "render_aprox", "atribuir_fallo", "reejecutar_etapa")
+               if n in TOOLS)
