@@ -88,6 +88,38 @@ FLOATING = {"sun", "sol", "moon", "luna", "star", "estrella", "cloud", "nube",
 MATERIALS = {"madera", "wood", "metal", "vidrio", "glass", "plastico", "plastic",
              "tela", "fabric", "piedra", "stone", "agua", "water"}
 
+# Sinonimos es<->en: dos nombres son el MISMO tipo de objeto. Se usa para la
+# similitud de escenas (que 'mesa' y 'table' no cuenten como objetos distintos
+# cuando el modelo traduce) y para cualquier match por tipo. Canonical = la
+# forma en ingles (la 1a de cada par en SHAPES).
+_SYNONYM_PAIRS = [
+    ("table", "mesa"), ("cup", "taza"), ("ball", "pelota"), ("box", "caja"),
+    ("plate", "plato"), ("book", "libro"), ("sun", "sol"), ("tree", "arbol"),
+    ("house", "casa"), ("lamp", "lampara"), ("chair", "silla"),
+    ("bottle", "botella"), ("glass", "vaso"), ("phone", "telefono"),
+    ("laptop", "notebook"), ("clock", "reloj"), ("apple", "manzana"),
+    ("flower", "flor"), ("star", "estrella"), ("cloud", "nube"), ("moon", "luna"),
+    ("car", "auto"), ("car", "coche"), ("cat", "gato"), ("dog", "perro"),
+    ("bird", "pajaro"), ("window", "ventana"), ("door", "puerta"),
+    ("bowl", "bol"), ("bowl", "tazon"), ("shelf", "estante"), ("shelf", "repisa"),
+    ("rug", "alfombra"),
+]
+_CANON = {}
+for _canonical, _alias in _SYNONYM_PAIRS:
+    _CANON[_canonical] = _canonical
+    _CANON[_alias] = _canonical
+
+
+def canonical_name(name: str) -> str:
+    """Nombre canonico de un objeto (colapsa sinonimos es/en a una sola forma).
+    'mesa' y 'table' -> 'table'. Nombres desconocidos se devuelven tal cual
+    (minusculas), para que dos 'dragon' sigan matcheando entre si."""
+    base = (name or "").lower().strip()
+    # sacar sufijo de desambiguacion (cup_2 -> cup) para comparar por tipo
+    import re as _re
+    base = _re.sub(r"_\d+$", "", base)
+    return _CANON.get(base, base)
+
 
 @dataclass
 class Obj:

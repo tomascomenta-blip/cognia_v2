@@ -47,19 +47,23 @@ def _heuristic_agent(target):
 
 def _real_3b_agent(orch, target):
     """El 3B intenta reproducir: se le da el resumen del objetivo y las tools, y
-    en UNA pasada emite las ACCIONes de agregado (few-shot). Simple y honesto."""
+    en UNA pasada emite las ACCIONes de agregado (few-shot concreto). Se acota a
+    tantas ACCIONes como objetos tenga el target (el 3B tiende a alucinar extras
+    'asociados' — mesa->cuchillo/tenedor; el cap evita ese ruido)."""
     from cognia_x.lcd.selfplay import _summary
+    n = len(target.objects)
     prompt = (
-        "Reconstrui esta escena agregando objetos, UNA ACCION por objeto.\n"
-        "Formato EXACTO por linea: escena_agregar <objeto> | x=.. y=..\n"
-        "Ejemplo: escena_agregar mesa | x=0.5 y=0.7\n\n"
-        f"Escena objetivo: {_summary(target)}\n\n"
-        "Emiti todas las ACCIONes (una por linea), luego FIN:")
+        f"Agrega EXACTAMENTE estos {n} objetos a la escena, ni uno mas, UNA "
+        "ACCION por objeto, respetando su posicion.\n"
+        "Formato EXACTO por linea: escena_agregar <objeto> | x=<0..1> y=<0..1>\n"
+        "Ejemplo:\nescena_agregar mesa | x=0.5 y=0.7\nescena_agregar taza | x=0.5 y=0.56\n\n"
+        f"Objetos a agregar (con su posicion): {_summary(target)}\n\n"
+        f"Emiti SOLO {n} lineas escena_agregar, luego FIN:")
     try:
         raw = orch.infer(prompt, max_tokens=200, temperature=0.0).text
     except Exception:
         raw = ""
-    lines = [l.strip() for l in raw.splitlines() if l.strip()]
+    lines = [l.strip() for l in raw.splitlines() if "escena_agregar" in l][:n]
     it = iter(lines + ["FIN"])
 
     def agent_fn(desc, hist, summ):

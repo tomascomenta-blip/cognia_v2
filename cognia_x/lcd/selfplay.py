@@ -47,13 +47,16 @@ def _color_close(c1, c2, tol: int = 40) -> bool:
 
 
 def _match_objects(a: Scene, b: Scene):
-    """Empareja objetos de a y b por TIPO (name) y cercania de posicion.
-    Devuelve (pares, no_emparejados_a, no_emparejados_b). Greedy: para cada
-    objeto de a busca el objeto libre de b del MISMO tipo mas cercano."""
+    """Empareja objetos de a y b por TIPO CANONICO (sinonimos es/en colapsados:
+    'mesa'=='table') y cercania de posicion. Devuelve (pares, sin_a, sin_b).
+    Greedy: para cada objeto de a busca el objeto libre de b del mismo tipo mas
+    cercano. Asi la similitud no penaliza que el modelo traduzca los nombres."""
+    from cognia_x.lcd.scene import canonical_name
     libres_b = list(b.objects)
     pares, sin_a = [], []
     for oa in a.objects:
-        cands = [ob for ob in libres_b if ob.name == oa.name]
+        ca = canonical_name(oa.name)
+        cands = [ob for ob in libres_b if canonical_name(ob.name) == ca]
         if not cands:
             sin_a.append(oa)
             continue
@@ -66,9 +69,10 @@ def _match_objects(a: Scene, b: Scene):
 def _relations(scene: Scene):
     """Relaciones espaciales IMPLICITAS entre cada par de objetos (por sus
     posiciones): {(tipo_a, tipo_b): set(relaciones)}. Cero-LLM, del layout."""
+    from cognia_x.lcd.scene import canonical_name
     rels = {}
     objs = scene.objects
-    for i, a in enumerate(objs):
+    for a in objs:
         for b in objs:
             if a is b:
                 continue
@@ -82,7 +86,7 @@ def _relations(scene: Scene):
             if a.y > b.y + 0.03:
                 s.add("below")
             if s:
-                rels[(a.name, b.name)] = s
+                rels[(canonical_name(a.name), canonical_name(b.name))] = s
     return rels
 
 
@@ -133,6 +137,9 @@ def attempt_reproduce(target: Scene, description: str, agent_fn, run_tool_fn,
     history = []
     for step in range(max_steps):
         line = (agent_fn(description, history, _summary(target)) or "").strip()
+        # tolerar prefijos que el modelo suele anteponer: 'ACCION:', numeracion
+        # ('1.', '2)'), vinetas ('-', '*').
+        line = re.sub(r"^\s*(acci[oó]n\s*:|[-*•]|\d+[.)])\s*", "", line, flags=re.IGNORECASE)
         if not line or line.upper().startswith("FIN"):
             break
         m = re.match(r"(\w+)\s*(.*)", line)
