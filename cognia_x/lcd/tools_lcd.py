@@ -19,9 +19,11 @@ vive en working_memory['_lcd_scene'] (una por tarea; simple y suficiente).
 """
 from __future__ import annotations
 
+import re as _re
+
 from cognia.agent.tools import tool
 from cognia_x.lcd.planner import _find_objects, _find_relation, _tokens, plan
-from cognia_x.lcd.scene import COLORS, Scene
+from cognia_x.lcd.scene import COLORS, MATERIALS, Obj, Scene, SHAPES
 
 
 # ── oraculo cero-LLM: control composicional de una escena vs su descripcion ──
@@ -84,6 +86,19 @@ def _describe(scene: Scene, max_objs: int = 8) -> str:
     return "; ".join(parts)
 
 
+def _parse_kv(text: str) -> dict:
+    """Parsea pares clave=valor separados por espacios (p.ej. 'x=0.3 y=0.5
+    color=red') en un dict {clave: valor_str}. Usado por las tools de edicion
+    TOTAL que aceptan varios argumentos con nombre tras el '|'."""
+    return dict(_re.findall(r"(\w+)\s*=\s*(\S+)", text or ""))
+
+
+def _strip_pipe(text: str) -> str:
+    """Saca un '|' inicial (tools sin objeto antes del pipe: camara/luz/fondo)."""
+    t = (text or "").strip()
+    return t[1:].strip() if t.startswith("|") else t
+
+
 # ── tools AI-nativas ─────────────────────────────────────────────────────────
 
 @tool("escena_crear",
@@ -133,7 +148,6 @@ def _escena_editar(args, ctx):
     scene = _active(ctx)
     if scene is None:
         return "RESULTADO escena_editar ERROR: no hay escena activa (usa escena_crear primero)"
-    import re as _re
     parts = _re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO escena_editar ERROR: formato (objeto | attr=valor)"
@@ -243,6 +257,377 @@ def _reejecutar_etapa(args, ctx):
     return f"RESULTADO reejecutar_etapa render: PNG re-generado en {path}"
 
 
+# ── tools AI-nativas de EDICION TOTAL (agregar/quitar/mover/layout/fisica) ──
+# Mismo contrato que arriba: cada una opera sobre _active(ctx); sin escena
+# activa -> error claro. Formato ACCION con argumentos separados por '|'.
+
+@tool("escena_agregar",
+      "escena_agregar <objeto> [| x=.. y=.. color=.. w=.. h=..]  -- agrega un "
+      "objeto NUEVO del vocabulario (SHAPES) a la escena activa")
+def _escena_agregar(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_agregar ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    name = parts[0].strip()
+    if not name:
+        return "RESULTADO escena_agregar ERROR: falta el nombre del objeto"
+    if name not in SHAPES:
+        return f"RESULTADO escena_agregar ERROR: '{name}' no esta en el vocabulario (SHAPES)"
+    shape, w_def, h_def = SHAPES[name]
+    kv = _parse_kv(parts[1]) if len(parts) == 2 else {}
+    try:
+        x = float(kv.get("x", 0.5))
+        y = float(kv.get("y", 0.5))
+        w = float(kv.get("w", w_def))
+        h = float(kv.get("h", h_def))
+    except ValueError:
+        return "RESULTADO escena_agregar ERROR: x/y/w/h deben ser numeros"
+    color_raw = kv.get("color")
+    color = COLORS.get(color_raw.lower(), (150, 150, 150)) if color_raw else (150, 150, 150)
+    z = max((o.z for o in scene.objects), default=-1) + 1   # el nuevo va al frente
+    obj = scene.add(Obj(name=name, shape=shape, x=x, y=y, w=w, h=h, color=color, z=z))
+    return (f"RESULTADO escena_agregar: '{obj.key()}' agregado en ({x:.2f},{y:.2f}) "
+            f"({len(scene.objects)} objetos totales)")
+
+
+@tool("escena_quitar",
+      "escena_quitar <objeto>                -- quita un objeto de la escena activa")
+def _escena_quitar(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_quitar ERROR: no hay escena activa (usa escena_crear primero)"
+    name = args.strip()
+    if not name:
+        return "RESULTADO escena_quitar ERROR: falta el objeto"
+    if not scene.remove(name):
+        return f"RESULTADO escena_quitar ERROR: no existe el objeto '{name}'"
+    return f"RESULTADO escena_quitar: '{name}' quitado ({len(scene.objects)} objetos restantes)"
+
+
+@tool("escena_duplicar",
+      "escena_duplicar <objeto> [| dx=.. dy=..]  -- duplica un objeto desplazado "
+      "(desambigua el id automaticamente)")
+def _escena_duplicar(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_duplicar ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    name = parts[0].strip()
+    kv = _parse_kv(parts[1]) if len(parts) == 2 else {}
+    try:
+        dx = float(kv.get("dx", 0.08))
+        dy = float(kv.get("dy", 0.0))
+    except ValueError:
+        return "RESULTADO escena_duplicar ERROR: dx/dy deben ser numeros"
+    c = scene.duplicate(name, dx=dx, dy=dy)
+    if c is None:
+        return f"RESULTADO escena_duplicar ERROR: no existe el objeto '{name}'"
+    return f"RESULTADO escena_duplicar: '{name}' -> '{c.key()}' en ({c.x:.2f},{c.y:.2f})"
+
+
+@tool("escena_mover",
+      "escena_mover <objeto> | x=.. y=..     -- mueve un objeto (uno o ambos ejes)")
+def _escena_mover(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_mover ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO escena_mover ERROR: formato (objeto | x=.. y=..)"
+    name = parts[0].strip()
+    kv = _parse_kv(parts[1])
+    if "x" not in kv and "y" not in kv:
+        return "RESULTADO escena_mover ERROR: falta x= y/o y="
+    if scene.get(name) is None:
+        return f"RESULTADO escena_mover ERROR: no existe el objeto '{name}'"
+    try:
+        changes = {}
+        if "x" in kv:
+            changes["x"] = float(kv["x"])
+        if "y" in kv:
+            changes["y"] = float(kv["y"])
+    except ValueError:
+        return "RESULTADO escena_mover ERROR: x/y deben ser numeros"
+    scene.edit(name, **changes)
+    o = scene.get(name)
+    return f"RESULTADO escena_mover: '{name}' -> ({o.x:.2f},{o.y:.2f})"
+
+
+@tool("escena_rotar",
+      "escena_rotar <objeto> | <grados>      -- edita la rotacion (grados) de un objeto")
+def _escena_rotar(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_rotar ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO escena_rotar ERROR: formato (objeto | grados)"
+    name = parts[0].strip()
+    try:
+        deg = float(parts[1].strip())
+    except ValueError:
+        return "RESULTADO escena_rotar ERROR: los grados deben ser numero"
+    if not scene.edit(name, rotation=deg):
+        return f"RESULTADO escena_rotar ERROR: no existe el objeto '{name}'"
+    return f"RESULTADO escena_rotar: '{name}' rotation={deg}"
+
+
+@tool("escena_escalar",
+      "escena_escalar <objeto> | <factor>    -- multiplica w y h por factor (>0)")
+def _escena_escalar(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_escalar ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO escena_escalar ERROR: formato (objeto | factor)"
+    name = parts[0].strip()
+    try:
+        factor = float(parts[1].strip())
+    except ValueError:
+        return "RESULTADO escena_escalar ERROR: el factor debe ser numero"
+    if factor <= 0:
+        return "RESULTADO escena_escalar ERROR: el factor debe ser > 0"
+    o = scene.get(name)
+    if o is None:
+        return f"RESULTADO escena_escalar ERROR: no existe el objeto '{name}'"
+    scene.edit(name, w=o.w * factor, h=o.h * factor)
+    return f"RESULTADO escena_escalar: '{name}' -> ({o.w:.2f}x{o.h:.2f})"
+
+
+@tool("escena_material",
+      "escena_material <objeto> | <material>  -- edita el material (valida contra "
+      "MATERIALS pero acepta cualquiera con aviso)")
+def _escena_material(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_material ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO escena_material ERROR: formato (objeto | material)"
+    name = parts[0].strip()
+    mat = parts[1].strip().lower()
+    if not mat:
+        return "RESULTADO escena_material ERROR: falta el material"
+    if not scene.edit(name, material=mat):
+        return f"RESULTADO escena_material ERROR: no existe el objeto '{name}'"
+    aviso = "" if mat in MATERIALS else " (aviso: material no listado en MATERIALS, se acepta igual)"
+    return f"RESULTADO escena_material: '{name}' material={mat}{aviso}"
+
+
+@tool("escena_capa",
+      "escena_capa <objeto> | <frente|fondo|z=N>  -- cambia el orden de dibujo (z)")
+def _escena_capa(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_capa ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO escena_capa ERROR: formato (objeto | frente|fondo|z=N)"
+    name = parts[0].strip()
+    spec = parts[1].strip().lower()
+    if scene.get(name) is None:
+        return f"RESULTADO escena_capa ERROR: no existe el objeto '{name}'"
+    if spec == "frente":
+        z = max((o.z for o in scene.objects), default=0) + 1
+    elif spec == "fondo":
+        z = min((o.z for o in scene.objects), default=0) - 1
+    else:
+        m = _re.match(r"z\s*=\s*(-?\d+)", spec)
+        if not m:
+            return "RESULTADO escena_capa ERROR: formato (frente|fondo|z=N)"
+        z = int(m.group(1))
+    scene.edit(name, z=z)
+    return f"RESULTADO escena_capa: '{name}' z={z}"
+
+
+@tool("escena_camara",
+      "escena_camara | width=.. height=..    -- edita el tamano del canvas (la 'camara')")
+def _escena_camara(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_camara ERROR: no hay escena activa (usa escena_crear primero)"
+    kv = _parse_kv(_strip_pipe(args))
+    if not kv:
+        return "RESULTADO escena_camara ERROR: formato (width=.. height=..)"
+    try:
+        if "width" in kv:
+            scene.width = int(float(kv["width"]))
+        if "height" in kv:
+            scene.height = int(float(kv["height"]))
+    except ValueError:
+        return "RESULTADO escena_camara ERROR: width/height deben ser numeros"
+    return f"RESULTADO escena_camara: {scene.width}x{scene.height}"
+
+
+@tool("escena_luz",
+      "escena_luz | <x>,<y>                  -- edita la direccion de luz (light_dir)")
+def _escena_luz(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_luz ERROR: no hay escena activa (usa escena_crear primero)"
+    text = _strip_pipe(args)
+    m = _re.match(r"(-?[\d.]+)\s*,\s*(-?[\d.]+)", text)
+    if not m:
+        return "RESULTADO escena_luz ERROR: formato (x,y) por ejemplo -0.5,-0.8"
+    scene.light_dir = (float(m.group(1)), float(m.group(2)))
+    return f"RESULTADO escena_luz: light_dir={scene.light_dir}"
+
+
+@tool("escena_fondo",
+      "escena_fondo | <color>                -- edita el color de fondo (nombre de "
+      "COLORS o r,g,b)")
+def _escena_fondo(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_fondo ERROR: no hay escena activa (usa escena_crear primero)"
+    text = _strip_pipe(args)
+    if not text:
+        return "RESULTADO escena_fondo ERROR: falta el color"
+    if text.lower() in COLORS:
+        scene.background = COLORS[text.lower()]
+    else:
+        m = _re.match(r"(\d+)\s*,\s*(\d+)\s*,\s*(\d+)", text)
+        if not m:
+            return f"RESULTADO escena_fondo ERROR: color desconocido '{text}' (usa nombre o r,g,b)"
+        scene.background = tuple(int(g) for g in m.groups())
+    return f"RESULTADO escena_fondo: background={scene.background}"
+
+
+@tool("escena_alinear",
+      "escena_alinear <o1,o2,...> | <left|right|top|bottom|centerx|centery>  -- "
+      "alinea varios objetos a un borde/eje comun")
+def _escena_alinear(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_alinear ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO escena_alinear ERROR: formato (o1,o2,... | left|right|top|bottom|centerx|centery)"
+    names = [n.strip() for n in parts[0].split(",") if n.strip()]
+    modo = parts[1].strip().lower()
+    if len(names) < 2:
+        return "RESULTADO escena_alinear ERROR: se necesitan al menos 2 objetos"
+    objs = []
+    for n in names:
+        o = scene.get(n)
+        if o is None:
+            return f"RESULTADO escena_alinear ERROR: no existe el objeto '{n}'"
+        objs.append(o)
+    if modo == "left":
+        borde = min(o.x - o.w / 2 for o in objs)
+        for o in objs:
+            o.x = borde + o.w / 2
+    elif modo == "right":
+        borde = max(o.x + o.w / 2 for o in objs)
+        for o in objs:
+            o.x = borde - o.w / 2
+    elif modo == "top":
+        borde = min(o.y - o.h / 2 for o in objs)
+        for o in objs:
+            o.y = borde + o.h / 2
+    elif modo == "bottom":
+        borde = max(o.y + o.h / 2 for o in objs)
+        for o in objs:
+            o.y = borde - o.h / 2
+    elif modo == "centerx":
+        c = sum(o.x for o in objs) / len(objs)
+        for o in objs:
+            o.x = c
+    elif modo == "centery":
+        c = sum(o.y for o in objs) / len(objs)
+        for o in objs:
+            o.y = c
+    else:
+        return "RESULTADO escena_alinear ERROR: modo invalido (left|right|top|bottom|centerx|centery)"
+    return f"RESULTADO escena_alinear: [{', '.join(names)}] alineados a {modo}"
+
+
+@tool("escena_distribuir",
+      "escena_distribuir <o1,o2,...> | <horizontal|vertical>  -- distribuye los "
+      "objetos equiespaciados entre los extremos actuales")
+def _escena_distribuir(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_distribuir ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO escena_distribuir ERROR: formato (o1,o2,... | horizontal|vertical)"
+    names = [n.strip() for n in parts[0].split(",") if n.strip()]
+    modo = parts[1].strip().lower()
+    if modo not in ("horizontal", "vertical"):
+        return "RESULTADO escena_distribuir ERROR: modo invalido (horizontal|vertical)"
+    if len(names) < 2:
+        return "RESULTADO escena_distribuir ERROR: se necesitan al menos 2 objetos"
+    objs = []
+    for n in names:
+        o = scene.get(n)
+        if o is None:
+            return f"RESULTADO escena_distribuir ERROR: no existe el objeto '{n}'"
+        objs.append(o)
+    attr = "x" if modo == "horizontal" else "y"
+    objs.sort(key=lambda o: getattr(o, attr))
+    lo, hi = getattr(objs[0], attr), getattr(objs[-1], attr)
+    n = len(objs)
+    step = (hi - lo) / (n - 1) if n > 1 else 0.0
+    for i, o in enumerate(objs):
+        setattr(o, attr, lo + step * i)
+    return (f"RESULTADO escena_distribuir: [{', '.join(o.key() for o in objs)}] "
+            f"equiespaciados en {modo}")
+
+
+@tool("escena_relacionar",
+      "escena_relacionar <A> | <on|left_of|right_of|above|below> | <B>  -- "
+      "reposiciona A respecto de B segun la relacion pedida")
+def _escena_relacionar(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_relacionar ERROR: no hay escena activa (usa escena_crear primero)"
+    parts = _re.split(r"\s*\|\s*", args.strip())
+    if len(parts) != 3:
+        return "RESULTADO escena_relacionar ERROR: formato (A | relacion | B)"
+    name_a, rel, name_b = parts[0].strip(), parts[1].strip().lower(), parts[2].strip()
+    if rel not in ("on", "left_of", "right_of", "above", "below"):
+        return "RESULTADO escena_relacionar ERROR: relacion invalida (on|left_of|right_of|above|below)"
+    a, b = scene.get(name_a), scene.get(name_b)
+    if a is None or b is None:
+        faltante = name_a if a is None else name_b
+        return f"RESULTADO escena_relacionar ERROR: no existe el objeto '{faltante}'"
+    # misma logica de posicionamiento que planner.plan (§4.1): B es la base, A
+    # se recoloca pegado a su borde segun la relacion.
+    if rel == "on":
+        a.x, a.y = b.x, b.y - b.h / 2 - a.h / 2
+    elif rel == "above":
+        a.x, a.y = b.x, b.y - b.h / 2 - a.h / 2 - 0.08
+    elif rel == "below":
+        a.x, a.y = b.x, b.y + b.h / 2 + a.h / 2 + 0.02
+    elif rel == "left_of":
+        a.x, a.y = b.x - b.w / 2 - a.w / 2 - 0.04, b.y
+    elif rel == "right_of":
+        a.x, a.y = b.x + b.w / 2 + a.w / 2 + 0.04, b.y
+    a.relation, a.ref = rel, b.key()
+    ok = _relation_ok(scene, a.key(), rel, b.key())
+    return (f"RESULTADO escena_relacionar: '{a.key()}' {rel} '{b.key()}' -> "
+            f"({a.x:.2f},{a.y:.2f}); relacion_ok={ok}")
+
+
+@tool("escena_fisica",
+      "escena_fisica                         -- asienta la escena activa con "
+      "gravedad/colision (physics.settle) y reporta plausibilidad")
+def _escena_fisica(args, ctx):
+    scene = _active(ctx)
+    if scene is None:
+        return "RESULTADO escena_fisica ERROR: no hay escena activa (usa escena_crear primero)"
+    from cognia_x.lcd.physics import physics_report, settle
+    rep = settle(scene)
+    chk = physics_report(scene)
+    return (f"RESULTADO escena_fisica: asentada (iters={rep['iters']}, "
+            f"movidos={rep['moved']}); plausible={chk['plausible']} "
+            f"flotando={chk['flotando']} solapando={chk['solapando']} "
+            f"inestables={chk['inestables']}")
+
+
 # Import de este modulo = registro de las tools en el registry global (via el
 # @tool decorator). load_lcd_tools() existe para llamarlo explicito y contar.
 def load_lcd_tools() -> int:
@@ -250,5 +635,10 @@ def load_lcd_tools() -> int:
     corrio al importar). Sirve de hook explicito para el loop del agente."""
     from cognia.agent.tools import TOOLS
     return sum(1 for n in ("escena_crear", "escena_editar", "escena_consultar",
-                           "render_aprox", "atribuir_fallo", "reejecutar_etapa")
+                           "render_aprox", "atribuir_fallo", "reejecutar_etapa",
+                           "escena_agregar", "escena_quitar", "escena_duplicar",
+                           "escena_mover", "escena_rotar", "escena_escalar",
+                           "escena_material", "escena_capa", "escena_camara",
+                           "escena_luz", "escena_fondo", "escena_alinear",
+                           "escena_distribuir", "escena_relacionar", "escena_fisica")
                if n in TOOLS)
