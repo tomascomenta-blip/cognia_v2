@@ -5247,3 +5247,36 @@ todo registrado (RESULTADO_ARBITRO.md + este log + memoria). Delegacion: Explore
 PENDIENTE (futuro, gated GPU): refinador SD+ControlNet, materiales/iluminacion,
 generalizacion del patron a web full-stack; del goal previo: A4 lazo hibrido,
 A5 propuesta escrita, B web, E eval completa.
+
+================================================================================
+CORRIDA 2026-07-05c "PULIR LA HERRAMIENTA AI-NATIVA" (edicion total + fisica + auto-pruebas)
+================================================================================
+OBJETIVO del dueño: pulir la herramienta AI-nativa de escena para que edite
+TODO de un modelo, tenga buenas fisicas, local y super optimizada; hacer pruebas
+YO misma evaluando que tanto se parecen; añadir muchas tools/servicios.
+
+ENTREGADO (commits 286dba7..55eb4d7, ~150 tests LCD):
+- FISICA local determinista (physics.py, Fable): settle() asienta la escena a
+  reposo plausible (gravedad/soporte-valido/colision/estabilidad), physics_report
+  = oraculo cero-LLM. Verificado real: escena mal armada -> plausible en 2 iters.
+- MODELO ampliado (scene.py, Fable): id/rotation/material, +30 objetos,
+  add/remove/duplicate, DENSITY/FLOATING/MATERIALS, sinonimos es/en (canonical_name).
+- EDICION TOTAL (tools_lcd.py, subagente sonnet): 15 tools nuevas (agregar/quitar/
+  duplicar/mover/rotar/escalar/material/capa/camara/luz/fondo/alinear/distribuir/
+  relacionar/fisica). load_lcd_tools=21.
+- SERVICIOS (subagente sonnet): exporters (SVG+JSON), history (undo/redo),
+  templates (6 plantillas), tools_services (5 tools: exportar/importar/deshacer/
+  rehacer/plantilla). Wireadas al loop.
+- AUTO-PRUEBAS (selfplay.py + eval_selfplay.py, Fable): similarity cero-LLM
+  calibrada + attempt_reproduce (un agente reconstruye una escena objetivo).
+  RESULTADO e2e con el modelo real: scripted TECHO 1.000, heuristico 0.508,
+  3B REAL 0.903. HALLAZGO (verif real caza bug del HARNESS): el 3B daba 0.153 no
+  por incapacidad sino porque la metrica matcheaba por nombre exacto y el 3B
+  TRADUCE (mesa vs table) -> canonicalizacion es/en lo subio a 0.903. El 3B
+  reproduce escenas al ~90% con las tools.
+- SUPER OPTIMIZADO (bench, i3 CPU): settle 1.8ms/render 2.5ms/similarity 0.7ms
+  por escena (12 obj), determinista, sin GPU.
+RESULTADO_PULIDO.md con numeros + alcance honesto (fisica de asentamiento no
+dinamica; sin pared; undo/redo por checkpoint). Metodo: 2 subagentes sonnet en
+paralelo (archivos disjuntos) para tools mecanicas; Fable para fisica/eval/
+similitud/claims. Regulacion de uso OK (reset esperado antes, reanudado).

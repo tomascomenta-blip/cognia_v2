@@ -57,6 +57,18 @@ _EXAMPLES = {
     "reejecutar_etapa": [
         "ACCION: reejecutar_etapa plan",
     ],
+    "escena_agregar": [
+        "ACCION: escena_agregar taza | x=0.5 y=0.56 color=red",
+    ],
+    "escena_mover": [
+        "ACCION: escena_mover taza | x=0.3 y=0.5",
+    ],
+    "escena_fisica": [
+        "ACCION: escena_fisica",
+    ],
+    "escena_plantilla": [
+        "ACCION: escena_plantilla mesa_servida",
+    ],
 }
 
 
