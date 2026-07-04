@@ -1,0 +1,43 @@
+{
+  "kmax": 8,
+  "steps": 6000,
+  "seed": 137,
+  "fixed": {
+    "acc": 0.999,
+    "avg_steps_used": 8.0,
+    "avg_exp_steps": 8.0,
+    "corr_K_steps": 0.0,
+    "acc_by_k": {
+      "1": 1.0,
+      "2": 1.0,
+      "3": 1.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 1.0,
+      "7": 0.998,
+      "8": 0.994
+    }
+  },
+  "ponder": {
+    "acc": 1.0,
+    "avg_steps_used": 5.534,
+    "avg_exp_steps": 6.35,
+    "corr_K_steps": 0.979,
+    "acc_by_k": {
+      "1": 1.0,
+      "2": 1.0,
+      "3": 1.0,
+      "4": 1.0,
+      "5": 1.0,
+      "6": 1.0,
+      "7": 1.0,
+      "8": 1.0
+    }
+  },
+  "verdict": {
+    "acc_match": true,
+    "compute_saved_pct": 30.8,
+    "ponders_more_on_hard": true
+  },
+  "confirma": true
+}
