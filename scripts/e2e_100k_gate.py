@@ -49,7 +49,9 @@ USER_PROMPT = (
     "logicos, colas de mensajes, almacenamiento, observabilidad, seguridad y "
     "patrones de diseno. Debe ser progresivo (cada capitulo se apoya en los "
     "anteriores), con ejemplos concretos y sin repetir contenido entre "
-    "capitulos."
+    "capitulos. CADA seccion debe ser EXHAUSTIVA: al menos 700 palabras, con "
+    "subsecciones, un ejemplo de codigo o pseudocodigo comentado, y un caso "
+    "practico. No resumas: desarrolla en profundidad."
 )
 
 
