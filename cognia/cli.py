@@ -7280,6 +7280,15 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _print_fn(f"[detail]{_n_gen} herramienta(s) auto-generada(s) disponibles[/detail]")
     except Exception:
         pass
+    # Herramientas AI-nativas de LCD (escena estructurada; plan 12). Best-effort:
+    # importar el modulo registra las tools via el @tool decorator.
+    try:
+        from cognia_x.lcd.tools_lcd import load_lcd_tools
+        _n_lcd = load_lcd_tools()
+        if _n_lcd:
+            _print_fn(f"[detail]{_n_lcd} herramienta(s) de escena LCD disponibles[/detail]")
+    except Exception:
+        pass
 
     # Modo sencillo (default): recorta la paleta a lo util para un usuario comun
     # (oculta git/kg/validadores/http/notas/etc). Si el caller ya restringio por
