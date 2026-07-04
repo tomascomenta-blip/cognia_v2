@@ -5193,3 +5193,57 @@ cierran natural antes del cap, el total puede quedar bajo 100k; el mecanismo y
 el cap de 200k lo soportan estructuralmente).
 
 USAGE monitoreado toda la corrida: 3%->56% (7d) sin acercarse al umbral 84%.
+
+================================================================================
+CORRIDA 2026-07-05 "HERRAMIENTAS VIRTUALES PARA IAs" (LCD+MOM adaptado) (/goal, Fable 5)
+================================================================================
+OBJETIVO del dueño: adaptar el plan LCD+MOM subido a la vision de cognia-x
+(con futuro) y setearlo como goal; el reencuadre profundo = NO un generador de
+imagenes para humanos, sino una BIBLIOTECA DE HERRAMIENTAS AI-NATIVAS (para uso
+de IA, no de humanos) que hace mejores a las IAs. Todo el proceso REGISTRADO.
+
+TAMBIEN en esta corrida (goal previo "comercializable", cerrado parcial):
+- D1 auto --continuar por defecto (cognia encadena sola la respuesta larga
+  hasta completar, tope de pasadas, --manual off). commit 4684998.
+- C1 modo SENCILLO por defecto (suprime [detail], paleta de tools recortada,
+  /modo sencillo|avanzado persistente). commit 110654d + 8539bb7 + fix visible.
+- A1 mapa infra training (Explore): 3 sistemas de adaptacion DESCONECTADOS
+  (Kaggle QLoRA manual / ELC-ARA NumPy autonomo pero NO toca el GGUF activo /
+  gap_detector que detecta pero no entrena). GPU Kaggle ya desbloqueada.
+- A2 investigacion web QLoRA barato (5 angulos): VEREDICTO -> entrenar en CPU
+  del i3 es INVIABLE (llama.cpp finetune eliminado 2024; bnb CPU lento;
+  axolotl/torchtune/unsloth no CPU-only; 0.5B en telefono ~5min/paso). Techo de
+  adaptacion barata = GPU Kaggle. HALLAZGO CLAVE: QLoRA chico inyecta HABILIDADES
+  /formato, NO hechos nuevos fiables -> el lazo debe ser HIBRIDO (RAG+memoria
+  para hechos, QLoRA-Kaggle para habilidades). digest en scratchpad.
+- Usage: cruzo 92% -> /wait-reset (espero el reset de la ventana 5h), reanudo a 0%.
+
+NUEVO GOAL "HERRAMIENTAS AI-NATIVAS" (plan 12, commits 7efa32e..b8aa19d):
+- Plan adaptado y guardado: cognia_x/construccion/12_HERRAMIENTAS_IA_LCD_MOM.md
+  (que es una tool AI-nativa vs una para humanos; catalogo; fases CPU-first;
+  vision: el patron IR-estructurada->verif-por-etapa->reejec-selectiva se
+  generaliza a codigo/web/docs).
+- CP1: tools AI-nativas de escena sobre scene.py -> escena_crear/editar/
+  consultar/render_aprox, con oraculo CERO-LLM (control_check), escena viva en
+  working_memory, wireadas al loop. 11 tests. commit 3df5f8d.
+- CP2+4 (el aporte): arbitro por etapa (arbiter.py, cascada de contratos
+  cero-LLM sobre descripcion->plan->geometria->render). MEDIDO con 24 fallos
+  inyectados: atribucion 24/24 = 100% con distribucion de culpas BALANCEADA
+  (plan8/geom8/render8), 0 confusion -> NO colapsa (el riesgo #1; el arbitro-LLM
+  de AG-ARB colapsaba a 'code' 31%). Tools atribuir_fallo + reejecutar_etapa.
+  RESULTADO_ARBITRO.md. 10 tests. commit c7b7d50.
+- CP5: e2e REAL con el modelo -> 6/6 checks deterministas + el 3B ELIGE
+  escena_crear en el 1er paso (con few-shot). El lazo crear->corromper->
+  atribuir(plan)->reejecutar(plan)->control 3/3 corre con el modelo de verdad.
+  commit 8214521.
+- CP3+6: planner-LLM como ruta de lenguaje natural (fuera del vocabulario de
+  reglas, 7/8 medido) con fallback; atribuir_fallo/reejecutar_etapa ocultas en
+  modo sencillo (diagnostico = ruido para el usuario comun). commit b8aa19d.
+
+Suite del area verde (105 passed en lcd+agent+cli). Metodo: verificacion REAL
+(e2e con modelo, no solo pytest), numeros medidos, alcance honesto declarado,
+todo registrado (RESULTADO_ARBITRO.md + este log + memoria). Delegacion: Explore
++ workflow de 5 investigadores en sonnet; diseño/arbitro/tools/claims en Fable 5.
+PENDIENTE (futuro, gated GPU): refinador SD+ControlNet, materiales/iluminacion,
+generalizacion del patron a web full-stack; del goal previo: A4 lazo hibrido,
+A5 propuesta escrita, B web, E eval completa.
