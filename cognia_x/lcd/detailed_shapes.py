@@ -177,10 +177,15 @@ def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None):
            fill=shade(body_col, 0.82), width=max(1, int(H * 0.04)))
     d.line([(bo0, cy + hh * 0.34), (bo1, cy + hh * 0.34)],
            fill=shade(body_col, 0.7), width=max(1, int(H * 0.04)))
-    # brillo especular glossy sobre el cuerpo
     if img is not None:
-        st = specular_streak(bo1 - bo0, H, pos=0.26, width=0.06, strength=150, axis="y")
-        paste_shaded(img, st, bo0, ty0)
+        # specular en DOS capas (research): highlight base ancho + clearcoat nitido
+        paste_shaded(img, specular_streak(bo1 - bo0, H, pos=0.28, width=0.09,
+                     strength=110, axis="y"), bo0, ty0)
+        paste_shaded(img, specular_streak(bo1 - bo0, H, pos=0.22, width=0.028,
+                     strength=190, axis="y"), bo0, ty0)
+        # rim light en el borde superior (separa la figura del fondo, Fresnel-fake)
+        paste_shaded(img, specular_streak(bo1 - bo0, H, pos=0.04, width=0.02,
+                     strength=90, axis="y"), bo0, ty0)
 
     # --- cono de madera afilada (tan, con las facetas del sacapuntas) ---
     wood = (222, 184, 130)
@@ -192,6 +197,14 @@ def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None):
     # facetas talladas por el sacapuntas (lineas del vertice a la base)
     for gy in (ty0 + H * 0.18, cy, ty1 - H * 0.18):
         d.line([(wo0, gy), gpt], fill=shade(wood, 0.66), width=1)
+    # GRANO de madera (research: Noise a lo largo del eje): vetas finas onduladas
+    import math as _m
+    for k in range(6):
+        gy0 = ty0 + H * (0.10 + 0.13 * k)
+        pts = [(wo0 + (gr1 - wo0) * t / 8,
+                gy0 + _m.sin(t * 1.3 + k) * H * 0.02 - (gy0 - cy) * (t / 8) * 0.85)
+               for t in range(9)]
+        d.line(pts, fill=shade(wood, 0.78 if k % 2 else 0.88), width=1)
 
     # --- punta de grafito (cono corto oscuro, solo la puntita, con reflejo) ---
     graph = (52, 52, 58)
@@ -200,6 +213,17 @@ def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None):
     d.polygon([(gr0, cy - hh * 0.22), (gr0, cy), gpt], fill=(92, 92, 102))  # cara lit
     d.line([(gr0, cy - hh * 0.06), (gr1 - (gr1 - gr0) * 0.35, cy - hh * 0.015)],
            fill=(150, 150, 162), width=1)   # reflejo especular en el grafito
+
+    # --- AMBIENT OCCLUSION en las uniones (research: la tecnica mas barata para
+    # 'objeto real'): oscurecer las costuras goma|virola|cuerpo|madera ---
+    if img is not None:
+        ao = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        ad = ImageDraw.Draw(ao)
+        for jx in (fe0, bo0, wo0):
+            ad.rectangle([jx - max(1, int(H * 0.05)), ty0, jx + max(1, int(H * 0.05)), ty1],
+                         fill=(20, 15, 10, 70))
+        ao = ao.filter(ImageFilter.GaussianBlur(max(1, int(H * 0.06))))
+        img.paste(ao, (0, 0), ao)
 
 
 # canonical_name -> drawer detallado (el renderer lo consulta primero)
