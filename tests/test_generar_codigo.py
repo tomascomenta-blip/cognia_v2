@@ -70,3 +70,34 @@ def test_rules_valida_generar_codigo():
     assert "generar_codigo" in structure.RULES
     assert structure.validate_action("generar_codigo", "f.py | desc") is None
     assert structure.validate_action("generar_codigo", "solo_una_parte") is not None
+
+
+def test_bon_n_adaptativo_por_dificultad():
+    """N escala con la dificultad ex-ante (cascada barato-primero): pool
+    chico para lo trivial, grande para lo duro."""
+    from cognia.agent.tools import _bon_n
+    n_easy, d_easy = _bon_n("suma a y b")
+    n_hard, d_hard = _bon_n(
+        "implementa dijkstra shortest path en un grafo con backtracking y "
+        "memoizacion, O(V log V), manejando edge cases de overflow numerico")
+    assert n_easy == 3 and d_easy < 0.15
+    assert n_hard == 10 and d_hard >= 0.50
+
+
+def test_bon_telemetria_se_escribe(tmp_path, monkeypatch):
+    """Cada generar_codigo en vivo appendea una linea JSONL con (dificultad,
+    resultado, costo) — el dataset para recalibrar el router."""
+    import json as _json
+    import cognia.agent.tools as _tools
+    tele = tmp_path / "_bon_telemetry.jsonl"
+    monkeypatch.setattr(_tools, "_BON_TELEMETRY", tele)
+    good = "```python\ndef doble(n):\n    return n * 2\n```"
+    orch = _FakeOrch(["assert doble(2) == 4\nassert doble(5) == 10",
+                      good, good, good, good, good, good])
+    ctx = _ctx(orch, tmp_path, monkeypatch)
+    run_tool("generar_codigo", "doble.py | funcion `doble(n)` que devuelve el doble de n", ctx)
+    lines = tele.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 1
+    rec = _json.loads(lines[0])
+    assert "difficulty" in rec and "rank_mode" in rec and "secs" in rec
+    assert rec["total"] == 2 and rec["score"] == 2   # ambos asserts pasan

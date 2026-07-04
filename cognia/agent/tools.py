@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import ast
 import atexit
+import datetime
 import glob as _glob
 import json
 import operator
@@ -30,6 +31,7 @@ import os
 import re
 import subprocess
 import sys
+import time as _time
 from pathlib import Path
 
 # Gate de escritura compartido con los workers Tier 1: confina TODA escritura
@@ -603,6 +605,38 @@ def _resumir(args, ctx):
 _BON_N = 6  # candidatos por llamada (N-1 a temp 0.7 + 1 greedy); ~2-3 min CPU
 
 
+def _bon_n(desc: str) -> tuple:
+    """(N, dificultad): N adaptativo por dificultad ex-ante (cascada
+    barato-primero). model_router.estimate_difficulty (cero LLM, calibrado
+    contra las etiquetas del bench) decide cuanto computo invertir: pool
+    chico donde el 3B casi siempre acierta, grande donde falla mas. El
+    early-stop de best_of_n ya corta el caso trivial (greedy perfecto) a 1
+    candidato; esto acota el costo del resto (~25s/candidato en el i3)."""
+    from cognia.agent.model_router import estimate_difficulty
+    d = estimate_difficulty(desc)
+    if d < 0.15:
+        return 3, d
+    if d >= 0.50:
+        return 10, d
+    return _BON_N, d
+
+
+# Telemetria append-only del BoN en vivo: la tupla (dificultad ex-ante,
+# resultado real de los tests visibles, costo) por invocacion es EL dataset
+# para recalibrar el umbral del router (hoy hand-tuned contra el bench) con
+# trafico real. Best-effort: si el disco falla, la tool no se entera.
+_BON_TELEMETRY = Path(__file__).parent / "generated_tools" / "_bon_telemetry.jsonl"
+
+
+def _bon_log(rec: dict) -> None:
+    try:
+        _BON_TELEMETRY.parent.mkdir(parents=True, exist_ok=True)
+        with _BON_TELEMETRY.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 @tool("generar_codigo",
       "generar_codigo <ruta.py> | <descripcion con el nombre exacto `func(args)`>  "
       "-- genera N candidatos con test-first y ESCRIBE el mejor por tests")
@@ -634,11 +668,21 @@ def _generar_codigo(args, ctx):
     code_prompt = ("Escribe UNA funcion Python COMPLETA que cumpla esto. Responde "
                    "SOLO con un bloque ```python ...``` con la funcion, sin "
                    "explicaciones.\n\n" + desc)
+    n_plan, dif = _bon_n(desc)
+    _t0 = _time.time()
     try:
         out = best_of_n(_code_gen, code_prompt, desc, entry, extract_code,
-                        n=_BON_N, seed=42, test_gen_fn=_test_gen)
+                        n=n_plan, seed=42, test_gen_fn=_test_gen)
     except Exception as exc:
         return f"RESULTADO generar_codigo ERROR: {exc}"
+    _best_t = out.get("ranking", [{}])[0] if out.get("ranking") else {}
+    _bon_log({
+        "ts": datetime.datetime.now().isoformat(timespec="seconds"),
+        "task_head": desc[:120], "difficulty": dif, "n_planned": n_plan,
+        "n_generated": out.get("n_generated"), "rank_mode": out.get("rank_mode"),
+        "score": _best_t.get("score"), "total": _best_t.get("total"),
+        "secs": round(_time.time() - _t0, 1),
+    })
     code = out.get("code", "")
     if not code.strip() or f"def {entry}" not in code:
         return (f"RESULTADO generar_codigo ERROR: no se genero una funcion "
