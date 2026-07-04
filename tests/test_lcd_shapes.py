@@ -74,3 +74,41 @@ def test_roundtrip_json_preserva_vertices():
                            points=[[0, -0.5], [0.5, 0], [0, 0.5]])])
     s2 = Scene.from_json(s.to_json())
     assert s2.get("cristal").points == [[0, -0.5], [0.5, 0], [0, 0.5]]
+
+
+# ── fidelidad de render: supersampling + shading + lapiz ──────────────────
+
+def test_supersampling_no_crashea_y_mantiene_tamano():
+    s = Scene(objects=[Obj(name="lapiz", shape="rect", x=0.5, y=0.5, w=0.8, h=0.1)])
+    img = render(s, labels=False, scale=3)
+    assert img.size == (512, 512)      # baja de 3x a la resolucion pedida
+
+
+def test_lapiz_tiene_figura_detallada():
+    assert detailed_drawer("lapiz") is not None
+    assert detailed_drawer("pencil") is not None
+
+
+def test_cylinder_gradient_da_volumen():
+    from cognia_x.lcd.shading import cylinder_gradient
+    import numpy as np
+    patch = cylinder_gradient((240, 195, 40), 40, 20, axis="y")
+    arr = np.array(patch)
+    # el sombreado varia a lo largo del eje y (no es color plano)
+    col_top = arr[2, 20, :3].astype(int)
+    col_bot = arr[17, 20, :3].astype(int)
+    assert abs(int(col_top.sum()) - int(col_bot.sum())) > 20
+
+
+def test_specular_streak_tiene_pico():
+    from cognia_x.lcd.shading import specular_streak
+    import numpy as np
+    st = specular_streak(20, 40, pos=0.3, width=0.08, axis="y")
+    alpha = np.array(st)[:, 10, 3]
+    assert alpha.max() > 100 and alpha[0] < alpha.max()   # pico interior
+
+
+def test_lapiz_render_no_crashea_con_shading():
+    s = Scene(objects=[Obj(name="lapiz", shape="rect", x=0.5, y=0.5, w=0.82, h=0.11)])
+    img = render(s, labels=False, scale=2)
+    assert img.size == (512, 512)

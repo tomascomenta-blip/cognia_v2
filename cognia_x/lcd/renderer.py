@@ -24,10 +24,21 @@ def _shade(color, factor):
     return tuple(max(0, min(255, int(c * factor))) for c in color)
 
 
-def render(scene: Scene, labels: bool = True) -> Image.Image:
+def render(scene: Scene, labels: bool = True, scale: int = 1) -> Image.Image:
     """Escena estructurada -> imagen PIL (RGB). Dibuja cada objeto como su
     figura (detallada si la tiene, si no la primitiva), en orden de z, con
-    sombreado. labels=False -> render LIMPIO (sin las etiquetas de nombre)."""
+    sombreado. labels=False -> render LIMPIO (sin etiquetas de nombre).
+
+    scale>1 = SUPERSAMPLING anti-aliasing (Blender-like): rasteriza a scale x la
+    resolucion y baja con LANCZOS -> bordes suaves, sin escalones. scale=3 es un
+    buen punto (9x el computo, ~sub-10ms). Es la mayor ganancia de fidelidad
+    hacia 'pixel por pixel' sin cambiar nada del contenido."""
+    if scale > 1:
+        big = Scene(objects=scene.objects, width=scene.width * scale,
+                    height=scene.height * scale, background=scene.background,
+                    light_dir=scene.light_dir)
+        img = render(big, labels=labels, scale=1)
+        return img.resize((scene.width, scene.height), Image.LANCZOS)
     W, H = scene.width, scene.height
     img = Image.new("RGB", (W, H), scene.background)
     d = ImageDraw.Draw(img)
@@ -44,9 +55,9 @@ def render(scene: Scene, labels: bool = True) -> Image.Image:
         # 1) vertices custom (edicion de figuras): shape='polygon' + o.points
         if o.shape == "polygon" and o.points:
             draw_polygon(d, cx, cy, hw, hh, o.color, _shade, o.points)
-        # 2) figura DETALLADA multi-parte si el objeto tiene una (taza/mesa/plato)
+        # 2) figura DETALLADA multi-parte si el objeto tiene una (taza/mesa/lapiz)
         elif detailed_drawer(o.name) is not None:
-            detailed_drawer(o.name)(d, cx, cy, hw, hh, o.color, _shade)
+            detailed_drawer(o.name)(d, cx, cy, hw, hh, o.color, _shade, img)
         # 3) primitivas base
         elif o.shape == "rect":
             d.rectangle(box, fill=fill, outline=edge, width=2)
@@ -67,9 +78,10 @@ def render(scene: Scene, labels: bool = True) -> Image.Image:
     return img
 
 
-def render_to(scene: Scene, path, labels: bool = True) -> str:
-    """Renderiza y guarda a PNG. Devuelve la ruta. labels=False = render limpio."""
+def render_to(scene: Scene, path, labels: bool = True, scale: int = 1) -> str:
+    """Renderiza y guarda a PNG. Devuelve la ruta. labels=False = render limpio;
+    scale>1 = anti-aliasing por supersampling."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    render(scene, labels=labels).save(path)
+    render(scene, labels=labels, scale=scale).save(path)
     return str(path)

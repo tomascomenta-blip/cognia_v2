@@ -17,7 +17,7 @@ def _lerp(a, b, t):
     return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
 
 
-def draw_cup(d, cx, cy, hw, hh, color, shade):
+def draw_cup(d, cx, cy, hw, hh, color, shade, img=None):
     """Taza vista de costado: cuerpo troncocónico (un poco más angosto abajo),
     borde eliptico con el hueco interior mas oscuro, y asa en 'C' PEGADA al
     cuerpo a la derecha. Robusta a la proporcion (se ve como taza aunque el
@@ -78,7 +78,7 @@ def draw_cup(d, cx, cy, hw, hh, color, shade):
               fill=dark, outline=edge)
 
 
-def draw_table(d, cx, cy, hw, hh, color, shade):
+def draw_table(d, cx, cy, hw, hh, color, shade, img=None):
     """Mesa: tablero + 4 patas (en vez de un rectangulo plano)."""
     fill = shade(color, 1.0)
     edge = shade(color, 0.55)
@@ -92,7 +92,7 @@ def draw_table(d, cx, cy, hw, hh, color, shade):
                     fill=shade(color, 0.8), outline=edge)
 
 
-def draw_plate(d, cx, cy, hw, hh, color, shade):
+def draw_plate(d, cx, cy, hw, hh, color, shade, img=None):
     """Plato: elipse con un anillo interior (borde del plato)."""
     fill = shade(color, 1.0)
     edge = shade(color, 0.55)
@@ -111,11 +111,104 @@ def draw_polygon(d, cx, cy, hw, hh, color, shade, points):
         d.polygon(pts, fill=fill, outline=edge)
 
 
+def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None):
+    """Lapiz HORIZONTAL foto-realista (izq->der): goma + virola metalica con
+    bandas + cuerpo pintado (barril hexagonal, gradiente cilindrico + brillo) +
+    cono de madera afilada + punta de grafito. color = color del cuerpo pintado
+    (default amarillo si es gris). Usa gradientes de shading.py si hay img."""
+    from PIL import Image, ImageDraw, ImageFilter
+
+    from cognia_x.lcd.shading import (cylinder_gradient, paste_shaded,
+                                       specular_streak)
+    body_col = color if color != (150, 150, 150) else (240, 195, 40)  # amarillo lapiz
+
+    x0, x1 = cx - hw, cx + hw
+    W = x1 - x0
+    top, bot = cy - hh, cy + hh
+    H = bot - top
+
+    def seg(a, b):
+        return int(x0 + W * a), int(x0 + W * b)
+
+    # segmentos a lo largo del lapiz (fracciones del largo)
+    er0, er1 = seg(0.00, 0.055)     # goma
+    fe0, fe1 = seg(0.055, 0.135)    # virola metalica
+    bo0, bo1 = seg(0.135, 0.82)     # cuerpo pintado
+    wo0, wo1 = seg(0.82, 0.965)     # cono de madera (mas largo)
+    gr0, gr1 = seg(0.955, 1.00)     # grafito (solo la puntita)
+    ty0, ty1 = int(top), int(bot)
+
+    # --- SOMBRA PROYECTADA (aterriza el objeto): elipse oscura difuminada ---
+    if img is not None:
+        sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        sd = ImageDraw.Draw(sh)
+        sy = int(bot + H * 0.35)
+        sd.ellipse([int(x0 + W * 0.02), sy - int(H * 0.30),
+                    int(x1 - W * 0.04), sy + int(H * 0.30)], fill=(30, 30, 40, 90))
+        sh = sh.filter(ImageFilter.GaussianBlur(max(2, int(H * 0.18))))
+        img.paste(sh, (0, 0), sh)
+
+    # helper: pegar gradiente cilindrico (eje horizontal -> sombreado vertical)
+    def cyl(a, b, col, lit=0.34, light=1.25, shadow=0.5):
+        if img is None or b <= a:
+            d.rectangle([a, ty0, b, ty1], fill=shade(col, 1.0))
+            return
+        patch = cylinder_gradient(col, b - a, H, axis="y", lit=lit,
+                                  light=light, shadow=shadow)
+        paste_shaded(img, patch, a, ty0)
+
+    # --- goma (rosa, con casquete redondeado) ---
+    eraser = (230, 130, 140)
+    cyl(er0, er1, eraser, lit=0.30, light=1.2, shadow=0.6)
+    d.pieslice([er0 - (er1 - er0), ty0, er0 + (er1 - er0), ty1], 90, 270,
+               fill=shade(eraser, 1.05))
+
+    # --- virola metalica (gris, gradiente + 2 bandas oscuras) ---
+    metal = (170, 172, 178)
+    cyl(fe0, fe1, metal, lit=0.28, light=1.45, shadow=0.45)
+    for bx in (fe0 + (fe1 - fe0) * 0.30, fe0 + (fe1 - fe0) * 0.62):
+        d.line([(bx, ty0), (bx, ty1)], fill=shade(metal, 0.55),
+               width=max(1, int(H * 0.06)))
+
+    # --- cuerpo pintado (barril hexagonal: gradiente + facetas + brillo) ---
+    cyl(bo0, bo1, body_col, lit=0.33, light=1.22, shadow=0.52)
+    # facetas del hexagono: 2 lineas sutiles que insinuan las caras
+    d.line([(bo0, cy - hh * 0.34), (bo1, cy - hh * 0.34)],
+           fill=shade(body_col, 0.82), width=max(1, int(H * 0.04)))
+    d.line([(bo0, cy + hh * 0.34), (bo1, cy + hh * 0.34)],
+           fill=shade(body_col, 0.7), width=max(1, int(H * 0.04)))
+    # brillo especular glossy sobre el cuerpo
+    if img is not None:
+        st = specular_streak(bo1 - bo0, H, pos=0.26, width=0.06, strength=150, axis="y")
+        paste_shaded(img, st, bo0, ty0)
+
+    # --- cono de madera afilada (tan, con las facetas del sacapuntas) ---
+    wood = (222, 184, 130)
+    gpt = (gr1, cy)                                  # la punta exacta
+    d.polygon([(wo0, ty0 + H * 0.06), (wo0, ty1 - H * 0.06), gpt],
+              fill=shade(wood, 1.06), outline=shade(wood, 0.72))
+    # mitad inferior en sombra (volumen del cono)
+    d.polygon([(wo0, cy), (wo0, ty1 - H * 0.06), gpt], fill=shade(wood, 0.86))
+    # facetas talladas por el sacapuntas (lineas del vertice a la base)
+    for gy in (ty0 + H * 0.18, cy, ty1 - H * 0.18):
+        d.line([(wo0, gy), gpt], fill=shade(wood, 0.66), width=1)
+
+    # --- punta de grafito (cono corto oscuro, solo la puntita, con reflejo) ---
+    graph = (52, 52, 58)
+    d.polygon([(gr0, cy - hh * 0.22), (gr0, cy + hh * 0.22), gpt],
+              fill=graph, outline=(28, 28, 32))
+    d.polygon([(gr0, cy - hh * 0.22), (gr0, cy), gpt], fill=(92, 92, 102))  # cara lit
+    d.line([(gr0, cy - hh * 0.06), (gr1 - (gr1 - gr0) * 0.35, cy - hh * 0.015)],
+           fill=(150, 150, 162), width=1)   # reflejo especular en el grafito
+
+
 # canonical_name -> drawer detallado (el renderer lo consulta primero)
 DETAILED = {
     "cup": draw_cup,
     "table": draw_table,
     "plate": draw_plate,
+    "pencil": draw_pencil,
+    "lapiz": draw_pencil,
 }
 
 

@@ -66,6 +66,8 @@ SHAPES = {
     "bowl": ("ellipse", 0.16, 0.09), "bol": ("ellipse", 0.16, 0.09), "tazon": ("ellipse", 0.16, 0.09),
     "shelf": ("rect", 0.40, 0.04), "estante": ("rect", 0.40, 0.04), "repisa": ("rect", 0.40, 0.04),
     "rug": ("rect", 0.45, 0.05), "alfombra": ("rect", 0.45, 0.05),
+    "pencil": ("rect", 0.62, 0.09), "lapiz": ("rect", 0.62, 0.09),
+    "pen": ("rect", 0.55, 0.07), "lapicera": ("rect", 0.55, 0.07), "boligrafo": ("rect", 0.55, 0.07),
 }
 
 # density (masa por unidad de area) por objeto, para la fisica. Los soportes
@@ -102,7 +104,7 @@ _SYNONYM_PAIRS = [
     ("car", "auto"), ("car", "coche"), ("cat", "gato"), ("dog", "perro"),
     ("bird", "pajaro"), ("window", "ventana"), ("door", "puerta"),
     ("bowl", "bol"), ("bowl", "tazon"), ("shelf", "estante"), ("shelf", "repisa"),
-    ("rug", "alfombra"),
+    ("rug", "alfombra"), ("pencil", "lapiz"), ("pen", "lapicera"), ("pen", "boligrafo"),
 ]
 _CANON = {}
 for _canonical, _alias in _SYNONYM_PAIRS:
