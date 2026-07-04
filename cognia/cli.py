@@ -1028,6 +1028,15 @@ def _cmd_color(raw):
 
 
 def _print_line(text):
+    # Modo sencillo (default, version comercializable): suprime las lineas de
+    # DETALLE/proceso ('[detail]') -- "solo funciona, sin logs". Resultados,
+    # avisos y errores siempre pasan. El modo avanzado muestra todo.
+    try:
+        from cognia.simple_mode import should_show_detail
+        if not should_show_detail(text):
+            return
+    except Exception:
+        pass
     if _HAS_RICH and _console:
         _console.print(text)
     else:
@@ -6152,6 +6161,20 @@ def repl():
             else:
                 _print_line("[warn_cl]Uso: /largo <pedido>[/warn_cl]")
 
+        # -- Modo sencillo/avanzado (UI: logs + paleta de tools) --------------
+        elif raw == "/modo" or raw.startswith("/modo "):
+            _arg = raw[len("/modo "):].strip().lower() if raw.startswith("/modo ") else ""
+            from cognia.simple_mode import set_ui_mode, get_ui_mode
+            if _arg in ("sencillo", "avanzado"):
+                _m = set_ui_mode(_arg)
+                _print_line(f"[ok_cl]Modo {_m}. " + (
+                    "Cognia solo funciona, sin logs de proceso." if _m == "sencillo"
+                    else "Se muestran los logs de proceso y todas las herramientas."
+                    ) + "[/ok_cl]")
+            else:
+                _print_line(f"[warn_cl]Modo actual: {get_ui_mode()}. "
+                            f"Uso: /modo sencillo | /modo avanzado[/warn_cl]")
+
         # -- Estado del subsistema agente (daemon, tools generadas, wishlist) --
         elif raw == "/agente" or raw == "/agente estado" or raw.startswith("/agente "):
             try:
@@ -7256,11 +7279,25 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     except Exception:
         pass
 
+    # Modo sencillo (default): recorta la paleta a lo util para un usuario comun
+    # (oculta git/kg/validadores/http/notas/etc). Si el caller ya restringio por
+    # rol (allowed_tools), se respeta esa restriccion (interseccion). El agente
+    # no pierde capacidad: generar_codigo ya valida por tests.
+    _tool_filter = allowed_tools
+    try:
+        from cognia.simple_mode import visible_tools, is_simple
+        if is_simple():
+            from cognia.agent.tools import TOOLS as _TOOLS
+            _vis = visible_tools(_TOOLS.keys())
+            _tool_filter = _vis if allowed_tools is None else (allowed_tools & _vis)
+    except Exception:
+        pass
+
     TOOLS_DOC = (
         "You are an autonomous agent. Start your reply with ACCION: on the first line.\n\n"
         "ACCION: <tool> <args>\n\n"
         "Tools (ONLY these -- do NOT invent others):\n"
-        + build_tools_doc(allowed_tools)
+        + build_tools_doc(_tool_filter)
         + "\n  responder <respuesta final>          -- usar SOLO cuando la tarea esta completa\n\n"
         "Rules:\n"
         "- escribir_archivo crea directorios solo. NO uses mkdir.\n"
