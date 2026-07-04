@@ -50,9 +50,11 @@ _DEFAULT_PORT   = 8088
 # poll a /health que CORTA apenas responde, asi que un timeout mas alto NO
 # ralentiza un arranque rapido — solo tolera cargas lentas. Env-overridable.
 _SERVER_TIMEOUT = int(os.environ.get("LLAMA_SERVER_TIMEOUT", "240"))  # seg
-# 16384: GGUF n_ctx_train=32768; Qwen2.5-3B uses GQA (2 KV heads) so KV cache is
-# ~36KB/token => ~590MB at 16k on a 12GB machine. Enables large file/repo prompts.
-_CTX_SIZE       = 16384
+# 32768 = n_ctx_train del GGUF (nativo, sin RoPE OOD). Qwen2.5-3B usa GQA
+# (2 KV heads) => KV cache ~36KB/token => ~1.2GB a 32k en una maquina de 12GB.
+# Duplica el prefill plano y el presupuesto de outline/seccion en generacion
+# larga. Env-overridable (bajar a 16384 si la RAM aprieta).
+_CTX_SIZE       = int(os.environ.get("LLAMA_CTX_SIZE", "32768"))
 _N_GPU_LAYERS   = 0       # CPU only; Intel UHD integrated GPU (Vulkan) is slower than CPU on i3-10110U (3.8 vs 8.8 tok/s)
 
 # Q4_K_M listed first: measured on i3-10110U with llama-server b9391 it is faster
