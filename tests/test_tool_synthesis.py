@@ -100,3 +100,22 @@ def test_loaded_tool_wraps_exceptions():
     reg = {}
     TS.load_generated_tools(registry=reg)
     assert "ERROR" in reg["parte"]["fn"]("no-es-numero", {})
+
+
+def test_clean_code_fences_anidados():
+    """El 3B cierra con varios ``` seguidos (`` ``` ```python ... ``` ``` `` );
+    _clean_code debe devolver codigo que parsea, sin backticks sueltos ni
+    prosa posterior. Regresion de la demo CP2 (2026-07-03)."""
+    import ast
+    from cognia.agent.tool_synthesis import _clean_code
+    cases = [
+        ' ``` ```python\ndef run(a):\n    return str(len(a.split()))\n``` ``` ```',
+        "def run(a):\n    return a[::-1]\n",
+        "```python\ndef run(a):\n    return a.upper()\n```",
+        "Aca esta:\n```python\ndef run(a):\n    return a\n```\nEso es todo.",
+    ]
+    for raw in cases:
+        c = _clean_code(raw)
+        assert "def run" in c
+        assert not c.rstrip().endswith("`")
+        ast.parse(c)  # no debe levantar SyntaxError

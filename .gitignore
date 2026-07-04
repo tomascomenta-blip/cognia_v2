@@ -76,3 +76,7 @@ cognia_v3/training/colab/*.ipynb
 
 # Adapters entrenados (pesos derivados de memoria personal)
 checkpoints/
+
+# CP2 self-tooling demo output (generado, no versionar)
+cognia_x/construccion/_cp2_demo_tools/
+cognia_x/construccion/_cp2_demo_skills/

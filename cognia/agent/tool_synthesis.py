@@ -260,11 +260,24 @@ def _clean_code(text: str) -> str:
     t = text.strip()
     if t.startswith("```"):
         t = re.sub(r"^```[a-zA-Z0-9_]*\n?", "", t)
-        if t.endswith("```"):
-            t = t[:-3]
     # Keep from the first 'def run' onward (drop any preamble the model added).
     idx = t.find("def run")
-    return t[idx:].strip() if idx >= 0 else t.strip()
+    if idx >= 0:
+        t = t[idx:]
+    # Cortar en la primera linea que sea un fence ``` : el cuerpo de una tool
+    # pura NUNCA contiene ```, asi que todo desde ahi (fences anidados que el
+    # 3B cierra con varios ``` seguidos, + cualquier prosa posterior) es basura
+    # que rompia ast.parse. Antes se quitaba un solo fence y quedaban backticks
+    # sueltos ("invalid syntax" en la ultima linea) — el codigo del modelo era
+    # valido, la limpieza no.
+    out = []
+    for ln in t.split("\n"):
+        if ln.lstrip().startswith("```"):
+            break
+        out.append(ln)
+    while out and out[-1].strip() == "":
+        out.pop()
+    return "\n".join(out).strip()
 
 
 _REPAIR_PROMPT = """Tu funcion run fallo la verificacion. Corrigela.
