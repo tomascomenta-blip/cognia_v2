@@ -5098,3 +5098,40 @@ RCE declarados. LECCIONES DE ENTORNO: solo Start-Process detachado sobrevive el
 teardown; PowerShell -match caza sus propios procesos de query (filtrar
 Name='python.exe'); PYTHONUTF8=1 obligatorio. ~21 commits en origin/cognia-x.
 Usage manejado dinamicamente (throttle a 86%, reanudado tras reset a 4%).
+
+================================================================================
+[2026-07-04 23:36-01:00] CORRIDA-2: loop-adaptativo, BoN-live, router, LCD imagen
+================================================================================
+Nuevo /goal (5 tareas, deadline 05:30). Las 5 completadas (24 commits totales):
+
+(1) LOOP-TRANSFORMER adaptativo (exp137): el prior XARCH midio que profundidad
+FIJA no ahorra (compute-bound). exp137 testea la puerta abierta = profundidad
+ADAPTATIVA (PonderNet, halt temprano en lo facil). Tarea secuencial genuina
+(v1 fallo: f^K tenia forma cerrada). RESULTADO: ponder 100% acc, 5.53/8 pasos =
+31% AHORRO, corr(longitud,pasos)=0.98. El loop ahorra SOLO si es adaptativo.
+
+(2) BoN WIRE al loop /hacer LIVE: tool generar_codigo (test-first + N candidatos
++ juez por ejecucion) pre-ejecutada de forma DETERMINISTA (el 3B no elige la
+tool de forma fiable en el ReAct loop, medido) + short-circuit (no dejar que el
+3B pise el codigo bueno). Fix detector: _CODE_TASK_RX 'escrib[ií]' no matcheaba
+'Escribe' español -> bon_applies daba False en español. Verificado e2e: /hacer
+es_primo -> BoN dispara, primo.py correcto (17->T,18->F,1->F,2->T).
+
+(3) SHUTDOWN 05:30 programado (shutdown /s /t; abortar shutdown /a).
+
+(4) ROUTER de modelo por dificultad (model_router.py): estima dificultad ex-ante
+(heuristica, cero LLM), easy->3B barato, hard->7B caro. Calibrado (easy 0.12 <
+med 0.21 < hard 0.33). SIM: always-3B 40% | always-7B 50% | cascada 60% | router
+45%. HONESTO: en all-hard el router ≈always-7B (no ahorra); su valor es en
+workloads MIXTOS (easy->3B barato). Fix _SERVER_TIMEOUT 90->240s (el 7B 4.7GB
+tardaba >90s en cargar).
+
+(5) LCD IMAGEN (paper §11): pipeline plan->escena estructurada->render aprox.
+Control composicional 8/8=100% (exacto por construccion vs difusion monolitica),
+editabilidad selectiva O(1) (cambiar 1 objeto sin regenerar). PNGs 512x512
+reales. Refinador neuronal fotorrealista FUERA en CPU (declarado). El arbitro ya
+en AG-ARB. Enviadas muestras al dueño.
+
+REVISION de codigo (sonnet) hallo antes: RCE en auto-tools (cerrado). Lecciones
+entorno: Start-Process sobrevive teardown, PYTHONUTF8 obligatorio, PowerShell
+-match caza fantasmas. Usage dinamico OK (18%). Tests dirigidos: todos verdes.
