@@ -3329,7 +3329,9 @@ def _slash_largo_continuar(ai, archivo: str) -> None:
                     f"corrupto {_largo_state_path(out_path)}).[/warn_cl]")
         return
     if state.get("done"):
-        _print_line(f"[detail]{out_path} ya esta COMPLETO -- nada que continuar.[/detail]")
+        # estado accionable para el usuario (no un log de proceso) -> visible
+        # tambien en modo sencillo.
+        _print_line(f"[ok_cl]{out_path} ya esta COMPLETO -- nada que continuar.[/ok_cl]")
         return
 
     _llama = _resolve_largo_backend(ai)
