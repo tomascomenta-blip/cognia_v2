@@ -24,19 +24,81 @@ MIN_OK_CALLS = 4
 _NON_PROCEDURAL = {"responder", "fecha", "notas"}
 
 _PASSED_RX = re.compile(r"\b(\d+)\s+passed\b")
+_BON_VISIBLE_RX = re.compile(r"tests visibles (\d+)/(\d+)")
+_CONTRACTS_OK_TXT = "todos los contratos pasan"
+
+
+# ── Registro pluggable de reconocedores de oraculo duro ─────────────────
+# Cada reconocedor es (action, result_head) -> bool: reconoce el formato
+# REAL de una tool/verificador concreto y dice si esa corrida es evidencia
+# de oraculo duro (ejecucion real — no "el modelo dice que salio bien").
+# hard_oracle_evidence() los prueba en orden de registro sobre cada paso
+# 'ok' de la traza; el primero que reconoce gana. Nuevas tools/verificadores
+# extienden el gate con register_oracle_recognizer() sin tocar esta funcion.
+_ORACLE_RECOGNIZERS: list = []
+
+
+def register_oracle_recognizer(fn) -> None:
+    """Agrega un reconocedor (action: str, result_head: str) -> bool al
+    registro global de oraculos duros."""
+    _ORACLE_RECOGNIZERS.append(fn)
+
+
+def _recognize_pytest_verde(action: str, result_head: str) -> bool:
+    """v1 (original, regresion intacta): tool ``tests`` con '<n> passed' y
+    sin 'failed' — el veredicto es del pytest real, no del modelo."""
+    if action != "tests":
+        return False
+    return bool(_PASSED_RX.search(result_head)) and "failed" not in result_head
+
+
+def _recognize_bon_tests_visibles(action: str, result_head: str) -> bool:
+    """generar_codigo (BoN test-first, candidates.py vía tools.py:
+    _generar_codigo). El RESULTADO real trae 'tests visibles X/Y': X asserts
+    EJECUTADOS de verdad en sandbox (candidates.score_candidate) sobre Y
+    generados test-first. Y==0 es rank_mode 'greedy_fallback' (no hubo
+    asserts que correr — no es oraculo); solo cuenta si Y>0 y TODOS pasaron
+    (X==Y), mismo criterio 'verde total' que el reconocedor de pytest."""
+    if "generar_codigo" not in action:
+        return False
+    m = _BON_VISIBLE_RX.search(result_head)
+    if not m:
+        return False
+    passed, total = int(m.group(1)), int(m.group(2))
+    return total > 0 and passed == total
+
+
+def _recognize_contratos_pasan(action: str, result_head: str) -> bool:
+    """contracts.py:attribute_failure — la cascada plan->design->code->test
+    devuelve literalmente 'todos los contratos pasan' cuando los 3
+    contratos (oraculos ejecutables/deterministas: cobertura de entidades,
+    firmas, ejecucion real via run_task_tests) pasan. Forward-looking: hoy
+    ninguna tool de tools.py expone esta cascada al loop del agente (solo
+    la usan tests/bench_arbitro); el reconocedor queda listo para cuando se
+    wiree una tool cuyo nombre contenga 'contrat' (p.ej. 'contratos')."""
+    if "contrat" not in action:
+        return False
+    return _CONTRACTS_OK_TXT in result_head
+
+
+register_oracle_recognizer(_recognize_pytest_verde)
+register_oracle_recognizer(_recognize_bon_tests_visibles)
+register_oracle_recognizer(_recognize_contratos_pasan)
 
 
 def hard_oracle_evidence(trace: list) -> str:
-    """Evidencia de oraculo duro en la traza, o ''. v1: una corrida de la
-    tool ``tests`` exitosa con '<n> passed' y sin 'failed' — el veredicto
-    es del pytest real, no del modelo."""
+    """Evidencia de oraculo duro en la traza, o ''. Prueba cada paso 'ok'
+    contra el registro de reconocedores (orden de registro); el primero que
+    reconoce el formato gana."""
     for step in trace:
-        if step.get("action") != "tests" or not step.get("ok"):
+        if not step.get("ok"):
             continue
+        action = step.get("action", "")
         head = step.get("result_head", "")
-        m = _PASSED_RX.search(head)
-        if m and "failed" not in head:
-            return f"tests verdes ({m.group(1)} passed): {step.get('args', '')[:60]}"
+        for rec in _ORACLE_RECOGNIZERS:
+            if rec(action, head):
+                return (f"oraculo duro via '{action}': {head[:80]} "
+                        f"(args: {step.get('args', '')[:60]})")
     return ""
 
 

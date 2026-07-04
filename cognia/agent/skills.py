@@ -20,10 +20,15 @@ Concrete: a dataclass + a few functions. No plugin runtime, no exec.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+
+from cognia.logger_config import get_logger
+
+logger = get_logger(__name__)
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -112,15 +117,119 @@ def load_skills(extra_dirs: list = None) -> dict:
     return skills
 
 
+# ── Uso real de skills (CP2 §3.5): sidecar JSON, nunca el frontmatter ──
+# record_skill_use() persiste uses_ok/uses_fail en <dir>/.skill_usage.json
+# (un sidecar por directorio de origen, NO por skill) para no reescribir el
+# .md del usuario. Escritura atomica (tmp + os.replace): un corte a mitad de
+# escritura nunca deja el sidecar corrupto.
+
+_USAGE_FILE = ".skill_usage.json"
+_FAIL_STREAK_MIN = 3   # uses_fail >= esto y uses_ok == 0 -> se penaliza
+
+
+def _usage_file(skill_dir: Path) -> Path:
+    return skill_dir / _USAGE_FILE
+
+
+def _load_usage(skill_dir: Path) -> dict:
+    """{nombre_skill: {uses_ok, uses_fail}} del directorio, o {} si no hay
+    sidecar o esta corrupto (best-effort, nunca levanta)."""
+    try:
+        return json.loads(_usage_file(skill_dir).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_usage_atomic(skill_dir: Path, data: dict) -> None:
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    tmp = skill_dir / f"{_USAGE_FILE}.tmp-{os.getpid()}"
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, _usage_file(skill_dir))   # atomico: nunca a medio escribir
+
+
+def _usage_for(spec: "SkillSpec") -> dict:
+    """{'uses_ok': int, 'uses_fail': int} de la skill (ceros si no hay uso
+    registrado todavia)."""
+    data = _load_usage(Path(spec.source).parent)
+    return data.get(spec.name, {"uses_ok": 0, "uses_fail": 0})
+
+
+def record_skill_use(name: str, ok: bool, skills: dict = None) -> None:
+    """
+    Registra un uso de la skill `name` (CP2 §3.5 — senal de aprendizaje del
+    uso real, no del frontmatter estatico). Best-effort: si la skill no
+    existe o el sidecar no se puede escribir (p.ej. skill del usuario en un
+    dir de solo lectura), no hace nada — nunca levanta.
+    """
+    try:
+        skills = skills if skills is not None else load_skills()
+        spec = skills.get(name)
+        if spec is None:
+            return
+        skill_dir = Path(spec.source).parent
+        data = _load_usage(skill_dir)
+        entry = data.get(name, {"uses_ok": 0, "uses_fail": 0})
+        key = "uses_ok" if ok else "uses_fail"
+        entry[key] = entry.get(key, 0) + 1
+        data[name] = entry
+        _save_usage_atomic(skill_dir, data)
+    except OSError as exc:
+        logger.warning("no se pudo persistir el uso de la skill",
+                       extra={"op": "record_skill_use",
+                              "context": f"name={name} err={exc}"})
+
+
 def _tokens(text: str) -> set:
     return {w for w in re.findall(r"[a-záéíóúñ]{3,}", (text or "").lower())
             if w not in _STOP}
 
 
+# Umbral conservador del fallback semantico (TAREA 3a): calibrado a mano
+# contra el fallback de n-gramas de cognia/vectors.py (sentence-transformers
+# no esta instalado en este repo -> text_to_vector cae a _ngram_vector, ver
+# cognia_embedding.py). Con texto corto (un pedido, un name+description) la
+# señal es ruidosa (bigrams de caracteres + hash de palabras), asi que el
+# umbral se elige ALTO a proposito: mejor perder algun parafraseo real que
+# matchear texto no relacionado (medido: pares realmente parafraseados
+# rondan 0.30-0.44 tras sacar stopwords, pares no relacionados 0.21-0.32 —
+# bandas que se pisan, por eso "conservador" y no "ajustado").
+SEMANTIC_MATCH_THRESHOLD = 0.35
+
+# Umbral del dedupe semantico de persist_skill (TAREA 3b): sobre el body
+# COMPLETO (no boW de stopwords) dos redacciones de la MISMA skill miden
+# ~0.81-0.98 (medido variando 1-3 palabras); skills de tema distinto miden
+# ~0.50-0.58. 0.90 deja margen grande de los dos lados.
+SEMANTIC_DUP_THRESHOLD = 0.90
+
+
+def _semantic_best_match(text: str, candidates: dict, threshold: float):
+    """Fallback semantico de find_skill: similitud coseno (cognia/vectors.py,
+    sin dependencias nuevas) entre `text` y name+description de cada skill
+    candidata. Solo lo llama find_skill cuando el solapamiento lexico no
+    encontro nada -- capa barata para pedidos parafraseados con vocabulario
+    distinto al de la skill."""
+    if not candidates:
+        return None
+    from cognia.vectors import cosine_similarity, text_to_vector
+    req_vec = text_to_vector(text)
+    best, best_sim = None, 0.0
+    for s in candidates.values():
+        sim = cosine_similarity(req_vec, text_to_vector(f"{s.name} {s.description}"))
+        if sim > best_sim:
+            best, best_sim = s, sim
+    return best if best_sim >= threshold else None
+
+
 def find_skill(text: str, skills: dict = None, min_overlap: int = 2):
     """
-    Best skill whose name+description overlaps the request, or None. Cheap keyword
-    overlap (no LLM) -- used to auto-apply a skill to a matching request.
+    Best skill whose name+description overlaps the request, or None.
+    1. Solapamiento lexico (bag-of-words, barato, no-LLM) -- gana si
+       encuentra algo (comportamiento original, intacto).
+    2. Si el lexico no encontro nada: fallback a similitud coseno semantica
+       (TAREA 3a) sobre name+description, para pedidos parafraseados.
+    Skills con historial de uso consistentemente malo (record_skill_use:
+    >= _FAIL_STREAK_MIN fallos y 0 exitos) se excluyen de ambas capas -- se
+    loguea la exclusion, no se silencia.
     """
     skills = skills if skills is not None else load_skills()
     if not skills:
@@ -128,12 +237,26 @@ def find_skill(text: str, skills: dict = None, min_overlap: int = 2):
     req = _tokens(text)
     if not req:
         return None
+
+    usable = {}
+    for name, s in skills.items():
+        usage = _usage_for(s)
+        if usage.get("uses_fail", 0) >= _FAIL_STREAK_MIN and usage.get("uses_ok", 0) == 0:
+            logger.info("skill excluida del match: historial de uso malo",
+                        extra={"op": "find_skill",
+                               "context": f"name={name} uses_fail={usage['uses_fail']}"})
+            continue
+        usable[name] = s
+
     best, best_score = None, 0
-    for s in skills.values():
+    for s in usable.values():
         score = len(req & (_tokens(s.name) | _tokens(s.description)))
         if score > best_score:
             best, best_score = s, score
-    return best if best_score >= min_overlap else None
+    if best is not None and best_score >= min_overlap:
+        return best
+
+    return _semantic_best_match(text, usable, SEMANTIC_MATCH_THRESHOLD)
 
 
 def skill_guidance(skill: SkillSpec, max_chars: int = 2000) -> str:
@@ -218,6 +341,21 @@ def persist_skill(name: str, description: str, body: str,
         if ratio >= 0.8:
             return {"ok": False,
                     "reason": f"skill similar existente: {ex_name} — reusar"}
+
+    # 2b. dedupe SEMANTICO (TAREA 3b): el nombre puede ser distinto pero el
+    # contenido (lo que de verdad importa reusar) casi el mismo -- el check
+    # de arriba solo compara el string del nombre. Umbral alto (~0.9): solo
+    # rechaza duplicados casi textuales, no skills genuinamente distintas.
+    if existing:
+        from cognia.vectors import cosine_similarity, text_to_vector
+        new_vec = text_to_vector(f"{description}\n{body}")
+        for ex_name, ex_spec in existing.items():
+            sim = cosine_similarity(
+                new_vec, text_to_vector(f"{ex_spec.description}\n{ex_spec.body}"))
+            if sim >= SEMANTIC_DUP_THRESHOLD:
+                return {"ok": False,
+                        "reason": (f"skill semanticamente duplicada de {ex_name} "
+                                  f"(sim={sim:.2f}) — reusar")}
 
     hits = skill_safety_scan(name + "\n" + description + "\n" + body)
     if hits:
