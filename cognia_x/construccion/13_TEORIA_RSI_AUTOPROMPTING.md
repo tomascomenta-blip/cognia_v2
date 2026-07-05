@@ -204,6 +204,47 @@ escritura incremental para corte-seguro).
 
 ---
 
+## CP9 — El "loop transformer" como sustrato (nota exploratoria honesta)
+
+El dueño pidió implementar esto "con el actual loop transformer". Hay dos lecturas
+y conviene separarlas, porque colapsarlas produce claims falsos:
+
+**Lectura A — el LOOP AGÉNTICO (`_run_agent_task`).** Es *el* loop de Cognia como
+agente: ReAct con presupuesto dinámico de pasos. **Este es el target real** y ya
+está integrado (§5, CP7): las reglas de tool-calling que la evolución valida se
+pliegan a su `TOOLS_DOC`. Auto-prompting aplica de lleno porque el 3B Qwen SÍ sigue
+instrucciones.
+
+**Lectura B — el LOOPED TRANSFORMER (xarch/xfinal, `looped2x4`).** Es una
+*arquitectura*: pocas capas con pesos COMPARTIDOS iteradas N vueltas (Universal/
+Looped TF; Dehghani 2018, Giannou 2023), medida en T4 (xarch: `looped2x4` supera a
+`vanilla2` con los mismos params → compra profundidad efectiva sin params). Acá el
+auto-prompting **no aplica y decir lo contrario sería deshonesto**: ese tiny está
+entrenado desde cero sobre wiki/code/stories (37-97M), **no sigue instrucciones** —
+no hay "prompt" que optimizar en el sentido de APE/OPRO. Un system-prompt o few-shot
+no significan nada para un modelo que nunca vio el paradigma instrucción→respuesta.
+
+**El análogo correcto y honesto para B: cómputo adaptativo, no optimización de
+prompts.** Lo que en un modelo grande hace el prompt ("pensá más", "step by step"),
+en un looped transformer lo hace el **número de vueltas**: gastar más loops = más
+"pensamiento" por token. La versión RSI de esto es **halting adaptativo** (ACT,
+Graves 2016; PonderNet): que el modelo APRENDA cuántas vueltas gastar por token/
+posición según dificultad, en vez de un N fijo. Eso es "self-improvement" del
+cómputo (data-dependent depth), medible con un oráculo barato (loss/accuracy vs
+FLOPs), y encaja con el hallazgo de F-SPEED (en CPU bandwidth-bound, el tamaño y el
+cómputo por token son las palancas). **Puente conceptual:** "un prompt menos
+detallado más válido" (lado A) ≙ "menos vueltas que bastan" (lado B) — ambos son el
+mismo principio de *asignar el mínimo cómputo/contexto que resuelve la tarea*, con
+gate empírico. Pero son mecanismos DISTINTOS; no se implementan con el mismo código.
+
+**Estado:** Lectura A implementada y medida (§4-6). Lectura B queda como
+experimento CPU-first bien acotado y NO ejecutado en esta corrida (halting
+adaptativo sobre el tiny: baseline N fijo vs N aprendido, misma calidad con menos
+FLOPs). Marcarlo hecho sin correrlo sería el tipo de overclaim que el método del
+repo prohíbe.
+
+---
+
 ## 6. Resultado de la corrida real (antes/después)
 
 *(Se completa con la corrida `--fast`/`--full`: accuracy semilla vs ganador sobre
