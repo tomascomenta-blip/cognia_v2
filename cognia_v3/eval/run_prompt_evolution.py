@@ -238,13 +238,15 @@ def run(preset: str, label: str) -> dict:
              f"{winner_test.accuracy:.3f}, delta {delta_test:+.3f}, "
              f"McNemar p={mc['pvalue']} SIGNIFICATIVO)")
     else:
-        reason = ("es smoke" if preset == "smoke" else
-                  "sin ganador" if not is_real_winner else
-                  f"delta dentro del ruido (McNemar p={mc['pvalue']}, no significativo)")
-        _log(f"[persist] NO se persiste: {reason} -> se mantiene el andamiaje actual. "
-             f"VEREDICTO HONESTO: delta_test={delta_test:+.3f} no es una mejora demostrada"
-             if not mc["significant"] else
-             f"[persist] NO se persiste: {reason}")
+        if preset == "smoke":
+            reason = "es smoke (no pisa el scaffold live)"
+        elif not is_real_winner:
+            reason = "la evolucion no supero la semilla (start==best==seed)"
+        else:
+            reason = (f"delta_test={delta_test:+.3f} DENTRO DEL RUIDO "
+                      f"(McNemar p={mc['pvalue']}, no significativo) -> NO es una "
+                      f"mejora demostrada")
+        _log(f"[persist] NO se persiste: {reason}. Se mantiene el andamiaje actual.")
 
     output = {
         "label": label, "preset": preset, "timestamp": ts, "model": gguf_name,
