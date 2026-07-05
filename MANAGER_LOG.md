@@ -5310,3 +5310,53 @@ ENTREGADO (commits fb248ff..siguiente, ~40 tests LCD nuevos):
   complementan. HONESTIDAD cuantificada, sin overclaim.
 Metodo: workflow research paralelo; render/shading/iteracion visual/claims en
 Fable 5. Regulacion de uso OK. 28 tests modeling+shapes verdes.
+
+================================================================================
+CORRIDA 2026-07-04 "RSI + AUTO-PROMPTING sobre el loop" (/goal, Fable 5 sin cuota -> Opus)
+================================================================================
+OBJETIVO del dueño: investigar self-scaffolding + RSI a profundidad; teorizar como
+implementarlo en Cognia; implementarlo e iterar a un resultado bueno medible;
+explorar auto-prompting (sistemas que mejoran sus prompts; "prompt menos detallado
+mas valido") integrado con el loop actual.
+
+NOTA: los sub-agentes Fable 5 murieron por limite de cuota; el dueño pidio
+"continuar sin Fable 5 manteniendo la calidad" -> investigacion re-lanzada como
+workflow multi-agente en OPUS.
+
+ENTREGADO (en progreso, verificacion REAL del ciclo pendiente de la corrida --fast):
+- INVESTIGACION (14 agentes Opus, 0 errores, ~526k tokens): 2 informes densos con
+  fuentes primarias. RSI: DGM (SWE 20->50%, andamiaje-no-pesos), STOP (modelo debil
+  falla auto-disenandose ~12% -> el 3B NO debe ser su meta-agente), ADAS
+  (transfiere entre modelos), Voyager (skill verificada), LIMITES (auto-correccion
+  sin feedback externo DEGRADA 95.5->91.5%; el verificador debe ser mas fuerte que
+  el generador). AUTO-PROMPTING: OPRO se ROMPE en modelos chicos (Mistral-7B
+  37.5->32.1, peor que zero-shot) -> confirma no usar el 3B de optimizador;
+  BootstrapFewShot (DSPy) = ganador (curar trazas verificadas como few-shot);
+  sobre-instruir DEGRADA modelos chicos (4B: fallos 2.4-7.5%->4.8-45.5%) ->
+  "menos detallado, mas valido" con respaldo empirico.
+- TEORIA: cognia_x/construccion/13_TEORIA_RSI_AUTOPROMPTING.md. Tesis: con pesos
+  congelados, RSI = extender el patron YA existente de HERMES (generar->verificar-
+  en-sandbox->registrar->rollback, para TOOLS) a los PROMPTS. Fitness = oraculo
+  determinista congelado (no LLM-juez). Mapea la literatura -> primitivos reales.
+- BASELINE medido (harness BFCL-slice congelado, 200 items, checker AST): 3B pelado
+  0.24; andamiaje v1 (fewshot2+repair) 0.86; eval ~34s/item (200=112min) -> obliga
+  dev/test chico. Buckets restantes del 86%: value_error:string 9, wrong_func_name
+  5, wrong_count 5 (categorias debiles: parallel_multiple 70%, live_simple 77.5%).
+- IMPLEMENTACION auto-prompting/RSI:
+  * cognia_v3/eval/bfcl_split.py: split determinista dev(40)/test(160) disjunto
+    (anti-overfitting de la slice).
+  * cognia/agent/prompt_evolution.py: Scaffold (system+fewshot+repair), score_scaffold
+    (modelo real inyectable), BootstrapFewShot (bootstrap_exemplars: cosecha trazas
+    VERIFICADAS por el oraculo, solo-formato), operadores keyed-a-bucket (strings/
+    names/count exactos), compress+minimal (eje "menos, mas valido"), evolve (APE/
+    PromptBreeder con gate no-regresion + Pareto de costo), persist_best (gated en test).
+  * cognia_v3/eval/run_prompt_evolution.py: ciclo real (harvest/tune/test disjuntos,
+    smoke/fast/full, escritura incremental corte-segura).
+  * tests/test_prompt_evolution.py: 15 tests (backend falso) VERDES.
+- VERIFICACION REAL: smoke con el 3B de verdad confirma el pipeline e2e (backend
+  Qwen2.5-Coder-3B carga y genera; el gate RECHAZA un candidato de igual accuracy y
+  MAYOR costo -> mecanismo correcto sobre salida real). Corrida --fast (antes/despues
+  honesto en test held-out) pendiente/en marcha.
+Metodo: investigacion en workflow Opus (Fable sin cuota); implementacion+tests+
+verificacion real local. Honestidad: el valor del metodo es la MEDICION, no un
+numero garantizado; si el ganador no transfiere a test, se reporta el veredicto.
