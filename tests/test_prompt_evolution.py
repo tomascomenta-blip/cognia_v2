@@ -194,3 +194,30 @@ def test_minimal_system_is_shorter_and_distinct():
     assert mn.system_prompt == pe._MINIMAL_SYSTEM
     assert len(mn.system_prompt) < len(base.system_prompt)
     assert pe.mut_minimal_system(mn) is None      # idempotente
+
+
+# ── live_guidance: integracion con el loop /hacer ─────────────────────────
+def test_live_guidance_empty_without_state(tmp_path, monkeypatch):
+    monkeypatch.setattr(pe, "BEST_SCAFFOLD_PATH", tmp_path / "none.json")
+    assert pe.live_guidance() == ""
+
+
+def test_live_guidance_extracts_only_adopted_rules(tmp_path, monkeypatch):
+    monkeypatch.setattr(pe, "STATE_DIR", tmp_path)
+    monkeypatch.setattr(pe, "BEST_SCAFFOLD_PATH", tmp_path / "best.json")
+    # andamiaje ganador que adopto la regla de strings exactos (via el operador)
+    winner = pe.mut_rule_exact_strings(pe.seed_scaffold())
+    pe.persist_best(winner, meta={})
+    g = pe.live_guidance()
+    assert g != "" and "EXACTOS" in g               # la regla adoptada aparece
+    # una regla NO adoptada (count) no debe aparecer
+    assert "conta las acciones" not in g
+
+
+def test_live_guidance_empty_when_no_transferable_rule(tmp_path, monkeypatch):
+    monkeypatch.setattr(pe, "STATE_DIR", tmp_path)
+    monkeypatch.setattr(pe, "BEST_SCAFFOLD_PATH", tmp_path / "best.json")
+    # ganador = solo compresion (sin reglas genericas de tool-calling) -> sin guia
+    winner = pe.mut_compress_system(pe.seed_scaffold())
+    pe.persist_best(winner, meta={})
+    assert pe.live_guidance() == ""

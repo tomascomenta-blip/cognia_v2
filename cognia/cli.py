@@ -7338,6 +7338,19 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     except Exception:
         pass
 
+    # Reglas de tool-calling APRENDIDAS por la evolucion de prompts (auto-prompting/
+    # RSI, cognia/agent/prompt_evolution.py): si una corrida de evolucion adopto
+    # reglas genericas (copiar strings/nombres exactos, contar llamadas) y las
+    # persistio, se pliegan al TOOLS_DOC. Cortas a proposito (sobre-instruir dana a
+    # un 3B). Best-effort: si no hay andamiaje evolucionado, no agrega nada.
+    try:
+        from cognia.agent.prompt_evolution import live_guidance
+        _lg = live_guidance()
+        if _lg:
+            TOOLS_DOC = TOOLS_DOC + "\n\n" + _lg
+    except Exception:
+        pass
+
     # Load persistent agent state
     _AGENT_STATE_PATH = Path.home() / ".cognia_agent_state.json"
     _agent_state: dict = {"tasks": [], "files_touched": [], "key_facts": []}

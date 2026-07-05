@@ -615,3 +615,34 @@ def load_best() -> Scaffold | None:
         return Scaffold.from_dict(payload["scaffold"])
     except Exception:
         return None
+
+
+# Reglas GENERICAS de tool-calling que la evolucion puede haber adoptado. Son las
+# unicas piezas del andamiaje BFCL que transfieren al loop /hacer (el formato
+# `func(param=value)` de BFCL y los few-shot bootstrapeados NO transfieren: el loop
+# usa `ACCION: <tool> <args>`). Estas reglas son sobre la SEMANTICA de la llamada
+# (copiar exacto, contar), no sobre el formato -> aplican a cualquier tool-calling.
+_LIVE_TRANSFERABLE_RULES = {
+    _RULE_EXACT_STRINGS: "Copia los valores string EXACTOS del pedido (mismas palabras, mayusculas, unidades); no los parafrasees.",
+    _RULE_EXACT_NAMES: "Usa el nombre de la herramienta EXACTO; no lo abrevies ni inventes.",
+    _RULE_COUNT_CALLS: "Una accion por pedido: conta las acciones distintas y emiti esa cantidad.",
+}
+
+
+def live_guidance() -> str:
+    """Bloque corto de reglas para el TOOLS_DOC del loop /hacer, derivado de las
+    reglas que la evolucion ADOPTO empiricamente (no de todas las candidatas).
+    '' si no hay andamiaje persistido o no adopto ninguna regla transferible.
+
+    Honestidad: estas reglas se validaron sobre BFCL (mismo skill: tool-calling),
+    su beneficio en el loop en vivo es PLAUSIBLE pero no medido por separado. Son
+    cortas a proposito (sobre-instruir dana a un 3B)."""
+    best = load_best()
+    if best is None:
+        return ""
+    rules = [txt for canon, txt in _LIVE_TRANSFERABLE_RULES.items()
+             if canon in best.system_prompt]
+    if not rules:
+        return ""
+    return ("Reglas de tool-calling (aprendidas y verificadas por la evolucion de "
+            "prompts):\n- " + "\n- ".join(rules))
