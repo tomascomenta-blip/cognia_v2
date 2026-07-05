@@ -111,11 +111,12 @@ def draw_polygon(d, cx, cy, hw, hh, color, shade, points):
         d.polygon(pts, fill=fill, outline=edge)
 
 
-def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None):
+def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None, shadow=True):
     """Lapiz HORIZONTAL foto-realista (izq->der): goma + virola metalica con
     bandas + cuerpo pintado (barril hexagonal, gradiente cilindrico + brillo) +
     cono de madera afilada + punta de grafito. color = color del cuerpo pintado
-    (default amarillo si es gris). Usa gradientes de shading.py si hay img."""
+    (default amarillo si es gris). Usa gradientes de shading.py si hay img.
+    shadow=False -> sin la sombra de suelo (para renderizar el sprite a rotar)."""
     from PIL import Image, ImageDraw, ImageFilter
 
     from cognia_x.lcd.shading import (cylinder_gradient, paste_shaded,
@@ -139,7 +140,7 @@ def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None):
     ty0, ty1 = int(top), int(bot)
 
     # --- SOMBRA PROYECTADA (aterriza el objeto): elipse oscura difuminada ---
-    if img is not None:
+    if img is not None and shadow:
         sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
         sd = ImageDraw.Draw(sh)
         sy = int(bot + H * 0.35)
@@ -228,20 +229,29 @@ def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None):
         # --- GRANO procedural (research: Noise para micro-textura/imperfeccion):
         # ruido fino determinista (seed fija) modulando el brillo dentro del
         # lapiz. Sube la entropia de alta frecuencia hacia lo fotografico sin
-        # deformar la figura. Enmascarado a la bbox del cuerpo+madera.
+        # deformar la figura. Alpha-safe: preserva el canal alpha (para sprites
+        # RGBA) y no corrompe el modo de la imagen.
         import numpy as _np
         rng = _np.random.default_rng(7)
         gx0, gx1 = int(er0), int(gr1)
         gw, gh = max(1, gx1 - gx0), max(1, ty1 - ty0)
-        noise = rng.normal(0, 10, size=(gh, gw))          # +-10 niveles
-        arr = _np.asarray(img).astype(_np.float32).copy()
-        reg = arr[ty0:ty0 + gh, gx0:gx0 + gw, :3]
-        # aplicar solo donde el pixel NO es fondo (dif. con el background)
-        bg = _np.array(img.getpixel((2, 2))[:3], dtype=_np.float32)
-        mask = (_np.abs(reg - bg).sum(axis=2) > 40)[:, :, None]
-        reg += noise[:, :, None] * mask
-        arr[ty0:ty0 + gh, gx0:gx0 + gw, :3] = _np.clip(reg, 0, 255)
-        img.paste(Image.fromarray(arr.astype("uint8"), "RGB"), (0, 0))
+        noise = rng.normal(0, 10, size=(gh, gw)).astype(_np.float32)
+        arr = _np.asarray(img)
+        has_alpha = arr.shape[2] == 4
+        rgb = arr[..., :3].astype(_np.float32).copy()
+        reg = rgb[ty0:ty0 + gh, gx0:gx0 + gw]
+        if has_alpha:                                    # sprite: solo donde es opaco
+            m = (arr[ty0:ty0 + gh, gx0:gx0 + gw, 3] > 10)[:, :, None]
+        else:                                            # escena: donde no es el fondo
+            bg = _np.array(img.getpixel((2, 2))[:3], dtype=_np.float32)
+            m = (_np.abs(reg - bg).sum(axis=2) > 40)[:, :, None]
+        reg += noise[:, :, None] * m
+        rgb[ty0:ty0 + gh, gx0:gx0 + gw] = _np.clip(reg, 0, 255)
+        if has_alpha:
+            out = _np.dstack([rgb.astype("uint8"), arr[..., 3]])
+            img.paste(Image.fromarray(out, "RGBA"), (0, 0))
+        else:
+            img.paste(Image.fromarray(rgb.astype("uint8"), "RGB"), (0, 0))
 
 
 # canonical_name -> drawer detallado (el renderer lo consulta primero)

@@ -202,9 +202,24 @@ def _poligono(args, ctx):
     return f"RESULTADO escena_poligono: '{name}' ahora es un poligono de {n} lados"
 
 
+@tool("escena_animar_caida",
+      "escena_animar_caida [archivo.gif]  -- genera un GIF del lapiz cayendo del "
+      "cielo y rebotando (dinamica real: gravedad + rebote + rotacion)")
+def _animar_caida(args, ctx):
+    from cognia_x.lcd.animation import render_fall_gif
+    dest = args.strip() or "lapiz_rebote.gif"
+    try:
+        path = render_fall_gif(dest, frames=90)
+    except Exception as e:
+        return f"RESULTADO escena_animar_caida ERROR: {e}"
+    return (f"RESULTADO escena_animar_caida: GIF del lapiz cayendo y rebotando "
+            f"escrito en {path} (dinamica: gravedad+rebote+rotacion, determinista)")
+
+
 def load_modeling_tools() -> int:
     """Cuenta las tools de modelado registradas (idempotente)."""
     from cognia.agent.tools import TOOLS
     return sum(1 for n in ("escena_biselar", "escena_subdividir", "escena_suavizar",
                            "escena_insertar", "escena_extruir", "escena_espejar",
-                           "escena_array", "escena_poligono") if n in TOOLS)
+                           "escena_array", "escena_poligono", "escena_animar_caida")
+               if n in TOOLS)

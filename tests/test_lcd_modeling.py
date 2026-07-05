@@ -66,7 +66,7 @@ def test_array_n_copias():
 # ── tools ACCION ─────────────────────────────────────────────────────────
 
 def test_tools_modeling_registradas():
-    assert _mod.load_modeling_tools() == 8
+    assert _mod.load_modeling_tools() == 9   # 8 modelado + escena_animar_caida
 
 
 def test_biselar_convierte_a_polygon():
