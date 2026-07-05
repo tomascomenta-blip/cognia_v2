@@ -221,3 +221,97 @@ def test_live_guidance_empty_when_no_transferable_rule(tmp_path, monkeypatch):
     winner = pe.mut_compress_system(pe.seed_scaffold())
     pe.persist_best(winner, meta={})
     assert pe.live_guidance() == ""
+
+
+# ── Regresiones del review adversarial (5 bugs) ───────────────────────────
+
+def test_B1_serialize_calls_canonical():
+    # answer canonica desde los calls parseados (multi-call preservada, orden)
+    calls = [{"f": {"a": 1}}, {"g": {"b": "x"}}]
+    assert pe._serialize_calls(calls) == "f(a=1); g(b='x')"
+    assert pe._serialize_calls([]) == ""
+
+
+def test_B1_bootstrap_answer_is_verified_call_not_first_line():
+    # el 3B responde con PROSA + la call; el oraculo la acepta. El exemplar debe
+    # guardar la CALL (no 'Here is:'). Sin el fix, answer seria 'Here is the call:'.
+    items = _synth_items(2)
+
+    def _gen_prose(prompt, **kw):
+        return "Here is the call:\nadd(a=1, b=2)"
+
+    ex = pe.bootstrap_exemplars(pe.seed_scaffold(), items, _gen_prose, k=1)
+    assert len(ex) == 1
+    _funcs, _q, ans = ex[0]
+    assert ans == "add(a=1, b=2)"                 # la call verificada, no la prosa
+    assert "Here is" not in ans
+
+
+def test_B1_bootstrap_multicall_preserved():
+    # respuesta 2-calls en 2 lineas: el exemplar debe traer AMBAS (no solo la 1ra)
+    functions = [{"name": "bk", "description": "book", "parameters": {"type": "object",
+                  "properties": {"city": {"type": "string"}}, "required": ["city"]}}]
+    gt = [{"bk": {"city": ["Tokyo"]}}, {"bk": {"city": ["Osaka"]}}]
+    items = [{"id": "pm0", "category": "parallel_multiple", "functions": functions,
+              "question": "book Tokyo and Osaka", "ground_truth": gt}]
+
+    def _gen_two(prompt, **kw):
+        return 'bk(city="Tokyo")\nbk(city="Osaka")'      # 2 lineas, sin ';'
+
+    ex = pe.bootstrap_exemplars(pe.seed_scaffold(), items, _gen_two, k=1)
+    assert len(ex) == 1
+    assert ex[0][2].count("bk(") == 2                # ambas calls, no una
+
+
+def test_B5_bootstrap_discards_long_question():
+    long_q = "user: " + ("palabra " * 100)            # >300 chars tras split
+    functions = [{"name": "add", "description": "add", "parameters": {"type": "object",
+                  "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}},
+                  "required": ["a", "b"]}}]
+    items = [{"id": "lq", "category": "simple", "functions": functions,
+              "question": long_q, "ground_truth": [{"add": {"a": [1], "b": [2]}}]}]
+    ex = pe.bootstrap_exemplars(pe.seed_scaffold(), items, _gen_correct, k=2)
+    assert ex == []                                  # descartado por pregunta larga
+
+
+def test_B3_evolve_propagates_max_tokens():
+    seen = []
+
+    def _gen_spy(prompt, max_tokens=512, **kw):
+        seen.append(max_tokens)
+        return "add(a=1, b=2)"
+
+    pe.evolve(pe.seed_scaffold(), _synth_items(3), _gen_spy, rounds=1,
+              max_tokens=77, log=lambda m: None)
+    assert seen and all(mt == 77 for mt in seen)     # nada corrio al default 512
+
+
+def test_B4_split_singleton_goes_to_tune():
+    from cognia_v3.eval.run_prompt_evolution import _split_harvest_tune
+    items = [{"id": "a", "category": "simple"}, {"id": "b", "category": "multiple"}]
+    h, t = _split_harvest_tune(items)                # 1 por categoria (singletons)
+    assert h == [] and len(t) == 2                   # todos a tune, harvest vacio
+
+
+def test_B4_evolve_empty_dev_keeps_seed():
+    seed = pe.seed_scaffold()
+    ev = pe.evolve(seed, [], _gen_correct, rounds=2, log=lambda m: None)
+    assert ev.best_scaffold.name == seed.name        # sin senal -> no muta
+
+
+def test_B2_mcnemar_single_flip_not_significant():
+    # 50 items: seed pasa 30, ganador pasa 31 (arregla 1, rompe 0) -> ruido
+    seed_pi = [{"id": f"i{i}", "passed": i < 30} for i in range(50)]
+    win_pi = [{"id": f"i{i}", "passed": i < 31} for i in range(50)]
+    mc = pe.mcnemar(seed_pi, win_pi)
+    assert mc["c"] == 1 and mc["b"] == 0
+    assert not mc["significant"]                      # +1/50 dentro del ruido
+
+
+def test_B2_mcnemar_real_gain_significant():
+    # ganador arregla 8, rompe 0 -> fuera del ruido
+    seed_pi = [{"id": f"i{i}", "passed": i < 20} for i in range(50)]
+    win_pi = [{"id": f"i{i}", "passed": i < 28} for i in range(50)]
+    mc = pe.mcnemar(seed_pi, win_pi)
+    assert mc["c"] == 8 and mc["b"] == 0
+    assert mc["significant"] and mc["pvalue"] < 0.05

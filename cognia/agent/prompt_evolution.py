@@ -245,6 +245,34 @@ def score_scaffold(scaffold: Scaffold, items: list, generate: GenerateFn, *,
     )
 
 
+def mcnemar(seed_per_item: list, winner_per_item: list, alpha: float = 0.05) -> dict:
+    """Test de McNemar pareado sobre pass/fail por item (mismos items, comparacion
+    honesta): la señal es cuantos items el ganador ARREGLA vs cuantos ROMPE, no la
+    diferencia bruta de accuracy (bug B2: en n chico un flip de 1 item cae dentro
+    del ruido binomial). Devuelve b (seed pasa, ganador falla), c (seed falla,
+    ganador pasa), n=b+c, pvalue (binomial exacto two-sided) y significant
+    (p<alpha AND c>b: mejora REAL fuera del ruido)."""
+    import math
+    seed_map = {r["id"]: r["passed"] for r in seed_per_item}
+    b = c = 0
+    for r in winner_per_item:
+        sp = seed_map.get(r["id"])
+        if sp is None:
+            continue
+        if sp and not r["passed"]:
+            b += 1
+        elif (not sp) and r["passed"]:
+            c += 1
+    n = b + c
+    if n == 0:
+        return {"b": 0, "c": 0, "n": 0, "pvalue": 1.0, "significant": False}
+    k = min(b, c)
+    tail = sum(math.comb(n, i) for i in range(k + 1)) * (0.5 ** n)
+    pvalue = min(1.0, 2 * tail)
+    return {"b": b, "c": c, "n": n, "pvalue": round(pvalue, 4),
+            "significant": bool(pvalue < alpha and c > b)}
+
+
 def resolve_items(entries: list) -> list:
     """[{"id","category"}] -> items resueltos (functions/question/ground_truth)
     leyendo los datos congelados de BFCL. Import perezoso del harness (toca
@@ -422,6 +450,28 @@ def mut_minimal_system(s: Scaffold) -> Scaffold | None:
 _HARD_CATEGORIES = ("parallel_multiple", "parallel", "live_simple")
 
 
+# Longitud maxima de la pregunta de un exemplar cosechado. Por encima, se DESCARTA
+# el item como exemplar (no se trunca): un par (pregunta_truncada, answer_completa)
+# ensena a emitir params cuya frase de origen fue cortada -> alucinacion (bug B5).
+# Ademas acota el prefill (cada exemplar se paga en cada paso).
+_MAX_EXEMPLAR_QUESTION = 300
+
+
+def _serialize_calls(calls: list) -> str:
+    """Reconstruye la answer CANONICA `func(param=value); ...` desde las llamadas
+    que el oraculo YA parseo (parse_model_response). Reemplaza a `splitlines()[0]`
+    (bug B1): el oraculo tolera prosa/fences/multi-linea, asi que la 1ra linea del
+    raw puede NO ser la llamada verificada (o ser solo 1 de N calls). Serializar
+    desde los calls parseados garantiza que el exemplar == lo que se verifico, con
+    el MISMO formato que ground_truth_to_calls (`{k}={v!r}`)."""
+    parts = []
+    for call in calls:
+        for fname, params in call.items():
+            args = ", ".join(f"{k}={v!r}" for k, v in params.items())
+            parts.append(f"{fname}({args})")
+    return "; ".join(parts)
+
+
 def bootstrap_exemplars(base: Scaffold, harvest_items: list, generate: GenerateFn, *,
                         k: int = 2, max_tokens: int = 256, seed: int = 42,
                         on_item: Callable[[dict], None] | None = None) -> list:
@@ -430,6 +480,11 @@ def bootstrap_exemplars(base: Scaffold, harvest_items: list, generate: GenerateF
     marca CORRECTAS, y devuelve hasta k exemplars SOLO-FORMATO (funcs="", question,
     answer_verificada). Prioriza categorias dificiles y respuestas cortas
     (Promptbreeder: el prompt/ejemplo corto suele ganar).
+
+    La answer se RECONSTRUYE canonicamente desde los calls que el oraculo parseo
+    (no `splitlines()[0]`): asi el exemplar es EXACTAMENTE lo verificado, incluidas
+    las multi-call de parallel_multiple (bug B1). Se descartan items cuya pregunta
+    supere `_MAX_EXEMPLAR_QUESTION` (bug B5: no truncar -> no incoherencia).
 
     NB anti-leakage: `harvest_items` debe ser DISJUNTO del set sobre el que luego
     se puntua el scaffold (si no, se estaria evaluando sobre los mismos items que
@@ -445,12 +500,15 @@ def bootstrap_exemplars(base: Scaffold, harvest_items: list, generate: GenerateF
             on_item({"id": it["id"], "category": it["category"], "passed": passed})
         if not passed:
             continue
-        # respuesta a una sola linea (la primera con la(s) llamada(s))
-        answer = resp.splitlines()[0].strip() if resp else ""
+        # answer CANONICA desde lo verificado (no la 1ra linea del raw)
+        calls, _perr = parse_model_response(resp)
+        answer = _serialize_calls(calls)
         if not answer:
             continue
-        # pregunta compacta: ultima linea 'user:' (evita el schema y el rol)
-        q = it["question"].split("user:")[-1].strip()[:200] or it["question"][:200]
+        # pregunta COMPLETA (sin truncar): descartar si es muy larga (coherencia + prefill)
+        q = it["question"].split("user:")[-1].strip()
+        if not q or len(q) > _MAX_EXEMPLAR_QUESTION:
+            continue
         hard_rank = 0 if it["category"] in _HARD_CATEGORIES else 1
         verified.append((hard_rank, len(answer), ("", q, answer)))
     # dificiles primero, luego respuestas cortas
@@ -538,18 +596,31 @@ def _accepts(cand: ScoreResult, incumbent: ScoreResult, min_gain: float) -> str 
 
 def evolve(seed: Scaffold, dev_items: list, generate: GenerateFn, *,
            rounds: int = 3, min_gain: float = 0.0, repair: bool = True,
-           log: Callable[[str], None] = print) -> EvolutionLog:
+           max_tokens: int = 512, log: Callable[[str], None] = print) -> EvolutionLog:
     """
     APE/PromptBreeder-style sobre DEV: desde `seed`, cada ronda propone mutaciones
     (dirigidas al bucket de error dominante + siempre-candidatos), las puntua con
     el modelo, y ADOPTA la mejor que pase el gate de no-regresion. Corta cuando
     una ronda no produce ninguna aceptada (convergencia) o se acaban las rondas.
 
+    `max_tokens` se propaga a TODAS las evaluaciones internas (bug B3: antes la
+    seleccion corria al default 512 mientras el runner medía a 256 -> regimen
+    inconsistente entre seleccion y deploy). DEV vacio -> devuelve la semilla sin
+    tocar nada (bug B4: sin items no hay senal, el gate seria tautologico).
+
     NB: toda decision es sobre DEV. El numero honesto se mide DESPUES sobre TEST
     held-out (run_prompt_evolution.py), nunca aca -> no overfittea el reporte.
     """
     incumbent = seed
-    inc_score = score_scaffold(seed, dev_items, generate, repair=repair)
+    if not dev_items:                       # sin senal: no evolucionar (bug B4)
+        log("[evolve] DEV vacio -> se mantiene la semilla (sin gate)")
+        empty = score_scaffold(seed, [], generate, repair=repair, max_tokens=max_tokens)
+        return EvolutionLog(seed_score=empty, best_scaffold=seed, best_score=empty,
+                            trajectory=[{"round": 0, "tag": "seed", "name": seed.name,
+                                         "accuracy": 0.0, "cost": seed.token_cost(),
+                                         "accepted": True, "reason": "seed(dev-vacio)"}],
+                            accepted_path=[seed.name])
+    inc_score = score_scaffold(seed, dev_items, generate, repair=repair, max_tokens=max_tokens)
     log(f"[evolve] seed {seed.name}: {inc_score.summary()}")
     seed_score = inc_score
     trajectory = [{"round": 0, "tag": "seed", "name": seed.name,
@@ -564,7 +635,7 @@ def evolve(seed: Scaffold, dev_items: list, generate: GenerateFn, *,
             break
         best_cand = best_score = best_tag = best_reason = None
         for tag, cand in proposals:
-            sc = score_scaffold(cand, dev_items, generate, repair=repair)
+            sc = score_scaffold(cand, dev_items, generate, repair=repair, max_tokens=max_tokens)
             reason = _accepts(sc, inc_score, min_gain)
             log(f"[evolve] ronda {r} cand {cand.name} ({tag}): {sc.summary()} "
                 f"-> {'ACEPTA:'+reason if reason else 'rechaza'}")

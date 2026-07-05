@@ -76,12 +76,19 @@ def _split_harvest_tune(items: list) -> tuple:
     """Parte items en HARVEST (cosecha de exemplars) y TUNE (scoring de candidatos),
     DISJUNTOS y estratificados: alterna items de cada categoria (par->harvest,
     impar->tune). Anti-leakage: el bootstrap toma ejemplos de harvest, el gate
-    puntua sobre tune -> nunca se evalua sobre un item metido como ejemplo."""
+    puntua sobre tune -> nunca se evalua sobre un item metido como ejemplo.
+
+    Un grupo de UN solo item va a TUNE, no a harvest (bug B4): TUNE nunca debe
+    quedar vacio o el gate de no-regresion seria tautologico. El bootstrap solo
+    cosecha de categorias con >=2 items (las de 1, ese item es para puntuar)."""
     by_cat: dict[str, list] = {}
     for it in items:
         by_cat.setdefault(it["category"], []).append(it)
     harvest, tune = [], []
     for cat, group in by_cat.items():
+        if len(group) == 1:
+            tune.append(group[0])       # singleton -> tune (nunca vacio)
+            continue
         for i, it in enumerate(group):
             (harvest if i % 2 == 0 else tune).append(it)
     return harvest, tune
@@ -184,9 +191,11 @@ def run(preset: str, label: str) -> dict:
         else:
             _log(f"[bootstrap] descartado (regresiona en tune) -> arranca de la semilla")
 
-    # 1) EVOLUCION sobre TUNE (operadores dirigidos + siempre-candidatos + gate)
+    # 1) EVOLUCION sobre TUNE (operadores dirigidos + siempre-candidatos + gate).
+    # max_tokens propagado (bug B3): la seleccion corre en el MISMO regimen que el
+    # deploy/medicion (antes seleccionaba a 512 y medía a 256).
     ev = pe.evolve(start, tune_items, _gen_logged, rounds=cfg["rounds"],
-                   min_gain=0.0, repair=True, log=_log)
+                   min_gain=0.0, repair=True, max_tokens=cfg["max_tokens"], log=_log)
     evo_secs = round(time.perf_counter() - t_evo, 1)
 
     # 2) MEDICION HONESTA sobre TEST held-out (seed vs ganador)
@@ -205,22 +214,37 @@ def run(preset: str, label: str) -> dict:
         _log(f"[test] ganador: {winner_test.summary()}")
 
     delta_test = round(winner_test.accuracy - seed_test.accuracy, 4)
-    # Persistir SOLO si el ganador NO regresiona en test (honestidad: no publicar
-    # en vivo un andamiaje que overfitteo dev y empeora en held-out).
+    # Significancia PAREADA (McNemar) sobre el test held-out: cuantos items arregla
+    # (c) vs cuantos rompe (b) el ganador. Un delta chico de accuracy en n=50 cae
+    # dentro del ruido binomial (bug B2): la persistencia y el claim de "mejora"
+    # se gatean por significancia, NO por un '>=' pelado.
+    mc = pe.mcnemar(seed_test.per_item, winner_test.per_item, alpha=0.05)
+    _log(f"[test] McNemar: arregla c={mc['c']} rompe b={mc['b']} "
+         f"p={mc['pvalue']} significativo={mc['significant']}")
+
+    # Persistir en vivo SOLO si: (1) hay un ganador != semilla, (2) NO es smoke
+    # (bug B4: una corrida de validacion de pipeline no debe pisar el scaffold
+    # live), (3) la mejora en held-out es ESTADISTICAMENTE significativa (no ruido).
     persisted = False
-    if winner_test.accuracy >= seed_test.accuracy and ev.best_scaffold.name != seed.name:
+    is_real_winner = ev.best_scaffold.name != seed.name
+    if is_real_winner and preset != "smoke" and mc["significant"]:
         pe.persist_best(ev.best_scaffold, meta={
             "label": label, "preset": preset, "model": gguf_name,
-            "dev_acc": ev.best_score.accuracy, "test_acc": winner_test.accuracy,
-            "seed_test_acc": seed_test.accuracy, "delta_test": delta_test,
-            "timestamp": ts,
+            "test_acc": winner_test.accuracy, "seed_test_acc": seed_test.accuracy,
+            "delta_test": delta_test, "mcnemar": mc, "timestamp": ts,
         })
         persisted = True
         _log(f"[persist] ganador persistido (test {seed_test.accuracy:.3f} -> "
-             f"{winner_test.accuracy:.3f}, delta {delta_test:+.3f})")
+             f"{winner_test.accuracy:.3f}, delta {delta_test:+.3f}, "
+             f"McNemar p={mc['pvalue']} SIGNIFICATIVO)")
     else:
-        _log(f"[persist] NO se persiste: delta_test={delta_test:+.3f} "
-             f"(sin mejora en held-out) -> se mantiene el andamiaje actual")
+        reason = ("es smoke" if preset == "smoke" else
+                  "sin ganador" if not is_real_winner else
+                  f"delta dentro del ruido (McNemar p={mc['pvalue']}, no significativo)")
+        _log(f"[persist] NO se persiste: {reason} -> se mantiene el andamiaje actual. "
+             f"VEREDICTO HONESTO: delta_test={delta_test:+.3f} no es una mejora demostrada"
+             if not mc["significant"] else
+             f"[persist] NO se persiste: {reason}")
 
     output = {
         "label": label, "preset": preset, "timestamp": ts, "model": gguf_name,
@@ -243,6 +267,8 @@ def run(preset: str, label: str) -> dict:
             "winner_by_category": {c: list(v) for c, v in winner_test.by_category.items()},
             "winner_error_buckets": winner_test.error_buckets,
             "delta": delta_test,
+            "mcnemar": mc,                       # b/c/p/significant (bug B2)
+            "significant_improvement": bool(mc["significant"]),
             "winner_token_cost": winner_test.token_cost,
             "seed_token_cost": seed_test.token_cost,
         },
@@ -262,8 +288,10 @@ def run(preset: str, label: str) -> dict:
     print(f" TUNE ({len(tune_items)}): seed {seed_tune.accuracy:.3f} | "
           f"start[{start.name}] {ev.seed_score.accuracy:.3f} -> "
           f"best {ev.best_score.accuracy:.3f}  ({ev.best_scaffold.name})")
+    _sig = "SIGNIFICATIVO" if mc["significant"] else "dentro del ruido (NO significativo)"
     print(f" TEST ({len(test_items)}): seed {seed_test.accuracy:.3f} -> "
           f"winner {winner_test.accuracy:.3f}  (delta {delta_test:+.3f})")
+    print(f" McNemar: arregla={mc['c']} rompe={mc['b']} p={mc['pvalue']} -> {_sig}")
     print(f" persistido en vivo: {persisted}")
     print(f" JSON: {out_path}")
     print("=" * 72)
