@@ -5360,3 +5360,32 @@ ENTREGADO (en progreso, verificacion REAL del ciclo pendiente de la corrida --fa
 Metodo: investigacion en workflow Opus (Fable sin cuota); implementacion+tests+
 verificacion real local. Honestidad: el valor del metodo es la MEDICION, no un
 numero garantizado; si el ganador no transfiere a test, se reporta el veredicto.
+
+--- CICLO REVIEW->FIX (2026-07-04, mismo goal RSI+auto-prompting) ---
+Review adversarial multi-agente (13 agentes Opus, 5 dimensiones, verificacion por
+refutacion) sobre el motor de auto-prompting. 7 hallazgos CONFIRMADOS (0 refutados)
+= 5 bugs reales, TODOS arreglados con test de regresion (27 tests verdes, commit
+027c996):
+- B1 (bootstrap contaminado, el mas grave): bootstrap_exemplars guardaba
+  resp.splitlines()[0], pero el oraculo verifica la respuesta COMPLETA -> un
+  parallel_multiple de 2 calls quedaba en 1 (ensenando el mismisimo wrong_count que
+  la evolucion corrige), y prosa/fences se colaban como "answer". Fix: _serialize_
+  calls() reconstruye la answer CANONICA desde parse_model_response.
+- B2 (gate sin guarda de ruido): min_gain=0 + persist con '>=' pelado en test=50
+  persistia y reportaba +1/50 (dentro del ruido binomial 95%CI ~+-0.14) como mejora
+  real. Fix: test de McNemar pareado (arregla c vs rompe b); persiste y CLAMA mejora
+  SOLO si es estadisticamente significativa. Esto blinda la honestidad del antes/
+  despues (la afirmacion central del pipeline).
+- B3 (regimen de tokens): la seleccion evolutiva corria a 512 mientras el deploy/
+  medicion a 256 (evolve no propagaba max_tokens). Fix: propagado.
+- B4 (smoke tune vacio): en --smoke el subsample+split dejaban tune=[] -> gate
+  tautologico + posible clobber del scaffold live. Fix: singletons->tune, evolve
+  aborta con dev vacio, persist bloqueado en smoke.
+- B5 (pregunta truncada a 200 -> par pregunta/answer incoherente). Fix: no truncar,
+  descartar item si pregunta >300.
+LECCION: la verificacion adversarial ANTES de confiar en el numero pago -- la
+corrida --fast v2 (en marcha) estaba comprometida por B1/B2/B3 y se habria reportado
+un delta dentro del ruido como "mejora". Se descarto v2 y se relanzo v3 con el codigo
+arreglado. El review corrio EN PARALELO a la corrida, cazando los bugs antes de que
+el resultado dependiera de ellos. Metodo del repo (verificacion REAL + honestidad)
+reforzado por el arbitro estadistico (McNemar) y el gate held-out.
