@@ -81,12 +81,16 @@ local con el modelo 3B** (Qwen2.5-Coder-3B via llama.cpp); la orquestacion onlin
 imagenes/escenas** AI-nativo y los **prompts que se auto-mejoran**.
 
 ```bash
+pip install "cognia-ai[llama]"      # + inferencia local pip-nativa (llama-cpp-python)
 pip install "cognia-ai[semantic]"   # + embeddings reales (sentence-transformers, ~2GB)
-pip install "cognia-ai[all]"        # todo (semantic + pdf)
+pip install "cognia-ai[all]"        # todo
 ```
 
-Requisitos: **Python 3.11+** (3.12 recomendado). Para inferencia real necesitas un
-backend llama.cpp (`cognia` te guia en el primer arranque).
+Requisitos: **Python 3.11+** (3.12 recomendado). Para inferencia tenes tres caminos, de
+mas simple a mas rapido: (1) el **wizard descarga shards numpy** (INT4) y corre en
+Python puro sin binario; (2) `pip install "cognia-ai[llama]"` trae **llama.cpp via pip**;
+(3) un binario **llama-server** + un **GGUF** (el mas rapido en CPU). El primer arranque
+(`cognia`) te guia.
 
 ### Instaladores rapidos (desde el repo)
 

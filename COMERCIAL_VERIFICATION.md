@@ -67,7 +67,13 @@ aislar una DB de test.
   como SKIP_MODEL (no ejercitadas punta-a-punta con el 3B en esta pasada).
 - **Model-agnóstico ≠ paridad de calidad.** Un modelo distinto corre el mismo
   andamiaje pero puede rendir distinto; se verificó que CORRE, no que iguala al 3B.
-- **Inferencia real** requiere un backend llama.cpp presente; el pip trae el código,
-  no el binario `llama-server.exe` (el wizard del primer arranque guía la config).
+- **Inferencia del usuario fresco (last mile):** el pip trae el CÓDIGO de los 3 caminos
+  de inferencia (shards numpy INT4, binding `llama-cpp-python`, cliente llama-server),
+  pero NO el binario `llama-server.exe` ni los pesos. Caminos: (1) el wizard descarga
+  **shards numpy** → inferencia en Python puro **sin binario** (default fresh, más
+  lento); (2) `pip install "cognia-ai[llama]"` → **llama.cpp via pip**; (3) llama-server
+  + GGUF (más rápido). Los smokes de este reporte usaron el path GGUF (rápido); el path
+  numpy-shards NO se ejercitó punta-a-punta en esta pasada (código empaquetado + shards
+  presentes en la máquina de dev, pero sin smoke dedicado).
 - **3 fallos de pytest** en `test_cli_memory_injection.py` son de AISLAMIENTO (pasan
   6/6 en solitario), no bugs de producto.
