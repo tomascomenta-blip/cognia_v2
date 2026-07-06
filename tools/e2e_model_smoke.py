@@ -42,6 +42,8 @@ def main() -> int:
     ap.add_argument("--max-tokens", type=int, default=96)
     ap.add_argument("--gguf", default=None,
                     help="ruta a un GGUF alternativo (test model-agnostico); default = 3B")
+    ap.add_argument("--fast", action="store_true",
+                    help="omitir el check lento de generar_codigo (BoN)")
     args = ap.parse_args()
 
     results = {"checks": []}
@@ -129,6 +131,25 @@ def main() -> int:
               f"({time.time()-t0:.0f}s) {txt[:200]}")
     except Exception as e:
         check("salida mas larga (multi-linea)", False, f"{type(e).__name__}: {e}")
+
+    # 5) Generacion de codigo (generar_codigo: BoN + validacion por tests) -- SKIP con --fast
+    if not args.fast:
+        try:
+            from cognia.agent.tools import run_tool
+            ctx = {"ai": ai if 'ai' in dir() else None, "working_memory": {},
+                   "print_fn": lambda *a, **k: None, "_orchestrator": orch}
+            if ctx["ai"] is not None:
+                ctx["ai"]._orchestrator = orch
+            t0 = time.time()
+            out = run_tool("generar_codigo",
+                           "_e2e_smoke_out/sumar.py | escribi una funcion sumar(a,b) que devuelva a+b",
+                           ctx)
+            gen_file = Path("_e2e_smoke_out/sumar.py")
+            ok_code = gen_file.exists() and "def sumar" in gen_file.read_text(encoding="utf-8", errors="replace")
+            check("generar_codigo (BoN) produce funcion valida",
+                  ok_code, f"({time.time()-t0:.0f}s) archivo={gen_file.exists()} out={str(out)[:120]}")
+        except Exception as e:
+            check("generar_codigo (BoN) produce funcion valida", False, f"{type(e).__name__}: {e}")
 
     _finish(results, args)
     return 0 if all(c["ok"] for c in results["checks"]) else 2
