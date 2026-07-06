@@ -1,7 +1,9 @@
-# Cognia v3 — Arquitectura Cognitiva Simbolico-Neural
+# Cognia — IA cognitiva local que aprende (Arquitectura Simbolico-Neural)
 
-> IA local, ligera y privada. Corre en CPU, sin APIs externas y sin PyTorch en el
-> camino critico. Aprende, razona y recuerda en tu propia maquina.
+> IA local, ligera y privada. Corre en CPU con un modelo 3B, sin APIs externas y sin
+> PyTorch en el camino critico. **Aprende, razona y recuerda** en tu propia maquina —
+> con memoria episodica, un **creador de imagenes/escenas** AI-nativo, y **prompts que
+> se auto-mejoran** (auto-prompting). Instalable en un comando: `pip install cognia-ai`.
 
 **Stack:** Python 3.11+ (3.12 recomendado) · SQLite · Qwen2.5-Coder-3B (GGUF / INT4) ·
 llama.cpp · sentence-transformers · numpy · FastAPI · Electron
@@ -65,7 +67,28 @@ Detalle tecnico por fase en [ROADMAP.md](ROADMAP.md). Bitacora de sesiones en
 
 ## Instalacion
 
-### Instaladores rapidos (recomendado)
+### Un solo comando (PyPI) — recomendado
+
+```bash
+pip install cognia-ai
+cognia
+```
+
+Eso es todo: `pip install cognia-ai` deja el comando `cognia` listo, y `cognia` abre el
+asistente (primer arranque = wizard de configuracion, luego el REPL). Corre **100%
+local con el modelo 3B** (Qwen2.5-Coder-3B via llama.cpp); la orquestacion online viene
+**apagada por defecto** (forzable con `COGNIA_DISABLE_SWARM=1`). Incluye el **creador de
+imagenes/escenas** AI-nativo y los **prompts que se auto-mejoran**.
+
+```bash
+pip install "cognia-ai[semantic]"   # + embeddings reales (sentence-transformers, ~2GB)
+pip install "cognia-ai[all]"        # todo (semantic + pdf)
+```
+
+Requisitos: **Python 3.11+** (3.12 recomendado). Para inferencia real necesitas un
+backend llama.cpp (`cognia` te guia en el primer arranque).
+
+### Instaladores rapidos (desde el repo)
 
 Descarga el repositorio y ejecuta el instalador de tu plataforma:
 
