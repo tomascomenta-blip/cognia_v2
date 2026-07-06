@@ -76,13 +76,18 @@ def main() -> int:
             pass
 
     ap = argparse.ArgumentParser(description="Prueba de instalacion limpia de cognia-ai")
-    g = ap.add_mutually_exclusive_group(required=True)
+    g = ap.add_mutually_exclusive_group()
     g.add_argument("--wheel")
     g.add_argument("--sdist")
     g.add_argument("--pypi", action="store_true")
     ap.add_argument("--pypi-version", default=None)
     ap.add_argument("--keep", action="store_true", help="no borrar el venv temporal")
     args = ap.parse_args()
+    # --pypi-version implica instalar desde PyPI (no hace falta pasar --pypi tambien)
+    if args.pypi_version:
+        args.pypi = True
+    if not (args.wheel or args.sdist or args.pypi):
+        ap.error("indica una fuente: --wheel / --sdist / --pypi / --pypi-version")
 
     spec = build_install_spec(args)
     results = {"spec": spec, "checks": [], "ok": False}
@@ -134,12 +139,22 @@ def main() -> int:
         rc, out = _run([str(vpy), "-c", f"import {mod}"], timeout=120)
         check(f"import {mod}", rc == 0, out[-150:])
 
-    # 7) tools de imagen (creador de imagenes beta) disponibles?
-    rc, out = _run([str(vpy), "-c",
-                    "import importlib; ok=importlib.util.find_spec('cognia_x.lcd.tools_lcd') "
-                    "or importlib.util.find_spec('cognia.lcd.tools_lcd'); print('img_tools', bool(ok))"],
-                   timeout=120)
-    check("tools de imagen empaquetadas", "img_tools True" in out, out[-150:])
+    # 7) tools de imagen (creador de imagenes) disponibles Y funcionales: importar
+    #    el modulo, cargar las tools, y renderizar un PNG real en el venv limpio.
+    _img_probe = (
+        "from cognia.lcd.tools_lcd import load_lcd_tools; "
+        "from cognia.lcd.tools_modeling import load_modeling_tools; "
+        "n=load_lcd_tools()+load_modeling_tools(); "
+        "from cognia.agent.tools import run_tool; "
+        "ctx={'ai':None,'working_memory':{},'print_fn':lambda *a,**k:None}; "
+        "run_tool('escena_crear','una taza roja sobre una mesa azul',ctx); "
+        "import tempfile,os; p=os.path.join(tempfile.mkdtemp(),'e2e.png'); "
+        "run_tool('render_aprox',p,ctx); "
+        "print('img_ok', n, os.path.exists(p), os.path.getsize(p) if os.path.exists(p) else 0)"
+    )
+    rc, out = _run([str(vpy), "-c", _img_probe], timeout=180)
+    check("creador de imagenes empaquetado y funcional (render PNG)",
+          "img_ok" in out and "True" in out, out[-200:])
 
     results["ok"] = all(c["ok"] for c in results["checks"])
     print(f"\n== RESULTADO: {'PASS' if results['ok'] else 'FALLA'} "
