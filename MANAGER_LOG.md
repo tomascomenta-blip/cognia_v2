@@ -5442,3 +5442,28 @@ endpoint YA es fail-safe (503 sin admin key). Fue error del harness (uso DB prod
 no vulnerabilidad. LECCION: aislar test DB en workflows.
 Metodo: venv312, verificacion REAL e2e con el 3B, tests, commits+push por unidad,
 honestidad. Sigue: verificar SKIP_MODEL restantes con el 3B, sync docs, cierre.
+
+--- CIERRE COMERCIAL v1 (2026-07-05, ~22:00-actual, autonomia total, deadline 04:30) ---
+GOAL LOGRADO. Entregado y verificado la version COMERCIAL de Cognia:
+- PUBLICADO a PyPI: cognia-ai 3.8.0 / 3.8.1 / 3.8.2 (https://pypi.org/project/cognia-ai/).
+  pip install cognia-ai (un comando) VERIFICADO 9/9 desde venv externo limpio, incl.
+  creador de imagenes render PNG real dentro del paquete de PyPI.
+- Creador de imagenes empaquetado (git mv cognia_x/lcd->cognia/lcd, +Pillow; antes era
+  codigo muerto). Solo-local (runtime_mode + COGNIA_DISABLE_SWARM). Modo sencillo default.
+- Verificacion e2e: inventario 10 agentes (568 features) -> E2E 10 agentes (215/216
+  cero-LLM PASA) -> smoke 3B 5/5 (chat/agente/salida-larga/generar_codigo) -> model-
+  agnostico Llama-1B (no-Qwen) 4/4 -> aprende (decay skills+profile+episodic en vivo).
+- Bug real F1 (run_javascript/Windows SystemRoot) cazado por E2E y arreglado (3.8.1).
+- Los 3 paths de inferencia del fresh-user VERIFICADOS: numpy-shards FUNCIONA (Python
+  puro sin binario/compilador = el default que "just works"); [llama] falla en Windows
+  sin compilador (honesto); llama-server+GGUF = mas rapido.
+- Reportes: COMERCIAL_SPEC.md (prompt mejorado), COMERCIAL_INVENTORY.md (568 features),
+  COMERCIAL_VERIFICATION.md (verificacion honesta con limites). README con pip install
+  prominente. extra [llama] agregado.
+- Fix de aislamiento de tests (cli_memory_injection). Suite: 3482 passed, resto
+  aislamiento (pasan solos).
+INCIDENTE (resuelto): agente E2E toco la DB de prod (soft-delete 75855 filas) y la
+revirtio; verificada intacta. Leccion: aislar test DB en workflows.
+Metodo: venv312, verificacion REAL e2e con el 3B, commits+push por unidad (corte a
+04:30 seguro), honestidad (limites declarados), sin gastar dinero, sin filtrar
+secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programado.
