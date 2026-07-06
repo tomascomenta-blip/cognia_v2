@@ -19,27 +19,50 @@ import sys
 import tempfile
 import types
 
+import pytest
+
 from cognia.context.band_router import (
     HydraContextRouter,
     MEMORY_BLOCK_MAX_CHARS,
 )
 
+# Modulos que estos tests stubbean/reimportan; se guardan y restauran por test.
+_ISO_MODS = ("cognia.cli", "cognia.cognia", "cognia.config")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_cli_modules():
+    """Aisla el estado de sys.modules por test (fix de aislamiento): antes estos
+    tests solo instalaban los stubs SI cognia.cognia/config no estaban ya
+    importados -> corriendo tras otro test que importa los REALES, los stubs no
+    se instalaban y el test fallaba (pasaba en solitario, fallaba en la suite).
+    Ahora _get_cli fuerza los stubs incondicionalmente y este fixture restaura el
+    estado original despues, para no contaminar los tests siguientes."""
+    saved = {k: sys.modules.get(k) for k in _ISO_MODS}
+    yield
+    for k, v in saved.items():
+        if v is None:
+            sys.modules.pop(k, None)
+        else:
+            sys.modules[k] = v
+
 
 def _get_cli():
-    """Import cognia.cli with a minimal Cognia stub to avoid DB/model loading."""
-    if "cognia.cognia" not in sys.modules:
-        stub = types.ModuleType("cognia.cognia")
-        class _FakeCognia:
-            def __init__(self, *a, **kw): pass
-        stub.Cognia = _FakeCognia
-        sys.modules["cognia.cognia"] = stub
+    """Import cognia.cli con un stub minimo de Cognia (sin DB/modelo). Fuerza los
+    stubs SIEMPRE (no condicional) y reimporta cli fresco -> comportamiento
+    identico corra en solitario o dentro de la suite. El fixture autouse restaura."""
+    stub = types.ModuleType("cognia.cognia")
+    class _FakeCognia:
+        def __init__(self, *a, **kw): pass
+    stub.Cognia = _FakeCognia
+    sys.modules["cognia.cognia"] = stub
 
-    if "cognia.config" not in sys.modules:
-        cfg_stub = types.ModuleType("cognia.config")
-        cfg_stub.HAS_RESEARCH_ENGINE = False
-        cfg_stub.HAS_PROGRAM_CREATOR = False
-        sys.modules["cognia.config"] = cfg_stub
+    cfg_stub = types.ModuleType("cognia.config")
+    cfg_stub.HAS_RESEARCH_ENGINE = False
+    cfg_stub.HAS_PROGRAM_CREATOR = False
+    sys.modules["cognia.config"] = cfg_stub
 
+    sys.modules.pop("cognia.cli", None)   # fuerza import fresco atado a los stubs
     import cognia.cli as cli
     return cli
 
