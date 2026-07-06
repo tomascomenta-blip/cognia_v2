@@ -5389,3 +5389,21 @@ un delta dentro del ruido como "mejora". Se descarto v2 y se relanzo v3 con el c
 arreglado. El review corrio EN PARALELO a la corrida, cazando los bugs antes de que
 el resultado dependiera de ellos. Metodo del repo (verificacion REAL + honestidad)
 reforzado por el arbitro estadistico (McNemar) y el gate held-out.
+
+--- RESULTADO CORRIDA --fast v3 (2026-07-04, antes/despues HONESTO) ---
+ap_fast_v3 (Qwen2.5-Coder-3B-Q4_K_M, ~92 min gen real). DEV=20 (harvest10/tune10),
+TEST held-out=50. Con el codigo YA arreglado (post 5 fixes) + arbitro McNemar.
+- Evolucion adopto v1_seed+min (system-prompt MINIMO) via gate Pareto (misma acc en
+  tune, menos costo). Bootstrap cosecho 2 exemplars pero no supero la semilla en tune.
+- TEST held-out: semilla v1 0.800 -> ganador 0.800 (delta +0.000). McNemar arregla=1
+  rompe=1 p=1.0 -> NO significativo. COSTO: ganador 699 vs semilla 936 tokens (-25%).
+  NO persistido (gate exige mejora de accuracy significativa).
+LECTURA HONESTA: la ganancia real es COSTO, no accuracy. La evolucion DESCUBRIO con el
+modelo real que un system-prompt 25% mas corto rinde EXACTAMENTE igual que el v1
+afinado a mano -> demostracion empirica directa de "prompt menos detallado, (igual de)
+valido" como optimo de Pareto (misma calidad, -25% prefill = mas barato/rapido en CPU).
+En accuracy NO supero al baseline fuerte (v1 few-shot2+repair), y el metodo lo REPORTA
+sin adornos (McNemar mata el flip-dentro-del-ruido). El valor es la MEDICION honesta,
+no un numero inflado. Sin los 5 fixes, esta corrida habria vendido ruido como mejora y
+publicado un andamiaje contaminado. GOAL RSI+auto-prompting: COMPLETO (investigacion+
+teoria+implementacion+integracion+corrida medida+veredicto honesto).

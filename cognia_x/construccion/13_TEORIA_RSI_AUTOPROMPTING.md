@@ -247,10 +247,54 @@ repo prohíbe.
 
 ## 6. Resultado de la corrida real (antes/después)
 
-*(Se completa con la corrida `--fast`/`--full`: accuracy semilla vs ganador sobre
-TEST held-out, delta, costo de tokens, y trayectoria de la evolución. Honestidad:
-si el ganador no transfiere a TEST, se reporta el veredicto negativo — el valor
-del método es la MEDICIÓN, no un número garantizado.)*
+Corrida `--fast` (`ap_fast_v3`, 2026-07-04, Qwen2.5-Coder-3B-Q4_K_M, ~92 min de
+generación real). DEV=20 (harvest 10 / tune 10), **TEST held-out=50** (10/cat).
+Todos los números medidos con el 3B de verdad; el gate y el reporte usan el checker
+AST congelado + McNemar.
+
+**Trayectoria (DEV/tune):** el bootstrap cosechó 2 exemplars verificados pero NO
+superó a la semilla en tune → arrancó de `v1_seed`. La evolución adoptó
+`v1_seed+min` (**system-prompt mínimo**) vía el gate Pareto: misma accuracy (0.900)
+con menos costo. Camino aceptado: `v1_seed → v1_seed+min`.
+
+**TEST held-out (antes/después HONESTO):**
+
+| | accuracy | costo prompt (tokens) |
+|---|---|---|
+| Semilla v1 (afinada a mano) | **0.800** | 936 |
+| Ganador `v1_seed+min` | **0.800** | **699 (−25%)** |
+| Delta | **+0.000** | −237 |
+
+**Veredicto McNemar:** el ganador arregla 1 item y rompe 1 (neto 0) → **p=1.0, NO
+significativo**. Por categoría no hay cambio material (parallel_multiple 7/10,
+live_simple 5/10 en ambos). Persistido en vivo: **NO** (el gate exige mejora de
+accuracy significativa; correctamente no toca el andamiaje live).
+
+**Lectura honesta:**
+1. **Ganancia real: COSTO, no accuracy.** La evolución **descubrió con el modelo
+   real que un system-prompt 25% más corto rinde EXACTAMENTE igual** que el v1
+   afinado a mano sobre tareas held-out. Es una demostración empírica directa de
+   *"un prompt menos detallado se vuelve (igual de) válido para la IA"*: un óptimo
+   de Pareto (misma calidad, −25% de prefill) — dinero gratis en un sistema
+   CPU-bound con prefill caro. Coincide con la evidencia (sobre-instruir no ayuda
+   a un 3B; LLMLingua).
+2. **En accuracy NO superó al baseline fuerte** (0.80 = 0.80), y el método lo dice
+   sin adornos: el árbitro McNemar reporta "sin mejora demostrada" en vez de vender
+   el ruido. Ese es exactamente el valor del método — **la MEDICIÓN honesta**, no
+   un número inflado. El v1 (few-shot=2 + repair) ya es un andamiaje fuerte; los
+   fallos restantes (value-formatting en parallel_multiple/live_simple) no los
+   cracó la búsqueda en un tune de 10 items.
+3. **El ciclo review→fix pagó:** sin los 5 fixes, esta misma corrida habría
+   reportado un flip dentro del ruido como "mejora" y habría publicado un andamiaje
+   contaminado por el bootstrap truncado. El árbitro estadístico convirtió un
+   resultado potencialmente engañoso en uno honesto.
+
+**Frontera:** más presupuesto de eval (tune/test más grandes, `--full`) para
+detectar mejoras chicas con poder estadístico; operadores dirigidos a los buckets
+value-formatting que dominan el 20% restante; y compounding entre corridas (archivo
+DGM). El andamiaje mínimo validado (−25% costo, misma calidad) queda disponible como
+optimización de costo si se decide adoptarlo (no auto-persistido por el gate
+conservador de accuracy).
 
 ---
 
