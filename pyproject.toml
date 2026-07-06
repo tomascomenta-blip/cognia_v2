@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognia-ai"
-version = "3.7.1"
-description = "Local cognitive AI with episodic memory, distributed inference, and swarm learning"
+version = "3.8.0"
+description = "Local cognitive AI that runs offline on a small model, with episodic memory, self-improving prompts, and an AI-native image/scene creator"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -39,6 +39,7 @@ dependencies = [
     "huggingface_hub>=0.20",
     "psutil>=5.9",
     "httpx>=0.27",
+    "pillow>=10.0.0",   # creador de imagenes/escenas (cognia/lcd): render PNG/GIF
 ]
 
 # Heavy/optional features are NOT installed by default: Cognia runs fully on the

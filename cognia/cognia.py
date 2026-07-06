@@ -375,10 +375,13 @@ class Cognia:
                 _os_module.path.dirname(_os_module.path.dirname(_os_module.path.abspath(__file__))),
                 "shattering", "manifests", "cognia_qwen.json",
             )
+            # Version comercial local-only: si COGNIA_DISABLE_SWARM esta seteado,
+            # forzar coordinator=None y mode=local (nunca sale a la red; solo el 3B).
+            from cognia.runtime_mode import coordinator_url as _coord_url, swarm_disabled as _swarm_off
             self._orchestrator = ShatteringOrchestrator(
                 manifest_path=_manifest_path,
-                coordinator_url=_os_module.environ.get("COGNIA_COORDINATOR_URL"),
-                mode="auto",
+                coordinator_url=(_coord_url() or None),
+                mode="local" if _swarm_off() else "auto",
             )
             if self._orchestrator.shards_ready():
                 print("[OK] ShatteringOrchestrator activo (shards Qwen disponibles)")
@@ -1560,7 +1563,8 @@ class Cognia:
         from urllib.request import Request as _UrlRequest
         from urllib.error import URLError
 
-        coordinator_url   = _os_module.environ.get("COGNIA_COORDINATOR_URL", "").rstrip("/")
+        from cognia.runtime_mode import coordinator_url as _coord_url
+        coordinator_url   = _coord_url().rstrip("/")   # "" si COGNIA_DISABLE_SWARM
         contributor_token = _os_module.environ.get("COGNIA_CONTRIBUTOR_TOKEN", "")
         if not coordinator_url or not contributor_token:
             return ""

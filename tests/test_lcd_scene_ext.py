@@ -1,6 +1,6 @@
 """Regresion de la ampliacion del modelo de escena (scene.py): id/rotation/
 material, add/remove/duplicate, mas formas, roundtrip JSON compat."""
-from cognia_x.lcd.scene import DENSITY, SHAPES, Obj, Scene
+from cognia.lcd.scene import DENSITY, SHAPES, Obj, Scene
 
 
 def test_add_desambigua_keys_duplicadas():

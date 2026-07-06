@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/tools_lcd.py — Herramientas AI-NATIVAS de LCD (plan 12, Fase 0/1).
+cognia/lcd/tools_lcd.py — Herramientas AI-NATIVAS de LCD (plan 12, Fase 0/1).
 
 Convierte el pipeline LCD (scene.py/planner.py/renderer.py) en TOOLS invocables
 por el agente MoM via el protocolo ACCION, para que una IA construya/edite/
@@ -22,8 +22,8 @@ from __future__ import annotations
 import re as _re
 
 from cognia.agent.tools import tool
-from cognia_x.lcd.planner import _find_objects, _find_relation, _tokens, plan
-from cognia_x.lcd.scene import COLORS, MATERIALS, Obj, Scene, SHAPES
+from cognia.lcd.planner import _find_objects, _find_relation, _tokens, plan
+from cognia.lcd.scene import COLORS, MATERIALS, Obj, Scene, SHAPES
 
 
 # ── oraculo cero-LLM: control composicional de una escena vs su descripcion ──
@@ -117,7 +117,7 @@ def _escena_crear(args, ctx):
     if not scene.objects:
         orch = _orch_from_ctx(ctx)
         if orch is not None:
-            from cognia_x.lcd.planner import plan_with_llm
+            from cognia.lcd.planner import plan_with_llm
             llm_scene, _raw = plan_with_llm(desc, orch)
             if llm_scene is not None and llm_scene.objects:
                 scene, via = llm_scene, "planner-LLM"
@@ -202,7 +202,7 @@ def _render_aprox(args, ctx):
     scene = _active(ctx)
     if scene is None:
         return "RESULTADO render_aprox ERROR: no hay escena activa (usa escena_crear primero)"
-    from cognia_x.lcd.renderer import render_to
+    from cognia.lcd.renderer import render_to
     dest = args.strip() or "escena_lcd.png"
     try:
         path = render_to(scene, dest)
@@ -219,7 +219,7 @@ def _atribuir_fallo(args, ctx):
     if scene is None:
         return "RESULTADO atribuir_fallo ERROR: no hay escena activa (usa escena_crear primero)"
     desc = _scenes(ctx).get("_desc", "")
-    from cognia_x.lcd.arbiter import attribute_scene_failure
+    from cognia.lcd.arbiter import attribute_scene_failure
     v = attribute_scene_failure(desc, scene)
     if v["stage"] is None:
         return "RESULTADO atribuir_fallo: todos los contratos pasan (la escena cumple la spec)"
@@ -249,7 +249,7 @@ def _reejecutar_etapa(args, ctx):
         return (f"RESULTADO reejecutar_etapa {stage}: escena re-planificada "
                 f"({len(nueva.objects)} objetos), control {chk['score']}/{chk['total']}")
     # render: re-render de la escena actual (sin tocar la geometria)
-    from cognia_x.lcd.renderer import render_to
+    from cognia.lcd.renderer import render_to
     try:
         path = render_to(scene, "escena_lcd.png")
     except Exception as e:
@@ -619,7 +619,7 @@ def _escena_fisica(args, ctx):
     scene = _active(ctx)
     if scene is None:
         return "RESULTADO escena_fisica ERROR: no hay escena activa (usa escena_crear primero)"
-    from cognia_x.lcd.physics import physics_report, settle
+    from cognia.lcd.physics import physics_report, settle
     rep = settle(scene)
     chk = physics_report(scene)
     return (f"RESULTADO escena_fisica: asentada (iters={rep['iters']}, "

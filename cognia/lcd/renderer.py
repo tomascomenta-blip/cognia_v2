@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/renderer.py — Render APROXIMADO determinista (LCD, paper §4.1 mod 5).
+cognia/lcd/renderer.py — Render APROXIMADO determinista (LCD, paper §4.1 mod 5).
 
 Toma la escena estructurada y produce una imagen de baja fidelidad
 (rasterización de primitivas con sombreado simple según la luz). Es la etapa
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from cognia_x.lcd.scene import Scene
+from cognia.lcd.scene import Scene
 
 
 def _shade(color, factor):
@@ -45,7 +45,7 @@ def render(scene: Scene, labels: bool = True, scale: int = 1) -> Image.Image:
     # piso sutil (mitad inferior mas oscura) para dar suelo
     d.rectangle([0, int(H * 0.75), W, H], fill=_shade(scene.background, 0.92))
 
-    from cognia_x.lcd.detailed_shapes import detailed_drawer, draw_polygon
+    from cognia.lcd.detailed_shapes import detailed_drawer, draw_polygon
     for o in sorted(scene.objects, key=lambda o: o.z):
         cx, cy = o.x * W, o.y * H
         hw, hh = o.w * W / 2, o.h * H / 2

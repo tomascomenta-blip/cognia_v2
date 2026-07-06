@@ -7,16 +7,16 @@ tiene los objetos pedidos? Es el test de "puede el modelo hacer la etapa de
 planificación de LCD" — el paper propone un LLM ahí (LayoutGPT-like), y el
 patrón medido en corrida-1 (BFCL) es que el 3B necesita ejemplos concretos.
 
-Usage: venv312\\Scripts\\python.exe -m cognia_x.lcd.eval_llm_planner
+Usage: venv312\\Scripts\\python.exe -m cognia.lcd.eval_llm_planner
 """
 import json
 import sys
 from pathlib import Path
 
-from cognia_x.lcd.eval import SPECS
-from cognia_x.lcd.planner import plan, plan_with_llm
-from cognia_x.lcd.renderer import render_to
-from cognia_x.lcd.scene import SHAPES
+from cognia.lcd.eval import SPECS
+from cognia.lcd.planner import plan, plan_with_llm
+from cognia.lcd.renderer import render_to
+from cognia.lcd.scene import SHAPES
 
 OUT = Path(__file__).resolve().parent / "out"
 

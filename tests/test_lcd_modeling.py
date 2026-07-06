@@ -1,9 +1,9 @@
 """Regresion de las ops de modelado AI-nativas (Blender recreado): modeling.py
 puro + tools_modeling.py sobre la escena. Plan Blender->lapiz."""
-import cognia_x.lcd.tools_lcd as _lcd     # noqa: F401 -- registra base
-import cognia_x.lcd.tools_modeling as _mod  # noqa: F401 -- registra modeling
+import cognia.lcd.tools_lcd as _lcd     # noqa: F401 -- registra base
+import cognia.lcd.tools_modeling as _mod  # noqa: F401 -- registra modeling
 from cognia.agent.tools import TOOLS, run_tool
-from cognia_x.lcd import modeling
+from cognia.lcd import modeling
 
 
 def _ctx():
@@ -56,7 +56,7 @@ def test_inset_encoge_hacia_centro():
 
 
 def test_array_n_copias():
-    from cognia_x.lcd.scene import Obj
+    from cognia.lcd.scene import Obj
     o = Obj(name="banda", shape="rect", x=0.2, y=0.5, w=0.05, h=0.1)
     copias = modeling.array(o, 3, 0.1, 0.0)
     assert len(copias) == 3

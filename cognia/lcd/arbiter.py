@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/arbiter.py — ARBITRO AI-nativo de LCD (plan 12, Fase 1/3).
+cognia/lcd/arbiter.py — ARBITRO AI-nativo de LCD (plan 12, Fase 1/3).
 
 El aporte de investigacion del paper (§4.2): dado un fallo end-to-end en un
 pipeline heterogeneo, ATRIBUIR la falla a la etapa culpable y re-ejecutar SOLO
@@ -28,9 +28,9 @@ Concreto: funciones planas sobre la Scene ya existente; sin clases.
 """
 from __future__ import annotations
 
-from cognia_x.lcd.planner import _find_objects, _find_relation, _tokens
-from cognia_x.lcd.scene import Scene
-from cognia_x.lcd.tools_lcd import _relation_ok
+from cognia.lcd.planner import _find_objects, _find_relation, _tokens
+from cognia.lcd.scene import Scene
+from cognia.lcd.tools_lcd import _relation_ok
 
 STAGES = ("plan", "geometria", "render")
 
@@ -117,7 +117,7 @@ def eval_attribution(specs, stages=STAGES) -> dict:
     arbitro atribuye a la etapa correcta. Devuelve tasa de acierto global y la
     DISTRIBUCION de culpas (metrica de salud anti-colapso: si el arbitro culpa
     siempre a la misma etapa, aparece aca)."""
-    from cognia_x.lcd.planner import plan as _plan
+    from cognia.lcd.planner import plan as _plan
     total, correct = 0, 0
     confusion = {}                            # (true, pred) -> count
     culpas = {s: 0 for s in stages}

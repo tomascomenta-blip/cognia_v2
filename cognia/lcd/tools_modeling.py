@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/tools_modeling.py — Herramientas de MODELADO de Blender como tools
+cognia/lcd/tools_modeling.py — Herramientas de MODELADO de Blender como tools
 AI-nativas (ACCION), sobre los vertices del objeto activo. Recrea Edit Mode +
 modificadores confirmados por la investigacion (extrude/bevel/subdivide/inset/
 mirror/array/subsurf/ngon) como operaciones invocables por una IA.
@@ -11,8 +11,8 @@ base (rect/triangle -> vertices) para poder editar sus vertices.
 from __future__ import annotations
 
 from cognia.agent.tools import tool
-from cognia_x.lcd import modeling
-from cognia_x.lcd.tools_lcd import _active
+from cognia.lcd import modeling
+from cognia.lcd.tools_lcd import _active
 
 # poligono base por primitiva (coords locales -0.5..0.5) para poder editar
 # vertices de un objeto que arranco como rect/triangle/etc.
@@ -206,7 +206,7 @@ def _poligono(args, ctx):
       "escena_animar_caida [archivo.gif]  -- genera un GIF del lapiz cayendo del "
       "cielo y rebotando (dinamica real: gravedad + rebote + rotacion)")
 def _animar_caida(args, ctx):
-    from cognia_x.lcd.animation import render_fall_gif
+    from cognia.lcd.animation import render_fall_gif
     dest = args.strip() or "lapiz_rebote.gif"
     try:
         path = render_fall_gif(dest, frames=90)

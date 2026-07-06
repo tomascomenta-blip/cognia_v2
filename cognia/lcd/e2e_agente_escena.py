@@ -11,11 +11,11 @@ usando las herramientas AI-nativas de escena. Verifica que:
 Cada paso cierra con un CHECK explicito (metodo del repo). Usa el llama-server
 ya activo si lo hay.
 
-Usage: venv312\\Scripts\\python.exe -m cognia_x.lcd.e2e_agente_escena
+Usage: venv312\\Scripts\\python.exe -m cognia.lcd.e2e_agente_escena
 """
 import sys
 
-import cognia_x.lcd.tools_lcd as lcd_tools   # noqa: F401 -- registra las tools
+import cognia.lcd.tools_lcd as lcd_tools   # noqa: F401 -- registra las tools
 from cognia.agent.tools import TOOLS, run_tool
 
 

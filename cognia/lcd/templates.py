@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/templates.py — plantillas de escena reusables (LCD).
+cognia/lcd/templates.py — plantillas de escena reusables (LCD).
 
 Una plantilla es una funcion que arma una Scene con Obj concretos (sin pasar
 por el planner de lenguaje natural): sirve para arrancar de un tiro una escena
@@ -11,7 +11,7 @@ piso, y physics.settle() los haria caer al suelo por no tener ese concepto).
 """
 from __future__ import annotations
 
-from cognia_x.lcd.scene import COLORS, SHAPES, Obj, Scene
+from cognia.lcd.scene import COLORS, SHAPES, Obj, Scene
 
 
 def _obj(name: str, x: float, y: float, color: str = "gris", z: int = 0) -> Obj:

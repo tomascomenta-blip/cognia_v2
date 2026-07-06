@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/shading.py — Herramientas de SHADING procedural (analogo 2D del
+cognia/lcd/shading.py — Herramientas de SHADING procedural (analogo 2D del
 Principled BSDF + luces de Blender), para acercar el render a foto-realismo en CPU.
 
 Todo con PIL + numpy, determinista, sin GPU. Las piezas que mas suben la

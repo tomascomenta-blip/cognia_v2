@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/eval_selfplay.py — AUTO-PRUEBA e2e: la IA intenta reproducir
+cognia/lcd/eval_selfplay.py — AUTO-PRUEBA e2e: la IA intenta reproducir
 escenas objetivo con las tools reales de edicion y se mide el parecido.
 
 Corre tres agentes sobre un set de escenas objetivo y reporta la similitud:
@@ -13,19 +13,19 @@ Corre tres agentes sobre un set de escenas objetivo y reporta la similitud:
 
 Tambien benchmarkea render/fisica/similitud (el eje 'super optimizado').
 
-Uso: venv312\\Scripts\\python.exe -m cognia_x.lcd.eval_selfplay
+Uso: venv312\\Scripts\\python.exe -m cognia.lcd.eval_selfplay
 """
 from __future__ import annotations
 
 import sys
 import time
 
-import cognia_x.lcd.tools_lcd as _lcd   # noqa: F401 -- registra las tools base
+import cognia.lcd.tools_lcd as _lcd   # noqa: F401 -- registra las tools base
 
 
 def _targets():
     """Escenas objetivo (del planner de reglas: control conocido)."""
-    from cognia_x.lcd.planner import plan
+    from cognia.lcd.planner import plan
     prompts = [
         "a red cup on a blue table", "a green ball to the left of a yellow box",
         "a book on a table", "un plato sobre una mesa",
@@ -50,7 +50,7 @@ def _real_3b_agent(orch, target):
     en UNA pasada emite las ACCIONes de agregado (few-shot concreto). Se acota a
     tantas ACCIONes como objetos tenga el target (el 3B tiende a alucinar extras
     'asociados' — mesa->cuchillo/tenedor; el cap evita ese ruido)."""
-    from cognia_x.lcd.selfplay import _summary
+    from cognia.lcd.selfplay import _summary
     n = len(target.objects)
     prompt = (
         f"Agrega EXACTAMENTE estos {n} objetos a la escena, ni uno mas, UNA "
@@ -72,10 +72,10 @@ def _real_3b_agent(orch, target):
 
 
 def _bench():
-    from cognia_x.lcd.physics import settle
-    from cognia_x.lcd.renderer import render
-    from cognia_x.lcd.scene import Obj, Scene
-    from cognia_x.lcd.selfplay import similarity
+    from cognia.lcd.physics import settle
+    from cognia.lcd.renderer import render
+    from cognia.lcd.scene import Obj, Scene
+    from cognia.lcd.selfplay import similarity
 
     def big():
         objs = [Obj(name="mesa", shape="rect", x=0.5, y=0.3, w=0.55, h=0.12)]
@@ -107,7 +107,7 @@ def main():
         except Exception:
             pass
     from cognia.agent.tools import run_tool
-    from cognia_x.lcd.selfplay import attempt_reproduce, scripted_from_scene
+    from cognia.lcd.selfplay import attempt_reproduce, scripted_from_scene
 
     if "escena_agregar" not in __import__("cognia.agent.tools", fromlist=["TOOLS"]).TOOLS:
         print("[eval-selfplay] falta escena_agregar (tools de edicion no cargadas)", flush=True)

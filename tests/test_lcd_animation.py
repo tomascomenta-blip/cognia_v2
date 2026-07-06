@@ -1,8 +1,8 @@
-"""Regresion de la animacion de caida+rebote (cognia_x/lcd/animation.py):
+"""Regresion de la animacion de caida+rebote (cognia/lcd/animation.py):
 dinamica real (gravedad+rebote+rotacion) + sprite RGBA + ensamblado de GIF."""
 from pathlib import Path
 
-from cognia_x.lcd.animation import (
+from cognia.lcd.animation import (
     render_fall_gif, render_pencil_sprite, simulate_bounce,
 )
 

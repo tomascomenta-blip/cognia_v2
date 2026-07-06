@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/exporters.py — Export/import de la escena LCD (paper §8: la
+cognia/lcd/exporters.py — Export/import de la escena LCD (paper §8: la
 escena estructurada es portable, no queda atrapada en el pipeline).
 
 scene.to_json()/Scene.from_json() YA cubren el formato JSON (scene.py); este
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cognia_x.lcd.scene import Scene
+from cognia.lcd.scene import Scene
 
 
 def _svg_shape(o, w_px: float, h_px: float) -> str:

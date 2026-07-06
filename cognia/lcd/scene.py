@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/scene.py — Representación de escena ESTRUCTURADA (LCD, paper §5).
+cognia/lcd/scene.py — Representación de escena ESTRUCTURADA (LCD, paper §5).
 
 El núcleo de LCD+MOM: en vez de píxeles, el sistema mantiene una escena
 estructurada (objetos con posición/tamaño/material + relaciones; cámara y luz

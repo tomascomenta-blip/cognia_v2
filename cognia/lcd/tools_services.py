@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/tools_services.py — Herramientas AI-NATIVAS de SERVICIO para LCD.
+cognia/lcd/tools_services.py — Herramientas AI-NATIVAS de SERVICIO para LCD.
 
 Tres servicios sobre la escena estructurada (scene.py) que tools_lcd.py no
 cubre: export/import a archivo (exporters.py), undo/redo (history.py) y
@@ -14,10 +14,10 @@ from __future__ import annotations
 import re as _re
 
 from cognia.agent.tools import tool
-from cognia_x.lcd.exporters import export_scene, import_scene_json
-from cognia_x.lcd.history import SceneHistory
-from cognia_x.lcd.templates import get_template, list_templates
-from cognia_x.lcd.tools_lcd import _active, _scenes
+from cognia.lcd.exporters import export_scene, import_scene_json
+from cognia.lcd.history import SceneHistory
+from cognia.lcd.templates import get_template, list_templates
+from cognia.lcd.tools_lcd import _active, _scenes
 
 
 def _history(ctx) -> SceneHistory:

@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/planner.py — Módulo de PLANIFICACIÓN (LCD, paper §4.1 mod 1).
+cognia/lcd/planner.py — Módulo de PLANIFICACIÓN (LCD, paper §4.1 mod 1).
 
 Prompt textual -> escena estructurada (objetos + posiciones + relaciones). Es
 la primera etapa del pipeline LCD: decidir QUÉ hay y DÓNDE antes de tocar
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 
-from cognia_x.lcd.scene import COLORS, SHAPES, Obj, Scene
+from cognia.lcd.scene import COLORS, SHAPES, Obj, Scene
 
 _REL = {
     "on": "on", "sobre": "on", "encima": "on",

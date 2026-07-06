@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/modeling.py — Operaciones de MODELADO de Blender recreadas como
+cognia/lcd/modeling.py — Operaciones de MODELADO de Blender recreadas como
 AI-nativas, sobre la lista de vertices de un poligono (Obj.points, coords
 locales [-0.5,0.5]).
 

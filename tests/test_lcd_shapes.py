@@ -1,11 +1,11 @@
 """Regresion de figuras detalladas + edicion de vertices/figuras (plan 12 pulido).
 Verifica que la taza/mesa/plato tienen drawer detallado, el polygon dibuja desde
 vertices custom, y las tools escena_forma/escena_vertices editan la figura."""
-import cognia_x.lcd.tools_lcd as _lcd   # noqa: F401 -- registra las tools
+import cognia.lcd.tools_lcd as _lcd   # noqa: F401 -- registra las tools
 from cognia.agent.tools import TOOLS, run_tool
-from cognia_x.lcd.detailed_shapes import DETAILED, detailed_drawer
-from cognia_x.lcd.renderer import render
-from cognia_x.lcd.scene import Obj, Scene
+from cognia.lcd.detailed_shapes import DETAILED, detailed_drawer
+from cognia.lcd.renderer import render
+from cognia.lcd.scene import Obj, Scene
 
 
 def _ctx():
@@ -90,7 +90,7 @@ def test_lapiz_tiene_figura_detallada():
 
 
 def test_cylinder_gradient_da_volumen():
-    from cognia_x.lcd.shading import cylinder_gradient
+    from cognia.lcd.shading import cylinder_gradient
     import numpy as np
     patch = cylinder_gradient((240, 195, 40), 40, 20, axis="y")
     arr = np.array(patch)
@@ -101,7 +101,7 @@ def test_cylinder_gradient_da_volumen():
 
 
 def test_specular_streak_tiene_pico():
-    from cognia_x.lcd.shading import specular_streak
+    from cognia.lcd.shading import specular_streak
     import numpy as np
     st = specular_streak(20, 40, pos=0.3, width=0.08, axis="y")
     alpha = np.array(st)[:, 10, 3]

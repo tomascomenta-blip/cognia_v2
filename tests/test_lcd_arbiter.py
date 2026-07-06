@@ -1,14 +1,14 @@
 """
-Regresion del arbitro AI-nativo de LCD (cognia_x/lcd/arbiter.py + tools
+Regresion del arbitro AI-nativo de LCD (cognia/lcd/arbiter.py + tools
 atribuir_fallo/reejecutar_etapa): atribucion por etapa cero-LLM con fallos
 inyectados como ground-truth. Plan 12, Fase 1/3 (el aporte de investigacion).
 """
-import cognia_x.lcd.tools_lcd as _lcd   # noqa: F401 -- registra las tools
+import cognia.lcd.tools_lcd as _lcd   # noqa: F401 -- registra las tools
 from cognia.agent.tools import run_tool, TOOLS
-from cognia_x.lcd.arbiter import (
+from cognia.lcd.arbiter import (
     attribute_scene_failure, eval_attribution, inject_fault,
 )
-from cognia_x.lcd.planner import plan
+from cognia.lcd.planner import plan
 
 SPECS = [
     "a red cup on a blue table", "una taza roja sobre una mesa azul",

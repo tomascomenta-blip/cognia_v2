@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/eval.py — Protocolo de evaluación mínimo del pipeline LCD.
+cognia/lcd/eval.py — Protocolo de evaluación mínimo del pipeline LCD.
 
 Testea las DOS propiedades que el paper (§8.1, §8.2) señala como el
 diferenciador de LCD frente a difusión monolítica, y que SÍ se pueden medir en
@@ -21,9 +21,9 @@ import json
 import sys
 from pathlib import Path
 
-from cognia_x.lcd.planner import plan
-from cognia_x.lcd.renderer import render_to
-from cognia_x.lcd.scene import Scene
+from cognia.lcd.planner import plan
+from cognia.lcd.renderer import render_to
+from cognia.lcd.scene import Scene
 
 OUT = Path(__file__).resolve().parent / "out"
 

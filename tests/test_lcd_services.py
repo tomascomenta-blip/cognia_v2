@@ -1,5 +1,5 @@
 """
-Regresion de los servicios AI-nativos de LCD (cognia_x/lcd/exporters.py,
+Regresion de los servicios AI-nativos de LCD (cognia/lcd/exporters.py,
 history.py, templates.py, tools_services.py): export/import SVG+JSON,
 undo/redo por escena, plantillas listas, y las tools ACCION que los exponen.
 """
@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-import cognia_x.lcd.tools_lcd as lcd_tools          # noqa: F401 -- registra escena_crear/etc
-import cognia_x.lcd.tools_services as svc_tools     # noqa: F401 -- registra las tools de servicio
+import cognia.lcd.tools_lcd as lcd_tools          # noqa: F401 -- registra escena_crear/etc
+import cognia.lcd.tools_services as svc_tools     # noqa: F401 -- registra las tools de servicio
 from cognia.agent.tools import TOOLS, run_tool
-from cognia_x.lcd.exporters import export_scene, import_scene_json, scene_to_svg
-from cognia_x.lcd.history import SceneHistory
-from cognia_x.lcd.scene import Obj, Scene
-from cognia_x.lcd.templates import get_template, list_templates
-from cognia_x.lcd.tools_services import load_service_tools
+from cognia.lcd.exporters import export_scene, import_scene_json, scene_to_svg
+from cognia.lcd.history import SceneHistory
+from cognia.lcd.scene import Obj, Scene
+from cognia.lcd.templates import get_template, list_templates
+from cognia.lcd.tools_services import load_service_tools
 
 
 def _ctx():

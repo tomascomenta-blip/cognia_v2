@@ -1,14 +1,14 @@
 """
 Regresion de las tools AI-nativas de EDICION TOTAL de LCD
-(cognia_x/lcd/tools_lcd.py): agregar/quitar/duplicar/mover/rotar/escalar/
+(cognia/lcd/tools_lcd.py): agregar/quitar/duplicar/mover/rotar/escalar/
 material/capa/camara/luz/fondo/alinear/distribuir/relacionar/fisica.
 Plan 12 (herramientas virtuales para IAs) — misma familia que test_lcd_tools.py
 (escena_crear/editar/consultar), ahora con la escena ya viva.
 """
-import cognia_x.lcd.tools_lcd as lcd_tools   # noqa: F401 -- registra las tools
+import cognia.lcd.tools_lcd as lcd_tools   # noqa: F401 -- registra las tools
 from cognia.agent.tools import run_tool, TOOLS
-from cognia_x.lcd.physics import physics_report
-from cognia_x.lcd.tools_lcd import _relation_ok
+from cognia.lcd.physics import physics_report
+from cognia.lcd.tools_lcd import _relation_ok
 
 
 def _ctx():

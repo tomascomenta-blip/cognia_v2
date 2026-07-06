@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/history.py — undo/redo por escena (snapshots de la escena LCD).
+cognia/lcd/history.py — undo/redo por escena (snapshots de la escena LCD).
 
 Pila de snapshots JSON (via scene.to_json(); Scene.from_json() los reconstruye
 al volver), no diffs: simple, determinista, y barato porque las escenas son
@@ -11,7 +11,7 @@ arriba (el anterior); redo() hace el camino inverso.
 """
 from __future__ import annotations
 
-from cognia_x.lcd.scene import Scene
+from cognia.lcd.scene import Scene
 
 DEFAULT_MAX = 30
 

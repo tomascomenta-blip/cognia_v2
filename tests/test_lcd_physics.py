@@ -1,11 +1,11 @@
 """
-Regresion de la fisica local determinista de LCD (cognia_x/lcd/physics.py):
+Regresion de la fisica local determinista de LCD (cognia/lcd/physics.py):
 gravedad/soporte, colision/no-overlap, apilamiento, estabilidad. Sin GPU.
 """
-from cognia_x.lcd.physics import (
+from cognia.lcd.physics import (
     GROUND, is_stable, physics_report, settle, support_of,
 )
-from cognia_x.lcd.scene import Obj, Scene
+from cognia.lcd.scene import Obj, Scene
 
 
 def _obj(name, x, y, w=0.12, h=0.12, shape="rect"):

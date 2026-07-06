@@ -1,12 +1,12 @@
 """
-Regresion de las herramientas AI-nativas de LCD (cognia_x/lcd/tools_lcd.py):
+Regresion de las herramientas AI-nativas de LCD (cognia/lcd/tools_lcd.py):
 escena_crear/editar/consultar/render_aprox como tools ACCION con oraculo cero-LLM.
 Plan 12 (herramientas virtuales para IAs), Fase 0/1.
 """
-import cognia_x.lcd.tools_lcd as lcd_tools   # noqa: F401 -- registra las tools
+import cognia.lcd.tools_lcd as lcd_tools   # noqa: F401 -- registra las tools
 from cognia.agent.tools import run_tool, TOOLS
-from cognia_x.lcd.planner import plan
-from cognia_x.lcd.tools_lcd import control_check
+from cognia.lcd.planner import plan
+from cognia.lcd.tools_lcd import control_check
 
 
 def _ctx():

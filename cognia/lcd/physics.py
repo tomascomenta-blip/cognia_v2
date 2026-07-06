@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/physics.py — FISICA local determinista para la escena LCD.
+cognia/lcd/physics.py — FISICA local determinista para la escena LCD.
 
 Hace que la escena estructurada sea FISICAMENTE PLAUSIBLE sin motor pesado ni
 GPU: gravedad (los objetos se asientan sobre su soporte, no flotan), soporte/
@@ -19,7 +19,7 @@ borde inferior toca el suelo o el borde superior de un soporte debajo.
 """
 from __future__ import annotations
 
-from cognia_x.lcd.scene import DENSITY, FLOATING, Scene
+from cognia.lcd.scene import DENSITY, FLOATING, Scene
 
 GROUND = 1.0            # borde inferior del canvas (el suelo)
 _EPS = 1e-4

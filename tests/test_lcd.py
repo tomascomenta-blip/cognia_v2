@@ -3,10 +3,10 @@ Regresion del pipeline mínimo LCD (corrida-2 tarea 5): plan -> escena -> render
 Determinista, sin modelo. Fija las 2 propiedades del paper que se demuestran en
 CPU: control composicional exacto (§8.1) y editabilidad selectiva (§8.2).
 """
-from cognia_x.lcd.planner import plan
-from cognia_x.lcd.renderer import render
-from cognia_x.lcd.scene import Scene
-from cognia_x.lcd.eval import eval_compositional, eval_editability
+from cognia.lcd.planner import plan
+from cognia.lcd.renderer import render
+from cognia.lcd.scene import Scene
+from cognia.lcd.eval import eval_compositional, eval_editability
 
 
 def test_plan_dos_objetos_relacion():

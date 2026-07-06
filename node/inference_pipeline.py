@@ -31,7 +31,14 @@ from typing import Optional, List, Dict
 logger = logging.getLogger(__name__)
 
 
-COORDINATOR_URL  = (
+# COGNIA_DISABLE_SWARM: hard-off de la orquestacion online (version comercial
+# local-only). Si esta seteado, la URL del coordinador se fuerza a "" AUNQUE las
+# env vars de coordinador esten definidas -> ningun camino de generacion se rutea
+# al swarm; todo corre con el modelo local. Inline (sin importar cognia) para no
+# crear dependencia circular node<->cognia en el import de este modulo.
+_SWARM_DISABLED = os.environ.get("COGNIA_DISABLE_SWARM", "").strip().lower() in (
+    "1", "true", "yes", "on")
+COORDINATOR_URL  = "" if _SWARM_DISABLED else (
     os.environ.get("COGNIA_COORDINATOR_URL", "")
     or os.environ.get("COORDINATOR_URL", "")
 )

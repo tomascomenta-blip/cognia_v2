@@ -7283,11 +7283,11 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # Herramientas AI-nativas de LCD (escena estructurada; plan 12). Best-effort:
     # importar el modulo registra las tools via el @tool decorator.
     try:
-        from cognia_x.lcd.tools_lcd import load_lcd_tools
+        from cognia.lcd.tools_lcd import load_lcd_tools
         _n_lcd = load_lcd_tools()
-        from cognia_x.lcd.tools_services import load_service_tools
+        from cognia.lcd.tools_services import load_service_tools
         _n_lcd += load_service_tools()
-        from cognia_x.lcd.tools_modeling import load_modeling_tools
+        from cognia.lcd.tools_modeling import load_modeling_tools
         _n_lcd += load_modeling_tools()
         if _n_lcd:
             _print_fn(f"[detail]{_n_lcd} herramienta(s) de escena LCD disponibles[/detail]")

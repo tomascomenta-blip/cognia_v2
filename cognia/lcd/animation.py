@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/animation.py — ANIMACION: dinamica de caida + rebote de un objeto
+cognia/lcd/animation.py — ANIMACION: dinamica de caida + rebote de un objeto
 LCD, renderizada cuadro a cuadro a un GIF. Determinista, CPU, sin GPU.
 
 A diferencia de physics.settle() (resuelve un estado de REPOSO), aca hay
@@ -52,7 +52,7 @@ def simulate_bounce(frames=60, y0=0.06, floor=0.80, gravity=0.0042,
 def render_pencil_sprite(w_px, h_px, color=(240, 195, 40), scale=3) -> Image.Image:
     """Sprite RGBA del lapiz (transparente, SIN sombra de suelo), para rotarlo y
     pegarlo por frame. Renderiza a scale x y baja con LANCZOS (anti-aliasing)."""
-    from cognia_x.lcd.detailed_shapes import draw_pencil
+    from cognia.lcd.detailed_shapes import draw_pencil
 
     W, H = int(w_px * scale), int(h_px * scale)
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))

@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/selfplay.py — AUTO-PRUEBAS de la herramienta AI-nativa de escena.
+cognia/lcd/selfplay.py — AUTO-PRUEBAS de la herramienta AI-nativa de escena.
 
 Lo que el dueño pidio: "puedes hacer pruebas incluso TU misma intentando hacer
 cosas y evaluar que tanto se parecen". Este modulo da (1) una METRICA de
@@ -22,7 +22,7 @@ Determinista, O(n^2) en objetos (escenas chicas). Sin red neuronal.
 """
 from __future__ import annotations
 
-from cognia_x.lcd.scene import Scene
+from cognia.lcd.scene import Scene
 
 
 def _iou(a, b) -> float:
@@ -51,7 +51,7 @@ def _match_objects(a: Scene, b: Scene):
     'mesa'=='table') y cercania de posicion. Devuelve (pares, sin_a, sin_b).
     Greedy: para cada objeto de a busca el objeto libre de b del mismo tipo mas
     cercano. Asi la similitud no penaliza que el modelo traduzca los nombres."""
-    from cognia_x.lcd.scene import canonical_name
+    from cognia.lcd.scene import canonical_name
     libres_b = list(b.objects)
     pares, sin_a = [], []
     for oa in a.objects:
@@ -69,7 +69,7 @@ def _match_objects(a: Scene, b: Scene):
 def _relations(scene: Scene):
     """Relaciones espaciales IMPLICITAS entre cada par de objetos (por sus
     posiciones): {(tipo_a, tipo_b): set(relaciones)}. Cero-LLM, del layout."""
-    from cognia_x.lcd.scene import canonical_name
+    from cognia.lcd.scene import canonical_name
     rels = {}
     objs = scene.objects
     for a in objs:
@@ -169,7 +169,7 @@ def scripted_from_scene(target: Scene):
     target exactamente (escena_crear vacio + escena_agregar por objeto con su
     pos/color). Sirve de test de techo: reproduce -> similitud ~1.0. Es la
     'prueba que yo misma hago' automatizada (una politica que arma la escena)."""
-    from cognia_x.lcd.scene import COLORS
+    from cognia.lcd.scene import COLORS
     # nombre de color inverso (RGB -> nombre) para emitir args legibles
     rgb_to_name = {}
     for n, rgb in COLORS.items():

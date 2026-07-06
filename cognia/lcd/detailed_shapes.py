@@ -1,5 +1,5 @@
 """
-cognia_x/lcd/detailed_shapes.py — Figuras DETALLADAS (multi-parte) para el render.
+cognia/lcd/detailed_shapes.py — Figuras DETALLADAS (multi-parte) para el render.
 
 El render base dibuja primitivas (rect/ellipse/circle/triangle): una 'taza' salia
 como una elipse, que no se parece a una taza. Aca cada objeto conocido se dibuja
@@ -119,7 +119,7 @@ def draw_pencil(d, cx, cy, hw, hh, color, shade, img=None, shadow=True):
     shadow=False -> sin la sombra de suelo (para renderizar el sprite a rotar)."""
     from PIL import Image, ImageDraw, ImageFilter
 
-    from cognia_x.lcd.shading import (cylinder_gradient, paste_shaded,
+    from cognia.lcd.shading import (cylinder_gradient, paste_shaded,
                                        specular_streak)
     body_col = color if color != (150, 150, 150) else (240, 195, 40)  # amarillo lapiz
 
@@ -266,5 +266,5 @@ DETAILED = {
 
 def detailed_drawer(name: str):
     """Drawer detallado para un objeto (por su nombre canonico), o None."""
-    from cognia_x.lcd.scene import canonical_name
+    from cognia.lcd.scene import canonical_name
     return DETAILED.get(canonical_name(name))

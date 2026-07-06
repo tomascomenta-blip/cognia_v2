@@ -1,10 +1,10 @@
 """
-Regresion del harness de AUTO-PRUEBAS de escena (cognia_x/lcd/selfplay.py):
+Regresion del harness de AUTO-PRUEBAS de escena (cognia/lcd/selfplay.py):
 metrica de similitud + motor 'un agente intenta reproducir la escena objetivo'.
 """
-from cognia_x.lcd.planner import plan
-from cognia_x.lcd.scene import Obj, Scene
-from cognia_x.lcd.selfplay import (
+from cognia.lcd.planner import plan
+from cognia.lcd.scene import Obj, Scene
+from cognia.lcd.selfplay import (
     attempt_reproduce, scripted_from_scene, similarity,
 )
 
@@ -52,9 +52,9 @@ def test_attempt_reproduce_con_runtool_mock():
     scripted reproduce el target -> similitud alta. Prueba el LAZO sin depender
     de las tools reales de edicion (que estan en otro archivo)."""
     import re
-    from cognia_x.lcd.scene import SHAPES
+    from cognia.lcd.scene import SHAPES
 
-    from cognia_x.lcd.scene import COLORS
+    from cognia.lcd.scene import COLORS
 
     def mock_run_tool(name, args, ctx):
         scene = ctx["working_memory"]["_lcd_scene"]["escena"]
