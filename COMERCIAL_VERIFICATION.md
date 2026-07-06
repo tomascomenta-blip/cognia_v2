@@ -67,13 +67,18 @@ aislar una DB de test.
   como SKIP_MODEL (no ejercitadas punta-a-punta con el 3B en esta pasada).
 - **Model-agnóstico ≠ paridad de calidad.** Un modelo distinto corre el mismo
   andamiaje pero puede rendir distinto; se verificó que CORRE, no que iguala al 3B.
-- **Inferencia del usuario fresco (last mile):** el pip trae el CÓDIGO de los 3 caminos
-  de inferencia (shards numpy INT4, binding `llama-cpp-python`, cliente llama-server),
-  pero NO el binario `llama-server.exe` ni los pesos. Caminos: (1) el wizard descarga
-  **shards numpy** → inferencia en Python puro **sin binario** (default fresh, más
-  lento); (2) `pip install "cognia-ai[llama]"` → **llama.cpp via pip**; (3) llama-server
-  + GGUF (más rápido). Los smokes de este reporte usaron el path GGUF (rápido); el path
-  numpy-shards NO se ejercitó punta-a-punta en esta pasada (código empaquetado + shards
-  presentes en la máquina de dev, pero sin smoke dedicado).
+- **Inferencia del usuario fresco (last mile) — los 3 caminos VERIFICADOS:**
+  (1) **shards numpy INT4** — el wizard los descarga; inferencia en **Python puro, sin
+  binario ni compilador**. **VERIFICADO:** `orch.infer('Hola')` con shards y sin GGUF →
+  `'¡Hola!'`. Es el camino que "just works" en cualquier plataforma (más lento). Este
+  es el **default del fresh user**.
+  (2) **`cognia-ai[llama]` (`llama-cpp-python`)** — rápido, pero **necesita un wheel
+  prebuilt o un compilador C++**. **VERIFICADO que FALLA** en Windows+py3.12 sin
+  compilador (`CMAKE_CXX_COMPILER not set`). Válido donde hay wheel/compilador (Linux/
+  macOS suelen tener wheel).
+  (3) **llama-server + GGUF** — el más rápido en CPU; requiere el binario. **VERIFICADO**
+  (todos los smokes 3B y el model-agnóstico usaron este path).
+  El pip trae el CÓDIGO de los 3; no trae el binario `llama-server.exe` ni los pesos
+  (el wizard descarga los pesos).
 - **3 fallos de pytest** en `test_cli_memory_injection.py` son de AISLAMIENTO (pasan
   6/6 en solitario), no bugs de producto.
