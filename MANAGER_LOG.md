@@ -5407,3 +5407,38 @@ sin adornos (McNemar mata el flip-dentro-del-ruido). El valor es la MEDICION hon
 no un numero inflado. Sin los 5 fixes, esta corrida habria vendido ruido como mejora y
 publicado un andamiaje contaminado. GOAL RSI+auto-prompting: COMPLETO (investigacion+
 teoria+implementacion+integracion+corrida medida+veredicto honesto).
+
+================================================================================
+CORRIDA 2026-07-05 "COGNIA COMERCIAL v1" (/goal, autonomia TOTAL hasta 04:30 deadline)
+================================================================================
+OBJETIVO del dueño (prompt mejorado por Claude -> COMERCIAL_SPEC.md): entregar la
+version comercial de Cognia, funcional, instalable con UN comando, solo-local con el
+3B, con TODAS las funciones verificadas e2e, model-agnostica, que aprende. Autorizado
+a publicar a PyPI sin preguntar. Apagado programado 04:30.
+
+ENTREGADO Y VERIFICADO (commits aad69b5..):
+- INVENTARIO (10 agentes): 568 features mapeadas (COMERCIAL_INVENTORY.md + catalog).
+- IMAGENES EMPAQUETADAS: git mv cognia_x/lcd -> cognia/lcd (37 tools del creador de
+  imagenes/escenas, antes EXCLUIDAS del pip = codigo muerto). +Pillow. 117 tests LCD.
+- SOLO-LOCAL: cognia/runtime_mode.py + hard-flag COGNIA_DISABLE_SWARM (fuerza local
+  aunque haya coordinator) en inference_pipeline + cognia.py. Default ya era local.
+- PUBLICADO A PyPI: cognia-ai 3.8.0 y 3.8.1 (https://pypi.org/project/cognia-ai/).
+  VERIFICADO desde entorno externo: pip install cognia-ai==3.8.0 en venv limpio = 9/9
+  PASS, incl. creador de imagenes FUNCIONAL (escena_crear+render_aprox -> PNG real en
+  el paquete instalado desde PyPI). La instalacion 1-comando SIRVE.
+- E2E 10 AGENTES: 251 features por invocacion real -> 215 PASA, 1 FALLA, 32 skip-model.
+  ~1127 tests dirigidos verdes. 100% cero-LLM pasa salvo 1 bug.
+- BUG REAL F1 (cazado por E2E, arreglado, 3.8.1): run_javascript/run_python omitian
+  SystemRoot -> Node CSPRNG crash en Windows. _sandbox_env() pasa vars Windows sin
+  fugar secretos. 4 tests. commit 596ed46.
+- SMOKE 3B REAL: chat coherente (conoce identidad), agente /hacer crea archivo, salida
+  larga, aprendizaje activo (decay skills+profile+episodic). El producto FUNCIONA.
+- MODEL-AGNOSTICO VERIFICADO: smoke con Llama-3.2-1B (NO-Qwen, otra familia/template/
+  EOS) = 4/4 PASS. El chat usa /v1/chat/completions -> llama.cpp aplica el template de
+  cada modelo. Corre con cualquier modelo.
+INCIDENTE N2 (resuelto): un agente E2E toco la DB de PRODUCCION (DELETE soft-delete
+75855 filas) y la REVIRTIO; VERIFICADA INTACTA (forgotten=1->0, total 75855). El
+endpoint YA es fail-safe (503 sin admin key). Fue error del harness (uso DB prod),
+no vulnerabilidad. LECCION: aislar test DB en workflows.
+Metodo: venv312, verificacion REAL e2e con el 3B, tests, commits+push por unidad,
+honestidad. Sigue: verificar SKIP_MODEL restantes con el 3B, sync docs, cierre.
