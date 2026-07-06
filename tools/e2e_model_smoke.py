@@ -40,6 +40,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", default=None)
     ap.add_argument("--max-tokens", type=int, default=96)
+    ap.add_argument("--gguf", default=None,
+                    help="ruta a un GGUF alternativo (test model-agnostico); default = 3B")
     args = ap.parse_args()
 
     results = {"checks": []}
@@ -49,17 +51,29 @@ def main() -> int:
         print(f"\n[{'PASS' if ok else 'FALLA'}] {name}\n  {str(detail)[:500]}", flush=True)
         return ok
 
-    # 1) Backend real (3B, solo-local)
+    # 1) Backend real (3B, solo-local). Usa el MISMO path del producto:
+    #    ShatteringOrchestrator(manifest_path=cognia_qwen.json, mode=local) + _try_load_llama.
     import os
     os.environ.setdefault("COGNIA_DISABLE_SWARM", "1")   # smoke = local-only duro
+    # elegir el modelo: --gguf (test model-agnostico) o el 3B por default.
+    _gguf = Path(args.gguf) if args.gguf else Path(
+        "model_shards/qwen-coder-3b-q4/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf")
+    if _gguf.exists():
+        os.environ["LLAMA_GGUF_PATH"] = str(_gguf.resolve())
     try:
         from shattering.orchestrator import ShatteringOrchestrator
-        orch = ShatteringOrchestrator(mode="local")
-        loaded = orch._try_load_llama()
-        gguf = getattr(orch, "_gguf_name", None) or getattr(orch, "gguf_name", "?")
-        check("backend 3B carga (solo-local)", bool(loaded), f"gguf={gguf} loaded={loaded}")
+        manifest = str(Path("shattering/manifests/cognia_qwen.json").resolve())
+        orch = ShatteringOrchestrator(manifest_path=manifest, mode="local")
+        orch._try_load_llama()
+        # _try_load_llama no devuelve nada -> verificar con un infer minimo real
+        probe = orch.infer("Responde solo: OK", max_tokens=8, temperature=0.0)
+        ptxt = (getattr(probe, "text", None) or str(probe)).strip()
+        check("backend 3B carga y responde (solo-local)", len(ptxt) > 0,
+              f"gguf={os.environ.get('LLAMA_GGUF_PATH','?').split(os.sep)[-1]} probe={ptxt[:60]!r}")
     except Exception as e:
-        check("backend 3B carga (solo-local)", False, f"{type(e).__name__}: {e}")
+        import traceback
+        check("backend 3B carga y responde (solo-local)", False,
+              f"{type(e).__name__}: {e}\n{traceback.format_exc()[-300:]}")
         _finish(results, args); return 2
 
     # 2) Chat
@@ -83,12 +97,18 @@ def main() -> int:
             ai = None
         if ai is not None:
             ai._orchestrator = orch
-        workdir = Path(tempfile.mkdtemp(prefix="cognia_e2e_"))
+        # DENTRO del workspace del agente (cwd): el sandbox (correctamente) bloquea
+        # escrituras fuera del workspace, asi que el target debe ser relativo al cwd.
+        workdir = Path.cwd() / "_e2e_smoke_out"
+        workdir.mkdir(exist_ok=True)
         target = workdir / "saludo.txt"
+        if target.exists():
+            target.unlink()
         logs = []
         t0 = time.time()
         out = _run_agent_task(
-            ai, f"Escribi un archivo en {target} con el texto: hola mundo",
+            ai, "Escribi un archivo en la ruta _e2e_smoke_out/saludo.txt "
+                "con el texto exacto: hola mundo",
             _print_fn=lambda *a, **k: logs.append(" ".join(str(x) for x in a)),
             max_steps=6)
         wrote = target.exists()
