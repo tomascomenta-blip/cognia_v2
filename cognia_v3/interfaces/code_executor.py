@@ -364,6 +364,31 @@ def validate_generated_module_imports(code: str) -> tuple[bool, list[str]]:
     return (len(offending) == 0, offending)
 
 
+def _sandbox_env(extra: dict = None) -> dict:
+    """Env MINIMO para el subprocess sandboxeado (no filtra el entorno del proceso
+    padre -> no fuga secretos). Incluye los vars de sistema que WINDOWS EXIGE para
+    inicializar el CSPRNG: sin `SystemRoot`, Node/OpenSSL crashea con
+    'Assertion failed: ncrypto::CSPRNG' y Python os.urandom tambien puede fallar
+    (ambos usan CryptGenRandom, que necesita %SystemRoot%\\System32). En POSIX esos
+    vars no existen y simplemente se omiten (sin efecto)."""
+    env = {
+        "PATH":   os.environ.get("PATH", "/usr/bin:/bin"),
+        "HOME":   tempfile.gettempdir(),
+        "TMPDIR": tempfile.gettempdir(),
+        "TERM":   "dumb",
+    }
+    # Windows: pasar SOLO los vars de sistema imprescindibles (crypto/temp/cpu),
+    # nunca el entorno completo (que traeria tokens/claves del padre).
+    for k in ("SystemRoot", "SystemDrive", "windir", "TEMP", "TMP", "PATHEXT",
+              "NUMBER_OF_PROCESSORS"):
+        v = os.environ.get(k)
+        if v:
+            env[k] = v
+    if extra:
+        env.update(extra)
+    return env
+
+
 def run_python(code: str, timeout: int = None) -> ExecutionResult:
     """
     Ejecuta código Python en subprocess aislado.
@@ -409,13 +434,7 @@ def run_python(code: str, timeout: int = None) -> ExecutionResult:
             [sys.executable, tmp_file],
             capture_output=True, text=True,
             timeout=timeout,
-            env={
-                "PATH":       os.environ.get("PATH", "/usr/bin:/bin"),
-                "PYTHONPATH": "",
-                "HOME":       tempfile.gettempdir(),
-                "TMPDIR":     tempfile.gettempdir(),
-                "TERM":       "dumb",
-            },
+            env=_sandbox_env({"PYTHONPATH": ""}),
         )
         elapsed = (time.perf_counter() - t0) * 1000
         stdout  = (proc.stdout or "")[:MAX_OUTPUT_CHARS]
@@ -529,11 +548,7 @@ def run_javascript(code: str, timeout: int = None) -> ExecutionResult:
             [node_path, tmp_file],
             capture_output=True, text=True,
             timeout=timeout,
-            env={
-                "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-                "HOME": tempfile.gettempdir(),
-                "TERM": "dumb",
-            },
+            env=_sandbox_env(),
         )
         elapsed = (time.perf_counter() - t0) * 1000
         stdout  = (proc.stdout or "")[:MAX_OUTPUT_CHARS]
