@@ -5467,3 +5467,24 @@ revirtio; verificada intacta. Leccion: aislar test DB en workflows.
 Metodo: venv312, verificacion REAL e2e con el 3B, commits+push por unidad (corte a
 04:30 seguro), honestidad (limites declarados), sin gastar dinero, sin filtrar
 secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programado.
+
+## 2026-07-06 — GOAL COGNIA 3B: teoría + arranque experimental (sesión Fable 5)
+
+- **Goal nuevo** (dueño, /goal): teoría profunda para entrenar un 3B en Kaggle T4 manteniendo
+  calidad → probar métodos → producir **cognia-3b**. Directiva adicional del dueño: delegar
+  workflows al modelo acorde a la dificultad de la tarea.
+- **Teoría** (`cognia_v3/training/cognia3b/TEORIA_COGNIA3B.md`): construida con workflow de
+  7 autores + 3 verificadores adversariales (40 findings, 3 críticos corregidos: gates
+  duplicados, merge sobre base equivocada, benchmarks Qwen3-4B en disputa). Decisiones
+  congeladas DC-1..11: base = Qwen2.5-Coder-3B-Instruct (caveat licencia research → v1 no
+  comercial; SmolLM3-3B candidata limpia v2), topología secuencial-con-merge, gates canónicos
+  con potencia medida (mcnemar_power.py: N=10 detecta +30pp solo 5.5% → jamás gate).
+- **Hechos medidos** (`HECHOS_MEDIDOS.md`): el 3B ya se entrenó 3× con QLoRA en Kaggle T4;
+  ancla 424 tok/s (p2k2). Pretraining desde cero = infactible (10 años de cuota, con números).
+- **E0 v1 CORRIÓ en Kaggle** (16.9 min): control 540 tok/s (ancla validada), **Unsloth
+  funciona en T4/sm_75** (647-655 tok/s, 5.1 GB, ~1.24×), paged8bit −1.5 GB, mb8 OOM por
+  logits fp32 (predicho por la teoría), cognia_dataset 4% utilización padded → packing
+  existencial. 2 bugs de diseño corregidos → **E0b (kernel v2) corriendo** (single-GPU
+  forzado, ciclado de lotes, grupo GC-off, brazos unsloth packed).
+- Commits: 5cb84c4 (mcnemar+test), 350f686 (hechos+kernel E0), 5760493 (E0 v1+kernel v2).
+  Incidente: sintetizador fable murió por límite de sesión → re-delegado a 8 agentes sonnet.
