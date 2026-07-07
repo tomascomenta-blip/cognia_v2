@@ -91,6 +91,9 @@ def test_server_api(tmp_path):
         # dashboard
         html = urllib.request.urlopen(base + "/").read().decode("utf-8")
         assert "Oficina Cognia" in html
+        # deep-link con query string sirve el dashboard, no un 404 JSON
+        html_q = urllib.request.urlopen(base + "/?sel=trab-abc").read().decode("utf-8")
+        assert "Oficina Cognia" in html_q
         # nueva meta por API
         req = urllib.request.Request(base + "/api/meta",
                                      data=json.dumps({"texto": "meta via api"}).encode(),

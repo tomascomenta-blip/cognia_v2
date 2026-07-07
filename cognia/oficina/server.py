@@ -99,6 +99,9 @@ async function nuevaMeta(){
   await fetch('/api/meta',{method:'POST',body:JSON.stringify({texto:x.value})});
   x.value=''; carga();
 }
+// deep-link: /?sel=<id> abre esa tarea directo (compartible)
+const _q = new URLSearchParams(location.search).get('sel');
+if(_q) SEL = _q;
 carga(); setInterval(carga, 2000);
 </script></body></html>"""
 
@@ -123,14 +126,15 @@ def crear_server(oficina, host: str = "127.0.0.1", puerto: int = 8765):
                 return {}
 
         def do_GET(self):
-            if self.path == "/" or self.path.startswith("/index"):
+            ruta = self.path.split("?", 1)[0]   # ignora el query (?sel=<id>)
+            if ruta == "/" or ruta.startswith("/index"):
                 cuerpo = HTML.encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(cuerpo)))
                 self.end_headers()
                 self.wfile.write(cuerpo)
-            elif self.path == "/api/estado":
+            elif ruta == "/api/estado":
                 self._json(oficina.snapshot())
             else:
                 self._json({"error": "no existe"}, 404)
