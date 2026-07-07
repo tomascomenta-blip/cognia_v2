@@ -193,7 +193,13 @@ def _tokens(text: str) -> set:
 # matchear texto no relacionado (medido: pares realmente parafraseados
 # rondan 0.30-0.44 tras sacar stopwords, pares no relacionados 0.21-0.32 —
 # bandas que se pisan, por eso "conservador" y no "ajustado").
-SEMANTIC_MATCH_THRESHOLD = 0.35
+# Umbral RE-CALIBRADO 2026-07-07 con el modelo ST real (all-MiniLM-L6-v2)
+# sobre pares español (bench_estancamiento causa #2): con 0.35, CUALQUIER
+# par español matcheaba ("hola que tal" vs "algo totalmente distinto" =
+# 0.441; "Calcula 15 por 4" vs escribir-tests = 0.279..0.441 el rango
+# irrelevante). Medido: irrelevantes 0.172-0.441, relevantes 0.504-0.713
+# -> 0.48 separa con margen a ambos lados.
+SEMANTIC_MATCH_THRESHOLD = 0.48
 
 # Umbral del dedupe semantico de persist_skill (TAREA 3b): sobre el body
 # COMPLETO (no boW de stopwords) dos redacciones de la MISMA skill miden
@@ -210,23 +216,36 @@ def _semantic_best_match(text: str, candidates: dict, threshold: float):
     distinto al de la skill."""
     if not candidates:
         return None
-    # El umbral esta calibrado para sentence-transformers; con el fallback
-    # n-gram (ST ausente o sistema bajo presion) el coseno da similitudes
-    # espurias entre textos cortos -> matches falsos (visto como flakiness
-    # de test de aislamiento y como riesgo real en maquinas sin ST).
-    from cognia.cognia_embedding import semantic_model_active
-    if not semantic_model_active():
-        logger.info("fallback semantico deshabilitado: backend n-gram activo",
+    textos = [text] + [f"{s.name} {s.description}" for s in candidates.values()]
+    vecs = _encode_batch(textos)
+    if vecs is None:
+        logger.info("fallback semantico deshabilitado: sentence-transformers no disponible",
                     extra={"op": "find_skill"})
         return None
-    from cognia.vectors import cosine_similarity, text_to_vector
-    req_vec = text_to_vector(text)
+    from cognia.vectors import cosine_similarity
+    req_vec = vecs[0]
     best, best_sim = None, 0.0
-    for s in candidates.values():
-        sim = cosine_similarity(req_vec, text_to_vector(f"{s.name} {s.description}"))
+    for s, v in zip(candidates.values(), vecs[1:]):
+        sim = cosine_similarity(req_vec, v)
         if sim > best_sim:
             best, best_sim = s, sim
     return best if best_sim >= threshold else None
+
+
+def _encode_batch(textos: list):
+    """Vectores ST para el match semantico de skills, o None sin modelo.
+
+    NO usa text_to_vector (AsyncEmbeddingQueue + cache global): ese path
+    puede devolver el fallback n-gram por timeout durante la carga lazy de
+    ST y CACHEARLO -> cosenos cruzados n-gram x ST = similitudes basura ->
+    matches falsos. Aca el modelo ST se usa DIRECTO (mismo backend
+    garantizado en ambos lados; <=25 skills = milisegundos)."""
+    from cognia.cognia_embedding import LazyEmbeddingModel
+    model = LazyEmbeddingModel.get()
+    if model is None:
+        return None
+    return [list(map(float, v))
+            for v in model.encode(textos, show_progress_bar=False)]
 
 
 def find_skill(text: str, skills: dict = None, min_overlap: int = 2,

@@ -161,13 +161,13 @@ def test_find_skill_no_penaliza_si_tiene_al_menos_un_exito(tmp_path):
 def _mock_vectors(monkeypatch, table: dict):
     import cognia.vectors as V
 
-    def fake_text_to_vector(text, dim=None):
-        return table.get(text, [0.0, 0.0])
+    def fake_encode_batch(textos):
+        return [table.get(t, [0.0, 0.0]) for t in textos]
 
     def fake_cosine(a, b):
         return sum(x * y for x, y in zip(a, b))
 
-    monkeypatch.setattr(V, "text_to_vector", fake_text_to_vector)
+    monkeypatch.setattr(SK, "_encode_batch", fake_encode_batch)
     monkeypatch.setattr(V, "cosine_similarity", fake_cosine)
 
 
