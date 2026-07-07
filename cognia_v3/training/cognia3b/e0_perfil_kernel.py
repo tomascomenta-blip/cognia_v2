@@ -31,6 +31,13 @@ import subprocess
 import sys
 import time
 
+# E0b (v2): GPU UNICA y allocator elastico, ANTES de importar torch.
+# v1 midio con device_map=auto sobre 2xT4 -> el 3B quedo PARTIDO entre GPUs
+# (peso_base_gb=0.9 en GPU0, hops cross-GPU en cada step): esas cifras no son
+# el perfil single-T4 pre-registrado. CUDA_VISIBLE_DEVICES=0 lo fuerza.
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 T0 = time.time()
 BUDGET_S = 105 * 60          # presupuesto duro del kernel (sesion corta)
 OUT = "/kaggle/working"
@@ -83,7 +90,7 @@ def _find_dataset() -> str:
 
 
 # ---------------------------------------------------------------- datos
-def carga_pares(path, tokenizer, max_pares=1200):
+def carga_pares(path, tokenizer, max_pares=4000):
     """Pares {prompt, completion} -> dicts tokenizados ChatML con span del prompt."""
     pares = []
     with open(path, encoding="utf-8") as f:
@@ -197,9 +204,16 @@ def mide_config(cfg, base_model, tokenizer, ejemplos):
     steps_timed = max(6, math.ceil(80_000 / (mb * seq)))
     warmup = 3
     total_steps = warmup + steps_timed
-    if len(lotes) < total_steps:
-        reg["error"] = f"dataset corto: {len(lotes)} lotes < {total_steps}"
+    if not lotes:
+        reg["error"] = "sin lotes"
         return reg
+    # v2: ciclar lotes si el corpus es corto (v1 fallo con 'dataset corto' en
+    # todas las configs packed: cognia_dataset son pares de ~41 tokens).
+    # Repetir data es valido para MEDIR throughput (no entrena nada util).
+    n_orig = len(lotes)
+    while len(lotes) < total_steps:
+        lotes = lotes + lotes
+    reg["lotes_ciclados"] = n_orig < total_steps
 
     params = [p for p in base_model.parameters() if p.requires_grad]
     if cfg["optim"] == "paged8bit":
@@ -261,8 +275,8 @@ def mide_config(cfg, base_model, tokenizer, ejemplos):
     return reg
 
 
-def construye_modelo(model_dir, lora_r, targets):
-    """Carga la base NF4 + adapter LoRA. Devuelve el peft model (GC ON)."""
+def construye_modelo(model_dir, lora_r, targets, gc_on=True):
+    """Carga la base NF4 + adapter LoRA en LA GPU 0. Devuelve el peft model."""
     import torch
     from transformers import AutoModelForCausalLM, BitsAndBytesConfig
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
@@ -270,13 +284,15 @@ def construye_modelo(model_dir, lora_r, targets):
     bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_use_double_quant=True,
                              bnb_4bit_quant_type="nf4",
                              bnb_4bit_compute_dtype=torch.float16)
+    # v2: device_map fijo a la GPU 0 (con CUDA_VISIBLE_DEVICES=0 es la unica
+    # visible; "auto" en v1 shardeo el modelo entre las 2 T4).
     model = AutoModelForCausalLM.from_pretrained(
-        model_dir, quantization_config=bnb, device_map="auto",
+        model_dir, quantization_config=bnb, device_map={"": 0},
         attn_implementation="sdpa", trust_remote_code=True)
-    import torch as _t
-    peso_gb = round(_t.cuda.memory_allocated() / 1e9, 2)
-    # GC ON obligatorio: mb4 sin GC OOMeo en p2k2 [MEDIDO 01_DESVIOS.md]
-    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+    peso_gb = round(torch.cuda.memory_allocated() / 1e9, 2)
+    # GC ON = el regimen p2k2 [MEDIDO]. GC OFF = gap nunca medido (E0b lo mide
+    # a mb chico: la teoria predice +30-50% tok/s si entra en 14.5 GiB).
+    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=gc_on)
     cfg = LoraConfig(r=lora_r, lora_alpha=2 * lora_r, lora_dropout=0.05,
                      bias="none", task_type="CAUSAL_LM", target_modules=targets)
     model = get_peft_model(model, cfg)
@@ -290,25 +306,35 @@ def construye_modelo(model_dir, lora_r, targets):
 QKVO = ["q_proj", "k_proj", "v_proj", "o_proj"]
 ALL_LIN = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
-# Grilla fraccionada pre-registrada (orden = importancia; el budget corta la cola).
-# Grupos por forma del adapter para minimizar recargas del 3B.
+# Grilla E0b (v2) pre-registrada (orden = importancia; el budget corta la cola).
+# Grupos por forma del adapter + flag GC para minimizar recargas del 3B.
+# Cambios vs v1 (resultados en results_e0/e0_results.v1.json):
+#   - single-GPU forzado (v1 shardeo el 3B entre 2 T4 -> perfil invalido)
+#   - packed ahora cicla lotes (v1: 'dataset corto' en 5 configs)
+#   - +grupo GC OFF a mb chico (gap nunca medido; mb8 padded OOMeo por logits
+#     fp32 de vocab 152k: 4.64 GiB, tal como predijo la Parte 1)
 GRUPOS = [
-    {"r": 16, "targets": ALL_LIN, "configs": [
-        # A: reproduce el regimen p2k2 (ancla 424 tok/s) sobre Coder-3B
+    {"r": 16, "targets": ALL_LIN, "gc": True, "configs": [
+        # A: reproduce el regimen p2k2 (ancla 424 tok/s) sobre Coder-3B, 1 GPU
         {"nombre": "A_control_p2k2", "seq": 1024, "mb": 4, "ga": 4, "optim": "adamw_fp32", "packing": False, "masking": False},
         {"nombre": "B_paged8bit",    "seq": 1024, "mb": 4, "ga": 1, "optim": "paged8bit",  "packing": False, "masking": False},
+        {"nombre": "D_mb4_pack",     "seq": 1024, "mb": 4, "ga": 1, "optim": "paged8bit",  "packing": True,  "masking": False},
+        {"nombre": "G_mb4_pack_mask", "seq": 1024, "mb": 4, "ga": 1, "optim": "paged8bit", "packing": True,  "masking": True},
         {"nombre": "C_mb8",          "seq": 1024, "mb": 8, "ga": 1, "optim": "paged8bit",  "packing": False, "masking": False},
-        {"nombre": "D_mb8_pack",     "seq": 1024, "mb": 8, "ga": 1, "optim": "paged8bit",  "packing": True,  "masking": False},
-        {"nombre": "G_mb8_mask",     "seq": 1024, "mb": 8, "ga": 1, "optim": "paged8bit",  "packing": False, "masking": True},
-        {"nombre": "E_mb16_pack",    "seq": 1024, "mb": 16, "ga": 1, "optim": "paged8bit", "packing": True,  "masking": False},
-        {"nombre": "F_seq2048_mb4_pack", "seq": 2048, "mb": 4, "ga": 1, "optim": "paged8bit", "packing": True, "masking": False},
+        {"nombre": "E_mb8_pack",     "seq": 1024, "mb": 8, "ga": 1, "optim": "paged8bit",  "packing": True,  "masking": False},
+        {"nombre": "F_seq2048_mb2_pack", "seq": 2048, "mb": 2, "ga": 1, "optim": "paged8bit", "packing": True, "masking": False},
         {"nombre": "J_mb2",          "seq": 1024, "mb": 2, "ga": 1, "optim": "paged8bit",  "packing": False, "masking": False},
     ]},
-    {"r": 8, "targets": QKVO, "configs": [
-        {"nombre": "H_r8_qkvo_mb8_pack", "seq": 1024, "mb": 8, "ga": 1, "optim": "paged8bit", "packing": True, "masking": False},
+    {"r": 16, "targets": ALL_LIN, "gc": False, "configs": [
+        {"nombre": "K_mb2_noGC",      "seq": 1024, "mb": 2, "ga": 1, "optim": "paged8bit", "packing": False, "masking": False},
+        {"nombre": "L_mb2_noGC_pack", "seq": 1024, "mb": 2, "ga": 1, "optim": "paged8bit", "packing": True,  "masking": False},
+        {"nombre": "M_mb4_noGC_pack", "seq": 1024, "mb": 4, "ga": 1, "optim": "paged8bit", "packing": True,  "masking": False},
     ]},
-    {"r": 32, "targets": ALL_LIN, "configs": [
-        {"nombre": "I_r32_mb8_pack", "seq": 1024, "mb": 8, "ga": 1, "optim": "paged8bit", "packing": True, "masking": False},
+    {"r": 8, "targets": QKVO, "gc": True, "configs": [
+        {"nombre": "H_r8_qkvo_mb4_pack", "seq": 1024, "mb": 4, "ga": 1, "optim": "paged8bit", "packing": True, "masking": False},
+    ]},
+    {"r": 32, "targets": ALL_LIN, "gc": True, "configs": [
+        {"nombre": "I_r32_mb4_pack", "seq": 1024, "mb": 4, "ga": 1, "optim": "paged8bit", "packing": True, "masking": False},
     ]},
 ]
 
@@ -341,8 +367,26 @@ try:
             if len(pares) >= 400:
                 break
     textos = ["<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n%s<|im_end|>" % (r["prompt"], r["completion"]) for r in pares]
-    for mb in (4, 8):
-        enc = [tokenizer(t, truncation=True, max_length=1024)["input_ids"] for t in textos]
+    # docs "packed": concatenar pares hasta ~1024 tokens (utilizacion ~1.0)
+    enc_all = [tokenizer(t, add_special_tokens=False)["input_ids"] for t in textos]
+    docs, fila = [], []
+    for e in enc_all:
+        if len(fila) + len(e) > 1024:
+            if fila:
+                docs.append(fila)
+            fila = []
+        fila += e
+    if fila:
+        docs.append(fila)
+    # brazos: (mb, packed?) - mb16 solo packed (la CE fusionada de unsloth
+    # deberia bancar los logits que OOMearon el path transformers a mb8)
+    for mb, packed in ((4, False), (8, False), (8, True), (16, True)):
+        if packed:
+            enc = list(docs)
+        else:
+            enc = [x[:1024] for x in enc_all]
+        while len(enc) < mb * 12:
+            enc = enc + enc
         pad = tokenizer.pad_token_id or tokenizer.eos_token_id
         lotes = []
         for i in range(0, len(enc) - mb + 1, mb):
@@ -351,27 +395,33 @@ try:
             att = [[1]*len(x) + [0]*(1024-len(x)) for x in chunk]
             lab = [x + [-100]*(1024-len(x)) for x in chunk]
             lotes.append((ids, att, lab))
-        params = [p for p in model.parameters() if p.requires_grad]
-        opt = torch.optim.AdamW(params, lr=1e-4)
-        torch.cuda.reset_peak_memory_stats()
-        steps = max(6, math.ceil(80000 / (mb*1024)))
-        model.train()
-        t0 = None; tok = 0; util = 0
-        for step, (ids, att, lab) in enumerate(lotes[:3+steps]):
-            if step == 3:
-                torch.cuda.synchronize(); t0 = time.time()
-            x = torch.tensor(ids, device="cuda"); a = torch.tensor(att, device="cuda")
-            y = torch.tensor(lab, device="cuda")
-            out = model(input_ids=x, attention_mask=a, labels=y)
-            out.loss.backward()
-            opt.step(); opt.zero_grad(set_to_none=True)
-            if step >= 3:
-                tok += mb*1024; util += int(a.sum().item())
-        torch.cuda.synchronize()
-        dt = time.time() - t0
-        res["mb%d" % mb] = {"tok_s_seq": round(tok/dt, 1), "tok_s_util": round(util/dt, 1),
-                            "vram_alloc_gb": round(torch.cuda.max_memory_allocated()/1e9, 2)}
-        del opt
+        clave = "mb%d%s" % (mb, "_pack" if packed else "")
+        try:
+            params = [p for p in model.parameters() if p.requires_grad]
+            opt = torch.optim.AdamW(params, lr=1e-4)
+            torch.cuda.reset_peak_memory_stats()
+            steps = max(6, math.ceil(80000 / (mb*1024)))
+            model.train()
+            t0 = None; tok = 0; util = 0
+            for step, (ids, att, lab) in enumerate(lotes[:3+steps]):
+                if step == 3:
+                    torch.cuda.synchronize(); t0 = time.time()
+                x = torch.tensor(ids, device="cuda"); a = torch.tensor(att, device="cuda")
+                y = torch.tensor(lab, device="cuda")
+                out = model(input_ids=x, attention_mask=a, labels=y)
+                out.loss.backward()
+                opt.step(); opt.zero_grad(set_to_none=True)
+                if step >= 3:
+                    tok += mb*1024; util += int(a.sum().item())
+            torch.cuda.synchronize()
+            dt = time.time() - t0
+            res[clave] = {"tok_s_seq": round(tok/dt, 1), "tok_s_util": round(util/dt, 1),
+                          "vram_alloc_gb": round(torch.cuda.max_memory_allocated()/1e9, 2)}
+            del opt
+        except torch.cuda.OutOfMemoryError as e:
+            res[clave] = {"error": "OOM: %s" % str(e)[:150]}
+        import gc as _gc
+        _gc.collect(); torch.cuda.empty_cache()
 except Exception as e:
     res["error"] = "%s: %s" % (type(e).__name__, str(e)[:300])
 with open("/kaggle/working/unsloth_probe.json", "w") as f:
@@ -471,9 +521,10 @@ def main():
         if time.time() - T0 > BUDGET_S:
             print("BUDGET agotado antes del grupo r=%d" % grupo["r"], flush=True)
             break
-        print(f"== GRUPO r={grupo['r']} targets={len(grupo['targets'])} ==", flush=True)
+        gc_on = grupo.get("gc", True)
+        print(f"== GRUPO r={grupo['r']} targets={len(grupo['targets'])} gc={gc_on} ==", flush=True)
         try:
-            model, peso_gb = construye_modelo(model_dir, grupo["r"], grupo["targets"])
+            model, peso_gb = construye_modelo(model_dir, grupo["r"], grupo["targets"], gc_on)
         except Exception as e:
             RESULTS["configs"].append({"grupo_r": grupo["r"],
                                        "error": f"load: {str(e)[:300]}"})
@@ -484,7 +535,8 @@ def main():
             if time.time() - T0 > BUDGET_S:
                 print("BUDGET agotado en", cfg["nombre"], flush=True)
                 break
-            cfg = dict(cfg, r=grupo["r"], targets="all" if len(grupo["targets"]) == 7 else "qkvo")
+            cfg = dict(cfg, r=grupo["r"], gc=gc_on,
+                       targets="all" if len(grupo["targets"]) == 7 else "qkvo")
             print(f"-- {cfg['nombre']} --", flush=True)
             reg = mide_config(cfg, model, tokenizer, ejemplos)
             print(json.dumps(reg), flush=True)

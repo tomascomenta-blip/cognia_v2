@@ -1,0 +1,205 @@
+{
+ "exp": "E0-perfil",
+ "started_utc": "2026-07-06 22:10:54",
+ "env": {
+  "gpu": "Tesla T4",
+  "gpu_count": 2,
+  "vram_total_gb": 15.64,
+  "torch": "2.10.0+cu128",
+  "transformers": "5.0.0",
+  "peft": "0.19.1",
+  "bitsandbytes": "0.49.2",
+  "model_dir": "/kaggle/input/models/qwen-lm/qwen2.5-coder/transformers/3b-instruct/1"
+ },
+ "dataset_stats": {
+  "n": 1200,
+  "len_p50": 30,
+  "len_p90": 75,
+  "len_max": 477,
+  "len_mean": 41.1,
+  "util_pad_seq1024": 0.04,
+  "util_pad_seq2048": 0.02
+ },
+ "configs": [
+  {
+   "nombre": "A_control_p2k2",
+   "seq": 1024,
+   "mb": 4,
+   "ga": 4,
+   "optim": "adamw_fp32",
+   "packing": false,
+   "masking": false,
+   "r": 16,
+   "targets": "all",
+   "steps_timed": 20,
+   "wall_s": 151.5,
+   "tok_s_seq": 540.7,
+   "tok_s_util": 23.4,
+   "vram_alloc_gb": 11.25,
+   "vram_reserved_gb": 14.19,
+   "loss_ini": 5.33,
+   "loss_fin": 3.061,
+   "nan": false,
+   "scaler_final": 65536.0,
+   "steps_skipped_inf": 0
+  },
+  {
+   "nombre": "B_paged8bit",
+   "seq": 1024,
+   "mb": 4,
+   "ga": 1,
+   "optim": "paged8bit",
+   "packing": false,
+   "masking": false,
+   "r": 16,
+   "targets": "all",
+   "steps_timed": 20,
+   "wall_s": 157.0,
+   "tok_s_seq": 521.7,
+   "tok_s_util": 22.6,
+   "vram_alloc_gb": 11.18,
+   "vram_reserved_gb": 12.7,
+   "loss_ini": 2.867,
+   "loss_fin": 1.769,
+   "nan": false,
+   "scaler_final": 32768.0,
+   "steps_skipped_inf": 1
+  },
+  {
+   "nombre": "C_mb8",
+   "seq": 1024,
+   "mb": 8,
+   "ga": 1,
+   "optim": "paged8bit",
+   "packing": false,
+   "masking": false,
+   "r": 16,
+   "targets": "all",
+   "error": "OOM: CUDA out of memory. Tried to allocate 4.64 GiB. GPU 0 has a total capacity of 14.56 GiB of which 2.65 GiB is free. Including non-PyTorch memory, this process has 11.78 GiB memory in use. Of the alloca",
+   "vram_reserved_gb": 12.5
+  },
+  {
+   "nombre": "D_mb8_pack",
+   "seq": 1024,
+   "mb": 8,
+   "ga": 1,
+   "optim": "paged8bit",
+   "packing": true,
+   "masking": false,
+   "r": 16,
+   "targets": "all",
+   "error": "dataset corto: 6 lotes < 13"
+  },
+  {
+   "nombre": "G_mb8_mask",
+   "seq": 1024,
+   "mb": 8,
+   "ga": 1,
+   "optim": "paged8bit",
+   "packing": false,
+   "masking": true,
+   "r": 16,
+   "targets": "all",
+   "error": "OOM: CUDA out of memory. Tried to allocate 4.64 GiB. GPU 0 has a total capacity of 14.56 GiB of which 4.30 GiB is free. Including non-PyTorch memory, this process has 10.13 GiB memory in use. Of the alloca",
+   "vram_reserved_gb": 11.46
+  },
+  {
+   "nombre": "E_mb16_pack",
+   "seq": 1024,
+   "mb": 16,
+   "ga": 1,
+   "optim": "paged8bit",
+   "packing": true,
+   "masking": false,
+   "r": 16,
+   "targets": "all",
+   "error": "dataset corto: 3 lotes < 9"
+  },
+  {
+   "nombre": "F_seq2048_mb4_pack",
+   "seq": 2048,
+   "mb": 4,
+   "ga": 1,
+   "optim": "paged8bit",
+   "packing": true,
+   "masking": false,
+   "r": 16,
+   "targets": "all",
+   "error": "dataset corto: 6 lotes < 13"
+  },
+  {
+   "nombre": "J_mb2",
+   "seq": 1024,
+   "mb": 2,
+   "ga": 1,
+   "optim": "paged8bit",
+   "packing": false,
+   "masking": false,
+   "r": 16,
+   "targets": "all",
+   "steps_timed": 40,
+   "wall_s": 164.0,
+   "tok_s_seq": 499.5,
+   "tok_s_util": 21.2,
+   "vram_alloc_gb": 6.69,
+   "vram_reserved_gb": 8.17,
+   "loss_ini": 0.928,
+   "loss_fin": 1.239,
+   "nan": false,
+   "scaler_final": 32768.0,
+   "steps_skipped_inf": 1
+  },
+  {
+   "nombre": "H_r8_qkvo_mb8_pack",
+   "seq": 1024,
+   "mb": 8,
+   "ga": 1,
+   "optim": "paged8bit",
+   "packing": true,
+   "masking": false,
+   "r": 8,
+   "targets": "qkvo",
+   "error": "dataset corto: 6 lotes < 13"
+  },
+  {
+   "nombre": "I_r32_mb8_pack",
+   "seq": 1024,
+   "mb": 8,
+   "ga": 1,
+   "optim": "paged8bit",
+   "packing": true,
+   "masking": false,
+   "r": 32,
+   "targets": "all",
+   "error": "dataset corto: 6 lotes < 13"
+  }
+ ],
+ "unsloth": {
+  "pip_ok": true,
+  "pip_s": 21.6,
+  "probe": {
+   "instalado": true,
+   "mb4": {
+    "tok_s_seq": 647.2,
+    "tok_s_util": 25.2,
+    "vram_alloc_gb": 5.11
+   },
+   "mb8": {
+    "tok_s_seq": 654.8,
+    "tok_s_util": 24.1,
+    "vram_alloc_gb": 7.75
+   }
+  }
+ },
+ "packing_masking_inspeccion": {
+  "n_spans_entrenables": 27,
+  "spans_primeros3_decodificados": [
+   "esports and equipo are related.<|im_end|>",
+   "archivo:app-movil and strings are related.<|im_end|>",
+   "grand_theft_auto and jugadores are related.<|im_end|>"
+  ],
+  "frac_tokens_entrenables": 0.455
+ },
+ "peso_base_gb": 0.9,
+ "wall_total_min": 16.9
+}
