@@ -5534,3 +5534,28 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
 - Caveat honesto: G5 sigue 56% (−4pp) en ambos brazos → déficit del dataset (sin replay
   es-general), se ataca en E2 con D2. Ver results_e2a/ANALISIS_E2A.md.
 - Commits: d8832b8 (kernel E2A pre-registrado antes de correr).
+
+## 2026-07-07 — AGENTE: estancamiento resuelto (4/12→1/12) + E-MIX lanzado + suite G2A + datasets
+
+- **Suite G2-ACCION congelada** (a5f070f): 147 ítems verificados por ejecución (48 primer-paso
+  + 51 multi-paso teacher-forced + 48 cierres `responder` que miden TERMINACIÓN), 48 tareas
+  held-out con fraseo y superficies nuevos, sha256 6efd0ddb, descontaminación limpia. Oráculo
+  `accion_pass` (primera ACCION + args_regex) + 5 tests. P0-ii de G2 cumplido: N=147 > 100.
+- **Causa raíz "Agente estancado (acción repetida)" HALLADA y corregida** (bench real, loop de
+  producción + 3B GGUF, 12 tareas): (1) `~/.cognia_agent_state.json` global inyectaba CONTEXTO
+  PREVIO con archivos de tareas ajenas → anclaje + greedy + 3 strikes (100% de los stuck del
+  baseline; explica el fallo de la oficina: los trabajadores comparten ese estado); (2) skills
+  auto-aplicadas por coseno 0.35 metían archivos inexistentes (Calcula 15×4 → escribir-tests);
+  (3) el AVISO genérico no desvía al 3B. Fixes F1-F4 (prior_context_relevant, recovery con
+  cierre honesto, semantic_fallback=False en auto-apply, AVISO nominal + temp 0.7 un paso).
+  **MEDIDO pareado: stuck 4/12→1/12, éxito 6/12→8/12; gate pre-registrado PASA.** El residuo
+  es capacidad (no elige apendar_archivo) → adapter E3. Ver eval/ANALISIS_ESTANCAMIENTO.md.
+- **Datasets**: D5 español 6.910 pares (Aya+oasst2+cognia_ds; E-D5 CONFIRMADA: 8.03% sobrevive
+  <30% pre-registrado); ACCION v3 795 pares (4.9×) con 106 recuperación-de-error + 106
+  anti-ciclo (AVISO literal del loop, match train↔deploy). Ambos descontaminados; la
+  verificación cazó 2 colisiones reales antes del freeze (kg relación inválida; es_par
+  duplicaba G1-CD-009).
+- **E-MIX LANZADO** (kernel cognia-emix-topologia, ~6 GPU-h, pre-registro congelado): árbitro
+  DC-4 secuencial-con-merge vs mezcla única, con replay on-policy in-kernel, merge DC-9 real
+  (ensayo de E5), eval G1/G3/G5+G2A. Regla §7.3: B ≥ A−1pp → E2-E4 colapsan.
+- Commits: a5f070f (suite G2A), 61a2d5a+ (D5), (v3+fixes F1-F4), (E-MIX). Usage ≤45%.
