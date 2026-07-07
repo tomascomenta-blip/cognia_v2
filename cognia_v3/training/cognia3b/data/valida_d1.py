@@ -14,7 +14,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SUITES = os.path.abspath(os.path.join(HERE, "..", "..", "..", "eval", "suites"))
 ARCHIVOS = ["d1_ab_identidad.jsonl", "d1_cd_capacidades.jsonl", "d1_e_estilo.jsonl"]
 MARCAS_PROHIBIDAS = ["qwen", "alibaba", "gpt", "openai", "claude", "anthropic",
-                     "llama", "meta ai", "gemini", "google ai"]
+                     "meta ai", "gemini", "google ai"]
+# "llama" es verbo español comunísimo ("me llaman", "se llama") → solo es marca
+# en contextos tipo "Llama 3", "meta llama", "llama.cpp" (regex, no substring).
+RE_LLAMA_MARCA = re.compile(r"(?i)\bllama[s]?[-. ]?\d|meta[- ]llama|\bllama\.cpp")
 CATS = set("ABCDE")
 
 
@@ -64,6 +67,9 @@ def main():
                     elif m in texto and r["cat"] != "B":
                         avisos.append(f"{nombre}:{lineno}: marca '{m}' en prompt "
                                       f"de cat {r['cat']} (revisar)")
+                if RE_LLAMA_MARCA.search(r.get("completion", "")):
+                    errores.append(f"{nombre}:{lineno}: marca Llama (regex) "
+                                   f"en completion")
                 # regla 4
                 if r["cat"] in "AB" and "cognia" not in comp:
                     errores.append(f"{nombre}:{lineno}: cat {r['cat']} sin "
