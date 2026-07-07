@@ -55,3 +55,11 @@ re-calibrado a 0.48 y aun así con residuo) aplica 1:1 acá.
 (E-GROK decide la palanca de data-efficiency). 3. Merges TIES/DARE/soup entre
 adapters: experimento posterior — hipótesis: un merge accion+razonamiento
 mantiene ambos gates; se pre-registra cuando existan ambos adapters.
+
+## Tooling E5 local (verificado 2026-07-07)
+
+`node/llama-tools-b9391/` (gitignoreado, regenerable): `llama-perplexity.exe`
+y `llama-quantize.exe` del tag b9391 EXACTO (version: 9391 7fb1e70b5),
+descargados del release oficial win-cpu-x64. Con esto la cadena E5 corre
+completa: merge DC-9 (Kaggle) → convert_hf_to_gguf b9391 → llama-quantize
+Q4_K_M → eval_g4_cli.py (decode) + llama-perplexity (corrida aparte del gate).
