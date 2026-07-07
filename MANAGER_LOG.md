@@ -5520,3 +5520,17 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   es mejora v2. Detención mid-task verificada a nivel unit, no ejercitada en vivo.
 - Usage vigilado todo el tramo (52→60%, techo 90%). E1 (PRIORIDAD) sigue RUNNING en Kaggle.
 - Commits: 9da75f8 (oficina+tests), 8c5bb87 (fix prompts/parser), 38935e4 (resumen_e1).
+
+## 2026-07-07 — COGNIA 3B: E2A cierra el confound de runtime (sesión Fable 5, goal expertos MoM)
+
+- **Goal nuevo** (dueño, /goal): llevar COGNIA 3B + expertos MoM lo más lejos posible como
+  arquitecto autónomo (Parte 7 → GGUF verificado, experto-agente anti-estancamiento, tool
+  calling G2 N≥50, fleet XHUNDRED, grokking a gate fijo, expertos por lenguaje + LCD).
+- **E2A (A/B runtime steps igualados) CERRADO en 18.9 min**: u_r16_all_mb4 (unsloth, mb4 →
+  92 steps) = t_r16_all en TODO (G1 93%, G3 20/20, G5 56%, tooluse 10/10) con loss_fin
+  idéntica (0.8771 vs 0.877, 0.01%). Pre-registro 3/3 CONFIRMADO. La ventaja de
+  transformers en E1 era "más gradientes", no runtime. **DECISIÓN vinculante (regla
+  pre-registrada, decidida in-kernel): runtime E2..E5 = UNSLOTH (+22% tok/s, 504 vs 413).**
+- Caveat honesto: G5 sigue 56% (−4pp) en ambos brazos → déficit del dataset (sin replay
+  es-general), se ataca en E2 con D2. Ver results_e2a/ANALISIS_E2A.md.
+- Commits: d8832b8 (kernel E2A pre-registrado antes de correr).
