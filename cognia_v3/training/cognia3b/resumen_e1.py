@@ -13,7 +13,11 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PATH = os.path.join(HERE, "results_e1", "e1_results.json")
+# default E1; pasar otro JSON como argv[1] (p.ej. results_e1b/e1b_results.json,
+# que trae la MISMA estructura de evals/veredictos; "train" viene de E1)
+PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
+    HERE, "results_e1", "e1_results.json")
+TRAIN_PATH = os.path.join(HERE, "results_e1", "e1_results.json")
 
 
 def acc(items: dict) -> float:
@@ -23,6 +27,9 @@ def acc(items: dict) -> float:
 def main():
     with open(PATH, encoding="utf-8") as f:
         R = json.load(f)
+    if not R.get("train") and os.path.exists(TRAIN_PATH) and PATH != TRAIN_PATH:
+        with open(TRAIN_PATH, encoding="utf-8") as f:
+            R["train"] = json.load(f).get("train", {})  # tok/s vienen de E1
     print(f"E1 {R.get('started_utc')} | suites_hash_ok={R.get('suites_hash_ok')} "
           f"| wall={R.get('wall_total_min')} min")
     print("\n== TRAIN ==")
