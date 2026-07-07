@@ -1,0 +1,1 @@
+{"u_r8_qkvo": {"steps": 46, "tok_s_util": 687.4, "wall_s": 463.3, "loss_ini": 2.0118, "loss_fin": 1.678, "nan": false}, "u_r16_all": {"steps": 46, "tok_s_util": 504.0, "wall_s": 631.9, "loss_ini": 1.8955, "loss_fin": 1.2731, "nan": false}, "u_r16_neft": {"steps": 46, "tok_s_util": 504.0, "wall_s": 632.0, "loss_ini": 1.8947, "loss_fin": 1.2737, "nan": false}}
