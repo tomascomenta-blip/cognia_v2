@@ -5488,3 +5488,20 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   forzado, ciclado de lotes, grupo GC-off, brazos unsloth packed).
 - Commits: 5cb84c4 (mcnemar+test), 350f686 (hechos+kernel E0), 5760493 (E0 v1+kernel v2).
   Incidente: sintetizador fable murió por límite de sesión → re-delegado a 8 agentes sonnet.
+
+## 2026-07-06/07 (noche) — COGNIA 3B: suites congeladas + E0 cerrado + E1 LANZADO
+
+- **Suites held-out CONGELADAS** (P0-ii cumplido, 29e6a61): 245 ítems (G1×100, G2R×100,
+  G3×20, G5×25), autoría sonnet + auditoría adversarial (17 oráculos corregidos),
+  descontaminación limpia, freeze sha256 con guarda anti-edición.
+- **E0 CERRADO** (526ce02): perfil single-T4 válido. P-E0a CONFIRMADA (2.05 GB vs 2.06
+  teórico); P-E0c REFUTADA (techo ~650 tok/s útiles); Unsloth ADOPTADO (1.28×, mitad de
+  VRAM); GC obligatorio hasta mb2; masking gratis; packing ×20; r8-qkvo +21% vs r16-all.
+- **Dataset D1** (e7894c1): 1.183 pares identidad Cognia (autoría sonnet + auditoría).
+  Mi validación real cazó lo que la auditoría no vio: 7 duplicados, 7 overlaps EXACTOS
+  train==eval con G3, y 3 pares contaminando G1/G5 (dropeados). Lección: la validación
+  por script del integrador es irreemplazable aun con auditor adversarial.
+- **E1 LANZADO a Kaggle** (~22:25): 5 brazos de método (unsloth r8/r16/r16+NEFT en
+  subproceso + transformers r16/DoRA), eval uniforme sobre base NF4, gates G1/G3/G5 +
+  tooluse con McNemar in-kernel, integridad de suites por sha256. e1_train = 1.344 pares.
+- Apagado programado 04:30 (pedido del dueño); todo committeado+pusheado por unidad.
