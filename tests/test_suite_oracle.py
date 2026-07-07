@@ -153,3 +153,10 @@ def test_suite_g2a_congelada_carga():
     cierres = [it for it in items if it["step"] == it["n_steps"]]
     assert cierres and all(it["oracle"]["accion_tools"] == ["responder"]
                            for it in cierres)
+
+
+def test_train_v2_no_toca_superficies_de_suite_g2a():
+    """Higiene held-out: el banco de train v2 no puede usar filenames de la
+    suite congelada G2A (check programático, no lista manual)."""
+    from cognia_v3.training.tooluse.tasks_v2 import check_superficies
+    assert check_superficies() == []
