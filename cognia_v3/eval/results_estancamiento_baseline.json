@@ -1,0 +1,300 @@
+{
+ "bench": "estancamiento-agent-loop",
+ "modelo": "local-gguf",
+ "started_utc": "2026-07-07 22:13:37",
+ "tareas": {
+  "json_make_key": {
+   "fin": "responder",
+   "exito": false,
+   "pasos": 2,
+   "wall_s": 70.9,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "config.json | {\"puerto\": 8080}[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "Configuración guardada en config.json.[/detail]"
+    }
+   ],
+   "result_head": "Configuración guardada en config.json."
+  },
+  "append_then_count": {
+   "fin": "responder",
+   "exito": false,
+   "pasos": 2,
+   "wall_s": 28.4,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "tareas.txt | comprar pan\\nlavar ropa[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "23[/detail]"
+    }
+   ],
+   "result_head": "23"
+  },
+  "py_write_run": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 2,
+   "wall_s": 26.4,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "calc.py | \"\"\"def calcular():"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "El resultado de 6*7 es 42.[/detail]"
+    }
+   ],
+   "result_head": "El resultado de 6*7 es 42."
+  },
+  "math_to_file": {
+   "fin": "stuck",
+   "exito": false,
+   "pasos": 3,
+   "wall_s": 55.0,
+   "stuck_sig": "leer_archivo calc.py[/detail]",
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "leer_archivo",
+     "args_head": "calc.py[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "leer_archivo",
+     "args_head": "calc.py[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "leer_archivo",
+     "args_head": "calc.py[/detail]"
+    }
+   ],
+   "result_head": "RESULTADO leer_archivo ERROR: [Errno 2] No such file or directory: 'calc.py'"
+  },
+  "copiar_dos_veces": {
+   "fin": "stuck",
+   "exito": false,
+   "pasos": 3,
+   "wall_s": 33.6,
+   "stuck_sig": "leer_archivo contenido_base[/detail]",
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "leer_archivo",
+     "args_head": "contenido_base[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "leer_archivo",
+     "args_head": "contenido_base[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "leer_archivo",
+     "args_head": "contenido_base[/detail]"
+    }
+   ],
+   "result_head": "RESULTADO leer_archivo ERROR: [Errno 2] No such file or directory: 'contenido_base'"
+  },
+  "json_anidado": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 2,
+   "wall_s": 60.5,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "cfg.json | {\"db\": {\"host\": \"local\", \"port\": 5432}}[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "cfg.json es un JSON valido con \"db\" -> {\"host\": \"local\", \"port\": 5432}[/detail]"
+    }
+   ],
+   "result_head": "cfg.json es un JSON valido con \"db\" -> {\"host\": \"local\", \"port\": 5432}"
+  },
+  "math_pow": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 2,
+   "wall_s": 47.5,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "calcular",
+     "args_head": "2**10 | 1024[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "2 elevado a la 10 es 1024.[/detail]"
+    }
+   ],
+   "result_head": "2 elevado a la 10 es 1024."
+  },
+  "copy_file": {
+   "fin": "stuck",
+   "exito": false,
+   "pasos": 6,
+   "wall_s": 63.2,
+   "stuck_sig": "leer_archivo cfg.json[/detail]",
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "leer_archivo",
+     "args_head": "cfg.json | {\"host\": \"local\", \"port\": 5432}[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "leer_archivo",
+     "args_head": "cfg.json[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "leer_archivo",
+     "args_head": "cfg.json[/detail]"
+    },
+    {
+     "paso": 4,
+     "accion": "leer_archivo",
+     "args_head": "origen.txt | copiar_archivo origen.txt | destino.txt[/detail]"
+    },
+    {
+     "paso": 5,
+     "accion": "leer_archivo",
+     "args_head": "origen.txt | copiar_archivo origen.txt | destino.txt[/detail]"
+    },
+    {
+     "paso": 6,
+     "accion": "leer_archivo",
+     "args_head": "origen.txt | copiar_archivo origen.txt | destino.txt[/detail]"
+    }
+   ],
+   "result_head": "RESULTADO leer_archivo ERROR: [Errno 22] Invalid argument: 'origen.txt | copiar_archivo origen.txt | destino.txt'"
+  },
+  "search_word": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 4,
+   "wall_s": 47.3,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "texto.txt | \"ZANAHORIA\"[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "escribir_archivo",
+     "args_head": "texto.txt | \"ZANAHORIA es una verdura saludable y nutritiva.\"[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "buscar",
+     "args_head": "ZANAHORIA | .[/detail]"
+    },
+    {
+     "paso": 4,
+     "accion": "responder",
+     "args_head": "ZANAHORIA se encuentra en texto.txt.[/detail]"
+    }
+   ],
+   "result_head": "ZANAHORIA se encuentra en texto.txt."
+  },
+  "shell_echo": {
+   "fin": "stuck",
+   "exito": false,
+   "pasos": 3,
+   "wall_s": 54.8,
+   "stuck_sig": "leer_archivo origen.txt[/detail]",
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "leer_archivo",
+     "args_head": "origen.txt[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "leer_archivo",
+     "args_head": "origen.txt[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "leer_archivo",
+     "args_head": "origen.txt[/detail]"
+    }
+   ],
+   "result_head": "RESULTADO leer_archivo ERROR: [Errno 2] No such file or directory: 'origen.txt'"
+  },
+  "math_mul": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 2,
+   "wall_s": 38.2,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "calcular",
+     "args_head": "23 * 19[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "437[/detail]"
+    }
+   ],
+   "result_head": "437"
+  },
+  "fecha_hoy": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 2,
+   "wall_s": 34.4,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "fecha",
+     "args_head": "[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "La fecha y hora actual es 2026-07-07 17:22:49.[/detail]"
+    }
+   ],
+   "result_head": "La fecha y hora actual es 2026-07-07 17:22:49."
+  }
+ },
+ "resumen": {
+  "n": 12,
+  "stuck": 4,
+  "stuck_rate": 0.333,
+  "exito": 6,
+  "exito_rate": 0.5,
+  "wall_total_min": 9.3
+ }
+}

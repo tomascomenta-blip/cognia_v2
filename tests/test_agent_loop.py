@@ -164,3 +164,58 @@ def test_register_action_distinct_args_not_stuck():
     c = {}
     for i in range(5):
         assert register_action(c, "escribir_archivo", f"f{i}.txt | data") == "ok"
+
+
+# ── prior_context_relevant: fix del estancamiento por CONTEXTO PREVIO ──────
+# Causa raíz medida (bench_estancamiento baseline 2026-07-07): el estado
+# global ~/.cognia_agent_state.json inyectaba tareas ANTERIORES ajenas; el 3B
+# copiaba sus nombres de archivo (leer_archivo calc.py en la tarea de calcular
+# 15*4), el ERROR se repetía bajo greedy y el stuck-detector mataba la tarea
+# (4/12 stuck, todos con esa firma).
+
+def test_prior_context_irrelevante_no_se_inyecta():
+    from cognia.agent.loop import prior_context_relevant
+    # la firma EXACTA del bench: tarea de cálculo tras una tarea de calc.py
+    assert not prior_context_relevant(
+        "Calcula 15 por 4 y guarda el resultado (solo el numero) en un archivo resultado.txt.",
+        "Escribi calc.py que imprima el resultado de 6*7. Valida su sintaxis y ejecutalo",
+    )
+    # tareas totalmente independientes
+    assert not prior_context_relevant(
+        "Ejecuta el comando de shell: echo cognia_ok",
+        "Crea origen.txt con el texto copiame. Despues copialo a destino.txt.",
+    )
+
+
+def test_prior_context_continuidad_explicita_se_inyecta():
+    from cognia.agent.loop import prior_context_relevant
+    assert prior_context_relevant("Segui con lo anterior", "Crea origen.txt")
+    assert prior_context_relevant("Continua la tarea de antes", "lo que sea")
+
+
+def test_prior_context_filename_compartido_se_inyecta():
+    from cognia.agent.loop import prior_context_relevant
+    assert prior_context_relevant(
+        "Arregla el bug de calc.py y volve a ejecutarlo",
+        "Escribi calc.py que imprima el resultado de 6*7",
+    )
+
+
+def test_find_skill_sin_fallback_semantico_no_matchea_irrelevantes():
+    """F3 del estancamiento: el auto-apply del agent loop NO debe aplicar
+    skills por similitud semantica difusa (matcheaba escribir-tests para
+    'Calcula 15 por 4' e inyectaba archivos inexistentes que ciclaban)."""
+    from cognia.agent.skills import find_skill, SkillSpec
+    skills = {
+        "escribir-tests": SkillSpec(
+            name="escribir-tests",
+            description="genera tests unitarios para codigo python",
+            body="Lee el codigo a testear...", source="test", kind="cognia"),
+    }
+    # tarea de calculo: 0-1 tokens compartidos -> None sin fallback
+    assert find_skill("Calcula 15 por 4 y guarda el resultado en resultado.txt",
+                      skills=skills, semantic_fallback=False) is None
+    # pedido explicitamente de tests: match lexico fuerte -> se aplica
+    m = find_skill("genera tests unitarios para el modulo calc de python",
+                   skills=skills, semantic_fallback=False)
+    assert m is not None and m.name == "escribir-tests"

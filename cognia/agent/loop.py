@@ -78,6 +78,34 @@ def objective_context(history: list, ctx_lo: int, char_cap: int = 8000):
     return ctx_text, ctx_lo
 
 
+_FILENAME_RE = re.compile(r"\b[\w./\\-]+\.\w{1,4}\b")
+_CONTINUIDAD = ("anterior", "antes", "segui", "seguir", "continua",
+                "continuar", "retoma", "retomar", "lo de recien")
+
+
+def prior_context_relevant(task: str, prev_task: str) -> bool:
+    """¿El CONTEXTO PREVIO (estado global ~/.cognia_agent_state.json) ayuda a
+    esta tarea o es un distractor?
+
+    Causa raíz medida (bench_estancamiento baseline, 2026-07-07): inyectado
+    SIEMPRE, el resumen de tareas anteriores mete nombres de archivo AJENOS;
+    el 3B ancla en lo literal (lección +62pp ejemplo-concreto), intenta
+    leer_archivo <archivo-de-otra-tarea>, el ERROR se repite bajo greedy y el
+    stuck-detector mata la tarea: 4/12 stuck, TODOS con esa firma.
+
+    Relevante (se inyecta) solo si: (a) la tarea nueva refiere explícitamente
+    a continuidad, o (b) comparte un nombre de archivo con la tarea previa.
+    Trade-off declarado: continuidad temática sin filename ni palabra de
+    continuidad NO se detecta — preferible a filtrar distractores siempre.
+    """
+    tl = task.lower()
+    if any(w in tl for w in _CONTINUIDAD):
+        return True
+    propios = set(_FILENAME_RE.findall(tl))
+    previos = set(_FILENAME_RE.findall((prev_task or "").lower()))
+    return bool(propios & previos)
+
+
 def register_action(sig_counts: dict, action: str, args: str) -> str:
     """Detector de estancamiento por conteo de ocurrencias del par
     ``(action, args)`` COMPLETO en TODA la tarea (no solo repeticiones

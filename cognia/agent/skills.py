@@ -220,7 +220,8 @@ def _semantic_best_match(text: str, candidates: dict, threshold: float):
     return best if best_sim >= threshold else None
 
 
-def find_skill(text: str, skills: dict = None, min_overlap: int = 2):
+def find_skill(text: str, skills: dict = None, min_overlap: int = 2,
+               semantic_fallback: bool = True):
     """
     Best skill whose name+description overlaps the request, or None.
     1. Solapamiento lexico (bag-of-words, barato, no-LLM) -- gana si
@@ -230,6 +231,14 @@ def find_skill(text: str, skills: dict = None, min_overlap: int = 2):
     Skills con historial de uso consistentemente malo (record_skill_use:
     >= _FAIL_STREAK_MIN fallos y 0 exitos) se excluyen de ambas capas -- se
     loguea la exclusion, no se silencia.
+
+    ``semantic_fallback=False``: solo capa lexica. Para el AUTO-APPLY del
+    agent loop es obligatorio (bench_estancamiento post-fix 2026-07-07): el
+    coseno a 0.35 matcheaba skills IRRELEVANTES en tareas cortas ("Calcula
+    15 por 4" -> escribir-tests, "echo cognia_ok" -> claude-mem) y la
+    guidance inyectada metia archivos inexistentes (codigo_a_testear.py)
+    que el 3B intentaba leer en loop hasta el stuck-detector. El fallback
+    semantico queda para pedidos EXPLICITOS del usuario (/skill).
     """
     skills = skills if skills is not None else load_skills()
     if not skills:
@@ -256,6 +265,8 @@ def find_skill(text: str, skills: dict = None, min_overlap: int = 2):
     if best is not None and best_score >= min_overlap:
         return best
 
+    if not semantic_fallback:
+        return None
     return _semantic_best_match(text, usable, SEMANTIC_MATCH_THRESHOLD)
 
 

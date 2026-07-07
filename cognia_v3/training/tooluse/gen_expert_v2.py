@@ -47,9 +47,11 @@ from cognia_v3.training.tooluse.gen_trajectories import (
 from cognia_v3.training.tooluse.tasks_v2 import TASKS_V2, check_superficies, by_id
 
 # El AVISO LITERAL del loop de producción (cli.py) — el dato de entrenamiento
-# debe calcar lo que el modelo ve en deploy.
-AVISO_LOOP = ("AVISO: estas repitiendo la misma accion sin progreso. "
-              "Cambia de enfoque o usa responder.")
+# debe calcar lo que el modelo ve en deploy (match train<->inference).
+def aviso_loop(action: str, args: str) -> str:
+    return (f"AVISO: ya ejecutaste 'ACCION: {action} {args[:80]}' y no "
+            "avanzo. PROHIBIDO repetirla. Proba una herramienta DISTINTA "
+            "o cerra con responder.")
 
 
 class _AIStub:
@@ -178,8 +180,10 @@ def run_task_v2(task: dict, tools_doc: str, verbose: bool = False) -> dict:
                 "tool": primero["tool"], "task_id": task["id"],
                 "step": 1, "variante": vi, "clase": "recuperacion"})
             # 3) anti-ciclo: 2× el mismo ERROR + AVISO literal del loop
+            _obj = _primer_filename(task) or ""
             ctx_text = "\n".join([tarea_line, _sane(err_recuperacion),
-                                  _sane(err_recuperacion), AVISO_LOOP])
+                                  _sane(err_recuperacion),
+                                  aviso_loop("leer_archivo", _obj)])
             anticiclo.append({
                 "prompt": _sane(_prompt_de(tools_doc, ctx_text)),
                 "completion": _sane(primero["completion"]),

@@ -7363,12 +7363,19 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
 
     _prior_files_touched = list(_agent_state.get("files_touched", []))
 
+    # CONTEXTO PREVIO solo si es RELEVANTE a esta tarea: inyectado siempre, sus
+    # nombres de archivo ajenos son distractores que el 3B copia y lo estancan
+    # (bench_estancamiento baseline: 4/12 stuck, todos con esa firma; ver
+    # cognia/agent/loop.py:prior_context_relevant).
     _prior_ctx = ""
     if _agent_state["tasks"]:
+        from cognia.agent.loop import prior_context_relevant
         _prior_lines = []
         for _t in _agent_state["tasks"][-2:]:
-            _prior_lines.append(f"- Tarea anterior: {_t['task'][:80]} -> {_t['result'][:120]}")
-        _prior_ctx = "CONTEXTO PREVIO:\n" + "\n".join(_prior_lines) + "\n\n"
+            if prior_context_relevant(task, _t.get("task", "")):
+                _prior_lines.append(f"- Tarea anterior: {_t['task'][:80]} -> {_t['result'][:120]}")
+        if _prior_lines:
+            _prior_ctx = "CONTEXTO PREVIO:\n" + "\n".join(_prior_lines) + "\n\n"
 
     # Skill guidance: an explicit one (from /skill) wins; otherwise auto-apply a
     # skill whose description matches this task, so Claude/Cognia skills shape the
@@ -7377,7 +7384,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     if not guidance:
         try:
             from cognia.agent.skills import find_skill, skill_guidance
-            _matched = find_skill(task)
+            # Solo match lexico fuerte: el fallback semantico auto-aplicaba
+            # skills irrelevantes cuya guidance estancaba al 3B (ver skills.py).
+            _matched = find_skill(task, semantic_fallback=False)
             if _matched:
                 guidance = skill_guidance(_matched)
                 _applied_skill = _matched.name
@@ -7489,6 +7498,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     _sig_counts: dict = {}    # detector de estancamiento por conteo de acciones
     _last_prose = ""          # ultima respuesta en prosa (candidata a final)
     _no_action_streak = 0     # respuestas seguidas sin ACCION
+    _step_temp = 0.0          # greedy default; tras un warn de repeticion, el
+                              # proximo paso usa 0.7 para romper el ciclo
+                              # determinista (mismo contexto -> misma accion)
     _actions_trace: list = [] # traza (action, args, ok) para skill_capture (CP2)
     result_text = _bon_result_text  # si BoN corto, este es el resultado final
     while not _bon_ok and total_steps < AGENT_HARD_CAP:
@@ -7517,8 +7529,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # generate-then-discard del rambling. NO se incluye '\nRESULTADO'
             # porque el contenido multi-linea de escribir_archivo puede contenerlo.
             raw_response = orch.infer(
-                prompt, temperature=0.0, stop=["\nACCION:", "\nACCIÓN:"],
+                prompt, temperature=_step_temp, stop=["\nACCION:", "\nACCIÓN:"],
             ).text.strip()
+            _step_temp = 0.0
         except Exception as e:
             _print_fn(f"[err_cl]Agente: error LLM: {e}[/err_cl]")
             break
@@ -7586,12 +7599,34 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # la tarea -> caza tambien ciclos oscilantes A,B,A,B. Ver agent/loop.py.
         _verdict = register_action(_sig_counts, action, args)
         if _verdict == "warn":
+            # Concreto >> abstracto (leccion +62pp del repo): nombrar la
+            # accion prohibida; el aviso generico no desviaba al 3B
+            # (bench_estancamiento: pasos identicos post-aviso).
             history.append(
-                "AVISO: estas repitiendo la misma accion sin progreso. "
-                "Cambia de enfoque o usa responder."
+                f"AVISO: ya ejecutaste 'ACCION: {action} {args[:80]}' y no "
+                "avanzo. PROHIBIDO repetirla. Proba una herramienta DISTINTA "
+                "o cerra con responder."
             )
+            # Con greedy, mismo contexto -> misma accion: el AVISO solo no
+            # desvia al 3B (medido en bench_estancamiento: pasos 2->3
+            # identicos post-aviso). Romper el determinismo UN paso.
+            _step_temp = 0.7
         elif _verdict == "stop":
-            _print_fn("[warn_cl]Agente estancado (accion repetida), deteniendo.[/warn_cl]")
+            # Cierre honesto en vez de morir sin respuesta: un ultimo infer
+            # que RESUME lo hecho (texto, no ACCION) para que la tarea
+            # devuelva estado real en lugar de nada.
+            _print_fn("[warn_cl]Agente estancado (accion repetida): forzando cierre honesto.[/warn_cl]")
+            try:
+                _cierre = orch.infer(
+                    f"{TOOLS_DOC}\n\nContexto de la tarea:\n{ctx_text}\n\n"
+                    "Estas repitiendo la misma accion sin progreso y la tarea "
+                    "se corta aca. Resumi en 1-2 lineas que se logro hacer y "
+                    "que quedo pendiente. Solo texto, sin ACCION.\n\nResumen:",
+                    temperature=0.0, max_tokens=120).text.strip()
+                if _cierre:
+                    result_text = f"(interrumpida por estancamiento) {_cierre}"
+            except Exception:
+                pass
             break
 
         if _struct.get("error"):
