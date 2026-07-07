@@ -5505,3 +5505,18 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   subproceso + transformers r16/DoRA), eval uniforme sobre base NF4, gates G1/G3/G5 +
   tooluse con McNemar in-kernel, integridad de suites por sha256. e1_train = 1.344 pares.
 - Apagado programado 04:30 (pedido del dueño); todo committeado+pusheado por unidad.
+
+## 2026-07-06 23:20 — OFICINA AGÉNTICA v1: E2E REAL PASS (goal paralelo del dueño)
+
+- `cognia/oficina/`: 3 escalas (jefe planifica con orch.infer → directores desglosan →
+  trabajadores ejecutan cli._run_agent_task con ROLE_TOOLS) + dashboard localhost stdlib
+  (:8765) con árbol en vivo, eventos por tarea, Pausar/Reanudar/DETENER (detención real a
+  mitad de tarea vía print-hook) y edición de tareas. `python -m cognia.oficina`.
+- E2E v1 FALLÓ honesto: el 3B copió literal el formato abstracto "ROL:" → rol sin permisos
+  de escritura. Fix = la lección medida del repo (ejemplo concreto +62pp) + parser robusto
+  + guard-rail de rol por verbos. **E2E v2 PASS**: meta real → 3 directores, 6 trabajadores
+  con roles correctos, saludo.txt creado y verificado por otro trabajador. Tests 9 casos.
+- Límite v1 declarado: "hecha" = flujo completado; la verificación de la meta por el jefe
+  es mejora v2. Detención mid-task verificada a nivel unit, no ejercitada en vivo.
+- Usage vigilado todo el tramo (52→60%, techo 90%). E1 (PRIORIDAD) sigue RUNNING en Kaggle.
+- Commits: 9da75f8 (oficina+tests), 8c5bb87 (fix prompts/parser), 38935e4 (resumen_e1).
