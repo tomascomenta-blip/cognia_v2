@@ -63,8 +63,37 @@ def es_espanol(respuesta: str) -> bool:
     return es > en
 
 
+# ── oráculo G2A (tool-use formato ACCION): primera línea ACCION del output ──
+_ACCION_RE = re.compile(r"ACCI[OÓ]N:\s*(\w+)", re.IGNORECASE)
+
+
+def accion_first(respuesta: str):
+    """(tool, bloque) de la PRIMERA ACCION emitida; bloque = texto desde esa
+    ACCION hasta la siguiente ACCION o el final (los args, incl. multilínea).
+    (None, '') si no hay ninguna ACCION parseable."""
+    m = _ACCION_RE.search(respuesta)
+    if not m:
+        return None, ""
+    m2 = _ACCION_RE.search(respuesta, m.end())
+    bloque = respuesta[m.end():m2.start()] if m2 else respuesta[m.end():]
+    return m.group(1), bloque
+
+
+def accion_pass(respuesta: str, oracle: dict) -> bool:
+    """PASA si la primera ACCION usa una tool esperada y (si hay args_regex)
+    los args del bloque matchean (p.ej. el archivo correcto)."""
+    tool, bloque = accion_first(respuesta)
+    if tool is None or tool not in (oracle.get("accion_tools") or []):
+        return False
+    rx = oracle.get("args_regex")
+    if rx and not re.search(rx, bloque, re.IGNORECASE):
+        return False
+    return True
+
+
 CLAVES_VALIDAS = {"must_all", "must_any", "not_any", "number"}
-GATES = {"G1", "G2R", "G3", "G5"}
+CLAVES_G2A = {"accion_tools", "args_regex"}
+GATES = {"G1", "G2R", "G3", "G5", "G2A"}
 
 
 def carga_suite(path: str) -> list:
@@ -89,13 +118,20 @@ def carga_suite(path: str) -> list:
                 raise ValueError(f"{path}:{lineno}: idioma inválido")
             if it["shots"] not in (0, 3):
                 raise ValueError(f"{path}:{lineno}: shots inválido")
-            extra = set(it["oracle"]) - CLAVES_VALIDAS
-            if extra:
-                raise ValueError(f"{path}:{lineno}: claves de oracle inválidas {extra}")
-            restricciones = [k for k in CLAVES_VALIDAS
-                             if it["oracle"].get(k) not in (None, [], "")]
-            if not restricciones:
-                raise ValueError(f"{path}:{lineno}: oracle sin restricciones")
+            if it["gate"] == "G2A":
+                extra = set(it["oracle"]) - CLAVES_G2A
+                if extra:
+                    raise ValueError(f"{path}:{lineno}: claves de oracle inválidas {extra}")
+                if not it["oracle"].get("accion_tools"):
+                    raise ValueError(f"{path}:{lineno}: G2A sin accion_tools")
+            else:
+                extra = set(it["oracle"]) - CLAVES_VALIDAS
+                if extra:
+                    raise ValueError(f"{path}:{lineno}: claves de oracle inválidas {extra}")
+                restricciones = [k for k in CLAVES_VALIDAS
+                                 if it["oracle"].get(k) not in (None, [], "")]
+                if not restricciones:
+                    raise ValueError(f"{path}:{lineno}: oracle sin restricciones")
             if not it["prompt"].strip():
                 raise ValueError(f"{path}:{lineno}: prompt vacío")
             items.append(it)

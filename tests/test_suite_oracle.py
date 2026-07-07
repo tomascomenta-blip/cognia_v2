@@ -75,3 +75,81 @@ def test_carga_suite_valida_y_rechaza(tmp_path):
         raise AssertionError("debía rechazar id duplicado")
     except ValueError:
         pass
+
+
+# ── G2A: oráculo de tool-use formato ACCION (suite g2_accion.jsonl) ─────────
+
+def test_accion_pass_primera_accion():
+    from cognia_v3.eval.suites.suite_oracle import accion_pass
+    oracle = {"accion_tools": ["contar_lineas"], "args_regex": r"copia_f\.txt"}
+    # tool correcta + archivo correcto
+    assert accion_pass("ACCION: contar_lineas copia_f.txt", oracle)
+    # tool correcta, archivo equivocado -> falla por args_regex
+    assert not accion_pass("ACCION: contar_lineas fuente.txt", oracle)
+    # tool equivocada aunque despues venga la correcta (mide la PRIMERA)
+    assert not accion_pass("ACCION: leer_archivo copia_f.txt\n"
+                           "ACCION: contar_lineas copia_f.txt", oracle)
+    # sin ACCION parseable
+    assert not accion_pass("voy a contar las lineas de copia_f.txt", oracle)
+    # acento en ACCIÓN y case-insensitive
+    assert accion_pass("ACCIÓN: contar_lineas copia_f.txt", oracle)
+
+
+def test_accion_pass_bloque_multilinea():
+    from cognia_v3.eval.suites.suite_oracle import accion_pass
+    oracle = {"accion_tools": ["escribir_archivo"], "args_regex": r"compras\.txt"}
+    # args multilínea dentro del bloque de la primera ACCION
+    assert accion_pass("ACCION: escribir_archivo compras.txt | leche\ncafe\nazucar",
+                       oracle)
+    # el regex NO debe matchear en el bloque de una segunda ACCION
+    oracle2 = {"accion_tools": ["leer_archivo"], "args_regex": r"compras\.txt"}
+    assert not accion_pass("ACCION: leer_archivo otro.txt\n"
+                           "ACCION: escribir_archivo compras.txt | x", oracle2)
+
+
+def test_accion_pass_sin_args_regex_y_cierre():
+    from cognia_v3.eval.suites.suite_oracle import accion_pass
+    assert accion_pass("ACCION: responder Listo, tarea completada.",
+                       {"accion_tools": ["responder"], "args_regex": None})
+    assert not accion_pass("ACCION: leer_archivo x.txt",
+                           {"accion_tools": ["responder"], "args_regex": None})
+
+
+def test_carga_suite_g2a(tmp_path):
+    ok = {"id": "g2a_x-s1", "gate": "G2A", "dominio": "archivo", "idioma": "es",
+          "shots": 0, "prompt": "TAREA: algo\n\nSiguiente ACCION:",
+          "oracle": {"accion_tools": ["escribir_archivo"], "args_regex": None},
+          "max_new_tokens": 200}
+    p = tmp_path / "g2a.jsonl"
+    p.write_text(json.dumps(ok) + "\n", encoding="utf-8")
+    assert len(carga_suite(str(p))) == 1
+    # G2A sin accion_tools -> rechazo
+    malo = dict(ok, id="g2a_x-s2", oracle={"accion_tools": []})
+    p.write_text(json.dumps(malo) + "\n", encoding="utf-8")
+    try:
+        carga_suite(str(p))
+        raise AssertionError("debía rechazar G2A sin accion_tools")
+    except ValueError:
+        pass
+    # G2A con clave de oracle de texto -> rechazo
+    malo2 = dict(ok, id="g2a_x-s3",
+                 oracle={"accion_tools": ["leer_archivo"], "must_all": ["x"]})
+    p.write_text(json.dumps(malo2) + "\n", encoding="utf-8")
+    try:
+        carga_suite(str(p))
+        raise AssertionError("debía rechazar clave must_all en G2A")
+    except ValueError:
+        pass
+
+
+def test_suite_g2a_congelada_carga():
+    """La suite real congelada carga y valida (regresión del freeze)."""
+    import os
+    here = os.path.join(os.path.dirname(__file__), "..", "cognia_v3", "eval",
+                        "suites", "g2_accion.jsonl")
+    items = carga_suite(here)
+    assert len(items) >= 100
+    # todos los cierres esperan 'responder' (miden terminación)
+    cierres = [it for it in items if it["step"] == it["n_steps"]]
+    assert cierres and all(it["oracle"]["accion_tools"] == ["responder"]
+                           for it in cierres)

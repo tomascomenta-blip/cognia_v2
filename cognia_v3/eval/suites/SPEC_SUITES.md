@@ -50,3 +50,26 @@ BINARIO por ítem (McNemar necesita binario), decodificación greedy/temp 0.
    (no de la suite), formato "Pregunta: ...\nRespuesta: ...".
 7. Los ítems no deben aparecer en ningún JSONL de entrenamiento del repo
    (se verifica con el script de descontaminación antes del freeze).
+
+## G2A — suite ACCION de tool-use (agregada 2026-07-07, mismo protocolo de freeze)
+
+| Archivo | Gate | N | Composición |
+|---|---|---|---|
+| `g2_accion.jsonl` | G2A | 147 | 48 tareas held-out NUEVAS (banco `g2_accion_tasks.py`, superficies distintas de train) ejecutadas con trayectorias expertas contra las tools REALES (`gen_g2_accion.py`); cada trayectoria verificada por postcondición se corta en ítems: 48 primer-paso (selección de tool), 51 intermedios (multi-paso teacher-forced con contexto de RESULTADOs reales), 48 cierres (`responder` = terminación). Dominios: archivo 37, mixta 32, py 14, busqueda 13, json 12, kg 13, memoria 10, calc 10, shell 4, fecha 2. |
+
+Semántica del oráculo (en `suite_oracle.accion_pass`): PASA si la PRIMERA línea
+`ACCION:` del output usa una tool ∈ `accion_tools` y, si hay `args_regex`, los
+args del bloque de esa ACCION lo matchean (valida el archivo/objetivo correcto).
+Sin ejecución de tools → corre en el kernel de Kaggle. La ejecución E2E real
+(accept-rate por postcondición) queda para la verificación en el CLI (G4/E5).
+
+Regla de descontaminación específica de G2A: el prompt incluye por DISEÑO el
+tools_doc del deploy y plantillas `RESULTADO <tool>:` idénticas a train (misma
+infraestructura); la unidad descontaminada es la línea `TAREA:` (contenido
+específico del ítem), con la regla estándar de shingles K=8. Las 48 tareas se
+redactaron además con fraseo instructivo DISTINTO del banco de train
+(`decontaminar.py` exit 0 sobre la línea TAREA completa).
+
+Nota de potencia (mcnemar_power): N=147 con delta +10pp → potencia ≈ mayor que
+la de N=100 (73.3%); los subconjuntos (p.ej. solo-cierres N=48) son señal
+direccional, no gate individual.

@@ -19,7 +19,7 @@ from suite_oracle import carga_suite  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 FROZEN = os.path.join(HERE, "SUITES_FROZEN.json")
 SUITES = ["g1_general.jsonl", "g2_razonamiento.jsonl",
-          "g3_identidad.jsonl", "g5_espanol.jsonl"]
+          "g3_identidad.jsonl", "g5_espanol.jsonl", "g2_accion.jsonl"]
 
 
 def sha256(path):

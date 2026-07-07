@@ -43,6 +43,19 @@ def textos_de(registro) -> list:
     return out
 
 
+def texto_item(it: dict) -> str:
+    """Texto del ítem a descontaminar. Para G2A el prompt incluye por DISEÑO
+    infraestructura idéntica a train/deploy (tools_doc + plantillas RESULTADO
+    de las tools): eso no es contaminación de contenido. La unidad específica
+    del ítem es su línea TAREA — sobre ella se aplica la regla estándar."""
+    if it.get("gate") == "G2A":
+        for ln in it["prompt"].splitlines():
+            if ln.startswith("TAREA:"):
+                return ln
+        return ""
+    return it["prompt"]
+
+
 def main():
     suite_sh = {}
     for spath in SUITES:
@@ -52,13 +65,26 @@ def main():
                 if not line:
                     continue
                 it = json.loads(line)
-                sh = shingles(it["prompt"])
+                sh = shingles(texto_item(it))
                 if sh:
                     suite_sh[it["id"]] = (os.path.basename(spath), sh)
     print(f"suites: {len(suite_sh)} ítems con shingles")
 
+    # Copias exactas de las suites (p.ej. en _*_staging/ para subir el dataset
+    # a Kaggle) no son datos de entrenamiento: excluir por sha256 idéntico.
+    import hashlib
+    hashes_suites = set()
+    for spath in SUITES:
+        with open(spath, "rb") as f:
+            hashes_suites.add(hashlib.sha256(f.read()).hexdigest())
+
+    def _es_copia_de_suite(p):
+        with open(p, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest() in hashes_suites
+
     train_files = sorted({p for g in TRAIN_GLOBS for p in glob.glob(g, recursive=True)
-                          if os.sep + "suites" + os.sep not in p})
+                          if os.sep + "suites" + os.sep not in p
+                          and not _es_copia_de_suite(p)})
     print(f"training JSONLs a revisar: {len(train_files)}")
 
     colisiones = []
