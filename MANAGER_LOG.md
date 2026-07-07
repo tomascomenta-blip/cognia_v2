@@ -5559,3 +5559,25 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   DC-4 secuencial-con-merge vs mezcla única, con replay on-policy in-kernel, merge DC-9 real
   (ensayo de E5), eval G1/G3/G5+G2A. Regla §7.3: B ≥ A−1pp → E2-E4 colapsan.
 - Commits: a5f070f (suite G2A), 61a2d5a+ (D5), (v3+fixes F1-F4), (E-MIX). Usage ≤45%.
+
+## 2026-07-07 (tarde) — FLEET validado en deploy real + 2 bugs de fondo en skills + E-GROK en cola
+
+- **Fleet XHUNDRED VALIDADO con experimento real** (FLEET_DESIGN.md): el b9391 local soporta
+  N adapters con `--lora-init-without-apply` + hot-swap `POST /lora-adapters` (2-41 ms) y el
+  efecto del adapter es real post-swap (search_word: base elige leer_archivo mal → experto
+  tooluse v4 elige escribir_archivo bien; 4/4 ítems con cache_prompt=false). REGLA descubierta
+  midiendo: tras swap, `cache_prompt=false` obligatorio (KV cache con otros pesos = inválido y
+  llama.cpp no lo invalida solo). Arquitectura: 1 server + base mergeada + N adapters f16 con
+  router de reglas léxicas; anti-catástrofe = default scale 0 (la base ya pasa G1/G3/G5).
+- **2 bugs de fondo en skills (detrás de la causa #2 del estancamiento)**: (a) el cache global
+  de embeddings MEZCLA backends (n-gram por timeout durante la carga lazy de ST queda cacheado
+  → cosenos cruzados basura); (b) el umbral semántico 0.35 NO filtra en español (MEDIDO con
+  MiniLM: irrelevantes 0.172-0.441, relevantes 0.504-0.713). Fix: _encode_batch ST directo +
+  umbral 0.48 re-calibrado. Residuo declarado: 1 caso límite ('Crea origen.txt...'→redactar,
+  0.48<sim) — el agent loop está protegido por F3 (léxico-only). 38/38 tests del área.
+- **E-GROK escrito y en cola** (egrok_kernel.py): 4 brazos pre-registrados (base/lr3+warmup/
+  cortos/denso-4x), eval G3 in-loop cada 10 steps, métrica = GPU-min a gate fijo. Se lanza al
+  liberar la GPU de E-MIX. **Instrumento G4 local** (eval_g4_cli.py) depurado con smoke real.
+- E-MIX sigue RUNNING en Kaggle (monitor activo). Suite completa: 3513 passed + 1 flaky de
+  aislamiento (test_find_skill_none_below_threshold) → causa de fondo (a) arreglada; re-corrida
+  en curso para confirmar verde.
