@@ -1,0 +1,25 @@
+{
+ "protocolo": "TEORIA_COGNIA3B.md Parte 3 §3.3 / DC-10",
+ "suites": {
+  "g1_general.jsonl": {
+   "sha256": "81e78ea7ce6dacd61070f3d7c5cc6ab4782c6ead403767ad4c7062b5188bfe8f",
+   "n_items": 100,
+   "frozen": "2026-07-06"
+  },
+  "g2_razonamiento.jsonl": {
+   "sha256": "e4f5a916baa5e133fb9f374fac00cf2947e9f7a021aa2bcf6d05b0d8b4768978",
+   "n_items": 100,
+   "frozen": "2026-07-06"
+  },
+  "g3_identidad.jsonl": {
+   "sha256": "8f89e9e4d2a948267b18d63872086e547edad1b82f8400bb836a96b2d9383b19",
+   "n_items": 20,
+   "frozen": "2026-07-06"
+  },
+  "g5_espanol.jsonl": {
+   "sha256": "0b710635ca353492d0374e19dbcc43584bfa63cae10abbe01087b337ee61b5bc",
+   "n_items": 25,
+   "frozen": "2026-07-06"
+  }
+ }
+}
