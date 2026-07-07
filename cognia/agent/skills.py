@@ -210,6 +210,15 @@ def _semantic_best_match(text: str, candidates: dict, threshold: float):
     distinto al de la skill."""
     if not candidates:
         return None
+    # El umbral esta calibrado para sentence-transformers; con el fallback
+    # n-gram (ST ausente o sistema bajo presion) el coseno da similitudes
+    # espurias entre textos cortos -> matches falsos (visto como flakiness
+    # de test de aislamiento y como riesgo real en maquinas sin ST).
+    from cognia.cognia_embedding import semantic_model_active
+    if not semantic_model_active():
+        logger.info("fallback semantico deshabilitado: backend n-gram activo",
+                    extra={"op": "find_skill"})
+        return None
     from cognia.vectors import cosine_similarity, text_to_vector
     req_vec = text_to_vector(text)
     best, best_sim = None, 0.0
