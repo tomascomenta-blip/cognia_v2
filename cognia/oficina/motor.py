@@ -28,19 +28,35 @@ class Pausada(Exception):
     pass
 
 
+# Leccion MEDIDA del repo (memoria cognia-mom-agente-andamiaje, +62pp):
+# el 3B necesita EJEMPLOS CONCRETOS, no formatos abstractos ("ROL: subtarea"
+# hizo que el modelo escribiera literalmente "ROL: ..." en el e2e v1).
 PLAN_JEFE = (
-    "Sos el JEFE de una oficina de agentes. Descompone la META en 2 a 3 "
+    "Sos el JEFE de una oficina de agentes. Descompone la META en 1 a 3 "
     "directivas concretas e independientes, una por director. Responde SOLO "
-    "una lista numerada, una directiva por linea, sin explicaciones.\n\n"
+    "una lista numerada, una directiva por linea, sin explicaciones.\n"
+    "Ejemplo de respuesta:\n"
+    "1. Crear el archivo notas.txt con el resumen pedido\n"
+    "2. Verificar que el archivo quedo bien escrito\n\n"
     "META: {meta}"
 )
 PLAN_DIRECTOR = (
     "Sos un DIRECTOR de una oficina de agentes. Descompone tu DIRECTIVA en 1 "
-    "a 3 subtareas ejecutables por trabajadores. Cada linea: ROL: subtarea. "
-    "ROL es investigador (solo lee/busca/responde) o implementador (puede "
-    "escribir archivos y ejecutar codigo). Responde SOLO las lineas, nada mas.\n\n"
+    "a 3 subtareas para trabajadores. Cada linea empieza con el rol en "
+    "minusculas y dos puntos. Roles: investigador (solo lee/busca/responde) "
+    "o implementador (escribe archivos y ejecuta codigo). Responde SOLO las "
+    "lineas, nada mas.\n"
+    "Ejemplo de respuesta:\n"
+    "implementador: crea el archivo notas.txt con el texto 'hola'\n"
+    "investigador: verifica que notas.txt existe y di su contenido\n\n"
     "DIRECTIVA: {directiva}"
 )
+
+# Guard-rail: si el rol no se parsea, inferirlo de la subtarea (crear/escribir/
+# ejecutar => implementador). Evita mandar un "crear archivo" a un rol sin
+# permisos de escritura (fallo real del e2e v1).
+_RE_IMPLEMENTADOR = __import__("re").compile(
+    r"(?i)\b(crea|crear|escrib|guarda|apend|ejecut|modific|genera|corre)\w*")
 
 
 def _parse_numerada(texto: str) -> list:
@@ -53,15 +69,28 @@ def _parse_numerada(texto: str) -> list:
 
 
 def _parse_roles(texto: str) -> list:
-    """Lineas 'ROL: subtarea' -> [(rol, subtarea)]; rol desconocido -> investigador."""
+    """Lineas 'rol: subtarea' -> [(rol, subtarea)].
+
+    Robusto a los tics reales del 3B (e2e v1): prefijo literal 'ROL:' copiado
+    del formato, y rol ausente/desconocido -> se infiere de la subtarea
+    (verbos de escritura/ejecucion => implementador, si no investigador)."""
     out = []
     for linea in _parse_numerada(texto):
         rol, _, resto = linea.partition(":")
         rol = rol.strip().lower()
+        if rol == "rol" and resto.strip():          # "ROL: investigador. tarea"
+            resto2 = resto.strip()
+            for candidato in ("investigador", "implementador"):
+                if resto2.lower().startswith(candidato):
+                    rol = candidato
+                    resto = resto2[len(candidato):].lstrip(".:,- ")
+                    break
         if rol in ("investigador", "implementador") and resto.strip():
             out.append((rol, resto.strip()))
         else:
-            out.append(("investigador", linea))
+            inferido = ("implementador" if _RE_IMPLEMENTADOR.search(linea)
+                        else "investigador")
+            out.append((inferido, linea))
     return out[:3]
 
 

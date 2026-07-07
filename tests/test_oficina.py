@@ -70,6 +70,14 @@ def test_parsers_de_planes():
     assert roles[1][0] == "investigador"
     # rol desconocido degrada a investigador (menor blast-radius)
     assert _parse_roles("hacker: romper todo")[0][0] == "investigador"
+    # tic real del 3B (e2e v1): prefijo literal "ROL:" copiado del formato
+    assert _parse_roles("1. ROL: investigador. Buscar el archivo saludo.txt") == \
+        [("investigador", "Buscar el archivo saludo.txt")]
+    assert _parse_roles("ROL: implementador: crear saludo.txt con hola")[0][0] == \
+        "implementador"
+    # guard-rail: sin rol parseable, verbos de escritura infieren implementador
+    assert _parse_roles("2) crear el archivo saludo.txt con el texto Hola")[0][0] == \
+        "implementador"
 
 
 def test_server_api(tmp_path):
