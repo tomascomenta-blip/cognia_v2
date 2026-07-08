@@ -1,0 +1,138 @@
+{
+ "exp": "E-GROK-gate-fijo",
+ "started_utc": "2026-07-08 03:42:40",
+ "pre_registro": {
+  "P-GROK-1": "grok_base pasa G3 antes de fin de epoch 1",
+  "P-GROK-2": "grok_lr3 gate en <=0.6x GPU-min de base sin romper G5-mini",
+  "P-GROK-3": "grok_denso gate antes que base; G1-mini <= base",
+  "P-GROK-4": "grok_cortos == base +-20%",
+  "regla": "gana menor GPU-min-a-gate con G1-mini >= control-4pp"
+ },
+ "env": {
+  "gpu": "Tesla T4",
+  "torch": "2.10.0+cu128"
+ },
+ "suites_hash_ok": true,
+ "brazos": {
+  "grok_base": {
+   "brazo": "grok_base",
+   "lr": 0.0001,
+   "steps_total": 24,
+   "evals": [
+    {
+     "step": 10,
+     "train_s": 78.3,
+     "loss": 1.6512,
+     "g3": 0
+    },
+    {
+     "step": 20,
+     "train_s": 152.4,
+     "loss": 1.5155,
+     "g3": 0
+    }
+   ],
+   "gate_step": null,
+   "gate_train_s": null,
+   "g1_mini_final": 36,
+   "g5_mini_final": 15,
+   "g3_final": 0
+  },
+  "grok_lr3": {
+   "brazo": "grok_lr3",
+   "lr": 0.0003,
+   "steps_total": 24,
+   "evals": [
+    {
+     "step": 10,
+     "train_s": 77.0,
+     "loss": 1.4213,
+     "g3": 9
+    },
+    {
+     "step": 20,
+     "train_s": 151.6,
+     "loss": 1.129,
+     "g3": 19
+    }
+   ],
+   "gate_step": 20,
+   "gate_train_s": 151.6,
+   "g1_mini_final": 36,
+   "g5_mini_final": 15,
+   "g3_final": 19
+  },
+  "grok_cortos": {
+   "brazo": "grok_cortos",
+   "lr": 0.0001,
+   "steps_total": 24,
+   "evals": [
+    {
+     "step": 10,
+     "train_s": 77.1,
+     "loss": 1.8495,
+     "g3": 0
+    },
+    {
+     "step": 20,
+     "train_s": 151.8,
+     "loss": 1.6142,
+     "g3": 0
+    }
+   ],
+   "gate_step": null,
+   "gate_train_s": null,
+   "g1_mini_final": 35,
+   "g5_mini_final": 14,
+   "g3_final": 0
+  },
+  "grok_denso": {
+   "brazo": "grok_denso",
+   "lr": 0.0001,
+   "steps_total": 24,
+   "evals": [
+    {
+     "step": 10,
+     "train_s": 76.9,
+     "loss": 1.5356,
+     "g3": 0
+    },
+    {
+     "step": 20,
+     "train_s": 151.4,
+     "loss": 1.4027,
+     "g3": 0
+    }
+   ],
+   "gate_step": null,
+   "gate_train_s": null,
+   "g1_mini_final": 36,
+   "g5_mini_final": 16,
+   "g3_final": 0
+  }
+ },
+ "n_d1": 1183,
+ "veredicto": {
+  "gate_train_s": {
+   "grok_base": null,
+   "grok_lr3": 151.6,
+   "grok_cortos": null,
+   "grok_denso": null
+  },
+  "g1_mini": {
+   "grok_base": 36,
+   "grok_lr3": 36,
+   "grok_cortos": 35,
+   "grok_denso": 36
+  },
+  "g5_mini": {
+   "grok_base": 15,
+   "grok_lr3": 15,
+   "grok_cortos": 14,
+   "grok_denso": 16
+  },
+  "ganador": "grok_lr3",
+  "speedup_vs_base": null
+ },
+ "wall_total_min": 19.8
+}

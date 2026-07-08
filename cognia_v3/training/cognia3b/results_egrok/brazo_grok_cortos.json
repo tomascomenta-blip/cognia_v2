@@ -1,0 +1,1 @@
+{"brazo": "grok_cortos", "lr": 0.0001, "steps_total": 24, "evals": [{"step": 10, "train_s": 77.1, "loss": 1.8495, "g3": 0}, {"step": 20, "train_s": 151.8, "loss": 1.6142, "g3": 0}], "gate_step": null, "gate_train_s": null, "g1_mini_final": 35, "g5_mini_final": 14, "g3_final": 0}
