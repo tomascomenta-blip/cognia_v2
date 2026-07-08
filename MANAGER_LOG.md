@@ -5605,3 +5605,26 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
 - **Oficina 3D**: workflow de 7 agentes COMPLETO (724k tokens) — build 0 errores TS, 10/10
   requisitos core auditados adversarialmente, captura real renderizando enviada al dueño.
   6 bugs anotados para pulir (1 mayor: slots de salas dinámicas no se reciclan).
+
+## 2026-07-08 03:59-04:25 — ventana post-reset: DC-4 DECIDIDO, hallazgo re-quant, E2-FINAL lanzado
+
+- **E-GROK CERRADO**: lr 3e-4 + warmup 10% pasa G3 en **151.6 s de T4** (step 20, G3 final
+  19/20, G1/G5-mini = base); lr 1e-4, cortos-primero y denso-4x JAMÁS pasan el gate en 2
+  epochs (G3 0/20 los tres). En corpus chicos la palanca es el LR. Receta del fleet:
+  experto de nicho en minutos. P-GROK-2 confirmada; 1/3/4 refutadas.
+- **E-MIX-B v2 CERRADO — DC-4 DECIDIDO: mezcla única, E2-E4 colapsan** (prom_b 0.85 >
+  prom_a 0.62, brazo A válido). **HALLAZGO MAYOR (aritmética, no bug)**: a_etapa1 vivo
+  G3 16/20 + merge verificado (||dW|| 0.26-0.38) + merged re-cuantizado G3 0/20 ⇒ el delta
+  LoRA (~0.4% relativo) es del orden del error de re-quant NF4 (~0.5%): **merge+requant
+  entierra al adapter; el adapter VIVO sobrevive** (aditivo fp16). Es el D-6 de la teoría
+  mucho más severo de lo previsto y el talón de Aquiles del secuencial-con-merge en NF4.
+  E5 re-diseñado: G4 arbitra merged-fp16 vs Q4_K_M vs Q5/Q6 vs adapter-vivo (fleet --lora
+  ya validado = plan A de deploy).
+- **E2-FINAL LANZADO** (cognia-e2final-v1, ~7 GPU-h, corre de noche): mezcla única con D1×3
+  + 2 epochs + replay regenerado (se guarda replay.jsonl reutilizable). Pre-registro:
+  G3≥18/20, G1≥85%, G5≥60%, G2A≥95% → APTO_PARA_E5. Es el checkpoint candidato de
+  cognia-3b v1.
+- Usage llegó a 90% → wait-reset (03:59) → ventana de 30 min usada para lanzar E2-FINAL +
+  este cierre. Apagado 04:30 programado por el dueño. Todo committeado+pusheado (24 commits
+  de la sesión). Los análisis .md extensos de E-GROK/E-MIX-B quedan para la próxima sesión
+  (datos ya en git: results_egrok/egrok_results.json + results_emixb/emixb_results.json).
