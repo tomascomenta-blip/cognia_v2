@@ -40,9 +40,18 @@ _IDENTITY_RES = [
     re.compile(r"\b(sos|eres)\s+(cognia|chatgpt|gpt|qwen|una?\s+ia|un\s+robot|humano)\b"),
     re.compile(r"\bhablame\s+(de|sobre)\s+(ti|vos)\b"),
     re.compile(r"\bpresenta(te|te\s+vos)\b"),
+    re.compile(r"\bque\s+asistente\b"),
+    re.compile(r"\bpresentar(te|me\s+a)\b"),
+    re.compile(r"\bfuiste\s+(desarrollad|cread|entrenad|program|hech)"),
+    re.compile(r"\b(con\s+)?que\s+(ia|modelo|inteligencia)\b.{0,40}\b(hablando|hablo|sos|eres|estoy)\b"),
     re.compile(r"\bwho\s+(are|made|created|trained)\s+you\b"),
     re.compile(r"\bwhat('?s|\s+is)\s+your\s+name\b"),
+    re.compile(r"\byour\s+name\b"),
     re.compile(r"\bwhat\s+are\s+you\b"),
+    re.compile(r"\bwhat\s+you\s+are\b"),
+    re.compile(r"\b(what|which)\s+ai\b"),
+    re.compile(r"\bintroduce\s+yourself\b"),
+    re.compile(r"\bare\s+you\s+(chatgpt|gemini|gpt|claude|qwen|cognia|an?\s+ai|a\s+robot|human)\b"),
 ]
 
 

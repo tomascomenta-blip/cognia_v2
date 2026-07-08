@@ -5646,3 +5646,22 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   receta E-GROK = 1 epoch + lr 3e-4 + warmup 10%, mismo corpus D1×3, replay.jsonl
   CACHEADO de v1 (ahorra 94 min). Pre-registro: P-V2-1 G3≥18/20, P-V2-2 G1≥85%,
   P-V2-3 G5≥60%, P-V2-4 G2A≥95% → APTO_PARA_E5.
+
+## 2026-07-08 — CLI v-next (fleet) MEJOR que el actual: veredicto MEDIDO
+
+- **E5 plan A VALIDADO (G4 PASA, 15.2 min local)**: adapter cognia3b_v1 → GGUF f16
+  (convert_lora_to_gguf b9391) vivo sobre Q4_K_M reproduce el kernel: G1 81.0=81.0
+  (0.0pp), G2A 95.2 vs 96.6 (−1.4pp p=0.75), agregado −0.81pp ≥ −4pp. El aditivo
+  sobrevive el deploy; confirma el hallazgo re-quant por la positiva.
+- **FLEET EN EL CLI REAL (commits d90c17d, f772a1b)**: adapters.json junto al GGUF →
+  server con --lora-init-without-apply + hot-swap POST /lora-adapters; router léxico
+  determinista (agente→accion, identidad→accion con cobertura 20/20 y 0 falsos
+  positivos, chat/largo→base). 3 hallazgos medidos: el flag deja scale 1.0 al arrancar
+  (fix _force_base_scales), cache_prompt=false obligatorio post-swap, server adoptado
+  requiere match por basename. E2E real 8/8 (experto dice "Cognia es mi nombre", base
+  dice Qwen, loop real de agente completa tarea con postcondición).
+- **VEREDICTO CLI v-next vs CLI actual (baseline v4 estático CONGELADO antes de medir,
+  McNemar pareado, GATES_CLI_VNEXT.md)**: G2A 87.8→95.2 (+7.5pp p=0.0074), G3 0→85
+  (+85pp p~0), G1 88.0=88.0, G5 56.0=56.0. **2 mejoras significativas, 0 regresiones →
+  el CLI con el 3B propio es MEJOR que el actual.** LLAMA_LORA_PATH User borrada
+  (el fleet es el modo real del CLI desde hoy).
