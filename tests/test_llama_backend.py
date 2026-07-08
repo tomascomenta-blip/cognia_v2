@@ -1046,25 +1046,27 @@ class TestFindGguf:
 # ---------------------------------------------------------------------------
 
 class TestLoraArgs:
+    # _lora_args devuelve ahora (args, fleet_names); el modo estatico
+    # historico (LLAMA_LORA_PATH) conserva sus args y nunca tiene fleet.
     def test_returns_lora_flag_when_env_points_to_existing_file(self, tmp_path, monkeypatch):
-        """LLAMA_LORA_PATH a un adapter existente -> ["--lora", path]."""
+        """LLAMA_LORA_PATH a un adapter existente -> (["--lora", path], [])."""
         adapter = tmp_path / "cognia_adapter.gguf"
         adapter.touch()
         monkeypatch.setenv("LLAMA_LORA_PATH", str(adapter))
 
         from node.llama_backend import _lora_args
-        assert _lora_args() == ["--lora", str(adapter)]
+        assert _lora_args() == (["--lora", str(adapter)], [])
 
     def test_returns_empty_when_env_path_missing(self, tmp_path, monkeypatch):
-        """Seteada pero el archivo no existe -> [] (warning, server sin adapter)."""
+        """Seteada pero el archivo no existe -> ([], []) (warning, server sin adapter)."""
         monkeypatch.setenv("LLAMA_LORA_PATH", str(tmp_path / "ghost_adapter.gguf"))
 
         from node.llama_backend import _lora_args
-        assert _lora_args() == []
+        assert _lora_args() == ([], [])
 
     def test_returns_empty_when_env_not_set(self, monkeypatch):
-        """Sin LLAMA_LORA_PATH -> [] (cmd del server identico al actual)."""
+        """Sin LLAMA_LORA_PATH ni manifiesto -> ([], []) (cmd identico al actual)."""
         monkeypatch.delenv("LLAMA_LORA_PATH", raising=False)
 
         from node.llama_backend import _lora_args
-        assert _lora_args() == []
+        assert _lora_args() == ([], [])

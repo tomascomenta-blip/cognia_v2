@@ -32,6 +32,7 @@ without re-running the A/B (real server, /completion, timings.predicted_per_seco
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -189,25 +190,71 @@ def _find_gguf() -> Optional[Path]:
 
 # ── LoRA adapter args ─────────────────────────────────────────────────────────
 
-def _lora_args() -> list:
-    """Args extra de adapter LoRA para el cmd de llama-server, o [].
+def _fleet_manifest(gguf_path: Optional[Path]) -> list:
+    """Manifiesto del fleet: adapters.json junto al GGUF, o [].
 
-    Si LLAMA_LORA_PATH apunta a un adapter GGUF existente (salida de
-    convert_lora_to_gguf.py de llama.cpp; el b9391 pineado soporta --lora)
-    devuelve ["--lora", path]. Seteada pero el archivo no existe -> warning y
-    el server arranca SIN adapter. No seteada -> [] (cmd identico al actual).
+    Formato: {"adapters": [{"name": "accion", "file": "cognia3b_v1_f16.gguf"}]}
+    "file" es relativo al dir del GGUF (o absoluto). Entradas con archivo
+    inexistente se saltean con warning (el server arranca igual con el resto).
+    El ORDEN de la lista define los ids que llama-server les asigna (0..n-1).
+    """
+    if gguf_path is None:
+        return []
+    manifest = Path(gguf_path).parent / "adapters.json"
+    if not manifest.is_file():
+        return []
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("[llama_backend] adapters.json ilegible (%s); fleet OFF", exc)
+        return []
+    out = []
+    for entry in data.get("adapters", []):
+        name = (entry.get("name") or "").strip()
+        file_ = (entry.get("file") or "").strip()
+        if not name or not file_:
+            logger.warning("[llama_backend] adapters.json: entrada sin name/file: %r", entry)
+            continue
+        p = Path(file_)
+        if not p.is_absolute():
+            p = Path(gguf_path).parent / p
+        if not p.is_file():
+            logger.warning("[llama_backend] adapters.json: no existe %s (salteado)", p)
+            continue
+        out.append({"name": name, "path": p})
+    return out
+
+
+def _lora_args(gguf_path: Optional[Path] = None) -> tuple:
+    """(args extra de LoRA para el cmd de llama-server, nombres del fleet).
+
+    Precedencia:
+    1. LLAMA_LORA_PATH seteada -> UN adapter estatico aplicado (["--lora", p], [])
+       — comportamiento historico, sin fleet.
+    2. adapters.json junto al GGUF -> fleet: todos los adapters cargados con
+       --lora-init-without-apply (scale 0.0 = base pura) y hot-swap por request
+       via POST /lora-adapters (validado 2026-07-07: swap 2-41 ms, FLEET_DESIGN).
+    3. Nada -> ([], []) (cmd identico al actual).
     """
     env_path = os.environ.get("LLAMA_LORA_PATH", "").strip()
-    if not env_path:
-        return []
-    p = Path(env_path)
-    if not p.is_absolute():
-        p = Path(__file__).parent.parent / p
-    if p.is_file():
-        logger.info("[llama_backend] LoRA adapter: %s", p)
-        return ["--lora", str(p)]
-    logger.warning("[llama_backend] LLAMA_LORA_PATH set but file not found: %s", p)
-    return []
+    if env_path:
+        p = Path(env_path)
+        if not p.is_absolute():
+            p = Path(__file__).parent.parent / p
+        if p.is_file():
+            logger.info("[llama_backend] LoRA adapter (estatico): %s", p)
+            return ["--lora", str(p)], []
+        logger.warning("[llama_backend] LLAMA_LORA_PATH set but file not found: %s", p)
+        return [], []
+    fleet = _fleet_manifest(gguf_path)
+    if not fleet:
+        return [], []
+    args = ["--lora-init-without-apply"]
+    for a in fleet:
+        args += ["--lora", str(a["path"])]
+    logger.info("[llama_backend] fleet: %d adapter(s) cargados sin aplicar: %s",
+                len(fleet), [a["name"] for a in fleet])
+    return args, [a["name"] for a in fleet]
 
 
 # ── Speculative decoding args ─────────────────────────────────────────────────
@@ -320,6 +367,13 @@ class _LlamaServerBackend:
         self.last_tokens_predicted: Optional[int] = None
         # Why the last generation stopped: 'eos'|'limit'|'word'|None (see _stop_reason)
         self.last_stop_reason: Optional[str] = None
+        # Fleet de expertos LoRA (FLEET_DESIGN): nombres en orden de carga
+        # (id de llama-server = indice), experto activo, y flag de swap
+        # pendiente — tras un POST /lora-adapters el KV cache es invalido y la
+        # PRIMERA request debe ir con cache_prompt=false (regla medida).
+        self._fleet_names: list = []
+        self._active_expert: Optional[str] = None
+        self._lora_dirty: bool = False
 
         # Check if a server is already running on the port
         if self._ping():
@@ -327,6 +381,7 @@ class _LlamaServerBackend:
             # Server adoptado sin verificar flags: loguear su config real via
             # /props y avisar si el contexto no coincide con el esperado.
             self._check_adopted_server()
+            self._adopt_fleet()
             return
 
         env_server = os.environ.get("LLAMA_SERVER_PATH", "").strip()
@@ -364,8 +419,9 @@ class _LlamaServerBackend:
         # Speculative decoding (exp021/cycle34): ngram-mod por defecto — bit-identico,
         # gratis, gana en texto repetitivo/codigo/RAG. COGNIA_SPEC_TYPE=none lo desactiva.
         cmd += _spec_args()
-        # Adapter LoRA local opcional (env LLAMA_LORA_PATH -> ["--lora", path])
-        cmd += _lora_args()
+        # LoRA: estatico (LLAMA_LORA_PATH) o fleet (adapters.json junto al GGUF)
+        lora_cmd, self._fleet_names = _lora_args(gguf_path)
+        cmd += lora_cmd
         self._proc = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
@@ -417,12 +473,95 @@ class _LlamaServerBackend:
                            "_CTX_SIZE=%d — results may differ from a self-started "
                            "server", summary["n_ctx"], _CTX_SIZE)
 
+    # ── Fleet de expertos LoRA (hot-swap POST /lora-adapters) ────────────────
+
+    def _adopt_fleet(self) -> None:
+        """Server adoptado: reconstruye el fleet matcheando el manifiesto local
+        contra GET /lora-adapters por basename. Mismatch -> fleet OFF (warning);
+        nunca asumir que un server ajeno cargo los adapters esperados."""
+        if os.environ.get("LLAMA_LORA_PATH", "").strip():
+            return  # modo estatico historico: sin fleet
+        manifest = _fleet_manifest(self._gguf_path)
+        if not manifest:
+            return
+        vivos = self.lora_adapters()
+        if vivos is None:
+            logger.warning("[llama_backend] server adoptado sin /lora-adapters; fleet OFF")
+            return
+        vivos_por_base = {Path(a.get("path", "")).name: a.get("id") for a in vivos}
+        nombres = []
+        for a in manifest:
+            aid = vivos_por_base.get(a["path"].name)
+            if aid is None or aid != len(nombres):
+                logger.warning("[llama_backend] server adoptado no cargo el fleet del "
+                               "manifiesto (falta %s o ids corridos); fleet OFF — "
+                               "matar llama-server.exe y relanzar", a["path"].name)
+                return
+            nombres.append(a["name"])
+        self._fleet_names = nombres
+        logger.info("[llama_backend] fleet adoptado: %s", nombres)
+
+    def lora_adapters(self) -> Optional[list]:
+        """GET /lora-adapters del server (lista cruda), o None si falla."""
+        try:
+            with self._urlreq.urlopen(f"{self._base}/lora-adapters", timeout=5) as resp:
+                return self._json.loads(resp.read())
+        except Exception as exc:
+            logger.debug("[llama_backend] GET /lora-adapters failed: %s", exc)
+            return None
+
+    def activate_expert(self, name: Optional[str]) -> bool:
+        """Activa el experto `name` (scale 1.0, resto 0.0) o None = base pura.
+
+        Idempotente y barato: si ya esta activo no hace nada. Tras un swap real
+        marca _lora_dirty para que la proxima request fuerce cache_prompt=false
+        (el KV cache calculado con otros pesos efectivos es invalido y
+        llama.cpp NO lo invalida solo — medido 2026-07-07, FLEET_DESIGN).
+        Devuelve True si el experto pedido quedo activo (o ya lo estaba).
+        """
+        if not self._fleet_names:
+            return name is None  # sin fleet, la base "esta activa" por definicion
+        if name is not None and name not in self._fleet_names:
+            logger.warning("[llama_backend] experto desconocido: %r (fleet: %s)",
+                           name, self._fleet_names)
+            return False
+        if name == self._active_expert:
+            return True
+        scales = [{"id": i, "scale": 1.0 if n == name else 0.0}
+                  for i, n in enumerate(self._fleet_names)]
+        try:
+            req = self._urlreq.Request(
+                f"{self._base}/lora-adapters",
+                data=self._json.dumps(scales).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            self._urlreq.urlopen(req, timeout=10).read()
+        except Exception as exc:
+            logger.warning("[llama_backend] POST /lora-adapters failed: %s", exc)
+            return False
+        self._active_expert = name
+        self._lora_dirty = True
+        logger.info("[llama_backend] experto activo: %s", name or "(base)")
+        return True
+
+    def _consume_lora_dirty(self, cache_prompt: bool) -> bool:
+        """cache_prompt efectivo: False forzado en la 1ra request post-swap.
+
+        getattr defensivo: instancias parciales (tests de payload) o picklings
+        viejos pueden no tener el atributo — sin fleet no hay swap que invalide.
+        """
+        if getattr(self, "_lora_dirty", False):
+            self._lora_dirty = False
+            return False
+        return cache_prompt
+
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,
                  min_p=None, repeat_penalty=None, seed=None,
                  cache_prompt: bool = True, grammar: str = None,
                  stop=None) -> Optional[str]:
         import urllib.error
+        cache_prompt = self._consume_lora_dirty(cache_prompt)
         payload = self._json.dumps({
             "prompt":      prompt,
             "n_predict":   max_tokens,
@@ -468,6 +607,7 @@ class _LlamaServerBackend:
                         cache_prompt: bool = True, grammar: str = None):
         """Yield tokens one at a time using llama-server SSE /completion?stream=true."""
         import urllib.error
+        cache_prompt = self._consume_lora_dirty(cache_prompt)
         payload = self._json.dumps({
             "prompt":      prompt,
             "n_predict":   max_tokens,
@@ -526,6 +666,7 @@ class _LlamaServerBackend:
                     cache_prompt: bool = True):
         """Yield tokens using /v1/chat/completions (multi-turn, OpenAI-compatible)."""
         import urllib.error
+        cache_prompt = self._consume_lora_dirty(cache_prompt)
         payload = self._json.dumps({
             "messages":    messages,
             "max_tokens":  max_tokens,
@@ -655,6 +796,24 @@ class LlamaBackend:
         """JSON crudo de GET /props del impl server, o None (in-process no tiene)."""
         fn = getattr(self._impl, "props", None)
         return fn() if callable(fn) else None
+
+    @property
+    def fleet_experts(self) -> list:
+        """Nombres de expertos LoRA del fleet cargado, o [] (sin fleet)."""
+        return list(getattr(self._impl, "_fleet_names", []) or [])
+
+    @property
+    def active_expert(self) -> Optional[str]:
+        """Experto activo del fleet, o None (base pura / sin fleet)."""
+        return getattr(self._impl, "_active_expert", None)
+
+    def activate_expert(self, name: Optional[str]) -> bool:
+        """Hot-swap del experto LoRA (None = base). False si el impl no soporta
+        fleet (in-process) o el swap fallo. Ver _LlamaServerBackend.activate_expert."""
+        fn = getattr(self._impl, "activate_expert", None)
+        if not callable(fn):
+            return name is None
+        return fn(name)
 
     def generate(self, prompt: str, max_tokens: int = 256,
                  temperature: float = 0.7, top_p=None, top_k=None,

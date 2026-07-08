@@ -3013,6 +3013,12 @@ def _resolve_largo_backend(ai):
                     pass
     except Exception:
         pass
+    # Fleet: /largo genera con la BASE pura (los expertos regresionan G1).
+    try:
+        if _llama is not None and getattr(_llama, "fleet_experts", []):
+            _llama.activate_expert(None)
+    except Exception:
+        pass
     return _llama
 
 
@@ -7096,6 +7102,16 @@ def repl():
                             except Exception:
                                 pass
                         if _llama is not None:
+                            # Fleet: el chat general corre con la BASE pura (el
+                            # experto regresiona G1 -8pp); EXCEPTO identidad,
+                            # que va al experto (G3 20/20 vs 0/20 de la base).
+                            # Router lexico determinista (fleet_router).
+                            try:
+                                if getattr(_llama, "fleet_experts", []):
+                                    from cognia.agent.fleet_router import expert_for_chat_turn
+                                    _llama.activate_expert(expert_for_chat_turn(raw))
+                            except Exception:
+                                pass
                             # Fast-path de habla (opt-in COGNIA_SPEECH_CASCADE): turnos
                             # sociales/triviales -> 0.5B (~28-36 tok/s); el resto sigue en
                             # el 3B. Reusa el 3B como 'deep' (no lo duplica). exp021/cycle39.
@@ -7434,6 +7450,21 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     except Exception as e:
         _print_fn(f"[err_cl]Agente: no hay orquestador: {e}[/err_cl]")
         return "(el agente no pudo iniciar el modelo)"
+
+    # Fleet (FLEET_DESIGN): tareas de agente corren con el experto ACCION
+    # (G2A 20.4%->95.2% medido en el deploy real). Sin try/finally: cada
+    # consumidor del server declara su experto antes de generar (el fast-path
+    # de chat y /largo activan None=base) y activate_expert es idempotente.
+    try:
+        _llama_fleet = getattr(orch, "_llama", None)
+        if _llama_fleet is None:
+            orch._try_load_llama()
+            _llama_fleet = getattr(orch, "_llama", None)
+        if _llama_fleet is not None and getattr(_llama_fleet, "fleet_experts", []):
+            if _llama_fleet.activate_expert("accion"):
+                _print_fn("[detail]Experto ACCION activo (fleet)[/detail]")
+    except Exception:
+        pass
 
     # Dynamic step budget: the model decides how many steps the task deserves.
     budget = max_steps if max_steps else estimate_step_budget(task, orch)
