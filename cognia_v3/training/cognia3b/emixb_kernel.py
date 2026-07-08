@@ -8,12 +8,19 @@ etapa-1 (dequant in-place reemplazando modulos durante named_modules()) NO
 aplico el adapter — el merged era la base pelada y etapa-2 entreno sobre nada.
 El adapter a_etapa1 esta SANO (504 keys, norma 2.39): el bug es del merge.
 
-Fix: merge canonico con model.dequantize() nativo de transformers (>=4.46)
-sobre la carga NF4 (DC-9: mergear sobre la dequantizacion, no sobre fp16
-original) + VERIFICACION DURA post-merge (in-kernel, aborta si falla):
-  V1: la norma de >=3 tensores del merged difiere de la base (>1e-3).
-  V2: eval G3 (20 items) del merged pelado se REGISTRA (ademas mide si
-      etapa-1 aprendio identidad, dato que E-MIX no midio).
+TOMA 2 (v2): la corrida 1 de E-MIX-B abortó por V1... mal calibrada: la
+norma GLOBAL es cuadraticamente insensible a un delta LoRA legitimo
+(|norm(W+dW)-norm(W)| ~ ||dW||^2/2||W||; los diffs 1e-4..6e-4 observados
+son consistentes con un merge APLICADO de un adapter debil). Eso reabre la
+hipotesis alternativa: el adapter a_etapa1 quiza NUNCA aprendio identidad
+(13% del corpus x 1 epoch). Este kernel decide con datos:
+  PASO 0 (decisivo): eval de a_etapa1 EN VIVO (base NF4 + PeftModel, como
+      E1b) sobre G3/G5/G1-mini. Si G3_vivo < 9/20 -> la etapa-1 no aprendio
+      identidad: se registra el hallazgo (la receta secuencial necesita
+      otra etapa-1) y NO se quema GPU en merge/etapa-2 (branch corto).
+  V1' (correcta): ||W_merged - W_base|| directo por tensor (>0.01), no
+      diferencia de normas globales.
+  V2: eval G3/G5 del merged pelado (dilucion del merge medible vs vivo).
 
 Reusa del kernel E-MIX montado (kernel_sources): adapter a_etapa1 entrenado,
 tok_etapa2.jsonl (corpus etapa-2 ya tokenizado) y los binarios por item de
@@ -196,25 +203,25 @@ def merge_canonico(model_dir, adapter_dir, merged_out):
     model = model.dequantize()          # transformers nativo: bnb -> fp16 limpio
     model = model.half()
 
-    # normas ANTES del merge (V1)
+    # V1' (correcta): copia de tensores pre-merge y ||delta W|| DIRECTO
     monitoreo = ["model.layers.0.self_attn.q_proj.weight",
                  "model.layers.17.mlp.down_proj.weight",
                  "model.layers.35.self_attn.v_proj.weight"]
     sd = model.state_dict()
-    normas_pre = {k: float(sd[k].float().norm()) for k in monitoreo if k in sd}
+    pre = {k: sd[k].detach().float().cpu().clone() for k in monitoreo if k in sd}
 
     pm = PeftModel.from_pretrained(model, adapter_dir)
     merged = pm.merge_and_unload()
 
     sd2 = merged.state_dict()
-    normas_post = {k: float(sd2[k].float().norm()) for k in normas_pre}
-    diffs = {k: abs(normas_post[k] - normas_pre[k]) for k in normas_pre}
-    aplicado = all(d > 1e-3 for d in diffs.values())
-    print("V1 merge:", json.dumps({"pre": normas_pre, "post": normas_post,
-                                   "aplicado": aplicado}), flush=True)
+    diffs = {k: float((sd2[k].detach().float().cpu() - pre[k]).norm())
+             for k in pre}
+    aplicado = all(d > 0.01 for d in diffs.values())
+    print("V1' merge ||dW||:", json.dumps({"diffs": diffs, "aplicado": aplicado}),
+          flush=True)
     if not aplicado:
-        raise RuntimeError(f"MERGE NO APLICADO (diffs {diffs}) — abortando, "
-                           "no se repite el bug de E-MIX")
+        raise RuntimeError(f"MERGE NO APLICADO (||dW|| {diffs}) — abortando")
+    del pre
 
     merged.save_pretrained(merged_out, safe_serialization=True)
     AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True).save_pretrained(merged_out)
@@ -396,7 +403,46 @@ def main():
         with open(_find(nombre), encoding="utf-8") as f:
             suites[clave] = [json.loads(l) for l in f if l.strip()]
 
-    # 1) merge canonico con verificacion V1
+    # 0) DECISIVO: a_etapa1 EN VIVO (como E1b) — ¿aprendio identidad?
+    from peft import PeftModel as _PM
+    bnb0 = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_use_double_quant=True,
+                              bnb_4bit_quant_type="nf4",
+                              bnb_4bit_compute_dtype=torch.float16)
+    model_v = AutoModelForCausalLM.from_pretrained(
+        model_dir, quantization_config=bnb0, device_map={"": 0},
+        attn_implementation="sdpa", trust_remote_code=True)
+    pm_v = _PM.from_pretrained(model_v, adapter_e1)
+    pm_v.eval()
+    print("== eval a_etapa1 VIVO ==", flush=True)
+    suites_mini = dict(suites)
+    suites_mini["g1"] = suites["g1"][:40]
+    ev_v = eval_suites(pm_v, tokenizer, suites_mini, "a_etapa1_vivo",
+                       solo=("g3", "g5", "g1"))
+    RESULTS["evals"]["a_etapa1_vivo"] = ev_v
+    g3_vivo = sum(ev_v["items"]["g3"].values())
+    RESULTS["g3_vivo"] = g3_vivo
+    dump()
+    del model_v, pm_v
+    gc.collect()
+    torch.cuda.empty_cache()
+
+    if g3_vivo < 9:
+        RESULTS["decision_topologia"] = {
+            "resultado": "brazo_A_pierde_por_etapa1_debil",
+            "detalle": (f"a_etapa1 vivo da G3 {g3_vivo}/20: la etapa-1 "
+                        "secuencial (identidad 13% del corpus x 1 epoch) NO "
+                        "aprende identidad; a igual presupuesto la mezcla "
+                        "unica (B: G3 70%, G2A 98%) domina. E2-E4 colapsan "
+                        "en mezcla unica; la receta secuencial requeriria "
+                        "otra etapa-1 (fuera de presupuesto del arbitro)."),
+            "P-EMIXB-1": f"REFUTADA (G3 vivo {g3_vivo}/20 < 10/20)"}
+        RESULTS["wall_total_min"] = round((time.time() - T0) / 60, 1)
+        dump()
+        print("E-MIX-B DONE (branch corto):",
+              json.dumps(RESULTS["decision_topologia"]), flush=True)
+        return
+
+    # 1) merge canonico con verificacion V1'
     print("== merge canonico etapa-1 ==", flush=True)
     merged_dir = f"{OUT}/merged_etapa1"
     t0 = time.time()

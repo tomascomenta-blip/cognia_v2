@@ -1,0 +1,22 @@
+{
+ "exp": "E-MIX-B-brazo-A-fix",
+ "started_utc": "2026-07-08 03:43:27",
+ "pre_registro": {
+  "P-EMIXB-1": "merged etapa-1 da G3 >= 10/20",
+  "P-EMIXB-2": "A > B en promedio(G1,G2A,G3) por >1pp; si no -> colapso E2-E4",
+  "P-EMIXB-3": "G3 A-final >= 18/20",
+  "supuesto": "binarios base/brazo_b reusados del kernel E-MIX montado (mismo tipo GPU + pip fresh)"
+ },
+ "env": {
+  "gpu": "Tesla T4",
+  "torch": "2.10.0+cu128",
+  "transformers": "5.5.0",
+  "peft": "0.19.1"
+ },
+ "suites_hash_ok": true,
+ "merge": {},
+ "train": {},
+ "evals": {},
+ "veredictos": {},
+ "decision_topologia": null
+}
