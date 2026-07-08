@@ -2,6 +2,7 @@
 import json
 import sys
 import threading
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -14,6 +15,23 @@ from cognia.oficina.server import crear_server
 
 def _of(tmp_path):
     return Oficina(str(tmp_path / "estado.json"))
+
+
+def _server(tmp_path):
+    """Oficina + server en puerto efímero (mismo patrón que test_server_api)."""
+    of = _of(tmp_path)
+    srv = crear_server(of, puerto=0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return of, srv, f"http://127.0.0.1:{srv.server_address[1]}"
+
+
+def _post(url, obj):
+    """POST JSON; los 400 del server devuelven cuerpo {ok:False}, no excepción."""
+    req = urllib.request.Request(url, data=json.dumps(obj).encode(), method="POST")
+    try:
+        return json.loads(urllib.request.urlopen(req).read())
+    except urllib.error.HTTPError as e:
+        return json.loads(e.read())
 
 
 def test_meta_y_jerarquia(tmp_path):
@@ -78,6 +96,130 @@ def test_parsers_de_planes():
     # guard-rail: sin rol parseable, verbos de escritura infieren implementador
     assert _parse_roles("2) crear el archivo saludo.txt con el texto Hola")[0][0] == \
         "implementador"
+
+
+def test_seq_y_timestamps(tmp_path):
+    of = _of(tmp_path)
+    s0 = of.snapshot()["_seq"]
+    t = of.crear_tarea("trabajador", "T", "x", rol="investigador")
+    s1 = of.snapshot()["_seq"]
+    assert s1 > s0                                   # cada _save sube el contador
+    tarea = of.snapshot()["tareas"][t]
+    assert tarea["creada_ts"] > 0
+    of.set_estado(t, "en_curso")
+    assert of.snapshot()["tareas"][t]["inicio_ts"] > 0
+    of.set_estado(t, "hecha")
+    tarea = of.snapshot()["tareas"][t]
+    assert tarea["fin_ts"] >= tarea["inicio_ts"]
+    assert of.snapshot()["_seq"] > s1
+    # el shape viejo sigue intacto (solo claves agregadas)
+    assert tarea["estado"] == "hecha" and tarea["creada"] and tarea["eventos"] == []
+
+
+def test_api_prioridad(tmp_path):
+    of, srv, base = _server(tmp_path)
+    try:
+        a = of.crear_tarea("trabajador", "A", "a", rol="investigador")
+        b = of.crear_tarea("trabajador", "B", "b", rol="investigador")
+        c = of.crear_tarea("trabajador", "C", "c", rol="investigador")
+        assert _post(base + "/api/tarea/prioridad", {"id": c, "delta": -1})["ok"]
+        assert of.snapshot()["orden"] == [a, c, b]
+        assert _post(base + "/api/tarea/prioridad", {"id": a, "delta": 1})["ok"]
+        assert of.snapshot()["orden"] == [c, a, b]
+        # bordes y no-pendientes rechazados
+        assert not _post(base + "/api/tarea/prioridad", {"id": c, "delta": -1})["ok"]
+        of.set_estado(b, "en_curso")
+        assert not _post(base + "/api/tarea/prioridad", {"id": b, "delta": -1})["ok"]
+        assert not _post(base + "/api/tarea/prioridad", {"id": a, "delta": 5})["ok"]
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_api_reasignar(tmp_path):
+    of, srv, base = _server(tmp_path)
+    try:
+        t = of.crear_tarea("trabajador", "T", "x", rol="investigador")
+        assert _post(base + "/api/tarea/reasignar", {"id": t, "rol": "implementador"})["ok"]
+        tarea = of.snapshot()["tareas"][t]
+        assert tarea["rol"] == "implementador"
+        assert tarea["eventos"][-1]["msg"] == "[reasignada a implementador]"
+        # rol inválido / tarea corriendo / no-trabajador rechazados
+        assert not _post(base + "/api/tarea/reasignar", {"id": t, "rol": "hacker"})["ok"]
+        of.set_estado(t, "en_curso")
+        assert not _post(base + "/api/tarea/reasignar", {"id": t, "rol": "investigador"})["ok"]
+        d = of.crear_tarea("director", "D", "dir")
+        assert not _post(base + "/api/tarea/reasignar", {"id": d, "rol": "investigador"})["ok"]
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_api_reiniciar(tmp_path):
+    of, srv, base = _server(tmp_path)
+    try:
+        d = of.crear_tarea("director", "D", "dir")
+        t = of.crear_tarea("trabajador", "T", "hacer x", padre=d,
+                           rol="implementador")
+        of.set_estado(t, "en_curso")
+        of.set_estado(t, "fallida")
+        r = _post(base + "/api/agente/reiniciar", {"id": t})
+        assert r["ok"] and r["nuevo_id"] in of.snapshot()["tareas"]
+        nuevo = of.snapshot()["tareas"][r["nuevo_id"]]
+        assert (nuevo["estado"] == "pendiente" and nuevo["padre"] == d
+                and nuevo["rol"] == "implementador" and nuevo["detalle"] == "hacer x")
+        # una tarea hecha no se reinicia
+        h = of.crear_tarea("trabajador", "H", "y", rol="investigador")
+        of.set_estado(h, "hecha")
+        assert not _post(base + "/api/agente/reiniciar", {"id": h})["ok"]
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_api_mensaje(tmp_path):
+    of, srv, base = _server(tmp_path)
+    try:
+        t = of.crear_tarea("trabajador", "T", "x", rol="investigador")
+        assert _post(base + "/api/mensaje",
+                     {"de": "jefe", "para": t, "texto": "apurate"})["ok"]
+        assert of.snapshot()["tareas"][t]["eventos"][-1]["msg"] == \
+            "[mensaje de jefe]: apurate"
+        # destino inexistente o texto vacío rechazados
+        assert not _post(base + "/api/mensaje",
+                         {"de": "x", "para": "trab-nope", "texto": "y"})["ok"]
+        assert not _post(base + "/api/mensaje",
+                         {"de": "x", "para": t, "texto": "  "})["ok"]
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_api_sistema_y_sse(tmp_path):
+    of, srv, base = _server(tmp_path)
+    try:
+        of.crear_tarea("trabajador", "T", "x", rol="investigador")
+        met = json.loads(urllib.request.urlopen(base + "/api/sistema").read())
+        for k in ("cpu_pct", "ram_mb", "ram_pct", "n_threads", "agentes_activos",
+                  "tareas_pendientes", "tareas_en_curso", "uptime_s"):
+            assert k in met, k
+        assert met["tareas_pendientes"] == 1 and met["n_threads"] >= 1
+        assert met["uptime_s"] >= 0
+        # SSE: al conectar llega un evento "estado" con el snapshot completo
+        resp = urllib.request.urlopen(base + "/api/sse", timeout=5)
+        evento, data = None, None
+        for _ in range(30):
+            linea = resp.readline().decode("utf-8").strip()
+            if linea.startswith("event: "):
+                evento = linea[len("event: "):]
+            elif linea.startswith("data: ") and evento == "estado":
+                data = json.loads(linea[len("data: "):])
+                break
+        resp.close()
+        assert data is not None and "_seq" in data and "tareas" in data
+    finally:
+        srv.shutdown()
+        srv.server_close()
 
 
 def test_server_api(tmp_path):

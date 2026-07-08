@@ -24,6 +24,7 @@ class Oficina:
     def __init__(self, path: str):
         self.path = path
         self._lock = threading.RLock()
+        self.seq = 0  # monótono en memoria: sube en cada _save (el SSE lo pollea)
         self.data = {"metas": [], "tareas": {}, "orden": []}
         if os.path.exists(path):
             try:
@@ -34,6 +35,7 @@ class Oficina:
 
     # ── persistencia ──
     def _save(self) -> None:
+        self.seq += 1
         tmp = self.path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(self.data, f, ensure_ascii=False, indent=1)
@@ -74,7 +76,7 @@ class Oficina:
                 "id": tid, "nivel": nivel, "titulo": titulo[:120],
                 "detalle": detalle, "padre": padre, "rol": rol, "meta": meta,
                 "estado": "pendiente", "solicitud": None, "resultado": None,
-                "creada": _ahora(), "eventos": []}
+                "creada": _ahora(), "creada_ts": time.time(), "eventos": []}
             self.data["orden"].append(tid)
             self._save()
             return tid
@@ -85,6 +87,10 @@ class Oficina:
         with self._lock:
             t = self.data["tareas"][tid]
             t["estado"] = estado
+            if estado == "en_curso":
+                t["inicio_ts"] = time.time()
+            elif estado in ("hecha", "fallida", "detenida"):
+                t["fin_ts"] = time.time()
             if resultado is not None:
                 t["resultado"] = str(resultado)[:2000]
             self._save()
@@ -117,6 +123,7 @@ class Oficina:
                     t["solicitud"] = None
                 if t["estado"] == "pendiente" and accion == "detener":
                     t["estado"] = "detenida"
+                    t["fin_ts"] = time.time()
                     t["solicitud"] = None
             self._save()
             return True
@@ -130,6 +137,61 @@ class Oficina:
             t["detalle"] = detalle.strip()
             t["eventos"].append({"t": _ahora(), "msg": "[editada por el usuario]"})
             self._save()
+            return True
+
+    def prioridad(self, tid: str, delta: int) -> bool:
+        """Mueve el tid un lugar en data.orden (-1 sube, +1 baja). Solo pendientes."""
+        if delta not in (-1, 1):
+            return False
+        with self._lock:
+            t = self.data["tareas"].get(tid)
+            if t is None or t["estado"] != "pendiente":
+                return False
+            orden = self.data["orden"]
+            i = orden.index(tid)
+            j = i + delta
+            if j < 0 or j >= len(orden):
+                return False
+            orden[i], orden[j] = orden[j], orden[i]
+            self._save()
+            return True
+
+    def reasignar(self, tid: str, rol: str) -> bool:
+        """Cambia el rol de una tarea trabajador que aún no corrió."""
+        if rol not in ("investigador", "implementador"):
+            return False
+        with self._lock:
+            t = self.data["tareas"].get(tid)
+            if (t is None or t["nivel"] != "trabajador"
+                    or t["estado"] not in ("pendiente", "pausada")):
+                return False
+            t["rol"] = rol
+            t["eventos"].append({"t": _ahora(), "msg": f"[reasignada a {rol}]"})
+            self._save()
+            return True
+
+    def reiniciar(self, tid: str):
+        """Clona una tarea fallida/detenida como nueva pendiente (mismo padre/
+        rol/detalle). Devuelve el id nuevo, o None si no aplica."""
+        with self._lock:
+            t = self.data["tareas"].get(tid)
+            if t is None or t["estado"] not in ("fallida", "detenida"):
+                return None
+            nuevo = self.crear_tarea(t["nivel"], t["titulo"], t["detalle"],
+                                     padre=t["padre"], rol=t["rol"], meta=t["meta"])
+            self.data["tareas"][nuevo]["eventos"].append(
+                {"t": _ahora(), "msg": f"[reinicio de {tid}]"})
+            t["eventos"].append({"t": _ahora(), "msg": f"[reiniciada como {nuevo}]"})
+            self._save()
+            return nuevo
+
+    def mensaje(self, de: str, para: str, texto: str) -> bool:
+        """Mensaje de un agente/usuario a una tarea: queda como evento visible."""
+        texto = str(texto).strip()
+        with self._lock:
+            if para not in self.data["tareas"] or not texto:
+                return False
+            self.evento(para, f"[mensaje de {de}]: {texto}")
             return True
 
     def control(self, tid: str) -> str:
@@ -149,7 +211,9 @@ class Oficina:
     # ── lectura (server) ──
     def snapshot(self) -> dict:
         with self._lock:
-            return json.loads(json.dumps(self.data))
+            snap = json.loads(json.dumps(self.data))
+            snap["_seq"] = self.seq
+            return snap
 
     def hijos(self, tid: str) -> list:
         with self._lock:
