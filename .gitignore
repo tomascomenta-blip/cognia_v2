@@ -81,3 +81,5 @@ checkpoints/
 cognia_x/construccion/_cp2_demo_tools/
 cognia_x/construccion/_cp2_demo_skills/
 _e2e_smoke_out/
+node/llama.cpp-b9391/
+node/llama-convert-b9391/
