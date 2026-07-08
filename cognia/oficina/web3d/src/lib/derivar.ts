@@ -1,5 +1,7 @@
-// Derivaciones PURAS del snapshot -> modelo de escena (MAPEO VISUAL del contrato).
-// Sin estado, sin fetch, sin three: solo datos. Se chequea via tsc en el build.
+// Derivaciones del snapshot -> modelo de escena (MAPEO VISUAL del contrato).
+// Sin fetch, sin three: solo datos. Se chequea via tsc en el build.
+// Única pieza con estado: el mapa module-level tid->slot de las salas
+// dinámicas (para que cada sala conserve su posición mientras viva).
 import type { EstadoTarea, Snapshot, Tarea } from '../state/tipos'
 
 // ── salas ──────────────────────────────────────────────────────────────────
@@ -45,6 +47,58 @@ const ALA_ESTE_X = 23 // desde aca crecen las salas dinamicas
 const COLS_ALA = 3 // slots por fila en el ala este
 const PASO_ALA = 5 // celdas entre slots (sala 4x3 + pasillo)
 
+// El piso de Oficina3D.tsx es FIJO (42x22 => grid logico x en [-2,40], z en
+// [-2,20]): ningun slot puede caer fuera de el. Capacidad:
+// - slots 0..14: ala este, 3 columnas x 5 filas (x=23/28/33, z=0/4/8/12/16)
+// - slots 15..19: franja sur libre (z=16, debajo de las salas fijas que
+//   terminan en z=14) creciendo hacia el OESTE (x=18,13,8,3,-2)
+// - >20 salas activas a la vez: se reusa el grid (modulo) — se superponen
+//   dentro del piso en vez de flotar fuera de la oficina (caso extremo).
+const FILAS_ALA = 5
+const SLOTS_ALA = COLS_ALA * FILAS_ALA // 15
+const SLOTS_OESTE = 5 // la ultima columna (x=-2) toca justo el borde oeste
+const TOTAL_SLOTS = SLOTS_ALA + SLOTS_OESTE // 20
+
+function posicionDeSlot(slot: number): [number, number] {
+  const s = slot % TOTAL_SLOTS
+  if (s < SLOTS_ALA) {
+    const col = s % COLS_ALA
+    const fila = Math.floor(s / COLS_ALA)
+    return [ALA_ESTE_X + col * PASO_ALA, fila * (PASO_ALA - 1)]
+  }
+  const k = s - SLOTS_ALA // franja sur: misma z que la ultima fila del ala
+  return [ALA_ESTE_X - (k + 1) * PASO_ALA, (FILAS_ALA - 1) * (PASO_ALA - 1)]
+}
+
+// INVARIANTE de slots: cada sala dinamica VISIBLE (tarea activa) tiene un
+// slot estable mientras viva (aunque otras aparezcan o desaparezcan); al
+// desaparecer del snapshot su slot se LIBERA y lo recicla la proxima sala
+// nueva (menor slot libre). Los slots ocupados == salas visibles: NO crecen
+// con el historial de tareas hechas/fallidas/detenidas.
+// Mini-test mental: orden=[A,B,C] activas -> A:0 B:1 C:2; termina B -> B se
+// libera (A:0 C:2); nace D -> recicla el 1 (A:0 D:1 C:2); con 30 hechas y 2
+// activas solo hay 2 slots ocupados (antes: slot 30+ => fuera del piso).
+const slotsAsignados = new Map<string, number>() // tid -> slot (persiste entre derivaciones)
+
+function asignarSlots(visibles: ReadonlyArray<string>): Map<string, number> {
+  const vivos = new Set(visibles)
+  for (const tid of slotsAsignados.keys()) {
+    if (!vivos.has(tid)) slotsAsignados.delete(tid) // libero salas que ya no estan
+  }
+  const ocupados = new Set(slotsAsignados.values())
+  for (const tid of visibles) {
+    if (slotsAsignados.has(tid)) continue // estabilidad: conserva su slot
+    let s = 0
+    while (ocupados.has(s)) s++ // menor slot libre (recicla)
+    slotsAsignados.set(tid, s)
+    ocupados.add(s)
+  }
+  if (import.meta.env.DEV && slotsAsignados.size !== visibles.length) {
+    console.error('derivar.ts: invariante de slots roto', { slotsAsignados, visibles })
+  }
+  return slotsAsignados
+}
+
 const ACTIVAS: ReadonlyArray<EstadoTarea> = ['pendiente', 'en_curso', 'pausada']
 
 export function estadoTrabajador(estado: EstadoTarea): EstadoTrabajador {
@@ -78,24 +132,22 @@ export function derivarSalas(snap: Snapshot): Sala[] {
     tid: f.id === 'jefe' && jefeActivo ? jefeActivo.id : null,
   }))
 
-  // Dinamicas: una por director/trabajador ACTIVO. El slot se asigna por el
-  // indice de la tarea dentro de `orden` (append-only) restringido a tareas
-  // dinamicas: la posicion de cada sala es estable durante toda su vida,
-  // aunque otras aparezcan o desaparezcan.
-  let slot = 0
-  for (const tid of snap.orden) {
+  // Dinamicas: una por director/trabajador ACTIVO. Los slots se asignan SOLO
+  // a las salas visibles (reciclando los libres via asignarSlots): posicion
+  // estable mientras la sala viva, sin crecer con el historial de terminadas.
+  const visibles = snap.orden.filter((tid) => {
     const t = snap.tareas[tid]
-    if (!t || t.nivel === 'jefe') continue
-    const miSlot = slot++
-    if (!ACTIVAS.includes(t.estado)) continue
-    const col = miSlot % COLS_ALA
-    const fila = Math.floor(miSlot / COLS_ALA)
+    return t !== undefined && t.nivel !== 'jefe' && ACTIVAS.includes(t.estado)
+  })
+  const slots = asignarSlots(visibles)
+  for (const tid of visibles) {
+    const t = snap.tareas[tid]
     salas.push({
       id: tid,
       tipo: t.nivel === 'director' ? 'director' : 'trabajador',
       nombre: t.titulo,
       tamano: t.nivel === 'director' ? [4, 3] : [3, 3],
-      posicion: [ALA_ESTE_X + col * PASO_ALA, fila * (PASO_ALA - 1)],
+      posicion: posicionDeSlot(slots.get(tid) ?? 0),
       trabajador: { estado: estadoTrabajador(t.estado) },
       tid,
     })

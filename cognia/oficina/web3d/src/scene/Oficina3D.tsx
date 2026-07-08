@@ -206,18 +206,33 @@ export function Oficina3D() {
   const objetivo = useRef<THREE.Vector3 | null>(null)
   const vistasRef = useRef(vistas)
   vistasRef.current = vistas
-  useEffect(() => {
-    if (!enfoque) return
-    const v = vistasRef.current.find(
-      (x) => x.idSel === enfoque.id || x.def.id === enfoque.id,
-    )
-    if (!v) return // la tarea ya no tiene sala (p.ej. hecha): no mover
+  // enfoque a una sala que TODAVIA no existe (p.ej. el clon de "Reiniciar
+  // agente" aun no llego en el snapshot): queda pendiente y se reintenta
+  // cuando cambian las salas, con timeout de 5 s
+  const enfoquePendiente = useRef<{ id: string; deadline: number } | null>(null)
+  const centrarEn = useCallback((id: string): boolean => {
+    const v = vistasRef.current.find((x) => x.idSel === id || x.def.id === id)
+    if (!v) return false
     objetivo.current = new THREE.Vector3(
       v.pos[0] + v.def.tamano[0] / 2,
       0,
       v.pos[1] + v.def.tamano[1] / 2,
     )
-  }, [enfoque])
+    return true
+  }, [])
+  useEffect(() => {
+    if (!enfoque) return
+    if (centrarEn(enfoque.id)) {
+      enfoquePendiente.current = null
+    } else {
+      enfoquePendiente.current = { id: enfoque.id, deadline: Date.now() + 5000 }
+    }
+  }, [enfoque, centrarEn])
+  useEffect(() => {
+    const p = enfoquePendiente.current
+    if (!p) return
+    if (Date.now() > p.deadline || centrarEn(p.id)) enfoquePendiente.current = null
+  }, [vistas, centrarEn])
   useFrame((_, dt) => {
     const o = objetivo.current
     const c = controles.current

@@ -19,6 +19,8 @@ interface EventoGlobal {
   tid: string
   titulo: string
   key: string
+  base: number // creada_ts de la tarea (o su indice en `orden` si falta)
+  i: number // indice del evento dentro de su tarea
 }
 
 // Meta.estado es string libre en el contrato: pill conocida o neutra
@@ -38,15 +40,25 @@ export function Timeline({ onEnfocar }: TimelineProps) {
 
   const eventos = useMemo(() => {
     const todos: EventoGlobal[] = []
-    for (const tid of snapshot.orden) {
+    snapshot.orden.forEach((tid, oi) => {
       const t = snapshot.tareas[tid]
-      if (!t) continue
+      if (!t) return
       t.eventos.forEach((ev, i) =>
-        todos.push({ t: ev.t, msg: ev.msg, tid, titulo: t.titulo, key: `${tid}:${i}` }),
+        todos.push({
+          t: ev.t,
+          msg: ev.msg,
+          tid,
+          titulo: t.titulo,
+          key: `${tid}:${i}`,
+          base: t.creada_ts ?? oi,
+          i,
+        }),
       )
-    }
-    // "HH:MM:SS" ordena lexicograficamente; sort estable conserva empates
-    todos.sort((a, b) => a.t.localeCompare(b.t))
+    })
+    // Criterio: (creada_ts de la tarea — indice en `orden` si falta — , indice
+    // del evento): aproximacion estable de llegada que no se rompe al cruzar
+    // medianoche (los eventos solo traen "HH:MM:SS", sin fecha).
+    todos.sort((a, b) => a.base - b.base || a.i - b.i)
     return todos.slice(-MAX_EVENTOS).reverse() // mas nuevo primero
   }, [snapshot])
 

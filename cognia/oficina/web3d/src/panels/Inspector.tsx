@@ -227,9 +227,10 @@ function CuerpoTarea({ tarea, irA }: { tarea: Tarea; irA: (id: string) => void }
             <p className="max-h-28 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-pared p-2 text-xs dark:bg-neutral-950/60">
               {tarea.detalle || '—'}
             </p>
-            {tarea.solicitud && tarea.solicitud !== tarea.detalle && (
+            {/* `solicitud` = accion de control PENDIENTE (detener|pausar) que el motor honra entre pasos */}
+            {tarea.solicitud && (
               <p className="mt-1 truncate text-[11px] text-mueble/50 dark:text-neutral-500" title={tarea.solicitud}>
-                solicitud original: {tarea.solicitud}
+                control pendiente: {tarea.solicitud}
               </p>
             )}
             <div className="mt-1.5">
@@ -257,19 +258,45 @@ function CuerpoTarea({ tarea, irA }: { tarea: Tarea; irA: (id: string) => void }
       )}
 
       <Seccion titulo="tiempo">
+        {/* ts reales del backend (epoch s): creada_ts siempre, inicio_ts al pasar a
+            en_curso, fin_ts al terminar. Opcionales: tareas persistidas viejas pueden
+            no traerlos -> fallback honesto a "HH:MM:SS" (envuelve a las 24 h). */}
         <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
           <Dato k="creada" v={tarea.creada} />
-          <Dato
-            k={tarea.estado === 'en_curso' ? 'trabajando hace' : 'desde creación'}
-            v={fmtDur(msDesde(tarea.creada, new Date(ahoraMs)))}
-          />
+          {tarea.estado === 'en_curso' ? (
+            <Dato
+              k="trabajando hace"
+              v={
+                tarea.inicio_ts != null
+                  ? fmtDur(ahoraMs - tarea.inicio_ts * 1000)
+                  : `~${fmtDur(msDesde(tarea.creada, new Date(ahoraMs)))} (sin inicio_ts)`
+              }
+            />
+          ) : tarea.estado === 'hecha' || tarea.estado === 'fallida' || tarea.estado === 'detenida' ? (
+            <Dato
+              k="duración"
+              v={
+                tarea.inicio_ts != null && tarea.fin_ts != null
+                  ? fmtDur((tarea.fin_ts - tarea.inicio_ts) * 1000)
+                  : tarea.creada_ts != null && tarea.fin_ts != null
+                    ? `~${fmtDur((tarea.fin_ts - tarea.creada_ts) * 1000)} (desde creación)`
+                    : '— (sin ts de inicio)'
+              }
+            />
+          ) : (
+            <Dato
+              k="desde creación"
+              v={
+                tarea.creada_ts != null
+                  ? fmtDur(ahoraMs - tarea.creada_ts * 1000)
+                  : fmtDur(msDesde(tarea.creada, new Date(ahoraMs)))
+              }
+            />
+          )}
           {tarea.eventos.length > 0 && (
             <Dato k="último evento" v={tarea.eventos[tarea.eventos.length - 1].t} />
           )}
         </dl>
-        <p className="mt-1 text-[10px] text-mueble/40 dark:text-neutral-600">
-          medido desde la creación (el backend no expone ts de inicio real)
-        </p>
       </Seccion>
 
       <Seccion titulo={`log · ${tarea.eventos.length} eventos`}>

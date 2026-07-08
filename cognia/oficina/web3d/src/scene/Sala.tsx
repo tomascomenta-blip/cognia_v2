@@ -59,6 +59,16 @@ export function Sala({
 }: SalaProps) {
   const grupo = useRef<THREE.Group>(null)
   const glowMat = useRef<THREE.MeshBasicMaterial>(null)
+  // true mientras el puntero esta sobre ESTA sala: si la sala se desmonta
+  // hovereada (desaparecio del snapshot) nunca llega onPointerOut y el cursor
+  // quedaria pegado en 'pointer' -> lo restaura el cleanup de desmontaje
+  const hovereada = useRef(false)
+  useEffect(
+    () => () => {
+      if (hovereada.current) document.body.style.cursor = 'auto'
+    },
+    [],
+  )
 
   // material compartido por las 4 barras del borde (fallo/seleccion)
   const matBorde = useMemo(
@@ -107,10 +117,12 @@ export function Sala({
       }}
       onPointerOver={(e) => {
         e.stopPropagation()
+        hovereada.current = true
         document.body.style.cursor = 'pointer'
         onHover?.(id)
       }}
       onPointerOut={() => {
+        hovereada.current = false
         document.body.style.cursor = 'auto'
         onHover?.(null)
       }}

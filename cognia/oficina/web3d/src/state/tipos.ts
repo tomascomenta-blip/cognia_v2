@@ -36,6 +36,11 @@ export interface Tarea {
   solicitud: string | null
   resultado: string | null
   creada: string // "HH:MM:SS"
+  /** epoch s (time.time() en estado.py). Opcionales: tareas persistidas
+   *  antes de que existieran los campos pueden no traerlos. */
+  creada_ts?: number
+  inicio_ts?: number // se setea al pasar a en_curso
+  fin_ts?: number // se setea al pasar a hecha/fallida/detenida
   eventos: Evento[]
 }
 
