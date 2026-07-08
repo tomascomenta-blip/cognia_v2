@@ -5581,3 +5581,27 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
 - E-MIX sigue RUNNING en Kaggle (monitor activo). Suite completa: 3513 passed + 1 flaky de
   aislamiento (test_find_skill_none_below_threshold) → causa de fondo (a) arreglada; re-corrida
   en curso para confirmar verde.
+
+## 2026-07-07 (noche) — E-MIX: brazo B ORO (G2A 20→98%), brazo A invalidado por bug de merge; E-MIX-B + E-GROK lanzados
+
+- **E-MIX terminó (282 min)**. Lo MEDIDO válido (brazo B, mezcla única 9.7k pares 1 epoch):
+  **G2A 20.4%→98% (+77.6pp, p~0, N=147)** — el dataset ACCION v3 pulveriza el objetivo
+  multi-paso (la teoría pedía 0→≥40%); **G5 recuperado 64%** (+4pp vs base; E1 había caído a
+  56%) — el replay on-policy in-kernel (664/800 aceptados) funcionó; G1 87% (−2pp, pasa);
+  G3 70% (14/20, no pasa ≥18/20: identidad diluida al 12% del corpus × 1 epoch → fix conocido:
+  sobre-representar D1 y/o 2 epochs en la corrida final).
+- **HONESTIDAD: brazo A INVALIDADO** — evaluó EXACTO como la base (deltas 0.0pp, CERO
+  discordantes en 145 ítems; solo G2A cambió): el merge manual de etapa-1 NO aplicó el adapter
+  (adapter local SANO: 504 keys, normas OK). El árbitro DC-4 queda SIN DECIDIR; P-EMIX-4
+  refutada por instrumento. Causa probable: dequant in-place mutando módulos durante
+  named_modules(). Ver results_emix/ANALISIS_EMIX.md.
+- **E-MIX-B lanzado** (cognia-emixb-brazoa, ~2 GPU-h): merge canónico con model.dequantize()
+  nativo + VERIFICACIÓN DURA post-merge (V1 normas difieren o aborta; V2 eval G3/G5 del merged
+  pelado — de paso mide si etapa-1 aprendió identidad). Reusa el adapter a_etapa1 y tok_etapa2
+  del kernel E-MIX montado. REGLA NUEVA del programa: ningún merge se acepta sin verificación
+  post-merge; E5 hereda el guard.
+- **E-GROK lanzado en paralelo** (cognia-egrok-gatefijo, ~2 GPU-h): GPU-min a gate fijo G3,
+  4 brazos pre-registrados. Cuota semanal usada ≈ 5.5h de 30 antes de estos dos.
+- **Oficina 3D**: workflow de 7 agentes COMPLETO (724k tokens) — build 0 errores TS, 10/10
+  requisitos core auditados adversarialmente, captura real renderizando enviada al dueño.
+  6 bugs anotados para pulir (1 mayor: slots de salas dinámicas no se reciclan).
