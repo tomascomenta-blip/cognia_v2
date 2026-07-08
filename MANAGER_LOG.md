@@ -5665,3 +5665,19 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   (+85pp p~0), G1 88.0=88.0, G5 56.0=56.0. **2 mejoras significativas, 0 regresiones →
   el CLI con el 3B propio es MEJOR que el actual.** LLAMA_LORA_PATH User borrada
   (el fleet es el modo real del CLI desde hoy).
+
+## 2026-07-08 — Cierre del ciclo: v2 promovido a experto; suite completa verde
+
+- **Suite completa** (compuerta final del método): **3569 passed / 1 skipped / 0 failed**.
+- **E2-FINAL-v2 CERRADO** (93.3 min, 2.7× más barato que v1 por replay cacheado): la receta
+  E-GROK (1 epoch + lr 3e-4 + warmup 10%) CONFIRMÓ su predicción central — G1 recuperado
+  81→85% (pasa el gate; −4pp n.s.) manteniendo G3 19/20, y **G2A 98%** (récord del programa).
+  NO APTO como checkpoint único por G5 56% (falla por 1 ítem, p=1.0 = piso de ruido de N=25).
+  **Línea checkpoint-único CERRADA**: 2 corridas, cada una falla 1 gate distinto en el borde;
+  el fleet la hace innecesaria. Si se reabre: agrandar G5 (25→100) antes de gastar GPU.
+- **DUELO v1 vs v2 por el puesto de experto (G4 en deploy real, 15.5 min)**: v2 GANA
+  significativo — G2A 95.2→**99.3%** (n01=6, n10=0, p=0.031), G3 85→**90%**, G4_decode PASA
+  (−1.87pp agregado). PROMOVIDO: adapters.json → cognia3b_v2_f16.gguf; e2e 8/8 re-verificado.
+- **NÚMEROS FINALES del CLI v-next vs CLI actual**: G2A 87.8→**99.3 (+11.6pp, p≈0)**,
+  G3 0→**90 (+90pp, p≈0)**, G1 88=88, G5 56=56. El CLI con el 3B propio (fleet + MoM) es
+  MEJOR que el CLI anterior en todo lo que toca y no regresiona en nada.

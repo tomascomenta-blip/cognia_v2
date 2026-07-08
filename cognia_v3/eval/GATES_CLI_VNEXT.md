@@ -1,5 +1,14 @@
 # CLI v-next (fleet) vs CLI actual — gates y veredicto (2026-07-08)
 
+> **ACTUALIZACIÓN (misma fecha, experto v2)**: E2-FINAL-v2 (receta E-GROK)
+> reemplazó a v1 como experto del fleet tras ganarle el duelo pareado en
+> deploy: G2A 95.2→**99.3%** (n01=6, n10=0, p=0.031) y G3 85→**90%**.
+> Números FINALES del CLI v-next vs CLI actual: **G2A 87.8→99.3 (+11.6pp,
+> n01=17 n10=0, p≈0)** y **G3 0→90 (+90pp, p≈0)**; G1 88=88 y G5 56=56 sin
+> cambios (chat sigue en base pura). E2E 8/8 re-verificado con v2.
+> `adapters.json` → `cognia3b_v2_f16.gguf`. La tabla de abajo documenta la
+> medición original con v1 (histórica, método idéntico).
+
 **Pregunta**: ¿el CLI con FLEET (base Q4_K_M + experto cognia3b_v1 vivo con
 hot-swap por tarea) es MEJOR que el CLI actual (base Q4_K_M + adapter tooluse
 v4 estático siempre aplicado, que era la config real vía `LLAMA_LORA_PATH`)?
