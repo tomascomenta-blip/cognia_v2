@@ -57,14 +57,35 @@ def mcnemar_p(n01, n10):
     return min(1.0, 2.0 * tail)
 
 
+SUITE_FILES = {"g1": "g1_general.jsonl", "g2a": "g2_accion.jsonl",
+               "g3": "g3_identidad.jsonl", "g5": "g5_espanol.jsonl"}
+
+
+def resolve_suites(csv: str) -> dict:
+    """csv 'g1,g2a' -> {clave: archivo}; ValueError si hay claves desconocidas."""
+    pedidas = [s.strip() for s in csv.split(",") if s.strip()]
+    invalidas = [s for s in pedidas if s not in SUITE_FILES]
+    if invalidas:
+        raise ValueError(f"suites desconocidas {invalidas} (validas: {sorted(SUITE_FILES)})")
+    return {clave: SUITE_FILES[clave] for clave in pedidas}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--gguf", required=True, help="GGUF a evaluar en el CLI real")
     ap.add_argument("--kernel-json", default="", help="resultados del kernel con binarios del adapter-vivo")
     ap.add_argument("--brazo", default="", help="nombre del brazo en el kernel-json")
     ap.add_argument("--limit", type=int, default=0, help="solo N items por suite (smoke)")
+    ap.add_argument("--suites", default="g1,g2a",
+                    help="suites a correr (csv de g1,g2a,g3,g5); default el gate G4 clasico")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
+
+    try:
+        archivos = resolve_suites(args.suites)
+    except ValueError as e:
+        print(f"[g4] ERROR: {e}")
+        sys.exit(1)
 
     os.environ["LLAMA_GGUF_PATH"] = str(Path(args.gguf).resolve())
     from node.llama_backend import LlamaBackend
@@ -75,8 +96,8 @@ def main():
     print(f"[g4] backend OK: {backend.gguf_path.name if backend.gguf_path else '?'}", flush=True)
 
     suites = {}
-    for nombre, clave in (("g1_general.jsonl", "g1"), ("g2_accion.jsonl", "g2a")):
-        items = carga_suite(str(SUITES / nombre))
+    for clave in archivos:
+        items = carga_suite(str(SUITES / archivos[clave]))
         if args.limit:
             items = items[:args.limit]
         suites[clave] = items
@@ -119,8 +140,8 @@ def main():
         kj = json.load(open(args.kernel_json, encoding="utf-8"))
         vivo = kj["evals"][args.brazo]["items"]
         comp, deltas = {}, []
-        for clave, mapa_kernel in (("g1", "g1"), ("g2a", "g2a")):
-            b_vivo = vivo.get(mapa_kernel)
+        for clave in res["suites"]:
+            b_vivo = vivo.get(clave)
             if not b_vivo:
                 continue
             b_gguf = res["suites"][clave]["binarios"]
