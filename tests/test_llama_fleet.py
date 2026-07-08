@@ -162,6 +162,21 @@ def test_dirty_fuerza_cache_prompt_false_una_vez():
     assert b._consume_lora_dirty(True) is True    # la siguiente vuelve al default
 
 
+def test_force_base_scales_postea_ceros_al_arrancar():
+    # Medido: --lora-init-without-apply deja scale 1.0 -> el arranque debe
+    # forzar base con un POST real aunque _active_expert arranque en None.
+    b = _mk_server_backend(["accion"])
+    b._force_base_scales()
+    assert b._urlreq.posts == [[{"id": 0, "scale": 0.0}]]
+    assert b._active_expert is None
+
+
+def test_force_base_scales_sin_fleet_no_hace_nada():
+    b = _mk_server_backend([])
+    b._force_base_scales()
+    assert b._urlreq.posts == []
+
+
 # ---------------------------------------------------------------- fachada
 def test_facade_sin_soporte_fleet():
     class _Impl:            # impl viejo/in-process sin activate_expert

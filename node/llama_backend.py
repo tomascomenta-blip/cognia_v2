@@ -433,6 +433,7 @@ class _LlamaServerBackend:
             if self._ping():
                 logger.info("[llama_backend] llama-server started on :%d (pid=%d)",
                             port, self._proc.pid)
+                self._force_base_scales()
                 return
             time.sleep(0.5)
         self._proc.kill()
@@ -500,6 +501,22 @@ class _LlamaServerBackend:
             nombres.append(a["name"])
         self._fleet_names = nombres
         logger.info("[llama_backend] fleet adoptado: %s", nombres)
+        self._force_base_scales()
+
+    def _force_base_scales(self) -> None:
+        """Arranque del fleet: fuerza TODOS los scales a 0.0 (base pura).
+
+        Medido 2026-07-08: aun con --lora-init-without-apply el b9391 reporta
+        el adapter con scale 1.0 al arrancar — el estado inicial NO es base.
+        Se postea explicito en vez de confiar en el flag."""
+        if not self._fleet_names:
+            return
+        self._active_expert = "__arranque__"   # sentinela: fuerza el POST real
+        if not self.activate_expert(None):
+            logger.warning("[llama_backend] no se pudo forzar base al arrancar; "
+                           "fleet OFF por seguridad")
+            self._fleet_names = []
+            self._active_expert = None
 
     def lora_adapters(self) -> Optional[list]:
         """GET /lora-adapters del server (lista cruda), o None si falla."""
