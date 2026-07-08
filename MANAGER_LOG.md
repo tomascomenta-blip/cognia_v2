@@ -5628,3 +5628,21 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   este cierre. Apagado 04:30 programado por el dueño. Todo committeado+pusheado (24 commits
   de la sesión). Los análisis .md extensos de E-GROK/E-MIX-B quedan para la próxima sesión
   (datos ya en git: results_egrok/egrok_results.json + results_emixb/emixb_results.json).
+
+## 2026-07-08 — Sesión retomada: E2-FINAL veredicto + goal final CLI
+
+- **GOAL redefinido por el dueño**: continuar sin detenerse; goal final = **Cognia CLI
+  funcional y MEJOR que el actual con el MoM ya hecho** (3B + adapter vivo + HERMES/skills/
+  loop/router/agente integrados, gates congelados vs baseline del CLI actual).
+- **E2-FINAL (v1) BAJADO Y CERRADO: NO APTO como checkpoint único** (254 min T4).
+  G3 **20/20 PERFECTO** (+100pp), G2A **96.6%** (+76.2pp, n01=112 n10=0), G5 60% (=base),
+  pero **G1 81% < 85% (−8pp vs base 89%, p=0.039 REAL)**: los 2 epochs a lr 1e-4 duplican
+  la exposición y compran identidad con olvido general. `APTO_PARA_E5: false` — la regla
+  era "pasa todo". Análisis: results_e2final/ANALISIS_E2FINAL.md.
+- **Decisión de arquitecto (2 vías paralelas)**: (1) el adapter v1 SÍ sirve HOY como
+  EXPERTO ACCION/identidad del fleet (plan A adapter VIVO, hot-swap validado 2-41 ms;
+  la regresión G1 es irrelevante porque lo general lo atiende la BASE sin adapter) →
+  el deploy del CLI no espera; (2) **E2-FINAL-v2 LANZADO** (cognia-e2finalv2, ~3 GPU-h):
+  receta E-GROK = 1 epoch + lr 3e-4 + warmup 10%, mismo corpus D1×3, replay.jsonl
+  CACHEADO de v1 (ahorra 94 min). Pre-registro: P-V2-1 G3≥18/20, P-V2-2 G1≥85%,
+  P-V2-3 G5≥60%, P-V2-4 G2A≥95% → APTO_PARA_E5.
