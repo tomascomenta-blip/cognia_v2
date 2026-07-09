@@ -5725,3 +5725,21 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   E-RZN-v2 con generador difícil + banda de yield corriendo en Kaggle.
 - Apagado programado 04:30 (dueño). Regla nueva: usage check antes de cada bloque
   de ediciones (>85% → wait-reset); checks 22% y 35% esta noche.
+
+## 2026-07-09 ~02:30 — Cierre de la corrida nocturna (apagado 04:30)
+
+- **E-RZN-v2 NO APTO — línea razonamiento-por-fine-tune CERRADA** (yield 62% EN banda,
+  G2R 57=57 efecto CERO, n01=n10=10). Contraste decisivo en el mismo gate: STaR ~6 GPU-h
+  = +0pp vs stepwise-inferencia = +22pp p=0.0002. Tesis MoM confirmada: adapter donde el
+  gap es FORMATO (ACCION 20→99), andamiaje donde es CAPACIDAD. ANALISIS_ERZNV2.md.
+- **Batería v3 (wheel con mejoras): 16/17** — el sanitizador de cola LIMPIA los cierres
+  a la vista ("Listo, tarea completada." seco). Único fallo persistente E8 (escribe el
+  script pero no reporta el output) → candidato: dataset de cierres-con-output para
+  el experto ACCION v3.
+- **Resumen de la sesión completa (2026-07-08→09)**: 4 mandatos del dueño CERRADOS con
+  medición — (1) CLI fleet MEJOR que el actual (G2A +11.6pp, G3 +90pp, 0 regresiones);
+  (2) instalación portable reparada (e2e máquina limpia 8/8, fleet-v1 en GitHub);
+  (3) batería e2e masiva sobre el producto instalado (16/17, 2 bugs reales cazados y
+  arreglados); (4) inteligencia general superior (G2R +22pp medido). ~24 commits.
+  Kaggle: 3 kernels corridos (E2-FINAL-v2 APTO-parcial→experto v2 promovido; E-RZN v1/v2
+  negativos honestos). 3.8.2 lista para PyPI SOLO con autorización del dueño.
