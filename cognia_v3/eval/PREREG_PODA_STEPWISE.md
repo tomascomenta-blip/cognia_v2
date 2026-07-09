@@ -32,6 +32,24 @@ n10=3, p=0.25). N=8 no alcanza para decidir; esta corrida decide con N=50.
   conservador: sin evidencia de daño no se poda; el flag se levanta y se
   anota el delta observado).
 
-## VEREDICTO
+## VEREDICTO (2026-07-09, corridas reales)
 
-(pendiente de corrida)
+| brazo | acc g2rlog (N=50) |
+|---|---|
+| base sin stepwise | 70.0% |
+| stepwise v2 | **76.0%** |
+
+McNemar pareado: **+6.0pp, n01=8, n10=5, p=0.5811** → sin efecto
+significativo en ninguna dirección.
+
+**Decisión (regla congelada): P-PODA-3 — los patrones de lógica QUEDAN y
+el flag se levanta.** La señal débil-negativa del set marginal N=8 de
+E-INT NO replicó con N=50: el punto estimado es positivo (+6pp). Con
+n=13 discordantes, un daño real de la magnitud sospechada habría
+aparecido; lo observado es compatible con ruido alrededor de un efecto
+pequeño positivo o nulo. No se toca `_REASON_RX`.
+
+Nota de instrumento: primera corrida con oracle `ultimo_de` (borde de
+palabra) — sin él, los ítems de elección con CoT eran inarbitraables
+(must_any/not_any falsean porque el razonamiento menciona todas las
+opciones).

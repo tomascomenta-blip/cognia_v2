@@ -112,7 +112,7 @@ def accion_pass(respuesta: str, oracle: dict) -> bool:
     return True
 
 
-CLAVES_VALIDAS = {"must_all", "must_any", "not_any", "number"}
+CLAVES_VALIDAS = {"must_all", "must_any", "not_any", "number", "ultimo_de"}
 CLAVES_G2A = {"accion_tools", "args_regex"}
 GATES = {"G1", "G2R", "G3", "G5", "G2A"}
 
