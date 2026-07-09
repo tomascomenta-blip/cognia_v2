@@ -5743,3 +5743,25 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   arreglados); (4) inteligencia general superior (G2R +22pp medido). ~24 commits.
   Kaggle: 3 kernels corridos (E2-FINAL-v2 APTO-parcial→experto v2 promovido; E-RZN v1/v2
   negativos honestos). 3.8.2 lista para PyPI SOLO con autorización del dueño.
+
+## 2026-07-09 (día) — E8 cerrado: batería e2e del producto instalado 17/17
+- **E8 cierre informativo RESUELTO en 3 capas** (commits 01ad303 + b8cc57c):
+  (1) `task_pide_ejecucion` (loop.py, regex conservadora: "corregí" NO matchea)
+  + nudge único en `responder` si la tarea pide ejecutar y no hubo ejecución;
+  (2) la batería v4 (16/17) cazó la fuga del cierre por PROSA (2 respuestas sin
+  ACCION) → mismo gate ahí; (3) el agente instalado SÍ ejecutaba pero cerraba
+  "listo, terminé" sin reportar → post-loop determinista: la salida real de
+  `RESULTADO ejecutar` exitoso se anexa a la respuesta final (cubre responder/
+  prosa/presupuesto, cero llamadas extra).
+- **Verificación REAL**: E8 aislado contra el producto INSTALADO (venv limpio +
+  COGNIA_HOME): ejecuta en paso 2 y responde con "Salida de la ejecución: 350".
+  **Batería v5 completa: 17/17 en 14.6 min** (v4 16/17 → v5 17/17).
+- Suite completa: 3604 passed; 1 fallo (`test_db_pool_gc_reclaim`) fue
+  contención por la batería en paralelo — 3/3 verdes aislado.
+- 14 tests nuevos en tests/test_cierre_ejecucion.py (detector, salida, wiring
+  de las DOS ramas de cierre).
+- **E-COD LANZADO** (kernel cognia-ecod, ~4 GPU-h, commit dff7dab): experto de
+  código por DESTILACIÓN DE BÚSQUEDA (BoN@8 verificado por ejecución → greedy;
+  gap medido +10pp — diseño post-lección E-RZN, NO auto-destilación greedy).
+  Pre-registro: P-COD-1 pass@1 ≥ base+8pp p<0.05 (MBPP N=200 pareado);
+  P-COD-2 yield banda [20,80] o aborta.
