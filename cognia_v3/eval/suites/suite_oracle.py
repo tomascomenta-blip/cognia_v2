@@ -26,8 +26,29 @@ def ultimo_numero(t: str):
     return float(hits[-1].replace(",", "."))
 
 
+def ultima_opcion(respuesta: str, opciones):
+    """De una lista de opciones, la que aparece ULTIMA en la respuesta (None
+    si ninguna aparece). Espejo de ultimo_numero para respuestas de eleccion:
+    con CoT el razonamiento menciona TODAS las opciones y must_any/not_any
+    falsean; la respuesta final viene al final. Match con borde de palabra
+    ('Ada' NO matchea dentro de 'ubicada')."""
+    r = fold(respuesta)
+    mejor, pos = None, -1
+    for op in opciones:
+        rx = re.compile(r"(?<![a-z0-9])" + re.escape(fold(op)) + r"(?![a-z0-9])")
+        ultimo = None
+        for m in rx.finditer(r):
+            ultimo = m.start()
+        if ultimo is not None and ultimo > pos:
+            mejor, pos = op, ultimo
+    return mejor
+
+
 def oracle_pass(respuesta: str, oracle: dict) -> bool:
     r = fold(respuesta)
+    ultimo_de = oracle.get("ultimo_de")
+    if ultimo_de and ultima_opcion(respuesta, ultimo_de["opciones"]) != ultimo_de["gana"]:
+        return False
     must_all = oracle.get("must_all") or []
     if any(fold(k) not in r for k in must_all):
         return False

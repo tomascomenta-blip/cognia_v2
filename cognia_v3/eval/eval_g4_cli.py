@@ -59,7 +59,8 @@ def mcnemar_p(n01, n10):
 
 SUITE_FILES = {"g1": "g1_general.jsonl", "g2a": "g2_accion.jsonl",
                "g3": "g3_identidad.jsonl", "g5": "g5_espanol.jsonl",
-               "g2r": "g2_razonamiento.jsonl"}
+               "g2r": "g2_razonamiento.jsonl",
+               "g2rlog": "g2_razonamiento_logica.jsonl"}
 
 
 def resolve_suites(csv: str) -> dict:
