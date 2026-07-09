@@ -7632,7 +7632,13 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # cerrar con una respuesta en blanco: registrar el error y seguir
             # el loop (mismo trato que cualquier otra accion invalida).
             if not _struct.get("error"):
-                result_text = args
+                # cola degenerada del experto a temp=0 ("fitte fitte...");
+                # el saneo es quirurgico y determinista (agent/sanitize.py)
+                try:
+                    from cognia.agent.sanitize import trim_degenerate_tail
+                    result_text = trim_degenerate_tail(args)
+                except Exception:
+                    result_text = args
                 break
             history.append(f"RESULTADO responder ERROR: {_struct['error']}")
             _actions_trace.append({"action": "responder", "args": args[:200],
