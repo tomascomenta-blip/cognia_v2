@@ -5681,3 +5681,25 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
 - **NÚMEROS FINALES del CLI v-next vs CLI actual**: G2A 87.8→**99.3 (+11.6pp, p≈0)**,
   G3 0→**90 (+90pp, p≈0)**, G1 88=88, G5 56=56. El CLI con el 3B propio (fleet + MoM) es
   MEJOR que el CLI anterior en todo lo que toca y no regresiona en nada.
+
+## 2026-07-08 — Instalación reparada: Cognia + 3B + fleet en cualquier Windows
+
+- **MANDATO del dueño**: arreglar el error del tokenizer ("modelo descargado pero Qwen
+  no funciona") y que cognia + 3b + expertos MoM instalen y funcionen en otro Windows.
+- **CAUSA RAÍZ** (leída del código, confirmada por diseño): la instalación limpia bajaba
+  shards NPZ SIN tokenizer.json, y el paquete base no trae tokenizers/transformers →
+  `inference_pipeline` caía SILENCIOSAMENTE a LightTokenizer (simulación) → el modelo
+  real producía basura. Doble falla: archivo faltante + degradación muda.
+- **FIX (commit 7588d1b)**: (1) `cognia install-model` nuevo = stack GGUF VALIDADO
+  (GGUF Q4_K_M oficial HF + llama-server b9391 pineado + fleet de expertos desde
+  GitHub Releases) a ~/.cognia con config.env persistido; default del wizard.
+  (2) Camino NPZ: baja tokenizer.json + dep base `tokenizers` + degradación RUIDOSA
+  con fix sugerido. (3) COGNIA_HOME env-overrideable (portabilidad/tests).
+- **Release `fleet-v1` PUBLICADO en GitHub** (autorizado CLAUDE.md): adapters.json +
+  cognia3b_v2_f16.gguf + NOTICE (licencia Qwen research, Built with Qwen).
+- **E2E DE MÁQUINA LIMPIA: 8/8 CHECKS** (venv nuevo + wheel 3.8.2 + COGNIA_HOME
+  temporal + SIN env vars de esta máquina): pip install OK, GGUF 1.96 GB descargado
+  REAL de HF, llama-server 9391 exacto, fleet del release, y la inferencia real:
+  experto → "Cognia es como me dicen…", base → Anthropic/Qwen (swap real). El bug
+  quedó cerrado de punta a punta.
+- 3.8.2 lista para PyPI; NO se publica sin autorización explícita del dueño.
