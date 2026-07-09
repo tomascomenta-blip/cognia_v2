@@ -99,6 +99,29 @@ def _strip_pipe(text: str) -> str:
     return t[1:].strip() if t.startswith("|") else t
 
 
+def _fold_ascii(s: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", (s or "").lower().strip())
+                   if not unicodedata.combining(c))
+
+
+def _resolver_nombre(scene: Scene, name: str):
+    """Resuelve una referencia de objeto a un nombre EXISTENTE de la escena:
+    exacto primero; si no, por nombre canonico (sinonimos es/en de scene.py +
+    acentos foldeados): 'cup' encuentra 'taza', 'árbol' encuentra 'arbol'.
+    None si nada matchea. Gap cazado por eval_lcd_gap 2026-07-09: el modelo
+    traduce el nombre del objeto al idioma del turno y el lookup exacto
+    fallaba con 'no existe el objeto'."""
+    from cognia.lcd.scene import canonical_name
+    if any(o.name == name for o in scene.objects):
+        return name
+    objetivo = canonical_name(_fold_ascii(name))
+    for o in scene.objects:
+        if canonical_name(_fold_ascii(o.name)) == objetivo:
+            return o.name
+    return None
+
+
 # ── tools AI-nativas ─────────────────────────────────────────────────────────
 
 @tool("escena_crear",
@@ -151,7 +174,7 @@ def _escena_editar(args, ctx):
     parts = _re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO escena_editar ERROR: formato (objeto | attr=valor)"
-    obj = parts[0].strip()
+    obj = _resolver_nombre(scene, parts[0].strip()) or parts[0].strip()
     m = _re.match(r"(\w+)\s*=\s*(.+)", parts[1].strip())
     if not m:
         return "RESULTADO escena_editar ERROR: formato del cambio (attr=valor)"
@@ -185,6 +208,7 @@ def _escena_consultar(args, ctx):
         return "RESULTADO escena_consultar ERROR: no hay escena activa (usa escena_crear primero)"
     obj = args.strip()
     if obj:
+        obj = _resolver_nombre(scene, obj) or obj
         o = scene.get(obj)
         if o is None:
             return f"RESULTADO escena_consultar ERROR: no existe el objeto '{obj}'"

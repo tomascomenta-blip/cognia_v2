@@ -17,6 +17,7 @@ p.ej. "a red cup on a blue table", "una taza roja sobre una mesa azul",
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from cognia.lcd.scene import COLORS, SHAPES, Obj, Scene
 
@@ -34,7 +35,12 @@ _STOP = {"a", "an", "the", "un", "una", "el", "la", "los", "las", "of", "de",
 
 
 def _tokens(text):
-    return re.findall(r"[a-záéíóúñ]+", (text or "").lower())
+    # acentos foldeados: el lexico (SHAPES/COLORS) es ASCII puro y el modelo
+    # escribe con tildes ('pájaro' debe matchear 'pajaro') — gap cazado por
+    # eval_lcd_gap 2026-07-09
+    t = "".join(c for c in unicodedata.normalize("NFKD", (text or "").lower())
+                if not unicodedata.combining(c))
+    return re.findall(r"[a-z]+", t)
 
 
 def _find_objects(tokens):
