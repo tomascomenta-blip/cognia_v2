@@ -210,3 +210,14 @@ _PIDE_EJECUCION_RX = re.compile(
 def task_pide_ejecucion(task: str) -> bool:
     """True si la tarea pide explicitamente ejecutar/correr algo."""
     return bool(_PIDE_EJECUCION_RX.search(task or ""))
+
+
+def salida_de_ejecucion(history) -> str:
+    """Output de la ULTIMA ejecucion exitosa del history ('' si no hubo).
+    Solo exitos: 'RESULTADO ejecutar: ...' sin '(exit N)' ni ERROR."""
+    for h in reversed(history or []):
+        if h.startswith("RESULTADO ejecutar:"):
+            out = h[len("RESULTADO ejecutar:"):].strip()
+            if out and out != "(sin output)":
+                return out
+    return ""

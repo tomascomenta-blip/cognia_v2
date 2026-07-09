@@ -7281,7 +7281,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     from cognia.agent.loop import (
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
         first_action_block, objective_context, register_action,
-        task_pide_ejecucion as _task_pide_ejecucion,
+        task_pide_ejecucion as _task_pide_ejecucion, salida_de_ejecucion,
     )
     from cognia.agent.structure import structure_action
     from cognia.agent.stepwise import (
@@ -7610,6 +7610,25 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _no_action_streak += 1
             history.append(f"RESULTADO: (respuesta no estructurada) {raw_response[:200]}")
             if _no_action_streak >= 2:
+                # Cierre informativo (E8): la prosa tambien es un cierre — si
+                # la tarea pide EJECUTAR y no hubo ejecucion real, mismo nudge
+                # unico que en responder (la bateria v4 cazo esta fuga: el
+                # modelo cerraba por aca en 14s sin ejecutar nada).
+                if (not _exec_nudged
+                        and _task_pide_ejecucion(task)
+                        and not any(h.startswith(("RESULTADO ejecutar",
+                                                  "RESULTADO tests"))
+                                    for h in history)):
+                    _exec_nudged = True
+                    _no_action_streak = 0
+                    history.append(
+                        "AVISO: la tarea pide EJECUTAR y todavia no ejecutaste "
+                        "nada. Corre el script con la tool ejecutar y despues "
+                        "cerra con responder INCLUYENDO la salida real de la "
+                        "ejecucion.")
+                    _print_fn("[detail]cierre rechazado: la tarea pide ejecutar "
+                              "y no hubo ejecucion[/detail]")
+                    continue
                 result_text = raw_response
                 break
             continue
@@ -7732,6 +7751,17 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         if _err_type and repair_applies(_err_type):
             history.append(build_exec_repair_hint(_err_type, result))
             _print_fn(f"[detail]error de ejecucion ({_err_type}) -> repair dirigido[/detail]")
+
+    # Cierre informativo (E8, parte 2): si la tarea pedia EJECUTAR y hubo
+    # ejecucion exitosa, la salida REAL viaja en la respuesta final (el modelo
+    # tiende a cerrar con "listo, termine" sin reportar el output; esto es
+    # determinista y no cuesta otra llamada). Un solo punto: cubre el cierre
+    # por responder, por prosa y por presupuesto.
+    if result_text and _task_pide_ejecucion(task):
+        _salida = salida_de_ejecucion(history)
+        if _salida and _salida[:300] not in result_text:
+            result_text = (f"{result_text}\n\nSalida de la ejecución:\n"
+                           f"{_salida[:400]}")
 
     # Save summary to episodic memory
     summary = f"Tarea: {task[:100]} | Pasos: {total_steps} | Resultado: {result_text[:200]}"
