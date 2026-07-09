@@ -7470,8 +7470,21 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     budget = max_steps if max_steps else estimate_step_budget(task, orch)
     _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {AGENT_HARD_CAP})[/detail]")
 
-    # Auto-decompose large tasks into sub-steps
-    if len(task) > 120:
+    # Auto-decompose: gateado por DIFICULTAD estimada o encadenamiento
+    # explicito, no por longitud (E-INT 2026-07-08: len>120 era un proxy
+    # pobre — una tarea larga-pero-simple pagaba ~30s de decompose inutil en
+    # CPU y una corta-pero-dura no se descomponia). estimate_difficulty ya
+    # esta calibrada a umbral 0.30 (test_model_router); la longitud sigue
+    # contando adentro (satura 0.30 en >=400 chars).
+    try:
+        from cognia.agent.model_router import estimate_difficulty as _est_dif
+        _multi_paso = re.search(
+            r"(,?\s+y\s+(luego|despu[eé]s)\b|,\s*then\b|\band\s+then\b|;\s*(luego|then)\b)",
+            task, re.IGNORECASE)
+        _decompone = _est_dif(task) >= 0.30 or bool(_multi_paso)
+    except Exception:
+        _decompone = len(task) > 120   # fallback al gate viejo
+    if _decompone:
         try:
             _decomp_prompt = (
                 "Break this task into 3-5 concrete sequential steps. "
