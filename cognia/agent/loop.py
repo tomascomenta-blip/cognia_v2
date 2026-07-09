@@ -196,3 +196,17 @@ def wants_more_steps(task: str, last_results: str, orch) -> int:
     except Exception:
         pass
     return 0
+
+
+# ── Cierre informativo (E8, bateria 2026-07-09) ─────────────────────────────
+# La tarea pide EJECUTAR algo: el responder no debe cerrar sin una ejecucion
+# real en el history. Regex conservadora: verbo de ejecucion como palabra
+# ("corregi" NO matchea; "corré el script" si) + en ingles run/execute.
+_PIDE_EJECUCION_RX = re.compile(
+    r"\b(ejecut\w+|corr[eé]|correlo|run|execute)\b",
+    re.IGNORECASE)
+
+
+def task_pide_ejecucion(task: str) -> bool:
+    """True si la tarea pide explicitamente ejecutar/correr algo."""
+    return bool(_PIDE_EJECUCION_RX.search(task or ""))

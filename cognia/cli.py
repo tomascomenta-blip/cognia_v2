@@ -7281,6 +7281,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     from cognia.agent.loop import (
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
         first_action_block, objective_context, register_action,
+        task_pide_ejecucion as _task_pide_ejecucion,
     )
     from cognia.agent.structure import structure_action
     from cognia.agent.stepwise import (
@@ -7546,6 +7547,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                               # proximo paso usa 0.7 para romper el ciclo
                               # determinista (mismo contexto -> misma accion)
     _actions_trace: list = [] # traza (action, args, ok) para skill_capture (CP2)
+    _exec_nudged = False      # cierre informativo E8: un solo aviso por tarea
     result_text = _bon_result_text  # si BoN corto, este es el resultado final
     while not _bon_ok and total_steps < AGENT_HARD_CAP:
         # pasos que quedan -> sub-presupuesto de delegar_subtarea
@@ -7632,6 +7634,27 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # cerrar con una respuesta en blanco: registrar el error y seguir
             # el loop (mismo trato que cualquier otra accion invalida).
             if not _struct.get("error"):
+                # Cierre informativo (E8, bateria 2026-07-09): si la tarea
+                # PIDE ejecutar y el agente nunca ejecuto, no aceptar un
+                # "listo" vacio — UNA vez se lo manda a ejecutar y reportar
+                # la salida real (concreto >> abstracto, leccion +62pp).
+                if (not _exec_nudged
+                        and _task_pide_ejecucion(task)
+                        and not any(h.startswith(("RESULTADO ejecutar",
+                                                  "RESULTADO tests"))
+                                    for h in history)):
+                    _exec_nudged = True
+                    history.append(
+                        "AVISO: la tarea pide EJECUTAR y todavia no ejecutaste "
+                        "nada. Corre el script con la tool ejecutar y despues "
+                        "cerra con responder INCLUYENDO la salida real de la "
+                        "ejecucion.")
+                    _actions_trace.append({"action": "responder", "args": args[:200],
+                                           "ok": False,
+                                           "result_head": "nudge: falta ejecutar"})
+                    _print_fn("[detail]cierre rechazado: la tarea pide ejecutar "
+                              "y no hubo ejecucion[/detail]")
+                    continue
                 # cola degenerada del experto a temp=0 ("fitte fitte...");
                 # el saneo es quirurgico y determinista (agent/sanitize.py)
                 try:
