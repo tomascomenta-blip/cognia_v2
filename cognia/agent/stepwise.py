@@ -13,21 +13,55 @@ pregunta pide cálculo/razonamiento cuantitativo Y NO pide formato exacto. Cero 
 """
 import re
 
-# pedidos de formato exacto: acá el CoT DAÑA (medido) -> nunca aumentar
+# pedidos de formato exacto: acá el CoT DAÑA (medido) -> nunca aumentar.
+# v2 (E-INT 2026-07-08): + señales en INGLÉS (dirección segura: extender el
+# veto solo REDUCE dónde se aplica el empujón).
 _FORMAT_RX = re.compile(
     r"(únicamente|unicamente|solamente|\bsolo con\b|exactamente|\bjson\b|"
-    r"sin ning[uú]n otro texto|una sola palabra|\bformato\b|\bxml\b|\byaml\b)",
+    r"sin ning[uú]n otro texto|una sola palabra|\bformato\b|\bxml\b|\byaml\b|"
+    r"\bexactly\b|\bonly with\b|reply only|answer only|\bone word\b|"
+    r"a single word|no other text|\bformat\b)",
     re.IGNORECASE)
 
-# señales de pregunta cuantitativa/razonamiento multi-paso
+# señales de pregunta cuantitativa/razonamiento multi-paso.
+# v2 (E-INT, pre-registro PREREG_INTELIGENCIA.md): la v1 solo cubría
+# cuantitativo EN ESPAÑOL; G2R es 50/50 es/en y 40% lógica/deducción ->
+# + inglés cuantitativo, + lógica/orden/deducción es+en, + multi-paso.
 _REASON_RX = re.compile(
     r"(cu[aá]nt|calcul|qu[eé] n[uú]mero|cu[aá]l es el n[uú]mero|por ciento|"
     r"\bpromedio\b|\bporcentaje\b|en qu[eé] d[ií]a|qu[eé] d[ií]a|a qu[eé] hora|"
-    r"\bdescuento\b|\bdoble\b|\btriple\b|\bmitad\b)",
+    r"\bdescuento\b|\bdoble\b|\btriple\b|\bmitad\b|"
+    # inglés cuantitativo
+    r"how (many|much|old|far|long|fast)|\bcalculat|\bpercent|\bdiscount\b|"
+    r"\baverage\b|\btwice\b|\bdouble\b|\btriple\b|\bhalf\b|what number|"
+    r"\bin total\b|\ben total\b|"
+    # lógica / orden / deducción (es+en)
+    r"qui[eé]n es (el|la) m[aá]s|m[aá]s (alt|baj|grande|chic|joven|viej)\w* que|"
+    r"mayor que|menor que|antes que|despu[eé]s que|en qu[eé] orden|"
+    r"who is the \w+est|taller than|older than|younger than|faster than|"
+    r"\bsilogismo\b|si todos|todos los .* son|ning[uú]n .* es|"
+    r"if all\b|all .* are\b|none of|\bdeduc)",
     re.IGNORECASE)
 
 STEP_TAG = ("\n\nPensá paso a paso: mostrá el razonamiento en pasos numerados y recién "
             "al final dá la respuesta.")
+STEP_TAG_EN = ("\n\nThink step by step: show your reasoning in numbered steps and only "
+               "then give the final answer.")
+
+_EN_HINT_RX = re.compile(
+    r"\b(the|what|how|who|which|is|are|if|then|than|and|of)\b", re.IGNORECASE)
+_ES_HINT_RX = re.compile(
+    r"[áéíóúñ¿¡]|\b(qu[eé]|cu[aá]l|cu[aá]nt\w*|qui[eé]n|el|la|los|las|una?|es|son|si)\b",
+    re.IGNORECASE)
+
+
+def _tag_para(text: str) -> str:
+    """Empujón en el idioma del turno: el 3B sigue mejor la instrucción si
+    coincide con el idioma de la pregunta (y no arrastra la respuesta al
+    español en ítems en inglés)."""
+    es = len(_ES_HINT_RX.findall(text))
+    en = len(_EN_HINT_RX.findall(text))
+    return STEP_TAG_EN if en > es else STEP_TAG
 
 
 def wants_exact_format(text: str) -> bool:
@@ -46,7 +80,7 @@ def needs_stepwise(text: str) -> bool:
 
 def augment_stepwise(text: str) -> str:
     """Texto del turno de usuario que va al LLM (el historial guarda el original)."""
-    return text + STEP_TAG if needs_stepwise(text) else text
+    return text + _tag_para(text) if needs_stepwise(text) else text
 
 
 # ── Detectores CP1 (06_AGENTE_PLAN §2 #5): cada palanca cara corre SOLO ──

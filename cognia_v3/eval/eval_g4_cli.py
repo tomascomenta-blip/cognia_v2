@@ -58,7 +58,8 @@ def mcnemar_p(n01, n10):
 
 
 SUITE_FILES = {"g1": "g1_general.jsonl", "g2a": "g2_accion.jsonl",
-               "g3": "g3_identidad.jsonl", "g5": "g5_espanol.jsonl"}
+               "g3": "g3_identidad.jsonl", "g5": "g5_espanol.jsonl",
+               "g2r": "g2_razonamiento.jsonl"}
 
 
 def resolve_suites(csv: str) -> dict:
@@ -77,7 +78,10 @@ def main():
     ap.add_argument("--brazo", default="", help="nombre del brazo en el kernel-json")
     ap.add_argument("--limit", type=int, default=0, help="solo N items por suite (smoke)")
     ap.add_argument("--suites", default="g1,g2a",
-                    help="suites a correr (csv de g1,g2a,g3,g5); default el gate G4 clasico")
+                    help="suites a correr (csv de g1,g2a,g3,g5,g2r); default el gate G4 clasico")
+    ap.add_argument("--stepwise", action="store_true",
+                    help="aplica augment_stepwise al prompt (la transformacion del "
+                         "turno de chat del CLI) — instrumento de E-INT")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
@@ -102,7 +106,12 @@ def main():
             items = items[:args.limit]
         suites[clave] = items
 
-    res = {"gate": "G4", "gguf": str(args.gguf),
+    transform = None
+    if args.stepwise:
+        # la MISMA transformacion del turno de chat del CLI (E-INT): asi el
+        # numero medido es el del CAMINO REAL, no el del modelo pelado
+        from cognia.agent.stepwise import augment_stepwise as transform
+    res = {"gate": "G4", "gguf": str(args.gguf), "stepwise": bool(args.stepwise),
            "started_utc": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
            "nota_honesta": ("perplexity (+5% vs merge fp16) NO corre aca: es la "
                             "corrida aparte del protocolo comun (llama-perplexity)"),
@@ -114,8 +123,11 @@ def main():
     for clave, items in suites.items():
         binarios = {}
         for i, it in enumerate(items):
-            raw = backend.generate(chatml(it["prompt"], it["idioma"]),
-                                   max_tokens=it["max_new_tokens"], temperature=0.0)
+            prompt = transform(it["prompt"]) if transform else it["prompt"]
+            # CoT necesita espacio para razonar antes de la respuesta
+            max_new = it["max_new_tokens"] + (220 if transform and prompt != it["prompt"] else 0)
+            raw = backend.generate(chatml(prompt, it["idioma"]),
+                                   max_tokens=max_new, temperature=0.0)
             raw = (raw or "").strip()
             if it["gate"] == "G2A":
                 ok = accion_pass(raw, it["oracle"])
