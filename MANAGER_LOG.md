@@ -5703,3 +5703,25 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   experto → "Cognia es como me dicen…", base → Anthropic/Qwen (swap real). El bug
   quedó cerrado de punta a punta.
 - 3.8.2 lista para PyPI; NO se publica sin autorización explícita del dueño.
+
+## 2026-07-09 (madrugada) — E-INT cerrado: inteligencia general MEDIDA superior
+
+- **Mandato final del dueño**: "mejorar la inteligencia del modelo general" (comprensión
+  de instrucciones, flujos de agente, todo superior). Ejecutado con gates congelados
+  (PREREG_INTELIGENCIA.md) y VEREDICTO medido:
+  - **G2R razonamiento 60.0% → 82.0% (+22pp, p=0.0002)** con stepwise v2 (CoT dirigido
+    ampliado a inglés + lógica + tag por idioma). G1 87% (−1pp n.s.), G5 sin efecto
+    (arbitraje determinista: 56.0=56.0 ítem a ítem).
+  - Flujos de agente: auto-decompose por dificultad estimada (no len>120) + saneo de
+    cola degenerada del responder (casos reales de la batería) + fix del Orchestrator
+    sin manifest (el agente del producto INSTALADO estaba roto fuera del repo).
+- **2 hallazgos de instrumento**: (1) KV-cache reusado flipea ítems no transformados
+  entre corridas → eval_g4_cli ahora siempre cache_prompt=false; (2) el set marginal
+  de la ampliación (N=8, lógica-fácil) mostró daño débil n.s. → flagged para poda.
+- **Batería e2e sobre el producto instalado: 16/17** (bug del manifest cazado y
+  arreglado en vivo; el único fallo restante es calidad de cierre E8: el agente
+  escribe el script pero no reporta el output). Re-corriendo con el wheel mejorado.
+- E-RZN v1 NO APTO (yield 86% = problemas fáciles = sin señal; negativo honesto);
+  E-RZN-v2 con generador difícil + banda de yield corriendo en Kaggle.
+- Apagado programado 04:30 (dueño). Regla nueva: usage check antes de cada bloque
+  de ediciones (>85% → wait-reset); checks 22% y 35% esta noche.
