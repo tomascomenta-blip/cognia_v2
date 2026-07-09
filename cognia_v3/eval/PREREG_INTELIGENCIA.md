@@ -35,3 +35,22 @@ conservador) y se re-mide UNA vez; si vuelve a fallar, se descarta.
   ≠ complejo; costo real ~30s de CPU por decompose innecesario).
 - Gate: batería E (8 tareas /hacer con postcondición) sin regresión
   (8/8 o igual al pre-cambio) + tests unitarios del gating.
+
+---
+
+## VEREDICTO (2026-07-09 ~01:10, corridas reales)
+
+| Gate | resultado | veredicto |
+|---|---|---|
+| P-INT-1 | G2R 60.0% → **82.0%** (+22pp, n01=28 n10=6, p=0.0002) | **PASA** |
+| P-INT-3 | G1 88.0% → 87.0% (−1pp, n01=2 n10=3, p=1.0) | **PASA** |
+| P-INT-4 | G5 56→52 en la 1ª corrida, PERO el único ítem flipeado NO fue transformado (0/25 ítems G5 disparan el detector) → era ruido del KV-cache del instrumento. Arbitraje determinista (cache_prompt=false): **56.0% = 56.0%, idéntico ítem a ítem** | **PASA** |
+| P-INT-2 | cobertura v1 ya era 58/100 (el fallback ?+2números cazaba mucho); set marginal puro N=8: sin 8/8 → v2 5/8 (n01=0, n10=3, p=0.25) | **EN CONTRA (débil)** |
+
+**Decisión (regla congelada: pasan 1,3,4 → v2 entra al CLI): stepwise v2 QUEDA.**
+La ganancia grande (+22pp) viene del stock cubierto + tag por idioma; los
+patrones puramente marginales (lógica-fácil sin números) muestran daño débil
+no significativo en N=8 → quedan FLAGGED para poda si una corrida futura con
+N mayor lo confirma. Hallazgo de instrumento: eval_g4_cli ahora corre con
+cache_prompt=false SIEMPRE (benchmark determinista; el ruido de cache flipeaba
+ítems no transformados).

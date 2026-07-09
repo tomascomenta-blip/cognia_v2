@@ -126,8 +126,12 @@ def main():
             prompt = transform(it["prompt"]) if transform else it["prompt"]
             # CoT necesita espacio para razonar antes de la respuesta
             max_new = it["max_new_tokens"] + (220 if transform and prompt != it["prompt"] else 0)
+            # cache_prompt=False: benchmark DETERMINISTA. El KV-cache reusado
+            # cambia los logits (experimento 2026-06-11) y metia ruido entre
+            # corridas: E-INT lo cazo (G5 flip en un item NO transformado).
             raw = backend.generate(chatml(prompt, it["idioma"]),
-                                   max_tokens=max_new, temperature=0.0)
+                                   max_tokens=max_new, temperature=0.0,
+                                   cache_prompt=False)
             raw = (raw or "").strip()
             if it["gate"] == "G2A":
                 ok = accion_pass(raw, it["oracle"])
