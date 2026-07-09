@@ -164,7 +164,16 @@ class ShatteringOrchestrator:
             else:
                 self._manifest = ManifestLoader.load(manifest_path)
         else:
-            raise ValueError("Provide manifest or manifest_path")
+            # Default (fix 2026-07-08): el manifest de escritorio EMPAQUETADO
+            # junto al modulo (package-data shattering/manifests/*.json). Sin
+            # esto, todo caller sin manifest_path — el CLI llama
+            # Orchestrator(mode='local') pelado en 4 lugares — moria con
+            # ValueError FUERA del repo (producto instalado, cwd arbitrario) y
+            # /hacer degradaba a "(el agente no pudo iniciar el modelo)".
+            default = Path(__file__).parent / "manifests" / "cognia_desktop.json"
+            if not default.is_file():
+                raise ValueError("Provide manifest or manifest_path")
+            self._manifest = ManifestLoader.load_from_file(default)
 
         self._router       = GlobalRouter()
         self._fragments    = FragmentManager(base_dir=base_dir)
