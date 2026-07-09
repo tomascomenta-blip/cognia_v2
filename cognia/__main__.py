@@ -6,6 +6,7 @@ Subcommand router. Entry point for the `cognia` CLI after `pip install cognia`.
 Usage:
     cognia                  -- first-run wizard (once), then REPL
     cognia init             -- re-run setup wizard
+    cognia install-model    -- download GGUF 3B + llama-server + expertos (recomendado)
     cognia install-weights  -- download shards and configure this machine as a node
     cognia server           -- start FastAPI web server (port 8000)
     cognia node             -- start as a shard node in the swarm
@@ -362,6 +363,7 @@ Comandos:
   (ninguno)          Iniciar REPL (lanza wizard en primer uso)
   init               Re-ejecutar wizard de configuracion
   modo               Ver o cambiar el modo (local/compartido/memoria) y personalizacion
+  install-model      Descargar GGUF 3B + llama-server + expertos (recomendado)
   install-weights    Descargar shards y configurar este dispositivo como nodo
   server             Servidor web FastAPI (puerto 8000)
   node               Iniciar como nodo del swarm distribuido
@@ -414,6 +416,11 @@ def main() -> None:
         _cmd_install_weights()
     elif cmd in ("download-weights",):
         _cmd_install_weights()   # alias
+    elif cmd in ("install-model", "install-modelo"):
+        # Stack GGUF validado (llama-server b9391 + Q4_K_M + fleet de expertos):
+        # el camino DEFAULT de una instalación limpia (GATES_CLI_VNEXT.md).
+        from cognia.model_install import main as _im_main
+        _im_main(sys.argv[2:])
     elif cmd == "server":
         _cmd_server()
     elif cmd == "node":

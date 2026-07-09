@@ -37,6 +37,7 @@ dependencies = [
     "rich>=13.0",
     "prompt_toolkit>=3.0",
     "huggingface_hub>=0.20",
+    "tokenizers>=0.15",  # BPE real del pipeline de shards (fix 2026-07-08: sin esto caia a LightTokenizer y Qwen no funcionaba)
     "psutil>=5.9",
     "httpx>=0.27",
     "pillow>=10.0.0",   # creador de imagenes/escenas (cognia/lcd): render PNG/GIF

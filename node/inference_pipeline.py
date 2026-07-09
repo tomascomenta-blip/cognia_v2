@@ -196,6 +196,17 @@ class DistributedInferencePipeline:
         )
         self._real_tokenizer = not isinstance(self._tokenizer, LightTokenizer)
         self._mode         = "real" if self._real_tokenizer else "simulation"
+        if not self._real_tokenizer:
+            # Degradacion RUIDOSA (fix 2026-07-08): con LightTokenizer el modelo
+            # real produce basura aunque los pesos esten descargados. Antes esto
+            # era silencioso y parecia "Qwen no funciona".
+            logger.error(
+                "[Pipeline] SIN tokenizer real (falta %s/tokenizer.json o la lib "
+                "'tokenizers'): la inferencia queda en MODO SIMULACION y las "
+                "respuestas del modelo real seran invalidas. Fix: corre "
+                "'cognia install-model' (stack GGUF recomendado) o reinstala "
+                "los shards con 'cognia install-weights --standalone'.",
+                shard_dir or "<SHARD_WEIGHTS_DIR sin setear>")
         self._model_cfg_cache: Optional[tuple] = None   # (cfg, fetch_time)
 
     # ── Verificar disponibilidad del swarm ────────────────────────────
