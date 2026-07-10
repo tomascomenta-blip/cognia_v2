@@ -5823,3 +5823,39 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   P-PORT-2: G1 55→46 n.s. → regla: router whitelist conservador + fallback 3B.
   Fase 2 (GGUF + router + gates e2e) queda para la próxima sesión.
 - Flappy bird del agente entregado con gameplay (mandato de ayer, 9 rondas).
+
+## 2026-07-10 (mañana) — PORTERO 0.5B FASE 2: DEPLOY COMPLETO, 7/7 GATES PASS
+
+Continuación de E-PORT (goal /goal, 100% autónomo). Pre-registro congelado
+ANTES de medir (PREREG_PORTERO_FASE2.md, commit cde2427).
+
+- **Artefactos**: adapter → GGUF f16 (17.6MB, convert_lora_to_gguf b9391);
+  base 0.5B oficial de Qwen. Smoke real: server arriba en 2.1s, identidad
+  3/3 "Cognia", ~28 tok/s.
+- **Router + backend** (commit c5fb0ca, 44 tests): `classify_turn` con
+  identidad opcional (is_identity_turn ANTES de los vetos); FIX de FP
+  dormido: los acks débiles (`\bno\b`, sí, ok, vale…) matcheaban por
+  substring CUALQUIER prompt → ahora solo turno completo (0 FP medido).
+  `_LlamaServerBackend` acepta lora_path/ctx_size POR INSTANCIA (no la env
+  global que envenenaría el 3B) y RECHAZA adoptar un server sin la LoRA
+  pedida. Portero por PRESENCIA de archivos + kill-switch COGNIA_PORTERO=0
+  + falla de arranque cacheada; el CLI decide la ruta ANTES del hot-swap
+  del fleet (un swap inútil invalida el KV del 3B). Turnos portero con
+  prompt mínimo = formato del instrumento G3 del kernel.
+- **HALLAZGO de cuantización**: con base Q4_K_M el G3 en deploy cae 95→80
+  (flips G3-006/009/010/020 que NO solapan con el miss del kernel G3-019 =
+  ruido de cuantización; en un 0.5B el error Q4 pesa mucho más que en el
+  3B). Iteración ÚNICA del prereg → base **Q8_0** (644MB): G3 90%, decode
+  casi igual (32.5→31.4 tok/s). Q8_0 default (commit 15c18df).
+- **GATES (todos PASS)**: P-PORT-3 G3-deploy 90% (18/20; fallan solo los 2
+  adversariales "¿Sos ChatGPT…?"; McNemar vs 3B 95%: n01=1 n10=2 p=1.0 sin
+  regresión sig.) · P-PORT-4 cobertura 20/20 · P-PORT-5 0 FP/422 prompts ·
+  P-PORT-6 decode 3.33× medias / 3.86× mediana pareada (31.2 vs 9.4 tok/s;
+  wall mediana 1.05s vs 5.46s ≈ 5.2×) · P-PORT-7 batería 17/17 (12.6 min).
+- **Promoción**: asset `cognia_portero05b_f16.gguf` + NOTICE.md (0.5B es
+  Apache 2.0, distinto del 3B research) al release fleet-v1;
+  `install_portero()` en `cognia install-model` (base de HF + LoRA del
+  release, best-effort, idempotente, --skip-portero).
+- **Límite honesto**: el producto PyPI 3.8.3 instalado NO trae este código;
+  el portero vive en el repo + release. Publicar 3.8.4 a PyPI requiere
+  autorización explícita del dueño (regla dura, no se tocó).
