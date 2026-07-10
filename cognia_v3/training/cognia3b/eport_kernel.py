@@ -17,6 +17,7 @@ import random
 import time
 
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 T0 = time.time()
 OUT = "/kaggle/working"
@@ -25,7 +26,9 @@ SEED = 20260710
 SEQ = 1024
 LR = 3e-4
 WARMUP = 0.10
-MB = 8
+# MB chico: sin unsloth los LOGITS se materializan completos y el vocab de
+# Qwen es 151k -> con MB=8 el train OOMeo en T4 (v2); 2x1024x151k fp16 entra
+MB = 2
 MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
 
 RESULTS = {"exp": "E-PORT-portero-0.5B",
@@ -203,6 +206,9 @@ def main():
     dump()
 
     # ── train E-GROK (LoRA r16 all-linear, 1 epoch) ──
+    import gc
+    gc.collect()
+    torch.cuda.empty_cache()  # liberar los buffers del eval antes del train
     lora = LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05,
                       target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
                                       "gate_proj", "up_proj", "down_proj"],
