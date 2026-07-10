@@ -5898,3 +5898,36 @@ gaps de formato se cierran mejor con inferencia (GBNF, parche de error), y el
 cuota GPU. Valor entregado: 2 mejoras de producto medidas (GBNF JSON + parche
 de error accionable) + instrumentos congelados + bug del loop cazado. Cero
 GPU gastada, 2 líneas cerradas con medición honesta.
+
+## 2026-07-10 (tarde) — FASE 4 MoM: especialista 7B PROMOVIDO — código duro 37.5→57.5% en producción
+
+Mandato: "hacé lo que consideres mejor para alcanzar GLM 5.2 con el MoM de
+especialistas". Decisión (anclada en la tesis: la capacidad se compra en
+inferencia): cablear el ESPECIALISTA 7B (Qwen2.5-Coder-7B) al agente de
+producción. Diseño validado por workflow (wf_88ba05ee-f41), que REFUTÓ la
+hipótesis cruda (routing predictivo 45<60) y la afinó a cascada REACTIVA.
+
+- **heavy_code_backend()** (commit b6c68ef): 2º server 7B :8092 lazy (molde
+  portero), kill-switch, lazy-load-usar-cerrar. Smoke real.
+- **Escalado reactivo en generar_codigo** (f376661): si el 3B falla sus tests
+  en tarea dura, reintenta con el 7B. Kill-switch OFF = idéntico (479 tests).
+- **Suite tasks_hard_v2 N=40** (42b5971): 20 nuevas validadas por ejecución
+  (re-validadas por el orquestador, no por sub-agentes) + PREREG_GATE_7B
+  congelado.
+- **GATE de calidad PASA** (results_code_gate7b_n40): 3B 15/40=37.5% →
+  cascada 3B→7B 23/40=57.5%; recovered=8/8 verificadas contra tests OCULTOS,
+  c=0, McNemar p=0.0078. Por encima de la referencia GLM 5.2 (~50%).
+- **3 e2e FALLIDOS acotaron el gap deploy** (6ec2f11): "el gate pasa" ≠ "el
+  deploy funciona". Causa raíz aislada por el probe: el JUEZ (best_of_n +
+  tests visibles autogenerados débiles 2/4) descartaba el candidato correcto
+  del 7B; el 7B GREEDY recupera 4/4.
+- **FIX + PROMOCIÓN** (cae21b5): escalar con GREEDY del 7B (build_prompt del
+  gate) en vez de best_of_n → reproduce el gate. e2e single_number PASS
+  (código pasa tests ocultos, RAM 7.80GB<10). COGNIA_HEAVY_CODE default→ON.
+
+VEREDICTO DE LA FASE: primera ganancia de CAPACIDAD desplegada del programa
+(no formato) — código duro +20pp por cómputo en inferencia (7B), cero GPU de
+entrenamiento, coherente con la tesis (5 negativas de fine-tune de capacidad).
+Reactivo + pre-filtrado: solo paga latencia en código duro que el 3B falló.
+Lección: los e2e reales (no el gate) cazaron que el deploy no reproducía el
+gate; sin ellos se habría promovido un +20pp inexistente en producción.
