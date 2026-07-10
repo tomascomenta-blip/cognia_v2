@@ -5859,3 +5859,42 @@ ANTES de medir (PREREG_PORTERO_FASE2.md, commit cde2427).
 - **Límite honesto**: el producto PyPI 3.8.3 instalado NO trae este código;
   el portero vive en el repo + release. Publicar 3.8.4 a PyPI requiere
   autorización explícita del dueño (regla dura, no se tocó).
+
+## 2026-07-10 (mediodía) — FASE 3 MoM: expertos entrenables AGOTADOS por inferencia (2 líneas cerradas con medición)
+
+Mandato: "continuá entrenando los siguientes modelos según el plan MoM"
+(PLAN_MOM_GLM52 §6). Método obligatorio: diagnóstico por clases ANTES de GPU.
+Candidatos vivos del plan: #2 accion v3, #4 estructura, #6 MTP.
+
+- **Instrumentos de diagnóstico** (workflow wf_f6354c05-724, cayó a mitad por
+  límite de burst de subagentes; los 2 builds clave sobrevivieron, verificación
+  adversarial hecha a mano): g6_cierres.jsonl (50 ítems, sha256 pin) + diag_
+  cierres.py (parche E8 desactivable) + gbnf_json.py + diag_json ampliado
+  24→72. 69 tests. Commit 80a6688.
+- **#4 ESTRUCTURA — CERRADA sin GPU** (commit d0506a8). diag_json N=72 pareado:
+  brazo A (sin grammar) 64/72, brazo B (GBNF) 71/72; schema-fails 7→0; McNemar
+  n01=7 n10=0 p=0.016. El gate del plan (+15pp) era aritméticamente imposible
+  (techo de formato 9.7pp); GBNF captura ese techo COMPLETO por construcción.
+  gbnf_json.py queda como palanca de deploy. ANALISIS_ESTRUCTURA.md.
+- **#2 ACCION v3 — NO se entrena; el gap se cerró con INFERENCIA** (commits
+  55603f5+23a627a+4c3912c). diag CIERRES (parche off) 27/50; el gap de formato
+  real estaba en error_accionable (2/14): el 3B se rinde con 'Listo' cuando una
+  tool FALLA (E8 solo cubría éxitos). Se implementó el PARCHE de error (E8
+  parte 3, loop.py error_accionable_de_ejecucion + cli.py): anexa la causa del
+  fallo. MEDIDO: error_accionable 2→9/14 con CERO GPU. Los 5 residuales son
+  heterogéneos (el modelo ejecuta mal el script = comportamiento, no cierre) →
+  no un gap de formato entrenable. Batería e2e 17/17 con el parche (cero
+  regresión). 5ª línea inferencia > fine-tune. ANALISIS_CIERRES.md.
+- **#6 MTP/EAGLE — GATED por autorización del dueño**: EAGLE_MTP_SCOPING.md ya
+  lo scopeó — factible (2-3× general) pero 12-17h GPU (2 sesiones Kaggle),
+  mecanismo EAGLE3-en-CPU SIN validar, sin head pública para el Coder-3B. El
+  propio scoping exige autorización explícita antes de lanzar. NO autónomo.
+- **Bug latente cazado**: el agent loop se cuelga ~30 min en tareas de BÚSQUEDA
+  (G6-015, grep sobre varios .txt → generación degenerada del 3B). A revisar.
+
+VEREDICTO DE LA FASE: el programa de expertos-por-fine-tune está agotado — los
+gaps de formato se cierran mejor con inferencia (GBNF, parche de error), y el
+único fine-tune grande que queda (MTP, velocidad) requiere el OK del dueño por
+cuota GPU. Valor entregado: 2 mejoras de producto medidas (GBNF JSON + parche
+de error accionable) + instrumentos congelados + bug del loop cazado. Cero
+GPU gastada, 2 líneas cerradas con medición honesta.
