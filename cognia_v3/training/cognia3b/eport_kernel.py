@@ -168,6 +168,10 @@ def lotes_packed(ejemplos, tokenizer):
 def main():
     import subprocess
     import sys
+    # el torchao 0.10 preinstalado en Kaggle rompe el import de peft
+    # (mismo workaround que ecod/erzn: desinstalar antes)
+    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "torchao"],
+                   check=False)
     subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft"],
                    check=False)
     import torch
