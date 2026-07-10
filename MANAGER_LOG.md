@@ -5783,3 +5783,23 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   pero pierde 1-2 mecánicas distintas cada vez (consistente con 40% pass@1)
   — exactamente el gap que E-COD intentó cerrar y no cerró: refuerza que el
   camino es repair/BoN en inferencia.
+
+## 2026-07-09 (noche) — cognia-ai 3.8.3 PUBLICADO a PyPI + reinstalación local verificada 5/5
+- AUTORIZACIÓN del dueño recibida. Hallazgo previo: la 3.8.2 de PyPI era del
+  2026-07-06 (1.4MB, SIN el installer/fleet/E8/LCD de esta semana; PyPI no
+  permite re-subir) → bump y publicación de **3.8.3** desde HEAD (wheel
+  auditado antes de subir: fixes adentro, 676 archivos, sin secretos).
+- Ciclo pedido por el dueño (desinstalar → reinstalar de PyPI → verificar):
+  backup en ~/.cognia/backup_pre_383 (env vars User LLAMA_* + config.env) y
+  shards NPZ viejos renombrados a shards_backup_pre_383; la DB de memoria del
+  usuario NO se tocó. Env vars User borradas (mejor para el fleet: la ruta
+  estática mata el hot-swap; ahora los paths viven en config.env que escribe
+  install-model).
+- Venv fresco + `pip install cognia-ai==3.8.3` (PyPI real) + `python -m
+  cognia install-model` → descarga real: GGUF 2.1GB + llama-b9391 + fleet
+  (adapters.json + cognia3b_v2_f16.gguf) al ~/.cognia real.
+- **VERIFICACIÓN E2E 5/5** (solo el paquete instalado, sin repo): V1 backend
+  carga el GGUF de ~/.cognia; V2 fleet=[accion]; V3 experto dice "Cognia";
+  V4 base NO dice Cognia; V5 /hacer ejecuta y reporta la salida (350) — el
+  fix E8 funcionando desde el paquete de PyPI.
+- PyPI actual = 3.8.3. Apagado programado 5:30 AM.
