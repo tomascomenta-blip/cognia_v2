@@ -130,19 +130,24 @@ def clasificar_cierre(respuesta: str, oracle: dict, prompt: str = "") -> str:
 # ── desactivación del parche + espía de tools (monkeypatch documentado) ─────
 
 def desactivar_parche_cierre():
-    """Apaga el 'cierre informativo E8' completo monkeypatcheando
-    cognia.agent.loop (los 3 sitios de cli.py gatean por task_pide_ejecucion,
-    importada en tiempo de llamada -> el patch del atributo alcanza).
+    """Apaga el 'cierre informativo E8' COMPLETO monkeypatcheando
+    cognia.agent.loop (los sitios de cli.py gatean por estas funciones,
+    importadas en tiempo de llamada -> el patch del atributo alcanza).
+    Incluye la parte 3 (error_accionable_de_ejecucion): sin anularla, el
+    baseline de 'hábito nativo' quedaría contaminado por el parche de error.
     Devuelve una función restore()."""
     import cognia.agent.loop as loop_mod
     orig_tpe = loop_mod.task_pide_ejecucion
     orig_sde = loop_mod.salida_de_ejecucion
+    orig_eae = loop_mod.error_accionable_de_ejecucion
     loop_mod.task_pide_ejecucion = lambda task: False
     loop_mod.salida_de_ejecucion = lambda history: ""
+    loop_mod.error_accionable_de_ejecucion = lambda history: ""
 
     def restore():
         loop_mod.task_pide_ejecucion = orig_tpe
         loop_mod.salida_de_ejecucion = orig_sde
+        loop_mod.error_accionable_de_ejecucion = orig_eae
     return restore
 
 
@@ -172,7 +177,12 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
-    limit = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else None
+    # --con-parche: NO desactiva el cierre E8 -> mide el PRODUCTO REAL (con el
+    # parche de error accionable de inferencia). Sin el flag: hábito nativo
+    # (parches off). Comparar ambos = efecto del parche antes de decidir GPU.
+    con_parche = "--con-parche" in sys.argv
+    argv_n = [a for a in sys.argv[1:] if a.isdigit()]
+    limit = int(argv_n[0]) if argv_n else None
 
     h = hashlib.sha256(SUITE.read_bytes()).hexdigest()
     if h != SUITE_SHA256:
@@ -196,13 +206,20 @@ def main():
     ai = _AI()
     ai._orchestrator = orch
 
-    restaurar_parche = desactivar_parche_cierre()
-    # verificación de que el patch tomó (si cli.py cambia el gating, esto avisa)
-    import cognia.agent.loop as _lm
-    assert not _lm.task_pide_ejecucion("ejecutá el script x.py"), \
-        "el parche E8 NO quedó desactivado"
-    print(f"[diag-cierres] parche E8 DESACTIVADO — {len(items)} ítems, "
-          f"suite sha256={h[:16]}…", flush=True)
+    if con_parche:
+        restaurar_parche = lambda: None
+        print(f"[diag-cierres] parche E8 ACTIVO (producto real) — {len(items)} "
+              f"ítems, suite sha256={h[:16]}…", flush=True)
+    else:
+        restaurar_parche = desactivar_parche_cierre()
+        # verificación de que el patch tomó (si cli.py cambia el gating, avisa)
+        import cognia.agent.loop as _lm
+        assert not _lm.task_pide_ejecucion("ejecutá el script x.py"), \
+            "el parche E8 NO quedó desactivado"
+        assert _lm.error_accionable_de_ejecucion(["RESULTADO ejecutar ERROR: x"]) == "", \
+            "el parche de error NO quedó desactivado"
+        print(f"[diag-cierres] parche E8 DESACTIVADO (hábito nativo) — "
+              f"{len(items)} ítems, suite sha256={h[:16]}…", flush=True)
 
     res = {"pasa": [], "vacio": [], "parcial": [], "incorrecto": []}
     t0 = time.time()
@@ -258,9 +275,12 @@ def main():
                                                   "parcial": 0, "incorrecto": 0})
             d[clase] += 1
 
-    RESULTS.write_text(json.dumps(
-        {"suite_sha256": SUITE_SHA256, "n": n, "clases": res,
-         "por_dominio": por_dom, "mins": round((time.time() - t0) / 60, 1)},
+    out_path = (REPO / "cognia_v3" / "eval" / "results_diag_cierres_con_parche.json"
+                if con_parche else RESULTS)
+    out_path.write_text(json.dumps(
+        {"suite_sha256": SUITE_SHA256, "con_parche": con_parche, "n": n,
+         "clases": res, "por_dominio": por_dom,
+         "mins": round((time.time() - t0) / 60, 1)},
         indent=1, ensure_ascii=False), encoding="utf-8")
 
     print(f"\n[diag-cierres] pasa={n_pasa}/{n}  "

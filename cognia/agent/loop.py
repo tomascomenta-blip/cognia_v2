@@ -221,3 +221,31 @@ def salida_de_ejecucion(history) -> str:
             if out and out != "(sin output)":
                 return out
     return ""
+
+
+def error_accionable_de_ejecucion(history) -> str:
+    """Causa del ULTIMO fallo de tool, o '' si la ultima tool fue exitosa /
+    no hubo tools.
+
+    Analogo del cierre E8 exitoso (salida_de_ejecucion) para el caso de ERROR:
+    el diag CIERRES midio que cuando una tool FALLA (archivo faltante, script
+    que rompe, exit != 0) el 3B tiende a cerrar VACIO ('No tengo esa
+    informacion', 'Listo, tarea completada') en vez de reportar la causa
+    (error_accionable 2/14, 2026-07-10). E8 solo anexa salidas EXITOSAS, asi
+    que ese caso queda sin cubrir. Esto reporta la causa real, determinista,
+    sin otra llamada al modelo.
+
+    Convencion de tools.py: un RESULTADO fallido trae 'ERROR' en la cabeza o
+    '(exit N)'. Se mira el ULTIMO RESULTADO del history: si fue exito -> ''
+    (no es caso de error; si aplica lo cubre salida_de_ejecucion); si fue
+    fallo -> su causa (recortada). Asi el parche NUNCA se activa cuando la
+    tarea termino bien (la bateria E1-E8 termina siempre en exito -> intacta).
+    """
+    for h in reversed(history or []):
+        if not h.startswith("RESULTADO "):
+            continue
+        cabeza = h[:160]
+        if "ERROR" not in cabeza and "(exit " not in cabeza:
+            return ""          # la ultima ejecucion fue exitosa
+        return h[len("RESULTADO "):].strip()[:300]
+    return ""

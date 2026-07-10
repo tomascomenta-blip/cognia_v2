@@ -72,3 +72,36 @@ def test_cierre_con_salida_wiring():
     src = inspect.getsource(cli._run_agent_task)
     assert "salida_de_ejecucion" in src
     assert "Salida de la ejecuci" in src
+
+
+def test_error_accionable_de_ejecucion():
+    # E8 parte 3: cuando la ULTIMA tool fallo, devuelve la causa; si fue
+    # exitosa o no hubo, ''. (diag CIERRES: error_accionable 2/14)
+    from cognia.agent.loop import error_accionable_de_ejecucion
+    # ultima fallo -> reporta la causa
+    assert "no existe" in error_accionable_de_ejecucion(
+        ["RESULTADO leer_archivo ERROR: el archivo logs.txt no existe"])
+    assert "boom" in error_accionable_de_ejecucion(
+        ["RESULTADO ejecutar (exit 1): boom Traceback"])
+    # ultima EXITOSA -> '' (lo cubre salida_de_ejecucion; no doble-reporte)
+    assert error_accionable_de_ejecucion(
+        ["RESULTADO leer_archivo ERROR: x", "RESULTADO ejecutar: 350"]) == ""
+    # error ANTES de un exito posterior no gana (se mira la ultima ejecucion)
+    assert error_accionable_de_ejecucion(
+        ["RESULTADO ejecutar ERROR: boom", "RESULTADO escribir_archivo OK: a.txt"]) == ""
+    # exito ANTES de un fallo final -> reporta el fallo final
+    assert "roto" in error_accionable_de_ejecucion(
+        ["RESULTADO ejecutar: 350", "RESULTADO ejecutar (exit 2): roto"])
+    # sin tools / vacio / None -> ''
+    assert error_accionable_de_ejecucion(["pensar: hmm", "ACCION responder"]) == ""
+    assert error_accionable_de_ejecucion([]) == ""
+    assert error_accionable_de_ejecucion(None) == ""
+
+
+def test_cierre_error_accionable_wiring():
+    # el post-loop tambien reporta la causa del fallo (no solo el exito)
+    import inspect
+    from cognia import cli
+    src = inspect.getsource(cli._run_agent_task)
+    assert "error_accionable_de_ejecucion" in src
+    assert "No se pudo completar" in src

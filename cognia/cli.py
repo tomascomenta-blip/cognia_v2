@@ -7300,6 +7300,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
         first_action_block, objective_context, register_action,
         task_pide_ejecucion as _task_pide_ejecucion, salida_de_ejecucion,
+        error_accionable_de_ejecucion,
     )
     from cognia.agent.structure import structure_action
     from cognia.agent.stepwise import (
@@ -7780,6 +7781,18 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         if _salida and _salida[:300] not in result_text:
             result_text = (f"{result_text}\n\nSalida de la ejecución:\n"
                            f"{_salida[:400]}")
+    # Cierre informativo (E8, parte 3 — caso de ERROR): si la ULTIMA tool FALLO
+    # y no hubo salida exitosa, reportar la causa accionable en vez de dejar el
+    # cierre vacio. El diag CIERRES midio que el 3B se rinde ('No tengo esa
+    # informacion', 'Listo') cuando algo falla (error_accionable 2/14); E8 solo
+    # cubre exitos. Sin gate task_pide_ejecucion: el fallo puede ser de lectura
+    # o copia, no solo de 'ejecutar'. NO se activa si la tarea termino bien
+    # (bateria 17/17 intacta) ni si el modelo ya reporto el error.
+    if result_text:
+        _err = error_accionable_de_ejecucion(history)
+        if _err and _err[:120] not in result_text:
+            result_text = (f"{result_text}\n\nNo se pudo completar: la última "
+                           f"operación falló. Causa:\n{_err[:400]}")
 
     # Save summary to episodic memory
     summary = f"Tarea: {task[:100]} | Pasos: {total_steps} | Resultado: {result_text[:200]}"
