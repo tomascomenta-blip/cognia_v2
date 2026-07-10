@@ -5448,8 +5448,9 @@ def repl():
         def _get_input():
             return input(_G + "cognia> " + _R).strip()
 
-    # Warm-up del 0.5B de la cascada de habla en background (opt-in COGNIA_SPEECH_CASCADE):
-    # el 1er turno social arranca warm (~30 tok/s) en vez de cold (~18). No bloquea el REPL.
+    # Warm-up del 0.5B del fast-path en background (portero instalado o cascada
+    # opt-in): el 1er turno trivial arranca warm (~30 tok/s) en vez de cold (~18).
+    # No bloquea el REPL.
     try:
         from node.speech_cascade import prewarm_fast_speech
         prewarm_fast_speech()
@@ -7102,28 +7103,33 @@ def repl():
                             except Exception:
                                 pass
                         if _llama is not None:
-                            # Fleet: el chat general corre con la BASE pura (el
-                            # experto regresiona G1 -8pp); EXCEPTO identidad,
-                            # que va al experto (G3 20/20 vs 0/20 de la base).
-                            # Router lexico determinista (fleet_router).
-                            try:
-                                if getattr(_llama, "fleet_experts", []):
-                                    from cognia.agent.fleet_router import expert_for_chat_turn
-                                    _llama.activate_expert(expert_for_chat_turn(raw))
-                            except Exception:
-                                pass
-                            # Fast-path de habla (opt-in COGNIA_SPEECH_CASCADE): turnos
-                            # sociales/triviales -> 0.5B (~28-36 tok/s); el resto sigue en
-                            # el 3B. Reusa el 3B como 'deep' (no lo duplica). exp021/cycle39.
+                            # Fast-path de habla: PORTERO 0.5B+LoRA por presencia
+                            # (PREREG_PORTERO_FASE2: saludo/cortesia E identidad,
+                            # ~4x el 3B en CPU) o cascada legado opt-in
+                            # (COGNIA_SPEECH_CASCADE, 0.5B pelado, solo social).
+                            # Ante duda/falla -> 3B (fallback total). exp021/cycle39.
                             _llama_turn = _llama
                             try:
-                                from node.speech_cascade import classify_turn, fast_speech_backend
-                                if classify_turn(raw) == "fast":
+                                from node.speech_cascade import (
+                                    classify_turn, fast_speech_backend, portero_activo)
+                                if classify_turn(raw, identidad=portero_activo()) == "fast":
                                     _fb = fast_speech_backend()
                                     if _fb is not None:
                                         _llama_turn = _fb
                             except Exception:
                                 _llama_turn = _llama
+                            # Fleet: el chat general corre con la BASE pura (el
+                            # experto regresiona G1 -8pp); EXCEPTO identidad,
+                            # que va al experto (G3 20/20 vs 0/20 de la base).
+                            # Router lexico determinista (fleet_router). SOLO si
+                            # el turno se queda en el 3B: un hot-swap inutil
+                            # invalida el KV cache del server grande.
+                            try:
+                                if _llama_turn is _llama and getattr(_llama, "fleet_experts", []):
+                                    from cognia.agent.fleet_router import expert_for_chat_turn
+                                    _llama.activate_expert(expert_for_chat_turn(raw))
+                            except Exception:
+                                pass
                             from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
                             from cognia.user_prefs import personalize_prompt
                             _system = personalize_prompt(build_adaptive_system_prompt(ai))
@@ -7160,11 +7166,14 @@ def repl():
                                 _raw_llm = raw
                             _messages = _build_stream_messages(
                                 ai, _raw_llm, _system, _hist_ctx)
-                            # Fast-path 0.5B: prompt minimo (sin historia/HYDRA) para que
-                            # el prefill no coma la ventaja de velocidad en turnos sociales.
+                            # Fast-path 0.5B: prompt minimo (sin historia/HYDRA, sin
+                            # stepwise, system neutro por idioma = el MISMO formato del
+                            # instrumento G3 del kernel, 95% medido) para que el prefill
+                            # no coma la ventaja de velocidad en turnos triviales.
                             if _llama_turn is not _llama:
-                                _messages = [{"role": "system", "content": _system},
-                                             {"role": "user", "content": _raw_llm}]
+                                from node.speech_cascade import portero_system
+                                _messages = [{"role": "system", "content": portero_system(raw)},
+                                             {"role": "user", "content": raw}]
                             # max_tokens del nivel /esfuerzo activo (no un literal fijo):
                             # asi /esfuerzo maximo realmente alarga la respuesta del chat
                             # (medio=1024 preserva el comportamiento historico por default).

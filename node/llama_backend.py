@@ -354,13 +354,22 @@ class _LlamaCppBackend:
 class _LlamaServerBackend:
     """Manages a llama-server subprocess and calls it via its OpenAI-compatible API."""
 
-    def __init__(self, gguf_path: Path, port: int = _DEFAULT_PORT) -> None:
+    def __init__(self, gguf_path: Path, port: int = _DEFAULT_PORT,
+                 lora_path: Optional[Path] = None,
+                 ctx_size: Optional[int] = None) -> None:
         import urllib.request, json as _json
 
         self._port    = port
         self._base    = f"http://127.0.0.1:{port}"
         self._proc: Optional[subprocess.Popen] = None
         self._gguf_path = gguf_path   # expuesto via LlamaBackend.gguf_path (/modelo)
+        # LoRA ESTATICA aplicada por parametro (portero 0.5B, PREREG_PORTERO_FASE2):
+        # a diferencia de LLAMA_LORA_PATH (env global, envenenaria TODOS los
+        # servers del proceso) esto es por-instancia. Excluye el fleet hot-swap.
+        self._lora_path = Path(lora_path) if lora_path else None
+        # ctx por instancia: el portero usa 4096 (turnos triviales; KV chico)
+        # sin tocar el 32k del server principal.
+        self._ctx_size = int(ctx_size) if ctx_size else _CTX_SIZE
         self._json    = _json
         self._urlreq  = urllib.request
         # Real token count from the last /completion response (None until first call)
@@ -381,7 +390,14 @@ class _LlamaServerBackend:
             # Server adoptado sin verificar flags: loguear su config real via
             # /props y avisar si el contexto no coincide con el esperado.
             self._check_adopted_server()
-            self._adopt_fleet()
+            if self._lora_path is not None:
+                # Con LoRA estatica pedida NO se adopta un server que no la
+                # tenga aplicada: serviria la base pelada como si fuera el
+                # experto (identidad silenciosamente rota). Raise -> el caller
+                # (speech_cascade) cae al 3B, que es el fallback seguro.
+                self._check_adopted_static_lora()
+            else:
+                self._adopt_fleet()
             return
 
         env_server = os.environ.get("LLAMA_SERVER_PATH", "").strip()
@@ -407,7 +423,7 @@ class _LlamaServerBackend:
             binary,
             "--model",    str(gguf_path),
             "--port",     str(port),
-            "--ctx-size", str(_CTX_SIZE),
+            "--ctx-size", str(self._ctx_size),
             "--n-gpu-layers", str(_N_GPU_LAYERS),
             "--threads",  str(n_threads_decode),
             "--threads-batch", str(n_threads_batch),
@@ -419,9 +435,15 @@ class _LlamaServerBackend:
         # Speculative decoding (exp021/cycle34): ngram-mod por defecto — bit-identico,
         # gratis, gana en texto repetitivo/codigo/RAG. COGNIA_SPEC_TYPE=none lo desactiva.
         cmd += _spec_args()
-        # LoRA: estatico (LLAMA_LORA_PATH) o fleet (adapters.json junto al GGUF)
-        lora_cmd, self._fleet_names = _lora_args(gguf_path)
-        cmd += lora_cmd
+        if self._lora_path is not None:
+            # LoRA estatica por parametro (portero): aplicada al arrancar
+            # (scale 1.0), sin fleet ni hot-swap en este server.
+            cmd += ["--lora", str(self._lora_path)]
+            self._fleet_names = []
+        else:
+            # LoRA: estatico (LLAMA_LORA_PATH) o fleet (adapters.json junto al GGUF)
+            lora_cmd, self._fleet_names = _lora_args(gguf_path)
+            cmd += lora_cmd
         self._proc = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
@@ -469,10 +491,25 @@ class _LlamaServerBackend:
         summary = _server_props_summary(data)
         logger.info("[llama_backend] adopted server: n_ctx=%s model=%s",
                     summary["n_ctx"], summary["model_path"])
-        if summary["n_ctx"] is not None and summary["n_ctx"] != _CTX_SIZE:
+        if summary["n_ctx"] is not None and summary["n_ctx"] != self._ctx_size:
             logger.warning("[llama_backend] adopted server n_ctx=%s != expected "
-                           "_CTX_SIZE=%d — results may differ from a self-started "
-                           "server", summary["n_ctx"], _CTX_SIZE)
+                           "ctx_size=%d — results may differ from a self-started "
+                           "server", summary["n_ctx"], self._ctx_size)
+
+    def _check_adopted_static_lora(self) -> None:
+        """Server adoptado cuando se pidio LoRA estatica: exigir que ESE server
+        tenga la LoRA cargada con scale > 0. Si no se puede confirmar via
+        GET /lora-adapters -> RuntimeError (el caller hace fallback; nunca
+        servir la base pelada haciendose pasar por el experto)."""
+        quiero = self._lora_path.name
+        vivos = self.lora_adapters()
+        ok = any(Path(a.get("path", "")).name == quiero
+                 and float(a.get("scale", 0.0) or 0.0) > 0.0
+                 for a in (vivos or []))
+        if not ok:
+            raise RuntimeError(
+                f"server adoptado en :{self._port} sin la LoRA {quiero} aplicada "
+                f"(adapters vivos: {[Path(a.get('path', '')).name for a in (vivos or [])]})")
 
     # ── Fleet de expertos LoRA (hot-swap POST /lora-adapters) ────────────────
 

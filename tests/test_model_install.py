@@ -65,6 +65,39 @@ def test_llama_server_usa_binario_del_sistema_en_linux(tmp_path, monkeypatch):
     assert mi.install_llama_server(tmp_path / "bin") == fake
 
 
+def _fake_hf_download(monkeypatch):
+    """hf_hub_download fake: 'baja' escribiendo un archivo chico."""
+    import huggingface_hub
+
+    def fake_hf(repo_id, filename, local_dir, token=None):
+        p = Path(local_dir) / filename
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"GGUFfake")
+        return str(p)
+
+    monkeypatch.setattr(huggingface_hub, "hf_hub_download", fake_hf)
+
+
+def test_install_portero_baja_base_y_lora_del_release(tmp_path, monkeypatch):
+    src = tmp_path / "release"
+    src.mkdir()
+    (src / mi.PORTERO_LORA_FILE).write_bytes(b"LORAfake")
+    monkeypatch.setenv("COGNIA_FLEET_URL", _file_url(src))
+    _fake_hf_download(monkeypatch)
+    dest = tmp_path / "portero"
+    assert mi.install_portero(dest) is True
+    assert (dest / mi.PORTERO_GGUF_FILE).read_bytes() == b"GGUFfake"
+    assert (dest / mi.PORTERO_LORA_FILE).read_bytes() == b"LORAfake"
+
+
+def test_install_portero_sin_release_devuelve_false(tmp_path, monkeypatch):
+    # best-effort: sin el asset del release avisa y devuelve False (sin raise);
+    # el CLI corre igual (el router cae al 3B cuando el portero no esta).
+    monkeypatch.setenv("COGNIA_FLEET_URL", _file_url(tmp_path / "no_existe"))
+    _fake_hf_download(monkeypatch)
+    assert mi.install_portero(tmp_path / "portero") is False
+
+
 def test_cli_help_incluye_install_model():
     r = subprocess.run([sys.executable, "-m", "cognia", "help"],
                        capture_output=True, text=True, cwd=str(REPO), timeout=120)

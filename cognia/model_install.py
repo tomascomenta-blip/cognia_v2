@@ -51,6 +51,14 @@ LLAMA_RELEASE_BASE = f"https://github.com/ggml-org/llama.cpp/releases/download/{
 FLEET_URL_DEFAULT = ("https://github.com/tomascomenta-blip/cognia_v2/"
                      "releases/download/fleet-v1")
 
+# Portero 0.5B (PREREG_PORTERO_FASE2): modelo APARTE que atiende los turnos
+# triviales del chat (saludo/identidad/cortesía) a ~4× la velocidad del 3B.
+# Base GGUF oficial de Qwen (HF) + LoRA de identidad del release fleet-v1.
+PORTERO_DIR = COGNIA_HOME / "models" / "qwen-0.5b-portero"
+PORTERO_GGUF_REPO = "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
+PORTERO_GGUF_FILE = "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+PORTERO_LORA_FILE = "cognia_portero05b_f16.gguf"
+
 
 def _progreso(nombre: str):
     ultimo = [-1]
@@ -164,8 +172,41 @@ def install_fleet(dest_dir: Path = MODELS_DIR) -> int:
     return ok
 
 
+def install_portero(dest_dir: Path = PORTERO_DIR, hf_token: str = "") -> bool:
+    """Baja el portero 0.5B: base GGUF de HF (~470 MB) + LoRA del release.
+
+    Best-effort e idempotente: si falta cualquier pieza avisa y devuelve False
+    — el CLI funciona igual (el router cae al 3B cuando el portero no está).
+    """
+    base = dest_dir / PORTERO_GGUF_FILE
+    lora = dest_dir / PORTERO_LORA_FILE
+    if base.is_file() and base.stat().st_size > 300 << 20:
+        print(f"  portero base ya presente: {base}")
+    else:
+        try:
+            from huggingface_hub import hf_hub_download
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            print(f"  Descargando {PORTERO_GGUF_FILE} (~470 MB) de {PORTERO_GGUF_REPO}...")
+            hf_hub_download(repo_id=PORTERO_GGUF_REPO, filename=PORTERO_GGUF_FILE,
+                            local_dir=str(dest_dir), token=hf_token or None)
+        except Exception as exc:
+            print(f"  [WARN] portero base no disponible ({exc}); el chat sigue 100% en el 3B.")
+            return False
+    if lora.is_file():
+        print(f"  portero LoRA ya presente: {lora}")
+    else:
+        url_base = os.environ.get("COGNIA_FLEET_URL", FLEET_URL_DEFAULT).rstrip("/")
+        try:
+            _descarga(f"{url_base}/{PORTERO_LORA_FILE}", lora)
+        except Exception as exc:
+            print(f"  [WARN] LoRA del portero no disponible ({exc}); el chat sigue 100% en el 3B.")
+            return False
+    return True
+
+
 def install_model(skip_gguf: bool = False, skip_server: bool = False,
-                  skip_fleet: bool = False, hf_token: str = "") -> dict:
+                  skip_fleet: bool = False, skip_portero: bool = False,
+                  hf_token: str = "") -> dict:
     """Instala el stack completo y persiste config.env. Devuelve resumen."""
     resumen = {}
     if not skip_gguf:
@@ -182,6 +223,8 @@ def install_model(skip_gguf: bool = False, skip_server: bool = False,
             resumen["llama_server"] = None
     if not skip_fleet:
         resumen["fleet_adapters"] = install_fleet()
+    if not skip_portero:
+        resumen["portero"] = install_portero(hf_token=hf_token)
     print("\n  Stack instalado. Arrancá con: cognia")
     return resumen
 
@@ -190,7 +233,8 @@ def main(argv: list[str] | None = None) -> None:
     args = set(argv if argv is not None else sys.argv[1:])
     install_model(skip_gguf="--skip-gguf" in args,
                   skip_server="--skip-server" in args,
-                  skip_fleet="--skip-fleet" in args)
+                  skip_fleet="--skip-fleet" in args,
+                  skip_portero="--skip-portero" in args)
 
 
 if __name__ == "__main__":

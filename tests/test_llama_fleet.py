@@ -177,6 +177,84 @@ def test_force_base_scales_sin_fleet_no_hace_nada():
     assert b._urlreq.posts == []
 
 
+# ------------------------------------------------- LoRA estatica (portero)
+class _FakePopen:
+    def __init__(self, cmd, stdout=None, stderr=None):
+        self.cmd = cmd
+        self.pid = 123
+
+    def poll(self):
+        return None
+
+    def terminate(self):
+        pass
+
+    def wait(self, timeout=None):
+        return 0
+
+    def kill(self):
+        pass
+
+
+def _portero_files(tmp_path):
+    gguf = tmp_path / "qwen05b.gguf"
+    lora = tmp_path / "portero_f16.gguf"
+    gguf.write_bytes(b"x")
+    lora.write_bytes(b"x")
+    return gguf, lora
+
+
+def test_lora_estatica_por_parametro_en_cmd(tmp_path, monkeypatch):
+    # lora_path/ctx_size POR INSTANCIA (no LLAMA_LORA_PATH global, que
+    # envenenaria el server del 3B): --lora aplicada, sin fleet hot-swap.
+    import node.llama_backend as lb
+    gguf, lora = _portero_files(tmp_path)
+    monkeypatch.delenv("LLAMA_SERVER_PATH", raising=False)
+    monkeypatch.delenv("LLAMA_LORA_PATH", raising=False)
+    monkeypatch.setattr(lb.shutil, "which", lambda name: "llama-server-fake")
+    capturado = {}
+
+    def fake_popen(cmd, stdout=None, stderr=None):
+        capturado["cmd"] = cmd
+        return _FakePopen(cmd)
+
+    monkeypatch.setattr(lb.subprocess, "Popen", fake_popen)
+    pings = iter([False])   # 1ra: no hay server que adoptar; luego: arriba
+    monkeypatch.setattr(lb._LlamaServerBackend, "_ping",
+                        lambda self: next(pings, True))
+    b = lb._LlamaServerBackend(gguf, port=9999, lora_path=lora, ctx_size=4096)
+    cmd = capturado["cmd"]
+    assert "--lora" in cmd and str(lora) in cmd
+    assert "--lora-init-without-apply" not in cmd     # aplicada, no hot-swap
+    assert cmd[cmd.index("--ctx-size") + 1] == "4096"
+    assert b._fleet_names == []
+
+
+def test_adoptado_sin_lora_estatica_rechaza(tmp_path, monkeypatch):
+    # server ya vivo en el puerto SIN la LoRA pedida -> RuntimeError (el caller
+    # cae al 3B; nunca servir la base pelada como si fuera el experto).
+    import node.llama_backend as lb
+    gguf, lora = _portero_files(tmp_path)
+    monkeypatch.setattr(lb._LlamaServerBackend, "_ping", lambda self: True)
+    monkeypatch.setattr(lb._LlamaServerBackend, "_check_adopted_server",
+                        lambda self: None)
+    monkeypatch.setattr(lb._LlamaServerBackend, "lora_adapters", lambda self: [])
+    with pytest.raises(RuntimeError, match="sin la LoRA"):
+        lb._LlamaServerBackend(gguf, port=9999, lora_path=lora)
+
+
+def test_adoptado_con_lora_estatica_aplicada_ok(tmp_path, monkeypatch):
+    import node.llama_backend as lb
+    gguf, lora = _portero_files(tmp_path)
+    monkeypatch.setattr(lb._LlamaServerBackend, "_ping", lambda self: True)
+    monkeypatch.setattr(lb._LlamaServerBackend, "_check_adopted_server",
+                        lambda self: None)
+    monkeypatch.setattr(lb._LlamaServerBackend, "lora_adapters",
+                        lambda self: [{"id": 0, "path": str(lora), "scale": 1.0}])
+    b = lb._LlamaServerBackend(gguf, port=9999, lora_path=lora)
+    assert b._fleet_names == []
+
+
 # ---------------------------------------------------------------- fachada
 def test_facade_sin_soporte_fleet():
     class _Impl:            # impl viejo/in-process sin activate_expert
