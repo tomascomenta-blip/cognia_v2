@@ -41,9 +41,12 @@ _DEEP_GGUF = _REPO / "model_shards" / "qwen-coder-3b-q4" / "Qwen2.5-Coder-3B-Ins
 _FAST_PORT = int(os.environ.get("COGNIA_CASCADE_FAST_PORT", "8090"))
 _DEEP_PORT = int(os.environ.get("COGNIA_CASCADE_DEEP_PORT", "8091"))
 
-# Portero (PREREG_PORTERO_FASE2): base 0.5B Q4_K_M + LoRA identidad, instalados
-# por `cognia install-model` (convención) o apuntados por env.
-_PORTERO_GGUF_FILE = "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+# Portero (PREREG_PORTERO_FASE2): base 0.5B Q8_0 + LoRA identidad, instalados
+# por `cognia install-model` (convención) o apuntados por env. Q8_0 y no
+# Q4_K_M: MEDIDO en deploy — con Q4 el G3 cae 95→80 (el error de cuantización
+# pesa mucho más en un 0.5B; los flips no solapan con el miss del kernel),
+# con Q8_0 da 90 (gate PASS) y el decode apenas baja (~32.5→31.4 tok/s).
+_PORTERO_GGUF_FILE = "qwen2.5-0.5b-instruct-q8_0.gguf"
 _PORTERO_LORA_FILE = "cognia_portero05b_f16.gguf"
 _PORTERO_CTX = int(os.environ.get("PORTERO_CTX_SIZE", "4096"))
 

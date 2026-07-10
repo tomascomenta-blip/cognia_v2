@@ -1,0 +1,18 @@
+{
+ "cobertura_portero": "20/20",
+ "G3_deploy_acc": 0.9,
+ "G3_3b_acc": 0.95,
+ "mcnemar": {
+  "n01": 1,
+  "n10": 2,
+  "p": 1.0
+ },
+ "decode_tps_portero": 31.2,
+ "decode_tps_3b": 9.4,
+ "ratio_decode_medias": 3.33,
+ "ratio_decode_mediana_pareada": 3.86,
+ "wall_portero_s_mediana": 1.05,
+ "wall_3b_s_mediana": 5.46,
+ "P-PORT-3": "PASS",
+ "P-PORT-6": "PASS"
+}

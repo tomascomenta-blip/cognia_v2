@@ -54,9 +54,11 @@ FLEET_URL_DEFAULT = ("https://github.com/tomascomenta-blip/cognia_v2/"
 # Portero 0.5B (PREREG_PORTERO_FASE2): modelo APARTE que atiende los turnos
 # triviales del chat (saludo/identidad/cortesía) a ~4× la velocidad del 3B.
 # Base GGUF oficial de Qwen (HF) + LoRA de identidad del release fleet-v1.
+# Q8_0 y no Q4_K_M: con Q4 el G3 en deploy cae 95→80 (medido; el error de
+# cuantización pesa más en un 0.5B), con Q8_0 da 90 y el decode casi no baja.
 PORTERO_DIR = COGNIA_HOME / "models" / "qwen-0.5b-portero"
 PORTERO_GGUF_REPO = "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
-PORTERO_GGUF_FILE = "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+PORTERO_GGUF_FILE = "qwen2.5-0.5b-instruct-q8_0.gguf"
 PORTERO_LORA_FILE = "cognia_portero05b_f16.gguf"
 
 
@@ -173,7 +175,7 @@ def install_fleet(dest_dir: Path = MODELS_DIR) -> int:
 
 
 def install_portero(dest_dir: Path = PORTERO_DIR, hf_token: str = "") -> bool:
-    """Baja el portero 0.5B: base GGUF de HF (~470 MB) + LoRA del release.
+    """Baja el portero 0.5B: base GGUF de HF (~650 MB) + LoRA del release.
 
     Best-effort e idempotente: si falta cualquier pieza avisa y devuelve False
     — el CLI funciona igual (el router cae al 3B cuando el portero no está).
@@ -186,7 +188,7 @@ def install_portero(dest_dir: Path = PORTERO_DIR, hf_token: str = "") -> bool:
         try:
             from huggingface_hub import hf_hub_download
             dest_dir.mkdir(parents=True, exist_ok=True)
-            print(f"  Descargando {PORTERO_GGUF_FILE} (~470 MB) de {PORTERO_GGUF_REPO}...")
+            print(f"  Descargando {PORTERO_GGUF_FILE} (~650 MB) de {PORTERO_GGUF_REPO}...")
             hf_hub_download(repo_id=PORTERO_GGUF_REPO, filename=PORTERO_GGUF_FILE,
                             local_dir=str(dest_dir), token=hf_token or None)
         except Exception as exc:
