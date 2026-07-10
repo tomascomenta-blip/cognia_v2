@@ -183,6 +183,13 @@ def main():
     con_parche = "--con-parche" in sys.argv
     argv_n = [a for a in sys.argv[1:] if a.isdigit()]
     limit = int(argv_n[0]) if argv_n else None
+    # --dominio X: correr SOLO ese dominio (cierre_output|multi_tool|
+    # error_accionable). Util para medir un dominio aislado sin gastar los 50
+    # (los items de busqueda de cierre_output pueden colgar el loop varios min).
+    dominio = None
+    for i, a in enumerate(sys.argv):
+        if a == "--dominio" and i + 1 < len(sys.argv):
+            dominio = sys.argv[i + 1]
 
     h = hashlib.sha256(SUITE.read_bytes()).hexdigest()
     if h != SUITE_SHA256:
@@ -191,6 +198,8 @@ def main():
               "congelada NO se edita (cambio = suite nueva).")
         sys.exit(1)
     items = carga_suite(str(SUITE))
+    if dominio:
+        items = [it for it in items if it["dominio"] == dominio]
     if limit:
         items = items[:limit]
 
@@ -275,8 +284,9 @@ def main():
                                                   "parcial": 0, "incorrecto": 0})
             d[clase] += 1
 
-    out_path = (REPO / "cognia_v3" / "eval" / "results_diag_cierres_con_parche.json"
-                if con_parche else RESULTS)
+    _suf = (f"_{dominio}" if dominio else "") + ("_con_parche" if con_parche else "")
+    out_path = ((REPO / "cognia_v3" / "eval" / f"results_diag_cierres{_suf}.json")
+                if (con_parche or dominio) else RESULTS)
     out_path.write_text(json.dumps(
         {"suite_sha256": SUITE_SHA256, "con_parche": con_parche, "n": n,
          "clases": res, "por_dominio": por_dom,

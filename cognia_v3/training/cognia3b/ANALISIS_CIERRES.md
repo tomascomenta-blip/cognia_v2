@@ -75,3 +75,44 @@ automático, y CONCENTRADO en un sub-dominio (errores accionables + cierre).
 
 Este es el mismo patrón que dio valor 3 veces: medir el gap por clases, agotar
 inferencia, y entrenar SOLO el residuo de formato — o cerrar con la negativa.
+
+## MEDIDO: el parche de inferencia agotó el gap (error_accionable 2→9/14)
+
+Se implementó el parche determinista de error (E8 parte 3, commit 23a627a) y se
+re-midió el dominio error_accionable CON el parche activo (`diag_cierres
+--con-parche --dominio error_accionable`, mismo instrumento):
+
+| | pasa | vacío | parcial | incorrecto |
+|---|---|---|---|---|
+| baseline (parche off) | **2/14** | 10 | 2 | 0 |
+| con parche | **9/14** | 1 | 3 | 1 |
+
+**+7/14 con CERO GPU.** El parche anexa la causa real del fallo donde el modelo
+cerraba vacío: `"No existe el archivo ledger_2031_zz.txt"`, `"broken_config.json
+no es un archivo JSON válido"`, `"BLOQUEADO por seguridad"`, etc.
+
+Los 5 residuales NO son un gap de formato limpio y entrenable:
+- **G6-039, G6-050**: el modelo EJECUTÓ MAL (corrió/imprimió otra cosa en vez del
+  script pedido) → comportamiento/capacidad del agente, no cierre.
+- **G6-047, G6-049**: el error/salida anexado no matcheó el oráculo exacto
+  (nombre faltante / salida exitosa irrelevante) — límite del parche + del modelo.
+- **G6-040**: valor ajeno (incorrecto).
+
+## VEREDICTO accion v3: NO entrenar (inferencia ganó, como estructura)
+
+El gap de FORMATO que motivaba accion v3 (cierre vacío en error) se cerró en su
+mayoría con el **parche determinista de inferencia** (2→9/14, cero GPU). El
+residuo (5 ítems) es chico y heterogéneo — comportamiento del agente + límites,
+no un gap de formato homogéneo que un dataset enseñe bien. Entrenar un adapter
+sobre eso sería marginal y arriesgaría regresión de G2A (el adapter ACCION ya
+regresiona G1 −8pp). **5ª línea donde inferencia > fine-tune.** El parche se
+queda en producción (batería 17/17 verificada).
+
+Ganancia neta de la línea: el **parche de error accionable** (mejora de producto
+real y medida) + `diag_cierres.py`/`g6_cierres.jsonl` como instrumento congelado.
+
+## Bug latente cazado (aparte)
+La corrida completa de 50 ítems se colgó ~30 min en G6-015 (búsqueda de texto en
+varios .txt): el 3B entró en generación degenerada. El agent loop puede colgarse
+en tareas de búsqueda — bug de producción a revisar (no bloquea este veredicto;
+se aisló el dominio con `--dominio`).
