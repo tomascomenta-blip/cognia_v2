@@ -57,7 +57,7 @@ NF4) — por eso adapter vivo, nunca merge+requant.
 |---|---|---|---|---|---|---|
 | 1 | **accion** (v2, DEPLOYED) | formato ACCION tool-calling + identidad Cognia | gap formato puro: 20→99.3 | ejecución real de tools | G2A×147, G3×20 | hecho |
 | 2 | **accion v3** | + cierre-con-output, multi-tool encadenado, mensajes de error accionables | E8 mostró el hábito "listo" vacío (hoy parcheado determinista; el v3 lo hace nativo) | loop real: trazas con RESULTADO ejecutar + cierre correcto | G2A sin regresión + batería E 17/17 + suite nueva cierres×50 | ~1.5 GPU-h (replay cacheado) |
-| 3 | **espanol** (G5) | responder EN español correcto, registro, longitud pedida | G5=56%: los fallos son de idioma/registro (formato), no de contenido | oráculo es_espanol + oracle_pass sobre generaciones seleccionadas del propio 3B (selección de formato, patrón ACCION) | G5×25→100 ampliada ANTES (lección checkpoint-único), +12pp p<0.05, G1 sin regresión | ~2 GPU-h |
+| 3 | ~~espanol (G5)~~ **CERRADO 2026-07-10 sin GPU** | — | el diagnóstico por clases (diag_g5.py) mostró que G5=56% era ARTEFACTO: es_espanol fallaba respuestas cortas correctas ('Feliz', '7'). Instrumento arreglado → **G5 real = 72%** y los fallos restantes son TODOS de contenido (capacidad) → sin gap de formato que un adapter pague | — | — | 0 (el fix del instrumento dio +16pp gratis) |
 | 4 | **estructura** (JSON/tablas/schemas) | emitir JSON válido contra schema, tablas MD, YAML | formato 100% verificable (json.loads + jsonschema); es EL tipo de gap donde el adapter paga | generación + validación programática (yield-band) | suite JSON×100 nueva congelada, ≥+15pp p<0.05 | ~2 GPU-h |
 | 5 | **portero 0.5B** (modelo aparte, único no-LoRA) | clasificar/rutear turnos triviales (saludo, sí/no, comandos) a respuesta directa sin tocar el 3B | velocidad: 0.5B = **4.3× tok/s medido** en CPU; el MoM gana latencia percibida en el 80% de turnos cortos | ruteo léxico ya existente + fallback: si duda, pasa al 3B (cero riesgo) | escala: exactitud de ruteo ≥95% en suite de turnos×200; nunca responde solo si confianza < umbral | ~1 GPU-h (Qwen2.5-0.5B + LoRA) |
 | 6 | **cabezas MTP/EAGLE** (investigación) | 2-3× decode en CPU (único speculative que respeta el ancho de banda: draft separado medido 0.37× = HUNDE) | velocidad §4; proyección, no medición → pre-registrar | entrenar cabezas sobre corpus propio | gate: ≥1.8× tok/s e2e REAL sin caída de gates de calidad | ~4 GPU-h + riesgo alto |
@@ -113,9 +113,11 @@ threads=3. Palancas EN ORDEN de costo/beneficio:
 
 ## 6. Orden de ejecución y criterio de corte
 
-1. **espanol** (#3): el eje más flojo medido (56%) y con oráculo listo.
-   ANTES: ampliar G5 25→100 ítems congelados (lección: N=25 no arbitra).
-2. **estructura** (#4): suite JSON×100 nueva + dataset validado programático.
+1. ~~espanol~~ CERRADO: el gap era del INSTRUMENTO (es_espanol vs respuestas
+   cortas); G5 real = 72% y el resto es capacidad. Método confirmado: medir
+   el gap POR CLASES antes de gastar GPU cazó esto en 2 min de CPU.
+2. **estructura** (#4): PRIMERO medir el gap por clases (diag como G5/LCD);
+   solo si es de formato → suite JSON×100 + kernel.
 3. **accion v3** (#2): trazas de cierre-con-output del loop real.
 4. **portero 0.5B** (#5): velocidad percibida.
 5. Medición pareada vs GLM 5.2 en G2R y estructurado (los ejes sin duelo).

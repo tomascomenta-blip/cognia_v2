@@ -76,12 +76,20 @@ _EN_STOP = {"the", "of", "and", "to", "in", "is", "that", "it", "for", "on",
 
 
 def es_espanol(respuesta: str) -> bool:
+    """¿La respuesta está en español? Para respuestas LARGAS (>=8 palabras)
+    exige dominancia de stopwords es (semántica original, confiable ahí).
+    Para CORTAS solo VETA evidencia de inglés: 'Feliz', '7' o 'uno, dos,
+    tres' son español/neutro válido — exigirles stopwords era un falso
+    negativo del instrumento (diagnóstico G5 2026-07-10: 6/13 'fallos' eran
+    respuestas correctas cortas; el oráculo de contenido ya discrimina)."""
     palabras = re.findall(r"[a-záéíóúñü]+", respuesta.lower())
     if not palabras:
-        return False
+        return True  # solo dígitos/símbolos: neutro (el oracle valida contenido)
     es = sum(1 for p in palabras if p in _ES_STOP)
     en = sum(1 for p in palabras if p in _EN_STOP)
-    return es > en
+    if len(palabras) >= 8:
+        return es > en
+    return es >= en  # corta: veta solo si el inglés DOMINA
 
 
 # ── oráculo G2A (tool-use formato ACCION): primera línea ACCION del output ──

@@ -1,0 +1,133 @@
+{
+ "pasa": [
+  {
+   "id": "G5-IN-001",
+   "prompt": "Escribí la palabra 'casa' en plural.",
+   "raw": "Las casas."
+  },
+  {
+   "id": "G5-IN-002",
+   "prompt": "¿Cuál es el diminutivo de la palabra 'perro'?",
+   "raw": "El diminutivo de la palabra 'perro' es 'perrito'."
+  },
+  {
+   "id": "G5-IN-004",
+   "prompt": "Decime el opuesto de la palabra 'frío'.",
+   "raw": "El opuesto de la palabra 'frío' es 'caliente'."
+  },
+  {
+   "id": "G5-IN-005",
+   "prompt": "Escribí un sinónimo de la palabra 'contento'.",
+   "raw": "Feliz"
+  },
+  {
+   "id": "G5-IN-007",
+   "prompt": "¿Cuál es el femenino de la palabra 'gato'?",
+   "raw": "El femenino de la palabra 'gato' es 'gata'."
+  },
+  {
+   "id": "G5-IN-008",
+   "prompt": "Contá del uno al cinco usando palabras (no números), separados por com",
+   "raw": "uno, dos, tres, cuatro, cinco"
+  },
+  {
+   "id": "G5-IN-009",
+   "prompt": "Escribí el antónimo de la palabra 'grande'.",
+   "raw": "El antónimo de la palabra \"grande\" es \"pequeño\"."
+  },
+  {
+   "id": "G5-IN-010",
+   "prompt": "Nombrá las cuatro estaciones del año, separadas por coma.",
+   "raw": "Primavera, verano, otoño, invierno"
+  },
+  {
+   "id": "G5-CL-001",
+   "prompt": "Marcos plantó una semilla en una maceta y la regó todos los días duran",
+   "raw": "Continuación A: A los pocos días, apareció un brote verde saliendo de la tierra."
+  },
+  {
+   "id": "G5-CL-002",
+   "prompt": "Luciana dejó la ventana abierta durante la noche de invierno. A la mañ",
+   "raw": "Continuación B: Sintió mucho frío apenas entró."
+  },
+  {
+   "id": "G5-CL-004",
+   "prompt": "Pedro dejó un vaso de agua en el freezer durante toda la noche.\nContin",
+   "raw": "Continuación B: A la mañana siguiente, el agua se había convertido en hielo."
+  },
+  {
+   "id": "G5-CL-005",
+   "prompt": "Camila estudió toda la semana para el examen de matemática y entendió ",
+   "raw": "Continuación A: El día del examen, resolvió todos los ejercicios sin problemas."
+  },
+  {
+   "id": "G5-CL-007",
+   "prompt": "No llovió durante seis meses seguidos en la región.\nContinuación A: El",
+   "raw": "Continuación A: El campo se secó y los cultivos se perdieron."
+  },
+  {
+   "id": "G5-QA-001",
+   "prompt": "¿Cuál es la capital de Francia?",
+   "raw": "La capital de Francia es París."
+  },
+  {
+   "id": "G5-QA-002",
+   "prompt": "¿Cuántos días tiene una semana? Respondé ÚNICAMENTE con el número, sin",
+   "raw": "7"
+  },
+  {
+   "id": "G5-QA-003",
+   "prompt": "¿Cuál es el océano más grande del mundo?",
+   "raw": "El océano más grande del mundo es el Océano Pacífico."
+  },
+  {
+   "id": "G5-QA-004",
+   "prompt": "¿En qué continente está Egipto?",
+   "raw": "Egipto está ubicado en el continente de África."
+  },
+  {
+   "id": "G5-QA-006",
+   "prompt": "¿Cuántos lados tiene un triángulo? Respondé ÚNICAMENTE con el número, ",
+   "raw": "3"
+  }
+ ],
+ "no_espanol": [],
+ "contenido": [
+  {
+   "id": "G5-IN-003",
+   "prompt": "Nombrá los tres colores primarios de la pintura (no de la luz), separa",
+   "raw": "Rojo, azul, verde"
+  },
+  {
+   "id": "G5-IN-006",
+   "prompt": "Nombrá los dos días del fin de semana, separados por coma.",
+   "raw": "Lunes, Martes"
+  },
+  {
+   "id": "G5-CL-003",
+   "prompt": "El equipo de fútbol perdió todos los partidos de la temporada.\nContinu",
+   "raw": "Continuación A: Al final del campeonato, el equipo quedó último en la tabla de posiciones."
+  },
+  {
+   "id": "G5-CL-006",
+   "prompt": "Fede dejó caer un vaso de vidrio sobre el piso de cerámica.\nContinuaci",
+   "raw": "Continuación A: El vaso rebotó como una pelota de goma."
+  },
+  {
+   "id": "G5-CL-008",
+   "prompt": "Bruno corrió una maratón de 42 kilómetros bajo el sol.\nContinuación A:",
+   "raw": "Continuación A: Al terminar, se fue a nadar en la pileta con toda su energía."
+  },
+  {
+   "id": "G5-QA-005",
+   "prompt": "¿Cuál es el metal que es líquido a temperatura ambiente?",
+   "raw": "El metal que es líquido a temperatura ambiente es el hidrógeno."
+  },
+  {
+   "id": "G5-QA-007",
+   "prompt": "¿Cuál es el idioma oficial de Brasil?",
+   "raw": "El idioma oficial de Brasil es el español."
+  }
+ ],
+ "ambos": []
+}
