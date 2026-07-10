@@ -630,6 +630,13 @@ def _resumir(args, ctx):
 _BON_N = 6  # candidatos por llamada (N-1 a temp 0.7 + 1 greedy); ~2-3 min CPU
 
 
+# Umbral de dificultad para despertar el 7B (MoM fase 4): el mismo 0.30 con el
+# que model_router.estimate_difficulty separa hard de easy. Pre-filtro barato:
+# NO decide el escalado (eso lo decide el fallo REACTIVO de tests), solo evita
+# el cold-start del 7B en tareas triviales-que-fallan.
+_HEAVY_THRESHOLD = 0.30
+
+
 def _bon_n(desc: str) -> tuple:
     """(N, dificultad): N adaptativo por dificultad ex-ante (cascada
     barato-primero). model_router.estimate_difficulty (cero LLM, calibrado
@@ -701,14 +708,59 @@ def _generar_codigo(args, ctx):
     except Exception as exc:
         return f"RESULTADO generar_codigo ERROR: {exc}"
     _best_t = out.get("ranking", [{}])[0] if out.get("ranking") else {}
+    code = out.get("code", "")
+    _score_3b, _total = _best_t.get("score"), _best_t.get("total")
+
+    # ── Escalado REACTIVO al especialista de capacidad 7B (MoM fase 4) ──────
+    # Si el mejor candidato del 3B FALLA sus tests visibles (o no produjo la
+    # funcion) y la tarea es DURA, reintentar con el 7B (cascada 40->60% medida
+    # en codigo duro). REACTIVO, no predictivo (el router predictivo medio
+    # 45<60): el 7B solo dispara donde el 3B ya fallo -> jamas desperdicia
+    # computo en lo que el 3B resolvia. Se queda con el mejor de (3B, 7B) por
+    # score de tests visibles -> B nunca peor que A. Kill-switch COGNIA_HEAVY_
+    # CODE OFF (default) => heavy_code_backend() es None => 0 cambios.
+    # Lazy-load-usar-cerrar (RAM steady-state 0 en el i3 de 12GB).
+    _escalado_7b, _score_7b = False, None
+    _fallo_3b = (_score_3b is None or (_total and _score_3b < _total)
+                 or f"def {entry}" not in code)
+    if _fallo_3b and dif >= _HEAVY_THRESHOLD:
+        try:
+            from node.heavy_code import heavy_code_backend, close_heavy_code
+            _heavy = heavy_code_backend()
+            if _heavy is not None:
+                _pf = ctx.get("print_fn")
+                if callable(_pf):
+                    _pf("[detail]Codigo dificil: el 3B fallo sus tests -> "
+                        "escalando al especialista 7B (mas lento)...[/detail]")
+                try:
+                    from cognia_v3.eval.benchmark_code import (
+                        make_raw_gen_fn, SYSTEM_PROMPT)
+                    _cnt = {"seconds": 0.0, "tokens": 0, "calls": 0}
+                    _gen7 = make_raw_gen_fn(_heavy, 768, SYSTEM_PROMPT, _cnt)
+                    _out7 = best_of_n(_gen7, code_prompt, desc, entry,
+                                      extract_code, n=n_plan, seed=42,
+                                      test_gen_fn=_test_gen)
+                    _b7 = (_out7.get("ranking", [{}])[0]
+                           if _out7.get("ranking") else {})
+                    _score_7b, _code7 = _b7.get("score"), _out7.get("code", "")
+                    if (_code7.strip() and f"def {entry}" in _code7
+                            and _score_7b is not None
+                            and (_score_3b is None or _score_7b > _score_3b)):
+                        out, _best_t, code = _out7, _b7, _code7
+                        _escalado_7b = True
+                finally:
+                    close_heavy_code()
+        except Exception:
+            pass   # cualquier falla del 7B -> quedarse con el 3B (fallback seguro)
+
     _bon_log({
         "ts": datetime.datetime.now().isoformat(timespec="seconds"),
         "task_head": desc[:120], "difficulty": dif, "n_planned": n_plan,
         "n_generated": out.get("n_generated"), "rank_mode": out.get("rank_mode"),
         "score": _best_t.get("score"), "total": _best_t.get("total"),
         "secs": round(_time.time() - _t0, 1),
+        "escalado_7b": _escalado_7b, "score_3b": _score_3b, "score_7b": _score_7b,
     })
-    code = out.get("code", "")
     if not code.strip() or f"def {entry}" not in code:
         return (f"RESULTADO generar_codigo ERROR: no se genero una funcion "
                 f"'{entry}' valida en {out.get('n_generated', 0)} candidatos.")
@@ -719,10 +771,11 @@ def _generar_codigo(args, ctx):
         ft.append(str(wpath))
         ctx["agent_state"]["files_touched"] = ft[-15:]
     best = out.get("ranking", [{}])[0] if out.get("ranking") else {}
+    _tag7 = " [escalado a 7B]" if _escalado_7b else ""
     return (f"RESULTADO generar_codigo {_disp(wpath)}: OK (mejor de "
             f"{out.get('n_unique', '?')} candidatos unicos, rank={out.get('rank_mode')}, "
             f"tests visibles {best.get('score', '?')}/{best.get('total', '?')}, "
-            f"{len(code)} chars)")
+            f"{len(code)} chars){_tag7}")
 
 
 # HERMES self-tooling EN VIVO: el agente puede pedir una tool nueva sin salir
