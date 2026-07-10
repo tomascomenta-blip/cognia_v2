@@ -120,9 +120,54 @@ def accion_pass(respuesta: str, oracle: dict) -> bool:
     return True
 
 
+# ── oráculo G6 (cierres): ¿la respuesta FINAL del agente reporta la salida? ──
+
+def numeros_todos(t: str):
+    """TODOS los números de la respuesta (no solo el último). Una respuesta de
+    CIERRE envuelve el valor en prosa ('El resultado es 350, lo verifiqué 2
+    veces.'): la regla del ÚLTIMO de oracle_pass daría 2 y falsearía un cierre
+    correcto — para G6 el valor puede aparecer en cualquier posición."""
+    return [float(h.replace(",", ".")) for h in
+            _NUM_RE.findall((t or "").replace("−", "-"))]
+
+
+# separadores entre dígitos ('13,952,011' / '13 952 011') colapsados para el
+# fallback de enteros de cierre_pass; solo corre si el match numérico exacto
+# falló y el objetivo es entero (documentado: '3.5'→'35' es el trade-off, los
+# objetivos G6 son de 2+ dígitos raros así que la colisión es despreciable).
+_SEP_DIGITOS_RE = re.compile(r"(?<=\d)[.,\s]+(?=\d)")
+
+
+def cierre_pass(respuesta: str, oracle: dict) -> bool:
+    """Oráculo G6 (cierres-con-salida): PASA si la respuesta final REPORTA la
+    salida esperada de la tool. must_all/must_any/not_any = misma semántica
+    foldeada que oracle_pass; `number` difiere A PROPÓSITO: el valor esperado
+    puede aparecer en CUALQUIER posición (ver numeros_todos) y para enteros
+    acepta separadores de miles ('13,952,011'). NO reemplaza a oracle_pass."""
+    r = fold(respuesta or "")
+    if any(fold(k) not in r for k in (oracle.get("must_all") or [])):
+        return False
+    must_any = oracle.get("must_any") or []
+    if must_any and not any(fold(k) in r for k in must_any):
+        return False
+    if any(fold(k) in r for k in (oracle.get("not_any") or [])):
+        return False
+    number = oracle.get("number")
+    if number is not None:
+        objetivo = float(number)
+        ok_num = any(abs(n - objetivo) <= 1e-6 for n in numeros_todos(respuesta))
+        if not ok_num and objetivo.is_integer():
+            plano = _SEP_DIGITOS_RE.sub("", respuesta or "")
+            ok_num = re.search(r"(?<!\d)" + str(int(objetivo)) + r"(?!\d)",
+                               plano) is not None
+        if not ok_num:
+            return False
+    return True
+
+
 CLAVES_VALIDAS = {"must_all", "must_any", "not_any", "number", "ultimo_de"}
 CLAVES_G2A = {"accion_tools", "args_regex"}
-GATES = {"G1", "G2R", "G3", "G5", "G2A"}
+GATES = {"G1", "G2R", "G3", "G5", "G2A", "G6"}
 
 
 def carga_suite(path: str) -> list:
