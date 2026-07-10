@@ -5765,3 +5765,21 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   gap medido +10pp — diseño post-lección E-RZN, NO auto-destilación greedy).
   Pre-registro: P-COD-1 pass@1 ≥ base+8pp p<0.05 (MBPP N=200 pareado);
   P-COD-2 yield banda [20,80] o aborta.
+
+## 2026-07-09 (noche) — cierre del día: E-COD negativo limpio + E-PODA + LCD + flappy
+- **E-COD NO APTO** (274.8 min T4): pass@1 pareado N=200 base 55.5 vs experto
+  57.5 (+2.0pp, p=0.45) — ni destilar los HITS de BoN@8 verificado transfiere.
+  LÍNEA CERRADA (igual que razonamiento). Cuadro de programa: 3 negativas
+  pre-registradas (~10 GPU-h) → fine-tune paga solo en gap de FORMATO;
+  capacidad = cómputo en inferencia (stepwise +22pp, BoN+juez +10pp).
+- **E-PODA**: patrones lógica de stepwise v2 QUEDAN (g2rlog N=50: 70→76%,
+  p=0.58; la señal negativa de N=8 no replicó). Oracle `ultimo_de` nuevo.
+- **Línea LCD cerrada con medición**: tool-choice 100% con few-shot → adapter
+  sin gap; fallos eran de tools (acentos + alias es/en) → 2 fixes de código,
+  oráculo e2e 80→100%.
+- **Flappy bird por el agente** (mandato del dueño): 9 iteraciones de /hacer
+  con errores reales; juego jugable (Score 3 en corrida real con autopilot);
+  gameplay.gif + fotos enviadas. Hallazgo: el 3B arma ~85% por reescritura
+  pero pierde 1-2 mecánicas distintas cada vez (consistente con 40% pass@1)
+  — exactamente el gap que E-COD intentó cerrar y no cerró: refuerza que el
+  camino es repair/BoN en inferencia.
