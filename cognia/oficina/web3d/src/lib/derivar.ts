@@ -7,7 +7,7 @@ import type { EstadoTarea, Snapshot, Tarea } from '../state/tipos'
 // ── salas ──────────────────────────────────────────────────────────────────
 
 export type TipoSala = 'fija' | 'director' | 'trabajador'
-export type EstadoTrabajador = 'trabajando' | 'esperando' | 'fallo' | 'hecho'
+export type EstadoTrabajador = 'trabajando' | 'esperando' | 'fallo' | 'hecho' | 'dormido'
 
 export interface Sala {
   id: string // id fijo ('mega_jefe', 'planner', ...) o tid para dinamicas
@@ -19,6 +19,8 @@ export interface Sala {
   trabajador: { estado: EstadoTrabajador } | null
   /** tid de la tarea asociada (dinamicas y 'jefe'); null en salas de modulo */
   tid: string | null
+  /** epoch s: la tarea de la sala duerme hasta esa hora (cama + tooltip) */
+  despiertaTs: number | null
 }
 
 // Layout deterministico de las salas fijas: bloques en L alrededor del patio.
@@ -101,7 +103,18 @@ function asignarSlots(visibles: ReadonlyArray<string>): Map<string, number> {
 
 const ACTIVAS: ReadonlyArray<EstadoTarea> = ['pendiente', 'en_curso', 'pausada']
 
-export function estadoTrabajador(estado: EstadoTarea): EstadoTrabajador {
+/** true si la tarea esta DORMIDA (programada a futuro y todavia pendiente) */
+export function dormida(t: Pick<Tarea, 'estado' | 'despierta_ts'>): boolean {
+  return (
+    t.estado === 'pendiente' && t.despierta_ts != null && t.despierta_ts * 1000 > Date.now()
+  )
+}
+
+export function estadoTrabajador(
+  estado: EstadoTarea,
+  despiertaTs?: number | null,
+): EstadoTrabajador {
+  if (dormida({ estado, despierta_ts: despiertaTs ?? null })) return 'dormido'
   if (estado === 'en_curso') return 'trabajando'
   if (estado === 'hecha') return 'hecho'
   if (estado === 'fallida' || estado === 'detenida') return 'fallo'
@@ -127,9 +140,10 @@ export function derivarSalas(snap: Snapshot): Sala[] {
     tipo: 'fija',
     trabajador:
       f.id === 'jefe' && jefeActivo
-        ? { estado: estadoTrabajador(jefeActivo.estado) }
+        ? { estado: estadoTrabajador(jefeActivo.estado, jefeActivo.despierta_ts) }
         : null,
     tid: f.id === 'jefe' && jefeActivo ? jefeActivo.id : null,
+    despiertaTs: (f.id === 'jefe' && jefeActivo && jefeActivo.despierta_ts) || null,
   }))
 
   // Dinamicas: una por director/trabajador ACTIVO. Los slots se asignan SOLO
@@ -148,8 +162,9 @@ export function derivarSalas(snap: Snapshot): Sala[] {
       nombre: t.titulo,
       tamano: t.nivel === 'director' ? [4, 3] : [3, 3],
       posicion: posicionDeSlot(slots.get(tid) ?? 0),
-      trabajador: { estado: estadoTrabajador(t.estado) },
+      trabajador: { estado: estadoTrabajador(t.estado, t.despierta_ts) },
       tid,
+      despiertaTs: t.despierta_ts ?? null,
     })
   }
   return salas

@@ -30,7 +30,9 @@ interface OficinaStore {
   reasignar: (id: string, rol: Rol) => Promise<boolean>
   reiniciar: (id: string) => Promise<string | null>
   mensaje: (de: string, para: string, texto: string) => Promise<boolean>
-  nuevaMeta: (texto: string) => Promise<boolean>
+  nuevaMeta: (texto: string, despiertaTs?: number | null) => Promise<boolean>
+  /** editar la hora de despertar de una tarea/meta dormida (null = despertar YA) */
+  despertar: (id: string, despiertaTs: number | null) => Promise<boolean>
 }
 
 async function post(url: string, body: unknown): Promise<Record<string, unknown> | null> {
@@ -77,7 +79,15 @@ export const useOficina = create<OficinaStore>()((set) => ({
   },
   mensaje: async (de, para, texto) =>
     (await post('/api/mensaje', { de, para, texto }))?.ok === true,
-  nuevaMeta: async (texto) => (await post('/api/meta', { texto }))?.ok === true,
+  nuevaMeta: async (texto, despiertaTs = null) =>
+    (
+      await post('/api/meta', {
+        texto,
+        ...(despiertaTs ? { despierta_ts: despiertaTs } : {}),
+      })
+    )?.ok === true,
+  despertar: async (id, despiertaTs) =>
+    (await post('/api/tarea/despertar', { id, despierta_ts: despiertaTs }))?.ok === true,
 }))
 
 // ── cliente SSE con reconexion + fallback a poll cada 2s ──────────────────

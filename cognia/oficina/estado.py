@@ -42,20 +42,45 @@ class Oficina:
         os.replace(tmp, self.path)
 
     # ── creación ──
-    def nueva_meta(self, texto: str) -> str:
-        """Registra una meta del usuario; el motor la levanta y crea al jefe."""
+    def nueva_meta(self, texto: str, despierta_ts: float = None) -> str:
+        """Registra una meta del usuario; el motor la levanta y crea al jefe.
+        Con despierta_ts (epoch s futuro) la meta queda PROGRAMADA: el motor
+        no la toma hasta esa hora, y se crea YA el jefe dormido (visible en
+        la oficina 3D durmiendo en su cama hasta que se despierte)."""
         with self._lock:
             mid = "meta-" + uuid.uuid4().hex[:8]
-            self.data["metas"].append({"id": mid, "texto": texto.strip(),
-                                       "estado": "pendiente", "creada": _ahora()})
+            meta = {"id": mid, "texto": texto.strip(),
+                    "estado": "pendiente", "creada": _ahora()}
+            if despierta_ts and despierta_ts > time.time():
+                meta["despierta_ts"] = float(despierta_ts)
+            self.data["metas"].append(meta)
             self._save()
-            return mid
+        if meta.get("despierta_ts"):
+            self.crear_tarea("jefe", f"META programada: {texto.strip()[:70]}",
+                             texto.strip(), meta=mid,
+                             despierta_ts=meta["despierta_ts"])
+        return mid
 
     def meta_pendiente(self):
+        """La próxima meta lista para correr (las programadas a futuro NO)."""
         with self._lock:
+            ahora = time.time()
             for m in self.data["metas"]:
-                if m["estado"] == "pendiente":
-                    return dict(m)
+                if m["estado"] != "pendiente":
+                    continue
+                if m.get("despierta_ts") and m["despierta_ts"] > ahora:
+                    continue
+                return dict(m)
+            return None
+
+    def jefe_de_meta(self, mid: str):
+        """Id del jefe pre-creado (meta programada) aún pendiente, o None."""
+        with self._lock:
+            for tid in self.data["orden"]:
+                t = self.data["tareas"][tid]
+                if (t["nivel"] == "jefe" and t.get("meta") == mid
+                        and t["estado"] == "pendiente"):
+                    return tid
             return None
 
     def set_meta_estado(self, mid: str, estado: str, resultado: str = None) -> None:
@@ -68,7 +93,8 @@ class Oficina:
             self._save()
 
     def crear_tarea(self, nivel: str, titulo: str, detalle: str,
-                    padre: str = None, rol: str = None, meta: str = None) -> str:
+                    padre: str = None, rol: str = None, meta: str = None,
+                    despierta_ts: float = None) -> str:
         assert nivel in NIVELES, nivel
         with self._lock:
             tid = f"{nivel[:4]}-{uuid.uuid4().hex[:6]}"
@@ -76,6 +102,7 @@ class Oficina:
                 "id": tid, "nivel": nivel, "titulo": titulo[:120],
                 "detalle": detalle, "padre": padre, "rol": rol, "meta": meta,
                 "estado": "pendiente", "solicitud": None, "resultado": None,
+                "despierta_ts": float(despierta_ts) if despierta_ts else None,
                 "creada": _ahora(), "creada_ts": time.time(), "eventos": []}
             self.data["orden"].append(tid)
             self._save()
@@ -153,6 +180,50 @@ class Oficina:
             if j < 0 or j >= len(orden):
                 return False
             orden[i], orden[j] = orden[j], orden[i]
+            self._save()
+            return True
+
+    def despertar(self, oid: str, despierta_ts=None) -> bool:
+        """Edita la hora de despertar de una meta programada o una tarea
+        dormida (el hover de la oficina 3D la muestra; acá se cambia).
+        despierta_ts None o en el pasado = despertar AHORA. Sobre una meta
+        ('meta-...') actualiza también su jefe pre-creado."""
+        ts = float(despierta_ts) if despierta_ts else None
+        if ts is not None and ts <= time.time():
+            ts = None
+        with self._lock:
+            if oid.startswith("meta-"):
+                meta = next((m for m in self.data["metas"] if m["id"] == oid), None)
+                if meta is None or meta["estado"] != "pendiente":
+                    return False
+                if ts is None:
+                    meta.pop("despierta_ts", None)
+                else:
+                    meta["despierta_ts"] = ts
+                for t in self.data["tareas"].values():
+                    if (t["nivel"] == "jefe" and t.get("meta") == oid
+                            and t["estado"] == "pendiente"):
+                        t["despierta_ts"] = ts
+                        t["eventos"].append({"t": _ahora(), "msg":
+                                             f"[despertar editado: {ts or 'ahora'}]"})
+                self._save()
+                return True
+            t = self.data["tareas"].get(oid)
+            if t is None or t["estado"] not in ("pendiente", "pausada"):
+                return False
+            t["despierta_ts"] = ts
+            t["eventos"].append({"t": _ahora(),
+                                 "msg": f"[despertar editado: {ts or 'ahora'}]"})
+            # si la tarea dormida pertenece a una meta programada, la meta
+            # sigue el mismo reloj (una sola fuente de verdad del despertar)
+            mid = t.get("meta")
+            if t["nivel"] == "jefe" and mid:
+                for m in self.data["metas"]:
+                    if m["id"] == mid and m["estado"] == "pendiente":
+                        if ts is None:
+                            m.pop("despierta_ts", None)
+                        else:
+                            m["despierta_ts"] = ts
             self._save()
             return True
 

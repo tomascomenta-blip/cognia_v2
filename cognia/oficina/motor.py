@@ -164,8 +164,9 @@ class Motor(threading.Thread):
     def _procesa_meta(self, meta: dict) -> None:
         mid = meta["id"]
         self.of.set_meta_estado(mid, "en_curso")
-        jefe_id = self.of.crear_tarea("jefe", f"META: {meta['texto'][:80]}",
-                                      meta["texto"], meta=mid)
+        # meta PROGRAMADA: el jefe ya existe (durmió en su cama hasta ahora)
+        jefe_id = self.of.jefe_de_meta(mid) or self.of.crear_tarea(
+            "jefe", f"META: {meta['texto'][:80]}", meta["texto"], meta=mid)
         try:
             self.of.set_estado(jefe_id, "en_curso")
             self.of.evento(jefe_id, "jefe planificando (orch.infer)...")

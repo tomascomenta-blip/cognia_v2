@@ -20,6 +20,9 @@ export interface SalaMueblada {
   prof: number
   tamano: TamanoMueble
   trabajando: boolean // los monitores de la sala parpadean
+  /** la tarea de la sala esta programada/dormida: se dibuja una cama y el
+   *  trabajador duerme en ella (posicion via camaDeSala) */
+  dormido: boolean
 }
 
 export interface MobiliarioOficinaProps {
@@ -135,6 +138,37 @@ function pizarra(h: number): ParteLocal[] {
   ]
 }
 
+// cama low-poly: marco gris, colchon blanco, almohada blanca, manta magenta.
+// Definida a lo largo de +z (cabecera en -z); rotY la orienta en la sala.
+function cama(): ParteLocal[] {
+  return [
+    { g: 'gris', p: [0, FY + 0.16, 0], e: [1.0, 0.16, 2.0] }, // marco
+    { g: 'gris', p: [0, FY + 0.34, -0.97], e: [1.0, 0.5, 0.07] }, // cabecera
+    { g: 'blanco', p: [0, FY + 0.3, 0], e: [0.92, 0.14, 1.9] }, // colchon
+    { g: 'blanco', p: [0, FY + 0.41, -0.68], e: [0.56, 0.1, 0.36] }, // almohada
+    { g: 'magenta', p: [0, FY + 0.39, 0.35], e: [0.96, 0.08, 1.15] }, // manta
+  ]
+}
+
+/** Donde se ubica la cama en una sala (coords locales de la sala) + rotY.
+ *  Contra el borde este, a media profundidad; misma formula que usa
+ *  piezasDeSala para dibujarla, y Oficina3D para ACOSTAR al trabajador. */
+function anclaCama(sala: SalaMueblada): { cx: number; cz: number; rotY: number } {
+  return { cx: sala.ancho - 0.75, cz: sala.prof * 0.5, rotY: 0 }
+}
+
+/** Posicion de MUNDO donde duerme el trabajador (sobre el colchon) + rotY. */
+export function camaDeSala(sala: SalaMueblada): {
+  pos: [number, number, number]
+  rotY: number
+} {
+  const a = anclaCama(sala)
+  return {
+    pos: [sala.posicion[0] + a.cx, FY + 0.24, sala.posicion[1] + a.cz + 0.1],
+    rotY: a.rotY,
+  }
+}
+
 function estanteria(): ParteLocal[] {
   return [
     { g: 'blanco', p: [-0.62, FY + 0.78, 0], e: [0.07, 1.56, 0.5] },
@@ -191,6 +225,12 @@ function piezasDeSala(sala: SalaMueblada): Parte[] {
         key: `${sala.id}:${partes.length}`,
       })
     }
+  }
+
+  if (sala.dormido) {
+    // la sala tiene una tarea programada: cama para que el agente duerma
+    const a = anclaCama(sala)
+    poner(cama(), a.cx, a.cz, a.rotY)
   }
 
   if (sala.tamano === 'chica') {

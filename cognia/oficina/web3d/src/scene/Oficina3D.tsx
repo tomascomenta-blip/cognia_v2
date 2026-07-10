@@ -17,7 +17,7 @@ import type { EstadoTrabajador, Sala as SalaDatos } from '../lib/derivar'
 import type { Snapshot } from '../state/tipos'
 import { Sala } from './Sala'
 import type { TamanoSala } from './Sala'
-import { asientoDeSala, MobiliarioOficina } from './Mobiliario'
+import { asientoDeSala, camaDeSala, MobiliarioOficina } from './Mobiliario'
 import type { SalaMueblada } from './Mobiliario'
 import { Trabajador } from './Trabajador'
 import type { RolVisual } from './Trabajador'
@@ -137,11 +137,13 @@ export function Oficina3D() {
         prof: v.def.tamano[1],
         tamano: v.tamano,
         trabajando: v.trabajando,
+        dormido: v.def.trabajador?.estado === 'dormido',
       })),
     [vistas],
   )
 
-  // un Trabajador por sala, sentado en la silla que dibuja Mobiliario
+  // un Trabajador por sala: sentado en la silla, o DORMIDO en la cama si su
+  // tarea esta programada a futuro (Mobiliario dibuja la cama en esa sala)
   const trabajadores = useMemo(
     () =>
       vistas.map((v, i) => {
@@ -151,13 +153,14 @@ export function Oficina3D() {
           : v.trabajando
             ? 'trabajando'
             : 'esperando'
-        const asiento = asientoDeSala(muebladas[i])
+        const lugar =
+          estado === 'dormido' ? camaDeSala(muebladas[i]) : asientoDeSala(muebladas[i])
         return {
           key: v.def.id,
           estado,
           rol: rolVisualDe(v.def, tarea?.rol ?? null),
-          posicion: asiento.pos,
-          rotacionY: asiento.rotY,
+          posicion: lugar.pos,
+          rotacionY: lugar.rotY,
           escala: v.def.id === 'mega_jefe' ? 1 : 0.88,
         }
       }),
@@ -369,6 +372,7 @@ export function Oficina3D() {
             nombre={vistaHover.def.nombre}
             estado={tareaHover?.estado ?? null}
             tarea={tareaHover?.detalle ?? null}
+            despiertaTs={vistaHover.def.despiertaTs}
           />
         </Html>
       )}

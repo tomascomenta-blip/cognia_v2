@@ -23,7 +23,7 @@ export interface Camino {
 }
 
 export interface TrabajadorProps {
-  estado: EstadoTrabajador // 'trabajando' | 'esperando' | 'fallo' | 'hecho'
+  estado: EstadoTrabajador // 'trabajando' | 'esperando' | 'fallo' | 'hecho' | 'dormido'
   rol: RolVisual
   /** posicion del asiento (base del personaje) en coords del padre */
   posicion?: [number, number, number]
@@ -52,6 +52,9 @@ const GEO_BRAZO = new THREE.CapsuleGeometry(0.055, 0.28, 3, 8)
 const GEO_CORBATA = new THREE.ConeGeometry(0.055, 0.22, 4)
 const GEO_SIGNO_BARRA = new THREE.BoxGeometry(0.07, 0.2, 0.07)
 const GEO_SIGNO_PUNTO = new THREE.SphereGeometry(0.045, 10, 8)
+// barras que arman las "Z" del dormido (billboard, mismo grupo que el "!")
+const GEO_Z_H = new THREE.BoxGeometry(0.16, 0.045, 0.045)
+const GEO_Z_DIAG = new THREE.BoxGeometry(0.2, 0.045, 0.045)
 
 const MAT_PIEL = new THREE.MeshStandardMaterial({ color: '#f2c9a3', roughness: 0.85 })
 const MAT_OJO = new THREE.MeshStandardMaterial({ color: '#2a2a2a', roughness: 0.4 })
@@ -59,6 +62,11 @@ const MAT_SIGNO = new THREE.MeshStandardMaterial({
   color: '#ff3b30',
   emissive: '#ff3b30',
   emissiveIntensity: 1.4,
+})
+const MAT_ZZZ = new THREE.MeshStandardMaterial({
+  color: '#7aa2f7',
+  emissive: '#7aa2f7',
+  emissiveIntensity: 1.1,
 })
 const MAT_CORBATA = new THREE.MeshStandardMaterial({
   color: '#e91e8c',
@@ -195,6 +203,16 @@ export function Trabajador({
       cuRotX = 0.12 // encorvado
       cabX = 0.35
       cabZ = oscilar(t, 0.9, 0.08) // niega con la cabeza
+    } else if (estado === 'dormido') {
+      // acostado en la cama (la posicion la da camaDeSala): el cuerpo entero
+      // se recuesta hacia atras y respira lento y profundo
+      cuRotX = -1.42
+      respirar = oscilar(t, 0.14, 0.035)
+      biX = -0.35
+      bdX = -0.35
+      biZ = 0.25
+      bdZ = -0.25
+      cabX = -0.2 // cabeza apoyada en la almohada
     } else {
       // 'hecho': festejo breve tras el flanco, despues reposo respirando
       respirar = oscilar(t, 0.3, 0.015)
@@ -268,6 +286,31 @@ export function Trabajador({
         <group ref={signo} position={[0, 1.35, 0]}>
           <mesh geometry={GEO_SIGNO_BARRA} material={MAT_SIGNO} position={[0, 0.09, 0]} />
           <mesh geometry={GEO_SIGNO_PUNTO} material={MAT_SIGNO} position={[0, -0.11, 0]} />
+        </group>
+      )}
+
+      {estado === 'dormido' && !camino && (
+        // "Zz" flotante (mismo ref que el "!": bobea y mira a camara)
+        <group ref={signo} position={[0, 1.35, 0]}>
+          {/* Z grande */}
+          <mesh geometry={GEO_Z_H} material={MAT_ZZZ} position={[0, 0.14, 0]} />
+          <mesh
+            geometry={GEO_Z_DIAG}
+            material={MAT_ZZZ}
+            position={[0, 0.02, 0]}
+            rotation={[0, 0, 0.85]}
+          />
+          <mesh geometry={GEO_Z_H} material={MAT_ZZZ} position={[0, -0.1, 0]} />
+          {/* z chica arriba a la derecha */}
+          <mesh geometry={GEO_Z_H} material={MAT_ZZZ} position={[0.24, 0.34, 0]} scale={0.55} />
+          <mesh
+            geometry={GEO_Z_DIAG}
+            material={MAT_ZZZ}
+            position={[0.24, 0.27, 0]}
+            rotation={[0, 0, 0.85]}
+            scale={0.55}
+          />
+          <mesh geometry={GEO_Z_H} material={MAT_ZZZ} position={[0.24, 0.2, 0]} scale={0.55} />
         </group>
       )}
     </group>

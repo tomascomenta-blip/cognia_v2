@@ -42,14 +42,31 @@ export interface TooltipProps {
   estado?: EstadoTarea | null
   /** detalle/prompt de la tarea; se trunca a 1 linea */
   tarea?: string | null
+  /** epoch s: la tarea duerme hasta esa hora (se muestra la fecha; editable
+   *  desde el Inspector al hacer click en la sala) */
+  despiertaTs?: number | null
 }
 
-/** Tooltip de hover en 1 linea: nombre · estado · tarea. */
-export function Tooltip({ nombre, estado, tarea }: TooltipProps) {
+/** "despierta el 09/07 05:30" (fecha corta local del despertar programado) */
+export function fmtDespierta(ts: number): string {
+  const d = new Date(ts * 1000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+/** Tooltip de hover en 1 linea: nombre · estado · tarea (+ despertar si duerme). */
+export function Tooltip({ nombre, estado, tarea, despiertaTs }: TooltipProps) {
+  const durmiendo = despiertaTs != null && despiertaTs * 1000 > Date.now()
   return (
     <div className="pointer-events-none flex max-w-xs items-center gap-2 whitespace-nowrap rounded-md border border-rosa/70 bg-white/95 px-2.5 py-1 text-xs text-mueble shadow-lg backdrop-blur dark:border-piso dark:bg-neutral-900/95 dark:text-neutral-200">
       <span className="font-semibold">{nombre}</span>
-      {estado && <PillEstado estado={estado} />}
+      {durmiendo ? (
+        <span className="rounded-full bg-[#7aa2f7]/25 px-2 py-0.5 text-[11px] font-medium text-[#3b5bb5] dark:text-[#9db8ff]">
+          💤 despierta {fmtDespierta(despiertaTs)}
+        </span>
+      ) : (
+        estado && <PillEstado estado={estado} />
+      )}
       {tarea && (
         <span className="max-w-40 truncate text-mueble/60 dark:text-neutral-400">
           {tarea}

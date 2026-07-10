@@ -305,6 +305,7 @@ function colorSalaMini(s: SalaDatos): string {
   if (s.trabajador.estado === 'trabajando') return '#c6d62f'
   if (s.trabajador.estado === 'fallo') return '#ff5252'
   if (s.trabajador.estado === 'hecho') return '#8f8f8f'
+  if (s.trabajador.estado === 'dormido') return '#7aa2f7'
   return '#f8bbd9' // esperando
 }
 

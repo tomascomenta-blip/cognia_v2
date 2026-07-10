@@ -22,6 +22,8 @@ export interface Meta {
   estado: string
   creada: string
   resultado?: string
+  /** epoch s: meta PROGRAMADA — el motor no la toma hasta esa hora */
+  despierta_ts?: number | null
 }
 
 export interface Tarea {
@@ -41,6 +43,8 @@ export interface Tarea {
   creada_ts?: number
   inicio_ts?: number // se setea al pasar a en_curso
   fin_ts?: number // se setea al pasar a hecha/fallida/detenida
+  /** epoch s: tarea DORMIDA hasta esa hora (programada); null/ausente = despierta */
+  despierta_ts?: number | null
   eventos: Evento[]
 }
 

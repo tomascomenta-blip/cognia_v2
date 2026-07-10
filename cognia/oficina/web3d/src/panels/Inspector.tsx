@@ -110,6 +110,13 @@ function LinkTarea({ t, irA }: { t: Tarea; irA: (id: string) => void }) {
 
 // ── cuerpo: tarea (jefe/director/trabajador) ───────────────────────────────
 
+/** epoch s -> valor de <input type="datetime-local"> en hora local */
+function tsALocal(ts: number): string {
+  const d = new Date(ts * 1000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 function CuerpoTarea({ tarea, irA }: { tarea: Tarea; irA: (id: string) => void }) {
   const snapshot = useOficina((s) => s.snapshot)
   const accion = useOficina((s) => s.accion)
@@ -118,12 +125,14 @@ function CuerpoTarea({ tarea, irA }: { tarea: Tarea; irA: (id: string) => void }
   const reasignar = useOficina((s) => s.reasignar)
   const reiniciar = useOficina((s) => s.reiniciar)
   const mensaje = useOficina((s) => s.mensaje)
+  const despertar = useOficina((s) => s.despertar)
 
   const [ocupado, setOcupado] = useState(false)
   const [editando, setEditando] = useState(false)
   const [borrador, setBorrador] = useState('')
   const [para, setPara] = useState('')
   const [texto, setTexto] = useState('')
+  const [horaDespertar, setHoraDespertar] = useState('')
 
   // tick 1s: "tiempo trabajando" en vivo
   const [ahoraMs, setAhoraMs] = useState(() => Date.now())
@@ -145,6 +154,15 @@ function CuerpoTarea({ tarea, irA }: { tarea: Tarea; irA: (id: string) => void }
     setPara('')
     setTexto('')
   }, [tarea.id])
+
+  // hora de despertar editable: se sincroniza con el valor real del backend
+  const duerme =
+    tarea.despierta_ts != null &&
+    tarea.despierta_ts * 1000 > Date.now() &&
+    (tarea.estado === 'pendiente' || tarea.estado === 'pausada')
+  useEffect(() => {
+    setHoraDespertar(tarea.despierta_ts != null ? tsALocal(tarea.despierta_ts) : '')
+  }, [tarea.id, tarea.despierta_ts])
 
   const padre = tareaDe(snapshot, tarea.padre)
   const hijos = useMemo(
@@ -248,6 +266,37 @@ function CuerpoTarea({ tarea, irA }: { tarea: Tarea; irA: (id: string) => void }
           </>
         )}
       </Seccion>
+
+      {duerme && (
+        <Seccion titulo="💤 durmiendo — despierta programado">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <input
+              type="datetime-local"
+              value={horaDespertar}
+              onChange={(e) => setHoraDespertar(e.target.value)}
+              className="rounded-md border border-rosa/70 bg-white px-2 py-1 outline-none focus:border-magenta dark:border-piso dark:bg-neutral-800"
+            />
+            <BotonCtl
+              activo={!ocupado && horaDespertar !== ''}
+              motivo="elegí fecha y hora"
+              onClick={() =>
+                correr(() =>
+                  despertar(tarea.id, new Date(horaDespertar).getTime() / 1000),
+                )
+              }
+            >
+              Cambiar
+            </BotonCtl>
+            <BotonCtl activo={!ocupado} onClick={() => correr(() => despertar(tarea.id, null))}>
+              ☀ Despertar ya
+            </BotonCtl>
+          </div>
+          <p className="mt-1.5 text-[10px] text-mueble/40 dark:text-neutral-600">
+            el agente duerme en la cama de su sala hasta esta hora; el motor no
+            toma la tarea antes
+          </p>
+        </Seccion>
+      )}
 
       {tarea.resultado && (
         <Seccion titulo="resultado">

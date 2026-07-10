@@ -6,7 +6,8 @@ GET  /api/estado           snapshot completo del estado (incluye _seq)
 GET  /api/sistema          métricas cpu/ram/threads/colas (psutil si está; si no, null)
 GET  /api/sse              text/event-stream: "estado" cuando cambia _seq (poll 300 ms),
                            "sistema" cada 2 s, ": ping" cada 15 s
-POST /api/meta             {"texto": ...}            -> nueva meta
+POST /api/meta             {"texto", "despierta_ts"?} -> nueva meta (programada si trae epoch futuro)
+POST /api/tarea/despertar  {"id","despierta_ts"|null} -> editar hora de despertar (tarea o meta-...)
 POST /api/tarea/accion     {"id","accion"}           -> detener|pausar|reanudar
 POST /api/tarea/editar     {"id","detalle"}          -> editar tarea pendiente/pausada
 POST /api/tarea/prioridad  {"id","delta":-1|1}       -> mover en la cola (pendientes)
@@ -86,6 +87,7 @@ textarea,input{width:100%;box-sizing:border-box;background:#0d1117;color:#d7dde4
 <a href="/oficina3d" style="color:#7aa2f7;font-size:12px;font-weight:normal;text-decoration:none">Vista Oficina 3D &rarr;</a></h1>
 <small>jefe &rarr; directores &rarr; trabajadores &mdash; clic en una tarea para ver su flujo y controlarla</small>
 <div id="meta-form"><input id="meta-texto" placeholder="Nueva meta para la oficina...">
+<input id="meta-hora" type="datetime-local" title="opcional: programarla para este momento" style="width:210px">
 <button onclick="nuevaMeta()">Encargar</button></div>
 <div id="cols"><div id="arbol"></div>
 <div id="panel"><em>Seleccioná una tarea.</em></div></div>
@@ -124,6 +126,11 @@ function renderPanel(){
   p.innerHTML =
    `<b>${t.id}</b> <span class="pill ${t.estado}">${t.estado}</span> ${t.rol||''}<br>`+
    `<div style="margin:8px 0"><textarea id="detalle" rows="3" ${editable?'':'disabled'}>${esc(t.detalle)}</textarea></div>`+
+   (t.despierta_ts && (t.estado==='pendiente'||t.estado==='pausada') ?
+     `<div style="margin:6px 0"><small>&#128564; duerme hasta:</small> `+
+     `<input id="despierta" type="datetime-local" value="${fmtDespierta(t.despierta_ts)}" style="width:200px">`+
+     `<button onclick="despertar()">Cambiar</button>`+
+     `<button onclick="document.getElementById('despierta').value='';despertar()">Despertar ya</button></div>`:'')+
    `<div style="margin-bottom:8px">`+
    (editable?`<button onclick="editar()">Guardar edicion</button>`:'')+
    `<button onclick="accion('pausar')">Pausar</button>`+
@@ -146,9 +153,22 @@ async function editar(){
 }
 async function nuevaMeta(){
   const x = document.getElementById('meta-texto');
+  const h = document.getElementById('meta-hora');
   if(!x.value.trim())return;
-  await fetch('/api/meta',{method:'POST',body:JSON.stringify({texto:x.value})});
-  x.value=''; carga();
+  const body = {texto:x.value};
+  if(h.value){ body.despierta_ts = new Date(h.value).getTime()/1000; }
+  await fetch('/api/meta',{method:'POST',body:JSON.stringify(body)});
+  x.value=''; h.value=''; carga();
+}
+async function despertar(){
+  const v = document.getElementById('despierta').value;
+  await fetch('/api/tarea/despertar',{method:'POST',body:JSON.stringify(
+    {id:SEL, despierta_ts: v ? new Date(v).getTime()/1000 : null})});
+  carga();
+}
+function fmtDespierta(ts){
+  const d = new Date(ts*1000), p = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 // deep-link: /?sel=<id> abre esa tarea directo (compartible)
 const _q = new URLSearchParams(location.search).get('sel');
@@ -261,7 +281,19 @@ def crear_server(oficina, host: str = "127.0.0.1", puerto: int = 8765):
                 texto = (b.get("texto") or "").strip()
                 if not texto:
                     return self._json({"ok": False, "error": "texto vacío"}, 400)
-                return self._json({"ok": True, "id": oficina.nueva_meta(texto)})
+                try:
+                    despierta = float(b["despierta_ts"]) if b.get("despierta_ts") else None
+                except (TypeError, ValueError):
+                    despierta = None
+                return self._json({"ok": True,
+                                   "id": oficina.nueva_meta(texto, despierta)})
+            if self.path == "/api/tarea/despertar":
+                try:
+                    ts = float(b["despierta_ts"]) if b.get("despierta_ts") else None
+                except (TypeError, ValueError):
+                    ts = None
+                ok = oficina.despertar(b.get("id", ""), ts)
+                return self._json({"ok": ok}, 200 if ok else 400)
             if self.path == "/api/tarea/accion":
                 ok = oficina.solicitar(b.get("id", ""), b.get("accion", ""))
                 return self._json({"ok": ok}, 200 if ok else 400)
