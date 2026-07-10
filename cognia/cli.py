@@ -5408,36 +5408,45 @@ def repl():
     _animate_startup(_init_lines)
 
     # Build input function
+    session = None
     if _HAS_PT:
-        _pt_style = PTStyle.from_dict({
-            "":                                        "ansiyellow bold",
-            "completion-menu.completion":              "bg:#1c1c2e fg:#c8c8d8",
-            "completion-menu.completion.current":      "bg:#004466 fg:#ffffff",
-            "completion-menu.meta.completion":         "bg:#1c1c2e fg:#667788",
-            "completion-menu.meta.completion.current": "bg:#004466 fg:#aaccdd",
-            "scrollbar.background":                    "bg:#1c1c2e",
-            "scrollbar.button":                        "bg:#334455",
-        })
-        _kb = KeyBindings()
+        try:
+            _pt_style = PTStyle.from_dict({
+                "":                                        "ansiyellow bold",
+                "completion-menu.completion":              "bg:#1c1c2e fg:#c8c8d8",
+                "completion-menu.completion.current":      "bg:#004466 fg:#ffffff",
+                "completion-menu.meta.completion":         "bg:#1c1c2e fg:#667788",
+                "completion-menu.meta.completion.current": "bg:#004466 fg:#aaccdd",
+                "scrollbar.background":                    "bg:#1c1c2e",
+                "scrollbar.button":                        "bg:#334455",
+            })
+            _kb = KeyBindings()
 
-        @_kb.add("tab")
-        def _tab_complete(event):
-            buff = event.app.current_buffer
-            if buff.complete_state:
-                buff.complete_next()
-            else:
-                buff.start_completion(select_first=True)
+            @_kb.add("tab")
+            def _tab_complete(event):
+                buff = event.app.current_buffer
+                if buff.complete_state:
+                    buff.complete_next()
+                else:
+                    buff.start_completion(select_first=True)
 
-        session = PromptSession(
-            history=InMemoryHistory(),
-            completer=_CogniaCompleter(),
-            complete_while_typing=True,
-            complete_style=CompleteStyle.MULTI_COLUMN,
-            complete_in_thread=True,
-            key_bindings=_kb,
-            style=_pt_style,
-        )
+            session = PromptSession(
+                history=InMemoryHistory(),
+                completer=_CogniaCompleter(),
+                complete_while_typing=True,
+                complete_style=CompleteStyle.MULTI_COLUMN,
+                complete_in_thread=True,
+                key_bindings=_kb,
+                style=_pt_style,
+            )
+        except Exception:
+            # Sin consola Win32 (stdin piped, subprocess, CI): prompt_toolkit
+            # muere con NoConsoleScreenBufferError al crear la PromptSession y
+            # el REPL entero moria al arrancar (bug real: `echo hola | cognia`
+            # crasheaba). Fallback al input() plano -> REPL scripteable.
+            session = None
 
+    if session is not None:
         def _get_input():
             line = session.prompt("cognia> ").strip()
             while line.endswith("\\"):
