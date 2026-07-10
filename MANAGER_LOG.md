@@ -5803,3 +5803,23 @@ secretos (PYPI_TOKEN inline redactado), sin romper prod. Apagado 04:30 programad
   V4 base NO dice Cognia; V5 /hacer ejecuta y reporta la salida (350) — el
   fix E8 funcionando desde el paquete de PyPI.
 - PyPI actual = 3.8.3. Apagado programado 5:30 AM.
+
+## 2026-07-10 (madrugada) — plan MoM, oficina programada, 2 líneas cerradas por diagnóstico y E-PORT APTO
+- **PyPI 3.8.3 publicado** (autorización del dueño) + ciclo desinstalar→
+  reinstalar-de-PyPI verificado 5/5 en el ~/.cognia real (backups en
+  backup_pre_383; env vars LLAMA_* User borradas a propósito).
+- **PLAN_MOM_GLM52.md**: mapa completo del fleet para rango GLM 5.2 (tesis
+  medida: adapter solo en gap de FORMATO; capacidad = inferencia; velocidad
+  = portero 0.5B + MTP como investigación).
+- **Oficina**: metas/workflows PROGRAMADOS (despierta_ts) con jefes durmiendo
+  en camas 3D, "Zz", hover con fecha editable + API/dashboard. 10 tests +
+  e2e 6/6 con motor real. Suite completa: 3624/0.
+- **Método "diagnóstico por clases antes de GPU" (2 min CPU c/u) cerró 2
+  líneas y cazó 1 bug de instrumento**: español (G5=56% era FALSO — es_espanol
+  fallaba respuestas cortas correctas; fix → G5 real 72%, resto capacidad) y
+  estructura JSON (83% base, sin gap de formato).
+- **E-PORT APTO**: portero 0.5B, G3 identidad 0→95% (p≈0) en 72.7s de train
+  (el experto más barato del programa; 3ª confirmación del gap-de-formato).
+  P-PORT-2: G1 55→46 n.s. → regla: router whitelist conservador + fallback 3B.
+  Fase 2 (GGUF + router + gates e2e) queda para la próxima sesión.
+- Flappy bird del agente entregado con gameplay (mandato de ayer, 9 rondas).
