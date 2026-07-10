@@ -39,38 +39,73 @@ escalado produciendo el entregable que el 3B solo no lograba. Se corrieron 2
 e2e con tareas RECUPERADAS por el 7B en el gate (burst_balloons dif 0.30,
 single_number dif 0.567), con el flujo REAL de producción (_generar_codigo):
 
-| e2e | escaló al 7B | RAM peak | código pasa tests ocultos |
-|---|---|---|---|
-| burst_balloons | ✓ | 7.81 GB | **NO** (IndexError) |
-| single_number | ✓ | 8.25 GB | **NO** (AssertionError) |
+| e2e | escaló | RAM peak | 7B prompt | código pasa ocultos |
+|---|---|---|---|---|
+| burst_balloons | ✓ | 7.81 GB | envuelto | **NO** (IndexError) |
+| single_number | ✓ | 8.25 GB | envuelto | **NO** (AssertionError) |
+| single_number | ✓ | 8.08 GB | **alineado al gate** | **NO** (AssertionError) |
 
-El mecanismo FUNCIONA (escala, coexistencia 3B+7B en RAM 8.25<10GB — **P-7B-4
+El mecanismo FUNCIONA (escala, coexistencia 3B+7B en RAM 8.08<10GB — **P-7B-4
 ✓**), pero el 7B **en producción** generó código incorrecto para dos tareas que
-el mismo 7B **sí** resuelve en el gate. Causa raíz: el gate genera con
-`build_prompt(task_prompt, SYSTEM_PROMPT)` **greedy** (1 candidato); producción
-usa `_generar_codigo` con el prompt ENVUELTO ("Escribe UNA funcion COMPLETA…") +
-best_of_n. **El wrapper + BoN de producción no extrae el rendimiento que el
-greedy del gate sí logra** — es el gap "techo (tests ocultos) vs deployable"
-que el diseño (workflow) anticipó, ahora confirmado empíricamente.
+el mismo 7B **sí** resuelve en el gate, INCLUSO tras alinear el prompt del 7B
+con el del gate (3er e2e). Eso descarta el prompt como causa única y aísla el
+cuello real:
 
-## Decisión: OPT-IN (default OFF), NO default ON — negativa honesta del deploy
+**El cuello es el JUEZ, no el modelo ni el prompt.** El gate recupera con
+**greedy** (1 candidato del 7B, tomado tal cual). Producción usa **best_of_n**:
+el 7B genera N candidatos (uno de ellos correcto), pero el rank los ordena por
+**tests visibles autogenerados**, que salen débiles (2/4 en single_number) y NO
+seleccionan el candidato correcto. El 7B genera la solución buena; el juez de
+tests visibles la descarta. Es el gap "techo (tests ocultos = verdad) vs
+deployable (tests visibles = proxy débil)" que el diseño anticipó — y el proxy
+falla en la SELECCIÓN, no solo en el disparo.
 
-Gate de CALIDAD ✓ (el 7B vale) + mecanismo ✓ (escala, RAM ok), pero e2e de
-producción ✗ (el flujo no materializa el +20pp). Por el pre-registro
-("promover solo si e2e pasa"), **NO se flipea default ON**. `COGNIA_HEAVY_CODE`
-queda **opt-in** (default OFF): el 7B está disponible y funciona para quien lo
-active, sin imponer latencia por default cuando la ganancia no está garantizada
-en el flujo real. No inflar: el +20pp es del gate, no del deploy actual.
+## Cierre del deploy: el FIX (greedy del 7B) — probe 4/4 + e2e PASS
+
+El probe aisló la causa: el 7B GREEDY (1 candidato, prompt del gate) recupera
+**4/4** tareas duras (single_number, rotate_array, min_jumps, put) que el
+best_of_n+juez descartaba. Fix aplicado en `_generar_codigo`: al escalar,
+generar GREEDY con `build_prompt(desc, SYSTEM_PROMPT)` (reproduce el protocolo
+del gate) en vez de best_of_n. **e2e final single_number: PASS** — escaló ✓,
+código pasa los tests OCULTOS ✓, RAM 7.80 GB < 10 ✓. El deploy ahora reproduce
+el gate.
+
+## Decisión: PROMOVER (default ON)
+
+Los dos gates de calidad (P-7B-1 b=8≥6, P-7B-2 c=0) ✓, P-7B-4 (RAM 7.8<10) ✓, y
+el **e2e de producción PASS** con el fix greedy. Se flipea `COGNIA_HEAVY_CODE`
+default → **ON**. El escalado es reactivo + pre-filtrado por dificultad: solo
+paga latencia (7B ~2.2 tok/s) en código duro que el 3B ya falló, a cambio de
++20pp de éxito. Lazy-load-usar-cerrar mantiene la RAM steady-state en 0.
+`COGNIA_HEAVY_CODE=0` lo apaga. En instalaciones sin el GGUF 7B (4.68 GB;
+install_model no lo baja por defecto), heavy_code_backend() → None → fallback al
+3B (default ON no rompe). El 7B al producto es opt-in por tamaño (paso aparte).
+
+## Lección de método (el valor de los e2e)
+
+El gate de calidad pasó rápido, pero fueron **3 e2e fallidos** los que
+revelaron que "el gate pasa" ≠ "el deploy funciona", acotando la causa paso a
+paso: disparador (0 tests visibles) → prompt (envuelto) → JUEZ (best_of_n con
+tests visibles débiles). Sin la insistencia en verificación e2e REAL se habría
+promovido un +20pp inexistente en producción. El fix final (greedy) reproduce
+el protocolo exacto del gate y el e2e lo confirma.
 
 ## Trabajo pendiente (para materializar el +20pp en producción)
 
-1. **Alinear el prompt del 7B de producción con el del gate**: al escalar,
-   generar con `build_prompt(desc, SYSTEM_PROMPT)` greedy (reproduce el
-   protocolo bajo el que el 7B recuperó 8/8), en vez del code_prompt envuelto +
-   BoN. Re-correr los 2 e2e; si pasan → promover.
-2. **Brazo B-deploy completo** (40 tareas por el flujo de producción medidas
-   contra tests ocultos) para cuantificar cuánto del +20pp del gate sobrevive
-   al prompt de deploy.
+1. ~~Alinear el prompt del 7B con el del gate~~ — HECHO (3er e2e), NO cerró el
+   gap. El prompt no era la causa.
+2. **Arreglar el JUEZ (la causa real)**: cuando el 3B falló y se escala al 7B en
+   tarea dura, el rank por tests visibles autogenerados es demasiado débil para
+   elegir el candidato correcto del 7B. Opciones a medir:
+   (a) **greedy del 7B** (1 candidato, como el gate) en vez de best_of_n cuando
+       los tests visibles son pocos/débiles — reproduce exactamente el mecanismo
+       que recuperó 8/8;
+   (b) **tests visibles más fuertes** (más asserts, edge-cases) generados por el
+       propio 7B antes de rankear;
+   (c) un **juez ejecutable mejor** (property-based / más casos).
+3. **Brazo B-deploy completo** (40 tareas por el flujo de producción, medidas
+   contra tests ocultos) con el juez arreglado, para cuantificar cuánto del
+   +20pp del gate sobrevive.
 
 ## Qué significa para "alcanzar GLM 5.2"
 

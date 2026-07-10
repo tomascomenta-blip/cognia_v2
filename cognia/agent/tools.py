@@ -741,28 +741,26 @@ def _generar_codigo(args, ctx):
                         "escalando al especialista 7B (mas lento)...[/detail]")
                 try:
                     from cognia_v3.eval.benchmark_code import (
-                        make_raw_gen_fn, SYSTEM_PROMPT)
-                    _cnt = {"seconds": 0.0, "tokens": 0, "calls": 0}
-                    _gen7 = make_raw_gen_fn(_heavy, 768, SYSTEM_PROMPT, _cnt)
-                    _out7 = best_of_n(_gen7, code_prompt, desc, entry,
-                                      extract_code, n=n_plan, seed=42,
-                                      test_gen_fn=_test_gen)
-                    _b7 = (_out7.get("ranking", [{}])[0]
-                           if _out7.get("ranking") else {})
-                    _score_7b, _code7 = _b7.get("score"), _out7.get("code", "")
-                    _t7 = _b7.get("total")
-                    # Seleccion: con tests visibles, el de MAYOR score (B nunca
-                    # peor que A). SIN tests visibles (total=0 en ambos), no hay
-                    # oraculo para comparar -> preferir el 7B, medido a-priori
-                    # mejor en codigo duro (50% vs 40%); el escalado ya se gateo
-                    # por dificultad + no-confirmacion del 3B, asi que es la
-                    # mejor apuesta disponible (el e2e mostro que el empate 0-0
-                    # dejaba el codigo malo del 3B).
-                    _7b_gana = (_score_3b is None
-                                or (_score_7b is not None and _score_7b > _score_3b)
-                                or (not _total and not _t7))
-                    if _code7.strip() and f"def {entry}" in _code7 and _7b_gana:
-                        out, _best_t, code = _out7, _b7, _code7
+                        build_prompt, SYSTEM_PROMPT)
+                    # GREEDY del 7B (1 candidato, prompt del gate), NO best_of_n.
+                    # El probe (2026-07-10) MIDIO que el 7B greedy recupera 4/4
+                    # tareas duras (single_number/rotate_array/min_jumps/put) que
+                    # el best_of_n+juez-de-tests-visibles descartaba: el JUEZ debil
+                    # (tests visibles autogenerados, 2/4) era el cuello, no el
+                    # modelo ni el prompt. Greedy reproduce EXACTO el protocolo del
+                    # gate bajo el que el 7B recupero 8/8 (+20pp). El 3B ya fallo/no
+                    # confirmo, asi que el 7B (medido mejor en dura) es la mejor
+                    # apuesta: quedarse con el si produjo la funcion.
+                    _gate_prompt = build_prompt(desc, system=SYSTEM_PROMPT)
+                    _raw7 = _heavy.generate(_gate_prompt, max_tokens=768,
+                                            temperature=0.0, cache_prompt=False)
+                    _code7 = extract_code(_raw7 or "")
+                    if _code7.strip() and f"def {entry}" in _code7:
+                        code = _code7
+                        _best_t = {"score": None, "total": None}
+                        out = {"n_generated": 1, "n_unique": 1,
+                               "rank_mode": "7b_greedy", "code": _code7,
+                               "ranking": [_best_t]}
                         _escalado_7b = True
                 finally:
                     close_heavy_code()

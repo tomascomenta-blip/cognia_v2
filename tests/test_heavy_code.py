@@ -17,10 +17,25 @@ def _reset(monkeypatch):
     yield
 
 
-def test_off_por_defecto_devuelve_none():
-    # OPT-IN: sin COGNIA_HEAVY_CODE el código duro se queda en el 3B (default OFF
-    # tras el veredicto: el gate de calidad pasó pero el deploy no lo materializó).
+def test_kill_switch_0_devuelve_none():
+    # Default ON tras cerrar el deploy; COGNIA_HEAVY_CODE=0 lo apaga.
+    import os
+    os.environ["COGNIA_HEAVY_CODE"] = "0"
+    try:
+        assert hc.heavy_code_backend() is None
+    finally:
+        os.environ.pop("COGNIA_HEAVY_CODE", None)
+
+
+def test_default_on_pero_gguf_faltante_cae_al_3b(monkeypatch):
+    # Default ON (sin env var) pero SIN el GGUF 7B -> None -> fallback al 3B
+    # (instalaciones sin el 7B no se rompen).
+    monkeypatch.delenv("COGNIA_HEAVY_CODE", raising=False)
+    fake = type("P", (), {"is_file": lambda self: False})()
+    import shattering.model_constants as mc
+    monkeypatch.setattr(mc, "resolve_gguf_path", lambda k: fake)
     assert hc.heavy_code_backend() is None
+    assert hc._HEAVY_FAILED is True
 
 
 def test_on_pero_gguf_faltante_cachea_falla(monkeypatch):
