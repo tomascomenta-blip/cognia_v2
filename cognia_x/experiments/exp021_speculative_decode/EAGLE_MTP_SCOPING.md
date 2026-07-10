@@ -80,3 +80,20 @@ para correr en el i3 (target + head); los targets con head pública son ≥7B (p
 - **Recomendación al dueño:** si querés el 2–3× general, autorizá una sesión Kaggle para un
   **PoC de head mínima** (pocos steps) → convertir → medir en el i3. Eso vuelve la proyección
   un dato real o un null honesto con bajo costo, antes de la cabeza de calidad.
+
+## ACTUALIZACIÓN 2026-07-10 (autorización de GPU del dueño + hallazgo del binario)
+
+**El scoping estaba desactualizado.** El binario b9391 pineado NO soporta
+EAGLE3 (`--help` solo tiene `--spec-draft-hf` = draft model SEPARADO, medido
+0.37× en CPU). PERO llama.cpp **YA MERGEÓ EAGLE3** (PR #18039, release **b9606**)
+y **MTP** (`spec-type=draft-mtp`, PR #22673). Speedup reportado: EAGLE3 1-2×
+(Qwen3), MTP ~1.5× (15.3→23.3 tok/s en M4). Fuentes: github.com/ggml-org/
+llama.cpp/pull/18039, /pull/22673, discussions/15902.
+
+**Consecuencia**: el approach EAGLE3/MTP es VIABLE, pero exige actualizar el
+binario a b9606+, que puede heredar la regresión de decode que motivó el pin de
+b9391 (b9414 midió -37%). GATE DE VIABILIDAD (CPU, barato, ANTES de gastar GPU):
+bajar b9606, medir el decode base del 3B en el i3 vs b9391. Si b9606 regresiona
+fuerte, la cabeza aceleraría desde una base más lenta (valor neto dudoso); si
+no, entrenar la cabeza EAGLE3 para el Coder-3B en Kaggle (PoC mínimo) → convertir
+→ medir speedup e2e. GPU autorizada por el dueño 2026-07-10.
