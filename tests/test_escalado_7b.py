@@ -99,6 +99,29 @@ def test_escala_en_dura_fallida_y_gana_el_7b(monkeypatch, tmp_path):
     assert closed["c"] == 1                        # cerró el 7B (lazy-load-usar-cerrar)
 
 
+def test_escala_sin_tests_visibles_en_dura(monkeypatch, tmp_path):
+    # el 3B no autogeneró tests (total=0) en tarea DURA => sin confirmación de
+    # éxito => escala (el caso del e2e burst_balloons: 'tests visibles 0/0').
+    calls = _patch_bon(monkeypatch, "def dp(x):\n return 0", 0, 0,
+                       code_7b="def dp(x):\n return x*2", score_7b=1)
+    # el 7B sí generó tests (total 1) y pasó -> gana
+    def fake_bon(gen_fn, *a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"code": "def dp(x):\n return 0", "n_generated": 1, "n_unique": 1,
+                    "rank_mode": "greedy_fallback_early",
+                    "ranking": [{"idx": 0, "score": 0, "total": 0}]}   # 0 tests visibles
+        return {"code": "def dp(x):\n return x*2", "n_generated": 3, "n_unique": 3,
+                "rank_mode": "tests", "ranking": [{"idx": 0, "score": 1, "total": 1}]}
+    monkeypatch.setattr("cognia.agent.candidates.best_of_n", fake_bon)
+    monkeypatch.setattr("node.heavy_code.heavy_code_backend", lambda: object())
+    monkeypatch.setattr("node.heavy_code.close_heavy_code", lambda: None)
+    monkeypatch.setattr(tools, "_bon_n", lambda d: (5, 0.9))   # dura
+    r = tools._generar_codigo("dp.py | funcion dp(x)", _ctx(tmp_path))
+    assert calls["n"] == 2                         # escaló pese a 0 tests visibles
+    assert "escalado a 7B" in r
+
+
 def test_escala_pero_7b_no_mejora_se_queda_3b(monkeypatch, tmp_path):
     # escala pero el 7B NO supera al 3B (mismo score) => se queda con el 3B, cierra igual
     calls = _patch_bon(monkeypatch, "def f(x):\n return x", 1, 2,

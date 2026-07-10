@@ -21,9 +21,12 @@ la tarea) → RAM steady-state 0. El i3 tiene ~12GB: 3B (1.93GB) + 7B (4.68GB) +
 portero + KVs residentes = riesgo OOM, por eso NO se mantiene warm salvo opt-in
 COGNIA_HEAVY_KEEPWARM (solo tras medir headroom).
 
-Kill-switch: COGNIA_HEAVY_CODE=1 lo habilita (default OFF hasta que el gate
-pase). Ante CUALQUIER falla (GGUF faltante, server no arranca) cae al resultado
-del 3B y no reintenta (la tarea nunca queda sin código).
+Kill-switch: OPT-IN (default OFF); COGNIA_HEAVY_CODE=1 lo habilita. El gate de
+calidad pasó (2026-07-10: 7B recupera 8/8 duras, +20pp, p=0.0078) pero el flujo
+de producción no reprodujo esa ganancia (gap de prompt gate-vs-deploy, 2 e2e);
+queda opt-in hasta cerrar ese gap. Ante CUALQUIER falla (GGUF faltante, server
+no arranca) cae al resultado del 3B y no reintenta (la tarea nunca queda sin
+código).
 
 Auto-verificación REAL:  COGNIA_HEAVY_CODE=1 venv312\Scripts\python.exe -m node.heavy_code
 """
@@ -46,6 +49,16 @@ _HEAVY_FAILED = False
 
 
 def _habilitado() -> bool:
+    # OPT-IN (default OFF): COGNIA_HEAVY_CODE=1 lo habilita. El gate de CALIDAD paso
+    # (results_code_gate7b_n40, 2026-07-10: el 7B recupera 8/8 tareas duras
+    # verificadas, +20pp 37.5->57.5%, p=0.0078) PERO el e2e de produccion NO
+    # materializo esa ganancia: el flujo de generar_codigo (prompt envuelto + BoN)
+    # no reproduce el greedy del gate que si extrae el rendimiento del 7B (2 e2e:
+    # burst_balloons y single_number, ambas RECUPERADAS en el gate, fallaron por el
+    # flujo de produccion). Default ON impondria latencia (7B ~2.2 tok/s) sin
+    # capturar el +20pp de forma confiable -> queda opt-in hasta cerrar el gap de
+    # prompt (ver ANALISIS_GATE_7B.md, "trabajo pendiente"). El mecanismo funciona
+    # (escala, RAM 8.25GB<10GB medido); lo que falta es el prompt de deploy.
     return os.environ.get("COGNIA_HEAVY_CODE", "").strip().lower() in (
         "1", "true", "on", "yes")
 

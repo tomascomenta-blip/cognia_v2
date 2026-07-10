@@ -721,8 +721,15 @@ def _generar_codigo(args, ctx):
     # CODE OFF (default) => heavy_code_backend() es None => 0 cambios.
     # Lazy-load-usar-cerrar (RAM steady-state 0 en el i3 de 12GB).
     _escalado_7b, _score_7b = False, None
-    _fallo_3b = (_score_3b is None or (_total and _score_3b < _total)
-                 or f"def {entry}" not in code)
+    # El 3B tiene CONFIRMACION de exito solo si genero tests visibles reales y los
+    # paso TODOS. Sin tests (total=0) NO hay confirmacion: el e2e (burst_balloons,
+    # 2026-07-10) cazo que el disparador viejo 'score<total' NUNCA saltaba con 0
+    # tests visibles, aunque el codigo fallara los tests ocultos -> el +20pp del
+    # gate no se materializaba en produccion. Ahora: en tarea dura, si el 3B no
+    # CONFIRMA exito, escalar. El 'mejor de (3B,7B)' garantiza que escalar de mas
+    # nunca empeora; el pre-filtro de dificultad acota el costo a tareas duras.
+    _confirmado_3b = (_total and _score_3b is not None and _score_3b >= _total)
+    _fallo_3b = (not _confirmado_3b) or (f"def {entry}" not in code)
     if _fallo_3b and dif >= _HEAVY_THRESHOLD:
         try:
             from node.heavy_code import heavy_code_backend, close_heavy_code
@@ -743,9 +750,18 @@ def _generar_codigo(args, ctx):
                     _b7 = (_out7.get("ranking", [{}])[0]
                            if _out7.get("ranking") else {})
                     _score_7b, _code7 = _b7.get("score"), _out7.get("code", "")
-                    if (_code7.strip() and f"def {entry}" in _code7
-                            and _score_7b is not None
-                            and (_score_3b is None or _score_7b > _score_3b)):
+                    _t7 = _b7.get("total")
+                    # Seleccion: con tests visibles, el de MAYOR score (B nunca
+                    # peor que A). SIN tests visibles (total=0 en ambos), no hay
+                    # oraculo para comparar -> preferir el 7B, medido a-priori
+                    # mejor en codigo duro (50% vs 40%); el escalado ya se gateo
+                    # por dificultad + no-confirmacion del 3B, asi que es la
+                    # mejor apuesta disponible (el e2e mostro que el empate 0-0
+                    # dejaba el codigo malo del 3B).
+                    _7b_gana = (_score_3b is None
+                                or (_score_7b is not None and _score_7b > _score_3b)
+                                or (not _total and not _t7))
+                    if _code7.strip() and f"def {entry}" in _code7 and _7b_gana:
                         out, _best_t, code = _out7, _b7, _code7
                         _escalado_7b = True
                 finally:

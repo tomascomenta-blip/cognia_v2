@@ -18,7 +18,8 @@ def _reset(monkeypatch):
 
 
 def test_off_por_defecto_devuelve_none():
-    # Sin COGNIA_HEAVY_CODE el código duro se queda en el 3B (cero riesgo).
+    # OPT-IN: sin COGNIA_HEAVY_CODE el código duro se queda en el 3B (default OFF
+    # tras el veredicto: el gate de calidad pasó pero el deploy no lo materializó).
     assert hc.heavy_code_backend() is None
 
 
