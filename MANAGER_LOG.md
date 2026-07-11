@@ -6009,3 +6009,25 @@ Contenido 3.8.4 = robustez (fix cuelgue + fix REPL piped) + especialistas MoM
 empaquetados (portero 0.5B turnos rápidos, escalado reactivo 3B→7B código duro
 +20pp, GBNF, parche de error) que se activan con los modelos del fleet vía
 `cognia install-model` y degradan al 3B si faltan. Usage al cierre: 10% (5h).
+
+## 2026-07-11 ~00:15 — 7B al instalador + REGRESIÓN de 3.8.4 cazada y revertida (3.8.5)
+- **C4a — 7B de código cableado al producto instalado** (commit 4fb572c). Era el
+  único eslabón del MoM que no llegaba a un pip install: heavy_code resolvía el
+  GGUF solo con resolve_gguf_path("7b") (repo/site-packages, nunca poblado).
+  Fix: _resolve_heavy_gguf() (override/HEAVY_CODE_GGUF_PATH/registry) +
+  install_heavy_code() opt-in (`cognia install-model --with-heavy-code`, ~4.7 GB).
+  Verif: 8/8 tests + el GGUF existe en HF (list_repo_files) + resolución instalada
+  devuelve el 7B real.
+- **REGRESIÓN de 3.8.4 CAZADA y REVERTIDA** (commits e509366 fix + e47c688 release
+  3.8.5). En 3.8.4 agregué repeat_penalty=1.3 al paso ReAct (junto a las cotas del
+  cuelgue). Un e2e del CAMINO FELIZ —que debí correr ANTES de 3.8.4— reveló que el
+  penalty penalizaba los tokens de los nombres de tool (repetidos desde TOOLS_DOC)
+  y empujaba al 3B a BASURA: tareas normales de /hacer **0/5 CON rp, 5/5 SIN rp**
+  (A/B con orch.infer envuelto, mismo modelo/harness). Fix: quitar repeat_penalty
+  del agente; conservar max_tokens=256 + _FAIL_STREAK (el bound REAL del cuelgue,
+  que NO daña la generación). Verif del código arreglado: 5/5 normales + búsqueda
+  termina 167s (no cuelga) + suite 3736/0-fail + smoke venv limpio 8/8 (guard: sin
+  repeat_penalty=1.3 en el wheel). **LECCIÓN (vinculante): correr el e2e del camino
+  feliz ANTES de cada release, no solo el repro del bug — el pytest (3728) no ejecuta
+  el agente con modelo real, así que la regresión pasó la compuerta.** 3.8.4 debería
+  YANKEARSE en PyPI (el token de upload no puede; lo hace el dueño desde la web).
