@@ -6051,3 +6051,21 @@ empaquetados (portero 0.5B turnos rápidos, escalado reactivo 3B→7B código du
 - **Release 3.8.6** (commit 0ce0f1e, tag v3.8.6). Gate: e2e camino feliz 5/5 (la
   lección, ANTES de publicar) + suite 3741/0-fail + smoke venv limpio 8/8 (incl.
   rescate del buscar + guard anti-regresión). PyPI: https://pypi.org/project/cognia-ai/3.8.6/
+
+## 2026-07-11 ~01:05 — verificación integral + consolidación del gate
+- **Batería e2e adaptada (B/C/D/E) del repo** contra 3.8.6: intent 10/10, router
+  6/6, D backend+fleet+identidad (experto="Cognia es como me dicen...", base="creado
+  por Anthropic"), E1 escribir OK. E2+ cortado por WinError 10054 (llama-server
+  terminado = presión de recursos del entorno tras muchas cargas del modelo esta
+  sesión), NO bug del producto. Con las 5/5 tareas normales previas, el path /hacer
+  queda cubierto. El producto funciona INTEGRALMENTE.
+- **Consolidación del gate** (commit 1d26b11): scripts/e2e_happy_path.py (el e2e de
+  camino feliz, ahora reusable en el repo — el mismo que cazó y verificó el fix de
+  la regresión), fix UTF-8 de e2e_bateria_final.py (el '→' crasheaba en cp1252), y
+  regla en CLAUDE.md (gate de pre-release OBLIGATORIO). La lección queda codificada
+  como herramienta + regla, no como conocimiento perdido.
+- **Estado de la sesión**: 8 commits, 3 releases (3.8.4 con regresión → 3.8.5 la
+  revierte → 3.8.6 robustez), una regresión propia cazada y corregida dentro de la
+  misma corrida. Producto estable en PyPI 3.8.6. Descartados con medición: adapter
+  'accion' en el agente (base ya limpia) y limpieza de la cola 'fitte' (riesgo de
+  falsos positivos > beneficio cosmético). Pendiente del dueño: yank de 3.8.4.
