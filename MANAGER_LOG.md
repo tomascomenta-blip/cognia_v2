@@ -6098,3 +6098,64 @@ empaquetados (portero 0.5B turnos rápidos, escalado reactivo 3B→7B código du
 - **Infra**: el entorno mata tareas de BACKGROUND bajo presión de recursos (mató la
   batería y un e2e a mitad). Los e2e del gate se corren en FOREGROUND (síncrono, timeout
   amplio) para que completen. 5 releases esta corrida (3.8.4→3.8.8).
+
+## 2026-07-11 ~17:30 — Medición HONESTA del lever de capacidad 7B end-to-end (sin release)
+Sesión de MEDICIÓN (dirección de valor "dónde estamos vs GLM 5.2"), no de release.
+Producto estable en PyPI 3.8.8. Salud base verificada primero: suite 3743/0-fail +
+e2e camino feliz 5/5. Working tree limpio (restauré build/entitlements.mac.plist y
+build/nsis_check_python.nsh, borrados accidentales de working tree sin commit de
+intención). Cero cambios en código fuente esta sesión.
+
+- **Diagnóstico del lever 7B.** El único win de CAPACIDAD del programa (Qwen-Coder-7B,
+  +20pp en código duro RAW) es alcanzable en producción SOLO vía `generar_codigo`
+  (que el agente pre-enruta como "paso 0" cuando la tarea nombra una función con
+  firma `func(...)`). Gate del escalado: el 3B FALLA sus tests visibles (o total=0)
+  Y dif>=0.30 → reintenta con el 7B GREEDY (prompt del gate), lazy-load-usar-cerrar.
+  El oráculo (tests visibles autogenerados) es prerequisito → por eso NO se puede
+  escalar de forma segura en tareas NO-código (sin oráculo). Confirma la tesis del
+  programa: capacidad = cómputo en inferencia CON oráculo; el router predictivo (sin
+  oráculo) midió PEOR (45<60).
+
+- **Medición pre-registrada, path REAL de producción (`generar_codigo`), tests OCULTOS,
+  HEAVY ON vs OFF, pareado.** 5 tareas duras del benchmark (H01-H05):
+  - 3B best_of_n (OFF): **5/5** ocultos (incl. H01 roman/H03 ipv4 que estimate_difficulty
+    sub-clasifica como fáciles, dif 0.13/0.23 < 0.30).
+  - 3B+7B (ON): **5/5**. SOLO H05 (merge_sorted, fix-the-bug, total=0 tests visibles,
+    dif=0.30) escaló al 7B; el 7B lo resolvió CORRECTO pero a **298s vs 104s del 3B**
+    (~+194s de latencia por CERO beneficio: el 3B ya lo tenía).
+  - **El +20pp del gate (medido RAW single-shot) NO se traduce en valor incremental en
+    producción**: el baseline de producción (best_of_n N=6-10 + test-first + juez) es
+    MUCHO más fuerte que el single-shot del gate → ya recupera el set duro.
+
+- **Sondeo de si existe un nicho real del 7B: 3 tareas EXTRA-duras (X1-X3, estándar,
+  respuesta inequívoca, tests ocultos).**
+  - 3B best_of_n (OFF): **2/3** — X1 min_edit_distance PASS, X2 longest_palindrome PASS,
+    **X3 eval_expr FAIL** (evaluador de expresiones con precedencia; runtime error).
+  - X3 forzado al 7B (umbral bajado a 0): **el 7B TAMBIÉN FALLA** (malinterpretó
+    "truncate toward zero": usó `-(-left//right)`=ceil → 10/3=4 en vez de 3). 284s.
+  - **Donde el 3B falla, el 7B falla también → el techo de capacidad es COMPARTIDO**,
+    no un límite solo-del-3B que el 7B levante. eval_expr-class está fuera de AMBOS.
+
+- **CASI cometo un error (trazado a tiempo).** El escalado REEMPLAZA el 3B por el 7B sin
+  comparar por tests (el comentario "mejor de (3B,7B) nunca empeora" NO está implementado).
+  Iba a agregar el guardián comparativo, pero al buscar la causa raíz: la sesión previa
+  hace tomar el 7B greedy SIN comparar A PROPÓSITO — el probe (2026-07-10) midió que el
+  JUEZ de tests visibles autogenerados es DÉBIL y descartaba el candidato 7B correcto.
+  El guardián HABRÍA REGRESIONADO el fix del probe. El "gap" era una decisión intencional.
+  (Método: "no confiar en docs/afirmaciones sin verificar la causa raíz".)
+
+- **VEREDICTO (honesto):** no hay un cambio de código claro y seguro que agregue valor.
+  El path de código de producción ya es fuerte (7/8 duras); el 7B no aporta incremental
+  en el set medido y comparte el techo con el 3B donde este falla; el pre-filtro 0.30
+  está bien calibrado (bloquea escalados desperdiciados tipo-X1 y la dura sub-umbral que
+  bloquea —X3— está fuera del 7B igual); el escalado total=0 es un tradeoff medido
+  intencional (captura fallos silenciosos tipo burst_balloons, a costa de latencia cuando
+  el 3B ya acierta —H05—, irreducible sin mejor test-gen o perder la protección). La
+  dirección (a) [7B a no-código] sigue bloqueada por el oráculo. El gap a GLM 5.2 en
+  código duro es de CAPACIDAD CRUDA (ambos modelos locales fallan eval_expr), = cómputo,
+  fine-tune-cerrado. **Mantener estable (proteger el producto > manufacturar churn), que
+  es lo que el goal endosa cuando no hay valor claro y seguro.** Sin release.
+
+- **Pendiente del dueño (recordatorio):** YANKEAR 3.8.4 en PyPI (release con la regresión
+  del repeat_penalty del agente) — 30 s desde 'Manage project' en la web de PyPI. El token
+  de upload no puede yankear; lo hace el dueño desde la web.
