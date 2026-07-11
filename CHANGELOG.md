@@ -2,6 +2,42 @@
 
 ---
 
+## [3.8.4] - 2026-07-10
+
+### Fix — Robustez del agente + REPL; feature — especialistas MoM (portero 0.5B, 7B de código)
+
+Release de robustez sobre 3.8.3. Los especialistas MoM viajan como CÓDIGO en el
+wheel y se ACTIVAN cuando los modelos del fleet están presentes (vía
+`cognia install-model`); sin ellos DEGRADAN CON GRACIA al 3B (no rompen nada).
+
+- **Fix — cuelgue del agente en tareas de búsqueda** (`cognia/cli.py`,
+  `shattering/orchestrator.py`): en búsquedas el 3B degeneraba a temp=0 inventando
+  nombres de tool basura DISTINTOS cada paso; el stuck-detector viejo (que cuenta
+  acciones idénticas) no disparaba y el loop colgaba ~30 min. Fix en 3 capas:
+  `max_tokens=256` + `repeat_penalty=1.3` en el paso ReAct (acota cada infer), y
+  corte por no-progreso (`_FAIL_STREAK=3`: 3 acciones seguidas que fallan → cierre
+  honesto). Repro end-to-end: la tarea termina en 188.8s / 3 pasos (antes colgaba).
+- **Fix — REPL con stdin piped** (`cognia/cli.py`): `PromptSession` caía con
+  `NoConsoleScreenBufferError` cuando no había consola Win32 (stdin redirigido) y
+  el REPL entero moría al arrancar. Ahora cae a `input()`.
+- **Feature — portero 0.5B (turnos rápidos)** (`node/speech_cascade.py`): router de
+  turnos de charla/identidad al especialista 0.5B en un 2º server con LoRA estática;
+  decode 3.33× media / 3.86× mediana pareada, ruta de deploy 90% (18/20), 0 FP
+  sobre 422 prompts. Se activa con el GGUF 0.5B instalado; si falta, ruta al 3B.
+- **Feature — escalado reactivo 3B→7B en código duro** (`node/heavy_code.py`,
+  `cognia/agent/tools.py`): cuando el 3B FALLA los tests visibles de una tarea de
+  código difícil, se reintenta con Qwen2.5-Coder-7B GREEDY en un server dedicado
+  (:8092, lazy-load-usar-cerrar). Código duro 37.5→57.5% pass@1 (+20pp, p=0.0078).
+  Default ON; `COGNIA_HEAVY_CODE=0` lo apaga; sin el GGUF 7B cae al 3B.
+- **Robustez — estructura JSON (GBNF) y errores accionables** (`cognia/agent/`):
+  gramática GBNF para el gap de formato (schema-fails 7→0, McNemar p=0.016) y
+  parche determinista de error accionable (2→9/14) — sin GPU.
+
+Tests de regresión nuevos: `tests/test_agent_step_budget.py` (corte por no-progreso
++ presupuesto del paso ReAct), harness de gates del portero y del 7B.
+
+---
+
 ## [3.7.1] - 2026-07-01
 
 ### Fix — Agente (loop + herramientas) y backend; feature — pipeline tool-use
