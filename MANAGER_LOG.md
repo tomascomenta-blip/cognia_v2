@@ -6069,3 +6069,16 @@ empaquetados (portero 0.5B turnos rápidos, escalado reactivo 3B→7B código du
   misma corrida. Producto estable en PyPI 3.8.6. Descartados con medición: adapter
   'accion' en el agente (base ya limpia) y limpieza de la cola 'fitte' (riesgo de
   falsos positivos > beneficio cosmético). Pendiente del dueño: yank de 3.8.4.
+
+## 2026-07-11 ~02:18 — 3.8.7: docs del MoM a PyPI + /resumir (cierre de la entrega MoM)
+- **Release 3.8.7** (commit c6a9df8, tag v3.8.7). Cierra la entrega del MoM en PyPI:
+  el CÓDIGO llegó en 3.8.4-3.8.6, las DOCS de discoverability llegan a la página de
+  PyPI recién con un release (long_description). README documenta `install-model`
+  (stack recomendado: GGUF 3B + llama-server + expertos + portero), los especialistas
+  MoM (portero 0.5B turnos rápidos, escalado 3B→7B --with-heavy-code +20pp) y la
+  tabla de estado al día (fila MoM, Julio 2026). + bound de /resumir (max_tokens=256,
+  cuelgue latente menor). Gate: e2e camino feliz 5/5 + suite 3742/0-fail + smoke venv
+  limpio 8/8. Decisión: front-loadear el release (no diferir a las 4:30) porque el
+  valor estaba listo/gateado y el entorno podría degradarse más tarde.
+  https://pypi.org/project/cognia-ai/3.8.7/
+- Tras 3.8.7: MANTENIMIENTO MEDIDO (producto estable, valor genuino sin churn).
