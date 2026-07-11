@@ -56,3 +56,13 @@ def test_default_none_no_cambia_comportamiento():
     from shattering.orchestrator import ShatteringOrchestrator
     assert inspect.signature(ShatteringOrchestrator.infer).parameters[
         "repeat_penalty"].default is None
+
+
+def test_slash_plan_crear_acota_max_tokens():
+    # /plan crear decompone en 3-5 pasos (salida corta); sin cota el 3B podía
+    # degenerar hasta el default del orquestador (~70s de basura). Cuelgue latente
+    # de la misma clase que la búsqueda, acotado con max_tokens=160 (sin repeat_penalty).
+    from cognia import cli
+    src = inspect.getsource(cli._slash_plan_crear)
+    assert "max_tokens=160" in src, "/plan crear no acota max_tokens (cuelgue latente)"
+    assert "repeat_penalty=1.3" not in src, "no usar repeat_penalty (empuja al 3B a basura)"

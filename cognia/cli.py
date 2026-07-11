@@ -2706,7 +2706,11 @@ def _slash_plan_crear(ai, goal: str) -> str:
         f"Devuelve SOLO una lista numerada, un paso por linea, sin introduccion ni conclusion.\n\n"
         f"Objetivo: {goal}"
     )
-    result = orch.infer(prompt)
+    # max_tokens=160 + temperature=0.0: una lista de 3-5 pasos es corta; sin cota
+    # (default del orquestador) un infer degenerado del 3B llenaba hasta el cap
+    # (~70s de basura). Mismo patrón que el decompose del agente. SIN repeat_penalty
+    # (empuja al 3B a basura; ver el paso ReAct de _run_agent_task).
+    result = orch.infer(prompt, max_tokens=160, temperature=0.0)
     raw_text = result.text.strip()
     steps = []
     for line in raw_text.splitlines():
