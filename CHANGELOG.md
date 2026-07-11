@@ -2,6 +2,23 @@
 
 ---
 
+## [3.8.7] - 2026-07-11
+
+### Docs — discoverability del MoM + robustez menor
+
+- **README documenta `install-model` y los especialistas MoM.** El README no
+  mencionaba `cognia install-model` (el stack recomendado: GGUF 3B + llama-server
+  b9391 + expertos LoRA + portero 0.5B) ni sus opciones, así que los usuarios no
+  descubrían el **portero** (turnos de charla ~3.3–3.9× más rápidos) ni el
+  **escalado 7B de código** (`--with-heavy-code`, opt-in, +20pp). Agregados a la
+  lista de subcomandos, una subsección "Especialistas (Mixture of Models)", y la
+  fila del MoM en la tabla de Estado del proyecto (al día, Julio 2026).
+- **`/resumir` acota su infer** (`cognia/cli.py`): el resumen es explícitamente de
+  2-3 oraciones; se acota a `max_tokens=256` (sin `repeat_penalty`) para no gastar
+  si el 3B degenera. Mismo patrón que `/plan crear`.
+
+---
+
 ## [3.8.6] - 2026-07-11
 
 ### Robustez del agente — búsqueda pese a args ruidosos + cuelgue latente de /plan crear
