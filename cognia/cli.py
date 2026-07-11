@@ -7596,14 +7596,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # generate-then-discard del rambling. NO se incluye '\nRESULTADO'
             # porque el contenido multi-linea de escribir_archivo puede contenerlo.
             # max_tokens=256: una ACCION es corta (`tool args` o `responder <texto>`);
-            # el default 768 dejaba al 3B DEGENERAR (cola repetida a temp=0 hasta el
-            # cap) — repro 2026-07-10: un infer degenerado = 768 tok / ~70s, y varios
-            # pasos asi colgaban el loop ~30 min en tareas de busqueda. repeat_penalty
-            # 1.3 desalienta la degeneracion -> el modelo emite el stop tras la
-            # respuesta util. Cota dura: cada paso <=256 tok.
+            # el default 768 dejaba al 3B llenar cada paso degenerado hasta el cap
+            # (~70s). Cota dura por paso; el bound REAL del cuelgue es el corte por
+            # no-progreso (_FAIL_STREAK) mas abajo.
+            # NO repeat_penalty: rp=1.3 (que probe en 3.8.4) penalizaba los tokens de
+            # los nombres de tool —que se repiten desde TOOLS_DOC en el prompt— y
+            # empujaba al 3B a BASURA. e2e 2026-07-10: con rp=1.3 tareas normales
+            # 0/5, sin rp 5/5. Regresion de 3.8.4 revertida (ver 3.8.5).
             raw_response = orch.infer(
                 prompt, temperature=_step_temp, stop=["\nACCION:", "\nACCIÓN:"],
-                max_tokens=256, repeat_penalty=1.3,
+                max_tokens=256,
             ).text.strip()
             _step_temp = 0.0
         except Exception as e:
@@ -7669,9 +7671,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # args + validacion contra la firma de la tool + a lo sumo UN retry
         # con el error del validador en el prompt. Ver cognia/agent/structure.py.
         def _reinfer_fix(hint, _p=prompt, _r=raw_response):
+            # sin repeat_penalty (ver el infer del paso ReAct: rp empujaba a basura)
             return orch.infer(_p + "\n" + _r[:600] + hint, temperature=0.0,
                               stop=["\nACCION:", "\nACCIÓN:"],
-                              max_tokens=256, repeat_penalty=1.3).text.strip()
+                              max_tokens=256).text.strip()
         action, args, _struct = structure_action(action, args, _reinfer_fix)
         if _struct.get("repaired"):
             _print_fn("[detail]args reparados (retry de formato con error real)[/detail]")

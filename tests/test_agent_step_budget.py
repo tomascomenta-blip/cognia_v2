@@ -1,24 +1,29 @@
 # -*- coding: utf-8 -*-
-"""Regresión: el paso ReAct del agente acota max_tokens y penaliza repetición.
+"""Regresión: el paso ReAct del agente acota max_tokens y NO usa repeat_penalty.
 
 Bug cazado 2026-07-10 (repro de búsqueda): el paso ReAct usaba el default de
-768 tokens; a temp=0 el 3B DEGENERA (cola repetida hasta el cap) -> un infer de
-768 tok / ~70s, y varios pasos así colgaban el loop ~30 min en tareas de
-búsqueda. Fix: max_tokens=256 + repeat_penalty=1.3 en el infer del paso ReAct
-(y en el _reinfer_fix de reparación de formato). orchestrator.infer/_local_infer
-extendidos para pasar repeat_penalty al backend.
+768 tokens; a temp=0 el 3B DEGENERA y varios pasos así colgaban el loop ~30 min.
+Fixes que SÍ funcionan: max_tokens=256 (cota por paso) + _FAIL_STREAK (corte por
+no-progreso = bound REAL del cuelgue).
+
+CORRECCIÓN 3.8.5: en 3.8.4 agregué también repeat_penalty=1.3, pero un e2e del
+camino feliz mostró que penalizaba los tokens de los nombres de tool (que se
+repiten desde TOOLS_DOC en el prompt) y empujaba al 3B a BASURA -> tareas normales
+0/5 con rp, 5/5 sin rp. repeat_penalty REVERTIDO del agente. El param sigue en
+orchestrator.infer (extensión legítima del API), solo que el agente no lo usa.
 """
 import inspect
 
 
-def test_react_step_acota_tokens_y_penaliza_repeticion():
+def test_react_step_acota_tokens_sin_repeat_penalty():
     from cognia import cli
     src = inspect.getsource(cli._run_agent_task)
-    # el infer del paso ReAct (con stop de ACCION) debe acotar el presupuesto
+    # el infer del paso ReAct debe acotar el presupuesto por paso
     assert "max_tokens=256" in src, "el paso ReAct no acota max_tokens"
-    assert "repeat_penalty=1.3" in src, "el paso ReAct no penaliza la repetición"
-    # ambos deben aparecer >=2 veces (paso ReAct + _reinfer_fix)
-    assert src.count("repeat_penalty=1.3") >= 2, "el _reinfer_fix no penaliza repetición"
+    # REGRESIÓN 3.8.4 revertida: repeat_penalty=1.3 empujaba al 3B a basura (e2e
+    # 0/5 tareas normales). Guard: no re-introducirlo en el loop del agente.
+    assert "repeat_penalty=1.3" not in src, \
+        "repeat_penalty=1.3 en el agente REGRESIONA (empuja a basura); no re-introducir"
 
 
 def test_corte_por_no_progreso():
