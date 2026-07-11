@@ -5931,3 +5931,34 @@ entrenamiento, coherente con la tesis (5 negativas de fine-tune de capacidad).
 Reactivo + pre-filtrado: solo paga latencia en código duro que el 3B falló.
 Lección: los e2e reales (no el gate) cazaron que el deploy no reproducía el
 gate; sin ellos se habría promovido un +20pp inexistente en producción.
+
+## 2026-07-10 (noche) — FASE 5: GitHub + proceso GPU Kaggle (EAGLE3) — kill-gate CPU MATÓ la línea sin gastar GPU
+
+Mandato: "subí la actualización funcional a GitHub + seguí con el proceso de
+GPU en Kaggle" (AUTORIZACIÓN GPU explícita).
+
+- **GitHub**: cognia-x pusheado (fases 1-4) + release fleet-v1 (portero) + tag
+  mom-fase4-7b-20260710 (referenciable). main NO tocado (655 commits atrás,
+  rama de releases PyPI estables).
+- **Proceso GPU = velocidad por speculative (cabeza EAGLE3/MTP)**. HALLAZGO:
+  llama.cpp YA soporta EAGLE3 (b9606) y MTP (draft-mtp); b9391 pineado NO. El
+  scoping estaba desactualizado (asumía draft-eagle3 en b9391).
+- **Gates ANTES de gastar GPU** (método del programa: validar lo más riesgoso
+  barato primero):
+  - GATE 0: b9606 no regresiona el decode base vs b9391 (+3.7%). ✓
+  - Workflow research (wwrzerlmf): EAGLE3 (MTP inviable — exige módulo MTP
+    nativo de pretraining). 2 riesgos: (a) prebuilt b9606 no corre EAGLE3 sobre
+    Qwen2 (hay que compilar hook), (b) CERO evidencia CPU + exp021 0.37×.
+  - **GATE A (kill-gate CPU, SIN GPU)**: par público Qwen3-1.7B + AngelSlim
+    cabeza EAGLE3 (convertida a GGUF con el converter b9606, --target-model-dir),
+    medido en el i3: **base 4.42 → EAGLE3 2.05 tok/s = 0.464× (HUNDE)**,
+    bit-idéntico. El MECANISMO funciona (lossless) pero en 2 cores el verify
+    batcheado es COMPUTE-BOUND → speculative hunde. Consistente con exp021.
+- **VEREDICTO: línea velocidad-por-speculative CERRADA en el i3.** NO se entrena
+  la cabeza EAGLE3 en Kaggle — el kill-gate ahorró 15-24 GPU-h. Corrige la
+  proyección de exp021 (MTP/EAGLE 2-3× era GPU; en 2 cores no se cumple). El
+  lever de velocidad real: portero 0.5B (turnos triviales, 3.3-3.9×, desplegado)
+  + ngram-mod (lossless, default). PLAN_EAGLE3_POC.md + results_gate_a_eagle3.json.
+- **Honestidad**: el "proceso de GPU" se ejecutó hasta el punto donde la
+  evidencia lo mató SIN gastar GPU. No lanzar Kaggle a algo que el gate CPU
+  demostró inviable es respetar el método, no incumplir el mandato.

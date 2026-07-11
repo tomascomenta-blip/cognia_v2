@@ -54,3 +54,27 @@ Si GATE A da <1× con un par conocido-bueno → INVIABLE-en-CPU; el entregable e
 esa medición (coherente con exp021 0.37×). NO se lanza la GPU de calidad. El
 lever de velocidad queda en: cascada 0.5B (portero) + ngram-mod + el 7B para
 capacidad.
+
+## RESULTADO GATE A (2026-07-10): EAGLE3 NO PAGA EN CPU — línea MUERTA sin GPU
+
+Par público conocido-bueno: Qwen3-1.7B (f16 GGUF) + AngelSlim/Qwen3-1.7B_eagle3
+(cabeza convertida a GGUF con convert_hf_to_gguf.py --target-model-dir del
+b9606). Medido en el i3 2-cores con b9606 --spec-type draft-eagle3 (results_
+gate_a_eagle3.json):
+
+  baseline 4.42 tok/s → EAGLE3 **2.05 tok/s = 0.464×** (HUNDE). bit-idéntico=True.
+
+**El mecanismo FUNCIONA** (la conversión EAGLE3→GGUF cierra, la cabeza acepta
+drafts, el output es bit-idéntico = lossless) — pero en 2 cores el verify
+batcheado del target es COMPUTE-BOUND (no hay paralelismo para amortizar los K
+tokens), así que speculative decoding HUNDE la velocidad. Consistente con
+exp021 (draft separado 0.37×). **Corrige la proyección de exp021**: "MTP/EAGLE
+= único speculative que respeta la banda, 2-3×" era GPU; en el i3 2-cores NO se
+cumple (compute-bound, no bandwidth-bound).
+
+VEREDICTO: **NO se entrena la cabeza EAGLE3 en Kaggle** (el kill-gate ahorró
+15-24 GPU-h). La línea velocidad-por-speculative queda CERRADA en el i3. El
+lever de velocidad real: (1) tamaño del modelo (portero 0.5B para turnos
+triviales, ya desplegado, 3.3-3.9×); (2) ngram-mod (lossless, código
+repetitivo, ya default en b9391). Speculative con cabeza entrenada NO agrega
+sobre eso en 2 cores.
