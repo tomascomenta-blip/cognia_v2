@@ -66,3 +66,12 @@ def test_slash_plan_crear_acota_max_tokens():
     src = inspect.getsource(cli._slash_plan_crear)
     assert "max_tokens=160" in src, "/plan crear no acota max_tokens (cuelgue latente)"
     assert "repeat_penalty=1.3" not in src, "no usar repeat_penalty (empuja al 3B a basura)"
+
+
+def test_slash_resumir_acota_max_tokens():
+    # /resumir promete '2-3 oraciones' (salida corta); acotar evita el desperdicio
+    # si el 3B degenera. Mismo patrón de bound que /plan crear (single-shot).
+    from cognia import cli
+    full = inspect.getsource(cli)
+    assert "_orch_r.infer(_summary_prompt, max_tokens=256)" in full, \
+        "/resumir no acota max_tokens (infer del summary sin cota)"

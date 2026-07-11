@@ -6456,7 +6456,9 @@ def repl():
                         + "\n".join(_hist_snippet)
                         + "\n\nResumen:"
                     )
-                    _sum_result = _orch_r.infer(_summary_prompt)
+                    # max_tokens=256: el resumen es explícitamente 2-3 oraciones;
+                    # sin cota, un infer degenerado del 3B llenaba hasta el default.
+                    _sum_result = _orch_r.infer(_summary_prompt, max_tokens=256)
                     _summary_text = _sum_result.text.strip()
                     try:
                         ai.observe(_summary_text, provided_label="resumen_sesion")
