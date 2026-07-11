@@ -46,6 +46,26 @@ _HEAVY_SINGLETON: Optional[_LlamaServerBackend] = None
 _HEAVY_FAILED = False
 
 
+def _resolve_heavy_gguf():
+    """Ruta al GGUF del 7B (Path) o None. Orden de resolución (cubre dev Y el
+    producto instalado por pip, que NO tiene el repo):
+      1) COGNIA_HEAVY_CODE_GGUF — override explícito (tests / ruta a mano).
+      2) HEAVY_CODE_GGUF_PATH — lo persiste `cognia install-model --with-heavy-code`
+         en ~/.cognia/config.env; apply_config() lo mete en os.environ al arrancar.
+      3) resolve_gguf_path("7b") — el registry del repo (modo dev / desde fuente).
+    Devuelve None si ninguna ruta existe en disco → heavy_code_backend cae al 3B."""
+    from pathlib import Path
+    for var in ("COGNIA_HEAVY_CODE_GGUF", "HEAVY_CODE_GGUF_PATH"):
+        val = os.environ.get(var, "").strip()
+        if val:
+            p = Path(val)
+            if p.is_file():
+                return p
+    from shattering.model_constants import resolve_gguf_path
+    p = resolve_gguf_path("7b")
+    return p if (p is not None and p.is_file()) else None
+
+
 def _habilitado() -> bool:
     # Default ON tras cerrar el deploy (2026-07-10). Recorrido: el gate de CALIDAD
     # paso (results_code_gate7b_n40: 7B recupera 8/8 duras, +20pp 37.5->57.5%,
@@ -63,8 +83,9 @@ def _habilitado() -> bool:
 
 def heavy_code_backend() -> Optional[_LlamaServerBackend]:
     """Backend del 7B para escalar código duro, o None (→ el resultado se queda
-    en el 3B). Habilitado por COGNIA_HEAVY_CODE (default OFF). Singleton lazy;
-    una falla de arranque se cachea (_HEAVY_FAILED) y no se reintenta.
+    en el 3B). Habilitado por COGNIA_HEAVY_CODE (default ON; =0 lo apaga); el GGUF
+    se resuelve con _resolve_heavy_gguf() (override / config instalada / registry).
+    Singleton lazy; una falla de arranque se cachea (_HEAVY_FAILED) y no reintenta.
 
     Puerto 8092 dedicado (8088=3B fleet, 8090=portero, 8091=deep-cascade): el
     7B vive en OTRO proceso, cero interacción con el hot-swap LoRA del 3B."""
@@ -75,11 +96,12 @@ def heavy_code_backend() -> Optional[_LlamaServerBackend]:
         return _HEAVY_SINGLETON
     if _HEAVY_FAILED:
         return None
-    from shattering.model_constants import resolve_gguf_path
-    gguf = resolve_gguf_path("7b")
-    if gguf is None or not gguf.is_file():
-        logger.warning("[heavy_code] COGNIA_HEAVY_CODE activo pero falta el GGUF 7B "
-                       "(%s); el código duro se queda en el 3B", gguf)
+    gguf = _resolve_heavy_gguf()
+    if gguf is None:
+        logger.warning("[heavy_code] COGNIA_HEAVY_CODE activo pero no hay GGUF 7B "
+                       "(ni HEAVY_CODE_GGUF_PATH ni el registry del repo); el "
+                       "código duro se queda en el 3B. Instalá con: "
+                       "cognia install-model --with-heavy-code")
         _HEAVY_FAILED = True
         return None
     try:

@@ -17,6 +17,7 @@ Todo va a ~/.cognia (portable a cualquier máquina):
   las carga al arrancar; node/llama_backend las lee).
 
 Uso CLI:  cognia install-model  [--skip-gguf] [--skip-server] [--skip-fleet]
+          [--skip-portero] [--with-heavy-code]   (7B de código, ~4.7 GB, opt-in)
 """
 from __future__ import annotations
 
@@ -60,6 +61,14 @@ PORTERO_DIR = COGNIA_HOME / "models" / "qwen-0.5b-portero"
 PORTERO_GGUF_REPO = "Qwen/Qwen2.5-0.5B-Instruct-GGUF"
 PORTERO_GGUF_FILE = "qwen2.5-0.5b-instruct-q8_0.gguf"
 PORTERO_LORA_FILE = "cognia_portero05b_f16.gguf"
+
+# Especialista de CAPACIDAD 7B para código duro (MoM fase 4): base pura Qwen2.5-
+# Coder-7B Q4_K_M (~4.7 GB). OPT-IN (--with-heavy-code): son 7× el 3B, no se
+# fuerza en cada instalación. El escalado reactivo 3B→7B sube el código duro
+# 37.5→57.5% pass@1 (+20pp medido). Sin él, el CLI corre igual (cae al 3B).
+HEAVY_DIR = COGNIA_HOME / "models" / "qwen-coder-7b-q4"
+HEAVY_GGUF_REPO = "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF"
+HEAVY_GGUF_FILE = "qwen2.5-coder-7b-instruct-q4_k_m.gguf"
 
 
 def _progreso(nombre: str):
@@ -206,10 +215,38 @@ def install_portero(dest_dir: Path = PORTERO_DIR, hf_token: str = "") -> bool:
     return True
 
 
+def install_heavy_code(dest_dir: Path = HEAVY_DIR, hf_token: str = "") -> Path | None:
+    """Baja el 7B de código (~4.7 GB) de HF y persiste HEAVY_CODE_GGUF_PATH.
+
+    Best-effort e idempotente: si falla la descarga avisa y devuelve None — el
+    escalado 3B→7B queda inactivo y el código duro se resuelve solo en el 3B
+    (heavy_code_backend cae a None). Solo se llama con --with-heavy-code."""
+    dest = dest_dir / HEAVY_GGUF_FILE
+    if dest.is_file() and dest.stat().st_size > 3 << 30:
+        print(f"  7B de código ya presente: {dest}")
+        set_config_value("HEAVY_CODE_GGUF_PATH", str(dest))
+        return dest
+    try:
+        from huggingface_hub import hf_hub_download
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        print(f"  Descargando {HEAVY_GGUF_FILE} (~4.7 GB) de {HEAVY_GGUF_REPO}...")
+        path = hf_hub_download(repo_id=HEAVY_GGUF_REPO, filename=HEAVY_GGUF_FILE,
+                               local_dir=str(dest_dir), token=hf_token or None)
+        set_config_value("HEAVY_CODE_GGUF_PATH", str(path))
+        return Path(path)
+    except Exception as exc:
+        print(f"  [WARN] 7B de código no disponible ({exc}); el código duro se "
+              "queda en el 3B (sin escalado).")
+        return None
+
+
 def install_model(skip_gguf: bool = False, skip_server: bool = False,
                   skip_fleet: bool = False, skip_portero: bool = False,
-                  hf_token: str = "") -> dict:
-    """Instala el stack completo y persiste config.env. Devuelve resumen."""
+                  with_heavy_code: bool = False, hf_token: str = "") -> dict:
+    """Instala el stack completo y persiste config.env. Devuelve resumen.
+
+    with_heavy_code (opt-in): baja además el 7B de código (~4.7 GB) para el
+    escalado reactivo 3B→7B en código duro (+20pp). Default OFF por el tamaño."""
     resumen = {}
     if not skip_gguf:
         gguf = install_gguf(hf_token=hf_token)
@@ -227,6 +264,9 @@ def install_model(skip_gguf: bool = False, skip_server: bool = False,
         resumen["fleet_adapters"] = install_fleet()
     if not skip_portero:
         resumen["portero"] = install_portero(hf_token=hf_token)
+    if with_heavy_code:
+        hc = install_heavy_code(hf_token=hf_token)
+        resumen["heavy_code"] = str(hc) if hc else None
     print("\n  Stack instalado. Arrancá con: cognia")
     return resumen
 
@@ -236,7 +276,8 @@ def main(argv: list[str] | None = None) -> None:
     install_model(skip_gguf="--skip-gguf" in args,
                   skip_server="--skip-server" in args,
                   skip_fleet="--skip-fleet" in args,
-                  skip_portero="--skip-portero" in args)
+                  skip_portero="--skip-portero" in args,
+                  with_heavy_code="--with-heavy-code" in args)
 
 
 if __name__ == "__main__":
