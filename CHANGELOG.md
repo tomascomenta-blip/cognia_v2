@@ -2,6 +2,21 @@
 
 ---
 
+## [3.8.8] - 2026-07-11
+
+### Seguridad — bind explícito de los servers de inferencia a localhost
+
+- **Los llama-server locales bindean explícito a `127.0.0.1`** (`node/llama_backend.py`).
+  Los servers de inferencia (fleet 8088, portero 8090, heavy_code 8092) se
+  spawneaban sin `--host`, dependiendo del default del binario. El cliente ya
+  conecta a `127.0.0.1`, pero un binario que default-ee a `0.0.0.0` (o un cambio de
+  default en una versión futura de llama.cpp) expondría el modelo local a la LAN.
+  Ahora se pasa `--host 127.0.0.1` explícito. **Defense-in-depth**: llama.cpp ya
+  default-ea a localhost, así que no había exposición activa; esto lo garantiza
+  independiente del binario, alineado con el core "IA local, privada" de Cognia.
+
+---
+
 ## [3.8.7] - 2026-07-11
 
 ### Docs — discoverability del MoM + robustez menor
