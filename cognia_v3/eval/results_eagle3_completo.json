@@ -1,0 +1,13 @@
+{
+ "experimento": "EAGLE3 speculative decoding - speedup por hardware y tamano de modelo",
+ "fecha": "2026-07-10",
+ "par_publico_conocido_bueno": "Qwen3 + cabeza EAGLE3 de AngelSlim (convertida a GGUF con convert_hf_to_gguf b9606 --target-model-dir)",
+ "mediciones": {
+  "Qwen3-1.7B_i3-2cores-CPU":   {"ratio": 0.464, "veredicto": "HUNDE"},
+  "Qwen3-1.7B_kaggle-CPU-4t":   {"base_tps": 6.49, "eagle3_tps": 2.98, "ratio": 0.459, "veredicto": "HUNDE"},
+  "Qwen3-1.7B_kaggle-GPU-T4":   {"base_tps": 67.69, "eagle3_tps": 40.41, "ratio": 0.597, "veredicto": "HUNDE"},
+  "Qwen3-4B_kaggle-GPU-T4":     {"base_tps": 31.48, "eagle3_tps": null, "ratio": null, "veredicto": "SIN MEDIR - converter b9606 no soporta la arch Eagle3LlamaForCausalLM de la cabeza AngelSlim-4B (el 1.7B usaba LlamaForCausalLMEagle3)"}
+ },
+ "conclusion": "EAGLE3 con par publico HUNDE en los 3 hardwares medidos (i3-2c, Kaggle CPU-4t, Kaggle GPU-T4) para el Qwen3-1.7B. En CPU: el verify batcheado es compute-bound con pocos cores (2 o 4). En GPU: el 1.7B es demasiado chico (67 tok/s baseline) para amortizar el overhead de la cabeza. El 2-3x de la literatura es para modelos GRANDES (8B+) en GPU. Para el DEPLOY de Cognia (Coder-3B en CPU i3) EAGLE3 no paga: CERRADO. El caso GPU/modelo-grande no es el deploy.",
+ "lever_de_velocidad_real": "portero 0.5B (turnos triviales, 3.3-3.9x, desplegado) + ngram-mod (lossless, codigo repetitivo, default b9391)"
+}

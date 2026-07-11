@@ -78,3 +78,32 @@ lever de velocidad real: (1) tamaño del modelo (portero 0.5B para turnos
 triviales, ya desplegado, 3.3-3.9×); (2) ngram-mod (lossless, código
 repetitivo, ya default en b9391). Speculative con cabeza entrenada NO agrega
 sobre eso en 2 cores.
+
+## VERIFICACIÓN EN KAGGLE (2026-07-10, a pedido del dueño): EAGLE3 hunde en GPU también
+
+El dueño cuestionó cerrar por el i3 (2 cores). Se midió en Kaggle (CPU-4t + GPU-T4)
+con el mismo par público (Qwen3 + cabeza AngelSlim, convertida con el converter b9606):
+
+| hardware | modelo | base tok/s | EAGLE3 tok/s | ratio |
+|---|---|---|---|---|
+| i3 (2c, CPU) | 1.7B | — | — | **0.464×** |
+| Kaggle CPU (4t) | 1.7B | 6.49 | 2.98 | **0.459×** |
+| Kaggle **GPU T4** | 1.7B | 67.69 | 40.41 | **0.597×** |
+| Kaggle GPU T4 | 4B | 31.48 | (sin medir) | — |
+
+**HALLAZGO REFORZADO (no revivió, se enterró con más base):** EAGLE3 hunde en los 3
+hardwares. En CPU el verify batcheado es compute-bound con pocos cores (2 Y 4). En GPU
+el 1.7B es demasiado chico (67 tok/s) para amortizar el overhead de la cabeza. El 2-3×
+de la literatura es para modelos GRANDES (8B+) en GPU — dos condiciones que el deploy de
+Cognia (Coder-3B en CPU i3) NO cumple. El 4B (proxy de nuestro 3B) no se midió: el
+converter b9606 no soporta la arch Eagle3LlamaForCausalLM de la cabeza AngelSlim-4B
+(el 1.7B usaba LlamaForCausalLMEagle3). El baseline 4B-GPU (31.48) NO cambia la
+conclusión para el deploy CPU.
+
+VEREDICTO FINAL: velocidad-por-speculative CERRADA para el deploy de Cognia (CPU). El
+lever real = portero 0.5B + ngram-mod. La verificación en Kaggle (4 kernels) VALIDÓ el
+cierre con datos de GPU + CPU-multicore, y corrigió el hallazgo de "solo el i3" a
+"modelos chicos en todo hardware + CPU en cualquier tamaño". Valor del método: el dueño
+tuvo razón en no aceptar un cierre por un solo hardware; la verificación lo hizo más
+sólido, no lo revirtió. GPU autorizada usada en 4 kernels de MEDICIÓN (no entrenamiento):
+cero cabezas entrenadas — el gate mató la línea antes.

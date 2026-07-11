@@ -5962,3 +5962,25 @@ GPU en Kaggle" (AUTORIZACIÓN GPU explícita).
 - **Honestidad**: el "proceso de GPU" se ejecutó hasta el punto donde la
   evidencia lo mató SIN gastar GPU. No lanzar Kaggle a algo que el gate CPU
   demostró inviable es respetar el método, no incumplir el mandato.
+
+## 2026-07-10 (noche 2) — Verificación EAGLE3 en Kaggle (a pedido del dueño): el cierre se REFORZÓ
+
+El dueño cuestionó cerrar la línea EAGLE3 por el i3 (2 cores): "¿por qué no lo
+pruebas con Kaggle?". Correcto — el kill-gate local medía el peor hardware.
+Se midió EAGLE3 en Kaggle (4 kernels de MEDICIÓN, no entrenamiento; compilar
+b9606 con CUDA + convertir el par público + medir):
+- Qwen3-1.7B: i3-2c 0.464× / Kaggle CPU-4t 0.459× / **Kaggle GPU-T4 0.597×**.
+  HUNDE en los 3 (bit-idéntico). En CPU el verify es compute-bound con pocos
+  cores; en GPU el 1.7B es demasiado chico (67 tok/s) para amortizar la cabeza.
+- Qwen3-4B (proxy del 3B): baseline GPU 31.48 tok/s; brazo EAGLE3 SIN medir —
+  el converter b9606 no soporta la arch Eagle3LlamaForCausalLM de la cabeza
+  AngelSlim-4B (el 1.7B usaba LlamaForCausalLMEagle3).
+- Fixes de infra resueltos: CUDA build en Kaggle (bug -lCUDA::cuda_driver ->
+  symlink libcuda.so.1 real + arch 75), CPU prebuilt (find binario + LD_LIBRARY_PATH).
+VEREDICTO: la verificación NO revivió la línea — la ENTERRÓ con más base. El
+2-3× de EAGLE3 es para modelos GRANDES (8B+) EN GPU; el deploy de Cognia
+(Coder-3B en CPU) no cumple ninguna condición. Velocidad-por-speculative
+CERRADA para el deploy; lever real = portero 0.5B + ngram-mod. Lección: el
+dueño tuvo razón en no aceptar un cierre por un solo hardware; verificar lo
+hizo más sólido. GPU autorizada usada en medición (cero entrenamiento).
+results_eagle3_completo.json + PLAN_EAGLE3_POC.md.
