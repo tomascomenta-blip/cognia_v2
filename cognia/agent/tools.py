@@ -333,19 +333,21 @@ def _buscar(args, ctx):
     parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     patron = parts[0].strip()
     directorio = parts[1].strip() if len(parts) > 1 else "."
-    results = []
-    try:
-        r = subprocess.run(
-            ["rg", "--no-heading", "-n", "--max-count", "3", patron, directorio],
-            capture_output=True, text=True, timeout=10,
-        )
-        if r.returncode == 0 and r.stdout.strip():
-            results = r.stdout.strip().splitlines()[:15]
-    except Exception:
-        pass
-    if not results:
+
+    def _scan(pat):
+        """rg -> fallback regex/substring sobre contenidos. Hasta 15 'archivo:n: txt'."""
         try:
-            compiled = re.compile(patron, re.IGNORECASE)
+            r = subprocess.run(
+                ["rg", "--no-heading", "-n", "--max-count", "3", pat, directorio],
+                capture_output=True, text=True, timeout=10,
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                return r.stdout.strip().splitlines()[:15]
+        except Exception:
+            pass
+        out = []
+        try:
+            compiled = re.compile(pat, re.IGNORECASE)
         except re.error:
             compiled = None
         for p in Path(directorio).rglob("*"):
@@ -353,20 +355,38 @@ def _buscar(args, ctx):
                 continue
             try:
                 for i, ln in enumerate(p.read_text(errors="replace").splitlines(), 1):
-                    if (compiled and compiled.search(ln)) or (not compiled and patron.lower() in ln.lower()):
-                        results.append(f"{p}:{i}: {ln.strip()[:100]}")
-                        if len(results) >= 15:
+                    if (compiled and compiled.search(ln)) or (not compiled and pat.lower() in ln.lower()):
+                        out.append(f"{p}:{i}: {ln.strip()[:100]}")
+                        if len(out) >= 15:
                             break
             except Exception:
                 pass
-            if len(results) >= 15:
+            if len(out) >= 15:
                 break
+        return out
+
+    results = _scan(patron)
+    nota = ""
+    # Fallback anti-degeneracion: el 3B a veces agrega spam a los args de busqueda
+    # (ej 'CLAVE-FENIX tetas Incontri'). Si el patron completo (varias palabras) no
+    # matcho, reintentar SOLO con un token identificador distintivo (con guion/
+    # digito/guion-bajo) — asi 'CLAVE-FENIX' se encuentra pese al ruido, sin rescatar
+    # palabras comunes (evita falsos positivos).
+    if not results and len(re.split(r"\s+", patron)) > 1:
+        ids = [t for t in re.split(r"\s+", patron)
+               if len(t) >= 4 and re.search(r"[-_/.\d]", t)]
+        if ids:
+            alt = max(ids, key=len)
+            if alt != patron:
+                results = _scan(alt)
+                if results:
+                    nota = f" (patron acotado a '{alt}')"
     if not results:
         try:
             results = _glob.glob(f"{directorio}/**/*{patron}*", recursive=True)[:10]
         except Exception:
             pass
-    return f"RESULTADO buscar '{patron}': " + (" | ".join(results) if results else "sin resultados")
+    return f"RESULTADO buscar '{patron}'{nota}: " + (" | ".join(results) if results else "sin resultados")
 
 
 # ══════════════════════════════════════════════════════════════════════
