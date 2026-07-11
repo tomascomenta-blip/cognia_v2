@@ -422,6 +422,12 @@ class _LlamaServerBackend:
         cmd = [
             binary,
             "--model",    str(gguf_path),
+            # --host 127.0.0.1: bind SOLO a localhost, explicito (no depender del
+            # default del binario). Los servers de inferencia (fleet 8088, portero
+            # 8090, heavy 8092) son INTERNOS — el cliente conecta a 127.0.0.1 (self.
+            # _base). Sin esto, un binario que default-ee a 0.0.0.0 expondria el
+            # modelo local a la LAN, en contra del core "IA local, privada".
+            "--host",     "127.0.0.1",
             "--port",     str(port),
             "--ctx-size", str(self._ctx_size),
             "--n-gpu-layers", str(_N_GPU_LAYERS),

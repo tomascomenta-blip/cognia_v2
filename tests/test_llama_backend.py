@@ -1070,3 +1070,22 @@ class TestLoraArgs:
 
         from node.llama_backend import _lora_args
         assert _lora_args() == ([], [])
+
+
+def test_llama_server_bind_localhost_only():
+    """Seguridad: los servers de inferencia local (fleet 8088, portero 8090, heavy
+    8092) deben bindear SOLO a 127.0.0.1, explicito (no depender del default del
+    binario). Sin esto, un binario que default-ee a 0.0.0.0 expondria el modelo
+    local a la LAN, en contra del core 'IA local, privada'. El cliente ya conecta
+    a 127.0.0.1 (self._base)."""
+    import inspect
+    import re
+    from node.llama_backend import _LlamaServerBackend
+    src = inspect.getsource(_LlamaServerBackend.__init__)
+    # el arg del cmd debe ser --host 127.0.0.1 (no 0.0.0.0). El regex verifica el
+    # PAR exacto en el cmd; no assertir 'not "0.0.0.0"' porque el comentario del
+    # codigo menciona 0.0.0.0 (y getsource incluye comentarios).
+    assert re.search(r'"--host"\s*,\s*"127\.0\.0\.1"', src), \
+        "el llama-server no fuerza --host 127.0.0.1 (exposicion a la LAN)"
+    assert not re.search(r'"--host"\s*,\s*"0\.0\.0\.0"', src), \
+        "el llama-server no debe bindear a 0.0.0.0 en el cmd"
