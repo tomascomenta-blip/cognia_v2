@@ -6082,3 +6082,19 @@ empaquetados (portero 0.5B turnos rápidos, escalado reactivo 3B→7B código du
   valor estaba listo/gateado y el entorno podría degradarse más tarde.
   https://pypi.org/project/cognia-ai/3.8.7/
 - Tras 3.8.7: MANTENIMIENTO MEDIDO (producto estable, valor genuino sin churn).
+
+## 2026-07-11 ~03:40 — 3.8.8: security bind localhost (hallazgo de auditoría de mantenimiento)
+- **Hallazgo en tick de mantenimiento**: los llama-server (fleet 8088, portero 8090,
+  heavy_code 8092) se spawneaban SIN --host, dependiendo del default del binario. El
+  cliente ya conecta a 127.0.0.1, pero un binario que default-ee a 0.0.0.0 (o cambio
+  futuro) expondría el modelo local a la LAN, contra "IA local, privada". Fix: --host
+  127.0.0.1 explícito (commit 30b8821). Defense-in-depth (llama.cpp ya era localhost).
+- **Release 3.8.8** (commit a51c200, tag v3.8.8). Gate: e2e camino feliz 5/5 (el --host
+  no rompe el spawn) + suite 3743/0-fail + smoke venv limpio 9/9 (incl. check del bind).
+  Install desde PyPI verificado. https://pypi.org/project/cognia-ai/3.8.8/
+- **Auditorías del tick SOUND (sin bug nuevo, no tocar)**: server-lifecycle (adopt/reuse
+  por diseño, no leak de zombis), agente-exec (_shell shell=True = capacidad intencional
+  del agente en el contexto del usuario, no vuln; allowlist=código auto-generado HERMES).
+- **Infra**: el entorno mata tareas de BACKGROUND bajo presión de recursos (mató la
+  batería y un e2e a mitad). Los e2e del gate se corren en FOREGROUND (síncrono, timeout
+  amplio) para que completen. 5 releases esta corrida (3.8.4→3.8.8).
