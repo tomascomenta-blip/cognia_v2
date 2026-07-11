@@ -2,6 +2,32 @@
 
 ---
 
+## [3.8.5] - 2026-07-11
+
+### Fix CRÍTICO — revierte una regresión del agente introducida en 3.8.4
+
+3.8.4 agregó `repeat_penalty=1.3` al paso ReAct del agente (junto con las cotas
+del cuelgue). Un e2e del camino feliz —que debió correrse ANTES de 3.8.4— reveló
+que ese `repeat_penalty` penalizaba los tokens de los nombres de herramienta (que
+se repiten desde la doc de tools en el prompt) y empujaba al 3B a generar BASURA:
+**tareas normales de `/hacer` 0/5 con `repeat_penalty`, 5/5 sin él** (write/calc/
+json/append/python, mismo modelo y harness). Si actualizaste a 3.8.4, actualizá a
+3.8.5: `pip install -U cognia-ai`.
+
+- **Revertido** `repeat_penalty=1.3` del paso ReAct y del `_reinfer_fix`
+  (`cognia/cli.py`). Se conservan las cotas del cuelgue que SÍ funcionan:
+  `max_tokens=256` por paso + corte por no-progreso (`_FAIL_STREAK=3`). El
+  parámetro `repeat_penalty` sigue en `orchestrator.infer` (extensión legítima del
+  API), solo que el agente ya no lo usa. Verificado: 5/5 tareas normales + la
+  tarea de búsqueda sigue terminando por el corte honesto.
+- **Feature — 7B de código en el producto instalado** (`cognia/model_install.py`,
+  `node/heavy_code.py`): `cognia install-model --with-heavy-code` (opt-in, ~4.7 GB)
+  baja el 7B y persiste su ruta; el escalado reactivo 3B→7B (código duro +20pp)
+  ahora se ACTIVA en instalaciones de usuario, no solo en el repo. Sin el flag,
+  degrada al 3B como siempre.
+
+---
+
 ## [3.8.4] - 2026-07-10
 
 ### Fix — Robustez del agente + REPL; feature — especialistas MoM (portero 0.5B, 7B de código)
