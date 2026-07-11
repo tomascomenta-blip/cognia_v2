@@ -176,7 +176,9 @@ cognia> /salir
 ```bash
 cognia                  # REPL (wizard en el primer uso)
 cognia init             # Re-ejecutar el wizard de configuracion
-cognia install-weights  # Descargar shards y configurar este equipo como nodo
+cognia install-model    # Stack de inferencia recomendado: GGUF 3B + llama-server b9391 + expertos LoRA + portero 0.5B
+cognia install-model --with-heavy-code   # + especialista 7B de codigo (~4.7 GB, opt-in): escalado 3B->7B en codigo duro (+20pp)
+cognia install-weights  # Descargar shards numpy y configurar este equipo como nodo
 cognia install-weights --standalone   # Descargar los 4 shards para uso local completo
 cognia server           # Servidor web FastAPI (puerto 8000)
 cognia node             # Iniciar como nodo del swarm distribuido
@@ -200,6 +202,18 @@ orden:
    PyTorch, repartible entre nodos del swarm. Es el corazon de la arquitectura Shattering.
 3. **Ollama (opcional).** Si defines `OLLAMA_URL`, se usa como motor de razonamiento
    general alternativo.
+
+### Especialistas (Mixture of Models)
+
+Sobre el 3B base, `cognia install-model` monta una cascada de especialistas que se
+activan solos y **degradan al 3B** si su modelo no esta presente (nada se rompe):
+
+- **Portero 0.5B** — atiende los turnos triviales de charla (saludo, identidad,
+  cortesia) a ~3.3–3.9× la velocidad del 3B. Se instala por defecto.
+- **7B de codigo (opt-in)** — con `install-model --with-heavy-code`, cuando el 3B
+  falla los tests de una tarea de codigo dificil se reintenta con Qwen2.5-Coder-7B
+  en greedy (codigo duro 37.5→57.5% pass@1, +20pp). Lazy-load-usar-cerrar: RAM en
+  reposo 0; `COGNIA_HEAVY_CODE=0` lo apaga.
 
 ### Configurar el modelo
 
