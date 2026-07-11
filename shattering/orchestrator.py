@@ -222,7 +222,8 @@ class ShatteringOrchestrator:
     def infer(self, prompt: str, lpc_session_id: Optional[str] = None,
               max_tokens: Optional[int] = None,
               temperature: Optional[float] = None,
-              stop: Optional[list] = None) -> InferResult:
+              stop: Optional[list] = None,
+              repeat_penalty: Optional[float] = None) -> InferResult:
         """
         Route the prompt, load the right sub-model, and return generated text.
 
@@ -270,6 +271,7 @@ class ShatteringOrchestrator:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 stop=stop,
+                repeat_penalty=repeat_penalty,
             )
 
         return InferResult(
@@ -524,8 +526,11 @@ class ShatteringOrchestrator:
                      lpc_session_id: Optional[str] = None,
                      temperature: Optional[float] = None,
                      max_tokens: Optional[int] = None,
-                     stop: Optional[list] = None):
-        """Returns (text, mode, tokens_generated). max_tokens=None uses self._max_tokens."""
+                     stop: Optional[list] = None,
+                     repeat_penalty: Optional[float] = None):
+        """Returns (text, mode, tokens_generated). max_tokens=None uses self._max_tokens.
+        repeat_penalty!=None desalienta la degeneracion (cola repetida) que a temp=0
+        el 3B genera hasta el cap; el agente lo usa en el paso ReAct (ver cli.py)."""
         if temperature is None:
             temperature = self._TEMPERATURES.get(decision.sub_model, 0.5)
         _max_toks = max_tokens if max_tokens is not None else self._max_tokens
@@ -536,7 +541,8 @@ class ShatteringOrchestrator:
             system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
             result = self._llama.generate(formatted, max_tokens=_max_toks,
-                                          temperature=temperature, stop=stop)
+                                          temperature=temperature, stop=stop,
+                                          repeat_penalty=repeat_penalty)
             if result is not None:
                 # Prefer the real count reported by llama-server (tokens_predicted);
                 # fall back to a len//4 estimate if the backend doesn't expose it

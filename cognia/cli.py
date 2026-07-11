@@ -7566,6 +7566,8 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                               # proximo paso usa 0.7 para romper el ciclo
                               # determinista (mismo contexto -> misma accion)
     _actions_trace: list = [] # traza (action, args, ok) para skill_capture (CP2)
+    _FAIL_STREAK = 3          # corte por no-progreso: N acciones seguidas que
+                              # fallan => modelo degenerado, cierre honesto
     _exec_nudged = False      # cierre informativo E8: un solo aviso por tarea
     result_text = _bon_result_text  # si BoN corto, este es el resultado final
     while not _bon_ok and total_steps < AGENT_HARD_CAP:
@@ -7593,8 +7595,15 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # accion (donde first_action_block ya truncaba) -> elimina el
             # generate-then-discard del rambling. NO se incluye '\nRESULTADO'
             # porque el contenido multi-linea de escribir_archivo puede contenerlo.
+            # max_tokens=256: una ACCION es corta (`tool args` o `responder <texto>`);
+            # el default 768 dejaba al 3B DEGENERAR (cola repetida a temp=0 hasta el
+            # cap) — repro 2026-07-10: un infer degenerado = 768 tok / ~70s, y varios
+            # pasos asi colgaban el loop ~30 min en tareas de busqueda. repeat_penalty
+            # 1.3 desalienta la degeneracion -> el modelo emite el stop tras la
+            # respuesta util. Cota dura: cada paso <=256 tok.
             raw_response = orch.infer(
                 prompt, temperature=_step_temp, stop=["\nACCION:", "\nACCIÓN:"],
+                max_tokens=256, repeat_penalty=1.3,
             ).text.strip()
             _step_temp = 0.0
         except Exception as e:
@@ -7661,7 +7670,8 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # con el error del validador en el prompt. Ver cognia/agent/structure.py.
         def _reinfer_fix(hint, _p=prompt, _r=raw_response):
             return orch.infer(_p + "\n" + _r[:600] + hint, temperature=0.0,
-                              stop=["\nACCION:", "\nACCIÓN:"]).text.strip()
+                              stop=["\nACCION:", "\nACCIÓN:"],
+                              max_tokens=256, repeat_penalty=1.3).text.strip()
         action, args, _struct = structure_action(action, args, _reinfer_fix)
         if _struct.get("repaired"):
             _print_fn("[detail]args reparados (retry de formato con error real)[/detail]")
@@ -7757,6 +7767,19 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             "ok": not re.search(r"\bERROR\b", result[:120]),
             "result_head": result[:160],
         })
+        # Corte por NO-PROGRESO (cazado 2026-07-10): el stuck-detector cuenta
+        # (action,args) IDENTICOS, pero en tareas de busqueda el 3B DEGENERA y
+        # genera nombres de tool BASURA distintos cada paso ('start_busqueda_
+        # archivosuseralgmaps'...) que fallan en cadena y crecen el prompt hasta
+        # colgar el loop ~30 min. Si las ultimas _FAIL_STREAK acciones TODAS
+        # fallaron, el modelo no avanza -> cierre honesto (cota dura al cuelgue).
+        _recent = _actions_trace[-_FAIL_STREAK:]
+        if len(_recent) >= _FAIL_STREAK and not any(a["ok"] for a in _recent):
+            _print_fn(f"[warn_cl]Agente sin progreso ({_FAIL_STREAK} acciones "
+                      "seguidas fallaron): cierre honesto.[/warn_cl]")
+            result_text = (f"(interrumpida: {_FAIL_STREAK} acciones seguidas "
+                           "fallaron sin avanzar; el modelo no logro la tarea)")
+            break
         if action == "escribir_archivo" and result.startswith("RESULTADO escribir_archivo") and "OK" in result:
             _print_fn(f"[ok_cl]{result.split(':', 1)[0].replace('RESULTADO ', '')}[/ok_cl]")
 
