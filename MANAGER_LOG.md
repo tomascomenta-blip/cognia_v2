@@ -5984,3 +5984,28 @@ CERRADA para el deploy; lever real = portero 0.5B + ngram-mod. Lección: el
 dueño tuvo razón en no aceptar un cierre por un solo hardware; verificar lo
 hizo más sólido. GPU autorizada usada en medición (cero entrenamiento).
 results_eagle3_completo.json + PLAN_EAGLE3_POC.md.
+
+## 2026-07-10 ~23:25 — RELEASE cognia-ai 3.8.4 a PyPI (autonomía total, deadline 05:30)
+Corrida autónoma (dueño autorizó PyPI explícitamente). Cerrados 3 checkpoints:
+- **C1 — fix del cuelgue del agent loop en búsqueda** (commit 8f65157). El 3B
+  degenera a temp=0 inventando nombres de tool basura DISTINTOS cada paso; el
+  stuck-detector viejo (acciones idénticas) no disparaba y el loop colgaba ~30
+  min. Fix 3 capas: max_tokens=256 + repeat_penalty=1.3 en el paso ReAct +
+  _reinfer_fix; corte por no-progreso (_FAIL_STREAK=3). Repro e2e: 188.8s / 3
+  pasos por cierre honesto vs cuelgue. orchestrator.infer/_local_infer extendidos
+  con repeat_penalty (el backend real ya lo soporta en las 3 capas del facade).
+- **C2 — compuerta suite** (commit cfbc667). 1ª corrida: 2 fallos en
+  test_orchestrator_max_tokens (fake _FakeLlama.generate sin repeat_penalty).
+  NO era regresión de producción (repro real corrió con el backend aplicando el
+  penalty); fake viejo. Fix: firma del fake acepta repeat_penalty + **kwargs.
+  Re-corrida: **3728 passed / 1 skipped / 0 failed** (273s).
+- **C3 — PyPI 3.8.4** (commit f493096, tag v3.8.4). Wheel+sdist (twine check
+  PASSED), smoke en venv LIMPIO 7/7 (importa, degrada con gracia sin modelos del
+  fleet: heavy_code→None→3B, el fix viaja en el paquete). Publicado con token
+  del .env inline (redactado). VERIFICADO descargable+instalable desde PyPI
+  (pip install cognia-ai==3.8.4 en venv fresco → version 3.8.4).
+  https://pypi.org/project/cognia-ai/3.8.4/
+Contenido 3.8.4 = robustez (fix cuelgue + fix REPL piped) + especialistas MoM
+empaquetados (portero 0.5B turnos rápidos, escalado reactivo 3B→7B código duro
++20pp, GBNF, parche de error) que se activan con los modelos del fleet vía
+`cognia install-model` y degradan al 3B si faltan. Usage al cierre: 10% (5h).
