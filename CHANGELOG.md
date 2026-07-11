@@ -2,6 +2,23 @@
 
 ---
 
+## [3.8.6] - 2026-07-11
+
+### Robustez del agente — búsqueda pese a args ruidosos + cuelgue latente de /plan crear
+
+- **`buscar` rescata la búsqueda cuando el 3B agrega spam a los args**
+  (`cognia/agent/tools.py`): el modelo a veces llama `buscar CLAVE-FENIX tetas
+  Incontri` (spam degenerado); el patrón literal no matcheaba y el tool devolvía
+  "sin resultados" (falso negativo). Ahora, si el patrón multi-palabra no matcha,
+  reintenta con el token IDENTIFICADOR distintivo (con guion/dígito), sin rescatar
+  palabras comunes (evita falsos positivos). Reporta "(patron acotado a X)".
+- **`/plan crear` acota su infer** (`cognia/cli.py`): el decompose (lista de 3-5
+  pasos) usaba `orch.infer(prompt)` sin `max_tokens`; si el 3B degeneraba llenaba
+  hasta el cap (~70s de basura). Ahora `max_tokens=160` + `temperature=0.0` (mismo
+  patrón que el decompose del agente), sin `repeat_penalty`.
+
+---
+
 ## [3.8.5] - 2026-07-11
 
 ### Fix CRÍTICO — revierte una regresión del agente introducida en 3.8.4

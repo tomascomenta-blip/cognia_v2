@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognia-ai"
-version = "3.8.5"
+version = "3.8.6"
 description = "Local cognitive AI that runs offline on a small model, with episodic memory, self-improving prompts, and an AI-native image/scene creator"
 readme = "README.md"
 license = { text = "MIT" }
