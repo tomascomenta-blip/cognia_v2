@@ -6031,3 +6031,23 @@ empaquetados (portero 0.5B turnos rápidos, escalado reactivo 3B→7B código du
   feliz ANTES de cada release, no solo el repro del bug — el pytest (3728) no ejecuta
   el agente con modelo real, así que la regresión pasó la compuerta.** 3.8.4 debería
   YANKEARSE en PyPI (el token de upload no puede; lo hace el dueño desde la web).
+
+## 2026-07-11 ~00:50 — 3.8.6: robustez del agente (buscar + /plan crear) + accion descartado
+- **A/B adapter 'accion' vs base en el agente — DESCARTADO.** Hipótesis: el loop
+  _run_agent_task no activa 'accion' (adapter de formato tool-calling) y por eso
+  degenera. Probe: en la tarea normal base 3B y 'accion' dan output IDÉNTICO y
+  limpio ('Escribir_archivo nota.txt | hola', garbage=False ambos). La base ya es
+  limpia en acciones normales; la degeneración es de tareas DURAS (búsqueda) =
+  límite de capacidad, no sistémico. El harness (base 3B) es representativo.
+- **Fix tool buscar** (commit 556a4f6). El 3B agrega spam a los args de búsqueda
+  ('CLAVE-FENIX tetas Incontri') y el patrón literal no matcheaba -> falso negativo
+  'sin resultados'. Fix: si el patrón multi-palabra no matcha, reintentar con el
+  token identificador distintivo (guion/dígito), sin rescatar palabras comunes.
+  4/4 tests + e2e (el tool devuelve el match 134 vs 61 chars). HONESTIDAD: la base
+  3B aún degenera su RESPUESTA final ('fitte') en esa tarea = límite del modelo,
+  separado del fix del tool.
+- **Fix /plan crear** (commit 045d3c7). orch.infer sin max_tokens -> cuelgue latente
+  de la misma clase; acotado a max_tokens=160 + temp=0.0, sin repeat_penalty.
+- **Release 3.8.6** (commit 0ce0f1e, tag v3.8.6). Gate: e2e camino feliz 5/5 (la
+  lección, ANTES de publicar) + suite 3741/0-fail + smoke venv limpio 8/8 (incl.
+  rescate del buscar + guard anti-regresión). PyPI: https://pypi.org/project/cognia-ai/3.8.6/
