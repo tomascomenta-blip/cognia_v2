@@ -28,8 +28,11 @@ class _FakeLlama:
         self.last_tokens_predicted = 7
         self.last_stop_reason = "eos"
 
-    def generate(self, prompt, max_tokens=256, temperature=0.7, stop=None):
-        # stop=None: refleja la firma real del facade (Commit C: threading de stop).
+    def generate(self, prompt, max_tokens=256, temperature=0.7, stop=None,
+                 repeat_penalty=None, **kwargs):
+        # stop/repeat_penalty reflejan la firma real del facade (threading de stop
+        # + repeat_penalty via infer->_local_infer). **kwargs absorbe top_k/min_p/
+        # seed del facade real, para que futuras extensiones no rompan este fake.
         self.calls.append({"method": "generate", "max_tokens": max_tokens})
         return "respuesta"
 
