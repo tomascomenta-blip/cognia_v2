@@ -33,6 +33,13 @@ def check(nombre, ok, detalle=""):
 
 
 def main():
+    # stdout a UTF-8: los nombres de check tienen '→'/acentos y en Windows la
+    # consola/redirección default es cp1252 -> UnicodeEncodeError que ABORTA la
+    # batería a mitad (cazado 2026-07-11). No depender de PYTHONUTF8 del entorno.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     from cognia.first_run import apply_config
     apply_config()
 

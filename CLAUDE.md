@@ -79,5 +79,13 @@ Para verificación end-to-end real (no solo pytest): arrancar el CLI (`python -m
 construir el orquestador (`ShatteringOrchestrator(manifest_path="shattering/manifests/cognia_desktop.json")`
 + `_try_load_llama()`) y probar contra el modelo de verdad, mostrando el output.
 
+**GATE de pre-release del agente/CLI (OBLIGATORIO):** antes de publicar a PyPI o
+cambiar el sampling del agente (temperature/max_tokens/repeat_penalty/stop), correr
+el e2e del CAMINO FELIZ — `PYTHONUTF8=1 venv312\Scripts\python.exe scripts\e2e_happy_path.py`
+(5 tareas /hacer con postcondición, ~5 min) — y exigir 5/5. El pytest NO ejecuta el
+agente con modelo real: la regresión de 3.8.4 (un `repeat_penalty` que empujaba al 3B
+a basura → /hacer 0/5) pasó la suite y llegó a PyPI. Correr el camino feliz, no solo
+el repro del bug que motivó el cambio.
+
 ## Log
 Avances se appendean a `MANAGER_LOG.md` (nunca borrar entradas previas).
