@@ -48,7 +48,7 @@ Tres ideas la definen:
 
 ---
 
-## Estado del proyecto (Junio 2026)
+## Estado del proyecto (Julio 2026)
 
 | Fase | Estado | Descripcion |
 |------|--------|-------------|
@@ -59,6 +59,7 @@ Tres ideas la definen:
 | **Fase 13 — Inferencia distribuida real** | COMPLETADA | Qwen2.5-Coder-3B INT4, auto-sharding, relay WebSocket. |
 | **Inferencia local llama.cpp** | OPERATIVA | GGUF como ruta primaria (~8-9 tok/s en CPU 4-core); shards numpy como fallback. |
 | **Capa cognitiva Chimera** | OPERATIVA | Band router de 3 bandas, cognitive loop, memoria jerarquica, world-model. |
+| **Especialistas MoM (Mixture of Models)** | OPERATIVA | Portero 0.5B para turnos rapidos (~3.3–3.9×), escalado reactivo 3B→7B en codigo duro (+20pp), router de expertos LoRA. `cognia install-model` los monta; degradan al 3B si faltan. |
 
 Detalle tecnico por fase en [ROADMAP.md](ROADMAP.md). Bitacora de sesiones en
 [CLAUDE_NOTES.md](CLAUDE_NOTES.md) y [MANAGER_LOG.md](MANAGER_LOG.md).
