@@ -6220,3 +6220,31 @@ recuperó **0/4** — el veredicto MR-1 FALLA se mantiene y se endurece. La úni
 **Lección de aislamiento**: la etapa 3 nueva podía spawnear un llama-server REAL desde los unit
 tests de la mesa (fixture sin patch de fleet_backend) — cazado porque la suite tardó 103s; fix =
 patch en el fixture; 39/39 en 13.4s.
+
+## 2026-07-12 (día, cont.) — CORRIDA COLONIA→CASI-GRANDE: CIERRE
+
+**Mandato**: flota que rinda como modelo casi-grande; investigar, evaluar cada idea, entrenar si
+paga, teoría + ejecución + e2e; norte 80/100 de GLM 5.2.
+
+**Medido y desplegado (commits ce24000..518cc4a):**
+1. Investigación 6 hilos (fuentes primarias) → tesis: el cuello es la SELECCIÓN. Top-5 cero-training.
+2. **E1**: Qwen3.5-4B no-think 17/40 > 3B 15/40 (set duro oculto) → **etapa 3 de la cascada**
+   desplegada; techo de la colonia en código duro **27/40 (67.5%) vs 23/40** (+10pp; ref GLM ~50%).
+3. **AUDIT del oráculo** (5 miembros × G2R40+G5): qwen3_4b razonamiento **92.5% (McNemar p≈0.0000)**
+   vs 82 del 3B+stepwise → **router razonamiento→4B desplegado y validado en vivo**; lfm25 75% a
+   8.1 s/ítem (fallback); qwen35 español 92 n.s. (default NO cambia); vibethinker fuera de nicho.
+   AUD-1: unión−mejor = +7.5pp G2R / +4pp G5 → el ruteo paga.
+4. **Self-MoA**: archivada NO-EVALUABLE por techo (generador 92.5 satura la suite) — el router
+   captura la ganancia. Sin GPU esta corrida: ningún gate justificó entrenar (regla respetada).
+5. **e2e vivos**: chat razonamiento ruteado al 4B PASS (Beto=10); live DBG1 FALLÓ primero y CAZÓ
+   el gap del trigger (rama sin-visibles, clase burst_balloons) → fix por rama con datos → PASS
+   con tests ocultos (tarea que ni 3B ni 7B resuelven, ahora sale del path real). **Batería 17/17
+   en 7.4 min** con todo lo nuevo activo.
+
+**GLM-INDEX después**: nicho ~82/100 (razonamiento 82→92.5; código duro techo 57.5→67.5);
+general ~38/100 — la brecha restante es CAPACIDAD CRUDA (declarado; el norte 80/100 general NO se
+alcanza con ≤7B en este hardware y queda dicho sin maquillar). TEORIA_COLONIA.md v1 = estigmergia
+ejecutada: una voz genera, artefactos deterministas coordinan, el ledger es la feromona.
+
+**Pendientes fase C (con plan)**: router kNN con embedder sobre el ledger, θ-cascada (192
+registros de telemetría), español re-medir con N mayor, fallback lfm25, camino feliz pre-release.
