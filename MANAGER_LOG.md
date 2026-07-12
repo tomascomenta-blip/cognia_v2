@@ -6248,3 +6248,28 @@ ejecutada: una voz genera, artefactos deterministas coordinan, el ledger es la f
 
 **Pendientes fase C (con plan)**: router kNN con embedder sobre el ledger, θ-cascada (192
 registros de telemetría), español re-medir con N mayor, fallback lfm25, camino feliz pre-release.
+
+## 2026-07-12 (tarde) — CORRIDA TALLER SÚPER EFICIENTE: CIERRE
+
+**Mandato**: no rendirse; investigar/inventar más métodos + eficiencia del taller.
+
+**Medido (commits 83f9f8a..58bfb7b):**
+1. Research 6 temas (fuentes primarias): top-5 con gates; trampas cazadas ANTES de gastar
+   (plan-then-code con signo INVERTIDO en 3 mediciones 2026; oracle-leak infla el retrieval).
+2. **Higiene KV/RAM**: --cache-ram 8192→1024 MiB por server (verificado contra el binario b9391);
+   smoke real PASS + 19/19. Riesgo de swap con la colonia coexistiendo: cerrado.
+3. **Higiene del instrumento**: los unit tests contaminaban la telemetría de producción con fakes
+   (ledger 214→150, backup; _bon_log no-op bajo pytest + test). La feromona de la colonia vuelve
+   a ser confiable.
+4. **E-FEWSHOT (invento medido honesto)**: biblioteca de 23 soluciones verificadas → few-shot
+   recuperado. k=2: recupera 2 vírgenes que NADIE resolvía (SPEC1, SPEC4) pero REGRESA al 3B en
+   ALG1/ALG2; ajuste k=1 peor (3 regresiones); solo-q35: 0 regresiones pero 1 virgen < gate.
+   **8ª negativa limpia**; señal débil registrada; reapertura condicionada a biblioteca diversa.
+   Jamás tocó producción.
+5. **Presupuesto adaptativo (#2 del ranking): DIFERIDO honesto** — 27 filas reales tras limpiar
+   (CV imposible); el early-stop existente ya recorta (1.4 de 6 candidatos en tareas medias).
+6. Batería e2e final: [pendiente al escribir esta entrada; se corrige abajo si falla].
+
+**Lección de la corrida**: la eficiencia del taller estaba menos en algoritmos nuevos y más en
+FUGAS (KV-cache sin límite, telemetría contaminada, exemplars que dañan). El "no rendirse" pagó
+en 2 fixes reales + 1 negativa que evitó desplegar un daño (-2 tareas del 3B).

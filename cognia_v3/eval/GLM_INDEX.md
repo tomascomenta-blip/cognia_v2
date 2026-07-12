@@ -63,3 +63,18 @@ saltó, código duro subió el techo); aspectos GENERALES ~**38/100** — el gru
 de la brecha sigue en capacidad cruda (conocimiento abierto, generación libre
 larga, ctx>16k) que ninguna orquestación de ≤7B compra. El delta de la corrida
 es real y medido: +10pp de techo en código duro, +10.5pp en razonamiento.
+
+---
+
+## v3 (2026-07-12 tarde, corrida TALLER SÚPER EFICIENTE)
+
+Sin cambio en los números de capacidad (el techo del set duro sigue en
+27/40): la corrida pagó en EFICIENCIA e HIGIENE, no en pp:
+- `--cache-ram` 8192→1024 MiB por server (riesgo de swap/OOM latente con
+  3-4 servers coexistiendo, verificado contra el binario pineado).
+- Telemetría descontaminada (los unit tests escribían registros falsos al
+  ledger de calibración; no-op bajo pytest + limpieza con backup).
+- E-FEWSHOT: 8ª negativa limpia (el few-shot de biblioteca propia REGRESA
+  al 3B; señal débil SPEC1/SPEC4 registrada con condición de reapertura).
+- Presupuesto adaptativo: DIFERIDO por datos insuficientes (27 filas
+  reales; el turno nocturno debe acumular tráfico antes de calibrar).
