@@ -811,7 +811,21 @@ def _generar_codigo(args, ctx):
                     execution_feedback(code, _visible, entry))
             except Exception:
                 _score_v = None
-        if _sin_funcion or (_score_v is not None and _score_v < len(_visible)):
+        # Trigger por rama (cada una con su dato):
+        #  (a) sin funcion valida -> q35 (adicion pura);
+        #  (b) visibles fallando -> q35 compite por mejora ESTRICTA;
+        #  (c) SIN visibles (0 asserts = sin confirmacion, la rama del fix
+        #      burst_balloons) y el 7B NO tomo la tarea -> q35 reemplaza al
+        #      greedy no-confirmado del 3B (E1: q35 17/40 > 3B 15/40 RAW).
+        #      Si el 7B YA reemplazo, se respeta (su gate midio 8/8 con
+        #      ocultos; no hay dato head-to-head q35-vs-7B sin oraculo).
+        #      Gap cazado por el live check e2e DBG1 (2026-07-12): el
+        #      trigger original exigia visibles y esta rama quedaba muda.
+        _sin_confirmacion = (not _visible and not _confirmado_3b
+                             and not _escalado_7b)
+        if (_sin_funcion
+                or (_score_v is not None and _score_v < len(_visible))
+                or _sin_confirmacion):
             try:
                 from node.fleet_registry import (close_fleet_member,
                                                  fleet_backend)
@@ -830,7 +844,7 @@ def _generar_codigo(args, ctx):
                             cache_prompt=False)
                         _code35 = extract_code(_raw35 or "")
                         if _code35.strip() and f"def {entry}" in _code35:
-                            _usar = _sin_funcion
+                            _usar = _sin_funcion or _sin_confirmacion
                             if not _usar and _visible:
                                 from cognia.agent.deliberation import (
                                     execution_feedback as _ef35,

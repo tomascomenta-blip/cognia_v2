@@ -115,3 +115,33 @@ def test_registry_none_no_rompe(monkeypatch, tmp_path):
     monkeypatch.setattr(tools, "_bon_n", lambda d: (5, 0.9))
     r = tools._generar_codigo("doble.py | funcion doble(n)", _ctx(tmp_path))
     assert "etapa 3" not in r          # fallback silencioso al candidato previo
+
+
+def test_sin_visibles_sin_7b_reemplaza(monkeypatch, tmp_path):
+    # 0 asserts visibles (sin confirmacion, rama burst_balloons) y sin 7B:
+    # q35 reemplaza al greedy no-confirmado del 3B (E1: 17/40 > 15/40 RAW).
+    # Gap cazado por el live check e2e DBG1.
+    _patch_3b(monkeypatch, CODE_MALO, 0, 0, visible=[])
+    q = _patch_q35(monkeypatch, CODE_BUENO)
+    monkeypatch.setattr(tools, "_bon_n", lambda d: (5, 0.9))
+    r = tools._generar_codigo("doble.py | funcion doble(n)", _ctx(tmp_path))
+    assert q.calls == 1 and "etapa 3" in r
+    hits = list(tmp_path.rglob("doble.py"))
+    assert "n * 2" in hits[0].read_text(encoding="utf-8")
+
+
+def test_sin_visibles_con_7b_escalado_respeta_al_7b(monkeypatch, tmp_path):
+    # Sin visibles pero el 7B YA tomo la tarea -> q35 NO dispara (se respeta
+    # el gate del 7B, 8/8 con ocultos; no hay dato q35-vs-7B sin oraculo).
+    _patch_3b(monkeypatch, "print('nada util')", 0, 0, visible=[])
+
+    class _Heavy:
+        def generate(self, prompt, **kw):
+            return "```python\ndef doble(n):\n    return 2 * n\n```"
+
+    monkeypatch.setattr("node.heavy_code.heavy_code_backend", lambda: _Heavy())
+    q = _patch_q35(monkeypatch, CODE_BUENO)
+    monkeypatch.setattr(tools, "_bon_n", lambda d: (5, 0.9))
+    r = tools._generar_codigo("doble.py | funcion doble(n)", _ctx(tmp_path))
+    assert "escalado a 7B" in r
+    assert q.calls == 0
