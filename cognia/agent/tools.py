@@ -730,6 +730,9 @@ def _generar_codigo(args, ctx):
     _best_t = out.get("ranking", [{}])[0] if out.get("ranking") else {}
     code = out.get("code", "")
     _score_3b, _total = _best_t.get("score"), _best_t.get("total")
+    # Asserts visibles del test-first: los usa la mesa redonda (el escalado
+    # 7B reemplaza `out` entero y los perderia).
+    _visible = out.get("visible_tests") or []
 
     # ── Escalado REACTIVO al especialista de capacidad 7B (MoM fase 4) ──────
     # Si el mejor candidato del 3B FALLA sus tests visibles (o no produjo la
@@ -787,6 +790,65 @@ def _generar_codigo(args, ctx):
         except Exception:
             pass   # cualquier falla del 7B -> quedarse con el 3B (fallback seguro)
 
+    # ── Mesa redonda FLEET-30 (deliberacion ENTRE modelos; default OFF) ─────
+    # COGNIA_DELIBERACION=1 la activa (gate con tests OCULTOS pre-registrado:
+    # PREREG_DELIBERACION.md; hasta que PASE, queda opt-in). Etapa ADITIVA:
+    # solo corre si tras 3B (+7B si escalo) el candidato NO pasa todos sus
+    # tests visibles y la tarea es dura. La critica es EJECUCION real
+    # (deliberation.py, keep-best estricto): el 7B/3B se pasan el candidato
+    # con el traceback del sandbox y lo reparan por turnos. Riesgo declarado:
+    # con tests visibles DEBILES la mesa puede sobre-ajustar a un assert
+    # equivocado (leccion del juez del escalado 7B) — por eso el gate que
+    # decide el default mide con tests ocultos, y el trigger exige asserts.
+    _mesa_mejoro = False
+    if (os.environ.get("COGNIA_DELIBERACION", "").strip().lower()
+            in ("1", "on", "true", "yes")) and _visible and dif >= _HEAVY_THRESHOLD:
+        try:
+            from cognia.agent.deliberation import (deliberate,
+                                                   execution_feedback,
+                                                   feedback_score)
+            _fb0 = execution_feedback(code, _visible, entry)
+            _s0, _t0v = feedback_score(_fb0)
+            if _t0v and _s0 < _t0v:
+                _pf = ctx.get("print_fn")
+                if callable(_pf):
+                    _pf("[detail]Mesa redonda: los modelos deliberan sobre el "
+                        "candidato (feedback de ejecucion real)...[/detail]")
+                _parts = []
+                _hv = None
+                try:
+                    from node.heavy_code import (close_heavy_code,
+                                                 heavy_code_backend)
+                    _hv = heavy_code_backend()
+                except Exception:
+                    _hv = None
+                if _hv is not None:
+                    from cognia_v3.eval.benchmark_code import (
+                        SYSTEM_PROMPT as _MR_SP, build_prompt as _mr_bp)
+
+                    def _gen_7b(p, temperature=0.0, seed=None, _h=_hv):
+                        return _h.generate(_mr_bp(p, system=_MR_SP),
+                                           max_tokens=768, temperature=0.0,
+                                           cache_prompt=False) or ""
+                    _parts.append(("7b", _gen_7b))
+                _parts.append(("3b", _code_gen))
+                try:
+                    _mesa = deliberate(desc, entry, _parts, extract_code,
+                                       _visible, initial_code=code, rounds=2)
+                finally:
+                    if _hv is not None:
+                        close_heavy_code()
+                if _mesa.get("mejorado") and _mesa.get("code", "").strip():
+                    code = _mesa["code"]
+                    _best_t = {"score": _mesa["score"], "total": _mesa["total"]}
+                    out = {"n_generated": out.get("n_generated"),
+                           "n_unique": out.get("n_unique"),
+                           "rank_mode": "mesa_redonda", "code": code,
+                           "ranking": [_best_t]}
+                    _mesa_mejoro = True
+        except Exception:
+            pass   # la mesa nunca rompe la tool: fallback al candidato previo
+
     _bon_log({
         "ts": datetime.datetime.now().isoformat(timespec="seconds"),
         "task_head": desc[:120], "difficulty": dif, "n_planned": n_plan,
@@ -794,6 +856,7 @@ def _generar_codigo(args, ctx):
         "score": _best_t.get("score"), "total": _best_t.get("total"),
         "secs": round(_time.time() - _t0, 1),
         "escalado_7b": _escalado_7b, "score_3b": _score_3b, "score_7b": _score_7b,
+        "mesa_redonda": _mesa_mejoro,
     })
     if not code.strip() or f"def {entry}" not in code:
         return (f"RESULTADO generar_codigo ERROR: no se genero una funcion "
@@ -806,6 +869,8 @@ def _generar_codigo(args, ctx):
         ctx["agent_state"]["files_touched"] = ft[-15:]
     best = out.get("ranking", [{}])[0] if out.get("ranking") else {}
     _tag7 = " [escalado a 7B]" if _escalado_7b else ""
+    if _mesa_mejoro:
+        _tag7 += " [mesa redonda]"
     return (f"RESULTADO generar_codigo {_disp(wpath)}: OK (mejor de "
             f"{out.get('n_unique', '?')} candidatos unicos, rank={out.get('rank_mode')}, "
             f"tests visibles {best.get('score', '?')}/{best.get('total', '?')}, "
