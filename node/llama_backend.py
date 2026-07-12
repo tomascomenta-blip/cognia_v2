@@ -434,6 +434,11 @@ class _LlamaServerBackend:
             "--threads",  str(n_threads_decode),
             "--threads-batch", str(n_threads_batch),
             "--cache-reuse", "256",
+            # b9391 defaultea --cache-ram 8192 MiB *por server*: con 3-4
+            # servers de la colonia coexistiendo en 12GB es swap/OOM latente
+            # en sesiones largas (verificado contra --help del binario
+            # pineado, 2026-07-12). Acotado; override LLAMA_CACHE_RAM_MIB.
+            "--cache-ram", os.environ.get("LLAMA_CACHE_RAM_MIB", "1024"),
             "--prio",     "2",
             "--flash-attn", "on",
             "--log-disable",
