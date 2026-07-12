@@ -176,6 +176,17 @@ def test_format_prompt_por_template(monkeypatch, tmp_path):
     assert "<|im_start|>" in fr.format_prompt("zzz", "S", "U")
 
 
+def test_lora_relativa_se_resuelve_contra_el_manifest(monkeypatch, tmp_path):
+    (tmp_path / "m.gguf").write_bytes(b"x")
+    (tmp_path / "cognia_id_f16.gguf").write_bytes(b"x")
+    mf = _write_manifest(tmp_path, [
+        {"key": "a", "gguf": "m.gguf", "lora": "cognia_id_f16.gguf"}])
+    monkeypatch.setenv("COGNIA_FLEET30_MANIFEST", str(mf))
+    monkeypatch.setattr(fr, "_LlamaServerBackend", _FakeBackend)
+    b = fr.fleet_backend("a")
+    assert b.lora_path == tmp_path / "cognia_id_f16.gguf"
+
+
 def test_close_fleet30_para_todo(monkeypatch, tmp_path):
     for name in ("a", "b"):
         (tmp_path / f"{name}.gguf").write_bytes(b"x")

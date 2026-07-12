@@ -112,6 +112,10 @@ def load_manifest(force: bool = False) -> dict:
                 if not g.is_absolute():
                     g = path.parent / g
                 m = dict(m, gguf=g)
+                lora = m.get("lora")
+                if lora:
+                    lp = Path(lora)
+                    m["lora"] = lp if lp.is_absolute() else path.parent / lp
                 members[key] = m
         except Exception as exc:
             logger.warning("[fleet_registry] manifest ilegible %s (%s)", path, exc)
