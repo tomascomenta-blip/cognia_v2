@@ -36,9 +36,12 @@ def _patch_3b(monkeypatch, code_3b, score_3b, total, visible=None):
 
 @pytest.fixture(autouse=True)
 def _sin_7b(monkeypatch):
-    # El 7B nunca arranca en estos tests: la mesa queda solo con el 3B.
+    # Ni el 7B ni la etapa 3 (q35) arrancan servers reales en estos tests:
+    # la mesa queda solo con el 3B fake. (Sin el patch de fleet_backend, la
+    # etapa 3 de la cascada llegaba a spawnear un llama-server REAL.)
     monkeypatch.setattr("node.heavy_code.heavy_code_backend", lambda: None)
     monkeypatch.setattr("node.heavy_code.close_heavy_code", lambda: None)
+    monkeypatch.setattr("node.fleet_registry.fleet_backend", lambda key: None)
     monkeypatch.delenv("COGNIA_DELIBERACION", raising=False)
     yield
 

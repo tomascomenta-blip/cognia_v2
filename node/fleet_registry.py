@@ -42,7 +42,9 @@ from node.llama_backend import _LlamaServerBackend
 
 logger = logging.getLogger(__name__)
 
-_RAM_BUDGET_GB_DEFAULT = 3.0
+# 3.5: deja entrar al qwen35_4b (3.19GB est.) como etapa 3 de la cascada sin
+# env var; con 3B(2.4)+portero(0.7)+qwen35(3.2) el pico ~6.3GB < 11.8 total.
+_RAM_BUDGET_GB_DEFAULT = 3.5
 
 # Templates de prompt por familia (el .generate() del backend recibe prompt
 # crudo; cada familia formatea distinto). Concreto: format-strings, no clases.

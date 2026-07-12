@@ -790,6 +790,67 @@ def _generar_codigo(args, ctx):
         except Exception:
             pass   # cualquier falla del 7B -> quedarse con el 3B (fallback seguro)
 
+    # ── Etapa 3 de la cascada: Qwen3.5-4B no-think (COLONIA E2, 2026-07-12) ──
+    # MEDIDO (PREREG_E1_QWEN35 + union-oraculo): qwen35 RAW 17/40 > 3B 15/40
+    # en el set duro, y 4 tareas las resuelve SOLO qwen35 (ni 3B ni 7B) ->
+    # union de la colonia 27/40 vs 23/40 de la cascada 2-etapas. Dispara solo
+    # en tarea dura cuando (a) no hay funcion valida aun, o (b) hay asserts
+    # visibles y el candidato actual NO los pasa todos. El candidato q35
+    # REEMPLAZA solo si (a) no habia funcion, o (b) mejora ESTRICTAMENTE el
+    # score visible (keep-best; leccion del juez debil del deploy 7B).
+    # Lazy-usar-cerrar (2.7GB); sin GGUF o COGNIA_FLEET30=0 -> no-op.
+    _escalado_q35 = False
+    if dif >= _HEAVY_THRESHOLD:
+        _sin_funcion = f"def {entry}" not in code
+        _score_v = None
+        if not _sin_funcion and _visible:
+            try:
+                from cognia.agent.deliberation import (execution_feedback,
+                                                       feedback_score)
+                _score_v, _ = feedback_score(
+                    execution_feedback(code, _visible, entry))
+            except Exception:
+                _score_v = None
+        if _sin_funcion or (_score_v is not None and _score_v < len(_visible)):
+            try:
+                from node.fleet_registry import (close_fleet_member,
+                                                 fleet_backend)
+                _q35 = fleet_backend("qwen35_4b")
+                if _q35 is not None:
+                    _pf = ctx.get("print_fn")
+                    if callable(_pf):
+                        _pf("[detail]Etapa 3 de la colonia: probando con "
+                            "Qwen3.5-4B...[/detail]")
+                    try:
+                        from cognia_v3.eval.benchmark_code import (
+                            SYSTEM_PROMPT as _SP35, build_prompt as _bp35)
+                        _raw35 = _q35.generate(
+                            _bp35(desc, system=_SP35) + "<think>\n\n</think>\n\n",
+                            max_tokens=640, temperature=0.0,
+                            cache_prompt=False)
+                        _code35 = extract_code(_raw35 or "")
+                        if _code35.strip() and f"def {entry}" in _code35:
+                            _usar = _sin_funcion
+                            if not _usar and _visible:
+                                from cognia.agent.deliberation import (
+                                    execution_feedback as _ef35,
+                                    feedback_score as _fs35)
+                                _s35, _ = _fs35(_ef35(_code35, _visible, entry))
+                                _usar = _s35 > (_score_v or 0)
+                            if _usar:
+                                code = _code35
+                                _best_t = {"score": None, "total": None}
+                                out = {"n_generated": out.get("n_generated"),
+                                       "n_unique": out.get("n_unique"),
+                                       "rank_mode": "q35_greedy",
+                                       "code": _code35,
+                                       "ranking": [_best_t]}
+                                _escalado_q35 = True
+                    finally:
+                        close_fleet_member("qwen35_4b")
+            except Exception:
+                pass   # cualquier falla del q35 -> quedarse con lo previo
+
     # ── Mesa redonda FLEET-30 (deliberacion ENTRE modelos; default OFF) ─────
     # COGNIA_DELIBERACION=1 la activa (gate con tests OCULTOS pre-registrado:
     # PREREG_DELIBERACION.md; hasta que PASE, queda opt-in). Etapa ADITIVA:
@@ -856,7 +917,7 @@ def _generar_codigo(args, ctx):
         "score": _best_t.get("score"), "total": _best_t.get("total"),
         "secs": round(_time.time() - _t0, 1),
         "escalado_7b": _escalado_7b, "score_3b": _score_3b, "score_7b": _score_7b,
-        "mesa_redonda": _mesa_mejoro,
+        "mesa_redonda": _mesa_mejoro, "escalado_q35": _escalado_q35,
     })
     if not code.strip() or f"def {entry}" not in code:
         return (f"RESULTADO generar_codigo ERROR: no se genero una funcion "
@@ -869,6 +930,8 @@ def _generar_codigo(args, ctx):
         ctx["agent_state"]["files_touched"] = ft[-15:]
     best = out.get("ranking", [{}])[0] if out.get("ranking") else {}
     _tag7 = " [escalado a 7B]" if _escalado_7b else ""
+    if _escalado_q35:
+        _tag7 += " [etapa 3: Qwen3.5]"
     if _mesa_mejoro:
         _tag7 += " [mesa redonda]"
     return (f"RESULTADO generar_codigo {_disp(wpath)}: OK (mejor de "

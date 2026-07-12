@@ -6199,3 +6199,24 @@ previos + 2 adapters previos + 6 nuevos smoked + 1 adapter nuevo (id4b) + 2 tiny
 un miembro no existe hasta que su gate pasa). Pendientes que quedaron con plan: bge_reranker
 (descarga), qwen3_embed wiring (--pooling last), adapters de tarea (diag por clases primero),
 Qwen3.5-4B calibración no-think, e2e camino feliz de la próxima release.
+
+## 2026-07-12 (día) — CORRIDA COLONIA→CASI-GRANDE (parcial 1)
+
+**E1 (PREREG_E1_QWEN35) MEDIDO**: Qwen3.5-4B no-think greedy en tasks_hard_v2 ×40 ocultos =
+**17/40 (42.5%) > 3B RAW 15/40** → E1-KILL PASS (1ª ganancia de capacidad cruda por base de
+generación nueva); E1-MAYOR falla (no supera solo la ref GLM ~50%); 95.6s/tarea.
+**Unión-oráculo de la colonia: 27/40 (67.5%) vs 23/40 de la cascada desplegada (+10pp de techo)**;
+4 tareas las resuelve SOLO qwen35 (DBG1, NEWX6, NEWX7, NEWD4) → decorrelación real entre
+generaciones. DESPLEGADO: etapa 3 de la cascada (3B→7B→q35 greedy no-think) en generar_codigo,
+aditiva keep-best-estricto por visibles, lazy-usar-cerrar; 6 tests nuevos + 39/39 del área.
+
+**CORRECCIÓN DE HONESTIDAD (gate mesa redonda 2026-07-12 madrugada)**: la lista "25 falladas por
+la cascada" del prereg incluía por error de parsing las 8 recuperadas por el 7B (el campo `stage`
+las marca 'cascade' con passed=False). De las 6 tareas del gate, LONG1 y LONG4 eran recuperables
+por la cascada en prod. Sobre las 4 fallas finales VERDADERAS (ALG3, LONG2, LONG3, LONG5) la mesa
+recuperó **0/4** — el veredicto MR-1 FALLA se mantiene y se endurece. La única "recuperación"
+(LONG4) era una tarea que el 7B ya recuperaba. Queda opt-in, sin cambios.
+
+**Lección de aislamiento**: la etapa 3 nueva podía spawnear un llama-server REAL desde los unit
+tests de la mesa (fixture sin patch de fleet_backend) — cazado porque la suite tardó 103s; fix =
+patch en el fixture; 39/39 en 13.4s.
