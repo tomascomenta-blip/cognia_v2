@@ -7133,6 +7133,25 @@ def repl():
                                         _llama_turn = _fb
                             except Exception:
                                 _llama_turn = _llama
+                            # Ruteo por eje de la COLONIA (AUDIT 2026-07-12):
+                            # turnos de razonamiento -> miembro qwen3_4b crudo
+                            # (G2R 92.5 vs 82 del 3B+stepwise). Lazy via
+                            # fleet_registry; cualquier falla -> 3B intacto.
+                            _member_turn = False
+                            try:
+                                if _llama_turn is _llama:
+                                    from cognia.agent.fleet_router import (
+                                        member_for_chat_turn)
+                                    _mkey = member_for_chat_turn(raw)
+                                    if _mkey:
+                                        from node.fleet_registry import (
+                                            fleet_backend)
+                                        _mb = fleet_backend(_mkey)
+                                        if _mb is not None:
+                                            _llama_turn = _mb
+                                            _member_turn = True
+                            except Exception:
+                                _llama_turn = _llama
                             # Fleet: el chat general corre con la BASE pura (el
                             # experto regresiona G1 -8pp); EXCEPTO identidad,
                             # que va al experto (G3 20/20 vs 0/20 de la base).
@@ -7176,7 +7195,9 @@ def repl():
                             # Solo cambia el texto que VE el LLM; _history guarda `raw`.
                             try:
                                 from cognia.agent.stepwise import augment_stepwise
-                                _raw_llm = augment_stepwise(raw)
+                                # El miembro 4B va CRUDO: el audit lo midio sin
+                                # stepwise (92.5) y sobre-instruir degrada.
+                                _raw_llm = raw if _member_turn else augment_stepwise(raw)
                             except Exception:
                                 _raw_llm = raw
                             _messages = _build_stream_messages(
@@ -7185,7 +7206,7 @@ def repl():
                             # stepwise, system neutro por idioma = el MISMO formato del
                             # instrumento G3 del kernel, 95% medido) para que el prefill
                             # no coma la ventaja de velocidad en turnos triviales.
-                            if _llama_turn is not _llama:
+                            if _llama_turn is not _llama and not _member_turn:
                                 from node.speech_cascade import portero_system
                                 _messages = [{"role": "system", "content": portero_system(raw)},
                                              {"role": "user", "content": raw}]
