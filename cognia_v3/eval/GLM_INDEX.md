@@ -46,3 +46,20 @@ multi-turno) NO tienen suite congelada acá.** Por eso el índice separa:
 2. E2: BoN cross-family vs BoN 3B-only, mismas 40, pareado McNemar.
 3. E3: majority-vote inter-familia en G2R vs stepwise v2 (82), pareado.
 4. e2e: batería 17/17 + camino feliz 5/5 (sin regresión = gate duro).
+
+---
+
+## DESPUÉS (2026-07-12, corrida COLONIA→CASI-GRANDE ejecutada)
+
+| eje | antes | después | evidencia |
+|---|---|---|---|
+| código duro (techo de la colonia, ocultos) | 57.5% (cascada 2 etapas) | **67.5%** (27/40, cascada 3 etapas c/Qwen3.5) | unión medida + etapa 3 desplegada + e2e DBG1 PASA ocultos |
+| razonamiento G2R-40 | 82 (3B+stepwise) | **92.5** (ruteo→qwen3_4b crudo, McNemar p≈0.0000) | audit + wiring + live check (Beto=10) |
+| español G5 | 72 | 72 (sin cambio: qwen35 92% n.s. p=0.125, 17.7 s/ítem) | decisión honesta documentada |
+| vs ref GLM 5.2 código duro (~50%) | 115% capado | **135% capado** | mismo protocolo del gate 7B |
+
+**Compuesto honesto actualizado**: nicho del producto ~**82/100** (razonamiento
+saltó, código duro subió el techo); aspectos GENERALES ~**38/100** — el grueso
+de la brecha sigue en capacidad cruda (conocimiento abierto, generación libre
+larga, ctx>16k) que ninguna orquestación de ≤7B compra. El delta de la corrida
+es real y medido: +10pp de techo en código duro, +10.5pp en razonamiento.
