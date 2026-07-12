@@ -94,13 +94,13 @@ def main():
     if OUT.is_file():
         res = json.loads(OUT.read_text(encoding="utf-8"))
 
-    def corre_brazo(nombre, backend, prefill):
+    def corre_brazo(nombre, backend, prefill, k=2):
         hecho = res["brazos"].setdefault(nombre, {})
         for tid in virgenes + noreg:
             if tid in hecho:
                 continue
             t = tasks[tid]
-            ex = retrieve(t, library, k=2)
+            ex = retrieve(t, library, k=k)
             user = fewshot_block(ex) + t["prompt"]
             p = build_prompt(user, system=SYSTEM_PROMPT) + prefill
             t0 = time.time()
@@ -116,14 +116,22 @@ def main():
             print(f"  [{nombre}][{tid}] {'PASS' if ok else 'fail:' + et} "
                   f"(ex={[e['id'] for e in ex]})", flush=True)
 
-    # Brazo A: 3B
-    if not all(t in res["brazos"].get("3b_fs", {}) for t in virgenes + noreg):
+    # Brazo A: 3B (k=2) + brazo AJUSTE del prereg: 3B con k=1 (menos
+    # distraccion; FS-2 fallo con k=2 por ALG1/ALG2)
+    falta_a = not all(t in res["brazos"].get("3b_fs", {})
+                      for t in virgenes + noreg)
+    falta_k1 = not all(t in res["brazos"].get("3b_fs_k1", {})
+                       for t in virgenes + noreg)
+    if falta_a or falta_k1:
         from node.llama_backend import _LlamaServerBackend
         from shattering.model_constants import resolve_gguf_path
         b3 = _LlamaServerBackend(resolve_gguf_path("3b"), port=PORT_3B,
                                  ctx_size=8192)
         try:
-            corre_brazo("3b_fs", b3, "")
+            if falta_a:
+                corre_brazo("3b_fs", b3, "")
+            if falta_k1:
+                corre_brazo("3b_fs_k1", b3, "", k=1)
         finally:
             b3.stop()
 
@@ -137,18 +145,27 @@ def main():
             finally:
                 close_fleet30()
 
-    # Veredictos
+    # Veredictos (config original k=2 y config AJUSTADA: 3B k=1 + q35 k=2)
     a = res["brazos"].get("3b_fs", {})
     b = res["brazos"].get("q35_fs", {})
+    ak1 = res["brazos"].get("3b_fs_k1", {})
     rec = sorted({i for i in virgenes
                   if a.get(i, {}).get("passed") or b.get(i, {}).get("passed")})
     reg = [i for i in noreg
-           if a.get(i) and not a[i]["passed"]]   # regresión del brazo 3B
+           if a.get(i) and not a[i]["passed"]]
+    rec_aj = sorted({i for i in virgenes
+                     if ak1.get(i, {}).get("passed")
+                     or b.get(i, {}).get("passed")})
+    reg_aj = [i for i in noreg if ak1.get(i) and not ak1[i]["passed"]]
     res["veredictos"] = {
         "FS-1_virgenes_recuperadas(>=2)": [len(rec), rec, len(rec) >= 2],
         "FS-2_regresiones_3b(0)": [len(reg), reg, len(reg) == 0],
+        "AJUSTE_k1_FS-1(>=2)": [len(rec_aj), rec_aj, len(rec_aj) >= 2],
+        "AJUSTE_k1_FS-2(0)": [len(reg_aj), reg_aj, len(reg_aj) == 0],
         "detalle": {"3b_fs_virgenes": sum(1 for i in virgenes
                                           if a.get(i, {}).get("passed")),
+                    "3b_fs_k1_virgenes": sum(1 for i in virgenes
+                                             if ak1.get(i, {}).get("passed")),
                     "q35_fs_virgenes": sum(1 for i in virgenes
                                            if b.get(i, {}).get("passed"))}}
     OUT.write_text(json.dumps(res, indent=1), encoding="utf-8")

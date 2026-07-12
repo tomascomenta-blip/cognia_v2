@@ -37,3 +37,22 @@ ejemplo-concreto (+62pp), el mismo mecanismo a nivel de prompt.
 FS-1 <2 o FS-2 falla → un ajuste permitido (k=1 exemplar o retrieval por
 categoría); segunda falla → línea documentada negativa, el ledger queda
 solo como calibración.
+
+---
+
+## RESOLUCIÓN (2026-07-12, ambos brazos + ajuste medidos)
+
+**NEGATIVA LIMPIA (8ª del programa) — con señal débil documentada.**
+- Config original (k=2): FS-1 PASS (2/13: SPEC1 por el 3B, SPEC4 por q35)
+  pero FS-2 FALLA (el 3B PIERDE ALG1 y ALG2 que resolvía sin few-shot).
+- Ajuste único (3B k=1): FS-2 EMPEORA (3 regresiones: ALG1/ALG2/ALG4).
+- Config "solo q35" (cero regresiones, q35 hizo 5/5 el noreg): recupera
+  solo SPEC4 → FS-1 (≥2) no llega.
+Segunda falla → línea CERRADA según la regla de corte. Consistente con la
+literatura verificada (exemplar engañoso −8/−11pp; los exemplars
+correlacionan candidatos). La señal real (SPEC1/SPEC4 eran vírgenes que
+nadie resolvía) queda registrada; condición de reapertura: biblioteca de
+soluciones GRANDE y de dominios variados (cuando el ledger acumule
+soluciones fuera de la propia suite — hoy 23 de la misma familia de
+tareas = vecinos engañosos) + nuevo prereg con umbral de abstención.
+El few-shot NUNCA tocó producción (vivió solo en el runner del gate).

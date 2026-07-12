@@ -1,0 +1,595 @@
+{
+ "prereg": "PREREG_EFEWSHOT.md",
+ "virgenes": [
+  "ALG3",
+  "LONG2",
+  "LONG3",
+  "LONG5",
+  "SPEC1",
+  "SPEC2",
+  "SPEC3",
+  "SPEC4",
+  "NEWX2",
+  "NEWX3",
+  "NEWX4",
+  "NEWX5",
+  "NEWD2"
+ ],
+ "noreg_ids": [
+  "ALG1",
+  "ALG2",
+  "ALG4",
+  "ALG5",
+  "ALG6"
+ ],
+ "brazos": {
+  "3b_fs": {
+   "ALG3": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWX1",
+     "NEWD5"
+    ],
+    "secs": 70.8
+   },
+   "LONG2": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWD3",
+     "NEWD6"
+    ],
+    "secs": 91.6
+   },
+   "LONG3": {
+    "passed": false,
+    "error_type": "syntax",
+    "virgen": true,
+    "exemplars": [
+     "NEWD1",
+     "NEWA7"
+    ],
+    "secs": 118.4
+   },
+   "LONG5": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "LONG1",
+     "LONG4"
+    ],
+    "secs": 103.2
+   },
+   "SPEC1": {
+    "passed": true,
+    "error_type": "",
+    "virgen": true,
+    "exemplars": [
+     "NEWA7",
+     "NEWD1"
+    ],
+    "secs": 60.9
+   },
+   "SPEC2": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWA6",
+     "ALG1"
+    ],
+    "secs": 66.3
+   },
+   "SPEC3": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "ALG2",
+     "NEWX1"
+    ],
+    "secs": 88.1
+   },
+   "SPEC4": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "DBG2",
+     "NEWD1"
+    ],
+    "secs": 54.9
+   },
+   "NEWX2": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWD5",
+     "NEWX1"
+    ],
+    "secs": 86.1
+   },
+   "NEWX3": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWX1",
+     "NEWD1"
+    ],
+    "secs": 57.1
+   },
+   "NEWX4": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWA7",
+     "NEWX1"
+    ],
+    "secs": 69.1
+   },
+   "NEWX5": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWX1",
+     "NEWA7"
+    ],
+    "secs": 71.6
+   },
+   "NEWD2": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWD5",
+     "NEWD1"
+    ],
+    "secs": 52.5
+   },
+   "ALG1": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": false,
+    "exemplars": [
+     "NEWA3",
+     "NEWA4"
+    ],
+    "secs": 62.2
+   },
+   "ALG2": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": false,
+    "exemplars": [
+     "NEWD1",
+     "NEWD3"
+    ],
+    "secs": 44.0
+   },
+   "ALG4": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "NEWX1",
+     "NEWA5"
+    ],
+    "secs": 51.1
+   },
+   "ALG5": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "ALG1",
+     "NEWA3"
+    ],
+    "secs": 58.5
+   },
+   "ALG6": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "ALG1",
+     "NEWA3"
+    ],
+    "secs": 46.0
+   }
+  },
+  "q35_fs": {
+   "ALG3": {
+    "passed": false,
+    "error_type": "syntax",
+    "virgen": true,
+    "exemplars": [
+     "NEWX1",
+     "NEWD5"
+    ],
+    "secs": 189.4
+   },
+   "LONG2": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWD3",
+     "NEWD6"
+    ],
+    "secs": 148.8
+   },
+   "LONG3": {
+    "passed": false,
+    "error_type": "syntax",
+    "virgen": true,
+    "exemplars": [
+     "NEWD1",
+     "NEWA7"
+    ],
+    "secs": 194.4
+   },
+   "LONG5": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "LONG1",
+     "LONG4"
+    ],
+    "secs": 221.2
+   },
+   "SPEC1": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWA7",
+     "NEWD1"
+    ],
+    "secs": 129.7
+   },
+   "SPEC2": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWA6",
+     "ALG1"
+    ],
+    "secs": 170.6
+   },
+   "SPEC3": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "ALG2",
+     "NEWX1"
+    ],
+    "secs": 197.0
+   },
+   "SPEC4": {
+    "passed": true,
+    "error_type": "",
+    "virgen": true,
+    "exemplars": [
+     "DBG2",
+     "NEWD1"
+    ],
+    "secs": 175.1
+   },
+   "NEWX2": {
+    "passed": false,
+    "error_type": "missing_func",
+    "virgen": true,
+    "exemplars": [
+     "NEWD5",
+     "NEWX1"
+    ],
+    "secs": 183.3
+   },
+   "NEWX3": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWX1",
+     "NEWD1"
+    ],
+    "secs": 160.9
+   },
+   "NEWX4": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWA7",
+     "NEWX1"
+    ],
+    "secs": 148.5
+   },
+   "NEWX5": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWX1",
+     "NEWA7"
+    ],
+    "secs": 209.8
+   },
+   "NEWD2": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWD5",
+     "NEWD1"
+    ],
+    "secs": 118.4
+   },
+   "ALG1": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "NEWA3",
+     "NEWA4"
+    ],
+    "secs": 108.9
+   },
+   "ALG2": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "NEWD1",
+     "NEWD3"
+    ],
+    "secs": 79.5
+   },
+   "ALG4": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "NEWX1",
+     "NEWA5"
+    ],
+    "secs": 84.1
+   },
+   "ALG5": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "ALG1",
+     "NEWA3"
+    ],
+    "secs": 80.2
+   },
+   "ALG6": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "ALG1",
+     "NEWA3"
+    ],
+    "secs": 91.2
+   }
+  },
+  "3b_fs_k1": {
+   "ALG3": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWX1"
+    ],
+    "secs": 41.4
+   },
+   "LONG2": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWD3"
+    ],
+    "secs": 71.2
+   },
+   "LONG3": {
+    "passed": false,
+    "error_type": "syntax",
+    "virgen": true,
+    "exemplars": [
+     "NEWD1"
+    ],
+    "secs": 105.0
+   },
+   "LONG5": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "LONG1"
+    ],
+    "secs": 101.7
+   },
+   "SPEC1": {
+    "passed": true,
+    "error_type": "",
+    "virgen": true,
+    "exemplars": [
+     "NEWA7"
+    ],
+    "secs": 58.1
+   },
+   "SPEC2": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWA6"
+    ],
+    "secs": 54.2
+   },
+   "SPEC3": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "ALG2"
+    ],
+    "secs": 61.9
+   },
+   "SPEC4": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "DBG2"
+    ],
+    "secs": 60.5
+   },
+   "NEWX2": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWD5"
+    ],
+    "secs": 101.2
+   },
+   "NEWX3": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWX1"
+    ],
+    "secs": 56.3
+   },
+   "NEWX4": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWA7"
+    ],
+    "secs": 53.9
+   },
+   "NEWX5": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": true,
+    "exemplars": [
+     "NEWX1"
+    ],
+    "secs": 56.0
+   },
+   "NEWD2": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": true,
+    "exemplars": [
+     "NEWD5"
+    ],
+    "secs": 42.3
+   },
+   "ALG1": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": false,
+    "exemplars": [
+     "NEWA3"
+    ],
+    "secs": 46.8
+   },
+   "ALG2": {
+    "passed": false,
+    "error_type": "assert",
+    "virgen": false,
+    "exemplars": [
+     "NEWD1"
+    ],
+    "secs": 35.3
+   },
+   "ALG4": {
+    "passed": false,
+    "error_type": "runtime",
+    "virgen": false,
+    "exemplars": [
+     "NEWX1"
+    ],
+    "secs": 42.2
+   },
+   "ALG5": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "ALG1"
+    ],
+    "secs": 50.8
+   },
+   "ALG6": {
+    "passed": true,
+    "error_type": "",
+    "virgen": false,
+    "exemplars": [
+     "ALG1"
+    ],
+    "secs": 35.9
+   }
+  }
+ },
+ "veredictos": {
+  "FS-1_virgenes_recuperadas(>=2)": [
+   2,
+   [
+    "SPEC1",
+    "SPEC4"
+   ],
+   true
+  ],
+  "FS-2_regresiones_3b(0)": [
+   2,
+   [
+    "ALG1",
+    "ALG2"
+   ],
+   false
+  ],
+  "AJUSTE_k1_FS-1(>=2)": [
+   2,
+   [
+    "SPEC1",
+    "SPEC4"
+   ],
+   true
+  ],
+  "AJUSTE_k1_FS-2(0)": [
+   3,
+   [
+    "ALG1",
+    "ALG2",
+    "ALG4"
+   ],
+   false
+  ],
+  "detalle": {
+   "3b_fs_virgenes": 1,
+   "3b_fs_k1_virgenes": 1,
+   "q35_fs_virgenes": 1
+  }
+ }
+}
