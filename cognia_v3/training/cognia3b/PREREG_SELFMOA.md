@@ -33,3 +33,18 @@ MISMO modelo con 1 llamada extra supera al single-shot y al primer-sample
 Un solo ajuste (brazo C). Si falla, se documenta y NO se entrena nada en
 Kaggle para esta línea (el "sintetizador" fine-tuneado solo se consideraría
 con B o C ya positivos y un gap de FORMATO diagnosticado).
+
+---
+
+## RESOLUCIÓN (2026-07-12, con el audit completo)
+
+**NO EVALUABLE POR TECHO — el ruteo captura la ganancia.** El generador
+elegido por AUD-2 (qwen3_4b) mide **92.5%** en la suite congelada G2R-40:
+quedan 3 ítems de headroom, con los que McNemar no puede alcanzar p<0.05
+(harían falta ≥5-6 flips netos). Correr los brazos B/C costaría ~1.5h de
+CPU sin poder mover el gate en ninguna dirección. Además la unión-oráculo
+del eje ya es 40/40: la ganancia disponible la captura el ROUTER por eje
+(desplegado: razonamiento→qwen3_4b, McNemar p≈0 vs 3B), no la agregación.
+La línea Self-MoA queda ARCHIVADA para este eje; re-abrible solo con una
+suite más dura donde el mejor generador no sature (p.ej. g2_razonamiento
+ítems 41-100 o la suite lógica), con nuevo prereg.
