@@ -6159,3 +6159,43 @@ intención). Cero cambios en código fuente esta sesión.
 - **Pendiente del dueño (recordatorio):** YANKEAR 3.8.4 en PyPI (release con la regresión
   del repeat_penalty del agente) — 30 s desde 'Manage project' en la web de PyPI. El token
   de upload no puede yankear; lo hace el dueño desde la web.
+
+---
+
+## 2026-07-12 (madrugada, 23:07→05:30) — CORRIDA FLEET-30 (autonomía total, deadline 05:30)
+
+**Mandato del dueño**: flota de 30 modelos/expertos MoM (open-weight ≤7B investigados + QLoRA
+Kaggle + desde-cero), loop de deliberación ENTRE modelos, análogo de "loop transformer" interno.
+North Star: IA increíblemente buena para programación.
+
+**Entregado y VERIFICADO (todo commiteado y pusheado, c54a15d..b27bdd8):**
+1. **Investigación** (8 agentes + consolidador, scores de fuente primaria): FLEET30_RESEARCH.md —
+   shortlist 12; scores falsos de blogs cazados (Qwen3.6-4B no existe; XiYanSQL 75.63 falso).
+2. **Roster FLEET-30**: FLEET30_DESIGN.md (17 base + 9 adapters + 4 tiny, estados honestos).
+3. **Infra N-modelos**: node/fleet_registry.py (manifest, lazy, RAM budget, LRU, 13 tests) +
+   7 GGUF descargados (12.5GB) + manifest. SMOKES REALES b9391: qwen3_4b, nextcoder7b, coder15b,
+   vibethinker (15.2 tok/s), qwen35_4b (CARGA, 4.5 tok/s, modo think), lfm25_12b — 6/6 cargan.
+4. **K1 QLoRA identidad 4B** (PREREG_ID4B, Kaggle): v1 OOM (fp16) → v2 NF4+grad-ckpt →
+   **G3 0→100% (p≈0), G1 sin regresión (p=0.22)** → GGUF 63MB → LoRA estática → verificado EN
+   VIVO ("Soy Cognia..." ES/EN). Bug lora-relativa del manifest cazado con test antes de morder.
+5. **K2 loop transformer desde cero** (PREREG_XHLOOP, Kaggle): 3 capas × 4 vueltas weight-tied →
+   **3/3 gates: bpb 1.3069 (12L: 1.2888), cloze 0.85 (IGUAL al 12L), 21.2M nonemb ≈ 1/4 params**.
+   El "pensar en loop" literal, donde es arquitectónicamente posible (los GGUF no se loopean).
+6. **Mesa redonda** (deliberation.py + wiring en generar_codigo, 14 tests): modelos se pasan
+   candidato + traceback REAL del sandbox y reparan por turnos (keep-best, oráculo duro, jamás
+   juez-LLM). **Gate pre-registrado FALLA: 1/6 recuperadas en ocultos (LONG4) < 2** → queda
+   OPT-IN (COGNIA_DELIBERACION=1). El techo compartido (2026-07-11) se extiende a NextCoder
+   (misma base). 0 roturas (keep-best cumplió), 0 sobreajuste. 6ª negativa limpia del programa.
+7. **Suite**: 3769 passed / 1 failed de stress db_pool que re-corrido solo da 3/3 (contención de
+   CPU con el gate concurrente, no regresión).
+
+**Incidentes**: usage 93% a la 01:00 → modo ahorro + reanudación al reset (regla del dueño
+cumplida sin parar los kernels). Background tasks del harness matados 2 veces → detached con
+Start-Process (lección previa reconfirmada) + persistencia incremental en el runner del gate.
+
+**Honestidad de conteo**: 30 miembros DEFINIDOS con gate cada uno; operativos hoy: 3 deployed
+previos + 2 adapters previos + 6 nuevos smoked + 1 adapter nuevo (id4b) + 2 tiny entrenados
+(xh_tiny, xh_loop) = 14 reales; el resto PLANEADO con gate pre-definido (no se infla el número:
+un miembro no existe hasta que su gate pasa). Pendientes que quedaron con plan: bge_reranker
+(descarga), qwen3_embed wiring (--pooling last), adapters de tarea (diag por clases primero),
+Qwen3.5-4B calibración no-think, e2e camino feliz de la próxima release.
