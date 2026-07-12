@@ -145,3 +145,15 @@ def test_sin_visibles_con_7b_escalado_respeta_al_7b(monkeypatch, tmp_path):
     r = tools._generar_codigo("doble.py | funcion doble(n)", _ctx(tmp_path))
     assert "escalado a 7B" in r
     assert q.calls == 0
+
+
+def test_telemetria_no_se_contamina_bajo_pytest(monkeypatch, tmp_path):
+    # Higiene del instrumento: bajo pytest _bon_log es no-op (los fakes
+    # estaban escribiendo registros falsos al ledger de calibracion).
+    fake = tmp_path / "telem.jsonl"
+    monkeypatch.setattr(tools, "_BON_TELEMETRY", fake)
+    _patch_3b(monkeypatch, CODE_BUENO, 2, 2, visible=ASSERTS)
+    _patch_q35(monkeypatch, CODE_BUENO)
+    monkeypatch.setattr(tools, "_bon_n", lambda d: (3, 0.1))
+    tools._generar_codigo("doble.py | funcion doble(n)", _ctx(tmp_path))
+    assert not fake.exists()          # ni una linea bajo pytest

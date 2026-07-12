@@ -681,6 +681,13 @@ _BON_TELEMETRY = Path(__file__).parent / "generated_tools" / "_bon_telemetry.jso
 
 
 def _bon_log(rec: dict) -> None:
+    # Higiene del instrumento (2026-07-12): los unit tests ejercitan
+    # _generar_codigo con fakes y estaban escribiendo telemetria FALSA al
+    # ledger de produccion (la telemetria es el dataset de calibracion de
+    # θ/router: contaminarla rompe la calibracion futura). Bajo pytest no
+    # se registra nada.
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
     try:
         _BON_TELEMETRY.parent.mkdir(parents=True, exist_ok=True)
         with _BON_TELEMETRY.open("a", encoding="utf-8") as f:
