@@ -46,7 +46,7 @@ con oráculo determinista; diagnóstico por clases ANTES de gastar GPU.
 |---|-----|------|-------|--------|
 | 18 | accion | 3B | tool-calling formato ACCION + identidad | **DEPLOYED** (G2A 99.3) |
 | 19 | portero_id | 0.5B | identidad del portero | **DEPLOYED** (G3 90) |
-| 20 | id_qwen3_4b | qwen3_4b | identidad Cognia del 4B (G3: contesta como Qwen sin él) | **KERNEL ESTA NOCHE** (K1, gate G3≥90 + G1 sin regresión) |
+| 20 | id_qwen3_4b | qwen3_4b | identidad Cognia del 4B (G3: contesta como Qwen sin él) | **ENTRENADO+DESPLEGADO** (K1 v2 QLoRA NF4: G3 0→100% p≈0, G1 sin regresión p=0.22; verificado EN VIVO en b9391) |
 | 21 | accion_4b | qwen3_4b | formato ACCION en el 4B | PLANEADO (solo si #20 pasa; gate G2A) |
 | 22 | commit_msgs | coder15b | mensaje de commit desde diff (formato convencional) | PLANEADO (dataset del git history, verificado por parser) |
 | 23 | docstrings | coder15b | docstring Google-style (oráculo: firma vs args documentados) | PLANEADO (diag primero) |
@@ -59,7 +59,7 @@ con oráculo determinista; diagnóstico por clases ANTES de gastar GPU.
 | # | key | qué | estado |
 |---|-----|-----|--------|
 | 27 | xh_tiny_es | 110M banded español (XHUNDRED; G1 1.2888 ✓, G4 0.85 ✓, G3 ✗) | ENTRENADO, experimental |
-| 28 | xh_loop | **loop transformer interno**: 3 capas × 4 vueltas weight-tied (XARCH midió: calidad ≈12L con 1/4 de params) + halting adaptativo (exp137: +31% ahorro, POSITIVO en toy) | **KERNEL ESTA NOCHE** (K2; gates pre-registrados abajo) |
+| 28 | xh_loop | **loop transformer interno**: 3 capas × 4 vueltas weight-tied (XARCH midió: calidad ≈12L con 1/4 de params) + halting adaptativo (exp137: +31% ahorro, POSITIVO en toy) | **ENTRENADO** (K2 3/3 gates: bpb 1.3069 vs 1.2888 del 12L, cloze 0.85 IGUAL al 12L, 21.2M nonemb ≈1/4; G3 no-degeneración falla igual que el 12L — experimental) |
 | 29 | tiny_router | clasificador de especialidad→experto (para el router del fleet) | PLANEADO |
 | 30 | tiny_error_clf | clasificador de error_type→estrategia de repair | PLANEADO |
 

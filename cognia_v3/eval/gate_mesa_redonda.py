@@ -17,6 +17,7 @@ sys.path.insert(0, str(REPO))
 
 TASK_IDS = ["ALG3", "LONG1", "LONG2", "LONG3", "LONG4", "LONG5"]  # CONGELADAS
 OUT = REPO / "cognia_v3" / "eval" / "results_mesa_redonda.json"
+PROGRESS = REPO / "cognia_v3" / "eval" / "results_mesa_redonda.progress.json"
 PORT_3B = 8188      # puerto propio: no adoptar/tocar el server del CLI
 
 
@@ -41,27 +42,37 @@ def main():
            "fase1": {}, "fase2": {}, "veredictos": {}}
 
     # ── Fase 1: 3B greedy + test-first (server propio, luego se cierra) ──
-    print("== FASE 1: candidatos 3B greedy + tests visibles ==", flush=True)
-    b3 = _LlamaServerBackend(resolve_gguf_path("3b"), port=PORT_3B, ctx_size=4096)
+    # Con cache en PROGRESS: si el proceso muere en fase 2 (paso una vez), el
+    # relanzamiento NO re-paga los candidatos 3B.
     cand = {}
-    try:
-        for t in sel:
-            p = build_prompt(t["prompt"], system=SYSTEM_PROMPT)
-            raw = b3.generate(p, max_tokens=640, temperature=0.0,
-                              cache_prompt=False) or ""
-            code = extract_code(raw)
-            tg = build_test_gen_prompt(t["prompt"], t["entry_point"], k=4)
-            rawt = b3.generate(build_prompt(tg, system=TEST_GEN_SYSTEM),
-                               max_tokens=256, temperature=0.0,
-                               cache_prompt=False) or ""
-            visibles = extract_asserts(rawt, t["entry_point"])
-            oculto_antes, et, det = run_task_tests(code, t["tests"], t["entry_point"])
-            cand[t["id"]] = {"code": code, "visibles": visibles,
-                             "oculto_antes": bool(oculto_antes)}
-            print(f"  [{t['id']}] visibles={len(visibles)} oculto_antes="
-                  f"{oculto_antes} ({et})", flush=True)
-    finally:
-        b3.stop()
+    if PROGRESS.is_file():
+        cand = json.loads(PROGRESS.read_text(encoding="utf-8")).get("cand", {})
+        print(f"== FASE 1: cache con {len(cand)} candidatos ==", flush=True)
+    if set(cand) != set(TASK_IDS):
+        print("== FASE 1: candidatos 3B greedy + tests visibles ==", flush=True)
+        b3 = _LlamaServerBackend(resolve_gguf_path("3b"), port=PORT_3B, ctx_size=4096)
+        try:
+            for t in sel:
+                if t["id"] in cand:
+                    continue
+                p = build_prompt(t["prompt"], system=SYSTEM_PROMPT)
+                raw = b3.generate(p, max_tokens=640, temperature=0.0,
+                                  cache_prompt=False) or ""
+                code = extract_code(raw)
+                tg = build_test_gen_prompt(t["prompt"], t["entry_point"], k=4)
+                rawt = b3.generate(build_prompt(tg, system=TEST_GEN_SYSTEM),
+                                   max_tokens=256, temperature=0.0,
+                                   cache_prompt=False) or ""
+                visibles = extract_asserts(rawt, t["entry_point"])
+                oculto_antes, et, det = run_task_tests(code, t["tests"], t["entry_point"])
+                cand[t["id"]] = {"code": code, "visibles": visibles,
+                                 "oculto_antes": bool(oculto_antes)}
+                PROGRESS.write_text(json.dumps({"cand": cand}),
+                                    encoding="utf-8")
+                print(f"  [{t['id']}] visibles={len(visibles)} oculto_antes="
+                      f"{oculto_antes} ({et})", flush=True)
+        finally:
+            b3.stop()
     res["fase1"] = {k: {"visibles": v["visibles"],
                         "oculto_antes": v["oculto_antes"]}
                     for k, v in cand.items()}
@@ -95,7 +106,10 @@ def main():
                 "total_visible": out["total"],
                 "mejoro_visible": out["mejorado"],
                 "oculto_despues": bool(oculto_despues),
-                "error_despues": et, "secs_mesa": dt}
+                "error_despues": et, "secs_mesa": dt,
+                "code_final": out["code"]}
+            OUT.write_text(json.dumps(res, indent=1, ensure_ascii=True),
+                           encoding="utf-8")   # persistencia incremental
             print(f"  [{t['id']}] mesa={out['motivo']} vis={out['score']}/"
                   f"{out['total']} oculto: {c['oculto_antes']} -> "
                   f"{oculto_despues} ({dt}s)", flush=True)
