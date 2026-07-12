@@ -174,11 +174,13 @@ def main():
     # torchao preinstalado rompe el import de peft (workaround eport/ecod)
     subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "torchao"],
                    check=False)
-    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft"],
-                   check=False)
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft",
+                    "bitsandbytes"], check=False)
     import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    from peft import LoraConfig, get_peft_model
+    from transformers import (AutoModelForCausalLM, AutoTokenizer,
+                              BitsAndBytesConfig)
+    from peft import (LoraConfig, get_peft_model,
+                      prepare_model_for_kbit_training)
     torch.manual_seed(SEED)
 
     RESULTS["env"] = {"gpu": torch.cuda.get_device_name(0),
@@ -188,8 +190,15 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    # v2 (fix OOM): el 4B fp16 + LoRA revento la T4 (14.5GB) en el step 1 —
+    # QLoRA NF4 (receta E-GROK: unsloth usaba NF4 en el 3B) + gradient
+    # checkpointing. Pareado consistente: base y adapter se evaluan AMBOS
+    # en NF4 dentro de la misma corrida.
+    bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_use_double_quant=True,
+                             bnb_4bit_quant_type="nf4",
+                             bnb_4bit_compute_dtype=torch.float16)
     base = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID, torch_dtype=torch.float16, device_map={"": 0},
+        MODEL_ID, quantization_config=bnb, device_map={"": 0},
         attn_implementation="sdpa")
     base.eval()
 
@@ -208,6 +217,8 @@ def main():
     import gc
     gc.collect()
     torch.cuda.empty_cache()
+    base = prepare_model_for_kbit_training(
+        base, use_gradient_checkpointing=True)
     lora = LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05,
                       target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
                                       "gate_proj", "up_proj", "down_proj"],
