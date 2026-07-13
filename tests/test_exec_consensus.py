@@ -78,3 +78,34 @@ def test_consenso_solo_sobre_tied():
     idx, info = consensus_pick(codes, INPUTS, ENTRY, tied_idxs=[1, 2, 3])
     assert idx in (1, 2)
     assert info["n_considered"] == 3
+
+
+def test_consensus_tiebreak_usa_gen_fn_y_elige():
+    # gen_fn devuelve inputs; entre 3 empatados (2 correctos + 1 buggy)
+    # gana el cluster correcto.
+    def gen_fn(prompt, temperature=0.0, seed=None):
+        assert "doble(" in prompt          # el prompt pide llamadas a doble
+        return "doble(2)\ndoble(-3)\ndoble(0)\ndoble(100)"
+    from cognia.agent.exec_consensus import consensus_tiebreak
+    codes = [MALO_A, BUENO, BUENO2, MALO_B]
+    idx, info = consensus_tiebreak(codes, [1, 2, 3], gen_fn, "haz doble", ENTRY)
+    assert idx in (1, 2)
+
+
+def test_consensus_tiebreak_sin_empate_none():
+    from cognia.agent.exec_consensus import consensus_tiebreak
+    called = {"n": 0}
+    def gen_fn(prompt, temperature=0.0, seed=None):
+        called["n"] += 1
+        return ""
+    idx, info = consensus_tiebreak([BUENO], [0], gen_fn, "t", ENTRY)
+    assert idx is None
+    assert called["n"] == 0                # ni llama al modelo si no hay empate
+
+
+def test_consensus_tiebreak_gen_fn_falla_none():
+    from cognia.agent.exec_consensus import consensus_tiebreak
+    def gen_fn(prompt, temperature=0.0, seed=None):
+        raise RuntimeError("server caido")
+    idx, info = consensus_tiebreak([BUENO, MALO_A], [0, 1], gen_fn, "t", ENTRY)
+    assert idx is None                     # fallback seguro

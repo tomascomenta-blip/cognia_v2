@@ -165,3 +165,25 @@ def consensus_pick(codes, input_calls, entry_point, tied_idxs=None):
         return None, info
     ganador = min(i for i in sigs if sigs[i] == top_sig)   # idx menor
     return ganador, info
+
+
+def consensus_tiebreak(codes, tied_idxs, gen_fn, task_prompt, entry_point,
+                       k_inputs=6, seed=42):
+    """Desempate de un BoN: entre los candidatos EMPATADOS (tied_idxs, que
+    comparten el top score de tests visibles), genera inputs distinguidores
+    con gen_fn, ejecuta y elige por consenso de comportamiento. Devuelve
+    (idx_o_None, info). None = sin señal → el caller mantiene su desempate
+    por índice (fallback seguro). Respeta CE-2: solo se llama sobre EMPATES,
+    nunca overridea un candidato con más tests visibles.
+
+    gen_fn(prompt, temperature, seed) -> str (mismo contrato que candidates).
+    El caller envuelve el prompt en su template; acá se pasa crudo."""
+    if len(tied_idxs) < 2:
+        return None, {"n_considered": len(tied_idxs), "reason": "sin_empate"}
+    try:
+        raw = gen_fn(build_input_gen_prompt(task_prompt, entry_point, k_inputs),
+                     temperature=0.0, seed=seed) or ""
+    except Exception:
+        return None, {"reason": "gen_fn_fallo"}
+    inputs = extract_input_calls(raw, entry_point)
+    return consensus_pick(codes, inputs, entry_point, tied_idxs=tied_idxs)
