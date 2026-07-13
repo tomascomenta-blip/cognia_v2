@@ -277,6 +277,36 @@ def crear_server(oficina, host: str = "127.0.0.1", puerto: int = 8765):
                                 "departamentos": departamentos()})
                 except Exception as exc:
                     self._json({"error": str(exc)}, 500)
+            elif ruta == "/api/kg":
+                # Datos del knowledge graph (nodes+links) para vistas.
+                try:
+                    from cognia.knowledge.graph import KnowledgeGraph
+                    from cognia.knowledge.graph_view import build_graph_data
+                    proj = urllib.parse.parse_qs(
+                        self.path.split("?", 1)[1] if "?" in self.path else ""
+                    ).get("project", [None])[0]
+                    self._json(build_graph_data(KnowledgeGraph(), project=proj))
+                except Exception as exc:
+                    self._json({"error": str(exc)}, 500)
+            elif ruta == "/grafo":
+                # Vista Obsidian-style del KG, HTML autocontenido.
+                try:
+                    from cognia.knowledge.graph import KnowledgeGraph
+                    from cognia.knowledge.graph_view import (build_graph_data,
+                                                            render_html)
+                    proj = urllib.parse.parse_qs(
+                        self.path.split("?", 1)[1] if "?" in self.path else ""
+                    ).get("project", [None])[0]
+                    data = build_graph_data(KnowledgeGraph(), project=proj)
+                    cuerpo = render_html(
+                        data, "Cognia · Grafo de conocimiento").encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(cuerpo)))
+                    self.end_headers()
+                    self.wfile.write(cuerpo)
+                except Exception as exc:
+                    self._json({"error": str(exc)}, 500)
             elif ruta == "/api/sse":
                 self._sse()
             elif ruta == "/oficina3d" or ruta.startswith("/oficina3d/"):
