@@ -268,6 +268,15 @@ def crear_server(oficina, host: str = "127.0.0.1", puerto: int = 8765):
                 self._json(oficina.snapshot())
             elif ruta == "/api/sistema":
                 self._json(_metricas(oficina, t0))
+            elif ruta == "/api/fleet":
+                # Roster del fleet con identidad visual por modelo
+                # (nombre/color/departamento) para la oficina por deptos.
+                try:
+                    from cognia.oficina.identidad import departamentos, roster
+                    self._json({"roster": roster(),
+                                "departamentos": departamentos()})
+                except Exception as exc:
+                    self._json({"error": str(exc)}, 500)
             elif ruta == "/api/sse":
                 self._sse()
             elif ruta == "/oficina3d" or ruta.startswith("/oficina3d/"):
