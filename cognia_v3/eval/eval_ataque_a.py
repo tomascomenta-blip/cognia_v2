@@ -21,11 +21,17 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-OUT = REPO / "cognia_v3" / "eval" / "results_ataque_a.json"
 N = 6
 VIRGENES = ["ALG3", "LONG2", "LONG3", "LONG5", "SPEC1", "SPEC2", "SPEC3",
             "SPEC4", "NEWX2", "NEWX3", "NEWX4", "NEWX5", "NEWD2"]
 PORT_3B = 8188
+# Modelo por argv: "3b" (default, generador de prod) o una key del
+# fleet_registry (p.ej. "qwen35_4b" = el coder mas fuerte). El seguimiento
+# con q35 mide la cobertura del MEJOR generador (el techo real de la
+# colonia); el 3B mide el regimen barato explotable.
+_MODEL = sys.argv[1] if len(sys.argv) > 1 else "3b"
+_NOTHINK = "<think>\n\n</think>\n\n" if "qwen35" in _MODEL else ""
+OUT = REPO / "cognia_v3" / "eval" / f"results_ataque_a_{_MODEL}.json"
 
 
 def main():
@@ -39,19 +45,32 @@ def main():
                                              consensus_pick,
                                              extract_input_calls,
                                              _INPUT_GEN_SYSTEM)
-    from node.llama_backend import _LlamaServerBackend
-    from shattering.model_constants import resolve_gguf_path
+    import os
+    os.environ.setdefault("COGNIA_FLEET_RAM_GB", "6")
 
     tasks = {json.loads(l)["id"]: json.loads(l) for l in
              open(REPO / "cognia_v3" / "eval" / "tasks_hard_v2.jsonl",
                   encoding="utf-8") if l.strip()}
 
-    res = {"prereg": "RAIZ_GROKKING §4 ataque A", "modelo": "3b", "N": N,
+    res = {"prereg": "RAIZ_GROKKING §4 ataque A", "modelo": _MODEL, "N": N,
            "tareas": {}}
     if OUT.is_file():
         res = json.loads(OUT.read_text(encoding="utf-8"))
 
-    b = _LlamaServerBackend(resolve_gguf_path("3b"), port=PORT_3B, ctx_size=8192)
+    _close = None
+    if _MODEL == "3b":
+        from node.llama_backend import _LlamaServerBackend
+        from shattering.model_constants import resolve_gguf_path
+        b = _LlamaServerBackend(resolve_gguf_path("3b"), port=PORT_3B,
+                                ctx_size=8192)
+        _close = b.stop
+    else:
+        from node.fleet_registry import close_fleet30, fleet_backend
+        b = fleet_backend(_MODEL)
+        _close = close_fleet30
+        if b is None:
+            print(f"FALLO: {_MODEL} no arranco")
+            return 1
     try:
         for tid in VIRGENES:
             if tid in res["tareas"]:
@@ -63,14 +82,15 @@ def main():
             codes = []
             for k in range(N):
                 temp = 0.0 if k == 0 else 0.7
-                raw = b.generate(prompt, max_tokens=768, temperature=temp,
-                                 seed=42 + k, cache_prompt=False) or ""
+                raw = b.generate(prompt + _NOTHINK, max_tokens=768,
+                                 temperature=temp, seed=42 + k,
+                                 cache_prompt=False) or ""
                 codes.append(extract_code(raw))
             # inputs distinguidores (greedy, prompt propio)
             ig = build_input_gen_prompt(t["prompt"], t["entry_point"], k=6)
-            raw_in = b.generate(build_prompt(ig, system=_INPUT_GEN_SYSTEM),
-                                max_tokens=256, temperature=0.0,
-                                cache_prompt=False) or ""
+            raw_in = b.generate(
+                build_prompt(ig, system=_INPUT_GEN_SYSTEM) + _NOTHINK,
+                max_tokens=256, temperature=0.0, cache_prompt=False) or ""
             inputs = extract_input_calls(raw_in, t["entry_point"])
             # puntajes contra OCULTOS (solo medición)
             oc = [bool(run_task_tests(c, t["tests"], t["entry_point"])[0])
@@ -92,7 +112,7 @@ def main():
                   f"(idx={idx_cons}, cluster={info['winner_size']}/{info['n_valid']}, "
                   f"{res['tareas'][tid]['secs']}s)", flush=True)
     finally:
-        b.stop()
+        _close()
 
     T = res["tareas"]
     cob = [k for k in T if T[k]["cobertura@N"]]
