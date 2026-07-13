@@ -63,28 +63,40 @@ except ImportError:
 # ══════════════════════════════════════════════════════════════════════
 
 async def _sar_sync_loop():
-    """Periodically sync stale nodes into shard_debt (SAR — Phase 28)."""
-    from coordinator.registry import NODE_TIMEOUT
+    """Periodically sync stale nodes into shard_debt (SAR — Phase 28).
+
+    Cubre TODO el registry (MODELS), no solo el default: los sub-modelos
+    Shattering (logos/techne/rhetor) también acumulan nodos que caen y su
+    shard_debt debe registrarse. Antes iteraba la tupla hardcodeada
+    ("qwen-coder-3b-q4",) → los sub-modelos nunca pasaban por sync_stale_nodes.
+    """
+    from coordinator.registry import NODE_TIMEOUT, MODELS
     while True:
         await asyncio.sleep(300)   # run every 5 minutes
-        try:
-            for model_name in ("qwen-coder-3b-q4",):
+        for model_name in MODELS:
+            try:
                 newly = _shard_registry.sync_stale_nodes(model_name, NODE_TIMEOUT)
                 if newly:
                     _logger.info("[SAR] Recorded %d newly offline nodes for %s: %s",
                                  len(newly), model_name, newly)
-        except Exception as exc:
-            _logger.warning("[SAR] sync_stale_nodes failed: %s", exc)
+            except Exception as exc:
+                _logger.warning("[SAR] sync_stale_nodes failed for %s: %s",
+                                model_name, exc)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("[Coordinator] Iniciando...")
     relay_manager.start_cleanup()
-    asyncio.create_task(_sar_sync_loop())
-    yield
-    relay_manager.cancel()
-    print("[Coordinator] Cerrando.")
+    # Guardar una referencia FUERTE: asyncio.create_task solo deja una weak ref
+    # en el event loop, así que sin esto el GC podía matar el loop SAR en silencio.
+    app.state.sar_sync_task = asyncio.create_task(_sar_sync_loop())
+    try:
+        yield
+    finally:
+        app.state.sar_sync_task.cancel()
+        relay_manager.cancel()
+        print("[Coordinator] Cerrando.")
 
 # ── Rate limiter (slowapi) ─────────────────────────────────────────────
 limiter = Limiter(key_func=get_remote_address)

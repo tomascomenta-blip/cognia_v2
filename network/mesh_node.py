@@ -42,6 +42,39 @@ from network.privacy import (
 )
 from logger_config import get_logger
 
+# Hosts de "bind-all": válidos para escuchar, INALCANZABLES como destino.
+# Un peer que anuncie ws://0.0.0.0:PORT (o ::, o vacío) no puede recibir
+# conexiones en esa URI — hay que sustituir el host por su IP real.
+_BIND_ALL_HOSTS = frozenset({"", "0.0.0.0", "::", "[::]", "*"})
+
+
+def _reachable_uri(announced_uri: str, remote_ip: Optional[str]) -> str:
+    """Devuelve una URI conectable a partir de la anunciada por el peer.
+
+    Si la URI trae un host de bind-all (0.0.0.0 / :: / vacío), lo sustituye
+    por la IP real del socket entrante (remote_ip). Si el host ya es concreto,
+    o no hay remote_ip disponible, la devuelve tal cual (no inventar nada).
+    """
+    if not announced_uri:
+        return announced_uri
+    try:
+        rest = announced_uri.split("://", 1)
+        scheme = rest[0] if len(rest) == 2 else "ws"
+        hostport = rest[-1]
+        # Separar host y puerto soportando IPv6 en corchetes ([::]:PORT).
+        if hostport.startswith("["):
+            host, _, port = hostport[1:].partition("]")
+            port = port.lstrip(":")
+        else:
+            host, _, port = hostport.rpartition(":")
+    except Exception:
+        return announced_uri
+    if host not in _BIND_ALL_HOSTS:
+        return announced_uri
+    if not remote_ip:
+        return announced_uri
+    return f"{scheme}://{remote_ip}:{port}" if port else f"{scheme}://{remote_ip}"
+
 logger = get_logger(__name__)
 
 # ── Detección de websockets (opcional) ────────────────────────────────
@@ -267,6 +300,11 @@ class CogniaMeshNode:
 
         elif msg_type == "handshake":
             remote_uri = payload.get("uri", "")
+            # Si el peer anunció un host de bind-all (0.0.0.0/::/vacío), esa URI
+            # es inalcanzable: sustituir por la IP real del socket entrante.
+            remote_addr = getattr(websocket, "remote_address", None)
+            remote_ip = remote_addr[0] if remote_addr else None
+            remote_uri = _reachable_uri(remote_uri, remote_ip)
             if remote_uri and sender_id not in self._peers:
                 self._peers[sender_id] = remote_uri
                 logger.info(
@@ -428,8 +466,12 @@ class CogniaMeshNode:
             return
         try:
             async with websockets.client.connect(uri, open_timeout=5) as ws:
+                # No anunciar el host de bind-all (0.0.0.0/::): es inalcanzable.
+                # Anunciar host vacío (ws://:PORT) y dejar que el servidor derive
+                # la IP real desde el socket entrante (_reachable_uri).
+                announced_host = "" if self.host in _BIND_ALL_HOSTS else self.host
                 msg = _make_msg("handshake", self.node_id, {
-                    "uri": f"ws://{self.host}:{self.port}"
+                    "uri": f"ws://{announced_host}:{self.port}"
                 })
                 await ws.send(msg)
                 # Leer respuesta de handshake si viene
