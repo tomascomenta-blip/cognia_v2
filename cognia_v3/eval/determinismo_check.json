@@ -1,0 +1,51 @@
+{
+ "SPEC1": {
+  "corridas": [
+   {
+    "sha": "43df57193e14",
+    "passed": true,
+    "len": 806
+   },
+   {
+    "sha": "353f88aa7ec5",
+    "passed": true,
+    "len": 832
+   },
+   {
+    "sha": "353f88aa7ec5",
+    "passed": true,
+    "len": 832
+   }
+  ],
+  "codigos_distintos": 2,
+  "resultados_distintos": false,
+  "no_determinista": true
+ },
+ "NEWX2": {
+  "corridas": [
+   {
+    "sha": "b71c5270b441",
+    "passed": false,
+    "len": 1828
+   },
+   {
+    "sha": "b71c5270b441",
+    "passed": false,
+    "len": 1828
+   },
+   {
+    "sha": "b71c5270b441",
+    "passed": false,
+    "len": 1828
+   }
+  ],
+  "codigos_distintos": 1,
+  "resultados_distintos": false,
+  "no_determinista": false
+ },
+ "_veredicto": {
+  "no_determinismo_confirmado": true,
+  "flip_de_resultado_confirmado": false,
+  "lectura": "el techo TIENE banda de varianza (mismo protocolo, distinto codigo)"
+ }
+}

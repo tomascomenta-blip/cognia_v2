@@ -1,0 +1,230 @@
+{
+ "prereg": "RAIZ_GROKKING \u00a74 ataque A",
+ "modelo": "3b",
+ "N": 6,
+ "tareas": {
+  "ALG3": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": null,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 3,
+    "n_clusters": 3,
+    "winner_size": 1,
+    "n_inputs": 5
+   },
+   "n_inputs": 5,
+   "secs": 652.1
+  },
+  "LONG2": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": null,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 6,
+    "n_clusters": 6,
+    "winner_size": 1,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 646.5
+  },
+  "LONG3": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": null,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 3,
+    "n_clusters": 3,
+    "winner_size": 1,
+    "n_inputs": 8
+   },
+   "n_inputs": 8,
+   "secs": 1054.9
+  },
+  "LONG5": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 0,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 6,
+    "n_clusters": 1,
+    "winner_size": 6,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 616.4
+  },
+  "SPEC1": {
+   "cobertura@N": true,
+   "cuales_pasan": [
+    0
+   ],
+   "greedy_ok": true,
+   "consenso_idx": 0,
+   "consenso_ok": true,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 6,
+    "n_clusters": 3,
+    "winner_size": 4,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 307.1
+  },
+  "SPEC2": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 0,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 5,
+    "n_clusters": 4,
+    "winner_size": 2,
+    "n_inputs": 2
+   },
+   "n_inputs": 2,
+   "secs": 387.2
+  },
+  "SPEC3": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 0,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 5,
+    "n_clusters": 4,
+    "winner_size": 2,
+    "n_inputs": 8
+   },
+   "n_inputs": 8,
+   "secs": 546.0
+  },
+  "SPEC4": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 0,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 6,
+    "n_clusters": 4,
+    "winner_size": 3,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 381.7
+  },
+  "NEWX2": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 3,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 5,
+    "n_clusters": 4,
+    "winner_size": 2,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 878.3
+  },
+  "NEWX3": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 2,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 6,
+    "n_clusters": 3,
+    "winner_size": 3,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 405.4
+  },
+  "NEWX4": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": null,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 5,
+    "n_clusters": 5,
+    "winner_size": 1,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 441.3
+  },
+  "NEWX5": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 0,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 6,
+    "n_clusters": 5,
+    "winner_size": 2,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 346.9
+  },
+  "NEWD2": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 0,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 4,
+    "n_clusters": 3,
+    "winner_size": 2,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 403.9
+  }
+ },
+ "veredicto": {
+  "cobertura_busqueda": [
+   1,
+   [
+    "SPEC1"
+   ],
+   "1/13 tienen solucion en el pool@6"
+  ],
+  "greedy_recupera": 1,
+  "consenso_recupera": 1,
+  "delta_oraculo(consenso-greedy)": 0,
+  "lectura": "mayormente CAPACIDAD"
+ }
+}
