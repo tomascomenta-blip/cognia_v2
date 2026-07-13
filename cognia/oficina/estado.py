@@ -94,19 +94,34 @@ class Oficina:
 
     def crear_tarea(self, nivel: str, titulo: str, detalle: str,
                     padre: str = None, rol: str = None, meta: str = None,
-                    despierta_ts: float = None) -> str:
+                    despierta_ts: float = None, modelo: str = None) -> str:
         assert nivel in NIVELES, nivel
         with self._lock:
             tid = f"{nivel[:4]}-{uuid.uuid4().hex[:6]}"
             self.data["tareas"][tid] = {
                 "id": tid, "nivel": nivel, "titulo": titulo[:120],
                 "detalle": detalle, "padre": padre, "rol": rol, "meta": meta,
+                # modelo = key del fleet que EJECUTA la tarea (fleet_registry).
+                # Lo consume la oficina para pintar el trabajador con la
+                # identidad del modelo (nombre/color/depto vía /api/fleet).
+                "modelo": modelo,
                 "estado": "pendiente", "solicitud": None, "resultado": None,
                 "despierta_ts": float(despierta_ts) if despierta_ts else None,
                 "creada": _ahora(), "creada_ts": time.time(), "eventos": []}
             self.data["orden"].append(tid)
             self._save()
             return tid
+
+    def set_modelo(self, tid: str, modelo: str) -> bool:
+        """Anota qué modelo del fleet ejecuta la tarea (para la oficina por
+        departamentos). True si la tarea existe."""
+        with self._lock:
+            t = self.data["tareas"].get(tid)
+            if t is None:
+                return False
+            t["modelo"] = modelo
+            self._save()
+            return True
 
     # ── mutación (motor) ──
     def set_estado(self, tid: str, estado: str, resultado: str = None) -> None:
