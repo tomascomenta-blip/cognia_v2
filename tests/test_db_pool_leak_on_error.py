@@ -154,3 +154,48 @@ def test_pool_stays_usable_after_error_storm(empty_db):
 
     assert elapsed < 1.0, f"acquire blocked {elapsed:.1f}s -- pool was starved"
     assert _available(empty_db) == MAX_CONNS
+
+
+# ══════════════════════════════════════════════════════════════════════
+# release() con commit fallido: debe PROPAGAR (no éxito silencioso)
+# y aun así devolver la conexión al pool (no filtrar el handle).
+# Regresión: antes tragaba la excepción del commit -> el caller creía
+# que su escritura persistió cuando en realidad se hizo rollback.
+# ══════════════════════════════════════════════════════════════════════
+
+def test_release_propagates_commit_failure_and_returns_conn(empty_db):
+    import sqlite3
+
+    pool = get_pool(empty_db)
+    conn = pool.acquire()
+    assert _available(empty_db) == MAX_CONNS - 1
+
+    # Cerrar la conexión física por debajo: commit() sobre una conexión
+    # cerrada lanza ProgrammingError (simula disk full / database is locked).
+    conn.close()
+
+    with pytest.raises(sqlite3.ProgrammingError):
+        pool.release(conn, commit=True)
+
+    # La conexión volvió al pool ANTES de propagar (sin fuga de handle).
+    assert _available(empty_db) == MAX_CONNS
+
+
+def test_pooled_connection_del_never_propagates():
+    """__del__ no debe propagar ni aunque el release subyacente explote
+    (una excepción viva en __del__ es ruido de GC, nunca señal útil)."""
+    from storage.db_pool import _PooledConnection
+
+    class _ExplodingPool:
+        def release(self, conn, commit=True):
+            raise RuntimeError("boom en release")
+
+    class _FakeConn:
+        def rollback(self):
+            pass
+
+    pc = _PooledConnection(_FakeConn(), _ExplodingPool())
+    # No usar `del pc` (CPython suprime excepciones de __del__ via
+    # unraisablehook): llamar __del__ directo para verificar que traga.
+    pc.__del__()  # must not raise
+    assert pc._closed is True

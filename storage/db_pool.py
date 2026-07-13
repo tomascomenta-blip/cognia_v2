@@ -126,7 +126,14 @@ class SQLitePool:
             return self._new_conn()
 
     def release(self, conn: sqlite3.Connection, commit: bool = True):
-        """Devuelve una conexión obtenida con acquire()."""
+        """Devuelve una conexión obtenida con acquire().
+
+        Si el commit falla (disk full, database is locked), hace rollback,
+        devuelve la conexión al pool y RE-LANZA la excepción original: el
+        caller DEBE enterarse de que su escritura NO persistió (mismo
+        contrato que el context manager get(), que también propaga).
+        Antes esto tragaba el error y retornaba éxito silencioso —
+        pérdida de escritura invisible."""
         try:
             if commit:
                 conn.commit()
@@ -135,10 +142,17 @@ class SQLitePool:
                 conn.rollback()
             except Exception:
                 pass
-        try:
-            self._pool.put_nowait(conn)
-        except Exception:
-            conn.close()  # pool lleno — cerrar la sobrante
+            raise
+        finally:
+            # La conexión SIEMPRE vuelve al pool (o se cierra si el put
+            # falla) antes de propagar — no filtrar el handle.
+            try:
+                self._pool.put_nowait(conn)
+            except Exception:
+                try:
+                    conn.close()  # pool lleno — cerrar la sobrante
+                except Exception:
+                    pass
 
     @property
     def size(self) -> int:

@@ -222,25 +222,29 @@ class ResponseCache:
     def _init_db(self):
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS response_cache (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    question   TEXT NOT NULL,
-                    response   TEXT NOT NULL,
-                    vector     TEXT NOT NULL,
-                    concept    TEXT,
-                    confidence REAL DEFAULT 0.5,
-                    used_llm   INTEGER DEFAULT 1,
-                    timestamp  REAL NOT NULL,
-                    hits       INTEGER DEFAULT 0,
-                    ttl        REAL DEFAULT 21600
+            try:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS response_cache (
+                        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                        question   TEXT NOT NULL,
+                        response   TEXT NOT NULL,
+                        vector     TEXT NOT NULL,
+                        concept    TEXT,
+                        confidence REAL DEFAULT 0.5,
+                        used_llm   INTEGER DEFAULT 1,
+                        timestamp  REAL NOT NULL,
+                        hits       INTEGER DEFAULT 0,
+                        ttl        REAL DEFAULT 21600
+                    )
+                """)
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_rc_concept ON response_cache(concept)"
                 )
-            """)
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_rc_concept ON response_cache(concept)"
-            )
-            conn.commit()
-            conn.close()
+                conn.commit()
+            finally:
+                # Cerrar SIEMPRE, incluso si execute() lanza: una conexión viva
+                # deja el .db lockeado en Windows -> cascada de "database is locked".
+                conn.close()
         except Exception as exc:
             # Aquí sí es error porque sin DB el caché persistente no funciona
             log_db_error(logger, "cache._init_db", exc,
@@ -250,16 +254,18 @@ class ResponseCache:
         t0 = time.perf_counter()
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.text_factory = str
-            now  = time.time()
-            rows = conn.execute("""
-                SELECT question, response, vector, concept, confidence,
-                       used_llm, timestamp, hits, ttl
-                FROM response_cache
-                WHERE (? - timestamp) < ttl
-                ORDER BY timestamp DESC LIMIT 100
-            """, (now,)).fetchall()
-            conn.close()
+            try:
+                conn.text_factory = str
+                now  = time.time()
+                rows = conn.execute("""
+                    SELECT question, response, vector, concept, confidence,
+                           used_llm, timestamp, hits, ttl
+                    FROM response_cache
+                    WHERE (? - timestamp) < ttl
+                    ORDER BY timestamp DESC LIMIT 100
+                """, (now,)).fetchall()
+            finally:
+                conn.close()  # siempre, incluso si execute() lanza (leak = .db lockeado)
         except Exception as exc:
             log_db_error(logger, "cache._search_db", exc)
             return None
@@ -297,28 +303,30 @@ class ResponseCache:
     def _persist_to_db(self, entry: CacheEntry):
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
-                INSERT INTO response_cache
-                (question, response, vector, concept, confidence,
-                 used_llm, timestamp, hits, ttl)
-                VALUES (?,?,?,?,?,?,?,?,?)
-            """, (
-                entry.question, entry.response,
-                # Persist the FULL vector. _search_db compares the (384-dim)
-                # query vector against this one via _cosine(), which returns 0.0
-                # on any length mismatch. Truncating here to [:64] (a leftover
-                # from an older 64-dim embedding) made every DB-layer comparison
-                # length-mismatch -> 0.0, so the persistent cache layer NEVER hit:
-                # anything evicted from RAM or any entry after a restart was lost.
-                # Storing the full vector also keeps the DB threshold (0.88) on the
-                # same basis as the RAM layer, which compares full vectors too.
-                json.dumps(entry.vector),
-                entry.concept, entry.confidence,
-                int(entry.used_llm), entry.timestamp,
-                entry.hits, entry.ttl,
-            ))
-            conn.commit()
-            conn.close()
+            try:
+                conn.execute("""
+                    INSERT INTO response_cache
+                    (question, response, vector, concept, confidence,
+                     used_llm, timestamp, hits, ttl)
+                    VALUES (?,?,?,?,?,?,?,?,?)
+                """, (
+                    entry.question, entry.response,
+                    # Persist the FULL vector. _search_db compares the (384-dim)
+                    # query vector against this one via _cosine(), which returns 0.0
+                    # on any length mismatch. Truncating here to [:64] (a leftover
+                    # from an older 64-dim embedding) made every DB-layer comparison
+                    # length-mismatch -> 0.0, so the persistent cache layer NEVER hit:
+                    # anything evicted from RAM or any entry after a restart was lost.
+                    # Storing the full vector also keeps the DB threshold (0.88) on the
+                    # same basis as the RAM layer, which compares full vectors too.
+                    json.dumps(entry.vector),
+                    entry.concept, entry.confidence,
+                    int(entry.used_llm), entry.timestamp,
+                    entry.hits, entry.ttl,
+                ))
+                conn.commit()
+            finally:
+                conn.close()  # siempre, incluso si execute() lanza (leak = .db lockeado)
         except Exception as exc:
             log_db_error(logger, "cache._persist_to_db", exc,
                          extra_ctx=f"concept={entry.concept} confidence={entry.confidence:.2f}")
@@ -326,10 +334,12 @@ class ResponseCache:
     def _db_delete_concept(self, concept: str) -> int:
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("DELETE FROM response_cache WHERE concept=?", (concept,))
-            n = conn.total_changes
-            conn.commit()
-            conn.close()
+            try:
+                conn.execute("DELETE FROM response_cache WHERE concept=?", (concept,))
+                n = conn.total_changes
+                conn.commit()
+            finally:
+                conn.close()  # siempre, incluso si execute() lanza (leak = .db lockeado)
             return n
         except Exception as exc:
             log_db_error(logger, "cache._db_delete_concept", exc,
@@ -339,13 +349,15 @@ class ResponseCache:
     def _db_clear_expired(self) -> int:
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
-                "DELETE FROM response_cache WHERE (? - timestamp) >= ttl",
-                (time.time(),)
-            )
-            n = conn.total_changes
-            conn.commit()
-            conn.close()
+            try:
+                conn.execute(
+                    "DELETE FROM response_cache WHERE (? - timestamp) >= ttl",
+                    (time.time(),)
+                )
+                n = conn.total_changes
+                conn.commit()
+            finally:
+                conn.close()  # siempre, incluso si execute() lanza (leak = .db lockeado)
             return n
         except Exception as exc:
             log_db_error(logger, "cache._db_clear_expired", exc)
