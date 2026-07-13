@@ -1285,3 +1285,79 @@ the pre-fix code (evicted==[], proving the leak) and pass after.
    decode path (already O(W)) -- nothing pending there.
 5. (Optional, still deferred) try/finally sweep of the ~17 read-only pooled-conn methods
    (graph.py template) -- low value (db_pool __del__ net reclaims).
+
+---
+
+## Session: 2026-07-13  (COMPLETED a prior incomplete session: SAR loop + mesh handshake + db_pool/response_cache hygiene)
+
+### Context / approach
+The working tree opened with UNCOMMITTED, UN-DOCUMENTED work from a prior incomplete
+session: modified response_cache.py + storage/db_pool.py + tests/test_db_pool_leak_on_error.py,
+plus TWO untracked regression-test files (test_coordinator_sar_loop.py, test_mesh_handshake.py)
+whose target SOURCE fixes were NEVER applied (6/6 of those tests FAILED on entry). The most
+impactful move was to finish that work: implement the two real source fixes the tests already
+pinned, and land the db_pool/response_cache hygiene. Env unchanged: NO venv312 in this checkout;
+system `python` is 3.12.10 (numpy 1.26.4 + pytest 9.0.3), used from the repo root.
+
+### [FIX + PUSHED (e113ea5)] Coordinator SAR loop + mesh handshake
+**coordinator/app.py** — `_sar_sync_loop` + `lifespan`
+- The SAR sync loop iterated a HARDCODED tuple `("qwen-coder-3b-q4",)`, so the Shattering
+  sub-models (logos/techne/rhetor, all in coordinator.registry.MODELS) never passed through
+  `sync_stale_nodes` → their offline nodes' shard_debt was never recorded. Now iterates the
+  full `MODELS` registry, per-model try/except (one model's failure can't skip the rest).
+- `lifespan` created the SAR task with `asyncio.create_task(...)` WITHOUT keeping a reference.
+  The event loop holds only a weak ref → the GC could silently collect and kill the loop. Now
+  stored on `app.state.sar_sync_task` and cancelled on shutdown (in a finally).
+
+**network/mesh_node.py** — `_dispatch` handshake + `_connect_and_handshake` + new `_reachable_uri`
+- `_connect_and_handshake` advertised `uri=ws://{self.host}:{port}` where `self.host` is the
+  BIND address (default "0.0.0.0"). The receiver registered `ws://0.0.0.0:PORT` in `_peers`, and
+  every `_broadcast`/`_sync_all_peers` then dialed 0.0.0.0 → knowledge deltas NEVER reached the
+  peer (silent mesh partition). Defense in depth:
+  a) SERVER: on handshake, if the announced host is bind-all (0.0.0.0 / :: / [::] / empty), it is
+     rewritten to the socket's real remote IP (`websocket.remote_address[0]`) via the new pure
+     helper `_reachable_uri(announced_uri, remote_ip)` — IPv6-in-brackets aware; leaves a concrete
+     host untouched; leaves the URI as-is if no remote_address is available (invents nothing).
+  b) CLIENT: announces an EMPTY host (`ws://:PORT`) when bound bind-all, letting the server derive
+     the reachable host.
+
+### [FIX + PUSHED (previous commit this session)] db_pool.release() + response_cache close-in-finally
+**storage/db_pool.py** — `SQLitePool.release()`
+- release() swallowed a FAILED commit (disk full / database is locked) and returned as if the
+  write persisted → silent write loss. It now rolls back, returns the conn to the pool in a
+  finally (no handle leak), and RE-RAISES so the caller learns the write did not commit (matches
+  the get() context-manager contract). +2 regressions (release re-raises & returns conn;
+  `_PooledConnection.__del__` never propagates).
+**response_cache.py** — every raw sqlite3 method (_init_db/_search_db/_persist_to_db/
+  _db_delete_concept/_db_clear_expired) now closes the connection in try/finally. A live conn
+  left open by a mid-execute() exception keeps the .db locked on Windows → 'database is locked'
+  cascade. (This file also carried the prior-session full-vector persist fix + its comment.)
+
+### Verification
+- The 6 new SAR/mesh tests FAILED on entry (source unfixed), PASS after the fixes.
+- Targeted: test_coordinator_sar_loop + test_mesh_handshake + test_db_pool_leak_on_error +
+  test_response_cache_ram_hit → 19 passed. Related sweep (mesh/coordinator/db_pool/response_cache/
+  registry/crdt) → 83 passed.
+- FULL fast suite (tests/ --ignore=test_e2e_inference.py): **2511 passed, 1 skipped, 0 failed**
+  (864s) — was 2501 at the 2026-07-01 session end (+10: 6 mesh + 2 SAR + 2 db_pool).
+- coordinator.app + network.mesh_node import clean.
+
+### State at session end
+- origin/main advanced by 2 commits (SAR/mesh fix + db_pool/response_cache hygiene), both PUSHED
+  & green via `git -c credential.helper='!gh auth git-credential' push origin HEAD:main`
+  (wincredman still fails headless). origin/main at **e113ea5**.
+- Working tree clean except this docs commit. Local branch integration/fixes-onto-origin tracks main.
+
+### Priority Order for Next Session
+1. **Measure spec acceptance rate + speed on real weights** (still blocked: no nano_draft.npz +
+   loaded shards in this checkout). Also run a real prompt > 512 tokens to CONFIRM the SWA +
+   chunked-prefill fixes produce coherent long-prompt output end-to-end (proven model-free only).
+2. **mesh_node broadcast efficiency (optional, not a bug):** `_broadcast` opens a NEW websocket
+   per message per peer (connect+handshake cost every delta). A persistent per-peer connection
+   pool would cut latency; behavior is correct as-is. Consider only if mesh throughput matters.
+3. Continue the un-audited DISTRIBUTED cross-process path (relay PTYPE_LOGITS shape + the
+   `result_bytes[0] in (0,1,2)` protocol-detection ambiguity) IF a multi-node relay is available.
+4. **Whenever ANY engine file (node/qwen2_ops.py, shattering/quantization.py) is edited, run
+   `python scripts/sync_public_engine.py`** before committing (test_public_engine_sync enforces it).
+5. (Optional, still deferred) try/finally sweep of the ~17 read-only pooled-conn methods
+   (graph.py template) — low value (db_pool __del__ net reclaims).
