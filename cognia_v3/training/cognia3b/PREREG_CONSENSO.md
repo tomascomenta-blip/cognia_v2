@@ -45,3 +45,36 @@ falla → 1 ajuste (k de inputs, o exigir cluster ≥ mitad); segunda falla →
 9ª negativa limpia, exec_consensus queda como herramienta de eval no de
 prod. El consenso JAMÁS overridea un candidato que pasa MÁS tests visibles
 (solo desempata EMPATES) — así CE-2 se cumple por construcción.
+
+---
+
+## RESOLUCIÓN PARCIAL (2026-07-13) — el probe q35 murió en 5/13, pero SPEC1 decide
+
+El seguimiento q35 (results_ataque_a_qwen35_4b.json) alcanzó el régimen que
+la precondición pedía en UNA tarea antes de que el llama-server muriera:
+**SPEC1: cobertura>greedy REAL** — candidatos 1,4,5 pasan los tests ocultos,
+el greedy (0) falla. Es exactamente donde el consenso debía lucir. Resultado:
+**el consenso ELIGIÓ MAL** (cluster 6/6, idx 0 = el greedy incorrecto). Causa:
+los inputs distinguidores que el modelo generó NO separaron los candidatos
+(los 6 dieron la misma firma de comportamiento sobre esos inputs), así que
+la moda incluyó a los buenos Y al malo y ganó el idx menor (el greedy malo).
+
+Lectura honesta: el eslabón débil se MOVIÓ, no desapareció. La literatura
+decía "el error del oráculo vive en los outputs predichos" y por eso el
+inputs-only debía curarlo; pero acá el error vive en los INPUTS generados
+(el 3B/4B no genera inputs que expongan el bug de borde de una spec larga).
+Es un fallo del GENERADOR DE INPUTS, no del mecanismo de consenso.
+
+Veredicto (con n=1, honesto): la precondición del gate NO se cumple como
+esperábamos — el consenso tal-como-está no rompe el techo. Queda como
+herramienta EXPERIMENTAL (exec_consensus.py, opt-in, no cableado a prod).
+Reapertura condicionada: generador de inputs distinguidores más fuerte
+(inputs dirigidos al borde que falla — property-based / mutación), con
+nuevo prereg. Es la 9ª línea que se mide y se acota sin inflar.
+
+El probe q35 no se reinicia (~20 min/tarea, murió el server; el dato de
+SPEC1 es suficiente para esta conclusión parcial). Cierre del arco ROMPER
+EL TECHO: el techo tiene banda de VARIANZA real (demostrada) pero modesta;
+búsqueda+oráculo son rompibles EN TEORÍA pero las palancas probadas
+(few-shot=8ª neg, consenso=9ª parcial) no las capturan con generadores
+chicos; el residuo es capacidad. Honestidad mantenida punta a punta.
