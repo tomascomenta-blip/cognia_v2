@@ -80,6 +80,7 @@ const V_DELTA = new THREE.Vector3() // scratch del lerp de camara
 
 export function Oficina3D() {
   const snapshot = useOficina((s) => s.snapshot)
+  const fleet = useOficina((s) => s.fleet)
   const seleccion = useOficina((s) => s.seleccion)
   const setSeleccion = useOficina((s) => s.setSeleccion)
   const enfoque = useOficina((s) => s.enfoque)
@@ -155,6 +156,8 @@ export function Oficina3D() {
             : 'esperando'
         const lugar =
           estado === 'dormido' ? camaDeSala(muebladas[i]) : asientoDeSala(muebladas[i])
+        // identidad del MODELO que ejecuta la tarea (color de camisa + nombre)
+        const ide = tarea?.modelo ? fleet[tarea.modelo] : undefined
         return {
           key: v.def.id,
           estado,
@@ -162,9 +165,11 @@ export function Oficina3D() {
           posicion: lugar.pos,
           rotacionY: lugar.rotY,
           escala: v.def.id === 'mega_jefe' ? 1 : 0.88,
+          color: ide?.color,
+          nombre: ide?.nombre,
         }
       }),
-    [vistas, muebladas, snapshot],
+    [vistas, muebladas, snapshot, fleet],
   )
 
   // ── paquetes: diff snapshot anterior -> actual, resueltos a mundo ──────────
@@ -348,6 +353,8 @@ export function Oficina3D() {
           posicion={t.posicion}
           rotacionY={t.rotacionY}
           escala={t.escala}
+          color={t.color}
+          nombre={t.nombre}
         />
       ))}
 

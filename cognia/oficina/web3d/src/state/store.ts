@@ -1,12 +1,16 @@
 // Store zustand + cliente SSE con fallback a poll. Solo fetch: cero logica del sistema.
 import { create } from 'zustand'
-import type { Rol, Sistema, Snapshot } from './tipos'
+import type { FleetData, MiembroFleet, Rol, Sistema, Snapshot } from './tipos'
 import { SNAPSHOT_VACIO } from './tipos'
 
 export type Vista = '3d' | 'clasica-abierta'
 
 interface OficinaStore {
   snapshot: Snapshot
+  /** identidad de cada modelo del fleet (key -> {nombre,color,depto}),
+   *  de GET /api/fleet. La escena pinta los trabajadores por modelo. */
+  fleet: Record<string, MiembroFleet>
+  fleetData: FleetData | null
   sistema: Sistema | null
   conectado: boolean
   seleccion: string | null // id de sala/tarea seleccionada en la escena
@@ -50,6 +54,8 @@ async function post(url: string, body: unknown): Promise<Record<string, unknown>
 
 export const useOficina = create<OficinaStore>()((set) => ({
   snapshot: SNAPSHOT_VACIO,
+  fleet: {},
+  fleetData: null,
   sistema: null,
   conectado: false,
   seleccion: null,
@@ -152,9 +158,24 @@ function conectarSSE() {
   }
 }
 
+/** Carga la identidad del fleet (GET /api/fleet) una vez: key -> miembro. */
+async function cargarFleet() {
+  try {
+    const r = await fetch('/api/fleet')
+    if (!r.ok) return
+    const data = (await r.json()) as FleetData
+    const mapa: Record<string, MiembroFleet> = {}
+    for (const m of data.roster ?? []) mapa[m.key] = m
+    useOficina.setState({ fleet: mapa, fleetData: data })
+  } catch {
+    // sin /api/fleet (backend viejo): la escena cae al color por rol
+  }
+}
+
 /** Arranca SSE + fallback. Idempotente: llamar una vez desde main/App. */
 export function conectar() {
   if (arrancado) return
   arrancado = true
+  void cargarFleet()
   conectarSSE()
 }

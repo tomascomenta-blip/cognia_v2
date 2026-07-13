@@ -5,6 +5,7 @@
 // useFrame sin allocs por frame (scratch Vector3 de modulo).
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { Billboard, Text } from '@react-three/drei'
 import * as THREE from 'three'
 import type { EstadoTrabajador } from '../lib/derivar'
 import { amortiguar, clamp01, easeInOutCubic, easeOutBack, oscilar, pulso } from './animaciones'
@@ -34,6 +35,22 @@ export interface TrabajadorProps {
   /** se dispara UNA vez al llegar al final del camino */
   onLlegada?: () => void
   escala?: number
+  /** color de camisa del MODELO que ejecuta (identidad del fleet). Si está,
+   *  reemplaza el color por rol — así se distingue qué modelo trabaja. */
+  color?: string
+  /** nombre del modelo (Cora, Max, Sabio...) sobre la cabeza (billboard). */
+  nombre?: string
+}
+
+// materiales por color de modelo, cacheados (no uno por instancia/frame).
+const MAT_COLOR_CACHE = new Map<string, THREE.MeshStandardMaterial>()
+function matDeColor(color: string): THREE.MeshStandardMaterial {
+  let m = MAT_COLOR_CACHE.get(color)
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color, roughness: 0.7 })
+    MAT_COLOR_CACHE.set(color, m)
+  }
+  return m
 }
 
 /** Tinte del escritorio segun estado. La Sala es duena del escritorio: usa
@@ -100,6 +117,8 @@ export function Trabajador({
   camino = null,
   onLlegada,
   escala = 1,
+  color,
+  nombre,
 }: TrabajadorProps) {
   const raiz = useRef<THREE.Group>(null)
   const cuerpo = useRef<THREE.Group>(null) // bob + encorvado
@@ -252,10 +271,26 @@ export function Trabajador({
     }
   })
 
-  const matCuerpo = MATS_ROL[rol]
+  // color del MODELO (identidad del fleet) tiene prioridad sobre el color por rol
+  const matCuerpo = color ? matDeColor(color) : MATS_ROL[rol]
 
   return (
     <group ref={raiz} position={posicion} rotation-y={rotacionY} scale={escala}>
+      {nombre && (
+        // etiqueta con el nombre del modelo, siempre mirando a la cámara
+        <Billboard position={[0, 1.72, 0]}>
+          <Text
+            fontSize={0.2}
+            color={color ?? '#c9d1d9'}
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.014}
+            outlineColor="#12141a"
+          >
+            {nombre}
+          </Text>
+        </Billboard>
+      )}
       <group ref={cuerpo}>
         <mesh ref={torso} geometry={GEO_CUERPO} material={matCuerpo} position={[0, 0.45, 0]} castShadow />
         {rol === 'mega_jefe' && (

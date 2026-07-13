@@ -34,6 +34,9 @@ export interface Tarea {
   padre: string | null
   rol: Rol | null
   meta: string | null
+  /** key del modelo del fleet que EJECUTA la tarea (estado.py). La oficina
+   *  pinta al trabajador con la identidad de ese modelo (via /api/fleet). */
+  modelo?: string | null
   estado: EstadoTarea
   solicitud: string | null
   resultado: string | null
@@ -68,3 +71,30 @@ export interface Sistema {
 }
 
 export const SNAPSHOT_VACIO: Snapshot = { metas: [], tareas: {}, orden: [] }
+
+/** GET /api/fleet: identidad visual de cada modelo del fleet (nombre/color/
+ *  departamento). La oficina lo usa para pintar los trabajadores por MODELO. */
+export interface MiembroFleet {
+  key: string
+  nombre: string
+  depto: string
+  depto_nombre: string
+  color: string
+  rol_visual: string
+  descripcion?: string
+  role?: string | null
+  port?: number | null
+  ram_gb?: number | null
+}
+
+export interface DepartamentoFleet {
+  key: string
+  nombre: string
+  color: string
+  miembros: MiembroFleet[]
+}
+
+export interface FleetData {
+  roster: MiembroFleet[]
+  departamentos: DepartamentoFleet[]
+}
