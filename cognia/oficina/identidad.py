@@ -137,6 +137,26 @@ def roster() -> list[dict]:
     return out
 
 
+# Modelo REPRESENTATIVO por función de la tarea, para que la oficina muestre
+# departamentos con sentido. El motor jerárquico corre vía el orquestador
+# (no un modelo por tarea literal); esto es el mapeo de DISPLAY que refleja
+# qué modelo encarna cada función (coherente con el ruteo real: implementador
+# = 3B base, director/razonamiento = 4B, etc.).
+_MODELO_POR_ROL = {
+    "jefe": "jefe",              # Dante — Dirección
+    "mega_jefe": "jefe",
+    "director": "qwen3_4b",      # Sabio — Razonamiento (planifica)
+    "investigador": "lfm25_12b",  # Lía — Recepción (busca/lee rápido)
+    "implementador": "3b",       # Cora — Ingeniería (codea)
+}
+
+
+def modelo_por_rol(rol: str | None) -> str | None:
+    """Key del modelo representativo para un rol de tarea (display de la
+    oficina). None si el rol no mapea (el trabajador cae al color por rol)."""
+    return _MODELO_POR_ROL.get((rol or "").strip().lower())
+
+
 def departamentos() -> list[dict]:
     """Departamentos con sus miembros anidados (para la vista global por deptos)."""
     r = roster()

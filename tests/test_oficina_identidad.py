@@ -57,3 +57,13 @@ def test_roster_trae_metadatos_operativos():
     by = {m["key"]: m for m in roster()}
     assert by["qwen35_4b"]["port"] == 8097      # del fleet30.json
     assert by["3b"]["port"] == 8088             # histórico
+
+
+def test_modelo_por_rol():
+    from cognia.oficina.identidad import modelo_por_rol
+    assert modelo_por_rol("implementador") == "3b"
+    assert modelo_por_rol("director") == "qwen3_4b"
+    assert modelo_por_rol("jefe") == "jefe"
+    assert modelo_por_rol("investigador") == "lfm25_12b"
+    assert modelo_por_rol("desconocido") is None
+    assert modelo_por_rol(None) is None

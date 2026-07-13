@@ -18,6 +18,7 @@ import time
 import traceback
 
 from cognia.oficina.estado import Oficina
+from cognia.oficina.identidad import modelo_por_rol as _modelo_por_rol
 
 
 class Detenida(Exception):
@@ -166,7 +167,8 @@ class Motor(threading.Thread):
         self.of.set_meta_estado(mid, "en_curso")
         # meta PROGRAMADA: el jefe ya existe (durmió en su cama hasta ahora)
         jefe_id = self.of.jefe_de_meta(mid) or self.of.crear_tarea(
-            "jefe", f"META: {meta['texto'][:80]}", meta["texto"], meta=mid)
+            "jefe", f"META: {meta['texto'][:80]}", meta["texto"], meta=mid,
+            modelo=_modelo_por_rol("jefe"))
         try:
             self.of.set_estado(jefe_id, "en_curso")
             self.of.evento(jefe_id, "jefe planificando (orch.infer)...")
@@ -181,7 +183,8 @@ class Motor(threading.Thread):
             for i, directiva in enumerate(directivas, 1):
                 self._chequea(jefe_id)
                 dir_id = self.of.crear_tarea("director", f"D{i}: {directiva[:80]}",
-                                             directiva, padre=jefe_id, meta=mid)
+                                             directiva, padre=jefe_id, meta=mid,
+                                             modelo=_modelo_por_rol("director"))
                 try:
                     self._espera_si_pausada(dir_id)
                     self.of.set_estado(dir_id, "en_curso")
@@ -194,7 +197,8 @@ class Motor(threading.Thread):
                     for rol, sub in subtareas:
                         self._chequea(dir_id)
                         tid = self.of.crear_tarea("trabajador", sub[:80], sub,
-                                                  padre=dir_id, rol=rol, meta=mid)
+                                                  padre=dir_id, rol=rol, meta=mid,
+                                                  modelo=_modelo_por_rol(rol))
                         try:
                             self._espera_si_pausada(tid)
                             parciales.append(self._trabajador(
