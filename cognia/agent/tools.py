@@ -1065,3 +1065,12 @@ try:
     ROLE_TOOLS["implementador"].add("plan")
 except Exception:
     pass
+
+
+# ── Flujos n8n: "Cognia organiza el flujo" desde NL (mandato 2026-07-13) ──
+try:
+    from cognia.agent import flows as _flows
+    _flows.register(tool)
+    ROLE_TOOLS["implementador"].add("crear_flujo")
+except Exception:
+    pass

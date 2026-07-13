@@ -158,6 +158,18 @@ def from_plan(nombre: str, pasos: list) -> dict:
     return {"nombre": nombre, "nodos": nodos}
 
 
+def organizar_flujo(texto: str) -> dict:
+    """"Cognia organiza el flujo": desde una descripción en lenguaje natural,
+    usa el planner simbólico (0-LLM) para descomponer en pasos y los vuelve un
+    flujo (DAG) ejecutable. Devuelve el flujo. Cero modelo (plan_task es
+    determinista por templates)."""
+    from cognia.agents.planner import plan_task
+    subtasks = plan_task(texto, task_id="flujo")
+    flujo = from_plan(texto[:60], subtasks)
+    validar(flujo)                      # asegura DAG antes de devolver
+    return flujo
+
+
 def to_json(flujo: dict) -> str:
     import json
     return json.dumps(flujo, ensure_ascii=False, indent=1)
@@ -169,3 +181,33 @@ def from_json(texto: str) -> dict:
     if "nodos" not in f:
         raise FlowError("JSON sin 'nodos'")
     return f
+
+
+# ── tool `crear_flujo` (Cognia organiza el flujo desde NL) ──────────────────
+def register(tool_decorator) -> None:
+    @tool_decorator(
+        "crear_flujo",
+        "crear_flujo <descripcion> -- organiza la tarea en un flujo (DAG de "
+        "pasos estilo n8n) desde lenguaje natural, y lo guarda",
+        danger=False)
+    def _t_crear_flujo(args, ctx):
+        texto = (args or "").strip()
+        if not texto:
+            return "RESULTADO crear_flujo ERROR: falta la descripcion"
+        try:
+            flujo = organizar_flujo(texto)
+        except Exception as exc:
+            return f"RESULTADO crear_flujo ERROR: {exc}"
+        # persistir en el workspace del agente
+        try:
+            from cognia.agents.workers.dev_tools import AGENT_WORKSPACE_ROOT
+            from pathlib import Path
+            dest = Path(AGENT_WORKSPACE_ROOT) / ".flujo.json"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(to_json(flujo), encoding="utf-8")
+        except Exception:
+            pass
+        pasos = "\n".join(f"  {i+1}. [{n['tool']}] {n['args'][:60]}"
+                          for i, n in enumerate(flujo["nodos"]))
+        return (f"RESULTADO crear_flujo: {len(flujo['nodos'])} pasos\n{pasos}\n"
+                "(guardado en .flujo.json)")
