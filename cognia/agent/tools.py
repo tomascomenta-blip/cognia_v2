@@ -1040,3 +1040,16 @@ def _delegar_subtarea(args, ctx):
     except Exception as exc:
         return f"RESULTADO delegar_subtarea ERROR: {exc}"
     return f"RESULTADO delegar_subtarea ({rol}): {str(sub_result)[:600]}"
+
+
+# ── Computer-use: tools de pantalla (mandato 2026-07-13, gate de seguridad) ──
+# Registro al final para que `tool` y ROLE_TOOLS ya existan. Opt-in duro
+# (COGNIA_SCREEN=1); todas danger=True. Ver cognia/agent/screen_tools.py.
+try:
+    from cognia.agent import screen_tools as _screen_tools
+    _screen_tools.register(tool)
+    for _t in ("pantalla_captura", "pantalla_localizar", "pantalla_click",
+               "pantalla_escribir", "pantalla_tecla"):
+        ROLE_TOOLS["implementador"].add(_t)
+except Exception:
+    pass   # sin pyautogui / entorno headless: el agente corre igual sin pantalla
