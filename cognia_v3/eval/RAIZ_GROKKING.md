@@ -92,3 +92,43 @@ capacidad (0/16). Decide dónde apuntar cada palanca.
 
 Si (1) falla (<4), la historia vieja gana y se documenta con la misma
 honestidad con la que hoy se la cuestiona.
+
+---
+
+## VEREDICTO PARCIAL 3B (E-ATAQUE-A, 2026-07-13) — la varianza es real
+
+**Hallazgo central (el que el dueño pidió verificar):** SPEC1 se recupera con
+protocolo IDÉNTICO al gate original. Comparación byte-a-byte:
+- gate7b: 3B, max_tokens 768, temp 0.0, seed 42, cache_prompt False, sin
+  grammar/fewshot/BoN → SPEC1 FALLA (197 tok, err assert).
+- ataque_a: MISMO protocolo (build_prompt+SYSTEM_PROMPT, seed 42, temp 0) →
+  SPEC1 PASA (candidato 0 greedy).
+
+Mismo modelo, mismo seed, misma temperatura greedy → **resultado distinto**.
+Causa: llama.cpp b9391 en CPU multi-thread NO es determinista a temp 0 (las
+reducciones FP multi-hilo flipean el argmax cuando dos logits casi empatan;
+flash-attn + threads=cpu-1). **El 27/40 NO es un techo duro: es un punto
+ruidoso con banda de varianza.** Las tareas al BORDE flipean entre corridas.
+
+Implicación: parte del "techo de capacidad" era una MEDICIÓN de un solo
+intento sobre una distribución con varianza. Re-muestrear la cruza — que es
+lo que best_of_n ya hace. El cuello NO es generar la variante correcta
+(aparece sola con N), es que el JUEZ la CONSERVE cuando aparece.
+
+**Cobertura@6 del 3B (11/13 medidos):** solo SPEC1 (1/11). El resto: los 4
+parsers + 6 spec dan cobertura 0 a N=6 con el 3B. LONG5 = trampa de consenso
+(6/6 idéntico, todos mal). Consenso vs greedy: delta 0 (SPEC1 salió por
+greedy; nunca hubo un caso cobertura>greedy donde el consenso pudiera lucir).
+
+Lectura honesta hasta acá:
+1. La VARIANZA del techo es real y demostrada (SPEC1) → el 27/40 es blando.
+2. Pero con el 3B a N=6 la cobertura extra es CHICA (1/11): el modelo débil
+   casi no tiene las soluciones en su distribución a N bajo.
+3. El consenso (ataque A) NO se pudo evaluar: requiere cobertura>greedy, que
+   con el 3B no ocurrió. → el seguimiento con q35 (coder fuerte) es el que
+   decide si el ataque A vale: ahí esperamos cobertura>0 con greedy fallando.
+
+Predicciones §5 hasta acá: (1) "≥4 recuperables" REFUTADA para el 3B (1/11);
+pendiente re-test con q35. (2) parsers sobre-representados entre irrecuperables
+CONFIRMADA (4/4 cobertura 0). (4) "quedan 2-4 de capacidad real" — con el 3B
+son ~10/11; q35 dirá cuántas baja.
