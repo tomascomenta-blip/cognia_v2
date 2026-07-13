@@ -1,0 +1,50 @@
+{
+ "prereg": "AUTOPSIA_13 / E-PASSK",
+ "modelo": "qwen35_4b",
+ "K": 16,
+ "temp": 0.8,
+ "muestras": {
+  "ALG3": {
+   "0": {
+    "passed": false,
+    "err": "runtime",
+    "secs": 139.7
+   },
+   "1": {
+    "passed": false,
+    "err": "syntax",
+    "secs": 206.2
+   },
+   "2": {
+    "passed": false,
+    "err": "syntax",
+    "secs": 196.6
+   },
+   "3": {
+    "passed": false,
+    "err": "syntax",
+    "secs": 198.0
+   },
+   "4": {
+    "passed": false,
+    "err": "assert",
+    "secs": 193.3
+   },
+   "5": {
+    "passed": false,
+    "err": "runtime",
+    "secs": 154.4
+   },
+   "6": {
+    "passed": false,
+    "err": "runtime",
+    "secs": 201.5
+   },
+   "7": {
+    "passed": false,
+    "err": "missing_func",
+    "secs": 193.9
+   }
+  }
+ }
+}
