@@ -1053,3 +1053,15 @@ try:
         ROLE_TOOLS["implementador"].add(_t)
 except Exception:
     pass   # sin pyautogui / entorno headless: el agente corre igual sin pantalla
+
+
+# ── Plan como artefacto mutable (patron OpenManus, mandato 2026-07-13) ──
+# El unico patron de OpenManus que faltaba: is_stuck y terminate ya existen
+# en el loop (register_action + responder), mejores. Ver plan_artifact.py.
+try:
+    from cognia.agent import plan_artifact as _plan_artifact
+    _plan_artifact.register(tool)
+    ROLE_TOOLS["investigador"].add("plan")
+    ROLE_TOOLS["implementador"].add("plan")
+except Exception:
+    pass
