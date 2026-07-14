@@ -24,8 +24,10 @@ sys.path.insert(0, str(REPO))
 OUT = REPO / "cognia_v3" / "eval" / "results_superorganismo_v2.json"
 NOTHINK = "<think>\n\n</think>\n\n"
 BUDGET = 16
-VIRGENES = ["ALG3", "LONG2", "LONG3", "LONG5", "SPEC1", "SPEC2", "SPEC3",
-            "SPEC4", "NEWX2", "NEWX3", "NEWX4", "NEWX5", "NEWD2"]
+# orden = prioridad (deadline 04:30): primero las más prometedoras
+# (NEWX3 quedó a 1 assert en v1; SPEC1 tiene banda de varianza; NEWX*).
+VIRGENES = ["NEWX3", "SPEC1", "NEWX2", "NEWX4", "NEWX5", "NEWD2", "ALG3",
+            "LONG3", "LONG5", "SPEC2", "SPEC3", "LONG2", "SPEC4"]
 SMOKE = ["ALG3", "SPEC2", "NEWX3", "LONG2"]
 
 CARTO_SYSTEM = (
@@ -176,7 +178,11 @@ def fase_cartografia(res: dict, tareas: dict, ids: list):
     """qwen3_4b mapea cada tarea (1-2 gens). Persistencia incremental."""
     from cognia_v3.eval.benchmark_code import build_prompt, extract_code  # noqa
     from node.fleet_registry import fleet_backend
-    pend = [t for t in ids if "carto" not in res["tareas"].setdefault(t, {})]
+    # re-intenta mapas vacíos/anémicos (<4 spec-asserts = extracción fallida,
+    # p.ej. JSON truncado por max_tokens)
+    pend = [t for t in ids
+            if len((res["tareas"].setdefault(t, {}).get("carto") or {})
+                   .get("spec_asserts", [])) < 4]
     if not pend:
         return
     b = fleet_backend("qwen3_4b")
@@ -190,13 +196,18 @@ def fase_cartografia(res: dict, tareas: dict, ids: list):
         gens = 0
         carto = None
         while carto is None and gens < 2:      # 1 retry si el JSON no parsea
-            raw = b.generate(prompt, max_tokens=1400,
+            raw = b.generate(prompt, max_tokens=2400,
                              temperature=0.0 if gens == 0 else 0.4,
                              seed=77 + gens, cache_prompt=False) or ""
             gens += 1
             carto = _parse_carto(raw, t["entry_point"])
-        res["tareas"][tid]["carto"] = carto or {"helpers": [],
-                                                "spec_asserts": []}
+        viejo = res["tareas"][tid].get("carto") or {"helpers": [],
+                                                    "spec_asserts": []}
+        nuevo = carto or {"helpers": [], "spec_asserts": []}
+        # keep-best entre corridas: no pisar un mapa mejor con uno peor
+        if len(nuevo["spec_asserts"]) < len(viejo["spec_asserts"]):
+            nuevo = viejo
+        res["tareas"][tid]["carto"] = nuevo
         res["tareas"][tid]["gens"] = gens
         n_h = len(carto["helpers"]) if carto else 0
         n_a = len(carto["spec_asserts"]) if carto else 0
