@@ -1,0 +1,451 @@
+{
+ "prereg": "PREREG_SUPERORGANISMO v2 (autopsia smoke v1)",
+ "budget": 16,
+ "cartografo": "qwen3_4b",
+ "coder": "qwen35_4b",
+ "tareas": {
+  "ALG3": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "parse_expr",
+      "signature": "def parse_expr(tokens):",
+      "contract": "Given a list of tokens, returns a list of tokens with the top-level expression parsed and simplified.",
+      "asserts": [
+       "assert parse_expr(['1']) == ['1']",
+       "assert parse_expr(['1', '+', '2']) == ['1', '+', '2']",
+       "assert parse_expr(['1', '+', '2', '*', '3']) == ['1', '+', '2', '*', '3']"
+      ]
+     },
+     {
+      "name": "parse_term",
+      "signature": "def parse_term(tokens):",
+      "contract": "Given a list of tokens, returns a list of tokens with the term parsed and simplified.",
+      "asserts": [
+       "assert parse_term(['1']) == ['1']",
+       "assert parse_term(['1', '*', '2']) == ['1', '*', '2']",
+       "assert parse_term(['1', '*', '2', '*', '3']) == ['1', '*', '2', '*', '3']"
+      ]
+     },
+     {
+      "name": "parse_factor",
+      "signature": "def parse_factor(tokens):",
+      "contract": "Given a list of tokens, returns a list of tokens with the factor parsed and simplified.",
+      "asserts": [
+       "assert parse_factor(['1']) == ['1']",
+       "assert parse_factor(['-', '2']) == ['-', '2']",
+       "assert parse_factor(['-', '2', '+', '3']) == ['-', '2', '+', '3']"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert calc('1') == 1",
+     "assert calc('1+2') == 3",
+     "assert calc('1+2*3') == 7",
+     "assert calc('(1+2)*3') == 9",
+     "assert calc('1-2') == -1",
+     "assert calc('1-2*3') == -5",
+     "assert calc('(1-2)*3') == -3",
+     "assert calc('1*2') == 2",
+     "assert calc('1*2*3') == 6",
+     "assert calc('1/2') == 0",
+     "assert calc('(1-8)/2') == -3",
+     "assert calc('1-(-2)') == 3",
+     "assert calc('1-(-2+3)') == 0",
+     "assert calc('1-(-2-3)') == 6"
+    ]
+   },
+   "gens": 1
+  },
+  "LONG2": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "parse_program",
+      "signature": "def parse_program(program):",
+      "contract": "Returns a list of tokens from the program string.",
+      "asserts": [
+       "assert parse_program('MOVE 10') == ['MOVE', '10']"
+      ]
+     },
+     {
+      "name": "execute_command",
+      "signature": "def execute_command(cmd, state):",
+      "contract": "Modifies the state in place and returns the new state.",
+      "asserts": [
+       "assert execute_command(['MOVE', '1'], {'x': 0, 'y': 0, 'dir': 1, 'pen': True}) == {'x': 1, 'y': 0, 'dir': 1, 'pen': True}"
+      ]
+     },
+     {
+      "name": "execute_repeat",
+      "signature": "def execute_repeat(n, commands, state):",
+      "contract": "Executes the commands list n times, modifying the state each time.",
+      "asserts": [
+       "assert execute_repeat(1, ['MOVE', '1'], {'x': 0, 'y': 0, 'dir': 1, 'pen': True}) == {'x': 1, 'y': 0, 'dir': 1, 'pen': True}"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert run_turtle('MOVE 1') == (1, 0, [(1, 0)])",
+     "assert run_turtle('PENDOWN') == (0, 0, [])",
+     "assert run_turtle('PENUP') == (0, 0, [])",
+     "assert run_turtle('MOVE 10') == (10, 0, [(10, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN') == (10, 0, [(10, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10') == (20, 0, [(20, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN') == (20, 0, [(20, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10') == (30, 0, [(30, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10 PENDOWN') == (40, 0, [(40, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10') == (50, 0, [(50, 0)])"
+    ]
+   },
+   "gens": 2,
+   "carto_origen": "v1 keep-best"
+  },
+  "LONG3": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "parse_value",
+      "signature": "def parse_value(s: str) -> object",
+      "contract": "Parse the next value from s and advance s.",
+      "asserts": [
+       "assert parse_value('true') == True",
+       "assert parse_value('false') == False",
+       "assert parse_value('null') == None",
+       "assert parse_value('123') == 123",
+       "assert parse_value('123.45') == 123.45"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert parse_json('true') == True",
+     "assert parse_json('false') == False",
+     "assert parse_json('null') == None",
+     "assert parse_json('123') == 123",
+     "assert parse_json('123.45') == 123.45",
+     "assert parse_json('\"hello\"') == 'hello'"
+    ]
+   },
+   "gens": 2
+  },
+  "LONG5": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "coeffs_to_str",
+      "signature": "def coeffs_to_str(coeffs):",
+      "contract": "Convert coeffs to string representation, skipping zero coefficients.",
+      "asserts": [
+       "assert coeffs_to_str([1, 0, 2]) == '1x^2 + 2'",
+       "assert coeffs_to_str([0, 0, 1]) == 'x^2'",
+       "assert coeffs_to_str([0, 1]) == 'x'",
+       "assert coeffs_to_str([1]) == '1'",
+       "assert coeffs_to_str([0]) == '0'"
+      ]
+     },
+     {
+      "name": "str_to_coeffs",
+      "signature": "def str_to_coeffs(s):",
+      "contract": "Parse string representation into coeffs list.",
+      "asserts": [
+       "assert str_to_coeffs('3x^2 - 2x + 1') == [1, -2, 3]",
+       "assert str_to_coeffs('x^2') == [0, 1]",
+       "assert str_to_coeffs('x') == [0, 1]",
+       "assert str_to_coeffs('1') == [1]",
+       "assert str_to_coeffs('0') == [0]"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert derivative(Polynomial([1, -2, 3])).coeffs == [2, -1]",
+     "assert derivative(Polynomial([0])).coeffs == [0]",
+     "assert derivative(Polynomial([1])).coeffs == [0]",
+     "assert derivative(Polynomial([1, 0])).coeffs == [0]",
+     "assert derivative(Polynomial([1, 0, 0])).coeffs == [0]",
+     "assert derivative(Polynomial([1, 0, 0, 0])).coeffs == [0]"
+    ]
+   },
+   "gens": 1
+  },
+  "SPEC1": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "check_charset",
+      "signature": "def check_charset(name, bad_chars)",
+      "contract": "Returns True if name contains no chars in bad_chars; False otherwise.",
+      "asserts": [
+       "assert check_charset('abc', []) == True",
+       "assert check_charset('abc', ['x']) == True",
+       "assert check_charset('abc', ['a']) == False",
+       "assert check_charset('abc', ['a', 'b']) == False",
+       "assert check_charset('abc', ['x', 'y']) == True"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert validate_username('abc') == []",
+     "assert validate_username('a') == ['LEN']",
+     "assert validate_username('a.b') == ['LEN', 'CHARSET']",
+     "assert validate_username('a.b.c') == ['LEN', 'CHARSET']",
+     "assert validate_username('aaa') == ['RUN']",
+     "assert validate_username('aaab') == ['RUN']",
+     "assert validate_username('admin') == ['RESERVED']",
+     "assert validate_username('admin.') == ['RESERVED']",
+     "assert validate_username('admin_') == ['RESERVED']",
+     "assert validate_username('admin1') == ['RESERVED']",
+     "assert validate_username('admin1.') == ['RESERVED']",
+     "assert validate_username('admin1_') == ['RESERVED']",
+     "assert validate_username('admin12') == ['RESERVED']",
+     "assert validate_username('admin12.') == ['RESERVED']"
+    ]
+   },
+   "gens": 2
+  },
+  "SPEC2": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "get_column_widths",
+      "signature": "def get_column_widths(headers, rows):",
+      "contract": "Returns a list of column widths, where each width is the max of the header length and the max string length in that column.",
+      "asserts": [
+       "assert len(get_column_widths(headers, rows)) == len(headers)",
+       "assert get_column_widths([], []) == []",
+       "assert get_column_widths(['a'], [[1]]) == [1]",
+       "assert get_column_widths(['a'], [[1, 2]]) == [2]"
+      ]
+     },
+     {
+      "name": "format_row",
+      "signature": "def format_row(row, column_widths, is_numeric_column):",
+      "contract": "Returns a string of the row cells, each padded to the column width and aligned according to the column type.",
+      "asserts": [
+       "assert len(format_row(row, column_widths, is_numeric_column)) == len(row)",
+       "assert format_row([1, 2], [1, 1], [False, False]) == '1 | 2'",
+       "assert format_row([1, 2], [1, 1], [True, True]) == '1 | 2'"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert format_table(['a'], [[1]]) == 'a | 1'",
+     "assert format_table(['a'], [[1, 2]]) == 'a | 1 | 2'",
+     "assert format_table(['a'], [[1, 2]]) == 'a | 1 | 2'"
+    ]
+   },
+   "gens": 2,
+   "carto_origen": "v1 keep-best"
+  },
+  "SPEC3": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "compare_prerelease",
+      "signature": "def compare_prerelease(a: str, b: str) -> int",
+      "contract": "Compares two prerelease identifiers, returns -1, 0, or 1 as appropriate.",
+      "asserts": [
+       "assert compare_prerelease('a', 'b') == -1",
+       "assert compare_prerelease('b', 'a') == 1",
+       "assert compare_prerelease('a', 'a') == 0",
+       "assert compare_prerelease('a', 'a.1') == -1",
+       "assert compare_prerelease('a.1', 'a') == 1"
+      ]
+     },
+     {
+      "name": "is_prerelease",
+      "signature": "def is_prerelease(s: str) -> bool",
+      "contract": "Returns True if the string has a prerelease identifier, False otherwise.",
+      "asserts": [
+       "assert is_prerelease('1.2.3') == False",
+       "assert is_prerelease('1.2.3-alpha') == True",
+       "assert is_prerelease('1.2.3+build') == False",
+       "assert is_prerelease('1.2.3-alpha+build') == True"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert compare_versions('1.2.3', '1.2.4') == -1",
+     "assert compare_versions('1.2.3', '1.2.3') == 0",
+     "assert compare_versions('1.2.4', '1.2.3') == 1",
+     "assert compare_versions('1.2.3-alpha', '1.2.3') == -1",
+     "assert compare_versions('1.2.3-alpha', '1.2.3-alpha.1') == -1",
+     "assert compare_versions('1.2.3-alpha.1', '1.2.3-alpha') == 1",
+     "assert compare_versions('1.2.3-alpha', '1.2.3-beta') == -1",
+     "assert compare_versions('1.2.3-beta', '1.2.3-alpha') == 1",
+     "assert compare_versions('1.2.3-alpha.1', '1.2.3-alpha.2') == -1",
+     "assert compare_versions('1.2.3-alpha.1', '1.2.3-alpha.1') == 0",
+     "assert compare_versions('1.2.3-alpha', '1.2.3-alpha') == 0",
+     "assert compare_versions('1.2.3-alpha', '1.2.3-alpha.1') == -1",
+     "assert compare_versions('1.2.3-alpha', '1.2.3-beta') == -1",
+     "assert compare_versions('1.2.3-beta', '1.2.3-alpha') == 1"
+    ]
+   },
+   "gens": 2
+  },
+  "SPEC4": {
+   "carto": {
+    "helpers": [],
+    "spec_asserts": []
+   },
+   "gens": 2
+  },
+  "NEWX2": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "parse_number",
+      "signature": "def parse_number(s)",
+      "contract": "Returns a number from a string of digits and optional decimal point.",
+      "asserts": [
+       "assert parse_number('3') == 3",
+       "assert parse_number('3.14') == 3.14",
+       "assert parse_number('0') == 0",
+       "assert parse_number('0.0') == 0.0"
+      ]
+     },
+     {
+      "name": "parse_binary_op",
+      "signature": "def parse_binary_op(op, left, right)",
+      "contract": "Returns the result of a binary operation on two numbers.",
+      "asserts": [
+       "assert parse_binary_op('+', 2, 3) == 5",
+       "assert parse_binary_op('-', 5, 2) == 3",
+       "assert parse_binary_op('*', 4, 3) == 12",
+       "assert parse_binary_op('/', 6, 2) == 3.0",
+       "assert parse_binary_op('//', 7, 2) == 3"
+      ]
+     },
+     {
+      "name": "parse_unary_op",
+      "signature": "def parse_unary_op(op, operand)",
+      "contract": "Returns the result of a unary operation on a number.",
+      "asserts": [
+       "assert parse_unary_op('-', 3) == -3",
+       "assert parse_unary_op('+', 4) == 4",
+       "assert parse_unary_op('-', -2) == 2"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert eval_arith('3') == 3",
+     "assert eval_arith('3.14') == 3.14",
+     "assert eval_arith('2 + 3') == 5",
+     "assert eval_arith('2 - 3') == -1",
+     "assert eval_arith('2 * 3') == 6",
+     "assert eval_arith('2 / 3') == 0.6666666666666666",
+     "assert eval_arith('2 // 3') == 0",
+     "assert eval_arith('2 ** 3') == 8",
+     "assert eval_arith('7 // 2') == 3",
+     "assert eval_arith('2 ** -1') == 0.5",
+     "assert eval_arith('-2 ** 2') == -4",
+     "assert eval_arith('2 ** 3 ** 2') == 512",
+     "assert eval_arith('3 + 4 * 5') == 23",
+     "assert eval_arith('3 * 4 + 5') == 17"
+    ]
+   },
+   "gens": 2
+  },
+  "NEWX3": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "is_valid_subtractive_pair",
+      "signature": "def is_valid_subtractive_pair(c1, c2):",
+      "contract": "Returns True if the pair (c1, c2) is a valid subtractive pair in Roman numerals.",
+      "asserts": [
+       "assert is_valid_subtractive_pair('I', 'V') == True",
+       "assert is_valid_subtractive_pair('I', 'X') == True",
+       "assert is_valid_subtractive_pair('X', 'L') == True",
+       "assert is_valid_subtractive_pair('X', 'C') == True",
+       "assert is_valid_subtractive_pair('C', 'D') == True",
+       "assert is_valid_subtractive_pair('C', 'M') == True",
+       "assert is_valid_subtractive_pair('I', 'I') == False",
+       "assert is_valid_subtractive_pair('V', 'V') == False"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert parse_roman('M') == 1000",
+     "assert parse_roman('MM') == 2000",
+     "assert parse_roman('MMM') == 3000",
+     "assert parse_roman('MCMXCIV') == 1994",
+     "assert parse_roman('IV') == 4",
+     "assert parse_roman('IX') == 9",
+     "assert parse_roman('XL') == 40",
+     "assert parse_roman('XC') == 90",
+     "assert parse_roman('CD') == 400",
+     "assert parse_roman('CM') == 900"
+    ]
+   },
+   "gens": 2,
+   "carto_origen": "v1 keep-best"
+  },
+  "NEWX4": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "has_uppercase",
+      "signature": "def has_uppercase(s):",
+      "contract": "Returns True iff s has at least one uppercase letter",
+      "asserts": [
+       "assert has_uppercase('Hello') is True",
+       "assert has_uppercase('hello') is False",
+       "assert has_uppercase('H@ll0') is True",
+       "assert has_uppercase('123') is False"
+      ]
+     },
+     {
+      "name": "has_lowercase",
+      "signature": "def has_lowercase(s):",
+      "contract": "Returns True iff s has at least one lowercase letter",
+      "asserts": [
+       "assert has_lowercase('Hello') is False",
+       "assert has_lowercase('hello') is True",
+       "assert has_lowercase('Hello World') is True",
+       "assert has_lowercase('123') is False"
+      ]
+     },
+     {
+      "name": "has_digit",
+      "signature": "def has_digit(s):",
+      "contract": "Returns True iff s has at least one digit",
+      "asserts": [
+       "assert has_digit('123') is True",
+       "assert has_digit('abc') is False",
+       "assert has_digit('abc123') is True",
+       "assert has_digit('ABC') is False"
+      ]
+     },
+     {
+      "name": "has_special",
+      "signature": "def has_special(s):",
+      "contract": "Returns True iff s has at least one special character from the set !@#$%^&*()-_+= ;",
+      "asserts": [
+       "assert has_special('hello!') is True",
+       "assert has_special('hello') is False",
+       "assert has_special('hello@123') is True",
+       "assert has_special('hello;world') is True"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert check_password('hello123') == ['digit', 'lower']",
+     "assert check_password('123') == ['length', 'digit']",
+     "assert check_password('Hello@123') == ['length', 'digit', 'special']",
+     "assert check_password('Hello@123 4') == ['length', 'space', 'digit', 'special']",
+     "assert check_password('aaa') == ['repeat']",
+     "assert check_password('123') == ['sequence']"
+    ]
+   },
+   "gens": 3
+  },
+  "NEWX5": {
+   "carto": {
+    "helpers": [],
+    "spec_asserts": []
+   },
+   "gens": 3
+  },
+  "NEWD2": {}
+ }
+}
