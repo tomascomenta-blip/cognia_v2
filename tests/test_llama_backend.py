@@ -1089,3 +1089,19 @@ def test_llama_server_bind_localhost_only():
         "el llama-server no fuerza --host 127.0.0.1 (exposicion a la LAN)"
     assert not re.search(r'"--host"\s*,\s*"0\.0\.0\.0"', src), \
         "el llama-server no debe bindear a 0.0.0.0 en el cmd"
+
+
+# ── timeout del request: término de prefill (regresión 2026-07-14) ────────
+def test_request_timeout_incluye_prefill():
+    """Sin el término de prefill, un prompt de feromona de ~8KB con
+    max_tokens=700 quedaba en 450s y timeouteaba en máquinas lentas aunque
+    el server computara (4+ gens quemadas medidas). Con el fix, el payload
+    largo compra tiempo proporcional."""
+    from node.llama_backend import _request_timeout_s
+    corto = _request_timeout_s(700, 500)
+    largo = _request_timeout_s(700, 8000)
+    assert corto == 30 + 420 + 500 // 60               # 458s
+    assert largo == 30 + 420 + 8000 // 60              # 583s
+    assert largo - corto >= 120                        # >=2 min extra de prefill
+    # el piso de 120s se mantiene para requests chicos
+    assert _request_timeout_s(24, 100) == 120

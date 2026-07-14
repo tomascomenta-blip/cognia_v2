@@ -969,6 +969,40 @@ def _generar_codigo(args, ctx):
         except Exception:
             pass   # la mesa nunca rompe la tool: fallback al candidato previo
 
+    # ── Etapa 4: SUPERORGANISMO (colonia por pedazos; default OFF) ─────────
+    # COGNIA_SUPERORGANISMO=1 la activa. Gate PREREG_SUPERORGANISMO CRUZADO
+    # (2026-07-14: NEWX3 y ALG3 pasan tests OCULTOS donde pass@16=0): la
+    # descomposición con oráculo por pieza + spec-asserts del enunciado +
+    # feromona compra capacidad más allá del techo de la cascada 1-3. Es el
+    # miembro MÁS caro (2 modelos 4B lazy + hasta 16 gens): último recurso,
+    # solo tarea dura donde NADA confirmó. Keep-best conservador: reemplaza
+    # solo si (a) no hay función válida, o (b) el superorganismo pasó TODOS
+    # sus spec-asserts (señal fuerte de su propio oráculo; el veredicto
+    # final sigue siendo del caller). Queda opt-in hasta la batería e2e.
+    _superorg = False
+    from cognia.agent.superorganismo import (superorganismo_enabled,
+                                             superorganismo_solve)
+    _sin_funcion_4 = f"def {entry}" not in code
+    _confirmado_actual = (_escalado_7b or _mesa_mejoro
+                          or (_best_t.get("total")
+                              and _best_t.get("score") is not None
+                              and _best_t.get("score") >= _best_t.get("total")))
+    if (superorganismo_enabled() and dif >= _HEAVY_THRESHOLD
+            and (_sin_funcion_4 or not _confirmado_actual)):
+        _pf = ctx.get("print_fn")
+        if callable(_pf):
+            _pf("[detail]Etapa 4: superorganismo (colonia por pedazos, "
+                "lento)...[/detail]")
+        _so = superorganismo_solve(desc, entry, print_fn=ctx.get("print_fn"))
+        if _so and (_sin_funcion_4
+                    or _so["spec_pass"] == _so["spec_total"]):
+            code = _so["code"]
+            _best_t = {"score": _so["spec_pass"], "total": _so["spec_total"]}
+            out = {"n_generated": _so["gens"], "n_unique": _so["gens"],
+                   "rank_mode": "superorganismo", "code": code,
+                   "ranking": [_best_t]}
+            _superorg = True
+
     _bon_log({
         "ts": datetime.datetime.now().isoformat(timespec="seconds"),
         "task_head": desc[:120], "difficulty": dif, "n_planned": n_plan,
@@ -977,6 +1011,7 @@ def _generar_codigo(args, ctx):
         "secs": round(_time.time() - _t0, 1),
         "escalado_7b": _escalado_7b, "score_3b": _score_3b, "score_7b": _score_7b,
         "mesa_redonda": _mesa_mejoro, "escalado_q35": _escalado_q35,
+        "superorganismo": _superorg,
     })
     if not code.strip() or f"def {entry}" not in code:
         return (f"RESULTADO generar_codigo ERROR: no se genero una funcion "
@@ -993,6 +1028,8 @@ def _generar_codigo(args, ctx):
         _tag7 += " [etapa 3: Qwen3.5]"
     if _mesa_mejoro:
         _tag7 += " [mesa redonda]"
+    if _superorg:
+        _tag7 += " [superorganismo]"
     return (f"RESULTADO generar_codigo {_disp(wpath)}: OK (mejor de "
             f"{out.get('n_unique', '?')} candidatos unicos, rank={out.get('rank_mode')}, "
             f"tests visibles {best.get('score', '?')}/{best.get('total', '?')}, "

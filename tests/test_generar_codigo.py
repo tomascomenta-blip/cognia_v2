@@ -91,6 +91,9 @@ def test_bon_telemetria_se_escribe(tmp_path, monkeypatch):
     import cognia.agent.tools as _tools
     tele = tmp_path / "_bon_telemetry.jsonl"
     monkeypatch.setattr(_tools, "_BON_TELEMETRY", tele)
+    # el guard anti-contaminacion de _bon_log corta bajo pytest; este test
+    # verifica la ESCRITURA, asi que lo desactiva (escribe al tmp_path)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     good = "```python\ndef doble(n):\n    return n * 2\n```"
     orch = _FakeOrch(["assert doble(2) == 4\nassert doble(5) == 10",
                       good, good, good, good, good, good])

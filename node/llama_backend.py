@@ -43,6 +43,20 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+
+def _request_timeout_s(max_tokens: int, payload_len: int) -> int:
+    """Timeout del request a llama-server. urlopen(timeout) es de SOCKET:
+    en generate() no-streaming el server calla hasta terminar prefill+decode
+    (actúa como límite total) y en streaming el prefill es el único silencio
+    largo. Tres términos: base 30s + decode (0.6 s/token cubre el peor caso
+    ~2 tok/s) + PREFILL (~4 chars/token a ~15 tok/s degradado ≈ 1 s cada 60
+    bytes de payload). Sin el término de prefill, prompts largos (feromona /
+    contexto crecido) timeouteaban en máquinas lentas aunque el server
+    estuviera computando (medido 2026-07-14: 4+ gens quemadas con el server
+    a 2.5 hilos activos)."""
+    return max(120, 30 + int(max_tokens * 0.6) + payload_len // 60)
+
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
 _DEFAULT_PORT   = 8088
@@ -653,7 +667,7 @@ class _LlamaServerBackend:
         # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
         # generation past ~660 tokens (returned None silently). 0.6 s/token covers
         # the ~2 tok/s worst case with margin.
-        timeout_s = max(120, 30 + int(max_tokens * 0.6))
+        timeout_s = _request_timeout_s(max_tokens, len(payload))
         try:
             req = self._urlreq.Request(
                 f"{self._base}/completion",
@@ -703,7 +717,7 @@ class _LlamaServerBackend:
         }).encode()
         # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
         # generation past ~660 tokens. 0.6 s/token covers the ~2 tok/s worst case.
-        timeout_s = max(120, 30 + int(max_tokens * 0.6))
+        timeout_s = _request_timeout_s(max_tokens, len(payload))
         self.last_stop_reason = None
         try:
             req = self._urlreq.Request(
@@ -762,7 +776,7 @@ class _LlamaServerBackend:
         }).encode()
         # Proportional timeout: at the measured ~5.5 tok/s a fixed 120s killed any
         # generation past ~660 tokens. 0.6 s/token covers the ~2 tok/s worst case.
-        timeout_s = max(120, 30 + int(max_tokens * 0.6))
+        timeout_s = _request_timeout_s(max_tokens, len(payload))
         self.last_stop_reason = None
         try:
             req = self._urlreq.Request(
