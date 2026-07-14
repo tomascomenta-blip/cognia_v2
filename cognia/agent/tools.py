@@ -127,6 +127,42 @@ _usage_load()
 atexit.register(_usage_flush)
 
 
+# ── ACI: compactación de tool-outputs (mejora de HARNESS, 2026-07-13) ──
+# El research del harness (HARNESS_RESEARCH.md) midió que los outputs de tools
+# dominan 70-80% del budget de contexto y el 3B se pierde con dumps largos
+# (ctx 16k). Cap uniforme head+tail: un output largo se recorta conservando
+# la cabeza (la señal RESULTADO ...) y la cola (lo último suele ser lo
+# relevante), con el completo guardado en disco por si el agente lo necesita.
+# Cero riesgo: los outputs cortos (la mayoría) pasan intactos.
+_ACI_CAP = int(os.environ.get("COGNIA_ACI_CAP", "1800"))
+_ACI_HEAD = 1200
+_ACI_TAIL = 450
+
+
+def aci_trim(text: str, name: str = "tool") -> str:
+    """Recorta un output de tool largo a head+tail con un marcador; guarda el
+    completo en el workspace. Idempotente sobre textos cortos."""
+    if not text or len(text) <= _ACI_CAP:
+        return text
+    ruta = ""
+    try:
+        base = Path(_resolve_write_path.__module__ and __import__(
+            "cognia.agents.workers.dev_tools", fromlist=["AGENT_WORKSPACE_ROOT"]
+        ).AGENT_WORKSPACE_ROOT)
+        d = base / ".aci_overflow"
+        d.mkdir(parents=True, exist_ok=True)
+        import hashlib
+        ruta = d / f"{name}_{hashlib.sha1(text.encode()).hexdigest()[:8]}.txt"
+        ruta.write_text(text, encoding="utf-8")
+        ruta = str(ruta)
+    except Exception:
+        ruta = "(no guardado)"
+    omit = len(text) - _ACI_HEAD - _ACI_TAIL
+    return (text[:_ACI_HEAD]
+            + f"\n[... {omit} chars omitidos (output completo en {ruta}) ...]\n"
+            + text[-_ACI_TAIL:])
+
+
 def run_tool(name: str, args: str, ctx: dict) -> str:
     """Dispatch one tool by name. Unknown name -> a helpful error string."""
     # Sub-agente acotado: si el ctx trae un set de tools permitidas (rol de
@@ -159,7 +195,9 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
         _record_usage(name, ok)
     except Exception:
         pass
-    return out
+    # ACI: compactar outputs largos (mejora de harness) antes de devolver al
+    # loop. 'responder' NO se toca: es la respuesta final, no una observación.
+    return out if name == "responder" else aci_trim(out, name)
 
 
 # ── small shared helpers ───────────────────────────────────────────────
