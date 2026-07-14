@@ -376,6 +376,10 @@ class _LlamaServerBackend:
         self.last_tokens_predicted: Optional[int] = None
         # Why the last generation stopped: 'eos'|'limit'|'word'|None (see _stop_reason)
         self.last_stop_reason: Optional[str] = None
+        # HARNESS #1: telemetria de KV-cache (timings del ultimo /completion).
+        self.last_timings: dict = {}
+        self.last_prompt_n: Optional[int] = None
+        self.last_prompt_ms: Optional[float] = None
         # Fleet de expertos LoRA (FLEET_DESIGN): nombres en orden de carga
         # (id de llama-server = indice), experto activo, y flag de swap
         # pendiente — tras un POST /lora-adapters el KV cache es invalido y la
@@ -661,6 +665,15 @@ class _LlamaServerBackend:
                 # Real token count reported by llama-server (replaces len//4 estimates)
                 self.last_tokens_predicted = data.get("tokens_predicted")
                 self.last_stop_reason = _stop_reason(data)
+                # HARNESS #1 (telemetria de KV-cache): timings del server.
+                # prompt_n = tokens REALMENTE prefilleados este request; con el
+                # cache sano, en un paso >1 del loop es chico (solo los tokens
+                # nuevos). prompt_ms = costo del prefill (el recurso escaso en
+                # CPU). last_prompt_n permite medir cache hit y el efecto ACI.
+                tim = data.get("timings") or {}
+                self.last_timings = tim
+                self.last_prompt_n = tim.get("prompt_n")
+                self.last_prompt_ms = tim.get("prompt_ms")
                 return data.get("content", "")
         except Exception as exc:
             logger.warning("[llama_backend] llama-server request failed: %s", exc)

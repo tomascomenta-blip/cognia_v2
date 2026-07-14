@@ -223,7 +223,8 @@ class ShatteringOrchestrator:
               max_tokens: Optional[int] = None,
               temperature: Optional[float] = None,
               stop: Optional[list] = None,
-              repeat_penalty: Optional[float] = None) -> InferResult:
+              repeat_penalty: Optional[float] = None,
+              grammar: Optional[str] = None) -> InferResult:
         """
         Route the prompt, load the right sub-model, and return generated text.
 
@@ -272,6 +273,7 @@ class ShatteringOrchestrator:
                 max_tokens=max_tokens,
                 stop=stop,
                 repeat_penalty=repeat_penalty,
+                grammar=grammar,
             )
 
         return InferResult(
@@ -527,7 +529,8 @@ class ShatteringOrchestrator:
                      temperature: Optional[float] = None,
                      max_tokens: Optional[int] = None,
                      stop: Optional[list] = None,
-                     repeat_penalty: Optional[float] = None):
+                     repeat_penalty: Optional[float] = None,
+                     grammar: Optional[str] = None):
         """Returns (text, mode, tokens_generated). max_tokens=None uses self._max_tokens.
         repeat_penalty!=None desalienta la degeneracion (cola repetida) que a temp=0
         el 3B genera hasta el cap; el agente lo usa en el paso ReAct (ver cli.py)."""
@@ -542,7 +545,8 @@ class ShatteringOrchestrator:
             formatted = _apply_qwen_template(prompt, system)
             result = self._llama.generate(formatted, max_tokens=_max_toks,
                                           temperature=temperature, stop=stop,
-                                          repeat_penalty=repeat_penalty)
+                                          repeat_penalty=repeat_penalty,
+                                          grammar=grammar)
             if result is not None:
                 # Prefer the real count reported by llama-server (tokens_predicted);
                 # fall back to a len//4 estimate if the backend doesn't expose it

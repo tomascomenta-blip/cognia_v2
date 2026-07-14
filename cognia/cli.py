@@ -7630,9 +7630,17 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # los nombres de tool —que se repiten desde TOOLS_DOC en el prompt— y
             # empujaba al 3B a BASURA. e2e 2026-07-10: con rp=1.3 tareas normales
             # 0/5, sin rp 5/5. Regresion de 3.8.4 revertida (ver 3.8.5).
+            # HARNESS #3: GBNF del registry restringe el turno de decision a
+            # una tool VALIDA (mata la degeneracion de nombres basura). Opt-in
+            # COGNIA_TOOL_GRAMMAR=1; None (default) = sampling actual intacto.
+            try:
+                from cognia.agent.tools_grammar import grammar_para
+                _gram = grammar_para(allowed_tools)
+            except Exception:
+                _gram = None
             raw_response = orch.infer(
                 prompt, temperature=_step_temp, stop=["\nACCION:", "\nACCIÓN:"],
-                max_tokens=256,
+                max_tokens=256, grammar=_gram,
             ).text.strip()
             _step_temp = 0.0
         except Exception as e:
