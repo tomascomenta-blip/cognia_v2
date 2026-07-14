@@ -174,6 +174,34 @@ def _parse_carto(raw: str, entry: str):
     return {"helpers": helpers, "spec_asserts": spec_asserts[:14]}
 
 
+ASSERTS_PLANO_TMPL = """Problem statement:
+{spec}
+
+List EVERY test assertion that follows LITERALLY from the problem text: one
+per line, each a Python `assert {entry}(...) == ...` (or `== -1`, etc.).
+Cover EVERY concrete example mentioned in the text (every quoted input whose
+output or validity is stated) and every explicit rule/forbidden case. Do not
+invent cases whose answer is not stated or directly implied. Reply with ONLY
+assert lines, no other text."""
+
+
+def _carto_plano(b, t) -> dict | None:
+    """Fallback sin JSON: pide solo asserts, uno por línea (para enunciados
+    donde el cartógrafo nunca logra emitir el JSON completo)."""
+    from cognia_v3.eval.benchmark_code import build_prompt
+    prompt = build_prompt(
+        ASSERTS_PLANO_TMPL.format(spec=t["prompt"], entry=t["entry_point"]),
+        system=CARTO_SYSTEM.replace("JSON object", "list of assert lines")
+    ) + NOTHINK
+    raw = b.generate(prompt, max_tokens=1200, temperature=0.0, seed=91,
+                     cache_prompt=False) or ""
+    asserts = _valida_asserts(
+        [ln.strip() for ln in raw.splitlines()], requiere=t["entry_point"])
+    if len(asserts) < 4:
+        return None
+    return {"helpers": [], "spec_asserts": asserts[:14]}
+
+
 def fase_cartografia(res: dict, tareas: dict, ids: list):
     """qwen3_4b mapea cada tarea (1-2 gens). Persistencia incremental."""
     from cognia_v3.eval.benchmark_code import build_prompt, extract_code  # noqa
@@ -182,7 +210,8 @@ def fase_cartografia(res: dict, tareas: dict, ids: list):
     # p.ej. JSON truncado por max_tokens)
     pend = [t for t in ids
             if len((res["tareas"].setdefault(t, {}).get("carto") or {})
-                   .get("spec_asserts", [])) < 4]
+                   .get("spec_asserts", [])) < 4
+            or t in res.get("reforzar", [])]
     if not pend:
         return
     b = fleet_backend("qwen3_4b")
@@ -195,19 +224,36 @@ def fase_cartografia(res: dict, tareas: dict, ids: list):
             system=CARTO_SYSTEM) + NOTHINK
         gens = 0
         carto = None
-        while carto is None and gens < 2:      # 1 retry si el JSON no parsea
-            raw = b.generate(prompt, max_tokens=2400,
-                             temperature=0.0 if gens == 0 else 0.4,
-                             seed=77 + gens, cache_prompt=False) or ""
+        # hasta 3 intentos con temperaturas VARIADAS (con seeds fijos el
+        # retry repetía exactamente el mismo fallo de parseo). Las tareas
+        # en "reforzar" ya tienen mapa: van directo al refuerzo plano.
+        if tid not in res.get("reforzar", []):
+            for temp in (0.0, 0.5, 0.9):
+                raw = b.generate(prompt, max_tokens=2400, temperature=temp,
+                                 seed=77 + gens, cache_prompt=False) or ""
+                gens += 1
+                carto = _parse_carto(raw, t["entry_point"])
+                if carto and len(carto["spec_asserts"]) >= 4:
+                    break
+        if (not (carto and len(carto["spec_asserts"]) >= 4)
+                or tid in res.get("reforzar", [])):
+            plano = _carto_plano(b, t)      # fallback/refuerzo sin JSON
             gens += 1
-            carto = _parse_carto(raw, t["entry_point"])
+            if plano and len(plano["spec_asserts"]) >= len(
+                    (carto or {}).get("spec_asserts", [])):
+                carto = plano
+        if tid in res.get("reforzar", []):
+            res["reforzar"].remove(tid)
         viejo = res["tareas"][tid].get("carto") or {"helpers": [],
                                                     "spec_asserts": []}
         nuevo = carto or {"helpers": [], "spec_asserts": []}
-        # keep-best entre corridas: no pisar un mapa mejor con uno peor
-        if len(nuevo["spec_asserts"]) < len(viejo["spec_asserts"]):
-            nuevo = viejo
-        res["tareas"][tid]["carto"] = nuevo
+        # UNIÓN entre corridas: más oráculo es estrictamente mejor
+        # (lección NEWX3: 10 asserts buenos PERO faltaba el ejemplo "IC")
+        union = list(dict.fromkeys(viejo["spec_asserts"]
+                                   + nuevo["spec_asserts"]))[:20]
+        res["tareas"][tid]["carto"] = {
+            "helpers": nuevo["helpers"] or viejo["helpers"],
+            "spec_asserts": union}
         res["tareas"][tid]["gens"] = gens
         n_h = len(carto["helpers"]) if carto else 0
         n_a = len(carto["spec_asserts"]) if carto else 0
@@ -239,6 +285,23 @@ def fase_colonia(res: dict, tareas: dict, ids: list):
         carto = r["carto"]
         gens = r.get("gens", 0)
         t0 = time.time()
+
+        # refuerzo por el CODER: cuando el cartógrafo-razonador no logra
+        # extraer asserts de este enunciado, otra hifa toma el relevo
+        if tid in res.get("reforzar_coder", []):
+            raw = b.generate(build_prompt(ASSERTS_PLANO_TMPL.format(
+                spec=t["prompt"], entry=t["entry_point"]),
+                system=SYSTEM_PROMPT) + NOTHINK, max_tokens=1200,
+                temperature=0.0, seed=93, cache_prompt=False) or ""
+            gens += 1
+            extra = _valida_asserts([ln.strip() for ln in raw.splitlines()],
+                                    requiere=t["entry_point"])
+            union = list(dict.fromkeys(carto["spec_asserts"] + extra))[:20]
+            print(f"[{tid}] refuerzo-coder: +{len(union) - len(carto['spec_asserts'])} asserts "
+                  f"(total {len(union)})", flush=True)
+            carto = {"helpers": carto["helpers"], "spec_asserts": union}
+            r["carto"] = carto
+            res["reforzar_coder"].remove(tid)
 
         # --- hormigas por pieza: cada helper contra su micro-oráculo ---
         piezas_ok, piezas_code = [], []

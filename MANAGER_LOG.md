@@ -6286,3 +6286,33 @@ Telemetría (last_prompt_n / last_prompt_ms desde `timings` del /completion) com
 node/llama_backend.py (9aad53d) — permite medir cache-hit y el efecto ACI en vivo.
 GBNF auto del registry (tools_grammar.py) validada contra server real; queda OPT-IN
 (COGNIA_TOOL_GRAMMAR=1) hasta correr la batería 17/17 antes de default-on (cambia sampling).
+
+## 2026-07-14 (00:00-04:30) — SUPERORGANISMO: primera virgen rota del techo (NEWX3)
+Mandato: reinventar el MoM para que el límite no sea capacidad cruda (lógica
+hormigas-vs-oso / micelio). Mecanismo NUEVO vs las 9 negativas (que eran todas
+"N intentos independientes al problema ENTERO"): descomposición con oráculo POR
+PIEZA + SPEC-ASSERTS extraídos del enunciado + feromona (rastro de fallos entre
+intentos). PREREG_SUPERORGANISMO.md; presupuesto 16 gens/tarea = pass@16 baseline;
+score SOLO tests ocultos.
+- v1 smoke 0/4, pero autopsia: NEWX3 10/11 ocultos (fallaba solo "IC", ejemplo
+  LITERAL del enunciado que el cartógrafo no convirtió en assert).
+- v2: carto exhaustivo (cada ejemplo/regla → assert), piezas sobre acumulado
+  (recursión mutua), feromona con todos los fallos, retry a temperatura variada,
+  fallback plano sin JSON, UNIÓN de mapas entre corridas, y refuerzo-coder
+  (cuando el razonador no puede extraer asserts de un enunciado, el coder toma
+  el relevo — cooperación entre hifas).
+- **RESULTADO: NEWX3 PASA los tests OCULTOS (20/20 spec, 5 gens)** — primera de
+  las 13 vírgenes en cruzar el techo de la colonia 3-etapas. La clave fue la
+  UNIÓN razonador+coder del oráculo visible (el coder aportó los 10 asserts que
+  el razonador no podía, incluido "IC").
+- Medidas en v2 hasta el deadline: 3/13 (NEWX3 PASS, SPEC1 fail 2/14, NEWX2 fail
+  0/14 con piezas 4/4-5/5-3/3 perfectas → el cuello es la COMPOSICIÓN).
+- Gate PREREG (≥2/13): NO evaluable aún — corrida INCOMPLETA por deadline
+  (10 tareas pendientes). 1/3 medidas = señal REAL pero no suficiente; continuar
+  la corrida es el paso 1 de la próxima sesión.
+- Lecciones: (a) el techo del oráculo visible ES parte del techo de capacidad —
+  enriquecer el oráculo con otra hifa compra capacidad SIN GPU; (b) piezas
+  verificadas no garantizan el ensamble (ALG3, NEWX2): la composición es el
+  próximo objetivo del mecanismo; (c) el cartógrafo JSON falla sistemáticamente
+  en ciertos enunciados → fallback plano + otra hifa.
+Apagado programado 04:30 ejecutándose según plan.
