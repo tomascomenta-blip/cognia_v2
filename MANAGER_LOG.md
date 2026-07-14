@@ -6273,3 +6273,16 @@ registros de telemetría), español re-medir con N mayor, fallback lfm25, camino
 **Lección de la corrida**: la eficiencia del taller estaba menos en algoritmos nuevos y más en
 FUGAS (KV-cache sin límite, telemetría contaminada, exemplars que dañan). El "no rendirse" pagó
 en 2 fixes reales + 1 negativa que evitó desplegar un daño (-2 tareas del 3B).
+
+## 2026-07-13 — Harness: medición del efecto ACI (prefill = recurso escaso en CPU)
+Medición e2e real (3B, server b9391, cache_prompt=False) del efecto de la compactación
+ACI de tool-outputs sobre el costo de prefill (el cuello de botella en i3 2-cores):
+- Caso: 1 tool-output largo (4143 chars) → ACI-trim 1776 chars → prompt 4818→2462 chars.
+- Prefill tokens: 1967 → 990 (**50% menos**).
+- Prefill wall-clock: 89.1 s → 43.5 s (**51% más rápido, −45.6 s por paso**).
+El ahorro escala con la cantidad y tamaño de las tool-outputs acumuladas en el contexto:
+en un loop multi-paso donde el contexto crece, ACI recorta el re-prefill de cada turno.
+Telemetría (last_prompt_n / last_prompt_ms desde `timings` del /completion) commiteada en
+node/llama_backend.py (9aad53d) — permite medir cache-hit y el efecto ACI en vivo.
+GBNF auto del registry (tools_grammar.py) validada contra server real; queda OPT-IN
+(COGNIA_TOOL_GRAMMAR=1) hasta correr la batería 17/17 antes de default-on (cambia sampling).
