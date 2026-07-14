@@ -157,6 +157,29 @@ def modelo_por_rol(rol: str | None) -> str | None:
     return _MODELO_POR_ROL.get((rol or "").strip().lower())
 
 
+# Modelo RECOMENDADO por tipo de tool: qué miembro del fleet encara mejor cada
+# herramienta (para los flujos "divididos por modelo"). Coherente con el ruteo
+# real: código→Max, razonar/planear→Sabio, buscar/leer→Lía, ejecutar→Cora,
+# memoria/KG→Indi.
+_MODELO_POR_TOOL = {
+    "generar_codigo": "qwen35_4b", "py_validar": "qwen35_4b",
+    "crear_flujo": "qwen3_4b", "plan": "qwen3_4b", "resumir": "qwen3_4b",
+    "buscar": "lfm25_12b", "listar": "lfm25_12b", "arbol": "lfm25_12b",
+    "leer_archivo": "lfm25_12b", "contar_lineas": "lfm25_12b",
+    "http_get": "lfm25_12b",
+    "tests": "3b", "ejecutar": "3b", "escribir_archivo": "3b",
+    "apendar_archivo": "3b", "copiar_archivo": "3b", "responder": "3b",
+    "kg_buscar": "qwen3_embed", "kg_agregar": "qwen3_embed",
+    "recordar": "qwen3_embed", "memorizar": "qwen3_embed",
+}
+
+
+def recomendar_modelo(tool: str | None) -> str:
+    """Key del modelo que Cognia recomienda para ejecutar una tool (default
+    3b = Cora). Se usa para colorear los nodos del flujo por modelo."""
+    return _MODELO_POR_TOOL.get((tool or "").strip().lower(), "3b")
+
+
 def departamentos() -> list[dict]:
     """Departamentos con sus miembros anidados (para la vista global por deptos)."""
     r = roster()

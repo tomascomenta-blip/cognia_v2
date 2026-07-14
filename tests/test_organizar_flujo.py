@@ -27,3 +27,12 @@ def test_tool_crear_flujo_vacio():
     from cognia.agent.tools import TOOLS
     r = TOOLS["crear_flujo"]["fn"]("", {})
     assert "ERROR" in r
+
+
+def test_from_plan_asigna_modelo():
+    from cognia.agent.flows import from_plan
+    f = from_plan("x", [{"description": "gen", "tool_required": "generar_codigo"},
+                        {"description": "buscar", "tool_required": "buscar"}])
+    # cada nodo tiene un modelo recomendado (color del borde en el lienzo)
+    assert f["nodos"][0]["modelo"] == "qwen35_4b"   # codigo -> Max
+    assert f["nodos"][1]["modelo"] == "lfm25_12b"   # buscar -> Lia

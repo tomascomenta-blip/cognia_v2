@@ -151,7 +151,14 @@ def from_plan(nombre: str, pasos: list) -> dict:
         desc = (getattr(p, "description", None)
                 or (p.get("description") if isinstance(p, dict) else "")
                 or (p.get("args") if isinstance(p, dict) else "") or "")
-        nodos.append({"id": pid, "tool": tool, "args": desc, "wires": []})
+        # modelo recomendado por Cognia para ese paso (color del nodo)
+        try:
+            from cognia.oficina.identidad import recomendar_modelo
+            modelo = recomendar_modelo(tool)
+        except Exception:
+            modelo = None
+        nodos.append({"id": pid, "tool": tool, "args": desc, "wires": [],
+                      "modelo": modelo})
         if prev is not None:
             nodos[prev]["wires"].append(pid)
         prev = i
