@@ -21,7 +21,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
-OUT = REPO / "cognia_v3" / "eval" / "results_superorganismo.json"
+OUT = REPO / "cognia_v3" / "eval" / "results_superorganismo_v2.json"
 NOTHINK = "<think>\n\n</think>\n\n"
 BUDGET = 16
 VIRGENES = ["ALG3", "LONG2", "LONG3", "LONG5", "SPEC1", "SPEC2", "SPEC3",
@@ -39,10 +39,13 @@ CARTO_TMPL = """Problem statement:
 
 The final solution must define `{entry}`. Decompose it into 2-4 SMALL helper
 functions, each strictly simpler than the whole problem. For each helper give
-a contract and 2-4 assert statements testing ONLY that helper. Also extract
-4-10 `spec_asserts`: assert statements about `{entry}` whose expected values
-follow DIRECTLY from examples or rules stated in the problem text above (do
-not invent cases whose answer you are unsure of).
+a contract and 3-5 assert statements testing ONLY that helper. Also extract
+`spec_asserts` (6-14 asserts about `{entry}`), following BOTH rules:
+- EVERY concrete example in the problem text (every quoted input whose output
+  or validity is stated) MUST appear as one assert. Do not skip any.
+- EVERY explicit rule or forbidden/edge case listed in the text gets one
+  assert exercising it.
+Do not invent cases whose answer you are unsure of.
 
 Reply with ONLY this JSON:
 {{"helpers": [{{"name": "...", "signature": "def ...", "contract": "...",
@@ -83,16 +86,18 @@ Last attempt:
 ```python
 {code}
 ```
-Failed test: {fallo}
+ALL failing tests of the last attempt:
+{fallo}
 
 Write ONLY the corrected function `{entry}`. Try a DIFFERENT approach for \
 the failing part. Reply with ONLY a python code block."""
 
 
 def _run_asserts(code: str, asserts: list, timeout: int = 10):
-    """Corre code + cada assert por separado; devuelve (n_pass, primer_fallo)."""
+    """Corre code + cada assert por separado.
+    Devuelve (n_pass, primer_fallo, fallos_lista)."""
     from cognia_v3.eval.benchmark_code import _sandbox_env
-    passed, primer_fallo = 0, ""
+    passed, primer_fallo, fallos = 0, "", []
     for a in asserts:
         script = code + "\n\n" + a + "\n"
         tmp = None
@@ -106,22 +111,23 @@ def _run_asserts(code: str, asserts: list, timeout: int = 10):
                                text=True, timeout=timeout, env=_sandbox_env())
             if p.returncode == 0:
                 passed += 1
-            elif not primer_fallo:
+            else:
                 last = (p.stderr or "").strip().splitlines()
-                primer_fallo = f"{a}  ->  {last[-1] if last else 'exit!=0'}"
+                fallos.append(f"{a}  ->  {last[-1] if last else 'exit!=0'}")
+                primer_fallo = primer_fallo or fallos[-1]
         except subprocess.TimeoutExpired:
-            if not primer_fallo:
-                primer_fallo = f"{a}  ->  TIMEOUT"
+            fallos.append(f"{a}  ->  TIMEOUT")
+            primer_fallo = primer_fallo or fallos[-1]
         except Exception as exc:
-            if not primer_fallo:
-                primer_fallo = f"{a}  ->  sandbox: {exc}"
+            fallos.append(f"{a}  ->  sandbox: {exc}")
+            primer_fallo = primer_fallo or fallos[-1]
         finally:
             if tmp and os.path.exists(tmp):
                 try:
                     os.unlink(tmp)
                 except Exception:
                     pass
-    return passed, primer_fallo
+    return passed, primer_fallo, fallos
 
 
 def _valida_asserts(asserts, requiere: str = "") -> list:
@@ -163,7 +169,7 @@ def _parse_carto(raw: str, entry: str):
     spec_asserts = _valida_asserts(d.get("spec_asserts"), requiere=entry)
     if not spec_asserts:
         return None
-    return {"helpers": helpers, "spec_asserts": spec_asserts[:10]}
+    return {"helpers": helpers, "spec_asserts": spec_asserts[:14]}
 
 
 def fase_cartografia(res: dict, tareas: dict, ids: list):
@@ -239,8 +245,11 @@ def fase_colonia(res: dict, tareas: dict, ids: list):
                     "the contract exactly)"), 0.0 if k == 0 else 0.8,
                     200 + k)
                 gens += 1
-                n, _ = _run_asserts(code, h["asserts"]) if h["asserts"] \
-                    else (0, "")
+                # evaluar sobre el ACUMULADO: soporta helpers mutuamente
+                # recursivos (lección ALG3 v1)
+                acumulado = "\n\n".join(piezas_code + [code])
+                n, _, _ = _run_asserts(acumulado, h["asserts"]) \
+                    if h["asserts"] else (0, "", [])
                 if n > mejor_n and f"def {h['name']}" in code:
                     mejor, mejor_n = code, n
                 if objetivo and n == objetivo:
@@ -269,15 +278,16 @@ def fase_colonia(res: dict, tareas: dict, ids: list):
                     0.6, 300 + gens)
             gens += 1
             full = (helpers_code + "\n\n" + entry_code).strip()
-            n, fallo_k = _run_asserts(full, spec_a)
+            n, _, fallos_k = _run_asserts(full, spec_a)
             if n > mejor_n:
                 mejor_full, mejor_n = full, n
             if n == len(spec_a):
                 break
-            fallo = fallo_k
+            # feromona v2: TODOS los asserts que fallan (no solo el primero)
+            fallo = "\n".join(f_[:200] for f_ in fallos_k[:8])
             rastro.append(f"- intento {len(rastro) + 1}: paso {n}/"
-                          f"{len(spec_a)} spec-asserts; fallo: "
-                          f"{fallo_k[:160]}")
+                          f"{len(spec_a)} spec-asserts; 1er fallo: "
+                          f"{fallos_k[0][:160] if fallos_k else '?'}")
 
         # --- score contra ocultos (el único veredicto) ---
         ok, et, _ = run_task_tests(mejor_full, t["tests"], t["entry_point"])
@@ -308,7 +318,8 @@ def main():
     tareas = {json.loads(l)["id"]: json.loads(l) for l in
               open(REPO / "cognia_v3" / "eval" / "tasks_hard_v2.jsonl",
                    encoding="utf-8") if l.strip()}
-    res = {"prereg": "PREREG_SUPERORGANISMO", "budget": BUDGET,
+    res = {"prereg": "PREREG_SUPERORGANISMO v2 (autopsia smoke v1)",
+           "budget": BUDGET,
            "cartografo": "qwen3_4b", "coder": "qwen35_4b", "tareas": {}}
     if OUT.is_file():
         res = json.loads(OUT.read_text(encoding="utf-8"))

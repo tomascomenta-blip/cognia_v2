@@ -46,3 +46,22 @@ por votación.
   correcta (el mismo modo de fallo del juez débil). Mitigación: keep-best por
   #asserts pasados (nunca descarte binario), y el score final es SIEMPRE
   contra los ocultos.
+
+## v2 (2026-07-13 22:50, tras autopsia del smoke v1)
+
+Smoke v1: 0/4 en ocultos, pero la autopsia por-assert cambia el cuadro:
+- **NEWX3 quedó a 1 assert de pasar (10/11 ocultos)**: el único fallo ("IC")
+  está LITERAL en el enunciado y el cartógrafo no lo convirtió en spec-assert.
+  Con oráculo visible completo, la feromona convergió en 1 intento.
+- ALG3: helpers mutuamente recursivos no se pueden verificar aislados
+  (1 assert c/u) → 0/5 ocultos.
+- SPEC2: spec-asserts correctos pero formato-exacto nunca alcanzado (0/3).
+
+Cambios v2 (pre-registrados ANTES de la corrida v2):
+1. Cartógrafo OBLIGADO a convertir CADA ejemplo y CADA regla literal del
+   enunciado en assert (6-14), y 3-5 asserts por helper.
+2. Micro-asserts de pieza evaluados sobre el ACUMULADO de piezas (soporta
+   recursión mutua).
+3. Feromona con TODOS los asserts que fallan (no solo el primero).
+Gate intacto: ≥2/13 vírgenes en OCULTOS. Presupuesto intacto (16 gens).
+Salida: results_superorganismo_v2.json (v1 queda como archivo).
