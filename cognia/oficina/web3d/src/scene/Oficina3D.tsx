@@ -212,6 +212,9 @@ export function Oficina3D() {
   // ── lerp de camara hacia store.enfoque (buscador/inspector/doble-click) ────
   const controles = useRef<MapControlsImpl | null>(null)
   const objetivo = useRef<THREE.Vector3 | null>(null)
+  // zoom-objetivo: al enfocar un trabajador, ACERCAR la camara (no solo
+  // centrar) para ver nombre/funcion/modelo de cerca. null = no forzar.
+  const zoomObjetivo = useRef<number | null>(null)
   const vistasRef = useRef(vistas)
   vistasRef.current = vistas
   // enfoque a una sala que TODAVIA no existe (p.ej. el clon de "Reiniciar
@@ -226,6 +229,8 @@ export function Oficina3D() {
       0,
       v.pos[1] + v.def.tamano[1] / 2,
     )
+    // acercar: zoom ~2.4x el base (mira de cerca al trabajador enfocado)
+    zoomObjetivo.current = ZOOM0 * 2.4
     return true
   }, [])
   useEffect(() => {
@@ -242,16 +247,31 @@ export function Oficina3D() {
     if (Date.now() > p.deadline || centrarEn(p.id)) enfoquePendiente.current = null
   }, [vistas, centrarEn])
   useFrame((_, dt) => {
-    const o = objetivo.current
     const c = controles.current
-    if (!o || !c) return
+    if (!c) return
+    const k = 1 - Math.exp(-6 * Math.min(dt, 0.1))
+    // lerp del zoom hacia el objetivo (acercarse al enfocar)
+    const zt = zoomObjetivo.current
+    if (zt != null) {
+      const cam = c.object as THREE.OrthographicCamera
+      cam.zoom += (zt - cam.zoom) * k
+      cam.updateProjectionMatrix()
+      if (Math.abs(cam.zoom - zt) < 0.5) zoomObjetivo.current = null
+    }
+    const o = objetivo.current
+    if (!o) {
+      if (zt == null) return
+      c.update()
+      return
+    }
     V_DELTA.copy(o).sub(c.target)
     if (V_DELTA.lengthSq() < 0.002) {
       objetivo.current = null
+      c.update()
       return
     }
     // pan puro: mover target y camara por el mismo delta (mantiene el angulo)
-    V_DELTA.multiplyScalar(1 - Math.exp(-6 * Math.min(dt, 0.1)))
+    V_DELTA.multiplyScalar(k)
     c.target.add(V_DELTA)
     c.object.position.add(V_DELTA)
     c.update()

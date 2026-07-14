@@ -23,9 +23,22 @@ function App() {
   const toggleNoche = useOficina((s) => s.toggleNoche)
   const setFiltro = useOficina((s) => s.setFiltro)
   const enfocar = useOficina((s) => s.enfocar)
+  const setSeleccion = useOficina((s) => s.setSeleccion)
 
   useEffect(() => {
     conectar()
+    // deep-link: ?sel=<id> selecciona y enfoca (acerca) ese trabajador/sala
+    // al abrir. Reintenta un momento hasta que llegue el primer snapshot.
+    const sel = new URLSearchParams(location.search).get('sel')
+    if (sel) {
+      let intentos = 0
+      const t = setInterval(() => {
+        setSeleccion(sel)
+        enfocar(sel)
+        if (++intentos >= 8) clearInterval(t)
+      }, 500)
+      return () => clearInterval(t)
+    }
   }, [])
 
   // modo noche: clase .dark en <html> (ver @custom-variant en index.css)

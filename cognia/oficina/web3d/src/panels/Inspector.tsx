@@ -119,6 +119,7 @@ function tsALocal(ts: number): string {
 
 function CuerpoTarea({ tarea, irA }: { tarea: Tarea; irA: (id: string) => void }) {
   const snapshot = useOficina((s) => s.snapshot)
+  const fleet = useOficina((s) => s.fleet)
   const accion = useOficina((s) => s.accion)
   const editar = useOficina((s) => s.editar)
   const prioridad = useOficina((s) => s.prioridad)
@@ -212,8 +213,31 @@ function CuerpoTarea({ tarea, irA }: { tarea: Tarea; irA: (id: string) => void }
   const puedeReiniciar = tarea.estado === 'fallida' || tarea.estado === 'detenida'
   const noAplica = `no aplica: estado ${tarea.estado}`
 
+  const mdl = tarea.modelo ? fleet[tarea.modelo] : undefined
+
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
+      {mdl && (
+        <Seccion titulo="modelo a cargo">
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block h-4 w-4 rounded-full ring-2 ring-white/40"
+              style={{ background: mdl.color }}
+            />
+            <div>
+              <div className="text-sm font-semibold" style={{ color: mdl.color }}>
+                {mdl.nombre}
+                <span className="ml-2 text-[11px] font-normal opacity-60">
+                  {mdl.depto_nombre}
+                </span>
+              </div>
+              {mdl.descripcion && (
+                <div className="text-[11px] opacity-70">{mdl.descripcion}</div>
+              )}
+            </div>
+          </div>
+        </Seccion>
+      )}
       <Seccion titulo="tarea actual (prompt)">
         {editando ? (
           <>
