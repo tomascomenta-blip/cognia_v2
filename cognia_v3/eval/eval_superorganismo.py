@@ -185,7 +185,7 @@ invent cases whose answer is not stated or directly implied. Reply with ONLY
 assert lines, no other text."""
 
 
-def _carto_plano(b, t) -> dict | None:
+def _carto_plano(b, t, seed_off: int = 0) -> dict | None:
     """Fallback sin JSON: pide solo asserts, uno por línea (para enunciados
     donde el cartógrafo nunca logra emitir el JSON completo)."""
     from cognia_v3.eval.benchmark_code import build_prompt
@@ -193,8 +193,9 @@ def _carto_plano(b, t) -> dict | None:
         ASSERTS_PLANO_TMPL.format(spec=t["prompt"], entry=t["entry_point"]),
         system=CARTO_SYSTEM.replace("JSON object", "list of assert lines")
     ) + NOTHINK
-    raw = b.generate(prompt, max_tokens=1200, temperature=0.0, seed=91,
-                     cache_prompt=False) or ""
+    raw = b.generate(prompt, max_tokens=1200,
+                     temperature=0.0 if seed_off == 0 else 0.6,
+                     seed=91 + seed_off, cache_prompt=False) or ""
     asserts = _valida_asserts(
         [ln.strip() for ln in raw.splitlines()], requiere=t["entry_point"])
     if len(asserts) < 4:
@@ -224,20 +225,24 @@ def fase_cartografia(res: dict, tareas: dict, ids: list):
             system=CARTO_SYSTEM) + NOTHINK
         gens = 0
         carto = None
+        # offset por gens de corridas previas: sin él, el retry ENTRE
+        # corridas repite seeds 77/78/79 exactas = re-fallo determinista
+        # (mismo bug que el retry intra-corrida ya corrigió con temps).
+        prev = res["tareas"][tid].get("gens", 0)
         # hasta 3 intentos con temperaturas VARIADAS (con seeds fijos el
         # retry repetía exactamente el mismo fallo de parseo). Las tareas
         # en "reforzar" ya tienen mapa: van directo al refuerzo plano.
         if tid not in res.get("reforzar", []):
             for temp in (0.0, 0.5, 0.9):
                 raw = b.generate(prompt, max_tokens=2400, temperature=temp,
-                                 seed=77 + gens, cache_prompt=False) or ""
+                                 seed=77 + prev + gens, cache_prompt=False) or ""
                 gens += 1
                 carto = _parse_carto(raw, t["entry_point"])
                 if carto and len(carto["spec_asserts"]) >= 4:
                     break
         if (not (carto and len(carto["spec_asserts"]) >= 4)
                 or tid in res.get("reforzar", [])):
-            plano = _carto_plano(b, t)      # fallback/refuerzo sin JSON
+            plano = _carto_plano(b, t, seed_off=prev)  # fallback/refuerzo sin JSON
             gens += 1
             if plano and len(plano["spec_asserts"]) >= len(
                     (carto or {}).get("spec_asserts", [])):
