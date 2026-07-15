@@ -572,9 +572,20 @@ def _http_get(args, ctx):
         return "RESULTADO http_get ERROR: solo http/https"
     req = urllib.request.Request(url, headers={"User-Agent": "Cognia/3.2"})
     with urllib.request.urlopen(req, timeout=15) as resp:
+        ctype = (resp.headers.get("Content-Type") or "").lower()
         raw = resp.read(200_000).decode("utf-8", errors="replace")
-    text = re.sub(r"<[^>]+>", " ", raw)          # crude tag strip
-    text = re.sub(r"\s+", " ", text).strip()
+    # Extracción limpia vía el conversor universal (cognia/converters.py):
+    # quita script/style y conserva estructura de bloques, mejor que el
+    # strip por regex (que dejaba el JS/CSS inline como "texto"). Fallback
+    # al strip crudo si el parser HTML fallara.
+    if "html" in ctype or "<" in raw[:200]:
+        try:
+            from cognia.converters import html_a_texto
+            text = html_a_texto(raw)
+        except Exception:
+            text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", raw)).strip()
+    else:
+        text = re.sub(r"\s+", " ", raw).strip()
     return f"RESULTADO http_get {url[:60]}: {text[:1500]}"
 
 
