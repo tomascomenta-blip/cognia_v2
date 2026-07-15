@@ -89,7 +89,12 @@ class KnowledgeGraph:
 
     VALID_RELATIONS = {
         "is_a", "part_of", "causes", "capable_of", "related_to",
-        "has_property", "opposite_of", "instance_of", "used_for", "located_in"
+        "has_property", "opposite_of", "instance_of", "used_for", "located_in",
+        # relaciones de CÓDIGO (code_graph.py, 2026-07-14): el código del
+        # repo vive en el MISMO grafo (un solo KG, no dos sistemas); sin
+        # estas, add_triple degradaba los predicados de código a related_to
+        # y el grafo perdía la dirección semántica (deps vs dependientes).
+        "importa", "define", "tiene_metodo", "llama_a",
     }
 
     def __init__(self, db_path: str = DB_PATH):
