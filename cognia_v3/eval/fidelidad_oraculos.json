@@ -98,9 +98,9 @@
  {
   "tarea": "NEWD2",
   "asserts": 12,
-  "pasan": null,
-  "fidelidad": null,
-  "fuente": "sin ref",
+  "pasan": 10,
+  "fidelidad": 83,
+  "fuente": "refimpl validada",
   "gano": false
  }
 ]

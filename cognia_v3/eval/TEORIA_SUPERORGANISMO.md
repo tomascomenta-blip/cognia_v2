@@ -160,20 +160,23 @@ en la solución correcta (un assert que falla ahí es FALSO). Medido en 7/13:
 | SPEC3 | 100% | **PASS** | fiel + resoluble |
 | NEWX2 | **100%** | fail | **F2 puro** (oráculo perfecto, ensamble > techo) |
 | NEWX5 | **100%** | fail | **F2 puro** (refuerzo-coder hizo oráculo fiel; parser RFC irresoluble) |
+| NEWD2 | 83% | fail | **MIXTO** (F1 leve: 2/12 asserts falsos + F2: pieza irresoluble) |
 | SPEC1 | 14% | fail | **F1** (oráculo falso, anti-solución) |
 | NEWX4 | 0% | fail | **F1** (oráculo contradictorio) |
 
 **Hallazgo:** las 3 ganadoras tienen 100% de fidelidad; las perdedoras se parten
-NÍTIDAMENTE en dos causas medidas — F1 (oráculo falso: 0-14%) y F2 (oráculo
-100% fiel pero pieza/ensamble irresoluble). NEWX2 y NEWX5 son la prueba
-cuantitativa de que **fidelidad perfecta NO basta** (contra la intuición de que
-"mejor oráculo = PASS"): cuando la pieza-corazón supera el techo del coder, ni
-un oráculo impecable convierte. Esto CORRIGE la lectura ingenua de la ley
-empírica: spec-visible-100% ⇒ PASS, pero fidelidad-del-oráculo-100% ⇏ PASS
-(NEWX2/NEWX5 tienen oráculo 100% fiel y aun así no ALCANZAN spec-visible-100%
-porque el coder no resuelve el ensamble). Los dos factores son ortogonales y
-ambos necesarios. (Datos: cognia_v3/eval/fidelidad_oraculos.json; 6 tareas sin ref-impl no
-medidas por deadline.)
+en dos causas medidas — F1 (oráculo falso: 0-14%) y F2 (oráculo 100% fiel pero
+pieza/ensamble irresoluble). NEWX2 y NEWX5 son la prueba cuantitativa de que
+**fidelidad perfecta NO basta** (contra la intuición de que "mejor oráculo =
+PASS"): cuando la pieza-corazón supera el techo del coder, ni un oráculo
+impecable convierte. NEWD2 (83%) es el caso MIXTO — falla por AMBOS: oráculo
+levemente infiel (2/12 falsos, F1) Y pieza irresoluble (F2). Esto CORRIGE la
+lectura ingenua de la ley empírica: spec-visible-100% ⇒ PASS, pero
+fidelidad-del-oráculo-100% ⇏ PASS. Los dos factores son ortogonales y ambos
+necesarios. **Validación de honestidad**: la fidelidad MEDIDA de NEWD2 (10/12)
+coincide EXACTA con la evaluación MANUAL pre-registrada ("10/12 fieles; 2
+falsos", PREDICCIONES §"a mano") — el juicio manual era correcto. (Datos:
+cognia_v3/eval/fidelidad_oraculos.json; 8/13 medidas; 5 sin ref-impl.)
 
 ## 6b. La ley empírica y lo que implica para la construcción
 
