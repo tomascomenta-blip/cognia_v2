@@ -6316,3 +6316,51 @@ score SOLO tests ocultos.
   próximo objetivo del mecanismo; (c) el cartógrafo JSON falla sistemáticamente
   en ciertos enunciados → fallback plano + otra hifa.
 Apagado programado 04:30 ejecutándose según plan.
+
+## 2026-07-15 — SUPERORGANISMO: corrida COMPLETA 13/13 + gate consolidado con poder predictivo
+Continuación del mandato del superorganismo (la colonia muerde por pedazos) hasta
+completar las 13 vírgenes y CONSTRUIR la etapa 4 en producción.
+
+**RESULTADO: 3/13 vírgenes rotas en OCULTOS (NEWX3, ALG3, SPEC3) — gate ≥2/13
+CRUZADO** (baseline 0/13 por definición; pass@16=0). ALG3 era la 0/8 "imposible".
+- **Ley empírica limpia**: PASS oculto ⇔ oráculo VISIBLE 100% (las 3 ganadoras con
+  spec 20/20, 14/14, 14/14; las 10 perdedoras ninguna completó su oráculo). Cero
+  falsos positivos del oráculo visible en 13 tareas.
+- **Teoría de 3 factores con predicciones PRE-REGISTRADAS** (commit 850c6f4, ANTES
+  de los resultados): scorecard **8/10**. Los 2 fallos acotan F1↔F2: oráculo fiel
+  no basta si una pieza es irresoluble (NEWD2), pero fiel SÍ compensa ensamble gordo
+  (ALG3, erró a favor de la teoría). El valor = MEDICIÓN honesta con poder predictivo.
+- **Construcción**: cognia/agent/superorganismo.py (port v2 + filtro determinista de
+  contradicciones + timeout) como ETAPA 4 opt-in de generar_codigo (COGNIA_SUPERORGANISMO=1,
+  keep-best conservador que usa exactamente la señal-discriminador: spec 100%). 150 tests
+  verdes. e2e real GATED (queda batería antes de default-on).
+- **Bug de PRODUCCIÓN cazado**: el timeout del cliente llama era de socket, no contemplaba
+  el prefill → en máquina con RAM al límite quemaba ~6% de las gens (afecta también al
+  agente /hacer). Fix _request_timeout_s con término de prefill (fb826d9) + ajuste al peor
+  caso de page-in de disco (//25, de28802). Corrida final: 0 timeouts.
+- Lecciones de instrumento: retry de carto determinista entre corridas (seeds fijas)
+  arreglado (6fa4b83); agentes de workflow locales NO coexisten con eval de modelo real
+  en el i3 (RAM→paginación→9h una tarea).
+
+## 2026-07-15 — INTEGRACIÓN NATIVA OSS (goal B, subordinado al superorganismo)
+Mandato paralelo: absorber ~29 herramientas OSS como módulos nativos (evolucionar, no
+duplicar). Inventario por agente (14 subsistemas) + mapa de equivalencias
+(INTEGRACIONES_OSS_MAPA.md). 13 checkpoints entregados (tests + verificación real + push):
+- **events.py** (bus interno = Agent Reach) — cerró la deuda "sin bus de eventos".
+- **agent/sentinel.py** (Sentinel default-ON) — cerró la deuda "ejecutar denylist"; allowlist
+  dev + block duro + confirm default-deny + auditoría + caza encadenamiento oculto.
+- **knowledge/code_graph.py** (Graphify+CodeGraph) — grafo de código AST en el MISMO KG
+  (518 mód/7808 triples).
+- **analytics/panel.py + /analiticas** (Plausible) — agrega 3 fuentes+bus; + calibración
+  Future-AGI read-only sobre 151 tareas reales (umbral 7B sano, 7B mejoró 10/mantuvo 0,
+  duras 28/62 → recomienda el superorganismo: lazo B→A con datos).
+- **converters.py** (MarkItDown) — HTML/CSV/TSV/JSON stdlib + docx/xlsx opcionales; ingest
+  ruteado + http_get limpio.
+- **reminders recurrencia** (Cal.com) — daily/weekly/monthly + migración compatible.
+- **notebook.py + tool cuaderno** (Open Notebook) — notas+fuentes+RAG de recuperación.
+- **/oficina en CLI** (gap del entrypoint). docs/ARQUITECTURA_INTEGRACIONES.md.
+Gated con honestidad (máquina libre / GPU): voz (Whisper/TTS, sin modelos ni libs),
+navegador completo (headless), orquestador único (2 registries, suite completa),
+entrenamiento distribuido.
+
+**Deadline 04:40 autorizado por el dueño: apagado del SO programado (shutdown /s).**

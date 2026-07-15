@@ -55,7 +55,24 @@
      "assert calc('1-(-2-3)') == 6"
     ]
    },
-   "gens": 1
+   "gens": 13,
+   "piezas": [
+    "parse_expr: 3/3",
+    "parse_term: 3/3",
+    "parse_factor: 3/3"
+   ],
+   "spec_asserts_pasados": [
+    14,
+    14
+   ],
+   "intentos_ensamble": 9,
+   "oculto": {
+    "passed": true,
+    "err": ""
+   },
+   "secs": 2654.0,
+   "final": true,
+   "code": "def parse_expr(tokens):\n    return tokens\n\ndef parse_term(tokens):\n    return tokens\n\ndef parse_factor(tokens):\n    if not tokens:\n        return tokens\n    \n    result = []\n    i = 0\n    \n    # Handle unary minus at the start\n    if tokens[0] == '-':\n        result.append('-')\n        i = 1\n    \n    # Parse the number\n    if i < len(tokens) and tokens[i].isdigit():\n        result.append(tokens[i])\n        i += 1\n    \n    # Handle subsequent operators and numbers\n    while i < len(tokens):\n        if tokens[i] in ['+', '-']:\n            result.append(tokens[i])\n            i += 1\n            if i < len(tokens) and tokens[i].isdigit():\n                result.append(tokens[i])\n                i += 1\n        else:\n            break\n            \n    return result\n\ndef calc(expr):\n    def tokenize(s):\n        tokens = []\n        i = 0\n        n = len(s)\n        while i < n:\n            if s[i].isspace():\n                i += 1\n                continue\n            if s[i].isdigit():\n                j = i\n                while j < n and s[j].isdigit():\n                    j += 1\n                tokens.append(int(s[i:j]))\n                i = j\n            elif s[i] in '()+*/-':\n                tokens.append(s[i])\n                i += 1\n            else:\n                raise ValueError(f\"Invalid character: {s[i]}\")\n        return tokens\n\n    def eval_tokens(toks):\n        i = 0\n        n = len(toks)\n\n        def parse_expr():\n            nonlocal i\n            left = parse_term()\n            while i < n and toks[i] in ('+', '-'):\n                op = toks[i]\n                i += 1\n                right = parse_term()\n                if op == '+':\n                    left = left + right\n                else:\n                    left = left - right\n            return left\n\n        def parse_term():\n            nonlocal i\n            left = parse_factor()\n            while i < n and toks[i] in ('*', '/'):\n                op = toks[i]\n                i += 1\n                right = parse_factor()\n                if op == '*':\n                    left = left * right\n                else:\n                    left = int(left / right)\n            return left\n\n        def parse_factor():\n            nonlocal i\n            if i < n and toks[i] == '(':\n                i += 1\n                val = parse_expr()\n                if i < n and toks[i] == ')':\n                    i += 1\n                return val\n            elif i < n and toks[i] == '-':\n                i += 1\n                val = parse_factor()\n                return -val\n            elif i < n:\n                val = toks[i]\n                i += 1\n                return val\n            else:\n                raise ValueError(\"Unexpected end of input\")\n\n        return parse_expr()\n\n    try:\n        tokens = tokenize(expr)\n        return eval_tokens(tokens)\n    except Exception:\n        raise"
   },
   "LONG2": {
    "carto": {
@@ -98,8 +115,25 @@
      "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10') == (50, 0, [(50, 0)])"
     ]
    },
-   "gens": 2,
-   "carto_origen": "v1 keep-best"
+   "gens": 16,
+   "carto_origen": "v1 keep-best",
+   "piezas": [
+    "parse_program: 1/1",
+    "execute_command: 0/1",
+    "execute_repeat: 1/1"
+   ],
+   "spec_asserts_pasados": [
+    2,
+    10
+   ],
+   "intentos_ensamble": 10,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 3070.8,
+   "final": false,
+   "code": "def parse_program(program):\n    return program.split()\n\ndef execute_command(cmd, state):\n    if cmd[0] == 'MOVE':\n        state['x'] += cmd[1]\n    elif cmd[0] == 'TURN':\n        state['dir'] = (state['dir'] + cmd[1]) % 4\n    elif cmd[0] == 'PEN':\n        state['pen'] = not state['pen']\n    return state\n\ndef execute_repeat(n, commands, state):\n    for _ in range(n):\n        for cmd in commands:\n            if cmd == 'MOVE':\n                x, y, dir, pen = state['x'], state['y'], state['dir'], state['pen']\n                state['x'] = x + dir\n                state['y'] = y\n            elif cmd == 'TURN':\n                dir = state['dir']\n                state['dir'] = (dir + 1) % 4\n            elif cmd == 'DRAW':\n                state['pen'] = True\n            elif cmd == 'ERASE':\n                state['pen'] = False\n            elif cmd == 'RESET':\n                state['x'] = 0\n                state['y'] = 0\n                state['dir'] = 1\n                state['pen'] = True\n    return state\n\ndef run_turtle(program):\n    def parse_program(program):\n        tokens = program.split()\n        return tokens\n\n    def execute_command(cmd, state):\n        if cmd[0] == 'MOVE':\n            n = int(cmd.split()[1])\n            for _ in range(n):\n                if state['pen']:\n                    state['marks'].add((state['x'], state['y']))\n                if state['direction'] == 0:\n                    state['y'] += 1\n                elif state['direction'] == 1:\n                    state['x'] += 1\n                elif state['direction'] == 2:\n                    state['y'] -= 1\n                elif state['direction'] == 3:\n                    state['x'] -= 1\n        elif cmd[0] == 'TURN':\n            if cmd[1] == 'L':\n                state['direction'] = (state['direction'] - 1) % 4\n            elif cmd[1] == 'R':\n                state['direction'] = (state['direction'] + 1) % 4\n        elif cmd[0] == 'PENDOWN':\n            state['pen'] = True\n        elif cmd[0] == 'PENUP':\n            state['pen'] = False\n        return state\n\n    def execute_repeat(n, commands, state):\n        for _ in range(n):\n            for cmd in commands:\n                state = execute_command(cmd, state)\n        return state\n\n    tokens = parse_program(program)\n    state = {\n        'x': 0,\n        'y': 0,\n        'direction': 0, # 0: North, 1: East, 2: South, 3: West\n        'pen': False,\n        'marks': set()\n    }\n    \n    i = 0\n    while i < len(tokens):\n        cmd = tokens[i]\n        \n        if cmd == 'REPEAT':\n            n = int(tokens[i+1])\n            start_bracket = i + 2\n            bracket_count = 1\n            j = start_bracket\n            while j < len(tokens) and bracket_count > 0:\n                if tokens[j] == '[':\n                    bracket_count += 1\n                elif tokens[j] == ']':\n                    bracket_count -= 1\n                j += 1\n            \n            commands = tokens[start_bracket:j-1]\n            state = execute_repeat(n, commands, state)\n            i = j\n        else:\n            state = execute_command(cmd, state)\n            i += 1\n    \n    return (state['x'], state['y'], sorted(list(state['marks'])))"
   },
   "LONG3": {
    "carto": {
@@ -126,7 +160,22 @@
      "assert parse_json('\"hello\"') == 'hello'"
     ]
    },
-   "gens": 2
+   "gens": 16,
+   "piezas": [
+    "parse_value: 5/5"
+   ],
+   "spec_asserts_pasados": [
+    1,
+    6
+   ],
+   "intentos_ensamble": 14,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 4986.2,
+   "final": false,
+   "code": "def parse_value(s: str) -> object:\n    s = s.strip()\n    if s.lower() == 'true':\n        return True\n    if s.lower() == 'false':\n        return False\n    if s.lower() == 'null':\n        return None\n    try:\n        if '.' in s:\n            return float(s)\n        return int(s)\n    except ValueError:\n        raise ValueError(f\"Invalid value: {s}\")\n\ndef parse_json(s: str) -> object:\n    s = s.strip()\n    if not s:\n        raise ValueError(\"Empty input\")\n    \n    # Helper to skip whitespace\n    def skip_ws():\n        nonlocal s\n        while s and s[0] in ' \\t\\n\\r':\n            s = s[1:]\n    \n    # Helper to parse a value (object, array, string, number, true, false, null)\n    def parse_value():\n        skip_ws()\n        if not s:\n            raise ValueError(\"Unexpected end of input\")\n        \n        c = s[0]\n        \n        if c == '{':\n            s = s[1:]\n            skip_ws()\n            if not s:\n                raise ValueError(\"Empty object\")\n            if s[0] == '}':\n                s = s[1:]\n                return {}\n            \n            result = {}\n            while True:\n                skip_ws()\n                if not s:\n                    raise ValueError(\"Unexpected end of input in object\")\n                if s[0] == '}':\n                    s = s[1:]\n                    break\n                \n                # Parse key\n                if s[0] != '\"':\n                    raise ValueError(\"Expected string key in object\")\n                key_str = parse_string()\n                skip_ws()\n                if s[0] != ':':\n                    raise ValueError(\"Expected ':' in object\")\n                s = s[1:]\n                skip_ws()\n                value = parse_value()\n                result[key_str] = value\n                \n                skip_ws()\n                if s[0] == ',':\n                    s = s[1:]\n                else:\n                    break\n            return result\n            \n        elif c == '[':\n            s = s[1:]\n            skip_ws()\n            if not s:\n                raise ValueError(\"Empty array\")\n            if s[0] == ']':\n                s = s[1:]\n                return []\n            \n            result = []\n            while True:\n                skip_ws()\n                if not s:\n                    raise ValueError(\"Unexpected end of input in array\")\n                if s[0] == ']':\n                    s = s[1:]\n                    break\n                value = parse_value()\n                result.append(value)\n                \n                skip_ws()\n                if s[0] == ',':\n                    s = s[1:]\n                else:\n                    break\n            return result\n            \n        elif c == '\"':\n            return parse_string()\n            \n        elif c == 't':\n            if s.startswith('true'):\n                s = s[4:]\n                return True\n            raise ValueError(\"Invalid literal 't'\")\n            \n        elif c == 'f':\n            if s.startswith('false'):\n                s = s[5:]\n                return False\n            raise ValueError(\"Invalid literal 'f'\")\n            \n        elif c == 'n':\n            if s.startswith('null'):\n                s = s[4:]\n                return None\n            raise ValueError(\"Invalid literal 'n'\")\n            \n        elif c == '-':\n            return parse_number()\n            \n        else:\n            return parse_number()\n\n    def parse_string():\n        skip_ws()"
   },
   "LONG5": {
    "carto": {
@@ -165,7 +214,23 @@
      "assert derivative(Polynomial([1, 0, 0, 0])).coeffs == [0]"
     ]
    },
-   "gens": 1
+   "gens": 16,
+   "piezas": [
+    "coeffs_to_str: 2/5",
+    "str_to_coeffs: 2/5"
+   ],
+   "spec_asserts_pasados": [
+    0,
+    6
+   ],
+   "intentos_ensamble": 10,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 3268.8,
+   "final": false,
+   "code": "_terms = []\n\n    # We'll use regex to find all number parts and variable parts\n    # Pattern: optional sign, optional number, optional x, optional ^number\n    \n    # Actually, let's just split by + and - carefully\n    # But - can be unary.\n    \n    # Better: use re.findall to find all numeric coefficients and powers\n    # But the input format is simple: coeffs are integers.\n    \n    # Let's do a state machine approach\n    i = 0\n    n = len(s)\n    coeffs = []\n    \n    while i < n:\n        # Skip leading sign if it's a new term start\n        if i == 0 or s[i] in '+-':\n            if s[i] == '-' and i == 0:\n                # This shouldn't happen based on test cases, but let's handle\n                current_sign = -1\n            elif s[i] == '+':\n                current_sign = 1\n            i += 1\n            continue\n        \n        # Collect number if present\n        num_start = i\n        while i < n and s[i].isdigit():\n            i += 1\n        num = int(s[num_start:i])\n        \n        # Check for x\n        x_found = False\n        if i < n and s[i] == 'x':\n            x_found = True\n            i += 1\n        \n        # Check for exponent\n        exp = 1\n        if i < n and s[i] == '^':\n            i += 1\n            exp_start = i\n            while i < n and s[i].isdigit():\n                i += 1\n            exp = int(s[exp_start:i])\n        \n        # If no x, degree is 0\n        if not x_found:\n            degree = 0\n            coeff = current_sign * num\n        else:\n            degree = exp\n            coeff = current_sign * num\n        \n        # Store coefficient for this degree\n        # We need to collect all and then sort\n        result_terms.append((degree, coeff))\n        \n        # Reset for next term? The sign logic is tricky.\n        # Actually,\n\nclass Polynomial:\n    def __init__(self, coeffs):\n        self.coeffs = coeffs[:]\n        self.normalize()\n\n    def normalize(self):\n        while len(self.coeffs) > 0 and self.coeffs[-1] == 0:\n            self.coeffs.pop()\n        if not self.coeffs:\n            self.coeffs = [0]\n\n    def __add__(self, other):\n        max_len = max(len(self.coeffs), len(other.coeffs))\n        result = [0] * max_len\n        for i in range(len(self.coeffs)):\n            result[i] += self.coeffs[i]\n        for i in range(len(other.coeffs)):\n            result[i] += other.coeffs[i]\n        return Polynomial(result)\n\n    def __mul__(self, other):\n        result = [0] * (len(self.coeffs) + len(other.coeffs) - 1)\n        for i in range(len(self.coeffs)):\n            for j in range(len(other.coeffs)):\n                result[i + j] += self.coeffs[i] * other.coeffs[j]\n        return Polynomial(result)\n\n    def evaluate(self, x):\n        result = 0\n        for i in range(len(self.coeffs)):\n            result += self.coeffs[i] * (x ** i)\n        return result\n\n    def derivative(self):\n        if len(self.coeffs) <= 1:\n            return Polynomial([0])\n        new_coeffs = [self.coeffs[i] * i for i in range(1, len(self.coeffs))]\n        return Polynomial(new_coeffs)\n\n    def __eq__(self, other):\n        return self.coeffs == other.coeffs\n\n    def __str__(self):\n        if len(self.coeffs) == 1 and self.coeffs[0] == 0:\n            return '0'\n        \n        terms = []\n        for i in range(len(self.coeffs) - 1, -1, -1):\n            c = self.coeffs[i]\n            if c == 0:\n                continue\n            if i == 0:\n                term = str(c)\n            elif i == 1:\n                if c == 1:\n                    term = 'x'\n                elif c == -1:\n                    term = '-x'\n                else:\n                    term = f'{c}x'\n            else:\n                if c == 1:\n                    term = f'x^{i}'\n                elif c == -1:\n                    term = f'-x^{i}'\n                else:\n                    term = f'{c}x^{i}'\n            \n            if c < 0:\n                term = '-' + term\n            terms.append(term)\n        \n        return ' + '.join(terms)"
   },
   "SPEC1": {
    "carto": {
@@ -244,11 +309,29 @@
     ],
     "spec_asserts": [
      "assert format_table(['a'], [[1]]) == 'a | 1'",
-     "assert format_table(['a'], [[1, 2]]) == 'a | 1 | 2'"
+     "assert format_table(['a'], [[1, 2]]) == 'a | 1 | 2'",
+     "assert format_table([\"a\", \"b\"], [[\"1\", \"2\"], [\"3\", \"4\"]]) == \"1 | 2\\n---+\\n3 | 4\"",
+     "assert format_table([\"a\", \"b\"], [[\"1\", \"2\"], [\"3\", \"4\"]])"
     ]
    },
-   "gens": 4,
-   "carto_origen": "v1 keep-best"
+   "gens": 16,
+   "carto_origen": "v1 keep-best",
+   "piezas": [
+    "get_column_widths: 2/4",
+    "format_row: 2/3"
+   ],
+   "spec_asserts_pasados": [
+    1,
+    4
+   ],
+   "intentos_ensamble": 6,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 1657.9,
+   "final": false,
+   "code": "def get_column_widths(headers, rows):\n    if not headers or not rows:\n        return []\n    \n    num_columns = len(headers)\n    column_lengths = []\n    \n    for col_idx in range(num_columns):\n        max_len = len(headers[col_idx])\n        \n        for row in rows:\n            if col_idx < len(row):\n                current_len = len(str(row[col_idx]))\n                if current_len > max_len:\n                    max_len = current_len\n        \n        column_lengths.append(max_len)\n    \n    return column_lengths\n\ndef format_row(row, column_widths, is_numeric_column):\n    result_parts = []\n    for i, cell in enumerate(row):\n        width = column_widths[i]\n        if is_numeric_column[i]:\n            formatted = str(cell).rjust(width)\n        else:\n            formatted = str(cell).ljust(width)\n        result_parts.append(formatted)\n    return ' | '.join(result_parts)\n\ndef format_table(headers, rows):\n    def get_column_widths(headers, rows):\n        if not headers or not rows:\n            return []\n        \n        num_columns = len(headers)\n        column_lengths = []\n        \n        for col_idx in range(num_columns):\n            max_len = len(str(headers[col_idx]))\n            \n            for row in rows:\n                if col_idx < len(row):\n                    val = row[col_idx]\n                    current_len = len(str(val))\n                    if current_len > max_len:\n                        max_len = current_len\n            \n            column_lengths.append(max_len)\n        \n        return column_lengths\n\n    def is_numeric_column(col_idx, headers, rows):\n        header_val = headers[col_idx]\n        row_vals = [row[col_idx] for row in rows]\n        all_values = [header_val] + row_vals\n        \n        for v in all_values:\n            try:\n                float(v)\n            except ValueError:\n                return False\n        return True\n\n    def format_row(row, column_widths, is_numeric_column):\n        result_parts = []\n        for i, cell in enumerate(row):\n            width = column_widths[i]\n            s = str(cell)\n            if is_numeric_column(i):\n                formatted = s.rjust(width)\n            else:\n                formatted = s.ljust(width)\n            result_parts.append(formatted)\n        return ' | '.join(result_parts)\n\n    column_widths = get_column_widths(headers, rows)\n    \n    # Header line: headers are always left-aligned\n    header_line = format_row(headers, column_widths, lambda i: True)\n    \n    # Separator line\n    separator_parts = []\n    for w in column_widths:\n        separator_parts.append(\"-\" * w)\n    separator_line = \"-+-\".join(separator_parts)\n    \n    # Data lines\n    data_lines = []\n    for row in rows:\n        formatted_row = format_row(row, column_widths, lambda i: is_numeric_column(i, headers, rows))\n        # Rule 6: Strip trailing spaces from every line\n        formatted_row = formatted_row.rstrip()\n        data_lines.append(formatted_row)\n    \n    # Join lines with \\n and no trailing newline\n    return \"\\n\".join([header_line, separator_line] + data_lines)"
   },
   "SPEC3": {
    "carto": {
@@ -294,7 +377,23 @@
      "assert compare_versions('1.2.3-beta', '1.2.3-alpha') == 1"
     ]
    },
-   "gens": 2
+   "gens": 10,
+   "piezas": [
+    "compare_prerelease: 5/5",
+    "is_prerelease: 4/4"
+   ],
+   "spec_asserts_pasados": [
+    14,
+    14
+   ],
+   "intentos_ensamble": 6,
+   "oculto": {
+    "passed": true,
+    "err": ""
+   },
+   "secs": 1780.8,
+   "final": true,
+   "code": "def compare_prerelease(a: str, b: str) -> int:\n    def normalize(s: str) -> list:\n        parts = []\n        current = []\n        for char in s:\n            if char.isdigit():\n                current.append(char)\n            else:\n                if current:\n                    parts.append(int(\"\".join(current)))\n                    current = []\n                parts.append(char)\n        if current:\n            parts.append(int(\"\".join(current)))\n        return parts\n\n    a_parts = normalize(a)\n    b_parts = normalize(b)\n\n    min_len = min(len(a_parts), len(b_parts))\n\n    for i in range(min_len):\n        val_a = a_parts[i]\n        val_b = b_parts[i]\n\n        if isinstance(val_a, int) and isinstance(val_b, int):\n            if val_a != val_b:\n                return -1 if val_a < val_b else 1\n        elif isinstance(val_a, int):\n            return -1\n        elif isinstance(val_b, int):\n            return 1\n        else:\n            if val_a != val_b:\n                return -1 if val_a < val_b else 1\n\n    if len(a_parts) != len(b_parts):\n        return -1 if len(a_parts) < len(b_parts) else 1\n\n    return 0\n\ndef is_prerelease(s: str) -> bool:\n    import re\n    return bool(re.search(r'-[a-zA-Z0-9._]+', s))\n\ndef compare_versions(a: str, b: str) -> int:\n    def parse_version(v: str):\n        # Remove build metadata first as per rule 1\n        if '+' in v:\n            v = v.split('+')[0]\n        \n        # Split into core and prerelease\n        if '-' in v:\n            core, prerelease = v.split('-', 1)\n        else:\n            core, prerelease = v, None\n        \n        # Parse core version X.Y.Z\n        parts = core.split('.')\n        x, y, z = int(parts[0]), int(parts[1]), int(parts[2])\n        \n        return x, y, z, prerelease\n\n    x_a, y_a, z_a, pre_a = parse_version(a)\n    x_b, y_b, z_b, pre_b = parse_version(b)\n\n    # Compare core versions\n    if x_a != x_b:\n        return -1 if x_a < x_b else 1\n    if y_a != y_b:\n        return -1 if y_a < y_b else 1\n    if z_a != z_b:\n        return -1 if z_a < z_b else 1\n\n    # Rule 3: No prerelease > prerelease\n    if pre_a is None and pre_b is None:\n        return 0\n    if pre_a is None:\n        return 1\n    if pre_b is None:\n        return -1\n\n    # Compare prerelease identifiers\n    pre_a_parts = pre_a.split('.')\n    pre_b_parts = pre_b.split('.')\n\n    for pa, pb in zip(pre_a_parts, pre_b_parts):\n        # Determine if purely numeric\n        pa_is_num = pa.isdigit()\n        pb_is_num = pb.isdigit()\n\n        if pa_is_num and pb_is_num:\n            # Both numeric: compare as integers\n            na = int(pa)\n            nb = int(pb)\n            if na != nb:\n                return -1 if na < nb else 1\n        elif not pa_is_num and not pb_is_num:\n            # Both alphanumeric: compare as strings\n            if pa != pb:\n                return -1 if pa < pb else 1\n        else:\n            # One numeric, one alphanumeric: numeric is always lower\n            return -1 if pa_is_num else 1\n\n    # Rule 5: Fewer identifiers is lower\n    if len(pre_a_parts) != len(pre_b_parts):\n        return -1 if len(pre_a_parts) < len(pre_b_parts) else 1\n\n    return 0"
   },
   "SPEC4": {
    "carto": {
@@ -361,7 +460,25 @@
      "assert summarize_logs(['123|WARN|456|Hello', '123|ERROR|456|World']) == ['ERROR 456: World']"
     ]
    },
-   "gens": 2
+   "gens": 16,
+   "piezas": [
+    "parse_line: 4/5",
+    "keep_line: 5/5",
+    "deduplicate: 1/3",
+    "sort_entries: 2/3"
+   ],
+   "spec_asserts_pasados": [
+    0,
+    14
+   ],
+   "intentos_ensamble": 5,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 1665.8,
+   "final": false,
+   "code": "def parse_line(line):\n    parts = line.split('|')\n    if len(parts) < 4:\n        return None\n    if len(parts) > 4:\n        return None\n    \n    timestamp_str, level, id_str, message = parts[0], parts[1], parts[2], '|'.join(parts[3:])\n    \n    try:\n        timestamp = int(timestamp_str)\n    except ValueError:\n        return None\n    \n    if level not in ('INFO', 'WARN', 'ERROR'):\n        return None\n    \n    try:\n        id_value = int(id_str)\n    except ValueError:\n        return None\n    \n    return {'timestamp': timestamp, 'level': level, 'id': id_value, 'message': message}\n\ndef keep_line(line, level, timestamp, id, message):\n    if level in ('WARN', 'ERROR'):\n        return True\n    return False\n\ndef deduplicate(lines):\n    seen_ids = set()\n    result = []\n    for line in lines:\n        if isinstance(line, tuple):\n            id_val = line[2]\n        else:\n            id_val = line[0].split('|')[0]\n        if id_val not in seen_ids:\n            seen_ids.add(id_val)\n            result.append(line)\n    return result\n\ndef sort_entries(entries):\n    return sorted(entries, key=lambda x: (x[2], x[3]))\n\ndef summarize_logs(lines):\n    filtered_lines = [line for line in lines if keep_line(line, line[1], line[0], line[2], line[3])]\n    deduped_lines = deduplicate(filtered_lines)\n    sorted_lines = sort_entries(deduped_lines)\n    return [f\"{level} {id}: {message}\" for level, timestamp, id, message in sorted_lines]"
   },
   "NEWX2": {
    "carto": {
@@ -553,14 +670,107 @@
      "assert check_password('123') == ['sequence']"
     ]
    },
-   "gens": 3
+   "gens": 16,
+   "piezas": [
+    "has_uppercase: 4/4",
+    "has_lowercase: 3/4",
+    "has_digit: 4/4",
+    "has_special: 4/4"
+   ],
+   "spec_asserts_pasados": [
+    0,
+    6
+   ],
+   "intentos_ensamble": 8,
+   "oculto": {
+    "passed": false,
+    "err": "runtime"
+   },
+   "secs": 1423.6,
+   "final": false,
+   "code": "def has_uppercase(s):\n    return any(c.isupper() for c in s)\n\ndef has_lowercase(s):\n    return any(c.islower() for c in s)\n\ndef has_digit(s):\n    return any(c.isdigit() for c in s)\n\ndef has_special(s):\n    special_chars = set(\"!@#$%^&*()-_=+;\")\n    return any(char in special_chars for char in s)\n\ndef check_password(pw):\n    violations = []\n    \n    # Check length (10-64 inclusive)\n    if not (10 <= len(pw) <= 64):\n        violations.append('length')\n    \n    # Check uppercase\n    if not has_uppercase(pw):\n        violations.append('upper')\n    \n    # Check lowercase\n    if not has_lowercase(pw):\n        violations.append('lower')\n    \n    # Check digit\n    if not has_digit(pw):\n        violations.append('digit')\n    \n    # Check special character\n    special_chars = set(\"!@#$%^&*()-_+=\")\n    if not any(c in special_chars for c in pw):\n        violations.append('special')\n    \n    # Check whitespace\n    if any(c.isspace() for c in pw):\n        violations.append('space')\n    \n    # Check repeat (same character 3+ times in a row)\n    if any(c * 3 in pw for c in string.ascii_letters + string.digits + \"!@#$%^&*()-_+=\"):\n        violations.append('repeat')\n    \n    # Check sequence (three consecutive ascending digits)\n    import re\n    if re.search(r'(\\d)(\\d)(\\d)', pw):\n        # Extract all 3-digit sequences and check if ascending\n        for match in re.finditer(r'(\\d)(\\d)(\\d)', pw):\n            digits = match.group()\n            if int(digits[0]) < int(digits[1]) < int(digits[2]):\n                violations.append('sequence')\n                break\n    \n    violations.sort()\n    return violations"
   },
   "NEWX5": {
    "carto": {
-    "helpers": [],
-    "spec_asserts": []
+    "helpers": [
+     {
+      "name": "consume_until_comma",
+      "signature": "def consume_until_comma(line, start_idx):",
+      "contract": "Returns the substring from start_idx to the next comma, or to the end of the line.",
+      "asserts": [
+       "assert consume_until_comma('a,b,c', 0) == 'a'",
+       "assert consume_until_comma('a,b,c', 1) == 'b'",
+       "assert consume_until_comma('a,b,c', 2) == 'c'",
+       "assert consume_until_comma('a,b,c', 3) == 'c'",
+       "assert consume_until_comma('a,b,c', 4) == 'c'"
+      ]
+     },
+     {
+      "name": "consume_until_end",
+      "signature": "def consume_until_end(line, start_idx):",
+      "contract": "Returns the substring from start_idx to the end of the line.",
+      "asserts": [
+       "assert consume_until_end('a,b,c', 0) == 'a,b,c'",
+       "assert consume_until_end('a,b,c', 1) == 'b,c'",
+       "assert consume_until_end('a,b,c', 2) == 'c'",
+       "assert consume_until_end('a,b,c', 3) == 'c'",
+       "assert consume_until_end('a,b,c', 4) == 'c'"
+      ]
+     },
+     {
+      "name": "skip_quoted_field",
+      "signature": "def skip_quoted_field(line, start_idx):",
+      "contract": "Returns the index after the quoted field, skipping the quotes and any content inside.",
+      "asserts": [
+       "assert skip_quoted_field('\"a\",b', 0) == 3",
+       "assert skip_quoted_field('\"a\",b', 1) == 3",
+       "assert skip_quoted_field('\"a\",b', 2) == 3",
+       "assert skip_quoted_field('\"a\",b', 3) == 3",
+       "assert skip_quoted_field('\"a\",b', 4) == 3"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert parse_csv_line('a,b,c') == ['a', 'b', 'c']",
+     "assert parse_csv_line('a,,b') == ['a', '', 'b']",
+     "assert parse_csv_line('a,,') == ['a', '', '']",
+     "assert parse_csv_line(\"a,,b\") == [\"a\", \"\", \"b\"]",
+     "assert parse_csv_line(\"a,b,\") == [\"a\", \"b\", \"\"]",
+     "assert parse_csv_line(\"\") == [\"\"]",
+     "assert parse_csv_line('\"a\"') == [\"a\"]",
+     "assert parse_csv_line('\"a\",\"b\"') == [\"a\", \"b\"]",
+     "assert parse_csv_line('\"a\",\"b\",') == [\"a\", \"b\", \"\"]",
+     "assert parse_csv_line('\"a\",\"b\",c') == [\"a\", \"b\", \"c\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\"') == [\"a\", \"b\", \"c\", \"d\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\",') == [\"a\", \"b\", \"c\", \"d\", \"\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\",e') == [\"a\", \"b\", \"c\", \"d\", \"e\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\",e,\"f\"') == [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\",e,\"f\",') == [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\",e,\"f\",g') == [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\",e,\"f\",g,\"h\"') == [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\",e,\"f\",g,\"h\",') == [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\", \"\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\",e,\"f\",g,\"h\",i') == [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\", \"i\"]",
+     "assert parse_csv_line('\"a\",\"b\",c,\"d\",e,\"f\",g,\"h\",i,\"j\"') == [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\", \"i\", \"j\"]"
+    ]
    },
-   "gens": 4
+   "gens": 16,
+   "piezas": [
+    "consume_until_comma: 2/5",
+    "consume_until_end: 2/5",
+    "skip_quoted_field: 2/5"
+   ],
+   "spec_asserts_pasados": [
+    6,
+    20
+   ],
+   "intentos_ensamble": 5,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 33010.8,
+   "final": false,
+   "code": "def consume_until_comma(line, start_idx):\n    end_idx = line.find(',', start_idx)\n    if end_idx == -1:\n        return line[start_idx:]\n    return line[start_idx:end_idx]\n\ndef consume_until_end(line, start_idx):\n    return line[start_idx:]\n\ndef skip_quoted_field(line, start_idx):\n    if start_idx >= len(line) or line[start_idx] != '\"':\n        return start_idx\n    end_idx = line.find('\"', start_idx + 1)\n    if end_idx == -1:\n        return len(line)\n    return end_idx + 1\n\ndef consume_until_comma(line, start_idx):\n    end_idx = line.find(',', start_idx)\n    if end_idx == -1:\n        return line[start_idx:]\n    return line[start_idx:end_idx]\n\ndef consume_until_end(line, start_idx):\n    return line[start_idx:]\n\ndef skip_quoted_field(line, start_idx):\n    if start_idx >= len(line) or line[start_idx] != '\"':\n        return start_idx\n    end_idx = line.find('\"', start_idx + 1)\n    if end_idx == -1:\n        return len(line)\n    return end_idx + 1\n\ndef parse_csv_line(line):\n    if not line:\n        return ['']\n    \n    fields = []\n    start_idx = 0\n    length = len(line)\n    \n    while start_idx < length:\n        if line[start_idx] == '\"':\n            # Start of a quoted field\n            start_idx += 1\n            end_idx = start_idx\n            while end_idx < length:\n                if line[end_idx] == '\"':\n                    # Check for escaped quote\n                    if end_idx + 1 < length and line[end_idx + 1] == '\"':\n                        # Escaped quote, consume both\n                        end_idx += 2\n                    else:\n                        # End of quoted field\n                        end_idx += 1\n                        break\n                else:\n                    end_idx += 1\n            \n            # Check for unterminated quoted field\n            if end_idx == len(line) or line[end_idx] != ',':\n                # Unterminated quoted field\n                raise ValueError(\"Unterminated quoted field\")\n            \n            # After closing quote, must be comma or end of line\n            if end_idx < length and line[end_idx] != ',':\n                raise ValueError(\"Non-comma character after closing quote\")\n            \n            # Move start_idx to after the closing quote\n            start_idx = end_idx + 1\n            \n            # Consume the comma if present\n            if start_idx < length and line[start_idx] == ',':\n                start_idx += 1\n        else:\n            # Unquoted field\n            end_idx = start_idx\n            while end_idx < length and line[end_idx] != ',':\n                end_idx += 1\n            \n            # Check for stray double quote inside unquoted field\n            if end_idx < length and line[end_idx] == '\"':\n                raise ValueError(\"Stray double quote inside unquoted field\")\n            \n            # After unquoted field, must be comma or end of line\n            if end_idx < length and line[end_idx] != ',':\n                raise ValueError(\"Non-comma character after unquoted field\")\n            \n            fields.append(line[start_idx:end_idx])\n            start_idx = end_idx + 1\n    \n    # If the line ended with a comma, we have an extra empty field to add\n    if line and line[-1] == ',':\n        fields.append('')\n    \n    return fields"
   },
   "NEWD2": {
    "carto": {
@@ -595,32 +805,49 @@
      "assert max_points_on_line([[0, 0], [0, 1], [0, 2]]) == 3"
     ]
    },
-   "gens": 3
+   "gens": 16,
+   "piezas": [
+    "reduce_slope: 4/7"
+   ],
+   "spec_asserts_pasados": [
+    3,
+    12
+   ],
+   "intentos_ensamble": 11,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 3889.4,
+   "final": false,
+   "code": "def reduce_slope(dx, dy):\n    if dx == 0 and dy == 0:\n        return (0, 1)\n    \n    if dx == 0:\n        return (0, 1)\n    \n    if dy == 0:\n        return (1, 0)\n    \n    common = abs(dx) if abs(dx) > abs(dy) else abs(dy)\n    dx //= common\n    dy //= common\n    \n    if dx < 0:\n        dx = -dx\n        dy = -dy\n    elif dx == 0 and dy < 0:\n        dy = -dy\n    \n    return (dx, dy)\n\nfrom math import gcd\n\ndef reduce_slope(dx, dy):\n    # Handle zero cases\n    if dx == 0 and dy == 0:\n        return (0, 0)\n    if dx == 0:\n        return (0, 1)\n    if dy == 0:\n        return (1, 0)\n    \n    # Compute GCD\n    common = gcd(abs(dx), abs(dy))\n    dx //= common\n    dy //= common\n    \n    # Canonical sign: ensure the first non-zero component is positive\n    if dx < 0:\n        dx = -dx\n        dy = -dy\n    elif dx == 0 and dy < 0:\n        dy = -dy\n        \n    return (dx, dy)\n\ndef max_points_on_line(points):\n    if not points:\n        return 0\n    if len(points) == 1:\n        return 1\n    \n    max_points = 1\n    \n    n = len(points)\n    \n    for i in range(n):\n        xi, yi = points[i]\n        slope_counts = {}\n        duplicates = 0\n        \n        for j in range(i + 1, n):\n            xj, yj = points[j]\n            \n            if xj == xi and yj == yi:\n                duplicates += 1\n                continue\n            \n            dx = xj - xi\n            dy = yj - yi\n            \n            reduced = reduce_slope(dx, dy)\n            \n            if reduced in slope_counts:\n                slope_counts[reduced] += 1\n            else:\n                slope_counts[reduced] = 1\n        \n        # The number of points on the line with the most common slope\n        # is the count for that slope plus the duplicates (points identical to points[i])\n        current_max = duplicates\n        for count in slope_counts.values():\n            current_max = max(current_max, count + duplicates)\n        \n        max_points = max(max_points, current_max)\n    \n    return max_points"
   }
  },
  "reforzar": [],
  "reforzar_coder": [],
  "veredicto": {
-  "hechos": 3,
+  "completa": true,
+  "medidas": 13,
+  "total_virgenes": 13,
   "ganadas": [
-   1,
+   3,
    [
-    "NEWX3"
+    "ALG3",
+    "NEWX3",
+    "SPEC3"
    ]
   ],
-  "pendientes_por_deadline": [
-   "ALG3",
-   "LONG2",
-   "LONG3",
-   "LONG5",
-   "SPEC2",
-   "SPEC3",
-   "SPEC4",
-   "NEWX4",
-   "NEWX5",
-   "NEWD2"
-  ],
-  "gate_prereg": ">=2/13; corrida INCOMPLETA por deadline 04:30 (5/13 medidas): 1 PASS (NEWX3) con refuerzo-coder",
-  "nota": "NEWX3 = primera virgen que pasa ocultos; mecanismo = descomposicion + spec-asserts union razonador+coder + feromona"
+  "gate_prereg": ">=2/13 CRUZADO (3/13): NEWX3, ALG3, SPEC3 pasan tests OCULTOS; baseline 0/13 por definicion",
+  "ley_empirica": "PASS oculto <=> oraculo visible 100% (3/3 ganadas con spec full; 0/10 perdedoras con spec full)",
+  "predicciones_prereg": {
+   "archivo": "PREDICCIONES_SUPERORGANISMO.md (commit 850c6f4, ANTES de resultados)",
+   "aciertos": "8/10",
+   "fallos": [
+    "NEWD2 (predicho PASS, fue FAIL: F2 pieza-corazon irresoluble)",
+    "ALG3 (predicho FAIL, fue PASS: F1 oraculo fiel domo el ensamble gordo)"
+   ]
+  },
+  "timeouts": 0,
+  "nota": "corrida completa con margen de prefill //25; cero generaciones quemadas por infraestructura"
  }
 }

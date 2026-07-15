@@ -74,3 +74,25 @@ La palanca #1 de una v3 NO es más feromona: es **higiene del oráculo**:
     razonador∩coder, no unión — la unión solo para literales).
 La palanca #2 es composición: si el entry-point requiere lógica sustancial,
 re-cartografiar el ensamble como subproblema (descomposición recursiva).
+
+---
+
+## RESULTADO (2026-07-15, corrida completa 13/13) — scorecard 8/10
+
+| tarea | predicción | real | ✓/✗ |
+|---|---|---|---|
+| NEWX4 | FAIL | FAIL | ✓ |
+| NEWX5 | FAIL | FAIL | ✓ |
+| NEWD2 | PASS | FAIL | ✗ (F2: pieza-corazón reduce_slope 4/7 irresoluble) |
+| ALG3  | FAIL | **PASS** | ✗ (F1 fiel 14/14 domó el ensamble gordo — erró a favor de la teoría) |
+| LONG3 | FAIL | FAIL | ✓ |
+| LONG5 | FAIL | FAIL | ✓ |
+| SPEC2 | FAIL | FAIL | ✓ |
+| SPEC3 | PASS | **PASS** | ✓ |
+| LONG2 | FAIL | FAIL | ✓ |
+| SPEC4 | FAIL | FAIL | ✓ |
+
+**8/10.** Los 2 fallos acotan el borde F1↔F2: F1 (fidelidad) fiel NO basta si
+una pieza (F2) es irresoluble (NEWD2); F1 fiel SÍ compensa un ensamble gordo
+(ALG3). Ley empírica confirmada: spec visible 100% ⇔ PASS oculto (13/13, cero
+falsos positivos). Gate ≥2/13 CRUZADO con 3/13. Ver TEORIA_SUPERORGANISMO.md.
