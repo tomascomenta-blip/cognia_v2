@@ -203,7 +203,32 @@
      "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10') == (50, 0, [(50, 0)])"
     ]
    },
-   "gens": 1
+   "gens": 16,
+   "piezas": [
+    "parse_program: 1/1",
+    "execute_command: 0/1",
+    "execute_repeat: 1/1"
+   ],
+   "spec_asserts_pasados": [
+    2,
+    10
+   ],
+   "intentos_ensamble": 11,
+   "oculto": {
+    "passed": false,
+    "err": "runtime"
+   },
+   "secs": 2437.5,
+   "final": false,
+   "code": "def parse_program(program):\n    return program.split()\n\ndef execute_command(cmd, state):\n    if cmd[0] == 'MOVE':\n        state['x'] += cmd[1]\n    elif cmd[0] == 'TURN':\n        state['dir'] = (state['dir'] + cmd[1]) % 4\n    elif cmd[0] == 'PEN':\n        state['pen'] = not state['pen']\n    return state\n\ndef execute_repeat(n, commands, state):\n    for _ in range(n):\n        for cmd in commands:\n            if cmd == 'MOVE':\n                x, y, dir, pen = state['x'], state['y'], state['dir'], state['pen']\n                state['x'] = x + dir\n                state['y'] = y\n            elif cmd == 'TURN':\n                dir = state['dir']\n                state['dir'] = (dir + 1) % 4\n            elif cmd == 'DRAW':\n                state['pen'] = True\n            elif cmd == 'ERASE':\n                state['pen'] = False\n            elif cmd == 'RESET':\n                state['x'] = 0\n                state['y'] = 0\n                state['dir'] = 1\n                state['pen'] = True\n    return state\n\ndef run_turtle(program):\n    def parse_program(program):\n        return program.split()\n\n    def execute_command(cmd, state):\n        x, y, direction, pen_down, marks = state\n        if cmd == \"PENDOWN\":\n            return (x, y, direction, True, marks)\n        elif cmd == \"PENUP\":\n            return (x, y, direction, False, marks)\n        elif cmd == \"MOVE\":\n            n = int(cmd.split()[1])\n            for _ in range(n):\n                if pen_down:\n                    marks.add((x, y))\n                if direction == 0:\n                    y += 1\n                elif direction == 1:\n                    x += 1\n                elif direction == 2:\n                    y -= 1\n                elif direction == 3:\n                    x -= 1\n            return (x, y, direction, pen_down, marks)\n        elif cmd == \"TURN L\":\n            return (x, y, (direction - 1) % 4, pen_down, marks)\n        elif cmd == \"TURN R\":\n            return (x, y, (direction + 1) % 4, pen_down, marks)\n        else:\n            raise ValueError(f\"Unknown command: {cmd}\")\n\n    def execute_repeat(n, commands, state):\n        for _ in range(n):\n            for cmd in commands:\n                state = execute_command(cmd, state)\n        return state\n\n    def run(commands):\n        x, y, direction, pen_down, marks = 0, 0, 0, False, set()\n        i = 0\n        while i < len(commands):\n            cmd = commands[i]\n            if cmd == 'REPEAT':\n                n = int(commands[i+1])\n                start_idx = i + 2\n                end_idx = len(commands)\n                while start_idx < end_idx and commands[start_idx] != ']':\n                    start_idx += 1\n                inner_cmds = commands[start_idx+1:end_idx]\n                state = execute_repeat(n, inner_cmds, (x, y, direction, pen_down, marks))\n                x, y, direction, pen_down, marks = state\n                i = end_idx\n            else:\n                state = execute_command(cmd, (x, y, direction, pen_down, marks))\n                x, y, direction, pen_down, marks = state\n                i += 1\n        return (x, y, sorted(list(marks)))\n\n    tokens = parse_program(program)\n    return run(tokens)"
   }
+ },
+ "veredicto": {
+  "n": 4,
+  "ganadas": [
+   0,
+   []
+  ],
+  "baseline": "0 (virgenes por definicion; ALG3 0/8 pass@16)"
  }
 }

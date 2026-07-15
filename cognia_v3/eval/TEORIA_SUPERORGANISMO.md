@@ -141,6 +141,36 @@ Cualquiera de estas entra SOLO con su propio PREREG + gate.
 - [PENDIENTE] e2e con modelo real de la etapa 4 + batería 17/17 antes de
   considerar default-ON.
 
+## 6a. Fidelidad MEDIDA: la descomposición F1/F2 cuantificada
+
+La evaluación manual de fidelidad (§3-4) se validó con GROUND TRUTH: para cada
+tarea se corrieron sus spec_asserts contra una solución CORRECTA (las ganadoras
+usan su propio código que pasó ocultos; las perdedoras, una implementación de
+referencia re-validada contra los ocultos). Fidelidad = % de asserts que pasan
+en la solución correcta (un assert que falla ahí es FALSO). Medido en 7/13:
+
+| tarea | fidelidad | oculto | mecanismo |
+|---|---|---|---|
+| NEWX3 | 100% | **PASS** | fiel + resoluble |
+| ALG3  | 100% | **PASS** | fiel + resoluble |
+| SPEC3 | 100% | **PASS** | fiel + resoluble |
+| NEWX2 | **100%** | fail | **F2 puro** (oráculo perfecto, ensamble > techo) |
+| NEWX5 | **100%** | fail | **F2 puro** (refuerzo-coder hizo oráculo fiel; parser RFC irresoluble) |
+| SPEC1 | 14% | fail | **F1** (oráculo falso, anti-solución) |
+| NEWX4 | 0% | fail | **F1** (oráculo contradictorio) |
+
+**Hallazgo:** las 3 ganadoras tienen 100% de fidelidad; las perdedoras se parten
+NÍTIDAMENTE en dos causas medidas — F1 (oráculo falso: 0-14%) y F2 (oráculo
+100% fiel pero pieza/ensamble irresoluble). NEWX2 y NEWX5 son la prueba
+cuantitativa de que **fidelidad perfecta NO basta** (contra la intuición de que
+"mejor oráculo = PASS"): cuando la pieza-corazón supera el techo del coder, ni
+un oráculo impecable convierte. Esto CORRIGE la lectura ingenua de la ley
+empírica: spec-visible-100% ⇒ PASS, pero fidelidad-del-oráculo-100% ⇏ PASS
+(NEWX2/NEWX5 tienen oráculo 100% fiel y aun así no ALCANZAN spec-visible-100%
+porque el coder no resuelve el ensamble). Los dos factores son ortogonales y
+ambos necesarios. (Datos: cognia_v3/eval/fidelidad_oraculos.json; 6 tareas sin ref-impl no
+medidas por deadline.)
+
 ## 6b. La ley empírica y lo que implica para la construcción
 
 Frontera visible↔oculto nítida (spec 100% ⇔ PASS, 13/13) ⇒ **el oráculo
