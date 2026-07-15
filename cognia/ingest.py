@@ -9,10 +9,23 @@ _TEXT_EXTENSIONS = {
     ".html", ".css", ".json", ".yaml", ".yml", ".toml",
     ".sql", ".sh", ".ps1", ".bat", ".cfg", ".ini",
     ".rb", ".php", ".swift", ".kt", ".r", ".scala",
+    # convertibles por el conversor universal (cognia/converters.py): la
+    # ingesta de directorio ahora también los recoge. docx/xlsx requieren
+    # dep opcional; si falta, ese archivo cae al error_count del loop (no
+    # rompe la corrida).
+    ".csv", ".tsv", ".docx", ".xlsx",
 }
 
 _MAX_FILE_BYTES = 5 * 1024 * 1024  # 5 MB
 _CHUNK_CHARS = 600
+
+
+def _es_convertido(path: Path) -> bool:
+    """True si el texto NO es byte-idéntico al archivo (PDF/HTML/CSV/docx/
+    xlsx/JSON pasan por el conversor): entonces el pointer por offset no
+    aplica y se guarda inline, igual que ya se hacía con PDF."""
+    from cognia.converters import CONVERTIBLES
+    return path.suffix.lower() in CONVERTIBLES
 
 
 def _chunk_text(text: str) -> List[str]:
@@ -88,20 +101,11 @@ def _chunk_text_with_offsets(text: str):
 def _read_raw(path: Path) -> str:
     if path.stat().st_size > _MAX_FILE_BYTES:
         raise ValueError(f"Archivo demasiado grande (max {_MAX_FILE_BYTES // 1024 // 1024} MB)")
-    ext = path.suffix.lower()
-    if ext == ".pdf":
-        try:
-            import pdfplumber
-        except ImportError:
-            raise RuntimeError("pdfplumber no instalado: pip install pdfplumber")
-        pages = []
-        with pdfplumber.open(str(path)) as pdf:
-            for page in pdf.pages:
-                t = page.extract_text()
-                if t:
-                    pages.append(t)
-        return "\n\n".join(pages)
-    return path.read_text(encoding="utf-8", errors="replace")
+    # Conversor universal (cognia/converters.py, MarkItDown nativo): PDF (igual
+    # que antes) + HTML/CSV/TSV/JSON (stdlib) + docx/xlsx (deps opcionales).
+    # Cualquier otra extensión = read directo (comportamiento previo intacto).
+    from cognia.converters import convertir_a_texto
+    return convertir_a_texto(path)
 
 
 def _make_label(path: Path, project_name: str = None) -> str:
@@ -195,7 +199,7 @@ def ingest_file(ai, path_str: str) -> dict:
     label = _make_label(path)
     _store_chunks(ai, chunks, label)
     _store_anchor(ai, path, label, chunks)
-    _store_pointers(ai, path, text, label, is_pdf=(path.suffix.lower() == ".pdf"))
+    _store_pointers(ai, path, text, label, is_pdf=_es_convertido(path))
     return {
         "archivo":  path.name,
         "label":    label,
@@ -232,7 +236,7 @@ def ingest_directory(ai, path_str: str, recursive: bool = True) -> dict:
                 continue
             _store_chunks(ai, chunks, label)
             _store_anchor(ai, f, label, chunks)
-            _store_pointers(ai, f, text, label, is_pdf=(f.suffix.lower() == ".pdf"))
+            _store_pointers(ai, f, text, label, is_pdf=_es_convertido(f))
             total_chunks   += len(chunks)
             total_pointers += len(_chunk_text_with_offsets(text))
             processed      += 1
