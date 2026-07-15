@@ -6364,3 +6364,21 @@ navegador completo (headless), orquestador único (2 registries, suite completa)
 entrenamiento distribuido.
 
 **Deadline 04:40 autorizado por el dueño: apagado del SO programado (shutdown /s).**
+
+## 2026-07-15 04:18 — CIERRE consolidado a deadline (apagado 04:40 programado)
+Cierre de la corrida hasta el deadline 04:40 (autorizado por el dueño; shutdown /s
+armado). Estado final AMBOS GOALS, todo commiteado+pusheado (18 commits, working tree
+sin cambios de codigo pendientes):
+- GOAL A superorganismo: COMPLETO. Gate 3/13 en ocultos, ley empirica (spec-visible-100%
+  <=> PASS), predicciones 8/10, fidelidad F1/F2 medida. VERIFICACION REAL cerro el circulo:
+  el smoke e2e del modulo de PRODUCCION cazo lo que el pytest-con-fakes y el gate NO vieron
+  (produccion corre carto FRESCO sin los helpers acumulados de la eval -> None en SPEC3);
+  fix del carto-starving con test de regresion; helper-extraction fresco documentado como
+  palanca v3. Etapa 4 sigue opt-in (correcto: produccion != eval).
+- GOAL B integracion OSS: 13 checkpoints nativos, suite completa 3951 passed / 0 failed.
+  Gated con honestidad lo que requiere descargas/GPU/suite (voz, navegador completo,
+  orquestador unico, entrenamiento distribuido).
+LECCION TRANSVERSAL de la corrida: el pytest prueba logica, el gate prueba el mecanismo,
+pero SOLO el e2e del codigo de produccion con modelos reales prueba que produccion
+reproduce el gate — y aqui no lo hacia. "Codigo que corre o no cuenta" gano de nuevo.
+Apagado 04:40 ejecutandose segun plan.
