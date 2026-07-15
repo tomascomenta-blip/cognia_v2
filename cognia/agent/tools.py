@@ -449,9 +449,14 @@ _BLOCK_RE = [re.compile(r"\bformat\s+[a-zA-Z]:")]
 
 
 def _shell(cmd: str, ctx: dict, timeout: int = 30) -> str:
-    norm = re.sub(r"\s+", " ", cmd.lower())
-    if any(b in norm for b in _BLOCK) or any(rx.search(norm) for rx in _BLOCK_RE):
-        return "RESULTADO ejecutar: BLOQUEADO por seguridad"
+    # Sentinel (default-ON, mandato 2026-07-14): validación pre-acción
+    # unificada — allowlist de dev + bloqueo duro + confirmación para lo
+    # desconocido (default-deny). Con COGNIA_SENTINEL=0 replica la denylist
+    # previa (0 cambios). Reemplaza el chequeo inline de substrings.
+    from cognia.agent.sentinel import evaluar_shell
+    permitido, msg = evaluar_shell(cmd, ctx)
+    if not permitido:
+        return msg
     pf = ctx.get("print_fn")
     if callable(pf):
         pf(f"[detail]$ {cmd}[/detail]")
