@@ -44,9 +44,25 @@ global: GOAL A (superorganismo) primero; esto avanza en los huecos.
 | Oficina isométrica | **EXISTE sin /oficina** | oficina/ completa (motor+estado+server+web3d compilado) pero CLI no la lanza | **Comando /oficina** + paneles por subsistema alimentados por el bus de eventos |
 
 ## Deuda arquitectónica detectada (bloquea "arquitectura limpia")
-1. **DOS registries de tools**: agent/tools.py:TOOLS vs agents/tool_registry.py:ToolRegistry → unificar (prerequisito del orquestador único).
-2. **Sin bus de eventos interno** en cognia/ → todo va por callbacks directos (print_fn/confirm) → construir cognia/events.py primero: habilita oficina-tiempo-real, analytics unificada y Agent Reach.
-3. `ejecutar` con shell=True + denylist → allowlist (parte de Sentinel).
+1. **DOS registries de tools**: agent/tools.py:TOOLS vs agents/tool_registry.py:ToolRegistry → unificar (prerequisito del orquestador único). [PENDIENTE B10]
+2. ~~**Sin bus de eventos interno**~~ → RESUELTO B5 (cognia/events.py; emite en run_tool + reminders + Sentinel).
+3. ~~`ejecutar` con shell=True + denylist~~ → RESUELTO B7 (Sentinel: allowlist dev + block duro + confirm default-deny).
+
+## Estado de construcción (2026-07-14, GOAL A prioritario)
+COMPLETADO (Tier 1, todo con tests + verificación real + push):
+- **B1** inventario 14 subsistemas · **B2** este mapa.
+- **B4** comando `/oficina` en el CLI (gap: la oficina existía sin entrypoint en el REPL). commit incluido.
+- **B5** `cognia/events.py` — bus de eventos interno (Agent Reach nativo); emisión en run_tool/reminders/Sentinel. cecb4a0.
+- **B6** `cognia/knowledge/code_graph.py` — grafo de código AST fusionado en el KG (Graphify+CodeGraph); indexado real 518 mód/7808 triples. 5703a60.
+- **B7** `cognia/agent/sentinel.py` — validación pre-acción DEFAULT-ON (Sentinel); allowlist+block+confirm. 82f5bf4.
+- **B11** `cognia/analytics/panel.py` + `/analiticas` — Plausible nativo (agrega 3 fuentes+bus, local). ca9e20d.
+- **B12** `cognia/converters.py` — MarkItDown nativo (HTML/CSV/TSV/JSON/docx/xlsx); ingest ruteado. bc188fb.
+- **B13** recurrencia en reminders (Cal.com nativo); daily/weekly/monthly + migración compatible. 238b098.
+
+PENDIENTE:
+- **B10** unificar los 2 registries de tools (invasivo — hacer con la eval del GOAL A cerrada para poder correr la suite completa).
+- **Tier 2 voz/navegador** (Whisper/piper/BrowserUse): requieren descargas grandes (GGML/ONNX) → gated, con la máquina libre.
+- **Tier 3** (Pipecat/Supervision/entrenamiento distribuido): gated por hardware/GPU externa.
 
 ## Orden de construcción (checkpoints B; GOAL A siempre primero)
 - **TIER 1 (viable ya, CPU-liviano):** B4 /oficina en CLI · B5 cognia/events.py (bus interno) · B6 grafo de código AST→KG · B7 Sentinel (validación pre-acción default-on + allowlist ejecutar) · B10 unificación de registries/orquestación.
