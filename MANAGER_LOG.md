@@ -6382,3 +6382,28 @@ LECCION TRANSVERSAL de la corrida: el pytest prueba logica, el gate prueba el me
 pero SOLO el e2e del codigo de produccion con modelos reales prueba que produccion
 reproduce el gate — y aqui no lo hacia. "Codigo que corre o no cuenta" gano de nuevo.
 Apagado 04:40 ejecutandose segun plan.
+
+## 2026-07-15 07:15 — CONTINUACIÓN "bases firmes": gap de producción CERRADO de verdad
+Mandato del dueño: continuar A+B con bases firmes, apagar al terminar. El trabajo
+de bases firmes fue cerrar el gap que el e2e de ayer dejó abierto (el port devolvía
+None). Método del repo: DIAGNÓSTICO antes que parche.
+- Corrí la cartografía FRESCA de SPEC3 con el modelo real y volqué el output. Causa
+  raíz MEDIDA (no adivinada): el razonador emite 2 helpers perfectos y luego
+  SOBRE-GENERA spec_asserts (lista creciente) que revienta el budget de 2400 tokens
+  y TRUNCA el JSON → json.loads falla → se perdían los helpers → None. No eran las
+  firmas ni el timeout.
+- Fix: _salvage_carto rescata helpers (bracket-matching) + asserts cerrados de un
+  JSON truncado (5da4670). 3 tests + validado contra la salida truncada REAL.
+- e2e de confirmación: carto 0→2 piezas en SPEC3; y e2e AFIRMATIVO sobre tarea
+  resoluble (stats): código FINAL correcto, 3 piezas 3/3, spec 14/14, ocultos 3/3,
+  5 gens/358s (992bf04). El None residual de SPEC3 = límite de CÓMPUTO de tarea dura
+  (~25-30min en i3), no bug.
+- Fidelidad de NEWD2 medida (83%=10/12), coincide EXACTO con el juicio manual
+  pre-registrado — validación de honestidad; fidelidad ahora 8/13 (c50c484).
+- Compuerta final: suite completa 3953 passed; el único "fallo"
+  (test_db_pool_gc_reclaim, timing/GC) pasa AISLADO → flaky pre-existente, no
+  regresión de mis cambios (nunca toqué db_pool).
+LECCIÓN reforzada: el gate prueba que el MECANISMO cruza el techo; solo el e2e del
+PORT con modelos reales prueba que producción corre — y cazó 2 bugs (timeout-prefill,
+carto-truncation) invisibles al pytest+gate. "Código que corre o no cuenta" ganó dos
+veces. Apagado del computador al terminar (autorizado).
