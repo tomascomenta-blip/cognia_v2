@@ -215,9 +215,32 @@ descomposición que ponga piezas resolubles (F2).
    generación. Fix aplicado (carto ≤55% del timeout, test de regresión que
    falla sin él). Lección: el pytest con fakes prueba la lógica; el gate mide
    el mecanismo; pero solo el e2e del PORT con modelos reales prueba que
-   producción reproduce el gate — y aquí NO lo hacía (la eval dependía de
-   estado acumulado que producción no tiene). Palanca v3 concreta: la
-   fiabilidad de extracción de HELPERS en un solo pase es parte de F2.
+   producción reproduce el gate — y aquí NO lo hacía.
+5. **La causa raíz REAL del 0-helpers, diagnosticada** (2026-07-15, corriendo
+   la carto fresca de SPEC3 y volcando el output): NO era estado acumulado ni
+   las firmas — era **truncación del JSON**. El razonador emite 2 helpers
+   PERFECTOS (con `def `) y luego SOBRE-GENERA spec_asserts (lista creciente
+   `prerelease.1.2.3.4.5.6…`) que revienta el budget de 2400 tokens y trunca
+   el JSON a mitad de string → json.loads falla → se caía a modo plano y se
+   PERDÍAN los helpers completos del inicio. Fix de bases firmes (5da4670):
+   `_salvage_carto` rescata de un JSON truncado el array helpers (bracket-
+   matching) + los asserts cerrados. e2e de confirmación: el carto pasó de
+   "20 asserts, 0 piezas" a **"14 asserts, 2 piezas"** — helpers recuperados.
+   El None RESIDUAL en SPEC3 ya NO es un bug: es límite de CÓMPUTO (la tarea
+   dura necesita ~10 gens ≈ 25-30 min de 2 modelos 4B en el i3, y el carto
+   fresco da una descomposición distinta a la del eval, con su propia
+   estocasticidad). Por eso etapa 4 es opt-in + keep-best conservador: nunca
+   empeora el candidato de las etapas 1-3, y su PASS en vivo sobre una tarea
+   dura es probabilístico, no garantizado. La diferencia entre "el mecanismo
+   PUEDE cruzar el techo" (gate, probado) y "el port lo cruza en cada corrida
+   fresca" (no garantizado) es real y honesta.
+6. **e2e AFIRMATIVO del port sobre tarea resoluble** (2026-07-15): para cerrar
+   "código que corre o no cuenta" del lado positivo, superorganismo_solve() de
+   PRODUCCIÓN sobre `stats(nums)→(min,max,suma)` produjo código FINAL CORRECTO
+   — 3 piezas (min/max/suma, cada una 3/3), spec 14/14, checks ocultos 3/3, en
+   5 gens / 358 s. Confirma que el path completo del port (carto→salvage→
+   piezas→ensamble→código) funciona con modelos reales; el None de SPEC3 es
+   cómputo de tarea dura, no el pipeline.
 
 ## 8. Límites declarados (lo que esta teoría NO promete)
 
