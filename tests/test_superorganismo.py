@@ -71,6 +71,31 @@ def test_parse_carto_sin_spec_asserts_es_none():
     assert _parse_carto("sin json", "f") is None
 
 
+def test_parse_carto_salva_json_truncado():
+    """Regresión de la causa raíz medida (SPEC3, 2026-07-15): el razonador
+    sobre-genera spec_asserts y trunca el JSON a mitad de string; sin
+    salvage se perdían los helpers (que venían completos). El salvage los
+    recupera + los asserts cerrados (descarta el truncado)."""
+    truncado = ('{"helpers": [{"name": "h1", "signature": "def h1(a, b):", '
+                '"contract": "c", "asserts": ["assert h1(1, 2) == 3"]}], '
+                '"spec_asserts": ["assert f(1) == 1", "assert f(2) == 2", '
+                '"assert f(3) == 3", "assert f(4) == 4", "assert f(5) == 5", '
+                '"assert f(6) == 6", "assert f(999) == 99')  # <-- cortado
+    c = _parse_carto(truncado, "f")
+    assert c is not None
+    assert len(c["helpers"]) == 1 and c["helpers"][0]["name"] == "h1"
+    # 6 asserts cerrados; el 7º truncado se descarta
+    assert len(c["spec_asserts"]) == 6
+    assert "assert f(999)" not in " ".join(c["spec_asserts"])
+
+
+def test_parse_carto_truncado_sin_helpers_igual_recupera_asserts():
+    truncado = ('{"helpers": [], "spec_asserts": ["assert g(1) == 1", '
+                '"assert g(2) == 2", "assert g(3) == 3", "assert g(4')
+    c = _parse_carto(truncado, "g")
+    assert c is not None and len(c["spec_asserts"]) == 3
+
+
 def test_run_asserts_cuenta_pases_y_fallos():
     code = "def f(x):\n    return x + 1\n"
     n, fallos = _run_asserts(code, ["assert f(1) == 2", "assert f(1) == 99"])

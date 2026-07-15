@@ -163,14 +163,52 @@ def filtra_contradicciones(asserts: list) -> list:
     return [a for a, lhs, _ in parseados if lhs is None or lhs not in malos]
 
 
-def _parse_carto(raw: str, entry: str):
-    """Extrae el JSON de cartografía; None si irrecuperable."""
-    m = re.search(r"\{.*\}", raw, re.DOTALL)
-    if not m:
+def _salvage_carto(raw: str):
+    """Recupera cartografía de un JSON TRUNCADO. Causa raíz medida
+    (2026-07-15, SPEC3): el razonador sobre-genera spec_asserts (lista
+    creciente que revienta el token budget) y trunca el JSON a mitad de
+    string → json.loads falla → se perdían los helpers, que venían COMPLETOS
+    al inicio. Este salvage rescata (a) el array 'helpers' por bracket-
+    matching y (b) todo assert de comillas CERRADAS (descarta el truncado)."""
+    helpers = []
+    hi = raw.find('"helpers"')
+    if hi != -1:
+        lb = raw.find("[", hi)
+        if lb != -1:
+            depth, end = 0, -1
+            for i in range(lb, len(raw)):
+                if raw[i] == "[":
+                    depth += 1
+                elif raw[i] == "]":
+                    depth -= 1
+                    if depth == 0:
+                        end = i
+                        break
+            if end != -1:
+                try:
+                    helpers = json.loads(raw[lb:end + 1])
+                except Exception:
+                    helpers = []
+    # asserts con comillas cerradas (el ultimo, truncado, no cierra → se cae)
+    asserts = re.findall(r'"(assert[^"]*)"', raw)
+    if not helpers and not asserts:
         return None
-    try:
-        d = json.loads(m.group(0))
-    except Exception:
+    return {"helpers": helpers, "spec_asserts": asserts}
+
+
+def _parse_carto(raw: str, entry: str):
+    """Extrae el JSON de cartografía; None si irrecuperable. Tolera JSON
+    truncado (salvage de helpers + asserts cerrados)."""
+    m = re.search(r"\{.*\}", raw, re.DOTALL)
+    d = None
+    if m:
+        try:
+            d = json.loads(m.group(0))
+        except Exception:
+            d = None
+    if d is None:
+        d = _salvage_carto(raw)     # rescate de JSON truncado
+    if not d:
         return None
     helpers = []
     for h in d.get("helpers", [])[:4]:
