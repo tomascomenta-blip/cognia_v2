@@ -195,6 +195,13 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
         _record_usage(name, ok)
     except Exception:
         pass
+    # Bus interno (cognia/events.py): cada tool ejecutada deja un evento
+    # observable (oficina, analytics, /agente estado) sin acoplar nada acá.
+    try:
+        from cognia.events import emit
+        emit("tool.ejecutada", nombre=name, ok=ok, args_head=args[:80])
+    except Exception:
+        pass
     # ACI: compactar outputs largos (mejora de harness) antes de devolver al
     # loop. 'responder' NO se toca: es la respuesta final, no una observación.
     return out if name == "responder" else aci_trim(out, name)

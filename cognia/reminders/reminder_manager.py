@@ -191,6 +191,14 @@ class ReminderManager:
                 except Exception:
                     pass
 
+            # Bus interno: el disparo queda observable (oficina/analytics)
+            try:
+                from cognia.events import emit
+                emit("recordatorio.disparado", reminder_id=reminder["id"],
+                     titulo=reminder["title"])
+            except Exception:
+                pass
+
             # Opcional: anotar en el goal si hay goal_id
             if reminder.get("goal_id") is not None:
                 try:
