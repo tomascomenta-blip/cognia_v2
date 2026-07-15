@@ -432,6 +432,7 @@ _CMD_DESCRIPTIONS = {
     "/notif-todas":     "Ver todas las notificaciones",
     "/notif-leer":      "Marcar notificacion como leida          <id>",
     "/notif-limpiar":   "Marcar todas las notificaciones como leidas",
+    "/oficina":         "Lanzar dashboard de oficina isometrica (detached)  [puerto]",
     # UI
     "/resumen-sesion":  "Resumen completo de la sesion actual",
     "/limpiar-sesion":  "Limpiar historial de sesion en memoria (no borra datos persistentes)",
@@ -833,6 +834,7 @@ HELP_TEXT = """
   SISTEMA:
     /doctor                         Verificar instalacion
     /update                         Actualizar Cognia
+    /oficina [puerto]               Dashboard de oficina isometrica (detached, abre navegador; default 8765)
     /distill  /  /distill run       Destilacion SRDN
     /ayuda    /  /salir
 
@@ -2473,6 +2475,91 @@ def _slash_recordar_cancelar(args: str) -> None:
         _print_line("[warn_cl]El id debe ser un numero.[/warn_cl]")
     except Exception as e:
         _print_line(f"[err_cl]Error: {e}[/err_cl]")
+
+
+# ---------------------------------------------------------------------------
+# /oficina — lanza el dashboard de la oficina isometrica como proceso aparte
+# ---------------------------------------------------------------------------
+
+def _oficina_responde(url: str) -> bool:
+    """True si algo contesta HTTP en `url` (la oficina ya esta viva ahi).
+
+    Cualquier respuesta -- incluso un error HTTP -- confirma que hay un
+    proceso escuchando en ese puerto; solo timeout/conexion rechazada cuenta
+    como "libre". Aislada en su propia funcion para poder mockear el check
+    de puerto en tests sin pegarle a la red de verdad.
+    """
+    import urllib.error
+    import urllib.request
+    try:
+        urllib.request.urlopen(url, timeout=1)
+        return True
+    except urllib.error.HTTPError:
+        return True
+    except Exception:
+        return False
+
+
+def _slash_oficina(args: str) -> None:
+    """Lanza (o reutiliza) el dashboard de la oficina isometrica.
+
+    La oficina vive como app standalone (python -m cognia.oficina): un
+    servidor HTTP con la escena 3D + motor jefe/directores/trabajadores sobre
+    el mismo backend que el CLI (cognia/oficina/__main__.py). Este comando NO
+    carga el modelo ni bloquea el REPL: solo chequea si ya hay una oficina
+    viva en el puerto y, si no, la lanza como proceso DETACHED (sobrevive al
+    cierre del CLI) y abre el navegador apenas el server responde.
+    """
+    import webbrowser
+
+    puerto_txt = args.strip()
+    if puerto_txt:
+        try:
+            puerto = int(puerto_txt)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /oficina [puerto][/warn_cl]")
+            return
+    else:
+        puerto = 8765
+
+    url = f"http://127.0.0.1:{puerto}/"
+
+    if _oficina_responde(url):
+        _print_line(f"[ok_cl]La oficina ya esta corriendo en {url}[/ok_cl]")
+        webbrowser.open(url)
+        return
+
+    try:
+        creationflags = 0
+        if sys.platform == "win32":
+            # DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP: el proceso no
+            # queda atado a la consola del CLI (sobrevive a /salir y a Ctrl+C).
+            creationflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen(
+            [sys.executable, "-m", "cognia.oficina", "--puerto", str(puerto)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
+        )
+    except Exception as e:
+        _print_line(f"[err_cl]No se pudo lanzar la oficina: {e}[/err_cl]")
+        return
+
+    _print_line(f"[detail]Lanzando oficina en {url} (carga el backend, puede tardar unos segundos)...[/detail]")
+    for _ in range(20):  # ~10s totales, poll cada 0.5s
+        time.sleep(0.5)
+        if _oficina_responde(url):
+            _print_line(f"[ok_cl]Oficina lista: {url}[/ok_cl]")
+            _print_line(
+                "[detail]Para detenerla: cerrala desde el Administrador de tareas "
+                "(busca el proceso python -m cognia.oficina).[/detail]"
+            )
+            webbrowser.open(url)
+            return
+
+    _print_line(
+        f"[err_cl]La oficina no respondio en 10s en el puerto {puerto}. "
+        f"Puede que el puerto este ocupado por otra cosa -- proba con /oficina <otro_puerto>.[/err_cl]"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -6823,6 +6910,11 @@ def repl():
                         _print_line(f"[ok_cl]Notificacion enviada: {_escape(_notif_msg)}[/ok_cl]")
                 except Exception as _e:
                     _print_line(f"[err_cl]notificar error: {_e}[/err_cl]")
+
+        # ── /oficina [puerto] ──────────────────────────────────────────
+        elif raw.startswith("/oficina ") or raw == "/oficina":
+            _of_arg = raw[len("/oficina "):].strip() if raw.startswith("/oficina ") else ""
+            _slash_oficina(_of_arg)
 
         # ── /notif* ────────────────────────────────────────────────────
         elif raw == "/notif":
