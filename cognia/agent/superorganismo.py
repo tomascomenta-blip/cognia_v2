@@ -253,6 +253,12 @@ def _solve(desc: str, entry: str, budget, print_fn, timeout_s):
         os.environ.get("COGNIA_SUPERORG_TIMEOUT_S", "1800"))
     t0 = time.time()
     gens = 0
+    # RESERVA de tiempo para el ensamble: en CPU lento las gens de carto son
+    # de 2400 tokens (~400s c/u) y podían consumir TODO el timeout, dejando
+    # 0 gens de ensamble → None (cazado por el smoke e2e 2026-07-15 sobre
+    # SPEC3). El carto no puede pasar de CARTO_TIME_FRAC del timeout; el
+    # resto queda garantizado para piezas+ensamble.
+    carto_deadline = t0 + timeout_s * 0.55
 
     # ── CARTOGRAFÍA (razonador; lazy-load-usar-cerrar) ──────────────────
     carto = None
@@ -263,7 +269,7 @@ def _solve(desc: str, entry: str, budget, print_fn, timeout_s):
                 CARTO_TMPL.format(spec=desc, entry=entry),
                 system=CARTO_SYSTEM) + NOTHINK
             for temp in (0.0, 0.5, 0.9):
-                if time.time() - t0 > timeout_s:
+                if time.time() > carto_deadline:
                     break
                 raw = razonador.generate(prompt, max_tokens=2400,
                                          temperature=temp, seed=77 + gens,
@@ -272,7 +278,8 @@ def _solve(desc: str, entry: str, budget, print_fn, timeout_s):
                 carto = _parse_carto(raw, entry)
                 if carto and len(carto["spec_asserts"]) >= 4:
                     break
-            if not (carto and len(carto["spec_asserts"]) >= 4):
+            if (not (carto and len(carto["spec_asserts"]) >= 4)
+                    and time.time() <= carto_deadline):
                 raw = razonador.generate(build_prompt(
                     ASSERTS_PLANO_TMPL.format(spec=desc, entry=entry),
                     system=CARTO_SYSTEM.replace(

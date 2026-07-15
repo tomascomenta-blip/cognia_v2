@@ -175,6 +175,48 @@ def test_solve_respeta_presupuesto(monkeypatch):
     assert r["gens"] <= 5
 
 
+def test_carto_no_mata_de_hambre_al_ensamble(monkeypatch):
+    """Regresión del smoke e2e (2026-07-15): en CPU lento el carto podía
+    consumir todo el timeout y dejar 0 gens de ensamble → None. La reserva
+    (carto ≤55% del timeout) garantiza que el ensamble corra. Se simula
+    latencia: cada gen del razonador 'tarda' avanzando un reloj falso."""
+    import cognia.agent.superorganismo as SO
+    import node.fleet_registry as fr
+
+    reloj = {"t": 1000.0}
+    monkeypatch.setattr(SO.time, "time", lambda: reloj["t"])
+
+    class _LentoRazonador:
+        def generate(self, *a, **k):
+            reloj["t"] += 100.0            # cada carto-gen "tarda" 100s
+            # nunca da JSON válido -> forzaría los 3 temps + fallback
+            return "no json aqui"
+
+    class _Coder:
+        def __init__(self):
+            self.llamadas = 0
+        def generate(self, *a, **k):
+            reloj["t"] += 5.0
+            self.llamadas += 1
+            # 1ª = refuerzo-coder (asserts planos); 2ª+ = ensamble
+            if self.llamadas == 1:
+                return "assert g(1) == 1\nassert g(2) == 2\nassert g(3) == 3"
+            return "```python\ndef g(x):\n    return x\n```"
+
+    coder = _Coder()
+    backends = {"qwen3_4b": _LentoRazonador(), "qwen35_4b": coder}
+    monkeypatch.setattr(fr, "fleet_backend", lambda n, **_k: backends.get(n))
+    monkeypatch.setattr(fr, "close_fleet_member", lambda *_a, **_k: None)
+    # timeout 250s con carto-gens de 100s: SIN la reserva, el carto (3 temps +
+    # fallback = 400s) excede los 250s y el ensamble (chequea time-t0<=250)
+    # nunca corre → None (el bug del smoke). CON la reserva (carto_deadline =
+    # 55%×250 = 137s) el carto se corta a 2 gens (~200s... el break ocurre al
+    # 3er check) y el ensamble SÍ alcanza a correr.
+    r = superorganismo_solve("g identidad", "g", budget=16, timeout_s=250)
+    assert r is not None and "def g" in r["code"]
+    assert coder.llamadas >= 2             # corrió al menos un ensamble
+
+
 def test_solve_oraculo_contradictorio_devuelve_none(monkeypatch):
     """Si TODOS los asserts se anulan por contradicción, no hay oráculo ->
     None (sin feromona contra mapa falso; lección NEWX4)."""

@@ -137,9 +137,13 @@ Cualquiera de estas entra SOLO con su propio PREREG + gate.
   redonda), trigger = tarea dura sin confirmación de etapas 1-3, keep-best
   conservador (reemplaza solo sin-función o con spec-asserts 100%),
   telemetría `superorganismo` en el ledger BoN.
-- Tests: 14 unitarios propios + 136 dirigidos del área, verdes.
-- [PENDIENTE] e2e con modelo real de la etapa 4 + batería 17/17 antes de
-  considerar default-ON.
+- Tests: 16 unitarios propios (incl. regresión del carto-starving) + suite
+  completa 3951 verde.
+- **e2e con modelo real HECHO** (§7.4): reveló que el port devuelve None en
+  SPEC3 (carto fresco sin helpers + carto starving). Fix del starving
+  aplicado; la reliability del helper-extraction fresco queda como palanca
+  v3. Batería 17/17 + default-ON siguen GATED hasta resolver eso — el
+  opt-in actual es correcto.
 
 ## 6a. Fidelidad MEDIDA: la descomposición F1/F2 cuantificada
 
@@ -200,6 +204,20 @@ descomposición que ponga piezas resolubles (F2).
 3. **Agentes locales + eval de modelo real NO coexisten en el i3**: 13
    agentes de workflow → RAM 1.1 GB libre → paginación → NEWX5 tardó 9 h
    (server al 26% de utilización). El pipeline pesado se SERIALIZA.
+4. **El smoke e2e del MÓDULO DE PRODUCCIÓN cazó lo que la eval no vio**
+   (2026-07-15): superorganismo_solve() sobre SPEC3 devolvió None donde la
+   eval había PASADO. Dos causas reales que solo un e2e del port revela:
+   (a) el carto FRESCO extrajo 20 asserts pero **0 helpers** — la eval había
+   ACUMULADO helpers de corridas previas (unión persistente entre runs), y
+   sin helpers el mecanismo degrada a "atacar el problema entero" (pierde la
+   descomposición); (b) las gens de carto (2400 tokens, ~400s en CPU)
+   consumían todo el timeout y **mataban de hambre al ensamble** → 0 gens de
+   generación. Fix aplicado (carto ≤55% del timeout, test de regresión que
+   falla sin él). Lección: el pytest con fakes prueba la lógica; el gate mide
+   el mecanismo; pero solo el e2e del PORT con modelos reales prueba que
+   producción reproduce el gate — y aquí NO lo hacía (la eval dependía de
+   estado acumulado que producción no tiene). Palanca v3 concreta: la
+   fiabilidad de extracción de HELPERS en un solo pase es parte de F2.
 
 ## 8. Límites declarados (lo que esta teoría NO promete)
 
@@ -210,5 +228,11 @@ descomposición que ponga piezas resolubles (F2).
   minutos por tarea en el i3. Por eso es etapa 4 (último recurso) y opt-in.
 - Vírgenes con oráculo infiel (F1) siguen fuera del alcance hasta las
   palancas v3; vírgenes con pieza-corazón sobre el techo (F2) también.
-- El scorecard de predicciones [PENDIENTE] es la medida honesta del poder
-  del modelo F1-F3; 2 errores ya registrados y explicados.
+- El scorecard de predicciones (8/10, §4) es la medida honesta del poder
+  del modelo F1-F3; los 2 errores acotan F1↔F2.
+- **Producción ≠ eval**: el módulo de producción corre carto FRESCO (sin la
+  acumulación entre-runs que ayudó a la eval), así que su tasa de PASS en
+  vivo es ≤ la del gate. El e2e (§7.4) lo midió: None en SPEC3. El gate
+  prueba que el MECANISMO puede cruzar el techo; NO que el port lo cruce en
+  cada corrida fresca. Por eso etapa 4 es opt-in y keep-best conservador
+  (nunca empeora al candidato de las etapas 1-3).
