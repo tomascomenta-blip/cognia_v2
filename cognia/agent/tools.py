@@ -616,6 +616,45 @@ def _recordar(args, ctx):
     return f"RESULTADO recordar '{query}':\n" + "\n".join(lines)
 
 
+@tool("cuaderno",
+      "cuaderno <nota|fuente|consultar|ver> | <texto/ruta/pregunta>  "
+      "-- cuaderno inteligente: notas + fuentes ingeridas + consulta (RAG)")
+def _cuaderno(args, ctx):
+    # Open Notebook nativo (cognia/notebook.py): capacidad interna que orquesta
+    # notas (SmartNotes) + fuentes (ingest->memoria) + consulta (recuperacion
+    # vectorial, sin LLM). El agente lo usa dentro de una tarea para acumular
+    # material y consultarlo.
+    parts = re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    sub = parts[0].strip().lower()
+    resto = parts[1].strip() if len(parts) > 1 else ""
+    from cognia.notebook import Cuaderno
+    cua = Cuaderno(ai=ctx.get("ai"))
+    if sub == "nota":
+        if not resto:
+            return "RESULTADO cuaderno ERROR: falta el texto de la nota"
+        nid = cua.anotar(resto)
+        return f"RESULTADO cuaderno: nota #{nid} guardada"
+    if sub == "fuente":
+        res = cua.agregar_fuente(resto)
+        if "error" in res:
+            return f"RESULTADO cuaderno ERROR: {res['error']}"
+        return (f"RESULTADO cuaderno: fuente '{res['archivo']}' ingerida "
+                f"({res['chunks']} fragmentos)")
+    if sub == "consultar":
+        hits = cua.consultar(resto)
+        if not hits:
+            return f"RESULTADO cuaderno consultar '{resto[:40]}': sin material relevante"
+        lines = [f"  ({h['score']}) {h['texto'][:120]}" for h in hits]
+        return f"RESULTADO cuaderno consultar '{resto[:40]}':\n" + "\n".join(lines)
+    if sub == "ver":
+        r = cua.resumen()
+        fuentes = ", ".join(n["content"][:40] for n in cua.fuentes(limite=8))
+        return (f"RESULTADO cuaderno: {r['notas']} notas, {r['fuentes']} "
+                f"fuentes. Fuentes: {fuentes or '(ninguna)'}")
+    return ("RESULTADO cuaderno ERROR: subcomando invalido "
+            "(nota|fuente|consultar|ver)")
+
+
 @tool("memorizar", "memorizar <texto>                     -- guarda en memoria episodica")
 def _memorizar(args, ctx):
     # observe() RECHAZA entradas muy cortas ({"status":"rejected","reason":...});
