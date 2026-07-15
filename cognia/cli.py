@@ -433,6 +433,7 @@ _CMD_DESCRIPTIONS = {
     "/notif-leer":      "Marcar notificacion como leida          <id>",
     "/notif-limpiar":   "Marcar todas las notificaciones como leidas",
     "/oficina":         "Lanzar dashboard de oficina isometrica (detached)  [puerto]",
+    "/analiticas":      "Panel de telemetria local (codigo/features/eventos, todo privado)",
     # UI
     "/resumen-sesion":  "Resumen completo de la sesion actual",
     "/limpiar-sesion":  "Limpiar historial de sesion en memoria (no borra datos persistentes)",
@@ -835,6 +836,7 @@ HELP_TEXT = """
     /doctor                         Verificar instalacion
     /update                         Actualizar Cognia
     /oficina [puerto]               Dashboard de oficina isometrica (detached, abre navegador; default 8765)
+    /analiticas                     Panel de telemetria local (codigo/features/eventos, todo privado)
     /distill  /  /distill run       Destilacion SRDN
     /ayuda    /  /salir
 
@@ -2560,6 +2562,20 @@ def _slash_oficina(args: str) -> None:
         f"[err_cl]La oficina no respondio en 10s en el puerto {puerto}. "
         f"Puede que el puerto este ocupado por otra cosa -- proba con /oficina <otro_puerto>.[/err_cl]"
     )
+
+
+# ---------------------------------------------------------------------------
+# /analiticas — panel de telemetria local (Plausible nativo, todo privado)
+# ---------------------------------------------------------------------------
+
+def _slash_analiticas(args: str) -> None:
+    """Muestra el panel agregado de las 3 fuentes de telemetria (codigo /
+    features / eventos del bus). Todo local, nada sale a la red."""
+    try:
+        from cognia.analytics.panel import render_texto
+        _print_line(render_texto())
+    except Exception as e:
+        _print_line(f"[err_cl]analiticas error: {e}[/err_cl]")
 
 
 # ---------------------------------------------------------------------------
@@ -6915,6 +6931,10 @@ def repl():
         elif raw.startswith("/oficina ") or raw == "/oficina":
             _of_arg = raw[len("/oficina "):].strip() if raw.startswith("/oficina ") else ""
             _slash_oficina(_of_arg)
+
+        # ── /analiticas ────────────────────────────────────────────────
+        elif raw == "/analiticas" or raw == "/analitica":
+            _slash_analiticas("")
 
         # ── /notif* ────────────────────────────────────────────────────
         elif raw == "/notif":
