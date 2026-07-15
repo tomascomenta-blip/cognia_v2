@@ -757,20 +757,25 @@ _BON_N = 6  # candidatos por llamada (N-1 a temp 0.7 + 1 greedy); ~2-3 min CPU
 _HEAVY_THRESHOLD = 0.30
 
 
-def _bon_n(desc: str) -> tuple:
+def _bon_n(desc: str, bon_max: int = None) -> tuple:
     """(N, dificultad): N adaptativo por dificultad ex-ante (cascada
     barato-primero). model_router.estimate_difficulty (cero LLM, calibrado
     contra las etiquetas del bench) decide cuanto computo invertir: pool
     chico donde el 3B casi siempre acierta, grande donde falla mas. El
     early-stop de best_of_n ya corta el caso trivial (greedy perfecto) a 1
-    candidato; esto acota el costo del resto (~25s/candidato en el i3)."""
+    candidato; esto acota el costo del resto (~25s/candidato en el i3).
+    bon_max: techo por /esfuerzo (perfil hibrido); None = sin techo extra."""
     from cognia.agent.model_router import estimate_difficulty
     d = estimate_difficulty(desc)
     if d < 0.15:
-        return 3, d
-    if d >= 0.50:
-        return 10, d
-    return _BON_N, d
+        n = 3
+    elif d >= 0.50:
+        n = 10
+    else:
+        n = _BON_N
+    if bon_max:
+        n = min(n, int(bon_max))
+    return n, d
 
 
 # Telemetria append-only del BoN en vivo: la tupla (dificultad ex-ante,
@@ -816,6 +821,21 @@ def _generar_codigo(args, ctx):
 
     orch = _orch(ctx)
 
+    # Perfil HIBRIDO de la corrida (hybrid_router): viene del loop /hacer via
+    # ctx, o se calcula aca si la tool corre suelta. Da los PERMISOS por
+    # /esfuerzo (colonia 7B/q35, superorganismo, techo BoN) y el umbral de
+    # dificultad desplazado que usan las etapas reactivas de abajo. A esfuerzo
+    # medio (default) el umbral ES _HEAVY_THRESHOLD: comportamiento identico
+    # al de antes. Los kill-switches env siguen mandando en cada etapa.
+    _hyb = ctx.get("hybrid")
+    if not isinstance(_hyb, dict):
+        try:
+            from cognia.agent.hybrid_router import route_profile
+            _hyb = route_profile(desc)
+        except Exception:
+            _hyb = {}
+    _hyb_umbral = _hyb.get("umbral_pesado", _HEAVY_THRESHOLD)
+
     def _code_gen(prompt, temperature=0.0, seed=None):
         return orch.infer(prompt, max_tokens=768, temperature=temperature).text or ""
 
@@ -827,7 +847,7 @@ def _generar_codigo(args, ctx):
     code_prompt = ("Escribe UNA funcion Python COMPLETA que cumpla esto. Responde "
                    "SOLO con un bloque ```python ...``` con la funcion, sin "
                    "explicaciones.\n\n" + desc)
-    n_plan, dif = _bon_n(desc)
+    n_plan, dif = _bon_n(desc, _hyb.get("bon_max"))
     _t0 = _time.time()
     try:
         out = best_of_n(_code_gen, code_prompt, desc, entry, extract_code,
@@ -860,7 +880,7 @@ def _generar_codigo(args, ctx):
     # nunca empeora; el pre-filtro de dificultad acota el costo a tareas duras.
     _confirmado_3b = (_total and _score_3b is not None and _score_3b >= _total)
     _fallo_3b = (not _confirmado_3b) or (f"def {entry}" not in code)
-    if _fallo_3b and dif >= _HEAVY_THRESHOLD:
+    if _fallo_3b and dif >= _hyb_umbral and _hyb.get("colonia_7b", True):
         try:
             from node.heavy_code import heavy_code_backend, close_heavy_code
             _heavy = heavy_code_backend()
@@ -907,7 +927,7 @@ def _generar_codigo(args, ctx):
     # score visible (keep-best; leccion del juez debil del deploy 7B).
     # Lazy-usar-cerrar (2.7GB); sin GGUF o COGNIA_FLEET30=0 -> no-op.
     _escalado_q35 = False
-    if dif >= _HEAVY_THRESHOLD:
+    if dif >= _hyb_umbral and _hyb.get("colonia_q35", True):
         _sin_funcion = f"def {entry}" not in code
         _score_v = None
         if not _sin_funcion and _visible:
@@ -984,7 +1004,7 @@ def _generar_codigo(args, ctx):
     # decide el default mide con tests ocultos, y el trigger exige asserts.
     _mesa_mejoro = False
     if (os.environ.get("COGNIA_DELIBERACION", "").strip().lower()
-            in ("1", "on", "true", "yes")) and _visible and dif >= _HEAVY_THRESHOLD:
+            in ("1", "on", "true", "yes")) and _visible and dif >= _hyb_umbral:
         try:
             from cognia.agent.deliberation import (deliberate,
                                                    execution_feedback,
@@ -1049,7 +1069,7 @@ def _generar_codigo(args, ctx):
                           or (_best_t.get("total")
                               and _best_t.get("score") is not None
                               and _best_t.get("score") >= _best_t.get("total")))
-    if (superorganismo_enabled() and dif >= _HEAVY_THRESHOLD
+    if (superorganismo_enabled(_hyb) and dif >= _hyb_umbral
             and (_sin_funcion_4 or not _confirmado_actual)):
         _pf = ctx.get("print_fn")
         if callable(_pf):
@@ -1074,6 +1094,7 @@ def _generar_codigo(args, ctx):
         "escalado_7b": _escalado_7b, "score_3b": _score_3b, "score_7b": _score_7b,
         "mesa_redonda": _mesa_mejoro, "escalado_q35": _escalado_q35,
         "superorganismo": _superorg,
+        "modalidad": _hyb.get("modalidad"), "esfuerzo": _hyb.get("esfuerzo"),
     })
     if not code.strip() or f"def {entry}" not in code:
         return (f"RESULTADO generar_codigo ERROR: no se genero una funcion "
@@ -1159,9 +1180,12 @@ def _delegar_subtarea(args, ctx):
                 "este contexto")
 
     depth = ctx.get("_delegation_depth", 0)
-    if depth >= _MAX_DELEGATION_DEPTH:
+    # Techo por perfil hibrido (/esfuerzo): bajo=0 (sin delegacion), medio/
+    # alto=2, maximo=3. Sin perfil, el constante de siempre.
+    _max_depth = ctx.get("_delegation_max", _MAX_DELEGATION_DEPTH)
+    if depth >= _max_depth:
         return (f"RESULTADO delegar_subtarea ERROR: profundidad maxima de "
-                f"delegacion ({_MAX_DELEGATION_DEPTH}) alcanzada; resolve la "
+                f"delegacion ({_max_depth}) alcanzada; resolve la "
                 "subtarea directamente.")
 
     # Sub-presupuesto: la mitad de lo que quede (o un piso), para que la

@@ -115,9 +115,17 @@ Write ONLY the corrected function `{entry}`. Try a DIFFERENT approach for \
 the failing part. Reply with ONLY a python code block."""
 
 
-def superorganismo_enabled() -> bool:
-    return (os.environ.get("COGNIA_SUPERORGANISMO", "").strip().lower()
-            in ("1", "on", "true", "yes"))
+def superorganismo_enabled(profile: dict = None) -> bool:
+    """Etapa 4 habilitada. El env explicito MANDA en ambos sentidos
+    (COGNIA_SUPERORGANISMO=1 fuerza on, =0 fuerza off); sin env, decide el
+    perfil hibrido (dificultad de la tarea + /esfuerzo, hybrid_router). Sin
+    env ni perfil -> off (compatibilidad con el opt-in original)."""
+    env = os.environ.get("COGNIA_SUPERORGANISMO", "").strip().lower()
+    if env in ("1", "on", "true", "yes"):
+        return True
+    if env in ("0", "off", "false", "no"):
+        return False
+    return bool(profile and profile.get("superorganismo"))
 
 
 def _valida_asserts(asserts, requiere: str = "") -> list:

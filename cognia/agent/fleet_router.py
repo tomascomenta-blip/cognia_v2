@@ -71,7 +71,7 @@ def expert_for_chat_turn(text: str) -> Optional[str]:
     return "accion" if is_identity_turn(text) else None
 
 
-def member_for_chat_turn(text: str) -> Optional[str]:
+def member_for_chat_turn(text: str, razonador_ok: bool = True) -> Optional[str]:
     """Miembro del FLEET-30 (fleet_registry) para el turno, o None = 3B.
 
     Ruteo por eje MEDIDO (AUDIT_COLONIA 2026-07-12, suites congeladas):
@@ -79,8 +79,12 @@ def member_for_chat_turn(text: str) -> Optional[str]:
     al qwen3_4b CRUDO — G2R 92.5% vs 82 del 3B+stepwise y 27.5 del 3B
     crudo. El 4B va SIN stepwise (medido crudo; sobre-instruir degrada).
     Kill-switch: COGNIA_RAZONA_4B=0. Si el miembro no arranca, el caller
-    cae al 3B+stepwise (fallback total, nunca peor que hoy)."""
+    cae al 3B+stepwise (fallback total, nunca peor que hoy).
+    razonador_ok: permiso del perfil hibrido (False a /esfuerzo bajo =
+    no despertar el 4B; el turno queda en el 3B+stepwise)."""
     import os
+    if not razonador_ok:
+        return None
     if os.environ.get("COGNIA_RAZONA_4B", "").strip().lower() in (
             "0", "off", "false", "no"):
         return None

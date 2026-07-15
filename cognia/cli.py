@@ -2703,6 +2703,11 @@ def _slash_esfuerzo(args: str) -> None:
             f"  max_tokens={p['max_tokens']}  alternativas={p['alternativas']}  "
             f"profundidad={p['profundidad']}  verificaciones={p['verificaciones']}  "
             f"reintentos={p['reintentos']}  subtareas_max={p['subtareas_max']}\n"
+            f"  hibrido: colonia={'si' if p.get('colonia') else 'no'}  "
+            f"superorganismo={'si' if p.get('superorganismo') else 'no'}  "
+            f"delegacion_max={p.get('delegacion_max')}  "
+            f"umbral_shift={p.get('umbral_shift')}  "
+            f"pasos_factor={p.get('pasos_factor')}\n"
             f"Niveles: {', '.join(effort_names())}   (uso: /esfuerzo <nivel>)"
         )
         return
@@ -2720,7 +2725,10 @@ def _slash_esfuerzo(args: str) -> None:
     _print_line(
         f"Nivel de esfuerzo -> {target}  ({p['descripcion']})\n"
         f"  max_tokens={p['max_tokens']}  verificaciones={p['verificaciones']}  "
-        f"alternativas={p['alternativas']}  reintentos={p['reintentos']}"
+        f"alternativas={p['alternativas']}  reintentos={p['reintentos']}\n"
+        f"  hibrido: colonia={'si' if p.get('colonia') else 'no'}  "
+        f"superorganismo={'si' if p.get('superorganismo') else 'no'}  "
+        f"pasos_factor={p.get('pasos_factor')}"
     )
 
 
@@ -7254,7 +7262,13 @@ def repl():
                                 if _llama_turn is _llama:
                                     from cognia.agent.fleet_router import (
                                         member_for_chat_turn)
-                                    _mkey = member_for_chat_turn(raw)
+                                    # perfil hibrido: a /esfuerzo bajo no se
+                                    # despierta el 4B (colonia negada), el
+                                    # turno queda en el 3B+stepwise
+                                    _mkey = member_for_chat_turn(
+                                        raw,
+                                        razonador_ok=_active_effort().get(
+                                            "colonia", True))
                                     if _mkey:
                                         from node.fleet_registry import (
                                             fleet_backend)
@@ -7627,6 +7641,28 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
 
     # Dynamic step budget: the model decides how many steps the task deserves.
     budget = max_steps if max_steps else estimate_step_budget(task, orch)
+
+    # ── Ruteo HIBRIDO por dificultad (2026-07-15) ──────────────────────────
+    # La dificultad estimada de la TAREA + el nivel /esfuerzo arman el perfil
+    # de la corrida: que miembros puede despertar generar_codigo (colonia
+    # 7B/q35, superorganismo), cuanta delegacion se permite y cuantos pasos
+    # merece el loop (pasos_factor). Las etapas siguen siendo reactivas: el
+    # perfil da el PERMISO, el gasto solo ocurre si lo barato fallo. Un
+    # max_steps explicito (sub-agente) no se re-escala: su presupuesto ya
+    # viene acotado por el padre.
+    try:
+        from cognia.agent.hybrid_router import route_profile
+        _hyb = route_profile(task, _load_config().get("esfuerzo"))
+        ctx["hybrid"] = _hyb
+        ctx["_delegation_max"] = _hyb.get("delegacion_max", 2)
+        if not max_steps:
+            budget = max(1, min(AGENT_HARD_CAP,
+                                round(budget * _hyb.get("pasos_factor", 1.0))))
+        _print_fn(f"[detail]hibrido: modalidad={_hyb['modalidad']} "
+                  f"dificultad={_hyb['dificultad']} esfuerzo={_hyb['esfuerzo']}"
+                  f"[/detail]")
+    except Exception:
+        pass
     _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {AGENT_HARD_CAP})[/detail]")
 
     # Auto-decompose: gateado por DIFICULTAD estimada o encadenamiento
