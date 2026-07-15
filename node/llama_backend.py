@@ -49,12 +49,16 @@ def _request_timeout_s(max_tokens: int, payload_len: int) -> int:
     en generate() no-streaming el server calla hasta terminar prefill+decode
     (actúa como límite total) y en streaming el prefill es el único silencio
     largo. Tres términos: base 30s + decode (0.6 s/token cubre el peor caso
-    ~2 tok/s) + PREFILL (~4 chars/token a ~15 tok/s degradado ≈ 1 s cada 60
+    ~2 tok/s) + PREFILL (~4 chars/token a ~6 tok/s peor-caso ≈ 1 s cada 25
     bytes de payload). Sin el término de prefill, prompts largos (feromona /
     contexto crecido) timeouteaban en máquinas lentas aunque el server
     estuviera computando (medido 2026-07-14: 4+ gens quemadas con el server
-    a 2.5 hilos activos)."""
-    return max(120, 30 + int(max_tokens * 0.6) + payload_len // 60)
+    a 2.5 hilos activos). El divisor 25 (antes 60) sale del peor caso REAL
+    de esa noche: con la RAM al límite el mmap del GGUF queda parcialmente
+    frío y el prefill paga page-ins de disco (~3-6 tok/s); con //60 seguía
+    quemándose ~6% de las gens. Un timeout holgado NO ralentiza requests
+    rápidos (corta apenas llega la respuesta) — solo tolera los lentos."""
+    return max(120, 30 + int(max_tokens * 0.6) + payload_len // 25)
 
 
 # ── Config ────────────────────────────────────────────────────────────────────

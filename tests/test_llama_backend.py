@@ -1100,8 +1100,8 @@ def test_request_timeout_incluye_prefill():
     from node.llama_backend import _request_timeout_s
     corto = _request_timeout_s(700, 500)
     largo = _request_timeout_s(700, 8000)
-    assert corto == 30 + 420 + 500 // 60               # 458s
-    assert largo == 30 + 420 + 8000 // 60              # 583s
+    assert corto == 30 + 420 + 500 // 25               # 470s
+    assert largo == 30 + 420 + 8000 // 25              # 770s
     assert largo - corto >= 120                        # >=2 min extra de prefill
     # el piso de 120s se mantiene para requests chicos
     assert _request_timeout_s(24, 100) == 120
