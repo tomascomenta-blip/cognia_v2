@@ -87,7 +87,15 @@ def estimate_task_difficulty(task: str) -> float:
 
 
 def _config_effort() -> str:
-    """Nivel /esfuerzo persistido (~/.cognia_config.json), sin importar cli."""
+    """Nivel /esfuerzo persistido (~/.cognia_config.json), sin importar cli.
+
+    Higiene del instrumento (mismo patron que _bon_log): bajo pytest NO se
+    lee el config del usuario — los unit tests preexistentes codifican el
+    comportamiento a esfuerzo default y un config real distinto (p.ej.
+    'maximo') los volvia dependientes del entorno. Un test que quiera otro
+    nivel lo pasa explicito en route_profile(task, effort_name)."""
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return DEFAULT_EFFORT
     try:
         return json.loads(_CONFIG_PATH.read_text(encoding="utf-8")).get(
             "esfuerzo", DEFAULT_EFFORT)

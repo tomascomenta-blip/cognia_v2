@@ -847,7 +847,11 @@ def _generar_codigo(args, ctx):
     code_prompt = ("Escribe UNA funcion Python COMPLETA que cumpla esto. Responde "
                    "SOLO con un bloque ```python ...``` con la funcion, sin "
                    "explicaciones.\n\n" + desc)
-    n_plan, dif = _bon_n(desc, _hyb.get("bon_max"))
+    # llamada con 1 arg (los tests monkeypatchean _bon_n con esa firma);
+    # el techo por /esfuerzo del perfil se aplica afuera
+    n_plan, dif = _bon_n(desc)
+    if _hyb.get("bon_max"):
+        n_plan = min(n_plan, int(_hyb["bon_max"]))
     _t0 = _time.time()
     try:
         out = best_of_n(_code_gen, code_prompt, desc, entry, extract_code,

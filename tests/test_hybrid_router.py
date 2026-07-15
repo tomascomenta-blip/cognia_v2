@@ -123,12 +123,16 @@ def test_perfil_medio_replica_umbral_calibrado():
 
 def test_perfil_sin_nivel_usa_config_o_default(tmp_path, monkeypatch):
     import cognia.agent.hybrid_router as hr
-    monkeypatch.setattr(hr, "_CONFIG_PATH", tmp_path / "no_existe.json")
-    p = route_profile(FACIL)
-    assert p["esfuerzo"] == "medio"
+    # hermeticidad: BAJO pytest el config real del usuario NO se lee (los
+    # tests preexistentes codifican el comportamiento a esfuerzo default)
     (tmp_path / "cfg.json").write_text('{"esfuerzo": "alto"}', encoding="utf-8")
     monkeypatch.setattr(hr, "_CONFIG_PATH", tmp_path / "cfg.json")
+    assert route_profile(FACIL)["esfuerzo"] == "medio"
+    # fuera de pytest, el config persistido decide
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     assert route_profile(FACIL)["esfuerzo"] == "alto"
+    monkeypatch.setattr(hr, "_CONFIG_PATH", tmp_path / "no_existe.json")
+    assert route_profile(FACIL)["esfuerzo"] == "medio"
 
 
 def test_kill_switch_hibrido_off(monkeypatch):
