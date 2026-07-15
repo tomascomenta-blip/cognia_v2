@@ -101,3 +101,44 @@ def test_render_texto_con_datos(tmp_path, monkeypatch):
         "sentinel": {"allow": 3}})
     txt = P.render_texto()
     assert "superorg=1" in txt and "hacer(9)" in txt and "racha: 1" in txt
+
+
+# ── mejora continua / calibración (Future AGI nativo) ────────────────────
+def test_calibracion_pocos_registros(tmp_path):
+    bon = tmp_path / "b.jsonl"
+    _escribir_bon(bon, [{"difficulty": 0.5, "total": 1, "score": 1}])
+    r = P.analizar_calibracion(path=bon)
+    assert r["n"] == 1 and "Muy pocos" in r["recomendaciones"][0]
+
+
+def test_calibracion_umbral_sano_y_bandas(tmp_path):
+    bon = tmp_path / "b.jsonl"
+    filas = []
+    # faciles que pasan sin escalar
+    for _ in range(4):
+        filas.append({"difficulty": 0.1, "total": 2, "score": 2,
+                      "escalado_7b": False})
+    # duras que escalan al 7B y el 7B mejora
+    for _ in range(3):
+        filas.append({"difficulty": 0.8, "total": 3, "score": 2,
+                      "escalado_7b": True, "score_3b": 0, "score_7b": 2})
+    _escribir_bon(bon, filas)
+    r = P.analizar_calibracion(path=bon)
+    # el escalado entra en dificultad mayor -> umbral sano
+    assert r["dif_media_escalado"] > r["dif_media_no_escalado"]
+    assert r["7b_mejoro"] == 3
+    assert any("SANO" in x for x in r["recomendaciones"])
+    assert r["exito_por_banda"]["facil (<0.3)"] == "4/4"
+    assert r["exito_por_banda"]["dura (>=0.6)"] == "0/3"
+    # duras fallan -> recomienda superorganismo
+    assert any("superorganismo" in x for x in r["recomendaciones"])
+
+
+def test_calibracion_umbral_malo(tmp_path):
+    bon = tmp_path / "b.jsonl"
+    filas = [{"difficulty": 0.5, "total": 1, "score": 1,
+              "escalado_7b": bool(i % 2)} for i in range(8)]
+    _escribir_bon(bon, filas)
+    r = P.analizar_calibracion(path=bon)
+    # escalado no discrimina dificultad (misma dif) -> REVISAR
+    assert any("REVISAR" in x for x in r["recomendaciones"])

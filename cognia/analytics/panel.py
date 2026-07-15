@@ -105,12 +105,79 @@ def resumen_eventos(n=200) -> dict:
             "sentinel": dict(sentinel), "tools_ok": dict(tools_ok)}
 
 
+def analizar_calibracion(path=None) -> dict:
+    """Mejora continua (Future AGI nativo): analiza el ledger REAL para juzgar
+    si la cascada MoM está bien calibrada, y RECOMIENDA. Read-only, no cambia
+    el sampling (sin gate): mide y aconseja, no auto-ajusta. Señales:
+    - ¿el escalado al 7B correlaciona con más dificultad? (umbral sano)
+    - ¿el 7B mejora sobre el 3B cuando entra? (score_7b vs score_3b)
+    - ¿dónde falla el pipeline por banda de dificultad?"""
+    filas = _leer_bon(path)
+    if len(filas) < 5:
+        return {"n": len(filas), "recomendaciones": [
+            "Muy pocos registros para calibrar (min 5)."]}
+    esc = [f for f in filas if f.get("escalado_7b")]
+    no_esc = [f for f in filas if not f.get("escalado_7b")]
+    def _media_dif(fs):
+        d = [f.get("difficulty") for f in fs
+             if isinstance(f.get("difficulty"), (int, float))]
+        return round(sum(d) / len(d), 3) if d else None
+    dif_esc, dif_no = _media_dif(esc), _media_dif(no_esc)
+
+    # ¿el 7B ayudó? (cuando hay ambos scores y total)
+    ayudo = mantuvo = 0
+    for f in esc:
+        s3, s7, tot = f.get("score_3b"), f.get("score_7b"), f.get("total")
+        if isinstance(s3, int) and isinstance(s7, int):
+            if s7 > s3:
+                ayudo += 1
+            else:
+                mantuvo += 1
+
+    # éxito por banda de dificultad
+    bandas = {"facil (<0.3)": [], "media (0.3-0.6)": [], "dura (>=0.6)": []}
+    for f in filas:
+        d, tot, sc = (f.get("difficulty"), f.get("total"), f.get("score"))
+        if not isinstance(d, (int, float)) or not tot:
+            continue
+        ok = 1 if (sc is not None and sc >= tot) else 0
+        b = ("facil (<0.3)" if d < 0.3
+             else "media (0.3-0.6)" if d < 0.6 else "dura (>=0.6)")
+        bandas[b].append(ok)
+    exito_banda = {k: (f"{sum(v)}/{len(v)}" if v else "s/d")
+                   for k, v in bandas.items()}
+
+    rec = []
+    if dif_esc is not None and dif_no is not None:
+        if dif_esc > dif_no + 0.1:
+            rec.append(f"Umbral de escalado SANO: el 7B entra en tareas más "
+                       f"duras (dif media {dif_esc} vs {dif_no}).")
+        else:
+            rec.append(f"REVISAR umbral: el escalado NO discrimina dificultad "
+                       f"(esc {dif_esc} vs no-esc {dif_no}).")
+    if esc:
+        tasa = round(len(esc) / len(filas), 2)
+        rec.append(f"Escala al 7B en {tasa:.0%} de las tareas.")
+        if ayudo + mantuvo > 0:
+            rec.append(f"Cuando el 7B entra con datos comparables: mejoró "
+                       f"{ayudo}, mantuvo {mantuvo}.")
+    dura = bandas["dura (>=0.6)"]
+    if dura and sum(dura) / len(dura) < 0.5:
+        rec.append("El pipeline falla la mayoría de las tareas DURAS "
+                   "(candidato al superorganismo, COGNIA_SUPERORGANISMO=1).")
+    return {"n": len(filas), "dif_media_escalado": dif_esc,
+            "dif_media_no_escalado": dif_no,
+            "7b_mejoro": ayudo, "7b_mantuvo": mantuvo,
+            "exito_por_banda": exito_banda, "recomendaciones": rec}
+
+
 def panel(user_id="default") -> dict:
     """El panel completo (dict serializable)."""
     return {
         "codigo": resumen_codigo(),
         "features": resumen_features(user_id=user_id),
         "eventos": resumen_eventos(),
+        "calibracion": analizar_calibracion(),
     }
 
 
@@ -154,4 +221,14 @@ def render_texto(p: dict = None, user_id="default") -> str:
         L.append(f"  {tipos}")
     if e.get("sentinel"):
         L.append(f"  sentinel: {e['sentinel']}")
+
+    cal = p.get("calibracion")
+    if cal and cal.get("recomendaciones"):
+        L.append(f"\nMEJORA CONTINUA (calibracion sobre {cal['n']} tareas):")
+        if cal.get("exito_por_banda"):
+            eb = ", ".join(f"{k}:{v}"
+                           for k, v in cal["exito_por_banda"].items())
+            L.append(f"  exito por dificultad: {eb}")
+        for r in cal["recomendaciones"]:
+            L.append(f"  - {r}")
     return "\n".join(L)
