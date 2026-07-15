@@ -24,9 +24,41 @@ from storage.db_pool import get_pool
 
 _DEFAULT_DB = str(Path(__file__).parent.parent.parent / "cognia_desktop_chat.db")
 
+# Recurrencia (Cal.com nativo, 2026-07-14): calendario/agenda para los
+# agentes sin servicios externos. None = disparo único (comportamiento
+# previo intacto). daily/weekly = delta fijo; monthly = mismo día del mes
+# siguiente (con arrastre correcto de fin de mes).
+_RECUR_DELTA = {"daily": 86400.0, "weekly": 604800.0}
+_RECUR_VALIDOS = set(_RECUR_DELTA) | {"monthly"}
+
+
+def _proxima_ocurrencia(fire_at: float, recur: str, ahora: float) -> float:
+    """Siguiente fire_at estrictamente futuro respetando la cadencia. Si el
+    daemon estuvo caído y se saltó varias, avanza hasta pasar `ahora` (no
+    dispara N veces para 'ponerse al día')."""
+    import datetime
+    if recur in _RECUR_DELTA:
+        delta = _RECUR_DELTA[recur]
+        prox = fire_at + delta
+        if prox <= ahora:
+            saltos = int((ahora - prox) // delta) + 1
+            prox += saltos * delta
+        return prox
+    # monthly: sumar meses hasta superar 'ahora' (aritmética de calendario)
+    dt = datetime.datetime.fromtimestamp(fire_at)
+    while dt.timestamp() <= ahora:
+        mes = dt.month + 1
+        anio = dt.year + (mes - 1) // 12
+        mes = (mes - 1) % 12 + 1
+        # arrastre de fin de mes (31 ene -> 28/29 feb)
+        import calendar
+        dia = min(dt.day, calendar.monthrange(anio, mes)[1])
+        dt = dt.replace(year=anio, month=mes, day=dia)
+    return dt.timestamp()
+
 
 def _row_to_dict(row) -> dict:
-    return {
+    d = {
         "id":         row[0],
         "user_id":    row[1],
         "title":      row[2],
@@ -36,6 +68,11 @@ def _row_to_dict(row) -> dict:
         "goal_id":    row[6],
         "created_at": row[7],
     }
+    # recur es opcional (columna agregada por migración): las filas viejas
+    # y los SELECT de 8 columnas no lo traen -> None (disparo único).
+    if len(row) > 8:
+        d["recur"] = row[8]
+    return d
 
 
 class ReminderManager:
@@ -79,6 +116,13 @@ class ReminderManager:
                 "CREATE INDEX IF NOT EXISTS idx_reminders_user_status "
                 "ON reminders(user_id, status, fire_at)"
             )
+            # Migración compatible: columna recur para tablas ya existentes
+            # (patrón ALTER TABLE ADD COLUMN, como el KG con last_accessed).
+            cols = {r[1] for r in conn.execute(
+                "PRAGMA table_info(reminders)").fetchall()}
+            if "recur" not in cols:
+                conn.execute(
+                    "ALTER TABLE reminders ADD COLUMN recur TEXT DEFAULT NULL")
 
     def create(
         self,
@@ -87,17 +131,23 @@ class ReminderManager:
         fire_at: float,
         body: str = "",
         goal_id: int = None,
+        recur: str = None,
     ) -> dict:
         """
         Crea un recordatorio con fire_at como Unix timestamp.
+        `recur` (None|daily|weekly|monthly): al dispararse un recordatorio
+        recurrente se agenda automáticamente su próxima ocurrencia.
         Retorna dict del reminder con id y status='pending'.
         """
+        if recur is not None and recur not in _RECUR_VALIDOS:
+            raise ValueError(
+                f"recur invalido: {recur!r} (validos: {sorted(_RECUR_VALIDOS)})")
         now = time.time()
         with get_pool(self._db).get() as conn:
             cur = conn.execute(
-                "INSERT INTO reminders (user_id, title, body, fire_at, status, goal_id, created_at) "
-                "VALUES (?, ?, ?, ?, 'pending', ?, ?)",
-                (user_id, title, body, fire_at, goal_id, now),
+                "INSERT INTO reminders (user_id, title, body, fire_at, status, goal_id, created_at, recur) "
+                "VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)",
+                (user_id, title, body, fire_at, goal_id, now, recur),
             )
             row_id = cur.lastrowid
         return {
@@ -109,6 +159,7 @@ class ReminderManager:
             "status":     "pending",
             "goal_id":    goal_id,
             "created_at": now,
+            "recur":      recur,
         }
 
     def create_relative(
@@ -130,7 +181,7 @@ class ReminderManager:
         """Retorna recordatorios pendientes del usuario ordenados por fire_at ASC."""
         with get_pool(self._db).get() as conn:
             rows = conn.execute(
-                "SELECT id, user_id, title, body, fire_at, status, goal_id, created_at "
+                "SELECT id, user_id, title, body, fire_at, status, goal_id, created_at, recur "
                 "FROM reminders WHERE user_id = ? AND status = 'pending' ORDER BY fire_at ASC",
                 (user_id,),
             ).fetchall()
@@ -157,7 +208,7 @@ class ReminderManager:
         now = time.time()
         with get_pool(self._db).get() as conn:
             rows = conn.execute(
-                "SELECT id, user_id, title, body, fire_at, status, goal_id, created_at "
+                "SELECT id, user_id, title, body, fire_at, status, goal_id, created_at, recur "
                 "FROM reminders WHERE status = 'pending' AND fire_at <= ?",
                 (now,),
             ).fetchall()
@@ -195,9 +246,22 @@ class ReminderManager:
             try:
                 from cognia.events import emit
                 emit("recordatorio.disparado", reminder_id=reminder["id"],
-                     titulo=reminder["title"])
+                     titulo=reminder["title"], recur=reminder.get("recur"))
             except Exception:
                 pass
+
+            # Recurrencia: si es recurrente, agendar la próxima ocurrencia
+            # (fila nueva 'pending'; la disparada queda 'fired' = historial).
+            if reminder.get("recur"):
+                try:
+                    prox = _proxima_ocurrencia(
+                        reminder["fire_at"], reminder["recur"], now)
+                    self.create(reminder["user_id"], reminder["title"], prox,
+                                body=reminder["body"],
+                                goal_id=reminder["goal_id"],
+                                recur=reminder["recur"])
+                except Exception:
+                    pass
 
             # Opcional: anotar en el goal si hay goal_id
             if reminder.get("goal_id") is not None:
