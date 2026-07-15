@@ -6407,3 +6407,21 @@ LECCIÓN reforzada: el gate prueba que el MECANISMO cruza el techo; solo el e2e 
 PORT con modelos reales prueba que producción corre — y cazó 2 bugs (timeout-prefill,
 carto-truncation) invisibles al pytest+gate. "Código que corre o no cuenta" ganó dos
 veces. Apagado del computador al terminar (autorizado).
+
+## 2026-07-15 — Corrida /goal: HÍBRIDO por dificultad + effort v2 + E2E total
+Mandato: sistema híbrido (mono-IA / agentes / colonia / superorganismo con
+puntos intermedios combinables según dificultad), effort adaptado a los
+sistemas actuales, e2e de TODAS las herramientas (goal B + previas + comandos)
+y pruebas difíciles finales.
+- a6f8705: cognia/agent/hybrid_router.py (dificultad de TAREA cero-LLM +
+  route_profile) + effort_levels v2 (6 knobs de modalidad por nivel) + wire en
+  generar_codigo (umbral desplazado + permisos; env manda) + /hacer (perfil,
+  pasos_factor, delegacion_max) + chat 4B con permiso + /esfuerzo muestra
+  modalidades + superorganismo_enabled(profile). 127 tests dirigidos verdes.
+  Gradiente verificado en vivo: trivial→mono; fácil→agente (colonia solo a
+  máximo); media→agente+colonia (superorganismo solo a máximo); dura→las tres
+  a medio. Kill-switch global COGNIA_HIBRIDO=0 = legacy.
+- Batería e2e nueva: scripts/e2e_goal_hibrido.py (goal B 9 módulos + tools
+  previas vía run_tool + 206 comandos REPL piped) y
+  scripts/e2e_hibrido_dificil.py (5 tareas con modelo real, escalera
+  mono→superorganismo con postcondiciones y asserts ocultos).

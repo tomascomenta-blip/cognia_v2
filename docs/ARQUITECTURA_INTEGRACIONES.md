@@ -79,3 +79,33 @@ Medido: 518 módulos, 7808 tripletas.
 - **Navegador completo** (BrowserUse+Scrapling): navegación por links y
   formularios; hoy sólo extracción limpia de una URL (`http_get`→converters).
 - **Entrenamiento distribuido / Supervision / LCD MoM**: gated por GPU externa.
+
+## Ruteo híbrido por dificultad (2026-07-15)
+
+La cascada por dificultad que vivía dentro de `generar_codigo` (3B → 7B →
+Qwen3.5 → superorganismo) subió a **nivel de sistema**
+(`cognia/agent/hybrid_router.py`): la dificultad estimada de la TAREA
+(cero LLM: `max(estimador de código calibrado, señal general multi-paso)`)
+más el nivel `/esfuerzo` arman el **perfil de la corrida**:
+
+```
+dificultad →  <0.12      0.12-0.30    ≥umbral       ≥0.55 (medio)
+modalidad     mono       agente       agente+colonia agente+colonia+superorganismo
+              (1-2       (loop ReAct, (7B/q35/4B     (etapa 4: colonia por
+              pasos)     1 modelo)    reactivos)      pedazos, la más cara)
+```
+
+Las modalidades **se combinan** (no son rígidas): `/esfuerzo` desplaza el eje
+(`umbral_shift`: alto entra antes a colonia; máximo despierta la etapa 4 en
+tarea media; bajo niega colonia/superorganismo y recorta pasos/delegación).
+El perfil da el **permiso**; el gasto sigue siendo **reactivo** (una etapa
+cara solo corre si lo barato falló sus tests visibles). Knobs por nivel en
+`effort_levels.py` (colonia, superorganismo, delegacion_max, bon_max,
+umbral_shift, pasos_factor). El chat ya era "mono" por diseño (fast-path);
+el razonador 4B por turno respeta el permiso colonia.
+
+Kill-switches (mandan sobre el perfil): `COGNIA_HIBRIDO=0` (perfil legacy),
+`COGNIA_SUPERORGANISMO=1/0` (fuerza on/off), `COGNIA_RAZONA_4B=0`,
+`COGNIA_HEAVY_CODE`, `COGNIA_FLEET30=0`, `COGNIA_DELIBERACION` (la mesa
+redonda sigue opt-in puro: su gate midió negativo). Telemetría: cada
+`generar_codigo` registra `modalidad`/`esfuerzo` en `_bon_telemetry.jsonl`.
