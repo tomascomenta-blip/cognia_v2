@@ -6451,3 +6451,14 @@ negativo previo respetado). Superorganismo: permiso por perfil funcionó; en
 estas tareas el 7B confirmó antes, así que la etapa 4 no gastó (diseño
 reactivo correcto; su capacidad más allá de la cascada ya quedó demostrada
 por el gate PREREG 3/13 del 2026-07-14).
+
+### Release 2026-07-15 (~21:50) — cognia-ai 3.9.0 PUBLICADO a PyPI
+Autorizado explícito por el dueño ("sube todo pypi"). Contenido: ruteo
+HÍBRIDO por dificultad a nivel de sistema + /esfuerzo v2 (superorganismo
+disponible por perfil, kill-switches intactos, COGNIA_HIBRIDO=0 legacy).
+Compuertas antes del upload (todas verdes): suite 3974 · batería 22/22 ·
+REPL 181 · playwright 4/4 · difíciles 11/11 · twine check PASSED · wheel
+auditado (hybrid_router dentro, 0 fugas de excluidos) · smoke venv limpio
+5/5 · CAMINO FELIZ 5/5 en 5.1 min. Subido wheel+sdist → verificado
+pip install cognia-ai==3.9.0 desde PyPI real en venv limpio (router OK).
+Tag v3.9.0 pusheado. Nota pendiente del dueño (previa): yankear 3.8.4.
