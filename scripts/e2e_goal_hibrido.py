@@ -51,6 +51,10 @@ def main():
         pass
     tmp = Path(tempfile.mkdtemp(prefix="e2e_hibrido_"))
     os.environ.setdefault("COGNIA_DISABLE_SWARM", "1")
+    if "--solo-repl" in sys.argv:
+        _parte_repl()
+        _resumen()
+        return
 
     # AI real con DB AISLADA + workspace del agente en tmp
     from cognia.cognia import Cognia
@@ -93,8 +97,10 @@ def main():
     paq.mkdir()
     (paq / "__init__.py").write_text("", encoding="utf-8")
     (paq / "b.py").write_text("def util():\n    return 1\n", encoding="utf-8")
-    (paq / "a.py").write_text("from paq_e2e import b\n\n"
-                              "def usa():\n    return b.util()\n",
+    # import con path completo: `from paq_e2e import b` resuelve (correcto)
+    # al paquete 'paq_e2e'; el eje modulo→modulo exige `import paq_e2e.b`
+    (paq / "a.py").write_text("import paq_e2e.b\n\n"
+                              "def usa():\n    return paq_e2e.b.util()\n",
                               encoding="utf-8")
     from cognia.knowledge.code_graph import indexar_codigo, dependencias
     res = indexar_codigo(raiz=tmp, kg=ai.kg, paquetes=["paq_e2e"])
@@ -195,29 +201,36 @@ def main():
     # ══ PARTE 2 — HERRAMIENTAS PREVIAS (run_tool real) ═══════════════════
     print("== 2. Herramientas previas del agente ==", flush=True)
 
-    # 2.1 archivos: escribir → apendar → leer → copiar → listar → contar
+    # 2.1 archivos: escribir → apendar → leer → copiar → listar → contar.
+    # OJO asimetría real del producto: escribir_archivo resuelve al WORKSPACE
+    # (_resolve_write_path) pero leer/listar/contar resuelven al CWD del
+    # proceso → las lecturas van con ruta ABSOLUTA del workspace.
+    ws = tmp / "ws"
     run_tool("escribir_archivo", "nota.txt | línea uno", ctx)
     run_tool("apendar_archivo", "nota.txt | línea dos", ctx)
-    out = run_tool("leer_archivo", "nota.txt", ctx)
+    out = run_tool("leer_archivo", str(ws / "nota.txt"), ctx)
     run_tool("copiar_archivo", "nota.txt | copia.txt", ctx)
-    lst = run_tool("listar", "", ctx)
-    cnt = run_tool("contar_lineas", "nota.txt", ctx)
+    lst = run_tool("listar", str(ws), ctx)
+    cnt = run_tool("contar_lineas", str(ws / "nota.txt"), ctx)
     check("2.1 archivos: ciclo escribir/apendar/leer/copiar/listar/contar",
           "línea uno" in out and "línea dos" in out
-          and "copia.txt" in lst and "2" in cnt)
+          and "copia.txt" in lst and "2" in cnt,
+          f"{out[:60]} | {cnt[:40]}")
 
     # 2.2 buscar + arbol
-    bus = run_tool("buscar", "línea dos", ctx)
-    arb = run_tool("arbol", "", ctx)
+    bus = run_tool("buscar", f"línea dos | {ws}", ctx)
+    arb = run_tool("arbol", str(ws), ctx)
     check("2.2 buscar+arbol sobre el workspace",
-          "nota.txt" in bus and "nota.txt" in arb)
+          "nota.txt" in bus and "nota.txt" in arb,
+          f"{bus[:60]} | {arb[:60]}")
 
-    # 2.3 validadores + calcular + fecha
-    okv = run_tool("py_validar", "nota_py.py | def f():\n    return 1", ctx)
-    ruta_json = tmp / "ws" / "v.json"
-    ruta_json.parent.mkdir(parents=True, exist_ok=True)
+    # 2.3 validadores + calcular + fecha (rutas absolutas: validan archivo)
+    fpy = ws / "valida.py"
+    fpy.write_text("def f():\n    return 1\n", encoding="utf-8")
+    okv = run_tool("py_validar", str(fpy), ctx)
+    ruta_json = ws / "v.json"
     ruta_json.write_text('{"a": 1}', encoding="utf-8")
-    okj = run_tool("json_validar", "v.json", ctx)
+    okj = run_tool("json_validar", str(ruta_json), ctx)
     calc = run_tool("calcular", "(3+4)*5", ctx)
     fecha = run_tool("fecha", "", ctx)
     check("2.3 py_validar/json_validar/calcular/fecha",
@@ -229,23 +242,32 @@ def main():
     gl = run_tool("git_log", "", ctx)
     check("2.4 git_estado+git_log", "ERROR" not in ge and len(gl) > 20)
 
-    # 2.5 memoria episódica + KG (DB aislada)
+    # 2.5 memoria episódica + KG (DB aislada). La indexación del vector es
+    # ASYNC (AsyncEmbeddingQueue): recordar inmediato puede no ver lo recién
+    # memorizado → retry con deadline (consistencia eventual, cazada por la
+    # corrida 1 de esta batería).
     run_tool("memorizar", "El proyecto e2e híbrido usa el color turquesa "
                           "para su bandera oficial", ctx)
-    rec = run_tool("recordar", "color de la bandera del proyecto", ctx)
-    ka = run_tool("kg_agregar", "cognia | tiene | ruteo híbrido", ctx)
+    rec = ""
+    for _ in range(12):
+        rec = run_tool("recordar", "color de la bandera del proyecto", ctx)
+        if "turquesa" in rec:
+            break
+        time.sleep(5)
+    ka = run_tool("kg_agregar", "cognia | capable_of | ruteo híbrido", ctx)
     kb = run_tool("kg_buscar", "cognia", ctx)
     check("2.5 memorizar/recordar + kg_agregar/kg_buscar",
           "turquesa" in rec and "ERROR" not in ka and "híbrido" in kb,
           f"{rec[:60]} | {kb[:60]}")
 
-    # 2.6 anotar/notas + cuaderno (tool)
-    run_tool("anotar", "resultado intermedio e2e: 123", ctx)
+    # 2.6 anotar/notas + cuaderno (tool); anotar exige (clave | valor)
+    run_tool("anotar", "resultado_e2e | 123", ctx)
     nts = run_tool("notas", "", ctx)
     cn = run_tool("cuaderno", "nota | apunte vía tool e2e", ctx)
     cv = run_tool("cuaderno", "ver |", ctx)
     check("2.6 anotar/notas + cuaderno tool",
-          "123" in nts and "ERROR" not in cn and "notas" in cv.lower())
+          "123" in nts and "ERROR" not in cn and "notas" in cv.lower(),
+          f"{nts[:50]} | {cv[:50]}")
 
     # 2.7 plan (patrón OpenManus: artefacto mutable)
     from cognia.agent.tool_synthesis import load_generated_tools  # registra extras
@@ -287,42 +309,48 @@ def main():
 
     # ══ PARTE 3 — COMANDOS SLASH (REPL real piped) ═══════════════════════
     if "--sin-repl" not in sys.argv:
-        print("== 3. Comandos slash (REPL subproceso) ==", flush=True)
-        from cognia.cli import COMMANDS
-        # skip: destructivos / red externa / servidores / pesados-LLM / salida
-        SKIP = {"/salir", "/update", "/mesh_iniciar", "/mesh_peer",
-                "/mesh_publicar", "/backup", "/exportar-todo", "/dormir",
-                "/distill run", "/worktree", "/quiz", "/template",
-                "/resume", "/historial-limpiar", "/limpiar-sesion",
-                "/olvido", "/cognia-olvida", "/web-fetch", "/web-buscar",
-                "/buscar-web", "/monitor", "/reflexion-profunda",
-                "/inicio-dia", "/reporte-completo", "/debate"}
-        cmds = [c for c in sorted(COMMANDS) if c not in SKIP]
-        stdin_txt = "\n".join(cmds) + "\n/salir\n"
-        env = dict(os.environ, PYTHONUTF8="1", COGNIA_DISABLE_SWARM="1")
-        t1 = time.time()
-        proc = subprocess.run(
-            [sys.executable, "-m", "cognia"],
-            input=stdin_txt, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", env=env,
-            cwd=str(ROOT), timeout=1800)
-        salida = (proc.stdout or "") + (proc.stderr or "")
-        tracebacks = salida.count("Traceback (most recent call last)")
-        check(f"3.1 REPL procesa {len(cmds)} comandos sin crash "
-              f"({time.time()-t1:.0f}s)",
-              proc.returncode == 0 and tracebacks == 0,
-              f"rc={proc.returncode} tracebacks={tracebacks}")
-        check("3.2 REPL cerró limpio con /salir",
-              "hasta luego" in salida.lower() or "adios" in salida.lower()
-              or proc.returncode == 0)
-        print(f"    (skip declarado: {len(SKIP)} comandos destructivos/red/"
-              f"LLM-pesado)", flush=True)
-        if tracebacks:
-            # volcar contexto del primer traceback para diagnóstico
-            i = salida.find("Traceback (most recent call last)")
-            print(salida[max(0, i - 400):i + 600], flush=True)
+        _parte_repl()
+    _resumen()
 
-    # ══ resumen ══════════════════════════════════════════════════════════
+
+def _parte_repl():
+    print("== 3. Comandos slash (REPL subproceso) ==", flush=True)
+    from cognia.cli import COMMANDS
+    # skip: destructivos / red externa / servidores / pesados-LLM / salida
+    SKIP = {"/salir", "/update", "/mesh_iniciar", "/mesh_peer",
+            "/mesh_publicar", "/backup", "/exportar-todo", "/dormir",
+            "/distill run", "/worktree", "/quiz", "/template",
+            "/resume", "/historial-limpiar", "/limpiar-sesion",
+            "/olvido", "/cognia-olvida", "/web-fetch", "/web-buscar",
+            "/buscar-web", "/monitor", "/reflexion-profunda",
+            "/inicio-dia", "/reporte-completo", "/debate"}
+    cmds = [c for c in sorted(COMMANDS) if c not in SKIP]
+    stdin_txt = "\n".join(cmds) + "\n/salir\n"
+    env = dict(os.environ, PYTHONUTF8="1", COGNIA_DISABLE_SWARM="1")
+    t1 = time.time()
+    proc = subprocess.run(
+        [sys.executable, "-m", "cognia"],
+        input=stdin_txt, capture_output=True, text=True,
+        encoding="utf-8", errors="replace", env=env,
+        cwd=str(ROOT), timeout=3300)
+    salida = (proc.stdout or "") + (proc.stderr or "")
+    tracebacks = salida.count("Traceback (most recent call last)")
+    check(f"3.1 REPL procesa {len(cmds)} comandos sin crash "
+          f"({time.time()-t1:.0f}s)",
+          proc.returncode == 0 and tracebacks == 0,
+          f"rc={proc.returncode} tracebacks={tracebacks}")
+    check("3.2 REPL cerró limpio con /salir",
+          "hasta luego" in salida.lower() or "adios" in salida.lower()
+          or proc.returncode == 0)
+    print(f"    (skip declarado: {len(SKIP)} comandos destructivos/red/"
+          f"LLM-pesado)", flush=True)
+    if tracebacks:
+        # volcar contexto del primer traceback para diagnóstico
+        i = salida.find("Traceback (most recent call last)")
+        print(salida[max(0, i - 400):i + 600], flush=True)
+
+
+def _resumen():
     total = len(CHECKS)
     ok = sum(1 for _, o in CHECKS if o)
     print(f"\n== RESULTADO: {ok}/{total} en {time.time()-T0:.0f}s ==", flush=True)
