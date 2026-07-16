@@ -209,7 +209,7 @@ def main():
     run_tool("escribir_archivo", "nota.txt | línea uno", ctx)
     run_tool("apendar_archivo", "nota.txt | línea dos", ctx)
     out = run_tool("leer_archivo", str(ws / "nota.txt"), ctx)
-    run_tool("copiar_archivo", "nota.txt | copia.txt", ctx)
+    run_tool("copiar_archivo", f"{ws / 'nota.txt'} | copia.txt", ctx)
     lst = run_tool("listar", str(ws), ctx)
     cnt = run_tool("contar_lineas", str(ws / "nota.txt"), ctx)
     check("2.1 archivos: ciclo escribir/apendar/leer/copiar/listar/contar",
