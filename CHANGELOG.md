@@ -2,6 +2,30 @@
 
 ---
 
+## [3.9.1] - 2026-07-15
+
+### Instalación fácil + oficina honesta (bugs cazados por e2e del producto instalado)
+
+- **La oficina 3D funciona instalada**: el wheel ahora empaqueta el build
+  Vite (`cognia/oficina/web3d/dist`); antes `/oficina3d` respondía "falta el
+  build 3d" en cualquier instalación de PyPI.
+- **`python -m cognia.oficina` carga la configuración** (`apply_config()`,
+  mismo camino que el CLI): antes el motor instalado no veía
+  `~/.cognia/config.env` y corría "sin backend de inferencia" aunque el
+  modelo estuviera instalado.
+- **Motor de la oficina honesto**: un trabajador que devuelve error o vacío
+  se marca **fallida** (no "hecha"), y una meta donde TODOS los trabajadores
+  fallaron cierra **fallida** — antes una meta podía cerrar "hecha" con el
+  error de backend como resultado y cero archivos producidos.
+- **Descubrimiento automático del modelo**: sin env ni config, el backend
+  busca el GGUF en `~/.cognia/models/*` (el más grande fuera del portero) y
+  el `llama-server` en `~/.cognia/bin/llama-*/` → `pip install cognia-ai` +
+  `cognia install-model` + `cognia` funciona sin configurar nada.
+- **Puerto de la oficina 8765 → 8766**: el 8765 es del backend del desktop
+  (colisión detectada cuando ambos conviven).
+
+---
+
 ## [3.9.0] - 2026-07-15
 
 ### Ruteo HÍBRIDO por dificultad a nivel de sistema + /esfuerzo v2

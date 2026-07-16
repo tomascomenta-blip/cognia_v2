@@ -213,8 +213,16 @@ def _download_npz_shards_standalone(hf_token: str = "") -> Path:
 # ── Config file ───────────────────────────────────────────────────────────────
 
 def _write_config(vars: dict[str, str]) -> None:
+    """Escribe config.env MERGEANDO con lo existente (nunca lo pisa entero).
+
+    Fix auditoria 2026-07-15: el wizard reescribia el archivo con SOLO sus
+    claves y borraba LLAMA_GGUF_PATH/LLAMA_SERVER_PATH que `cognia
+    install-model` acababa de persistir (y al reves) — correr los dos flujos
+    en cualquier orden rompia al otro."""
     COGNIA_HOME.mkdir(parents=True, exist_ok=True)
-    lines = [f"{k}={v}\n" for k, v in vars.items() if v]
+    combinado = _load_config()
+    combinado.update({k: v for k, v in vars.items() if v})
+    lines = [f"{k}={v}\n" for k, v in combinado.items() if v]
     CONFIG_FILE.write_text("".join(lines), encoding="utf-8")
     print(f"\n  Configuracion guardada en {CONFIG_FILE}")
 
@@ -232,10 +240,21 @@ def _load_config() -> dict[str, str]:
 
 
 def apply_config() -> None:
-    """Load ~/.cognia/config.env into os.environ (call at startup)."""
+    """Load ~/.cognia/config.env into os.environ (call at startup).
+
+    Una env var pre-existente GANA sobre config.env (permite overrides por
+    sesion), pero si difiere se AVISA una linea: una var stale del sistema
+    pisando un config.env fresco era invisible y muy dificil de diagnosticar
+    (auditoria 2026-07-15; el caso real: LLAMA_LORA_PATH de User mataba el
+    fleet sin sintoma)."""
     for k, v in _load_config().items():
         if k not in os.environ:
             os.environ[k] = v
+        elif os.environ[k] != v and k.startswith(("LLAMA_", "COGNIA_",
+                                                  "HEAVY_CODE_", "SHARD_")):
+            print(f"  [config] {k} del entorno "
+                  f"({os.environ[k][:40]!r}) pisa el valor de config.env "
+                  f"({v[:40]!r}); si no es a proposito, borra la env var.")
 
 
 def set_config_value(key: str, value: str) -> None:

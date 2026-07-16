@@ -87,9 +87,24 @@ def _progreso(nombre: str):
 
 
 def _descarga(url: str, dest: Path) -> Path:
+    """Descarga con timeout de socket y limpieza del .part ante fallo
+    (auditoria 2026-07-15: urlretrieve sin timeout colgaba con red caida y
+    dejaba .part huerfanos que confundian re-corridas)."""
+    import socket
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".part")
-    urllib.request.urlretrieve(url, tmp, _progreso(dest.name))
+    viejo_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(60)
+    try:
+        urllib.request.urlretrieve(url, tmp, _progreso(dest.name))
+    except Exception:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise
+    finally:
+        socket.setdefaulttimeout(viejo_timeout)
     print()
     tmp.replace(dest)
     return dest
@@ -240,6 +255,23 @@ def install_heavy_code(dest_dir: Path = HEAVY_DIR, hf_token: str = "") -> Path |
         return None
 
 
+def _check_espacio(with_heavy_code: bool) -> None:
+    """Aborta ANTES de descargar si el disco no alcanza (auditoria
+    2026-07-15: sin chequeo, la descarga de 1.9-4.7 GB moria a la mitad con
+    un error crudo de urllib). Margen 1 GB sobre lo estimado."""
+    import shutil as _sh
+    necesario = 2_600_000_000 + (5_000_000_000 if with_heavy_code else 0)
+    try:
+        libre = _sh.disk_usage(str(Path.home())).free
+    except Exception:
+        return
+    if libre < necesario:
+        raise RuntimeError(
+            f"espacio insuficiente en disco: libres {libre / 1e9:.1f} GB, "
+            f"necesarios ~{necesario / 1e9:.1f} GB. Libera espacio y "
+            "reintenta cognia install-model.")
+
+
 def install_model(skip_gguf: bool = False, skip_server: bool = False,
                   skip_fleet: bool = False, skip_portero: bool = False,
                   with_heavy_code: bool = False, hf_token: str = "") -> dict:
@@ -249,6 +281,7 @@ def install_model(skip_gguf: bool = False, skip_server: bool = False,
     escalado reactivo 3B→7B en código duro (+20pp). Default OFF por el tamaño."""
     resumen = {}
     if not skip_gguf:
+        _check_espacio(with_heavy_code)
         gguf = install_gguf(hf_token=hf_token)
         set_config_value("LLAMA_GGUF_PATH", str(gguf))
         resumen["gguf"] = str(gguf)
@@ -271,13 +304,31 @@ def install_model(skip_gguf: bool = False, skip_server: bool = False,
     return resumen
 
 
+_FLAGS_VALIDOS = {"--skip-gguf", "--skip-server", "--skip-fleet",
+                  "--skip-portero", "--with-heavy-code"}
+
+
 def main(argv: list[str] | None = None) -> None:
     args = set(argv if argv is not None else sys.argv[1:])
-    install_model(skip_gguf="--skip-gguf" in args,
-                  skip_server="--skip-server" in args,
-                  skip_fleet="--skip-fleet" in args,
-                  skip_portero="--skip-portero" in args,
-                  with_heavy_code="--with-heavy-code" in args)
+    # un typo en un flag NO puede instalar en silencio otra cosa
+    desconocidos = args - _FLAGS_VALIDOS
+    if desconocidos:
+        print(f"flags desconocidos: {' '.join(sorted(desconocidos))}\n"
+              f"validos: {' '.join(sorted(_FLAGS_VALIDOS))}")
+        sys.exit(2)
+    try:
+        install_model(skip_gguf="--skip-gguf" in args,
+                      skip_server="--skip-server" in args,
+                      skip_fleet="--skip-fleet" in args,
+                      skip_portero="--skip-portero" in args,
+                      with_heavy_code="--with-heavy-code" in args)
+    except Exception as exc:
+        # mensaje accionable, no traceback crudo (sin red / 401 / disco)
+        print(f"\ninstall-model FALLO: {exc}\n"
+              "Revisa: conexion a internet, espacio en disco, y si el modelo "
+              "requiere token de HuggingFace (HF_TOKEN). Reintenta con: "
+              "cognia install-model")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

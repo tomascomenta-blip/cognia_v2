@@ -162,13 +162,31 @@ def resolve_gguf_path(key: str):
     """Ruta absoluta (Path) del GGUF del registry para `key`, o None si no existe la clave.
 
     Resuelve contra el root del repo (este archivo vive en shattering/), asi el
-    registry sobrevive a mover el repo de disco. No verifica existencia en disco.
-    """
+    registry sobrevive a mover el repo de disco. Si esa ruta no existe (el
+    producto INSTALADO no tiene model_shards/ alrededor de site-packages),
+    cae a la instalacion estandar ~/.cognia/models/**/<mismo nombre> — sin
+    esto /modelo 7b y la cascada heavy_code quedaban mudos instalados
+    (auditoria e2e 2026-07-15). Solo entonces devuelve None-por-inexistencia
+    via el caller (esta funcion mantiene su contrato: no exige existencia
+    para la ruta del repo, que es el modo dev)."""
     from pathlib import Path
     rel = MODEL_GGUF_REGISTRY.get(key)
     if rel is None:
         return None
-    return Path(__file__).resolve().parent.parent / rel
+    p = Path(__file__).resolve().parent.parent / rel
+    if p.is_file():
+        return p
+    nombre = Path(rel).name
+    home_models = Path.home() / ".cognia" / "models"
+    if home_models.is_dir():
+        # match exacto por nombre primero; despues case-insensitive
+        for cand in home_models.rglob("*.gguf"):
+            if cand.name == nombre:
+                return cand
+        for cand in home_models.rglob("*.gguf"):
+            if cand.name.lower() == nombre.lower():
+                return cand
+    return p
 
 
 # HuggingFace dataset that hosts the pre-converted INT4 .npz shards.

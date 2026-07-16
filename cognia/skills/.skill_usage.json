@@ -1,0 +1,22 @@
+{
+  "depurar": {
+    "uses_ok": 0,
+    "uses_fail": 3
+  },
+  "revisar-codigo": {
+    "uses_ok": 14,
+    "uses_fail": 5
+  },
+  "escribir-tests": {
+    "uses_ok": 10,
+    "uses_fail": 4
+  },
+  "documentar": {
+    "uses_ok": 14,
+    "uses_fail": 7
+  },
+  "commit-git": {
+    "uses_ok": 0,
+    "uses_fail": 3
+  }
+}

@@ -1208,8 +1208,9 @@ class ShatteringOrchestrator:
             return f"[{sub_model.upper()}] Shard inference failed. Check logs for details."
         return (
             f"[{sub_model.upper()}] No inference backend available. "
-            f"Run the setup wizard to download model shards, or start Ollama: "
-            f"ollama serve && ollama pull {self._ollama_model}"
+            f"Instala el modelo local con: cognia install-model  "
+            f"(o arranca Ollama: ollama serve && ollama pull "
+            f"{self._ollama_model})"
         )
 
     # ── Distributed inference ───────────────────────────────────────────

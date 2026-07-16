@@ -55,7 +55,10 @@ pdf      = ["pdfplumber>=0.10.0"]
 # via el binding de Python. Alternativa al llama-server.exe / al path numpy-shards.
 #   pip install "cognia-ai[llama]"
 llama    = ["llama-cpp-python>=0.2.20"]
-all      = ["sentence-transformers>=2.2.0", "pdfplumber>=0.10.0", "llama-cpp-python>=0.2.20"]
+# TUI (python -m cognia.tui): textual no va en las deps duras (pesado);
+# sin el extra, el entry point avisa "pip install cognia-ai[tui]".
+tui      = ["textual>=0.60.0"]
+all      = ["sentence-transformers>=2.2.0", "pdfplumber>=0.10.0", "llama-cpp-python>=0.2.20", "textual>=0.60.0"]
 
 [project.urls]
 Homepage   = "https://github.com/tomascomenta-blip/cognia_v2"
@@ -98,6 +101,8 @@ exclude = [
 # "falta el build 3d" (cazado e2e 2026-07-15). Solo el dist compilado
 # (~KBs), no node_modules/src (esos siguen fuera del wheel).
 "cognia.oficina" = ["web3d/dist/*", "web3d/dist/assets/*"]
+# CSS de la TUI (CSS_PATH de app.py): sin esto la TUI instalada no arranca
+"cognia.tui" = ["*.tcss"]
 
 # (v3.6.0) Se removio el bloque py-modules: esos modulos top-level se reorganizaron
 # dentro del paquete cognia_v3/ (core/memory/interfaces) y ahora se empaquetan via

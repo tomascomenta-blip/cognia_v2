@@ -160,4 +160,9 @@ def _self_check() -> int:
 
 if __name__ == "__main__":
     import sys
+    try:
+        from cognia.first_run import apply_config
+        apply_config()   # config.env instalado (fix auditoria 2026-07-15)
+    except Exception:
+        pass
     sys.exit(_self_check())

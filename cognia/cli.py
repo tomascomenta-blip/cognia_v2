@@ -7800,11 +7800,15 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # excepcion); como no trae 'ACCION:' el loop lo repetiria hasta agotar
         # el presupuesto entero. Cortar de una con instrucciones accionables.
         if (not raw_response) or ("No inference backend available" in raw_response):
-            _print_fn("[err_cl]El agente necesita un modelo de codigo y no hay backend disponible.[/err_cl]")
-            _print_fn("[detail]Activa uno y reintenta /hacer:[/detail]")
-            _print_fn("[detail]  - Ollama:  ollama serve  &&  ollama pull qwen2.5-coder  "
-                      "(luego: set COGNIA_OLLAMA_MODEL=qwen2.5-coder)[/detail]")
-            _print_fn("[detail]  - o shards locales:  cognia install-weights --standalone[/detail]")
+            # Instrucciones VISIBLES (no [detail]: el modo sencillo default
+            # las suprimia) y el camino RECOMENDADO primero (install-model,
+            # no el avanzado install-weights) — auditoria 2026-07-15.
+            _print_fn("[err_cl]El agente necesita un modelo y no hay backend disponible.[/err_cl]")
+            _print_fn("[warn_cl]Instala el modelo local (recomendado, una vez):  "
+                      "cognia install-model[/warn_cl]")
+            _print_fn("[warn_cl]Alternativas: Ollama (ollama serve + ollama pull "
+                      "qwen2.5-coder + set COGNIA_OLLAMA_MODEL=qwen2.5-coder) o "
+                      "shards: cognia install-weights --standalone[/warn_cl]")
             result_text = "(sin backend de inferencia: el agente no puede generar codigo)"
             break
 
@@ -8116,4 +8120,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
 
 
 if __name__ == "__main__":
+    try:
+        from cognia.first_run import apply_config
+        apply_config()   # config.env instalado (fix auditoria 2026-07-15)
+    except Exception:
+        pass
     repl()
