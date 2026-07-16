@@ -2,6 +2,39 @@
 
 ---
 
+## [3.9.0] - 2026-07-15
+
+### Ruteo HÍBRIDO por dificultad a nivel de sistema + /esfuerzo v2
+
+- **Nuevo `cognia/agent/hybrid_router.py`**: la dificultad estimada de la
+  TAREA (cero LLM) más el nivel `/esfuerzo` arman el perfil de cada corrida —
+  mono (trivial, 1-2 pasos) / agente (loop con tools) / **+colonia** (etapas
+  multi-modelo 7B/Qwen3.5/razonador 4B) / **+superorganismo** (etapa 4,
+  colonia por pedazos). Las modalidades se COMBINAN según la dificultad (no
+  son rígidas); el perfil da el *permiso* y el gasto sigue siendo *reactivo*
+  (una etapa cara solo corre si lo barato falló sus tests). A esfuerzo medio
+  el comportamiento es idéntico al de 3.8.x (umbral calibrado 0.30).
+- **`/esfuerzo` v2**: cada nivel controla además colonia, superorganismo,
+  profundidad de delegación, techo best-of-N, desplazamiento del umbral de
+  dificultad y presupuesto de pasos del agente. `bajo` = rápido y acotado
+  (sin modelos extra); `maximo` = despierta las etapas caras antes.
+- **Superorganismo disponible por perfil**: sin `COGNIA_SUPERORGANISMO` en el
+  env, la etapa 4 se habilita sola en tarea dura (≥0.55 a medio); el env
+  explícito sigue mandando en ambos sentidos. Kill-switch global
+  `COGNIA_HIBRIDO=0` restaura el comportamiento previo exacto.
+- **Telemetría**: cada `generar_codigo` registra modalidad y esfuerzo en
+  `_bon_telemetry.jsonl` (dataset de recalibración).
+
+### Verificación (gates del release)
+
+- Suite completa: 3974 passed. Batería e2e de herramientas 22/22 (módulos
+  nativos + tools del agente) + 181 comandos del REPL sin crash.
+- Pruebas duras con modelo real 11/11: en `spiral_order` y `decode_ways` el
+  3B falló sus tests visibles → escaló al 7B → los asserts ocultos pasaron
+  (la cascada multi-modelo rescatando código duro en vivo).
+
+---
+
 ## [3.8.8] - 2026-07-11
 
 ### Seguridad — bind explícito de los servers de inferencia a localhost
