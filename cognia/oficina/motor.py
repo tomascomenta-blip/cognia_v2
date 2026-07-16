@@ -159,8 +159,19 @@ class Motor(threading.Thread):
         resultado = _run_agent_task(
             self.ai, tarea["detalle"], print_hook, max_steps=8,
             allowed_tools=ROLE_TOOLS.get(tarea["rol"]), delegation_depth=1)
+        # Honestidad del cierre (e2e 2026-07-15): un resultado vacio o de
+        # error NO es trabajo hecho — antes el motor marcaba "hecha" con
+        # "(sin backend de inferencia...)" como resultado y la meta cerraba
+        # "hecha" sin producir nada. Fallo -> raise: el caller lo marca
+        # fallida y NO entra a los parciales de la meta.
+        texto = str(resultado or "").strip()
+        if (not texto
+                or "sin backend de inferencia" in texto
+                or "no pudo iniciar el modelo" in texto):
+            self.of.set_estado(tid, "fallida", resultado=texto or "(vacio)")
+            raise RuntimeError(texto or "trabajador sin resultado")
         self.of.set_estado(tid, "hecha", resultado=resultado)
-        return str(resultado)
+        return texto
 
     def _procesa_meta(self, meta: dict) -> None:
         mid = meta["id"]
@@ -217,9 +228,16 @@ class Motor(threading.Thread):
                     resultados.extend(parciales)
                 except Detenida:
                     self.of.set_estado(dir_id, "detenida")
-            resumen = "\n".join(r[:300] for r in resultados) or "(sin resultados)"
-            self.of.set_estado(jefe_id, "hecha", resultado=resumen)
-            self.of.set_meta_estado(mid, "hecha", resultado=resumen)
+            # Meta "hecha" exige AL MENOS un resultado real de trabajador;
+            # si todos fallaron, cerrar honesto como fallida (e2e 2026-07-15).
+            if resultados:
+                resumen = "\n".join(r[:300] for r in resultados)
+                self.of.set_estado(jefe_id, "hecha", resultado=resumen)
+                self.of.set_meta_estado(mid, "hecha", resultado=resumen)
+            else:
+                err = "ningun trabajador produjo resultado (todos fallaron)"
+                self.of.set_estado(jefe_id, "fallida", resultado=err)
+                self.of.set_meta_estado(mid, "fallida", resultado=err)
         except Detenida:
             self.of.set_estado(jefe_id, "detenida")
             self.of.set_meta_estado(mid, "detenida")

@@ -94,6 +94,12 @@ _SERVER_BINARIES = [
     "server",                          # older builds
     str(Path(__file__).parent / "llama-server.exe"),
     str(Path(__file__).parent / "llama-server"),
+    # instalación estándar (cognia install-model): ~/.cognia/bin/llama-*/
+    # (mismo fallback que _find_gguf; el producto instalado no tiene repo)
+    *sorted(str(p) for p in
+            (Path.home() / ".cognia" / "bin").glob("llama-*/llama-server.exe")),
+    *sorted(str(p) for p in
+            (Path.home() / ".cognia" / "bin").glob("llama-*/llama-server")),
 ]
 
 
@@ -202,6 +208,23 @@ def _find_gguf() -> Optional[Path]:
     # Broader search one level up
     for p in shard_dir.parent.rglob("*.gguf"):
         return p
+
+    # Instalación estándar (cognia install-model): ~/.cognia/models/*/*.gguf.
+    # El producto INSTALADO no tiene repo alrededor: si config.env no se
+    # aplicó (o el env falta), este fallback hace que "instalar el modelo y
+    # usarlo" funcione sin configurar nada (cazado e2e 2026-07-15: la
+    # oficina instalada corría sin backend). Se elige el GGUF más grande
+    # fuera del dir del portero (= el modelo principal, no un adapter LoRA).
+    home_models = Path.home() / ".cognia" / "models"
+    if home_models.is_dir():
+        candidatos = [p for p in home_models.rglob("*.gguf") if p.is_file()]
+        principales = [p for p in candidatos
+                       if "portero" not in p.parent.name.lower()] or candidatos
+        if principales:
+            elegido = max(principales, key=lambda p: p.stat().st_size)
+            logger.info("[llama_backend] GGUF por fallback ~/.cognia/models: %s",
+                        elegido)
+            return elegido
 
     return None
 

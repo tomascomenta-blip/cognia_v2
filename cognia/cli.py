@@ -835,7 +835,7 @@ HELP_TEXT = """
   SISTEMA:
     /doctor                         Verificar instalacion
     /update                         Actualizar Cognia
-    /oficina [puerto]               Dashboard de oficina isometrica (detached, abre navegador; default 8765)
+    /oficina [puerto]               Dashboard de oficina isometrica (detached, abre navegador; default 8766)
     /analiticas                     Panel de telemetria local (codigo/features/eventos, todo privado)
     /distill  /  /distill run       Destilacion SRDN
     /ayuda    /  /salir
@@ -2522,7 +2522,8 @@ def _slash_oficina(args: str) -> None:
             _print_line("[warn_cl]Uso: /oficina [puerto][/warn_cl]")
             return
     else:
-        puerto = 8765
+        # 8766: el 8765 es del cognia_desktop_api (colisión cazada 2026-07-15)
+        puerto = 8766
 
     url = f"http://127.0.0.1:{puerto}/"
 

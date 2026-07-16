@@ -1005,6 +1005,11 @@ class TestFindGguf:
         shard_dir.mkdir(parents=True)
         monkeypatch.delenv("LLAMA_GGUF_PATH", raising=False)
         monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(shard_dir))
+        # home hermetico: el fallback ~/.cognia/models (2026-07-15) no debe
+        # ver la instalacion real de la maquina del dev
+        from pathlib import Path as _P
+        monkeypatch.setattr(_P, "home",
+                            classmethod(lambda cls: tmp_path / "home_vacio"))
 
         from node.llama_backend import _find_gguf
         assert _find_gguf() is None
@@ -1025,6 +1030,9 @@ class TestFindGguf:
         shard_dir.mkdir(parents=True)
         monkeypatch.setenv("LLAMA_GGUF_PATH", str(tmp_path / "ghost.gguf"))
         monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(shard_dir))
+        from pathlib import Path as _P
+        monkeypatch.setattr(_P, "home",
+                            classmethod(lambda cls: tmp_path / "home_vacio"))
 
         from node.llama_backend import _find_gguf
         assert _find_gguf() is None
@@ -1105,3 +1113,41 @@ def test_request_timeout_incluye_prefill():
     assert largo - corto >= 120                        # >=2 min extra de prefill
     # el piso de 120s se mantiene para requests chicos
     assert _request_timeout_s(24, 100) == 120
+
+
+class TestFindGgufFallbackHome:
+    """Fallback de descubrimiento en ~/.cognia/models (fix 2026-07-15: el
+    producto INSTALADO sin config.env aplicado corria sin backend)."""
+
+    def test_encuentra_gguf_en_home_models(self, tmp_path, monkeypatch):
+        from pathlib import Path as _P
+        import node.llama_backend as lb
+        monkeypatch.delenv("LLAMA_GGUF_PATH", raising=False)
+        # shard dir inexistente para forzar el fallback final
+        monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(tmp_path / "no_shards"))
+        # home FUERA del arbol que barre el rglob del shard fallback
+        monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(tmp_path / "aparte" / "no_shards"))
+        (tmp_path / "aparte").mkdir()
+        home = tmp_path / "home"
+        modelo = home / ".cognia" / "models" / "qwen-coder-3b-q4"
+        modelo.mkdir(parents=True)
+        chico = modelo / "adapter_f16.gguf"
+        chico.write_bytes(b"x" * 10)
+        grande = modelo / "qwen2.5-coder-3b-q4_k_m.gguf"
+        grande.write_bytes(b"x" * 1000)
+        portero = home / ".cognia" / "models" / "qwen-0.5b-portero"
+        portero.mkdir(parents=True)
+        (portero / "portero_q8.gguf").write_bytes(b"x" * 5000)
+        monkeypatch.setattr(_P, "home", classmethod(lambda cls: home))
+        elegido = lb._find_gguf()
+        # el mas grande FUERA del portero = el modelo principal
+        assert elegido == grande
+
+    def test_sin_home_models_devuelve_none(self, tmp_path, monkeypatch):
+        from pathlib import Path as _P
+        import node.llama_backend as lb
+        monkeypatch.delenv("LLAMA_GGUF_PATH", raising=False)
+        monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(tmp_path / "no_shards"))
+        monkeypatch.setattr(_P, "home",
+                            classmethod(lambda cls: tmp_path / "home_vacio"))
+        assert lb._find_gguf() is None

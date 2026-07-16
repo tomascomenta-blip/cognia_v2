@@ -13,11 +13,23 @@ import sys
 
 def main():
     ap = argparse.ArgumentParser(description="Oficina de trabajo agéntica de Cognia")
-    ap.add_argument("--puerto", type=int, default=8765)
+    # 8766: el 8765 es del cognia_desktop_api (colisión cazada en el e2e
+    # 2026-07-15: /oficina dejaba un server residual que pisaba al desktop).
+    ap.add_argument("--puerto", type=int, default=8766)
     ap.add_argument("--estado", default=os.path.join(os.getcwd(), "oficina_estado.json"))
     ap.add_argument("--sin-modelo", action="store_true",
                     help="solo dashboard/control, sin motor (no carga el 3B)")
     args = ap.parse_args()
+
+    # MISMO camino de arranque que el CLI: sin esto, el producto INSTALADO
+    # no veía LLAMA_GGUF_PATH/LLAMA_SERVER_PATH de ~/.cognia/config.env y el
+    # motor corría "sin backend de inferencia" (cazado e2e 2026-07-15: los
+    # trabajadores devolvían el error como resultado).
+    try:
+        from cognia.first_run import apply_config
+        apply_config()
+    except Exception:
+        pass
 
     from cognia.oficina.estado import Oficina
     from cognia.oficina.server import crear_server

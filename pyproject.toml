@@ -94,6 +94,10 @@ exclude = [
 [tool.setuptools.package-data]
 "shattering" = ["manifests/*.json"]
 "cognia" = ["knowledge/*.json", "knowledge/*.txt", "skills/*.md"]
+# Build Vite de la oficina 3D: sin esto /oficina3d instalado respondia
+# "falta el build 3d" (cazado e2e 2026-07-15). Solo el dist compilado
+# (~KBs), no node_modules/src (esos siguen fuera del wheel).
+"cognia.oficina" = ["web3d/dist/*", "web3d/dist/assets/*"]
 
 # (v3.6.0) Se removio el bloque py-modules: esos modulos top-level se reorganizaron
 # dentro del paquete cognia_v3/ (core/memory/interfaces) y ahora se empaquetan via

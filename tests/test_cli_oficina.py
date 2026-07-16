@@ -80,12 +80,12 @@ def test_oficina_launches_when_port_free(monkeypatch):
     popen_args = mock_popen.call_args[0][0]
     assert popen_args[0] == sys.executable
     assert popen_args[1:4] == ["-m", "cognia.oficina", "--puerto"]
-    assert popen_args[4] == "8765"
+    assert popen_args[4] == "8766"   # 8766 desde 2026-07-15 (8765 es del desktop API)
     # detached: stdout/stderr silenciados
     assert mock_popen.call_args.kwargs.get("stdout") is subprocess.DEVNULL
     assert mock_popen.call_args.kwargs.get("stderr") is subprocess.DEVNULL
 
-    mock_open.assert_called_once_with("http://127.0.0.1:8765/")
+    mock_open.assert_called_once_with("http://127.0.0.1:8766/")
 
 
 def test_oficina_custom_port_used_in_popen_and_url(monkeypatch):

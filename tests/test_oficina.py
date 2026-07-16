@@ -260,3 +260,41 @@ def test_server_api(tmp_path):
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def test_motor_trabajador_fallido_no_es_hecha(tmp_path, monkeypatch):
+    """Fix 2026-07-15: un resultado de error/vacio del trabajador -> tarea
+    FALLIDA y, si todos fallan, la meta cierra FALLIDA (antes el motor
+    marcaba 'hecha' con '(sin backend de inferencia...)' como resultado y
+    cero archivos producidos — cazado por el e2e del producto instalado)."""
+    from cognia.oficina.motor import Motor
+    import cognia.cli as cli_mod
+    of = _of(tmp_path)
+    mid = of.nueva_meta("crear flappy.html")
+    monkeypatch.setattr(
+        cli_mod, "_run_agent_task",
+        lambda *a, **kw: "(sin backend de inferencia: el agente no puede "
+                         "generar codigo)")
+    m = Motor(of, ai=object())
+    monkeypatch.setattr(m, "_infer", lambda prompt: "1. hacer el archivo")
+    m._procesa_meta(of.meta_pendiente())
+    snap = of.snapshot()
+    meta = [x for x in snap["metas"] if x["id"] == mid][0]
+    assert meta["estado"] == "fallida"
+    trabs = [t for t in snap["tareas"].values() if t["nivel"] == "trabajador"]
+    assert trabs and all(t["estado"] == "fallida" for t in trabs)
+
+
+def test_motor_trabajador_ok_meta_hecha(tmp_path, monkeypatch):
+    from cognia.oficina.motor import Motor
+    import cognia.cli as cli_mod
+    of = _of(tmp_path)
+    of.nueva_meta("crear un archivo x")
+    monkeypatch.setattr(cli_mod, "_run_agent_task",
+                        lambda *a, **kw: "archivo x creado OK")
+    m = Motor(of, ai=object())
+    monkeypatch.setattr(m, "_infer", lambda prompt: "")
+    m._procesa_meta(of.meta_pendiente())
+    snap = of.snapshot()
+    assert snap["metas"][0]["estado"] == "hecha"
+    assert "creado OK" in snap["metas"][0].get("resultado", "")
