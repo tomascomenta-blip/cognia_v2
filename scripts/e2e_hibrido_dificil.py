@@ -172,9 +172,9 @@ def main():
                   "ceros ('06' → 0, '0' → 0), overflow no aplica. eficiente "
                   "O(n). Ejemplos: decode_ways('12') == 2, "
                   "decode_ways('226') == 3, decode_ways('06') == 0")
-        res, det, mod, dur = correr(tarea4, "T4")
+        res, det, mod, esp, dur = correr(tarea4, "T4")
         check("T4 modalidad incluye superorganismo (perfil, sin env)",
-              "superorganismo" in mod, mod)
+              "superorganismo" in mod and mod == esp, f"{mod} vs {esp}")
         fn4 = ws / "decode_ways.py"
         ok4, det4 = False, "no se escribió decode_ways.py"
         if fn4.exists():
