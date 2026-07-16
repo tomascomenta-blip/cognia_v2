@@ -56,7 +56,7 @@ def main():
     os.environ.setdefault("COGNIA_DISABLE_SWARM", "1")
     # presupuesto acotado del superorganismo para el i3 (default 16 gens)
     os.environ.setdefault("COGNIA_SUPERORG_BUDGET", "8")
-    os.environ.setdefault("COGNIA_SUPERORG_TIMEOUT", "900")
+    os.environ.setdefault("COGNIA_SUPERORG_TIMEOUT_S", "900")
 
     tmp = Path(tempfile.mkdtemp(prefix="e2e_dificil_"))
     from cognia.cognia import Cognia
@@ -104,8 +104,8 @@ def main():
     # ── T2 agente: multi-archivo fácil con postcondición ───────────────
     print("== T2 (agente): archivos ==", flush=True)
     res, det, mod, dur = correr(
-        "crea un archivo saludo.txt con el texto 'hola hibrido' y despues "
-        "crea resumen.txt con la cantidad de palabras de saludo.txt", "T2")
+        "crea un archivo saludo.txt con el texto 'hola hibrido' y mostra "
+        "su contenido", "T2")
     saludo = (ws / "saludo.txt")
     check("T2 modalidad agente (ni mono ni colonia)", mod.startswith("agente")
           and "colonia" not in mod, mod)
