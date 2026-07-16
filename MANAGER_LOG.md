@@ -6425,3 +6425,29 @@ y pruebas difíciles finales.
   previas vía run_tool + 206 comandos REPL piped) y
   scripts/e2e_hibrido_dificil.py (5 tareas con modelo real, escalera
   mono→superorganismo con postcondiciones y asserts ocultos).
+
+### Cierre corrida /goal 2026-07-15 (~21:20) — GOAL COMPLETO
+Veredicto: híbrido por dificultad OPERATIVO a nivel de sistema y verificado
+en vivo. Resultados finales:
+- Suite: 3974 passed, 0 failed reales (1 flake de timing conocido bajo carga,
+  pasa aislado).
+- Batería goal B + tools previas: 22/22 (bateria_hibrido3.out).
+- Comandos: REPL real 181/181 sin crash, 0 tracebacks (25 skip declarados:
+  destructivos/red/servers).
+- Playwright desktop: 4/4 con test de regresión CSP nuevo. BUG REAL arreglado:
+  renderer localhost:8765 vs CSP 127.0.0.1 (historial/skills/files bloqueados
+  silenciosos en la app real; el chat iba por IPC y lo ocultaba).
+- Pruebas difíciles modelo real: 11/11 en 9.5 min (dificil_hibrido3.out).
+  T1 mono (2 pasos, cero etapas caras) → T2 agente+colonia (== predicción
+  bajo esfuerzo máximo del config) → T3 spiral_order y T4 decode_ways: el 3B
+  falló sus visibles → escalado 7B → asserts OCULTOS PASS (la colonia rescató
+  código duro EN VIVO) → T5 combinada con postcondición. Telemetría registra
+  modalidad/esfuerzo por invocación.
+Hallazgos honestos que quedan anotados: /oficina y desktop API comparten el
+default :8765 (colisión si conviven); leer/copiar resuelven al CWD y escribir
+al workspace (asimetría documentada en la batería); recordar es consistencia
+eventual (cola async de embeddings). La mesa redonda sigue opt-in (gate
+negativo previo respetado). Superorganismo: permiso por perfil funcionó; en
+estas tareas el 7B confirmó antes, así que la etapa 4 no gastó (diseño
+reactivo correcto; su capacidad más allá de la cascada ya quedó demostrada
+por el gate PREREG 3/13 del 2026-07-14).
