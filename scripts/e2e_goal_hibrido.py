@@ -316,9 +316,12 @@ def main():
 def _parte_repl():
     print("== 3. Comandos slash (REPL subproceso) ==", flush=True)
     from cognia.cli import COMMANDS
-    # skip: destructivos / red externa / servidores / pesados-LLM / salida
+    # skip: destructivos / red externa / servidores / pesados-LLM / salida.
+    # /oficina: arranca su dashboard DETACHED en :8765 (colisiona con el
+    # puerto del desktop API) y abre el navegador — cazado en la corrida 1.
     SKIP = {"/salir", "/update", "/mesh_iniciar", "/mesh_peer",
             "/mesh_publicar", "/backup", "/exportar-todo", "/dormir",
+            "/oficina",
             "/distill run", "/worktree", "/quiz", "/template",
             "/resume", "/historial-limpiar", "/limpiar-sesion",
             "/olvido", "/cognia-olvida", "/web-fetch", "/web-buscar",
