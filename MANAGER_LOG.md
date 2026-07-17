@@ -6539,3 +6539,30 @@ test de regresión y push por unidad.
   (marcado), propagación de mode=simulation por el protocolo swarm (severidad
   baja tras el fix del downloader), migración db_pool de database.db_connect
   (módulo a módulo).
+
+### Release 2026-07-17 (~06:57) — cognia-ai 3.9.1 PUBLICADO a PyPI
+Autorizado en el /goal del dueño ("al final subes esa version A PYPI").
+Contenido: instalación fácil v2 (oficina 3D empaquetada, apply_config en
+todos los entry points, install-model robusto, descubrimiento automático
+del modelo, puerto oficina 8766, TUI extra) + TODA la deuda técnica de la
+corrida 2026-07-16 (ver entrada anterior). Compuertas antes del upload:
+- Suite completa: 4002 passed (los 20 fallos que la suite cazó eran
+  diagnósticos: 12 tests actualizados a la conducta nueva deliberada, 5
+  del guard del 7B con opt-in explícito, 3 flakes de orden que pasan
+  aislados — verificado). En el camino se eliminó OTRA deuda real: 3 zonas
+  de la suite "rápida" arrancaban modelos REALES (research_question,
+  hypothesis, y la cascada q35/7B desde tests sin mock — la suite quedaba
+  clavada 25+ min con el 7B del config del usuario cargado). Guards de
+  hermeticidad pytest en la fuente (4d86db3, ab95e5b).
+- E2E CAMINO FELIZ con modelo real: 5/5 OK en 6.1 min.
+- twine check PASSED; wheel auditado (727 archivos: hybrid_router/oficina
+  3D/manifests adentro; 0 fugas de cognia_x/desktop/game/mobile/public_api;
+  0 datasets de training).
+- Subido wheel+sdist → verificado pip install cognia-ai==3.9.1 desde PyPI
+  REAL en venv limpio: versión correcta, route_profile vivo, catálogo sin
+  repos fantasma. Tag v3.9.1 pusheado.
+Nota honesta: la batería REPL completa (181 comandos) no se re-corrió en
+esta corrida (la última fue 2026-07-15 con 3.9.0); la cubren la suite
+actualizada + el smoke piped en vivo de los comandos editados (/help,
+/cognia-info, /backup con 676MB reales). Pendiente del dueño (previo):
+yankear 3.8.4.
