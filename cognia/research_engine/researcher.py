@@ -38,8 +38,17 @@ _LOCAL_ORCH = None  # lazy: solo si nadie inyecta un llm (tool research_llm suel
 
 
 def _llm_local():
-    """Orquestador lazy propio (backend real) para callers sin instancia."""
+    """Orquestador lazy propio (backend real) para callers sin instancia.
+
+    Higiene del instrumento (mismo patron que hybrid_router._config_effort):
+    bajo pytest NO se construye el orquestador — cargaria el modelo REAL
+    (cazado 2026-07-16: la suite quedo colgada cargando el 7B porque un test
+    ejercitaba research_question sin mock; antes 'funcionaba' solo porque el
+    unico backend era un Ollama muerto que fallaba rapido). Un test que
+    quiera el camino real inyecta llm= o mockea este hook."""
     global _LOCAL_ORCH
+    if os.environ.get("PYTEST_CURRENT_TEST") and _LOCAL_ORCH is None:
+        return None
     try:
         if _LOCAL_ORCH is None:
             from shattering.orchestrator import ShatteringOrchestrator
