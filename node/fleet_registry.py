@@ -153,6 +153,15 @@ def fleet_backend(key: str) -> Optional[_LlamaServerBackend]:
     si el modelo no entra en el presupuesto se evicta el LRU primero."""
     if not _habilitado():
         return None
+    # Higiene del instrumento (cazado 2026-07-16): bajo pytest NO se arranca
+    # un server real — la etapa q35 de generar_codigo llegaba aca desde tests
+    # de la cascada que no la mockeaban y la suite "rapida" cargaba un 4B de
+    # verdad (con el 7B residente: 10-25 min de generacion swapeada). Un test
+    # que quiera el fleet real setea COGNIA_FLEET30_MANIFEST o monkeypatchea
+    # esta funcion.
+    if (os.environ.get("PYTEST_CURRENT_TEST")
+            and not os.environ.get("COGNIA_FLEET30_MANIFEST")):
+        return None
     if key in _SERVERS:
         _touch_lru(key)
         return _SERVERS[key]

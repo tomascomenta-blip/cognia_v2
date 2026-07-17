@@ -92,6 +92,14 @@ def heavy_code_backend() -> Optional[_LlamaServerBackend]:
     global _HEAVY_SINGLETON, _HEAVY_FAILED
     if not _habilitado():
         return None
+    # Higiene del instrumento (mismo patron que fleet_registry, 2026-07-16):
+    # bajo pytest NO se arranca el 7B real; los tests del escalado
+    # monkeypatchean esta funcion, y uno que quiera el 7B de verdad setea el
+    # override explicito COGNIA_HEAVY_CODE_GGUF (no la var de config
+    # instalada, que apply_config exportaria y burlaria el guard).
+    if (os.environ.get("PYTEST_CURRENT_TEST")
+            and not os.environ.get("COGNIA_HEAVY_CODE_GGUF")):
+        return None
     if _HEAVY_SINGLETON is not None:
         return _HEAVY_SINGLETON
     if _HEAVY_FAILED:
