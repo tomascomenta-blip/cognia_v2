@@ -5,5 +5,5 @@ con el flujo completo visible. Construida SOBRE la maquinaria agéntica real
 de Cognia: los trabajadores corren `cli._run_agent_task` con tools acotadas
 por rol (ROLE_TOOLS) y el jefe/directores planifican con `orch.infer`.
 
-Arrancar: python -m cognia.oficina  →  http://127.0.0.1:8765
+Arrancar: python -m cognia.oficina  →  http://127.0.0.1:8766
 """

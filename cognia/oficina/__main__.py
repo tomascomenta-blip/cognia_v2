@@ -1,4 +1,4 @@
-"""Arranque de la oficina: python -m cognia.oficina [--puerto 8765] [--sin-modelo]
+"""Arranque de la oficina: python -m cognia.oficina [--puerto 8766] [--sin-modelo]
 
 Levanta el dashboard en http://127.0.0.1:<puerto> y el motor jefe/directores/
 trabajadores sobre el backend REAL de Cognia (mismo camino que el CLI).

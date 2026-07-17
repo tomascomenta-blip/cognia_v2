@@ -567,7 +567,7 @@ async def shattering_infer(
 
     If sub_model is omitted, GlobalRouter picks it automatically.
     Internally: creates a session for the target model, waits for shards to connect,
-    forwards a stub hidden state, and returns the session result.
+    forwards the encoded prompt (PTYPE_TEXT) to shard 0, and returns the session result.
 
     Note: real token generation requires the shard nodes to be running with actual
     weights. Without connected shard nodes this returns a 503.

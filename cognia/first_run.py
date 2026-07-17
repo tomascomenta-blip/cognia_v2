@@ -247,7 +247,8 @@ def apply_config() -> None:
     pisando un config.env fresco era invisible y muy dificil de diagnosticar
     (auditoria 2026-07-15; el caso real: LLAMA_LORA_PATH de User mataba el
     fleet sin sintoma)."""
-    for k, v in _load_config().items():
+    config = _load_config()
+    for k, v in config.items():
         if k not in os.environ:
             os.environ[k] = v
         elif os.environ[k] != v and k.startswith(("LLAMA_", "COGNIA_",
@@ -255,6 +256,15 @@ def apply_config() -> None:
             print(f"  [config] {k} del entorno "
                   f"({os.environ[k][:40]!r}) pisa el valor de config.env "
                   f"({v[:40]!r}); si no es a proposito, borra la env var.")
+    # El loop de arriba solo ve claves PRESENTES en config.env: una var
+    # peligrosa residual del sistema que no este en el archivo seguia matando
+    # el fleet en mudo (el caso exacto de la auditoria: LLAMA_LORA_PATH de
+    # User aplica UN adapter estatico y desactiva el hot-swap de expertos).
+    for k in ("LLAMA_LORA_PATH",):
+        if k in os.environ and k not in config:
+            print(f"  [config] {k} viene del entorno del sistema (no de "
+                  f"config.env): fija un solo adapter y DESACTIVA el fleet "
+                  f"de expertos; si no es a proposito, borra la env var.")
 
 
 def set_config_value(key: str, value: str) -> None:

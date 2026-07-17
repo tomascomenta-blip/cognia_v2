@@ -89,12 +89,16 @@ MODEL_CATALOG: dict = {
         intermediate_dim = 14336,
         n_shards         = 4,
     ),
-    # ── Shattering sub-models (placeholder HF repos until published) ────
-    # Point to the base Llama repo for now; replace with fine-tuned repos
-    # once cognia-ai/logos-3.2-3b-q4 etc. are published on HuggingFace.
-    "logos-3.2-3b-q4":  _llama32_src("cognia-ai/logos-3.2-3b-q4"),
-    "techne-3.2-3b-q4": _llama32_src("cognia-ai/techne-3.2-3b-q4"),
-    "rhetor-3.2-3b-q4": _llama32_src("cognia-ai/rhetor-3.2-3b-q4"),
+    # ── Shattering sub-models (LOGOS/TECHNE/RHETOR) ─────────────────────
+    # Los sub-modelos son la MISMA base con perfiles de generación distintos
+    # (shattering/router.py); no existen repos fine-tuned separados. Antes
+    # apuntaban a repos cognia-ai/* inexistentes (404 garantizado → el nodo
+    # caía a simulación en silencio). El repo base es gated en HF: requiere
+    # HF_TOKEN con la licencia aceptada; sin token la descarga falla con
+    # ok=False (honesto) en vez de simular.
+    "logos-3.2-3b-q4":  _llama32_src("meta-llama/Llama-3.2-3B-Instruct"),
+    "techne-3.2-3b-q4": _llama32_src("meta-llama/Llama-3.2-3B-Instruct"),
+    "rhetor-3.2-3b-q4": _llama32_src("meta-llama/Llama-3.2-3B-Instruct"),
 }
 
 HF_BASE = "https://huggingface.co"
@@ -185,11 +189,15 @@ class ShardDownloader:
         result = self._try_hf_download(on_progress)
 
         if not result.ok:
-            # Fallback: marcar como solo-simulación
-            on_progress(1.0, "Sin pesos reales — usando modo simulación")
-            self._write_meta(mode="simulation", size_mb=0.0)
-            return DownloadResult(ok=True, shard_path=self.output_dir,
+            # Descarga FALLIDA: reportarla como tal (ok=False) y NO escribir
+            # shard_meta.json — escribirlo hacia que is_downloaded() diera True
+            # y el nodo quedaba en simulación para siempre sin reintentar.
+            # El caller decide si acepta correr sin pesos (client.py ya imprime
+            # la falla y el engine cae a modo simulación explícitamente).
+            on_progress(1.0, f"Sin pesos reales — descarga fallida: {result.error or 'sin detalle'}")
+            return DownloadResult(ok=False, shard_path=self.output_dir,
                                   mode="simulation",
+                                  error=result.error or "descarga fallida",
                                   duration_s=time.perf_counter() - t0)
 
         result.duration_s = time.perf_counter() - t0

@@ -53,9 +53,13 @@ try:
 except ImportError:
     HAS_CODE_MEMORY = False
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, BASE_DIR)
-os.chdir(BASE_DIR)
+# (2026-07-16) Se eliminó el trío BASE_DIR + sys.path.insert + os.chdir de
+# nivel de módulo (era para correr el script suelto): este módulo se importa
+# LAZY desde el chat de producción (cli.py, app/routes/chat.py) y el os.chdir
+# cambiaba el cwd del proceso entero a site-packages/cognia_v3/interfaces —
+# todo path relativo posterior (archivos del agente, oficina_estado.json)
+# caía ahí en vez del directorio del usuario. Los imports del módulo son
+# package-qualified: no necesitan sys.path.
 
 
 def _trim_context_smart(ctx: str, max_chars: int = 1600) -> str:

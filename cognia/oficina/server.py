@@ -177,7 +177,10 @@ carga(); setInterval(carga, 2000);
 </script></body></html>"""
 
 
-def crear_server(oficina, host: str = "127.0.0.1", puerto: int = 8765):
+def crear_server(oficina, host: str = "127.0.0.1", puerto: int = 8766):
+    # 8766: el 8765 es del cognia_desktop_api (colisión cazada 2026-07-15);
+    # el default tiene que coincidir con __main__/cli para que ningún caller
+    # nuevo reproduzca el bug.
     """ThreadingHTTPServer listo para serve_forever(). El motor va aparte."""
     t0 = time.time()
     if psutil is not None:
