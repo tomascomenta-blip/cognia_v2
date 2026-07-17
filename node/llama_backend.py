@@ -11,19 +11,12 @@ Priority order:
 This module NEVER raises — every public function returns None on failure so
 the rest of Cognia keeps working unchanged.
 
-Setup (run once when disk space is available):
-  pip install llama-cpp-python          # Python 3.12 or lower
-  # OR download llama-server binary from https://github.com/ggerganov/llama.cpp/releases
-  # and place it in node/ or anywhere in PATH.
-
-  Model (GGUF, ~2GB):
-    huggingface-cli download bartowski/Qwen2.5-Coder-3B-Instruct-GGUF \
-        --include "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf" \
-        --local-dir model_shards/qwen-coder-3b-q4
-
-  Then set in .env:
-    LLAMA_GGUF_PATH=model_shards/qwen-coder-3b-q4/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf
-    LLAMA_SERVER_PORT=8088   # optional, default 8088 (avoids clash with app :8000)
+Setup: el camino recomendado es `cognia install-model` — descarga el GGUF 3B
+Q4_K_M + llama-server b9391 + fleet de expertos a ~/.cognia/ y escribe
+LLAMA_GGUF_PATH / LLAMA_SERVER_PATH en ~/.cognia/config.env (apply_config()
+los carga en todos los entry points). Manual (avanzado): definir esas claves
+en config.env apuntando a un GGUF/binario propios; LLAMA_SERVER_PORT opcional
+(default 8088, evita chocar con app :8000).
 
 NOTE: node/llama-server.exe is pinned to b9391 (7fb1e70b5) — b9414 has a ~37% CPU
 decode regression measured on i3-10110U (5.2 vs 8.2 tok/s). Do NOT update the binary

@@ -50,7 +50,10 @@ class VocabPruner:
     WARMUP_TURNS    = 3     # use full vocab for first N turns
     VERIFY_PROB     = 0.01  # fraction of steps that verify against full vocab
 
-    def __init__(self, vocab_size: int = 151936) -> None:
+    def __init__(self, vocab_size: int = None) -> None:
+        if vocab_size is None:
+            from shattering.model_constants import QWEN25_CODER_3B
+            vocab_size = QWEN25_CODER_3B["vocab_size"]
         self.vocab_size = vocab_size
         self._token_history: deque[int] = deque(maxlen=self.HISTORY_LEN)
         self._turn_count: int = 0

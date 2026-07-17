@@ -46,7 +46,8 @@ SWARM_MODEL      = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
 SWARM_TIMEOUT    = int(os.environ.get("SWARM_TIMEOUT_S", "30"))
 
 # Qwen2 generation sentinel tokens (both <|im_end|> and <|endoftext|>)
-_QWEN_EOS_TOKENS = {151643, 151645}
+from shattering.model_constants import QWEN25_CODER_3B as _QWEN
+_QWEN_EOS_TOKENS = {_QWEN["bos_token_id"], _QWEN["eos_token_id"]}
 # Legacy Llama EOS for backward compat
 _LLAMA_EOS_TOKEN = 2
 
@@ -91,7 +92,7 @@ class LightTokenizer:
       decode(ids)  → str
     """
 
-    VOCAB_SIZE = 151936   # Qwen2 vocabulary size
+    VOCAB_SIZE = _QWEN["vocab_size"]   # Qwen2 vocabulary size
 
     def __init__(self):
         self._cache: dict = {}
@@ -459,7 +460,7 @@ class DistributedInferencePipeline:
             flat = output[-1].astype(np.float32)
         else:
             flat = output.flatten().astype(np.float32)
-        vocab_size = self._get_model_config().get("vocab_size", 151936)
+        vocab_size = self._get_model_config().get("vocab_size", _QWEN["vocab_size"])
         if len(flat) > vocab_size:
             flat = flat[:vocab_size]
         elif len(flat) < vocab_size:
@@ -489,7 +490,7 @@ class DistributedInferencePipeline:
             is_qwen = "qwen" in self.model_name.lower()
             return {
                 "hidden_dim": 2048 if is_qwen else 3072,
-                "vocab_size": 151936 if is_qwen else 32000,
+                "vocab_size": _QWEN["vocab_size"] if is_qwen else 32000,
                 "n_shards":   4,
             }
 

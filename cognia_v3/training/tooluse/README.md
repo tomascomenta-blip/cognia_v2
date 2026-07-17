@@ -52,15 +52,18 @@ python <llama.cpp b9391>/convert_lora_to_gguf.py checkpoints/tooluse/final_adapt
 ```
 Salida: `tooluse_adapter_v4_f16.gguf` (7.4 MB, 288 tensores, gitignoreado → regenerable).
 
-Activación (persistente, User scope; `_lora_args()` en `node/llama_backend.py` lo pasa como
-`--lora`):
-```
-[Environment]::SetEnvironmentVariable("LLAMA_LORA_PATH", "<...>/tooluse_adapter_v4_f16.gguf", "User")
-```
-**Revertir** (volver al base sin adapter): borrar la env var:
-```
-[Environment]::SetEnvironmentVariable("LLAMA_LORA_PATH", $null, "User")
-```
+> **HISTÓRICO / DEPRECADO (2026-07-16).** La activación por env var User que
+> recomendaba esta sección se borró a propósito el 2026-07-08 (GATES_CLI_VNEXT):
+> una `LLAMA_LORA_PATH` estática aplica UN adapter fijo y **DESACTIVA el fleet
+> de expertos** (hot-swap por `adapters.json`) sin síntoma — el footgun exacto
+> que mató el fleet en la auditoría. **El camino actual** es declarar el adapter
+> en `adapters.json` junto al GGUF (lo instala `cognia install-model`); ver
+> `node/fleet_registry.py` y `cognia/agent/fleet_router.py`. `apply_config()`
+> avisa si detecta una `LLAMA_LORA_PATH` residual del sistema.
+>
+> Activación vieja (solo para arqueología; NO usar):
+> `[Environment]::SetEnvironmentVariable("LLAMA_LORA_PATH", ..., "User")` /
+> revertir con `$null`.
 
 **Verificación E2E REAL (honesta):** con el server arrancado con `--lora`, `search_word` pasó de
 `leer_archivo` (base, mal) → `escribir_archivo` (adapter, bien) → el LoRA SÍ se aplica en el deploy.

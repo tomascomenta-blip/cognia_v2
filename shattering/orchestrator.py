@@ -29,9 +29,15 @@ from shattering.manifest import AppManifest, FragmentSpec, ManifestLoader
 from shattering.fragment_manager import FragmentManager
 from shattering.model_constants import (
     COGNIA_SYSTEM_PROMPT, DEFAULT_RST_PASSES, LPC_MAX_SESSIONS, LPC_TTL_SECONDS,
+    QWEN25_CODER_3B,
 )
 from shattering.router import GlobalRouter, RouteDecision
 from security.ollama_url import validate_ollama_url
+
+# Derivados de la fuente unica (regla del repo: sin constantes de modelo
+# hardcodeadas fuera de model_constants).
+_QWEN_EOS_SET = {QWEN25_CODER_3B["bos_token_id"], QWEN25_CODER_3B["eos_token_id"]}
+_QWEN_VOCAB   = QWEN25_CODER_3B["vocab_size"]
 
 logger = logging.getLogger(__name__)
 
@@ -671,10 +677,10 @@ class ShatteringOrchestrator:
         route      = self._local_route
         t0         = _time.perf_counter()
         is_qwen    = "qwen" in pipeline.model_name.lower()
-        _QWEN_EOS  = {151643, 151645}
+        _QWEN_EOS  = _QWEN_EOS_SET
         system     = COGNIA_SYSTEM_PROMPT
         formatted  = _apply_qwen_template(prompt, system) if is_qwen else prompt
-        vocab_size = 151936 if is_qwen else 32000
+        vocab_size = _QWEN_VOCAB if is_qwen else 32000
         _N_DRAFT   = 6
 
         all_ids = np.array(pipeline._encode(formatted), dtype=np.int32)
@@ -884,7 +890,7 @@ class ShatteringOrchestrator:
 
         t0        = _time.perf_counter()
         is_qwen   = "qwen" in pipeline.model_name.lower()
-        _QWEN_EOS = {151643, 151645}
+        _QWEN_EOS = _QWEN_EOS_SET
         system    = COGNIA_SYSTEM_PROMPT
         formatted = _apply_qwen_template(prompt, system) if is_qwen else prompt
         eos_set   = _QWEN_EOS if is_qwen else {2}
@@ -949,7 +955,7 @@ class ShatteringOrchestrator:
         import time as _time
         from node.inference_pipeline import _LOCAL_ENGINES
 
-        vocab_size       = 151936
+        vocab_size       = _QWEN_VOCAB
         _N_DRAFT         = 6
         prompt_ids_local = current_ids.copy()  # save full prompt for draft context
         generated_ids    = []
