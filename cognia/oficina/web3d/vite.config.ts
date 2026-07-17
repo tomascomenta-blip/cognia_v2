@@ -7,7 +7,7 @@ export default defineConfig({
   base: '/oficina3d/',
   plugins: [react(), tailwindcss()],
   server: {
-    // dev suelto (npm run dev): el backend real de la oficina corre en 8765
-    proxy: { '/api': 'http://127.0.0.1:8765' },
+    // dev suelto (npm run dev): la oficina corre en 8766 (el 8765 es del desktop API)
+    proxy: { '/api': 'http://127.0.0.1:8766' },
   },
 })

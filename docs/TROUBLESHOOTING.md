@@ -2,11 +2,27 @@
 
 ## Diagnosis
 
-Run `python scripts/cognia_doctor.py` first. It checks Python version, required packages, Ollama, `.env`, database, and model shards.
+Run `cognia doctor` first. It checks Python version, required packages, the
+**GGUF backend** (llama-server + model, the real production stack), Ollama
+(optional fallback), `~/.cognia/config.env`, database, and model shards.
 
 ---
 
 ## Common issues
+
+### "Sin backend de inferencia" / respuestas sin modelo
+
+**Cause:** El stack de inferencia no esta instalado o `config.env` no apunta a el.
+
+**Fix:**
+```bash
+cognia install-model     # instala GGUF 3B + llama-server + portero a ~/.cognia/
+cognia doctor            # verifica el backend
+```
+
+Si definiste env vars `LLAMA_*` en el sistema, MANDAN sobre `~/.cognia/config.env`
+(el CLI avisa cuando una pisa un valor). En particular, una `LLAMA_LORA_PATH`
+residual desactiva el fleet de expertos: borrala.
 
 ### CLI shows `[WARNING] module not available`
 
@@ -14,9 +30,9 @@ Run `python scripts/cognia_doctor.py` first. It checks Python version, required 
 
 **Fix:** These are optional. Cognia works without them. If you need the module, install its dependencies manually.
 
-### Responses fall back to symbolic mode
+### Responses fall back to symbolic mode (legacy Ollama path)
 
-**Cause:** Ollama is not running or the model is not pulled.
+**Cause:** Solo aplica si usas Ollama como fallback: no esta corriendo o falta el modelo.
 
 **Fix:**
 ```bash
@@ -24,7 +40,8 @@ ollama serve                    # start Ollama
 ollama pull llama3.2            # pull the required model
 ```
 
-Check that `OLLAMA_URL` in `.env` matches the Ollama address.
+Check that `OLLAMA_URL` matches the Ollama address. El camino recomendado es
+`cognia install-model` (no requiere Ollama).
 
 ### `database is locked` errors
 
@@ -48,7 +65,7 @@ Cognia v3> desbloquear <your-passphrase>
 **Fix:**
 1. Verify `COGNIA_COORDINATOR_URL` in `.env`
 2. Check coordinator logs: `python -m uvicorn coordinator.app:app --port 8001`
-3. Run `python scripts/cognia_doctor.py` to check connectivity
+3. Run `cognia doctor` to check connectivity
 
 ### `COORDINATOR_KEY is not set` warning in coordinator logs
 
@@ -92,6 +109,6 @@ Log level can be configured by setting the `LOG_LEVEL` env var to `DEBUG`, `INFO
 
 ## Reporting issues
 
-Include the output of `python scripts/cognia_doctor.py` in your report.
+Include the output of `cognia doctor` in your report.
 
 https://github.com/tomascomenta-blip/cognia_v2/issues

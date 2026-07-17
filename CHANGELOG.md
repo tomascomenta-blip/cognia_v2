@@ -23,6 +23,69 @@
   `cognia install-model` + `cognia` funciona sin configurar nada.
 - **Puerto de la oficina 8765 → 8766**: el 8765 es del backend del desktop
   (colisión detectada cuando ambos conviven).
+- **Todos los entry points cargan la configuración**: `cognia-node`,
+  `python -m cognia.cli|cognia.tui|cognia.doctor|node.heavy_code` y
+  `uvicorn app.main:app` ahora aplican `~/.cognia/config.env` (antes solo
+  el comando `cognia`; el nodo del swarm podía re-registrarse de cero y
+  servir "modo simulación").
+- **`cognia install-model` robusto**: chequea espacio en disco antes de
+  descargar, timeout de red + limpieza de descargas a medias, mensajes de
+  error accionables (no tracebacks), y los flags con typo abortan en vez de
+  instalar otra cosa en silencio.
+- **El wizard y `install-model` ya no se pisan**: `config.env` se escribe
+  con merge — correr uno después del otro preservaba antes solo las claves
+  del último.
+- **`/modelo 7b` y el escalado de código 7B funcionan instalados**: el
+  registry de GGUFs cae a `~/.cognia/models/` cuando la ruta del repo no
+  existe (antes el 7B instalado nunca resolvía y la cascada quedaba muda).
+- **TUI**: `pip install cognia-ai[tui]` (textual es opcional); sin el extra
+  el mensaje lo dice en vez de un `ModuleNotFoundError`; su CSS viaja en el
+  wheel.
+- **Primer arranque claro**: los avisos de "sin backend" son visibles (no
+  se suprimen en modo sencillo) y recomiendan `cognia install-model`; se
+  avisa cuando una env var del sistema pisa un valor de `config.env`.
+
+### Deuda técnica eliminada (auditoría completa 2026-07-16)
+
+- **`/crear`, `/encolar`, el researcher y las hipótesis usan el backend
+  REAL**: generaban solo contra Ollama hardcodeado (muerto en la
+  instalación recomendada) — ahora van por el orquestador GGUF y Ollama
+  quedó como fallback opcional que respeta `OLLAMA_URL`; sin backend el
+  mensaje dice la causa real en vez de culpar a la calidad.
+- **`/backup` funciona**: buscaba `cognia.db` en rutas de la era anterior
+  y nunca respaldaba la DB real (`~/.cognia/cognia_memory.db`).
+- **`/feedback` aprende de verdad**: un import roto (módulo inexistente)
+  dejaba el learner en None desde siempre.
+- **`/debate`, `/y-si`, `/cadena-causal`, `/reflexion-profunda` y
+  `/argumento` generan con el modelo**: eran plantillas fijas con el tema
+  interpolado fingiendo ser análisis.
+- **`cognia doctor` / `status` / `modo local` diagnostican el backend
+  GGUF real** (antes solo Ollama y shards numpy: una instalación sana
+  reportaba "no disponible"); `/help` existe como alias de `/ayuda`; el
+  `/ayuda` ahora lista el núcleo del producto (`/hacer`, `/esfuerzo`,
+  `/modelo`, `/largo`...).
+- **Un nodo swarm sin pesos ya no simula en silencio**: la descarga
+  fallida se reporta como fallida (antes `ok=True` + capas simuladas
+  sirviendo hidden states como si fueran reales, sin reintento posible).
+- **Importar módulos del wheel es inerte**: tres scripts de eval
+  ejecutaban su flujo completo al importarse (uno corría el agente LIVE y
+  borraba archivos del cwd del usuario).
+- **`os.chdir` eliminado de un import del chat**: el primer turno
+  no-streaming movía el cwd del proceso a site-packages y los archivos
+  del agente caían ahí.
+- **SQLite por el pool compartido** en los 10 call-sites por-operación
+  (algunos sin WAL ni timeout → "database is locked" esporádicos); de
+  paso se arreglaron dos bugs del propio pool (proxy de escritura y fuga
+  de `row_factory` entre usuarios).
+- **Constantes de modelo unificadas** en `shattering/model_constants`
+  (vocab/EOS duplicados en 5 módulos); CORS acepta `127.0.0.1`; ~50 URLs
+  del CLI al desktop API van a `127.0.0.1`; puerto default de la oficina
+  corregido también en `crear_server`.
+- **Docs al día**: README (agente + ruteo híbrido + `/esfuerzo` + TUI +
+  benchmarks reales Q4_K_M/threads=3 + links absolutos para PyPI),
+  INSTALL/TROUBLESHOOTING sin Ollama-como-prerequisito, y el vault de
+  arquitectura (`wiki/`) re-encuadrado a la era híbrida (16 páginas
+  nuevas, 3 reescritas, 14 corregidas).
 
 ---
 

@@ -1,6 +1,34 @@
 # Cognia — Installation Guide
 
-## Download (recommended for beta testers)
+## La via recomendada (PyPI)
+
+```bash
+pip install cognia-ai
+cognia install-model     # GGUF 3B + llama-server + portero 0.5B + expertos LoRA -> ~/.cognia/
+cognia                   # wizard en el primer uso, luego el REPL
+```
+
+Eso es todo: no requiere Ollama, ni compilador, ni GPU. `install-model` deja el
+backend configurado en `~/.cognia/config.env` y `cognia doctor` verifica la
+instalacion (incluido el backend GGUF).
+
+Opcionales:
+
+```bash
+pip install "cognia-ai[semantic]"   # embeddings reales (sentence-transformers, ~2GB)
+pip install "cognia-ai[tui]"        # interfaz TUI (textual)
+cognia install-model --with-heavy-code   # especialista 7B de codigo (~4.7 GB, opt-in)
+```
+
+## Requirements
+
+- Python 3.11 or 3.12
+- ~4 GB RAM para el 3B (8+ GB si sumas el 7B opt-in)
+- No GPU required; runs on CPU
+
+---
+
+## Desktop App (beta testers)
 
 Download the pre-built installer for your platform — no git or Python required:
 
@@ -15,18 +43,12 @@ The installer does not require administrator privileges by default.
 
 **Linux:** `chmod +x CogniaDesktop-*.AppImage && ./CogniaDesktop-*.AppImage`
 
-**Prerequisites for all platforms:** [Ollama](https://ollama.ai) must be installed and running.
-After installing Ollama: `ollama pull llama3.2`
+> Nota: los instaladores Desktop publicados son de una version anterior (era
+> 3.2.x); el paquete de PyPI es la via al dia.
 
 ---
 
-## Requirements
-
-- Python 3.11 or 3.12
-- 2 GB RAM minimum (4 GB recommended with Shattering)
-- No GPU required; runs on CPU
-
-## Quick install (recommended)
+## Install desde el repo (desarrollo / stack swarm legacy)
 
 ### Windows
 
@@ -44,7 +66,9 @@ cd cognia_v2
 bash install.sh
 ```
 
-The installer checks Python, installs dependencies, and creates `.env` from `.env.example`.
+The installer checks Python, installs dependencies, and creates `.env` from
+`.env.example`. Estos scripts montan el stack de shards numpy/swarm (legacy);
+para el backend recomendado corre igualmente `cognia install-model`.
 
 ## Manual install
 
@@ -54,71 +78,8 @@ cp .env.example .env
 # Edit .env and fill in the required values
 ```
 
-## Optional: Ollama (LLM backend)
+## Optional: Ollama (fallback legacy)
 
-Cognia uses Ollama for natural-language responses. Without it, responses fall back to symbolic mode.
-
-1. Download from https://ollama.ai
-2. Pull the required models:
-
-```bash
-ollama pull llama3.2
-ollama pull qwen2.5-coder
-```
-
-3. Set `OLLAMA_URL=http://localhost:11434` in `.env`
-
-## Verify installation
-
-```bash
-python scripts/cognia_doctor.py
-```
-
-All items should show `[OK]`. Ollama items show `[WARN]` if not installed (non-blocking).
-
-## Starting the CLI
-
-```bash
-python -m cognia
-```
-
-## Starting the web API
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-## Starting the Desktop app (Electron)
-
-```bash
-cd cognia_desktop
-npm install
-npm start
-```
-
-## Environment variables
-
-Copy `.env.example` to `.env` and configure:
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OLLAMA_URL` | No | Ollama server URL (default: `http://localhost:11434`) |
-| `COGNIA_COORDINATOR_URL` | No | Coordinator URL for distributed mode |
-| `COORDINATOR_KEY` | Production | Admin key for coordinator endpoints |
-| `COGNIA_ADMIN_KEY` | No | Key for `/api/user/data/*` endpoints |
-| `COGNIA_ENCRYPT_PASSPHRASE` | No | Passphrase for DB column encryption |
-| `PORT` | No | Web API port (default: 8000) |
-
-## Updating
-
-```bash
-python scripts/cognia_update.py
-```
-
-Or from the CLI:
-
-```
-Cognia v3> update
-```
-
-This pulls the latest code, upgrades dependencies, and applies any DB schema migrations.
+Ollama ya NO es prerequisito ni el backend de Cognia (el backend es
+llama-server + GGUF via `cognia install-model`). Si defines `OLLAMA_URL` y no
+hay backend GGUF vivo, algunos modulos lo usan como ultimo recurso.
