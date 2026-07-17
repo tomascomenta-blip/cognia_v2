@@ -1,0 +1,1857 @@
+{
+  "label": "baseline",
+  "timestamp": "2026-07-03T19:25:25.201802",
+  "model": "none (--check-only: self-test del oraculo, sin backend)",
+  "check_only": true,
+  "n_items": 200,
+  "n_passed": 200,
+  "accuracy": 1.0,
+  "by_category": {
+    "simple": {
+      "total": 40,
+      "passed": 40
+    },
+    "multiple": {
+      "total": 40,
+      "passed": 40
+    },
+    "parallel": {
+      "total": 40,
+      "passed": 40
+    },
+    "parallel_multiple": {
+      "total": 40,
+      "passed": 40
+    },
+    "live_simple": {
+      "total": 40,
+      "passed": 40
+    }
+  },
+  "results": [
+    {
+      "id": "simple_393",
+      "category": "simple",
+      "prompt_len": 1247,
+      "response": "convert_currency(base_currency='JPY', target_currency='USD', amount=20000)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_15",
+      "category": "simple",
+      "prompt_len": 1475,
+      "response": "integrate(function='x**3', start_x=-2, end_x=3, method='simpson')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_109",
+      "category": "simple",
+      "prompt_len": 1202,
+      "response": "random_forest.train(n_estimators=100, max_depth=5, data='my_data')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_80",
+      "category": "simple",
+      "prompt_len": 1510,
+      "response": "find_restaurants(location='Manhattan, New York City', food_type='Thai', number=5, dietary_requirements=['vegan'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_224",
+      "category": "simple",
+      "prompt_len": 1310,
+      "response": "social_media_analytics.most_followed(topic='psychology', sub_topics=['behaviour', 'group dynamics'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_210",
+      "category": "simple",
+      "prompt_len": 1125,
+      "response": "get_news(topic='Bitcoin', quantity=5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_200",
+      "category": "simple",
+      "prompt_len": 1557,
+      "response": "calculate_emissions(distance=12000, fuel_type='gas', fuel_efficiency=25.0)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_162",
+      "category": "simple",
+      "prompt_len": 1324,
+      "response": "generate_law_contract(parties=['John', 'Alice'], contract_type='Rental Agreement', location='California')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_79",
+      "category": "simple",
+      "prompt_len": 1171,
+      "response": "create_histogram(data=[85, 90, 88, 92, 86, 89, 91], bins=5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_145",
+      "category": "simple",
+      "prompt_len": 1590,
+      "response": "calculate_compounded_interest(principal=5000, interest_rate=0.05, period=10)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_50",
+      "category": "simple",
+      "prompt_len": 1735,
+      "response": "entropy_change.calculate(substance='ice', mass=1, initial_temperature=0, final_temperature=100)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_35",
+      "category": "simple",
+      "prompt_len": 1265,
+      "response": "vegan_restaurant.find_nearby(location='New York, NY', operating_hours=23)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_138",
+      "category": "simple",
+      "prompt_len": 1555,
+      "response": "portfolio_future_value(stock='X', invested_amount=5000, expected_annual_return=0.05, years=7)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_370",
+      "category": "simple",
+      "prompt_len": 1336,
+      "response": "safeway.order(location='Palo Alto', items=['olive oil', 'rice'], quantity=[3, 1])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_293",
+      "category": "simple",
+      "prompt_len": 1506,
+      "response": "music_composer.create_mix(scale='C Major', note_duration='quarter', track_length=180)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_112",
+      "category": "simple",
+      "prompt_len": 1244,
+      "response": "calculate_probability(total_outcomes=52, favorable_outcomes=4)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_111",
+      "category": "simple",
+      "prompt_len": 1106,
+      "response": "random.normalvariate(mu=0, sigma=1)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_140",
+      "category": "simple",
+      "prompt_len": 1357,
+      "response": "calculate_cagr(initial_value=2000, final_value=3000, period_in_years=4)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_199",
+      "category": "simple",
+      "prompt_len": 1127,
+      "response": "environmental_data.air_quality_index(location='San Jose', days=3)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_205",
+      "category": "simple",
+      "prompt_len": 1338,
+      "response": "get_traffic_info(start_location='Boston', end_location='New York')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_330",
+      "category": "simple",
+      "prompt_len": 1324,
+      "response": "board_game_info(game_name='Catan', info_required=['average_review_rating', 'age_range'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_376",
+      "category": "simple",
+      "prompt_len": 1194,
+      "response": "time_zone_converter(city='London', country='UK', display_format='24h')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_11",
+      "category": "simple",
+      "prompt_len": 1071,
+      "response": "calculate_triangle_area(base=10, height=5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_357",
+      "category": "simple",
+      "prompt_len": 1153,
+      "response": "get_recipe(dish_name='chocolate cake', diet_preference='vegan')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_19",
+      "category": "simple",
+      "prompt_len": 986,
+      "response": "math.gcd(num1=40, num2=50)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_69",
+      "category": "simple",
+      "prompt_len": 1210,
+      "response": "ecology.get_turtle_population(location='Mississippi river', year=2020, species=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_398",
+      "category": "simple",
+      "prompt_len": 1229,
+      "response": "get_museum_hours(museum_name='Metropolitan Museum of Art', day='Saturday')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_62",
+      "category": "simple",
+      "prompt_len": 1462,
+      "response": "analyze_dna_sequence(sequence='AGTCGATCGAACGTACGTACG', reference_sequence='AGTCCATCGAACGTACGTACG')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_291",
+      "category": "simple",
+      "prompt_len": 1484,
+      "response": "music_generator.generate_melody(key='C', start_note='C4', length=16)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_2",
+      "category": "simple",
+      "prompt_len": 1254,
+      "response": "math.hypot(x=4, y=5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_304",
+      "category": "simple",
+      "prompt_len": 1471,
+      "response": "player_stats.getLastGame(player_name='LeBron James', team='Los Angeles Lakers', metrics=['Points', 'Rebounds'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_37",
+      "category": "simple",
+      "prompt_len": 1471,
+      "response": "route.estimate_time(start_location='San Francisco', end_location='Los Angeles', stops=['Santa Barbara', 'Monterey'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_226",
+      "category": "simple",
+      "prompt_len": 1267,
+      "response": "get_zodiac_compatibility(sign1='Aries', sign2='Gemini')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_100",
+      "category": "simple",
+      "prompt_len": 1174,
+      "response": "light_travel_time(distance_in_light_years=4)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_89",
+      "category": "simple",
+      "prompt_len": 1800,
+      "response": "db_fetch_records(database_name='StudentDB', table_name='students', conditions={'department': 'Science', 'school': 'Bluebird High School'})",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_171",
+      "category": "simple",
+      "prompt_len": 1240,
+      "response": "fetch_law_case_details(case_number=43403, court='New York', year=2018)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_60",
+      "category": "simple",
+      "prompt_len": 1145,
+      "response": "mutation_type.find(snp_id='rs6034464')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_255",
+      "category": "simple",
+      "prompt_len": 1197,
+      "response": "religious_history.get_papal_biography(papal_name='Innocent III', include_contributions=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_17",
+      "category": "simple",
+      "prompt_len": 1054,
+      "response": "get_prime_factors(number=450, formatted=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "simple_198",
+      "category": "simple",
+      "prompt_len": 1273,
+      "response": "calculate_daily_water_intake(weight=70)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_66",
+      "category": "multiple",
+      "prompt_len": 2320,
+      "response": "traffic_estimate(start_location='Las Vegas', end_location='Los Angeles', time_period='weekend')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_123",
+      "category": "multiple",
+      "prompt_len": 2712,
+      "response": "calculate_probability(total_outcomes=52, favorable_outcomes=4)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_103",
+      "category": "multiple",
+      "prompt_len": 3103,
+      "response": "calculate_final_speed(initial_velocity=0, height=100)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_9",
+      "category": "multiple",
+      "prompt_len": 1930,
+      "response": "calculate_average(gradeDict={'math': 90, 'science': 75, 'history': 82, 'music': 89})",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_161",
+      "category": "multiple",
+      "prompt_len": 3019,
+      "response": "find_exhibition(location='New York', art_form='sculpture')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_154",
+      "category": "multiple",
+      "prompt_len": 3550,
+      "response": "US_president.in_year(year=1861)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_15",
+      "category": "multiple",
+      "prompt_len": 2385,
+      "response": "solarFarm.potential(coordinates=[43.653225, -79.383186], panelArea=80000, month='December')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_13",
+      "category": "multiple",
+      "prompt_len": 1926,
+      "response": "corporate_finance.revenue_forecast(company='XYZ', product='A', sales_units_increase_percentage=10)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_89",
+      "category": "multiple",
+      "prompt_len": 3051,
+      "response": "recipe_search(ingredients=['chicken', 'mushrooms'], calories=500)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_121",
+      "category": "multiple",
+      "prompt_len": 2618,
+      "response": "geometry.area_triangle(base=6, height=10)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_75",
+      "category": "multiple",
+      "prompt_len": 2354,
+      "response": "paint_color.trends(room='living room')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_44",
+      "category": "multiple",
+      "prompt_len": 2336,
+      "response": "calculate.weight_in_space(weight_earth_kg=70, planet='Mars')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_118",
+      "category": "multiple",
+      "prompt_len": 3229,
+      "response": "imdb.find_movies_by_actor(actor_name='Leonardo DiCaprio', year=2010)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_55",
+      "category": "multiple",
+      "prompt_len": 1760,
+      "response": "stock_forecast(company='Google', days=3)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_196",
+      "category": "multiple",
+      "prompt_len": 3334,
+      "response": "cellbio.get_proteins(cell_compartment='plasma membrane')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_105",
+      "category": "multiple",
+      "prompt_len": 2687,
+      "response": "calculate_magnetic_field(current=5, radius=4)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_104",
+      "category": "multiple",
+      "prompt_len": 3058,
+      "response": "get_shortest_driving_distance(origin='New York City', destination='Washington D.C.')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_119",
+      "category": "multiple",
+      "prompt_len": 4040,
+      "response": "database.query(table='user', conditions=[{'field': 'age', 'operation': '>', 'value': '25'}, {'field': 'job', 'operation': '=', 'value': 'engineer'}])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_148",
+      "category": "multiple",
+      "prompt_len": 1848,
+      "response": "get_stock_info(company_name='Apple Inc.', detail_level='detailed')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_151",
+      "category": "multiple",
+      "prompt_len": 2874,
+      "response": "social_media_analytics.most_followed(topic='psychology', sub_topics=['behaviour', 'group dynamics'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_35",
+      "category": "multiple",
+      "prompt_len": 2009,
+      "response": "calculate_gcd(num1=128, num2=256)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_58",
+      "category": "multiple",
+      "prompt_len": 1654,
+      "response": "lawyer.search(location='Los Angeles', expertise='Divorce')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_97",
+      "category": "multiple",
+      "prompt_len": 1976,
+      "response": "geometry.area_circle(radius=10)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_48",
+      "category": "multiple",
+      "prompt_len": 2158,
+      "response": "library.find_nearby(location='New York City', preferences=['Pet-friendly', 'Disabled Access'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_143",
+      "category": "multiple",
+      "prompt_len": 3310,
+      "response": "calculate_slope_gradient(point1=[40.7128, -74.006], point2=[34.0522, -118.2437])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_69",
+      "category": "multiple",
+      "prompt_len": 2826,
+      "response": "five_factor_model.analyse(talkative=True, nervous=True, artistic_interests=False, lazy=True, forgiving=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_91",
+      "category": "multiple",
+      "prompt_len": 1761,
+      "response": "recipe.find(mainIngredient='apple pie', ingredientLimit=4)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_195",
+      "category": "multiple",
+      "prompt_len": 3138,
+      "response": "calc_heat_capacity(temp=298, volume=10)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_149",
+      "category": "multiple",
+      "prompt_len": 3268,
+      "response": "sentiment_analysis(text=\"I love the food here! It's always fresh and delicious.\", language='english')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_21",
+      "category": "multiple",
+      "prompt_len": 1991,
+      "response": "generate_sound_wave(frequency=440, duration=5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_54",
+      "category": "multiple",
+      "prompt_len": 1910,
+      "response": "corporate_finance.dividend_data(company='Apple Inc', years=5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_162",
+      "category": "multiple",
+      "prompt_len": 1979,
+      "response": "analyze_structure(building_id='B1004', floors=[2, 3, 4], mode='dynamic')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_1",
+      "category": "multiple",
+      "prompt_len": 2126,
+      "response": "math.triangle_area_heron(side1=3, side2=4, side3=5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_134",
+      "category": "multiple",
+      "prompt_len": 3784,
+      "response": "crime_record.get_record(case_number='CA123456', county='San Diego', details=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_86",
+      "category": "multiple",
+      "prompt_len": 2220,
+      "response": "BoardGameGeek.recommend(numPlayers=2, category='strategy')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_177",
+      "category": "multiple",
+      "prompt_len": 2718,
+      "response": "board_game.chess.get_top_players(location='New York', minimum_rating=2300)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_70",
+      "category": "multiple",
+      "prompt_len": 2599,
+      "response": "european_history.get_monarchs(country='France', century=18)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_133",
+      "category": "multiple",
+      "prompt_len": 1890,
+      "response": "calculate_mutual_fund_balance(investment_amount=50000, annual_yield=0.05, years=3)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_82",
+      "category": "multiple",
+      "prompt_len": 1892,
+      "response": "music.generate(key='C Major', tempo=120)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "multiple_176",
+      "category": "multiple",
+      "prompt_len": 4493,
+      "response": "sports_team.get_schedule(team_name='Manchester United', num_of_games=6, league='Premier League')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_66",
+      "category": "parallel",
+      "prompt_len": 1211,
+      "response": "geometry.area_circle(radius=5); geometry.area_circle(radius=10); geometry.area_circle(radius=15)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_123",
+      "category": "parallel",
+      "prompt_len": 1546,
+      "response": "generate_DNA_sequence(length=500, preferences=['A']); generate_DNA_sequence(length=500, preferences=['T']); generate_DNA_sequence(length=500, preferences=['C']); generate_DNA_sequence(length=500, preferences=['G'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_103",
+      "category": "parallel",
+      "prompt_len": 2214,
+      "response": "entropy_change.calculate(substance='A', mass=2, initial_temperature=25, final_temperature=75); entropy_change.calculate(substance='A', mass=2, initial_temperature=10, final_temperature=50)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_9",
+      "category": "parallel",
+      "prompt_len": 1431,
+      "response": "find_movie_showing(location='San Diego', movie=['Tenet'], time=['5 pm']); find_movie_showing(location='San Diego', movie=['No Time To Die'], time=['7:30 pm'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_161",
+      "category": "parallel",
+      "prompt_len": 1663,
+      "response": "calculate_binomial_probability(number_of_trials=10, number_of_successes=7, probability_of_success=0.6); calculate_binomial_probability(number_of_trials=15, number_of_successes=10, probability_of_success=0.6); calculate_binomial_probability(number_of_trials=20, number_of_successes=15, probability_of_success=0.6)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_154",
+      "category": "parallel",
+      "prompt_len": 1564,
+      "response": "calculate_bmi(weight=75, height=180); calculate_bmi(weight=60, height=165); calculate_bmi(weight=80, height=175); calculate_bmi(weight=90, height=185)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_15",
+      "category": "parallel",
+      "prompt_len": 1372,
+      "response": "calculate_capital_gains_tax(short_term_gain=15000, long_term_gain=25000, state='CA'); calculate_capital_gains_tax(short_term_gain=20000, long_term_gain=50000, state='FL')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_13",
+      "category": "parallel",
+      "prompt_len": 1464,
+      "response": "confidence_interval.calculate(sample_std_dev=10, sample_size=50, sample_mean=25, confidence_level=0.95); confidence_interval.calculate(sample_std_dev=10, sample_size=150, sample_mean=25, confidence_level=0.95)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_89",
+      "category": "parallel",
+      "prompt_len": 1486,
+      "response": "get_directions(start_location='San Francisco', end_location='Palo Alto', route_type='fastest'); get_directions(start_location='Palo Alto', end_location='Golden Gate Bridge in San Francisco', route_type='scenic'); get_directions(start_location='Golden Gate Bridge in San Francisco', end_location='San Francisco', route_type='fastest')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_121",
+      "category": "parallel",
+      "prompt_len": 1372,
+      "response": "ecology.get_turtle_population(location='Galapagos Islands', year=2015, species=True); ecology.get_turtle_population(location='Galapagos Islands', year=2020, species=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_75",
+      "category": "parallel",
+      "prompt_len": 884,
+      "response": "number_analysis.prime_factors(number=45); number_analysis.prime_factors(number=100); number_analysis.prime_factors(number=150)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_44",
+      "category": "parallel",
+      "prompt_len": 1725,
+      "response": "concert.find_nearby(location='Berlin', date='next Friday', genre='Classical'); concert.find_nearby(location='Paris', date='next Friday', genre='Classical')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_118",
+      "category": "parallel",
+      "prompt_len": 1276,
+      "response": "ecology_data.precipitation_stats(location='Amazon rainforest', time_frame='six_months'); ecology_data.precipitation_stats(location='Amazon rainforest', time_frame='year'); ecology_data.precipitation_stats(location='Amazon rainforest', time_frame='five_years')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_55",
+      "category": "parallel",
+      "prompt_len": 1402,
+      "response": "grocery_store.find_by_criteria(location='New York City', criteria=['24 hours']); grocery_store.find_by_criteria(location='SD', criteria=['Home Delivery'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_196",
+      "category": "parallel",
+      "prompt_len": 1547,
+      "response": "get_lawsuit_details(case_number='12345', court_location='New York Supreme Court', with_verdict=True); get_lawsuit_details(case_number='67890', court_location='Los Angeles Superior Court')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_105",
+      "category": "parallel",
+      "prompt_len": 1556,
+      "response": "calc_heat_capacity(temp=300, volume=2.5); calc_heat_capacity(temp=350, volume=2.5); calc_heat_capacity(temp=300, volume=1.5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_104",
+      "category": "parallel",
+      "prompt_len": 1704,
+      "response": "calculate_entropy_change(initial_temp=300, final_temp=350, heat_capacity=4.18); calculate_entropy_change(initial_temp=300, final_temp=350, heat_capacity=4.18, isothermal=False)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_119",
+      "category": "parallel",
+      "prompt_len": 1625,
+      "response": "identify_bird(color='blue', habitat='forest'); identify_bird(color='black', habitat='lake', size='large'); identify_bird(color='brown', habitat='desert', size='medium'); identify_bird(color='green', habitat='tropical rainforest', size='large')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_148",
+      "category": "parallel",
+      "prompt_len": 1578,
+      "response": "calculate_speed(distance=500, time=25, to_unit='km/h'); calculate_speed(distance=1000, time=200); calculate_speed(distance=10000, time=600, to_unit='km/h')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_151",
+      "category": "parallel",
+      "prompt_len": 1464,
+      "response": "geometry.area_triangle(base=15, height=20); geometry.area_triangle(base=25, height=30, unit='square feet'); geometry.area_triangle(base=35, height=40, unit='square inches')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_35",
+      "category": "parallel",
+      "prompt_len": 1213,
+      "response": "ancient_empires.get_religion_info(empire_name='Mauryan Empire', include_influences=True); ancient_empires.get_religion_info(empire_name='Persian Empire', include_influences=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_58",
+      "category": "parallel",
+      "prompt_len": 1126,
+      "response": "get_exchange_rate(base_currency='USD', target_currency='AUD'); get_exchange_rate(base_currency='USD', target_currency='CAD')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_97",
+      "category": "parallel",
+      "prompt_len": 1520,
+      "response": "calculate_resonant_frequency(inductance=0.005, capacitance=1e-07, round_off=3); calculate_resonant_frequency(inductance=0.007, capacitance=2e-07, round_off=4)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_48",
+      "category": "parallel",
+      "prompt_len": 1202,
+      "response": "PokemonGO.get_moves(pokemon='Pikachu'); PokemonGO.get_moves(pokemon='Bulbasaur', move='Solar Beam')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_143",
+      "category": "parallel",
+      "prompt_len": 1386,
+      "response": "calc_area_triangle(base=10, height=5); calc_area_triangle(base=15, height=7); calc_area_triangle(base=20, height=10)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_69",
+      "category": "parallel",
+      "prompt_len": 1339,
+      "response": "calculate_triangle_area(base=10, height=5); calculate_triangle_area(base=8, height=6)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_91",
+      "category": "parallel",
+      "prompt_len": 1317,
+      "response": "vegan_restaurant.find_nearby(location='Los Angeles, CA', operating_hours=22); vegan_restaurant.find_nearby(location='San Francisco, CA', operating_hours=22); vegan_restaurant.find_nearby(location='Seattle, WA', operating_hours=22)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_195",
+      "category": "parallel",
+      "prompt_len": 1158,
+      "response": "movie_details.brief(title='Inception', extra_info=True); movie_details.brief(title='The Dark Knight', extra_info=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_149",
+      "category": "parallel",
+      "prompt_len": 1317,
+      "response": "calculate_distance(body1='Mars', body2='Venus', unit='miles'); calculate_distance(body1='Mars', body2='Jupiter', unit='miles')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_21",
+      "category": "parallel",
+      "prompt_len": 1266,
+      "response": "law_crimes.search(crime='money laundering', location='San Francisco', year=2019); law_crimes.search(crime='money laundering', location='Texas', year=2018)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_54",
+      "category": "parallel",
+      "prompt_len": 1381,
+      "response": "whole_foods.order(location='downtown', items=['pepperoni pizza', 'chicken Caesar salad'], size='large'); whole_foods.order(location='uptown', items=['pepperoni pizza', 'chicken Caesar salad'], size='large')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_162",
+      "category": "parallel",
+      "prompt_len": 1812,
+      "response": "probability_of_event(success_outcomes=4, total_outcomes=52); probability_of_event(success_outcomes=13, total_outcomes=52); probability_of_event(success_outcomes=26, total_outcomes=52, format_as_ratio=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_1",
+      "category": "parallel",
+      "prompt_len": 1474,
+      "response": "calculate_em_force(b_field=5, area=2, d_time=4); calculate_em_force(b_field=5, area=2, d_time=10)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_134",
+      "category": "parallel",
+      "prompt_len": 1539,
+      "response": "calculate_bmi(weight=85, height=175); calculate_bmi(weight=60, height=160); calculate_bmi(weight=75, height=180); calculate_bmi(weight=90, height=185)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_86",
+      "category": "parallel",
+      "prompt_len": 1625,
+      "response": "kinematics.final_velocity_from_distance(acceleration=5, distance=100); kinematics.final_velocity_from_distance(acceleration=10, distance=200)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_177",
+      "category": "parallel",
+      "prompt_len": 1080,
+      "response": "get_metal_price(metal='gold', measure='ounce'); get_metal_price(metal='silver', measure='ounce'); get_metal_price(metal='platinum', measure='ounce'); get_metal_price(metal='palladium', measure='ounce')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_70",
+      "category": "parallel",
+      "prompt_len": 1233,
+      "response": "geometry.circumference(radius=5, units='m'); geometry.circumference(radius=10); geometry.circumference(radius=15); geometry.circumference(radius=20)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_133",
+      "category": "parallel",
+      "prompt_len": 1575,
+      "response": "calculate_distance(coord1=[48.8584, 2.2945], coord2=[41.8902, 12.4922], unit='kilometers'); calculate_distance(coord1=[41.8902, 12.4922], coord2=[37.9715, 23.7257], unit='kilometers'); calculate_distance(coord1=[37.9715, 23.7257], coord2=[29.9792, 31.1342], unit='kilometers')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_82",
+      "category": "parallel",
+      "prompt_len": 1600,
+      "response": "calculate_velocity(distance=120, duration=5); calculate_velocity(distance=150, duration=6)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_176",
+      "category": "parallel",
+      "prompt_len": 1549,
+      "response": "calculate_cagr(initial_value=5000, final_value=7000, period_in_years=5); calculate_cagr(initial_value=8000, final_value=12000, period_in_years=3)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_66",
+      "category": "parallel_multiple",
+      "prompt_len": 2666,
+      "response": "calculate_average(gradeDict={'Math': 85, 'English': 90, 'Science': 88, 'History': 92, 'Art': 89}); calculate_standard_deviation(gradeDict={'Math': 85, 'English': 90, 'Science': 88, 'History': 92, 'Art': 89}); highest_grade(gradeDict={'Math': 85, 'English': 90, 'Science': 88, 'History': 92, 'Art': 89})",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_123",
+      "category": "parallel_multiple",
+      "prompt_len": 2345,
+      "response": "video_games.get_player_count(game_title='Call of Duty: Modern Warfare', year=2019, platform='Playstation'); video_games.get_player_count(game_title='Call of Duty: Modern Warfare', year=2020, platform='PC'); video_games.get_sales(game_title='Call of Duty: Modern Warfare', year=2019, platform='Playstation'); video_games.get_sales(game_title='Call of Duty: Modern Warfare', year=2020, platform='PC')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_103",
+      "category": "parallel_multiple",
+      "prompt_len": 1804,
+      "response": "lawyer.search(location='New York, NY', expertise='Divorce'); lawyer.search(location='Los Angeles, CA', expertise='Criminal'); doctor.search(location='Chicago, IL', specialization='Cardiology'); doctor.search(location='Houston, TX', specialization='Orthopedics')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_9",
+      "category": "parallel_multiple",
+      "prompt_len": 1683,
+      "response": "flight_book(_from='Seattle', to='Boston', airlines='American Airlines'); hotel_book(location='Boston', nights=4)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_161",
+      "category": "parallel_multiple",
+      "prompt_len": 2780,
+      "response": "chess.rating(player_name='Magnus Carlsen'); solve_quadratic(a=2, b=-3, c=1); calculate_cagr(initial_value=5000, final_value=8000, period_in_years=5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_154",
+      "category": "parallel_multiple",
+      "prompt_len": 3361,
+      "response": "predict_house_price(area=2000, rooms=4, year=1985, location='San Francisco'); lawsuit_search(entity='John Doe', county='San Francisco'); calculate_probability(total_outcomes=1000, favorable_outcomes=5, round_to=3)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_15",
+      "category": "parallel_multiple",
+      "prompt_len": 1919,
+      "response": "restaurant.search(location='New York, NY', cuisine='Chinese'); restaurant.search(location='Los Angeles, CA', cuisine='Italian', rating=4.0); flight.search(_from='New York', to='Los Angeles', type='round-trip')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_13",
+      "category": "parallel_multiple",
+      "prompt_len": 2578,
+      "response": "energy_calculator.calculate(substance='water', mass=100.0, initial_temperature=25.0, final_temperature=100.0); energy_calculator.calculate(substance='Aluminium', mass=100.0, initial_temperature=25.0, final_temperature=100.0)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_89",
+      "category": "parallel_multiple",
+      "prompt_len": 2533,
+      "response": "ride_hailing.get_rides(source='123 Main Street', destination='456 Park Avenue'); grocery_delivery.order(location='789 Broadway', items=['milk', 'bread', 'eggs', 'apples']); ride_hailing.get_rides(source='456 Park Avenue', destination='321 Elm Street', max_cost=20.0); ride_hailing.get_rides(source='321 Elm Street', destination='123 Main Street', max_cost=25.0)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_121",
+      "category": "parallel_multiple",
+      "prompt_len": 2908,
+      "response": "BoardGameGeek.recommend(numPlayers=6, category='strategy'); BoardGameGeek.recommend(numPlayers=4, category='party', difficulty='intermediate'); AmazonGameStore.recommend(numOfPlayers=6, category='strategy', priceRange='$20-$30'); AmazonGameStore.recommend(numOfPlayers=4, category='party', priceRange='$20-$30')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_75",
+      "category": "parallel_multiple",
+      "prompt_len": 2371,
+      "response": "route_planner.calculate_route(start='New York', destination='Boston'); chess_club_details.find(name='Knight Gambit', city='Boston'); route_planner.calculate_route(start='Boston', destination='Philadelphia'); chess_club_details.find(name='Rook Corner', city='Philadelphia'); route_planner.calculate_route(start='Philadelphia', destination='New York', method='shortest')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_44",
+      "category": "parallel_multiple",
+      "prompt_len": 1815,
+      "response": "house_designer.design(bedrooms=3, bathrooms=2, garden=True); office_designer.design(rooms=5, meeting_room='large')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_118",
+      "category": "parallel_multiple",
+      "prompt_len": 2325,
+      "response": "music.generate(key='D Minor', tempo=120); audio.generate(frequency=440, amplitude=0.5); music.generate(key='E Major', tempo=90, time_signature='3/4'); audio.generate(frequency=300, amplitude=0.7, duration=5.0)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_55",
+      "category": "parallel_multiple",
+      "prompt_len": 2380,
+      "response": "recipe_search(ingredient='spaghetti', dietary_requirements=['gluten_free'], isHomemade=True); recipe_prep_time(recipe='spaghetti'); recipe_nutrition_info(recipe='homemade_spaghetti')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_196",
+      "category": "parallel_multiple",
+      "prompt_len": 2717,
+      "response": "recipe_info.get_calories(website='AllRecipes', recipe='Chicken Alfredo'); get_stock_price(company_names=['Apple', 'Microsoft', 'Tesla']); get_team_ranking(team_name='Brazil', year=2018)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_105",
+      "category": "parallel_multiple",
+      "prompt_len": 2720,
+      "response": "geodistance.find(origin='New York', destination='London', unit='kilometers'); timezones.get_difference(city1='New York', city2='London'); flights.search(from_city='New York', to_city='London', date='next friday'); geodistance.find(origin='London', destination='Paris')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_104",
+      "category": "parallel_multiple",
+      "prompt_len": 2257,
+      "response": "air_quality_forecast(location='New York', days=5); weather_forecast(location='Los Angeles', days=7); news(topic='global warming', days=3); air_quality_forecast(location='Beijing', days=2)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_119",
+      "category": "parallel_multiple",
+      "prompt_len": 2622,
+      "response": "player_stats.get_all_time_goals(player_name='Cristiano Ronaldo', team_name='Manchester United'); team_stats.get_top_scorer(team_name='Manchester United'); league_stats.get_top_scorer(league_name='Premier League')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_148",
+      "category": "parallel_multiple",
+      "prompt_len": 2164,
+      "response": "celebrity_net_worth.get(name='Lionel Messi', currency='EUR'); celebrity_net_worth.get(name='LeBron James', currency='GBP'); calculate_bmi(weight=85, height=180); calculate_bmi(weight=200, height=74, unit='imperial')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_151",
+      "category": "parallel_multiple",
+      "prompt_len": 4607,
+      "response": "book_hotel(hotel_name='Hotel Le Bristol Paris', location='Paris, France', room_type='suite', start_date='12-01-2022', stay_duration=10, view='city view'); latest_exchange_rate(source_currency='USD', target_currency='EUR', amount=1000); safeway.order(location='Palo Alto, CA', items=['water', 'apples', 'bread'], quantity=[2, 3, 1]); light_travel_time(distance_in_light_years=4.24)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_35",
+      "category": "parallel_multiple",
+      "prompt_len": 1311,
+      "response": "image_processing.object_identification(image_url='my_backyard_image_url'); text_analysis.sentiment_analysis(text='my_journal_entry_text')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_58",
+      "category": "parallel_multiple",
+      "prompt_len": 2921,
+      "response": "triangle_properties.get(side1=5.0, side2=7.0, side3=9.0); circle_properties.get(radius=3.0)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_97",
+      "category": "parallel_multiple",
+      "prompt_len": 3523,
+      "response": "calc_Simple_Interest(principle_amount=5000.0, duration=5.0, annual_rate=0.04); calc_Compound_Interest(principle_amount=5000.0, duration=5.0, annual_rate=0.035); future_value(initial_investment=3000.0, interest_rate=0.05, time=6, num_compoundings=2)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_48",
+      "category": "parallel_multiple",
+      "prompt_len": 1335,
+      "response": "note_conversion.indian(note='C'); frequency_to_wavelength(frequency=440.0)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_143",
+      "category": "parallel_multiple",
+      "prompt_len": 2672,
+      "response": "math.factorial(number=7); find_flute(brand='Yamaha', specs=['open hole', 'silver headjoint']); calculate_genotype_frequency(allele_frequency=0.6, genotype='AA')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_69",
+      "category": "parallel_multiple",
+      "prompt_len": 3538,
+      "response": "finance.property_depreciation(initial_cost=500000.0, depreciation_rate=0.02, years=5); finance.inflation_adjustment(initial_sum=200000.0, years=5, inflation_rate=0.03); finance.loan_repayment(loan_amount=300000.0, interest_rate=0.04, loan_term=10); finance.property_depreciation(initial_cost=500000.0, depreciation_rate=0.02, years=5, monthly=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_91",
+      "category": "parallel_multiple",
+      "prompt_len": 3175,
+      "response": "biological.calc_energy(mols=5.0, substance='C6H12O6'); biological.calc_biomass(energy=14000.0); physical.calc_work(energy=1400.0, distance=2.0)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_195",
+      "category": "parallel_multiple",
+      "prompt_len": 4543,
+      "response": "multiplayer_game_finder(platform='Windows 10', rating=4, genre='Action'); calculate_area_under_curve(function='x**2', interval=[0, 5]); geo_distance.calculate(start_location='Los Angeles', end_location='New York', units='kilometers'); send_email(to='john.doe@example.com', subject='Meeting Reminder', body='Do not forget about our meeting tomorrow at 10 AM', cc='jane.doe@example.com')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_149",
+      "category": "parallel_multiple",
+      "prompt_len": 3390,
+      "response": "hotel_booking(location='Paris', room_type='deluxe', duration=5, start_date='20th June', preferences=['gym', 'free_breakfast']); soccer.get_last_match(team_name='Manchester United', include_stats=True); calculate_BMI(weight_kg=75, height_m=1.8)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_21",
+      "category": "parallel_multiple",
+      "prompt_len": 2032,
+      "response": "data_loading(file_path='dataset.csv'); linear_regression_fit(x=\"data['sales']\", y=\"data['future_sales']\", return_residuals=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_54",
+      "category": "parallel_multiple",
+      "prompt_len": 2060,
+      "response": "BattleReignGameAPI.update_player_equipment(attribute='armor', level=5); GameGuideAPI.search_guide(game='Battle Reign', condition='snowy weather'); GameGuideAPI.search_guide(game='Shadow Fall', type='strategy')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_162",
+      "category": "parallel_multiple",
+      "prompt_len": 3504,
+      "response": "finance.calculate_future_value(initial_investment=5000, rate_of_return=0.07, years=10, contribution=200); create_histogram(data=[7, 8, 9, 6, 7, 8, 10, 9, 8, 7], bins=5); mix_paint_color(color1='blue', color2='yellow', lightness=70)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_1",
+      "category": "parallel_multiple",
+      "prompt_len": 1947,
+      "response": "area_rectangle.calculate(length=7.0, breadth=3.0); area_circle.calculate(radius=5.0)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_134",
+      "category": "parallel_multiple",
+      "prompt_len": 1973,
+      "response": "get_top_cases(field_of_law='constitutional law', top_number=5, country='United Kingdom'); math.gcd(num1=36, num2=48)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_86",
+      "category": "parallel_multiple",
+      "prompt_len": 2506,
+      "response": "kinematics.calculate_speed_from_rest(distance=120.0, time=10.0); kinematics.calculate_acceleration(initial_speed=12.0, final_speed=24.0, time=5.0)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_177",
+      "category": "parallel_multiple",
+      "prompt_len": 2533,
+      "response": "history.get_key_events(country='France', start_year=1800, end_year=1900, event_type=['War', 'Economy']); get_sculpture_value(sculpture='The Thinker', artist='Auguste Rodin'); get_sculpture_value(sculpture='The Kiss', artist='Auguste Rodin')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_70",
+      "category": "parallel_multiple",
+      "prompt_len": 2678,
+      "response": "solarFarm.potential(coordinates=[37.7749, -122.4194], panelArea=50000.0, month='July'); windFarm.potential(coordinates=[40.7128, -74.006], turbineCount=100.0, month='July')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_133",
+      "category": "parallel_multiple",
+      "prompt_len": 2302,
+      "response": "music_generator.generate_scale_progression(key='D', tempo=120, duration=2, scale_type='minor'); math.hcf(number1=456, number2=123)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_82",
+      "category": "parallel_multiple",
+      "prompt_len": 2392,
+      "response": "geometry.calculate_cone_volume(radius=10.0, height=30.0); physics.calculate_cone_mass(radius=10.0, height=30.0, density=5.2); physics.calculate_cone_mass(radius=10.0, height=30.0, density=7.8)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "parallel_multiple_176",
+      "category": "parallel_multiple",
+      "prompt_len": 3869,
+      "response": "hotel_booking(hotel_name='Hilton', location='Los Angeles, CA', start_date='2022-05-01', end_date='2022-05-10', rooms=2); get_time_difference(place1='New York, NY', place2='Los Angeles, CA'); calculate_bmi(weight=75, height=180); sentiment_analysis(text='I had a wonderful day at the beach. The weather was perfect and I enjoyed a delicious ice cream.', language='English')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_15-3-11",
+      "category": "live_simple",
+      "prompt_len": 1398,
+      "response": "get_current_weather(location='Chennai, Tamil Nadu')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_109-66-0",
+      "category": "live_simple",
+      "prompt_len": 2246,
+      "response": "record(faq_auto_withdraw_start=['Can I schedule automatic withdrawals for different dates?'], payment_information_start=['How much do I owe on my home equity loan?'], pma_income_requirements_start=['Can I use bonuses or commissions as part of my income for a loan application?', 'Will my income be verified during the loan application process?', 'Is there a minimum income threshold for loan approval?'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_224-117-16",
+      "category": "live_simple",
+      "prompt_len": 1872,
+      "response": "Movies_3_FindMovies(directed_by='Tim Burton', genre='Offbeat', cast='Johnny Depp')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_154-95-11",
+      "category": "live_simple",
+      "prompt_len": 1403,
+      "response": "cmd_controller.execute(command='start https://www.youtube.com/watch?v=dQw4w9WgXcQ')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_99-59-0",
+      "category": "live_simple",
+      "prompt_len": 1311,
+      "response": "connectBluetooth(device_name='ue boom')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_13-3-9",
+      "category": "live_simple",
+      "prompt_len": 1346,
+      "response": "get_current_weather(location='Shanghai, China', unit='celsius')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_36-13-0",
+      "category": "live_simple",
+      "prompt_len": 1183,
+      "response": "parseAnswer(answer='The text does not define logistic regression, therefore I cannot answer this question.')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_121-77-0",
+      "category": "live_simple",
+      "prompt_len": 1623,
+      "response": "generate_chart(data_labels=['Software Engineer', 'Graphic Designer', 'Data Analyst', 'Sales Manager', 'Nurse'], data_values=[90000, 50000, 70000, 60000, 80000])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_254-136-0",
+      "category": "live_simple",
+      "prompt_len": 1410,
+      "response": "user.mandates(user_id='U123', status='pending')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_37-14-0",
+      "category": "live_simple",
+      "prompt_len": 1099,
+      "response": "parseAnswer(answer='The text does not define logistic regression, therefore I cannot answer this question.')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_72-36-0",
+      "category": "live_simple",
+      "prompt_len": 1590,
+      "response": "detect_beats_and_filter(capture_percentage=50, confidence_window_size=0.5)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_223-117-15",
+      "category": "live_simple",
+      "prompt_len": 1926,
+      "response": "Movies_3_FindMovies(genre='Fantasy')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_118-74-0",
+      "category": "live_simple",
+      "prompt_len": 1547,
+      "response": "get_temperature(units='Celsius', location='Hyderabad, India')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_234-123-1",
+      "category": "live_simple",
+      "prompt_len": 1631,
+      "response": "book_flight(departure_location='New York, NY', departure_time='20/06/2022 17:00')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_196-116-4",
+      "category": "live_simple",
+      "prompt_len": 1232,
+      "response": "Weather_1_GetWeather(city='Alameda', date='2023-04-27')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_105-62-0",
+      "category": "live_simple",
+      "prompt_len": 1324,
+      "response": "classify(clean_hello=['hello'], faq_link_accounts_start=['link my account', 'connect my accounts'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_104-61-2",
+      "category": "live_simple",
+      "prompt_len": 2186,
+      "response": "calculate_tax(purchase_amount=250.0, state='NY')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_119-75-0",
+      "category": "live_simple",
+      "prompt_len": 1193,
+      "response": "GetPrimeMinisters(countries=['Australia', 'Canada', 'India'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_148-95-5",
+      "category": "live_simple",
+      "prompt_len": 1326,
+      "response": "cmd_controller.execute(command='dir C:\\\\')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_151-95-8",
+      "category": "live_simple",
+      "prompt_len": 1361,
+      "response": "cmd_controller.execute(command='netsh wlan disconnect')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_214-117-6",
+      "category": "live_simple",
+      "prompt_len": 1966,
+      "response": "Movies_3_FindMovies(directed_by='Nitesh Tiwari', genre='Comedy')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_237-125-0",
+      "category": "live_simple",
+      "prompt_len": 1431,
+      "response": "play_spotify_song(query='track:Wrecking Ball artist:Miley Cyrus')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_103-61-1",
+      "category": "live_simple",
+      "prompt_len": 2247,
+      "response": "calculate_tax(purchase_amount=999.0, state='CA')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_227-118-1",
+      "category": "live_simple",
+      "prompt_len": 2095,
+      "response": "text_to_speech.convert(text='我爱学习', language='zh-CN', gender='male', format='wav')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_143-95-0",
+      "category": "live_simple",
+      "prompt_len": 1356,
+      "response": "cmd_controller.execute(command='docker ps')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_31-8-1",
+      "category": "live_simple",
+      "prompt_len": 3105,
+      "response": "aws.lexv2_models.list_exports(botId='B12345', botVersion='v1', sortBy='DESC')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_248-130-0",
+      "category": "live_simple",
+      "prompt_len": 1388,
+      "response": "acl_api.AclApi.retrieve_projects(uuid='12', excludeInactive=True, onlyRoot=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_28-7-1",
+      "category": "live_simple",
+      "prompt_len": 1437,
+      "response": "uber.eat.order(restaurant='肯德基', items=['麦辣鸡腿堡', '可口可乐', '油炸鸡翅', '薯条'], quantities=[10, 50, 30, 90])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_89-50-0",
+      "category": "live_simple",
+      "prompt_len": 2569,
+      "response": "interior_design_analysis.generate_report(user_preferences='{\"style\": \"modern\", \"color_scheme\": \"warm\", \"budget\": \"mid-range\"}', data_source='internal_database', output_format='DOCX', include_visuals=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_195-116-3",
+      "category": "live_simple",
+      "prompt_len": 1198,
+      "response": "Weather_1_GetWeather(city='Palo Alto', date='2023-04-25')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_149-95-6",
+      "category": "live_simple",
+      "prompt_len": 1334,
+      "response": "cmd_controller.execute(command='echo hi')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_200-116-8",
+      "category": "live_simple",
+      "prompt_len": 1198,
+      "response": "Weather_1_GetWeather(city='Fremont', date='2023-03-01')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_233-123-0",
+      "category": "live_simple",
+      "prompt_len": 1652,
+      "response": "book_flight(departure_location='Paris, France', departure_time='12/03/2023 15:00')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_162-96-1",
+      "category": "live_simple",
+      "prompt_len": 1202,
+      "response": "get_items(items=['Red and blue circle logo', 'Red and yellow circle logo', 'Green circle logo', 'Black circle logo'])",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_53-24-0",
+      "category": "live_simple",
+      "prompt_len": 928,
+      "response": "todo_add(content='go for shopping at 9 pm')",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_67-31-0",
+      "category": "live_simple",
+      "prompt_len": 2570,
+      "response": "obtener_cotizacion_de_creditos(monto_del_credito=1000000.0, plazo_del_credito_mensual=12, producto='auto', año_vehiculo=2024, enganche=0.2)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_1-1-0",
+      "category": "live_simple",
+      "prompt_len": 1468,
+      "response": "github_star(repos='ShishirPatil/gorilla,gorilla-llm/gorilla-cli', aligned=True)",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_41-17-1",
+      "category": "live_simple",
+      "prompt_len": 2781,
+      "response": "ThinQ_Connect(body={'airConJobMode': 'AIR_DRY', 'windStrength': 'MID', 'monitoringEnabled': '', 'airCleanOperationMode': 'POWER_OFF', 'powerSaveEnabled': '', 'coolTargetTemperature': '', 'targetTemperature': ''})",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_52-23-1",
+      "category": "live_simple",
+      "prompt_len": 4049,
+      "response": "ThinQ_Connect(body={'airConJobMode': 'COOL', 'windStrength': 'MID', 'airConOperationMode': 'POWER_ON', 'targetTemperature': 20, 'relativeHourToStop': 1})",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    },
+    {
+      "id": "live_simple_134-87-0",
+      "category": "live_simple",
+      "prompt_len": 1929,
+      "response": "requests.get(url='https://api.insights.com/groups', params={'limit': 20, 'sort': 'desc'})",
+      "passed": true,
+      "error_type": "",
+      "error_detail": ""
+    }
+  ],
+  "negative_cases": [
+    {
+      "case": "wrong_func_name",
+      "response": "bad_calculate_triangle_area(base=10, height=5)",
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_triangle_area' not found in model output."
+    },
+    {
+      "case": "missing_required",
+      "response": "calculate_triangle_area(height=5)",
+      "passed": false,
+      "error_type": "simple_function_checker:missing_required",
+      "error_detail": "Missing required parameter: 'base'."
+    },
+    {
+      "case": "bad_value",
+      "response": "calculate_triangle_area(base=99, height=5)",
+      "passed": false,
+      "error_type": "value_error:others",
+      "error_detail": "Invalid value for parameter 'base': 99. Expected one of [10]."
+    }
+  ],
+  "check_ok": true
+}

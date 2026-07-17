@@ -1,0 +1,43 @@
+{
+  "experiment": "exp049_learning_rules",
+  "device": "cpu",
+  "torch": "2.12.0+cpu",
+  "cfg": {
+    "hidden": [
+      256,
+      128,
+      64,
+      32
+    ],
+    "n_classes": 10,
+    "epochs": 1,
+    "batch": 64,
+    "device": "cpu"
+  },
+  "seeds": [
+    42
+  ],
+  "methods": {
+    "bp": {
+      "runs": [
+        {
+          "test_acc": 0.661,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.661,
+              "wall_s": 0.1
+            }
+          ],
+          "wall_s": 0.1,
+          "updates": 31,
+          "extra": {},
+          "seed": 42
+        }
+      ],
+      "acc_mean": 0.661,
+      "acc_min": 0.661,
+      "wall_mean_s": 0.1
+    }
+  }
+}

@@ -1,0 +1,896 @@
+{
+  "experiment": "exp022_endogenous_value",
+  "hypothesis": "H-V4-1",
+  "question": "¿Un valor ENDÓGENO (info-gain sobre el propio modelo) construye una representación más causal que la predicción pasiva, visible bajo intervención y sin verificador externo?",
+  "env": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "platform": "Windows-11-10.0.26100-SP0"
+  },
+  "params": {
+    "D": 12,
+    "cluster": 4,
+    "p_obs": 0.1,
+    "budgets": [
+      2,
+      8,
+      32
+    ],
+    "seeds": 12,
+    "n_test": 4000,
+    "candidates": 128
+  },
+  "per_seed": [
+    {
+      "seed": 0,
+      "cause": 9,
+      "cluster": [
+        9,
+        2,
+        7,
+        4
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.6875,
+            "post_on_cause": 0.20876288659793815
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 0.73875,
+            "post_on_cause": 0.26999999999999996
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 0.67675,
+            "post_on_cause": 0.21774193548387102
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.68775,
+            "post_on_cause": 0.23516129032258065
+          },
+          "B_infogain": {
+            "iid": 0.9355,
+            "interv": 0.7465,
+            "post_on_cause": 0.3871253245220675
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9888304641972002
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.6825,
+            "post_on_cause": 0.24999998693036576
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.999999999998509
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.999999997372004
+          }
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "cause": 8,
+      "cluster": [
+        8,
+        11,
+        4,
+        7
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 0.9665,
+            "interv": 0.63375,
+            "post_on_cause": 0.12125748502994013
+          },
+          "B_infogain": {
+            "iid": 0.75375,
+            "interv": 0.498,
+            "post_on_cause": 0.030000000000000006
+          },
+          "C_aleatorio": {
+            "iid": 0.9295,
+            "interv": 0.67975,
+            "post_on_cause": 0.21315789473684213
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.6915,
+            "post_on_cause": 0.2417552973715575
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999525421914552
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.8676021157801939
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.69175,
+            "post_on_cause": 0.24999999982028154
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999999999999953
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999997828626951
+          }
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "cause": 2,
+      "cluster": [
+        2,
+        0,
+        9,
+        10
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.659,
+            "post_on_cause": 0.15
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 0.75,
+            "post_on_cause": 0.26999999999999996
+          },
+          "C_aleatorio": {
+            "iid": 0.9225,
+            "interv": 0.69225,
+            "post_on_cause": 0.21774193548387094
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.68375,
+            "post_on_cause": 0.2491056512714939
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9752714179800188
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.6687921895528474
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.69125,
+            "post_on_cause": 0.24999999983845217
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 1.0
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.999999788272451
+          }
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "cause": 11,
+      "cluster": [
+        11,
+        7,
+        2,
+        10
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.69725,
+            "post_on_cause": 0.18925233644859812
+          },
+          "B_infogain": {
+            "iid": 0.75175,
+            "interv": 0.73325,
+            "post_on_cause": 0.26999999999999996
+          },
+          "C_aleatorio": {
+            "iid": 0.837,
+            "interv": 0.5605,
+            "post_on_cause": 0.024725274725274735
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.689,
+            "post_on_cause": 0.24154081515781206
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999358180460421
+          },
+          "C_aleatorio": {
+            "iid": 0.4945,
+            "interv": 0.4985,
+            "post_on_cause": 0.09861699845601442
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.69575,
+            "post_on_cause": 0.24999999999970157
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 1.0
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999981131210752
+          }
+        }
+      }
+    },
+    {
+      "seed": 4,
+      "cause": 1,
+      "cluster": [
+        1,
+        0,
+        8,
+        2
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.68375,
+            "post_on_cause": 0.17608695652173914
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 0.76425,
+            "post_on_cause": 0.26999999999999996
+          },
+          "C_aleatorio": {
+            "iid": 0.505,
+            "interv": 0.5155,
+            "post_on_cause": 0.05232558139534884
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.69925,
+            "post_on_cause": 0.24018890027822523
+          },
+          "B_infogain": {
+            "iid": 0.9225,
+            "interv": 0.5775,
+            "post_on_cause": 0.02430972388955582
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.8759535190374155
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.6805,
+            "post_on_cause": 0.249999999999724
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999999999999998
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999999996769942
+          }
+        }
+      }
+    },
+    {
+      "seed": 5,
+      "cause": 9,
+      "cluster": [
+        9,
+        11,
+        1,
+        3
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 0.96925,
+            "interv": 0.65325,
+            "post_on_cause": 0.11982248520710059
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 0.753,
+            "post_on_cause": 0.26999999999999996
+          },
+          "C_aleatorio": {
+            "iid": 0.8505,
+            "interv": 0.56725,
+            "post_on_cause": 0.023684210526315794
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.69475,
+            "post_on_cause": 0.24835326645596398
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999207667934678
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.8061957293430179
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.688,
+            "post_on_cause": 0.24999999999997202
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 1.0
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999999997115749
+          }
+        }
+      }
+    },
+    {
+      "seed": 6,
+      "cause": 10,
+      "cluster": [
+        10,
+        4,
+        8,
+        2
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 0.51225,
+            "interv": 0.48525,
+            "post_on_cause": 0.003424657534246574
+          },
+          "B_infogain": {
+            "iid": 0.7495,
+            "interv": 0.7515,
+            "post_on_cause": 0.27
+          },
+          "C_aleatorio": {
+            "iid": 0.913,
+            "interv": 0.66825,
+            "post_on_cause": 0.22252747252747251
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.679,
+            "post_on_cause": 0.24894695225121746
+          },
+          "B_infogain": {
+            "iid": 0.51125,
+            "interv": 0.50225,
+            "post_on_cause": 0.09631092727545558
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.8655672823218997
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.683,
+            "post_on_cause": 0.2499999999959887
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 1.0
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999999761596331
+          }
+        }
+      }
+    },
+    {
+      "seed": 7,
+      "cause": 4,
+      "cluster": [
+        4,
+        6,
+        10,
+        0
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 0.51175,
+            "interv": 0.5005,
+            "post_on_cause": 0.05769230769230771
+          },
+          "B_infogain": {
+            "iid": 0.76,
+            "interv": 0.50025,
+            "post_on_cause": 0.030000000000000006
+          },
+          "C_aleatorio": {
+            "iid": 0.927,
+            "interv": 0.7545,
+            "post_on_cause": 0.3214285714285714
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.69225,
+            "post_on_cause": 0.2489628130533772
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999358180460421
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9843776626528438
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.6875,
+            "post_on_cause": 0.24999999998003164
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 1.0
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999999947663545
+          }
+        }
+      }
+    },
+    {
+      "seed": 8,
+      "cause": 7,
+      "cluster": [
+        7,
+        3,
+        8,
+        0
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 0.97225,
+            "interv": 0.6455,
+            "post_on_cause": 0.12125748502994013
+          },
+          "B_infogain": {
+            "iid": 0.75175,
+            "interv": 0.754,
+            "post_on_cause": 0.27
+          },
+          "C_aleatorio": {
+            "iid": 0.94825,
+            "interv": 0.75625,
+            "post_on_cause": 0.331967213114754
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.70325,
+            "post_on_cause": 0.24978942974944016
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9487916961244295
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.8875396639834329
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.6955,
+            "post_on_cause": 0.2499999735389776
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 1.0
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.999999790280462
+          }
+        }
+      }
+    },
+    {
+      "seed": 9,
+      "cause": 7,
+      "cluster": [
+        7,
+        2,
+        6,
+        10
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.66,
+            "post_on_cause": 0.1594488188976378
+          },
+          "B_infogain": {
+            "iid": 0.758,
+            "interv": 0.495,
+            "post_on_cause": 0.030000000000000006
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 0.6635,
+            "post_on_cause": 0.13235294117647062
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.69975,
+            "post_on_cause": 0.24903187774480934
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999358180460421
+          },
+          "C_aleatorio": {
+            "iid": 0.851,
+            "interv": 0.74575,
+            "post_on_cause": 0.4991499889169826
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.693,
+            "post_on_cause": 0.24999999983424492
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 1.0
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999978851190446
+          }
+        }
+      }
+    },
+    {
+      "seed": 10,
+      "cause": 1,
+      "cluster": [
+        1,
+        3,
+        11,
+        9
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.6835,
+            "post_on_cause": 0.18243243243243246
+          },
+          "B_infogain": {
+            "iid": 0.74675,
+            "interv": 0.748,
+            "post_on_cause": 0.26999999999999996
+          },
+          "C_aleatorio": {
+            "iid": 0.68375,
+            "interv": 0.68175,
+            "post_on_cause": 0.17920353982300885
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.67525,
+            "post_on_cause": 0.24902160894721748
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999040437109121
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.8684187305135597
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.67825,
+            "post_on_cause": 0.24999999854786448
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 1.0
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999999947699398
+          }
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "cause": 2,
+      "cluster": [
+        2,
+        10,
+        8,
+        1
+      ],
+      "by_budget": {
+        "2": {
+          "A_pasivo": {
+            "iid": 0.96925,
+            "interv": 0.63775,
+            "post_on_cause": 0.12125748502994013
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 0.7555,
+            "post_on_cause": 0.27
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 0.686,
+            "post_on_cause": 0.18577981651376146
+          }
+        },
+        "8": {
+          "A_pasivo": {
+            "iid": 0.7455,
+            "interv": 0.5865,
+            "post_on_cause": 0.0059401584042241065
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999040437109119
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.7333093239282698
+          }
+        },
+        "32": {
+          "A_pasivo": {
+            "iid": 1.0,
+            "interv": 0.69,
+            "post_on_cause": 0.24999999999886896
+          },
+          "B_infogain": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 1.0
+          },
+          "C_aleatorio": {
+            "iid": 1.0,
+            "interv": 1.0,
+            "post_on_cause": 0.9999999999923836
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "budgets": [
+      2,
+      8,
+      32
+    ],
+    "agents": [
+      "A_pasivo",
+      "B_infogain",
+      "C_aleatorio"
+    ],
+    "by_budget": {
+      "2": {
+        "A_pasivo": {
+          "iid_mean": 0.9084374999999999,
+          "iid_std": 0.1778265225870895,
+          "interv_mean": 0.6355833333333334,
+          "interv_std": 0.06678622092584335,
+          "post_on_cause_mean": 0.1342246113684851
+        },
+        "B_infogain": {
+          "iid_mean": 0.8559583333333335,
+          "iid_std": 0.12178155962168036,
+          "interv_mean": 0.6867916666666667,
+          "interv_std": 0.10940453569462079,
+          "post_on_cause_mean": 0.20999999999999996
+        },
+        "C_aleatorio": {
+          "iid_mean": 0.876375,
+          "iid_std": 0.14056824780748556,
+          "interv_mean": 0.6585208333333333,
+          "interv_std": 0.07099952012259582,
+          "post_on_cause_mean": 0.17688636557796353
+        },
+        "margin_B_minus_A_interv": 0.0512083333333333,
+        "margin_B_minus_C_interv": 0.028270833333333356
+      },
+      "8": {
+        "A_pasivo": {
+          "iid_mean": 0.9787916666666666,
+          "iid_std": 0.07034008409545409,
+          "interv_mean": 0.6818333333333332,
+          "interv_std": 0.029835195472610678,
+          "post_on_cause_mean": 0.22564983841732658
+        },
+        "B_infogain": {
+          "iid_mean": 0.9474375,
+          "iid_std": 0.1341296840204161,
+          "interv_mean": 0.9021875,
+          "interv_std": 0.17694541074980347,
+          "post_on_cause_mean": 0.7859414950280333
+        },
+        "C_aleatorio": {
+          "iid_mean": 0.9454583333333334,
+          "iid_std": 0.14201928541770498,
+          "interv_mean": 0.9370208333333333,
+          "interv_std": 0.14959634779734948,
+          "post_on_cause_mean": 0.7620294723903064
+        },
+        "margin_B_minus_A_interv": 0.22035416666666685,
+        "margin_B_minus_C_interv": -0.03483333333333327
+      },
+      "32": {
+        "A_pasivo": {
+          "iid_mean": 1.0,
+          "iid_std": 0.0,
+          "interv_mean": 0.6880833333333333,
+          "interv_std": 0.0056025787713238585,
+          "post_on_cause_mean": 0.24999999654037278
+        },
+        "B_infogain": {
+          "iid_mean": 1.0,
+          "iid_std": 0.0,
+          "interv_mean": 1.0,
+          "interv_std": 0.0,
+          "post_on_cause_mean": 0.9999999999998753
+        },
+        "C_aleatorio": {
+          "iid_mean": 1.0,
+          "iid_std": 0.0,
+          "interv_mean": 1.0,
+          "interv_std": 0.0,
+          "post_on_cause_mean": 0.9999996101753843
+        },
+        "margin_B_minus_A_interv": 0.31191666666666673,
+        "margin_B_minus_C_interv": 0.0
+      }
+    },
+    "prereg_checks": {
+      "iid_all_high(>=0.85 en TODO K)": true,
+      "A_flat_low_at_Kmax(<=0.65)": false,
+      "B_strong_at_Kmid(>=0.80)": true,
+      "B_beats_A_at_Kmid(>0.20)": true
+    },
+    "diagnostics": {
+      "iid_gap_invisible_at_Kmid(|A-B|<=0.10)": true,
+      "A_informational_wall(|flat en K|<=0.05)": true,
+      "intervention>>passive_B(>0.20)": true,
+      "intervention>>passive_C(>0.20)": true,
+      "value_edge_infogain>random_lowK(>0)": true,
+      "value_edge_consistent(>0.02 salvo saturado)": false
+    },
+    "diag_values": {
+      "iid_gap_Kmid": 0.0314,
+      "A_flatness_Kmid->Kmax": 0.0063,
+      "B_minus_A_Kmax": 0.3119,
+      "C_minus_A_Kmax": 0.3119,
+      "value_edge_lowK(B-C)": 0.0283,
+      "Kmin": 2,
+      "Kmid": 8,
+      "Kmax": 32
+    },
+    "interpretation": "R-INTERVENCIÓN demostrada: la política PASIVA (A) se queda plana bajo intervención por más presupuesto que reciba (muro informacional), mientras las políticas ACTIVAS (B info-gain, C azar) identifican la causa. R-VALOR específico NO aislado: el azar-activo también lo logra con presupuesto suficiente, así que este experimento no separa 'valor info-gain' de 'intervención activa' -> hija H-V4-1b (régimen presupuesto-chico/ruido-alto/espacio-grande).",
+    "verdict": "mixta"
+  }
+}

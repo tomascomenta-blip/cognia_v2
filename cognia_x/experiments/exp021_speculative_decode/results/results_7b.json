@@ -1,0 +1,15 @@
+{
+  "experiment": "exp021/bench_7b",
+  "model": "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
+  "size_GiB": 4.361,
+  "threads": 3,
+  "n_predict": 160,
+  "decode_tps_7b_solo": {
+    "code": 3.6011804309334563,
+    "speech": 3.468469230125563,
+    "echo": 3.6020483948709536
+  },
+  "baseline_3b_speech_tps": 8.32,
+  "ratio_7b_vs_3b_speech": 0.417,
+  "proyeccion_banda_tps": 3.43
+}

@@ -1,0 +1,42 @@
+{"ev": "start", "preset": "smoke", "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf", "n_dev": 5, "n_test": 5, "rounds": 1, "max_tokens": 256, "t": "2026-07-04T20:48:52.018669"}
+{"ev": "gen", "secs": 18.6, "t": "2026-07-04T20:49:10.623147"}
+{"ev": "gen", "secs": 32.3, "t": "2026-07-04T20:49:42.900419"}
+{"ev": "gen", "secs": 28.6, "t": "2026-07-04T20:50:11.480181"}
+{"ev": "gen", "secs": 31.3, "t": "2026-07-04T20:50:42.824756"}
+{"ev": "gen", "secs": 27.6, "t": "2026-07-04T20:51:10.396759"}
+{"ev": "log", "msg": "[evolve] seed v1_seed: acc=1.000 (5/5) rep=0 cost=936 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1", "t": "2026-07-04T20:51:10.396759"}
+{"ev": "gen", "secs": 29.1, "t": "2026-07-04T20:51:39.769233"}
+{"ev": "gen", "secs": 42.3, "t": "2026-07-04T20:52:22.106433"}
+{"ev": "gen", "secs": 37.7, "t": "2026-07-04T20:52:59.818304"}
+{"ev": "gen", "secs": 38.7, "t": "2026-07-04T20:53:38.563497"}
+{"ev": "gen", "secs": 35.0, "t": "2026-07-04T20:54:13.559941"}
+{"ev": "log", "msg": "[evolve] ronda 1 cand v1_seed+ex_pm (fewshot_parallel_multiple): acc=1.000 (5/5) rep=0 cost=1467 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1 -> rechaza", "t": "2026-07-04T20:54:13.559941"}
+{"ev": "gen", "secs": 27.8, "t": "2026-07-04T20:54:41.387605"}
+{"ev": "gen", "secs": 40.0, "t": "2026-07-04T20:55:21.363838"}
+{"ev": "gen", "secs": 33.5, "t": "2026-07-04T20:55:54.826487"}
+{"ev": "gen", "secs": 37.6, "t": "2026-07-04T20:56:32.430389"}
+{"ev": "gen", "secs": 33.9, "t": "2026-07-04T20:57:06.286080"}
+{"ev": "log", "msg": "[evolve] ronda 1 cand v1_seed+ex_str (fewshot_string_exact): acc=1.000 (5/5) rep=0 cost=1283 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1 -> rechaza", "t": "2026-07-04T20:57:06.286080"}
+{"ev": "gen", "secs": 21.9, "t": "2026-07-04T20:57:28.196765"}
+{"ev": "gen", "secs": 34.3, "t": "2026-07-04T20:58:02.545774"}
+{"ev": "gen", "secs": 27.5, "t": "2026-07-04T20:58:30.056360"}
+{"ev": "gen", "secs": 31.1, "t": "2026-07-04T20:59:01.120801"}
+{"ev": "gen", "secs": 27.9, "t": "2026-07-04T20:59:28.992943"}
+{"ev": "log", "msg": "[evolve] ronda 1 cand v1_seed+short (compress_system): acc=1.000 (5/5) rep=0 cost=865 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1 -> ACEPTA:pareto", "t": "2026-07-04T20:59:28.992943"}
+{"ev": "log", "msg": "[evolve] ronda 1: adopta v1_seed+short (pareto, acc=1.000 (5/5) rep=0 cost=865 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1)", "t": "2026-07-04T20:59:28.992943"}
+{"ev": "log", "msg": "[test] midiendo SEMILLA sobre 5 test held-out...", "t": "2026-07-04T20:59:28.992943"}
+{"ev": "gen", "secs": 25.1, "t": "2026-07-04T20:59:54.132113"}
+{"ev": "gen", "secs": 43.8, "t": "2026-07-04T21:00:37.945482"}
+{"ev": "gen", "secs": 37.5, "t": "2026-07-04T21:01:15.488233"}
+{"ev": "gen", "secs": 36.9, "t": "2026-07-04T21:01:52.369460"}
+{"ev": "gen", "secs": 34.6, "t": "2026-07-04T21:02:26.946141"}
+{"ev": "log", "msg": "[test] semilla: acc=0.800 (4/5) rep=0 cost=936 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=0/1 simple=1/1", "t": "2026-07-04T21:02:26.948072"}
+{"ev": "log", "msg": "[test] midiendo GANADOR (v1_seed+short) sobre test...", "t": "2026-07-04T21:02:26.948072"}
+{"ev": "gen", "secs": 23.4, "t": "2026-07-04T21:02:50.300784"}
+{"ev": "gen", "secs": 43.7, "t": "2026-07-04T21:03:34.042006"}
+{"ev": "gen", "secs": 32.9, "t": "2026-07-04T21:04:06.963680"}
+{"ev": "gen", "secs": 32.9, "t": "2026-07-04T21:04:39.917824"}
+{"ev": "gen", "secs": 34.3, "t": "2026-07-04T21:05:14.206595"}
+{"ev": "log", "msg": "[test] ganador: acc=0.800 (4/5) rep=0 cost=865 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=0/1 simple=1/1", "t": "2026-07-04T21:05:14.208336"}
+{"ev": "log", "msg": "[persist] ganador persistido (test 0.800 -> 0.800, delta +0.000)", "t": "2026-07-04T21:05:14.209576"}
+{"ev": "done", "out": "D:\\Movido_desde_C\\Downloads\\cognia\\cognia_v2\\cognia_v3\\eval\\results_promptevo_smoke_pipeline_20260704_2048.json", "delta_test": 0.0, "t": "2026-07-04T21:05:14.211683"}

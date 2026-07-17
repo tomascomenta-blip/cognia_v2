@@ -1,0 +1,151 @@
+{
+  "label": "smoke_pipeline",
+  "preset": "smoke",
+  "timestamp": "20260704_2048",
+  "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "config": {
+    "dev_per_cat": null,
+    "dev_n": 2,
+    "test_n": 4,
+    "rounds": 1,
+    "max_tokens": 256
+  },
+  "evo_seconds": 637.0,
+  "dev": {
+    "n": 5,
+    "seed_acc": 1.0,
+    "best_acc": 1.0,
+    "best_scaffold": "v1_seed+short",
+    "accepted_path": [
+      "v1_seed",
+      "v1_seed+short"
+    ]
+  },
+  "test_held_out": {
+    "n": 5,
+    "seed_acc": 0.8,
+    "seed_by_category": {
+      "simple": [
+        1,
+        1
+      ],
+      "multiple": [
+        1,
+        1
+      ],
+      "parallel": [
+        1,
+        1
+      ],
+      "parallel_multiple": [
+        0,
+        1
+      ],
+      "live_simple": [
+        1,
+        1
+      ]
+    },
+    "seed_error_buckets": {
+      "simple_function_checker:wrong_func_name": 1
+    },
+    "winner_acc": 0.8,
+    "winner_by_category": {
+      "simple": [
+        1,
+        1
+      ],
+      "multiple": [
+        1,
+        1
+      ],
+      "parallel": [
+        1,
+        1
+      ],
+      "parallel_multiple": [
+        0,
+        1
+      ],
+      "live_simple": [
+        1,
+        1
+      ]
+    },
+    "winner_error_buckets": {
+      "simple_function_checker:wrong_func_name": 1
+    },
+    "delta": 0.0,
+    "winner_token_cost": 865,
+    "seed_token_cost": 936
+  },
+  "trajectory": [
+    {
+      "round": 0,
+      "tag": "seed",
+      "name": "v1_seed",
+      "accuracy": 1.0,
+      "cost": 936,
+      "accepted": true,
+      "reason": "seed"
+    },
+    {
+      "round": 1,
+      "tag": "fewshot_parallel_multiple",
+      "name": "v1_seed+ex_pm",
+      "accuracy": 1.0,
+      "cost": 1467,
+      "accepted": false,
+      "reason": null
+    },
+    {
+      "round": 1,
+      "tag": "fewshot_string_exact",
+      "name": "v1_seed+ex_str",
+      "accuracy": 1.0,
+      "cost": 1283,
+      "accepted": false,
+      "reason": null
+    },
+    {
+      "round": 1,
+      "tag": "compress_system",
+      "name": "v1_seed+short",
+      "accuracy": 1.0,
+      "cost": 865,
+      "accepted": true,
+      "reason": "pareto"
+    }
+  ],
+  "winner_scaffold": {
+    "name": "v1_seed+short",
+    "system_prompt": "You are a function-calling assistant. You are given a user request and a list of available functions in JSON format. Reply with ONLY the function call(s) needed to fulfill the request, using Python syntax: func(param=value). If more than one call is needed, separate them with ';'.",
+    "fewshot": [
+      [
+        "[{\"name\": \"get_weather\", \"description\": \"Current weather for a city.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}, \"unit\": {\"type\": \"string\", \"enum\": [\"celsius\", \"fahrenheit\"]}}, \"required\": [\"city\"]}}]",
+        "What is the weather in Paris in celsius?",
+        "get_weather(city=\"Paris\", unit=\"celsius\")"
+      ],
+      [
+        "[{\"name\": \"add_numbers\", \"description\": \"Add two integers.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"a\": {\"type\": \"integer\"}, \"b\": {\"type\": \"integer\"}}, \"required\": [\"a\", \"b\"]}}]",
+        "Add 2 and 3, and also add 10 and 20.",
+        "add_numbers(a=2, b=3); add_numbers(a=10, b=20)"
+      ]
+    ],
+    "repair_hint": "",
+    "origin": "mut:compress"
+  },
+  "persisted_to_live": true,
+  "log": [
+    "[evolve] seed v1_seed: acc=1.000 (5/5) rep=0 cost=936 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1",
+    "[evolve] ronda 1 cand v1_seed+ex_pm (fewshot_parallel_multiple): acc=1.000 (5/5) rep=0 cost=1467 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1 -> rechaza",
+    "[evolve] ronda 1 cand v1_seed+ex_str (fewshot_string_exact): acc=1.000 (5/5) rep=0 cost=1283 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1 -> rechaza",
+    "[evolve] ronda 1 cand v1_seed+short (compress_system): acc=1.000 (5/5) rep=0 cost=865 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1 -> ACEPTA:pareto",
+    "[evolve] ronda 1: adopta v1_seed+short (pareto, acc=1.000 (5/5) rep=0 cost=865 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=1/1 simple=1/1)",
+    "[test] midiendo SEMILLA sobre 5 test held-out...",
+    "[test] semilla: acc=0.800 (4/5) rep=0 cost=936 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=0/1 simple=1/1",
+    "[test] midiendo GANADOR (v1_seed+short) sobre test...",
+    "[test] ganador: acc=0.800 (4/5) rep=0 cost=865 | live_simple=1/1 multiple=1/1 parallel=1/1 parallel_multiple=0/1 simple=1/1",
+    "[persist] ganador persistido (test 0.800 -> 0.800, delta +0.000)"
+  ]
+}

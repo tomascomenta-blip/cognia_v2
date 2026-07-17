@@ -1,0 +1,172 @@
+{
+  "label": "bon_smoke_verify",
+  "timestamp": "2026-07-03T15:15:11.407909",
+  "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "max_tokens": 768,
+  "temperature": 0.0,
+  "seed": 42,
+  "cache_prompt": false,
+  "grammar": false,
+  "fewshot": 0,
+  "bon_n": 8,
+  "repair_temperature": null,
+  "repair_mode": null,
+  "server_props": {
+    "default_generation_settings": {
+      "params": {
+        "seed": 4294967295,
+        "temperature": 0.800000011920929,
+        "dynatemp_range": 0.0,
+        "dynatemp_exponent": 1.0,
+        "top_k": 40,
+        "top_p": 0.949999988079071,
+        "min_p": 0.05000000074505806,
+        "top_n_sigma": -1.0,
+        "xtc_probability": 0.0,
+        "xtc_threshold": 0.10000000149011612,
+        "typical_p": 1.0,
+        "repeat_last_n": 64,
+        "repeat_penalty": 1.0,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "dry_multiplier": 0.0,
+        "dry_base": 1.75,
+        "dry_allowed_length": 2,
+        "dry_penalty_last_n": -1,
+        "mirostat": 0,
+        "mirostat_tau": 5.0,
+        "mirostat_eta": 0.10000000149011612,
+        "max_tokens": -1,
+        "n_predict": -1,
+        "n_keep": 0,
+        "n_discard": 0,
+        "ignore_eos": false,
+        "stream": true,
+        "n_probs": 0,
+        "min_keep": 0,
+        "chat_format": "Content-only",
+        "reasoning_format": "none",
+        "reasoning_in_content": false,
+        "generation_prompt": "",
+        "samplers": [
+          "penalties",
+          "dry",
+          "top_n_sigma",
+          "top_k",
+          "typ_p",
+          "top_p",
+          "min_p",
+          "xtc",
+          "temperature"
+        ],
+        "speculative.types": "none",
+        "timings_per_token": false,
+        "post_sampling_probs": false,
+        "backend_sampling": false,
+        "lora": []
+      },
+      "n_ctx": 16384
+    },
+    "total_slots": 4,
+    "model_alias": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+    "model_path": "D:\\Movido_desde_C\\Downloads\\cognia\\cognia_v2\\model_shards\\qwen-coder-3b-q4\\Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+    "modalities": {
+      "vision": false,
+      "audio": false
+    },
+    "media_marker": "<__media_sNpatpGk99AA68M7FA1RphM1ORLpbpu3__>",
+    "endpoint_slots": true,
+    "endpoint_props": false,
+    "endpoint_metrics": false,
+    "ui": true,
+    "ui_settings": {},
+    "webui": true,
+    "webui_settings": {},
+    "chat_template": "{%- if tools %}\n    {{- '<|im_start|>system\\n' }}\n    {%- if messages[0]['role'] == 'system' %}\n        {{- messages[0]['content'] }}\n    {%- else %}\n        {{- 'You are Qwen, created by Alibaba Cloud. You are a helpful assistant.' }}\n    {%- endif %}\n    {{- \"\\n\\n# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>\" }}\n    {%- for tool in tools %}\n        {{- \"\\n\" }}\n        {{- tool | tojson }}\n    {%- endfor %}\n    {{- \"\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\\\"name\\\": <function-name>, \\\"arguments\\\": <args-json-object>}\\n</tool_call><|im_end|>\\n\" }}\n{%- else %}\n    {%- if messages[0]['role'] == 'system' %}\n        {{- '<|im_start|>system\\n' + messages[0]['content'] + '<|im_end|>\\n' }}\n    {%- else %}\n        {{- '<|im_start|>system\\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.<|im_end|>\\n' }}\n    {%- endif %}\n{%- endif %}\n{%- for message in messages %}\n    {%- if (message.role == \"user\") or (message.role == \"system\" and not loop.first) or (message.role == \"assistant\" and not message.tool_calls) %}\n        {{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>' + '\\n' }}\n    {%- elif message.role == \"assistant\" %}\n        {{- '<|im_start|>' + message.role }}\n        {%- if message.content %}\n            {{- '\\n' + message.content }}\n        {%- endif %}\n        {%- for tool_call in message.tool_calls %}\n            {%- if tool_call.function is defined %}\n                {%- set tool_call = tool_call.function %}\n            {%- endif %}\n            {{- '\\n<tool_call>\\n{\"name\": \"' }}\n            {{- tool_call.name }}\n            {{- '\", \"arguments\": ' }}\n            {{- tool_call.arguments | tojson }}\n            {{- '}\\n</tool_call>' }}\n        {%- endfor %}\n        {{- '<|im_end|>\\n' }}\n    {%- elif message.role == \"tool\" %}\n        {%- if (loop.index0 == 0) or (messages[loop.index0 - 1].role != \"tool\") %}\n            {{- '<|im_start|>user' }}\n        {%- endif %}\n        {{- '\\n<tool_response>\\n' }}\n        {{- message.content }}\n        {{- '\\n</tool_response>' }}\n        {%- if loop.last or (messages[loop.index0 + 1].role != \"tool\") %}\n            {{- '<|im_end|>\\n' }}\n        {%- endif %}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|im_start|>assistant\\n' }}\n{%- endif %}",
+    "chat_template_caps": {
+      "supports_object_arguments": true,
+      "supports_parallel_tool_calls": true,
+      "supports_preserve_reasoning": false,
+      "supports_string_content": true,
+      "supports_system_role": true,
+      "supports_tool_calls": true,
+      "supports_tools": true,
+      "supports_typed_content": false
+    },
+    "bos_token": "<|endoftext|>",
+    "eos_token": "<|im_end|>",
+    "build_info": "b9391-7fb1e70b5",
+    "is_sleeping": false,
+    "cors_proxy_enabled": false
+  },
+  "n_tasks": 2,
+  "n_passed": 2,
+  "pass_at_1": 1.0,
+  "by_difficulty": {
+    "easy": {
+      "total": 2,
+      "passed": 2
+    }
+  },
+  "errors_by_type": {},
+  "avg_tok_per_s": 5.6,
+  "total_tokens_predicted": 800,
+  "results": [
+    {
+      "id": "E01",
+      "difficulty": "easy",
+      "entry_point": "count_vowels",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 73.86,
+      "tokens_predicted": 360,
+      "tok_per_s": 4.87,
+      "response": "```python\ndef count_vowels(s):\n    vowels = \"aeiouAEIOU\"\n    return sum(1 for char in s if char in vowels)\n```",
+      "extracted_code": "def count_vowels(s):\n    vowels = \"aeiouAEIOU\"\n    return sum(1 for char in s if char in vowels)",
+      "bon": {
+        "rank_mode": "tests",
+        "n_generated": 8,
+        "n_unique": 5,
+        "visible_tests": [
+          "assert count_vowels(\"\") == 0",
+          "assert count_vowels(\"abcdef\") == 2",
+          "assert count_vowels(\"aaaaa\") == 5",
+          "assert count_vowels(\"aaBAA\") == 3",
+          "assert count_vowels(\"zbcd\") == 0"
+        ],
+        "best_idx": 0,
+        "best_score": 4,
+        "best_total": 5,
+        "gen_calls": 9
+      }
+    },
+    {
+      "id": "E02",
+      "difficulty": "easy",
+      "entry_point": "sum_digits",
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 69.6,
+      "tokens_predicted": 440,
+      "tok_per_s": 6.32,
+      "response": "```python\ndef sum_digits(n):\n    return sum(int(digit) for digit in str(n))\n```",
+      "extracted_code": "def sum_digits(n):\n    return sum(int(digit) for digit in str(n))",
+      "bon": {
+        "rank_mode": "tests",
+        "n_generated": 8,
+        "n_unique": 1,
+        "visible_tests": [
+          "assert sum_digits(0) == 0",
+          "assert sum_digits(1) == 1",
+          "assert sum_digits(123) == 6"
+        ],
+        "best_idx": 0,
+        "best_score": 3,
+        "best_total": 3,
+        "gen_calls": 9
+      }
+    }
+  ]
+}
