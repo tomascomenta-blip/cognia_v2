@@ -127,8 +127,8 @@ class Benchmark:
         if not Path(self._db_path).exists():
             return BenchmarkMetrics()
         try:
-            conn = sqlite3.connect(self._db_path, timeout=5)
-            conn.execute("PRAGMA journal_mode=WAL")
+            from storage.db_pool import db_connect_pooled
+            conn = db_connect_pooled(self._db_path)  # pool: WAL+timeout ya aplicados
             m = self._compute(conn, task_ids)
             conn.close()
             return m

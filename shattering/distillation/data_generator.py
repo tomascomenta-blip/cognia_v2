@@ -50,7 +50,8 @@ def query_gold_episodes(
       observation, vector_json, feedback_weight, label, training_weight
     """
     try:
-        conn = sqlite3.connect(db_path)
+        from storage.db_pool import db_connect_pooled
+        conn = db_connect_pooled(db_path)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute("""

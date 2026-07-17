@@ -56,10 +56,11 @@ class IntegrationResult:
 
 # ── Utilidades de base de datos ────────────────────────────────────────────────
 
-def _db(db_path: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path)
-    conn.text_factory = str
-    return conn
+def _db(db_path: str):
+    # (2026-07-16) pool compartido: el connect directo (sin WAL ni timeout)
+    # competia con el pool sobre el mismo .db -> "database is locked".
+    from storage.db_pool import db_connect_pooled
+    return db_connect_pooled(db_path)
 
 
 def _ensure_research_log(db_path: str):

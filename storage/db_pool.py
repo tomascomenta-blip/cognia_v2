@@ -107,6 +107,12 @@ class SQLitePool:
 
     def release(self, conn: sqlite3.Connection, commit: bool = True):
         """Devuelve una conexión obtenida con acquire()."""
+        # Estado por-conexion NO puede filtrarse al proximo usuario del pool
+        # (thought_cache/coordinator/distillation setean sqlite3.Row).
+        try:
+            conn.row_factory = None
+        except Exception:
+            pass
         try:
             if commit:
                 conn.commit()
@@ -177,6 +183,16 @@ class _PooledConnection:
 
     def __getattr__(self, name):
         return getattr(self._conn, name)
+
+    def __setattr__(self, name, value):
+        # Proxy transparente tambien para ESCRITURAS: sin esto,
+        # `conn.row_factory = sqlite3.Row` seteaba un atributo del wrapper
+        # (la conexion real quedaba con row_factory=None y las filas volvian
+        # como tuplas -> lookups rotos). Cazado al migrar thought_cache.
+        if name in ("_conn", "_pool", "_closed"):
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._conn, name, value)
 
     def __enter__(self):
         return self._conn.__enter__()
