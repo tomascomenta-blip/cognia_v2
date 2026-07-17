@@ -6462,3 +6462,80 @@ auditado (hybrid_router dentro, 0 fugas de excluidos) · smoke venv limpio
 5/5 · CAMINO FELIZ 5/5 en 5.1 min. Subido wheel+sdist → verificado
 pip install cognia-ai==3.9.0 desde PyPI real en venv limpio (router OK).
 Tag v3.9.0 pusheado. Nota pendiente del dueño (previa): yankear 3.8.4.
+
+## 2026-07-16 — Corrida /goal: eliminación de deuda técnica + vault + README + release 3.9.1
+Mandato: eliminar TODAS las deudas técnicas, actualizar funciones al sistema
+actual, actualizar el cerebro del vault y el README, dejar todo funcional, y
+publicar a PyPI (autorización explícita en el goal). Método: mapeo multi-agente
+(7 dimensiones con verificación adversarial) + fixes en unidades chicas con
+test de regresión y push por unidad.
+
+### Deuda eliminada (8 unidades, 97bc982..d004de5)
+1. **Honestidad del downloader** (97bc982): descarga de shard FALLIDA devolvía
+   ok=True + modo simulación cacheado para siempre (violaba "nada de mocks");
+   catálogo apuntaba a repos HF cognia-ai/* INEXISTENTES. + os.chdir a nivel de
+   import en respuestas_articuladas (movía el cwd del proceso a site-packages
+   desde el chat), puerto default de crear_server 8765→8766, aviso de
+   LLAMA_LORA_PATH residual en apply_config.
+2. **Backend real en la era Ollama** (1aabcd8): /crear, /encolar, researcher
+   (tool research_llm + /dormir) e hipótesis generaban SOLO contra Ollama
+   hardcodeado → orquestador GGUF primero (rechazando mode=simulation), Ollama
+   fallback opcional con OLLAMA_URL; mensajes honestos "sin backend →
+   install-model". hypothesis además construía un orquestador NUEVO por
+   hipótesis (ahora singleton) y aceptaba texto simulado.
+3. **Módulos-script del wheel inertes** (f739c5c): bon_live_batch ejecutaba una
+   corrida LIVE del agente AL IMPORTARSE (borraba archivos del cwd; el
+   import-walk de la auditoría la disparó DE VERDAD ~10 min con server 7B);
+   kaggle_eagle3_bench clonaba/compilaba al importar; medir_fidelidad tenía el
+   path absoluto de esta máquina. Todo bajo guard __main__.
+4. **Diagnóstico GGUF-first** (4c4a668): doctor/status/modo local miraban solo
+   Ollama+shards NPZ y una instalación sana reportaba "no disponible".
+5. **Lote CLI** (f9e0941): /backup ROTO (buscaba cognia.db en paths viejos;
+   verificado en vivo: ahora respaldó 676MB de la DB real), /feedback con
+   import muerto (learner=None SIEMPRE), 5 comandos de "análisis" que eran
+   PLANTILLAS enlatadas → generan por LLM real con degradación honesta, alias
+   /help, /ayuda con el núcleo del producto (36 comandos ausentes), ~50 URLs
+   localhost→127.0.0.1, CORS +127.0.0.1, LCD manifest empaquetado.
+6. **Constantes unificadas** (911b801): vocab/EOS duplicados en 5 módulos →
+   model_constants; headers stale (llama_backend, tooluse README que
+   recomendaba el footgun LLAMA_LORA_PATH User).
+7. **db_pool** (d130e9a): 10 call-sites por-operación migrados del
+   sqlite3.connect directo (algunos sin WAL/timeout); DOS bugs del propio pool
+   cazados por la migración: el proxy no delegaba ESCRITURAS (row_factory al
+   wrapper → filas como tuplas) y release() filtraba row_factory entre
+   usuarios. :memory: y database.db_connect quedan documentados (poolear
+   callers de-por-vida = stalls de 10s; migración sigue módulo a módulo).
+8. **Higiene** (d004de5): restaurados build/ (la deleción rompía electron) y
+   los 4 results.json canónicos PISADOS por corridas smoke (evidencia
+   pre-registrada; smoke preservado aparte); gitignore para *.err/*.out,
+   staging, pesos, .skill_usage.json y datasets de training en subdirs
+   (PRIVACIDAD); evidencia de eval/training commiteada.
+
+### Vault + docs (850735c, 7817701)
+- wiki/wiki (cerebro): re-encuadrado a la era híbrida — 16 páginas nuevas
+  (hybrid_router, colonia, superorganismo, portero, 7B, fleet, llama_backend,
+  install_model, agente, oficina, model_router, stepwise, skills_hermes, lcd),
+  3 obsoletas reescritas (speculative CERRADA con los kill-gates,
+  ollama_vs_shards → prioridad real, inference_pipeline → flujo híbrido),
+  14 con nota de estado (deudas ya resueltas que seguían anotadas). 0 wikilinks
+  rotos (validador).
+- README (página de PyPI): agente + ruteo híbrido + /esfuerzo + TUI visibles;
+  sintaxis real de /aprender; Q4_K_M primero; benchmarks reales (threads=3,
+  i3 2c/4t); shards=avanzado; Ollama=fallback legacy; links ABSOLUTOS (en PyPI
+  los relativos daban 404). INSTALL sin Ollama-como-prerequisito;
+  TROUBLESHOOTING GGUF-first.
+
+### Incidencias honestas
+- La suite baseline corrió con 3 flakes de carga (db_pool timing conocido + 2
+  de oficina) que PASAN aislados; la corrida coincidió con el import-walk que
+  disparó al agente live (ver unidad 3) — la compuerta final se corre con la
+  máquina quieta.
+- La corrida live accidental del import-walk pudo appendear a las DBs de
+  memoria episódica (solo appends; sin archivos residuales en el repo).
+- Límite de sesión golpeado ~21:10 (verificadores del workflow caídos, reset
+  1am): el resto de la corrida se hizo en el loop principal sin subagentes.
+- Deuda restante documentada (no eliminada a ciegas): ~20 comandos
+  desktop-API-only sin fallback local (mensaje ya honesto), /distill legacy
+  (marcado), propagación de mode=simulation por el protocolo swarm (severidad
+  baja tras el fix del downloader), migración db_pool de database.db_connect
+  (módulo a módulo).
