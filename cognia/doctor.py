@@ -79,6 +79,24 @@ def check_packages() -> bool:
     return all_ok
 
 
+def check_gguf() -> bool:
+    """Backend REAL de produccion: llama-server + GGUF (cognia install-model)."""
+    gguf = None
+    try:
+        from node.llama_backend import _find_gguf
+        gguf = _find_gguf()
+    except Exception:
+        pass
+    if gguf is None:
+        return _warn("Backend GGUF no encontrado",
+                     "instala el stack recomendado con: cognia install-model")
+    _ok(f"GGUF: {gguf}")
+    server = os.environ.get("LLAMA_SERVER_PATH", "")
+    if server and os.path.isfile(server):
+        return _ok(f"llama-server: {server}")
+    return _ok("llama-server", "no fijado en config.env (se resuelve on-demand)")
+
+
 def check_ollama() -> bool:
     url = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
     try:
@@ -88,7 +106,7 @@ def check_ollama() -> bool:
         return _warn("Ollama", f"estado inesperado {req.status}")
     except Exception:
         return _warn("Ollama no disponible (opcional)",
-                     "Cognia usa los shards locales sin Ollama")
+                     "el backend principal es llama-server+GGUF; Ollama es solo fallback")
 
 
 def check_env() -> bool:
@@ -120,7 +138,7 @@ def _shard_dir() -> str:
 def check_shards() -> bool:
     sd = _shard_dir()
     if not sd:
-        return _warn("shards", "ausentes -- modo Local los descarga (cognia modo local)")
+        return _warn("shards", "ausentes (camino avanzado; el backend principal es GGUF)")
     present = [f for f in os.listdir(sd) if f.startswith("shard_")]
     if present:
         return _ok("shards INT4", f"{len(present)} en {sd}")
@@ -141,9 +159,19 @@ def _manifest_path() -> "str | None":
 
 
 def check_inference_speed() -> bool:
+    # El install recomendado (GGUF, sin NPZ) tambien se prueba: antes este
+    # check se omitia sin shards y el doctor terminaba sin haber verificado
+    # inferencia real en una instalacion sana.
+    gguf = None
+    try:
+        from node.llama_backend import _find_gguf
+        gguf = _find_gguf()
+    except Exception:
+        pass
     sd = _shard_dir()
-    if not sd:
-        return _warn("Inferencia", "sin shards -- omitido")
+    if not sd and gguf is None:
+        return _warn("Inferencia", "sin backend (ni GGUF ni shards) -- "
+                     "instala con: cognia install-model")
     manifest = _manifest_path()
     if manifest is None:
         return _warn("Inferencia", "sin manifest -- omitido")
@@ -151,8 +179,10 @@ def check_inference_speed() -> bool:
         import time
         from shattering.orchestrator import ShatteringOrchestrator
         orch = ShatteringOrchestrator(manifest_path=manifest, mode="local")
-        if not orch._shards_available():
+        if not orch._shards_available() and gguf is None:
             return _warn("Inferencia", "shards no detectados -- omitido")
+        if callable(getattr(orch, "_try_load_llama", None)):
+            orch._try_load_llama()   # backend GGUF real (patron e2e canonico)
         _ = orch.infer("Hola")  # warm-up (descarta cold start)
         t0 = time.perf_counter()
         result = orch.infer("Escribe una funcion corta que sume dos numeros.")
@@ -171,6 +201,7 @@ def run_all() -> int:
     sections = [
         ("Version de Python", check_python),
         ("Paquetes Python",   check_packages),
+        ("Backend GGUF (principal)", check_gguf),
         ("Ollama (opcional)", check_ollama),
         ("Configuracion",     check_env),
         ("Base de datos",     check_db),

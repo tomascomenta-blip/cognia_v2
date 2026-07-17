@@ -289,11 +289,25 @@ def _cmd_modo() -> None:
         save_pref(K_RUN_MODE, target)
         print(f"Modo cambiado a: {MODE_LABELS[target]}")
         if target == "local":
-            model_key = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
-            has_shards = (SHARDS_DIR / model_key / "shard_0.npz").exists()
-            if not has_shards:
-                print("  Faltan los pesos locales. Descargalos con:")
-                print("      cognia install-weights --standalone")
+            # GGUF-first: el stack recomendado es llama-server + GGUF
+            # (cognia install-model); los shards NPZ son el camino avanzado.
+            # Antes esto solo miraba shard_0.npz y mandaba a install-weights
+            # aunque el GGUF ya estuviera instalado y funcionando.
+            gguf = None
+            try:
+                from node.llama_backend import _find_gguf
+                gguf = _find_gguf()
+            except Exception:
+                pass
+            if gguf is not None:
+                print(f"  Backend local listo (GGUF: {gguf})")
+            else:
+                model_key = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
+                has_shards = (SHARDS_DIR / model_key / "shard_0.npz").exists()
+                if not has_shards:
+                    print("  Falta el modelo local. Instala el stack recomendado con:")
+                    print("      cognia install-model")
+                    print("  (avanzado: shards numpy con 'cognia install-weights --standalone')")
         elif target == "compartido":
             print("  Conecta a un coordinador con:")
             print("      cognia install-weights --coordinator <URL>")
@@ -316,13 +330,18 @@ def _cmd_modo() -> None:
 
 
 def _cmd_status() -> None:
+    # Backend real primero: antes status solo reportaba swarm + Ollama
+    # (sistemas legacy/opcionales) y una instalacion sana decia
+    # "modo standalone / Ollama: no disponible".
+    _print_backend_status()
+
     coord_url = (
         os.environ.get("COGNIA_COORDINATOR_URL", "")
         or os.environ.get("COORDINATOR_URL", "")
     ).rstrip("/")
 
     if not coord_url:
-        print("COGNIA_COORDINATOR_URL no configurada -- modo standalone")
+        print("Swarm: apagado (COGNIA_COORDINATOR_URL no configurada) -- modo local")
         _print_ollama_status()
         return
 
@@ -345,13 +364,33 @@ def _cmd_status() -> None:
     _print_ollama_status()
 
 
+def _print_backend_status() -> None:
+    """Estado del backend de inferencia REAL (llama-server + GGUF)."""
+    gguf = None
+    try:
+        from node.llama_backend import _find_gguf
+        gguf = _find_gguf()
+    except Exception:
+        pass
+    if gguf is None:
+        print("Backend local (GGUF): no instalado -- instala con: cognia install-model")
+        return
+    print(f"Backend local (GGUF): instalado ({gguf})")
+    port = os.environ.get("LLAMA_SERVER_PORT", "8088")
+    try:
+        urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
+        print(f"  llama-server: corriendo en 127.0.0.1:{port}")
+    except Exception:
+        print(f"  llama-server: no corriendo (arranca on-demand al usar el REPL)")
+
+
 def _print_ollama_status() -> None:
     ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434")
     try:
         urllib.request.urlopen(f"{ollama_url}/api/tags", timeout=3)
-        print(f"Ollama: disponible en {ollama_url}")
+        print(f"Ollama (opcional): disponible en {ollama_url}")
     except Exception:
-        print(f"Ollama: no disponible en {ollama_url}")
+        print(f"Ollama (opcional): no disponible")
 
 
 # ── Help ──────────────────────────────────────────────────────────────────────
@@ -368,7 +407,7 @@ Comandos:
   server             Servidor web FastAPI (puerto 8000)
   node               Iniciar como nodo del swarm distribuido
   coordinator        Iniciar coordinador del swarm (puerto 8001)
-  status             Estado del swarm y Ollama
+  status             Estado del backend local (GGUF), swarm y Ollama
   leave              Salir de la red y liberar el fragmento alojado
   help / --help      Mostrar esta ayuda
 
@@ -376,10 +415,15 @@ Opciones de install-weights:
   --coordinator URL  URL del coordinador (ej: http://192.168.1.50:8001)
   --standalone       Descargar los 4 shards para inferencia local completa
 
+Configuracion:
+  ~/.cognia/config.env     Fuente principal (la escribe 'cognia install-model' /
+                           el wizard): LLAMA_GGUF_PATH, LLAMA_SERVER_PATH, etc.
+                           Las env vars del sistema MANDAN sobre config.env.
+
 Variables de entorno:
-  COGNIA_COORDINATOR_URL   URL del coordinador
-  OLLAMA_URL               URL de Ollama (default: http://localhost:11434)
-  COGNIA_MODEL             Modelo Ollama (default: llama3.2)
+  LLAMA_GGUF_PATH          Ruta directa a un GGUF (prioridad sobre deteccion)
+  COGNIA_COORDINATOR_URL   URL del coordinador (swarm opcional)
+  OLLAMA_URL               URL de Ollama (fallback opcional)
   HF_TOKEN                 Token HuggingFace para datasets privados
 """
 
