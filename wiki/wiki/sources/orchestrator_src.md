@@ -2,13 +2,19 @@
 title: orchestrator.py — loop de generación y LPC
 type: source
 tags: [orchestrator, inference, lpc, sampling, distributed]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # orchestrator.py
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Responsabilidad 0 que falta abajo: intentar el backend llama.cpp
+(_try_load_llama/reload_llama, generacion via LlamaBackend,
+orchestrator.py:309+,497+) y solo caer al shard chain sin GGUF.
 ## Archivo
 
 `shattering/orchestrator.py`

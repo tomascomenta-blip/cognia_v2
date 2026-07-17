@@ -2,13 +2,21 @@
 title: qwen2_ops.py — operadores numpy para Qwen2
 type: source
 tags: [numpy, int4, rmsnorm, silu, rope, lm_head, numba]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # qwen2_ops.py
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Numba ACTIVO con venv312 (Python 3.12); la aceleracion es de 4 tiers
+(Numba -> C -> fp32 cache -> chunked, lineas 228-278). El bottleneck ~0.1
+tok/s y su mitigacion speculative son historia del path shards: produccion
+corre llama.cpp ~8 tok/s y la linea draft/EAGLE3 esta CERRADA
+([[concepts/speculative_decoding]]).
 ## Qué contiene
 
 `node/qwen2_ops.py` — todos los operadores de la forward pass sin PyTorch.

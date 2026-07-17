@@ -2,13 +2,21 @@
 title: GlobalRouter — MoE router LOGOS/TECHNE/RHETOR
 type: entity
 tags: [router, moe, logos, techne, rhetor, embedding]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # GlobalRouter
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Este router LOGOS/TECHNE/RHETOR pertenece al path shards y NO es el ruteo
+del producto: hoy rutean [[entities/hybrid_router]] (dificultad),
+[[entities/fleet_registry]] (expertos LoRA + 4B por turno) y classify_turn
+del [[entities/portero_05b]]. DOMAIN_EXPERT_CLUSTERS/MICRO_MOE_* viven en
+shattering/model_constants.py (los consume moe_layer.py), no en router.py.
 ## Qué hace
 
 Decide qué sub-modelo usar para un query. Combina heurísticas de keywords con similitud coseno sobre embeddings 384-dim (SentenceTransformer all-MiniLM-L6-v2 o fallback n-gram). Default a LOGOS para queries genéricos o ambiguos.

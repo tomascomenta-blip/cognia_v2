@@ -2,13 +2,18 @@
 title: Fatiga cognitiva — monitor de carga del sistema
 type: concept
 tags: [fatigue, monitor, cpu, memory, performance, adaptive]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # Fatiga cognitiva
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Deuda 'sin reset de estado' RESUELTA: reset() y reset_state() existen
+(fatiga_cognitiva.py:176,196) y limpian todo el estado.
 ## Qué es
 
 Variable `COGNITIVE_FATIGUE` — score 0-100 que mide la carga computacional del sistema en tiempo real. Modula el comportamiento de inferencia y retrieval según la carga.

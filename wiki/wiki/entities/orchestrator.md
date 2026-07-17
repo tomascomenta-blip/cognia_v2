@@ -2,13 +2,20 @@
 title: Orchestrator — coordinador del loop de generación
 type: entity
 tags: [orchestrator, inference, lpc, shard-chain, sampling]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # Orchestrator (ShatteringOrchestrator)
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+El camino PRIMARIO de infer() hoy es el backend llama.cpp: _try_load_llama()
+/ reload_llama() generan via [[entities/llama_backend]] ANTES del shard
+chain (orchestrator.py:309+, 497+); _ollama_infer quedo como tercer fallback.
+Lo de abajo describe el path shards (vigente solo sin GGUF).
 ## Qué hace
 
 Coordina el router, el FragmentManager y la cadena de shards en una única llamada `infer()`. Gestiona el loop token-a-token, el KV-cache (LPC), y el sampling por sub-modelo.

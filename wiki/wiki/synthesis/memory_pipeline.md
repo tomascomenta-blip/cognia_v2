@@ -2,13 +2,21 @@
 title: Flujo de memoria y personalización
 type: synthesis
 tags: [memory, elc, fedavg, sleep, episodic]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # Flujo de memoria y personalización
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Deudas listadas abajo: 2 de 3 RESUELTAS (FatigueMonitor tiene reset:
+fatiga_cognitiva.py:176,196; AttentionSystem tiene test de integracion:
+tests/test_attention_integration.py). RST K=2 sigue sin validar. El lazo
+sleep->ELC->FedAvg es capa swarm: el producto aprende en vivo via memoria
+episodica + KG sin FedAvg.
 ## Pipeline de memoria
 
 ```

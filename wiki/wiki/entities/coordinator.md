@@ -2,13 +2,19 @@
 title: Coordinator — coordinador del swarm
 type: entity
 tags: [coordinator, registry, relay, routing, shard-assignment]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # Coordinator
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Capa swarm OPCIONAL: no es el camino de inferencia del producto instalado
+(el CLI usa [[entities/llama_backend]]; COGNIA_DISABLE_SWARM/runtime_mode
+solo-local existen desde 3.8.0). El codigo citado abajo sigue vigente.
 ## Qué hace
 
 FastAPI desplegado en Railway (puerto Railway-asignado). Es el punto central de la red P2P:
