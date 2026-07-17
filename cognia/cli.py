@@ -287,7 +287,10 @@ def _build_stream_messages(ai, raw: str, system: str, hist_ctx: list) -> list:
 # Optional FeedbackLearner
 # ---------------------------------------------------------------------------
 try:
-    from cognia.feedback.feedback_learner import FeedbackLearner as _FeedbackLearner
+    # (2026-07-16) Import corregido: el modulo vive en cognia.adaptive, no en
+    # cognia.feedback (que no existe). El except dejaba _feedback_learner=None
+    # SIEMPRE: /feedback decia 'registrado' pero nunca alimentaba el learner.
+    from cognia.adaptive.feedback_learner import FeedbackLearner as _FeedbackLearner
     _feedback_learner = _FeedbackLearner()
 except Exception:
     _feedback_learner = None
@@ -354,9 +357,8 @@ _CMD_DESCRIPTIONS = {
     "/update":          "Actualizar Cognia",
     "/leer":            "Leer archivo al contexto   <ruta>",
     "/proyecto":        "Leer proyecto completo     <ruta>",
-    "/distill":         "Destilación SRDN (dry-run)",
-    "/distill run":     "Destilación SRDN (ejecutar)",
-    "/ayuda":           "Mostrar todos los comandos",
+    "/distill":         "Destilación SRDN (legacy: requiere Ollama; dry-run)",
+    "/distill run":     "Destilación SRDN (legacy: requiere Ollama; ejecutar)",
     "/salir":           "Salir del REPL",
     # Herramientas de sistema de archivos
     "/listar":          "Listar archivos            [directorio]",
@@ -366,6 +368,7 @@ _CMD_DESCRIPTIONS = {
     "/ejecutar":        "Ejecutar comando shell     <cmd>",
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
+    "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
     "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
     "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
@@ -687,8 +690,8 @@ _CMD_DETAILS = {
         "Ejemplo: /exportar md mi_historial.md"
     ),
     "/aprende-repo": (
-        "Indexa un repositorio Git local para que Cognia pueda responder preguntas sobre el codigo. "
-        "Ejemplo: /aprende-repo /ruta/al/repo"
+        "Busca repositorios en GitHub (URL directa o query) y aprende de ellos. "
+        "Ejemplo: /aprende-repo https://github.com/huggingface/transformers"
     ),
     "/skills": (
         "Lista todos los skills disponibles en cognia_skills/. "
@@ -745,6 +748,31 @@ HELP_TEXT = """
   COGNIA v3 -- Comandos disponibles
   ----------------------------------
   Texto sin / se trata como mensaje al sistema cognitivo (chat libre).
+
+  AGENTE Y RAZONAMIENTO (nucleo):
+    /hacer <tarea>                  Agente autonomo: ejecuta la tarea con herramientas reales
+    /agente estado                  Estado del agente hibrido (modalidad, esfuerzo, telemetria)
+    /esfuerzo [nivel]               Ver/fijar esfuerzo (bajo/medio/alto/maximo) y modalidades
+    /modelo [3b|7b|...]             Ver/cambiar el modelo activo del fleet
+    /pensar <problema>              Razonamiento paso a paso (stepwise)
+    /deliberar <pregunta>           Deliberacion multi-perspectiva
+    /flujo <objetivo>               Orquestador de flujos multi-paso
+    /largo <tema>                   Generacion larga por secciones (/largo --continuar)
+    /crear <idea>                   Crear un programa Python ahora (sandbox + biblioteca)
+    /encolar <idea>                 Encolar idea para el hobby de programacion
+    /investigar <pregunta>          Investigacion autonoma (web + LLM + KG)
+    /resumir <ruta|texto>           Resumir archivo o texto largo
+    /proyectos                      Proyectos detectados en el workspace
+    /recap                          Resumen de lo hecho en la sesion
+
+  HERRAMIENTAS DEL AGENTE:
+    /monitor <cmd>                  Monitorear un comando en background
+    /powershell <cmd>               Ejecutar PowerShell (Windows)
+    /web-buscar <q> / /web-fetch <url>  Busqueda y fetch web
+    /worktree <rama>                Git worktree aislado para el agente
+    /tarea-crear / /tarea-lista     Gestion de tareas del agente
+    /notificar <msg>                Notificacion del sistema
+    /diff <a> <b>                   Diff de archivos
 
   MEMORIA Y APRENDIZAJE:
     /observar <texto>               Observar sin etiqueta
@@ -918,7 +946,7 @@ HELP_TEXT = """
     /ayuda <comando>   Descripcion completa de un comando
 
   BACKUP Y ANALITICAS:
-    /backup [dir]        Backup de cognia.db (default: ~/.cognia_backups/)
+    /backup [dir]        Backup de la memoria (~/.cognia/cognia_memory.db; default: ~/.cognia_backups/)
     /mi-uso              Estadisticas de uso personal
     /mi-uso-detalle      Ranking de funciones mas usadas
 
@@ -1430,7 +1458,7 @@ def _slash_stats() -> None:
 def _slash_sugerir() -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/proactive/suggestions", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/proactive/suggestions", timeout=2)
         if resp.status_code == 200:
             suggestions = resp.json().get("suggestions", [])
             if not suggestions:
@@ -1442,13 +1470,13 @@ def _slash_sugerir() -> None:
         else:
             print(f"Error al obtener sugerencias: {resp.status_code}")
     except Exception:
-        print("Servicio de sugerencias no disponible. Inicia cognia_desktop_api.py.")
+        print("Servicio de sugerencias no disponible. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
 
 
 def _slash_logros(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/achievements", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/achievements", timeout=2)
         if resp.status_code != 200:
             print(f"Error: {resp.status_code}")
             return
@@ -1465,7 +1493,7 @@ def _slash_logros(args: str) -> None:
         if shown == 0:
             print("Aun no has desbloqueado logros. Empieza a chatear!")
         else:
-            r2 = requests.get("http://localhost:8765/achievements/stats", timeout=2)
+            r2 = requests.get("http://127.0.0.1:8765/achievements/stats", timeout=2)
             if r2.status_code == 200:
                 s = r2.json()
                 print(f"\n  Total: {s.get('unlocked',0)}/{s.get('total',0)} | Puntos: {s.get('points',0)}")
@@ -1511,10 +1539,16 @@ def _slash_patrones(args: str) -> None:
 def _slash_backup(args: str) -> None:
     import shutil, datetime
     from pathlib import Path
-    db_candidates = [Path("cognia.db"), Path.home() / "cognia.db", Path("storage/cognia.db")]
+    # La DB real de produccion es DB_PATH (~/.cognia/cognia_memory.db).
+    # Antes solo se buscaba 'cognia.db' en cwd/~/storage — paths de la era
+    # anterior: /backup NUNCA respaldaba nada en una instalacion normal
+    # (cazado 2026-07-16; el comando estaba skippeado en la bateria).
+    from cognia.config import DB_PATH
+    db_candidates = [Path(DB_PATH), Path("cognia.db"), Path.home() / "cognia.db",
+                     Path("storage/cognia.db")]
     src = next((p for p in db_candidates if p.exists()), None)
     if src is None:
-        print("No se encontro cognia.db para hacer backup.")
+        print(f"No se encontro la base de datos ({DB_PATH}) para hacer backup.")
         return
     dest_dir = Path(args.strip()) if args.strip() else Path.home() / ".cognia_backups"
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -1528,7 +1562,7 @@ def _slash_backup(args: str) -> None:
 def _slash_mi_uso(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/analytics/stats", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/analytics/stats", timeout=2)
         if resp.status_code == 200:
             s = resp.json()
             print(f"Uso de Cognia:")
@@ -1547,7 +1581,7 @@ def _slash_mi_uso(args: str) -> None:
 def _slash_mi_uso_detalle(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/analytics/top-features", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/analytics/top-features", timeout=2)
         if resp.status_code == 200:
             features = resp.json().get("features", resp.json() if isinstance(resp.json(), list) else [])
             if not features:
@@ -1596,7 +1630,7 @@ def _slash_buscar_memoria(ai, args: str) -> None:
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(args.strip())
-        resp = requests.get(f"http://localhost:8765/memory/search?q={q}&limit=5", timeout=5)
+        resp = requests.get(f"http://127.0.0.1:8765/memory/search?q={q}&limit=5", timeout=5)
         if resp.status_code == 200:
             _print_results(resp.json().get("results", []))
         else:
@@ -1610,32 +1644,47 @@ def _slash_buscar_memoria(ai, args: str) -> None:
             print(f"Busqueda semantica local fallo: {_e}")
 
 
-def _slash_debate(args: str) -> None:
+def _analisis_llm(ai, prompt: str, max_tokens: int = 450) -> "str | None":
+    """Analisis one-shot por el backend REAL; None si no hay backend vivo.
+
+    (2026-07-16) Reemplaza la familia de plantillas enlatadas de /debate,
+    /y-si, /cadena-causal, /reflexion-profunda y /argumento: imprimian texto
+    fijo con el tema interpolado fingiendo ser analisis (regla del repo:
+    nada de mocks/stubs). Sin backend ahora se dice honesto, no se inventa."""
+    orch = getattr(ai, "_orchestrator", None)
+    if orch is None:
+        return None
+    try:
+        r = orch.infer(prompt, max_tokens=max_tokens, temperature=0.7)
+        if r is None or getattr(r, "mode", "") == "simulation":
+            return None
+        return (r.text or "").strip() or None
+    except Exception:
+        return None
+
+
+def _sin_backend_analisis(comando: str) -> None:
+    print(f"{comando} necesita el backend de inferencia y no hay ninguno vivo.")
+    print("Instala el modelo con: cognia install-model")
+
+
+def _slash_debate(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /debate <tema o proposicion>")
         return
     tema = args.strip()
+    out = _analisis_llm(ai, (
+        f"Tema de debate: {tema}\n\n"
+        "Escribe 3 argumentos A FAVOR y 3 EN CONTRA, concretos y especificos "
+        "de ESTE tema (nada generico), y una conclusion de una linea.\n"
+        "Formato exacto:\nA FAVOR:\n+ ...\n+ ...\n+ ...\nEN CONTRA:\n- ...\n"
+        "- ...\n- ...\nCONCLUSION: ..."))
+    if out is None:
+        _sin_backend_analisis("/debate")
+        return
     print(f"Debate: '{tema}'")
     print()
-    print("A FAVOR:")
-    pros = [
-        f"  + {tema} puede mejorar la eficiencia en contextos especificos.",
-        f"  + Existen casos documentados donde {tema.lower()} ha generado valor.",
-        f"  + La adopcion de {tema.lower()} reduce costos a largo plazo.",
-    ]
-    for p in pros:
-        print(p)
-    print()
-    print("EN CONTRA:")
-    cons = [
-        f"  - {tema} introduce complejidad adicional que puede ser evitable.",
-        f"  - Los riesgos de {tema.lower()} no siempre estan bien evaluados.",
-        f"  - La implementacion de {tema.lower()} requiere recursos significativos.",
-    ]
-    for c in cons:
-        print(c)
-    print()
-    print("CONCLUSION: Evalua el contexto especifico antes de decidir.")
+    print(out)
 
 
 def _slash_contexto_semantico(ai, args: str) -> None:
@@ -1656,7 +1705,7 @@ def _slash_contexto_semantico(ai, args: str) -> None:
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(args.strip())
-        resp = requests.get(f"http://localhost:8765/memory/search/context?q={q}&window=3", timeout=5)
+        resp = requests.get(f"http://127.0.0.1:8765/memory/search/context?q={q}&window=3", timeout=5)
         if resp.status_code == 200:
             _print_ctx(resp.json().get("context", []))
         else:
@@ -1747,7 +1796,7 @@ def _slash_sintetizar(ai, args: str) -> None:
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(args.strip())
-        resp = requests.get(f"http://localhost:8765/synthesis?q={q}", timeout=5)
+        resp = requests.get(f"http://127.0.0.1:8765/synthesis?q={q}", timeout=5)
         if resp.status_code == 200:
             _print_synth(resp.json())
         else:
@@ -1762,27 +1811,23 @@ def _slash_sintetizar(ai, args: str) -> None:
             print(f"Sintesis local fallo: {_e}")
 
 
-def _slash_y_si(args: str) -> None:
+def _slash_y_si(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /y-si <situacion hipotetica>")
         return
     sit = args.strip()
+    out = _analisis_llm(ai, (
+        f"Situacion hipotetica: y si {sit}\n\n"
+        "Analiza el contrafactual con contenido ESPECIFICO de esta situacion "
+        "(nada generico). Formato exacto:\nEscenario probable:\n  ...\n"
+        "Riesgos:\n- ...\n- ...\nOportunidades:\n- ...\n- ...\n"
+        "Recomendacion: ... (una linea)"))
+    if out is None:
+        _sin_backend_analisis("/y-si")
+        return
     print(f"Analisis hipotetico: 'y si {sit}'")
     print()
-    print("Escenario probable:")
-    print(f"  Si {sit}, es probable que los sistemas relacionados se vean afectados.")
-    print(f"  El impacto dependeria de la escala y el contexto de implementacion.")
-    print()
-    print("Riesgos:")
-    print(f"  - Consecuencias no anticipadas de '{sit}'.")
-    print(f"  - Resistencia o friccion en la adopcion del cambio.")
-    print(f"  - Dependencias externas que limiten el resultado.")
-    print()
-    print("Oportunidades:")
-    print(f"  - Nuevos patrones de uso derivados de '{sit}'.")
-    print(f"  - Aprendizaje y adaptacion del sistema ante el cambio.")
-    print()
-    print("Recomendacion: prueba en escala pequena antes de generalizar.")
+    print(out)
 
 
 def _slash_temas(args: str) -> None:
@@ -1811,12 +1856,12 @@ def _slash_temas(args: str) -> None:
 def _slash_mi_cognia(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/cognitive-profile/summary", timeout=5)
+        resp = requests.get("http://127.0.0.1:8765/cognitive-profile/summary", timeout=5)
         if resp.status_code == 200:
             summary = resp.json().get("summary", "")
             print(summary if summary else "Perfil no disponible.")
         else:
-            resp2 = requests.get("http://localhost:8765/cognitive-profile", timeout=5)
+            resp2 = requests.get("http://127.0.0.1:8765/cognitive-profile", timeout=5)
             if resp2.status_code == 200:
                 p = resp2.json()
                 print("Perfil cognitivo de Cognia:")
@@ -1839,7 +1884,7 @@ def _slash_mi_cognia(args: str) -> None:
 def _slash_perfil_completo(args: str) -> None:
     try:
         import requests, json
-        resp = requests.get("http://localhost:8765/cognitive-profile", timeout=5)
+        resp = requests.get("http://127.0.0.1:8765/cognitive-profile", timeout=5)
         if resp.status_code == 200:
             print(json.dumps(resp.json(), indent=2, ensure_ascii=False))
         else:
@@ -1863,10 +1908,10 @@ def _slash_estado(args: str) -> None:
             errors.append(name)
 
     endpoints = {
-        "notas": "http://localhost:8765/notes/stats",
-        "logros": "http://localhost:8765/achievements/stats",
-        "uso": "http://localhost:8765/analytics/stats",
-        "aprendizaje": "http://localhost:8765/learning/stats",
+        "notas": "http://127.0.0.1:8765/notes/stats",
+        "logros": "http://127.0.0.1:8765/achievements/stats",
+        "uso": "http://127.0.0.1:8765/analytics/stats",
+        "aprendizaje": "http://127.0.0.1:8765/learning/stats",
     }
     threads = [threading.Thread(target=fetch, args=(n, u)) for n, u in endpoints.items()]
     for t in threads:
@@ -1875,7 +1920,7 @@ def _slash_estado(args: str) -> None:
         t.join(timeout=3)
 
     if not results and errors:
-        print("Servicio no disponible. Inicia cognia_desktop_api.py.")
+        print("Servicio no disponible. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
         return
 
     print("Estado de Cognia:")
@@ -2250,7 +2295,7 @@ def _slash_notif_limpiar(args: str) -> None:
 def _slash_recomendar(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/recommendations", timeout=5)
+        resp = requests.get("http://127.0.0.1:8765/recommendations", timeout=5)
         if resp.status_code == 200:
             recs = resp.json().get("recommendations", [])
             if not recs:
@@ -2275,14 +2320,14 @@ def _slash_recomendar(args: str) -> None:
 def _slash_digest(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/digest", timeout=5)
+        resp = requests.get("http://127.0.0.1:8765/digest", timeout=5)
         if resp.status_code == 200:
             digest_text = resp.json().get("digest", "")
             print(digest_text if digest_text else "Digest no disponible.")
         else:
             print(f"Error: {resp.status_code}")
     except Exception:
-        print("Servicio de digest no disponible. Inicia cognia_desktop_api.py.")
+        print("Servicio de digest no disponible. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
 
 
 def _slash_cognia_info(args: str) -> None:
@@ -2290,7 +2335,7 @@ def _slash_cognia_info(args: str) -> None:
     print()
     print("Capacidades principales:")
     capabilities = [
-        ("Inferencia",          "Modelo Qwen2.5-Coder-3B INT4, 4 shards, numpy puro"),
+        ("Inferencia",          "llama.cpp + GGUF: 3B con ruteo hibrido por dificultad (escala 3B->7B), portero 0.5B, /esfuerzo"),
         ("Memoria",             "Episodica + semantica TF-IDF + cristalizacion KG"),
         ("Aprendizaje",         "Repaso espaciado SM-2 + caminos de aprendizaje"),
         ("Objetivos",           "Gestion de metas con descomposicion de tareas"),
@@ -2318,7 +2363,7 @@ def _slash_inicio_dia(args: str) -> None:
     print()
     try:
         import requests
-        r = requests.get("http://localhost:8765/learning/stats", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/learning/stats", timeout=2)
         if r.status_code == 200:
             due = r.json().get("due_today", 0)
             if due > 0:
@@ -2330,7 +2375,7 @@ def _slash_inicio_dia(args: str) -> None:
 def _slash_proximos_pasos(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/recommendations/top", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/recommendations/top", timeout=3)
         if resp.status_code == 200:
             rec = resp.json().get("recommendation")
             if not rec:
@@ -2357,7 +2402,7 @@ def _slash_mapa(args: str) -> None:
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(center)
-        resp = requests.get(f"http://localhost:8765/kg/facts?subject={q}&limit=8", timeout=3)
+        resp = requests.get(f"http://127.0.0.1:8765/kg/facts?subject={q}&limit=8", timeout=3)
         if resp.status_code == 200:
             facts = resp.json().get("facts", resp.json() if isinstance(resp.json(), list) else [])
             for f in facts[:8]:
@@ -4139,7 +4184,7 @@ def _slash_reporte_json() -> None:
 def _slash_reporte_completo(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/reports/generate?period=7", timeout=10)
+        resp = requests.get("http://127.0.0.1:8765/reports/generate?period=7", timeout=10)
         if resp.status_code == 200:
             report = resp.json().get("report", "")
             if args.strip():
@@ -4160,7 +4205,7 @@ def _slash_reporte_semanal(args: str) -> None:
         import requests
         import datetime as _dt
         from pathlib import Path
-        resp = requests.get("http://localhost:8765/reports/generate?period=7", timeout=10)
+        resp = requests.get("http://127.0.0.1:8765/reports/generate?period=7", timeout=10)
         if resp.status_code == 200:
             report = resp.json().get("report", "")
             dest_dir = Path.home() / ".cognia_reports"
@@ -4179,26 +4224,30 @@ def _slash_reporte_semanal(args: str) -> None:
         print("Servicio de reportes no disponible.")
 
 
-def _slash_cadena_causal(args: str) -> None:
+def _slash_cadena_causal(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /cadena-causal <concepto>")
         return
     c = args.strip()
+    out = _analisis_llm(ai, (
+        f"Concepto/evento: {c}\n\n"
+        "Traza su cadena causal con contenido ESPECIFICO (nada generico).\n"
+        "Formato exacto:\nCausas raiz:\n- ...\nCausas directas:\n- ...\n"
+        f"Efectos de '{c}':\n- ...\nEfectos de segundo orden:\n- ..."))
+    if out is None:
+        _sin_backend_analisis("/cadena-causal")
+        return
     print(f"Cadena causal para: '{c}'")
     print()
-    print(f"Causas posibles de '{c}':")
-    print(f"  factores externos -> condiciones previas -> {c}")
+    print(out)
     print()
-    print(f"Efectos de '{c}':")
-    print(f"  {c} -> consecuencias directas -> impacto en sistema")
-    print()
-    print(f"Para un analisis mas profundo, combina con /kg-responder o /sintetizar {c}")
+    print(f"Para profundizar: /kg-responder o /sintetizar {c}")
 
 
 def _slash_metas_pendientes(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/goals?status=pending&limit=10", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/goals?status=pending&limit=10", timeout=3)
         if resp.status_code == 200:
             goals = resp.json() if isinstance(resp.json(), list) else resp.json().get("goals", [])
             if not goals:
@@ -4626,7 +4675,7 @@ def _slash_notas(args: str) -> None:
         params = {"limit": 20}
         if note_type:
             params["note_type"] = note_type
-        resp = requests.get("http://localhost:8765/notes", params=params, timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/notes", params=params, timeout=2)
         if resp.status_code == 200:
             data = resp.json()
             notes = data.get("notes", data if isinstance(data, list) else [])
@@ -4649,7 +4698,7 @@ def _slash_nota_agregar(args: str) -> None:
     try:
         import requests
         resp = requests.post(
-            "http://localhost:8765/notes",
+            "http://127.0.0.1:8765/notes",
             json={"content": args.strip(), "note_type": "fact", "session_id": "cli", "source": "manual"},
             timeout=2,
         )
@@ -4669,7 +4718,7 @@ def _slash_notas_buscar(args: str) -> None:
         return
     try:
         import requests
-        resp = requests.get("http://localhost:8765/notes/search", params={"q": args.strip()}, timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/notes/search", params={"q": args.strip()}, timeout=2)
         if resp.status_code == 200:
             data = resp.json()
             notes = data.get("notes", data if isinstance(data, list) else [])
@@ -4688,7 +4737,7 @@ def _slash_notas_buscar(args: str) -> None:
 def _slash_notas_stats() -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/notes/stats", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/notes/stats", timeout=2)
         if resp.status_code == 200:
             s = resp.json()
             total    = s.get("total", 0)
@@ -4715,7 +4764,7 @@ def _slash_nota_fijar(args: str) -> None:
     try:
         import requests
         note_id = args.strip()
-        resp = requests.post(f"http://localhost:8765/notes/{note_id}/pin", timeout=2)
+        resp = requests.post(f"http://127.0.0.1:8765/notes/{note_id}/pin", timeout=2)
         if resp.status_code in (200, 201):
             print(f"Nota {note_id} fijada.")
         else:
@@ -4831,7 +4880,7 @@ def _slash_aprendiendo_buscar(args: str) -> None:
 def _slash_ver_criticas(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/critique/recent", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/critique/recent", timeout=3)
         if resp.status_code == 200:
             items = resp.json() if isinstance(resp.json(), list) else resp.json().get("critiques", [])
             if not items:
@@ -4842,7 +4891,7 @@ def _slash_ver_criticas(args: str) -> None:
                 score = round(c.get("overall_score", 0), 2)
                 critique = c.get("critique", "")
                 print(f"  {i}. [score={score}] {critique}")
-            r2 = requests.get("http://localhost:8765/critique/score", timeout=2)
+            r2 = requests.get("http://127.0.0.1:8765/critique/score", timeout=2)
             if r2.status_code == 200:
                 d = r2.json()
                 print(f"\n  Promedio 7d: {round(d.get('avg_score_7d',0), 2)} | Tendencia: {d.get('trend','?')}")
@@ -4852,31 +4901,29 @@ def _slash_ver_criticas(args: str) -> None:
         print("Servicio de criticas no disponible.")
 
 
-def _slash_reflexion_profunda(args: str) -> None:
+def _slash_reflexion_profunda(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /reflexion-profunda <pregunta o tema>")
         return
     tema = args.strip()
-    lenses = [
-        ("Analitico",  f"Descompon '{tema}' en sus partes: causas, componentes, mecanismos."),
-        ("Critico",    f"Cuales son las debilidades o limitaciones de '{tema}'?"),
-        ("Creativo",   f"Que alternativas o enfoques no convencionales existen para '{tema}'?"),
-        ("Sistemico",  f"Como interactua '{tema}' con sistemas mas amplios?"),
-        ("Pragmatico", f"Cuales son los pasos accionables concretos relacionados con '{tema}'?"),
-    ]
+    out = _analisis_llm(ai, (
+        f"Tema: {tema}\n\n"
+        "Analizalo con 5 lentes cognitivos, 2-3 frases ESPECIFICAS del tema "
+        "por lente (nada generico). Formato exacto:\n[Analitico]\n  ...\n"
+        "[Critico]\n  ...\n[Creativo]\n  ...\n[Sistemico]\n  ...\n"
+        "[Pragmatico]\n  ..."), max_tokens=600)
+    if out is None:
+        _sin_backend_analisis("/reflexion-profunda")
+        return
     print(f"Reflexion profunda: '{tema}'")
     print()
-    for name, prompt in lenses:
-        print(f"[{name}]")
-        print(f"  Perspectiva: {prompt}")
-        print()
-    print("Usa estas perspectivas para guiar una conversacion mas profunda con Cognia.")
+    print(out)
 
 
 def _slash_calidad_respuestas(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/critique/score", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/critique/score", timeout=3)
         if resp.status_code == 200:
             d = resp.json()
             score = round(d.get("avg_score_7d", 0), 3)
@@ -4895,7 +4942,7 @@ def _slash_calidad_respuestas(args: str) -> None:
 def _slash_features(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/features", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/features", timeout=3)
         if resp.status_code == 200:
             data = resp.json()
             flags = data.get("flags", data if isinstance(data, list) else [])
@@ -4963,7 +5010,7 @@ def _slash_vocabulario_guardar(args: str) -> None:
         saved = 0
         for word in list(word_set)[:10]:
             r = requests.post(
-                "http://localhost:8765/kg",
+                "http://127.0.0.1:8765/kg",
                 json={"subject": "vocabulario_sesion", "predicate": "incluye", "object": word},
                 timeout=2,
             )
@@ -4977,7 +5024,7 @@ def _slash_vocabulario_guardar(args: str) -> None:
 def _slash_hechos_solidos(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/knowledge/crystallized", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/knowledge/crystallized", timeout=3)
         if resp.status_code == 200:
             facts = resp.json() if isinstance(resp.json(), list) else resp.json().get("facts", [])
             if not facts:
@@ -4999,11 +5046,11 @@ def _slash_hechos_solidos(args: str) -> None:
 def _slash_cristalizar(args: str) -> None:
     try:
         import requests
-        resp = requests.post("http://localhost:8765/knowledge/crystallize", timeout=10)
+        resp = requests.post("http://127.0.0.1:8765/knowledge/crystallize", timeout=10)
         if resp.status_code == 200:
             n = resp.json().get("crystallized", 0)
             print(f"Cristalizacion completada: {n} hecho(s) promovido(s) a alta confianza.")
-            r2 = requests.get("http://localhost:8765/knowledge/crystal-stats", timeout=3)
+            r2 = requests.get("http://127.0.0.1:8765/knowledge/crystal-stats", timeout=3)
             if r2.status_code == 200:
                 s = r2.json()
                 rate = round(s.get("crystallization_rate", 0) * 100, 1)
@@ -5023,12 +5070,12 @@ def _slash_conocimiento_ver(args: str) -> None:
         import requests
         import urllib.parse
         q = urllib.parse.quote(topic)
-        resp = requests.get(f"http://localhost:8765/kg/facts?subject={q}", timeout=3)
+        resp = requests.get(f"http://127.0.0.1:8765/kg/facts?subject={q}", timeout=3)
         facts = []
         if resp.status_code == 200:
             data = resp.json()
             facts = data if isinstance(data, list) else data.get("facts", [])
-        resp2 = requests.get(f"http://localhost:8765/synthesis?q={q}", timeout=5)
+        resp2 = requests.get(f"http://127.0.0.1:8765/synthesis?q={q}", timeout=5)
         synthesis = ""
         if resp2.status_code == 200:
             synthesis = resp2.json().get("synthesis", "")
@@ -5106,25 +5153,25 @@ def _slash_exportar_todo(args: str) -> None:
     try:
         import requests
 
-        r = requests.get("http://localhost:8765/export/history?format=json", timeout=5)
+        r = requests.get("http://127.0.0.1:8765/export/history?format=json", timeout=5)
         if r.status_code == 200:
             p = dest_dir / f"historial_{stamp}.json"
             p.write_text(r.text, encoding="utf-8")
             exported.append(str(p.name))
 
-        r = requests.get("http://localhost:8765/notes?limit=1000", timeout=5)
+        r = requests.get("http://127.0.0.1:8765/notes?limit=1000", timeout=5)
         if r.status_code == 200:
             p = dest_dir / f"notas_{stamp}.json"
             p.write_text(r.text, encoding="utf-8")
             exported.append(str(p.name))
 
-        r = requests.get("http://localhost:8765/goals", timeout=5)
+        r = requests.get("http://127.0.0.1:8765/goals", timeout=5)
         if r.status_code == 200:
             p = dest_dir / f"objetivos_{stamp}.json"
             p.write_text(r.text, encoding="utf-8")
             exported.append(str(p.name))
 
-        r = requests.get("http://localhost:8765/reports/generate?period=30", timeout=10)
+        r = requests.get("http://127.0.0.1:8765/reports/generate?period=30", timeout=10)
         if r.status_code == 200:
             report = r.json().get("report", "")
             p = dest_dir / f"reporte_{stamp}.md"
@@ -5138,7 +5185,7 @@ def _slash_exportar_todo(args: str) -> None:
         for f in exported:
             print(f"  - {f}")
     else:
-        print("No se pudo exportar ningun dato. Inicia cognia_desktop_api.py.")
+        print("No se pudo exportar ningun dato. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
 
 
 def _slash_camino_nuevo(args: str) -> None:
@@ -5224,7 +5271,7 @@ def _slash_etiquetar(args: str) -> None:
 def _slash_cognia_sabe(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/user/facts", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/user/facts", timeout=3)
         if resp.status_code == 200:
             facts = resp.json() if isinstance(resp.json(), list) else resp.json().get("facts", [])
             if not facts:
@@ -5248,7 +5295,7 @@ def _slash_cognia_aprende(args: str) -> None:
         return
     try:
         import requests
-        resp = requests.post("http://localhost:8765/user/facts",
+        resp = requests.post("http://127.0.0.1:8765/user/facts",
                              json={"fact": args.strip(), "confidence": 1.0}, timeout=3)
         if resp.status_code in (200, 201):
             print(f"Hecho aprendido: '{args.strip()}'")
@@ -5265,7 +5312,7 @@ def _slash_cognia_olvida(args: str) -> None:
     try:
         import requests
         fact_id = int(args.strip())
-        resp = requests.delete(f"http://localhost:8765/user/facts/{fact_id}", timeout=3)
+        resp = requests.delete(f"http://127.0.0.1:8765/user/facts/{fact_id}", timeout=3)
         if resp.status_code == 200:
             print(f"Hecho {fact_id} olvidado.")
         elif resp.status_code == 404:
@@ -5276,24 +5323,23 @@ def _slash_cognia_olvida(args: str) -> None:
         print("Servicio no disponible.")
 
 
-def _slash_argumento(args: str) -> None:
+def _slash_argumento(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /argumento <tesis o posicion>")
         return
     tesis = args.strip()
+    out = _analisis_llm(ai, (
+        f"Tesis: {tesis}\n\n"
+        "Construye el analisis dialectico con contenido ESPECIFICO de esta "
+        "tesis (nada generico). Formato exacto:\nTESIS:\n  ...\nANTITESIS:\n"
+        "  ... (el mejor contraargumento real)\nSINTESIS:\n  ... (posicion "
+        "equilibrada con condiciones concretas)"))
+    if out is None:
+        _sin_backend_analisis("/argumento")
+        return
     print(f"Analisis argumentativo: '{tesis}'")
     print()
-    print("TESIS:")
-    print(f"  Posicion: {tesis}")
-    print(f"  Supuesto: Se afirma que '{tesis}' es verdadero/beneficioso.")
-    print()
-    print("ANTITESIS:")
-    print(f"  La posicion opuesta cuestionaria: es '{tesis}' siempre aplicable?")
-    print(f"  Excepciones posibles: contextos donde '{tesis}' no se sostiene.")
-    print()
-    print("SINTESIS:")
-    print(f"  '{tesis}' puede ser valido bajo condiciones especificas.")
-    print(f"  Una posicion equilibrada considera tanto ventajas como limitaciones.")
+    print(out)
     print()
     print("Sugerencia: combina con /debate, /y-si o /buscar-web para profundizar.")
 
@@ -5301,7 +5347,7 @@ def _slash_argumento(args: str) -> None:
 def _slash_conflictos_kg(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/knowledge/conflicts", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/knowledge/conflicts", timeout=3)
         if resp.status_code == 200:
             conflicts = resp.json() if isinstance(resp.json(), list) else resp.json().get("conflicts", [])
             if not conflicts:
@@ -5321,7 +5367,7 @@ def _slash_conflictos_kg(args: str) -> None:
 def _slash_verificar_kg(args: str) -> None:
     try:
         import requests
-        resp = requests.post("http://localhost:8765/knowledge/conflicts/check", timeout=10)
+        resp = requests.post("http://127.0.0.1:8765/knowledge/conflicts/check", timeout=10)
         if resp.status_code == 200:
             n = resp.json().get("new_conflicts", 0)
             print(f"Verificacion completada: {n} nuevo(s) conflicto(s) detectado(s).")
@@ -5339,7 +5385,7 @@ def _slash_resolver_conflicto(args: str) -> None:
         return
     try:
         import requests
-        resp = requests.post(f"http://localhost:8765/knowledge/conflicts/{args.strip()}/resolve", timeout=3)
+        resp = requests.post(f"http://127.0.0.1:8765/knowledge/conflicts/{args.strip()}/resolve", timeout=3)
         if resp.status_code == 200:
             print(f"Conflicto {args.strip()} marcado como resuelto.")
         else:
@@ -5378,25 +5424,25 @@ def _slash_ver_contexto(ai, args: str) -> None:
     try:
         import requests
 
-        r = requests.get("http://localhost:8765/user/facts", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/user/facts", timeout=2)
         if r.status_code == 200:
             facts = r.json() if isinstance(r.json(), list) else r.json().get("facts", [])
             if facts:
                 sources.append(("Hechos personales", f"{len(facts)} hechos sobre ti"))
 
-        r = requests.get("http://localhost:8765/knowledge/crystallized", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/knowledge/crystallized", timeout=2)
         if r.status_code == 200:
             kfacts = r.json() if isinstance(r.json(), list) else r.json().get("facts", [])
             if kfacts:
                 sources.append(("KG cristalizado", f"{len(kfacts)} hechos de alta confianza"))
 
-        r = requests.get("http://localhost:8765/goals?status=pending", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/goals?status=pending", timeout=2)
         if r.status_code == 200:
             goals = r.json() if isinstance(r.json(), list) else r.json().get("goals", [])
             if goals:
                 sources.append(("Objetivos activos", f"{len(goals)} objetivos pendientes"))
 
-        r = requests.get("http://localhost:8765/recommendations/top", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/recommendations/top", timeout=2)
         if r.status_code == 200:
             rec = r.json().get("recommendation")
             if rec:
@@ -5673,9 +5719,11 @@ def repl():
                 subprocess.run([sys.executable, _scr] + _dargs)
             else:
                 _print_line("[detail]/distill esta disponible desde el repo de Cognia (no en la instalacion pip).[/detail]")
-        elif raw.startswith("/ayuda "):
-            _slash_ayuda_detallada(raw[len("/ayuda "):])
-        elif raw == "/ayuda":
+        elif raw.startswith("/ayuda ") or raw.startswith("/help "):
+            _slash_ayuda_detallada(raw.split(" ", 1)[1])
+        elif raw in ("/ayuda", "/help"):
+            # /help = alias de /ayuda (varios mensajes del propio CLI lo
+            # recomendaban y el comando no existia — cazado 2026-07-16).
             if _HAS_RICH and _console:
                 _console.print(HELP_TEXT, style="bright_green", markup=False)
             else:
@@ -5691,7 +5739,7 @@ def repl():
         elif raw == "/reporte-semanal":
             _slash_reporte_semanal("")
         elif raw.startswith("/cadena-causal"):
-            _slash_cadena_causal(raw[len("/cadena-causal"):].strip())
+            _slash_cadena_causal(ai, raw[len("/cadena-causal"):].strip())
         elif raw == "/metas-pendientes":
             _slash_metas_pendientes("")
         elif raw == "/yo":
@@ -7038,7 +7086,7 @@ def repl():
         # ── /debate ────────────────────────────────────────────────────
         elif raw == "/debate" or raw.startswith("/debate "):
             _db_args = raw[len("/debate "):].strip() if raw.startswith("/debate ") else ""
-            _slash_debate(_db_args)
+            _slash_debate(ai, _db_args)
 
         # ── /contexto-semantico ────────────────────────────────────────
         elif raw == "/contexto-semantico" or raw.startswith("/contexto-semantico "):
@@ -7053,7 +7101,7 @@ def repl():
         # ── /y-si ──────────────────────────────────────────────────────
         elif raw == "/y-si" or raw.startswith("/y-si "):
             _ysi_args = raw[len("/y-si "):].strip() if raw.startswith("/y-si ") else ""
-            _slash_y_si(_ysi_args)
+            _slash_y_si(ai, _ysi_args)
 
         # ── /temas ─────────────────────────────────────────────────────
         elif raw == "/temas":
@@ -7082,7 +7130,7 @@ def repl():
         # ── /reflexion-profunda ────────────────────────────────────────
         elif raw == "/reflexion-profunda" or raw.startswith("/reflexion-profunda "):
             _rp_args = raw[len("/reflexion-profunda "):].strip() if raw.startswith("/reflexion-profunda ") else ""
-            _slash_reflexion_profunda(_rp_args)
+            _slash_reflexion_profunda(ai, _rp_args)
 
         # ── /calidad-respuestas ────────────────────────────────────────
         elif raw == "/calidad-respuestas" or raw.startswith("/calidad-respuestas "):
@@ -7154,7 +7202,7 @@ def repl():
         elif raw == "/cognia-olvida" or raw.startswith("/cognia-olvida "):
             _slash_cognia_olvida(raw[len("/cognia-olvida "):].strip() if raw.startswith("/cognia-olvida ") else "")
         elif raw == "/argumento" or raw.startswith("/argumento "):
-            _slash_argumento(raw[len("/argumento "):].strip() if raw.startswith("/argumento ") else "")
+            _slash_argumento(ai, raw[len("/argumento "):].strip() if raw.startswith("/argumento ") else "")
         elif raw == "/conflictos-kg":
             _slash_conflictos_kg("")
         elif raw == "/verificar-kg":

@@ -72,8 +72,9 @@ def main():
     print("\n[e2e-escena] parte que depende del 3B: ¿elige escena_crear?", flush=True)
     try:
         from shattering.orchestrator import ShatteringOrchestrator
-        orch = ShatteringOrchestrator(
-            manifest_path="shattering/manifests/cognia_desktop.json")
+        # Sin manifest_path relativo: el default resuelve el manifest
+        # EMPAQUETADO (funciona instalado y con cwd arbitrario).
+        orch = ShatteringOrchestrator()
         _try = getattr(orch, "_try_load_llama", None)
         if callable(_try):
             _try()

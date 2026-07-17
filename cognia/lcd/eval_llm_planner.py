@@ -29,7 +29,7 @@ def main():
             pass
     from shattering.orchestrator import ShatteringOrchestrator
     try:
-        orch = ShatteringOrchestrator(manifest_path="shattering/manifests/cognia_desktop.json")
+        orch = ShatteringOrchestrator()
         orch._try_load_llama()
     except Exception:
         # fallback: el orch del CLI (ai._orchestrator) ya trae el backend

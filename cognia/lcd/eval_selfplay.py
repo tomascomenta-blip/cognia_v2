@@ -133,7 +133,7 @@ def main():
     # 3B real (opcional)
     try:
         from shattering.orchestrator import ShatteringOrchestrator
-        orch = ShatteringOrchestrator(manifest_path="shattering/manifests/cognia_desktop.json")
+        orch = ShatteringOrchestrator()
         if callable(getattr(orch, "_try_load_llama", None)):
             orch._try_load_llama()
         scores = []

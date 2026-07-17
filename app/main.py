@@ -37,7 +37,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8765"],
+    # localhost Y 127.0.0.1: los servers bindean 127.0.0.1 y el estandar
+    # post-bug-CSP del repo es 127.0.0.1 — un front servido desde ahi tenia
+    # el Origin bloqueado (cazado 2026-07-16).
+    allow_origins=["http://localhost:3000", "http://localhost:8765",
+                   "http://127.0.0.1:3000", "http://127.0.0.1:8765"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
