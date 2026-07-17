@@ -96,6 +96,27 @@ def _get_seed_concepts(cognia_instance=None) -> list[str]:
         return []
 
 
+def _llm_de_cognia(cognia_instance):
+    """Backend real del REPL como funcion inyectable para el generador.
+
+    (prompt, system, max_tokens, temperature) -> texto | None. Usa el
+    orquestador de la instancia (llama-server GGUF); rechaza el modo
+    "simulation" (texto placeholder, inservible para generar programas).
+    None si la instancia no tiene orquestador — el generador cae a Ollama."""
+    orch = getattr(cognia_instance, "_orchestrator", None)
+    if orch is None:
+        return None
+
+    def llm(prompt, system="", max_tokens=2000, temperature=0.9):
+        full = f"{system}\n\n{prompt}" if system else prompt
+        r = orch.infer(full, max_tokens=max_tokens, temperature=temperature)
+        if r is None or getattr(r, "mode", "") == "simulation":
+            return None
+        return (r.text or "").strip() or None
+
+    return llm
+
+
 # ── Loop principal ─────────────────────────────────────────────────────────────
 
 def run_program_hobby(
@@ -136,6 +157,11 @@ def run_program_hobby(
     if verbose and seed_concepts:
         print(f"   Conceptos semilla: {seed_concepts}")
 
+    # Backend real del REPL (si hay): antes el generador SOLO hablaba con
+    # Ollama hardcodeado y /crear no podia funcionar en la instalacion
+    # recomendada (cognia install-model, sin Ollama).
+    llm = _llm_de_cognia(cognia_instance)
+
     attempted   = 0
     successful  = 0
     stored_list = []
@@ -146,7 +172,7 @@ def run_program_hobby(
 
         # ── Paso 1: Generar programa ───────────────────────────────────
         program: Optional[GeneratedProgram] = generate_program(
-            seed_concepts, forced_idea=forced_idea
+            seed_concepts, forced_idea=forced_idea, llm=llm
         )
         attempted += 1
         _session_stats["programs_attempted"] += 1

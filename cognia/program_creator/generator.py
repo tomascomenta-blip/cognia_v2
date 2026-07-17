@@ -9,16 +9,39 @@ CAMBIOS v2:
 """
 
 import json
+import os
 import random
 import urllib.request as _req
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 # ── Configuración ──────────────────────────────────────────────────────────────
 
-OLLAMA_URL   = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2:1b"
+# El camino PRIMARIO es el backend real inyectado por el caller (llm=...):
+# run_program_hobby lo construye sobre el orquestador del REPL (llama-server
+# GGUF). Ollama quedo como fallback OPCIONAL y ahora respeta OLLAMA_URL
+# (antes estaba hardcodeado a localhost y era el UNICO camino: /crear no
+# podia funcionar en la instalacion recomendada, que no trae Ollama).
+OLLAMA_URL   = (os.environ.get("OLLAMA_URL", "http://localhost:11434")
+                .rstrip("/") + "/api/generate")
+OLLAMA_MODEL = os.environ.get("COGNIA_OLLAMA_MODEL", "llama3.2:1b")
 TIMEOUT_SEC  = 500
+
+# Firma del backend inyectable: (prompt, system, max_tokens, temperature) -> texto|None
+LlmFn = Callable[[str, str, int, float], Optional[str]]
+
+
+def _call_llm(prompt: str, system: str = "", max_tokens: int = 2000,
+              temperature: float = 0.9, llm: Optional[LlmFn] = None) -> Optional[str]:
+    """Backend real primero; Ollama como fallback. None si no hay backend vivo."""
+    if llm is not None:
+        try:
+            raw = llm(prompt, system, max_tokens, temperature)
+            if raw:
+                return raw
+        except Exception as exc:
+            print(f"[generator] backend real fallo: {exc}")
+    return _call_ollama(prompt)
 
 FALLBACK_CATEGORIES = [
     "ASCII art generator that runs automatically",
@@ -68,7 +91,8 @@ class GeneratedProgram:
 
 # ── Generación autónoma de ideas ───────────────────────────────────────────────
 
-def _generate_idea_autonomously(seed_concepts: Optional[list] = None) -> Optional[str]:
+def _generate_idea_autonomously(seed_concepts: Optional[list] = None,
+                                llm: Optional[LlmFn] = None) -> Optional[str]:
     """Pide al LLM que proponga su propia idea, inspirada en lo que ha aprendido."""
     context = ""
     if seed_concepts and len(seed_concepts) >= 2:
@@ -87,6 +111,17 @@ def _generate_idea_autonomously(seed_concepts: Optional[list] = None) -> Optiona
         f"Example: 'philosophical argument mapper that visualizes logical connections'\n"
         f"Your idea:"
     )
+
+    # Backend real primero (inyectado); Ollama como fallback.
+    if llm is not None:
+        try:
+            raw = llm(prompt, "", 50, 0.95)
+            if raw:
+                idea = raw.split("\n")[0].strip().strip('"').strip("'").strip(".")
+                if 5 < len(idea) < 200:
+                    return idea
+        except Exception as exc:
+            print(f"[generator] backend real fallo generando idea: {exc}")
 
     try:
         payload = json.dumps({
@@ -108,12 +143,13 @@ def _generate_idea_autonomously(seed_concepts: Optional[list] = None) -> Optiona
         return None
 
 
-def _pick_idea(seed_concepts: Optional[list] = None) -> tuple[str, str, bool]:
+def _pick_idea(seed_concepts: Optional[list] = None,
+               llm: Optional[LlmFn] = None) -> tuple[str, str, bool]:
     """70% autónoma, 30% fallback a lista predefinida."""
     complexity = random.choice(COMPLEXITY_HINTS)
 
     if random.random() < 0.70:
-        idea = _generate_idea_autonomously(seed_concepts)
+        idea = _generate_idea_autonomously(seed_concepts, llm=llm)
         if idea:
             print(f"[generator] 🧠 Idea propia: {idea}")
             return idea, complexity, True
@@ -154,16 +190,19 @@ def _build_prompt(category: str, extra_hint: str) -> str:
     )
 
 
+_SYSTEM_CODER = (
+    "You are a creative Python programmer. Write complete, runnable programs "
+    "using only the standard library. NEVER use input() or blocking calls — "
+    "programs must run automatically. Follow the output format exactly."
+)
+
+
 def _call_ollama(prompt: str) -> Optional[str]:
     try:
         payload = json.dumps({
             "model":   OLLAMA_MODEL,
             "prompt":  prompt,
-            "system": (
-                "You are a creative Python programmer. Write complete, runnable programs "
-                "using only the standard library. NEVER use input() or blocking calls — "
-                "programs must run automatically. Follow the output format exactly."
-            ),
+            "system":  _SYSTEM_CODER,
             "stream":  False,
             "options": {"temperature": 0.90, "num_predict": 2000, "top_p": 0.95}
         }).encode("utf-8")
@@ -243,23 +282,29 @@ def clear_custom_ideas() -> int:
 # ── API pública ────────────────────────────────────────────────────────────────
 
 def generate_program(seed_concepts: Optional[list] = None,
-                     forced_idea:   Optional[str]  = None) -> Optional[GeneratedProgram]:
-    """Genera un programa. Intenta idea autónoma primero, fallback a lista predefinida."""
+                     forced_idea:   Optional[str]  = None,
+                     llm:           Optional[LlmFn] = None) -> Optional[GeneratedProgram]:
+    """Genera un programa. Intenta idea autónoma primero, fallback a lista predefinida.
+
+    llm: backend real inyectado por el caller (run_program_hobby lo construye
+    sobre el orquestador del REPL); sin él se intenta Ollama (OLLAMA_URL)."""
     self_proposed = False
 
     if forced_idea:
         category, extra_hint = forced_idea.strip(), random.choice(COMPLEXITY_HINTS)
     else:
-        category, extra_hint, self_proposed = _pick_idea(seed_concepts)
+        category, extra_hint, self_proposed = _pick_idea(seed_concepts, llm=llm)
 
     if not self_proposed:
         print(f"[generator] 💡 Idea: {category}")
 
-    raw     = _call_ollama(_build_prompt(category, extra_hint))
+    raw     = _call_llm(_build_prompt(category, extra_hint),
+                        system=_SYSTEM_CODER, llm=llm)
     program = _parse_response(raw, category) if raw else None
 
     if raw is None:
-        print("[generator] ⚠️  Ollama no respondió.")
+        print("[generator] ⚠️  Sin backend LLM vivo (ni orquestador ni Ollama). "
+              "Instala el modelo con 'cognia install-model'.")
         return None
     if program is None:
         print("[generator] ⚠️  No se pudo parsear o fue rechazado.")

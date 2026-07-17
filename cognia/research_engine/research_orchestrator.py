@@ -142,6 +142,19 @@ def run_research_session(
         print(f"\n🔬 [ResearchEngine] Iniciando sesión — {len(selected)} preguntas seleccionadas "
               f"de {len(pending)} pendientes")
 
+    # ── Backend real del REPL (si la instancia lo tiene) ───────────────
+    # Mismo puente que program_creator._llm_de_cognia: el researcher ya no
+    # depende de Ollama hardcodeado.
+    llm = None
+    orch = getattr(cognia_instance, "_orchestrator", None)
+    if orch is not None:
+        def llm(prompt, system="", max_tokens=600, temperature=0.55):
+            full = f"{system}\n\n{prompt}" if system else prompt
+            r = orch.infer(full, max_tokens=max_tokens, temperature=temperature)
+            if r is None or getattr(r, "mode", "") == "simulation":
+                return None
+            return (r.text or "").strip() or None
+
     # ── Ciclo de investigación ─────────────────────────────────────────
     for i, proposal in enumerate(selected, 1):
         if verbose:
@@ -153,7 +166,7 @@ def run_research_session(
         session.questions_attempted += 1
 
         # Paso 1: Investigar con LLM
-        result: Optional[ResearchResult] = research_question(proposal)
+        result: Optional[ResearchResult] = research_question(proposal, llm=llm)
 
         if result is None:
             if verbose:

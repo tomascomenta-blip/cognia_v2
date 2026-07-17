@@ -386,7 +386,7 @@ class Cognia:
             if self._orchestrator.shards_ready():
                 print("[OK] ShatteringOrchestrator activo (shards Qwen disponibles)")
             else:
-                print("[OK] ShatteringOrchestrator activo (shards no encontrados — modo Ollama)")
+                print("[OK] ShatteringOrchestrator activo (shards no encontrados — backend llama.cpp/GGUF on-demand)")
         except Exception as _orch_exc:
             logger.warning(
                 "ShatteringOrchestrator no pudo inicializarse",
@@ -488,7 +488,9 @@ class Cognia:
             return (
                 f"Creacion completada en {result.duration_sec}s.\n"
                 f"Intentos: {result.attempted}. Ninguno supero el umbral de calidad.\n"
-                f"Prueba con una descripcion mas especifica."
+                f"Prueba con una descripcion mas especifica. Si Cognia no tiene\n"
+                f"backend de inferencia, instalalo con 'cognia install-model'\n"
+                f"(el detalle de la causa quedo impreso arriba)."
             )
         except Exception as exc:
             return f"[ERROR] {exc}"

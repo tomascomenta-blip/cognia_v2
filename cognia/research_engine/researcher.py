@@ -2,8 +2,15 @@
 researcher.py — Motor de investigación autónoma de Cognia.
 
 Toma preguntas pendientes del CuriosityEngine y las intenta responder
-usando el LLM local (Ollama). Produce respuestas estructuradas listas
+usando el LLM local. Produce respuestas estructuradas listas
 para ser integradas al conocimiento de Cognia.
+
+Backend (2026-07-16): el camino primario es el backend REAL — el `llm`
+inyectado por el caller (run_research_session lo arma sobre el orquestador
+del REPL) o, sin él, un ShatteringOrchestrator lazy propio (mismo patrón
+que cognia_v3/interfaces/model_router._LOCAL_ORCH). Ollama quedó como
+fallback opcional y respeta OLLAMA_URL (antes era el ÚNICO camino, con URL
+hardcodeada: sin Ollama toda investigación fallaba en silencio).
 
 PRINCIPIO:
     Lee preguntas de curiosity_proposals (solo lectura del estado).
@@ -12,15 +19,65 @@ PRINCIPIO:
 """
 
 import json
+import os
 import urllib.request as _req
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 # ── Configuración ──────────────────────────────────────────────────────────────
 
-OLLAMA_URL    = "http://localhost:11434/api/generate"
-OLLAMA_MODEL  = "llama3.2"
+OLLAMA_URL    = (os.environ.get("OLLAMA_URL", "http://localhost:11434")
+                 .rstrip("/") + "/api/generate")
+OLLAMA_MODEL  = os.environ.get("COGNIA_OLLAMA_MODEL", "llama3.2")
 TIMEOUT_SEC   = 5   # short timeout — circuit breaker handles retries
+
+# Firma del backend inyectable: (prompt, system, max_tokens, temperature) -> texto|None
+LlmFn = Callable[[str, str, int, float], Optional[str]]
+
+_LOCAL_ORCH = None  # lazy: solo si nadie inyecta un llm (tool research_llm suelta)
+
+
+def _llm_local():
+    """Orquestador lazy propio (backend real) para callers sin instancia."""
+    global _LOCAL_ORCH
+    try:
+        if _LOCAL_ORCH is None:
+            from shattering.orchestrator import ShatteringOrchestrator
+            _LOCAL_ORCH = ShatteringOrchestrator(mode="local")
+        return _LOCAL_ORCH
+    except Exception:
+        return None
+
+
+_SYSTEM_RESEARCH = (
+    "You are a concise research assistant embedded in a cognitive AI system. "
+    "Your answers fill knowledge gaps. Be precise, factual, and structured. "
+    "Always follow the requested output format exactly. "
+    "Respond in the same language as the question."
+)
+
+
+def _call_llm(prompt: str, llm: Optional[LlmFn] = None) -> Optional[str]:
+    """Backend real (inyectado u orquestador lazy) primero; Ollama al final."""
+    if llm is not None:
+        try:
+            raw = llm(prompt, _SYSTEM_RESEARCH, 600, 0.55)
+            if raw:
+                return raw
+        except Exception as exc:
+            print(f"[researcher] backend inyectado fallo: {exc}")
+    orch = _llm_local()
+    if orch is not None:
+        try:
+            r = orch.infer(f"{_SYSTEM_RESEARCH}\n\n{prompt}",
+                           max_tokens=600, temperature=0.55)
+            if r is not None and getattr(r, "mode", "") != "simulation":
+                text = (r.text or "").strip()
+                if text:
+                    return text
+        except Exception as exc:
+            print(f"[researcher] backend local fallo: {exc}")
+    return _call_ollama(prompt)
 
 # Confianza base que se asigna a conocimiento aprendido via investigación
 # (menor que el conocimiento aprendido por observación directa)
@@ -106,12 +163,7 @@ def _call_ollama(prompt: str) -> Optional[str]:
         payload = json.dumps({
             "model":   OLLAMA_MODEL,
             "prompt":  prompt,
-            "system": (
-                "You are a concise research assistant embedded in a cognitive AI system. "
-                "Your answers fill knowledge gaps. Be precise, factual, and structured. "
-                "Always follow the requested output format exactly. "
-                "Respond in the same language as the question."
-            ),
+            "system":  _SYSTEM_RESEARCH,
             "stream":  False,
             "options": {
                 "temperature":  0.55,   # Más bajo que el generador — queremos hechos, no creatividad
@@ -186,12 +238,15 @@ def _parse_response(raw: str, proposal: dict) -> Optional[ResearchResult]:
 
 # ── API pública ────────────────────────────────────────────────────────────────
 
-def research_question(proposal: dict) -> Optional[ResearchResult]:
+def research_question(proposal: dict,
+                      llm: Optional[LlmFn] = None) -> Optional[ResearchResult]:
     """
-    Investiga una pregunta pendiente del CuriosityEngine usando Ollama.
+    Investiga una pregunta pendiente del CuriosityEngine con el LLM local.
 
     Args:
         proposal: dict con keys: id, question, topic, type, score, rationale
+        llm:      backend real inyectado por el caller (opcional); sin él se
+                  usa el orquestador lazy local y Ollama como último fallback.
 
     Returns:
         ResearchResult con la respuesta y conocimiento estructurado,
@@ -207,9 +262,11 @@ def research_question(proposal: dict) -> Optional[ResearchResult]:
     print(f"[researcher] 🔍 Investigando: '{question[:60]}...'")
 
     prompt = _build_prompt(question, topic, question_type)
-    raw    = _call_ollama(prompt)
+    raw    = _call_llm(prompt, llm=llm)
 
     if raw is None:
+        print("[researcher] ⚠️  Sin backend LLM vivo (orquestador/Ollama). "
+              "Instala el modelo con 'cognia install-model'.")
         return None
 
     result = _parse_response(raw, proposal)
