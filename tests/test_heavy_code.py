@@ -12,6 +12,9 @@ import node.heavy_code as hc
 def _reset(monkeypatch):
     monkeypatch.setattr(hc, "_HEAVY_SINGLETON", None)
     monkeypatch.setattr(hc, "_HEAVY_FAILED", False)
+    # Estos tests usan fakes propios (backend/resolucion): abren el guard
+    # anti-spawn de pytest de heavy_code_backend (2026-07-16).
+    monkeypatch.setattr(hc, "_PYTEST_REAL_OK", True)
     monkeypatch.delenv("COGNIA_HEAVY_CODE", raising=False)
     monkeypatch.delenv("COGNIA_HEAVY_KEEPWARM", raising=False)
     yield

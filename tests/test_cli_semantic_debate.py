@@ -37,17 +37,31 @@ def test_buscar_memoria_requires_args():
 # ---------------------------------------------------------------------------
 # 2. /debate requires args
 # ---------------------------------------------------------------------------
+def _fake_ai(texto):
+    """ai con orquestador fake: /debate genera por el backend REAL desde
+    2026-07-16 (antes era una plantilla enlatada)."""
+    import types
+
+    class _Orch:
+        def infer(self, prompt, max_tokens=None, temperature=None):
+            return types.SimpleNamespace(text=texto, mode="local")
+
+    return types.SimpleNamespace(_orchestrator=_Orch())
+
+
 def test_debate_requires_args():
-    out = _capture(_slash_debate, "")
+    out = _capture(_slash_debate, None, "")
     assert "Uso:" in out
     assert "/debate" in out
 
 
 # ---------------------------------------------------------------------------
-# 3. /debate prints pro/con sections
+# 3. /debate prints pro/con sections (generadas por el modelo)
 # ---------------------------------------------------------------------------
 def test_debate_prints_pro_con_sections():
-    out = _capture(_slash_debate, "inteligencia artificial")
+    ai = _fake_ai("A FAVOR:\n+ punto real\nEN CONTRA:\n- contra real\n"
+                  "CONCLUSION: depende del contexto")
+    out = _capture(_slash_debate, ai, "inteligencia artificial")
     assert "A FAVOR:" in out
     assert "EN CONTRA:" in out
     assert "CONCLUSION:" in out

@@ -33,20 +33,34 @@ def test_reporte_semanal_connection_error(capsys):
     assert "no disponible" in out.lower()
 
 
+def _fake_ai_cadena(texto):
+    """/cadena-causal genera por el backend REAL desde 2026-07-16."""
+    import types
+
+    class _Orch:
+        def infer(self, prompt, max_tokens=None, temperature=None):
+            return types.SimpleNamespace(text=texto, mode="local")
+
+    return types.SimpleNamespace(_orchestrator=_Orch())
+
+
 def test_cadena_causal_requires_args(capsys):
     """cadena-causal should print usage hint when called with no args."""
     from cognia.cli import _slash_cadena_causal
-    _slash_cadena_causal("")
+    _slash_cadena_causal(None, "")
     out = capsys.readouterr().out
     assert "Uso:" in out
 
 
 def test_cadena_causal_prints_causas(capsys):
-    """cadena-causal should print 'Causas posibles' section for a given concept."""
+    """cadena-causal imprime la cadena generada por el modelo."""
     from cognia.cli import _slash_cadena_causal
-    _slash_cadena_causal("inflacion")
+    ai = _fake_ai_cadena("Causas raiz:\n- emision\nCausas directas:\n- demanda\n"
+                         "Efectos de 'inflacion':\n- precios\n"
+                         "Efectos de segundo orden:\n- tasas")
+    _slash_cadena_causal(ai, "inflacion")
     out = capsys.readouterr().out
-    assert "Causas posibles" in out
+    assert "Causas raiz" in out
     assert "inflacion" in out
 
 

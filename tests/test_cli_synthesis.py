@@ -34,16 +34,29 @@ def test_sintetizar_requires_args():
 # ---------------------------------------------------------------------------
 # 2. /y-si requires args
 # ---------------------------------------------------------------------------
+def _fake_ai(texto):
+    """/y-si genera por el backend REAL desde 2026-07-16 (antes plantilla)."""
+    import types
+
+    class _Orch:
+        def infer(self, prompt, max_tokens=None, temperature=None):
+            return types.SimpleNamespace(text=texto, mode="local")
+
+    return types.SimpleNamespace(_orchestrator=_Orch())
+
+
 def test_y_si_requires_args():
-    out = _capture(_slash_y_si, "")
+    out = _capture(_slash_y_si, None, "")
     assert "Uso:" in out
 
 
 # ---------------------------------------------------------------------------
-# 3. /y-si prints escenario section
+# 3. /y-si prints escenario section (generada por el modelo)
 # ---------------------------------------------------------------------------
 def test_y_si_prints_escenario():
-    out = _capture(_slash_y_si, "todos usaran IA")
+    ai = _fake_ai("Escenario probable:\n  adopcion masiva\nRiesgos:\n- x\n"
+                  "Oportunidades:\n- y\nRecomendacion: pilotos chicos")
+    out = _capture(_slash_y_si, ai, "todos usaran IA")
     assert "Escenario probable" in out
     assert "Riesgos" in out
     assert "Oportunidades" in out
