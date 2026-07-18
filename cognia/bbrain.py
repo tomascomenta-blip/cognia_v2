@@ -189,6 +189,72 @@ def _repo_map_lines(repo_root: Path) -> list[str]:
     return lines
 
 
+def _public_symbols(py_file: Path) -> list[str]:
+    """Nombres publicos (def/class sin '_' inicial) de un .py via ast; [] si falla."""
+    import ast
+    try:
+        tree = ast.parse(py_file.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    out = []
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if not node.name.startswith("_"):
+                out.append(node.name)
+    return out
+
+
+def _coverage_map_lines(repo_root: Path, max_listed: int = 40) -> list[str]:
+    """Radar anti-desactualizacion: modulos cuyos simbolos publicos NO aparecen
+    en ningun archivo de tests/. La mencion textual es una heuristica barata
+    (un nombre puede aparecer sin estar de verdad testeado), pero un modulo con
+    CERO menciones esta garantizado fuera del radar de la suite."""
+    lines: list[str] = []
+    try:
+        tests_dir = repo_root / "tests"
+        corpus = ""
+        if tests_dir.is_dir():
+            for t in tests_dir.glob("test_*.py"):
+                try:
+                    corpus += t.read_text(encoding="utf-8", errors="replace")
+                except Exception:
+                    continue
+
+        # Candidatos: .py top-level + paquetes principales (sin tests/)
+        candidates: list[Path] = sorted(repo_root.glob("*.py"))
+        for pkg in _MAIN_PACKAGES:
+            if pkg == "tests":
+                continue
+            pkg_dir = repo_root / pkg
+            if pkg_dir.is_dir():
+                candidates.extend(sorted(
+                    p for p in pkg_dir.rglob("*.py") if "__pycache__" not in p.parts
+                ))
+
+        total_mods, huerfanos = 0, []
+        for py in candidates:
+            syms = _public_symbols(py)
+            if not syms:
+                continue
+            total_mods += 1
+            mencionados = sum(1 for s in syms if s in corpus)
+            if mencionados == 0:
+                rel = py.relative_to(repo_root).as_posix()
+                huerfanos.append(f"{rel} ({len(syms)} simbolos publicos)")
+
+        lines.append(f"- Modulos con simbolos publicos: {total_mods}")
+        lines.append(f"- SIN ninguna mencion en tests/: {len(huerfanos)}")
+        if huerfanos:
+            lines.append("- Fuera del radar (revisar al tocar features vecinas):")
+            for h in huerfanos[:max_listed]:
+                lines.append(f"  * {h}")
+            if len(huerfanos) > max_listed:
+                lines.append(f"  * ... y {len(huerfanos) - max_listed} mas")
+    except Exception:
+        lines.append("- (radar de cobertura no disponible)")
+    return lines
+
+
 # ── API publica ──────────────────────────────────────────────────────────────
 
 def generate_bbrain(repo_root: Path) -> str:
@@ -208,6 +274,9 @@ def generate_bbrain(repo_root: Path) -> str:
         "",
         "## Mapa del repo",
         *_repo_map_lines(repo_root),
+        "",
+        "## Radar de cobertura (anti-danos-colaterales)",
+        *_coverage_map_lines(repo_root),
         "",
         _PROJECT_RULES,
     ]

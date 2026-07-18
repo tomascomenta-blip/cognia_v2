@@ -1,7 +1,7 @@
 # bbrain.md — Cerebro del repo Cognia
 
 > AUTOGENERADO por cognia/bbrain.py — no editar a mano; regenerar con `cognia bbrain`.
-> Generado: 2026-07-18 10:19:22
+> Generado: 2026-07-18 12:21:31
 
 ## Entorno
 - Python: 3.12.10 (C:\Users\usuario\Desktop\cognia_v2\venv312\Scripts\python.exe)
@@ -19,14 +19,60 @@
 
 ## Mapa del repo
 - Modulos .py top-level: 36
-- cognia/: 201 archivos .py
+- cognia/: 209 archivos .py
 - node/: 15 archivos .py
 - shattering/: 18 archivos .py
 - coordinator/: 10 archivos .py
 - storage/: 2 archivos .py
 - security/: 4 archivos .py
-- tests/: 191 archivos .py
-- Archivos de test (tests/test_*.py): 188
+- tests/: 194 archivos .py
+- Archivos de test (tests/test_*.py): 191
+
+## Radar de cobertura (anti-danos-colaterales)
+- Modulos con simbolos publicos: 229
+- SIN ninguna mencion en tests/: 45
+- Fuera del radar (revisar al tocar features vecinas):
+  * aprendizaje_profundo.py (3 simbolos publicos)
+  * cognia_deferred.py (2 simbolos publicos)
+  * conversation_memory.py (6 simbolos publicos)
+  * decision_gate.py (5 simbolos publicos)
+  * feedback_engine.py (5 simbolos publicos)
+  * game_manager.py (5 simbolos publicos)
+  * investigador.py (8 simbolos publicos)
+  * language_corrector.py (1 simbolos publicos)
+  * logger_config.py (5 simbolos publicos)
+  * model_collapse_guard.py (1 simbolos publicos)
+  * prompt_optimizer.py (5 simbolos publicos)
+  * symbolic_responder.py (4 simbolos publicos)
+  * symbolic_synthesizer.py (3 simbolos publicos)
+  * teacher_interface.py (3 simbolos publicos)
+  * cognia/goal_and_pattern_engine.py (9 simbolos publicos)
+  * cognia/ingest.py (2 simbolos publicos)
+  * cognia/logger_config.py (5 simbolos publicos)
+  * cognia/memory/adapter_store.py (1 simbolos publicos)
+  * cognia/memory/working.py (2 simbolos publicos)
+  * cognia/memory_response_engine.py (2 simbolos publicos)
+  * cognia/migrations/runner.py (2 simbolos publicos)
+  * cognia/program_creator/evaluator.py (3 simbolos publicos)
+  * cognia/program_creator/generated_programs/cognia_game/game.py (1 simbolos publicos)
+  * cognia/program_creator/generated_programs/fractal_pattern_renderer/program.py (4 simbolos publicos)
+  * cognia/program_creator/generated_programs/franzs_treasure_hunt/program.py (1 simbolos publicos)
+  * cognia/program_creator/generated_programs/royal_favors/program.py (1 simbolos publicos)
+  * cognia/program_creator/generated_programs/untitled_procedural_story_generator_with_built_in/program.py (2 simbolos publicos)
+  * cognia/program_creator/generator.py (7 simbolos publicos)
+  * cognia/program_creator/program_creator.py (5 simbolos publicos)
+  * cognia/program_creator/sandbox_runner.py (2 simbolos publicos)
+  * cognia/program_creator/storage.py (10 simbolos publicos)
+  * cognia/research_engine/knowledge_integrator.py (3 simbolos publicos)
+  * cognia/research_engine/research_orchestrator.py (4 simbolos publicos)
+  * cognia/research_engine/researcher.py (2 simbolos publicos)
+  * cognia/ux/messages.py (1 simbolos publicos)
+  * node/client.py (1 simbolos publicos)
+  * node/downloader.py (4 simbolos publicos)
+  * node/local_adapter.py (3 simbolos publicos)
+  * node/relay_client.py (2 simbolos publicos)
+  * shattering/distillation/data_generator.py (3 simbolos publicos)
+  * ... y 5 mas
 
 ## Reglas del proyecto
 

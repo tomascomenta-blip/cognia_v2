@@ -104,3 +104,31 @@ class TestWriteBbrain:
         content = path.read_text(encoding="utf-8")
         assert "contenido viejo" not in content
         assert "AUTOGENERADO" in content
+
+
+class TestCoverageRadar:
+    """Radar anti-danos-colaterales: modulos publicos sin mencion en tests/."""
+
+    def test_detecta_modulo_huerfano(self, tmp_path):
+        (tmp_path / "a.py").write_text("def alpha_fn():\n    pass\n", encoding="utf-8")
+        (tmp_path / "b.py").write_text(
+            "def beta_orphan():\n    pass\nclass GammaOrphan:\n    pass\n",
+            encoding="utf-8")
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests" / "test_a.py").write_text(
+            "from a import alpha_fn\n", encoding="utf-8")
+        from cognia.bbrain import _coverage_map_lines
+        txt = "\n".join(_coverage_map_lines(tmp_path))
+        assert "b.py (2 simbolos publicos)" in txt      # huerfano detectado
+        assert "* a.py" not in txt                       # el testeado no aparece
+
+    def test_repo_sin_tests_no_explota(self, tmp_path):
+        (tmp_path / "solo.py").write_text("def x_pub():\n    pass\n", encoding="utf-8")
+        from cognia.bbrain import _coverage_map_lines
+        txt = "\n".join(_coverage_map_lines(tmp_path))
+        assert "SIN ninguna mencion" in txt
+
+    def test_seccion_presente_en_bbrain(self, offline_env):
+        from cognia.bbrain import generate_bbrain
+        content = generate_bbrain(offline_env)
+        assert "## Radar de cobertura" in content
