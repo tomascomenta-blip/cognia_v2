@@ -4289,6 +4289,19 @@ def repl():
 
     _session_start = time.time()
 
+    # bbrain.md: documento de contexto autogenerado del repo (reemplaza a un
+    # CLAUDE.md mantenido a mano). Se regenera silenciosamente si falta o tiene
+    # mas de 24h para que siempre refleje el entorno real. try/except total:
+    # el arranque del REPL jamas puede romperse por un fallo de introspeccion.
+    try:
+        from .bbrain import write_bbrain
+        _bb_root = Path(__file__).parent.parent
+        _bb_path = _bb_root / "bbrain.md"
+        if not _bb_path.exists() or (time.time() - _bb_path.stat().st_mtime) > 86400:
+            write_bbrain(_bb_root)
+    except Exception:
+        pass
+
     # Capture Cognia() init output for animated replay
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
