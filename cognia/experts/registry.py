@@ -276,6 +276,20 @@ def set_enabled(expert_id: str, enabled: bool) -> Expert:
     raise ValueError(f"experto desconocido: {expert_id}")
 
 
+def save_adapter_file(expert_id: str, adapter_dir: str) -> Expert:
+    """
+    Registra la ruta del adapter LoRA entrenado para un experto (modalidad 2
+    del alta) y persiste. Lanza ValueError si el experto no existe.
+    """
+    experts = load_registry()
+    for e in experts:
+        if e.id == expert_id:
+            e.adapter_file = str(adapter_dir)
+            save_custom(experts)
+            return e
+    raise ValueError(f"experto desconocido: {expert_id}")
+
+
 # -- Vista /modelos ---------------------------------------------------------
 
 def _estado_modelo(expert: Expert, fleet_by_key: dict) -> str:

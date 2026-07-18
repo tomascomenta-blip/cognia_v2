@@ -5,6 +5,11 @@ Registro persistente de expertos (perfiles de modelo con dedicacion).
 API publica re-exportada desde registry.py.
 """
 
+from .prompt_forge import (
+    SECCIONES,
+    create_expert_with_prompt,
+    forge_prompt,
+)
 from .registry import (
     BACKENDS,
     BUILTIN_EXPERTS,
@@ -25,8 +30,11 @@ __all__ = [
     "BACKENDS",
     "BUILTIN_EXPERTS",
     "Expert",
+    "SECCIONES",
     "add_expert",
+    "create_expert_with_prompt",
     "experts_dir",
+    "forge_prompt",
     "get_expert",
     "load_registry",
     "registry_path",

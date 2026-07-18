@@ -23,6 +23,19 @@ try:
 except ImportError:
     pass
 
+# Pre-importar transformers COMPLETO (si esta instalado) antes de colectar los
+# tests: si un test importa coordinator.app primero, su GlobalRouter dispara la
+# carga de sentence-transformers DURANTE ese import y 'transformers' queda
+# "partially initialized" en sys.modules (ciclo st<->transformers), rompiendo el
+# import posterior de peft en test_expert_forge ("cannot import AutoModel").
+# Importarlo entero y primero inmuniza el proceso (mismo espiritu que el
+# workaround de rich de abajo). Costo: ~2-4s solo en maquinas con peft/torch.
+try:
+    import transformers as _tf_preload
+    _ = _tf_preload.AutoModel          # fuerza la resolucion del lazy-module
+except Exception:
+    pass
+
 
 def pytest_runtest_setup(item):
     """Re-import rich if contaminated by swig-based modules (e.g. llama-cpp-python)."""

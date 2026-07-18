@@ -212,7 +212,7 @@ except Exception:
 # ---------------------------------------------------------------------------
 
 def _slash_modelos(ai, args: str) -> None:
-    """Registro de expertos: tabla, quitar, activar/desactivar."""
+    """Registro de expertos: tabla, agregar (3 modalidades), quitar, on/off."""
     from cognia.experts import (load_registry, remove_expert,
                                 render_modelos_table, set_enabled)
     partes = args.strip().split()
@@ -225,6 +225,8 @@ def _slash_modelos(ai, args: str) -> None:
             except Exception:
                 fs = None
             print(render_modelos_table(load_registry(), fs))
+        elif sub == "agregar":
+            _modelos_agregar_flow(" ".join(partes[1:]))
         elif sub == "quitar" and len(partes) == 2:
             e = remove_expert(partes[1])
             print(f"Experto '{e.id}' quitado.")
@@ -232,9 +234,138 @@ def _slash_modelos(ai, args: str) -> None:
             e = set_enabled(partes[1], sub == "activar")
             print(f"Experto '{e.id}' {'activado' if e.enabled else 'desactivado'}.")
         else:
-            print("Uso: /modelos [quitar <id> | activar <id> | desactivar <id>]")
+            print("Uso: /modelos [agregar [peticion] | quitar <id> | "
+                  "activar <id> | desactivar <id>]")
     except ValueError as exc:
         print(f"[WARN] {exc}")
+
+
+def _modelos_agregar_flow(peticion: str = "", input_fn=input,
+                          print_fn=print) -> None:
+    """Alta interactiva de experto en 3 modalidades (encuesta + forjas).
+
+    1) el usuario elige modelo y Cognia forja el prompt de comportamiento
+    2) como 1 + adaptador LoRA de identidad (CPU, via expert_forge)
+    3) automatico: el meta-modelo convierte la peticion libre en la spec
+    input_fn/print_fn inyectables para tests (patron surveys).
+    """
+    from cognia.console.surveys import ask_survey
+    from cognia.experts.prompt_forge import create_expert_with_prompt
+
+    r = ask_survey(
+        "Como quieres crear el experto?",
+        ["Elijo el modelo y Cognia escribe su prompt de comportamiento",
+         "Como la 1 y ademas Cognia entrena un adaptador LoRA (CPU, tarda unos minutos)",
+         "Automatico: Cognia decide todo a partir de mi peticion"],
+        multi=False, libre=False, input_fn=input_fn, print_fn=print_fn)
+    if not r["selected"]:
+        print_fn("Alta cancelada.")
+        return
+    modalidad = 3 if r["selected"][0].startswith("Automatico") else (
+        2 if "LoRA" in r["selected"][0] else 1)
+
+    spec = None
+    if modalidad == 3:
+        if not peticion:
+            peticion = input_fn("Describe el experto que quieres (texto libre) > ").strip()
+        if peticion:
+            from cognia.experts.meta_maker import make_expert_spec
+            print_fn("Consultando al meta-modelo creador de expertos...")
+            spec = make_expert_spec(peticion)
+        if spec is None:
+            print_fn("[WARN] El meta-modelo no esta disponible o no produjo una "
+                     "spec valida; sigo con el alta guiada.")
+
+    if spec is None:
+        nombre = input_fn("Nombre del experto > ").strip()
+        dedicacion = input_fn("A que se dedica (una linea) > ").strip()
+        if not nombre or not dedicacion:
+            print_fn("Alta cancelada (faltan datos).")
+            return
+        try:
+            from node.fleet import fleet_status
+            opciones = [f"{m['key']} ({m['params']}, {m['rol']})"
+                        for m in fleet_status() if m["presente"]]
+        except Exception:
+            opciones = []
+        if opciones:
+            rm = ask_survey("Que modelo lo atiende?", opciones, multi=False,
+                            libre=True, input_fn=input_fn, print_fn=print_fn)
+            elegido = (rm["selected"][0].split(" ", 1)[0] if rm["selected"]
+                       else (rm["libre"] or "chat-7b").strip())
+        else:
+            elegido = input_fn("model_key (ej. chat-7b) > ").strip() or "chat-7b"
+        slug = "-".join("".join(c if c.isalnum() or c == " " else ""
+                                for c in nombre.lower()).split())[:40]
+        spec = {"id": slug, "nombre": nombre, "dedicacion": dedicacion,
+                "model_key": elegido, "backend": "gguf"}
+
+    print_fn(f"Creando experto '{spec['nombre']}' ({spec['model_key']}) — "
+             f"forjando su prompt de comportamiento...")
+    exp = create_expert_with_prompt(spec["id"], spec["nombre"],
+                                    spec["dedicacion"], spec["model_key"],
+                                    spec.get("backend", "gguf"),
+                                    print_fn=print_fn)
+    print_fn(f"Experto '{exp.id}' creado con prompt extenso. Ver con /modelos")
+
+    if modalidad == 2:
+        _entrenar_adapter_experto(exp, print_fn=print_fn)
+
+
+def _entrenar_adapter_experto(exp, print_fn=print) -> None:
+    """Modalidad 2: LoRA de identidad via expert_forge (subprocess, CPU)."""
+    import json as _json
+    import subprocess as _sp
+    from pathlib import Path as _P
+
+    from cognia.experts.identity_dataset import (build_identity_dataset,
+                                                 write_dataset_json)
+    from cognia.experts.registry import experts_dir, save_adapter_file
+
+    root = _P(__file__).resolve().parent.parent
+    if not (root / "expert_forge" / "cli_train.py").is_file():
+        print_fn("[WARN] expert_forge no esta en esta instalacion; "
+                 "el experto queda solo con prompt (sin adapter).")
+        return
+    model_dir = _P.home() / ".cognia" / "models_hf" / "qwen2.5-0.5b-instruct"
+    if not model_dir.is_dir():
+        print_fn("[WARN] falta el modelo base 0.5B HF "
+                 "(expert_forge.get_base_model); experto sin adapter.")
+        return
+
+    prompt_md = None
+    try:
+        from cognia.experts.registry import system_prompt_path
+        p = system_prompt_path(exp)
+        prompt_md = p.read_text(encoding="utf-8") if p and p.is_file() else None
+    except Exception:
+        pass
+    dataset = build_identity_dataset(exp.nombre, exp.dedicacion, prompt_md)
+    ds_path = write_dataset_json(dataset,
+                                 experts_dir() / exp.id / "identity_dataset.json")
+    out_dir = experts_dir() / exp.id / "adapter"
+    print_fn(f"Entrenando adaptador LoRA de identidad ({len(dataset)} ejemplos, "
+             f"~200 steps CPU; puede tardar varios minutos)...")
+    try:
+        import sys as _sys
+        res = _sp.run(
+            [_sys.executable, "-m", "expert_forge.cli_train",
+             "--model-dir", str(model_dir), "--dataset-json", str(ds_path),
+             "--out-dir", str(out_dir), "--steps", "200", "--seq-len", "384"],
+            capture_output=True, text=True, timeout=3600, cwd=str(root),
+            encoding="utf-8", errors="replace")
+        if res.returncode == 0 and res.stdout.strip():
+            info = _json.loads(res.stdout.strip().splitlines()[-1])
+            save_adapter_file(exp.id, str(out_dir))
+            print_fn(f"Adapter entrenado: loss {info['initial_loss']:.2f} -> "
+                     f"{info['final_loss']:.2f} (rank {info['rank']}). "
+                     f"Guardado en el registro.")
+        else:
+            print_fn(f"[WARN] el entrenamiento fallo (exit {res.returncode}); "
+                     f"el experto queda solo con prompt. Detalle: "
+                     f"{(res.stderr or '')[-200:]}")
+    except Exception as exc:
+        print_fn(f"[WARN] no se pudo entrenar el adapter: {exc}")
 
 
 def _slash_perfil(nombre: str) -> None:
@@ -366,7 +497,7 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
 # ---------------------------------------------------------------------------
 _CMD_DESCRIPTIONS = {
     # Expertos, perfiles y consola
-    "/modelos":         "Ver expertos y sus modelos. Uso: /modelos [quitar <id> | activar <id> | desactivar <id>]",
+    "/modelos":         "Expertos y sus modelos. Uso: /modelos [agregar [peticion] | quitar <id> | activar <id> | desactivar <id>]",
     "/modelo":          "Alias de /modelos",
     "/cpu":             "Aplicar perfil de optimizacion CPU (default)",
     "/gpu":             "Aplicar perfil de optimizacion GPU (RTX: todas las capas)",
