@@ -1903,3 +1903,54 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
   `git push` interactivo o `gh auth login` una vez. G0 (toolchain cu128/WSL2) es el próximo
   paso de la Pista 1; decisión de producto abierta (doc §4.9): entrenar BDraft vs migrar
   target a Qwen3-8B con ecosistema EAGLE-3/DFlash ya hecho.
+
+
+## 2026-07-18 (2ª sesión) — expertos /modelos, perfiles CPU/GPU, consola con permisos, meta-modelo creador, G2 de BDraft
+
+Goal del dueño (7 frentes) ejecutado con recon previo (workflow 7 lectores) + 2 tandas de
+implementación (workflows con verificación adversarial; la tanda 2 murió a mitad por límite
+de cuota de sesión y se completó a mano). Commits: cace511, a6f256c, 11f5599.
+
+- **Recon**: mapa completo del REPL (dispatcher if/elif cli.py:4396-5773, _CMD_DESCRIPTIONS:210),
+  los DOS routers no unificados (ModelRouter Ollama vs GlobalRouter shards), flujo real de
+  inferencia, prompts hardcodeados y patrones de test. Persistido como memoria canónica
+  anti-daños-colaterales + reorganización del índice de memorias (canónico vs histórico).
+- **cognia/experts/**: registro persistente de expertos (~/.cognia/experts/registry.json),
+  6 builtin derivados de lo existente. **/modelos** (alias /modelo): lista rol-arriba-modelo-
+  debajo con estado en disco; quitar/activar/desactivar; **agregar** con encuesta interactiva
+  de 3 modalidades: (1) prompt de comportamiento SÚPER extenso forjado sección a sección con
+  el LLM local — E2E real: 'sommelier-pro' con 8 secciones y 1589 palabras generado por el 7B
+  vivo; (2) + adaptador LoRA de identidad (dataset de identidad + expert_forge por subprocess);
+  (3) automático vía meta-modelo con fallback guiado.
+- **Perfiles /cpu (DEFAULT) y /gpu**: cognia/perf_profiles.py persiste LLAMA_N_GPU_LAYERS/
+  LLAMA_CTX_SIZE/LLAMA_N_THREADS(nueva) en config.env; llama_backend ahora lee a CALL-time.
+- **Consola**: cognia/console/ — proc_registry (shells background, /shells /shell-kill),
+  monitors (regex-en-output/archivo/url; eventos drenados entre turnos del REPL; /monitores),
+  permissions (modos automatico/manual/bypass, /modo-permiso; gate _confirmar_accion en
+  /ejecutar /powershell /monitor — blocklist previa se mantiene), surveys (selección única/
+  múltiple + campo libre, I/O inyectable). /monitor pasó de foreground-bloqueante a background
+  con ':: regex' opcional.
+- **META-MODELO CREADOR DE EXPERTOS (entrenado DE VERDAD, CPU)**: LoRA rank 16 sobre
+  Qwen2.5-0.5B-Instruct (bajado HF, 942MB), dataset 192 combinaciones deterministas (petición
+  → spec JSON), 300 steps en 4.4 min: loss 3.12→0.045; **specs JSON válidas en val: base 0% →
+  adapter 100% (+100pp; gate pre-registrado ≥60% CRUZADO)**; generaliza a dominios no vistos
+  ('jardinería' → spec válida). Inferencia de producción por subprocess (cognia/ sin torch).
+- **BDraft G2 (autorizado)**: torch 2.11+cu128 FUNCIONA en sm_120 (G0 parcial). **G2 techo
+  teórico = 4.33×** (draft 110M sin entrenar 6.92ms + verify 11.47ms + overhead 2.8ms vs
+  8×11.47ms; kill-gate 1.5× superado) → línea VIVA. Pendiente sesión dedicada: G0 completo
+  para ENTRENAR (7B NF4: bitsandbytes/WSL2) + run v0 150M tokens.
+- **bbrain radar de cobertura**: símbolos públicos por módulo cruzados contra tests/ —
+  hallazgo: 45 módulos con 0 menciones (decision_gate, investigador, prompt_optimizer...).
+- **Bugs cazados por tests/verificación adversarial**: duplicados del dataset cruzando el
+  split (fuga → producto determinista), generate_with_adapter sin caso base, 0.5B safetensors
+  trunco por la caída de cuota (reanudado), patrón \bregistry\b sobre-amplio en permisos,
+  fuga de os.environ en fixture, y **coordinator.app deja 'transformers' partially-initialized**
+  (GlobalRouter carga sentence-transformers DURANTE el import; ciclo st↔transformers; peft
+  moría después) → fix de raíz: conftest pre-importa transformers completo (patrón del purge
+  de rich). Deuda anotada: la carga de ST en import-time de coordinator.app es el bug de fondo.
+- **Gate final: suite 2645 passed, 1 skipped, 0 failed (117s).** E2E reales mostrados en cada
+  pieza (no solo pytest).
+- PENDIENTE: modalidad 2 e2e con adapter real por el flujo completo del REPL (el trainer y el
+  dataset están verificados por separado); integración del adapter GGUF en llama-server
+  (--lora) para usar adapters en el chat; unificación experts↔ruteo (los expertos aún no
+  seleccionan el modelo del chat en runtime).
