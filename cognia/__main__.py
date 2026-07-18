@@ -12,6 +12,7 @@ Usage:
     cognia coordinator      -- start the swarm coordinator (port 8001)
     cognia status           -- show swarm and system status
     cognia leave            -- leave the swarm and release the hosted shard
+    cognia bbrain           -- regenerate bbrain.md (live repo/environment doc)
 """
 
 from __future__ import annotations
@@ -344,6 +345,30 @@ def _cmd_status() -> None:
     _print_ollama_status()
 
 
+def _cmd_bbrain() -> None:
+    """Regenera bbrain.md en la raiz del repo introspectando el entorno vivo."""
+    from cognia.bbrain import write_bbrain
+    root = Path(__file__).parent.parent
+    path = write_bbrain(root)
+    print(f"bbrain.md regenerado: {path}")
+
+
+def _cmd_fleet() -> None:
+    """Muestra la flota local de modelos GGUF y su estado en disco."""
+    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _root not in sys.path:
+        sys.path.insert(0, _root)
+    from node.fleet import fleet_status, models_dir
+
+    print(f"Flota local ({models_dir()})")
+    print("-" * 64)
+    for m in fleet_status():
+        estado = f"OK {m['gb']:.2f} GB" if m["presente"] else "FALTA"
+        print(f"  {m['key']:<12} {m['params']:>5}  [{estado:>12}]  {m['rol']}")
+    print()
+    print("  El modelo activo del chat lo decide LLAMA_GGUF_PATH (.env).")
+
+
 def _print_ollama_status() -> None:
     ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434")
     try:
@@ -368,6 +393,8 @@ Comandos:
   coordinator        Iniciar coordinador del swarm (puerto 8001)
   status             Estado del swarm y Ollama
   leave              Salir de la red y liberar el fragmento alojado
+  bbrain             Regenerar bbrain.md (doc viva del repo y su entorno)
+  fleet              Estado de la flota local de modelos GGUF
   help / --help      Mostrar esta ayuda
 
 Opciones de install-weights:
@@ -410,6 +437,10 @@ def main() -> None:
         _cmd_status()
     elif cmd == "leave":
         _cmd_leave()
+    elif cmd == "bbrain":
+        _cmd_bbrain()
+    elif cmd == "fleet":
+        _cmd_fleet()
     elif cmd == "":
         from cognia.first_run import run_wizard
         run_wizard(force=False)
