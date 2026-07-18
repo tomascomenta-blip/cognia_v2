@@ -477,6 +477,39 @@ def _slash_modo_permiso(args: str) -> None:
         print(f"[WARN] {exc}  Opciones: {', '.join(MODES)}")
 
 
+def _slash_velocidad(args: str) -> None:
+    """Muestra o cambia el mecanismo de decodificacion (ortogonal a /esfuerzo)."""
+    from cognia import velocity
+    arg = args.strip().lower()
+    if not arg:
+        print(velocity.velocity_summary())
+        return
+    try:
+        hint = velocity.set_mode(arg)
+    except ValueError as exc:
+        # El ValueError con la razon exacta ES el contrato (nunca degradar en silencio)
+        print(f"[WARN] {exc}")
+        return
+    print(f"Modo de velocidad '{arg}' aplicado.")
+    if hint:
+        print(hint)
+
+
+def _slash_hibrido(args: str) -> None:
+    """Activa/desactiva la politica hibrida de velocidad por operacion."""
+    from cognia import velocity
+    arg = args.strip().lower()
+    if arg in ("on", "off"):
+        velocity.set_hybrid(arg == "on")
+        print(f"Velocidad hibrida: {arg.upper()}"
+              + (" — pensamiento profundo usara 'clasico'; el resto, el modo mas rapido disponible." if arg == "on" else ""))
+    elif not arg:
+        print(f"Velocidad hibrida: {'ON' if velocity.hybrid_enabled() else 'OFF'}")
+        print("Uso: /hibrido on|off  (con /esfuerzo alto, el hibrido siempre elige clasico)")
+    else:
+        print("Uso: /hibrido on|off")
+
+
 def _confirmar_accion(kind: str, detalle: str) -> bool:
     """Gate central de permisos: True = proceder. Respeta el modo vigente."""
     try:
@@ -505,6 +538,9 @@ _CMD_DESCRIPTIONS = {
     "/shell-kill":      "Matar shell en background       <id>",
     "/monitores":       "Monitores en background  [salida <id> <regex> | archivo <ruta> | url <url> [caida] | stop <id>]",
     "/modo-permiso":    "Ver o cambiar modo de permisos  [automatico|manual|bypass]",
+    "/velocidad":       "Mecanismo de decode  [clasico|dspark|gemma|difusion-dspark]; sin arg = estado",
+    "/hibrido":         "Velocidad hibrida on|off (Cognia elige el modo por operacion; profundo=clasico)",
+    "/tareas":          "Tablero de tareas con checkboxes (alias de /tarea-lista)",
     # Memoria y aprendizaje
     "/yo":              "Mostrar perfil de usuario",
     "/yo-actualizar":   "Reconstruir perfil desde historial",
@@ -4720,6 +4756,10 @@ def repl():
             _slash_monitores(raw[len("/monitores"):])
         elif raw == "/modo-permiso" or raw.startswith("/modo-permiso "):
             _slash_modo_permiso(raw[len("/modo-permiso"):])
+        elif raw == "/velocidad" or raw.startswith("/velocidad "):
+            _slash_velocidad(raw[len("/velocidad"):])
+        elif raw == "/hibrido" or raw.startswith("/hibrido "):
+            _slash_hibrido(raw[len("/hibrido"):])
         elif raw.startswith("/exportar-stats"):
             _slash_exportar_stats()
         elif raw.startswith("/exportar ") or raw == "/exportar":
@@ -5667,27 +5707,22 @@ def repl():
                 except Exception as _e:
                     _print_line(f"[err_cl]PowerShell error: {_e}[/err_cl]")
 
-        # ── /tarea-crear /tarea-lista /tarea-ok /tarea-borrar ──────────
+        # ── /tarea-crear /tarea-lista(/tareas) /tarea-ok /tarea-borrar ──
+        # Desde 2026-07-18 el store es cognia/tasks_board.py: persistente
+        # (~/.cognia/data/tasks_board.json), checkboxes ☐/☑ y hooks para que
+        # el agente llene sus propios cuadrados (agent_plan_tasks/mark_done).
         elif raw.startswith("/tarea-crear ") or raw == "/tarea-crear":
             _tdesc = raw[len("/tarea-crear "):].strip() if raw.startswith("/tarea-crear ") else ""
             if not _tdesc:
                 _print_line("[warn_cl]Uso: /tarea-crear <descripcion>[/warn_cl]")
             else:
-                if not hasattr(ai, "_session_tasks"):
-                    ai._session_tasks = []
-                _tid = len(ai._session_tasks) + 1
-                ai._session_tasks.append({"id": _tid, "desc": _tdesc, "done": False})
+                from cognia.tasks_board import add_task
+                _tid = add_task(_tdesc)
                 _print_line(f"[ok_cl]Tarea #{_tid} creada: {_escape(_tdesc)}[/ok_cl]")
 
-        elif raw == "/tarea-lista":
-            if not getattr(ai, "_session_tasks", None):
-                _print_line("[detail]No hay tareas en esta sesion.[/detail]")
-            else:
-                _tlines = []
-                for _t in ai._session_tasks:
-                    _status = "[OK]" if _t["done"] else "[ ]"
-                    _tlines.append(f"  {_status} #{_t['id']} {_t['desc']}")
-                _show_response("\n".join(_tlines), "cyan")
+        elif raw in ("/tarea-lista", "/tareas"):
+            from cognia.tasks_board import render_board
+            _show_response(render_board(), "cyan")
 
         elif raw.startswith("/tarea-ok ") or raw == "/tarea-ok":
             _tok_id = raw[len("/tarea-ok "):].strip() if raw.startswith("/tarea-ok ") else ""
@@ -5696,9 +5731,8 @@ def repl():
             else:
                 try:
                     _tok_n = int(_tok_id)
-                    _found = next((t for t in getattr(ai, "_session_tasks", []) if t["id"] == _tok_n), None)
-                    if _found:
-                        _found["done"] = True
+                    from cognia.tasks_board import complete_task
+                    if complete_task(_tok_n):
                         _print_line(f"[ok_cl]Tarea #{_tok_n} completada.[/ok_cl]")
                     else:
                         _print_line(f"[warn_cl]Tarea #{_tok_n} no encontrada.[/warn_cl]")
@@ -5712,9 +5746,8 @@ def repl():
             else:
                 try:
                     _tbn = int(_tbid)
-                    _before = len(getattr(ai, "_session_tasks", []))
-                    ai._session_tasks = [t for t in getattr(ai, "_session_tasks", []) if t["id"] != _tbn]
-                    if len(ai._session_tasks) < _before:
+                    from cognia.tasks_board import remove_task
+                    if remove_task(_tbn):
                         _print_line(f"[ok_cl]Tarea #{_tbn} eliminada.[/ok_cl]")
                     else:
                         _print_line(f"[warn_cl]Tarea #{_tbn} no encontrada.[/warn_cl]")
@@ -6359,6 +6392,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {AGENT_HARD_CAP})[/detail]")
 
     # Auto-decompose large tasks into sub-steps
+    _board_ids = []          # checkboxes del plan (tasks_board), si hay plan
     if len(task) > 120:
         try:
             _decomp_prompt = (
@@ -6370,13 +6404,37 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             if _steps_text and len(_steps_text) > 20:
                 history.append(f"PLAN DE SUBTAREAS:\n{_steps_text}")
                 _print_fn(f"[detail]Plan: {_steps_text[:200]}[/detail]")
+                # Tablero de checkboxes: cada paso del plan nace como cuadrado
+                # vacio y se va llenando conforme el agente completa vueltas.
+                try:
+                    from cognia.tasks_board import agent_plan_tasks, render_board
+                    _plan_pasos = [ln.strip().lstrip("0123456789.-) ").strip()
+                                   for ln in _steps_text.splitlines() if ln.strip()]
+                    _board_ids = agent_plan_tasks(_plan_pasos[:8]) if _plan_pasos else []
+                    if _board_ids:
+                        _print_fn(render_board())
+                except Exception:
+                    _board_ids = []
         except Exception:
             pass
 
     total_steps = 0
     _last_sig = None
     _repeat = 0
+    _board_pos = 0
     while total_steps < AGENT_HARD_CAP:
+        # Llenar el checkbox del paso anterior al arrancar una vuelta nueva
+        # (vuelta N arranca => la N-1 quedo completada). Jamas rompe el loop.
+        if total_steps > 0 and _board_pos < len(_board_ids):
+            try:
+                from cognia.tasks_board import agent_mark_done, board_progress_hook
+                agent_mark_done(_board_ids[_board_pos])
+                _board_pos += 1
+                _hook_txt = board_progress_hook()
+                if _hook_txt:
+                    _print_fn(_hook_txt)
+            except Exception:
+                pass
         # Out of budget: ask the model if it actually needs more steps.
         if total_steps >= budget:
             extra = wants_more_steps(task, "\n".join(history[-3:]), orch)

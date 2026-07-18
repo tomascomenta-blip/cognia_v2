@@ -1,7 +1,7 @@
 # bbrain.md — Cerebro del repo Cognia
 
 > AUTOGENERADO por cognia/bbrain.py — no editar a mano; regenerar con `cognia bbrain`.
-> Generado: 2026-07-18 12:21:31
+> Generado: 2026-07-18 16:31:06
 
 ## Entorno
 - Python: 3.12.10 (C:\Users\usuario\Desktop\cognia_v2\venv312\Scripts\python.exe)
@@ -19,18 +19,18 @@
 
 ## Mapa del repo
 - Modulos .py top-level: 36
-- cognia/: 209 archivos .py
+- cognia/: 214 archivos .py
 - node/: 15 archivos .py
 - shattering/: 18 archivos .py
 - coordinator/: 10 archivos .py
 - storage/: 2 archivos .py
 - security/: 4 archivos .py
-- tests/: 194 archivos .py
-- Archivos de test (tests/test_*.py): 191
+- tests/: 199 archivos .py
+- Archivos de test (tests/test_*.py): 196
 
 ## Radar de cobertura (anti-danos-colaterales)
-- Modulos con simbolos publicos: 229
-- SIN ninguna mencion en tests/: 45
+- Modulos con simbolos publicos: 234
+- SIN ninguna mencion en tests/: 47
 - Fuera del radar (revisar al tocar features vecinas):
   * aprendizaje_profundo.py (3 simbolos publicos)
   * cognia_deferred.py (2 simbolos publicos)
@@ -46,6 +46,8 @@
   * symbolic_responder.py (4 simbolos publicos)
   * symbolic_synthesizer.py (3 simbolos publicos)
   * teacher_interface.py (3 simbolos publicos)
+  * cognia/experts/identity_dataset.py (2 simbolos publicos)
+  * cognia/experts/meta_maker.py (1 simbolos publicos)
   * cognia/goal_and_pattern_engine.py (9 simbolos publicos)
   * cognia/ingest.py (2 simbolos publicos)
   * cognia/logger_config.py (5 simbolos publicos)
@@ -70,9 +72,7 @@
   * node/client.py (1 simbolos publicos)
   * node/downloader.py (4 simbolos publicos)
   * node/local_adapter.py (3 simbolos publicos)
-  * node/relay_client.py (2 simbolos publicos)
-  * shattering/distillation/data_generator.py (3 simbolos publicos)
-  * ... y 5 mas
+  * ... y 7 mas
 
 ## Reglas del proyecto
 

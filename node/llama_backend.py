@@ -71,6 +71,24 @@ def _n_gpu_layers() -> int:
 def _n_threads() -> int:
     return _env_int("LLAMA_N_THREADS", max(4, os.cpu_count() or 4))
 
+
+def _draft_gguf() -> Optional[Path]:
+    """Draft GGUF for classic speculative decoding (cognia 'dspark' mode).
+
+    Read at CALL time from LLAMA_DRAFT_GGUF_PATH (persisted/cleared by
+    cognia/velocity.py, same pattern as the perf-profile knobs above).
+    Returns the path only when the var points to an existing file;
+    unset/empty/missing file -> None (no speculative flags added).
+    """
+    raw = os.environ.get("LLAMA_DRAFT_GGUF_PATH", "").strip()
+    if not raw:
+        return None
+    p = Path(raw)
+    if p.is_file():
+        return p
+    logger.warning("[llama_backend] LLAMA_DRAFT_GGUF_PATH set but file not found: %s", p)
+    return None
+
 # Q4_0 listed first: faster dequantization on CPU (~7.2 tok/s measured on i3-10110U, threads=4)
 # Q3_K_S second: ~7.7 tok/s on same hw, slightly lower quality; swap top two to prefer quality
 _GGUF_CANDIDATES = [
@@ -207,6 +225,24 @@ class _LlamaServerBackend:
             "--flash-attn", "on",
             "--log-disable",
         ]
+        # Speculative decoding (modo 'dspark' de cognia/velocity.py): draft
+        # clasico 0.5B + corte por confianza. Medido 2026-07-18 (RTX 5060 Ti,
+        # b10066, mediana de 3, n_predict=128, T=0): base 87.5 tok/s; con
+        # draft coder-0.5b Q8_0: codigo 142.9 tok/s (1.63x), prosa chat 72.3
+        # (0.83x). OJO b10066: sin --spec-type draft-simple, --model-draft es
+        # un no-op SILENCIOSO (el server ni carga el draft); el 1.00x
+        # historico en GPU era exactamente eso. --spec-draft-p-min 0.75 corta
+        # los drafts condenados: prosa 56.0 -> 72.3 y codigo 139.7 -> 142.9.
+        draft = _draft_gguf()
+        if draft is not None:
+            cmd += [
+                "--model-draft",      str(draft),
+                "--spec-type",        "draft-simple",
+                "--gpu-layers-draft", str(_n_gpu_layers()),
+                "--spec-draft-n-max", "8",
+                "--spec-draft-n-min", "1",
+                "--spec-draft-p-min", "0.75",
+            ]
         self._proc = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
