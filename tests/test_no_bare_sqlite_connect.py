@@ -34,6 +34,12 @@ _EXCLUDE_DIR_PARTS = {
     "tests", "scripts", "build", "dist",
 }
 
+
+def _is_excluded_part(part: str) -> bool:
+    # Any virtualenv layout counts (venv, venv312, .venv, ...): third-party
+    # site-packages must never trip the repo's own hygiene ratchet.
+    return part in _EXCLUDE_DIR_PARTS or part.startswith(("venv", ".venv"))
+
 # Frozen baseline (captured 2026-06-17). Each entry is a file that already used a
 # bare sqlite3.connect() before this guard existed. ONLY remove entries (after
 # migrating that file to storage/db_pool.py). NEVER add entries.
@@ -97,8 +103,8 @@ def _calls_sqlite_connect(path: Path) -> bool:
 def _scan() -> set:
     found = set()
     for dirpath, dirnames, filenames in os.walk(ROOT):
-        rel_parts = set(Path(dirpath).relative_to(ROOT).parts)
-        if rel_parts & _EXCLUDE_DIR_PARTS:
+        rel_parts = Path(dirpath).relative_to(ROOT).parts
+        if any(_is_excluded_part(p) for p in rel_parts):
             dirnames[:] = []
             continue
         for fn in filenames:
@@ -118,6 +124,17 @@ def test_no_new_bare_sqlite_connect():
         "Use storage.db_pool.db_connect_pooled() instead. Offending file(s): "
         + ", ".join(sorted(new_violations))
     )
+
+
+def test_venv_layouts_are_excluded():
+    """Regresion: venv312 (el venv real del repo) no matcheaba la exclusion
+    exacta 'venv' y el escaner reportaba site-packages de terceros (torch,
+    filelock) como violaciones propias."""
+    assert _is_excluded_part("venv")
+    assert _is_excluded_part("venv312")
+    assert _is_excluded_part(".venv")
+    assert not _is_excluded_part("cognia")
+    assert not _is_excluded_part("node")
 
 
 def test_baseline_has_no_stale_entries():

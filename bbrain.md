@@ -1,7 +1,7 @@
 # bbrain.md — Cerebro del repo Cognia
 
 > AUTOGENERADO por cognia/bbrain.py — no editar a mano; regenerar con `cognia bbrain`.
-> Generado: 2026-07-18 05:01:03
+> Generado: 2026-07-18 10:19:22
 
 ## Entorno
 - Python: 3.12.10 (C:\Users\usuario\Desktop\cognia_v2\venv312\Scripts\python.exe)
@@ -12,21 +12,21 @@
 - GPU: NVIDIA GeForce RTX 5060 Ti, 16311 MiB
 
 ## Backend LLM
-- GGUF activo (node.llama_backend): no encontrado
-- Modelos en C:\Users\usuario\.cognia\models: (vacio)
+- GGUF activo (node.llama_backend): C:\Users\usuario\.cognia\models\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf
+- Modelos en C:\Users\usuario\.cognia\models: qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf, qwen2.5-coder-0.5b-instruct-q8_0.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00002-of-00002.gguf
 - Shards NPZ en C:\Users\usuario\.cognia\shards\qwen-coder-3b-q4: shard_0.npz, shard_1.npz, shard_2.npz, shard_3.npz
 - Ollama: no disponible en http://localhost:11434
 
 ## Mapa del repo
 - Modulos .py top-level: 36
 - cognia/: 201 archivos .py
-- node/: 14 archivos .py
+- node/: 15 archivos .py
 - shattering/: 18 archivos .py
 - coordinator/: 10 archivos .py
 - storage/: 2 archivos .py
 - security/: 4 archivos .py
-- tests/: 188 archivos .py
-- Archivos de test (tests/test_*.py): 185
+- tests/: 191 archivos .py
+- Archivos de test (tests/test_*.py): 188
 
 ## Reglas del proyecto
 

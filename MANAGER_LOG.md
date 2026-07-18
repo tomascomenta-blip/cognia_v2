@@ -1845,3 +1845,61 @@ generado, honestidad) para que TODAS las sesiones trabajen asi. Deadline 04:30 (
 - NO medible aquí: el acceptance RATE / payoff de velocidad real necesita nano_draft.npz + shards
   (ausentes). El path queda dormido sin ese artefacto; CORRECCIÓN probada, PERF pendiente de medir
   sobre pesos reales (regla 10: honestidad sobre límites). Pusheado a origin/main (8bb4cc6).
+
+
+## 2026-07-18 — MIGRACIÓN DE MÁQUINA + flota GPU + bbrain autónomo + Cognia-BDraft (goal del dueño)
+
+- **Máquina nueva**: Ryzen 5 9600X (6c/12t), 31 GB RAM, RTX 5060 Ti 16 GB (Blackwell). Entorno
+  montado desde cero: Git 2.55, Node 24, Python 3.12.10, uv; venv312 con requirements completos
+  (pip check limpio); repo clonado de GitHub a Desktop; memorias/comandos de la migración
+  restaurados; MCP context7/playwright/filesystem/word conectados. La memoria de hardware-limits
+  quedó actualizada: QLoRA/GPU DESBLOQUEADOS (torch del venv es CPU; cu128 pendiente para entrenar).
+- **Apagado 5 AM**: programado a pedido del dueño y luego CANCELADO por el dueño en la misma
+  sesión; se aplicó en su lugar anti-suspensión por inactividad (standby/hibernate AC = 0).
+- **Flota GPU descargada y registrada** (~/.cognia/models, 13.4 GB): coder-0.5b Q8_0 (portero/
+  draft), chat-7b Q4_K_M (default), coder-14b Q4_K_M (entra entero en 16GB VRAM). llama.cpp
+  b10066 CUDA 13.3 en ~/.cognia/llama. Incidentes de descarga: hf-xet colgado sin error (2
+  intentos, 0 bytes) → curl CDN directo; blip de red (DNS+reset) cortó el 7B → resume con
+  --retry-all-errors. 5d78561 hace _N_GPU_LAYERS/_CTX_SIZE env-tunables (antes hardcodeados
+  CPU-only para el i3); 9e7329c agrega node/fleet.py + comando `cognia fleet`; config.env de
+  ~/.cognia ahora fija LLAMA_GGUF_PATH/LLAMA_SERVER_PATH/LLAMA_N_GPU_LAYERS=99/LLAMA_CTX_SIZE=16384
+  (gap real: apply_config() no lee el .env del repo; sin esto el REPL no encontraba el GGUF).
+- **CHECK e2e GPU real**: LlamaBackend.try_load() + generate por el MISMO path del REPL →
+  respuesta coherente en 0.4s con llama-server visible en GPU.
+- **Baselines pre-registrados MEDIDOS (Pista 0 del plan BDraft)**, mediana de 3 prompts, T=0,
+  timings del propio server: **B0 = 86.0 tok/s** (7B Q4_K_M, batch 1 — 10.7× la máquina vieja);
+  **B1 = 86.3 (spec8) / 86.4 (spec16) tok/s = 1.00×** — el speculative clásico con draft 0.5B
+  NO paga en esta GPU (riesgo pre-registrado confirmado: target demasiado rápido); **D1
+  RESUELTA**: vocab diff 128 pasa el chequeo (el server arranca con -md). b10066 renombró
+  --draft-max → --spec-draft-n-max (documentado acá para la próxima). PENDIENTE honesto: no
+  verifiqué si el draft se ACTIVÓ de verdad (timings extendidos draft_n/accepted) — el 1.00×
+  puede ser "no activado" o "activado sin ganancia"; protocolo completo 3 suites × 3 corridas
+  queda para la fase G1 formal.
+- **bbrain autónomo (pedido "que no necesite CLAUDE.md")**: ce68224 — cognia/bbrain.py genera
+  bbrain.md introspectando EN VIVO (hardware/GPU, backend, flota, mapa del repo) con las reglas
+  duras embebidas; comando `cognia bbrain` + regeneración automática en el boot del REPL
+  (verificada con backdating). CLAUDE.md NO se borró (sigue siendo fuente canónica en paralelo).
+- **Investigación DSpark/Gemma (agente, fuentes verificadas)**: 3f0324e —
+  planes/DSPARK_GEMMA_DRAFT_MODEL.md. "DSpark" EXISTE (speculative decoding de DeepSeek,
+  arXiv 2607.05147, jun-2026); "tokenización difusa de Gemma" = DiffusionGemma (generación por
+  difusión, no el tokenizer); puente práctico = DFlash (ICML 2026). Gates G0-G5 pre-registrados
+  con presupuestos duros (60 GPU-h tope) ANTES de escribir código.
+- **Cognia-BDraft esqueleto COMPLETO** (workflow 3 etapas con verificación adversarial
+  independiente, veredicto CUMPLE): 7b39ec1 — bdraft/ top-level (torch prohibido en node/ por
+  regla dura): difusión de bloques (8 tokens/pass, atención bidireccional, condicionamiento K/V
+  en hidden states del target, embeddings/head del 7B congelados → vocab compatible por
+  construcción), cabeza de confianza, chunked-CE, gates como código. 111,956,481 params
+  entrenables. CHECK: 30 tests nuevos; overfit sintético CPU loss 6.39→1.44 (piso unigrama
+  ~3.47). Entrenamiento REAL gated por G0 (torch cu128 + WSL2) y por el techo B0=86 tok/s que
+  G2 deberá superar — NO se gastaron GPU-horas sin pasar los gates (el método es el producto).
+- **Higiene**: fix del ratchet anti-sqlite3.connect que reportaba site-packages de venv312
+  (exclusión era por nombre exacto 'venv'; ahora cualquier layout venv*/.venv*, +test de
+  regresión; escaneo 45s→1.2s).
+- **Gate final**: suite rápida (excl. e2e) **2545 passed, 1 skipped, 0 failed** tras el fix
+  (corrida previa: 2543 passed + 1 fail del ratchet, único rojo). 39 tests de los módulos
+  nuevos incluidos.
+- **PENDIENTE**: push a origin BLOQUEADO por auth de GitHub en máquina nueva (6 commits locales
+  listos: 5d78561, ce68224, 9e7329c, 3f0324e, 7b39ec1 + este log); el dueño debe correr
+  `git push` interactivo o `gh auth login` una vez. G0 (toolchain cu128/WSL2) es el próximo
+  paso de la Pista 1; decisión de producto abierta (doc §4.9): entrenar BDraft vs migrar
+  target a Qwen3-8B con ecosistema EAGLE-3/DFlash ya hecho.
