@@ -53,12 +53,23 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
-# Both are machine-dependent, so they are env-overridable with the historical defaults.
+# All three are machine-dependent, so they are env-overridable with the historical
+# defaults. Read at CALL time (not import time) so cognia/perf_profiles.py can switch
+# CPU/GPU knobs at runtime and the next backend construction picks them up.
 # LLAMA_N_GPU_LAYERS=0 (default) keeps the CPU-only behaviour measured on the i3-10110U,
 # where the Intel UHD iGPU (Vulkan) was SLOWER than the CPU (3.8 vs 8.8 tok/s).
 # On a machine with a real CUDA GPU set LLAMA_N_GPU_LAYERS=99 to offload every layer.
-_CTX_SIZE     = _env_int("LLAMA_CTX_SIZE", 4096)
-_N_GPU_LAYERS = _env_int("LLAMA_N_GPU_LAYERS", 0)
+
+def _ctx_size() -> int:
+    return _env_int("LLAMA_CTX_SIZE", 4096)
+
+
+def _n_gpu_layers() -> int:
+    return _env_int("LLAMA_N_GPU_LAYERS", 0)
+
+
+def _n_threads() -> int:
+    return _env_int("LLAMA_N_THREADS", max(4, os.cpu_count() or 4))
 
 # Q4_0 listed first: faster dequantization on CPU (~7.2 tok/s measured on i3-10110U, threads=4)
 # Q3_K_S second: ~7.7 tok/s on same hw, slightly lower quality; swap top two to prefer quality
@@ -121,8 +132,8 @@ class _LlamaCppBackend:
         from llama_cpp import Llama  # imported lazily; raises ImportError if missing
         self._model = Llama(
             model_path     = str(gguf_path),
-            n_ctx          = _CTX_SIZE,
-            n_gpu_layers   = _N_GPU_LAYERS,
+            n_ctx          = _ctx_size(),
+            n_gpu_layers   = _n_gpu_layers(),
             verbose        = False,
         )
         logger.info("[llama_backend] llama-cpp-python loaded: %s", gguf_path.name)
@@ -183,13 +194,13 @@ class _LlamaServerBackend:
         if not binary:
             raise FileNotFoundError("llama-server binary not found; set LLAMA_SERVER_PATH in .env")
 
-        n_threads = max(4, os.cpu_count() or 4)
+        n_threads = _n_threads()
         cmd = [
             binary,
             "--model",    str(gguf_path),
             "--port",     str(port),
-            "--ctx-size", str(_CTX_SIZE),
-            "--n-gpu-layers", str(_N_GPU_LAYERS),
+            "--ctx-size", str(_ctx_size()),
+            "--n-gpu-layers", str(_n_gpu_layers()),
             "--threads",  str(n_threads),
             "--threads-batch", str(n_threads),
             "--prio",     "2",

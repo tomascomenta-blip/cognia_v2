@@ -205,9 +205,175 @@ except Exception:
     _feedback_learner = None
 
 # ---------------------------------------------------------------------------
+# Expertos / perfiles / consola (tanda-1 2026-07-18) — helpers de los comandos
+# /modelos, /cpu, /gpu, /shells, /shell-kill, /monitores y /modo-permiso.
+# La logica vive en cognia/experts, cognia/perf_profiles y cognia/console;
+# estos helpers solo parsean args e imprimen (testeables sin REPL).
+# ---------------------------------------------------------------------------
+
+def _slash_modelos(ai, args: str) -> None:
+    """Registro de expertos: tabla, quitar, activar/desactivar."""
+    from cognia.experts import (load_registry, remove_expert,
+                                render_modelos_table, set_enabled)
+    partes = args.strip().split()
+    sub = partes[0].lower() if partes else ""
+    try:
+        if not sub:
+            try:
+                from node.fleet import fleet_status
+                fs = fleet_status()
+            except Exception:
+                fs = None
+            print(render_modelos_table(load_registry(), fs))
+        elif sub == "quitar" and len(partes) == 2:
+            e = remove_expert(partes[1])
+            print(f"Experto '{e.id}' quitado.")
+        elif sub in ("activar", "desactivar") and len(partes) == 2:
+            e = set_enabled(partes[1], sub == "activar")
+            print(f"Experto '{e.id}' {'activado' if e.enabled else 'desactivado'}.")
+        else:
+            print("Uso: /modelos [quitar <id> | activar <id> | desactivar <id>]")
+    except ValueError as exc:
+        print(f"[WARN] {exc}")
+
+
+def _slash_perfil(nombre: str) -> None:
+    """Aplica el perfil de optimizacion 'cpu' o 'gpu' y muestra el resumen."""
+    from cognia.perf_profiles import (apply_profile, profile_summary,
+                                      restart_backend_hint)
+    try:
+        apply_profile(nombre)
+    except ValueError as exc:
+        print(f"[WARN] {exc}")
+        return
+    print(profile_summary(nombre))
+    hint = restart_backend_hint()
+    if hint:
+        print(hint)
+
+
+def _slash_shells(args: str) -> None:
+    """Lista shells en background; con id muestra las ultimas lineas de output."""
+    from cognia.console.proc_registry import get_output, list_shells
+    arg = args.strip()
+    if arg:
+        try:
+            sid = int(arg)
+        except ValueError:
+            print("Uso: /shells [id]")
+            return
+        lines = get_output(sid, last_n=30)
+        if lines is None:
+            print(f"[WARN] No existe el shell #{sid}.")
+            return
+        for ln in lines:
+            print(f"  {ln}")
+        return
+    shells = list_shells()
+    if not shells:
+        print("Sin shells en background. Lanzar con: /monitor <comando>")
+        return
+    for s in shells:
+        print(f"  #{s['id']:<3} [{s['status']:<7}] {s['cmd'][:70]}"
+              f"  (uptime {s['uptime_s']:.0f}s, {s['tail_lines']} lineas)")
+
+
+def _slash_shell_kill(args: str) -> None:
+    """Termina un shell en background por id."""
+    from cognia.console.proc_registry import kill_shell
+    try:
+        sid = int(args.strip())
+    except ValueError:
+        print("Uso: /shell-kill <id>")
+        return
+    print(f"Shell #{sid} terminado." if kill_shell(sid)
+          else f"[WARN] No existe el shell #{sid} (o ya termino).")
+
+
+def _slash_monitores(args: str) -> None:
+    """Lista/crea/detiene monitores en background."""
+    from cognia.console.monitors import (list_monitors, monitor_file_exists,
+                                         monitor_output_regex,
+                                         monitor_url_healthy, stop_monitor)
+    partes = args.strip().split()
+    sub = partes[0].lower() if partes else ""
+    try:
+        if not sub:
+            mons = list_monitors()
+            if not mons:
+                print("Sin monitores. Uso: /monitores [salida <id> <regex> | "
+                      "archivo <ruta> | url <url> [caida] | stop <id>]")
+                return
+            for m in mons:
+                print(f"  #{m['id']:<3} [{m['status']:<7}] {m['descripcion'][:70]}")
+        elif sub == "salida" and len(partes) >= 3:
+            mid = monitor_output_regex(int(partes[1]), " ".join(partes[2:]),
+                                       f"regex en shell #{partes[1]}")
+            print(f"Monitor #{mid} creado (aviso cuando el shell matchee).")
+        elif sub == "archivo" and len(partes) == 2:
+            mid = monitor_file_exists(partes[1], f"aparicion de {partes[1]}")
+            print(f"Monitor #{mid} creado (aviso cuando exista el archivo).")
+        elif sub == "url" and len(partes) >= 2:
+            caida = "caida" in partes[2:]
+            mid = monitor_url_healthy(partes[1], f"salud de {partes[1]}",
+                                      esperar_caida=caida)
+            print(f"Monitor #{mid} creado (aviso cuando {'caiga' if caida else 'responda'}).")
+        elif sub == "stop" and len(partes) == 2:
+            ok = stop_monitor(int(partes[1]))
+            print("Monitor detenido." if ok else "[WARN] No existe ese monitor.")
+        else:
+            print("Uso: /monitores [salida <id> <regex> | archivo <ruta> | "
+                  "url <url> [caida] | stop <id>]")
+    except Exception as exc:  # noqa: BLE001 — el REPL nunca cae por un monitor
+        print(f"[WARN] {exc}")
+
+
+def _slash_modo_permiso(args: str) -> None:
+    """Muestra o cambia el modo de permisos (automatico/manual/bypass)."""
+    from cognia.console.permissions import MODES, get_mode, set_mode
+    arg = args.strip().lower()
+    if not arg:
+        print(f"Modo de permisos actual: {get_mode()}")
+        print("  automatico  Cognia decide cuando pedir confirmacion (default)")
+        print("  manual      pide confirmacion para TODO")
+        print("  bypass      no pide nada (acepta todas las acciones)")
+        print("Cambiar con: /modo-permiso <modo>")
+        return
+    try:
+        set_mode(arg)
+        print(f"Modo de permisos: {arg}")
+    except ValueError as exc:
+        print(f"[WARN] {exc}  Opciones: {', '.join(MODES)}")
+
+
+def _confirmar_accion(kind: str, detalle: str) -> bool:
+    """Gate central de permisos: True = proceder. Respeta el modo vigente."""
+    try:
+        from cognia.console.permissions import needs_confirmation
+        if not needs_confirmation(kind, detalle):
+            return True
+    except Exception:
+        return True  # ante cualquier fallo del clasificador, comportamiento previo
+    try:
+        resp = input(f"[permiso] {detalle[:80]} — ejecutar? (s/n) > ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return resp in ("s", "si", "y", "yes")
+
+
+# ---------------------------------------------------------------------------
 # Command registry — drives autocomplete and /ayuda
 # ---------------------------------------------------------------------------
 _CMD_DESCRIPTIONS = {
+    # Expertos, perfiles y consola
+    "/modelos":         "Ver expertos y sus modelos. Uso: /modelos [quitar <id> | activar <id> | desactivar <id>]",
+    "/modelo":          "Alias de /modelos",
+    "/cpu":             "Aplicar perfil de optimizacion CPU (default)",
+    "/gpu":             "Aplicar perfil de optimizacion GPU (RTX: todas las capas)",
+    "/shells":          "Listar shells en background     [id para ver output]",
+    "/shell-kill":      "Matar shell en background       <id>",
+    "/monitores":       "Monitores en background  [salida <id> <regex> | archivo <ruta> | url <url> [caida] | stop <id>]",
+    "/modo-permiso":    "Ver o cambiar modo de permisos  [automatico|manual|bypass]",
     # Memoria y aprendizaje
     "/yo":              "Mostrar perfil de usuario",
     "/yo-actualizar":   "Reconstruir perfil desde historial",
@@ -4383,6 +4549,15 @@ def repl():
     # Main loop
     # -----------------------------------------------------------------------
     while True:
+        # Drenar avisos de monitores en background ANTES de pedir input
+        # (los monitores solo encolan desde sus hilos; imprimir aca evita
+        # pisar la linea del prompt). Jamas puede romper el REPL.
+        try:
+            from cognia.console.monitors import pop_fired_events as _pfe
+            for _ev in _pfe():
+                _print_line(f"[warn_cl][monitor] {_escape(_ev)}[/warn_cl]")
+        except Exception:
+            pass
         try:
             raw = _get_input()
         except (EOFError, KeyboardInterrupt):
@@ -4401,6 +4576,19 @@ def repl():
             _run(raw, ai.introspect, color="cyan")
         elif raw == "/modulos":
             _slash_modulos()
+        elif raw == "/modelos" or raw.startswith("/modelos ") \
+                or raw == "/modelo" or raw.startswith("/modelo "):
+            _slash_modelos(ai, raw.split(" ", 1)[1] if " " in raw else "")
+        elif raw in ("/cpu", "/gpu"):
+            _slash_perfil(raw[1:])
+        elif raw == "/shells" or raw.startswith("/shells "):
+            _slash_shells(raw[len("/shells"):])
+        elif raw.startswith("/shell-kill"):
+            _slash_shell_kill(raw[len("/shell-kill"):])
+        elif raw == "/monitores" or raw.startswith("/monitores "):
+            _slash_monitores(raw[len("/monitores"):])
+        elif raw == "/modo-permiso" or raw.startswith("/modo-permiso "):
+            _slash_modo_permiso(raw[len("/modo-permiso"):])
         elif raw.startswith("/exportar-stats"):
             _slash_exportar_stats()
         elif raw.startswith("/exportar ") or raw == "/exportar":
@@ -4926,6 +5114,8 @@ def repl():
             _cmd_normalized = _re_sec.sub(r"\s+", " ", _cmd_lower)
             if any(_b in _cmd_normalized for _b in _BLOCKED):
                 _print_line(f"[err_cl]Comando bloqueado por seguridad: {_escape(_cmd)}[/err_cl]")
+            elif not _confirmar_accion("shell_exec", _cmd):
+                _print_line("[warn_cl]Cancelado.[/warn_cl]")
             else:
                 _print_line(f"[detail][ejecutar] $ {_escape(_cmd)}[/detail]")
                 try:
@@ -5299,33 +5489,39 @@ def repl():
 
         # ── /monitor <cmd> ────────────────────────────────────────────
         elif raw.startswith("/monitor "):
-            _mon_cmd = raw[len("/monitor "):].strip()
-            if not _mon_cmd:
-                _print_line("[warn_cl]Uso: /monitor <comando>[/warn_cl]")
+            # Desde tanda-1: corre en BACKGROUND via proc_registry (antes era
+            # foreground bloqueante). Sintaxis extra: /monitor <cmd> :: <regex>
+            # arma ademas un monitor que avisa cuando el output matchee.
+            _mon_arg = raw[len("/monitor "):].strip()
+            if not _mon_arg:
+                _print_line("[warn_cl]Uso: /monitor <comando> [:: <regex>][/warn_cl]")
             else:
-                import subprocess as _sp, threading as _th
-                _print_line(f"[detail]Monitoreando: {_escape(_mon_cmd)}  (Ctrl+C para parar)[/detail]")
-                try:
-                    _mon_proc = _sp.Popen(
-                        _mon_cmd, shell=True, stdout=_sp.PIPE, stderr=_sp.STDOUT,
-                        text=True, encoding="utf-8", errors="replace",
-                    )
+                _mon_cmd, _mon_rx = (_mon_arg.split("::", 1) + [""])[:2]
+                _mon_cmd, _mon_rx = _mon_cmd.strip(), _mon_rx.strip()
+                if not _confirmar_accion("shell_exec", _mon_cmd):
+                    _print_line("[warn_cl]Cancelado.[/warn_cl]")
+                else:
                     try:
-                        for _line in _mon_proc.stdout:
-                            _print_line(_line.rstrip())
-                    except KeyboardInterrupt:
-                        _mon_proc.terminate()
-                        _print_line("[detail]Monitor detenido.[/detail]")
-                    _mon_proc.wait()
-                    _print_line(f"[detail]Proceso terminado (exit {_mon_proc.returncode})[/detail]")
-                except Exception as _e:
-                    _print_line(f"[err_cl]Error en monitor: {_e}[/err_cl]")
+                        from cognia.console.proc_registry import spawn_shell
+                        _sid = spawn_shell(_mon_cmd)
+                        _print_line(f"[detail]Shell #{_sid} en background. "
+                                    f"/shells {_sid} para ver output.[/detail]")
+                        if _mon_rx:
+                            from cognia.console.monitors import monitor_output_regex
+                            _mid = monitor_output_regex(_sid, _mon_rx,
+                                                        f"'{_mon_rx}' en shell #{_sid}")
+                            _print_line(f"[detail]Monitor #{_mid} armado "
+                                        f"(aviso al matchear).[/detail]")
+                    except Exception as _e:
+                        _print_line(f"[err_cl]Error en monitor: {_e}[/err_cl]")
 
         # ── /powershell <cmd> ──────────────────────────────────────────
         elif raw.startswith("/powershell "):
             _ps_cmd = raw[len("/powershell "):].strip()
             if not _ps_cmd:
                 _print_line("[warn_cl]Uso: /powershell <comando>[/warn_cl]")
+            elif not _confirmar_accion("shell_exec", _ps_cmd):
+                _print_line("[warn_cl]Cancelado.[/warn_cl]")
             else:
                 import subprocess as _sp, sys as _sys
                 _ps_exe = "powershell.exe" if _sys.platform == "win32" else "pwsh"

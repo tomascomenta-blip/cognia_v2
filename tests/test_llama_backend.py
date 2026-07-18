@@ -317,9 +317,12 @@ class TestFindGguf:
 
 
 # ---------------------------------------------------------------------------
-# Machine-dependent tuning: _CTX_SIZE / _N_GPU_LAYERS are env-overridable
-# Regression: both were hardcoded (n_gpu_layers=0, calibrated for the i3-10110U
-# Intel UHD iGPU), so a machine with a real CUDA GPU could not offload any layer.
+# Machine-dependent tuning: _ctx_size() / _n_gpu_layers() / _n_threads() are
+# env-overridable and read at CALL time (they were import-time constants).
+# Regression 1: both were hardcoded (n_gpu_layers=0, calibrated for the
+# i3-10110U Intel UHD iGPU), so a real CUDA GPU could not offload any layer.
+# Regression 2: import-time reads meant cognia/perf_profiles.py could not
+# switch CPU/GPU knobs at runtime without an importlib.reload.
 # ---------------------------------------------------------------------------
 
 class TestEnvTunables:
@@ -345,24 +348,54 @@ class TestEnvTunables:
         """With no env vars set, the module keeps CPU-only 4096-ctx defaults."""
         monkeypatch.delenv("LLAMA_N_GPU_LAYERS", raising=False)
         monkeypatch.delenv("LLAMA_CTX_SIZE", raising=False)
-        import importlib
         import node.llama_backend as lb
-        importlib.reload(lb)
-        assert lb._N_GPU_LAYERS == 0
-        assert lb._CTX_SIZE == 4096
+        assert lb._n_gpu_layers() == 0
+        assert lb._ctx_size() == 4096
 
     def test_env_vars_drive_module_constants(self, monkeypatch):
-        """Setting the env vars before import actually changes the constants."""
+        """Setting the env vars changes the values WITHOUT any module reload."""
         monkeypatch.setenv("LLAMA_N_GPU_LAYERS", "99")
         monkeypatch.setenv("LLAMA_CTX_SIZE", "8192")
-        import importlib
         import node.llama_backend as lb
-        importlib.reload(lb)
-        try:
-            assert lb._N_GPU_LAYERS == 99
-            assert lb._CTX_SIZE == 8192
-        finally:
-            # restore module-level defaults for any later test in the session
-            monkeypatch.delenv("LLAMA_N_GPU_LAYERS", raising=False)
-            monkeypatch.delenv("LLAMA_CTX_SIZE", raising=False)
-            importlib.reload(lb)
+        assert lb._n_gpu_layers() == 99
+        assert lb._ctx_size() == 8192
+
+    def test_n_threads_env_overrides_hardcoded_default(self, monkeypatch):
+        """LLAMA_N_THREADS overrides the historical max(4, cpu_count) default."""
+        import node.llama_backend as lb
+        monkeypatch.delenv("LLAMA_N_THREADS", raising=False)
+        assert lb._n_threads() == max(4, __import__("os").cpu_count() or 4)
+        monkeypatch.setenv("LLAMA_N_THREADS", "6")
+        assert lb._n_threads() == 6
+
+    def test_server_backend_builds_cmd_with_env_tunables(self, tmp_path, monkeypatch):
+        """_LlamaServerBackend reads ctx/gpu-layers/threads from env at init time."""
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "8192")
+        monkeypatch.setenv("LLAMA_N_GPU_LAYERS", "99")
+        monkeypatch.setenv("LLAMA_N_THREADS", "6")
+
+        fake_gguf = tmp_path / "model.gguf"
+        fake_gguf.touch()
+        fake_bin = tmp_path / "llama-server.exe"
+        fake_bin.touch()
+        monkeypatch.setenv("LLAMA_SERVER_PATH", str(fake_bin))
+
+        from node.llama_backend import _LlamaServerBackend
+        captured = {}
+
+        def fake_popen(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return MagicMock(pid=1234)
+
+        with (
+            # 1st ping: no server yet; 2nd ping: "started"
+            patch.object(_LlamaServerBackend, "_ping", MagicMock(side_effect=[False, True])),
+            patch("node.llama_backend.subprocess.Popen", side_effect=fake_popen),
+        ):
+            _LlamaServerBackend(fake_gguf, port=18088)
+
+        cmd = captured["cmd"]
+        assert cmd[cmd.index("--ctx-size") + 1] == "8192"
+        assert cmd[cmd.index("--n-gpu-layers") + 1] == "99"
+        assert cmd[cmd.index("--threads") + 1] == "6"
+        assert cmd[cmd.index("--threads-batch") + 1] == "6"
