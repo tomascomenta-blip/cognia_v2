@@ -42,8 +42,23 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_PORT   = 8088
 _SERVER_TIMEOUT = 30      # seconds to wait for llama-server to start
-_CTX_SIZE       = 4096
-_N_GPU_LAYERS   = 0       # CPU only; Intel UHD integrated GPU (Vulkan) is slower than CPU on i3-10110U (3.8 vs 8.8 tok/s)
+
+
+def _env_int(name: str, default: int) -> int:
+    """Read an int from the environment, falling back to `default` if unset/garbage."""
+    try:
+        return int(os.environ.get(name, "").strip() or default)
+    except ValueError:
+        logger.warning("[llama_backend] %s is not an int; using %d", name, default)
+        return default
+
+
+# Both are machine-dependent, so they are env-overridable with the historical defaults.
+# LLAMA_N_GPU_LAYERS=0 (default) keeps the CPU-only behaviour measured on the i3-10110U,
+# where the Intel UHD iGPU (Vulkan) was SLOWER than the CPU (3.8 vs 8.8 tok/s).
+# On a machine with a real CUDA GPU set LLAMA_N_GPU_LAYERS=99 to offload every layer.
+_CTX_SIZE     = _env_int("LLAMA_CTX_SIZE", 4096)
+_N_GPU_LAYERS = _env_int("LLAMA_N_GPU_LAYERS", 0)
 
 # Q4_0 listed first: faster dequantization on CPU (~7.2 tok/s measured on i3-10110U, threads=4)
 # Q3_K_S second: ~7.7 tok/s on same hw, slightly lower quality; swap top two to prefer quality

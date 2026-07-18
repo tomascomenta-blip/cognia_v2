@@ -314,3 +314,55 @@ class TestFindGguf:
         from node.llama_backend import _find_gguf
         result = _find_gguf()
         assert result == candidate
+
+
+# ---------------------------------------------------------------------------
+# Machine-dependent tuning: _CTX_SIZE / _N_GPU_LAYERS are env-overridable
+# Regression: both were hardcoded (n_gpu_layers=0, calibrated for the i3-10110U
+# Intel UHD iGPU), so a machine with a real CUDA GPU could not offload any layer.
+# ---------------------------------------------------------------------------
+
+class TestEnvTunables:
+    def test_env_int_returns_default_when_unset(self, monkeypatch):
+        """_env_int falls back to the default when the var is absent."""
+        monkeypatch.delenv("LLAMA_N_GPU_LAYERS", raising=False)
+        from node.llama_backend import _env_int
+        assert _env_int("LLAMA_N_GPU_LAYERS", 0) == 0
+
+    def test_env_int_reads_override(self, monkeypatch):
+        """_env_int reads the value from the environment."""
+        monkeypatch.setenv("LLAMA_N_GPU_LAYERS", "99")
+        from node.llama_backend import _env_int
+        assert _env_int("LLAMA_N_GPU_LAYERS", 0) == 99
+
+    def test_env_int_falls_back_on_garbage(self, monkeypatch):
+        """A non-numeric value must not crash the import; the default wins."""
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "not-a-number")
+        from node.llama_backend import _env_int
+        assert _env_int("LLAMA_CTX_SIZE", 4096) == 4096
+
+    def test_defaults_preserve_historical_behaviour(self, monkeypatch):
+        """With no env vars set, the module keeps CPU-only 4096-ctx defaults."""
+        monkeypatch.delenv("LLAMA_N_GPU_LAYERS", raising=False)
+        monkeypatch.delenv("LLAMA_CTX_SIZE", raising=False)
+        import importlib
+        import node.llama_backend as lb
+        importlib.reload(lb)
+        assert lb._N_GPU_LAYERS == 0
+        assert lb._CTX_SIZE == 4096
+
+    def test_env_vars_drive_module_constants(self, monkeypatch):
+        """Setting the env vars before import actually changes the constants."""
+        monkeypatch.setenv("LLAMA_N_GPU_LAYERS", "99")
+        monkeypatch.setenv("LLAMA_CTX_SIZE", "8192")
+        import importlib
+        import node.llama_backend as lb
+        importlib.reload(lb)
+        try:
+            assert lb._N_GPU_LAYERS == 99
+            assert lb._CTX_SIZE == 8192
+        finally:
+            # restore module-level defaults for any later test in the session
+            monkeypatch.delenv("LLAMA_N_GPU_LAYERS", raising=False)
+            monkeypatch.delenv("LLAMA_CTX_SIZE", raising=False)
+            importlib.reload(lb)
