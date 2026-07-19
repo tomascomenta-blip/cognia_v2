@@ -265,6 +265,28 @@ se sigue. Cualquier extensión se re-registra por escrito, igual que en el plan 
 
 ---
 
+## 3.bis Estado real al 2026-07-19 (lo construido, con sus números medidos)
+
+| Subsistema | Módulo | Estado | Medido |
+|---|---|---|---|
+| Ojos | `cognia/pantalla/` | **Funciona** | captura 63 FPS; dHash 23.7 ms → **4.74% de un core** a 2 FPS (J5 pide ≤8%); 10 s → 20 frames mirados, 1 guardado |
+| Permisos | `cognia/control/permisos.py` | **Funciona** | lo no declarado cae en CONFIRMAR; ventana sensible = PROHIBIDO sin preguntar |
+| Manos | `cognia/control/escritorio.py` | **Funciona** | 12 controles accionables reales listados, sin VRAM |
+| Oídos | `cognia/voz/wake.py` | **Funciona** | **2.54 ms por trozo de 80 ms = 3.2% de un core**; 0 falsos positivos |
+| Boca | `cognia/voz/tts.py` | **Funciona** | Piper es_ES: 1.1 s la primera frase (carga), **45 ms** las siguientes |
+| Sesión | `cognia/voz/sesion.py` | **Funciona** | turno completo en 4457 ms, de los cuales 4030 son el audio sonando |
+| Transcripción | `cognia/voz/stt.py` | Implementado | faster-whisper `small`; ida y vuelta Piper→Whisper pendiente de correr |
+| Palabra "cerebro" | — | **FALTA** | no está entre los 6 preentrenados; hay que entrenarla (gate J1) |
+
+**Gate J0: PASS 5/5**, con una sustitución: DXcam → mss (ver 1.5).
+
+Lo que falta para que el pedido del dueño esté cumplido de punta a punta: entrenar
+"cerebro" (J1), medir el swap STT↔VLM (J2), y enchufar la sesión al CLI con un
+comando `/voz`. La visión (Qwen3-VL) quedó además mejor resuelta por lo que
+apareció después: **MiniCPM-V 4.6 de OpenBMB, ~1B y Apache-2.0**, que a diferencia
+de un VLM de 8B sí entra residente junto al 7B y elimina la necesidad de swap que
+motivaba J2.
+
 ## 4. Plan de implementación por fases
 
 ### 4.1 Fase 1 — La voz (el corazón del pedido)
