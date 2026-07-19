@@ -28,10 +28,10 @@ class _WhisperFalso:
         self.explota = explota
         self.recibido = []
 
-    def transcribe(self, audio, language=None):
+    def transcribe(self, audio, language=None, vad_filter=False):
         if self.explota:
             raise RuntimeError("ctranslate2 se cayo")
-        self.recibido.append((len(audio), language))
+        self.recibido.append((len(audio), language, vad_filter))
         return [_Segmento(p) for p in self.texto.split("|")], {"language": language}
 
 
@@ -115,6 +115,32 @@ class TestTranscriptor:
     def test_wav_inexistente_devuelve_vacio(self):
         t = Transcriptor(backend=_WhisperFalso())
         assert t.transcribir_wav("no_existe_este_archivo.wav") == ""
+
+    def test_descarta_las_alucinaciones_de_whisper(self):
+        """Whisper, entrenado con subtitulos de YouTube, inventa frases sobre
+        el silencio. Paso de verdad: el asistente desperto, grabo ambiente y le
+        mando '¡Suscribete!' al motor como si fuera una orden del dueño."""
+        for basura in ("¡Suscríbete!", "Suscríbete", "Gracias por ver el video",
+                       "Subtítulos realizados por la comunidad de Amara.org",
+                       "Thanks for watching", "...", ""):
+            t = Transcriptor(backend=_WhisperFalso(basura))
+            assert t.transcribir(np.zeros(16000, dtype=np.float32)) == "", basura
+
+    def test_no_descarta_habla_de_verdad(self):
+        # "si" y "no" incluidos a proposito: son respuestas legitimas de dos
+        # caracteres, y un filtro de basura demasiado goloso se las come.
+        for bueno in ("que hora es", "abrime una pestaña de github",
+                      "gracias por la ayuda de ayer", "si", "no", "ok"):
+            t = Transcriptor(backend=_WhisperFalso(bueno))
+            assert t.transcribir(np.zeros(16000, dtype=np.float32)) == bueno
+
+    def test_pide_el_filtro_de_voz(self):
+        """vad_filter recorta lo que no es voz ANTES de transcribir, que es la
+        defensa de fondo contra la alucinacion sobre silencio."""
+        import inspect
+        from cognia.voz import stt
+        fuente = inspect.getsource(stt.Transcriptor.transcribir)
+        assert "vad_filter=True" in fuente
 
     def test_el_device_por_defecto_no_puede_ser_auto(self):
         """Regresion de un cuelgue real: con device='auto', faster-whisper elige

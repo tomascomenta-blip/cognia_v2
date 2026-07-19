@@ -33,6 +33,7 @@ El gate J2 del plan mide el tiempo de swap real; hasta que se mida, el defecto
 conservador es el chico.
 """
 
+import unicodedata
 import wave
 from pathlib import Path
 
@@ -70,6 +71,39 @@ def remuestrear(muestras: np.ndarray, origen: int,
     x_viejo = np.linspace(0.0, 1.0, muestras.size, dtype=np.float64)
     x_nuevo = np.linspace(0.0, 1.0, n_destino, dtype=np.float64)
     return np.interp(x_nuevo, x_viejo, muestras).astype(np.float32)
+
+
+# Frases que Whisper produce sobre silencio o ruido, heredadas de los
+# subtitulos de YouTube con los que se entreno. El VAD filtra la mayoria, pero
+# alguna se cuela igual y no puede llegar al motor como si fuera una orden.
+_ALUCINACIONES = {
+    "suscribete", "subscribe", "gracias por ver el video",
+    "gracias por ver", "subtitulos realizados por la comunidad de amara org",
+    "subtitulado por la comunidad de amara org", "thanks for watching",
+    "thank you for watching", "amara org", "mas videos", "musica", "aplausos",
+}
+
+
+def _es_alucinacion(texto: str) -> bool:
+    """El texto es una de las muletillas que Whisper inventa sobre silencio?"""
+    if not texto:
+        return True
+    # Sin acentos: Whisper escribe "¡Suscríbete!" con tilde y la lista esta en
+    # ASCII, asi que comparar sin normalizar deja pasar la basura.
+    sin_acentos = unicodedata.normalize("NFD", texto.lower())
+    sin_acentos = "".join(c for c in sin_acentos
+                          if unicodedata.category(c) != "Mn")
+    # La puntuacion se reemplaza por ESPACIO, no se borra: borrandola,
+    # "Amara.org" quedaba "amaraorg" pegado y no coincidia con "amara org".
+    limpio = "".join(c if (c.isalnum() or c.isspace()) else " "
+                     for c in sin_acentos)
+    limpio = " ".join(limpio.split())
+    if limpio in _ALUCINACIONES:
+        return True
+    # Solo se descarta lo de UN caracter (puntuacion suelta, "...", una letra).
+    # El corte NO puede ser mas alto: "si" y "no" son respuestas legitimas de
+    # dos caracteres y un asistente por voz las necesita.
+    return len(limpio) < 2
 
 
 class Transcriptor:
@@ -112,9 +146,16 @@ class Transcriptor:
             if audio.size == 0:
                 return ""
             audio = remuestrear(audio, tasa, TASA_WHISPER)
-            segmentos, _info = self.whisper.transcribe(audio,
-                                                       language=self.idioma)
-            return " ".join(s.text.strip() for s in segmentos).strip()
+            # vad_filter recorta lo que no es voz ANTES de transcribir. Sin
+            # esto, Whisper alucina sobre el silencio: entrenado con subtitulos
+            # de YouTube, ante ruido de fondo devuelve cosas como "¡Suscribete!"
+            # o "Gracias por ver el video". Paso de verdad en la primera prueba
+            # con microfono: el asistente desperto, grabo ambiente y le mando
+            # "¡Suscribete!" al motor como si fuera una pregunta del dueño.
+            segmentos, _info = self.whisper.transcribe(
+                audio, language=self.idioma, vad_filter=True)
+            texto = " ".join(s.text.strip() for s in segmentos).strip()
+            return "" if _es_alucinacion(texto) else texto
         except Exception:
             return ""
 

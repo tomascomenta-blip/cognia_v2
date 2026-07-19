@@ -50,27 +50,43 @@ SILENCIO_SEG = 1.2          # cuanto silencio corta la frase
 FRASE_MAXIMA_SEG = 15.0     # tope duro: nadie habla 15 s de corrido a un asistente
 
 
-def calibrar_silencio(segundos: float = 1.0, factor: float = 3.0,
-                      tasa: int = TASA_MUESTREO, dispositivo=None) -> float:
-    """Mide el ruido ambiente y devuelve el umbral de "esto es voz".
+def _con_ganancia(datos, ganancia: float = 1.0) -> np.ndarray:
+    """int16 crudo -> int16 amplificado, sin desbordar.
 
-    Existe porque un umbral fijo no puede funcionar: cada microfono entrega
-    niveles distintos segun su ganancia. Con un Realtek concreto, el valor fijo
-    de 500 descartaba la voz del dueño como si fuera silencio, asi que el
-    asistente detectaba la palabra y despues no grababa nada.
-
-    Se toma el ruido de fondo y se pone el umbral `factor` veces por encima,
-    acotado entre SILENCIO_MINIMO y SILENCIO_RMS.
+    Existe para microfonos cuyo nivel de entrada esta muy bajo en Windows: el
+    navegador los hace funcionar porque aplica ganancia automatica, y la captura
+    cruda entrega picos de ~40 sobre 32768 que ningun detector reconoce como
+    voz. El arreglo de fondo es subir el nivel en Windows; esto es la red.
     """
-    import sounddevice as sd
+    muestras = np.asarray(datos, dtype=np.int16).reshape(-1)
+    if ganancia == 1.0:
+        return muestras
+    ampliado = muestras.astype(np.float32) * ganancia
+    return np.clip(ampliado, -32768, 32767).astype(np.int16)
+
+
+def calibrar_desde(flujo, segundos: float = 1.0, factor: float = 3.0,
+                   tasa: int = TASA_MUESTREO) -> float:
+    """Mide el ruido ambiente USANDO UN FLUJO YA ABIERTO y devuelve el umbral
+    de "esto es voz".
+
+    Recibe el flujo en vez de abrir el suyo por una razon medida: en Windows con
+    el host MME, cerrar un stream de captura y abrir otro enseguida deja el
+    segundo BLOQUEADO — el proceso quedaba vivo, con 0% de CPU, sin leer nada, y
+    el asistente no detectaba mas la palabra de activacion. Las detecciones
+    funcionaban antes de agregar la calibracion y dejaron de funcionar despues;
+    eso fue lo que delato la causa. Un solo flujo para todo el proceso.
+
+    El umbral queda `factor` veces por encima del ruido de fondo, acotado entre
+    SILENCIO_MINIMO y SILENCIO_RMS. Existe porque un valor fijo no puede
+    funcionar: cada microfono entrega niveles distintos segun su ganancia, y el
+    500 puesto a ojo descartaba la voz del dueño como si fuera silencio.
+    """
     try:
         muestras = []
-        with sd.InputStream(samplerate=tasa, blocksize=CHUNK_MUESTRAS,
-                            dtype="int16", channels=1,
-                            device=dispositivo) as flujo:
-            for _ in range(max(1, int(segundos * tasa / CHUNK_MUESTRAS))):
-                datos, _o = flujo.read(CHUNK_MUESTRAS)
-                muestras.append(np.asarray(datos, dtype=np.int16).reshape(-1))
+        for _ in range(max(1, int(segundos * tasa / CHUNK_MUESTRAS))):
+            datos, _o = flujo.read(CHUNK_MUESTRAS)
+            muestras.append(np.asarray(datos, dtype=np.int16).reshape(-1))
         if not muestras:
             return SILENCIO_MINIMO
         fondo = np.concatenate(muestras).astype(np.float64)
@@ -80,37 +96,38 @@ def calibrar_silencio(segundos: float = 1.0, factor: float = 3.0,
         return SILENCIO_MINIMO
 
 
-def grabar_frase(tasa: int = TASA_MUESTREO, umbral_rms: float = SILENCIO_RMS,
-                 silencio_seg: float = SILENCIO_SEG,
-                 maximo_seg: float = FRASE_MAXIMA_SEG,
-                 dispositivo=None) -> np.ndarray:
-    """Graba del microfono hasta que el usuario deja de hablar.
+def grabar_frase_desde(flujo, tasa: int = TASA_MUESTREO,
+                       umbral_rms: float = SILENCIO_RMS,
+                       silencio_seg: float = SILENCIO_SEG,
+                       maximo_seg: float = FRASE_MAXIMA_SEG,
+                       ganancia: float = 1.0) -> np.ndarray:
+    """Graba, DESDE UN FLUJO YA ABIERTO, hasta que el usuario deja de hablar.
 
     Corta por silencio sostenido y no por un tiempo fijo, porque un asistente
     que corta a los 5 segundos exactos interrumpe a la mitad de la frase. El
     tope maximo existe igual para que un ruido continuo no grabe para siempre.
-    """
-    import sounddevice as sd
 
+    Igual que `calibrar_desde`, reutiliza el flujo en vez de abrir uno propio:
+    en Windows/MME cerrar un stream de captura y abrir otro deja el segundo
+    colgado sin leer nada (ver la nota en calibrar_desde).
+    """
     trozos, silenciosos = [], 0
     trozos_de_silencio = int(silencio_seg * tasa / CHUNK_MUESTRAS)
     trozos_maximos = int(maximo_seg * tasa / CHUNK_MUESTRAS)
     hablo = False
 
-    with sd.InputStream(samplerate=tasa, blocksize=CHUNK_MUESTRAS,
-                        dtype="int16", channels=1, device=dispositivo) as flujo:
-        for _ in range(trozos_maximos):
-            datos, _overflow = flujo.read(CHUNK_MUESTRAS)
-            muestras = np.asarray(datos, dtype=np.int16).reshape(-1)
-            trozos.append(muestras)
-            rms = float(np.sqrt(np.mean(muestras.astype(np.float64) ** 2)))
-            if rms >= umbral_rms:
-                hablo = True
-                silenciosos = 0
-            elif hablo:
-                silenciosos += 1
-                if silenciosos >= trozos_de_silencio:
-                    break
+    for _ in range(trozos_maximos):
+        datos, _overflow = flujo.read(CHUNK_MUESTRAS)
+        muestras = _con_ganancia(datos, ganancia)
+        trozos.append(muestras)
+        rms = float(np.sqrt(np.mean(muestras.astype(np.float64) ** 2)))
+        if rms >= umbral_rms:
+            hablo = True
+            silenciosos = 0
+        elif hablo:
+            silenciosos += 1
+            if silenciosos >= trozos_de_silencio:
+                break
     if not trozos:
         return np.zeros(0, dtype=np.float32)
     audio = np.concatenate(trozos).astype(np.float32) / 32768.0
@@ -137,6 +154,16 @@ def main(argv=None):
                     help="RMS que separa voz de silencio; por defecto se "
                          "CALIBRA contra el ruido ambiente al arrancar")
     ap.add_argument("--sin-voz", action="store_true")
+    ap.add_argument("--ganancia", type=float, default=1.0, metavar="X",
+                    help="multiplica el audio por X antes de procesarlo. Para "
+                         "microfonos con el nivel de entrada muy bajo, donde el "
+                         "navegador funciona porque aplica ganancia automatica "
+                         "y la captura cruda no. Con picos de ~40 sobre 32768, "
+                         "una ganancia de 100 los lleva a un nivel usable")
+    ap.add_argument("--ver-puntaje", type=float, default=None, metavar="MIN",
+                    help="imprime el puntaje del wake word cuando supera MIN "
+                         "(ej: 0.05). Sirve para ver CUAN CERCA quedo de "
+                         "activarse en vez de adivinar el umbral")
     ap.add_argument("--listar", action="store_true")
     args = ap.parse_args(argv)
 
@@ -163,12 +190,7 @@ def main(argv=None):
 
     import sounddevice as sd
     umbral_silencio = args.umbral_silencio
-    if umbral_silencio is None:
-        umbral_silencio = calibrar_silencio()
-        print("Ruido ambiente medido -> umbral de voz: %.0f" % umbral_silencio)
-    print("\nCognia escuchando. Deci \"%s\" y despues hablale."
-          % args.palabra.replace("_", " "))
-    print("Ctrl+C para salir.\n")
+    print("Ctrl+C para salir.")
 
     # Que se desenchufe el microfono no puede matar al asistente: es un fallo
     # transitorio, no un error de programa. Paso de verdad durante una prueba y
@@ -182,30 +204,42 @@ def main(argv=None):
             if fallos:
                 print("[microfono de vuelta]\n", flush=True)
                 fallos = 0
+            if umbral_silencio is None:
+                umbral_silencio = calibrar_desde(flujo)
+                print("Ruido ambiente -> umbral de voz: %.0f" % umbral_silencio)
+            print("\nCognia escuchando. Deci \"%s\" y despues hablale.\n"
+                  % args.palabra.replace("_", " "), flush=True)
             while True:
                 datos, _ = flujo.read(CHUNK_MUESTRAS)
-                trozo = np.asarray(datos, dtype=np.int16).reshape(-1)
-                if not detector.detecto(trozo):
+                trozo = _con_ganancia(datos, args.ganancia)
+                detectada = detector.detecto(trozo)
+                if args.ver_puntaje is not None:
+                    # Medir en vez de adivinar: muestra cuanto puntuo cada
+                    # intento, para saber si falta bajar el umbral o si la
+                    # palabra directamente no se esta reconociendo.
+                    pico = max(detector.ultimos_puntajes.values(), default=0.0)
+                    if pico >= args.ver_puntaje:
+                        print("   [puntaje %.3f / umbral %.2f]" % (pico, args.umbral),
+                              flush=True)
+                if not detectada:
                     continue
-                # Se cierra el flujo de escucha antes de grabar para no tener
-                # dos streams peleando por el mismo microfono.
-                flujo.stop()
+                # NO se cierra el flujo: se graba del MISMO stream. Cerrarlo y
+                # reabrirlo colgaba el proceso en Windows/MME (ver calibrar_desde).
                 print("[te escucho]", flush=True)
                 sesion.al_detectar_palabra(args.palabra)
-                audio = grabar_frase(umbral_rms=umbral_silencio)
+                audio = grabar_frase_desde(flujo, umbral_rms=umbral_silencio,
+                                           ganancia=args.ganancia)
                 if audio.size == 0:
                     print("[no escuche nada — proba --umbral-silencio mas bajo "
-                          "que %.0f]\n" % umbral_silencio)
+                          "que %.0f]\n" % umbral_silencio, flush=True)
                     sesion.dormir()
-                    flujo.start()
                     continue
                 turno = sesion.procesar_turno(audio)
                 if turno.get("ok"):
-                    print("  vos    :", turno["texto"])
-                    print("  cognia :", turno["respuesta"][:400], "\n")
+                    print("  vos    :", turno["texto"], flush=True)
+                    print("  cognia :", turno["respuesta"][:400], "\n", flush=True)
                 else:
-                    print("  (%s)\n" % turno.get("motivo"))
-                flujo.start()
+                    print("  (%s)\n" % turno.get("motivo"), flush=True)
       except KeyboardInterrupt:
         print("\nListo, me duermo.")
         break

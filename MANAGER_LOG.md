@@ -2038,3 +2038,54 @@ Cognia. `guardar_en_cognia` usa `sqlite3.connect()` directo, prohibido por CLAUD
 Jarvis: falta STT (necesita GPU), `sesion.py`, entrenar "cerebro" (J1) y la pausa por ventana
 sensible del vigía. `_bdraft_disponible()` nunca devuelve disponible aunque haya checkpoint:
 falta el pipeline de inferencia v0 (sección 2.4), que es lo mismo que exigen G4a/G4b/G4c.
+
+## 2026-07-19 (cierre) — REINTENTO G3: FAIL → KILL honesto de la Pista 1
+
+**Veredicto final del reintento**, sobre las 180 filas del val completo:
+
+```
+### G3: FAIL  top1=0.3889±0.0712  tau=0.589±0.122 ###
+15.00M tokens, paso 5586, ~2.7 h de GPU
+```
+
+| métrica | v0 | reintento | umbral | resultado |
+|---|---|---|---|---|
+| top1 | 0.2667±0.065 | **0.3889±0.071** | 0.30 | **PASA** (borde inferior 0.318 > 0.30) |
+| τ | 0.3111±0.082 | **0.5889±0.122** | 1.50 | **FALLA** por 2.5x, sin solapamiento |
+
+**La hipótesis del reintento era CORRECTA.** Sesgar la máscara al 53% (contra el
+6.25% del v0) para entrenar el régimen que la inferencia usa de verdad subió τ un
+**89%** y top1 un **46%**, llevando top1 de indeciso a aprobar con margen. El
+desajuste entrenamiento/despliegue explicaba buena parte del estancamiento del
+v0, que estaba plano en τ≈0.15 desde el paso 2000 mientras el reintento subía
+hasta el final (0.067 → 0.200 → 0.333 → 0.450 → 0.550 → 0.608).
+
+**Y aun así no alcanza.** τ necesita 1.5 y llegó a 0.589. Por la regla
+pre-registrada (un solo reintento; si falla, KILL) **la Pista 1 —el draft de
+difusión de bloques propio— se CIERRA**. Coste total: ~5.4 h de GPU en dos runs,
+dentro de los presupuestos. El KILL es honesto: no se extendió nada sin
+re-registrar, y el gate hizo exactamente su trabajo de cortar al 10% del gasto en
+vez de descubrirlo tras las 60 h.
+
+**Qué se aprendió, que es lo aprovechable:**
+1. El régimen de entrenamiento tiene que coincidir con el de despliegue. Con
+   t~U(0,1) y bloque 8, solo el 6.25% de los ejemplos veía el canvas completo —
+   el único caso que existe en inferencia.
+2. τ y top1 miden cosas de dificultad muy distinta: acertar el primer token
+   (0.389, ya aprobado) contra encadenar 1.5 tokens verificados. La segunda es
+   cualitativamente más dura y es la que decide.
+3. Un modelo de 112M con 15M tokens de presupuesto no llega. DFlash reporta τ
+   6.5-7.9 con drafts de 0.4-2B y ~5B tokens en H200: somos 10-20x menos de todo,
+   y el resultado es consistente con esa escala, no con un error.
+
+**Salida prevista por el propio plan (sección 2.4.3): draft formato EAGLE-3**,
+que enchufa directo en el soporte que llama.cpp mergeó en jun-2026, ahora además
+con **FR-Spec de OpenBMB** (arXiv 2502.14856, ACL 2025): recorta 75% del cómputo
+de la cabeza LM comprimiendo el vocabulario por frecuencia, que es exactamente el
+"punto de dolor" de los 152K de Qwen2.5 que el plan DSPARK ya anticipaba.
+
+**Bug propio corregido en el camino:** el v0 imprimió "INDECISO" sobre un fracaso
+inequívoco porque la lógica marcaba indecisión si CUALQUIERA de las métricas caía
+en su ruido. Siendo un AND, un FAIL solo es indeciso si TODAS las que fallan lo
+están. Con la lógica corregida el reintento reporta `indeciso=False`, que es lo
+correcto: τ falla fuera de todo margen.
