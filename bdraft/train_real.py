@@ -79,6 +79,32 @@ def compute_tau(draft_tokens, target_argmax) -> float:
     return tau_per_row(draft_tokens, target_argmax).float().mean().item()
 
 
+def veredicto_indeciso(top1: float, tau: float, top1_ci: float,
+                       tau_ci: float) -> bool:
+    """Could the PASS/FAIL flip if the measurements landed on the other side?
+
+    G3 is an AND (top1 >= 0.30 AND tau >= 1.5), so the question is not "is any
+    metric near its threshold" but "could the DECISION change":
+      - a FAIL is undecided only if EVERY failing metric is within its noise
+        band, i.e. they could plausibly all be passing;
+      - a PASS is undecided if ANY metric is within its band, since one of them
+        slipping below flips the AND to a FAIL.
+
+    Written after the v0 run printed "INDECISO" on a verdict that was anything
+    but: tau missed by 14x its own error bar while top1 happened to sit near
+    0.30, and a naive OR reported the whole thing as undecidable. A label that
+    says "we cannot tell" about an unambiguous failure is worse than no label.
+    """
+    top1_cerca = abs(top1 - G3_TOP1_MIN) < top1_ci
+    tau_cerca = abs(tau - G3_TAU_MIN) < tau_ci
+    if g3_early_signal(top1, tau):
+        return top1_cerca or tau_cerca
+    fallan_cerca = [cerca for valor, minimo, cerca in
+                    ((top1, G3_TOP1_MIN, top1_cerca), (tau, G3_TAU_MIN, tau_cerca))
+                    if valor < minimo]
+    return all(fallan_cerca) if fallan_cerca else False
+
+
 def warmup_lr(base_lr: float, step: int, warmup_steps: int) -> float:
     """Linear warmup to base_lr over warmup_steps, then constant."""
     if warmup_steps <= 0 or step >= warmup_steps:
@@ -328,6 +354,11 @@ def main(argv=None):
                     default="constante",
                     help="constante = el del run v0; coseno = decae hasta el "
                          "10%% del pico segun el presupuesto consumido")
+    ap.add_argument("--prob-mascara-completa", type=float, default=0.0,
+                    help="probabilidad de entrenar con el canvas 100%% "
+                         "enmascarado, que es el UNICO regimen que usa la "
+                         "inferencia. Con 0.0 (el v0) solo el 6.25%% de los "
+                         "ejemplos lo ve; 0.5 lo lleva a la mitad")
     ap.add_argument("--save-every", type=int, default=200)
     ap.add_argument("--eval-every", type=int, default=500)
     ap.add_argument("--eval-batches", type=int, default=16)
@@ -380,10 +411,15 @@ def main(argv=None):
 
     # Seed offset by the resumed step so a resumed run sees a fresh sample
     # order instead of replaying the epoch from scratch.
+    # El sesgo de mascara va SOLO al batcher de entrenamiento. El de eval
+    # (run_eval) se deja intacto a proposito: enmascara el canvas entero por su
+    # cuenta, y tocar su generador correria los cortes y cambiaria el stream de
+    # validacion, arruinando la comparacion directa contra los numeros del v0.
     batcher = RealBatcher(tokenizer, train_pairs, seq_len=args.seq_len,
                           block_size=args.block_size,
                           micro_batch=args.micro_batch,
-                          seed=args.seed + step)
+                          seed=args.seed + step,
+                          prob_mascara_completa=args.prob_mascara_completa)
     data_iter = iter(batcher)
 
     def next_batch():
@@ -463,9 +499,7 @@ def main(argv=None):
     ev = run_eval(target, draft, tokenizer, val_pairs, args, device)
     top1, tau = ev["top1"], ev["tau"]
     ok = g3_early_signal(top1, tau)
-    # A threshold inside the 95% band means the data cannot tell PASS from FAIL.
-    indeciso = (abs(top1 - G3_TOP1_MIN) < ev["top1_ci"]
-                or abs(tau - G3_TAU_MIN) < ev["tau_ci"])
+    indeciso = veredicto_indeciso(top1, tau, ev["top1_ci"], ev["tau_ci"])
     log_jsonl(log_path, {"type": "eval_final", "step": step,
                          "tokens": tokens_seen, "g3_pass": ok,
                          "indeciso": indeciso,

@@ -16,9 +16,26 @@ planes/DSPARK_GEMMA_DRAFT_MODEL.md section 2.3:
 import torch
 
 
-def sample_mask_ratio(generator: torch.Generator) -> float:
+def sample_mask_ratio(generator: torch.Generator,
+                      prob_completo: float = 0.0) -> float:
     """t ~ U(0,1) masking ratio for one block (discrete-diffusion style).
-    Clamped to the open interval so a block is never fully given/fully free."""
+    Clamped to the open interval so a block is never fully given/fully free.
+
+    prob_completo mixes in a spike at t=1 (fully masked canvas). Why it exists:
+    with plain U(0,1) and block_size 8, round(8t)==8 only when t >= 0.9375, so
+    just 6.25% of training examples see a FULLY masked canvas — while inference
+    and the G3 tau eval always use one. In the v0 run that left ~94% of the
+    gradient training a regime the model never faces at deployment, and tau
+    stalled at 0.311 against a threshold of 1.5. This is the train/deployment
+    mismatch the adversarial audit flagged as the legitimate candidate for the
+    single pre-registered retry.
+
+    Default 0.0 keeps the exact v0 behaviour, so the retry has to ask for the
+    change on the command line and it stays visible in the run's record.
+    """
+    if prob_completo > 0.0:
+        if torch.rand((), generator=generator).item() < prob_completo:
+            return 1.0 - 1e-6           # todas las posiciones enmascaradas
     t = torch.rand((), generator=generator).item()
     return min(max(t, 1e-6), 1.0 - 1e-6)
 

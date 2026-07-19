@@ -276,6 +276,51 @@ def test_compute_tau_pure_cases():
     assert compute_tau(full, full) == 8.0
 
 
+def test_sesgo_de_mascara_lleva_el_regimen_de_inferencia_al_entrenamiento():
+    """Con U(0,1) y bloque 8, round(8t)==8 solo si t>=0.9375: apenas el 6.25%
+    de los ejemplos entrena el canvas completo, que es el UNICO regimen que usa
+    la inferencia. Este es el desajuste que el reintento de G3 ataca."""
+    from bdraft.data import sample_mask_ratio
+
+    def fraccion_completa(prob, n=20000):
+        g = torch.Generator().manual_seed(7)
+        completos = sum(1 for _ in range(n)
+                        if max(1, int(round(sample_mask_ratio(g, prob) * 8))) == 8)
+        return completos / n
+
+    # El comportamiento del v0 (defecto): ~6.25%.
+    assert fraccion_completa(0.0) == pytest.approx(0.0625, abs=0.01)
+    # Sesgado a la mitad: ~53% (el 50% forzado mas el 6.25% del resto).
+    assert fraccion_completa(0.5) == pytest.approx(0.53, abs=0.02)
+    # Y sigue habiendo variedad de niveles de ruido, no colapsa a t=1 siempre.
+    g = torch.Generator().manual_seed(7)
+    ts = [sample_mask_ratio(g, 0.5) for _ in range(2000)]
+    assert len(set(round(t, 3) for t in ts)) > 500
+    # El defecto no cambia nada de lo pre-registrado.
+    g1 = torch.Generator().manual_seed(3)
+    g2 = torch.Generator().manual_seed(3)
+    assert [sample_mask_ratio(g1) for _ in range(50)] == \
+           [sample_mask_ratio(g2, 0.0) for _ in range(50)]
+
+
+def test_veredicto_indeciso_solo_cuando_la_decision_puede_darse_vuelta():
+    """El caso real del run v0: tau fallo por 14x su barra de error mientras
+    top1 quedaba pegado a 0.30, y un OR ingenuo lo reportaba como indecidible.
+    El gate es un AND: si una metrica falla sin margen, no hay indecision."""
+    from bdraft.train_real import veredicto_indeciso
+
+    # El veredicto real del run v0: FAIL inequivoco, no indeciso.
+    assert veredicto_indeciso(0.2667, 0.311, 0.0646, 0.082) is False
+    # Las dos fallando pero las dos dentro del ruido: ahi si es indeciso.
+    assert veredicto_indeciso(0.28, 1.45, 0.05, 0.10) is True
+    # Aprueba pero una esta pegada al umbral: podria estar fallando.
+    assert veredicto_indeciso(0.31, 1.9, 0.05, 0.10) is True
+    # Aprueba con holgura en las dos: decision firme.
+    assert veredicto_indeciso(0.55, 3.0, 0.04, 0.10) is False
+    # Falla sin margen en las dos: decision firme.
+    assert veredicto_indeciso(0.05, 0.10, 0.02, 0.03) is False
+
+
 def test_lr_coseno_calienta_y_despues_decae():
     """El schedule que el run v0 NO tenia: warmup y despues coseno.
 

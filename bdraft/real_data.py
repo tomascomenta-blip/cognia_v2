@@ -70,7 +70,8 @@ def split_pairs(pairs: list[dict], val_pct: int = 2) -> tuple[list, list]:
 
 def build_example(tokenizer, pair: dict, seq_len: int, block_size: int,
                   generator: torch.Generator,
-                  mask_token_id: int = -1) -> dict | None:
+                  mask_token_id: int = -1,
+                  prob_mascara_completa: float = 0.0) -> dict | None:
     """One pair -> one training example, or None if the truncated response
     cannot fit a full canvas. The cut is uniform in
     [prompt_len, total_len - block_size]: the canvas is ALWAYS made of
@@ -88,7 +89,7 @@ def build_example(tokenizer, pair: dict, seq_len: int, block_size: int,
     cut = lo + int(torch.randint(0, hi - lo + 1, (1,),
                                  generator=generator).item())
     labels = torch.tensor(ids[cut:cut + block_size], dtype=torch.long)
-    t = sample_mask_ratio(generator)
+    t = sample_mask_ratio(generator, prob_completo=prob_mascara_completa)
     n_masked = max(1, int(round(t * block_size)))
     pos = torch.randperm(block_size, generator=generator)[:n_masked]
     canvas_mask = torch.zeros(block_size, dtype=torch.bool)
@@ -117,7 +118,7 @@ class RealBatcher:
 
     def __init__(self, tokenizer, pairs: list[dict], seq_len: int = 1024,
                  block_size: int = 8, micro_batch: int = 4, seed: int = 0,
-                 mask_token_id: int = -1):
+                 mask_token_id: int = -1, prob_mascara_completa: float = 0.0):
         self.tokenizer = tokenizer
         self.pairs = pairs
         self.seq_len = seq_len
@@ -125,6 +126,9 @@ class RealBatcher:
         self.micro_batch = micro_batch
         self.seed = seed
         self.mask_token_id = mask_token_id
+        # Ver bdraft.data.sample_mask_ratio: sesga el muestreo hacia el canvas
+        # totalmente enmascarado, que es el unico regimen que usa la inferencia.
+        self.prob_mascara_completa = prob_mascara_completa
         pad = tokenizer.pad_token_id
         if pad is None:
             pad = tokenizer.eos_token_id
@@ -138,7 +142,8 @@ class RealBatcher:
         buf = []
         for idx in order:
             ex = build_example(self.tokenizer, self.pairs[idx], self.seq_len,
-                               self.block_size, g, self.mask_token_id)
+                               self.block_size, g, self.mask_token_id,
+                               self.prob_mascara_completa)
             if ex is None:
                 continue
             buf.append(ex)
