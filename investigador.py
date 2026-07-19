@@ -19,6 +19,7 @@ import json
 import re
 import os
 import sys
+import time
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
@@ -146,6 +147,154 @@ def buscar_duckduckgo(query):
     except Exception:
         pass
     return None
+
+
+# ── Busqueda web real ─────────────────────────────────────────────────
+
+DDG_LITE_URL = "https://lite.duckduckgo.com/lite/"
+_UA_NAVEGADOR = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                 "AppleWebKit/537.36 (KHTML, like Gecko) "
+                 "Chrome/120.0.0.0 Safari/537.36")
+
+
+def buscar_web_resultados(query, max_resultados=5, intentos=3):
+    """
+    Busqueda web REAL: devuelve una lista de {titulo, url, resumen}.
+
+    Usa el endpoint `lite` de DuckDuckGo, que es el unico backend sin API key
+    que devolvio resultados RELEVANTES en las mediciones del 2026-07-19:
+
+      backend             relevantes   nota
+      ddg lite            2 de 3       falla quedandose VACIO, no mintiendo
+      bing ?format=rss    0 de 3       *peligroso*: el titulo del canal repite
+                                       bien la consulta pero los items son de
+                                       otro tema (pedi wake words y devolvio el
+                                       parlamento de Berlin). Descartado.
+      searx.be json       0 de 3       HTTP 403
+      wikipedia search    0 de 3       solo sirve para temas enciclopedicos
+
+    POR QUE NO `buscar_duckduckgo`: esa funcion pega contra la Instant Answer
+    API, que NO es un buscador — solo devuelve fichas de entidades. Ante una
+    consulta tecnica responde vacio (AbstractText '', 0 RelatedTopics, 0
+    Results), que es exactamente por que la investigacion de Cognia venia
+    devolviendo None y el modelo terminaba contestando de memoria.
+
+    El endpoint limita por frecuencia y entonces responde una pagina sin
+    resultados; por eso hay reintentos con espera creciente. Devuelve [] si aun
+    asi no hay nada: la investigacion es best-effort y prefiere admitir que no
+    encontro antes que inventar.
+
+    Via principal: la libreria `ddgs`, que rota endpoints y maneja el bloqueo
+    por frecuencia sola. Medido el 2026-07-19: 3 de 3 consultas relevantes con
+    `ddgs` MIENTRAS el endpoint crudo devolvia 0 de 3 por estar limitado. Si no
+    esta instalada se cae al endpoint crudo, que funciona con uso espaciado.
+    """
+    porddgs = _buscar_con_ddgs(query, max_resultados)
+    if porddgs:
+        return porddgs
+
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return []
+
+    for intento in range(intentos):
+        try:
+            datos = urllib.parse.urlencode({"q": query}).encode()
+            req = urllib.request.Request(
+                DDG_LITE_URL, data=datos,
+                headers={"User-Agent": _UA_NAVEGADOR,
+                         "Accept-Language": "es-ES,es;q=0.9,en;q=0.8"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                html = r.read().decode("utf-8", errors="replace")
+        except Exception:
+            html = ""
+
+        salida = []
+        if html:
+            soup = BeautifulSoup(html, "html.parser")
+            for a in soup.find_all("a", href=True):
+                url = a["href"]
+                titulo = a.get_text(strip=True)
+                # Los resultados son enlaces externos con texto; el resto de la
+                # pagina son controles de navegacion del propio buscador.
+                if not url.startswith("http") or "duckduckgo.com" in url:
+                    continue
+                if not titulo or len(titulo) < 3:
+                    continue
+                salida.append({"titulo": titulo, "url": url,
+                               "resumen": _resumen_cercano(a)})
+                if len(salida) >= max_resultados:
+                    break
+        if salida:
+            return salida
+        if intento < intentos - 1:
+            time.sleep(2.0 * (intento + 1))     # limitado por frecuencia
+    return []
+
+
+def _buscar_con_ddgs(query, max_resultados):
+    """Via principal de busqueda. Devuelve [] si la libreria no esta instalada
+    o si falla, para que el llamador siga con el endpoint crudo."""
+    try:
+        from ddgs import DDGS
+    except ImportError:
+        return []
+    try:
+        with DDGS() as motor:
+            crudos = list(motor.text(query, max_results=max_resultados))
+    except Exception:
+        return []
+    salida = []
+    for r in crudos:
+        titulo = (r.get("title") or "").strip()
+        url = (r.get("href") or "").strip()
+        if not (titulo and url):
+            continue
+        salida.append({"titulo": titulo, "url": url,
+                       "resumen": (r.get("body") or "").strip()[:400]})
+    return salida
+
+
+def _resumen_cercano(enlace):
+    """El texto descriptivo que el endpoint lite pone cerca del enlace. Es
+    best-effort: si la maqueta cambia se devuelve cadena vacia en vez de
+    romper la busqueda entera."""
+    try:
+        fila = enlace.find_parent("tr")
+        if fila is None:
+            return ""
+        siguiente = fila.find_next_sibling("tr")
+        if siguiente is None:
+            return ""
+        texto = siguiente.get_text(" ", strip=True)
+        return texto[:400]
+    except Exception:
+        return ""
+
+
+def buscar_web(query, max_resultados=5):
+    """
+    Igual que buscar_web_resultados pero devuelve el MISMO dict que
+    buscar_wikipedia/buscar_duckduckgo (titulo, extracto, url, idioma,
+    fuente), para que encaje en la cadena de investigacion sin tocar a los
+    llamadores. None si no hubo resultados.
+
+    El extracto concatena los titulares y resumenes con su URL, de modo que lo
+    que llega al LLM viene ANCLADO a fuentes: si despues inventa, se nota.
+    """
+    resultados = buscar_web_resultados(query, max_resultados=max_resultados)
+    if not resultados:
+        return None
+    partes = ["%s — %s (%s)" % (r["titulo"], r["resumen"], r["url"])
+              for r in resultados]
+    return {
+        "titulo": query,
+        "extracto": "\n".join(partes)[:1500],
+        "url": resultados[0]["url"],
+        "idioma": "es",
+        "fuente": "busqueda_web",
+    }
 
 
 # ── Extractor de hechos ────────────────────────────────────────────────
@@ -408,10 +557,16 @@ def investigar_si_necesario(ai, pregunta, contexto_actual):
     if not termino:
         return contexto_actual, False, None
 
-    # Buscar primero en Wikipedia, luego DuckDuckGo como fallback
+    # Wikipedia -> ficha instantanea de DDG -> busqueda web real. El ultimo
+    # eslabon es el que salva las preguntas tecnicas o de actualidad: ni
+    # Wikipedia ni la Instant Answer API tienen ficha para "mejores proyectos
+    # de wake word 2026", y sin el la investigacion devolvia None y el modelo
+    # terminaba contestando de memoria (inventando).
     resultado = buscar_wikipedia(termino)
     if not resultado:
         resultado = buscar_duckduckgo(termino)
+    if not resultado:
+        resultado = buscar_web(termino)
     if not resultado:
         return contexto_actual, False, None
 
@@ -425,8 +580,11 @@ def investigar_si_necesario(ai, pregunta, contexto_actual):
     # Guardar en la memoria de Cognia
     guardado = guardar_en_cognia(ai, titulo, extracto, hechos, pregunta)
 
-    # Construir bloque de contexto con lo investigado
-    bloque_investigacion = f"""INVESTIGACIÓN AUTÓNOMA (Wikipedia):
+    # Construir bloque de contexto con lo investigado. La fuente se nombra de
+    # verdad: decir "Wikipedia" cuando el dato vino de otro lado le miente al
+    # modelo sobre su propia evidencia.
+    fuente = resultado.get("fuente", "desconocida")
+    bloque_investigacion = f"""INVESTIGACIÓN AUTÓNOMA (fuente: {fuente}):
 Encontré información sobre: {titulo}
 {extracto[:600]}"""
 
