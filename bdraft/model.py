@@ -111,9 +111,12 @@ class _Block(nn.Module):
         B, P, _ = x.shape
         return x.view(B, P, self.n_heads, self.head_dim).transpose(1, 2)
 
-    def forward(self, x, ctx, cos_ctx, sin_ctx, cos_can, sin_can):
+    def forward(self, x, ctx, cos_ctx, sin_ctx, cos_can, sin_can,
+                attn_mask=None):
         # x:   [B, block, d]  canvas hidden states (evolve through layers)
         # ctx: [B, T, d]      projected target context (static across layers)
+        # attn_mask: bool [B, 1, 1, T+block] (True = attend) or None; used by
+        #            real batches to hide left-padded context positions.
         B = x.shape[0]
         h = self.attn_norm(x)
         c = self.ctx_norm(ctx)
@@ -124,9 +127,10 @@ class _Block(nn.Module):
         v_ctx = self._split(self.v_proj(c))
         k = torch.cat([k_ctx, k_can], dim=2)   # [B, nh, T+block, hd]
         v = torch.cat([v_ctx, v_can], dim=2)
-        # No mask at all: fully bidirectional inside the block + full view
-        # of the context. This is the whole point vs a causal draft.
-        attn = F.scaled_dot_product_attention(q, k, v)
+        # No causal mask: fully bidirectional inside the block + full view
+        # of the context. This is the whole point vs a causal draft. The only
+        # thing ever masked out is context PADDING (attn_mask, real batches).
+        attn = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask)
         attn = attn.transpose(1, 2).reshape(B, -1, self.n_heads * self.head_dim)
         x = x + self.o_proj(attn)
         h = self.ffn_norm(x)
@@ -172,10 +176,17 @@ class BDraft(nn.Module):
 
     def forward_hidden(self, ctx_hidden: torch.Tensor,
                        canvas_tokens: torch.Tensor,
-                       canvas_mask: torch.Tensor) -> torch.Tensor:
+                       canvas_mask: torch.Tensor,
+                       ctx_attn: torch.Tensor | None = None) -> torch.Tensor:
         """Backbone only: returns draft hidden states [B, block, d_model]
         (post final_norm, pre up_proj). Used by confidence() and by the
-        training loop for chunked cross-entropy."""
+        training loop for chunked cross-entropy.
+
+        ctx_attn: optional bool [B, T], True = real context token. Real
+        batches left-pad variable-length contexts; padded positions must not
+        be attended (their target hidden states are garbage). RoPE is
+        relative, so left padding + this mask gives the same output as the
+        unpadded sequence."""
         cfg = self.cfg
         B, T, _ = ctx_hidden.shape
         block = canvas_tokens.shape[1]
@@ -194,15 +205,24 @@ class BDraft(nn.Module):
         cos_can, sin_can = _rope_cos_sin(
             torch.arange(T, T + block, device=dev), cfg.head_dim,
             cfg.rope_theta, dev, dt)
+        attn_mask = None
+        if ctx_attn is not None:
+            keep = torch.cat([ctx_attn.to(torch.bool),
+                              torch.ones(B, block, dtype=torch.bool,
+                                         device=dev)], dim=1)
+            attn_mask = keep[:, None, None, :]     # [B, 1, 1, T+block]
         for layer in self.layers:
-            x = layer(x, ctx, cos_ctx, sin_ctx, cos_can, sin_can)
+            x = layer(x, ctx, cos_ctx, sin_ctx, cos_can, sin_can, attn_mask)
         return self.final_norm(x)
 
     def forward(self, ctx_hidden: torch.Tensor, canvas_tokens: torch.Tensor,
-                canvas_mask: torch.Tensor) -> torch.Tensor:
+                canvas_mask: torch.Tensor,
+                ctx_attn: torch.Tensor | None = None) -> torch.Tensor:
         """ctx_hidden [B,T,target_d_model], canvas_tokens [B,block],
-        canvas_mask [B,block] (True = masked) -> logits [B,block,vocab]."""
-        hidden = self.forward_hidden(ctx_hidden, canvas_tokens, canvas_mask)
+        canvas_mask [B,block] (True = masked) -> logits [B,block,vocab].
+        ctx_attn: see forward_hidden (padding mask for real batches)."""
+        hidden = self.forward_hidden(ctx_hidden, canvas_tokens, canvas_mask,
+                                     ctx_attn=ctx_attn)
         return self.lm_head(self.up_proj(hidden))
 
     def confidence(self, draft_hidden_or_logits: torch.Tensor) -> torch.Tensor:
