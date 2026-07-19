@@ -126,9 +126,17 @@ para este caso de uso.
 ### 1.5 Captura de pantalla y detección de cambios
 
 - **DXcam** — usa la Desktop Duplication API de DirectX, alcanza **240+ FPS** **[S]**,
-  Windows exclusivo. `mss` da 30-60 FPS y es multiplataforma **[S]**. Para Windows nativo
-  DXcam gana sin discusión. (Existe **BetterCam** como fork mantenido **[S]**; verificar
-  cuál está más vivo, porque DXcam tuvo períodos sin mantenimiento.)
+  Windows exclusivo. `mss` da 30-60 FPS y es multiplataforma **[S]**.
+
+  **CORREGIDO AL IMPLEMENTAR (2026-07-19): se eligió `mss`, no DXcam.** Dos razones
+  medidas en esta máquina. Primero, DXcam importa `cv2` de forma incondicional: falla con
+  `ModuleNotFoundError: No module named 'cv2'` incluso sin pedir conversión de color, o
+  sea que arrastra OpenCV entero. Segundo, y más importante: **la ventaja de DXcam no
+  servía para nada acá**. El diseño captura a 2-4 FPS para quedarse con los momentos
+  importantes, no para grabar video, así que 240 FPS contra 60 es una diferencia
+  irrelevante. `mss` midió **63 FPS sostenidos a 1920x1080**, entre 15 y 30 veces más de
+  lo que hace falta, sin dependencias pesadas. Elegir DXcam habría sido pagar OpenCV por
+  una ventaja que el propio diseño descarta.
 - **Detección de cambio de frame** — el enfoque correcto es *perceptual hashing*: se calcula
   un hash de cada frame y se compara con el anterior; si la distancia de Hamming supera un
   umbral, es un cambio de escena **[S]**. Es *"muy eficiente computacionalmente comparado
