@@ -1,0 +1,124 @@
+"""
+cognia/voz/stt.py
+=================
+Oido de Cognia: transcripcion con faster-whisper
+(planes/JARVIS_COGNIA.md 4.1, gate J2).
+
+POR QUE faster-whisper: es la reimplementacion de produccion de Whisper, 4x mas
+rapida en GPU con int8 y con la misma precision. Para español hay que quedarse
+en la familia Whisper — Parakeet es dramaticamente mas rapido pero esta orientado
+a ingles.
+
+EL PROBLEMA DE VRAM, QUE DECIDE EL DISEÑO. En esta maquina el Qwen2.5-7B ya
+ocupa 6.3 GB medidos de los 16, y `large-v3` pide ~10. No entran. Por eso:
+
+  - el modelo por defecto es `small` (~1 GB), que anda bien en español y deja
+    lugar; `medium` y `large-v3` quedan disponibles por parametro para cuando la
+    GPU este libre;
+  - la carga es PEREZOSA y hay `descargar()` explicito, para poder soltar la
+    VRAM entre turnos en vez de tenerla tomada mientras Cognia no escucha;
+  - `device='auto'` cae solo a CPU cuando no hay GPU disponible, que es lo que
+    pasa hoy mismo con el entrenamiento del BDraft corriendo.
+
+El gate J2 del plan mide el tiempo de swap real; hasta que se mida, el defecto
+conservador es el chico.
+"""
+
+import wave
+from pathlib import Path
+
+import numpy as np
+
+MODELO_POR_DEFECTO = "small"
+TASA_WHISPER = 16000        # Whisper trabaja siempre a 16 kHz
+IDIOMA_POR_DEFECTO = "es"
+
+
+def audio_de_wav(ruta) -> tuple[np.ndarray, int]:
+    """WAV -> (float32 mono en [-1,1], tasa). Solo stdlib + numpy."""
+    with wave.open(str(ruta), "rb") as w:
+        canales, ancho = w.getnchannels(), w.getsampwidth()
+        tasa, n = w.getframerate(), w.getnframes()
+        crudo = w.readframes(n)
+    if ancho != 2:
+        raise ValueError("solo se soporta PCM de 16 bits, no de %d" % (ancho * 8))
+    muestras = np.frombuffer(crudo, dtype=np.int16).astype(np.float32) / 32768.0
+    if canales > 1:
+        muestras = muestras.reshape(-1, canales).mean(axis=1)
+    return muestras, tasa
+
+
+def remuestrear(muestras: np.ndarray, origen: int,
+                destino: int = TASA_WHISPER) -> np.ndarray:
+    """Remuestreo lineal. Alcanza para voz: Piper entrega 22050 Hz y Whisper
+    quiere 16000, y para transcribir no hace falta un filtro elaborado."""
+    if origen == destino or muestras.size == 0:
+        return muestras
+    n_destino = int(round(muestras.size * destino / origen))
+    x_viejo = np.linspace(0.0, 1.0, muestras.size, dtype=np.float64)
+    x_nuevo = np.linspace(0.0, 1.0, n_destino, dtype=np.float64)
+    return np.interp(x_nuevo, x_viejo, muestras).astype(np.float32)
+
+
+class Transcriptor:
+    """Convierte audio en texto.
+
+        stt = Transcriptor()
+        stt.transcribir_wav("pregunta.wav")
+        stt.descargar()          # suelta la VRAM entre turnos
+
+    Se puede pasar directo como `transcriptor` a SesionVoz porque es invocable.
+    """
+
+    def __init__(self, modelo: str = MODELO_POR_DEFECTO, device: str = "auto",
+                 compute_type: str = "default", idioma: str = IDIOMA_POR_DEFECTO,
+                 backend=None):
+        self.modelo = modelo
+        self.device = device
+        self.compute_type = compute_type
+        self.idioma = idioma
+        self._backend = backend
+
+    @property
+    def whisper(self):
+        if self._backend is None:
+            from faster_whisper import WhisperModel
+            self._backend = WhisperModel(self.modelo, device=self.device,
+                                         compute_type=self.compute_type)
+        return self._backend
+
+    def descargar(self):
+        """Suelta el modelo. Con la GPU compartida con un 7B, tener el STT
+        residente mientras nadie habla es VRAM regalada."""
+        self._backend = None
+
+    def transcribir(self, muestras, tasa: int = TASA_WHISPER) -> str:
+        """Audio float32 mono -> texto. Cadena vacia ante cualquier fallo: que
+        no se entienda no puede tumbar la sesion de voz."""
+        try:
+            audio = np.asarray(muestras, dtype=np.float32)
+            if audio.size == 0:
+                return ""
+            audio = remuestrear(audio, tasa, TASA_WHISPER)
+            segmentos, _info = self.whisper.transcribe(audio,
+                                                       language=self.idioma)
+            return " ".join(s.text.strip() for s in segmentos).strip()
+        except Exception:
+            return ""
+
+    def transcribir_wav(self, ruta) -> str:
+        try:
+            muestras, tasa = audio_de_wav(Path(ruta))
+        except Exception:
+            return ""
+        return self.transcribir(muestras, tasa)
+
+    def __call__(self, audio) -> str:
+        """Para enchufarlo como `transcriptor` de SesionVoz: acepta una ruta a
+        WAV, bytes PCM int16 o un array de numpy."""
+        if isinstance(audio, (str, Path)):
+            return self.transcribir_wav(audio)
+        if isinstance(audio, (bytes, bytearray)):
+            muestras = np.frombuffer(audio, dtype=np.int16).astype(np.float32)
+            return self.transcribir(muestras / 32768.0, TASA_WHISPER)
+        return self.transcribir(audio, TASA_WHISPER)
