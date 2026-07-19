@@ -353,42 +353,41 @@ class Cognia:
         return self._format_result(result)
 
     def github_research(self, query: str, max_repos: int = 5) -> str:
-        """Busca repos en GitHub y los ingiere en la memoria episodica."""
+        """
+        Investiga una pregunta en GitHub y HuggingFace, la ingiere y la resume.
+
+        Antes esto era solo GitHub y solo con la query literal que escribiera
+        el usuario. Ahora la pregunta se descompone en varias busquedas, se
+        consultan las dos fuentes y la corrida termina en un informe. El
+        nombre se conserva porque el CLI y otras rutas ya lo llaman asi.
+        """
         try:
-            from cognia.research_engine.github_scraper import GitHubScraper
+            from cognia.research_engine.web_research import investigar
         except ImportError:
-            return "[ERROR] Modulo github_scraper no disponible."
+            return "[ERROR] Modulo de investigacion no disponible."
 
         if not query.strip():
-            return "Uso: /investigar <query>"
+            return "Uso: /investigar <pregunta>"
 
-        scraper = GitHubScraper(max_repos=max_repos)
-        repos   = scraper.search_repos(query.strip())
+        digest = investigar(query.strip(), max_por_fuente=max_repos)
 
-        if not repos:
-            return f"No se encontraron repositorios para '{query}'. Verifica tu conexion o el query."
+        if not digest.hallazgos:
+            return f"No se encontro nada relevante para '{query}'. Verifica tu conexion o reformula."
 
-        lines = []
-        errors = 0
-        for repo in repos:
-            text  = repo.to_learning_text()
-            label = repo.label()
+        ingeridos = 0
+        errores   = 0
+        for h in digest.hallazgos:
             try:
-                self.observe(text, provided_label=label)
-                lines.append(f"  {repo.repo_name}  ({repo.stars} stars)")
-            except Exception as exc:
-                errors += 1
-                lines.append(f"  {repo.repo_name}  [error: {exc}]")
+                self.observe(h.texto_bruto, provided_label=h.titulo.split("/")[-1])
+                ingeridos += 1
+            except Exception:
+                errores += 1
 
-        summary = (
-            f"Investigacion GitHub completada.\n"
-            f"Query: '{query}'\n"
-            f"Repos ingeridos: {len(repos) - errors}/{len(repos)}\n"
-            + "\n".join(lines)
-        )
-        if errors:
-            summary += f"\nErrores: {errors}"
-        return summary
+        informe = digest.to_markdown()
+        informe += f"\n\nIngeridos a memoria episodica: {ingeridos}/{len(digest.hallazgos)}"
+        if errores:
+            informe += f" (errores: {errores})"
+        return informe
 
     def create_program(self, idea: str) -> str:
         """Crea un programa Python ahora con la idea dada. No espera al sleep."""

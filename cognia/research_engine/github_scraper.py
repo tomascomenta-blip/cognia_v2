@@ -21,12 +21,16 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from .relevance import degradar_query, filtrar_y_ordenar
+
 GITHUB_API        = "https://api.github.com"
 DEFAULT_MAX_REPOS = 5
 README_MAX_CHARS  = 2500
 REQUEST_TIMEOUT   = 10
 # Pausa entre requests para no quemar rate limit
 _REQUEST_DELAY    = 0.4
+# Cuantos candidatos pedir antes de filtrar por relevancia.
+_FACTOR_SOBREMUESTREO = 4
 
 
 @dataclass
@@ -100,24 +104,62 @@ class GitHubScraper:
 
     # ── API calls ───────────────────────────────────────────────────────
 
-    def search_repos(self, query: str) -> List[RepoContent]:
-        """Busca repos por query y devuelve contenido procesado."""
+    def _buscar_crudo(self, query: str) -> List[dict]:
+        """Una sola llamada a la API de busqueda. Devuelve los items crudos."""
         encoded = urllib.parse.quote(query)
+        # Se pide de mas porque despues se filtra por relevancia.
+        pedir   = min(self.max_repos * _FACTOR_SOBREMUESTREO, 100)
         url     = (
             f"{GITHUB_API}/search/repositories"
-            f"?q={encoded}&sort=stars&order=desc&per_page={self.max_repos}"
+            f"?q={encoded}&sort=stars&order=desc&per_page={pedir}"
         )
-        print(f"[github] Buscando: '{query}' (max {self.max_repos} repos)...")
         data = self._get(url)
-
         if not data or "items" not in data:
             return []
+        return data["items"]
 
-        total = data.get("total_count", 0)
-        print(f"[github] {total} resultados encontrados. Procesando {min(self.max_repos, len(data['items']))}...")
+    def search_repos(self, query: str) -> List[RepoContent]:
+        """
+        Busca repos por query y devuelve contenido procesado.
+
+        Dos cosas que el scraper original no hacia:
+          - Si la query devuelve 0 resultados (la API hace AND de todos los
+            terminos, asi que 6 palabras no matchean nada) reintenta con
+            versiones mas cortas en vez de rendirse en silencio.
+          - Ordena por relevancia, no por estrellas. Ordenar por estrellas
+            ponia informes del W3C arriba de modelos de lenguaje.
+        """
+        print(f"[github] Buscando: '{query}' (max {self.max_repos} repos)...")
+        items      = self._buscar_crudo(query)
+        query_real = query
+
+        if not items:
+            for reducida in degradar_query(query):
+                print(f"[github] 0 resultados. Reintentando con: '{reducida}'")
+                time.sleep(_REQUEST_DELAY)
+                items = self._buscar_crudo(reducida)
+                if items:
+                    query_real = reducida
+                    break
+
+        if not items:
+            print(f"[github] Sin resultados para '{query}' ni sus reducciones.")
+            return []
+
+        relevantes = filtrar_y_ordenar(
+            items, query_real,
+            texto_de       = lambda i: " ".join([
+                i.get("full_name", ""),
+                i.get("description") or "",
+                " ".join(i.get("topics", []) or []),
+            ]),
+            popularidad_de = lambda i: i.get("stargazers_count", 0) or 0,
+        )
+        print(f"[github] {len(items)} candidatos, {len(relevantes)} relevantes. "
+              f"Procesando {min(self.max_repos, len(relevantes))}...")
 
         results = []
-        for item in data["items"][: self.max_repos]:
+        for item in relevantes[: self.max_repos]:
             time.sleep(_REQUEST_DELAY)
             readme = self._fetch_readme(item["full_name"])
             content = RepoContent(
