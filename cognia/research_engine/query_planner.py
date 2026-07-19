@@ -7,22 +7,17 @@ habia pensado. Este modulo cierra ese hueco: entra una pregunta en lenguaje
 natural, salen varias queries que cubren distintas facetas.
 
 Funciona sin LLM (descomposicion deterministica por terminos y facetas). Si
-Ollama esta levantado, le pide que mejore las queries y usa las suyas cuando
-devuelve algo usable. Que el camino deterministico sea el de base y no el
-fallback es a proposito: la investigacion no se cae porque Ollama este apagado.
+hay un LLM local levantado, le pide que mejore las queries y usa las suyas
+cuando devuelve algo usable. Que el camino deterministico sea el de base y no
+el fallback es a proposito: la investigacion no se cae sin modelo.
 
 Sin dependencias externas: solo stdlib.
 """
 
-import json
-import urllib.request as _req
 from typing import List
 
+from ..llm_local import generar
 from .relevance import tokenizar
-
-OLLAMA_URL   = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2"
-TIMEOUT_SEC  = 20
 
 # GitHub y HuggingFace estan en ingles: buscar 'modelo pequeno contexto' no
 # devuelve nada util. Se traducen los terminos de dominio mas comunes.
@@ -159,8 +154,8 @@ def planificar_deterministico(pregunta: str, n: int = 5) -> List[str]:
     return queries[:n]
 
 
-def _pedir_a_ollama(pregunta: str, n: int) -> List[str]:
-    """Le pide queries a Ollama. Devuelve [] si no esta o si responde basura."""
+def _pedir_al_llm(pregunta: str, n: int) -> List[str]:
+    """Le pide queries al LLM local. Devuelve [] si no hay o si responde basura."""
     prompt = (
         f"Break this research question into {n} distinct English search queries "
         f"for GitHub and HuggingFace.\n\n"
@@ -171,22 +166,9 @@ def _pedir_a_ollama(pregunta: str, n: int) -> List[str]:
         f"- Use the technical English terms practitioners actually use.\n"
         f"- Output ONLY the queries, one per line, no numbering, no extra text.\n"
     )
-    try:
-        payload = json.dumps({
-            "model":  OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.3, "num_predict": 200},
-        }).encode("utf-8")
-
-        req = _req.Request(
-            OLLAMA_URL, data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        with _req.urlopen(req, timeout=TIMEOUT_SEC) as resp:
-            texto = json.loads(resp.read()).get("response", "")
-    except Exception as exc:
-        print(f"[planner] Ollama no disponible ({exc}). Usando plan deterministico.")
+    texto = generar(prompt, temperature=0.3, max_tokens=200)
+    if not texto:
+        print("[planner] Sin LLM local. Usando plan deterministico.")
         return []
 
     queries = []
@@ -205,7 +187,7 @@ def planificar_busquedas(pregunta: str, n: int = 5, usar_llm: bool = True) -> Li
     Args:
         pregunta: la pregunta en lenguaje natural (espanol o ingles)
         n:        cuantas queries generar
-        usar_llm: si intentar mejorarlas con Ollama
+        usar_llm: si intentar mejorarlas con el LLM local
 
     Returns:
         Lista de queries. Nunca vacia si la pregunta tiene alguna palabra util.
@@ -213,9 +195,9 @@ def planificar_busquedas(pregunta: str, n: int = 5, usar_llm: bool = True) -> Li
     plan = planificar_deterministico(pregunta, n)
 
     if usar_llm:
-        del_llm = _pedir_a_ollama(pregunta, n)
+        del_llm = _pedir_al_llm(pregunta, n)
         if del_llm:
-            print(f"[planner] Ollama propuso {len(del_llm)} queries.")
+            print(f"[planner] El LLM propuso {len(del_llm)} queries.")
             # Se mezclan: primero las del LLM, y se completan con las
             # deterministicas que no esten repetidas.
             vistas = {q.lower() for q in del_llm}

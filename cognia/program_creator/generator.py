@@ -14,10 +14,10 @@ import urllib.request as _req
 from dataclasses import dataclass
 from typing import Optional
 
+from cognia.llm_local import generar
+
 # ── Configuración ──────────────────────────────────────────────────────────────
 
-OLLAMA_URL   = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2:1b"
 TIMEOUT_SEC  = 500
 
 FALLBACK_CATEGORIES = [
@@ -88,24 +88,12 @@ def _generate_idea_autonomously(seed_concepts: Optional[list] = None) -> Optiona
         f"Your idea:"
     )
 
-    try:
-        payload = json.dumps({
-            "model":  OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.95, "num_predict": 50, "top_p": 0.97}
-        }).encode("utf-8")
-
-        request = _req.Request(OLLAMA_URL, data=payload,
-                               headers={"Content-Type": "application/json"})
-        with _req.urlopen(request, timeout=60) as resp:
-            data = json.loads(resp.read())
-            idea = data.get("response", "").strip()
-            idea = idea.split("\n")[0].strip().strip('"').strip("'").strip(".")
-            return idea if 5 < len(idea) < 200 else None
-    except Exception as exc:
-        print(f"[generator] No pude generar idea propia: {exc}")
+    texto = generar(prompt, temperature=0.95, max_tokens=50)
+    if not texto:
+        print("[generator] Sin LLM local: no pude generar idea propia.")
         return None
+    idea = texto.split("\n")[0].strip().strip('"').strip("'").strip(".")
+    return idea if 5 < len(idea) < 200 else None
 
 
 def _pick_idea(seed_concepts: Optional[list] = None) -> tuple[str, str, bool]:
@@ -154,28 +142,17 @@ def _build_prompt(category: str, extra_hint: str) -> str:
     )
 
 
-def _call_ollama(prompt: str) -> Optional[str]:
-    try:
-        payload = json.dumps({
-            "model":   OLLAMA_MODEL,
-            "prompt":  prompt,
-            "system": (
-                "You are a creative Python programmer. Write complete, runnable programs "
-                "using only the standard library. NEVER use input() or blocking calls — "
-                "programs must run automatically. Follow the output format exactly."
-            ),
-            "stream":  False,
-            "options": {"temperature": 0.90, "num_predict": 2000, "top_p": 0.95}
-        }).encode("utf-8")
-
-        request = _req.Request(OLLAMA_URL, data=payload,
-                               headers={"Content-Type": "application/json"})
-        with _req.urlopen(request, timeout=TIMEOUT_SEC) as resp:
-            data = json.loads(resp.read())
-            return data.get("response", "").strip()
-    except Exception as exc:
-        print(f"[generator] Ollama call failed: {exc}")
-        return None
+def _call_llm(prompt: str) -> Optional[str]:
+    return generar(
+        prompt,
+        system=(
+            "You are a creative Python programmer. Write complete, runnable programs "
+            "using only the standard library. NEVER use input() or blocking calls - "
+            "programs must run automatically. Follow the output format exactly."
+        ),
+        temperature=0.90,
+        max_tokens=2000,
+    )
 
 
 def _parse_response(raw: str, category: str) -> Optional[GeneratedProgram]:
@@ -255,7 +232,7 @@ def generate_program(seed_concepts: Optional[list] = None,
     if not self_proposed:
         print(f"[generator] 💡 Idea: {category}")
 
-    raw     = _call_ollama(_build_prompt(category, extra_hint))
+    raw     = _call_llm(_build_prompt(category, extra_hint))
     program = _parse_response(raw, category) if raw else None
 
     if raw is None:

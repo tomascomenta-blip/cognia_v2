@@ -12,20 +12,16 @@ que se puede leer.
 Sin dependencias externas: solo stdlib.
 """
 
-import json
-import urllib.request as _req
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from ..llm_local import generar
 from .arxiv_scraper import ArxivScraper
 from .github_scraper import GitHubScraper
 from .hf_scraper import HFScraper
 from .query_planner import planificar_busquedas, terminos_de_busqueda
 from .relevance import cobertura, puntuar
 
-OLLAMA_URL   = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.2"
-TIMEOUT_SEC  = 60
 
 
 @dataclass
@@ -102,8 +98,8 @@ class Digest:
         return "\n".join(lineas)
 
 
-def _resumir_con_ollama(pregunta: str, hallazgos: List[Hallazgo]) -> str:
-    """Le pide a Ollama que responda la pregunta con lo encontrado. '' si no esta."""
+def _resumir_con_llm(pregunta: str, hallazgos: List[Hallazgo]) -> str:
+    """Le pide al LLM local que responda con lo encontrado. '' si no hay."""
     if not hallazgos:
         return ""
 
@@ -119,20 +115,7 @@ def _resumir_con_ollama(pregunta: str, hallazgos: List[Hallazgo]) -> str:
         f"If the results do not answer the question, say so plainly. "
         f"Answer in the same language as the question."
     )
-    try:
-        payload = json.dumps({
-            "model":  OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.4, "num_predict": 500},
-        }).encode("utf-8")
-        req = _req.Request(OLLAMA_URL, data=payload,
-                           headers={"Content-Type": "application/json"})
-        with _req.urlopen(req, timeout=TIMEOUT_SEC) as resp:
-            return json.loads(resp.read()).get("response", "").strip()
-    except Exception as exc:
-        print(f"[research] Ollama no disponible para el resumen ({exc}).")
-        return ""
+    return generar(prompt, temperature=0.4, max_tokens=500) or ""
 
 
 # Angulos de contra-busqueda. Cada uno apunta a donde suelen publicarse los
@@ -216,7 +199,7 @@ def investigar(
         usar_github:    consultar GitHub
         usar_hf:        consultar HuggingFace
         usar_arxiv:     consultar arXiv (lento: 3 s de cortesia por peticion)
-        usar_llm:       usar Ollama para planificar y resumir si esta levantado
+        usar_llm:       usar el LLM local para planificar y resumir si esta disponible
         con_contra:     buscar evidencia EN CONTRA de los candidatos fuertes
 
     Returns:
@@ -329,5 +312,5 @@ def investigar(
         digest.contraevidencia = buscar_contraevidencia(candidatos)
 
     if usar_llm:
-        digest.resumen_llm = _resumir_con_ollama(pregunta, hallazgos)
+        digest.resumen_llm = _resumir_con_llm(pregunta, hallazgos)
     return digest
