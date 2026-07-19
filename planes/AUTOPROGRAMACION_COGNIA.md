@@ -151,9 +151,72 @@ con el dueño según lo medido:
   ctypes. A medir su viabilidad antes de comprometerse.
 
 **G0-SO (gate):** el mismo equipo rojo de §4 corre contra el nuevo ejecutor y
-**ninguno** de los 5 vectores pasa. Recién entonces G0 cierra.
+**ninguno** de los vectores pasa. Recién entonces G0 cierra.
 **KILL G0-SO:** si el arranque de la capa de SO tarda >2 s por ejecución, el lazo
 de reparación (G1) se vuelve inusable; se reevalúa el enfoque.
+
+#### G0-SO CONSTRUIDO (2026-07-19): AppContainer nativo de Windows
+
+Decisión tras medir: WSL no está instalado y la sesión no es admin, así que la
+contención dura se hizo con **AppContainer nativo vía ctypes** — sin instalar
+nada, sin admin. Entregado en `cognia/program_creator/os_sandbox.py` +
+`tests/test_os_sandbox.py` (11 tests, Windows-only).
+
+**Receta que funciona** (medida; los detalles que costaron):
+- `CreateAppContainerProfile` **registra** el perfil. Solo `Derive...` da
+  `CreateProcess` error 2 — el SID sin perfil no corresponde a nada. Fue el
+  bloqueo que el disyuntor (regla 11) ayudó a diagnosticar: dos parches con
+  síntoma idéntico (err=2) → parar, hipótesis por escrito, medir.
+- `STARTUPINFOEX` + `PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES` con el SID y
+  **0 capabilities** → sin red.
+- ACL: `icacls` concede al SID control total del workspace, y a ALL APPLICATION
+  PACKAGES lectura+ejecución del intérprete (setup único, sin admin). El
+  intérprete **base** (stdlib pura) se usa por defecto; el del venv arrastra
+  site-packages con ACLs propias.
+- `-I` aísla el entorno; el launcher repone `sys.path` con el workspace para que
+  los imports entre módulos de un proyecto multi-archivo resuelvan.
+
+**Contención MEDIDA** (verificación E2E, `[M]`):
+- `WS_WRITE=OK` — escribe en su workspace.
+- `REPO_WRITE=BLOCKED:PermissionError` — el kernel niega escribir en el repo.
+- `NET=BLOCKED:PermissionError` — sin capability de red.
+- traceback con el número de línea real del programa → listo para G1.
+- timeout de reloj corta el bucle infinito.
+
+**Overhead en caliente: 0.045 s/ejecución** `[M]` (perfil y ACL ya establecidos),
+40× por debajo del KILL de 2 s. El lazo de reparación de G1 (≤3 intentos) suma
+~0.14 s de overhead: usable.
+
+**Por qué esto SÍ contiene donde el guard in-process no:** la frontera es el
+kernel de Windows, no un guard de Python. Los 11 escapes del equipo rojo anterior
+(gc, `nt`, `importlib._gcd_import`, restaurar builtins) son **irrelevantes**: el
+código puede correr lo que quiera adentro, pero el SID del container no tiene
+permiso de FS ni de red a nivel de SO.
+
+**G0-SO CERRADO — equipo rojo formal (2026-07-19): PASA.** 4 vectores + árbitro
+que re-ejecutó cada cruce de frontera. La contención del kernel aguantó **todo**:
+escritura fuera del workspace (directo, junction `mklink /J`, hardlink, symlink,
+`os.replace` hacia afuera, árbol del intérprete) → BLOCKED; lectura del `.env` y
+datos del usuario → BLOCKED (ni los ve); red saliente/DNS → BLOCKED (WinError
+10013); herencia de token del hijo → BLOCKED. **Cero fugas de datos.**
+
+Hallazgos menores y qué se hizo con cada uno:
+- **Vector 3 (herencia del entorno del lanzador, BAJO) — CERRADO ya.** Se sanea
+  el bloque de entorno del hijo: se quitan las variables con nombre sensible
+  (`KEY/TOKEN/SECRET/PASS/PHRASE/...`), verificado contra el `.env` real (6 claves
+  filtradas). Test de regresión en `test_os_sandbox.py::TestEntornoSaneado`.
+- **Huérfano que sobrevive al timeout + cwd retenido + sin límite de RAM
+  (aceptables, no fugas) — TRACKEADOS.** Los tres los cierra un Job Object
+  (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` + memoria + procesos activos). Es el
+  endurecimiento prioritario del ejecutor de auto-modificación, pero **no bloquea
+  G0-SO** porque son DoS local, no fuga de datos.
+- **Persistencia en la carpeta AC del perfil (BAJO) — TRACKEADA.** `TEMP` se
+  redirige a `AppData\Local\Packages\cognia-code-sandbox\AC` y el teardown no la
+  limpia. Store privado del container, aislado del usuario.
+
+**G0 CERRADO.** El techo de ejecución dejó de ser el bloqueo: hay un ejecutor que
+corre código complejo (multi-archivo, con estado, con tests) y lo contiene de
+verdad. Sigue **G1** (lazo de reparación).
 
 ### (histórico) G0 intento 1 — Guard in-process que deja pasar lo benigno
 
