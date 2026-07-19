@@ -276,6 +276,34 @@ def test_compute_tau_pure_cases():
     assert compute_tau(full, full) == 8.0
 
 
+def test_lr_coseno_calienta_y_despues_decae():
+    """El schedule que el run v0 NO tenia: warmup y despues coseno.
+
+    El v0 corrio a 6e-4 constante y su loss se planto en ~6.03 (paso 2000) y
+    despues subio a 6.69, con top1 y tau en meseta. Este es el arreglo que el
+    reintento pre-registrado tiene reservado.
+    """
+    from bdraft.train_real import lr_coseno
+
+    base, warm = 6e-4, 200
+    # Durante el warmup se comporta igual que el schedule viejo.
+    assert lr_coseno(base, 0, warm, 0.0) == pytest.approx(base / warm)
+    assert lr_coseno(base, 99, warm, 0.0) == pytest.approx(base * 100 / warm)
+    # Al terminar el warmup esta en el pico...
+    assert lr_coseno(base, warm, warm, 0.0) == pytest.approx(base)
+    # ...a mitad del presupuesto, a mitad de camino entre el pico y el minimo...
+    medio = lr_coseno(base, 1000, warm, 0.5)
+    assert medio == pytest.approx(base * (0.1 + 0.9 * 0.5))
+    # ...y al agotarlo, en el 10% del pico.
+    assert lr_coseno(base, 5000, warm, 1.0) == pytest.approx(base * 0.1)
+    # Monotono decreciente despues del warmup: nunca vuelve a subir.
+    valores = [lr_coseno(base, 1000, warm, p / 20) for p in range(21)]
+    assert all(a >= b for a, b in zip(valores, valores[1:]))
+    # Un progreso fuera de rango no rompe ni dispara el lr.
+    assert lr_coseno(base, 1000, warm, 1.5) == pytest.approx(base * 0.1)
+    assert lr_coseno(base, 1000, warm, -0.3) == pytest.approx(base)
+
+
 def test_warmup_lr_linear_then_constant():
     assert warmup_lr(6e-4, 0, 200) == pytest.approx(6e-4 / 200)
     assert warmup_lr(6e-4, 99, 200) == pytest.approx(6e-4 * 100 / 200)

@@ -86,6 +86,29 @@ def warmup_lr(base_lr: float, step: int, warmup_steps: int) -> float:
     return base_lr * (step + 1) / warmup_steps
 
 
+def lr_coseno(base_lr: float, step: int, warmup_steps: int, progreso: float,
+              ratio_min: float = 0.1) -> float:
+    """Linear warmup, then cosine decay down to ratio_min * base_lr.
+
+    Why this exists: the v0 run (2026-07-19) trained at a CONSTANT 6e-4 after
+    warmup, and its loss stalled at ~6.03 by step 2000 and then rose to 6.69 —
+    the textbook signature of a learning rate that is too high to settle. top1
+    and tau plateaued at 0.14-0.18 with the thresholds at 0.30 and 1.5. Decaying
+    the lr is the cheapest hypothesis that fits the evidence, and it is what the
+    pre-registered "one retry with lr/data adjusted" was reserved for.
+
+    progreso is the FRACTION OF THE TOKEN BUDGET already consumed, not the step
+    count: the number of steps to completion is not known in advance (it depends
+    on context lengths), but tokens_seen/tokens_budget is exact.
+    """
+    if warmup_steps > 0 and step < warmup_steps:
+        return base_lr * (step + 1) / warmup_steps
+    import math
+    p = min(max(progreso, 0.0), 1.0)
+    factor = ratio_min + (1.0 - ratio_min) * 0.5 * (1.0 + math.cos(math.pi * p))
+    return base_lr * factor
+
+
 def real_step_loss(draft: BDraft, ctx_hidden, batch: dict,
                    pos_w: torch.Tensor) -> torch.Tensor:
     """CE over the MASKED canvas positions only, exponentially weighted by
@@ -298,6 +321,13 @@ def main(argv=None):
     ap.add_argument("--accum", type=int, default=4)
     ap.add_argument("--lr", type=float, default=6e-4)
     ap.add_argument("--warmup", type=int, default=200)
+    # Por defecto 'constante' para NO cambiar en silencio lo que el run v0
+    # pre-registrado ejecuto: el cambio de schedule tiene que verse en la linea
+    # de comando y quedar en el log del reintento.
+    ap.add_argument("--lr-schedule", choices=("constante", "coseno"),
+                    default="constante",
+                    help="constante = el del run v0; coseno = decae hasta el "
+                         "10%% del pico segun el presupuesto consumido")
     ap.add_argument("--save-every", type=int, default=200)
     ap.add_argument("--eval-every", type=int, default=500)
     ap.add_argument("--eval-batches", type=int, default=16)
@@ -385,7 +415,11 @@ def main(argv=None):
             tokens_seen += int(batch["ctx_attn"].sum().item()) \
                 + batch["labels"].numel()
         torch.nn.utils.clip_grad_norm_(trainable, 1.0)
-        lr_now = warmup_lr(args.lr, step, args.warmup)
+        if args.lr_schedule == "coseno":
+            lr_now = lr_coseno(args.lr, step, args.warmup,
+                               tokens_seen / max(args.tokens_budget, 1))
+        else:
+            lr_now = warmup_lr(args.lr, step, args.warmup)
         for group in opt.param_groups:
             group["lr"] = lr_now
         opt.step()
