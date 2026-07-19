@@ -17,8 +17,17 @@ ocupa 6.3 GB medidos de los 16, y `large-v3` pide ~10. No entran. Por eso:
     GPU este libre;
   - la carga es PEREZOSA y hay `descargar()` explicito, para poder soltar la
     VRAM entre turnos en vez de tenerla tomada mientras Cognia no escucha;
-  - `device='auto'` cae solo a CPU cuando no hay GPU disponible, que es lo que
-    pasa hoy mismo con el entrenamiento del BDraft corriendo.
+  - el device por defecto es **'cpu'**, no 'auto'.
+
+POR QUE 'cpu' Y NO 'auto' (bug real, encontrado verificando de verdad): con
+'auto', faster-whisper ve que HAY una GPU y la elige — sin mirar si le queda
+lugar. Con el entrenamiento del BDraft ocupando 14.9 de los 16.3 GB, el proceso
+se COLGO indefinidamente: media hora despues seguia con 0 segundos de CPU y 4 MB
+de memoria, o sea bloqueado, no lento. "Disponible" para 'auto' significa que
+existe, no que entre. En una maquina donde la GPU se comparte con un 7B, elegir
+CPU por defecto y pedir GPU explicitamente cuando se sabe que esta libre es la
+unica opcion que no se cuelga sola. La docstring anterior afirmaba que 'auto'
+caia a CPU solo; era falso y lo desmintio la primera prueba real.
 
 El gate J2 del plan mide el tiempo de swap real; hasta que se mida, el defecto
 conservador es el chico.
@@ -32,6 +41,9 @@ import numpy as np
 MODELO_POR_DEFECTO = "small"
 TASA_WHISPER = 16000        # Whisper trabaja siempre a 16 kHz
 IDIOMA_POR_DEFECTO = "es"
+# 'auto' se cuelga cuando la GPU existe pero esta llena (ver docstring). Para
+# usar GPU hay que pedirla explicitamente, sabiendo que hay lugar.
+DEVICE_SEGURO = "cpu"
 
 
 def audio_de_wav(ruta) -> tuple[np.ndarray, int]:
@@ -70,7 +82,7 @@ class Transcriptor:
     Se puede pasar directo como `transcriptor` a SesionVoz porque es invocable.
     """
 
-    def __init__(self, modelo: str = MODELO_POR_DEFECTO, device: str = "auto",
+    def __init__(self, modelo: str = MODELO_POR_DEFECTO, device: str = DEVICE_SEGURO,
                  compute_type: str = "default", idioma: str = IDIOMA_POR_DEFECTO,
                  backend=None):
         self.modelo = modelo

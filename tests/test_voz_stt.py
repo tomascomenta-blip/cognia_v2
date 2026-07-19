@@ -116,6 +116,18 @@ class TestTranscriptor:
         t = Transcriptor(backend=_WhisperFalso())
         assert t.transcribir_wav("no_existe_este_archivo.wav") == ""
 
+    def test_el_device_por_defecto_no_puede_ser_auto(self):
+        """Regresion de un cuelgue real: con device='auto', faster-whisper elige
+        la GPU por el solo hecho de que exista, sin mirar si le queda lugar. Con
+        el entrenamiento ocupando 14.9 de 16.3 GB el proceso quedo bloqueado
+        media hora con 0 s de CPU. En una maquina donde la GPU se comparte con
+        un 7B, el defecto tiene que ser CPU."""
+        from cognia.voz.stt import DEVICE_SEGURO
+        assert DEVICE_SEGURO == "cpu"
+        assert Transcriptor().device == "cpu"
+        # Pedir GPU explicitamente sigue siendo posible.
+        assert Transcriptor(device="cuda").device == "cuda"
+
     def test_descargar_suelta_el_modelo(self):
         """Con la GPU compartida con un 7B, tenerlo residente es VRAM regalada."""
         t = Transcriptor(backend=_WhisperFalso())
