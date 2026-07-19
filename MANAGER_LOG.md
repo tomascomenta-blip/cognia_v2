@@ -1954,3 +1954,87 @@ de cuota de sesión y se completó a mano). Commits: cace511, a6f256c, 11f5599.
   dataset están verificados por separado); integración del adapter GGUF en llama-server
   (--lora) para usar adapters en el chat; unificación experts↔ruteo (los expertos aún no
   seleccionan el modelo del chat en runtime).
+
+## 2026-07-19 — BDraft v0 hasta G3 (FAIL honesto + reintento) + Jarvis (5 subsistemas) + fix de investigación de Cognia
+
+**BDraft: G3 = FAIL, y lo decide τ.** Eval final sobre las 180 filas del val completo:
+`top1=0.2667±0.0646  tau=0.311±0.082`, 15.001.716 tokens, paso 5552, 2.7 h de GPU a
+1545 tok/s. τ necesita 1.5 y llegó al 21% del umbral, con la distancia valiendo **14 veces
+su propia barra de error**. top1 quedó con el umbral de 0.30 DENTRO de su intervalo —
+indistinguible de aprobar— pero el gate es un AND. Dataset: 11.996 pares (4 descartes),
+11.813 train / 183 val, sin fuga (sha1 verificado), 111.956.481 params entrenables.
+
+**BUG DECISIVO CAZADO ANTES DE ENTRENAR (auditoría adversarial de 91 agentes, 6 lentes +
+3 escépticos por hallazgo).** `run_eval` medía τ con el argmax del target condicionado a los
+LABELS del dataset (muestra a T=0.7) en vez del bloque que el draft realmente propuso:
+reusaba UN forward sobre `[ctx ; labels]` para sacar ctx_hidden y argmax a la vez. Solo la
+posición 0 quedaba bien medida. Cuantificado con un target falso determinista donde la
+aceptación real es perfecta (τ=8.00): **el código viejo reportaba 3.92, un 51% de
+subestimación**. Sin este fix no sabríamos si el FAIL era del modelo o de la métrica. Fix:
+dos forwards (ctx-only + `[ctx ; DRAFT_TOKENS]`). El eval final pasó a recorrer TODO el val
+(180 filas vs 64) y a reportar intervalos al 95%.
+
+**Reintento pre-registrado lanzado** (el plan permite uno, máx +5 h). NO se gastó en el
+schedule de lr: esa recomendación se apoyaba en un "+0.65 de loss" que resultó **artefacto
+propio** (promedié un bloque de 500 pasos cuando llevaba 20 y lo leí como divergencia; con
+el bloque completo dio +0.005 y el siguiente −0.132 — la loss nunca divergió, bajó 21%
+monótonamente). Se gastó en el desajuste entrenamiento/despliegue que la auditoría había
+señalado: con `t~U(0,1)` y bloque 8, `round(8t)==8` solo si `t>=0.9375`, o sea **6.25%** de
+los ejemplos entrenaba el canvas completo — el único régimen que usan inferencia y eval.
+Ahora 53% vía `--prob-mascara-completa 0.5`, más `--lr-schedule coseno` porque sale gratis.
+Sesgo SOLO al batcher de train (el de eval intacto, para que los números sean comparables);
+checkpoint en `bdraft_ckpt_r1`; desde cero y no `--resume`.
+
+**Bug propio expuesto por el propio veredicto:** imprimió "INDECISO" sobre un fracaso
+inequívoco, porque la lógica marcaba indecisión si CUALQUIERA de las métricas caía en su
+ruido. Siendo un AND: un FAIL solo es indeciso si TODAS las que fallan están dentro del
+ruido. Corregido con `veredicto_indeciso` + test del caso real.
+
+**JARVIS — investigación y 5 subsistemas (planes/JARVIS_COGNIA.md, gates J0-J6).**
+Conclusión de la investigación: ningún proyecto tipo Jarvis conviene adoptarlo entero. El
+más maduro (`isair/jarvis`, 1.4k★, v1.34.1) tiene licencia no comercial y además compite con
+Cognia en vez de complementarla; el que la búsqueda vendía como ideal (`PanPenek/JarvisAi`)
+resultó tener **1 estrella y 3 commits** al abrir el repo. Decisión de diseño central: para
+"abrime esta pestaña" NO hace falta visión — la accesibilidad de Windows da nombres y
+coordenadas determinista y en ms, contra segundos y ~7 GB de un modelo de visión.
+- `cognia/pantalla/` — captura (mss, 63 FPS medidos) + dHash + vigía. 10 s a 2 FPS: miró 20
+  frames, guardó 1, descartó 19. Hash 23.7 ms → **4.74% de un core** (gate J5 pide ≤8%).
+  **DXcam descartado**: importa `cv2` incondicionalmente y sus 240 FPS son irrelevantes para
+  un diseño que captura a 2-4.
+- `cognia/control/permisos.py` — gate ANTES que cualquier acción. Lo no declarado cae en
+  CONFIRMAR (verificado: `formatear_disco` pidió permiso); el contexto gana sobre el catálogo
+  (ventana sensible = PROHIBIDO sin preguntar).
+- `cognia/control/escritorio.py` — UI Automation. 12 controles accionables reales listados.
+  Elegido sobre Playwright por universalidad (cualquier ventana, sin cambiar hábitos).
+- `cognia/voz/wake.py` — openWakeWord (Porcupine cuesta 6.000+ USD/año). **2.54 ms por trozo
+  de 80 ms = 3.2% de un core**, 0 falsos positivos en silencio y ruido. "cerebro" NO existe
+  entre los 6 preentrenados: entrenarlo es el gate J1, pendiente.
+- `cognia/voz/tts.py` — Piper es_ES. **1.1 s la primera frase (carga) y 45 ms las siguientes**;
+  el ~40 ms de la literatura es el número EN CALIENTE y era correcto.
+
+**COGNIA COMO PRODUCTO (norma nueva del dueño: investigar con Cognia y comparar).** Tres
+mediciones: (1) auditoría de código — **acertó el bug de τ en 13 s**, contra 40 min, 91
+agentes y 5.7M tokens del workflow; (2) investigación Jarvis — **falló**: `buscar_duckduckgo`
+devolvió None en las 3 consultas y alucinó `from pynput import microphone`, que no existe;
+(3) OpenBMB, tras el fix — recuperó **12/12 resultados al tema** pero `investigado: False` y
+recomendó DINOv2 para leer capturas. Lectura: **razona bien sobre material dado, y todavía
+no sabe investigar**.
+
+**Fix de la investigación de Cognia.** Causa raíz: `buscar_duckduckgo` pegaba contra la
+Instant Answer API, que NO es un buscador (verificado: con "Python programming language"
+responde; con una consulta técnica devuelve AbstractText vacío, 0 RelatedTopics, 0 Results).
+Se agregó `buscar_web` como último eslabón. Backend elegido midiendo **relevancia**, no
+cantidad: `ddgs` 3/3, ddg lite crudo 2/3, **bing ?format=rss 0/3 y PELIGROSO** (el título del
+canal repite bien la consulta pero los ítems son de otro tema — pedí wake words y devolvió el
+parlamento de Berlín; una primera versión del fix estaba construida sobre Bing y se tiró
+entera al detectarlo), searx 403, wikipedia 0/3. Además el bloque de contexto decía
+"(Wikipedia)" pasara lo que pasara: ahora nombra la fuente real.
+
+**PENDIENTE:** resultado del reintento (τ); si también falla, KILL de la Pista 1 con la salida
+que el plan ya prevé (draft formato EAGLE-3 en llama.cpp, ahora con FR-Spec de OpenBMB, que
+recorta 75% del cómputo de la cabeza de 152K). `necesita_investigar` decide mirando cuánta
+memoria hay y no si es RELEVANTE: por eso ignoró los 12 resultados — es el próximo fix de
+Cognia. `guardar_en_cognia` usa `sqlite3.connect()` directo, prohibido por CLAUDE.md.
+Jarvis: falta STT (necesita GPU), `sesion.py`, entrenar "cerebro" (J1) y la pausa por ventana
+sensible del vigía. `_bdraft_disponible()` nunca devuelve disponible aunque haya checkpoint:
+falta el pipeline de inferencia v0 (sección 2.4), que es lo mismo que exigen G4a/G4b/G4c.
