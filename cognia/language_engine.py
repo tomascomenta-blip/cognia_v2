@@ -1475,6 +1475,16 @@ class LanguageEngine:
             top_concept = self._get_top_concept(ai, question)
             if not top_concept:
                 return False
+            # El concepto mas fuerte de la memoria no es necesariamente EL DE
+            # LA PREGUNTA: la recuperacion siempre devuelve el vecino mas
+            # cercano, por lejos que este. Sin este chequeo, saber mucho de un
+            # tema ajeno se contaba como saber del que se pregunta. Caso real
+            # (2026-07-19): pregunta sobre los modelos MiniCPM de OpenBMB ->
+            # top_concept 'conocimiento_python' -> "conocimiento suficiente" ->
+            # no se investigaba y el modelo inventaba nombres de modelos.
+            if not self._contexto_pertinente(question,
+                                             str(top_concept).replace("_", " ")):
+                return False
             try:
                 from respuestas_articuladas import tiene_suficiente_info
             except ImportError:
@@ -1483,6 +1493,27 @@ class LanguageEngine:
             return result.get("suficiente", False)
         except Exception:
             return False
+
+    def _contexto_pertinente(self, question: str, context: str,
+                             minimo: int = 1) -> bool:
+        """El contexto recuperado habla de lo que se pregunto?
+
+        Compara terminos de contenido (sin acentos, sin palabras vacias, 4+
+        letras) reutilizando investigador._terminos para no duplicar la logica.
+        Ante cualquier fallo devuelve True, que es el comportamiento previo: si
+        no se puede evaluar la pertinencia, no se fuerza una investigacion.
+        """
+        try:
+            from investigador import _terminos
+        except ImportError:
+            return True
+        try:
+            terminos_pregunta = _terminos(question)
+            if not terminos_pregunta:
+                return True
+            return len(terminos_pregunta & _terminos(context)) >= minimo
+        except Exception:
+            return True
 
     def _maybe_investigate(self, ai, question: str,
                            context: str) -> tuple:
@@ -1498,9 +1529,21 @@ class LanguageEngine:
         El contexto devuelto puede ser el mismo de entrada (sin cambios)
         si la investigacion no fue necesaria o fallo.
         """
-        # Si el contexto ya es rico, no investigar
+        # Si el contexto ya es rico Y HABLA DEL TEMA, no investigar.
+        #
+        # La heuristica era solo de longitud, y contar caracteres no distingue
+        # "sé mucho de esto" de "sé mucho de otra cosa". Caso real
+        # (2026-07-19): ante una pregunta sobre los modelos MiniCPM de OpenBMB,
+        # la memoria devolvio 15 episodios del concepto 'conocimiento_python';
+        # el contexto superaba los 300 caracteres, esta compuerta cortaba aca y
+        # la investigacion no llegaba a ejecutarse nunca. El modelo respondia de
+        # memoria parametrica —recomendando DINOv2 para leer capturas, y en otra
+        # corrida inventando que BLIP significa "Bootstrap-Large-Language-Model-
+        # Instruct"— mientras la busqueda web ya recuperaba 12 de 12 fuentes
+        # correctas que se descartaban sin usarse.
         CONTEXT_RICH_THRESHOLD = 300   # caracteres -- heuristica barata
-        if len(context) >= CONTEXT_RICH_THRESHOLD:
+        if len(context) >= CONTEXT_RICH_THRESHOLD and \
+                self._contexto_pertinente(question, context):
             return context, False
 
         # Si Cognia ya tiene suficiente conocimiento interno, no investigar

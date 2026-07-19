@@ -20,6 +20,7 @@ import re
 import os
 import sys
 import time
+import unicodedata
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE_DIR)
@@ -475,19 +476,60 @@ def guardar_en_cognia(ai, titulo, extracto, hechos, pregunta_original):
 
 # ── Función principal ──────────────────────────────────────────────────
 
-def necesita_investigar(contexto_actual, umbral_episodios=1):
+_VACIAS = {
+    "para", "por", "que", "con", "una", "unos", "unas", "los", "las", "del",
+    "sobre", "como", "cual", "cuales", "donde", "cuando", "quien", "quienes",
+    "este", "esta", "estos", "estas", "eso", "esa", "ese", "esas", "esos",
+    "mas", "menos", "muy", "todo", "toda", "todos", "todas", "hay", "son",
+    "sus", "sin", "pero", "porque", "entre", "desde", "hasta", "tambien",
+    "puede", "pueden", "debe", "tiene", "tienen", "hacer", "decir", "the",
+    "and", "for", "with", "what", "which", "from", "that", "this",
+}
+
+
+def _terminos(texto):
+    """Palabras de contenido de un texto: sin acentos, en minúsculas, de 4+
+    letras y descartando las vacías. Sirve para preguntar si dos textos hablan
+    de lo mismo sin necesitar embeddings ni el modelo cargado."""
+    if not texto:
+        return set()
+    sin_acentos = unicodedata.normalize("NFD", texto)
+    sin_acentos = "".join(c for c in sin_acentos
+                          if unicodedata.category(c) != "Mn").lower()
+    palabras = re.findall(r"[a-z0-9]+", sin_acentos)
+    return {p for p in palabras if len(p) >= 4 and p not in _VACIAS}
+
+
+def necesita_investigar(contexto_actual, umbral_episodios=1, pregunta=None):
     """
     Decide si Cognia necesita investigar.
     Investiga si no hay episodios con información real (etiqueta real y similitud > 0.3).
-    
+
     Mejoras v3.1:
     - Ignora episodios con etiqueta 'ninguna', None, o vacía
     - Ignora episodios que son preguntas guardadas (label=None)
     - Ignora contexto de baja similitud (<30%)
     - Cuenta solo episodios con contenido sustancial y etiqueta real
+
+    `pregunta` (v3.2): un episodio solo cuenta como conocimiento si COMPARTE
+    ALGÚN TÉRMINO con la pregunta. Sin esto la función miraba cuánta memoria
+    había y no si esa memoria venía al caso, así que cualquier episodio con 30%+
+    de similitud bastaba para decidir "ya sé" y saltarse la investigación.
+
+    El caso real que lo motivó (2026-07-19): ante una pregunta sobre los modelos
+    MiniCPM de OpenBMB, la memoria devolvió 3 episodios del concepto
+    'conocimiento_python' con 0.564 de cobertura. La función concluyó que sabía
+    suficiente, no se investigó nada, y el modelo respondió de memoria
+    paramétrica recomendando DINOv2 —que no lee capturas de pantalla— con
+    `investigado: False`. La búsqueda web ya andaba y había recuperado 12 de 12
+    fuentes correctas: se descartaron sin usarse.
+
+    Sin `pregunta` el comportamiento es el de antes, para no romper llamadores.
     """
     if not contexto_actual:
         return True
+
+    terminos_pregunta = _terminos(pregunta)
 
     lineas = contexto_actual.split("\n")
     episodios_utiles = 0
@@ -535,7 +577,14 @@ def necesita_investigar(contexto_actual, umbral_episodios=1):
         # Debe tener longitud mínima de contenido informativo
         if len(contenido) < 30:
             continue
-        
+
+        # El episodio tiene que hablar de LO QUE SE PREGUNTO. Saber mucho de
+        # otra cosa no es saber de esto: sin este filtro, memoria abundante
+        # pero ajena hacia que Cognia se saltara la investigacion y contestara
+        # de memoria parametrica.
+        if terminos_pregunta and not (terminos_pregunta & _terminos(contenido)):
+            continue
+
         episodios_utiles += 1
 
     return episodios_utiles < umbral_episodios
@@ -549,7 +598,9 @@ def investigar_si_necesario(ai, pregunta, contexto_actual):
 
     Retorna: (contexto_nuevo, fue_investigado, info_investigacion)
     """
-    if not necesita_investigar(contexto_actual):
+    # La pregunta viaja al gate: decidir si hace falta investigar sin mirarla
+    # es decidir por cantidad de memoria en vez de por pertinencia.
+    if not necesita_investigar(contexto_actual, pregunta=pregunta):
         return contexto_actual, False, None
 
     # Extraer término de busqueda de la pregunta

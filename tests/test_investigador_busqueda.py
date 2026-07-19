@@ -66,6 +66,49 @@ class TestBuscarWeb:
         assert investigador.buscar_web_resultados("openWakeWord") == FALSOS
 
 
+class TestPertinenciaDeLaMemoria:
+    """El gate tiene que mirar si la memoria VIENE AL CASO, no cuánta hay.
+
+    Caso real (2026-07-19): ante una pregunta sobre los modelos MiniCPM de
+    OpenBMB, la memoria devolvió 3 episodios de 'conocimiento_python' con 0.564
+    de cobertura, el gate concluyó "ya sé" y el modelo respondió de memoria
+    paramétrica recomendando DINOv2 — mientras 12 fuentes correctas ya
+    recuperadas se descartaban sin usarse.
+    """
+
+    CTX_PYTHON = ("- 'Python es un lenguaje de programacion interpretado y de "
+                  "alto nivel muy usado' (etiqueta: conocimiento_python, sim: 56.4%)")
+
+    def test_memoria_de_otro_tema_no_cuenta_como_saber(self):
+        assert investigador.necesita_investigar(
+            self.CTX_PYTHON, pregunta="que modelos publica OpenBMB MiniCPM") is True
+
+    def test_memoria_del_tema_si_cuenta(self):
+        assert investigador.necesita_investigar(
+            self.CTX_PYTHON, pregunta="para que sirve Python en la ciencia") is False
+
+    def test_sin_pregunta_conserva_el_comportamiento_viejo(self):
+        """Los llamadores que no pasan pregunta no cambian de conducta."""
+        assert investigador.necesita_investigar(self.CTX_PYTHON) is False
+
+    def test_contexto_vacio_siempre_investiga(self):
+        assert investigador.necesita_investigar("", pregunta="lo que sea") is True
+        assert investigador.necesita_investigar(None, pregunta="lo que sea") is True
+
+    def test_ignora_acentos_al_comparar(self):
+        ctx = ("- 'La fotosintesis es el proceso por el cual las plantas "
+               "generan energia' (etiqueta: biologia, sim: 70%)")
+        assert investigador.necesita_investigar(
+            ctx, pregunta="explicame la fotosíntesis") is False
+
+    def test_terminos_solo_toma_palabras_de_contenido(self):
+        t = investigador._terminos("¿Qué es la fotosíntesis de las plantas?")
+        assert "fotosintesis" in t and "plantas" in t
+        # Vacías y palabras cortas quedan afuera, para que no haya coincidencias
+        # espurias por 'para', 'sobre' o 'los'.
+        assert "para" not in t and "sobre" not in t and "los" not in t
+
+
 class TestCadenaDeInvestigacion:
     def test_cae_a_busqueda_web_cuando_wikipedia_y_ddg_fallan(self, monkeypatch):
         """LA REGRESION: antes del fix la cadena moria aca y no se investigaba.
