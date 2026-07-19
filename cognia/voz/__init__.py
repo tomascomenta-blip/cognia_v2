@@ -4,8 +4,8 @@ cognia/voz — oidos y boca de Cognia.
 Segun planes/JARVIS_COGNIA.md 4.1.
 
   wake.py   DetectorPalabra + Escucha: la palabra de activacion
+  tts.py    Voz: sintesis con Piper, interrumpible
   stt.py    faster-whisper                       — pendiente (necesita la GPU)
-  tts.py    Piper                                — pendiente
   sesion.py maquina de estados de la conversacion — pendiente
 
 Sobre "cerebro": openWakeWord trae 6 modelos preentrenados (alexa, hey_jarvis,
@@ -16,8 +16,10 @@ que el resto de la cadena se puede construir y probar con `hey_jarvis` sin
 esperar a eso.
 """
 
+from cognia.voz.tts import VOZ_POR_DEFECTO, Voz, descargar_voz, voces_instaladas
 from cognia.voz.wake import (CHUNK_MUESTRAS, TASA_MUESTREO, DetectorPalabra,
                              Escucha, modelos_disponibles)
 
-__all__ = ["DetectorPalabra", "Escucha", "modelos_disponibles",
-           "TASA_MUESTREO", "CHUNK_MUESTRAS"]
+__all__ = ["DetectorPalabra", "Escucha", "Voz", "modelos_disponibles",
+           "voces_instaladas", "descargar_voz", "TASA_MUESTREO",
+           "CHUNK_MUESTRAS", "VOZ_POR_DEFECTO"]
