@@ -17,6 +17,7 @@ import urllib.request as _req
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from .arxiv_scraper import ArxivScraper
 from .github_scraper import GitHubScraper
 from .hf_scraper import HFScraper
 from .query_planner import planificar_busquedas, terminos_de_busqueda
@@ -39,8 +40,11 @@ class Hallazgo:
     texto_bruto: str   = ""   # lo que se ingiere a memoria episodica
 
     def linea(self) -> str:
-        unidad = "estrellas" if self.fuente == "github" else "descargas"
-        base = f"**{self.titulo}** ({self.popularidad} {unidad}) — {self.url}"
+        if self.fuente == "arxiv":
+            base = f"**{self.titulo}** — {self.url}"
+        else:
+            unidad = "estrellas" if self.fuente == "github" else "descargas"
+            base = f"**{self.titulo}** ({self.popularidad} {unidad}) — {self.url}"
         if self.extra:
             base += f"\n  {self.extra}"
         if self.resumen:
@@ -54,6 +58,9 @@ class Digest:
     queries:   List[str]      = field(default_factory=list)
     hallazgos: List[Hallazgo] = field(default_factory=list)
     resumen_llm: str          = ""
+    # Fuentes que matizan o contradicen a los candidatos mejor rankeados.
+    # No son un veredicto: son material para que decida el humano.
+    contraevidencia: List[Hallazgo] = field(default_factory=list)
 
     def to_markdown(self) -> str:
         lineas = [f"# Investigacion: {self.pregunta}", ""]
@@ -68,16 +75,28 @@ class Digest:
         if self.resumen_llm:
             lineas += ["## Resumen", "", self.resumen_llm, ""]
 
-        de_hf = [h for h in self.hallazgos if h.fuente == "huggingface"]
-        de_gh = [h for h in self.hallazgos if h.fuente == "github"]
-
-        if de_hf:
-            lineas += ["## Modelos (HuggingFace)", ""]
-            lineas += [f"{i}. {h.linea()}" for i, h in enumerate(de_hf, 1)]
+        secciones = [
+            ("huggingface", "Modelos (HuggingFace)"),
+            ("arxiv",       "Evidencia (arXiv)"),
+            ("github",      "Codigo (GitHub)"),
+        ]
+        for fuente, titulo in secciones:
+            items = [h for h in self.hallazgos if h.fuente == fuente]
+            if not items:
+                continue
+            lineas += [f"## {titulo}", ""]
+            lineas += [f"{i}. {h.linea()}" for i, h in enumerate(items, 1)]
             lineas.append("")
-        if de_gh:
-            lineas += ["## Codigo (GitHub)", ""]
-            lineas += [f"{i}. {h.linea()}" for i, h in enumerate(de_gh, 1)]
+
+        if self.contraevidencia:
+            lineas += [
+                "## Contraevidencia",
+                "",
+                "Fuentes que matizan o contradicen a los candidatos de arriba. "
+                "NO son un veredicto: leelas y decidi vos.",
+                "",
+            ]
+            lineas += [f"{i}. {h.linea()}" for i, h in enumerate(self.contraevidencia, 1)]
             lineas.append("")
 
         return "\n".join(lineas)
@@ -116,13 +135,76 @@ def _resumir_con_ollama(pregunta: str, hallazgos: List[Hallazgo]) -> str:
         return ""
 
 
+# Angulos de contra-busqueda. Cada uno apunta a donde suelen publicarse los
+# limites de algo: la seccion de limitaciones de un paper, un benchmark que lo
+# mide de verdad, o el issue de alguien a quien no le funciono.
+ANGULOS_CONTRA = ["limitations", "benchmark evaluation", "issues problems"]
+
+# Cuantos candidatos se contra-buscan. Bajo a proposito: cada uno cuesta una
+# peticion con 3 s de cortesia a arXiv.
+CONTRA_TOP_N = 3
+
+
+def buscar_contraevidencia(
+    candidatos: List[str],
+    max_por_candidato: int = 2,
+) -> List[Hallazgo]:
+    """
+    Busca fuentes que MATICEN O CONTRADIGAN a cada candidato.
+
+    Deliberadamente NO emite veredictos. Refutar es la tarea de razonamiento
+    mas dificil del pipeline y es donde los modelos pequenos fallan peor:
+    tienden a estar de acuerdo con lo que se les muestra. Un refutador
+    respaldado por llama3.2 no seria verificacion mediocre, seria PEOR que no
+    tener nada, porque pondria un sello de 'verificado' sobre lo no
+    comprobado. Esto busca el material en contra y te lo pone delante; el
+    juicio queda en el humano.
+
+    Corre solo sobre arXiv: es donde se publican las limitaciones, y es la
+    unica de las tres fuentes sin limite duro de peticiones.
+
+    Funciona con candidatos que EXISTEN en la literatura — familias de
+    modelos, arquitecturas, tecnicas. Medido: para 'Mamba state space model'
+    devuelve 'The Computational Limits of State-Space Models and Mamba via
+    the Lens of Circuit Complexity'; para un repo de 13 estrellas devuelve
+    vacio. Ese vacio es la respuesta CORRECTA, no un fallo: nadie publico un
+    paper sobre ese repo, y devolver algo seria inventar contraevidencia.
+    """
+    if not candidatos:
+        return []
+
+    ax    = ArxivScraper(max_papers=max_por_candidato)
+    vistos = {}
+
+    for nombre in candidatos[:CONTRA_TOP_N]:
+        # Un solo angulo por candidato: mas seria pagar 3 s por cada uno.
+        angulo = ANGULOS_CONTRA[0]
+        print(f"[contra] Buscando limites de: {nombre}")
+        for p in ax.search_papers(f"{nombre} {angulo}"):
+            if p.url in vistos:
+                continue
+            vistos[p.url] = Hallazgo(
+                fuente      = "arxiv",
+                titulo      = p.titulo,
+                url         = p.url,
+                resumen     = p.abstract,
+                popularidad = 0,
+                extra       = f"contra: {nombre}",
+                texto_bruto = p.to_learning_text(),
+            )
+
+    return list(vistos.values())
+
+
 def investigar(
     pregunta:        str,
     n_queries:       int  = 4,
     max_por_fuente:  int  = 4,
     usar_github:     bool = True,
     usar_hf:         bool = True,
+    usar_arxiv:      bool = True,
     usar_llm:        bool = True,
+    con_contra:      bool = True,
 ) -> Digest:
     """
     Investiga una pregunta sobre GitHub y HuggingFace y devuelve un informe.
@@ -133,10 +215,13 @@ def investigar(
         max_por_fuente: cuantos resultados traer por query y fuente
         usar_github:    consultar GitHub
         usar_hf:        consultar HuggingFace
+        usar_arxiv:     consultar arXiv (lento: 3 s de cortesia por peticion)
         usar_llm:       usar Ollama para planificar y resumir si esta levantado
+        con_contra:     buscar evidencia EN CONTRA de los candidatos fuertes
 
     Returns:
-        Digest con las queries, los hallazgos ordenados y, si hubo LLM, el resumen.
+        Digest con las queries, los hallazgos ordenados, la contraevidencia y,
+        si hubo LLM, el resumen.
     """
     queries = planificar_busquedas(pregunta, n=n_queries, usar_llm=usar_llm)
     if not queries:
@@ -175,6 +260,27 @@ def investigar(
                     texto_bruto = m.to_learning_text(),
                 )
 
+    if usar_arxiv:
+        ax = ArxivScraper(max_papers=max_por_fuente)
+        for q in queries:
+            for p in ax.search_papers(q):
+                if p.url in por_url:
+                    continue
+                extra = []
+                if p.anio():
+                    extra.append(p.anio())
+                if p.categorias:
+                    extra.append(p.categorias[0])
+                por_url[p.url] = Hallazgo(
+                    fuente      = "arxiv",
+                    titulo      = p.titulo,
+                    url         = p.url,
+                    resumen     = p.abstract,
+                    popularidad = 0,
+                    extra       = " | ".join(extra),
+                    texto_bruto = p.to_learning_text(),
+                )
+
     if usar_github:
         gh = GitHubScraper(max_repos=max_por_fuente)
         for q in queries:
@@ -210,6 +316,18 @@ def investigar(
     hallazgos.sort(key=lambda h: h.relevancia, reverse=True)
 
     digest = Digest(pregunta=pregunta, queries=queries, hallazgos=hallazgos)
+
+    if con_contra:
+        # Se contra-buscan los candidatos concretos (modelos y repos), no los
+        # papers: un paper ya ES evidencia, y buscar 'limitaciones de un
+        # paper' devuelve ruido.
+        candidatos = [
+            h.titulo.split("/")[-1]
+            for h in hallazgos
+            if h.fuente in ("huggingface", "github")
+        ]
+        digest.contraevidencia = buscar_contraevidencia(candidatos)
+
     if usar_llm:
         digest.resumen_llm = _resumir_con_ollama(pregunta, hallazgos)
     return digest

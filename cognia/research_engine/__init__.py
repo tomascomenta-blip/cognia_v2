@@ -29,8 +29,9 @@ from .research_orchestrator import (
 from .researcher import research_question, ResearchResult
 from .github_scraper import GitHubScraper, RepoContent
 from .hf_scraper import HFScraper, ModelContent
+from .arxiv_scraper import ArxivScraper, PaperContent, parsear_feed
 from .query_planner import planificar_busquedas, planificar_deterministico
-from .web_research import investigar, Digest, Hallazgo
+from .web_research import investigar, buscar_contraevidencia, Digest, Hallazgo
 from .knowledge_integrator import (
     integrate_research,
     get_research_log,
@@ -51,6 +52,10 @@ __all__ = [
     "RepoContent",
     "HFScraper",
     "ModelContent",
+    "ArxivScraper",
+    "PaperContent",
+    "parsear_feed",
+    "buscar_contraevidencia",
     "planificar_busquedas",
     "planificar_deterministico",
     "investigar",
