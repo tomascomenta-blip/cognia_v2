@@ -28,6 +28,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from cognia.disciplina import Disyuntor, huella_de_texto
 from cognia.program_creator.sandbox_runner import run_in_sandbox
 
 GENERATED_DIR = Path(__file__).parent / "generated_tools"
@@ -253,10 +254,21 @@ def synthesize_and_register(spec: ToolSpec, orch=None, code: str = None,
     if orch is None:
         return {"ok": False, "name": spec.name, "reason": "sin code ni orch"}
 
+    # Disyuntor: corta la espiral de parches. Ver cognia/disciplina/.
+    # Sin el, este bucle reinyecta prev_code (el intento ROTO anterior) en cada
+    # reparacion, sin mirar nunca si el error es el MISMO error. Es el fallo
+    # que Laban et al. midieron (arXiv:2505.06120): los modelos "dependen en
+    # exceso de intentos de respuesta previos incorrectos". Aqui eso significa
+    # que un mal primer intento contamina los tres.
+    disyuntor = Disyuntor(tarea=f"tool:{spec.name}", max_intentos=max_attempts)
+    reinicios_limpios = 0
+
     last_reason, prev_code = "", ""
     for attempt in range(max_attempts):
         try:
-            if attempt == 0:
+            # Sin prev_code se genera de cero. Es el estado inicial y tambien
+            # al que se vuelve cuando el disyuntor ordena el reinicio limpio.
+            if not prev_code:
                 cand = generate_tool_code(spec, orch)
             else:
                 cand = repair_tool_code(spec, prev_code, last_reason, orch)
@@ -268,7 +280,29 @@ def synthesize_and_register(spec: ToolSpec, orch=None, code: str = None,
             res = _write_verified(spec, cand, reason)
             res["attempts"] = attempt + 1
             return res
+
+        disyuntor.registrar(huella_de_texto(reason), ok=False)
         last_reason, prev_code = reason, cand
+
+        motivo = disyuntor.motivo_corte()
+        if motivo and reinicios_limpios == 0:
+            # El respiro profundo, como corte estructural y no como prompt:
+            # el sintoma no se movio, asi que reparar desde este codigo esta
+            # demostrado que no funciona. Se tira y se regenera de cero.
+            disyuntor.anotar_corte()
+            disyuntor.reiniciar_limpio()
+            prev_code = ""
+            reinicios_limpios += 1
+        elif motivo:
+            # Segundo disparo en la misma tarea: insistir rinde mucho menos.
+            # Se para y se dice la verdad en vez de gastar el intento que queda.
+            return {
+                "ok": False,
+                "name": spec.name,
+                "reason": f"disyuntor {motivo}: {disyuntor.diagnostico()}",
+                "attempts": attempt + 1,
+                "breaker": motivo,
+            }
 
     return {"ok": False, "name": spec.name,
             "reason": f"tras {max_attempts} intentos: {last_reason}",

@@ -52,3 +52,6 @@ model_shards/
 *.bin
 # Auto-generated, machine-specific agent tools (verified at runtime, not shipped)
 cognia/agent/generated_tools/
+
+# Estado local del disyuntor de reparacion (por maquina, no se comparte)
+.disciplina/

@@ -38,6 +38,24 @@ Así se modifica este repo (es el método demostrado en las sesiones autónomas;
 10. **Honestidad.** Declarar límites y trade-offs; reportar fallos con su output; si algo queda a
     medias, decirlo. Si rompés algo (p.ej. borrar un archivo trackeado), detectarlo y restaurarlo,
     no esconderlo.
+11. **Disyuntor de reparación — al segundo intento estéril, parar.** Si arreglaste algo dos veces
+    y el síntoma quedó **idéntico**, no estás resolviendo: estás adivinando. Está prohibido seguir
+    editando. Hay que **revertir los parches, escribir la reproducción mínima, enunciar la
+    hipótesis de causa por escrito y MEDIR el caso real** antes de volver a tocar código.
+    El verificador que lo hace cumplir:
+
+        python -m cognia.disciplina verificar "<comando de verificación>"
+
+    Corré el comando a través de él mientras estés en un bucle de arreglo: lleva la cuenta por
+    huella del síntoma y corta con exit 3. `--sin-cambio` para intentos de exploración que no
+    editan (leer y probar hipótesis no cuenta como parche). `reset` **solo** tras intervención
+    humana real, nunca para saltarse el corte.
+    Por qué no es opinión: auto-corregirse sin verificador externo **empeora** el resultado
+    (Huang et al., ICLR 2024, arXiv:2310.01798), y los modelos "dependen en exceso de intentos
+    previos incorrectos" (Laban et al., arXiv:2505.06120). Umbrales tomados de Aider
+    (`max_reflections=3`) y OpenHands (`action_error=3`). Detalle en `cognia/disciplina/`.
+    **Caso real de este repo:** arreglar el ranking de relevancia costó 4 intentos el 2026-07-19;
+    los 3 primeros fueron parches y el 4º encontró la causa. El corte habría llegado en el 2º.
 
 ## Restricciones duras (no negociar)
 - Sin PyTorch en nodos. Sin sharding WAN síncrono. Sin FedAvg. Sin draft model centralizado.

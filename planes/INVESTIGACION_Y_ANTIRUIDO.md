@@ -182,8 +182,58 @@ dueño antes de escribir una línea.** No asumir.
 | G0 | Ranking, HF, planificador, informe | ✅ `31b2c45`, 2872 tests verdes |
 | G1 | Scraper de arXiv | ✅ ver abajo |
 | G2 | Contra-búsqueda de evidencia | ✅ ver abajo |
-| G3 | Investigar técnicas anti-ruido | bloqueado por 2.3 (pregunta al dueño) |
-| G4 | Disyuntor de reparación | bloqueado por G3 y por 2.3 |
+| G3 | Investigar técnicas anti-ruido | ✅ ver abajo |
+| G4 | Disyuntor de reparación | ✅ ver abajo |
+
+**§2.3 resuelta por el dueño:** hacer **(a) y (b) las dos**, en el orden que se considere
+mejor. Orden elegido: **núcleo → (b) → (a)**, porque (b) es la disciplina que gobierna
+*cómo se construye* (a) — hacer (a) primero arriesga caer en la espiral de parches
+mientras se construye el sistema anti-parches. Y ambos comparten el mismo núcleo.
+
+**G3 — cerrado 2026-07-19.** Evidencia primaria, verificada en fuente:
+
+- **Laban et al., arXiv:2505.06120** (>200.000 conversaciones): caída del 39% en
+  multi-turno. La aptitud sólo baja 16%, la **no-fiabilidad sube 112%**. Mecanismo:
+  los modelos *"dependen en exceso de intentos de respuesta previos (incorrectos)"* — que
+  es literalmente el `prev_code` reinyectado en `tool_synthesis.py`.
+- **Huang et al., ICLR 2024, arXiv:2310.01798**: auto-corregirse **sin verificador externo
+  empeora** el resultado (CommonSenseQA 75,8 → 38,1). Con feedback oráculo, mejora.
+- **Umbrales verificados en código real:** Aider `max_reflections = 3` (hardcodeado, ni
+  siquiera es flag); OpenHands `StuckDetector` con `action_error=3`, `action_observation=4`,
+  `monologue=3`, `alternating_pattern=6`, ventana 20.
+
+**Consecuencia de diseño que atraviesa todo:** el "respiro profundo" del dueño es **buena
+intuición del problema y mala instrucción para el modelo**. Se implementa como **corte
+estructural**, nunca como prompt. Hay un test que lo fija: la orden del disyuntor no
+puede contener "respira", "piensa mejor" ni similares.
+
+**G4 — cerrado 2026-07-19.** `cognia/disciplina/` con núcleo compartido, más:
+
+- **(b)** `python -m cognia.disciplina verificar "<comando>"` + regla 11 de `CLAUDE.md`.
+  Verificado end-to-end: dispara en el 2º intento estéril con exit 3 **[M]**.
+- **(a)** `tool_synthesis.synthesize_and_register` ahora corta la reinyección de código
+  roto. Test de integración: con un modelo que siempre devuelve lo mismo, el bucle pasa de
+  *1 generación + 2 reparaciones* a *2 generaciones limpias + 1 reparación* **[M]**.
+
+**El bug que encontró el propio gate, y que es la lección del plan.** El primer test de
+integración falló: el disyuntor no disparaba. Causa medida: el sandbox ejecuta en un
+temporal de **nombre aleatorio** (`cognia_prog_uqu_v78_.py` vs `cognia_prog_nqhqvbmk.py`),
+y aunque el mensaje sí se normalizaba, los **marcos del traceback no**. Dos fallos
+idénticos daban huellas distintas y el mecanismo estaba **muerto en silencio** — el peor
+modo de fallar para algo que existe para avisar. Arreglado en la raíz: cualquier archivo
+bajo el directorio temporal del sistema colapsa a `<temp>`, sin perder la discriminación
+entre archivos reales del repo. Con test de regresión para ambas mitades.
+
+### Pendiente (no bloquea el cierre de G4)
+
+- **Modo sombra**: correr el disyuntor registrando sin actuar antes de confiar en los
+  umbrales. Métrica de aceptación: ≥60% de los disparos deben preceder a una sesión que
+  efectivamente terminó mal. Los umbrales actuales vienen de *otros* proyectos.
+- **`query_planner` selecciona por diccionario cerrado**, así que descarta los términos
+  distintivos (`rot`, `degradation`, `repair`) y conserva los genéricos. Falla igual en
+  español y en inglés, con una sola causa. El arreglo de raíz es puntuar por rareza (IDF)
+  y usar el glosario **sólo para traducir, nunca para seleccionar**. Bug introducido el
+  2026-07-19 en el 3.º de 4 intentos: pasaba su test y generalizaba mal.
 
 **G1 — cerrado 2026-07-19.** Con la pregunta *"modelo pequeño con mayor ventana de
 contexto y menos KV cache"* devuelve entre otros **[M]**:
