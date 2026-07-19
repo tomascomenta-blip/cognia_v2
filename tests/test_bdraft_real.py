@@ -11,6 +11,7 @@ no model files are needed.
 """
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -281,3 +282,90 @@ def test_warmup_lr_linear_then_constant():
     assert warmup_lr(6e-4, 200, 200) == 6e-4
     assert warmup_lr(6e-4, 10_000, 200) == 6e-4
     assert warmup_lr(6e-4, 0, 0) == 6e-4
+
+
+# ---------------------------------------------------------------------------
+# train_real: run_eval mide tau bajo verificacion greedy REAL
+#
+# Regresion del bug encontrado en la auditoria: target_eval_forward se llamaba
+# con los LABELS del dataset, asi que el argmax del target quedaba condicionado
+# a una muestra T=0.7 en vez de al prefijo que el draft realmente propuso. Solo
+# la posicion 0 quedaba bien medida; las 1..7 —las que deciden tau >= 1.5— se
+# comparaban contra una continuacion que el stream aceptado nunca contuvo.
+# ---------------------------------------------------------------------------
+
+class _FakeTargetBase(torch.nn.Module):
+    """hidden[i] = one_hot(token[i]), de modo que el argmax del target sea
+    siempre 'el token anterior + 1': una continuacion greedy predecible."""
+
+    def __init__(self, vocab):
+        super().__init__()
+        self.vocab = vocab
+
+    def forward(self, input_ids=None, attention_mask=None, position_ids=None,
+                use_cache=False):
+        h = torch.nn.functional.one_hot(input_ids, self.vocab).float()
+        return SimpleNamespace(last_hidden_state=h)
+
+
+class _FakeTarget(torch.nn.Module):
+    def __init__(self, vocab):
+        super().__init__()
+        self.model = _FakeTargetBase(vocab)
+        head = torch.nn.Linear(vocab, vocab, bias=False)
+        with torch.no_grad():
+            w = torch.zeros(vocab, vocab)
+            for k in range(vocab):
+                w[(k + 1) % vocab, k] = 1.0     # logits pico en tok+1
+            head.weight.copy_(w)
+        self._head = head
+
+    def get_output_embeddings(self):
+        return self._head
+
+
+class _FakeDraft(torch.nn.Module):
+    """Emite EXACTAMENTE la continuacion greedy del target falso (c+1, c+2...),
+    leyendo el ultimo token real del contexto desde ctx_hidden (one-hot)."""
+
+    def __init__(self, block, vocab):
+        super().__init__()
+        self.cfg = SimpleNamespace(mask_token_id=-1)
+        self.block = block
+        self.vocab = vocab
+
+    def forward(self, ctx_hidden, canvas_tokens, canvas_mask, ctx_attn=None):
+        last = ctx_hidden[:, -1].argmax(-1)                      # [B]
+        steps = torch.arange(1, self.block + 1, device=last.device)
+        toks = (last[:, None] + steps[None, :]) % self.vocab     # [B, block]
+        return torch.nn.functional.one_hot(toks, self.vocab).float()
+
+
+def test_run_eval_tau_se_condiciona_al_prefijo_del_draft():
+    from bdraft.train_real import compute_tau, run_eval, target_eval_forward
+
+    tok = _tiny_tokenizer()
+    vocab, block = len(tok), 8
+    target, draft = _FakeTarget(vocab), _FakeDraft(block, vocab)
+    args = SimpleNamespace(seq_len=64, block_size=block, micro_batch=2)
+
+    ev = run_eval(target, draft, tok, _pairs(12), args, "cpu")
+
+    # El draft emite justo lo que el target continuaria: se acepta el bloque
+    # entero. Con el bug (condicionar en labels) solo sobrevivia la posicion 0.
+    assert ev["rows"] > 0
+    assert ev["tau"] == pytest.approx(float(block))
+    assert ev["tau_ci"] == pytest.approx(0.0)      # sin dispersion: todas 8
+
+    # Y el test discrimina de verdad: recalcular tau condicionando en los
+    # labels del dataset (el bug) da un valor estrictamente menor.
+    batcher = RealBatcher(tok, _pairs(12), seq_len=args.seq_len,
+                          block_size=block, micro_batch=args.micro_batch,
+                          seed=424242)
+    batch = next(iter(batcher))
+    ctx_hidden = torch.nn.functional.one_hot(batch["ctx_tokens"], vocab).float()
+    d_tokens = draft(ctx_hidden, batch["canvas_tokens"],
+                     batch["canvas_mask"]).argmax(-1)
+    _, argmax_bug = target_eval_forward(target, batch["ctx_tokens"],
+                                        batch["ctx_attn"], batch["labels"])
+    assert compute_tau(d_tokens, argmax_bug) < float(block)

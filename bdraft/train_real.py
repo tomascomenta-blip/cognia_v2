@@ -19,13 +19,20 @@ per planes/DSPARK_GEMMA_DRAFT_MODEL.md sections 2.2/2.3 and gate G3 (sec. 3).
   - G3 eval every --eval-every steps and at the end:
       (a) top1_acc: draft argmax of the block's FIRST token (canvas fully
           masked) vs the dataset label;
-      (b) tau_greedy: the SAME 7B forward over [ctx ; canvas labels] yields
-          the target's teacher-forced argmax at the 8 positions (causality
-          makes the ctx part identical to a ctx-only forward, so one pass
-          serves both the ctx_hidden and the argmax); the draft generates
-          its 8 greedy tokens and tau = mean matched-prefix length.
-          ANTI-FRAUD: tau is measured against the TARGET'S ARGMAX, never
-          against the T=0.7 dataset labels.
+      (b) tau_greedy: TWO 7B forwards. First a ctx-only pass gives the
+          ctx_hidden the draft needs to propose its 8 greedy tokens; then a
+          second pass over [ctx ; DRAFT_TOKENS] gives the target's argmax
+          conditioned on the draft's own prefix, and tau = mean matched-prefix
+          length. The second forward cannot be folded into the first: the
+          argmax at block position j depends on which tokens sit at positions
+          T..T+j-1, so conditioning on the dataset labels (a T=0.7 sample)
+          would score the draft against a branch it never proposed. Only
+          position 0 would survive that shortcut.
+          ANTI-FRAUD: tau is measured against the TARGET'S ARGMAX over the
+          DRAFT'S OWN block — never against the T=0.7 dataset labels.
+      The final eval consumes the whole val split and reports 95% bands, so a
+      verdict landing inside the noise is flagged INDECISO instead of being
+      rounded into a PASS or a KILL.
   - On exhausting --tokens-budget (default 15M = 10% of v0, the G3
     checkpoint): final eval + '### G3: PASS/FAIL top1=X tau=Y ###'.
 """
@@ -51,18 +58,25 @@ EVAL_SEED = 424242            # fixed: every eval sees the same val stream
 # Pure, testable pieces (no GPU / no transformers needed)
 # ---------------------------------------------------------------------------
 
+def tau_per_row(draft_tokens, target_argmax) -> torch.Tensor:
+    """Matched-PREFIX length of each row ([B] long): how many leading draft
+    tokens greedy verification accepts. Kept separate from compute_tau so the
+    eval can report the dispersion (and hence a confidence interval), not just
+    the mean."""
+    d = torch.as_tensor(draft_tokens)
+    t = torch.as_tensor(target_argmax)
+    if d.dim() == 1:
+        d, t = d[None, :], t[None, :]
+    # cumprod stays 1 only while every previous position matched.
+    return (d == t).long().cumprod(dim=1).sum(dim=1)
+
+
 def compute_tau(draft_tokens, target_argmax) -> float:
     """Mean matched-PREFIX length between the draft's greedy block and the
     target's argmax at the same positions ([B, block] tensors or nested
     lists). This is the accepted length under greedy verification. It is
     computed against the TARGET'S ARGMAX — never against dataset labels."""
-    d = torch.as_tensor(draft_tokens)
-    t = torch.as_tensor(target_argmax)
-    if d.dim() == 1:
-        d, t = d[None, :], t[None, :]
-    eq = (d == t).long()
-    # cumprod stays 1 only while every previous position matched.
-    return eq.cumprod(dim=1).sum(dim=1).float().mean().item()
+    return tau_per_row(draft_tokens, target_argmax).float().mean().item()
 
 
 def warmup_lr(base_lr: float, step: int, warmup_steps: int) -> float:
@@ -134,15 +148,20 @@ def target_ctx_hidden(target, ctx_tokens, ctx_attn) -> torch.Tensor:
 
 
 @torch.no_grad()
-def target_eval_forward(target, ctx_tokens, ctx_attn, labels):
-    """ONE 7B forward over [ctx ; canvas labels] -> (ctx_hidden [B,T,d_t],
+def target_eval_forward(target, ctx_tokens, ctx_attn, block_tokens):
+    """ONE 7B forward over [ctx ; block_tokens] -> (ctx_hidden [B,T,d_t],
     target_argmax [B,block]). Causal attention makes h[:, :T] identical to a
     ctx-only forward; the prediction for canvas position j lives at index
     T-1+j (left padding puts the last real ctx token at T-1). The LM head is
-    applied to those block positions only."""
+    applied to those block positions only.
+
+    block_tokens is what the argmax is CONDITIONED ON, so it decides what the
+    result means: pass the draft's own tokens to get greedy-verification
+    acceptance (what G3's tau needs); passing dataset labels would answer a
+    different question about a branch the draft never proposed."""
     B, T = ctx_tokens.shape
-    block = labels.shape[1]
-    full = torch.cat([ctx_tokens, labels], dim=1)
+    block = block_tokens.shape[1]
+    full = torch.cat([ctx_tokens, block_tokens], dim=1)
     attn = torch.cat([ctx_attn, torch.ones(B, block, dtype=torch.bool,
                                            device=ctx_attn.device)], dim=1)
     h = _base_model(target)(input_ids=full, attention_mask=attn.long(),
@@ -157,25 +176,44 @@ def target_eval_forward(target, ctx_tokens, ctx_attn, labels):
 # ---------------------------------------------------------------------------
 
 @torch.no_grad()
-def run_eval(target, draft: BDraft, tokenizer, val_pairs, args,
-             device: str) -> tuple[float, float]:
-    """(top1_acc, tau_greedy) over --eval-batches val batches. Fresh batcher
-    with a fixed seed => identical val stream on every call."""
+def run_eval(target, draft: BDraft, tokenizer, val_pairs, args, device: str,
+             max_batches: int | None = None) -> dict:
+    """G3 metrics over the val stream. Fresh batcher with a fixed seed =>
+    identical val stream on every call. max_batches=None consumes the WHOLE
+    val split (used for the final verdict); pass a number to cap it.
+
+    Two target forwards per batch, and the split is NOT an optimization
+    oversight — it is what makes tau mean what G3 says it means:
+      1. ctx-only forward -> ctx_hidden, which the draft needs BEFORE it can
+         propose anything;
+      2. after the draft proposes its block, a second forward over
+         [ctx ; DRAFT_TOKENS] -> the target's argmax conditioned on the
+         draft's own prefix. That is exactly what greedy verification accepts
+         against. Conditioning on the dataset labels instead (a T=0.7 sample)
+         makes the target continue a branch the draft never proposed, so every
+         position past the first would be scored against a counterfactual.
+
+    Returns top1/tau with their 95% half-widths so a verdict that lands inside
+    the noise band can be reported as undecided instead of being rounded into
+    a PASS or a KILL.
+    """
     batcher = RealBatcher(tokenizer, val_pairs, seq_len=args.seq_len,
                           block_size=args.block_size,
                           micro_batch=args.micro_batch, seed=EVAL_SEED)
     draft.eval()
     hits = rows = 0
-    taus = []
+    taus: list[int] = []
     it = iter(batcher)
-    for _ in range(args.eval_batches):
+    n = 0
+    while max_batches is None or n < max_batches:
         batch = next(it, None)
         if batch is None:
             break
+        n += 1
         batch = {k: v.to(device) for k, v in batch.items()}
         labels = batch["labels"]
-        ctx_hidden, tgt_argmax = target_eval_forward(
-            target, batch["ctx_tokens"], batch["ctx_attn"], labels)
+        ctx_hidden = target_ctx_hidden(target, batch["ctx_tokens"],
+                                       batch["ctx_attn"])
         # Draft greedy: canvas FULLY masked, one forward, argmax per position.
         masked_canvas = torch.full_like(labels, draft.cfg.mask_token_id)
         full_mask = torch.ones_like(labels, dtype=torch.bool)
@@ -184,13 +222,23 @@ def run_eval(target, draft: BDraft, tokenizer, val_pairs, args,
             logits = draft(ctx_hidden, masked_canvas, full_mask,
                            ctx_attn=batch["ctx_attn"])
         draft_tokens = logits.argmax(dim=-1)
+        # Greedy verification: target argmax conditioned on the DRAFT's prefix.
+        _, tgt_argmax = target_eval_forward(
+            target, batch["ctx_tokens"], batch["ctx_attn"], draft_tokens)
         hits += (draft_tokens[:, 0] == labels[:, 0]).sum().item()  # (a) vs label
         rows += labels.shape[0]
-        taus.append(compute_tau(draft_tokens, tgt_argmax))         # (b) vs argmax
+        taus.extend(tau_per_row(draft_tokens, tgt_argmax).tolist())  # (b) vs argmax
     draft.train()
     top1 = hits / rows if rows else 0.0
     tau = sum(taus) / len(taus) if taus else 0.0
-    return top1, tau
+    top1_ci = 1.96 * (top1 * (1 - top1) / rows) ** 0.5 if rows else 0.0
+    if len(taus) > 1:
+        var = sum((x - tau) ** 2 for x in taus) / (len(taus) - 1)
+        tau_ci = 1.96 * (var / len(taus)) ** 0.5
+    else:
+        tau_ci = 0.0
+    return {"top1": top1, "tau": tau, "rows": rows, "batches": n,
+            "top1_ci": top1_ci, "tau_ci": tau_ci}
 
 
 # ---------------------------------------------------------------------------
@@ -359,28 +407,43 @@ def main(argv=None):
         if args.save_every and step % args.save_every == 0:
             save_ckpt(ckpt_dir, draft, opt, step, tokens_seen)
         if args.eval_every and step % args.eval_every == 0:
-            top1, tau = run_eval(target, draft, tokenizer, val_pairs, args,
-                                 device)
-            ok = g3_early_signal(top1, tau)
-            print("[train_real] EVAL step %d  top1 %.4f (min %.2f)  tau %.3f "
-                  "(min %.2f)  g3=%s" % (step, top1, G3_TOP1_MIN, tau,
-                                         G3_TAU_MIN, "PASS" if ok else "fail"),
-                  flush=True)
+            ev = run_eval(target, draft, tokenizer, val_pairs, args, device,
+                          max_batches=args.eval_batches)
+            ok = g3_early_signal(ev["top1"], ev["tau"])
+            print("[train_real] EVAL step %d  top1 %.4f+-%.4f (min %.2f)  "
+                  "tau %.3f+-%.3f (min %.2f)  %d filas  g3=%s"
+                  % (step, ev["top1"], ev["top1_ci"], G3_TOP1_MIN, ev["tau"],
+                     ev["tau_ci"], G3_TAU_MIN, ev["rows"],
+                     "PASS" if ok else "fail"), flush=True)
             log_jsonl(log_path, {"type": "eval", "step": step,
-                                 "tokens": tokens_seen, "top1": round(top1, 5),
-                                 "tau": round(tau, 4), "g3_pass": ok,
+                                 "tokens": tokens_seen, "g3_pass": ok,
+                                 **{k: round(v, 5) if isinstance(v, float) else v
+                                    for k, v in ev.items()},
                                  "t": time.time()})
 
-    # Budget exhausted: final checkpoint + final G3 eval + verdict.
+    # Budget exhausted: final checkpoint + final G3 eval + verdict. The final
+    # eval consumes the WHOLE val split (max_batches=None), not just
+    # --eval-batches: this single number decides whether the track lives, so it
+    # gets every row available instead of the cheap periodic sample.
     save_ckpt(ckpt_dir, draft, opt, step, tokens_seen)
-    top1, tau = run_eval(target, draft, tokenizer, val_pairs, args, device)
+    ev = run_eval(target, draft, tokenizer, val_pairs, args, device)
+    top1, tau = ev["top1"], ev["tau"]
     ok = g3_early_signal(top1, tau)
+    # A threshold inside the 95% band means the data cannot tell PASS from FAIL.
+    indeciso = (abs(top1 - G3_TOP1_MIN) < ev["top1_ci"]
+                or abs(tau - G3_TAU_MIN) < ev["tau_ci"])
     log_jsonl(log_path, {"type": "eval_final", "step": step,
-                         "tokens": tokens_seen, "top1": round(top1, 5),
-                         "tau": round(tau, 4), "g3_pass": ok,
+                         "tokens": tokens_seen, "g3_pass": ok,
+                         "indeciso": indeciso,
+                         **{k: round(v, 5) if isinstance(v, float) else v
+                            for k, v in ev.items()},
                          "t": time.time()})
-    print("### G3: %s top1=%.4f tau=%.3f ###"
-          % ("PASS" if ok else "FAIL", top1, tau), flush=True)
+    print("[train_real] eval final sobre %d filas de val (%d lotes)"
+          % (ev["rows"], ev["batches"]), flush=True)
+    print("### G3: %s top1=%.4f+-%.4f tau=%.3f+-%.3f %s###"
+          % ("PASS" if ok else "FAIL", top1, ev["top1_ci"], tau, ev["tau_ci"],
+             "(INDECISO: el umbral cae dentro del intervalo) "
+             if indeciso else ""), flush=True)
 
 
 if __name__ == "__main__":
