@@ -1,0 +1,13 @@
+{
+  "idea_router": {
+    "discrepancias": [
+      {
+        "texto": "simple Markov chain text generator",
+        "experto": "web",
+        "heuristica": "no-web"
+      }
+    ],
+    "experto_acerto": 0,
+    "heuristica_acerto": 0
+  }
+}

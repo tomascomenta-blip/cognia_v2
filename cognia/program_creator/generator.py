@@ -115,10 +115,35 @@ def _es_idea_web(texto: str) -> bool:
     """
     t = (texto or "").lower()
     if any(pista in t for pista in _PISTAS_WEB):
-        return True
-    if any(pista in t for pista in _PISTAS_PYTHON):
-        return False        # pidieron Python explicitamente: mandan ellos
-    return any(pista in t for pista in _PISTAS_WEB_DEBILES)
+        decision = True
+    elif any(pista in t for pista in _PISTAS_PYTHON):
+        decision = False    # pidieron Python explicitamente: mandan ellos
+    else:
+        decision = any(pista in t for pista in _PISTAS_WEB_DEBILES)
+
+    # La colonia opina como SEGUNDA VOZ (regla del plan de la flota: el
+    # experto no manda hasta que su feromona lo sostenga). Una discrepancia
+    # confiada se registra como rastro; la decision sigue siendo de la
+    # heuristica. Nunca puede romper la generacion.
+    try:
+        from ..colonia import feromona, opinar
+        clase, confianza = opinar("idea_router", texto or "")
+        if clase and confianza >= 0.9:
+            opina_web = (clase == "web")
+            if opina_web != decision:
+                feromona.registrar_discrepancia(
+                    "idea_router", texto or "", clase,
+                    "web" if decision else "no-web")
+                logger_colonia = __import__("logging").getLogger(__name__)
+                logger_colonia.info(
+                    "Colonia discrepa en idea_router (%.2f): experto=%s "
+                    "heuristica=%s", confianza, clase, decision)
+            if feromona.el_experto_manda("idea_router"):
+                return opina_web
+    except Exception:
+        pass
+
+    return decision
 
 
 # ── Generación autónoma de ideas ───────────────────────────────────────────────
