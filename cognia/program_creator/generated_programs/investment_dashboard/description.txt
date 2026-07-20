@@ -1,0 +1,8 @@
+Title         : Investment Dashboard
+Category      : pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo
+Created at    : 2026-07-19T21:24:16.462471
+Score         : 8.7 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  A self-contained HTML page that simulates an investment dashboard with animated stock quotes, a chart, and color-coded variations.

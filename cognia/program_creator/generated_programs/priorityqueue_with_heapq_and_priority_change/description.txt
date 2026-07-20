@@ -1,0 +1,8 @@
+Title         : PriorityQueue with heapq and Priority Change
+Category      : cola de prioridad con heapq que soporte cambiar la prioridad de un elemento ya insertado, con una clase de unittest con al menos 3 metodos test_ y unittest.main(exit=False)
+Created at    : 2026-07-20T01:32:48.527014
+Score         : 7.3 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  A terminal program demonstrating a priority queue using the `heapq` module with functionality to change the priority of an existing element. Includes a unittest class with three test methods.

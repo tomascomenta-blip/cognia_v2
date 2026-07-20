@@ -90,15 +90,6 @@
     "directory": "euclidean_empire"
   },
   {
-    "id": "franzs_treasure_hunt",
-    "title": "Franz's Treasure Hunt",
-    "category": "text-based strategy game",
-    "description": "A simple text-based strategy game where you navigate as Franz to find treasure in a mystical forest.",
-    "total_score": 5.6,
-    "created_at": "2026-04-05T20:25:01.016472",
-    "directory": "franzs_treasure_hunt"
-  },
-  {
     "id": "stem_encryptor",
     "title": "Stem Encryptor",
     "category": "cipher and encryption toy",
@@ -133,15 +124,6 @@
     "total_score": 7.1,
     "created_at": "2026-04-05T21:18:07.212605",
     "directory": "story_spinner"
-  },
-  {
-    "id": "cellular_automata_simulator",
-    "title": "Cellular Automata Simulator",
-    "category": "cellular automata simulator",
-    "description": "A terminal-based simulator of a simple 2D cellular automaton with the rules of Conway's Game of Life.",
-    "total_score": 5.1,
-    "created_at": "2026-04-05T21:27:38.285380",
-    "directory": "cellular_automata_simulator"
   },
   {
     "id": "decent_dilemma",
@@ -190,5 +172,215 @@
     "created_at": "2026-04-16T20:26:09.051112",
     "directory": "untitled_procedural_story_generator_with_built_in",
     "self_proposed": false
+  },
+  {
+    "id": "investment_dashboard_simulator",
+    "title": "Investment Dashboard Simulator",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A terminal-based simulation of an investment dashboard with changing quotes, animated graph, and color-coded variations.",
+    "total_score": 7.8,
+    "created_at": "2026-07-19T21:14:42.429894",
+    "directory": "investment_dashboard_simulator",
+    "self_proposed": false
+  },
+  {
+    "id": "investment_dashboard_simulation",
+    "title": "Investment Dashboard Simulation",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page that simulates an investment dashboard with animated stock quotes, a graph, and color-coded variations.",
+    "total_score": 8.2,
+    "created_at": "2026-07-19T21:19:00.994758",
+    "directory": "investment_dashboard_simulation",
+    "self_proposed": false
+  },
+  {
+    "id": "investment_dashboard_simulator_01",
+    "title": "Investment Dashboard Simulator",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A simple self-contained HTML page that simulates an investment dashboard with animated stock quotes, a graph, and color-coded variations.",
+    "total_score": 8.7,
+    "created_at": "2026-07-19T21:19:22.424686",
+    "directory": "investment_dashboard_simulator_01",
+    "self_proposed": false
+  },
+  {
+    "id": "investment_dashboard",
+    "title": "Investment Dashboard",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page that simulates an investment dashboard with animated stock quotes, a chart, and color-coded variations.",
+    "total_score": 8.7,
+    "created_at": "2026-07-19T21:24:16.462471",
+    "directory": "investment_dashboard",
+    "self_proposed": false
+  },
+  {
+    "id": "investment_dashboard_01",
+    "title": "Investment Dashboard",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page with an animated investment dashboard that simulates stock quotes, an animated chart, and color-coded variations in green and red.",
+    "total_score": 8.7,
+    "created_at": "2026-07-19T22:37:07.874630",
+    "directory": "investment_dashboard_01",
+    "self_proposed": false
+  },
+  {
+    "id": "investment_dashboard_animation",
+    "title": "Investment Dashboard Animation",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page simulating an investment dashboard with animated stock quotes, a dynamic graph, and color-coded variations in green and red.",
+    "total_score": 8.7,
+    "created_at": "2026-07-19T22:50:07.280408",
+    "directory": "investment_dashboard_animation",
+    "self_proposed": false
+  },
+  {
+    "id": "investment_dashboard_simulation_01",
+    "title": "Investment Dashboard Simulation",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page simulating an investment dashboard with animated stock quotes, a graph, and color-coded variations in green and red.",
+    "total_score": 8.7,
+    "created_at": "2026-07-19T22:53:07.769069",
+    "directory": "investment_dashboard_simulation_01",
+    "self_proposed": false
+  },
+  {
+    "id": "task_manager_with_sqlite_in_memory_undo_stack_and",
+    "title": "Task Manager with SQLite in Memory, Undo Stack, and Unit Tests",
+    "category": "gestor de tareas con SQLite en memoria, pila de deshacer y tests unitarios que se ejecutan solos",
+    "description": "A simple task manager using an in-memory SQLite database with an undo stack, along with automatic unit tests.",
+    "total_score": 6.7,
+    "created_at": "2026-07-20T00:11:46.909752",
+    "directory": "task_manager_with_sqlite_in_memory_undo_stack_and",
+    "self_proposed": false
+  },
+  {
+    "id": "task_manager_with_sqlite_in_memory_undo_stack_and_01",
+    "title": "Task Manager with SQLite in Memory, Undo Stack, and Unit Tests",
+    "category": "gestor de tareas con SQLite en memoria, pila de deshacer y tests unitarios que se ejecutan solos",
+    "description": "A simple task manager using SQLite in memory, with an undo stack and automatically running unit tests.",
+    "total_score": 6.7,
+    "created_at": "2026-07-20T00:12:05.675629",
+    "directory": "task_manager_with_sqlite_in_memory_undo_stack_and_01",
+    "self_proposed": false
+  },
+  {
+    "id": "in_memory_task_manager_with_undo_stack_and_unit_te",
+    "title": "In-Memory Task Manager with Undo Stack and Unit Tests",
+    "category": "gestor de tareas con SQLite en memoria, pila de deshacer y tests unitarios que se ejecutan solos",
+    "description": "A terminal-based task manager using SQLite in-memory database, featuring an undo stack for actions and automated unit tests.",
+    "total_score": 6.7,
+    "created_at": "2026-07-20T00:14:37.409563",
+    "directory": "in_memory_task_manager_with_undo_stack_and_unit_te",
+    "self_proposed": false
+  },
+  {
+    "id": "text_compressor",
+    "title": "Text Compressor",
+    "category": "compresor de texto para ahorrar tokens: colapsa lineas consecutivas repetidas en una sola con un contador, y si el texto pasa de N lineas recorta el medio dejando principio y final, con tests unitarios que verifiquen la reduccion",
+    "description": "A program that compresses text by collapsing consecutive duplicate lines into one line with a counter. If the text exceeds a specified number of lines, it truncates the middle, keeping the start and end.",
+    "total_score": 7.8,
+    "created_at": "2026-07-20T00:29:59.488522",
+    "directory": "text_compressor",
+    "self_proposed": false
+  },
+  {
+    "id": "text_compressor_01",
+    "title": "Text Compressor",
+    "category": "compresor de texto que colapsa lineas consecutivas repetidas en una sola con contador y recorta el medio si hay demasiadas lineas, con una clase TestCompresor de unittest con al menos 3 metodos test_ que se ejecuten con unittest.main(exit=False)",
+    "description": "A terminal program that compresses consecutive repeated lines in a text, counts them, and truncates the middle if there are too many lines.",
+    "total_score": 7.0,
+    "created_at": "2026-07-20T00:33:48.279081",
+    "directory": "text_compressor_01",
+    "self_proposed": false
+  },
+  {
+    "id": "python_project_map",
+    "title": "Python Project Map",
+    "category": "mapa de un proyecto Python usando ast: recorre los ficheros .py de un directorio y extrae para cada uno sus clases, funciones e imports con el numero de linea, y devuelve un resumen compacto en texto para saber donde esta cada cosa sin leer los ficheros enteros, con una clase de unittest con al menos 3 metodos test_ y unittest.main(exit=False)",
+    "description": "Recursively analyzes Python files in a directory to extract classes, functions, and imports with their line numbers, and provides a compact summary for quick reference.",
+    "total_score": 6.0,
+    "created_at": "2026-07-20T00:40:11.886308",
+    "directory": "python_project_map",
+    "self_proposed": false
+  },
+  {
+    "id": "python_project_map",
+    "title": "Python Project Map",
+    "category": "mapa de proyecto Python con ast: funcion mapear(directorio) que recorre los .py y devuelve para cada fichero la lista de clases y funciones con su linea, y funcion resumen(mapa) que lo formatea compacto; probar sobre un directorio temporal creado en el propio test con tempfile, con unittest y unittest.main(exit=False)",
+    "description": "A program that scans a directory for Python files and maps out their classes and functions with line numbers, then summarizes the findings.",
+    "total_score": 7.0,
+    "created_at": "2026-07-20T00:42:55.931479",
+    "directory": "python_project_map",
+    "self_proposed": false
+  },
+  {
+    "id": "python_project_map_with_ast",
+    "title": "Python Project Map with ast",
+    "category": "mapa de proyecto Python con ast: funcion mapear(directorio) que recorre los .py y devuelve para cada fichero la lista de clases y funciones con su linea, y funcion resumen(mapa) que lo formatea compacto; probar sobre un directorio temporal creado en el propio test con tempfile, con unittest y unittest.main(exit=False)",
+    "description": "A program that maps Python files in a directory, extracting classes and functions with their line numbers, and formats the data compactly.",
+    "total_score": 6.5,
+    "created_at": "2026-07-20T00:43:40.084978",
+    "directory": "python_project_map_with_ast",
+    "self_proposed": false
+  },
+  {
+    "id": "dashboard_de_inversiones",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Dashboard interativo con cotizaciones en movimiento, gráfico animado y variaciones en tiempo real",
+    "total_score": 7.5,
+    "created_at": "2026-07-20T01:00:06.319288",
+    "directory": "dashboard_de_inversiones",
+    "self_proposed": false
+  },
+  {
+    "id": "priorityqueue_with_heapq_and_priority_change",
+    "title": "PriorityQueue with heapq and Priority Change",
+    "category": "cola de prioridad con heapq que soporte cambiar la prioridad de un elemento ya insertado, con una clase de unittest con al menos 3 metodos test_ y unittest.main(exit=False)",
+    "description": "A terminal program demonstrating a priority queue using the `heapq` module with functionality to change the priority of an existing element. Includes a unittest class with three test methods.",
+    "total_score": 7.3,
+    "created_at": "2026-07-20T01:32:48.527014",
+    "directory": "priorityqueue_with_heapq_and_priority_change",
+    "self_proposed": false
+  },
+  {
+    "id": "investment_dashboard_02",
+    "title": "Investment Dashboard",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page with animated stock quotes, a graph, and color-coded variations.",
+    "total_score": 7.9,
+    "created_at": "2026-07-20T02:54:19.253824",
+    "directory": "investment_dashboard_02",
+    "self_proposed": false
+  },
+  {
+    "id": "investment_dashboard_simulation_02",
+    "title": "Investment Dashboard Simulation",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page that simulates an investment dashboard with animated stock quotes, a graph, and color-coded changes.",
+    "total_score": 8.7,
+    "created_at": "2026-07-20T02:54:50.578446",
+    "directory": "investment_dashboard_simulation_02",
+    "self_proposed": false
+  },
+  {
+    "id": "token_estimator",
+    "title": "Token Estimator",
+    "category": "estimador de tokens para saber si un texto cabe en una ventana de contexto: funcion estimar_tokens(texto) que aproxima el numero de tokens sin dependencias, y funcion cabe(texto, limite) que dice si entra; con unittest de al menos 3 metodos test_ y unittest.main(exit=False)",
+    "description": "A simple terminal program to estimate if a text fits within a token context window.",
+    "total_score": 7.6,
+    "created_at": "2026-07-20T02:58:38.719079",
+    "directory": "token_estimator",
+    "self_proposed": false
+  },
+  {
+    "id": "automated_news_brief_generator",
+    "title": "Automated News Brief Generator",
+    "category": "Automated news brief generator summarizing recent tech articles",
+    "description": "This program automatically generates a news brief summarizing recent tech articles using built-in sample data.",
+    "total_score": 6.8,
+    "created_at": "2026-07-20T04:30:10.010247",
+    "directory": "automated_news_brief_generator",
+    "self_proposed": true
   }
 ]

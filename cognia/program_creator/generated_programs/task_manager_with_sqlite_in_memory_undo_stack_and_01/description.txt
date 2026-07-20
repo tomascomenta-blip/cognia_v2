@@ -1,0 +1,8 @@
+Title         : Task Manager with SQLite in Memory, Undo Stack, and Unit Tests
+Category      : gestor de tareas con SQLite en memoria, pila de deshacer y tests unitarios que se ejecutan solos
+Created at    : 2026-07-20T00:12:05.675629
+Score         : 6.7 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  A simple task manager using SQLite in memory, with an undo stack and automatically running unit tests.

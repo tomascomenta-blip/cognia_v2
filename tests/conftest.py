@@ -48,3 +48,33 @@ def pytest_runtest_setup(item):
             for m in mods_to_del:
                 del sys.modules[m]
             importlib.import_module("rich")
+
+
+# ── Determinismo del azar ──────────────────────────────────────────────
+# Ocho ficheros de test generan datos con `random`/`np.random` sin fijar
+# semilla, asi que su veredicto dependia de la tirada. Medido el 2026-07-20:
+# `test_orthogonal_to_existing_rows` paso 5 de 5 veces aislado y fallo en una
+# corrida de la suite completa — su tolerancia de ortogonalidad (0.2) se supera
+# de vez en cuando por azar.
+#
+# Un test que falla aleatoriamente es peor que no tenerlo: ensena a ignorar el
+# rojo, y entonces el rojo de verdad tampoco se mira. Sembrar antes de cada
+# test no debilita nada — comprueban exactamente lo mismo — pero hace el
+# veredicto reproducible, que es la condicion para que la suite sirva de
+# compuerta.
+#
+# Va aqui y no en cada fichero para tener UN solo punto que revertir si algun
+# dia estorba.
+import random as _random
+
+import pytest as _pytest
+
+
+@_pytest.fixture(autouse=True)
+def _semilla_reproducible():
+    _random.seed(20260720)
+    try:
+        import numpy as _np
+        _np.random.seed(20260720)
+    except ImportError:
+        pass

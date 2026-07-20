@@ -1,0 +1,8 @@
+Title         : Python Project Map
+Category      : mapa de proyecto Python con ast: funcion mapear(directorio) que recorre los .py y devuelve para cada fichero la lista de clases y funciones con su linea, y funcion resumen(mapa) que lo formatea compacto; probar sobre un directorio temporal creado en el propio test con tempfile, con unittest y unittest.main(exit=False)
+Created at    : 2026-07-20T00:42:55.931479
+Score         : 7.0 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  A program that scans a directory for Python files and maps out their classes and functions with line numbers, then summarizes the findings.

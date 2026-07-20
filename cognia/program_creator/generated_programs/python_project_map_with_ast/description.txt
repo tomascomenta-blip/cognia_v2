@@ -1,0 +1,8 @@
+Title         : Python Project Map with ast
+Category      : mapa de proyecto Python con ast: funcion mapear(directorio) que recorre los .py y devuelve para cada fichero la lista de clases y funciones con su linea, y funcion resumen(mapa) que lo formatea compacto; probar sobre un directorio temporal creado en el propio test con tempfile, con unittest y unittest.main(exit=False)
+Created at    : 2026-07-20T00:43:40.084978
+Score         : 6.5 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  A program that maps Python files in a directory, extracting classes and functions with their line numbers, and formats the data compactly.

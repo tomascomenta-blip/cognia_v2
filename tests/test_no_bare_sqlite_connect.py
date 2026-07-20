@@ -29,9 +29,16 @@ ROOT = Path(__file__).resolve().parent.parent
 # Directories whose .py files are exempt from the rule:
 #   tests/   - test fixtures legitimately build throwaway in-memory/temp DBs
 #   scripts/ - one-shot maintenance/conversion tools, not the running app
+#   generated_programs/ - salida de Cognia, no codigo fuente del repo. Son
+#     programas sueltos que se ejecutan solos en un sandbox: no pueden importar
+#     storage/db_pool.py, que es infraestructura interna. Disparo real el
+#     2026-07-20 al pedirle a Cognia un gestor de tareas con SQLite: cumplio el
+#     encargo y el guardian marco su salida como violacion del repo.
+#   generated_games/ - lo mismo, salida de game_manager.
 _EXCLUDE_DIR_PARTS = {
     ".git", "__pycache__", "node_modules", "venv", ".venv",
     "tests", "scripts", "build", "dist",
+    "generated_programs", "generated_games",
 }
 
 

@@ -1,0 +1,16 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 7.6 / 10
+Functionality     : 3.5 / 4.0
+Creativity        : 2.1 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Program ran successfully.
+  • Moderate output (126 chars).
+  • Code has substantial length (>500 chars).
+  • Uses interesting constructs: random.choice, random.randint.
+  • Well-structured: 6 functions.
+  • Uses OOP: 1 class(es).
+  • Original program title.

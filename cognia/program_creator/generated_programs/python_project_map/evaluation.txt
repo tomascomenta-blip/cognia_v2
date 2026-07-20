@@ -1,0 +1,15 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 7.0 / 10
+Functionality     : 3.5 / 4.0
+Creativity        : 1.5 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Program ran successfully.
+  • Moderate output (162 chars).
+  • Code has substantial length (>500 chars).
+  • Well-structured: 6 functions.
+  • Uses OOP: 1 class(es).
+  • Original program title.

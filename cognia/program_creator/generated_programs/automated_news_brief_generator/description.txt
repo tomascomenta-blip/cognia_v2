@@ -1,0 +1,8 @@
+Title         : Automated News Brief Generator
+Category      : Automated news brief generator summarizing recent tech articles
+Created at    : 2026-07-20T04:30:10.010247
+Score         : 6.8 / 10
+Self-proposed : Yes — Cognia invented this idea
+
+Description:
+  This program automatically generates a news brief summarizing recent tech articles using built-in sample data.

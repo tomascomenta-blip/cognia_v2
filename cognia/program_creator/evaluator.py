@@ -90,11 +90,51 @@ class EvaluationResult:
 
 # ── Evaluadores internos ───────────────────────────────────────────────────────
 
+def _evaluate_functionality_web(program: GeneratedProgram,
+                                 result: ExecutionResult) -> tuple[float, list]:
+    """
+    Puntúa una página web (0–4).
+
+    No aplica el criterio de "corrió e imprimió output": una página no imprime
+    nada. Lo que se puntúa es lo que la hace servible una vez desplegada, que es
+    lo que ya midió revisar_html().
+    """
+    score = 0.0
+    notes = []
+    bajo  = program.code.lower()
+
+    if result.success:
+        score += 2.0
+        notes.append("Página HTML válida y autocontenida.")
+    else:
+        notes.append(f"Defectos en la página: {result.execution_errors}")
+
+    if any(p in bajo for p in ("setinterval", "requestanimationframe")):
+        score += 1.0
+        notes.append("Se actualiza sola (JS en marcha).")
+    elif any(p in bajo for p in ("@keyframes", "animation:")):
+        score += 0.5
+        notes.append("Animación CSS.")
+
+    if "<canvas" in bajo or "<svg" in bajo:
+        score += 0.5
+        notes.append("Dibuja un gráfico propio.")
+
+    if result.code_length > 1500:
+        score += 0.5
+        notes.append(f"Página con cuerpo ({result.code_length} chars).")
+
+    return min(score, 4.0), notes
+
+
 def _evaluate_functionality(program: GeneratedProgram,
                              result: ExecutionResult) -> tuple[float, list]:
     """
     Puntúa qué tan bien funcionó el programa (0–4).
     """
+    if getattr(program, "lenguaje", "python") == "html":
+        return _evaluate_functionality_web(program, result)
+
     score = 0.0
     notes = []
 
@@ -130,11 +170,64 @@ def _evaluate_functionality(program: GeneratedProgram,
     return min(score, 4.0), notes
 
 
+def _evaluate_creativity_web(program: GeneratedProgram) -> tuple[float, list]:
+    """
+    Puntúa la riqueza de una página web (0–4).
+
+    El evaluador de Python no sirve aquí: sus keywords son de Python y el
+    ast.parse de una página siempre lanza SyntaxError, así que toda web
+    quedaba penalizada por no ser Python.
+    """
+    score = 0.0
+    notes = []
+    bajo  = program.code.lower()
+
+    tecnicas = {
+        "<canvas":            "canvas",
+        "<svg":               "svg",
+        "lineargradient":     "degradados",
+        "grid-template":      "CSS grid",
+        "flex":               "flexbox",
+        "@keyframes":         "keyframes",
+        "transition":         "transiciones",
+        "box-shadow":         "profundidad",
+        "@media":             "responsive",
+        "toFixed".lower():    "formato numérico",
+    }
+    halladas = [nom for pat, nom in tecnicas.items() if pat in bajo]
+    score += min(len(halladas) * 0.3, 2.0)
+    if halladas:
+        notes.append(f"Técnicas: {', '.join(halladas[:6])}.")
+
+    n_funcs = bajo.count("function ") + bajo.count("=>")
+    if n_funcs >= 3:
+        score += 0.5
+        notes.append(f"JS estructurado ({n_funcs} funciones).")
+
+    lineas = [l for l in program.code.splitlines() if l.strip()]
+    if len(lineas) > 80:
+        score += 0.5
+        notes.append(f"Página no trivial: {len(lineas)} líneas.")
+
+    if len(program.description) > 30:
+        score += 0.2
+
+    generic_titles = {"untitled", "program", "script", "test", "main"}
+    if not any(g in program.title.lower() for g in generic_titles):
+        score += 0.3
+        notes.append("Original program title.")
+
+    return min(score, 4.0), notes
+
+
 def _evaluate_creativity(program: GeneratedProgram,
                           result: ExecutionResult) -> tuple[float, list]:
     """
     Puntúa la creatividad e interés del código (0–4).
     """
+    if getattr(program, "lenguaje", "python") == "html":
+        return _evaluate_creativity_web(program)
+
     score = 0.0
     notes = []
     code  = program.code
@@ -256,6 +349,17 @@ def evaluate_program(program: GeneratedProgram,
     all_notes = func_notes + creat_notes + error_notes
 
     should_store = total >= STORE_THRESHOLD
+
+    # Compuerta dura: una suite de tests en rojo no se compensa con creatividad.
+    # Medido el 2026-07-20: un mapa de proyecto con FAILED (failures=2) se
+    # archivo con 6.0/10, porque los bonus de "Rich output" y "substantial
+    # length" se concedian AUNQUE el programa hubiera fallado, y sumados a la
+    # creatividad pasaban el umbral. Salida abundante de un programa que
+    # revienta no es una virtud, y G2 existe justamente para que la nota salga
+    # de los tests y no de heuristicas sobre stdout.
+    if "Tests en rojo" in (result.execution_errors or ""):
+        should_store = False
+        all_notes.append("Rechazo duro: la suite de tests esta en rojo.")
 
     evaluation = EvaluationResult(
         functionality_score=round(func_score,  2),

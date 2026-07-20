@@ -26,10 +26,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .generator      import generate_program, GeneratedProgram
-from .sandbox_runner import run_in_sandbox, ExecutionResult
+from ..disciplina    import Disyuntor, huella_de_texto
+from .generator      import (generate_program, reparar_python, reparar_web,
+                             GeneratedProgram)
+from .sandbox_runner import run_in_sandbox, revisar_html, ExecutionResult
+from .vista_navegador import revisar_en_navegador, InformeVisual
 from .evaluator      import evaluate_program, EvaluationResult
-from .storage        import save_program, StoredProgramMeta, format_library_summary, get_program_count
+from .storage        import (save_program, StoredProgramMeta, format_library_summary,
+                             get_program_count, DEFAULT_STORAGE_DIR)
 
 # ── Configuración ──────────────────────────────────────────────────────────────
 
@@ -38,6 +42,17 @@ INTER_GENERATION_PAUSE = 2.0
 
 # Número máximo de intentos por sesión de hobby
 MAX_ATTEMPTS_PER_SESSION = 3
+
+# Cuantas veces se le devuelve el error al modelo antes de rendirse. Umbral de
+# Aider (max_reflections=3), el mismo que cita cognia/disciplina/. El disyuntor
+# puede cortar antes si detecta que los parches no mueven el sintoma.
+MAX_REPARACIONES = 3
+
+# Cuantas veces se vuelve a intentar la MISMA idea desde cero cuando ninguna
+# generacion supera las compuertas. Tecnica que Cognia encontro investigando
+# (snwfdhmp/awesome-ralph): insistir hasta cumplir la especificacion. El
+# disyuntor puede cortar antes si insistir deja de aportar.
+MAX_RONDAS_INSISTIENDO = 4
 
 # Threshold mínimo para guardar (espejo del definido en evaluator.py)
 STORE_THRESHOLD = 5.0
@@ -158,8 +173,113 @@ def run_program_hobby(
                 time.sleep(INTER_GENERATION_PAUSE)
             continue
 
-        # ── Paso 2: Ejecutar en sandbox ────────────────────────────────
-        exec_result: ExecutionResult = run_in_sandbox(program.code)
+        # ── Paso 2: Ejecutar en sandbox (o revisar, si es una web) ─────
+        # Una pagina HTML no se ejecuta con Python; se inspecciona.
+        if getattr(program, "lenguaje", "python") == "html":
+            exec_result: ExecutionResult = revisar_html(program.code)
+
+            # ── Paso 2b: mirarla de verdad en el navegador ─────────────
+            # La revision estatica no distingue "HTML valido" de "pagina que
+            # funciona": una pagina puede salir entera en negro con el CSS
+            # perfectamente escrito. Aqui se renderiza, se observa, y si algo
+            # falla se le devuelven los defectos al modelo para que corrija.
+            visual = revisar_en_navegador(program.code)
+            if verbose and visual.nota:
+                print(f"   [vista] {visual.nota}")
+
+            if visual.defectos:
+                if verbose:
+                    print(f"   👁️  Defectos vistos en el navegador: "
+                          f"{'; '.join(visual.defectos)}")
+                    print("   🔧 Pidiendo correccion al modelo...")
+
+                # El navegador sabe QUE falla; el analisis estatico sabe DONDE.
+                # Medido el 2026-07-19: con solo el sintoma ("todo sale del
+                # mismo color") el modelo refactorizo el ternario y dejo la
+                # clase en el sitio equivocado. Hay que darle el selector.
+                pistas = list(visual.defectos)
+                if exec_result.execution_errors:
+                    pistas += [l for l in exec_result.execution_errors.splitlines()
+                               if l.strip()]
+
+                arreglado = reparar_web(program, pistas)
+                if arreglado is not None:
+                    visual_2 = revisar_en_navegador(arreglado.code)
+                    if len(visual_2.defectos) < len(visual.defectos):
+                        program = arreglado
+                        visual  = visual_2
+                        exec_result = revisar_html(program.code)
+                        if verbose:
+                            print(f"   ✅ Correccion aceptada "
+                                  f"({len(visual.defectos)} defectos restantes)")
+                    elif verbose:
+                        print("   ↩️  Correccion descartada: no mejoraba.")
+                elif verbose:
+                    print("   ↩️  El modelo no devolvio una correccion valida.")
+
+            # Lo que se VE manda sobre lo que se lee: si la pagina no funciona
+            # en el navegador, no puede contar como ejecucion exitosa.
+            if visual.defectos:
+                exec_result.success = False
+                exec_result.execution_errors = (
+                    (exec_result.execution_errors + "\n" if exec_result.execution_errors else "")
+                    + "En navegador: " + "; ".join(visual.defectos))
+            informe_visual = visual
+        else:
+            exec_result: ExecutionResult = run_in_sandbox(program.code)
+            informe_visual = None
+
+            # ── G1: el error vuelve al modelo en vez de tirar el programa ──
+            # Antes un fallo se regeneraba desde cero. Caso medido en
+            # planes/AUTOPROGRAMACION_COGNIA.md: 114 LOC con SQLite, undo y 4
+            # tests, muertos en el sandbox y descartados sin un solo intento.
+            #
+            # Cableado al disyuntor desde el principio, como exige el plan:
+            # este lazo es literalmente el bucle de parches que ese modulo
+            # existe para cortar.
+            if not exec_result.success:
+                disyuntor = Disyuntor(f"reparar {program.title}"[:60])
+                # El fallo original NO es un parche: es el punto de partida, y
+                # el modelo todavia no ha tocado nada. Registrarlo con
+                # hubo_cambio=True gastaba una de las dos huellas que dispara
+                # D6, asi que el disyuntor cortaba tras UNA sola reparacion en
+                # vez de las 3 del umbral de Aider. El propio modulo ya prevee
+                # esta distincion con --sin-cambio: observar no es parchear.
+                disyuntor.registrar(
+                    huella_de_texto(exec_result.execution_errors),
+                    ok=False, hubo_cambio=False)
+
+                for n_arreglo in range(1, MAX_REPARACIONES + 1):
+                    if disyuntor.motivo_corte():
+                        if verbose:
+                            print(f"   ⛔ Disyuntor ({disyuntor.motivo_corte()}): "
+                                  f"dejo de parchear a ciegas.")
+                        break
+
+                    if verbose:
+                        print(f"   🔧 Reparacion {n_arreglo}/{MAX_REPARACIONES}: "
+                              f"{exec_result.execution_errors.strip().splitlines()[-1][:70]}")
+
+                    arreglado = reparar_python(program, exec_result.execution_errors)
+                    if arreglado is None:
+                        if verbose:
+                            print("   ↩️  El modelo no devolvio codigo valido.")
+                        break
+
+                    nuevo = run_in_sandbox(arreglado.code)
+                    disyuntor.registrar(
+                        huella_de_texto(nuevo.execution_errors), ok=nuevo.success)
+
+                    if nuevo.success:
+                        program, exec_result = arreglado, nuevo
+                        if verbose:
+                            print(f"   ✅ Reparado al intento {n_arreglo}.")
+                        break
+
+                    # No arreglo, pero puede haber avanzado: se sigue desde el
+                    # codigo nuevo solo si cambio el sintoma.
+                    if nuevo.execution_errors != exec_result.execution_errors:
+                        program, exec_result = arreglado, nuevo
 
         # ── Paso 3: Evaluar ────────────────────────────────────────────
         eval_result: EvaluationResult = evaluate_program(program, exec_result)
@@ -173,6 +293,17 @@ def run_program_hobby(
 
             if verbose:
                 print(f"   ✅ '{program.title}' guardado (score={eval_result.total_score:.1f})")
+
+            # Las capturas se dejan JUNTO a la pagina guardada: input_images
+            # (lo que miro para validarse) y output_images (el resultado).
+            # meta.directory es solo el NOMBRE del directorio, no la ruta: hay
+            # que componerla o las capturas acaban en el cwd.
+            if informe_visual is not None and getattr(meta, "directory", None):
+                dir_final = (storage_dir or DEFAULT_STORAGE_DIR) / meta.directory
+                final = revisar_en_navegador(program.code, dir_final)
+                if verbose and (final.input_images or final.output_images):
+                    print(f"      input_images: {len(final.input_images)} | "
+                          f"output_images: {len(final.output_images)}")
         else:
             if verbose:
                 print(f"   🗑️  '{program.title}' descartado (score={eval_result.total_score:.1f} < {STORE_THRESHOLD})")
@@ -202,6 +333,73 @@ def run_program_hobby(
         print(f"   Total en biblioteca: {total_stored} programas\n")
 
     return result
+
+
+def crear_hasta_lograr(
+    idea:          str,
+    max_rondas:    int = MAX_RONDAS_INSISTIENDO,
+    cognia_instance=None,
+    storage_dir:   Path = None,
+    verbose:       bool = True,
+) -> HobbySessionResult:
+    """
+    Insiste con la misma idea hasta que salga algo que pase sus propias pruebas.
+
+    Es la tecnica que Cognia encontro investigando (`snwfdhmp/awesome-ralph`,
+    913 estrellas): correr al agente en bucle hasta cumplir la especificacion,
+    en vez de aceptar el primer intento. Aqui la "especificacion cumplida" no
+    es una opinion del modelo: es que el programa supere las compuertas que se
+    montaron esta noche — corre en el sandbox, sus tests no estan en rojo, y la
+    nota llega al umbral.
+
+    Lo que la separa de un simple bucle de reintentos es saber parar. Cada
+    ronda registra su huella en el disyuntor: si dos rondas seguidas fallan
+    dejando el sintoma IDENTICO, no se esta avanzando y se corta. Reintentar
+    sin esa condicion es exactamente el bucle de parches esteriles que
+    `cognia/disciplina/` existe para cortar.
+
+    Devuelve el HobbySessionResult de la ronda que lo logro, o el de la ultima
+    si ninguna lo consiguio.
+    """
+    disyuntor = Disyuntor(f"insistir: {idea[:50]}")
+    ultimo: Optional[HobbySessionResult] = None
+
+    for ronda in range(1, max_rondas + 1):
+        if verbose:
+            print(f"\n🔁 Ronda {ronda}/{max_rondas} — {idea[:60]}")
+
+        resultado = run_program_hobby(
+            cognia_instance = cognia_instance,
+            max_attempts    = 1,
+            storage_dir     = storage_dir,
+            verbose         = verbose,
+            forced_idea     = idea,
+        )
+        ultimo = resultado
+
+        if resultado.stored > 0:
+            if verbose:
+                print(f"✅ Logrado en la ronda {ronda}: "
+                      f"{', '.join(p.title for p in resultado.programs)}")
+            return resultado
+
+        # Huella de la ronda: que se intento y con que resultado. Dos rondas
+        # con la misma huella significan que insistir no esta aportando nada.
+        disyuntor.registrar(
+            huella_de_texto(f"ronda sin guardar: {resultado.attempted} intentos"),
+            ok=False)
+
+        motivo = disyuntor.motivo_corte()
+        if motivo:
+            if verbose:
+                print(f"⛔ Disyuntor ({motivo}): insistir no esta avanzando, paro.")
+            break
+
+    if verbose:
+        print(f"🔁 Sin exito tras {ronda} ronda(s).")
+    return ultimo or HobbySessionResult(
+        attempted=0, successful=0, stored=0, programs=[],
+        duration_sec=0.0, timestamp=datetime.now().isoformat())
 
 
 # ── Integración con el ciclo idle de Cognia ────────────────────────────────────

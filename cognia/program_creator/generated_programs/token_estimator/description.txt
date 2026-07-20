@@ -1,0 +1,8 @@
+Title         : Token Estimator
+Category      : estimador de tokens para saber si un texto cabe en una ventana de contexto: funcion estimar_tokens(texto) que aproxima el numero de tokens sin dependencias, y funcion cabe(texto, limite) que dice si entra; con unittest de al menos 3 metodos test_ y unittest.main(exit=False)
+Created at    : 2026-07-20T02:58:38.719079
+Score         : 7.6 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  A simple terminal program to estimate if a text fits within a token context window.

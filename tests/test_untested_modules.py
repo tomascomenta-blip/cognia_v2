@@ -594,9 +594,18 @@ class TestGoals:
         assert priorities == sorted(priorities, reverse=True)
 
     def test_auto_generate_goals_error_rate(self):
-        """High error_rate triggers 'aprender_nuevo' goal."""
+        """
+        High error_rate triggers 'aprender_nuevo' goal.
+
+        `total_decisions` anadido el 2026-07-20: la tasa ahora exige muestra
+        minima. Sin denominador, 2 decisiones marcadas error daban un 100% que
+        generaba este objetivo con prioridad 0.9 — la mas alta — y lo ponia a
+        encabezar el trabajo autonomo de Cognia sobre un fantasma. La intencion
+        del test no cambia; lo que cambia es que ahora la tasa viene con
+        cuantos casos la respaldan.
+        """
         state = {"error_rate": 0.5, "due_for_review": 0, "contradictions_pending": 0,
-                 "active_memories": 0, "concepts": 10}
+                 "active_memories": 0, "concepts": 10, "total_decisions": 40}
         generated = self.gs.auto_generate_goals(state)
         assert len(generated) >= 1
         goals = self.gs.get_active_goals()

@@ -1,0 +1,16 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 7.3 / 10
+Functionality     : 3.5 / 4.0
+Creativity        : 1.8 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Program ran successfully.
+  • Moderate output (180 chars).
+  • Code has substantial length (>500 chars).
+  • Uses interesting constructs: heapq.
+  • Well-structured: 8 functions.
+  • Uses OOP: 2 class(es).
+  • Original program title.

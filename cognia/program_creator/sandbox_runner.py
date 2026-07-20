@@ -58,6 +58,7 @@ El lazo de reparacion (G1) depende de eso.
 
 import ast
 import os
+import re
 import shutil as _shutil
 import subprocess
 import sys
@@ -328,6 +329,192 @@ def _armar_workspace(directorio: str, code: str,
     return principal
 
 
+def _clases_compuestas_muertas(code: str) -> List[str]:
+    """
+    Busca reglas CSS `.a.b` cuyas dos clases nunca coinciden en un elemento.
+
+    Bug real medido el 2026-07-19 en una pagina generada: el CSS traia
+    `.quote.up span { color: green }` pero el JS ponia la clase `up` en el
+    <span> interior, no en el `.quote`. El selector no casaba jamas, asi que
+    el dashboard salia todo en negro pese a pedir verde y rojo. La revision
+    estatica lo daba por bueno porque el HTML era valido: valido no es lo
+    mismo que funcionando.
+
+    Se marca solo cuando la segunda clase SI aparece aplicada por su cuenta
+    (el modelo creyo que la estaba usando) y nunca junto a la primera.
+    """
+    # Solo dentro de <style>: buscar `.a.b` en todo el documento confunde el
+    # acceso a miembros de JavaScript con un selector. Medido: en la pagina
+    # real, `stock.element.innerHTML` salia como el "selector" .element.innerHTML.
+    css = " ".join(re.findall(r"<style[^>]*>(.*?)</style>", code,
+                              re.DOTALL | re.IGNORECASE))
+    if not css:
+        return []
+
+    css_compuestas = set(re.findall(r"\.([A-Za-z][\w-]*)\.([A-Za-z][\w-]*)", css))
+    if not css_compuestas:
+        return []
+
+    # Conjuntos de clases que de verdad acaban juntas en un elemento.
+    # Ojo con los template literals: la forma que rompio de verdad era
+    # class="${sube ? 'up' : 'down'}", donde partir por espacios da el token
+    # "'up'" con comillas y no casa con nada. Cada literal de un ternario es
+    # una alternativa, asi que genera su propio conjunto junto a las clases
+    # fijas del atributo.
+    # El valor va entre comillas dobles O simples y puede contener la otra:
+    # class="${sube ? 'up' : 'down'}". Una clase [^"']* lo cortaba en la
+    # primera comilla simple y se perdia justo el caso que fallaba.
+    valores = [d or s for d, s in
+               re.findall(r"""class\s*=\s*(?:"([^"]*)"|'([^']*)')""", code)]
+
+    aplicadas = []
+    for valor in valores:
+        expresiones = re.findall(r"\$\{[^}]*\}", valor)
+        fijas = set(re.sub(r"\$\{[^}]*\}", " ", valor).split())
+        if not expresiones:
+            aplicadas.append(fijas)
+            continue
+        for expr in expresiones:
+            literales = re.findall(r"""['"]([\w-]+)['"]""", expr)
+            for lit in literales or [""]:
+                aplicadas.append(fijas | ({lit} if lit else set()))
+
+    aplicadas += [{m} for m in
+                  re.findall(r"""classList\.add\(\s*["']([\w-]+)["']""", code)]
+    # className = 'quote up' asigna varias a la vez.
+    aplicadas += [set(m.split()) for m in
+                  re.findall(r"""className\s*=\s*["']([^"']+)["']""", code)]
+
+    muertas = []
+    for a, b in sorted(css_compuestas):
+        usa_b_sola = any(b in grupo and a not in grupo for grupo in aplicadas)
+        juntas     = any(a in grupo and b in grupo for grupo in aplicadas)
+        if usa_b_sola and not juntas:
+            muertas.append(f".{a}.{b} (la clase '{b}' se aplica sin '{a}')")
+    return muertas
+
+
+# Firmas de suite de tests en rojo. Son las lineas que imprimen unittest y
+# pytest al fallar; se buscan ancladas para no confundirlas con un programa
+# que simplemente imprima la palabra "failed".
+_FIRMAS_TESTS_ROJOS = (
+    "FAILED (errors=",
+    "FAILED (failures=",
+    "=== FAILURES ===",
+    "short test summary info",
+    # Una suite vacia no es una suite verde. Medido el 2026-07-20: un
+    # compresor de 88 lineas imprimio "Ran 0 tests" / "NO TESTS RAN" y se
+    # guardo con 7.8/10 porque salia con exit=0 y escribia en pantalla. Estas
+    # dos lineas solo aparecen cuando unittest ARRANCA y no encuentra nada, o
+    # sea cuando el programa dijo que traia tests y no los trae: no castigan a
+    # los programas que sencillamente no tienen tests.
+    "NO TESTS RAN",
+    "Ran 0 tests",
+)
+
+
+def detectar_tests_fallando(salida: str, errores: str) -> Optional[str]:
+    """
+    Busca una suite de tests que haya fallado aunque el proceso salga con 0.
+
+    POR QUE: hasta ahora "funciona" era `exit_code == 0 and stdout no vacio`.
+    Medido el 2026-07-20: un gestor de tareas de 101 lineas con 4 tests reales
+    imprimio `FAILED (errors=1)` por un UnboundLocalError, salio con exit=0
+    porque unittest no propaga, y se archivo con nota de programa que corre.
+    El lazo de reparacion ni se entero: para el, el programa iba bien.
+
+    Un test en rojo es la mejor senal de fallo que hay, mucho mejor que el
+    codigo de salida. Devuelve la linea del fallo, o None si todo va bien.
+    """
+    texto = f"{salida}\n{errores}"
+    for linea in texto.splitlines():
+        limpia = linea.strip()
+        for firma in _FIRMAS_TESTS_ROJOS:
+            if firma in limpia:
+                return limpia[:200]
+    return None
+
+
+def revisar_html(code: str) -> ExecutionResult:
+    """
+    Verifica una pagina HTML generada. No la ejecuta: la inspecciona.
+
+    Una web no se puede "correr" en el sandbox de Python, pero dejarla pasar sin
+    verificar seria peor: se guardaria como buena una pagina rota. Aqui se
+    comprueba lo que de verdad determina si la pagina sirve una vez desplegada:
+    que sea un documento completo, que se anime sola y que no dependa de
+    recursos externos (un CDN caido dejaria la pagina en blanco en Railway).
+
+    Reutiliza ExecutionResult para no tocar el evaluador: `execution_output`
+    lleva el informe legible y `execution_errors` los defectos encontrados.
+    """
+    if not code or len(code.strip()) < 5:
+        return ExecutionResult(success=False, execution_output="",
+                               execution_errors="Empty code", exit_code=-1,
+                               timed_out=False)
+
+    bajo   = code.lower()
+    hallaz = []
+    fallos = []
+
+    # -- Estructura minima ---------------------------------------------------
+    for etiqueta in ("<html", "<head", "<body"):
+        if etiqueta in bajo:
+            hallaz.append(f"tiene {etiqueta}>")
+        else:
+            fallos.append(f"falta {etiqueta}>")
+
+    if "<!doctype html" in bajo:
+        hallaz.append("declara doctype")
+
+    # -- Se mueve sola -------------------------------------------------------
+    animacion = [p for p in ("setinterval", "requestanimationframe",
+                             "@keyframes", "transition:", "animation:")
+                 if p in bajo]
+    if animacion:
+        hallaz.append("animacion: " + ", ".join(animacion))
+    else:
+        fallos.append("no se anima sola (ni setInterval ni CSS animation)")
+
+    # -- Dibuja algo ---------------------------------------------------------
+    for etiqueta in ("<canvas", "<svg"):
+        if etiqueta in bajo:
+            hallaz.append(f"dibuja con {etiqueta}>")
+
+    # -- Autocontenida -------------------------------------------------------
+    externos = [p for p in ("http://", "https://", "//cdn.", "fetch(")
+                if p in bajo]
+    if externos:
+        fallos.append("depende de recursos externos: " + ", ".join(externos))
+    else:
+        hallaz.append("autocontenida (sin red)")
+
+    if "<script" in bajo:
+        hallaz.append("tiene JavaScript inline")
+    else:
+        fallos.append("no tiene <script>")
+
+    # -- Reglas CSS que no pueden casar nunca --------------------------------
+    muertas = _clases_compuestas_muertas(code)
+    if muertas:
+        fallos.append("selector CSS que nunca casa: " + "; ".join(muertas))
+    else:
+        hallaz.append("sin selectores CSS muertos")
+
+    informe = "Verificacion HTML:\n" + "\n".join(f"  OK  {h}" for h in hallaz)
+    if fallos:
+        informe += "\n" + "\n".join(f"  FALLO  {f}" for f in fallos)
+
+    return ExecutionResult(
+        success=          not fallos,
+        execution_output= informe,
+        execution_errors= "\n".join(fallos),
+        exit_code=        0 if not fallos else 1,
+        timed_out=        False,
+        code_length=      len(code),
+    )
+
+
 def run_in_sandbox(code: str,
                    extra_files: Optional[Dict[str, str]] = None,
                    timeout_sec: int = EXECUTION_TIMEOUT_SEC) -> ExecutionResult:
@@ -419,6 +606,16 @@ def run_in_sandbox(code: str,
     # stdout, con lo que un programa que imprime un menu y se cuelga en input()
     # contaba como exito — y de ahi salieron los EOFError de la biblioteca.
     success = exit_code == 0 and not timed_out
+
+    # Una suite de tests en rojo pesa mas que el codigo de salida: unittest no
+    # propaga el fallo, asi que un programa con tests rotos salia con exit=0 y
+    # se archivaba como bueno. Al marcarlo aqui, el lazo de reparacion se
+    # entera y puede arreglarlo, que antes no pasaba.
+    if success:
+        rojo = detectar_tests_fallando(stdout, stderr)
+        if rojo:
+            success = False
+            stderr = (stderr + "\n" if stderr else "") + f"Tests en rojo: {rojo}"
 
     return ExecutionResult(
         success=success, execution_output=stdout, execution_errors=stderr,

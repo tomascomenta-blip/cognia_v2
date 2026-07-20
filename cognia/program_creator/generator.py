@@ -12,8 +12,9 @@ import json
 import random
 import urllib.request as _req
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
+from cognia.compresion_salidas import comprimir_error
 from cognia.llm_local import generar
 
 # ── Configuración ──────────────────────────────────────────────────────────────
@@ -64,6 +65,28 @@ class GeneratedProgram:
     category:      str
     self_proposed: bool = False
     raw_response:  str  = ""
+    lenguaje:      str  = "python"   # "python" | "html"
+
+
+# ── Deteccion de ideas web ─────────────────────────────────────────────────────
+#
+# Medido el 2026-07-19: pedirle "pagina web que simule un dashboard de
+# inversiones" devolvia un programa Python de terminal con barras ASCII. No era
+# un fallo del modelo sino del prompt: _build_prompt exige "Terminal only, no
+# GUI" y el parser solo aceptaba fences ```python. El pipeline era incapaz de
+# producir una web aunque se la pidieras explicitamente.
+
+_PISTAS_WEB = (
+    "pagina web", "página web", "web page", "sitio web", "website", "webapp",
+    "web app", "aplicacion web", "aplicación web", "landing", "html", "css",
+    "javascript", "navegador", "browser", "dashboard web", "frontend",
+)
+
+
+def _es_idea_web(texto: str) -> bool:
+    """True si la idea pide algo que se ve en un navegador, no en la terminal."""
+    t = (texto or "").lower()
+    return any(pista in t for pista in _PISTAS_WEB)
 
 
 # ── Generación autónoma de ideas ───────────────────────────────────────────────
@@ -142,24 +165,166 @@ def _build_prompt(category: str, extra_hint: str) -> str:
     )
 
 
-def _call_llm(prompt: str) -> Optional[str]:
-    return generar(
-        prompt,
-        system=(
-            "You are a creative Python programmer. Write complete, runnable programs "
-            "using only the standard library. NEVER use input() or blocking calls - "
-            "programs must run automatically. Follow the output format exactly."
-        ),
-        temperature=0.90,
-        max_tokens=2000,
+def _build_prompt_web(category: str, extra_hint: str) -> str:
+    """
+    Prompt para paginas web. Un solo index.html autocontenido.
+
+    Sin recursos externos a proposito: el resultado tiene que abrir igual desde
+    file:// que servido por Railway, sin CDN que pueda caerse ni pedir red.
+    """
+    return (
+        f"You are a creative front-end developer making self-contained web pages.\n\n"
+        f"Write a complete HTML page for: **{category}**\n\n"
+        f"CRITICAL RULES — all must be followed:\n"
+        f"- ONE single self-contained .html file\n"
+        f"- Inline <style> and <script> — no external files\n"
+        f"- NO external resources: no CDN, no <link href=http...>, no fetch(), "
+        f"no remote images or fonts. It must work fully offline.\n"
+        f"- All data simulated in JavaScript (Math.random, setInterval)\n"
+        f"- It must ANIMATE on its own: values updating live, no user click needed\n"
+        f"- Draw charts with <canvas> or inline <svg> — never a chart library\n"
+        f"- Responsive and legible on a phone screen\n"
+        f"- If you color-code state (up/down, green/red), put the state class on "
+        f"the SAME element your CSS selector targets. A rule like `.row.up span` "
+        f"only works if the class lands on `.row`, not on the inner span.\n"
+        f"- Set colors with a rule that matches the element you actually modify, "
+        f"and prefer setting style/class on the element you create in JS\n"
+        f"- {extra_hint}\n\n"
+        f"Respond EXACTLY in this format:\n\n"
+        f"Title: <short title>\n"
+        f"Description: <one sentence>\n"
+        f"HTML Code:\n"
+        f"```html\n"
+        f"<!DOCTYPE html>\n"
+        f"<complete working page>\n"
+        f"```"
     )
 
 
-def _parse_response(raw: str, category: str) -> Optional[GeneratedProgram]:
+_SISTEMA_PYTHON = (
+    "You are a creative Python programmer. Write complete, runnable programs "
+    "using only the standard library. NEVER use input() or blocking calls - "
+    "programs must run automatically. Follow the output format exactly."
+)
+
+_SISTEMA_WEB = (
+    "You are a creative front-end developer. Write complete, self-contained "
+    "HTML pages with inline CSS and JavaScript and no external resources. "
+    "The page must animate by itself on load. Follow the output format exactly."
+)
+
+
+def _call_llm(prompt: str, lenguaje: str = "python") -> Optional[str]:
+    return generar(
+        prompt,
+        system=_SISTEMA_WEB if lenguaje == "html" else _SISTEMA_PYTHON,
+        temperature=0.90,
+        # 2000 tokens truncaban cualquier programa con tests. Medido el
+        # 2026-07-20: al pedir un compresor con tests unitarios, la respuesta
+        # cortaba a mitad de una cadena y el fence ni se cerraba, lo que
+        # llegaba al sandbox como "SyntaxError: unterminated string literal".
+        # El lazo de reparacion gastaba entonces sus 3 intentos en un fallo que
+        # no puede arreglar: no falta un fix, falta el resto del programa.
+        max_tokens=6000,
+    )
+
+
+def reparar_python(program: GeneratedProgram, error: str) -> Optional[GeneratedProgram]:
+    """
+    Le devuelve el traceback al modelo para que corrija su propio programa.
+
+    Hasta ahora un fallo no se reparaba: se regeneraba desde cero y se perdia
+    todo el trabajo. Documentado en planes/AUTOPROGRAMACION_COGNIA.md (G1) con
+    un caso medido: un task manager de 114 LOC con SQLite, pila de undo y 4
+    tests reales, generado en 22.5 s, murio en el sandbox y se descarto entero
+    sin un solo intento de arreglo.
+
+    El patron ya existia en game_manager.py:508 (_fix_runtime_error) pero
+    hablaba con Ollama por URL hardcodeada, que en esta maquina no existe:
+    aqui va por llm_local, que detecta el backend real.
+    """
+    if not error or not error.strip():
+        return None
+
+    # comprimir_error en vez de error[:600]: el corte a lo bruto se quedaba la
+    # cabecera del traceback y tiraba la ultima linea, que es donde dice que
+    # fallo. Al modelo hay que darle el mensaje, no las rutas de los frames.
+    prompt = (
+        f"This Python program failed when executed. Fix it.\n\n"
+        f"ERROR:\n{comprimir_error(error)}\n\n"
+        f"BROKEN CODE:\n```python\n{program.code[:4000]}\n```\n\n"
+        f"Rules:\n"
+        f"- Fix the actual cause of the error, do not delete the feature.\n"
+        f"- Standard library only. No input(). Must run start to finish alone.\n"
+        f"- Keep everything that already worked.\n\n"
+        f"Respond EXACTLY in this format:\n\n"
+        f"Title: {program.title}\n"
+        f"Description: {program.description}\n"
+        f"Python Code:\n```python\n<fixed code>\n```"
+    )
+
+    raw = _call_llm(prompt, "python")
     if not raw:
         return None
 
+    arreglado = _parse_response(raw, program.category, "python")
+    if arreglado is None:
+        return None
+
+    arreglado.self_proposed = program.self_proposed
+    return arreglado
+
+
+def reparar_web(program: GeneratedProgram, defectos: List[str]) -> Optional[GeneratedProgram]:
+    """
+    Le devuelve al modelo los defectos VISTOS en el navegador para que corrija.
+
+    La diferencia con pedirle "revisa tu codigo" es que aqui los defectos son
+    observaciones, no sospechas: la pagina se renderizo y esto es lo que hizo.
+    El caso que motivo esto ("todo el texto sale del mismo color") es
+    invisible leyendo el HTML, porque el HTML es valido.
+    """
+    if not defectos:
+        return None
+
+    lista = "\n".join(f"- {d}" for d in defectos)
+    prompt = (
+        f"This HTML page was rendered in a real browser and these problems were "
+        f"OBSERVED (not guessed):\n{lista}\n\n"
+        f"Fix ONLY those problems. Keep the design and the rest of the code.\n"
+        f"Remember: a rule like `.row.up span` only applies if the class 'up' "
+        f"lands on the element matching `.row`, not on the inner span.\n\n"
+        f"Current page:\n```html\n{program.code}\n```\n\n"
+        f"Respond EXACTLY in this format:\n\n"
+        f"Title: {program.title}\n"
+        f"Description: {program.description}\n"
+        f"HTML Code:\n```html\n<!DOCTYPE html>\n<fixed page>\n```"
+    )
+
+    raw = _call_llm(prompt, "html")
+    if not raw:
+        return None
+
+    arreglado = _parse_response(raw, program.category, "html")
+    if arreglado is None:
+        return None
+
+    arreglado.self_proposed = program.self_proposed
+    return arreglado
+
+
+def _parse_response(raw: str, category: str,
+                    lenguaje: str = "python") -> Optional[GeneratedProgram]:
+    if not raw:
+        return None
+
+    # El fence depende del lenguaje pedido. Se acepta tambien el fence pelado
+    # (```) porque el modelo lo omite a veces, pero solo si ya estamos dentro
+    # del bloque de codigo esperado.
+    fence_abre = "```html" if lenguaje == "html" else "```python"
+
     lines, title, desc, code_lines, in_code = raw.splitlines(), "", "", [], False
+    abrio_fence = False
 
     for line in lines:
         s = line.strip()
@@ -167,12 +332,22 @@ def _parse_response(raw: str, category: str) -> Optional[GeneratedProgram]:
             title = s[6:].strip()
         elif s.lower().startswith("description:"):
             desc = s[12:].strip()
-        elif s.startswith("```python"):
+        elif s.lower().startswith(fence_abre):
             in_code = True
+            abrio_fence = True
         elif s == "```" and in_code:
             in_code = False
         elif in_code:
             code_lines.append(line)
+
+    # Fence abierto y nunca cerrado = la respuesta se corto por limite de
+    # tokens. Antes se aceptaba el trozo y el sandbox devolvia un SyntaxError
+    # enganoso, contra el que el lazo de reparacion gastaba sus tres intentos
+    # sin poder ganar. Truncado no es codigo con un bug: es codigo incompleto,
+    # y lo que corresponde es regenerar.
+    if abrio_fence and in_code:
+        print("[generator] ⚠️  Respuesta truncada (fence sin cerrar): regenero.")
+        return None
 
     code = "\n".join(code_lines).strip()
     if not title:
@@ -182,15 +357,22 @@ def _parse_response(raw: str, category: str) -> Optional[GeneratedProgram]:
     if len(code) < 30:
         return None
 
-    # Rechazar programas que usen input() — el sandbox los mataría igual
-    code_lines_clean = [l for l in code.splitlines()
-                        if not l.strip().startswith("#")]
-    if any("input(" in l for l in code_lines_clean):
-        print("[generator] ⚠️  Rechazado: usa input() — debe ser no-interactivo.")
-        return None
+    if lenguaje == "html":
+        # Sin <html> no es una pagina, es un fragmento suelto.
+        if "<html" not in code.lower():
+            print("[generator] ⚠️  Rechazado: no es un documento HTML completo.")
+            return None
+    else:
+        # Rechazar programas que usen input() — el sandbox los mataría igual
+        code_lines_clean = [l for l in code.splitlines()
+                            if not l.strip().startswith("#")]
+        if any("input(" in l for l in code_lines_clean):
+            print("[generator] ⚠️  Rechazado: usa input() — debe ser no-interactivo.")
+            return None
 
     return GeneratedProgram(title=title, description=desc, code=code,
-                            category=category, raw_response=raw)
+                            category=category, raw_response=raw,
+                            lenguaje=lenguaje)
 
 
 # ── Ideas personalizadas ───────────────────────────────────────────────────────
@@ -232,8 +414,16 @@ def generate_program(seed_concepts: Optional[list] = None,
     if not self_proposed:
         print(f"[generator] 💡 Idea: {category}")
 
-    raw     = _call_llm(_build_prompt(category, extra_hint))
-    program = _parse_response(raw, category) if raw else None
+    # Una idea de pagina web no se puede satisfacer con un script de terminal:
+    # cambia el prompt, el fence esperado y mas adelante la verificacion.
+    lenguaje = "html" if _es_idea_web(category) else "python"
+    if lenguaje == "html":
+        print("[generator] 🌐 Idea web detectada: genero HTML autocontenido.")
+
+    prompt  = (_build_prompt_web(category, extra_hint) if lenguaje == "html"
+               else _build_prompt(category, extra_hint))
+    raw     = _call_llm(prompt, lenguaje)
+    program = _parse_response(raw, category, lenguaje) if raw else None
 
     if raw is None:
         print("[generator] ⚠️  Ollama no respondió.")
