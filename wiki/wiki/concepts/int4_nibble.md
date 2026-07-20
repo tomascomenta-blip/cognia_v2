@@ -2,13 +2,20 @@
 title: INT4 nibble-packed — cuantización sin PyTorch
 type: concept
 tags: [int4, quantization, numpy, performance]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # INT4 nibble-packed
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+'Numba bloqueado por Python 3.14' quedo viejo: con venv312 (el entorno
+estandar) el tier Numba esta ACTIVO y los tiers son 4 (Numba -> C ctypes ->
+fp32 cache -> chunked; qwen2_ops.py:228+). Este INT4 es la cuantizacion del
+path shards, no del GGUF de produccion.
 ## Qué es
 
 Cuantización de 4 bits donde dos valores INT4 se empacan en un byte (nibble). Todo el pipeline es **numpy puro — sin PyTorch**.

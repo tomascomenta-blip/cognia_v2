@@ -1,0 +1,1297 @@
+{
+  "exp": "exp132_privileged_cure",
+  "cycle": 150,
+  "hypothesis": "H-V4-9j",
+  "claim": "¿la cura 119 (unlikelihood ACOTADO, LABEL-AWARE) es PRIVILEGIADA, o cualquier regularizador de calibracion GENERICO (confidence-penalty/entropy bonus, label smoothing) produce la misma ventaja AUROC en el lazo torch real del 149? Metrica: privilege_gap = AUROC(durable) - AUROC(mejor generico por seed), CI bootstrap. APOYADA si el CI excluye 0 (privilegiada); REFUTADA si lo incluye y el generico recupera la ventaja (re-localiza 149: la regularizacion de calibracion en general ayuda, la cura es una instancia). Temperature se descarta a priori (AUROC-invariante por monotonia). Reusa el lazo de exp124/exp131 y _bounded_unlikelihood de exp103.",
+  "verdict": "refutada",
+  "summary": {
+    "n": 8,
+    "priv_gaps": [
+      -0.0026,
+      0.0041,
+      0.0006,
+      -0.0012,
+      -0.0587,
+      -0.0928,
+      -0.0627,
+      -0.1071
+    ],
+    "mean_priv_gap": -0.0401,
+    "median_priv_gap": -0.0306,
+    "se": 0.0162,
+    "tstat": -2.476,
+    "n_positive": 2,
+    "ci95": [
+      -0.07,
+      -0.0117
+    ],
+    "ci_excludes_zero": false,
+    "ci_below_zero": true,
+    "thirds": [
+      0.0007,
+      -0.0003,
+      -0.0804
+    ],
+    "mean_recovery_gap": 0.1006,
+    "recovery_n_positive": 8,
+    "recovery_frac": 1.6618,
+    "mean_durable_vs_naive": 0.0605,
+    "dvn_n_positive": 7,
+    "sane_149": true,
+    "generic_recovers": true,
+    "auroc_durable": 0.9556,
+    "auroc_generic_best": 0.9957,
+    "auroc_naive": 0.8951,
+    "best_generic_counts": {
+      "ls_lo": 4,
+      "ls_hi": 4
+    },
+    "mean_ncorrect": {
+      "naive": 188.07,
+      "durable": 120.5,
+      "ent_lo": 148.6,
+      "ls_lo": 66.83,
+      "ls_hi": 18.23
+    },
+    "real_final": {
+      "naive": 0.1736,
+      "durable": 0.1292,
+      "ent_lo": 0.3611,
+      "ls_lo": 0.6542,
+      "ls_hi": 0.2097
+    },
+    "gated": {
+      "n": 8,
+      "mean_priv_gap": -0.0395,
+      "ci95": [
+        -0.0696,
+        -0.0109
+      ],
+      "ci_excludes_zero": false,
+      "min_class": 5,
+      "nc_best_generic": 43.2,
+      "nc_durable": 120.5
+    },
+    "per_seed_rows": [
+      {
+        "seed": 0,
+        "a_dur": 0.9956599999999998,
+        "a_nai": 0.9061,
+        "g_best": 0.9982199999999999,
+        "best_arm": "ls_lo",
+        "gen": {
+          "ent_lo": 0.98,
+          "ls_lo": 0.9982,
+          "ls_hi": 0.9973
+        },
+        "nc_best": 70.4,
+        "nc_dur": 34.2,
+        "priv_gap": -0.0025600000000001177,
+        "rec_gap": 0.09211999999999987,
+        "dvn": 0.08955999999999975,
+        "priv_gap_gated": -0.0026
+      },
+      {
+        "seed": 1,
+        "a_dur": 0.9972000000000001,
+        "a_nai": 0.8773200000000001,
+        "g_best": 0.99314,
+        "best_arm": "ls_hi",
+        "gen": {
+          "ent_lo": 0.9668,
+          "ls_lo": 0.9906,
+          "ls_hi": 0.9931
+        },
+        "nc_best": 11.4,
+        "nc_dur": 19.2,
+        "priv_gap": 0.0040600000000000636,
+        "rec_gap": 0.11581999999999992,
+        "dvn": 0.11987999999999999,
+        "priv_gap_gated": 0.0066
+      },
+      {
+        "seed": 2,
+        "a_dur": 0.99412,
+        "a_nai": 0.88242,
+        "g_best": 0.9934999999999998,
+        "best_arm": "ls_lo",
+        "gen": {
+          "ent_lo": 0.9753,
+          "ls_lo": 0.9935,
+          "ls_hi": 0.9921
+        },
+        "nc_best": 50.8,
+        "nc_dur": 21.0,
+        "priv_gap": 0.000620000000000176,
+        "rec_gap": 0.11107999999999985,
+        "dvn": 0.11170000000000002,
+        "priv_gap_gated": 0.0006
+      },
+      {
+        "seed": 3,
+        "a_dur": 0.9926999999999999,
+        "a_nai": 0.86198,
+        "g_best": 0.9939199999999999,
+        "best_arm": "ls_hi",
+        "gen": {
+          "ent_lo": 0.9701,
+          "ls_lo": 0.9923,
+          "ls_hi": 0.9939
+        },
+        "nc_best": 12.8,
+        "nc_dur": 21.2,
+        "priv_gap": -0.0012199999999999989,
+        "rec_gap": 0.13193999999999995,
+        "dvn": 0.13071999999999995,
+        "priv_gap_gated": 0.0002
+      },
+      {
+        "seed": 4,
+        "a_dur": 0.94078,
+        "a_nai": 0.93466,
+        "g_best": 0.9995,
+        "best_arm": "ls_hi",
+        "gen": {
+          "ent_lo": 0.9794,
+          "ls_lo": 0.9989,
+          "ls_hi": 0.9995
+        },
+        "nc_best": 27.6,
+        "nc_dur": 248.4,
+        "priv_gap": -0.058720000000000105,
+        "rec_gap": 0.06484000000000001,
+        "dvn": 0.006119999999999903,
+        "priv_gap_gated": -0.0587
+      },
+      {
+        "seed": 5,
+        "a_dur": 0.9063800000000001,
+        "a_nai": 0.93462,
+        "g_best": 0.99922,
+        "best_arm": "ls_lo",
+        "gen": {
+          "ent_lo": 0.9701,
+          "ls_lo": 0.9992,
+          "ls_hi": 0.9961
+        },
+        "nc_best": 75.6,
+        "nc_dur": 214.0,
+        "priv_gap": -0.09283999999999992,
+        "rec_gap": 0.06459999999999999,
+        "dvn": -0.028239999999999932,
+        "priv_gap_gated": -0.0928
+      },
+      {
+        "seed": 6,
+        "a_dur": 0.93256,
+        "a_nai": 0.8927999999999999,
+        "g_best": 0.9953,
+        "best_arm": "ls_lo",
+        "gen": {
+          "ent_lo": 0.98,
+          "ls_lo": 0.9953,
+          "ls_hi": 0.9951
+        },
+        "nc_best": 75.4,
+        "nc_dur": 190.6,
+        "priv_gap": -0.06274000000000002,
+        "rec_gap": 0.10250000000000004,
+        "dvn": 0.03976000000000002,
+        "priv_gap_gated": -0.0627
+      },
+      {
+        "seed": 7,
+        "a_dur": 0.8855599999999999,
+        "a_nai": 0.8708,
+        "g_best": 0.9926600000000001,
+        "best_arm": "ls_hi",
+        "gen": {
+          "ent_lo": 0.9618,
+          "ls_lo": 0.9922,
+          "ls_hi": 0.9927
+        },
+        "nc_best": 21.6,
+        "nc_dur": 215.4,
+        "priv_gap": -0.1071000000000002,
+        "rec_gap": 0.12186000000000008,
+        "dvn": 0.014759999999999884,
+        "priv_gap_gated": -0.1066
+      }
+    ],
+    "status": "refutada",
+    "verdict": "H-V4-9j REFUTADA (la cura 119 NO es privilegiada): a N=8, el CI bootstrap 95% del privilege_gap es [-0.070, -0.012] ENTERAMENTE NEGATIVO (el genérico es SIGNIFICATIVAMENTE mejor) (medio -0.040, 2/8 seeds pos, t=-2.476) Y el regularizador GENÉRICO recupera 166% de la ventaja durable-naive (recovery_gap +0.101, 8/8 pos). AUROC durable=0.956 <= mejor-genérico=0.996 > naive=0.895. => la cura NO es la pieza privilegiada: específicamente el LABEL SMOOTHING (target-smoothing, label-agnostic) la IGUALA en AUROC y la SUPERA en real_acc; el entropy-penalty sólo la EMPATA. ACOTACIÓN (importante): el AUROC está CONFUNDIDO con la riqueza de generación (corr(AUROC,ncorrect) pooled ~-0.54; durable y ls_lo en regímenes de ncorrect casi disjuntos, IGUALES en la banda de solape) -> el experimento NO aísla 'calibración' como mecanismo, sólo que un genérico target-smoothing reemplaza a la cura. El durable>naive del 149 está él mismo confundido con colapso de generación (lo debilita retroactivamente)."
+  },
+  "raw": [
+    {
+      "seed": 0,
+      "base_real_acc": 0.5778,
+      "auroc": {
+        "naive": [
+          0.9911,
+          0.9833,
+          0.9052,
+          0.8202,
+          0.8307
+        ],
+        "durable": [
+          0.9911,
+          0.9998,
+          0.9944,
+          0.997,
+          0.996
+        ],
+        "ent_lo": [
+          0.9911,
+          0.9996,
+          0.9954,
+          0.9811,
+          0.933
+        ],
+        "ls_lo": [
+          0.9911,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "ls_hi": [
+          0.9911,
+          0.998,
+          0.9998,
+          0.9976,
+          1.0
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          69,
+          200,
+          216,
+          160,
+          100
+        ],
+        "durable": [
+          69,
+          40,
+          10,
+          22,
+          30
+        ],
+        "ent_lo": [
+          69,
+          122,
+          171,
+          205,
+          146
+        ],
+        "ls_lo": [
+          69,
+          51,
+          81,
+          76,
+          75
+        ],
+        "ls_hi": [
+          69,
+          10,
+          12,
+          5,
+          2
+        ]
+      },
+      "npool": {
+        "naive": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "durable": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ent_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_hi": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ]
+      },
+      "real_final": {
+        "naive": 0.1889,
+        "durable": 0.0444,
+        "ent_lo": 0.2778,
+        "ls_lo": 0.7667,
+        "ls_hi": 0.3556
+      }
+    },
+    {
+      "seed": 1,
+      "base_real_acc": 0.4889,
+      "auroc": {
+        "naive": [
+          0.987,
+          0.9643,
+          0.8762,
+          0.7886,
+          0.7705
+        ],
+        "durable": [
+          0.987,
+          0.9992,
+          1.0,
+          0.9998,
+          1.0
+        ],
+        "ent_lo": [
+          0.987,
+          0.9763,
+          0.9705,
+          0.961,
+          0.939
+        ],
+        "ls_lo": [
+          0.987,
+          0.9956,
+          0.9918,
+          0.9888,
+          0.9897
+        ],
+        "ls_hi": [
+          0.987,
+          0.9928,
+          0.998,
+          0.9951,
+          0.9928
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          42,
+          154,
+          206,
+          144,
+          137
+        ],
+        "durable": [
+          42,
+          5,
+          20,
+          12,
+          17
+        ],
+        "ent_lo": [
+          42,
+          104,
+          140,
+          144,
+          141
+        ],
+        "ls_lo": [
+          42,
+          43,
+          55,
+          58,
+          52
+        ],
+        "ls_hi": [
+          42,
+          6,
+          4,
+          2,
+          3
+        ]
+      },
+      "npool": {
+        "naive": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "durable": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ent_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_hi": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ]
+      },
+      "real_final": {
+        "naive": 0.0222,
+        "durable": 0.0889,
+        "ent_lo": 0.2222,
+        "ls_lo": 0.2889,
+        "ls_hi": 0.0778
+      }
+    },
+    {
+      "seed": 2,
+      "base_real_acc": 0.3333,
+      "auroc": {
+        "naive": [
+          0.9824,
+          0.977,
+          0.9448,
+          0.7822,
+          0.7257
+        ],
+        "durable": [
+          0.9824,
+          0.9967,
+          0.9994,
+          0.9987,
+          0.9934
+        ],
+        "ent_lo": [
+          0.9824,
+          0.9859,
+          0.9834,
+          0.9847,
+          0.94
+        ],
+        "ls_lo": [
+          0.9824,
+          0.9913,
+          0.9963,
+          0.9979,
+          0.9996
+        ],
+        "ls_hi": [
+          0.9824,
+          0.997,
+          0.9958,
+          0.998,
+          0.9872
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          24,
+          151,
+          215,
+          170,
+          109
+        ],
+        "durable": [
+          24,
+          11,
+          18,
+          19,
+          33
+        ],
+        "ent_lo": [
+          24,
+          94,
+          150,
+          170,
+          164
+        ],
+        "ls_lo": [
+          24,
+          50,
+          56,
+          61,
+          63
+        ],
+        "ls_hi": [
+          24,
+          8,
+          7,
+          2,
+          4
+        ]
+      },
+      "npool": {
+        "naive": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "durable": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ent_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_hi": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ]
+      },
+      "real_final": {
+        "naive": 0.0778,
+        "durable": 0.0,
+        "ent_lo": 0.1889,
+        "ls_lo": 0.5556,
+        "ls_hi": 0.1
+      }
+    },
+    {
+      "seed": 3,
+      "base_real_acc": 0.6333,
+      "auroc": {
+        "naive": [
+          0.9779,
+          0.9598,
+          0.8887,
+          0.7492,
+          0.7343
+        ],
+        "durable": [
+          0.9779,
+          0.9889,
+          0.9967,
+          1.0,
+          1.0
+        ],
+        "ent_lo": [
+          0.9779,
+          0.9802,
+          0.9814,
+          0.9482,
+          0.9626
+        ],
+        "ls_lo": [
+          0.9779,
+          0.9927,
+          0.995,
+          0.9957,
+          1.0
+        ],
+        "ls_hi": [
+          0.9779,
+          1.0,
+          0.9996,
+          0.998,
+          0.9941
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          45,
+          225,
+          256,
+          221,
+          179
+        ],
+        "durable": [
+          45,
+          21,
+          14,
+          14,
+          12
+        ],
+        "ent_lo": [
+          45,
+          145,
+          206,
+          161,
+          200
+        ],
+        "ls_lo": [
+          45,
+          71,
+          64,
+          66,
+          73
+        ],
+        "ls_hi": [
+          45,
+          7,
+          5,
+          3,
+          4
+        ]
+      },
+      "npool": {
+        "naive": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "durable": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ent_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_hi": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ]
+      },
+      "real_final": {
+        "naive": 0.1222,
+        "durable": 0.0,
+        "ent_lo": 0.4444,
+        "ls_lo": 0.6889,
+        "ls_hi": 0.0778
+      }
+    },
+    {
+      "seed": 4,
+      "base_real_acc": 0.8556,
+      "auroc": {
+        "naive": [
+          1.0,
+          0.9985,
+          0.9815,
+          0.8792,
+          0.8141
+        ],
+        "durable": [
+          1.0,
+          1.0,
+          0.9486,
+          0.9148,
+          0.8405
+        ],
+        "ent_lo": [
+          1.0,
+          1.0,
+          0.9952,
+          0.9428,
+          0.9588
+        ],
+        "ls_lo": [
+          1.0,
+          0.9962,
+          0.9983,
+          1.0,
+          0.9998
+        ],
+        "ls_hi": [
+          1.0,
+          1.0,
+          0.9975,
+          1.0,
+          1.0
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          94,
+          276,
+          345,
+          276,
+          285
+        ],
+        "durable": [
+          94,
+          269,
+          317,
+          315,
+          247
+        ],
+        "ent_lo": [
+          94,
+          167,
+          195,
+          200,
+          202
+        ],
+        "ls_lo": [
+          94,
+          58,
+          69,
+          77,
+          90
+        ],
+        "ls_hi": [
+          94,
+          8,
+          16,
+          9,
+          11
+        ]
+      },
+      "npool": {
+        "naive": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "durable": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ent_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_hi": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ]
+      },
+      "real_final": {
+        "naive": 0.2889,
+        "durable": 0.2778,
+        "ent_lo": 0.4556,
+        "ls_lo": 0.7778,
+        "ls_hi": 0.6111
+      }
+    },
+    {
+      "seed": 5,
+      "base_real_acc": 0.7889,
+      "auroc": {
+        "naive": [
+          0.9985,
+          0.9986,
+          0.9306,
+          0.8464,
+          0.899
+        ],
+        "durable": [
+          0.9985,
+          0.9996,
+          0.8766,
+          0.7991,
+          0.8581
+        ],
+        "ent_lo": [
+          0.9985,
+          0.9987,
+          0.9884,
+          0.9319,
+          0.933
+        ],
+        "ls_lo": [
+          0.9985,
+          0.9999,
+          1.0,
+          0.9977,
+          1.0
+        ],
+        "ls_hi": [
+          0.9985,
+          0.9982,
+          0.9992,
+          0.9936,
+          0.9912
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          80,
+          264,
+          312,
+          223,
+          173
+        ],
+        "durable": [
+          80,
+          262,
+          302,
+          238,
+          188
+        ],
+        "ent_lo": [
+          80,
+          147,
+          201,
+          179,
+          164
+        ],
+        "ls_lo": [
+          80,
+          62,
+          85,
+          81,
+          70
+        ],
+        "ls_hi": [
+          80,
+          9,
+          5,
+          4,
+          2
+        ]
+      },
+      "npool": {
+        "naive": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "durable": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ent_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_hi": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ]
+      },
+      "real_final": {
+        "naive": 0.1889,
+        "durable": 0.1556,
+        "ent_lo": 0.3778,
+        "ls_lo": 0.6889,
+        "ls_hi": 0.0111
+      }
+    },
+    {
+      "seed": 6,
+      "base_real_acc": 0.7333,
+      "auroc": {
+        "naive": [
+          0.9829,
+          0.9682,
+          0.8762,
+          0.7903,
+          0.8464
+        ],
+        "durable": [
+          0.9829,
+          0.9983,
+          0.9616,
+          0.8636,
+          0.8564
+        ],
+        "ent_lo": [
+          0.9829,
+          0.9833,
+          0.9918,
+          0.9722,
+          0.9696
+        ],
+        "ls_lo": [
+          0.9829,
+          0.9954,
+          0.9982,
+          1.0,
+          1.0
+        ],
+        "ls_hi": [
+          0.9829,
+          0.9985,
+          0.9983,
+          0.9996,
+          0.9964
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          89,
+          271,
+          232,
+          245,
+          191
+        ],
+        "durable": [
+          89,
+          135,
+          277,
+          245,
+          207
+        ],
+        "ent_lo": [
+          89,
+          167,
+          196,
+          184,
+          231
+        ],
+        "ls_lo": [
+          89,
+          68,
+          66,
+          73,
+          81
+        ],
+        "ls_hi": [
+          89,
+          12,
+          7,
+          5,
+          6
+        ]
+      },
+      "npool": {
+        "naive": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "durable": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ent_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_hi": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ]
+      },
+      "real_final": {
+        "naive": 0.3111,
+        "durable": 0.1444,
+        "ent_lo": 0.4,
+        "ls_lo": 0.7444,
+        "ls_hi": 0.2667
+      }
+    },
+    {
+      "seed": 7,
+      "base_real_acc": 0.6889,
+      "auroc": {
+        "naive": [
+          0.9807,
+          0.9516,
+          0.9166,
+          0.7663,
+          0.7388
+        ],
+        "durable": [
+          0.9807,
+          0.9858,
+          0.9437,
+          0.8437,
+          0.6739
+        ],
+        "ent_lo": [
+          0.9807,
+          0.9809,
+          0.9326,
+          0.9667,
+          0.948
+        ],
+        "ls_lo": [
+          0.9807,
+          0.9951,
+          0.9956,
+          0.9945,
+          0.995
+        ],
+        "ls_hi": [
+          0.9807,
+          0.998,
+          0.9966,
+          0.9954,
+          0.9926
+        ]
+      },
+      "ncorrect": {
+        "naive": [
+          91,
+          265,
+          292,
+          268,
+          228
+        ],
+        "durable": [
+          91,
+          220,
+          305,
+          240,
+          221
+        ],
+        "ent_lo": [
+          91,
+          156,
+          192,
+          185,
+          181
+        ],
+        "ls_lo": [
+          91,
+          65,
+          64,
+          59,
+          76
+        ],
+        "ls_hi": [
+          91,
+          3,
+          7,
+          3,
+          4
+        ]
+      },
+      "npool": {
+        "naive": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "durable": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ent_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_lo": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ],
+        "ls_hi": [
+          512,
+          512,
+          512,
+          512,
+          512
+        ]
+      },
+      "real_final": {
+        "naive": 0.1889,
+        "durable": 0.3222,
+        "ent_lo": 0.5222,
+        "ls_lo": 0.7222,
+        "ls_hi": 0.1778
+      }
+    }
+  ],
+  "args": {
+    "smoke": false,
+    "seeds": "0-7",
+    "rounds": 5,
+    "K": 8,
+    "pool": 64,
+    "budget_frac": 0.15,
+    "temp": 1.3,
+    "replay_frac": 0.5,
+    "neg_w": 0.5,
+    "top_k": null,
+    "steps": 70,
+    "n_seed": 200,
+    "base_steps": 200,
+    "base_lr": 0.001,
+    "lr": 0.0005,
+    "warmup": 40,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp132] CYCLE 150 / H-V4-9j — ¿la cura 119 es PRIVILEGIADA o cualquier regularizador de calibración genérico la iguala?",
+    "[exp132] arms=['naive', 'durable', 'ent_lo', 'ls_lo', 'ls_hi'] (durable=unlikelihood LABEL-AWARE; ent/ls=GENÉRICO label-agnostic) seeds=[0, 1, 2, 3, 4, 5, 6, 7] rounds=5 pool=64",
+    "[exp132] seed=0 base real_acc=0.578 params=201,280",
+    "[exp132] seed=0 ronda 1: naive=0.991 | durable=0.991 | ent_lo=0.991 | ls_lo=0.991 | ls_hi=0.991",
+    "[exp132] seed=0 ronda 2: naive=0.983 | durable=1.000 | ent_lo=1.000 | ls_lo=1.000 | ls_hi=0.998",
+    "[exp132] seed=0 ronda 3: naive=0.905 | durable=0.994 | ent_lo=0.995 | ls_lo=1.000 | ls_hi=1.000",
+    "[exp132] seed=0 ronda 4: naive=0.820 | durable=0.997 | ent_lo=0.981 | ls_lo=1.000 | ls_hi=0.998",
+    "[exp132] seed=0 ronda 5: naive=0.831 | durable=0.996 | ent_lo=0.933 | ls_lo=1.000 | ls_hi=1.000",
+    "[exp132] seed=0 real_acc final: naive=0.189 durable=0.044 ent_lo=0.278 ls_lo=0.767 ls_hi=0.356",
+    "[exp132] seed=1 base real_acc=0.489 params=201,280",
+    "[exp132] seed=1 ronda 1: naive=0.987 | durable=0.987 | ent_lo=0.987 | ls_lo=0.987 | ls_hi=0.987",
+    "[exp132] seed=1 ronda 2: naive=0.964 | durable=0.999 | ent_lo=0.976 | ls_lo=0.996 | ls_hi=0.993",
+    "[exp132] seed=1 ronda 3: naive=0.876 | durable=1.000 | ent_lo=0.971 | ls_lo=0.992 | ls_hi=0.998",
+    "[exp132] seed=1 ronda 4: naive=0.789 | durable=1.000 | ent_lo=0.961 | ls_lo=0.989 | ls_hi=0.995",
+    "[exp132] seed=1 ronda 5: naive=0.770 | durable=1.000 | ent_lo=0.939 | ls_lo=0.990 | ls_hi=0.993",
+    "[exp132] seed=1 real_acc final: naive=0.022 durable=0.089 ent_lo=0.222 ls_lo=0.289 ls_hi=0.078",
+    "[exp132] seed=2 base real_acc=0.333 params=201,280",
+    "[exp132] seed=2 ronda 1: naive=0.982 | durable=0.982 | ent_lo=0.982 | ls_lo=0.982 | ls_hi=0.982",
+    "[exp132] seed=2 ronda 2: naive=0.977 | durable=0.997 | ent_lo=0.986 | ls_lo=0.991 | ls_hi=0.997",
+    "[exp132] seed=2 ronda 3: naive=0.945 | durable=0.999 | ent_lo=0.983 | ls_lo=0.996 | ls_hi=0.996",
+    "[exp132] seed=2 ronda 4: naive=0.782 | durable=0.999 | ent_lo=0.985 | ls_lo=0.998 | ls_hi=0.998",
+    "[exp132] seed=2 ronda 5: naive=0.726 | durable=0.993 | ent_lo=0.940 | ls_lo=1.000 | ls_hi=0.987",
+    "[exp132] seed=2 real_acc final: naive=0.078 durable=0.000 ent_lo=0.189 ls_lo=0.556 ls_hi=0.100",
+    "[exp132] seed=3 base real_acc=0.633 params=201,280",
+    "[exp132] seed=3 ronda 1: naive=0.978 | durable=0.978 | ent_lo=0.978 | ls_lo=0.978 | ls_hi=0.978",
+    "[exp132] seed=3 ronda 2: naive=0.960 | durable=0.989 | ent_lo=0.980 | ls_lo=0.993 | ls_hi=1.000",
+    "[exp132] seed=3 ronda 3: naive=0.889 | durable=0.997 | ent_lo=0.981 | ls_lo=0.995 | ls_hi=1.000",
+    "[exp132] seed=3 ronda 4: naive=0.749 | durable=1.000 | ent_lo=0.948 | ls_lo=0.996 | ls_hi=0.998",
+    "[exp132] seed=3 ronda 5: naive=0.734 | durable=1.000 | ent_lo=0.963 | ls_lo=1.000 | ls_hi=0.994",
+    "[exp132] seed=3 real_acc final: naive=0.122 durable=0.000 ent_lo=0.444 ls_lo=0.689 ls_hi=0.078",
+    "[exp132] seed=4 base real_acc=0.856 params=201,280",
+    "[exp132] seed=4 ronda 1: naive=1.000 | durable=1.000 | ent_lo=1.000 | ls_lo=1.000 | ls_hi=1.000",
+    "[exp132] seed=4 ronda 2: naive=0.999 | durable=1.000 | ent_lo=1.000 | ls_lo=0.996 | ls_hi=1.000",
+    "[exp132] seed=4 ronda 3: naive=0.982 | durable=0.949 | ent_lo=0.995 | ls_lo=0.998 | ls_hi=0.998",
+    "[exp132] seed=4 ronda 4: naive=0.879 | durable=0.915 | ent_lo=0.943 | ls_lo=1.000 | ls_hi=1.000",
+    "[exp132] seed=4 ronda 5: naive=0.814 | durable=0.841 | ent_lo=0.959 | ls_lo=1.000 | ls_hi=1.000",
+    "[exp132] seed=4 real_acc final: naive=0.289 durable=0.278 ent_lo=0.456 ls_lo=0.778 ls_hi=0.611",
+    "[exp132] seed=5 base real_acc=0.789 params=201,280",
+    "[exp132] seed=5 ronda 1: naive=0.999 | durable=0.999 | ent_lo=0.999 | ls_lo=0.999 | ls_hi=0.999",
+    "[exp132] seed=5 ronda 2: naive=0.999 | durable=1.000 | ent_lo=0.999 | ls_lo=1.000 | ls_hi=0.998",
+    "[exp132] seed=5 ronda 3: naive=0.931 | durable=0.877 | ent_lo=0.988 | ls_lo=1.000 | ls_hi=0.999",
+    "[exp132] seed=5 ronda 4: naive=0.846 | durable=0.799 | ent_lo=0.932 | ls_lo=0.998 | ls_hi=0.994",
+    "[exp132] seed=5 ronda 5: naive=0.899 | durable=0.858 | ent_lo=0.933 | ls_lo=1.000 | ls_hi=0.991",
+    "[exp132] seed=5 real_acc final: naive=0.189 durable=0.156 ent_lo=0.378 ls_lo=0.689 ls_hi=0.011",
+    "[exp132] seed=6 base real_acc=0.733 params=201,280",
+    "[exp132] seed=6 ronda 1: naive=0.983 | durable=0.983 | ent_lo=0.983 | ls_lo=0.983 | ls_hi=0.983",
+    "[exp132] seed=6 ronda 2: naive=0.968 | durable=0.998 | ent_lo=0.983 | ls_lo=0.995 | ls_hi=0.999",
+    "[exp132] seed=6 ronda 3: naive=0.876 | durable=0.962 | ent_lo=0.992 | ls_lo=0.998 | ls_hi=0.998",
+    "[exp132] seed=6 ronda 4: naive=0.790 | durable=0.864 | ent_lo=0.972 | ls_lo=1.000 | ls_hi=1.000",
+    "[exp132] seed=6 ronda 5: naive=0.846 | durable=0.856 | ent_lo=0.970 | ls_lo=1.000 | ls_hi=0.996",
+    "[exp132] seed=6 real_acc final: naive=0.311 durable=0.144 ent_lo=0.400 ls_lo=0.744 ls_hi=0.267",
+    "[exp132] seed=7 base real_acc=0.689 params=201,280",
+    "[exp132] seed=7 ronda 1: naive=0.981 | durable=0.981 | ent_lo=0.981 | ls_lo=0.981 | ls_hi=0.981",
+    "[exp132] seed=7 ronda 2: naive=0.952 | durable=0.986 | ent_lo=0.981 | ls_lo=0.995 | ls_hi=0.998",
+    "[exp132] seed=7 ronda 3: naive=0.917 | durable=0.944 | ent_lo=0.933 | ls_lo=0.996 | ls_hi=0.997",
+    "[exp132] seed=7 ronda 4: naive=0.766 | durable=0.844 | ent_lo=0.967 | ls_lo=0.995 | ls_hi=0.995",
+    "[exp132] seed=7 ronda 5: naive=0.739 | durable=0.674 | ent_lo=0.948 | ls_lo=0.995 | ls_hi=0.993",
+    "[exp132] seed=7 real_acc final: naive=0.189 durable=0.322 ent_lo=0.522 ls_lo=0.722 ls_hi=0.178",
+    "[exp132] --- PRIVILEGIO (durable − mejor genérico por seed) ---",
+    "[exp132] privilege_gap por seed: [-0.0026, 0.0041, 0.0006, -0.0012, -0.0587, -0.0928, -0.0627, -0.1071]",
+    "[exp132] medio +-0.040 mediana +-0.031 (2/8 pos) t=-2.476",
+    "[exp132] CI bootstrap 95% = [-0.070, -0.012] -> EXCLUYE cero=False",
+    "[exp132] AUROC: durable=0.956 mejor-genérico=0.996 naive=0.895",
+    "[exp132] recovery_gap (genérico−naive) +0.101 = 166% de durable_vs_naive +0.060 (7/8 pos) [SANITY 149]",
+    "[exp132] ROBUSTEZ (control de degeneración, MIN_CLASS=5): privilege_gap GATED +-0.040 CI [-0.070,-0.011] excluye0=False (N=8) | #correctas: mejor-genérico=43.2 vs durable=120.5",
+    "[exp132] mejor genérico por seed (conteo): {'ls_lo': 4, 'ls_hi': 4}",
+    "[exp132] #correctas medio: {'naive': 188.07, 'durable': 120.5, 'ent_lo': 148.6, 'ls_lo': 66.83, 'ls_hi': 18.23} | real_acc final: {'naive': 0.1736, 'durable': 0.1292, 'ent_lo': 0.3611, 'ls_lo': 0.6542, 'ls_hi': 0.2097}",
+    "[exp132] VEREDICTO H-V4-9j: REFUTADA | H-V4-9j REFUTADA (la cura 119 NO es privilegiada -- RE-LOCALIZA el 149): a N=8, el CI bootstrap 95% del privilege_gap INCLUYE el cero ([-0.070, -0.012], medio +-0.040, 2/8 pos) Y el regularizador GENÉRICO recupera 166% de la ventaja durable-naive (recovery_gap +0.101, 8/8 pos). AUROC durable=0.956 ~ mejor-genérico=0.996 > naive=0.895. => lo que produce la ventaja de calibración del 149 NO es la unlikelihood ESPECÍFICAMENTE, sino la REGULARIZACIÓN DE CALIBRACIÓN en general (entropy penalty / label smoothing la igualan). RE-LOCALIZACIÓN HONESTA: el 149 sigue en pie (la calibración endógena paga en el lazo real) pero el mecanismo se generaliza: la cura 119 es UNA instancia, no la única."
+  ]
+}

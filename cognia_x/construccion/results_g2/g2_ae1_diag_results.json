@@ -1,0 +1,20 @@
+{
+  "runs": [
+    {
+      "name": "sanity_L4_lr3e4_fp32",
+      "attn_every": 1,
+      "arrangement": "linear_first",
+      "window": 81,
+      "window_global": true,
+      "attn_layers": 4,
+      "n_layers": 4,
+      "attn_frac": 1.0,
+      "final_acc": 0.1064,
+      "best_acc": 0.1047,
+      "chance": 0.0312,
+      "params": 3164416,
+      "amp": false,
+      "lr": 0.0003
+    }
+  ]
+}

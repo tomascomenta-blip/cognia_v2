@@ -1,0 +1,234 @@
+{
+  "label": "ap_fast_v3",
+  "preset": "fast",
+  "timestamp": "20260705_1755",
+  "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "config": {
+    "dev_per_cat": 4,
+    "dev_n": null,
+    "test_n": 50,
+    "rounds": 2,
+    "max_tokens": 256,
+    "boot_k": 2
+  },
+  "evo_seconds": 5520.4,
+  "dev": {
+    "n_dev": 20,
+    "n_harvest": 10,
+    "n_tune": 10,
+    "seed_tune_acc": 0.9,
+    "n_bootstrapped_exemplars": 2,
+    "start_scaffold": "v1_seed",
+    "start_tune_acc": 0.9,
+    "best_tune_acc": 0.9,
+    "best_scaffold": "v1_seed+min",
+    "accepted_path": [
+      "v1_seed",
+      "v1_seed+min"
+    ]
+  },
+  "test_held_out": {
+    "n": 50,
+    "seed_acc": 0.8,
+    "seed_by_category": {
+      "simple": [
+        10,
+        10
+      ],
+      "multiple": [
+        9,
+        10
+      ],
+      "parallel": [
+        9,
+        10
+      ],
+      "parallel_multiple": [
+        7,
+        10
+      ],
+      "live_simple": [
+        5,
+        10
+      ]
+    },
+    "seed_error_buckets": {
+      "simple_function_checker:missing_optional": 1,
+      "parallel_function_checker_no_order:wrong_count": 2,
+      "simple_function_checker:wrong_func_name": 1,
+      "value_error:string": 4,
+      "value_error:list/tuple": 1,
+      "value_error:dict_key": 1
+    },
+    "winner_acc": 0.8,
+    "winner_by_category": {
+      "simple": [
+        10,
+        10
+      ],
+      "multiple": [
+        8,
+        10
+      ],
+      "parallel": [
+        10,
+        10
+      ],
+      "parallel_multiple": [
+        7,
+        10
+      ],
+      "live_simple": [
+        5,
+        10
+      ]
+    },
+    "winner_error_buckets": {
+      "multiple_function_checker:wrong_count": 1,
+      "simple_function_checker:missing_optional": 1,
+      "simple_function_checker:wrong_func_name": 2,
+      "parallel_function_checker_no_order:wrong_count": 1,
+      "value_error:list/tuple": 1,
+      "value_error:string": 3,
+      "value_error:dict_key": 1
+    },
+    "delta": 0.0,
+    "mcnemar": {
+      "b": 1,
+      "c": 1,
+      "n": 2,
+      "pvalue": 1.0,
+      "significant": false
+    },
+    "significant_improvement": false,
+    "winner_token_cost": 699,
+    "seed_token_cost": 936
+  },
+  "trajectory": [
+    {
+      "round": 0,
+      "tag": "seed",
+      "name": "v1_seed",
+      "accuracy": 0.9,
+      "cost": 936,
+      "accepted": true,
+      "reason": "seed"
+    },
+    {
+      "round": 1,
+      "tag": "rule_exact_strings",
+      "name": "v1_seed+exactstr",
+      "accuracy": 0.9,
+      "cost": 1104,
+      "accepted": false,
+      "reason": null
+    },
+    {
+      "round": 1,
+      "tag": "fewshot_parallel_multiple",
+      "name": "v1_seed+ex_pm",
+      "accuracy": 0.9,
+      "cost": 1467,
+      "accepted": false,
+      "reason": null
+    },
+    {
+      "round": 1,
+      "tag": "fewshot_string_exact",
+      "name": "v1_seed+ex_str",
+      "accuracy": 0.9,
+      "cost": 1283,
+      "accepted": false,
+      "reason": null
+    },
+    {
+      "round": 1,
+      "tag": "compress_system",
+      "name": "v1_seed+short",
+      "accuracy": 0.9,
+      "cost": 865,
+      "accepted": true,
+      "reason": "pareto"
+    },
+    {
+      "round": 1,
+      "tag": "minimal_system",
+      "name": "v1_seed+min",
+      "accuracy": 0.9,
+      "cost": 699,
+      "accepted": true,
+      "reason": "pareto"
+    },
+    {
+      "round": 2,
+      "tag": "rule_exact_strings",
+      "name": "v1_seed+min+exactstr",
+      "accuracy": 0.9,
+      "cost": 867,
+      "accepted": false,
+      "reason": null
+    },
+    {
+      "round": 2,
+      "tag": "fewshot_parallel_multiple",
+      "name": "v1_seed+min+ex_pm",
+      "accuracy": 0.9,
+      "cost": 1230,
+      "accepted": false,
+      "reason": null
+    },
+    {
+      "round": 2,
+      "tag": "fewshot_string_exact",
+      "name": "v1_seed+min+ex_str",
+      "accuracy": 0.9,
+      "cost": 1046,
+      "accepted": false,
+      "reason": null
+    }
+  ],
+  "winner_scaffold": {
+    "name": "v1_seed+min",
+    "system_prompt": "Reply with ONLY the function call(s) in Python syntax func(param=value), multiple calls separated by ';'. No prose.",
+    "fewshot": [
+      [
+        "[{\"name\": \"get_weather\", \"description\": \"Current weather for a city.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}, \"unit\": {\"type\": \"string\", \"enum\": [\"celsius\", \"fahrenheit\"]}}, \"required\": [\"city\"]}}]",
+        "What is the weather in Paris in celsius?",
+        "get_weather(city=\"Paris\", unit=\"celsius\")"
+      ],
+      [
+        "[{\"name\": \"add_numbers\", \"description\": \"Add two integers.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"a\": {\"type\": \"integer\"}, \"b\": {\"type\": \"integer\"}}, \"required\": [\"a\", \"b\"]}}]",
+        "Add 2 and 3, and also add 10 and 20.",
+        "add_numbers(a=2, b=3); add_numbers(a=10, b=20)"
+      ]
+    ],
+    "repair_hint": "",
+    "origin": "mut:minimal"
+  },
+  "persisted_to_live": false,
+  "log": [
+    "[split] dev=20 -> harvest=10 tune=10 | test held-out=50",
+    "[bootstrap] cosechando exemplars verificados de 10 harvest (k=2)...",
+    "[bootstrap] cosechados 2 exemplars -> candidato bootstrapeado",
+    "[bootstrap] semilla en tune: acc=0.900 (9/10) rep=0 cost=936 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2",
+    "[bootstrap] bootstrapeado en tune: acc=0.800 (8/10) rep=0 cost=1396 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=1/2 simple=2/2",
+    "[bootstrap] descartado (regresiona en tune) -> arranca de la semilla",
+    "[evolve] seed v1_seed: acc=0.900 (9/10) rep=0 cost=936 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2",
+    "[evolve] ronda 1 cand v1_seed+exactstr (rule_exact_strings): acc=0.900 (9/10) rep=0 cost=1104 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2 -> rechaza",
+    "[evolve] ronda 1 cand v1_seed+ex_pm (fewshot_parallel_multiple): acc=0.900 (9/10) rep=0 cost=1467 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2 -> rechaza",
+    "[evolve] ronda 1 cand v1_seed+ex_str (fewshot_string_exact): acc=0.900 (9/10) rep=0 cost=1283 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2 -> rechaza",
+    "[evolve] ronda 1 cand v1_seed+short (compress_system): acc=0.900 (9/10) rep=0 cost=865 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2 -> ACEPTA:pareto",
+    "[evolve] ronda 1 cand v1_seed+min (minimal_system): acc=0.900 (9/10) rep=0 cost=699 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2 -> ACEPTA:pareto",
+    "[evolve] ronda 1: adopta v1_seed+min (pareto, acc=0.900 (9/10) rep=0 cost=699 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2)",
+    "[evolve] ronda 2 cand v1_seed+min+exactstr (rule_exact_strings): acc=0.900 (9/10) rep=0 cost=867 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2 -> rechaza",
+    "[evolve] ronda 2 cand v1_seed+min+ex_pm (fewshot_parallel_multiple): acc=0.900 (9/10) rep=0 cost=1230 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2 -> rechaza",
+    "[evolve] ronda 2 cand v1_seed+min+ex_str (fewshot_string_exact): acc=0.900 (9/10) rep=0 cost=1046 | live_simple=2/2 multiple=2/2 parallel=1/2 parallel_multiple=2/2 simple=2/2 -> rechaza",
+    "[evolve] ronda 2: ninguna candidata paso el gate -> corta",
+    "[test] midiendo SEMILLA sobre 50 test held-out...",
+    "[test] semilla: acc=0.800 (40/50) rep=0 cost=936 | live_simple=5/10 multiple=9/10 parallel=9/10 parallel_multiple=7/10 simple=10/10",
+    "[test] midiendo GANADOR (v1_seed+min) sobre test...",
+    "[test] ganador: acc=0.800 (40/50) rep=0 cost=699 | live_simple=5/10 multiple=8/10 parallel=10/10 parallel_multiple=7/10 simple=10/10",
+    "[test] McNemar: arregla c=1 rompe b=1 p=1.0 significativo=False",
+    "[persist] NO se persiste: delta dentro del ruido (McNemar p=1.0, no significativo) -> se mantiene el andamiaje actual. VEREDICTO HONESTO: delta_test=+0.000 no es una mejora demostrada"
+  ]
+}

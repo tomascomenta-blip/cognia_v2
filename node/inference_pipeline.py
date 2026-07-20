@@ -31,7 +31,14 @@ from typing import Optional, List, Dict
 logger = logging.getLogger(__name__)
 
 
-COORDINATOR_URL  = (
+# COGNIA_DISABLE_SWARM: hard-off de la orquestacion online (version comercial
+# local-only). Si esta seteado, la URL del coordinador se fuerza a "" AUNQUE las
+# env vars de coordinador esten definidas -> ningun camino de generacion se rutea
+# al swarm; todo corre con el modelo local. Inline (sin importar cognia) para no
+# crear dependencia circular node<->cognia en el import de este modulo.
+_SWARM_DISABLED = os.environ.get("COGNIA_DISABLE_SWARM", "").strip().lower() in (
+    "1", "true", "yes", "on")
+COORDINATOR_URL  = "" if _SWARM_DISABLED else (
     os.environ.get("COGNIA_COORDINATOR_URL", "")
     or os.environ.get("COORDINATOR_URL", "")
 )
@@ -39,7 +46,8 @@ SWARM_MODEL      = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
 SWARM_TIMEOUT    = int(os.environ.get("SWARM_TIMEOUT_S", "30"))
 
 # Qwen2 generation sentinel tokens (both <|im_end|> and <|endoftext|>)
-_QWEN_EOS_TOKENS = {151643, 151645}
+from shattering.model_constants import QWEN25_CODER_3B as _QWEN
+_QWEN_EOS_TOKENS = {_QWEN["bos_token_id"], _QWEN["eos_token_id"]}
 # Legacy Llama EOS for backward compat
 _LLAMA_EOS_TOKEN = 2
 
@@ -84,7 +92,7 @@ class LightTokenizer:
       decode(ids)  → str
     """
 
-    VOCAB_SIZE = 151936   # Qwen2 vocabulary size
+    VOCAB_SIZE = _QWEN["vocab_size"]   # Qwen2 vocabulary size
 
     def __init__(self):
         self._cache: dict = {}
@@ -189,6 +197,17 @@ class DistributedInferencePipeline:
         )
         self._real_tokenizer = not isinstance(self._tokenizer, LightTokenizer)
         self._mode         = "real" if self._real_tokenizer else "simulation"
+        if not self._real_tokenizer:
+            # Degradacion RUIDOSA (fix 2026-07-08): con LightTokenizer el modelo
+            # real produce basura aunque los pesos esten descargados. Antes esto
+            # era silencioso y parecia "Qwen no funciona".
+            logger.error(
+                "[Pipeline] SIN tokenizer real (falta %s/tokenizer.json o la lib "
+                "'tokenizers'): la inferencia queda en MODO SIMULACION y las "
+                "respuestas del modelo real seran invalidas. Fix: corre "
+                "'cognia install-model' (stack GGUF recomendado) o reinstala "
+                "los shards con 'cognia install-weights --standalone'.",
+                shard_dir or "<SHARD_WEIGHTS_DIR sin setear>")
         self._model_cfg_cache: Optional[tuple] = None   # (cfg, fetch_time)
 
     # ── Verificar disponibilidad del swarm ────────────────────────────
@@ -441,7 +460,7 @@ class DistributedInferencePipeline:
             flat = output[-1].astype(np.float32)
         else:
             flat = output.flatten().astype(np.float32)
-        vocab_size = self._get_model_config().get("vocab_size", 151936)
+        vocab_size = self._get_model_config().get("vocab_size", _QWEN["vocab_size"])
         if len(flat) > vocab_size:
             flat = flat[:vocab_size]
         elif len(flat) < vocab_size:
@@ -471,7 +490,7 @@ class DistributedInferencePipeline:
             is_qwen = "qwen" in self.model_name.lower()
             return {
                 "hidden_dim": 2048 if is_qwen else 3072,
-                "vocab_size": 151936 if is_qwen else 32000,
+                "vocab_size": _QWEN["vocab_size"] if is_qwen else 32000,
                 "n_shards":   4,
             }
 

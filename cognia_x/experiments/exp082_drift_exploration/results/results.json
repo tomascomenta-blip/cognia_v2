@@ -1,0 +1,102 @@
+{
+  "exp": "exp082_drift_exploration",
+  "cycle": 98,
+  "hypothesis": "H-V4-7k",
+  "claim": "bajo feedback action-gated + DRIFT del valor, la explotacion greedy se atrapa (combinador stale del viejo buen barrio, nunca re-observa el valor movido) y la exploracion rescata -> revierte el 'exploracion innecesaria' de 87-88 (especifico de la estacionariedad); R-INTERVENCION liga bajo drift",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "stationary_kobs1": {
+        "greedy": 0.8793,
+        "explore": 0.8757,
+        "random": 0.888,
+        "oracle": 1.0
+      },
+      "stationary_kobs2": {
+        "greedy": 0.9412,
+        "explore": 0.9462,
+        "random": 0.9334,
+        "oracle": 1.0
+      },
+      "stationary_kobs4": {
+        "greedy": 0.9798,
+        "explore": 0.9682,
+        "random": 0.9532,
+        "oracle": 1.0
+      },
+      "stationary_kobs8": {
+        "greedy": 0.9942,
+        "explore": 0.9865,
+        "random": 0.9618,
+        "oracle": 1.0
+      },
+      "drift_kobs1": {
+        "greedy": 0.668,
+        "explore": 0.664,
+        "random": 0.7197,
+        "oracle": 1.0
+      },
+      "drift_kobs2": {
+        "greedy": 0.7573,
+        "explore": 0.8111,
+        "random": 0.8125,
+        "oracle": 1.0
+      },
+      "drift_kobs4": {
+        "greedy": 0.7995,
+        "explore": 0.8304,
+        "random": 0.8439,
+        "oracle": 1.0
+      },
+      "drift_kobs8": {
+        "greedy": 0.8504,
+        "explore": 0.8589,
+        "random": 0.8625,
+        "oracle": 1.0
+      }
+    },
+    "narrow_kobs": 2,
+    "wide_kobs": 8,
+    "drift_trap": 0.0552,
+    "drift_rescue": 0.0538,
+    "wide_trap": 0.0121,
+    "stat_trap": -0.0078,
+    "trap_kobs": 2,
+    "drift_traps": true,
+    "explore_rescues": true,
+    "wide_robust": true,
+    "stat_robust": true,
+    "status": "apoyada",
+    "verdict": "H-V4-7k APOYADA (REVIERTE 87-88 CONDICIONALMENTE): bajo DRIFT + observación ESTRECHA (k_obs=2) el greedy se ATRAPA -- greedy=0.757 << random insesgado=0.812 (gap 0.055>0.05): explota un combinador STALE del viejo 'buen barrio' y re-observa siempre la misma región estrecha (el decay no rastrea lo que no se observa). La EXPLORACIÓN RESCATA: explore=0.811 > greedy (+0.054). PERO a observación AMPLIA (k_obs=8) el greedy es ROBUSTO (gap 0.012<=0.05: observa lo suficiente para auto-corregir) y bajo ESTACIONARIO no atrapa a k_obs estrecho (gap -0.008<=0.05: reproduce 87-88). Umbral de trap k_obs*<=2. => la exploración (R-INTERVENCIÓN) es NECESARIA bajo NO-estacionariedad + observación ESTRECHA; el 'exploración innecesaria' de 87-88 era específico de la estacionariedad O de observación amplia. R-INTERVENCIÓN LIGA finalmente -- pero condicionado, como el trap de CYCLE 88."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "T": 40,
+    "D": 8,
+    "warmup": 4,
+    "k_eval": 10,
+    "decay": 0.8,
+    "eps": 0.4
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp082] CYCLE 98 / H-V4-7k — ¿la exploración (R-INTERVENCIÓN) LIGA bajo drift action-gated? (revierte 87-88, condicional a k_obs)",
+    "[exp082] n=50 T=40 D=8 warmup=4 k_obs_sweep=[1, 2, 4, 8] k_eval=10 decay=0.8 eps=0.4 sigma=0.25 seeds=48 regimes=['stationary', 'drift']",
+    "[exp082] stationary k_obs=1: greedy=0.879 explore=0.876 random=0.888 oracle=1.000 (random−greedy=+0.009)",
+    "[exp082] stationary k_obs=2: greedy=0.941 explore=0.946 random=0.933 oracle=1.000 (random−greedy=-0.008)",
+    "[exp082] stationary k_obs=4: greedy=0.980 explore=0.968 random=0.953 oracle=1.000 (random−greedy=-0.027)",
+    "[exp082] stationary k_obs=8: greedy=0.994 explore=0.987 random=0.962 oracle=1.000 (random−greedy=-0.032)",
+    "[exp082]      drift k_obs=1: greedy=0.668 explore=0.664 random=0.720 oracle=1.000 (random−greedy=+0.052)",
+    "[exp082]      drift k_obs=2: greedy=0.757 explore=0.811 random=0.812 oracle=1.000 (random−greedy=+0.055)",
+    "[exp082]      drift k_obs=4: greedy=0.799 explore=0.830 random=0.844 oracle=1.000 (random−greedy=+0.044)",
+    "[exp082]      drift k_obs=8: greedy=0.850 explore=0.859 random=0.863 oracle=1.000 (random−greedy=+0.012)",
+    "[exp082] @k_obs=2 (estrecho): drift_trap=+0.055 drift_rescue=+0.054 | @k_obs=8 (amplio): wide_trap=+0.012 | stat_trap=-0.008 | trap_kobs*<=2",
+    "[exp082] drift_traps=True explore_rescues=True wide_robust=True stat_robust=True",
+    "[exp082] VEREDICTO H-V4-7k: APOYADA | H-V4-7k APOYADA (REVIERTE 87-88 CONDICIONALMENTE): bajo DRIFT + observación ESTRECHA (k_obs=2) el greedy se ATRAPA -- greedy=0.757 << random insesgado=0.812 (gap 0.055>0.05): explota un combinador STALE del viejo 'buen barrio' y re-observa siempre la misma región estrecha (el decay no rastrea lo que no se observa). La EXPLORACIÓN RESCATA: explore=0.811 > greedy (+0.054). PERO a observación AMPLIA (k_obs=8) el greedy es ROBUSTO (gap 0.012<=0.05: observa lo suficiente para auto-corregir) y bajo ESTACIONARIO no atrapa a k_obs estrecho (gap -0.008<=0.05: reproduce 87-88). Umbral de trap k_obs*<=2. => la exploración (R-INTERVENCIÓN) es NECESARIA bajo NO-estacionariedad + observación ESTRECHA; el 'exploración innecesaria' de 87-88 era específico de la estacionariedad O de observación amplia. R-INTERVENCIÓN LIGA finalmente -- pero condicionado, como el trap de CYCLE 88."
+  ]
+}

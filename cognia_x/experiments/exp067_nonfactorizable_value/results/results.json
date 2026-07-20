@@ -1,0 +1,232 @@
+{
+  "exp": "exp067_nonfactorizable_value",
+  "cycle": 83,
+  "hypothesis": "H-V4-7a",
+  "claim": "la reconstruccion-producto de R-VALOR (ctrl_est x rel_est) codifica un prior de complementariedad: robusta a no-factorizabilidad complementaria (min), se rompe bajo sustitutos (max)",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "comp_l0.0_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6811,
+        "relevance": 0.7445,
+        "rvalue_prod": 0.9413,
+        "rvalue_add": 0.9341,
+        "random": 0.4135
+      },
+      "comp_l0.0_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.746,
+        "relevance": 0.7196,
+        "rvalue_prod": 1.0,
+        "rvalue_add": 0.9969,
+        "random": 0.407
+      },
+      "comp_l0.25_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.669,
+        "relevance": 0.7325,
+        "rvalue_prod": 0.9386,
+        "rvalue_add": 0.9333,
+        "random": 0.4009
+      },
+      "comp_l0.25_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7573,
+        "relevance": 0.7158,
+        "rvalue_prod": 0.9992,
+        "rvalue_add": 0.9942,
+        "random": 0.4199
+      },
+      "comp_l0.5_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6533,
+        "relevance": 0.709,
+        "rvalue_prod": 0.9273,
+        "rvalue_add": 0.9161,
+        "random": 0.4172
+      },
+      "comp_l0.5_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7139,
+        "relevance": 0.7482,
+        "rvalue_prod": 0.9967,
+        "rvalue_add": 0.9905,
+        "random": 0.4626
+      },
+      "comp_l0.75_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6908,
+        "relevance": 0.728,
+        "rvalue_prod": 0.9501,
+        "rvalue_add": 0.9427,
+        "random": 0.4409
+      },
+      "comp_l0.75_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7096,
+        "relevance": 0.7074,
+        "rvalue_prod": 0.9933,
+        "rvalue_add": 0.9838,
+        "random": 0.4552
+      },
+      "comp_l1.0_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6799,
+        "relevance": 0.6955,
+        "rvalue_prod": 0.9391,
+        "rvalue_add": 0.9196,
+        "random": 0.4893
+      },
+      "comp_l1.0_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.6976,
+        "relevance": 0.7014,
+        "rvalue_prod": 0.9825,
+        "rvalue_add": 0.9678,
+        "random": 0.4973
+      },
+      "subs_l0.0_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6902,
+        "relevance": 0.7309,
+        "rvalue_prod": 0.9305,
+        "rvalue_add": 0.9234,
+        "random": 0.4317
+      },
+      "subs_l0.0_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7161,
+        "relevance": 0.7476,
+        "rvalue_prod": 1.0,
+        "rvalue_add": 0.9967,
+        "random": 0.4243
+      },
+      "subs_l0.25_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.8025,
+        "relevance": 0.8194,
+        "rvalue_prod": 0.937,
+        "rvalue_add": 0.9443,
+        "random": 0.5326
+      },
+      "subs_l0.25_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.8181,
+        "relevance": 0.8281,
+        "rvalue_prod": 0.998,
+        "rvalue_add": 0.9998,
+        "random": 0.5287
+      },
+      "subs_l0.5_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.8551,
+        "relevance": 0.8829,
+        "rvalue_prod": 0.948,
+        "rvalue_add": 0.9526,
+        "random": 0.605
+      },
+      "subs_l0.5_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.9072,
+        "relevance": 0.8945,
+        "rvalue_prod": 0.9876,
+        "rvalue_add": 0.9956,
+        "random": 0.6248
+      },
+      "subs_l0.75_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.896,
+        "relevance": 0.9184,
+        "rvalue_prod": 0.945,
+        "rvalue_add": 0.9505,
+        "random": 0.6789
+      },
+      "subs_l0.75_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.9459,
+        "relevance": 0.938,
+        "rvalue_prod": 0.9718,
+        "rvalue_add": 0.9818,
+        "random": 0.6618
+      },
+      "subs_l1.0_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.9036,
+        "relevance": 0.9415,
+        "rvalue_prod": 0.915,
+        "rvalue_add": 0.923,
+        "random": 0.7081
+      },
+      "subs_l1.0_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.9529,
+        "relevance": 0.9545,
+        "rvalue_prod": 0.933,
+        "rvalue_add": 0.945,
+        "random": 0.6968
+      }
+    },
+    "adv_comp": {
+      "0.0": 0.1968,
+      "0.25": 0.2061,
+      "0.5": 0.2183,
+      "0.75": 0.2221,
+      "1.0": 0.2436
+    },
+    "adv_subs": {
+      "0.0": 0.1996,
+      "0.25": 0.1176,
+      "0.5": 0.0651,
+      "0.75": 0.0266,
+      "1.0": -0.0265
+    },
+    "crossover_comp": null,
+    "crossover_subs": 0.75,
+    "comp_robust_all": true,
+    "subs_breaks_extreme": true,
+    "moderate_tolerant": true,
+    "rep_comp_pure": {
+      "oracle": 1.0,
+      "empowerment": 0.6799,
+      "relevance": 0.6955,
+      "rvalue_prod": 0.9391,
+      "rvalue_add": 0.9196,
+      "random": 0.4893
+    },
+    "rep_subs_pure": {
+      "oracle": 1.0,
+      "empowerment": 0.9036,
+      "relevance": 0.9415,
+      "rvalue_prod": 0.915,
+      "rvalue_add": 0.923,
+      "random": 0.7081
+    },
+    "status": "apoyada",
+    "verdict": "H-V4-7a APOYADA: la reconstrucción-PRODUCTO de R-VALOR codifica un PRIOR DE COMPLEMENTARIEDAD (asimetría confirmada por el crossover λ*). Bajo COMPLEMENTOS (value=(1-λ)·ctrl·rel+λ·min) el producto vence a ambas marginales en TODO λ (crossover=nunca: adv en λ=1.0 = 0.244, prod=0.939). Bajo SUSTITUTOS (g=max) el producto se ROMPE en el extremo: crossover λ*=0.75; en λ=1.0 rvalue_prod 0.915 ya NO vence a la mejor marginal (max(emp 0.904, rel 0.942)), adv=-0.026<=0.05. => el producto vale cuando la no-factorizabilidad PRESERVA el óptimo both-high (complementos), no cuando lo cambia a 'al menos uno alto' (sustitutos): la factorización ctrl×rel del arco 79-82 NO es ley universal sino un prior de complementariedad. CAVEAT (más robusto de lo predicho): sí (tolera no-factorizabilidad MODERADA: en λ=0.5 el producto vence en AMBAS familias, comp adv=0.218, subs adv=0.065)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k": 10,
+    "S": 8,
+    "ctrl_noise": 0.5,
+    "rel_noise": 0.1
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp067] CYCLE 83 / H-V4-7a — ataque a la factorización: ¿sobrevive ctrl_est × rel_est al valor no-factorizable?",
+    "[exp067] n=50 k=10 S=8 ctrl_noise=0.5 rel_noise=0.1 seeds=48 lambdas=[0.0, 0.25, 0.5, 0.75, 1.0] families=['comp', 'subs']",
+    "[exp067] comp/noisy: λ0.0: prod=0.941 emp=0.681 rel=0.745 add=0.934 | λ0.25: prod=0.939 emp=0.669 rel=0.733 add=0.933 | λ0.5: prod=0.927 emp=0.653 rel=0.709 add=0.916 | λ0.75: prod=0.950 emp=0.691 rel=0.728 add=0.943 | λ1.0: prod=0.939 emp=0.680 rel=0.696 add=0.920",
+    "[exp067] comp/clean: λ0.0: prod=1.000 emp=0.746 rel=0.720 add=0.997 | λ0.25: prod=0.999 emp=0.757 rel=0.716 add=0.994 | λ0.5: prod=0.997 emp=0.714 rel=0.748 add=0.991 | λ0.75: prod=0.993 emp=0.710 rel=0.707 add=0.984 | λ1.0: prod=0.983 emp=0.698 rel=0.701 add=0.968",
+    "[exp067] subs/noisy: λ0.0: prod=0.930 emp=0.690 rel=0.731 add=0.923 | λ0.25: prod=0.937 emp=0.802 rel=0.819 add=0.944 | λ0.5: prod=0.948 emp=0.855 rel=0.883 add=0.953 | λ0.75: prod=0.945 emp=0.896 rel=0.918 add=0.951 | λ1.0: prod=0.915 emp=0.904 rel=0.942 add=0.923",
+    "[exp067] subs/clean: λ0.0: prod=1.000 emp=0.716 rel=0.748 add=0.997 | λ0.25: prod=0.998 emp=0.818 rel=0.828 add=1.000 | λ0.5: prod=0.988 emp=0.907 rel=0.894 add=0.996 | λ0.75: prod=0.972 emp=0.946 rel=0.938 add=0.982 | λ1.0: prod=0.933 emp=0.953 rel=0.955 add=0.945",
+    "[exp067] adv(prod-max_marginal) por λ -- comp={0.0: 0.1968, 0.25: 0.2061, 0.5: 0.2183, 0.75: 0.2221, 1.0: 0.2436} (crossover=None, robust_all=True)",
+    "[exp067] adv por λ -- subs={0.0: 0.1996, 0.25: 0.1176, 0.5: 0.0651, 0.75: 0.0266, 1.0: -0.0265} (crossover=0.75, breaks_extreme=True, moderate_tolerant=True)",
+    "[exp067] VEREDICTO H-V4-7a: APOYADA | H-V4-7a APOYADA: la reconstrucción-PRODUCTO de R-VALOR codifica un PRIOR DE COMPLEMENTARIEDAD (asimetría confirmada por el crossover λ*). Bajo COMPLEMENTOS (value=(1-λ)·ctrl·rel+λ·min) el producto vence a ambas marginales en TODO λ (crossover=nunca: adv en λ=1.0 = 0.244, prod=0.939). Bajo SUSTITUTOS (g=max) el producto se ROMPE en el extremo: crossover λ*=0.75; en λ=1.0 rvalue_prod 0.915 ya NO vence a la mejor marginal (max(emp 0.904, rel 0.942)), adv=-0.026<=0.05. => el producto vale cuando la no-factorizabilidad PRESERVA el óptimo both-high (complementos), no cuando lo cambia a 'al menos uno alto' (sustitutos): la factorización ctrl×rel del arco 79-82 NO es ley universal sino un prior de complementariedad. CAVEAT (más robusto de lo predicho): sí (tolera no-factorizabilidad MODERADA: en λ=0.5 el producto vence en AMBAS familias, comp adv=0.218, subs adv=0.065)."
+  ]
+}

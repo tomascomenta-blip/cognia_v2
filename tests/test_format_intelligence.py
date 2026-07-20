@@ -126,3 +126,34 @@ def test_explain_hint_contains_definition(fi):
 def test_yes_no_hint_contains_yes_or_no(fi):
     hint = fi.get_format_hint("Does Python support multiple inheritance?")
     assert "yes or no" in hint.lower()
+
+
+# ── CODE detection ────────────────────────────────────────────────────────────
+
+def test_implement_function(fi):
+    assert fi.detect_type("implement a binary search function") == QuestionType.CODE
+
+
+def test_write_a_class(fi):
+    assert fi.detect_type("write a class that parses CSV files") == QuestionType.CODE
+
+
+def test_create_a_function(fi):
+    assert fi.detect_type("create a function that sorts items by date") == QuestionType.CODE
+
+
+def test_write_a_script(fi):
+    assert fi.detect_type("write a script to download files from S3") == QuestionType.CODE
+
+
+def test_spanish_hacer_funcion(fi):
+    assert fi.detect_type("haz una funcion que calcule el factorial") == QuestionType.CODE
+
+
+def test_code_hint_nonempty(fi):
+    assert fi.get_format_hint("implement a merge sort algorithm") != ""
+
+
+def test_code_hint_contains_implementation(fi):
+    hint = fi.get_format_hint("write a function to validate emails")
+    assert "implementation" in hint.lower() or "working" in hint.lower()

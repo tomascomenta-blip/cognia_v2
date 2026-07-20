@@ -62,6 +62,10 @@ _PERSONA_TEMPERATURE = {
 }
 _DEFAULT_TEMPERATURE = 0.5
 
+# Hard cap (chars, ~210 tokens) for the memory block injected into a chat
+# prompt by build_memory_block(). Keeps per-turn prompt overhead bounded.
+MEMORY_BLOCK_MAX_CHARS = 800
+
 
 @dataclass
 class BandResult:
@@ -100,7 +104,12 @@ class HydraContextRouter:
     empty band.
     """
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: Optional[str] = None, *,
+                 perception=None, working=None, episodic=None, semantic=None):
+        # Injected layers (e.g. the live Cognia instance's perception /
+        # working_mem / episodic / semantic) take precedence over self-built
+        # ones, so the router reads the SAME memory the session is writing to
+        # instead of a parallel set of instances over the same DB.
         # Default db_path matches what the memory classes use (cognia.config.DB_PATH)
         # so the router points at the real store unless overridden.
         if db_path is None:
@@ -120,42 +129,46 @@ class HydraContextRouter:
             self._router = None
 
         # -- Perception (string -> vector) ---------------------------------
-        self._perception = None
-        try:
-            from cognia.memory.working import PerceptionModule
-            self._perception = PerceptionModule()
-        except Exception:
-            self._perception = None
+        self._perception = perception
+        if self._perception is None:
+            try:
+                from cognia.memory.working import PerceptionModule
+                self._perception = PerceptionModule()
+            except Exception:
+                self._perception = None
 
         # -- Working memory (in-process buffer; no DB) ---------------------
-        self._working = None
-        try:
-            from cognia.memory.working import WorkingMemory
-            self._working = WorkingMemory()
-        except Exception:
-            self._working = None
+        self._working = working
+        if self._working is None:
+            try:
+                from cognia.memory.working import WorkingMemory
+                self._working = WorkingMemory()
+            except Exception:
+                self._working = None
 
         # -- Episodic memory (DB-backed; tolerate empty/missing DB) ---------
-        self._episodic = None
-        try:
-            from cognia.memory.episodic import EpisodicMemory
-            self._episodic = (
-                EpisodicMemory(self.db_path) if self.db_path
-                else EpisodicMemory()
-            )
-        except Exception:
-            self._episodic = None
+        self._episodic = episodic
+        if self._episodic is None:
+            try:
+                from cognia.memory.episodic import EpisodicMemory
+                self._episodic = (
+                    EpisodicMemory(self.db_path) if self.db_path
+                    else EpisodicMemory()
+                )
+            except Exception:
+                self._episodic = None
 
         # -- Semantic memory (DB-backed; tolerate empty/missing DB) ---------
-        self._semantic = None
-        try:
-            from cognia.memory.semantic import SemanticMemory
-            self._semantic = (
-                SemanticMemory(self.db_path) if self.db_path
-                else SemanticMemory()
-            )
-        except Exception:
-            self._semantic = None
+        self._semantic = semantic
+        if self._semantic is None:
+            try:
+                from cognia.memory.semantic import SemanticMemory
+                self._semantic = (
+                    SemanticMemory(self.db_path) if self.db_path
+                    else SemanticMemory()
+                )
+            except Exception:
+                self._semantic = None
 
         # -- Summarizer (deterministic extractive compressor for MEDIA) -----
         # WHY: MEDIA is the "compressed/summarized" band per the whitepaper, so
@@ -384,6 +397,53 @@ class HydraContextRouter:
             bands=bands,
             assembled_context=assembled,
         )
+
+    def build_memory_block(self, query: str,
+                           max_chars: int = MEMORY_BLOCK_MAX_CHARS) -> str:
+        """
+        Assembled [LOCAL]/[MEDIA]/[GLOBAL] block ready for prompt injection.
+
+        Differs from route().assembled_context in two ways, both so a turn
+        WITHOUT real memory injects nothing (callers skip the block entirely):
+          - drops the redundant 'query: ...' LOCAL item (the query already IS
+            the user message; repeating it only burns prompt tokens), and
+          - drops MEDIA 'summary: ...' items when working memory is empty
+            (the summarizer then only saw the query itself, so the summary
+            carries no memory).
+        Returns "" when nothing real survives. Hard-capped at max_chars.
+        """
+        routing = self.route(query)
+        has_working = False
+        if self._working is not None:
+            try:
+                has_working = bool(self._working.get_recent(n=1))
+            except Exception:
+                has_working = False
+
+        order = {"LOCAL": 0, "MEDIA": 1, "GLOBAL": 2}
+        blocks: List[str] = []
+        for band in sorted(routing.bands, key=lambda b: order.get(b.name, 99)):
+            if not band.active:
+                continue
+            items = []
+            for it in band.items:
+                if band.name == "LOCAL" and it.startswith("query: "):
+                    continue
+                if (band.name == "MEDIA" and it.startswith("summary: ")
+                        and not has_working):
+                    continue
+                items.append(it)
+            if not items:
+                continue
+            lines = ["[%s]" % band.name]
+            lines.extend("  - " + it for it in items)
+            blocks.append("\n".join(lines))
+
+        text = "\n".join(blocks)
+        text = text.encode("ascii", "replace").decode("ascii")
+        if len(text) > max_chars:
+            text = text[:max_chars]
+        return text
 
 
 def format_trace(routing: HydraRouting) -> str:

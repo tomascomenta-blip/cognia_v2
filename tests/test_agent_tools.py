@@ -5,10 +5,13 @@ Pins that every tool is callable, returns a RESULTADO string, that the registry
 doc and dispatch stay in sync, and that the safety blocks hold.
 """
 
+import json
+import sys
 import types
 
 import pytest
 
+import cognia.agents.workers.dev_tools as dev_tools
 from cognia.agent import tools as T
 
 
@@ -16,6 +19,13 @@ def _ctx(**over):
     c = {"working_memory": {}, "agent_state": {}, "print_fn": lambda *a, **k: None}
     c.update(over)
     return c
+
+
+@pytest.fixture
+def workspace(tmp_path, monkeypatch):
+    """Workspace del agente = tmp_path (mismo patron que test_agent_tools_tier1)."""
+    monkeypatch.setattr(dev_tools, "AGENT_WORKSPACE_ROOT", str(tmp_path))
+    return tmp_path
 
 
 def test_registry_has_core_and_new_tools():
@@ -34,8 +44,8 @@ def test_build_tools_doc_lists_registered_tools():
         assert name in doc
 
 
-def test_file_roundtrip(tmp_path):
-    f = str(tmp_path / "x.txt")
+def test_file_roundtrip(workspace):
+    f = str(workspace / "x.txt")
     ctx = _ctx()
     assert "OK" in T.run_tool("escribir_archivo", f + " | hola\nmundo", ctx)
     assert "hola" in T.run_tool("leer_archivo", f, ctx)
@@ -43,15 +53,16 @@ def test_file_roundtrip(tmp_path):
     assert "3 lineas" in T.run_tool("contar_lineas", f, ctx)
 
 
-def test_escribir_archivo_records_in_agent_state(tmp_path):
-    f = str(tmp_path / "sub" / "y.txt")
+def test_escribir_archivo_records_in_agent_state(workspace):
+    f = str(workspace / "sub" / "y.txt")
     ctx = _ctx()
     T.run_tool("escribir_archivo", f + " | data", ctx)
-    assert f in ctx["agent_state"]["files_touched"]
+    # files_touched guarda el path RESUELTO (post-confinamiento)
+    assert str((workspace / "sub" / "y.txt").resolve()) in ctx["agent_state"]["files_touched"]
 
 
-def test_escribir_archivo_strips_code_fences(tmp_path):
-    f = tmp_path / "z.py"
+def test_escribir_archivo_strips_code_fences(workspace):
+    f = workspace / "z.py"
     ctx = _ctx()
     T.run_tool("escribir_archivo", str(f) + " | ```python\nx = 1\n```", ctx)
     assert f.read_text(encoding="utf-8") == "x = 1"
@@ -69,6 +80,67 @@ def test_calcular_rejects_non_arithmetic():
 def test_ejecutar_blocks_dangerous_commands():
     for bad in ("rm -rf /", "shutdown now", "mkfs.ext4 /dev/sda"):
         assert "BLOQUEADO" in T.run_tool("ejecutar", bad, _ctx())
+
+
+def test_ejecutar_blocks_windows_disk_format_only():
+    # El borrado de disco real SI se bloquea...
+    for bad in ("format c:", "format d: /q"):
+        assert "BLOQUEADO" in T.run_tool("ejecutar", bad, _ctx())
+
+
+def test_ejecutar_allows_benign_format_substrings():
+    # ...pero 'format' como substring de comandos benignos NO (antes se bloqueaba
+    # 'ruff format .', 'git log --pretty=format:%H'). Se usa echo para no tener
+    # efectos: prueba que el gate NO bloquea, no que ruff/git corran.
+    out = T.run_tool("ejecutar", "echo ruff format aca", _ctx())
+    assert "BLOQUEADO" not in out and "ruff format aca" in out
+    out2 = T.run_tool("ejecutar", "echo pretty=format:%H", _ctx())
+    assert "BLOQUEADO" not in out2
+
+
+def test_tests_requires_explicit_path_and_uses_sys_executable(monkeypatch):
+    captured = {}
+
+    def fake_shell(cmd, ctx, timeout=30):
+        captured["cmd"] = cmd
+        return "RESULTADO ejecutar: ok"
+
+    monkeypatch.setattr(T, "_shell", fake_shell)
+    # sin ruta -> error accionable, NO ejecuta la suite entera
+    out = T.run_tool("tests", "", _ctx())
+    assert "ruta ESPECIFICA" in out and "cmd" not in captured
+    # con ruta -> usa el interprete que corre el agente (no 'python' pelado)
+    T.run_tool("tests", "tests/test_foo.py", _ctx())
+    assert f'"{sys.executable}"' in captured["cmd"]
+
+
+def test_escribir_tolerant_pipe_separator(workspace):
+    # El 3B suele emitir 'path|contenido' sin espacios alrededor del pipe.
+    assert "OK" in T.run_tool("escribir_archivo", "a.txt|hola", _ctx())
+    assert (workspace / "a.txt").read_text(encoding="utf-8") == "hola"
+    assert "OK" in T.run_tool("escribir_archivo", "b.txt |mundo", _ctx())
+    assert (workspace / "b.txt").read_text(encoding="utf-8") == "mundo"
+
+
+def test_result_shows_relative_path_not_absolute(workspace):
+    # escribir/leer deben MOSTRAR la ruta relativa al workspace en el RESULTADO,
+    # no el path absoluto (el 3B lo copiaba y entraba en loop). Ver _disp().
+    out = T.run_tool("escribir_archivo", "sub/x.txt | data", _ctx())
+    assert "OK" in out and "sub/x.txt" in out
+    assert str(workspace) not in out
+    out2 = T.run_tool("leer_archivo", str(workspace / "sub" / "x.txt"), _ctx())
+    assert "data" in out2 and "sub/x.txt" in out2
+    assert str(workspace) not in out2
+
+
+def test_leer_archivo_marks_truncation(workspace):
+    big = workspace / "big.txt"
+    big.write_text("x" * 5000, encoding="utf-8")
+    out = T.run_tool("leer_archivo", str(big), _ctx())
+    assert "TRUNCADO" in out and "5000" in out
+    small = workspace / "small.txt"
+    small.write_text("hola corto", encoding="utf-8")
+    assert "TRUNCADO" not in T.run_tool("leer_archivo", str(small), _ctx())
 
 
 def test_unknown_tool_is_handled():
@@ -109,3 +181,110 @@ def test_kg_agregar_validates_relation():
     assert "OK" in ok
     bad = T.run_tool("kg_agregar", "cognia | relacion_falsa | x", _ctx(ai=fake_ai))
     assert "invalida" in bad
+
+
+# ── confinamiento de escrituras al workspace (CYCLE 6) ─────────────────
+# Las tools de escritura del loop ReAct reusan resolve_write_path() de
+# dev_tools: relativo -> dentro del workspace; fuera / traversal / nombre
+# sensible -> string de ERROR (nunca escribe). Las de lectura no se tocan.
+
+def test_escribir_relativo_cae_en_workspace(workspace):
+    out = T.run_tool("escribir_archivo", "rel/nuevo.txt | data", _ctx())
+    assert "OK" in out
+    assert (workspace / "rel" / "nuevo.txt").read_text(encoding="utf-8") == "data"
+
+
+def test_escribir_absoluto_fuera_rechazado(workspace, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("fuera") / "evil.txt"
+    out = T.run_tool("escribir_archivo", f"{outside} | pwned", _ctx())
+    assert "ERROR" in out and "outside agent workspace" in out
+    assert not outside.exists()
+
+
+def test_escribir_traversal_rechazado(workspace):
+    out = T.run_tool("escribir_archivo", "../evil.txt | pwned", _ctx())
+    assert "ERROR" in out and "outside agent workspace" in out
+    assert not (workspace.parent / "evil.txt").exists()
+
+
+def test_escribir_nombres_bloqueados(workspace):
+    for name in (".env", "x.env", "my_secrets.txt", "foo.exe", "lib.dll"):
+        out = T.run_tool("escribir_archivo", f"{name} | data", _ctx())
+        assert "ERROR" in out and "blocked file name" in out, name
+        assert not (workspace / name).exists()
+
+
+def test_apendar_fuera_rechazado(workspace):
+    out = T.run_tool("apendar_archivo", "../evil.txt | linea", _ctx())
+    assert "ERROR" in out and "outside agent workspace" in out
+    assert not (workspace.parent / "evil.txt").exists()
+
+
+def test_apendar_dentro_ok(workspace):
+    assert "OK" in T.run_tool("apendar_archivo", "log.txt | linea", _ctx())
+    assert "linea" in (workspace / "log.txt").read_text(encoding="utf-8")
+
+
+def test_copiar_dst_fuera_rechazado(workspace):
+    (workspace / "src.txt").write_text("data", encoding="utf-8")
+    out = T.run_tool("copiar_archivo", f"{workspace / 'src.txt'} | ../robado.txt", _ctx())
+    assert "ERROR" in out and "outside agent workspace" in out
+    assert not (workspace.parent / "robado.txt").exists()
+
+
+def test_copiar_dentro_ok(workspace):
+    (workspace / "src.txt").write_text("data", encoding="utf-8")
+    out = T.run_tool("copiar_archivo", f"{workspace / 'src.txt'} | copia.txt", _ctx())
+    assert "OK" in out
+    assert (workspace / "copia.txt").read_text(encoding="utf-8") == "data"
+
+
+def test_copiar_src_fuera_dst_dentro_permitido(workspace, tmp_path_factory):
+    # Leer desde fuera es legitimo (igual que leer_archivo); solo dst se confina.
+    src = tmp_path_factory.mktemp("lectura") / "origen.txt"
+    src.write_text("contenido externo", encoding="utf-8")
+    out = T.run_tool("copiar_archivo", f"{src} | traido.txt", _ctx())
+    assert "OK" in out
+    assert (workspace / "traido.txt").read_text(encoding="utf-8") == "contenido externo"
+
+
+# ── contador de uso liviano para tools builtin (TAREA 5) ────────────────
+
+@pytest.fixture
+def usage_isolated(tmp_path, monkeypatch):
+    """Aisla el contador global de tools.py: dict en memoria + archivo de
+    flush, para que este test no lea/escriba el uso REAL del proceso."""
+    monkeypatch.setattr(T, "_USAGE", {})
+    monkeypatch.setattr(T, "_usage_calls_since_flush", 0)
+    monkeypatch.setattr(T, "_USAGE_PATH", tmp_path / "_tool_usage.json")
+    return tmp_path
+
+
+def test_run_tool_counts_calls_ok_fail_and_last(usage_isolated):
+    ctx = _ctx()
+    for _ in range(3):
+        T.run_tool("calcular", "1+1", ctx)          # ok
+    T.run_tool("calcular", "__import__('os').system('x')", ctx)  # ERROR -> fail
+    usage = T.get_tool_usage()
+    assert usage["calcular"]["calls"] == 4
+    assert usage["calcular"]["ok"] == 3
+    assert usage["calcular"]["fail"] == 1
+    assert usage["calcular"]["last"] is not None
+
+
+def test_usage_flushes_to_disk_every_n_calls(usage_isolated, monkeypatch):
+    monkeypatch.setattr(T, "_USAGE_FLUSH_EVERY", 3)
+    ctx = _ctx()
+    for _ in range(3):
+        T.run_tool("calcular", "2+2", ctx)
+    assert (usage_isolated / "_tool_usage.json").exists()
+    data = json.loads((usage_isolated / "_tool_usage.json").read_text(encoding="utf-8"))
+    assert data["calcular"]["calls"] == 3
+    assert data["calcular"]["ok"] == 3
+
+
+def test_get_tool_usage_returns_a_copy(usage_isolated):
+    T.run_tool("fecha", "", _ctx())
+    usage = T.get_tool_usage()
+    usage["fecha"]["calls"] = 999   # mutar la copia
+    assert T.get_tool_usage()["fecha"]["calls"] == 1  # el interno no cambio

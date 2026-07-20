@@ -1,0 +1,173 @@
+{
+  "exp": "exp117_coupled_substrate",
+  "cycle": 133,
+  "hypothesis": "H-V4-10g",
+  "claim": "el keystone (valor=controlabilidad×relevancia) SOBREVIVE a un sustrato ACOPLADO (modos no independientes) pero su factor de controlabilidad debe ser de ALCANCE-POR-LA-RED Y la seleccion debe ser ADAPTATIVA (greedy): el keystone LOCAL 129 (w·b^2) falla bajo acople porque la relevancia directa es proxy infiel del alcance (robusto: tambien con distractor, no solo en w_driver=0 exacto); el reach naive top-K-standalone colapsa bajo redundancia submodular; el reach de 1-hop falla bajo multi-hop. reach_greedy ~ oracle estimado por construccion (el contenido sustantivo es el FALLO del local). Generaliza 132 (alcance bajo saturacion del control) al alcance por el acople del sustrato",
+  "verdict": "mixta",
+  "summary": {
+    "grid": {
+      "base": {
+        "0.0": {
+          "reach_greedy": 1.0,
+          "reach_topk": 1.0,
+          "reach_1hop": 1.0,
+          "valor_local": 1.0,
+          "relevancia": 1.0,
+          "prediccion": 0.0,
+          "pd_local": 0.0,
+          "pd_greedy": 0.235
+        },
+        "0.25": {
+          "reach_greedy": 1.0,
+          "reach_topk": 1.0,
+          "reach_1hop": 1.0,
+          "valor_local": 0.7621,
+          "relevancia": 0.7621,
+          "prediccion": 0.0,
+          "pd_local": 0.0,
+          "pd_greedy": 1.0
+        },
+        "0.5": {
+          "reach_greedy": 1.0,
+          "reach_topk": 1.0,
+          "reach_1hop": 1.0,
+          "valor_local": 0.5767,
+          "relevancia": 0.5767,
+          "prediccion": 0.0,
+          "pd_local": 0.0,
+          "pd_greedy": 1.0
+        },
+        "1.0": {
+          "reach_greedy": 1.0,
+          "reach_topk": 1.0,
+          "reach_1hop": 1.0,
+          "valor_local": 0.4743,
+          "relevancia": 0.4743,
+          "prediccion": 0.0,
+          "pd_local": 0.0,
+          "pd_greedy": 1.0
+        }
+      },
+      "wdriver": {
+        "0.0": {
+          "reach_greedy": 1.0,
+          "reach_topk": 1.0,
+          "reach_1hop": 1.0,
+          "valor_local": 0.4743,
+          "relevancia": 0.4743,
+          "prediccion": 0.0,
+          "pd_local": 0.0,
+          "pd_greedy": 1.0
+        },
+        "0.01": {
+          "reach_greedy": 1.0,
+          "reach_topk": 1.0,
+          "reach_1hop": 1.0,
+          "valor_local": 0.9947,
+          "relevancia": 0.4746,
+          "prediccion": 0.0,
+          "pd_local": 0.99,
+          "pd_greedy": 1.0
+        },
+        "0.05": {
+          "reach_greedy": 1.0,
+          "reach_topk": 1.0,
+          "reach_1hop": 1.0,
+          "valor_local": 1.0,
+          "relevancia": 0.4744,
+          "prediccion": 0.0,
+          "pd_local": 1.0,
+          "pd_greedy": 1.0
+        },
+        "0.1": {
+          "reach_greedy": 1.0,
+          "reach_topk": 1.0,
+          "reach_1hop": 1.0,
+          "valor_local": 1.0,
+          "relevancia": 0.4718,
+          "prediccion": 0.0,
+          "pd_local": 1.0,
+          "pd_greedy": 1.0
+        }
+      },
+      "multihop": {
+        "reach_greedy": 1.0,
+        "reach_topk": 1.0,
+        "reach_1hop": 0.7033,
+        "valor_local": 0.529,
+        "relevancia": 0.529,
+        "prediccion": 0.0,
+        "pd_local": 0.0,
+        "pd_greedy": 1.0
+      },
+      "redundant": {
+        "reach_greedy": 1.0,
+        "reach_topk": 0.5746,
+        "reach_1hop": 1.0,
+        "valor_local": 0.4743,
+        "relevancia": 0.4743,
+        "prediccion": 0.0,
+        "pd_local": 0.0,
+        "pd_greedy": 0.505
+      },
+      "distractor": {
+        "reach_greedy": 1.0,
+        "reach_topk": 1.0,
+        "reach_1hop": 1.0,
+        "valor_local": 0.561,
+        "relevancia": 0.4718,
+        "prediccion": 0.0,
+        "pd_local": 0.0,
+        "pd_greedy": 1.0
+      }
+    },
+    "greedy_min": 1.0,
+    "local_base0": 1.0,
+    "local_baseM": 0.4743,
+    "greedy_baseM": 1.0,
+    "local_dist": 0.561,
+    "greedy_dist": 1.0,
+    "topk_redun": 0.5746,
+    "greedy_redun": 1.0,
+    "onehop_multi": 0.7033,
+    "greedy_multi": 1.0,
+    "pd_local_baseM": 0.0,
+    "pd_greedy_baseM": 1.0,
+    "principle_robust": true,
+    "local_ok_indep": true,
+    "local_fails_coupled": true,
+    "local_fails_distractor": true,
+    "topk_not_robust": true,
+    "onehop_not_enough": true,
+    "status": "mixta",
+    "verdict": "H-V4-10g MIXTA (ACOTADA): el PRINCIPIO valor=ctrl×rel SOBREVIVE a un sustrato ACOPLADO pero su factor de controlabilidad debe ser de ALCANCE-POR-LA-RED **y** la selección debe ser ADAPTATIVA. El criterio CORRECTO (reach_greedy: alcance acoplado de horizonte completo + selección greedy) es robusto en TODAS las estructuras (min 1.000). (i) El keystone LOCAL 129 (valor_local) es óptimo con modos independientes (κ=0: 1.000, recupera 129) pero FALLA bajo acople: en base cae a 0.474 vs greedy 1.000 (la relevancia directa es proxy INFIEL del alcance, pd_local=0.000); y la falla es ROBUSTA/no-knife-edge -- con un modo DISTRACTOR (vanidad ctrl+rel-directo sin acople) el local cae a 0.561 vs greedy 1.000. (ii) El reach NAIVE (top-K-standalone) NO basta: bajo REDUNDANCIA submodular (2 drivers->1 target) COLAPSA a 0.575 mientras el greedy adaptativo mantiene 1.000 -> la selección debe ser adaptativa. (iii) El reach de 1-HOP NO basta: bajo MULTI-HOP (driver->relay->target) cae a 0.703 vs greedy 1.000 -> la controlabilidad debe ser de horizonte/alcance completo. NOTA: reach_greedy ≈ oracle ESTIMADO por construcción (no es evidencia ortogonal de robustez); el contenido sustantivo es el FALLO del local y que BOTH la controlabilidad (->alcance-por-red) y la selección (->adaptativa) deben volverse conscientes del acople. Generaliza 132 (alcance bajo saturación del CONTROL) al alcance por el acople del SUSTRATO."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp117] CYCLE 133 / H-V4-10g (honesto, post-verificación adversarial) — ¿sobrevive el keystone (valor=ctrl×rel) a un SUSTRATO ACOPLADO? reach_greedy (alcance-por-red + selección adaptativa) vs valor_local (keystone 129) vs reach naive/1-hop",
+    "[exp117] seeds=200 a=0.6 rho=0.5 H=3 K=2 D=8 sigma_p=1.0 kappas=[0.0, 0.25, 0.5, 1.0] n_probe=2000",
+    "[exp117] --- BASE (un arco, w_driver=0), barrido de acople κ ---",
+    "[exp117] κ= 0.0: greedy=1.000 topk=1.000 1hop=1.000 local=1.000 relev=1.000 pred=0.000 | pd_local=0.00 pd_greedy=0.23",
+    "[exp117] κ=0.25: greedy=1.000 topk=1.000 1hop=1.000 local=0.762 relev=0.762 pred=0.000 | pd_local=0.00 pd_greedy=1.00",
+    "[exp117] κ= 0.5: greedy=1.000 topk=1.000 1hop=1.000 local=0.577 relev=0.577 pred=0.000 | pd_local=0.00 pd_greedy=1.00",
+    "[exp117] κ= 1.0: greedy=1.000 topk=1.000 1hop=1.000 local=0.474 relev=0.474 pred=0.000 | pd_local=0.00 pd_greedy=1.00",
+    "[exp117] --- KNIFE-EDGE: sweep w_driver (κ=1.0); el local se recupera con fuga de relevancia directa ---",
+    "[exp117] w_driver= 0.0: local=0.474 greedy=1.000 (pd_local=0.00)",
+    "[exp117] w_driver=0.01: local=0.995 greedy=1.000 (pd_local=0.99)",
+    "[exp117] w_driver=0.05: local=1.000 greedy=1.000 (pd_local=1.00)",
+    "[exp117] w_driver= 0.1: local=1.000 greedy=1.000 (pd_local=1.00)",
+    "[exp117] --- ESTRUCTURAS (κ=1.0) ---",
+    "[exp117]   multihop: greedy=1.000 topk=1.000 1hop=0.703 local=0.529 relev=0.529",
+    "[exp117]  redundant: greedy=1.000 topk=0.575 1hop=1.000 local=0.474 relev=0.474",
+    "[exp117] distractor: greedy=1.000 topk=1.000 1hop=1.000 local=0.561 relev=0.472",
+    "[exp117] CHECK principle_robust(greedy_min=1.000)=True | local_ok_indep=True local_fails_coupled=True local_fails_distractor=True | topk_not_robust(redun greedy 1.000 vs topk 0.575)=True | onehop_not_enough(multi greedy 1.000 vs 1hop 0.703)=True",
+    "[exp117] VEREDICTO H-V4-10g: MIXTA | H-V4-10g MIXTA (ACOTADA): el PRINCIPIO valor=ctrl×rel SOBREVIVE a un sustrato ACOPLADO pero su factor de controlabilidad debe ser de ALCANCE-POR-LA-RED **y** la selección debe ser ADAPTATIVA. El criterio CORRECTO (reach_greedy: alcance acoplado de horizonte completo + selección greedy) es robusto en TODAS las estructuras (min 1.000). (i) El keystone LOCAL 129 (valor_local) es óptimo con modos independientes (κ=0: 1.000, recupera 129) pero FALLA bajo acople: en base cae a 0.474 vs greedy 1.000 (la relevancia directa es proxy INFIEL del alcance, pd_local=0.000); y la falla es ROBUSTA/no-knife-edge -- con un modo DISTRACTOR (vanidad ctrl+rel-directo sin acople) el local cae a 0.561 vs greedy 1.000. (ii) El reach NAIVE (top-K-standalone) NO basta: bajo REDUNDANCIA submodular (2 drivers->1 target) COLAPSA a 0.575 mientras el greedy adaptativo mantiene 1.000 -> la selección debe ser adaptativa. (iii) El reach de 1-HOP NO basta: bajo MULTI-HOP (driver->relay->target) cae a 0.703 vs greedy 1.000 -> la controlabilidad debe ser de horizonte/alcance completo. NOTA: reach_greedy ≈ oracle ESTIMADO por construcción (no es evidencia ortogonal de robustez); el contenido sustantivo es el FALLO del local y que BOTH la controlabilidad (->alcance-por-red) y la selección (->adaptativa) deben volverse conscientes del acople. Generaliza 132 (alcance bajo saturación del CONTROL) al alcance por el acople del SUSTRATO."
+  ]
+}

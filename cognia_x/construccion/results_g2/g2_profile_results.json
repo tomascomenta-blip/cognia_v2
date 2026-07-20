@@ -1,0 +1,22 @@
+{
+  "device": "cuda",
+  "torch": "2.11.0+cu128",
+  "gpu_name": "Tesla T4",
+  "capability": [7, 5],
+  "scale": {"d_model": 256, "n_heads": 8, "n_layers": 12, "n_keys": 256, "n_vals": 32, "n_pairs": 32, "n_queries": 16, "batch": 64, "lr": 0.001},
+  "breakdown": {
+    "lineal_puro_ae0": {"datagen": 0.8624633153279623, "fwd": 44.5560375849406, "bwd": 93.3032194773356, "opt": 4.4099171956380205, "total_ms": 143.1316375732422, "steps_per_s": 6.986575553488571, "tok_per_s": 35771.26683386148},
+    "attn_puro_ae1": {"datagen": 0.9670019149780273, "fwd": 49.721686045328774, "bwd": 101.0997454325358, "opt": 4.57607905069987, "total_ms": 156.36451244354248, "steps_per_s": 6.3953130053154705, "tok_per_s": 32744.002587215207}
+  },
+  "levers": {
+    "baseline_fp32": {"ms_per_step": 142.9395119349162, "steps_per_s": 6.995966240988175, "tok_per_s": 35819.34715385945, "batch": 64, "proj_8000_min": 19.05860159132216},
+    "amp_fp16": {"ms_per_step": 76.17571353912354, "steps_per_s": 13.12754359020745, "tok_per_s": 67213.02318186215, "batch": 64, "proj_8000_min": 10.15676180521647},
+    "gpu_datagen": {"ms_per_step": 144.83923117319745, "steps_per_s": 6.904206767047866, "tok_per_s": 35349.53864728507, "batch": 64, "proj_8000_min": 19.31189748975966},
+    "amp+gpudatagen": {"ms_per_step": 75.9373664855957, "steps_per_s": 13.168747433316462, "tok_per_s": 67423.98685858029, "batch": 64, "proj_8000_min": 10.124982198079428},
+    "amp+gpudatagen+batch256": {"ms_per_step": 276.8075386683146, "steps_per_s": 3.6126183730792563, "tok_per_s": 73986.42428066317, "batch": 256, "proj_8000_min": 36.90767182244194},
+    "amp+gpudatagen+batch512": {"ms_per_step": 549.2523511250814, "steps_per_s": 1.8206567490364183, "tok_per_s": 74574.10044053169, "batch": 512, "proj_8000_min": 73.23364681667752},
+    "amp+gpudatagen+batch512+compile": {"ms_per_step": 277.04358895619714, "steps_per_s": 3.6095403029091866, "tok_per_s": 147846.7708071603, "batch": 512, "proj_8000_min": 36.93914519415962}
+  },
+  "gpu_mem_max_mb": 8580.81024,
+  "_nota": "Medido 2026-06-29 en Colab T4 free via colab-cli headless. Regla 10x: 7 variantes + desglose por componente con torch.cuda.synchronize. datagen=0.86ms refuta 'CPU-bound'; cuda_available=True refuta 'fallback CPU'. Cuello real = fp32 + workload chico = overhead/launch-bound (~6% del pico fp16). AMP=1.9x, +compile=4.1x. Throughput satura ~74k tok/s sin compile (batch>=256), compile rompe a 148k."
+}

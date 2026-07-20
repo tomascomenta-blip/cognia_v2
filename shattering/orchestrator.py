@@ -29,10 +29,16 @@ from shattering.manifest import AppManifest, FragmentSpec, ManifestLoader
 from shattering.fragment_manager import FragmentManager
 from shattering.model_constants import (
     COGNIA_SYSTEM_PROMPT, DEFAULT_RST_PASSES, LPC_MAX_SESSIONS, LPC_TTL_SECONDS,
+    QWEN25_CODER_3B,
     shard_weights_dir,
 )
 from shattering.router import GlobalRouter, RouteDecision
 from security.ollama_url import validate_ollama_url
+
+# Derivados de la fuente unica (regla del repo: sin constantes de modelo
+# hardcodeadas fuera de model_constants).
+_QWEN_EOS_SET = {QWEN25_CODER_3B["bos_token_id"], QWEN25_CODER_3B["eos_token_id"]}
+_QWEN_VOCAB   = QWEN25_CODER_3B["vocab_size"]
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +165,7 @@ class ShatteringOrchestrator:
         base_dir: str = "model_shards",
         coordinator_url: Optional[str] = None,
         mode: str = "auto",           # "auto" | "local" | "distributed"
-        max_new_tokens: int = 256,
+        max_new_tokens: int = 768,
         n_recursive_passes: int = DEFAULT_RST_PASSES,
         ollama_url: Optional[str] = None,
         ollama_model: Optional[str] = None,
@@ -173,7 +179,16 @@ class ShatteringOrchestrator:
             else:
                 self._manifest = ManifestLoader.load(manifest_path)
         else:
-            raise ValueError("Provide manifest or manifest_path")
+            # Default (fix 2026-07-08): el manifest de escritorio EMPAQUETADO
+            # junto al modulo (package-data shattering/manifests/*.json). Sin
+            # esto, todo caller sin manifest_path — el CLI llama
+            # Orchestrator(mode='local') pelado en 4 lugares — moria con
+            # ValueError FUERA del repo (producto instalado, cwd arbitrario) y
+            # /hacer degradaba a "(el agente no pudo iniciar el modelo)".
+            default = Path(__file__).parent / "manifests" / "cognia_desktop.json"
+            if not default.is_file():
+                raise ValueError("Provide manifest or manifest_path")
+            self._manifest = ManifestLoader.load_from_file(default)
 
         self._router       = GlobalRouter()
         self._fragments    = FragmentManager(base_dir=base_dir)
@@ -219,7 +234,12 @@ class ShatteringOrchestrator:
 
     # ── Public API ──────────────────────────────────────────────────────
 
-    def infer(self, prompt: str, lpc_session_id: Optional[str] = None) -> InferResult:
+    def infer(self, prompt: str, lpc_session_id: Optional[str] = None,
+              max_tokens: Optional[int] = None,
+              temperature: Optional[float] = None,
+              stop: Optional[list] = None,
+              repeat_penalty: Optional[float] = None,
+              grammar: Optional[str] = None) -> InferResult:
         """
         Route the prompt, load the right sub-model, and return generated text.
 
@@ -227,6 +247,12 @@ class ShatteringOrchestrator:
                         for this session. Only tokens beyond the cached prefix are
                         processed by the shard chain, giving O(new_tokens) cost
                         instead of O(full_prompt) on subsequent turns.
+        max_tokens:     per-call generation budget; None uses the constructor
+                        default (self._max_tokens). Lets a caller request a long
+                        answer without rebuilding the orchestrator.
+        temperature:    per-call sampling temperature; None uses the routed
+                        default (self._TEMPERATURES). Solo afecta el camino local;
+                        el distribuido no expone temperatura por-llamada.
         """
         if not prompt or not prompt.strip():
             return InferResult(
@@ -257,7 +283,12 @@ class ShatteringOrchestrator:
             tokens_generated = 0
         else:
             text, mode_used, tokens_generated = self._local_infer(
-                prompt, decision, lpc_session_id=lpc_session_id
+                prompt, decision, lpc_session_id=lpc_session_id,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stop=stop,
+                repeat_penalty=repeat_penalty,
+                grammar=grammar,
             )
 
         return InferResult(
@@ -270,19 +301,26 @@ class ShatteringOrchestrator:
             tokens_generated = tokens_generated,
         )
 
-    async def ainfer(self, prompt: str, lpc_session_id: Optional[str] = None) -> InferResult:
+    async def ainfer(self, prompt: str, lpc_session_id: Optional[str] = None,
+                     max_tokens: Optional[int] = None,
+                     temperature: Optional[float] = None) -> InferResult:
         """Async wrapper — runs infer() in the default thread pool."""
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, self.infer, prompt, lpc_session_id)
+        return await loop.run_in_executor(
+            None, self.infer, prompt, lpc_session_id, max_tokens, temperature
+        )
 
-    async def astream_chat(self, messages: list):
+    async def astream_chat(self, messages: list, max_tokens: Optional[int] = None):
         """
         Async generator for multi-turn chat — yields (token_text, None) per token.
         Uses /v1/chat/completions on llama-server so full conversation history is sent.
         Falls back to astream(last_user_message) if llama.cpp is unavailable.
+
+        max_tokens: per-call generation budget; None uses self._max_tokens.
         """
         import asyncio as _asyncio
 
+        _max_toks = max_tokens if max_tokens is not None else self._max_tokens
         self._try_load_llama()
         if self._llama is not None:
             loop = _asyncio.get_running_loop()
@@ -290,7 +328,7 @@ class ShatteringOrchestrator:
 
             def _run_chat():
                 try:
-                    for tok in self._llama.stream_chat(messages, max_tokens=self._max_tokens):
+                    for tok in self._llama.stream_chat(messages, max_tokens=_max_toks):
                         loop.call_soon_threadsafe(queue.put_nowait, (tok, None))
                     loop.call_soon_threadsafe(queue.put_nowait, ("__done__", None))
                 except Exception as exc:
@@ -311,19 +349,22 @@ class ShatteringOrchestrator:
         last_user = next(
             (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
         )
-        async for tok, final in self.astream(last_user):
+        async for tok, final in self.astream(last_user, max_tokens=max_tokens):
             yield tok, final
 
-    async def astream(self, prompt: str, lpc_session_id: Optional[str] = None):
+    async def astream(self, prompt: str, lpc_session_id: Optional[str] = None,
+                      max_tokens: Optional[int] = None):
         """
         Async generator — yields (token_text, None) per token, then (None, InferResult).
         Runs the CPU-bound token loop in a thread pool so the event loop stays free.
 
         lpc_session_id: when provided, MLA KV-cache is preserved across streaming calls
                         for this session (same cross-turn persistence as ainfer).
+        max_tokens:     per-call generation budget; None uses self._max_tokens.
         """
         import asyncio as _asyncio
 
+        _max_toks = max_tokens if max_tokens is not None else self._max_tokens
         # Fast path: llama.cpp streaming (server-side SSE, much better quality)
         self._try_load_llama()
         if self._llama is not None:
@@ -335,7 +376,7 @@ class ShatteringOrchestrator:
 
             def _run_llama():
                 try:
-                    for tok in self._llama.stream_generate(formatted, max_tokens=self._max_tokens):
+                    for tok in self._llama.stream_generate(formatted, max_tokens=_max_toks):
                         loop.call_soon_threadsafe(queue.put_nowait, (tok, None))
                     loop.call_soon_threadsafe(queue.put_nowait, ("__done__", None))
                 except Exception as exc:
@@ -365,7 +406,8 @@ class ShatteringOrchestrator:
             try:
                 result = self._shard_infer_stream(prompt, queue, loop,
                                                   lpc_session_id=lpc_session_id,
-                                                  temperature=_temperature)
+                                                  temperature=_temperature,
+                                                  max_tokens=max_tokens)
                 loop.call_soon_threadsafe(queue.put_nowait, ("__done__", result))
             except Exception as exc:
                 loop.call_soon_threadsafe(queue.put_nowait, ("__error__", str(exc)))
@@ -612,22 +654,51 @@ class ShatteringOrchestrator:
         except Exception as exc:
             logger.debug("[Orchestrator] llama.cpp backend unavailable: %s", exc)
 
+    def reload_llama(self) -> "Optional[object]":
+        """Recarga el backend llama.cpp (p.ej. tras cambiar LLAMA_GGUF_PATH).
+
+        Para el server actual si lo hay, resetea el guard _llama_checked y
+        re-dispara _try_load_llama(). Devuelve el backend nuevo o None si la
+        carga fallo (mismo contrato que _llama tras _try_load_llama).
+        """
+        if self._llama is not None:
+            try:
+                self._llama.stop()
+            except Exception:
+                pass
+        self._llama = None
+        self._llama_checked = False
+        self._try_load_llama()
+        return self._llama
+
     def _local_infer(self, prompt: str, decision: RouteDecision,
                      lpc_session_id: Optional[str] = None,
-                     temperature: Optional[float] = None):
-        """Returns (text, mode, tokens_generated)."""
+                     temperature: Optional[float] = None,
+                     max_tokens: Optional[int] = None,
+                     stop: Optional[list] = None,
+                     repeat_penalty: Optional[float] = None,
+                     grammar: Optional[str] = None):
+        """Returns (text, mode, tokens_generated). max_tokens=None uses self._max_tokens.
+        repeat_penalty!=None desalienta la degeneracion (cola repetida) que a temp=0
+        el 3B genera hasta el cap; el agente lo usa en el paso ReAct (ver cli.py)."""
         if temperature is None:
             temperature = self._TEMPERATURES.get(decision.sub_model, 0.5)
+        _max_toks = max_tokens if max_tokens is not None else self._max_tokens
         # Fast path: llama.cpp if GGUF model and runtime are present
         self._try_load_llama()
         if self._llama is not None:
             from node.inference_pipeline import _apply_qwen_template
             system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
-            result = self._llama.generate(formatted, max_tokens=self._max_tokens)
+            result = self._llama.generate(formatted, max_tokens=_max_toks,
+                                          temperature=temperature, stop=stop,
+                                          repeat_penalty=repeat_penalty,
+                                          grammar=grammar)
             if result is not None:
-                # Estimate token count from text length (llama-server doesn't return it)
-                toks = max(1, len(result) // 4)
+                # Prefer the real count reported by llama-server (tokens_predicted);
+                # fall back to a len//4 estimate if the backend doesn't expose it
+                real = getattr(self._llama, "last_tokens_predicted", None)
+                toks = real if real is not None else max(1, len(result) // 4)
                 return result, "llama.cpp", toks
             # llama.cpp failed mid-session — disable and fall through to numpy
             logger.warning("[Orchestrator] llama.cpp returned None, falling back to numpy")
@@ -635,7 +706,8 @@ class ShatteringOrchestrator:
 
         # If real Qwen .npz shards are present, run the full shard pipeline
         if self._shards_available():
-            text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
+            text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id,
+                                           temperature=temperature, max_tokens=max_tokens)
             return text, "local", toks
 
         sub_model = decision.sub_model
@@ -667,7 +739,8 @@ class ShatteringOrchestrator:
             text = self._ollama_infer(prompt, sub_model, n_passes=self._n_passes)
             return text, "simulation", 0
 
-        text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id, temperature=temperature)
+        text, toks = self._shard_infer(prompt, lpc_session_id=lpc_session_id,
+                                       temperature=temperature, max_tokens=max_tokens)
         return text, "local", toks
 
     def _shards_available(self) -> bool:
@@ -725,7 +798,8 @@ class ShatteringOrchestrator:
 
     def _shard_infer_stream(self, prompt: str, queue, loop,
                             lpc_session_id: Optional[str] = None,
-                            temperature: float = 0.5) -> "InferResult":
+                            temperature: float = 0.5,
+                            max_tokens: Optional[int] = None) -> "InferResult":
         """
         Streaming token generation with speculative decoding when nano_draft.npz is present.
         Puts (token_text, None) into queue per token; returns InferResult when done.
@@ -747,10 +821,10 @@ class ShatteringOrchestrator:
         route      = self._local_route
         t0         = _time.perf_counter()
         is_qwen    = "qwen" in pipeline.model_name.lower()
-        _QWEN_EOS  = {151643, 151645}
+        _QWEN_EOS  = _QWEN_EOS_SET
         system     = COGNIA_SYSTEM_PROMPT
         formatted  = _apply_qwen_template(prompt, system) if is_qwen else prompt
-        vocab_size = 151936 if is_qwen else 32000
+        vocab_size = _QWEN_VOCAB if is_qwen else 32000
         _N_DRAFT   = self._SPEC_N_DRAFT
 
         all_ids = np.array(pipeline._encode(formatted), dtype=np.int32)
@@ -775,8 +849,10 @@ class ShatteringOrchestrator:
         spec_attempts    = 0      # adaptive guard: disable a weak draft mid-turn
         spec_acc_total   = 0
 
+        _budget          = max_tokens if max_tokens is not None else self._max_tokens
+
         try:
-            for _ in range(self._max_tokens):
+            for _ in range(_budget):
                 # ── Speculative path ──────────────────────────────────────────
                 # The anchor is the last committed-but-un-forwarded token; the draft
                 # proposes what follows it. candidates = [anchor, d_1 .. d_{N-1}].
@@ -895,7 +971,8 @@ class ShatteringOrchestrator:
                 self._evict_one_mla_session(session_id)
 
     def _shard_infer(self, prompt: str, lpc_session_id: Optional[str] = None,
-                     temperature: float = 0.5) -> tuple:
+                     temperature: float = 0.5,
+                     max_tokens: Optional[int] = None) -> tuple:
         """
         Run end-to-end inference via the real Qwen INT4 forward pass.
 
@@ -916,7 +993,8 @@ class ShatteringOrchestrator:
 
         result = self._generate_local(
             prompt, self._pipeline, self._local_route,
-            lpc_session_id=lpc_session_id, temperature=temperature
+            lpc_session_id=lpc_session_id, temperature=temperature,
+            max_tokens=max_tokens,
         )
         if result.get("ok") and result.get("text"):
             return result["text"], result.get("tokens_generated", 0)
@@ -932,7 +1010,8 @@ class ShatteringOrchestrator:
 
     def _generate_local(self, prompt: str, pipeline, route: list,
                         lpc_session_id: Optional[str] = None,
-                        temperature: float = 0.5) -> dict:
+                        temperature: float = 0.5,
+                        max_tokens: Optional[int] = None) -> dict:
         """
         Drive the token-by-token generation loop locally, without any HTTP call.
         Delegates each forward pass to registered local ShardEngines.
@@ -946,7 +1025,7 @@ class ShatteringOrchestrator:
 
         t0        = _time.perf_counter()
         is_qwen   = "qwen" in pipeline.model_name.lower()
-        _QWEN_EOS = {151643, 151645}
+        _QWEN_EOS = _QWEN_EOS_SET
         system    = COGNIA_SYSTEM_PROMPT
         formatted = _apply_qwen_template(prompt, system) if is_qwen else prompt
         eos_set   = _QWEN_EOS if is_qwen else {2}
@@ -965,7 +1044,7 @@ class ShatteringOrchestrator:
         try:
             generated_ids, tokens_generated = self._token_loop(
                 pipeline, route, session_id, current_ids, hidden_dim, eos_set,
-                temperature=temperature
+                temperature=temperature, max_tokens=max_tokens,
             )
 
             # ── LPC: update cached token sequence ─────────────────────────────
@@ -994,13 +1073,14 @@ class ShatteringOrchestrator:
 
     def _token_loop(self, pipeline, route: list, session_id: str,
                     current_ids, hidden_dim: int, eos_set: set,
-                    temperature: float = 0.5):
+                    temperature: float = 0.5,
+                    max_tokens: Optional[int] = None):
         """Inner token generation loop with optional speculative decoding."""
         import numpy as np
         import time as _time
         from node.inference_pipeline import _LOCAL_ENGINES
 
-        vocab_size       = 151936
+        vocab_size       = _QWEN_VOCAB
         _N_DRAFT         = self._SPEC_N_DRAFT
         prompt_ids_local = current_ids.copy()  # save full prompt for draft context
         generated_ids    = []
@@ -1011,7 +1091,9 @@ class ShatteringOrchestrator:
         spec_attempts    = 0           # adaptive guard: disable a weak draft mid-turn
         spec_acc_total   = 0
 
-        for _ in range(self._max_tokens):
+        _budget          = max_tokens if max_tokens is not None else self._max_tokens
+
+        for _ in range(_budget):
             # ── Speculative path ──────────────────────────────────────────
             # The anchor is the last committed-but-un-forwarded token; the draft
             # proposes what follows it. candidates = [anchor, d_1 .. d_{N-1}].
@@ -1304,8 +1386,9 @@ class ShatteringOrchestrator:
             return f"[{sub_model.upper()}] Shard inference failed. Check logs for details."
         return (
             f"[{sub_model.upper()}] No inference backend available. "
-            f"Run the setup wizard to download model shards, or start Ollama: "
-            f"ollama serve && ollama pull {self._ollama_model}"
+            f"Instala el modelo local con: cognia install-model  "
+            f"(o arranca Ollama: ollama serve && ollama pull "
+            f"{self._ollama_model})"
         )
 
     # ── Distributed inference ───────────────────────────────────────────

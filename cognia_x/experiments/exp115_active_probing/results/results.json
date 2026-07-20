@@ -1,0 +1,108 @@
+{
+  "exp": "exp115_active_probing",
+  "cycle": 131,
+  "hypothesis": "H-V4-10e",
+  "claim": "el sondeo de datos DIRIGIDO POR VALOR (active inference) compra eficiencia muestral sobre el uniforme EXACTAMENTE cuando la controlabilidad debe DESCUBRIRSE (relevancia uniforme, controlabilidad escasa), a presupuesto MEDIO -- el beneficio es una U-invertida en presupuesto (~0 en escasez genuina, grande en el medio, se achica en abundancia); con la relevancia CONOCIDA el efecto es chico (la seleccion ya esta resuelta por w). Brazos pareados; la version naive hace dano",
+  "verdict": "mixta",
+  "summary": {
+    "grid": {
+      "conocida": {
+        "160": {
+          "pasiva": 0.7336,
+          "activa": 0.8064,
+          "gap": 0.0728
+        },
+        "640": {
+          "pasiva": 0.9574,
+          "activa": 0.9635,
+          "gap": 0.0061
+        },
+        "1280": {
+          "pasiva": 0.9847,
+          "activa": 0.9906,
+          "gap": 0.0059
+        },
+        "2560": {
+          "pasiva": 0.9935,
+          "activa": 0.997,
+          "gap": 0.0035
+        },
+        "5120": {
+          "pasiva": 0.9973,
+          "activa": 0.9987,
+          "gap": 0.0014
+        }
+      },
+      "descubrir": {
+        "160": {
+          "pasiva": 0.02,
+          "activa": 0.0279,
+          "gap": 0.0079
+        },
+        "640": {
+          "pasiva": 0.1668,
+          "activa": 0.2228,
+          "gap": 0.056
+        },
+        "1280": {
+          "pasiva": 0.3848,
+          "activa": 0.5177,
+          "gap": 0.1329
+        },
+        "2560": {
+          "pasiva": 0.6766,
+          "activa": 0.811,
+          "gap": 0.1344
+        },
+        "5120": {
+          "pasiva": 0.9102,
+          "activa": 0.9556,
+          "gap": 0.0454
+        }
+      }
+    },
+    "gaps_descubrir": [
+      0.0079,
+      0.056,
+      0.1329,
+      0.1344,
+      0.0454
+    ],
+    "gaps_conocida": [
+      0.0728,
+      0.0061,
+      0.0059,
+      0.0035,
+      0.0014
+    ],
+    "peak_descubrir": 0.1344,
+    "peak_descubrir_B": 2560,
+    "peak_conocida": 0.0728,
+    "edge_descubrir": 0.0454,
+    "mid_min": 0.056,
+    "peak_ratio": 1.199,
+    "shape_inverted_u": true,
+    "dominates_descubrir": true,
+    "known_small": true,
+    "moderate": true,
+    "status": "mixta",
+    "verdict": "H-V4-10e MIXTA (fenómeno real pero MODERADO; reencuadra el ciclo): el sondeo dirigido por valor (active inference) compra eficiencia muestral cuando la CONTROLABILIDAD debe DESCUBRIRSE, a presupuesto MEDIO, con una U-INVERTIDA ROBUSTA (estable 40-1000 seeds): gaps por B ['0.008', '0.056', '0.133', '0.134', '0.045'] -- los MEDIOS (~+0.056 a +0.134) SUPERAN claramente a los BORDES (escaso/abundante ~+0.045); pico en B=2560, la activa rinde 1.199× la pasiva. En 'conocida' (la relevancia DA la selección) el efecto es CHICO (pico +0.073). HONESTIDAD: el efecto es MODERADO (~+0.13 a +0.18, 20-40% relativo) y la afirmación ORIGINAL del ciclo ('la activa paga en ESCASEZ') quedó REFUTADA por verificación adversarial (a escasez genuina el bootstrap dirigido es ruido y la activa empata/pierde; el beneficio vive en el presupuesto MEDIO). => actuar para aprender lo relevante al control paga cuando hay que DESCUBRIR qué controlás y el presupuesto alcanza para aprender las pocas dims útiles pero no todas. Une 128 (descubrir actuando) + 129/130 (valor). La activa NAIVE (commit duro) HACE DAÑO; sólo la robusta iterativa paga."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 1000
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp115] CYCLE 131 / H-V4-10e (honesto) — sondeo DIRIGIDO POR VALOR vs uniforme, PAREADO: ¿U-invertida cuando hay que DESCUBRIR la controlabilidad?",
+    "[exp115] seeds=1000 K=3 rho=0.5 budgets=[160, 640, 1280, 2560, 5120] regimes={'conocida': 15, 'descubrir': 20} explore_frac=0.4 rounds=4",
+    "[exp115]   conocida (D=15): B160:act=0.806,pas=0.734,gap=+0.073 B640:act=0.964,pas=0.957,gap=+0.006 B1280:act=0.991,pas=0.985,gap=+0.006 B2560:act=0.997,pas=0.994,gap=+0.004 B5120:act=0.999,pas=0.997,gap=+0.001",
+    "[exp115]  descubrir (D=20): B160:act=0.028,pas=0.020,gap=+0.008 B640:act=0.223,pas=0.167,gap=+0.056 B1280:act=0.518,pas=0.385,gap=+0.133 B2560:act=0.811,pas=0.677,gap=+0.134 B5120:act=0.956,pas=0.910,gap=+0.045",
+    "[exp115] DESCUBRIR: pico gap +0.134 en B=2560 | bordes +0.045 | CONOCIDA: pico +0.073",
+    "[exp115] shape_inverted_u=True dominates_descubrir=True known_small=True moderate=True peak_ratio=1.199",
+    "[exp115] VEREDICTO H-V4-10e: MIXTA | H-V4-10e MIXTA (fenómeno real pero MODERADO; reencuadra el ciclo): el sondeo dirigido por valor (active inference) compra eficiencia muestral cuando la CONTROLABILIDAD debe DESCUBRIRSE, a presupuesto MEDIO, con una U-INVERTIDA ROBUSTA (estable 40-1000 seeds): gaps por B ['0.008', '0.056', '0.133', '0.134', '0.045'] -- los MEDIOS (~+0.056 a +0.134) SUPERAN claramente a los BORDES (escaso/abundante ~+0.045); pico en B=2560, la activa rinde 1.199× la pasiva. En 'conocida' (la relevancia DA la selección) el efecto es CHICO (pico +0.073). HONESTIDAD: el efecto es MODERADO (~+0.13 a +0.18, 20-40% relativo) y la afirmación ORIGINAL del ciclo ('la activa paga en ESCASEZ') quedó REFUTADA por verificación adversarial (a escasez genuina el bootstrap dirigido es ruido y la activa empata/pierde; el beneficio vive en el presupuesto MEDIO). => actuar para aprender lo relevante al control paga cuando hay que DESCUBRIR qué controlás y el presupuesto alcanza para aprender las pocas dims útiles pero no todas. Une 128 (descubrir actuando) + 129/130 (valor). La activa NAIVE (commit duro) HACE DAÑO; sólo la robusta iterativa paga."
+  ]
+}

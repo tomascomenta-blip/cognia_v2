@@ -94,7 +94,7 @@ async function refreshSkills() {
   if (!el) return;
   el.innerHTML = "<p class='placeholder-text'>Loading...</p>";
   try {
-    const res = await fetch("http://localhost:8765/skills");
+    const res = await fetch("http://127.0.0.1:8765/skills");
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     const skills = data.skills || [];
@@ -115,7 +115,7 @@ async function refreshSkills() {
       btn.addEventListener("click", async () => {
         const name = btn.dataset.skill;
         try {
-          const r = await fetch(`http://localhost:8765/skills/${encodeURIComponent(name)}`);
+          const r = await fetch(`http://127.0.0.1:8765/skills/${encodeURIComponent(name)}`);
           if (!r.ok) throw new Error("HTTP " + r.status);
           const d = await r.json();
           const lines = d.content.split("\n");
@@ -163,7 +163,7 @@ const _SESSION_ID = "default";
 
 async function _loadHistory() {
   try {
-    const res = await fetch(`http://localhost:8765/chat/history?session_id=${_SESSION_ID}`);
+    const res = await fetch(`http://127.0.0.1:8765/chat/history?session_id=${_SESSION_ID}`);
     if (!res.ok) return;
     const data = await res.json();
     for (const msg of (data.messages || [])) {
@@ -180,7 +180,7 @@ async function _loadHistory() {
 
 async function _saveHistory() {
   try {
-    await fetch("http://localhost:8765/chat/history", {
+    await fetch("http://127.0.0.1:8765/chat/history", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: _SESSION_ID, messages: history }),
@@ -190,7 +190,7 @@ async function _saveHistory() {
 
 async function _clearHistory() {
   try {
-    await fetch(`http://localhost:8765/chat/history?session_id=${_SESSION_ID}`, { method: "DELETE" });
+    await fetch(`http://127.0.0.1:8765/chat/history?session_id=${_SESSION_ID}`, { method: "DELETE" });
   } catch (_) {}
 }
 
@@ -556,7 +556,7 @@ const _networkStatusEl = document.getElementById("network-status");
 async function _refreshNetworkStatus() {
   if (!_networkStatusEl) return;
   try {
-    const res = await fetch("http://localhost:8765/network/status");
+    const res = await fetch("http://127.0.0.1:8765/network/status");
     if (!res.ok) throw new Error("http " + res.status);
     const d = await res.json();
     if (d.online === false) {
@@ -627,7 +627,7 @@ let _editorCurrentPath = null;
 async function loadDirectory(path) {
   path = path || '.';
   try {
-    const r = await fetch('http://localhost:8765/files/list?path=' + encodeURIComponent(path));
+    const r = await fetch('http://127.0.0.1:8765/files/list?path=' + encodeURIComponent(path));
     const data = await r.json();
     document.getElementById('browser-path').textContent = data.path || path;
     const list = document.getElementById('file-list');
@@ -663,7 +663,7 @@ async function loadDirectory(path) {
 
 async function openFile(path, name) {
   try {
-    const r = await fetch('http://localhost:8765/files/read?path=' + encodeURIComponent(path));
+    const r = await fetch('http://127.0.0.1:8765/files/read?path=' + encodeURIComponent(path));
     const data = await r.json();
     _editorCurrentPath = path;
     document.getElementById('editor-filename').textContent = name || path;
@@ -706,7 +706,7 @@ if (_btnSaveFile) {
     if (!_editorCurrentPath) return;
     const content = document.getElementById('file-editor').value;
     try {
-      const r = await fetch('http://localhost:8765/files/write', {
+      const r = await fetch('http://127.0.0.1:8765/files/write', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({path: _editorCurrentPath, content})
@@ -754,7 +754,7 @@ if (agentRunBtn) {
     agentRunBtn.textContent = 'Ejecutando...';
     agentResult.style.display = 'none';
     try {
-      const resp = await fetch(`${window._backendUrl || 'http://localhost:8765'}/agent`, {
+      const resp = await fetch(`${window._backendUrl || 'http://127.0.0.1:8765'}/agent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task })
@@ -774,7 +774,7 @@ if (agentRunBtn) {
 
 
 // ── Settings panel: personalization, mode, theme ──────────────────────
-const _SETTINGS_API = "http://localhost:8765";
+const _SETTINGS_API = "http://127.0.0.1:8765";
 
 function applyTheme(theme) {
   document.body.classList.toggle("light", theme === "light");

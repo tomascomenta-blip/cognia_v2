@@ -1,0 +1,230 @@
+{
+  "experiment": "xh_final",
+  "device": "cuda",
+  "torch": "2.10.0+cu128",
+  "receta": {
+    "d": 768,
+    "layers": 3,
+    "heads": 12,
+    "window": 256,
+    "globals": [
+      2
+    ],
+    "seq": 512,
+    "batch": 48,
+    "opt": "muon",
+    "muon_lr": 0.02,
+    "adamw_lr": 0.003,
+    "data": "mix35",
+    "vocab_tag": "16k",
+    "wiki_rows": 14,
+    "attn": "mask",
+    "warmup": 200,
+    "ema": 0.995,
+    "train_wall_s": 1500.0,
+    "veredicto_k2": "muon>adamw 0.072; bpe>byte 0.24; 16k>32k 0.019; cuentos->35%; d768; mask; ema 0.995"
+  },
+  "wall": {
+    "setup_s": 9.2,
+    "compile_first_step_s": 45.7,
+    "train_s": 1501.3,
+    "evals_s": 29.3
+  },
+  "params_total": 33822336,
+  "params_nonemb": 21239424,
+  "curve": [
+    {
+      "s": 121,
+      "step": 65,
+      "loss": 5.4025,
+      "bpb_wiki": 2.1686,
+      "tokens_seen": 1597440
+    },
+    {
+      "s": 241,
+      "step": 150,
+      "loss": 4.7441,
+      "bpb_wiki": 1.9068,
+      "tokens_seen": 3686400
+    },
+    {
+      "s": 361,
+      "step": 237,
+      "loss": 4.2898,
+      "bpb_wiki": 1.8003,
+      "tokens_seen": 5824512
+    },
+    {
+      "s": 481,
+      "step": 324,
+      "loss": 4.0424,
+      "bpb_wiki": 1.6947,
+      "tokens_seen": 7962624
+    },
+    {
+      "s": 601,
+      "step": 410,
+      "loss": 3.7646,
+      "bpb_wiki": 1.596,
+      "tokens_seen": 10076160
+    },
+    {
+      "s": 721,
+      "step": 497,
+      "loss": 3.6336,
+      "bpb_wiki": 1.5011,
+      "tokens_seen": 12214272
+    },
+    {
+      "s": 840,
+      "step": 583,
+      "loss": 3.5242,
+      "bpb_wiki": 1.453,
+      "tokens_seen": 14327808
+    },
+    {
+      "s": 961,
+      "step": 670,
+      "loss": 3.3913,
+      "bpb_wiki": 1.4208,
+      "tokens_seen": 16465920
+    },
+    {
+      "s": 1081,
+      "step": 756,
+      "loss": 3.3515,
+      "bpb_wiki": 1.3893,
+      "tokens_seen": 18579456
+    },
+    {
+      "s": 1201,
+      "step": 842,
+      "loss": 3.3797,
+      "bpb_wiki": 1.3741,
+      "tokens_seen": 20692992
+    },
+    {
+      "s": 1321,
+      "step": 928,
+      "loss": 3.2186,
+      "bpb_wiki": 1.3233,
+      "tokens_seen": 22806528
+    },
+    {
+      "s": 1442,
+      "step": 1015,
+      "loss": 3.0686,
+      "bpb_wiki": 1.2896,
+      "tokens_seen": 24944640
+    }
+  ],
+  "steps": 1058,
+  "tokens_seen": 26001408,
+  "tok_per_s": 17319,
+  "scaler_skips": 0,
+  "tok_per_param": 0.769,
+  "averaging": {
+    "candidatos": {
+      "last": 1.3069,
+      "ema": 1.3081,
+      "lawa": 1.316
+    },
+    "elegido": "last"
+  },
+  "bpb_wiki": 1.3069,
+  "bpb_stories": 0.6922,
+  "extrapolacion": {
+    "bpb_wiki_512": 1.3069,
+    "bpb_wiki_1024": 1.2676,
+    "bpb_wiki_1024_ntk2": 1.2669
+  },
+  "samples": [
+    {
+      "prompt": "La historia de ",
+      "text": "La historia de risis de risis risis hace unos sesenta años. risis, inventora, inventora y inventora. risis, inventora, inventora, inventora y inventora la cantidad de luz. risis de risis. risis, inventora, inventora, inventora y inventora. risis de risis. risis de risis, inventora, inventora, inventora, inventora, inventora, inventora y inventora. risis, inventora, inventora y inventora de .\n\nUn largo período de la historia de la astronomía griega, el inicio del , se ha convertido en el eje del planeta, más allá de la Tierra y de la Tierra. risis, por lo tanto, se ha convertido en una estrella blanca, de la que se ven",
+      "distinct2": 0.36,
+      "distinct3": 0.431,
+      "max_4gram_repeat": 16
+    },
+    {
+      "prompt": "El sol es ",
+      "text": "El sol es  es  es  y  es  con  energía  que es  y  el  es  .\n\nPara  es  que  es .\n\nHistoria \nEn los griegos , un  se puede denominar simplemente  o , o  y  es .\n\nEn la siguiente tabla,  y  se emplea  para .\n\nAdemás de la  una  (de la escala de la masa de la iglesia),  es  y  se usa  para .\n\nSin embargo,  y  se utilizan  para .\n\nLa  (que se utiliza ),  y  para .\n\nLa  es  en las  ni  y  para .\n\nVéase también \n\nEsta  es la  que tiene .\n\nOtros tipos de  son:\n\nAlgunos de los  son:\n\nMuchos de los , y  son:\n\n(y)\n\n(x)\n\n(x",
+      "distinct2": 0.571,
+      "distinct3": 0.748,
+      "max_4gram_repeat": 5
+    },
+    {
+      "prompt": "Los animales del bosque ",
+      "text": "Los animales del bosque  se forman a partir del cual se preparan el mismo lugar y se preparan para hacer un viaje. Un día, en la gran montaña de montaña, los animales hacen una carta para la niña pequeña. Su collar es especial, porque es una tarjeta que se le llama tarjeta y que a ella le gustan.\n\nDenador de la montaña \nLa niña pequeña se une a las legadas, y, a la vez, la punta de la bicicleta de la montaña se mueve sobre la parte superior de la bala, y el lugar es llamado así en forma de una tarjeta de la que la tiene, también se forma una tarjeta de la misma.\n\nTanto la letra como la estrella de la montaña como el hombre son los símbolos de la madera.\n\nHistoria \n\nSe sabe que la letra no siempre es la misma sino que los símbolos que la rodean por una tabla de madera. En el estudio de la tabla de la tabla aparecen los símbolos de la letra que",
+      "distinct2": 0.833,
+      "distinct3": 0.951,
+      "max_4gram_repeat": 2
+    },
+    {
+      "prompt": "En la ciudad de Madrid ",
+      "text": "En la ciudad de Madrid  (Inglaterra) se encuentra en un condado con una población de 18 000 habitantes.\n\nEn 1875 se inauguró el edificio de la iglesia de la Ciudad de Madrid.\n\nArquitectura \n\nEn 1901 se inauguró el plan de limpieza de la ciudad, con la construcción de los Pastos de Fráncfort de la Torre del Mercado y el Palacio de la Torre del Mercado.\n\nDe la ciudad, la ciudad se encuentra en el jardín de la plaza de la Ciudad, especialmente un paisaje natural que representa con la consecuencia de su belleza.\n\nLa ciudad cuenta con una extensión de 250 km² y una zona de recreación que puede de rehabilitación geográfica y astronómica.\n\nLa ciudad es una ciudad de montaña y con una población de 25 000 habitantes. La ciudad es una de las ciudades más bajas del mundo, con una densidad de 530 000 habitantes y una población total de  de 1.508",
+      "distinct2": 0.766,
+      "distinct3": 0.902,
+      "max_4gram_repeat": 2
+    },
+    {
+      "prompt": "La ciencia estudia ",
+      "text": "La ciencia estudia énfasis en la teoría de la relatividad. énfasis en la interpretación de la relatividad entre las ciencias. énfasis en la relación de las longitudes entre ecuaciones diferenciales y se teoriza la relatividad. énfasis en la teoría de la relatividad, énfasis en la teoría de la relatividad, énfasis en la teoría de la relatividad. énfasis en la teoría de la relatividad. énfasis en la teoría de la relatividad. énfasis en la teoría de la relatividad: énfasis en la teoría de las ciencias. énfasis en la mecánica cuántica. énfasis en la teoría de la relatividad.\n\nEn el estudio de la relatividad, los físicos-químicos, Stephen Marx y Cauchy, aparecen en el estudio de los objetos de la relatividad, y en el campo de la relatividad, la teoría de la relatividad, los físicos y la física cuántica, los",
+      "distinct2": 0.384,
+      "distinct3": 0.46,
+      "max_4gram_repeat": 12
+    },
+    {
+      "prompt": "Había una vez un niño que ",
+      "text": "Había una vez un niño que risa. Estaba tan feliz que no podía contener el parque.\n\nEl niño estaba muy asustado y se fue a la cama. Se quedó dormido y esperó a que la noche se reentuviera.\n\nEl niño entró a la mañana y su mamá lo llevó al parque. El parque estaba muy tranquilo y lleno de juegos. Los niños aplaudieron al niño y lo estaban jugando en el parque.\n\nEl niño y su mamá regresaron a casa y la mañana se iluminó de nuevo. El niño se alegró de haber sido tan valiente y se despidió del parque.",
+      "distinct2": 0.833,
+      "distinct3": 0.924,
+      "max_4gram_repeat": 3
+    },
+    {
+      "prompt": "Un día, la pequeña Sofía encontró ",
+      "text": "Un día, la pequeña Sofía encontró riscos en el suelo. Las dos hermanas estaban muy emocionadas y comenzaron a correr.\n\n¡Después de un rato, comenzaron a correr! Sofía sonrió y corrió lo más rápido que pudo. Estaba tan emocionado y entusiasmada por ser un poco más con Sofía.\n\n¡La pequeña Sofía había ganado tanto! La pequeña Sofía no pudo correr tan rápido como pudo correr en el cielo. Ella estaba tan feliz de haber ganado ese día.",
+      "distinct2": 0.907,
+      "distinct3": 0.969,
+      "max_4gram_repeat": 2
+    },
+    {
+      "prompt": "El agua es una sustancia que ",
+      "text": "El agua es una sustancia que umienta el agua dentro de los alimentos, de los cuales umbrales que están formados por la hormona. Se le puede decir que la ingestión tiene un origen en la cantidad de agua, que es un problema de la quema de los alimentos que se han producido en la reacción de la desequilibrada, donde se prevé la fricción. Se cree que la resistencia en el agua para que se secase sobre el agua es mayor y el agua, y se extienden en agua dentro del agua y que se forman con una sensibilidad muscular de todo el agua y, por consiguiente, la cantidad de agua (enfermedad, plapesinización).\n\nDeterminantes del agua \n\nConstituyen la piruva del agua sobre el agua, siendo los nutrientes muy fértiles. En esta fase se ha considerado la mayor parte de la calidad de agua de gas en el mundo, aunque, en la actualidad, el agua no",
+      "distinct2": 0.85,
+      "distinct3": 0.976,
+      "max_4gram_repeat": 2
+    },
+    {
+      "prompt": "Los planetas del sistema solar ",
+      "text": "Los planetas del sistema solar  de Marte, H.C. o H.R.E. (D. C. en inglés, F. H.C.; en inglés), son estrellas helénicas que utilizan una estrella tangente, una estrella blanca que es una estrella muy grande (Y.g. & A.F.); son estrellas perennetoides, plumas cilíndricas o plumas (Vieg.oomy), que se pueden usar para expresar el diámetro de la estrella. El entorno de la estrella tiene un potencial de tipo espectral de 1.1 K.\n\nLos planetas de Marte son más recientes, y no siempre existen más que los planetas. Los planetas son de tipo espectral o también son hepáticos, y se han encontrado más planetas que los planetas. Los objetos inerteses pueden ser estrellas de tipo espectral de la Tierra. Los planetas están situados en una estrella, con una rotación de magnitud C, y con una velocidad de 8",
+      "distinct2": 0.849,
+      "distinct3": 0.941,
+      "max_4gram_repeat": 3
+    },
+    {
+      "prompt": "Desde la ventana de mi casa se puede ver ",
+      "text": "Desde la ventana de mi casa se puede ver  colores brillantes en el cielo.",
+      "distinct2": 1.0,
+      "distinct3": 1.0,
+      "max_4gram_repeat": 1
+    }
+  ],
+  "cloze": {
+    "total": 0.85,
+    "n": 40,
+    "concordancia": 0.9167,
+    "conocimiento": 0.5833,
+    "semantica": 1.0,
+    "sintaxis": 1.0
+  },
+  "gates": {
+    "G1_bpb_wiki<=1.45(loop)": true,
+    "G1_falsado_bpb>1.60(loop)": false,
+    "G2_coherencia": "manual (checklist 00_DISENO §3-G2 sobre samples)",
+    "G3_no_degeneracion": false,
+    "G4_cloze>=55%(loop)": true,
+    "wall_30min": true
+  },
+  "minutes_total": 25.7
+}

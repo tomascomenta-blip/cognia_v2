@@ -19,6 +19,14 @@ def db_connect(path: str = None) -> sqlite3.Connection:
     - WAL mode: mejor concurrencia multi-hilo (sin database is locked)
     - cache_size: reduce I/O repetitivo
     - text_factory: evita corrupción de acentos en Windows
+
+    NOTA deuda (2026-07-16): este wrapper aplica los MISMOS pragmas que
+    storage/db_pool pero devuelve conexiones propias (no pooleadas). La
+    migración al pool va módulo a módulo (patrón user_facts/goal_tracker;
+    los call-sites por-operación ya migraron) porque varios callers retienen
+    la conexión de por vida y poolearlos a ciegas agota el pool (stalls de
+    10s en acquire). No agregar call-sites nuevos de este wrapper: usar
+    storage.db_pool.db_connect_pooled.
     """
     if path is None:
         path = DB_PATH

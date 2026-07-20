@@ -1,0 +1,155 @@
+{
+  "exp": "exp112_control_discovery",
+  "cycle": 128,
+  "hypothesis": "H-V4-10b",
+  "claim": "un objetivo de control DESCUBRE que dimensiones son controlables (la particion de relevancia) de sus propios datos accion-resultado -estimando |b| de cada modo- sin que se le diga: control-discovery iguala al control-oracle y supera a la prediccion que colapsa, eligiendo el modo controlable correcto -> la relevancia es DESCUBRIBLE actuando (R-INTERVENCION); cierra el caveat de 127",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "12": {
+        "prediccion": {
+          "0.5": {
+            "perf": 0.8366,
+            "pick1": 1.0
+          },
+          "1.0": {
+            "perf": 0.6254,
+            "pick1": 0.75
+          },
+          "2.0": {
+            "perf": 0.1682,
+            "pick1": 0.195
+          },
+          "4.0": {
+            "perf": 0.0076,
+            "pick1": 0.01
+          }
+        },
+        "control_oracle": {
+          "0.5": {
+            "perf": 0.7922,
+            "pick1": 1.0
+          },
+          "1.0": {
+            "perf": 0.8356,
+            "pick1": 1.0
+          },
+          "2.0": {
+            "perf": 0.8108,
+            "pick1": 1.0
+          },
+          "4.0": {
+            "perf": 0.782,
+            "pick1": 1.0
+          }
+        },
+        "control_discovery": {
+          "0.5": {
+            "perf": 0.8249,
+            "pick1": 0.97
+          },
+          "1.0": {
+            "perf": 0.7756,
+            "pick1": 0.94
+          },
+          "2.0": {
+            "perf": 0.7481,
+            "pick1": 0.85
+          },
+          "4.0": {
+            "perf": 0.4994,
+            "pick1": 0.575
+          }
+        }
+      },
+      "200": {
+        "prediccion": {
+          "0.5": {
+            "perf": 0.993,
+            "pick1": 1.0
+          },
+          "1.0": {
+            "perf": 0.9931,
+            "pick1": 1.0
+          },
+          "2.0": {
+            "perf": 0.0,
+            "pick1": 0.0
+          },
+          "4.0": {
+            "perf": 0.0,
+            "pick1": 0.0
+          }
+        },
+        "control_oracle": {
+          "0.5": {
+            "perf": 0.9918,
+            "pick1": 1.0
+          },
+          "1.0": {
+            "perf": 0.9912,
+            "pick1": 1.0
+          },
+          "2.0": {
+            "perf": 0.9912,
+            "pick1": 1.0
+          },
+          "4.0": {
+            "perf": 0.9929,
+            "pick1": 1.0
+          }
+        },
+        "control_discovery": {
+          "0.5": {
+            "perf": 0.9911,
+            "pick1": 1.0
+          },
+          "1.0": {
+            "perf": 0.992,
+            "pick1": 1.0
+          },
+          "2.0": {
+            "perf": 0.9914,
+            "pick1": 1.0
+          },
+          "4.0": {
+            "perf": 0.9918,
+            "pick1": 1.0
+          }
+        }
+      }
+    },
+    "disc_hi": 0.9918,
+    "orac_hi": 0.9929,
+    "pred_hi": 0.0,
+    "disc_pick_hi": 1.0,
+    "disc_lo": 0.4994,
+    "data_dependence": 0.4924,
+    "discovery_matches_oracle": true,
+    "discovery_picks_right": true,
+    "status": "apoyada",
+    "verdict": "H-V4-10b APOYADA (la relevancia es DESCUBRIBLE actuando): con datos acción-resultado suficientes (T=200) y distractor FUERTE (s2=4.0), CONTROL-DISCOVERY -- que NO sabe la partición y estima la controlabilidad |b̂| de cada modo de sus propios datos -- iguala al CONTROL-ORACLE (0.992≈0.993) y supera a la PREDICCIÓN que colapsa (0.000); elige el modo controlable correcto el 1.000 de las veces. => la PARTICIÓN de relevancia (qué es controlable) es DESCUBRIBLE de los datos acción-resultado ACTUANDO -- cierra el caveat de 127 (no hace falta darle la partición) y ancla 'control = fuente de relevancia' en R-INTERVENCIÓN: aprendés qué controlás interviniendo. Dependencia de datos: con poca data (T=12) discovery rinde 0.499 (Δ0.492 vs mucha data) -- descubrir necesita suficiente acción."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp112] CYCLE 128 / H-V4-10b — ¿el CONTROL DESCUBRE qué es controlable (la partición de relevancia) de sus datos acción-resultado, sin que se le diga?",
+    "[exp112] seeds=200 a=0.6 b=1.0 s1=1.0 s2_sweep=[0.5, 1.0, 2.0, 4.0] T_sweep=[12, 200] eval=200",
+    "[exp112] T= 12        prediccion: s2=0.5:0.837 s2=1.0:0.625 s2=2.0:0.168 s2=4.0:0.008",
+    "[exp112] T= 12    control_oracle: s2=0.5:0.792 s2=1.0:0.836 s2=2.0:0.811 s2=4.0:0.782",
+    "[exp112] T= 12 control_discovery: s2=0.5:0.825 s2=1.0:0.776 s2=2.0:0.748 s2=4.0:0.499  pick1=[0.97,0.94,0.85,0.57]",
+    "[exp112] T=200        prediccion: s2=0.5:0.993 s2=1.0:0.993 s2=2.0:0.000 s2=4.0:0.000",
+    "[exp112] T=200    control_oracle: s2=0.5:0.992 s2=1.0:0.991 s2=2.0:0.991 s2=4.0:0.993",
+    "[exp112] T=200 control_discovery: s2=0.5:0.991 s2=1.0:0.992 s2=2.0:0.991 s2=4.0:0.992  pick1=[1.00,1.00,1.00,1.00]",
+    "[exp112] (T=200, distractor fuerte s2=4.0): discovery=0.992 oracle=0.993 predicción=0.000 | pick_correcto=1.00",
+    "[exp112] dependencia de datos (discovery T200 - T12)=+0.492",
+    "[exp112] discovery_matches_oracle=True discovery_picks_right=True",
+    "[exp112] VEREDICTO H-V4-10b: APOYADA | H-V4-10b APOYADA (la relevancia es DESCUBRIBLE actuando): con datos acción-resultado suficientes (T=200) y distractor FUERTE (s2=4.0), CONTROL-DISCOVERY -- que NO sabe la partición y estima la controlabilidad |b̂| de cada modo de sus propios datos -- iguala al CONTROL-ORACLE (0.992≈0.993) y supera a la PREDICCIÓN que colapsa (0.000); elige el modo controlable correcto el 1.000 de las veces. => la PARTICIÓN de relevancia (qué es controlable) es DESCUBRIBLE de los datos acción-resultado ACTUANDO -- cierra el caveat de 127 (no hace falta darle la partición) y ancla 'control = fuente de relevancia' en R-INTERVENCIÓN: aprendés qué controlás interviniendo. Dependencia de datos: con poca data (T=12) discovery rinde 0.499 (Δ0.492 vs mucha data) -- descubrir necesita suficiente acción."
+  ]
+}

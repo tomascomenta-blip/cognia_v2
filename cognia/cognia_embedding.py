@@ -341,3 +341,13 @@ def text_to_vector_fast(
     _embedding_cache.shrink_if_pressured()
 
     return vec
+
+
+def semantic_model_active(throttle_controller=None) -> bool:
+    """True si el backend SEMANTICO real (sentence-transformers) esta
+    disponible y activo. Con el fallback n-gram, el coseno produce
+    similitudes espurias entre textos cortos (bigramas compartidos) y los
+    umbrales calibrados para ST (p.ej. skills SEMANTIC_MATCH_THRESHOLD=0.35)
+    dejan pasar ruido -> matches falsos. Los consumidores que dependen de
+    esa calibracion deben chequear esto antes de confiar en el coseno."""
+    return LazyEmbeddingModel.get(throttle_controller) is not None

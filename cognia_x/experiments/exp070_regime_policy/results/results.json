@@ -1,0 +1,119 @@
+{
+  "exp": "exp070_regime_policy",
+  "cycle": 86,
+  "hypothesis": "H-V4-7d",
+  "claim": "el combinador aprendido domina al producto sobre una compuerta de calidad de feedback en ambos regimenes; la deteccion de regimen es innecesaria (politica = compuerta de feedback)",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "comp_q0": {
+        "oracle": 1.0,
+        "always_product": 0.8322,
+        "always_learned": 0.8224,
+        "selector": 0.8306,
+        "oracle_selector": 0.8456,
+        "random": 0.4443,
+        "_frac_chose_learned": 0.229
+      },
+      "comp_q1": {
+        "oracle": 1.0,
+        "always_product": 0.9279,
+        "always_learned": 0.9289,
+        "selector": 0.9221,
+        "oracle_selector": 0.9393,
+        "random": 0.4757,
+        "_frac_chose_learned": 0.188
+      },
+      "comp_q2": {
+        "oracle": 1.0,
+        "always_product": 0.9761,
+        "always_learned": 0.9819,
+        "selector": 0.9786,
+        "oracle_selector": 0.9846,
+        "random": 0.5083,
+        "_frac_chose_learned": 0.479
+      },
+      "comp_clean": {
+        "oracle": 1.0,
+        "always_product": 0.9845,
+        "always_learned": 0.9942,
+        "selector": 0.9916,
+        "oracle_selector": 0.9944,
+        "random": 0.4842,
+        "_frac_chose_learned": 0.729
+      },
+      "subs_q0": {
+        "oracle": 1.0,
+        "always_product": 0.8895,
+        "always_learned": 0.9004,
+        "selector": 0.8924,
+        "oracle_selector": 0.9162,
+        "random": 0.7126,
+        "_frac_chose_learned": 0.542
+      },
+      "subs_q1": {
+        "oracle": 1.0,
+        "always_product": 0.9158,
+        "always_learned": 0.953,
+        "selector": 0.9522,
+        "oracle_selector": 0.9555,
+        "random": 0.7133,
+        "_frac_chose_learned": 0.938
+      },
+      "subs_q2": {
+        "oracle": 1.0,
+        "always_product": 0.9286,
+        "always_learned": 0.9795,
+        "selector": 0.9795,
+        "oracle_selector": 0.9796,
+        "random": 0.7011,
+        "_frac_chose_learned": 1.0
+      },
+      "subs_clean": {
+        "oracle": 1.0,
+        "always_product": 0.9308,
+        "always_learned": 0.9938,
+        "selector": 0.9938,
+        "oracle_selector": 0.9938,
+        "random": 0.7088,
+        "_frac_chose_learned": 1.0
+      }
+    },
+    "q_ref": "q2",
+    "gate_quality": "q1",
+    "dominates": true,
+    "detection_unnecessary": true,
+    "dom_comp_qref": 0.0058,
+    "dom_subs_qref": 0.0509,
+    "selector_minus_always_learned": -0.0016,
+    "oracle_selector_minus_always_learned": 0.0014,
+    "status": "apoyada",
+    "verdict": "H-V4-7d APOYADA: el combinador aprendido DOMINA por encima de una compuerta de calidad de feedback (gate=q1) -> la detección de régimen es INNECESARIA. A calidad q2: always_learned vence al producto en sustitutos (+0.051) y lo iguala en complementos (0.006); el oracle_selector (detector PERFECTO) supera a always_learned sólo por 0.001 (<= 0.020) y el selector real por -0.002 (<= 0.020). => ni un detector perfecto aporta sobre 'siempre aprender': la política práctica de reconstrucción de R-VALOR es una COMPUERTA DE CALIDAD DE FEEDBACK (aprendido si el feedback es adecuado, producto si es pobre), NO un switch por régimen."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k": 10,
+    "ctrl_noise": 0.5,
+    "m": 20
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp070] CYCLE 86 / H-V4-7d — ¿detectar régimen o el aprendido domina sobre una compuerta de feedback?",
+    "[exp070] n=50 k=10 ctrl_noise=0.5 m=20 seeds=48 qualities=['q0', 'q1', 'q2', 'clean'] (λ=1.0)",
+    "[exp070] comp/q0: prod=0.832 learned=0.822 selector=0.831 oracle_sel=0.846 (chose_learned=0.229)",
+    "[exp070] comp/q1: prod=0.928 learned=0.929 selector=0.922 oracle_sel=0.939 (chose_learned=0.188)",
+    "[exp070] comp/q2: prod=0.976 learned=0.982 selector=0.979 oracle_sel=0.985 (chose_learned=0.479)",
+    "[exp070] comp/clean: prod=0.985 learned=0.994 selector=0.992 oracle_sel=0.994 (chose_learned=0.729)",
+    "[exp070] subs/q0: prod=0.889 learned=0.900 selector=0.892 oracle_sel=0.916 (chose_learned=0.542)",
+    "[exp070] subs/q1: prod=0.916 learned=0.953 selector=0.952 oracle_sel=0.956 (chose_learned=0.938)",
+    "[exp070] subs/q2: prod=0.929 learned=0.980 selector=0.980 oracle_sel=0.980 (chose_learned=1.0)",
+    "[exp070] subs/clean: prod=0.931 learned=0.994 selector=0.994 oracle_sel=0.994 (chose_learned=1.0)",
+    "[exp070] gate_dominación=q1 | a q2: dom comp=0.006 subs=0.051 | oracle_sel−learned=0.001 selector−learned=-0.002 | detection_unnecessary=True",
+    "[exp070] VEREDICTO H-V4-7d: APOYADA | H-V4-7d APOYADA: el combinador aprendido DOMINA por encima de una compuerta de calidad de feedback (gate=q1) -> la detección de régimen es INNECESARIA. A calidad q2: always_learned vence al producto en sustitutos (+0.051) y lo iguala en complementos (0.006); el oracle_selector (detector PERFECTO) supera a always_learned sólo por 0.001 (<= 0.020) y el selector real por -0.002 (<= 0.020). => ni un detector perfecto aporta sobre 'siempre aprender': la política práctica de reconstrucción de R-VALOR es una COMPUERTA DE CALIDAD DE FEEDBACK (aprendido si el feedback es adecuado, producto si es pobre), NO un switch por régimen."
+  ]
+}

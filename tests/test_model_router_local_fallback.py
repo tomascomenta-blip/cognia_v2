@@ -16,7 +16,7 @@ import inspect
 
 
 def test_ollama_except_block_wires_local_shard_fallback():
-    import model_router as mr
+    from cognia_v3.interfaces import model_router as mr
     src = inspect.getsource(mr.llamar_ollama_routed)
     assert "_llamar_shard_local" in src, "Ollama failure must fall back to local shards"
 
@@ -27,17 +27,11 @@ def test_local_shard_fallback_graceful_without_shards(monkeypatch, tmp_path):
 
     Este test simulaba "no hay shards" con SHARD_WEIGHTS_DIR="" y pasaba por el
     motivo equivocado: la cadena vacia se resolvia contra la raiz del repo, que
-    existe, y shard_0.npz no estaba alli. Es decir, pasaba GRACIAS al bug del
-    2026-07-20 — el mismo que impedia que la inferencia por shards arrancara en
-    una instalacion por defecto. Arreglada la resolucion (model_constants.
-    shard_weights_dir), "" significa "no configurado" y cae al default, donde
-    los shards SI estan: el test empezo a fallar porque el router por fin
-    respondia de verdad.
-
+    existe, y shard_0.npz no estaba alli — pasaba GRACIAS al bug del 2026-07-20.
     Ahora se simula lo que se queria simular: un directorio que existe pero no
-    tiene pesos dentro (bajaste el repo, no bajaste los shards).
+    tiene pesos dentro. (Portado a cognia_v3.interfaces en el merge 4.0.)
     """
-    import model_router as mr
+    from cognia_v3.interfaces import model_router as mr
     vacio = tmp_path / "sin_shards"
     vacio.mkdir()
     monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(vacio))

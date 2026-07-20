@@ -1,0 +1,55 @@
+{
+  "label": "gemma2_swa",
+  "model": "gemma-2-2b-it-Q4_K_M.gguf",
+  "threads": 3,
+  "n_predict": 96,
+  "cpu_count": 4,
+  "binary": "llama-server.exe",
+  "points": [
+    {
+      "L": 512,
+      "ctx": 864,
+      "kv_mib": null,
+      "rss_mib": 2777.7,
+      "decode_tps": 8.10923956619623,
+      "prefill_tps": 36.43909471256287,
+      "prompt_n": 322,
+      "predicted_n": 96,
+      "wall_s": 20.71
+    },
+    {
+      "L": 2048,
+      "ctx": 2400,
+      "kv_mib": null,
+      "rss_mib": 3051.2,
+      "decode_tps": 6.198195033954487,
+      "prefill_tps": 26.035264257729132,
+      "prompt_n": 1282,
+      "predicted_n": 96,
+      "wall_s": 64.74
+    },
+    {
+      "L": 4096,
+      "ctx": 4448,
+      "kv_mib": null,
+      "rss_mib": 3399.6,
+      "decode_tps": 4.949557563689592,
+      "prefill_tps": 25.19926092141457,
+      "prompt_n": 2594,
+      "predicted_n": 96,
+      "wall_s": 122.36
+    },
+    {
+      "L": 8192,
+      "ctx": 8544,
+      "kv_mib": null,
+      "rss_mib": 3671.5,
+      "decode_tps": 3.6994206822818447,
+      "prefill_tps": 21.53412951946099,
+      "prompt_n": 5218,
+      "predicted_n": 96,
+      "wall_s": 268.31
+    }
+  ],
+  "errors": []
+}

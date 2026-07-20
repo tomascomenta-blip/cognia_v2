@@ -1,0 +1,135 @@
+{
+  "experiment": "exp005_hybrid_decode_frontier",
+  "config": {
+    "seed": 7,
+    "m": 24,
+    "d": 128,
+    "ks": [
+      0,
+      1,
+      3,
+      6,
+      12,
+      24
+    ],
+    "ls": [
+      512,
+      2048,
+      8192
+    ],
+    "reps": 80,
+    "warmup": 1,
+    "numpy": "2.4.6"
+  },
+  "rows": [
+    {
+      "k": 0,
+      "L": 512,
+      "ms_per_token": 0.4445012500127632,
+      "pct_of_pure_full": 18.585042532607485
+    },
+    {
+      "k": 1,
+      "L": 512,
+      "ms_per_token": 0.5619949999982055,
+      "pct_of_pure_full": 23.497573916337664
+    },
+    {
+      "k": 3,
+      "L": 512,
+      "ms_per_token": 0.6766062499991676,
+      "pct_of_pure_full": 28.289585088234325
+    },
+    {
+      "k": 6,
+      "L": 512,
+      "ms_per_token": 1.3507187500181317,
+      "pct_of_pure_full": 56.47490399173589
+    },
+    {
+      "k": 12,
+      "L": 512,
+      "ms_per_token": 2.092501249990164,
+      "pct_of_pure_full": 87.48957338024331
+    },
+    {
+      "k": 24,
+      "L": 512,
+      "ms_per_token": 2.391715000021577,
+      "pct_of_pure_full": 100.0
+    },
+    {
+      "k": 0,
+      "L": 2048,
+      "ms_per_token": 0.4777687499881722,
+      "pct_of_pure_full": 4.821561296898696
+    },
+    {
+      "k": 1,
+      "L": 2048,
+      "ms_per_token": 0.8289437500025088,
+      "pct_of_pure_full": 8.365559912441135
+    },
+    {
+      "k": 3,
+      "L": 2048,
+      "ms_per_token": 1.6926949999742646,
+      "pct_of_pure_full": 17.08239121862177
+    },
+    {
+      "k": 6,
+      "L": 2048,
+      "ms_per_token": 2.746004999971774,
+      "pct_of_pure_full": 27.712217321208186
+    },
+    {
+      "k": 12,
+      "L": 2048,
+      "ms_per_token": 5.117551249986718,
+      "pct_of_pure_full": 51.64546036642697
+    },
+    {
+      "k": 24,
+      "L": 2048,
+      "ms_per_token": 9.90900500000862,
+      "pct_of_pure_full": 100.0
+    },
+    {
+      "k": 0,
+      "L": 8192,
+      "ms_per_token": 0.4917337500046415,
+      "pct_of_pure_full": 1.198195921507967
+    },
+    {
+      "k": 1,
+      "L": 8192,
+      "ms_per_token": 3.1355962500128953,
+      "pct_of_pure_full": 7.640432730569467
+    },
+    {
+      "k": 3,
+      "L": 8192,
+      "ms_per_token": 5.099522499995146,
+      "pct_of_pure_full": 12.425885067019745
+    },
+    {
+      "k": 6,
+      "L": 8192,
+      "ms_per_token": 10.65247124997768,
+      "pct_of_pure_full": 25.956623082275023
+    },
+    {
+      "k": 12,
+      "L": 8192,
+      "ms_per_token": 19.836092500008817,
+      "pct_of_pure_full": 48.33413433985566
+    },
+    {
+      "k": 24,
+      "L": 8192,
+      "ms_per_token": 41.03951125002823,
+      "pct_of_pure_full": 100.0
+    }
+  ],
+  "note": "Mide el EJE COSTE de la frontera H-MEZ-4. El recall se toma de exp002 (full ~ilimitado en N, lineal acotado por estado d^2). Capa full O(L*d) lee KV-cache (crece con L); capa lineal O(d^2) estado fijo (constante en L)."
+}

@@ -1,0 +1,1024 @@
+{
+  "experiment": "exp049_learning_rules",
+  "device": "cpu",
+  "torch": "2.12.0+cpu",
+  "cfg": {
+    "hidden": [
+      256,
+      128,
+      64,
+      32
+    ],
+    "n_classes": 10,
+    "epochs": 5,
+    "batch": 64,
+    "device": "cpu"
+  },
+  "seeds": [
+    42,
+    7,
+    123
+  ],
+  "methods": {
+    "bp": {
+      "runs": [
+        {
+          "test_acc": 0.9724,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9608,
+              "wall_s": 4.2
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9664,
+              "wall_s": 4.1
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9751,
+              "wall_s": 4.5
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.972,
+              "wall_s": 4.2
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9724,
+              "wall_s": 4.3
+            }
+          ],
+          "wall_s": 21.4,
+          "updates": 4685,
+          "extra": {},
+          "seed": 42
+        },
+        {
+          "test_acc": 0.975,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9559,
+              "wall_s": 4.3
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9709,
+              "wall_s": 4.6
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9762,
+              "wall_s": 4.3
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9777,
+              "wall_s": 4.6
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.975,
+              "wall_s": 4.4
+            }
+          ],
+          "wall_s": 22.1,
+          "updates": 4685,
+          "extra": {},
+          "seed": 7
+        },
+        {
+          "test_acc": 0.9765,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9597,
+              "wall_s": 4.3
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9709,
+              "wall_s": 4.4
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9708,
+              "wall_s": 4.5
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9747,
+              "wall_s": 4.5
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9765,
+              "wall_s": 4.4
+            }
+          ],
+          "wall_s": 22.2,
+          "updates": 4685,
+          "extra": {},
+          "seed": 123
+        }
+      ],
+      "acc_mean": 0.9746,
+      "acc_min": 0.9724,
+      "wall_mean_s": 21.9
+    },
+    "dfa": {
+      "runs": [
+        {
+          "test_acc": 0.9385,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.8461,
+              "wall_s": 4.6
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.8892,
+              "wall_s": 6.6
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9336,
+              "wall_s": 4.9
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9421,
+              "wall_s": 4.5
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9385,
+              "wall_s": 4.5
+            }
+          ],
+          "wall_s": 25.2,
+          "updates": 4685,
+          "extra": {
+            "feedback": "B_l gaussiana ortonormalizada (QR), fija por seed",
+            "opt": "Adam lr=2e-3 ocultas / 1e-2 salida",
+            "tuning_pass": "salida zero-init + B ortonormal + lrs 2e-3/1e-2 (docstring)"
+          },
+          "seed": 42
+        },
+        {
+          "test_acc": 0.9426,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9023,
+              "wall_s": 4.5
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9228,
+              "wall_s": 6.3
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9294,
+              "wall_s": 5.7
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9524,
+              "wall_s": 4.7
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9426,
+              "wall_s": 4.4
+            }
+          ],
+          "wall_s": 25.6,
+          "updates": 4685,
+          "extra": {
+            "feedback": "B_l gaussiana ortonormalizada (QR), fija por seed",
+            "opt": "Adam lr=2e-3 ocultas / 1e-2 salida",
+            "tuning_pass": "salida zero-init + B ortonormal + lrs 2e-3/1e-2 (docstring)"
+          },
+          "seed": 7
+        },
+        {
+          "test_acc": 0.9483,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.8823,
+              "wall_s": 4.5
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9059,
+              "wall_s": 6.2
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9439,
+              "wall_s": 5.4
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9499,
+              "wall_s": 5.2
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9483,
+              "wall_s": 4.5
+            }
+          ],
+          "wall_s": 25.9,
+          "updates": 4685,
+          "extra": {
+            "feedback": "B_l gaussiana ortonormalizada (QR), fija por seed",
+            "opt": "Adam lr=2e-3 ocultas / 1e-2 salida",
+            "tuning_pass": "salida zero-init + B ortonormal + lrs 2e-3/1e-2 (docstring)"
+          },
+          "seed": 123
+        }
+      ],
+      "acc_mean": 0.9431,
+      "acc_min": 0.9385,
+      "wall_mean_s": 25.6,
+      "ratio_vs_bp": 0.963,
+      "cost_vs_bp": 1.17
+    },
+    "ff": {
+      "runs": [
+        {
+          "test_acc": 0.9235,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.8953,
+              "wall_s": 9.6
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9042,
+              "wall_s": 9.6
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9116,
+              "wall_s": 10.1
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9197,
+              "wall_s": 9.8
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9235,
+              "wall_s": 9.8
+            }
+          ],
+          "wall_s": 48.8,
+          "updates": 18740,
+          "extra": {
+            "wide_test_acc": 0.9305,
+            "wide_wall_s": 62.9,
+            "wide_updates": 9370,
+            "wide_epoch_log": [
+              {
+                "epoch": 1,
+                "test_acc": 0.8973,
+                "wall_s": 12.6
+              },
+              {
+                "epoch": 2,
+                "test_acc": 0.9067,
+                "wall_s": 13.9
+              },
+              {
+                "epoch": 3,
+                "test_acc": 0.9169,
+                "wall_s": 12.2
+              },
+              {
+                "epoch": 4,
+                "test_acc": 0.9226,
+                "wall_s": 12.1
+              },
+              {
+                "epoch": 5,
+                "test_acc": 0.9305,
+                "wall_s": 12.0
+              }
+            ],
+            "theta": 2.0,
+            "lr": 0.001,
+            "vote_layers": "todas (no se excluye la primera)",
+            "updates_note": "1 update = 1 paso Adam de UNA capa (n_capas por batch)",
+            "wall_note": "wall_s NO incluye la variante wide (comparabilidad cost_vs_bp)"
+          },
+          "seed": 42
+        },
+        {
+          "test_acc": 0.9204,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.8891,
+              "wall_s": 9.9
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.907,
+              "wall_s": 9.8
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9114,
+              "wall_s": 9.7
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9217,
+              "wall_s": 10.0
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9204,
+              "wall_s": 9.8
+            }
+          ],
+          "wall_s": 49.1,
+          "updates": 18740,
+          "extra": {
+            "wide_test_acc": 0.9292,
+            "wide_wall_s": 63.2,
+            "wide_updates": 9370,
+            "wide_epoch_log": [
+              {
+                "epoch": 1,
+                "test_acc": 0.8903,
+                "wall_s": 12.6
+              },
+              {
+                "epoch": 2,
+                "test_acc": 0.9081,
+                "wall_s": 12.9
+              },
+              {
+                "epoch": 3,
+                "test_acc": 0.9176,
+                "wall_s": 12.5
+              },
+              {
+                "epoch": 4,
+                "test_acc": 0.9254,
+                "wall_s": 12.5
+              },
+              {
+                "epoch": 5,
+                "test_acc": 0.9292,
+                "wall_s": 12.7
+              }
+            ],
+            "theta": 2.0,
+            "lr": 0.001,
+            "vote_layers": "todas (no se excluye la primera)",
+            "updates_note": "1 update = 1 paso Adam de UNA capa (n_capas por batch)",
+            "wall_note": "wall_s NO incluye la variante wide (comparabilidad cost_vs_bp)"
+          },
+          "seed": 7
+        },
+        {
+          "test_acc": 0.9245,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.8901,
+              "wall_s": 9.7
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9,
+              "wall_s": 9.9
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9131,
+              "wall_s": 9.6
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9166,
+              "wall_s": 9.9
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9245,
+              "wall_s": 9.8
+            }
+          ],
+          "wall_s": 48.9,
+          "updates": 18740,
+          "extra": {
+            "wide_test_acc": 0.9296,
+            "wide_wall_s": 62.7,
+            "wide_updates": 9370,
+            "wide_epoch_log": [
+              {
+                "epoch": 1,
+                "test_acc": 0.8912,
+                "wall_s": 12.6
+              },
+              {
+                "epoch": 2,
+                "test_acc": 0.9063,
+                "wall_s": 12.6
+              },
+              {
+                "epoch": 3,
+                "test_acc": 0.9169,
+                "wall_s": 12.6
+              },
+              {
+                "epoch": 4,
+                "test_acc": 0.9256,
+                "wall_s": 12.4
+              },
+              {
+                "epoch": 5,
+                "test_acc": 0.9296,
+                "wall_s": 12.5
+              }
+            ],
+            "theta": 2.0,
+            "lr": 0.001,
+            "vote_layers": "todas (no se excluye la primera)",
+            "updates_note": "1 update = 1 paso Adam de UNA capa (n_capas por batch)",
+            "wall_note": "wall_s NO incluye la variante wide (comparabilidad cost_vs_bp)"
+          },
+          "seed": 123
+        }
+      ],
+      "acc_mean": 0.9228,
+      "acc_min": 0.9204,
+      "wall_mean_s": 48.9,
+      "ratio_vs_bp": 0.9444,
+      "cost_vs_bp": 2.23
+    },
+    "pc": {
+      "runs": [
+        {
+          "test_acc": 0.9718,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9573,
+              "wall_s": 18.7
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9641,
+              "wall_s": 18.7
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9716,
+              "wall_s": 18.5
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9705,
+              "wall_s": 18.7
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9718,
+              "wall_s": 18.8
+            }
+          ],
+          "wall_s": 93.4,
+          "updates": 4685,
+          "extra": {
+            "T_infer": 16,
+            "lr_x": 0.1,
+            "f": "relu (identidad en la entrada)",
+            "salida": "error CE: onehot - softmax(mu_L) (tuning 1: el clamp one-hot/MSE dio 0.344 vs 0.661 de bp en smoke)",
+            "opt": "Adam lr=1e-3",
+            "nota": "v_l = pre-activaciones; prediccion = forward puro"
+          },
+          "seed": 42
+        },
+        {
+          "test_acc": 0.9678,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.958,
+              "wall_s": 18.5
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9652,
+              "wall_s": 18.3
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9682,
+              "wall_s": 19.0
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9693,
+              "wall_s": 19.1
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9678,
+              "wall_s": 18.4
+            }
+          ],
+          "wall_s": 93.2,
+          "updates": 4685,
+          "extra": {
+            "T_infer": 16,
+            "lr_x": 0.1,
+            "f": "relu (identidad en la entrada)",
+            "salida": "error CE: onehot - softmax(mu_L) (tuning 1: el clamp one-hot/MSE dio 0.344 vs 0.661 de bp en smoke)",
+            "opt": "Adam lr=1e-3",
+            "nota": "v_l = pre-activaciones; prediccion = forward puro"
+          },
+          "seed": 7
+        },
+        {
+          "test_acc": 0.9723,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9473,
+              "wall_s": 18.3
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9661,
+              "wall_s": 18.5
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9682,
+              "wall_s": 18.5
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9689,
+              "wall_s": 18.6
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9723,
+              "wall_s": 19.7
+            }
+          ],
+          "wall_s": 93.6,
+          "updates": 4685,
+          "extra": {
+            "T_infer": 16,
+            "lr_x": 0.1,
+            "f": "relu (identidad en la entrada)",
+            "salida": "error CE: onehot - softmax(mu_L) (tuning 1: el clamp one-hot/MSE dio 0.344 vs 0.661 de bp en smoke)",
+            "opt": "Adam lr=1e-3",
+            "nota": "v_l = pre-activaciones; prediccion = forward puro"
+          },
+          "seed": 123
+        }
+      ],
+      "acc_mean": 0.9706,
+      "acc_min": 0.9678,
+      "wall_mean_s": 93.4,
+      "ratio_vs_bp": 0.993,
+      "cost_vs_bp": 4.26
+    },
+    "dtp": {
+      "runs": [
+        {
+          "test_acc": 0.9402,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9295,
+              "wall_s": 9.7
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9327,
+              "wall_s": 9.6
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9398,
+              "wall_s": 9.6
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9423,
+              "wall_s": 9.7
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9402,
+              "wall_s": 10.0
+            }
+          ],
+          "wall_s": 48.6,
+          "updates": 9370,
+          "extra": {
+            "eta": 0.5,
+            "sigma": 0.2,
+            "opt": "Adam lr_f=3e-3 / lr_g=1e-3 (tuning 1: lr_f 1e-3 arranca en frio, 0.067 en el smoke; 3e-3 domina en todos los horizontes)",
+            "f": "tanh en ocultas (ReLU no invertible — ver docstring), salida lineal",
+            "updates_nota": "2 steps por batch: forward + inversas (ambas cada batch)"
+          },
+          "seed": 42
+        },
+        {
+          "test_acc": 0.938,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9266,
+              "wall_s": 9.5
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9273,
+              "wall_s": 10.7
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9387,
+              "wall_s": 11.0
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9393,
+              "wall_s": 10.2
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.938,
+              "wall_s": 10.0
+            }
+          ],
+          "wall_s": 51.4,
+          "updates": 9370,
+          "extra": {
+            "eta": 0.5,
+            "sigma": 0.2,
+            "opt": "Adam lr_f=3e-3 / lr_g=1e-3 (tuning 1: lr_f 1e-3 arranca en frio, 0.067 en el smoke; 3e-3 domina en todos los horizontes)",
+            "f": "tanh en ocultas (ReLU no invertible — ver docstring), salida lineal",
+            "updates_nota": "2 steps por batch: forward + inversas (ambas cada batch)"
+          },
+          "seed": 7
+        },
+        {
+          "test_acc": 0.9286,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9122,
+              "wall_s": 10.2
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9354,
+              "wall_s": 10.1
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9345,
+              "wall_s": 10.4
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9415,
+              "wall_s": 11.5
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9286,
+              "wall_s": 10.4
+            }
+          ],
+          "wall_s": 52.6,
+          "updates": 9370,
+          "extra": {
+            "eta": 0.5,
+            "sigma": 0.2,
+            "opt": "Adam lr_f=3e-3 / lr_g=1e-3 (tuning 1: lr_f 1e-3 arranca en frio, 0.067 en el smoke; 3e-3 domina en todos los horizontes)",
+            "f": "tanh en ocultas (ReLU no invertible — ver docstring), salida lineal",
+            "updates_nota": "2 steps por batch: forward + inversas (ambas cada batch)"
+          },
+          "seed": 123
+        }
+      ],
+      "acc_mean": 0.9356,
+      "acc_min": 0.9286,
+      "wall_mean_s": 50.9,
+      "ratio_vs_bp": 0.9528,
+      "cost_vs_bp": 2.32
+    },
+    "eqprop": {
+      "runs": [
+        {
+          "test_acc": 0.9609,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9329,
+              "wall_s": 20.6
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9499,
+              "wall_s": 20.5
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9482,
+              "wall_s": 20.5
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9623,
+              "wall_s": 20.6
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9609,
+              "wall_s": 21.0
+            }
+          ],
+          "wall_s": 103.2,
+          "updates": 4685,
+          "extra": {
+            "topologia": "784->256->10 (desviación documentada: el settling profundo no converge con T1 presupuestable)",
+            "T1": 25,
+            "T2": 8,
+            "dt": 0.5,
+            "beta": 0.5,
+            "lrs": [
+              0.1,
+              0.05
+            ],
+            "opt": "SGD lr por capa (paper, 1 oculta)",
+            "costo": "cada batch paga T1+T2=33 pasadas de settling y la predicción paga T1=25 (vs 1 forward de BP)"
+          },
+          "seed": 42
+        },
+        {
+          "test_acc": 0.9602,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.935,
+              "wall_s": 20.7
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9524,
+              "wall_s": 20.9
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9544,
+              "wall_s": 26.2
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.955,
+              "wall_s": 20.5
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9602,
+              "wall_s": 24.1
+            }
+          ],
+          "wall_s": 112.4,
+          "updates": 4685,
+          "extra": {
+            "topologia": "784->256->10 (desviación documentada: el settling profundo no converge con T1 presupuestable)",
+            "T1": 25,
+            "T2": 8,
+            "dt": 0.5,
+            "beta": 0.5,
+            "lrs": [
+              0.1,
+              0.05
+            ],
+            "opt": "SGD lr por capa (paper, 1 oculta)",
+            "costo": "cada batch paga T1+T2=33 pasadas de settling y la predicción paga T1=25 (vs 1 forward de BP)"
+          },
+          "seed": 7
+        },
+        {
+          "test_acc": 0.9612,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.9344,
+              "wall_s": 24.9
+            },
+            {
+              "epoch": 2,
+              "test_acc": 0.9541,
+              "wall_s": 20.3
+            },
+            {
+              "epoch": 3,
+              "test_acc": 0.9571,
+              "wall_s": 21.5
+            },
+            {
+              "epoch": 4,
+              "test_acc": 0.9596,
+              "wall_s": 20.7
+            },
+            {
+              "epoch": 5,
+              "test_acc": 0.9612,
+              "wall_s": 21.2
+            }
+          ],
+          "wall_s": 108.6,
+          "updates": 4685,
+          "extra": {
+            "topologia": "784->256->10 (desviación documentada: el settling profundo no converge con T1 presupuestable)",
+            "T1": 25,
+            "T2": 8,
+            "dt": 0.5,
+            "beta": 0.5,
+            "lrs": [
+              0.1,
+              0.05
+            ],
+            "opt": "SGD lr por capa (paper, 1 oculta)",
+            "costo": "cada batch paga T1+T2=33 pasadas de settling y la predicción paga T1=25 (vs 1 forward de BP)"
+          },
+          "seed": 123
+        }
+      ],
+      "acc_mean": 0.9608,
+      "acc_min": 0.9602,
+      "wall_mean_s": 108.1,
+      "ratio_vs_bp": 0.9852,
+      "cost_vs_bp": 4.94
+    },
+    "es": {
+      "runs": [
+        {
+          "test_acc": 0.4957,
+          "epoch_log": [
+            {
+              "epoch": 0.09,
+              "test_acc": 0.5901,
+              "wall_s": 13.3
+            },
+            {
+              "epoch": 0.19,
+              "test_acc": 0.6221,
+              "wall_s": 13.2
+            },
+            {
+              "epoch": 0.27,
+              "test_acc": 0.5513,
+              "wall_s": 13.2
+            },
+            {
+              "epoch": 0.37,
+              "test_acc": 0.5733,
+              "wall_s": 13.0
+            },
+            {
+              "epoch": 0.45,
+              "test_acc": 0.4957,
+              "wall_s": 13.2
+            }
+          ],
+          "wall_s": 65.8,
+          "updates": 426,
+          "extra": {
+            "generations": 426,
+            "evals_forward": 25560,
+            "minibatch": 64,
+            "n_pairs": 30,
+            "sigma": 0.02,
+            "alpha": 0.01,
+            "params": 244522,
+            "opt": "Adam(lr=0.01) sobre -g estimado (permitido por spec)",
+            "budget": "wall_budget_s=65.7"
+          },
+          "seed": 42
+        },
+        {
+          "test_acc": 0.5058,
+          "epoch_log": [
+            {
+              "epoch": 0.09,
+              "test_acc": 0.5835,
+              "wall_s": 13.3
+            },
+            {
+              "epoch": 0.19,
+              "test_acc": 0.5447,
+              "wall_s": 13.1
+            },
+            {
+              "epoch": 0.29,
+              "test_acc": 0.5606,
+              "wall_s": 13.2
+            },
+            {
+              "epoch": 0.39,
+              "test_acc": 0.5399,
+              "wall_s": 13.2
+            },
+            {
+              "epoch": 0.49,
+              "test_acc": 0.5058,
+              "wall_s": 13.0
+            }
+          ],
+          "wall_s": 65.8,
+          "updates": 456,
+          "extra": {
+            "generations": 456,
+            "evals_forward": 27360,
+            "minibatch": 64,
+            "n_pairs": 30,
+            "sigma": 0.02,
+            "alpha": 0.01,
+            "params": 244522,
+            "opt": "Adam(lr=0.01) sobre -g estimado (permitido por spec)",
+            "budget": "wall_budget_s=65.7"
+          },
+          "seed": 7
+        },
+        {
+          "test_acc": 0.4713,
+          "epoch_log": [
+            {
+              "epoch": 0.1,
+              "test_acc": 0.5461,
+              "wall_s": 13.3
+            },
+            {
+              "epoch": 0.2,
+              "test_acc": 0.5718,
+              "wall_s": 13.2
+            },
+            {
+              "epoch": 0.3,
+              "test_acc": 0.5441,
+              "wall_s": 13.1
+            },
+            {
+              "epoch": 0.39,
+              "test_acc": 0.489,
+              "wall_s": 13.1
+            },
+            {
+              "epoch": 0.49,
+              "test_acc": 0.4713,
+              "wall_s": 13.2
+            }
+          ],
+          "wall_s": 65.8,
+          "updates": 463,
+          "extra": {
+            "generations": 463,
+            "evals_forward": 27780,
+            "minibatch": 64,
+            "n_pairs": 30,
+            "sigma": 0.02,
+            "alpha": 0.01,
+            "params": 244522,
+            "opt": "Adam(lr=0.01) sobre -g estimado (permitido por spec)",
+            "budget": "wall_budget_s=65.7"
+          },
+          "seed": 123
+        }
+      ],
+      "acc_mean": 0.4909,
+      "acc_min": 0.4713,
+      "wall_mean_s": 65.8,
+      "ratio_vs_bp": 0.4836,
+      "cost_vs_bp": 3.0
+    }
+  }
+}

@@ -2,13 +2,18 @@
 title: MoE Routing — 16 expertos, top_k=2
 type: concept
 tags: [moe, routing, logos, techne, rhetor, experts]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # MoE Routing
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Este MoE es del path shards y NO corre en el producto. El 'mixture' real de
+hoy es la colonia multi-modelo GGUF (3B/7B/4B/0.5B): [[concepts/colonia]].
 ## Diseño
 
 Mixture-of-Experts con 16 expertos distribuidos en 3 dominios. Cada token activa los top_k=2 expertos más relevantes.

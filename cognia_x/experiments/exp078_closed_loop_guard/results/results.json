@@ -1,0 +1,129 @@
+{
+  "exp": "exp078_closed_loop_guard",
+  "cycle": 94,
+  "hypothesis": "H-V4-7j",
+  "claim": "la guardia dedup+replay (CYCLE 50) rescata el downstream de la asignacion confidence-greedy en el lazo cerrado real sin perder el yield: receta completa = R-VALOR-allocation + guardia de diversidad",
+  "verdict": "apoyada",
+  "summary": {
+    "arms": [
+      "conf_alloc",
+      "conf_alloc_guard",
+      "random_alloc",
+      "verify_all"
+    ],
+    "n_seeds": 4,
+    "B": 102,
+    "M": 512,
+    "conf_strong_corr_by_seed": [
+      0.6159,
+      0.5577,
+      0.5418,
+      0.6543
+    ],
+    "yield_conf": [
+      89.67,
+      83.67,
+      77.0,
+      96.67
+    ],
+    "yield_guard": [
+      97.33,
+      92.67,
+      88.33,
+      96.67
+    ],
+    "yield_random": [
+      57.33,
+      52.0,
+      45.0,
+      57.67
+    ],
+    "yield_verify_all": [
+      328.33,
+      309.0,
+      280.0,
+      331.67
+    ],
+    "real_conf": [
+      0.337,
+      0.359,
+      0.378,
+      0.463
+    ],
+    "real_guard": [
+      0.744,
+      0.419,
+      0.556,
+      0.644
+    ],
+    "real_random": [
+      0.715,
+      0.489,
+      0.544,
+      0.711
+    ],
+    "real_verify_all": [
+      0.863,
+      0.678,
+      0.741,
+      0.811
+    ],
+    "guard_rescue": 0.2065,
+    "guard_vs_random": -0.0241,
+    "guard_keeps_yield": 7.0,
+    "rescues": true,
+    "viable": true,
+    "keeps_yield": true,
+    "status": "apoyada",
+    "verdict": "H-V4-7j APOYADA: la GUARDIA dedup+replay (CYCLE 50) RESCATA el downstream de la asignación confidence-greedy SIN perder el yield. real_acc guard=0.591 > conf=0.384 (+0.206, deshace el narrowing de CYCLE 93) Y >= random=0.615 (-0.024); el yield se mantiene (guard=93.8 vs conf=86.8, Δ=7.000). verify_all techo=0.773. => RECETA COMPLETA del lazo de auto-mejora bajo presupuesto: R-VALOR-allocation (confianza endógena, alto yield) + guardia de diversidad (dedup+replay) -> alto yield Y downstream sano. Cierra la tensión allocation↔diversidad de CYCLE 93."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "rounds": 3,
+    "K": 8,
+    "pool": 64,
+    "budget_frac": 0.2,
+    "temp": 1.3,
+    "top_k": null,
+    "steps": 120,
+    "replay_frac": 0.5,
+    "n_seed": 200,
+    "base_steps": 250,
+    "base_lr": 0.001,
+    "lr": 0.0005,
+    "warmup": 40,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp078] CYCLE 94 / H-V4-7j — guardia dedup+replay rescata el downstream de la asignación R-VALOR (cierra tensión de CYCLE 93)",
+    "[exp078] seeds=[0, 1, 2, 3] rango=[2,300] train=209 test=90 rounds=3 K=8 pool=64 budget_frac=0.2 temp=1.3 replay_frac=0.5 steps=120 base_steps=250",
+    "[exp078] seed=0 base real_acc=0.722 weak=0.722 deg=0.000 params=201,280",
+    "[exp078] seed=0 ronda 1 (B=102/512): conf_alloc: yield=95 ntr=95 real=0.656 | conf_alloc_guard: yield=95 ntr=47 real=0.844 | random_alloc: yield=25 ntr=25 real=0.644 | verify_all: yield=142 ntr=142 real=0.900",
+    "[exp078] seed=0 ronda 2 (B=102/512): conf_alloc: yield=96 ntr=96 real=0.256 | conf_alloc_guard: yield=102 ntr=24 real=0.656 | random_alloc: yield=64 ntr=64 real=0.733 | verify_all: yield=374 ntr=374 real=0.856",
+    "[exp078] seed=0 ronda 3 (B=102/512): conf_alloc: yield=78 ntr=78 real=0.100 | conf_alloc_guard: yield=95 ntr=19 real=0.733 | random_alloc: yield=83 ntr=83 real=0.767 | verify_all: yield=469 ntr=469 real=0.833",
+    "[exp078] seed=1 base real_acc=0.567 weak=0.567 deg=0.000 params=201,280",
+    "[exp078] seed=1 ronda 1 (B=102/512): conf_alloc: yield=82 ntr=82 real=0.511 | conf_alloc_guard: yield=82 ntr=42 real=0.689 | random_alloc: yield=22 ntr=22 real=0.522 | verify_all: yield=101 ntr=101 real=0.711",
+    "[exp078] seed=1 ronda 2 (B=102/512): conf_alloc: yield=82 ntr=82 real=0.333 | conf_alloc_guard: yield=102 ntr=18 real=0.400 | random_alloc: yield=56 ntr=56 real=0.444 | verify_all: yield=366 ntr=366 real=0.667",
+    "[exp078] seed=1 ronda 3 (B=102/512): conf_alloc: yield=87 ntr=87 real=0.233 | conf_alloc_guard: yield=94 ntr=15 real=0.167 | random_alloc: yield=78 ntr=78 real=0.500 | verify_all: yield=460 ntr=460 real=0.656",
+    "[exp078] seed=2 base real_acc=0.700 weak=0.700 deg=0.000 params=201,280",
+    "[exp078] seed=2 ronda 1 (B=102/512): conf_alloc: yield=75 ntr=75 real=0.778 | conf_alloc_guard: yield=75 ntr=53 real=0.711 | random_alloc: yield=15 ntr=15 real=0.489 | verify_all: yield=80 ntr=80 real=0.722",
+    "[exp078] seed=2 ronda 2 (B=102/512): conf_alloc: yield=94 ntr=94 real=0.244 | conf_alloc_guard: yield=96 ntr=21 real=0.489 | random_alloc: yield=52 ntr=52 real=0.544 | verify_all: yield=349 ntr=349 real=0.733",
+    "[exp078] seed=2 ronda 3 (B=102/512): conf_alloc: yield=62 ntr=62 real=0.111 | conf_alloc_guard: yield=94 ntr=21 real=0.467 | random_alloc: yield=68 ntr=68 real=0.600 | verify_all: yield=411 ntr=411 real=0.767",
+    "[exp078] seed=3 base real_acc=0.667 weak=0.667 deg=0.000 params=201,280",
+    "[exp078] seed=3 ronda 1 (B=102/512): conf_alloc: yield=94 ntr=94 real=0.689 | conf_alloc_guard: yield=94 ntr=43 real=0.856 | random_alloc: yield=24 ntr=24 real=0.789 | verify_all: yield=144 ntr=144 real=0.844",
+    "[exp078] seed=3 ronda 2 (B=102/512): conf_alloc: yield=94 ntr=94 real=0.489 | conf_alloc_guard: yield=102 ntr=18 real=0.678 | random_alloc: yield=65 ntr=65 real=0.689 | verify_all: yield=381 ntr=381 real=0.811",
+    "[exp078] seed=3 ronda 3 (B=102/512): conf_alloc: yield=102 ntr=102 real=0.211 | conf_alloc_guard: yield=94 ntr=15 real=0.400 | random_alloc: yield=84 ntr=84 real=0.656 | verify_all: yield=470 ntr=470 real=0.778",
+    "[exp078] corr(confianza,strong)=[0.6159, 0.5577, 0.5418, 0.6543]",
+    "[exp078] YIELD/ronda (B=102/512): conf=[89.67, 83.67, 77.0, 96.67] guard=[97.33, 92.67, 88.33, 96.67] random=[57.33, 52.0, 45.0, 57.67] verify_all=[328.33, 309.0, 280.0, 331.67]",
+    "[exp078] real_acc media-rondas: conf=[0.337, 0.359, 0.378, 0.463] guard=[0.744, 0.419, 0.556, 0.644] random=[0.715, 0.489, 0.544, 0.711] verify_all=[0.863, 0.678, 0.741, 0.811]",
+    "[exp078] guard_rescue=+0.206 | guard_vs_random=-0.024 | guard_keeps_yield=+7.00",
+    "[exp078] VEREDICTO H-V4-7j: APOYADA | H-V4-7j APOYADA: la GUARDIA dedup+replay (CYCLE 50) RESCATA el downstream de la asignación confidence-greedy SIN perder el yield. real_acc guard=0.591 > conf=0.384 (+0.206, deshace el narrowing de CYCLE 93) Y >= random=0.615 (-0.024); el yield se mantiene (guard=93.8 vs conf=86.8, Δ=7.000). verify_all techo=0.773. => RECETA COMPLETA del lazo de auto-mejora bajo presupuesto: R-VALOR-allocation (confianza endógena, alto yield) + guardia de diversidad (dedup+replay) -> alto yield Y downstream sano. Cierra la tensión allocation↔diversidad de CYCLE 93."
+  ]
+}

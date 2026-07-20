@@ -1,0 +1,45 @@
+{
+  "exp": "exp052_strategy_selector",
+  "cycle": 66,
+  "hypothesis": "H-V4-1i",
+  "claim": "un selector de estrategia (clasifica el régimen de la sorpresa y conmuta committear/olvidar-fuerte, decisión discreta) alcanza el óptimo en ambos regímenes, lo que la modulación de tasa no pudo",
+  "verdict": "apoyada",
+  "summary": {
+    "margin": 0.1,
+    "stationary": {
+      "committed": 1.0,
+      "fixed": 0.6015,
+      "selector": 0.9998
+    },
+    "recurrent": {
+      "committed": 0.294,
+      "fixed": 0.4525,
+      "selector": 0.5114
+    },
+    "sel_optimal_stat": true,
+    "sel_optimal_recur": true,
+    "status": "apoyada",
+    "verdict": "H-V4-1i APOYADA: el SELECTOR DE ESTRATEGIA alcanza el ÓPTIMO de cada régimen (lo que la modulación de TASA no pudo, CYCLE 64/65). ESTACIONARIO: selector 1.000 ~ committed 1.000 (>> fixed 0.602) -> clasifica ESTABLE y COMMITTEA. RECURRENTE: selector 0.511 ~ fixed 0.453 (>> committed 0.294) -> clasifica CAMBIANTE y OLVIDA-FUERTE. El agente DETECTA el régimen de su propia sorpresa sostenida y CONMUTA la ESTRATEGIA (decisión discreta) -> el valor endógeno elige la ESTRATEGIA de memoria, no sólo el ritmo. CIERRA el arco R-VALOR x memoria."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 16,
+    "D": 20,
+    "cluster": 5,
+    "p_obs": 0.15,
+    "K_phase": 12,
+    "n_phases_recur": 5,
+    "candidates": 128
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp052] CYCLE 66 / H-V4-1i — SELECTOR DE ESTRATEGIA (clasifica el régimen y conmuta committear/olvidar)",
+    "[exp052] D=20 cluster=5 p_obs=0.15 | ESTAC K=60 | RECUR n_phases=5 K_phase=12 | seeds=16",
+    "[exp052] ESTACIONARIO (committear óptimo): committed=1.000 fixed=0.602 SELECTOR=1.000",
+    "[exp052] RECURRENTE  (olvidar óptimo)    : committed=0.294 fixed=0.453 SELECTOR=0.511",
+    "[exp052] VEREDICTO H-V4-1i: APOYADA | H-V4-1i APOYADA: el SELECTOR DE ESTRATEGIA alcanza el ÓPTIMO de cada régimen (lo que la modulación de TASA no pudo, CYCLE 64/65). ESTACIONARIO: selector 1.000 ~ committed 1.000 (>> fixed 0.602) -> clasifica ESTABLE y COMMITTEA. RECURRENTE: selector 0.511 ~ fixed 0.453 (>> committed 0.294) -> clasifica CAMBIANTE y OLVIDA-FUERTE. El agente DETECTA el régimen de su propia sorpresa sostenida y CONMUTA la ESTRATEGIA (decisión discreta) -> el valor endógeno elige la ESTRATEGIA de memoria, no sólo el ritmo. CIERRA el arco R-VALOR x memoria."
+  ]
+}

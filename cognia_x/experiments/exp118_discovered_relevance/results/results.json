@@ -1,0 +1,306 @@
+{
+  "exp": "exp118_discovered_relevance",
+  "cycle": 134,
+  "hypothesis": "H-V4-10h",
+  "claim": "el agente DESCUBRE el R-VALOR COMPLETO (ambos factores del keystone valor=ctrl×rel) de UN solo stream de experiencia-accion: controlabilidad del mapa accion->estado (128, |b̂|) y relevancia del mapa estado->meta (credit assignment lineal, G~x -> ŵ); el producto con ambos estimados bate a cada factor solo y converge al oracle (la relevancia es genuinamente descubierta, no dada: sobrevive a G binario/ruidoso/sparse). DOS EJES de fallo COMPLEMENTARIOS (no una asimetria 'relevancia barata', que la verificacion adversarial hallo invertida): la CONTROLABILIDAD es action-gated (necesita Var(u)>0; sin actuar no se identifica) pero barata al actuar; la RELEVANCIA es el cuello del COSTO DE DATOS (a ruido de meta sigma_g alto cuesta ~100x mas que la ctrl) y requiere meta ~lineal-descomponible (bajo meta PAR el credit-assignment lineal recupera 0.00). Cierra el supuesto 'relevancia DADA' del arco 127-133",
+  "verdict": "apoyada",
+  "summary": {
+    "by_T": {
+      "10": {
+        "valor_ambos": 0.865,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 0.8825,
+        "ctrl_solo": 0.475,
+        "rel_solo": 0.455,
+        "prediccion": 0.16,
+        "corr_b": 0.8504,
+        "corr_w": 0.5056
+      },
+      "30": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.47,
+        "rel_solo": 0.4725,
+        "prediccion": 0.1075,
+        "corr_b": 0.9722,
+        "corr_w": 0.9525
+      },
+      "100": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.505,
+        "rel_solo": 0.51,
+        "prediccion": 0.01,
+        "corr_b": 0.9923,
+        "corr_w": 0.9905
+      },
+      "300": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.4875,
+        "rel_solo": 0.5125,
+        "prediccion": 0.0,
+        "corr_b": 0.9979,
+        "corr_w": 0.9975
+      },
+      "1000": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.4875,
+        "rel_solo": 0.4525,
+        "prediccion": 0.0,
+        "corr_b": 0.9994,
+        "corr_w": 0.9992
+      }
+    },
+    "by_sg": {
+      "0.5": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.4875,
+        "rel_solo": 0.5125,
+        "prediccion": 0.0,
+        "corr_b": 0.9979,
+        "corr_w": 0.9975
+      },
+      "2.0": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.4875,
+        "rel_solo": 0.48,
+        "prediccion": 0.0,
+        "corr_b": 0.9976,
+        "corr_w": 0.955
+      },
+      "5.0": {
+        "valor_ambos": 0.995,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 0.995,
+        "ctrl_solo": 0.53,
+        "rel_solo": 0.4825,
+        "prediccion": 0.0,
+        "corr_b": 0.9976,
+        "corr_w": 0.8041
+      },
+      "20.0": {
+        "valor_ambos": 0.74,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 0.74,
+        "ctrl_solo": 0.48,
+        "rel_solo": 0.375,
+        "prediccion": 0.0,
+        "corr_b": 0.9977,
+        "corr_w": 0.3541
+      }
+    },
+    "by_su": {
+      "0.0": {
+        "valor_ambos": 0.265,
+        "valor_ctrl_relverd": 0.265,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.265,
+        "rel_solo": 0.5025,
+        "prediccion": 0.0,
+        "corr_b": 0.0,
+        "corr_w": 0.993
+      },
+      "0.01": {
+        "valor_ambos": 0.5425,
+        "valor_ctrl_relverd": 0.5825,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.085,
+        "rel_solo": 0.49,
+        "prediccion": 0.0,
+        "corr_b": -0.3533,
+        "corr_w": 0.9923
+      },
+      "0.03": {
+        "valor_ambos": 0.7375,
+        "valor_ctrl_relverd": 0.75,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.21,
+        "rel_solo": 0.47,
+        "prediccion": 0.0,
+        "corr_b": -0.0869,
+        "corr_w": 0.9925
+      },
+      "0.05": {
+        "valor_ambos": 0.94,
+        "valor_ctrl_relverd": 0.9425,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.2275,
+        "rel_solo": 0.5,
+        "prediccion": 0.0,
+        "corr_b": 0.2591,
+        "corr_w": 0.9934
+      },
+      "0.1": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.3775,
+        "rel_solo": 0.49,
+        "prediccion": 0.0,
+        "corr_b": 0.7048,
+        "corr_w": 0.9932
+      },
+      "0.5": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.5225,
+        "rel_solo": 0.5175,
+        "prediccion": 0.0,
+        "corr_b": 0.9876,
+        "corr_w": 0.9965
+      },
+      "1.5": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.515,
+        "rel_solo": 0.47,
+        "prediccion": 0.3775,
+        "corr_b": 0.999,
+        "corr_w": 0.9973
+      }
+    },
+    "by_srel": {
+      "0.3": {
+        "valor_ambos": 0.28,
+        "valor_ctrl_relverd": 0.28,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.28,
+        "rel_solo": 0.5175,
+        "prediccion": 0.0,
+        "corr_b": 0.0,
+        "corr_w": 0.9929
+      },
+      "0.05": {
+        "valor_ambos": 0.225,
+        "valor_ctrl_relverd": 0.225,
+        "valor_rel_ctrlverd": 0.9825,
+        "ctrl_solo": 0.225,
+        "rel_solo": 0.5075,
+        "prediccion": 0.0,
+        "corr_b": 0.0,
+        "corr_w": 0.8585
+      },
+      "0.0": {
+        "valor_ambos": 0.24,
+        "valor_ctrl_relverd": 0.24,
+        "valor_rel_ctrlverd": 0.2175,
+        "ctrl_solo": 0.24,
+        "rel_solo": 0.0975,
+        "prediccion": 0.0,
+        "corr_b": 0.0,
+        "corr_w": -0.0116
+      }
+    },
+    "by_goal": {
+      "linear": {
+        "valor_ambos": 1.0,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 1.0,
+        "ctrl_solo": 0.4875,
+        "rel_solo": 0.5125,
+        "prediccion": 0.0,
+        "corr_b": 0.9979,
+        "corr_w": 0.9975
+      },
+      "even": {
+        "valor_ambos": 0.4325,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 0.4275,
+        "ctrl_solo": 0.495,
+        "rel_solo": 0.2825,
+        "prediccion": 0.0,
+        "corr_b": 0.9976,
+        "corr_w": -0.0193
+      },
+      "relu": {
+        "valor_ambos": 0.9875,
+        "valor_ctrl_relverd": 1.0,
+        "valor_rel_ctrlverd": 0.9875,
+        "ctrl_solo": 0.5225,
+        "rel_solo": 0.515,
+        "prediccion": 0.0,
+        "corr_b": 0.9979,
+        "corr_w": 0.7523
+      }
+    },
+    "random_baseline": 0.2552,
+    "both_max": 1.0,
+    "beats_ctrl": 0.5125,
+    "beats_rel": 0.5475,
+    "beats_pred": 1.0,
+    "converges": 1.0,
+    "grows": 0.135,
+    "corr_b_noaction": 0.0,
+    "corr_b_action": 0.999,
+    "both_noaction": 0.265,
+    "abl_ctrl_hi_sg": 1.0,
+    "abl_rel_hi_sg": 0.74,
+    "rel_minus_ctrl_cost": -0.26,
+    "corr_w_hi_sg": 0.3541,
+    "corr_w_srel0": -0.0116,
+    "corr_w_srel_default": 0.9929,
+    "corr_w_even": -0.0193,
+    "both_even": 0.4325,
+    "core_holds": true,
+    "ctrl_action_gated": true,
+    "rel_data_gated": true,
+    "rel_needs_passive": true,
+    "rel_needs_linear": true,
+    "status": "apoyada",
+    "verdict": "H-V4-10h APOYADA (con caracterización honesta de DOS EJES de fallo, tras verificación adversarial): el agente DESCUBRE el R-VALOR COMPLETO (ambos factores del keystone) de UN solo stream de experiencia-acción. valor_ambos (ŵ·b̂² de la misma experiencia) bate a cada factor solo (vs ctrl +0.512, vs rel +0.547, vs predicción +1.000) y CONVERGE al oracle (1.000, sube +0.135 con la experiencia; genuinamente peor que oracle a T bajo y = azar 0.255 a σ_u=0, NO es oracle relabeled). La relevancia es GENUINAMENTE descubierta del mapa estado->meta (credit assignment), no dada. DOS EJES de fallo COMPLEMENTARIOS (NO la asimetría 'relevancia barata' que la verificación halló invertida): EJE 1 (action-gating, lógico) -- la CONTROLABILIDAD ∂x'/∂u necesita Var(u)>0: a σ_u=0 no se identifica (corr(b̂,b)=0.000, valor_ambos cae a azar 0.265) y la recuperación al actuar es GRADUAL (dosis-respuesta), pero a exploración positiva es BARATA (corr(b̂,b)=0.999 a σ_u alto, converge a T~30 para todo σ_g). EJE 2 (data/signal-gating) -- la RELEVANCIA es el CUELLO DE BOTELLA del COSTO DE DATOS: a σ_g alto la ablación que estima ctrl rinde 1.000 (la ctrl nunca es el cuello) mientras la que estima rel cae a 0.740 (rel_minus_ctrl=-0.260; corr(ŵ,w)=0.354); y REQUIERE una meta ~LINEAL-descomponible -- bajo meta PAR (G=Σw·x²) el credit-assignment lineal recupera corr(ŵ,w)=-0.019 y valor_ambos cae a azar (0.432). CAVEAT estimación≠decisión: la relevancia es estimable pasivamente sólo si el estado relevante varía pasivamente (s_rel: corr(ŵ,w) 0.993@0.3 -> -0.012@0.0, colapso SIMÉTRICO con la ctrl a σ_u=0); y la decisión MULTIPLICATIVA no cobra la relevancia conocida sin actuar (0·ŵ). => cierra el supuesto 'relevancia DADA' del arco 127-133 (R-VALOR=ctrl×rel TOTALMENTE endógeno de una experiencia), con la caracterización honesta: la controlabilidad se paga con ACCIÓN (R-INTERVENCIÓN, barata), la relevancia con DATOS+SEÑAL (cuello de costo de datos; requiere meta lineal-descomponible)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp118] CYCLE 134 / H-V4-10h (honesto, post-verificación adversarial) — ¿descubre el agente el R-VALOR COMPLETO (ctrl×rel, AMBOS factores) de un solo stream? + DOS EJES de fallo (action-gating de la ctrl / data-cost de la rel)",
+    "[exp118] seeds=200 a=0.6 rho=0.5 D=8 K=2 Ts=[10, 30, 100, 300, 1000] sigma_gs=[0.5, 2.0, 5.0, 20.0] sigma_us=[0.0, 0.01, 0.03, 0.05, 0.1, 0.5, 1.5] s_rels=[0.3, 0.05, 0.0] goals=['linear', 'even', 'relu'] (T_fixed=300)",
+    "[exp118] random_baseline (elegir K=2 al azar / oracle) = 0.255",
+    "[exp118] --- (1) BARRIDO T (σ_u=1.0, σ_g=0.5) ---",
+    "[exp118] T=  10: ambos=0.865 ablCtrl=1.000 ablRel=0.882 ctrl_solo=0.475 rel_solo=0.455 pred=0.160 | corr_b=0.85 corr_w=0.51",
+    "[exp118] T=  30: ambos=1.000 ablCtrl=1.000 ablRel=1.000 ctrl_solo=0.470 rel_solo=0.472 pred=0.107 | corr_b=0.97 corr_w=0.95",
+    "[exp118] T= 100: ambos=1.000 ablCtrl=1.000 ablRel=1.000 ctrl_solo=0.505 rel_solo=0.510 pred=0.010 | corr_b=0.99 corr_w=0.99",
+    "[exp118] T= 300: ambos=1.000 ablCtrl=1.000 ablRel=1.000 ctrl_solo=0.487 rel_solo=0.512 pred=0.000 | corr_b=1.00 corr_w=1.00",
+    "[exp118] T=1000: ambos=1.000 ablCtrl=1.000 ablRel=1.000 ctrl_solo=0.487 rel_solo=0.453 pred=0.000 | corr_b=1.00 corr_w=1.00",
+    "[exp118] --- (2) BARRIDO σ_g ruido de meta (T=300) — EJE 2: relevancia = cuello de COSTO DE DATOS ---",
+    "[exp118] σ_g=  0.5: ambos=1.000 ablCtrl(estCtrl)=1.000 ablRel(estRel)=1.000 | corr_w=1.00 corr_b=1.00",
+    "[exp118] σ_g=  2.0: ambos=1.000 ablCtrl(estCtrl)=1.000 ablRel(estRel)=1.000 | corr_w=0.95 corr_b=1.00",
+    "[exp118] σ_g=  5.0: ambos=0.995 ablCtrl(estCtrl)=1.000 ablRel(estRel)=0.995 | corr_w=0.80 corr_b=1.00",
+    "[exp118] σ_g= 20.0: ambos=0.740 ablCtrl(estCtrl)=1.000 ablRel(estRel)=0.740 | corr_w=0.35 corr_b=1.00",
+    "[exp118] --- (3) BARRIDO σ_u FINO (T=300) — EJE 1: action-gating GRADUAL de la controlabilidad ---",
+    "[exp118] σ_u= 0.0: ambos=0.265 | corr_b=0.00 corr_w=0.99",
+    "[exp118] σ_u=0.01: ambos=0.542 | corr_b=-0.35 corr_w=0.99",
+    "[exp118] σ_u=0.03: ambos=0.738 | corr_b=-0.09 corr_w=0.99",
+    "[exp118] σ_u=0.05: ambos=0.940 | corr_b=0.26 corr_w=0.99",
+    "[exp118] σ_u= 0.1: ambos=1.000 | corr_b=0.70 corr_w=0.99",
+    "[exp118] σ_u= 0.5: ambos=1.000 | corr_b=0.99 corr_w=1.00",
+    "[exp118] σ_u= 1.5: ambos=1.000 | corr_b=1.00 corr_w=1.00",
+    "[exp118] --- (4) BARRIDO s_rel excitación pasiva (σ_u=0) — caveat: colapso SIMÉTRICO sin variación pasiva ---",
+    "[exp118] s_rel= 0.3: corr_w=0.99 corr_b=0.00 rel_solo=0.517",
+    "[exp118] s_rel=0.05: corr_w=0.86 corr_b=0.00 rel_solo=0.507",
+    "[exp118] s_rel= 0.0: corr_w=-0.01 corr_b=0.00 rel_solo=0.098",
+    "[exp118] --- (5) FORMA de la meta (T=300) — caveat: la relevancia se descubre sólo si la meta es lineal-descomponible ---",
+    "[exp118] goal=linear: ambos=1.000 corr_w=1.00",
+    "[exp118] goal=  even: ambos=0.432 corr_w=-0.02",
+    "[exp118] goal=  relu: ambos=0.988 corr_w=0.75",
+    "[exp118] CHECK core_holds=True (vs ctrl +0.512 vs rel +0.547 converge 1.000 sube +0.135) | EJE1 ctrl_action_gated=True (corr_b σ0=0.00->σhi 1.00) | EJE2 rel_data_gated=True (σg-hi ablRel 0.740 - ablCtrl 1.000 = -0.260) | rel_needs_passive=True (corr_w s_rel0=-0.01) rel_needs_linear=True (corr_w even=-0.02)",
+    "[exp118] VEREDICTO H-V4-10h: APOYADA | H-V4-10h APOYADA (con caracterización honesta de DOS EJES de fallo, tras verificación adversarial): el agente DESCUBRE el R-VALOR COMPLETO (ambos factores del keystone) de UN solo stream de experiencia-acción. valor_ambos (ŵ·b̂² de la misma experiencia) bate a cada factor solo (vs ctrl +0.512, vs rel +0.547, vs predicción +1.000) y CONVERGE al oracle (1.000, sube +0.135 con la experiencia; genuinamente peor que oracle a T bajo y = azar 0.255 a σ_u=0, NO es oracle relabeled). La relevancia es GENUINAMENTE descubierta del mapa estado->meta (credit assignment), no dada. DOS EJES de fallo COMPLEMENTARIOS (NO la asimetría 'relevancia barata' que la verificación halló invertida): EJE 1 (action-gating, lógico) -- la CONTROLABILIDAD ∂x'/∂u necesita Var(u)>0: a σ_u=0 no se identifica (corr(b̂,b)=0.000, valor_ambos cae a azar 0.265) y la recuperación al actuar es GRADUAL (dosis-respuesta), pero a exploración positiva es BARATA (corr(b̂,b)=0.999 a σ_u alto, converge a T~30 para todo σ_g). EJE 2 (data/signal-gating) -- la RELEVANCIA es el CUELLO DE BOTELLA del COSTO DE DATOS: a σ_g alto la ablación que estima ctrl rinde 1.000 (la ctrl nunca es el cuello) mientras la que estima rel cae a 0.740 (rel_minus_ctrl=-0.260; corr(ŵ,w)=0.354); y REQUIERE una meta ~LINEAL-descomponible -- bajo meta PAR (G=Σw·x²) el credit-assignment lineal recupera corr(ŵ,w)=-0.019 y valor_ambos cae a azar (0.432). CAVEAT estimación≠decisión: la relevancia es estimable pasivamente sólo si el estado relevante varía pasivamente (s_rel: corr(ŵ,w) 0.993@0.3 -> -0.012@0.0, colapso SIMÉTRICO con la ctrl a σ_u=0); y la decisión MULTIPLICATIVA no cobra la relevancia conocida sin actuar (0·ŵ). => cierra el supuesto 'relevancia DADA' del arco 127-133 (R-VALOR=ctrl×rel TOTALMENTE endógeno de una experiencia), con la caracterización honesta: la controlabilidad se paga con ACCIÓN (R-INTERVENCIÓN, barata), la relevancia con DATOS+SEÑAL (cuello de costo de datos; requiere meta lineal-descomponible)."
+  ]
+}

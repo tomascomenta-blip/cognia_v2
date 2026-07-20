@@ -1,7 +1,9 @@
-# Cognia v3 — Arquitectura Cognitiva Simbolico-Neural
+# Cognia — IA cognitiva local que aprende (Arquitectura Simbolico-Neural)
 
-> IA local, ligera y privada. Corre en CPU, sin APIs externas y sin PyTorch en el
-> camino critico. Aprende, razona y recuerda en tu propia maquina.
+> IA local, ligera y privada. Corre en CPU con un modelo 3B, sin APIs externas y sin
+> PyTorch en el camino critico. **Aprende, razona y recuerda** en tu propia maquina —
+> con memoria episodica, un **creador de imagenes/escenas** AI-nativo, y **prompts que
+> se auto-mejoran** (auto-prompting). Instalable en un comando: `pip install cognia-ai`.
 
 **Stack:** Python 3.11+ (3.12 recomendado) · SQLite · Qwen2.5-Coder-3B (GGUF / INT4) ·
 llama.cpp · sentence-transformers · numpy · FastAPI · Electron
@@ -11,9 +13,10 @@ llama.cpp · sentence-transformers · numpy · FastAPI · Electron
 ## Tabla de contenidos
 
 - [Que es Cognia](#que-es-cognia)
-- [Estado del proyecto](#estado-del-proyecto-junio-2026)
+- [Estado del proyecto](#estado-del-proyecto-julio-2026)
 - [Instalacion](#instalacion)
 - [Uso — el REPL](#uso--el-repl)
+- [El agente y el ruteo hibrido](#el-agente-y-el-ruteo-hibrido)
 - [Modelo e inferencia](#modelo-e-inferencia)
 - [Rendimiento (benchmarks reales)](#rendimiento-benchmarks-reales)
 - [Modulos principales](#modulos-principales)
@@ -46,7 +49,7 @@ Tres ideas la definen:
 
 ---
 
-## Estado del proyecto (Junio 2026)
+## Estado del proyecto (Julio 2026)
 
 | Fase | Estado | Descripcion |
 |------|--------|-------------|
@@ -55,19 +58,51 @@ Tres ideas la definen:
 | **Fase 8 — Commercial release** | COMPLETADA | Instaladores, UX, cifrado por defecto, documentacion. |
 | **Fases 9-12 — Hardening y UX** | COMPLETADA | Proteccion SQLi/XSS/SSRF, consentimiento de privacidad, auto-update. |
 | **Fase 13 — Inferencia distribuida real** | COMPLETADA | Qwen2.5-Coder-3B INT4, auto-sharding, relay WebSocket. |
-| **Inferencia local llama.cpp** | OPERATIVA | GGUF como ruta primaria (~8-9 tok/s en CPU 4-core); shards numpy como fallback. |
+| **Inferencia local llama.cpp** | OPERATIVA | GGUF como ruta primaria (~8-9 tok/s en un i3 de 2 cores / 4 threads); shards numpy como fallback. |
 | **Capa cognitiva Chimera** | OPERATIVA | Band router de 3 bandas, cognitive loop, memoria jerarquica, world-model. |
+| **Especialistas MoM (Mixture of Models)** | OPERATIVA | Portero 0.5B para turnos rapidos (~3.3–3.9×), escalado reactivo 3B→7B en codigo duro (+20pp), router de expertos LoRA. `cognia install-model` los monta; degradan al 3B si faltan. |
+| **Agente + ruteo hibrido por dificultad** | OPERATIVA (3.9.0) | `/hacer` (loop ReAct con herramientas reales) + perfil por dificultad de tarea: mono / agente / +colonia / +superorganismo, gobernado por `/esfuerzo`. |
 
-Detalle tecnico por fase en [ROADMAP.md](ROADMAP.md). Bitacora de sesiones en
-[CLAUDE_NOTES.md](CLAUDE_NOTES.md) y [MANAGER_LOG.md](MANAGER_LOG.md).
+Detalle tecnico por fase en [ROADMAP.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/ROADMAP.md). Bitacora de sesiones en
+[CLAUDE_NOTES.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/CLAUDE_NOTES.md) y [MANAGER_LOG.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/MANAGER_LOG.md).
 
 ---
 
 ## Instalacion
 
-### Instaladores rapidos (recomendado)
+### Un solo comando (PyPI) — recomendado
 
-Descarga el repositorio y ejecuta el instalador de tu plataforma:
+```bash
+pip install cognia-ai
+cognia
+```
+
+Eso es todo: `pip install cognia-ai` deja el comando `cognia` listo, y `cognia` abre el
+asistente (primer arranque = wizard de configuracion, luego el REPL). Corre **100%
+local con el modelo 3B** (Qwen2.5-Coder-3B via llama.cpp); la orquestacion online viene
+**apagada por defecto** (forzable con `COGNIA_DISABLE_SWARM=1`). Incluye el **creador de
+imagenes/escenas** AI-nativo y los **prompts que se auto-mejoran**.
+
+```bash
+pip install "cognia-ai[semantic]"   # + embeddings reales (sentence-transformers, ~2GB)
+pip install "cognia-ai[tui]"        # + interfaz TUI (textual)
+pip install "cognia-ai[llama]"      # + llama.cpp via pip (requiere wheel prebuilt o compilador C++)
+pip install "cognia-ai[all]"        # todo
+```
+
+Requisitos: **Python 3.11+** (3.12 recomendado). Para la inferencia el camino
+**recomendado** es `cognia install-model`: descarga el **GGUF 3B + llama-server**
+(el mas rapido en CPU, sin compilador) mas el portero 0.5B y los expertos LoRA a
+`~/.cognia/`, y deja todo configurado (`config.env`). Alternativas: (2)
+**`cognia-ai[llama]`** (`llama-cpp-python`) — necesita wheel prebuilt o compilador
+C++; (3) **shards numpy** (INT4, Python puro) — camino avanzado/experimental, mas
+lento (`cognia install-weights`). El primer arranque (`cognia`) te guia.
+
+### Instaladores rapidos (desde el repo — stack swarm LEGACY)
+
+> Estos scripts montan el stack de **shards numpy/swarm** (legacy), no el stack
+> recomendado GGUF+llama-server. Para el producto usa `pip install cognia-ai` +
+> `cognia install-model`.
 
 **Windows (PowerShell):**
 ```powershell
@@ -100,6 +135,9 @@ npm run build:win    # o build:linux / build:mac
 
 Releases: **https://github.com/tomascomenta-blip/cognia_v2/releases**
 
+> Nota: los instaladores Desktop publicados corresponden a una version anterior
+> (era 3.2.x). La via al dia es el paquete de PyPI (`pip install cognia-ai`).
+
 > **Nota sobre Python:** el `venv/` del repo puede apuntar a un interprete sin wheels
 > disponibles. Se recomienda **Python 3.12**. En desarrollo, este repo usa
 > `venv312/Scripts/python.exe` — sustituyelo por tu interprete si difiere.
@@ -119,8 +157,8 @@ con `/`:
 
 ```
 cognia> hola, que sabes hacer?          <- chat libre (inferencia)
-cognia> /ayuda                          <- lista completa de comandos
-cognia> aprender El sol es una estrella | astronomia
+cognia> /ayuda                          <- lista completa de comandos (206)
+cognia> /hacer crea un juego de la vida en vida.py y probalo
 cognia> /salir
 ```
 
@@ -129,32 +167,65 @@ cognia> /salir
 | Comando | Que hace |
 |---|---|
 | `<texto libre>` | Chat cognitivo (inferencia + memoria). |
-| `/ayuda` | Lista completa de comandos. |
+| `/hacer <tarea>` | **Agente autonomo**: ejecuta la tarea con herramientas reales (archivos, codigo, busqueda). |
+| `/esfuerzo [nivel]` | Cuanto sistema despertar: bajo/medio/alto/maximo (gobierna el ruteo hibrido). |
+| `/modelo [3b\|7b]` | Ver/cambiar el modelo activo del fleet. |
+| `/largo <tema>` | Generacion larga por secciones con checkpoint (`--continuar`). |
+| `/pensar <problema>` | Razonamiento paso a paso (stepwise). |
+| `/crear <idea>` | Crear un programa Python ahora (sandbox + biblioteca). |
+| `/oficina` | Dashboard de oficina (jefe→directores→trabajadores sobre el agente). |
+| `/plan <objetivo>` | Descomponer un objetivo en pasos. |
+| `/ayuda` | Lista completa de comandos (o `/ayuda <comando>` para el detalle). |
 | `/yo` | Perfil cognitivo y estado interno de la memoria. |
 | `/memoria` | Estado de la memoria episodica/semantica. |
-| `aprender <texto> \| <etiqueta>` | Ensenar un concepto nuevo. |
+| `/aprender <frente> \| <respuesta> [\| tema]` | Crear tarjeta de estudio (repaso espaciado). |
 | `/observar <texto>` | Guardar una observacion sin procesar. |
 | `/dormir` | Ciclo de consolidacion y limpieza (sueno). |
 | `/grafo <concepto>` | Visualizar el grafo de conocimiento local. |
-| `/inferir <concepto>` | Razonamiento transitivo sobre un tema. |
 | `/sesiones` | Listar sesiones de chat recientes. |
-| `/modulos` | Modulos cognitivos activos. |
-| `/debug` | Alternar logs detallados. |
 | `/salir` | Salir del REPL. |
+
+Tambien hay una **TUI** (`pip install "cognia-ai[tui]"` + `python -m cognia.tui`).
 
 ### Subcomandos de la CLI
 
 ```bash
 cognia                  # REPL (wizard en el primer uso)
 cognia init             # Re-ejecutar el wizard de configuracion
-cognia install-weights  # Descargar shards y configurar este equipo como nodo
-cognia install-weights --standalone   # Descargar los 4 shards para uso local completo
+cognia install-model    # Stack de inferencia recomendado: GGUF 3B + llama-server b9391 + expertos LoRA + portero 0.5B
+cognia install-model --with-heavy-code   # + especialista 7B de codigo (~4.7 GB, opt-in): escalado 3B->7B en codigo duro (+20pp)
+cognia modo             # Ver/cambiar el modo (local / compartido / memoria)
+cognia doctor           # Diagnostico de la instalacion (backend GGUF incluido)
+cognia status           # Estado del backend local (GGUF), swarm y Ollama
+cognia install-weights  # (avanzado) Descargar shards numpy y configurar este equipo como nodo
+cognia install-weights --standalone   # (avanzado) Los 4 shards para uso local completo
 cognia server           # Servidor web FastAPI (puerto 8000)
 cognia node             # Iniciar como nodo del swarm distribuido
 cognia coordinator      # Iniciar el coordinador del swarm (puerto 8001)
-cognia status           # Estado del swarm y de Ollama
 cognia leave            # Salir de la red y liberar el shard alojado
 ```
+
+---
+
+## El agente y el ruteo hibrido
+
+`/hacer <tarea>` corre el **agente**: un loop ReAct que piensa, emite acciones
+(`ACCION: <herramienta> <args>`) y observa resultados, con herramientas reales
+(escribir/leer archivos, generar y PROBAR codigo, buscar, knowledge graph,
+escenas). El costo se gobierna con el **ruteo hibrido por dificultad** (3.9.0):
+la dificultad estimada de la tarea (cero LLM) + el nivel `/esfuerzo` deciden
+cuanto sistema despertar —
+
+```
+mono                          tarea trivial: respuesta directa
+agente                        facil-media: loop con tools, 1 modelo (3B)
+agente + colonia              media: etapas multi-modelo permitidas (7B, 4B)
+agente + colonia + superorganismo   dura: colonia por pedazos (etapa 4)
+```
+
+Las etapas caras son **reactivas**: solo corren si lo barato fallo sus tests.
+En codigo duro la cascada completa mide 57.5→67.5% en tests ocultos vs 40% del
+3B solo. Kill-switch global: `COGNIA_HIBRIDO=0` (comportamiento clasico).
 
 ---
 
@@ -165,18 +236,31 @@ orden:
 
 1. **llama.cpp + GGUF (ruta local primaria).** Si encuentra un GGUF de Qwen2.5-Coder-3B,
    lo carga via `llama-cpp-python` o `llama-server`. Es la ruta mas rapida y de mejor
-   calidad en una sola maquina. El backend busca el modelo en `SHARD_WEIGHTS_DIR` (o en
-   `model_shards/qwen-coder-3b-q4/` por defecto).
+   calidad en una sola maquina. El backend lo resuelve solo: `LLAMA_GGUF_PATH` (lo escribe
+   `cognia install-model` en `~/.cognia/config.env`) → `SHARD_WEIGHTS_DIR` →
+   auto-descubrimiento en `~/.cognia/models/`.
 2. **Shards numpy INT4 (fallback distribuido / local).** Forward pass en numpy puro sin
    PyTorch, repartible entre nodos del swarm. Es el corazon de la arquitectura Shattering.
-3. **Ollama (opcional).** Si defines `OLLAMA_URL`, se usa como motor de razonamiento
-   general alternativo.
+3. **Ollama (fallback legacy, opcional).** Si defines `OLLAMA_URL` y no hay backend GGUF
+   vivo, se usa como ultimo recurso.
+
+### Especialistas (Mixture of Models)
+
+Sobre el 3B base, `cognia install-model` monta una cascada de especialistas que se
+activan solos y **degradan al 3B** si su modelo no esta presente (nada se rompe):
+
+- **Portero 0.5B** — atiende los turnos triviales de charla (saludo, identidad,
+  cortesia) a ~3.3–3.9× la velocidad del 3B. Se instala por defecto.
+- **7B de codigo (opt-in)** — con `install-model --with-heavy-code`, cuando el 3B
+  falla los tests de una tarea de codigo dificil se reintenta con Qwen2.5-Coder-7B
+  en greedy (codigo duro 37.5→57.5% pass@1, +20pp). Lazy-load-usar-cerrar: RAM en
+  reposo 0; `COGNIA_HEAVY_CODE=0` lo apaga.
 
 ### Configurar el modelo
 
 El backend GGUF detecta automaticamente cualquiera de estas cuantizaciones (de mayor a
-menor prioridad): `Q4_0`, `Q3_K_S`, `Q4_K_M`, `Q5_K_M`. Para apuntar a una carpeta de
-modelos concreta, define la ruta **absoluta**:
+menor prioridad): `Q4_K_M` (la medida como mejor en b9391), `Q4_0`, `Q3_K_S`, `Q5_K_M`.
+Para apuntar a una carpeta de modelos concreta, define la ruta **absoluta**:
 
 ```
 # ~/.cognia/config.env
@@ -202,25 +286,37 @@ Variables de entorno relevantes:
 
 | Variable | Default | Uso |
 |---|---|---|
+| `LLAMA_GGUF_PATH` | (config.env) | Ruta directa a un GGUF; prioridad sobre la deteccion. Sin nada, auto-descubre en `~/.cognia/models/`. |
+| `LLAMA_SERVER_PATH` | (config.env) | Binario llama-server (lo instala `cognia install-model`). |
 | `SHARD_WEIGHTS_DIR` | `model_shards/qwen-coder-3b-q4` | Carpeta del GGUF / shards. |
-| `LLAMA_GGUF_PATH` | (vacio) | Ruta directa a un GGUF; tiene prioridad sobre la deteccion. |
+| `COGNIA_HIBRIDO` | `1` | `0` apaga el ruteo hibrido por dificultad (comportamiento clasico). |
+| `COGNIA_HEAVY_CODE` | `1` | `0` apaga el escalado 3B→7B en codigo duro. |
+| `COGNIA_PORTERO` | `1` | `0` apaga el portero 0.5B. |
+| `COGNIA_SUPERORGANISMO` | (perfil) | Fuerza on/off la etapa 4 (colonia por pedazos). |
 | `COGNIA_COORDINATOR_URL` | (vacio) | URL de la **API** del coordinador del swarm. Sin definir = modo local. |
-| `OLLAMA_URL` | `http://localhost:11434` | Motor Ollama opcional. |
+| `OLLAMA_URL` | `http://localhost:11434` | Motor Ollama (fallback legacy opcional). |
 | `COGNIA_DATA_DIR` | `~/.cognia/data` | Datos y memoria local. |
 | `HF_TOKEN` | (vacio) | Token de HuggingFace para descargas privadas. |
+
+> Las claves de `~/.cognia/config.env` se cargan en TODOS los entry points
+> (`apply_config()`); una env var del sistema MANDA sobre config.env y el CLI avisa
+> cuando la pisa.
 
 ---
 
 ## Rendimiento (benchmarks reales)
 
-Medido en un **Intel i3-10110U (4 cores, sin GPU dedicada)**, llama.cpp en CPU. Numeros
-de streaming real (ver [MANAGER_LOG.md](MANAGER_LOG.md)):
+Medido en un **Intel i3-10110U (2 cores / 4 threads, sin GPU dedicada)**, llama.cpp en
+CPU. Numeros de streaming real (ver
+[MANAGER_LOG.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/MANAGER_LOG.md)):
 
 | Configuracion | tok/s | Notas |
 |---|---|---|
-| Q3_K_S, threads=4 | **7.7** | +7% sobre Q4_0, calidad similar. |
-| Q4_0, threads=4 (CPU puro) | 7.2 – 8.8 | Ruta primaria por defecto. |
+| Q4_K_M, threads=3 | 7.5 – 8.2 | **Ruta primaria** (la que instala `cognia install-model`; b9391 pineado). |
+| Q3_K_S, threads=4 | 7.7 | +7% sobre Q4_0, calidad similar. |
+| Q4_0, threads=4 (CPU puro) | 7.2 – 8.8 | Alternativa. |
 | `stream_chat` (runs limpios) | 8.6 (pico 9.0) | Throughput real sostenido. |
+| Portero 0.5B (turnos triviales) | 28 – 36 | 3.3–3.9× pareado vs 3B. |
 | Vulkan + Intel UHD (offload) | 3.7 – 3.8 | **Peor**: la memoria compartida es el cuello de botella. |
 
 **Notas honestas:**
@@ -381,7 +477,7 @@ cognia node                              # equipo B se une al swarm
 - **Privacidad diferencial:** ruido estadistico en sincronizaciones de red para proteger
   la identidad.
 
-Mas detalle en [docs/PRIVACY.md](docs/PRIVACY.md) y [docs/SECURITY.md](docs/SECURITY.md).
+Mas detalle en [docs/PRIVACY.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/docs/PRIVACY.md) y [docs/SECURITY.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/docs/SECURITY.md).
 
 ---
 
@@ -393,7 +489,7 @@ Suite rapida (excluye el e2e de inferencia, lento/pesado):
 python -m pytest tests/ --ignore=tests/test_e2e_inference.py -q
 ```
 
-Convenciones del repo (ver [ROADMAP.md](ROADMAP.md) y `CLAUDE.md`):
+Convenciones del repo (ver [ROADMAP.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/ROADMAP.md) y `CLAUDE.md`):
 
 - **Sin PyTorch/Tensorflow** en el motor de inferencia principal.
 - **Windows CP1252:** los `print()` y strings del CLI usan ASCII puro (sin emojis ni
@@ -407,18 +503,18 @@ Convenciones del repo (ver [ROADMAP.md](ROADMAP.md) y `CLAUDE.md`):
 
 | Documento | Contenido |
 |-----------|-----------|
-| [docs/INSTALL.md](docs/INSTALL.md) | Guia detallada de instalacion y configuracion. |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Solucion a problemas comunes y diagnostico. |
-| [docs/PRIVACY.md](docs/PRIVACY.md) | Manejo de datos y privacidad. |
-| [ROADMAP.md](ROADMAP.md) | Plan de desarrollo y estado de las fases (fuente de verdad). |
-| [CLAUDE_NOTES.md](CLAUDE_NOTES.md) | Log real de sesiones de desarrollo y fixes. |
-| [MANAGER_LOG.md](MANAGER_LOG.md) | Bitacora del manager (benchmarks, decisiones). |
+| [docs/INSTALL.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/docs/INSTALL.md) | Guia detallada de instalacion y configuracion. |
+| [docs/TROUBLESHOOTING.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/docs/TROUBLESHOOTING.md) | Solucion a problemas comunes y diagnostico. |
+| [docs/PRIVACY.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/docs/PRIVACY.md) | Manejo de datos y privacidad. |
+| [ROADMAP.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/ROADMAP.md) | Plan de desarrollo y estado de las fases (fuente de verdad). |
+| [CLAUDE_NOTES.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/CLAUDE_NOTES.md) | Log real de sesiones de desarrollo y fixes. |
+| [MANAGER_LOG.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/MANAGER_LOG.md) | Bitacora del manager (benchmarks, decisiones). |
 
 ---
 
 ## Para colaborar
 
-Lee el [ROADMAP.md](ROADMAP.md) para entender la direccion actual. Cognia prioriza la
+Lee el [ROADMAP.md](https://github.com/tomascomenta-blip/cognia_v2/blob/main/ROADMAP.md) para entender la direccion actual. Cognia prioriza la
 eficiencia (CPU-only), la privacidad y la estabilidad. No se aceptan dependencias pesadas
 (PyTorch/Tensorflow) en el motor de inferencia principal.
 

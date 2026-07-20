@@ -1,0 +1,54 @@
+{
+  "experiment": "xh_p2k1_evalbase",
+  "suites": {
+    "belebele": {
+      "acc": 0.3522,
+      "n": 900,
+      "se": 0.0159,
+      "minutes": 5.8,
+      "partial": false
+    },
+    "xstorycloze": {
+      "acc": 0.6532,
+      "n": 1511,
+      "se": 0.0122,
+      "minutes": 3.7,
+      "partial": false
+    },
+    "mgsm_0shot": {
+      "acc_strict": 0.396,
+      "acc_lax": 0.456,
+      "n": 250,
+      "se": 0.0315,
+      "truncated": 28,
+      "minutes": 12.5,
+      "partial": false
+    },
+    "mgsm_3shot": {
+      "acc_strict": 0.692,
+      "acc_lax": 0.696,
+      "n": 250,
+      "se": 0.0291,
+      "truncated": 18,
+      "minutes": 14.0,
+      "partial": false
+    }
+  },
+  "gates": {
+    "GP2_2": {
+      "probe_acc_50": 0.44,
+      "probe_min_50": 0.28,
+      "proy_belebele_min": 5.1,
+      "cut_3shot": false,
+      "cut_belebele_450": false
+    },
+    "GP2_1_harness_sano": false
+  },
+  "model": {
+    "dir": "/kaggle/input/models/qwen-lm/qwen2.5/transformers/3b-instruct/1",
+    "nf4": true,
+    "torch": "2.10.0+cu128"
+  },
+  "wall_setup_min": 1.1,
+  "minutes_total": 37.4
+}

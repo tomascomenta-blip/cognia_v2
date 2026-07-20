@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 
 
-from logger_config import get_logger
+from cognia_v3.core.logger_config import get_logger
 
 logger = get_logger(__name__)
 

@@ -1,0 +1,47 @@
+{
+  "experiment": "xh_m1_selector3z",
+  "n_queries": 300,
+  "T": 0.05,
+  "ece_raw": 0.4772,
+  "ece_cal": 0.018,
+  "auc_margen": 0.8685,
+  "umbrales": {
+    "margen_hi": 0.05,
+    "score_lo": 0.34
+  },
+  "bpb": {
+    "tres_zonas": {
+      "stories": 0.6992,
+      "wiki": 1.3285,
+      "code": 1.1117
+    },
+    "seleccion_pura": {
+      "stories": 0.6992,
+      "wiki": 1.3285,
+      "code": 1.1117
+    },
+    "fusion_siempre": {
+      "stories": 0.7052,
+      "wiki": 1.3286,
+      "code": 1.0481
+    },
+    "oracle": {
+      "stories": 0.6992,
+      "wiki": 1.3285,
+      "code": 0.9318
+    },
+    "gen_siempre": {
+      "stories": 0.8664,
+      "wiki": 1.5231,
+      "code": 1.2789
+    }
+  },
+  "forwards_promedio": {
+    "tres_zonas": 1.0
+  },
+  "prediccion": {
+    "a_ece": true,
+    "c_auc_070": true
+  },
+  "minutes_total": 37.8
+}

@@ -1,0 +1,156 @@
+{
+  "experiment": "exp002_recall_capacity",
+  "config": {
+    "seed": 7,
+    "ds": [
+      32,
+      64,
+      128
+    ],
+    "ns": [
+      8,
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "trials": 3,
+    "numpy": "2.4.6"
+  },
+  "rows": [
+    {
+      "d": 32,
+      "N": 8,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 32,
+      "N": 16,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 32,
+      "N": 32,
+      "acc_full": 1.0,
+      "acc_linear": 0.9791666666666666
+    },
+    {
+      "d": 32,
+      "N": 64,
+      "acc_full": 1.0,
+      "acc_linear": 0.8020833333333334
+    },
+    {
+      "d": 32,
+      "N": 128,
+      "acc_full": 0.9973958333333334,
+      "acc_linear": 0.46875
+    },
+    {
+      "d": 32,
+      "N": 256,
+      "acc_full": 0.9895833333333334,
+      "acc_linear": 0.16536458333333334
+    },
+    {
+      "d": 32,
+      "N": 512,
+      "acc_full": 0.9596354166666666,
+      "acc_linear": 0.039713541666666664
+    },
+    {
+      "d": 64,
+      "N": 8,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 64,
+      "N": 16,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 64,
+      "N": 32,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 64,
+      "N": 64,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 64,
+      "N": 128,
+      "acc_full": 1.0,
+      "acc_linear": 0.9557291666666666
+    },
+    {
+      "d": 64,
+      "N": 256,
+      "acc_full": 1.0,
+      "acc_linear": 0.7252604166666666
+    },
+    {
+      "d": 64,
+      "N": 512,
+      "acc_full": 1.0,
+      "acc_linear": 0.34765625
+    },
+    {
+      "d": 128,
+      "N": 8,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 128,
+      "N": 16,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 128,
+      "N": 32,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 128,
+      "N": 64,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 128,
+      "N": 128,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 128,
+      "N": 256,
+      "acc_full": 1.0,
+      "acc_linear": 1.0
+    },
+    {
+      "d": 128,
+      "N": 512,
+      "acc_full": 1.0,
+      "acc_linear": 0.9544270833333334
+    }
+  ],
+  "linear_capacity_per_d_acc>=0.9": {
+    "32": 32,
+    "64": 128,
+    "128": 512
+  },
+  "note": "atencion full usa escalado estandar 1/sqrt(d); ningun hack de temperatura."
+}

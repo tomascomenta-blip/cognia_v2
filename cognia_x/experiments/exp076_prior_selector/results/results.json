@@ -1,0 +1,72 @@
+{
+  "exp": "exp076_prior_selector",
+  "cycle": 92,
+  "hypothesis": "H-V4-3b",
+  "claim": "el agente puede SELECCIONAR la base/prior correcta de sus propios datos via CV held-out (sin conocimiento de diseno del regimen) logrando no-regret a traves de regimenes de estructura del valor: iguala a la mejor base fija en cada regimen y supera a cualquier base fija unica en promedio",
+  "verdict": "mixta",
+  "summary": {
+    "grid": {
+      "smooth": {
+        "always_poly2": 0.612,
+        "always_rbf": 0.5997,
+        "always_bin": 0.5387,
+        "selector": 0.6045,
+        "oracle_selector": 0.616,
+        "bayes": 0.6212,
+        "product": 0.6154,
+        "chance": 0.2674
+      },
+      "band": {
+        "always_poly2": 0.4896,
+        "always_rbf": 0.7107,
+        "always_bin": 0.5863,
+        "selector": 0.7107,
+        "oracle_selector": 0.7107,
+        "bayes": 0.8283,
+        "product": 0.3274,
+        "chance": 0.2174
+      }
+    },
+    "best_fixed_smooth": "always_poly2",
+    "best_fixed_band": "always_rbf",
+    "regret_smooth": 0.0075,
+    "regret_band": 0.0,
+    "regret_vs_oracle_smooth": 0.0115,
+    "regret_vs_oracle_band": 0.0,
+    "selector_avg": 0.6576,
+    "fixed_avg": {
+      "poly2": 0.5508,
+      "rbf": 0.6552,
+      "bin": 0.5625
+    },
+    "best_single_fixed": "rbf",
+    "selector_beats_best_fixed": 0.0024,
+    "no_regret": true,
+    "beats_any_fixed": false,
+    "status": "mixta",
+    "verdict": "H-V4-3b MIXTA (no-regret SÍ, pero selección INNECESARIA): el META-PRIOR FUNCIONA -- el selector por CV held-out logra NO-REGRET (regret vs mejor base por régimen S=0.007/B=0.000; vs oracle_selector PERFECTO S=0.011/B=0.000, <= 0.03): el agente DESCUBRE de sus datos qué base usar (poly2 en smooth, rbf en band), cerrando el caveat de diseño de CYCLE 91. PERO la selección es PRÁCTICAMENTE INNECESARIA: una base FLEXIBLE-suficiente (rbf) casi DOMINA ambos regímenes (avg=0.655), así que el selector la supera sólo +0.002 (< 0.03). El rbf NESTA tanto c·r (smooth) como band(c)·r (band) -> always-rbf ≈ selector. ESPEJA CYCLE 86 al nivel meta: un prior flexible que nesta los regímenes hace innecesaria la selección/detección explícita; la selección sólo paga cuando NINGUNA base domina."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k_budget": 10,
+    "k_eval": 10,
+    "E": 20,
+    "ctrl_noise": 0.2
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp076] CYCLE 92 / H-V4-3b — META-PRIOR: el agente ELIGE la base por CV held-out (no-regret a través de regímenes)",
+    "[exp076] n=50 k_budget=10 k_eval=10 T=40 E=20 seeds=48 bases=['poly2', 'rbf', 'bin'] regimes=['smooth', 'band'] ctrl_noise=0.2 targets=[2,300]",
+    "[exp076] smooth: poly2=0.612 rbf=0.600 bin=0.539 selector=0.605 oracle_sel=0.616 bayes=0.621 product=0.615",
+    "[exp076]   band: poly2=0.490 rbf=0.711 bin=0.586 selector=0.711 oracle_sel=0.711 bayes=0.828 product=0.327",
+    "[exp076] best_fixed: smooth=poly2 band=rbf | regret S=0.007/B=0.000 | vs_oracle S=0.011/B=0.000",
+    "[exp076] selector_avg=0.658 vs best_single_fixed(rbf)=0.655 (+0.002) | fixed_avg={'poly2': 0.5508, 'rbf': 0.6552, 'bin': 0.5625}",
+    "[exp076] no_regret=True beats_any_fixed=False",
+    "[exp076] VEREDICTO H-V4-3b: MIXTA | H-V4-3b MIXTA (no-regret SÍ, pero selección INNECESARIA): el META-PRIOR FUNCIONA -- el selector por CV held-out logra NO-REGRET (regret vs mejor base por régimen S=0.007/B=0.000; vs oracle_selector PERFECTO S=0.011/B=0.000, <= 0.03): el agente DESCUBRE de sus datos qué base usar (poly2 en smooth, rbf en band), cerrando el caveat de diseño de CYCLE 91. PERO la selección es PRÁCTICAMENTE INNECESARIA: una base FLEXIBLE-suficiente (rbf) casi DOMINA ambos regímenes (avg=0.655), así que el selector la supera sólo +0.002 (< 0.03). El rbf NESTA tanto c·r (smooth) como band(c)·r (band) -> always-rbf ≈ selector. ESPEJA CYCLE 86 al nivel meta: un prior flexible que nesta los regímenes hace innecesaria la selección/detección explícita; la selección sólo paga cuando NINGUNA base domina."
+  ]
+}

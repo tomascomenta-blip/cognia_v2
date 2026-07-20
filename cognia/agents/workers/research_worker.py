@@ -64,7 +64,7 @@ def _search_episodic(query: str, episodic_memory, vector_cache) -> Optional[str]
 
 def _search_wikipedia(query: str) -> Optional[str]:
     try:
-        from investigador import buscar_wikipedia
+        from cognia_v3.core.investigador import buscar_wikipedia
         result = buscar_wikipedia(query)
         if result is None:
             return None

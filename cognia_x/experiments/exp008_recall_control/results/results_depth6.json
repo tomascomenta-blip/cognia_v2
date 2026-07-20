@@ -1,0 +1,24 @@
+{
+  "recipe": {
+    "d_model": 64,
+    "n_layers": 6,
+    "n_heads": 4,
+    "n_vals": 16,
+    "n_queries": 16,
+    "batch": 64,
+    "lr": 0.001
+  },
+  "steps": 15000,
+  "abs_pos": false,
+  "grid": {
+    "8": {
+      "atencion_pura": 1.0,
+      "hibrido_3to1": 0.98857421875,
+      "lineal_puro": 0.2513671875
+    },
+    "16": {
+      "atencion_pura": 0.998046875,
+      "hibrido_3to1": 0.190625
+    }
+  }
+}

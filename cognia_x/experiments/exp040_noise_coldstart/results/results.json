@@ -1,0 +1,274 @@
+{
+  "exp": "exp040_noise_coldstart",
+  "cycle": 54,
+  "hypothesis": "H-V4-2g",
+  "claim": "el lazo guarded con verificador real bootstrapea un base débil aun bajo ruido del verificador (robustez a ruido x cold-start coexisten)",
+  "verdict": "apoyada",
+  "summary": {
+    "eps_sweep": [
+      0.0,
+      0.15,
+      0.3,
+      0.5
+    ],
+    "sigma_2": 0.1054,
+    "n_seeds": 3,
+    "base": 0.0815,
+    "final_mean": {
+      "0.0": 0.9333,
+      "0.15": 0.8445,
+      "0.3": 0.6593,
+      "0.5": 0.437
+    },
+    "final_per_seed": {
+      "0.0": [
+        0.9667,
+        0.9111,
+        0.9222
+      ],
+      "0.15": [
+        0.9556,
+        0.6778,
+        0.9
+      ],
+      "0.3": [
+        0.7778,
+        0.6111,
+        0.5889
+      ],
+      "0.5": [
+        0.5333,
+        0.4444,
+        0.3333
+      ]
+    },
+    "gain_mean": {
+      "0.0": 0.8518,
+      "0.15": 0.763,
+      "0.3": 0.5778,
+      "0.5": 0.3555
+    },
+    "bootstraps_by_eps": {
+      "0.0": true,
+      "0.15": true,
+      "0.3": true,
+      "0.5": false
+    },
+    "eps_star_coldstart": 0.3,
+    "decays": true,
+    "clean_bootstraps": true,
+    "monotone_ish": true,
+    "status": "apoyada",
+    "verdict": "H-V4-2g APOYADA (CAPSTONE): el lazo GUARDED desde un base DÉBIL (0.082) SIGUE bootstrapeando fuerte (gain>=0.30) bajo RUIDO sustancial del verificador hasta ε*_coldstart=0.3: final por ε {0.0: 0.9333, 0.15: 0.8445, 0.3: 0.6593, 0.5: 0.437} (gain {0.0: 0.8518, 0.15: 0.763, 0.3: 0.5778, 0.5: 0.3555}). La robustez al ruido (exp039 ε*=0.50, base moderada) y al cold-start (exp038) COEXISTEN: con replay limpio, verificador imperfecto + arranque casi-cero NO se componen catastróficamente (el techo baja con ε pero el cold-start SOBREVIVE). monotone_ish=True."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2",
+    "rounds": 8,
+    "K": 6,
+    "pool": 256,
+    "replay_n": 128,
+    "fixed_n": 400,
+    "steps": 200,
+    "lr": 0.0005,
+    "top_k": 20,
+    "temperature": 0.9,
+    "n_seed": 256,
+    "base_steps": 125,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "seeds": [
+    {
+      "seed": 0,
+      "base_acc": 0.1444,
+      "npar": 201280,
+      "secs": 316.6,
+      "hist": {
+        "0.0": [
+          0.1444,
+          0.8444,
+          0.9222,
+          0.8778,
+          0.9,
+          0.9556,
+          0.9222,
+          0.9333,
+          0.9667
+        ],
+        "0.15": [
+          0.1444,
+          0.2889,
+          0.5889,
+          0.7222,
+          0.7111,
+          0.7889,
+          0.8556,
+          0.8333,
+          0.9556
+        ],
+        "0.3": [
+          0.1444,
+          0.2889,
+          0.5,
+          0.6,
+          0.7444,
+          0.6778,
+          0.7111,
+          0.7778,
+          0.7778
+        ],
+        "0.5": [
+          0.1444,
+          0.2556,
+          0.2667,
+          0.3667,
+          0.2889,
+          0.4889,
+          0.4,
+          0.4778,
+          0.5333
+        ]
+      }
+    },
+    {
+      "seed": 1,
+      "base_acc": 0.0333,
+      "npar": 201280,
+      "secs": 320.38,
+      "hist": {
+        "0.0": [
+          0.0333,
+          0.6,
+          0.7222,
+          0.8889,
+          0.8444,
+          0.8556,
+          0.9222,
+          0.9333,
+          0.9111
+        ],
+        "0.15": [
+          0.0333,
+          0.1222,
+          0.1778,
+          0.4333,
+          0.6,
+          0.6333,
+          0.6444,
+          0.7,
+          0.6778
+        ],
+        "0.3": [
+          0.0333,
+          0.1111,
+          0.1889,
+          0.1889,
+          0.2778,
+          0.3889,
+          0.4,
+          0.5889,
+          0.6111
+        ],
+        "0.5": [
+          0.0333,
+          0.0556,
+          0.1556,
+          0.3,
+          0.2889,
+          0.3889,
+          0.4222,
+          0.4,
+          0.4444
+        ]
+      }
+    },
+    {
+      "seed": 2,
+      "base_acc": 0.0667,
+      "npar": 201280,
+      "secs": 318.45,
+      "hist": {
+        "0.0": [
+          0.0667,
+          0.6333,
+          0.6778,
+          0.7889,
+          0.8,
+          0.7778,
+          0.8889,
+          0.9111,
+          0.9222
+        ],
+        "0.15": [
+          0.0667,
+          0.0889,
+          0.2667,
+          0.4667,
+          0.5889,
+          0.6667,
+          0.6444,
+          0.7667,
+          0.9
+        ],
+        "0.3": [
+          0.0667,
+          0.1333,
+          0.2,
+          0.3778,
+          0.3889,
+          0.4667,
+          0.4778,
+          0.5667,
+          0.5889
+        ],
+        "0.5": [
+          0.0667,
+          0.1556,
+          0.2111,
+          0.2889,
+          0.2667,
+          0.2556,
+          0.3111,
+          0.3444,
+          0.3333
+        ]
+      }
+    }
+  ],
+  "task_range": [
+    2,
+    300
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp040] CYCLE 54 / H-V4-2g — CAPSTONE: ruido del verificador REAL x cold-start (base débil)",
+    "[exp040] exprs [2,300] test=90 eps=[0.0, 0.15, 0.3, 0.5] rounds=8 base_steps=125 (base débil) seeds=[0, 1, 2]",
+    "[exp040] seed=0 base real_acc=0.144 (DÉBIL) params=201,280",
+    "[exp040] seed=0 eps=0.0: base=0.144 -> final=0.967",
+    "[exp040] seed=0 eps=0.15: base=0.144 -> final=0.956",
+    "[exp040] seed=0 eps=0.3: base=0.144 -> final=0.778",
+    "[exp040] seed=0 eps=0.5: base=0.144 -> final=0.533",
+    "[exp040] seed=0 316.6s",
+    "[exp040] seed=1 base real_acc=0.033 (DÉBIL) params=201,280",
+    "[exp040] seed=1 eps=0.0: base=0.033 -> final=0.911",
+    "[exp040] seed=1 eps=0.15: base=0.033 -> final=0.678",
+    "[exp040] seed=1 eps=0.3: base=0.033 -> final=0.611",
+    "[exp040] seed=1 eps=0.5: base=0.033 -> final=0.444",
+    "[exp040] seed=1 320.4s",
+    "[exp040] seed=2 base real_acc=0.067 (DÉBIL) params=201,280",
+    "[exp040] seed=2 eps=0.0: base=0.067 -> final=0.922",
+    "[exp040] seed=2 eps=0.15: base=0.067 -> final=0.900",
+    "[exp040] seed=2 eps=0.3: base=0.067 -> final=0.589",
+    "[exp040] seed=2 eps=0.5: base=0.067 -> final=0.333",
+    "[exp040] seed=2 318.5s",
+    "[exp040] VEREDICTO: H-V4-2g APOYADA (CAPSTONE): el lazo GUARDED desde un base DÉBIL (0.082) SIGUE bootstrapeando fuerte (gain>=0.30) bajo RUIDO sustancial del verificador hasta ε*_coldstart=0.3: final por ε {0.0: 0.9333, 0.15: 0.8445, 0.3: 0.6593, 0.5: 0.437} (gain {0.0: 0.8518, 0.15: 0.763, 0.3: 0.5778, 0.5: 0.3555}). La robustez al ruido (exp039 ε*=0.50, base moderada) y al cold-start (exp038) COEXISTEN: con replay limpio, verificador imperfecto + arranque casi-cero NO se componen catastróficamente (el techo baja con ε pero el cold-start SOBREVIVE). monotone_ish=True.",
+    "[exp040] final por ε: e0.0=0.933 e0.15=0.845 e0.3=0.659 e0.5=0.437  base=0.082 ε*_coldstart=0.3"
+  ]
+}

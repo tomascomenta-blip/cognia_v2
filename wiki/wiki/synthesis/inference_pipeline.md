@@ -1,69 +1,46 @@
 ---
-title: Flujo completo de inferencia
+title: Inference Pipeline — flujo real de un turno (2026-07)
 type: synthesis
-tags: [inference, shards, relay, orchestrator, lm_head]
-updated: 2026-05-24
+tags: [pipeline, inferencia, hibrido, llama-server, colonia, puertos]
+updated: 2026-07-16
 ---
 
-# Flujo completo de inferencia (token a token)
+# Inference Pipeline
 
 → [[index]]
 
-## Pipeline de alto nivel
+## Flujo de PRODUCCION (cognia-ai 3.9.x)
 
 ```
-Usuario
-  └─ HTTP/WS → cognia_desktop_api (:8765)  o  app/main.py (:8000)
-       └─ coordinator/relay.py  (WebSocket, valida session_id + shard_index bounds)
-            └─ shattering/orchestrator.py  (_shard_infer)
-                 ├─ tokenizer  (BPE real desde tokenizer.json — NO hash())
-                 ├─ ChatML template → input_ids
-                 ├─ loop token a token:
-                 │    ├─ node/shard_engine.py  ×4 shards  (INT4 → dequantize → forward)
-                 │    ├─ shattering/mla.py  (causal mask + RoPE)
-                 │    ├─ node/qwen2_ops.py  (RMSNorm, SiLU, lm_head chunked)
-                 │    ├─ sampling (temp LOGOS=0.3 / TECHNE=0.15 / RHETOR=0.7)
-                 │    └─ EOS check {151643, 151645}
-                 └─ stream token → relay → cliente
+REPL/CLI (cognia/cli.py)
+  |- turno social/identidad  -> PORTERO 0.5B :8090   (classify_turn conservador)
+  |- turno de razonamiento   -> razonador 4B (permiso del perfil hibrido)
+  |- turno normal            -> 3B fleet :8088 (+experto LoRA por turno)
+  |- /hacer <tarea>          -> hybrid_router.route_profile(task)
+  |                             mono | agente | +colonia | +superorganismo
+  |                             loop ReAct ACCION con tools reales
+  |- generar_codigo          -> cascada REACTIVA (solo si lo barato fallo):
+  |                             3B best-of-N -> 7B greedy :8092 ->
+  |                             Qwen3.5-4B -> superorganismo (etapa 4)
+  v
+ShatteringOrchestrator.infer -> _try_load_llama -> LlamaBackend
+  (llama-server b9391, bind 127.0.0.1, GGUF de ~/.cognia/models/)
 ```
 
-## Decisión: shards vs Ollama
+Todo local; servers bindean 127.0.0.1. Puertos: ver [[entities/llama_backend]].
 
-`memory_response_engine.py` (Stage 0) evalúa **coverage score**:
-- Alto → articula desde memoria episódica (Ollama)
-- Bajo + `_shards_available()` True → genera con shards propios
-- Bajo + shards no disponibles → Ollama fallback
+## Modo swarm (opcional, NO default)
 
-`_shards_available()` requiere `SHARD_WEIGHTS_DIR` seteado en `.env`.
-
-## KV-Cache (LPC)
-
-- `lpc_session_id` en `infer()` — skip-prefix cross-turn
-- Intra-turn (Phase 21.2) pendiente
-- Ver [[concepts/lpc]]
-
-## Cuello de botella actual
-
-`lm_head` chunked: ~37 matmuls/token. Speculative decoding compensa.
-Numba JIT bloqueado por Python 3.14 — requiere Python ≤3.12.
-
-## Archivos clave
-
-| Archivo | Rol |
-|---|---|
-| `coordinator/relay.py` | TTL, mark_failed(), evict |
-| `shattering/orchestrator.py` | Loop de generación |
-| `node/shard_engine.py` | Forward pass INT4 |
-| `shattering/mla.py` | Atención con mask + RoPE |
-| `node/qwen2_ops.py` | Ops numpy puro |
-| `shattering/router.py` | LOGOS/TECHNE/RHETOR |
+Con `COGNIA_COORDINATOR_URL` seteada y nodos registrados:
+relay WebSocket → cadena de shards INT4 numpy → lm_head en el ultimo
+shard. Piezas: [[entities/coordinator]], [[entities/relay]],
+[[entities/shard_engine]]. `COGNIA_DISABLE_SWARM=1` lo fuerza apagado.
+Sin pesos reales el nodo REPORTA la descarga fallida (fix 2026-07-16:
+antes simulaba en silencio).
 
 ## Links
 
-- [[concepts/sharding]]
-- [[concepts/int4_nibble]]
-- [[concepts/lpc]]
-- [[concepts/speculative_decoding]]
-- [[entities/orchestrator]]
-- [[entities/shard_engine]]
-- [[entities/relay]]
+- [[concepts/ruteo_hibrido]]
+- [[concepts/colonia]]
+- [[entities/hybrid_router]]
+- [[entities/llama_backend]]

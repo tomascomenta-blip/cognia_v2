@@ -224,6 +224,18 @@ def test_build_retry_prompt_ends_with_question(gate):
     assert p.endswith(q)
 
 
+# ---- pick_better (FASE 4a: el auto-gate elige por calidad, no por longitud) ----
+
+def test_pick_better_chooses_higher_score(gate):
+    q = "Explain artificial intelligence concepts clearly"
+    poor = "Hi"
+    good = ("Artificial intelligence concepts include machine learning, neural networks "
+            "and reasoning systems that let computers learn from data and decide. " * 2)
+    assert gate.pick_better(q, poor, good) == good   # candidate mejor -> reemplaza
+    assert gate.pick_better(q, good, poor) == good   # candidate peor -> conserva original
+    assert gate.pick_better(q, good, "") == good     # vacio -> conserva original
+
+
 # ---- weighted score correctness ----------------------------------------
 
 def test_combined_score_weighting_correct(gate):

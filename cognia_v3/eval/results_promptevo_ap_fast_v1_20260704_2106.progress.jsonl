@@ -1,0 +1,4 @@
+{"ev": "start", "preset": "fast", "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf", "n_dev": 20, "n_test": 50, "rounds": 2, "max_tokens": 256, "t": "2026-07-04T21:06:05.451988"}
+{"ev": "log", "msg": "[split] dev=20 -> harvest=10 tune=10 | test held-out=50", "t": "2026-07-04T21:06:05.451988"}
+{"ev": "log", "msg": "[bootstrap] cosechando exemplars verificados de 10 harvest (k=2)...", "t": "2026-07-04T21:06:05.451988"}
+{"ev": "gen", "secs": 18.6, "t": "2026-07-04T21:06:24.083449"}

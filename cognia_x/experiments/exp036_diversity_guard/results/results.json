@@ -1,0 +1,420 @@
+{
+  "exp": "exp036_diversity_guard",
+  "cycle": 50,
+  "hypothesis": "H-V4-2c",
+  "claim": "una guardia de diversidad (dedup+replay) en el lazo iterado previene el narrowing sin sacrificar precisión",
+  "verdict": "APOYADA",
+  "stats": {
+    "step_plain": [
+      0.3,
+      0.44166666666666665,
+      0.4749999999999999,
+      0.5361111111111111,
+      0.425,
+      0.5472222222222222,
+      0.6416666666666667
+    ],
+    "step_guarded": [
+      0.3,
+      0.5305555555555556,
+      0.525,
+      0.5861111111111111,
+      0.6555555555555556,
+      0.6972222222222223,
+      0.6916666666666668
+    ],
+    "cov_plain": [
+      0.0,
+      175.33333333333334,
+      181.0,
+      180.0,
+      180.0,
+      176.0,
+      184.66666666666666
+    ],
+    "cov_guarded": [
+      0.0,
+      175.33333333333334,
+      190.0,
+      189.66666666666666,
+      197.66666666666666,
+      199.33333333333334,
+      201.66666666666666
+    ],
+    "div_plain": [
+      0.0,
+      0.03616898148148148,
+      0.025028935185185185,
+      0.02372685185185185,
+      0.02068865740740741,
+      0.018663194444444444,
+      0.01909722222222222
+    ],
+    "div_guarded": [
+      0.0,
+      0.03616898148148148,
+      0.025173611111111115,
+      0.02372685185185185,
+      0.02170138888888889,
+      0.01953125,
+      0.018229166666666668
+    ],
+    "plain_narrows": true,
+    "guard_keeps": true,
+    "no_prec_cost": true,
+    "n_seeds": 3
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2",
+    "rounds": 6,
+    "n_prompts": 384,
+    "K": 6,
+    "replay_n": 128,
+    "star_steps": 200,
+    "star_lr": 0.0005,
+    "top_k": 16,
+    "temperature": 1.0,
+    "margin": 0.03,
+    "n_seed": 256,
+    "base_steps": 600,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "lo": 0,
+    "hi": 19,
+    "test_frac": 0.3
+  },
+  "seeds": [
+    {
+      "seed": 0,
+      "npar": 201280,
+      "secs": 118.8,
+      "plain": [
+        {
+          "round": 0,
+          "step": 0.21666666666666667,
+          "coverage": 0,
+          "diversity": 0.0
+        },
+        {
+          "round": 1,
+          "step": 0.425,
+          "coverage": 163,
+          "diversity": 0.036458333333333336
+        },
+        {
+          "round": 2,
+          "step": 0.31666666666666665,
+          "coverage": 164,
+          "diversity": 0.025173611111111112
+        },
+        {
+          "round": 3,
+          "step": 0.36666666666666664,
+          "coverage": 157,
+          "diversity": 0.024305555555555556
+        },
+        {
+          "round": 4,
+          "step": 0.35833333333333334,
+          "coverage": 171,
+          "diversity": 0.01953125
+        },
+        {
+          "round": 5,
+          "step": 0.38333333333333336,
+          "coverage": 165,
+          "diversity": 0.018663194444444444
+        },
+        {
+          "round": 6,
+          "step": 0.43333333333333335,
+          "coverage": 162,
+          "diversity": 0.019965277777777776
+        }
+      ],
+      "guarded": [
+        {
+          "round": 0,
+          "step": 0.21666666666666667,
+          "coverage": 0,
+          "diversity": 0.0
+        },
+        {
+          "round": 1,
+          "step": 0.35833333333333334,
+          "coverage": 163,
+          "diversity": 0.036458333333333336
+        },
+        {
+          "round": 2,
+          "step": 0.4166666666666667,
+          "coverage": 176,
+          "diversity": 0.025173611111111112
+        },
+        {
+          "round": 3,
+          "step": 0.45,
+          "coverage": 187,
+          "diversity": 0.023003472222222224
+        },
+        {
+          "round": 4,
+          "step": 0.4083333333333333,
+          "coverage": 198,
+          "diversity": 0.021267361111111112
+        },
+        {
+          "round": 5,
+          "step": 0.5,
+          "coverage": 188,
+          "diversity": 0.016927083333333332
+        },
+        {
+          "round": 6,
+          "step": 0.525,
+          "coverage": 192,
+          "diversity": 0.018229166666666668
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "npar": 201280,
+      "secs": 118.5,
+      "plain": [
+        {
+          "round": 0,
+          "step": 0.26666666666666666,
+          "coverage": 0,
+          "diversity": 0.0
+        },
+        {
+          "round": 1,
+          "step": 0.4083333333333333,
+          "coverage": 173,
+          "diversity": 0.02734375
+        },
+        {
+          "round": 2,
+          "step": 0.575,
+          "coverage": 191,
+          "diversity": 0.025173611111111112
+        },
+        {
+          "round": 3,
+          "step": 0.55,
+          "coverage": 191,
+          "diversity": 0.021701388888888888
+        },
+        {
+          "round": 4,
+          "step": 0.3,
+          "coverage": 176,
+          "diversity": 0.019965277777777776
+        },
+        {
+          "round": 5,
+          "step": 0.625,
+          "coverage": 175,
+          "diversity": 0.017361111111111112
+        },
+        {
+          "round": 6,
+          "step": 0.65,
+          "coverage": 191,
+          "diversity": 0.017795138888888888
+        }
+      ],
+      "guarded": [
+        {
+          "round": 0,
+          "step": 0.26666666666666666,
+          "coverage": 0,
+          "diversity": 0.0
+        },
+        {
+          "round": 1,
+          "step": 0.39166666666666666,
+          "coverage": 173,
+          "diversity": 0.02734375
+        },
+        {
+          "round": 2,
+          "step": 0.5416666666666666,
+          "coverage": 191,
+          "diversity": 0.0234375
+        },
+        {
+          "round": 3,
+          "step": 0.675,
+          "coverage": 192,
+          "diversity": 0.020833333333333332
+        },
+        {
+          "round": 4,
+          "step": 0.6583333333333333,
+          "coverage": 196,
+          "diversity": 0.021267361111111112
+        },
+        {
+          "round": 5,
+          "step": 0.7,
+          "coverage": 206,
+          "diversity": 0.019097222222222224
+        },
+        {
+          "round": 6,
+          "step": 0.775,
+          "coverage": 205,
+          "diversity": 0.018229166666666668
+        }
+      ]
+    },
+    {
+      "seed": 2,
+      "npar": 201280,
+      "secs": 119.19,
+      "plain": [
+        {
+          "round": 0,
+          "step": 0.4166666666666667,
+          "coverage": 0,
+          "diversity": 0.0
+        },
+        {
+          "round": 1,
+          "step": 0.49166666666666664,
+          "coverage": 190,
+          "diversity": 0.04470486111111111
+        },
+        {
+          "round": 2,
+          "step": 0.5333333333333333,
+          "coverage": 188,
+          "diversity": 0.024739583333333332
+        },
+        {
+          "round": 3,
+          "step": 0.6916666666666667,
+          "coverage": 192,
+          "diversity": 0.025173611111111112
+        },
+        {
+          "round": 4,
+          "step": 0.6166666666666667,
+          "coverage": 193,
+          "diversity": 0.022569444444444444
+        },
+        {
+          "round": 5,
+          "step": 0.6333333333333333,
+          "coverage": 188,
+          "diversity": 0.019965277777777776
+        },
+        {
+          "round": 6,
+          "step": 0.8416666666666667,
+          "coverage": 201,
+          "diversity": 0.01953125
+        }
+      ],
+      "guarded": [
+        {
+          "round": 0,
+          "step": 0.4166666666666667,
+          "coverage": 0,
+          "diversity": 0.0
+        },
+        {
+          "round": 1,
+          "step": 0.8416666666666667,
+          "coverage": 190,
+          "diversity": 0.04470486111111111
+        },
+        {
+          "round": 2,
+          "step": 0.6166666666666667,
+          "coverage": 203,
+          "diversity": 0.026909722222222224
+        },
+        {
+          "round": 3,
+          "step": 0.6333333333333333,
+          "coverage": 190,
+          "diversity": 0.02734375
+        },
+        {
+          "round": 4,
+          "step": 0.9,
+          "coverage": 199,
+          "diversity": 0.022569444444444444
+        },
+        {
+          "round": 5,
+          "step": 0.8916666666666667,
+          "coverage": 204,
+          "diversity": 0.022569444444444444
+        },
+        {
+          "round": 6,
+          "step": 0.775,
+          "coverage": 208,
+          "diversity": 0.018229166666666668
+        }
+      ]
+    }
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp036] CYCLE 50 / H-V4-2c — guardia de diversidad (dedup+replay) en el lazo iterado (modelo propio)",
+    "[exp036] suma [0,19] test=120 rounds=6 n_prompts=384 replay_n=128 seeds=[0, 1, 2]",
+    "[exp036]   s0/PLAIN round=1: step=0.425 coverage=163 div=0.036",
+    "[exp036]   s0/PLAIN round=2: step=0.317 coverage=164 div=0.025",
+    "[exp036]   s0/PLAIN round=3: step=0.367 coverage=157 div=0.024",
+    "[exp036]   s0/PLAIN round=4: step=0.358 coverage=171 div=0.020",
+    "[exp036]   s0/PLAIN round=5: step=0.383 coverage=165 div=0.019",
+    "[exp036]   s0/PLAIN round=6: step=0.433 coverage=162 div=0.020",
+    "[exp036]   s0/GUARD round=1: step=0.358 coverage=163 div=0.036",
+    "[exp036]   s0/GUARD round=2: step=0.417 coverage=176 div=0.025",
+    "[exp036]   s0/GUARD round=3: step=0.450 coverage=187 div=0.023",
+    "[exp036]   s0/GUARD round=4: step=0.408 coverage=198 div=0.021",
+    "[exp036]   s0/GUARD round=5: step=0.500 coverage=188 div=0.017",
+    "[exp036]   s0/GUARD round=6: step=0.525 coverage=192 div=0.018",
+    "[exp036] seed=0 118.8s npar=201280",
+    "[exp036]   s1/PLAIN round=1: step=0.408 coverage=173 div=0.027",
+    "[exp036]   s1/PLAIN round=2: step=0.575 coverage=191 div=0.025",
+    "[exp036]   s1/PLAIN round=3: step=0.550 coverage=191 div=0.022",
+    "[exp036]   s1/PLAIN round=4: step=0.300 coverage=176 div=0.020",
+    "[exp036]   s1/PLAIN round=5: step=0.625 coverage=175 div=0.017",
+    "[exp036]   s1/PLAIN round=6: step=0.650 coverage=191 div=0.018",
+    "[exp036]   s1/GUARD round=1: step=0.392 coverage=173 div=0.027",
+    "[exp036]   s1/GUARD round=2: step=0.542 coverage=191 div=0.023",
+    "[exp036]   s1/GUARD round=3: step=0.675 coverage=192 div=0.021",
+    "[exp036]   s1/GUARD round=4: step=0.658 coverage=196 div=0.021",
+    "[exp036]   s1/GUARD round=5: step=0.700 coverage=206 div=0.019",
+    "[exp036]   s1/GUARD round=6: step=0.775 coverage=205 div=0.018",
+    "[exp036] seed=1 118.5s npar=201280",
+    "[exp036]   s2/PLAIN round=1: step=0.492 coverage=190 div=0.045",
+    "[exp036]   s2/PLAIN round=2: step=0.533 coverage=188 div=0.025",
+    "[exp036]   s2/PLAIN round=3: step=0.692 coverage=192 div=0.025",
+    "[exp036]   s2/PLAIN round=4: step=0.617 coverage=193 div=0.023",
+    "[exp036]   s2/PLAIN round=5: step=0.633 coverage=188 div=0.020",
+    "[exp036]   s2/PLAIN round=6: step=0.842 coverage=201 div=0.020",
+    "[exp036]   s2/GUARD round=1: step=0.842 coverage=190 div=0.045",
+    "[exp036]   s2/GUARD round=2: step=0.617 coverage=203 div=0.027",
+    "[exp036]   s2/GUARD round=3: step=0.633 coverage=190 div=0.027",
+    "[exp036]   s2/GUARD round=4: step=0.900 coverage=199 div=0.023",
+    "[exp036]   s2/GUARD round=5: step=0.892 coverage=204 div=0.023",
+    "[exp036]   s2/GUARD round=6: step=0.775 coverage=208 div=0.018",
+    "[exp036] seed=2 119.2s npar=201280",
+    "[exp036] VEREDICTO H-V4-2c: APOYADA | PASO_final plano=0.642 guarded=0.692 | COBERTURA_final plano=185 guarded=202 | narrowing_plano=True guardia_mantiene=True sin_costo_prec=True",
+    "[exp036] PLANO    step=['0.300', '0.442', '0.475', '0.536', '0.425', '0.547', '0.642'] cov=['0', '175', '181', '180', '180', '176', '185'] div=['0.000', '0.036', '0.025', '0.024', '0.021', '0.019', '0.019']",
+    "[exp036] GUARDED  step=['0.300', '0.531', '0.525', '0.586', '0.656', '0.697', '0.692'] cov=['0', '175', '190', '190', '198', '199', '202'] div=['0.000', '0.036', '0.025', '0.024', '0.022', '0.020', '0.018']"
+  ]
+}

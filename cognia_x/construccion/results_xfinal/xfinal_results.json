@@ -1,0 +1,126 @@
+{
+  "experiment": "xfinal_scratch",
+  "device": "cuda",
+  "torch": "2.10.0+cu128",
+  "arch": {
+    "d": 512,
+    "heads": 8,
+    "layer_windows": [
+      256,
+      256,
+      256,
+      "global",
+      256,
+      256,
+      256,
+      "global",
+      256,
+      256,
+      256,
+      "global"
+    ],
+    "loops": 1,
+    "seq": 512,
+    "batch": 32,
+    "steps": 4000,
+    "lr": 0.0006
+  },
+  "data_bytes": 20463959,
+  "tokens_seen": 65536000,
+  "params": 37663232,
+  "curve": [
+    {
+      "step": 400,
+      "loss": 1.3128,
+      "val_bpb": 1.8851,
+      "tok_per_s": 38786
+    },
+    {
+      "step": 800,
+      "loss": 1.1825,
+      "val_bpb": 1.72,
+      "tok_per_s": 44021
+    },
+    {
+      "step": 1200,
+      "loss": 1.1818,
+      "val_bpb": 1.6253,
+      "tok_per_s": 46116
+    },
+    {
+      "step": 1600,
+      "loss": 1.0459,
+      "val_bpb": 1.5964,
+      "tok_per_s": 47222
+    },
+    {
+      "step": 2000,
+      "loss": 1.0262,
+      "val_bpb": 1.5483,
+      "tok_per_s": 47916
+    },
+    {
+      "step": 2400,
+      "loss": 1.0255,
+      "val_bpb": 1.5264,
+      "tok_per_s": 48354
+    },
+    {
+      "step": 2800,
+      "loss": 0.9785,
+      "val_bpb": 1.5015,
+      "tok_per_s": 48678
+    },
+    {
+      "step": 3200,
+      "loss": 0.9698,
+      "val_bpb": 1.4781,
+      "tok_per_s": 48933
+    },
+    {
+      "step": 3600,
+      "loss": 0.9385,
+      "val_bpb": 1.4956,
+      "tok_per_s": 49124
+    },
+    {
+      "step": 4000,
+      "loss": 0.8881,
+      "val_bpb": 1.4783,
+      "tok_per_s": 49279
+    }
+  ],
+  "extrapolation": {
+    "bpb_512": 1.4783,
+    "bpb_1024": 1.4768,
+    "bpb_1024_ntk2": 1.4721
+  },
+  "samples": [
+    {
+      "prompt": "La historia de ",
+      "temp": 0.7,
+      "text": "La historia de la ciudad.\n\nLa capital es en el francés y surge en la localidad de las conchas de la provincia para la Asociación de Estados de España y de España.\n\nEn esta misma ciudad se encuentran en las comunidades autónomas y en medio de la provincia de España, que se encuentran en la Confederación del Pacto de China y que se encuentran en las fortalez"
+    },
+    {
+      "prompt": "El sol es ",
+      "temp": 0.7,
+      "text": "El sol es una población de aislamiento por el poblamiento de las primeras instituciones de la educación.\n\nEl sectario es un sector de los cuales llamados por los dominios públicos de los años 1990, y se destituyó un inmenso porcentaje de la educación social y social de la provincia.\n\nDemografía \n\nLa población de la provincia provincial de 1985 se con"
+    },
+    {
+      "prompt": "Los animales del bosque ",
+      "temp": 0.7,
+      "text": "Los animales del bosque moderno están construidos por los primeros seguimientos de su nombre. Los cambios de producción de alumnos por el Director de la Biblioteca Nacional del Foro de Río, se consideraban presencia sobre los ríos y departamentos de Andorra, Al- en el caso de la Biblioteca Nacional de los Anillos de Madrid.\n\nEl nombramiento de los conquistadores en la"
+    },
+    {
+      "prompt": "En la ciudad de Madrid ",
+      "temp": 0.7,
+      "text": "En la ciudad de Madrid hay una notable integración per construcción territorial con el transporte del Estado. La ciudad cuenta con conocimientos los estados de la provincia y de la provincia de China, con la cual la Asociación de Estados al norte de China recibe una densidad del Estado de Madrid la que se produce la ciudad de China y contacto con la ciudad con el meno"
+    },
+    {
+      "prompt": "La ciencia estudia ",
+      "temp": 0.7,
+      "text": "La ciencia estudia los organismos y sus convenciones y sus propias facultades. Se suele decir que el punto de vista es similar al punto de entrada procesada de empresas y el sistema de numeración como una forma procesada, es un procediente de los algoritmos de desarrollo sobre determinadas profesiones distintas, entre otros.\n\nEn cuanto al sistema operativo, las prop"
+    }
+  ],
+  "minutes_total": 23.2
+}

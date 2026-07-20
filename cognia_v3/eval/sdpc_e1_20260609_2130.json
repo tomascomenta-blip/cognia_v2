@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-06-09T21:30:34.377056",
+  "config": {
+    "epochs": 5,
+    "batch_size": 64,
+    "sdpc_lr": 0.02
+  },
+  "sdpc_final_test_acc": 0.9223,
+  "bp_final_test_acc": 0.9768,
+  "ratio": 0.9442055692055692,
+  "verdict": "FAIL \u2014 SDPC = 94.4% of BP. Investigate sdpc_mlp.py before scaling.",
+  "epoch_log": {
+    "SDPC": [
+      {
+        "epoch": 1,
+        "train_loss": 0.8991,
+        "train_acc": 0.7165,
+        "test_acc": 0.8485
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.3915,
+        "train_acc": 0.8838,
+        "test_acc": 0.9005
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.3194,
+        "train_acc": 0.9046,
+        "test_acc": 0.9092
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.2861,
+        "train_acc": 0.9143,
+        "test_acc": 0.9075
+      },
+      {
+        "epoch": 5,
+        "train_loss": 0.2696,
+        "train_acc": 0.9197,
+        "test_acc": 0.9223
+      }
+    ],
+    "BP": [
+      {
+        "epoch": 1,
+        "train_loss": 0.2918,
+        "train_acc": 0.9099,
+        "test_acc": 0.9661
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.1059,
+        "train_acc": 0.9678,
+        "test_acc": 0.9709
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.0759,
+        "train_acc": 0.9768,
+        "test_acc": 0.977
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.0611,
+        "train_acc": 0.9806,
+        "test_acc": 0.966
+      },
+      {
+        "epoch": 5,
+        "train_loss": 0.0476,
+        "train_acc": 0.9849,
+        "test_acc": 0.9768
+      }
+    ]
+  }
+}

@@ -226,6 +226,23 @@ class ShardNode:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
+    # config.env ANTES de usar las constantes de modulo: el console script
+    # cognia-node NO pasa por cognia.__main__ (que si aplica config) y el
+    # nodo instalado ignoraba COGNIA_COORDINATOR_URL/COGNIA_NODE_ID/SHARD de
+    # ~/.cognia/config.env — podia re-registrarse de cero y caer a 'modo
+    # simulacion' (auditoria e2e 2026-07-15). Las globals se recalculan
+    # porque se capturaron al importar el modulo.
+    try:
+        from cognia.first_run import apply_config
+        apply_config()
+        global COORDINATOR_URL, WEIGHTS_DIR, MODEL_NAME, HARDWARE_INFO
+        COORDINATOR_URL = os.environ.get(
+            "COGNIA_COORDINATOR_URL", "http://localhost:8001").rstrip("/")
+        WEIGHTS_DIR = os.environ.get("SHARD_WEIGHTS_DIR", _DEFAULT_WEIGHTS)
+        MODEL_NAME = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
+        HARDWARE_INFO = os.environ.get("COGNIA_NODE_HARDWARE", "")
+    except Exception:
+        pass
     node = ShardNode()
 
     def _shutdown(sig, frame):

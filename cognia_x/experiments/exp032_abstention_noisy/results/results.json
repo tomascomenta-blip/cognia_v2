@@ -1,0 +1,374 @@
+{
+  "exp": "exp032_abstention_noisy",
+  "cycle": 46,
+  "hypothesis": "H-V4-1k",
+  "claim": "abstenerse cuando un paso no verifica (con verificador ruidoso per-step) sube la precisión sobre las cadenas respondidas vs commitear-siempre, a costa de cobertura (lever de honestidad)",
+  "verdict": "MIXTA",
+  "stats": {
+    "Kmax": 6,
+    "vmod": 0.1,
+    "at_hard": {
+      "commit_always": 0.0020833333333333333,
+      "coverage": 0.016666666666666666,
+      "precision": 0.125,
+      "prec_gain": 0.12291666666666666
+    },
+    "best_regime": "2|0.0",
+    "best": {
+      "commit_always": 0.2520833333333333,
+      "coverage": 0.24791666666666667,
+      "precision": 1.0,
+      "prec_gain": 0.7479166666666667
+    },
+    "curve": {
+      "2|0.0": {
+        "commit_always": 0.2520833333333333,
+        "coverage": 0.24791666666666667,
+        "precision": 1.0,
+        "prec_gain": 0.7479166666666667
+      },
+      "2|0.1": {
+        "commit_always": 0.21666666666666665,
+        "coverage": 0.31666666666666665,
+        "precision": 0.6469961240310077,
+        "prec_gain": 0.43032945736434103
+      },
+      "2|0.2": {
+        "commit_always": 0.16874999999999998,
+        "coverage": 0.3375,
+        "precision": 0.29459556915656765,
+        "prec_gain": 0.12584556915656767
+      },
+      "4|0.0": {
+        "commit_always": 0.049999999999999996,
+        "coverage": 0.049999999999999996,
+        "precision": 1.0,
+        "prec_gain": 0.95
+      },
+      "4|0.1": {
+        "commit_always": 0.05416666666666667,
+        "coverage": 0.08125,
+        "precision": 0.29285714285714287,
+        "prec_gain": 0.2386904761904762
+      },
+      "4|0.2": {
+        "commit_always": 0.0375,
+        "coverage": 0.12291666666666667,
+        "precision": 0.14646291208791207,
+        "prec_gain": 0.10896291208791206
+      },
+      "6|0.0": {
+        "commit_always": 0.0125,
+        "coverage": 0.010416666666666668,
+        "precision": 1.0,
+        "prec_gain": 0.9875
+      },
+      "6|0.1": {
+        "commit_always": 0.0020833333333333333,
+        "coverage": 0.016666666666666666,
+        "precision": 0.125,
+        "prec_gain": 0.12291666666666666
+      },
+      "6|0.2": {
+        "commit_always": 0.004166666666666667,
+        "coverage": 0.020833333333333336,
+        "precision": 0.08333333333333333,
+        "prec_gain": 0.07916666666666666
+      }
+    },
+    "holds_at_hard": false,
+    "works_somewhere": true,
+    "n_seeds": 4
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "M": 120,
+    "avg": 4,
+    "per_step_cap": 10,
+    "Ks": "2,4,6",
+    "noises": "0,0.1,0.2",
+    "top_k": 16,
+    "temperature": 1.0,
+    "margin": 0.15,
+    "n_seed": 256,
+    "base_steps": 600,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "lo": 0,
+    "hi": 19,
+    "test_frac": 0.3
+  },
+  "Ks": [
+    2,
+    4,
+    6
+  ],
+  "noises": [
+    0.0,
+    0.1,
+    0.2
+  ],
+  "seeds": [
+    {
+      "seed": 0,
+      "npar": 201280,
+      "secs": 116.37,
+      "by": {
+        "2|0.0": {
+          "commit_always": 0.16666666666666666,
+          "coverage": 0.14166666666666666,
+          "precision": 1.0
+        },
+        "2|0.1": {
+          "commit_always": 0.15,
+          "coverage": 0.23333333333333334,
+          "precision": 0.5
+        },
+        "2|0.2": {
+          "commit_always": 0.09166666666666666,
+          "coverage": 0.2833333333333333,
+          "precision": 0.35294117647058826
+        },
+        "4|0.0": {
+          "commit_always": 0.025,
+          "coverage": 0.03333333333333333,
+          "precision": 1.0
+        },
+        "4|0.1": {
+          "commit_always": 0.03333333333333333,
+          "coverage": 0.058333333333333334,
+          "precision": 0.14285714285714285
+        },
+        "4|0.2": {
+          "commit_always": 0.008333333333333333,
+          "coverage": 0.10833333333333334,
+          "precision": 0.07692307692307693
+        },
+        "6|0.0": {
+          "commit_always": 0.0,
+          "coverage": 0.008333333333333333,
+          "precision": 1.0
+        },
+        "6|0.1": {
+          "commit_always": 0.0,
+          "coverage": 0.008333333333333333,
+          "precision": 0.0
+        },
+        "6|0.2": {
+          "commit_always": 0.0,
+          "coverage": 0.025,
+          "precision": 0.0
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "npar": 201280,
+      "secs": 120.56,
+      "by": {
+        "2|0.0": {
+          "commit_always": 0.26666666666666666,
+          "coverage": 0.3333333333333333,
+          "precision": 1.0
+        },
+        "2|0.1": {
+          "commit_always": 0.2,
+          "coverage": 0.35833333333333334,
+          "precision": 0.6046511627906976
+        },
+        "2|0.2": {
+          "commit_always": 0.225,
+          "coverage": 0.3333333333333333,
+          "precision": 0.375
+        },
+        "4|0.0": {
+          "commit_always": 0.06666666666666667,
+          "coverage": 0.06666666666666667,
+          "precision": 1.0
+        },
+        "4|0.1": {
+          "commit_always": 0.06666666666666667,
+          "coverage": 0.08333333333333333,
+          "precision": 0.2
+        },
+        "4|0.2": {
+          "commit_always": 0.025,
+          "coverage": 0.13333333333333333,
+          "precision": 0.125
+        },
+        "6|0.0": {
+          "commit_always": 0.025,
+          "coverage": 0.008333333333333333,
+          "precision": 1.0
+        },
+        "6|0.1": {
+          "commit_always": 0.0,
+          "coverage": 0.008333333333333333,
+          "precision": 0.0
+        },
+        "6|0.2": {
+          "commit_always": 0.0,
+          "coverage": 0.016666666666666666,
+          "precision": 0.0
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "npar": 201280,
+      "secs": 127.69,
+      "by": {
+        "2|0.0": {
+          "commit_always": 0.275,
+          "coverage": 0.325,
+          "precision": 1.0
+        },
+        "2|0.1": {
+          "commit_always": 0.3,
+          "coverage": 0.375,
+          "precision": 0.7333333333333333
+        },
+        "2|0.2": {
+          "commit_always": 0.19166666666666668,
+          "coverage": 0.39166666666666666,
+          "precision": 0.2553191489361702
+        },
+        "4|0.0": {
+          "commit_always": 0.08333333333333333,
+          "coverage": 0.058333333333333334,
+          "precision": 1.0
+        },
+        "4|0.1": {
+          "commit_always": 0.1,
+          "coverage": 0.125,
+          "precision": 0.4
+        },
+        "4|0.2": {
+          "commit_always": 0.09166666666666666,
+          "coverage": 0.13333333333333333,
+          "precision": 0.3125
+        },
+        "6|0.0": {
+          "commit_always": 0.016666666666666666,
+          "coverage": 0.008333333333333333,
+          "precision": 1.0
+        },
+        "6|0.1": {
+          "commit_always": 0.0,
+          "coverage": 0.05,
+          "precision": 0.5
+        },
+        "6|0.2": {
+          "commit_always": 0.016666666666666666,
+          "coverage": 0.025,
+          "precision": 0.3333333333333333
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "npar": 201280,
+      "secs": 120.6,
+      "by": {
+        "2|0.0": {
+          "commit_always": 0.3,
+          "coverage": 0.19166666666666668,
+          "precision": 1.0
+        },
+        "2|0.1": {
+          "commit_always": 0.21666666666666667,
+          "coverage": 0.3,
+          "precision": 0.75
+        },
+        "2|0.2": {
+          "commit_always": 0.16666666666666666,
+          "coverage": 0.3416666666666667,
+          "precision": 0.1951219512195122
+        },
+        "4|0.0": {
+          "commit_always": 0.025,
+          "coverage": 0.041666666666666664,
+          "precision": 1.0
+        },
+        "4|0.1": {
+          "commit_always": 0.016666666666666666,
+          "coverage": 0.058333333333333334,
+          "precision": 0.42857142857142855
+        },
+        "4|0.2": {
+          "commit_always": 0.025,
+          "coverage": 0.11666666666666667,
+          "precision": 0.07142857142857142
+        },
+        "6|0.0": {
+          "commit_always": 0.008333333333333333,
+          "coverage": 0.016666666666666666,
+          "precision": 1.0
+        },
+        "6|0.1": {
+          "commit_always": 0.008333333333333333,
+          "coverage": 0.0,
+          "precision": 0.0
+        },
+        "6|0.2": {
+          "commit_always": 0.0,
+          "coverage": 0.016666666666666666,
+          "precision": 0.0
+        }
+      }
+    }
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp032] CYCLE 46 / H-V4-1k — ABSTENCIÓN calibrada + verificador RUIDOSO per-step (modelo propio)",
+    "[exp032] cadena mod 20, M=120 avg=4 cap=10 Ks=[2, 4, 6] noises=[0.0, 0.1, 0.2] seeds=[0, 1, 2, 3]",
+    "[exp032]   seed=0 K=2 vnoise=0.0: COMMIT_ALWAYS=0.167 | ABSTAIN cov=0.142 prec=1.000",
+    "[exp032]   seed=0 K=2 vnoise=0.1: COMMIT_ALWAYS=0.150 | ABSTAIN cov=0.233 prec=0.500",
+    "[exp032]   seed=0 K=2 vnoise=0.2: COMMIT_ALWAYS=0.092 | ABSTAIN cov=0.283 prec=0.353",
+    "[exp032]   seed=0 K=4 vnoise=0.0: COMMIT_ALWAYS=0.025 | ABSTAIN cov=0.033 prec=1.000",
+    "[exp032]   seed=0 K=4 vnoise=0.1: COMMIT_ALWAYS=0.033 | ABSTAIN cov=0.058 prec=0.143",
+    "[exp032]   seed=0 K=4 vnoise=0.2: COMMIT_ALWAYS=0.008 | ABSTAIN cov=0.108 prec=0.077",
+    "[exp032]   seed=0 K=6 vnoise=0.0: COMMIT_ALWAYS=0.000 | ABSTAIN cov=0.008 prec=1.000",
+    "[exp032]   seed=0 K=6 vnoise=0.1: COMMIT_ALWAYS=0.000 | ABSTAIN cov=0.008 prec=0.000",
+    "[exp032]   seed=0 K=6 vnoise=0.2: COMMIT_ALWAYS=0.000 | ABSTAIN cov=0.025 prec=0.000",
+    "[exp032] seed=0 116.4s npar=201280",
+    "[exp032]   seed=1 K=2 vnoise=0.0: COMMIT_ALWAYS=0.267 | ABSTAIN cov=0.333 prec=1.000",
+    "[exp032]   seed=1 K=2 vnoise=0.1: COMMIT_ALWAYS=0.200 | ABSTAIN cov=0.358 prec=0.605",
+    "[exp032]   seed=1 K=2 vnoise=0.2: COMMIT_ALWAYS=0.225 | ABSTAIN cov=0.333 prec=0.375",
+    "[exp032]   seed=1 K=4 vnoise=0.0: COMMIT_ALWAYS=0.067 | ABSTAIN cov=0.067 prec=1.000",
+    "[exp032]   seed=1 K=4 vnoise=0.1: COMMIT_ALWAYS=0.067 | ABSTAIN cov=0.083 prec=0.200",
+    "[exp032]   seed=1 K=4 vnoise=0.2: COMMIT_ALWAYS=0.025 | ABSTAIN cov=0.133 prec=0.125",
+    "[exp032]   seed=1 K=6 vnoise=0.0: COMMIT_ALWAYS=0.025 | ABSTAIN cov=0.008 prec=1.000",
+    "[exp032]   seed=1 K=6 vnoise=0.1: COMMIT_ALWAYS=0.000 | ABSTAIN cov=0.008 prec=0.000",
+    "[exp032]   seed=1 K=6 vnoise=0.2: COMMIT_ALWAYS=0.000 | ABSTAIN cov=0.017 prec=0.000",
+    "[exp032] seed=1 120.6s npar=201280",
+    "[exp032]   seed=2 K=2 vnoise=0.0: COMMIT_ALWAYS=0.275 | ABSTAIN cov=0.325 prec=1.000",
+    "[exp032]   seed=2 K=2 vnoise=0.1: COMMIT_ALWAYS=0.300 | ABSTAIN cov=0.375 prec=0.733",
+    "[exp032]   seed=2 K=2 vnoise=0.2: COMMIT_ALWAYS=0.192 | ABSTAIN cov=0.392 prec=0.255",
+    "[exp032]   seed=2 K=4 vnoise=0.0: COMMIT_ALWAYS=0.083 | ABSTAIN cov=0.058 prec=1.000",
+    "[exp032]   seed=2 K=4 vnoise=0.1: COMMIT_ALWAYS=0.100 | ABSTAIN cov=0.125 prec=0.400",
+    "[exp032]   seed=2 K=4 vnoise=0.2: COMMIT_ALWAYS=0.092 | ABSTAIN cov=0.133 prec=0.312",
+    "[exp032]   seed=2 K=6 vnoise=0.0: COMMIT_ALWAYS=0.017 | ABSTAIN cov=0.008 prec=1.000",
+    "[exp032]   seed=2 K=6 vnoise=0.1: COMMIT_ALWAYS=0.000 | ABSTAIN cov=0.050 prec=0.500",
+    "[exp032]   seed=2 K=6 vnoise=0.2: COMMIT_ALWAYS=0.017 | ABSTAIN cov=0.025 prec=0.333",
+    "[exp032] seed=2 127.7s npar=201280",
+    "[exp032]   seed=3 K=2 vnoise=0.0: COMMIT_ALWAYS=0.300 | ABSTAIN cov=0.192 prec=1.000",
+    "[exp032]   seed=3 K=2 vnoise=0.1: COMMIT_ALWAYS=0.217 | ABSTAIN cov=0.300 prec=0.750",
+    "[exp032]   seed=3 K=2 vnoise=0.2: COMMIT_ALWAYS=0.167 | ABSTAIN cov=0.342 prec=0.195",
+    "[exp032]   seed=3 K=4 vnoise=0.0: COMMIT_ALWAYS=0.025 | ABSTAIN cov=0.042 prec=1.000",
+    "[exp032]   seed=3 K=4 vnoise=0.1: COMMIT_ALWAYS=0.017 | ABSTAIN cov=0.058 prec=0.429",
+    "[exp032]   seed=3 K=4 vnoise=0.2: COMMIT_ALWAYS=0.025 | ABSTAIN cov=0.117 prec=0.071",
+    "[exp032]   seed=3 K=6 vnoise=0.0: COMMIT_ALWAYS=0.008 | ABSTAIN cov=0.017 prec=1.000",
+    "[exp032]   seed=3 K=6 vnoise=0.1: COMMIT_ALWAYS=0.008 | ABSTAIN cov=0.000 prec=0.000",
+    "[exp032]   seed=3 K=6 vnoise=0.2: COMMIT_ALWAYS=0.000 | ABSTAIN cov=0.017 prec=0.000",
+    "[exp032] seed=3 120.6s npar=201280",
+    "[exp032] VEREDICTO H-V4-1k: MIXTA | DURO(K=6,vn=0.1): COMMIT=0.002 PREC=0.125 COV=0.017 gain=+0.123 | MEJOR_RÉGIMEN[2|0.0]: PREC=1.000 COV=0.248 gain=+0.748 (req>=0.15)",
+    "[exp032] CURVA K|vnoise->COMMIT/PREC/COV: 2|0.0:0.252/1.000/0.248 | 2|0.1:0.217/0.647/0.317 | 2|0.2:0.169/0.295/0.338 | 4|0.0:0.050/1.000/0.050 | 4|0.1:0.054/0.293/0.081 | 4|0.2:0.037/0.146/0.123 | 6|0.0:0.013/1.000/0.010 | 6|0.1:0.002/0.125/0.017 | 6|0.2:0.004/0.083/0.021"
+  ]
+}

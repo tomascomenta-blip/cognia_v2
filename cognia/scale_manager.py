@@ -160,8 +160,8 @@ class ScaleManager:
         if not self._db_path or not os.path.exists(self._db_path):
             return 0
         try:
-            import sqlite3
-            with sqlite3.connect(self._db_path, timeout=3) as conn:
+            from storage.db_pool import db_connect_pooled
+            with db_connect_pooled(self._db_path) as conn:
                 cur = conn.execute(
                     "SELECT COUNT(*) FROM episodic_memory WHERE forgotten = 0"
                 )

@@ -205,5 +205,12 @@ test.describe("Cognia Desktop — chat stream", () => {
     console.log("CORS-related errors:", corsErrors);
 
     expect(corsErrors).toHaveLength(0);
+
+    // Regression (2026-07-15): renderer fetches used http://localhost:8765
+    // while the CSP only allows http://127.0.0.1:8765 — history/skills/files
+    // silently failed with a CSP violation. Any CSP error is a bug.
+    const cspErrors = consoleErrors.filter((e) =>
+      e.includes("Content Security Policy"));
+    expect(cspErrors).toHaveLength(0);
   });
 });

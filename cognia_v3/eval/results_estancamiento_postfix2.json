@@ -1,0 +1,310 @@
+{
+ "bench": "estancamiento-agent-loop",
+ "modelo": "local-gguf",
+ "started_utc": "2026-07-07 22:45:37",
+ "tareas": {
+  "json_make_key": {
+   "fin": "responder",
+   "exito": false,
+   "pasos": 2,
+   "wall_s": 18.7,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "config.json | {\"puerto\": 8080}[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "El archivo config.json tiene la clave \"puerto\" con valor 8080.[/detail]"
+    }
+   ],
+   "result_head": "El archivo config.json tiene la clave \"puerto\" con valor 8080."
+  },
+  "append_then_count": {
+   "fin": "stuck",
+   "exito": false,
+   "pasos": 5,
+   "wall_s": 42.9,
+   "stuck_sig": "leer_archivo tareas.txt[/detail]",
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "tareas.txt | comprar pan[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "leer_archivo",
+     "args_head": "tareas.txt[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "leer_archivo",
+     "args_head": "tareas.txt[/detail]"
+    },
+    {
+     "paso": 4,
+     "accion": "escribir_archivo",
+     "args_head": "tareas.txt | lavar ropa[/detail]"
+    },
+    {
+     "paso": 5,
+     "accion": "leer_archivo",
+     "args_head": "tareas.txt[/detail]"
+    }
+   ],
+   "result_head": "(interrumpida por estancamiento) Resumen: Agregué 'lavar ropa' al final de tareas.txt y conté 2 lineas."
+  },
+  "py_write_run": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 3,
+   "wall_s": 16.9,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "calc.py | print(6*7)[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "ejecutar",
+     "args_head": "python calc.py[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "responder",
+     "args_head": "El resultado es 42.[/detail]"
+    }
+   ],
+   "result_head": "El resultado es 42."
+  },
+  "math_to_file": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 3,
+   "wall_s": 20.4,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "calcular",
+     "args_head": "15*4 | 60[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "escribir_archivo",
+     "args_head": "resultado.txt | 60[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "responder",
+     "args_head": "60[/detail]"
+    }
+   ],
+   "result_head": "60"
+  },
+  "copiar_dos_veces": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 4,
+   "wall_s": 25.6,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "plantilla.txt | contenido_base[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "copiar_archivo",
+     "args_head": "plantilla.txt | copia1.txt[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "copiar_archivo",
+     "args_head": "copia1.txt | copia2.txt[/detail]"
+    },
+    {
+     "paso": 4,
+     "accion": "responder",
+     "args_head": "Copia realizada.[/detail]"
+    }
+   ],
+   "result_head": "Copia realizada."
+  },
+  "json_anidado": {
+   "fin": "responder",
+   "exito": false,
+   "pasos": 2,
+   "wall_s": 33.6,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "cfg.json | {\"db\": {\"host\": \"local\", \"port\": 5432}}[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "cfg.json es valido.[/detail]"
+    }
+   ],
+   "result_head": "cfg.json es valido."
+  },
+  "math_pow": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 2,
+   "wall_s": 10.7,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "calcular",
+     "args_head": "2**10[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "1024[/detail]"
+    }
+   ],
+   "result_head": "1024"
+  },
+  "copy_file": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 5,
+   "wall_s": 28.4,
+   "stuck_sig": "leer_archivo copiame | origen.txt[/detail]",
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "leer_archivo",
+     "args_head": "copiame | origen.txt[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "leer_archivo",
+     "args_head": "copiame | origen.txt[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "escribir_archivo",
+     "args_head": "origen.txt | copiame[/detail]"
+    },
+    {
+     "paso": 4,
+     "accion": "copiar_archivo",
+     "args_head": "origen.txt | destino.txt[/detail]"
+    },
+    {
+     "paso": 5,
+     "accion": "responder",
+     "args_head": "Copie origen.txt a destino.txt.[/detail]"
+    }
+   ],
+   "result_head": "Copie origen.txt a destino.txt."
+  },
+  "search_word": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 3,
+   "wall_s": 17.3,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "escribir_archivo",
+     "args_head": "texto.txt | ZANAHORIA[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "buscar",
+     "args_head": "ZANAHORIA | .[/detail]"
+    },
+    {
+     "paso": 3,
+     "accion": "responder",
+     "args_head": "Listo, texto.txt contiene ZANAHORIA y se encontró en el directorio actual.[/deta"
+    }
+   ],
+   "result_head": "Listo, texto.txt contiene ZANAHORIA y se encontró en el directorio actual."
+  },
+  "shell_echo": {
+   "fin": "responder",
+   "exito": false,
+   "pasos": 2,
+   "wall_s": 7.3,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "ejecutar",
+     "args_head": "echo cognia_ok[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "cognia_ok[/detail]"
+    }
+   ],
+   "result_head": "cognia_ok"
+  },
+  "math_mul": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 2,
+   "wall_s": 9.9,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "calcular",
+     "args_head": "23*19[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "437[/detail]"
+    }
+   ],
+   "result_head": "437"
+  },
+  "fecha_hoy": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 2,
+   "wall_s": 12.0,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "fecha",
+     "args_head": "[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "La fecha y hora actual es 2026-07-07 17:49:34.[/detail]"
+    }
+   ],
+   "result_head": "La fecha y hora actual es 2026-07-07 17:49:34."
+  }
+ },
+ "resumen": {
+  "n": 12,
+  "stuck": 1,
+  "stuck_rate": 0.083,
+  "exito": 8,
+  "exito_rate": 0.667,
+  "wall_total_min": 4.1
+ }
+}

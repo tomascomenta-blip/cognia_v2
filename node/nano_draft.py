@@ -24,7 +24,8 @@ _NANO_HEADS   = 4
 _NANO_KV_HEADS = 1
 _NANO_HEAD_DIM = _NANO_HIDDEN // _NANO_HEADS   # 64
 _NANO_MLP     = 1024
-_VOCAB        = 151936
+from shattering.model_constants import QWEN25_CODER_3B as _QWEN
+_VOCAB        = _QWEN["vocab_size"]
 _MAX_CTX      = 64    # max context tokens fed to draft model per call
 
 

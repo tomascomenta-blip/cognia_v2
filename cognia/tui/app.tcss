@@ -1,0 +1,267 @@
+/*
+ * app.tcss -- Sistema de diseno de la TUI de Cognia.
+ *
+ * Que: estilo de TODOS los componentes. Espaciado generoso, bordes redondeados
+ * (border: round), paneles alineados con titulo, tipografia mono y jerarquia
+ * visual clara. Los colores vienen del tema "cognia" (registrado en app.py desde
+ * theme.COLORS): $primary=accent, $success/$warning/$error, $surface/$panel, y
+ * las variables propias $border / $text-muted.
+ *
+ * Por que: una sola hoja, sin colores hardcodeados que diverjan del Python.
+ */
+
+Screen {
+    background: $background;
+    color: $foreground;
+    layout: vertical;
+}
+
+/* ---- Header (marca + metricas) ---------------------------------------- */
+
+#header {
+    height: 3;
+    background: $surface;
+    padding: 0 2;
+    border-bottom: solid $border;
+}
+
+#brand {
+    width: auto;
+    height: 100%;
+    content-align: left middle;
+    color: $primary;
+    text-style: bold;
+}
+
+#metrics {
+    width: 1fr;
+    height: 100%;
+    content-align: right middle;
+}
+
+/* ---- Cuerpo: sidebar | mainview --------------------------------------- */
+
+#body {
+    height: 1fr;
+    padding: 1;
+}
+
+#sidebar {
+    width: 24;
+    height: 100%;
+    margin-right: 1;
+    padding: 1 1;
+    background: $surface;
+    border: round $border;
+    border-title-align: left;
+    border-title-color: $primary;
+    border-title-style: bold;
+}
+
+#sidebar:focus {
+    border: round $primary;
+}
+
+#sidebar > ListItem {
+    padding: 0 1;
+    height: 1;
+}
+
+#mainview {
+    width: 1fr;
+    height: 100%;
+}
+
+/* ---- Vistas (cada child del ContentSwitcher) -------------------------- */
+
+.view {
+    height: 100%;
+    padding: 1 2;
+    background: $surface;
+    border: round $border;
+    border-title-align: left;
+    border-title-color: $primary;
+    border-title-style: bold;
+}
+
+.view:focus {
+    border: round $primary;
+}
+
+.empty-state {
+    width: 100%;
+    height: 100%;
+    content-align: center middle;
+    color: $text-muted;
+}
+
+.help-body {
+    width: 100%;
+    height: 100%;
+    padding: 1 1;
+}
+
+/* ---- Chat view (historial scrollable + indicador + input) ------------- */
+
+#chat-messages {
+    width: 100%;
+    height: 1fr;
+    padding: 0 1;
+}
+
+.msg {
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+#chat-thinking {
+    width: 100%;
+    height: auto;
+    padding: 0 1;
+    text-style: italic;
+}
+
+#chat-input {
+    width: 100%;
+    margin: 1 0 0 0;
+    border: round $border;
+}
+
+#chat-input:focus {
+    border: round $primary;
+}
+
+.hidden {
+    display: none;
+}
+
+/* ---- Training dashboard (cabecera + tiles + barras + metricas) -------- */
+
+#train-header {
+    width: 100%;
+    height: 1;
+    margin: 0 0 1 0;
+    text-style: bold;
+}
+
+#train-body {
+    width: 100%;
+    height: 1fr;
+}
+
+#train-tiles {
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+}
+
+#train-body ProgressBar {
+    width: 100%;
+    margin: 0 0 1 0;
+}
+
+#train-body Bar {
+    width: 1fr;
+}
+
+#train-sysmetrics {
+    width: 100%;
+    height: 1;
+    margin: 1 0 0 0;
+}
+
+/* ---- Memory view (stats + busqueda + resultados) --------------------- */
+
+#memory-stats {
+    width: 100%;
+    height: 1;
+    margin: 0 0 1 0;
+    text-style: bold;
+}
+
+#memory-input {
+    width: 100%;
+    margin: 0 0 1 0;
+    border: round $border;
+}
+
+#memory-input:focus {
+    border: round $primary;
+}
+
+#memory-results {
+    width: 100%;
+    height: 1fr;
+    padding: 0 1;
+}
+
+#memory-output {
+    width: 100%;
+    height: auto;
+}
+
+/* ---- Models view (resumen + tabla del registry GGUF) ----------------- */
+
+#models-summary {
+    width: 100%;
+    height: 1;
+    margin: 0 0 1 0;
+    text-style: bold;
+}
+
+#models-table {
+    width: 100%;
+    height: 1fr;
+}
+
+/* ---- Modal de confirmacion (ConfirmModal) ----------------------------- */
+
+ConfirmModal {
+    align: center middle;
+    background: $background 60%;
+}
+
+#confirm-box {
+    width: auto;
+    min-width: 48;
+    max-width: 70;
+    height: auto;
+    padding: 2 4;
+    background: $panel;
+    border: round $primary;
+    border-title-align: center;
+}
+
+#confirm-question {
+    width: 100%;
+    height: auto;
+    margin: 0 0 2 0;
+    content-align: center middle;
+    text-align: center;
+    color: $foreground;
+}
+
+#confirm-actions {
+    width: 100%;
+    height: auto;
+    align: center middle;
+}
+
+#confirm-actions Button {
+    margin: 0 2;
+    min-width: 12;
+}
+
+/* ---- Status bar (sobre el Footer nativo) ------------------------------ */
+
+#statusbar {
+    height: 1;
+    background: $surface;
+    padding: 0 2;
+    color: $foreground;
+}
+
+Footer {
+    background: $surface;
+}

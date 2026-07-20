@@ -175,3 +175,51 @@ def test_cosine_similarity_identical_texts():
     # Cosine similarity between identical TF-IDF vectors should be 1.0
     sims = sms._cosine_similarity(query_vec, matrix[:1])
     assert abs(sims[0] - 1.0) < 1e-5, f"Expected ~1.0, got {sims[0]}"
+
+
+# ---------------------------------------------------------------------------
+# Test 7: tolera el schema del REPL (columna 'timestamp', no 'ts')
+# ---------------------------------------------------------------------------
+
+def _init_db_repl_schema(db_path: str) -> None:
+    """chat_history con el schema del REPL (cognia_memory.db): 'timestamp TEXT', sin 'ts'."""
+    con = sqlite3.connect(db_path)
+    con.execute(
+        "CREATE TABLE IF NOT EXISTS chat_history ("
+        "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  timestamp TEXT NOT NULL,"
+        "  role TEXT NOT NULL,"
+        "  content TEXT NOT NULL,"
+        "  session_id TEXT"
+        ")"
+    )
+    con.commit()
+    con.close()
+
+
+def test_search_tolerates_repl_timestamp_schema(tmp_path):
+    """Regresion (FASE 2a): chat_history con 'timestamp' (no 'ts') no debe romper
+    search()/search_context(). Antes lanzaba OperationalError: no such column: ts."""
+    db_path = str(tmp_path / "repl_chat.db")
+    _init_db_repl_schema(db_path)
+    con = sqlite3.connect(db_path)
+    con.executemany(
+        "INSERT INTO chat_history (timestamp, role, content, session_id) VALUES (?,?,?,?)",
+        [
+            ("2026-06-16T10:00:00", "user", "hablamos de shards y tensor parallel", "s1"),
+            ("2026-06-16T10:01:00", "assistant", "los shards se reparten por la LAN", "s1"),
+            ("2026-06-16T10:02:00", "user", "que clima hace hoy", "s1"),
+        ],
+    )
+    con.commit()
+    con.close()
+    try:
+        sms = _make_sms(db_path)
+        results = sms.search("shards tensor parallel", limit=3)
+        assert len(results) >= 1
+        assert "shards" in results[0]["content"].lower()
+        ctx = sms.search_context("shards", window=2)
+        assert len(ctx) >= 1
+    finally:
+        from storage.db_pool import close_pool
+        close_pool(db_path)

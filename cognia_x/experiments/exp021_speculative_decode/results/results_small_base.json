@@ -1,0 +1,11 @@
+{
+  "experiment": "exp021/bench_small_base",
+  "model": "qwen2.5-coder-0.5b-instruct-q4_k_m.gguf",
+  "threads": 3,
+  "n_predict": 160,
+  "decode_tps_0.5b_solo": {
+    "code": 36.52002507099721,
+    "speech": 35.88154336385432,
+    "echo": 32.062059322023714
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "compositional": {
+    "passed": 8,
+    "total": 8,
+    "rows": [
+      {
+        "prompt": "a red cup on a blue table",
+        "present": true,
+        "count_ok": true,
+        "relation_ok": true,
+        "pass": true,
+        "n_objs": 2
+      },
+      {
+        "prompt": "una taza roja sobre una mesa azul",
+        "present": true,
+        "count_ok": true,
+        "relation_ok": true,
+        "pass": true,
+        "n_objs": 2
+      },
+      {
+        "prompt": "a green ball to the left of a yellow box",
+        "present": true,
+        "count_ok": true,
+        "relation_ok": true,
+        "pass": true,
+        "n_objs": 2
+      },
+      {
+        "prompt": "a book on a table",
+        "present": true,
+        "count_ok": true,
+        "relation_ok": true,
+        "pass": true,
+        "n_objs": 2
+      },
+      {
+        "prompt": "un plato sobre una mesa",
+        "present": true,
+        "count_ok": true,
+        "relation_ok": true,
+        "pass": true,
+        "n_objs": 2
+      },
+      {
+        "prompt": "a lamp to the right of a chair",
+        "present": true,
+        "count_ok": true,
+        "relation_ok": true,
+        "pass": true,
+        "n_objs": 2
+      },
+      {
+        "prompt": "a sun above a house",
+        "present": true,
+        "count_ok": true,
+        "relation_ok": true,
+        "pass": true,
+        "n_objs": 2
+      },
+      {
+        "prompt": "una pelota debajo de una mesa",
+        "present": true,
+        "count_ok": true,
+        "relation_ok": true,
+        "pass": true,
+        "n_objs": 2
+      }
+    ]
+  },
+  "editability": {
+    "edit_applied": true,
+    "target_changed": true,
+    "others_untouched": true,
+    "before_json_len": 754
+  },
+  "editability_ok": true,
+  "samples": [
+    "cup_on_table.png",
+    "edit_after_green.png",
+    "ball_left_of_box.png",
+    "sun_above_house.png"
+  ]
+}

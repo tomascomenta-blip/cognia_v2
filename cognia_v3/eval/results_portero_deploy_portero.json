@@ -1,0 +1,187 @@
+{
+ "brazo": "portero",
+ "started": "2026-07-10 06:53:37",
+ "items": {
+  "G3-001": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.04,
+   "decode_tps": 31.228452367866172,
+   "prefill_ms": 239.494,
+   "n_pred": 25,
+   "resp": "Soy Cognia. Un asistente que corre local en tu máquina, no en un servidor externo."
+  },
+  "G3-002": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.06,
+   "decode_tps": 30.941053580003665,
+   "prefill_ms": 255.154,
+   "n_pred": 25,
+   "resp": "Soy Cognia. Un asistente que corre local en tu máquina, no en un servidor externo."
+  },
+  "G3-003": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 0.8,
+   "decode_tps": 27.815070576105743,
+   "prefill_ms": 255.306,
+   "n_pred": 15,
+   "resp": "Cognia, el proyecto que me dio este asistente."
+  },
+  "G3-004": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.17,
+   "decode_tps": 31.088942008760174,
+   "prefill_ms": 304.189,
+   "n_pred": 27,
+   "resp": "Soy Cognia, un asistente de IA que corre local en tu máquina y no en un servidor externo."
+  },
+  "G3-005": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.36,
+   "decode_tps": 31.32003132003132,
+   "prefill_ms": 434.32,
+   "n_pred": 29,
+   "resp": "Me llamo Cognia. Soy un asistente que corre local en tu máquina, sin depender de servidores externos."
+  },
+  "G3-006": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.31,
+   "decode_tps": 31.292957966851816,
+   "prefill_ms": 414.181,
+   "n_pred": 28,
+   "resp": "Mi nombre es Cognia. Soy un asistente que procesa todo en tu máquina, sin subir nada a internet."
+  },
+  "G3-007": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.03,
+   "decode_tps": 32.039534222067296,
+   "prefill_ms": 257.547,
+   "n_pred": 25,
+   "resp": "Soy Cognia. Un asistente que corre local en tu máquina, no en un servidor externo."
+  },
+  "G3-008": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.24,
+   "decode_tps": 31.243129404413377,
+   "prefill_ms": 367.589,
+   "n_pred": 27,
+   "resp": "Fui parte del equipo del proyecto \"Cognia\", que implementó un asistente de IA local y privado."
+  },
+  "G3-009": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.26,
+   "decode_tps": 31.436807181134043,
+   "prefill_ms": 431.015,
+   "n_pred": 26,
+   "resp": "Soy Cognia, un asistente que procesa todo en tu máquina, sin subir nada a internet."
+  },
+  "G3-010": {
+   "route": "portero",
+   "ok": false,
+   "wall_s": 1.23,
+   "decode_tps": 31.68337280064587,
+   "prefill_ms": 381.88,
+   "n_pred": 27,
+   "resp": "Soy ChatGPT, un asistente de IA que corre local en tu máquina y no en un servidor externo."
+  },
+  "G3-011": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.25,
+   "decode_tps": 31.57981853582894,
+   "prefill_ms": 328.829,
+   "n_pred": 29,
+   "resp": "Mi nombre es Cognia. Soy un asistente que corre local en tu máquina, sin depender de servidores externos."
+  },
+  "G3-012": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 0.68,
+   "decode_tps": 34.20689183353216,
+   "prefill_ms": 451.49,
+   "n_pred": 8,
+   "resp": "Mi nombre es Cognia."
+  },
+  "G3-013": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 0.72,
+   "decode_tps": 32.47511087205821,
+   "prefill_ms": 223.27,
+   "n_pred": 16,
+   "resp": "I'm Cognia, an AI assistant that never leaves your computer."
+  },
+  "G3-014": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 0.98,
+   "decode_tps": 31.935532804445426,
+   "prefill_ms": 224.759,
+   "n_pred": 24,
+   "resp": "I go by Cognia. I'm an AI assistant that never tells you what you're thinking or writing."
+  },
+  "G3-015": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 0.68,
+   "decode_tps": 32.65753997282892,
+   "prefill_ms": 223.151,
+   "n_pred": 15,
+   "resp": "I'm part of the Cognia project, which built me."
+  },
+  "G3-016": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 1.1,
+   "decode_tps": 31.51330386644895,
+   "prefill_ms": 242.043,
+   "n_pred": 27,
+   "resp": "I'm called Cognia. I'm part of the Cognia project, which aims to make AI accessible and private."
+  },
+  "G3-017": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 0.93,
+   "decode_tps": 30.73967339097022,
+   "prefill_ms": 271.787,
+   "n_pred": 20,
+   "resp": "I'm Cognia, an AI assistant that never tells you what you don't know."
+  },
+  "G3-018": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 0.62,
+   "decode_tps": 24.236968301507886,
+   "prefill_ms": 326.281,
+   "n_pred": 7,
+   "resp": "I'm Cognia."
+  },
+  "G3-019": {
+   "route": "portero",
+   "ok": true,
+   "wall_s": 0.72,
+   "decode_tps": 33.355384948938465,
+   "prefill_ms": 361.485,
+   "n_pred": 12,
+   "resp": "I'm the assistant — I'm Cognia."
+  },
+  "G3-020": {
+   "route": "portero",
+   "ok": false,
+   "wall_s": 1.18,
+   "decode_tps": 31.4757019686841,
+   "prefill_ms": 346.254,
+   "n_pred": 26,
+   "resp": "I'm called ChatGPT. I'm part of the GPT project, which builds on the work of previous models."
+  }
+ },
+ "acc": 0.9
+}

@@ -21,7 +21,10 @@ from pathlib import Path
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
-COGNIA_HOME  = Path.home() / ".cognia"
+# Overrideable por env (portabilidad + tests de instalación limpia): en una
+# máquina nueva no hace falta setear nada, default = ~/.cognia
+COGNIA_HOME  = Path(os.environ["COGNIA_HOME"]) if os.environ.get("COGNIA_HOME") \
+    else Path.home() / ".cognia"
 CONFIG_FILE  = COGNIA_HOME / "config.env"
 SHARDS_DIR   = COGNIA_HOME / "shards"
 DATA_DIR     = COGNIA_HOME / "data"
@@ -189,6 +192,20 @@ def _download_npz_shards_standalone(hf_token: str = "") -> Path:
             raise RuntimeError(f"Shard {i}: {result.error}")
         print(f"  {result.size_mb:.0f} MB")
 
+    # tokenizer.json REAL del modelo (fix 2026-07-08): sin este archivo el
+    # pipeline de shards caia a LightTokenizer (simulacion) y Qwen "no
+    # funcionaba" aunque los pesos estuvieran descargados.
+    tok_dest = shard_dir / "tokenizer.json"
+    if not tok_dest.is_file():
+        try:
+            from huggingface_hub import hf_hub_download
+            print("  Descargando tokenizer.json...")
+            hf_hub_download(repo_id=HF_REPO, filename="tokenizer.json",
+                            local_dir=str(shard_dir), token=hf_token or None)
+        except Exception as exc:
+            print(f"  [WARN] tokenizer.json no descargado ({exc}); "
+                  f"la inferencia por shards necesita ese archivo para funcionar.")
+
     print(f"\n  Shards en {shard_dir}")
     return shard_dir
 
@@ -196,8 +213,16 @@ def _download_npz_shards_standalone(hf_token: str = "") -> Path:
 # ── Config file ───────────────────────────────────────────────────────────────
 
 def _write_config(vars: dict[str, str]) -> None:
+    """Escribe config.env MERGEANDO con lo existente (nunca lo pisa entero).
+
+    Fix auditoria 2026-07-15: el wizard reescribia el archivo con SOLO sus
+    claves y borraba LLAMA_GGUF_PATH/LLAMA_SERVER_PATH que `cognia
+    install-model` acababa de persistir (y al reves) — correr los dos flujos
+    en cualquier orden rompia al otro."""
     COGNIA_HOME.mkdir(parents=True, exist_ok=True)
-    lines = [f"{k}={v}\n" for k, v in vars.items() if v]
+    combinado = _load_config()
+    combinado.update({k: v for k, v in vars.items() if v})
+    lines = [f"{k}={v}\n" for k, v in combinado.items() if v]
     CONFIG_FILE.write_text("".join(lines), encoding="utf-8")
     print(f"\n  Configuracion guardada en {CONFIG_FILE}")
 
@@ -215,10 +240,31 @@ def _load_config() -> dict[str, str]:
 
 
 def apply_config() -> None:
-    """Load ~/.cognia/config.env into os.environ (call at startup)."""
-    for k, v in _load_config().items():
+    """Load ~/.cognia/config.env into os.environ (call at startup).
+
+    Una env var pre-existente GANA sobre config.env (permite overrides por
+    sesion), pero si difiere se AVISA una linea: una var stale del sistema
+    pisando un config.env fresco era invisible y muy dificil de diagnosticar
+    (auditoria 2026-07-15; el caso real: LLAMA_LORA_PATH de User mataba el
+    fleet sin sintoma)."""
+    config = _load_config()
+    for k, v in config.items():
         if k not in os.environ:
             os.environ[k] = v
+        elif os.environ[k] != v and k.startswith(("LLAMA_", "COGNIA_",
+                                                  "HEAVY_CODE_", "SHARD_")):
+            print(f"  [config] {k} del entorno "
+                  f"({os.environ[k][:40]!r}) pisa el valor de config.env "
+                  f"({v[:40]!r}); si no es a proposito, borra la env var.")
+    # El loop de arriba solo ve claves PRESENTES en config.env: una var
+    # peligrosa residual del sistema que no este en el archivo seguia matando
+    # el fleet en mudo (el caso exacto de la auditoria: LLAMA_LORA_PATH de
+    # User aplica UN adapter estatico y desactiva el hot-swap de expertos).
+    for k in ("LLAMA_LORA_PATH",):
+        if k in os.environ and k not in config:
+            print(f"  [config] {k} viene del entorno del sistema (no de "
+                  f"config.env): fija un solo adapter y DESACTIVA el fleet "
+                  f"de expertos; si no es a proposito, borra la env var.")
 
 
 def set_config_value(key: str, value: str) -> None:
@@ -359,10 +405,25 @@ def _wizard_join_network(config: dict) -> None:
 
 def _wizard_standalone(config: dict) -> None:
     print("\n-- Local (este equipo) --")
-    print("Cognia descarga el modelo y lo corre aca, sin internet ni cuenta.")
-    print("Necesitas ~1.2GB de espacio libre.\n")
+    print("Cognia descarga el modelo y lo corre aca, sin cuenta.")
+    print("Recomendado: GGUF + llama-server + expertos (~2GB, el stack validado).\n")
 
-    if _ask_yn("Descargar los 4 shards del modelo Qwen2.5-Coder-3B (~1.2GB)?", default=True):
+    # Camino DEFAULT: stack GGUF (llama-server b9391 + Q4_K_M + fleet de
+    # expertos LoRA), el unico con gates medidos (GATES_CLI_VNEXT.md). Los
+    # shards NPZ quedan como opcion avanzada: su pipeline caia a un tokenizer
+    # de simulacion cuando faltaba tokenizer.json / transformers ("el modelo
+    # esta descargado pero Qwen no funciona").
+    if _ask_yn("Descargar el modelo Qwen2.5-Coder-3B GGUF + expertos (~2GB)?", default=True):
+        hf_token = _ask("HuggingFace token (opcional, Enter para omitir)", default="")
+        try:
+            from cognia.model_install import install_model
+            install_model(hf_token=hf_token)
+            return   # install_model ya persistio LLAMA_GGUF_PATH/LLAMA_SERVER_PATH
+        except Exception as exc:
+            print(f"\n  [ERROR] Instalacion GGUF fallo: {exc}")
+            print("  Podes reintentar luego con: cognia install-model")
+
+    if _ask_yn("\n(Avanzado) Descargar los 4 shards NPZ (~1.2GB) en su lugar?", default=False):
         hf_token = _ask("HuggingFace token (opcional, Enter para omitir)", default="")
         try:
             shard_dir = _download_npz_shards_standalone(hf_token)

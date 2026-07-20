@@ -1,0 +1,366 @@
+{
+  "exp": "exp068_learned_combiner",
+  "cycle": 84,
+  "hypothesis": "H-V4-7b",
+  "claim": "un combinador aprendido de pocas observaciones recupera el valor bajo sustitutos (donde el producto fijo se rompe) sin sacrificar complementos; construccion sobre el gap #2",
+  "verdict": "mixta",
+  "summary": {
+    "grid": {
+      "comp_l0.5_m5_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6634,
+        "relevance": 0.7161,
+        "rvalue_prod": 0.9439,
+        "learned_lin": 0.8289,
+        "learned_poly2": 0.8413,
+        "random": 0.4442
+      },
+      "comp_l0.5_m5_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7194,
+        "relevance": 0.7303,
+        "rvalue_prod": 0.9971,
+        "learned_lin": 0.9309,
+        "learned_poly2": 0.9647,
+        "random": 0.4359
+      },
+      "comp_l0.5_m10_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6909,
+        "relevance": 0.7279,
+        "rvalue_prod": 0.9384,
+        "learned_lin": 0.8932,
+        "learned_poly2": 0.9129,
+        "random": 0.4479
+      },
+      "comp_l0.5_m10_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7177,
+        "relevance": 0.7146,
+        "rvalue_prod": 0.9962,
+        "learned_lin": 0.9558,
+        "learned_poly2": 0.9896,
+        "random": 0.485
+      },
+      "comp_l0.5_m20_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.673,
+        "relevance": 0.7259,
+        "rvalue_prod": 0.9428,
+        "learned_lin": 0.9196,
+        "learned_poly2": 0.9456,
+        "random": 0.4628
+      },
+      "comp_l0.5_m20_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7297,
+        "relevance": 0.7189,
+        "rvalue_prod": 0.9953,
+        "learned_lin": 0.9721,
+        "learned_poly2": 0.9985,
+        "random": 0.4494
+      },
+      "comp_l0.5_m40_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6864,
+        "relevance": 0.703,
+        "rvalue_prod": 0.9374,
+        "learned_lin": 0.9226,
+        "learned_poly2": 0.9469,
+        "random": 0.461
+      },
+      "comp_l0.5_m40_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7448,
+        "relevance": 0.7274,
+        "rvalue_prod": 0.9958,
+        "learned_lin": 0.9837,
+        "learned_poly2": 0.9988,
+        "random": 0.429
+      },
+      "comp_l1.0_m5_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6923,
+        "relevance": 0.7088,
+        "rvalue_prod": 0.9398,
+        "learned_lin": 0.8142,
+        "learned_poly2": 0.8628,
+        "random": 0.479
+      },
+      "comp_l1.0_m5_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.706,
+        "relevance": 0.6946,
+        "rvalue_prod": 0.9859,
+        "learned_lin": 0.8804,
+        "learned_poly2": 0.9327,
+        "random": 0.4872
+      },
+      "comp_l1.0_m10_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6795,
+        "relevance": 0.6993,
+        "rvalue_prod": 0.9374,
+        "learned_lin": 0.8645,
+        "learned_poly2": 0.9226,
+        "random": 0.4532
+      },
+      "comp_l1.0_m10_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7196,
+        "relevance": 0.7084,
+        "rvalue_prod": 0.9862,
+        "learned_lin": 0.9242,
+        "learned_poly2": 0.9821,
+        "random": 0.4711
+      },
+      "comp_l1.0_m20_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6965,
+        "relevance": 0.6966,
+        "rvalue_prod": 0.9275,
+        "learned_lin": 0.8965,
+        "learned_poly2": 0.9333,
+        "random": 0.4845
+      },
+      "comp_l1.0_m20_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7108,
+        "relevance": 0.705,
+        "rvalue_prod": 0.9873,
+        "learned_lin": 0.9616,
+        "learned_poly2": 0.9953,
+        "random": 0.5081
+      },
+      "comp_l1.0_m40_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.6899,
+        "relevance": 0.7103,
+        "rvalue_prod": 0.9277,
+        "learned_lin": 0.9106,
+        "learned_poly2": 0.936,
+        "random": 0.4984
+      },
+      "comp_l1.0_m40_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.7016,
+        "relevance": 0.7219,
+        "rvalue_prod": 0.9867,
+        "learned_lin": 0.9675,
+        "learned_poly2": 0.9951,
+        "random": 0.4772
+      },
+      "subs_l0.5_m5_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.8357,
+        "relevance": 0.8831,
+        "rvalue_prod": 0.9495,
+        "learned_lin": 0.9455,
+        "learned_poly2": 0.9368,
+        "random": 0.6265
+      },
+      "subs_l0.5_m5_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.8862,
+        "relevance": 0.9028,
+        "rvalue_prod": 0.9886,
+        "learned_lin": 0.9941,
+        "learned_poly2": 0.9965,
+        "random": 0.5989
+      },
+      "subs_l0.5_m10_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.8443,
+        "relevance": 0.8847,
+        "rvalue_prod": 0.9554,
+        "learned_lin": 0.9567,
+        "learned_poly2": 0.9472,
+        "random": 0.6082
+      },
+      "subs_l0.5_m10_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.8973,
+        "relevance": 0.8972,
+        "rvalue_prod": 0.9887,
+        "learned_lin": 0.996,
+        "learned_poly2": 0.9986,
+        "random": 0.6288
+      },
+      "subs_l0.5_m20_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.8313,
+        "relevance": 0.8691,
+        "rvalue_prod": 0.9536,
+        "learned_lin": 0.9592,
+        "learned_poly2": 0.9543,
+        "random": 0.6063
+      },
+      "subs_l0.5_m20_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.8901,
+        "relevance": 0.9021,
+        "rvalue_prod": 0.9893,
+        "learned_lin": 0.9958,
+        "learned_poly2": 0.9985,
+        "random": 0.6237
+      },
+      "subs_l0.5_m40_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.8395,
+        "relevance": 0.8693,
+        "rvalue_prod": 0.9546,
+        "learned_lin": 0.9584,
+        "learned_poly2": 0.9593,
+        "random": 0.6328
+      },
+      "subs_l0.5_m40_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.8953,
+        "relevance": 0.9008,
+        "rvalue_prod": 0.9898,
+        "learned_lin": 0.9952,
+        "learned_poly2": 0.9986,
+        "random": 0.6258
+      },
+      "subs_l1.0_m5_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.8998,
+        "relevance": 0.9337,
+        "rvalue_prod": 0.9113,
+        "learned_lin": 0.9174,
+        "learned_poly2": 0.9222,
+        "random": 0.7026
+      },
+      "subs_l1.0_m5_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.9519,
+        "relevance": 0.9503,
+        "rvalue_prod": 0.9243,
+        "learned_lin": 0.9488,
+        "learned_poly2": 0.9647,
+        "random": 0.6957
+      },
+      "subs_l1.0_m10_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.9039,
+        "relevance": 0.9269,
+        "rvalue_prod": 0.9149,
+        "learned_lin": 0.9252,
+        "learned_poly2": 0.9354,
+        "random": 0.6845
+      },
+      "subs_l1.0_m10_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.9556,
+        "relevance": 0.9581,
+        "rvalue_prod": 0.9347,
+        "learned_lin": 0.9501,
+        "learned_poly2": 0.9879,
+        "random": 0.7093
+      },
+      "subs_l1.0_m20_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.9101,
+        "relevance": 0.9391,
+        "rvalue_prod": 0.9256,
+        "learned_lin": 0.9366,
+        "learned_poly2": 0.9533,
+        "random": 0.6938
+      },
+      "subs_l1.0_m20_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.9541,
+        "relevance": 0.9534,
+        "rvalue_prod": 0.9323,
+        "learned_lin": 0.9487,
+        "learned_poly2": 0.9941,
+        "random": 0.7079
+      },
+      "subs_l1.0_m40_noisy": {
+        "oracle": 1.0,
+        "empowerment": 0.9024,
+        "relevance": 0.9304,
+        "rvalue_prod": 0.9072,
+        "learned_lin": 0.9201,
+        "learned_poly2": 0.9505,
+        "random": 0.7003
+      },
+      "subs_l1.0_m40_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.9567,
+        "relevance": 0.9461,
+        "rvalue_prod": 0.9316,
+        "learned_lin": 0.9514,
+        "learned_poly2": 0.9963,
+        "random": 0.6816
+      }
+    },
+    "m_ref": 20,
+    "rep_subs": {
+      "oracle": 1.0,
+      "empowerment": 0.9101,
+      "relevance": 0.9391,
+      "rvalue_prod": 0.9256,
+      "learned_lin": 0.9366,
+      "learned_poly2": 0.9533,
+      "random": 0.6938
+    },
+    "rep_comp": {
+      "oracle": 1.0,
+      "empowerment": 0.6965,
+      "relevance": 0.6966,
+      "rvalue_prod": 0.9275,
+      "learned_lin": 0.8965,
+      "learned_poly2": 0.9333,
+      "random": 0.4845
+    },
+    "decisive_recover": false,
+    "partial_recover": true,
+    "clean_recover": true,
+    "no_sacrifice_comp": true,
+    "subs_prod": 0.9256,
+    "subs_learned_poly2": 0.9533,
+    "subs_learned_lin": 0.9366,
+    "subs_best_marginal": 0.9391,
+    "subs_clean_prod": 0.9323,
+    "subs_clean_learned_poly2": 0.9941,
+    "comp_prod": 0.9275,
+    "comp_learned_poly2": 0.9333,
+    "budget_curve_subs_l1": {
+      "5": 0.9222,
+      "10": 0.9354,
+      "20": 0.9533,
+      "40": 0.9505
+    },
+    "status": "mixta",
+    "verdict": "H-V4-7b MIXTA (recuperación PARCIAL noise-gated): el combinador aprendido recupera bajo sustitutos pero NO decisivamente bajo ruido realista. m=20: learned_poly2 0.953 es el MEJOR brazo no-oráculo -- vence al producto 0.926 (+0.028) y a la mejor marginal 0.939 -- pero la ventaja sobre el producto (+0.028) queda por debajo del corte decisivo +0.03. Bajo estimadores CLEAN la recuperación SÍ es plena (learned_poly2 0.994 vs producto 0.932, +0.062). No sacrifica complementos (comp poly2 0.933 vs prod 0.927). => la CONSTRUCCIÓN (aprender el combinador) es VIABLE pero NOISE-GATED: paga decisivamente sólo con estimadores limpios/feedback abundante; bajo ruido realista, asumir el producto (prior de complementariedad) sigue siendo un baseline duro de batir aun bajo sustitutos."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 64,
+    "n": 50,
+    "k": 10,
+    "S": 8,
+    "ctrl_noise": 0.5,
+    "rel_noise": 0.1
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp068] CYCLE 84 / H-V4-7b — combinador APRENDIDO vs producto fijo bajo valor no-factorizable",
+    "[exp068] n=50 k=10 S=8 ctrl_noise=0.5 rel_noise=0.1 seeds=64 lambdas=[0.5, 1.0] families=['comp', 'subs'] budgets=[5, 10, 20, 40]",
+    "[exp068] comp/λ0.5/noisy: m5: prod=0.944 lin=0.829 poly2=0.841 bm=0.716 | m10: prod=0.938 lin=0.893 poly2=0.913 bm=0.728 | m20: prod=0.943 lin=0.920 poly2=0.946 bm=0.726 | m40: prod=0.937 lin=0.923 poly2=0.947 bm=0.703",
+    "[exp068] comp/λ0.5/clean: m5: prod=0.997 lin=0.931 poly2=0.965 bm=0.730 | m10: prod=0.996 lin=0.956 poly2=0.990 bm=0.718 | m20: prod=0.995 lin=0.972 poly2=0.999 bm=0.730 | m40: prod=0.996 lin=0.984 poly2=0.999 bm=0.745",
+    "[exp068] comp/λ1.0/noisy: m5: prod=0.940 lin=0.814 poly2=0.863 bm=0.709 | m10: prod=0.937 lin=0.865 poly2=0.923 bm=0.699 | m20: prod=0.927 lin=0.896 poly2=0.933 bm=0.697 | m40: prod=0.928 lin=0.911 poly2=0.936 bm=0.710",
+    "[exp068] comp/λ1.0/clean: m5: prod=0.986 lin=0.880 poly2=0.933 bm=0.706 | m10: prod=0.986 lin=0.924 poly2=0.982 bm=0.720 | m20: prod=0.987 lin=0.962 poly2=0.995 bm=0.711 | m40: prod=0.987 lin=0.968 poly2=0.995 bm=0.722",
+    "[exp068] subs/λ0.5/noisy: m5: prod=0.950 lin=0.946 poly2=0.937 bm=0.883 | m10: prod=0.955 lin=0.957 poly2=0.947 bm=0.885 | m20: prod=0.954 lin=0.959 poly2=0.954 bm=0.869 | m40: prod=0.955 lin=0.958 poly2=0.959 bm=0.869",
+    "[exp068] subs/λ0.5/clean: m5: prod=0.989 lin=0.994 poly2=0.997 bm=0.903 | m10: prod=0.989 lin=0.996 poly2=0.999 bm=0.897 | m20: prod=0.989 lin=0.996 poly2=0.999 bm=0.902 | m40: prod=0.990 lin=0.995 poly2=0.999 bm=0.901",
+    "[exp068] subs/λ1.0/noisy: m5: prod=0.911 lin=0.917 poly2=0.922 bm=0.934 | m10: prod=0.915 lin=0.925 poly2=0.935 bm=0.927 | m20: prod=0.926 lin=0.937 poly2=0.953 bm=0.939 | m40: prod=0.907 lin=0.920 poly2=0.951 bm=0.930",
+    "[exp068] subs/λ1.0/clean: m5: prod=0.924 lin=0.949 poly2=0.965 bm=0.952 | m10: prod=0.935 lin=0.950 poly2=0.988 bm=0.958 | m20: prod=0.932 lin=0.949 poly2=0.994 bm=0.954 | m40: prod=0.932 lin=0.951 poly2=0.996 bm=0.957",
+    "[exp068] punto realista subs/λ1.0/m20: prod=0.926 poly2=0.953 best_marginal=0.939 (decisive=False partial=True clean_recover=True); comp poly2=0.933 vs prod=0.927 (no_sacrifice=True)",
+    "[exp068] convergencia poly2 con m (subs λ1.0): {'5': 0.9222, '10': 0.9354, '20': 0.9533, '40': 0.9505}",
+    "[exp068] VEREDICTO H-V4-7b: MIXTA | H-V4-7b MIXTA (recuperación PARCIAL noise-gated): el combinador aprendido recupera bajo sustitutos pero NO decisivamente bajo ruido realista. m=20: learned_poly2 0.953 es el MEJOR brazo no-oráculo -- vence al producto 0.926 (+0.028) y a la mejor marginal 0.939 -- pero la ventaja sobre el producto (+0.028) queda por debajo del corte decisivo +0.03. Bajo estimadores CLEAN la recuperación SÍ es plena (learned_poly2 0.994 vs producto 0.932, +0.062). No sacrifica complementos (comp poly2 0.933 vs prod 0.927). => la CONSTRUCCIÓN (aprender el combinador) es VIABLE pero NOISE-GATED: paga decisivamente sólo con estimadores limpios/feedback abundante; bajo ruido realista, asumir el producto (prior de complementariedad) sigue siendo un baseline duro de batir aun bajo sustitutos."
+  ]
+}

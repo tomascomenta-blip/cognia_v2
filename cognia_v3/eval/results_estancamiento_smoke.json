@@ -1,0 +1,35 @@
+{
+ "bench": "estancamiento-agent-loop",
+ "modelo": "local-gguf",
+ "started_utc": "2026-07-07 22:07:41",
+ "tareas": {
+  "math_mul": {
+   "fin": "responder",
+   "exito": true,
+   "pasos": 2,
+   "wall_s": 258.1,
+   "stuck_sig": null,
+   "acciones": [
+    {
+     "paso": 1,
+     "accion": "calcular",
+     "args_head": "23*19[/detail]"
+    },
+    {
+     "paso": 2,
+     "accion": "responder",
+     "args_head": "437[/detail]"
+    }
+   ],
+   "result_head": "437"
+  }
+ },
+ "resumen": {
+  "n": 1,
+  "stuck": 0,
+  "stuck_rate": 0.0,
+  "exito": 1,
+  "exito_rate": 1.0,
+  "wall_total_min": 4.3
+ }
+}

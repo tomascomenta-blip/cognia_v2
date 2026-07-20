@@ -1,0 +1,451 @@
+{
+  "exp": "exp037_iterated_real_verifier",
+  "cycle": 51,
+  "hypothesis": "H-V4-2d",
+  "claim": "el lazo iterado de auto-mejora con guardia (dedup+replay) generaliza del oráculo aritmético EXACTO a un VERIFICADOR REAL-CHEQUEABLE (sandbox) sobre iteración, sin colapso ni reward-hack",
+  "verdict": "APOYADA",
+  "stats": {
+    "margin": 0.1054,
+    "real_plain": [
+      0.44073333333333337,
+      0.7370333333333333,
+      0.8333333333333334,
+      0.8481666666666667,
+      0.8814666666666667,
+      0.8481666666666667,
+      0.8666666666666667
+    ],
+    "real_guarded": [
+      0.44073333333333337,
+      0.8296,
+      0.8666666666666667,
+      0.8851666666666667,
+      0.8962666666666667,
+      0.8926,
+      0.9407333333333333
+    ],
+    "cov_plain": [
+      0.0,
+      120.0,
+      134.66666666666666,
+      136.66666666666666,
+      138.33333333333334,
+      139.66666666666666,
+      140.33333333333334
+    ],
+    "cov_guarded": [
+      0.0,
+      120.0,
+      141.66666666666666,
+      142.66666666666666,
+      143.66666666666666,
+      143.66666666666666,
+      144.33333333333334
+    ],
+    "degen_plain": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "degen_guarded": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "base": 0.44073333333333337,
+    "peak_guarded": 0.9407333333333333,
+    "peak_round": 6,
+    "improves": true,
+    "non_decreasing": true,
+    "collapses": false,
+    "guard_keeps_cov": true,
+    "no_prec_cost": true,
+    "plain_narrows": false,
+    "hack_guarded": false,
+    "hack_plain": false,
+    "no_hack": true,
+    "n_seeds": 3
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2",
+    "rounds": 6,
+    "K": 6,
+    "pool": 256,
+    "replay_n": 128,
+    "steps": 200,
+    "lr": 0.0005,
+    "top_k": 20,
+    "temperature": 0.9,
+    "n_seed": 256,
+    "base_steps": 200,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "seeds": [
+    {
+      "seed": 0,
+      "npar": 201280,
+      "secs": 133.72,
+      "base": {
+        "real_acc": 0.7222222222222222,
+        "weak_acc": 0.7222222222222222,
+        "degenerate": 0.0
+      },
+      "plain": [
+        {
+          "round": 0,
+          "real": 0.7222,
+          "coverage": 0,
+          "degen": 0.0
+        },
+        {
+          "round": 1,
+          "real": 0.9444,
+          "coverage": 142,
+          "degen": 0.0
+        },
+        {
+          "round": 2,
+          "real": 0.9222,
+          "coverage": 146,
+          "degen": 0.0
+        },
+        {
+          "round": 3,
+          "real": 0.9222,
+          "coverage": 146,
+          "degen": 0.0
+        },
+        {
+          "round": 4,
+          "real": 0.9444,
+          "coverage": 146,
+          "degen": 0.0
+        },
+        {
+          "round": 5,
+          "real": 0.9,
+          "coverage": 146,
+          "degen": 0.0
+        },
+        {
+          "round": 6,
+          "real": 0.9444,
+          "coverage": 146,
+          "degen": 0.0
+        }
+      ],
+      "guarded": [
+        {
+          "round": 0,
+          "real": 0.7222,
+          "coverage": 0,
+          "degen": 0.0
+        },
+        {
+          "round": 1,
+          "real": 0.9333,
+          "coverage": 142,
+          "degen": 0.0
+        },
+        {
+          "round": 2,
+          "real": 0.9556,
+          "coverage": 148,
+          "degen": 0.0
+        },
+        {
+          "round": 3,
+          "real": 0.9222,
+          "coverage": 148,
+          "degen": 0.0
+        },
+        {
+          "round": 4,
+          "real": 0.9222,
+          "coverage": 148,
+          "degen": 0.0
+        },
+        {
+          "round": 5,
+          "real": 0.9556,
+          "coverage": 148,
+          "degen": 0.0
+        },
+        {
+          "round": 6,
+          "real": 0.9556,
+          "coverage": 148,
+          "degen": 0.0
+        }
+      ]
+    },
+    {
+      "seed": 1,
+      "npar": 201280,
+      "secs": 133.31,
+      "base": {
+        "real_acc": 0.3,
+        "weak_acc": 0.3,
+        "degenerate": 0.0
+      },
+      "plain": [
+        {
+          "round": 0,
+          "real": 0.3,
+          "coverage": 0,
+          "degen": 0.0
+        },
+        {
+          "round": 1,
+          "real": 0.5778,
+          "coverage": 102,
+          "degen": 0.0
+        },
+        {
+          "round": 2,
+          "real": 0.7222,
+          "coverage": 125,
+          "degen": 0.0
+        },
+        {
+          "round": 3,
+          "real": 0.7556,
+          "coverage": 128,
+          "degen": 0.0
+        },
+        {
+          "round": 4,
+          "real": 0.8,
+          "coverage": 132,
+          "degen": 0.0
+        },
+        {
+          "round": 5,
+          "real": 0.7556,
+          "coverage": 133,
+          "degen": 0.0
+        },
+        {
+          "round": 6,
+          "real": 0.7778,
+          "coverage": 133,
+          "degen": 0.0
+        }
+      ],
+      "guarded": [
+        {
+          "round": 0,
+          "real": 0.3,
+          "coverage": 0,
+          "degen": 0.0
+        },
+        {
+          "round": 1,
+          "real": 0.7444,
+          "coverage": 102,
+          "degen": 0.0
+        },
+        {
+          "round": 2,
+          "real": 0.8333,
+          "coverage": 136,
+          "degen": 0.0
+        },
+        {
+          "round": 3,
+          "real": 0.9,
+          "coverage": 139,
+          "degen": 0.0
+        },
+        {
+          "round": 4,
+          "real": 0.8444,
+          "coverage": 141,
+          "degen": 0.0
+        },
+        {
+          "round": 5,
+          "real": 0.8,
+          "coverage": 141,
+          "degen": 0.0
+        },
+        {
+          "round": 6,
+          "real": 0.9222,
+          "coverage": 141,
+          "degen": 0.0
+        }
+      ]
+    },
+    {
+      "seed": 2,
+      "npar": 201280,
+      "secs": 127.14,
+      "base": {
+        "real_acc": 0.3,
+        "weak_acc": 0.3,
+        "degenerate": 0.0
+      },
+      "plain": [
+        {
+          "round": 0,
+          "real": 0.3,
+          "coverage": 0,
+          "degen": 0.0
+        },
+        {
+          "round": 1,
+          "real": 0.6889,
+          "coverage": 116,
+          "degen": 0.0
+        },
+        {
+          "round": 2,
+          "real": 0.8556,
+          "coverage": 133,
+          "degen": 0.0
+        },
+        {
+          "round": 3,
+          "real": 0.8667,
+          "coverage": 136,
+          "degen": 0.0
+        },
+        {
+          "round": 4,
+          "real": 0.9,
+          "coverage": 137,
+          "degen": 0.0
+        },
+        {
+          "round": 5,
+          "real": 0.8889,
+          "coverage": 140,
+          "degen": 0.0
+        },
+        {
+          "round": 6,
+          "real": 0.8778,
+          "coverage": 142,
+          "degen": 0.0
+        }
+      ],
+      "guarded": [
+        {
+          "round": 0,
+          "real": 0.3,
+          "coverage": 0,
+          "degen": 0.0
+        },
+        {
+          "round": 1,
+          "real": 0.8111,
+          "coverage": 116,
+          "degen": 0.0
+        },
+        {
+          "round": 2,
+          "real": 0.8111,
+          "coverage": 141,
+          "degen": 0.0
+        },
+        {
+          "round": 3,
+          "real": 0.8333,
+          "coverage": 141,
+          "degen": 0.0
+        },
+        {
+          "round": 4,
+          "real": 0.9222,
+          "coverage": 142,
+          "degen": 0.0
+        },
+        {
+          "round": 5,
+          "real": 0.9222,
+          "coverage": 142,
+          "degen": 0.0
+        },
+        {
+          "round": 6,
+          "real": 0.9444,
+          "coverage": 144,
+          "degen": 0.0
+        }
+      ]
+    }
+  ],
+  "task_range": [
+    2,
+    300
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp037] CYCLE 51 / H-V4-2d — lazo ITERADO + guardia con VERIFICADOR REAL (sandbox) (modelo propio)",
+    "[exp037] exprs target [2,300] train=209 test=90 rounds=6 K=6 pool=256 replay_n=128 seeds=[0, 1, 2]",
+    "[exp037] seed=0 base real_acc=0.722 degen=0.000 params=201,280",
+    "[exp037]   s0/PLAIN round=1: real=0.944 cov=142 degen=0.000 n_strong=827",
+    "[exp037]   s0/PLAIN round=2: real=0.922 cov=146 degen=0.000 n_strong=1504",
+    "[exp037]   s0/PLAIN round=3: real=0.922 cov=146 degen=0.000 n_strong=1518",
+    "[exp037]   s0/PLAIN round=4: real=0.944 cov=146 degen=0.000 n_strong=1523",
+    "[exp037]   s0/PLAIN round=5: real=0.900 cov=146 degen=0.000 n_strong=1520",
+    "[exp037]   s0/PLAIN round=6: real=0.944 cov=146 degen=0.000 n_strong=1524",
+    "[exp037]   s0/GUARD round=1: real=0.933 cov=142 degen=0.000 n_strong=827",
+    "[exp037]   s0/GUARD round=2: real=0.956 cov=148 degen=0.000 n_strong=1516",
+    "[exp037]   s0/GUARD round=3: real=0.922 cov=148 degen=0.000 n_strong=1529",
+    "[exp037]   s0/GUARD round=4: real=0.922 cov=148 degen=0.000 n_strong=1528",
+    "[exp037]   s0/GUARD round=5: real=0.956 cov=148 degen=0.000 n_strong=1534",
+    "[exp037]   s0/GUARD round=6: real=0.956 cov=148 degen=0.000 n_strong=1525",
+    "[exp037] seed=0 133.7s npar=201280",
+    "[exp037] seed=1 base real_acc=0.300 degen=0.000 params=201,280",
+    "[exp037]   s1/PLAIN round=1: real=0.578 cov=102 degen=0.000 n_strong=317",
+    "[exp037]   s1/PLAIN round=2: real=0.722 cov=125 degen=0.000 n_strong=1160",
+    "[exp037]   s1/PLAIN round=3: real=0.756 cov=128 degen=0.000 n_strong=1370",
+    "[exp037]   s1/PLAIN round=4: real=0.800 cov=132 degen=0.000 n_strong=1443",
+    "[exp037]   s1/PLAIN round=5: real=0.756 cov=133 degen=0.000 n_strong=1457",
+    "[exp037]   s1/PLAIN round=6: real=0.778 cov=133 degen=0.000 n_strong=1456",
+    "[exp037]   s1/GUARD round=1: real=0.744 cov=102 degen=0.000 n_strong=317",
+    "[exp037]   s1/GUARD round=2: real=0.833 cov=136 degen=0.000 n_strong=1327",
+    "[exp037]   s1/GUARD round=3: real=0.900 cov=139 degen=0.000 n_strong=1470",
+    "[exp037]   s1/GUARD round=4: real=0.844 cov=141 degen=0.000 n_strong=1494",
+    "[exp037]   s1/GUARD round=5: real=0.800 cov=141 degen=0.000 n_strong=1528",
+    "[exp037]   s1/GUARD round=6: real=0.922 cov=141 degen=0.000 n_strong=1510",
+    "[exp037] seed=1 133.3s npar=201280",
+    "[exp037] seed=2 base real_acc=0.300 degen=0.000 params=201,280",
+    "[exp037]   s2/PLAIN round=1: real=0.689 cov=116 degen=0.000 n_strong=391",
+    "[exp037]   s2/PLAIN round=2: real=0.856 cov=133 degen=0.000 n_strong=1279",
+    "[exp037]   s2/PLAIN round=3: real=0.867 cov=136 degen=0.000 n_strong=1447",
+    "[exp037]   s2/PLAIN round=4: real=0.900 cov=137 degen=0.000 n_strong=1466",
+    "[exp037]   s2/PLAIN round=5: real=0.889 cov=140 degen=0.000 n_strong=1484",
+    "[exp037]   s2/PLAIN round=6: real=0.878 cov=142 degen=0.000 n_strong=1520",
+    "[exp037]   s2/GUARD round=1: real=0.811 cov=116 degen=0.000 n_strong=391",
+    "[exp037]   s2/GUARD round=2: real=0.811 cov=141 degen=0.000 n_strong=1432",
+    "[exp037]   s2/GUARD round=3: real=0.833 cov=141 degen=0.000 n_strong=1493",
+    "[exp037]   s2/GUARD round=4: real=0.922 cov=142 degen=0.000 n_strong=1500",
+    "[exp037]   s2/GUARD round=5: real=0.922 cov=142 degen=0.000 n_strong=1516",
+    "[exp037]   s2/GUARD round=6: real=0.944 cov=144 degen=0.000 n_strong=1511",
+    "[exp037] seed=2 127.1s npar=201280",
+    "[exp037] VEREDICTO H-V4-2d: APOYADA | margin=0.105",
+    "[exp037] REAL_acc  plano=['0.441', '0.737', '0.833', '0.848', '0.881', '0.848', '0.867'] guarded=['0.441', '0.830', '0.867', '0.885', '0.896', '0.893', '0.941'] (base=0.441 pico_g=0.941@r6 final_g=0.941)",
+    "[exp037] COBERTURA plano=['0', '120', '135', '137', '138', '140', '140'] guarded=['0', '120', '142', '143', '144', '144', '144'] (narrowing_plano=False guardia_mantiene=True)",
+    "[exp037] DEGEN     plano=['0.000', '0.000', '0.000', '0.000', '0.000', '0.000', '0.000'] guarded=['0.000', '0.000', '0.000', '0.000', '0.000', '0.000', '0.000'] (hack_g=False hack_p=False)",
+    "[exp037] checks: improves=True no_decrece=True colapsa=False sin_costo_prec=True sin_hack=True"
+  ]
+}

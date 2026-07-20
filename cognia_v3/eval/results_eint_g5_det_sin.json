@@ -1,0 +1,41 @@
+{
+ "gate": "G4",
+ "gguf": "model_shards/qwen-coder-3b-q4/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+ "stepwise": false,
+ "started_utc": "2026-07-09 05:14:24",
+ "nota_honesta": "perplexity (+5% vs merge fp16) NO corre aca: es la corrida aparte del protocolo comun (llama-perplexity)",
+ "suites": {
+  "g5": {
+   "binarios": {
+    "G5-IN-001": true,
+    "G5-IN-002": true,
+    "G5-IN-003": false,
+    "G5-IN-004": true,
+    "G5-IN-005": false,
+    "G5-IN-006": false,
+    "G5-IN-007": true,
+    "G5-IN-008": false,
+    "G5-IN-009": true,
+    "G5-IN-010": false,
+    "G5-CL-001": true,
+    "G5-CL-002": false,
+    "G5-CL-003": false,
+    "G5-CL-004": true,
+    "G5-CL-005": true,
+    "G5-CL-006": true,
+    "G5-CL-007": true,
+    "G5-CL-008": true,
+    "G5-QA-001": true,
+    "G5-QA-002": false,
+    "G5-QA-003": true,
+    "G5-QA-004": true,
+    "G5-QA-005": false,
+    "G5-QA-006": false,
+    "G5-QA-007": false
+   },
+   "acc": 0.56
+  }
+ },
+ "veredicto": null,
+ "wall_min": 2.4
+}

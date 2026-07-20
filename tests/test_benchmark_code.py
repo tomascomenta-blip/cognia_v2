@@ -1,0 +1,471 @@
+"""
+tests/test_benchmark_code.py
+Tests for cognia_v3/eval/benchmark_code.py — sin modelo ni server real.
+"""
+
+from __future__ import annotations
+
+
+# ---------------------------------------------------------------------------
+# GRAMMAR_PYTHON_BLOCK — la GBNF que restringe el output a un bloque python
+# ---------------------------------------------------------------------------
+
+class TestGrammarPythonBlock:
+    def test_non_empty_and_has_root_rule(self):
+        from cognia_v3.eval.benchmark_code import GRAMMAR_PYTHON_BLOCK
+        assert GRAMMAR_PYTHON_BLOCK.strip()
+        assert "root ::=" in GRAMMAR_PYTHON_BLOCK
+
+    def test_forces_python_fence_literals(self):
+        """La gramatica abre con ```python\\n y cierra con ``` (literales GBNF)."""
+        from cognia_v3.eval.benchmark_code import GRAMMAR_PYTHON_BLOCK
+        assert '"```python\\n"' in GRAMMAR_PYTHON_BLOCK
+        assert '"```"' in GRAMMAR_PYTHON_BLOCK
+
+    def test_extract_code_handles_grammar_shaped_output(self):
+        """Un output con la forma que impone la gramatica se extrae limpio."""
+        from cognia_v3.eval.benchmark_code import extract_code
+        out = "```python\ndef suma(a, b):\n    return a + b\n```"
+        assert extract_code(out) == "def suma(a, b):\n    return a + b"
+        # Variante con el newline final opcional que permite la gramatica
+        assert extract_code(out + "\n") == "def suma(a, b):\n    return a + b"
+
+
+# ---------------------------------------------------------------------------
+# parse_search_replace / apply_edits — repair por EDICION (--repair-mode edit)
+# ---------------------------------------------------------------------------
+
+def _sr_block(old: str, new: str) -> str:
+    return ("<<<<<<< SEARCH\n" + old + "\n=======\n" + new
+            + "\n>>>>>>> REPLACE")
+
+
+class TestParseSearchReplace:
+    def test_single_block(self):
+        from cognia_v3.eval.benchmark_code import parse_search_replace
+        text = _sr_block("    if n % 2 == 1:", "    if n % 2 == 0:")
+        assert parse_search_replace(text) == [
+            ("    if n % 2 == 1:", "    if n % 2 == 0:")]
+
+    def test_multiple_blocks_in_order(self):
+        from cognia_v3.eval.benchmark_code import parse_search_replace
+        text = (_sr_block("a = 1", "a = 2") + "\n\n"
+                + _sr_block("b = 3", "b = 4"))
+        assert parse_search_replace(text) == [
+            ("a = 1", "a = 2"), ("b = 3", "b = 4")]
+
+    def test_prose_around_blocks_ignored(self):
+        from cognia_v3.eval.benchmark_code import parse_search_replace
+        text = ("The bug is in the modulo check. Here is the fix:\n\n"
+                + _sr_block("    return x - 1", "    return x + 1")
+                + "\n\nThis fixes the off-by-one error.")
+        assert parse_search_replace(text) == [
+            ("    return x - 1", "    return x + 1")]
+
+    def test_multiline_sections(self):
+        from cognia_v3.eval.benchmark_code import parse_search_replace
+        old = "    for i in items:\n        print(i)"
+        new = "    for i in items:\n        yield i"
+        assert parse_search_replace(_sr_block(old, new)) == [(old, new)]
+
+    def test_no_blocks_returns_empty(self):
+        from cognia_v3.eval.benchmark_code import parse_search_replace
+        assert parse_search_replace("Here is the corrected function...") == []
+        assert parse_search_replace("") == []
+
+    def test_empty_replace_means_deletion(self):
+        from cognia_v3.eval.benchmark_code import parse_search_replace
+        text = "<<<<<<< SEARCH\n    debug_print(x)\n=======\n>>>>>>> REPLACE"
+        assert parse_search_replace(text) == [("    debug_print(x)", "")]
+
+
+class TestApplyEdits:
+    CODE = ("def f(items):\n"
+            "    total = 0\n"
+            "    for i in items:\n"
+            "        total += i\n"
+            "    return total\n")
+
+    def test_single_edit_applies(self):
+        from cognia_v3.eval.benchmark_code import apply_edits
+        out = apply_edits(self.CODE, [("        total += i",
+                                       "        total += i * 2")])
+        assert out is not None
+        assert "total += i * 2" in out
+
+    def test_search_not_found_returns_none(self):
+        from cognia_v3.eval.benchmark_code import apply_edits
+        assert apply_edits(self.CODE, [("        total -= i", "x")]) is None
+
+    def test_ambiguous_search_returns_none(self):
+        """SEARCH que aparece 2 veces: sin fuzzy ni eleccion arbitraria."""
+        from cognia_v3.eval.benchmark_code import apply_edits
+        code = "x = 1\ny = 2\nx = 1\n"
+        assert apply_edits(code, [("x = 1", "x = 9")]) is None
+
+    def test_empty_edit_list_returns_none(self):
+        from cognia_v3.eval.benchmark_code import apply_edits
+        assert apply_edits(self.CODE, []) is None
+
+    def test_multiple_edits_apply_in_order(self):
+        from cognia_v3.eval.benchmark_code import apply_edits
+        out = apply_edits(self.CODE, [("    total = 0", "    total = 1"),
+                                      ("    return total", "    return total - 1")])
+        assert "total = 1" in out and "return total - 1" in out
+
+    def test_edit_that_breaks_syntax_is_caught_by_ast(self):
+        """El repair-edit valida con ast.parse: un edit roto NO se adopta."""
+        import ast
+        import pytest
+        from cognia_v3.eval.benchmark_code import apply_edits
+        out = apply_edits(self.CODE, [("    for i in items:",
+                                       "    for i in items")])  # sin ':'
+        assert out is not None  # el reemplazo exacto aplica...
+        with pytest.raises(SyntaxError):
+            ast.parse(out)      # ...pero el pipeline lo rechaza (syntax_after_edit)
+
+    def test_full_pipeline_parse_then_apply(self):
+        """Flujo completo respuesta-del-modelo -> edits -> codigo corregido."""
+        from cognia_v3.eval.benchmark_code import apply_edits, parse_search_replace
+        response = ("Sure! The loop accumulates wrong:\n"
+                    + _sr_block("        total += i", "        total += abs(i)"))
+        edits = parse_search_replace(response)
+        out = apply_edits(self.CODE, edits)
+        assert out == self.CODE.replace("total += i", "total += abs(i)")
+
+
+# ---------------------------------------------------------------------------
+# number_lines / parse_line_edits / apply_line_edits — --repair-mode lineedit
+# ---------------------------------------------------------------------------
+
+def _le_block(n: int, content: str) -> str:
+    return f"LINE {n}:\n```python\n{content}\n```"
+
+
+class TestNumberLines:
+    def test_one_indexed_format(self):
+        from cognia_v3.eval.benchmark_code import number_lines
+        out = number_lines("def f():\n    return 1")
+        assert out == "  1| def f():\n  2|     return 1"
+
+    def test_empty_lines_numbered(self):
+        from cognia_v3.eval.benchmark_code import number_lines
+        out = number_lines("a\n\nb")
+        assert out.splitlines()[1].startswith("  2|")
+
+    def test_roundtrip_with_apply(self):
+        """number_lines y apply_line_edits usan el MISMO split: el numero
+        que ve el modelo es el indice que se aplica."""
+        from cognia_v3.eval.benchmark_code import apply_line_edits, number_lines
+        code = "a = 1\nb = 2\nc = 3"
+        numbered = number_lines(code)
+        # La linea mostrada como "  2| b = 2" es la que toca el edit n=2
+        assert "  2| b = 2" in numbered
+        assert apply_line_edits(code, [(2, "b = 99")]) == "a = 1\nb = 99\nc = 3"
+
+
+class TestParseLineEdits:
+    def test_single_block(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        assert parse_line_edits(_le_block(3, "    return x + 1")) == [
+            (3, "    return x + 1")]
+
+    def test_multiple_blocks(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        text = _le_block(2, "a = 2") + "\n\n" + _le_block(5, "b = 5")
+        assert parse_line_edits(text) == [(2, "a = 2"), (5, "b = 5")]
+
+    def test_delete_line(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        assert parse_line_edits("DELETE LINE 4") == [(4, None)]
+
+    def test_mixed_replace_and_delete(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        text = _le_block(1, "import os") + "\nDELETE LINE 7"
+        assert parse_line_edits(text) == [(1, "import os"), (7, None)]
+
+    def test_prose_around_blocks_ignored(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        text = ("The bug is on line 3:\n\n" + _le_block(3, "    i += 1")
+                + "\n\nThis fixes the counter.")
+        assert parse_line_edits(text) == [(3, "    i += 1")]
+
+    def test_multiline_content(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        content = "    if x:\n        return 1"
+        assert parse_line_edits(_le_block(2, content)) == [(2, content)]
+
+    def test_duplicate_line_number_last_wins(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        text = _le_block(3, "x = 1") + "\n" + _le_block(3, "x = 2")
+        assert parse_line_edits(text) == [(3, "x = 2")]
+
+    def test_no_blocks_returns_empty(self):
+        from cognia_v3.eval.benchmark_code import parse_line_edits
+        assert parse_line_edits("Here is the corrected function...") == []
+        assert parse_line_edits("") == []
+
+
+class TestReindentBlock:
+    def test_no_indent_inherits_original(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        out = reindent_block("        total += i", "total += abs(i)")
+        assert out == "        total += abs(i)"
+
+    def test_over_indented_rebased(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        out = reindent_block("    return x", "            return x + 1")
+        assert out == "    return x + 1"
+
+    def test_relative_indent_preserved(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        # Base del modelo = 0; la linea interna con +4 queda en orig+4
+        out = reindent_block("    if x:", "if x:\n    return 1\nreturn 0")
+        assert out == "    if x:\n        return 1\n    return 0"
+
+    def test_multiline_with_empty_line(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        out = reindent_block("    a = 1", "a = 1\n\nb = 2")
+        assert out == "    a = 1\n\n    b = 2"
+
+    def test_inconsistent_line_rebased_flat(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        # 2da linea NO empieza con la base del modelo (4 esp): mejor esfuerzo
+        out = reindent_block("        x = 1", "    a = 1\n  b = 2")
+        assert out == "        a = 1\n        b = 2"
+
+    def test_matching_indent_is_noop(self):
+        from cognia_v3.eval.benchmark_code import reindent_block
+        assert reindent_block("    total = 0", "    total = 1") == "    total = 1"
+
+
+class TestApplyLineEdits:
+    CODE = ("def f(items):\n"
+            "    total = 0\n"
+            "    for i in items:\n"
+            "        total += i\n"
+            "    return total")
+
+    def test_single_replace(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits(self.CODE, [(4, "        total += i * 2")])
+        assert out == self.CODE.replace("total += i", "total += i * 2")
+
+    def test_delete_line(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits("a\nb\nc", [(2, None)])
+        assert out == "a\nc"
+
+    def test_out_of_range_returns_none(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        assert apply_line_edits(self.CODE, [(6, "x = 1")]) is None
+        assert apply_line_edits(self.CODE, [(0, "x = 1")]) is None
+        # Un edit valido + uno fuera de rango: TODO el repair se descarta
+        assert apply_line_edits(self.CODE, [(2, "ok"), (99, "x")]) is None
+
+    def test_empty_edit_list_returns_none(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        assert apply_line_edits(self.CODE, []) is None
+
+    def test_multiline_content_expands_line(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits("a\nb\nc", [(2, "b1\nb2")])
+        assert out == "a\nb1\nb2\nc"
+
+    def test_applies_descending_indices_stable(self):
+        """Un reemplazo multilinea en una linea TEMPRANA no corre el indice
+        del edit posterior: se aplica de mayor a menor n."""
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits("a\nb\nc\nd", [(2, "b1\nb2"), (4, "D")])
+        assert out == "a\nb1\nb2\nc\nD"
+
+    def test_delete_then_later_replace_indices_stable(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits("a\nb\nc", [(1, None), (3, "C")])
+        assert out == "b\nC"
+
+    def test_edit_that_breaks_syntax_is_caught_by_ast(self):
+        """El repair-lineedit valida con ast.parse: un edit roto NO se adopta."""
+        import ast
+        import pytest
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits(self.CODE, [(3, "    for i in items")])  # sin ':'
+        assert out is not None  # el reemplazo aplica...
+        with pytest.raises(SyntaxError):
+            ast.parse(out)      # ...pero el pipeline lo rechaza (syntax_after_edit)
+
+    def test_full_pipeline_parse_then_apply(self):
+        """Flujo completo respuesta-del-modelo -> edits -> codigo corregido."""
+        from cognia_v3.eval.benchmark_code import apply_line_edits, parse_line_edits
+        response = ("The accumulator ignores sign:\n"
+                    + _le_block(4, "        total += abs(i)"))
+        edits = parse_line_edits(response)
+        out = apply_line_edits(self.CODE, edits)
+        assert out == self.CODE.replace("total += i", "total += abs(i)")
+
+    def test_replace_reindents_to_original_line(self):
+        """El modelo devuelve el fix en columna 0: hereda los 8 espacios."""
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits(self.CODE, [(4, "total += abs(i)")])
+        assert out == self.CODE.replace("total += i", "total += abs(i)")
+
+    def test_delete_not_affected_by_reindent(self):
+        from cognia_v3.eval.benchmark_code import apply_line_edits
+        out = apply_line_edits(self.CODE, [(4, None)])
+        assert out == self.CODE.replace("\n        total += i", "")
+
+    def test_ab_case_unindent_now_parses(self):
+        """Caso real del A/B: bloque multilinea en columna 0 sobre una linea
+        indentada daba 'unindent does not match any outer indentation level' /
+        'expected an indented block'; re-basado, ast.parse pasa."""
+        import ast
+        from cognia_v3.eval.benchmark_code import apply_line_edits, parse_line_edits
+        response = ("Only positive items should count:\n"
+                    + _le_block(4, "if i > 0:\n    total += i"))
+        out = apply_line_edits(self.CODE, parse_line_edits(response))
+        ast.parse(out)  # sin reindent_block: SyntaxError
+        assert "        if i > 0:\n            total += i" in out
+
+
+# ---------------------------------------------------------------------------
+# FEWSHOT_EXEMPLARS / build_prompt(fewshot=N) — flag --fewshot
+# ---------------------------------------------------------------------------
+
+class TestFewshot:
+    TASK_PROMPT = "Write a Python function `dummy(x)` that returns x."
+
+    def test_fewshot_zero_prompt_byte_identical(self):
+        """Con N=0 el prompt es BYTE-identico al comportamiento previo."""
+        from cognia_v3.eval.benchmark_code import build_fewshot_prefix, build_prompt
+        assert build_fewshot_prefix(0) == ""
+        assert build_prompt(self.TASK_PROMPT, fewshot=0) == build_prompt(self.TASK_PROMPT)
+        # Reconstruccion del template previo (sin few-shot) a mano:
+        from node.inference_pipeline import _apply_qwen_template
+        from cognia_v3.eval.benchmark_code import SYSTEM_PROMPT
+        expected = _apply_qwen_template(self.TASK_PROMPT, system=SYSTEM_PROMPT)
+        assert build_prompt(self.TASK_PROMPT, fewshot=0) == expected
+
+    def test_fewshot_two_contains_exemplars_and_real_task_last(self):
+        """Con N=2 el prompt trae ambos ejemplos y el enunciado real al final."""
+        from cognia_v3.eval.benchmark_code import FEWSHOT_EXEMPLARS, build_prompt
+        prompt = build_prompt(self.TASK_PROMPT, fewshot=2)
+        assert "Ejemplos resueltos:" in prompt
+        assert prompt.count("[Problema]") == 2
+        assert prompt.count("[Solucion]") == 2
+        for problem, solution in FEWSHOT_EXEMPLARS:
+            assert problem in prompt
+            assert solution in prompt
+        # El enunciado real va DESPUES de todos los ejemplos
+        real_pos = prompt.index("Ahora resuelve:\n\n" + self.TASK_PROMPT)
+        for problem, _ in FEWSHOT_EXEMPLARS:
+            assert prompt.index(problem) < real_pos
+
+    def test_exemplar_solutions_compile(self):
+        """Cada solucion de FEWSHOT_EXEMPLARS es codigo Python valido."""
+        import ast
+        from cognia_v3.eval.benchmark_code import FEWSHOT_EXEMPLARS
+        assert len(FEWSHOT_EXEMPLARS) == 2
+        for _, solution in FEWSHOT_EXEMPLARS:
+            ast.parse(solution)
+
+
+# ---------------------------------------------------------------------------
+# --cascade — parseo del flag, seleccion de fallos y merge etapa1+etapa2
+# ---------------------------------------------------------------------------
+
+def _res(tid: str, passed: bool, diff: str = "easy") -> dict:
+    """Result sintetico de etapa 1 (solo los campos que usa la cascada)."""
+    return {"id": tid, "difficulty": diff, "passed": passed}
+
+
+def _att(passed: bool) -> dict:
+    """Attempt sintetico de etapa 2 (mismo shape que cascade_by_id[...])."""
+    return {"passed": passed, "error_type": "" if passed else "assert",
+            "error_detail": "", "gen_seconds": 1.0, "tokens_predicted": 10,
+            "tok_per_s": 10.0, "response": "", "extracted_code": ""}
+
+
+class TestCascadeFlagParsing:
+    def test_valid_key_parses(self):
+        from cognia_v3.eval.benchmark_code import build_arg_parser
+        args = build_arg_parser().parse_args(["--cascade", "7b"])
+        assert args.cascade == "7b"
+
+    def test_default_is_none(self):
+        from cognia_v3.eval.benchmark_code import build_arg_parser
+        assert build_arg_parser().parse_args([]).cascade is None
+
+    def test_invalid_key_clear_error(self, capsys):
+        """Clave fuera del registry: error claro listando las validas."""
+        import pytest
+        from cognia_v3.eval.benchmark_code import build_arg_parser
+        with pytest.raises(SystemExit):
+            build_arg_parser().parse_args(["--cascade", "13b"])
+        err = capsys.readouterr().err
+        assert "invalid choice" in err and "13b" in err
+        # El mensaje lista las claves validas del registry
+        assert "3b" in err and "7b" in err
+
+    def test_cascade_excluye_repair(self):
+        """--cascade + --repair es invalido (la etapa 2 es regen fresca)."""
+        from cognia_v3.eval.benchmark_code import check_cascade_args
+        msg = check_cascade_args("7b", 2)
+        assert msg is not None and "--cascade" in msg and "--repair" in msg
+        assert check_cascade_args("7b", 0) is None
+        assert check_cascade_args(None, 2) is None
+        assert check_cascade_args(None, 0) is None
+
+
+class TestSelectCascadeFailures:
+    TASKS = [{"id": "T1"}, {"id": "T2"}, {"id": "T3"}]
+
+    def test_only_failures_in_original_order(self):
+        from cognia_v3.eval.benchmark_code import select_cascade_failures
+        results = [_res("T1", False), _res("T2", True), _res("T3", False)]
+        # La seleccion es por id: el orden de results no importa
+        out = select_cascade_failures(self.TASKS, results[::-1])
+        assert [t["id"] for t in out] == ["T1", "T3"]
+
+    def test_zero_failures_returns_empty(self):
+        """0 fallos => lista vacia: la etapa 2 se salta y NO se hace swap."""
+        from cognia_v3.eval.benchmark_code import select_cascade_failures
+        results = [_res(t["id"], True) for t in self.TASKS]
+        assert select_cascade_failures(self.TASKS, results) == []
+
+
+class TestMergeCascadeResults:
+    def test_counts_and_stages(self):
+        from cognia_v3.eval.benchmark_code import merge_cascade_results
+        results = [_res("T1", True), _res("T2", False),
+                   _res("T3", False), _res("T4", True)]
+        counts = merge_cascade_results(
+            results, {"T2": _att(True), "T3": _att(False)})
+        assert counts == {"pass_first": 2, "recovered_cascade": 1,
+                          "failed_final": 1, "pass_total": 3}
+        assert results[0]["stage"] == "first"
+        assert results[1]["stage"] == "cascade"
+        assert results[2]["stage"] is None
+        assert results[3]["stage"] == "first"
+        # El attempt de etapa 2 queda colgado SOLO de los results reintentados
+        assert results[1]["cascade_attempt"]["passed"] is True
+        assert results[2]["cascade_attempt"]["passed"] is False
+        assert "cascade_attempt" not in results[0]
+
+    def test_zero_failures_merge_empty(self):
+        """Caso 0 fallos: merge con {} funciona y recovered queda en 0."""
+        from cognia_v3.eval.benchmark_code import merge_cascade_results
+        results = [_res("T1", True), _res("T2", True)]
+        counts = merge_cascade_results(results, {})
+        assert counts == {"pass_first": 2, "recovered_cascade": 0,
+                          "failed_final": 0, "pass_total": 2}
+        assert all(r["stage"] == "first" for r in results)
+
+    def test_failure_without_attempt_stays_failed(self):
+        """Swap abortado: el FAIL sin attempt queda stage None, sin crash."""
+        from cognia_v3.eval.benchmark_code import merge_cascade_results
+        results = [_res("T1", False)]
+        counts = merge_cascade_results(results, {})
+        assert counts == {"pass_first": 0, "recovered_cascade": 0,
+                          "failed_final": 1, "pass_total": 0}
+        assert results[0]["stage"] is None
+        assert "cascade_attempt" not in results[0]

@@ -6,6 +6,7 @@ Subcommand router. Entry point for the `cognia` CLI after `pip install cognia`.
 Usage:
     cognia                  -- first-run wizard (once), then REPL
     cognia init             -- re-run setup wizard
+    cognia install-model    -- download GGUF 3B + llama-server + expertos (recomendado)
     cognia install-weights  -- download shards and configure this machine as a node
     cognia server           -- start FastAPI web server (port 8000)
     cognia node             -- start as a shard node in the swarm
@@ -289,11 +290,25 @@ def _cmd_modo() -> None:
         save_pref(K_RUN_MODE, target)
         print(f"Modo cambiado a: {MODE_LABELS[target]}")
         if target == "local":
-            model_key = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
-            has_shards = (SHARDS_DIR / model_key / "shard_0.npz").exists()
-            if not has_shards:
-                print("  Faltan los pesos locales. Descargalos con:")
-                print("      cognia install-weights --standalone")
+            # GGUF-first: el stack recomendado es llama-server + GGUF
+            # (cognia install-model); los shards NPZ son el camino avanzado.
+            # Antes esto solo miraba shard_0.npz y mandaba a install-weights
+            # aunque el GGUF ya estuviera instalado y funcionando.
+            gguf = None
+            try:
+                from node.llama_backend import _find_gguf
+                gguf = _find_gguf()
+            except Exception:
+                pass
+            if gguf is not None:
+                print(f"  Backend local listo (GGUF: {gguf})")
+            else:
+                model_key = os.environ.get("COGNIA_SWARM_MODEL", "qwen-coder-3b-q4")
+                has_shards = (SHARDS_DIR / model_key / "shard_0.npz").exists()
+                if not has_shards:
+                    print("  Falta el modelo local. Instala el stack recomendado con:")
+                    print("      cognia install-model")
+                    print("  (avanzado: shards numpy con 'cognia install-weights --standalone')")
         elif target == "compartido":
             print("  Conecta a un coordinador con:")
             print("      cognia install-weights --coordinator <URL>")
@@ -316,13 +331,18 @@ def _cmd_modo() -> None:
 
 
 def _cmd_status() -> None:
+    # Backend real primero: antes status solo reportaba swarm + Ollama
+    # (sistemas legacy/opcionales) y una instalacion sana decia
+    # "modo standalone / Ollama: no disponible".
+    _print_backend_status()
+
     coord_url = (
         os.environ.get("COGNIA_COORDINATOR_URL", "")
         or os.environ.get("COORDINATOR_URL", "")
     ).rstrip("/")
 
     if not coord_url:
-        print("COGNIA_COORDINATOR_URL no configurada -- modo standalone")
+        print("Swarm: apagado (COGNIA_COORDINATOR_URL no configurada) -- modo local")
         _print_ollama_status()
         return
 
@@ -368,14 +388,33 @@ def _cmd_fleet() -> None:
     print()
     print("  El modelo activo del chat lo decide LLAMA_GGUF_PATH (.env).")
 
+def _print_backend_status() -> None:
+    """Estado del backend de inferencia REAL (llama-server + GGUF)."""
+    gguf = None
+    try:
+        from node.llama_backend import _find_gguf
+        gguf = _find_gguf()
+    except Exception:
+        pass
+    if gguf is None:
+        print("Backend local (GGUF): no instalado -- instala con: cognia install-model")
+        return
+    print(f"Backend local (GGUF): instalado ({gguf})")
+    port = os.environ.get("LLAMA_SERVER_PORT", "8088")
+    try:
+        urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
+        print(f"  llama-server: corriendo en 127.0.0.1:{port}")
+    except Exception:
+        print(f"  llama-server: no corriendo (arranca on-demand al usar el REPL)")
+
 
 def _print_ollama_status() -> None:
     ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434")
     try:
         urllib.request.urlopen(f"{ollama_url}/api/tags", timeout=3)
-        print(f"Ollama: disponible en {ollama_url}")
+        print(f"Ollama (opcional): disponible en {ollama_url}")
     except Exception:
-        print(f"Ollama: no disponible en {ollama_url}")
+        print(f"Ollama (opcional): no disponible")
 
 
 # ── Help ──────────────────────────────────────────────────────────────────────
@@ -387,11 +426,12 @@ Comandos:
   (ninguno)          Iniciar REPL (lanza wizard en primer uso)
   init               Re-ejecutar wizard de configuracion
   modo               Ver o cambiar el modo (local/compartido/memoria) y personalizacion
+  install-model      Descargar GGUF 3B + llama-server + expertos (recomendado)
   install-weights    Descargar shards y configurar este dispositivo como nodo
   server             Servidor web FastAPI (puerto 8000)
   node               Iniciar como nodo del swarm distribuido
   coordinator        Iniciar coordinador del swarm (puerto 8001)
-  status             Estado del swarm y Ollama
+  status             Estado del backend local (GGUF), swarm y Ollama
   leave              Salir de la red y liberar el fragmento alojado
   bbrain             Regenerar bbrain.md (doc viva del repo y su entorno)
   fleet              Estado de la flota local de modelos GGUF
@@ -401,17 +441,38 @@ Opciones de install-weights:
   --coordinator URL  URL del coordinador (ej: http://192.168.1.50:8001)
   --standalone       Descargar los 4 shards para inferencia local completa
 
+Configuracion:
+  ~/.cognia/config.env     Fuente principal (la escribe 'cognia install-model' /
+                           el wizard): LLAMA_GGUF_PATH, LLAMA_SERVER_PATH, etc.
+                           Las env vars del sistema MANDAN sobre config.env.
+
 Variables de entorno:
-  COGNIA_COORDINATOR_URL   URL del coordinador
-  OLLAMA_URL               URL de Ollama (default: http://localhost:11434)
-  COGNIA_MODEL             Modelo Ollama (default: llama3.2)
+  LLAMA_GGUF_PATH          Ruta directa a un GGUF (prioridad sobre deteccion)
+  COGNIA_COORDINATOR_URL   URL del coordinador (swarm opcional)
+  OLLAMA_URL               URL de Ollama (fallback opcional)
   HF_TOKEN                 Token HuggingFace para datasets privados
 """
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
+def _harden_console_encoding() -> None:
+    """Hace stdout/stderr a prueba de crash en la consola cp1252 de Windows.
+
+    Muchos print() del repo llevan emojis/simbolos fuera de cp1252; sin esto,
+    escribirlos LANZA UnicodeEncodeError y puede tumbar hilos de fondo (p.ej. la
+    Curiosidad Pasiva) o abortar un comando. errors='replace' nunca crashea (los
+    chars no representables pasan a '?'), y en terminales modernas UTF-8 se ven
+    bien. Idempotente con el wrap existente del REPL (cli.py)."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def main() -> None:
+    _harden_console_encoding()
     from cognia.first_run import apply_config
     apply_config()
 
@@ -425,6 +486,11 @@ def main() -> None:
         _cmd_install_weights()
     elif cmd in ("download-weights",):
         _cmd_install_weights()   # alias
+    elif cmd in ("install-model", "install-modelo"):
+        # Stack GGUF validado (llama-server b9391 + Q4_K_M + fleet de expertos):
+        # el camino DEFAULT de una instalación limpia (GATES_CLI_VNEXT.md).
+        from cognia.model_install import main as _im_main
+        _im_main(sys.argv[2:])
     elif cmd == "server":
         _cmd_server()
     elif cmd == "node":

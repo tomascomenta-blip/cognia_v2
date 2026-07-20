@@ -73,6 +73,7 @@ class SQLitePool:
     def __init__(self, db_path: str, size: int = MAX_CONNS):
         self.db_path = db_path
         self._size   = size
+        self._gc_reclaimed = 0   # conexiones rescatadas por el __del__ de _PooledConnection
         self._pool: Queue = Queue(maxsize=size)
         for _ in range(size):
             self._pool.put(self._new_conn())
@@ -134,6 +135,12 @@ class SQLitePool:
         contrato que el context manager get(), que también propaga).
         Antes esto tragaba el error y retornaba éxito silencioso —
         pérdida de escritura invisible."""
+        # Estado por-conexion NO puede filtrarse al proximo usuario del pool
+        # (thought_cache/coordinator/distillation setean sqlite3.Row).
+        try:
+            conn.row_factory = None
+        except Exception:
+            pass
         try:
             if commit:
                 conn.commit()
@@ -188,14 +195,14 @@ class _PooledConnection:
             self._pool.release(self._conn, commit=False)  # no commit doble
 
     def __del__(self):
-        # SAFETY NET contra fugas del pool: si un caller olvidó close() (p.ej.
-        # un `return` temprano en una rama de excepción dejó la conexión sin
-        # devolver), la reclamamos en el GC en vez de filtrarla. En CPython el
-        # refcount del local llega a 0 al salir de la función, así que esto
-        # reclama de inmediato y el pool nunca se agota de forma permanente.
-        # Se hace ROLLBACK (nunca commit) porque llegar a __del__ sin cerrar
-        # suele indicar una ruta de error: no persistir trabajo a medias.
-        # __dict__.get evita recursión con __getattr__ si __init__ falló a medias.
+        # SAFETY NET contra fugas del pool (Gotchas.md CRITICO): un call-site
+        # con close() DENTRO del try fuga la conexion si una excepcion salta el
+        # close() -> tras 5 fugas el pool se vacia y cada acquire() se estanca
+        # 10s. Al recolectarse este wrapper sin close(), devolvemos la conexion
+        # al pool (ROLLBACK, nunca commit: llegar aqui suele indicar ruta de
+        # error) en vez de perderla. Solo dispara en el camino fugado; el
+        # happy-path ya hizo close() (_closed=True) y aqui es no-op.
+        # __dict__.get evita recursion con __getattr__ si __init__ fallo a medias.
         try:
             if not self.__dict__.get("_closed", True):
                 self._closed = True
@@ -206,6 +213,7 @@ class _PooledConnection:
                 self._pool.release(self._conn, commit=False)
                 try:
                     _note_gc_reclaim()
+                    self._pool._gc_reclaimed += 1
                 except Exception:
                     pass
         except Exception:
@@ -213,6 +221,16 @@ class _PooledConnection:
 
     def __getattr__(self, name):
         return getattr(self._conn, name)
+
+    def __setattr__(self, name, value):
+        # Proxy transparente tambien para ESCRITURAS: sin esto,
+        # `conn.row_factory = sqlite3.Row` seteaba un atributo del wrapper
+        # (la conexion real quedaba con row_factory=None y las filas volvian
+        # como tuplas -> lookups rotos). Cazado al migrar thought_cache.
+        if name in ("_conn", "_pool", "_closed"):
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._conn, name, value)
 
     def __enter__(self):
         return self._conn.__enter__()
@@ -290,6 +308,7 @@ def pool_stats() -> dict:
         stats[path] = {
             "size": pool.size,
             "available": pool._pool.qsize(),
+            "gc_reclaimed": getattr(pool, "_gc_reclaimed", 0),
         }
     return stats
 

@@ -9,17 +9,29 @@ CAMBIOS v2:
 """
 
 import json
+import os
 import random
 import urllib.request as _req
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from cognia.compresion_salidas import comprimir_error
 from cognia.llm_local import generar
 
 # ── Configuración ──────────────────────────────────────────────────────────────
 
+# El camino PRIMARIO es el backend real inyectado por el caller (llm=...):
+# run_program_hobby lo construye sobre el orquestador del REPL (llama-server
+# GGUF). Le sigue llm_local (detecta llama-server y Ollama) y, como ultimo
+# recurso, Ollama directo con OLLAMA_URL (antes hardcodeado a localhost).
+OLLAMA_URL   = (os.environ.get("OLLAMA_URL", "http://localhost:11434")
+                .rstrip("/") + "/api/generate")
+OLLAMA_MODEL = os.environ.get("COGNIA_OLLAMA_MODEL", "llama3.2:1b")
 TIMEOUT_SEC  = 500
+
+# Firma del backend inyectable: (prompt, system, max_tokens, temperature) -> texto|None
+LlmFn = Callable[[str, str, int, float], Optional[str]]
+
 
 FALLBACK_CATEGORIES = [
     "ASCII art generator that runs automatically",
@@ -148,7 +160,8 @@ def _es_idea_web(texto: str) -> bool:
 
 # ── Generación autónoma de ideas ───────────────────────────────────────────────
 
-def _generate_idea_autonomously(seed_concepts: Optional[list] = None) -> Optional[str]:
+def _generate_idea_autonomously(seed_concepts: Optional[list] = None,
+                                llm: Optional[LlmFn] = None) -> Optional[str]:
     """Pide al LLM que proponga su propia idea, inspirada en lo que ha aprendido."""
     context = ""
     if seed_concepts and len(seed_concepts) >= 2:
@@ -168,6 +181,17 @@ def _generate_idea_autonomously(seed_concepts: Optional[list] = None) -> Optiona
         f"Your idea:"
     )
 
+    # Backend real primero (inyectado); llm_local (llama-server→Ollama) despues.
+    if llm is not None:
+        try:
+            raw = llm(prompt, "", 50, 0.95)
+            if raw:
+                idea = raw.split("\n")[0].strip().strip('"').strip("'").strip(".")
+                if 5 < len(idea) < 200:
+                    return idea
+        except Exception as exc:
+            print(f"[generator] backend real fallo generando idea: {exc}")
+
     texto = generar(prompt, temperature=0.95, max_tokens=50)
     if not texto:
         print("[generator] Sin LLM local: no pude generar idea propia.")
@@ -176,12 +200,13 @@ def _generate_idea_autonomously(seed_concepts: Optional[list] = None) -> Optiona
     return idea if 5 < len(idea) < 200 else None
 
 
-def _pick_idea(seed_concepts: Optional[list] = None) -> tuple[str, str, bool]:
+def _pick_idea(seed_concepts: Optional[list] = None,
+               llm: Optional[LlmFn] = None) -> tuple[str, str, bool]:
     """70% autónoma, 30% fallback a lista predefinida."""
     complexity = random.choice(COMPLEXITY_HINTS)
 
     if random.random() < 0.70:
-        idea = _generate_idea_autonomously(seed_concepts)
+        idea = _generate_idea_autonomously(seed_concepts, llm=llm)
         if idea:
             print(f"[generator] 🧠 Idea propia: {idea}")
             return idea, complexity, True
@@ -296,25 +321,67 @@ _SISTEMA_WEB = (
 )
 
 
+_SYSTEM_CODER = (
+    "You are a creative Python programmer. Write complete, runnable programs "
+    "using only the standard library. NEVER use input() or blocking calls — "
+    "programs must run automatically. Follow the output format exactly."
+)
+
+# Firma del backend inyectable: (prompt, system, max_tokens, temperature) -> texto|None
+LlmFn = Callable[[str, str, int, float], Optional[str]]
+
+
+def _call_ollama(prompt: str) -> Optional[str]:
+    try:
+        payload = json.dumps({
+            "model":   OLLAMA_MODEL,
+            "prompt":  prompt,
+            "system":  _SYSTEM_CODER,
+            "stream":  False,
+            "options": {"temperature": 0.90, "num_predict": 2000, "top_p": 0.95}
+        }).encode("utf-8")
+
+        request = _req.Request(OLLAMA_URL, data=payload,
+                               headers={"Content-Type": "application/json"})
+        with _req.urlopen(request, timeout=TIMEOUT_SEC) as resp:
+            data = json.loads(resp.read())
+            return data.get("response", "").strip()
+    except Exception as exc:
+        print(f"[generator] Ollama call failed: {exc}")
+        return None
+
+
 def _call_llm(prompt: str, lenguaje: str = "python",
-              temperature: float = 0.90) -> Optional[str]:
-    # 0.90 por defecto porque GENERAR es creativo. Las reparaciones pasan 0.2:
-    # a 0.9 el modelo "repara" reescribiendo media pagina y rompe otra cosa,
-    # asi que el conteo de defectos no baja y el arreglo se descarta. Medido el
-    # 2026-07-20: 3 rondas de reparacion del defecto de colores, las 3
-    # descartadas con "no mejoraba".
-    return generar(
+              temperature: float = 0.90,
+              llm: "Optional[LlmFn]" = None) -> Optional[str]:
+    """
+    UN solo camino de LLM, unificado en el merge 4.0: backend inyectado
+    (cognia-x: funciona pip-instalado sobre el orquestador) → llm_local
+    (main: detecta llama-server con draft especulativo) → Ollama directo.
+
+    temperature 0.90 por defecto porque GENERAR es creativo; las reparaciones
+    pasan 0.2 — a 0.9 el modelo "repara" reescribiendo media pagina (medido
+    2026-07-20: 3 rondas descartadas con "no mejoraba").
+    """
+    system = _SISTEMA_WEB if lenguaje == "html" else _SISTEMA_PYTHON
+    if llm is not None:
+        try:
+            raw = llm(prompt, system, 6000, temperature)
+            if raw:
+                return raw
+        except Exception as exc:
+            print(f"[generator] backend real fallo: {exc}")
+    texto = generar(
         prompt,
-        system=_SISTEMA_WEB if lenguaje == "html" else _SISTEMA_PYTHON,
+        system=system,
         temperature=temperature,
-        # 2000 tokens truncaban cualquier programa con tests. Medido el
-        # 2026-07-20: al pedir un compresor con tests unitarios, la respuesta
-        # cortaba a mitad de una cadena y el fence ni se cerraba, lo que
-        # llegaba al sandbox como "SyntaxError: unterminated string literal".
-        # El lazo de reparacion gastaba entonces sus 3 intentos en un fallo que
-        # no puede arreglar: no falta un fix, falta el resto del programa.
+        # 2000 tokens truncaban programas con tests: el fence ni se cerraba y
+        # el lazo de reparacion gastaba sus intentos en "falta el resto".
         max_tokens=6000,
     )
+    if texto:
+        return texto
+    return _call_ollama(prompt)
 
 
 def reparar_python(program: GeneratedProgram, error: str) -> Optional[GeneratedProgram]:
@@ -498,14 +565,18 @@ def clear_custom_ideas() -> int:
 # ── API pública ────────────────────────────────────────────────────────────────
 
 def generate_program(seed_concepts: Optional[list] = None,
-                     forced_idea:   Optional[str]  = None) -> Optional[GeneratedProgram]:
-    """Genera un programa. Intenta idea autónoma primero, fallback a lista predefinida."""
+                     forced_idea:   Optional[str]  = None,
+                     llm:           Optional[LlmFn] = None) -> Optional[GeneratedProgram]:
+    """Genera un programa. Intenta idea autónoma primero, fallback a lista predefinida.
+
+    llm: backend real inyectado por el caller (run_program_hobby lo construye
+    sobre el orquestador del REPL); sin él se intenta Ollama (OLLAMA_URL)."""
     self_proposed = False
 
     if forced_idea:
         category, extra_hint = forced_idea.strip(), random.choice(COMPLEXITY_HINTS)
     else:
-        category, extra_hint, self_proposed = _pick_idea(seed_concepts)
+        category, extra_hint, self_proposed = _pick_idea(seed_concepts, llm=llm)
 
     if not self_proposed:
         print(f"[generator] 💡 Idea: {category}")
@@ -533,11 +604,12 @@ def generate_program(seed_concepts: Optional[list] = None,
 
     prompt  = (_build_prompt_web(category, extra_hint) if lenguaje == "html"
                else _build_prompt(category, extra_hint))
-    raw     = _call_llm(prompt, lenguaje)
+    raw     = _call_llm(prompt, lenguaje, llm=llm)
     program = _parse_response(raw, category, lenguaje) if raw else None
 
     if raw is None:
-        print("[generator] ⚠️  Ollama no respondió.")
+        print("[generator] ⚠️  Sin backend LLM vivo (ni orquestador ni Ollama). "
+              "Instala el modelo con 'cognia install-model'.")
         return None
     if program is None:
         print("[generator] ⚠️  No se pudo parsear o fue rechazado.")

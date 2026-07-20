@@ -1,0 +1,34 @@
+{
+  "base_espanol": 1.8422779970079939,
+  "naive_curve": [
+    1.8422779970079939,
+    2.9255,
+    3.1372,
+    1.9445
+  ],
+  "gated_curve": [
+    1.8422779970079939,
+    1.8286,
+    1.8627,
+    1.8071
+  ],
+  "decisions": [
+    [
+      "en_frankenstein",
+      true
+    ],
+    [
+      "en_sherlock",
+      true
+    ],
+    [
+      "es_17073",
+      true
+    ]
+  ],
+  "lessons": [
+    "en_frankenstein",
+    "en_sherlock",
+    "es_17073"
+  ]
+}

@@ -1,41 +1,41 @@
 ---
-title: Ollama vs Shards propios — cuándo usa cada uno
+title: llama.cpp vs shards vs Ollama — prioridad real del backend
 type: comparison
-tags: [ollama, shards, inference, fallback]
-updated: 2026-05-24
+tags: [llama.cpp, gguf, shards, ollama, backend, prioridad]
+updated: 2026-07-16
 ---
 
-# Ollama vs Shards propios
+# llama.cpp vs shards vs Ollama
 
 → [[index]]
 
-## Árbol de decisión
+## Prioridad real (node/llama_backend.py + orchestrator.infer)
 
 ```
-memory_response_engine.py calcula coverage score
-  ├─ Alto → articula desde memoria episódica vía Ollama
-  └─ Bajo →
-       ├─ _shards_available() == True → genera con shards propios (INT4 numpy)
-       └─ _shards_available() == False → Ollama fallback
+1. llama-cpp-python  in-process (si esta instalado)
+2. llama-server      subprocess :8088, GGUF Q4_K_M, b9391 pineado  <- PRODUCCION
+3. shards numpy      fallback distribuido/local (INT4, sin PyTorch)
+4. Ollama            fallback legacy (language_engine._call_ollama y
+                     _ollama_infer del orchestrator; respeta OLLAMA_URL)
 ```
 
-## Cuándo _shards_available() es True
+| Eje | llama.cpp+GGUF | shards numpy | Ollama |
+|---|---|---|---|
+| Rol | camino DEFAULT del producto | capa swarm/fallback | legacy opcional |
+| Velocidad (i3) | ~8 tok/s (3B) | ~0.1 tok/s | depende del host |
+| Instalacion | cognia install-model | install-weights | externa (manual) |
+| Multi-modelo | fleet + portero + 7B | LOGOS/TECHNE/RHETOR | un modelo |
+| Aprendizaje | LoRA hot-swap (adapters.json) | ELC/FedAvg | no |
 
-- `SHARD_WEIGHTS_DIR` seteado en `.env`
-- Directorio contiene shards + `tokenizer.json`
-- Pesos descargados con `convert_hf_to_shards.py`
+## Historia
 
-## Trade-offs
-
-| | Shards propios | Ollama |
-|---|---|---|
-| Privacidad | Alta — corre local | Depende del endpoint |
-| Velocidad | ~0.1 tok/s (sin JIT) | Variable |
-| Dependencia | Solo numpy | Ollama instalado |
-| Personalización | ELC integrado | No |
+La version anterior comparaba solo "Ollama vs shards" con un arbol
+coverage→decision que ya no describe el producto: desde 3.8.x el chat y
+el agente van por el backend GGUF, y desde 2026-07-16 /crear, el
+researcher y las hipotesis tambien (Ollama quedo como fallback honesto).
 
 ## Links
 
-- [[synthesis/inference_pipeline]]
-- [[entities/memory_response_engine]]
-- [[entities/shard_engine]]
+- [[entities/llama_backend]]
+- [[concepts/install_model]]
+- [[concepts/sharding]]

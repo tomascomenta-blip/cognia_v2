@@ -2,13 +2,21 @@
 title: Modelo de seguridad de Cognia
 type: synthesis
 tags: [security, auth, encryption, relay, electron]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # Modelo de seguridad
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Capas nuevas no listadas abajo: los servers de inferencia locales bindean
+explicitamente 127.0.0.1 (llama-server :8088, portero :8090, 7B :8092;
+release 3.8.8), fix CSP del desktop (localhost vs 127.0.0.1, 2026-07-15), y
+el sandbox del self-tooling ([[concepts/skills_hermes]]: allowlist de
+imports + timeout antes de registrar nada auto-generado).
 ## Variables críticas
 
 | Variable | Riesgo si falta |

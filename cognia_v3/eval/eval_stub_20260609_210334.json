@@ -1,0 +1,77 @@
+{
+  "label": "stub",
+  "timestamp": "2026-06-09T21:03:34.292806",
+  "avg_score": 0.0,
+  "results": [
+    {
+      "id": "R1",
+      "category": "reasoning",
+      "prompt": "If a dog is a mammal and all mammals are warm-blooded, is a dog warm-blooded? Answer yes or no and explain.",
+      "response": "I don't know.",
+      "score": 0.0
+    },
+    {
+      "id": "R2",
+      "category": "logic",
+      "prompt": "If it rains the ground gets wet. The ground is wet. Did it necessarily rain?",
+      "response": "I don't know.",
+      "score": 0.0
+    },
+    {
+      "id": "F1",
+      "category": "factual",
+      "prompt": "What causes rain?",
+      "response": "I don't know.",
+      "score": 0.0
+    },
+    {
+      "id": "F2",
+      "category": "factual",
+      "prompt": "What is the capital of France?",
+      "response": "I don't know.",
+      "score": 0.0
+    },
+    {
+      "id": "F3",
+      "category": "factual",
+      "prompt": "What is machine learning?",
+      "response": "I don't know.",
+      "score": 0.0
+    },
+    {
+      "id": "M1",
+      "category": "math",
+      "prompt": "What is 15% of 200?",
+      "response": "I don't know.",
+      "score": 0.0
+    },
+    {
+      "id": "C1",
+      "category": "code",
+      "prompt": "Write a Python function that reverses a string.",
+      "response": "I don't know.",
+      "score": 0.0
+    },
+    {
+      "id": "C2",
+      "category": "code",
+      "prompt": "In Python, what is the difference between a list and a tuple?",
+      "response": "I don't know.",
+      "score": 0.0
+    },
+    {
+      "id": "C3",
+      "category": "code",
+      "prompt": "Write Python code to iterate a list printing index and value.",
+      "response": "I don't know.",
+      "score": 0.0
+    },
+    {
+      "id": "C4",
+      "category": "cs",
+      "prompt": "Name 3 common sorting algorithms.",
+      "response": "I don't know.",
+      "score": 0.0
+    }
+  ]
+}

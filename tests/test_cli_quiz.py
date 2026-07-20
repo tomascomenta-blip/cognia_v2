@@ -11,21 +11,31 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import cognia.cli as cli
 from cognia.cli import _slash_quiz, _slash_quiz_stats, _slash_exportar_todo, COMMANDS
 
 
-def test_quiz_handles_connection_error(capsys):
-    with patch("requests.get", side_effect=ConnectionError("refused")):
-        _slash_quiz("")
-    out = capsys.readouterr().out
-    assert "no disponible" in out.lower() or "refused" in out.lower()
+def _patch_quiz(tmp_path, monkeypatch):
+    from cognia.learning.quiz_generator import QuizGenerator
+    db = str(tmp_path / "learn.db")
+    monkeypatch.setattr(cli, "_quiz_gen", lambda: QuizGenerator(db_path=db, kg_db_path=db))
+    return db
 
 
-def test_quiz_stats_handles_connection_error(capsys):
-    with patch("requests.get", side_effect=ConnectionError("refused")):
-        _slash_quiz_stats("")
+def test_quiz_empty_no_http(tmp_path, monkeypatch, capsys):
+    # No SR cards and no KG -> nothing to ask, but never an HTTP failure.
+    _patch_quiz(tmp_path, monkeypatch)
+    _slash_quiz("")
     out = capsys.readouterr().out
-    assert "no disponible" in out.lower()
+    assert "no disponible" not in out.lower()
+
+
+def test_quiz_stats_empty_no_http(tmp_path, monkeypatch, capsys):
+    _patch_quiz(tmp_path, monkeypatch)
+    _slash_quiz_stats("")
+    out = capsys.readouterr().out
+    assert "Intentos totales : 0" in out
+    assert "no disponible" not in out.lower()
 
 
 def test_exportar_todo_handles_connection_error(capsys, tmp_path):
@@ -43,20 +53,16 @@ def test_exportar_todo_creates_directory(capsys, tmp_path):
     assert dest.exists()
 
 
-def test_quiz_stats_shows_precision(capsys):
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "total_attempts": 10,
-        "correct": 7,
-        "accuracy": 0.7,
-        "by_source": {
-            "kg": {"total": 5, "correct": 4},
-            "cards": {"total": 5, "correct": 3},
-        },
-    }
-    with patch("requests.get", return_value=mock_resp):
-        _slash_quiz_stats("")
+def test_quiz_stats_shows_precision(tmp_path, monkeypatch, capsys):
+    db = _patch_quiz(tmp_path, monkeypatch)
+    gen = cli._quiz_gen()
+    # 7 correct out of 10 -> 70.0% precision, computed locally.
+    for _ in range(7):
+        gen.record_answer("q", "a", "a", source="kg")
+    for _ in range(3):
+        gen.record_answer("q", "a", "wrong", source="kg")
+
+    _slash_quiz_stats("")
     out = capsys.readouterr().out
     assert "70.0%" in out
     assert "Precision" in out

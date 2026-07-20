@@ -1,0 +1,68 @@
+{
+  "3B-Coder": {
+    "cielo": {
+      "text": "El cielo se vuelve azul porque las partículas de polvo y humo en el aire dispersan la luz del sol, especialmente la luz roja, hacia los sentidos humanos. La luz azul es dispersada más fuertemente, por lo que la luz roja sobrevive más tiempo, dando la impresión de que el cielo es azul.",
+      "tok_s": 8.74,
+      "n": 81
+    },
+    "saludo": {
+      "text": "¡Hola! Soy Cognia, un asistente virtual para ayudarte con tus preguntas y tareas.",
+      "tok_s": 9.04,
+      "n": 25
+    },
+    "dormir": {
+      "text": "Una sugerencia corta y práctica para dormir mejor es establecer un horario de sueño regular y mantener una rutina de limpieza y meditación antes de acostarte.",
+      "tok_s": 8.97,
+      "n": 41
+    },
+    "gravedad": {
+      "text": "La gravedad es la fuerza que atrae cualquier objeto hacia el centro de la Tierra.",
+      "tok_s": 9.05,
+      "n": 23
+    }
+  },
+  "0.5B-Coder": {
+    "cielo": {
+      "text": "El cielo es azul, como si estuvieras hablando con un amigo.",
+      "tok_s": 33.44,
+      "n": 20
+    },
+    "saludo": {
+      "text": "¡Hola! Como soy Cognia, un asistente de inteligencia artificial que puede ayudarte con una amplia gama de tareas, desde la planificación de tareas hasta la ejecución de tareas en línea. ¿En qué puedo ayudarte hoy?",
+      "tok_s": 37.45,
+      "n": 57
+    },
+    "dormir": {
+      "text": "1. Dormir siempre a 7-9 horas de la noche.\n2. Mantén una calma y tranquila en tu habitación.\n3. Compartir tu tiempo con amigos y familiares.\n4. Mantén una dieta saludable y nutritiva.\n5. Utiliza una música o estúndio divertido para mantener tu mente atenta.\n6. Cuida de tu cuerpo y esté en un estado de calma.",
+      "tok_s": 36.95,
+      "n": 93
+    },
+    "gravedad": {
+      "text": "La gravedad es una propiedad que determina la fuerza que se produce en una persona debido a la dirección de sus movimientos.",
+      "tok_s": 37.58,
+      "n": 29
+    }
+  },
+  "0.5B-Instruct": {
+    "cielo": {
+      "text": "¡Eres Cognia! ¡Eres un niño muy inteligente! ¿Cómo puedo ayudarte hoy?",
+      "tok_s": 33.93,
+      "n": 24
+    },
+    "saludo": {
+      "text": "¡Hola! Me llamo Cognia. Estoy aquí para ayudarte.",
+      "tok_s": 38.77,
+      "n": 18
+    },
+    "dormir": {
+      "text": "¡Por supuesto! Aquí te dejo algunos consejos que podrían ayudarte a dormir mejor:\n\n1. **Planifica tu día**: Si tienes un calendario para tu día, deja un espacio para dormir. Esto te ayuda a planificar y prepararte para el momento.\n\n2. **Limpias tus manos**: No te olvides de limpiar tus manos antes de dormir. Esto reduce el riesgo de contraer virus.\n\n3. **Aplica un cálido espejo**: Este espejo caliente, ya que contiene un ácido que actúa como un antiviral. Tu cálido es",
+      "tok_s": 36.19,
+      "n": 130
+    },
+    "gravedad": {
+      "text": "La gravedad es el eje horizontal que todos los objetos tienen en el suelo.",
+      "tok_s": 33.21,
+      "n": 20
+    }
+  }
+}

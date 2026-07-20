@@ -1,0 +1,56 @@
+{
+  "exp": "exp058_adaptive_value_memory",
+  "cycle": 74,
+  "hypothesis": "H-V4-5d",
+  "claim": "un meta-selector full<->decay gateado por el hit-rate reciente de cada experto (endógeno) logra no-regret en ambos regímenes: el estimador de valor elige su propia tasa de olvido",
+  "verdict": "apoyada",
+  "summary": {
+    "stationary": {
+      "oracle_current": 0.5209,
+      "lfu_full": 0.511,
+      "lfu_decay": 0.4432,
+      "selector": 0.5069,
+      "recency": 0.3816,
+      "random": 0.2082,
+      "_selector_frac_decay": 0.06
+    },
+    "nonstationary": {
+      "oracle_current": 0.5162,
+      "lfu_full": 0.3405,
+      "lfu_decay": 0.4303,
+      "selector": 0.4246,
+      "recency": 0.3794,
+      "random": 0.2052,
+      "_selector_frac_decay": 0.876
+    },
+    "matches_best_stat": true,
+    "matches_best_ns": true,
+    "beats_wrong_stat": true,
+    "beats_wrong_ns": true,
+    "no_regret": true,
+    "status": "apoyada",
+    "verdict": "H-V4-5d APOYADA: el estimador de valor ELIGE su tasa de olvido de su propia sorpresa (no-regret). ESTACIONARIO: selector 0.507 iguala al mejor (full 0.511; supera a decay 0.443). NO-ESTACIONARIO: selector 0.425 iguala al mejor (decay 0.430; supera a full 0.341). Ningún experto FIJO logra ser el mejor en AMBOS regímenes (full pierde con cambio, decay paga sin cambio), pero el SELECTOR discreto -- gateado por el hit-rate reciente de cada experto, ENDÓGENO -- sí. El selector usó decay 88% del tiempo en no-estac. y 6% en estac.: detecta el régimen de su sorpresa. => cierra la muleta 'decay fijo' del CYCLE 73; replica el selector de estrategia (CYCLE 66) sobre el estimador de valor. R-VALOR elige QUÉ vale, CUÁNDO dejó de valer Y a qué RITMO olvidar."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 32,
+    "n": 50,
+    "m": 10,
+    "alpha": 1.5,
+    "K_phase": 300,
+    "n_phases": 6,
+    "decay": 0.97,
+    "beta": 0.98
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp058] CYCLE 74 / H-V4-5d — el estimador de valor ELIGE su tasa de olvido (selector full<->decay endógeno)",
+    "[exp058] n=50 m=10 K_phase=300 n_phases=6 decay=0.97 beta=0.98 seeds=32",
+    "[exp058] ESTACIONARIO   oracle=0.521 full=0.511 decay=0.443 selector=0.507 (usa decay 6%) recency=0.382 random=0.208",
+    "[exp058] NO-ESTACIONARIO oracle=0.516 full=0.341 decay=0.430 selector=0.425 (usa decay 88%) recency=0.379 random=0.205",
+    "[exp058] VEREDICTO H-V4-5d: APOYADA | H-V4-5d APOYADA: el estimador de valor ELIGE su tasa de olvido de su propia sorpresa (no-regret). ESTACIONARIO: selector 0.507 iguala al mejor (full 0.511; supera a decay 0.443). NO-ESTACIONARIO: selector 0.425 iguala al mejor (decay 0.430; supera a full 0.341). Ningún experto FIJO logra ser el mejor en AMBOS regímenes (full pierde con cambio, decay paga sin cambio), pero el SELECTOR discreto -- gateado por el hit-rate reciente de cada experto, ENDÓGENO -- sí. El selector usó decay 88% del tiempo en no-estac. y 6% en estac.: detecta el régimen de su sorpresa. => cierra la muleta 'decay fijo' del CYCLE 73; replica el selector de estrategia (CYCLE 66) sobre el estimador de valor. R-VALOR elige QUÉ vale, CUÁNDO dejó de valer Y a qué RITMO olvidar."
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "exp": "exp062_surprise_intervention",
+  "cycle": 78,
+  "hypothesis": "H-V4-5h",
+  "claim": "una intervencion barata gateada por sorpresa (re-sondar ocasional, no slot fijo) recupera el valor que la observacion gateada pierde bajo drift, donde el slot fijo del CYCLE 77 no podia",
+  "verdict": "refutada",
+  "summary": {
+    "stationary": {
+      "oracle_value": 0.662,
+      "value_full": 0.6532,
+      "value_miss": 0.6529,
+      "value_explore": 0.5877,
+      "value_surprise": 0.6176,
+      "lfu_freq": 0.5025,
+      "random": 0.1769
+    },
+    "drift": {
+      "oracle_value": 0.6598,
+      "value_full": 0.6125,
+      "value_miss": 0.5613,
+      "value_explore": 0.5324,
+      "value_surprise": 0.5451,
+      "lfu_freq": 0.5029,
+      "random": 0.186
+    },
+    "surprise_helps_drift": false,
+    "surprise_beats_explore": true,
+    "surprise_neutral_stationary": false,
+    "obs_gap_drift": 0.0512,
+    "surprise_recovers_gap": -0.3164,
+    "status": "refutada",
+    "verdict": "H-V4-5h REFUTADA: ni la intervención barata sorpresa-gateada paga. COST_DRIFT value_surprise 0.545 no supera a value_miss 0.561 (+-0.016) -> el gap de observación bajo drift (0.051) es demasiado chico para que CUALQUIER intervención lo recupere; la observación pasiva del contrafáctico es robusta aun con drift. Confirma y generaliza el 77: el problema es real pero MENOR; intervenir no paga ni barato."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 32,
+    "n": 50,
+    "m": 10,
+    "alpha_f": 1.5,
+    "alpha_c": 1.5,
+    "K_phase": 300,
+    "n_phases": 6,
+    "probe_len": 40,
+    "surp_margin": 0.04
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp062] CYCLE 78 / H-V4-5h — intervención BARATA sorpresa-gateada (re-sondar ocasional, no slot fijo)",
+    "[exp062] n=50 m=10 K_phase=300 n_phases=6 probe_len=40 surp_margin=0.04 seeds=32",
+    "[exp062] COST_STATIONARY: oracle=0.662 full=0.653 miss=0.653 explore=0.588 surprise=0.618 lfu=0.502",
+    "[exp062] COST_DRIFT:      oracle=0.660 full=0.613 miss=0.561 explore=0.532 surprise=0.545 lfu=0.503",
+    "[exp062] DRIFT: surprise-miss=-0.016 (recupera -32% del gap 0.051); STAT: surprise-miss=-0.035",
+    "[exp062] VEREDICTO H-V4-5h: REFUTADA | H-V4-5h REFUTADA: ni la intervención barata sorpresa-gateada paga. COST_DRIFT value_surprise 0.545 no supera a value_miss 0.561 (+-0.016) -> el gap de observación bajo drift (0.051) es demasiado chico para que CUALQUIER intervención lo recupere; la observación pasiva del contrafáctico es robusta aun con drift. Confirma y generaliza el 77: el problema es real pero MENOR; intervenir no paga ni barato."
+  ]
+}

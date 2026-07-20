@@ -1,0 +1,76 @@
+{
+  "exp": "exp065_verifier_relevance",
+  "cycle": 81,
+  "hypothesis": "H-V4-6c",
+  "claim": "el verificador es la marginal-de-relevancia de R-VALOR: la reconstruccion control x verificador reconstruye el valor y tolera el ruido del verificador hasta un eps*, unificando el arco verificador (48-55) con R-VALOR (79-80)",
+  "verdict": "apoyada",
+  "summary": {
+    "by_eps": {
+      "0.0": {
+        "oracle_value": 1.0,
+        "empowerment": 0.3869,
+        "verifier_only": 0.8118,
+        "rvalue_verifier": 1.0,
+        "random": 0.199
+      },
+      "0.1": {
+        "oracle_value": 1.0,
+        "empowerment": 0.4331,
+        "verifier_only": 0.6613,
+        "rvalue_verifier": 0.8818,
+        "random": 0.2661
+      },
+      "0.2": {
+        "oracle_value": 1.0,
+        "empowerment": 0.3715,
+        "verifier_only": 0.5212,
+        "rvalue_verifier": 0.6949,
+        "random": 0.2412
+      },
+      "0.3": {
+        "oracle_value": 1.0,
+        "empowerment": 0.4135,
+        "verifier_only": 0.3727,
+        "rvalue_verifier": 0.5898,
+        "random": 0.2194
+      },
+      "0.5": {
+        "oracle_value": 1.0,
+        "empowerment": 0.3996,
+        "verifier_only": 0.2246,
+        "rvalue_verifier": 0.3564,
+        "random": 0.243
+      }
+    },
+    "rvalue_at_zero": 1.0,
+    "eps_star": 0.3,
+    "recovers_at_zero": true,
+    "tolerant": true,
+    "adds_at_zero": true,
+    "collapses_at_half": true,
+    "status": "apoyada",
+    "verdict": "H-V4-6c APOYADA: el VERIFICADOR es la marginal-de-RELEVANCIA de R-VALOR, y la reconstrucción TOLERA su ruido. ε=0: rvalue_verifier (ctrl × verificador) 1.000 recupera >=85% del oráculo y vence a empowerment 0.387 (control solo) por +0.613 -> reconstruye R-VALOR con el verificador como relevancia. TOLERANCIA: rvalue_verifier supera a empowerment hasta ε*=0.300 (sustancial -- aguanta hasta ~30% de error del verificador; mismo RÉGIMEN de tolerancia que exp053 aunque algo menor que su ε*≈0.50, con métrica/tarea distintas). En ε=0.5 (verificador inútil) rvalue_verifier 0.356 ~ empowerment 0.400 (no agrega): degrada con gracia hacia el control solo. => UNIFICA el arco verificador (48-55) con R-VALOR (79-80): el agente de act-and-verify estima IMPLÍCITAMENTE R-VALOR = control × verificador-relevancia; la relevancia no necesita oráculo, la da el verificador (ruidoso pero tolerable)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k": 10,
+    "p_rel": 0.3
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp065] CYCLE 81 / H-V4-6c — el VERIFICADOR como marginal-de-relevancia de R-VALOR (robustez al ruido ε)",
+    "[exp065] n=50 k=10 p_rel=0.3 seeds=48 eps=[0.0, 0.1, 0.2, 0.3, 0.5]",
+    "[exp065] eps=0.0: oracle=1.000 empowerment=0.387 verifier_only=0.812 rvalue_verifier=1.000 random=0.199",
+    "[exp065] eps=0.1: oracle=1.000 empowerment=0.433 verifier_only=0.661 rvalue_verifier=0.882 random=0.266",
+    "[exp065] eps=0.2: oracle=1.000 empowerment=0.371 verifier_only=0.521 rvalue_verifier=0.695 random=0.241",
+    "[exp065] eps=0.3: oracle=1.000 empowerment=0.413 verifier_only=0.373 rvalue_verifier=0.590 random=0.219",
+    "[exp065] eps=0.5: oracle=1.000 empowerment=0.400 verifier_only=0.225 rvalue_verifier=0.356 random=0.243",
+    "[exp065] reconstruye en eps=0: 1.000; tolerancia eps*=0.30 (vence al control hasta ese ruido del verificador)",
+    "[exp065] VEREDICTO H-V4-6c: APOYADA | H-V4-6c APOYADA: el VERIFICADOR es la marginal-de-RELEVANCIA de R-VALOR, y la reconstrucción TOLERA su ruido. ε=0: rvalue_verifier (ctrl × verificador) 1.000 recupera >=85% del oráculo y vence a empowerment 0.387 (control solo) por +0.613 -> reconstruye R-VALOR con el verificador como relevancia. TOLERANCIA: rvalue_verifier supera a empowerment hasta ε*=0.300 (sustancial -- aguanta hasta ~30% de error del verificador; mismo RÉGIMEN de tolerancia que exp053 aunque algo menor que su ε*≈0.50, con métrica/tarea distintas). En ε=0.5 (verificador inútil) rvalue_verifier 0.356 ~ empowerment 0.400 (no agrega): degrada con gracia hacia el control solo. => UNIFICA el arco verificador (48-55) con R-VALOR (79-80): el agente de act-and-verify estima IMPLÍCITAMENTE R-VALOR = control × verificador-relevancia; la relevancia no necesita oráculo, la da el verificador (ruidoso pero tolerable)."
+  ]
+}

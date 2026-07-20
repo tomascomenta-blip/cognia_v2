@@ -87,6 +87,33 @@ DYN_QUANT_THRESH_FP16:  int   = 15   # moderate  → FP16 cache  (2 bytes/param)
 DYN_QUANT_THRESH_FP32:  int   = 30   # high-freq → FP32 cache  (4 bytes/param, fastest matmul)
 DYN_QUANT_IDLE_DECAY_S: float = 300.0  # 5 min idle → auto-reset counter + drop cache
 
+# Generation limits (FASE 1: respuestas largas). Single source of truth so the
+# orchestrator, desktop API and continuation loop agree on token budgets.
+GEN_DEFAULT_MAX_TOKENS: int = 768   # orchestrator default (short answers, low latency)
+GEN_CHAT_MAX_TOKENS:    int = 1024  # interactive chat (desktop API)
+GEN_LONG_MAX_TOKENS:    int = 5000  # long-form generation target (FASE 1 goal)
+GEN_CONTINUATION_CHUNK: int = 2048  # per-round chunk in the continuation loop
+# Guarda de contexto para la continuacion: cuando prompt+texto acumulado se acerca
+# a _CTX_SIZE, generate_long deja de reenviar TODO y manda prompt + la cola reciente,
+# acotando el prefill (sin esto las rondas tardias desbordan el ctx de 16k). El
+# estimador es ~4 chars/token, consistente con el fallback del loop.
+GEN_CTX_GUARD_RATIO:    float = 0.75  # fraccion de _CTX_SIZE como techo del prefill
+GEN_CTX_MARGIN_TOKENS:  int   = 64    # margen extra reservado por debajo del ctx
+# Generacion jerarquica (outline -> secciones con prompt fresco): rompe el techo de
+# ctx porque cada seccion parte de un prefill acotado (solo el outline + un resumen
+# corto de lo previo), no del texto completo acumulado.
+GEN_HIERARCHICAL_SECTIONS: int = 5    # secciones por defecto en generate_hierarchical
+GEN_SECTION_SUMMARY_CHARS: int = 200  # chars del resumen de la seccion previa (continuidad)
+# Tope de entrada de usuario para /largo --tokens (validacion de la CLI, no del backend):
+# 200k tokens es "generacion de un libro corto"; por encima de eso el pedido casi seguro es
+# un error de tipeo. El modo plano sigue acotado ademas por GEN_LONG_MAX_TOKENS (ver _slash_largo).
+GEN_USER_MAX_TOKENS_CAP: int = 200000
+# Temperatura del chat interactivo. Explicitarla (en vez de heredar el default
+# 0.7 del backend) alinea producto y metrica: el benchmark mide a temp=0.0 y
+# el chat samplea a 0.7 — con la constante esa diferencia queda visible y
+# auditable en un solo lugar.
+GEN_CHAT_TEMPERATURE:   float = 0.7
+
 # Router: semantic embedding routing (Phase 20.1)
 ROUTER_SEMANTIC_THRESHOLD: float = 0.6   # cosine sim below this -> fall back to keyword
 ROUTER_SEMANTIC_BLEND:     float = 0.30  # weight for semantic vs keyword (0=keyword, 1=semantic)
@@ -117,6 +144,50 @@ COGNIA_SYSTEM_PROMPT = (
     "tu creador es Tomas Montes (no Anthropic ni Alibaba). Responde en espanol "
     "de forma clara y directa."
 )
+
+# ── Modelos GGUF conmutables en caliente (comando REPL /modelo) ──────────
+# Rutas RELATIVAS al root del repo (el repo puede moverse de disco/carpeta);
+# se resuelven a absolutas en runtime con resolve_gguf_path().
+# Medicion 2026-06-12 en i3-10110U (llama-server b9391, benchmark pass@1):
+#   3b: 40% pass@1, ~8 tok/s  |  7b: 50% pass@1, ~2.2 tok/s
+#   cascada 3b->7b: 60% pass@1 (el 7b recupera casos que el 3b falla)
+MODEL_GGUF_REGISTRY: dict = {
+    "3b": "model_shards/qwen-coder-3b-q4/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+    "7b": "model_shards/qwen-coder-7b-q4/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
+}
+MODEL_GGUF_DEFAULT: str = "3b"   # default actual del backend (ver _GGUF_CANDIDATES)
+
+
+def resolve_gguf_path(key: str):
+    """Ruta absoluta (Path) del GGUF del registry para `key`, o None si no existe la clave.
+
+    Resuelve contra el root del repo (este archivo vive en shattering/), asi el
+    registry sobrevive a mover el repo de disco. Si esa ruta no existe (el
+    producto INSTALADO no tiene model_shards/ alrededor de site-packages),
+    cae a la instalacion estandar ~/.cognia/models/**/<mismo nombre> — sin
+    esto /modelo 7b y la cascada heavy_code quedaban mudos instalados
+    (auditoria e2e 2026-07-15). Solo entonces devuelve None-por-inexistencia
+    via el caller (esta funcion mantiene su contrato: no exige existencia
+    para la ruta del repo, que es el modo dev)."""
+    from pathlib import Path
+    rel = MODEL_GGUF_REGISTRY.get(key)
+    if rel is None:
+        return None
+    p = Path(__file__).resolve().parent.parent / rel
+    if p.is_file():
+        return p
+    nombre = Path(rel).name
+    home_models = Path.home() / ".cognia" / "models"
+    if home_models.is_dir():
+        # match exacto por nombre primero; despues case-insensitive
+        for cand in home_models.rglob("*.gguf"):
+            if cand.name == nombre:
+                return cand
+        for cand in home_models.rglob("*.gguf"):
+            if cand.name.lower() == nombre.lower():
+                return cand
+    return p
+
 
 # HuggingFace dataset that hosts the pre-converted INT4 .npz shards.
 # Upload once with: huggingface-cli upload Acua124298042/cognia-shards

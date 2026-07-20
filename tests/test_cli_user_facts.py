@@ -70,16 +70,29 @@ def test_cognia_olvida_requires_numeric_id():
 # /argumento
 # ---------------------------------------------------------------------------
 
+def _fake_ai_arg(texto):
+    """/argumento genera por el backend REAL desde 2026-07-16."""
+    import types
+
+    class _Orch:
+        def infer(self, prompt, max_tokens=None, temperature=None):
+            return types.SimpleNamespace(text=texto, mode="local")
+
+    return types.SimpleNamespace(_orchestrator=_Orch())
+
+
 def test_argumento_requires_args():
     """Without args, prints usage hint."""
-    out = _capture(_slash_argumento, "")
+    out = _capture(_slash_argumento, None, "")
     assert "Uso:" in out
     assert "/argumento" in out
 
 
 def test_argumento_prints_tesis_antitesis_sintesis():
-    """With a tesis, prints all three analysis sections."""
-    out = _capture(_slash_argumento, "la educacion publica es superior")
+    """With a tesis, prints all three analysis sections (del modelo)."""
+    ai = _fake_ai_arg("TESIS:\n  acceso universal\nANTITESIS:\n  calidad "
+                      "desigual\nSINTESIS:\n  depende del financiamiento")
+    out = _capture(_slash_argumento, ai, "la educacion publica es superior")
     assert "TESIS:" in out
     assert "ANTITESIS:" in out
     assert "SINTESIS:" in out

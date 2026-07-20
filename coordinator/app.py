@@ -112,9 +112,12 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # CORS restricted to known local origins; override via env var for cloud deploys
+# (localhost Y 127.0.0.1: los servers bindean 127.0.0.1 — un front servido
+# desde ahi tenia el Origin bloqueado; cazado 2026-07-16)
 _cors_origins = json.loads(
     os.environ.get("COORDINATOR_ALLOWED_ORIGINS",
-                   '["http://localhost:3000","http://localhost:8001","http://localhost:8765"]')
+                   '["http://localhost:3000","http://localhost:8001","http://localhost:8765",'
+                   '"http://127.0.0.1:3000","http://127.0.0.1:8001","http://127.0.0.1:8765"]')
 )
 app.add_middleware(
     CORSMiddleware,
@@ -579,7 +582,7 @@ async def shattering_infer(
 
     If sub_model is omitted, GlobalRouter picks it automatically.
     Internally: creates a session for the target model, waits for shards to connect,
-    forwards a stub hidden state, and returns the session result.
+    forwards the encoded prompt (PTYPE_TEXT) to shard 0, and returns the session result.
 
     Note: real token generation requires the shard nodes to be running with actual
     weights. Without connected shard nodes this returns a 503.

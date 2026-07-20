@@ -96,7 +96,9 @@ class ThoughtCache:
 
     @contextmanager
     def _conn(self):
-        conn = sqlite3.connect(self._db_path, timeout=10)
+        # (2026-07-16) pool compartido en vez de connect directo (regla del repo)
+        from storage.db_pool import db_connect_pooled
+        conn = db_connect_pooled(self._db_path)
         conn.row_factory = sqlite3.Row
         try:
             yield conn

@@ -1,0 +1,177 @@
+{
+  "exp": "exp122_active_inference",
+  "cycle": 138,
+  "hypothesis": "H-V4-10l",
+  "claim": "MIXTA (post-verificacion adversarial de 3 agentes). PUENTE TEORICO VALIDO: en un modelo lineal-gaussiano con preferencia gaussiana, el termino PRAGMATICO de la EFE = w^2*v*ctrl; el keystone del lab (w*ctrl, 129) es su LIMITE binary+uniforme -> active inference SUBSUME el keystone como caso especial (grounding normativo del producto; la directiva acerto DERIVACIONALMENTE). El producto-estructurado es LEARNABLE leakage-free. PERO la 'emergencia EMPIRICA' es TAUTOLOGICA (efe_pragmatic ES byte-identico a la metrica del eval -> efe=oracle por construccion); 'emerge bajo binary' es la identidad trivial w^2=w; el '+0.43 refinamiento' es artefacto de un canonico hand-tuned (mediana ~0 en configs aleatorias); el MECANISMO 'w^2 refina' es FALSO -- la varianza-prior v hace el grueso y el cuadrado es neutro-a-daino bajo estimacion (w*v*ctrl > w^2*v*ctrl en todo T finito), asi que la correccion ROBUSTA es incluir v, NO el cuadrado; la unificacion exploracion/empowerment es conjetura (con epistemico canonico sigma^2 apenas paga). Alcance: lineal-gaussiano, modos independientes",
+  "verdict": "mixta",
+  "summary": {
+    "known": {
+      "binary_uniform": {
+        "efe_pragmatic": 1.0,
+        "v_correction": 1.0,
+        "keystone_lab": 1.0,
+        "relevancia": 0.4625,
+        "control": 0.4875,
+        "prediccion": 0.225,
+        "efe_eq_keystone": 1.0
+      },
+      "graded_nonuniform": {
+        "efe_pragmatic": 1.0,
+        "v_correction": 0.9848,
+        "keystone_lab": 0.5697,
+        "relevancia": 0.0,
+        "control": 0.6644,
+        "prediccion": 0.4953,
+        "efe_eq_keystone": 0.0
+      }
+    },
+    "randcfg": {
+      "efe_minus_keystone": {
+        "mean": 0.0446,
+        "median": 0.0,
+        "frac_gt_05": 0.225
+      },
+      "vcorr_minus_keystone": {
+        "mean": 0.0344,
+        "median": 0.0,
+        "frac_gt_05": 0.225
+      },
+      "efe_minus_vcorr": {
+        "mean": 0.0102,
+        "median": 0.0,
+        "frac_gt_05": 0.065
+      }
+    },
+    "by_T": {
+      "binary_uniform": {
+        "10": {
+          "efe": 0.8312,
+          "vcorr": 0.8312,
+          "keystone": 0.85
+        },
+        "25": {
+          "efe": 0.9937,
+          "vcorr": 0.9937,
+          "keystone": 0.9937
+        },
+        "75": {
+          "efe": 1.0,
+          "vcorr": 1.0,
+          "keystone": 1.0
+        },
+        "300": {
+          "efe": 1.0,
+          "vcorr": 1.0,
+          "keystone": 1.0
+        },
+        "1500": {
+          "efe": 1.0,
+          "vcorr": 1.0,
+          "keystone": 1.0
+        }
+      },
+      "graded_nonuniform": {
+        "10": {
+          "efe": 0.5897,
+          "vcorr": 0.6322,
+          "keystone": 0.6014
+        },
+        "25": {
+          "efe": 0.7857,
+          "vcorr": 0.8509,
+          "keystone": 0.712
+        },
+        "75": {
+          "efe": 0.9082,
+          "vcorr": 0.9724,
+          "keystone": 0.6127
+        },
+        "300": {
+          "efe": 0.9872,
+          "vcorr": 0.9949,
+          "keystone": 0.5697
+        },
+        "1500": {
+          "efe": 0.9992,
+          "vcorr": 0.9964,
+          "keystone": 0.5697
+        }
+      }
+    },
+    "by_beta": {
+      "uniform": {
+        "0.0": 0.913,
+        "0.5": 0.9401,
+        "1.0": 0.9152,
+        "2.0": 0.9521,
+        "5.0": 0.9417
+      },
+      "concentrated": {
+        "0.0": 0.9401,
+        "0.5": 0.91,
+        "1.0": 0.9269,
+        "2.0": 0.929,
+        "5.0": 0.8846
+      }
+    },
+    "bu_efe": 1.0,
+    "bu_keystone": 1.0,
+    "bu_efe_eq_keystone": 1.0,
+    "gn_efe": 1.0,
+    "gn_keystone": 0.5697,
+    "gn_vcorr": 0.9848,
+    "gn_relevancia": 0.0,
+    "gn_control": 0.6644,
+    "gn_prediccion": 0.4953,
+    "refine_median": 0.0,
+    "vcorr_median": 0.0,
+    "square_median": 0.0,
+    "est_mid_efe": 0.9082,
+    "est_mid_vcorr": 0.9724,
+    "est_mid_keystone": 0.6127,
+    "discovery_vcorr_T0": 0.6322,
+    "discovery_vcorr_TN": 0.9964,
+    "gain_uniform": 0.0391,
+    "gain_concentrated": 0.0,
+    "bridge_binary": true,
+    "factors_fail": true,
+    "efe_is_oracle": true,
+    "refine_is_artifact": true,
+    "v_does_the_work": false,
+    "square_harmful_estimated": true,
+    "converges_below": true,
+    "explore_pays_canonical": false,
+    "bridge_holds": true,
+    "status": "mixta",
+    "verdict": "H-V4-10l MIXTA (puente TEÓRICO válido + 'emergencia empírica' TAUTOLÓGICA/artefacto; post-verificación adversarial de 3 agentes, 8vo ciclo): la directiva acertó DERIVACIONALMENTE pero NO empíricamente. SOBREVIVE (puente teórico): en un modelo lineal-gaussiano con preferencia gaussiana (costo = E[G²], CUADRÁTICO), el término PRAGMÁTICO de la EFE = w²·v·ctrl; el keystone del lab (w·ctrl, 129) es su LÍMITE binary+uniforme (efe 1.000=keystone 1.000, w²=w, v=1) -> active inference SUBSUME el keystone como caso especial (GROUNDING NORMATIVO del producto). El producto-estructurado es LEARNABLE de un stream (converge desde abajo: T=10 0.632 -> T=1500 0.996, leakage-free). Las FACTORES simples FALLAN (graded relev 0.000/ctrl 0.664/pred 0.495) -> la composición es necesaria. NO SOBREVIVE (retractado por la verificación): (1) la 'emergencia EMPÍRICA' es TAUTOLÓGICA -- efe_pragmatic (w²·v·ctrl) es BYTE-IDÉNTICO a la métrica del eval, así que efe=oracle (1.000) por construcción y 'efe>keystone' es álgebra, no un hallazgo. (2) 'emerge bajo binary' es la identidad trivial w²=w. (3) el refinamiento efe-keystone es un ARTEFACTO del canónico hand-tuned: en 200 configs graded ALEATORIAS la MEDIANA del gap es 0.000 (~nulo; el canónico era percentil-100). (4) el MECANISMO 'w² refina' es FALSO: la VARIANZA-PRIOR v hace el grueso (v_correction-keystone mediana 0.000 >> cuadrado 0.000), y bajo params ESTIMADOS el cuadrado es NEUTRO-A-DAÑINO (T=75 v_correction 0.972 >= efe 0.908: el cuadrado amplifica el ruido de ŵ) -> la corrección ROBUSTA y LEARNABLE sobre el keystone es incluir la varianza-prior v (w·v·ctrl), NO elevar w al cuadrado. (5) la unificación exploración/empowerment es CONJETURA: con epistémico CANÓNICO (info-gain σ² puro) la exploración apenas paga (gan_unif +0.039, gan_conc +0.000). (6) ALCANCE: lineal-gaussiano, modos INDEPENDIENTES (no cubre los sustratos no-lineales 135-136 ni acoplados 137). => RESULTADO HONESTO: el keystone ctrl×rel es el LÍMITE binary+uniforme de la EFE pragmática (puente normativo real, confirma la directiva en lo TEÓRICO); la corrección empírica robusta es la varianza-prior v, no el cuadrado; la exploración como término EFE queda como conjetura."
+  },
+  "args": {
+    "smoke": true,
+    "seeds": 80
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp122] CYCLE 138 / H-V4-10l (HONESTO post-verificación) — ¿EMERGE el keystone de minimizar la EFE? Puente TEÓRICO válido vs 'emergencia empírica' tautológica",
+    "[exp122] seeds=80 D=8 K=2 rho=0.5 Ts=[10, 25, 75, 300, 1500] betas=[0.0, 0.5, 1.0, 2.0, 5.0] regimes=['binary_uniform', 'graded_nonuniform'] n_randcfg=200",
+    "[exp122] --- (1) PARAMS CONOCIDOS: efe(=oracle por construcción) / v_correction(w·v·c) / keystone(w·c) / factores ---",
+    "[exp122]   binary_uniform: efe=1.000(=oracle) v_corr=1.000 keystone=1.000 | relev=0.463 ctrl=0.487 pred=0.225",
+    "[exp122] graded_nonuniform: efe=1.000(=oracle) v_corr=0.985 keystone=0.570 | relev=0.000 ctrl=0.664 pred=0.495",
+    "[exp122] --- (2) DISTRIBUCIÓN del gap sobre 200 configs graded ALEATORIAS (¿refinamiento robusto o artefacto?) ---",
+    "[exp122] efe-keystone: mediana=0.000 media=0.045 frac>0.05=0.23 (canónico era +0.43)",
+    "[exp122] vcorr-keystone: mediana=0.000 | efe-vcorr (lo que añade el CUADRADO): mediana=0.000",
+    "[exp122] --- (3) PARAMS ESTIMADOS (no-tautológico): efe(w²vc) vs v_correction(wvc) vs keystone(wc) -- ¿daña el cuadrado? ---",
+    "[exp122] T=   10: efe=0.590 v_corr=0.632 keystone=0.601 | efe-vcorr=-0.042",
+    "[exp122] T=   25: efe=0.786 v_corr=0.851 keystone=0.712 | efe-vcorr=-0.065",
+    "[exp122] T=   75: efe=0.908 v_corr=0.972 keystone=0.613 | efe-vcorr=-0.064",
+    "[exp122] T=  300: efe=0.987 v_corr=0.995 keystone=0.570 | efe-vcorr=-0.008",
+    "[exp122] T= 1500: efe=0.999 v_corr=0.996 keystone=0.570 | efe-vcorr=+0.003",
+    "[exp122] --- (4) β-EXPLORACIÓN con epistémico CANÓNICO (σ² puro) — ¿paga explorar? ---",
+    "[exp122] σ-     uniform: β=0.0:0.913 β=0.5:0.940 β=1.0:0.915 β=2.0:0.952 β=5.0:0.942",
+    "[exp122] σ-concentrated: β=0.0:0.940 β=0.5:0.910 β=1.0:0.927 β=2.0:0.929 β=5.0:0.885",
+    "[exp122] CHECK bridge_binary=True factors_fail=True converges_below=True | efe_is_oracle(TAUTOL)=True refine_is_artifact=True (mediana 0.000) v_does_the_work=False square_harmful_estimated=True | explore_pays_canonical=False (gan_unif +0.039 gan_conc +0.000)",
+    "[exp122] VEREDICTO H-V4-10l: MIXTA | H-V4-10l MIXTA (puente TEÓRICO válido + 'emergencia empírica' TAUTOLÓGICA/artefacto; post-verificación adversarial de 3 agentes, 8vo ciclo): la directiva acertó DERIVACIONALMENTE pero NO empíricamente. SOBREVIVE (puente teórico): en un modelo lineal-gaussiano con preferencia gaussiana (costo = E[G²], CUADRÁTICO), el término PRAGMÁTICO de la EFE = w²·v·ctrl; el keystone del lab (w·ctrl, 129) es su LÍMITE binary+uniforme (efe 1.000=keystone 1.000, w²=w, v=1) -> active inference SUBSUME el keystone como caso especial (GROUNDING NORMATIVO del producto). El producto-estructurado es LEARNABLE de un stream (converge desde abajo: T=10 0.632 -> T=1500 0.996, leakage-free). Las FACTORES simples FALLAN (graded relev 0.000/ctrl 0.664/pred 0.495) -> la composición es necesaria. NO SOBREVIVE (retractado por la verificación): (1) la 'emergencia EMPÍRICA' es TAUTOLÓGICA -- efe_pragmatic (w²·v·ctrl) es BYTE-IDÉNTICO a la métrica del eval, así que efe=oracle (1.000) por construcción y 'efe>keystone' es álgebra, no un hallazgo. (2) 'emerge bajo binary' es la identidad trivial w²=w. (3) el refinamiento efe-keystone es un ARTEFACTO del canónico hand-tuned: en 200 configs graded ALEATORIAS la MEDIANA del gap es 0.000 (~nulo; el canónico era percentil-100). (4) el MECANISMO 'w² refina' es FALSO: la VARIANZA-PRIOR v hace el grueso (v_correction-keystone mediana 0.000 >> cuadrado 0.000), y bajo params ESTIMADOS el cuadrado es NEUTRO-A-DAÑINO (T=75 v_correction 0.972 >= efe 0.908: el cuadrado amplifica el ruido de ŵ) -> la corrección ROBUSTA y LEARNABLE sobre el keystone es incluir la varianza-prior v (w·v·ctrl), NO elevar w al cuadrado. (5) la unificación exploración/empowerment es CONJETURA: con epistémico CANÓNICO (info-gain σ² puro) la exploración apenas paga (gan_unif +0.039, gan_conc +0.000). (6) ALCANCE: lineal-gaussiano, modos INDEPENDIENTES (no cubre los sustratos no-lineales 135-136 ni acoplados 137). => RESULTADO HONESTO: el keystone ctrl×rel es el LÍMITE binary+uniforme de la EFE pragmática (puente normativo real, confirma la directiva en lo TEÓRICO); la corrección empírica robusta es la varianza-prior v, no el cuadrado; la exploración como término EFE queda como conjetura."
+  ]
+}

@@ -1,0 +1,9 @@
+{
+ "_comment": "Registro de suites congeladas por sha256 (anti-Goodhart). Una suite congelada NO se edita; un cambio = suite nueva con otro nombre y sha.",
+ "tasks_hard_v2.jsonl": {
+  "sha256": "0a69050fdbfb92c3ad938d62b4b10a959c749b0bd270b3cd81c70ed03ba7720c",
+  "n": 40,
+  "descripcion": "codigo duro con tests OCULTOS (20 originales de tasks_hard + 20 nuevas validadas por ejecucion). Gate del especialista 7B (MoM fase 4).",
+  "congelada": "2026-07-10"
+ }
+}

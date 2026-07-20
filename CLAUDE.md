@@ -7,6 +7,16 @@ Solo detenerse ante: borrar datos del usuario, romper producción en Railway, o 
 Subir todo a GitHub **excepto información sensible** (tokens, claves, `.env`, secretos).
 Publicar a PyPI u otros servicios externos solo con **autorización explícita** del dueño (es irreversible).
 
+### REGLA — Autonomía Total hasta Deadline (VINCULANTE)
+Cuando se active `/manager` con una **HORA LÍMITE**, regir la corrida por `MANAGER_AUTONOMIA_TOTAL.md`:
+mejoras **INDEFINIDAS**, **100% autónomas**, **SIN preguntar NADA** al usuario y **SIN detenerse en ningún
+momento**, hasta el deadline (donde se programa el apagado). El usuario está 100% inactivo: ante toda
+bifurcación, tomar la mejor decisión y seguir; encadenar ciclos sin checkpoints ni esperas; commitear+pushear
+cada unidad verificada para que el corte a deadline sea seguro. Las ÚNICAS excepciones que desvían (no
+detienen) el bucle son las 4 líneas duras de arriba (datos del usuario / producción / dinero / secretos). La
+autonomía total NO relaja el método (verificación REAL, tests, honestidad, logs append-only). Ver
+`MANAGER_AUTONOMIA_TOTAL.md` para el protocolo completo y la Config de la corrida.
+
 ## Método de trabajo — OBLIGATORIO para TODAS las sesiones de Claude
 Así se modifica este repo (es el método demostrado en las sesiones autónomas; seguirlo siempre):
 
@@ -58,7 +68,11 @@ Así se modifica este repo (es el método demostrado en las sesiones autónomas;
     los 3 primeros fueron parches y el 4º encontró la causa. El corte habría llegado en el 2º.
 
 ## Restricciones duras (no negociar)
-- Sin PyTorch en nodos. Sin sharding WAN síncrono. Sin FedAvg. Sin draft model centralizado.
+- Sin PyTorch en nodos. Sin sharding WAN síncrono. Sin draft model centralizado.
+- **FedAvg:** permitido SOLO sobre adapters LoRA (el coordinator agrega/redistribuye adapters),
+  NUNCA sobre parámetros completos del modelo base. Autorizado por el dueño 2026-06-16 (legitima
+  `coordinator/federated_store.py`). Sujeto a la regla de abajo: los adapters no deben permitir
+  reconstruir datos personales (ruido DP aplicado en cliente).
 - Cero datos personales centralizados.
 - HYDRA como atención en la red es INVIABLE (modelo pre-cuantizado INT4 + pre-shardeado).
   El trabajo HYDRA es el **análogo a nivel de sistema**: enrutador de contexto/memoria de
@@ -82,6 +96,14 @@ Tests rápidos (excluir e2e de inferencia, lento/pesado) — con el venv que SÍ
 Para verificación end-to-end real (no solo pytest): arrancar el CLI (`python -m cognia`) o
 construir el orquestador (`ShatteringOrchestrator(manifest_path="shattering/manifests/cognia_desktop.json")`
 + `_try_load_llama()`) y probar contra el modelo de verdad, mostrando el output.
+
+**GATE de pre-release del agente/CLI (OBLIGATORIO):** antes de publicar a PyPI o
+cambiar el sampling del agente (temperature/max_tokens/repeat_penalty/stop), correr
+el e2e del CAMINO FELIZ — `PYTHONUTF8=1 venv312\Scripts\python.exe scripts\e2e_happy_path.py`
+(5 tareas /hacer con postcondición, ~5 min) — y exigir 5/5. El pytest NO ejecuta el
+agente con modelo real: la regresión de 3.8.4 (un `repeat_penalty` que empujaba al 3B
+a basura → /hacer 0/5) pasó la suite y llegó a PyPI. Correr el camino feliz, no solo
+el repro del bug que motivó el cambio.
 
 ## Log
 Avances se appendean a `MANAGER_LOG.md` (nunca borrar entradas previas).

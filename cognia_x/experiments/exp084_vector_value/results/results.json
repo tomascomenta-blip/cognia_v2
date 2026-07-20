@@ -1,0 +1,65 @@
+{
+  "exp": "exp084_vector_value",
+  "cycle": 100,
+  "hypothesis": "H-V4-8e",
+  "claim": "bajo un objetivo VECTOR balance-requiriente (min(SV1,SV2) egalitario, objetivos anti-correlacionados) seleccionar por un objetivo o por la suma naive desbalancea y falla; la seleccion R-VALOR MARGINAL en la agregacion real balancea y recupera -> R-VALOR bajo objetivo vector es marginal en la agregacion",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "min_sym": {
+        "obj1_greedy": 0.2352,
+        "sum_greedy": 0.9585,
+        "marginal_greedy": 0.9874,
+        "oracle": 1.0,
+        "random": 0.7981
+      },
+      "min_asym": {
+        "obj1_greedy": 0.2341,
+        "sum_greedy": 0.519,
+        "marginal_greedy": 0.9805,
+        "oracle": 1.0,
+        "random": 0.5852
+      },
+      "sum_lin": {
+        "obj1_greedy": 0.8707,
+        "sum_greedy": 0.9848,
+        "marginal_greedy": 0.9848,
+        "oracle": 1.0,
+        "random": 0.8425
+      }
+    },
+    "asym_marg_vs_sum": 0.4615,
+    "asym_marg_vs_obj1": 0.7464,
+    "asym_oracle_gap": 0.0195,
+    "sym_sum_ok": 0.0289,
+    "lin_coincide": 0.0,
+    "asym_needs_marg": true,
+    "near_oracle": true,
+    "sym_sum_suffices": true,
+    "lin_coincides": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8e APOYADA: bajo objetivo VECTOR balance-requiriente (min(ΣV1,ΣV2), egalitario) Y ASIMÉTRICO (objetivo 2 de escala menor), la SUMA naive DESBALANCEA (carga el objetivo grande) y falla: sum_greedy=0.519 -- mientras la selección R-VALOR MARGINAL sube el objetivo REZAGADO y recupera: marginal_greedy=0.981 (vs sum +0.462, vs obj1 +0.746, ≈ oracle gap 0.019). Bajo objetivo SIMÉTRICO la suma YA balancea (marginal ≈ sum, Δ 0.029: por simetría max-suma ≈ balanceado). Bajo objetivo LINEAL ('sum') todos coinciden (Δ 0.000). => R-VALOR bajo un objetivo VECTOR balance-requiriente Y ASIMÉTRICO es la selección MARGINAL en la agregación real; la suma naive sólo basta bajo simetría; un solo objetivo falla siempre. Generaliza CYCLE 95 (marginal) a vector y conecta con CYCLE 83 (complementos g=min) a nivel de CONJUNTO -- el 'balance' es la forma vectorial de la cobertura/diversidad."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "m": 10,
+    "noise": 0.05,
+    "anti_noise": 0.15
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp084] CYCLE 100 / H-V4-8e — gap #4 (objetivo VECTOR): R-VALOR marginal bajo agregación egalitaria min(ΣV1,ΣV2)",
+    "[exp084] n=50 m=10 noise=0.05 anti_noise=0.15 seeds=48 objetivos=['min', 'sum']",
+    "[exp084]  min_sym: obj1=0.235 sum=0.959 marginal=0.987 oracle=1.000 random=0.798",
+    "[exp084] min_asym: obj1=0.234 sum=0.519 marginal=0.981 oracle=1.000 random=0.585",
+    "[exp084]  sum_lin: obj1=0.871 sum=0.985 marginal=0.985 oracle=1.000 random=0.843",
+    "[exp084] ASIM(min): marg_vs_sum=+0.462 marg_vs_obj1=+0.746 oracle_gap=0.019 | SIM(min): sum_ok Δ=0.029 | LINEAL: coincide Δ=0.000",
+    "[exp084] asym_needs_marg=True near_oracle=True sym_sum_suffices=True lin_coincides=True",
+    "[exp084] VEREDICTO H-V4-8e: APOYADA | H-V4-8e APOYADA: bajo objetivo VECTOR balance-requiriente (min(ΣV1,ΣV2), egalitario) Y ASIMÉTRICO (objetivo 2 de escala menor), la SUMA naive DESBALANCEA (carga el objetivo grande) y falla: sum_greedy=0.519 -- mientras la selección R-VALOR MARGINAL sube el objetivo REZAGADO y recupera: marginal_greedy=0.981 (vs sum +0.462, vs obj1 +0.746, ≈ oracle gap 0.019). Bajo objetivo SIMÉTRICO la suma YA balancea (marginal ≈ sum, Δ 0.029: por simetría max-suma ≈ balanceado). Bajo objetivo LINEAL ('sum') todos coinciden (Δ 0.000). => R-VALOR bajo un objetivo VECTOR balance-requiriente Y ASIMÉTRICO es la selección MARGINAL en la agregación real; la suma naive sólo basta bajo simetría; un solo objetivo falla siempre. Generaliza CYCLE 95 (marginal) a vector y conecta con CYCLE 83 (complementos g=min) a nivel de CONJUNTO -- el 'balance' es la forma vectorial de la cobertura/diversidad."
+  ]
+}

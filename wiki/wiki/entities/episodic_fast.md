@@ -2,13 +2,18 @@
 title: episodic_fast — AttentionSystem de memoria episódica
 type: entity
 tags: [memory, episodic, rlock, attention, embedding]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # episodic_fast (AttentionSystem)
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Deuda 'sin tests de integracion' RESUELTA: tests/test_attention_integration.py
+cubre VectorCache (episodic_fast) y CompressedKVCache.
 ## Qué hace
 
 Memoria episódica de corto plazo. Almacena y recupera episodios usando similitud semántica sobre embeddings (all-MiniLM-L6-v2 o fallback n-gram).

@@ -1,0 +1,51 @@
+{
+  "experiment": "xolmo_baseline",
+  "model": "allenai/OLMo-1B-hf",
+  "torch": "2.10.0+cu128",
+  "device": "cuda",
+  "native_window": 2048,
+  "corpus_tokens": 400000,
+  "ppl_native": "medida en v1 (results_xolmo v1: 17.3@512, 14.7@1024, 13.1@2048)",
+  "rope": {
+    "base": {
+      "passkey": {
+        "len_1024": "3/3",
+        "len_1792": "3/3"
+      }
+    },
+    "ntk_dynamic_x2": {
+      "passkey": {
+        "len_3072": "3/3",
+        "len_4096": "3/3"
+      },
+      "ppl_in_window": 12.935
+    },
+    "ntk_dynamic_x4": {
+      "ppl_by_position": {
+        "pos_0-512": 14.33,
+        "pos_512-1024": 13.11,
+        "pos_1024-1536": 13.91,
+        "pos_1536-2048": 15.56,
+        "pos_2048-2560": 14.66,
+        "pos_2560-3072": 17.89,
+        "pos_3072-3584": 12.14,
+        "pos_3584-4096": 13.79,
+        "pos_4096-4608": 15.8,
+        "pos_4608-5120": 14.49,
+        "pos_5120-5632": 15.89,
+        "pos_5632-6144": 19.11,
+        "pos_6144-6656": 24.71,
+        "pos_6656-7168": 16.32,
+        "pos_7168-7680": 15.23,
+        "pos_7680-8192": 21.21
+      },
+      "windows": 3,
+      "passkey": {
+        "len_6144": "1/3",
+        "len_8192": "2/3"
+      },
+      "ppl_in_window": 15.044
+    }
+  },
+  "minutes_total": 1.6
+}

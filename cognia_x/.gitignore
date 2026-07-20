@@ -1,0 +1,6 @@
+# artefactos generados del entrenamiento (no commitear: checkpoints, logs en curso)
+runs/
+**/__pycache__/
+*.pyc
+# corpus descargado (dominio público, reproducible con cognia_x/data/get_corpus.py)
+data/corpus/

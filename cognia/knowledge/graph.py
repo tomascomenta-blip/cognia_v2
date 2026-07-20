@@ -89,7 +89,12 @@ class KnowledgeGraph:
 
     VALID_RELATIONS = {
         "is_a", "part_of", "causes", "capable_of", "related_to",
-        "has_property", "opposite_of", "instance_of", "used_for", "located_in"
+        "has_property", "opposite_of", "instance_of", "used_for", "located_in",
+        # relaciones de CÓDIGO (code_graph.py, 2026-07-14): el código del
+        # repo vive en el MISMO grafo (un solo KG, no dos sistemas); sin
+        # estas, add_triple degradaba los predicados de código a related_to
+        # y el grafo perdía la dirección semántica (deps vs dependientes).
+        "importa", "define", "tiene_metodo", "llama_a",
     }
 
     def __init__(self, db_path: str = DB_PATH):
@@ -170,6 +175,14 @@ class KnowledgeGraph:
         return is_new
 
     def get_facts(self, concept: str, predicate: str = None) -> list:
+        # add_triple/_normalize_entity guardan subject/object SIEMPRE en minusculas
+        # y la columna es TEXT con collation BINARY (case-sensitive). Sin normalizar
+        # aca, get_facts('Python') no matcheaba la fila 'python' y devolvia [] ->
+        # kg_buscar reportaba 'sin hechos' para cualquier concepto capitalizado
+        # (nombres propios, el caso comun). Igualar a como se almacena.
+        concept = concept.lower().strip()
+        if predicate:
+            predicate = predicate.lower().strip()
         conn = db_connect(self.db)
         try:
             c = conn.cursor()

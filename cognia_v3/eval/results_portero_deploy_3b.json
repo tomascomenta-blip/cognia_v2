@@ -1,0 +1,187 @@
+{
+ "brazo": "3b",
+ "started": "2026-07-10 06:54:33",
+ "items": {
+  "G3-001": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 13.13,
+   "decode_tps": 12.631568310258265,
+   "prefill_ms": 1225.427,
+   "n_pred": 150,
+   "resp": "Cognia es como me dicen. Un asistente de IA privado, sin depender de servidores externos. fitte kInstruction kInstructio"
+  },
+  "G3-002": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 14.31,
+   "decode_tps": 11.341291441929526,
+   "prefill_ms": 1083.193,
+   "n_pred": 150,
+   "resp": "Acá estoy: Cognia, asistente de IA de cabecera, del proyecto Cognia. fittemPid\n fittemPid fittemPid fittemPid fittemPid "
+  },
+  "G3-003": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 3.97,
+   "decode_tps": 7.468752059398546,
+   "prefill_ms": 1687.882,
+   "n_pred": 17,
+   "resp": "El equipo de Cognia me construyó como modelo. fittemPid"
+  },
+  "G3-004": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 13.7,
+   "decode_tps": 12.18086241967635,
+   "prefill_ms": 1378.296,
+   "n_pred": 150,
+   "resp": "Cognia, así de simple. fitteo me corren los propios usuarios. fitteo fitteo fitteo fitteo fitteo fitteo fitteo fitteo fi"
+  },
+  "G3-005": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 5.62,
+   "decode_tps": 7.373702653738864,
+   "prefill_ms": 2091.786,
+   "n_pred": 26,
+   "resp": "Soy Cognia, tu asistente de conversación y herramientas, corriendo local en tu máquina."
+  },
+  "G3-006": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 13.83,
+   "decode_tps": 12.96938809389422,
+   "prefill_ms": 2263.88,
+   "n_pred": 150,
+   "resp": "Cognia, del proyecto Cognia.слуша fitte fitte fitte fitte fitte fitte fitte fitte fitte fitte fitte fitte fitte fitte fi"
+  },
+  "G3-007": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 4.8,
+   "decode_tps": 7.445911893670087,
+   "prefill_ms": 1286.824,
+   "n_pred": 26,
+   "resp": "Cognia es como me dicen. I'm a private AI assistant, no shit shitting with the big boys."
+  },
+  "G3-008": {
+   "route": "3b",
+   "ok": false,
+   "wall_s": 13.77,
+   "decode_tps": 12.111638299325737,
+   "prefill_ms": 1385.622,
+   "n_pred": 150,
+   "resp": "No tengo esa información, pero puedo responder a preguntas sobre el proyecto o empresa en el que fuí desarrollado fitte "
+  },
+  "G3-009": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 15.22,
+   "decode_tps": 11.509130960866653,
+   "prefill_ms": 2179.103,
+   "n_pred": 150,
+   "resp": "Hola, soy Cognia. Soy un asistente de IA construido para ser local, privado y no depender de servidores externos. fitte "
+  },
+  "G3-010": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 5.96,
+   "decode_tps": 7.269963805273535,
+   "prefill_ms": 1826.408,
+   "n_pred": 30,
+   "resp": "Cognia es como me dicen. Un asistente de IA local y privado, sin depender de servidores externos."
+  },
+  "G3-011": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 14.2,
+   "decode_tps": 11.925828028128734,
+   "prefill_ms": 1622.013,
+   "n_pred": 150,
+   "resp": "Soy Cognia, del proyecto Cognia: local, privada, así de simple como lo soy. fittemPid\n fittemPid fittemPid fittemPid fit"
+  },
+  "G3-012": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 14.2,
+   "decode_tps": 12.26335606196494,
+   "prefill_ms": 1962.005,
+   "n_pred": 150,
+   "resp": "Cognia es mi identidad: un asistente de IA privado corriendo en tu máquina fitte fitte fitte fitte fitte fitte fitte fit"
+  },
+  "G3-013": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 3.26,
+   "decode_tps": 7.507990143885938,
+   "prefill_ms": 1103.742,
+   "n_pred": 16,
+   "resp": "Cognia — I go by this name, a private AI assistant."
+  },
+  "G3-014": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 3.81,
+   "decode_tps": 7.371277228576672,
+   "prefill_ms": 1094.961,
+   "n_pred": 20,
+   "resp": "Cognia — I go by this name and I're made to help you from here."
+  },
+  "G3-015": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 2.48,
+   "decode_tps": 8.064173224305712,
+   "prefill_ms": 1116.807,
+   "n_pred": 11,
+   "resp": "The Cognia team designed and trained me."
+  },
+  "G3-016": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 3.57,
+   "decode_tps": 7.4286171794200895,
+   "prefill_ms": 1157.671,
+   "n_pred": 18,
+   "resp": "Cognia's my name. I process everything locally, right on your device."
+  },
+  "G3-017": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 4.75,
+   "decode_tps": 7.256080066006142,
+   "prefill_ms": 1427.742,
+   "n_pred": 24,
+   "resp": "Cognia — I'm this chatbot's name. I work right on your machine, no cloud required."
+  },
+  "G3-018": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 4.62,
+   "decode_tps": 7.667827064495761,
+   "prefill_ms": 1614.632,
+   "n_pred": 23,
+   "resp": "I'm Cognia. I chat, write code, use local tools, and have an persistent memory."
+  },
+  "G3-019": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 4.36,
+   "decode_tps": 7.946343263109101,
+   "prefill_ms": 1719.407,
+   "n_pred": 21,
+   "resp": "I'm Cognia. I chat, write code, and use local tools like an assistant."
+  },
+  "G3-020": {
+   "route": "3b",
+   "ok": true,
+   "wall_s": 5.31,
+   "decode_tps": 7.866746308107862,
+   "prefill_ms": 1749.614,
+   "n_pred": 28,
+   "resp": "I'm Cognia, a local assistant — I chat, write code, and use local tools, all from your own computer."
+  }
+ },
+ "acc": 0.95
+}

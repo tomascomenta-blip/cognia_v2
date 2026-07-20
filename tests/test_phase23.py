@@ -9,7 +9,8 @@ import time
 import pytest
 
 from cognia.agents.task_queue import (
-    TaskQueue, TaskRecord, CREATED, PLANNING, DONE, FAILED, ABORTED
+    TaskQueue, TaskRecord, CREATED, PLANNING, EXECUTING, DONE, FAILED, ABORTED,
+    MAX_RECOVERY_ATTEMPTS,
 )
 from cognia.agents.verifier import verify, VerifyResult, SCORE_THRESHOLD
 from cognia.agents.supervisor import CogniaAgentRuntime
@@ -19,7 +20,10 @@ from cognia.agents.supervisor import CogniaAgentRuntime
 
 @pytest.fixture
 def tmp_db(tmp_path):
-    return str(tmp_path / "test_agents.db")
+    path = str(tmp_path / "test_agents.db")
+    yield path
+    from storage.db_pool import close_pool
+    close_pool(path)   # libera handles del pool para que Windows pueda borrar tmp
 
 
 class TestTaskQueue:
@@ -76,6 +80,32 @@ class TestTaskQueue:
         assert tq2.pending_count() == 1
         record = tq2.pop()
         assert record.task_id == tid
+
+    def test_recover_resets_interrupted_task(self, tmp_db):
+        """Una tarea colgada en EXECUTING tras crash se resetea a CREATED + attempts+1
+        y vuelve a estar disponible al recrear la queue (recovery real)."""
+        tq1 = TaskQueue(tmp_db)
+        tid = tq1.submit("interrupted task", priority=1.0)
+        tq1.update_status(tid, EXECUTING)       # simula crash a mitad de ejecucion
+        tq2 = TaskQueue(tmp_db)                  # restart -> recover() en __init__
+        rec = tq2.get(tid)
+        assert rec.status == CREATED            # estado colgado reseteado en disco
+        assert rec.attempts == 1                # recover conto el reintento
+        assert tq2.pending_count() == 1         # re-encolada en _mem
+        assert tq2.pop().task_id == tid         # extraible de nuevo
+
+    def test_recover_aborts_after_max_retries(self, tmp_db):
+        """Tras superar MAX_RECOVERY_ATTEMPTS, una tarea interrumpida se marca ABORTED
+        en vez de re-encolarse para siempre (corta el loop de crash)."""
+        tq = TaskQueue(tmp_db)
+        tid = tq.submit("crash loop", priority=1.0)
+        for _ in range(MAX_RECOVERY_ATTEMPTS):
+            tq.increment_attempts(tid)          # lleva attempts al tope
+        tq.update_status(tid, EXECUTING)
+        tq2 = TaskQueue(tmp_db)                  # recover() -> supera el tope
+        rec = tq2.get(tid)
+        assert rec.status == ABORTED
+        assert tq2.pending_count() == 0         # no se re-encola
 
     def test_save_subtasks_persist(self, tmp_db):
         from cognia.agents.planner import SubTask

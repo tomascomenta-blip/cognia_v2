@@ -2,13 +2,19 @@
 title: Sharding — división del modelo
 type: concept
 tags: [sharding, inference, distributed, int4]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # Sharding
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Capa fallback/investigacion: produccion usa GGUF Q4_K_M via
+[[concepts/install_model]] (el pipeline NPZ tenia el bug del tokenizer de
+simulacion). El arbol de fallback real es llama.cpp PRIMERO, no Ollama.
 ## Qué es
 
 El modelo Qwen2.5-Coder-3B-Instruct se divide en **4 shards** INT4 nibble-packed. Cada shard corre en un nodo distinto de la red P2P. Los hidden states pasan de shard en shard hasta llegar al `lm_head`.

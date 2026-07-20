@@ -201,3 +201,60 @@ def test_format_status_renders_expected_lines(tmp_path):
     assert "SATISFIED: 1/1" in rendered
     assert "COMPLETE: yes" in rendered
     rendered.encode("ascii")  # ASCII-safe for Windows stdout
+
+
+# ── derive_criteria_from_task (derivación mecánica, wire /hacer) ─────────
+
+from cognia.agents.goal_contract import derive_criteria_from_task
+
+
+def test_derive_archivo_mencionado_da_file_exists():
+    specs = derive_criteria_from_task("crea el modulo utils/parse.py con una funcion parse_csv")
+    assert any(s["kind"] == "file_exists" and s["path"] == "utils/parse.py"
+               for s in specs)
+
+
+def test_derive_ruta_de_test_con_pedido_de_tests_da_command():
+    specs = derive_criteria_from_task(
+        "arregla foo.py y corre los tests de tests/test_foo.py")
+    kinds = {s["kind"] for s in specs}
+    assert "command_succeeds" in kinds          # pytest sobre tests/test_foo.py
+    assert "file_exists" in kinds               # foo.py debe existir
+    cmd = next(s for s in specs if s["kind"] == "command_succeeds")
+    assert "tests/test_foo.py" in cmd["command"]
+    assert "pytest" in cmd["command"]
+
+
+def test_derive_test_file_sin_mencion_de_tests_es_file_exists():
+    # menciona una ruta de test pero NO pide correr tests -> criterio debil
+    specs = derive_criteria_from_task("lee tests/test_foo.py y explicalo")
+    assert all(s["kind"] == "file_exists" for s in specs)
+
+
+def test_derive_sin_archivos_devuelve_vacio():
+    assert derive_criteria_from_task("explicame que es un mutex") == []
+    assert derive_criteria_from_task("") == []
+
+
+def test_derive_dedupe_y_tope():
+    task = ("toca a.py y a.py y b.py y c.py y d.py y e.py")
+    specs = derive_criteria_from_task(task)
+    paths = [s.get("path") for s in specs]
+    assert len(specs) <= 3
+    assert len(paths) == len(set(paths))        # sin duplicados
+
+
+def test_derivadas_arman_un_contrato_que_corre():
+    # e2e chico: criterios derivados -> contrato -> check REAL de filesystem
+    import tempfile, os as _os
+    with tempfile.TemporaryDirectory() as d:
+        p = _os.path.join(d, "salida.txt").replace("\\", "/")
+        specs = derive_criteria_from_task(f"genera el archivo {p} con el resumen")
+        assert specs and specs[0]["kind"] == "file_exists"
+        from cognia.agents.goal_contract import GoalContract
+        c = GoalContract.from_spec("tarea", specs, session_id="t-derive")
+        st0 = c.check()
+        assert not st0.complete                 # aun no existe
+        open(p, "w").write("hola")
+        st1 = c.check()
+        assert st1.complete                     # evidencia real, no self-report

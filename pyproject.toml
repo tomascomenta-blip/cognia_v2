@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognia-ai"
-version = "3.5.1"
-description = "Local cognitive AI with episodic memory, distributed inference, and swarm learning"
+version = "3.9.1"
+description = "Local cognitive AI that runs offline on a small model, with episodic memory, self-improving prompts, and an AI-native image/scene creator"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
@@ -37,8 +37,10 @@ dependencies = [
     "rich>=13.0",
     "prompt_toolkit>=3.0",
     "huggingface_hub>=0.20",
+    "tokenizers>=0.15",  # BPE real del pipeline de shards (fix 2026-07-08: sin esto caia a LightTokenizer y Qwen no funcionaba)
     "psutil>=5.9",
     "httpx>=0.27",
+    "pillow>=10.0.0",   # creador de imagenes/escenas (cognia/lcd): render PNG/GIF
 ]
 
 # Heavy/optional features are NOT installed by default: Cognia runs fully on the
@@ -49,7 +51,14 @@ dependencies = [
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=2.2.0"]
 pdf      = ["pdfplumber>=0.10.0"]
-all      = ["sentence-transformers>=2.2.0", "pdfplumber>=0.10.0"]
+# Inferencia local pip-nativa (sin cazar el binario llama-server): trae llama.cpp
+# via el binding de Python. Alternativa al llama-server.exe / al path numpy-shards.
+#   pip install "cognia-ai[llama]"
+llama    = ["llama-cpp-python>=0.2.20"]
+# TUI (python -m cognia.tui): textual no va en las deps duras (pesado);
+# sin el extra, el entry point avisa "pip install cognia-ai[tui]".
+tui      = ["textual>=0.60.0"]
+all      = ["sentence-transformers>=2.2.0", "pdfplumber>=0.10.0", "llama-cpp-python>=0.2.20", "textual>=0.60.0"]
 
 [project.urls]
 Homepage   = "https://github.com/tomascomenta-blip/cognia_v2"
@@ -62,33 +71,40 @@ cognia-coordinator = "coordinator.run:main"
 
 [tool.setuptools.packages.find]
 where   = ["."]
-include = ["cognia*", "node*", "coordinator*", "shattering*", "app*", "security*", "storage*", "network*"]
+# IMPORTANTE: usar nombres explicitos + ".*", NO globs anchos ("cognia*").
+# "cognia*" capturaba ademas cognia_desktop (bundle Electron + node_modules),
+# cognia_x (lab de investigacion), cognia_game, cognia_mobile y cognia_public_api,
+# inflando el paquete con ~8MB de codigo NO destinado a publicarse. (v3.7.0)
+include = [
+    "cognia", "cognia.*",
+    "cognia_v3", "cognia_v3.*",
+    "node", "node.*",
+    "coordinator", "coordinator.*",
+    "shattering", "shattering.*",
+    "app", "app.*",
+    "security", "security.*",
+    "storage", "storage.*",
+    "network", "network.*",
+]
+exclude = [
+    "cognia_x", "cognia_x.*",
+    "cognia_desktop", "cognia_desktop.*",
+    "cognia_game", "cognia_game.*",
+    "cognia_mobile", "cognia_mobile.*",
+    "cognia_public_api", "cognia_public_api.*",
+]
 
 [tool.setuptools.package-data]
 "shattering" = ["manifests/*.json"]
 "cognia" = ["knowledge/*.json", "knowledge/*.txt", "skills/*.md"]
+# Build Vite de la oficina 3D: sin esto /oficina3d instalado respondia
+# "falta el build 3d" (cazado e2e 2026-07-15). Solo el dist compilado
+# (~KBs), no node_modules/src (esos siguen fuera del wheel).
+"cognia.oficina" = ["web3d/dist/*", "web3d/dist/assets/*"]
+# CSS de la TUI (CSS_PATH de app.py): sin esto la TUI instalada no arranca
+"cognia.tui" = ["*.tcss"]
 
-[tool.setuptools]
-py-modules = [
-    "respuestas_articuladas",
-    "consolidation_engine",
-    "feedback_engine",
-    "language_corrector",
-    "model_collapse_guard",
-    "self_architect",
-    "teacher_interface",
-    "cognia_deferred",
-    "cognia_modules_adicionales",
-    "curiosity_engine",
-    "logger_config",
-    "cognia_embedding",
-    "fatiga_cognitiva",
-    "language_engine",
-    "model_router",
-    "decision_gate",
-    "scoring_engine",
-    "conversation_memory",
-    "response_cache",
-    "code_memory",
-    "code_executor",
-]
+# (v3.6.0) Se removio el bloque py-modules: esos modulos top-level se reorganizaron
+# dentro del paquete cognia_v3/ (core/memory/interfaces) y ahora se empaquetan via
+# packages.find (include cognia_v3*). Mantenerlos como py-modules root rompia el build
+# (los archivos ya no existen en la raiz).

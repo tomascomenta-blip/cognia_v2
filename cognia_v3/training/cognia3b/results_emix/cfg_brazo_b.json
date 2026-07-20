@@ -1,0 +1,1 @@
+{"model_dir": "/kaggle/input/models/qwen-lm/qwen2.5-coder/transformers/3b-instruct/1", "pares_tok": "/kaggle/working/tok_mezcla.jsonl", "mb": 4, "adapter_out": "/kaggle/working/adapters/brazo_b", "stats_out": "/kaggle/working/train_brazo_b.json"}

@@ -40,7 +40,7 @@ from network.privacy import (
     filter_shareable_triples,
     PrivacyLayer,
 )
-from logger_config import get_logger
+from cognia_v3.core.logger_config import get_logger
 
 # Hosts de "bind-all": válidos para escuchar, INALCANZABLES como destino.
 # Un peer que anuncie ws://0.0.0.0:PORT (o ::, o vacío) no puede recibir

@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator, List, Optional
 
+from storage.db_pool import get_pool
+
 
 # ── Estados de tarea ─────────────────────────────────────────────────────────
 
@@ -32,6 +34,11 @@ FAILED     = "FAILED"
 ABORTED    = "ABORTED"
 
 TERMINAL_STATES = {DONE, FAILED, ABORTED}
+# Estados intermedios: una tarea que quedo aqui tras un crash hay que recuperarla.
+INTERRUPTED_STATES = (PLANNING, EXECUTING, VERIFYING)
+# Tope de reintentos por recovery (evita loop de crash infinito). Espeja
+# supervisor.MAX_TASK_RETRIES; local para no acoplar (supervisor importa task_queue).
+MAX_RECOVERY_ATTEMPTS = 2
 
 # ── Schema ───────────────────────────────────────────────────────────────────
 
@@ -92,6 +99,7 @@ class TaskQueue:
         self._db_path = db_path
         self._mem: queue.PriorityQueue = queue.PriorityQueue()
         self._init_db()
+        self.recover()          # resetea tareas colgadas (crash) antes de recargar
         self._reload_pending()
 
     # ── Inicialización ───────────────────────────────────────────────────────
@@ -110,6 +118,28 @@ class TaskQueue:
             ).fetchall()
         for row in rows:
             self._mem.put(self._row_to_record(row))
+
+    def recover(self) -> None:
+        """Recovery tras crash/restart: las tareas colgadas en un estado intermedio
+        (PLANNING/EXECUTING/VERIFYING) se resetean a CREATED e incrementan attempts
+        para que _reload_pending() las re-encole como re-ejecutables. Las que superan
+        MAX_RECOVERY_ATTEMPTS se marcan ABORTED (evita loop de crash infinito)."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT task_id, attempts FROM agent_tasks WHERE status IN (?, ?, ?)",
+                INTERRUPTED_STATES,
+            ).fetchall()
+            for task_id, attempts in rows:
+                if (attempts or 0) + 1 > MAX_RECOVERY_ATTEMPTS:
+                    conn.execute(
+                        "UPDATE agent_tasks SET status=?, result=? WHERE task_id=?",
+                        (ABORTED, "RECOVERY_MAX_RETRIES", task_id),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE agent_tasks SET status=?, attempts=attempts+1 WHERE task_id=?",
+                        (CREATED, task_id),
+                    )
 
     # ── Operaciones públicas ─────────────────────────────────────────────────
 
@@ -213,17 +243,11 @@ class TaskQueue:
 
     @contextmanager
     def _conn(self) -> Iterator[sqlite3.Connection]:
-        conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        try:
+        # db_pool (regla del repo: sin sqlite3.connect directo). get() ya aplica
+        # WAL + foreign_keys, hace commit al salir y rollback ante excepcion, y
+        # devuelve la conexion al pool en vez de cerrarla.
+        with get_pool(self._db_path).get() as conn:
             yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
 
     @staticmethod
     def _row_to_record(row: tuple) -> TaskRecord:

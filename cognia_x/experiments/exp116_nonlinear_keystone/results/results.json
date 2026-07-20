@@ -1,0 +1,131 @@
+{
+  "exp": "exp116_nonlinear_keystone",
+  "cycle": 132,
+  "hypothesis": "H-V4-10f",
+  "claim": "el keystone (valor=controlabilidad×relevancia) SOBREVIVE a control no-lineal saturante pero SOLO con controlabilidad de ALCANCE/ESFUERZO (valor_eff robustamente optimo en todo ancho de probe y regimen); la PENDIENTE LOCAL del keystone 129 (valor_lin) es CIEGA a la saturacion -- a probe genuinamente local colapsa a nivel relevancia (regimen sat) o por debajo (regimen break, ganancia/alcance anti-correlados); su aparente robustez es probe-width-contingente -> la controlabilidad debe ser de alcance, generaliza la controlabilidad-descontada-por-costo de 130",
+  "verdict": "mixta",
+  "summary": {
+    "grid": {
+      "nosat": {
+        "0.05": {
+          "valor_lin": 0.9936,
+          "valor_eff": 0.9884,
+          "relevancia": 0.994,
+          "prediccion": 0.0
+        },
+        "0.2": {
+          "valor_lin": 1.0035,
+          "valor_eff": 0.9972,
+          "relevancia": 0.9918,
+          "prediccion": 0.0
+        },
+        "0.4": {
+          "valor_lin": 1.0084,
+          "valor_eff": 1.0083,
+          "relevancia": 1.0052,
+          "prediccion": 0.0
+        },
+        "1.5": {
+          "valor_lin": 1.0087,
+          "valor_eff": 1.0026,
+          "relevancia": 0.9985,
+          "prediccion": 0.0
+        }
+      },
+      "sat": {
+        "0.05": {
+          "valor_lin": 0.6997,
+          "valor_eff": 1.0,
+          "relevancia": 0.7101,
+          "prediccion": 0.0
+        },
+        "0.2": {
+          "valor_lin": 0.9684,
+          "valor_eff": 1.0,
+          "relevancia": 0.7035,
+          "prediccion": 0.0
+        },
+        "0.4": {
+          "valor_lin": 1.0,
+          "valor_eff": 1.0,
+          "relevancia": 0.7073,
+          "prediccion": 0.0
+        },
+        "1.5": {
+          "valor_lin": 1.0,
+          "valor_eff": 1.0,
+          "relevancia": 0.7278,
+          "prediccion": 0.0
+        }
+      },
+      "break": {
+        "0.05": {
+          "valor_lin": 0.6153,
+          "valor_eff": 1.0,
+          "relevancia": 0.8155,
+          "prediccion": 0.0
+        },
+        "0.2": {
+          "valor_lin": 0.614,
+          "valor_eff": 1.0,
+          "relevancia": 0.7859,
+          "prediccion": 0.0
+        },
+        "0.4": {
+          "valor_lin": 1.0,
+          "valor_eff": 1.0,
+          "relevancia": 0.8098,
+          "prediccion": 0.0
+        },
+        "1.5": {
+          "valor_lin": 1.0,
+          "valor_eff": 1.0,
+          "relevancia": 0.802,
+          "prediccion": 0.0
+        }
+      }
+    },
+    "eff_min": 0.9884,
+    "lin_loc_sat": 0.6997,
+    "rel_sat": 0.7101,
+    "lin_wide_sat": 1.0,
+    "probe_contingent": 0.3003,
+    "lin_loc_break": 0.6153,
+    "rel_break": 0.8155,
+    "eff_loc_sat": 1.0,
+    "eff_robust": true,
+    "lin_blind_local": true,
+    "lin_probe_contingent": true,
+    "lin_harmful_break": true,
+    "status": "mixta",
+    "verdict": "H-V4-10f MIXTA (el keystone sobrevive a la no-linealidad SÓLO con controlabilidad de ALCANCE; la pendiente LOCAL es ciega): la controlabilidad de ALCANCE/ESFUERZO (valor_eff = alcance al esfuerzo U_max) es robustamente óptima en TODO ancho de probe y régimen (min 0.988). En cambio la PENDIENTE LOCAL del keystone 129 (valor_lin) es CIEGA a la saturación: a probe GENUINAMENTE LOCAL (σ_p=0.05) en saturación colapsa a 0.700 ≈ relevancia (0.710); su aparente robustez es PROBE-WIDTH-CONTINGENTE (sube +0.300 al ensanchar el probe a σ_p=1.5 -- ahí b̂ deja de ser local y siente el alcance encubiertamente). Y con ganancia/alcance ANTI-correlacionados (régimen break: pendiente alta, alcance bajo) valor_lin a probe local cae a 0.615 -- PEOR que relevancia (0.816): la pendiente local PREFIERE activamente los modos inalcanzables. => bajo control NO-LINEAL la controlabilidad del keystone debe ser de ALCANCE/ESFUERZO (cuán lejos podés empujar al esfuerzo de control), NO la pendiente local; generaliza la controlabilidad-descontada-por-costo de 130 (la saturación es la forma no-lineal del costo). El PRINCIPIO valor=ctrl×rel sobrevive; su factor de controlabilidad NO es lineal."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp116] CYCLE 132 / H-V4-10f (honesto) — ¿sobrevive el keystone a control NO-LINEAL? controlabilidad de ALCANCE (eff) vs PENDIENTE LOCAL (lin), barriendo el ancho del probe σ_p",
+    "[exp116] seeds=200 a=0.6 rho=0.5 U_max=3.0 sigmas=[0.05, 0.2, 0.4, 1.5] regimes=('nosat', 'sat', 'break') n_probe=3000",
+    "[exp116]  nosat σ_p=0.05: lin=0.994 eff=0.988 relev=0.994 pred=0.000",
+    "[exp116]  nosat σ_p= 0.2: lin=1.004 eff=0.997 relev=0.992 pred=0.000",
+    "[exp116]  nosat σ_p= 0.4: lin=1.008 eff=1.008 relev=1.005 pred=0.000",
+    "[exp116]  nosat σ_p= 1.5: lin=1.009 eff=1.003 relev=0.999 pred=0.000",
+    "[exp116]    sat σ_p=0.05: lin=0.700 eff=1.000 relev=0.710 pred=0.000",
+    "[exp116]    sat σ_p= 0.2: lin=0.968 eff=1.000 relev=0.704 pred=0.000",
+    "[exp116]    sat σ_p= 0.4: lin=1.000 eff=1.000 relev=0.707 pred=0.000",
+    "[exp116]    sat σ_p= 1.5: lin=1.000 eff=1.000 relev=0.728 pred=0.000",
+    "[exp116]  break σ_p=0.05: lin=0.615 eff=1.000 relev=0.816 pred=0.000",
+    "[exp116]  break σ_p= 0.2: lin=0.614 eff=1.000 relev=0.786 pred=0.000",
+    "[exp116]  break σ_p= 0.4: lin=1.000 eff=1.000 relev=0.810 pred=0.000",
+    "[exp116]  break σ_p= 1.5: lin=1.000 eff=1.000 relev=0.802 pred=0.000",
+    "[exp116] valor_eff min (todo σ_p/régimen)=0.988 | valor_lin SAT: local(σ0.05)=0.700 vs relev 0.710 -> ancho(σ1.5)=1.000 (contingencia +0.300)",
+    "[exp116] BREAK local: valor_lin=0.615 vs relevancia 0.816 (¿lin peor? True)",
+    "[exp116] eff_robust=True lin_blind_local=True lin_probe_contingent=True",
+    "[exp116] VEREDICTO H-V4-10f: MIXTA | H-V4-10f MIXTA (el keystone sobrevive a la no-linealidad SÓLO con controlabilidad de ALCANCE; la pendiente LOCAL es ciega): la controlabilidad de ALCANCE/ESFUERZO (valor_eff = alcance al esfuerzo U_max) es robustamente óptima en TODO ancho de probe y régimen (min 0.988). En cambio la PENDIENTE LOCAL del keystone 129 (valor_lin) es CIEGA a la saturación: a probe GENUINAMENTE LOCAL (σ_p=0.05) en saturación colapsa a 0.700 ≈ relevancia (0.710); su aparente robustez es PROBE-WIDTH-CONTINGENTE (sube +0.300 al ensanchar el probe a σ_p=1.5 -- ahí b̂ deja de ser local y siente el alcance encubiertamente). Y con ganancia/alcance ANTI-correlacionados (régimen break: pendiente alta, alcance bajo) valor_lin a probe local cae a 0.615 -- PEOR que relevancia (0.816): la pendiente local PREFIERE activamente los modos inalcanzables. => bajo control NO-LINEAL la controlabilidad del keystone debe ser de ALCANCE/ESFUERZO (cuán lejos podés empujar al esfuerzo de control), NO la pendiente local; generaliza la controlabilidad-descontada-por-costo de 130 (la saturación es la forma no-lineal del costo). El PRINCIPIO valor=ctrl×rel sobrevive; su factor de controlabilidad NO es lineal."
+  ]
+}

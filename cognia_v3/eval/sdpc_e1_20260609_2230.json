@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-06-09T22:30:40.753049",
+  "config": {
+    "epochs": 5,
+    "batch_size": 64,
+    "sdpc_lr": 0.001
+  },
+  "sdpc_final_test_acc": 0.9574,
+  "bp_final_test_acc": 0.9745,
+  "ratio": 0.9824525397639815,
+  "verdict": "PASS \u2014 SDPC viable. Proceed to E2.",
+  "epoch_log": {
+    "SDPC": [
+      {
+        "epoch": 1,
+        "train_loss": 0.5014,
+        "train_acc": 0.8478,
+        "test_acc": 0.9035
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.2924,
+        "train_acc": 0.9196,
+        "test_acc": 0.9375
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.2219,
+        "train_acc": 0.9401,
+        "test_acc": 0.9474
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.1625,
+        "train_acc": 0.9539,
+        "test_acc": 0.9514
+      },
+      {
+        "epoch": 5,
+        "train_loss": 0.1425,
+        "train_acc": 0.9593,
+        "test_acc": 0.9574
+      }
+    ],
+    "BP": [
+      {
+        "epoch": 1,
+        "train_loss": 0.286,
+        "train_acc": 0.9147,
+        "test_acc": 0.9597
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.1112,
+        "train_acc": 0.9663,
+        "test_acc": 0.9679
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.0754,
+        "train_acc": 0.977,
+        "test_acc": 0.9742
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.0597,
+        "train_acc": 0.9814,
+        "test_acc": 0.9729
+      },
+      {
+        "epoch": 5,
+        "train_loss": 0.0475,
+        "train_acc": 0.9844,
+        "test_acc": 0.9745
+      }
+    ]
+  }
+}

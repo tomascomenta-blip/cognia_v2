@@ -1,0 +1,508 @@
+{
+  "exp": "exp033_backtrack_retry",
+  "cycle": 47,
+  "hypothesis": "H-V4-1l",
+  "claim": "reintentar el paso fallido (RETRY desde el pool) en vez de abstener la cadena recupera cobertura sin perder precisión, a igual presupuesto total",
+  "verdict": "MIXTA",
+  "stats": {
+    "Kmax": 6,
+    "vmod": 0.1,
+    "at_hard": {
+      "abstain_cov": 0.5083333333333334,
+      "abstain_prec": 0.16424056267806267,
+      "retry_cov": 0.7020833333333334,
+      "retry_prec": 0.1845207193271494,
+      "cov_gain": 0.19374999999999998,
+      "prec_drop": -0.020280156649086726
+    },
+    "best_regime": "6|0.1",
+    "best": {
+      "abstain_cov": 0.5083333333333334,
+      "abstain_prec": 0.16424056267806267,
+      "retry_cov": 0.7020833333333334,
+      "retry_prec": 0.1845207193271494,
+      "cov_gain": 0.19374999999999998,
+      "prec_drop": -0.020280156649086726
+    },
+    "curve": {
+      "2|0.0": {
+        "abstain_cov": 0.5395833333333333,
+        "abstain_prec": 1.0,
+        "retry_cov": 0.5395833333333333,
+        "retry_prec": 1.0,
+        "cov_gain": 0.0,
+        "prec_drop": 0.0
+      },
+      "2|0.1": {
+        "abstain_cov": 0.7312500000000001,
+        "abstain_prec": 0.5660185683889444,
+        "retry_cov": 0.7312500000000001,
+        "retry_prec": 0.5660185683889444,
+        "cov_gain": 0.0,
+        "prec_drop": 0.0
+      },
+      "2|0.2": {
+        "abstain_cov": 0.8083333333333333,
+        "abstain_prec": 0.32982627900419237,
+        "retry_cov": 0.8083333333333333,
+        "retry_prec": 0.32982627900419237,
+        "cov_gain": 0.0,
+        "prec_drop": 0.0
+      },
+      "4|0.0": {
+        "abstain_cov": 0.4270833333333333,
+        "abstain_prec": 1.0,
+        "retry_cov": 0.4395833333333333,
+        "retry_prec": 1.0,
+        "cov_gain": 0.012499999999999983,
+        "prec_drop": 0.0
+      },
+      "4|0.1": {
+        "abstain_cov": 0.6166666666666667,
+        "abstain_prec": 0.317481684981685,
+        "retry_cov": 0.6937499999999999,
+        "retry_prec": 0.27961583767010745,
+        "cov_gain": 0.07708333333333331,
+        "prec_drop": 0.03786584731157753
+      },
+      "4|0.2": {
+        "abstain_cov": 0.7916666666666667,
+        "abstain_prec": 0.11596075834523896,
+        "retry_cov": 0.8416666666666667,
+        "retry_prec": 0.12545412545900406,
+        "cov_gain": 0.050000000000000044,
+        "prec_drop": -0.009493367113765097
+      },
+      "6|0.0": {
+        "abstain_cov": 0.29583333333333334,
+        "abstain_prec": 1.0,
+        "retry_cov": 0.37083333333333335,
+        "retry_prec": 1.0,
+        "cov_gain": 0.07499999999999998,
+        "prec_drop": 0.0
+      },
+      "6|0.1": {
+        "abstain_cov": 0.5083333333333334,
+        "abstain_prec": 0.16424056267806267,
+        "retry_cov": 0.7020833333333334,
+        "retry_prec": 0.1845207193271494,
+        "cov_gain": 0.19374999999999998,
+        "prec_drop": -0.020280156649086726
+      },
+      "6|0.2": {
+        "abstain_cov": 0.7541666666666667,
+        "abstain_prec": 0.05349254784738655,
+        "retry_cov": 0.8645833333333333,
+        "retry_prec": 0.04026662689747393,
+        "cov_gain": 0.11041666666666664,
+        "prec_drop": 0.01322592094991263
+      }
+    },
+    "recovers_at_hard": true,
+    "useful_somewhere": false,
+    "recovers_somewhere": true,
+    "prec_floor": 0.5,
+    "n_seeds": 4
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "M": 120,
+    "avg": 4,
+    "per_step_cap": 8,
+    "retry_extra": 8,
+    "Ks": "2,4,6",
+    "noises": "0,0.1,0.2",
+    "top_k": 16,
+    "temperature": 1.0,
+    "cov_margin": 0.1,
+    "prec_tol": 0.1,
+    "n_seed": 256,
+    "base_steps": 600,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "lo": 0,
+    "hi": 19,
+    "test_frac": 0.3
+  },
+  "Ks": [
+    2,
+    4,
+    6
+  ],
+  "noises": [
+    0.0,
+    0.1,
+    0.2
+  ],
+  "seeds": [
+    {
+      "seed": 0,
+      "npar": 201280,
+      "secs": 128.0,
+      "by": {
+        "2|0.0": {
+          "abstain_cov": 0.35833333333333334,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.35833333333333334,
+          "retry_prec": 1.0,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "2|0.1": {
+          "abstain_cov": 0.65,
+          "abstain_prec": 0.5,
+          "retry_cov": 0.65,
+          "retry_prec": 0.5,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "2|0.2": {
+          "abstain_cov": 0.7083333333333334,
+          "abstain_prec": 0.23529411764705882,
+          "retry_cov": 0.7083333333333334,
+          "retry_prec": 0.23529411764705882,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "4|0.0": {
+          "abstain_cov": 0.225,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.225,
+          "retry_prec": 1.0,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "4|0.1": {
+          "abstain_cov": 0.43333333333333335,
+          "abstain_prec": 0.25,
+          "retry_cov": 0.5583333333333333,
+          "retry_prec": 0.29850746268656714,
+          "cov_gain": 0.125,
+          "prec_drop": -0.04850746268656714
+        },
+        "4|0.2": {
+          "abstain_cov": 0.7,
+          "abstain_prec": 0.07142857142857142,
+          "retry_cov": 0.7666666666666667,
+          "retry_prec": 0.06521739130434782,
+          "cov_gain": 0.06666666666666676,
+          "prec_drop": 0.0062111801242236
+        },
+        "6|0.0": {
+          "abstain_cov": 0.14166666666666666,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.15,
+          "retry_prec": 1.0,
+          "cov_gain": 0.008333333333333331,
+          "prec_drop": 0.0
+        },
+        "6|0.1": {
+          "abstain_cov": 0.4,
+          "abstain_prec": 0.08333333333333333,
+          "retry_cov": 0.525,
+          "retry_prec": 0.12698412698412698,
+          "cov_gain": 0.125,
+          "prec_drop": -0.04365079365079365
+        },
+        "6|0.2": {
+          "abstain_cov": 0.6166666666666667,
+          "abstain_prec": 0.02702702702702703,
+          "retry_cov": 0.825,
+          "retry_prec": 0.020202020202020204,
+          "cov_gain": 0.20833333333333326,
+          "prec_drop": 0.006825006825006825
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "npar": 201280,
+      "secs": 139.19,
+      "by": {
+        "2|0.0": {
+          "abstain_cov": 0.625,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.625,
+          "retry_prec": 1.0,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "2|0.1": {
+          "abstain_cov": 0.7166666666666667,
+          "abstain_prec": 0.5348837209302325,
+          "retry_cov": 0.7166666666666667,
+          "retry_prec": 0.5348837209302325,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "2|0.2": {
+          "abstain_cov": 0.875,
+          "abstain_prec": 0.3523809523809524,
+          "retry_cov": 0.875,
+          "retry_prec": 0.3523809523809524,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "4|0.0": {
+          "abstain_cov": 0.4666666666666667,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.475,
+          "retry_prec": 1.0,
+          "cov_gain": 0.008333333333333304,
+          "prec_drop": 0.0
+        },
+        "4|0.1": {
+          "abstain_cov": 0.625,
+          "abstain_prec": 0.28,
+          "retry_cov": 0.7333333333333333,
+          "retry_prec": 0.2840909090909091,
+          "cov_gain": 0.10833333333333328,
+          "prec_drop": -0.0040909090909090895
+        },
+        "4|0.2": {
+          "abstain_cov": 0.7916666666666666,
+          "abstain_prec": 0.12631578947368421,
+          "retry_cov": 0.8416666666666667,
+          "retry_prec": 0.13861386138613863,
+          "cov_gain": 0.050000000000000044,
+          "prec_drop": -0.012298071912454411
+        },
+        "6|0.0": {
+          "abstain_cov": 0.325,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.36666666666666664,
+          "retry_prec": 1.0,
+          "cov_gain": 0.04166666666666663,
+          "prec_drop": 0.0
+        },
+        "6|0.1": {
+          "abstain_cov": 0.5333333333333333,
+          "abstain_prec": 0.15625,
+          "retry_cov": 0.7416666666666667,
+          "retry_prec": 0.15730337078651685,
+          "cov_gain": 0.20833333333333337,
+          "prec_drop": -0.0010533707865168496
+        },
+        "6|0.2": {
+          "abstain_cov": 0.75,
+          "abstain_prec": 0.03333333333333333,
+          "retry_cov": 0.8166666666666667,
+          "retry_prec": 0.05102040816326531,
+          "cov_gain": 0.06666666666666665,
+          "prec_drop": -0.017687074829931974
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "npar": 201280,
+      "secs": 145.53,
+      "by": {
+        "2|0.0": {
+          "abstain_cov": 0.6083333333333333,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.6083333333333333,
+          "retry_prec": 1.0,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "2|0.1": {
+          "abstain_cov": 0.8166666666666667,
+          "abstain_prec": 0.6224489795918368,
+          "retry_cov": 0.8166666666666667,
+          "retry_prec": 0.6224489795918368,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "2|0.2": {
+          "abstain_cov": 0.8583333333333333,
+          "abstain_prec": 0.4368932038834951,
+          "retry_cov": 0.8583333333333333,
+          "retry_prec": 0.4368932038834951,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "4|0.0": {
+          "abstain_cov": 0.6333333333333333,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.6666666666666666,
+          "retry_prec": 1.0,
+          "cov_gain": 0.033333333333333326,
+          "prec_drop": 0.0
+        },
+        "4|0.1": {
+          "abstain_cov": 0.7583333333333333,
+          "abstain_prec": 0.4835164835164835,
+          "retry_cov": 0.825,
+          "retry_prec": 0.3333333333333333,
+          "cov_gain": 0.06666666666666665,
+          "prec_drop": 0.1501831501831502
+        },
+        "4|0.2": {
+          "abstain_cov": 0.8583333333333333,
+          "abstain_prec": 0.18446601941747573,
+          "retry_cov": 0.9083333333333333,
+          "retry_prec": 0.22935779816513763,
+          "cov_gain": 0.050000000000000044,
+          "prec_drop": -0.0448917787476619
+        },
+        "6|0.0": {
+          "abstain_cov": 0.4583333333333333,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.6166666666666667,
+          "retry_prec": 1.0,
+          "cov_gain": 0.15833333333333338,
+          "prec_drop": 0.0
+        },
+        "6|0.1": {
+          "abstain_cov": 0.65,
+          "abstain_prec": 0.2692307692307692,
+          "retry_cov": 0.8416666666666667,
+          "retry_prec": 0.2871287128712871,
+          "cov_gain": 0.19166666666666665,
+          "prec_drop": -0.017897943640517888
+        },
+        "6|0.2": {
+          "abstain_cov": 0.875,
+          "abstain_prec": 0.14285714285714285,
+          "retry_cov": 0.9416666666666667,
+          "retry_prec": 0.07079646017699115,
+          "cov_gain": 0.06666666666666665,
+          "prec_drop": 0.0720606826801517
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "npar": 201280,
+      "secs": 136.81,
+      "by": {
+        "2|0.0": {
+          "abstain_cov": 0.5666666666666667,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.5666666666666667,
+          "retry_prec": 1.0,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "2|0.1": {
+          "abstain_cov": 0.7416666666666667,
+          "abstain_prec": 0.6067415730337079,
+          "retry_cov": 0.7416666666666667,
+          "retry_prec": 0.6067415730337079,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "2|0.2": {
+          "abstain_cov": 0.7916666666666666,
+          "abstain_prec": 0.29473684210526313,
+          "retry_cov": 0.7916666666666666,
+          "retry_prec": 0.29473684210526313,
+          "cov_gain": 0.0,
+          "prec_drop": 0.0
+        },
+        "4|0.0": {
+          "abstain_cov": 0.38333333333333336,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.39166666666666666,
+          "retry_prec": 1.0,
+          "cov_gain": 0.008333333333333304,
+          "prec_drop": 0.0
+        },
+        "4|0.1": {
+          "abstain_cov": 0.65,
+          "abstain_prec": 0.2564102564102564,
+          "retry_cov": 0.6583333333333333,
+          "retry_prec": 0.20253164556962025,
+          "cov_gain": 0.008333333333333304,
+          "prec_drop": 0.05387861084063614
+        },
+        "4|0.2": {
+          "abstain_cov": 0.8166666666666667,
+          "abstain_prec": 0.08163265306122448,
+          "retry_cov": 0.85,
+          "retry_prec": 0.06862745098039216,
+          "cov_gain": 0.033333333333333326,
+          "prec_drop": 0.01300520208083232
+        },
+        "6|0.0": {
+          "abstain_cov": 0.25833333333333336,
+          "abstain_prec": 1.0,
+          "retry_cov": 0.35,
+          "retry_prec": 1.0,
+          "cov_gain": 0.09166666666666662,
+          "prec_drop": 0.0
+        },
+        "6|0.1": {
+          "abstain_cov": 0.45,
+          "abstain_prec": 0.14814814814814814,
+          "retry_cov": 0.7,
+          "retry_prec": 0.16666666666666666,
+          "cov_gain": 0.24999999999999994,
+          "prec_drop": -0.018518518518518517
+        },
+        "6|0.2": {
+          "abstain_cov": 0.775,
+          "abstain_prec": 0.010752688172043012,
+          "retry_cov": 0.875,
+          "retry_prec": 0.01904761904761905,
+          "cov_gain": 0.09999999999999998,
+          "prec_drop": -0.008294930875576038
+        }
+      }
+    }
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp033] CYCLE 47 / H-V4-1l — BACKTRACKING/RETRY del paso fallido vs abstención (modelo propio)",
+    "[exp033] cadena mod 20, M=120 avg=4 cap=8 retry=8 Ks=[2, 4, 6] noises=[0.0, 0.1, 0.2] seeds=[0, 1, 2, 3]",
+    "[exp033]   seed=0 K=2 vn=0.0: ABSTAIN(cov=0.358 prec=1.000) RETRY(cov=0.358 prec=1.000) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=0 K=2 vn=0.1: ABSTAIN(cov=0.650 prec=0.500) RETRY(cov=0.650 prec=0.500) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=0 K=2 vn=0.2: ABSTAIN(cov=0.708 prec=0.235) RETRY(cov=0.708 prec=0.235) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=0 K=4 vn=0.0: ABSTAIN(cov=0.225 prec=1.000) RETRY(cov=0.225 prec=1.000) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=0 K=4 vn=0.1: ABSTAIN(cov=0.433 prec=0.250) RETRY(cov=0.558 prec=0.299) Δcov=+0.125 Δprec=+0.049",
+    "[exp033]   seed=0 K=4 vn=0.2: ABSTAIN(cov=0.700 prec=0.071) RETRY(cov=0.767 prec=0.065) Δcov=+0.067 Δprec=-0.006",
+    "[exp033]   seed=0 K=6 vn=0.0: ABSTAIN(cov=0.142 prec=1.000) RETRY(cov=0.150 prec=1.000) Δcov=+0.008 Δprec=+0.000",
+    "[exp033]   seed=0 K=6 vn=0.1: ABSTAIN(cov=0.400 prec=0.083) RETRY(cov=0.525 prec=0.127) Δcov=+0.125 Δprec=+0.044",
+    "[exp033]   seed=0 K=6 vn=0.2: ABSTAIN(cov=0.617 prec=0.027) RETRY(cov=0.825 prec=0.020) Δcov=+0.208 Δprec=-0.007",
+    "[exp033] seed=0 128.0s npar=201280",
+    "[exp033]   seed=1 K=2 vn=0.0: ABSTAIN(cov=0.625 prec=1.000) RETRY(cov=0.625 prec=1.000) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=1 K=2 vn=0.1: ABSTAIN(cov=0.717 prec=0.535) RETRY(cov=0.717 prec=0.535) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=1 K=2 vn=0.2: ABSTAIN(cov=0.875 prec=0.352) RETRY(cov=0.875 prec=0.352) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=1 K=4 vn=0.0: ABSTAIN(cov=0.467 prec=1.000) RETRY(cov=0.475 prec=1.000) Δcov=+0.008 Δprec=+0.000",
+    "[exp033]   seed=1 K=4 vn=0.1: ABSTAIN(cov=0.625 prec=0.280) RETRY(cov=0.733 prec=0.284) Δcov=+0.108 Δprec=+0.004",
+    "[exp033]   seed=1 K=4 vn=0.2: ABSTAIN(cov=0.792 prec=0.126) RETRY(cov=0.842 prec=0.139) Δcov=+0.050 Δprec=+0.012",
+    "[exp033]   seed=1 K=6 vn=0.0: ABSTAIN(cov=0.325 prec=1.000) RETRY(cov=0.367 prec=1.000) Δcov=+0.042 Δprec=+0.000",
+    "[exp033]   seed=1 K=6 vn=0.1: ABSTAIN(cov=0.533 prec=0.156) RETRY(cov=0.742 prec=0.157) Δcov=+0.208 Δprec=+0.001",
+    "[exp033]   seed=1 K=6 vn=0.2: ABSTAIN(cov=0.750 prec=0.033) RETRY(cov=0.817 prec=0.051) Δcov=+0.067 Δprec=+0.018",
+    "[exp033] seed=1 139.2s npar=201280",
+    "[exp033]   seed=2 K=2 vn=0.0: ABSTAIN(cov=0.608 prec=1.000) RETRY(cov=0.608 prec=1.000) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=2 K=2 vn=0.1: ABSTAIN(cov=0.817 prec=0.622) RETRY(cov=0.817 prec=0.622) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=2 K=2 vn=0.2: ABSTAIN(cov=0.858 prec=0.437) RETRY(cov=0.858 prec=0.437) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=2 K=4 vn=0.0: ABSTAIN(cov=0.633 prec=1.000) RETRY(cov=0.667 prec=1.000) Δcov=+0.033 Δprec=+0.000",
+    "[exp033]   seed=2 K=4 vn=0.1: ABSTAIN(cov=0.758 prec=0.484) RETRY(cov=0.825 prec=0.333) Δcov=+0.067 Δprec=-0.150",
+    "[exp033]   seed=2 K=4 vn=0.2: ABSTAIN(cov=0.858 prec=0.184) RETRY(cov=0.908 prec=0.229) Δcov=+0.050 Δprec=+0.045",
+    "[exp033]   seed=2 K=6 vn=0.0: ABSTAIN(cov=0.458 prec=1.000) RETRY(cov=0.617 prec=1.000) Δcov=+0.158 Δprec=+0.000",
+    "[exp033]   seed=2 K=6 vn=0.1: ABSTAIN(cov=0.650 prec=0.269) RETRY(cov=0.842 prec=0.287) Δcov=+0.192 Δprec=+0.018",
+    "[exp033]   seed=2 K=6 vn=0.2: ABSTAIN(cov=0.875 prec=0.143) RETRY(cov=0.942 prec=0.071) Δcov=+0.067 Δprec=-0.072",
+    "[exp033] seed=2 145.5s npar=201280",
+    "[exp033]   seed=3 K=2 vn=0.0: ABSTAIN(cov=0.567 prec=1.000) RETRY(cov=0.567 prec=1.000) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=3 K=2 vn=0.1: ABSTAIN(cov=0.742 prec=0.607) RETRY(cov=0.742 prec=0.607) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=3 K=2 vn=0.2: ABSTAIN(cov=0.792 prec=0.295) RETRY(cov=0.792 prec=0.295) Δcov=+0.000 Δprec=+0.000",
+    "[exp033]   seed=3 K=4 vn=0.0: ABSTAIN(cov=0.383 prec=1.000) RETRY(cov=0.392 prec=1.000) Δcov=+0.008 Δprec=+0.000",
+    "[exp033]   seed=3 K=4 vn=0.1: ABSTAIN(cov=0.650 prec=0.256) RETRY(cov=0.658 prec=0.203) Δcov=+0.008 Δprec=-0.054",
+    "[exp033]   seed=3 K=4 vn=0.2: ABSTAIN(cov=0.817 prec=0.082) RETRY(cov=0.850 prec=0.069) Δcov=+0.033 Δprec=-0.013",
+    "[exp033]   seed=3 K=6 vn=0.0: ABSTAIN(cov=0.258 prec=1.000) RETRY(cov=0.350 prec=1.000) Δcov=+0.092 Δprec=+0.000",
+    "[exp033]   seed=3 K=6 vn=0.1: ABSTAIN(cov=0.450 prec=0.148) RETRY(cov=0.700 prec=0.167) Δcov=+0.250 Δprec=+0.019",
+    "[exp033]   seed=3 K=6 vn=0.2: ABSTAIN(cov=0.775 prec=0.011) RETRY(cov=0.875 prec=0.019) Δcov=+0.100 Δprec=+0.008",
+    "[exp033] seed=3 136.8s npar=201280",
+    "[exp033] VEREDICTO H-V4-1l: MIXTA | DURO(K=6,vn=0.1): Δcov=+0.194 prec_drop=-0.020 (req Δcov>=0.1, drop<=0.1) | MEJOR[6|0.1]: ABST(cov=0.508) RETRY(cov=0.702) Δcov=+0.194 drop=-0.020",
+    "[exp033] CURVA K|vn->ABST_cov/RETRY_cov/Δcov | ABST_prec/RETRY_prec: 2|0.0:0.54/0.54/+0.00 p1.00/1.00 | 2|0.1:0.73/0.73/+0.00 p0.57/0.57 | 2|0.2:0.81/0.81/+0.00 p0.33/0.33 | 4|0.0:0.43/0.44/+0.01 p1.00/1.00 | 4|0.1:0.62/0.69/+0.08 p0.32/0.28 | 4|0.2:0.79/0.84/+0.05 p0.12/0.13 | 6|0.0:0.30/0.37/+0.07 p1.00/1.00 | 6|0.1:0.51/0.70/+0.19 p0.16/0.18 | 6|0.2:0.75/0.86/+0.11 p0.05/0.04"
+  ]
+}

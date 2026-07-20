@@ -1,0 +1,32 @@
+{
+ "generado_utc": "2026-07-07 22:19:42",
+ "aya_total": 202362,
+ "aya_es": 3854,
+ "aya_drops": {
+  "len_completion": 264,
+  "len_prompt": 289,
+  "no_espanol": 95,
+  "sucio": 53
+ },
+ "aya_aceptados": 3153,
+ "oasst2_raices_es": 4047,
+ "oasst2_drops": {
+  "len_completion": 385,
+  "sucio": 58,
+  "len_prompt": 64,
+  "no_espanol": 36
+ },
+ "oasst2_aceptados": 3504,
+ "cognia_ds_total": 3489,
+ "cognia_ds_drops": {
+  "sucio": 2401,
+  "no_espanol": 808
+ },
+ "cognia_ds_aceptados": 280,
+ "cognia_ds_tasa": 0.0803,
+ "cognia_ds_prediccion_e_d5": "<30% sobrevive [PRE-REGISTRADA]",
+ "dedup_dropped": 22,
+ "descontaminacion_dropped": 5,
+ "total_final": 6910,
+ "wall_s": 166.7
+}

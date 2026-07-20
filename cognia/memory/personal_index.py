@@ -157,7 +157,8 @@ class PersonalIndex:
             conn.execute("""INSERT INTO user_profile (key, value, updated_at) VALUES (?, ?, ?)
                 ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at
             """, (key, value, now))
-            conn.commit()  # sin esto el INSERT nunca se persiste (pool release usa commit=False)
+            conn.commit()  # _PooledConnection.close() libera con commit=False
+            conn.close()
             return True
         except Exception as exc:
             logger.warning("PersonalIndex.save error: %s", exc)
@@ -182,6 +183,11 @@ class PersonalIndex:
             if conn is not None:
                 conn.close()
         return cls(user_id=user_id)
+
+    def list_concepts(self) -> list[str]:
+        """Nombres de todos los conceptos del indice, ordenados por importancia."""
+        return [e.concept for e in sorted(
+            self._entries.values(), key=lambda e: e.importance, reverse=True)]
 
     def summary(self) -> dict:
         if not self._entries: return {"total": 0, "top": []}

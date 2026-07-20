@@ -43,33 +43,33 @@ from .compression import ConceptCompressor, GraphEpisodicBridge
 from .cognia_embedding import get_embedding_queue
 
 try:
-    from cognia_deferred import DeferredMaintenance, IdleHypothesisScheduler
+    from cognia_v3.memory.cognia_deferred import DeferredMaintenance, IdleHypothesisScheduler
     HAS_DEFERRED = True
 except ImportError:
     HAS_DEFERRED = False
 
 # ── Paso 3: módulos de aprendizaje ────────────────────────────────────
 try:
-    from teacher_interface import get_teacher
+    from cognia_v3.interfaces.teacher_interface import get_teacher
     HAS_TEACHER = True
 except ImportError:
     HAS_TEACHER = False
 
 # ── Paso 4: SelfArchitect ─────────────────────────────────────────────
 try:
-    from self_architect import SelfArchitect
+    from cognia_v3.core.self_architect import SelfArchitect
     HAS_SELF_ARCHITECT = True
 except ImportError:
     HAS_SELF_ARCHITECT = False
 
 try:
-    from model_collapse_guard import ModelCollapseGuard
+    from cognia_v3.core.model_collapse_guard import ModelCollapseGuard
     HAS_COLLAPSE_GUARD = True
 except ImportError:
     HAS_COLLAPSE_GUARD = False
 
 try:
-    from language_corrector import LanguageCorrector
+    from cognia_v3.interfaces.language_corrector import LanguageCorrector
     HAS_LANGUAGE_CORRECTOR = True
 except ImportError:
     HAS_LANGUAGE_CORRECTOR = False
@@ -112,6 +112,76 @@ except ImportError:
     _SLEEP_CYCLES = _EPISODES_STORED = None
 
 _FEEDBACK_RATE_LIMIT = 10  # Phase 9 C6: max feedback calls per 60-second rolling window
+
+
+def _rank_hypotheses(hyps: list) -> list:
+    """Ordena las hipotesis por value (novedad x factibilidad x impacto) desc, con
+    las que no se pudieron evaluar (value None) AL FINAL. Empate/None se desempata
+    por plausibility desc para que el orden sea estable y tenga sentido.
+
+    Pura y sin LLM (asi el test la ejercita sin backend). Espera dicts con al
+    menos {hypothesis, plausibility}; opcionalmente {value} (None si no evaluo).
+    No muta la lista de entrada.
+    """
+    def _key(d):
+        val = d.get("value")
+        plaus = d.get("plausibility")
+        # (value None al final, value desc, plausibility desc como desempate).
+        return (val is None, -(val if val is not None else 0.0),
+                -(plaus if plaus is not None else 0.0))
+    return sorted(hyps or [], key=_key)
+
+
+def _render_investigation(problem: str, hyps: list, analogias: list, exp) -> str:
+    """Arma el reporte ASCII integrado del loop /investigar a partir de los datos
+    YA calculados (hipotesis con value+plausibility, analogias, dict de experimento).
+
+    Pura y sin LLM: separa el FORMATEO/RANKING de las llamadas al backend para que
+    el test lo verifique sin modelo. Maneja honestamente listas vacias y None en
+    cada bloque (no inventa). ASCII puro (CP1252) para el CLI.
+
+    - hyps: list de {hypothesis, plausibility, value(None si no evaluo)}.
+    - analogias: list de {dominio, adaptacion, ...} (puede ser []).
+    - exp: dict de experiment_lab.run_experiment (puede ser None / executed False).
+    """
+    problema = (problem or "").strip()
+    lineas = [f"INVESTIGACION: {problema}"]
+
+    # ── Hipotesis rankeadas por valor ──────────────────────────────────────
+    lineas.append("Hipotesis (rankeadas por valor = novedad x factibilidad x impacto):")
+    ranked = _rank_hypotheses(hyps)
+    if not ranked:
+        lineas.append("  (no se generaron hipotesis)")
+    else:
+        for i, h in enumerate(ranked, 1):
+            plaus = h.get("plausibility")
+            plaus_txt = f"{plaus:.2f}" if plaus is not None else "n/a"
+            val = h.get("value")
+            if val is None:
+                etiqueta = f"[sin evaluar | plaus {plaus_txt}]"
+            else:
+                etiqueta = f"[valor {val:.2f} | plaus {plaus_txt}]"
+            lineas.append(f"{i}. {etiqueta} {h.get('hypothesis', '')}")
+
+    # ── Analogias para enmarcar ────────────────────────────────────────────
+    lineas.append("Analogias para enmarcar el problema:")
+    if not analogias:
+        lineas.append("  (sin analogias)")
+    else:
+        for a in analogias:
+            dominio = (a.get("dominio") or "?").strip() or "?"
+            adapt = (a.get("adaptacion") or "").strip()
+            lineas.append(f"  [{dominio}] {adapt}")
+
+    # ── Validacion empirica de la hipotesis top ────────────────────────────
+    lineas.append("Validacion empirica de la hipotesis top:")
+    if not exp or not exp.get("executed"):
+        razon = (exp or {}).get("reason", "motivo desconocido")
+        lineas.append(f"  no ejecutable: {razon}")
+    else:
+        lineas.append(f"  VEREDICTO: {exp.get('verdict', 'inconcluso')}")
+
+    return "\n".join(lineas)
 
 
 class Cognia:
@@ -236,7 +306,7 @@ class Cognia:
 
         # ── PASO 5: FeedbackEngine (aprendizaje por feedback) ──────────
         try:
-            from feedback_engine import get_feedback_engine
+            from cognia_v3.core.feedback_engine import get_feedback_engine
             self._feedback_engine = get_feedback_engine(db_path)
             print("[OK] FeedbackEngine PASO 5 activo")
         except ImportError:
@@ -244,7 +314,7 @@ class Cognia:
 
         # ── PASO 6: ConsolidationEngine (consolidación y limpieza) ─────
         try:
-            from consolidation_engine import get_consolidation_engine
+            from cognia_v3.memory.consolidation_engine import get_consolidation_engine
             self._consolidation_engine = get_consolidation_engine(
                 db_path,
                 consolidation_interval=self.consolidation_interval,
@@ -305,15 +375,18 @@ class Cognia:
                 _os_module.path.dirname(_os_module.path.dirname(_os_module.path.abspath(__file__))),
                 "shattering", "manifests", "cognia_qwen.json",
             )
+            # Version comercial local-only: si COGNIA_DISABLE_SWARM esta seteado,
+            # forzar coordinator=None y mode=local (nunca sale a la red; solo el 3B).
+            from cognia.runtime_mode import coordinator_url as _coord_url, swarm_disabled as _swarm_off
             self._orchestrator = ShatteringOrchestrator(
                 manifest_path=_manifest_path,
-                coordinator_url=_os_module.environ.get("COGNIA_COORDINATOR_URL"),
-                mode="auto",
+                coordinator_url=(_coord_url() or None),
+                mode="local" if _swarm_off() else "auto",
             )
             if self._orchestrator.shards_ready():
                 print("[OK] ShatteringOrchestrator activo (shards Qwen disponibles)")
             else:
-                print("[OK] ShatteringOrchestrator activo (shards no encontrados — modo Ollama)")
+                print("[OK] ShatteringOrchestrator activo (shards no encontrados — backend llama.cpp/GGUF on-demand)")
         except Exception as _orch_exc:
             logger.warning(
                 "ShatteringOrchestrator no pudo inicializarse",
@@ -414,7 +487,9 @@ class Cognia:
             return (
                 f"Creacion completada en {result.duration_sec}s.\n"
                 f"Intentos: {result.attempted}. Ninguno supero el umbral de calidad.\n"
-                f"Prueba con una descripcion mas especifica."
+                f"Prueba con una descripcion mas especifica. Si Cognia no tiene\n"
+                f"backend de inferencia, instalalo con 'cognia install-model'\n"
+                f"(el detalle de la causa quedo impreso arriba)."
             )
         except Exception as exc:
             return f"[ERROR] {exc}"
@@ -878,6 +953,230 @@ class Cognia:
                 f"{result['hypothesis']}\n"
                 f"Similitud entre conceptos: {result['similarity']:.2f}")
 
+    def generate_hypotheses_many(self, problem: str, n: int = 5) -> str:
+        """Genera N hipotesis diversas para un problema libre via el LLM vivo compartido.
+        diversify=True activa el detector de repeticion: si el conjunto sale repetitivo
+        se fuerzan enfoques alternativos antes de puntuar."""
+        items = self.hypothesis.generate_many(problem, n, orchestrator=self._orchestrator,
+                                              diversify=True)
+        if not items:
+            return "No pude generar hipotesis (backend no disponible o sin resultados)."
+        lineas = [f"[i] {len(items)} hipotesis para: {problem.strip()}"]
+        # Si el scoring fallo total (todas sin plausibilidad), no inventamos numeros:
+        # mostramos "[sin puntuar]" y avisamos que el orden es el de generacion.
+        sin_puntuar = all(it["plausibility"] is None for it in items)
+        for it in items:
+            if it["plausibility"] is None:
+                lineas.append(f"{it['rank']}. [sin puntuar] {it['hypothesis']}")
+            else:
+                lineas.append(f"{it['rank']}. [plaus {it['plausibility']:.2f}] {it['hypothesis']}")
+        if sin_puntuar:
+            lineas.append("(no se pudo puntuar la plausibilidad; orden = generacion)")
+        return "\n".join(lineas)
+
+    def measure_diversity(self, ideas: list) -> str:
+        """Mide que tan variado es un conjunto de ideas (similitud lexica, sin LLM)
+        y reporta los pares casi-duplicados detectados. ASCII puro para el CLI."""
+        from cognia.reasoning import repetition_detector as _rd
+        ideas = [i.strip() for i in (ideas or []) if i and i.strip()]
+        if len(ideas) < 2:
+            return "Necesito al menos 2 ideas para medir diversidad (separa con '||')."
+        score = _rd.diversity(ideas)
+        repeats = _rd.find_repeats(ideas)
+        lineas = [f"[i] Diversidad: {score:.2f} (1.0 = todas distintas, 0.0 = todas iguales) "
+                  f"sobre {len(ideas)} ideas"]
+        if repeats:
+            lineas.append(f"Pares casi-duplicados detectados ({len(repeats)}):")
+            for i, j, sim in repeats:
+                lineas.append(f"  - idea {i + 1} <-> idea {j + 1}  (sim {sim:.2f})")
+        else:
+            lineas.append("Sin pares casi-duplicados: el conjunto no repite estrategias.")
+        return "\n".join(lineas)
+
+    def run_experiment(self, claim: str) -> str:
+        """Pone a prueba una afirmacion empiricamente: el LLM disena un experimento
+        Python, se corre en el sandbox seguro y se lee el veredicto del stdout."""
+        from cognia.reasoning.experiment_lab import run_experiment as _run_exp
+        res = _run_exp(self._orchestrator, claim)
+
+        if not res.get("executed"):
+            return f"[lab] No se ejecuto el experimento: {res.get('reason', 'motivo desconocido')}"
+
+        lineas = [f"[lab] VEREDICTO: {res['verdict']}"]
+        if res["success"]:
+            lineas.append("Ejecucion: OK (el experimento corrio y produjo mediciones)")
+        else:
+            lineas.append("Ejecucion: FALLO (ver detalle abajo)")
+        if res["blocked"]:
+            lineas.append("Rechazado por el sandbox (imports/llamadas bloqueadas): "
+                          + "; ".join(str(b) for b in res["blocked"]))
+        if res["timed_out"]:
+            lineas.append("El experimento excedio el tiempo limite (timeout).")
+
+        salida = (res.get("output") or "").strip()
+        if salida:
+            primeras = salida.splitlines()[:8]
+            lineas.append("Salida (primeras lineas):")
+            lineas.extend("  " + ln for ln in primeras)
+        err = (res.get("error") or "").strip()
+        if err and not res["success"]:
+            lineas.append("Error: " + err.splitlines()[0])
+        return "\n".join(lineas)
+
+    def evaluate_idea(self, idea: str) -> str:
+        """Autoevalua una idea en novedad x factibilidad x impacto via el LLM vivo."""
+        from cognia.reasoning.idea_eval import evaluate_idea as _eval_idea
+        res = _eval_idea(self._orchestrator, idea)
+        if res is None:
+            return "No pude evaluar la idea (backend no disponible o respuesta no parseable)."
+        return (f"Novedad: {res['novedad']:.2f} | Factibilidad: {res['factibilidad']:.2f} | "
+                f"Impacto: {res['impacto']:.2f} | VALOR: {res['value']:.2f}")
+
+    def find_analogies(self, problem: str) -> str:
+        """Traduce un problema a otros dominios (analogias transversales) via el
+        LLM vivo y formatea ASCII legible. Lista vacia -> mensaje honesto."""
+        from cognia.reasoning.analogy_engine import find_analogies as _find_an
+        bloques = _find_an(self._orchestrator, problem)
+        if not bloques:
+            return "No pude generar analogias (backend no disponible o sin resultados)."
+        lineas = [f"[i] {len(bloques)} analogias para: {problem.strip()}"]
+        for b in bloques:
+            lineas.append(
+                f"[{b['dominio']}] Analogia: {b['analogia']} | "
+                f"Solucion: {b['solucion']} | Adaptacion: {b['adaptacion']}"
+            )
+        return "\n".join(lineas)
+
+    def solve_by_abstraction(self, problem: str) -> str:
+        """Resuelve un problema por abstraccion (forma abstracta -> solucion
+        abstracta -> solucion concreta) via el LLM vivo y formatea ASCII legible.
+        None -> mensaje honesto."""
+        from cognia.reasoning.abstraction_engine import solve_by_abstraction as _solve_abs
+        res = _solve_abs(self._orchestrator, problem)
+        if res is None:
+            return "No pude abstraer el problema (backend no disponible o respuesta incompleta)."
+        return (
+            f"Forma abstracta: {res['forma_abstracta']}\n"
+            f"Solucion abstracta: {res['solucion_abstracta']}\n"
+            f"Solucion concreta: {res['solucion_concreta']}"
+        )
+
+    def transfer_principle(self, source: str, target: str) -> str:
+        """Transfiere el principio que hace funcionar a la FUENTE (source) hacia el
+        OBJETIVO (target) via el LLM vivo y formatea ASCII legible. Extrae el
+        principio abstracto de la fuente (no coincidencias superficiales) y lo
+        aplica al objetivo. None -> mensaje honesto."""
+        from cognia.reasoning.transfer_engine import transfer_principle as _transfer
+        res = _transfer(self._orchestrator, source, target)
+        if res is None:
+            return "No pude transferir el principio (backend no disponible o respuesta incompleta)."
+        return (
+            f"Principio (de {source.strip()}): {res['principio']}\n"
+            f"Aplicacion (a {target.strip()}): {res['aplicacion']}"
+        )
+
+    def explore_problem(self, problem: str, total: int = 5) -> str:
+        """Modo explorador 70/30: explota las ideas prometedoras (profundiza) y
+        reserva presupuesto para explorar enfoques nuevos. La exploracion nunca
+        se elimina (explore_n>=1 siempre). ASCII puro para el CLI."""
+        from cognia.reasoning import explorer as _explorer
+        problem = (problem or "").strip()
+        if not problem:
+            return "Uso: /explorar <problema>"
+
+        # Ideas base ya rankeadas por plausibilidad (las usamos como 'known':
+        # las mejores se explotan, las demas sirven de 'a evitar' al explorar).
+        items = self.hypothesis.generate_many(
+            problem, n=max(3, total), orchestrator=self._orchestrator)
+        known = [it["hypothesis"] for it in items] if items else []
+
+        res = _explorer.explore_exploit(
+            self._orchestrator, problem, known, total=total)
+        if res.get("reason"):
+            return f"No pude explorar (backend no disponible o problema vacio): {res['reason']}"
+
+        exploit_n = res["exploit_n"]
+        explore_n = res["explore_n"]
+        exploited = res["exploited"]
+        explored = res["explored"]
+
+        lineas = [f"[i] Modo explorador 70/30 para: {problem}",
+                  f"    split presupuesto: explotacion={exploit_n}  exploracion={explore_n}"]
+
+        lineas.append("")
+        lineas.append(f"EXPLOTACION (70%): {len(exploited)} idea(s) profundizada(s)")
+        if exploited:
+            for k, e in enumerate(exploited, 1):
+                lineas.append(f"  {k}. Base: {e['base']}")
+                lineas.append(f"     -> {e['profundizada']}")
+        else:
+            lineas.append("  (sin ideas para profundizar: no hubo hipotesis base o el backend no respondio)")
+
+        lineas.append("")
+        lineas.append(f"EXPLORACION (30%): {len(explored)} idea(s) nueva(s) / no convencional(es)")
+        if explored:
+            for k, idea in enumerate(explored, 1):
+                lineas.append(f"  {k}. {idea}")
+        else:
+            lineas.append("  (no surgieron enfoques genuinamente nuevos esta vez)")
+
+        return "\n".join(lineas)
+
+    def investigate(self, problem: str, effort: dict = None) -> str:
+        """Loop cientifico ACOTADO que ENCADENA las piezas creativas existentes:
+        generar hipotesis -> evaluar su novedad/valor -> analogias para enmarcar ->
+        validar empiricamente la mejor. NO reimplementa nada: orquesta los metodos
+        ya verificados (hypothesis.generate_many, idea_eval, analogy_engine,
+        experiment_lab) y arma un reporte ASCII integrado.
+
+        Presupuesto de llamadas LLM (el i3 es lento ~8 tok/s, lo mantenemos bajo):
+          - generate_many(n=3, diversify): 2-3 llamadas.
+          - evaluate_idea x3: 3 llamadas (1 c/u, +reintento si server frio).
+          - find_analogies(k=2): 1-2 llamadas.
+          - run_experiment: 1 diseno + 1 ejecucion en sandbox.
+        ~9-10 llamadas LLM en el caso tipico.
+        """
+        from cognia.reasoning import idea_eval
+        from cognia.reasoning import analogy_engine
+        from cognia.reasoning import experiment_lab
+
+        problem = (problem or "").strip()
+        if not problem:
+            return "Uso: /investigar <problema>"
+
+        # FASE 3c: el nivel /esfuerzo escala cuanto se explora — n hipotesis
+        # (alternativas) y k analogias (profundidad). Sin effort -> defaults previos.
+        _n = max(1, int((effort or {}).get("alternativas", 3)))
+        _k = max(1, int((effort or {}).get("profundidad", 2)))
+
+        # PASO 1 — HIPOTESIS: n angulos diversos, rankeados por plausibilidad.
+        hyps = self.hypothesis.generate_many(
+            problem, n=_n, orchestrator=self._orchestrator, diversify=True)
+        if not hyps:
+            return ("No pude investigar: no se generaron hipotesis "
+                    "(backend no disponible o sin resultados).")
+
+        # PASO 2 — EVALUAR NOVEDAD: una pasada de idea_eval por hipotesis; se
+        # adjunta value (None si no se pudo evaluar, honesto). _rank_hypotheses
+        # luego ordena por value desc dejando las None al final.
+        for h in hyps:
+            ev = idea_eval.evaluate_idea(self._orchestrator, h.get("hypothesis", ""))
+            h["value"] = ev["value"] if ev else None
+
+        ranked = _rank_hypotheses(hyps)
+        top = ranked[0]  # mejor por value (o por plausibility si todas value None)
+
+        # PASO 3 — ANALOGIAS del PROBLEMA (k=2 para acotar): enmarcan el problema
+        # en otros dominios. [] si el backend no devolvio nada util (honesto).
+        analogias = analogy_engine.find_analogies(self._orchestrator, problem, k=_k)
+
+        # PASO 4 — VALIDAR la mejor hipotesis empiricamente. El lab reporta
+        # honestamente si no es ejecutable (executed False).
+        exp = experiment_lab.run_experiment(self._orchestrator, top.get("hypothesis", ""))
+
+        # PASO 5 — REPORTE ASCII integrado (formateo/ranking puro, sin LLM).
+        return _render_investigation(problem, hyps, analogias, exp)
+
     def introspect(self) -> dict:
         now = time.time()
         if self._introspect_cache and (now - self._introspect_ts) < 2.0:
@@ -1265,7 +1564,8 @@ class Cognia:
         from urllib.request import Request as _UrlRequest
         from urllib.error import URLError
 
-        coordinator_url   = _os_module.environ.get("COGNIA_COORDINATOR_URL", "").rstrip("/")
+        from cognia.runtime_mode import coordinator_url as _coord_url
+        coordinator_url   = _coord_url().rstrip("/")   # "" si COGNIA_DISABLE_SWARM
         contributor_token = _os_module.environ.get("COGNIA_CONTRIBUTOR_TOKEN", "")
         if not coordinator_url or not contributor_token:
             return ""

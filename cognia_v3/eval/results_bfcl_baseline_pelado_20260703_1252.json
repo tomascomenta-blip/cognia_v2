@@ -1,0 +1,4168 @@
+{
+  "label": "baseline_pelado",
+  "timestamp": "2026-07-03T12:52:55.930030",
+  "model": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "max_tokens": 512,
+  "temperature": 0.0,
+  "seed": 42,
+  "n_items": 200,
+  "n_passed": 48,
+  "accuracy": 0.24,
+  "by_category": {
+    "simple": {
+      "total": 40,
+      "passed": 7
+    },
+    "multiple": {
+      "total": 40,
+      "passed": 13
+    },
+    "parallel": {
+      "total": 40,
+      "passed": 5
+    },
+    "parallel_multiple": {
+      "total": 40,
+      "passed": 16
+    },
+    "live_simple": {
+      "total": 40,
+      "passed": 7
+    }
+  },
+  "results": [
+    {
+      "id": "simple_393",
+      "category": "simple",
+      "prompt_len": 1247,
+      "response": "func(convert_currency(base_currency=\"JPY\", target_currency=\"USD\", amount=20000))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'convert_currency' not found in model output.",
+      "gen_seconds": 14.89
+    },
+    {
+      "id": "simple_15",
+      "category": "simple",
+      "prompt_len": 1475,
+      "response": "integrate(function=\"x^3\", start_x=-2, end_x=3, method=\"simpson\")",
+      "parsed_calls": [
+        {
+          "integrate": {
+            "function": "x^3",
+            "start_x": -2,
+            "end_x": 3,
+            "method": "simpson"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 18.32
+    },
+    {
+      "id": "simple_109",
+      "category": "simple",
+      "prompt_len": 1202,
+      "response": "func(random_forest.train(n_estimators=100, max_depth=5, data=my_data))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'random_forest.train' not found in model output.",
+      "gen_seconds": 14.68
+    },
+    {
+      "id": "simple_80",
+      "category": "simple",
+      "prompt_len": 1510,
+      "response": "func(find_restaurants=location=\"Manhattan\", food_type=\"Thai\", number=5, dietary_requirements=[\"vegan\"])",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(find_restaurants=location=\"Manhattan\", food_type=\"Thai\", number=5, dietary_requirements=[\"vegan\"])'",
+      "gen_seconds": 17.59
+    },
+    {
+      "id": "simple_224",
+      "category": "simple",
+      "prompt_len": 1310,
+      "response": "func(topic=\"psychology\", sub_topics=[\"behaviour\", \"group dynamics\"])",
+      "parsed_calls": [
+        {
+          "func": {
+            "topic": "psychology",
+            "sub_topics": [
+              "behaviour",
+              "group dynamics"
+            ]
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'social_media_analytics.most_followed' not found in model output.",
+      "gen_seconds": 14.41
+    },
+    {
+      "id": "simple_210",
+      "category": "simple",
+      "prompt_len": 1125,
+      "response": "func(get_news(topic=\"Bitcoin\", quantity=5, region=\"US\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_news' not found in model output.",
+      "gen_seconds": 12.86
+    },
+    {
+      "id": "simple_200",
+      "category": "simple",
+      "prompt_len": 1557,
+      "response": "func(calculate_emissions(distance=12000, fuel_type=\"gas\", fuel_efficiency=25))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_emissions' not found in model output.",
+      "gen_seconds": 18.32
+    },
+    {
+      "id": "simple_162",
+      "category": "simple",
+      "prompt_len": 1324,
+      "response": "func(generate_law_contract=parties=[\"John\", \"Alice\"], contract_type=\"Rental Agreement\", location=\"California\")",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(generate_law_contract=parties=[\"John\", \"Alice\"], contract_type=\"Rental Agreement\", location=\"California\")'",
+      "gen_seconds": 15.97
+    },
+    {
+      "id": "simple_79",
+      "category": "simple",
+      "prompt_len": 1171,
+      "response": "create_histogram(data=[85, 90, 88, 92, 86, 89, 91], bins=5)",
+      "parsed_calls": [
+        {
+          "create_histogram": {
+            "data": [
+              85,
+              90,
+              88,
+              92,
+              86,
+              89,
+              91
+            ],
+            "bins": 5
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 17.71
+    },
+    {
+      "id": "simple_145",
+      "category": "simple",
+      "prompt_len": 1590,
+      "response": "func(calculate_compounded_interest(principal=5000, interest_rate=0.05, period=10, compounding_frequency='Annually'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_compounded_interest' not found in model output.",
+      "gen_seconds": 20.02
+    },
+    {
+      "id": "simple_50",
+      "category": "simple",
+      "prompt_len": 1735,
+      "response": "func(substance=\"ice\", mass=1, initial_temperature=0, final_temperature=100)",
+      "parsed_calls": [
+        {
+          "func": {
+            "substance": "ice",
+            "mass": 1,
+            "initial_temperature": 0,
+            "final_temperature": 100
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'entropy_change.calculate' not found in model output.",
+      "gen_seconds": 19.33
+    },
+    {
+      "id": "simple_35",
+      "category": "simple",
+      "prompt_len": 1265,
+      "response": "vegan_restaurant.find_nearby(location=\"New York, NY\", operating_hours=11)",
+      "parsed_calls": [
+        {
+          "vegan_restaurant.find_nearby": {
+            "location": "New York, NY",
+            "operating_hours": 11
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "value_error:others",
+      "error_detail": "Invalid value for parameter 'operating_hours': 11. Expected one of [23].",
+      "gen_seconds": 15.52
+    },
+    {
+      "id": "simple_138",
+      "category": "simple",
+      "prompt_len": 1555,
+      "response": "portfolio_future_value(stock='X', invested_amount=5000, expected_annual_return=0.05, years=7)",
+      "parsed_calls": [
+        {
+          "portfolio_future_value": {
+            "stock": "X",
+            "invested_amount": 5000,
+            "expected_annual_return": 0.05,
+            "years": 7
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 19.36
+    },
+    {
+      "id": "simple_370",
+      "category": "simple",
+      "prompt_len": 1336,
+      "response": "safeway.order(location=\"Palo Alto, CA\", items=[\"olive oil\", \"rice\"], quantity=[3, 5])",
+      "parsed_calls": [
+        {
+          "safeway.order": {
+            "location": "Palo Alto, CA",
+            "items": [
+              "olive oil",
+              "rice"
+            ],
+            "quantity": [
+              3,
+              5
+            ]
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "value_error:list/tuple",
+      "error_detail": "Invalid value for parameter 'quantity': [3, 5]. Expected one of [[3, 1]].",
+      "gen_seconds": 16.49
+    },
+    {
+      "id": "simple_293",
+      "category": "simple",
+      "prompt_len": 1506,
+      "response": "func(music_composer.create_mix(scale=\"C Major\", note_duration=\"quarter\", track_length=180))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'music_composer.create_mix' not found in model output.",
+      "gen_seconds": 17.52
+    },
+    {
+      "id": "simple_112",
+      "category": "simple",
+      "prompt_len": 1244,
+      "response": "func(calculate_probability=total_outcomes=52, favorable_outcomes=4, round_to=4)",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(calculate_probability=total_outcomes=52, favorable_outcomes=4, round_to=4)'",
+      "gen_seconds": 14.22
+    },
+    {
+      "id": "simple_111",
+      "category": "simple",
+      "prompt_len": 1106,
+      "response": "func(mu=0, sigma=1)",
+      "parsed_calls": [
+        {
+          "func": {
+            "mu": 0,
+            "sigma": 1
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'random.normalvariate' not found in model output.",
+      "gen_seconds": 11.13
+    },
+    {
+      "id": "simple_140",
+      "category": "simple",
+      "prompt_len": 1357,
+      "response": "func(calculate_cagr(initial_value=2000, final_value=3000, period_in_years=4))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_cagr' not found in model output.",
+      "gen_seconds": 16.53
+    },
+    {
+      "id": "simple_199",
+      "category": "simple",
+      "prompt_len": 1127,
+      "response": "environmental_data.air_quality_index(location=\"San Jose\", days=3)",
+      "parsed_calls": [
+        {
+          "environmental_data.air_quality_index": {
+            "location": "San Jose",
+            "days": 3
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 12.58
+    },
+    {
+      "id": "simple_205",
+      "category": "simple",
+      "prompt_len": 1338,
+      "response": "func(get_traffic_info(start_location=\"Boston\", end_location=\"New York\", mode=\"driving\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_traffic_info' not found in model output.",
+      "gen_seconds": 14.54
+    },
+    {
+      "id": "simple_330",
+      "category": "simple",
+      "prompt_len": 1324,
+      "response": "func(board_game_info(game_name='Catan', info_required=['average_review_rating', 'age_range']))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'board_game_info' not found in model output.",
+      "gen_seconds": 14.65
+    },
+    {
+      "id": "simple_376",
+      "category": "simple",
+      "prompt_len": 1194,
+      "response": "func(time_zone_converter=city=\"London\", country=\"UK\", display_format=\"24h\")",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(time_zone_converter=city=\"London\", country=\"UK\", display_format=\"24h\")'",
+      "gen_seconds": 15.19
+    },
+    {
+      "id": "simple_11",
+      "category": "simple",
+      "prompt_len": 1071,
+      "response": "func(calculate_triangle_area(base=10, height=5))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_triangle_area' not found in model output.",
+      "gen_seconds": 12.55
+    },
+    {
+      "id": "simple_357",
+      "category": "simple",
+      "prompt_len": 1153,
+      "response": "func(get_recipe=dish_name=\"vegan chocolate cake\", diet_preference=\"vegan\")",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(get_recipe=dish_name=\"vegan chocolate cake\", diet_preference=\"vegan\")'",
+      "gen_seconds": 13.93
+    },
+    {
+      "id": "simple_19",
+      "category": "simple",
+      "prompt_len": 986,
+      "response": "func(math.gcd(num1=40, num2=50))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'math.gcd' not found in model output.",
+      "gen_seconds": 12.13
+    },
+    {
+      "id": "simple_69",
+      "category": "simple",
+      "prompt_len": 1210,
+      "response": "ecology.get_turtle_population(location=\"Mississippi river\", year=2020, species=True)",
+      "parsed_calls": [
+        {
+          "ecology.get_turtle_population": {
+            "location": "Mississippi river",
+            "year": 2020,
+            "species": true
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 14.17
+    },
+    {
+      "id": "simple_398",
+      "category": "simple",
+      "prompt_len": 1229,
+      "response": "func(get_museum_hours=museum_name=\"Metropolitan Museum of Art\", day=\"Saturday\")",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(get_museum_hours=museum_name=\"Metropolitan Museum of Art\", day=\"Saturday\")'",
+      "gen_seconds": 13.61
+    },
+    {
+      "id": "simple_62",
+      "category": "simple",
+      "prompt_len": 1462,
+      "response": "func(analyze_dna_sequence(sequence='AGTCGATCGAACGTACGTACG', reference_sequence='AGTCCATCGAACGTACGTACG', mutation_type='substitution'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'analyze_dna_sequence' not found in model output.",
+      "gen_seconds": 18.77
+    },
+    {
+      "id": "simple_291",
+      "category": "simple",
+      "prompt_len": 1484,
+      "response": "music_generator.generate_melody(key=\"C\", start_note=\"C4\", length=16, tempo=120)",
+      "parsed_calls": [
+        {
+          "music_generator.generate_melody": {
+            "key": "C",
+            "start_note": "C4",
+            "length": 16,
+            "tempo": 120
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 18.19
+    },
+    {
+      "id": "simple_2",
+      "category": "simple",
+      "prompt_len": 1254,
+      "response": "func(x=4, y=5)",
+      "parsed_calls": [
+        {
+          "func": {
+            "x": 4,
+            "y": 5
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'math.hypot' not found in model output.",
+      "gen_seconds": 13.29
+    },
+    {
+      "id": "simple_304",
+      "category": "simple",
+      "prompt_len": 1471,
+      "response": "func(player_stats.getLastGame(player_name='LeBron James', team='Los Angeles Lakers', metrics=['Points', 'Rebounds']))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'player_stats.getLastGame' not found in model output.",
+      "gen_seconds": 16.71
+    },
+    {
+      "id": "simple_37",
+      "category": "simple",
+      "prompt_len": 1471,
+      "response": "func(route.estimate_time(start_location=\"San Francisco\", end_location=\"Los Angeles\", stops=[\"Santa Barbara\", \"Monterey\"]))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'route.estimate_time' not found in model output.",
+      "gen_seconds": 16.72
+    },
+    {
+      "id": "simple_226",
+      "category": "simple",
+      "prompt_len": 1267,
+      "response": "func(get_zodiac_compatibility(sign1=\"Aries\", sign2=\"Gemini\", scale=\"percentage\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_zodiac_compatibility' not found in model output.",
+      "gen_seconds": 14.74
+    },
+    {
+      "id": "simple_100",
+      "category": "simple",
+      "prompt_len": 1174,
+      "response": "func(light_travel_time(distance_in_light_years=4))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'light_travel_time' not found in model output.",
+      "gen_seconds": 12.57
+    },
+    {
+      "id": "simple_89",
+      "category": "simple",
+      "prompt_len": 1800,
+      "response": "func(db_fetch_records=database_name=\"StudentDB\", table_name=\"Students\", conditions={\"department\": \"Science\", \"school\": \"Bluebird High School\"})",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(db_fetch_records=database_name=\"StudentDB\", table_name=\"Students\", conditions={\"department\": \"Science\", \"school\": \"Bluebird High School\"})'",
+      "gen_seconds": 20.43
+    },
+    {
+      "id": "simple_171",
+      "category": "simple",
+      "prompt_len": 1240,
+      "response": "func(fetch_law_case_details=case_number=43403, court=\"New York\", year=2018)",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(fetch_law_case_details=case_number=43403, court=\"New York\", year=2018)'",
+      "gen_seconds": 15.56
+    },
+    {
+      "id": "simple_60",
+      "category": "simple",
+      "prompt_len": 1145,
+      "response": "mutation_type.find(snp_id=\"rs6034464\")",
+      "parsed_calls": [
+        {
+          "mutation_type.find": {
+            "snp_id": "rs6034464"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 13.93
+    },
+    {
+      "id": "simple_255",
+      "category": "simple",
+      "prompt_len": 1197,
+      "response": "func(papal_name=\"Innocent III\", include_contributions=True)",
+      "parsed_calls": [
+        {
+          "func": {
+            "papal_name": "Innocent III",
+            "include_contributions": true
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'religious_history.get_papal_biography' not found in model output.",
+      "gen_seconds": 13.27
+    },
+    {
+      "id": "simple_17",
+      "category": "simple",
+      "prompt_len": 1054,
+      "response": "func(get_prime_factors(number=450, formatted=True))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_prime_factors' not found in model output.",
+      "gen_seconds": 11.6
+    },
+    {
+      "id": "simple_198",
+      "category": "simple",
+      "prompt_len": 1273,
+      "response": "func(calculate_daily_water_intake(weight=70))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_daily_water_intake' not found in model output.",
+      "gen_seconds": 13.35
+    },
+    {
+      "id": "multiple_66",
+      "category": "multiple",
+      "prompt_len": 2320,
+      "response": "func(traffic_estimate(start_location=\"Las Vegas\", end_location=\"Los Angeles\", time_period=\"weekend\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'traffic_estimate' not found in model output.",
+      "gen_seconds": 25.01
+    },
+    {
+      "id": "multiple_123",
+      "category": "multiple",
+      "prompt_len": 2712,
+      "response": "func(calculate_probability(total_outcomes=52, favorable_outcomes=4, round_to=2))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_probability' not found in model output.",
+      "gen_seconds": 29.07
+    },
+    {
+      "id": "multiple_103",
+      "category": "multiple",
+      "prompt_len": 3103,
+      "response": "calculate_final_speed(initial_velocity=0, height=100)",
+      "parsed_calls": [
+        {
+          "calculate_final_speed": {
+            "initial_velocity": 0,
+            "height": 100
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 34.16
+    },
+    {
+      "id": "multiple_9",
+      "category": "multiple",
+      "prompt_len": 1930,
+      "response": "calculate_average(gradeDict={'math':90, 'science':75, 'history':82, 'music':89})",
+      "parsed_calls": [
+        {
+          "calculate_average": {
+            "gradeDict": {
+              "math": 90,
+              "science": 75,
+              "history": 82,
+              "music": 89
+            }
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 21.84
+    },
+    {
+      "id": "multiple_161",
+      "category": "multiple",
+      "prompt_len": 3019,
+      "response": "find_exhibition(location=\"New York, NY\", art_form=\"sculpture\", month=\"upcoming\", user_ratings=\"high\")",
+      "parsed_calls": [
+        {
+          "find_exhibition": {
+            "location": "New York, NY",
+            "art_form": "sculpture",
+            "month": "upcoming",
+            "user_ratings": "high"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 32.59
+    },
+    {
+      "id": "multiple_154",
+      "category": "multiple",
+      "prompt_len": 3550,
+      "response": "func(US_president.in_year(year=1861, full_name=True))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'US_president.in_year' not found in model output.",
+      "gen_seconds": 38.21
+    },
+    {
+      "id": "multiple_15",
+      "category": "multiple",
+      "prompt_len": 2385,
+      "response": "func(solarFarm.potential(coordinates=[43.653225, -79.383186], panelArea=80000, month=\"December\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'solarFarm.potential' not found in model output.",
+      "gen_seconds": 29.42
+    },
+    {
+      "id": "multiple_13",
+      "category": "multiple",
+      "prompt_len": 1926,
+      "response": "func(corporate_finance.revenue_forecast, company=\"XYZ\", product=\"A\", sales_units_increase_percentage=10)",
+      "parsed_calls": [
+        {
+          "func": {
+            "company": "XYZ",
+            "product": "A",
+            "sales_units_increase_percentage": 10
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'corporate_finance.revenue_forecast' not found in model output.",
+      "gen_seconds": 21.39
+    },
+    {
+      "id": "multiple_89",
+      "category": "multiple",
+      "prompt_len": 3051,
+      "response": "recipe_search(ingredients=[\"chicken\", \"mushrooms\"], calories=500, meal=\"lunch\")",
+      "parsed_calls": [
+        {
+          "recipe_search": {
+            "ingredients": [
+              "chicken",
+              "mushrooms"
+            ],
+            "calories": 500,
+            "meal": "lunch"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 32.03
+    },
+    {
+      "id": "multiple_121",
+      "category": "multiple",
+      "prompt_len": 2618,
+      "response": "geometry.area_triangle(base=6, height=10)",
+      "parsed_calls": [
+        {
+          "geometry.area_triangle": {
+            "base": 6,
+            "height": 10
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 27.67
+    },
+    {
+      "id": "multiple_75",
+      "category": "multiple",
+      "prompt_len": 2354,
+      "response": "func(paint_color.trends(room=\"Living room\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'paint_color.trends' not found in model output.",
+      "gen_seconds": 24.22
+    },
+    {
+      "id": "multiple_44",
+      "category": "multiple",
+      "prompt_len": 2336,
+      "response": "func(calculate.weight_in_space(weight_earth_kg=70, planet='Mars'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate.weight_in_space' not found in model output.",
+      "gen_seconds": 26.68
+    },
+    {
+      "id": "multiple_118",
+      "category": "multiple",
+      "prompt_len": 3229,
+      "response": "func(imdb.find_movies_by_actor=actor_name=\"Leonardo DiCaprio\", year=2010, category=\"all\")",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(imdb.find_movies_by_actor=actor_name=\"Leonardo DiCaprio\", year=2010, category=\"all\")'",
+      "gen_seconds": 35.6
+    },
+    {
+      "id": "multiple_55",
+      "category": "multiple",
+      "prompt_len": 1760,
+      "response": "func(stock_forecast(company=\"Google\", days=3))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'stock_forecast' not found in model output.",
+      "gen_seconds": 18.29
+    },
+    {
+      "id": "multiple_196",
+      "category": "multiple",
+      "prompt_len": 3334,
+      "response": "func(cellbio.get_proteins(cell_compartment=\"plasma membrane\", include_description=True))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'cellbio.get_proteins' not found in model output.",
+      "gen_seconds": 34.09
+    },
+    {
+      "id": "multiple_105",
+      "category": "multiple",
+      "prompt_len": 2687,
+      "response": "calculate_magnetic_field(current=5, radius=4)",
+      "parsed_calls": [
+        {
+          "calculate_magnetic_field": {
+            "current": 5,
+            "radius": 4
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 27.75
+    },
+    {
+      "id": "multiple_104",
+      "category": "multiple",
+      "prompt_len": 3058,
+      "response": "get_shortest_driving_distance(origin=\"New York City\", destination=\"Washington D.C.\")",
+      "parsed_calls": [
+        {
+          "get_shortest_driving_distance": {
+            "origin": "New York City",
+            "destination": "Washington D.C."
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 31.45
+    },
+    {
+      "id": "multiple_119",
+      "category": "multiple",
+      "prompt_len": 4040,
+      "response": "func(database.query, table=\"user\", conditions=[{\"field\": \"age\", \"operation\": \">\", \"value\": \"25\"}, {\"field\": \"job\", \"operation\": \"=\", \"value\": \"engineer\"}])",
+      "parsed_calls": [
+        {
+          "func": {
+            "table": "user",
+            "conditions": [
+              {
+                "field": "age",
+                "operation": ">",
+                "value": "25"
+              },
+              {
+                "field": "job",
+                "operation": "=",
+                "value": "engineer"
+              }
+            ]
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'database.query' not found in model output.",
+      "gen_seconds": 44.25
+    },
+    {
+      "id": "multiple_148",
+      "category": "multiple",
+      "prompt_len": 1848,
+      "response": "func(get_stock_info(company_name=\"Apple Inc.\", detail_level=\"detailed\", market=\"NASDAQ\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_stock_info' not found in model output.",
+      "gen_seconds": 21.17
+    },
+    {
+      "id": "multiple_151",
+      "category": "multiple",
+      "prompt_len": 2874,
+      "response": "func(social_media_analytics.most_followed(topic=\"psychology\", sub_topics=[\"behaviour\", \"group dynamics\"]))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'social_media_analytics.most_followed' not found in model output.",
+      "gen_seconds": 32.58
+    },
+    {
+      "id": "multiple_35",
+      "category": "multiple",
+      "prompt_len": 2009,
+      "response": "func(name=\"calculate_gcd\", parameters={\"num1\": 128, \"num2\": 256, \"algorithm\": \"euclidean\"})",
+      "parsed_calls": [
+        {
+          "func": {
+            "name": "calculate_gcd",
+            "parameters": {
+              "num1": 128,
+              "num2": 256,
+              "algorithm": "euclidean"
+            }
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_gcd' not found in model output.",
+      "gen_seconds": 24.63
+    },
+    {
+      "id": "multiple_58",
+      "category": "multiple",
+      "prompt_len": 1654,
+      "response": "lawyer.search(location=\"Los Angeles, CA\", expertise=\"Marriage\")",
+      "parsed_calls": [
+        {
+          "lawyer.search": {
+            "location": "Los Angeles, CA",
+            "expertise": "Marriage"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "value_error:string",
+      "error_detail": "Invalid value for parameter 'expertise': 'Marriage'. Expected one of ['Divorce']. Case insensitive.",
+      "gen_seconds": 18.91
+    },
+    {
+      "id": "multiple_97",
+      "category": "multiple",
+      "prompt_len": 1976,
+      "response": "func(geometry.area_circle(radius=10))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'geometry.area_circle' not found in model output.",
+      "gen_seconds": 21.6
+    },
+    {
+      "id": "multiple_48",
+      "category": "multiple",
+      "prompt_len": 2158,
+      "response": "func(name=\"library.find_nearby\", location=\"New York City, NY\", preferences=[\"Pet-friendly\", \"Disabled Access\"])",
+      "parsed_calls": [
+        {
+          "func": {
+            "name": "library.find_nearby",
+            "location": "New York City, NY",
+            "preferences": [
+              "Pet-friendly",
+              "Disabled Access"
+            ]
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'library.find_nearby' not found in model output.",
+      "gen_seconds": 23.88
+    },
+    {
+      "id": "multiple_143",
+      "category": "multiple",
+      "prompt_len": 3310,
+      "response": "calculate_slope_gradient(point1=[40.7128, -74.0060], point2=[34.0522, -118.2437], unit='degree')",
+      "parsed_calls": [
+        {
+          "calculate_slope_gradient": {
+            "point1": [
+              40.7128,
+              -74.006
+            ],
+            "point2": [
+              34.0522,
+              -118.2437
+            ],
+            "unit": "degree"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 43.08
+    },
+    {
+      "id": "multiple_69",
+      "category": "multiple",
+      "prompt_len": 2826,
+      "response": "five_factor_model.analyse(talkative=True, nervous=True, artistic_interests=False, lazy=True, forgiving=True)",
+      "parsed_calls": [
+        {
+          "five_factor_model.analyse": {
+            "talkative": true,
+            "nervous": true,
+            "artistic_interests": false,
+            "lazy": true,
+            "forgiving": true
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 32.94
+    },
+    {
+      "id": "multiple_91",
+      "category": "multiple",
+      "prompt_len": 1761,
+      "response": "recipe.find(mainIngredient=\"apple\", ingredientLimit=4)",
+      "parsed_calls": [
+        {
+          "recipe.find": {
+            "mainIngredient": "apple",
+            "ingredientLimit": 4
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 18.9
+    },
+    {
+      "id": "multiple_195",
+      "category": "multiple",
+      "prompt_len": 3138,
+      "response": "calc_heat_capacity(temp=298, volume=10, gas=\"air\")",
+      "parsed_calls": [
+        {
+          "calc_heat_capacity": {
+            "temp": 298,
+            "volume": 10,
+            "gas": "air"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 32.59
+    },
+    {
+      "id": "multiple_149",
+      "category": "multiple",
+      "prompt_len": 3268,
+      "response": "sentiment_analysis(text='I love the food here! It\\'s always fresh and delicious.', language='English')",
+      "parsed_calls": [
+        {
+          "sentiment_analysis": {
+            "text": "I love the food here! It's always fresh and delicious.",
+            "language": "English"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 35.92
+    },
+    {
+      "id": "multiple_21",
+      "category": "multiple",
+      "prompt_len": 1991,
+      "response": "func(generate_sound_wave(frequency=440, duration=5))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'generate_sound_wave' not found in model output.",
+      "gen_seconds": 21.62
+    },
+    {
+      "id": "multiple_54",
+      "category": "multiple",
+      "prompt_len": 1910,
+      "response": "func(company=\"Apple Inc\", years=5, frequency=\"annually\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "company": "Apple Inc",
+            "years": 5,
+            "frequency": "annually"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'corporate_finance.dividend_data' not found in model output.",
+      "gen_seconds": 19.72
+    },
+    {
+      "id": "multiple_162",
+      "category": "multiple",
+      "prompt_len": 1979,
+      "response": "func(analyze_structure=building_id=\"B1004\", floors=[2, 3, 4], mode=\"dynamic\")",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(analyze_structure=building_id=\"B1004\", floors=[2, 3, 4], mode=\"dynamic\")'",
+      "gen_seconds": 23.12
+    },
+    {
+      "id": "multiple_1",
+      "category": "multiple",
+      "prompt_len": 2126,
+      "response": "func(math.triangle_area_heron(side1=3, side2=4, side3=5))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'math.triangle_area_heron' not found in model output.",
+      "gen_seconds": 24.47
+    },
+    {
+      "id": "multiple_134",
+      "category": "multiple",
+      "prompt_len": 3784,
+      "response": "func(crime_record.get_record(case_number=\"CA123456\", county=\"San Diego\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'crime_record.get_record' not found in model output.",
+      "gen_seconds": 40.15
+    },
+    {
+      "id": "multiple_86",
+      "category": "multiple",
+      "prompt_len": 2220,
+      "response": "func(BoardGameGeek.recommend(numPlayers=2, category='strategy'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'BoardGameGeek.recommend' not found in model output.",
+      "gen_seconds": 23.53
+    },
+    {
+      "id": "multiple_177",
+      "category": "multiple",
+      "prompt_len": 2718,
+      "response": "func(board_game.chess.get_top_players(location=\"New York\", minimum_rating=2300))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'board_game.chess.get_top_players' not found in model output.",
+      "gen_seconds": 29.17
+    },
+    {
+      "id": "multiple_70",
+      "category": "multiple",
+      "prompt_len": 2599,
+      "response": "func(european_history.get_monarchs, country='France', century=18)",
+      "parsed_calls": [
+        {
+          "func": {
+            "country": "France",
+            "century": 18
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'european_history.get_monarchs' not found in model output.",
+      "gen_seconds": 28.98
+    },
+    {
+      "id": "multiple_133",
+      "category": "multiple",
+      "prompt_len": 1890,
+      "response": "func(calculate_mutual_fund_balance(investment_amount=50000, annual_yield=0.05, years=3))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_mutual_fund_balance' not found in model output.",
+      "gen_seconds": 21.73
+    },
+    {
+      "id": "multiple_82",
+      "category": "multiple",
+      "prompt_len": 1892,
+      "response": "music.generate(key=\"C Major\", tempo=120)",
+      "parsed_calls": [
+        {
+          "music.generate": {
+            "key": "C Major",
+            "tempo": 120
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 20.81
+    },
+    {
+      "id": "multiple_176",
+      "category": "multiple",
+      "prompt_len": 4493,
+      "response": "func(sports_team.get_schedule(team_name=\"Manchester United\", num_of_games=6, league=\"Premier League\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'sports_team.get_schedule' not found in model output.",
+      "gen_seconds": 48.51
+    },
+    {
+      "id": "parallel_66",
+      "category": "parallel",
+      "prompt_len": 1211,
+      "response": "func(name=\"geometry.area_circle\", radius=5); func(name=\"geometry.area_circle\", radius=10); func(name=\"geometry.area_circle\", radius=15)",
+      "parsed_calls": [
+        {
+          "func": {
+            "name": "geometry.area_circle",
+            "radius": 5
+          }
+        },
+        {
+          "func": {
+            "name": "geometry.area_circle",
+            "radius": 10
+          }
+        },
+        {
+          "func": {
+            "name": "geometry.area_circle",
+            "radius": 15
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'geometry.area_circle' not found in model output.",
+      "gen_seconds": 16.07
+    },
+    {
+      "id": "parallel_123",
+      "category": "parallel",
+      "prompt_len": 1546,
+      "response": "func(generate_DNA_sequence=length=500, preferences=['A']); func(generate_DNA_sequence=length=500, preferences=['T']); func(generate_DNA_sequence=length=500, preferences=['C']); func(generate_DNA_sequence=length=500, preferences=['G'])",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: \"func(generate_DNA_sequence=length=500, preferences=['A']); func(generate_DNA_sequence=length=500, preferences=['T']); func(generate_DNA_sequence=length=500, preferences=['C']); func(generate_DNA_seque\"",
+      "gen_seconds": 22.66
+    },
+    {
+      "id": "parallel_103",
+      "category": "parallel",
+      "prompt_len": 2214,
+      "response": "func(substance=\"A\", mass=2, initial_temperature=25, final_temperature=75, pressure=1); func(substance=\"A\", mass=2, initial_temperature=10, final_temperature=50, pressure=1)",
+      "parsed_calls": [
+        {
+          "func": {
+            "substance": "A",
+            "mass": 2,
+            "initial_temperature": 25,
+            "final_temperature": 75,
+            "pressure": 1
+          }
+        },
+        {
+          "func": {
+            "substance": "A",
+            "mass": 2,
+            "initial_temperature": 10,
+            "final_temperature": 50,
+            "pressure": 1
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'entropy_change.calculate' not found in model output.",
+      "gen_seconds": 26.59
+    },
+    {
+      "id": "parallel_9",
+      "category": "parallel",
+      "prompt_len": 1431,
+      "response": "func(find_movie_showing=location=\"San Diego, CA\", movie=[\"Tenet\", \"No Time To Die\"], time=[\"5 pm\", \"7:30 pm\"])",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(find_movie_showing=location=\"San Diego, CA\", movie=[\"Tenet\", \"No Time To Die\"], time=[\"5 pm\", \"7:30 pm\"])'",
+      "gen_seconds": 18.72
+    },
+    {
+      "id": "parallel_161",
+      "category": "parallel",
+      "prompt_len": 1663,
+      "response": "func(calculate_binomial_probability(number_of_trials=10, number_of_successes=7, probability_of_success=0.6)); func(calculate_binomial_probability(number_of_trials=15, number_of_successes=10, probability_of_success=0.6)); func(calculate_binomial_probability(number_of_trials=20, number_of_successes=15, probability_of_success=0.6))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_binomial_probability' not found in model output.",
+      "gen_seconds": 26.88
+    },
+    {
+      "id": "parallel_154",
+      "category": "parallel",
+      "prompt_len": 1564,
+      "response": "func(calculate_bmi(weight=75, height=180, system='metric')); func(calculate_bmi(weight=60, height=165, system='metric')); func(calculate_bmi(weight=80, height=175, system='metric')); func(calculate_bmi(weight=90, height=185, system='metric'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_bmi' not found in model output.",
+      "gen_seconds": 25.63
+    },
+    {
+      "id": "parallel_15",
+      "category": "parallel",
+      "prompt_len": 1372,
+      "response": "func(calculate_capital_gains_tax=short_term_gain=15000, long_term_gain=25000, state=\"california\"); func(calculate_capital_gains_tax=short_term_gain=20000, long_term_gain=50000, state=\"florida\")",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(calculate_capital_gains_tax=short_term_gain=15000, long_term_gain=25000, state=\"california\"); func(calculate_capital_gains_tax=short_term_gain=20000, long_term_gain=50000, state=\"florida\")'",
+      "gen_seconds": 22.18
+    },
+    {
+      "id": "parallel_13",
+      "category": "parallel",
+      "prompt_len": 1464,
+      "response": "func(confidence_interval.calculate(sample_std_dev=10, sample_size=50, sample_mean=25, confidence_level=0.95)); func(confidence_interval.calculate(sample_std_dev=10, sample_size=150, sample_mean=25, confidence_level=0.95))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'confidence_interval.calculate' not found in model output.",
+      "gen_seconds": 22.3
+    },
+    {
+      "id": "parallel_89",
+      "category": "parallel",
+      "prompt_len": 1486,
+      "response": "func(start_location=\"San Francisco\", end_location=\"Palo Alto\", route_type=\"fastest\"); func(start_location=\"Palo Alto\", end_location=\"Golden Gate Bridge\", route_type=\"scenic\"); func(start_location=\"Golden Gate Bridge\", end_location=\"San Francisco\", route_type=\"fastest\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "start_location": "San Francisco",
+            "end_location": "Palo Alto",
+            "route_type": "fastest"
+          }
+        },
+        {
+          "func": {
+            "start_location": "Palo Alto",
+            "end_location": "Golden Gate Bridge",
+            "route_type": "scenic"
+          }
+        },
+        {
+          "func": {
+            "start_location": "Golden Gate Bridge",
+            "end_location": "San Francisco",
+            "route_type": "fastest"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_directions' not found in model output.",
+      "gen_seconds": 21.45
+    },
+    {
+      "id": "parallel_121",
+      "category": "parallel",
+      "prompt_len": 1372,
+      "response": "ecology.get_turtle_population(location=\"Galapagos Islands\", year=2015, species=True); ecology.get_turtle_population(location=\"Galapagos Islands\", year=2020, species=True)",
+      "parsed_calls": [
+        {
+          "ecology.get_turtle_population": {
+            "location": "Galapagos Islands",
+            "year": 2015,
+            "species": true
+          }
+        },
+        {
+          "ecology.get_turtle_population": {
+            "location": "Galapagos Islands",
+            "year": 2020,
+            "species": true
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 18.64
+    },
+    {
+      "id": "parallel_75",
+      "category": "parallel",
+      "prompt_len": 884,
+      "response": "func(number_analysis.prime_factors(number=45)); func(number_analysis.prime_factors(number=100)); func(number_analysis.prime_factors(number=150))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'number_analysis.prime_factors' not found in model output.",
+      "gen_seconds": 13.37
+    },
+    {
+      "id": "parallel_44",
+      "category": "parallel",
+      "prompt_len": 1725,
+      "response": "func(concert.find_nearby(location=\"Berlin\", date=\"next Friday\", genre=\"Classical\", amenities=[\"Parking\"])); func(concert.find_nearby(location=\"Paris\", date=\"next Friday\", genre=\"Classical\", amenities=[\"Parking\"]))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'concert.find_nearby' not found in model output.",
+      "gen_seconds": 21.75
+    },
+    {
+      "id": "parallel_118",
+      "category": "parallel",
+      "prompt_len": 1276,
+      "response": "ecology_data.precipitation_stats(location='Amazon rainforest', time_frame='six_months');ecology_data.precipitation_stats(location='Amazon rainforest', time_frame='year');ecology_data.precipitation_stats(location='Amazon rainforest', time_frame='five_years')",
+      "parsed_calls": [
+        {
+          "ecology_data.precipitation_stats": {
+            "location": "Amazon rainforest",
+            "time_frame": "six_months"
+          }
+        },
+        {
+          "ecology_data.precipitation_stats": {
+            "location": "Amazon rainforest",
+            "time_frame": "year"
+          }
+        },
+        {
+          "ecology_data.precipitation_stats": {
+            "location": "Amazon rainforest",
+            "time_frame": "five_years"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 19.19
+    },
+    {
+      "id": "parallel_55",
+      "category": "parallel",
+      "prompt_len": 1402,
+      "response": "grocery_store.find_by_criteria(location=\"New York City\", criteria=[\"24 hours\"]);grocery_store.find_by_criteria(location=\"San Diego\", criteria=[\"Home Delivery\"])",
+      "parsed_calls": [
+        {
+          "grocery_store.find_by_criteria": {
+            "location": "New York City",
+            "criteria": [
+              "24 hours"
+            ]
+          }
+        },
+        {
+          "grocery_store.find_by_criteria": {
+            "location": "San Diego",
+            "criteria": [
+              "Home Delivery"
+            ]
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 17.06
+    },
+    {
+      "id": "parallel_196",
+      "category": "parallel",
+      "prompt_len": 1547,
+      "response": "func(get_lawsuit_details=case_number='12345', court_location='New York Supreme Court', with_verdict=True); func(get_lawsuit_details=case_number='67890', court_location='Los Angeles Superior Court', with_verdict=False)",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: \"func(get_lawsuit_details=case_number='12345', court_location='New York Supreme Court', with_verdict=True); func(get_lawsuit_details=case_number='67890', court_location='Los Angeles Superior Court', wi\"",
+      "gen_seconds": 22.12
+    },
+    {
+      "id": "parallel_105",
+      "category": "parallel",
+      "prompt_len": 1556,
+      "response": "func(temp=300, volume=2.5, gas='air'); func(temp=350, volume=2.5, gas='air'); func(temp=300, volume=1.5, gas='air')",
+      "parsed_calls": [
+        {
+          "func": {
+            "temp": 300,
+            "volume": 2.5,
+            "gas": "air"
+          }
+        },
+        {
+          "func": {
+            "temp": 350,
+            "volume": 2.5,
+            "gas": "air"
+          }
+        },
+        {
+          "func": {
+            "temp": 300,
+            "volume": 1.5,
+            "gas": "air"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calc_heat_capacity' not found in model output.",
+      "gen_seconds": 21.78
+    },
+    {
+      "id": "parallel_104",
+      "category": "parallel",
+      "prompt_len": 1704,
+      "response": "func(calculate_entropy_change(initial_temp=300, final_temp=350, heat_capacity=4.18, isothermal=True))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "parallel_function_checker_no_order:wrong_count",
+      "error_detail": "Wrong number of functions.",
+      "gen_seconds": 19.64
+    },
+    {
+      "id": "parallel_119",
+      "category": "parallel",
+      "prompt_len": 1625,
+      "response": "func(identify_bird(color=\"vibrant blue\", habitat=\"forest\")); func(identify_bird(color=\"black\", habitat=\"lake\")); func(identify_bird(color=\"brown\", habitat=\"desert\")); func(identify_bird(color=\"green\", habitat=\"tropical rainforest\"));",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'identify_bird' not found in model output.",
+      "gen_seconds": 23.08
+    },
+    {
+      "id": "parallel_148",
+      "category": "parallel",
+      "prompt_len": 1578,
+      "response": "func(calculate_speed(distance=500, time=25, to_unit='km/h')); func(calculate_speed(distance=1000, time=200, to_unit='m/s')); func(calculate_speed(distance=10000, time=600, to_unit='km/h'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_speed' not found in model output.",
+      "gen_seconds": 24.72
+    },
+    {
+      "id": "parallel_151",
+      "category": "parallel",
+      "prompt_len": 1464,
+      "response": "func(geometry.area_triangle(base=15, height=20, unit='square meters')); func(geometry.area_triangle(base=25, height=30, unit='square feet')); func(geometry.area_triangle(base=35, height=40, unit='square inches'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'geometry.area_triangle' not found in model output.",
+      "gen_seconds": 21.6
+    },
+    {
+      "id": "parallel_35",
+      "category": "parallel",
+      "prompt_len": 1213,
+      "response": "func(ancient_empires.get_religion_info(empire_name=\"Persian Empire\", include_influences=True)); func(ancient_empires.get_religion_info(empire_name=\"Mauryan Empire\", include_influences=True))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'ancient_empires.get_religion_info' not found in model output.",
+      "gen_seconds": 17.6
+    },
+    {
+      "id": "parallel_58",
+      "category": "parallel",
+      "prompt_len": 1126,
+      "response": "func(base_currency=\"USD\", target_currency=\"AUD\"); func(base_currency=\"USD\", target_currency=\"CAD\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "base_currency": "USD",
+            "target_currency": "AUD"
+          }
+        },
+        {
+          "func": {
+            "base_currency": "USD",
+            "target_currency": "CAD"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_exchange_rate' not found in model output.",
+      "gen_seconds": 12.97
+    },
+    {
+      "id": "parallel_97",
+      "category": "parallel",
+      "prompt_len": 1520,
+      "response": "func(calculate_resonant_frequency(inductance=0.005, capacitance=0.0000001, round_off=3)); func(calculate_resonant_frequency(inductance=0.007, capacitance=0.0000002, round_off=4))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_resonant_frequency' not found in model output.",
+      "gen_seconds": 25.68
+    },
+    {
+      "id": "parallel_48",
+      "category": "parallel",
+      "prompt_len": 1202,
+      "response": "PokemonGO.get_moves(pokemon=\"Pikachu\"); PokemonGO.get_moves(pokemon=\"Bulbasaur\", move=\"Solar Beam\")",
+      "parsed_calls": [
+        {
+          "PokemonGO.get_moves": {
+            "pokemon": "Pikachu"
+          }
+        },
+        {
+          "PokemonGO.get_moves": {
+            "pokemon": "Bulbasaur",
+            "move": "Solar Beam"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 14.77
+    },
+    {
+      "id": "parallel_143",
+      "category": "parallel",
+      "prompt_len": 1386,
+      "response": "func(calc_area_triangle(base=10, height=5)); func(calc_area_triangle(base=15, height=7)); func(calc_area_triangle(base=20, height=10));",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calc_area_triangle' not found in model output.",
+      "gen_seconds": 18.51
+    },
+    {
+      "id": "parallel_69",
+      "category": "parallel",
+      "prompt_len": 1339,
+      "response": "func(calculate_triangle_area(base=10, height=5)); func(calculate_triangle_area(base=8, height=6))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_triangle_area' not found in model output.",
+      "gen_seconds": 16.2
+    },
+    {
+      "id": "parallel_91",
+      "category": "parallel",
+      "prompt_len": 1317,
+      "response": "func(vegan_restaurant.find_nearby(location=\"Los Angeles, CA\", operating_hours=22)); func(vegan_restaurant.find_nearby(location=\"San Francisco, CA\", operating_hours=22)); func(vegan_restaurant.find_nearby(location=\"Seattle, WA\", operating_hours=22))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'vegan_restaurant.find_nearby' not found in model output.",
+      "gen_seconds": 21.25
+    },
+    {
+      "id": "parallel_195",
+      "category": "parallel",
+      "prompt_len": 1158,
+      "response": "func(movie_details.brief(title=\"Inception\", extra_info=True)); func(movie_details.brief(title=\"The Dark Knight\", extra_info=True))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'movie_details.brief' not found in model output.",
+      "gen_seconds": 14.4
+    },
+    {
+      "id": "parallel_149",
+      "category": "parallel",
+      "prompt_len": 1317,
+      "response": "func(body1=\"Mars\", body2=\"Venus\", unit=\"miles\"); func(body1=\"Mars\", body2=\"Jupiter\", unit=\"miles\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "body1": "Mars",
+            "body2": "Venus",
+            "unit": "miles"
+          }
+        },
+        {
+          "func": {
+            "body1": "Mars",
+            "body2": "Jupiter",
+            "unit": "miles"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_distance' not found in model output.",
+      "gen_seconds": 16.45
+    },
+    {
+      "id": "parallel_21",
+      "category": "parallel",
+      "prompt_len": 1266,
+      "response": "law_crimes.search(crime=\"money laundering\", location=\"San Francisco\", year=2019); law_crimes.search(crime=\"money laundering\", location=\"Texas\", year=2018)",
+      "parsed_calls": [
+        {
+          "law_crimes.search": {
+            "crime": "money laundering",
+            "location": "San Francisco",
+            "year": 2019
+          }
+        },
+        {
+          "law_crimes.search": {
+            "crime": "money laundering",
+            "location": "Texas",
+            "year": 2018
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 17.15
+    },
+    {
+      "id": "parallel_54",
+      "category": "parallel",
+      "prompt_len": 1381,
+      "response": "func(location=\"downtown\", items=[\"pepperoni pizza\", \"chicken Caesar salad\"], size=\"large\"); func(location=\"uptown\", items=[\"pepperoni pizza\", \"chicken Caesar salad\"], size=\"large\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "location": "downtown",
+            "items": [
+              "pepperoni pizza",
+              "chicken Caesar salad"
+            ],
+            "size": "large"
+          }
+        },
+        {
+          "func": {
+            "location": "uptown",
+            "items": [
+              "pepperoni pizza",
+              "chicken Caesar salad"
+            ],
+            "size": "large"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'whole_foods.order' not found in model output.",
+      "gen_seconds": 21.64
+    },
+    {
+      "id": "parallel_162",
+      "category": "parallel",
+      "prompt_len": 1812,
+      "response": "func(probability_of_event(success_outcomes=4, total_outcomes=52, format_as_ratio=False)); func(probability_of_event(success_outcomes=13, total_outcomes=52, format_as_ratio=False)); func(probability_of_event(success_outcomes=26, total_outcomes=52, format_as_ratio=True))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'probability_of_event' not found in model output.",
+      "gen_seconds": 31.87
+    },
+    {
+      "id": "parallel_1",
+      "category": "parallel",
+      "prompt_len": 1474,
+      "response": "func(b_field=5, area=2, d_time=4); func(b_field=5, area=2, d_time=10)",
+      "parsed_calls": [
+        {
+          "func": {
+            "b_field": 5,
+            "area": 2,
+            "d_time": 4
+          }
+        },
+        {
+          "func": {
+            "b_field": 5,
+            "area": 2,
+            "d_time": 10
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_em_force' not found in model output.",
+      "gen_seconds": 22.27
+    },
+    {
+      "id": "parallel_134",
+      "category": "parallel",
+      "prompt_len": 1539,
+      "response": "func(calculate_bmi(weight=85, height=175, unit='metric')); func(calculate_bmi(weight=60, height=160, unit='metric')); func(calculate_bmi(weight=75, height=180, unit='metric')); func(calculate_bmi(weight=90, height=185, unit='metric'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_bmi' not found in model output.",
+      "gen_seconds": 26.87
+    },
+    {
+      "id": "parallel_86",
+      "category": "parallel",
+      "prompt_len": 1625,
+      "response": "func(acceleration=5, distance=100); func(acceleration=10, distance=200)",
+      "parsed_calls": [
+        {
+          "func": {
+            "acceleration": 5,
+            "distance": 100
+          }
+        },
+        {
+          "func": {
+            "acceleration": 10,
+            "distance": 200
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'kinematics.final_velocity_from_distance' not found in model output.",
+      "gen_seconds": 18.65
+    },
+    {
+      "id": "parallel_177",
+      "category": "parallel",
+      "prompt_len": 1080,
+      "response": "func(metal=\"gold\", measure=\"ounce\");func(metal=\"silver\", measure=\"ounce\");func(metal=\"platinum\", measure=\"ounce\");func(metal=\"palladium\", measure=\"ounce\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "metal": "gold",
+            "measure": "ounce"
+          }
+        },
+        {
+          "func": {
+            "metal": "silver",
+            "measure": "ounce"
+          }
+        },
+        {
+          "func": {
+            "metal": "platinum",
+            "measure": "ounce"
+          }
+        },
+        {
+          "func": {
+            "metal": "palladium",
+            "measure": "ounce"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_metal_price' not found in model output.",
+      "gen_seconds": 15.99
+    },
+    {
+      "id": "parallel_70",
+      "category": "parallel",
+      "prompt_len": 1233,
+      "response": "func(circumference=radius=5, units='m'); func(circumference=radius=10, units='m'); func(circumference=radius=15, units='m'); func(circumference=radius=20, units='m')",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: \"func(circumference=radius=5, units='m'); func(circumference=radius=10, units='m'); func(circumference=radius=15, units='m'); func(circumference=radius=20, units='m')\"",
+      "gen_seconds": 20.13
+    },
+    {
+      "id": "parallel_133",
+      "category": "parallel",
+      "prompt_len": 1575,
+      "response": "func(coord1=(48.8584, 2.2945), coord2=(41.8902, 12.4922), unit='km'); func(coord1=(41.8902, 12.4922), coord2=(37.9715, 23.7257), unit='km'); func(coord1=(37.9715, 23.7257), coord2=(29.9792, 31.1342), unit='km')",
+      "parsed_calls": [
+        {
+          "func": {
+            "coord1": [
+              48.8584,
+              2.2945
+            ],
+            "coord2": [
+              41.8902,
+              12.4922
+            ],
+            "unit": "km"
+          }
+        },
+        {
+          "func": {
+            "coord1": [
+              41.8902,
+              12.4922
+            ],
+            "coord2": [
+              37.9715,
+              23.7257
+            ],
+            "unit": "km"
+          }
+        },
+        {
+          "func": {
+            "coord1": [
+              37.9715,
+              23.7257
+            ],
+            "coord2": [
+              29.9792,
+              31.1342
+            ],
+            "unit": "km"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_distance' not found in model output.",
+      "gen_seconds": 36.11
+    },
+    {
+      "id": "parallel_82",
+      "category": "parallel",
+      "prompt_len": 1600,
+      "response": "func(distance=120, duration=5, unit='km/h'); func(distance=150, duration=6, unit='km/h')",
+      "parsed_calls": [
+        {
+          "func": {
+            "distance": 120,
+            "duration": 5,
+            "unit": "km/h"
+          }
+        },
+        {
+          "func": {
+            "distance": 150,
+            "duration": 6,
+            "unit": "km/h"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_velocity' not found in model output.",
+      "gen_seconds": 19.26
+    },
+    {
+      "id": "parallel_176",
+      "category": "parallel",
+      "prompt_len": 1549,
+      "response": "func(initial_value=5000, final_value=7000, period_in_years=5); func(initial_value=8000, final_value=12000, period_in_years=3)",
+      "parsed_calls": [
+        {
+          "func": {
+            "initial_value": 5000,
+            "final_value": 7000,
+            "period_in_years": 5
+          }
+        },
+        {
+          "func": {
+            "initial_value": 8000,
+            "final_value": 12000,
+            "period_in_years": 3
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_cagr' not found in model output.",
+      "gen_seconds": 21.26
+    },
+    {
+      "id": "parallel_multiple_66",
+      "category": "parallel_multiple",
+      "prompt_len": 2666,
+      "response": "func(gradeDict={'Math': 85, 'English': 90, 'Science': 88, 'History': 92, 'Art': 89}); func(gradeDict={'Math': 85, 'English': 90, 'Science': 88, 'History': 92, 'Art': 89}); func(gradeDict={'Math': 85, 'English': 90, 'Science': 88, 'History': 92, 'Art': 89})",
+      "parsed_calls": [
+        {
+          "func": {
+            "gradeDict": {
+              "Math": 85,
+              "English": 90,
+              "Science": 88,
+              "History": 92,
+              "Art": 89
+            }
+          }
+        },
+        {
+          "func": {
+            "gradeDict": {
+              "Math": 85,
+              "English": 90,
+              "Science": 88,
+              "History": 92,
+              "Art": 89
+            }
+          }
+        },
+        {
+          "func": {
+            "gradeDict": {
+              "Math": 85,
+              "English": 90,
+              "Science": 88,
+              "History": 92,
+              "Art": 89
+            }
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_average' not found in model output.",
+      "gen_seconds": 44.64
+    },
+    {
+      "id": "parallel_multiple_123",
+      "category": "parallel_multiple",
+      "prompt_len": 2345,
+      "response": "func(game_title=\"Call of Duty: Modern Warfare\", year=2019, platform=\"Playstation\"); func(game_title=\"Call of Duty: Modern Warfare\", year=2020, platform=\"PC\"); func(game_title=\"Call of Duty: Modern Warfare\", year=2019, platform=\"Playstation\"); func(game_title=\"Call of Duty: Modern Warfare\", year=2020, platform=\"PC\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "game_title": "Call of Duty: Modern Warfare",
+            "year": 2019,
+            "platform": "Playstation"
+          }
+        },
+        {
+          "func": {
+            "game_title": "Call of Duty: Modern Warfare",
+            "year": 2020,
+            "platform": "PC"
+          }
+        },
+        {
+          "func": {
+            "game_title": "Call of Duty: Modern Warfare",
+            "year": 2019,
+            "platform": "Playstation"
+          }
+        },
+        {
+          "func": {
+            "game_title": "Call of Duty: Modern Warfare",
+            "year": 2020,
+            "platform": "PC"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'video_games.get_player_count' not found in model output.",
+      "gen_seconds": 37.95
+    },
+    {
+      "id": "parallel_multiple_103",
+      "category": "parallel_multiple",
+      "prompt_len": 1804,
+      "response": "lawyer.search(location=\"New York, NY\", expertise=\"Divorce\"); lawyer.search(location=\"Los Angeles, CA\", expertise=\"Criminal\"); doctor.search(location=\"Chicago, IL\", specialization=\"Cardiology\"); doctor.search(location=\"Houston, TX\", specialization=\"Orthopedics\")",
+      "parsed_calls": [
+        {
+          "lawyer.search": {
+            "location": "New York, NY",
+            "expertise": "Divorce"
+          }
+        },
+        {
+          "lawyer.search": {
+            "location": "Los Angeles, CA",
+            "expertise": "Criminal"
+          }
+        },
+        {
+          "doctor.search": {
+            "location": "Chicago, IL",
+            "specialization": "Cardiology"
+          }
+        },
+        {
+          "doctor.search": {
+            "location": "Houston, TX",
+            "specialization": "Orthopedics"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 25.68
+    },
+    {
+      "id": "parallel_multiple_9",
+      "category": "parallel_multiple",
+      "prompt_len": 1683,
+      "response": "flight_book(_from=\"Seattle\", to=\"Boston\", airlines=\"American Airlines\"); hotel_book(location=\"Boston\", nights=4)",
+      "parsed_calls": [
+        {
+          "flight_book": {
+            "_from": "Seattle",
+            "to": "Boston",
+            "airlines": "American Airlines"
+          }
+        },
+        {
+          "hotel_book": {
+            "location": "Boston",
+            "nights": 4
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 20.51
+    },
+    {
+      "id": "parallel_multiple_161",
+      "category": "parallel_multiple",
+      "prompt_len": 2780,
+      "response": "chess.rating(player_name=\"Magnus Carlsen\", variant=\"classical\"); solve_quadratic(a=2, b=-3, c=1); calculate_cagr(initial_value=5000, final_value=8000, period_in_years=5)",
+      "parsed_calls": [
+        {
+          "chess.rating": {
+            "player_name": "Magnus Carlsen",
+            "variant": "classical"
+          }
+        },
+        {
+          "solve_quadratic": {
+            "a": 2,
+            "b": -3,
+            "c": 1
+          }
+        },
+        {
+          "calculate_cagr": {
+            "initial_value": 5000,
+            "final_value": 8000,
+            "period_in_years": 5
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 38.15
+    },
+    {
+      "id": "parallel_multiple_154",
+      "category": "parallel_multiple",
+      "prompt_len": 3361,
+      "response": "predict_house_price(area=2000, rooms=4, year=1985, location=\"San Francisco\"); lawsuit_search(entity=\"John Doe\", county=\"San Francisco\", state=\"California\"); calculate_probability(total_outcomes=1000, favorable_outcomes=5, round_to=3)",
+      "parsed_calls": [
+        {
+          "predict_house_price": {
+            "area": 2000,
+            "rooms": 4,
+            "year": 1985,
+            "location": "San Francisco"
+          }
+        },
+        {
+          "lawsuit_search": {
+            "entity": "John Doe",
+            "county": "San Francisco",
+            "state": "California"
+          }
+        },
+        {
+          "calculate_probability": {
+            "total_outcomes": 1000,
+            "favorable_outcomes": 5,
+            "round_to": 3
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 44.92
+    },
+    {
+      "id": "parallel_multiple_15",
+      "category": "parallel_multiple",
+      "prompt_len": 1919,
+      "response": "restaurant.search(location=\"New York, NY\", cuisine=\"Chinese\", rating=4); restaurant.search(location=\"Los Angeles\", cuisine=\"Italian\", rating=4); flight.search(_from=\"New York\", to=\"Los Angeles\", type=\"round-trip\")",
+      "parsed_calls": [
+        {
+          "restaurant.search": {
+            "location": "New York, NY",
+            "cuisine": "Chinese",
+            "rating": 4
+          }
+        },
+        {
+          "restaurant.search": {
+            "location": "Los Angeles",
+            "cuisine": "Italian",
+            "rating": 4
+          }
+        },
+        {
+          "flight.search": {
+            "_from": "New York",
+            "to": "Los Angeles",
+            "type": "round-trip"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'restaurant.search' not found in model output.",
+      "gen_seconds": 26.54
+    },
+    {
+      "id": "parallel_multiple_13",
+      "category": "parallel_multiple",
+      "prompt_len": 2578,
+      "response": "energy_calculator.calculate(substance='water', mass=100, initial_temperature=25, final_temperature=100, unit='joules'); energy_calculator.calculate(substance='Aluminium', mass=100, initial_temperature=25, final_temperature=100, unit='joules')",
+      "parsed_calls": [
+        {
+          "energy_calculator.calculate": {
+            "substance": "water",
+            "mass": 100,
+            "initial_temperature": 25,
+            "final_temperature": 100,
+            "unit": "joules"
+          }
+        },
+        {
+          "energy_calculator.calculate": {
+            "substance": "Aluminium",
+            "mass": 100,
+            "initial_temperature": 25,
+            "final_temperature": 100,
+            "unit": "joules"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 34.06
+    },
+    {
+      "id": "parallel_multiple_89",
+      "category": "parallel_multiple",
+      "prompt_len": 2533,
+      "response": "ride_hailing.get_rides(source=\"123 Main Street\", destination=\"456 Park Avenue\", max_cost=30.0); ride_hailing.get_rides(source=\"456 Park Avenue\", destination=\"321 Elm Street\", max_cost=20.0); ride_hailing.get_rides(source=\"321 Elm Street\", destination=\"123 Main Street\", max_cost=25.0); grocery_delivery.order(location=\"Whole Foods at 789 Broadway\", items=[\"milk\", \"bread\", \"eggs\", \"apples\"], max_delivery_cost=10.0)",
+      "parsed_calls": [
+        {
+          "ride_hailing.get_rides": {
+            "source": "123 Main Street",
+            "destination": "456 Park Avenue",
+            "max_cost": 30.0
+          }
+        },
+        {
+          "ride_hailing.get_rides": {
+            "source": "456 Park Avenue",
+            "destination": "321 Elm Street",
+            "max_cost": 20.0
+          }
+        },
+        {
+          "ride_hailing.get_rides": {
+            "source": "321 Elm Street",
+            "destination": "123 Main Street",
+            "max_cost": 25.0
+          }
+        },
+        {
+          "grocery_delivery.order": {
+            "location": "Whole Foods at 789 Broadway",
+            "items": [
+              "milk",
+              "bread",
+              "eggs",
+              "apples"
+            ],
+            "max_delivery_cost": 10.0
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "value_error:string",
+      "error_detail": "Invalid value for parameter 'location': 'Whole Foods at 789 Broadway'. Expected one of ['789 Broadway']. Case insensitive.",
+      "gen_seconds": 44.37
+    },
+    {
+      "id": "parallel_multiple_121",
+      "category": "parallel_multiple",
+      "prompt_len": 2908,
+      "response": "func(numOfPlayers=6, category='strategy', difficulty='beginner'); func(numOfPlayers=4, category='party'); func(numOfPlayers=6, category='strategy', priceRange='$10-$20'); func(numOfPlayers=4, category='party', priceRange='$10-$20')",
+      "parsed_calls": [
+        {
+          "func": {
+            "numOfPlayers": 6,
+            "category": "strategy",
+            "difficulty": "beginner"
+          }
+        },
+        {
+          "func": {
+            "numOfPlayers": 4,
+            "category": "party"
+          }
+        },
+        {
+          "func": {
+            "numOfPlayers": 6,
+            "category": "strategy",
+            "priceRange": "$10-$20"
+          }
+        },
+        {
+          "func": {
+            "numOfPlayers": 4,
+            "category": "party",
+            "priceRange": "$10-$20"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'BoardGameGeek.recommend' not found in model output.",
+      "gen_seconds": 37.73
+    },
+    {
+      "id": "parallel_multiple_75",
+      "category": "parallel_multiple",
+      "prompt_len": 2371,
+      "response": "route_planner.calculate_route(start=\"New York\", destination=\"Boston\", method=\"fastest\"); route_planner.calculate_route(start=\"Boston\", destination=\"Philadelphia\", method=\"fastest\"); route_planner.calculate_route(start=\"Philadelphia\", destination=\"New York\", method=\"shortest\"); chess_club_details.find(name=\"Knight Gambit\", city=\"Boston\"); chess_club_details.find(name=\"Rook Corner\", city=\"Philadelphia\")",
+      "parsed_calls": [
+        {
+          "route_planner.calculate_route": {
+            "start": "New York",
+            "destination": "Boston",
+            "method": "fastest"
+          }
+        },
+        {
+          "route_planner.calculate_route": {
+            "start": "Boston",
+            "destination": "Philadelphia",
+            "method": "fastest"
+          }
+        },
+        {
+          "route_planner.calculate_route": {
+            "start": "Philadelphia",
+            "destination": "New York",
+            "method": "shortest"
+          }
+        },
+        {
+          "chess_club_details.find": {
+            "name": "Knight Gambit",
+            "city": "Boston"
+          }
+        },
+        {
+          "chess_club_details.find": {
+            "name": "Rook Corner",
+            "city": "Philadelphia"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 34.93
+    },
+    {
+      "id": "parallel_multiple_44",
+      "category": "parallel_multiple",
+      "prompt_len": 1815,
+      "response": "house_designer.design(bedrooms=3, bathrooms=2, garden=True); office_designer.design(rooms=5, meeting_room=\"large\")",
+      "parsed_calls": [
+        {
+          "house_designer.design": {
+            "bedrooms": 3,
+            "bathrooms": 2,
+            "garden": true
+          }
+        },
+        {
+          "office_designer.design": {
+            "rooms": 5,
+            "meeting_room": "large"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 21.93
+    },
+    {
+      "id": "parallel_multiple_118",
+      "category": "parallel_multiple",
+      "prompt_len": 2325,
+      "response": "music.generate(key=\"D Minor\", tempo=120); music.generate(key=\"E Major\", tempo=90, time_signature=\"3/4\"); audio.generate(frequency=440, amplitude=0.5); audio.generate(frequency=300, amplitude=0.7, duration=5)",
+      "parsed_calls": [
+        {
+          "music.generate": {
+            "key": "D Minor",
+            "tempo": 120
+          }
+        },
+        {
+          "music.generate": {
+            "key": "E Major",
+            "tempo": 90,
+            "time_signature": "3/4"
+          }
+        },
+        {
+          "audio.generate": {
+            "frequency": 440,
+            "amplitude": 0.5
+          }
+        },
+        {
+          "audio.generate": {
+            "frequency": 300,
+            "amplitude": 0.7,
+            "duration": 5
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 33.2
+    },
+    {
+      "id": "parallel_multiple_55",
+      "category": "parallel_multiple",
+      "prompt_len": 2380,
+      "response": "func(recipe_prep_time(recipe=\"spaghetti\")); func(recipe_nutrition_info(recipe=\"spaghetti\"));",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "parallel_function_checker_no_order:wrong_count",
+      "error_detail": "Wrong number of functions.",
+      "gen_seconds": 24.87
+    },
+    {
+      "id": "parallel_multiple_196",
+      "category": "parallel_multiple",
+      "prompt_len": 2717,
+      "response": "func(recipe_info.get_calories(website='AllRecipes', recipe='Chicken Alfredo', optional_meal_time='Dinner')); func(get_stock_price(company_names=['Apple', 'Microsoft', 'Tesla'])); func(get_team_ranking(team_name='Brazil', year=2018, gender='men'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'recipe_info.get_calories' not found in model output.",
+      "gen_seconds": 35.66
+    },
+    {
+      "id": "parallel_multiple_105",
+      "category": "parallel_multiple",
+      "prompt_len": 2720,
+      "response": "geodistance.find(origin=\"New York\", destination=\"London\", unit=\"kilometers\"); timezones.get_difference(city1=\"New York\", city2=\"London\"); flights.search(from_city=\"New York\", to_city=\"London\", date=\"next friday\"); geodistance.find(origin=\"London\", destination=\"Paris\", unit=\"miles\")",
+      "parsed_calls": [
+        {
+          "geodistance.find": {
+            "origin": "New York",
+            "destination": "London",
+            "unit": "kilometers"
+          }
+        },
+        {
+          "timezones.get_difference": {
+            "city1": "New York",
+            "city2": "London"
+          }
+        },
+        {
+          "flights.search": {
+            "from_city": "New York",
+            "to_city": "London",
+            "date": "next friday"
+          }
+        },
+        {
+          "geodistance.find": {
+            "origin": "London",
+            "destination": "Paris",
+            "unit": "miles"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 35.53
+    },
+    {
+      "id": "parallel_multiple_104",
+      "category": "parallel_multiple",
+      "prompt_len": 2257,
+      "response": "func(location=\"New York\", days=5); func(location=\"Los Angeles\", days=7); func(topic=\"global warming\", days=3); func(location=\"Beijing\", days=2)",
+      "parsed_calls": [
+        {
+          "func": {
+            "location": "New York",
+            "days": 5
+          }
+        },
+        {
+          "func": {
+            "location": "Los Angeles",
+            "days": 7
+          }
+        },
+        {
+          "func": {
+            "topic": "global warming",
+            "days": 3
+          }
+        },
+        {
+          "func": {
+            "location": "Beijing",
+            "days": 2
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'air_quality_forecast' not found in model output.",
+      "gen_seconds": 27.15
+    },
+    {
+      "id": "parallel_multiple_119",
+      "category": "parallel_multiple",
+      "prompt_len": 2622,
+      "response": "func(player_stats.get_all_time_goals(player_name=\"Cristiano Ronaldo\", team_name=\"Manchester United\", competition=\"Premier League\")); func(team_stats.get_top_scorer(team_name=\"Manchester United\", competition=\"Premier League\")); func(league_stats.get_top_scorer(league_name=\"Premier League\", season=\"2019-2020\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'player_stats.get_all_time_goals' not found in model output.",
+      "gen_seconds": 35.76
+    },
+    {
+      "id": "parallel_multiple_148",
+      "category": "parallel_multiple",
+      "prompt_len": 2164,
+      "response": "func(celebrity_net_worth.get(name=\"Lionel Messi\", currency=\"EUR\")); func(celebrity_net_worth.get(name=\"LeBron James\", currency=\"GBP\")); func(calculate_bmi(weight=85, height=180, unit=\"metric\")); func(calculate_bmi(weight=200, height=6*12+2, unit=\"imperial\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'celebrity_net_worth.get' not found in model output.",
+      "gen_seconds": 32.69
+    },
+    {
+      "id": "parallel_multiple_151",
+      "category": "parallel_multiple",
+      "prompt_len": 4607,
+      "response": "book_hotel(hotel_name=\"Hotel Le Bristol Paris\", location=\"Paris, France\", room_type=\"suite\", start_date=\"12-01-2022\", stay_duration=10, view=\"city view\"); latest_exchange_rate(source_currency=\"USD\", target_currency=\"EUR\"); safeway.order(location=\"Palo Alto, CA\", items=[\"2 bottles of water\", \"3 apples\", \"1 loaf of bread\"], quantity=[2, 3, 1]); light_travel_time(distance_in_light_years=4.24, speed_of_light=299792458)",
+      "parsed_calls": [
+        {
+          "book_hotel": {
+            "hotel_name": "Hotel Le Bristol Paris",
+            "location": "Paris, France",
+            "room_type": "suite",
+            "start_date": "12-01-2022",
+            "stay_duration": 10,
+            "view": "city view"
+          }
+        },
+        {
+          "latest_exchange_rate": {
+            "source_currency": "USD",
+            "target_currency": "EUR"
+          }
+        },
+        {
+          "safeway.order": {
+            "location": "Palo Alto, CA",
+            "items": [
+              "2 bottles of water",
+              "3 apples",
+              "1 loaf of bread"
+            ],
+            "quantity": [
+              2,
+              3,
+              1
+            ]
+          }
+        },
+        {
+          "light_travel_time": {
+            "distance_in_light_years": 4.24,
+            "speed_of_light": 299792458
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'latest_exchange_rate' not found in model output.",
+      "gen_seconds": 65.98
+    },
+    {
+      "id": "parallel_multiple_35",
+      "category": "parallel_multiple",
+      "prompt_len": 1311,
+      "response": "image_processing.object_identification(image_url=my_backyard_image_url); text_analysis.sentiment_analysis(text=my_journal_entry_text)",
+      "parsed_calls": [
+        {
+          "image_processing.object_identification": {
+            "image_url": "my_backyard_image_url"
+          }
+        },
+        {
+          "text_analysis.sentiment_analysis": {
+            "text": "my_journal_entry_text"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 15.66
+    },
+    {
+      "id": "parallel_multiple_58",
+      "category": "parallel_multiple",
+      "prompt_len": 2921,
+      "response": "func(triangle_properties.get(side1=5, side2=7, side3=9, get_area=True, get_perimeter=True, get_angles=True)); func(circle_properties.get(radius=3, get_area=True, get_circumference=True))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'triangle_properties.get' not found in model output.",
+      "gen_seconds": 34.6
+    },
+    {
+      "id": "parallel_multiple_97",
+      "category": "parallel_multiple",
+      "prompt_len": 3523,
+      "response": "calc_Simple_Interest(principle_amount=5000, duration=5, annual_rate=4); calc_Compound_Interest(principle_amount=5000, duration=5, annual_rate=3.5, compound_freq=1); future_value(initial_investment=3000, interest_rate=5/100, time=6, num_compoundings=2)",
+      "parsed_calls": [
+        {
+          "calc_Simple_Interest": {
+            "principle_amount": 5000,
+            "duration": 5,
+            "annual_rate": 4
+          }
+        },
+        {
+          "calc_Compound_Interest": {
+            "principle_amount": 5000,
+            "duration": 5,
+            "annual_rate": 3.5,
+            "compound_freq": 1
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "parallel_function_checker_no_order:wrong_count",
+      "error_detail": "Wrong number of functions.",
+      "gen_seconds": 46.42
+    },
+    {
+      "id": "parallel_multiple_48",
+      "category": "parallel_multiple",
+      "prompt_len": 1335,
+      "response": "func(note_conversion.indian(note=\"C\")); func(frequency_to_wavelength(frequency=440))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'note_conversion.indian' not found in model output.",
+      "gen_seconds": 15.76
+    },
+    {
+      "id": "parallel_multiple_143",
+      "category": "parallel_multiple",
+      "prompt_len": 2672,
+      "response": "func(math.factorial(number=7)); func(find_flute(brand='Yamaha', specs=['open hole', 'silver headjoint'])); func(calculate_genotype_frequency(allele_frequency=0.6, genotype='AA'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'math.factorial' not found in model output.",
+      "gen_seconds": 34.2
+    },
+    {
+      "id": "parallel_multiple_69",
+      "category": "parallel_multiple",
+      "prompt_len": 3538,
+      "response": "finance.property_depreciation(initial_cost=500000, depreciation_rate=2, years=5, monthly=True); finance.inflation_adjustment(initial_sum=200000, years=5, inflation_rate=3); finance.loan_repayment(loan_amount=300000, interest_rate=4, loan_term=10)",
+      "parsed_calls": [
+        {
+          "finance.property_depreciation": {
+            "initial_cost": 500000,
+            "depreciation_rate": 2,
+            "years": 5,
+            "monthly": true
+          }
+        },
+        {
+          "finance.inflation_adjustment": {
+            "initial_sum": 200000,
+            "years": 5,
+            "inflation_rate": 3
+          }
+        },
+        {
+          "finance.loan_repayment": {
+            "loan_amount": 300000,
+            "interest_rate": 4,
+            "loan_term": 10
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "parallel_function_checker_no_order:wrong_count",
+      "error_detail": "Wrong number of functions.",
+      "gen_seconds": 46.73
+    },
+    {
+      "id": "parallel_multiple_91",
+      "category": "parallel_multiple",
+      "prompt_len": 3175,
+      "response": "biological.calc_energy(mols=5, substance=\"C6H12O6\", joules_per_mol=2800.0); biological.calc_biomass(energy=biological.calc_energy(mols=5, substance=\"C6H12O6\", joules_per_mol=2800.0), efficiency=0.1); physical.calc_work(energy=biological.calc_energy(mols=5, substance=\"C6H12O6\", joules_per_mol=2800.0), distance=2);",
+      "parsed_calls": [
+        {
+          "biological.calc_energy": {
+            "mols": 5,
+            "substance": "C6H12O6",
+            "joules_per_mol": 2800.0
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "parallel_function_checker_no_order:wrong_count",
+      "error_detail": "Wrong number of functions.",
+      "gen_seconds": 50.32
+    },
+    {
+      "id": "parallel_multiple_195",
+      "category": "parallel_multiple",
+      "prompt_len": 4543,
+      "response": "multiplayer_game_finder(platform=\"Windows 10\", rating=4, genre=\"Action\"); calculate_area_under_curve(function=\"x^2\", interval=[0, 5], method=\"trapezoidal\"); geo_distance.calculate(start_location=\"Los Angeles\", end_location=\"New York\", units=\"kilometers\"); send_email(to=\"john.doe@example.com\", subject=\"Meeting Reminder\", body=\"Do not forget about our meeting tomorrow at 10 AM\", cc=\"jane.doe@example.com\")",
+      "parsed_calls": [
+        {
+          "multiplayer_game_finder": {
+            "platform": "Windows 10",
+            "rating": 4,
+            "genre": "Action"
+          }
+        },
+        {
+          "calculate_area_under_curve": {
+            "function": "x^2",
+            "interval": [
+              0,
+              5
+            ],
+            "method": "trapezoidal"
+          }
+        },
+        {
+          "geo_distance.calculate": {
+            "start_location": "Los Angeles",
+            "end_location": "New York",
+            "units": "kilometers"
+          }
+        },
+        {
+          "send_email": {
+            "to": "john.doe@example.com",
+            "subject": "Meeting Reminder",
+            "body": "Do not forget about our meeting tomorrow at 10 AM",
+            "cc": "jane.doe@example.com"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 60.37
+    },
+    {
+      "id": "parallel_multiple_149",
+      "category": "parallel_multiple",
+      "prompt_len": 3390,
+      "response": "hotel_booking(location=\"Paris\", room_type=\"deluxe\", duration=5, start_date=\"2023-06-20\", preferences=[\"gym\", \"free_breakfast\"]); soccer.get_last_match(team_name=\"Manchester United\", include_stats=True); calculate_BMI(weight_kg=75, height_m=1.8)",
+      "parsed_calls": [
+        {
+          "hotel_booking": {
+            "location": "Paris",
+            "room_type": "deluxe",
+            "duration": 5,
+            "start_date": "2023-06-20",
+            "preferences": [
+              "gym",
+              "free_breakfast"
+            ]
+          }
+        },
+        {
+          "soccer.get_last_match": {
+            "team_name": "Manchester United",
+            "include_stats": true
+          }
+        },
+        {
+          "calculate_BMI": {
+            "weight_kg": 75,
+            "height_m": 1.8
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 43.59
+    },
+    {
+      "id": "parallel_multiple_21",
+      "category": "parallel_multiple",
+      "prompt_len": 2032,
+      "response": "data_loading(file_path='dataset.csv'); linear_regression_fit(x=data['sales'], y=data['future_sales'], return_residuals=True)",
+      "parsed_calls": [
+        {
+          "data_loading": {
+            "file_path": "dataset.csv"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "parallel_function_checker_no_order:wrong_count",
+      "error_detail": "Wrong number of functions.",
+      "gen_seconds": 22.48
+    },
+    {
+      "id": "parallel_multiple_54",
+      "category": "parallel_multiple",
+      "prompt_len": 2060,
+      "response": "func(attribute=\"armor\", level=5, playerID=123); func(game=\"Battle Reign\", condition=\"snowy weather\"); func(game=\"Shadow Fall\", type=\"strategy\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "attribute": "armor",
+            "level": 5,
+            "playerID": 123
+          }
+        },
+        {
+          "func": {
+            "game": "Battle Reign",
+            "condition": "snowy weather"
+          }
+        },
+        {
+          "func": {
+            "game": "Shadow Fall",
+            "type": "strategy"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'BattleReignGameAPI.update_player_equipment' not found in model output.",
+      "gen_seconds": 25.32
+    },
+    {
+      "id": "parallel_multiple_162",
+      "category": "parallel_multiple",
+      "prompt_len": 3504,
+      "response": "finance.calculate_future_value(initial_investment=5000, rate_of_return=0.07, years=10, contribution=200); create_histogram(data=[7, 8, 9, 6, 7, 8, 10, 9, 8, 7], bins=5); mix_paint_color(color1=\"blue\", color2=\"yellow\", lightness=70)",
+      "parsed_calls": [
+        {
+          "finance.calculate_future_value": {
+            "initial_investment": 5000,
+            "rate_of_return": 0.07,
+            "years": 10,
+            "contribution": 200
+          }
+        },
+        {
+          "create_histogram": {
+            "data": [
+              7,
+              8,
+              9,
+              6,
+              7,
+              8,
+              10,
+              9,
+              8,
+              7
+            ],
+            "bins": 5
+          }
+        },
+        {
+          "mix_paint_color": {
+            "color1": "blue",
+            "color2": "yellow",
+            "lightness": 70
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 51.32
+    },
+    {
+      "id": "parallel_multiple_1",
+      "category": "parallel_multiple",
+      "prompt_len": 1947,
+      "response": "func(name=area_rectangle.calculate, length=7, breadth=3); func(name=area_circle.calculate, radius=5)",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(name=area_rectangle.calculate, length=7, breadth=3); func(name=area_circle.calculate, radius=5)'",
+      "gen_seconds": 22.66
+    },
+    {
+      "id": "parallel_multiple_134",
+      "category": "parallel_multiple",
+      "prompt_len": 1973,
+      "response": "func(field_of_law=\"constitutional law\", country=\"UK\", top_number=5); func(num1=36, num2=48)",
+      "parsed_calls": [
+        {
+          "func": {
+            "field_of_law": "constitutional law",
+            "country": "UK",
+            "top_number": 5
+          }
+        },
+        {
+          "func": {
+            "num1": 36,
+            "num2": 48
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_top_cases' not found in model output.",
+      "gen_seconds": 23.31
+    },
+    {
+      "id": "parallel_multiple_86",
+      "category": "parallel_multiple",
+      "prompt_len": 2506,
+      "response": "kinematics.calculate_speed_from_rest(distance=120, time=10); kinematics.calculate_acceleration(initial_speed=12, final_speed=24, time=5)",
+      "parsed_calls": [
+        {
+          "kinematics.calculate_speed_from_rest": {
+            "distance": 120,
+            "time": 10
+          }
+        },
+        {
+          "kinematics.calculate_acceleration": {
+            "initial_speed": 12,
+            "final_speed": 24,
+            "time": 5
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 30.31
+    },
+    {
+      "id": "parallel_multiple_177",
+      "category": "parallel_multiple",
+      "prompt_len": 2533,
+      "response": "func(history.get_key_events(country=\"France\", start_year=1800, end_year=1900, event_type=[\"War\", \"Economy\"])); func(get_sculpture_value(sculpture=\"The Thinker\", artist=\"Auguste Rodin\")); func(get_sculpture_value(sculpture=\"The Kiss\", artist=\"Auguste Rodin\", year=1882))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'history.get_key_events' not found in model output.",
+      "gen_seconds": 36.74
+    },
+    {
+      "id": "parallel_multiple_70",
+      "category": "parallel_multiple",
+      "prompt_len": 2678,
+      "response": "solarFarm.potential(coordinates=[37.7749, -122.4194], panelArea=50000, month=\"July\"); windFarm.potential(coordinates=[40.7128, -74.0060], turbineCount=100, month=\"July\")",
+      "parsed_calls": [
+        {
+          "solarFarm.potential": {
+            "coordinates": [
+              37.7749,
+              -122.4194
+            ],
+            "panelArea": 50000,
+            "month": "July"
+          }
+        },
+        {
+          "windFarm.potential": {
+            "coordinates": [
+              40.7128,
+              -74.006
+            ],
+            "turbineCount": 100,
+            "month": "July"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 36.43
+    },
+    {
+      "id": "parallel_multiple_133",
+      "category": "parallel_multiple",
+      "prompt_len": 2302,
+      "response": "music_generator.generate_scale_progression(key=\"D\", tempo=120, duration=2, scale_type=\"minor\"); math.hcf(number1=456, number2=123)",
+      "parsed_calls": [
+        {
+          "music_generator.generate_scale_progression": {
+            "key": "D",
+            "tempo": 120,
+            "duration": 2,
+            "scale_type": "minor"
+          }
+        },
+        {
+          "math.hcf": {
+            "number1": 456,
+            "number2": 123
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 28.21
+    },
+    {
+      "id": "parallel_multiple_82",
+      "category": "parallel_multiple",
+      "prompt_len": 2392,
+      "response": "func(geometry.calculate_cone_volume(radius=10, height=30, round_off=2)); func(physics.calculate_cone_mass(radius=10, height=30, density=5.2)); func(physics.calculate_cone_mass(radius=10, height=30, density=7.8))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'geometry.calculate_cone_volume' not found in model output.",
+      "gen_seconds": 32.83
+    },
+    {
+      "id": "parallel_multiple_176",
+      "category": "parallel_multiple",
+      "prompt_len": 3869,
+      "response": "func(hotel_booking(hotel_name='Hilton', location='Los Angeles, CA', start_date='2022-05-01', end_date='2022-05-10', rooms=2)); func(get_time_difference(place1='New York, NY', place2='Los Angeles, CA')); func(calculate_bmi(weight=75, height=180, system='metric')); func(sentiment_analysis(text='I had a wonderful day at the beach. The weather was perfect and I enjoyed a delicious ice cream.', language='English'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        },
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'hotel_booking' not found in model output.",
+      "gen_seconds": 61.61
+    },
+    {
+      "id": "live_simple_15-3-11",
+      "category": "live_simple",
+      "prompt_len": 1398,
+      "response": "func(get_current_weather(location='Chennai, Tamil Nadu', unit='fahrenheit'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_current_weather' not found in model output.",
+      "gen_seconds": 15.44
+    },
+    {
+      "id": "live_simple_109-66-0",
+      "category": "live_simple",
+      "prompt_len": 2246,
+      "response": "func(record=faq_auto_withdraw_start=[\"Can I use bonuses or commissions as part of my income for a loan application?\"]); func(record=payment_information_start=[\"Can I schedule automatic withdrawals for different dates?\"]); func(record=pma_income_requirements_start=[\"How much do I owe on my home equity loan?\"]); func(record=outofscope=[\"Will my income be verified during the loan application process?\"]; func(record=outofscope=[\"Is there a minimum income threshold for loan approval?\"])",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(record=faq_auto_withdraw_start=[\"Can I use bonuses or commissions as part of my income for a loan application?\"]); func(record=payment_information_start=[\"Can I schedule automatic withdrawals for'",
+      "gen_seconds": 32.63
+    },
+    {
+      "id": "live_simple_224-117-16",
+      "category": "live_simple",
+      "prompt_len": 1872,
+      "response": "Movies_3_FindMovies(directed_by=\"Tim Burton\", genre=\"Offbeat\", cast=\"Johnny Depp\")",
+      "parsed_calls": [
+        {
+          "Movies_3_FindMovies": {
+            "directed_by": "Tim Burton",
+            "genre": "Offbeat",
+            "cast": "Johnny Depp"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 20.78
+    },
+    {
+      "id": "live_simple_154-95-11",
+      "category": "live_simple",
+      "prompt_len": 1403,
+      "response": "cmd_controller.execute(command=\"start https://www.youtube.com/watch?v=dQw4w9WgXcQ\")",
+      "parsed_calls": [
+        {
+          "cmd_controller.execute": {
+            "command": "start https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 16.79
+    },
+    {
+      "id": "live_simple_99-59-0",
+      "category": "live_simple",
+      "prompt_len": 1311,
+      "response": "func(connectBluetooth(device_name='ue boom'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'connectBluetooth' not found in model output.",
+      "gen_seconds": 13.22
+    },
+    {
+      "id": "live_simple_13-3-9",
+      "category": "live_simple",
+      "prompt_len": 1346,
+      "response": "func(get_current_weather(location=\"上海, China\", unit=\"celsius\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_current_weather' not found in model output.",
+      "gen_seconds": 15.26
+    },
+    {
+      "id": "live_simple_36-13-0",
+      "category": "live_simple",
+      "prompt_len": 1183,
+      "response": "func(answer=\"The text does not define logistic regression, therefore I cannot answer this question.\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "answer": "The text does not define logistic regression, therefore I cannot answer this question."
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'parseAnswer' not found in model output.",
+      "gen_seconds": 12.97
+    },
+    {
+      "id": "live_simple_121-77-0",
+      "category": "live_simple",
+      "prompt_len": 1623,
+      "response": "func(data_labels=['Software Engineer', 'Graphic Designer', 'Data Analyst', 'Sales Manager', 'Nurse'], data_values=[90000, 50000, 70000, 60000, 80000])",
+      "parsed_calls": [
+        {
+          "func": {
+            "data_labels": [
+              "Software Engineer",
+              "Graphic Designer",
+              "Data Analyst",
+              "Sales Manager",
+              "Nurse"
+            ],
+            "data_values": [
+              90000,
+              50000,
+              70000,
+              60000,
+              80000
+            ]
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'generate_chart' not found in model output.",
+      "gen_seconds": 26.98
+    },
+    {
+      "id": "live_simple_254-136-0",
+      "category": "live_simple",
+      "prompt_len": 1410,
+      "response": "func(user.mandates=user_id=\"U123\", status=\"pending\")",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(user.mandates=user_id=\"U123\", status=\"pending\")'",
+      "gen_seconds": 15.57
+    },
+    {
+      "id": "live_simple_37-14-0",
+      "category": "live_simple",
+      "prompt_len": 1099,
+      "response": "func(answer=\"The text does not define logistic regression, therefore I cannot answer this question.\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "answer": "The text does not define logistic regression, therefore I cannot answer this question."
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'parseAnswer' not found in model output.",
+      "gen_seconds": 12.59
+    },
+    {
+      "id": "live_simple_72-36-0",
+      "category": "live_simple",
+      "prompt_len": 1590,
+      "response": "detect_beats_and_filter(capture_percentage=50, confidence_window_size=0.5)",
+      "parsed_calls": [
+        {
+          "detect_beats_and_filter": {
+            "capture_percentage": 50,
+            "confidence_window_size": 0.5
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 17.18
+    },
+    {
+      "id": "live_simple_223-117-15",
+      "category": "live_simple",
+      "prompt_len": 1926,
+      "response": "Movies_3_FindMovies(directed_by=\"dontcare\", genre=\"Fantasy\", cast=\"dontcare\")",
+      "parsed_calls": [
+        {
+          "Movies_3_FindMovies": {
+            "directed_by": "dontcare",
+            "genre": "Fantasy",
+            "cast": "dontcare"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 21.29
+    },
+    {
+      "id": "live_simple_118-74-0",
+      "category": "live_simple",
+      "prompt_len": 1547,
+      "response": "func(get_temperature(units='Celsius', location='Hyderabad, India'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_temperature' not found in model output.",
+      "gen_seconds": 16.46
+    },
+    {
+      "id": "live_simple_234-123-1",
+      "category": "live_simple",
+      "prompt_len": 1631,
+      "response": "func(book_flight(departure_location=\"New York, NY\", departure_time=\"20/06/2022 17:00\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'book_flight' not found in model output.",
+      "gen_seconds": 19.86
+    },
+    {
+      "id": "live_simple_196-116-4",
+      "category": "live_simple",
+      "prompt_len": 1232,
+      "response": "func(Weather_1_GetWeather(city=\"Alameda\", date=\"2023-04-28\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'Weather_1_GetWeather' not found in model output.",
+      "gen_seconds": 15.91
+    },
+    {
+      "id": "live_simple_105-62-0",
+      "category": "live_simple",
+      "prompt_len": 1324,
+      "response": "func(classify=clean_hello=['hello'], faq_link_accounts_start=['link my account', 'connect my accounts'])",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: \"func(classify=clean_hello=['hello'], faq_link_accounts_start=['link my account', 'connect my accounts'])\"",
+      "gen_seconds": 14.96
+    },
+    {
+      "id": "live_simple_104-61-2",
+      "category": "live_simple",
+      "prompt_len": 2186,
+      "response": "func(calculate_tax(purchase_amount=250, state='NY'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_tax' not found in model output.",
+      "gen_seconds": 22.84
+    },
+    {
+      "id": "live_simple_119-75-0",
+      "category": "live_simple",
+      "prompt_len": 1193,
+      "response": "func(GetPrimeMinisters(countries=[\"Australia\", \"Canada\", \"India\"]))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'GetPrimeMinisters' not found in model output.",
+      "gen_seconds": 13.35
+    },
+    {
+      "id": "live_simple_148-95-5",
+      "category": "live_simple",
+      "prompt_len": 1326,
+      "response": "func(cmd_controller.execute(command=\"dir c: && echo done\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'cmd_controller.execute' not found in model output.",
+      "gen_seconds": 13.92
+    },
+    {
+      "id": "live_simple_151-95-8",
+      "category": "live_simple",
+      "prompt_len": 1361,
+      "response": "func(command=\"netsh wlan disconnect\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "command": "netsh wlan disconnect"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'cmd_controller.execute' not found in model output.",
+      "gen_seconds": 13.36
+    },
+    {
+      "id": "live_simple_214-117-6",
+      "category": "live_simple",
+      "prompt_len": 1966,
+      "response": "Movies_3_FindMovies(directed_by=\"Nitesh Tiwari\", genre=\"Comedy\", cast=\"dontcare\")",
+      "parsed_calls": [
+        {
+          "Movies_3_FindMovies": {
+            "directed_by": "Nitesh Tiwari",
+            "genre": "Comedy",
+            "cast": "dontcare"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 22.6
+    },
+    {
+      "id": "live_simple_237-125-0",
+      "category": "live_simple",
+      "prompt_len": 1431,
+      "response": "func(query=\"track:Wrecking Ball artist:Miley Cyrus\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "query": "track:Wrecking Ball artist:Miley Cyrus"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'play_spotify_song' not found in model output.",
+      "gen_seconds": 14.99
+    },
+    {
+      "id": "live_simple_103-61-1",
+      "category": "live_simple",
+      "prompt_len": 2247,
+      "response": "func(purchase_amount=999, state='CA')",
+      "parsed_calls": [
+        {
+          "func": {
+            "purchase_amount": 999,
+            "state": "CA"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'calculate_tax' not found in model output.",
+      "gen_seconds": 22.99
+    },
+    {
+      "id": "live_simple_227-118-1",
+      "category": "live_simple",
+      "prompt_len": 2095,
+      "response": "func(text_to_speech.convert(text='我爱学习', language='zh-CN', gender='male', format='wav'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'text_to_speech.convert' not found in model output.",
+      "gen_seconds": 23.26
+    },
+    {
+      "id": "live_simple_143-95-0",
+      "category": "live_simple",
+      "prompt_len": 1356,
+      "response": "func(command=\"docker ps\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "command": "docker ps"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'cmd_controller.execute' not found in model output.",
+      "gen_seconds": 13.13
+    },
+    {
+      "id": "live_simple_31-8-1",
+      "category": "live_simple",
+      "prompt_len": 3105,
+      "response": "func(aws.lexv2_models.list_exports, botId='B12345', botVersion='v1', sortBy='DESC')",
+      "parsed_calls": [
+        {
+          "func": {
+            "botId": "B12345",
+            "botVersion": "v1",
+            "sortBy": "DESC"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'aws.lexv2_models.list_exports' not found in model output.",
+      "gen_seconds": 33.83
+    },
+    {
+      "id": "live_simple_248-130-0",
+      "category": "live_simple",
+      "prompt_len": 1388,
+      "response": "func(acl_api.AclApi.retrieve_projects, uuid='12', excludeInactive=True, onlyRoot=True)",
+      "parsed_calls": [
+        {
+          "func": {
+            "uuid": "12",
+            "excludeInactive": true,
+            "onlyRoot": true
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'acl_api.AclApi.retrieve_projects' not found in model output.",
+      "gen_seconds": 15.76
+    },
+    {
+      "id": "live_simple_28-7-1",
+      "category": "live_simple",
+      "prompt_len": 1437,
+      "response": "func(restaurant=\"肯德基\", items=[\"麦辣鸡腿堡\", \"可口可乐\", \"油炸鸡翅\", \"薯条\"], quantities=[10, 50, 30, 90])",
+      "parsed_calls": [
+        {
+          "func": {
+            "restaurant": "肯德基",
+            "items": [
+              "麦辣鸡腿堡",
+              "可口可乐",
+              "油炸鸡翅",
+              "薯条"
+            ],
+            "quantities": [
+              10,
+              50,
+              30,
+              90
+            ]
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'uber.eat.order' not found in model output.",
+      "gen_seconds": 20.88
+    },
+    {
+      "id": "live_simple_89-50-0",
+      "category": "live_simple",
+      "prompt_len": 2569,
+      "response": "func(name=\"interior_design_analysis.generate_report\", user_preferences='{\"style\": \"modern\", \"color_scheme\": \"warm\", \"budget\": \"mid-range\"}', data_source='internal_database', output_format='DOCX', include_visuals=True)",
+      "parsed_calls": [
+        {
+          "func": {
+            "name": "interior_design_analysis.generate_report",
+            "user_preferences": "{\"style\": \"modern\", \"color_scheme\": \"warm\", \"budget\": \"mid-range\"}",
+            "data_source": "internal_database",
+            "output_format": "DOCX",
+            "include_visuals": true
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'interior_design_analysis.generate_report' not found in model output.",
+      "gen_seconds": 29.64
+    },
+    {
+      "id": "live_simple_195-116-3",
+      "category": "live_simple",
+      "prompt_len": 1198,
+      "response": "Weather_1_GetWeather(city=\"Palo Alto\", date=\"2023-04-25\")",
+      "parsed_calls": [
+        {
+          "Weather_1_GetWeather": {
+            "city": "Palo Alto",
+            "date": "2023-04-25"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 15.6
+    },
+    {
+      "id": "live_simple_149-95-6",
+      "category": "live_simple",
+      "prompt_len": 1334,
+      "response": "func(command=\"echo hi\")",
+      "parsed_calls": [
+        {
+          "func": {
+            "command": "echo hi"
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'cmd_controller.execute' not found in model output.",
+      "gen_seconds": 13.02
+    },
+    {
+      "id": "live_simple_200-116-8",
+      "category": "live_simple",
+      "prompt_len": 1198,
+      "response": "Weather_1_GetWeather(city=\"Fremont\", date=\"2023-03-01\")",
+      "parsed_calls": [
+        {
+          "Weather_1_GetWeather": {
+            "city": "Fremont",
+            "date": "2023-03-01"
+          }
+        }
+      ],
+      "passed": true,
+      "error_type": "",
+      "error_detail": "",
+      "gen_seconds": 15.0
+    },
+    {
+      "id": "live_simple_233-123-0",
+      "category": "live_simple",
+      "prompt_len": 1652,
+      "response": "func(book_flight(departure_location='Paris, France', departure_time='12/03/2023 15:00'))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'book_flight' not found in model output.",
+      "gen_seconds": 20.33
+    },
+    {
+      "id": "live_simple_162-96-1",
+      "category": "live_simple",
+      "prompt_len": 1202,
+      "response": "func(get_items(items=[\"Red and blue circle logo.\", \"Red and yellow circle logo.\", \"Green circle logo.\", \"Black circle logo.\"]))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'get_items' not found in model output.",
+      "gen_seconds": 15.6
+    },
+    {
+      "id": "live_simple_53-24-0",
+      "category": "live_simple",
+      "prompt_len": 928,
+      "response": "func(todo_add(content=\"go for shopping at 9 pm\"))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'todo_add' not found in model output.",
+      "gen_seconds": 10.45
+    },
+    {
+      "id": "live_simple_67-31-0",
+      "category": "live_simple",
+      "prompt_len": 2570,
+      "response": "func(obtener_cotizacion_de_creditos=monto_del_credito=1000000, plazo_del_credito_mensual=12, producto=\"auto\", a\\u00f1o_vehiculo=2024, enganche=0.2)",
+      "parsed_calls": [],
+      "passed": false,
+      "error_type": "no_calls_parsed",
+      "error_detail": "no se pudo parsear ninguna llamada de: 'func(obtener_cotizacion_de_creditos=monto_del_credito=1000000, plazo_del_credito_mensual=12, producto=\"auto\", a\\\\u00f1o_vehiculo=2024, enganche=0.2)'",
+      "gen_seconds": 47.47
+    },
+    {
+      "id": "live_simple_1-1-0",
+      "category": "live_simple",
+      "prompt_len": 1468,
+      "response": "func(github_star(repos=\"ShishirPatil/gorilla,gorilla-llm/gorilla-cli\", aligned=True))",
+      "parsed_calls": [
+        {
+          "func": {}
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'github_star' not found in model output.",
+      "gen_seconds": 19.1
+    },
+    {
+      "id": "live_simple_41-17-1",
+      "category": "live_simple",
+      "prompt_len": 2781,
+      "response": "func(body={\"airConJobMode\": \"AIR_DRY\", \"windStrength\": \"MID\"})",
+      "parsed_calls": [
+        {
+          "func": {
+            "body": {
+              "airConJobMode": "AIR_DRY",
+              "windStrength": "MID"
+            }
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'ThinQ_Connect' not found in model output.",
+      "gen_seconds": 30.97
+    },
+    {
+      "id": "live_simple_52-23-1",
+      "category": "live_simple",
+      "prompt_len": 4049,
+      "response": "func(body={\"airConOperationMode\": \"POWER_ON\", \"targetTemperature\": 20, \"windStrength\": \"MID\", \"relativeHourToStart\": 1, \"relativeMinuteToStart\": 0, \"airConJobMode\": \"COOL\", \"airConOperationMode\": \"POWER_OFF\"})",
+      "parsed_calls": [
+        {
+          "func": {
+            "body": {
+              "airConOperationMode": "POWER_OFF",
+              "targetTemperature": 20,
+              "windStrength": "MID",
+              "relativeHourToStart": 1,
+              "relativeMinuteToStart": 0,
+              "airConJobMode": "COOL"
+            }
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'ThinQ_Connect' not found in model output.",
+      "gen_seconds": 53.46
+    },
+    {
+      "id": "live_simple_134-87-0",
+      "category": "live_simple",
+      "prompt_len": 1929,
+      "response": "func(url='https://api.insights.com/groups', params={'limit': 20, 'sort': 'desc'})",
+      "parsed_calls": [
+        {
+          "func": {
+            "url": "https://api.insights.com/groups",
+            "params": {
+              "limit": 20,
+              "sort": "desc"
+            }
+          }
+        }
+      ],
+      "passed": false,
+      "error_type": "simple_function_checker:wrong_func_name",
+      "error_detail": "Function name 'requests.get' not found in model output.",
+      "gen_seconds": 25.46
+    }
+  ]
+}

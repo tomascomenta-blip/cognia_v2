@@ -66,7 +66,7 @@ def _make_registry() -> ToolRegistry:
 
     # ── execute_python ──────────────────────────────────────────────────
     try:
-        from code_executor import get_code_executor
+        from cognia_v3.interfaces.code_executor import get_code_executor
         _exec = get_code_executor()
 
         def _execute_python(code: str) -> dict:
@@ -86,7 +86,7 @@ def _make_registry() -> ToolRegistry:
 
     # ── validate_python ─────────────────────────────────────────────────
     try:
-        from code_executor import validate_python
+        from cognia_v3.interfaces.code_executor import validate_python
 
         def _validate_python(code: str) -> dict:
             r = validate_python(code)
@@ -104,7 +104,7 @@ def _make_registry() -> ToolRegistry:
 
     # ── search_wikipedia ────────────────────────────────────────────────
     try:
-        from investigador import buscar_wikipedia
+        from cognia_v3.core.investigador import buscar_wikipedia
 
         def _search_wikipedia(query: str) -> dict:
             result = buscar_wikipedia(query)
@@ -194,6 +194,55 @@ def _make_registry() -> ToolRegistry:
             fn=_research,
             timeout_seconds=30,
             requires_network=True,
+        ))
+    except ImportError:
+        pass
+
+    # -- dev tools Tier 1: search/write/edit/run_tests (deterministas, sin LLM) --
+    try:
+        from cognia.agents.workers.dev_tools import (
+            search_code, write_file, edit_file, run_tests,
+        )
+
+        reg.register(Tool(
+            name="search_code",
+            description=(
+                "Regex content search over files (read-only). "
+                "Returns matches as {file, line_no, line}."
+            ),
+            fn=search_code,
+            timeout_seconds=15,
+            requires_network=False,
+        ))
+        reg.register(Tool(
+            name="write_file",
+            description=(
+                "Create or overwrite a file INSIDE the agent workspace. "
+                "Python files are AST-validated before writing; existing files get a .bak backup."
+            ),
+            fn=write_file,
+            timeout_seconds=10,
+            requires_network=False,
+        ))
+        reg.register(Tool(
+            name="edit_file",
+            description=(
+                "Exact substring replacement in a workspace file. "
+                "old_string must appear exactly `count` times; result is AST-validated for .py."
+            ),
+            fn=edit_file,
+            timeout_seconds=10,
+            requires_network=False,
+        ))
+        reg.register(Tool(
+            name="run_tests",
+            description=(
+                "Run pytest on a path inside the agent workspace (isolated subprocess). "
+                "Returns {passed, failed, errors, summary_line, tail}."
+            ),
+            fn=run_tests,
+            timeout_seconds=120,
+            requires_network=False,
         ))
     except ImportError:
         pass

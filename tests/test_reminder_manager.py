@@ -120,3 +120,64 @@ def test_check_and_fire_does_not_double_fire(rm):
     rm._check_and_fire()
     rm._check_and_fire()  # Second call should be a no-op for same reminder
     assert fired_count[0] == 1
+
+
+# ── Recurrencia (Cal.com nativo, 2026-07-14) ───────────────────────────
+
+def test_create_recur_valida_y_persiste(rm):
+    r = rm.create("u1", "Standup", fire_at=time.time() + 3600, recur="daily")
+    assert r["recur"] == "daily"
+    pend = rm.get_pending("u1")
+    assert pend[0]["recur"] == "daily"
+
+
+def test_create_recur_invalido_lanza(rm):
+    with pytest.raises(ValueError, match="recur invalido"):
+        rm.create("u1", "x", fire_at=time.time() + 10, recur="cada_rato")
+
+
+def test_recur_none_es_disparo_unico(rm):
+    """Un recordatorio no recurrente que dispara NO deja otro pendiente."""
+    rm.create("u1", "una vez", fire_at=time.time() - 1)   # ya vencido
+    rm._check_and_fire()
+    assert rm.get_pending("u1") == []
+
+
+def test_recur_daily_reagenda_al_disparar(rm):
+    rm.create("u1", "diario", fire_at=time.time() - 1, recur="daily")
+    rm._check_and_fire()
+    pend = rm.get_pending("u1")
+    assert len(pend) == 1                     # se creó la próxima ocurrencia
+    assert pend[0]["recur"] == "daily"
+    assert pend[0]["fire_at"] > time.time()   # y es futura
+
+
+def test_proxima_ocurrencia_no_dispara_para_ponerse_al_dia():
+    from cognia.reminders.reminder_manager import _proxima_ocurrencia
+    ahora = time.time()
+    # fire_at hace 10 días, daily -> la próxima es futura, UNA sola
+    prox = _proxima_ocurrencia(ahora - 10 * 86400, "daily", ahora)
+    assert prox > ahora
+    assert prox - ahora <= 86400 + 1          # dentro del próximo día
+
+
+def test_proxima_ocurrencia_monthly_arrastra_fin_de_mes():
+    from cognia.reminders.reminder_manager import _proxima_ocurrencia
+    import datetime
+    # 31 de enero + monthly -> 28/29 de feb (no 31 inexistente)
+    ene31 = datetime.datetime(2027, 1, 31, 9, 0).timestamp()
+    ahora = datetime.datetime(2027, 1, 31, 10, 0).timestamp()
+    prox = _proxima_ocurrencia(ene31, "monthly", ahora)
+    d = datetime.datetime.fromtimestamp(prox)
+    assert d.month == 2 and d.day in (28, 29)
+
+
+def test_migracion_recur_es_idempotente(tmp_path):
+    """Reabrir el manager sobre la misma DB no falla (ADD COLUMN una vez)."""
+    db = str(tmp_path / "mig.db")
+    m1 = ReminderManager(db_path=db)
+    m1.create("u1", "x", fire_at=time.time() + 10, recur="weekly")
+    m1.stop()
+    m2 = ReminderManager(db_path=db)          # no debe lanzar
+    assert m2.get_pending("u1")[0]["recur"] == "weekly"
+    m2.stop()

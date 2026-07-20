@@ -16,6 +16,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+# config.env instalado ANTES de importar rutas que construyen Cognia()
+# (fix auditoria 2026-07-15: uvicorn app.main:app no pasaba por
+# cognia.__main__ y el backend corria sin la config de ~/.cognia)
+try:
+    from cognia.first_run import apply_config
+    apply_config()
+except Exception:
+    pass
+
 from app.routes.chat import router as chat_router
 from app.routes.status import router as status_router
 from app.routes.user_data import router as user_data_router
@@ -28,7 +37,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8765"],
+    # localhost Y 127.0.0.1: los servers bindean 127.0.0.1 y el estandar
+    # post-bug-CSP del repo es 127.0.0.1 — un front servido desde ahi tenia
+    # el Origin bloqueado (cazado 2026-07-16).
+    allow_origins=["http://localhost:3000", "http://localhost:8765",
+                   "http://127.0.0.1:3000", "http://127.0.0.1:8765"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

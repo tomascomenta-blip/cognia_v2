@@ -29,7 +29,7 @@ NORMAL_CYCLE_MS_ENERGY = 80.0  # ref para normalizar energy_estimate
 
 # ── Módulos opcionales ────────────────────────────────────────────────
 try:
-    from cognia_modules_adicionales import ReasoningPlanner
+    from cognia_v3.core.cognia_modules_adicionales import ReasoningPlanner
     HAS_PLANNER = True
 except ImportError:
     HAS_PLANNER = False
@@ -37,7 +37,7 @@ except ImportError:
     print("[WARN] ReasoningPlanner no disponible")
 
 try:
-    from curiosity_engine import CuriosityEngine as ActiveCuriosityEngine
+    from cognia_v3.core.curiosity_engine import CuriosityEngine as ActiveCuriosityEngine
     HAS_CURIOSITY_ENGINE = True
 except ImportError:
     HAS_CURIOSITY_ENGINE = False

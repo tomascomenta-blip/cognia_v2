@@ -1,0 +1,176 @@
+{
+  "experiment": "exp009_recall_ceiling",
+  "hypothesis": "H-CEIL-1: el recall del estado fijo (lineal puro) escala con el tamano del estado (~d^2, n_heads=1); el hibrido se mantiene alto via atencion",
+  "smoke": false,
+  "seed": 0,
+  "recipe": {
+    "n_heads": 1,
+    "n_vals": 16,
+    "n_queries": 16,
+    "n_keys": 160,
+    "batch": 64,
+    "lr": 0.001
+  },
+  "n_pairs_primary": 16,
+  "steps": 6000,
+  "warmup": 300,
+  "n_layers": 6,
+  "early_stop": 0.95,
+  "chance": 0.0625,
+  "d_models": [
+    8,
+    16,
+    24,
+    32,
+    48
+  ],
+  "state_size_by_d": {
+    "8": 64,
+    "16": 256,
+    "24": 576,
+    "32": 1024,
+    "48": 2304
+  },
+  "grid": [
+    {
+      "d_model": 8,
+      "state_size": 64,
+      "n_pairs": 16,
+      "config": "lineal_puro",
+      "final_acc": 0.05888671875,
+      "chance": 0.0625,
+      "params": 3944
+    },
+    {
+      "d_model": 8,
+      "state_size": 64,
+      "n_pairs": 16,
+      "config": "hibrido_3to1",
+      "final_acc": 0.05888671875,
+      "chance": 0.0625,
+      "params": 3944
+    },
+    {
+      "d_model": 16,
+      "state_size": 256,
+      "n_pairs": 16,
+      "config": "lineal_puro",
+      "final_acc": 0.16806640625,
+      "chance": 0.0625,
+      "params": 20176
+    },
+    {
+      "d_model": 16,
+      "state_size": 256,
+      "n_pairs": 16,
+      "config": "hibrido_3to1",
+      "final_acc": 0.1650390625,
+      "chance": 0.0625,
+      "params": 20176
+    },
+    {
+      "d_model": 24,
+      "state_size": 576,
+      "n_pairs": 16,
+      "config": "lineal_puro",
+      "final_acc": 0.18291015625,
+      "chance": 0.0625,
+      "params": 41784
+    },
+    {
+      "d_model": 24,
+      "state_size": 576,
+      "n_pairs": 16,
+      "config": "hibrido_3to1",
+      "final_acc": 0.177734375,
+      "chance": 0.0625,
+      "params": 41784
+    },
+    {
+      "d_model": 32,
+      "state_size": 1024,
+      "n_pairs": 16,
+      "config": "lineal_puro",
+      "final_acc": 0.18203125,
+      "chance": 0.0625,
+      "params": 71072
+    },
+    {
+      "d_model": 32,
+      "state_size": 1024,
+      "n_pairs": 16,
+      "config": "hibrido_3to1",
+      "final_acc": 0.1841796875,
+      "chance": 0.0625,
+      "params": 71072
+    },
+    {
+      "d_model": 48,
+      "state_size": 2304,
+      "n_pairs": 16,
+      "config": "lineal_puro",
+      "final_acc": 0.18125,
+      "chance": 0.0625,
+      "params": 166512
+    },
+    {
+      "d_model": 48,
+      "state_size": 2304,
+      "n_pairs": 16,
+      "config": "hibrido_3to1",
+      "final_acc": 0.2923828125,
+      "chance": 0.0625,
+      "params": 166512
+    }
+  ],
+  "summary": {
+    "n_pairs": 16,
+    "chance": 0.0625,
+    "state_size_by_d": {
+      "8": 64,
+      "16": 256,
+      "24": 576,
+      "32": 1024,
+      "48": 2304
+    },
+    "lineal_puro_by_d": {
+      "8": 0.05888671875,
+      "16": 0.16806640625,
+      "24": 0.18291015625,
+      "32": 0.18203125,
+      "48": 0.18125
+    },
+    "hibrido_3to1_by_d": {
+      "8": 0.05888671875,
+      "16": 0.1650390625,
+      "24": 0.177734375,
+      "32": 0.1841796875,
+      "48": 0.2923828125
+    },
+    "gap_by_d": {
+      "8": 0.0,
+      "16": -0.0030273437499999944,
+      "24": -0.005175781250000011,
+      "32": 0.002148437499999989,
+      "48": 0.11113281249999998
+    },
+    "valid_d": [
+      16,
+      24,
+      32,
+      48
+    ],
+    "learnability_floor_d": 8,
+    "lineal_rises_with_d": true,
+    "lineal_floor_acc": 0.05888671875,
+    "lineal_peak_acc": 0.18291015625,
+    "lineal_peak_d": 24,
+    "hibrido_separates": true,
+    "separation_d": [
+      48
+    ],
+    "max_gap": 0.11113281249999998,
+    "max_gap_d": 48,
+    "headline": "PREDICCION PARCIALMENTE HELD: el recall del lineal SUBE con el estado (d=8~64: 0.059 -> d=24~576: 0.183) y luego SATURA (techo de estado ENTRENADO, < d^2 ideal); el hibrido SE SEPARA del lineal a d grande (gap maximo +0.111 en d=48), la cabeza de atencion forma el recall solo cuando el modelo es lo bastante ancho. PISO de aprendibilidad en d<=8 (ambas configs en azar: la tarea no se aprende a ese tamano, NO es el techo de estado)."
+  }
+}

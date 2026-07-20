@@ -1,0 +1,53 @@
+{
+  "exp": "exp079_submodular_value",
+  "cycle": 95,
+  "hypothesis": "H-V4-8a",
+  "claim": "bajo un objetivo NO-aditivo (submodular/cobertura) la asignacion por valor ABSOLUTO (top-k, la politica implicita de 83-94) desperdicia picks en redundantes; el valor MARGINAL (greedy por ganancia respecto del conjunto) cubre los tipos y recupera el optimo -> R-VALOR debe ser marginal",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "submodular": {
+        "additive_greedy": 0.9155,
+        "marginal_greedy": 0.9907,
+        "oracle": 1.0,
+        "random": 0.6588
+      },
+      "additive": {
+        "additive_greedy": 0.9926,
+        "marginal_greedy": 0.9926,
+        "oracle": 1.0,
+        "random": 0.5434
+      }
+    },
+    "gap_submodular": 0.0752,
+    "gap_additive": 0.0,
+    "marginal_oracle_gap_sub": 0.0093,
+    "additive_loss_sub": 0.0845,
+    "marginal_wins_sub": true,
+    "coincide_add": true,
+    "marg_near_oracle": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8a APOYADA: bajo objetivo SUBMODULAR (cobertura), la asignación por valor ABSOLUTO (top-k, la política implícita de 83-94) DESPERDICIA picks en ítems redundantes del mismo tipo -- additive_greedy=0.915 -- mientras el valor MARGINAL (greedy por ganancia respecto del conjunto) CUBRE los tipos: marginal_greedy=0.991 (+0.075, ≈ oracle, gap 0.009). Bajo objetivo ADDITIVE coinciden (gap 0.000, top-k = óptimo). El additive pierde 0.085 vs oracle bajo submodular. => R-VALOR debe ser MARGINAL (contextual al conjunto) bajo objetivos no-aditivos; 'top-k por valor' es específico de la aditividad. Formaliza el tema de diversidad (49-50/94): la diversidad ES el valor cuando el objetivo es de cobertura."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "T": 5,
+    "k": 10,
+    "noise": 0.05
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp079] CYCLE 95 / H-V4-8a — gap #4 (objetivo NO-aditivo): R-VALOR marginal vs absoluto bajo submodularidad",
+    "[exp079] n=50 T=5 k=10 noise=0.05 seeds=48 objetivos=['submodular', 'additive'] (k>T -> cobertura importa)",
+    "[exp079] submodular: additive_greedy=0.915 marginal_greedy=0.991 oracle=1.000 random=0.659",
+    "[exp079]   additive: additive_greedy=0.993 marginal_greedy=0.993 oracle=1.000 random=0.543",
+    "[exp079] gap_submodular(marg−add)=+0.075 | gap_additive=+0.000 | marg_oracle_gap_sub=0.009 | additive_loss_sub=0.085",
+    "[exp079] marginal_wins_sub=True coincide_add=True marg_near_oracle=True",
+    "[exp079] VEREDICTO H-V4-8a: APOYADA | H-V4-8a APOYADA: bajo objetivo SUBMODULAR (cobertura), la asignación por valor ABSOLUTO (top-k, la política implícita de 83-94) DESPERDICIA picks en ítems redundantes del mismo tipo -- additive_greedy=0.915 -- mientras el valor MARGINAL (greedy por ganancia respecto del conjunto) CUBRE los tipos: marginal_greedy=0.991 (+0.075, ≈ oracle, gap 0.009). Bajo objetivo ADDITIVE coinciden (gap 0.000, top-k = óptimo). El additive pierde 0.085 vs oracle bajo submodular. => R-VALOR debe ser MARGINAL (contextual al conjunto) bajo objetivos no-aditivos; 'top-k por valor' es específico de la aditividad. Formaliza el tema de diversidad (49-50/94): la diversidad ES el valor cuando el objetivo es de cobertura."
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "experiment": "exp021_speculative_decode",
+  "hypothesis_id": "H-SPEED-1",
+  "summary": {
+    "status": "mixta",
+    "headline": "Speculative SUBE tok/s pero CONDICIONAL: n-gram acelera texto repetitivo/codigo gratis (lossless); el habla natural general necesita draft real o cabezas entrenables (MTP/EAGLE), que el binario ya soporta.",
+    "baseline_tps": 8.32,
+    "by_strategy": {
+      "ngram-simple": {
+        "code": {
+          "speedup": 0.72,
+          "lossless": false,
+          "warm": true
+        },
+        "speech": {
+          "speedup": 0.814,
+          "lossless": false,
+          "warm": true
+        },
+        "echo": {
+          "speedup": 1.333,
+          "lossless": true,
+          "warm": true
+        }
+      },
+      "draft-0.5B": {
+        "code": {
+          "speedup": 0.64,
+          "lossless": false,
+          "warm": true
+        },
+        "speech": {
+          "speedup": 0.367,
+          "lossless": false,
+          "warm": true
+        },
+        "echo": {
+          "speedup": 0.673,
+          "lossless": true,
+          "warm": true
+        }
+      },
+      "ngram-map-k": {
+        "speech": {
+          "speedup": 0.998,
+          "lossless": false,
+          "warm": false
+        },
+        "echo": {
+          "speedup": 1.287,
+          "lossless": true,
+          "warm": false
+        }
+      },
+      "ngram-mod": {
+        "speech": {
+          "speedup": 1.056,
+          "lossless": true,
+          "warm": false
+        },
+        "echo": {
+          "speedup": 1.133,
+          "lossless": true,
+          "warm": false
+        }
+      }
+    },
+    "best_free_gain": {
+      "strategy": "ngram-simple",
+      "prompt": "echo",
+      "speedup": 1.333
+    },
+    "best_speech": {
+      "strategy": "ngram-mod",
+      "speedup": 1.056
+    },
+    "notes": [
+      "Mejor ganancia gratis (ngram, sin modelo extra): ngram-simple en 'echo' = 1.333x (lossless).",
+      "Habla natural (objetivo): draft-0.5B=0.367x, ngram-map-k=0.998x, ngram-mod=1.056x, ngram-simple=0.814x.  -> n-gram NO acelera habla general; ese caso exige draft/heads.",
+      "Proyeccion peldano-2 (modelo de banda calibrado): MTP/EAGLE-head (a=2.4) -> 17.7 tok/s, MTP/EAGLE-head (a=3.4) -> 24.81 tok/s.",
+      "Calibracion: baseline(mediana)=8.321 tok/s = 14.96 GiB/s (en la pared de memoria de exp004: True)."
+    ]
+  },
+  "sources": {
+    "ngram_real": true,
+    "draft_real": true,
+    "cost_model": true
+  }
+}

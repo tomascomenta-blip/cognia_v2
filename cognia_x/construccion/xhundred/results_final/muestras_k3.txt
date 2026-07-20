@@ -1,0 +1,110 @@
+n muestras: 10 | d2 avg 0.743 | d3 avg 0.835 | rep4 max por muestra: [71, 3, 1, 4, 9, 2, 2, 4, 3, 5]
+
+==========================================================================================
+PROMPT: 'La historia de '  d2=0.236 d3=0.262 rep4=71
+La historia de ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... 
+
+Esta historia tiene un número mínimo de veces menor que ... ... ... ... ... ... ... ... ... ... 
+
+No hay un número real que no hay que tener en cuenta los críticos de la historia del mundo y la política de la mayoría de los historiadores, porque ... ... ... ... ... ... ... ... ... ... ... ... ... ... 
+... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... ... 
+... ... ... ... ... ... ... ... ... ... ... 
+
+==========================================================================================
+PROMPT: 'El sol es '  d2=0.818 d3=0.941 rep4=3
+El sol es  un riso.
+
+Cuando el viento es mayor que la lluvia, el río se desplaza a través de los ríos, y la lluvia varía en el medio ambiente. El viento puede dar la luz a la luz. Los monzones también pueden pasar de un lugar a otro y con un cálido sol. Cuando el sol pasa por el viento, el viento tiene un momento de sol y una luz, el sol puede verse con el viento. Los monzones pueden ser los que dan lugar a la luz. Los monzones pueden estar en un lugar claro, pero también pueden estar felices y a salvo. La lluvia también puede mantener el sol bajo el sol.
+
+==========================================================================================
+PROMPT: 'Los animales del bosque '  d2=0.963 d3=1.0 rep4=1
+Los animales del bosque 
+El primer animal de la familia encontró un pequeño insecto llamado un zorro. El zorro llevaba un sombrero y una cola. A Lily le encantaba mirarlo y jugar con él.
+
+Un día, el zorro vio a Lily y a sus amigos jugando con una pelota. Lily tenía curiosidad, así que corrió hacia ellos y les dijo: "Hola, zorro. ¿Qué te pasa?"
+
+El zorro le contó a Lily sobre la pelota y cómo su nombre era Timmy. Lily también se sintió feliz. Jugaron juntos en la casa y se divirtieron mucho. Al final, Lily ya no estaba triste, pero feliz de tener un nuevo amigo en el bosque.
+
+==========================================================================================
+PROMPT: 'En la ciudad de Madrid '  d2=0.727 d3=0.828 rep4=4
+En la ciudad de Madrid 
+En el año 1100, la ciudad de Barcelona es conocida como la ciudad de Barcelona. Desde el año 939, la ciudad se desarrolla a lo largo de la ciudad, hasta los restos de la ciudad.
+
+Tras la recepción de las ciudades en la ciudad se desarrolló un crecimiento urbano y económico de uno de los más importantes grupos urbanos de la ciudad. Esta actividad se inicia en la zona de la ciudad de Barcelona.
+
+En 1411 se crea el Real Academia de La Alameda de Cataluña, una institución pública de interés, como un milagro de la ciudad. El Centro Universitario de Barcelona le impone el modernismo, y el Centro Universitario de Barcelona es uno de los principales centros urbanos de la ciudad.
+
+En 1415, en la provincia de Barcelona, el 8 de septiembre de 1430 se funda la villa de Santa María.
+
+En el año 1516, las tropas de la ciudad de Barcelona se inician en el
+
+==========================================================================================
+PROMPT: 'La ciencia estudia '  d2=0.67 d3=0.772 rep4=9
+La ciencia estudia  el psiquiatraismo en el denominado sistema nervioso, que, a diferencia de lo que se tiene, en el caso de la ciencia, existen dos campos de estudio: la física (del latín moderno), el, el  y el positrón.
+
+La física, como el origen de la física, es la rama de la física (del latín , del inglés, 'l') y el psiquiatraismo. La teoría de la física (del griego antiguo μαὢ) se conoce como la teoría de la física de la física. Como resultado, la física (del griego φάλγγγγδγγγγνγγγγία) es una visión filosófica, y es la teoría de la física de la física.
+
+La química de la química es una rama de la física que estudia las variables y las estructuras de la física
+
+==========================================================================================
+PROMPT: 'Había una vez un niño que '  d2=0.913 d3=0.971 rep4=2
+Había una vez un niño que risueaba mucho. Estaba muy orgulloso de sí mismo por haber aprendido a respetar el gran y desconocido pintor.
+
+El niño seguía los ojos de su mamá, pero luego se dio cuenta de que la sensación de que el sol se iba. Comenzó a sentirse triste porque su mamá se había ido.
+
+El niño quería ayudar, así que lo ayudó a encontrar al niño que lo ayudara. Después de unos días, el niño estaba tan feliz de haber aprendido el valor del niño.
+
+==========================================================================================
+PROMPT: 'Un día, la pequeña Sofía encontró '  d2=0.845 d3=0.941 rep4=2
+Un día, la pequeña Sofía encontró risas y se puso muy feliz.
+
+Se puso su gorro de baño y salió corriendo afuera. Era un día soleado y Margarita estaba tan emocionada que comenzó a correr por todas partes. Pero cuando se detuvo, se dio cuenta de que había un gran castillo en la esquina de su casa.
+
+La pequeña Sofía estaba muy asustada y comenzó a llorar. Pero entonces, su papá escuchó una voz. Era su papá. "No te preocupes, cariño," dijo su papá. "La pequeña Sofía no te hará daño."
+
+El papá se acercó y preguntó, "¿Puedo ayudar a que la pequeña Sofía esté a salvo?"
+
+La pequeña Sofía se sintió mucho mejor y dijo, "¡Sí, papá!"
+
+Así que ambos entraron a la casa, y la pequeña Sofía también estaba tan feliz.
+
+Desde ese día, Sofía y su papá siempre compartían sus juguetes y su cuidado.
+
+==========================================================================================
+PROMPT: 'El agua es una sustancia que '  d2=0.767 d3=0.883 rep4=4
+El agua es una sustancia que  se emplea para formar la sustancia que se usa para producir la reacción a partir de la sustancia.
+
+Desde la fermentación, el agua se ha usado para fabricar una sustancia de cristal. La sustancia utilizada para hacer que el agua sea  tal que el agua se desviste a través del litro y se enfre mucho. El agua se utiliza para fabricar fluores de sodio, que se emplean como sustancia para reducir las moléculas de cloro en agua.
+
+En la fermentación, el agua se utiliza para fabricar materiales para producir calor y para producir calor. El agua se usa para modelar los efectos de la condensación. Los combustibles pueden utilizarse para dar la vuelta a la luz. En la fermentación, las moléculas de sal se usan para fabricar y corregir las sal.
+
+Historia 
+
+La energía se utiliza principalmente para calentar el agua, en la agua y para la fermentación, sobre todo en el entorno. La energía utilizada
+
+==========================================================================================
+PROMPT: 'Los planetas del sistema solar '  d2=0.751 d3=0.912 rep4=3
+Los planetas del sistema solar 
+El sistema solar, con sus líneas de rayos de luz, es una red de rayos caputadores de luz; el primer sistema solar, más brillante que el Sol, es un sistema solar en el que el Sol o el Sol y la Tierra son las mejores estrellas.
+
+El sistema solar no se encuentra en el sistema solar de la Tierra, y en el sistema solar, es necesario volver a utilizar una red de radiación solar durante toda su órbita.
+
+La radiación solar es la energía solar que contenga radiación solar, y por tanto, la mayor parte de los planeta son los planetas, por lo que se conocen las estrellas. La radiación solar se agrupa en dos planetas, una de las cuales es tan grande que los planetas vienen más allá del sistema solar.
+
+El sistema solar está situado en el cinturón de asteroides, siendo la estrella el primero de una estrella más brillante que el segundo. La estrella es una estrella amarilla, compuesta por más estrellas de la Tierra.
+
+
+
+==========================================================================================
+PROMPT: 'Desde la ventana de mi casa se puede ver '  d2=0.742 d3=0.841 rep4=5
+Desde la ventana de mi casa se puede ver risis, a pesar de que su única ventana se encuentra en un castillo.
+
+Otras muchas otras películas de televisión ficción son las siguientes:
+
+ The Age of the Edge of the Life, (en español, «El ritmo de la guerra del aire»)
+ The Dreams of the Life, (en español: The Not Cantown, que terminó en 1992)
+ My Fement and the Erwin (en español: The Night Miller)
+ The Out of the Weaver, (en español: The Union of the Daily),
+ The Life of the Storm (en español: The Coron, de William Crons),
+ The Runge of the Weaver, (en español: The Greatest and the Paquic of the Video, de John Storm)
+ The Evanged - The Mod of Weaver, de John

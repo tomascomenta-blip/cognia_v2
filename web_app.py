@@ -903,7 +903,7 @@ def api_chat():
             try:
                 engine = get_cognia.__dict__.get("_engine")
                 if engine is None:
-                    from language_engine import get_language_engine
+                    from cognia_v3.interfaces.language_engine import get_language_engine
                     engine = get_language_engine(ai)
                 engine.modelo = model_override
                 if system_override:
@@ -914,7 +914,7 @@ def api_chat():
                 print("[api/chat] No se pudo cambiar modelo: " + str(_me))
 
         try:
-            from respuestas_articuladas import responder_articulado
+            from cognia_v3.interfaces.respuestas_articuladas import responder_articulado
             result = responder_articulado(ai, text)
         except Exception as e:
             print("[api/chat] Fallback por error en responder_articulado: " + str(e))
@@ -925,7 +925,7 @@ def api_chat():
             architect = getattr(ai, "architect", None)
             if architect is None:
                 # Fallback: instancia local si Cognia no lo tiene
-                from self_architect import SelfArchitect
+                from cognia_v3.core.self_architect import SelfArchitect
                 if not hasattr(api_chat, "_architect"):
                     api_chat._architect = SelfArchitect(cognia_instance=ai)
                 architect = api_chat._architect
@@ -1031,7 +1031,7 @@ def api_command():
 
 def _library_summary():
     try:
-        from game_manager import get_game_manager
+        from cognia_v3.interfaces.game_manager import get_game_manager
         gm = get_game_manager()
         return gm.format_library_summary()
     except Exception:
@@ -1058,7 +1058,7 @@ def api_stats():
     ai = get_cognia()
     stats = ai.metacog.introspect()
     try:
-        from game_manager import get_game_manager
+        from cognia_v3.interfaces.game_manager import get_game_manager
         stats["programs_count"] = get_game_manager().get_total_count()
     except Exception:
         pass
@@ -1114,7 +1114,7 @@ def api_fatiga():
 @app.route("/api/ollama_status")
 def api_ollama_status():
     try:
-        from respuestas_articuladas import verificar_ollama
+        from cognia_v3.interfaces.respuestas_articuladas import verificar_ollama
         return jsonify(verificar_ollama())
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
@@ -1225,7 +1225,7 @@ def _basic_autonomous_cycle():
 @app.route("/api/games/library", methods=["GET"])
 def api_games_library():
     try:
-        from game_manager import get_game_manager
+        from cognia_v3.interfaces.game_manager import get_game_manager
         gm = get_game_manager()
         games = gm.list_games()
         return jsonify({"games": games, "total": len(games)})
@@ -1251,7 +1251,7 @@ def api_games_generate():
     max_attempts = min(int(data.get("max_attempts", 2)), 3)
 
     try:
-        from game_manager import get_game_manager
+        from cognia_v3.interfaces.game_manager import get_game_manager
         gm = get_game_manager()
         ai = get_cognia()
 
@@ -1295,7 +1295,7 @@ def api_games_generate():
 @app.route("/api/games/improve", methods=["POST"])
 def api_games_improve():
     try:
-        from game_manager import get_game_manager
+        from cognia_v3.interfaces.game_manager import get_game_manager
         gm = get_game_manager()
         result = gm.improve_all_games()
         return jsonify(result)
@@ -1324,14 +1324,14 @@ def _register_optional_routes():
         print("[web_app] respuestas_articuladas: " + str(e))
 
     try:
-        from aprendizaje_profundo import register_routes_aprendizaje
+        from cognia_v3.core.aprendizaje_profundo import register_routes_aprendizaje
         register_routes_aprendizaje(app, get_cognia)
         print("[web_app] aprendizaje_profundo cargado")
     except ImportError:
         print("[web_app] aprendizaje_profundo no disponible")
 
     try:
-        from curiosidad_pasiva import CuriosidadPasiva, register_routes_curiosidad
+        from cognia_v3.core.curiosidad_pasiva import CuriosidadPasiva, register_routes_curiosidad
         _curiosidad = CuriosidadPasiva(get_cognia)
         _curiosidad.iniciar()
         register_routes_curiosidad(app, _curiosidad)
@@ -1340,7 +1340,7 @@ def _register_optional_routes():
         print("[web_app] curiosidad_pasiva no disponible")
 
     try:
-        from self_architect import register_routes_architect
+        from cognia_v3.core.self_architect import register_routes_architect
         register_routes_architect(app, get_cognia)
         print("[web_app] self_architect cargado")
     except ImportError:
@@ -1373,7 +1373,7 @@ def _register_learning_routes(app, ai_getter):
             report["collapse"] = guard.get_collapse_report()
 
         try:
-            from language_engine import get_language_engine
+            from cognia_v3.interfaces.language_engine import get_language_engine
             engine = get_language_engine(ai)
             report["engine"] = engine.report_weak_zones()
             report["engine"]["stats"] = engine.stats()
@@ -1422,7 +1422,7 @@ def _register_learning_routes(app, ai_getter):
         """Zonas débiles del LanguageEngine para diagnóstico."""
         ai = ai_getter()
         try:
-            from language_engine import get_language_engine
+            from cognia_v3.interfaces.language_engine import get_language_engine
             engine = get_language_engine(ai)
             return jsonify({
                 "weak_zones": engine.report_weak_zones(),
@@ -1439,7 +1439,7 @@ def register_routes_llm_safe(app, ai_getter):
 
     @app.route("/api/ollama_status_v2")
     def api_ollama_status_v2():
-        from respuestas_articuladas import verificar_ollama
+        from cognia_v3.interfaces.respuestas_articuladas import verificar_ollama
         return jsonify(verificar_ollama())
 
 

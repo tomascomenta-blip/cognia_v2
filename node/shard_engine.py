@@ -34,6 +34,9 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+# Fuente unica de constantes del modelo (regla del repo)
+from shattering.model_constants import QWEN25_CODER_3B as _QWEN
+
 # ── Adaptive Vocabulary Pruning (AVP) ────────────────────────────────────────
 # Module-level singleton; None = disabled (default).
 # Call enable_vocab_pruning() after model load to activate.
@@ -41,7 +44,7 @@ import numpy as np
 _vocab_pruner = None   # type: "VocabPruner | None"
 
 
-def enable_vocab_pruning(vocab_size: int = 151936) -> None:
+def enable_vocab_pruning(vocab_size: int = _QWEN["vocab_size"]) -> None:
     """Enable AVP for the last-shard lm_head computation.
 
     Reduces lm_head matmul from V=151936 to ~2000 candidates.
@@ -61,6 +64,7 @@ def disable_vocab_pruning() -> None:
 def get_vocab_pruner():
     """Return the active VocabPruner instance, or None."""
     return _vocab_pruner
+
 
 logger = logging.getLogger(__name__)
 
@@ -213,8 +217,8 @@ class ShardConfig:
     head_dim:         int   = 128
     rope_theta:       float = 1_000_000.0
     rms_norm_eps:     float = 1e-6
-    vocab_size:       int   = 151936
-    eos_token_id:     int   = 151645
+    vocab_size:       int   = _QWEN["vocab_size"]
+    eos_token_id:     int   = _QWEN["eos_token_id"]
     precision:        str   = "int4"   # "fp32" | "int4"
     # Legacy NPQ field kept for backward compat with MoE code
     _legacy_precision: str = field(default="fp32", repr=False)

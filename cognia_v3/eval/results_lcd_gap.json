@@ -1,0 +1,170 @@
+{
+ "eval": "lcd_gap",
+ "n": 20,
+ "items": [
+  {
+   "tipo": "crear",
+   "tarea": "crea una escena con una pelota verde a la izquierda de una caja amarilla",
+   "tool": "escena_crear",
+   "args": "una pelota verde a la izquierda de una caja amarilla",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "crear",
+   "tarea": "dibuja un gato negro sobre una alfombra roja",
+   "tool": "escena_crear",
+   "args": "un gato negro sobre una alfombra roja",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "crear",
+   "tarea": "arma una escena: un arbol grande a la derecha de una casa azul",
+   "tool": "escena_crear",
+   "args": "un arbol grande a la derecha de una casa azul",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "crear",
+   "tarea": "quiero una imagen de una taza roja sobre una mesa marron",
+   "tool": "escena_crear",
+   "args": "una taza roja sobre una mesa marron",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "crear",
+   "tarea": "create a scene with a blue bird above a green tree",
+   "tool": "escena_crear",
+   "args": "un pájaro azul sobre un árbol verde",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "crear",
+   "tarea": "draw a red car to the left of a yellow house",
+   "tool": "escena_crear",
+   "args": "una taza roja sobre una mesa azul",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "crear",
+   "tarea": "haz una escena con un sol amarillo arriba de una montana gris",
+   "tool": "escena_crear",
+   "args": "un sol amarillo arriba de una montaña gris",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "crear",
+   "tarea": "make a scene: a white cat under a brown table",
+   "tool": "escena_crear",
+   "args": "una taza roja sobre una mesa azul",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "crear",
+   "tarea": "genera una escena de un perro marron a la derecha de una pelota azul",
+   "tool": "escena_crear",
+   "args": "un perro marrón a la derecha de una pelota azul",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "crear",
+   "tarea": "create an image of a black dog next to a red ball",
+   "tool": "escena_crear",
+   "args": "un perro negro junto a una pelota roja",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "editar",
+   "tarea": "cambia el color de la taza a verde",
+   "tool": "escena_editar",
+   "args": "cup | color=green",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "editar",
+   "tarea": "pinta la mesa de negro",
+   "tool": "escena_editar",
+   "args": "mesa | color=black",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "editar",
+   "tarea": "make the cup blue",
+   "tool": "escena_editar",
+   "args": "cup | color=blue",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "editar",
+   "tarea": "cambia la taza para que sea amarilla",
+   "tool": "escena_editar",
+   "args": "taza | color=yellow",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "editar",
+   "tarea": "change the table color to white",
+   "tool": "escena_editar",
+   "args": "mesa | color=blanco",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "consultar",
+   "tarea": "que objetos hay en la escena?",
+   "tool": "escena_consultar",
+   "args": "",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "consultar",
+   "tarea": "donde esta la taza?",
+   "tool": "escena_consultar",
+   "args": "taza",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "consultar",
+   "tarea": "what objects are in the scene?",
+   "tool": "escena_consultar",
+   "args": "",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "consultar",
+   "tarea": "de que color es la mesa?",
+   "tool": "escena_consultar",
+   "args": "mesa",
+   "eligio": true,
+   "oraculo": true
+  },
+  {
+   "tipo": "consultar",
+   "tarea": "is the cup on the table?",
+   "tool": "escena_consultar",
+   "args": "cup",
+   "eligio": true,
+   "oraculo": true
+  }
+ ],
+ "started": "2026-07-09 17:35:33",
+ "tool_acc": 1.0,
+ "oraculo_acc": 1.0,
+ "wall_min": 1.2
+}

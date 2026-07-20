@@ -1,0 +1,49 @@
+{
+  "exp": "exp107_decisional_scarcity",
+  "cycle": 123,
+  "hypothesis": "H-V4-9c",
+  "claim": "el payoff DECISIONAL de la calibracion del selector se manifiesta exactamente bajo ESCASEZ de buenas opciones (paga fuerte con rho bajo escasez; satura bajo abundancia) -> demuestra positivamente que R-VALOR es DECISIONAL (121) y confirma que el toy de 122 no podia aislarlo por falta de escasez",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "escaso": {
+        "0.0": 0.0909,
+        "0.3": 0.3879,
+        "0.6": 0.8707,
+        "0.9": 0.995
+      },
+      "abundante": {
+        "0.0": 0.903,
+        "0.3": 0.991,
+        "0.6": 0.999,
+        "0.9": 1.0
+      }
+    },
+    "scarce_gain": 0.9041,
+    "abund_gain": 0.097,
+    "abund_saturates": true,
+    "calib_pays_scarce": true,
+    "calib_irrelevant_abund": true,
+    "status": "apoyada",
+    "verdict": "H-V4-9c APOYADA: el payoff DECISIONAL de la CALIBRACIÓN del selector se manifiesta EXACTAMENTE bajo ESCASEZ. Bajo ESCASO (q=0.08): payoff sube de 0.091 (ρ=0) a 0.995 (ρ=0.9) -- la calibración PAGA (+0.904). Bajo ABUNDANTE (q=0.9): payoff 0.903->1.000 (Δ 0.097) -- SATURA cerca de 1, la calibración no importa (cualquier selector acierta). => DEMUESTRA POSITIVAMENTE la re-localización de 121 (R-VALOR es DECISIONAL: la señal calibrada paga en la DECISIÓN de asignar un recurso escaso) y confirma el diagnóstico de 122 (el payoff decisional necesita ESCASEZ -- por eso el toy, que el modelo domina -correctos abundantes-, no podía aislarlo)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200,
+    "n": 60,
+    "m": 5
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp107] CYCLE 123 / H-V4-9c — la CALIBRACIÓN del selector PAGA en la DECISIÓN bajo ESCASEZ, satura bajo abundancia",
+    "[exp107] n=60 m=5 seeds=200 rhos=[0.0, 0.3, 0.6, 0.9] qs={'escaso': 0.08, 'abundante': 0.9}",
+    "[exp107] q=    escaso (=0.08): ρ0.0=0.091 ρ0.3=0.388 ρ0.6=0.871 ρ0.9=0.995",
+    "[exp107] q= abundante (=0.9): ρ0.0=0.903 ρ0.3=0.991 ρ0.6=0.999 ρ0.9=1.000",
+    "[exp107] ganancia por calibración: ESCASO +0.904 | ABUNDANTE +0.097 (satura=True)",
+    "[exp107] calib_pays_scarce=True calib_irrelevant_abund=True",
+    "[exp107] VEREDICTO H-V4-9c: APOYADA | H-V4-9c APOYADA: el payoff DECISIONAL de la CALIBRACIÓN del selector se manifiesta EXACTAMENTE bajo ESCASEZ. Bajo ESCASO (q=0.08): payoff sube de 0.091 (ρ=0) a 0.995 (ρ=0.9) -- la calibración PAGA (+0.904). Bajo ABUNDANTE (q=0.9): payoff 0.903->1.000 (Δ 0.097) -- SATURA cerca de 1, la calibración no importa (cualquier selector acierta). => DEMUESTRA POSITIVAMENTE la re-localización de 121 (R-VALOR es DECISIONAL: la señal calibrada paga en la DECISIÓN de asignar un recurso escaso) y confirma el diagnóstico de 122 (el payoff decisional necesita ESCASEZ -- por eso el toy, que el modelo domina -correctos abundantes-, no podía aislarlo)."
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "exp": "exp080_marginal_loop",
+  "cycle": 96,
+  "hypothesis": "H-V4-8b",
+  "claim": "en el lazo cerrado real, la seleccion MARGINAL (cobertura de targets) subsume a la guardia dedup+replay sin el crutch del replay clean: rescata el downstream sobre confianza-greedy y alcanza a la guardia manteniendo el yield -> el valor marginal (CYCLE 95) es el principio correcto en el lazo",
+  "verdict": "apoyada",
+  "summary": {
+    "arms": [
+      "conf_alloc",
+      "marginal_alloc",
+      "conf_alloc_guard",
+      "verify_all"
+    ],
+    "n_seeds": 4,
+    "B": 102,
+    "M": 512,
+    "conf_strong_corr_by_seed": [
+      0.6159,
+      0.5577,
+      0.5418,
+      0.6543
+    ],
+    "yield_conf": [
+      89.67,
+      83.67,
+      77.0,
+      96.67
+    ],
+    "yield_marginal": [
+      91.33,
+      80.0,
+      78.0,
+      93.33
+    ],
+    "yield_guard": [
+      97.33,
+      92.67,
+      88.0,
+      99.33
+    ],
+    "yield_verify_all": [
+      328.33,
+      309.0,
+      281.33,
+      331.67
+    ],
+    "real_conf": [
+      0.337,
+      0.359,
+      0.374,
+      0.463
+    ],
+    "real_marginal": [
+      0.811,
+      0.63,
+      0.741,
+      0.841
+    ],
+    "real_guard": [
+      0.67,
+      0.5,
+      0.53,
+      0.637
+    ],
+    "real_verify_all": [
+      0.863,
+      0.678,
+      0.715,
+      0.8
+    ],
+    "rescue": 0.3722,
+    "vs_guard": 0.1713,
+    "keeps_yield": -1.0833,
+    "rescues": true,
+    "subsumes_guard": true,
+    "yield_ok": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8b APOYADA: la selección MARGINAL (cobertura de targets) SUBSUME a la guardia dedup+replay SIN el crutch del replay clean. real_acc marginal=0.756 > conf=0.383 (+0.372, rescata el narrowing) Y ≈ guard=0.584 (0.171); el yield se mantiene (marginal=85.7 vs conf=86.8, Δ=-1.083). verify_all techo=0.764. => el valor MARGINAL (CYCLE 95) es el principio correcto también EN el lazo cerrado real: diversificar QUÉ se verifica (cobertura) rescata la diversidad del entrenamiento sin inyectar datos clean externos. La guardia de 94 era una aproximación; la cobertura marginal es la versión principista."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "rounds": 3,
+    "K": 8,
+    "pool": 64,
+    "budget_frac": 0.2,
+    "temp": 1.3,
+    "top_k": null,
+    "steps": 120,
+    "replay_frac": 0.5,
+    "n_seed": 200,
+    "base_steps": 250,
+    "base_lr": 0.001,
+    "lr": 0.0005,
+    "warmup": 40,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp080] CYCLE 96 / H-V4-8b — selección MARGINAL (cobertura de targets) vs guardia dedup+replay en el lazo cerrado real",
+    "[exp080] seeds=[0, 1, 2, 3] rango=[2,300] train=209 test=90 rounds=3 K=8 pool=64 budget_frac=0.2 temp=1.3 steps=120 base_steps=250",
+    "[exp080] seed=0 base real_acc=0.722 params=201,280",
+    "[exp080] seed=0 ronda 1 (B=102/512): conf_alloc: y=95 ntr=95 real=0.656 | marginal_alloc: y=75 ntr=48 real=0.856 | conf_alloc_guard: y=95 ntr=47 real=0.833 | verify_all: y=142 ntr=142 real=0.900",
+    "[exp080] seed=0 ronda 2 (B=102/512): conf_alloc: y=96 ntr=96 real=0.256 | marginal_alloc: y=99 ntr=56 real=0.833 | conf_alloc_guard: y=102 ntr=24 real=0.711 | verify_all: y=374 ntr=374 real=0.856",
+    "[exp080] seed=0 ronda 3 (B=102/512): conf_alloc: y=78 ntr=78 real=0.100 | marginal_alloc: y=100 ntr=56 real=0.744 | conf_alloc_guard: y=95 ntr=19 real=0.467 | verify_all: y=469 ntr=469 real=0.833",
+    "[exp080] seed=1 base real_acc=0.567 params=201,280",
+    "[exp080] seed=1 ronda 1 (B=102/512): conf_alloc: y=82 ntr=82 real=0.511 | marginal_alloc: y=56 ntr=38 real=0.667 | conf_alloc_guard: y=82 ntr=42 real=0.656 | verify_all: y=101 ntr=101 real=0.711",
+    "[exp080] seed=1 ronda 2 (B=102/512): conf_alloc: y=82 ntr=82 real=0.333 | marginal_alloc: y=92 ntr=48 real=0.644 | conf_alloc_guard: y=102 ntr=19 real=0.544 | verify_all: y=366 ntr=366 real=0.667",
+    "[exp080] seed=1 ronda 3 (B=102/512): conf_alloc: y=87 ntr=87 real=0.233 | marginal_alloc: y=92 ntr=48 real=0.578 | conf_alloc_guard: y=94 ntr=12 real=0.300 | verify_all: y=460 ntr=460 real=0.656",
+    "[exp080] seed=2 base real_acc=0.700 params=201,280",
+    "[exp080] seed=2 ronda 1 (B=102/512): conf_alloc: y=75 ntr=75 real=0.778 | marginal_alloc: y=54 ntr=35 real=0.767 | conf_alloc_guard: y=75 ntr=53 real=0.711 | verify_all: y=80 ntr=80 real=0.722",
+    "[exp080] seed=2 ronda 2 (B=102/512): conf_alloc: y=94 ntr=94 real=0.244 | marginal_alloc: y=89 ntr=48 real=0.733 | conf_alloc_guard: y=94 ntr=23 real=0.456 | verify_all: y=349 ntr=349 real=0.756",
+    "[exp080] seed=2 ronda 3 (B=102/512): conf_alloc: y=62 ntr=62 real=0.100 | marginal_alloc: y=91 ntr=49 real=0.722 | conf_alloc_guard: y=95 ntr=18 real=0.422 | verify_all: y=415 ntr=415 real=0.667",
+    "[exp080] seed=3 base real_acc=0.667 params=201,280",
+    "[exp080] seed=3 ronda 1 (B=102/512): conf_alloc: y=94 ntr=94 real=0.689 | marginal_alloc: y=82 ntr=47 real=0.822 | conf_alloc_guard: y=94 ntr=43 real=0.711 | verify_all: y=144 ntr=144 real=0.844",
+    "[exp080] seed=3 ronda 2 (B=102/512): conf_alloc: y=94 ntr=94 real=0.489 | marginal_alloc: y=98 ntr=52 real=0.856 | conf_alloc_guard: y=102 ntr=19 real=0.578 | verify_all: y=381 ntr=381 real=0.811",
+    "[exp080] seed=3 ronda 3 (B=102/512): conf_alloc: y=102 ntr=102 real=0.211 | marginal_alloc: y=100 ntr=53 real=0.844 | conf_alloc_guard: y=102 ntr=18 real=0.622 | verify_all: y=470 ntr=470 real=0.744",
+    "[exp080] corr(confianza,strong)=[0.6159, 0.5577, 0.5418, 0.6543]",
+    "[exp080] YIELD/ronda (B=102/512): conf=[89.67, 83.67, 77.0, 96.67] marginal=[91.33, 80.0, 78.0, 93.33] guard=[97.33, 92.67, 88.0, 99.33] verify_all=[328.33, 309.0, 281.33, 331.67]",
+    "[exp080] real_acc media-rondas: conf=[0.337, 0.359, 0.374, 0.463] marginal=[0.811, 0.63, 0.741, 0.841] guard=[0.67, 0.5, 0.53, 0.637] verify_all=[0.863, 0.678, 0.715, 0.8]",
+    "[exp080] rescue=+0.372 | vs_guard=+0.171 | keeps_yield=-1.08",
+    "[exp080] VEREDICTO H-V4-8b: APOYADA | H-V4-8b APOYADA: la selección MARGINAL (cobertura de targets) SUBSUME a la guardia dedup+replay SIN el crutch del replay clean. real_acc marginal=0.756 > conf=0.383 (+0.372, rescata el narrowing) Y ≈ guard=0.584 (0.171); el yield se mantiene (marginal=85.7 vs conf=86.8, Δ=-1.083). verify_all techo=0.764. => el valor MARGINAL (CYCLE 95) es el principio correcto también EN el lazo cerrado real: diversificar QUÉ se verifica (cobertura) rescata la diversidad del entrenamiento sin inyectar datos clean externos. La guardia de 94 era una aproximación; la cobertura marginal es la versión principista."
+  ]
+}

@@ -63,7 +63,9 @@ class TestBackupMissingDb(unittest.TestCase):
             with redirect_stdout(buf):
                 cli._slash_backup("")
             output = buf.getvalue()
-            self.assertIn("No se encontro cognia.db", output)
+            # Mensaje nuevo 2026-07-16: /backup respalda la DB real
+            # (config.DB_PATH), no el viejo 'cognia.db' de cwd.
+            self.assertIn("No se encontro la base de datos", output)
 
 
 class TestBackupCreatesDirIfNotExists(unittest.TestCase):

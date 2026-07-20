@@ -1,0 +1,205 @@
+{
+  "exp": "exp034_substrate_amplify",
+  "cycle": 48,
+  "hypothesis": "H-V4-2",
+  "claim": "la auto-mejora VERIFICADA (STaR) sube la precisión por paso por la señal de corrección (no el volumen) y esa mejora se AMPLIFICA en cadenas largas (p^K) -> el sustrato es el lever dominante",
+  "verdict": "APOYADA",
+  "stats": {
+    "Kmax": 3,
+    "step": {
+      "base": 0.31666666666666665,
+      "verified": 0.41874999999999996,
+      "control": 0.25833333333333336
+    },
+    "curve": {
+      "1": {
+        "base": 0.43833333333333335,
+        "verified": 0.5783333333333334,
+        "control": 0.36
+      },
+      "2": {
+        "base": 0.18333333333333335,
+        "verified": 0.35333333333333333,
+        "control": 0.12666666666666665
+      },
+      "3": {
+        "base": 0.08,
+        "verified": 0.21666666666666667,
+        "control": 0.05333333333333333
+      }
+    },
+    "beats_base_step": true,
+    "beats_ctl_step": true,
+    "amplifies": true,
+    "ratio_lo": 1.3193916349809887,
+    "ratio_hi": 2.7083333333333335,
+    "n_seeds": 4
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "M": 150,
+    "Ks": "1,2,3",
+    "n_prompts": 384,
+    "K": 6,
+    "star_steps": 250,
+    "star_lr": 0.0005,
+    "top_k": 16,
+    "temperature": 1.0,
+    "margin": 0.03,
+    "n_seed": 256,
+    "base_steps": 600,
+    "base_lr": 0.001,
+    "warmup": 50,
+    "batch": 32,
+    "lo": 0,
+    "hi": 19,
+    "test_frac": 0.3
+  },
+  "Ks": [
+    1,
+    2,
+    3
+  ],
+  "seeds": [
+    {
+      "seed": 0,
+      "npar": 201280,
+      "secs": 68.02,
+      "n_verified": 690,
+      "step": {
+        "base": 0.21666666666666667,
+        "verified": 0.20833333333333334,
+        "control": 0.19166666666666668
+      },
+      "by_K": {
+        "1": {
+          "base": 0.38666666666666666,
+          "verified": 0.4666666666666667,
+          "control": 0.2866666666666667
+        },
+        "2": {
+          "base": 0.10666666666666667,
+          "verified": 0.23333333333333334,
+          "control": 0.06
+        },
+        "3": {
+          "base": 0.02,
+          "verified": 0.08666666666666667,
+          "control": 0.006666666666666667
+        }
+      }
+    },
+    {
+      "seed": 1,
+      "npar": 201280,
+      "secs": 71.67,
+      "n_verified": 696,
+      "step": {
+        "base": 0.26666666666666666,
+        "verified": 0.4583333333333333,
+        "control": 0.21666666666666667
+      },
+      "by_K": {
+        "1": {
+          "base": 0.43333333333333335,
+          "verified": 0.6266666666666667,
+          "control": 0.36666666666666664
+        },
+        "2": {
+          "base": 0.16,
+          "verified": 0.38,
+          "control": 0.13333333333333333
+        },
+        "3": {
+          "base": 0.06666666666666667,
+          "verified": 0.24666666666666667,
+          "control": 0.04
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "npar": 201280,
+      "secs": 69.12,
+      "n_verified": 810,
+      "step": {
+        "base": 0.4166666666666667,
+        "verified": 0.5416666666666666,
+        "control": 0.3333333333333333
+      },
+      "by_K": {
+        "1": {
+          "base": 0.49333333333333335,
+          "verified": 0.64,
+          "control": 0.44
+        },
+        "2": {
+          "base": 0.29333333333333333,
+          "verified": 0.47333333333333333,
+          "control": 0.18
+        },
+        "3": {
+          "base": 0.18,
+          "verified": 0.3466666666666667,
+          "control": 0.13333333333333333
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "npar": 201280,
+      "secs": 70.55,
+      "n_verified": 677,
+      "step": {
+        "base": 0.36666666666666664,
+        "verified": 0.4666666666666667,
+        "control": 0.2916666666666667
+      },
+      "by_K": {
+        "1": {
+          "base": 0.44,
+          "verified": 0.58,
+          "control": 0.3466666666666667
+        },
+        "2": {
+          "base": 0.17333333333333334,
+          "verified": 0.32666666666666666,
+          "control": 0.13333333333333333
+        },
+        "3": {
+          "base": 0.05333333333333334,
+          "verified": 0.18666666666666668,
+          "control": 0.03333333333333333
+        }
+      }
+    }
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp034] CYCLE 48 / H-V4-2 — sustrato: auto-mejora VERIFICADA + amplificación multi-paso (modelo propio)",
+    "[exp034] suma [0,19] test=120 M=150 Ks=[1, 2, 3] n_prompts=384 K_gen=6 star_steps=250 seeds=[0, 1, 2, 3]",
+    "[exp034]   seed=0 K=1: BASE=0.387 VERIFIED=0.467 CONTROL=0.287",
+    "[exp034]   seed=0 K=2: BASE=0.107 VERIFIED=0.233 CONTROL=0.060",
+    "[exp034]   seed=0 K=3: BASE=0.020 VERIFIED=0.087 CONTROL=0.007",
+    "[exp034] seed=0 step_acc base=0.217 verified=0.208 control=0.192 | n_verified=690 68.0s npar=201280",
+    "[exp034]   seed=1 K=1: BASE=0.433 VERIFIED=0.627 CONTROL=0.367",
+    "[exp034]   seed=1 K=2: BASE=0.160 VERIFIED=0.380 CONTROL=0.133",
+    "[exp034]   seed=1 K=3: BASE=0.067 VERIFIED=0.247 CONTROL=0.040",
+    "[exp034] seed=1 step_acc base=0.267 verified=0.458 control=0.217 | n_verified=696 71.7s npar=201280",
+    "[exp034]   seed=2 K=1: BASE=0.493 VERIFIED=0.640 CONTROL=0.440",
+    "[exp034]   seed=2 K=2: BASE=0.293 VERIFIED=0.473 CONTROL=0.180",
+    "[exp034]   seed=2 K=3: BASE=0.180 VERIFIED=0.347 CONTROL=0.133",
+    "[exp034] seed=2 step_acc base=0.417 verified=0.542 control=0.333 | n_verified=810 69.1s npar=201280",
+    "[exp034]   seed=3 K=1: BASE=0.440 VERIFIED=0.580 CONTROL=0.347",
+    "[exp034]   seed=3 K=2: BASE=0.173 VERIFIED=0.327 CONTROL=0.133",
+    "[exp034]   seed=3 K=3: BASE=0.053 VERIFIED=0.187 CONTROL=0.033",
+    "[exp034] seed=3 step_acc base=0.367 verified=0.467 control=0.292 | n_verified=677 70.6s npar=201280",
+    "[exp034] VEREDICTO H-V4-2: APOYADA | PASO base=0.317 verified=0.419 control=0.258 (Δvs_base=+0.102 Δvs_ctl=+0.160) | AMPLIF ratio_cadena K1=1.32× -> K3=2.71× (True)",
+    "[exp034] CURVA K->BASE/VERIFIED/CONTROL: K1:0.438/0.578/0.360 | K2:0.183/0.353/0.127 | K3:0.080/0.217/0.053"
+  ]
+}

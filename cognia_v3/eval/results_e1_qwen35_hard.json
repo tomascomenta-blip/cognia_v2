@@ -1,0 +1,257 @@
+{
+ "prereg": "PREREG_E1_QWEN35.md",
+ "modelo": "qwen35_4b no-think",
+ "protocolo": "RAW greedy 640tok + prefill nothink",
+ "results": {
+  "ALG1": {
+   "passed": true,
+   "error_type": "",
+   "secs": 110.1,
+   "difficulty": "hard"
+  },
+  "ALG2": {
+   "passed": true,
+   "error_type": "",
+   "secs": 67.6,
+   "difficulty": "hard"
+  },
+  "ALG3": {
+   "passed": false,
+   "error_type": "runtime",
+   "secs": 144.4,
+   "difficulty": "hard"
+  },
+  "ALG4": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 41.4,
+   "difficulty": "hard"
+  },
+  "ALG5": {
+   "passed": true,
+   "error_type": "",
+   "secs": 42.3,
+   "difficulty": "hard"
+  },
+  "ALG6": {
+   "passed": true,
+   "error_type": "",
+   "secs": 51.3,
+   "difficulty": "hard"
+  },
+  "LONG1": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 71.6,
+   "difficulty": "hard"
+  },
+  "LONG2": {
+   "passed": false,
+   "error_type": "syntax",
+   "secs": 153.0,
+   "difficulty": "hard"
+  },
+  "LONG3": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 164.4,
+   "difficulty": "hard"
+  },
+  "LONG4": {
+   "passed": false,
+   "error_type": "syntax",
+   "secs": 123.9,
+   "difficulty": "hard"
+  },
+  "LONG5": {
+   "passed": false,
+   "error_type": "runtime",
+   "secs": 157.8,
+   "difficulty": "hard"
+  },
+  "DBG1": {
+   "passed": true,
+   "error_type": "",
+   "secs": 88.5,
+   "difficulty": "hard"
+  },
+  "DBG2": {
+   "passed": true,
+   "error_type": "",
+   "secs": 55.0,
+   "difficulty": "hard"
+  },
+  "DBG3": {
+   "passed": true,
+   "error_type": "",
+   "secs": 42.1,
+   "difficulty": "hard"
+  },
+  "DBG4": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 38.3,
+   "difficulty": "hard"
+  },
+  "DBG5": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 67.0,
+   "difficulty": "hard"
+  },
+  "SPEC1": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 101.7,
+   "difficulty": "hard"
+  },
+  "SPEC2": {
+   "passed": false,
+   "error_type": "runtime",
+   "secs": 125.7,
+   "difficulty": "hard"
+  },
+  "SPEC3": {
+   "passed": false,
+   "error_type": "syntax",
+   "secs": 145.9,
+   "difficulty": "hard"
+  },
+  "SPEC4": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 146.2,
+   "difficulty": "hard"
+  },
+  "NEWA1": {
+   "passed": false,
+   "error_type": "syntax",
+   "secs": 144.8,
+   "difficulty": "hard"
+  },
+  "NEWA2": {
+   "passed": true,
+   "error_type": "",
+   "secs": 63.0,
+   "difficulty": "hard"
+  },
+  "NEWA3": {
+   "passed": true,
+   "error_type": "",
+   "secs": 39.1,
+   "difficulty": "hard"
+  },
+  "NEWA4": {
+   "passed": true,
+   "error_type": "",
+   "secs": 83.3,
+   "difficulty": "hard"
+  },
+  "NEWA5": {
+   "passed": true,
+   "error_type": "",
+   "secs": 39.3,
+   "difficulty": "hard"
+  },
+  "NEWA6": {
+   "passed": true,
+   "error_type": "",
+   "secs": 63.6,
+   "difficulty": "hard"
+  },
+  "NEWA7": {
+   "passed": true,
+   "error_type": "",
+   "secs": 76.9,
+   "difficulty": "hard"
+  },
+  "NEWX1": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 97.0,
+   "difficulty": "hard"
+  },
+  "NEWX2": {
+   "passed": false,
+   "error_type": "syntax",
+   "secs": 155.5,
+   "difficulty": "hard"
+  },
+  "NEWX3": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 146.4,
+   "difficulty": "hard"
+  },
+  "NEWX4": {
+   "passed": false,
+   "error_type": "runtime",
+   "secs": 89.4,
+   "difficulty": "hard"
+  },
+  "NEWX5": {
+   "passed": false,
+   "error_type": "runtime",
+   "secs": 77.7,
+   "difficulty": "hard"
+  },
+  "NEWX6": {
+   "passed": true,
+   "error_type": "",
+   "secs": 96.2,
+   "difficulty": "hard"
+  },
+  "NEWX7": {
+   "passed": true,
+   "error_type": "",
+   "secs": 113.0,
+   "difficulty": "hard"
+  },
+  "NEWD1": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 140.8,
+   "difficulty": "hard"
+  },
+  "NEWD2": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 87.3,
+   "difficulty": "hard"
+  },
+  "NEWD3": {
+   "passed": true,
+   "error_type": "",
+   "secs": 52.6,
+   "difficulty": "hard"
+  },
+  "NEWD4": {
+   "passed": true,
+   "error_type": "",
+   "secs": 127.8,
+   "difficulty": "hard"
+  },
+  "NEWD5": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 149.1,
+   "difficulty": "hard"
+  },
+  "NEWD6": {
+   "passed": false,
+   "error_type": "assert",
+   "secs": 43.8,
+   "difficulty": "hard"
+  }
+ },
+ "veredictos": {
+  "pass_at_1": [
+   17,
+   40,
+   0.425
+  ],
+  "E1-KILL_supera_3B_raw(>=16/40)": true,
+  "E1-MAYOR_supera_ref_GLM(>=21/40)": false,
+  "E1-LAT_secs_media": 95.6
+ }
+}

@@ -1,0 +1,34 @@
+{
+  "experiment": "xrmt",
+  "device": "cuda",
+  "torch": "2.10.0+cu128",
+  "cfg": {
+    "d": 256,
+    "seg": 512,
+    "batch": 16,
+    "steps": 2000,
+    "n_mem": 16,
+    "win": 256
+  },
+  "data_bytes": 9256910,
+  "arms": {
+    "full1024": {
+      "params": 6328576,
+      "bpb_seg2": 1.5425,
+      "wall_s": 484.0
+    },
+    "seg_ciego": {
+      "params": 6328576,
+      "bpb_seg2": 1.5723,
+      "wall_s": 403.8
+    },
+    "seg_rmt": {
+      "params": 6336768,
+      "bpb_seg2": 1.5513,
+      "wall_s": 442.7
+    }
+  },
+  "recovery_frac": 0.705,
+  "verdict_H_RMT": "PASA (>=0.30)",
+  "minutes_total": 22.4
+}

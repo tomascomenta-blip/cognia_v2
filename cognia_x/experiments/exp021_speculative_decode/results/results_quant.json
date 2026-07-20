@@ -1,0 +1,26 @@
+{
+  "experiment": "exp021/bench_quant",
+  "threads": 3,
+  "models": {
+    "Q4_K_M": {
+      "size_gib": 1.797,
+      "tok_s": {
+        "speech": 8.37,
+        "code": 8.67
+      },
+      "quality_sample": "El cielo se viste azul porque las partículas de polvo y grasa en el aire reflejan el azul de la luz del sol."
+    },
+    "Q3_K_S": {
+      "size_gib": 1.354,
+      "tok_s": {
+        "speech": 9.08,
+        "code": 8.52
+      },
+      "quality_sample": "23\nLa frase \"El 3\" no tiene un significado claro en este contexto.22.  3\" es el número de las horas que se han trabajado  2 32.2. es el número de las horas que se 2  2 3 es el número de las horas que se   32.  32 es el número de las horas que se"
+    }
+  },
+  "speedup_q3_vs_q4": {
+    "speech": 1.085,
+    "code": 0.983
+  }
+}

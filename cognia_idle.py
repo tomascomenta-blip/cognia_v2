@@ -58,7 +58,7 @@ def ts():
 
 print("Cargando Cognia v3...", end=" ", flush=True)
 try:
-    from cognia_v3 import Cognia
+    from cognia_v3.core.cognia_v3 import Cognia
     print("✅")
 except ImportError as e:
     print(f"\n❌ No se pudo importar cognia_v3.py: {e}")

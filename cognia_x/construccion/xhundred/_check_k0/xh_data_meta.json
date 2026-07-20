@@ -1,0 +1,35 @@
+{
+  "experiment": "xh_data_v2",
+  "smoke": false,
+  "fallback_wiki_solo": false,
+  "mix_docs": 147668,
+  "mix_bytes": 256016943,
+  "wiki_solo_bytes": 256004048,
+  "bytes_bin": 200000379,
+  "val_wiki_bytes": 2045397,
+  "val_stories_bytes": 2067294,
+  "vocabs": {
+    "32k": {
+      "vocab_size": 32768,
+      "eos_id": 0,
+      "train_mix_tokens": 58304582,
+      "val_wiki_tokens": 453730,
+      "val_stories_tokens": 455589,
+      "fertility_val_wiki": 4.508,
+      "fertility_val_stories": 4.5376,
+      "train_bpe_s": 14.3
+    },
+    "16k": {
+      "vocab_size": 16384,
+      "eos_id": 0,
+      "train_mix_tokens": 61939576,
+      "val_wiki_tokens": 496919,
+      "val_stories_tokens": 467556,
+      "fertility_val_wiki": 4.1162,
+      "fertility_val_stories": 4.4215,
+      "train_bpe_s": 13.7
+    }
+  },
+  "train_wiki_tokens": 58312432,
+  "minutes_total": 5.2
+}

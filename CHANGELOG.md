@@ -2,6 +2,257 @@
 
 ---
 
+## [3.9.1] - 2026-07-15
+
+### Instalación fácil + oficina honesta (bugs cazados por e2e del producto instalado)
+
+- **La oficina 3D funciona instalada**: el wheel ahora empaqueta el build
+  Vite (`cognia/oficina/web3d/dist`); antes `/oficina3d` respondía "falta el
+  build 3d" en cualquier instalación de PyPI.
+- **`python -m cognia.oficina` carga la configuración** (`apply_config()`,
+  mismo camino que el CLI): antes el motor instalado no veía
+  `~/.cognia/config.env` y corría "sin backend de inferencia" aunque el
+  modelo estuviera instalado.
+- **Motor de la oficina honesto**: un trabajador que devuelve error o vacío
+  se marca **fallida** (no "hecha"), y una meta donde TODOS los trabajadores
+  fallaron cierra **fallida** — antes una meta podía cerrar "hecha" con el
+  error de backend como resultado y cero archivos producidos.
+- **Descubrimiento automático del modelo**: sin env ni config, el backend
+  busca el GGUF en `~/.cognia/models/*` (el más grande fuera del portero) y
+  el `llama-server` en `~/.cognia/bin/llama-*/` → `pip install cognia-ai` +
+  `cognia install-model` + `cognia` funciona sin configurar nada.
+- **Puerto de la oficina 8765 → 8766**: el 8765 es del backend del desktop
+  (colisión detectada cuando ambos conviven).
+- **Todos los entry points cargan la configuración**: `cognia-node`,
+  `python -m cognia.cli|cognia.tui|cognia.doctor|node.heavy_code` y
+  `uvicorn app.main:app` ahora aplican `~/.cognia/config.env` (antes solo
+  el comando `cognia`; el nodo del swarm podía re-registrarse de cero y
+  servir "modo simulación").
+- **`cognia install-model` robusto**: chequea espacio en disco antes de
+  descargar, timeout de red + limpieza de descargas a medias, mensajes de
+  error accionables (no tracebacks), y los flags con typo abortan en vez de
+  instalar otra cosa en silencio.
+- **El wizard y `install-model` ya no se pisan**: `config.env` se escribe
+  con merge — correr uno después del otro preservaba antes solo las claves
+  del último.
+- **`/modelo 7b` y el escalado de código 7B funcionan instalados**: el
+  registry de GGUFs cae a `~/.cognia/models/` cuando la ruta del repo no
+  existe (antes el 7B instalado nunca resolvía y la cascada quedaba muda).
+- **TUI**: `pip install cognia-ai[tui]` (textual es opcional); sin el extra
+  el mensaje lo dice en vez de un `ModuleNotFoundError`; su CSS viaja en el
+  wheel.
+- **Primer arranque claro**: los avisos de "sin backend" son visibles (no
+  se suprimen en modo sencillo) y recomiendan `cognia install-model`; se
+  avisa cuando una env var del sistema pisa un valor de `config.env`.
+
+### Deuda técnica eliminada (auditoría completa 2026-07-16)
+
+- **`/crear`, `/encolar`, el researcher y las hipótesis usan el backend
+  REAL**: generaban solo contra Ollama hardcodeado (muerto en la
+  instalación recomendada) — ahora van por el orquestador GGUF y Ollama
+  quedó como fallback opcional que respeta `OLLAMA_URL`; sin backend el
+  mensaje dice la causa real en vez de culpar a la calidad.
+- **`/backup` funciona**: buscaba `cognia.db` en rutas de la era anterior
+  y nunca respaldaba la DB real (`~/.cognia/cognia_memory.db`).
+- **`/feedback` aprende de verdad**: un import roto (módulo inexistente)
+  dejaba el learner en None desde siempre.
+- **`/debate`, `/y-si`, `/cadena-causal`, `/reflexion-profunda` y
+  `/argumento` generan con el modelo**: eran plantillas fijas con el tema
+  interpolado fingiendo ser análisis.
+- **`cognia doctor` / `status` / `modo local` diagnostican el backend
+  GGUF real** (antes solo Ollama y shards numpy: una instalación sana
+  reportaba "no disponible"); `/help` existe como alias de `/ayuda`; el
+  `/ayuda` ahora lista el núcleo del producto (`/hacer`, `/esfuerzo`,
+  `/modelo`, `/largo`...).
+- **Un nodo swarm sin pesos ya no simula en silencio**: la descarga
+  fallida se reporta como fallida (antes `ok=True` + capas simuladas
+  sirviendo hidden states como si fueran reales, sin reintento posible).
+- **Importar módulos del wheel es inerte**: tres scripts de eval
+  ejecutaban su flujo completo al importarse (uno corría el agente LIVE y
+  borraba archivos del cwd del usuario).
+- **`os.chdir` eliminado de un import del chat**: el primer turno
+  no-streaming movía el cwd del proceso a site-packages y los archivos
+  del agente caían ahí.
+- **SQLite por el pool compartido** en los 10 call-sites por-operación
+  (algunos sin WAL ni timeout → "database is locked" esporádicos); de
+  paso se arreglaron dos bugs del propio pool (proxy de escritura y fuga
+  de `row_factory` entre usuarios).
+- **Constantes de modelo unificadas** en `shattering/model_constants`
+  (vocab/EOS duplicados en 5 módulos); CORS acepta `127.0.0.1`; ~50 URLs
+  del CLI al desktop API van a `127.0.0.1`; puerto default de la oficina
+  corregido también en `crear_server`.
+- **Docs al día**: README (agente + ruteo híbrido + `/esfuerzo` + TUI +
+  benchmarks reales Q4_K_M/threads=3 + links absolutos para PyPI),
+  INSTALL/TROUBLESHOOTING sin Ollama-como-prerequisito, y el vault de
+  arquitectura (`wiki/`) re-encuadrado a la era híbrida (16 páginas
+  nuevas, 3 reescritas, 14 corregidas).
+
+---
+
+## [3.9.0] - 2026-07-15
+
+### Ruteo HÍBRIDO por dificultad a nivel de sistema + /esfuerzo v2
+
+- **Nuevo `cognia/agent/hybrid_router.py`**: la dificultad estimada de la
+  TAREA (cero LLM) más el nivel `/esfuerzo` arman el perfil de cada corrida —
+  mono (trivial, 1-2 pasos) / agente (loop con tools) / **+colonia** (etapas
+  multi-modelo 7B/Qwen3.5/razonador 4B) / **+superorganismo** (etapa 4,
+  colonia por pedazos). Las modalidades se COMBINAN según la dificultad (no
+  son rígidas); el perfil da el *permiso* y el gasto sigue siendo *reactivo*
+  (una etapa cara solo corre si lo barato falló sus tests). A esfuerzo medio
+  el comportamiento es idéntico al de 3.8.x (umbral calibrado 0.30).
+- **`/esfuerzo` v2**: cada nivel controla además colonia, superorganismo,
+  profundidad de delegación, techo best-of-N, desplazamiento del umbral de
+  dificultad y presupuesto de pasos del agente. `bajo` = rápido y acotado
+  (sin modelos extra); `maximo` = despierta las etapas caras antes.
+- **Superorganismo disponible por perfil**: sin `COGNIA_SUPERORGANISMO` en el
+  env, la etapa 4 se habilita sola en tarea dura (≥0.55 a medio); el env
+  explícito sigue mandando en ambos sentidos. Kill-switch global
+  `COGNIA_HIBRIDO=0` restaura el comportamiento previo exacto.
+- **Telemetría**: cada `generar_codigo` registra modalidad y esfuerzo en
+  `_bon_telemetry.jsonl` (dataset de recalibración).
+
+### Verificación (gates del release)
+
+- Suite completa: 3974 passed. Batería e2e de herramientas 22/22 (módulos
+  nativos + tools del agente) + 181 comandos del REPL sin crash.
+- Pruebas duras con modelo real 11/11: en `spiral_order` y `decode_ways` el
+  3B falló sus tests visibles → escaló al 7B → los asserts ocultos pasaron
+  (la cascada multi-modelo rescatando código duro en vivo).
+
+---
+
+## [3.8.8] - 2026-07-11
+
+### Seguridad — bind explícito de los servers de inferencia a localhost
+
+- **Los llama-server locales bindean explícito a `127.0.0.1`** (`node/llama_backend.py`).
+  Los servers de inferencia (fleet 8088, portero 8090, heavy_code 8092) se
+  spawneaban sin `--host`, dependiendo del default del binario. El cliente ya
+  conecta a `127.0.0.1`, pero un binario que default-ee a `0.0.0.0` (o un cambio de
+  default en una versión futura de llama.cpp) expondría el modelo local a la LAN.
+  Ahora se pasa `--host 127.0.0.1` explícito. **Defense-in-depth**: llama.cpp ya
+  default-ea a localhost, así que no había exposición activa; esto lo garantiza
+  independiente del binario, alineado con el core "IA local, privada" de Cognia.
+
+---
+
+## [3.8.7] - 2026-07-11
+
+### Docs — discoverability del MoM + robustez menor
+
+- **README documenta `install-model` y los especialistas MoM.** El README no
+  mencionaba `cognia install-model` (el stack recomendado: GGUF 3B + llama-server
+  b9391 + expertos LoRA + portero 0.5B) ni sus opciones, así que los usuarios no
+  descubrían el **portero** (turnos de charla ~3.3–3.9× más rápidos) ni el
+  **escalado 7B de código** (`--with-heavy-code`, opt-in, +20pp). Agregados a la
+  lista de subcomandos, una subsección "Especialistas (Mixture of Models)", y la
+  fila del MoM en la tabla de Estado del proyecto (al día, Julio 2026).
+- **`/resumir` acota su infer** (`cognia/cli.py`): el resumen es explícitamente de
+  2-3 oraciones; se acota a `max_tokens=256` (sin `repeat_penalty`) para no gastar
+  si el 3B degenera. Mismo patrón que `/plan crear`.
+
+---
+
+## [3.8.6] - 2026-07-11
+
+### Robustez del agente — búsqueda pese a args ruidosos + cuelgue latente de /plan crear
+
+- **`buscar` rescata la búsqueda cuando el 3B agrega spam a los args**
+  (`cognia/agent/tools.py`): el modelo a veces llama `buscar CLAVE-FENIX tetas
+  Incontri` (spam degenerado); el patrón literal no matcheaba y el tool devolvía
+  "sin resultados" (falso negativo). Ahora, si el patrón multi-palabra no matcha,
+  reintenta con el token IDENTIFICADOR distintivo (con guion/dígito), sin rescatar
+  palabras comunes (evita falsos positivos). Reporta "(patron acotado a X)".
+- **`/plan crear` acota su infer** (`cognia/cli.py`): el decompose (lista de 3-5
+  pasos) usaba `orch.infer(prompt)` sin `max_tokens`; si el 3B degeneraba llenaba
+  hasta el cap (~70s de basura). Ahora `max_tokens=160` + `temperature=0.0` (mismo
+  patrón que el decompose del agente), sin `repeat_penalty`.
+
+---
+
+## [3.8.5] - 2026-07-11
+
+### Fix CRÍTICO — revierte una regresión del agente introducida en 3.8.4
+
+3.8.4 agregó `repeat_penalty=1.3` al paso ReAct del agente (junto con las cotas
+del cuelgue). Un e2e del camino feliz —que debió correrse ANTES de 3.8.4— reveló
+que ese `repeat_penalty` penalizaba los tokens de los nombres de herramienta (que
+se repiten desde la doc de tools en el prompt) y empujaba al 3B a generar BASURA:
+**tareas normales de `/hacer` 0/5 con `repeat_penalty`, 5/5 sin él** (write/calc/
+json/append/python, mismo modelo y harness). Si actualizaste a 3.8.4, actualizá a
+3.8.5: `pip install -U cognia-ai`.
+
+- **Revertido** `repeat_penalty=1.3` del paso ReAct y del `_reinfer_fix`
+  (`cognia/cli.py`). Se conservan las cotas del cuelgue que SÍ funcionan:
+  `max_tokens=256` por paso + corte por no-progreso (`_FAIL_STREAK=3`). El
+  parámetro `repeat_penalty` sigue en `orchestrator.infer` (extensión legítima del
+  API), solo que el agente ya no lo usa. Verificado: 5/5 tareas normales + la
+  tarea de búsqueda sigue terminando por el corte honesto.
+- **Feature — 7B de código en el producto instalado** (`cognia/model_install.py`,
+  `node/heavy_code.py`): `cognia install-model --with-heavy-code` (opt-in, ~4.7 GB)
+  baja el 7B y persiste su ruta; el escalado reactivo 3B→7B (código duro +20pp)
+  ahora se ACTIVA en instalaciones de usuario, no solo en el repo. Sin el flag,
+  degrada al 3B como siempre.
+
+---
+
+## [3.8.4] - 2026-07-10
+
+### Fix — Robustez del agente + REPL; feature — especialistas MoM (portero 0.5B, 7B de código)
+
+Release de robustez sobre 3.8.3. Los especialistas MoM viajan como CÓDIGO en el
+wheel y se ACTIVAN cuando los modelos del fleet están presentes (vía
+`cognia install-model`); sin ellos DEGRADAN CON GRACIA al 3B (no rompen nada).
+
+- **Fix — cuelgue del agente en tareas de búsqueda** (`cognia/cli.py`,
+  `shattering/orchestrator.py`): en búsquedas el 3B degeneraba a temp=0 inventando
+  nombres de tool basura DISTINTOS cada paso; el stuck-detector viejo (que cuenta
+  acciones idénticas) no disparaba y el loop colgaba ~30 min. Fix en 3 capas:
+  `max_tokens=256` + `repeat_penalty=1.3` en el paso ReAct (acota cada infer), y
+  corte por no-progreso (`_FAIL_STREAK=3`: 3 acciones seguidas que fallan → cierre
+  honesto). Repro end-to-end: la tarea termina en 188.8s / 3 pasos (antes colgaba).
+- **Fix — REPL con stdin piped** (`cognia/cli.py`): `PromptSession` caía con
+  `NoConsoleScreenBufferError` cuando no había consola Win32 (stdin redirigido) y
+  el REPL entero moría al arrancar. Ahora cae a `input()`.
+- **Feature — portero 0.5B (turnos rápidos)** (`node/speech_cascade.py`): router de
+  turnos de charla/identidad al especialista 0.5B en un 2º server con LoRA estática;
+  decode 3.33× media / 3.86× mediana pareada, ruta de deploy 90% (18/20), 0 FP
+  sobre 422 prompts. Se activa con el GGUF 0.5B instalado; si falta, ruta al 3B.
+- **Feature — escalado reactivo 3B→7B en código duro** (`node/heavy_code.py`,
+  `cognia/agent/tools.py`): cuando el 3B FALLA los tests visibles de una tarea de
+  código difícil, se reintenta con Qwen2.5-Coder-7B GREEDY en un server dedicado
+  (:8092, lazy-load-usar-cerrar). Código duro 37.5→57.5% pass@1 (+20pp, p=0.0078).
+  Default ON; `COGNIA_HEAVY_CODE=0` lo apaga; sin el GGUF 7B cae al 3B.
+- **Robustez — estructura JSON (GBNF) y errores accionables** (`cognia/agent/`):
+  gramática GBNF para el gap de formato (schema-fails 7→0, McNemar p=0.016) y
+  parche determinista de error accionable (2→9/14) — sin GPU.
+
+Tests de regresión nuevos: `tests/test_agent_step_budget.py` (corte por no-progreso
++ presupuesto del paso ReAct), harness de gates del portero y del 7B.
+
+---
+
+## [3.7.1] - 2026-07-01
+
+### Fix — Agente (loop + herramientas) y backend; feature — pipeline tool-use
+
+Publica los cambios acumulados desde 3.7.0 en el codigo empaquetado.
+
+- **Agente mas robusto** (`cognia/agent/loop.py`, `cognia/agent/tools.py`,
+  `cognia/__main__.py`, `cognia/cli.py`): loop que fija el objetivo, salva la prosa,
+  detecta ciclos y usa stop-sequence en cada paso (elimina generate-then-discard);
+  RESULTADO muestra ruta relativa al workspace; robustez de las herramientas.
+- **Memoria / grafo de conocimiento** (`cognia/knowledge/graph.py`): 6 bugs de las
+  herramientas de memoria/KG arreglados (auditados).
+- **Backend** (`node/llama_backend.py`, `shattering/orchestrator.py`): ajustes de
+  robustez del backend llama.cpp / orquestador.
+- **Feature — fine-tune tool-use** (`cognia_v3/training/tooluse/`,
+  `cognia_v3/training/kaggle/`): pipeline de generacion de trayectorias verificadas por
+  ejecucion, banco de tareas y scripts de entreno en Kaggle.
+
+---
+
 ## [3.5.1] - 2026-06-08
 
 ### Fix — Chat offline (sin Ollama) + `/doctor` instalado por pip

@@ -1,0 +1,662 @@
+{
+ "suite_sha256": "59d53ec8ca9c3bb0a25ca6851c4c4166ca3b3195c8da9fc694194bc84bdea33f",
+ "n": 50,
+ "clases": {
+  "pasa": [
+   {
+    "id": "G6-001",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar"
+    ],
+    "secs": 99.0,
+    "resp": "13952011"
+   },
+   {
+    "id": "G6-002",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar"
+    ],
+    "secs": 10.9,
+    "resp": "55150003"
+   },
+   {
+    "id": "G6-003",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 22.8,
+    "resp": "Código de acceso: NUBE-8842."
+   },
+   {
+    "id": "G6-004",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 8.9,
+    "resp": "Badge ID: KX-70413"
+   },
+   {
+    "id": "G6-007",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "calcular"
+    ],
+    "secs": 9.8,
+    "resp": "2466"
+   },
+   {
+    "id": "G6-008",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "calcular"
+    ],
+    "secs": 9.9,
+    "resp": "49074043"
+   },
+   {
+    "id": "G6-009",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar"
+    ],
+    "secs": 8.0,
+    "resp": "67965"
+   },
+   {
+    "id": "G6-011",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 10.9,
+    "resp": "La sala asignada es ORQUIDEA-4 y la llave la tiene Marta."
+   },
+   {
+    "id": "G6-012",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 8.7,
+    "resp": "cactus-melon-9917"
+   },
+   {
+    "id": "G6-013",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar"
+    ],
+    "secs": 13.0,
+    "resp": "5698"
+   },
+   {
+    "id": "G6-017",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 8.8,
+    "resp": "puerto_servicio=49731"
+   },
+   {
+    "id": "G6-018",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 8.3,
+    "resp": "build_number=88417 branch=release"
+   },
+   {
+    "id": "G6-021",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "calcular"
+    ],
+    "secs": 8.6,
+    "resp": "131"
+   },
+   {
+    "id": "G6-023",
+    "dominio": "multi_tool",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo",
+     "calcular"
+    ],
+    "secs": 13.2,
+    "resp": "47101"
+   },
+   {
+    "id": "G6-024",
+    "dominio": "multi_tool",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo",
+     "calcular"
+    ],
+    "secs": 12.8,
+    "resp": "515023"
+   },
+   {
+    "id": "G6-025",
+    "dominio": "multi_tool",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo",
+     "leer_archivo",
+     "calcular"
+    ],
+    "secs": 17.2,
+    "resp": "11974"
+   },
+   {
+    "id": "G6-027",
+    "dominio": "multi_tool",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "copiar_archivo",
+     "leer_archivo"
+    ],
+    "secs": 16.0,
+    "resp": "Paprika-ahumada-77 es el ingrediente secreto."
+   },
+   {
+    "id": "G6-028",
+    "dominio": "multi_tool",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "escribir_archivo",
+     "ejecutar"
+    ],
+    "secs": 15.3,
+    "resp": "6204787"
+   },
+   {
+    "id": "G6-029",
+    "dominio": "multi_tool",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "escribir_archivo",
+     "ejecutar"
+    ],
+    "secs": 15.4,
+    "resp": "6123383"
+   },
+   {
+    "id": "G6-030",
+    "dominio": "multi_tool",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo",
+     "calcular"
+    ],
+    "secs": 12.4,
+    "resp": "822649"
+   },
+   {
+    "id": "G6-031",
+    "dominio": "multi_tool",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "contar_lineas",
+     "calcular"
+    ],
+    "secs": 12.3,
+    "resp": "551"
+   },
+   {
+    "id": "G6-033",
+    "dominio": "multi_tool",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 10.5,
+    "resp": "nivel_max=87, mapa=cueva-esmeralda"
+   },
+   {
+    "id": "G6-034",
+    "dominio": "multi_tool",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 7.9,
+    "resp": "12750"
+   },
+   {
+    "id": "G6-035",
+    "dominio": "multi_tool",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "calcular",
+     "calcular"
+    ],
+    "secs": 24.9,
+    "resp": "158670"
+   },
+   {
+    "id": "G6-036",
+    "dominio": "multi_tool",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "calcular",
+     "calcular"
+    ],
+    "secs": 23.1,
+    "resp": "51814"
+   },
+   {
+    "id": "G6-043",
+    "dominio": "error_accionable",
+    "idioma": "es",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "py_validar",
+     "py_validar"
+    ],
+    "secs": 36.8,
+    "resp": "(interrumpida por estancamiento) Revisé la sintaxis de calculo_v2.py con py_validar y obtuve un error de sintaxis en la línea 1. Revisé la causa del error y lo corregí, pero la tarea sigue sin avanzar."
+   },
+   {
+    "id": "G6-048",
+    "dominio": "error_accionable",
+    "idioma": "en",
+    "clase": "pasa",
+    "ejecuto": true,
+    "tools": [
+     "contar_lineas"
+    ],
+    "secs": 11.1,
+    "resp": "No existe el archivo ledger_2031_zz.txt."
+   }
+  ],
+  "vacio": [
+   {
+    "id": "G6-010",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar"
+    ],
+    "secs": 7.3,
+    "resp": "Listo, tarea completada."
+   },
+   {
+    "id": "G6-015",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivos",
+     "leer_archivos",
+     "leer_archivos"
+    ],
+    "secs": 77.9,
+    "resp": "(interrumpida por estancamiento) No logré avanzar en la tarea actual. Continuaremos con la siguiente tarea."
+   },
+   {
+    "id": "G6-019",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar"
+    ],
+    "secs": 12.5,
+    "resp": "Listo, código refactorizado completado."
+   },
+   {
+    "id": "G6-032",
+    "dominio": "multi_tool",
+    "idioma": "en",
+    "clase": "vacio",
+    "ejecuto": false,
+    "tools": [],
+    "secs": 23.7,
+    "resp": "Listo, tarea completada."
+   },
+   {
+    "id": "G6-037",
+    "dominio": "error_accionable",
+    "idioma": "es",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 9.0,
+    "resp": "No tengo esa información."
+   },
+   {
+    "id": "G6-038",
+    "dominio": "error_accionable",
+    "idioma": "en",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 8.1,
+    "resp": "No tengo esa información."
+   },
+   {
+    "id": "G6-039",
+    "dominio": "error_accionable",
+    "idioma": "es",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar",
+     "escribir_archivo",
+     "ejecutar"
+    ],
+    "secs": 34.2,
+    "resp": "Listo, tarea completada."
+   },
+   {
+    "id": "G6-041",
+    "dominio": "error_accionable",
+    "idioma": "es",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar",
+     "correr",
+     "correr"
+    ],
+    "secs": 69.4,
+    "resp": "(interrumpida por estancamiento) Resumido. La tarea se cortó sin lograr el objetivo."
+   },
+   {
+    "id": "G6-042",
+    "dominio": "error_accionable",
+    "idioma": "en",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar",
+     "correr_fetch_data_x",
+     "correr_fetch_data_x",
+     "correr_fetch_data_x"
+    ],
+    "secs": 91.1,
+    "resp": "(interrumpida por estancamiento) Resumido: No avanzó la tarea de ejecutar fetch_data_x.py. Continuaremos con la siguiente tarea."
+   },
+   {
+    "id": "G6-044",
+    "dominio": "error_accionable",
+    "idioma": "en",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "json_validar"
+    ],
+    "secs": 9.7,
+    "resp": "broken_config.json no es un archivo JSON válido."
+   },
+   {
+    "id": "G6-046",
+    "dominio": "error_accionable",
+    "idioma": "en",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar"
+    ],
+    "secs": 8.7,
+    "resp": "No puedo ejecutar comandos de sistema."
+   },
+   {
+    "id": "G6-047",
+    "dominio": "error_accionable",
+    "idioma": "es",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "copiar_archivo"
+    ],
+    "secs": 10.3,
+    "resp": "Copiaste el archivo con éxito?"
+   },
+   {
+    "id": "G6-049",
+    "dominio": "error_accionable",
+    "idioma": "es",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar",
+     "escribir_archivo",
+     "ejecutar",
+     "escribir_archivo",
+     "ejecutar"
+    ],
+    "secs": 43.4,
+    "resp": "Listo, proceso completado."
+   },
+   {
+    "id": "G6-050",
+    "dominio": "error_accionable",
+    "idioma": "en",
+    "clase": "vacio",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar",
+     "escribir_archivo",
+     "ejecutar"
+    ],
+    "secs": 32.8,
+    "resp": "Revisar si falta algún archivo, sino ejecutar load_report.py con python."
+   }
+  ],
+  "parcial": [
+   {
+    "id": "G6-040",
+    "dominio": "error_accionable",
+    "idioma": "en",
+    "clase": "parcial",
+    "ejecuto": true,
+    "tools": [
+     "ejecutar",
+     "correr",
+     "correr"
+    ],
+    "secs": 69.3,
+    "resp": "(interrumpida por estancamiento) Tarea completada con éxito. Fallo previsto en la ejecución del script, pero la tarea se completó sin errores."
+   },
+   {
+    "id": "G6-045",
+    "dominio": "error_accionable",
+    "idioma": "es",
+    "clase": "parcial",
+    "ejecuto": true,
+    "tools": [
+     "json_validar"
+    ],
+    "secs": 10.6,
+    "resp": "La validación falló por la falta de coma en la línea 1."
+   }
+  ],
+  "incorrecto": [
+   {
+    "id": "G6-005",
+    "dominio": "cierre_output",
+    "idioma": "es",
+    "clase": "incorrecto",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 25.6,
+    "resp": "20 líneas"
+   },
+   {
+    "id": "G6-006",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "incorrecto",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 32.7,
+    "resp": "50 lines"
+   },
+   {
+    "id": "G6-014",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "incorrecto",
+    "ejecuto": false,
+    "tools": [],
+    "secs": 45.1,
+    "resp": "2**31 - 4051 = 2147483647"
+   },
+   {
+    "id": "G6-016",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "incorrecto",
+    "ejecuto": true,
+    "tools": [
+     "find",
+     "leer_archivo"
+    ],
+    "secs": 48.1,
+    "resp": "No se encontró el archivo 'logs.txt'."
+   },
+   {
+    "id": "G6-020",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "incorrecto",
+    "ejecuto": true,
+    "tools": [
+     "calcular"
+    ],
+    "secs": 10.8,
+    "resp": "225063"
+   },
+   {
+    "id": "G6-022",
+    "dominio": "cierre_output",
+    "idioma": "en",
+    "clase": "incorrecto",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo"
+    ],
+    "secs": 28.8,
+    "resp": "40 notas encontradas en meeting_notes_long.txt."
+   },
+   {
+    "id": "G6-026",
+    "dominio": "multi_tool",
+    "idioma": "en",
+    "clase": "incorrecto",
+    "ejecuto": true,
+    "tools": [
+     "leer_archivo",
+     "leer_archivo"
+    ],
+    "secs": 59.5,
+    "resp": "200 lines en list_a.txt and 200 lines in list_b.txt, total 400 lines."
+   }
+  ]
+ },
+ "por_dominio": {
+  "cierre_output": {
+   "pasa": 13,
+   "vacio": 3,
+   "parcial": 0,
+   "incorrecto": 6
+  },
+  "multi_tool": {
+   "pasa": 12,
+   "vacio": 1,
+   "parcial": 0,
+   "incorrecto": 1
+  },
+  "error_accionable": {
+   "pasa": 2,
+   "vacio": 10,
+   "parcial": 2,
+   "incorrecto": 0
+  }
+ },
+ "mins": 20.6
+}

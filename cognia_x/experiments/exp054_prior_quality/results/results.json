@@ -1,0 +1,69 @@
+{
+  "exp": "exp054_prior_quality",
+  "cycle": 69,
+  "hypothesis": "H-V4-3",
+  "claim": "la calidad/corrección del prior es el lever: un prior con la simetría correcta es eficiente muestralmente y un prior falso hunde (peor que no asumir nada)",
+  "verdict": "apoyada",
+  "summary": {
+    "n_trains": [
+      4,
+      8,
+      16,
+      32,
+      64,
+      128
+    ],
+    "curves": {
+      "correcto": {
+        "4": 0.8058,
+        "8": 0.9169,
+        "16": 0.9117,
+        "32": 0.9419,
+        "64": 0.9675,
+        "128": 1.0
+      },
+      "general": {
+        "4": 0.5478,
+        "8": 0.5687,
+        "16": 0.6005,
+        "32": 0.6559,
+        "64": 0.809,
+        "128": 0.9171
+      },
+      "equivocado": {
+        "4": 0.5468,
+        "8": 0.5517,
+        "16": 0.5796,
+        "32": 0.6069,
+        "64": 0.6222,
+        "128": 0.6354
+      }
+    },
+    "nt_small": "8",
+    "nt_big": "128",
+    "correct_efficient": true,
+    "wrong_hurts": true,
+    "status": "apoyada",
+    "verdict": "H-V4-3 APOYADA: la CALIDAD/corrección del prior es el lever, no su forma ni tenerlo. El prior CORRECTO (perm-invariante, 1 feature) alcanza 0.917 con sólo 8 ejemplos (general 0.569 ahí: +0.348 de eficiencia muestral). El prior EQUIVOCADO (asume k posiciones) se queda en 0.635 a 128 ejemplos, por DEBAJO del general 0.917 -- un prior FALSO HUNDE (sesgo irreducible). => un prior barato con la SIMETRÍA correcta iguala/supera la eficiencia, y uno falso es peor que no asumir nada."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 24,
+    "D": 20,
+    "k": 3,
+    "n_trains": "4,8,16,32,64,128",
+    "n_test": 3000
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp054] CYCLE 69 / H-V4-3 — calidad del prior > forma (perm-invariante: y = sum(x)>=D/2)",
+    "[exp054] D=20 k_equivocado=3 n_trains=[4, 8, 16, 32, 64, 128] seeds=24",
+    "[exp054]    correcto acc vs n: n4=0.806 n8=0.917 n16=0.912 n32=0.942 n64=0.968 n128=1.000",
+    "[exp054]     general acc vs n: n4=0.548 n8=0.569 n16=0.601 n32=0.656 n64=0.809 n128=0.917",
+    "[exp054]  equivocado acc vs n: n4=0.547 n8=0.552 n16=0.580 n32=0.607 n64=0.622 n128=0.635",
+    "[exp054] VEREDICTO H-V4-3: APOYADA | H-V4-3 APOYADA: la CALIDAD/corrección del prior es el lever, no su forma ni tenerlo. El prior CORRECTO (perm-invariante, 1 feature) alcanza 0.917 con sólo 8 ejemplos (general 0.569 ahí: +0.348 de eficiencia muestral). El prior EQUIVOCADO (asume k posiciones) se queda en 0.635 a 128 ejemplos, por DEBAJO del general 0.917 -- un prior FALSO HUNDE (sesgo irreducible). => un prior barato con la SIMETRÍA correcta iguala/supera la eficiencia, y uno falso es peor que no asumir nada."
+  ]
+}

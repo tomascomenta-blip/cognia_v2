@@ -55,3 +55,67 @@ cognia/agent/generated_tools/
 
 # Estado local del disyuntor de reparacion (por maquina, no se comparte)
 .disciplina/
+# Datasets de entrenamiento derivados de la memoria personal (privacidad)
+cognia_v3/training/*.jsonl
+
+# MNIST y otros datasets descargados
+data/
+# Excepcion: slice congelada de BFCL v3 (checker AST del harness Eje 1
+# tool-calling, cognia_v3/eval/bench_bfcl_slice.py) -- se commitea porque es
+# un dataset chico (~1.7MB) y FROZEN: el harness depende de que estos
+# archivos existan tal cual (slice_200.json se construye una sola vez sobre
+# ellos), no es un cache regenerable como MNIST.
+!cognia_v3/eval/data/
+!cognia_v3/eval/data/**
+cognia_v3/training/kaggle/_dataset_staging/
+cognia_v3/training/kaggle/_kernel_staging/
+cognia_v3/training/kaggle/_datagen_staging/
+cognia_v3/training/kaggle/_tooluse_dataset_staging/
+cognia_v3/training/kaggle/_tooluse_kernel_staging/
+
+# Notebook Colab con dataset personal embebido (privacidad)
+cognia_v3/training/colab/*.ipynb
+
+# Adapters entrenados (pesos derivados de memoria personal)
+checkpoints/
+
+# CP2 self-tooling demo output (generado, no versionar)
+cognia_x/construccion/_cp2_demo_tools/
+cognia_x/construccion/_cp2_demo_skills/
+_e2e_smoke_out/
+node/llama.cpp-b9391/
+node/llama-convert-b9391/
+
+# ── Higiene 2026-07-16 (auditoria de deuda tecnica) ──────────────────────
+# Logs de corridas de eval/baterias (evidencia: quedan en disco, fuera de git)
+*.err
+*.out
+# Staging dirs de Kaggle/entrenamiento (genericos; antes 5 patrones especificos)
+_*staging/
+unsloth_compiled_cache/
+_debug*/
+# Pesos entrenados y checkpoints (datos del usuario; DP: no salen del control local)
+*.pt
+*.safetensors
+adapters_backup/
+# Artefactos de build/release viejos y workspaces de e2e
+dist_release/
+dist_test/
+/out/
+.aci_overflow/
+_live_ws/
+# Estado runtime mutable de skills (contadores de uso)
+.skill_usage.json
+# Scripts one-off de sesiones con paths absolutos de esta maquina
+cognia_desktop/shot_*.js
+/cognia_game/Hola_samantha
+# Results sueltos en raiz (duplican los canonicos de su dir de experimento)
+/g2_*_results.json
+/x*_results.json
+/xh_loop_results.json
+/kg_export.json
+# Datasets de training tambien en subdirs (privacidad: derivados de memoria
+# personal; el patron viejo solo cubria el nivel raiz de training/)
+cognia_v3/training/**/*.jsonl
+# Adapters HF completos en results_* (pesos + tokenizer.json ~11MB c/u)
+cognia_v3/training/cognia3b/results_*/adapters/

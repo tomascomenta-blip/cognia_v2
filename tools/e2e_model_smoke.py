@@ -1,0 +1,169 @@
+"""
+tools/e2e_model_smoke.py
+========================
+Verificacion E2E de los caminos MODEL-DEPENDENT del producto comercial, con el
+modelo 3B REAL (Qwen2.5-Coder-3B-Instruct-Q4_K_M via llama.cpp). Serial: hay UN
+llama-server local (CPU). Ejercita la experiencia real del usuario y MUESTRA el
+output crudo con un CHECK explicito (regla del repo: "codigo que corre o no cuenta").
+
+Cubre:
+  1. Backend real carga (que 3B, no el 7B) — solo-local.
+  2. Chat: orch.infer(pregunta) -> respuesta coherente no vacia.
+  3. Agente /hacer: _run_agent_task en una tarea trivial que exige una TOOL
+     (escribir un archivo) -> verifica que el agente uso la tool y produjo el efecto.
+  4. Salida larga: generate_long / infer con mas tokens -> texto extendido.
+  5. (opcional) Creador de imagenes via el agente (escena_crear por lenguaje natural).
+
+Uso (venv312, PYTHONUTF8=1):
+  venv312\\Scripts\\python.exe tools\\e2e_model_smoke.py
+  venv312\\Scripts\\python.exe tools\\e2e_model_smoke.py --json out.json
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from pathlib import Path
+
+
+def _safe_stdout():
+    for s in (sys.stdout, sys.stderr):
+        try:
+            s.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
+def main() -> int:
+    _safe_stdout()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--json", default=None)
+    ap.add_argument("--max-tokens", type=int, default=96)
+    ap.add_argument("--gguf", default=None,
+                    help="ruta a un GGUF alternativo (test model-agnostico); default = 3B")
+    ap.add_argument("--fast", action="store_true",
+                    help="omitir el check lento de generar_codigo (BoN)")
+    args = ap.parse_args()
+
+    results = {"checks": []}
+
+    def check(name, ok, detail=""):
+        results["checks"].append({"name": name, "ok": bool(ok), "detail": str(detail)[:600]})
+        print(f"\n[{'PASS' if ok else 'FALLA'}] {name}\n  {str(detail)[:500]}", flush=True)
+        return ok
+
+    # 1) Backend real (3B, solo-local). Usa el MISMO path del producto:
+    #    ShatteringOrchestrator(manifest_path=cognia_qwen.json, mode=local) + _try_load_llama.
+    import os
+    os.environ.setdefault("COGNIA_DISABLE_SWARM", "1")   # smoke = local-only duro
+    # elegir el modelo: --gguf (test model-agnostico) o el 3B por default.
+    _gguf = Path(args.gguf) if args.gguf else Path(
+        "model_shards/qwen-coder-3b-q4/Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf")
+    if _gguf.exists():
+        os.environ["LLAMA_GGUF_PATH"] = str(_gguf.resolve())
+    try:
+        from shattering.orchestrator import ShatteringOrchestrator
+        manifest = str(Path("shattering/manifests/cognia_qwen.json").resolve())
+        orch = ShatteringOrchestrator(manifest_path=manifest, mode="local")
+        orch._try_load_llama()
+        # _try_load_llama no devuelve nada -> verificar con un infer minimo real
+        probe = orch.infer("Responde solo: OK", max_tokens=8, temperature=0.0)
+        ptxt = (getattr(probe, "text", None) or str(probe)).strip()
+        check("backend 3B carga y responde (solo-local)", len(ptxt) > 0,
+              f"gguf={os.environ.get('LLAMA_GGUF_PATH','?').split(os.sep)[-1]} probe={ptxt[:60]!r}")
+    except Exception as e:
+        import traceback
+        check("backend 3B carga y responde (solo-local)", False,
+              f"{type(e).__name__}: {e}\n{traceback.format_exc()[-300:]}")
+        _finish(results, args); return 2
+
+    # 2) Chat
+    try:
+        t0 = time.time()
+        r = orch.infer("En una sola frase: que es Cognia?", max_tokens=args.max_tokens, temperature=0.0)
+        txt = (getattr(r, "text", None) or str(r)).strip()
+        check("chat: infer devuelve texto coherente", len(txt) > 10, f"({time.time()-t0:.0f}s) {txt}")
+    except Exception as e:
+        check("chat: infer devuelve texto coherente", False, f"{type(e).__name__}: {e}")
+
+    # 3) Agente /hacer con una TOOL (escribir archivo)
+    try:
+        import tempfile
+        from cognia.cli import _run_agent_task
+        ai = None
+        try:
+            from cognia.cognia import Cognia
+            ai = Cognia()
+        except Exception:
+            ai = None
+        if ai is not None:
+            ai._orchestrator = orch
+        # DENTRO del workspace del agente (cwd): el sandbox (correctamente) bloquea
+        # escrituras fuera del workspace, asi que el target debe ser relativo al cwd.
+        workdir = Path.cwd() / "_e2e_smoke_out"
+        workdir.mkdir(exist_ok=True)
+        target = workdir / "saludo.txt"
+        if target.exists():
+            target.unlink()
+        logs = []
+        t0 = time.time()
+        out = _run_agent_task(
+            ai, "Escribi un archivo en la ruta _e2e_smoke_out/saludo.txt "
+                "con el texto exacto: hola mundo",
+            _print_fn=lambda *a, **k: logs.append(" ".join(str(x) for x in a)),
+            max_steps=6)
+        wrote = target.exists()
+        check("agente /hacer usa tool y crea el archivo",
+              wrote, f"({time.time()-t0:.0f}s) archivo={wrote} resultado={str(out)[:150]}")
+    except Exception as e:
+        import traceback
+        check("agente /hacer usa tool y crea el archivo", False,
+              f"{type(e).__name__}: {e}\n{traceback.format_exc()[-300:]}")
+
+    # 4) Salida larga
+    try:
+        t0 = time.time()
+        r = orch.infer("Enumera 3 usos de un asistente local de IA, uno por linea.",
+                       max_tokens=args.max_tokens * 2, temperature=0.0)
+        txt = (getattr(r, "text", None) or str(r)).strip()
+        check("salida mas larga (multi-linea)", txt.count("\n") >= 1 and len(txt) > 30,
+              f"({time.time()-t0:.0f}s) {txt[:200]}")
+    except Exception as e:
+        check("salida mas larga (multi-linea)", False, f"{type(e).__name__}: {e}")
+
+    # 5) Generacion de codigo (generar_codigo: BoN + validacion por tests) -- SKIP con --fast
+    if not args.fast:
+        try:
+            from cognia.agent.tools import run_tool
+            ctx = {"ai": ai if 'ai' in dir() else None, "working_memory": {},
+                   "print_fn": lambda *a, **k: None, "_orchestrator": orch}
+            if ctx["ai"] is not None:
+                ctx["ai"]._orchestrator = orch
+            t0 = time.time()
+            out = run_tool("generar_codigo",
+                           "_e2e_smoke_out/sumar.py | escribi una funcion sumar(a,b) que devuelva a+b",
+                           ctx)
+            gen_file = Path("_e2e_smoke_out/sumar.py")
+            ok_code = gen_file.exists() and "def sumar" in gen_file.read_text(encoding="utf-8", errors="replace")
+            check("generar_codigo (BoN) produce funcion valida",
+                  ok_code, f"({time.time()-t0:.0f}s) archivo={gen_file.exists()} out={str(out)[:120]}")
+        except Exception as e:
+            check("generar_codigo (BoN) produce funcion valida", False, f"{type(e).__name__}: {e}")
+
+    _finish(results, args)
+    return 0 if all(c["ok"] for c in results["checks"]) else 2
+
+
+def _finish(results, args):
+    ok = sum(c["ok"] for c in results["checks"])
+    n = len(results["checks"])
+    results["ok"] = ok == n
+    print(f"\n{'='*60}\n E2E MODEL SMOKE: {ok}/{n} checks PASS\n{'='*60}", flush=True)
+    if args.json:
+        Path(args.json).write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"JSON: {args.json}")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -428,8 +428,8 @@ class PatternAnalyzer:
             (frequent_labels, cooccurrences)
         """
         try:
-            conn = sqlite3.connect(db_path)
-            conn.text_factory = str
+            from storage.db_pool import db_connect_pooled
+            conn = db_connect_pooled(db_path)  # pool: text_factory=str ya aplicado
             c = conn.cursor()
             c.execute("""
                 SELECT label, observation

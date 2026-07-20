@@ -161,6 +161,7 @@ _debug_mode       = False
 _fast_mode        = False
 _session_feedback = []
 _history: list    = []
+_session_recap: str = ""   # FASE 6 (O3): recap extractiva auto-mantenida; /recap la muestra
 
 # Conversation continuity: how many prior messages to restore from chat_history
 # into _history at REPL startup. Bounded so old sessions don't bloat the prompt
@@ -172,6 +173,10 @@ _HISTORY_SEED_N = 20
 # turns and to power /resume.
 _SESSION_ID: str = ""
 _SESSION_CWD: str = ""
+
+# Auto-record de la conversacion al mapa de contexto (toggle /contexto-auto).
+# Apagado por defecto: el dueno lo enciende explicitamente con /contexto-auto on.
+_CONTEXT_AUTO = False
 
 
 def _persist_turn(ai, user_text: str, assistant_text: str) -> None:
@@ -195,11 +200,97 @@ def _persist_turn(ai, user_text: str, assistant_text: str) -> None:
     except Exception:
         pass
 
+    if _CONTEXT_AUTO:
+        try:
+            from cognia.context import context_engine
+            context_engine.record_conversation(ai, user_text, assistant_text)
+        except Exception:
+            pass
+
+    # FASE 6 (O3): recapitulacion automatica extractiva (sin LLM) cuando se cumplen los
+    # disparadores (turnos/contexto). Se cachea en _session_recap; /recap la muestra.
+    try:
+        global _session_recap
+        _n_user = sum(1 for _h in _history if _h.get("role") == "user")
+        _ctx_chars = sum(len(_h.get("content", "")) for _h in _history)
+        from cognia.memory.recap_policy import should_recap
+        if should_recap(_n_user, context_chars=_ctx_chars)[0]:
+            from cognia.summarizer.session_summarizer import SessionSummarizer
+            _session_recap = SessionSummarizer().extract_summary(_history)
+    except Exception:
+        pass
+
+
+def _build_memory_block_for(ai, query: str) -> str:
+    """
+    Bounded HYDRA memory block ([LOCAL]/[MEDIA]/[GLOBAL]) for the streaming
+    fast-path; "" when no real memory is relevant to the query.
+
+    The band router (cognia/context/band_router.py, the HYDRA analogue) is
+    built once per Cognia instance and cached on it, wired to the SAME memory
+    objects the REPL already mutates (perception / working_mem / episodic /
+    semantic), so retrieval sees what observe()/persist wrote this session
+    instead of a parallel set of instances over the same DB.
+    """
+    router = getattr(ai, "_hydra_router", None)
+    if router is None:
+        from cognia.context.band_router import HydraContextRouter
+        router = HydraContextRouter(
+            db_path=getattr(ai, "db", None),
+            perception=getattr(ai, "perception", None),
+            working=getattr(ai, "working_mem", None),
+            episodic=getattr(ai, "episodic", None),
+            semantic=getattr(ai, "semantic", None),
+        )
+        try:
+            ai._hydra_router = router
+        except Exception:
+            pass
+    return router.build_memory_block(query)
+
+
+def _build_stream_messages(ai, raw: str, system: str, hist_ctx: list) -> list:
+    """
+    Messages para el fast-path de streaming, con memoria real inyectada.
+
+    POSICION (critica para el KV-cache): el bloque de memoria cambia por turno;
+    si fuera ANTES de la historia invalidaria el prefijo KV cacheado del server
+    (cache_prompt + --cache-reuse) y forzaria re-prefill de TODA la historia en
+    cada turno (una historia de 4k tokens a ~29 tok/s de prefill = >2 min extra
+    por turno). Por eso va DENTRO del ULTIMO mensaje user: la historia previa
+    queda byte-identica y el server reusa su prefijo. Sin memoria relevante el
+    mensaje queda exactamente como antes (cero overhead).
+    """
+    user_content = raw
+    _blocks = []
+    # FASE 6 (O3): en conversaciones largas, anclar el contexto con la recap extractiva
+    # auto-mantenida (sin LLM, _persist_turn la refresca cuando dispara should_recap) en
+    # vez de reenviar todo el historial. Va en el MISMO slot que el bloque de memoria (el
+    # ULTIMO mensaje user) para no invalidar el prefijo KV cacheado del server. "" => no se
+    # inyecta (cero overhead en conversaciones cortas). Independiente de que mem_block falle.
+    if _session_recap:
+        _blocks.append("Recapitulacion de la conversacion (resumen):\n" + _session_recap)
+    try:
+        mem_block = _build_memory_block_for(ai, raw)
+        if mem_block:
+            _blocks.append("Contexto de memoria (puede ser relevante o no):\n" + mem_block)
+    except Exception:
+        pass
+    if _blocks:
+        user_content = "\n\n".join(_blocks) + "\n\nPregunta: " + raw
+    messages = [{"role": "system", "content": system}]
+    messages.extend(hist_ctx)
+    messages.append({"role": "user", "content": user_content})
+    return messages
+
 # ---------------------------------------------------------------------------
 # Optional FeedbackLearner
 # ---------------------------------------------------------------------------
 try:
-    from cognia.feedback.feedback_learner import FeedbackLearner as _FeedbackLearner
+    # (2026-07-16) Import corregido: el modulo vive en cognia.adaptive, no en
+    # cognia.feedback (que no existe). El except dejaba _feedback_learner=None
+    # SIEMPRE: /feedback decia 'registrado' pero nunca alimentaba el learner.
+    from cognia.adaptive.feedback_learner import FeedbackLearner as _FeedbackLearner
     _feedback_learner = _FeedbackLearner()
 except Exception:
     _feedback_learner = None
@@ -554,6 +645,7 @@ _CMD_DESCRIPTIONS = {
     "/aprendiendo":     "Ver estadisticas del sistema de aprendizaje espaciado",
     "/aprendiendo-buscar": "Buscar tarjetas de aprendizaje  <query>",
     "/investigar":      "Investigar en GitHub    <query>",
+    "/razonar":         "Loop cientifico: hipotesis -> evaluar -> analogias -> validar  <problema>",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
     "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
@@ -562,6 +654,13 @@ _CMD_DESCRIPTIONS = {
     "/encolar":         "Encolar idea para sleep <idea>",
     "/corregir":        "Corregir error          <obs> | <mal> | <bien>",
     "/hipotesis":       "Generar hipótesis       <A> | <B>",
+    "/experimento":     "Probar afirmacion empiricamente (sandbox)  <afirmacion>",
+    "/evaluar-idea":    "Evaluar idea (novedad x factibilidad x impacto)  <idea>",
+    "/analogia":        "Traducir problema a otros dominios (analogias transversales)  <problema>",
+    "/abstraer":        "Resolver por abstraccion (forma -> solucion abstracta -> concreta)  <problema>",
+    "/transferir":      "Transferir el principio de un dominio a otro  <fuente> | <objetivo>",
+    "/diversidad":      "Medir diversidad de ideas y detectar repeticiones  <idea1> || <idea2> || ...",
+    "/explorar":        "Modo explorador 70/30 (explota lo prometedor, explora lo nuevo)  <problema>",
     "/explicar":        "Autoexplicación         <texto>",
     # Conocimiento
     "/grafo":           "Ver knowledge graph     <concepto>",
@@ -594,9 +693,8 @@ _CMD_DESCRIPTIONS = {
     "/update":          "Actualizar Cognia",
     "/leer":            "Leer archivo al contexto   <ruta>",
     "/proyecto":        "Leer proyecto completo     <ruta>",
-    "/distill":         "Destilación SRDN (dry-run)",
-    "/distill run":     "Destilación SRDN (ejecutar)",
-    "/ayuda":           "Mostrar todos los comandos",
+    "/distill":         "Destilación SRDN (legacy: requiere Ollama; dry-run)",
+    "/distill run":     "Destilación SRDN (legacy: requiere Ollama; ejecutar)",
     "/salir":           "Salir del REPL",
     # Herramientas de sistema de archivos
     "/listar":          "Listar archivos            [directorio]",
@@ -606,7 +704,15 @@ _CMD_DESCRIPTIONS = {
     "/ejecutar":        "Ejecutar comando shell     <cmd>",
     "/diff":            "Explica los cambios git de un archivo <ruta>",
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
+    "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
+    "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
+    "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
+    "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
+    "/flujo":           "Orquestador de flujo: analisis->plan->ejecucion->informe->verificacion <objetivo>",
+    "/proyectos":       "Estado persistente de flujos /flujo (retomar entre sesiones)",
+    "/recap":           "Recapitulacion extractiva de la sesion (auto cada N turnos, sin LLM)",
+    "/esfuerzo":        "Nivel de esfuerzo del razonamiento (bajo|medio|alto|maximo)",
     "/revisar":         "Sesion de repaso con tarjetas de memoria espaciada (SM-2)",
     "/memoria-stats":   "Estadisticas de memoria y conocimiento acumulado",
     "/historial":       "Muestra tareas recientes del agente y archivos modificados",
@@ -665,10 +771,16 @@ _CMD_DESCRIPTIONS = {
     "/notif-todas":     "Ver todas las notificaciones",
     "/notif-leer":      "Marcar notificacion como leida          <id>",
     "/notif-limpiar":   "Marcar todas las notificaciones como leidas",
+    "/oficina":         "Lanzar dashboard de oficina isometrica (detached)  [puerto]",
+    "/analiticas":      "Panel de telemetria local (codigo/features/eventos, todo privado)",
     # UI
     "/resumen-sesion":  "Resumen completo de la sesion actual",
     "/limpiar-sesion":  "Limpiar historial de sesion en memoria (no borra datos persistentes)",
     "/ver-contexto":    "Ver que contexto inyectaria Cognia para una pregunta",
+    "/contexto":        "Buscar en el mapa de contexto   <consulta>",
+    "/contexto-mapa":   "Regenerar el archivo de contexto (cognia_context.md)",
+    "/contexto-stats":  "Ver punteros del mapa de contexto por project",
+    "/contexto-auto":   "Auto-indexar cada turno de conversacion   on|off",
     "/limpiar":         "Limpiar pantalla",
     "/compactar":       "Resumir historial de sesión",
     "/resumir":         "Resume la conversacion actual y guarda en memoria",
@@ -774,10 +886,121 @@ COMMANDS = _CMD_DESCRIPTIONS
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/deliberar": (
+        "Ejecuta el loop deliberativo del CognitiveLoop: planner simbolico -> self-critic "
+        "heuristico -> verifier -> world-model (action-simulator), con hasta 2 iteraciones de "
+        "revision quedandose con la mejor. Es OFFLINE y DETERMINISTA: NO llama al LLM/llama-server, "
+        "por eso es rapido (sub-segundo). Imprime el plan, la critica (score), el verify (PASS/FAIL) "
+        "y el riesgo del plan. Ejemplo: /deliberar refactoriza el modulo de memoria episodica"
+    ),
+    "/flujo": (
+        "Orquestador de flujo estructurado (objetivo O1): descompone el objetivo en etapas "
+        "(analisis -> plan -> ejecucion -> informe -> verificacion -> correccion) y decide "
+        "DINAMICAMENTE cuales correr segun la complejidad (heuristica, 0 LLM) y el nivel de "
+        "/esfuerzo. Reusa planner + synthesizer + verifier + response_gate. Presupuesto: 1 "
+        "inferencia (el informe) en objetivos simples, hasta 2 en complejos; degrada a resumen "
+        "determinista sin backend. Ejemplo: /flujo compara async vs threads en Python"
+    ),
+    "/recap": (
+        "Recapitulacion automatica de la sesion (objetivo O3): extractiva, SIN LLM (ranking "
+        "por densidad de tokens). Se auto-mantiene en _persist_turn cuando se cumplen los "
+        "disparadores (cada N turnos o cuando el contexto acumulado crece demasiado); /recap "
+        "muestra la ultima recap + si hay una pendiente. Politica en cognia/memory/recap_policy.py."
+    ),
     "/hacer": (
         "Ejecuta una tarea de forma autonoma usando un loop ReAct de hasta 8 pasos. "
         "Usa herramientas como /buscar-web, /kg-agregar, /ejecutar para completar la tarea. "
         "Ejemplo: /hacer Investiga las ventajas de FastAPI vs Flask"
+    ),
+    "/largo": (
+        "Genera una respuesta larga (por defecto hasta 5000 tokens, --tokens N escala "
+        "hasta 200000) con el fast-path llama.cpp y continuacion automatica por rondas, "
+        "mostrando progreso. Lento (~10 min a 8 tok/s por cada 5000 tokens). Requiere "
+        "llama-server/GGUF disponible. Escribe INCREMENTALMENTE a un archivo (uno por "
+        "defecto derivado del pedido) + un sidecar de checkpoint <archivo>.largo_state.json. "
+        "Con --jerarquico genera un outline (--secciones N) y luego cada seccion con un "
+        "prompt fresco (prefill acotado por seccion -> rompe el techo de ctx, longitud "
+        "cuasi-ilimitada). Con --delegado descompone en un outline (--tareas N, o derivado "
+        "de --tokens) y cada subtarea la genera un worker de contexto LIMPIO (ciego a las "
+        "demas) + una cabeza que teje la introduccion. Si la generacion queda CORTADA "
+        "(limite de presupuesto), /largo --continuar <archivo> retoma SOLO lo que falta. "
+        "Ejemplo: /largo --delegado --tokens 100000 Escribe una guia completa de asyncio en Python"
+    ),
+    "/experimento": (
+        "Pone a prueba una afirmacion de forma EMPIRICA. El LLM disena un "
+        "experimento Python autocontenido (solo stdlib), se corre en el sandbox "
+        "seguro (scan de imports + timeout) y se lee el VEREDICTO del stdout. "
+        "Si el sandbox rechaza el codigo, se reporta el fallo (no se finge exito). "
+        "Ejemplo: /experimento ordenar con sort() es mas rapido que bubble sort"
+    ),
+    "/evaluar-idea": (
+        "Autoevalua una idea en tres ejes 0.0-1.0 con el LLM vivo: novedad "
+        "(que tan original), factibilidad (que tan realista de implementar) e "
+        "impacto (efecto potencial). El VALOR es el producto de los tres. Si la "
+        "respuesta no se puede parsear tras un reintento, se reporta el fallo "
+        "(no se inventan numeros). "
+        "Ejemplo: /evaluar-idea un IDE que escribe sus propios tests"
+    ),
+    "/analogia": (
+        "Traduce un problema a OTROS DOMINIOS (biologia, fisica, economia, "
+        "ecologia, ingenieria, sistemas sociales, etc.) con el LLM vivo: por cada "
+        "dominio da una ANALOGIA (situacion equivalente), la SOLUCION de ese dominio "
+        "y la ADAPTACION de vuelta al problema original. Si no se puede generar nada "
+        "util tras un reintento, se reporta el fallo (no se inventa). "
+        "Ejemplo: /analogia el contexto del modelo se satura con conversaciones largas"
+    ),
+    "/abstraer": (
+        "Resuelve un problema por ABSTRACCION con el LLM vivo: piensa en "
+        "principios, no en ejemplos. (1) extrae la FORMA ABSTRACTA del problema "
+        "(su estructura general sin los detalles del dominio), (2) resuelve esa "
+        "forma abstracta, (3) TRADUCE esa solucion de vuelta al problema concreto "
+        "original. Si no se logra el ciclo completo tras un reintento, se reporta "
+        "el fallo (no se inventa). "
+        "Ejemplo: /abstraer no me alcanza el tiempo para terminar todas mis tareas del dia"
+    ),
+    "/transferir": (
+        "Transfiere CONOCIMIENTO entre dominios con el LLM vivo: no busca "
+        "coincidencias superficiales, busca el PRINCIPIO fundamental compartido. "
+        "Dado un dominio/problema FUENTE y uno OBJETIVO (separados por '|'): "
+        "(1) extrae el PRINCIPIO abstracto y general que hace funcionar a la "
+        "fuente, (2) lo APLICA de forma concreta al objetivo. Si no se logra la "
+        "transferencia completa tras un reintento, se reporta el fallo (no se "
+        "inventa). "
+        "Ejemplo: /transferir como las hormigas encuentran el camino mas corto | "
+        "como rutear paquetes en una red"
+    ),
+    "/diversidad": (
+        "Mide que tan variado es un conjunto de ideas (similitud LEXICA, sin LLM "
+        "ni red) y detecta los pares casi-duplicados (mismas estrategias). El "
+        "score va de 0.0 (todas iguales) a 1.0 (todas distintas). Separa las "
+        "ideas con '||'. Detector de repeticion (pieza 6 de la mision creativa). "
+        "Ejemplo: /diversidad recolectar agua de lluvia || juntar agua de lluvia en azoteas || usar plantas nativas"
+    ),
+    "/explorar": (
+        "Modo explorador 70/30 (pieza 4 de la mision creativa) con el LLM vivo: "
+        "genera ideas base, EXPLOTA las prometedoras (las profundiza y refina, "
+        "70% del presupuesto) y reserva 30% para EXPLORAR enfoques nuevos / poco "
+        "convencionales que eviten lo ya conocido. La exploracion NUNCA se "
+        "elimina (siempre al menos 1 idea nueva). "
+        "Ejemplo: /explorar como reducir el consumo de agua en una ciudad"
+    ),
+    "/razonar": (
+        "Loop cientifico ACOTADO que ENCADENA las piezas creativas con el LLM "
+        "vivo: (1) genera hasta 3 hipotesis diversas, (2) evalua cada una en "
+        "novedad x factibilidad x impacto y las rankea por VALOR, (3) traduce el "
+        "problema a otros dominios (analogias para enmarcarlo), (4) VALIDA la "
+        "hipotesis top con un experimento en el sandbox seguro. Reporta un "
+        "informe integrado; honesto si algun paso no da resultado. ~9-10 "
+        "llamadas LLM (lento en CPU). Para investigar en GitHub usa "
+        "/investigar. "
+        "Ejemplo: /razonar como reducir el consumo de agua en una ciudad"
+    ),
+    "/modelo": (
+        "Ver o cambiar en caliente el modelo GGUF del backend llama.cpp. "
+        "Sin args lista el activo y los disponibles; con clave (3b|7b) para el "
+        "server actual, recarga con el GGUF elegido y verifica via /props. "
+        "Medido: 3b 40% pass@1 ~8tok/s, 7b 50% ~2.2tok/s, cascada 60%. "
+        "Ejemplo: /modelo 7b"
     ),
     "/meta": (
         "Crea un nuevo objetivo de usuario persistente en la base de datos. "
@@ -803,8 +1026,8 @@ _CMD_DETAILS = {
         "Ejemplo: /exportar md mi_historial.md"
     ),
     "/aprende-repo": (
-        "Indexa un repositorio Git local para que Cognia pueda responder preguntas sobre el codigo. "
-        "Ejemplo: /aprende-repo /ruta/al/repo"
+        "Busca repositorios en GitHub (URL directa o query) y aprende de ellos. "
+        "Ejemplo: /aprende-repo https://github.com/huggingface/transformers"
     ),
     "/skills": (
         "Lista todos los skills disponibles en cognia_skills/. "
@@ -873,12 +1096,45 @@ HELP_TEXT = """
   ----------------------------------
   Texto sin / se trata como mensaje al sistema cognitivo (chat libre).
 
+  AGENTE Y RAZONAMIENTO (nucleo):
+    /hacer <tarea>                  Agente autonomo: ejecuta la tarea con herramientas reales
+    /agente estado                  Estado del agente hibrido (modalidad, esfuerzo, telemetria)
+    /esfuerzo [nivel]               Ver/fijar esfuerzo (bajo/medio/alto/maximo) y modalidades
+    /modelo [3b|7b|...]             Ver/cambiar el modelo activo del fleet
+    /pensar <problema>              Razonamiento paso a paso (stepwise)
+    /deliberar <pregunta>           Deliberacion multi-perspectiva
+    /flujo <objetivo>               Orquestador de flujos multi-paso
+    /largo <tema>                   Generacion larga por secciones (/largo --continuar)
+    /crear <idea>                   Crear un programa Python ahora (sandbox + biblioteca)
+    /encolar <idea>                 Encolar idea para el hobby de programacion
+    /investigar <pregunta>          Investigacion autonoma (web + LLM + KG)
+    /resumir <ruta|texto>           Resumir archivo o texto largo
+    /proyectos                      Proyectos detectados en el workspace
+    /recap                          Resumen de lo hecho en la sesion
+
+  HERRAMIENTAS DEL AGENTE:
+    /monitor <cmd>                  Monitorear un comando en background
+    /powershell <cmd>               Ejecutar PowerShell (Windows)
+    /web-buscar <q> / /web-fetch <url>  Busqueda y fetch web
+    /worktree <rama>                Git worktree aislado para el agente
+    /tarea-crear / /tarea-lista     Gestion de tareas del agente
+    /notificar <msg>                Notificacion del sistema
+    /diff <a> <b>                   Diff de archivos
+
   MEMORIA Y APRENDIZAJE:
     /observar <texto>               Observar sin etiqueta
     /aprender <texto> | <label>     Ensenar con etiqueta
     /aprende-repo <url_o_query>     Aprende de un repo GitHub por URL o busqueda
     /corregir <obs> | <mal> | <bien>Corregir error
     /hipotesis <A> | <B>            Generar hipotesis
+    /experimento <afirmacion>       Probar afirmacion empiricamente (sandbox)
+    /evaluar-idea <idea>            Evaluar idea (novedad x factibilidad x impacto)
+    /analogia <problema>            Traducir problema a otros dominios (analogias)
+    /abstraer <problema>            Resolver por abstraccion (forma -> abstracta -> concreta)
+    /transferir <fuente> | <objetivo>  Transferir el principio de un dominio a otro
+    /diversidad <i1> || <i2> ...    Medir diversidad de ideas y detectar repeticiones
+    /explorar <problema>            Modo explorador 70/30 (explota lo prometedor, explora lo nuevo)
+    /razonar <problema>             Loop cientifico: hipotesis -> evaluar -> analogias -> validar
     /yo                             Introspección completa
     /conceptos                      Listar conceptos
     /dormir                         Consolidacion tipo sueno
@@ -954,6 +1210,8 @@ HELP_TEXT = """
   SISTEMA:
     /doctor                         Verificar instalacion
     /update                         Actualizar Cognia
+    /oficina [puerto]               Dashboard de oficina isometrica (detached, abre navegador; default 8766)
+    /analiticas                     Panel de telemetria local (codigo/features/eventos, todo privado)
     /distill  /  /distill run       Destilacion SRDN
     /ayuda    /  /salir
 
@@ -1035,7 +1293,7 @@ HELP_TEXT = """
     /ayuda <comando>   Descripcion completa de un comando
 
   BACKUP Y ANALITICAS:
-    /backup [dir]        Backup de cognia.db (default: ~/.cognia_backups/)
+    /backup [dir]        Backup de la memoria (~/.cognia/cognia_memory.db; default: ~/.cognia_backups/)
     /mi-uso              Estadisticas de uso personal
     /mi-uso-detalle      Ranking de funciones mas usadas
 
@@ -1139,7 +1397,7 @@ def _to_str(result):
 
 def _cmd_color(raw):
     cmd = raw.lstrip("/").split()[0] if raw else ""
-    if cmd in {"aprender", "corregir", "hecho", "indice_add", "dormir", "investigar", "crear", "encolar"}:
+    if cmd in {"aprender", "corregir", "hecho", "indice_add", "dormir", "investigar", "razonar", "crear", "encolar"}:
         return "bright_green"
     if cmd in {"hipotesis", "explicar", "narrativa", "inferir"}:
         return "magenta"
@@ -1149,6 +1407,15 @@ def _cmd_color(raw):
 
 
 def _print_line(text):
+    # Modo sencillo (default, version comercializable): suprime las lineas de
+    # DETALLE/proceso ('[detail]') -- "solo funciona, sin logs". Resultados,
+    # avisos y errores siempre pasan. El modo avanzado muestra todo.
+    try:
+        from cognia.simple_mode import should_show_detail
+        if not should_show_detail(text):
+            return
+    except Exception:
+        pass
     if _HAS_RICH and _console:
         _console.print(text)
     else:
@@ -1538,7 +1805,7 @@ def _slash_stats() -> None:
 def _slash_sugerir() -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/proactive/suggestions", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/proactive/suggestions", timeout=2)
         if resp.status_code == 200:
             suggestions = resp.json().get("suggestions", [])
             if not suggestions:
@@ -1550,13 +1817,13 @@ def _slash_sugerir() -> None:
         else:
             print(f"Error al obtener sugerencias: {resp.status_code}")
     except Exception:
-        print("Servicio de sugerencias no disponible. Inicia cognia_desktop_api.py.")
+        print("Servicio de sugerencias no disponible. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
 
 
 def _slash_logros(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/achievements", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/achievements", timeout=2)
         if resp.status_code != 200:
             print(f"Error: {resp.status_code}")
             return
@@ -1573,7 +1840,7 @@ def _slash_logros(args: str) -> None:
         if shown == 0:
             print("Aun no has desbloqueado logros. Empieza a chatear!")
         else:
-            r2 = requests.get("http://localhost:8765/achievements/stats", timeout=2)
+            r2 = requests.get("http://127.0.0.1:8765/achievements/stats", timeout=2)
             if r2.status_code == 200:
                 s = r2.json()
                 print(f"\n  Total: {s.get('unlocked',0)}/{s.get('total',0)} | Puntos: {s.get('points',0)}")
@@ -1619,10 +1886,16 @@ def _slash_patrones(args: str) -> None:
 def _slash_backup(args: str) -> None:
     import shutil, datetime
     from pathlib import Path
-    db_candidates = [Path("cognia.db"), Path.home() / "cognia.db", Path("storage/cognia.db")]
+    # La DB real de produccion es DB_PATH (~/.cognia/cognia_memory.db).
+    # Antes solo se buscaba 'cognia.db' en cwd/~/storage — paths de la era
+    # anterior: /backup NUNCA respaldaba nada en una instalacion normal
+    # (cazado 2026-07-16; el comando estaba skippeado en la bateria).
+    from cognia.config import DB_PATH
+    db_candidates = [Path(DB_PATH), Path("cognia.db"), Path.home() / "cognia.db",
+                     Path("storage/cognia.db")]
     src = next((p for p in db_candidates if p.exists()), None)
     if src is None:
-        print("No se encontro cognia.db para hacer backup.")
+        print(f"No se encontro la base de datos ({DB_PATH}) para hacer backup.")
         return
     dest_dir = Path(args.strip()) if args.strip() else Path.home() / ".cognia_backups"
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -1636,7 +1909,7 @@ def _slash_backup(args: str) -> None:
 def _slash_mi_uso(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/analytics/stats", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/analytics/stats", timeout=2)
         if resp.status_code == 200:
             s = resp.json()
             print(f"Uso de Cognia:")
@@ -1655,7 +1928,7 @@ def _slash_mi_uso(args: str) -> None:
 def _slash_mi_uso_detalle(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/analytics/top-features", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/analytics/top-features", timeout=2)
         if resp.status_code == 200:
             features = resp.json().get("features", resp.json() if isinstance(resp.json(), list) else [])
             if not features:
@@ -1671,127 +1944,237 @@ def _slash_mi_uso_detalle(args: str) -> None:
         print("Servicio de analiticas no disponible.")
 
 
-def _slash_buscar_memoria(args: str) -> None:
+def _fmt_ts(ts) -> str:
+    """Fecha YYYY-MM-DD desde un ts que puede ser epoch (int/float, schema desktop)
+    o ISO (str, schema REPL)."""
+    if not ts:
+        return "?"
+    from datetime import datetime
+    try:
+        if isinstance(ts, (int, float)):
+            return datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+        return datetime.fromisoformat(str(ts)).strftime("%Y-%m-%d")
+    except Exception:
+        return "?"
+
+
+def _slash_buscar_memoria(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /buscar-memoria <texto a buscar semanticamente>")
         return
+
+    def _print_results(results):
+        if not results:
+            print("Sin resultados semanticos para esa busqueda.")
+            return
+        print(f"Resultados semanticos para '{args.strip()}':")
+        for i, r in enumerate(results, 1):
+            score = round(r.get("score", 0), 3)
+            role = r.get("role", "?")
+            content = (r.get("content", "") or "")[:120]
+            print(f"  {i}. [{role}] ({_fmt_ts(r.get('ts'))}, score={score}) {content}")
+
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(args.strip())
-        resp = requests.get(f"http://localhost:8765/memory/search?q={q}&limit=5", timeout=5)
+        resp = requests.get(f"http://127.0.0.1:8765/memory/search?q={q}&limit=5", timeout=5)
         if resp.status_code == 200:
-            results = resp.json().get("results", [])
-            if not results:
-                print("Sin resultados semanticos para esa busqueda.")
-                return
-            print(f"Resultados semanticos para '{args.strip()}':")
-            for i, r in enumerate(results, 1):
-                score = round(r.get("score", 0), 3)
-                role = r.get("role", "?")
-                content = r.get("content", "")[:120]
-                ts = r.get("ts", 0)
-                from datetime import datetime
-                date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d") if ts else "?"
-                print(f"  {i}. [{role}] ({date_str}, score={score}) {content}")
+            _print_results(resp.json().get("results", []))
         else:
             print(f"Error: {resp.status_code}")
     except Exception:
-        print("Servicio de busqueda semantica no disponible.")
+        # Fallback local (sin Electron/:8765): SemanticMemorySearch sobre ai.db
+        try:
+            from cognia.memory.semantic_search import SemanticMemorySearch
+            _print_results(SemanticMemorySearch(db_path=ai.db).search(args.strip(), limit=5))
+        except Exception as _e:
+            print(f"Busqueda semantica local fallo: {_e}")
 
 
-def _slash_debate(args: str) -> None:
+def _analisis_llm(ai, prompt: str, max_tokens: int = 450) -> "str | None":
+    """Analisis one-shot por el backend REAL; None si no hay backend vivo.
+
+    (2026-07-16) Reemplaza la familia de plantillas enlatadas de /debate,
+    /y-si, /cadena-causal, /reflexion-profunda y /argumento: imprimian texto
+    fijo con el tema interpolado fingiendo ser analisis (regla del repo:
+    nada de mocks/stubs). Sin backend ahora se dice honesto, no se inventa."""
+    orch = getattr(ai, "_orchestrator", None)
+    if orch is None:
+        return None
+    try:
+        r = orch.infer(prompt, max_tokens=max_tokens, temperature=0.7)
+        if r is None or getattr(r, "mode", "") == "simulation":
+            return None
+        return (r.text or "").strip() or None
+    except Exception:
+        return None
+
+
+def _sin_backend_analisis(comando: str) -> None:
+    print(f"{comando} necesita el backend de inferencia y no hay ninguno vivo.")
+    print("Instala el modelo con: cognia install-model")
+
+
+def _slash_debate(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /debate <tema o proposicion>")
         return
     tema = args.strip()
+    out = _analisis_llm(ai, (
+        f"Tema de debate: {tema}\n\n"
+        "Escribe 3 argumentos A FAVOR y 3 EN CONTRA, concretos y especificos "
+        "de ESTE tema (nada generico), y una conclusion de una linea.\n"
+        "Formato exacto:\nA FAVOR:\n+ ...\n+ ...\n+ ...\nEN CONTRA:\n- ...\n"
+        "- ...\n- ...\nCONCLUSION: ..."))
+    if out is None:
+        _sin_backend_analisis("/debate")
+        return
     print(f"Debate: '{tema}'")
     print()
-    print("A FAVOR:")
-    pros = [
-        f"  + {tema} puede mejorar la eficiencia en contextos especificos.",
-        f"  + Existen casos documentados donde {tema.lower()} ha generado valor.",
-        f"  + La adopcion de {tema.lower()} reduce costos a largo plazo.",
-    ]
-    for p in pros:
-        print(p)
-    print()
-    print("EN CONTRA:")
-    cons = [
-        f"  - {tema} introduce complejidad adicional que puede ser evitable.",
-        f"  - Los riesgos de {tema.lower()} no siempre estan bien evaluados.",
-        f"  - La implementacion de {tema.lower()} requiere recursos significativos.",
-    ]
-    for c in cons:
-        print(c)
-    print()
-    print("CONCLUSION: Evalua el contexto especifico antes de decidir.")
+    print(out)
 
 
-def _slash_contexto_semantico(args: str) -> None:
+def _slash_contexto_semantico(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /contexto-semantico <consulta>")
         return
+
+    def _print_ctx(context):
+        if not context:
+            print("Sin contexto encontrado.")
+            return
+        print(f"Contexto semantico para '{args.strip()}':")
+        for msg in context:
+            role = msg.get("role", "?")
+            content = (msg.get("content", "") or "")[:150]
+            print(f"  [{role}] {content}")
+
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(args.strip())
-        resp = requests.get(f"http://localhost:8765/memory/search/context?q={q}&window=3", timeout=5)
+        resp = requests.get(f"http://127.0.0.1:8765/memory/search/context?q={q}&window=3", timeout=5)
         if resp.status_code == 200:
-            context = resp.json().get("context", [])
-            if not context:
-                print("Sin contexto encontrado.")
-                return
-            print(f"Contexto semantico para '{args.strip()}':")
-            for msg in context:
-                role = msg.get("role", "?")
-                content = msg.get("content", "")[:150]
-                print(f"  [{role}] {content}")
+            _print_ctx(resp.json().get("context", []))
         else:
             print(f"Error: {resp.status_code}")
     except Exception:
-        print("Servicio no disponible.")
+        # Fallback local: SemanticMemorySearch.search_context sobre ai.db
+        try:
+            from cognia.memory.semantic_search import SemanticMemorySearch
+            _print_ctx(SemanticMemorySearch(db_path=ai.db).search_context(args.strip(), window=3))
+        except Exception as _e:
+            print(f"Contexto semantico local fallo: {_e}")
 
 
-def _slash_sintetizar(args: str) -> None:
+def _slash_contexto(ai, args):
+    # /contexto <consulta>: busca en el context map (todos los projects) y muestra los top spans
+    q = (args or "").strip()
+    if not q:
+        print("Uso: /contexto <consulta>")
+        return
+    from cognia.context import context_engine
+    hits = context_engine.retrieve_all(ai, q, budget_tokens=1200, top_k=20)
+    if not hits:
+        print("Sin resultados en el mapa de contexto. Usa /leer o /proyecto para indexar.")
+        return
+    print("Top spans del mapa de contexto (%d):" % len(hits))
+    for i, h in enumerate(hits[:5], 1):
+        txt = (h.get("text") or "").replace("\n", " ")
+        if len(txt) > 200:
+            txt = txt[:200] + "..."
+        print("  %d. [score %.3f | %s] %s" % (i, h.get("score", 0.0), h.get("project", "?"), txt))
+
+
+def _slash_contexto_mapa(ai, args):
+    # /contexto-mapa: regenera cognia_context.md (un archivo por project)
+    from cognia.context import context_engine
+    projs = context_engine.list_projects(ai)
+    if not projs:
+        print("El mapa de contexto esta vacio. Usa /leer o /proyecto para indexar.")
+        return
+    import os
+    paths = []
+    for p in projs:
+        safe = p.replace(":", "_").replace("/", "_").replace("\\", "_")
+        outp = os.path.join(os.getcwd(), "cognia_context_%s.md" % safe)
+        context_engine.refresh_map(ai, project=p, out_path=outp)
+        paths.append(outp)
+    print("Mapa de contexto regenerado (%d projects):" % len(projs))
+    for pth in paths:
+        print("  " + pth)
+
+
+def _slash_contexto_stats(ai, args):
+    from cognia.context import context_engine
+    projs = context_engine.list_projects(ai)
+    total = 0
+    print("Mapa de contexto por project:")
+    for p in projs:
+        s = context_engine.stats(ai, project=p)
+        total += s.get("pointers", 0)
+        print("  %s: %d punteros, %d fuentes" % (p, s.get("pointers", 0), s.get("covered_sources", 0)))
+    print("Total punteros: %d" % total)
+
+
+def _slash_contexto_auto(ai, args):
+    global _CONTEXT_AUTO
+    a = (args or "").strip().lower()
+    if a == "on":
+        _CONTEXT_AUTO = True
+        print("Auto-record del contexto: ON (cada turno se indexa en el mapa).")
+    elif a == "off":
+        _CONTEXT_AUTO = False
+        print("Auto-record del contexto: OFF.")
+    else:
+        print("Estado auto-record: " + ("ON" if _CONTEXT_AUTO else "OFF") + ". Uso: /contexto-auto on|off")
+
+
+def _slash_sintetizar(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /sintetizar <tema>")
         return
+
+    def _print_synth(data):
+        print(data.get("synthesis", "Sin sintesis disponible."))
+        sources = data.get("sources", [])
+        if sources:
+            print(f"\n[Fuentes: {', '.join(sources)}]")
+
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(args.strip())
-        resp = requests.get(f"http://localhost:8765/synthesis?q={q}", timeout=5)
+        resp = requests.get(f"http://127.0.0.1:8765/synthesis?q={q}", timeout=5)
         if resp.status_code == 200:
-            data = resp.json()
-            print(data.get("synthesis", "Sin sintesis disponible."))
-            sources = data.get("sources", [])
-            if sources:
-                print(f"\n[Fuentes: {', '.join(sources)}]")
+            _print_synth(resp.json())
         else:
             print(f"Error: {resp.status_code}")
     except Exception:
-        print("Servicio de sintesis no disponible.")
+        # Fallback local: KnowledgeSynthesizer con _CHAT_DB apuntando al DB del REPL
+        try:
+            import cognia.synthesis.knowledge_synthesizer as _ks
+            _ks._CHAT_DB = ai.db
+            _print_synth(_ks.KnowledgeSynthesizer().synthesize(args.strip()))
+        except Exception as _e:
+            print(f"Sintesis local fallo: {_e}")
 
 
-def _slash_y_si(args: str) -> None:
+def _slash_y_si(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /y-si <situacion hipotetica>")
         return
     sit = args.strip()
+    out = _analisis_llm(ai, (
+        f"Situacion hipotetica: y si {sit}\n\n"
+        "Analiza el contrafactual con contenido ESPECIFICO de esta situacion "
+        "(nada generico). Formato exacto:\nEscenario probable:\n  ...\n"
+        "Riesgos:\n- ...\n- ...\nOportunidades:\n- ...\n- ...\n"
+        "Recomendacion: ... (una linea)"))
+    if out is None:
+        _sin_backend_analisis("/y-si")
+        return
     print(f"Analisis hipotetico: 'y si {sit}'")
     print()
-    print("Escenario probable:")
-    print(f"  Si {sit}, es probable que los sistemas relacionados se vean afectados.")
-    print(f"  El impacto dependeria de la escala y el contexto de implementacion.")
-    print()
-    print("Riesgos:")
-    print(f"  - Consecuencias no anticipadas de '{sit}'.")
-    print(f"  - Resistencia o friccion en la adopcion del cambio.")
-    print(f"  - Dependencias externas que limiten el resultado.")
-    print()
-    print("Oportunidades:")
-    print(f"  - Nuevos patrones de uso derivados de '{sit}'.")
-    print(f"  - Aprendizaje y adaptacion del sistema ante el cambio.")
-    print()
-    print("Recomendacion: prueba en escala pequena antes de generalizar.")
+    print(out)
 
 
 def _slash_temas(args: str) -> None:
@@ -1820,12 +2203,12 @@ def _slash_temas(args: str) -> None:
 def _slash_mi_cognia(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/cognitive-profile/summary", timeout=5)
+        resp = requests.get("http://127.0.0.1:8765/cognitive-profile/summary", timeout=5)
         if resp.status_code == 200:
             summary = resp.json().get("summary", "")
             print(summary if summary else "Perfil no disponible.")
         else:
-            resp2 = requests.get("http://localhost:8765/cognitive-profile", timeout=5)
+            resp2 = requests.get("http://127.0.0.1:8765/cognitive-profile", timeout=5)
             if resp2.status_code == 200:
                 p = resp2.json()
                 print("Perfil cognitivo de Cognia:")
@@ -1848,7 +2231,7 @@ def _slash_mi_cognia(args: str) -> None:
 def _slash_perfil_completo(args: str) -> None:
     try:
         import requests, json
-        resp = requests.get("http://localhost:8765/cognitive-profile", timeout=5)
+        resp = requests.get("http://127.0.0.1:8765/cognitive-profile", timeout=5)
         if resp.status_code == 200:
             print(json.dumps(resp.json(), indent=2, ensure_ascii=False))
         else:
@@ -1872,10 +2255,10 @@ def _slash_estado(args: str) -> None:
             errors.append(name)
 
     endpoints = {
-        "notas": "http://localhost:8765/notes/stats",
-        "logros": "http://localhost:8765/achievements/stats",
-        "uso": "http://localhost:8765/analytics/stats",
-        "aprendizaje": "http://localhost:8765/learning/stats",
+        "notas": "http://127.0.0.1:8765/notes/stats",
+        "logros": "http://127.0.0.1:8765/achievements/stats",
+        "uso": "http://127.0.0.1:8765/analytics/stats",
+        "aprendizaje": "http://127.0.0.1:8765/learning/stats",
     }
     threads = [threading.Thread(target=fetch, args=(n, u)) for n, u in endpoints.items()]
     for t in threads:
@@ -1884,7 +2267,7 @@ def _slash_estado(args: str) -> None:
         t.join(timeout=3)
 
     if not results and errors:
-        print("Servicio no disponible. Inicia cognia_desktop_api.py.")
+        print("Servicio no disponible. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
         return
 
     print("Estado de Cognia:")
@@ -2391,7 +2774,7 @@ def _slash_notif_limpiar(args: str) -> None:
 def _slash_recomendar(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/recommendations", timeout=5)
+        resp = requests.get("http://127.0.0.1:8765/recommendations", timeout=5)
         if resp.status_code == 200:
             recs = resp.json().get("recommendations", [])
             if not recs:
@@ -2416,14 +2799,14 @@ def _slash_recomendar(args: str) -> None:
 def _slash_digest(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/digest", timeout=5)
+        resp = requests.get("http://127.0.0.1:8765/digest", timeout=5)
         if resp.status_code == 200:
             digest_text = resp.json().get("digest", "")
             print(digest_text if digest_text else "Digest no disponible.")
         else:
             print(f"Error: {resp.status_code}")
     except Exception:
-        print("Servicio de digest no disponible. Inicia cognia_desktop_api.py.")
+        print("Servicio de digest no disponible. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
 
 
 def _slash_cognia_info(args: str) -> None:
@@ -2431,7 +2814,7 @@ def _slash_cognia_info(args: str) -> None:
     print()
     print("Capacidades principales:")
     capabilities = [
-        ("Inferencia",          "Modelo Qwen2.5-Coder-3B INT4, 4 shards, numpy puro"),
+        ("Inferencia",          "llama.cpp + GGUF: 3B con ruteo hibrido por dificultad (escala 3B->7B), portero 0.5B, /esfuerzo"),
         ("Memoria",             "Episodica + semantica TF-IDF + cristalizacion KG"),
         ("Aprendizaje",         "Repaso espaciado SM-2 + caminos de aprendizaje"),
         ("Objetivos",           "Gestion de metas con descomposicion de tareas"),
@@ -2459,7 +2842,7 @@ def _slash_inicio_dia(args: str) -> None:
     print()
     try:
         import requests
-        r = requests.get("http://localhost:8765/learning/stats", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/learning/stats", timeout=2)
         if r.status_code == 200:
             due = r.json().get("due_today", 0)
             if due > 0:
@@ -2471,7 +2854,7 @@ def _slash_inicio_dia(args: str) -> None:
 def _slash_proximos_pasos(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/recommendations/top", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/recommendations/top", timeout=3)
         if resp.status_code == 200:
             rec = resp.json().get("recommendation")
             if not rec:
@@ -2498,7 +2881,7 @@ def _slash_mapa(args: str) -> None:
     try:
         import requests, urllib.parse
         q = urllib.parse.quote(center)
-        resp = requests.get(f"http://localhost:8765/kg/facts?subject={q}&limit=8", timeout=3)
+        resp = requests.get(f"http://127.0.0.1:8765/kg/facts?subject={q}&limit=8", timeout=3)
         if resp.status_code == 200:
             facts = resp.json().get("facts", resp.json() if isinstance(resp.json(), list) else [])
             for f in facts[:8]:
@@ -2621,6 +3004,106 @@ def _slash_recordar_cancelar(args: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# /oficina — lanza el dashboard de la oficina isometrica como proceso aparte
+# ---------------------------------------------------------------------------
+
+def _oficina_responde(url: str) -> bool:
+    """True si algo contesta HTTP en `url` (la oficina ya esta viva ahi).
+
+    Cualquier respuesta -- incluso un error HTTP -- confirma que hay un
+    proceso escuchando en ese puerto; solo timeout/conexion rechazada cuenta
+    como "libre". Aislada en su propia funcion para poder mockear el check
+    de puerto en tests sin pegarle a la red de verdad.
+    """
+    import urllib.error
+    import urllib.request
+    try:
+        urllib.request.urlopen(url, timeout=1)
+        return True
+    except urllib.error.HTTPError:
+        return True
+    except Exception:
+        return False
+
+
+def _slash_oficina(args: str) -> None:
+    """Lanza (o reutiliza) el dashboard de la oficina isometrica.
+
+    La oficina vive como app standalone (python -m cognia.oficina): un
+    servidor HTTP con la escena 3D + motor jefe/directores/trabajadores sobre
+    el mismo backend que el CLI (cognia/oficina/__main__.py). Este comando NO
+    carga el modelo ni bloquea el REPL: solo chequea si ya hay una oficina
+    viva en el puerto y, si no, la lanza como proceso DETACHED (sobrevive al
+    cierre del CLI) y abre el navegador apenas el server responde.
+    """
+    import webbrowser
+
+    puerto_txt = args.strip()
+    if puerto_txt:
+        try:
+            puerto = int(puerto_txt)
+        except ValueError:
+            _print_line("[warn_cl]Uso: /oficina [puerto][/warn_cl]")
+            return
+    else:
+        # 8766: el 8765 es del cognia_desktop_api (colisión cazada 2026-07-15)
+        puerto = 8766
+
+    url = f"http://127.0.0.1:{puerto}/"
+
+    if _oficina_responde(url):
+        _print_line(f"[ok_cl]La oficina ya esta corriendo en {url}[/ok_cl]")
+        webbrowser.open(url)
+        return
+
+    try:
+        creationflags = 0
+        if sys.platform == "win32":
+            # DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP: el proceso no
+            # queda atado a la consola del CLI (sobrevive a /salir y a Ctrl+C).
+            creationflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen(
+            [sys.executable, "-m", "cognia.oficina", "--puerto", str(puerto)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
+        )
+    except Exception as e:
+        _print_line(f"[err_cl]No se pudo lanzar la oficina: {e}[/err_cl]")
+        return
+
+    _print_line(f"[detail]Lanzando oficina en {url} (carga el backend, puede tardar unos segundos)...[/detail]")
+    for _ in range(20):  # ~10s totales, poll cada 0.5s
+        time.sleep(0.5)
+        if _oficina_responde(url):
+            _print_line(f"[ok_cl]Oficina lista: {url}[/ok_cl]")
+            _print_line(
+                "[detail]Para detenerla: cerrala desde el Administrador de tareas "
+                "(busca el proceso python -m cognia.oficina).[/detail]"
+            )
+            webbrowser.open(url)
+            return
+
+    _print_line(
+        f"[err_cl]La oficina no respondio en 10s en el puerto {puerto}. "
+        f"Puede que el puerto este ocupado por otra cosa -- proba con /oficina <otro_puerto>.[/err_cl]"
+    )
+
+
+# ---------------------------------------------------------------------------
+# /analiticas — panel de telemetria local (Plausible nativo, todo privado)
+# ---------------------------------------------------------------------------
+
+def _slash_analiticas(args: str) -> None:
+    """Muestra el panel agregado de las 3 fuentes de telemetria (codigo /
+    features / eventos del bus). Todo local, nada sale a la red."""
+    try:
+        from cognia.analytics.panel import render_texto
+        _print_line(render_texto())
+    except Exception as e:
+        _print_line(f"[err_cl]analiticas error: {e}[/err_cl]")
+
+
+# ---------------------------------------------------------------------------
 # Persistent user config
 # ---------------------------------------------------------------------------
 
@@ -2633,6 +3116,7 @@ _CONFIG_DEFAULTS: dict = {
     "tema_kg":          "",
     "recordar_sesion":  "true",
     "nivel_detalle":    "normal",
+    "esfuerzo":         "medio",   # nivel /esfuerzo (ver cognia/effort_levels.py)
 }
 
 
@@ -2647,6 +3131,32 @@ def _load_config() -> dict:
 
 def _save_config(cfg: dict) -> None:
     _CONFIG_PATH.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _active_effort() -> dict:
+    """Parametros del nivel /esfuerzo activo (lee ~/.cognia_config.json). Fuente unica
+    para que los comandos de razonamiento escalen profundidad/tokens segun el nivel."""
+    from .effort_levels import get_effort
+    return get_effort(_load_config().get("esfuerzo", "medio"))
+
+
+def _slash_recap() -> None:
+    """Muestra la recapitulacion extractiva de la sesion (sin LLM) + el estado del
+    disparador de recap automatica (FASE 6 / O3)."""
+    from cognia.memory.recap_policy import should_recap
+    n_user = sum(1 for h in _history if h.get("role") == "user")
+    ctx_chars = sum(len(h.get("content", "")) for h in _history)
+    summary = _session_recap
+    if not summary:
+        try:
+            from cognia.summarizer.session_summarizer import SessionSummarizer
+            summary = SessionSummarizer().extract_summary(_history)
+        except Exception:
+            summary = ""
+    pend, reason = should_recap(n_user, context_chars=ctx_chars)
+    _print_line(f"Recapitulacion de sesion ({n_user} turnos de usuario, {ctx_chars} chars):")
+    _print_line(summary or "  (sin contenido suficiente para recapitular)")
+    _print_line(f"[detail]recap automatica: {'pendiente (' + reason + ')' if pend else 'al dia'}[/detail]")
 
 
 def _slash_config(args: str) -> None:
@@ -2694,6 +3204,57 @@ def _slash_config(args: str) -> None:
             "  /config reset        Restablecer valores por defecto\n"
             "  /config exportar     Exportar como JSON"
         )
+
+
+def _slash_esfuerzo(args: str) -> None:
+    """Muestra o cambia el nivel de esfuerzo del razonamiento (objetivo /esfuerzo).
+
+    Persiste en ~/.cognia_config.json (clave 'esfuerzo'). Sin argumento muestra el
+    nivel activo y sus parametros; con un nivel valido lo cambia. Los parametros
+    (max_tokens, alternativas, profundidad, verificaciones, reintentos, subtareas)
+    viven en cognia/effort_levels.py — fuente unica para razonamiento/flujos.
+    """
+    from .effort_levels import (
+        EFFORT_LEVELS, effort_names, normalize_effort, DEFAULT_EFFORT,
+    )
+    args = args.strip()
+    cfg = _load_config()
+    current = normalize_effort(cfg.get("esfuerzo", DEFAULT_EFFORT)) or DEFAULT_EFFORT
+
+    if not args:
+        p = EFFORT_LEVELS[current]
+        _print_line(
+            f"Nivel de esfuerzo activo: {current}  ({p['descripcion']})\n"
+            f"  max_tokens={p['max_tokens']}  alternativas={p['alternativas']}  "
+            f"profundidad={p['profundidad']}  verificaciones={p['verificaciones']}  "
+            f"reintentos={p['reintentos']}  subtareas_max={p['subtareas_max']}\n"
+            f"  hibrido: colonia={'si' if p.get('colonia') else 'no'}  "
+            f"superorganismo={'si' if p.get('superorganismo') else 'no'}  "
+            f"delegacion_max={p.get('delegacion_max')}  "
+            f"umbral_shift={p.get('umbral_shift')}  "
+            f"pasos_factor={p.get('pasos_factor')}\n"
+            f"Niveles: {', '.join(effort_names())}   (uso: /esfuerzo <nivel>)"
+        )
+        return
+
+    target = normalize_effort(args)
+    if target is None:
+        _print_line(
+            f"[warn_cl]Nivel desconocido: {args}. "
+            f"Validos: {', '.join(effort_names())}[/warn_cl]"
+        )
+        return
+    cfg["esfuerzo"] = target
+    _save_config(cfg)
+    p = EFFORT_LEVELS[target]
+    _print_line(
+        f"Nivel de esfuerzo -> {target}  ({p['descripcion']})\n"
+        f"  max_tokens={p['max_tokens']}  verificaciones={p['verificaciones']}  "
+        f"alternativas={p['alternativas']}  reintentos={p['reintentos']}\n"
+        f"  hibrido: colonia={'si' if p.get('colonia') else 'no'}  "
+        f"superorganismo={'si' if p.get('superorganismo') else 'no'}  "
+        f"pasos_factor={p.get('pasos_factor')}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -2781,7 +3342,11 @@ def _slash_plan_crear(ai, goal: str) -> str:
         f"Devuelve SOLO una lista numerada, un paso por linea, sin introduccion ni conclusion.\n\n"
         f"Objetivo: {goal}"
     )
-    result = orch.infer(prompt)
+    # max_tokens=160 + temperature=0.0: una lista de 3-5 pasos es corta; sin cota
+    # (default del orquestador) un infer degenerado del 3B llenaba hasta el cap
+    # (~70s de basura). Mismo patrón que el decompose del agente. SIN repeat_penalty
+    # (empuja al 3B a basura; ver el paso ReAct de _run_agent_task).
+    result = orch.infer(prompt, max_tokens=160, temperature=0.0)
     raw_text = result.text.strip()
     steps = []
     for line in raw_text.splitlines():
@@ -2984,7 +3549,7 @@ def _slash_skill_cargar(ai, nombre: str, args: str):
 
 def _call_articulated(ai, prompt: str) -> str:
     try:
-        from respuestas_articuladas import responder_articulado
+        from cognia_v3.interfaces.respuestas_articuladas import responder_articulado
         result = responder_articulado(ai, prompt)
         if "error" in result:
             return f"Error: {result['error']}"
@@ -2992,6 +3557,690 @@ def _call_articulated(ai, prompt: str) -> str:
     except Exception as e:
         return f"Error: {e}"
 
+
+# Tope de pasadas del auto-continuar de /largo (D1): cognia encadena sola las
+# continuaciones de una respuesta larga CORTADA hasta completarla. 0 = solo
+# manual. 6 pasadas x ~5k tok = ~30k extra por pedido, suficiente para lo
+# cotidiano sin permitir un loop sin fin si el modelo nunca cierra.
+_LARGO_AUTO_PASADAS = int(os.environ.get("COGNIA_LARGO_AUTO_PASADAS", "6"))
+
+
+def _parse_largo_flags(pedido: str) -> dict:
+    """Extrae los flags de escala de /largo del INICIO del pedido, en cualquier orden
+    (mismo estilo que el parseo original: strip de prefijos conocidos, sin argparse):
+
+      --jerarquico            modo jerarquico (outline -> secciones, generate_hierarchical)
+      --delegado              modo delegado (outline -> workers + cabeza, generate_delegated)
+      --tokens N              target_tokens total del pedido
+      --secciones N           n_sections (aplica con --jerarquico)
+      --tareas N              n_tasks (aplica con --delegado; si falta y hay --tokens,
+                               _slash_largo lo deriva de target_tokens/per_task_cap)
+      --continuar <archivo>   retoma una generacion truncada (ver _slash_largo_continuar)
+      --manual                desactiva el auto-continuar de ESTA corrida (por defecto
+                               cognia encadena sola las continuaciones hasta completar)
+
+    Devuelve un dict con esas claves + "pedido" (el texto restante, el pedido real).
+    Un valor numerico invalido (no entero) deja el flag en None sin consumir el resto.
+    """
+    out = {"jerarquico": False, "delegado": False, "tokens": None,
+          "secciones": None, "tareas": None, "continuar": None, "manual": False}
+    rest = pedido.strip()
+
+    def _pop_int(s: str):
+        parts = s.split(None, 1)
+        if parts and parts[0].lstrip("-").isdigit():
+            return int(parts[0]), (parts[1] if len(parts) > 1 else "")
+        return None, s
+
+    while True:
+        low = rest.lower()
+        if low.startswith("--jerarquico"):
+            out["jerarquico"] = True
+            rest = rest[len("--jerarquico"):].strip()
+        elif low.startswith("--delegado"):
+            out["delegado"] = True
+            rest = rest[len("--delegado"):].strip()
+        elif low.startswith("--manual"):
+            out["manual"] = True
+            rest = rest[len("--manual"):].strip()
+        elif low.startswith("--continuar"):
+            rest = rest[len("--continuar"):].strip()
+            parts = rest.split(None, 1)
+            out["continuar"] = parts[0] if parts else ""
+            rest = parts[1] if len(parts) > 1 else ""
+        elif low.startswith("--tokens"):
+            rest = rest[len("--tokens"):].strip()
+            val, rest = _pop_int(rest)
+            if val is not None:
+                out["tokens"] = val
+        elif low.startswith("--secciones"):
+            rest = rest[len("--secciones"):].strip()
+            val, rest = _pop_int(rest)
+            if val is not None:
+                out["secciones"] = val
+        elif low.startswith("--tareas"):
+            rest = rest[len("--tareas"):].strip()
+            val, rest = _pop_int(rest)
+            if val is not None:
+                out["tareas"] = val
+        else:
+            break
+
+    out["pedido"] = rest
+    return out
+
+
+def _resolve_largo_backend(ai):
+    """Backend llama.cpp para /largo (y /largo --continuar): orquestador cacheado en
+    ai si existe, si no uno local, con _try_load_llama() para levantar el fast-path.
+    Devuelve el LlamaBackend, o None si no hay backend disponible."""
+    _llama = None
+    try:
+        from shattering.orchestrator import ShatteringOrchestrator as _SO
+        _orch = getattr(ai, '_orchestrator', None)
+        if _orch is None:
+            try:
+                _orch = _SO(mode='local')
+            except Exception:
+                _orch = None
+        if _orch is not None:
+            _llama = getattr(_orch, '_llama', None)
+            if _llama is None:
+                try:
+                    _orch._try_load_llama()
+                    _llama = getattr(_orch, '_llama', None)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    # Fleet: /largo genera con la BASE pura (los expertos regresionan G1).
+    try:
+        if _llama is not None and getattr(_llama, "fleet_experts", []):
+            _llama.activate_expert(None)
+    except Exception:
+        pass
+    return _llama
+
+
+def _largo_default_path(pedido: str) -> Path:
+    """Nombre de archivo por defecto para /largo cuando no hay uno explicito (hoy no
+    existe un flag de destino): largo_<slug-del-pedido>_<timestamp>.txt en el cwd."""
+    slug = re.sub(r"[^a-z0-9]+", "_", pedido.strip().lower()).strip("_")[:40] or "pedido"
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Path(f"largo_{slug}_{stamp}.txt")
+
+
+def _largo_state_path(out_path: Path) -> Path:
+    """Ruta del sidecar de checkpoint de /largo para el archivo de salida `out_path`."""
+    return out_path.with_name(out_path.name + ".largo_state.json")
+
+
+def _largo_save_state(out_path: Path, state: dict) -> None:
+    """Escritura ATOMICA del sidecar (temp + os.replace) -- mismo patron que
+    tool_synthesis._save_manifest: un lector nunca ve JSON a medio escribir."""
+    state_path = _largo_state_path(out_path)
+    tmp = state_path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, state_path)
+
+
+def _largo_load_state(out_path: Path):
+    """Sidecar de /largo para `out_path`, o None si no existe / esta corrupto."""
+    state_path = _largo_state_path(out_path)
+    if not state_path.exists():
+        return None
+    try:
+        return json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _largo_append_text(out_path: Path, text: str) -> None:
+    """Appendea texto al archivo de salida de /largo (utf-8, flush inmediato: si el
+    proceso se corta a mitad de camino, lo ya escrito sobrevive en disco)."""
+    if not text:
+        return
+    with out_path.open("a", encoding="utf-8") as f:
+        f.write(text)
+        f.flush()
+
+
+def _largo_es_completo(mode: str, result: dict) -> bool:
+    """True si /largo termino por fin NATURAL, False si corto por presupuesto (CORTADO).
+
+    Modo plano: stop_reason del propio generate_long ('limit'/'error' = CORTADO).
+    Modo jerarquico/delegado: no hay stop_reason a nivel del resultado agregado (cada
+    seccion/tarea corre su propio generate_long interno); el proxy es si se generaron
+    TODAS las secciones/tareas planificadas -- lo unico que corta el loop antes de
+    cubrir el outline completo es una falla de generate_long a mitad de camino.
+    """
+    if mode == "plano":
+        return result.get("stop_reason") not in ("limit", "error")
+    outline = result.get("outline") or []
+    return len(outline) > 0 and result.get("sections", 0) >= len(outline)
+
+
+def _slash_largo(ai, pedido: str) -> None:
+    """
+    /largo [--jerarquico|--delegado] [--tokens N] [--secciones N|--tareas N] <pedido>:
+    generacion larga via el fast-path llama.cpp con continuacion automatica
+    (LlamaBackend.generate_long/generate_hierarchical/generate_delegated).
+
+    Escribe INCREMENTALMENTE a un archivo (por defecto uno derivado del pedido en el
+    cwd) a medida que llega cada ronda/seccion/tarea, con un sidecar de checkpoint
+    <archivo>.largo_state.json -- si se corta (limite de presupuesto o el proceso
+    muere), /largo --continuar <archivo> retoma desde ahi (ver _slash_largo_continuar).
+    Imprime progreso ASCII por ronda y el texto completo al final.
+    """
+    from shattering.model_constants import (
+        COGNIA_SYSTEM_PROMPT, GEN_CHAT_TEMPERATURE, GEN_LONG_MAX_TOKENS,
+        GEN_USER_MAX_TOKENS_CAP,
+    )
+    flags = _parse_largo_flags(pedido)
+
+    # --continuar es un modo aparte (retoma un archivo existente); no pasa por el
+    # resto del parseo/validacion de un pedido nuevo.
+    if flags["continuar"]:
+        _slash_largo_continuar(ai, flags["continuar"])
+        return
+
+    jerarquico = flags["jerarquico"]
+    delegado   = flags["delegado"]
+    pedido     = flags["pedido"]
+    if not pedido:
+        _print_line("[warn_cl]Uso: /largo [--jerarquico|--delegado] [--tokens N] "
+                    "[--secciones N|--tareas N] <pedido>[/warn_cl]")
+        return
+
+    # Validacion sana de --tokens: tope absoluto de entrada (GEN_USER_MAX_TOKENS_CAP).
+    target_tokens = flags["tokens"]
+    if target_tokens is not None:
+        if target_tokens < 1:
+            _print_line("[warn_cl]--tokens debe ser >= 1; se ignora.[/warn_cl]")
+            target_tokens = None
+        elif target_tokens > GEN_USER_MAX_TOKENS_CAP:
+            _print_line(f"[warn_cl]--tokens {target_tokens} supera el tope "
+                        f"{GEN_USER_MAX_TOKENS_CAP}; se recorta a ese tope.[/warn_cl]")
+            target_tokens = GEN_USER_MAX_TOKENS_CAP
+
+    # Modo plano: acotado a GEN_LONG_MAX_TOKENS -- sin outline no hay estructura que
+    # sostenga un pedido gigante de forma coherente (re-anclaje de cola sin plan).
+    # Para pedidos mas grandes: --delegado o --jerarquico.
+    if not jerarquico and not delegado and target_tokens is not None \
+            and target_tokens > GEN_LONG_MAX_TOKENS:
+        _print_line(f"[warn_cl]El modo plano esta acotado a {GEN_LONG_MAX_TOKENS} "
+                    f"tokens (sin --jerarquico/--delegado no hay outline que sostenga "
+                    f"pedidos mas grandes). Prueba: /largo --delegado --tokens "
+                    f"{target_tokens} {pedido}[/warn_cl]")
+        target_tokens = GEN_LONG_MAX_TOKENS
+
+    n_sections = flags["secciones"]
+    n_tasks    = flags["tareas"]
+    if delegado and n_tasks is None and target_tokens is not None:
+        # Derivar n_tasks del target y el cap por tarea (default = GEN_LONG_MAX_TOKENS,
+        # el mismo default interno de generate_delegated.per_task_cap).
+        import math
+        n_tasks = math.ceil(target_tokens / GEN_LONG_MAX_TOKENS)
+
+    _llama = _resolve_largo_backend(ai)
+    if _llama is None or not hasattr(_llama, "generate_long"):
+        _print_line("[warn_cl]backend llama no disponible (GGUF o llama-server "
+                    "faltante) -- /largo necesita el fast-path llama.cpp[/warn_cl]")
+        return
+    if delegado and not hasattr(_llama, "generate_delegated"):
+        _print_line("[warn_cl]backend sin generate_delegated -- actualiza node/llama_backend.py[/warn_cl]")
+        return
+
+    # Prompt ChatML igual que el fallback del fast-path de chat (sin historial:
+    # el pedido largo es one-shot, el contexto entero se gasta en la respuesta).
+    try:
+        from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
+        from cognia.user_prefs import personalize_prompt
+        _system = personalize_prompt(build_adaptive_system_prompt(ai))
+    except Exception:
+        _system = COGNIA_SYSTEM_PROMPT
+    from node.inference_pipeline import _apply_qwen_template
+    _prompt = _apply_qwen_template(pedido, _system)
+
+    mode = "delegado" if delegado else ("jerarquico" if jerarquico else "plano")
+    out_path = _largo_default_path(pedido)
+    out_path.write_text("", encoding="utf-8")   # archivo nuevo y vacio: escritura incremental
+    _print_line(f"[detail]Salida incremental: {out_path}[/detail]")
+
+    state = {
+        "mode":           mode,
+        "pedido":         pedido,
+        "target_tokens":  target_tokens,
+        "outline":        [],
+        "done_indices":   [],
+        "prev_summary":   "",
+        "completed":      0,
+        "total_tokens":   0,
+        "stop_reason":    None,
+        "done":           False,
+        "timestamp":      datetime.datetime.now().isoformat(),
+    }
+    _largo_save_state(out_path, state)
+
+    if delegado:
+        _print_line("[detail]Generacion delegada (outline -> workers de contexto "
+                    "limpio + cabeza que teje)...[/detail]")
+    elif jerarquico:
+        _print_line("[detail]Generacion jerarquica (outline -> secciones con prompt "
+                    "fresco; prefill acotado por seccion)...[/detail]")
+    else:
+        _print_line(f"[detail]Generando hasta {target_tokens or GEN_LONG_MAX_TOKENS} "
+                    f"tokens (continuacion automatica, ~10 min a 8 tok/s)...[/detail]")
+    t0 = time.time()
+
+    def _on_outline(items):
+        state["outline"] = list(items)
+        _largo_save_state(out_path, state)
+
+    if delegado:
+        def _on_task(idx, total, titulo, toks, texto, stop_reason):
+            print(f"  worker {idx}/{total}: {titulo[:60]} ({toks} tokens)", flush=True)
+            sep = "\n\n" if state["done_indices"] else ""
+            _largo_append_text(out_path, f"{sep}## {titulo}\n{texto}")
+            state["done_indices"].append(idx - 1)
+            state["completed"] = len(state["done_indices"])
+            state["total_tokens"] += toks
+            state["stop_reason"] = stop_reason
+            state["timestamp"] = datetime.datetime.now().isoformat()
+            _largo_save_state(out_path, state)
+        # pedido CRUDO (no _prompt): generate_delegated arma sus propios prompts
+        # (outline/sec) sobre el texto base; el ChatML rompe el outline.
+        result = _llama.generate_delegated(
+            pedido, target_tokens=target_tokens, n_tasks=n_tasks,
+            temperature=GEN_CHAT_TEMPERATURE, on_task=_on_task, on_outline=_on_outline,
+        )
+        # Cabeza que teje: se conoce recien al final (necesita TODOS los drafts). La
+        # escritura incremental es append-only -> se appendea al FINAL del archivo
+        # (no al principio como en result["text"]), con un encabezado que lo aclara.
+        if result is not None and result.get("head"):
+            _largo_append_text(out_path, f"\n\n## Introduccion (resumen)\n{result['head']}")
+    elif jerarquico:
+        def _on_section(idx, total, titulo, toks, texto, stop_reason):
+            print(f"  seccion {idx}/{total}: {titulo[:60]} ({toks} tokens)", flush=True)
+            sep = "\n\n" if state["done_indices"] else ""
+            _largo_append_text(out_path, f"{sep}## {titulo}\n{texto}")
+            state["done_indices"].append(idx - 1)
+            state["completed"] = len(state["done_indices"])
+            state["total_tokens"] += toks
+            state["stop_reason"] = stop_reason
+            from shattering.model_constants import GEN_SECTION_SUMMARY_CHARS
+            state["prev_summary"] = (
+                titulo + ": " + (texto or "")[:GEN_SECTION_SUMMARY_CHARS]
+            ).replace("\n", " ")
+            state["timestamp"] = datetime.datetime.now().isoformat()
+            _largo_save_state(out_path, state)
+        # pedido CRUDO (no _prompt): igual que delegado, construye sus prompts.
+        result = _llama.generate_hierarchical(
+            pedido, target_tokens=target_tokens, n_sections=n_sections,
+            temperature=GEN_CHAT_TEMPERATURE, on_section=_on_section, on_outline=_on_outline,
+        )
+    else:
+        def _on_chunk(ronda, chunk_toks, total, reason, texto):
+            # Progreso ASCII puro (consola Windows CP1252)
+            print(f"  ronda {ronda}: {chunk_toks} tokens, total {total}", flush=True)
+            _largo_append_text(out_path, texto)
+            state["completed"] += len(texto or "")
+            state["total_tokens"] = total
+            state["stop_reason"] = reason
+            state["timestamp"] = datetime.datetime.now().isoformat()
+            _largo_save_state(out_path, state)
+        result = _llama.generate_long(
+            _prompt, max_total_tokens=target_tokens,
+            temperature=GEN_CHAT_TEMPERATURE,
+            on_chunk=_on_chunk,
+        )
+    elapsed = time.time() - t0
+    if result is None:
+        _print_line("[warn_cl]La generacion larga fallo (primera ronda sin "
+                    "respuesta del backend).[/warn_cl]")
+        return
+    texto = (result.get("text") or "").strip()
+    if not texto:
+        _print_line("[warn_cl]La generacion larga devolvio texto vacio.[/warn_cl]")
+        return
+    _show_response(texto, _ACCENT)
+
+    completo = _largo_es_completo(mode, result)
+    state["done"] = completo
+    _largo_save_state(out_path, state)
+
+    if delegado:
+        _meta = f"{result.get('sections')} subtareas, cabeza={'si' if result.get('head') else 'no'}"
+    elif jerarquico:
+        _meta = f"{result.get('sections')} secciones"
+    else:
+        _meta = f"stop={result.get('stop_reason')}"
+    print(f"  [{result['total_tokens']} tokens, {result['rounds']} rondas, "
+          f"{elapsed:.0f}s, {_meta}]")
+    # Banner de cierre: COMPLETO (fin natural) vs CORTADO (presupuesto/budget).
+    if completo:
+        _print_line(f"[detail]COMPLETO -- fin natural. Archivo: {out_path}[/detail]")
+    else:
+        _print_line(f"[warn_cl]CORTADO (limite de presupuesto alcanzado). "
+                    f"Para seguir: /largo --continuar {out_path}[/warn_cl]")
+        # AUTO-CONTINUAR (default ON): cognia encadena SOLA las continuaciones
+        # hasta completar el pedido, con tope de pasadas para no correr sin fin
+        # (env COGNIA_LARGO_AUTO_PASADAS; 0 o --manual = desactivado). Cada
+        # pasada relee el sidecar: si otro proceso lo completo, corta. Portable:
+        # todo va por Path/el sidecar, sin nada especifico del OS.
+        _auto_pasadas = 0 if flags.get("manual") else _LARGO_AUTO_PASADAS
+        for _pasada in range(_auto_pasadas):
+            _st = _largo_load_state(out_path)
+            if _st is None or _st.get("done"):
+                break
+            _print_line(f"[detail]auto-continuar: pasada {_pasada + 1}/"
+                        f"{_auto_pasadas}...[/detail]")
+            _slash_largo_continuar(ai, str(out_path))
+        _st = _largo_load_state(out_path)
+        if _st is not None and _st.get("done"):
+            _print_line(f"[detail]COMPLETO tras auto-continuar. "
+                        f"Archivo: {out_path}[/detail]")
+        elif _auto_pasadas:
+            _print_line(f"[warn_cl]Sigue INCOMPLETO tras {_auto_pasadas} pasadas "
+                        f"de auto-continuar. Para seguir a mano: /largo "
+                        f"--continuar {out_path}[/warn_cl]")
+    _session_log.append({"input": f"/largo {pedido}", "output": texto,
+                         "elapsed": elapsed})
+    _persist_turn(ai, f"/largo {pedido}", texto)
+
+
+def _slash_largo_continuar(ai, archivo: str) -> None:
+    """
+    /largo --continuar <archivo>: retoma una generacion larga CORTADA leyendo el
+    sidecar <archivo>.largo_state.json que dejo _slash_largo.
+
+    Modo plano: re-ancla con la cola del archivo (ultimos ~1500 chars) como contexto
+    (generate_long(resume_text=...)) y sigue hasta completar target_tokens.
+    Modo jerarquico/delegado: genera SOLO las secciones/tareas planificadas que faltan
+    (outline menos done_indices), una por una via generate_long directo (mismo prompt
+    por-unidad que generate_hierarchical/generate_delegated arman internamente), y las
+    appendea. La cabeza que teje de --delegado NO se regenera en un --continuar (solo
+    se genera en una corrida que termina sin cortes) -- limitacion conocida.
+    """
+    from shattering.model_constants import (
+        COGNIA_SYSTEM_PROMPT, GEN_CHAT_TEMPERATURE, GEN_LONG_MAX_TOKENS,
+    )
+    out_path = Path(archivo)
+    if not out_path.exists():
+        _print_line(f"[warn_cl]No existe el archivo: {out_path}[/warn_cl]")
+        return
+    state = _largo_load_state(out_path)
+    if state is None:
+        _print_line(f"[warn_cl]No hay checkpoint valido para continuar (falta o esta "
+                    f"corrupto {_largo_state_path(out_path)}).[/warn_cl]")
+        return
+    if state.get("done"):
+        # estado accionable para el usuario (no un log de proceso) -> visible
+        # tambien en modo sencillo.
+        _print_line(f"[ok_cl]{out_path} ya esta COMPLETO -- nada que continuar.[/ok_cl]")
+        return
+
+    _llama = _resolve_largo_backend(ai)
+    if _llama is None or not hasattr(_llama, "generate_long"):
+        _print_line("[warn_cl]backend llama no disponible -- /largo --continuar "
+                    "necesita el fast-path llama.cpp[/warn_cl]")
+        return
+
+    mode          = state.get("mode", "plano")
+    pedido        = state.get("pedido", "")
+    target_tokens = state.get("target_tokens") or GEN_LONG_MAX_TOKENS
+    t0 = time.time()
+
+    if mode == "plano":
+        try:
+            from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
+            from cognia.user_prefs import personalize_prompt
+            _system = personalize_prompt(build_adaptive_system_prompt(ai))
+        except Exception:
+            _system = COGNIA_SYSTEM_PROMPT
+        from node.inference_pipeline import _apply_qwen_template
+        _prompt = _apply_qwen_template(pedido, _system)
+        tail = out_path.read_text(encoding="utf-8")[-1500:]
+        remaining = max(256, target_tokens - int(state.get("total_tokens", 0)))
+
+        def _on_chunk(ronda, chunk_toks, total, reason, texto):
+            print(f"  ronda {ronda}: {chunk_toks} tokens, total {total}", flush=True)
+            _largo_append_text(out_path, texto)
+            state["completed"]    = state.get("completed", 0) + len(texto or "")
+            state["total_tokens"] = int(state.get("total_tokens", 0)) + chunk_toks
+            state["stop_reason"]  = reason
+            state["timestamp"]    = datetime.datetime.now().isoformat()
+            _largo_save_state(out_path, state)
+
+        result = _llama.generate_long(
+            _prompt, max_total_tokens=remaining, resume_text=tail,
+            temperature=GEN_CHAT_TEMPERATURE, on_chunk=_on_chunk,
+        )
+        if result is None:
+            _print_line("[warn_cl]La continuacion fallo (backend sin respuesta).[/warn_cl]")
+            return
+        completo = _largo_es_completo("plano", result)
+
+    else:
+        outline      = state.get("outline") or []
+        done_idx_set = set(state.get("done_indices") or [])
+        faltan       = [(i, t) for i, t in enumerate(outline) if i not in done_idx_set]
+        if not faltan:
+            completo = True
+        else:
+            outline_block = "\n".join(f"{i+1}. {s}" for i, s in enumerate(outline))
+            # Mismo cociente que generate_hierarchical/generate_delegated arman
+            # internamente: jerarquico NO capa per-seccion (por diseno, cuasi-infinito);
+            # delegado si capa por-tarea a GEN_LONG_MAX_TOKENS (su per_task_cap default).
+            if mode == "jerarquico":
+                per_unit = max(256, target_tokens // max(1, len(outline)))
+            else:
+                per_unit = min(GEN_LONG_MAX_TOKENS,
+                               max(256, target_tokens // max(1, len(outline))))
+            prev_summary = state.get("prev_summary", "")
+            for idx, titulo in faltan:
+                if mode == "jerarquico":
+                    sec_prompt = (
+                        f"{pedido}\n\nEsquema:\n{outline_block}\n\n"
+                        + (f"Resumen de lo ya escrito: {prev_summary}\n\n" if prev_summary else "")
+                        + f"Escribe SOLO la seccion {idx+1}: {titulo}"
+                    )
+                else:  # delegado: worker de contexto limpio (sin prev_summary)
+                    sec_prompt = (
+                        f"{pedido}\n\nEsquema:\n{outline_block}\n\n"
+                        f"Escribe SOLO la seccion {idx+1}: {titulo}. No repitas las otras secciones."
+                    )
+                res = _llama.generate_long(sec_prompt, max_total_tokens=per_unit,
+                                           temperature=GEN_CHAT_TEMPERATURE)
+                if res is None:
+                    _print_line(f"[warn_cl]Fallo generando la seccion/tarea faltante "
+                                f"{idx+1} ({titulo[:60]}); se detiene (lo generado "
+                                f"hasta ahora ya esta guardado).[/warn_cl]")
+                    break
+                print(f"  seccion/tarea {idx+1}/{len(outline)}: {titulo[:60]} "
+                      f"({res['total_tokens']} tokens)", flush=True)
+                sep = "\n\n" if state["done_indices"] else ""
+                _largo_append_text(out_path, f"{sep}## {titulo}\n{res['text']}")
+                state["done_indices"].append(idx)
+                state["completed"]    = len(state["done_indices"])
+                state["total_tokens"] = int(state.get("total_tokens", 0)) + res["total_tokens"]
+                state["stop_reason"]  = res["stop_reason"]
+                if mode == "jerarquico":
+                    from shattering.model_constants import GEN_SECTION_SUMMARY_CHARS
+                    prev_summary = (
+                        titulo + ": " + (res["text"] or "")[:GEN_SECTION_SUMMARY_CHARS]
+                    ).replace("\n", " ")
+                    state["prev_summary"] = prev_summary
+                state["timestamp"] = datetime.datetime.now().isoformat()
+                _largo_save_state(out_path, state)
+            completo = len(state["done_indices"]) >= len(outline)
+
+    elapsed = time.time() - t0
+    state["done"] = completo
+    _largo_save_state(out_path, state)
+    if completo:
+        _print_line(f"[detail]COMPLETO -- {out_path} ({elapsed:.0f}s)[/detail]")
+    else:
+        _print_line(f"[warn_cl]Sigue CORTADO. Para seguir: "
+                    f"/largo --continuar {out_path}[/warn_cl]")
+
+
+def _modelo_activo_nombre(_llama) -> str:
+    """Nombre del GGUF activo: /props del server si responde, si no el
+    configurado en el backend, si no LLAMA_GGUF_PATH, si no el default del
+    registry. Siempre devuelve un string ASCII descriptivo."""
+    from shattering.model_constants import (
+        MODEL_GGUF_DEFAULT, MODEL_GGUF_REGISTRY,
+    )
+    if _llama is not None:
+        try:
+            props = _llama.server_props()
+        except Exception:
+            props = None
+        if props:
+            from node.llama_backend import _server_props_summary
+            mp = _server_props_summary(props).get("model_path")
+            if mp:
+                return f"{Path(mp).name} (server vivo)"
+        gp = getattr(_llama, "gguf_path", None)
+        if gp:
+            return f"{Path(str(gp)).name} (configurado en backend)"
+    env = os.environ.get("LLAMA_GGUF_PATH", "").strip()
+    if env:
+        return f"{Path(env).name} (LLAMA_GGUF_PATH, server no arrancado)"
+    return (f"{Path(MODEL_GGUF_REGISTRY[MODEL_GGUF_DEFAULT]).name} "
+            f"(default registry, server no arrancado)")
+
+
+def _slash_modelo(ai, args: str) -> None:
+    """
+    /modelo [3b|7b]: ver o conmutar en caliente el modelo GGUF del backend.
+
+    Sin args: muestra el modelo activo y los del registry con su existencia
+    en disco ([OK]/[NO]). Con clave: para el llama-server actual, setea
+    LLAMA_GGUF_PATH a la ruta absoluta del GGUF elegido y re-dispara la carga
+    via ShatteringOrchestrator.reload_llama(), verificando por GET /props que
+    el modelo cargado es el pedido. ASCII puro (consola Windows CP1252).
+    """
+    from shattering.model_constants import (
+        MODEL_GGUF_REGISTRY, resolve_gguf_path,
+    )
+
+    # Backend actual: solo el orquestador YA cacheado en ai (no construir uno
+    # nuevo ni disparar la carga del modelo solo para mostrar el estado).
+    _orch  = getattr(ai, '_orchestrator', None)
+    _llama = getattr(_orch, '_llama', None) if _orch is not None else None
+
+    key = args.strip().split()[0].lower() if args.strip() else ""
+    if not key:
+        lines = [f"Modelo activo: {_modelo_activo_nombre(_llama)}",
+                 "Disponibles (registry):"]
+        for k, rel in MODEL_GGUF_REGISTRY.items():
+            p = resolve_gguf_path(k)
+            tag = "[OK]" if (p is not None and p.is_file()) else "[NO]"
+            lines.append(f"  {tag} {k} -> {rel}")
+        lines.append("Uso: /modelo <clave>  -- ejemplo: /modelo 7b")
+        _show_response("\n".join(lines), "cyan")
+        return
+
+    if key not in MODEL_GGUF_REGISTRY:
+        validas = ", ".join(sorted(MODEL_GGUF_REGISTRY))
+        _print_line(f"[err_cl]Clave de modelo desconocida: '{key}'. "
+                    f"Validas: {validas}[/err_cl]")
+        return
+
+    target = resolve_gguf_path(key)
+    if not target.is_file():
+        _print_line(f"[err_cl]GGUF no encontrado en disco: {target} -- "
+                    f"no se cambia nada.[/err_cl]")
+        return
+
+    # Ya activo? Solo si hay un server VIVO que reporta ese GGUF por /props
+    # (el nombre por default/env no cuenta: el server podria no estar corriendo).
+    if _llama is not None:
+        try:
+            props = _llama.server_props()
+        except Exception:
+            props = None
+        if props:
+            from node.llama_backend import _server_props_summary
+            mp = _server_props_summary(props).get("model_path")
+            if mp and Path(mp).name == target.name:
+                _print_line(f"[detail]{target.name} ya es el modelo activo.[/detail]")
+                return
+
+    # Parar el server actual. stop() devuelve False si el server fue adoptado
+    # (proceso externo): en ese caso NO seguimos, porque el reload adoptaria
+    # el server viejo con el modelo viejo.
+    if _llama is not None:
+        try:
+            stopped = _llama.stop()
+        except Exception:
+            stopped = False
+        if not stopped:
+            _print_line("[err_cl]El llama-server actual fue arrancado "
+                        "externamente y no se puede parar desde aca. "
+                        "Cerralo manualmente y reintenta /modelo.[/err_cl]")
+            return
+    else:
+        # Sin backend cacheado puede igual haber un server externo vivo en el
+        # puerto: el reload lo adoptaria con el modelo viejo. Chequear antes.
+        from node.llama_backend import _DEFAULT_PORT
+        port = int(os.environ.get("LLAMA_SERVER_PORT", _DEFAULT_PORT))
+        try:
+            import urllib.request as _urlreq
+            _urlreq.urlopen(f"http://127.0.0.1:{port}/health", timeout=1)
+            _print_line(f"[err_cl]Hay un llama-server externo vivo en :{port} "
+                        f"que este REPL no controla. Cerralo manualmente y "
+                        f"reintenta /modelo.[/err_cl]")
+            return
+        except Exception:
+            pass  # puerto libre: camino normal
+
+    # Setear el GGUF elegido (ruta absoluta; _find_gguf prioriza este env var)
+    os.environ["LLAMA_GGUF_PATH"] = str(target)
+
+    _print_line(f"[detail]Cargando {target.name}... (el 7B tarda ~60-90s en "
+                f"frio; el REPL queda bloqueado mientras tanto)[/detail]")
+
+    # Recargar el backend: orquestador cacheado en ai si existe, si no uno
+    # local nuevo (mismo patron que /largo).
+    if _orch is None:
+        try:
+            from shattering.orchestrator import ShatteringOrchestrator as _SO
+            _orch = _SO(mode='local')
+        except Exception as e:
+            _print_line(f"[err_cl]No se pudo construir el orquestador: {e}[/err_cl]")
+            return
+    try:
+        nuevo = _orch.reload_llama()
+    except Exception as e:
+        _print_line(f"[err_cl]La recarga del backend fallo: {e}[/err_cl]")
+        return
+    if nuevo is None:
+        _print_line("[err_cl]El backend no cargo con el nuevo GGUF (binario "
+                    "llama-server o runtime faltante?). Revisa los logs.[/err_cl]")
+        return
+
+    # Verificar via GET /props que el server nuevo cargo el modelo pedido
+    real = None
+    try:
+        props = nuevo.server_props()
+    except Exception:
+        props = None
+    if props:
+        from node.llama_backend import _server_props_summary
+        real = _server_props_summary(props).get("model_path")
+    if real is None:
+        # Backend in-process (sin /props): confiar en la ruta configurada
+        gp = getattr(nuevo, "gguf_path", None)
+        real = str(gp) if gp else None
+    if real and Path(real).name == target.name:
+        _print_line(f"[ok]Modelo activo: {Path(real).name}[/ok]")
+    else:
+        _print_line(f"[warn_cl]Backend cargado pero el modelo reportado no "
+                    f"coincide (esperado {target.name}, server reporta "
+                    f"{real}).[/warn_cl]")
 
 
 # ---------------------------------------------------------------------------
@@ -3414,7 +4663,7 @@ def _slash_reporte_json() -> None:
 def _slash_reporte_completo(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/reports/generate?period=7", timeout=10)
+        resp = requests.get("http://127.0.0.1:8765/reports/generate?period=7", timeout=10)
         if resp.status_code == 200:
             report = resp.json().get("report", "")
             if args.strip():
@@ -3435,7 +4684,7 @@ def _slash_reporte_semanal(args: str) -> None:
         import requests
         import datetime as _dt
         from pathlib import Path
-        resp = requests.get("http://localhost:8765/reports/generate?period=7", timeout=10)
+        resp = requests.get("http://127.0.0.1:8765/reports/generate?period=7", timeout=10)
         if resp.status_code == 200:
             report = resp.json().get("report", "")
             dest_dir = Path.home() / ".cognia_reports"
@@ -3454,26 +4703,30 @@ def _slash_reporte_semanal(args: str) -> None:
         print("Servicio de reportes no disponible.")
 
 
-def _slash_cadena_causal(args: str) -> None:
+def _slash_cadena_causal(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /cadena-causal <concepto>")
         return
     c = args.strip()
+    out = _analisis_llm(ai, (
+        f"Concepto/evento: {c}\n\n"
+        "Traza su cadena causal con contenido ESPECIFICO (nada generico).\n"
+        "Formato exacto:\nCausas raiz:\n- ...\nCausas directas:\n- ...\n"
+        f"Efectos de '{c}':\n- ...\nEfectos de segundo orden:\n- ..."))
+    if out is None:
+        _sin_backend_analisis("/cadena-causal")
+        return
     print(f"Cadena causal para: '{c}'")
     print()
-    print(f"Causas posibles de '{c}':")
-    print(f"  factores externos -> condiciones previas -> {c}")
+    print(out)
     print()
-    print(f"Efectos de '{c}':")
-    print(f"  {c} -> consecuencias directas -> impacto en sistema")
-    print()
-    print(f"Para un analisis mas profundo, combina con /kg-responder o /sintetizar {c}")
+    print(f"Para profundizar: /kg-responder o /sintetizar {c}")
 
 
 def _slash_metas_pendientes(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/goals?status=pending&limit=10", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/goals?status=pending&limit=10", timeout=3)
         if resp.status_code == 200:
             goals = resp.json() if isinstance(resp.json(), list) else resp.json().get("goals", [])
             if not goals:
@@ -3901,7 +5154,7 @@ def _slash_notas(args: str) -> None:
         params = {"limit": 20}
         if note_type:
             params["note_type"] = note_type
-        resp = requests.get("http://localhost:8765/notes", params=params, timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/notes", params=params, timeout=2)
         if resp.status_code == 200:
             data = resp.json()
             notes = data.get("notes", data if isinstance(data, list) else [])
@@ -3924,7 +5177,7 @@ def _slash_nota_agregar(args: str) -> None:
     try:
         import requests
         resp = requests.post(
-            "http://localhost:8765/notes",
+            "http://127.0.0.1:8765/notes",
             json={"content": args.strip(), "note_type": "fact", "session_id": "cli", "source": "manual"},
             timeout=2,
         )
@@ -3944,7 +5197,7 @@ def _slash_notas_buscar(args: str) -> None:
         return
     try:
         import requests
-        resp = requests.get("http://localhost:8765/notes/search", params={"q": args.strip()}, timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/notes/search", params={"q": args.strip()}, timeout=2)
         if resp.status_code == 200:
             data = resp.json()
             notes = data.get("notes", data if isinstance(data, list) else [])
@@ -3963,7 +5216,7 @@ def _slash_notas_buscar(args: str) -> None:
 def _slash_notas_stats() -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/notes/stats", timeout=2)
+        resp = requests.get("http://127.0.0.1:8765/notes/stats", timeout=2)
         if resp.status_code == 200:
             s = resp.json()
             total    = s.get("total", 0)
@@ -3990,7 +5243,7 @@ def _slash_nota_fijar(args: str) -> None:
     try:
         import requests
         note_id = args.strip()
-        resp = requests.post(f"http://localhost:8765/notes/{note_id}/pin", timeout=2)
+        resp = requests.post(f"http://127.0.0.1:8765/notes/{note_id}/pin", timeout=2)
         if resp.status_code in (200, 201):
             print(f"Nota {note_id} fijada.")
         else:
@@ -3999,19 +5252,46 @@ def _slash_nota_fijar(args: str) -> None:
         print("Servicio de notas no disponible.")
 
 
+def _learning_db() -> str:
+    """One shared local DB for the learning subsystem (SR cards, quiz results,
+    learning paths). The :8765 desktop API only exists when Electron is running;
+    the standalone CLI talks to the same engines directly so the learning
+    commands work without any service. Mirrors cognia_desktop_api's single-DB
+    layout so quiz can read SR cards written by /aprender.
+    """
+    from cognia.first_run import DATA_DIR
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return str(DATA_DIR / "learning.db")
+
+
+def _sr_engine():
+    from cognia.learning.spaced_repetition import SpacedRepetitionEngine
+    return SpacedRepetitionEngine(db_path=_learning_db())
+
+
+def _quiz_gen():
+    from cognia.learning.quiz_generator import QuizGenerator
+    try:
+        from cognia.config import DB_PATH as _kg_db
+    except Exception:
+        _kg_db = None
+    return QuizGenerator(db_path=_learning_db(), kg_db_path=_kg_db)
+
+
+def _lpath_gen():
+    from cognia.learning.learning_path import LearningPathGenerator
+    return LearningPathGenerator(db_path=_learning_db())
+
+
 def _slash_revisar_sm2() -> None:
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/learning/due", timeout=2)
-        if resp.status_code != 200:
-            print(f"Error: {resp.status_code}")
-            return
-        cards = resp.json().get("cards", resp.json() if isinstance(resp.json(), list) else [])
+        eng = _sr_engine()
+        cards = eng.get_due_cards(limit=5)
         if not cards:
             print("No hay tarjetas para revisar hoy. Buen trabajo!")
             return
         print(f"{len(cards)} tarjeta(s) para revisar.")
-        for card in cards[:5]:
+        for card in cards:
             print(f"\n[{card.get('topic','?')}] {card.get('front','')}")
             input("  Presiona Enter para ver la respuesta...")
             print(f"  -> {card.get('back','')}")
@@ -4020,14 +5300,11 @@ def _slash_revisar_sm2() -> None:
                 quality = max(0, min(5, int(rating)))
             except ValueError:
                 quality = 3
-            r2 = requests.post(f"http://localhost:8765/learning/cards/{card['id']}/review",
-                               json={"quality": quality}, timeout=2)
-            if r2.status_code == 200:
-                updated = r2.json()
-                days = round(updated.get("interval_days", 1), 1)
-                print(f"  Proxima revision en {days} dia(s).")
+            updated = eng.review_card(card["id"], quality)
+            days = round(updated.get("interval_days", 1), 1)
+            print(f"  Proxima revision en {days} dia(s).")
     except Exception as e:
-        print(f"Servicio de aprendizaje no disponible. {e}")
+        print(f"No se pudo revisar: {e}")
 
 
 def _slash_aprender_card(args: str) -> None:
@@ -4035,40 +5312,28 @@ def _slash_aprender_card(args: str) -> None:
     if len(parts) < 2:
         print("Uso: /aprender <frente> | <respuesta> [| <tema>]")
         return
-    payload = {"front": parts[0], "back": parts[1]}
-    if len(parts) >= 3 and parts[2]:
-        payload["topic"] = parts[2]
+    topic = parts[2] if len(parts) >= 3 and parts[2] else "general"
     try:
-        import requests
-        resp = requests.post("http://localhost:8765/learning/cards", json=payload, timeout=2)
-        if resp.status_code in (200, 201):
-            card_id = resp.json().get("id", "?")
-            print(f"Tarjeta guardada (id: {card_id}).")
-        else:
-            print(f"Error: {resp.status_code}")
+        card_id = _sr_engine().add_card(parts[0], parts[1], topic)
+        print(f"Tarjeta guardada (id: {card_id}).")
     except Exception as e:
-        print(f"Servicio de aprendizaje no disponible. {e}")
+        print(f"No se pudo guardar la tarjeta: {e}")
 
 
 def _slash_aprendiendo() -> None:
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/learning/stats", timeout=2)
-        if resp.status_code == 200:
-            s = resp.json()
-            topics = s.get("topics", [])
-            topics_str = ", ".join(topics) if topics else "-"
-            print(
-                f"Aprendizaje:\n"
-                f"  Total tarjetas : {s.get('total', 0)}\n"
-                f"  Para revisar   : {s.get('due', 0)}\n"
-                f"  Dominadas      : {s.get('mastered', 0)}\n"
-                f"  Temas          : {topics_str}"
-            )
-        else:
-            print(f"Error: {resp.status_code}")
+        s = _sr_engine().get_stats()
+        topics = s.get("topics", [])
+        topics_str = ", ".join(topics) if topics else "-"
+        print(
+            f"Aprendizaje:\n"
+            f"  Total tarjetas : {s.get('total', 0)}\n"
+            f"  Para revisar   : {s.get('due_today', 0)}\n"
+            f"  Dominadas      : {s.get('mastered', 0)}\n"
+            f"  Temas          : {topics_str}"
+        )
     except Exception as e:
-        print(f"Servicio de aprendizaje no disponible. {e}")
+        print(f"No se pudieron leer las estadisticas: {e}")
 
 
 def _slash_aprendiendo_buscar(args: str) -> None:
@@ -4077,26 +5342,14 @@ def _slash_aprendiendo_buscar(args: str) -> None:
         return
     query = args.strip().lower()
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/learning/cards", params={"q": query}, timeout=2)
-        if resp.status_code != 200:
-            print(f"Error: {resp.status_code}")
-            return
-        data = resp.json()
-        cards = data.get("cards", data if isinstance(data, list) else [])
-        matches = [
-            c for c in cards
-            if query in c.get("front", "").lower()
-            or query in c.get("back", "").lower()
-            or query in c.get("topic", "").lower()
-        ]
+        matches = _sr_engine().search_cards(query)
         if not matches:
             print("Sin resultados.")
             return
         for c in matches[:20]:
             print(f"[{c.get('topic','?')}] {c.get('front','')} -> {c.get('back','')[:60]}")
     except Exception as e:
-        print(f"Servicio de aprendizaje no disponible. {e}")
+        print(f"No se pudo buscar: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -4106,7 +5359,7 @@ def _slash_aprendiendo_buscar(args: str) -> None:
 def _slash_ver_criticas(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/critique/recent", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/critique/recent", timeout=3)
         if resp.status_code == 200:
             items = resp.json() if isinstance(resp.json(), list) else resp.json().get("critiques", [])
             if not items:
@@ -4117,7 +5370,7 @@ def _slash_ver_criticas(args: str) -> None:
                 score = round(c.get("overall_score", 0), 2)
                 critique = c.get("critique", "")
                 print(f"  {i}. [score={score}] {critique}")
-            r2 = requests.get("http://localhost:8765/critique/score", timeout=2)
+            r2 = requests.get("http://127.0.0.1:8765/critique/score", timeout=2)
             if r2.status_code == 200:
                 d = r2.json()
                 print(f"\n  Promedio 7d: {round(d.get('avg_score_7d',0), 2)} | Tendencia: {d.get('trend','?')}")
@@ -4127,31 +5380,29 @@ def _slash_ver_criticas(args: str) -> None:
         print("Servicio de criticas no disponible.")
 
 
-def _slash_reflexion_profunda(args: str) -> None:
+def _slash_reflexion_profunda(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /reflexion-profunda <pregunta o tema>")
         return
     tema = args.strip()
-    lenses = [
-        ("Analitico",  f"Descompon '{tema}' en sus partes: causas, componentes, mecanismos."),
-        ("Critico",    f"Cuales son las debilidades o limitaciones de '{tema}'?"),
-        ("Creativo",   f"Que alternativas o enfoques no convencionales existen para '{tema}'?"),
-        ("Sistemico",  f"Como interactua '{tema}' con sistemas mas amplios?"),
-        ("Pragmatico", f"Cuales son los pasos accionables concretos relacionados con '{tema}'?"),
-    ]
+    out = _analisis_llm(ai, (
+        f"Tema: {tema}\n\n"
+        "Analizalo con 5 lentes cognitivos, 2-3 frases ESPECIFICAS del tema "
+        "por lente (nada generico). Formato exacto:\n[Analitico]\n  ...\n"
+        "[Critico]\n  ...\n[Creativo]\n  ...\n[Sistemico]\n  ...\n"
+        "[Pragmatico]\n  ..."), max_tokens=600)
+    if out is None:
+        _sin_backend_analisis("/reflexion-profunda")
+        return
     print(f"Reflexion profunda: '{tema}'")
     print()
-    for name, prompt in lenses:
-        print(f"[{name}]")
-        print(f"  Perspectiva: {prompt}")
-        print()
-    print("Usa estas perspectivas para guiar una conversacion mas profunda con Cognia.")
+    print(out)
 
 
 def _slash_calidad_respuestas(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/critique/score", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/critique/score", timeout=3)
         if resp.status_code == 200:
             d = resp.json()
             score = round(d.get("avg_score_7d", 0), 3)
@@ -4170,7 +5421,7 @@ def _slash_calidad_respuestas(args: str) -> None:
 def _slash_features(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/features", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/features", timeout=3)
         if resp.status_code == 200:
             data = resp.json()
             flags = data.get("flags", data if isinstance(data, list) else [])
@@ -4238,7 +5489,7 @@ def _slash_vocabulario_guardar(args: str) -> None:
         saved = 0
         for word in list(word_set)[:10]:
             r = requests.post(
-                "http://localhost:8765/kg",
+                "http://127.0.0.1:8765/kg",
                 json={"subject": "vocabulario_sesion", "predicate": "incluye", "object": word},
                 timeout=2,
             )
@@ -4252,7 +5503,7 @@ def _slash_vocabulario_guardar(args: str) -> None:
 def _slash_hechos_solidos(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/knowledge/crystallized", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/knowledge/crystallized", timeout=3)
         if resp.status_code == 200:
             facts = resp.json() if isinstance(resp.json(), list) else resp.json().get("facts", [])
             if not facts:
@@ -4274,11 +5525,11 @@ def _slash_hechos_solidos(args: str) -> None:
 def _slash_cristalizar(args: str) -> None:
     try:
         import requests
-        resp = requests.post("http://localhost:8765/knowledge/crystallize", timeout=10)
+        resp = requests.post("http://127.0.0.1:8765/knowledge/crystallize", timeout=10)
         if resp.status_code == 200:
             n = resp.json().get("crystallized", 0)
             print(f"Cristalizacion completada: {n} hecho(s) promovido(s) a alta confianza.")
-            r2 = requests.get("http://localhost:8765/knowledge/crystal-stats", timeout=3)
+            r2 = requests.get("http://127.0.0.1:8765/knowledge/crystal-stats", timeout=3)
             if r2.status_code == 200:
                 s = r2.json()
                 rate = round(s.get("crystallization_rate", 0) * 100, 1)
@@ -4298,12 +5549,12 @@ def _slash_conocimiento_ver(args: str) -> None:
         import requests
         import urllib.parse
         q = urllib.parse.quote(topic)
-        resp = requests.get(f"http://localhost:8765/kg/facts?subject={q}", timeout=3)
+        resp = requests.get(f"http://127.0.0.1:8765/kg/facts?subject={q}", timeout=3)
         facts = []
         if resp.status_code == 200:
             data = resp.json()
             facts = data if isinstance(data, list) else data.get("facts", [])
-        resp2 = requests.get(f"http://localhost:8765/synthesis?q={q}", timeout=5)
+        resp2 = requests.get(f"http://127.0.0.1:8765/synthesis?q={q}", timeout=5)
         synthesis = ""
         if resp2.status_code == 200:
             synthesis = resp2.json().get("synthesis", "")
@@ -4328,17 +5579,9 @@ def _slash_conocimiento_ver(args: str) -> None:
 
 def _slash_quiz(args: str) -> None:
     try:
-        import requests
         topic = args.strip() if args.strip() else None
-        url = "http://localhost:8765/quiz/generate?limit=5"
-        if topic:
-            import urllib.parse
-            url += f"&topic={urllib.parse.quote(topic)}"
-        resp = requests.get(url, timeout=5)
-        if resp.status_code != 200:
-            print(f"Error: {resp.status_code}")
-            return
-        questions = resp.json().get("questions", [])
+        gen = _quiz_gen()
+        questions = gen.generate_mixed(topic=topic, limit=5)
         if not questions:
             print("No hay preguntas disponibles. Agrega hechos con /kg-agregar o tarjetas con /aprender.")
             return
@@ -4348,9 +5591,9 @@ def _slash_quiz(args: str) -> None:
             print(f"\n{i}/{len(questions)}: {q.get('question','')}")
             user_ans = input("  Tu respuesta: ").strip()
             expected = q.get("answer", "")
-            r = requests.post("http://localhost:8765/quiz/answer", timeout=3,
-                json={"question": q["question"], "answer": expected, "user_answer": user_ans, "source": q.get("source","quiz")})
-            is_correct = r.json().get("correct", False) if r.status_code == 200 else (user_ans.lower() == expected.lower())
+            is_correct = gen.record_answer(
+                q.get("question", ""), expected, user_ans, source=q.get("source", "quiz")
+            )
             if is_correct:
                 correct += 1
                 print(f"  Correcto!")
@@ -4358,29 +5601,24 @@ def _slash_quiz(args: str) -> None:
                 print(f"  Incorrecto. Respuesta: {expected}")
         print(f"\nResultado: {correct}/{len(questions)} ({round(correct/len(questions)*100)}%)")
     except Exception as e:
-        print(f"Servicio de quiz no disponible. {e}")
+        print(f"No se pudo generar el quiz: {e}")
 
 
 def _slash_quiz_stats(args: str) -> None:
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/quiz/stats", timeout=3)
-        if resp.status_code == 200:
-            s = resp.json()
-            acc = round(s.get("accuracy", 0)*100, 1)
-            print(f"Estadisticas de quiz:")
-            print(f"  Intentos totales : {s.get('total_attempts', 0)}")
-            print(f"  Correctas        : {s.get('correct', 0)}")
-            print(f"  Precision        : {acc}%")
-            by_source = s.get("by_source", {})
-            for src, data in by_source.items():
-                if data.get("total", 0) > 0:
-                    src_acc = round(data.get("correct",0)/data["total"]*100, 1)
-                    print(f"  [{src}]: {data.get('correct',0)}/{data['total']} ({src_acc}%)")
-        else:
-            print(f"Error: {resp.status_code}")
-    except Exception:
-        print("Servicio de quiz no disponible.")
+        s = _quiz_gen().get_stats()
+        acc = round(s.get("accuracy", 0)*100, 1)
+        print(f"Estadisticas de quiz:")
+        print(f"  Intentos totales : {s.get('total_attempts', 0)}")
+        print(f"  Correctas        : {s.get('correct', 0)}")
+        print(f"  Precision        : {acc}%")
+        by_source = s.get("by_source", {})
+        for src, data in by_source.items():
+            if data.get("total", 0) > 0:
+                src_acc = round(data.get("correct",0)/data["total"]*100, 1)
+                print(f"  [{src}]: {data.get('correct',0)}/{data['total']} ({src_acc}%)")
+    except Exception as e:
+        print(f"No se pudieron leer las estadisticas: {e}")
 
 
 def _slash_exportar_todo(args: str) -> None:
@@ -4394,25 +5632,25 @@ def _slash_exportar_todo(args: str) -> None:
     try:
         import requests
 
-        r = requests.get("http://localhost:8765/export/history?format=json", timeout=5)
+        r = requests.get("http://127.0.0.1:8765/export/history?format=json", timeout=5)
         if r.status_code == 200:
             p = dest_dir / f"historial_{stamp}.json"
             p.write_text(r.text, encoding="utf-8")
             exported.append(str(p.name))
 
-        r = requests.get("http://localhost:8765/notes?limit=1000", timeout=5)
+        r = requests.get("http://127.0.0.1:8765/notes?limit=1000", timeout=5)
         if r.status_code == 200:
             p = dest_dir / f"notas_{stamp}.json"
             p.write_text(r.text, encoding="utf-8")
             exported.append(str(p.name))
 
-        r = requests.get("http://localhost:8765/goals", timeout=5)
+        r = requests.get("http://127.0.0.1:8765/goals", timeout=5)
         if r.status_code == 200:
             p = dest_dir / f"objetivos_{stamp}.json"
             p.write_text(r.text, encoding="utf-8")
             exported.append(str(p.name))
 
-        r = requests.get("http://localhost:8765/reports/generate?period=30", timeout=10)
+        r = requests.get("http://127.0.0.1:8765/reports/generate?period=30", timeout=10)
         if r.status_code == 200:
             report = r.json().get("report", "")
             p = dest_dir / f"reporte_{stamp}.md"
@@ -4426,7 +5664,7 @@ def _slash_exportar_todo(args: str) -> None:
         for f in exported:
             print(f"  - {f}")
     else:
-        print("No se pudo exportar ningun dato. Inicia cognia_desktop_api.py.")
+        print("No se pudo exportar ningun dato. Requiere la app Cognia Desktop corriendo (su API local en 127.0.0.1:8765).")
 
 
 def _slash_camino_nuevo(args: str) -> None:
@@ -4434,45 +5672,34 @@ def _slash_camino_nuevo(args: str) -> None:
         print("Uso: /camino-nuevo <objetivo de aprendizaje>")
         return
     try:
-        import requests
-        resp = requests.post("http://localhost:8765/learning/paths",
-                           json={"goal": args.strip()}, timeout=5)
-        if resp.status_code in (200, 201):
-            path = resp.json()
-            steps = path.get("steps", [])
-            print(f"Camino creado (id: {path.get('id','?')}) para: {path.get('goal','')}")
-            print(f"Pasos ({len(steps)}):")
-            for s in steps:
-                status = "[X]" if s.get("completed") else "[ ]"
-                print(f"  {status} {s.get('number','?')}. {s.get('title','')}")
-        else:
-            print(f"Error: {resp.status_code}")
-    except Exception:
-        print("Servicio de caminos de aprendizaje no disponible.")
+        path = _lpath_gen().generate(args.strip())
+        steps = path.get("steps", [])
+        print(f"Camino creado (id: {path.get('id','?')}) para: {path.get('goal','')}")
+        print(f"Pasos ({len(steps)}):")
+        for s in steps:
+            status = "[X]" if s.get("completed") else "[ ]"
+            print(f"  {status} {s.get('number','?')}. {s.get('title','')}")
+    except Exception as e:
+        print(f"No se pudo crear el camino: {e}")
 
 
 def _slash_caminos(args: str) -> None:
     try:
-        import requests
-        resp = requests.get("http://localhost:8765/learning/paths", timeout=3)
-        if resp.status_code == 200:
-            paths = resp.json() if isinstance(resp.json(), list) else resp.json().get("paths", [])
-            if not paths:
-                print("No hay caminos de aprendizaje activos. Usa /camino-nuevo <objetivo>.")
-                return
-            print(f"Caminos activos ({len(paths)}):")
-            for p in paths:
-                steps = p.get("steps", [])
-                current = p.get("current_step", 0)
-                total = len(steps)
-                pct = round(current/total*100) if total > 0 else 0
-                bar = "#" * (pct // 10) + "." * (10 - pct // 10)
-                print(f"  [id:{p.get('id','?')}] {p.get('goal','?')}")
-                print(f"    [{bar}] {pct}% (paso {current}/{total})")
-        else:
-            print(f"Error: {resp.status_code}")
-    except Exception:
-        print("Servicio no disponible.")
+        paths = _lpath_gen().get_active_paths()
+        if not paths:
+            print("No hay caminos de aprendizaje activos. Usa /camino-nuevo <objetivo>.")
+            return
+        print(f"Caminos activos ({len(paths)}):")
+        for p in paths:
+            steps = p.get("steps", [])
+            current = p.get("current_step", 0)
+            total = len(steps)
+            pct = round(current/total*100) if total > 0 else 0
+            bar = "#" * (pct // 10) + "." * (10 - pct // 10)
+            print(f"  [id:{p.get('id','?')}] {p.get('goal','?')}")
+            print(f"    [{bar}] {pct}% (paso {current}/{total})")
+    except Exception as e:
+        print(f"No se pudieron leer los caminos: {e}")
 
 
 def _slash_camino_avanzar(args: str) -> None:
@@ -4480,25 +5707,19 @@ def _slash_camino_avanzar(args: str) -> None:
         print("Uso: /camino-avanzar <id>")
         return
     try:
-        import requests
-        path_id = int(args.strip())
-        resp = requests.post(f"http://localhost:8765/learning/paths/{path_id}/advance", timeout=3)
-        if resp.status_code == 200:
-            p = resp.json()
-            steps = p.get("steps", [])
-            current = p.get("current_step", 0)
-            if p.get("completed"):
-                print(f"Camino completado! Felicitaciones.")
-            else:
-                next_step = steps[current] if current < len(steps) else None
-                if next_step:
-                    print(f"Paso completado. Proximo paso: {next_step.get('title','')}")
-                else:
-                    print(f"Avanzado. Paso actual: {current}/{len(steps)}")
+        p = _lpath_gen().advance_step(int(args.strip()))
+        steps = p.get("steps", [])
+        current = p.get("current_step", 0)
+        if p.get("completed"):
+            print(f"Camino completado! Felicitaciones.")
         else:
-            print(f"Error: {resp.status_code}")
-    except Exception:
-        print("Servicio no disponible.")
+            next_step = steps[current] if current < len(steps) else None
+            if next_step:
+                print(f"Paso completado. Proximo paso: {next_step.get('title','')}")
+            else:
+                print(f"Avanzado. Paso actual: {current}/{len(steps)}")
+    except Exception as e:
+        print(f"No se pudo avanzar: {e}")
 
 
 def _slash_etiquetar(args: str) -> None:
@@ -4529,7 +5750,7 @@ def _slash_etiquetar(args: str) -> None:
 def _slash_cognia_sabe(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/user/facts", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/user/facts", timeout=3)
         if resp.status_code == 200:
             facts = resp.json() if isinstance(resp.json(), list) else resp.json().get("facts", [])
             if not facts:
@@ -4553,7 +5774,7 @@ def _slash_cognia_aprende(args: str) -> None:
         return
     try:
         import requests
-        resp = requests.post("http://localhost:8765/user/facts",
+        resp = requests.post("http://127.0.0.1:8765/user/facts",
                              json={"fact": args.strip(), "confidence": 1.0}, timeout=3)
         if resp.status_code in (200, 201):
             print(f"Hecho aprendido: '{args.strip()}'")
@@ -4570,7 +5791,7 @@ def _slash_cognia_olvida(args: str) -> None:
     try:
         import requests
         fact_id = int(args.strip())
-        resp = requests.delete(f"http://localhost:8765/user/facts/{fact_id}", timeout=3)
+        resp = requests.delete(f"http://127.0.0.1:8765/user/facts/{fact_id}", timeout=3)
         if resp.status_code == 200:
             print(f"Hecho {fact_id} olvidado.")
         elif resp.status_code == 404:
@@ -4581,24 +5802,23 @@ def _slash_cognia_olvida(args: str) -> None:
         print("Servicio no disponible.")
 
 
-def _slash_argumento(args: str) -> None:
+def _slash_argumento(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /argumento <tesis o posicion>")
         return
     tesis = args.strip()
+    out = _analisis_llm(ai, (
+        f"Tesis: {tesis}\n\n"
+        "Construye el analisis dialectico con contenido ESPECIFICO de esta "
+        "tesis (nada generico). Formato exacto:\nTESIS:\n  ...\nANTITESIS:\n"
+        "  ... (el mejor contraargumento real)\nSINTESIS:\n  ... (posicion "
+        "equilibrada con condiciones concretas)"))
+    if out is None:
+        _sin_backend_analisis("/argumento")
+        return
     print(f"Analisis argumentativo: '{tesis}'")
     print()
-    print("TESIS:")
-    print(f"  Posicion: {tesis}")
-    print(f"  Supuesto: Se afirma que '{tesis}' es verdadero/beneficioso.")
-    print()
-    print("ANTITESIS:")
-    print(f"  La posicion opuesta cuestionaria: es '{tesis}' siempre aplicable?")
-    print(f"  Excepciones posibles: contextos donde '{tesis}' no se sostiene.")
-    print()
-    print("SINTESIS:")
-    print(f"  '{tesis}' puede ser valido bajo condiciones especificas.")
-    print(f"  Una posicion equilibrada considera tanto ventajas como limitaciones.")
+    print(out)
     print()
     print("Sugerencia: combina con /debate, /y-si o /buscar-web para profundizar.")
 
@@ -4606,7 +5826,7 @@ def _slash_argumento(args: str) -> None:
 def _slash_conflictos_kg(args: str) -> None:
     try:
         import requests
-        resp = requests.get("http://localhost:8765/knowledge/conflicts", timeout=3)
+        resp = requests.get("http://127.0.0.1:8765/knowledge/conflicts", timeout=3)
         if resp.status_code == 200:
             conflicts = resp.json() if isinstance(resp.json(), list) else resp.json().get("conflicts", [])
             if not conflicts:
@@ -4626,7 +5846,7 @@ def _slash_conflictos_kg(args: str) -> None:
 def _slash_verificar_kg(args: str) -> None:
     try:
         import requests
-        resp = requests.post("http://localhost:8765/knowledge/conflicts/check", timeout=10)
+        resp = requests.post("http://127.0.0.1:8765/knowledge/conflicts/check", timeout=10)
         if resp.status_code == 200:
             n = resp.json().get("new_conflicts", 0)
             print(f"Verificacion completada: {n} nuevo(s) conflicto(s) detectado(s).")
@@ -4644,7 +5864,7 @@ def _slash_resolver_conflicto(args: str) -> None:
         return
     try:
         import requests
-        resp = requests.post(f"http://localhost:8765/knowledge/conflicts/{args.strip()}/resolve", timeout=3)
+        resp = requests.post(f"http://127.0.0.1:8765/knowledge/conflicts/{args.strip()}/resolve", timeout=3)
         if resp.status_code == 200:
             print(f"Conflicto {args.strip()} marcado como resuelto.")
         else:
@@ -4670,7 +5890,7 @@ def _slash_comandos(args: str) -> None:
     print("Usa /ayuda <comando> para ayuda detallada de un comando.")
 
 
-def _slash_ver_contexto(args: str) -> None:
+def _slash_ver_contexto(ai, args: str) -> None:
     if not args.strip():
         print("Uso: /ver-contexto <pregunta>")
         print("Muestra que contexto inyectaria Cognia en el system prompt para esa pregunta.")
@@ -4683,31 +5903,43 @@ def _slash_ver_contexto(args: str) -> None:
     try:
         import requests
 
-        r = requests.get("http://localhost:8765/user/facts", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/user/facts", timeout=2)
         if r.status_code == 200:
             facts = r.json() if isinstance(r.json(), list) else r.json().get("facts", [])
             if facts:
                 sources.append(("Hechos personales", f"{len(facts)} hechos sobre ti"))
 
-        r = requests.get("http://localhost:8765/knowledge/crystallized", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/knowledge/crystallized", timeout=2)
         if r.status_code == 200:
             kfacts = r.json() if isinstance(r.json(), list) else r.json().get("facts", [])
             if kfacts:
                 sources.append(("KG cristalizado", f"{len(kfacts)} hechos de alta confianza"))
 
-        r = requests.get("http://localhost:8765/goals?status=pending", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/goals?status=pending", timeout=2)
         if r.status_code == 200:
             goals = r.json() if isinstance(r.json(), list) else r.json().get("goals", [])
             if goals:
                 sources.append(("Objetivos activos", f"{len(goals)} objetivos pendientes"))
 
-        r = requests.get("http://localhost:8765/recommendations/top", timeout=2)
+        r = requests.get("http://127.0.0.1:8765/recommendations/top", timeout=2)
         if r.status_code == 200:
             rec = r.json().get("recommendation")
             if rec:
                 sources.append(("Recomendacion", rec.get("title", "")))
     except Exception:
-        sources.append(("API", "no disponible -- contexto reducido"))
+        # Fallback local (sin Electron): mostrar el bloque de memoria REAL que el
+        # fast-path (band-router HYDRA) inyectaria para esta pregunta.
+        try:
+            block = _build_memory_block_for(ai, args.strip())
+        except Exception:
+            block = ""
+        if block:
+            print("Bloque de memoria local (HYDRA) que se inyectaria:")
+            print(block)
+            print()
+            sources.append(("HYDRA local", "band-router LOCAL/MEDIA/GLOBAL"))
+        else:
+            sources.append(("API", "no disponible -- sin contexto local"))
 
     if sources:
         print("Fuentes de contexto disponibles:")
@@ -4757,6 +5989,18 @@ def _slash_limpiar_sesion(args: str) -> None:
     _session_feedback = []
     print(f"Sesion limpiada: {n_history} mensajes y {n_feedback} feedback(s) eliminados.")
     print("Los datos persistentes (notas, metas, KG) no se han modificado.")
+
+
+def _strip_input_bom(line: str) -> str:
+    """Quita el BOM UTF-8 que aparece al inicio de la PRIMERA linea cuando
+    stdin viene pipeado (p.ej. PowerShell antepone los bytes EF BB BF al
+    stream). Segun el encoding de stdin el BOM llega como '\\ufeff' (utf-8)
+    o como '\\xef\\xbb\\xbf' (cp1252). Sin esto, un '/comando' como primera
+    linea no empieza con '/' y cae al chat en vez del dispatch (bug E2E)."""
+    for _bom in ("\ufeff", "\xef\xbb\xbf"):
+        if line.startswith(_bom):
+            line = line[len(_bom):]
+    return line.strip()
 
 
 def repl():
@@ -4820,33 +6064,28 @@ def repl():
     _animate_startup(_init_lines)
 
     # Build input function
+    session = None
     if _HAS_PT:
-        _pt_style = PTStyle.from_dict({
-            "":                                        "ansiyellow bold",
-            "completion-menu.completion":              "bg:#1c1c2e fg:#c8c8d8",
-            "completion-menu.completion.current":      "bg:#004466 fg:#ffffff",
-            "completion-menu.meta.completion":         "bg:#1c1c2e fg:#667788",
-            "completion-menu.meta.completion.current": "bg:#004466 fg:#aaccdd",
-            "scrollbar.background":                    "bg:#1c1c2e",
-            "scrollbar.button":                        "bg:#334455",
-        })
-        _kb = KeyBindings()
-
-        @_kb.add("tab")
-        def _tab_complete(event):
-            buff = event.app.current_buffer
-            if buff.complete_state:
-                buff.complete_next()
-            else:
-                buff.start_completion(select_first=True)
-
-        # prompt_toolkit necesita una consola de verdad. Con la entrada
-        # redirigida (`cognia < guion.txt`, `cognia | tee log.txt`, un runner
-        # de CI) revienta con NoConsoleScreenBufferError y el usuario se lleva
-        # un traceback crudo. La rama simple con input() de mas abajo ya existe
-        # para cuando falta la libreria; sirve igual para cuando esta pero no
-        # hay consola. Medido el 2026-07-20 al intentar guionizar el REPL.
         try:
+            _pt_style = PTStyle.from_dict({
+                "":                                        "ansiyellow bold",
+                "completion-menu.completion":              "bg:#1c1c2e fg:#c8c8d8",
+                "completion-menu.completion.current":      "bg:#004466 fg:#ffffff",
+                "completion-menu.meta.completion":         "bg:#1c1c2e fg:#667788",
+                "completion-menu.meta.completion.current": "bg:#004466 fg:#aaccdd",
+                "scrollbar.background":                    "bg:#1c1c2e",
+                "scrollbar.button":                        "bg:#334455",
+            })
+            _kb = KeyBindings()
+
+            @_kb.add("tab")
+            def _tab_complete(event):
+                buff = event.app.current_buffer
+                if buff.complete_state:
+                    buff.complete_next()
+                else:
+                    buff.start_completion(select_first=True)
+
             session = PromptSession(
                 history=InMemoryHistory(),
                 completer=_CogniaCompleter(),
@@ -4856,24 +6095,32 @@ def repl():
                 key_bindings=_kb,
                 style=_pt_style,
             )
-        except Exception as _exc_pt:
-            _print_line(f"[detail]Sin consola interactiva ({type(_exc_pt).__name__}): "
-                        f"modo simple, sin autocompletado.[/detail]")
+        except Exception:
+            # Sin consola Win32 (stdin piped, subprocess, CI): prompt_toolkit
+            # muere con NoConsoleScreenBufferError al crear la PromptSession y
+            # el REPL entero moria al arrancar (bug real: `echo hola | cognia`
+            # crasheaba). Fallback al input() plano -> REPL scripteable.
             session = None
 
-        if session is None:
-            def _get_input():
-                return input("cognia> ").strip()
-        else:
-            def _get_input():
-                line = session.prompt("cognia> ").strip()
-                while line.endswith("\\"):
-                    continuation = session.prompt("  ").strip()
-                    line = line[:-1].rstrip() + " " + continuation
-                return line
+    if session is not None:
+        def _get_input():
+            line = session.prompt("cognia> ").strip()
+            while line.endswith("\\"):
+                continuation = session.prompt("  ").strip()
+                line = line[:-1].rstrip() + " " + continuation
+            return line
     else:
         def _get_input():
             return input(_G + "cognia> " + _R).strip()
+
+    # Warm-up del 0.5B del fast-path en background (portero instalado o cascada
+    # opt-in): el 1er turno trivial arranca warm (~30 tok/s) en vez de cold (~18).
+    # No bloquea el REPL.
+    try:
+        from node.speech_cascade import prewarm_fast_speech
+        prewarm_fast_speech()
+    except Exception:
+        pass
 
     # -----------------------------------------------------------------------
     # Main loop
@@ -4889,7 +6136,10 @@ def repl():
         except Exception:
             pass
         try:
-            raw = _get_input()
+            # El BOM que PowerShell antepone al pipe rompe el dispatch de la
+            # primera linea ('/comando' deja de empezar con '/'): sanear aca,
+            # el UNICO punto de entrada al dispatch.
+            raw = _strip_input_bom(_get_input())
         except (EOFError, KeyboardInterrupt):
             print("\nHasta luego.")
             break
@@ -4989,9 +6239,11 @@ def repl():
                 subprocess.run([sys.executable, _scr] + _dargs)
             else:
                 _print_line("[detail]/distill esta disponible desde el repo de Cognia (no en la instalacion pip).[/detail]")
-        elif raw.startswith("/ayuda "):
-            _slash_ayuda_detallada(raw[len("/ayuda "):])
-        elif raw == "/ayuda":
+        elif raw.startswith("/ayuda ") or raw.startswith("/help "):
+            _slash_ayuda_detallada(raw.split(" ", 1)[1])
+        elif raw in ("/ayuda", "/help"):
+            # /help = alias de /ayuda (varios mensajes del propio CLI lo
+            # recomendaban y el comando no existia — cazado 2026-07-16).
             if _HAS_RICH and _console:
                 _console.print(HELP_TEXT, style="bright_green", markup=False)
             else:
@@ -5007,7 +6259,7 @@ def repl():
         elif raw == "/reporte-semanal":
             _slash_reporte_semanal("")
         elif raw.startswith("/cadena-causal"):
-            _slash_cadena_causal(raw[len("/cadena-causal"):].strip())
+            _slash_cadena_causal(ai, raw[len("/cadena-causal"):].strip())
         elif raw == "/metas-pendientes":
             _slash_metas_pendientes("")
         elif raw == "/yo":
@@ -5092,6 +6344,12 @@ def repl():
             _run(raw, lambda: ai.github_research(_query), color="bright_green")
         elif raw == "/investigar":
             _print_line("[warn_cl]Uso: /investigar <query>  -- ejemplo: /investigar machine learning Python[/warn_cl]")
+        elif raw.startswith("/razonar ") and raw[len("/razonar "):].strip():
+            # Loop cientifico: hipotesis -> evaluar valor -> analogias -> validar.
+            texto = raw[len("/razonar "):].strip()
+            _run(raw, lambda: ai.investigate(texto, effort=_active_effort()), color="bright_green")
+        elif raw.startswith("/razonar"):
+            _print_line("[warn_cl]Uso: /razonar <problema>  -- loop cientifico: hipotesis -> evaluar -> analogias -> validar[/warn_cl]")
         elif raw.startswith("/aprende-repo "):
             _ar_target = raw[len("/aprende-repo "):].strip()
             _print_line("[detail]Buscando y aprendiendo de GitHub...[/detail]")
@@ -5143,8 +6401,51 @@ def repl():
             partes = raw[len("/hipotesis "):].split("|", 1)
             _run(raw, lambda: ai.generate_hypothesis(
                 partes[0].strip(), partes[1].strip()), color="magenta")
+        elif raw.startswith("/hipotesis ") and raw[len("/hipotesis "):].strip():
+            texto = raw[len("/hipotesis "):].strip()
+            _run(raw, lambda: ai.generate_hypotheses_many(
+                texto, n=_active_effort()["alternativas"]), color="magenta")
         elif raw.startswith("/hipotesis"):
-            _print_line("[warn_cl]Uso: /hipotesis <A> | <B>[/warn_cl]")
+            _print_line("[warn_cl]Uso: /hipotesis <A> | <B>  (pares)  o  /hipotesis <problema>  (N hipotesis)[/warn_cl]")
+        elif raw.startswith("/experimento ") and raw[len("/experimento "):].strip():
+            texto = raw[len("/experimento "):].strip()
+            _run(raw, lambda: ai.run_experiment(texto), color="cyan")
+        elif raw.startswith("/experimento"):
+            _print_line("[warn_cl]Uso: /experimento <afirmacion>  -- ejemplo: /experimento bubble sort es O(n^2)[/warn_cl]")
+        elif raw.startswith("/evaluar-idea ") and raw[len("/evaluar-idea "):].strip():
+            texto = raw[len("/evaluar-idea "):].strip()
+            _run(raw, lambda: ai.evaluate_idea(texto), color="magenta")
+        elif raw.startswith("/evaluar-idea"):
+            _print_line("[warn_cl]Uso: /evaluar-idea <idea>  -- ejemplo: /evaluar-idea un IDE que escribe sus propios tests[/warn_cl]")
+        elif raw.startswith("/analogia ") and raw[len("/analogia "):].strip():
+            texto = raw[len("/analogia "):].strip()
+            _run(raw, lambda: ai.find_analogies(texto), color="cyan")
+        elif raw.startswith("/analogia"):
+            _print_line("[warn_cl]Uso: /analogia <problema>  -- ejemplo: /analogia el contexto del modelo se satura con conversaciones largas[/warn_cl]")
+        elif raw.startswith("/abstraer ") and raw[len("/abstraer "):].strip():
+            texto = raw[len("/abstraer "):].strip()
+            _run(raw, lambda: ai.solve_by_abstraction(texto), color="cyan")
+        elif raw.startswith("/abstraer"):
+            _print_line("[warn_cl]Uso: /abstraer <problema>  -- ejemplo: /abstraer no me alcanza el tiempo para terminar todas mis tareas del dia[/warn_cl]")
+        elif raw.startswith("/transferir ") and "|" in raw:
+            partes = raw[len("/transferir "):].split("|", 1)
+            _run(raw, lambda: ai.transfer_principle(
+                partes[0].strip(), partes[1].strip()), color="cyan")
+        elif raw.startswith("/transferir"):
+            _print_line("[warn_cl]Uso: /transferir <fuente> | <objetivo>[/warn_cl]")
+        elif raw.startswith("/diversidad ") and "||" in raw:
+            ideas = [p.strip() for p in raw[len("/diversidad "):].split("||")]
+            ideas = [p for p in ideas if p]
+            _run(raw, lambda: ai.measure_diversity(ideas), color="cyan")
+        elif raw.startswith("/diversidad"):
+            _print_line("[warn_cl]Uso: /diversidad <idea1> || <idea2> || ...  "
+                        "-- ejemplo: /diversidad recolectar agua de lluvia || juntar lluvia en azoteas[/warn_cl]")
+        elif raw.startswith("/explorar ") and raw[len("/explorar "):].strip():
+            texto = raw[len("/explorar "):].strip()
+            _run(raw, lambda: ai.explore_problem(texto), color="cyan")
+        elif raw.startswith("/explorar"):
+            _print_line("[warn_cl]Uso: /explorar <problema>  "
+                        "-- ejemplo: /explorar como reducir el consumo de agua en una ciudad[/warn_cl]")
         elif raw.startswith("/explicar "):
             texto = raw[len("/explicar "):].strip()
             _run(raw, lambda: ai.explain(texto), color="magenta")
@@ -5222,13 +6523,15 @@ def repl():
         # -- User profiles --------------------------------------------------
         elif raw == "/usuarios":
             try:
-                from cognia.user_profile import list_users
-                users = list_users(ai.db)
+                from cognia.user_profile import get_profile_manager
+                mgr = getattr(ai, "_profile_manager", None) or get_profile_manager(ai.db)
+                users = mgr.list_users()
                 if users:
+                    current = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
                     _show_response(
                         "\n".join(
-                            f"[{u['id']}] {u['name']}  (interacciones: {u.get('interactions', 0)})"
-                            for u in users
+                            f"- {uid}" + ("  (actual)" if uid == current else "")
+                            for uid in users
                         ),
                         "cyan",
                     )
@@ -5239,8 +6542,18 @@ def repl():
         elif raw.startswith("/usuario "):
             uid = raw[len("/usuario "):].strip()
             try:
-                from cognia.user_profile import switch_user
-                _run(raw, lambda: switch_user(ai, uid), color="cyan")
+                from cognia.user_profile import get_profile_manager
+                mgr = getattr(ai, "_profile_manager", None) or get_profile_manager(ai.db)
+                profile = mgr.load(uid)
+                mgr.save(profile)  # persist so el usuario aparece en /usuarios
+                ai.cognitive_profile = profile
+                _show_response(
+                    f"Usuario activo: {uid}\n"
+                    f"  Estilo        : {getattr(profile, 'response_style', '?')}\n"
+                    f"  Idioma        : {getattr(profile, 'preferred_language', '?')}\n"
+                    f"  Interacciones : {getattr(profile, 'total_interactions', 0)}",
+                    "cyan",
+                )
             except Exception as e:
                 _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
         elif raw == "/estilo_info":
@@ -5254,7 +6567,8 @@ def repl():
         elif raw == "/indice_personal":
             try:
                 from cognia.memory.personal_index import PersonalIndex
-                pi        = PersonalIndex(ai.db)
+                uid       = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
+                pi        = PersonalIndex.load(uid, ai.db)
                 conceptos = pi.list_concepts()
                 if conceptos:
                     _show_response("\n".join(f"- {c}" for c in conceptos), "cyan")
@@ -5267,8 +6581,11 @@ def repl():
             if concepto:
                 try:
                     from cognia.memory.personal_index import PersonalIndex
-                    pi = PersonalIndex(ai.db)
-                    _run(raw, lambda: pi.add_concept(concepto), color="bright_green")
+                    uid = getattr(getattr(ai, "cognitive_profile", None), "user_id", "default")
+                    pi  = PersonalIndex.load(uid, ai.db)
+                    pi.add(concepto)
+                    pi.save(ai.db)
+                    _print_line(f"[bright_green]Concepto agregado al indice: {concepto}[/bright_green]")
                 except Exception as e:
                     _print_line(f"[warn_cl]No disponible: {e}[/warn_cl]")
             else:
@@ -5560,6 +6877,42 @@ def repl():
             else:
                 _print_line("[warn_cl]Uso: /hacer <descripcion de la tarea>[/warn_cl]")
 
+        # -- Long-form generation --------------------------------------------
+        elif raw == "/largo" or raw.startswith("/largo "):
+            _pedido = raw[len("/largo "):].strip() if raw.startswith("/largo ") else ""
+            if _pedido:
+                _slash_largo(ai, _pedido)
+            else:
+                _print_line("[warn_cl]Uso: /largo <pedido>[/warn_cl]")
+
+        # -- Modo sencillo/avanzado (UI: logs + paleta de tools) --------------
+        elif raw == "/modo" or raw.startswith("/modo "):
+            _arg = raw[len("/modo "):].strip().lower() if raw.startswith("/modo ") else ""
+            from cognia.simple_mode import set_ui_mode, get_ui_mode
+            if _arg in ("sencillo", "avanzado"):
+                _m = set_ui_mode(_arg)
+                _print_line(f"[ok_cl]Modo {_m}. " + (
+                    "Cognia solo funciona, sin logs de proceso." if _m == "sencillo"
+                    else "Se muestran los logs de proceso y todas las herramientas."
+                    ) + "[/ok_cl]")
+            else:
+                _print_line(f"[warn_cl]Modo actual: {get_ui_mode()}. "
+                            f"Uso: /modo sencillo | /modo avanzado[/warn_cl]")
+
+        # -- Estado del subsistema agente (daemon, tools generadas, wishlist) --
+        elif raw == "/agente" or raw == "/agente estado" or raw.startswith("/agente "):
+            try:
+                from cognia.agent.agent_status import (
+                    agent_status_snapshot, format_agent_status,
+                )
+                _show_response(format_agent_status(agent_status_snapshot()), "cyan")
+            except Exception as _e:
+                _print_line(f"[warn_cl]No se pudo leer el estado del agente: {_e}[/warn_cl]")
+
+        # -- Model switching ---------------------------------------------------
+        elif raw == "/modelo" or raw.startswith("/modelo "):
+            _slash_modelo(ai, raw[len("/modelo "):] if raw.startswith("/modelo ") else "")
+
         # -- Plan system ---------------------------------------------------
         elif raw.startswith("/plan ") and not raw.startswith("/plan-"):
             _plan_goal = raw[len("/plan "):].strip()
@@ -5656,7 +7009,7 @@ def repl():
                         f"Al final escribe 'Conclusion:' con tu respuesta final.\n\n"
                         f"Pregunta: {_q}"
                     )
-                    _cot_result = _orch_p.infer(_cot_prompt)
+                    _cot_result = _orch_p.infer(_cot_prompt, max_tokens=_active_effort()["max_tokens"])
                     _cot_text = _cot_result.text.strip()
                     for _line in _cot_text.split('\n'):
                         if _line.strip():
@@ -5671,6 +7024,86 @@ def repl():
                         pass
                 except Exception as _pe:
                     _print_line(f"[err_cl]Error en razonamiento: {_pe}[/err_cl]")
+
+        # -- Deliberacion (CognitiveLoop DELIBERATE, offline/determinista) --
+        elif raw.startswith("/deliberar ") or raw == "/deliberar":
+            _obj = raw[len("/deliberar"):].strip()
+            if not _obj:
+                _print_line("[warn_cl]Uso: /deliberar <objetivo>  (plan->critica->verify->revise, offline/determinista)[/warn_cl]")
+            else:
+                _print_line("[detail]Deliberando (offline: planner + self-critic + verifier + world-model)...[/detail]")
+                try:
+                    loop = getattr(ai, "_cognitive_loop", None)
+                    if loop is None:
+                        from cognia.reasoning.cognitive_loop import CognitiveLoop
+                        loop = CognitiveLoop(db_path=getattr(ai, "db", None))
+                        try:
+                            ai._cognitive_loop = loop
+                        except Exception:
+                            pass
+                    # FASE 3c: el nivel /esfuerzo fija el tope de pasadas deliberativas.
+                    _max_iters = _active_effort()["verificaciones"] + 1
+                    _plan, _crit, _verify, _out, _risk = loop._run_deliberate(
+                        _obj, None, max_iters=_max_iters)
+                    _print_line(f"[bold]PLAN ({len(_plan or [])} pasos):[/bold]")
+                    for _i, _st in enumerate(_plan or [], 1):
+                        _print_line(f"  {_i}. {getattr(_st, 'description', _st)} (tool={getattr(_st, 'tool_required', '?')})")
+                    _sc = (_crit or {}).get("scores", {})
+                    _print_line(f"[bold]CRITICA[/bold] overall={float(_sc.get('overall', 0.0)):.2f}: {(_crit or {}).get('critique', '')}")
+                    if _verify is not None:
+                        _ok = getattr(_verify, "passed", False)
+                        _extra = "" if _ok else f" reason={getattr(_verify, 'fail_reason', '')}"
+                        _print_line(f"VERIFY: {'PASS' if _ok else 'FAIL'} (score={float(getattr(_verify, 'score', 0.0)):.2f}){_extra}")
+                    if _risk:
+                        _print_line(f"PLAN RISK: {_risk.get('recommendation', '?')} (max_risk={float(_risk.get('max_risk', 0.0)):.2f})")
+                    _print_line(f"[detail]{_out}[/detail]")
+                    try:
+                        _vv = "PASS" if (_verify is not None and getattr(_verify, "passed", False)) else "FAIL/NA"
+                        ai.observe(f"Deliberacion sobre: {_obj[:80]} | {len(_plan or [])} pasos, verify={_vv}",
+                                   provided_label="deliberacion")
+                    except Exception:
+                        pass
+                except Exception as _de:
+                    _print_line(f"[err_cl]Error en deliberacion: {_de}[/err_cl]")
+
+        # -- Flujo orquestado (analisis->plan->ejecucion->informe->verificacion) --
+        elif raw.startswith("/flujo ") or raw == "/flujo":
+            _goal = raw[len("/flujo"):].strip()
+            if not _goal:
+                _print_line("[warn_cl]Uso: /flujo <objetivo>[/warn_cl]")
+            else:
+                _print_line("[detail]Flujo estructurado (etapas dinamicas por "
+                            "complejidad/esfuerzo)...[/detail]")
+                try:
+                    from cognia.agents.flow import run_flow
+                    _report = run_flow(ai, _goal, _active_effort(), _print_line)
+                    _show_response(_report, _ACCENT)
+                    _session_log.append({"input": raw, "output": _report, "elapsed": 0})
+                    _persist_turn(ai, raw, _report)
+                except Exception as _fe:
+                    _print_line(f"[err_cl]Error en flujo: {_fe}[/err_cl]")
+
+        # -- Proyectos: estado persistente de flujos /flujo (FASE 6, nivel O2) ----
+        elif raw == "/proyectos" or raw.startswith("/proyectos"):
+            try:
+                from cognia.memory.project_memory import get_project_memory
+                _pm = get_project_memory(getattr(ai, "db", None) or "cognia_memory.db")
+                _flows = _pm.recent(8)
+                if not _flows:
+                    _print_line("[detail]Sin flujos registrados todavia (usa /flujo <objetivo>).[/detail]")
+                else:
+                    _print_line("[bold]Proyectos / flujos recientes:[/bold]")
+                    for _f in _flows:
+                        _done, _tot = len(_f["stages_done"]), len(_f["route"])
+                        _sc = f" score={_f['score']}" if _f.get("score") is not None else ""
+                        _print_line(f"  #{_f['id']} [{_f['status']}] {_f['goal'][:60]} "
+                                    f"({_done}/{_tot} etapas{_sc})")
+                    _pend = _pm.latest_unfinished()
+                    if _pend:
+                        _print_line(f"[detail]Sin terminar: #{_pend['id']} -- retomar con "
+                                    f"/flujo {_pend['goal'][:60]}[/detail]")
+            except Exception as _pe:
+                _print_line(f"[err_cl]Error leyendo proyectos: {_pe}[/err_cl]")
 
         # -- Agent history --------------------------------------------------
         elif raw == "/historial":
@@ -5725,7 +7158,9 @@ def repl():
                         + "\n".join(_hist_snippet)
                         + "\n\nResumen:"
                     )
-                    _sum_result = _orch_r.infer(_summary_prompt)
+                    # max_tokens=256: el resumen es explícitamente 2-3 oraciones;
+                    # sin cota, un infer degenerado del 3B llenaba hasta el default.
+                    _sum_result = _orch_r.infer(_summary_prompt, max_tokens=256)
                     _summary_text = _sum_result.text.strip()
                     try:
                         ai.observe(_summary_text, provided_label="resumen_sesion")
@@ -6090,6 +7525,15 @@ def repl():
                 except Exception as _e:
                     _print_line(f"[err_cl]notificar error: {_e}[/err_cl]")
 
+        # ── /oficina [puerto] ──────────────────────────────────────────
+        elif raw.startswith("/oficina ") or raw == "/oficina":
+            _of_arg = raw[len("/oficina "):].strip() if raw.startswith("/oficina ") else ""
+            _slash_oficina(_of_arg)
+
+        # ── /analiticas ────────────────────────────────────────────────
+        elif raw == "/analiticas" or raw == "/analitica":
+            _slash_analiticas("")
+
         # ── /notif* ────────────────────────────────────────────────────
         elif raw == "/notif":
             _slash_notif("")
@@ -6119,6 +7563,15 @@ def repl():
         elif raw == "/config" or raw.startswith("/config "):
             _cfg_arg = raw[len("/config "):].strip() if raw.startswith("/config ") else ""
             _slash_config(_cfg_arg)
+
+        # -- /esfuerzo -----------------------------------------------------
+        elif raw == "/esfuerzo" or raw.startswith("/esfuerzo "):
+            _esf_arg = raw[len("/esfuerzo "):].strip() if raw.startswith("/esfuerzo ") else ""
+            _slash_esfuerzo(_esf_arg)
+
+        # -- /recap --------------------------------------------------------
+        elif raw == "/recap":
+            _slash_recap()
 
         # -- /feedback* ----------------------------------------------------
         elif raw.startswith("/feedback-sesion"):
@@ -6169,27 +7622,27 @@ def repl():
         # ── /buscar-memoria ────────────────────────────────────────────
         elif raw == "/buscar-memoria" or raw.startswith("/buscar-memoria "):
             _bm_args = raw[len("/buscar-memoria "):].strip() if raw.startswith("/buscar-memoria ") else ""
-            _slash_buscar_memoria(_bm_args)
+            _slash_buscar_memoria(ai, _bm_args)
 
         # ── /debate ────────────────────────────────────────────────────
         elif raw == "/debate" or raw.startswith("/debate "):
             _db_args = raw[len("/debate "):].strip() if raw.startswith("/debate ") else ""
-            _slash_debate(_db_args)
+            _slash_debate(ai, _db_args)
 
         # ── /contexto-semantico ────────────────────────────────────────
         elif raw == "/contexto-semantico" or raw.startswith("/contexto-semantico "):
             _cs_args = raw[len("/contexto-semantico "):].strip() if raw.startswith("/contexto-semantico ") else ""
-            _slash_contexto_semantico(_cs_args)
+            _slash_contexto_semantico(ai, _cs_args)
 
         # ── /sintetizar ────────────────────────────────────────────────
         elif raw == "/sintetizar" or raw.startswith("/sintetizar "):
             _sint_args = raw[len("/sintetizar "):].strip() if raw.startswith("/sintetizar ") else ""
-            _slash_sintetizar(_sint_args)
+            _slash_sintetizar(ai, _sint_args)
 
         # ── /y-si ──────────────────────────────────────────────────────
         elif raw == "/y-si" or raw.startswith("/y-si "):
             _ysi_args = raw[len("/y-si "):].strip() if raw.startswith("/y-si ") else ""
-            _slash_y_si(_ysi_args)
+            _slash_y_si(ai, _ysi_args)
 
         # ── /temas ─────────────────────────────────────────────────────
         elif raw == "/temas":
@@ -6218,7 +7671,7 @@ def repl():
         # ── /reflexion-profunda ────────────────────────────────────────
         elif raw == "/reflexion-profunda" or raw.startswith("/reflexion-profunda "):
             _rp_args = raw[len("/reflexion-profunda "):].strip() if raw.startswith("/reflexion-profunda ") else ""
-            _slash_reflexion_profunda(_rp_args)
+            _slash_reflexion_profunda(ai, _rp_args)
 
         # ── /calidad-respuestas ────────────────────────────────────────
         elif raw == "/calidad-respuestas" or raw.startswith("/calidad-respuestas "):
@@ -6290,7 +7743,7 @@ def repl():
         elif raw == "/cognia-olvida" or raw.startswith("/cognia-olvida "):
             _slash_cognia_olvida(raw[len("/cognia-olvida "):].strip() if raw.startswith("/cognia-olvida ") else "")
         elif raw == "/argumento" or raw.startswith("/argumento "):
-            _slash_argumento(raw[len("/argumento "):].strip() if raw.startswith("/argumento ") else "")
+            _slash_argumento(ai, raw[len("/argumento "):].strip() if raw.startswith("/argumento ") else "")
         elif raw == "/conflictos-kg":
             _slash_conflictos_kg("")
         elif raw == "/verificar-kg":
@@ -6306,9 +7759,19 @@ def repl():
         elif raw == "/inicio-dia":
             _slash_inicio_dia("")
 
+        # ── /contexto / /contexto-mapa / /contexto-stats / /contexto-auto ──────
+        elif raw == "/contexto" or raw.startswith("/contexto "):
+            _slash_contexto(ai, raw[len("/contexto "):] if raw.startswith("/contexto ") else "")
+        elif raw == "/contexto-mapa":
+            _slash_contexto_mapa(ai, "")
+        elif raw == "/contexto-stats":
+            _slash_contexto_stats(ai, "")
+        elif raw == "/contexto-auto" or raw.startswith("/contexto-auto "):
+            _slash_contexto_auto(ai, raw[len("/contexto-auto "):] if raw.startswith("/contexto-auto ") else "")
+
         # ── /ver-contexto / /limpiar-sesion ──────────────────────────────────
         elif raw == "/ver-contexto" or raw.startswith("/ver-contexto "):
-            _slash_ver_contexto(raw[len("/ver-contexto "):].strip() if raw.startswith("/ver-contexto ") else "")
+            _slash_ver_contexto(ai, raw[len("/ver-contexto "):].strip() if raw.startswith("/ver-contexto ") else "")
         elif raw == "/limpiar-sesion":
             _slash_limpiar_sesion("")
 
@@ -6365,6 +7828,58 @@ def repl():
                             except Exception:
                                 pass
                         if _llama is not None:
+                            # Fast-path de habla: PORTERO 0.5B+LoRA por presencia
+                            # (PREREG_PORTERO_FASE2: saludo/cortesia E identidad,
+                            # ~4x el 3B en CPU) o cascada legado opt-in
+                            # (COGNIA_SPEECH_CASCADE, 0.5B pelado, solo social).
+                            # Ante duda/falla -> 3B (fallback total). exp021/cycle39.
+                            _llama_turn = _llama
+                            try:
+                                from node.speech_cascade import (
+                                    classify_turn, fast_speech_backend, portero_activo)
+                                if classify_turn(raw, identidad=portero_activo()) == "fast":
+                                    _fb = fast_speech_backend()
+                                    if _fb is not None:
+                                        _llama_turn = _fb
+                            except Exception:
+                                _llama_turn = _llama
+                            # Ruteo por eje de la COLONIA (AUDIT 2026-07-12):
+                            # turnos de razonamiento -> miembro qwen3_4b crudo
+                            # (G2R 92.5 vs 82 del 3B+stepwise). Lazy via
+                            # fleet_registry; cualquier falla -> 3B intacto.
+                            _member_turn = False
+                            try:
+                                if _llama_turn is _llama:
+                                    from cognia.agent.fleet_router import (
+                                        member_for_chat_turn)
+                                    # perfil hibrido: a /esfuerzo bajo no se
+                                    # despierta el 4B (colonia negada), el
+                                    # turno queda en el 3B+stepwise
+                                    _mkey = member_for_chat_turn(
+                                        raw,
+                                        razonador_ok=_active_effort().get(
+                                            "colonia", True))
+                                    if _mkey:
+                                        from node.fleet_registry import (
+                                            fleet_backend)
+                                        _mb = fleet_backend(_mkey)
+                                        if _mb is not None:
+                                            _llama_turn = _mb
+                                            _member_turn = True
+                            except Exception:
+                                _llama_turn = _llama
+                            # Fleet: el chat general corre con la BASE pura (el
+                            # experto regresiona G1 -8pp); EXCEPTO identidad,
+                            # que va al experto (G3 20/20 vs 0/20 de la base).
+                            # Router lexico determinista (fleet_router). SOLO si
+                            # el turno se queda en el 3B: un hot-swap inutil
+                            # invalida el KV cache del server grande.
+                            try:
+                                if _llama_turn is _llama and getattr(_llama, "fleet_experts", []):
+                                    from cognia.agent.fleet_router import expert_for_chat_turn
+                                    _llama.activate_expert(expert_for_chat_turn(raw))
+                            except Exception:
+                                pass
                             from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
                             from cognia.user_prefs import personalize_prompt
                             _system = personalize_prompt(build_adaptive_system_prompt(ai))
@@ -6382,17 +7897,51 @@ def repl():
                             # real role separation -- more robust than a hand-built ChatML
                             # string (which malforms on empty/odd turns). Fall back to the
                             # manual ChatML template if the backend lacks stream_chat.
-                            _use_chat = hasattr(_llama, "stream_chat")
+                            # Temperatura explicita (no el default implicito del
+                            # backend): visible y auditable en model_constants.
+                            from shattering.model_constants import GEN_CHAT_TEMPERATURE
+                            _use_chat = hasattr(_llama_turn, "stream_chat")
+                            # Memoria real en el fast-path: el bloque HYDRA del
+                            # band router va DENTRO del ultimo mensaje user
+                            # (ver _build_stream_messages: posicion obligada
+                            # para no invalidar el prefijo KV cacheado).
+                            # CoT dirigido (bench_reasoning 2026-07-01: direct 0.3125 ->
+                            # CoT por turno 0.8125; en system prompt no hace nada; y NO se
+                            # aplica si piden formato exacto porque rompe compliance).
+                            # Solo cambia el texto que VE el LLM; _history guarda `raw`.
+                            try:
+                                from cognia.agent.stepwise import augment_stepwise
+                                # El miembro 4B va CRUDO: el audit lo midio sin
+                                # stepwise (92.5) y sobre-instruir degrada.
+                                _raw_llm = raw if _member_turn else augment_stepwise(raw)
+                            except Exception:
+                                _raw_llm = raw
+                            _messages = _build_stream_messages(
+                                ai, _raw_llm, _system, _hist_ctx)
+                            # Fast-path 0.5B: prompt minimo (sin historia/HYDRA, sin
+                            # stepwise, system neutro por idioma = el MISMO formato del
+                            # instrumento G3 del kernel, 95% medido) para que el prefill
+                            # no coma la ventaja de velocidad en turnos triviales.
+                            if _llama_turn is not _llama and not _member_turn:
+                                from node.speech_cascade import portero_system
+                                _messages = [{"role": "system", "content": portero_system(raw)},
+                                             {"role": "user", "content": raw}]
+                            # max_tokens del nivel /esfuerzo activo (no un literal fijo):
+                            # asi /esfuerzo maximo realmente alarga la respuesta del chat
+                            # (medio=1024 preserva el comportamiento historico por default).
+                            _effort_max_tokens = _active_effort()["max_tokens"]
                             if _use_chat:
-                                _messages = [{"role": "system", "content": _system}]
-                                _messages.extend(_hist_ctx)
-                                _messages.append({"role": "user", "content": raw})
-                                _stream_src = lambda: _llama.stream_chat(_messages, max_tokens=512)
+                                _stream_src = lambda: _llama_turn.stream_chat(
+                                    _messages, max_tokens=_effort_max_tokens,
+                                    temperature=GEN_CHAT_TEMPERATURE)
                             else:
                                 from node.inference_pipeline import _apply_qwen_template
                                 _formatted = _apply_qwen_template(
-                                    raw, _system, history=_hist_ctx or None)
-                                _stream_src = lambda: _llama.stream_generate(_formatted, max_tokens=512)
+                                    _messages[-1]["content"], _system,
+                                    history=_hist_ctx or None)
+                                _stream_src = lambda: _llama_turn.stream_generate(
+                                    _formatted, max_tokens=_effort_max_tokens,
+                                    temperature=GEN_CHAT_TEMPERATURE)
                             _tokens_buf = []
                             t0 = time.time()
                             try:
@@ -6431,7 +7980,7 @@ def repl():
 
                 if not _streamed:
                     try:
-                        from respuestas_articuladas import responder_articulado
+                        from cognia_v3.interfaces.respuestas_articuladas import responder_articulado
                         if _HAS_RICH and _console:
                             flt      = _VerboseFilter()
                             logging.root.addFilter(flt)
@@ -6510,7 +8059,8 @@ def _inferir_para_agente(orch, prompt: str) -> str:
 
 
 def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
-                    hint: str = "", guidance: str = "") -> str:
+                    hint: str = "", guidance: str = "",
+                    allowed_tools: set = None, delegation_depth: int = 0) -> str:
     """
     ReAct-style agent loop with a CONCRETE tool registry (cognia/agent/tools.py)
     and DYNAMIC step budgeting (cognia/agent/loop.py).
@@ -6519,11 +8069,24 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     the agent can request more when it runs out, and AGENT_HARD_CAP is the only
     absolute limit. Tools come from the registry, so adding one never touches
     this function.
+
+    ``allowed_tools``/``delegation_depth``: seteados cuando esta corrida es un
+    SUB-AGENTE lanzado por la tool delegar_subtarea -- el rol restringe las tools
+    (build_tools_doc + run_tool via ctx['_allowed_tools']) y la profundidad acota
+    la recursion de delegacion.
     """
     from cognia.agent.tools import run_tool, build_tools_doc
     from cognia.compresion_salidas import comprimir
     from cognia.agent.loop import (
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
+        first_action_block, objective_context, register_action,
+        task_pide_ejecucion as _task_pide_ejecucion, salida_de_ejecucion,
+        error_accionable_de_ejecucion,
+    )
+    from cognia.agent.structure import structure_action
+    from cognia.agent.stepwise import (
+        bon_applies, extract_entry_point, classify_exec_error,
+        build_exec_repair_hint, repair_applies,
     )
     # Pull in any tools Cognia synthesized and verified in the background, so the
     # agent can use its own self-made tools. Best-effort.
@@ -6534,20 +8097,76 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _print_fn(f"[detail]{_n_gen} herramienta(s) auto-generada(s) disponibles[/detail]")
     except Exception:
         pass
+    # Herramientas AI-nativas de LCD (escena estructurada; plan 12). Best-effort:
+    # importar el modulo registra las tools via el @tool decorator.
+    try:
+        from cognia.lcd.tools_lcd import load_lcd_tools
+        _n_lcd = load_lcd_tools()
+        from cognia.lcd.tools_services import load_service_tools
+        _n_lcd += load_service_tools()
+        from cognia.lcd.tools_modeling import load_modeling_tools
+        _n_lcd += load_modeling_tools()
+        if _n_lcd:
+            _print_fn(f"[detail]{_n_lcd} herramienta(s) de escena LCD disponibles[/detail]")
+    except Exception:
+        pass
+
+    # Modo sencillo (default): recorta la paleta a lo util para un usuario comun
+    # (oculta git/kg/validadores/http/notas/etc). Si el caller ya restringio por
+    # rol (allowed_tools), se respeta esa restriccion (interseccion). El agente
+    # no pierde capacidad: generar_codigo ya valida por tests.
+    _tool_filter = allowed_tools
+    try:
+        from cognia.simple_mode import visible_tools, is_simple
+        if is_simple():
+            from cognia.agent.tools import TOOLS as _TOOLS
+            _vis = visible_tools(_TOOLS.keys())
+            _tool_filter = _vis if allowed_tools is None else (allowed_tools & _vis)
+    except Exception:
+        pass
 
     TOOLS_DOC = (
         "You are an autonomous agent. Start your reply with ACCION: on the first line.\n\n"
         "ACCION: <tool> <args>\n\n"
         "Tools (ONLY these -- do NOT invent others):\n"
-        + build_tools_doc()
+        + build_tools_doc(_tool_filter)
         + "\n  responder <respuesta final>          -- usar SOLO cuando la tarea esta completa\n\n"
         "Rules:\n"
         "- escribir_archivo crea directorios solo. NO uses mkdir.\n"
         "- Para escribir_archivo, pone codigo COMPLETO y REAL despues de | (varias lineas ok).\n"
+        "- Para escribir una FUNCION NUEVA a partir de una descripcion, PREFERI "
+        "generar_codigo (genera varios candidatos y elige el mejor por tests) en "
+        "vez de escribir_archivo con codigo a mano.\n"
         "- Usa anotar para guardar resultados intermedios; notas para recordarlos.\n"
         "- Usa recordar/kg_buscar para consultar la memoria de Cognia.\n"
         "- responder solo cuando termines. Nada de texto fuera de la linea ACCION."
     )
+
+    # Few-shot ACCION dirigido (palanca +62pp, cognia/agent/fewshot.py): SOLO
+    # cuando hay una pista fuerte de la tool inicial (hint de intent o entry
+    # point detectado) -- siempre-on inflaria el prefill de CADA paso. Le
+    # muestra al 3B el formato EXACTO de esa tool (concreto >> abstracto).
+    try:
+        from cognia.agent.fewshot import fewshot_for
+        _fewshot_tool = hint or ("generar_codigo" if extract_entry_point(task) else "")
+        _fs = fewshot_for(_fewshot_tool)
+        if _fs:
+            TOOLS_DOC = TOOLS_DOC + "\n\n" + _fs
+    except Exception:
+        pass
+
+    # Reglas de tool-calling APRENDIDAS por la evolucion de prompts (auto-prompting/
+    # RSI, cognia/agent/prompt_evolution.py): si una corrida de evolucion adopto
+    # reglas genericas (copiar strings/nombres exactos, contar llamadas) y las
+    # persistio, se pliegan al TOOLS_DOC. Cortas a proposito (sobre-instruir dana a
+    # un 3B). Best-effort: si no hay andamiaje evolucionado, no agrega nada.
+    try:
+        from cognia.agent.prompt_evolution import live_guidance
+        _lg = live_guidance()
+        if _lg:
+            TOOLS_DOC = TOOLS_DOC + "\n\n" + _lg
+    except Exception:
+        pass
 
     # Load persistent agent state
     _AGENT_STATE_PATH = Path.home() / ".cognia_agent_state.json"
@@ -6561,22 +8180,33 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
 
     _prior_files_touched = list(_agent_state.get("files_touched", []))
 
+    # CONTEXTO PREVIO solo si es RELEVANTE a esta tarea: inyectado siempre, sus
+    # nombres de archivo ajenos son distractores que el 3B copia y lo estancan
+    # (bench_estancamiento baseline: 4/12 stuck, todos con esa firma; ver
+    # cognia/agent/loop.py:prior_context_relevant).
     _prior_ctx = ""
     if _agent_state["tasks"]:
+        from cognia.agent.loop import prior_context_relevant
         _prior_lines = []
         for _t in _agent_state["tasks"][-2:]:
-            _prior_lines.append(f"- Tarea anterior: {_t['task'][:80]} -> {_t['result'][:120]}")
-        _prior_ctx = "CONTEXTO PREVIO:\n" + "\n".join(_prior_lines) + "\n\n"
+            if prior_context_relevant(task, _t.get("task", "")):
+                _prior_lines.append(f"- Tarea anterior: {_t['task'][:80]} -> {_t['result'][:120]}")
+        if _prior_lines:
+            _prior_ctx = "CONTEXTO PREVIO:\n" + "\n".join(_prior_lines) + "\n\n"
 
     # Skill guidance: an explicit one (from /skill) wins; otherwise auto-apply a
     # skill whose description matches this task, so Claude/Cognia skills shape the
     # agent without an explicit command.
+    _applied_skill = ""   # nombre de la skill aplicada -> record_skill_use al cierre
     if not guidance:
         try:
             from cognia.agent.skills import find_skill, skill_guidance
-            _matched = find_skill(task)
+            # Solo match lexico fuerte: el fallback semantico auto-aplicaba
+            # skills irrelevantes cuya guidance estancaba al 3B (ver skills.py).
+            _matched = find_skill(task, semantic_fallback=False)
             if _matched:
                 guidance = skill_guidance(_matched)
+                _applied_skill = _matched.name
                 _print_fn(f"[detail]Aplicando skill '{_matched.name}'[/detail]")
         except Exception:
             pass
@@ -6598,30 +8228,95 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         "agent_state": _agent_state,
         "print_fn": _print_fn,
         "show_diff": (lambda old, new, path: _show_file_diff(old, new, path, _print_fn)),
+        # Sub-agente acotado (delegar_subtarea): el rol restringe run_tool y el
+        # runner recursivo se inyecta aca (evita el import circular tools<->cli).
+        "_allowed_tools": allowed_tools,
+        "_delegation_depth": delegation_depth,
+        "_run_agent": (lambda subtask, allowed_tools=None, max_steps=None,
+                       delegation_depth=0: _run_agent_task(
+                           ai, subtask, _print_fn, max_steps=max_steps,
+                           allowed_tools=allowed_tools,
+                           delegation_depth=delegation_depth)),
     }
 
     # Orchestrator (reused for planning + steps)
     try:
         from shattering.orchestrator import ShatteringOrchestrator as Orchestrator
         orch = getattr(ai, "_orchestrator", None) or Orchestrator(mode="local")
+        # que las tools (generar_codigo, resumir) reusen ESTE orch, no construyan otro
+        try:
+            ai._orchestrator = orch
+        except Exception:
+            pass
     except Exception as e:
         _print_fn(f"[err_cl]Agente: no hay orquestador: {e}[/err_cl]")
         return "(el agente no pudo iniciar el modelo)"
 
+    # Fleet (FLEET_DESIGN): tareas de agente corren con el experto ACCION
+    # (G2A 20.4%->95.2% medido en el deploy real). Sin try/finally: cada
+    # consumidor del server declara su experto antes de generar (el fast-path
+    # de chat y /largo activan None=base) y activate_expert es idempotente.
+    try:
+        _llama_fleet = getattr(orch, "_llama", None)
+        if _llama_fleet is None:
+            orch._try_load_llama()
+            _llama_fleet = getattr(orch, "_llama", None)
+        if _llama_fleet is not None and getattr(_llama_fleet, "fleet_experts", []):
+            if _llama_fleet.activate_expert("accion"):
+                _print_fn("[detail]Experto ACCION activo (fleet)[/detail]")
+    except Exception:
+        pass
+
     # Dynamic step budget: the model decides how many steps the task deserves.
     budget = max_steps if max_steps else estimate_step_budget(task, orch)
+
+    # ── Ruteo HIBRIDO por dificultad (2026-07-15) ──────────────────────────
+    # La dificultad estimada de la TAREA + el nivel /esfuerzo arman el perfil
+    # de la corrida: que miembros puede despertar generar_codigo (colonia
+    # 7B/q35, superorganismo), cuanta delegacion se permite y cuantos pasos
+    # merece el loop (pasos_factor). Las etapas siguen siendo reactivas: el
+    # perfil da el PERMISO, el gasto solo ocurre si lo barato fallo. Un
+    # max_steps explicito (sub-agente) no se re-escala: su presupuesto ya
+    # viene acotado por el padre.
+    try:
+        from cognia.agent.hybrid_router import route_profile
+        _hyb = route_profile(task, _load_config().get("esfuerzo"))
+        ctx["hybrid"] = _hyb
+        ctx["_delegation_max"] = _hyb.get("delegacion_max", 2)
+        if not max_steps:
+            budget = max(1, min(AGENT_HARD_CAP,
+                                round(budget * _hyb.get("pasos_factor", 1.0))))
+        _print_fn(f"[detail]hibrido: modalidad={_hyb['modalidad']} "
+                  f"dificultad={_hyb['dificultad']} esfuerzo={_hyb['esfuerzo']}"
+                  f"[/detail]")
+    except Exception:
+        pass
     _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {AGENT_HARD_CAP})[/detail]")
 
-    # Auto-decompose large tasks into sub-steps
+    # Auto-decompose: gateado por DIFICULTAD estimada o encadenamiento
+    # explicito, no por longitud (E-INT 2026-07-08: len>120 era un proxy
+    # pobre — una tarea larga-pero-simple pagaba ~30s de decompose inutil en
+    # CPU y una corta-pero-dura no se descomponia). estimate_difficulty ya
+    # esta calibrada a umbral 0.30 (test_model_router); la longitud sigue
+    # contando adentro (satura 0.30 en >=400 chars).
     _board_ids = []          # checkboxes del plan (tasks_board), si hay plan
-    if len(task) > 120:
+    try:
+        from cognia.agent.model_router import estimate_difficulty as _est_dif
+        _multi_paso = re.search(
+            r"(,?\s+y\s+(luego|despu[eé]s)\b|,\s*then\b|\band\s+then\b|;\s*(luego|then)\b)",
+            task, re.IGNORECASE)
+        _decompone = _est_dif(task) >= 0.30 or bool(_multi_paso)
+    except Exception:
+        _decompone = len(task) > 120   # fallback al gate viejo
+    if _decompone:
         try:
             _decomp_prompt = (
                 "Break this task into 3-5 concrete sequential steps. "
                 "Reply with ONLY a numbered list, one step per line, no explanations.\n\n"
                 f"Task: {task}"
             )
-            _steps_text = orch.infer(_decomp_prompt).text.strip()
+            _steps_text = orch.infer(_decomp_prompt, max_tokens=160,
+                                     temperature=0.0).text.strip()
             if _steps_text and len(_steps_text) > 20:
                 history.append(f"PLAN DE SUBTAREAS:\n{_steps_text}")
                 _print_fn(f"[detail]Plan: {_steps_text[:200]}[/detail]")
@@ -6639,11 +8334,61 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         except Exception:
             pass
 
+    # Wire de BoN al loop live (corrida-2): si la tarea es escribir una funcion
+    # con nombre explicito, aplicar BoN de forma DETERMINISTA (pre-ejecutar
+    # generar_codigo como paso 0) en vez de esperar que el 3B elija la tool —
+    # medido: el 3B no la elige de forma fiable en el loop ReAct. generar_codigo
+    # corre test-first + N candidatos + juez por ejecucion (+10pp en bench) y
+    # escribe el mejor; despues el loop sigue normal (testear/responder).
+    _bon_ok = False           # True si BoN resolvio la tarea (short-circuit)
+    _bon_result_text = ""
+    _ep = extract_entry_point(task)
+    # el pre-BoN usa generar_codigo: saltarlo si el rol del sub-agente no la
+    # permite (p.ej. investigador) -- si no, devolveria un ERROR de rol inutil.
+    _bon_allowed = allowed_tools is None or "generar_codigo" in allowed_tools
+    if _ep and bon_applies(task) and _bon_allowed:
+        _m = re.search(r"([\w./\\-]+\.py)", task)
+        _codefile = _m.group(1) if _m else f"{_ep}.py"
+        _print_fn(f"[detail]tarea de codigo -> BoN (generar_codigo) para "
+                  f"'{_ep}'...[/detail]")
+        try:
+            _bon_res = run_tool("generar_codigo", f"{_codefile} | {task}", ctx)
+        except Exception as _e:
+            _bon_res = f"RESULTADO generar_codigo ERROR: {_e}"
+        history.append(_bon_res)
+        _tag = _bon_res.split(":", 1)[0].replace("RESULTADO ", "")
+        _print_fn(f"[ok_cl]{_tag}[/ok_cl]" if " ERROR" not in _bon_res[:60]
+                  else f"[warn_cl]{_bon_res[:120]}[/warn_cl]")
+        # Short-circuit SOLO si BoN cerro bien Y la tarea es PURAMENTE escribir
+        # la funcion (sin pedir tests/ejecucion/pasos extra): la salida de BoN
+        # (mejor candidato por tests) ES el entregable, y el 3B en el loop tiende
+        # a PISARLA con codigo peor. Para tareas multi-parte, el loop sigue normal.
+        _pure = not re.search(
+            r"\b(test|prueba|ejecut|corr[eé]|adem[aá]s|luego|then|tambi[eé]n|"
+            r"commit|git)\b", task, re.IGNORECASE)
+        if (" ERROR" not in _bon_res[:60]) and _pure:
+            _bon_ok = True
+            _bon_result_text = _bon_res
+            _print_fn("[ok_cl]tarea de codigo resuelta por BoN (short-circuit, "
+                      "no se deja pisar por el loop)[/ok_cl]")
+
     total_steps = 0
     _last_sig = None
     _repeat = 0
     _board_pos = 0
-    while total_steps < AGENT_HARD_CAP:
+    _ctx_lo = 1               # primer indice de la cola (no-fijada) del contexto
+    _sig_counts: dict = {}    # detector de estancamiento por conteo de acciones
+    _last_prose = ""          # ultima respuesta en prosa (candidata a final)
+    _no_action_streak = 0     # respuestas seguidas sin ACCION
+    _step_temp = 0.0          # greedy default; tras un warn de repeticion, el
+                              # proximo paso usa 0.7 para romper el ciclo
+                              # determinista (mismo contexto -> misma accion)
+    _actions_trace: list = [] # traza (action, args, ok) para skill_capture (CP2)
+    _FAIL_STREAK = 3          # corte por no-progreso: N acciones seguidas que
+                              # fallan => modelo degenerado, cierre honesto
+    _exec_nudged = False      # cierre informativo E8: un solo aviso por tarea
+    result_text = _bon_result_text  # si BoN corto, este es el resultado final
+    while not _bon_ok and total_steps < AGENT_HARD_CAP:
         # Llenar el checkbox del paso anterior al arrancar una vuelta nueva
         # (vuelta N arranca => la N-1 quedo completada). Jamas rompe el loop.
         if total_steps > 0 and _board_pos < len(_board_ids):
@@ -6656,6 +8401,8 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                     _print_fn(_hook_txt)
             except Exception:
                 pass
+        # pasos que quedan -> sub-presupuesto de delegar_subtarea
+        ctx["_steps_remaining"] = max(0, budget - total_steps)
         # Out of budget: ask the model if it actually needs more steps.
         if total_steps >= budget:
             extra = wants_more_steps(task, "\n".join(history[-3:]), orch,
@@ -6666,62 +8413,256 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _print_fn(f"[detail]El agente pidio {extra} pasos mas (presupuesto {budget})[/detail]")
 
         total_steps += 1
-        # Comprimir cada resultado antes de meterlo en el contexto. Con
-        # n_ctx=8192, seis salidas de herramienta a 2000 caracteres son ~3000
-        # tokens solo de historial, y un leer_archivo grande se lo come entero.
-        # La compresion colapsa lineas repetidas y recorta el medio guardando
-        # el final, que en una salida de herramienta es donde esta el veredicto.
-        ctx_text = "\n".join(comprimir(h, max_lineas=25) for h in history[-6:])
+        # Contexto que FIJA el objetivo (history[0]) y crece append-only
+        # (cache-friendly). Antes history[-6:] desalojaba el objetivo en tareas
+        # largas y rompia el prefix-cache cada paso. Ver cognia/agent/loop.py.
+        ctx_text, _ctx_lo = objective_context(history, _ctx_lo)
         prompt = f"{TOOLS_DOC}\n\nContexto de la tarea:\n{ctx_text}\n\nSiguiente ACCION:"
 
         try:
-            raw_response = _inferir_para_agente(orch, prompt)
+            # temperature=0.0: seleccion de herramienta DETERMINISTA (el agente
+            # debe seguir un formato estricto; el sampling alto lo hacia divagar).
+            # stop='\nACCION:': corta apenas el modelo empieza un 2do bloque de
+            # accion (donde first_action_block ya truncaba) -> elimina el
+            # generate-then-discard del rambling. NO se incluye '\nRESULTADO'
+            # porque el contenido multi-linea de escribir_archivo puede contenerlo.
+            # max_tokens=256: una ACCION es corta (`tool args` o `responder <texto>`);
+            # el default 768 dejaba al 3B llenar cada paso degenerado hasta el cap
+            # (~70s). Cota dura por paso; el bound REAL del cuelgue es el corte por
+            # no-progreso (_FAIL_STREAK) mas abajo.
+            # NO repeat_penalty: rp=1.3 (que probe en 3.8.4) penalizaba los tokens de
+            # los nombres de tool —que se repiten desde TOOLS_DOC en el prompt— y
+            # empujaba al 3B a BASURA. e2e 2026-07-10: con rp=1.3 tareas normales
+            # 0/5, sin rp 5/5. Regresion de 3.8.4 revertida (ver 3.8.5).
+            # HARNESS #3: GBNF del registry restringe el turno de decision a
+            # una tool VALIDA (mata la degeneracion de nombres basura). Opt-in
+            # COGNIA_TOOL_GRAMMAR=1; None (default) = sampling actual intacto.
+            try:
+                from cognia.agent.tools_grammar import grammar_para
+                _gram = grammar_para(allowed_tools)
+            except Exception:
+                _gram = None
+            raw_response = orch.infer(
+                prompt, temperature=_step_temp, stop=["\nACCION:", "\nACCIÓN:"],
+                max_tokens=256, grammar=_gram,
+            ).text.strip()
+            _step_temp = 0.0
         except Exception as e:
             _print_fn(f"[err_cl]Agente: error LLM: {e}[/err_cl]")
             break
 
-        # Si no hay de donde inferir, insistir no lo va a arreglar. Medido el
-        # 2026-07-20: el agente encadeno 40 pasos con el mismo mensaje de
-        # "No inference backend available", pidiendo dos pasos mas cada vez.
-        if not raw_response:
-            _print_fn("[err_cl]Agente: no hay backend de inferencia disponible. "
-                      "Arrancalo con: python scripts/servir_modelo.py[/err_cl]")
+        # Sin backend de codigo, orch.infer devuelve el aviso como TEXTO (no
+        # excepcion); como no trae 'ACCION:' el loop lo repetiria hasta agotar
+        # el presupuesto entero. Cortar de una con instrucciones accionables.
+        if (not raw_response) or ("No inference backend available" in raw_response):
+            # Instrucciones VISIBLES (no [detail]: el modo sencillo default
+            # las suprimia) y el camino RECOMENDADO primero (install-model,
+            # no el avanzado install-weights) — auditoria 2026-07-15.
+            _print_fn("[err_cl]El agente necesita un modelo y no hay backend disponible.[/err_cl]")
+            _print_fn("[warn_cl]Instala el modelo local (recomendado, una vez):  "
+                      "cognia install-model[/warn_cl]")
+            _print_fn("[warn_cl]Alternativas: Ollama (ollama serve + ollama pull "
+                      "qwen2.5-coder + set COGNIA_OLLAMA_MODEL=qwen2.5-coder) o "
+                      "shards: cognia install-weights --standalone[/warn_cl]")
+            _print_fn("[detail]En el repo de desarrollo: python scripts/servir_modelo.py[/detail]")
+            result_text = "(sin backend de inferencia: el agente no puede generar codigo)"
             break
 
         _print_fn(f"[detail]paso {total_steps}: {raw_response[:120]}[/detail]")
 
+        # El modelo suele emitir VARIAS lineas ACCION: en una respuesta; quedarse
+        # con el primer bloque evita ejecutar una accion corrupta (args con el
+        # rambling de las ACCION siguientes). Ver cognia/agent/loop.py.
+        raw_response = first_action_block(raw_response)
         m = re.search(r"ACCI[OÓ]N:\s*(\w+)\s*(.*)", raw_response, re.IGNORECASE | re.DOTALL)
         if not m:
+            # Respuesta en prosa (sin ACCION). Antes se descartaba y el loop
+            # devolvia el fallo generico aunque fuera la respuesta final. Guardar
+            # la prosa como candidata; si el modelo insiste (2 veces) tomarla y
+            # cortar en vez de quemar presupuesto reintentando.
+            _last_prose = raw_response
+            _no_action_streak += 1
             history.append(f"RESULTADO: (respuesta no estructurada) {raw_response[:200]}")
+            if _no_action_streak >= 2:
+                # Cierre informativo (E8): la prosa tambien es un cierre — si
+                # la tarea pide EJECUTAR y no hubo ejecucion real, mismo nudge
+                # unico que en responder (la bateria v4 cazo esta fuga: el
+                # modelo cerraba por aca en 14s sin ejecutar nada).
+                if (not _exec_nudged
+                        and _task_pide_ejecucion(task)
+                        and not any(h.startswith(("RESULTADO ejecutar",
+                                                  "RESULTADO tests"))
+                                    for h in history)):
+                    _exec_nudged = True
+                    _no_action_streak = 0
+                    history.append(
+                        "AVISO: la tarea pide EJECUTAR y todavia no ejecutaste "
+                        "nada. Corre el script con la tool ejecutar y despues "
+                        "cerra con responder INCLUYENDO la salida real de la "
+                        "ejecucion.")
+                    _print_fn("[detail]cierre rechazado: la tarea pide ejecutar "
+                              "y no hubo ejecucion[/detail]")
+                    continue
+                result_text = raw_response
+                break
             continue
+        _no_action_streak = 0
 
         action = m.group(1).lower().strip()
         args = m.group(2).strip()
 
+        # Generate-then-structure (CP1 palanca #3): normalizacion mecanica de
+        # args + validacion contra la firma de la tool + a lo sumo UN retry
+        # con el error del validador en el prompt. Ver cognia/agent/structure.py.
+        def _reinfer_fix(hint, _p=prompt, _r=raw_response):
+            # sin repeat_penalty (ver el infer del paso ReAct: rp empujaba a basura)
+            return orch.infer(_p + "\n" + _r[:600] + hint, temperature=0.0,
+                              stop=["\nACCION:", "\nACCIÓN:"],
+                              max_tokens=256).text.strip()
+        action, args, _struct = structure_action(action, args, _reinfer_fix)
+        if _struct.get("repaired"):
+            _print_fn("[detail]args reparados (retry de formato con error real)[/detail]")
+
         if action == "responder":
-            result_text = args
+            # 'responder' con args validos cierra la tarea. Si el validador
+            # marco error (respuesta vacia tras auto_fix + retry fallido), NO
+            # cerrar con una respuesta en blanco: registrar el error y seguir
+            # el loop (mismo trato que cualquier otra accion invalida).
+            if not _struct.get("error"):
+                # Cierre informativo (E8, bateria 2026-07-09): si la tarea
+                # PIDE ejecutar y el agente nunca ejecuto, no aceptar un
+                # "listo" vacio — UNA vez se lo manda a ejecutar y reportar
+                # la salida real (concreto >> abstracto, leccion +62pp).
+                if (not _exec_nudged
+                        and _task_pide_ejecucion(task)
+                        and not any(h.startswith(("RESULTADO ejecutar",
+                                                  "RESULTADO tests"))
+                                    for h in history)):
+                    _exec_nudged = True
+                    history.append(
+                        "AVISO: la tarea pide EJECUTAR y todavia no ejecutaste "
+                        "nada. Corre el script con la tool ejecutar y despues "
+                        "cerra con responder INCLUYENDO la salida real de la "
+                        "ejecucion.")
+                    _actions_trace.append({"action": "responder", "args": args[:200],
+                                           "ok": False,
+                                           "result_head": "nudge: falta ejecutar"})
+                    _print_fn("[detail]cierre rechazado: la tarea pide ejecutar "
+                              "y no hubo ejecucion[/detail]")
+                    continue
+                # cola degenerada del experto a temp=0 ("fitte fitte...");
+                # el saneo es quirurgico y determinista (agent/sanitize.py)
+                try:
+                    from cognia.agent.sanitize import trim_degenerate_tail
+                    result_text = trim_degenerate_tail(args)
+                except Exception:
+                    result_text = args
+                break
+            history.append(f"RESULTADO responder ERROR: {_struct['error']}")
+            _actions_trace.append({"action": "responder", "args": args[:200],
+                                   "ok": False, "result_head": _struct["error"][:160]})
+            continue
+
+        # Stuck-detector: cuenta ocurrencias de (action, args) COMPLETOS en toda
+        # la tarea -> caza tambien ciclos oscilantes A,B,A,B. Ver agent/loop.py.
+        _verdict = register_action(_sig_counts, action, args)
+        if _verdict == "warn":
+            # Concreto >> abstracto (leccion +62pp del repo): nombrar la
+            # accion prohibida; el aviso generico no desviaba al 3B
+            # (bench_estancamiento: pasos identicos post-aviso).
+            history.append(
+                f"AVISO: ya ejecutaste 'ACCION: {action} {args[:80]}' y no "
+                "avanzo. PROHIBIDO repetirla. Proba una herramienta DISTINTA "
+                "o cerra con responder."
+            )
+            # Con greedy, mismo contexto -> misma accion: el AVISO solo no
+            # desvia al 3B (medido en bench_estancamiento: pasos 2->3
+            # identicos post-aviso). Romper el determinismo UN paso.
+            _step_temp = 0.7
+        elif _verdict == "stop":
+            # Cierre honesto en vez de morir sin respuesta: un ultimo infer
+            # que RESUME lo hecho (texto, no ACCION) para que la tarea
+            # devuelva estado real en lugar de nada.
+            _print_fn("[warn_cl]Agente estancado (accion repetida): forzando cierre honesto.[/warn_cl]")
+            try:
+                _cierre = orch.infer(
+                    f"{TOOLS_DOC}\n\nContexto de la tarea:\n{ctx_text}\n\n"
+                    "Estas repitiendo la misma accion sin progreso y la tarea "
+                    "se corta aca. Resumi en 1-2 lineas que se logro hacer y "
+                    "que quedo pendiente. Solo texto, sin ACCION.\n\nResumen:",
+                    temperature=0.0, max_tokens=120).text.strip()
+                if _cierre:
+                    result_text = f"(interrumpida por estancamiento) {_cierre}"
+            except Exception:
+                pass
             break
 
-        # Stuck-detector: same action+args repeated -> nudge, then stop.
-        sig = (action, args[:60])
-        if sig == _last_sig:
-            _repeat += 1
-            if _repeat >= 2:
-                history.append(
-                    "AVISO: estas repitiendo la misma accion sin progreso. "
-                    "Cambia de enfoque o usa responder."
-                )
-            if _repeat >= 3:
-                _print_fn("[warn_cl]Agente estancado (accion repetida), deteniendo.[/warn_cl]")
-                break
+        if _struct.get("error"):
+            # Args invalidos aun tras el retry: el error del validador ES el
+            # resultado del paso (señal precisa, estilo parser; el stuck-detector
+            # de arriba ya conto esta accion, asi que no puede ciclar gratis).
+            result = f"RESULTADO {action} ERROR: {_struct['error']}"
         else:
-            _repeat = 0
-        _last_sig = sig
-
-        result = run_tool(action, args, ctx)
+            result = run_tool(action, args, ctx)
         history.append(result)
+        # Traza para el trigger de skills nivel-2 (CP2): un paso es 'ok' si el
+        # resultado no es un ERROR de la tool/validador. Se usa \bERROR\b (borde
+        # de palabra) para NO confundir un nombre como 'ERROR_LOG.txt' en un
+        # RESULTADO exitoso con el marcador de error 'RESULTADO x ERROR: ...'.
+        _actions_trace.append({
+            "action": action, "args": args[:200],
+            "ok": not re.search(r"\bERROR\b", result[:120]),
+            "result_head": result[:160],
+        })
+        # Corte por NO-PROGRESO (cazado 2026-07-10): el stuck-detector cuenta
+        # (action,args) IDENTICOS, pero en tareas de busqueda el 3B DEGENERA y
+        # genera nombres de tool BASURA distintos cada paso ('start_busqueda_
+        # archivosuseralgmaps'...) que fallan en cadena y crecen el prompt hasta
+        # colgar el loop ~30 min. Si las ultimas _FAIL_STREAK acciones TODAS
+        # fallaron, el modelo no avanza -> cierre honesto (cota dura al cuelgue).
+        _recent = _actions_trace[-_FAIL_STREAK:]
+        if len(_recent) >= _FAIL_STREAK and not any(a["ok"] for a in _recent):
+            _print_fn(f"[warn_cl]Agente sin progreso ({_FAIL_STREAK} acciones "
+                      "seguidas fallaron): cierre honesto.[/warn_cl]")
+            result_text = (f"(interrumpida: {_FAIL_STREAK} acciones seguidas "
+                           "fallaron sin avanzar; el modelo no logro la tarea)")
+            break
         if action == "escribir_archivo" and result.startswith("RESULTADO escribir_archivo") and "OK" in result:
             _print_fn(f"[ok_cl]{result.split(':', 1)[0].replace('RESULTADO ', '')}[/ok_cl]")
+
+        # Repair dirigido (palanca #4, wire al loop live): si una tool de
+        # EJECUCION (tests/ejecutar/py_validar) dio un veredicto externo real
+        # de fallo, inyectar UN hint con el traceback real y la instruccion de
+        # arreglar SOLO la causa (concreto >> 'intentalo de nuevo'). Se hace
+        # una sola vez por error real (no re-dispara sobre su propio hint: el
+        # hint no es una tool de ejecucion) para no ciclar. Ver stepwise.py.
+        _err_type = classify_exec_error(action, result)
+        if _err_type and repair_applies(_err_type):
+            history.append(build_exec_repair_hint(_err_type, result))
+            _print_fn(f"[detail]error de ejecucion ({_err_type}) -> repair dirigido[/detail]")
+
+    # Cierre informativo (E8, parte 2): si la tarea pedia EJECUTAR y hubo
+    # ejecucion exitosa, la salida REAL viaja en la respuesta final (el modelo
+    # tiende a cerrar con "listo, termine" sin reportar el output; esto es
+    # determinista y no cuesta otra llamada). Un solo punto: cubre el cierre
+    # por responder, por prosa y por presupuesto.
+    if result_text and _task_pide_ejecucion(task):
+        _salida = salida_de_ejecucion(history)
+        if _salida and _salida[:300] not in result_text:
+            result_text = (f"{result_text}\n\nSalida de la ejecución:\n"
+                           f"{_salida[:400]}")
+    # Cierre informativo (E8, parte 3 — caso de ERROR): si la ULTIMA tool FALLO
+    # y no hubo salida exitosa, reportar la causa accionable en vez de dejar el
+    # cierre vacio. El diag CIERRES midio que el 3B se rinde ('No tengo esa
+    # informacion', 'Listo') cuando algo falla (error_accionable 2/14); E8 solo
+    # cubre exitos. Sin gate task_pide_ejecucion: el fallo puede ser de lectura
+    # o copia, no solo de 'ejecutar'. NO se activa si la tarea termino bien
+    # (bateria 17/17 intacta) ni si el modelo ya reporto el error.
+    if result_text:
+        _err = error_accionable_de_ejecucion(history)
+        if _err and _err[:120] not in result_text:
+            result_text = (f"{result_text}\n\nNo se pudo completar: la última "
+                           f"operación falló. Causa:\n{_err[:400]}")
 
     # Save summary to episodic memory
     summary = f"Tarea: {task[:100]} | Pasos: {total_steps} | Resultado: {result_text[:200]}"
@@ -6730,9 +8671,62 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     except Exception:
         pass
 
+    # Monitor de objetivo (GoalContract): derivar criterios VERIFICABLES de la
+    # letra de la tarea (archivo mencionado -> debe existir; ruta de test +
+    # pedido de tests -> pytest debe pasar) y chequearlos con evidencia REAL de
+    # filesystem/comando -- no el auto-reporte del modelo. Anti alucinacion de
+    # progreso: si la tarea prometia un archivo/tests y no estan, se DICE.
+    # _task_ok alimenta record_skill_use (abajo). Ver cognia/agents/goal_contract.
+    _task_ok = None
+    try:
+        from cognia.agents.goal_contract import (
+            GoalContract, derive_criteria_from_task,
+        )
+        _criteria = derive_criteria_from_task(task)
+        if _criteria:
+            _st = GoalContract.from_spec(task[:120], _criteria).check()
+            _task_ok = _st.complete
+            if _st.complete:
+                _print_fn(f"[ok_cl]Objetivo verificado: {_st.satisfied_count}/"
+                          f"{_st.total} criterios reales cumplidos[/ok_cl]")
+            else:
+                _faltan = [r.criterion.description for r in _st.results
+                           if not r.satisfied]
+                _print_fn(f"[warn_cl]Objetivo NO verificado ({_st.satisfied_count}/"
+                          f"{_st.total}): falta {'; '.join(_faltan)[:200]}[/warn_cl]")
+    except Exception:
+        pass
+
+    # Trigger de skills nivel-2 (CP2, plan §3.3): si la tarea cerro con
+    # oraculo duro y >=4 tool-calls exitosos, persistir el procedimiento
+    # como skill markdown (gates: blocklist + dedupe + evidencia real).
+    try:
+        from cognia.agent.skill_capture import maybe_capture_skill
+        _cap = maybe_capture_skill(task, _actions_trace)
+        if _cap.get("captured"):
+            _print_fn(f"[ok_cl]Skill nivel-2 capturada: {_cap['name']} "
+                      f"({_cap['path']})[/ok_cl]")
+    except Exception:
+        pass
+
+    # Uso real de la skill aplicada (decay/aprendizaje): si /hacer aplico una
+    # skill auto-matcheada, registrar si la tarea salio bien. Señal de exito:
+    # el contrato verificable si hubo criterios; si no, proxy = hubo un
+    # resultado real (no el fallo generico). find_skill despenaliza/poda con
+    # esto (skills que fallan repetido dejan de ganar el match).
+    if _applied_skill:
+        try:
+            from cognia.agent.skills import record_skill_use
+            _ok_signal = _task_ok if _task_ok is not None else bool(
+                result_text and "no produjo una respuesta" not in result_text
+                and "sin backend" not in result_text)
+            record_skill_use(_applied_skill, _ok_signal)
+        except Exception:
+            pass
+
     # Register agent task as a conversation turn so follow-up questions work
     try:
-        from conversation_memory import get_conversation_context
+        from cognia_v3.memory.conversation_memory import get_conversation_context
         from vectors import text_to_vector
         _task_vec = text_to_vector(task[:200])
         if _task_vec:
@@ -6773,10 +8767,14 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             "[detail]Tip: usa /ejecutar git add . && git commit -m '<msg>' para guardar los cambios[/detail]"
         )
 
-    # Proactividad: proponer lo que el usuario no pidio pero le serviria.
-    # SOLO se muestra como sugerencia — la regla de oro del modulo es proponer,
-    # nunca ejecutar sin permiso, y por eso tampoco se mezcla con result_text:
-    # el entregable es lo pedido, las ideas van aparte y etiquetadas.
+    # Fallback (cognia-x): si no hubo 'responder' explicito, salvar la prosa
+    # final o el ultimo RESULTADO real antes de rendir el fallo generico.
+    _last_result = next((h for h in reversed(history) if h.startswith("RESULTADO ")), "")
+    result_text = result_text or _last_prose or _last_result
+
+    # Proactividad (main): proponer lo que el usuario no pidio pero le
+    # serviria. SOLO sugerencia — la regla de oro es proponer, nunca ejecutar
+    # sin permiso; no se mezcla con result_text: el entregable es lo pedido.
     if result_text:
         try:
             from cognia.proactividad import proponer_extras
@@ -6792,4 +8790,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
 
 
 if __name__ == "__main__":
+    try:
+        from cognia.first_run import apply_config
+        apply_config()   # config.env instalado (fix auditoria 2026-07-15)
+    except Exception:
+        pass
     repl()

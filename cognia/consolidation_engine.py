@@ -177,7 +177,7 @@ class ConsolidationEngine:
     Motor de consolidación y limpieza de memoria para Cognia.
 
     Uso desde cognia.py:
-        from consolidation_engine import get_consolidation_engine
+        from cognia_v3.memory.consolidation_engine import get_consolidation_engine
         self._consolidation_engine = get_consolidation_engine(db_path)
 
     En sleep():

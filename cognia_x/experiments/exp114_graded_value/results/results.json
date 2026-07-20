@@ -1,0 +1,58 @@
+{
+  "exp": "exp114_graded_value",
+  "cycle": 130,
+  "hypothesis": "H-V4-10d",
+  "claim": "el producto R-VALOR = relevancia x controlabilidad(-descontada-por-costo) que el control reconstruye (129) generaliza del regimen BINARIO al GRADUADO continuo + COSTO de accion; es el criterio dominante y su ventaja sobre asignar por un solo factor ESCALA con la DISOCIACION entre controlabilidad y relevancia (grande cuando lo facil de controlar != lo importante, chica cuando coinciden) -> une control/accion con la asignacion cost-aware (101) y la complementariedad (83-86)",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "anti": {
+        "valor_cost": 0.9858,
+        "valor_simple": 0.9619,
+        "prediccion": 0.5751,
+        "controlabilidad": 0.6175,
+        "relevancia": 0.4389
+      },
+      "indep": {
+        "valor_cost": 0.9925,
+        "valor_simple": 0.9831,
+        "prediccion": 0.5859,
+        "controlabilidad": 0.8049,
+        "relevancia": 0.7592
+      },
+      "corr": {
+        "valor_cost": 0.9953,
+        "valor_simple": 0.9907,
+        "prediccion": 0.6465,
+        "controlabilidad": 0.9511,
+        "relevancia": 0.9473
+      }
+    },
+    "margins": {
+      "anti": 0.3683,
+      "indep": 0.1876,
+      "corr": 0.0442
+    },
+    "dominant": true,
+    "scales_with_dissociation": true,
+    "status": "apoyada",
+    "verdict": "H-V4-10d APOYADA (el producto generaliza a GRADOS+COSTO y su ventaja escala con la DISOCIACIÓN): VALOR_COST (w·b̂²/(b̂²+ρ)) es el criterio DOMINANTE en toda la correlación, y su MARGEN sobre la mejor base de un solo factor ESCALA con la disociación controlabilidad-relevancia: ANTI-correlacionados +0.368 (lo fácil de controlar ≠ lo importante -> elegir por un solo factor falla), INDEP +0.188, CORRELACIONADOS +0.044 (cuando controlar e importar coinciden, un solo factor casi basta). => el producto R-VALOR que el control reconstruye (129) NO era artefacto de lo binario: generaliza a grados + costo de acción, y MÁS importa cuanto más DISOCIADAS están controlabilidad y relevancia. Une control/acción con la asignación cost-aware (101) y la complementariedad (83-86)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 300
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp114] CYCLE 130 / H-V4-10d — el producto ctrl×rel a GRADOS+COSTO: ¿domina y su ventaja escala con la DISOCIACIÓN controlabilidad-relevancia?",
+    "[exp114] seeds=300 D=10 K=3 rho=0.5 a=0.6 T=400 eval=400 corrs={'anti': -0.8, 'indep': 0.0, 'corr': 0.8}",
+    "[exp114] corr=  anti(-0.8): valor_cost=0.986 valor_simple=0.962 pred=0.575 ctrl=0.618 relev=0.439 | margen(vs controlabilidad)=+0.368",
+    "[exp114] corr= indep(+0.0): valor_cost=0.993 valor_simple=0.983 pred=0.586 ctrl=0.805 relev=0.759 | margen(vs controlabilidad)=+0.188",
+    "[exp114] corr=  corr(+0.8): valor_cost=0.995 valor_simple=0.991 pred=0.646 ctrl=0.951 relev=0.947 | margen(vs controlabilidad)=+0.044",
+    "[exp114] dominante=True escala_con_disociacion=True (anti +0.368 vs corr +0.044)",
+    "[exp114] VEREDICTO H-V4-10d: APOYADA | H-V4-10d APOYADA (el producto generaliza a GRADOS+COSTO y su ventaja escala con la DISOCIACIÓN): VALOR_COST (w·b̂²/(b̂²+ρ)) es el criterio DOMINANTE en toda la correlación, y su MARGEN sobre la mejor base de un solo factor ESCALA con la disociación controlabilidad-relevancia: ANTI-correlacionados +0.368 (lo fácil de controlar ≠ lo importante -> elegir por un solo factor falla), INDEP +0.188, CORRELACIONADOS +0.044 (cuando controlar e importar coinciden, un solo factor casi basta). => el producto R-VALOR que el control reconstruye (129) NO era artefacto de lo binario: generaliza a grados + costo de acción, y MÁS importa cuanto más DISOCIADAS están controlabilidad y relevancia. Une control/acción con la asignación cost-aware (101) y la complementariedad (83-86)."
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "exp": "exp061_intervention_value",
+  "cycle": 77,
+  "hypothesis": "H-V4-5g",
+  "claim": "bajo observacion gateada por la accion + drift de costos, intervenir (re-sondar lo cacheado) se vuelve necesario para aprender el valor que la observacion pasiva no ve (R-INTERVENCION sobre memoria)",
+  "verdict": "refutada",
+  "summary": {
+    "stationary": {
+      "oracle_value": 0.662,
+      "value_full": 0.6532,
+      "value_miss": 0.6529,
+      "value_explore": 0.5877,
+      "lfu_freq": 0.5027,
+      "random": 0.2414
+    },
+    "drift": {
+      "oracle_value": 0.6598,
+      "value_full": 0.6125,
+      "value_miss": 0.5613,
+      "value_explore": 0.5324,
+      "lfu_freq": 0.5029,
+      "random": 0.1889
+    },
+    "explore_helps_drift": false,
+    "obs_gap_drift": 0.0512,
+    "explore_recovers_gap": -0.5645,
+    "explore_neutral_stationary": true,
+    "status": "refutada",
+    "verdict": "H-V4-5g REFUTADA (con matiz informativo): el PROBLEMA es real pero la intervención naive NO lo resuelve. Bajo DRIFT la observación gateada SÍ duele: value_miss 0.561 pierde 0.051 vs value_full 0.613 (en ESTACIONARIO miss=full, 0.653=0.653: la ceguera al drift de lo CACHEADO es un efecto REAL). PERO el mecanismo de re-sondar sacrificando un slot entero es demasiado BURDO: value_explore 0.532 ni siquiera supera a value_miss 0.561 bajo drift (recupera 0% del gap = NADA) y cuesta -0.065 en estacionario. => el slot-sacrifice permanente cuesta más capacidad de la que recupera; la intervención sobre la memoria, si paga, necesita ser CHEAP/TARGETED (re-sondar OCASIONAL gateado por sorpresa, no un slot fijo). R-INTERVENCIÓN sobre la memoria NO se logra con este mecanismo burdo. Próxima hija: intervención dirigida por sorpresa."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 32,
+    "n": 50,
+    "m": 10,
+    "alpha_f": 1.5,
+    "alpha_c": 1.5,
+    "K_phase": 300,
+    "n_phases": 6
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp061] CYCLE 77 / H-V4-5g — bajo DRIFT de costos + obs gateada, INTERVENIR (re-sondar) se vuelve necesario",
+    "[exp061] n=50 m=10 K_phase=300 n_phases=6 seeds=32",
+    "[exp061] COST_STATIONARY hit-rate: oracle=0.662 value_full=0.653 value_miss=0.653 value_explore=0.588 lfu=0.503",
+    "[exp061] COST_DRIFT      hit-rate: oracle=0.660 value_full=0.613 value_miss=0.561 value_explore=0.532 lfu=0.503",
+    "[exp061] DRIFT: explore-miss=-0.029 (recupera -56% del gap de obs); STAT: explore-miss=-0.065",
+    "[exp061] VEREDICTO H-V4-5g: REFUTADA | H-V4-5g REFUTADA (con matiz informativo): el PROBLEMA es real pero la intervención naive NO lo resuelve. Bajo DRIFT la observación gateada SÍ duele: value_miss 0.561 pierde 0.051 vs value_full 0.613 (en ESTACIONARIO miss=full, 0.653=0.653: la ceguera al drift de lo CACHEADO es un efecto REAL). PERO el mecanismo de re-sondar sacrificando un slot entero es demasiado BURDO: value_explore 0.532 ni siquiera supera a value_miss 0.561 bajo drift (recupera 0% del gap = NADA) y cuesta -0.065 en estacionario. => el slot-sacrifice permanente cuesta más capacidad de la que recupera; la intervención sobre la memoria, si paga, necesita ser CHEAP/TARGETED (re-sondar OCASIONAL gateado por sorpresa, no un slot fijo). R-INTERVENCIÓN sobre la memoria NO se logra con este mecanismo burdo. Próxima hija: intervención dirigida por sorpresa."
+  ]
+}

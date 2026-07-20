@@ -1,0 +1,91 @@
+{
+ "prereg": "RAIZ_GROKKING \u00a74 ataque A",
+ "modelo": "qwen35_4b",
+ "N": 6,
+ "tareas": {
+  "ALG3": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": null,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 4,
+    "n_clusters": 4,
+    "winner_size": 1,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 1343.5
+  },
+  "LONG2": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 4,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 1,
+    "n_clusters": 0,
+    "winner_size": 0,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 1147.6
+  },
+  "LONG3": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": 2,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 1,
+    "n_clusters": 0,
+    "winner_size": 0,
+    "n_inputs": 8
+   },
+   "n_inputs": 8,
+   "secs": 1231.5
+  },
+  "LONG5": {
+   "cobertura@N": false,
+   "cuales_pasan": [],
+   "greedy_ok": false,
+   "consenso_idx": null,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 0,
+    "n_clusters": 0,
+    "winner_size": 0,
+    "n_inputs": 0
+   },
+   "n_inputs": 0,
+   "secs": 1316.1
+  },
+  "SPEC1": {
+   "cobertura@N": true,
+   "cuales_pasan": [
+    1,
+    4,
+    5
+   ],
+   "greedy_ok": false,
+   "consenso_idx": 0,
+   "consenso_ok": false,
+   "consenso_info": {
+    "n_considered": 6,
+    "n_valid": 6,
+    "n_clusters": 1,
+    "winner_size": 6,
+    "n_inputs": 6
+   },
+   "n_inputs": 6,
+   "secs": 869.1
+  }
+ }
+}

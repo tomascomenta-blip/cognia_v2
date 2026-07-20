@@ -1,0 +1,135 @@
+{
+  "exp": "exp069_feedback_quality",
+  "cycle": 85,
+  "hypothesis": "H-V4-7c",
+  "claim": "subir la calidad del feedback (mas muestras S de control, menos ruido de relevancia) vuelve la recuperacion del combinador aprendido de parcial a decisiva bajo sustitutos sin feedback perfecto",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "subs_q0": {
+        "oracle": 1.0,
+        "empowerment": 0.8545,
+        "relevance": 0.8984,
+        "rvalue_prod": 0.884,
+        "learned_lin": 0.8984,
+        "learned_poly2": 0.9005,
+        "random": 0.7055
+      },
+      "subs_q1": {
+        "oracle": 1.0,
+        "empowerment": 0.8988,
+        "relevance": 0.9383,
+        "rvalue_prod": 0.9161,
+        "learned_lin": 0.9305,
+        "learned_poly2": 0.9543,
+        "random": 0.6977
+      },
+      "subs_q2": {
+        "oracle": 1.0,
+        "empowerment": 0.9433,
+        "relevance": 0.955,
+        "rvalue_prod": 0.9287,
+        "learned_lin": 0.9428,
+        "learned_poly2": 0.9803,
+        "random": 0.6781
+      },
+      "subs_q3": {
+        "oracle": 1.0,
+        "empowerment": 0.9507,
+        "relevance": 0.9531,
+        "rvalue_prod": 0.9328,
+        "learned_lin": 0.9491,
+        "learned_poly2": 0.9913,
+        "random": 0.7189
+      },
+      "subs_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.9567,
+        "relevance": 0.9536,
+        "rvalue_prod": 0.9351,
+        "learned_lin": 0.951,
+        "learned_poly2": 0.9944,
+        "random": 0.7021
+      },
+      "comp_q0": {
+        "oracle": 1.0,
+        "empowerment": 0.6352,
+        "relevance": 0.6709,
+        "rvalue_prod": 0.8333,
+        "learned_lin": 0.8183,
+        "learned_poly2": 0.8273,
+        "random": 0.4844
+      },
+      "comp_q1": {
+        "oracle": 1.0,
+        "empowerment": 0.6893,
+        "relevance": 0.6924,
+        "rvalue_prod": 0.9216,
+        "learned_lin": 0.9039,
+        "learned_poly2": 0.9241,
+        "random": 0.5012
+      },
+      "comp_q2": {
+        "oracle": 1.0,
+        "empowerment": 0.7019,
+        "relevance": 0.6876,
+        "rvalue_prod": 0.9763,
+        "learned_lin": 0.9538,
+        "learned_poly2": 0.9816,
+        "random": 0.4666
+      },
+      "comp_q3": {
+        "oracle": 1.0,
+        "empowerment": 0.7125,
+        "relevance": 0.6859,
+        "rvalue_prod": 0.9821,
+        "learned_lin": 0.954,
+        "learned_poly2": 0.992,
+        "random": 0.472
+      },
+      "comp_clean": {
+        "oracle": 1.0,
+        "empowerment": 0.705,
+        "relevance": 0.7156,
+        "rvalue_prod": 0.9879,
+        "learned_lin": 0.9638,
+        "learned_poly2": 0.9951,
+        "random": 0.4698
+      }
+    },
+    "adv_subs": {
+      "q0": 0.0165,
+      "q1": 0.0382,
+      "q2": 0.0516,
+      "q3": 0.0585,
+      "clean": 0.0593
+    },
+    "crossover_quality": "q1",
+    "improves_with_quality": true,
+    "comp_no_sacrifice": true,
+    "decisive_moderate": true,
+    "decisive_high": false,
+    "status": "apoyada",
+    "verdict": "H-V4-7c APOYADA: subir la CALIDAD DEL FEEDBACK vuelve la recuperación del combinador aprendido de PARCIAL a DECISIVA bajo sustitutos, SIN necesitar feedback perfecto. adv(poly2−producto) por calidad: q0=0.017, q1(realista)=0.038, q2=0.052, q3=0.059, clean=0.059. Cruza el umbral decisivo (+0.03) ya en feedback MODERADO (q1: S/σr mejorados, no perfectos) y crece monótono con la calidad. No sacrifica complementos. => el noise-gating de CYCLE 84 NO es una pared dura: con más muestras de control y menos ruido de relevancia, aprender la forma no-factorizable recupera DECISIVAMENTE el valor de sustitutos."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 64,
+    "n": 50,
+    "k": 10,
+    "ctrl_noise": 0.5,
+    "m": 20
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp069] CYCLE 85 / H-V4-7c — ¿subir la calidad del feedback vuelve decisiva la recuperación aprendida?",
+    "[exp069] n=50 k=10 ctrl_noise=0.5 m=20 seeds=64 qualities=['q0', 'q1', 'q2', 'q3', 'clean'] (λ=1.0)",
+    "[exp069] subs/λ1.0: q0: prod=0.884 poly2=0.900 bm=0.898 | q1: prod=0.916 poly2=0.954 bm=0.938 | q2: prod=0.929 poly2=0.980 bm=0.955 | q3: prod=0.933 poly2=0.991 bm=0.953 | clean: prod=0.935 poly2=0.994 bm=0.957",
+    "[exp069] comp/λ1.0: q0: prod=0.833 poly2=0.827 bm=0.671 | q1: prod=0.922 poly2=0.924 bm=0.692 | q2: prod=0.976 poly2=0.982 bm=0.702 | q3: prod=0.982 poly2=0.992 bm=0.713 | clean: prod=0.988 poly2=0.995 bm=0.716",
+    "[exp069] subs adv(poly2−prod) por calidad: {'q0': 0.0165, 'q1': 0.0382, 'q2': 0.0516, 'q3': 0.0585, 'clean': 0.0593} | crossover decisivo (+0.03) = q1 | improves=True comp_ok=True",
+    "[exp069] VEREDICTO H-V4-7c: APOYADA | H-V4-7c APOYADA: subir la CALIDAD DEL FEEDBACK vuelve la recuperación del combinador aprendido de PARCIAL a DECISIVA bajo sustitutos, SIN necesitar feedback perfecto. adv(poly2−producto) por calidad: q0=0.017, q1(realista)=0.038, q2=0.052, q3=0.059, clean=0.059. Cruza el umbral decisivo (+0.03) ya en feedback MODERADO (q1: S/σr mejorados, no perfectos) y crece monótono con la calidad. No sacrifica complementos. => el noise-gating de CYCLE 84 NO es una pared dura: con más muestras de control y menos ruido de relevancia, aprender la forma no-factorizable recupera DECISIVAMENTE el valor de sustitutos."
+  ]
+}

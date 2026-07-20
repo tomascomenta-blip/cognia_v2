@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* modo noche por clase (el toggle del header pone .dark en <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* paleta oficina isometrica (contrato visual) */
+@theme {
+  --color-magenta: #e91e8c;
+  --color-rosa: #f8bbd9;
+  --color-lima: #c6d62f;
+  --color-piso: #5e2249;
+  --color-pared: #f4f2ef;
+  --color-mueble: #3a3a3a;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

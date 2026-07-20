@@ -1,0 +1,169 @@
+{
+  "exp": "exp042_value_isolation_post",
+  "cycle": 56,
+  "hypothesis": "H-V4-1b",
+  "claim": "medido por post_on_cause (no accuracy), el valor de info-gain se aísla del de intervenir en el régimen duro; la accuracy de exp022 lo enmascaraba",
+  "verdict": "apoyada",
+  "summary": {
+    "budgets": [
+      8,
+      12,
+      16,
+      20,
+      24
+    ],
+    "n_seeds": 48,
+    "easy_regime": {
+      "D": 12,
+      "cluster": 4,
+      "p_obs": 0.1
+    },
+    "hard_regime": {
+      "D": 48,
+      "cluster": 14,
+      "p_obs": 0.2
+    },
+    "easy_by_K": {
+      "8": {
+        "post_B": 0.9030885858545101,
+        "post_C": 0.7047639037504939,
+        "post_A": 0.2335946969519002,
+        "post_BminusC": 0.1983246821040162,
+        "post_BminusC_std": 0.4282469760868083,
+        "sign_BgtC": 0.8541666666666666,
+        "acc_B": 0.9615416666666666,
+        "acc_C": 0.8953541666666668,
+        "acc_BminusC": 0.0661875
+      },
+      "12": {
+        "post_B": 0.9409575112002857,
+        "post_C": 0.8941552607227611,
+        "post_A": 0.23503578054971866,
+        "post_BminusC": 0.04680225047752473,
+        "post_BminusC_std": 0.2712847837596295,
+        "sign_BgtC": 0.8958333333333334,
+        "acc_B": 0.9738819444444444,
+        "acc_C": 0.9640694444444445,
+        "acc_BminusC": 0.009812500000000002
+      },
+      "16": {
+        "post_B": 0.9956595555329774,
+        "post_C": 0.9468186704936401,
+        "post_A": 0.23656402764877163,
+        "post_BminusC": 0.04884088503933732,
+        "post_BminusC_std": 0.1601036544852342,
+        "sign_BgtC": 0.8958333333333334,
+        "acc_B": 1.0,
+        "acc_C": 0.9832569444444443,
+        "acc_BminusC": 0.016743055555555556
+      },
+      "20": {
+        "post_B": 0.9998967768811212,
+        "post_C": 0.9589301144312273,
+        "post_A": 0.24961585052367022,
+        "post_BminusC": 0.04096666244989367,
+        "post_BminusC_std": 0.15992389534792928,
+        "sign_BgtC": 0.9375,
+        "acc_B": 1.0,
+        "acc_C": 0.9844444444444446,
+        "acc_BminusC": 0.015555555555555557
+      },
+      "24": {
+        "post_B": 0.999999996461563,
+        "post_C": 0.9994217614055424,
+        "post_A": 0.24993989874849917,
+        "post_BminusC": 0.0005782350560205827,
+        "post_BminusC_std": 0.0024336799483544182,
+        "sign_BgtC": 1.0,
+        "acc_B": 1.0,
+        "acc_C": 1.0,
+        "acc_BminusC": 0.0
+      }
+    },
+    "hard_by_K": {
+      "8": {
+        "post_B": 0.21266051482384837,
+        "post_C": 0.21473315478686286,
+        "post_A": 0.048636689255651504,
+        "post_BminusC": -0.0020726399630145455,
+        "post_BminusC_std": 0.3393013234841524,
+        "sign_BgtC": 0.4166666666666667,
+        "acc_B": 0.6890069444444444,
+        "acc_C": 0.7218472222222222,
+        "acc_BminusC": -0.03284027777777778
+      },
+      "12": {
+        "post_B": 0.4420805272235722,
+        "post_C": 0.3085202113720214,
+        "post_A": 0.05170306674631164,
+        "post_BminusC": 0.13356031585155084,
+        "post_BminusC_std": 0.40563536116950144,
+        "sign_BgtC": 0.625,
+        "acc_B": 0.8224652777777778,
+        "acc_C": 0.7329444444444445,
+        "acc_BminusC": 0.08952083333333333
+      },
+      "16": {
+        "post_B": 0.6227835898551954,
+        "post_C": 0.4979438791305915,
+        "post_A": 0.05608638830131015,
+        "post_BminusC": 0.12483971072460397,
+        "post_BminusC_std": 0.4768002935919742,
+        "sign_BgtC": 0.5625,
+        "acc_B": 0.8789027777777778,
+        "acc_C": 0.8301805555555556,
+        "acc_BminusC": 0.04872222222222222
+      },
+      "20": {
+        "post_B": 0.6940006715188299,
+        "post_C": 0.5137419785572059,
+        "post_A": 0.05910340032681882,
+        "post_BminusC": 0.18025869296162408,
+        "post_BminusC_std": 0.46783083859193875,
+        "sign_BgtC": 0.6458333333333334,
+        "acc_B": 0.8905069444444446,
+        "acc_C": 0.817576388888889,
+        "acc_BminusC": 0.07293055555555555
+      },
+      "24": {
+        "post_B": 0.8485968057163328,
+        "post_C": 0.5424670069366683,
+        "post_A": 0.06641690349707947,
+        "post_BminusC": 0.30612979877966456,
+        "post_BminusC_std": 0.4775547191941289,
+        "sign_BgtC": 0.7916666666666666,
+        "acc_B": 0.9473680555555557,
+        "acc_C": 0.8082569444444444,
+        "acc_BminusC": 0.1391111111111111
+      }
+    },
+    "post_iso_hard_Kmax": 0.3061,
+    "sign_consistency_hard_Kmax": 0.7917,
+    "grows_with_K": true,
+    "acc_masks_value": true,
+    "Kmin": 8,
+    "Kmax": 24,
+    "status": "apoyada",
+    "verdict": "H-V4-1b APOYADA: con el instrumento FIEL (post_on_cause), info-gain (B) AÍSLA su valor sobre el azar-activo (C) en el régimen DURO: post B-C=+0.306 a Kmax (signo 79% seeds B>C, CRECE con K). La ACCURACY lo ENMASCARA (acc B-C=+0.139 << post B-C) porque satura una vez descartado el clúster. Explica la MIXTA de exp022: instrumento equivocado. R-VALOR (qué consultar) se separa de R-INTERVENCIÓN (intervenir)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "budgets": "8,12,16,20,24",
+    "n_test": 3000,
+    "candidates": 128
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp042] CYCLE 56 / H-V4-1b — aislar el valor de info-gain con post_on_cause (instrumento fiel)",
+    "[exp042] FÁCIL={'D': 12, 'cluster': 4, 'p_obs': 0.1} DURO={'D': 48, 'cluster': 14, 'p_obs': 0.2} budgets=[8, 12, 16, 20, 24] seeds=48",
+    "[exp042] DURO post_on_cause (causa verdadera): K8:B=0.213/C=0.215(B-C=-0.002,42%) K12:B=0.442/C=0.309(B-C=+0.134,62%) K16:B=0.623/C=0.498(B-C=+0.125,56%) K20:B=0.694/C=0.514(B-C=+0.180,65%) K24:B=0.849/C=0.542(B-C=+0.306,79%)",
+    "[exp042] DURO accuracy (SATURA, enmascara): K8:B=0.689/C=0.722 K12:B=0.822/C=0.733 K16:B=0.879/C=0.830 K20:B=0.891/C=0.818 K24:B=0.947/C=0.808",
+    "[exp042] FÁCIL post_on_cause: K8:B-C=+0.198 K12:B-C=+0.047 K16:B-C=+0.049 K20:B-C=+0.041 K24:B-C=+0.001",
+    "[exp042] VEREDICTO H-V4-1b: APOYADA | post_iso_hard@Kmax=+0.306 signo=79% crece=True acc_enmascara=True",
+    "[exp042] H-V4-1b APOYADA: con el instrumento FIEL (post_on_cause), info-gain (B) AÍSLA su valor sobre el azar-activo (C) en el régimen DURO: post B-C=+0.306 a Kmax (signo 79% seeds B>C, CRECE con K). La ACCURACY lo ENMASCARA (acc B-C=+0.139 << post B-C) porque satura una vez descartado el clúster. Explica la MIXTA de exp022: instrumento equivocado. R-VALOR (qué consultar) se separa de R-INTERVENCIÓN (intervenir)."
+  ]
+}

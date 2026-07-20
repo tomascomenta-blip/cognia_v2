@@ -22,13 +22,23 @@ prompt text so the doc and the code can never drift apart.
 from __future__ import annotations
 
 import ast
+import atexit
+import datetime
 import glob as _glob
 import json
 import operator
 import os
 import re
 import subprocess
+import sys
+import time as _time
 from pathlib import Path
+
+# Gate de escritura compartido con los workers Tier 1: confina TODA escritura
+# del loop al workspace del agente (AGENT_WORKSPACE_ROOT, env-overridable via
+# COGNIA_AGENT_WORKSPACE) y bloquea nombres sensibles (*.env, *secret*,
+# binarios). Levanta ValueError con mensaje ASCII que nombra el workspace.
+from cognia.agents.workers.dev_tools import resolve_write_path as _resolve_write_path
 
 # name -> {"fn", "doc", "danger"}
 TOOLS: dict = {}
@@ -42,13 +52,126 @@ def tool(name: str, doc: str, danger: bool = False):
     return deco
 
 
-def build_tools_doc() -> str:
-    """The tool list block injected into the agent prompt, built from the registry."""
-    return "\n".join(f"  {spec['doc']}" for spec in TOOLS.values())
+def build_tools_doc(allowed: set = None) -> str:
+    """The tool list block injected into the agent prompt, built from the registry.
+
+    ``allowed``: si se pasa, muestra SOLO esas tools (sub-agente acotado por
+    rol -- delegar_subtarea). None = todas (comportamiento por defecto)."""
+    return "\n".join(f"  {spec['doc']}" for name, spec in TOOLS.items()
+                     if allowed is None or name in allowed)
+
+
+# Roles para sub-agentes acotados (delegar_subtarea): cada rol expone SOLO un
+# subconjunto de tools -- un investigador no puede escribir/ejecutar, un
+# implementador si. Acota el blast-radius de una subtarea delegada.
+ROLE_TOOLS = {
+    "investigador": {"leer_archivo", "listar", "arbol", "contar_lineas",
+                     "buscar", "recordar", "kg_buscar", "notas", "anotar",
+                     "resumir", "responder"},
+    "implementador": {"leer_archivo", "listar", "buscar", "escribir_archivo",
+                      "apendar_archivo", "copiar_archivo", "generar_codigo",
+                      "py_validar", "json_validar", "tests", "ejecutar",
+                      "notas", "anotar", "responder"},
+}
+
+
+# ── contador de uso liviano (TAREA 5) ──────────────────────────────────
+# Dict en memoria {tool: {calls, ok, fail, last}} + flush ATOMICO (mismo
+# patron _save_manifest de tool_synthesis: temp + os.replace, nunca deja el
+# archivo a medio escribir) cada _USAGE_FLUSH_EVERY llamadas y en atexit.
+# Best-effort: si el disco falla, el loop del agente no se entera.
+_USAGE_PATH = Path(__file__).parent / "generated_tools" / "_tool_usage.json"
+_USAGE: dict = {}
+_usage_calls_since_flush = 0
+_USAGE_FLUSH_EVERY = 20
+
+
+def _usage_load() -> None:
+    global _USAGE
+    try:
+        if _USAGE_PATH.exists():
+            _USAGE = json.loads(_USAGE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        _USAGE = {}
+
+
+def _usage_flush() -> None:
+    try:
+        _USAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _USAGE_PATH.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(_USAGE, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, _USAGE_PATH)
+    except Exception:
+        pass
+
+
+def _record_usage(name: str, ok: bool) -> None:
+    global _usage_calls_since_flush
+    import datetime
+    entry = _USAGE.setdefault(name, {"calls": 0, "ok": 0, "fail": 0, "last": None})
+    entry["calls"] += 1
+    entry["ok" if ok else "fail"] += 1
+    entry["last"] = datetime.datetime.now().isoformat(timespec="seconds")
+    _usage_calls_since_flush += 1
+    if _usage_calls_since_flush >= _USAGE_FLUSH_EVERY:
+        _usage_calls_since_flush = 0
+        _usage_flush()
+
+
+def get_tool_usage() -> dict:
+    """Lectura de los contadores de uso (copia; no expone el dict interno)."""
+    return {k: dict(v) for k, v in _USAGE.items()}
+
+
+_usage_load()
+atexit.register(_usage_flush)
+
+
+# ── ACI: compactación de tool-outputs (mejora de HARNESS, 2026-07-13) ──
+# El research del harness (HARNESS_RESEARCH.md) midió que los outputs de tools
+# dominan 70-80% del budget de contexto y el 3B se pierde con dumps largos
+# (ctx 16k). Cap uniforme head+tail: un output largo se recorta conservando
+# la cabeza (la señal RESULTADO ...) y la cola (lo último suele ser lo
+# relevante), con el completo guardado en disco por si el agente lo necesita.
+# Cero riesgo: los outputs cortos (la mayoría) pasan intactos.
+_ACI_CAP = int(os.environ.get("COGNIA_ACI_CAP", "1800"))
+_ACI_HEAD = 1200
+_ACI_TAIL = 450
+
+
+def aci_trim(text: str, name: str = "tool") -> str:
+    """Recorta un output de tool largo a head+tail con un marcador; guarda el
+    completo en el workspace. Idempotente sobre textos cortos."""
+    if not text or len(text) <= _ACI_CAP:
+        return text
+    ruta = ""
+    try:
+        base = Path(_resolve_write_path.__module__ and __import__(
+            "cognia.agents.workers.dev_tools", fromlist=["AGENT_WORKSPACE_ROOT"]
+        ).AGENT_WORKSPACE_ROOT)
+        d = base / ".aci_overflow"
+        d.mkdir(parents=True, exist_ok=True)
+        import hashlib
+        ruta = d / f"{name}_{hashlib.sha1(text.encode()).hexdigest()[:8]}.txt"
+        ruta.write_text(text, encoding="utf-8")
+        ruta = str(ruta)
+    except Exception:
+        ruta = "(no guardado)"
+    omit = len(text) - _ACI_HEAD - _ACI_TAIL
+    return (text[:_ACI_HEAD]
+            + f"\n[... {omit} chars omitidos (output completo en {ruta}) ...]\n"
+            + text[-_ACI_TAIL:])
 
 
 def run_tool(name: str, args: str, ctx: dict) -> str:
     """Dispatch one tool by name. Unknown name -> a helpful error string."""
+    # Sub-agente acotado: si el ctx trae un set de tools permitidas (rol de
+    # delegar_subtarea), una tool fuera del rol se rechaza con señal clara --
+    # el modelo ve que no la tiene y elige otra (mismo estilo que 'no existe').
+    _allowed = ctx.get("_allowed_tools") if isinstance(ctx, dict) else None
+    if _allowed is not None and name not in _allowed and name != "responder":
+        return (f"ERROR: '{name}' no esta permitida para este rol. "
+                f"Validas: {', '.join(sorted(_allowed))}")
     spec = TOOLS.get(name)
     if spec is None:
         # Signal: the agent wanted a tool that doesn't exist yet. Logged so the
@@ -61,9 +184,27 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
         valid = ", ".join(TOOLS.keys())
         return f"ERROR: herramienta '{name}' no existe. Validas: {valid}"
     try:
-        return spec["fn"](args, ctx)
+        out = spec["fn"](args, ctx)
+        # \bERROR\b sobre la cabeza (misma convencion que la traza de cli.py):
+        # un RESULTADO exitoso que menciona 'ERROR_LOG.txt' no es un fallo.
+        ok = not re.search(r"\bERROR\b", out[:120])
     except Exception as exc:  # a broken tool must not kill the loop
-        return f"RESULTADO {name} ERROR: {exc}"
+        out = f"RESULTADO {name} ERROR: {exc}"
+        ok = False
+    try:
+        _record_usage(name, ok)
+    except Exception:
+        pass
+    # Bus interno (cognia/events.py): cada tool ejecutada deja un evento
+    # observable (oficina, analytics, /agente estado) sin acoplar nada acá.
+    try:
+        from cognia.events import emit
+        emit("tool.ejecutada", nombre=name, ok=ok, args_head=args[:80])
+    except Exception:
+        pass
+    # ACI: compactar outputs largos (mejora de harness) antes de devolver al
+    # loop. 'responder' NO se toca: es la respuesta final, no una observación.
+    return out if name == "responder" else aci_trim(out, name)
 
 
 # ── small shared helpers ───────────────────────────────────────────────
@@ -90,6 +231,27 @@ def _orch(ctx: dict):
     return ShatteringOrchestrator(mode="local")
 
 
+def _disp(path) -> str:
+    """Ruta para MOSTRAR al modelo en el RESULTADO: relativa al workspace si esta
+    adentro, si no absoluta.
+
+    El 3B copiaba el path ABSOLUTO que devolvia escribir_archivo
+    (C:\\Users\\...\\x.txt) y luego lo re-usaba/leia en loop (verificado en e2e del
+    agente 2026-07-01). Mostrar la ruta relativa evita esa confusion y ademas
+    coincide con los datos de fine-tune (sanitizados a relativo)."""
+    try:
+        import cognia.agents.workers.dev_tools as _dv
+        root = Path(_dv.AGENT_WORKSPACE_ROOT).resolve()
+        p = Path(path).resolve()
+        if p == root:
+            return "."
+        if root in p.parents:
+            return str(p.relative_to(root)).replace("\\", "/")
+    except Exception:
+        pass
+    return str(path)
+
+
 # ══════════════════════════════════════════════════════════════════════
 # FILE TOOLS
 # ══════════════════════════════════════════════════════════════════════
@@ -97,17 +259,26 @@ def _orch(ctx: dict):
 @tool("leer_archivo", "leer_archivo <path>                 -- leer un archivo (hasta 4000 chars)")
 def _leer_archivo(args, ctx):
     path = Path(args.strip())
-    content = path.read_text(encoding="utf-8", errors="replace")[:4000]
-    return f"RESULTADO leer_archivo {path}: {content}"
+    full = path.read_text(encoding="utf-8", errors="replace")
+    content = full[:4000]
+    if len(full) > 4000:
+        # Marcador explicito: sin esto el modelo cree que vio el archivo entero y
+        # lo sobrescribe con una version mas corta (perdida de datos en read-mod-write).
+        content += (f"\n... [TRUNCADO: mostrando 4000 de {len(full)} chars; el archivo NO "
+                    f"esta completo. NO lo sobrescribas entero; usa 'buscar' para ubicar]")
+    return f"RESULTADO leer_archivo {_disp(path)}: {content}"
 
 
 @tool("escribir_archivo",
-      "escribir_archivo <path> | <contenido>  -- crea/sobrescribe (crea dirs)")
+      "escribir_archivo <path> | <contenido>  -- crea/sobrescribe en el workspace (crea dirs)")
 def _escribir_archivo(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO escribir_archivo ERROR: formato (usa ruta | contenido)"
-    wpath = Path(parts[0].strip())
+    try:
+        wpath = _resolve_write_path(parts[0].strip())
+    except ValueError as e:
+        return f"RESULTADO escribir_archivo ERROR: {e}"
     content = _strip_fences(parts[1])
     old = wpath.read_text(encoding="utf-8") if wpath.exists() else ""
     wpath.parent.mkdir(parents=True, exist_ok=True)
@@ -122,16 +293,19 @@ def _escribir_archivo(args, ctx):
     if str(wpath) not in ft:
         ft.append(str(wpath))
         ctx["agent_state"]["files_touched"] = ft[-15:]
-    return f"RESULTADO escribir_archivo {wpath}: OK ({len(content)} chars)"
+    return f"RESULTADO escribir_archivo {_disp(wpath)}: OK ({len(content)} chars)"
 
 
 @tool("apendar_archivo",
-      "apendar_archivo <path> | <texto>      -- agrega texto al final del archivo")
+      "apendar_archivo <path> | <texto>      -- agrega texto al final (en el workspace)")
 def _apendar_archivo(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO apendar_archivo ERROR: formato (usa ruta | texto)"
-    wpath = Path(parts[0].strip())
+    try:
+        wpath = _resolve_write_path(parts[0].strip())
+    except ValueError as e:
+        return f"RESULTADO apendar_archivo ERROR: {e}"
     text = _strip_fences(parts[1])
     wpath.parent.mkdir(parents=True, exist_ok=True)
     # Start on a fresh line if the file has content not ending in a newline,
@@ -143,19 +317,24 @@ def _apendar_archivo(args, ctx):
             prefix = "\n"
     with wpath.open("a", encoding="utf-8") as fh:
         fh.write(prefix + (text if text.endswith("\n") else text + "\n"))
-    return f"RESULTADO apendar_archivo {wpath}: OK (+{len(text)} chars)"
+    return f"RESULTADO apendar_archivo {_disp(wpath)}: OK (+{len(text)} chars)"
 
 
-@tool("copiar_archivo", "copiar_archivo <src> | <dst>          -- copia un archivo")
+@tool("copiar_archivo", "copiar_archivo <src> | <dst>          -- copia un archivo (dst en el workspace)")
 def _copiar_archivo(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO copiar_archivo ERROR: formato (usa src | dst)"
     import shutil
-    src, dst = Path(parts[0].strip()), Path(parts[1].strip())
+    # src puede leerse de cualquier lado (leer es legitimo); dst queda confinado.
+    src = Path(parts[0].strip())
+    try:
+        dst = _resolve_write_path(parts[1].strip())
+    except ValueError as e:
+        return f"RESULTADO copiar_archivo ERROR: {e}"
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
-    return f"RESULTADO copiar_archivo: {src} -> {dst} OK"
+    return f"RESULTADO copiar_archivo: {src} -> {_disp(dst)} OK"
 
 
 @tool("listar", "listar <directorio>                   -- lista archivos/carpetas")
@@ -196,7 +375,7 @@ def _contar_lineas(args, ctx):
 
 @tool("buscar", "buscar <patron> | <directorio>        -- busca texto en archivos")
 def _buscar(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     patron = parts[0].strip()
     directorio = parts[1].strip() if len(parts) > 1 else "."
 
@@ -221,19 +400,20 @@ def _buscar(args, ctx):
         cabeza, _, cola = patron.rpartition(" ")
         if cola and Path(cola).exists():
             patron, directorio = cabeza.strip(), cola
-    results = []
-    try:
-        r = subprocess.run(
-            ["rg", "--no-heading", "-n", "--max-count", "3", patron, directorio],
-            capture_output=True, text=True, timeout=10,
-        )
-        if r.returncode == 0 and r.stdout.strip():
-            results = r.stdout.strip().splitlines()[:15]
-    except Exception:
-        pass
-    if not results:
+    def _scan(pat):
+        """rg -> fallback regex/substring sobre contenidos. Hasta 15 'archivo:n: txt'."""
         try:
-            compiled = re.compile(patron, re.IGNORECASE)
+            r = subprocess.run(
+                ["rg", "--no-heading", "-n", "--max-count", "3", pat, directorio],
+                capture_output=True, text=True, timeout=10,
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                return r.stdout.strip().splitlines()[:15]
+        except Exception:
+            pass
+        out = []
+        try:
+            compiled = re.compile(pat, re.IGNORECASE)
         except re.error:
             compiled = None
         # Un FICHERO tambien es un ambito valido. `Path(fichero).rglob("*")`
@@ -249,25 +429,44 @@ def _buscar(args, ctx):
                 continue
             try:
                 for i, ln in enumerate(p.read_text(errors="replace").splitlines(), 1):
-                    if (compiled and compiled.search(ln)) or (not compiled and patron.lower() in ln.lower()):
-                        results.append(f"{p}:{i}: {ln.strip()[:100]}")
-                        if len(results) >= 15:
+                    if (compiled and compiled.search(ln)) or (not compiled and pat.lower() in ln.lower()):
+                        out.append(f"{p}:{i}: {ln.strip()[:100]}")
+                        if len(out) >= 15:
                             break
             except Exception:
                 pass
-            if len(results) >= 15:
+            if len(out) >= 15:
                 break
+        return out
+
+    results = _scan(patron)
+    nota = ""
+    # Fallback anti-degeneracion: el 3B a veces agrega spam a los args de busqueda
+    # (ej 'CLAVE-FENIX tetas Incontri'). Si el patron completo (varias palabras) no
+    # matcho, reintentar SOLO con un token identificador distintivo (con guion/
+    # digito/guion-bajo) — asi 'CLAVE-FENIX' se encuentra pese al ruido, sin rescatar
+    # palabras comunes (evita falsos positivos).
+    if not results and len(re.split(r"\s+", patron)) > 1:
+        ids = [t for t in re.split(r"\s+", patron)
+               if len(t) >= 4 and re.search(r"[-_/.\d]", t)]
+        if ids:
+            alt = max(ids, key=len)
+            if alt != patron:
+                results = _scan(alt)
+                if results:
+                    nota = f" (patron acotado a '{alt}')"
     if not results:
         try:
             results = _glob.glob(f"{directorio}/**/*{patron}*", recursive=True)[:10]
         except Exception:
             pass
     if results:
-        return f"RESULTADO buscar '{patron}': " + " | ".join(results)
+        return f"RESULTADO buscar '{patron}'{nota}: " + " | ".join(results)
     # Decir DONDE se busco: "sin resultados" a secas hacia que el agente
     # concluyera cosas falsas sobre el codigo sin poder sospechar del ambito.
-    return (f"RESULTADO buscar '{patron}': sin coincidencias en '{directorio}'. "
-            f"Para acotar a un fichero o carpeta: buscar <patron> | <ruta>")
+    return (f"RESULTADO buscar '{patron}'{nota}: sin coincidencias en "
+            f"'{directorio}'. Para acotar a un fichero o carpeta: "
+            f"buscar <patron> | <ruta>")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -275,19 +474,34 @@ def _buscar(args, ctx):
 # ══════════════════════════════════════════════════════════════════════
 
 _BLOCK = [
-    "rm -rf", "format", "del /s", "del /q", "del /f", ":(){",
+    "rm -rf", "del /s", "del /q", "del /f", ":(){",
     "mkfs", "dd if=", "> /dev/", "shutdown", "reboot", "rmdir /s",
 ]
+# 'format' NO va como substring: bloqueaba comandos benignos comunes de un agente
+# de codigo ('ruff format .', 'git log --pretty=format:%H', 'reformat.py'). Solo
+# el 'format C:' real (borrado de disco Windows) via limite de palabra.
+_BLOCK_RE = [re.compile(r"\bformat\s+[a-zA-Z]:")]
 
 
 def _shell(cmd: str, ctx: dict, timeout: int = 30) -> str:
-    norm = re.sub(r"\s+", " ", cmd.lower())
-    if any(b in norm for b in _BLOCK):
-        return "RESULTADO ejecutar: BLOQUEADO por seguridad"
+    # Sentinel (default-ON, mandato 2026-07-14): validación pre-acción
+    # unificada — allowlist de dev + bloqueo duro + confirmación para lo
+    # desconocido (default-deny). Con COGNIA_SENTINEL=0 replica la denylist
+    # previa (0 cambios). Reemplaza el chequeo inline de substrings.
+    from cognia.agent.sentinel import evaluar_shell
+    permitido, msg = evaluar_shell(cmd, ctx)
+    if not permitido:
+        return msg
     pf = ctx.get("print_fn")
     if callable(pf):
         pf(f"[detail]$ {cmd}[/detail]")
-    r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    try:
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # Timeout accionable en vez de un stacktrace generico: el modelo necesita
+        # saber que debe ACOTAR el comando (ruta/test mas especifico) y reintentar.
+        return (f"RESULTADO ejecutar ERROR: timeout tras {timeout}s. "
+                f"Acota el comando (ruta/target mas especifico) y reintenta.")
     out = (r.stdout + r.stderr).strip()
     code = "" if r.returncode == 0 else f" (exit {r.returncode})"
     return f"RESULTADO ejecutar{code}: {out[:1500] or '(sin output)'}"
@@ -298,10 +512,18 @@ def _ejecutar(args, ctx):
     return _shell(args.strip(), ctx)
 
 
-@tool("tests", "tests <ruta>                          -- corre pytest sobre una ruta")
+@tool("tests", "tests <ruta>                          -- corre pytest sobre una ruta ESPECIFICA (archivo o dir)")
 def _tests(args, ctx):
-    ruta = args.strip() or "tests/"
-    return _shell(f"python -m pytest {ruta} -q --no-header", ctx, timeout=180)
+    ruta = args.strip()
+    if not ruta:
+        # Sin ruta corria 'tests/' (toda la suite, ~min) con timeout 180s ->
+        # SIEMPRE timeout, 0 senal, 180s quemados. Exigir una ruta especifica.
+        return ("RESULTADO tests ERROR: pasa una ruta ESPECIFICA (archivo o dir), "
+                "p.ej. 'tests/test_foo.py'. Correr toda la suite tarda minutos y "
+                "agota el timeout.")
+    # sys.executable (no 'python' pelado): el 'python' del PATH puede ser el venv
+    # roto 3.14 / no traer pytest; el interprete que corre el agente es el correcto.
+    return _shell(f'"{sys.executable}" -m pytest {ruta} -q --no-header', ctx, timeout=180)
 
 
 @tool("py_validar", "py_validar <path>                     -- chequea sintaxis de un .py")
@@ -385,9 +607,20 @@ def _http_get(args, ctx):
         return "RESULTADO http_get ERROR: solo http/https"
     req = urllib.request.Request(url, headers={"User-Agent": "Cognia/3.2"})
     with urllib.request.urlopen(req, timeout=15) as resp:
+        ctype = (resp.headers.get("Content-Type") or "").lower()
         raw = resp.read(200_000).decode("utf-8", errors="replace")
-    text = re.sub(r"<[^>]+>", " ", raw)          # crude tag strip
-    text = re.sub(r"\s+", " ", text).strip()
+    # Extracción limpia vía el conversor universal (cognia/converters.py):
+    # quita script/style y conserva estructura de bloques, mejor que el
+    # strip por regex (que dejaba el JS/CSS inline como "texto"). Fallback
+    # al strip crudo si el parser HTML fallara.
+    if "html" in ctype or "<" in raw[:200]:
+        try:
+            from cognia.converters import html_a_texto
+            text = html_a_texto(raw)
+        except Exception:
+            text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", raw)).strip()
+    else:
+        text = re.sub(r"\s+", " ", raw).strip()
     return f"RESULTADO http_get {url[:60]}: {text[:1500]}"
 
 
@@ -487,16 +720,85 @@ def _recordar(args, ctx):
         from vectors import text_to_vector
     vec = text_to_vector(query)
     hits = ai.episodic.retrieve_similar(vec, top_k=5)
+    # retrieve_similar rankea por un score fusionado (sim+conf+imp+emocion) y SIEMPRE
+    # devuelve top_k, asi que sin un piso de relevancia una consulta nueva surfacea
+    # recuerdos no relacionados como si lo fueran. Piso conservador de coseno: descarta
+    # solo lo ~0 (ruido), ordena por la similitud mostrada para que los numeros bajen.
+    SIM_FLOOR = 0.1
+    hits = sorted((h for h in hits if h.get("similarity", 0.0) >= SIM_FLOOR),
+                  key=lambda h: h.get("similarity", 0.0), reverse=True)
     if not hits:
         return f"RESULTADO recordar '{query}': sin recuerdos relevantes"
     lines = [f"  ({h.get('similarity', 0):.2f}) {h.get('observation', '')[:120]}" for h in hits]
     return f"RESULTADO recordar '{query}':\n" + "\n".join(lines)
 
 
+@tool("cuaderno",
+      "cuaderno <nota|fuente|consultar|ver> | <texto/ruta/pregunta>  "
+      "-- cuaderno inteligente: notas + fuentes ingeridas + consulta (RAG)")
+def _cuaderno(args, ctx):
+    # Open Notebook nativo (cognia/notebook.py): capacidad interna que orquesta
+    # notas (SmartNotes) + fuentes (ingest->memoria) + consulta (recuperacion
+    # vectorial, sin LLM). El agente lo usa dentro de una tarea para acumular
+    # material y consultarlo.
+    parts = re.split(r"\s*\|\s*", args.strip(), maxsplit=1)
+    sub = parts[0].strip().lower()
+    resto = parts[1].strip() if len(parts) > 1 else ""
+    from cognia.notebook import Cuaderno
+    cua = Cuaderno(ai=ctx.get("ai"))
+    if sub == "nota":
+        if not resto:
+            return "RESULTADO cuaderno ERROR: falta el texto de la nota"
+        nid = cua.anotar(resto)
+        return f"RESULTADO cuaderno: nota #{nid} guardada"
+    if sub == "fuente":
+        res = cua.agregar_fuente(resto)
+        if "error" in res:
+            return f"RESULTADO cuaderno ERROR: {res['error']}"
+        return (f"RESULTADO cuaderno: fuente '{res['archivo']}' ingerida "
+                f"({res['chunks']} fragmentos)")
+    if sub == "consultar":
+        hits = cua.consultar(resto)
+        if not hits:
+            return f"RESULTADO cuaderno consultar '{resto[:40]}': sin material relevante"
+        lines = [f"  ({h['score']}) {h['texto'][:120]}" for h in hits]
+        return f"RESULTADO cuaderno consultar '{resto[:40]}':\n" + "\n".join(lines)
+    if sub == "ver":
+        r = cua.resumen()
+        fuentes = ", ".join(n["content"][:40] for n in cua.fuentes(limite=8))
+        return (f"RESULTADO cuaderno: {r['notas']} notas, {r['fuentes']} "
+                f"fuentes. Fuentes: {fuentes or '(ninguna)'}")
+    return ("RESULTADO cuaderno ERROR: subcomando invalido "
+            "(nota|fuente|consultar|ver)")
+
+
 @tool("memorizar", "memorizar <texto>                     -- guarda en memoria episodica")
 def _memorizar(args, ctx):
-    ctx["ai"].observe(args.strip(), provided_label="agente_tarea")
+    # observe() RECHAZA entradas muy cortas ({"status":"rejected","reason":...});
+    # antes se ignoraba el retorno y siempre se reportaba 'guardado' (mentira al
+    # modelo). Reportar el rechazo real; en cualquier otro caso, guardado.
+    res = ctx["ai"].observe(args.strip(), provided_label="agente_tarea")
+    if isinstance(res, dict) and res.get("status") == "rejected":
+        reason = res.get("reason", "desconocido")
+        return (f"RESULTADO memorizar: NO se guardo (razon: {reason}). "
+                "El texto debe ser mas largo (min ~5 chars y 2 palabras).")
     return "RESULTADO memorizar: guardado en memoria episodica"
+
+
+def _fmt_kg_fact(d) -> str:
+    """Formatea un hecho del KG legible para el modelo. Maneja las dos formas de
+    dict (get_facts: subject/predicate/object; get_neighbors: concept/relation).
+    Antes se usaba str(d)[:80], que volcaba el repr crudo de Python truncado."""
+    if not isinstance(d, dict):
+        return str(d)[:100]
+    subj = d.get("subject", "")
+    pred = d.get("predicate") or d.get("relation", "")
+    obj = d.get("object") or d.get("concept", "")
+    core = " ".join(str(p) for p in (subj, pred, obj) if p)
+    w = d.get("weight")
+    if isinstance(w, (int, float)):
+        core += f" (w={w:g})"
+    return core or str(d)[:100]
 
 
 @tool("kg_buscar", "kg_buscar <concepto>                  -- hechos del grafo sobre un concepto")
@@ -506,26 +808,30 @@ def _kg_buscar(args, ctx):
     facts = ai.kg.get_facts(concept) or ai.kg.get_neighbors(concept)
     if not facts:
         return f"RESULTADO kg_buscar '{concept}': sin hechos"
-    return f"RESULTADO kg_buscar '{concept}': " + " | ".join(str(f)[:80] for f in facts[:10])
+    return f"RESULTADO kg_buscar '{concept}': " + " | ".join(_fmt_kg_fact(f) for f in facts[:10])
 
 
 @tool("kg_agregar", "kg_agregar <sujeto> | <relacion> | <objeto>  -- agrega un hecho al grafo")
 def _kg_agregar(args, ctx):
-    parts = [p.strip() for p in args.split(" | ")]
+    parts = [p.strip() for p in re.split(r"\s*\|\s*", args)]
     if len(parts) != 3:
         return "RESULTADO kg_agregar ERROR: formato (sujeto | relacion | objeto)"
     subj, rel, obj = parts
+    rel = rel.lower()   # add_triple normaliza con .lower(); igualar el pre-check
     from cognia.knowledge.graph import KnowledgeGraph
     if rel not in KnowledgeGraph.VALID_RELATIONS:
         return ("RESULTADO kg_agregar ERROR: relacion invalida. Validas: "
                 + ", ".join(KnowledgeGraph.VALID_RELATIONS))
+    # add_triple devuelve is_new: True=hecho nuevo, False=ya existia (lo REFUERZA,
+    # sube weight). Antes False se reportaba 'no agregado' (falso: si esta en el KG).
     ok = ctx["ai"].kg.add_triple(subj, rel, obj, source="agente")
-    return f"RESULTADO kg_agregar: ({subj} {rel} {obj}) {'OK' if ok else 'no agregado'}"
+    estado = "OK (nuevo)" if ok else "OK (ya existia, reforzado)"
+    return f"RESULTADO kg_agregar: ({subj} {rel} {obj}) {estado}"
 
 
 @tool("anotar", "anotar <clave> | <valor>              -- guarda nota en memoria de trabajo")
 def _anotar(args, ctx):
-    parts = args.split(" | ", 1)
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
     if len(parts) != 2:
         return "RESULTADO anotar ERROR: formato (clave | valor)"
     ctx.setdefault("working_memory", {})[parts[0].strip()] = parts[1].strip()
@@ -550,3 +856,503 @@ def _resumir(args, ctx):
     prompt = f"Resume en 2-3 frases claras, en espanol:\n\n{text[:3000]}"
     out = _orch(ctx).infer(prompt).text.strip()
     return f"RESULTADO resumir: {out[:800]}"
+
+
+# Best-of-N + juez EXPUESTO como tool (wire de BoN al loop /hacer, CORRIDA-2).
+# Integracion aditiva: en vez de reescribir el loop ReAct (accion-por-accion),
+# el agente INVOCA esta tool para escribir una funcion nueva; adentro corre el
+# pipeline medido (test-first -> N candidatos temp>0 -> juez por EJECUCION de
+# los tests visibles -> escribe el MEJOR). Mismo mecanismo que dio +10pp en el
+# bench (cognia/agent/candidates.py), ahora usable en vivo.
+_BON_N = 6  # candidatos por llamada (N-1 a temp 0.7 + 1 greedy); ~2-3 min CPU
+
+
+# Umbral de dificultad para despertar el 7B (MoM fase 4): el mismo 0.30 con el
+# que model_router.estimate_difficulty separa hard de easy. Pre-filtro barato:
+# NO decide el escalado (eso lo decide el fallo REACTIVO de tests), solo evita
+# el cold-start del 7B en tareas triviales-que-fallan.
+_HEAVY_THRESHOLD = 0.30
+
+
+def _bon_n(desc: str, bon_max: int = None) -> tuple:
+    """(N, dificultad): N adaptativo por dificultad ex-ante (cascada
+    barato-primero). model_router.estimate_difficulty (cero LLM, calibrado
+    contra las etiquetas del bench) decide cuanto computo invertir: pool
+    chico donde el 3B casi siempre acierta, grande donde falla mas. El
+    early-stop de best_of_n ya corta el caso trivial (greedy perfecto) a 1
+    candidato; esto acota el costo del resto (~25s/candidato en el i3).
+    bon_max: techo por /esfuerzo (perfil hibrido); None = sin techo extra."""
+    from cognia.agent.model_router import estimate_difficulty
+    d = estimate_difficulty(desc)
+    if d < 0.15:
+        n = 3
+    elif d >= 0.50:
+        n = 10
+    else:
+        n = _BON_N
+    if bon_max:
+        n = min(n, int(bon_max))
+    return n, d
+
+
+# Telemetria append-only del BoN en vivo: la tupla (dificultad ex-ante,
+# resultado real de los tests visibles, costo) por invocacion es EL dataset
+# para recalibrar el umbral del router (hoy hand-tuned contra el bench) con
+# trafico real. Best-effort: si el disco falla, la tool no se entera.
+_BON_TELEMETRY = Path(__file__).parent / "generated_tools" / "_bon_telemetry.jsonl"
+
+
+def _bon_log(rec: dict) -> None:
+    # Higiene del instrumento (2026-07-12): los unit tests ejercitan
+    # _generar_codigo con fakes y estaban escribiendo telemetria FALSA al
+    # ledger de produccion (la telemetria es el dataset de calibracion de
+    # θ/router: contaminarla rompe la calibracion futura). Bajo pytest no
+    # se registra nada.
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    try:
+        _BON_TELEMETRY.parent.mkdir(parents=True, exist_ok=True)
+        with _BON_TELEMETRY.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
+@tool("generar_codigo",
+      "generar_codigo <ruta.py> | <descripcion con el nombre exacto `func(args)`>  "
+      "-- genera N candidatos con test-first y ESCRIBE el mejor por tests")
+def _generar_codigo(args, ctx):
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
+    if len(parts) != 2:
+        return "RESULTADO generar_codigo ERROR: formato (ruta.py | descripcion)"
+    path_s, desc = parts[0].strip(), parts[1].strip()
+    from cognia.agent.stepwise import extract_entry_point
+    entry = extract_entry_point(desc) or extract_entry_point(path_s)
+    if not entry:
+        return ("RESULTADO generar_codigo ERROR: no identifique el nombre de la "
+                "funcion; inclui `nombre(args)` en la descripcion.")
+    try:
+        wpath = _resolve_write_path(path_s)
+    except ValueError as e:
+        return f"RESULTADO generar_codigo ERROR: {e}"
+
+    orch = _orch(ctx)
+
+    # Perfil HIBRIDO de la corrida (hybrid_router): viene del loop /hacer via
+    # ctx, o se calcula aca si la tool corre suelta. Da los PERMISOS por
+    # /esfuerzo (colonia 7B/q35, superorganismo, techo BoN) y el umbral de
+    # dificultad desplazado que usan las etapas reactivas de abajo. A esfuerzo
+    # medio (default) el umbral ES _HEAVY_THRESHOLD: comportamiento identico
+    # al de antes. Los kill-switches env siguen mandando en cada etapa.
+    _hyb = ctx.get("hybrid")
+    if not isinstance(_hyb, dict):
+        try:
+            from cognia.agent.hybrid_router import route_profile
+            _hyb = route_profile(desc)
+        except Exception:
+            _hyb = {}
+    _hyb_umbral = _hyb.get("umbral_pesado", _HEAVY_THRESHOLD)
+
+    def _code_gen(prompt, temperature=0.0, seed=None):
+        return orch.infer(prompt, max_tokens=768, temperature=temperature).text or ""
+
+    def _test_gen(prompt, temperature=0.0, seed=None):
+        return orch.infer(prompt, max_tokens=256, temperature=temperature).text or ""
+
+    from cognia.agent.candidates import best_of_n
+    from cognia_v3.eval.benchmark_code import extract_code
+    code_prompt = ("Escribe UNA funcion Python COMPLETA que cumpla esto. Responde "
+                   "SOLO con un bloque ```python ...``` con la funcion, sin "
+                   "explicaciones.\n\n" + desc)
+    # llamada con 1 arg (los tests monkeypatchean _bon_n con esa firma);
+    # el techo por /esfuerzo del perfil se aplica afuera
+    n_plan, dif = _bon_n(desc)
+    if _hyb.get("bon_max"):
+        n_plan = min(n_plan, int(_hyb["bon_max"]))
+    _t0 = _time.time()
+    try:
+        out = best_of_n(_code_gen, code_prompt, desc, entry, extract_code,
+                        n=n_plan, seed=42, test_gen_fn=_test_gen)
+    except Exception as exc:
+        return f"RESULTADO generar_codigo ERROR: {exc}"
+    _best_t = out.get("ranking", [{}])[0] if out.get("ranking") else {}
+    code = out.get("code", "")
+    _score_3b, _total = _best_t.get("score"), _best_t.get("total")
+    # Asserts visibles del test-first: los usa la mesa redonda (el escalado
+    # 7B reemplaza `out` entero y los perderia).
+    _visible = out.get("visible_tests") or []
+
+    # ── Escalado REACTIVO al especialista de capacidad 7B (MoM fase 4) ──────
+    # Si el mejor candidato del 3B FALLA sus tests visibles (o no produjo la
+    # funcion) y la tarea es DURA, reintentar con el 7B (cascada 40->60% medida
+    # en codigo duro). REACTIVO, no predictivo (el router predictivo medio
+    # 45<60): el 7B solo dispara donde el 3B ya fallo -> jamas desperdicia
+    # computo en lo que el 3B resolvia. Se queda con el mejor de (3B, 7B) por
+    # score de tests visibles -> B nunca peor que A. Kill-switch COGNIA_HEAVY_
+    # CODE OFF (default) => heavy_code_backend() es None => 0 cambios.
+    # Lazy-load-usar-cerrar (RAM steady-state 0 en el i3 de 12GB).
+    _escalado_7b, _score_7b = False, None
+    # El 3B tiene CONFIRMACION de exito solo si genero tests visibles reales y los
+    # paso TODOS. Sin tests (total=0) NO hay confirmacion: el e2e (burst_balloons,
+    # 2026-07-10) cazo que el disparador viejo 'score<total' NUNCA saltaba con 0
+    # tests visibles, aunque el codigo fallara los tests ocultos -> el +20pp del
+    # gate no se materializaba en produccion. Ahora: en tarea dura, si el 3B no
+    # CONFIRMA exito, escalar. El 'mejor de (3B,7B)' garantiza que escalar de mas
+    # nunca empeora; el pre-filtro de dificultad acota el costo a tareas duras.
+    _confirmado_3b = (_total and _score_3b is not None and _score_3b >= _total)
+    _fallo_3b = (not _confirmado_3b) or (f"def {entry}" not in code)
+    if _fallo_3b and dif >= _hyb_umbral and _hyb.get("colonia_7b", True):
+        try:
+            from node.heavy_code import heavy_code_backend, close_heavy_code
+            _heavy = heavy_code_backend()
+            if _heavy is not None:
+                _pf = ctx.get("print_fn")
+                if callable(_pf):
+                    _pf("[detail]Codigo dificil: el 3B fallo sus tests -> "
+                        "escalando al especialista 7B (mas lento)...[/detail]")
+                try:
+                    from cognia_v3.eval.benchmark_code import (
+                        build_prompt, SYSTEM_PROMPT)
+                    # GREEDY del 7B (1 candidato, prompt del gate), NO best_of_n.
+                    # El probe (2026-07-10) MIDIO que el 7B greedy recupera 4/4
+                    # tareas duras (single_number/rotate_array/min_jumps/put) que
+                    # el best_of_n+juez-de-tests-visibles descartaba: el JUEZ debil
+                    # (tests visibles autogenerados, 2/4) era el cuello, no el
+                    # modelo ni el prompt. Greedy reproduce EXACTO el protocolo del
+                    # gate bajo el que el 7B recupero 8/8 (+20pp). El 3B ya fallo/no
+                    # confirmo, asi que el 7B (medido mejor en dura) es la mejor
+                    # apuesta: quedarse con el si produjo la funcion.
+                    _gate_prompt = build_prompt(desc, system=SYSTEM_PROMPT)
+                    _raw7 = _heavy.generate(_gate_prompt, max_tokens=768,
+                                            temperature=0.0, cache_prompt=False)
+                    _code7 = extract_code(_raw7 or "")
+                    if _code7.strip() and f"def {entry}" in _code7:
+                        code = _code7
+                        _best_t = {"score": None, "total": None}
+                        out = {"n_generated": 1, "n_unique": 1,
+                               "rank_mode": "7b_greedy", "code": _code7,
+                               "ranking": [_best_t]}
+                        _escalado_7b = True
+                finally:
+                    close_heavy_code()
+        except Exception:
+            pass   # cualquier falla del 7B -> quedarse con el 3B (fallback seguro)
+
+    # ── Etapa 3 de la cascada: Qwen3.5-4B no-think (COLONIA E2, 2026-07-12) ──
+    # MEDIDO (PREREG_E1_QWEN35 + union-oraculo): qwen35 RAW 17/40 > 3B 15/40
+    # en el set duro, y 4 tareas las resuelve SOLO qwen35 (ni 3B ni 7B) ->
+    # union de la colonia 27/40 vs 23/40 de la cascada 2-etapas. Dispara solo
+    # en tarea dura cuando (a) no hay funcion valida aun, o (b) hay asserts
+    # visibles y el candidato actual NO los pasa todos. El candidato q35
+    # REEMPLAZA solo si (a) no habia funcion, o (b) mejora ESTRICTAMENTE el
+    # score visible (keep-best; leccion del juez debil del deploy 7B).
+    # Lazy-usar-cerrar (2.7GB); sin GGUF o COGNIA_FLEET30=0 -> no-op.
+    _escalado_q35 = False
+    if dif >= _hyb_umbral and _hyb.get("colonia_q35", True):
+        _sin_funcion = f"def {entry}" not in code
+        _score_v = None
+        if not _sin_funcion and _visible:
+            try:
+                from cognia.agent.deliberation import (execution_feedback,
+                                                       feedback_score)
+                _score_v, _ = feedback_score(
+                    execution_feedback(code, _visible, entry))
+            except Exception:
+                _score_v = None
+        # Trigger por rama (cada una con su dato):
+        #  (a) sin funcion valida -> q35 (adicion pura);
+        #  (b) visibles fallando -> q35 compite por mejora ESTRICTA;
+        #  (c) SIN visibles (0 asserts = sin confirmacion, la rama del fix
+        #      burst_balloons) y el 7B NO tomo la tarea -> q35 reemplaza al
+        #      greedy no-confirmado del 3B (E1: q35 17/40 > 3B 15/40 RAW).
+        #      Si el 7B YA reemplazo, se respeta (su gate midio 8/8 con
+        #      ocultos; no hay dato head-to-head q35-vs-7B sin oraculo).
+        #      Gap cazado por el live check e2e DBG1 (2026-07-12): el
+        #      trigger original exigia visibles y esta rama quedaba muda.
+        _sin_confirmacion = (not _visible and not _confirmado_3b
+                             and not _escalado_7b)
+        if (_sin_funcion
+                or (_score_v is not None and _score_v < len(_visible))
+                or _sin_confirmacion):
+            try:
+                from node.fleet_registry import (close_fleet_member,
+                                                 fleet_backend)
+                _q35 = fleet_backend("qwen35_4b")
+                if _q35 is not None:
+                    _pf = ctx.get("print_fn")
+                    if callable(_pf):
+                        _pf("[detail]Etapa 3 de la colonia: probando con "
+                            "Qwen3.5-4B...[/detail]")
+                    try:
+                        from cognia_v3.eval.benchmark_code import (
+                            SYSTEM_PROMPT as _SP35, build_prompt as _bp35)
+                        _raw35 = _q35.generate(
+                            _bp35(desc, system=_SP35) + "<think>\n\n</think>\n\n",
+                            max_tokens=640, temperature=0.0,
+                            cache_prompt=False)
+                        _code35 = extract_code(_raw35 or "")
+                        if _code35.strip() and f"def {entry}" in _code35:
+                            _usar = _sin_funcion or _sin_confirmacion
+                            if not _usar and _visible:
+                                from cognia.agent.deliberation import (
+                                    execution_feedback as _ef35,
+                                    feedback_score as _fs35)
+                                _s35, _ = _fs35(_ef35(_code35, _visible, entry))
+                                _usar = _s35 > (_score_v or 0)
+                            if _usar:
+                                code = _code35
+                                _best_t = {"score": None, "total": None}
+                                out = {"n_generated": out.get("n_generated"),
+                                       "n_unique": out.get("n_unique"),
+                                       "rank_mode": "q35_greedy",
+                                       "code": _code35,
+                                       "ranking": [_best_t]}
+                                _escalado_q35 = True
+                    finally:
+                        close_fleet_member("qwen35_4b")
+            except Exception:
+                pass   # cualquier falla del q35 -> quedarse con lo previo
+
+    # ── Mesa redonda FLEET-30 (deliberacion ENTRE modelos; default OFF) ─────
+    # COGNIA_DELIBERACION=1 la activa (gate con tests OCULTOS pre-registrado:
+    # PREREG_DELIBERACION.md; hasta que PASE, queda opt-in). Etapa ADITIVA:
+    # solo corre si tras 3B (+7B si escalo) el candidato NO pasa todos sus
+    # tests visibles y la tarea es dura. La critica es EJECUCION real
+    # (deliberation.py, keep-best estricto): el 7B/3B se pasan el candidato
+    # con el traceback del sandbox y lo reparan por turnos. Riesgo declarado:
+    # con tests visibles DEBILES la mesa puede sobre-ajustar a un assert
+    # equivocado (leccion del juez del escalado 7B) — por eso el gate que
+    # decide el default mide con tests ocultos, y el trigger exige asserts.
+    _mesa_mejoro = False
+    if (os.environ.get("COGNIA_DELIBERACION", "").strip().lower()
+            in ("1", "on", "true", "yes")) and _visible and dif >= _hyb_umbral:
+        try:
+            from cognia.agent.deliberation import (deliberate,
+                                                   execution_feedback,
+                                                   feedback_score)
+            _fb0 = execution_feedback(code, _visible, entry)
+            _s0, _t0v = feedback_score(_fb0)
+            if _t0v and _s0 < _t0v:
+                _pf = ctx.get("print_fn")
+                if callable(_pf):
+                    _pf("[detail]Mesa redonda: los modelos deliberan sobre el "
+                        "candidato (feedback de ejecucion real)...[/detail]")
+                _parts = []
+                _hv = None
+                try:
+                    from node.heavy_code import (close_heavy_code,
+                                                 heavy_code_backend)
+                    _hv = heavy_code_backend()
+                except Exception:
+                    _hv = None
+                if _hv is not None:
+                    from cognia_v3.eval.benchmark_code import (
+                        SYSTEM_PROMPT as _MR_SP, build_prompt as _mr_bp)
+
+                    def _gen_7b(p, temperature=0.0, seed=None, _h=_hv):
+                        return _h.generate(_mr_bp(p, system=_MR_SP),
+                                           max_tokens=768, temperature=0.0,
+                                           cache_prompt=False) or ""
+                    _parts.append(("7b", _gen_7b))
+                _parts.append(("3b", _code_gen))
+                try:
+                    _mesa = deliberate(desc, entry, _parts, extract_code,
+                                       _visible, initial_code=code, rounds=2)
+                finally:
+                    if _hv is not None:
+                        close_heavy_code()
+                if _mesa.get("mejorado") and _mesa.get("code", "").strip():
+                    code = _mesa["code"]
+                    _best_t = {"score": _mesa["score"], "total": _mesa["total"]}
+                    out = {"n_generated": out.get("n_generated"),
+                           "n_unique": out.get("n_unique"),
+                           "rank_mode": "mesa_redonda", "code": code,
+                           "ranking": [_best_t]}
+                    _mesa_mejoro = True
+        except Exception:
+            pass   # la mesa nunca rompe la tool: fallback al candidato previo
+
+    # ── Etapa 4: SUPERORGANISMO (colonia por pedazos; default OFF) ─────────
+    # COGNIA_SUPERORGANISMO=1 la activa. Gate PREREG_SUPERORGANISMO CRUZADO
+    # (2026-07-14: NEWX3 y ALG3 pasan tests OCULTOS donde pass@16=0): la
+    # descomposición con oráculo por pieza + spec-asserts del enunciado +
+    # feromona compra capacidad más allá del techo de la cascada 1-3. Es el
+    # miembro MÁS caro (2 modelos 4B lazy + hasta 16 gens): último recurso,
+    # solo tarea dura donde NADA confirmó. Keep-best conservador: reemplaza
+    # solo si (a) no hay función válida, o (b) el superorganismo pasó TODOS
+    # sus spec-asserts (señal fuerte de su propio oráculo; el veredicto
+    # final sigue siendo del caller). Queda opt-in hasta la batería e2e.
+    _superorg = False
+    from cognia.agent.superorganismo import (superorganismo_enabled,
+                                             superorganismo_solve)
+    _sin_funcion_4 = f"def {entry}" not in code
+    _confirmado_actual = (_escalado_7b or _mesa_mejoro
+                          or (_best_t.get("total")
+                              and _best_t.get("score") is not None
+                              and _best_t.get("score") >= _best_t.get("total")))
+    if (superorganismo_enabled(_hyb) and dif >= _hyb_umbral
+            and (_sin_funcion_4 or not _confirmado_actual)):
+        _pf = ctx.get("print_fn")
+        if callable(_pf):
+            _pf("[detail]Etapa 4: superorganismo (colonia por pedazos, "
+                "lento)...[/detail]")
+        _so = superorganismo_solve(desc, entry, print_fn=ctx.get("print_fn"))
+        if _so and (_sin_funcion_4
+                    or _so["spec_pass"] == _so["spec_total"]):
+            code = _so["code"]
+            _best_t = {"score": _so["spec_pass"], "total": _so["spec_total"]}
+            out = {"n_generated": _so["gens"], "n_unique": _so["gens"],
+                   "rank_mode": "superorganismo", "code": code,
+                   "ranking": [_best_t]}
+            _superorg = True
+
+    _bon_log({
+        "ts": datetime.datetime.now().isoformat(timespec="seconds"),
+        "task_head": desc[:120], "difficulty": dif, "n_planned": n_plan,
+        "n_generated": out.get("n_generated"), "rank_mode": out.get("rank_mode"),
+        "score": _best_t.get("score"), "total": _best_t.get("total"),
+        "secs": round(_time.time() - _t0, 1),
+        "escalado_7b": _escalado_7b, "score_3b": _score_3b, "score_7b": _score_7b,
+        "mesa_redonda": _mesa_mejoro, "escalado_q35": _escalado_q35,
+        "superorganismo": _superorg,
+        "modalidad": _hyb.get("modalidad"), "esfuerzo": _hyb.get("esfuerzo"),
+    })
+    if not code.strip() or f"def {entry}" not in code:
+        return (f"RESULTADO generar_codigo ERROR: no se genero una funcion "
+                f"'{entry}' valida en {out.get('n_generated', 0)} candidatos.")
+    wpath.parent.mkdir(parents=True, exist_ok=True)
+    wpath.write_text(code + "\n", encoding="utf-8")
+    ft = ctx.setdefault("agent_state", {}).setdefault("files_touched", [])
+    if str(wpath) not in ft:
+        ft.append(str(wpath))
+        ctx["agent_state"]["files_touched"] = ft[-15:]
+    best = out.get("ranking", [{}])[0] if out.get("ranking") else {}
+    _tag7 = " [escalado a 7B]" if _escalado_7b else ""
+    if _escalado_q35:
+        _tag7 += " [etapa 3: Qwen3.5]"
+    if _mesa_mejoro:
+        _tag7 += " [mesa redonda]"
+    if _superorg:
+        _tag7 += " [superorganismo]"
+    return (f"RESULTADO generar_codigo {_disp(wpath)}: OK (mejor de "
+            f"{out.get('n_unique', '?')} candidatos unicos, rank={out.get('rank_mode')}, "
+            f"tests visibles {best.get('score', '?')}/{best.get('total', '?')}, "
+            f"{len(code)} chars){_tag7}")
+
+
+# HERMES self-tooling EN VIVO: el agente puede pedir una tool nueva sin salir
+# del loop /hacer. Reusa el mismo pipeline generar->scan->sandbox->registrar
+# de cognia.agent.tool_synthesis (regla 8 CLAUDE.md: nada auto-generado se
+# vuelve ejecutable sin pasar _static_safety_scan + sandbox); esta tool NO
+# agrega un camino nuevo de ejecucion, solo lo dispara desde el loop. danger=True
+# porque el resultado queda invocable (staged) sin revision humana previa.
+@tool("crear_herramienta",
+      "crear_herramienta <nombre> | <proposito> | <test_input> | <resultado_esperado>  "
+      "-- sintetiza y REGISTRA una tool nueva (sandbox-verificada, queda staged)",
+      danger=True)
+def _crear_herramienta(args, ctx):
+    parts = re.split(r"\s*\|\s*", args, maxsplit=3)
+    if len(parts) != 4 or any(not p.strip() for p in parts):
+        return ("RESULTADO crear_herramienta ERROR: formato (usa nombre | proposito | "
+                "test_input | resultado_esperado), 4 partes separadas por '|'")
+    nombre, proposito, test_input, esperado = (p.strip() for p in parts)
+
+    from cognia.agent.tool_synthesis import ToolSpec, synthesize_and_register, load_generated_tools
+    spec = ToolSpec(name=nombre, doc=proposito[:60], purpose=proposito,
+                    test_input=test_input, expect_contains=esperado)
+    res = synthesize_and_register(spec, orch=_orch(ctx), max_attempts=2)
+    if not res.get("ok"):
+        # motivo REAL (scan estatico, sandbox, o repair agotado) -- nunca un
+        # "no se pudo" generico; el modelo/usuario necesita saber que fallo.
+        return f"RESULTADO crear_herramienta ERROR: {res.get('reason', 'desconocido')}"
+
+    load_generated_tools()  # la deja invocable YA en este proceso (TOOLS global)
+    return (f"RESULTADO crear_herramienta: '{nombre}' creada y verificada "
+            f"(version {res.get('version', '?')}, tier {res.get('tier', 'staged')}). "
+            "Ya es invocable con su nombre.")
+
+
+# Sub-agente acotado: delega una SUBTAREA a una corrida anidada de _run_agent_task
+# con (a) un ROL que restringe las tools disponibles (investigador=solo lectura,
+# implementador=+escritura/ejecucion), (b) un sub-presupuesto de pasos, y (c) el
+# router de modelo por dificultad (el runner elige 3B/7B). El runner recursivo se
+# inyecta en ctx['_run_agent'] desde cli.py (evita el import circular tools<->cli).
+# Profundidad acotada (ctx['_delegation_depth']) para que un sub-agente no delegue
+# infinitamente.
+_MAX_DELEGATION_DEPTH = 2
+
+
+@tool("delegar_subtarea",
+      "delegar_subtarea <investigador|implementador> | <subtarea>  "
+      "-- corre la subtarea en un sub-agente con tools acotadas por rol y su propio presupuesto")
+def _delegar_subtarea(args, ctx):
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
+    if len(parts) != 2 or not parts[1].strip():
+        return ("RESULTADO delegar_subtarea ERROR: formato (rol | subtarea); "
+                "rol = investigador | implementador")
+    rol, subtarea = parts[0].strip().lower(), parts[1].strip()
+    if rol not in ROLE_TOOLS:
+        return (f"RESULTADO delegar_subtarea ERROR: rol '{rol}' desconocido "
+                f"(usa: {', '.join(ROLE_TOOLS)})")
+
+    runner = ctx.get("_run_agent")
+    if not callable(runner):
+        return ("RESULTADO delegar_subtarea ERROR: delegacion no disponible en "
+                "este contexto")
+
+    depth = ctx.get("_delegation_depth", 0)
+    # Techo por perfil hibrido (/esfuerzo): bajo=0 (sin delegacion), medio/
+    # alto=2, maximo=3. Sin perfil, el constante de siempre.
+    _max_depth = ctx.get("_delegation_max", _MAX_DELEGATION_DEPTH)
+    if depth >= _max_depth:
+        return (f"RESULTADO delegar_subtarea ERROR: profundidad maxima de "
+                f"delegacion ({_max_depth}) alcanzada; resolve la "
+                "subtarea directamente.")
+
+    # Sub-presupuesto: la mitad de lo que quede (o un piso), para que la
+    # subtarea no se coma el presupuesto entero del padre.
+    remaining = ctx.get("_steps_remaining", 8)
+    sub_budget = max(3, int(remaining) // 2)
+    pf = ctx.get("print_fn")
+    if callable(pf):
+        pf(f"[detail]delegando a sub-agente '{rol}' (presupuesto {sub_budget})[/detail]")
+    try:
+        sub_result = runner(subtarea, allowed_tools=ROLE_TOOLS[rol],
+                            max_steps=sub_budget, delegation_depth=depth + 1)
+    except Exception as exc:
+        return f"RESULTADO delegar_subtarea ERROR: {exc}"
+    return f"RESULTADO delegar_subtarea ({rol}): {str(sub_result)[:600]}"
+
+
+# ── Computer-use: tools de pantalla (mandato 2026-07-13, gate de seguridad) ──
+# Registro al final para que `tool` y ROLE_TOOLS ya existan. Opt-in duro
+# (COGNIA_SCREEN=1); todas danger=True. Ver cognia/agent/screen_tools.py.
+try:
+    from cognia.agent import screen_tools as _screen_tools
+    _screen_tools.register(tool)
+    for _t in ("pantalla_captura", "pantalla_localizar", "pantalla_click",
+               "pantalla_escribir", "pantalla_tecla"):
+        ROLE_TOOLS["implementador"].add(_t)
+except Exception:
+    pass   # sin pyautogui / entorno headless: el agente corre igual sin pantalla
+
+
+# ── Plan como artefacto mutable (patron OpenManus, mandato 2026-07-13) ──
+# El unico patron de OpenManus que faltaba: is_stuck y terminate ya existen
+# en el loop (register_action + responder), mejores. Ver plan_artifact.py.
+try:
+    from cognia.agent import plan_artifact as _plan_artifact
+    _plan_artifact.register(tool)
+    ROLE_TOOLS["investigador"].add("plan")
+    ROLE_TOOLS["implementador"].add("plan")
+except Exception:
+    pass
+
+
+# ── Flujos n8n: "Cognia organiza el flujo" desde NL (mandato 2026-07-13) ──
+try:
+    from cognia.agent import flows as _flows
+    _flows.register(tool)
+    ROLE_TOOLS["implementador"].add("crear_flujo")
+except Exception:
+    pass

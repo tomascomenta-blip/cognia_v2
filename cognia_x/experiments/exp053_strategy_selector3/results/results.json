@@ -1,0 +1,63 @@
+{
+  "exp": "exp053_strategy_selector3",
+  "cycle": 68,
+  "hypothesis": "H-V4-1j",
+  "claim": "un selector de 3 estrategias clasifica 3 regímenes de su sorpresa (2 escalas) y elige la estrategia de memoria correcta, alcanzando el óptimo en los tres",
+  "verdict": "mixta",
+  "summary": {
+    "margin": 0.1,
+    "by_regime": {
+      "estacionario": {
+        "committed": 1.0,
+        "fixed": 0.6015,
+        "surprise_gate": 0.85,
+        "selector3": 0.9026
+      },
+      "aislado": {
+        "committed": 0.0,
+        "fixed": 0.4075,
+        "surprise_gate": 0.5906,
+        "selector3": 0.4402
+      },
+      "recurrente": {
+        "committed": 0.294,
+        "fixed": 0.4525,
+        "surprise_gate": 0.5843,
+        "selector3": 0.5099
+      }
+    },
+    "best_arm": {
+      "estacionario": "committed",
+      "aislado": "surprise_gate",
+      "recurrente": "fixed"
+    },
+    "near_optimal": {
+      "estacionario": true,
+      "aislado": false,
+      "recurrente": true
+    },
+    "n_optimal": 2,
+    "status": "mixta",
+    "verdict": "H-V4-1j MIXTA: el selector3 acierta 2/3 regímenes (probablemente no separa limpio aislado de recurrente). estacionario: selector3=0.903 (mejor=committed 1.000; committed=1.000) | aislado: selector3=0.440 (mejor=surprise_gate 0.591; committed=0.000) | recurrente: selector3=0.510 (mejor=fixed 0.453; committed=0.294)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 16,
+    "D": 20,
+    "cluster": 5,
+    "p_obs": 0.15,
+    "candidates": 128
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp053] CYCLE 68 / H-V4-1j — SELECTOR de 3 ESTRATEGIAS (clasifica estac/aislado/recurrente en 2 escalas)",
+    "[exp053] D=20 cluster=5 p_obs=0.15 seeds=16 regímenes=[('estacionario', [60]), ('aislado', [48, 12]), ('recurrente', [12, 12, 12, 12, 12])]",
+    "[exp053] estacionario                   [60]: committed=1.000 fixed=0.602 sgate=0.850 SELECTOR3=0.903 (óptimo=True)",
+    "[exp053]      aislado               [48, 12]: committed=0.000 fixed=0.407 sgate=0.591 SELECTOR3=0.440 (óptimo=False)",
+    "[exp053]   recurrente   [12, 12, 12, 12, 12]: committed=0.294 fixed=0.453 sgate=0.584 SELECTOR3=0.510 (óptimo=True)",
+    "[exp053] VEREDICTO H-V4-1j: MIXTA (2/3) | H-V4-1j MIXTA: el selector3 acierta 2/3 regímenes (probablemente no separa limpio aislado de recurrente). estacionario: selector3=0.903 (mejor=committed 1.000; committed=1.000) | aislado: selector3=0.440 (mejor=surprise_gate 0.591; committed=0.000) | recurrente: selector3=0.510 (mejor=fixed 0.453; committed=0.294)."
+  ]
+}

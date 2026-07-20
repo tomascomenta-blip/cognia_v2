@@ -1,0 +1,106 @@
+[
+ {
+  "tarea": "ALG3",
+  "asserts": 14,
+  "pasan": 14,
+  "fidelidad": 100,
+  "fuente": "propia (pasó ocultos)",
+  "gano": true
+ },
+ {
+  "tarea": "LONG2",
+  "asserts": 10,
+  "pasan": null,
+  "fidelidad": null,
+  "fuente": "sin ref",
+  "gano": false
+ },
+ {
+  "tarea": "LONG3",
+  "asserts": 6,
+  "pasan": null,
+  "fidelidad": null,
+  "fuente": "sin ref",
+  "gano": false
+ },
+ {
+  "tarea": "LONG5",
+  "asserts": 6,
+  "pasan": null,
+  "fidelidad": null,
+  "fuente": "sin ref",
+  "gano": false
+ },
+ {
+  "tarea": "SPEC1",
+  "asserts": 14,
+  "pasan": 2,
+  "fidelidad": 14,
+  "fuente": "refimpl validada",
+  "gano": false
+ },
+ {
+  "tarea": "SPEC2",
+  "asserts": 4,
+  "pasan": null,
+  "fidelidad": null,
+  "fuente": "sin ref",
+  "gano": false
+ },
+ {
+  "tarea": "SPEC3",
+  "asserts": 14,
+  "pasan": 14,
+  "fidelidad": 100,
+  "fuente": "propia (pasó ocultos)",
+  "gano": true
+ },
+ {
+  "tarea": "SPEC4",
+  "asserts": 14,
+  "pasan": null,
+  "fidelidad": null,
+  "fuente": "sin ref",
+  "gano": false
+ },
+ {
+  "tarea": "NEWX2",
+  "asserts": 14,
+  "pasan": 14,
+  "fidelidad": 100,
+  "fuente": "refimpl validada",
+  "gano": false
+ },
+ {
+  "tarea": "NEWX3",
+  "asserts": 20,
+  "pasan": 20,
+  "fidelidad": 100,
+  "fuente": "propia (pasó ocultos)",
+  "gano": true
+ },
+ {
+  "tarea": "NEWX4",
+  "asserts": 6,
+  "pasan": 0,
+  "fidelidad": 0,
+  "fuente": "refimpl validada",
+  "gano": false
+ },
+ {
+  "tarea": "NEWX5",
+  "asserts": 20,
+  "pasan": 20,
+  "fidelidad": 100,
+  "fuente": "refimpl validada",
+  "gano": false
+ },
+ {
+  "tarea": "NEWD2",
+  "asserts": 12,
+  "pasan": 10,
+  "fidelidad": 83,
+  "fuente": "refimpl validada",
+  "gano": false
+ }
+]

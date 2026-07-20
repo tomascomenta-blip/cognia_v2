@@ -1,0 +1,234 @@
+{
+ "prereg": "PREREG_SUPERORGANISMO",
+ "budget": 16,
+ "cartografo": "qwen3_4b",
+ "coder": "qwen35_4b",
+ "tareas": {
+  "ALG3": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "parse_expr",
+      "signature": "def parse_expr(tokens):",
+      "contract": "Given a list of tokens, returns a list of tokens with the top-level expression parsed and simplified.",
+      "asserts": [
+       "assert parse_expr(['1']) == ['1']"
+      ]
+     },
+     {
+      "name": "parse_term",
+      "signature": "def parse_term(tokens):",
+      "contract": "Given a list of tokens, returns a list of tokens with the term parsed and simplified.",
+      "asserts": [
+       "assert parse_term(['1']) == ['1']"
+      ]
+     },
+     {
+      "name": "parse_factor",
+      "signature": "def parse_factor(tokens):",
+      "contract": "Given a list of tokens, returns a list of tokens with the factor parsed and simplified.",
+      "asserts": [
+       "assert parse_factor(['1']) == ['1']"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert calc('1') == 1",
+     "assert calc('1+2') == 3",
+     "assert calc('1-2') == -1",
+     "assert calc('1*2') == 2",
+     "assert calc('1/2') == 0",
+     "assert calc('(1+2)*3') == 9",
+     "assert calc('(1-8)/2') == -3",
+     "assert calc('7-(-2)') == 9",
+     "assert calc('1+2*3') == 7",
+     "assert calc('1+2-3') == 0"
+    ]
+   },
+   "gens": 16,
+   "piezas": [
+    "parse_expr: 1/1",
+    "parse_term: 1/1",
+    "parse_factor: 1/1"
+   ],
+   "spec_asserts_pasados": [
+    5,
+    10
+   ],
+   "intentos_ensamble": 13,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 2879.0,
+   "final": false,
+   "code": "result.append(tokens[i])\n            i += 1\n            if i < len(tokens) and tokens[i].isdigit():\n                result.append(tokens[i])\n                i += 1\n        elif i < len(tokens) and tokens[i] == 'E':\n            result.append(tokens[i])\n            i += 1\n            if i < len(tokens) and tokens[i].isdigit():\n                result.append(tokens[i])\n                i += 1\n        else:\n            # No exponent, just the number\n            pass\n    else:\n        # Not a number, return as is\n        return tokens\n    \n    # Handle multiplication/division\n    while i < len(tokens) and tokens[i] in ['*', '/']:\n        result.append(tokens[i])\n        i += 1\n        if i < len(tokens) and tokens[i].isdigit():\n            num_str = tokens[i]\n            i += 1\n            result.append(num_str)\n            \n            # Handle exponent\n            if i < len(tokens) and tokens[i] == '^':\n                result.append(tokens[i])\n                i += 1\n                if i < len(tokens) and tokens[i].isdigit():\n                    result.append(tokens[i])\n                    i += 1\n            elif i < len(tokens) and tokens[i] == 'e':\n                result.append(tokens[i])\n                i += 1\n                if i < len(tokens) and tokens[i].isdigit():\n                    result.append(tokens[i])\n                    i += 1\n            elif i < len(tokens) and tokens[i] == 'E':\n                result.append(tokens[i])\n                i += 1\n                if i < len(tokens) and tokens[i].isdigit():\n                    result.append(tokens[i])\n                    i += 1\n            else:\n                pass\n        else:\n            break\n    \n    return result\n\ndef calc(expr):\n    def tokenize(s):\n        tokens = []\n        i = 0\n        while i < len(s):\n            if s[i].isspace():\n                i += 1\n            elif s[i].isdigit():\n                j = i\n                while j < len(s) and s[j].isdigit():\n                    j += 1\n                tokens.append(s[i:j])\n                i = j\n            elif s[i] == '-':\n                j = i\n                while j < len(s) and s[j].isdigit():\n                    j += 1\n                tokens.append(s[i:j])\n                i = j\n            elif s[i] in '()+*/':\n                tokens.append(s[i])\n                i += 1\n            else:\n                raise ValueError(f\"Invalid character: {s[i]}\")\n        return tokens\n\n    def parse(tokens, idx):\n        if not tokens:\n            return None, idx\n        val, idx = parse_factor(tokens, idx)\n        while idx < len(tokens) and tokens[idx] in ('+', '-'):\n            op = tokens[idx]\n            idx += 1\n            if idx >= len(tokens):\n                break\n            right, idx = parse_factor(tokens, idx)\n            if op == '+':\n                val = (val + right)\n            else:\n                val = (val - right)\n        while idx < len(tokens) and tokens[idx] in ('*', '/'):\n            op = tokens[idx]\n            idx += 1\n            if idx >= len(tokens):\n                break\n            right, idx = parse_factor(tokens, idx)\n            if op == '*':\n                val = (val * right)\n            else:\n                val = (val // right)\n        return val, idx\n\n    def parse_factor(tokens, idx):\n        if idx >= len(tokens):\n            return None, idx\n        if tokens[idx] == '(':\n            idx += 1\n            val, idx = parse(tokens, idx)\n            if idx < len(tokens) and tokens[idx] == ')':\n                idx += 1\n            return val, idx\n        elif tokens[idx] == '-':\n            idx += 1\n            val, idx = parse_factor(tokens, idx)\n            if val is None:\n                return None, idx\n            return -val, idx\n        elif tokens[idx].isdigit():\n            num = int(tokens[idx])\n            idx += 1\n            return num, idx\n        else:\n            return None, idx\n\n    tokens = tokenize(expr)\n    result, _ = parse(tokens, 0)\n    return result"
+  },
+  "SPEC2": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "get_column_widths",
+      "signature": "def get_column_widths(headers, rows):",
+      "contract": "Returns a list of column widths, where each width is the max of the header length and the max string length in that column.",
+      "asserts": [
+       "assert len(get_column_widths(headers, rows)) == len(headers)",
+       "assert get_column_widths([], []) == []",
+       "assert get_column_widths(['a'], [[1]]) == [1]",
+       "assert get_column_widths(['a'], [[1, 2]]) == [2]"
+      ]
+     },
+     {
+      "name": "format_row",
+      "signature": "def format_row(row, column_widths, is_numeric_column):",
+      "contract": "Returns a string of the row cells, each padded to the column width and aligned according to the column type.",
+      "asserts": [
+       "assert len(format_row(row, column_widths, is_numeric_column)) == len(row)",
+       "assert format_row([1, 2], [1, 1], [False, False]) == '1 | 2'",
+       "assert format_row([1, 2], [1, 1], [True, True]) == '1 | 2'"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert format_table(['a'], [[1]]) == 'a | 1'",
+     "assert format_table(['a'], [[1, 2]]) == 'a | 1 | 2'",
+     "assert format_table(['a'], [[1, 2]]) == 'a | 1 | 2'"
+    ]
+   },
+   "gens": 16,
+   "piezas": [
+    "get_column_widths: 2/4",
+    "format_row: 2/3"
+   ],
+   "spec_asserts_pasados": [
+    0,
+    3
+   ],
+   "intentos_ensamble": 10,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 2361.9,
+   "final": false,
+   "code": "def get_column_widths(headers, rows):\n    if not headers or not rows:\n        return []\n    \n    num_columns = len(headers)\n    column_lengths = []\n    \n    for col_idx in range(num_columns):\n        max_len = len(headers[col_idx])\n        \n        for row in rows:\n            if col_idx < len(row):\n                current_len = len(str(row[col_idx]))\n                if current_len > max_len:\n                    max_len = current_len\n        \n        column_lengths.append(max_len)\n    \n    return column_lengths\n\ndef format_row(row, column_widths, is_numeric_column):\n    result_parts = []\n    for i, cell in enumerate(row):\n        width = column_widths[i]\n        if is_numeric_column[i]:\n            formatted = str(cell).rjust(width)\n        else:\n            formatted = str(cell).ljust(width)\n        result_parts.append(formatted)\n    return ' | '.join(result_parts)\n\ndef format_table(headers, rows):\n    def get_column_widths(headers, rows):\n        widths = []\n        for i in range(len(headers)):\n            col_values = [headers[i]] + [row[i] for row in rows]\n            max_len = 0\n            for val in col_values:\n                s = str(val)\n                if len(s) > max_len:\n                    max_len = len(s)\n            widths.append(max_len)\n        return widths\n\n    def format_row(row, column_widths, is_numeric_column):\n        formatted_cells = []\n        for i, val in enumerate(row):\n            s = str(val)\n            if is_numeric_column:\n                formatted_cells.append(s.rjust(column_widths[i]))\n            else:\n                formatted_cells.append(s.ljust(column_widths[i]))\n        return \" | \".join(formatted_cells)\n\n    def is_numeric_column(col_idx):\n        header_val = headers[col_idx]\n        row_vals = [row[col_idx] for row in rows]\n        all_int_float = True\n        for v in [header_val] + row_vals:\n            try:\n                float(v)\n            except ValueError:\n                all_int_float = False\n                break\n        return all_int_float\n\n    column_widths = get_column_widths(headers, rows)\n    header_line = format_row(headers, column_widths, True)\n    separator_line = \"-+-\".join(\"-\" * w for w in column_widths)\n    data_lines = []\n    for row in rows:\n        is_numeric = is_numeric_column(0)\n        # Check if ALL columns in this row are numeric for alignment consistency per column\n        # Actually rule 5 says: \"A column whose original cell values are ALL int or float is RIGHT-aligned\"\n        # So we check per column globally, not per row.\n        # But the helper takes is_numeric_column as argument. We need to pass the correct one per column.\n        # Let's re-implement logic inside format_row to accept per-column numeric status or adjust call.\n        # Since helper is fixed, we'll compute per-column numeric status and pass accordingly.\n        # But helper signature is fixed: format_row(row, column_widths, is_numeric_column)\n        # This implies is_numeric_column is a boolean for the whole row? Or per column?\n        # Re-reading: \"A column whose original cell values are ALL int or float is RIGHT-aligned\"\n        # The helper seems to expect a single boolean for the row? That doesn't match rule 5.\n        # Wait, the helper description says: \"is_numeric_column\" (singular).\n        # But rule 5 is per column.\n        # Perhaps the helper is misdescribed in the prompt or I must interpret it as:\n        # The helper will be called once per row, but we need per-column alignment.\n        # However, the helper signature is fixed. Maybe the helper internally handles per-column?\n        # No, the helper takes one boolean.\n        # Let's look again: \"format_row(row, column_widths, is_numeric_column)\"\n        # If I call it with a single boolean, it applies to all columns.\n        # But rule 5 says per"
+  },
+  "NEWX3": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "is_valid_subtractive_pair",
+      "signature": "def is_valid_subtractive_pair(c1, c2):",
+      "contract": "Returns True if the pair (c1, c2) is a valid subtractive pair in Roman numerals.",
+      "asserts": [
+       "assert is_valid_subtractive_pair('I', 'V') == True",
+       "assert is_valid_subtractive_pair('I', 'X') == True",
+       "assert is_valid_subtractive_pair('X', 'L') == True",
+       "assert is_valid_subtractive_pair('X', 'C') == True",
+       "assert is_valid_subtractive_pair('C', 'D') == True",
+       "assert is_valid_subtractive_pair('C', 'M') == True",
+       "assert is_valid_subtractive_pair('I', 'I') == False",
+       "assert is_valid_subtractive_pair('V', 'V') == False"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert parse_roman('M') == 1000",
+     "assert parse_roman('MM') == 2000",
+     "assert parse_roman('MMM') == 3000",
+     "assert parse_roman('MCMXCIV') == 1994",
+     "assert parse_roman('IV') == 4",
+     "assert parse_roman('IX') == 9",
+     "assert parse_roman('XL') == 40",
+     "assert parse_roman('XC') == 90",
+     "assert parse_roman('CD') == 400",
+     "assert parse_roman('CM') == 900"
+    ]
+   },
+   "gens": 4,
+   "piezas": [
+    "is_valid_subtractive_pair: 8/8"
+   ],
+   "spec_asserts_pasados": [
+    10,
+    10
+   ],
+   "intentos_ensamble": 1,
+   "oculto": {
+    "passed": false,
+    "err": "assert"
+   },
+   "secs": 203.8,
+   "final": false,
+   "code": "def is_valid_subtractive_pair(c1, c2):\n    roman_values = {\n        'I': 1,\n        'V': 5,\n        'X': 10,\n        'L': 50,\n        'C': 100,\n        'D': 500,\n        'M': 1000\n    }\n    if c1 not in roman_values or c2 not in roman_values:\n        return False\n    value_c1 = roman_values[c1]\n    value_c2 = roman_values[c2]\n    if value_c1 < value_c2:\n        return True\n    return False\n\ndef parse_roman(s):\n    if not s:\n        return -1\n    \n    roman_map = {\n        'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000\n    }\n    \n    valid_chars = set(roman_map.keys())\n    for char in s:\n        if char not in valid_chars:\n            return -1\n    \n    if len(s) == 1:\n        return roman_map[s]\n    \n    total = 0\n    prev_val = 0\n    \n    for i in range(len(s) - 1, -1, -1):\n        curr_val = roman_map[s[i]]\n        \n        if curr_val < prev_val:\n            total -= curr_val\n        else:\n            total += curr_val\n        \n        prev_val = curr_val\n    \n    # Check for invalid subtractive pairs in forward direction\n    for i in range(len(s) - 1):\n        c1 = s[i]\n        c2 = s[i+1]\n        if roman_map[c1] < roman_map[c2]:\n            if not is_valid_subtractive_pair(c1, c2):\n                return -1\n    \n    # Check for invalid repetitions\n    # I, X, C, M max 3 times\n    # V, L, D never repeat\n    # Check consecutive runs\n    i = 0\n    while i < len(s):\n        char = s[i]\n        count = 1\n        while i + count < len(s) and s[i + count] == char:\n            count += 1\n        \n        if char in ['I', 'X', 'C', 'M']:\n            if count > 3:\n                return -1\n        elif char in ['V', 'L', 'D']:\n            if count > 1:\n                return -1\n        \n        i += count\n    \n    return total"
+  },
+  "LONG2": {
+   "carto": {
+    "helpers": [
+     {
+      "name": "parse_program",
+      "signature": "def parse_program(program):",
+      "contract": "Returns a list of tokens from the program string.",
+      "asserts": [
+       "assert parse_program('MOVE 10') == ['MOVE', '10']"
+      ]
+     },
+     {
+      "name": "execute_command",
+      "signature": "def execute_command(cmd, state):",
+      "contract": "Modifies the state in place and returns the new state.",
+      "asserts": [
+       "assert execute_command(['MOVE', '1'], {'x': 0, 'y': 0, 'dir': 1, 'pen': True}) == {'x': 1, 'y': 0, 'dir': 1, 'pen': True}"
+      ]
+     },
+     {
+      "name": "execute_repeat",
+      "signature": "def execute_repeat(n, commands, state):",
+      "contract": "Executes the commands list n times, modifying the state each time.",
+      "asserts": [
+       "assert execute_repeat(1, ['MOVE', '1'], {'x': 0, 'y': 0, 'dir': 1, 'pen': True}) == {'x': 1, 'y': 0, 'dir': 1, 'pen': True}"
+      ]
+     }
+    ],
+    "spec_asserts": [
+     "assert run_turtle('MOVE 1') == (1, 0, [(1, 0)])",
+     "assert run_turtle('PENDOWN') == (0, 0, [])",
+     "assert run_turtle('PENUP') == (0, 0, [])",
+     "assert run_turtle('MOVE 10') == (10, 0, [(10, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN') == (10, 0, [(10, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10') == (20, 0, [(20, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN') == (20, 0, [(20, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10') == (30, 0, [(30, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10 PENDOWN') == (40, 0, [(40, 0)])",
+     "assert run_turtle('MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10 PENDOWN MOVE 10') == (50, 0, [(50, 0)])"
+    ]
+   },
+   "gens": 16,
+   "piezas": [
+    "parse_program: 1/1",
+    "execute_command: 0/1",
+    "execute_repeat: 1/1"
+   ],
+   "spec_asserts_pasados": [
+    2,
+    10
+   ],
+   "intentos_ensamble": 11,
+   "oculto": {
+    "passed": false,
+    "err": "runtime"
+   },
+   "secs": 2437.5,
+   "final": false,
+   "code": "def parse_program(program):\n    return program.split()\n\ndef execute_command(cmd, state):\n    if cmd[0] == 'MOVE':\n        state['x'] += cmd[1]\n    elif cmd[0] == 'TURN':\n        state['dir'] = (state['dir'] + cmd[1]) % 4\n    elif cmd[0] == 'PEN':\n        state['pen'] = not state['pen']\n    return state\n\ndef execute_repeat(n, commands, state):\n    for _ in range(n):\n        for cmd in commands:\n            if cmd == 'MOVE':\n                x, y, dir, pen = state['x'], state['y'], state['dir'], state['pen']\n                state['x'] = x + dir\n                state['y'] = y\n            elif cmd == 'TURN':\n                dir = state['dir']\n                state['dir'] = (dir + 1) % 4\n            elif cmd == 'DRAW':\n                state['pen'] = True\n            elif cmd == 'ERASE':\n                state['pen'] = False\n            elif cmd == 'RESET':\n                state['x'] = 0\n                state['y'] = 0\n                state['dir'] = 1\n                state['pen'] = True\n    return state\n\ndef run_turtle(program):\n    def parse_program(program):\n        return program.split()\n\n    def execute_command(cmd, state):\n        x, y, direction, pen_down, marks = state\n        if cmd == \"PENDOWN\":\n            return (x, y, direction, True, marks)\n        elif cmd == \"PENUP\":\n            return (x, y, direction, False, marks)\n        elif cmd == \"MOVE\":\n            n = int(cmd.split()[1])\n            for _ in range(n):\n                if pen_down:\n                    marks.add((x, y))\n                if direction == 0:\n                    y += 1\n                elif direction == 1:\n                    x += 1\n                elif direction == 2:\n                    y -= 1\n                elif direction == 3:\n                    x -= 1\n            return (x, y, direction, pen_down, marks)\n        elif cmd == \"TURN L\":\n            return (x, y, (direction - 1) % 4, pen_down, marks)\n        elif cmd == \"TURN R\":\n            return (x, y, (direction + 1) % 4, pen_down, marks)\n        else:\n            raise ValueError(f\"Unknown command: {cmd}\")\n\n    def execute_repeat(n, commands, state):\n        for _ in range(n):\n            for cmd in commands:\n                state = execute_command(cmd, state)\n        return state\n\n    def run(commands):\n        x, y, direction, pen_down, marks = 0, 0, 0, False, set()\n        i = 0\n        while i < len(commands):\n            cmd = commands[i]\n            if cmd == 'REPEAT':\n                n = int(commands[i+1])\n                start_idx = i + 2\n                end_idx = len(commands)\n                while start_idx < end_idx and commands[start_idx] != ']':\n                    start_idx += 1\n                inner_cmds = commands[start_idx+1:end_idx]\n                state = execute_repeat(n, inner_cmds, (x, y, direction, pen_down, marks))\n                x, y, direction, pen_down, marks = state\n                i = end_idx\n            else:\n                state = execute_command(cmd, (x, y, direction, pen_down, marks))\n                x, y, direction, pen_down, marks = state\n                i += 1\n        return (x, y, sorted(list(marks)))\n\n    tokens = parse_program(program)\n    return run(tokens)"
+  }
+ },
+ "veredicto": {
+  "n": 4,
+  "ganadas": [
+   0,
+   []
+  ],
+  "baseline": "0 (virgenes por definicion; ALG3 0/8 pass@16)"
+ }
+}

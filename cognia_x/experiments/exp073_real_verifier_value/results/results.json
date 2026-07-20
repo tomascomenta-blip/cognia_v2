@@ -1,0 +1,65 @@
+{
+  "exp": "exp073_real_verifier_value",
+  "cycle": 89,
+  "hypothesis": "H-V4-7g",
+  "claim": "la politica R-VALOR del gap #2 (combinador aprendido + asignacion del feedback escaso) sobrevive el salto a un verificador chequeable REAL (valor discreto del sandbox exp018, no un g sintetico suave): no-regret donde el producto es Bayes-optimo (strong/complementos) y recupera donde el producto mis-rankea (weak/relevancia-dom), sin que el feedback discreto rompa el aprendizaje",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "strong": {
+        "product": 0.6147,
+        "learned_greedy": 0.6032,
+        "learned_explore": 0.6051,
+        "learned_random": 0.6043,
+        "oracle": 1.0,
+        "chance": 0.2599
+      },
+      "weak": {
+        "product": 0.779,
+        "learned_greedy": 0.8851,
+        "learned_explore": 0.8894,
+        "learned_random": 0.8867,
+        "oracle": 1.0,
+        "chance": 0.5014
+      }
+    },
+    "noregret_strong": -0.0115,
+    "recover_weak": 0.1061,
+    "greedy_trap_strong": 0.0011,
+    "greedy_trap_weak": 0.0016,
+    "learn_alive_strong": 0.3433,
+    "learn_alive_weak": 0.3837,
+    "oracle_gap_strong": 0.3968,
+    "oracle_gap_weak": 0.1149,
+    "no_regret_ok": true,
+    "recover_ok": true,
+    "no_trap": true,
+    "learning_alive": true,
+    "status": "apoyada",
+    "verdict": "H-V4-7g APOYADA: la política R-VALOR del gap #2 SOBREVIVE el salto a un verificador chequeable REAL (valor discreto del sandbox, no g suave). STRONG (E[v]=c·r, producto Bayes-óptimo): learned_greedy=0.603 ≈ product=0.615 (no-regret Δ=-0.011). WEAK (E[v]=r, el producto mis-rankea los echoes): learned_greedy=0.885 > product=0.779 (recupera +0.106, relevancia-dominancia). El feedback DISCRETO (Bernoulli) NO rompe el aprendizaje (vs chance +0.343/+0.384); greedy no se atrapa (trap S=0.001/W=0.002 <= 0.03); recupera la mayoría del oracle (gap S=0.397/W=0.115). => el mecanismo del arco no era artefacto del g suave."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "n": 50,
+    "k_budget": 10,
+    "k_eval": 10,
+    "T": 40,
+    "E": 20,
+    "eps": 0.3,
+    "ctrl_noise": 0.5
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp073] CYCLE 89 / H-V4-7g — R-VALOR sobre VERIFICADOR REAL (sandbox exp018; valor discreto, no g suave)",
+    "[exp073] n=50 k_budget=10 k_eval=10 T=40 E=20 eps=0.3 seeds=48 regimes=['strong', 'weak'] targets=[2,300] (q: S=32 σr=0.05)",
+    "[exp073] strong: product=0.615 greedy=0.603 explore=0.605 random=0.604 oracle=1.000 chance=0.260",
+    "[exp073]   weak: product=0.779 greedy=0.885 explore=0.889 random=0.887 oracle=1.000 chance=0.501",
+    "[exp073] no-regret(strong) Δ=-0.011 | recover(weak) +0.106 | trap S=0.001/W=0.002 | alive S=+0.343/W=+0.384",
+    "[exp073] no_regret_ok=True recover_ok=True no_trap=True learning_alive=True",
+    "[exp073] VEREDICTO H-V4-7g: APOYADA | H-V4-7g APOYADA: la política R-VALOR del gap #2 SOBREVIVE el salto a un verificador chequeable REAL (valor discreto del sandbox, no g suave). STRONG (E[v]=c·r, producto Bayes-óptimo): learned_greedy=0.603 ≈ product=0.615 (no-regret Δ=-0.011). WEAK (E[v]=r, el producto mis-rankea los echoes): learned_greedy=0.885 > product=0.779 (recupera +0.106, relevancia-dominancia). El feedback DISCRETO (Bernoulli) NO rompe el aprendizaje (vs chance +0.343/+0.384); greedy no se atrapa (trap S=0.001/W=0.002 <= 0.03); recupera la mayoría del oracle (gap S=0.397/W=0.115). => el mecanismo del arco no era artefacto del g suave."
+  ]
+}

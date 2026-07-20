@@ -32,7 +32,7 @@ def _get_cli():
 
 def test_ver_contexto_no_args_prints_usage(capsys):
     cli = _get_cli()
-    cli._slash_ver_contexto("")
+    cli._slash_ver_contexto(None, "")
     captured = capsys.readouterr()
     assert "Uso:" in captured.out
     assert "/ver-contexto" in captured.out

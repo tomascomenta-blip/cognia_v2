@@ -1,0 +1,121 @@
+{
+  "experiment": "xh_x3_mom",
+  "device": "cuda",
+  "vocab": 16384,
+  "config": {
+    "lora_r": 32,
+    "lora_alpha": 64,
+    "lora_lr": 0.002,
+    "wall_full_s": 720.0,
+    "wall_lora_s": 360.0
+  },
+  "models": {
+    "gen": {
+      "steps": 434,
+      "tokens": 10665984,
+      "ok": true
+    },
+    "exp_stories": {
+      "steps": 466,
+      "tokens": 11452416,
+      "ok": true
+    },
+    "exp_wiki": {
+      "steps": 464,
+      "tokens": 11403264,
+      "ok": true
+    },
+    "exp_code": {
+      "steps": 463,
+      "tokens": 11378688,
+      "ok": true
+    },
+    "lora_stories": {
+      "steps": 231,
+      "tokens": 5677056,
+      "ok": true,
+      "lora_params": 5013504
+    },
+    "lora_wiki": {
+      "steps": 266,
+      "tokens": 6537216,
+      "ok": true,
+      "lora_params": 5013504
+    },
+    "lora_code": {
+      "steps": 267,
+      "tokens": 6561792,
+      "ok": true,
+      "lora_params": 5013504
+    }
+  },
+  "bpb_matrix": {
+    "gen": {
+      "stories": 0.8742,
+      "wiki": 1.4757,
+      "code": 1.3008
+    },
+    "exp_stories": {
+      "stories": 0.7054,
+      "wiki": 3.1274,
+      "code": 4.7848
+    },
+    "exp_wiki": {
+      "stories": 1.8115,
+      "wiki": 1.2986,
+      "code": 3.4372
+    },
+    "exp_code": {
+      "stories": 2.9068,
+      "wiki": 2.9097,
+      "code": 1.0035
+    },
+    "lora_stories": {
+      "stories": 0.8104,
+      "wiki": 1.56,
+      "code": 1.3424
+    },
+    "lora_wiki": {
+      "stories": 0.9583,
+      "wiki": 1.3518,
+      "code": 1.3798
+    },
+    "lora_code": {
+      "stories": 0.9229,
+      "wiki": 1.5222,
+      "code": 1.1515
+    }
+  },
+  "veredicto": {
+    "stories": {
+      "experto_gana_nicho_bpb": 0.1688,
+      "P_gana_010": true,
+      "experto_pierde_fuera": [
+        1.6517,
+        3.484
+      ],
+      "lora_vs_experto_nicho": 0.105
+    },
+    "wiki": {
+      "experto_gana_nicho_bpb": 0.1771,
+      "P_gana_010": true,
+      "experto_pierde_fuera": [
+        0.9373,
+        2.1364
+      ],
+      "lora_vs_experto_nicho": 0.0532
+    },
+    "code": {
+      "experto_gana_nicho_bpb": 0.2973,
+      "P_gana_010": true,
+      "experto_pierde_fuera": [
+        2.0326,
+        1.434
+      ],
+      "lora_vs_experto_nicho": 0.148
+    },
+    "mom_denso_paga": true,
+    "lora_empata": false
+  },
+  "minutes_total": 66.7
+}

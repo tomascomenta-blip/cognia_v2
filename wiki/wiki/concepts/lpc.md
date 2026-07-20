@@ -2,13 +2,19 @@
 title: LPC — Local Prefix Cache
 type: concept
 tags: [lpc, kv-cache, performance, inference]
-updated: 2026-05-24
+updated: 2026-07-16
 ---
 
 # LPC — Local Prefix Cache
 
 → [[index]]
 
+
+## Estado (2026-07-16)
+
+Scope: LPC opera solo en el path shards-numpy. En produccion el prefijo lo
+cachea llama-server (cache_prompt); la eval lo fija en false porque el
+KV-cache flipeaba items entre corridas (leccion 2026-07-09).
 ## Qué es
 
 KV-cache cross-turn: evita re-procesar el prefijo de la conversación en cada turno. Se identifica con `lpc_session_id` en `infer()`.

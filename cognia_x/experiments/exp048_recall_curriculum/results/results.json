@@ -1,0 +1,71 @@
+{
+  "exp": "exp048_recall_curriculum",
+  "cycle": 63,
+  "hypothesis": "H-V4-4",
+  "claim": "el techo de recall es de optimización, no de capacidad: un currículo easy->hard mueve el plateau a igual modelo y cómputo",
+  "verdict": "refutada",
+  "summary": {
+    "margin": 0.0395,
+    "baseline": 0.0645,
+    "curriculum": 0.0831,
+    "baseline_2x": 0.0611,
+    "chance": 0.0625,
+    "curri_minus_base": 0.0186,
+    "curri_beats_base": false,
+    "curri_beats_base2x": true,
+    "base_stuck": true,
+    "n_seeds": 2,
+    "status": "refutada",
+    "verdict": "H-V4-4 REFUTADA: el currículo no mueve el plateau (curriculum 0.0831 ~ baseline 0.0645) -> a esta escala el límite no se levanta con currículo."
+  },
+  "args": {
+    "smoke": true,
+    "seeds": "0,1",
+    "steps": 400,
+    "d_model": 32,
+    "n_layers": 4,
+    "n_heads": 4,
+    "attn_every": 3,
+    "n_keys": 160,
+    "n_vals": 16,
+    "n_pairs_easy": 8,
+    "n_pairs_hard": 40,
+    "n_queries": 16,
+    "batch": 64,
+    "lr": 0.001,
+    "warmup": 40
+  },
+  "seeds": [
+    {
+      "seed": 0,
+      "baseline": 0.0667,
+      "curriculum": 0.0826,
+      "baseline_2x": 0.0611,
+      "chance": 0.0625
+    },
+    {
+      "seed": 1,
+      "baseline": 0.0624,
+      "curriculum": 0.0836,
+      "baseline_2x": 0.061,
+      "chance": 0.0625
+    }
+  ],
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp048] CYCLE 63 / H-V4-4 — techo de recall = OPTIMIZACIÓN (currículo mueve el plateau)",
+    "[exp048] d=32 ae=3 n_pairs 8->40 steps=400 seeds=[0, 1]",
+    "[exp048]   seed=0     baseline (steps=400): recall_HARD=0.067 (azar 0.062) params=47,392",
+    "[exp048]   seed=0   curriculum (steps=400): recall_HARD=0.083 (azar 0.062) params=47,392",
+    "[exp048]   seed=0  baseline_2x (steps=800): recall_HARD=0.061 (azar 0.062) params=47,392",
+    "[exp048]   seed=1     baseline (steps=400): recall_HARD=0.062 (azar 0.062) params=47,392",
+    "[exp048]   seed=1   curriculum (steps=400): recall_HARD=0.084 (azar 0.062) params=47,392",
+    "[exp048]   seed=1  baseline_2x (steps=800): recall_HARD=0.061 (azar 0.062) params=47,392",
+    "[exp048] FINAL (media): baseline=0.065 curriculum=0.083 baseline_2x=0.061 (azar 0.062)",
+    "[exp048] VEREDICTO H-V4-4: REFUTADA | H-V4-4 REFUTADA: el currículo no mueve el plateau (curriculum 0.0831 ~ baseline 0.0645) -> a esta escala el límite no se levanta con currículo."
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "exp": "exp094_gen_alloc_interaction",
+  "cycle": 110,
+  "hypothesis": "H-V4-8o",
+  "claim": "la diversidad del generador (temperatura) y la calidad de la asignacion son COMPLEMENTARIAS: subir la diversidad paga mas bajo buena asignacion (el filtro la aprovecha) que bajo asignacion pobre (interaccion temp x alloc positiva) -> R-VALOR gobierna cuanta exploracion del generador conviene",
+  "verdict": "apoyada",
+  "summary": {
+    "configs": [
+      "conf_low",
+      "conf_high",
+      "random_low",
+      "random_high"
+    ],
+    "n_seeds": 4,
+    "conf_strong_corr_by_seed": [
+      0.6365,
+      0.4703,
+      0.5328,
+      0.5961
+    ],
+    "real_conf_low": [
+      0.133,
+      0.085,
+      0.059,
+      0.133
+    ],
+    "real_conf_high": [
+      0.552,
+      0.226,
+      0.148,
+      0.415
+    ],
+    "real_random_low": [
+      0.707,
+      0.593,
+      0.693,
+      0.73
+    ],
+    "real_random_high": [
+      0.196,
+      0.567,
+      0.296,
+      0.17
+    ],
+    "conf_temp_effect": 0.2324,
+    "rand_temp_effect": -0.3731,
+    "interaction": 0.6055,
+    "interaction_by_seed": [
+      0.9296,
+      0.1666,
+      0.4852,
+      0.8407
+    ],
+    "pos_frac": 1.0,
+    "status": "apoyada",
+    "verdict": "H-V4-8o APOYADA: la DIVERSIDAD del generador y la CALIDAD de la asignación son COMPLEMENTARIAS. Subir la temperatura del generador ayuda (o daña menos) MÁS bajo buena asignación (conf): efecto-temp bajo conf=0.232 vs bajo random=-0.373 -> INTERACCIÓN=+0.606 (100% de los seeds positiva). => con buena asignación (verificar lo prometedor) conviene MÁS exploración del generador (el filtro la aprovecha); con asignación pobre la diversidad daña (más basura sin filtrar). R-VALOR (la política de asignación) gobierna cuánta EXPLORACIÓN del generador conviene -- puente generación–selección. corr(conf,strong)=0.559."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": "0,1,2,3",
+    "rounds": 3,
+    "K": 8,
+    "pool": 64,
+    "budget_frac": 0.15,
+    "temp_low": 0.9,
+    "temp_high": 1.7,
+    "top_k": null,
+    "steps": 120,
+    "n_seed": 200,
+    "base_steps": 250,
+    "base_lr": 0.001,
+    "lr": 0.0005,
+    "warmup": 40,
+    "batch": 32,
+    "test_frac": 0.3
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu"
+  },
+  "log": [
+    "[exp094] CYCLE 110 / H-V4-8o — generación↔asignación: ¿diversidad del generador y calidad de asignación complementarias?",
+    "[exp094] seeds=[0, 1, 2, 3] rango=[2,300] rounds=3 K=8 pool=64 budget_frac=0.15 temp_low=0.9 temp_high=1.7 base_steps=250",
+    "[exp094] seed=0 base real_acc=0.722 params=201,280",
+    "[exp094] seed=0 ronda 1: conf_low: y=69 real=0.289 | conf_high: y=11 real=0.667 | random_low: y=50 real=0.711 | random_high: y=1 real=0.289",
+    "[exp094] seed=0 ronda 2: conf_low: y=68 real=0.078 | conf_high: y=62 real=0.656 | random_low: y=72 real=0.678 | random_high: y=3 real=0.144",
+    "[exp094] seed=0 ronda 3: conf_low: y=64 real=0.033 | conf_high: y=61 real=0.333 | random_low: y=72 real=0.733 | random_high: y=6 real=0.156",
+    "[exp094] seed=1 base real_acc=0.567 params=201,280",
+    "[exp094] seed=1 ronda 1: conf_low: y=68 real=0.144 | conf_high: y=6 real=0.267 | random_low: y=42 real=0.544 | random_high: y=0 real=0.567",
+    "[exp094] seed=1 ronda 2: conf_low: y=52 real=0.044 | conf_high: y=44 real=0.200 | random_low: y=66 real=0.644 | random_high: y=0 real=0.567",
+    "[exp094] seed=1 ronda 3: conf_low: y=52 real=0.067 | conf_high: y=46 real=0.211 | random_low: y=68 real=0.589 | random_high: y=0 real=0.567",
+    "[exp094] seed=2 base real_acc=0.700 params=201,280",
+    "[exp094] seed=2 ronda 1: conf_low: y=62 real=0.156 | conf_high: y=4 real=0.222 | random_low: y=44 real=0.622 | random_high: y=0 real=0.700",
+    "[exp094] seed=2 ronda 2: conf_low: y=31 real=0.022 | conf_high: y=41 real=0.122 | random_low: y=65 real=0.689 | random_high: y=2 real=0.144",
+    "[exp094] seed=2 ronda 3: conf_low: y=28 real=0.000 | conf_high: y=54 real=0.100 | random_low: y=69 real=0.767 | random_high: y=3 real=0.044",
+    "[exp094] seed=3 base real_acc=0.667 params=201,280",
+    "[exp094] seed=3 ronda 1: conf_low: y=56 real=0.256 | conf_high: y=13 real=0.544 | random_low: y=52 real=0.689 | random_high: y=3 real=0.244",
+    "[exp094] seed=3 ronda 2: conf_low: y=60 real=0.089 | conf_high: y=63 real=0.489 | random_low: y=62 real=0.789 | random_high: y=8 real=0.144",
+    "[exp094] seed=3 ronda 3: conf_low: y=56 real=0.056 | conf_high: y=65 real=0.211 | random_low: y=67 real=0.711 | random_high: y=15 real=0.122",
+    "[exp094] corr(conf,strong)=[0.6365, 0.4703, 0.5328, 0.5961]",
+    "[exp094] real_acc: conf_low=[0.133, 0.085, 0.059, 0.133] conf_high=[0.552, 0.226, 0.148, 0.415] random_low=[0.707, 0.593, 0.693, 0.73] random_high=[0.196, 0.567, 0.296, 0.17]",
+    "[exp094] efecto-temp: conf=+0.232 random=-0.373 | INTERACCIÓN=+0.606 (pos 100%)",
+    "[exp094] VEREDICTO H-V4-8o: APOYADA | H-V4-8o APOYADA: la DIVERSIDAD del generador y la CALIDAD de la asignación son COMPLEMENTARIAS. Subir la temperatura del generador ayuda (o daña menos) MÁS bajo buena asignación (conf): efecto-temp bajo conf=0.232 vs bajo random=-0.373 -> INTERACCIÓN=+0.606 (100% de los seeds positiva). => con buena asignación (verificar lo prometedor) conviene MÁS exploración del generador (el filtro la aprovecha); con asignación pobre la diversidad daña (más basura sin filtrar). R-VALOR (la política de asignación) gobierna cuánta EXPLORACIÓN del generador conviene -- puente generación–selección. corr(conf,strong)=0.559."
+  ]
+}

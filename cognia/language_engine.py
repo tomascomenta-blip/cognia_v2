@@ -28,7 +28,7 @@ Integración:
   Sustituir en respuestas_articuladas.py:
     respuesta = llamar_ollama(prompt, ...)
   por:
-    from language_engine import get_language_engine
+    from cognia_v3.interfaces.language_engine import get_language_engine
     engine = get_language_engine(ai)
     resultado = engine.respond(ai, pregunta)
 """
@@ -46,7 +46,7 @@ from typing import Optional, Dict, Any
 try:
     from cognia.symbolic_responder import SymbolicResponder, UMBRAL_CONFIANZA, UMBRAL_FALLBACK, UMBRAL_MINIMO
 except ImportError:
-    from symbolic_responder import SymbolicResponder, UMBRAL_CONFIANZA, UMBRAL_FALLBACK, UMBRAL_MINIMO
+    from cognia_v3.interfaces.symbolic_responder import SymbolicResponder, UMBRAL_CONFIANZA, UMBRAL_FALLBACK, UMBRAL_MINIMO
 
 from security.ollama_url import validate_ollama_url
 
@@ -99,7 +99,7 @@ def _extract_topic(question: str) -> str:
 try:
     from cognia.decision_gate import DecisionGate, GateAction, get_decision_gate
 except ImportError:
-    from decision_gate import DecisionGate, GateAction, get_decision_gate
+    from cognia_v3.interfaces.decision_gate import DecisionGate, GateAction, get_decision_gate
 
 # PASO 5: Tracker de fuentes de respuesta para feedback
 try:
@@ -107,7 +107,7 @@ try:
     HAS_FEEDBACK_TRACKER = True
 except ImportError:
     try:
-        from feedback_engine import get_feedback_tracker
+        from cognia_v3.core.feedback_engine import get_feedback_tracker
         HAS_FEEDBACK_TRACKER = True
     except ImportError:
         HAS_FEEDBACK_TRACKER = False
@@ -139,12 +139,12 @@ _MEMORY_PRIMARY_SYSTEM_PROMPT = (
 try:
     from cognia.response_cache import ResponseCache
 except ImportError:
-    from response_cache import ResponseCache
+    from cognia_v3.interfaces.response_cache import ResponseCache
 
 try:
     from cognia.prompt_optimizer import PromptOptimizer, ContextCompressor
 except ImportError:
-    from prompt_optimizer import PromptOptimizer, ContextCompressor
+    from cognia_v3.interfaces.prompt_optimizer import PromptOptimizer, ContextCompressor
 
 # ── Dynamic system prompt ─────────────────────────────────────────────
 def _build_dynamic_system_prompt(ai) -> str:
@@ -463,7 +463,7 @@ class LanguageEngine:
         )
         if _NAME_PAT.search(question) or _RECALL_PAT.search(question):
             try:
-                from conversation_memory import get_conversation_context
+                from cognia_v3.memory.conversation_memory import get_conversation_context
                 import re as _re
                 _ctx = get_conversation_context(ai)
                 _turns = _ctx._buffer.get_all() if hasattr(_ctx, '_buffer') else []
@@ -815,7 +815,7 @@ class LanguageEngine:
                 from cognia.symbolic_synthesizer import get_synthesizer as _get_synth
             except ImportError:
                 try:
-                    from symbolic_synthesizer import get_synthesizer as _get_synth
+                    from cognia_v3.interfaces.symbolic_synthesizer import get_synthesizer as _get_synth
                 except ImportError:
                     _get_synth = None
 
@@ -829,7 +829,7 @@ class LanguageEngine:
                         try:
                             from cognia.symbolic_responder import SymbolicResponse as _SR
                         except ImportError:
-                            from symbolic_responder import SymbolicResponse as _SR
+                            from cognia_v3.interfaces.symbolic_responder import SymbolicResponse as _SR
                         _sym2 = _SR(
                             text          = _sr2.text,
                             confidence    = _sr2.confidence,
@@ -936,7 +936,7 @@ class LanguageEngine:
         # no se ejecuta y el historial de conversación se pierde. Este bloque lo
         # restaura de forma barata (in-memory, sin DB queries extra).
         try:
-            from conversation_memory import get_conversation_context
+            from cognia_v3.memory.conversation_memory import get_conversation_context
             _conv_ctx = get_conversation_context(ai)
             self._topic_changed_hint = _conv_ctx.topic_changed_last()
             if vec:
@@ -1287,7 +1287,7 @@ class LanguageEngine:
         try:
             from cognia.prompt_optimizer import TOKEN_LIMITS
         except ImportError:
-            from prompt_optimizer import TOKEN_LIMITS
+            from cognia_v3.interfaces.prompt_optimizer import TOKEN_LIMITS
         num_predict = TOKEN_LIMITS.get(question_type, 500)
         # Límites conservadores para CPU sin GPU
         num_predict = min(num_predict, 900)
@@ -1330,7 +1330,7 @@ class LanguageEngine:
             # ── Paso 3: limpiar respuesta con LanguageCorrector ───────
             is_truncated = False
             try:
-                from language_corrector import LanguageCorrector
+                from cognia_v3.interfaces.language_corrector import LanguageCorrector
                 _lc = LanguageCorrector()
                 text, is_truncated = _lc.clean_response(text)
             except ImportError:
@@ -1339,7 +1339,7 @@ class LanguageEngine:
                     "truncated": is_truncated}
         except Exception as e:
             try:
-                from model_router import _llamar_shard_network
+                from cognia_v3.interfaces.model_router import _llamar_shard_network
                 shard_text = _llamar_shard_network(prompt, question_type)
                 if shard_text:
                     return {"ok": True, "text": shard_text, "tokens": 0, "truncated": False}
@@ -1474,7 +1474,7 @@ class LanguageEngine:
         """
         try:
             try:
-                from respuestas_articuladas import construir_contexto
+                from cognia_v3.interfaces.respuestas_articuladas import construir_contexto
             except ImportError:
                 from cognia.respuestas_articuladas import construir_contexto
             return construir_contexto(ai, question)
@@ -1504,7 +1504,7 @@ class LanguageEngine:
                                              str(top_concept).replace("_", " ")):
                 return False
             try:
-                from respuestas_articuladas import tiene_suficiente_info
+                from cognia_v3.interfaces.respuestas_articuladas import tiene_suficiente_info
             except ImportError:
                 from cognia.respuestas_articuladas import tiene_suficiente_info
             result = tiene_suficiente_info(ai, top_concept)
@@ -1570,7 +1570,7 @@ class LanguageEngine:
 
         # Intentar investigacion autonoma
         try:
-            from investigador import investigar_si_necesario
+            from cognia_v3.core.investigador import investigar_si_necesario
             new_context, investigated, _info = investigar_si_necesario(
                 ai, question, context
             )

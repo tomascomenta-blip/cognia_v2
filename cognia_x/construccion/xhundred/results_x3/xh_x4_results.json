@@ -1,0 +1,59 @@
+{
+  "experiment": "xh_x4_selector",
+  "router_acc": 0.9667,
+  "n_queries": 90,
+  "arms": {
+    "gen_siempre": {
+      "stories": 0.8843,
+      "wiki": 1.5156,
+      "code": 1.1718
+    },
+    "oracle": {
+      "stories": 0.7138,
+      "wiki": 1.3432,
+      "code": 0.8774
+    },
+    "router_ngrams": {
+      "stories": 0.7138,
+      "wiki": 1.3432,
+      "code": 1.1708
+    },
+    "bandit_verifier": {
+      "stories": 1.1199,
+      "wiki": 1.598,
+      "code": 1.4073
+    },
+    "fusion_cbtm": {
+      "stories": 0.8279,
+      "wiki": 1.4256,
+      "code": 1.1045
+    }
+  },
+  "bandit": {
+    "regret_medio_final": 1.0468,
+    "curve": [
+      {
+        "t": 20,
+        "regret_medio": 1.9582
+      },
+      {
+        "t": 40,
+        "regret_medio": 1.3338
+      },
+      {
+        "t": 60,
+        "regret_medio": 1.1059
+      },
+      {
+        "t": 80,
+        "regret_medio": 1.1033
+      }
+    ]
+  },
+  "veredicto": {
+    "fusion_supera_seleccion": true,
+    "P_calibrador_es_selector": false,
+    "router_gate_95": true
+  },
+  "minutes_total": 15.4
+}

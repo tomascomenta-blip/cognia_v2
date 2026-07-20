@@ -20,10 +20,15 @@ Concrete: a dataclass + a few functions. No plugin runtime, no exec.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+
+from cognia.logger_config import get_logger
+
+logger = get_logger(__name__)
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -112,15 +117,156 @@ def load_skills(extra_dirs: list = None) -> dict:
     return skills
 
 
+# ── Uso real de skills (CP2 §3.5): sidecar JSON, nunca el frontmatter ──
+# record_skill_use() persiste uses_ok/uses_fail en <dir>/.skill_usage.json
+# (un sidecar por directorio de origen, NO por skill) para no reescribir el
+# .md del usuario. Escritura atomica (tmp + os.replace): un corte a mitad de
+# escritura nunca deja el sidecar corrupto.
+
+_USAGE_FILE = ".skill_usage.json"
+_FAIL_STREAK_MIN = 3   # uses_fail >= esto y uses_ok == 0 -> se penaliza
+
+
+def _usage_file(skill_dir: Path) -> Path:
+    return skill_dir / _USAGE_FILE
+
+
+def _load_usage(skill_dir: Path) -> dict:
+    """{nombre_skill: {uses_ok, uses_fail}} del directorio, o {} si no hay
+    sidecar o esta corrupto (best-effort, nunca levanta)."""
+    try:
+        return json.loads(_usage_file(skill_dir).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_usage_atomic(skill_dir: Path, data: dict) -> None:
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    tmp = skill_dir / f"{_USAGE_FILE}.tmp-{os.getpid()}"
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, _usage_file(skill_dir))   # atomico: nunca a medio escribir
+
+
+def _usage_for(spec: "SkillSpec") -> dict:
+    """{'uses_ok': int, 'uses_fail': int} de la skill (ceros si no hay uso
+    registrado todavia)."""
+    data = _load_usage(Path(spec.source).parent)
+    return data.get(spec.name, {"uses_ok": 0, "uses_fail": 0})
+
+
+def record_skill_use(name: str, ok: bool, skills: dict = None) -> None:
+    """
+    Registra un uso de la skill `name` (CP2 §3.5 — senal de aprendizaje del
+    uso real, no del frontmatter estatico). Best-effort: si la skill no
+    existe o el sidecar no se puede escribir (p.ej. skill del usuario en un
+    dir de solo lectura), no hace nada — nunca levanta.
+    """
+    try:
+        skills = skills if skills is not None else load_skills()
+        spec = skills.get(name)
+        if spec is None:
+            return
+        skill_dir = Path(spec.source).parent
+        data = _load_usage(skill_dir)
+        entry = data.get(name, {"uses_ok": 0, "uses_fail": 0})
+        key = "uses_ok" if ok else "uses_fail"
+        entry[key] = entry.get(key, 0) + 1
+        data[name] = entry
+        _save_usage_atomic(skill_dir, data)
+    except OSError as exc:
+        logger.warning("no se pudo persistir el uso de la skill",
+                       extra={"op": "record_skill_use",
+                              "context": f"name={name} err={exc}"})
+
+
 def _tokens(text: str) -> set:
     return {w for w in re.findall(r"[a-záéíóúñ]{3,}", (text or "").lower())
             if w not in _STOP}
 
 
-def find_skill(text: str, skills: dict = None, min_overlap: int = 2):
+# Umbral conservador del fallback semantico (TAREA 3a): calibrado a mano
+# contra el fallback de n-gramas de cognia/vectors.py (sentence-transformers
+# no esta instalado en este repo -> text_to_vector cae a _ngram_vector, ver
+# cognia_embedding.py). Con texto corto (un pedido, un name+description) la
+# señal es ruidosa (bigrams de caracteres + hash de palabras), asi que el
+# umbral se elige ALTO a proposito: mejor perder algun parafraseo real que
+# matchear texto no relacionado (medido: pares realmente parafraseados
+# rondan 0.30-0.44 tras sacar stopwords, pares no relacionados 0.21-0.32 —
+# bandas que se pisan, por eso "conservador" y no "ajustado").
+# Umbral RE-CALIBRADO 2026-07-07 con el modelo ST real (all-MiniLM-L6-v2)
+# sobre pares español (bench_estancamiento causa #2): con 0.35, CUALQUIER
+# par español matcheaba ("hola que tal" vs "algo totalmente distinto" =
+# 0.441; "Calcula 15 por 4" vs escribir-tests = 0.279..0.441 el rango
+# irrelevante). Medido: irrelevantes 0.172-0.441, relevantes 0.504-0.713
+# -> 0.48 separa con margen a ambos lados.
+SEMANTIC_MATCH_THRESHOLD = 0.48
+
+# Umbral del dedupe semantico de persist_skill (TAREA 3b): sobre el body
+# COMPLETO (no boW de stopwords) dos redacciones de la MISMA skill miden
+# ~0.81-0.98 (medido variando 1-3 palabras); skills de tema distinto miden
+# ~0.50-0.58. 0.90 deja margen grande de los dos lados.
+SEMANTIC_DUP_THRESHOLD = 0.90
+
+
+def _semantic_best_match(text: str, candidates: dict, threshold: float):
+    """Fallback semantico de find_skill: similitud coseno (cognia/vectors.py,
+    sin dependencias nuevas) entre `text` y name+description de cada skill
+    candidata. Solo lo llama find_skill cuando el solapamiento lexico no
+    encontro nada -- capa barata para pedidos parafraseados con vocabulario
+    distinto al de la skill."""
+    if not candidates:
+        return None
+    textos = [text] + [f"{s.name} {s.description}" for s in candidates.values()]
+    vecs = _encode_batch(textos)
+    if vecs is None:
+        logger.info("fallback semantico deshabilitado: sentence-transformers no disponible",
+                    extra={"op": "find_skill"})
+        return None
+    from cognia.vectors import cosine_similarity
+    req_vec = vecs[0]
+    best, best_sim = None, 0.0
+    for s, v in zip(candidates.values(), vecs[1:]):
+        sim = cosine_similarity(req_vec, v)
+        if sim > best_sim:
+            best, best_sim = s, sim
+    return best if best_sim >= threshold else None
+
+
+def _encode_batch(textos: list):
+    """Vectores ST para el match semantico de skills, o None sin modelo.
+
+    NO usa text_to_vector (AsyncEmbeddingQueue + cache global): ese path
+    puede devolver el fallback n-gram por timeout durante la carga lazy de
+    ST y CACHEARLO -> cosenos cruzados n-gram x ST = similitudes basura ->
+    matches falsos. Aca el modelo ST se usa DIRECTO (mismo backend
+    garantizado en ambos lados; <=25 skills = milisegundos)."""
+    from cognia.cognia_embedding import LazyEmbeddingModel
+    model = LazyEmbeddingModel.get()
+    if model is None:
+        return None
+    return [list(map(float, v))
+            for v in model.encode(textos, show_progress_bar=False)]
+
+
+def find_skill(text: str, skills: dict = None, min_overlap: int = 2,
+               semantic_fallback: bool = True):
     """
-    Best skill whose name+description overlaps the request, or None. Cheap keyword
-    overlap (no LLM) -- used to auto-apply a skill to a matching request.
+    Best skill whose name+description overlaps the request, or None.
+    1. Solapamiento lexico (bag-of-words, barato, no-LLM) -- gana si
+       encuentra algo (comportamiento original, intacto).
+    2. Si el lexico no encontro nada: fallback a similitud coseno semantica
+       (TAREA 3a) sobre name+description, para pedidos parafraseados.
+    Skills con historial de uso consistentemente malo (record_skill_use:
+    >= _FAIL_STREAK_MIN fallos y 0 exitos) se excluyen de ambas capas -- se
+    loguea la exclusion, no se silencia.
+
+    ``semantic_fallback=False``: solo capa lexica. Para el AUTO-APPLY del
+    agent loop es obligatorio (bench_estancamiento post-fix 2026-07-07): el
+    coseno a 0.35 matcheaba skills IRRELEVANTES en tareas cortas ("Calcula
+    15 por 4" -> escribir-tests, "echo cognia_ok" -> claude-mem) y la
+    guidance inyectada metia archivos inexistentes (codigo_a_testear.py)
+    que el 3B intentaba leer en loop hasta el stuck-detector. El fallback
+    semantico queda para pedidos EXPLICITOS del usuario (/skill).
     """
     skills = skills if skills is not None else load_skills()
     if not skills:
@@ -128,12 +274,28 @@ def find_skill(text: str, skills: dict = None, min_overlap: int = 2):
     req = _tokens(text)
     if not req:
         return None
+
+    usable = {}
+    for name, s in skills.items():
+        usage = _usage_for(s)
+        if usage.get("uses_fail", 0) >= _FAIL_STREAK_MIN and usage.get("uses_ok", 0) == 0:
+            logger.info("skill excluida del match: historial de uso malo",
+                        extra={"op": "find_skill",
+                               "context": f"name={name} uses_fail={usage['uses_fail']}"})
+            continue
+        usable[name] = s
+
     best, best_score = None, 0
-    for s in skills.values():
+    for s in usable.values():
         score = len(req & (_tokens(s.name) | _tokens(s.description)))
         if score > best_score:
             best, best_score = s, score
-    return best if best_score >= min_overlap else None
+    if best is not None and best_score >= min_overlap:
+        return best
+
+    if not semantic_fallback:
+        return None
+    return _semantic_best_match(text, usable, SEMANTIC_MATCH_THRESHOLD)
 
 
 def skill_guidance(skill: SkillSpec, max_chars: int = 2000) -> str:
@@ -141,3 +303,117 @@ def skill_guidance(skill: SkillSpec, max_chars: int = 2000) -> str:
     body = skill.body[:max_chars]
     return (f"Estas operando bajo la skill '{skill.name}': {skill.description}\n"
             f"Segui estas instrucciones:\n{body}")
+
+
+# ── Escritura de skills nivel-2 (CP2, 06_AGENTE_PLAN §3) ────────────────
+# Un skill nivel-2 es markdown (instrucciones, no codigo): blast radius
+# cero por construccion — NO se ejecuta directamente. El blocklist de abajo
+# es DEFENSA EN PROFUNDIDAD sobre esa garantia estructural: reduce el riesgo
+# de persistir instrucciones que un agente futuro podria obedecer, pero NO
+# es un gate hermetico (un regex de patrones peligrosos siempre es evadible
+# con ofuscacion; ver P8 del plan). El gate REAL de ejecucion vive en la capa
+# de tools (allowlist de imports + sandbox de tool_synthesis, blocklist de
+# _shell en tools.py). Aca se cazan las formas mas obvias.
+
+DANGEROUS_PATTERNS = [
+    # borrado/destruccion de disco o arbol (flags juntos o separados)
+    re.compile(r"\brm\s+(-\w+\s+)*-?\w*[rf]\w*\s+(-\w+\s+)*-?\w*[rf]", re.IGNORECASE),
+    re.compile(r"\brm\s+(-[a-z]*r[a-z]*f|-[a-z]*f[a-z]*r)\b", re.IGNORECASE),
+    re.compile(r"\brm\s+--(recursive|force)\b", re.IGNORECASE),
+    re.compile(r"\b(del|erase)\s+/[sqf]", re.IGNORECASE),
+    re.compile(r"\brmdir\s+/s", re.IGNORECASE),
+    re.compile(r"\bmkfs(\.\w+)?\b", re.IGNORECASE),
+    re.compile(r"\bdd\s+if=", re.IGNORECASE),
+    re.compile(r"\bformat\s+[a-z]:", re.IGNORECASE),
+    re.compile(r">\s*/dev/(sd|nvme|null\b.{0,20}<)", re.IGNORECASE),
+    # pipe-a-interprete desde la red (instalacion ciega; tolera sudo/env
+    # entre el pipe y el interprete, y python/perl/ruby ademas de shells)
+    re.compile(r"\b(curl|wget|iwr|invoke-webrequest)\b[^\n]{0,200}\|\s*"
+               r"(sudo\s+|env\s+\S+\s+)*"
+               r"(sh|bash|zsh|iex|powershell|python\d?|perl|ruby|node)\b",
+               re.IGNORECASE),
+    # apagado / persistencia de sistema
+    re.compile(r"\b(shutdown|reboot|halt|poweroff)\b", re.IGNORECASE),
+    re.compile(r"\breg\s+add\s+hklm", re.IGNORECASE),
+    re.compile(r":\(\)\s*\{.*\};\s*:", re.DOTALL),  # fork bomb
+    # escritura fuera del workspace via la tool de archivos (back o forward slash)
+    re.compile(r"escribir_archivo\s+([a-z]:[\\/]windows|/etc/|/usr/|/bin/|"
+               r"~[/\\]\.)", re.IGNORECASE),
+    # exfiltracion de secretos tipicos (marcador o verbo de red en cualquier orden)
+    re.compile(r"(\.env\b|id_rsa|\.ssh[/\\]|api[_-]?key)[^\n]{0,80}"
+               r"(http_get|curl|wget|\bpost\b|@)", re.IGNORECASE),
+    re.compile(r"(curl|wget|http_get)[^\n]{0,80}(\.env\b|id_rsa|\.ssh[/\\])",
+               re.IGNORECASE),
+]
+
+_SKILL_NAME_RE = re.compile(r"^[a-z][a-z0-9\-]{2,40}$")
+AUTO_SKILL_DIR = _REPO / "cognia_skills"
+
+
+def skill_safety_scan(text: str) -> list:
+    """Patrones peligrosos presentes en el texto (vacio = seguro).
+    Se aplica a nombre+descripcion+cuerpo ANTES de persistir."""
+    return [rx.pattern[:50] for rx in DANGEROUS_PATTERNS
+            if rx.search(text or "")]
+
+
+def persist_skill(name: str, description: str, body: str,
+                  evidence: str) -> dict:
+    """Escribe un skill nivel-2 VERIFICADO a cognia_skills/<name>.md.
+
+    Gates (todos obligatorios, en orden):
+      1. nombre slug valido;
+      2. no existe ya un skill con nombre igual/similar (crear-vs-reusar);
+      3. blocklist duro sobre nombre+descripcion+cuerpo;
+      4. ``evidence`` no vacio: la traza que lo origino cerro con oraculo
+         duro (regla §3.4 — Hermes persiste por 'salio bien', nosotros NO).
+    Devuelve {ok, path|reason}."""
+    if not _SKILL_NAME_RE.match(name or ""):
+        return {"ok": False, "reason": f"nombre invalido: {name!r}"}
+    if not (evidence or "").strip():
+        return {"ok": False, "reason": "sin evidencia de oraculo duro: no se persiste"}
+
+    import difflib
+    existing = load_skills()
+    for ex_name in existing:
+        ratio = difflib.SequenceMatcher(None, name, ex_name.lower()).ratio()
+        if ratio >= 0.8:
+            return {"ok": False,
+                    "reason": f"skill similar existente: {ex_name} — reusar"}
+
+    # 2b. dedupe SEMANTICO (TAREA 3b): el nombre puede ser distinto pero el
+    # contenido (lo que de verdad importa reusar) casi el mismo -- el check
+    # de arriba solo compara el string del nombre. Umbral alto (~0.9): solo
+    # rechaza duplicados casi textuales, no skills genuinamente distintas.
+    if existing:
+        from cognia.vectors import cosine_similarity, text_to_vector
+        new_vec = text_to_vector(f"{description}\n{body}")
+        for ex_name, ex_spec in existing.items():
+            sim = cosine_similarity(
+                new_vec, text_to_vector(f"{ex_spec.description}\n{ex_spec.body}"))
+            if sim >= SEMANTIC_DUP_THRESHOLD:
+                return {"ok": False,
+                        "reason": (f"skill semanticamente duplicada de {ex_name} "
+                                  f"(sim={sim:.2f}) — reusar")}
+
+    hits = skill_safety_scan(name + "\n" + description + "\n" + body)
+    if hits:
+        return {"ok": False,
+                "reason": f"blocklist: patron(es) peligrosos {hits[:3]}"}
+
+    AUTO_SKILL_DIR.mkdir(parents=True, exist_ok=True)
+    path = AUTO_SKILL_DIR / f"{name}.md"
+    if path.exists():
+        return {"ok": False, "reason": f"ya existe {path.name} — editar, no pisar"}
+    content = (
+        "---\n"
+        f"name: {name}\n"
+        f"description: {description[:120]}\n"
+        "auto_generated: true\n"
+        f"verified: {evidence[:150]}\n"
+        "version: 0.1.0\n"
+        "---\n\n"
+        + body.strip() + "\n"
+    )
+    path.write_text(content, encoding="utf-8")
+    return {"ok": True, "path": str(path)}

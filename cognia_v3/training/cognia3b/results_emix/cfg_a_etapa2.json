@@ -1,0 +1,1 @@
+{"model_dir": "/kaggle/working/merged_etapa1", "pares_tok": "/kaggle/working/tok_etapa2.jsonl", "mb": 4, "adapter_out": "/kaggle/working/adapters/a_etapa2", "stats_out": "/kaggle/working/train_a_etapa2.json"}

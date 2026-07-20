@@ -1,0 +1,362 @@
+{
+  "experiment": "bench_reasoning",
+  "timestamp": "2026-07-01T17:20:17.632562",
+  "backend_info": "{}",
+  "n_items": 16,
+  "conds": [
+    "cot",
+    "sc3"
+  ],
+  "results": {
+    "cot": {
+      "m01": {
+        "pred": 470,
+        "expected": 470,
+        "ok": true,
+        "wall_s": 18.5
+      },
+      "m02": {
+        "pred": 1225,
+        "expected": 1225,
+        "ok": true,
+        "wall_s": 39.5
+      },
+      "m03": {
+        "pred": 9,
+        "expected": 9,
+        "ok": true,
+        "wall_s": 22.2
+      },
+      "m04": {
+        "pred": 1600,
+        "expected": 1600,
+        "ok": true,
+        "wall_s": 33.1
+      },
+      "m05": {
+        "pred": 28,
+        "expected": 28,
+        "ok": true,
+        "wall_s": 27.0
+      },
+      "m06": {
+        "pred": 36,
+        "expected": 36,
+        "ok": true,
+        "wall_s": 28.8
+      },
+      "m07": {
+        "pred": 540,
+        "expected": 540,
+        "ok": true,
+        "wall_s": 25.4
+      },
+      "m08": {
+        "pred": 103,
+        "expected": 103,
+        "ok": true,
+        "wall_s": 24.2
+      },
+      "m09": {
+        "pred": 1080,
+        "expected": 1080,
+        "ok": true,
+        "wall_s": 25.8
+      },
+      "m10": {
+        "pred": 25,
+        "expected": 25,
+        "ok": true,
+        "wall_s": 38.5
+      },
+      "m11": {
+        "pred": 50,
+        "expected": 50,
+        "ok": true,
+        "wall_s": 26.4
+      },
+      "m12": {
+        "pred": 20,
+        "expected": 20,
+        "ok": true,
+        "wall_s": 25.9
+      },
+      "l01": {
+        "pred": 1,
+        "expected": 2,
+        "ok": false,
+        "wall_s": 25.0
+      },
+      "l02": {
+        "pred": 10,
+        "expected": 8,
+        "ok": false,
+        "wall_s": 32.0
+      },
+      "l03": {
+        "pred": 3,
+        "expected": 1,
+        "ok": false,
+        "wall_s": 16.5
+      },
+      "l04": {
+        "pred": 14,
+        "expected": 14,
+        "ok": true,
+        "wall_s": 31.2
+      }
+    },
+    "sc3": {
+      "m01": {
+        "pred": 470,
+        "expected": 470,
+        "ok": true,
+        "wall_s": 87.7,
+        "votes": [
+          470,
+          470,
+          470
+        ]
+      },
+      "m02": {
+        "pred": 1230,
+        "expected": 1225,
+        "ok": false,
+        "wall_s": 70.6,
+        "votes": [
+          1230,
+          1225,
+          1325
+        ]
+      },
+      "m03": {
+        "pred": 9,
+        "expected": 9,
+        "ok": true,
+        "wall_s": 65.7,
+        "votes": [
+          9,
+          9,
+          9
+        ]
+      },
+      "m04": {
+        "pred": 1500,
+        "expected": 1600,
+        "ok": false,
+        "wall_s": 117.3,
+        "votes": [
+          1500,
+          900,
+          1600
+        ]
+      },
+      "m05": {
+        "pred": 28,
+        "expected": 28,
+        "ok": true,
+        "wall_s": 109.9,
+        "votes": [
+          30,
+          28,
+          28
+        ]
+      },
+      "m06": {
+        "pred": 36,
+        "expected": 36,
+        "ok": true,
+        "wall_s": 108.3,
+        "votes": [
+          36,
+          36,
+          36
+        ]
+      },
+      "m07": {
+        "pred": 540,
+        "expected": 540,
+        "ok": true,
+        "wall_s": 91.9,
+        "votes": [
+          540,
+          540,
+          540
+        ]
+      },
+      "m08": {
+        "pred": 103,
+        "expected": 103,
+        "ok": true,
+        "wall_s": 59.7,
+        "votes": [
+          59,
+          103,
+          103
+        ]
+      },
+      "m09": {
+        "pred": 1080,
+        "expected": 1080,
+        "ok": true,
+        "wall_s": 75.6,
+        "votes": [
+          1080,
+          1080,
+          1440
+        ]
+      },
+      "m10": {
+        "pred": 25,
+        "expected": 25,
+        "ok": true,
+        "wall_s": 115.6,
+        "votes": [
+          25,
+          25,
+          25
+        ]
+      },
+      "m11": {
+        "pred": 50,
+        "expected": 50,
+        "ok": true,
+        "wall_s": 73.6,
+        "votes": [
+          50,
+          50,
+          50
+        ]
+      },
+      "m12": {
+        "pred": 20,
+        "expected": 20,
+        "ok": true,
+        "wall_s": 85.6,
+        "votes": [
+          20,
+          20,
+          20
+        ]
+      },
+      "l01": {
+        "pred": 1,
+        "expected": 2,
+        "ok": false,
+        "wall_s": 58.5,
+        "votes": [
+          1,
+          2,
+          0
+        ]
+      },
+      "l02": {
+        "pred": 10,
+        "expected": 8,
+        "ok": false,
+        "wall_s": 61.2,
+        "votes": [
+          8,
+          10,
+          10
+        ]
+      },
+      "l03": {
+        "pred": 3,
+        "expected": 1,
+        "ok": false,
+        "wall_s": 50.0,
+        "votes": [
+          3,
+          3,
+          4
+        ]
+      },
+      "l04": {
+        "pred": 14,
+        "expected": 14,
+        "ok": true,
+        "wall_s": 92.8,
+        "votes": [
+          14,
+          1,
+          15
+        ]
+      }
+    }
+  },
+  "format": {
+    "direct": {
+      "f01": {
+        "compliance": true,
+        "correct": true,
+        "wall_s": 6.2,
+        "raw": "{\"respuesta\": 391}"
+      },
+      "f02": {
+        "compliance": true,
+        "correct": true,
+        "wall_s": 7.5,
+        "raw": "{\"primos\": [2, 3, 5, 7, 11]}"
+      },
+      "f03": {
+        "compliance": true,
+        "correct": false,
+        "wall_s": 5.4,
+        "raw": "15"
+      },
+      "f04": {
+        "compliance": false,
+        "correct": false,
+        "wall_s": 5.3,
+        "raw": "Hola,hola,hola"
+      }
+    },
+    "cot": {
+      "f01": {
+        "compliance": true,
+        "correct": true,
+        "wall_s": 8.4,
+        "raw": "{\n  \"respuesta\": 391\n}"
+      },
+      "f02": {
+        "compliance": false,
+        "correct": false,
+        "wall_s": 16.0,
+        "raw": "1. El primer número primo es 2.\n2. El segundo número primo es 3.\n3. El tercer número primo es 5.\n4. El cuarto número primo es 7.\n5. El quinto número primo es 11.\n\n{\"primos\": [2, 3, 5, 7, 11]}"
+      },
+      "f03": {
+        "compliance": false,
+        "correct": true,
+        "wall_s": 14.4,
+        "raw": "1. 144 dividido 12 = 12\n2. 12 + 5 = 17\n17"
+      },
+      "f04": {
+        "compliance": false,
+        "correct": false,
+        "wall_s": 14.2,
+        "raw": "1. Comenzaré escribiendo la palabra \"hola\".\n2. Luego, escribiré una coma.\n3. Finalmente, escribiré otra \"hola\" y una coma.\n4. Por último, escribiré otra \"hola\".\n\nhola,hola,hola"
+      }
+    }
+  },
+  "summary": {
+    "cot": {
+      "acc": 0.8125,
+      "n": 16,
+      "wall_s": 440.0
+    },
+    "sc3": {
+      "acc": 0.6875,
+      "n": 16,
+      "wall_s": 1324.0
+    },
+    "format_direct": {
+      "compliance": 0.75,
+      "correct": 0.5
+    },
+    "format_cot": {
+      "compliance": 0.25,
+      "correct": 0.5
+    }
+  }
+}

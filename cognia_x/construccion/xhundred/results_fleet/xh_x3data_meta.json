@@ -1,0 +1,30 @@
+{
+  "experiment": "xh_x3data",
+  "smoke": false,
+  "domains": {
+    "stories": {
+      "train_docs": 128400,
+      "train_bytes": 118500005,
+      "val_bytes": 1550053,
+      "val_tokens": 360876,
+      "fertility": 4.2953
+    },
+    "wiki": {
+      "train_docs": 6713,
+      "train_bytes": 118513686,
+      "val_bytes": 1536217,
+      "val_tokens": 390356,
+      "fertility": 3.9354
+    },
+    "code": {
+      "train_docs": 21529,
+      "train_bytes": 118498231,
+      "val_bytes": 1502819,
+      "val_tokens": 446552,
+      "fertility": 3.3654
+    }
+  },
+  "vocab": 16384,
+  "gen_docs": 78309,
+  "minutes_total": 4.6
+}

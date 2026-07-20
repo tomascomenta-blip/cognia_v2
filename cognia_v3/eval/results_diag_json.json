@@ -1,0 +1,448 @@
+{
+ "pasa": [
+  {
+   "i": 0,
+   "prompt": "Devolvé SOLO un JSON (sin texto extra) con las claves nombre",
+   "raw": "```json\n{\n  \"nombre\": \"Ana\",\n  \"edad\": 30\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 1,
+   "prompt": "Return ONLY a JSON object with keys city (string) and popula",
+   "raw": "```json\n{\n  \"city\": \"Paris\",\n  \"population\": 2100000\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 2,
+   "prompt": "Generá un JSON con la clave colores cuyo valor sea una lista",
+   "raw": "```json\n{\n  \"colores\": [\"rojo\", \"verde\", \"azul\"]\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 3,
+   "prompt": "Return ONLY valid JSON: an object with key items containing ",
+   "raw": "```json\n{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"done\": false\n    },\n    {\n      \"id\": 2,\n      \"done\": false\n    },\n    {\n      \"id\": 3,\n      \"don",
+   "grammar": false
+  },
+  {
+   "i": 4,
+   "prompt": "Devolvé SOLO un JSON con las claves ancho y alto (numbers) p",
+   "raw": "```json\n{\n  \"ancho\": 1920,\n  \"alto\": 1080\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 5,
+   "prompt": "Return ONLY a JSON object with key config, whose value is an",
+   "raw": "```json\n{\n  \"config\": {\n    \"debug\": true,\n    \"retries\": 5\n  }\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 6,
+   "prompt": "Generá SOLO un JSON con la clave dias cuyo valor sea la list",
+   "raw": "```json\n{\n  \"dias\": [\"domingo\", \"lunes\", \"martes\", \"miércoles\", \"jueves\", \"viernes\", \"sábado\"]\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 7,
+   "prompt": "Return ONLY JSON: {\"status\": ..., \"code\": ...} where status ",
+   "raw": "```json\n{\"status\": \"ok\", \"code\": 200}\n```",
+   "grammar": false
+  },
+  {
+   "i": 8,
+   "prompt": "Devolvé SOLO un JSON que represente un producto: claves titu",
+   "raw": "```json\n{\n  \"titulo\": \"Notebook\",\n  \"precio\": 999.99,\n  \"stock\": 12\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 9,
+   "prompt": "Return ONLY a JSON array (not an object) with the numbers 1 ",
+   "raw": "```json\n[1, 2, 3, 4, 5]\n```",
+   "grammar": false
+  },
+  {
+   "i": 10,
+   "prompt": "Generá SOLO un JSON con las claves usuario (string 'admin') ",
+   "raw": "```json\n{\n  \"usuario\": \"admin\",\n  \"activo\": true\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 11,
+   "prompt": "Return ONLY JSON with keys lat and lon (numbers) for coordin",
+   "raw": "```json\n{\n  \"lat\": -34.6,\n  \"lon\": -58.4\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 12,
+   "prompt": "Devolvé SOLO un JSON con la clave tareas: lista de 2 objetos",
+   "raw": "```json\n{\n  \"tareas\": [\n    {\n      \"texto\": \"Entregar proyecto de investigación\",\n      \"prioridad\": 1\n    },\n    {\n      \"texto\": \"Llevar a la veter",
+   "grammar": false
+  },
+  {
+   "i": 13,
+   "prompt": "Return ONLY a JSON object mapping the strings a, b and c to ",
+   "raw": "```json\n{\n  \"a\": 1,\n  \"b\": 2,\n  \"c\": 3\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 15,
+   "prompt": "Return ONLY JSON: object with key user containing keys name ",
+   "raw": "```json\n{\n  \"user\": {\n    \"name\": \"Bo\",\n    \"tags\": [\"x\", \"y\"]\n  }\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 18,
+   "prompt": "Generá SOLO un JSON válido con una clave ruta cuyo valor sea",
+   "raw": "```json\n{\n  \"ruta\": \"C:\\\\temp\\\\datos.txt\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 19,
+   "prompt": "Return ONLY JSON with key message whose value is the string:",
+   "raw": "```json\n{\n  \"message\": \"He said \\\"hello\\\"\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 21,
+   "prompt": "Return ONLY a JSON object with keys min and max (numbers) wh",
+   "raw": "```json\n{\n  \"min\": 0,\n  \"max\": 100\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 22,
+   "prompt": "Generá SOLO un JSON con clave matriz: lista de 2 listas, cad",
+   "raw": "```json\n{\n  \"matriz\": [\n    [1, 2],\n    [3, 4]\n  ]\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 23,
+   "prompt": "Return ONLY JSON: {\"ok\": true} and absolutely nothing else.",
+   "raw": "```json\n{\"ok\": true}\n```",
+   "grammar": false
+  },
+  {
+   "i": 24,
+   "prompt": "Devolvé SOLO un JSON con las claves título (string 'Dune') y",
+   "raw": "```json\n{\n  \"título\": \"Dune\",\n  \"año\": 1965\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 25,
+   "prompt": "Return ONLY a JSON object with keys title (string 'Alien') a",
+   "raw": "```json\n{\n  \"title\": \"Alien\",\n  \"year\": 1979\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 26,
+   "prompt": "Generá SOLO un JSON con las claves señal (string 'wifi') y p",
+   "raw": "```json\n{\n  \"señal\": \"wifi\",\n  \"potencia\": -70\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 27,
+   "prompt": "Return ONLY JSON with keys signal (string 'lte') and power (",
+   "raw": "```json\n{\n  \"signal\": \"lte\",\n  \"power\": -95\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 28,
+   "prompt": "Devolvé SOLO un JSON con la clave descripción cuyo valor sea",
+   "raw": "```json\n{\n  \"descripción\": \"\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 29,
+   "prompt": "Return ONLY a JSON object with key note whose value is the e",
+   "raw": "```json\n{\n  \"note\": \"\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 30,
+   "prompt": "Generá SOLO un JSON con las claves nombre (string 'demo') y ",
+   "raw": "```json\n{\n  \"nombre\": \"demo\",\n  \"etiquetas\": []\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 31,
+   "prompt": "Return ONLY JSON with keys name (string 'demo') and labels (",
+   "raw": "```json\n{\n  \"name\": \"demo\",\n  \"labels\": []\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 32,
+   "prompt": "Devolvé SOLO un JSON con la clave extras cuyo valor sea un o",
+   "raw": "```json\n{\n  \"extras\": {}\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 33,
+   "prompt": "Return ONLY a JSON object with key extra whose value is an e",
+   "raw": "```json\n{\n  \"extra\": {}\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 35,
+   "prompt": "Return ONLY JSON with keys result (the literal null) and cod",
+   "raw": "```json\n{\n  \"result\": null,\n  \"code\": -2\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 36,
+   "prompt": "Devolvé SOLO un JSON con la clave carpeta cuyo valor sea el ",
+   "raw": "```json\n{\n  \"carpeta\": \"D:\\\\logs\\\\app\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 37,
+   "prompt": "Return ONLY a JSON object with key folder whose value is the",
+   "raw": "```json\n{\n  \"folder\": \"C:\\\\logs\\\\app\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 38,
+   "prompt": "Generá SOLO un JSON con la clave cita cuyo valor sea el stri",
+   "raw": "```json\n{\n  \"cita\": \"dijo \\\"hola\\\"\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 39,
+   "prompt": "Return ONLY JSON with key quote whose value is the string: s",
+   "raw": "```json\n{\n  \"quote\": \"she said \\\"bye\\\"\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 40,
+   "prompt": "Devolvé SOLO un JSON con la clave texto cuyo valor sea un st",
+   "raw": "```json\n{\n  \"texto\": \"linea1\\nlinea2\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 41,
+   "prompt": "Return ONLY a JSON object with key text whose value is a two",
+   "raw": "```json\n{\n  \"text\": \"This is the first line.\\nThis is the second line.\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 42,
+   "prompt": "Generá SOLO un JSON con la clave servidor: un objeto con hos",
+   "raw": "```json\n{\n  \"servidor\": {\n    \"host\": \"localhost\",\n    \"puerto\": 8080\n  }\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 43,
+   "prompt": "Return ONLY JSON with key server: an object with host (strin",
+   "raw": "```json\n{\n  \"server\": {\n    \"host\": \"localhost\",\n    \"port\": 9090\n  }\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 44,
+   "prompt": "Devolvé SOLO un JSON con la clave a cuyo valor sea un objeto",
+   "raw": "```json\n{\n  \"a\": {\n    \"b\": {\n      \"c\": 1\n    }\n  }\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 45,
+   "prompt": "Return ONLY a JSON object with key a whose value is an objec",
+   "raw": "```json\n{\n  \"a\": {\n    \"b\": {\n      \"c\": 2\n    }\n  }\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 46,
+   "prompt": "Generá SOLO un JSON con la clave puntos: lista de 2 objetos,",
+   "raw": "```json\n{\n  \"puntos\": [\n    {\n      \"x\": 1,\n      \"y\": 2\n    },\n    {\n      \"x\": 3,\n      \"y\": 4\n    }\n  ]\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 48,
+   "prompt": "Devolvé SOLO un JSON con la clave pares: la lista de los núm",
+   "raw": "```json\n{\n  \"pares\": [2, 4, 6, 8]\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 49,
+   "prompt": "Return ONLY a JSON object with key odds: the list of odd num",
+   "raw": "```json\n{\n  \"odds\": [1, 3, 5, 7]\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 50,
+   "prompt": "Generá SOLO un JSON con la clave datos: una lista con exacta",
+   "raw": "```json\n{\n  \"datos\": [1, \"dos\", true]\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 52,
+   "prompt": "Devolvé SOLO un JSON con las claves visible (boolean false) ",
+   "raw": "```json\n{\n  \"visible\": false,\n  \"bloqueado\": true\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 53,
+   "prompt": "Return ONLY a JSON object with keys visible (boolean true) a",
+   "raw": "```json\n{\n  \"visible\": true,\n  \"locked\": false\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 54,
+   "prompt": "Generá SOLO un JSON con las claves éxito (boolean true) e in",
+   "raw": "```json\n{\n  \"éxito\": true,\n  \"intentos\": 3\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 55,
+   "prompt": "Return ONLY JSON with keys success (boolean false) and attem",
+   "raw": "```json\n{\n  \"success\": false,\n  \"attempts\": 4\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 56,
+   "prompt": "Devolvé SOLO un JSON con las claves temperatura (number -12.",
+   "raw": "```json\n{\n  \"temperatura\": -12.5,\n  \"humedad\": 0.85\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 57,
+   "prompt": "Return ONLY a JSON object with keys temp (number -3.25) and ",
+   "raw": "```json\n{\n  \"temp\": -3.25,\n  \"ratio\": 0.5\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 58,
+   "prompt": "Generá SOLO un JSON con las claves saldo (number -1500.75) y",
+   "raw": "```json\n{\n  \"saldo\": -1500.75,\n  \"moneda\": \"ARS\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 59,
+   "prompt": "Return ONLY JSON with keys balance (number -220.4) and curre",
+   "raw": "```json\n{\n  \"balance\": -220.4,\n  \"currency\": \"USD\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 60,
+   "prompt": "Devolvé SOLO un JSON con las claves nombre (string 'Luz'), e",
+   "raw": "```json\n{\n  \"nombre\": \"Luz\",\n  \"edad\": 7,\n  \"activo\": true\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 61,
+   "prompt": "Return ONLY a JSON object with keys name (string 'Sky'), age",
+   "raw": "```json\n{\n  \"name\": \"Sky\",\n  \"age\": 9,\n  \"active\": false\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 62,
+   "prompt": "Generá SOLO un JSON con las claves id (number 1), nombre (st",
+   "raw": "```json\n{\n  \"id\": 1,\n  \"nombre\": \"test\",\n  \"tags\": [],\n  \"meta\": {}\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 63,
+   "prompt": "Return ONLY JSON with keys id (number 2), name (string 'prob",
+   "raw": "```json\n{\n  \"id\": 2,\n  \"name\": \"probe\",\n  \"tags\": [],\n  \"meta\": {}\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 65,
+   "prompt": "Return ONLY a JSON object with key prev whose value is null ",
+   "raw": "```json\n{\n  \"prev\": null,\n  \"next\": 3\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 66,
+   "prompt": "Generá SOLO un JSON con la clave habitantes (number 47000000",
+   "raw": "```json\n{\n  \"habitantes\": 47000000\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 67,
+   "prompt": "Return ONLY JSON with key population (number 39000000) for C",
+   "raw": "```json\n{\n  \"population\": 39000000\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 68,
+   "prompt": "Devolvé SOLO un JSON con las claves errores (number 0) y avi",
+   "raw": "```json\n{\n  \"errores\": 0,\n  \"avisos\": 0\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 69,
+   "prompt": "Return ONLY a JSON object with keys errors (number 0) and wa",
+   "raw": "```json\n{\n  \"errors\": 0,\n  \"warnings\": 0\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 70,
+   "prompt": "Generá SOLO un JSON con la clave saludo cuyo valor sea el st",
+   "raw": "```json\n{\n  \"saludo\": \"ñandú\"\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 71,
+   "prompt": "Return ONLY JSON with key greeting whose value is the exact ",
+   "raw": "```json\n{\n  \"greeting\": \"naïve café\"\n}\n```",
+   "grammar": false
+  }
+ ],
+ "no_json": [],
+ "schema": [
+  {
+   "i": 14,
+   "prompt": "Generá SOLO un JSON con clave version (string '1.0.0') y cla",
+   "raw": "```json\n{\n  \"version\": \"1.0.0\",\n  \"dependencies\": []\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 17,
+   "prompt": "Return ONLY a JSON object with key empty whose value is an e",
+   "raw": "```json\n{}\n```",
+   "grammar": false
+  },
+  {
+   "i": 20,
+   "prompt": "Devolvé SOLO un JSON con clave nulo cuyo valor sea null (el ",
+   "raw": "```json\n{}\n```",
+   "grammar": false
+  },
+  {
+   "i": 34,
+   "prompt": "Generá SOLO un JSON con las claves resultado (el literal nul",
+   "raw": "```json\n{\n  \"resultado\": null,\n  \"codigo\": -1\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 47,
+   "prompt": "Return ONLY JSON with key points: a list of 2 objects, each ",
+   "raw": "```json\n{\n  \"objects\": [\n    {\n      \"x\": 5,\n      \"y\": 6\n    },\n    {\n      \"x\": 7,\n      \"y\": 8\n    }\n  ]\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 51,
+   "prompt": "Return ONLY JSON with key data: a list containing exactly th",
+   "raw": "```json\n{\n  \"list\": [2, \"three\", false]\n}\n```",
+   "grammar": false
+  },
+  {
+   "i": 64,
+   "prompt": "Devolvé SOLO un JSON con la clave anterior cuyo valor sea nu",
+   "raw": "```json\n{\n  \"clave_anterior\": null,\n  \"clave_siguiente\": 2\n}\n```",
+   "grammar": false
+  }
+ ],
+ "contenido": [
+  {
+   "i": 16,
+   "prompt": "Devolvé SOLO un JSON con las claves pregunta (string) y resp",
+   "raw": "```json\n{\n  \"pregunta\": \"¿Cuánto es 7 por 8?\",\n  \"respuesta\": 0.875\n}\n```",
+   "grammar": false
+  }
+ ],
+ "_meta": {
+  "n": 72,
+  "brazo": "A_base",
+  "sha256_tareas": "616cb05f8ba8768407e7bdfda7a7e51be91fafeec4cbe60f5d5a27d307a7e1ed",
+  "gguf": "Qwen2.5-Coder-3B-Instruct-Q4_K_M.gguf",
+  "fecha": "2026-07-10 12:32"
+ }
+}

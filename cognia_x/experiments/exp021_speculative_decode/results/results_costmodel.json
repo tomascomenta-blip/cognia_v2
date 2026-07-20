@@ -1,0 +1,44 @@
+{
+  "experiment": "exp021/cost_model",
+  "calibration": {
+    "baseline_tps_mediana": 8.321,
+    "fuente": "results_draft.json",
+    "W_base_GiB": 1.797,
+    "BW_efectivo_GiBps": 14.96,
+    "exp004_GiBps_range": [
+      15.6,
+      22.2
+    ],
+    "en_pared_de_memoria": true
+  },
+  "projections": [
+    {
+      "strategy": "draft-0.5B (a=2.0)",
+      "source": "PROYECTADO (modelo banda)",
+      "speedup": 1.047,
+      "tok_s_proyectado": 8.72,
+      "nota": "penalizado: el draft lee ~0.34GB extra/token propuesto"
+    },
+    {
+      "strategy": "draft-0.5B (a=3.0)",
+      "source": "PROYECTADO (modelo banda)",
+      "speedup": 1.571,
+      "tok_s_proyectado": 13.07,
+      "nota": "penalizado: el draft lee ~0.34GB extra/token propuesto"
+    },
+    {
+      "strategy": "MTP/EAGLE-head (a=2.4)",
+      "source": "PROYECTADO (modelo banda)",
+      "speedup": 2.128,
+      "tok_s_proyectado": 17.7,
+      "nota": "peldano 2: params entrenables sobre base congelada; banda ~0"
+    },
+    {
+      "strategy": "MTP/EAGLE-head (a=3.4)",
+      "source": "PROYECTADO (modelo banda)",
+      "speedup": 2.982,
+      "tok_s_proyectado": 24.81,
+      "nota": "peldano 2: params entrenables sobre base congelada; banda ~0"
+    }
+  ]
+}

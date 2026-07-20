@@ -1,0 +1,52 @@
+{
+  "exp": "exp088_abstention_timing",
+  "cycle": 104,
+  "hypothesis": "H-V4-8i",
+  "claim": "R-VALOR gobierna CUANDO gastar el presupuesto global (timing/abstencion), no solo que elegir: bajo rondas de riqueza heterogenea, asignar el presupuesto por el valor estimado de cada ronda (gastar donde rinde, abstenerse donde no) supera a gastar uniforme; bajo riqueza flat coinciden",
+  "verdict": "apoyada",
+  "summary": {
+    "grid": {
+      "varied": {
+        "uniform": 0.4182,
+        "threshold": 0.9847,
+        "oracle": 1.0,
+        "random": 0.4309
+      },
+      "flat": {
+        "uniform": 0.9314,
+        "threshold": 0.954,
+        "oracle": 1.0,
+        "random": 0.9374
+      }
+    },
+    "varied_gain": 0.5665,
+    "varied_oracle_gap": 0.0153,
+    "flat_coincide": 0.0226,
+    "timing_wins": true,
+    "near_oracle": true,
+    "coincide_flat": true,
+    "status": "apoyada",
+    "verdict": "H-V4-8i APOYADA: bajo riquezas VARIADAS (algunas rondas ricas, otras pobres), asignar el presupuesto GLOBAL por el VALOR estimado de cada ronda -- gastar donde rinde, ABSTENERSE donde no -- SUPERA a gastar uniforme: threshold=0.985 >> uniform=0.418 (+0.567, ≈ oracle gap 0.015). Bajo riqueza FLAT coinciden (Δ 0.023: cuando todas las rondas rinden igual, el timing no importa). => R-VALOR gobierna CUÁNDO gastar (timing/abstención), no sólo QUÉ elegir; el valor de NO actuar (abstenerse en rondas pobres para guardar el presupuesto) es REAL. Dimensión TEMPORAL del arco de asignación (83-103)."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 48,
+    "rounds": 20,
+    "B": 20,
+    "cap": 5,
+    "noise": 0.08
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp088] CYCLE 104 / H-V4-8i — TIMING del presupuesto / ABSTENCIÓN: ¿gastar-donde-rinde supera a gastar uniforme?",
+    "[exp088] rounds=20 B=20 cap=5 noise=0.08 seeds=48 regimes=['varied', 'flat']",
+    "[exp088] richness=varied: uniform=0.418 threshold=0.985 oracle=1.000 random=0.431",
+    "[exp088] richness=  flat: uniform=0.931 threshold=0.954 oracle=1.000 random=0.937",
+    "[exp088] VARIED: threshold−uniform=+0.567 oracle_gap=0.015 | FLAT: coincide Δ=0.023",
+    "[exp088] timing_wins=True near_oracle=True coincide_flat=True",
+    "[exp088] VEREDICTO H-V4-8i: APOYADA | H-V4-8i APOYADA: bajo riquezas VARIADAS (algunas rondas ricas, otras pobres), asignar el presupuesto GLOBAL por el VALOR estimado de cada ronda -- gastar donde rinde, ABSTENERSE donde no -- SUPERA a gastar uniforme: threshold=0.985 >> uniform=0.418 (+0.567, ≈ oracle gap 0.015). Bajo riqueza FLAT coinciden (Δ 0.023: cuando todas las rondas rinden igual, el timing no importa). => R-VALOR gobierna CUÁNDO gastar (timing/abstención), no sólo QUÉ elegir; el valor de NO actuar (abstenerse en rondas pobres para guardar el presupuesto) es REAL. Dimensión TEMPORAL del arco de asignación (83-103)."
+  ]
+}

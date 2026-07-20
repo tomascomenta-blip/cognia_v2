@@ -1,0 +1,1 @@
+{"brazo": "grok_denso", "lr": 0.0001, "steps_total": 24, "evals": [{"step": 10, "train_s": 76.9, "loss": 1.5356, "g3": 0}, {"step": 20, "train_s": 151.4, "loss": 1.4027, "g3": 0}], "gate_step": null, "gate_train_s": null, "g1_mini_final": 36, "g5_mini_final": 16, "g3_final": 0}

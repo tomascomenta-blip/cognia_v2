@@ -1,0 +1,246 @@
+{
+  "experiment": "exp049_learning_rules",
+  "device": "cpu",
+  "torch": "2.12.0+cpu",
+  "cfg": {
+    "hidden": [
+      256,
+      128,
+      64,
+      32
+    ],
+    "n_classes": 10,
+    "epochs": 1,
+    "batch": 64,
+    "device": "cpu"
+  },
+  "seeds": [
+    42
+  ],
+  "methods": {
+    "bp": {
+      "runs": [
+        {
+          "test_acc": 0.661,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.661,
+              "wall_s": 0.1
+            }
+          ],
+          "wall_s": 0.1,
+          "updates": 31,
+          "extra": {},
+          "seed": 42
+        }
+      ],
+      "acc_mean": 0.661,
+      "acc_min": 0.661,
+      "wall_mean_s": 0.1
+    },
+    "dfa": {
+      "runs": [
+        {
+          "test_acc": 0.535,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.535,
+              "wall_s": 0.1
+            }
+          ],
+          "wall_s": 0.1,
+          "updates": 31,
+          "extra": {
+            "feedback": "B_l gaussiana ortonormalizada (QR), fija por seed",
+            "opt": "Adam lr=2e-3 ocultas / 1e-2 salida",
+            "tuning_pass": "salida zero-init + B ortonormal + lrs 2e-3/1e-2 (docstring)"
+          },
+          "seed": 42
+        }
+      ],
+      "acc_mean": 0.535,
+      "acc_min": 0.535,
+      "wall_mean_s": 0.1,
+      "ratio_vs_bp": 0.8094,
+      "cost_vs_bp": 1.0
+    },
+    "ff": {
+      "runs": [
+        {
+          "test_acc": 0.421,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.421,
+              "wall_s": 0.4
+            }
+          ],
+          "wall_s": 0.4,
+          "updates": 124,
+          "extra": {
+            "wide_test_acc": 0.514,
+            "wide_wall_s": 0.5,
+            "wide_updates": 62,
+            "wide_epoch_log": [
+              {
+                "epoch": 1,
+                "test_acc": 0.514,
+                "wall_s": 0.5
+              }
+            ],
+            "theta": 2.0,
+            "lr": 0.001,
+            "vote_layers": "todas (no se excluye la primera)",
+            "updates_note": "1 update = 1 paso Adam de UNA capa (n_capas por batch)",
+            "wall_note": "wall_s NO incluye la variante wide (comparabilidad cost_vs_bp)"
+          },
+          "seed": 42
+        }
+      ],
+      "acc_mean": 0.421,
+      "acc_min": 0.421,
+      "wall_mean_s": 0.4,
+      "ratio_vs_bp": 0.6369,
+      "cost_vs_bp": 4.0
+    },
+    "pc": {
+      "runs": [
+        {
+          "test_acc": 0.788,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.788,
+              "wall_s": 0.7
+            }
+          ],
+          "wall_s": 0.7,
+          "updates": 31,
+          "extra": {
+            "T_infer": 16,
+            "lr_x": 0.1,
+            "f": "relu (identidad en la entrada)",
+            "salida": "error CE: onehot - softmax(mu_L) (tuning 1: el clamp one-hot/MSE dio 0.344 vs 0.661 de bp en smoke)",
+            "opt": "Adam lr=1e-3",
+            "nota": "v_l = pre-activaciones; prediccion = forward puro"
+          },
+          "seed": 42
+        }
+      ],
+      "acc_mean": 0.788,
+      "acc_min": 0.788,
+      "wall_mean_s": 0.7,
+      "ratio_vs_bp": 1.1921,
+      "cost_vs_bp": 7.0
+    },
+    "dtp": {
+      "runs": [
+        {
+          "test_acc": 0.368,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.368,
+              "wall_s": 0.3
+            }
+          ],
+          "wall_s": 0.3,
+          "updates": 62,
+          "extra": {
+            "eta": 0.5,
+            "sigma": 0.2,
+            "opt": "Adam lr_f=3e-3 / lr_g=1e-3 (tuning 1: lr_f 1e-3 arranca en frio, 0.067 en el smoke; 3e-3 domina en todos los horizontes)",
+            "f": "tanh en ocultas (ReLU no invertible — ver docstring), salida lineal",
+            "updates_nota": "2 steps por batch: forward + inversas (ambas cada batch)"
+          },
+          "seed": 42
+        }
+      ],
+      "acc_mean": 0.368,
+      "acc_min": 0.368,
+      "wall_mean_s": 0.3,
+      "ratio_vs_bp": 0.5567,
+      "cost_vs_bp": 3.0
+    },
+    "eqprop": {
+      "runs": [
+        {
+          "test_acc": 0.628,
+          "epoch_log": [
+            {
+              "epoch": 1,
+              "test_acc": 0.628,
+              "wall_s": 0.6
+            }
+          ],
+          "wall_s": 0.6,
+          "updates": 31,
+          "extra": {
+            "topologia": "784->256->10 (desviación documentada: el settling profundo no converge con T1 presupuestable)",
+            "T1": 25,
+            "T2": 8,
+            "dt": 0.5,
+            "beta": 0.5,
+            "lrs": [
+              0.1,
+              0.05
+            ],
+            "opt": "SGD lr por capa (paper, 1 oculta)",
+            "costo": "cada batch paga T1+T2=33 pasadas de settling y la predicción paga T1=25 (vs 1 forward de BP)"
+          },
+          "seed": 42
+        }
+      ],
+      "acc_mean": 0.628,
+      "acc_min": 0.628,
+      "wall_mean_s": 0.6,
+      "ratio_vs_bp": 0.9501,
+      "cost_vs_bp": 6.0
+    },
+    "es": {
+      "runs": [
+        {
+          "test_acc": 0.122,
+          "epoch_log": [
+            {
+              "epoch": 0.03,
+              "test_acc": 0.099,
+              "wall_s": 0.1
+            },
+            {
+              "epoch": 0.06,
+              "test_acc": 0.116,
+              "wall_s": 0.1
+            },
+            {
+              "epoch": 0.1,
+              "test_acc": 0.122,
+              "wall_s": 0.1
+            }
+          ],
+          "wall_s": 0.4,
+          "updates": 3,
+          "extra": {
+            "generations": 3,
+            "evals_forward": 180,
+            "minibatch": 64,
+            "n_pairs": 30,
+            "sigma": 0.02,
+            "alpha": 0.01,
+            "params": 244522,
+            "opt": "Adam(lr=0.01) sobre -g estimado (permitido por spec)",
+            "budget": "wall_budget_s=0.3"
+          },
+          "seed": 42
+        }
+      ],
+      "acc_mean": 0.122,
+      "acc_min": 0.122,
+      "wall_mean_s": 0.4,
+      "ratio_vs_bp": 0.1846,
+      "cost_vs_bp": 4.0
+    }
+  }
+}

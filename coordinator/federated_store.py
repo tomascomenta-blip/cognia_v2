@@ -132,7 +132,8 @@ class FederatedStore:
             yield self._mem_conn
             self._mem_conn.commit()
         else:
-            conn = sqlite3.connect(self.db_path)
+            from storage.db_pool import db_connect_pooled
+            conn = db_connect_pooled(self.db_path)
             conn.row_factory = sqlite3.Row
             try:
                 yield conn

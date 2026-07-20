@@ -1,0 +1,12 @@
+{
+ "b9391": {
+  "decode_tps": 3.23,
+  "prefill_tps": 9.43,
+  "n_pred": 189
+ },
+ "b9606": {
+  "decode_tps": 3.35,
+  "prefill_tps": 13.19,
+  "n_pred": 189
+ }
+}

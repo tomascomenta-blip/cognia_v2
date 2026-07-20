@@ -1361,3 +1361,38 @@ system `python` is 3.12.10 (numpy 1.26.4 + pytest 9.0.3), used from the repo roo
    `python scripts/sync_public_engine.py`** before committing (test_public_engine_sync enforces it).
 5. (Optional, still deferred) try/finally sweep of the ~17 read-only pooled-conn methods
    (graph.py template) — low value (db_pool __del__ net reclaims).
+# Session 2026-07-03/04 — Agente MoM (3B andamiado) + corrida "techo teórico"
+
+(Entrada retroactiva de resumen: las sesiones del agente MoM no se habían
+volcado acá; detalle completo en cognia_x/construccion/08_CP4_INFORME.md,
+07_ARBITRO_MEJORA_PAPER.md y MANAGER_LOG.md.)
+
+## Corrida 1 (2026-07-03, ~20 commits) — benchmarks pre-registrados vs GLM-5.2
+- Tool-calling (BFCL slice 200): 24% -> 86% (+62pp). Causa raíz del baseline:
+  artefacto de prompt (el 3B tomaba "func(param=value)" literal). Lección:
+  ejemplo concreto >> instrucción abstracta para modelos chicos.
+- Programación dura (20 tareas): 40% -> 50% con BoN-8 + juez por tests
+  ejecutados. Gate de transferencia >=+8pp PASADO; target absoluto 55% no.
+- Diseño (25 specs / 363 asserts): 93.7% -> 96.1% con --repair por assert.
+- AG-ARB: verificación por etapa (contratos) 100% en etapas con oráculo vs
+  árbitro-LLM 31% (sesgo "culpar al código" medido). Re-especifica el árbitro
+  del paper como cascada contratos-primero.
+- HERMES self-tooling e2e real (cp2_selftooling_demo.py) + RCE cerrado
+  (__builtins__.eval bypass del scan estático; blocklist nombre+atributo).
+
+## Corrida 2 (2026-07-04, ~25 commits)
+- exp137: profundidad recurrente ADAPTATIVA (PonderNet) ahorra 31% de cómputo
+  a 100% acc (la fija no ahorra); corr(dificultad,pasos)=0.98.
+- BoN wired al loop /hacer LIVE (generar_codigo determinista + short-circuit).
+- model_router.py (easy->3B, hard->7B ex-ante): construido y testeado; honesto:
+  ahorra en workloads mixtos. (Wire a cli.py quedó pendiente.)
+- LCD imagen: pipeline plan->escena estructurada->render; control 8/8.
+
+## Corrida 3 (2026-07-04, en curso) — "MoM al techo teórico"
+Mapa de 7 subsistemas (gaps + quick wins) y plan de 13 checkpoints:
+outputs largos hasta 100k (exponer escala en /largo, checkpoint incremental,
+--continuar, ctx 32k), wire de repair_applies/few-shot/model_router al loop
+live, skills (oráculos pluggables, uso/decay, similitud semántica), HERMES
+(wishlist->ideas, crear_herramienta live, rollback, repair-on-live-failure),
+monitores (GoalContract), delegar_subtarea. Este archivo se actualiza al
+cierre de la corrida.

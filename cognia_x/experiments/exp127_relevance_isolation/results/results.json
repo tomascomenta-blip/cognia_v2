@@ -1,0 +1,125 @@
+{
+  "exp": "exp127_relevance_isolation",
+  "cycle": 143,
+  "hypothesis": "H-V4-10o",
+  "claim": "MIXTA (post-verificacion adversarial de 2 agentes). NUCLEO (robusto en radio/T/seeds): construyendo un sustrato ciclico con reach!=relevancia (modos relevante-ALCANZABLE, relevante-INALCANZABLE, alcanzable-IRRELEVANTE), bajo CAPACIDAD ESCASA K=1 + drivers irrelevantes COMPITIENDO, la reach-relevancia estimada |b*(I-A)^-T w| aisla el driver relevante-alcanzable donde ctrl_only/rel_only/null-w no pueden (estimable leakage-free). NO SOBREVIVE: el aislamiento es CONDICIONAL a K<#drivers -- a K=#drivers EVAPORA (ctrl_only=reach, w=unos no rompe), el MISMO artefacto K=1 winner-take-all que la verificacion de 139 YA RETRACTO; n_decoy=0 REPRODUCE 139 (w=unos no rompe -> el cierre depende de los decoys, no de la disociacion per se); TAUTOLOGIA (reach con params verdaderos=oracle por construccion, sin sim_check; rel_only=0 estructural -b,w disjuntos-; el w=unos-rompe es artefacto de decoys simetricos). NO cierra el caveat de 139 incondicionalmente; muestra que la relevancia es load-bearing solo bajo escasez de capacidad (consistente con 142)",
+  "verdict": "mixta",
+  "summary": {
+    "D": 8,
+    "KSEL": 1,
+    "n_drivers": 3,
+    "radio_spec": 0.9,
+    "by_T": {
+      "50": {
+        "reach": 0.535,
+        "local": 0.03,
+        "ctrl_only": 0.31,
+        "rel_only": 0.0,
+        "pick_reach_correct": 0.535
+      },
+      "150": {
+        "reach": 0.9,
+        "local": 0.02,
+        "ctrl_only": 0.33,
+        "rel_only": 0.0,
+        "pick_reach_correct": 0.9
+      },
+      "500": {
+        "reach": 1.0,
+        "local": 0.045,
+        "ctrl_only": 0.37,
+        "rel_only": 0.0,
+        "pick_reach_correct": 1.0
+      },
+      "1500": {
+        "reach": 1.0,
+        "local": 0.045,
+        "ctrl_only": 0.275,
+        "rel_only": 0.0,
+        "pick_reach_correct": 1.0
+      }
+    },
+    "controls": {
+      "shuffle_w": {
+        "reach": 0.35,
+        "local": 0.235,
+        "ctrl_only": 0.37,
+        "rel_only": 0.135
+      },
+      "ones_w": {
+        "reach": 0.385,
+        "local": 0.32,
+        "ctrl_only": 0.32,
+        "rel_only": 0.08
+      }
+    },
+    "by_K": {
+      "1": {
+        "reach": 1.0,
+        "ctrl_only": 0.275,
+        "rel_only": 0.0,
+        "ones_reach": 0.385
+      },
+      "2": {
+        "reach": 1.0,
+        "ctrl_only": 0.675,
+        "rel_only": 0.0,
+        "ones_reach": 0.695
+      },
+      "3": {
+        "reach": 1.0,
+        "ctrl_only": 1.0,
+        "rel_only": 0.17,
+        "ones_reach": 1.0
+      }
+    },
+    "nodecoy": {
+      "reach": 1.0,
+      "ones_reach": 1.0,
+      "ctrl_only": 1.0
+    },
+    "reach": 1.0,
+    "local": 0.045,
+    "ctrl_only": 0.275,
+    "rel_only": 0.0,
+    "pick_reach_correct": 1.0,
+    "reach_minus_ctrl": 0.725,
+    "reach_minus_rel": 1.0,
+    "shuffle_reach": 0.35,
+    "ones_reach": 0.385,
+    "shuffle_breaks": true,
+    "ones_breaks": true,
+    "core_k1": true,
+    "evaporates_at_kfull": true,
+    "nodecoy_ones_break": 0.0,
+    "nodecoy_reproduces_139": true,
+    "estimable": true,
+    "status": "mixta",
+    "verdict": "H-V4-10o MIXTA (núcleo real bajo escasez + acotaciones por verificación adversarial de 2 agentes; 13mo ciclo). El CYCLE 139 dejó como caveat que bajo ciclos la relevancia era COLINEAL con la reach (ŵ≡unos NO rompía). NÚCLEO (robusto en radio/T/seeds, verificado): construyendo un sustrato con reach≠relevancia (modos relevante-ALCANZABLE, relevante-INALCANZABLE, alcanzable-IRRELEVANTE) y bajo CAPACIDAD ESCASA K=1 con drivers irrelevantes COMPITIENDO, la reach-relevancia estimada |b̂·(I-Â)^{-T}ŵ| AÍSLA el único driver relevante-alcanzable (reach=1.000, pick=1.000) donde ctrl_only (0.275, +0.725: la relevancia añade), rel_only (0.000, +1.000: la reach añade) y AMBOS controles nulos fallan/rompen (shuffle-ŵ +0.650, ŵ≡unos +0.615); estimable leakage-free (converge desde abajo con T, robusto a radio 0.75-0.99). NO SOBREVIVE (retractado): (1) el aislamiento es CONDICIONAL a K<#drivers -- a K=3 (=#drivers) EVAPORA (reach-ctrl_only 0.000, reach-ones 0.000): ctrl_only captura el relevante por barrido y ŵ≡unos deja de romper; es EXACTAMENTE el artefacto K=1 winner-take-all que la verificación de 139 YA RETRACTÓ -- no se barría K. (2) el 'cierre de 139' depende de los DECOYS, no de la disociación per se: con n_decoy=0 (un solo driver) ŵ≡unos NO rompe (0.000) -- REPRODUCE 139 exacto. (3) TAUTOLOGÍA: reach con params VERDADEROS = oracle por construcción (sin sim_check, a diferencia de 139); rel_only=0 es ESTRUCTURAL (b y w nunca co-localizados) -> 'reach bate a rel_only' es definicional; el 'ŵ≡unos rompe' es un artefacto de decoys SIMÉTRICOS (clones geométricos -> reach les da score igual -> 1/#drivers). => RESULTADO HONESTO: el sustrato disocia genuinamente reach de relevancia y, BAJO CAPACIDAD ESCASA (K<#drivers) + decoys competidores, la relevancia ES load-bearing (consistente con 142: el producto importa bajo escasez de capacidad×disociación); PERO NO cierra el caveat de 139 de forma incondicional -- re-introduce el artefacto K=1 de 139, el nivel reach=1.0 es tautológico, y el 'ŵ≡unos rompe' depende de la multiplicidad/simetría de decoys. MIXTA EXITOSA: la verificación cazó el re-uso del artefacto K=1 + la tautología antes del ledger (13mo ciclo). Frontera: un test del aislamiento que NO dependa de K=1 (capacidad continua / decoys asimétricos); SCALE."
+  },
+  "args": {
+    "smoke": false,
+    "seeds": 200
+  },
+  "platform": {
+    "python": "3.12.10",
+    "numpy": "2.4.6"
+  },
+  "log": [
+    "[exp127] CYCLE 143 / H-V4-10o — ¿bajo un sustrato cíclico donde reach≠relevancia, el agente AÍSLA AMBOS factores del keystone (cierra el caveat de 139)?",
+    "[exp127] seeds=200 a=0.6 radio_spec=0.9 D=8 K=1 Ts=[50, 150, 500, 1500]",
+    "[exp127] --- payoff por T (reach vs local vs ctrl_only vs rel_only) ---",
+    "[exp127] T=   50: reach=0.535 local=0.030 ctrl_only=0.310 rel_only=0.000",
+    "[exp127] T=  150: reach=0.900 local=0.020 ctrl_only=0.330 rel_only=0.000",
+    "[exp127] T=  500: reach=1.000 local=0.045 ctrl_only=0.370 rel_only=0.000",
+    "[exp127] T= 1500: reach=1.000 local=0.045 ctrl_only=0.275 rel_only=0.000 | pick_correcto=1.00",
+    "[exp127] AMBOS factores (K=1): reach-ctrl_only=+0.725 reach-rel_only=+1.000 | shuffle-ŵ reach=0.350 (rompe=True) ŵ≡unos reach=0.385 (rompe=True)",
+    "[exp127] --- BARRIDO K (la corrección: el aislamiento EVAPORA a K>=#drivers=3, artefacto K=1 de 139) ---",
+    "[exp127] K=1: reach=1.000 ctrl_only=0.275 (reach-ctrl +0.725) ones_w=0.385 (ones-break +0.615)",
+    "[exp127] K=2: reach=1.000 ctrl_only=0.675 (reach-ctrl +0.325) ones_w=0.695 (ones-break +0.305)",
+    "[exp127] K=3: reach=1.000 ctrl_only=1.000 (reach-ctrl +0.000) ones_w=1.000 (ones-break +0.000)",
+    "[exp127] CONTROL n_decoy=0 (reproduce 139): reach=1.000 ŵ≡unos=1.000 -> ones-break +0.000 (139-reproducido=True: sin decoys, ŵ≡unos NO rompe)",
+    "[exp127] CHECK core_k1=True | evaporates_at_kfull=True nodecoy_reproduces_139=True estimable=True",
+    "[exp127] VEREDICTO H-V4-10o: MIXTA | H-V4-10o MIXTA (núcleo real bajo escasez + acotaciones por verificación adversarial de 2 agentes; 13mo ciclo). El CYCLE 139 dejó como caveat que bajo ciclos la relevancia era COLINEAL con la reach (ŵ≡unos NO rompía). NÚCLEO (robusto en radio/T/seeds, verificado): construyendo un sustrato con reach≠relevancia (modos relevante-ALCANZABLE, relevante-INALCANZABLE, alcanzable-IRRELEVANTE) y bajo CAPACIDAD ESCASA K=1 con drivers irrelevantes COMPITIENDO, la reach-relevancia estimada |b̂·(I-Â)^{-T}ŵ| AÍSLA el único driver relevante-alcanzable (reach=1.000, pick=1.000) donde ctrl_only (0.275, +0.725: la relevancia añade), rel_only (0.000, +1.000: la reach añade) y AMBOS controles nulos fallan/rompen (shuffle-ŵ +0.650, ŵ≡unos +0.615); estimable leakage-free (converge desde abajo con T, robusto a radio 0.75-0.99). NO SOBREVIVE (retractado): (1) el aislamiento es CONDICIONAL a K<#drivers -- a K=3 (=#drivers) EVAPORA (reach-ctrl_only 0.000, reach-ones 0.000): ctrl_only captura el relevante por barrido y ŵ≡unos deja de romper; es EXACTAMENTE el artefacto K=1 winner-take-all que la verificación de 139 YA RETRACTÓ -- no se barría K. (2) el 'cierre de 139' depende de los DECOYS, no de la disociación per se: con n_decoy=0 (un solo driver) ŵ≡unos NO rompe (0.000) -- REPRODUCE 139 exacto. (3) TAUTOLOGÍA: reach con params VERDADEROS = oracle por construcción (sin sim_check, a diferencia de 139); rel_only=0 es ESTRUCTURAL (b y w nunca co-localizados) -> 'reach bate a rel_only' es definicional; el 'ŵ≡unos rompe' es un artefacto de decoys SIMÉTRICOS (clones geométricos -> reach les da score igual -> 1/#drivers). => RESULTADO HONESTO: el sustrato disocia genuinamente reach de relevancia y, BAJO CAPACIDAD ESCASA (K<#drivers) + decoys competidores, la relevancia ES load-bearing (consistente con 142: el producto importa bajo escasez de capacidad×disociación); PERO NO cierra el caveat de 139 de forma incondicional -- re-introduce el artefacto K=1 de 139, el nivel reach=1.0 es tautológico, y el 'ŵ≡unos rompe' depende de la multiplicidad/simetría de decoys. MIXTA EXITOSA: la verificación cazó el re-uso del artefacto K=1 + la tautología antes del ledger (13mo ciclo). Frontera: un test del aislamiento que NO dependa de K=1 (capacidad continua / decoys asimétricos); SCALE."
+  ]
+}
