@@ -199,6 +199,28 @@ def _buscar(args, ctx):
     parts = args.split(" | ", 1)
     patron = parts[0].strip()
     directorio = parts[1].strip() if len(parts) > 1 else "."
+
+    # El modelo entrecomilla el patron: escribe `buscar "class" | ruta`. Sin
+    # quitarlas, se busca el literal `"class"` — con comillas — y no casa nunca.
+    # Medido el 2026-07-20: el agente gasto 8 pasos reintentando la misma
+    # busqueda con y sin comillas y acabo concluyendo, en falso, que el fichero
+    # no tenia clases.
+    for comilla in ('"', "'"):
+        if len(patron) > 1 and patron.startswith(comilla) and patron.endswith(comilla):
+            patron = patron[1:-1].strip()
+            break
+    directorio = directorio.strip("\"'")
+
+    # El separador " | " es poco habitual y el modelo no lo usa: escribe
+    # `buscar class cognia/mcp_libre.py`. Sin esto, el patron pasaba a ser la
+    # frase entera, no encontraba nada y devolvia "sin resultados" — y el
+    # agente concluia que el fichero NO TIENE clases, teniendo tres. Medido el
+    # 2026-07-20 en una tarea real. Un vacio silencioso que produce una
+    # conclusion falsa es peor que un error.
+    if len(parts) == 1 and " " in patron:
+        cabeza, _, cola = patron.rpartition(" ")
+        if cola and Path(cola).exists():
+            patron, directorio = cabeza.strip(), cola
     results = []
     try:
         r = subprocess.run(
@@ -214,7 +236,15 @@ def _buscar(args, ctx):
             compiled = re.compile(patron, re.IGNORECASE)
         except re.error:
             compiled = None
-        for p in Path(directorio).rglob("*"):
+        # Un FICHERO tambien es un ambito valido. `Path(fichero).rglob("*")`
+        # devuelve 0 elementos, asi que acotar la busqueda a un fichero
+        # concreto no funcionaba nunca por este camino — y este camino es el
+        # unico que hay, porque `rg` no esta instalado en esta maquina, con lo
+        # que el subprocess de arriba siempre falla. Medido el 2026-07-20.
+        raiz = Path(directorio)
+        candidatos = [raiz] if raiz.is_file() else raiz.rglob("*")
+
+        for p in candidatos:
             if not p.is_file() or any(x in p.parts for x in _SKIP_DIRS):
                 continue
             try:
@@ -232,7 +262,12 @@ def _buscar(args, ctx):
             results = _glob.glob(f"{directorio}/**/*{patron}*", recursive=True)[:10]
         except Exception:
             pass
-    return f"RESULTADO buscar '{patron}': " + (" | ".join(results) if results else "sin resultados")
+    if results:
+        return f"RESULTADO buscar '{patron}': " + " | ".join(results)
+    # Decir DONDE se busco: "sin resultados" a secas hacia que el agente
+    # concluyera cosas falsas sobre el codigo sin poder sospechar del ambito.
+    return (f"RESULTADO buscar '{patron}': sin coincidencias en '{directorio}'. "
+            f"Para acotar a un fichero o carpeta: buscar <patron> | <ruta>")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -354,6 +389,88 @@ def _http_get(args, ctx):
     text = re.sub(r"<[^>]+>", " ", raw)          # crude tag strip
     text = re.sub(r"\s+", " ", text).strip()
     return f"RESULTADO http_get {url[:60]}: {text[:1500]}"
+
+
+# ══════════════════════════════════════════════════════════════════════
+# MCP TOOLS — servidores libres, sin registro ni clave
+# ══════════════════════════════════════════════════════════════════════
+#
+# Van por cognia/mcp_libre.py, que habla el protocolo a mano con stdlib. Sin
+# esto el cliente MCP seria una curiosidad de CLI: el valor esta en que Cognia
+# pueda consultarlos MIENTRAS trabaja, que es lo que hace un agente de coding.
+#
+# Ambas leen; ninguna escribe ni gasta dinero, asi que danger=False.
+
+def _partir(args: str, n: int):
+    """Parte 'a b resto' en n trozos, el ultimo se queda con lo que sobre."""
+    trozos = args.strip().split(None, n - 1)
+    return trozos + [""] * (n - len(trozos))
+
+
+@tool("docs_repo",
+      "docs_repo <owner> <repo>              -- documentacion de un repo de GitHub (MCP libre)")
+def _docs_repo(args, ctx):
+    from cognia.mcp_libre import ErrorMCP, cliente
+    owner, repo = _partir(args, 2)
+    if not owner or not repo:
+        return "RESULTADO docs_repo ERROR: uso: docs_repo <owner> <repo>"
+    try:
+        salida = cliente("gitmcp").llamar(
+            "fetch_generic_documentation", {"owner": owner, "repo": repo})
+    except ErrorMCP as exc:
+        return f"RESULTADO docs_repo ERROR: {exc}"
+    return f"RESULTADO docs_repo {owner}/{repo}: {salida[:2000]}"
+
+
+@tool("preguntar_repo",
+      "preguntar_repo <owner/repo> <pregunta>  -- pregunta en lenguaje natural sobre un repo")
+def _preguntar_repo(args, ctx):
+    from cognia.mcp_libre import ErrorMCP, cliente
+    repo, pregunta = _partir(args, 2)
+    if "/" not in repo or not pregunta:
+        return ("RESULTADO preguntar_repo ERROR: uso: "
+                "preguntar_repo <owner/repo> <pregunta>")
+    try:
+        salida = cliente("deepwiki").llamar(
+            "ask_question", {"repoName": repo, "question": pregunta})
+    except ErrorMCP as exc:
+        return f"RESULTADO preguntar_repo ERROR: {exc}"
+    return f"RESULTADO preguntar_repo {repo}: {salida[:2500]}"
+
+
+@tool("docs_libreria",
+      "docs_libreria <nombre> <tema>         -- documentacion al dia de una libreria")
+def _docs_libreria(args, ctx):
+    """Contra la API que el modelo recuerda de su entrenamiento, que envejece."""
+    from cognia.mcp_libre import ErrorMCP, cliente
+    nombre, tema = _partir(args, 2)
+    if not nombre:
+        return "RESULTADO docs_libreria ERROR: uso: docs_libreria <nombre> <tema>"
+    try:
+        c = cliente("context7")
+        ident = c.llamar("resolve-library-id", {"libraryName": nombre})
+        salida = c.llamar("query-docs",
+                          {"libraryId": ident.strip().splitlines()[0][:120],
+                           "query": tema or nombre})
+    except (ErrorMCP, IndexError) as exc:
+        return f"RESULTADO docs_libreria ERROR: {exc}"
+    return f"RESULTADO docs_libreria {nombre}: {salida[:2500]}"
+
+
+@tool("buscar_en_repo",
+      "buscar_en_repo <owner> <repo> <query> -- busca codigo en un repo de GitHub (MCP libre)")
+def _buscar_en_repo(args, ctx):
+    from cognia.mcp_libre import ErrorMCP, cliente
+    owner, repo, query = _partir(args, 3)
+    if not (owner and repo and query):
+        return "RESULTADO buscar_en_repo ERROR: uso: buscar_en_repo <owner> <repo> <query>"
+    try:
+        salida = cliente("gitmcp").llamar(
+            "search_generic_code",
+            {"owner": owner, "repo": repo, "query": query})
+    except ErrorMCP as exc:
+        return f"RESULTADO buscar_en_repo ERROR: {exc}"
+    return f"RESULTADO buscar_en_repo {owner}/{repo} '{query}': {salida[:2000]}"
 
 
 # ══════════════════════════════════════════════════════════════════════

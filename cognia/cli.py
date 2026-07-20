@@ -556,6 +556,9 @@ _CMD_DESCRIPTIONS = {
     "/investigar":      "Investigar en GitHub    <query>",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
+    "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
+    "/mapa-codigo":     "Mapa del codigo         [ruta|buscar <t>|depende|usan <mod>]",
+    "/mcp":             "Servidores MCP libres   [herramientas|probar <servidor>]",
     "/encolar":         "Encolar idea para sleep <idea>",
     "/corregir":        "Corregir error          <obs> | <mal> | <bien>",
     "/hipotesis":       "Generar hipótesis       <A> | <B>",
@@ -827,6 +830,17 @@ _CMD_DETAILS = {
         "Muestra ayuda detallada sobre un comando especifico. "
         "Si el comando no tiene descripcion detallada muestra la descripcion corta. "
         "Ejemplo: /ayuda /hacer"
+    ),
+    "/imagenes": (
+        "Gestiona las capturas que Cognia toma de las paginas web que genera. "
+        "Sin argumentos lista que hay y cuanto ocupa.\n"
+        "Hay dos clases: las 'input images' son TEMPORALES — la evidencia que "
+        "Cognia miro en el navegador para validarse y corregirse antes de dar "
+        "la pagina por buena. Las 'output images' son el resultado aceptado.\n"
+        "  /imagenes borrar input   — tira solo las temporales de validacion\n"
+        "  /imagenes borrar output  — tira solo los resultados\n"
+        "  /imagenes borrar todo    — tira todas\n"
+        "  /imagenes borrar 3       — todas las del programa numero 3 de la lista"
     ),
 }
 
@@ -1892,6 +1906,138 @@ def _slash_debug():
     global _debug_mode
     _debug_mode = not _debug_mode
     _print_line(f"[detail]debug {'activado' if _debug_mode else 'desactivado'}[/detail]")
+
+
+def _slash_mcp(arg: str) -> str:
+    """
+    /mcp                          — servidores MCP libres conocidos
+    /mcp herramientas <servidor>  — que sabe hacer
+    /mcp probar <servidor>        — comprobar que responde ahora mismo
+
+    Solo servidores sin registro ni clave: esa es la condicion.
+    """
+    from cognia.mcp_libre import ErrorMCP, cliente, formatear_servidores
+
+    partes = arg.split()
+    if not partes:
+        return formatear_servidores()
+
+    accion = partes[0]
+    nombre = partes[1] if len(partes) > 1 else ""
+
+    if accion not in ("herramientas", "probar"):
+        return ("Uso: /mcp [herramientas|probar] <servidor>\n"
+                "     /mcp   — ver los servidores libres")
+    if not nombre:
+        return f"Uso: /mcp {accion} <servidor>"
+
+    try:
+        c = cliente(nombre)
+        if accion == "probar":
+            c.conectar()
+            return (f"{nombre} responde.\n"
+                    f"  servidor: {c.servidor.get('name','?')} "
+                    f"{c.servidor.get('version','')}\n"
+                    f"  herramientas: {len(c.listar_herramientas())}")
+
+        hs = c.listar_herramientas()
+        return (f"{nombre} — {len(hs)} herramienta(s):\n"
+                + "\n".join(f"  {h.resumen()}" for h in hs))
+    except ErrorMCP as exc:
+        return f"[MCP] {exc}"
+
+
+def _slash_mapa_codigo(arg: str) -> str:
+    """
+    /mapa-codigo [ruta]           — clases y funciones del proyecto, con su linea
+    /mapa-codigo buscar <termino> — donde esta definido algo
+
+    Existe para no gastar la ventana de contexto leyendo ficheros enteros
+    cuando lo que hace falta es saber donde mirar.
+
+    OJO con el nombre: /mapa ya estaba cogido por el mapa mental del KG
+    (_slash_mapa, linea ~2426). Llamar igual a los dos hacia que la segunda
+    definicion sombreara a la primera en silencio.
+    """
+    from cognia.mapa_proyecto import (buscar, dependencias, mapear, quien_usa,
+                                      resumen)
+
+    partes = arg.split()
+
+    if partes and partes[0] == "depende":
+        mapa = mapear(".")
+        deps = dependencias(mapa)
+        if not deps:
+            return "No hay dependencias internas entre los ficheros."
+        return ("Dependencias internas:\n"
+                + "\n".join(f"  {f} -> {', '.join(d)}"
+                            for f, d in sorted(deps.items())[:40]))
+
+    if partes and partes[0] == "usan":
+        modulo = " ".join(partes[1:]).strip()
+        if not modulo:
+            return "Uso: /mapa-codigo usan <modulo>"
+        hits = quien_usa(mapear("."), modulo)
+        if not hits:
+            return f"Nadie importa '{modulo}'."
+        return (f"{len(hits)} fichero(s) importan '{modulo}':\n"
+                + "\n".join(f"  {h}" for h in hits[:40]))
+
+    if partes and partes[0] == "buscar":
+        termino = " ".join(partes[1:]).strip()
+        if not termino:
+            return "Uso: /mapa buscar <termino>"
+        hits = buscar(mapear("."), termino)
+        if not hits:
+            return f"No hay ningun simbolo que contenga '{termino}'."
+        return f"{len(hits)} coincidencia(s):\n" + "\n".join(f"  {h}" for h in hits[:40])
+
+    ruta = partes[0] if partes else "."
+    mapa = mapear(ruta)
+    if not mapa:
+        return f"No hay ficheros Python en '{ruta}'."
+
+    n_clases = sum(len(f.clases) for f in mapa.values())
+    n_funcs  = sum(len(f.funciones) for f in mapa.values())
+    return (f"{len(mapa)} ficheros | {n_clases} clases | {n_funcs} funciones\n\n"
+            + resumen(mapa))
+
+
+def _slash_imagenes(arg: str) -> str:
+    """
+    /imagenes borrar input|output|todo|<n>
+
+    Las input images son temporales por definicion: son la evidencia que
+    Cognia miro para validarse. Se pueden tirar sin perder nada del trabajo.
+    """
+    from cognia.program_creator.vista_navegador import (
+        borrar_imagenes, listar_imagenes, _humano)
+
+    partes = arg.split()
+    if not partes or partes[0] != "borrar":
+        return ("Uso: /imagenes borrar input|output|todo|<n>\n"
+                "     /imagenes            — ver que hay")
+
+    que = partes[1] if len(partes) > 1 else ""
+
+    if que in ("input", "output", "todo"):
+        n, b = borrar_imagenes(solo=que)
+        if not n:
+            return f"No habia imagenes de tipo '{que}'."
+        return f"Borradas {n} imagenes ({_humano(b)} liberados) — {que}."
+
+    if que.isdigit():
+        lotes = listar_imagenes()
+        i = int(que)
+        if not (1 <= i <= len(lotes)):
+            return f"No hay programa {i}. Hay {len(lotes)} en la lista."
+        lote = lotes[i - 1]
+        n, b = borrar_imagenes(programa=lote.programa, solo="todo")
+        return (f"Borradas {n} imagenes de '{lote.programa}' "
+                f"({_humano(b)} liberados).")
+
+    return ("Uso: /imagenes borrar input|output|todo|<n>\n"
+            "     'input' son las temporales de validacion.")
 
 
 def _slash_aprende_repo(ai, target: str) -> str:
@@ -4616,9 +4762,11 @@ def _slash_limpiar_sesion(args: str) -> None:
 def repl():
     global _session_start, _init_lines, _console, _debug_mode, _fast_mode
 
-    # Force UTF-8 stdout on Windows so block/box chars render without crash
-    if hasattr(sys.stdout, "buffer") and sys.stdout.encoding.lower().replace("-", "") not in ("utf8",):
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    # Force UTF-8 stdout on Windows so block/box chars render without crash.
+    # Vive en cognia/consola.py para que TODA via de entrada lo tenga, no solo
+    # el REPL: el ciclo idle y create_program() tambien imprimen emoji.
+    from .consola import forzar_utf8
+    forzar_utf8()
 
     _session_start = time.time()
 
@@ -4692,22 +4840,37 @@ def repl():
             else:
                 buff.start_completion(select_first=True)
 
-        session = PromptSession(
-            history=InMemoryHistory(),
-            completer=_CogniaCompleter(),
-            complete_while_typing=True,
-            complete_style=CompleteStyle.MULTI_COLUMN,
-            complete_in_thread=True,
-            key_bindings=_kb,
-            style=_pt_style,
-        )
+        # prompt_toolkit necesita una consola de verdad. Con la entrada
+        # redirigida (`cognia < guion.txt`, `cognia | tee log.txt`, un runner
+        # de CI) revienta con NoConsoleScreenBufferError y el usuario se lleva
+        # un traceback crudo. La rama simple con input() de mas abajo ya existe
+        # para cuando falta la libreria; sirve igual para cuando esta pero no
+        # hay consola. Medido el 2026-07-20 al intentar guionizar el REPL.
+        try:
+            session = PromptSession(
+                history=InMemoryHistory(),
+                completer=_CogniaCompleter(),
+                complete_while_typing=True,
+                complete_style=CompleteStyle.MULTI_COLUMN,
+                complete_in_thread=True,
+                key_bindings=_kb,
+                style=_pt_style,
+            )
+        except Exception as _exc_pt:
+            _print_line(f"[detail]Sin consola interactiva ({type(_exc_pt).__name__}): "
+                        f"modo simple, sin autocompletado.[/detail]")
+            session = None
 
-        def _get_input():
-            line = session.prompt("cognia> ").strip()
-            while line.endswith("\\"):
-                continuation = session.prompt("  ").strip()
-                line = line[:-1].rstrip() + " " + continuation
-            return line
+        if session is None:
+            def _get_input():
+                return input("cognia> ").strip()
+        else:
+            def _get_input():
+                line = session.prompt("cognia> ").strip()
+                while line.endswith("\\"):
+                    continuation = session.prompt("  ").strip()
+                    line = line[:-1].rstrip() + " " + continuation
+                return line
     else:
         def _get_input():
             return input(_G + "cognia> " + _R).strip()
@@ -4879,6 +5042,26 @@ def repl():
                 _run(raw, show_library, color="cyan")
             else:
                 _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
+        elif raw == "/mcp":
+            _show_response(_slash_mcp(""), "cyan")
+        elif raw.startswith("/mcp "):
+            _show_response(_slash_mcp(raw[len("/mcp "):].strip()), "cyan")
+        elif raw == "/mapa-codigo":
+            _show_response(_slash_mapa_codigo(""), "cyan")
+        elif raw.startswith("/mapa-codigo "):
+            _show_response(_slash_mapa_codigo(raw[len("/mapa-codigo "):].strip()), "cyan")
+        elif raw == "/imagenes" or raw == "/imágenes":
+            if HAS_PROGRAM_CREATOR:
+                from cognia.program_creator.vista_navegador import formatear_imagenes
+                _run(raw, formatear_imagenes, color="cyan")
+            else:
+                _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
+        elif raw.startswith("/imagenes ") or raw.startswith("/imágenes "):
+            if not HAS_PROGRAM_CREATOR:
+                _print_line("[warn_cl][WARN] ProgramCreator no disponible.[/warn_cl]")
+            else:
+                _show_response(_slash_imagenes(raw.split(" ", 1)[1].strip()),
+                               "bright_green")
         elif raw == "/program_stats":
             if HAS_PROGRAM_CREATOR:
                 from cognia.program_creator import get_session_stats
@@ -6289,6 +6472,43 @@ def repl():
                         _print_line(f"[err_cl]Error: {_escape(str(e))}[/err_cl]")
 
 
+# Marcas de que el orquestador no tiene con que inferir. NO lanza excepcion:
+# devuelve el aviso como si fuera la respuesta del modelo, y el bucle lo tomaba
+# por buena una y otra vez.
+_SIN_BACKEND = (
+    "No inference backend available",
+    "[QWEN-CODER]",
+    "setup wizard",
+)
+
+
+def _inferir_para_agente(orch, prompt: str) -> str:
+    """
+    Infiere para el bucle del agente, con caida a llm_local.
+
+    POR QUE: el orquestador busca shards del modelo o un Ollama, y en esta
+    maquina no hay ninguno de los dos — el backend real es el llama-server que
+    `llm_local` SI detecta. Es exactamente el fallo que documenta
+    `cognia/llm_local.py`: modulos que degradan en silencio porque tienen
+    cableado un backend que no existe. El bucle del agente se habia quedado
+    fuera de ese arreglo.
+
+    Devuelve "" si de verdad no hay de donde inferir, para que quien llama
+    pueda parar en vez de repetir el mismo paso indefinidamente.
+    """
+    texto = ""
+    try:
+        texto = (orch.infer(prompt).text or "").strip()
+    except Exception:
+        texto = ""
+
+    if texto and not any(marca in texto for marca in _SIN_BACKEND):
+        return texto
+
+    from cognia.llm_local import generar
+    return (generar(prompt, temperature=0.2, max_tokens=400) or "").strip()
+
+
 def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                     hint: str = "", guidance: str = "") -> str:
     """
@@ -6301,6 +6521,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     this function.
     """
     from cognia.agent.tools import run_tool, build_tools_doc
+    from cognia.compresion_salidas import comprimir
     from cognia.agent.loop import (
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
     )
@@ -6437,20 +6658,34 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                 pass
         # Out of budget: ask the model if it actually needs more steps.
         if total_steps >= budget:
-            extra = wants_more_steps(task, "\n".join(history[-3:]), orch)
+            extra = wants_more_steps(task, "\n".join(history[-3:]), orch,
+                                     inferir=_inferir_para_agente)
             if extra <= 0:
                 break
             budget = min(budget + extra, AGENT_HARD_CAP)
             _print_fn(f"[detail]El agente pidio {extra} pasos mas (presupuesto {budget})[/detail]")
 
         total_steps += 1
-        ctx_text = "\n".join(history[-6:])
+        # Comprimir cada resultado antes de meterlo en el contexto. Con
+        # n_ctx=8192, seis salidas de herramienta a 2000 caracteres son ~3000
+        # tokens solo de historial, y un leer_archivo grande se lo come entero.
+        # La compresion colapsa lineas repetidas y recorta el medio guardando
+        # el final, que en una salida de herramienta es donde esta el veredicto.
+        ctx_text = "\n".join(comprimir(h, max_lineas=25) for h in history[-6:])
         prompt = f"{TOOLS_DOC}\n\nContexto de la tarea:\n{ctx_text}\n\nSiguiente ACCION:"
 
         try:
-            raw_response = orch.infer(prompt).text.strip()
+            raw_response = _inferir_para_agente(orch, prompt)
         except Exception as e:
             _print_fn(f"[err_cl]Agente: error LLM: {e}[/err_cl]")
+            break
+
+        # Si no hay de donde inferir, insistir no lo va a arreglar. Medido el
+        # 2026-07-20: el agente encadeno 40 pasos con el mismo mensaje de
+        # "No inference backend available", pidiendo dos pasos mas cada vez.
+        if not raw_response:
+            _print_fn("[err_cl]Agente: no hay backend de inferencia disponible. "
+                      "Arrancalo con: python scripts/servir_modelo.py[/err_cl]")
             break
 
         _print_fn(f"[detail]paso {total_steps}: {raw_response[:120]}[/detail]")

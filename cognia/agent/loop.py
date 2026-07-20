@@ -60,12 +60,19 @@ def estimate_step_budget(task: str, orch, hard_cap: int = AGENT_HARD_CAP) -> int
     return max(1, min(heuristic, hard_cap))
 
 
-def wants_more_steps(task: str, last_results: str, orch) -> int:
+def wants_more_steps(task: str, last_results: str, orch, inferir=None) -> int:
     """
     When the budget runs out without a final answer, ask the model whether the
     task is actually done and, if not, how many MORE steps it needs. Returns the
     number of extra steps to grant (0 = done / no extension). Bounded small so an
     extension can't itself run away; the caller still enforces AGENT_HARD_CAP.
+
+    `inferir(orch, prompt) -> str` permite pasar el mismo camino de inferencia
+    que usa el bucle, con su caida a llm_local. Sin eso, esta funcion sacaba un
+    digito a la brava del texto que devolviera el orquestador — incluido su
+    aviso de "no hay backend", que NO es una excepcion sino una respuesta
+    normal. Medido el 2026-07-20: eso concedia pasos extra una y otra vez sobre
+    un fallo que no se iba a arreglar solo, y el agente encadeno 40 rondas.
     """
     try:
         prompt = (
@@ -74,7 +81,11 @@ def wants_more_steps(task: str, last_results: str, orch) -> int:
             "responde SOLO cuantos pasos mas necesita (1-8).\n\n"
             f"Tarea: {task[:300]}\n\nUltimo progreso:\n{last_results[:600]}"
         )
-        m = re.search(r"\b([0-8])\b", orch.infer(prompt).text)
+        texto = (inferir(orch, prompt) if inferir
+                 else (orch.infer(prompt).text or ""))
+        if not texto:
+            return 0
+        m = re.search(r"\b([0-8])\b", texto)
         if m:
             return int(m.group(1))
     except Exception:
