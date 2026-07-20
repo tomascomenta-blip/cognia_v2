@@ -3069,3 +3069,45 @@ Ningun modulo generado sobrevive sin correr sus rutas y medir.
 - YouTube via subtitulos (yt-dlp) como fuente futura, si el dueno la quiere.
 - El lector podria alimentar tambien la contraevidencia (hoy solo alimenta
   al resumidor).
+
+---
+
+## 2026-07-20 (tarde) — la decision de los tres especialistas: roles, no modelos
+
+El dueno planteo tres opciones para especializar a Cognia en contexto, prompt
+engineering y automatizacion: (1) entrenar tres modelos, (2) el modelo
+existente con los tres roles, (3) buscar tres modelos especializados. Se
+eligio la 2, con fundamento medible:
+
+- **Entrenar: no.** BDraft ya dejo un KILL pre-registrado de esa via (tau
+  0.589 contra el umbral 1.50, dos intentos). No hay datos curados para
+  "contexto" ni "automatizacion", y la GPU esta ocupada sirviendo el 14B.
+- **Tres modelos aparte: no.** En 16GB no caben junto al 14B; el swap mata la
+  latencia. Y no existe un "modelo de prompt engineering" pequeno que supere
+  a un 14B bien dirigido.
+- **La evidencia del dia decide:** el juez de relevancia es el mismo 14B con
+  un rol enfocado, y funciono (Bernhard Rust 10.0 -> 1.0). El especialista no
+  es el modelo: es el rol mas el harness alrededor.
+
+Inventario verificado (no asumido): prompt_optimizer.py (526 lineas) YA
+evoluciona prompts y comprime contexto, cableado en language_engine (7 sitios
++ record_call); adaptive_prompt.py YA aprende rasgos del usuario. Faltaba el
+tercero: **proactividad** — que el sistema piense en el usuario y proponga lo
+que no pidio.
+
+`cognia/proactividad.py` (Cognia via G4): tras la respuesta final del agente,
+una llamada al 14B propone hasta 3 adiciones concretas, o NADA. La regla de
+oro viene del bug de esta manana (la pagina HTML no pedida): PROPONE, nunca
+ejecuta — el CLI las muestra como "no pedido, tu decides", separadas del
+entregable. Discriminacion verificada contra el modelo real: a "56" no le
+anade nada; a un script le propone manejo de errores, docs y formatos.
+
+Revision del centinela: la v1 no daba reglas de formato al modelo (el parser
+casaba por suerte) y `"NADA" in respuesta` descartaba todo si la palabra
+aparecia en una propuesta.
+
+**Estado: 3396 passed, 1 skipped.**
+
+**Idea que queda para el dueno:** los subtitulos de YouTube via yt-dlp como
+cuarta fuente de busqueda (barata: texto ya transcrito, sin GPU). Reels/
+Instagram descartado: scraping hostil con captchas.
