@@ -22,6 +22,7 @@ from cognia.research_engine.query_planner import (
     FACETAS_HERRAMIENTAS,
     _es_tecnico,
     _facetas_para,
+    _parece_espanol,
     _traducir,
     planificar_deterministico,
 )
@@ -52,9 +53,42 @@ class TestNoSeCuelaEspanol:
         assert "server" in t
         assert "code" in t
 
-    def test_descarta_lo_que_no_sabe_traducir(self):
-        """Lista blanca: si no se sabe decir en ingles, no va a la query."""
-        assert _traducir(["parangaricutirimicuaro"]) == []
+    def test_descarta_lo_que_reconoce_como_espanol(self):
+        """
+        CONTRATO CAMBIADO el 2026-07-20, y a proposito. Antes era lista BLANCA
+        ("si no se sabe decir en ingles, fuera") y medía al reves de lo que
+        hacia falta: los terminos tecnicos concretos son largos y no caben en
+        ningun diccionario, asi que se perdian SIEMPRE — "rust ownership"
+        acababa en la query 'rust'. Ahora es lista NEGRA: se descarta lo que se
+        reconoce como espanol, y lo desconocido pasa.
+
+        TRADE-OFF ACEPTADO: una palabra espanola sin senal detectable y ausente
+        del glosario ahora se cuela (ver test_el_trade_off_de_la_lista_negra).
+        Se prefiere colar espanol de vez en cuando a perder el termino
+        especifico siempre.
+        """
+        # Reconocidas como espanol y ausentes del glosario: se descartan.
+        assert _traducir(["rapidamente"]) == []       # sufijo -mente
+        assert _traducir(["habilidad"]) == []         # sufijo -idad
+        assert _traducir(["usarlo"]) == []            # sufijo -arlo
+
+        # Las que SI estan en el glosario se traducen, no se descartan: el
+        # glosario se consulta antes que la deteccion por forma.
+        assert _traducir(["programacion"]) == ["programming"]
+        assert _traducir(["pequeño"]) == ["small"]
+        assert _traducir(["implementarlas"]) == ["implementation"]
+
+    def test_el_trade_off_de_la_lista_negra(self):
+        """
+        Lo que se PIERDE con el cambio, escrito para que quede medido y no se
+        descubra por sorpresa: una palabra espanola sin tilde, sin sufijo
+        reconocible y fuera del glosario pasa como si fuera un termino tecnico.
+
+        Se acepta porque el fallo contrario era peor y constante. Si algun dia
+        molesta, la solucion es ampliar _SUFIJOS_ES o el GLOSARIO, no volver a
+        la lista blanca.
+        """
+        assert _traducir(["parangaricutirimicuaro"]) == ["parangaricutirimicuaro"]
 
     def test_conserva_siglas_y_versiones(self):
         t = _traducir(["mcp", "cli", "gpt-4", "16gb"])
@@ -100,10 +134,25 @@ class TestFormaDeToken:
     def test_tecnicos_pasan(self, token):
         assert _es_tecnico(token) is True
 
-    @pytest.mark.parametrize("token", ["caracteristicas", "implementarlas",
-                                       "gratuitos", "programacion"])
+    @pytest.mark.parametrize("token", ["implementarlas", "programacion",
+                                       "rapidamente", "habilidad"])
     def test_palabras_largas_en_espanol_no_pasan(self, token):
+        """Las que llevan una senal reconocible de espanol (sufijo o tilde)."""
         assert _es_tecnico(token) is False
+
+    @pytest.mark.parametrize("token", ["caracteristicas", "gratuitos"])
+    def test_el_glosario_las_atrapa_antes_que_la_forma(self, token):
+        """
+        Estas dos no tienen sufijo espanol detectable, asi que _es_tecnico las
+        dejaria pasar. No llega a importar: estan en el GLOSARIO, que se
+        consulta ANTES en _traducir, y salen traducidas al ingles.
+
+        Es el reparto de trabajo del nuevo diseno: el glosario traduce lo que
+        conoce, y la deteccion por forma solo decide sobre lo que no conoce.
+        """
+        traducido = _traducir([token])
+        assert traducido and traducido[0] in ("features", "free")
+        assert not any(_parece_espanol(t) for t in traducido)
 
 
 def test_no_devuelve_queries_vacias():

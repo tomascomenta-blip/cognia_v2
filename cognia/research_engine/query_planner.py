@@ -161,18 +161,76 @@ def _facetas_para(terminos: List[str]) -> List[str]:
 NUCLEO_MAX = 3
 
 
+# Palabras funcionales espanolas. Lista cerrada: son las que sobreviven a la
+# tokenizacion y ensucian la query sin aportar nada.
+_FUNCIONALES_ES = {
+    "de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas", "que",
+    "para", "con", "en", "por", "cual", "cuales", "como", "sin", "sobre",
+    "entre", "mas", "muy", "este", "esta", "esto", "estos", "ese", "esa",
+    "esos", "esas", "su", "sus", "al", "lo", "si", "no", "hay", "tiene",
+    "tienen", "puede", "pueden", "hacer", "ser", "estar", "son", "era", "fue",
+    "cuando", "donde", "porque", "pero", "tambien", "todo", "toda", "todos",
+    "todas", "otro", "otra",
+}
+
+# Sufijos que en ingles no existen o son rarisimos.
+#
+# NO esta "sion" a proposito, y se midio: descartaba version, extension,
+# compression, dimension, session, expression, decision, conversion, precision
+# y vision — vocabulario central del dominio. No hace falta: en espanol
+# correcto "-sion" y "-cion" SIEMPRE llevan tilde ("version", "compresion"), y
+# de eso ya se encarga la regla de acentos. Sin tilde, la palabra es inglesa.
+# "cion" si esta porque el ingles usa "-tion", nunca "-cion".
+#
+# "ando"/"endo" pillan de rebote "commando" y "crescendo"; se aceptan porque
+# los gerundios espanoles ("generando", "usando") son mucho mas probables en
+# una pregunta que esas dos.
+_SUFIJOS_ES = (
+    "cion", "miento", "dad", "tad", "eza", "anza", "aje", "mente", "ncia",
+    "ando", "endo", "arlo", "arla", "arlos", "arlas", "arse", "idad",
+)
+
+_ACENTOS_ES = "áéíóúüñ"
+
+
+def _parece_espanol(t: str) -> bool:
+    """
+    True solo con senales FUERTES de que el token es espanol.
+
+    Se usa como lista NEGRA. Antes habia una lista blanca ("descarto lo que no
+    reconozco") y medía al reves de lo que hacia falta: descartaba lo
+    ESPECIFICO y conservaba lo GENERICO, porque los terminos tecnicos concretos
+    son largos y no estaban en el diccionario, mientras que la regla de "4
+    letras o menos" dejaba pasar las palabras cortas y comunes.
+
+    Medido el 2026-07-20, antes del cambio:
+        "rust ownership"            -> query 'rust'         (perdio ownership)
+        "python asyncio event loop" -> query 'python loop'  (perdio asyncio)
+        "rust ownership borrow checker data races" -> 'rust data'
+
+    Con la lista negra, un termino tecnico ingles que no conocemos PASA, que es
+    lo correcto: el vocabulario tecnico no cabe en ningun diccionario. Solo se
+    descarta lo que se reconoce como espanol y no se sabe traducir, porque
+    colarlo garantiza cero resultados (las APIs hacen AND de todos los
+    terminos).
+    """
+    t = t.lower()
+    if any(c in t for c in _ACENTOS_ES):
+        return True
+    if t in _FUNCIONALES_ES:
+        return True
+    return t.endswith(_SUFIJOS_ES)
+
+
 def _es_tecnico(t: str) -> bool:
     """
     True si el token vale como termino de busqueda en ingles tal cual.
 
-    Se aceptan por forma, no por lista: siglas (mcp, cli), tokens con digitos
-    (gpt-4, 16gb) y los del vocabulario tecnico conocido. Todo lo demas se
-    considera no traducido y se descarta.
+    Lo conocido pasa por lista; lo desconocido pasa salvo que parezca espanol.
     """
-    return (t in TECNICOS
-            or t in DOMINIO_EN
-            or any(c.isdigit() for c in t)
-            or (len(t) <= 4 and t.isascii() and t.isalpha()))
+    if t in TECNICOS or t in DOMINIO_EN or any(c.isdigit() for c in t):
+        return True
+    return not _parece_espanol(t)
 
 
 def _traducir(terminos: List[str]) -> List[str]:
@@ -219,10 +277,25 @@ def _nucleo(terminos: List[str]) -> List[str]:
     modificadores = [t for t in terminos if t in MODIFICADORES_EN][:NUCLEO_MODIFICADORES]
     elegidos = set(sustantivos + modificadores)
 
-    # Si la pregunta no usa vocabulario conocido, caer a los terminos mas
-    # largos para no devolver una query vacia.
+    # Los que no estan en ninguna de las dos listas. Son los que MAS informan:
+    # un termino tecnico concreto (ownership, asyncio, borrow) no cabe en un
+    # vocabulario cerrado, mientras que los que si estan suelen ser genericos
+    # (model, code, tool). Antes se descartaban en cuanto hubiera UN solo
+    # termino conocido: de ['rust', 'ownership', 'memory'] salia 'memory',
+    # tirando los dos que hacian la pregunta especifica.
+    desconocidos = [t for t in terminos if t not in DOMINIO_EN]
+
     if not elegidos:
+        # Sin vocabulario conocido, los mas largos: en este dominio la palabra
+        # larga es la especifica.
         elegidos = set(sorted(terminos, key=len, reverse=True)[:NUCLEO_MAX])
+    else:
+        # Completar hasta NUCLEO_MAX con los especificos, sin desplazar a los
+        # conocidos que ya entraron.
+        for t in desconocidos:
+            if len(elegidos) >= NUCLEO_MAX:
+                break
+            elegidos.add(t)
 
     return [t for t in terminos if t in elegidos]
 
