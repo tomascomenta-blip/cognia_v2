@@ -57,3 +57,31 @@ castas:
 - Runner de flota: `scripts/entrenar_flota.py` — declarativo, entrena los
   pendientes, no re-entrena los que pasaron su gate.
 - Cada corrida se anota en MANAGER_LOG.
+
+## Anexo 2026-07-20: el experimento de la Colonia
+
+Idea del dueño: ¿superorganismo/colonia mejoran a los micro-expertos?
+Investigado (AMRO-S: enrutado por colonia de hormigas con expertos de
+feromona, arXiv 2603.12933; "Colony of AI", arXiv 2504.05365) y MEDIDO sobre
+el caso muerto (`pide_grafico`, KILL con 0.500 vs heurística 0.833):
+
+**Colonia de 5 votantes** (semillas, dims 96-160 y barajados distintos):
+- individuo muerto 0.500 → colonia **0.667**. Mejora real, PERO sigue bajo la
+  heurística (0.833) y el KILL se mantiene.
+- Causa medida: los 5 miembros fallan en los MISMOS 2 casos — errores
+  CORRELACIONADOS porque comparten plantillas de entrenamiento. El voto solo
+  ayuda con errores independientes: la diversidad útil es de DATOS, no de
+  semillas.
+
+**Reglas que deja el experimento:**
+1. Una colonia por tarea vale la pena SOLO si sus miembros aprenden de
+   fuentes de datos distintas (plantillas disjuntas, ejemplos reales vs
+   sintéticos). Diversidad de semilla/arquitectura no compra independencia.
+2. La "feromona" de AMRO-S ya tiene sitio en el plan: el log de
+   discrepancias de los expertos integrados se convierte en refuerzo — las
+   decisiones que el resultado downstream confirma suben peso, las que
+   fallan lo pierden. Estigmergia: se comunican por el registro, no entre sí.
+3. El superorganismo YA EXISTE a nivel de sistema y es donde rinde: draft
+   0.5B propone + 14B verifica (2.4x), generador + sonda + crítico que capa
+   (8.7→5.5). La colonia de Cognia no son 100 modelos votando: son roles
+   heterogéneos con gates entre sí.
