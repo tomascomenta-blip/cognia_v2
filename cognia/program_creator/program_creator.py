@@ -307,6 +307,38 @@ def run_program_hobby(
         # ── Paso 3: Evaluar ────────────────────────────────────────────
         eval_result: EvaluationResult = evaluate_program(program, exec_result)
 
+        # ── Paso 3b: la opinion del profesional (solo webs) ────────────
+        # "Si alguien que no es artista opina sobre su propio trabajo dira
+        # 'esta buenisimo'; tiene que criticar un profesional" (el dueno,
+        # 2026-07-20). El critico es un rol SEPARADO del creador, con los
+        # hechos medidos del navegador y el DOM RENDERIZADO como ojos. Su
+        # nota CAPA la del autoevaluador: nadie se puntua por encima de su
+        # critico. Medido el dia del cambio: el autoevaluador daba 7.6 a una
+        # pagina cuyo grafico era una caja vacia; el critico le dio 4.5.
+        if (getattr(program, "lenguaje", "python") == "html"
+                and informe_visual is not None):
+            try:
+                from .critico import criticar_web
+                critica = criticar_web(
+                    program.category,
+                    informe_visual.dom_renderizado or program.code,
+                    informe_visual.hechos)
+            except Exception:
+                critica = None      # sin critico no se bloquea la sesion
+            if critica:
+                if verbose:
+                    print(f"   🎭 Critico ({critica['critico']}): "
+                          f"{critica['nota']:.1f}/10 — {critica['veredicto']}")
+                eval_result.notes.append(
+                    f"Critico ({critica['critico']}): {critica['nota']:.1f}/10 "
+                    f"— {critica['veredicto']}")
+                eval_result.notes.extend(
+                    f"[critico] {d}" for d in critica["defectos"][:3])
+                if critica["nota"] < eval_result.total_score:
+                    eval_result.total_score = critica["nota"]
+                    eval_result.should_store = (
+                        eval_result.total_score >= STORE_THRESHOLD)
+
         # ── Paso 4: Guardar si merece la pena ──────────────────────────
         if eval_result.should_store:
             successful += 1

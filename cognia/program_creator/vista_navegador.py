@@ -72,6 +72,12 @@ class InformeVisual:
     output_images: List[str] = field(default_factory=list)
     defectos:      List[str] = field(default_factory=list)
     nota:          str  = ""
+    # Los datos crudos de la sonda, tal cual. Son los OJOS que se le pasan al
+    # critico (critico.py): el no ve pixeles, pero estos hechos no mienten.
+    hechos:        dict = field(default_factory=dict)
+    # El DOM tras correr el JS: lo que la pagina ES en pantalla, con los
+    # valores pintados. Al critico se le da ESTO, no el fuente.
+    dom_renderizado: str = ""
 
     def resumen(self) -> str:
         if self.nota:
@@ -389,21 +395,44 @@ def _correr_navegador(navegador: str, args: List[str]) -> subprocess.CompletedPr
     )
 
 
-def _leer_sonda(navegador: str, url: str) -> Optional[dict]:
-    """Renderiza y extrae el veredicto que dejo la sonda en el DOM."""
+def _leer_sonda(navegador: str, url: str) -> "tuple[Optional[dict], str]":
+    """
+    Renderiza y devuelve (veredicto de la sonda, DOM renderizado).
+
+    El DOM renderizado es lo que la pagina ES tras correr su JS — con los
+    valores reales pintados. El critico lo necesita en vez del HTML fuente:
+    una pagina que pinta todo por JS tiene el fuente lleno de placeholders
+    ("—", svg vacio) y el critico la suspendia por defectos que no existian
+    en pantalla (medido con UIGEN el 2026-07-20).
+    """
     try:
         r = _correr_navegador(navegador, [
             "--dump-dom", f"--virtual-time-budget={_MS_ASENTAR}", url])
     except subprocess.TimeoutExpired:
-        return None
+        return None, ""
+
+    # El DOM sin la sonda ni su veredicto: al critico no le incumben.
+    dom = re.sub(r'<div id="__cognia_sonda__">.*?</div>', "", r.stdout,
+                 flags=re.DOTALL)
+    dom = re.sub(r'<script>\s*\(function \(\) \{.*?\}\)\(\);\s*</script>',
+                 "", dom, flags=re.DOTALL)
+    # Solo el <body>: el critico juzga lo que se VE. Con el documento entero,
+    # el <style> del head gastaba el presupuesto de truncado y el grafico
+    # (que vive al final del body) quedaba fuera — el critico reprochaba un
+    # "svg vacio" que en pantalla estaba lleno (medido con UIGEN 2026-07-20).
+    m_body = re.search(r"<body[^>]*>(.*)</body>", dom, re.DOTALL)
+    if m_body:
+        dom = m_body.group(1)
+    dom = re.sub(r"<script.*?</script>", "", dom, flags=re.DOTALL)
+    dom = re.sub(r"\n{3,}", "\n\n", dom).strip()
 
     m = re.search(r'id="__cognia_sonda__">(.*?)</div>', r.stdout, re.DOTALL)
     if not m:
-        return None
+        return None, dom
     try:
-        return json.loads(m.group(1))
+        return json.loads(m.group(1)), dom
     except json.JSONDecodeError:
-        return None
+        return None, dom
 
 
 def _capturar(navegador: str, url: str, salida: Path, ms: int) -> Optional[str]:
@@ -465,12 +494,14 @@ def revisar_en_navegador(code: str, dir_programa: Path = None,
                 informe.input_images.append(ruta)
 
         # -- la sonda: lo que no se puede saber leyendo el codigo --------
-        datos = _leer_sonda(navegador, url)
+        datos, dom = _leer_sonda(navegador, url)
+        informe.dom_renderizado = dom[:8000]
         if datos is None:
             informe.ok = True
             informe.nota = "La sonda no respondio; no se pudo verificar en navegador."
             return informe
 
+        informe.hechos     = dict(datos)
         informe.se_mueve   = bool(datos.get("se_mueve"))
         informe.colores    = list(datos.get("colores") or [])
         informe.errores_js = list(datos.get("errores") or [])
