@@ -3242,3 +3242,34 @@ Bug menor pendiente: el auto-cleanup deja directorios huerfanos con solo
 input_images.
 
 **Estado: suite en verde (3407), 14B+draft restaurado como residente.**
+
+---
+
+## 2026-07-20 (noche-3) — la biblioteca de patrones: aprender de lo que sobrevive
+
+Idea del dueno: ademas de bajar el umbral, que Cognia reuse elementos de
+paginas ya existentes "bonitas y funcionales" — guiarse, no copiar.
+
+Implementado: 3 patrones curados (tiles KPI, grafico SVG anti-NaN, tabla de
+estados) extraidos de la pagina de referencia que paso todos los chequeos;
+selector por relevancia (Cognia via G4, tras una v1 que devolvio SOLO el
+docstring sin una linea de codigo); cableado al prompt como "ADAPT, do NOT
+copy". SURVIVAL_SCORE 6.0 -> 5.0 (decision del dueno) y fix del cascaron
+huerfano del cleanup.
+
+**La 7a generacion del dia, medida:** CERO defectos de navegador en ambos
+intentos (primera vez), sin reparaciones, 53s, autoevaluador 9.0, critico
+6.5. El modelo ADAPTO — invento un tile que no esta en el patron. Y una
+leccion fina: el patron ensena LO QUE MUESTRA — las entidades &euro; del
+fragmento salieron literales en JS; los patrones ahora llevan caracteres
+reales.
+
+**El arco completo del dia en una idea:** por la manana el techo era el
+instrumento (7.7 a una pagina rota); al mediodia fue el modelo (las
+reparaciones no cerraban); por la noche el techo lo empujan los patrones —
+el modelo no necesita INVENTAR bien, necesita ADAPTAR bien, y eso si lo
+sabe hacer. Siguiente palanca natural: cosechar patrones nuevos de cada
+pagina que supere al critico (la biblioteca como memoria de aprendizaje que
+se realimenta sola).
+
+**Estado: 3413 passed, 1 skipped.**
