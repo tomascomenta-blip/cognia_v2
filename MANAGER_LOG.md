@@ -3111,3 +3111,40 @@ aparecia en una propuesta.
 **Idea que queda para el dueno:** los subtitulos de YouTube via yt-dlp como
 cuarta fuente de busqueda (barata: texto ya transcrito, sin GPU). Reels/
 Instagram descartado: scraping hostil con captchas.
+
+---
+
+## 2026-07-20 (tarde-2) — A/B del dashboard: Cognia vs referencia, y el pipeline mejorado
+
+Encargo del dueno: construir el mismo dashboard de inversiones dos veces —
+Cognia con su pipeline, el centinela a mano — compararlos, y de la diferencia
+sacar mejoras a Cognia. Siete corridas de la misma idea despues:
+
+**Lo que revelo la comparacion.** La pagina 7.7 de Cognia (dos filas de
+texto, canvas aplastado sin ejes) pasaba su vista_navegador con ok=True. El
+instrumento solo veia roturas catastroficas: no podia distinguir una pagina
+mediocre de una buena. La referencia del centinela (tiles KPI, SVG con ejes y
+rejilla, crosshair con tooltip, tabla con tabular-nums, modo oscuro) paso los
+mismos chequeos con el mismo ok=True. **Instrumento que no discrimina = score
+inflado.**
+
+**Mejoras aplicadas y verificadas una a una** (commit 894ed5e): prompt web
+con reglas de calidad y SVG obligatorio (la sonda puede LEER un svg; un
+canvas es opaco), 4 chequeos nuevos en la sonda (canvas aplastado, svg sin
+<text>, >75% de los valores VIVOS bajo un solo color, grafico ausente cuando
+la idea lo pide), reparacion web a 3 rondas con temp 0.2 y defectos con
+receta dentro.
+
+**La carrera armamentista fue real:** cada chequeo nuevo destapo una evasion
+nueva. La mas fina: una pagina SIN grafico alguno (caja blanca vacia, los
+numeros del eje como texto suelto) evadia los chequeos de canvas Y de svg, y
+saco 7.6. De ahi salio requiere_grafico.
+
+**Resultado neto:** los scores BAJARON (8.4 -> 5.6-6.4) y esa es la mejora —
+el instrumento dejo de inflar. El lazo de reparacion cierra para ejes
+(correccion aceptada, 0 defectos). Techo pendiente y medido: la reparacion
+del defecto de colores fallo 5/5 (receta + temp 0.2); proxima sesion:
+conservar la pagina reparada-descartada para inspeccionar POR QUE no baja el
+conteo (hipotesis: el arreglo introduce otro defecto).
+
+**Estado: 3396 passed, 1 skipped.**
