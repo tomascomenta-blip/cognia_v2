@@ -1,7 +1,7 @@
 # bbrain.md — Cerebro del repo Cognia
 
 > AUTOGENERADO por cognia/bbrain.py — no editar a mano; regenerar con `cognia bbrain`.
-> Generado: 2026-07-19 13:38:34
+> Generado: 2026-07-20 03:03:52
 
 ## Entorno
 - Python: 3.12.10 (C:\Users\usuario\Desktop\cognia_v2\venv312\Scripts\python.exe)
@@ -12,25 +12,26 @@
 - GPU: NVIDIA GeForce RTX 5060 Ti, 16311 MiB
 
 ## Backend LLM
-- GGUF activo (node.llama_backend): C:\Users\usuario\.cognia\models\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf
-- Modelos en C:\Users\usuario\.cognia\models: qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf, qwen2.5-coder-0.5b-instruct-q8_0.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00002-of-00002.gguf
-- Shards NPZ en C:\Users\usuario\.cognia\shards\qwen-coder-3b-q4: shard_0.npz, shard_1.npz, shard_2.npz, shard_3.npz
+- GGUF activo (node.llama_backend): no encontrado
+- Modelos en C:\Users\usuario\.cognia\models: UIGEN-X-8B.Q8_0.gguf, qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf, qwen2.5-coder-0.5b-instruct-q8_0.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00002-of-00002.gguf
+- Shards NPZ: SHARD_WEIGHTS_DIR no configurado
 - Ollama: no disponible en http://localhost:11434
+- Backend en uso (llm_local): llama en http://127.0.0.1:8080
 
 ## Mapa del repo
 - Modulos .py top-level: 36
-- cognia/: 227 archivos .py
+- cognia/: 249 archivos .py
 - node/: 15 archivos .py
 - shattering/: 18 archivos .py
 - coordinator/: 10 archivos .py
 - storage/: 2 archivos .py
 - security/: 4 archivos .py
-- tests/: 209 archivos .py
-- Archivos de test (tests/test_*.py): 206
+- tests/: 233 archivos .py
+- Archivos de test (tests/test_*.py): 230
 
 ## Radar de cobertura (anti-danos-colaterales)
-- Modulos con simbolos publicos: 244
-- SIN ninguna mencion en tests/: 46
+- Modulos con simbolos publicos: 265
+- SIN ninguna mencion en tests/: 45
 - Fuera del radar (revisar al tocar features vecinas):
   * aprendizaje_profundo.py (3 simbolos publicos)
   * cognia_deferred.py (2 simbolos publicos)
@@ -54,16 +55,15 @@
   * cognia/memory/working.py (2 simbolos publicos)
   * cognia/memory_response_engine.py (2 simbolos publicos)
   * cognia/migrations/runner.py (2 simbolos publicos)
-  * cognia/program_creator/evaluator.py (3 simbolos publicos)
   * cognia/program_creator/generated_programs/cognia_game/game.py (1 simbolos publicos)
   * cognia/program_creator/generated_programs/fractal_pattern_renderer/program.py (4 simbolos publicos)
-  * cognia/program_creator/generated_programs/franzs_treasure_hunt/program.py (1 simbolos publicos)
+  * cognia/program_creator/generated_programs/in_memory_task_manager_with_undo_stack_and_unit_te/program.py (2 simbolos publicos)
+  * cognia/program_creator/generated_programs/priorityqueue_with_heapq_and_priority_change/program.py (2 simbolos publicos)
   * cognia/program_creator/generated_programs/royal_favors/program.py (1 simbolos publicos)
+  * cognia/program_creator/generated_programs/task_manager_with_sqlite_in_memory_undo_stack_and/program.py (2 simbolos publicos)
+  * cognia/program_creator/generated_programs/task_manager_with_sqlite_in_memory_undo_stack_and_01/program.py (2 simbolos publicos)
+  * cognia/program_creator/generated_programs/text_compressor_01/program.py (2 simbolos publicos)
   * cognia/program_creator/generated_programs/untitled_procedural_story_generator_with_built_in/program.py (2 simbolos publicos)
-  * cognia/program_creator/generator.py (7 simbolos publicos)
-  * cognia/program_creator/program_creator.py (5 simbolos publicos)
-  * cognia/program_creator/sandbox_runner.py (2 simbolos publicos)
-  * cognia/program_creator/storage.py (10 simbolos publicos)
   * cognia/research_engine/knowledge_integrator.py (3 simbolos publicos)
   * cognia/research_engine/research_orchestrator.py (4 simbolos publicos)
   * cognia/research_engine/researcher.py (2 simbolos publicos)
@@ -72,7 +72,8 @@
   * node/downloader.py (4 simbolos publicos)
   * node/local_adapter.py (3 simbolos publicos)
   * node/relay_client.py (2 simbolos publicos)
-  * ... y 6 mas
+  * shattering/distillation/data_generator.py (3 simbolos publicos)
+  * ... y 5 mas
 
 ## Reglas del proyecto
 

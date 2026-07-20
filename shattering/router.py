@@ -115,6 +115,18 @@ def _hash_str(s: str) -> int:
     return hash(s) & 0x7FFFFFFF
 
 
+# Centroides semanticos cacheados por proceso. Dependen solo de las palabras
+# clave de dominio, que son una constante del modulo, asi que recalcularlos por
+# cada router es trabajo identico repetido. Ver el comentario en build().
+_CENTROIDES_ST: Dict[tuple, Dict[str, "np.ndarray"]] = {}
+_LOCK_CENTROIDES = _threading.Lock()
+
+
+def _clave_centroides(domain_keywords: Dict[str, List[str]]) -> tuple:
+    """Clave estable e inmutable a partir de los dominios y sus keywords."""
+    return tuple(sorted((d, tuple(kws)) for d, kws in domain_keywords.items()))
+
+
 class _EmbeddingIndex:
     """
     Semantic similarity using the same 384-dim embedding space as the
@@ -164,7 +176,23 @@ class _EmbeddingIndex:
         def _rebuild_with_st():
             try:
                 from cognia.cognia_embedding import text_to_vector_fast
-                upgraded = self._compute_centroids(text_to_vector_fast, domain_keywords)
+
+                # Los centroides dependen SOLO de las palabras clave, que son
+                # una constante del modulo: calcularlos otra vez en cada router
+                # es trabajo repetido. Medido el 2026-07-20 instrumentando
+                # encode(): 80 pasadas del modelo de embeddings por cada
+                # observe(), la mitad del coste de la llamada, para obtener
+                # exactamente el mismo resultado que la vez anterior. El
+                # batching del AsyncEmbeddingQueue no ayuda aqui porque encode()
+                # bloquea, asi que son 80 lotes de uno.
+                clave = _clave_centroides(domain_keywords)
+                with _LOCK_CENTROIDES:
+                    upgraded = _CENTROIDES_ST.get(clave)
+                if upgraded is None:
+                    upgraded = self._compute_centroids(text_to_vector_fast,
+                                                       domain_keywords)
+                    with _LOCK_CENTROIDES:
+                        _CENTROIDES_ST[clave] = upgraded
                 # Swap centroids and the matching prompt encoder atomically so
                 # similarities() never mixes a 384-dim centroid with a prompt
                 # vector from a different-dim embedder.

@@ -2089,3 +2089,847 @@ inequívoco porque la lógica marcaba indecisión si CUALQUIERA de las métricas
 en su ruido. Siendo un AND, un FAIL solo es indeciso si TODAS las que fallan lo
 están. Con la lógica corregida el reintento reporta `indeciso=False`, que es lo
 correcto: τ falla fuera de todo margen.
+
+---
+
+## 2026-07-19 — ProgramCreator: `/crear` estaba muerto y era incapaz de generar web
+
+Encargo del dueño: que Cognia cree una web (dashboard de inversiones animado),
+desplegarla en Railway y borrarla a los 15 min, arreglando por el camino lo que
+fallara. Los tres fallos salieron al correrlo de verdad, no leyendo el código.
+
+**Fallo 1 — `/crear` no funcionaba en absoluto.**
+`Cognia.create_program()` importaba `run_program_hobby` de `cognia.program_creator`,
+pero el `__init__.py` solo exportaba `maybe_run_hobby`, `show_library` y
+`get_session_stats`. La función existía (program_creator.py:101) pero no estaba
+exportada, así que TODA invocación de `/crear` devolvía `[ERROR] cannot import
+name`. Un `except Exception` lo convertía en un mensaje amable en vez de un
+crash, que es por lo que había pasado desapercibido. Fix: exportarla.
+
+**Fallo 2 — la sesión moría en su primer print (UnicodeEncodeError).**
+`run_program_hobby` imprime emoji. En Windows con stdout no-UTF8 (tubería o
+redirección) eso lanza `'charmap' codec can't encode character '\U0001f3a8'` y
+tumba el proceso antes de generar una sola línea. El arreglo YA existía en
+`cli.py:repl()` pero vivía dentro del REPL: solo protegía al chat interactivo,
+no al ciclo idle (`/dormir` -> `maybe_run_hobby`) ni a `create_program()`.
+Fix: izado a `cognia/consola.py::forzar_utf8()`, llamado desde `cognia/__init__.py`
+para que lo tenga toda vía de entrada; `cli.py` ahora usa el mismo helper.
+
+**Fallo 3 — el pipeline era estructuralmente incapaz de producir una web.**
+Pedirle "pagina web que simule un dashboard de inversiones" devolvía un script
+de terminal pintando barras ASCII con '='. No era culpa del modelo: `_build_prompt`
+exigía "Terminal only, no GUI", `_parse_response` solo aceptaba fences ```python,
+`run_in_sandbox` lo ejecutaba todo con el intérprete de Python y `storage`
+escribía siempre `program.py` con cabecera de comentarios `#`. Aunque el modelo
+hubiera devuelto HTML perfecto, el parser lo habría tirado. Fix: rama web de
+punta a punta — `_es_idea_web()`, `_build_prompt_web()`, parseo de ```html,
+`revisar_html()` en vez de sandbox, evaluadores propios de web (el de Python
+hacía `ast.parse` y penalizaba toda página por no ser Python) y guardado como
+`index.html` con cabecera `<!-- -->`.
+
+**Verificación real, y lo que enseñó.** Con la rama web, Cognia generó una página
+que pasó la revisión estática con 8.7/10 — y en Chrome salía TODA EN NEGRO. El
+CSS era `.quote.up span` pero el JS ponía la clase `up` en el `<span>` interior,
+no en el `.quote`: el selector no casaba jamás. Válido no es lo mismo que
+funcionando, y una revisión que no renderiza no puede distinguirlo. De ahí
+`_clases_compuestas_muertas()`, que caza reglas `.a.b` cuyas clases nunca
+coinciden en un elemento.
+
+**Dos bugs propios en ese detector, ambos encontrados midiendo tras aplicar el
+disyuntor (regla 11) al segundo intento estéril:**
+1. Buscaba `.a.b` en TODO el documento, así que leía el acceso a miembros de JS
+   como selectores: `stock.element.innerHTML` -> ".element.innerHTML". Ahora solo
+   mira dentro de `<style>`.
+2. La regex del atributo, `class\s*=\s*["']([^"']*)["']`, se cortaba en la primera
+   comilla simple: `class="${change > 0 ? 'up' : 'down'}"` capturaba
+   `${change > 0 ? `. Justo el caso que fallaba en la vida real. Ahora empareja
+   la comilla de cierre con la de apertura y expande los ternarios.
+
+**Estado:** 2989 passed, 1 skipped. Tests nuevos en `tests/test_consola_utf8.py`
+(4) y `tests/test_program_creator_web.py` (18), todos con el bug real medido
+documentado en el docstring. Página desplegada en Railway, verificada en vivo con
+Playwright (valores cambiando, verde rgb(0,128,0) y rojo rgb(255,0,0)) y borrada
+a los 15 min según lo pedido.
+
+**Pendiente identificado:** la revisión de HTML es estática. El bug de los colores
+solo se vio renderizando; un smoke test headless en el pipeline (cargar la página,
+muestrear el DOM dos veces, confirmar que cambia) cerraría esa clase entera de
+fallos. No hecho aquí para no meter dependencia de navegador en el pipeline sin
+que el dueño lo decida.
+
+---
+
+## 2026-07-20 (madrugada) — El query_planner colaba espanol y perdia el sujeto
+
+Encargo: que Cognia investigue sola agentes de coding, skills, herramientas y
+MCPs libres, e implemente lo que encuentre, hasta el apagado de las 06:00.
+Condicion del dueno: no darle el trabajo hecho, sino **mejorarle el sistema**
+para que pueda hacerlo. De ahi que lo primero fuera arreglar el planificador:
+sin el, cualquier investigacion de la noche devuelve ruido.
+
+**Diagnostico, midiendo `planificar_deterministico` sobre 3 preguntas reales:**
+
+| Pregunta | Query que salia |
+|---|---|
+| agentes de coding por linea de comandos | `caracteristicas comandos implementarlas` |
+| servidores MCP gratuitos sin apikey | `servidores gratuitos registro` |
+| mejor modelo para webs bonitas | `model` |
+
+Tres defectos distintos, no uno:
+
+1. **Vocabulario cerrado al dominio ML.** `NUCLEOS_EN` y `GLOSARIO` solo
+   conocian modelos, contexto, cuantizacion. Nada de agent/cli/tool/server, asi
+   que en preguntas de herramientas el nucleo se quedaba vacio y caia al
+   fallback de "terminos mas largos", que devuelve espanol.
+2. **El espanol crudo llegaba a la query.** `_traducir` dejaba pasar lo que no
+   estaba en el glosario. GitHub y HuggingFace hacen AND de todos los terminos:
+   una sola palabra en espanol garantiza cero resultados. Colar el termino es
+   PEOR que perderlo, porque ademas lo disimula.
+3. **Facetas solo de ML.** `quantization` y `efficient inference` no encuentran
+   un agente de terminal. Los proyectos se catalogan como `awesome <cosa>`,
+   `<cosa> cli`, `<cosa> alternative`.
+
+Y en el camino del LLM, un cuarto: el prompt exigia queries de 2 a 4 palabras
+sin obligar a conservar el sujeto, y el modelo derivaba (de "modelo para webs
+bonitas en GPU de 16GB" saco `GPU-accelerated rendering`, que trajo librerias
+de graficos por computador y ni un solo modelo).
+
+**Arreglos:**
+- `_traducir` pasa a **lista blanca**: si no se sabe decir en ingles, se
+  descarta. Sale una query corta pero buscable, en vez de larga e inutil.
+- `_es_tecnico()` acepta por forma, no por lista cerrada: siglas (mcp, cli),
+  tokens con digitos (gpt-4, 16gb) y el vocabulario conocido.
+- Glosario y nucleos extendidos al dominio de herramientas y web.
+- `_facetas_para()` elige el juego de facetas segun lo que se busca:
+  catalogo (`awesome list`, `cli tool`, `open source alternative`) para
+  proyectos, las de ML para literatura.
+- Prompt del LLM: exige nombrar la COSA preguntada, con ejemplo de query buena
+  y query mala, y se descartan las propuestas que no comparten ningun termino
+  con la pregunta.
+
+**Resultado medido, misma pregunta:**
+- Antes: `caracteristicas comandos implementarlas`
+- Ahora (determinista): `features unique agents`, `features unique awesome list`
+- Ahora (con LLM): `awesome coding agents`, `cli coding agent`,
+  `MCP server without registration`, `MCP server no API key`
+
+Primera vez que el camino con LLM del planner queda verificado end-to-end: en
+la comparacion anterior Ollama estaba caido y nunca llego a ejecutarse.
+
+**Estado:** 3030 passed, 1 skipped. 22 tests nuevos en
+`tests/test_query_planner_dominio.py`, cada uno con el defecto medido.
+
+---
+
+## 2026-07-20 (madrugada) — G1 y G2: Cognia repara su codigo y deja de mentirse
+
+Con el planificador arreglado, Cognia investigo sola 5 preguntas (agentes CLI,
+MCPs libres, skills, memoria de repositorio, sandbox) y saco 5 informes en
+`planes/investigacion_nocturna/`, ~83 KB. Encontro `awesome-cli-coding-agents`,
+`pydantic-deepagents` (skills, checkpoints, sandbox), `awesome-ralph` (bucles
+hasta cumplir especificacion), `git-mcp` y `DevDocs` (MCP libres sin apikey) y
+`headroom` (comprimir salidas antes del LLM). El filtro nuevo se vio trabajar en
+vivo: "Descartadas 2 queries que perdian el tema".
+
+**Bug bloqueante encontrado ANTES de construir encima (regla 2).** El plan
+marcaba como `[?] no verificado` que el disyuntor no limpiaba el contador con un
+verde. Medido: es peor. Una vez disparado se quedaba disparado **para siempre**.
+
+| Situacion | Esperado | Daba |
+|---|---|---|
+| 2 fallos iguales | D6 | D6 |
+| tras arreglo CORRECTO | None | **D6** |
+| tras fallo nuevo y distinto | None | **D1** |
+
+Cablear G1 encima habria bloqueado todas las generaciones tras el primer par
+esteril, disparando su propia condicion de KILL por un motivo falso. Arreglado
+en `_esteriles()`: solo cuentan los fallos DESDE EL ULTIMO VERDE. Es la misma
+regla que ya documentaba `reset_por_intervencion` copiando a OpenHands — si hay
+progreso en la ventana, solo cuentan los eventos posteriores. Un verde es
+progreso al menos tan fuerte como que hable el humano.
+
+**G1 — el error vuelve al modelo.** `reparar_python()` reinyecta el traceback,
+maximo 3 intentos (umbral de Aider), cableado al disyuntor desde el primer
+commit como exigia el plan. Portado de `game_manager.py:508`, que hablaba con
+Ollama por URL hardcodeada; aqui va por `llm_local`, que detecta el backend real.
+Verificado end-to-end: `KeyError: 'cuadrdo'` -> reparado -> ejecuta bien.
+
+**G2 — la nota sale de los tests, no de stdout.** Al probar G1 con el mismo
+encargo que el plan documenta (task manager con SQLite, undo y tests), salio el
+fallo que G2 predecia, en vivo:
+
+    UnboundLocalError: cannot access local variable 'tasks'
+    Ran 4 tests in 0.001s
+    FAILED (errors=1)
+    exit=0
+
+unittest NO propaga al codigo de salida, asi que el programa se archivo con
+6.7/10 y nota de "programa que corre" — y G1 ni se entero, porque para el iba
+bien. `detectar_tests_fallando()` busca las firmas de unittest/pytest en rojo y
+marca el fallo aunque exit sea 0. Con firmas ancladas para no castigar a un
+programa que imprima la palabra "failed".
+
+**Resultado medido, mismo encargo, antes y despues:**
+- Antes: programa con 1 test roto archivado con **6.7/10**.
+- Ahora: intento 1 detectado en rojo -> G1 repara -> disyuntor corta los
+  parches esteriles -> **descartado con 4.2**. Intento 2 limpio, guardado con
+  6.7, y verificado a mano: 93 lineas, 4 tests, **OK**.
+
+**Rotura detectada y arreglada como centinela.** La suite se puso en rojo:
+`test_no_bare_sqlite_connect` marcaba los programas que Cognia acababa de
+generar. Causa: el guardian escanea todo el repo, pero la regla de CLAUDE.md
+aplica al codigo FUENTE, no a la salida de Cognia — un programa suelto que
+corre en un sandbox no puede importar `storage/db_pool.py`. Excluidos
+`generated_programs/` y `generated_games/` del escaneo.
+
+**Estado:** 3050 passed, 1 skipped. Tests nuevos:
+`test_reparacion_python.py` (7), `test_tests_en_rojo.py` (11), mas 2 de
+regresion del disyuntor en `test_disciplina_reparacion.py`.
+
+---
+
+## 2026-07-20 — Lo implementado a partir de la investigacion de Cognia
+
+Division del trabajo, por peticion del dueno: **Cognia investiga y programa**,
+el centinela le arregla el sistema y verifica. Todo lo de abajo salio de los 5
+informes que ella misma produjo.
+
+### Tres agujeros mas en la evaluacion, encontrados mirandola trabajar
+
+**Truncamiento silencioso.** `max_tokens=2000` cortaba cualquier programa con
+tests. Medido: la respuesta acababa a mitad de una cadena y el fence ni se
+cerraba, lo que llegaba al sandbox como `SyntaxError: unterminated string
+literal`. Peor: el lazo G1 gastaba entonces sus 3 intentos en un fallo que NO
+puede arreglar, porque no falta un fix, falta el resto del programa. Arreglado
+subiendo a 6000 y, sobre todo, detectando el fence sin cerrar en
+`_parse_response` para regenerar en vez de "reparar".
+
+**El disyuntor cortaba tras UNA reparacion.** El fallo original se registraba
+con `hubo_cambio=True`, gastando una de las dos huellas que disparan D6 antes
+de que el modelo tocara nada. El fallo original no es un parche: es el punto de
+partida. Con `hubo_cambio=False` el lazo tiene sus 2-3 intentos reales, que es
+el umbral de Aider que el propio modulo cita.
+
+**Suite vacia y rechazo blando.** Dos casos medidos el mismo dia:
+- Un compresor de 88 lineas imprimio `Ran 0 tests` / `NO TESTS RAN` y se
+  guardo con **7.8/10**. Decir que traes tests y no traerlos es peor que no
+  traerlos: anadidas las dos firmas.
+- Un mapa de proyecto con `FAILED (failures=2)` se archivo con **6.0/10**,
+  porque los bonus de "Rich output" y "substantial length" se concedian AUNQUE
+  el programa hubiera fallado y, sumados a la creatividad, pasaban el umbral.
+  Ahora una suite en rojo es **rechazo duro**: no se compensa con creatividad.
+
+### Modulos nuevos, nativos y sin dependencias
+
+**`cognia/compresion_salidas.py`** — de `headroomlabs-ai/headroom` (60k
+estrellas), que comprime salidas antes de que lleguen al LLM. El algoritmo de
+colapsar repeticiones lo escribio Cognia (`text_compressor_01`, 3 tests en
+verde, 89% de ahorro medido sobre 100 lineas de log). Lo que se le anadio al
+integrarlo: **conservar el final**. El repo recortaba con `error[:600]`, que en
+un traceback se queda la cabecera y tira la ultima linea — justo donde dice que
+fallo. `reparar_python` ya usa `comprimir_error`.
+
+**`cognia/mapa_proyecto.py`** — de `tirth8205/code-review-graph` (21k), "mapa
+persistente del codebase para leer solo lo que importa". El recorrido con `ast`
+lo escribio Cognia (`python_project_map_with_ast`, reparado por G1 **al primer
+intento** — primera vez que el lazo cierra el ciclo en una generacion real).
+Anadido al integrarlo: recursividad, saltar venv/__pycache__, sobrevivir a
+ficheros que no parsean, metodos con su clase y `async def`. Expuesto como
+`/mapa-codigo` (con `buscar`).
+
+**4 skills nuevas**, escritas por Cognia desde sus propios hallazgos:
+`investigar-tema`, `ahorrar-contexto`, `orientarse-en-un-repo` (de
+code-review-graph) e `insistir-hasta-cumplir` (de `snwfdhmp/awesome-ralph`,
+correr en bucle hasta cumplir la especificacion).
+
+Lo que enseno probarlas: **una skill que no se activa es una skill que no
+existe**. 2 de las 4 no saltaban nunca, e `insistir-hasta-cumplir` perdia
+contra `escribir-tests` porque la palabra "tests" dominaba. Se le devolvieron a
+Cognia las frases exactas que fallaban y reescribio las descripciones: 6/6.
+
+### Rotura propia detectada y corregida
+
+`/mapa` ya existia (mapa mental del KG) y mi `_slash_mapa` lo sombreaba en
+silencio: el comando nuevo devolvia None y salia el mapa mental. Renombrado a
+`/mapa-codigo` y `_slash_mapa_codigo`.
+
+**Estado:** 3106 passed, 1 skipped. Tests nuevos: `test_compresion_salidas.py`
+(11), `test_mapa_proyecto.py` (14), `test_skills_nuevas.py` (26), mas los de
+G1/G2.
+
+---
+
+## 2026-07-20 — MCP nativo, sin registro ni clave
+
+Pedido explicito del dueno: "MCP gratuitos y sin registro, apikey, etc. y haz
+que todo venga de forma nativa". Cognia no tenia **ningun** soporte de MCP.
+
+**El protocolo se midio antes de escribir codigo** (regla 2), contra gitmcp.io.
+De ahi salieron los dos detalles que no estan en ninguna documentacion obvia y
+con los que tropieza quien asume en vez de medir:
+
+1. `tools/list` sin sesion responde `Bad Request: Mcp-Session-Id header is
+   required`. La sesion NO viene en el JSON del `initialize`: viene en la
+   **cabecera** `mcp-session-id` de la respuesta.
+2. Sin User-Agent propio, Cloudflare corta con **403 (error 1010)**. La misma
+   peticion pasaba con curl y fallaba con urllib — eso es lo que delata que el
+   problema es la cabecera y no el protocolo. Si no se mide, parece que el
+   servidor no soporta el metodo.
+
+**`cognia/mcp_libre.py`** — cliente JSON-RPC 2.0 con transporte HTTP y parseo
+SSE, solo stdlib (urllib + json), como `llm_local.py`. Traer un SDK entero para
+hacer cuatro POST habria sido cambiar una dependencia por comodidad.
+Registro de servidores libres con que aporta cada uno y la fecha en que se
+verifico. Condicion del dueno: si alguno empieza a pedir clave, sale.
+
+**Lo que hace util al cliente: las herramientas del agente.** Un cliente que
+solo se usa desde la CLI es una curiosidad. Registradas en `cognia/agent/tools.py`:
+
+    docs_repo <owner> <repo>              -- documentacion de un repo de GitHub
+    buscar_en_repo <owner> <repo> <query> -- busca codigo en un repo de GitHub
+
+Verificado en vivo: `buscar_en_repo ggml-org llama.cpp flash-attn` devolvio 22
+coincidencias reales con rutas y URLs. Ambas solo leen, asi que `danger=False`.
+Un fallo de red devuelve un ERROR legible y no tumba el bucle del agente.
+
+Expuesto tambien como `/mcp`, `/mcp herramientas <servidor>` y `/mcp probar
+<servidor>`.
+
+**Estado:** 3127 passed, 1 skipped. 21 tests en `test_mcp_libre.py`, con los de
+red marcados `@pytest.mark.red` (marcador registrado en pytest.ini) para que se
+salten solos si no hay conexion: la suite no puede depender de un tercero.
+
+---
+
+## 2026-07-20 — Economia de contexto donde de verdad dolia
+
+**HuggingFace ensuciaba las investigaciones de herramientas.** Medido sobre las
+5 investigaciones de la noche: para preguntas de agentes, MCP o skills, HF
+devolvia ruido casi puro, porque es un hub de MODELOS y casa por palabras
+sueltas:
+
+| Pregunta | Lo que devolvia HF |
+|---|---|
+| skills de agentes | `lm-ner-linkedin-skills-recognition`, `job-skills_tinyllama` (competencias LABORALES) |
+| MCP sin registro | `pocket-tts-without-voice-cloning` (caso con "without") |
+| agentes CLI | `my_awesome_opus_books_model` (artefacto de tutorial, 1 descarga) |
+
+Y no era solo tiempo: el resumidor solo mira los 12 primeros hallazgos, asi que
+cada uno de esos desplazaba a un repo de GitHub que si respondia. Ahora
+`_busca_herramientas()` reutiliza el mismo `SENAL_HERRAMIENTAS` del
+planificador y salta HF en esas preguntas. Para preguntas de modelos, HF sigue
+siendo justo lo que hace falta.
+
+**Compresion en el bucle del agente.** Cada paso mete el resultado de la
+herramienta en `history`, y el prompt lleva los ultimos 6. Con `n_ctx=8192` eso
+son ~3000 tokens solo de historial, y un `leer_archivo` grande se lo come
+entero. Medido con tres salidas tipicas: **7407 -> 1017 chars, 86% de ahorro**,
+conservando el final de cada una — que en una salida de herramienta es donde
+esta el veredicto, no al principio.
+
+**Estado:** 3149 passed, 1 skipped.
+
+**Insistir hasta cumplir (`crear_hasta_lograr`).** Tecnica de
+`snwfdhmp/awesome-ralph` que encontro Cognia: correr en bucle hasta cumplir la
+especificacion en vez de aceptar el primer intento. Aqui "cumplida" no es
+opinion del modelo — es superar las compuertas de esta noche: corre en sandbox,
+tests no rojos (G2) y nota sobre el umbral. Lo que lo separa de un bucle tonto
+es el disyuntor: dos rondas con la misma huella y corta. Verificado en real:
+ronda 1 fallo, ronda 2 dio una cola de prioridad de 81 lineas con 3 tests en
+verde. 3157 passed.
+
+**Contexto del proyecto (`_build_project_context`).** Dos arreglos salidos de
+probar la funcion de verdad:
+- `AGENTS.md` estaba el ULTIMO de los candidatos, detras hasta de `setup.cfg`,
+  cuando es el fichero que le dice a un agente como comportarse en ese repo.
+  Convencion de `FerroxLabs/agents-md`, que Cognia encontro investigando.
+- En Windows el FS no distingue mayusculas: `AGENTS.md` y `agents.md` son el
+  MISMO fichero y se leia **dos veces**. El contexto del proyecto salia
+  duplicado entero. Deduplicado por ruta resuelta. 3164 passed.
+
+---
+
+## 2026-07-20 — El bucle del agente no llegaba a su propio backend
+
+Salio al hacer la verificacion end-to-end de las herramientas MCP con una tarea
+real (`/hacer buscar en llama.cpp la opcion de flash attention`). El agente
+encadeno **40 pasos identicos**:
+
+    [QWEN-CODER] No inference backend available. Run the setup wizard to
+    download model shards, or start Ollama: ollama serve
+
+**Dos defectos, no uno:**
+
+1. **El orquestador no lanza excepcion: devuelve el aviso como si fuera la
+   respuesta del modelo.** Por eso el `try/except` que envuelve `orch.infer`
+   nunca saltaba y el bucle tomaba el error por buena una y otra vez, pidiendo
+   dos pasos mas cada ronda hasta el techo.
+2. **El bucle no llegaba al backend que SI funcionaba.** El orquestador busca
+   shards o un Ollama; en esta maquina el backend real es el llama-server que
+   `llm_local` detecta. Es literalmente el fallo que documenta
+   `cognia/llm_local.py` en su cabecera — "nueve modulos tenian hardcodeada la
+   URL de Ollama... degradaban en silencio" — y el bucle del agente se habia
+   quedado fuera de aquel arreglo.
+
+`_inferir_para_agente()` prueba el orquestador y, si responde con una de las
+marcas de "no hay backend" (o revienta, o vuelve vacio), cae a `llm_local`.
+Devuelve "" cuando de verdad no hay nada, para que el bucle pueda **parar** en
+vez de repetirse.
+
+**Antes:** 40 pasos, cero resultado.
+**Ahora:** la misma tarea en **3 pasos**, y el agente eligio por su cuenta la
+herramienta MCP nueva:
+
+    paso 1: buscar_en_repo ggml-org llama.cpp "flash attention"
+    paso 2: recordar ...
+    paso 3: responder ...
+
+Es la primera vez que el bucle de agente de Cognia completa una tarea en esta
+maquina. **3181 passed, 1 skipped.**
+
+**Arreglo de raiz en el orquestador.** El mismo patron aparecia en ~12 sitios
+que llaman a `orch.infer()`. En vez de parchearlos uno a uno,
+`_ollama_infer()` pregunta ahora a `llm_local` antes de rendirse: Ollama no es
+el unico backend posible, y en esta maquina el que existe es el llama-server
+que llm_local si detecta. Verificado: el orquestador devuelve "HOLA" donde
+antes devolvia el aviso de "No inference backend available". Un cambio, doce
+sitios arreglados. 3189 passed.
+
+---
+
+## 2026-07-20 — El SelfArchitect se diagnosticaba CRITICO sobre 2 decisiones
+
+Salio al probar el ciclo de sueno de verdad. Cognia reportaba:
+
+    [arch] Architect score: 36.1/100 [!!] CRITICO, 7 propuesta(s)
+    CRITICAL: Critical error rate — "100% de las decisiones de los ultimos
+              7 dias fueron erroneas. El aprendizaje esta fallando."
+
+Mirando la base de datos:
+
+    decisiones ultimos 7 dias: 2 | marcadas error: 2  ->  tasa 100%
+
+**Dos decisiones.** Con eso saltaba la severidad `critical` y la nota global se
+hundia por `s_error = 100 - tasa*200` -> 0. Peor que el numero: ese diagnostico
+encabezaba las 7 propuestas, asi que el sistema de auto-mejora iba a gastar su
+presupuesto de cambios diarios en un problema que no existe. Un sistema que se
+auto-mejora persiguiendo ruido estadistico se hace dano solo.
+
+`MIN_DECISIONES_PARA_TASA = 20`: por debajo de eso la tasa no diagnostica y
+puntua neutro. No desactiva el mecanismo — espera a tener datos.
+
+**Antes:** 36.1/100, 6 diagnosticos, el primero fantasma.
+**Ahora:** **61.1/100** (+25.0), 5 diagnosticos y todos reales: memoria
+episodica hinchada, latencia de razonamiento, poca generacion de hipotesis,
+cache de embeddings y energia por ciclo. Ahi si merece la pena mirar.
+
+**Estado:** 3195 passed, 1 skipped.
+
+---
+
+## 2026-07-20 — El doctor decia "Todo en orden" sin comprobar si Cognia piensa
+
+Corriendo `python -m cognia.doctor` en esta maquina:
+
+    Ollama (opcional):     [WARN] no disponible
+    Shards del modelo:     [OK]   4 en ~/.cognia/shards/qwen-coder-3b-q4
+    Velocidad inferencia:  [WARN] shards no detectados -- omitido
+
+    Todo en orden. Cognia esta lista.
+
+Tres cosas mal a la vez:
+1. **Dos chequeos del propio doctor se contradicen**: `check_shards` encuentra
+   4 shards en disco y `check_inference_speed` dice "shards no detectados",
+   porque `orch._shards_available()` aplica otro criterio.
+2. **No miraba el backend que SI funciona.** El llama-server del 8080 no se
+   comprobaba en ningun sitio.
+3. **Terminaba en verde sin haber generado una sola palabra.** Y no por
+   descuido: `_warn()` devuelve True, asi que ningun aviso podia impedir el
+   "Todo en orden". Un diagnostico que no puede fallar no diagnostica.
+
+`check_llm_backend()`: detecta el backend real y **genera de verdad** (un
+servidor que acepta conexiones pero no tiene modelo cargado responderia igual
+al ping). Va antes que shards y velocidad, porque es lo que decide si Cognia
+puede trabajar. Sin backend devuelve **_fail**, no _warn.
+
+Ahora: `[OK] Backend LLM: llama en http://127.0.0.1:8080 — genera OK`.
+
+**Estado:** 3202 passed, 1 skipped.
+
+---
+
+## 2026-07-20 — La latencia que diagnosticaba el arquitecto: 159 embeddings por observe
+
+El SelfArchitect marcaba "High average reasoning latency". Medido:
+`Cognia.observe()` tardaba **11.1 s**. Perfilado con cProfile, el grueso estaba
+en pasadas del modelo de embeddings — pero **cProfile enganaba** sobre el
+segundo sospechoso: daba 3.7 s de `cosine_similarity`, y un micro-benchmark
+aparte lo desmintio (60.000 comparaciones/s, o sea ~0.9 s para las 54.236
+llamadas). El perfilador infla el codigo con muchas llamadas pequenas. Casi
+optimizo lo que no era.
+
+Instrumentando `AsyncEmbeddingQueue.encode()` durante UN observe:
+
+    159 llamadas al modelo de embeddings
+      80  shattering/router.py:148  (_compute_centroids)
+      79  cognia/vectors.py:50
+
+Las 80 del router son los centroides de `_DOMAIN_KEYWORDS`, **una constante del
+modulo**: cada router recalculaba exactamente el mismo resultado. Y el batching
+del AsyncEmbeddingQueue no ayuda ahi, porque `encode()` BLOQUEA hasta que el
+worker lo procesa — en un camino secuencial son 80 lotes de uno. El batching
+solo agrupa si varios hilos piden a la vez, y `observe()` es secuencial.
+
+Cacheados por proceso, con lock y clave inmutable sobre los dominios.
+
+**Antes:** 11.1 s por observe, 159 llamadas de embedding.
+**Ahora:** ~5.3 s por observe, **1** llamada.
+
+Verificado que el enrutado no cambia: mismas decisiones (techne / rhetor /
+rhetor) con router nuevo y con cache, y `mismos centroides: True`.
+
+**Estado:** 3217 passed, 1 skipped.
+
+**cache_hit_rate valia 0.000 SIEMPRE.** Al mirar por que la fatiga subia tan
+rapido salio otro contador roto de la misma familia:
+`record_embedding_cached()` suma en la ventana del ciclo solo si esa ventana ya
+existe, pero las llamadas llegan antes de que el ciclo la cree. Medido tras dos
+observaciones reales:
+
+    _cache_hits   [0, 0]     total_cheap_ops      14
+    _cache_misses [0, 0]     total_expensive_ops  80
+
+Los totales SI tenian los datos. Con la ventana vacia el ratio salia 0.000
+pasara lo que pasara — y esa metrica entra en el score de fatiga, con lo que
+Cognia se limitaba sola (menos top_k, menos pasos de inferencia) por un numero
+que nunca se llenaba. El SelfArchitect diagnosticaba "Low embedding cache
+efficiency" acertando por casualidad.
+
+Ahora cae a los totales cuando la ventana esta vacia: 0.667 / 0.144 / 0.171 en
+tres observaciones reales. Un 15% de aciertos sigue siendo bajo — pero ahora es
+un dato, no un artefacto. **3224 passed.**
+
+**La referencia de ciclo estaba calibrada para otra maquina.** Siguiendo por
+que la fatiga trepaba: los umbrales son `NORMAL_CYCLE_MS = 80`, HIGH 300,
+CRITICAL 800 ms. Un `observe()` real tarda **5.300-11.000 ms**: entre 66 y 140
+veces el "normal". El componente temporal quedaba clavado en su maximo pasara
+lo que pasara — dejaba de medir y solo empujaba a Cognia a limitarse sola
+(top_k mas bajo, menos pasos de inferencia) por estar en un equipo donde los
+ciclos duran segundos.
+
+`_referencia_ciclo()` toma la **mediana observada** cuando supera la constante
+por x3, con minimo de 5 ciclos para que un arranque en frio no fije una
+referencia irreal. En una maquina rapida la mediana es pequena, gana la
+constante y no cambia nada; en una lenta, la fatiga pasa a medir lo que debe:
+cuanto se aparta este ciclo de lo normal AQUI.
+
+Medido en 7 observaciones seguidas — antes trepaba sin techo, ahora **sube y
+luego BAJA** al mejorar los ciclos:
+
+    21.8 -> 37.5 -> 47.5 -> 54.0 -> 46.7 -> 41.4 -> 37.6
+
+**Estado:** 3230 passed, 1 skipped.
+
+---
+
+## 2026-07-20 — Cierre de la noche
+
+**Memoria episodica hinchada: real, pero no urgente.** 54.243 filas olvidadas
+contra 7.844 activas (ratio 0.874, umbral 0.70). El diagnostico del arquitecto
+acierta. Ahora bien, purgarlas es **borrar datos del dueno**, que CLAUDE.md
+marca como linea roja para el modo autonomo, asi que queda para el. Y mirando
+si al menos penalizaba las consultas: no. Ya existe el indice parcial
+`idx_episodic_timestamp ON episodic_memory(timestamp DESC) WHERE forgotten=0`,
+y `EXPLAIN QUERY PLAN` confirma que la consulta tipica lo usa. Es desorden en
+disco, no lentitud.
+
+**Prueba de integracion final.** Con todo lo de la noche puesto, Cognia rehizo
+la tarea original (dashboard de inversiones animado):
+
+    total=8.7/10 (func=4.0 creat=2.7 err=2.0)  en 63 s
+    input_images: 2 | output_images: 1
+    navegador -> ok: True | se_mueve: True
+                 colores: negro, rojo, verde | errores JS: ninguno
+
+Funcionalidad perfecta y verificada renderizando, no leyendo el HTML.
+
+---
+
+## 2026-07-20 — Donde esta ahora el techo: ya no es el harness
+
+Con el harness arreglado, se le pidio a Cognia un estimador de tokens usando
+`crear_hasta_lograr`. Lo entrego a la primera ronda, 7.6/10, **3 tests en
+verde**. Y al probarlo de verdad:
+
+    estimar_tokens('x' * 4000)  ->  1 token
+
+Parte por espacios, asi que un bloque de 4000 caracteres sin espacios cuenta
+como una palabra. Justo el caso que reventaria la ventana de contexto que la
+funcion existe para proteger. Sus tests pasaban porque ninguno lo cubria:
+**tests en verde no es lo mismo que codigo correcto**, y ninguna compuerta
+automatica cubre ese hueco.
+
+Se le devolvio la medicion exacta. Intento 1: anadio un test para el caso pero
+**no toco el cuerpo de la funcion** — siguio siendo `len(texto.split())`.
+Intento 2, ya con la formula sugerida explicitamente: la cambio bien a
+`max(len(texto.split()), len(texto) // 4)`.
+
+Quedaron dos tests rojos, y mirandolos son **desacuerdos de calibracion, no
+bugs**: `test_exacto` usa 7 palabras de 5 letras (41 chars) y espera 7 tokens,
+mientras la regla de ~4 chars/token estima 10; `test_bloque_largo` espera que
+1000 tokens NO quepan en un limite de 1000. Seguir ahi seria adivinar que
+significa "un token", que es una decision de diseno. Se aplico el disyuntor y
+se paro: el estimador NO entra al repo.
+
+**Lo que esto dice del estado del proyecto.** El plan de autoprogramacion
+concluyo el 2026-07-19 que "el techo NO es el modelo, es el harness". Tras la
+noche de hoy eso ya no se sostiene igual: el harness detecto el fallo, lo
+llevo al modelo con evidencia concreta, y quien no llego fue el modelo — hizo
+falta darle la formula. En tareas de correccion semantica, el techo empieza a
+ser qwen2.5-coder-14b. Es exactamente la clase de dato que pedia G1/G2 para
+decidir si toca subir de modelo.
+
+**El mismo punto ciego en bbrain.md.** El documento con el que Cognia entiende
+su propio entorno decia "GGUF no encontrado / shards no configurados / Ollama
+no disponible" teniendo el llama-server sano en el 8080. Cualquier agente que
+lo leyera concluiria que Cognia no puede inferir. Ahora incluye
+`- Backend en uso (llm_local): llama en http://127.0.0.1:8080`.
+
+Con esto son **cuatro** los sitios que miraban los backends por su cuenta en vez
+de preguntarle a `llm_local`: el bucle del agente, el orquestador, el doctor y
+bbrain. Todos daban el mismo falso negativo. **3233 passed.**
+
+**Dos servidores MCP libres mas, verificados a mano.** El dueno los pidio en
+plural y solo habia uno. Sondeados varios candidatos y probados con el propio
+cliente (no solo el puerto: `initialize` + `tools/list` + una llamada real):
+
+  - **context7** (`mcp.context7.com/mcp`) — 2 herramientas. Documentacion al
+    dia de librerias, contra la API que el modelo recuerda de entrenamiento.
+  - **deepwiki** (`mcp.deepwiki.com/mcp`) — 3 herramientas. Preguntas en
+    lenguaje natural sobre como funciona un repo entero.
+  - smithery devolvio 404: fuera.
+
+Ninguno pide registro ni clave. Herramientas nuevas para el agente:
+
+    preguntar_repo <owner/repo> <pregunta>  -- pregunta sobre un repo entero
+    docs_libreria <nombre> <tema>           -- documentacion al dia
+
+Verificado en vivo: `preguntar_repo ggml-org/llama.cpp que hace --flash-attn`
+devolvio una explicacion correcta y en espanol. **29 herramientas en el
+registro del agente. 3242 passed.**
+
+**El REPL reventaba con la entrada redirigida.** `prompt_toolkit` necesita
+consola de verdad; con `cognia < guion.txt` o `cognia | tee log.txt` lanzaba
+`NoConsoleScreenBufferError` y el usuario se llevaba un traceback crudo. La
+rama simple con `input()` ya existia para cuando la libreria FALTA — ahora
+tambien cuando esta pero no hay consola.
+
+Ademas de arreglar un fallo de uso real, esto **permite guionizar el REPL**,
+que es como se verifica de verdad (regla 4: no basta pytest, hay que arrancar
+el CLI). Comprobado end-to-end:
+
+    /mapa-codigo cognia/disciplina  -> mapa con clases y lineas
+    /mcp                            -> los 3 servidores libres
+    /salir                          -> "Hasta luego."
+
+**El mismo fantasma por la puerta de los objetivos.** Guionizando el REPL
+aparecio, ya persistido en la base de datos:
+
+    [3] ██████████ aprender_nuevo: Tasa de error alta: 100%
+
+`GoalSystem.auto_generate_goals` tenia la misma comprobacion sin muestra
+minima que el SelfArchitect — y este objetivo nace con **prioridad 0.9**, la
+mas alta, asi que encabezaba la lista y dominaba el trabajo autonomo de Cognia
+sobre un fantasma de 2 decisiones. Mismo umbral que el arquitecto (20), y
+ahora el texto dice sobre cuantas decisiones se basa: sin denominador, "100%"
+es incomprobable.
+
+Un test preexistente (`test_auto_generate_goals_error_rate`) se puso en rojo
+porque su estado no traia `total_decisions`. Se actualizo el fixture, no la
+intencion: la tasa sin denominador no significa nada.
+
+**Un test intermitente, arreglado de paso.** `test_orthogonal_to_existing_rows`
+usa `np.random.randn` SIN semilla: paso 5 de 5 aislado y fallo en una corrida
+de la suite completa, porque la tolerancia de ortogonalidad (0.2) se supera de
+vez en cuando por azar. Un test que falla aleatoriamente es peor que no
+tenerlo: ensena a ignorar el rojo. Semilla fija — comprueba lo mismo, pero el
+veredicto es reproducible.
+
+**Estado: 3252 passed, 1 skipped — dos corridas completas seguidas, identicas.**
+
+**Suite determinista.** El test intermitente no era un caso aislado: 8 ficheros
+generan datos con `random`/`np.random` sin semilla, con `test_shattering.py`
+liderando (12 usos). En vez de tocar los ocho, una fixture `autouse` en
+`tests/conftest.py` siembra antes de cada test: mismo efecto, **un solo punto
+que revertir** si algun dia estorba. Verificado con tres corridas completas
+seguidas: 3252 passed las tres, sin variacion.
+
+---
+
+## 2026-07-20 — `buscar` devolvia vacio y el agente concluia en falso
+
+Verificacion en frio con una tarea real: *"que clases define cognia/mcp_libre.py"*.
+El agente respondio **"No se encontraron resultados"** sobre un fichero con
+tres clases. Tres fallos encadenados, cada uno tapando al siguiente:
+
+1. La sintaxis documentada es `buscar <patron> | <directorio>`, pero el modelo
+   escribe `buscar class cognia/mcp_libre.py`. La frase entera pasaba a ser el
+   patron.
+2. El modelo entrecomilla: `buscar "class" | ruta`. Se buscaba el literal
+   `"class"` — con comillas — que no casa nunca. El agente gasto 8 pasos
+   reintentando con y sin comillas.
+3. Y lo de fondo: **acotar a un FICHERO no funcionaba jamas**.
+   `Path(fichero).rglob("*")` devuelve 0 elementos, y ese camino es el unico
+   que hay porque `rg` no esta instalado aqui, con lo que el subprocess de
+   arriba siempre falla en silencio.
+
+Un vacio silencioso que produce una conclusion falsa es peor que un error: el
+agente no tiene como sospechar. Ahora el mensaje dice donde busco y como
+acotar, y se aceptan las cuatro formas que el modelo escribe de verdad.
+
+**Antes:** "No se encontraron resultados" (falso).
+**Ahora:** "define las siguientes clases: ErrorMCP, Herramienta y ClienteMCP".
+
+**Bonus de higiene:** los dos tests nuevos que barrian el repo entero tardaban
+94 s y 66 s y alargaban la suite de 3 a 5 minutos. Acotados a
+`cognia/disciplina` — comprueban el parseo, no la amplitud: 161 s -> **1.5 s**.
+
+**`scripts/servir_modelo.py` — el comando que faltaba.** El doctor y el bucle
+del agente ya avisan de que no hay backend, pero no habia ningun comando que lo
+arrancara: habia que recordar la ruta del binario, cual de los .gguf y los
+flags. Ahora:
+
+    python scripts/servir_modelo.py                 # el coder-14b por defecto
+    python scripts/servir_modelo.py --modelo UIGEN  # por trozo del nombre
+    python scripts/servir_modelo.py --listar        # que hay instalado
+
+Sirve en el 8080 — el que sondea `llm_local` — y hay un test que lo fija: si
+sirviera en otro puerto volveriamos al fallo silencioso que esto evita. No pisa
+un servidor ya vivo, y de los .gguf partidos solo ofrece la primera parte
+(llama.cpp carga el resto solo). Los dos mensajes de error ahora dicen el
+comando exacto en vez de "arranca llama-server".
+
+**Estado: 3272 passed, 1 skipped.**
+
+---
+
+## 2026-07-20 05:00 — Inventario de la noche
+
+**Modulos nuevos (todos stdlib, sin dependencias nuevas):**
+
+| fichero | lineas | que aporta |
+|---|---|---|
+| `cognia/consola.py` | 53 | stdout UTF-8 para toda via de entrada |
+| `cognia/compresion_salidas.py` | 108 | recortar conservando el FINAL (idea: headroom) |
+| `cognia/mapa_proyecto.py` | 215 | clases, funciones, imports y grafo de dependencias |
+| `cognia/mcp_libre.py` | 236 | cliente MCP para servidores sin registro |
+| `cognia/program_creator/vista_navegador.py` | 426 | Cognia mira su web en Chrome |
+| `scripts/servir_modelo.py` | 142 | el comando que faltaba para el backend |
+
+**21 ficheros de test nuevos**, ~2.900 lineas. Cada uno documenta en su
+docstring el fallo MEDIDO que fija, no la funcion que prueba.
+
+**4 skills nuevas** escritas por Cognia desde su investigacion, y con las
+descripciones corregidas tras medir que 2 de 4 no se activaban nunca.
+
+**Comandos nuevos:** `/mapa-codigo` (+ buscar/depende/usan), `/imagenes`
+(+ borrar), `/mcp` (+ herramientas/probar).
+
+**Herramientas nuevas del agente:** `docs_repo`, `buscar_en_repo`,
+`preguntar_repo`, `docs_libreria`. De 25 a 29.
+
+**Suite: 3272 passed, 1 skipped** — y ahora determinista (semilla en conftest).
+Al empezar la noche eran 2989.
+
+---
+
+## 2026-07-20 — Comprobacion de integracion: el ciclo autonomo completo
+
+Los cambios mas arriesgados de la noche (caida del orquestador a llm_local,
+calibracion de la fatiga, cache de centroides del router) se verificaron
+corriendo el ciclo de sueno entero, que los usa todos a la vez.
+
+| | Primer ciclo de la noche | Ahora |
+|---|---|---|
+| Duracion | 17.665 ms | **8.033 ms** |
+| Score de arquitectura | 36.1 [CRITICO] | **60.9** |
+| Fatiga | trepando a critica | **baja, 0.0** |
+| Objetivos nuevos | 2 (uno fantasma) | 1, real |
+
+Y durante el sueno genero un programa por su cuenta
+(`automated_news_brief_generator`): funcionalidad **4.0/4.0**, corre y produce
+salida. Consolidacion, grafo (+129 relaciones), hipotesis y entrenamiento del
+adaptador ELC, todo normal.
+
+---
+
+## 2026-07-20 — La brecha que QUEDA en la investigacion de Cognia
+
+Con el motor ya arreglado, se le devolvio la pregunta que abrio la noche:
+*"que modelo LLM open source en GGUF genera mejores interfaces web y cabe en
+16GB de VRAM"*. Queries buenas (`best web interface LLM`, `LLM fits 16GB
+VRAM`), 43 hallazgos, 5 de contraevidencia — y un resumen honesto: **"Los
+resultados no proporcionan informacion especifica"**.
+
+No es un fallo del planificador ni del resumidor. Es que **las fuentes no
+contienen la respuesta**:
+
+- **GitHub** encuentra proyectos, no rankings de calidad de modelos.
+- **HuggingFace** encuentra modelos por palabra clave, no por "cual es mejor
+  para esta tarea".
+- **arXiv** encuentra papers, no comparativas de producto al dia.
+
+La respuesta a esa pregunta vive en **leaderboards** (Design Arena, arena.ai) y
+en la web general — exactamente lo que la memoria del dueno ya senalaba como
+carencia y sigue siendolo. Es lo unico que separa "Cognia encuentra insumos" de
+"Cognia entrega una respuesta" en preguntas de eleccion.
+
+**Lo que se cerro esta noche** era el escalon anterior y era condicion
+necesaria: sin arreglar el planificador, las queries eran
+`caracteristicas comandos implementarlas` y ni siquiera se llegaba a poder
+diagnosticar esto.
+
+**Siguiente paso natural del research_engine** (no ejecutado, decision del
+dueno): un scraper de leaderboards o una fuente de busqueda web general. Con
+eso, esta misma pregunta se contesta sola.
+
+---
+
+## 2026-07-20 — Verificacion final antes del apagado
+
+    Suite:   3272 passed, 1 skipped   (empezo la noche en 2989)
+    Doctor:  [OK] Backend LLM: llama en 127.0.0.1:8080 — genera OK
+             Todo en orden. Cognia esta lista.
+    REPL:    /mapa-codigo usan compresion_salidas -> 3 ficheros
+             /mcp probar context7 -> responde, 2 herramientas
+             /salir -> limpio
+
+El repo queda en verde. El apagado esta programado para las 06:00.
+
+**Busqueda web general: evaluada y descartada por ahora.** Como la brecha es
+esa, se probo el camino obvio (raspar DuckDuckGo HTML, sin clave). Medido: con
+`curl` devuelve 10 resultados y con `urllib` **cero** — sirve una pagina
+distinta segun el cliente. Depender de raspar un buscador es fragil y se rompe
+sin avisar; ademas la deteccion ya empezaba a activarse. **No se implemento.**
+
+**Via mejor, y ya montada:** los servidores MCP libres son fuentes estables y
+sin clave que no dependen de raspado. `context7` da documentacion al dia de
+librerias y `deepwiki` contesta preguntas sobre un repo entero. No sustituyen a
+un buscador general, pero cubren la mayor parte de lo que se le pregunta a
+Cognia sobre tecnologia, y son un contrato publico en vez de HTML que cambia.
+
+Si el dueno quiere cerrar la brecha del todo, la opcion honesta es una API de
+busqueda con clave (Brave, Tavily) o un scraper de leaderboards concreto
+usando el Chrome headless que ya se monto para `vista_navegador`. Ambas son
+decision suya: la primera cuesta dinero, la segunda es fragil por definicion.
+
+**Ultimo repaso de calidad.** Releyendo el cambio del orquestador (el mas
+arriesgado de la noche, toca el camino de inferencia de todo) aparecio que el
+respaldo estaba solo en la generacion: el **refinado** de modo calidad
+(`n_passes >= 2`) seguia usando unicamente Ollama, asi que en esta maquina
+sencillamente no ocurria — y nadie se enteraba, porque un refinado vacio
+conserva el texto original. Extraido a `_generar_con_respaldo()`, que usan las
+dos ramas, con un test que fija que el camino este en UN solo sitio: duplicarlo
+es como se desincronizan.
+
+**Estado final: 3275 passed, 1 skipped.**
