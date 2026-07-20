@@ -277,6 +277,24 @@ _SONDA = """
   var colores_por_el = {};
   var cambiantes     = {};
 
+  // NaN en atributos SVG: hay que mirarlo EN CADA muestra, no al final —
+  // el caso real (2026-07-20) los tenia solo en los primeros ticks y la
+  // propia pagina los sobreescribia despues; un escaneo al cierre daba
+  // limpio sobre una pagina con 28 errores de consola.
+  var nan_svg_max = 0;
+
+  function contar_nan_svg() {
+    var n = 0;
+    var els = document.querySelectorAll('svg *');
+    for (var i2 = 0; i2 < els.length; i2++) {
+      var attrs = els[i2].attributes;
+      for (var a3 = 0; a3 < attrs.length; a3++) {
+        if (attrs[a3].value.indexOf('NaN') !== -1) { n++; break; }
+      }
+    }
+    return n;
+  }
+
   function muestrear() {
     var v = leer();
     v.forEach(function (x) {
@@ -288,6 +306,8 @@ _SONDA = """
       if (!colores_por_el[x.i]) colores_por_el[x.i] = {};
       colores_por_el[x.i][x.c] = 1;
     });
+    var nn = contar_nan_svg();
+    if (nn > nan_svg_max) nan_svg_max = nn;
     muestras.push(v.map(function (x) { return x.t; }).join('|'));
   }
 
@@ -337,6 +357,9 @@ _SONDA = """
       if (a2.width >= 100 && a2.height >= 60) n_graficos++;
     }
 
+    // (el conteo de NaN corre en cada muestra: ver contar_nan_svg arriba)
+    var nan_svg = nan_svg_max;
+
     // Colores de los elementos que CAMBIAN: si todos los valores vivos
     // comparten un unico color, las clases de estado no estan pintando,
     // por muchos colores que tenga el resto de la pagina.
@@ -361,7 +384,8 @@ _SONDA = """
       muestras: muestras.length,
       canvas_aplastados: aplastados,
       svgs_sin_texto: svgs_mudos,
-      n_graficos: n_graficos
+      n_graficos: n_graficos,
+      nan_svg: nan_svg
     });
     document.body.appendChild(d);
   }, __MS_MUESTREO__);
@@ -561,6 +585,12 @@ def revisar_en_navegador(code: str, dir_programa: Path = None,
                 "la idea pide un grafico y la pagina no tiene ningun <svg> "
                 "ni <canvas> de tamano util: dibuja el grafico como inline "
                 "svg (polyline para la linea, text para los valores del eje)")
+        if datos.get("nan_svg"):
+            informe.defectos.append(
+                f"{datos['nan_svg']} elementos del SVG tienen atributos con "
+                "NaN: el calculo de coordenadas divide por cero o indexa mal "
+                "en el primer tick. Protege la escala cuando min==max o hay "
+                "un solo punto (usa un rango minimo de 1)")
 
         informe.ok = not informe.defectos
 

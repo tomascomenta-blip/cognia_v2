@@ -1,0 +1,20 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 6.5 / 10
+Functionality     : 2.0 / 4.0
+Creativity        : 3.0 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Defectos en la página: depende de recursos externos: http://
+  • Se actualiza sola (JS en marcha).
+  • Dibuja un gráfico propio.
+  • Página con cuerpo (8538 chars).
+  • Técnicas: svg, flexbox, profundidad, responsive, formato numérico.
+  • JS estructurado (5 funciones).
+  • Página no trivial: 222 líneas.
+  • Original program title.
+  • Critico (residente): 6.5/10 — La página cumple con la mayoría de los requisitos pero tiene áreas de mejora.
+  • [critico] El gráfico no tiene ejes con valores ni una escala correcta, es solo una línea sin contexto.
+  • [critico] Los colores verdes y rojos no cambian dinámicamente, solo aparecen estáticos en los valores de cambio.
