@@ -1,0 +1,11 @@
+{
+  "params": 838531,
+  "heldout_acc": 1.0,
+  "golden_acc_3clases": 1.0,
+  "golden_acc_binaria": 1.0,
+  "baseline_heuristica": 1.0,
+  "gate": "PASA",
+  "segundos_entrenamiento": 1.2,
+  "device": "cuda",
+  "fecha": "2026-07-20"
+}

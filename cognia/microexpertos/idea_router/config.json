@@ -1,0 +1,12 @@
+{
+  "clases": [
+    "web",
+    "python_module",
+    "terminal_script"
+  ],
+  "dim": 128,
+  "capas": 4,
+  "cabezas": 4,
+  "max_len": 96,
+  "descripcion": "clasifica una idea: 0=web, 1=modulo python, 2=terminal"
+}

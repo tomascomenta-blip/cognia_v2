@@ -1,0 +1,11 @@
+{
+  "params": 838402,
+  "heldout_acc": 1.0,
+  "golden_acc_3clases": 0.5,
+  "golden_acc_binaria": 0.5,
+  "baseline_heuristica": 0.8333,
+  "gate": "FALLA",
+  "segundos_entrenamiento": 0.7,
+  "device": "cuda",
+  "fecha": "2026-07-20"
+}

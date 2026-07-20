@@ -1,0 +1,11 @@
+{
+  "clases": [
+    "no",
+    "si"
+  ],
+  "dim": 128,
+  "capas": 4,
+  "cabezas": 4,
+  "max_len": 96,
+  "descripcion": "si una idea web pide un grafico: 0=no, 1=si"
+}

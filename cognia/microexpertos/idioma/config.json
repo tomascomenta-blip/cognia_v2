@@ -1,0 +1,11 @@
+{
+  "clases": [
+    "es",
+    "en"
+  ],
+  "dim": 128,
+  "capas": 4,
+  "cabezas": 4,
+  "max_len": 96,
+  "descripcion": "idioma del mensaje del usuario: 0=es, 1=en"
+}
