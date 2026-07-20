@@ -1,0 +1,26 @@
+<!-- PATRON: tabla de valores con estados pintados sobre los valores VIVOS.
+     Por que funciona: el color va por estilo inline en el MISMO elemento
+     cuyo textContent cambia (no depende de que un selector CSS case);
+     flecha + color, nunca color solo; tabular-nums alinea las columnas. -->
+<table style="width:100%;border-collapse:collapse;font-size:14px">
+  <thead><tr>
+    <th style="text-align:left;color:#898781;font-size:12px">Valor</th>
+    <th style="text-align:right;color:#898781;font-size:12px">Precio</th>
+    <th style="text-align:right;color:#898781;font-size:12px">Cambio</th>
+  </tr></thead>
+  <tbody id="posiciones"></tbody>
+</table>
+<script>
+function fila(sim, precio, cambio) {
+  var tr = document.createElement('tr');
+  var color = cambio >= 0 ? '#006300' : '#d03b3b';
+  var flecha = cambio >= 0 ? '▲' : '▼';
+  tr.innerHTML =
+    '<td><strong>' + sim + '</strong></td>' +
+    '<td style="text-align:right;font-variant-numeric:tabular-nums">' +
+      precio.toLocaleString('es-ES', {style:'currency',currency:'EUR'}) + '</td>' +
+    '<td style="text-align:right;font-variant-numeric:tabular-nums;color:' + color + '">' +
+      flecha + ' ' + Math.abs(cambio).toFixed(2) + '</td>';
+  return tr;
+}
+</script>

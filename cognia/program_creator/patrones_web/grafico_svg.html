@@ -1,0 +1,25 @@
+<!-- PATRON: grafico de linea SVG con ejes y escala segura.
+     Por que funciona: <text> en el eje Y (sin etiquetas no se sabe que
+     numeros muestra); la escala se calcula de los datos con RANGO MINIMO
+     (sin el, min==max en el primer tick da division por cero y los
+     atributos salen NaN — error real medido); rejilla fina y recesiva. -->
+<svg id="grafico" width="100%" height="220" viewBox="0 0 600 220"></svg>
+<script>
+function pintar(datos) {                       // datos: [num, num, ...]
+  var svg = document.getElementById('grafico');
+  var M = {arriba: 12, abajo: 22, izq: 56, der: 12}, W = 600, H = 220;
+  var y0 = Math.min.apply(null, datos), y1 = Math.max.apply(null, datos);
+  if (y1 - y0 < 1) { y0 -= 1; y1 += 1; }       // <- la proteccion anti-NaN
+  var x = function(i){ return M.izq + (W-M.izq-M.der) * i / Math.max(1, datos.length-1); };
+  var y = function(v){ return M.arriba + (H-M.arriba-M.abajo) * (1 - (v-y0)/(y1-y0)); };
+  var linea = datos.map(function(v,i){ return (i?'L':'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); }).join('');
+  var rejilla = '', etiquetas = '';
+  for (var k = 0; k <= 3; k++) {
+    var v = y0 + (y1-y0) * k/3, yy = y(v).toFixed(1);
+    rejilla += '<line x1="'+M.izq+'" x2="'+(W-M.der)+'" y1="'+yy+'" y2="'+yy+'" stroke="#e1e0d9" stroke-width="1"/>';
+    etiquetas += '<text x="'+(M.izq-8)+'" y="'+yy+'" dy="4" text-anchor="end" font-size="11" fill="#898781">'+Math.round(v).toLocaleString('es-ES')+'</text>';
+  }
+  svg.innerHTML = rejilla + etiquetas +
+    '<path d="'+linea+'" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/>';
+}
+</script>

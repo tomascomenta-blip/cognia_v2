@@ -491,6 +491,21 @@ def generate_program(seed_concepts: Optional[list] = None,
     if lenguaje == "html":
         print("[generator] 🌐 Idea web detectada: genero HTML autocontenido.")
 
+    # Los patrones probados como guia: aprender de lo que ya paso la revision,
+    # sin copiarlo. Es la diferencia entre pedirle al modelo que invente el
+    # grafico desde cero (y recaiga en los NaN y los canvas aplastados de
+    # siempre) y ensenarle uno que ya sobrevivio a la sonda y al critico.
+    if lenguaje == "html":
+        from .patrones import elegir_patrones
+        patrones = elegir_patrones(category, max_n=3)
+        if patrones:
+            extra_hint += (
+                "\n\nPROVEN PATTERNS from pages that already passed browser "
+                "checks and professional review. ADAPT their techniques to "
+                "this idea — do NOT copy them verbatim; change data, labels, "
+                "colors and layout to fit:\n"
+                + "\n".join(f"--- {n} ---\n{c}" for n, c in patrones))
+
     prompt  = (_build_prompt_web(category, extra_hint) if lenguaje == "html"
                else _build_prompt(category, extra_hint))
     raw     = _call_llm(prompt, lenguaje)

@@ -462,5 +462,25 @@
     "created_at": "2026-07-20T13:49:34.157651",
     "directory": "dashboard_de_inversiones_en_movimiento",
     "self_proposed": false
+  },
+  {
+    "id": "inversin_dashboard_02",
+    "title": "Inversión Dashboard",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con movimiento, incluyendo cotizaciones que cambian automáticamente, un gráfico animado y variaciones en colores verde y rojo.",
+    "total_score": 6.5,
+    "created_at": "2026-07-20T14:16:41.254575",
+    "directory": "inversin_dashboard_02",
+    "self_proposed": false
+  },
+  {
+    "id": "dashboard_de_inversiones_11",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones en movimiento, un gráfico animado y variaciones en verde y rojo.",
+    "total_score": 6.5,
+    "created_at": "2026-07-20T14:17:06.385965",
+    "directory": "dashboard_de_inversiones_11",
+    "self_proposed": false
   }
 ]

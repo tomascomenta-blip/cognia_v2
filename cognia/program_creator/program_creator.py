@@ -355,10 +355,16 @@ def run_program_hobby(
             # que componerla o las capturas acaban en el cwd.
             if informe_visual is not None and getattr(meta, "directory", None):
                 dir_final = (storage_dir or DEFAULT_STORAGE_DIR) / meta.directory
-                final = revisar_en_navegador(program.code, dir_final)
-                if verbose and (final.input_images or final.output_images):
-                    print(f"      input_images: {len(final.input_images)} | "
-                          f"output_images: {len(final.output_images)}")
+                # Solo si la pagina SIGUE existiendo: el auto-cleanup corre
+                # dentro de save_program y puede haberla borrado ya (paso el
+                # 2026-07-20 con el critico experto capando notas). Sin este
+                # check, las capturas RESUCITABAN el directorio borrado como
+                # un cascaron huerfano con solo input_images.
+                if (dir_final / "index.html").exists():
+                    final = revisar_en_navegador(program.code, dir_final)
+                    if verbose and (final.input_images or final.output_images):
+                        print(f"      input_images: {len(final.input_images)} | "
+                              f"output_images: {len(final.output_images)}")
         else:
             if verbose:
                 print(f"   🗑️  '{program.title}' descartado (score={eval_result.total_score:.1f} < {STORE_THRESHOLD})")

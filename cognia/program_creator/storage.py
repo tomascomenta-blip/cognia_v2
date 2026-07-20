@@ -26,7 +26,12 @@ DEFAULT_STORAGE_DIR    = Path(__file__).parent / "generated_programs"
 INDEX_FILE             = "index.json"
 DELETION_LOG_FILE      = "deleted_programs.json"
 AUTO_CLEANUP_THRESHOLD = 25    # Si hay más programas que esto, limpia automático
-SURVIVAL_SCORE         = 6.0   # Puntuación mínima para sobrevivir una limpieza
+# 5.0 y no 6.0 desde el 2026-07-20: el 6.0 se calibro cuando el autoevaluador
+# inflaba las notas (daba 7.6-8.7 a paginas que un critico profesional puntuo
+# 4.5-5.5). Con el critico capando, el 6.0 vaciaba la biblioteca — la corrida
+# de capacidades maximas guardo 2 paginas y la limpieza las borro al instante.
+# Decision del dueno: bajar el umbral a "aprobado" ahora que la nota es dura.
+SURVIVAL_SCORE         = 5.0   # Puntuación mínima para sobrevivir una limpieza
 
 
 # ── Dataclass de metadata ──────────────────────────────────────────────────────

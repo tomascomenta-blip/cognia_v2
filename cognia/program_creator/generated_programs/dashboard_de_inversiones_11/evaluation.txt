@@ -1,0 +1,22 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 6.5 / 10
+Functionality     : 4.0 / 4.0
+Creativity        : 2.4 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Página HTML válida y autocontenida.
+  • Se actualiza sola (JS en marcha).
+  • Dibuja un gráfico propio.
+  • Página con cuerpo (6307 chars).
+  • Técnicas: svg, CSS grid, formato numérico.
+  • JS estructurado (8 funciones).
+  • Página no trivial: 168 líneas.
+  • Original program title.
+  • No errors detected.
+  • Critico (residente): 6.5/10 — La página cumple con la mayoría de los requisitos pero tiene áreas de mejora significativas.
+  • [critico] Falta de animación en las cotizaciones que cambian solas.
+  • [critico] Los colores verdes y rojos no se utilizan de manera consistente en los valores que cambian.
+  • [critico] La tabla de posiciones no tiene una visualización clara de las variaciones en verde y rojo.
