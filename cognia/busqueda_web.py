@@ -149,10 +149,17 @@ def _buscar_arxiv(consulta: str, max_resultados: int) -> list[dict]:
         return []
 
 
-FUENTES = (_buscar_wikipedia, _buscar_hackernews, _buscar_arxiv)
+# Dict y no tupla para poder pedir un subconjunto por nombre. El orden de
+# insercion es el orden de consulta.
+FUENTES = {
+    "wikipedia":  _buscar_wikipedia,
+    "hackernews": _buscar_hackernews,
+    "arxiv":      _buscar_arxiv,
+}
 
 
-def buscar(consulta: str, max_resultados: int = 5) -> list[dict]:
+def buscar(consulta: str, max_resultados: int = 5,
+           fuentes: "tuple[str, ...] | None" = None) -> list[dict]:
     """
     Consulta TODAS las fuentes y mezcla los resultados.
 
@@ -170,12 +177,29 @@ def buscar(consulta: str, max_resultados: int = 5) -> list[dict]:
 
     Se reparte el cupo entre las fuentes que respondan, en vez de dejar que una
     monopolice. Se deduplica por url porque las fuentes se solapan.
+
+    `fuentes` limita la busqueda a un subconjunto, por nombre. Lo usa el
+    research_engine, que ya tiene su propio ArxivScraper (con abstract, ano y
+    categorias) y solo quiere de aqui lo que no cubre: wikipedia y hackernews.
+    Un nombre desconocido se ignora con un warning en vez de reventar.
     """
-    por_fuente = max(1, max_resultados // len(FUENTES) + 1)
+    if fuentes is None:
+        elegidas = list(FUENTES.values())
+    else:
+        elegidas = []
+        for nombre in fuentes:
+            if nombre not in FUENTES:
+                logger.warning("Fuente desconocida, la ignoro: %s", nombre)
+                continue
+            elegidas.append(FUENTES[nombre])
+    if not elegidas:
+        return []
+
+    por_fuente = max(1, max_resultados // len(elegidas) + 1)
 
     mezcla: list[dict] = []
     vistas: set[str] = set()
-    for fuente in FUENTES:
+    for fuente in elegidas:
         for r in fuente(consulta, por_fuente):
             if r["url"] in vistas:
                 continue

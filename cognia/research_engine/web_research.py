@@ -15,6 +15,7 @@ Sin dependencias externas: solo stdlib.
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from ..busqueda_web import buscar
 from ..llm_local import generar
 from .arxiv_scraper import ArxivScraper
 from .github_scraper import GitHubScraper
@@ -217,6 +218,7 @@ def investigar(
     usar_github:     bool = True,
     usar_hf:         bool = True,
     usar_arxiv:      bool = True,
+    usar_web:        bool = True,
     usar_llm:        bool = True,
     con_contra:      bool = True,
 ) -> Digest:
@@ -230,6 +232,9 @@ def investigar(
         usar_github:    consultar GitHub
         usar_hf:        consultar HuggingFace
         usar_arxiv:     consultar arXiv (lento: 3 s de cortesia por peticion)
+        usar_web:       consultar Wikipedia y HackerNews (busqueda_web). Es lo
+                        que da respuesta a preguntas abiertas: GitHub y HF son
+                        catalogos, saben de repos y modelos, no de conceptos
         usar_llm:       usar el LLM local para planificar y resumir si esta disponible
         con_contra:     buscar evidencia EN CONTRA de los candidatos fuertes
 
@@ -310,6 +315,33 @@ def investigar(
                     extra       = " | ".join(extra),
                     texto_bruto = p.to_learning_text(),
                 )
+
+    # Wikipedia y HackerNews. NO se le pide arxiv aunque busqueda_web lo
+    # tenga: el ArxivScraper de aqui da abstract, ano y categorias, que es
+    # mejor, y pedir las dos duplicaria resultados.
+    if usar_web:
+        for q in queries:
+            try:
+                for r in buscar(q, max_por_fuente,
+                                fuentes=("wikipedia", "hackernews")):
+                    if r["url"] in por_url:
+                        continue
+                    por_url[r["url"]] = Hallazgo(
+                        fuente      = r["fuente"],
+                        titulo      = r["titulo"],
+                        url         = r["url"],
+                        resumen     = r["fragmento"],
+                        # Ni Wikipedia ni HN dan una metrica comparable con
+                        # estrellas o descargas. puntuar() usa popularidad, y
+                        # un 0 honesto es mejor que un numero inventado.
+                        popularidad = 0,
+                        extra       = "",
+                        texto_bruto = r["fragmento"],
+                    )
+            except Exception as e:
+                # Una fuente de red que falla no puede tumbar una
+                # investigacion que ya tiene resultados de GitHub y arXiv.
+                print(f"[research] Error en fuentes web para '{q}': {e}")
 
     if usar_github:
         gh = GitHubScraper(max_repos=max_por_fuente)
