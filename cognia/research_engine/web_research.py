@@ -98,6 +98,37 @@ class Digest:
         return "\n".join(lineas)
 
 
+# Si la pregunta nombra un modelo explicitamente, HuggingFace es justo donde
+# hay que mirar por mucho que las queries traigan palabras de herramientas.
+_SENAL_MODELOS = {
+    "model", "models", "modelo", "modelos", "llm", "gguf", "checkpoint",
+    "weights", "pesos", "cuantizacion", "quantization", "vram",
+}
+
+
+def _busca_herramientas(textos: List[str]) -> bool:
+    """
+    True si lo que se busca son proyectos y no modelos.
+
+    Reutiliza el vocabulario que ya usa el planificador para elegir facetas:
+    si la pregunta habla de agentes, CLIs, servidores MCP o skills, lo que hay
+    que mirar es GitHub, no un hub de pesos.
+
+    Los modelos mandan sobre las herramientas. Medido el 2026-07-20: la
+    pregunta "mejor MODELO open source para webs bonitas en GPU de 16GB"
+    derivo queries con "generators" y "tools", se salto HuggingFace, y con ello
+    justo el sitio donde vive la respuesta. Si se nombra un modelo, se mira.
+    """
+    from .query_planner import SENAL_HERRAMIENTAS
+
+    palabras = {p.strip(".,:;()").lower()
+                for t in textos for p in t.split()}
+
+    if palabras & _SENAL_MODELOS:
+        return False
+    return bool(palabras & SENAL_HERRAMIENTAS)
+
+
 def _resumir_con_llm(pregunta: str, hallazgos: List[Hallazgo]) -> str:
     """Le pide al LLM local que responda con lo encontrado. '' si no hay."""
     if not hallazgos:
@@ -211,6 +242,22 @@ def investigar(
         return Digest(pregunta=pregunta)
 
     print(f"[research] Plan: {queries}")
+
+    # HuggingFace es un hub de MODELOS. Preguntarle por agentes, servidores MCP
+    # o skills casa por palabras sueltas y devuelve ruido casi puro. Medido el
+    # 2026-07-20 sobre las 5 investigaciones de la noche:
+    #   "skills de agentes"  -> lm-ner-linkedin-skills-recognition,
+    #                           job-skills_unsloth-tinyllama (competencias
+    #                           laborales, otro significado de "skills")
+    #   "MCP sin registro"   -> pocket-tts-without-voice-cloning (caso con
+    #                           "without")
+    #   "agentes CLI"        -> my_awesome_opus_books_model (un tutorial)
+    # Y encima esos hallazgos ocupan sitio entre los 12 que ve el resumidor.
+    # Para preguntas de herramientas se salta: cuesta tiempo y ensucia.
+    if usar_hf and _busca_herramientas(queries + [pregunta]):
+        print("[research] Pregunta de herramientas: me salto HuggingFace "
+              "(es un hub de modelos, aqui solo aporta ruido).")
+        usar_hf = False
 
     por_url = {}
 

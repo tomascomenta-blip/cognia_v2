@@ -91,6 +91,47 @@ def check_ollama() -> bool:
                      "Cognia usa los shards locales sin Ollama")
 
 
+def check_llm_backend() -> bool:
+    """
+    Lo unico que decide si Cognia puede pensar: que haya un LLM al que hablar.
+
+    POR QUE HACIA FALTA: el doctor comprobaba Ollama (opcional), los shards en
+    disco y la velocidad de inferencia, y terminaba con "Todo en orden" sin
+    haber verificado nunca que se pudiera generar una sola palabra. Medido el
+    2026-07-20 en esta maquina: Ollama no existe, los shards estaban en disco
+    pero el orquestador los daba por no disponibles, la prueba de velocidad se
+    omitia... y aun asi el diagnostico salia en verde. El backend que SI
+    funcionaba, un llama-server en el 8080, no se miraba en ningun sitio.
+
+    Se prueba generando de verdad, no solo sondeando el puerto: un servidor que
+    acepta conexiones pero no tiene modelo cargado responderia al ping igual.
+    """
+    try:
+        from cognia.llm_local import detectar_backend, generar
+    except Exception as exc:
+        return _warn("Backend LLM", f"no se pudo importar llm_local: {exc}")
+
+    backend = detectar_backend(forzar=True)
+    if not backend:
+        # FAIL, no WARN: sin backend Cognia no puede pensar, y _warn devuelve
+        # True, con lo que el diagnostico seguiria terminando en "Todo en
+        # orden" — que es exactamente el mensaje enganoso que esto viene a
+        # corregir.
+        return _fail(
+            "Backend LLM no disponible",
+            "arrancalo con: python scripts/servir_modelo.py  "
+            "(o fija COGNIA_LLM_URL). Sin esto Cognia degrada a sus "
+            "fallbacks en silencio")
+
+    respuesta = generar("Responde solo: OK", max_tokens=8)
+    if not respuesta:
+        return _warn(f"Backend LLM en {backend['url']}",
+                     "responde al sondeo pero no genera texto "
+                     "(¿modelo sin cargar?)")
+
+    return _ok(f"Backend LLM: {backend['tipo']} en {backend['url']} — genera OK")
+
+
 def check_env() -> bool:
     cfg = os.path.join(os.path.expanduser("~"), ".cognia", "config.env")
     if os.path.isfile(cfg):
@@ -172,6 +213,9 @@ def run_all() -> int:
         ("Version de Python", check_python),
         ("Paquetes Python",   check_packages),
         ("Ollama (opcional)", check_ollama),
+        # Va antes que shards y velocidad a proposito: es la comprobacion que
+        # de verdad decide si Cognia puede trabajar.
+        ("Backend LLM",       check_llm_backend),
         ("Configuracion",     check_env),
         ("Base de datos",     check_db),
         ("Shards del modelo", check_shards),

@@ -210,8 +210,31 @@ class Disyuntor:
     # ── decision ────────────────────────────────────────────────────────
 
     def _esteriles(self) -> List[Intento]:
-        """Intentos fallidos que SI escribieron algo."""
-        return [i for i in self.intentos[-VENTANA:] if not i.ok and i.hubo_cambio]
+        """
+        Intentos fallidos que SI escribieron algo, DESDE EL ULTIMO VERDE.
+
+        Un exito corta la racha. Sin esto el disyuntor se quedaba disparado
+        para siempre: medido el 2026-07-20, tras dos fallos con la misma
+        huella seguidos de un arreglo CORRECTO, motivo_corte() seguia
+        devolviendo D6, y un fallo nuevo y distinto devolvia D1. O sea que
+        una vez que saltaba ya no dejaba trabajar aunque el problema estuviera
+        resuelto, y cualquier lazo de reparacion apoyado en el se bloqueaba
+        entero.
+
+        Es la misma regla que reset_por_intervencion, que ya documenta este
+        modulo copiando a OpenHands: si hay progreso dentro de la ventana,
+        solo cuentan los eventos posteriores. Un verde es progreso al menos
+        tan fuerte como que hable el humano.
+        """
+        ventana = self.intentos[-VENTANA:]
+
+        ultimo_verde = -1
+        for idx, intento in enumerate(ventana):
+            if intento.ok:
+                ultimo_verde = idx
+
+        return [i for i in ventana[ultimo_verde + 1:]
+                if not i.ok and i.hubo_cambio]
 
     def motivo_corte(self) -> Optional[str]:
         """

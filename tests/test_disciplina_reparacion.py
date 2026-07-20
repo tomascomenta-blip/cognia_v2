@@ -119,6 +119,39 @@ def test_progreso_real_no_dispara():
     assert d.motivo_corte() is None
 
 
+def test_un_verde_corta_la_racha():
+    """
+    Regresion medida el 2026-07-20: el disyuntor se quedaba disparado PARA
+    SIEMPRE. Tras dos fallos con la misma huella y un arreglo CORRECTO,
+    motivo_corte() seguia devolviendo D6, y un fallo nuevo y distinto devolvia
+    D1. Una vez que saltaba ya no dejaba trabajar aunque el problema estuviera
+    resuelto, asi que cualquier lazo de reparacion apoyado en el se bloqueaba
+    entero.
+
+    Es la misma regla que reset_por_intervencion: si hay progreso dentro de la
+    ventana, solo cuentan los eventos posteriores. Un verde es progreso.
+    """
+    d = Disyuntor("t")
+    _fallar(d, "AssertionError: ranking incorrecto", veces=2)
+    assert d.motivo_corte() == "D6", "sin verde de por medio SI debe cortar"
+
+    d.registrar(huella_de_texto("todo verde"), ok=True)
+    assert d.motivo_corte() is None, "el arreglo exitoso corta la racha"
+
+    _fallar(d, "TypeError: otra cosa distinta")
+    assert d.motivo_corte() is None, "un fallo nuevo tras el verde no es bucle"
+
+
+def test_tras_el_verde_sigue_cortando_si_se_repite():
+    """El verde no es una amnistia: si se vuelve a parchear en seco, corta."""
+    d = Disyuntor("t")
+    _fallar(d, "AssertionError: uno", veces=2)
+    d.registrar(huella_de_texto("todo verde"), ok=True)
+    _fallar(d, "TypeError: dos", veces=2)
+
+    assert d.motivo_corte() == "D6"
+
+
 def test_exploracion_sin_editar_no_cuenta():
     """
     El falso positivo que hace que la gente desactive estas cosas: castigar

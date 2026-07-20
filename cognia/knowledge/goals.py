@@ -9,6 +9,12 @@ from datetime import datetime
 from storage.db_pool import db_connect_pooled as db_connect
 from ..config import DB_PATH
 
+# Decisiones minimas antes de fiarse de la tasa de error para crear objetivos.
+# Mismo criterio que MIN_DECISIONES_PARA_TASA en self_architect.py: una tasa
+# sobre 2 decisiones no es una senal, es ruido — y aqui genera un objetivo de
+# prioridad 0.9 que se pone por delante de todo lo demas.
+MIN_DECISIONES_PARA_OBJETIVO = 20
+
 
 class GoalSystem:
     """
@@ -95,9 +101,18 @@ class GoalSystem:
                                 "Muchos episodios sin conceptualizar", priority=0.6)
             generated.append(gid)
 
-        if metacog_state.get("error_rate", 0) > 0.4:
+        # Con muy pocas decisiones la tasa no significa nada, y este objetivo
+        # nace con prioridad 0.9 — la mas alta — asi que dominaria el trabajo
+        # autonomo de Cognia. Medido el 2026-07-20: 2 decisiones, ambas
+        # marcadas error, generaban "Tasa de error alta: 100%" y el objetivo
+        # quedaba encabezando la lista. Es el mismo fantasma que hundia la nota
+        # del SelfArchitect, aqui por otra puerta.
+        decisiones = metacog_state.get("total_decisions", 0)
+        if (metacog_state.get("error_rate", 0) > 0.4
+                and decisiones >= MIN_DECISIONES_PARA_OBJETIVO):
             gid = self.add_goal("aprender_nuevo",
-                                f"Tasa de error alta: {metacog_state['error_rate']:.0%}",
+                                f"Tasa de error alta: {metacog_state['error_rate']:.0%}"
+                                f" ({decisiones} decisiones)",
                                 priority=0.9)
             generated.append(gid)
 

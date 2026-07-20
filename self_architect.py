@@ -56,6 +56,14 @@ EVAL_INTERVAL     = 50    # interactions between evaluations
 MAX_CHANGES_PER_DAY = 3   # emergency brake on daily change count
 MAX_MODULE_PROPOSALS_PER_EVAL = 2  # cap new-module proposals per run
 
+# Decisiones minimas de los ultimos 7 dias para que la tasa de error signifique
+# algo. Medido el 2026-07-20: con 2 decisiones, ambas marcadas error, salia un
+# 100% que disparaba el diagnostico CRITICO "el aprendizaje esta fallando" y
+# hundia la nota de arquitectura a 36/100. Un sistema que se auto-mejora
+# persiguiendo ruido estadistico se hace dano solo, y encima gasta sus
+# propuestas en un problema que no existe.
+MIN_DECISIONES_PARA_TASA = 20
+
 # Diagnostic thresholds (same as v3, extended)
 THRESHOLDS = {
     "error_rate_critical":      0.55,
@@ -355,8 +363,16 @@ class ArchitectureEvaluator:
         c.execute("SELECT COUNT(*) FROM decision_log WHERE timestamp >= datetime('now','-24 hours')")
         m["decisions_24h"] = c.fetchone()[0]
         c.execute("SELECT SUM(was_error), COUNT(*) FROM decision_log WHERE timestamp >= datetime('now','-7 days')")
-        row = c.fetchone(); errors_7d = row[0] or 0; total_7d = row[1] or 1
-        m["error_rate_7d"] = round(errors_7d / max(1, total_7d), 4)
+        row = c.fetchone(); errors_7d = row[0] or 0; total_7d = row[1] or 0
+        m["decisiones_7d"]  = total_7d
+        m["error_rate_7d"]  = round(errors_7d / max(1, total_7d), 4)
+        # Con muy pocas decisiones la tasa no significa nada. Medido el
+        # 2026-07-20: 2 decisiones, ambas marcadas error -> 100% -> diagnostico
+        # CRITICO "el aprendizaje esta fallando" y la puntuacion de
+        # arquitectura hundida a 36/100 (s_error = 100 - tasa*200), con siete
+        # propuestas encabezadas por ese fantasma. Un sistema que se
+        # auto-mejora persiguiendo ruido estadistico se hace daño solo.
+        m["error_rate_fiable"] = total_7d >= MIN_DECISIONES_PARA_TASA
 
         c.execute("""
             SELECT SUM(CASE WHEN feedback=1 THEN 1 ELSE 0 END),
@@ -413,7 +429,12 @@ class ArchitectureEvaluator:
             m["inference_depth_waste"] = 0.0
 
         # ── Architecture score (0–100) ─────────────────────────────────
-        s_error    = max(0, 100 - m["error_rate_7d"] * 200)
+        # Con muestra insuficiente, la tasa de error no puntua: se toma como
+        # neutra. Si no, dos decisiones marcadas error hunden la nota global
+        # (100 - 1.0*200 -> 0) y hacen ver como CRITICO un sistema del que
+        # simplemente no hay datos todavia.
+        s_error    = (max(0, 100 - m["error_rate_7d"] * 200)
+                      if m.get("error_rate_fiable", True) else 100.0)
         s_kg       = min(100, m["kg_density"] * 20)
         s_conf     = m["avg_confidence"] * 100
         s_bloat    = max(0, 100 - m["memory_bloat_ratio"] * 150)
@@ -730,6 +751,9 @@ class DiagnosticEngine:
 
         # ── Always-run checks ──────────────────────────────────────────
         er = metrics.get("error_rate_7d", 0)
+        # Sin muestra suficiente no se diagnostica: ver MIN_DECISIONES_PARA_TASA.
+        if not metrics.get("error_rate_fiable", True):
+            er = 0.0
         if er >= t["error_rate_critical"]:
             diagnoses.append(self._d("high_error_rate", "critical", "Critical error rate",
                 f"{er:.0%} of decisions in last 7 days were wrong. Learning is failing.",

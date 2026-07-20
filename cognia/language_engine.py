@@ -183,22 +183,40 @@ def _build_dynamic_system_prompt(ai) -> str:
 def _build_project_context(cwd: str = None, max_chars_per_file: int = 2000) -> str:
     """
     Lee archivos de descripcion del proyecto en el CWD.
-    Prioridad: CLAUDE.md > README.md > pyproject.toml > package.json > setup.py
+    Prioridad: AGENTS.md / CLAUDE.md > README.md > pyproject.toml > ...
     Retorna string con el contenido relevante, o "" si no encuentra nada util.
+
+    AGENTS.md va arriba, no al final: es el fichero cuyo proposito es decirle a
+    un agente como comportarse en ESE proyecto, asi que si algo se recorta no
+    puede ser lo primero en caerse. Convencion que salio de la investigacion
+    del 2026-07-20 (`FerroxLabs/agents-md`, que la usa para forzar bucles de
+    verificacion). Antes estaba detras incluso de setup.cfg.
     """
     import pathlib
     base = pathlib.Path(cwd or os.getcwd())
     candidates = [
+        "AGENTS.md", "agents.md",
         "CLAUDE.md", "claude.md",
         "README.md", "README.rst", "readme.md",
         "pyproject.toml", "package.json", "setup.py", "setup.cfg",
-        "AGENTS.md", "agents.md",
     ]
     parts = []
+    # En Windows el sistema de ficheros no distingue mayusculas, asi que
+    # "AGENTS.md" y "agents.md" son el MISMO fichero y se leia dos veces: el
+    # contexto del proyecto salia duplicado entero, y con n_ctx=8192 eso es
+    # espacio que se le quita al trabajo. Se deduplica por ruta real.
+    vistos = set()
     for name in candidates:
         p = base / name
         if not p.exists():
             continue
+        try:
+            clave = p.resolve()
+        except OSError:
+            clave = p
+        if clave in vistos:
+            continue
+        vistos.add(clave)
         try:
             text = p.read_text(encoding="utf-8", errors="replace")[:max_chars_per_file]
             parts.append(f"--- {name} ---\n{text.strip()}")

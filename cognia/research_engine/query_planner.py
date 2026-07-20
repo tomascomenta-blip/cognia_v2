@@ -39,6 +39,52 @@ GLOSARIO = {
     "datos": "data", "conjunto": "dataset",
     "computador": "computer", "computadora": "computer", "maquina": "machine",
     "calidad": "quality",
+    # Herramientas y agentes. Sin esto, preguntar por "agentes de coding por
+    # linea de comandos" producia la query 'caracteristicas comandos
+    # implementarlas': tres palabras en espanol contra APIs que solo entienden
+    # ingles y que hacen AND de todo, o sea cero resultados garantizados.
+    "agente": "agent", "agentes": "agents",
+    "herramienta": "tool", "herramientas": "tools",
+    "comando": "command", "comandos": "command",
+    "linea": "cli", "terminal": "terminal", "consola": "console",
+    "servidor": "server", "servidores": "server",
+    "repositorio": "repository", "repositorios": "repository",
+    "biblioteca": "library", "libreria": "library", "librería": "library",
+    "complemento": "plugin", "extension": "extension", "extensión": "extension",
+    "marco": "framework", "editor": "editor",
+    "codigo": "code", "código": "code", "programacion": "programming",
+    "programación": "programming", "programar": "programming",
+    "caracteristica": "feature", "caracteristicas": "features",
+    "característica": "feature", "características": "features",
+    "funcion": "function", "función": "function",
+    "gratuito": "free", "gratuitos": "free", "gratis": "free",
+    "abierto": "open", "abiertos": "open", "fuente": "source",
+    "registro": "signup", "clave": "key",
+    "implementar": "implementation", "implementarlas": "implementation",
+    "implementacion": "implementation", "implementación": "implementation",
+    "generar": "generation", "generacion": "generation", "generación": "generation",
+    "pagina": "page", "página": "page", "paginas": "page", "páginas": "page",
+    "web": "web", "sitio": "website", "interfaz": "ui", "diseno": "design",
+    "diseño": "design", "bonita": "beautiful", "bonitas": "beautiful",
+    "unico": "unique", "unicos": "unique", "único": "unique", "únicos": "unique",
+    "unica": "unique", "unicas": "unique", "única": "unique", "únicas": "unique",
+    "mejor": "best", "mejores": "best", "comparacion": "comparison",
+    "comparación": "comparison", "alternativa": "alternative",
+    "alternativas": "alternative",
+}
+
+# Tokens que ya son tecnicos e ingleses: pasan tal cual aunque no esten en el
+# glosario. Se detectan tambien por forma (siglas, con digitos) mas abajo.
+TECNICOS = {
+    "mcp", "cli", "api", "sdk", "llm", "gguf", "html", "css", "js",
+    "javascript", "python", "rust", "typescript", "json", "yaml", "git",
+    "github", "docker", "linux", "windows", "vscode", "vim", "neovim",
+    "agent", "agents", "tool", "tools", "server", "plugin", "skill", "skills",
+    "prompt", "prompts", "repo", "repository", "framework", "library",
+    "terminal", "console", "editor", "code", "coding", "open", "source",
+    "free", "sandbox", "workflow", "pipeline", "autonomous", "assistant",
+    "copilot", "claude", "openai", "anthropic", "ollama", "vram", "ram",
+    "web", "ui", "ux", "frontend", "design", "beautiful", "dashboard",
 }
 
 # Vocabulario tecnico, separado en sustantivos (la COSA que se busca) y
@@ -52,11 +98,22 @@ NUCLEOS_EN = {
     "network", "neural", "layer", "layers", "transformer", "embedding",
     "token", "tokens", "cache", "kv", "dataset", "benchmark", "cpu", "gpu",
     "performance", "speed", "size", "weight", "weights",
+    # Herramientas y agentes: sin estos, preguntar por agentes CLI perdia el
+    # sustantivo central y la query quedaba en 'model' o en nada.
+    "agent", "agents", "tool", "tools", "cli", "mcp", "server", "plugin",
+    "skill", "skills", "repository", "framework", "library", "terminal",
+    "console", "editor", "code", "coding", "programming", "workflow",
+    "pipeline", "prompt", "prompts", "feature", "features", "implementation",
+    "assistant", "copilot", "sandbox", "api", "sdk", "extension",
+    "page", "web", "website", "ui", "ux", "frontend", "design", "dashboard",
+    "generation", "html", "css",
 }
 
 MODIFICADORES_EN = {
     "small", "large", "tiny", "long", "short", "maximum", "minimum",
     "efficient", "efficiency", "quality", "fast", "cheap", "local",
+    "free", "open", "source", "unique", "best", "autonomous", "native",
+    "beautiful", "comparison", "alternative",
 }
 
 DOMINIO_EN = NUCLEOS_EN | MODIFICADORES_EN
@@ -74,16 +131,71 @@ FACETAS = [
     "quantization",
 ]
 
+# Buscar herramientas no se parece a buscar papers. 'quantization' o
+# 'efficient inference' no encuentran un agente de terminal; 'awesome list' y
+# 'alternatives' si, porque asi es como la gente cataloga proyectos.
+FACETAS_HERRAMIENTAS = [
+    "awesome list",
+    "cli tool",
+    "open source alternative",
+    "comparison",
+    "self hosted",
+]
+
+# Sustantivos que delatan que la pregunta busca PROYECTOS, no literatura.
+SENAL_HERRAMIENTAS = {
+    "agent", "agents", "tool", "tools", "cli", "mcp", "server", "plugin",
+    "skill", "skills", "repository", "framework", "library", "terminal",
+    "editor", "assistant", "copilot", "extension", "sdk",
+}
+
+
+def _facetas_para(terminos: List[str]) -> List[str]:
+    """Elige el juego de facetas segun lo que se este buscando."""
+    if any(t in SENAL_HERRAMIENTAS for t in terminos):
+        return FACETAS_HERRAMIENTAS
+    return FACETAS
+
 # Cuantos terminos usar como nucleo. Mas de 3 y las APIs, que hacen AND de
 # todo, empiezan a devolver 0 resultados.
 NUCLEO_MAX = 3
 
 
+def _es_tecnico(t: str) -> bool:
+    """
+    True si el token vale como termino de busqueda en ingles tal cual.
+
+    Se aceptan por forma, no por lista: siglas (mcp, cli), tokens con digitos
+    (gpt-4, 16gb) y los del vocabulario tecnico conocido. Todo lo demas se
+    considera no traducido y se descarta.
+    """
+    return (t in TECNICOS
+            or t in DOMINIO_EN
+            or any(c.isdigit() for c in t)
+            or (len(t) <= 4 and t.isascii() and t.isalpha()))
+
+
 def _traducir(terminos: List[str]) -> List[str]:
-    """Pasa al ingles los terminos del glosario, deja el resto igual."""
+    """
+    Pasa al ingles lo que se pueda y DESCARTA lo que no se reconozca.
+
+    Antes se dejaba pasar el resto sin tocar, y eso metia espanol crudo en las
+    queries. Medido el 2026-07-19: "agentes de coding por linea de comandos"
+    producia 'caracteristicas comandos implementarlas'. GitHub y HuggingFace
+    hacen AND de todos los terminos, asi que una sola palabra en espanol basta
+    para garantizar cero resultados: colar el termino es PEOR que perderlo.
+
+    Es lista blanca a proposito. Si el vocabulario no cubre el dominio, la
+    query sale corta pero en ingles; antes salia larga y en espanol, que no
+    encuentra nada y ademas lo disimula.
+    """
     salida = []
     for t in terminos:
-        traducido = GLOSARIO.get(t, t)
+        traducido = GLOSARIO.get(t)
+        if traducido is None:
+            if not _es_tecnico(t):
+                continue          # no se sabe decirlo en ingles: fuera
+            traducido = t
         if traducido not in salida:
             salida.append(traducido)
     return salida
@@ -146,7 +258,7 @@ def planificar_deterministico(pregunta: str, n: int = 5) -> List[str]:
     # Para las facetas se usan menos terminos del nucleo: la faceta ya aporta
     # dos palabras y el AND de la API no perdona.
     base = " ".join(nucleo[:2])
-    for faceta in FACETAS:
+    for faceta in _facetas_para(terminos):
         if len(queries) >= n:
             break
         queries.append(f"{base} {faceta}")
@@ -161,22 +273,50 @@ def _pedir_al_llm(pregunta: str, n: int) -> List[str]:
         f"for GitHub and HuggingFace.\n\n"
         f"Question: {pregunta}\n\n"
         f"Rules:\n"
-        f"- Each query must be 2 to 4 words. Longer queries return zero results.\n"
+        f"- Each query must be 2 to 5 words. Longer queries return zero results.\n"
+        f"- EVERY query must name the THING being asked about. If the question "
+        f"asks about coding agents, every query must contain 'agent' or a "
+        f"concrete agent name. Dropping the subject is the worst failure.\n"
         f"- Each query must cover a DIFFERENT facet of the question.\n"
         f"- Use the technical English terms practitioners actually use.\n"
-        f"- Output ONLY the queries, one per line, no numbering, no extra text.\n"
+        f"- Prefer how projects are catalogued: 'awesome <thing>', "
+        f"'<thing> cli', '<thing> alternative'.\n"
+        f"- Output ONLY the queries, one per line, no numbering, no extra text.\n\n"
+        f"Example — Question: 'which open source CLI coding agents exist'\n"
+        f"GOOD:\n"
+        f"awesome ai coding agents\n"
+        f"open source cli agent\n"
+        f"terminal coding assistant\n"
+        f"BAD (subject lost, finds unrelated things):\n"
+        f"command line parsing\n"
+        f"software development tools\n"
     )
     texto = generar(prompt, temperature=0.3, max_tokens=200)
     if not texto:
         print("[planner] Sin LLM local. Usando plan deterministico.")
         return []
 
-    queries = []
+    # Terminos de la pregunta que la query DEBE respetar. Sin esto el modelo
+    # deriva: medido el 2026-07-19, de "mejor modelo open source para webs
+    # bonitas en GPU de 16GB" saco 'GPU-accelerated rendering', que trajo
+    # librerias de graficos por computador y ni un solo modelo.
+    del_tema = {t for t in _traducir(tokenizar(pregunta))}
+
+    queries, descartadas = [], []
     for linea in texto.splitlines():
         limpia = linea.strip().lstrip("-*0123456789. ").strip().strip('"')
-        # Descartar lineas que claramente no son queries.
-        if 2 <= len(limpia.split()) <= 6 and not limpia.endswith(":"):
-            queries.append(limpia)
+        if not (2 <= len(limpia.split()) <= 6) or limpia.endswith(":"):
+            continue
+        # Debe compartir algo con la pregunta, o esta buscando otra cosa.
+        propios = {p.lower().strip(".,") for p in limpia.split()}
+        if del_tema and not (propios & del_tema):
+            descartadas.append(limpia)
+            continue
+        queries.append(limpia)
+
+    if descartadas:
+        print(f"[planner] Descartadas {len(descartadas)} queries que perdian "
+              f"el tema: {', '.join(descartadas[:3])}")
     return queries[:n]
 
 

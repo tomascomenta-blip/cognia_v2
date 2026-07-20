@@ -1218,7 +1218,8 @@ class ShatteringOrchestrator:
         When n_passes >= 2 (RST quality mode): generates an initial response then
         self-refines it, simulating the iterative depth benefit of RST.
         """
-        text = self._call_ollama_domain(prompt, sub_model)
+        text = self._generar_con_respaldo(prompt, sub_model)
+
         if not text:
             return self._unavailable_response(sub_model)
 
@@ -1230,11 +1231,37 @@ class ShatteringOrchestrator:
                 f"Previous response: {text}\n\n"
                 f"Improved response:"
             )
-            refined = self._call_ollama_domain(refine_prompt, sub_model)
+            # Tambien con respaldo: si no, en modo calidad el refinado
+            # sencillamente no ocurria en una maquina sin Ollama, y nadie se
+            # enteraba porque el texto original se conserva.
+            refined = self._generar_con_respaldo(refine_prompt, sub_model)
             if refined:
                 text = refined
 
         return text
+
+    def _generar_con_respaldo(self, prompt: str, sub_model: str) -> str:
+        """
+        Genera con Ollama y, si no hay, con el backend que SI este levantado.
+
+        POR QUE: Ollama no es el unico backend posible. Sin este respaldo, en
+        una maquina sin Ollama todo el que pasaba por el orquestador recibia
+        "No inference backend available" como si fuera la RESPUESTA del modelo
+        — no una excepcion, una respuesta — y cada quien la trataba como texto
+        valido. Medido el 2026-07-20: el bucle del agente encadeno 40 pasos
+        sobre ese aviso teniendo un llama-server sano en el puerto 8080.
+
+        Devuelve "" si de verdad no hay nada, para que quien llama decida.
+        """
+        text = self._call_ollama_domain(prompt, sub_model)
+        if text:
+            return text
+
+        try:
+            from cognia.llm_local import generar
+            return (generar(prompt, max_tokens=800) or "").strip()
+        except Exception:
+            return ""
 
     def _call_ollama_domain(self, prompt: str, sub_model: str) -> str:
         system = self._SYSTEM_PROMPTS.get(sub_model, "You are a helpful assistant.")

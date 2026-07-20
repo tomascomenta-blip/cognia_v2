@@ -319,8 +319,22 @@ class CognitiveFatigueMonitor:
         avg_cycle = (sum(self._cycle_times) / len(self._cycle_times)
                      if self._cycle_times else 0.0)
         
+        # Los contadores POR CICLO se quedan a cero: `record_embedding_cached`
+        # y `record_embedding_computed` solo suman en `[-1]` si la ventana ya
+        # existe, y las llamadas llegan antes de que el ciclo la cree. Medido
+        # el 2026-07-20 tras dos observaciones reales:
+        #     _cache_hits [0, 0]   _cache_misses [0, 0]
+        #     total_cheap_ops 14   total_expensive_ops 80
+        # O sea que los TOTALES si tienen los datos. Con la ventana vacia,
+        # cache_hit_rate salia 0.000 SIEMPRE, eso engordaba el score de fatiga
+        # y Cognia acababa limitandose sola (menos top_k, menos pasos de
+        # inferencia) por una metrica que nunca se llenaba.
         total_cache = sum(self._cache_hits) + sum(self._cache_misses)
-        cache_rate  = (sum(self._cache_hits) / max(1, total_cache))
+        if total_cache:
+            cache_rate = sum(self._cache_hits) / total_cache
+        else:
+            totales = self._total_cheap_ops + self._total_expensive_ops
+            cache_rate = (self._total_cheap_ops / totales) if totales else 0.0
         
         uptime_min = (time.time() - self._start_time) / 60.0
         
@@ -484,6 +498,32 @@ class CognitiveFatigueMonitor:
             pass
         return 30.0, 300.0  # valores por defecto razonables
 
+    # Ciclos minimos antes de fiarse de la mediana observada. Con menos, un
+    # arranque en frio (cargar el modelo) fijaria una referencia irreal.
+    _MIN_CICLOS_PARA_CALIBRAR = 5
+
+    # Cuanto tiene que superar la mediana a la constante para tomarla en serio.
+    # x3 evita recalibrar por ruido en una maquina que ya iba bien.
+    _FACTOR_RECALIBRADO = 3.0
+
+    def _referencia_ciclo(self) -> float:
+        """
+        Que se considera un ciclo "normal" en ESTA maquina.
+
+        Devuelve NORMAL_CYCLE_MS salvo que la mediana observada lo supere con
+        holgura, en cuyo caso manda la mediana. Se usa mediana y no media para
+        que un pico aislado no mueva la referencia.
+        """
+        if len(self._cycle_times) < self._MIN_CICLOS_PARA_CALIBRAR:
+            return NORMAL_CYCLE_MS
+
+        ordenados = sorted(self._cycle_times)
+        mediana = ordenados[len(ordenados) // 2]
+
+        if mediana > NORMAL_CYCLE_MS * self._FACTOR_RECALIBRADO:
+            return mediana
+        return NORMAL_CYCLE_MS
+
     def _compute_fatigue(self) -> float:
         """
         Calcula el score de fatiga 0-100 a partir de las métricas acumuladas.
@@ -495,7 +535,24 @@ class CognitiveFatigueMonitor:
         else:
             avg_ms = NORMAL_CYCLE_MS
         
-        time_component = self._normalize(avg_ms, NORMAL_CYCLE_MS, HIGH_CYCLE_MS, CRITICAL_CYCLE_MS)
+        # La referencia se calibra sola. Los umbrales fijos (80/300/800 ms) se
+        # escribieron para un ciclo ligero; medido el 2026-07-20, un observe()
+        # real en esta maquina tarda 5.300-11.000 ms, o sea entre 66 y 140
+        # veces el "normal". Con eso el componente temporal quedaba clavado en
+        # su maximo SIEMPRE: dejaba de medir nada y solo aportaba un tope
+        # constante que empujaba a Cognia a limitarse sola.
+        #
+        # Se toma como referencia la mediana observada cuando supera con
+        # claridad la constante. En una maquina rapida la mediana es pequena,
+        # gana NORMAL_CYCLE_MS y no cambia nada; en una lenta, la fatiga pasa a
+        # medir lo que debe — cuanto se aparta ESTE ciclo de lo normal AQUI.
+        ref_normal = self._referencia_ciclo()
+        time_component = self._normalize(
+            avg_ms,
+            ref_normal,
+            ref_normal * (HIGH_CYCLE_MS / NORMAL_CYCLE_MS),
+            ref_normal * (CRITICAL_CYCLE_MS / NORMAL_CYCLE_MS),
+        )
         
         # 2. Componente de CPU
         if self._cpu_samples:

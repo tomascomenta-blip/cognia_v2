@@ -159,6 +159,25 @@ def _backend_lines() -> list[str]:
         lines.append("- Shards NPZ: SHARD_WEIGHTS_DIR no configurado")
 
     lines.append(f"- Ollama: {_ollama_status()}")
+
+    # El que de verdad esta sirviendo. Sin esto, bbrain.md — que es el
+    # documento con el que Cognia (y cualquier agente que lo lea) entiende su
+    # propio entorno — decia "GGUF no encontrado / shards no configurados /
+    # Ollama no disponible" teniendo un llama-server sano en el 8080. Mismo
+    # punto ciego que tenia cognia/doctor.py, y por el mismo motivo: se
+    # miraban los backends por su cuenta en vez de preguntarle a llm_local,
+    # que es quien sabe cual esta vivo.
+    try:
+        from cognia.llm_local import detectar_backend
+        activo = detectar_backend(forzar=True)
+        lines.append(
+            f"- Backend en uso (llm_local): {activo['tipo']} en {activo['url']}"
+            if activo else
+            "- Backend en uso (llm_local): NINGUNO — Cognia degradaria a sus "
+            "fallbacks en silencio")
+    except Exception as exc:
+        lines.append(f"- Backend en uso (llm_local): no se pudo comprobar ({exc})")
+
     return lines
 
 
