@@ -76,17 +76,49 @@ class GeneratedProgram:
 # GUI" y el parser solo aceptaba fences ```python. El pipeline era incapaz de
 # producir una web aunque se la pidieras explicitamente.
 
+# Pistas FUERTES: nombran el artefacto a producir. Si aparecen, es una web.
 _PISTAS_WEB = (
     "pagina web", "página web", "web page", "sitio web", "website", "webapp",
-    "web app", "aplicacion web", "aplicación web", "landing", "html", "css",
-    "javascript", "navegador", "browser", "dashboard web", "frontend",
+    "web app", "aplicacion web", "aplicación web", "landing", "dashboard web",
+    "frontend",
+)
+
+# Pistas DEBILES: tecnologias que una idea de Python puede nombrar de pasada.
+# "html.parser" es stdlib de Python; "browser"/"navegador" salen en cualquier
+# scraper. Solo deciden si no hay ninguna senal de que se pide Python.
+_PISTAS_WEB_DEBILES = (
+    "html", "css", "javascript", "navegador", "browser",
+)
+
+# Senales de que lo pedido es un modulo/script de Python, no una pagina.
+_PISTAS_PYTHON = (
+    "stdlib", "unittest", "pytest", "urllib", "html.parser", "modulo python",
+    "módulo python", "funcion python", "función python", "script python",
+    "def ", "import ", "libreria python", "librería python",
 )
 
 
 def _es_idea_web(texto: str) -> bool:
-    """True si la idea pide algo que se ve en un navegador, no en la terminal."""
+    """
+    True si la idea pide algo que se ve en un navegador, no en la terminal.
+
+    POR QUE NO ES UNA LISTA PLANA: lo era hasta el 2026-07-20, y casaba "html"
+    como subcadena en cualquier posicion. Se pidio un modulo Python de busqueda
+    web que mencionaba "html.parser" (que es stdlib de Python) y "respuestas
+    HTML de ejemplo": el detector dijo "web", el generador produjo una PAGINA
+    que simulaba un buscador, y la vista de navegador se puso a reprochar que
+    "no cambia sola" — evaluando una animacion que nadie habia pedido. No fallo
+    nada: se entrego con confianza algo que no era lo pedido.
+
+    Cualquier peticion de codigo Python que roce lo web (scraping, cliente
+    HTTP, parseo de HTML) caia en la misma trampa.
+    """
     t = (texto or "").lower()
-    return any(pista in t for pista in _PISTAS_WEB)
+    if any(pista in t for pista in _PISTAS_WEB):
+        return True
+    if any(pista in t for pista in _PISTAS_PYTHON):
+        return False        # pidieron Python explicitamente: mandan ellos
+    return any(pista in t for pista in _PISTAS_WEB_DEBILES)
 
 
 # ── Generación autónoma de ideas ───────────────────────────────────────────────
