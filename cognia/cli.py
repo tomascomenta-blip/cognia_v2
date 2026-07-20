@@ -6773,6 +6773,21 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             "[detail]Tip: usa /ejecutar git add . && git commit -m '<msg>' para guardar los cambios[/detail]"
         )
 
+    # Proactividad: proponer lo que el usuario no pidio pero le serviria.
+    # SOLO se muestra como sugerencia — la regla de oro del modulo es proponer,
+    # nunca ejecutar sin permiso, y por eso tampoco se mezcla con result_text:
+    # el entregable es lo pedido, las ideas van aparte y etiquetadas.
+    if result_text:
+        try:
+            from cognia.proactividad import proponer_extras
+            _extras = proponer_extras(task, result_text)
+            if _extras:
+                _print_fn("[detail]Se me ocurre ademas (no pedido, tu decides):[/detail]")
+                for _e in _extras:
+                    _print_fn(f"[detail]  + {_e}[/detail]")
+        except Exception:
+            pass    # la proactividad nunca puede romper la respuesta real
+
     return result_text or "(el agente no produjo una respuesta final)"
 
 
