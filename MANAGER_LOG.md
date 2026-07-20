@@ -3213,3 +3213,32 @@ Candidatos futuros (investigacion de Cognia en planes/): pares especulativos
 oficiales de ggml-org y drafts 1.5B destilados de DeepSeek-R1.
 
 **Estado: 3407 passed, 1 skipped.**
+
+---
+
+## 2026-07-20 (noche-2) — capacidades maximas: la division de expertos, medida
+
+Pedido del dueno: el dashboard "en su esfuerzo maximo". Dos actos:
+
+**UIGEN como generador: NO.** 3 corridas: 367s y 185s por sesion (vs 66s del
+14B+draft), sin grafico o con grafico mudo, reparaciones que no parseaban
+(parte harness: el <think> rompia _parse_response — arreglado, vale para todo
+modelo razonador; parte modelo: aun arreglado, siguio por debajo). Su sitio
+es de JUEZ.
+
+**La configuracion maxima real:** 14B+draft (GPU) genera y repara; UIGEN
+(CPU, :8081, ngl 0) critica. Primera vez con los dos expertos vivos a la vez.
+3 intentos, 289s. Resultado: el autoevaluador dio 8.7 a una pagina; el
+experto la capo a 5.5; el auto-cleanup (supervivencia 6.0) la borro. **Con el
+liston profesional, nada de la corrida maxima sobrevivio.** La mejor pagina
+viva del dia sigue siendo dashboard_de_inversiones_09 (6.5, critico
+residente).
+
+**Decision para el dueno:** el umbral de supervivencia 6.0 se calibro contra
+el autoevaluador inflado. Con el experto capando, la biblioteca se vacia.
+¿Bajar el umbral o aceptar el liston? Es decision de producto.
+
+Bug menor pendiente: el auto-cleanup deja directorios huerfanos con solo
+input_images.
+
+**Estado: suite en verde (3407), 14B+draft restaurado como residente.**
