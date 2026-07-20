@@ -86,6 +86,8 @@ def main() -> int:
     ap.add_argument("--puerto", type=int, default=PUERTO)
     ap.add_argument("--ctx", type=int, default=CTX)
     ap.add_argument("--listar", action="store_true", help="ver modelos y salir")
+    ap.add_argument("--sin-draft", action="store_true",
+                    help="servir sin decodificacion especulativa")
     args = ap.parse_args()
 
     if args.listar:
@@ -113,11 +115,40 @@ def main() -> int:
               f"en {DIR_MODELOS}. Usa --listar para ver que hay.", file=sys.stderr)
         return 1
 
+    orden = [str(exe), "--model", str(modelo), "--port", str(args.puerto),
+             "--ctx-size", str(args.ctx), "--n-gpu-layers", "99",
+             "--flash-attn", "on", "--jinja"]
+
+    # Decodificacion especulativa: el 0.5B borra tokens y el 14B los verifica
+    # y corrige — la salida es IDENTICA a la del 14B solo, pero mas rapida.
+    # Medido el 2026-07-20 en esta maquina (300 tokens, mismas peticiones):
+    #   codigo:  43.9 -> 107.4 tok/s (2.4x)
+    #   espanol: 43.9 ->  47.8 tok/s
+    # El p-min 0.6 es lo que evita el caso malo: sin el, en prosa espanola el
+    # 0.5B (que es un coder) proponia basura, el 14B la rechazaba casi toda
+    # (9% aceptado) y el total CAIA a 33 tok/s. Con p-min solo borra cuando
+    # esta confiado: 66% de aceptacion en prosa y sin penalizacion.
+    # OJO: --spec-type draft-simple es OBLIGATORIO — sin el, el server acepta
+    # --spec-draft-model, lo ignora EN SILENCIO y sirve sin draft.
+    draft = None
+    if not args.sin_draft:
+        preferido = modelo.name.lower()
+        for m in modelos():
+            if "0.5b" in m.name.lower() and m != modelo \
+                    and preferido.split("-")[0] in m.name.lower():
+                draft = m
+                break
+    if draft is not None:
+        orden += ["--spec-draft-model", str(draft),
+                  "--spec-type", "draft-simple",
+                  "--spec-draft-ngl", "99",
+                  "--spec-draft-n-max", "16",
+                  "--spec-draft-p-min", "0.6"]
+        print(f"  + draft especulativo: {draft.name} (2.4x medido en codigo)")
+
     print(f"Sirviendo {modelo.name} en :{args.puerto} (ctx {args.ctx})...")
     proceso = subprocess.Popen(
-        [str(exe), "--model", str(modelo), "--port", str(args.puerto),
-         "--ctx-size", str(args.ctx), "--n-gpu-layers", "99",
-         "--flash-attn", "on", "--jinja"],
+        orden,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
 
