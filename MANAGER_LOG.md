@@ -3010,3 +3010,62 @@ se detectan.
 investigacion (espaciar la proxima ronda), y el ranking de relevancia sigue
 metiendo ruido — una busqueda sobre busqueda web devolvio `open-design` y
 `cmux`, aunque acerto el primero.
+
+---
+
+## 2026-07-20 (mediodia) — el lazo de juicio: planner, juez y lector
+
+Pregunta del dueno: "¿cual es la mayor dificultad de por que Cognia no puede
+investigar bien?". Respuesta medida en tres capas, y las tres atacadas hoy:
+
+1. **La pregunta se destruia antes de buscar** (query_planner). La lista
+   blanca de `_es_tecnico` media al reves: descartaba lo ESPECIFICO (ownership,
+   asyncio, borrow — largo, fuera del diccionario) y conservaba lo GENERICO
+   (rust, data, loop — corto, pasaba por forma). "rust ownership" acababa en
+   la query 'rust', y Wikipedia respondia con "Bernhard Rust", un politico
+   aleman. Invertida a lista negra: se descarta solo lo que se RECONOCE como
+   espanol (tilde, sufijo inequivoco, funcional); lo desconocido pasa. El
+   sufijo "sion" quedo fuera a proposito y con medicion: descartaba version,
+   extension, compression, dimension... En espanol correcto "-sion" siempre
+   lleva tilde; sin tilde es ingles. Trade-off documentado con test propio:
+   ahora puede colarse una palabra espanola sin senal — se acepta porque el
+   fallo contrario era constante.
+
+2. **Las fuentes eran catalogos** — resuelto por la manana (busqueda_web).
+
+3. **No habia juicio ni lectura** — la capa de verdad. Todo era coincidencia
+   lexica; el LLM, levantado toda la busqueda, solo redactaba al final:
+   explicaba resultados, nunca los juzgaba. Dos piezas nuevas via G4:
+   - `juez.py`: una llamada juzga el top 12; los NO se hunden (x0.1), no se
+     borran; en la duda no se descarta; sin LLM pasa todo tal cual.
+     Verificado con el caso objetivo: Bernhard Rust 10.0 -> 1.0.
+   - `lector_web.py`: leer(url) -> texto visible. El resumidor lee las 3
+     paginas del top: resume FUENTES, no titulos. Con eso el informe de
+     "rust ownership borrow checker" nombro a polonius y describio cada repo
+     con precision leida. Solo http/https (file:// es un agujero).
+
+**Idea del dueno evaluada y decidida**: ¿transcripcion de videos (YouTube/
+Reels) como fuente? La version cara (Whisper) compite por la GPU con
+llama-server y Reels es scraping hostil con captchas. La version barata es
+leer los SUBTITULOS automaticos que YouTube ya tiene, via yt-dlp (no
+instalado aun). Queda anotada como fuente futura; la navegacion (lector_web)
+se construyo primero porque es la que hace posible VERIFICAR — la duda que el
+propio dueno tenia sobre los videos.
+
+**La revision del centinela siguio pagandose sola.** El juez v1 pasaba los
+hallazgos como system prompt sin instruccion alguna, invertia la regla de la
+duda y reordenaba con la variable muerta del bucle; la v2 repitio la regla
+invertida -> corte por regla 11, correccion en revision. El lector v1 pasaba
+timeout a Request (TypeError en TODA llamada) con `re` sin importar — ambos
+tragados por su propio except, toda url devolvia "" en silencio; la
+reparacion referencio html.parser.HTMLParseError, eliminado de Python en 3.5.
+Ningun modulo generado sobrevive sin correr sus rutas y medir.
+
+**Estado final: 3386 passed, 1 skipped.** Todo commiteado.
+
+**Pendiente que queda senalado:**
+- El juez no es infalible: dejo pasar English_Grammar_Checker (puesto 4,
+  relevancia baja). Mejora el top, no lo garantiza.
+- YouTube via subtitulos (yt-dlp) como fuente futura, si el dueno la quiere.
+- El lector podria alimentar tambien la contraevidencia (hoy solo alimenta
+  al resumidor).
