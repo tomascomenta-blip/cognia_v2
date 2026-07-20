@@ -126,3 +126,65 @@ HF_SHARDS_BASE_URL = (
     "https://huggingface.co/datasets/Acua124298042/cognia-shards"
     "/resolve/main"
 )
+
+
+# ---------------------------------------------------------------------------
+# Donde viven los shards INT4 — resolucion canonica
+# ---------------------------------------------------------------------------
+# POR QUE EXISTE: hasta el 2026-07-20 cada consumidor resolvia este directorio
+# por su cuenta, con tres defaults distintos, y discrepaban:
+#
+#   doctor.py            -> ~/.cognia/shards/qwen-coder-3b-q4   (encontraba los 4)
+#   shattering/orchestrator -> os.environ["SHARD_WEIGHTS_DIR"], sin default
+#   node/llama_backend   -> model_shards/qwen-coder-3b-q4
+#   bbrain.py            -> sin default: "no configurado"
+#
+# El orquestador era el caso grave. Con la variable sin setear hacia
+# Path("") y, al no ser absoluta, la resolvia contra la raiz del repo: un
+# directorio que SI existe, asi que is_dir() pasaba y buscaba shard_0.npz
+# alli. Nunca estaba. _shards_available() devolvia False EN SILENCIO y la
+# inferencia por shards no arrancaba jamas en una instalacion por defecto.
+# Medido en esta maquina: 4 shards presentes en ~/.cognia/..., orquestador
+# mirando C:\Users\usuario\Desktop\cognia_v2.
+#
+# Solo el arranque por `python -m cognia` exportaba la variable, asi que el
+# bug se escondia en el camino feliz y aparecia en cualquier script que
+# importara el orquestador directamente.
+
+import os as _os
+from pathlib import Path as _Path
+
+DEFAULT_SHARD_MODEL = "qwen-coder-3b-q4"
+
+
+def shard_weights_dir(model_key: str = "") -> str:
+    """
+    Directorio con los shards INT4, o "" si no hay ninguno instalado.
+
+    Precedencia:
+      1. SHARD_WEIGHTS_DIR, si apunta a un directorio que existe.
+      2. ~/.cognia/shards/<model_key>   — lo que instalan __main__ y first_run.
+      3. <repo>/model_shards/<model_key> — la ubicacion que usan los nodos.
+
+    Devolver "" cuando no hay nada es deliberado: un directorio inexistente
+    debe apagar el camino de shards de forma explicita, no resolverse a un
+    directorio cualquiera que exista y fingir que el problema son los pesos.
+    """
+    model_key = model_key or _os.environ.get("COGNIA_SWARM_MODEL", DEFAULT_SHARD_MODEL)
+
+    env = _os.environ.get("SHARD_WEIGHTS_DIR", "").strip()
+    if env:
+        p = _Path(env)
+        if not p.is_absolute():
+            p = _Path(__file__).parent.parent / p
+        if p.is_dir():
+            return str(p)
+        # Seteada pero rota: no caer a otro sitio en silencio. Que el llamador
+        # vea que el directorio que le pidieron no existe.
+        return ""
+
+    for cand in (_Path.home() / ".cognia" / "shards" / model_key,
+                 _Path(__file__).parent.parent / "model_shards" / model_key):
+        if cand.is_dir():
+            return str(cand)
+    return ""

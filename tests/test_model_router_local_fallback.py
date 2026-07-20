@@ -21,9 +21,26 @@ def test_ollama_except_block_wires_local_shard_fallback():
     assert "_llamar_shard_local" in src, "Ollama failure must fall back to local shards"
 
 
-def test_local_shard_fallback_graceful_without_shards(monkeypatch):
+def test_local_shard_fallback_graceful_without_shards(monkeypatch, tmp_path):
+    """
+    Sin shards instalados, devolver None sin lanzar.
+
+    Este test simulaba "no hay shards" con SHARD_WEIGHTS_DIR="" y pasaba por el
+    motivo equivocado: la cadena vacia se resolvia contra la raiz del repo, que
+    existe, y shard_0.npz no estaba alli. Es decir, pasaba GRACIAS al bug del
+    2026-07-20 — el mismo que impedia que la inferencia por shards arrancara en
+    una instalacion por defecto. Arreglada la resolucion (model_constants.
+    shard_weights_dir), "" significa "no configurado" y cae al default, donde
+    los shards SI estan: el test empezo a fallar porque el router por fin
+    respondia de verdad.
+
+    Ahora se simula lo que se queria simular: un directorio que existe pero no
+    tiene pesos dentro (bajaste el repo, no bajaste los shards).
+    """
     import model_router as mr
-    monkeypatch.setenv("SHARD_WEIGHTS_DIR", "")  # no shards available
+    vacio = tmp_path / "sin_shards"
+    vacio.mkdir()
+    monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(vacio))
     mr._LOCAL_ORCH = None                        # reset the lazy singleton
     # Must never raise; returns None when there is nothing to run.
     assert mr._llamar_shard_local("hola") is None

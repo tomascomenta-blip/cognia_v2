@@ -1,0 +1,22 @@
+# Ronda 2 — 2026-07-20. Temas elegidos por brecha real, no por repetir la ronda 1.
+# La ronda 1 cubrio: agentes_cli, mcp_libres, skills, memoria, sandbox,
+# context_engineering, checkpoints, sintesis, memoria_larga, verificacion, modelos_web.
+
+# Brecha #2 declarada por el dueno: sin busqueda web general Cognia no puede
+# responder "cual es el mejor X". Se descarto raspar DuckDuckGo por fragil.
+busqueda_web: how do open source coding agents implement general web search without paid API keys
+
+# Cognia es monolitica: un solo lazo. Los agentes CLI modernos hacen fan-out.
+subagentes: how do coding agents orchestrate parallel subagents and delegate tasks
+
+# Automatizacion por eventos: lo que Cognia no tiene y le daria disparadores.
+hooks_eventos: hooks and event driven automation in coding agent CLI tools
+
+# Cognia ya ejecuta codigo en AppContainer, pero no tiene modelo de permisos.
+permisos_herramientas: tool permission approval and sandboxing policy in autonomous agents
+
+# Planificar antes de actuar: el modo que evita los 40 pasos sobre un error.
+modo_plan: plan mode and task list tracking in autonomous coding agents
+
+# Sin medida no hay techo conocido. Como se evalua un agente de codigo.
+evaluacion_agentes: benchmarks and evaluation harness for autonomous coding agents

@@ -150,12 +150,11 @@ def check_db() -> bool:
 
 
 def _shard_dir() -> str:
-    sd = os.environ.get("SHARD_WEIGHTS_DIR", "")
-    if sd and os.path.isdir(sd):
-        return sd
-    # default install location
-    cand = os.path.join(os.path.expanduser("~"), ".cognia", "shards", "qwen-coder-3b-q4")
-    return cand if os.path.isdir(cand) else ""
+    # Fuente unica con el orquestador. Tenerlo duplicado era el bug: el doctor
+    # reportaba "4 shards INT4 OK" y dos lineas mas abajo "shards no detectados",
+    # porque cada uno miraba un sitio distinto.
+    from shattering.model_constants import shard_weights_dir
+    return shard_weights_dir()
 
 
 def check_shards() -> bool:

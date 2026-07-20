@@ -29,6 +29,7 @@ from shattering.manifest import AppManifest, FragmentSpec, ManifestLoader
 from shattering.fragment_manager import FragmentManager
 from shattering.model_constants import (
     COGNIA_SYSTEM_PROMPT, DEFAULT_RST_PASSES, LPC_MAX_SESSIONS, LPC_TTL_SECONDS,
+    shard_weights_dir,
 )
 from shattering.router import GlobalRouter, RouteDecision
 from security.ollama_url import validate_ollama_url
@@ -679,11 +680,14 @@ class ShatteringOrchestrator:
         The assigned shard index is stored in COGNIA_NODE_SHARD; when unset,
         any shard_*.npz or shard_N/ present is accepted.
         """
-        shard_dir = Path(os.environ.get("SHARD_WEIGHTS_DIR", ""))
-        if not shard_dir.is_absolute():
-            shard_dir = Path(__file__).parent.parent / shard_dir
-        if not shard_dir.is_dir():
+        # Resolucion canonica (model_constants): con SHARD_WEIGHTS_DIR sin
+        # setear, esto resolvia Path("") contra la raiz del repo — un dir que
+        # existe — y buscaba shard_0.npz alli. Devolvia False en silencio con
+        # los 4 shards instalados en ~/.cognia/shards/.
+        resuelto = shard_weights_dir()
+        if not resuelto:
             return False
+        shard_dir = Path(resuelto)
 
         def _shard_present(idx: int) -> bool:
             npz = shard_dir / f"shard_{idx}.npz"
