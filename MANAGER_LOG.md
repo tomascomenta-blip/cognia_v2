@@ -3182,3 +3182,34 @@ pagina reparada-descartada y comparar contra la original para ver QUE hace el
 modelo cuando "repara".
 
 **Estado: 3407 passed, 1 skipped.** El 14B quedo restaurado como residente.
+
+---
+
+## 2026-07-20 (noche) — el borrador potente: speculative decoding calibrado
+
+Idea del dueno: modelos destilados pequenos como borradores del trabajo
+principal, y que los grandes rectifiquen. Decision tomada con la historia del
+repo delante: NO destilamos nosotros (BDraft Pista 1 es un KILL
+pre-registrado) — usamos el destilado que Qwen ya publico y que YA estaba en
+~/.cognia/models: el coder de 0.5B.
+
+llama-server trae draft-verify nativo. Encenderlo y calibrarlo dejo:
+  codigo:  43.9 -> 107-135 tok/s (2.4-3x segun la tarea)
+  espanol: 43.9 -> 47.8 tok/s
+con salida IDENTICA a la del 14B solo (el grande verifica cada token).
+
+Dos trampas medidas, ambas de la familia silenciosa:
+- Sin --spec-type draft-simple, el server acepta el modelo draft y lo ignora
+  SIN AVISAR (mismos tok/s, /props dice speculative=none).
+- El 0.5B es un coder: en prosa espanola proponia basura, el 14B rechazaba el
+  91% y el sistema iba MAS LENTO que sin draft (33 vs 44 tok/s). p-min 0.6
+  (borrar solo cuando esta confiado) elimina el caso malo.
+
+servir_modelo.py lo enciende por defecto (--sin-draft para apagar). Todo lo
+que usa llm_local — el agente, el juez, el critico, el research_engine, las
+reparaciones — corre ahora 2-3x mas rapido en codigo gratis.
+
+Candidatos futuros (investigacion de Cognia en planes/): pares especulativos
+oficiales de ggml-org y drafts 1.5B destilados de DeepSeek-R1.
+
+**Estado: 3407 passed, 1 skipped.**
