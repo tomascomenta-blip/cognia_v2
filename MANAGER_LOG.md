@@ -2933,3 +2933,80 @@ dos ramas, con un test que fija que el camino este en UN solo sitio: duplicarlo
 es como se desincronizan.
 
 **Estado final: 3275 passed, 1 skipped.**
+
+---
+
+## 2026-07-20 (manana) — ronda 2: Cognia investiga y se autoimplementa
+
+Mismo reparto que la noche anterior: Cognia hace el trabajo, el centinela le
+arregla el sistema por debajo y le evita roturas.
+
+**Lo primero fue proteger lo anterior.** El backend estaba caido (llama-server
+no corria) y las ~2.766 lineas de la noche —compresion de salidas, mapa de
+proyecto, MCP libre, vista de navegador, G1/G2, las 4 skills— seguian solo en
+el working tree, sin commitear. Se levanto el backend con el propio
+`scripts/servir_modelo.py` y se aseguro el trabajo en 4 commits tematicos tras
+verificar suite verde y ausencia de secretos.
+
+**Cognia investigo 6 temas nuevos** (282 s, 6/6 con resumen), elegidos por
+brecha real en vez de repetir la ronda 1: busqueda web sin API de pago,
+subagentes, hooks, permisos de herramientas, modo plan y evaluacion de agentes.
+Su informe de `subagentes` dice honestamente que no encontro respuesta, que es
+mejor que rellenar. Queda `scripts/investigar_lote.py`: aisla cada tema, asi
+que uno que revienta ya no se lleva la tanda por delante.
+
+**Tres bugs del harness, los tres de la familia de siempre.**
+
+1. *Los shards*. El doctor se contradecia a si mismo: "[OK] 4 shards INT4" y
+   dos lineas mas abajo "shards no detectados". Con SHARD_WEIGHTS_DIR sin
+   setear, el orquestador hacia `Path("")` y la resolvia contra la raiz del
+   repo — un directorio que EXISTE, asi que `is_dir()` pasaba, buscaba
+   `shard_0.npz` alli y devolvia False en silencio. La inferencia por shards no
+   arrancaba nunca en una instalacion por defecto; solo se escondia porque
+   `python -m cognia` si exporta la variable. Cinco consumidores, tres defaults
+   distintos, ahora una sola funcion canonica.
+   El test que fallo tras el fix resulto ser un test que **pasaba gracias al
+   bug**: simulaba "sin shards" con `SHARD_WEIGHTS_DIR=""`, justo el valor que
+   se resolvia a la raiz. Al arreglarlo el router empezo a responder de verdad
+   ("Respuesta via shards INT4 locales"), que es la prueba de que esa ruta
+   llevaba muerta.
+
+2. *El detector de idea web*. `_es_idea_web` casaba "html" como subcadena. Se
+   encargo un modulo Python que mencionaba `html.parser` — que es stdlib de
+   Python — y el pipeline genero una PAGINA HTML simulando un buscador; la
+   vista de navegador la evaluo como pagina y reprocho que "no cambia sola en 6
+   lecturas". Nadie lanzo una excepcion: se entrego con confianza algo que no
+   era lo pedido, y encima se puntuo con 5.6/10.
+
+3. *La cascada monopolizada*, y este fue del centinela. Se especifico
+   `buscar()` como "la primera fuente que devuelva algo gana"; Wikipedia casa
+   de forma laxa y SIEMPRE devuelve algo, asi que HackerNews y arXiv no se
+   consultaban nunca. `buscar("rust ownership model")` devolvia el articulo de
+   **Ethereum**. Solo aparecio en la verificacion end-to-end real: pytest no lo
+   habria visto jamas.
+
+**El techo se midio otra vez, y esta vez es el modelo.** El buscador se intento
+primero raspando lite.duckduckgo.com. La primera reparacion movio el sintoma
+(0 -> 3 resultados) pero la segunda lo dejo PEOR (3 -> 0, y rompio Wikipedia de
+paso). Se corto por la regla 11 en vez de pedir un tercer intento. Hipotesis
+enunciada y medida: sostener una maquina de estados con estado entre filas de
+tabla HTML excede a qwen2.5-coder-14b en este harness. Pero la misma medicion
+mostro donde SI hay techo — las tres APIs JSON salieron casi a la primera — y
+el modulo se redisenio hacia alli. No es una rendicion: raspar HTML se rompe en
+silencio, una API JSON se rompe con un codigo de error registrable.
+
+**Los tests que escribe Cognia hay que auditarlos, no solo correrlos.** Su
+primera tanda inventaba el HTML de ejemplo, casaba con su propio parser
+inventado y habria pasado en verde contra un modulo que daba 0 resultados
+reales. G2 rechaza suites en rojo; no detecta suites en VERDE que prueban
+ficcion. Se corrigio dandole las respuestas REALES de las tres APIs capturadas
+en vivo, y los tests finales se validaron por **mutacion**: quitar la limpieza
+de HTML, dejar de saltar los hits nulos y volver a la cascada — los tres casos
+se detectan.
+
+**Estado final: 3302 passed, 1 skipped.** Repo limpio, todo commiteado.
+
+**Queda para el dueno:** el rate limit de GitHub bajo a 9/hora durante la
+investigacion (espaciar la proxima ronda), y el ranking de relevancia sigue
+metiendo ruido — una busqueda sobre busqueda web devolvio `open-design` y
+`cmux`, aunque acerto el primero.
