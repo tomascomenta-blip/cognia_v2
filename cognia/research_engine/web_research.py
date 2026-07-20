@@ -16,8 +16,10 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from ..busqueda_web import buscar
+from ..lector_web import leer
 from ..llm_local import generar
 from .arxiv_scraper import ArxivScraper
+from .juez import juzgar
 from .github_scraper import GitHubScraper
 from .hf_scraper import HFScraper
 from .query_planner import planificar_busquedas, terminos_de_busqueda
@@ -130,6 +132,29 @@ def _busca_herramientas(textos: List[str]) -> bool:
     return bool(palabras & SENAL_HERRAMIENTAS)
 
 
+# Cuantas paginas del top se leen enteras antes de resumir. Cada lectura
+# cuesta una peticion y ~2000 chars de contexto; 3 cubre el podio sin comerse
+# la ventana de 8k del modelo.
+LECTURAS_TOP = 3
+
+
+def _leer_top(hallazgos: List[Hallazgo], n: int = LECTURAS_TOP) -> str:
+    """
+    Lee las paginas de los n mejores hallazgos y devuelve extractos.
+
+    Es la diferencia entre resumir TITULOS y resumir FUENTES: hasta ahora el
+    resumidor veia una linea por hallazgo (titulo + descripcion de catalogo) y
+    de ahi no puede salir una respuesta con sustancia. Los hallazgos ya
+    pasaron por el juez, asi que leer el top no es leer ruido.
+    """
+    extractos = []
+    for h in hallazgos[:n]:
+        texto = leer(h.url, max_chars=2000)
+        if texto:
+            extractos.append(f"--- {h.titulo} ({h.url}) ---\n{texto}")
+    return "\n\n".join(extractos)
+
+
 def _resumir_con_llm(pregunta: str, hallazgos: List[Hallazgo]) -> str:
     """Le pide al LLM local que responda con lo encontrado. '' si no hay."""
     if not hallazgos:
@@ -139,13 +164,20 @@ def _resumir_con_llm(pregunta: str, hallazgos: List[Hallazgo]) -> str:
         f"- [{h.fuente}] {h.titulo} ({h.popularidad}) {h.extra} :: {h.resumen[:300]}"
         for h in hallazgos[:12]
     )
+    paginas = _leer_top(hallazgos)
+    seccion_paginas = (
+        f"\n\nFull text excerpts from the top results:\n{paginas}" if paginas
+        else ""
+    )
     prompt = (
         f"Question: {pregunta}\n\n"
-        f"Search results:\n{material}\n\n"
+        f"Search results:\n{material}"
+        f"{seccion_paginas}\n\n"
         f"Answer the question in 4-6 sentences using ONLY these results. "
-        f"Name the specific models or repos that matter and say why. "
-        f"If the results do not answer the question, say so plainly. "
-        f"Answer in the same language as the question."
+        f"Prefer facts from the full text excerpts over the one-line "
+        f"descriptions. Name the specific models or repos that matter and "
+        f"say why. If the results do not answer the question, say so "
+        f"plainly. Answer in the same language as the question."
     )
     return generar(prompt, temperature=0.4, max_tokens=500) or ""
 
@@ -376,6 +408,15 @@ def investigar(
         hallazgos.append(h)
 
     hallazgos.sort(key=lambda h: h.relevancia, reverse=True)
+
+    # El juicio de relevancia: el ranking lexico ordena por coincidencia de
+    # palabras, y eso deja pasar homonimos ("Bernhard Rust", un politico, en
+    # una pregunta sobre el lenguaje). El juez le pregunta al LLM si cada
+    # hallazgo del top RESPONDE a la pregunta, y hunde los que no. Va antes de
+    # la contraevidencia a proposito: contra-buscar candidatos que el juez
+    # habria hundido es gastar las peticiones de arXiv en ruido.
+    if usar_llm:
+        hallazgos = juzgar(pregunta, hallazgos)
 
     digest = Digest(pregunta=pregunta, queries=queries, hallazgos=hallazgos)
 
