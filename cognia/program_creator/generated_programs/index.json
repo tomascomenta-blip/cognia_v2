@@ -452,5 +452,15 @@
     "created_at": "2026-07-20T13:31:24.828193",
     "directory": "simulated_investment_dashboard",
     "self_proposed": false
+  },
+  {
+    "id": "dashboard_de_inversiones_en_movimiento",
+    "title": "Dashboard de Inversiones en Movimiento",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Dashboard de inversiones con cotizaciones animadas, gráfico en SVG y variaciones en verde y rojo",
+    "total_score": 6.0,
+    "created_at": "2026-07-20T13:49:34.157651",
+    "directory": "dashboard_de_inversiones_en_movimiento",
+    "self_proposed": false
   }
 ]

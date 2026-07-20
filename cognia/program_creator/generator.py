@@ -381,6 +381,14 @@ def _parse_response(raw: str, category: str,
     if not raw:
         return None
 
+    # Los modelos con razonamiento (UIGEN-X) anteponen <think>...</think>.
+    # Medido el 2026-07-20: con UIGEN de generador, las DOS reparaciones de la
+    # sesion fallaron con "no devolvio una correccion valida" — el bloque de
+    # pensamiento rompia el parseo de Title/Description/fence. La respuesta
+    # real viene despues del cierre.
+    if "</think>" in raw:
+        raw = raw.split("</think>", 1)[1]
+
     # El fence depende del lenguaje pedido. Se acepta tambien el fence pelado
     # (```) porque el modelo lo omite a veces, pero solo si ya estamos dentro
     # del bloque de codigo esperado.

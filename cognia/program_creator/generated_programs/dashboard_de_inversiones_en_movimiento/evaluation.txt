@@ -1,0 +1,19 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 6.0 / 10
+Functionality     : 1.0 / 4.0
+Creativity        : 3.5 / 4.0
+Error Penalty     : 1.5 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Defectos en la página: depende de recursos externos: http://
+selector CSS que nunca casa: .data-point.green (la clase 'green' se aplica sin 'data-point'); .data-point.red (la clase 'red' se aplica sin 'data-point')
+En navegador: errores de JavaScript: Uncaught TypeError: Cannot set property className of #&lt;SVGElement&gt; which has only a getter; 15 de los 15 valores que se actualizan comparten un unico color (rgb(248, 248, 248)): los estados (sube/baja, verde/rojo) no se estan pintando sobre los valores vivos. ARREGLO DIRECTO: en el JS que actualiza cada valor, pon el.style.color = (cambio >= 0 ? 'green' : 'red') sobre el MISMO elemento cuyo textContent cambias. No dependas de clases CSS.; el grafico SVG no tiene ni un <text>: sin etiquetas de eje no se sabe que numeros muestra. Anade valores al eje Y
+  • Dibuja un gráfico propio.
+  • Página con cuerpo (18160 chars).
+  • Técnicas: svg, CSS grid, flexbox, transiciones, profundidad, responsive.
+  • JS estructurado (8 funciones).
+  • Página no trivial: 571 líneas.
+  • Original program title.
+  • Minor error detected: TypeError.

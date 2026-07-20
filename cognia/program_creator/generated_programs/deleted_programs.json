@@ -284,5 +284,41 @@
     "self_proposed": false,
     "deleted_at": "2026-07-20T12:55:58.839467",
     "reason": "auto-cleanup: score 5.5 < survival threshold 6.0"
+  },
+  {
+    "id": "inversin_dinmica",
+    "title": "Inversión Dinámica",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Dashboard de inversiones con cotizaciones en movimiento, gráfico animado y variaciones en verde y rojo",
+    "total_score": 5.0,
+    "created_at": "2026-07-20T13:45:36.638347",
+    "directory": "inversin_dinmica",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T13:45:36.654051",
+    "reason": "auto-cleanup: score 5.0 < survival threshold 6.0"
+  },
+  {
+    "id": "dashboard_de_inversiones_10",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones en tiempo real, un gráfico animado y variaciones en verde y rojo.",
+    "total_score": 5.5,
+    "created_at": "2026-07-20T13:51:16.347432",
+    "directory": "dashboard_de_inversiones_10",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T13:51:16.367717",
+    "reason": "auto-cleanup: score 5.5 < survival threshold 6.0"
+  },
+  {
+    "id": "dashboard_de_inversiones_animado",
+    "title": "Dashboard de Inversiones Animado",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones dinámicas, un gráfico animado y variaciones colorizadas en verde y rojo.",
+    "total_score": 5.5,
+    "created_at": "2026-07-20T13:53:16.144214",
+    "directory": "dashboard_de_inversiones_animado",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T13:53:16.159999",
+    "reason": "auto-cleanup: score 5.5 < survival threshold 6.0"
   }
 ]
