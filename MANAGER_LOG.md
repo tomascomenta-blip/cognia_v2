@@ -3307,3 +3307,25 @@ con log de discrepancias; G0 (ngram spec de llama-server) como baseline de
 los micro-drafts; mas expertos de tarea (tipo de pregunta, ruta de modelo).
 
 **Estado: suite en verde, flota v1 commiteada (861b1e9).**
+
+---
+
+## 2026-07-20 (madrugada-3) — la colonia entra al runtime de Cognia
+
+"Pero dentro de Cognia" (el dueno). Hecho (commit 9fb4512):
+
+- Los micro-expertos corren en numpy PURO dentro de cognia/colonia/ — sin
+  torch en runtime (regla del repo), pesos .npz como los shards. Paridad
+  torch-numpy VERIFICADA a 1e-6 con test permanente. 3.8 ms/opinion en CPU.
+- Feromona (estigmergia de AMRO-S): discrepancias como rastro, refuerzo por
+  resultados confirmados, y el experto solo manda con peso >= 0.8 y >= 20
+  confirmaciones. La regla del plan, ahora en codigo.
+- Primera integracion viva: _es_idea_web escucha al idea_router como segunda
+  voz. La heuristica sigue mandando; el rastro decide el futuro.
+
+Antes, el experimento de la Colonia como ensemble (pedido tambien por el
+dueno) quedo medido en el anexo del plan: 5 votantes suben al individuo
+muerto de 0.500 a 0.667 pero no alcanzan a la heuristica (0.833) — errores
+correlacionados por plantillas compartidas. La diversidad util es de DATOS.
+
+**Estado: 3423 passed, 1 skipped.**
