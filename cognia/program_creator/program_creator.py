@@ -113,6 +113,13 @@ def _get_seed_concepts(cognia_instance=None) -> list[str]:
 
 # ── Loop principal ─────────────────────────────────────────────────────────────
 
+
+def _idea_pide_grafico(categoria: str) -> bool:
+    """La sonda no conoce la idea; esto le dice si debia haber un grafico."""
+    t = (categoria or "").lower()
+    return any(p in t for p in ("grafico", "gráfico", "chart", "graph",
+                                "grafica", "gráfica", "sparkline"))
+
 def run_program_hobby(
     cognia_instance=None,
     max_attempts:   int  = MAX_ATTEMPTS_PER_SESSION,
@@ -183,7 +190,9 @@ def run_program_hobby(
             # funciona": una pagina puede salir entera en negro con el CSS
             # perfectamente escrito. Aqui se renderiza, se observa, y si algo
             # falla se le devuelven los defectos al modelo para que corrija.
-            visual = revisar_en_navegador(program.code)
+            _con_grafico = _idea_pide_grafico(program.category)
+            visual = revisar_en_navegador(program.code,
+                                          requiere_grafico=_con_grafico)
             if verbose and visual.nota:
                 print(f"   [vista] {visual.nota}")
 
@@ -202,20 +211,34 @@ def run_program_hobby(
                     pistas += [l for l in exec_result.execution_errors.splitlines()
                                if l.strip()]
 
-                arreglado = reparar_web(program, pistas)
-                if arreglado is not None:
-                    visual_2 = revisar_en_navegador(arreglado.code)
+                # Hasta 3 intentos, como G1 en el camino Python (umbral de
+                # Aider). Antes habia UN solo intento: con los chequeos de
+                # calidad del 2026-07-20 detectando mas defectos, una unica
+                # oportunidad dejaba paginas reparables sin reparar
+                # ("Correccion descartada" y a guardar con el defecto).
+                for _ronda in range(1, 4):
+                    arreglado = reparar_web(program, pistas)
+                    if arreglado is None:
+                        if verbose:
+                            print("   ↩️  El modelo no devolvio una correccion valida.")
+                        break
+                    visual_2 = revisar_en_navegador(
+                        arreglado.code, requiere_grafico=_con_grafico)
                     if len(visual_2.defectos) < len(visual.defectos):
                         program = arreglado
                         visual  = visual_2
                         exec_result = revisar_html(program.code)
                         if verbose:
-                            print(f"   ✅ Correccion aceptada "
+                            print(f"   ✅ Correccion {_ronda} aceptada "
                                   f"({len(visual.defectos)} defectos restantes)")
-                    elif verbose:
-                        print("   ↩️  Correccion descartada: no mejoraba.")
-                elif verbose:
-                    print("   ↩️  El modelo no devolvio una correccion valida.")
+                        if not visual.defectos:
+                            break
+                        pistas = list(visual.defectos)   # los que quedan
+                    else:
+                        # Sin mejora: no se insiste a ciegas (regla 11).
+                        if verbose:
+                            print(f"   ↩️  Correccion {_ronda} descartada: no mejoraba.")
+                        break
 
             # Lo que se VE manda sobre lo que se lee: si la pagina no funciona
             # en el navegador, no puede contar como ejecucion exitosa.

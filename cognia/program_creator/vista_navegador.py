@@ -248,7 +248,9 @@ _SONDA = """
       if (el.children.length !== 0) continue;
       var txt = (el.textContent || '').trim();
       if (!txt || txt.length > 40) continue;
-      vistos.push({ t: txt, c: getComputedStyle(el).color });
+      // i identifica al elemento entre muestras: hace falta para saber que
+      // color tienen LOS QUE CAMBIAN, no toda la pagina.
+      vistos.push({ i: i, t: txt, c: getComputedStyle(el).color });
     }
     return vistos;
   }
@@ -261,10 +263,25 @@ _SONDA = """
   // disparaba reparaciones inutiles. Se toma la UNION de lo observado.
   var muestras = [];
   var colores  = {};
+  // Texto y colores por elemento, SOLO de los que cambian entre muestras.
+  // El chequeo global de "todo el mismo color" era enganable: el gris de un
+  // subtitulo ya contaba como segundo color aunque los valores que suben y
+  // bajan siguieran todos en negro (medido el 2026-07-20).
+  var texto_por_el   = {};
+  var colores_por_el = {};
+  var cambiantes     = {};
 
   function muestrear() {
     var v = leer();
-    v.forEach(function (x) { colores[x.c] = 1; });
+    v.forEach(function (x) {
+      colores[x.c] = 1;
+      if (texto_por_el[x.i] !== undefined && texto_por_el[x.i] !== x.t) {
+        cambiantes[x.i] = 1;
+      }
+      texto_por_el[x.i] = x.t;
+      if (!colores_por_el[x.i]) colores_por_el[x.i] = {};
+      colores_por_el[x.i][x.c] = 1;
+    });
     muestras.push(v.map(function (x) { return x.t; }).join('|'));
   }
 
@@ -278,13 +295,67 @@ _SONDA = """
     var distintas = {};
     muestras.forEach(function (m) { distintas[m] = 1; });
 
+    // Canvas aplastado: el bug clasico de dibujar sobre el tamano interno
+    // por defecto (300x150) y estirarlo con CSS. Sale borroso y deforme, y
+    // fue lo que dejo el "grafico animado" del dashboard como una raya plana
+    // el 2026-07-20. Se compara el buffer interno contra el tamano real.
+    var aplastados = [];
+    var lienzos = document.querySelectorAll('canvas');
+    for (var c = 0; c < lienzos.length; c++) {
+      var cv = lienzos[c], cw = cv.clientWidth, ch = cv.clientHeight;
+      if (!cw || !ch) continue;
+      if (cv.width / cw > 1.5 || cw / cv.width > 1.5 ||
+          cv.height / ch > 1.5 || ch / cv.height > 1.5) {
+        aplastados.push(cv.width + 'x' + cv.height + ' estirado a ' +
+                        cw + 'x' + ch);
+      }
+    }
+
+    // Grafico sin ejes: un SVG de grafico sin UN SOLO <text> no tiene
+    // etiquetas de escala — el lector no puede saber que numeros esta viendo.
+    // De paso se cuentan los graficos utiles (svg o canvas con tamano de
+    // grafico): una pagina puede evadir los chequeos anteriores no dibujando
+    // NINGUN grafico, que fue exactamente lo que paso el 2026-07-20 — una
+    // caja blanca vacia con los numeros del eje como texto suelto saco 7.6.
+    var svgs_mudos = 0;
+    var n_graficos = 0;
+    var svgs = document.querySelectorAll('svg');
+    for (var s = 0; s < svgs.length; s++) {
+      var area = svgs[s].getBoundingClientRect();
+      if (area.width < 100 || area.height < 60) continue;  // iconos no cuentan
+      n_graficos++;
+      if (svgs[s].querySelectorAll('text').length === 0) svgs_mudos++;
+    }
+    for (var c2 = 0; c2 < lienzos.length; c2++) {
+      var a2 = lienzos[c2].getBoundingClientRect();
+      if (a2.width >= 100 && a2.height >= 60) n_graficos++;
+    }
+
+    // Colores de los elementos que CAMBIAN: si todos los valores vivos
+    // comparten un unico color, las clases de estado no estan pintando,
+    // por muchos colores que tenga el resto de la pagina.
+    // Histograma: cuantos elementos vivos hay bajo cada color. Un elemento
+    // que alterna colores (verde<->rojo) cuenta en los dos, y eso es
+    // exactamente la prueba de que los estados SI pintan.
+    var colores_cambiantes = {};
+    Object.keys(cambiantes).forEach(function (i) {
+      Object.keys(colores_por_el[i] || {}).forEach(function (c) {
+        colores_cambiantes[c] = (colores_cambiantes[c] || 0) + 1;
+      });
+    });
+
     var d = document.createElement('div');
     d.id = '__cognia_sonda__';
     d.textContent = JSON.stringify({
       se_mueve: Object.keys(distintas).length > 1,
       colores:  Object.keys(colores),
+      colores_cambiantes: colores_cambiantes,
+      n_cambiantes: Object.keys(cambiantes).length,
       errores:  errores,
-      muestras: muestras.length
+      muestras: muestras.length,
+      canvas_aplastados: aplastados,
+      svgs_sin_texto: svgs_mudos,
+      n_graficos: n_graficos
     });
     document.body.appendChild(d);
   }, __MS_MUESTREO__);
@@ -347,7 +418,8 @@ def _capturar(navegador: str, url: str, salida: Path, ms: int) -> Optional[str]:
 
 
 def revisar_en_navegador(code: str, dir_programa: Path = None,
-                         momentos_ms: List[int] = None) -> InformeVisual:
+                         momentos_ms: List[int] = None,
+                         requiere_grafico: bool = False) -> InformeVisual:
     """
     Abre la pagina de verdad y devuelve lo que se ve.
 
@@ -357,6 +429,10 @@ def revisar_en_navegador(code: str, dir_programa: Path = None,
                       las capturas se hacen en un temporal y se descartan: sirve
                       para validar sin ensuciar el disco.
         momentos_ms:  instantes (tiempo virtual) de las capturas de validacion.
+        requiere_grafico: si la IDEA pedia un grafico. La sonda no conoce la
+                      idea; el llamador si. Sin esto, no dibujar NINGUN
+                      grafico evadia todos los chequeos de calidad de grafico
+                      (medido: una caja vacia con numeros sueltos saco 7.6).
 
     Returns:
         InformeVisual. Si no hay navegador, ok=True y nota explicandolo: la
@@ -406,11 +482,54 @@ def revisar_en_navegador(code: str, dir_programa: Path = None,
         if informe.errores_js:
             informe.defectos.append(
                 "errores de JavaScript: " + "; ".join(informe.errores_js[:3]))
+        # El defecto lleva la receta dentro: es lo que el modelo va a leer
+        # como prompt de reparacion. Medido el 2026-07-20: con solo el
+        # sintoma, 3 rondas de reparacion fallaron; la clase CSS acababa en
+        # el elemento equivocado. El estilo inline no depende de ningun
+        # selector: es el arreglo que un 14B si aplica bien.
+        _RECETA_COLOR = (
+            " ARREGLO DIRECTO: en el JS que actualiza cada valor, pon "
+            "el.style.color = (cambio >= 0 ? 'green' : 'red') sobre el MISMO "
+            "elemento cuyo textContent cambias. No dependas de clases CSS."
+        )
         if len(informe.colores) <= 1:
             informe.defectos.append(
                 "todo el texto sale del mismo color "
                 f"({', '.join(informe.colores) or 'ninguno'}): las clases de "
-                "estado no estan pintando")
+                "estado no estan pintando." + _RECETA_COLOR)
+        # La version precisa del chequeo de arriba: entre los elementos que
+        # CAMBIAN de texto (los valores vivos), mas del 75% bajo un unico
+        # color significa que los estados no pintan. El chequeo global era
+        # enganable por el gris de un subtitulo, y el "exactamente un color"
+        # tambien: en la pagina medida el 2026-07-20, 10 celdas en negro se
+        # salvaban porque un contador gris sumaba el segundo color.
+        cambiantes = datos.get("n_cambiantes") or 0
+        histograma = dict(datos.get("colores_cambiantes") or {})
+        if cambiantes >= 4 and histograma:
+            dominante, cuenta = max(histograma.items(), key=lambda kv: kv[1])
+            if cuenta / cambiantes > 0.75:
+                informe.defectos.append(
+                    f"{cuenta} de los {cambiantes} valores que se actualizan "
+                    f"comparten un unico color ({dominante}): los estados "
+                    "(sube/baja, verde/rojo) no se estan pintando sobre los "
+                    "valores vivos." + _RECETA_COLOR)
+        # Chequeos de calidad de grafico (2026-07-20). Antes la sonda solo
+        # detectaba roturas catastroficas y un dashboard con el grafico
+        # aplastado y sin ejes pasaba con "ok": no discriminaba calidad.
+        for medida in datos.get("canvas_aplastados") or []:
+            informe.defectos.append(
+                f"canvas dibujado a un tamano y estirado a otro ({medida}): "
+                "sale borroso y deforme. Fija canvas.width = "
+                "canvas.clientWidth (y height) ANTES de dibujar")
+        if datos.get("svgs_sin_texto"):
+            informe.defectos.append(
+                "el grafico SVG no tiene ni un <text>: sin etiquetas de eje "
+                "no se sabe que numeros muestra. Anade valores al eje Y")
+        if requiere_grafico and not (datos.get("n_graficos") or 0):
+            informe.defectos.append(
+                "la idea pide un grafico y la pagina no tiene ningun <svg> "
+                "ni <canvas> de tamano util: dibuja el grafico como inline "
+                "svg (polyline para la linea, text para los valores del eje)")
 
         informe.ok = not informe.defectos
 

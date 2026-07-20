@@ -164,5 +164,113 @@
     "self_proposed": false,
     "deleted_at": "2026-07-20T09:00:10.684740",
     "reason": "auto-cleanup: score 5.6 < survival threshold 6.0"
+  },
+  {
+    "id": "dashboard_de_inversiones_01",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones en tiempo real, un gráfico animado y variaciones coloradas.",
+    "total_score": 5.1,
+    "created_at": "2026-07-20T12:05:37.086618",
+    "directory": "dashboard_de_inversiones_01",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T12:05:37.086618",
+    "reason": "auto-cleanup: score 5.1 < survival threshold 6.0"
+  },
+  {
+    "id": "investment_dashboard_animation_01",
+    "title": "Investment Dashboard Animation",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page with a simulated investment dashboard featuring animated stock quotes, a canvas-based graph, and color-coded variations in green and red.",
+    "total_score": 6.7,
+    "created_at": "2026-07-20T11:56:46.823542",
+    "directory": "investment_dashboard_animation_01",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T12:06:14.153932",
+    "reason": "replaced by 'Inversión Dashboard' (score 8.4 > 6.7)"
+  },
+  {
+    "id": "dashboard_de_inversiones_03",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones dinámicas, un gráfico animado y variaciones colorizadas en verde y rojo.",
+    "total_score": 5.6,
+    "created_at": "2026-07-20T12:14:17.529615",
+    "directory": "dashboard_de_inversiones_03",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T12:14:17.529615",
+    "reason": "auto-cleanup: score 5.6 < survival threshold 6.0"
+  },
+  {
+    "id": "dashboard_de_inversiones_05",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones que cambian automáticamente, un gráfico animado y variaciones coloreadas en verde y rojo.",
+    "total_score": 5.3,
+    "created_at": "2026-07-20T12:17:35.170949",
+    "directory": "dashboard_de_inversiones_05",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T12:17:35.182439",
+    "reason": "auto-cleanup: score 5.3 < survival threshold 6.0"
+  },
+  {
+    "id": "dashboard_de_inversiones_06",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones que cambian automáticamente, un gráfico animado y variaciones en verde y rojo.",
+    "total_score": 5.9,
+    "created_at": "2026-07-20T12:20:08.900922",
+    "directory": "dashboard_de_inversiones_06",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T12:20:08.916820",
+    "reason": "auto-cleanup: score 5.9 < survival threshold 6.0"
+  },
+  {
+    "id": "dashboard_de_inversiones_07",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web simulando un dashboard de inversiones con cotizaciones animadas, un gráfico animado y variaciones en color verde o rojo.",
+    "total_score": 5.6,
+    "created_at": "2026-07-20T12:21:35.818974",
+    "directory": "dashboard_de_inversiones_07",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T12:21:35.836687",
+    "reason": "auto-cleanup: score 5.6 < survival threshold 6.0"
+  },
+  {
+    "id": "dashboard_de_inversiones_04",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones animadas, un gráfico animado y variaciones en colores verde y rojo.",
+    "total_score": 6.1,
+    "created_at": "2026-07-20T12:16:30.078477",
+    "directory": "dashboard_de_inversiones_04",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T12:23:15.357664",
+    "reason": "replaced by 'Inversión Dashboard' (score 7.6 > 6.1)"
+  },
+  {
+    "id": "dashboard_de_inversiones_04",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones animadas, un gráfico animado y variaciones en verde y rojo.",
+    "total_score": 5.6,
+    "created_at": "2026-07-20T12:28:07.195698",
+    "directory": "dashboard_de_inversiones_04",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T12:28:07.211489",
+    "reason": "auto-cleanup: score 5.6 < survival threshold 6.0"
+  },
+  {
+    "id": "simulacin_de_dashboard_de_inversiones_01",
+    "title": "Simulación de Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones en vivo, un gráfico animado y variaciones coloreadas.",
+    "total_score": 5.6,
+    "created_at": "2026-07-20T12:29:33.602563",
+    "directory": "simulacin_de_dashboard_de_inversiones_01",
+    "self_proposed": false,
+    "deleted_at": "2026-07-20T12:29:33.620223",
+    "reason": "auto-cleanup: score 5.6 < survival threshold 6.0"
   }
 ]

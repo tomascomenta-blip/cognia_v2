@@ -1,0 +1,17 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 6.4 / 10
+Functionality     : 2.0 / 4.0
+Creativity        : 2.4 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Defectos en la página: En navegador: todo el texto sale del mismo color (rgb(0, 0, 0)): las clases de estado no estan pintando; 31 de los 31 valores que se actualizan comparten un unico color (rgb(0, 0, 0)): los estados (sube/baja, verde/rojo) no se estan pintando sobre los valores vivos
+  • Se actualiza sola (JS en marcha).
+  • Dibuja un gráfico propio.
+  • Página con cuerpo (6283 chars).
+  • Técnicas: svg, flexbox, profundidad.
+  • JS estructurado (10 funciones).
+  • Página no trivial: 165 líneas.
+  • Original program title.

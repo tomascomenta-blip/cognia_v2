@@ -382,5 +382,55 @@
     "created_at": "2026-07-20T04:30:10.010247",
     "directory": "automated_news_brief_generator",
     "self_proposed": true
+  },
+  {
+    "id": "investment_dashboard_simulation_03",
+    "title": "Investment Dashboard Simulation",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page that simulates an investment dashboard with live updating stock quotes, animated chart, and color-coded variations.",
+    "total_score": 7.7,
+    "created_at": "2026-07-20T11:55:55.930047",
+    "directory": "investment_dashboard_simulation_03",
+    "self_proposed": false
+  },
+  {
+    "id": "inversin_dashboard",
+    "title": "Inversión Dashboard",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con valores que cambian, un gráfico animado y variaciones indicadas en verde para subida y rojo para bajada.",
+    "total_score": 8.4,
+    "created_at": "2026-07-20T12:06:14.153932",
+    "directory": "inversin_dashboard",
+    "self_proposed": false
+  },
+  {
+    "id": "dashboard_de_inversiones_02",
+    "title": "Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con cotizaciones animadas, un gráfico y variaciones en colores verde y rojo.",
+    "total_score": 6.4,
+    "created_at": "2026-07-20T12:13:01.599395",
+    "directory": "dashboard_de_inversiones_02",
+    "self_proposed": false
+  },
+  {
+    "id": "inversin_dashboard_01",
+    "title": "Inversión Dashboard",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "A self-contained HTML page with animated investment quotes, a responsive SVG chart, and a detail table showing variations in green and red.",
+    "total_score": 7.6,
+    "created_at": "2026-07-20T12:23:15.357664",
+    "directory": "inversin_dashboard_01",
+    "self_proposed": false
+  },
+  {
+    "id": "simulacin_de_dashboard_de_inversiones",
+    "title": "Simulación de Dashboard de Inversiones",
+    "category": "pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo",
+    "description": "Una página web que simula un dashboard de inversiones con movimiento, incluyendo cotizaciones que cambian automáticamente, un gráfico animado y variaciones en verde y rojo.",
+    "total_score": 6.7,
+    "created_at": "2026-07-20T12:24:05.993933",
+    "directory": "simulacin_de_dashboard_de_inversiones",
+    "self_proposed": false
   }
 ]

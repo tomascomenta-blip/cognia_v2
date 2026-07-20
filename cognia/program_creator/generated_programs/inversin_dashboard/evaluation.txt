@@ -1,0 +1,18 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 8.4 / 10
+Functionality     : 4.0 / 4.0
+Creativity        : 2.4 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Página HTML válida y autocontenida.
+  • Se actualiza sola (JS en marcha).
+  • Dibuja un gráfico propio.
+  • Página con cuerpo (5465 chars).
+  • Técnicas: canvas, flexbox, formato numérico.
+  • JS estructurado (10 funciones).
+  • Página no trivial: 162 líneas.
+  • Original program title.
+  • No errors detected.

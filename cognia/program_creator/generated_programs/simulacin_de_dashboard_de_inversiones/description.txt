@@ -1,0 +1,8 @@
+Title         : Simulación de Dashboard de Inversiones
+Category      : pagina web que simule un dashboard de inversiones con movimiento: cotizaciones que cambian solas, grafico animado y variaciones en verde y rojo
+Created at    : 2026-07-20T12:24:05.993933
+Score         : 6.7 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  Una página web que simula un dashboard de inversiones con movimiento, incluyendo cotizaciones que cambian automáticamente, un gráfico animado y variaciones en verde y rojo.

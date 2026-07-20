@@ -214,13 +214,38 @@ def _build_prompt_web(category: str, extra_hint: str) -> str:
         f"no remote images or fonts. It must work fully offline.\n"
         f"- All data simulated in JavaScript (Math.random, setInterval)\n"
         f"- It must ANIMATE on its own: values updating live, no user click needed\n"
-        f"- Draw charts with <canvas> or inline <svg> — never a chart library\n"
+        # SVG y no canvas, a proposito: el verificador de navegador puede LEER
+        # el contenido de un SVG (¿tiene <text> de ejes?) pero un canvas es
+        # una caja opaca de pixeles — la regla de "ejes visibles" quedaba sin
+        # policia. Y el canvas estirado por CSS (300x150 -> borroso) es el bug
+        # mas repetido del corpus generado.
+        f"- Draw charts as inline <svg> — NOT <canvas>, and never a chart "
+        f"library\n"
         f"- Responsive and legible on a phone screen\n"
         f"- If you color-code state (up/down, green/red), put the state class on "
         f"the SAME element your CSS selector targets. A rule like `.row.up span` "
         f"only works if the class lands on `.row`, not on the inner span.\n"
         f"- Set colors with a rule that matches the element you actually modify, "
         f"and prefer setting style/class on the element you create in JS\n"
+        # Reglas de calidad anadidas el 2026-07-20 tras comparar lado a lado
+        # con una pagina de referencia: la de Cognia sacaba 7.7 con un grafico
+        # aplastado sin ejes y dos filas de texto. El modelo SI sabe hacerlo
+        # mejor: nadie se lo estaba pidiendo.
+        f"- Write ALL visible text in the SAME language as the page topic above\n"
+        f"- Structure the page in at least 3 distinct sections (for a "
+        f"dashboard: summary numbers on top, a chart, and a detail table)\n"
+        f"- A chart MUST have visible axis labels (numeric y-axis values) and "
+        f"light gridlines. Compute the scale from the data min/max — never "
+        f"hardcode the range\n"
+        f"- If you use <canvas>: set canvas.width = canvas.clientWidth and "
+        f"canvas.height = canvas.clientHeight BEFORE drawing, and redraw on "
+        f"resize. A canvas stretched by CSS from its default 300x150 renders "
+        f"squashed and blurry. Inline <svg> avoids this entirely and is "
+        f"preferred\n"
+        f"- Format numbers for humans: thousands separators, 2 decimals, "
+        f"currency symbol where money (toLocaleString)\n"
+        f"- Render a complete first frame IMMEDIATELY on load — never a blank "
+        f"page waiting for the first setInterval tick\n"
         f"- {extra_hint}\n\n"
         f"Respond EXACTLY in this format:\n\n"
         f"Title: <short title>\n"
@@ -246,11 +271,17 @@ _SISTEMA_WEB = (
 )
 
 
-def _call_llm(prompt: str, lenguaje: str = "python") -> Optional[str]:
+def _call_llm(prompt: str, lenguaje: str = "python",
+              temperature: float = 0.90) -> Optional[str]:
+    # 0.90 por defecto porque GENERAR es creativo. Las reparaciones pasan 0.2:
+    # a 0.9 el modelo "repara" reescribiendo media pagina y rompe otra cosa,
+    # asi que el conteo de defectos no baja y el arreglo se descarta. Medido el
+    # 2026-07-20: 3 rondas de reparacion del defecto de colores, las 3
+    # descartadas con "no mejoraba".
     return generar(
         prompt,
         system=_SISTEMA_WEB if lenguaje == "html" else _SISTEMA_PYTHON,
-        temperature=0.90,
+        temperature=temperature,
         # 2000 tokens truncaban cualquier programa con tests. Medido el
         # 2026-07-20: al pedir un compresor con tests unitarios, la respuesta
         # cortaba a mitad de una cadena y el fence ni se cerraba, lo que
@@ -295,7 +326,7 @@ def reparar_python(program: GeneratedProgram, error: str) -> Optional[GeneratedP
         f"Python Code:\n```python\n<fixed code>\n```"
     )
 
-    raw = _call_llm(prompt, "python")
+    raw = _call_llm(prompt, "python", temperature=0.2)
     if not raw:
         return None
 
@@ -333,7 +364,7 @@ def reparar_web(program: GeneratedProgram, defectos: List[str]) -> Optional[Gene
         f"HTML Code:\n```html\n<!DOCTYPE html>\n<fixed page>\n```"
     )
 
-    raw = _call_llm(prompt, "html")
+    raw = _call_llm(prompt, "html", temperature=0.2)
     if not raw:
         return None
 
