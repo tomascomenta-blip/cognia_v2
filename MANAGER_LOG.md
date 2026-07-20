@@ -3148,3 +3148,37 @@ conservar la pagina reparada-descartada para inspeccionar POR QUE no baja el
 conteo (hipotesis: el arreglo introduce otro defecto).
 
 **Estado: 3396 passed, 1 skipped.**
+
+---
+
+## 2026-07-20 (tarde-3) — el critico profesional: separar al creador del juez
+
+Pedido del dueno: conectar los expertos (el modelo de diseno) con los ojos
+del navegador para que un PROFESIONAL opine el trabajo, porque "quien no es
+artista dira 'esta buenisimo' de lo suyo". Implementado y medido:
+
+`critico.py` — disenador senior como rol SEPARADO del creador, con checklist
+profesional. Sus ojos: los hechos de la sonda + el DOM RENDERIZADO (no el
+fuente — con el fuente suspendia paginas que pintan por JS por defectos que
+en pantalla no existian). El experto es intercambiable via COGNIA_CRITICO_URL:
+probado con UIGEN-X-8B servido en :8081.
+
+A/B de criticos sobre las mismas dos paginas:
+  caja vacia:  autoevaluador 7.6 | critico residente 6.5 | UIGEN 4.5
+  referencia:  residente 7.5 | UIGEN 5.5 (mas duro, mas concreto, pero
+               penaliza el formato es-ES como si fuera un error)
+
+La nota del critico CAPA la del autoevaluador. End-to-end verificado:
+evaluador 6.4 -> critico 5.5 -> final 5.5.
+
+Detalles de calibracion que costaron: UIGEN razona (<think>) y con
+max_tokens 400 el contenido llegaba VACIO en paginas grandes (subido a 900 y
+parser que salta el bloque think); el body renderizado se recorta sin el
+<style> para que el grafico no quede fuera del truncado.
+
+Sigue pendiente (2 sesiones ya): la reparacion del defecto de colores falla
+siempre ("Correccion descartada: no mejoraba"). Proxima sesion: conservar la
+pagina reparada-descartada y comparar contra la original para ver QUE hace el
+modelo cuando "repara".
+
+**Estado: 3407 passed, 1 skipped.** El 14B quedo restaurado como residente.
