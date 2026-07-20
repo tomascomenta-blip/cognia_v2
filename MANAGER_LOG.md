@@ -3273,3 +3273,37 @@ pagina que supere al critico (la biblioteca como memoria de aprendizaje que
 se realimenta sola).
 
 **Estado: 3413 passed, 1 skipped.**
+
+---
+
+## 2026-07-20 (madrugada-2) — la flota de micro-expertos: primeros gates
+
+Pedido del dueno: flota GRANDE de modelos de ~0.8M expertos en cosas
+especificas. Ejecutado con plan pre-registrado (FLOTA_MICROEXPERTOS.md) antes
+de entrenar nada — la leccion de BDraft.
+
+Suelo fisico medido primero: no existe el draft de 0.8M con el vocab de Qwen
+(la embedding sola pesa ~10M). Dos castas: expertos de TAREA (0.8M reales,
+byte-level) y micro-drafts de dominio (~10M, gates G3/G4 pendientes con G0
+ngram como baseline).
+
+Runner declarativo (entrenar_flota.py) + 3 gates corridos hoy:
+  idea_router  PASA (intento 2)  — 3 clases, golden = heuristica
+  idioma       PASA (intento 2)  — golden = heuristica
+  pide_grafico KILL (2 intentos) — la heuristica gana 0.833 a 0.500
+
+Entrenar cuesta 0.6-1.4 SEGUNDOS por experto en la 5060 Ti: la flota puede
+crecer a decenas por sesion. Lo que la limita no es computo, es tener
+BASELINE MEDIBLE y golden set real por cada experto — sin eso el gate no
+tiene contra que cortar.
+
+Detalle honesto: el intento 1 de idioma media baseline 0.000 por bug del
+MEDIDOR (_detect_language devuelve "espanol"/"ingles", no "es"/"en"). El
+gate estaba a punto de aprobar contra un baseline falso. Verificar el
+instrumento antes que el modelo, SIEMPRE.
+
+Pendiente (proxima fase): integrar los 2 que pasaron como segunda opinion
+con log de discrepancias; G0 (ngram spec de llama-server) como baseline de
+los micro-drafts; mas expertos de tarea (tipo de pregunta, ruta de modelo).
+
+**Estado: suite en verde, flota v1 commiteada (861b1e9).**
