@@ -60,3 +60,32 @@ def test_empty_is_chat():
 def test_chat_guard_beats_a_noun_that_looks_actiony():
     # "que es" is a question, even though it contains an actiony word later.
     assert not detect("que es crear un indice invertido").needs_agent
+
+
+# ── deseo/subjuntivo (reporte del dueño 2026-07-21) ─────────────────────
+# "quiero que me abras una pestaña en YouTube" caia al chat y el modelo solo
+# daba el comando en texto en vez de ABRIR la pestaña.
+
+def test_deseo_subjuntivo_abre_pestana():
+    r = detect("quiero que me abras una pestaña en YouTube de Google Chrome")
+    assert r.needs_agent and r.suggested_tool == "abrir"
+
+
+def test_deseo_subjuntivo_haz_pagina():
+    r = detect("Quiero que me hagas una página web de un dashboard detallado")
+    assert r.needs_agent
+
+
+def test_cortesia_podrias_abrirme():
+    r = detect("podrias abrirme powershell")
+    assert r.needs_agent and r.suggested_tool == "abrir"
+
+
+def test_clitico_abreme():
+    assert detect("ábreme spotify").needs_agent
+
+
+def test_deseo_NO_accion_sigue_en_chat():
+    # "quiero que sepas / quiero aprender" no son ordenes de accion
+    assert not detect("quiero que sepas que me gusta el proyecto").needs_agent
+    assert not detect("quiero aprender python").needs_agent
