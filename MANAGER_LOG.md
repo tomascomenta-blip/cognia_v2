@@ -8159,3 +8159,29 @@ de ambos lados arreglando el mismo bug por separado (REPL sin consola,
 **PyPI: https://pypi.org/project/cognia-ai/4.0.0/ — tag v4.0.0, main
 pusheado.** El wheel embarca los patrones curados y la colonia (pesos .npz,
 sin torch). 4.0.0 porque la reunificacion es un major honesto.
+
+---
+
+## 2026-07-20 (post-release) — el producto instalado, configurado y creando
+
+Verificacion de la 4.0.0 COMO USUARIO en esta maquina:
+
+**Configuracion encontrada (ya rica, de sesiones previas):** el CLI instalado
+corre con DOS cerebros — su 7B propio en :8088 (config.env: GPU 99 capas,
+ctx 16384) para el agente, y el 14B+draft de :8080 (llm_local) para juez/
+critico/investigacion. Ambos vivos a la vez en los 16GB.
+
+**El REPL instalado, guionizado** (`printf ... | cognia.exe`): /crear con un
+prompt super detallado de dashboard de inversiones. El pipeline COMPLETO
+funciono en el producto de PyPI: patrones (el delta "+171,93 € desde
+apertura" delata al patron tiles_kpi adaptado), sonda de navegador, critico
+residente capando a 6.5, guardado en site-packages con capturas.
+
+**Lo que salio (Mi Cartera, 6.5/10):** cabecera con banner, 3 KPI con
+formato es-ES y flechas, tabla con los 6 activos EXACTOS del prompt (AAPL,
+MSFT, NVDA, SAN, ITX, BBVA) con flecha+color sobre el mismo valor. Lo flojo
+(el critico lo vio): grafico diminuto sin rejilla, tabla sin cabeceras,
+reloj ausente. Consola limpia (solo el 404 del favicon del http.server).
+
+El 6.5 del instalado EMPATA al mejor 6.5 del repo de hoy: el wheel embarca
+el pipeline completo de verdad.
