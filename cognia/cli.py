@@ -8585,6 +8585,24 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # que RESUME lo hecho (texto, no ACCION) para que la tarea
             # devuelva estado real en lugar de nada.
             _print_fn("[warn_cl]Agente estancado (accion repetida): forzando cierre honesto.[/warn_cl]")
+            # E8 parte 4 (gate 2026-07-20): si la tarea pedia EJECUTAR y el
+            # estancamiento corto ANTES de la ejecucion (patron medido en el
+            # camino feliz: el 3B reescribe el .py una y otra vez y nunca lo
+            # corre), rematar deterministicamente: correr el ultimo .py que
+            # el propio agente escribio. No es adivinar — es terminar el
+            # encargo explicito con la pieza que ya existe.
+            try:
+                from cognia.agent.loop import (
+                    task_pide_ejecucion as _tpe, salida_de_ejecucion as _sde)
+                if _tpe(task) and not _sde(history):
+                    _tocados = (ctx.get("agent_state", {}) or {}).get("files_touched", [])
+                    _py = next((f for f in reversed(_tocados)
+                                if f.endswith(".py")), None)
+                    if _py:
+                        _print_fn(f"[detail]Remate: ejecutando {_py} antes de cerrar[/detail]")
+                        history.append(run_tool("ejecutar", f"python {_py}", ctx))
+            except Exception:
+                pass
             try:
                 _cierre = orch.infer(
                     f"{TOOLS_DOC}\n\nContexto de la tarea:\n{ctx_text}\n\n"

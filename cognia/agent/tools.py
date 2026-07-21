@@ -1221,6 +1221,20 @@ def _generar_codigo(args, ctx):
         return (f"RESULTADO generar_codigo ERROR: no se genero una funcion "
                 f"'{entry}' valida en {out.get('n_generated', 0)} candidatos.")
     wpath.parent.mkdir(parents=True, exist_ok=True)
+    # El fichero debe ser un SCRIPT ejecutable, no solo una definicion: el
+    # camino feliz (gate 2026-07-20) midio al agente re-ejecutando suma.py en
+    # bucle porque `def suma(): ...` sin main no imprime NADA, y el loop se
+    # estancaba esperando un output que no podia llegar. Si la entry no lleva
+    # argumentos y el codigo no tiene ya un __main__, se anade el guard que la
+    # llama e imprime — ejecutar el fichero produce el resultado pedido.
+    if "__main__" not in code and f"def {entry}(" in code:
+        firma = code.split(f"def {entry}(", 1)[1].split(")", 1)[0].strip()
+        sin_args = (firma == "" or all(
+            a.strip().startswith(("*", "**")) or "=" in a
+            for a in firma.split(",") if a.strip()))
+        if sin_args:
+            code += (f"\n\nif __name__ == \"__main__\":\n"
+                     f"    print({entry}())")
     wpath.write_text(code + "\n", encoding="utf-8")
     ft = ctx.setdefault("agent_state", {}).setdefault("files_touched", [])
     if str(wpath) not in ft:

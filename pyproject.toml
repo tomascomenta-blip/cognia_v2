@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognia-ai"
-version = "3.9.1"
+version = "4.0.0"
 description = "Local cognitive AI that runs offline on a small model, with episodic memory, self-improving prompts, and an AI-native image/scene creator"
 readme = "README.md"
 license = { text = "MIT" }
@@ -103,6 +103,12 @@ exclude = [
 "cognia.oficina" = ["web3d/dist/*", "web3d/dist/assets/*"]
 # CSS de la TUI (CSS_PATH de app.py): sin esto la TUI instalada no arranca
 "cognia.tui" = ["*.tcss"]
+# Los patrones curados que guian la generacion web (2026-07-20): sin ellos el
+# generador instalado pierde la mejora medida (cero defectos de navegador).
+"cognia.program_creator" = ["patrones_web/*.html"]
+# La colonia de micro-expertos: pesos numpy + config + referencia de paridad.
+# model.pt (torch) NO se embarca: el runtime instalado no depende de torch.
+"cognia.microexpertos" = ["*/pesos.npz", "*/config.json", "*/metrics.json", "*/paridad_ref.npz"]
 
 # (v3.6.0) Se removio el bloque py-modules: esos modulos top-level se reorganizaron
 # dentro del paquete cognia_v3/ (core/memory/interfaces) y ahora se empaquetan via
