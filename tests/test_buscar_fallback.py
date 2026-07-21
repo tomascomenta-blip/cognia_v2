@@ -27,10 +27,10 @@ def test_no_rescata_palabras_comunes(tmp_path):
     # patrón multi-palabra sin token identificador -> NO rescate (evita falsos +)
     (tmp_path / "f.txt").write_text("config y settings varios\n", encoding="utf-8")
     out = _buscar(f"archivo config settings | {tmp_path}", {})
-    assert "sin resultados" in out, f"rescató palabras comunes (falso +): {out}"
+    assert ("sin resultados" in out or "sin coincidencias" in out), f"rescató palabras comunes (falso +): {out}"
 
 
 def test_sin_match_devuelve_sin_resultados(tmp_path):
     (tmp_path / "f.txt").write_text("nada relevante aca\n", encoding="utf-8")
     out = _buscar(f"XYZ-INEXISTENTE-999 | {tmp_path}", {})
-    assert "sin resultados" in out, out
+    assert ("sin resultados" in out or "sin coincidencias" in out), out

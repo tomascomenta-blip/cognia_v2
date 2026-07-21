@@ -22,6 +22,15 @@ def offline_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SHARD_WEIGHTS_DIR", str(shard_dir))
     # Connection refused on localhost is instant — no real network involved.
     monkeypatch.setenv("OLLAMA_URL", "http://127.0.0.1:1")
+    # Aislar del entorno REAL de la maquina: _find_gguf cae a ~/.cognia/models
+    # (encontraba el UIGEN instalado) y llm_local sondea :8080 (encontraba el
+    # llama-server vivo de la sesion). Offline significa offline.
+    monkeypatch.setenv("LLAMA_GGUF_PATH", str(tmp_path / "no_existe.gguf"))
+    import pathlib as _pl
+    monkeypatch.setattr(_pl.Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setenv("COGNIA_LLM_URL", "http://127.0.0.1:1")
+    import cognia.llm_local as _ll
+    monkeypatch.setattr(_ll, "_backend", None)
     return tmp_path
 
 

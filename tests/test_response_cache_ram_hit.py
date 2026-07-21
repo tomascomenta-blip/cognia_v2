@@ -18,7 +18,7 @@ import tempfile
 
 import pytest
 
-from response_cache import ResponseCache, CACHE_MAX_RAM
+from cognia_v3.interfaces.response_cache import ResponseCache, CACHE_MAX_RAM
 
 
 @pytest.fixture

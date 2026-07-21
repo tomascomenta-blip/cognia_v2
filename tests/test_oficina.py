@@ -268,7 +268,11 @@ def test_motor_trabajador_fallido_no_es_hecha(tmp_path, monkeypatch):
     marcaba 'hecha' con '(sin backend de inferencia...)' como resultado y
     cero archivos producidos — cazado por el e2e del producto instalado)."""
     from cognia.oficina.motor import Motor
-    import cognia.cli as cli_mod
+    import importlib
+    # entrada REAL de sys.modules — no el atributo (posiblemente
+    # viejo) del paquete cognia; ver docstring de este cambio en
+    # tests/test_cli_goal_commands.py, que documenta la trampa
+    cli_mod = importlib.import_module("cognia.cli")
     of = _of(tmp_path)
     mid = of.nueva_meta("crear flappy.html")
     monkeypatch.setattr(
@@ -287,7 +291,11 @@ def test_motor_trabajador_fallido_no_es_hecha(tmp_path, monkeypatch):
 
 def test_motor_trabajador_ok_meta_hecha(tmp_path, monkeypatch):
     from cognia.oficina.motor import Motor
-    import cognia.cli as cli_mod
+    import importlib
+    # entrada REAL de sys.modules — no el atributo (posiblemente
+    # viejo) del paquete cognia; ver docstring de este cambio en
+    # tests/test_cli_goal_commands.py, que documenta la trampa
+    cli_mod = importlib.import_module("cognia.cli")
     of = _of(tmp_path)
     of.nueva_meta("crear un archivo x")
     monkeypatch.setattr(cli_mod, "_run_agent_task",

@@ -57,6 +57,10 @@ def test_generate_program_usa_llm_inyectado(monkeypatch):
 
 def test_generate_program_sin_backend_devuelve_none(monkeypatch, capsys):
     monkeypatch.setattr(gen, "_call_ollama", lambda *a, **kw: None)
+    # La cadena unificada del merge 4.0 es inyectado -> llm_local -> Ollama:
+    # "sin backend" significa anular tambien el eslabon de llm_local (si un
+    # llama-server real esta corriendo en la maquina, el test lo encontraria).
+    monkeypatch.setattr(gen, "generar", lambda *a, **kw: None)
     p = gen.generate_program(forced_idea="contador demo", llm=None)
     assert p is None
     out = capsys.readouterr().out

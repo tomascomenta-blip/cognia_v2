@@ -44,7 +44,7 @@ def test_route_cache_is_lru_not_fifo():
     """Regression: the route() cache claims LRU but the hit path never refreshed
     recency, so eviction degraded to FIFO and evicted the just-used entry.
     Re-accessing a key must protect it from eviction."""
-    import model_router as mr
+    from cognia_v3.interfaces import model_router as mr
     r = mr.ModelRouter()
     r._max_cache = 3
     for q in ("aaa", "bbb", "ccc"):
@@ -60,7 +60,7 @@ def test_route_cache_is_lru_not_fifo():
 
 def test_route_cache_returns_same_decision_on_hit():
     """A cache hit must return the cached decision (identity), not recompute."""
-    import model_router as mr
+    from cognia_v3.interfaces import model_router as mr
     r = mr.ModelRouter()
     first = r.route("escribe una funcion python para sumar")
     second = r.route("escribe una funcion python para sumar")

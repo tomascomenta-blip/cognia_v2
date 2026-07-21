@@ -448,7 +448,9 @@ class _LlamaServerBackend:
         self._lora_path = Path(lora_path) if lora_path else None
         # ctx por instancia: el portero usa 4096 (turnos triviales; KV chico)
         # sin tocar el 32k del server principal.
-        self._ctx_size = int(ctx_size) if ctx_size else _CTX_SIZE
+        # None = resolver en call-time via _ctx_size() (env-overridable,
+        # perf_profiles cambia el knob en runtime); el parametro manda.
+        self._ctx_size = int(ctx_size) if ctx_size else None
         self._json    = _json
         self._urlreq  = urllib.request
         # Real token count from the last /completion response (None until first call)
@@ -512,7 +514,7 @@ class _LlamaServerBackend:
             # modelo local a la LAN, en contra del core "IA local, privada".
             "--host",     "127.0.0.1",
             "--port",     str(port),
-            "--ctx-size", str(self._ctx_size),
+            "--ctx-size", str(self._ctx_size if self._ctx_size is not None else _ctx_size()),
             "--n-gpu-layers", str(_n_gpu_layers()),
             "--threads",  str(n_threads_decode),
             "--threads-batch", str(n_threads_batch),

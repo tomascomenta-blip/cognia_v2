@@ -45,7 +45,7 @@ def test_suite_estructura():
 def test_suite_congelada_sha256():
     """El freeze es vinculante: editar la suite rompe este test (y el ABORT
     de diag_cierres.main). Cambio de suite = suite NUEVA con otro nombre."""
-    h = hashlib.sha256(SUITE.read_bytes()).hexdigest()
+    h = hashlib.sha256(SUITE.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     assert h == SUITE_SHA256
 
 

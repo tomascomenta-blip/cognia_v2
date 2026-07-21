@@ -622,7 +622,7 @@ def _confirmar_accion(kind: str, detalle: str) -> bool:
 _CMD_DESCRIPTIONS = {
     # Expertos, perfiles y consola
     "/modelos":         "Expertos y sus modelos. Uso: /modelos [agregar [peticion] | quitar <id> | activar <id> | desactivar <id>]",
-    "/modelo":          "Alias de /modelos",
+    "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)",
     "/cpu":             "Aplicar perfil de optimizacion CPU (default)",
     "/gpu":             "Aplicar perfil de optimizacion GPU (RTX: todas las capas)",
     "/shells":          "Listar shells en background     [id para ver output]",
@@ -706,7 +706,6 @@ _CMD_DESCRIPTIONS = {
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
     "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
     "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
-    "/modelo":          "Ver/cambiar modelo GGUF del backend (3b|7b)  [clave]",
     "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
     "/flujo":           "Orquestador de flujo: analisis->plan->ejecucion->informe->verificacion <objetivo>",
@@ -6095,11 +6094,13 @@ def repl():
                 key_bindings=_kb,
                 style=_pt_style,
             )
-        except Exception:
+        except Exception as _exc_pt:
             # Sin consola Win32 (stdin piped, subprocess, CI): prompt_toolkit
             # muere con NoConsoleScreenBufferError al crear la PromptSession y
             # el REPL entero moria al arrancar (bug real: `echo hola | cognia`
             # crasheaba). Fallback al input() plano -> REPL scripteable.
+            _print_line(f"[detail]Sin consola interactiva ({type(_exc_pt).__name__}): "
+                        f"modo simple, sin autocompletado.[/detail]")
             session = None
 
     if session is not None:

@@ -29,12 +29,12 @@ class _Orq:
     def __init__(self, texto):
         self._texto = texto
 
-    def infer(self, prompt):
+    def infer(self, prompt, **kw):
         return type("R", (), {"text": self._texto})()
 
 
 class _OrqRoto:
-    def infer(self, prompt):
+    def infer(self, prompt, **kw):
         raise RuntimeError("shards no encontrados")
 
 

@@ -203,7 +203,7 @@ def wants_more_steps(task: str, last_results: str, orch, inferir=None) -> int:
                                   temperature=0.0).text or ""))
         if not texto:
             return 0
-        m = re.search(r"([0-8])", texto)
+        m = re.search(r"\b([0-8])\b", texto)
         if m:
             return int(m.group(1))
     except Exception:

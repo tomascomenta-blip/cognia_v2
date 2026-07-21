@@ -331,7 +331,10 @@ class TestServerCmdConDraft:
         monkeypatch.delenv("LLAMA_DRAFT_GGUF_PATH", raising=False)
         cmd = self._build_cmd(tmp_path, monkeypatch)
         assert "--model-draft" not in cmd
-        assert "--spec-type" not in cmd
+        # Fusion 4.0: sin draft GGUF, _spec_args() pone ngram-mod por defecto
+        # (bit-identico y gratis); lo que NO puede haber es el draft clasico.
+        assert "draft-simple" not in cmd
+        assert "--model-draft" not in cmd
 
     def test_cmd_sin_draft_cuando_archivo_no_existe(self, tmp_path,
                                                     monkeypatch):

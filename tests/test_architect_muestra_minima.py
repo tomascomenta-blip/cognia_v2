@@ -18,7 +18,7 @@ problema que no existe. Tras exigir muestra minima, la misma evaluacion dio
 
 import pytest
 
-from self_architect import MIN_DECISIONES_PARA_TASA
+from cognia_v3.core.self_architect import MIN_DECISIONES_PARA_TASA
 
 
 class TestUmbralDeMuestra:
@@ -82,7 +82,7 @@ class TestMetricasReales:
         """
         import inspect
 
-        import self_architect
+        import cognia_v3.core.self_architect as self_architect
         fuente = inspect.getsource(self_architect)
         assert "decisiones_7d" in fuente
         assert "error_rate_fiable" in fuente
@@ -130,5 +130,5 @@ class TestElMismoFantasmaPorLaPuertaDeLosObjetivos:
     def test_usa_el_mismo_umbral_que_el_arquitecto(self):
         """Dos umbrales distintos para la misma pregunta acabarian divergiendo."""
         from cognia.knowledge.goals import MIN_DECISIONES_PARA_OBJETIVO
-        from self_architect import MIN_DECISIONES_PARA_TASA
+        from cognia_v3.core.self_architect import MIN_DECISIONES_PARA_TASA
         assert MIN_DECISIONES_PARA_OBJETIVO == MIN_DECISIONES_PARA_TASA

@@ -191,7 +191,7 @@ def main():
         if a == "--dominio" and i + 1 < len(sys.argv):
             dominio = sys.argv[i + 1]
 
-    h = hashlib.sha256(SUITE.read_bytes()).hexdigest()
+    h = hashlib.sha256(SUITE.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     if h != SUITE_SHA256:
         print(f"[diag-cierres] ABORT: sha256 de {SUITE.name} = {h[:16]}… no "
               f"coincide con el freeze {SUITE_SHA256[:16]}…. Una suite "
