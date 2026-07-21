@@ -307,6 +307,8 @@
     place-items: center; background: rgba(255,255,255,.08); color: #eafff3;
     border: 1px solid rgba(255,255,255,.14); }
   .jarvis-btn.on { background: rgba(46,168,108,.35); border-color: #2ea86c; }
+  #jarvis-mic.on { background: #e05b7c; border-color: #e05b7c; color: #fff;
+    animation: lateMic 1s infinite; }
   #jarvis-voz { margin-left: auto; }
   #jarvis-info { position: relative; z-index: 2; margin: 0 14px;
     color: #bfe9d4; font-size: 13px; min-height: 20px;
@@ -486,6 +488,7 @@
   <div id="jarvis-barra">
     <button class="jarvis-btn" id="jarvis-cerrar" aria-label="Cerrar"><svg class="ic" width="18" height="18"><use href="#i-volver"/></svg></button>
     <span id="jarvis-titulo">Jarvis</span>
+    <button class="jarvis-btn" id="jarvis-mic" aria-label="Hablarle a Jarvis"><svg class="ic" width="18" height="18"><use href="#i-microfono"/></svg></button>
     <button class="jarvis-btn" id="jarvis-voz" aria-label="Voz"><svg class="ic" width="18" height="18"><use href="#i-voz"/></svg></button>
   </div>
   <div id="jarvis-info"></div>
@@ -906,7 +909,7 @@ function alternarMic() {
   if (_escuchando) { _rec && _rec.stop(); return; }
   _rec = new SR();
   _rec.lang = "es-ES"; _rec.interimResults = true; _rec.continuous = false; _rec.maxAlternatives = 1;
-  _escuchando = true; $("btn-mic").classList.add("on");
+  _escuchando = true; micVisual(true);
   // desbloquea el TTS del móvil (necesita un gesto del usuario)
   if (window.speechSynthesis) { try { speechSynthesis.resume(); } catch (e) {} }
   _rec.onresult = ev => {
@@ -915,18 +918,23 @@ function alternarMic() {
     $("entrada").value = txt.trim();
   };
   _rec.onerror = ev => {
-    _escuchando = false; $("btn-mic").classList.remove("on");
+    _escuchando = false; micVisual(false);
     if (ev.error === "not-allowed" || ev.error === "service-not-allowed")
       alert("Permiso de micrófono denegado. Actívalo en los ajustes del navegador.");
   };
   _rec.onend = () => {
-    _escuchando = false; $("btn-mic").classList.remove("on");
+    _escuchando = false; micVisual(false);
     const t = $("entrada").value.trim();
     if (t) { enviar(t); $("entrada").value = ""; }
   };
-  try { _rec.start(); } catch (e) { _escuchando = false; $("btn-mic").classList.remove("on"); }
+  try { _rec.start(); } catch (e) { _escuchando = false; micVisual(false); }
+}
+function micVisual(on) {
+  ["btn-mic", "jarvis-mic"].forEach(id => { const b = $(id); if (b) b.classList.toggle("on", on); });
+  if ($("jarvis-info") && on) $("jarvis-info").textContent = "Escuchando…";
 }
 $("btn-mic").onclick = alternarMic;
+$("jarvis-mic").onclick = alternarMic;
 document.querySelectorAll(".chip[data-cmd]").forEach(ch =>
   ch.onclick = () => enviar(ch.dataset.cmd));
 
@@ -1217,8 +1225,9 @@ $("btn-oficina3d").onclick = async () => {
 
 /* ══ Jarvis: ESPACIO 3D navegable (cerebro + expertos como orbes de esferas) ══ */
 const JV = {
-  abierto: false, nodos: [], porId: {}, pulsos: [], giro: 0,
+  abierto: false, nodos: [], porId: {}, pulsos: [], subs: [], giro: 0,
   rotY: 0.5, rotX: 0.35, zoom: 1, ox: 0, oy: 0,   // cámara orbital
+  _cyw: 1, _syw: 0, _cpt: 1, _spt: 0,             // trig de cámara cacheada
   raf: 0, foco: null, vozOn: true, ultimoActivo: "cerebro",
   filtro: new Set(),   // ids visibles en el chat; vacío = todos
 };
@@ -1235,41 +1244,83 @@ function fibEsfera(n) {
   }
   return pts;
 }
-// MUCHAS esferas por orbe (denso, puntos pequeños). Cerebro más denso.
-const ORB_CEREBRO = fibEsfera(320);
-const ORB_EXPERTO = fibEsfera(150);
+// MILES de puntos por orbe (denso como la referencia). Cerebro más denso.
+const ORB_CEREBRO = fibEsfera(560);
+const ORB_EXPERTO = fibEsfera(240);
+const ORB_SUB = fibEsfera(110);   // el subagente que brota (bolita chiquita)
 const hexRGB = h => { h = h.replace("#", ""); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; };
 
 // cámara: mundo 3D -> pantalla (orbita rotY/rotX + zoom + pan). Todo el ESPACIO
-// se mueve junto: nodos y sus esferitas comparten esta proyección.
+// se mueve junto. La trigonometría de la cámara se cachea por frame (hay miles
+// de puntos) — actualizarCam() antes de cada pintado.
+function actualizarCam() {
+  JV._cyw = Math.cos(JV.rotY); JV._syw = Math.sin(JV.rotY);
+  JV._cpt = Math.cos(JV.rotX); JV._spt = Math.sin(JV.rotX);
+}
 function proy(x, y, z) {
-  const cyw = Math.cos(JV.rotY), syw = Math.sin(JV.rotY);
-  let X = x * cyw - z * syw, Z = x * syw + z * cyw;   // yaw
-  const cpt = Math.cos(JV.rotX), spt = Math.sin(JV.rotX);
-  let Y = y * cpt - Z * spt, Z2 = y * spt + Z * cpt;  // pitch
+  const X = x * JV._cyw - z * JV._syw, Z = x * JV._syw + z * JV._cyw;   // yaw
+  const Y = y * JV._cpt - Z * JV._spt, Z2 = y * JV._spt + Z * JV._cpt;  // pitch
   const focal = 900, s = focal / (focal + Z2) * JV.zoom;
   return { sx: lienzo.width / 2 + JV.ox + X * s, sy: lienzo.height / 2 + JV.oy + Y * s, z: Z2, s };
 }
 
-// dibuja un orbe = MUCHAS esferas (color vibrante, SIN reflejos blancos),
-// posicionadas en 3D alrededor del centro del nodo y proyectadas con la cámara.
+// NÚCLEO de dibujo: miles de puntos en la superficie de una esfera 3D alrededor
+// de (cx,cy,cz), color PLANO vibrante (sin reflejos). `wob` = amplitud de la ola
+// que recorre la superficie => MOVIMIENTO cuando el modelo habla/actúa.
+// Usa fillRect (mucho más rápido que arc con miles de puntos).
+function pintarPuntos(cx, cy, cz, R, rp, rgb, vibra, spin, pts, wob) {
+  const cs = Math.cos(spin), ss = Math.sin(spin);
+  const [cr, cg, cb] = rgb;
+  ctx2.fillStyle = `rgb(${Math.min(255,cr*vibra)|0},${Math.min(255,cg*vibra)|0},${Math.min(255,cb*vibra)|0})`;
+  const t = Date.now() / 240;
+  for (const [px, py, pz] of pts) {
+    // ola sobre la superficie (respira/ondula al hablar)
+    const on = wob ? 1 + wob * 0.14 * Math.sin(3.1 * (px + py) + t) * Math.cos(2.6 * pz - t) : 1;
+    const rx = px * on, ry = py * on, rz = pz * on;
+    const wx = rx * cs - rz * ss, wz = rx * ss + rz * cs;   // giro propio en Y
+    const p = proy(cx + wx * R, cy + ry * R, cz + wz * R);
+    const rr = Math.max(0.5, rp * p.s);
+    ctx2.fillRect(p.sx - rr, p.sy - rr, rr * 2, rr * 2);
+  }
+}
+
 function dibujarOrbe(n, central) {
   const pts = central ? ORB_CEREBRO : ORB_EXPERTO;
-  const R = n.r * (central ? 1 + 0.06 * Math.sin(Date.now() / 700) : 1);
-  const rp = R * (central ? 0.06 : 0.072);   // puntos PEQUEÑOS
-  const [cr, cg, cb] = n.rgb;
-  const spin = JV.giro * 1.3 + n.fase;       // leve auto-giro del propio orbe
-  const cs = Math.cos(spin), ss = Math.sin(spin);
-  // color PLANO, SIN degradado: un solo tono vibrante para todo el orbe
-  // (los inactivos se atenúan por igual, no punto a punto).
-  const b = central ? 1 : (0.4 + 0.6 * n.energia);
-  ctx2.fillStyle = `rgb(${Math.min(255,cr*b)|0},${Math.min(255,cg*b)|0},${Math.min(255,cb*b)|0})`;
-  for (const [px, py, pz] of pts) {
-    const wx = px * cs - pz * ss, wz = px * ss + pz * cs;   // giro local en Y
-    const p = proy(n.wx + wx * R, n.wy + py * R, n.wz + wz * R);
-    const rr = rp * p.s;
-    ctx2.beginPath(); ctx2.arc(p.sx, p.sy, Math.max(0.4, rr), 0, 7); ctx2.fill();
+  const R = n.r;
+  const rp = R * (central ? 0.042 : 0.055);   // MUCHOS puntos pequeños
+  const vibra = central ? 1 : (0.4 + 0.6 * n.energia);
+  // el cerebro late suave siempre; los expertos se MUEVEN al hablar (energía alta)
+  const wob = central ? 0.35 : Math.max(0, (n.energia - 0.35) * 1.8);
+  pintarPuntos(n.wx, n.wy, n.wz, R, rp, n.rgb, vibra, JV.giro * 1.3 + n.fase, pts, wob);
+}
+
+/* ── Subagentes: cuando un modelo crea un agente, brota una bolita chiquita del
+   INTERIOR (mitosis), orbita mientras trabaja, y al terminar se funde de vuelta. */
+function dispararSubagente(parentId) {
+  const parent = JV.porId[parentId] || JV.nodos[0];
+  if (JV.subs.length > 8) return;   // tope de seguridad
+  JV.subs.push({ parent, rgb: parent.rgb.slice(),
+    ang: Math.random() * 6.283, ang2: 0.6 + Math.random() * 1.9,
+    fase: "nace", t0: Date.now(), r: parent.r * 0.42 });
+}
+function volverSubagente() {
+  const s = JV.subs.find(x => x.fase === "vive") || JV.subs.find(x => x.fase === "nace");
+  if (s) { s.fase = "vuelve"; s.tf = Date.now() + 650; }
+}
+function pintarSubs() {
+  const now = Date.now();
+  for (const s of JV.subs) {
+    if (s.fase === "nace") { s.prog = Math.min(1, (now - s.t0) / 750); if (s.prog >= 1) s.fase = "vive"; }
+    else if (s.fase === "vive") { s.prog = 1; s.ang += 0.01; }
+    else { s.prog = Math.max(0, (s.tf - now) / 650); if (s.prog <= 0) { s.rm = true; continue; } }
+    const ease = 1 - Math.pow(1 - s.prog, 3);           // salida/entrada fluida
+    const dx = Math.sin(s.ang2) * Math.cos(s.ang), dy = Math.cos(s.ang2), dz = Math.sin(s.ang2) * Math.sin(s.ang);
+    const dist = (s.parent.r + s.r * 1.5) * ease;
+    const cx = s.parent.wx + dx * dist, cy = s.parent.wy + dy * dist, cz = s.parent.wz + dz * dist;
+    const rr = s.r * Math.max(0.12, ease);
+    pintarPuntos(cx, cy, cz, rr, rr * 0.11, s.rgb, 0.55 + 0.45 * ease, JV.giro * 2 + s.ang, ORB_SUB, 0.7);
   }
+  JV.subs = JV.subs.filter(s => !s.rm);
 }
 
 async function cargarExpertos() {
@@ -1296,6 +1347,7 @@ async function cargarExpertos() {
 function posNodo(n) { return proy(n.wx, n.wy, n.wz); }
 
 function pintarJarvis() {
+  actualizarCam();
   ctx2.clearRect(0, 0, lienzo.width, lienzo.height);
   const cerebro = JV.nodos[0];
   const pc = posNodo(cerebro);
@@ -1340,6 +1392,7 @@ function pintarJarvis() {
       ctx2.globalAlpha = 1;
     }
   }
+  pintarSubs();       // subagentes que brotan y vuelven (mitosis)
   JV.giro += 0.003;   // leve giro propio de los orbes (el espacio lo mueves tú)
   if (JV.abierto) JV.raf = requestAnimationFrame(pintarJarvis);
 }
@@ -1385,7 +1438,12 @@ const _MAP_EXP = [
   [/juez/i, "juez"],
   [/lector|navega/, "lector_web"],
 ];
+// señales de crear/terminar un subagente (jefe delega a un trabajador, etc.)
+const _SUB_NACE = /delegar_subtarea|\[trabajador|sub-?agente|nuevo agente|jefe planificando|D\d+:/i;
+const _SUB_FIN = /Objetivo verificado|subtarea (lista|completa|hecha|cumplida|terminada)|trabajador (termin|entreg)/i;
 function dispararPorActividad(texto) {
+  if (_SUB_NACE.test(texto)) dispararSubagente(JV.ultimoActivo);
+  if (_SUB_FIN.test(texto)) volverSubagente();
   for (const [re, id] of _MAP_EXP) {
     if (re.test(texto)) { dispararExperto(id); return; }
   }
@@ -1420,6 +1478,7 @@ async function abrirJarvis() {
   await cargarExpertos();
   $("jarvis").hidden = false;
   JV.abierto = true;
+  actualizarCam();
   requestAnimationFrame(() => { ajustarLienzo(); JV.raf = requestAnimationFrame(pintarJarvis); });
 }
 function cerrarJarvis() {
