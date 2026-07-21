@@ -98,6 +98,35 @@
     font-family: ui-monospace, monospace; }
   .msg img.inline { max-width: 100%; border-radius: 10px; display: block;
     margin-top: 4px; }
+  /* respuesta de Cognia: UN bloque continuo, sin globo, markdown renderizado */
+  .msg.cognia.bloque { align-self: stretch; max-width: 100%; width: 100%;
+    background: none; border: none; border-left: 3px solid var(--acento-2);
+    border-radius: 0; padding: 4px 12px; white-space: normal; }
+  .md { white-space: normal; }
+  .md > *:first-child { margin-top: 0; }
+  .md > *:last-child { margin-bottom: 0; }
+  .md p { margin: 6px 0; }
+  .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
+    margin: 12px 0 6px; line-height: 1.25; color: var(--texto); font-weight: 700; }
+  .md h1 { font-size: 18px; } .md h2 { font-size: 16.5px; }
+  .md h3 { font-size: 15px; } .md h4, .md h5, .md h6 { font-size: 14px; }
+  .md ul, .md ol { margin: 6px 0; padding-left: 22px; }
+  .md li { margin: 2px 0; }
+  .md strong { font-weight: 700; color: var(--texto); }
+  .md em { font-style: italic; }
+  .md a { color: var(--acento); text-decoration: underline; }
+  .md code { font-family: ui-monospace, monospace; font-size: 12.5px;
+    background: var(--panel); border: 1px solid var(--borde);
+    border-radius: 4px; padding: 1px 4px; }
+  .md pre { background: var(--panel); border: 1px solid var(--borde);
+    border-radius: 8px; padding: 9px 11px; margin: 8px 0; overflow-x: auto; }
+  .md pre code { background: none; border: none; padding: 0; font-size: 12px;
+    line-height: 1.5; display: block; white-space: pre; }
+  .md blockquote { margin: 6px 0; padding-left: 10px; color: var(--texto-2);
+    border-left: 2px solid var(--borde); }
+  .md hr { border: none; border-top: 1px solid var(--borde); margin: 10px 0; }
+  .md table { border-collapse: collapse; margin: 8px 0; font-size: 12.5px; }
+  .md th, .md td { border: 1px solid var(--borde); padding: 3px 8px; }
   /* bloque de ACTIVIDAD: lo que Cognia hace, agrupado y plegable */
   details.actividad { align-self: flex-start; max-width: 92%; width: 92%;
     background: var(--panel); border: 1px solid var(--acento-2);
@@ -391,7 +420,75 @@ function registrarLog(texto) {
   $("cuerpo-registro").textContent = logsBuffer.join("\n");
 }
 
+/* ── Markdown → HTML (compacto y seguro: escapa antes de formatear) ── */
+function escHTML(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function mdInline(s) {
+  // s ya viene escapado; aplicar solo inline
+  s = s.replace(/`([^`]+)`/g, (m, c) => "<code>" + c + "</code>");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+                '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
+function mdHTML(texto) {
+  const lineas = texto.split("\n");
+  let html = "", i = 0, tipoLista = null;
+  const cerrarLista = () => { if (tipoLista) { html += "</" + tipoLista + ">"; tipoLista = null; } };
+  while (i < lineas.length) {
+    let l = lineas[i];
+    // bloque de codigo cercado ```
+    const fence = l.match(/^\s*```(\w*)\s*$/);
+    if (fence) {
+      cerrarLista();
+      const buf = [];
+      i++;
+      while (i < lineas.length && !/^\s*```\s*$/.test(lineas[i])) { buf.push(lineas[i]); i++; }
+      i++; // saltar el cierre
+      html += "<pre><code>" + escHTML(buf.join("\n")) + "</code></pre>";
+      continue;
+    }
+    const esc = escHTML(l);
+    // encabezados #..######
+    const h = esc.match(/^\s*(#{1,6})\s+(.*)$/);
+    if (h) { cerrarLista(); const n = h[1].length;
+      html += "<h" + n + ">" + mdInline(h[2]) + "</h" + n + ">"; i++; continue; }
+    // separador ---
+    if (/^\s*([-*_])\1\1+\s*$/.test(l)) { cerrarLista(); html += "<hr>"; i++; continue; }
+    // cita >
+    const bq = esc.match(/^\s*&gt;\s?(.*)$/);
+    if (bq) { cerrarLista(); html += "<blockquote>" + mdInline(bq[1]) + "</blockquote>"; i++; continue; }
+    // lista ordenada
+    const ol = esc.match(/^\s*\d+[.)]\s+(.*)$/);
+    if (ol) { if (tipoLista !== "ol") { cerrarLista(); html += "<ol>"; tipoLista = "ol"; }
+      html += "<li>" + mdInline(ol[1]) + "</li>"; i++; continue; }
+    // lista con viñetas
+    const ul = esc.match(/^\s*[-*+]\s+(.*)$/);
+    if (ul) { if (tipoLista !== "ul") { cerrarLista(); html += "<ul>"; tipoLista = "ul"; }
+      html += "<li>" + mdInline(ul[1]) + "</li>"; i++; continue; }
+    // linea en blanco
+    if (!esc.trim()) { cerrarLista(); i++; continue; }
+    // parrafo (juntar lineas contiguas)
+    cerrarLista();
+    const parr = [esc];
+    i++;
+    while (i < lineas.length && lineas[i].trim() &&
+           !/^\s*(#{1,6}\s|```|[-*+]\s|\d+[.)]\s|&gt;|([-*_])\2\2)/.test(escHTML(lineas[i]))) {
+      parr.push(escHTML(lineas[i])); i++;
+    }
+    html += "<p>" + mdInline(parr.join(" ")) + "</p>";
+  }
+  cerrarLista();
+  return html;
+}
+
 let grupoActividad = null;   // el bloque plegable abierto de actividad
+let grupoCognia = null;      // el bloque de respuesta de Cognia en curso
+let cogniaRaw = "";          // texto crudo acumulado para re-renderizar markdown
 
 function filaActividad(texto) {
   // linea larga o multilinea: resumen + contenido expandible (+/-)
@@ -439,6 +536,36 @@ function burbujaActividad(texto) {
   }
 }
 
+function agregarImagen(cont, texto) {
+  const png = texto.match(RUTA_PNG);
+  if (!png) return;
+  const img = document.createElement("img");
+  img.className = "inline"; img.loading = "lazy";
+  img.src = "/api/imagen?ruta=" + encodeURIComponent(png[1]);
+  img.onerror = () => img.remove();
+  cont.appendChild(img);
+}
+
+// La respuesta de Cognia se acumula en UN bloque continuo (sin globos por
+// linea) y se re-renderiza como markdown cada vez que llega otra linea.
+function burbujaCognia(texto, hora) {
+  if (!grupoCognia || !chat.contains(grupoCognia)) { grupoCognia = null; cogniaRaw = ""; }
+  if (!grupoCognia) {
+    grupoCognia = document.createElement("div");
+    grupoCognia.className = "msg cognia bloque";
+    grupoCognia.innerHTML = '<div class="md"></div>';
+    if (hora) {
+      const h = document.createElement("span");
+      h.className = "hora"; h.textContent = hora; grupoCognia.appendChild(h);
+    }
+    chat.appendChild(grupoCognia);
+  }
+  cogniaRaw += (cogniaRaw ? "\n" : "") + texto;
+  grupoCognia.querySelector(".md").innerHTML = mdHTML(cogniaRaw);
+  agregarImagen(grupoCognia, texto);
+  chat.scrollTop = chat.scrollHeight;
+}
+
 function burbuja(quien, texto, hora) {
   texto = texto.replace(/\[\/?[a-z_]+\]/g, "");
   // el servidor ya clasifica: quien=="log" va directo al Registro
@@ -448,26 +575,19 @@ function burbuja(quien, texto, hora) {
   // ACTIVIDAD: agrupada en bloque plegable +/- dentro del chat
   if (quien === "actividad" ||
       (quien === "cognia" && (ES_PENSANDO(texto) || ES_ACCION(texto)))) {
+    grupoCognia = null;      // la actividad cierra el bloque de respuesta
     burbujaActividad(texto); return;
   }
-  grupoActividad = null;   // un mensaje normal cierra el grupo actual
+  grupoActividad = null;   // un mensaje normal cierra el grupo de actividad
+  // RESPUESTA de Cognia: un solo bloque, markdown renderizado
+  if (quien === "cognia") { burbujaCognia(texto, hora); return; }
+  // usuario / sistema: burbuja simple
+  grupoCognia = null;
   const div = document.createElement("div");
-  let clase = quien === "usuario" ? "yo" : quien === "cognia" ? "cognia" : "sistema";
-  if (quien === "cognia") {
-    if (ES_PENSANDO(texto)) clase = "pensando";
-    else if (ES_ACCION(texto)) clase = "accion";
-  }
+  const clase = quien === "usuario" ? "yo" : "sistema";
   div.className = "msg " + clase;
   div.textContent = texto;
-  // output de imagenes: si la linea trae una ruta .png de la biblioteca, mostrarla
-  const png = texto.match(RUTA_PNG);
-  if (png) {
-    const img = document.createElement("img");
-    img.className = "inline"; img.loading = "lazy";
-    img.src = "/api/imagen?ruta=" + encodeURIComponent(png[1]);
-    img.onerror = () => img.remove();
-    div.appendChild(img);
-  }
+  agregarImagen(div, texto);
   if (hora && clase !== "sistema") {
     const h = document.createElement("span");
     h.className = "hora"; h.textContent = hora; div.appendChild(h);
@@ -592,7 +712,7 @@ async function abrirSesion(proyecto, sid, titulo) {
   $("titulo-nombre").textContent = titulo || sid;
   $("titulo-sub").textContent = proyecto.nombre;
   $("estado-punto").classList.add("vivo");
-  chat.innerHTML = ""; logsBuffer = [];
+  chat.innerHTML = ""; logsBuffer = []; grupoCognia = null; grupoActividad = null; cogniaRaw = "";
   const trans = await api(`/api/proyectos/${proyecto.id}/sesiones/${sid}/transcripcion`);
   for (const e of trans) if (e.quien !== "meta") burbuja(e.quien, e.texto, e.t);
   if (S.ws) { S.ws.close(); S.ws = null; }
