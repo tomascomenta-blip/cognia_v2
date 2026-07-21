@@ -408,6 +408,10 @@
         <button class="expandir" data-full="panel-grafo"><svg class="ic" width="16" height="16"><use href="#i-expandir"/></svg></button>
         <span class="flecha">›</span></summary>
       <div class="cuerpo">
+        <button class="boton-panel" id="btn-rag3d" style="margin-bottom:10px">
+          <svg class="ic" width="15" height="15"><use href="#i-grafo"/></svg>
+          Abrir memoria en 3D (cilindro)</button>
+        <div style="font-size:11.5px;color:var(--texto-2);margin-bottom:6px">Vista rápida 2D:</div>
         <svg id="grafo-svg" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet"></svg>
         <div id="grafo-detalle">Toca una bolita para ver el concepto.</div>
       </div>
@@ -1164,104 +1168,132 @@ $("btn-oficina3d").onclick = async () => {
   setTimeout(() => mostrarOficina(r.puerto), 2500);
 };
 
-/* ══ Jarvis: constelación 3D de voz (cerebro central + expertos) ══ */
+/* ══ Jarvis: ESPACIO 3D navegable (cerebro + expertos como orbes de esferas) ══ */
 const JV = {
-  abierto: false, nodos: [], porId: {}, pulsos: [], rot: 0,
-  escala: 1, ox: 0, oy: 0, raf: 0, foco: null, vozOn: true,
+  abierto: false, nodos: [], porId: {}, pulsos: [], giro: 0,
+  rotY: 0.5, rotX: 0.35, zoom: 1, ox: 0, oy: 0,   // cámara orbital
+  raf: 0, foco: null, vozOn: true, ultimoActivo: "cerebro",
   filtro: new Set(),   // ids visibles en el chat; vacío = todos
 };
 const lienzo = $("jarvis-lienzo");
 const ctx2 = lienzo.getContext("2d");
 
+// puntos repartidos SIMÉTRICAMENTE en la superficie de una esfera (Fibonacci).
+function fibEsfera(n) {
+  const pts = [], gold = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (i / (n - 1)) * 2, r = Math.sqrt(Math.max(0, 1 - y * y));
+    const th = gold * i;
+    pts.push([Math.cos(th) * r, y, Math.sin(th) * r]);
+  }
+  return pts;
+}
+// MUCHAS esferas por orbe (denso, puntos pequeños). Cerebro más denso.
+const ORB_CEREBRO = fibEsfera(320);
+const ORB_EXPERTO = fibEsfera(150);
+const hexRGB = h => { h = h.replace("#", ""); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; };
+
+// cámara: mundo 3D -> pantalla (orbita rotY/rotX + zoom + pan). Todo el ESPACIO
+// se mueve junto: nodos y sus esferitas comparten esta proyección.
+function proy(x, y, z) {
+  const cyw = Math.cos(JV.rotY), syw = Math.sin(JV.rotY);
+  let X = x * cyw - z * syw, Z = x * syw + z * cyw;   // yaw
+  const cpt = Math.cos(JV.rotX), spt = Math.sin(JV.rotX);
+  let Y = y * cpt - Z * spt, Z2 = y * spt + Z * cpt;  // pitch
+  const focal = 900, s = focal / (focal + Z2) * JV.zoom;
+  return { sx: lienzo.width / 2 + JV.ox + X * s, sy: lienzo.height / 2 + JV.oy + Y * s, z: Z2, s };
+}
+
+// dibuja un orbe = MUCHAS esferas (color vibrante, SIN reflejos blancos),
+// posicionadas en 3D alrededor del centro del nodo y proyectadas con la cámara.
+function dibujarOrbe(n, central) {
+  const pts = central ? ORB_CEREBRO : ORB_EXPERTO;
+  const R = n.r * (central ? 1 + 0.06 * Math.sin(Date.now() / 700) : 1);
+  const rp = R * (central ? 0.06 : 0.072);   // puntos PEQUEÑOS
+  const [cr, cg, cb] = n.rgb;
+  const spin = JV.giro * 1.3 + n.fase;       // leve auto-giro del propio orbe
+  const cs = Math.cos(spin), ss = Math.sin(spin);
+  // color PLANO, SIN degradado: un solo tono vibrante para todo el orbe
+  // (los inactivos se atenúan por igual, no punto a punto).
+  const b = central ? 1 : (0.4 + 0.6 * n.energia);
+  ctx2.fillStyle = `rgb(${Math.min(255,cr*b)|0},${Math.min(255,cg*b)|0},${Math.min(255,cb*b)|0})`;
+  for (const [px, py, pz] of pts) {
+    const wx = px * cs - pz * ss, wz = px * ss + pz * cs;   // giro local en Y
+    const p = proy(n.wx + wx * R, n.wy + py * R, n.wz + wz * R);
+    const rr = rp * p.s;
+    ctx2.beginPath(); ctx2.arc(p.sx, p.sy, Math.max(0.4, rr), 0, 7); ctx2.fill();
+  }
+}
+
 async function cargarExpertos() {
   if (JV.nodos.length) return;
   const lista = await api("/api/expertos");
-  // cerebro al centro; micro-expertos anillo interno; roles anillo externo
-  const micro = lista.filter(e => e.tipo === "microexperto");
-  const roles = lista.filter(e => e.tipo === "rol");
   const cerebro = lista.find(e => e.central) || lista[0];
+  const otros = lista.filter(e => e !== cerebro);
   JV.nodos = [];
-  const nc = { ...cerebro, x: 0, y: 0, r: 30, energia: 0.7, base: 0, anillo: 0 };
-  JV.nodos.push(nc);
-  const anillo = (arr, radio, r) => arr.forEach((e, i) => {
-    const a = (2 * Math.PI * i) / Math.max(1, arr.length) - Math.PI / 2;
-    JV.nodos.push({ ...e, base: a, radio, r,
-      energia: 0.15, activo: e.activo !== false });
+  JV.nodos.push({ ...cerebro, wx: 0, wy: 0, wz: 0, r: 62, energia: 0.7,
+    fase: 0, rgb: hexRGB(cerebro.color) });
+  // expertos repartidos en 3D en una esfera alrededor del cerebro (Fibonacci)
+  const dirs = fibEsfera(Math.max(2, otros.length));
+  otros.forEach((e, i) => {
+    const [dx, dy, dz] = dirs[i] || [0, 0, 1];
+    const rad = e.tipo === "microexperto" ? 190 : 300;
+    JV.nodos.push({ ...e, wx: dx * rad, wy: dy * rad, wz: dz * rad,
+      r: e.tipo === "microexperto" ? 30 : 24, energia: 0.15,
+      activo: e.activo !== false, fase: i * 1.7, rgb: hexRGB(e.color) });
   });
-  anillo(micro, 120, 16);
-  anillo(roles, 210, 13);
   JV.porId = {};
   JV.nodos.forEach(n => JV.porId[n.id] = n);
 }
 
-function posNodo(n) {           // posición mundo -> pantalla
-  const wx = n.anillo === 0 && n.central ? 0 : (n.radio || 0) * Math.cos(n.base + JV.rot);
-  const wy = n.anillo === 0 && n.central ? 0 : (n.radio || 0) * Math.sin(n.base + JV.rot);
-  const cx = lienzo.width / 2 + JV.ox;
-  const cy = lienzo.height * 0.44 + JV.oy;
-  return { sx: cx + wx * JV.escala, sy: cy + wy * JV.escala, wx, wy };
-}
+function posNodo(n) { return proy(n.wx, n.wy, n.wz); }
 
 function pintarJarvis() {
-  const W = lienzo.width, H = lienzo.height;
-  ctx2.clearRect(0, 0, W, H);
+  ctx2.clearRect(0, 0, lienzo.width, lienzo.height);
   const cerebro = JV.nodos[0];
   const pc = posNodo(cerebro);
-  // líneas cerebro -> expertos
+  // líneas cerebro -> expertos (en el espacio 3D)
   for (const n of JV.nodos) {
     if (n === cerebro) continue;
     const p = posNodo(n);
     ctx2.beginPath(); ctx2.moveTo(pc.sx, pc.sy); ctx2.lineTo(p.sx, p.sy);
     ctx2.strokeStyle = n.color;
-    ctx2.globalAlpha = 0.08 + 0.5 * n.energia;
-    ctx2.lineWidth = 1 + 1.5 * n.energia;
+    ctx2.globalAlpha = 0.06 + 0.4 * n.energia;
+    ctx2.lineWidth = 1 + 1.2 * n.energia;
     ctx2.stroke(); ctx2.globalAlpha = 1;
   }
-  // pulsos de energía viajando (blanco + color del experto)
+  // pulsos de energía: un trabajo despachado ENTRE modelos (origen -> destino)
   JV.pulsos = JV.pulsos.filter(pu => pu.t < 1);
   for (const pu of JV.pulsos) {
-    pu.t += 0.022;
-    const n = pu.nodo, p = posNodo(n);
-    const x = pc.sx + (p.sx - pc.sx) * pu.t, y = pc.sy + (p.sy - pc.sy) * pu.t;
-    const rad = 7 * JV.escala;
-    const g = ctx2.createRadialGradient(x, y, 0, x, y, rad);
-    g.addColorStop(0, "#ffffff"); g.addColorStop(0.5, n.color);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx2.fillStyle = g; ctx2.beginPath(); ctx2.arc(x, y, rad, 0, 7); ctx2.fill();
-    if (pu.t >= 0.98) { n.energia = 1; }
+    pu.t += 0.02;
+    const o = pu.origen, d = pu.destino;
+    const wx = o.wx + (d.wx - o.wx) * pu.t, wy = o.wy + (d.wy - o.wy) * pu.t,
+          wz = o.wz + (d.wz - o.wz) * pu.t;
+    const p = proy(wx, wy, wz);
+    const rad = 7 * p.s;
+    const g = ctx2.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, rad);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(0.5, d.color); g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx2.fillStyle = g; ctx2.beginPath(); ctx2.arc(p.sx, p.sy, rad, 0, 7); ctx2.fill();
+    if (pu.t >= 0.96) d.energia = 1;
   }
-  // nodos con glow; opacos si inactivos
-  for (const n of JV.nodos) {
-    const p = posNodo(n);
+  // nodos ordenados por profundidad; cada uno un ORBE de muchas esferas
+  const orden = JV.nodos.map(n => ({ n, z: posNodo(n).z })).sort((a, b) => b.z - a.z);
+  for (const { n } of orden) {
     const central = n === cerebro;
-    if (central) n.energia = 0.55 + 0.15 * Math.sin(Date.now() / 600);
-    else n.energia = Math.max(n.activo === false ? 0.06 : 0.13, n.energia - 0.008);
-    const r = (n.r + (central ? 6 * Math.abs(Math.sin(Date.now() / 700)) : 0)) * JV.escala;
-    ctx2.save();
-    ctx2.shadowColor = n.color;
-    ctx2.shadowBlur = (central ? 34 : 10 + 26 * n.energia) * Math.min(1.5, JV.escala);
-    ctx2.globalAlpha = central ? 1 : (0.28 + 0.72 * n.energia);
-    ctx2.fillStyle = n.color;
-    ctx2.beginPath(); ctx2.arc(p.sx, p.sy, r, 0, 7); ctx2.fill();
-    ctx2.restore();
-    // núcleo blanco cuando "habla"
-    if (n.energia > 0.6) {
-      ctx2.globalAlpha = (n.energia - 0.6) * 2.2;
-      ctx2.fillStyle = "#fff";
-      ctx2.beginPath(); ctx2.arc(p.sx, p.sy, r * 0.4, 0, 7); ctx2.fill();
-      ctx2.globalAlpha = 1;
-    }
-    // etiqueta si activo/foco/cerebro
+    if (central) n.energia = 0.65 + 0.2 * Math.sin(Date.now() / 600);
+    else n.energia = Math.max(n.activo === false ? 0.06 : 0.14, n.energia - 0.008);
+    dibujarOrbe(n, central);
     if (central || n.energia > 0.35 || JV.foco === n) {
+      const p = posNodo(n);
       ctx2.globalAlpha = central ? 1 : Math.min(1, n.energia + 0.4);
       ctx2.fillStyle = "#eafff3";
       ctx2.font = (central ? 14 : 11) + "px system-ui, sans-serif";
       ctx2.textAlign = "center";
-      ctx2.fillText(n.nombre, p.sx, p.sy + r + (central ? 18 : 13));
+      ctx2.fillText(n.nombre, p.sx, p.sy + n.r * p.s + (central ? 16 : 12));
       ctx2.globalAlpha = 1;
     }
   }
-  JV.rot += 0.0016;   // rotación lenta: la constelación "respira"
+  JV.giro += 0.003;   // leve giro propio de los orbes (el espacio lo mueves tú)
   if (JV.abierto) JV.raf = requestAnimationFrame(pintarJarvis);
 }
 
@@ -1288,7 +1320,7 @@ function hablarCognia(texto) {
   clearTimeout(_vozTimer);
   _vozTimer = setTimeout(() => {
     const t = _vozBuffer.trim(); _vozBuffer = "";
-    if (t) { hablar(t); JV.nodos[0] && (JV.nodos[0].energia = 1); }
+    if (t) { hablar(t); JV.nodos[0] && (JV.nodos[0].energia = 1); JV.ultimoActivo = "cerebro"; }
   }, 900);
 }
 
@@ -1311,20 +1343,27 @@ function dispararPorActividad(texto) {
     if (re.test(texto)) { dispararExperto(id); return; }
   }
 }
+// una acción se despacha ENTRE modelos: pulso del ÚLTIMO modelo activo (o del
+// cerebro) hacia el experto que ahora actúa. Así se ve el trabajo pasando de
+// mano en mano (cerebro->experto, experto->experto...).
 function dispararExperto(id) {
-  const n = JV.porId[id];
-  if (!n) return;
-  JV.pulsos.push({ nodo: n, t: 0 });
-  if (JV.abierto && JV.vozOn) hablar(n.nombre);
+  const destino = JV.porId[id];
+  if (!destino) return;
+  let origen = JV.porId[JV.ultimoActivo] || JV.nodos[0];
+  if (origen === destino) origen = JV.nodos[0];   // se re-tarea a sí mismo: desde el cerebro
+  JV.pulsos.push({ origen, destino, t: 0 });
+  origen.energia = Math.max(origen.energia, 0.7);  // el que envía también brilla
+  JV.ultimoActivo = id;
+  if (JV.abierto && JV.vozOn) hablar(destino.nombre);
 }
 
 function focoEn(n) {
   JV.foco = n;
   const p = posNodo(n);
-  // centra el nodo y acerca
+  // centra el nodo en pantalla y acerca un poco
   JV.ox += (lienzo.width / 2 - p.sx);
-  JV.oy += (lienzo.height * 0.44 - p.sy);
-  JV.escala = Math.min(2.4, JV.escala * 1.25);
+  JV.oy += (lienzo.height / 2 - p.sy);
+  JV.zoom = Math.min(2.6, JV.zoom * 1.25);
   $("jarvis-info").textContent = n.nombre + " — " + (n.descripcion || "");
   n.energia = 1;
   hablar(n.nombre + ". " + (n.descripcion || ""));
@@ -1351,15 +1390,17 @@ $("jarvis-voz").classList.toggle("on", JV.vozOn);
 $("jarvis-tiles").querySelectorAll(".jarvis-tile").forEach(t =>
   t.onclick = () => { cerrarJarvis(); abrirPanel(t.dataset.abre); });
 
-// gestos: pan (1 dedo), zoom (rueda / pellizco), tap = enfocar nodo
-let _pt = new Map(), _movido = false, _iniD = 0, _iniEsc = 1;
+// gestos del ESPACIO 3D: 1 dedo = ORBITAR, 2 dedos = zoom + desplazar,
+// rueda = zoom, tap = enfocar un nodo.
+let _pt = new Map(), _movido = false, _iniD = 0, _iniZ = 1, _iniMid = null;
 lienzo.addEventListener("pointerdown", e => {
   lienzo.setPointerCapture(e.pointerId);
   _pt.set(e.pointerId, { x: e.clientX, y: e.clientY });
   _movido = false;
   if (_pt.size === 2) {
     const [a, b] = [..._pt.values()];
-    _iniD = Math.hypot(a.x - b.x, a.y - b.y); _iniEsc = JV.escala;
+    _iniD = Math.hypot(a.x - b.x, a.y - b.y); _iniZ = JV.zoom;
+    _iniMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
   }
 });
 lienzo.addEventListener("pointermove", e => {
@@ -1369,24 +1410,28 @@ lienzo.addEventListener("pointermove", e => {
     _pt.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const [a, b] = [..._pt.values()];
     const d = Math.hypot(a.x - b.x, a.y - b.y);
-    if (_iniD) JV.escala = Math.max(0.5, Math.min(3, _iniEsc * d / _iniD));
-    _movido = true; return;
+    if (_iniD) JV.zoom = Math.max(0.4, Math.min(4, _iniZ * d / _iniD));
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    if (_iniMid) { JV.ox += (mid.x - _iniMid.x) * dpr; JV.oy += (mid.y - _iniMid.y) * dpr; }
+    _iniMid = mid; _movido = true; return;
   }
-  const dx = (e.clientX - prev.x) * dpr, dy = (e.clientY - prev.y) * dpr;
-  if (Math.abs(e.clientX - prev.x) + Math.abs(e.clientY - prev.y) > 3) _movido = true;
-  JV.ox += dx; JV.oy += dy;
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+  if (Math.abs(dx) + Math.abs(dy) > 3) _movido = true;
+  // ORBITAR la cámara alrededor del espacio
+  JV.rotY += dx * 0.007;
+  JV.rotX = Math.max(-1.45, Math.min(1.45, JV.rotX + dy * 0.007));
   _pt.set(e.pointerId, { x: e.clientX, y: e.clientY });
 });
 lienzo.addEventListener("pointerup", e => {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   if (!_movido && _pt.size === 1) {
-    const mx = e.clientX * dpr - lienzo.getBoundingClientRect().left * dpr;
-    const my = e.clientY * dpr - lienzo.getBoundingClientRect().top * dpr;
+    const r = lienzo.getBoundingClientRect();
+    const mx = (e.clientX - r.left) * dpr, my = (e.clientY - r.top) * dpr;
     let hit = null, mejor = 1e9;
     for (const n of JV.nodos) {
       const p = posNodo(n);
       const d = Math.hypot(p.sx - mx, p.sy - my);
-      if (d < (n.r + 14) * JV.escala && d < mejor) { mejor = d; hit = n; }
+      if (d < (n.r * p.s + 16) && d < mejor) { mejor = d; hit = n; }
     }
     if (hit) focoEn(hit);
   }
@@ -1394,7 +1439,7 @@ lienzo.addEventListener("pointerup", e => {
 });
 lienzo.addEventListener("wheel", e => {
   e.preventDefault();
-  JV.escala = Math.max(0.5, Math.min(3, JV.escala * (e.deltaY < 0 ? 1.1 : 0.9)));
+  JV.zoom = Math.max(0.4, Math.min(4, JV.zoom * (e.deltaY < 0 ? 1.1 : 0.9)));
 }, { passive: false });
 window.addEventListener("resize", () => { if (JV.abierto) ajustarLienzo(); });
 
@@ -1513,6 +1558,7 @@ async function abrirRAG() {
 }
 function cerrarRAG() { RG.abierto = false; cancelAnimationFrame(RG.raf); $("rag").hidden = true; }
 $("tile-rag").onclick = abrirRAG;
+$("btn-rag3d").onclick = abrirRAG;   // desde el panel Grafo, directo al cilindro 3D
 $("rag-cerrar").onclick = cerrarRAG;
 $("rag-2d").onclick = function () {
   RG.modo2d = !RG.modo2d; this.classList.toggle("on", RG.modo2d);
