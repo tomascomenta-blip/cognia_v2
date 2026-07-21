@@ -8308,3 +8308,39 @@ ahora van a actividad, no al chat (se colaban como markdown).
 
 Aislamiento de tests (arrastrado de la sesion anterior): fixture _feromona_
 aislada en conftest + monkeypatch de FICHERO_PROYECTOS; datos reales limpiados.
+
+---
+
+## 2026-07-21 (tarde) — Acceso completo al equipo + razonamiento profundo /pensar
+
+### Parte 1 — acceso completo (pedido: "que pueda hacer todo en mi PC")
+Cognia "no queria abrir PowerShell". Tres causas reales, tres fixes:
+- intent.py solo casaba "abre EL ARCHIVO" -> "abre powershell/chrome/youtube"
+  caia al chat. Reglas nuevas -> tool 'abrir' + verbos de accion; esas frases
+  activan el agente SOLAS, sin /hacer.
+- pyautogui no estaba instalado: las tools de pantalla existian pero morian al
+  importar. Instalado; captura real verificada (1920x1080). Sesiones remotas
+  con COGNIA_SCREEN=1 + COGNIA_SCREEN_AUTO=1 (mouse/teclado/captura sin
+  confirmacion; FAILSAFE de pyautogui vigente).
+- Sentinel: consolas/utilidades en allowlist (powershell, cmd, curl, ping...)
+  y modo COGNIA_ACCESO_TOTAL=1 en el remoto (lo desconocido procede, auditado).
+  El BLOCK duro NO se relaja (rm -rf, format, shutdown, Remove-Item -Recurse
+  -Force, rd /s, diskpart) — verificado con 6 catastroficos aun con acceso
+  total. 115/115 tests dirigidos.
+
+### Parte 2 — goal: razonamiento profundo (CPU y GPU)
+- cognia/razonador.py: segundo llama-server (:8093) con modelo THINKING por
+  perfil — GPU: Qwen3-4B-Thinking-2507 Q4_K_M (ctx 32k); CPU: Qwen3-1.7B
+  (ctx 8k). Ambos descargados a ~/.cognia/models. COGNIA_RAZONADOR_GGUF manda.
+- Generacion infinita: generate_long (auto-continuacion + guarda de ctx por
+  cola deslizante) FUNCIONA: logica penso 8989 tokens en 5 rondas y cerro
+  natural (eos); contexto-largo 5931/3 rondas.
+- /pensar <pregunta> en el CLI (reemplaza al /pensar CoT viejo; el /razonar
+  cientifico queda intacto). Pensamiento en [detail] (plegable en el remoto).
+- scripts/e2e_razonamiento.py: 12 preguntas largas/complejas con postcondicion.
+  RESULTADOS: GPU 12/12 en 4.3 min; CPU 5/5 en 4.6 min. El E2E cazo 2 bugs
+  reales (regex sin LaTeX; perfil leido antes de config.env que recortaba
+  max_tokens) — corregidos y re-medidos.
+- CLI real verificado: /pensar caracol-pozo -> "8 dias" correcto, 1805 tokens.
+- Suite completa: 5049 passed + 1 fallo de duplicado /pensar (habia un /pensar
+  viejo) -> reemplazado con nota; 14/14 en los tests del area despues.
