@@ -66,7 +66,7 @@ class TestProfilesShape:
     def test_gpu_knobs(self):
         gpu = pp.PROFILES["gpu"]
         assert gpu["LLAMA_N_GPU_LAYERS"] == "99"
-        assert gpu["LLAMA_CTX_SIZE"] == "16384"
+        assert gpu["LLAMA_CTX_SIZE"] == "32768"
         assert gpu["COGNIA_PERF_PROFILE"] == "gpu"
         assert int(gpu["LLAMA_N_THREADS"]) >= int(pp.PROFILES["cpu"]["LLAMA_N_THREADS"])
 
@@ -99,7 +99,7 @@ class TestApplyProfile:
         assert applied == pp.PROFILES["gpu"]
         import os
         assert os.environ["LLAMA_N_GPU_LAYERS"] == "99"
-        assert os.environ["LLAMA_CTX_SIZE"] == "16384"
+        assert os.environ["LLAMA_CTX_SIZE"] == "32768"
         assert os.environ["COGNIA_PERF_PROFILE"] == "gpu"
         assert pp.current_profile() == "gpu"
 
@@ -107,7 +107,7 @@ class TestApplyProfile:
         pp.apply_profile("gpu")
         content = (isolate_config / "config.env").read_text(encoding="utf-8")
         assert "LLAMA_N_GPU_LAYERS=99" in content
-        assert "LLAMA_CTX_SIZE=16384" in content
+        assert "LLAMA_CTX_SIZE=32768" in content
         assert "COGNIA_PERF_PROFILE=gpu" in content
 
     def test_apply_cpu_over_gpu_switches_back(self):
@@ -139,7 +139,7 @@ class TestProfileSummary:
         for knob in ("LLAMA_N_GPU_LAYERS", "LLAMA_CTX_SIZE",
                      "LLAMA_N_THREADS", "COGNIA_PERF_PROFILE"):
             assert knob in text
-        assert "99" in text and "16384" in text
+        assert "99" in text and "32768" in text
 
     def test_summary_marks_active_profile(self):
         pp.apply_profile("cpu")
