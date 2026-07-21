@@ -446,9 +446,11 @@ def crear_app() -> FastAPI:
         # stderr a un log (no DEVNULL) para no perder el motivo si el arranque
         # falla en silencio (familia de degradacion silenciosa de Cognia).
         log_ofi = ruta / "oficina3d.log"
+        cert, key = asegurar_cert(RAIZ_DATOS)   # mismo cert que el remoto (HTTPS)
         _oficina3d["proc"] = subprocess.Popen(
             [sys.executable, "-m", "cognia.oficina",
              "--puerto", str(_oficina3d["puerto"]), "--host", "0.0.0.0",
+             "--cert", cert, "--key", key,
              "--estado", str(estado), "--sin-modelo"],
             cwd=str(ruta), env=env,
             stdout=subprocess.DEVNULL,
@@ -459,10 +461,66 @@ def crear_app() -> FastAPI:
     return app
 
 
+def _ip_lan() -> str | None:
+    """La IP LAN del PC (para meterla en el certificado y en el mensaje)."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80)); ip = s.getsockname()[0]; s.close()
+        return ip
+    except Exception:
+        return None
+
+
+def asegurar_cert(dirbase: Path) -> tuple[str, str]:
+    """Certificado autofirmado en dirbase (cert.pem/key.pem). Necesario para
+    HTTPS: el navegador SOLO habilita el microfono (getUserMedia/SpeechRecognition)
+    en 'contexto seguro' — https:// o localhost. En http://<IP-LAN> el micro
+    queda bloqueado y ni pide permiso. La clave privada vive FUERA del repo
+    (~/.cognia/remoto), nunca se commitea."""
+    cert, key = dirbase / "cert.pem", dirbase / "key.pem"
+    if cert.exists() and key.exists():
+        return str(cert), str(key)
+    dirbase.mkdir(parents=True, exist_ok=True)
+    import datetime
+    import ipaddress
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    k = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    sans = [x509.DNSName("localhost"),
+            x509.IPAddress(ipaddress.IPv4Address("127.0.0.1"))]
+    ip = _ip_lan()
+    if ip:
+        try:
+            sans.append(x509.IPAddress(ipaddress.IPv4Address(ip)))
+        except Exception:
+            pass
+    nombre = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Cognia Remoto")])
+    ahora = datetime.datetime.now(datetime.timezone.utc)
+    c = (x509.CertificateBuilder()
+         .subject_name(nombre).issuer_name(nombre)
+         .public_key(k.public_key()).serial_number(x509.random_serial_number())
+         .not_valid_before(ahora - datetime.timedelta(days=1))
+         .not_valid_after(ahora + datetime.timedelta(days=3650))
+         .add_extension(x509.SubjectAlternativeName(sans), critical=False)
+         .sign(k, hashes.SHA256()))
+    key.write_bytes(k.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL,
+        serialization.NoEncryption()))
+    cert.write_bytes(c.public_bytes(serialization.Encoding.PEM))
+    return str(cert), str(key)
+
+
 def main() -> int:
     import uvicorn
     app = crear_app()
-    print("Cognia Remoto en http://0.0.0.0:8777  "
-          "(desde el celular: http://<IP-del-PC>:8777)")
-    uvicorn.run(app, host="0.0.0.0", port=8777, log_level="warning")
+    cert, key = asegurar_cert(RAIZ_DATOS)
+    ip = _ip_lan() or "<IP-del-PC>"
+    print(f"Cognia Remoto en https://0.0.0.0:8777  (desde el celular: "
+          f"https://{ip}:8777 — aceptá el aviso de certificado UNA vez; "
+          f"solo con https funciona el microfono)")
+    uvicorn.run(app, host="0.0.0.0", port=8777,
+                ssl_certfile=cert, ssl_keyfile=key, log_level="warning")
     return 0

@@ -20,6 +20,10 @@ def main():
     # iframe: por defecto 127.0.0.1 dejaba la oficina invisible desde el telefono
     # (cazado 2026-07-20: el panel quedaba en blanco). El default sigue seguro.
     ap.add_argument("--host", default="127.0.0.1")
+    # --cert/--key: servir HTTPS (mismo certificado que el control remoto) para
+    # que el iframe no sea "mixed content" cuando el remoto va por https.
+    ap.add_argument("--cert", default=None)
+    ap.add_argument("--key", default=None)
     ap.add_argument("--estado", default=os.path.join(os.getcwd(), "oficina_estado.json"))
     ap.add_argument("--sin-modelo", action="store_true",
                     help="solo dashboard/control, sin motor (no carga el 3B)")
@@ -54,7 +58,14 @@ def main():
                   "El dashboard funciona igual; las metas quedan pendientes.")
 
     srv = crear_server(of, host=args.host, puerto=args.puerto)
-    print(f"[oficina] dashboard: http://{args.host}:{args.puerto}  (Ctrl+C corta)")
+    esquema = "http"
+    if args.cert and args.key and os.path.exists(args.cert) and os.path.exists(args.key):
+        import ssl
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(certfile=args.cert, keyfile=args.key)
+        srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+        esquema = "https"
+    print(f"[oficina] dashboard: {esquema}://{args.host}:{args.puerto}  (Ctrl+C corta)")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

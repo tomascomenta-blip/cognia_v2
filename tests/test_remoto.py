@@ -32,6 +32,19 @@ def test_comandos_del_repl_disponibles():
     assert len(cmds) > 50, "el catalogo debe ser el del REPL completo"
 
 
+def test_cert_autofirmado_para_https(tmp_path):
+    """El microfono del movil SOLO va en contexto seguro (https). El server
+    genera un cert autofirmado; aqui se verifica que produce cert+key validos
+    y reutilizables (no los regenera si ya existen)."""
+    from cognia.remoto.servidor import asegurar_cert
+    cert, key = asegurar_cert(tmp_path)
+    assert Path(cert).exists() and Path(key).exists()
+    assert "BEGIN CERTIFICATE" in Path(cert).read_text()
+    # idempotente: segunda llamada reusa los mismos ficheros
+    cert2, key2 = asegurar_cert(tmp_path)
+    assert (cert2, key2) == (cert, key)
+
+
 def test_expertos_catalogo_jarvis():
     """La vista Jarvis necesita el cerebro central + los expertos con color."""
     r = _cliente().get("/api/expertos").json()

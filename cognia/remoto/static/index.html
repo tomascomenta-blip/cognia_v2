@@ -173,6 +173,13 @@
   #entrada:focus { border-color: var(--acento-2); }
   #enviar { width: 44px; height: 44px; border-radius: 50%;
     background: var(--acento); color: #fff; display: grid; place-items: center; }
+  #btn-mic { width: 44px; height: 44px; border-radius: 50%; flex: 0 0 auto;
+    background: var(--panel-2); color: var(--texto); border: 1px solid var(--borde);
+    display: grid; place-items: center; }
+  #btn-mic.on { background: #e05b7c; color: #fff; border-color: #e05b7c;
+    animation: lateMic 1s infinite; }
+  @keyframes lateMic { 0%,100% { box-shadow: 0 0 0 0 rgba(224,91,124,.5); }
+    50% { box-shadow: 0 0 0 8px rgba(224,91,124,0); } }
 
   #sugerencias { position: absolute; left: 8px; right: 8px; bottom: 64px;
     background: var(--panel); border: 1px solid var(--borde); border-radius: 14px;
@@ -353,6 +360,7 @@
   <symbol id="i-volver" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
   <symbol id="i-cerebro" viewBox="0 0 24 24"><path d="M9 3a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8V15a3 3 0 0 0 4 2.8A2.5 2.5 0 0 0 12 19V5a2 2 0 0 0-2-2zM15 3a3 3 0 0 1 3 3 3 3 0 0 1 1 5.8V15a3 3 0 0 1-4 2.8A2.5 2.5 0 0 1 12 19V5a2 2 0 0 1 2-2z"/></symbol>
   <symbol id="i-voz" viewBox="0 0 24 24"><path d="M12 3v18M8 7v10M4 10v4M16 7v10M20 10v4"/></symbol>
+  <symbol id="i-microfono" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8"/></symbol>
 </svg>
 
 <header>
@@ -515,6 +523,7 @@
 
 <div id="compositor">
   <textarea id="entrada" rows="1" placeholder="Mensaje o /comando…"></textarea>
+  <button id="btn-mic" aria-label="Hablar"><svg class="ic" width="20" height="20"><use href="#i-microfono"/></svg></button>
   <button id="enviar" aria-label="Enviar"><svg class="ic" width="20" height="20"><use href="#i-enviar"/></svg></button>
 </div>
 
@@ -881,6 +890,43 @@ $("enviar").onclick = () => { enviar($("entrada").value); $("entrada").value = "
 $("entrada").addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("enviar").click(); }
 });
+
+/* ── Dictado por voz (STT): hablarle a Cognia desde el móvil ── */
+let _rec = null, _escuchando = false;
+function alternarMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  // el micro SOLO funciona en contexto seguro (https:// o localhost)
+  if (!window.isSecureContext) {
+    alert("El micrófono necesita una conexión segura.\nAbre la app con https://" +
+          location.host + " y acepta el aviso de certificado una vez."); return;
+  }
+  if (!SR) {
+    alert("Este navegador no soporta dictado por voz. Prueba Chrome en Android."); return;
+  }
+  if (_escuchando) { _rec && _rec.stop(); return; }
+  _rec = new SR();
+  _rec.lang = "es-ES"; _rec.interimResults = true; _rec.continuous = false; _rec.maxAlternatives = 1;
+  _escuchando = true; $("btn-mic").classList.add("on");
+  // desbloquea el TTS del móvil (necesita un gesto del usuario)
+  if (window.speechSynthesis) { try { speechSynthesis.resume(); } catch (e) {} }
+  _rec.onresult = ev => {
+    let txt = "";
+    for (let i = 0; i < ev.results.length; i++) txt += ev.results[i][0].transcript;
+    $("entrada").value = txt.trim();
+  };
+  _rec.onerror = ev => {
+    _escuchando = false; $("btn-mic").classList.remove("on");
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed")
+      alert("Permiso de micrófono denegado. Actívalo en los ajustes del navegador.");
+  };
+  _rec.onend = () => {
+    _escuchando = false; $("btn-mic").classList.remove("on");
+    const t = $("entrada").value.trim();
+    if (t) { enviar(t); $("entrada").value = ""; }
+  };
+  try { _rec.start(); } catch (e) { _escuchando = false; $("btn-mic").classList.remove("on"); }
+}
+$("btn-mic").onclick = alternarMic;
 document.querySelectorAll(".chip[data-cmd]").forEach(ch =>
   ch.onclick = () => enviar(ch.dataset.cmd));
 
@@ -1157,8 +1203,9 @@ async function refrescarOficina() {
 }
 function mostrarOficina(puerto) {
   $("btn-oficina3d").style.display = "none";
+  // mismo protocolo que la página (https) para que no sea "mixed content"
   $("oficina-marco").innerHTML =
-    `<iframe class="oficina" src="http://${location.hostname}:${puerto}/oficina3d"></iframe>`;
+    `<iframe class="oficina" src="${location.protocol}//${location.hostname}:${puerto}/oficina3d"></iframe>`;
 }
 $("btn-oficina3d").onclick = async () => {
   $("btn-oficina3d").textContent = "Arrancando…";
