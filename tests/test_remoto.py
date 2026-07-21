@@ -85,3 +85,41 @@ def test_flujos_listar_y_guardar(tmp_path, monkeypatch):
     assert r.status_code in (200, 400, 404)
     if r.status_code == 200:
         assert "/" not in r.json()["nombre"] and ".." not in r.json()["nombre"]
+
+
+def test_reclasificar_separa_log_de_chat():
+    """El chat solo lleva conversacion; banner, arte y logger van al Registro.
+    Reporte del dueno 2026-07-20: el filtrado frontend dejaba pasar el banner
+    y los tracebacks — la clasificacion vive ahora en el servidor."""
+    from cognia.remoto.sesiones import reclasificar
+    casos_log = [
+        "2026-07-20 21:26:21 | INFO     | cognia.memory | x",
+        "│ ⠀⣠⢚⣵⣄⠈⣼⡇ │",
+        "██████╗    ██████╗",
+        "v3.2 · Fases 1-13 · Sistema cognitivo",
+        "Loading weights:   0%|          | 0/103",
+    ]
+    for texto in casos_log:
+        quien, _ = reclasificar("cognia", texto, False)
+        assert quien == "log", texto
+    casos_chat = [
+        "¡Hola! Saludos desde el móvil.",
+        "RESULTADO ejecutar: 350",
+        "Modo actual: sencillo.",
+    ]
+    for texto in casos_chat:
+        quien, _ = reclasificar("cognia", texto, False)
+        assert quien == "cognia", texto
+
+
+def test_reclasificar_traceback_multilinea_con_estado():
+    from cognia.remoto.sesiones import reclasificar
+    lineas = ["--- Logging error ---", "Traceback (most recent call last):",
+              '  File "x.py", line 1', "TypeError: %d format",
+              "Arguments: (16384, None)"]
+    en_traza = False
+    for l in lineas:
+        quien, en_traza = reclasificar("cognia", l, en_traza)
+        assert quien == "log", l
+    quien, _ = reclasificar("cognia", "Y esta linea vuelve al chat", en_traza)
+    assert quien == "cognia"

@@ -46,6 +46,69 @@ def _limpiar(linea: str) -> str:
     return linea.rstrip()
 
 
+# ── Clasificacion: que es LOG (va al panel Registro) y que es CHAT ─────────
+# El primer intento filtraba en el FRONTEND y solo las lineas de logger con
+# timestamp: el banner, los tracebacks y los restos del arranque seguian
+# inundando el chat (reporte del dueno, 2026-07-20). La clasificacion vive
+# aqui, en el servidor, con estado para bloques multilinea.
+
+_RE_LOG_TS = re.compile(
+    r"^\d{4}-\d{2}-\d{2} .*\|\s*(INFO|WARNING|ERROR|DEBUG)\s*\|")
+_ABRE_TRAZA = ("Traceback (most recent call last)", "--- Logging error ---",
+               "Call stack:")
+_SIGUE_TRAZA = re.compile(
+    r"^(\s|File |Message:|Arguments:|Traceback|Call stack)"
+    r"|^[A-Za-z_][A-Za-z0-9_.]*(Error|Exception|Warning)\b")
+# arte del banner: braille, bloques, cajas — mas de un tercio de la linea
+_ARTE = re.compile(r"[⠀-⣿─-╿█╗╝╔╚]")
+_FRAGMENTOS_BANNER = (
+    "Slash commands", "Sistema listo", "Historial]", "sem=0.40",
+    "v3.2 · Fases", "/ayuda para", "Texto libre", "Tab autocompletar",
+    "Escribe /ayuda", "cognitivo", "Cognia v3.2",
+    # ruido de arranque que quedo GUARDADO en sesiones previas al filtrado
+    "Loading weights:", "Warning: You are sending unauthenticated",
+)
+# restos ANSI guardados como texto literal en transcripciones viejas
+_ANSI_LITERAL = re.compile(r"\[\d{1,3}m")
+
+
+def _es_log(linea: str) -> bool:
+    """True si la linea pertenece al Registro, no al chat."""
+    if _RE_LOG_TS.match(linea):
+        return True
+    t = linea.strip()
+    if not t:
+        return False
+    # interior del banner: toda linea que empiece con el marco
+    if t.startswith(("│", "┌", "└", "├", "╭", "╰")):
+        return True
+    if any(f in t for f in _FRAGMENTOS_BANNER):
+        return True
+    arte = len(_ARTE.findall(t))
+    return arte >= 3 or arte >= max(1, len(t)) / 3
+
+
+def reclasificar(quien: str, texto: str, en_traza: bool) -> tuple[str, bool]:
+    """
+    (quien_final, en_traza_siguiente). Con estado: un traceback abre el modo
+    traza y sus lineas de continuacion siguen siendo log aunque una a una no
+    lo parezcan.
+    """
+    if quien != "cognia":
+        return quien, en_traza
+    # limpiar restos ANSI literales de transcripciones viejas antes de juzgar
+    texto = _ANSI_LITERAL.sub("", texto)
+    texto = _PROMPT.sub("", texto)
+    t = texto.strip()
+    if any(t.startswith(a) for a in _ABRE_TRAZA):
+        return "log", True
+    if en_traza:
+        if _SIGUE_TRAZA.match(texto):
+            return "log", True
+        en_traza = False
+    return ("log" if _es_log(texto) else "cognia"), en_traza
+
+
 def _python_cognia() -> list[str]:
     """El interprete que corre el REPL: el mismo venv del servidor."""
     return [sys.executable, "-m", "cognia"]
@@ -93,6 +156,12 @@ class Sesion:
     proc: subprocess.Popen | None = None
     suscriptores: list = field(default_factory=list)   # [queue.Queue]
     lock: threading.Lock = field(default_factory=threading.Lock)
+    # estado del clasificador: dentro de un traceback multilinea
+    _en_traza: bool = False
+    # el banner de arranque no llega ni al Registro: se descarta entero
+    # hasta ver "Sistema listo" (con tope por si el banner cambia)
+    _arrancando: bool = True
+    _lineas_arranque: int = 0
 
     # ── persistencia ──
     @property
@@ -117,9 +186,18 @@ class Sesion:
     def transcripcion(self, limite: int = 400) -> list[dict]:
         try:
             lineas = self.fichero.read_text(encoding="utf-8").splitlines()
-            return [json.loads(l) for l in lineas[-limite:]]
+            eventos = [json.loads(l) for l in lineas[-limite:]]
         except Exception:
             return []
+        # Reclasificar tambien lo VIEJO: las sesiones anteriores al filtrado
+        # de servidor guardaron banner/tracebacks como "cognia"; al leerlas se
+        # corrigen para que el chat quede limpio sin tocar el fichero.
+        salida, en_traza = [], False
+        for e in eventos:
+            quien, en_traza = reclasificar(
+                e.get("quien", ""), e.get("texto", ""), en_traza)
+            salida.append({**e, "quien": quien})
+        return salida
 
     # ── el subproceso REPL ──
     def viva(self) -> bool:
@@ -155,7 +233,16 @@ class Sesion:
                     continue
                 if any(linea.startswith(r) for r in _RUIDO):
                     continue
-                self.anotar("cognia", linea)
+                # el banner de arranque entero se descarta (ni chat ni log):
+                # es la misma pantalla ASCII en cada sesion
+                if self._arrancando:
+                    self._lineas_arranque += 1
+                    if "Sistema listo" in linea or self._lineas_arranque > 200:
+                        self._arrancando = False
+                    continue
+                quien, self._en_traza = reclasificar(
+                    "cognia", linea, self._en_traza)
+                self.anotar(quien, linea)
         except Exception:
             pass
         finally:

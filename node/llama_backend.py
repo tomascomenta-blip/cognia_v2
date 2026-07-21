@@ -598,10 +598,14 @@ class _LlamaServerBackend:
         summary = _server_props_summary(data)
         logger.info("[llama_backend] adopted server: n_ctx=%s model=%s",
                     summary["n_ctx"], summary["model_path"])
-        if summary["n_ctx"] is not None and summary["n_ctx"] != self._ctx_size:
+        # self._ctx_size puede ser None (= resolver en call-time via _ctx_size());
+        # comparar y loguear con el valor RESUELTO — con None, el %d del warning
+        # reventaba el propio logging (TypeError en emit, medido 2026-07-20).
+        ctx_esperado = self._ctx_size if self._ctx_size is not None else _ctx_size()
+        if summary["n_ctx"] is not None and summary["n_ctx"] != ctx_esperado:
             logger.warning("[llama_backend] adopted server n_ctx=%s != expected "
                            "ctx_size=%d — results may differ from a self-started "
-                           "server", summary["n_ctx"], self._ctx_size)
+                           "server", summary["n_ctx"], ctx_esperado)
 
     def _check_adopted_static_lora(self) -> None:
         """Server adoptado cuando se pidio LoRA estatica: exigir que ESE server

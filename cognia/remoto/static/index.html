@@ -360,7 +360,10 @@ function registrarLog(texto) {
 
 function burbuja(quien, texto, hora) {
   texto = texto.replace(/\[\/?[a-z_]+\]/g, "");
-  if (quien === "cognia" && ES_LOG(texto)) { registrarLog(texto); return; }
+  // el servidor ya clasifica: quien=="log" va directo al Registro
+  if (quien === "log" || (quien === "cognia" && ES_LOG(texto))) {
+    registrarLog(texto); return;
+  }
   const div = document.createElement("div");
   let clase = quien === "usuario" ? "yo" : quien === "cognia" ? "cognia" : "sistema";
   if (quien === "cognia") {
