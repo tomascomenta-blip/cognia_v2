@@ -8185,3 +8185,31 @@ reloj ausente. Consola limpia (solo el 404 del favicon del http.server).
 
 El 6.5 del instalado EMPATA al mejor 6.5 del repo de hoy: el wheel embarca
 el pipeline completo de verdad.
+
+---
+
+## 2026-07-21 (madrugada) — Cognia Remoto: el control desde el celular
+
+Goal del dueno: app estilo Telegram para manejar Cognia desde el movil con
+TODAS sus funciones. Entregado y verificado (commit aaddea3):
+
+La arquitectura que evito reimplementar cientos de comandos: cada sesion es
+un REPL REAL como subproceso con cwd en la carpeta del proyecto. El movil
+escribe al stdin y lee el stream por WS. Cobertura total por construccion,
+formularios incluidos (input() pendiente = responder con un mensaje).
+
+Verificado en viewport movil real: mensaje desde el navegador -> Cognia
+v3.2 respondio en 2.02s con su pensamiento interno visible; tema oscuro
+verde <-> claro funcional; sugerencias de "/" con el catalogo entero del
+REPL; paneles desplegables con datos reales (imagenes de los dashboards,
+grafo con 681 aristas, monitor con el PID del REPL vivo).
+
+Dos bugs cazados verificando (la regla de siempre): el subproceso no
+resolvia el paquete fuera del repo (PYTHONPATH inyectado) y el prompt
+coloreado se colaba pese a NO_COLOR (limpieza ANSI propia).
+
+Servidor: python -m cognia.remoto -> http://<IP-del-PC>:8777 (esta maquina:
+http://192.168.0.5:8777). Suite: 5026 passed.
+
+Pendiente natural (anotado, no bloqueante): PWA manifest para "instalar" en
+el home del celular, y autenticacion por token para salir de la LAN.
