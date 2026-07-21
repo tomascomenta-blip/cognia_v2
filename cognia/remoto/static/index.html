@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1613">
+<title>Cognia Remoto</title>
+<style>
+  /* ── Temas: oscuro (verde oscuro, no muy oscuro) por defecto; claro funcional ── */
+  :root, :root[data-tema="oscuro"] {
+    color-scheme: dark;
+    --fondo: #0e1613;          /* verde-negro, no negro puro */
+    --panel: #142019;
+    --panel-2: #1a2921;
+    --borde: #23392e;
+    --texto: #e8f2ec;
+    --texto-2: #9fb8aa;
+    --acento: #2ea86c;         /* el verde Cognia */
+    --acento-2: #1d7a4c;
+    --burbuja-yo: #1d5c3d;
+    --burbuja-cognia: #1a2921;
+    --peligro: #d05050;
+    --sombra: 0 2px 10px rgba(0,0,0,.35);
+  }
+  :root[data-tema="claro"] {
+    color-scheme: light;
+    --fondo: #f2f6f3;
+    --panel: #ffffff;
+    --panel-2: #e9f0eb;
+    --borde: #cfe0d5;
+    --texto: #14261c;
+    --texto-2: #4e6a5a;
+    --acento: #1d7a4c;
+    --acento-2: #2ea86c;
+    --burbuja-yo: #cdeeda;
+    --burbuja-cognia: #ffffff;
+    --peligro: #b83a3a;
+    --sombra: 0 2px 10px rgba(20,60,40,.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--fondo); color: var(--texto);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  button { font: inherit; border: none; background: none; color: inherit; cursor: pointer; }
+
+  /* ── Cabecera ── */
+  header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--panel);
+    border-bottom: 1px solid var(--borde); box-shadow: var(--sombra);
+    z-index: 30; flex: 0 0 auto;
+  }
+  header .icono { width: 38px; height: 38px; display: grid; place-items: center;
+    border-radius: 10px; background: var(--panel-2); }
+  header .icono:active { background: var(--acento-2); }
+  #titulo { flex: 1; min-width: 0; }
+  #titulo .nombre { font-weight: 650; font-size: 15px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #titulo .sub { font-size: 12px; color: var(--texto-2); }
+  .punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--texto-2); margin-right: 5px; }
+  .punto.vivo { background: var(--acento); }
+
+  /* ── Cajón izquierdo: proyectos y sesiones ── */
+  .cajon {
+    position: fixed; top: 0; bottom: 0; width: min(86vw, 340px);
+    background: var(--panel); z-index: 50; transition: transform .22s ease;
+    display: flex; flex-direction: column; box-shadow: var(--sombra);
+  }
+  #cajon-izq { left: 0; transform: translateX(-105%); border-right: 1px solid var(--borde); }
+  #cajon-izq.abierto { transform: none; }
+  #cajon-der { right: 0; transform: translateX(105%); border-left: 1px solid var(--borde); }
+  #cajon-der.abierto { transform: none; }
+  #velo { position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 40; }
+  #velo.activo { opacity: 1; pointer-events: auto; }
+
+  .cajon h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--texto-2); padding: 14px 14px 8px; }
+  .cajon .lista { overflow-y: auto; flex: 1; }
+  .fila {
+    display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+    border-bottom: 1px solid var(--borde); cursor: pointer;
+  }
+  .fila:active { background: var(--panel-2); }
+  .fila .avatar { width: 40px; height: 40px; border-radius: 12px;
+    background: var(--acento-2); color: #fff; display: grid; place-items: center;
+    font-weight: 700; flex: 0 0 auto; }
+  .fila .datos { flex: 1; min-width: 0; }
+  .fila .datos .n { font-weight: 600; font-size: 14px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .fila .datos .d { font-size: 12px; color: var(--texto-2); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .fila .borrar { color: var(--peligro); padding: 8px; font-size: 16px; }
+  .accion-cajon { margin: 10px 14px; padding: 11px; border-radius: 12px;
+    background: var(--acento); color: #fff; font-weight: 650; width: calc(100% - 28px); }
+  .accion-cajon.secundaria { background: var(--panel-2); color: var(--texto); }
+
+  /* ── Chat ── */
+  #chat { flex: 1 1 0; overflow-y: auto; padding: 12px 10px 8px;
+    display: flex; flex-direction: column; gap: 6px; scroll-behavior: smooth; }
+  .msg { max-width: 86%; padding: 8px 11px; border-radius: 14px;
+    font-size: 14px; line-height: 1.45; word-wrap: break-word; white-space: pre-wrap;
+    border: 1px solid var(--borde); }
+  .msg .hora { display: block; font-size: 10px; color: var(--texto-2);
+    margin-top: 3px; text-align: right; }
+  .msg.yo { align-self: flex-end; background: var(--burbuja-yo);
+    border-bottom-right-radius: 4px; }
+  .msg.cognia { align-self: flex-start; background: var(--burbuja-cognia);
+    border-bottom-left-radius: 4px; }
+  .msg.sistema { align-self: center; background: none; border: none;
+    color: var(--texto-2); font-size: 12px; padding: 2px; }
+  .msg.pensando { align-self: flex-start; color: var(--texto-2);
+    font-size: 12.5px; background: none; border-left: 2px solid var(--acento-2);
+    border-radius: 0; padding: 2px 10px; font-family: ui-monospace, monospace; }
+  .msg.accion { align-self: flex-start; color: var(--acento);
+    font-size: 12.5px; background: none; border: 1px dashed var(--acento-2);
+    font-family: ui-monospace, monospace; }
+  #saludo { text-align: center; color: var(--texto-2); padding: 22px 18px;
+    font-size: 15px; }
+  #saludo b { color: var(--acento); }
+
+  /* ── Compositor ── */
+  #compositor { flex: 0 0 auto; display: flex; gap: 8px; align-items: flex-end;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: var(--panel); border-top: 1px solid var(--borde); }
+  #entrada { flex: 1; resize: none; max-height: 110px; min-height: 42px;
+    padding: 10px 12px; border-radius: 14px; border: 1px solid var(--borde);
+    background: var(--panel-2); color: var(--texto); font: inherit; outline: none; }
+  #entrada:focus { border-color: var(--acento-2); }
+  #enviar { width: 44px; height: 44px; border-radius: 50%; background: var(--acento);
+    color: #fff; display: grid; place-items: center; flex: 0 0 auto; }
+  #enviar:disabled { opacity: .45; }
+
+  /* ── Sugerencias de "/" ── */
+  #sugerencias { position: absolute; left: 8px; right: 8px; bottom: 64px;
+    background: var(--panel); border: 1px solid var(--borde); border-radius: 14px;
+    max-height: 42vh; overflow-y: auto; box-shadow: var(--sombra); display: none;
+    z-index: 25; }
+  #sugerencias.visible { display: block; }
+  .sug { padding: 10px 12px; border-bottom: 1px solid var(--borde); cursor: pointer; }
+  .sug:active { background: var(--panel-2); }
+  .sug .c { font-family: ui-monospace, monospace; color: var(--acento); font-size: 13px; }
+  .sug .d { font-size: 12px; color: var(--texto-2); margin-top: 1px; }
+
+  /* ── Controles rápidos (esfuerzo / velocidad / modo) ── */
+  #controles { display: flex; gap: 6px; overflow-x: auto; padding: 6px 10px;
+    background: var(--panel); border-top: 1px solid var(--borde); flex: 0 0 auto; }
+  .chip { flex: 0 0 auto; padding: 6px 12px; border-radius: 999px;
+    background: var(--panel-2); border: 1px solid var(--borde); font-size: 12.5px;
+    color: var(--texto-2); }
+  .chip:active, .chip.activo { background: var(--acento-2); color: #fff;
+    border-color: var(--acento-2); }
+
+  /* ── Paneles desplegables (derecha) ── */
+  .desplegable { border-bottom: 1px solid var(--borde); }
+  .desplegable > summary { list-style: none; display: flex; align-items: center;
+    gap: 10px; padding: 13px 14px; cursor: pointer; font-weight: 600; font-size: 14px; }
+  .desplegable > summary::-webkit-details-marker { display: none; }
+  .desplegable > summary .flecha { margin-left: auto; transition: transform .15s;
+    color: var(--texto-2); }
+  .desplegable[open] > summary .flecha { transform: rotate(90deg); }
+  .desplegable .cuerpo { padding: 4px 14px 14px; font-size: 13px; color: var(--texto-2);
+    max-height: 40vh; overflow-y: auto; }
+  .cuerpo pre { white-space: pre-wrap; font-size: 11.5px;
+    font-family: ui-monospace, monospace; background: var(--panel-2);
+    border-radius: 8px; padding: 8px; }
+  .galeria { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .galeria figure { background: var(--panel-2); border-radius: 10px; overflow: hidden; }
+  .galeria img { width: 100%; display: block; }
+  .galeria figcaption { font-size: 10.5px; padding: 4px 6px; color: var(--texto-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini-input { width: 100%; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--borde); background: var(--panel-2); color: var(--texto);
+    font: inherit; font-size: 13px; margin-bottom: 8px; }
+
+  svg { fill: none; stroke: currentColor; stroke-width: 1.8;
+    stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="icono" id="btn-izq" aria-label="Proyectos">
+    <svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <div id="titulo">
+    <div class="nombre" id="titulo-nombre">Cognia</div>
+    <div class="sub"><span class="punto" id="estado-punto"></span><span id="titulo-sub">sin sesión</span></div>
+  </div>
+  <button class="icono" id="btn-tema" aria-label="Tema">
+    <svg id="icono-luna" width="20" height="20" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    <svg id="icono-sol" width="20" height="20" viewBox="0 0 24 24" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+  </button>
+  <button class="icono" id="btn-der" aria-label="Paneles">
+    <svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+  </button>
+</header>
+
+<div id="velo"></div>
+
+<!-- Cajón izquierdo: proyectos → sesiones -->
+<nav class="cajon" id="cajon-izq">
+  <h2 id="cajon-izq-titulo">Proyectos</h2>
+  <div class="lista" id="lista-izq"></div>
+  <button class="accion-cajon" id="btn-nuevo-izq">＋ Nuevo proyecto</button>
+</nav>
+
+<!-- Cajón derecho: paneles desplegables -->
+<aside class="cajon" id="cajon-der">
+  <h2>Paneles</h2>
+  <div class="lista">
+    <details class="desplegable" id="panel-imagenes">
+      <summary><svg width="18" height="18" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        Imágenes <span class="flecha">›</span></summary>
+      <div class="cuerpo"><div class="galeria" id="galeria"></div></div>
+    </details>
+    <details class="desplegable" id="panel-oficina">
+      <summary><svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+        Oficina <span class="flecha">›</span></summary>
+      <div class="cuerpo" id="cuerpo-oficina">—</div>
+    </details>
+    <details class="desplegable" id="panel-grafo">
+      <summary><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M6.8 7.4 10.5 16M17.2 7.4 13.5 16M7.2 6h9.6"/></svg>
+        Grafo <span class="flecha">›</span></summary>
+      <div class="cuerpo">
+        <input class="mini-input" id="grafo-tema" placeholder="tema (vacío = resumen)">
+        <div id="cuerpo-grafo">—</div>
+      </div>
+    </details>
+    <details class="desplegable" id="panel-monitores">
+      <summary><svg width="18" height="18" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+        Monitores y shells <span class="flecha">›</span></summary>
+      <div class="cuerpo" id="cuerpo-monitores">—</div>
+    </details>
+    <details class="desplegable" id="panel-tareas">
+      <summary><svg width="18" height="18" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
+        Tareas de sesión <span class="flecha">›</span></summary>
+      <div class="cuerpo" id="cuerpo-tareas">Usa /tareas en el chat; aquí verás el último tablero.</div>
+    </details>
+  </div>
+</aside>
+
+<main id="chat">
+  <div id="saludo"></div>
+</main>
+
+<div id="sugerencias"></div>
+
+<div id="controles">
+  <button class="chip" data-cmd="/esfuerzo bajo">⚡ bajo</button>
+  <button class="chip" data-cmd="/esfuerzo medio">⚡ medio</button>
+  <button class="chip" data-cmd="/esfuerzo alto">⚡ alto</button>
+  <button class="chip" data-cmd="/modo">🎛 modo</button>
+  <button class="chip" data-cmd="/velocidad">🚀 velocidad</button>
+  <button class="chip" data-cmd="/tareas">☑ tareas</button>
+  <button class="chip" data-cmd="/doctor">🩺 doctor</button>
+</div>
+
+<div id="compositor">
+  <textarea id="entrada" rows="1" placeholder="Mensaje o /comando…"></textarea>
+  <button id="enviar" aria-label="Enviar">
+    <svg width="20" height="20" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+  </button>
+</div>
+
+<script>
+"use strict";
+// ── Estado ─────────────────────────────────────────────────────────────────
+const S = {
+  proyectos: [], proyecto: null, sesion: null, ws: null,
+  comandos: [], vistaIzq: "proyectos",
+};
+const $ = id => document.getElementById(id);
+const chat = $("chat");
+
+// ── Tema (persistido, toggle FUNCIONAL) ───────────────────────────────────
+function aplicarTema(t) {
+  document.documentElement.dataset.tema = t;
+  localStorage.setItem("tema", t);
+  $("icono-luna").style.display = t === "oscuro" ? "" : "none";
+  $("icono-sol").style.display = t === "claro" ? "" : "none";
+  document.querySelector('meta[name=theme-color]')
+    .setAttribute("content", t === "oscuro" ? "#0e1613" : "#f2f6f3");
+}
+aplicarTema(localStorage.getItem("tema") || "oscuro");
+$("btn-tema").onclick = () =>
+  aplicarTema(document.documentElement.dataset.tema === "oscuro" ? "claro" : "oscuro");
+
+// ── Utiles ────────────────────────────────────────────────────────────────
+async function api(ruta, opciones) {
+  const r = await fetch(ruta, opciones);
+  return r.json();
+}
+function burbuja(quien, texto, hora) {
+  const div = document.createElement("div");
+  let clase = quien === "usuario" ? "yo" : quien === "cognia" ? "cognia" : "sistema";
+  // clasificar la linea de Cognia: pensamiento interno / accion / normal
+  if (quien === "cognia") {
+    if (/^\s*(\[detail\]|paso \d|\[research\]|\[planner\]|\[generator\]|\[evaluator\]|\[storage\])/.test(texto) || /^\d{4}-\d{2}-\d{2} .*\| *(INFO|WARNING|DEBUG)/.test(texto))
+      clase = "pensando";
+    else if (/^(RESULTADO |ACCION|\$ |Archivos escritos|🔧|👁|🎭)/.test(texto))
+      clase = "accion";
+  }
+  div.className = "msg " + clase;
+  div.textContent = texto.replace(/\[\/?[a-z_]+\]/g, "");   // limpiar markup
+  if (hora && clase !== "sistema") {
+    const h = document.createElement("span");
+    h.className = "hora"; h.textContent = hora;
+    div.appendChild(h);
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  // el ultimo tablero de tareas al panel
+  if (texto.includes("☐") || texto.includes("☑"))
+    $("cuerpo-tareas").innerHTML = "<pre>" +
+      texto.replace(/&/g,"&amp;").replace(/</g,"&lt;") + "</pre>";
+}
+
+// ── Saludo por hora ───────────────────────────────────────────────────────
+api("/api/saludo").then(s => {
+  $("saludo").innerHTML = "<b>Cognia</b> · " + s.texto +
+    "<br><small>Abre el menú ☰ para elegir proyecto y sesión.</small>";
+});
+
+// ── Cajones ───────────────────────────────────────────────────────────────
+function abrir(cajon, si) {
+  $(cajon).classList.toggle("abierto", si);
+  $("velo").classList.toggle("activo",
+    $("cajon-izq").classList.contains("abierto") ||
+    $("cajon-der").classList.contains("abierto"));
+}
+$("btn-izq").onclick = () => { pintarIzq(); abrir("cajon-izq", true); };
+$("btn-der").onclick = () => { refrescarPaneles(); abrir("cajon-der", true); };
+$("velo").onclick = () => { abrir("cajon-izq", false); abrir("cajon-der", false); };
+
+// ── Proyectos y sesiones ──────────────────────────────────────────────────
+async function cargarProyectos() { S.proyectos = await api("/api/proyectos"); }
+
+function fila({avatar, titulo, detalle, alPulsar, alBorrar, vivo}) {
+  const f = document.createElement("div");
+  f.className = "fila";
+  f.innerHTML = `<div class="avatar">${avatar}</div>
+    <div class="datos"><div class="n">${vivo ? '<span class="punto vivo"></span>' : ""}${titulo}</div>
+    <div class="d">${detalle}</div></div>`;
+  f.onclick = alPulsar;
+  if (alBorrar) {
+    const b = document.createElement("button");
+    b.className = "borrar"; b.textContent = "🗑";
+    b.onclick = e => { e.stopPropagation(); alBorrar(); };
+    f.appendChild(b);
+  }
+  return f;
+}
+
+async function pintarIzq() {
+  const lista = $("lista-izq");
+  lista.innerHTML = "";
+  if (S.vistaIzq === "proyectos") {
+    $("cajon-izq-titulo").textContent = "Proyectos";
+    $("btn-nuevo-izq").textContent = "＋ Nuevo proyecto";
+    await cargarProyectos();
+    if (!S.proyectos.length)
+      lista.innerHTML = '<div style="padding:16px;color:var(--texto-2)">Sin proyectos aún. Crea uno con la ruta de una carpeta.</div>';
+    for (const p of S.proyectos) {
+      lista.appendChild(fila({
+        avatar: p.nombre[0].toUpperCase(),
+        titulo: p.nombre, vivo: p.activo,
+        detalle: `${p.sesiones} sesión(es) · ${p.ruta}`,
+        alPulsar: () => { S.proyecto = p; S.vistaIzq = "sesiones"; pintarIzq(); },
+        alBorrar: async () => {
+          if (!confirm(`¿Quitar el proyecto "${p.nombre}" de la lista?`)) return;
+          await api(`/api/proyectos/${p.id}`, {method: "DELETE"});
+          pintarIzq();
+        },
+      }));
+    }
+  } else {
+    const p = S.proyecto;
+    $("cajon-izq-titulo").textContent = "‹ " + p.nombre;
+    $("cajon-izq-titulo").onclick = () => { S.vistaIzq = "proyectos"; pintarIzq(); };
+    $("btn-nuevo-izq").textContent = "＋ Nueva sesión";
+    const sesiones = await api(`/api/proyectos/${p.id}/sesiones`);
+    if (!sesiones.length)
+      lista.innerHTML = '<div style="padding:16px;color:var(--texto-2)">Sin sesiones. Crea la primera.</div>';
+    for (const s of sesiones) {
+      lista.appendChild(fila({
+        avatar: "💬", titulo: s.titulo, vivo: s.viva,
+        detalle: s.modificada + (s.viva ? " · activa" : ""),
+        alPulsar: () => abrirSesion(p, s.id, s.titulo),
+        alBorrar: async () => {
+          if (!confirm(`¿Eliminar la conversación "${s.titulo}"?`)) return;
+          await api(`/api/proyectos/${p.id}/sesiones/${s.id}`, {method: "DELETE"});
+          if (S.sesion === s.id) { S.sesion = null; chat.innerHTML = ""; }
+          pintarIzq();
+        },
+      }));
+    }
+  }
+}
+
+$("btn-nuevo-izq").onclick = async () => {
+  if (S.vistaIzq === "proyectos") {
+    const ruta = prompt("Ruta de la carpeta del proyecto:", "C:\\\\Users\\\\usuario\\\\Desktop");
+    if (!ruta) return;
+    const r = await api("/api/proyectos", {method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ruta})});
+    if (r.error) alert(r.error); else pintarIzq();
+  } else {
+    const titulo = prompt("Título de la sesión:", "") || "";
+    const r = await api(`/api/proyectos/${S.proyecto.id}/sesiones`,
+      {method: "POST", headers: {"Content-Type": "application/json"},
+       body: JSON.stringify({titulo})});
+    abrirSesion(S.proyecto, r.id, r.titulo);
+  }
+};
+
+async function abrirSesion(proyecto, sid, titulo) {
+  S.proyecto = proyecto; S.sesion = sid;
+  abrir("cajon-izq", false);
+  $("titulo-nombre").textContent = titulo || sid;
+  $("titulo-sub").textContent = proyecto.nombre;
+  $("estado-punto").classList.add("vivo");
+  chat.innerHTML = "";
+  const trans = await api(`/api/proyectos/${proyecto.id}/sesiones/${sid}/transcripcion`);
+  for (const e of trans)
+    if (e.quien !== "meta") burbuja(e.quien, e.texto, e.t);
+  if (S.ws) { S.ws.close(); S.ws = null; }
+  const ws = new WebSocket(
+    (location.protocol === "https:" ? "wss://" : "ws://") + location.host +
+    `/ws/${proyecto.id}/${sid}`);
+  ws.onmessage = ev => {
+    const e = JSON.parse(ev.data);
+    if (e.quien !== "usuario" && e.quien !== "meta") burbuja(e.quien, e.texto, e.t);
+  };
+  ws.onclose = () => $("estado-punto").classList.remove("vivo");
+  S.ws = ws;
+}
+
+// ── Enviar mensajes ───────────────────────────────────────────────────────
+async function enviar(texto) {
+  if (!texto.trim()) return;
+  if (!S.sesion) { alert("Abre una sesión primero (menú ☰)."); return; }
+  burbuja("usuario", texto, new Date().toTimeString().slice(0, 8));
+  await api(`/api/proyectos/${S.proyecto.id}/sesiones/${S.sesion}/mensaje`,
+    {method: "POST", headers: {"Content-Type": "application/json"},
+     body: JSON.stringify({texto})});
+}
+$("enviar").onclick = () => { enviar($("entrada").value); $("entrada").value = ""; ocultarSug(); };
+$("entrada").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault(); $("enviar").click();
+  }
+});
+document.querySelectorAll(".chip[data-cmd]").forEach(ch =>
+  ch.onclick = () => enviar(ch.dataset.cmd));
+
+// ── Sugerencias de "/" ────────────────────────────────────────────────────
+api("/api/comandos").then(c => S.comandos = c);
+const sug = $("sugerencias");
+function ocultarSug() { sug.classList.remove("visible"); }
+$("entrada").addEventListener("input", () => {
+  const v = $("entrada").value;
+  if (!v.startsWith("/")) { ocultarSug(); return; }
+  const q = v.toLowerCase();
+  const hits = S.comandos.filter(c => c.cmd.toLowerCase().startsWith(q)).slice(0, 30);
+  if (!hits.length) { ocultarSug(); return; }
+  sug.innerHTML = "";
+  for (const h of hits) {
+    const d = document.createElement("div");
+    d.className = "sug";
+    d.innerHTML = `<div class="c">${h.cmd}</div><div class="d">${h.desc}</div>`;
+    d.onclick = () => { $("entrada").value = h.cmd + " "; $("entrada").focus(); ocultarSug(); };
+    sug.appendChild(d);
+  }
+  sug.classList.add("visible");
+});
+
+// ── Paneles de la derecha ─────────────────────────────────────────────────
+async function refrescarPaneles() {
+  // imagenes
+  const imgs = await api("/api/imagenes");
+  const gal = $("galeria"); gal.innerHTML = "";
+  for (const im of imgs.slice(0, 12)) {
+    const f = document.createElement("figure");
+    f.innerHTML = `<img loading="lazy" src="${im.url}">
+      <figcaption>${im.programa} · ${im.tipo}</figcaption>`;
+    gal.appendChild(f);
+  }
+  if (!imgs.length) gal.innerHTML = "<div>Sin imágenes aún.</div>";
+  // oficina
+  const ofi = await api("/api/oficina");
+  $("cuerpo-oficina").innerHTML = ofi.length
+    ? ofi.map(o => `<b>${o.proyecto}</b><pre>` +
+        o.metas.map(m => `${m.estado === "hecha" ? "☑" : "☐"} ${m.texto} [${m.estado}]`).join("\n")
+        + "</pre>").join("")
+    : "Sin oficinas activas en los proyectos.";
+  // monitores
+  const mon = await api("/api/monitores");
+  $("cuerpo-monitores").innerHTML = mon.length
+    ? "<pre>" + mon.map(m => `● pid ${m.pid} · ${m.ruta}\n  sesión ${m.sesion}`).join("\n") + "</pre>"
+    : "Ningún REPL corriendo ahora.";
+  // grafo (resumen)
+  pintarGrafo("");
+}
+async function pintarGrafo(tema) {
+  const g = await api("/api/grafo" + (tema ? "?tema=" + encodeURIComponent(tema) : ""));
+  const c = $("cuerpo-grafo");
+  if (g.error) { c.textContent = g.error; return; }
+  if (g.tema) {
+    c.innerHTML = `<b>${g.tema}</b><pre>` +
+      (g.hechos || []).map(h => Array.isArray(h) ? h.join(" — ") : JSON.stringify(h)).join("\n") +
+      "\n— vecinos —\n" +
+      (g.vecinos || []).map(v => Array.isArray(v) ? v.join(" — ") : JSON.stringify(v)).join("\n")
+      + "</pre>";
+  } else {
+    c.innerHTML = `<pre>${JSON.stringify(g.stats || {}, null, 1)}\n` +
+      (g.triples || []).slice(0, 25).map(t =>
+        Array.isArray(t) ? t.slice(0, 3).join(" → ") : JSON.stringify(t)).join("\n") + "</pre>";
+  }
+}
+let _tGrafo;
+$("grafo-tema").addEventListener("input", e => {
+  clearTimeout(_tGrafo);
+  _tGrafo = setTimeout(() => pintarGrafo(e.target.value.trim()), 400);
+});
+
+// autosize del textarea
+$("entrada").addEventListener("input", function () {
+  this.style.height = "auto";
+  this.style.height = Math.min(this.scrollHeight, 110) + "px";
+});
+</script>
+</body>
+</html>

@@ -108,6 +108,8 @@ exclude = [
 "cognia.program_creator" = ["patrones_web/*.html"]
 # La colonia de micro-expertos: pesos numpy + config + referencia de paridad.
 # model.pt (torch) NO se embarca: el runtime instalado no depende de torch.
+# La app movil del control remoto (python -m cognia.remoto)
+"cognia.remoto" = ["static/*.html"]
 "cognia.microexpertos" = ["*/pesos.npz", "*/config.json", "*/metrics.json", "*/paridad_ref.npz"]
 
 # (v3.6.0) Se removio el bloque py-modules: esos modulos top-level se reorganizaron
