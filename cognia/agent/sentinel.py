@@ -46,6 +46,9 @@ _ALLOW_PREFIXES = {
     "node", "npm", "npx", "tsc", "go", "cargo", "rustc", "java", "javac",
     "make", "cmake", "diff", "sort", "uniq", "tree", "date", "whoami",
     "poetry", "uv", "conda", "pytest.exe",
+    # lanzadores: abrir apps/archivos/URLs (para "abre Chrome/YouTube/una app").
+    # Un payload destructivo dentro sigue cazado por el BLOCK (corre antes).
+    "start", "explorer", "open", "xdg-open", "wt", "code", "notepad",
 }
 # git subcomandos que NO son de solo-lectura pero son parte del flujo normal
 # de un agente de código (commit/add/checkout local); push/reset-hard/clean
@@ -60,6 +63,7 @@ _BLOCK_SUB = [
     "rm -rf", "rm -fr", "del /s", "del /q", "del /f", ":(){", ":|:&",
     "mkfs", "dd if=", "> /dev/", ">/dev/", "shutdown", "reboot", "rmdir /s",
     "format c:", "deltree", "> /dev/sda", "chmod -r 000", "chown -r",
+    "rd /s", "diskpart", "cipher /w",   # destructores de Windows
 ]
 _BLOCK_RE = [
     re.compile(r"\bformat\s+[a-z]:", re.I),        # format C: real
@@ -69,6 +73,9 @@ _BLOCK_RE = [
     re.compile(r"\bgit\s+push\b.*--force", re.I),  # force-push (destructivo remoto)
     re.compile(r"\bgit\s+reset\b.*--hard", re.I),
     re.compile(r"\bgit\s+clean\b.*-[a-z]*f", re.I),
+    # borrado recursivo forzado en PowerShell (remove-item -recurse -force)
+    re.compile(r"remove-item\b.*-re?c?u?r?s?e?\b.*-for?ce?\b", re.I),
+    re.compile(r"remove-item\b.*-for?ce?\b.*-re?c?u?r?s?e?\b", re.I),
 ]
 
 ALLOW, CONFIRM, BLOCK = "allow", "confirm", "block"
@@ -81,6 +88,16 @@ def sentinel_enabled() -> bool:
 
 def _autonomous() -> bool:
     return os.environ.get("COGNIA_AUTONOMOUS", "").strip().lower() in (
+        "1", "on", "true", "yes")
+
+
+def _acceso_total() -> bool:
+    """Modo 'acceso total' pedido por el dueño para SU maquina (p.ej. el control
+    remoto): los comandos de riesgo DESCONOCIDO (CONFIRM) proceden sin canal de
+    confirmacion, para que Cognia pueda de verdad abrir apps/navegar/operar el
+    equipo. El BLOCK duro (rm -rf, format, shutdown, dd, mkfs, reset --hard,
+    force-push, borrados recursivos...) SIGUE vigente: es la ultima red."""
+    return os.environ.get("COGNIA_ACCESO_TOTAL", "").strip().lower() in (
         "1", "on", "true", "yes")
 
 
@@ -164,7 +181,7 @@ def evaluar_shell(cmd: str, ctx: dict = None) -> tuple:
         return False, (f"RESULTADO ejecutar: BLOQUEADO por Sentinel "
                        f"({razon}). Acción destructiva irreversible.")
     # CONFIRM
-    if _autonomous():
+    if _autonomous() or _acceso_total():
         return True, None            # procede pero YA quedó auditado
     confirm = ctx.get("confirm")
     if callable(confirm):

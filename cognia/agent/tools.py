@@ -512,6 +512,47 @@ def _ejecutar(args, ctx):
     return _shell(args.strip(), ctx)
 
 
+@tool("abrir", "abrir <url-o-ruta-o-app>              -- abre una URL/archivo/app en el sistema (Chrome, YouTube, un archivo, una app)")
+def _abrir(args, ctx):
+    """Abre algo en el sistema del dueño: una URL en el navegador, un archivo con
+    su app por defecto, o una app por nombre. Es la forma correcta de 'abrir una
+    pestaña de Chrome con YouTube' — no pelear con el shell."""
+    target = args.strip().strip('"\'')
+    if not target:
+        return "RESULTADO abrir ERROR: falta la URL, ruta o app a abrir"
+    import webbrowser
+    try:
+        # URL http(s) -> navegador por defecto
+        if re.match(r"^https?://", target, re.I):
+            webbrowser.open(target)
+            return f"RESULTADO abrir: abriendo {target} en el navegador"
+        # dominio sin esquema (youtube.com, www.x.com) -> asumir https
+        if " " not in target and re.match(r"^(www\.)?[\w.-]+\.[a-z]{2,}(/.*)?$", target, re.I):
+            url = "https://" + target
+            webbrowser.open(url)
+            return f"RESULTADO abrir: abriendo {url} en el navegador"
+        # ruta existente -> abrir con la app por defecto del SO
+        p = Path(target).expanduser()
+        if p.exists():
+            if sys.platform.startswith("win"):
+                os.startfile(str(p))  # type: ignore[attr-defined]
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(p)])
+            else:
+                subprocess.Popen(["xdg-open", str(p)])
+            return f"RESULTADO abrir: abriendo {p}"
+        # si no, lanzarlo como app/comando del sistema
+        if sys.platform.startswith("win"):
+            subprocess.Popen(f'start "" "{target}"', shell=True)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", "-a", target])
+        else:
+            subprocess.Popen([target])
+        return f"RESULTADO abrir: intentando abrir '{target}'"
+    except Exception as e:
+        return f"RESULTADO abrir ERROR: {e}"
+
+
 @tool("tests", "tests <ruta>                          -- corre pytest sobre una ruta ESPECIFICA (archivo o dir)")
 def _tests(args, ctx):
     ruta = args.strip()

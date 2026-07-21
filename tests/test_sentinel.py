@@ -16,7 +16,39 @@ from cognia.agent.sentinel import (ALLOW, BLOCK, CONFIRM, clasificar_shell,
 def _sentinel_on(monkeypatch):
     monkeypatch.delenv("COGNIA_SENTINEL", raising=False)
     monkeypatch.delenv("COGNIA_AUTONOMOUS", raising=False)
+    monkeypatch.delenv("COGNIA_ACCESO_TOTAL", raising=False)
     yield
+
+
+# ── lanzadores + acceso total (control remoto del dueño) ──────────────────
+@pytest.mark.parametrize("cmd", [
+    "start chrome https://youtube.com", "explorer .", "open foto.png",
+    "xdg-open https://x.com",
+])
+def test_lanzadores_permitidos(cmd):
+    """Abrir apps/URLs/archivos pasa (para 'abre Chrome/YouTube/una app')."""
+    assert clasificar_shell(cmd)[0] == ALLOW
+
+
+def test_acceso_total_procede_lo_desconocido(monkeypatch):
+    """En 'acceso total' un comando de riesgo desconocido procede (el dueño
+    pilota SU maquina sin canal de confirmacion)."""
+    ok, _ = evaluar_shell("curl https://example.com")
+    assert ok is False                       # sin acceso total: denegado
+    monkeypatch.setenv("COGNIA_ACCESO_TOTAL", "1")
+    ok, _ = evaluar_shell("curl https://example.com")
+    assert ok is True                        # con acceso total: procede
+
+
+@pytest.mark.parametrize("cmd", [
+    "rm -rf /", "format c:", "shutdown /s /t 0",
+    "Remove-Item -Recurse -Force C:\\", "rd /s /q C:\\Windows",
+])
+def test_acceso_total_NO_desbloquea_lo_catastrofico(cmd, monkeypatch):
+    """El BLOCK duro sigue vigente AUN con acceso total: es la ultima red."""
+    monkeypatch.setenv("COGNIA_ACCESO_TOTAL", "1")
+    ok, _ = evaluar_shell(cmd)
+    assert ok is False
 
 
 # ── clasificación ────────────────────────────────────────────────────────

@@ -82,6 +82,21 @@ def test_ejecutar_blocks_dangerous_commands():
         assert "BLOQUEADO" in T.run_tool("ejecutar", bad, _ctx())
 
 
+def test_abrir_url_usa_el_navegador(monkeypatch):
+    """La tool 'abrir' manda las URLs al navegador (para 'abre Chrome/YouTube').
+    Se mockea webbrowser.open para no lanzar un navegador de verdad en el test."""
+    import webbrowser
+    abiertas = []
+    monkeypatch.setattr(webbrowser, "open", lambda u: abiertas.append(u) or True)
+    assert "abriendo" in T.run_tool("abrir", "https://youtube.com", _ctx())
+    assert abiertas[-1] == "https://youtube.com"
+    # dominio sin esquema -> asume https
+    T.run_tool("abrir", "youtube.com", _ctx())
+    assert abiertas[-1] == "https://youtube.com"
+    # sin argumento -> error accionable, no excepcion
+    assert "ERROR" in T.run_tool("abrir", "", _ctx())
+
+
 def test_ejecutar_blocks_windows_disk_format_only():
     # El borrado de disco real SI se bloquea...
     for bad in ("format c:", "format d: /q"):

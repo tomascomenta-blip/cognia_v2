@@ -256,6 +256,12 @@ class Sesion:
         env = dict(os.environ,
                    PYTHONUTF8="1", PYTHONIOENCODING="utf-8",
                    NO_COLOR="1", TERM="dumb",
+                   # ACCESO TOTAL en el control remoto: el dueño pilota SU maquina
+                   # desde el movil sin canal de confirmacion, asi Cognia puede
+                   # abrir apps/navegar/operar el equipo. El BLOCK duro del
+                   # Sentinel (rm -rf, format, shutdown, borrados recursivos...)
+                   # sigue activo como ultima red.
+                   COGNIA_ACCESO_TOTAL="1",
                    PYTHONPATH=(raiz_repo + (os.pathsep + pp if pp else "")))
         self.proc = subprocess.Popen(
             _python_cognia(), cwd=self.ruta_proyecto,
