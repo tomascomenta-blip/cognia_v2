@@ -240,6 +240,31 @@
     font-size: 12px; background: var(--panel-2); color: var(--texto);
     border: 1px solid var(--borde); border-radius: 8px; padding: 8px; }
   .lleno #flujo-editor { min-height: calc(100vh - 210px); }
+  /* ── Flujos estilo n8n ── */
+  .flujo-cabecera { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .flujo-cabecera #flujo-nombre { flex: 1; }
+  #flujo-resumen { background: var(--panel-2); border: 1px solid var(--acento-2);
+    border-radius: 10px; padding: 9px 11px; margin-bottom: 12px; font-size: 12.5px;
+    color: var(--texto-2); }
+  #flujo-resumen b { color: var(--acento); }
+  #flujo-lienzo { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .nodo-flujo { width: 100%; max-width: 340px; background: var(--panel);
+    border: 1.5px solid var(--borde); border-radius: 12px; padding: 9px 11px;
+    position: relative; }
+  .nodo-flujo.disparador { border-color: var(--acento); }
+  .nodo-flujo .nf-cab { display: flex; align-items: center; gap: 6px; font-size: 11px;
+    font-weight: 700; color: var(--acento); text-transform: uppercase;
+    letter-spacing: .4px; margin-bottom: 4px; }
+  .nodo-flujo.disparador .nf-cab { color: var(--acento); }
+  .nodo-flujo .nf-txt { font-size: 13px; color: var(--texto); white-space: pre-wrap;
+    outline: none; }
+  .nodo-flujo .nf-txt:focus { background: var(--panel-2); border-radius: 6px; }
+  .nodo-flujo .nf-borrar { position: absolute; top: 6px; right: 6px; opacity: .5;
+    width: 22px; height: 22px; display: grid; place-items: center; }
+  .nf-conector { width: 2px; height: 18px; background: var(--acento-2); }
+  .nf-conector::after { content: "▼"; display: block; color: var(--acento-2);
+    font-size: 9px; margin-left: -4px; margin-top: 12px; }
+  .flujo-acciones { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
   iframe.oficina { width: 100%; height: 320px; border: none; border-radius: 10px;
     background: #000; }
   /* ── Jarvis: constelación 3D de voz ── */
@@ -396,11 +421,19 @@
       <div class="cuerpo">
         <div id="flujos-lista"></div>
         <div id="flujo-edicion" style="display:none">
-          <button class="chip" id="flujo-volver"><svg class="ic" width="14" height="14"><use href="#i-volver"/></svg> volver</button>
-          <div style="font-weight:600;margin:6px 0" id="flujo-nombre"></div>
-          <textarea id="flujo-editor"></textarea>
-          <button class="boton-panel" id="flujo-guardar" style="margin-top:8px">
-            <svg class="ic" width="15" height="15"><use href="#i-check"/></svg> Guardar</button>
+          <div class="flujo-cabecera">
+            <button class="chip" id="flujo-volver"><svg class="ic" width="14" height="14"><use href="#i-volver"/></svg> volver</button>
+            <div style="font-weight:700" id="flujo-nombre"></div>
+            <button class="chip" id="flujo-modo">texto</button>
+          </div>
+          <div id="flujo-resumen"></div>
+          <div id="flujo-lienzo"></div>
+          <textarea id="flujo-editor" style="display:none"></textarea>
+          <div class="flujo-acciones">
+            <button class="chip" id="flujo-agregar"><svg class="ic" width="14" height="14"><use href="#i-mas"/></svg> paso</button>
+            <button class="boton-panel" id="flujo-guardar">
+              <svg class="ic" width="15" height="15"><use href="#i-check"/></svg> Guardar</button>
+          </div>
         </div>
       </div>
     </details>
@@ -996,19 +1029,85 @@ async function verConcepto(nombre) {
 }
 
 /* ── Flujos de trabajo (skills): ver y editar ── */
+/* Flujos estilo n8n: parsear el skill (descripcion + pasos numerados) y
+   pintarlo como nodos conectados y editables; el resumen de Cognia = la
+   'description' del skill (que es justo su resumen escrito). */
+let flujoActual = null;   // {nombre, raw, descripcion, pasos:[]}
+
+function parseFlujo(nombre, contenido) {
+  const mDesc = contenido.match(/description:\s*([\s\S]*?)\n---/);
+  const descripcion = mDesc ? mDesc[1].replace(/\s+/g, " ").trim() : "";
+  const pasos = [];
+  const re = /^\s*\d+[.)]\s+(.*)$/gm;
+  let m;
+  while ((m = re.exec(contenido))) pasos.push(m[1].trim());
+  return { nombre, raw: contenido, descripcion, pasos };
+}
+
+function pintarLienzoFlujo() {
+  const f = flujoActual, c = $("flujo-lienzo");
+  $("flujo-resumen").innerHTML =
+    "<b>Qué hace</b> · " + (f.descripcion || "(sin descripción)") +
+    "<br><small>" + f.pasos.length + " paso(s)</small>";
+  c.innerHTML = "";
+  const nodo = (tag, txt, clase, idx) => {
+    const d = document.createElement("div");
+    d.className = "nodo-flujo " + (clase || "");
+    d.innerHTML = `<div class="nf-cab">${tag}</div>` +
+      `<div class="nf-txt" contenteditable="true"></div>` +
+      (idx != null ? `<button class="nf-borrar" title="Quitar"><svg class="ic" width="14" height="14"><use href="#i-basura"/></svg></button>` : "");
+    d.querySelector(".nf-txt").textContent = txt;
+    d.querySelector(".nf-txt").addEventListener("input", e => {
+      if (idx == null) f.descripcion = e.target.textContent;
+      else f.pasos[idx] = e.target.textContent;
+    });
+    if (idx != null) d.querySelector(".nf-borrar").onclick = () => {
+      f.pasos.splice(idx, 1); pintarLienzoFlujo();
+    };
+    c.appendChild(d);
+  };
+  const conector = () => { const s = document.createElement("div"); s.className = "nf-conector"; c.appendChild(s); };
+  nodo("Disparador", f.descripcion, "disparador", null);
+  f.pasos.forEach((p, i) => { conector(); nodo("Paso " + (i + 1), p, "", i); });
+}
+
+function reconstruirFlujo() {
+  const f = flujoActual;
+  let raw = f.raw;
+  // reemplaza la descripcion en el frontmatter
+  raw = raw.replace(/description:\s*[\s\S]*?\n---/,
+    "description: " + f.descripcion + "\n---");
+  // reemplaza el TRAMO del primer al ultimo paso numerado (incluye sub-lineas
+  // intermedias) por los pasos editados y renumerados. Asi no se duplica cuando
+  // los pasos no son un bloque contiguo (p.ej. un paso con sub-viñetas debajo).
+  const nuevos = f.pasos.map((p, i) => (i + 1) + ". " + p);
+  const lineas = raw.split("\n");
+  let first = -1, last = -1;
+  lineas.forEach((l, i) => { if (/^\s*\d+[.)]\s+/.test(l)) { if (first < 0) first = i; last = i; } });
+  if (first >= 0) { lineas.splice(first, last - first + 1, ...nuevos); raw = lineas.join("\n"); }
+  else raw += "\n\n## Como proceder\n" + nuevos.join("\n") + "\n";
+  return raw;
+}
+
 async function pintarFlujos() {
   S.flujos = await api("/api/flujos");
   const l = $("flujos-lista"); l.innerHTML = "";
   for (const f of S.flujos) {
     const d = document.createElement("div");
     d.className = "sug";
+    const p = parseFlujo(f.nombre, f.contenido);
     d.innerHTML = `<div class="c">${f.nombre}</div>
-      <div class="d">${f.contenido.split("\n")[0].slice(0, 70)}</div>`;
+      <div class="d">${(p.descripcion || f.contenido).slice(0, 80)}</div>`;
     d.onclick = () => {
       $("flujos-lista").style.display = "none";
       $("flujo-edicion").style.display = "";
       $("flujo-nombre").textContent = f.nombre;
       $("flujo-editor").value = f.contenido;
+      $("flujo-editor").style.display = "none";
+      $("flujo-lienzo").style.display = "";
+      $("flujo-modo").textContent = "texto";
+      flujoActual = parseFlujo(f.nombre, f.contenido);
+      pintarLienzoFlujo();
     };
     l.appendChild(d);
   }
@@ -1017,11 +1116,32 @@ $("flujo-volver").onclick = () => {
   $("flujos-lista").style.display = "";
   $("flujo-edicion").style.display = "none";
 };
+$("flujo-modo").onclick = function () {
+  const enTexto = $("flujo-editor").style.display !== "none";
+  if (enTexto) {
+    // volver a nodos: reparsear el texto (por si se editó a mano)
+    flujoActual = parseFlujo(flujoActual.nombre, $("flujo-editor").value);
+    $("flujo-editor").style.display = "none";
+    $("flujo-lienzo").style.display = "";
+    pintarLienzoFlujo();
+    this.textContent = "texto";
+  } else {
+    $("flujo-editor").value = reconstruirFlujo();
+    $("flujo-editor").style.display = "";
+    $("flujo-lienzo").style.display = "none";
+    this.textContent = "nodos";
+  }
+};
+$("flujo-agregar").onclick = () => {
+  flujoActual.pasos.push("nuevo paso"); pintarLienzoFlujo();
+};
 $("flujo-guardar").onclick = async () => {
   const nombre = $("flujo-nombre").textContent;
+  const contenido = $("flujo-editor").style.display !== "none"
+    ? $("flujo-editor").value : reconstruirFlujo();
   const r = await api("/api/flujos/" + encodeURIComponent(nombre),
     {method: "PUT", headers: {"Content-Type": "application/json"},
-     body: JSON.stringify({contenido: $("flujo-editor").value})});
+     body: JSON.stringify({contenido})});
   alert(r.ok ? "Guardado." : "Error: " + (r.error || "?"));
   pintarFlujos();
 };
