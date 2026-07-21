@@ -247,6 +247,24 @@
     radial-gradient(circle at 50% 42%, #0a1a14 0%, #050a0f 55%, #000 100%);
     display: flex; flex-direction: column; }
   #jarvis[hidden] { display: none; }
+  /* ── RAG 3D: cilindro de memoria ── */
+  #rag { position: fixed; inset: 0; z-index: 61; background:
+    radial-gradient(circle at 50% 45%, #0a1420 0%, #05080d 55%, #000 100%);
+    display: flex; flex-direction: column; }
+  #rag[hidden] { display: none; }
+  #rag-lienzo { position: absolute; inset: 0; width: 100%; height: 100%;
+    touch-action: none; }
+  #rag-barra { position: relative; z-index: 2; display: flex; align-items: center;
+    gap: 10px; padding: 12px 14px; color: #eaf3ff; }
+  #rag-titulo { font-weight: 700; font-size: 15px; text-shadow: 0 0 12px rgba(74,144,217,.8); }
+  #rag-experto { margin-left: auto; background: rgba(255,255,255,.08); color: #eaf3ff;
+    border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 6px 8px;
+    font-size: 12px; max-width: 42%; }
+  #rag-2d { min-width: 40px; font-weight: 700; font-size: 13px; }
+  #rag-2d.on { background: rgba(74,144,217,.35); border-color: #4a90d9; }
+  #rag-info { position: relative; z-index: 2; margin: 0 14px; color: #bcd6f2;
+    font-size: 13px; min-height: 20px; pointer-events: none;
+    text-shadow: 0 0 8px rgba(0,0,0,.9); }
   #jarvis-lienzo { position: absolute; inset: 0; width: 100%; height: 100%;
     touch-action: none; }
   #jarvis-barra { position: relative; z-index: 2; display: flex; align-items: center;
@@ -427,13 +445,25 @@
   </div>
   <div id="jarvis-info"></div>
   <div id="jarvis-tiles">
-    <button class="jarvis-tile" data-abre="grafo"><svg class="ic" width="16" height="16"><use href="#i-grafo"/></svg>Grafo / RAG</button>
+    <button class="jarvis-tile" id="tile-rag"><svg class="ic" width="16" height="16"><use href="#i-grafo"/></svg>Grafo / RAG</button>
     <button class="jarvis-tile" data-abre="oficina"><svg class="ic" width="16" height="16"><use href="#i-oficina"/></svg>Oficina</button>
     <button class="jarvis-tile" data-abre="imagenes"><svg class="ic" width="16" height="16"><use href="#i-imagen"/></svg>Imágenes</button>
     <button class="jarvis-tile" data-abre="flujos"><svg class="ic" width="16" height="16"><use href="#i-flujo"/></svg>Flujos</button>
     <button class="jarvis-tile" data-abre="tareas"><svg class="ic" width="16" height="16"><use href="#i-tareas"/></svg>Tareas</button>
     <button class="jarvis-tile" data-abre="registro"><svg class="ic" width="16" height="16"><use href="#i-registro"/></svg>Registro</button>
   </div>
+</div>
+
+<!-- ── RAG 3D: cilindro de memoria (pisos = temas) ── -->
+<div id="rag" hidden>
+  <canvas id="rag-lienzo"></canvas>
+  <div id="rag-barra">
+    <button class="jarvis-btn" id="rag-cerrar" aria-label="Cerrar"><svg class="ic" width="18" height="18"><use href="#i-volver"/></svg></button>
+    <span id="rag-titulo">Memoria · RAG</span>
+    <select id="rag-experto" title="Grafo por experto"></select>
+    <button class="jarvis-btn" id="rag-2d" aria-label="Vista 2D">2D</button>
+  </div>
+  <div id="rag-info"></div>
 </div>
 
 <div id="controles">
@@ -1247,6 +1277,167 @@ lienzo.addEventListener("wheel", e => {
   JV.escala = Math.max(0.5, Math.min(3, JV.escala * (e.deltaY < 0 ? 1.1 : 0.9)));
 }, { passive: false });
 window.addEventListener("resize", () => { if (JV.abierto) ajustarLienzo(); });
+
+/* ══ RAG 3D: cilindro de memoria (pisos = temas) ══ */
+const RG = {
+  abierto: false, pisos: [], nodos: [], rotY: 0.5, tilt: 0.5, zoom: 1,
+  ox: 0, oy: 0, raf: 0, modo2d: false, experto: "",
+};
+const ragL = $("rag-lienzo");
+const ctxR = ragL.getContext("2d");
+// color pastel semitransparente por tema (piso)
+const PASTEL = ["rgba(120,200,150,0.16)", "rgba(120,170,220,0.16)",
+  "rgba(220,190,120,0.16)", "rgba(210,130,180,0.16)", "rgba(120,210,205,0.16)",
+  "rgba(220,140,110,0.16)", "rgba(170,140,225,0.16)", "rgba(180,210,120,0.16)",
+  "rgba(225,130,150,0.16)", "rgba(120,170,220,0.16)"];
+const VIVO = ["#37e08a", "#4aa8ff", "#ffcb45", "#ff6fb1", "#3ff0e0",
+  "#ff7b4a", "#a884ff", "#b6e34a", "#ff5b7c", "#57b0ff"];
+
+async function cargarRAG() {
+  const g = await api("/api/grafo_visual?limite=90");
+  RG.pisos = []; RG.nodos = [];
+  if (g.error || !g.nodos.length) { $("rag-info").textContent = g.error || "Memoria vacía."; return; }
+  const temas = {};
+  for (const n of g.nodos) (temas[n.tema] = temas[n.tema] || []).push(n);
+  let keys = Object.keys(temas).sort((a, b) => temas[b].length - temas[a].length);
+  // filtro por experto: subgrafo cuyos nombres casan la palabra del experto
+  if (RG.experto) {
+    const kw = RG.experto.replace(/_/g, "");
+    const casa = n => (n.nombre || "").toLowerCase().replace(/_/g, "").includes(kw);
+    keys = keys.filter(t => temas[t].some(casa));
+  }
+  const N = keys.length;
+  const GAP = 78, R = 96;
+  keys.forEach((t, i) => {
+    const y = (i - (N - 1) / 2) * GAP;
+    const color = t < 0 ? "rgba(150,160,155,0.14)" : PASTEL[t % PASTEL.length];
+    const vivo = t < 0 ? "#9aa" : VIVO[t % VIVO.length];
+    const hub = temas[t].find(n => n.hub) || temas[t][0];
+    RG.pisos.push({ y, R, color, vivo, nombre: (hub.nombre || "").replace(/_/g, " ") });
+    temas[t].forEach((n, j) => {
+      const a = (2 * Math.PI * j) / Math.max(1, temas[t].length);
+      RG.nodos.push({ x: R * Math.cos(a), y, z: R * Math.sin(a), vivo,
+        nombre: (n.nombre || "").replace(/_/g, " "), raw: n.nombre });
+    });
+  });
+  $("rag-info").textContent = N + " pisos (temas) · " + RG.nodos.length + " conceptos";
+}
+
+function proyRAG(x, y, z) {
+  const cy = Math.cos(RG.rotY), sy = Math.sin(RG.rotY);
+  let X = x * cy - z * sy, Z = x * sy + z * cy, Y = y;
+  const ct = Math.cos(RG.tilt), st = Math.sin(RG.tilt);
+  const Y2 = Y * ct - Z * st, Z2 = Y * st + Z * ct;
+  const focal = 520;
+  const esc = RG.modo2d ? RG.zoom : (focal / (focal + Z2)) * RG.zoom * 1.15;
+  return { sx: ragL.width / 2 + RG.ox + X * esc, sy: ragL.height / 2 + RG.oy + Y2 * esc, z: Z2 };
+}
+
+function pintarRAG() {
+  const W = ragL.width, H = ragL.height;
+  ctxR.clearRect(0, 0, W, H);
+  // eje vertical del cilindro
+  if (RG.pisos.length) {
+    const a = proyRAG(0, RG.pisos[0].y, 0), b = proyRAG(0, RG.pisos[RG.pisos.length - 1].y, 0);
+    ctxR.beginPath(); ctxR.moveTo(a.sx, a.sy); ctxR.lineTo(b.sx, b.sy);
+    ctxR.strokeStyle = "rgba(255,255,255,0.15)"; ctxR.lineWidth = 2; ctxR.stroke();
+  }
+  // pisos ordenados de atrás a adelante
+  const pisosOrd = RG.pisos.map(p => ({ p, z: proyRAG(0, p.y, 0).z })).sort((a, b) => b.z - a.z);
+  for (const { p } of pisosOrd) {
+    ctxR.beginPath();
+    for (let k = 0; k <= 40; k++) {
+      const a = (2 * Math.PI * k) / 40;
+      const q = proyRAG(p.R * Math.cos(a), p.y, p.R * Math.sin(a));
+      k === 0 ? ctxR.moveTo(q.sx, q.sy) : ctxR.lineTo(q.sx, q.sy);
+    }
+    ctxR.closePath();
+    ctxR.fillStyle = p.color; ctxR.fill();
+    ctxR.strokeStyle = p.vivo; ctxR.globalAlpha = 0.5; ctxR.lineWidth = 1.2; ctxR.stroke();
+    ctxR.globalAlpha = 1;
+    // etiqueta del piso (tema)
+    const c = proyRAG(-p.R, p.y, 0);
+    ctxR.fillStyle = "#eaf3ff"; ctxR.font = "11px system-ui, sans-serif";
+    ctxR.textAlign = "right"; ctxR.fillText(corta(p.nombre, 18), c.sx - 6, c.sy + 3);
+  }
+  // nodos (esferas vívidas) por profundidad
+  const nOrd = RG.nodos.map(n => { const q = proyRAG(n.x, n.y, n.z); return { n, q }; })
+    .sort((a, b) => b.q.z - a.q.z);
+  for (const { n, q } of nOrd) {
+    const r = (RG.modo2d ? 5 : (520 / (520 + q.z)) * 6) * RG.zoom;
+    const g = ctxR.createRadialGradient(q.sx - r * 0.3, q.sy - r * 0.3, 0, q.sx, q.sy, r);
+    g.addColorStop(0, "#fff"); g.addColorStop(0.35, n.vivo); g.addColorStop(1, n.vivo);
+    ctxR.save(); ctxR.shadowColor = n.vivo; ctxR.shadowBlur = 8;
+    ctxR.fillStyle = g; ctxR.beginPath(); ctxR.arc(q.sx, q.sy, Math.max(2, r), 0, 7); ctxR.fill();
+    ctxR.restore();
+    n._sx = q.sx; n._sy = q.sy; n._r = Math.max(2, r);
+  }
+  if (RG.abierto) RG.raf = requestAnimationFrame(pintarRAG);
+}
+
+function ajustarRAG() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  ragL.width = ragL.clientWidth * dpr; ragL.height = ragL.clientHeight * dpr;
+}
+async function abrirRAG() {
+  cerrarJarvis();
+  $("rag").hidden = false; RG.abierto = true;
+  // poblar selector de expertos (grafo por experto)
+  await cargarExpertos();
+  const sel = $("rag-experto");
+  sel.innerHTML = '<option value="">KG completo</option>' +
+    JV.nodos.filter(n => !n.central).map(n => `<option value="${n.id}">${n.nombre}</option>`).join("");
+  sel.value = RG.experto;
+  await cargarRAG();
+  requestAnimationFrame(() => { ajustarRAG(); RG.raf = requestAnimationFrame(pintarRAG); });
+}
+function cerrarRAG() { RG.abierto = false; cancelAnimationFrame(RG.raf); $("rag").hidden = true; }
+$("tile-rag").onclick = abrirRAG;
+$("rag-cerrar").onclick = cerrarRAG;
+$("rag-2d").onclick = function () {
+  RG.modo2d = !RG.modo2d; this.classList.toggle("on", RG.modo2d);
+  if (RG.modo2d) { RG.tilt = Math.PI / 2 - 0.001; RG.rotY = 0; }   // cenital = mapa 2D
+  else { RG.tilt = 0.5; RG.rotY = 0.5; }
+};
+$("rag-experto").onchange = async function () { RG.experto = this.value; await cargarRAG(); };
+
+// gestos RAG: arrastre horiz = rotar, vert = inclinar, pellizco/rueda = zoom
+let _rp = new Map(), _rMov = false, _rD = 0, _rZ = 1;
+ragL.addEventListener("pointerdown", e => {
+  ragL.setPointerCapture(e.pointerId); _rp.set(e.pointerId, { x: e.clientX, y: e.clientY }); _rMov = false;
+  if (_rp.size === 2) { const [a, b] = [..._rp.values()]; _rD = Math.hypot(a.x - b.x, a.y - b.y); _rZ = RG.zoom; }
+});
+ragL.addEventListener("pointermove", e => {
+  const prev = _rp.get(e.pointerId); if (!prev) return;
+  if (_rp.size === 2) {
+    _rp.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const [a, b] = [..._rp.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (_rD) RG.zoom = Math.max(0.5, Math.min(3, _rZ * d / _rD)); _rMov = true; return;
+  }
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+  if (Math.abs(dx) + Math.abs(dy) > 3) _rMov = true;
+  if (!RG.modo2d) {
+    RG.rotY += dx * 0.008;
+    RG.tilt = Math.max(-0.2, Math.min(Math.PI / 2, RG.tilt + dy * 0.006));
+  } else { RG.ox += dx * (Math.min(2, window.devicePixelRatio || 1)); RG.oy += dy * (Math.min(2, window.devicePixelRatio || 1)); }
+  _rp.set(e.pointerId, { x: e.clientX, y: e.clientY });
+});
+ragL.addEventListener("pointerup", e => {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (!_rMov && _rp.size === 1) {
+    const mx = e.clientX * dpr, my = e.clientY * dpr;
+    let hit = null, mejor = 1e9;
+    for (const n of RG.nodos) if (n._sx != null) {
+      const d = Math.hypot(n._sx - mx, n._sy - my);
+      if (d < (n._r + 12) && d < mejor) { mejor = d; hit = n; }
+    }
+    if (hit) { $("rag-info").textContent = hit.nombre; hablar(hit.nombre); }
+  }
+  _rp.delete(e.pointerId);
+});
+ragL.addEventListener("wheel", e => { e.preventDefault();
+  RG.zoom = Math.max(0.5, Math.min(3, RG.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); }, { passive: false });
+window.addEventListener("resize", () => { if (RG.abierto) ajustarRAG(); });
 
 /* ── Filtro de expertos en el chat: chips por color ── */
 // clasifica una línea a un experto (para el filtro y el color del chat)
