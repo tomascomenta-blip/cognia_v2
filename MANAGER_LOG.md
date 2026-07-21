@@ -8252,3 +8252,59 @@ Verificacion: tests/test_remoto.py 11/11 (contrato nuevo: RESULTADO ->
 actividad + test de la clase actividad); capturas del bloque abierto (chip −,
 4 pasos visibles) y plegado (chip +) en el navegador real; suite completa
 corriendo como compuerta final antes del commit.
+
+---
+
+## 2026-07-21 (madrugada) — Control remoto "Jarvis": voz 3D, RAG 3D, flujos n8n y pulido
+
+Corrida autónoma nocturna (apagado programado 04:30, tarea CogniaApagado0430).
+Plan ordenado en planes/REMOTO_JARVIS.md. Todo verificado en navegador real y
+commiteado por unidad.
+
+Bloque A — base y pulido:
+- Respuesta de Cognia en UN bloque con markdown renderizado (mdHTML propio: **,
+  ##, ```, listas, enlaces, citas); se acabaron los globos por linea y el
+  markdown crudo a la vista.
+- Grafo legible: titulos por tema, etiquetas en hubs, leyenda de colores,
+  nombres embellecidos (snake_case -> palabras).
+- Oficina 3D: no cargaba desde el movil porque el server escuchaba solo en
+  127.0.0.1; nuevo --host y el remoto la lanza en 0.0.0.0 (verificado por la IP
+  de la LAN).
+- GPU: contexto 16384 -> 32768 (nativo Qwen2.5); una instancia del 7B usa 6.9
+  de 16 GB en la 5060 Ti (medido, sin OOM).
+
+Bloque B — Jarvis (constelacion 3D de voz):
+- /api/expertos = cerebro central + micro-expertos reales + roles, con color.
+- Canvas: cerebro verde central con latido, expertos orbitando opacos que se
+  ENCIENDEN al actuar; esfera de energia (blanco + color) viaja del cerebro al
+  experto; zoom/pan/pellizco; tocar un nodo lo enfoca y lo habla (TTS es-ES).
+- Los pasos del stream disparan al experto que corresponde.
+- Filtro de expertos en el chat (chips por color: Todos / cerebro / subconjunto).
+- Tiles a Grafo/RAG, Oficina, Imagenes, Flujos, Tareas, Registro.
+
+Bloque C — RAG 3D: cilindro de memoria, pisos = temas (elipses pastel
+semitransparentes apiladas + eje), conceptos = esferas vividas; rotar/inclinar/
+zoom, toggle 2D cenital, selector "grafo por experto". Sin chocar con el grafo
+2D del panel.
+
+Bloque D — Flujos estilo n8n: skill -> nodos conectados (Disparador + pasos)
+editables; caja "Que hace" = la description (resumen de Cognia); toggle a texto;
+guardar reconstruye el markdown preservando el resto (round-trip verificado en
+commit-git/ahorrar-contexto/depurar).
+
+Bloque E — E2E:
+- Sencillo (verde): pedir markdown -> respondio en 3s y se renderizo exacto
+  (<h2>Python</h2> + 3 viñetas + negrita) en un solo bloque.
+- Dificil (/hacer escribir+leer archivo): archivo escrito de verdad ("hola e2e",
+  8 bytes); los paneles Rich boxed fueron a actividad (no al chat); el
+  anti-estancamiento se disparo y cerro honesto. Revelo un bug real:
+  leer_archivo recibia "ruta | contenido" (el modelo reusaba el formato de
+  escribir_archivo) -> [Errno 22]. Fix en agent/structure.auto_fix: un tool de
+  SOLO ruta que llega con '|' se queda con la ruta (parte 0). Test de regresion +
+  gate e2e_happy_path.
+
+Clasificacion: los paneles "│ ... │" que no son log ni accion (ayuda/estado)
+ahora van a actividad, no al chat (se colaban como markdown).
+
+Aislamiento de tests (arrastrado de la sesion anterior): fixture _feromona_
+aislada en conftest + monkeypatch de FICHERO_PROYECTOS; datos reales limpiados.

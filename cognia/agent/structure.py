@@ -101,6 +101,14 @@ def auto_fix(action: str, args: str) -> str:
         lines = fixed.split("\n", 1)
         if len(lines) == 2 and _PATHLIKE_RE.match(lines[0].strip()):
             fixed = lines[0].strip() + " | " + lines[1].lstrip("\n")
+    # ruta contaminada con contenido: el modelo reusa el formato "ruta | ..."
+    # de escribir_archivo en tools de SOLO ruta (leer_archivo, contar_lineas,
+    # py_validar, json_validar) y el '|contenido' entra en el path -> Path
+    # invalido. Si el tool NO es de 2 partes pero pide una ruta y llego con '|',
+    # quedarse con la parte 0 (la ruta). Cazado en el E2E 2026-07-21:
+    # leer_archivo "hola_e2e.txt | hola e2e" -> [Errno 22] Invalid argument.
+    if "parts" not in rule and rule.get("path0") and "|" in fixed:
+        fixed = re.split(r"\s*\|\s*", fixed, maxsplit=1)[0].strip()
     return fixed
 
 

@@ -35,6 +35,16 @@ def test_autofix_quita_comillas_envolventes():
     assert auto_fix("leer_archivo", "`x.py`") == "x.py"
 
 
+def test_autofix_ruta_contaminada_con_contenido():
+    """El modelo reusa el formato 'ruta | contenido' de escribir_archivo en
+    tools de SOLO ruta. Cazado en el E2E 2026-07-21: leer_archivo recibio
+    'hola_e2e.txt | hola e2e' -> Path invalido [Errno 22]. Quedarse con la ruta."""
+    assert auto_fix("leer_archivo", "hola_e2e.txt | hola e2e") == "hola_e2e.txt"
+    assert auto_fix("contar_lineas", "x.py | print(1)") == "x.py"
+    # una ruta limpia no se toca
+    assert auto_fix("leer_archivo", "carpeta/x.py") == "carpeta/x.py"
+
+
 # ── nivel 2: validate_action ────────────────────────────────────────────
 
 def test_validate_partes_faltantes():
