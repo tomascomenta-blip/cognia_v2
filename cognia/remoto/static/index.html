@@ -242,6 +242,43 @@
   .lleno #flujo-editor { min-height: calc(100vh - 210px); }
   iframe.oficina { width: 100%; height: 320px; border: none; border-radius: 10px;
     background: #000; }
+  /* ── Jarvis: constelación 3D de voz ── */
+  #jarvis { position: fixed; inset: 0; z-index: 60; background:
+    radial-gradient(circle at 50% 42%, #0a1a14 0%, #050a0f 55%, #000 100%);
+    display: flex; flex-direction: column; }
+  #jarvis[hidden] { display: none; }
+  #jarvis-lienzo { position: absolute; inset: 0; width: 100%; height: 100%;
+    touch-action: none; }
+  #jarvis-barra { position: relative; z-index: 2; display: flex; align-items: center;
+    gap: 10px; padding: 12px 14px; color: #eafff3; }
+  #jarvis-titulo { font-weight: 700; font-size: 15px; letter-spacing: .5px;
+    text-shadow: 0 0 12px rgba(46,168,108,.8); }
+  .jarvis-btn { width: 38px; height: 38px; border-radius: 50%; display: grid;
+    place-items: center; background: rgba(255,255,255,.08); color: #eafff3;
+    border: 1px solid rgba(255,255,255,.14); }
+  .jarvis-btn.on { background: rgba(46,168,108,.35); border-color: #2ea86c; }
+  #jarvis-voz { margin-left: auto; }
+  #jarvis-info { position: relative; z-index: 2; margin: 0 14px;
+    color: #bfe9d4; font-size: 13px; min-height: 20px;
+    text-shadow: 0 0 8px rgba(0,0,0,.9); pointer-events: none; }
+  #jarvis-tiles { position: relative; z-index: 2; margin-top: auto;
+    display: flex; gap: 8px; overflow-x: auto; padding: 12px 14px 16px; }
+  .jarvis-tile { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 13px; border-radius: 12px; font-size: 12.5px; font-weight: 600;
+    color: #eafff3; background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.13); white-space: nowrap; }
+  .jarvis-tile:active { background: rgba(46,168,108,.3); }
+  /* filtro de expertos en el chat */
+  #filtro-expertos { display: flex; gap: 6px; overflow-x: auto; padding: 6px 10px;
+    border-bottom: 1px solid var(--borde); background: var(--panel);
+    scrollbar-width: none; }
+  #filtro-expertos.oculto { display: none; }
+  .chip-exp { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 9px; border-radius: 12px; font-size: 11.5px; font-weight: 600;
+    border: 1px solid var(--borde); color: var(--texto-2); background: var(--panel-2);
+    white-space: nowrap; }
+  .chip-exp.activo { color: #fff; }
+  .chip-exp i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 </style>
 </head>
 <body>
@@ -271,6 +308,8 @@
   <symbol id="i-expandir" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/></symbol>
   <symbol id="i-contraer" viewBox="0 0 24 24"><path d="M3 8h5V3m8 5h5V3M3 16h5v5m8-5h5v5"/></symbol>
   <symbol id="i-volver" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-cerebro" viewBox="0 0 24 24"><path d="M9 3a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8V15a3 3 0 0 0 4 2.8A2.5 2.5 0 0 0 12 19V5a2 2 0 0 0-2-2zM15 3a3 3 0 0 1 3 3 3 3 0 0 1 1 5.8V15a3 3 0 0 1-4 2.8A2.5 2.5 0 0 1 12 19V5a2 2 0 0 1 2-2z"/></symbol>
+  <symbol id="i-voz" viewBox="0 0 24 24"><path d="M12 3v18M8 7v10M4 10v4M16 7v10M20 10v4"/></symbol>
 </svg>
 
 <header>
@@ -283,6 +322,7 @@
     <svg class="ic" id="icono-luna" width="20" height="20"><use href="#i-luna"/></svg>
     <svg class="ic" id="icono-sol" width="20" height="20" style="display:none"><use href="#i-sol"/></svg>
   </button>
+  <button class="icono" id="btn-jarvis" aria-label="Jarvis"><svg class="ic" width="20" height="20"><use href="#i-cerebro"/></svg></button>
   <button class="icono" id="btn-der" aria-label="Paneles"><svg class="ic" width="20" height="20"><use href="#i-paneles"/></svg></button>
 </header>
 
@@ -373,8 +413,28 @@
   </div>
 </aside>
 
+<div id="filtro-expertos" class="oculto"></div>
 <main id="chat"><div id="saludo"></div></main>
 <div id="sugerencias"></div>
+
+<!-- ── Jarvis: constelación 3D de voz (cerebro + expertos) ── -->
+<div id="jarvis" hidden>
+  <canvas id="jarvis-lienzo"></canvas>
+  <div id="jarvis-barra">
+    <button class="jarvis-btn" id="jarvis-cerrar" aria-label="Cerrar"><svg class="ic" width="18" height="18"><use href="#i-volver"/></svg></button>
+    <span id="jarvis-titulo">Jarvis</span>
+    <button class="jarvis-btn" id="jarvis-voz" aria-label="Voz"><svg class="ic" width="18" height="18"><use href="#i-voz"/></svg></button>
+  </div>
+  <div id="jarvis-info"></div>
+  <div id="jarvis-tiles">
+    <button class="jarvis-tile" data-abre="grafo"><svg class="ic" width="16" height="16"><use href="#i-grafo"/></svg>Grafo / RAG</button>
+    <button class="jarvis-tile" data-abre="oficina"><svg class="ic" width="16" height="16"><use href="#i-oficina"/></svg>Oficina</button>
+    <button class="jarvis-tile" data-abre="imagenes"><svg class="ic" width="16" height="16"><use href="#i-imagen"/></svg>Imágenes</button>
+    <button class="jarvis-tile" data-abre="flujos"><svg class="ic" width="16" height="16"><use href="#i-flujo"/></svg>Flujos</button>
+    <button class="jarvis-tile" data-abre="tareas"><svg class="ic" width="16" height="16"><use href="#i-tareas"/></svg>Tareas</button>
+    <button class="jarvis-tile" data-abre="registro"><svg class="ic" width="16" height="16"><use href="#i-registro"/></svg>Registro</button>
+  </div>
+</div>
 
 <div id="controles">
   <button class="chip" data-cmd="/esfuerzo bajo"><svg class="ic" width="13" height="13"><use href="#i-rayo"/></svg>bajo</button>
@@ -583,11 +643,17 @@ function burbuja(quien, texto, hora) {
   if (quien === "actividad" ||
       (quien === "cognia" && (ES_PENSANDO(texto) || ES_ACCION(texto)))) {
     grupoCognia = null;      // la actividad cierra el bloque de respuesta
+    if (typeof dispararPorActividad === "function") dispararPorActividad(texto);
+    if (filtroTapa("actividad", texto)) return;   // filtro de expertos del chat
     burbujaActividad(texto); return;
   }
   grupoActividad = null;   // un mensaje normal cierra el grupo de actividad
   // RESPUESTA de Cognia: un solo bloque, markdown renderizado
-  if (quien === "cognia") { burbujaCognia(texto, hora); return; }
+  if (quien === "cognia") {
+    if (filtroTapa("cerebro", texto)) return;
+    if (typeof hablarCognia === "function") hablarCognia(texto);
+    burbujaCognia(texto, hora); return;
+  }
   // usuario / sistema: burbuja simple
   grupoCognia = null;
   const div = document.createElement("div");
@@ -720,6 +786,7 @@ async function abrirSesion(proyecto, sid, titulo) {
   $("titulo-sub").textContent = proyecto.nombre;
   $("estado-punto").classList.add("vivo");
   chat.innerHTML = ""; logsBuffer = []; grupoCognia = null; grupoActividad = null; cogniaRaw = "";
+  $("filtro-expertos").classList.remove("oculto"); pintarFiltroExpertos();
   const trans = await api(`/api/proyectos/${proyecto.id}/sesiones/${sid}/transcripcion`);
   for (const e of trans) if (e.quien !== "meta") burbuja(e.quien, e.texto, e.t);
   if (S.ws) { S.ws.close(); S.ws = null; }
@@ -946,6 +1013,286 @@ $("btn-oficina3d").onclick = async () => {
     body: JSON.stringify({proyecto_id: S.proyecto ? S.proyecto.id : ""})});
   setTimeout(() => mostrarOficina(r.puerto), 2500);
 };
+
+/* ══ Jarvis: constelación 3D de voz (cerebro central + expertos) ══ */
+const JV = {
+  abierto: false, nodos: [], porId: {}, pulsos: [], rot: 0,
+  escala: 1, ox: 0, oy: 0, raf: 0, foco: null, vozOn: true,
+  filtro: new Set(),   // ids visibles en el chat; vacío = todos
+};
+const lienzo = $("jarvis-lienzo");
+const ctx2 = lienzo.getContext("2d");
+
+async function cargarExpertos() {
+  if (JV.nodos.length) return;
+  const lista = await api("/api/expertos");
+  // cerebro al centro; micro-expertos anillo interno; roles anillo externo
+  const micro = lista.filter(e => e.tipo === "microexperto");
+  const roles = lista.filter(e => e.tipo === "rol");
+  const cerebro = lista.find(e => e.central) || lista[0];
+  JV.nodos = [];
+  const nc = { ...cerebro, x: 0, y: 0, r: 30, energia: 0.7, base: 0, anillo: 0 };
+  JV.nodos.push(nc);
+  const anillo = (arr, radio, r) => arr.forEach((e, i) => {
+    const a = (2 * Math.PI * i) / Math.max(1, arr.length) - Math.PI / 2;
+    JV.nodos.push({ ...e, base: a, radio, r,
+      energia: 0.15, activo: e.activo !== false });
+  });
+  anillo(micro, 120, 16);
+  anillo(roles, 210, 13);
+  JV.porId = {};
+  JV.nodos.forEach(n => JV.porId[n.id] = n);
+}
+
+function posNodo(n) {           // posición mundo -> pantalla
+  const wx = n.anillo === 0 && n.central ? 0 : (n.radio || 0) * Math.cos(n.base + JV.rot);
+  const wy = n.anillo === 0 && n.central ? 0 : (n.radio || 0) * Math.sin(n.base + JV.rot);
+  const cx = lienzo.width / 2 + JV.ox;
+  const cy = lienzo.height * 0.44 + JV.oy;
+  return { sx: cx + wx * JV.escala, sy: cy + wy * JV.escala, wx, wy };
+}
+
+function pintarJarvis() {
+  const W = lienzo.width, H = lienzo.height;
+  ctx2.clearRect(0, 0, W, H);
+  const cerebro = JV.nodos[0];
+  const pc = posNodo(cerebro);
+  // líneas cerebro -> expertos
+  for (const n of JV.nodos) {
+    if (n === cerebro) continue;
+    const p = posNodo(n);
+    ctx2.beginPath(); ctx2.moveTo(pc.sx, pc.sy); ctx2.lineTo(p.sx, p.sy);
+    ctx2.strokeStyle = n.color;
+    ctx2.globalAlpha = 0.08 + 0.5 * n.energia;
+    ctx2.lineWidth = 1 + 1.5 * n.energia;
+    ctx2.stroke(); ctx2.globalAlpha = 1;
+  }
+  // pulsos de energía viajando (blanco + color del experto)
+  JV.pulsos = JV.pulsos.filter(pu => pu.t < 1);
+  for (const pu of JV.pulsos) {
+    pu.t += 0.022;
+    const n = pu.nodo, p = posNodo(n);
+    const x = pc.sx + (p.sx - pc.sx) * pu.t, y = pc.sy + (p.sy - pc.sy) * pu.t;
+    const rad = 7 * JV.escala;
+    const g = ctx2.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(0.5, n.color);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx2.fillStyle = g; ctx2.beginPath(); ctx2.arc(x, y, rad, 0, 7); ctx2.fill();
+    if (pu.t >= 0.98) { n.energia = 1; }
+  }
+  // nodos con glow; opacos si inactivos
+  for (const n of JV.nodos) {
+    const p = posNodo(n);
+    const central = n === cerebro;
+    if (central) n.energia = 0.55 + 0.15 * Math.sin(Date.now() / 600);
+    else n.energia = Math.max(n.activo === false ? 0.06 : 0.13, n.energia - 0.008);
+    const r = (n.r + (central ? 6 * Math.abs(Math.sin(Date.now() / 700)) : 0)) * JV.escala;
+    ctx2.save();
+    ctx2.shadowColor = n.color;
+    ctx2.shadowBlur = (central ? 34 : 10 + 26 * n.energia) * Math.min(1.5, JV.escala);
+    ctx2.globalAlpha = central ? 1 : (0.28 + 0.72 * n.energia);
+    ctx2.fillStyle = n.color;
+    ctx2.beginPath(); ctx2.arc(p.sx, p.sy, r, 0, 7); ctx2.fill();
+    ctx2.restore();
+    // núcleo blanco cuando "habla"
+    if (n.energia > 0.6) {
+      ctx2.globalAlpha = (n.energia - 0.6) * 2.2;
+      ctx2.fillStyle = "#fff";
+      ctx2.beginPath(); ctx2.arc(p.sx, p.sy, r * 0.4, 0, 7); ctx2.fill();
+      ctx2.globalAlpha = 1;
+    }
+    // etiqueta si activo/foco/cerebro
+    if (central || n.energia > 0.35 || JV.foco === n) {
+      ctx2.globalAlpha = central ? 1 : Math.min(1, n.energia + 0.4);
+      ctx2.fillStyle = "#eafff3";
+      ctx2.font = (central ? 14 : 11) + "px system-ui, sans-serif";
+      ctx2.textAlign = "center";
+      ctx2.fillText(n.nombre, p.sx, p.sy + r + (central ? 18 : 13));
+      ctx2.globalAlpha = 1;
+    }
+  }
+  JV.rot += 0.0016;   // rotación lenta: la constelación "respira"
+  if (JV.abierto) JV.raf = requestAnimationFrame(pintarJarvis);
+}
+
+function ajustarLienzo() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  lienzo.width = lienzo.clientWidth * dpr;
+  lienzo.height = lienzo.clientHeight * dpr;
+}
+
+function hablar(texto) {
+  if (!JV.vozOn || !texto || !window.speechSynthesis) return;
+  try {
+    const u = new SpeechSynthesisUtterance(texto.slice(0, 240));
+    u.lang = "es-ES"; u.rate = 1.04; u.pitch = 1;
+    const es = speechSynthesis.getVoices().find(v => v.lang.startsWith("es"));
+    if (es) u.voice = es;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+// pausa entre líneas: acumula la respuesta y la habla al cerrarse el bloque
+let _vozBuffer = "", _vozTimer = 0;
+function hablarCognia(texto) {
+  _vozBuffer += " " + texto;
+  clearTimeout(_vozTimer);
+  _vozTimer = setTimeout(() => {
+    const t = _vozBuffer.trim(); _vozBuffer = "";
+    if (t) { hablar(t); JV.nodos[0] && (JV.nodos[0].energia = 1); }
+  }, 900);
+}
+
+// mapear una línea de actividad a un experto y dispararlo
+const _MAP_EXP = [
+  [/escribir_archivo|leer_archivo|apendar|copiar_archivo/, "generador"],
+  [/\bejecutar\b|\$ /, "evaluador"],
+  [/\[planner\]|Plan(?: de subtareas)?:|jefe planificando/, "planificador"],
+  [/\[generator\]|generar_codigo/, "generador"],
+  [/\[evaluator\]|Objetivo verificado/, "evaluador"],
+  [/\[research\]|\[arxiv\]|\[hf\]|investigar/, "investigador"],
+  [/buscar|\[github\]|busqueda/, "busqueda_web"],
+  [/\[vista\]/, "vista"],
+  [/Critico|\[contra\]|Remate/, "critico"],
+  [/juez/i, "juez"],
+  [/lector|navega/, "lector_web"],
+];
+function dispararPorActividad(texto) {
+  for (const [re, id] of _MAP_EXP) {
+    if (re.test(texto)) { dispararExperto(id); return; }
+  }
+}
+function dispararExperto(id) {
+  const n = JV.porId[id];
+  if (!n) return;
+  JV.pulsos.push({ nodo: n, t: 0 });
+  if (JV.abierto && JV.vozOn) hablar(n.nombre);
+}
+
+function focoEn(n) {
+  JV.foco = n;
+  const p = posNodo(n);
+  // centra el nodo y acerca
+  JV.ox += (lienzo.width / 2 - p.sx);
+  JV.oy += (lienzo.height * 0.44 - p.sy);
+  JV.escala = Math.min(2.4, JV.escala * 1.25);
+  $("jarvis-info").textContent = n.nombre + " — " + (n.descripcion || "");
+  n.energia = 1;
+  hablar(n.nombre + ". " + (n.descripcion || ""));
+}
+
+async function abrirJarvis() {
+  await cargarExpertos();
+  $("jarvis").hidden = false;
+  JV.abierto = true;
+  requestAnimationFrame(() => { ajustarLienzo(); JV.raf = requestAnimationFrame(pintarJarvis); });
+}
+function cerrarJarvis() {
+  JV.abierto = false; cancelAnimationFrame(JV.raf);
+  $("jarvis").hidden = true;
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+$("btn-jarvis").onclick = abrirJarvis;
+$("jarvis-cerrar").onclick = cerrarJarvis;
+$("jarvis-voz").onclick = function () {
+  JV.vozOn = !JV.vozOn; this.classList.toggle("on", JV.vozOn);
+  if (!JV.vozOn && window.speechSynthesis) speechSynthesis.cancel();
+};
+$("jarvis-voz").classList.toggle("on", JV.vozOn);
+$("jarvis-tiles").querySelectorAll(".jarvis-tile").forEach(t =>
+  t.onclick = () => { cerrarJarvis(); abrirPanel(t.dataset.abre); });
+
+// gestos: pan (1 dedo), zoom (rueda / pellizco), tap = enfocar nodo
+let _pt = new Map(), _movido = false, _iniD = 0, _iniEsc = 1;
+lienzo.addEventListener("pointerdown", e => {
+  lienzo.setPointerCapture(e.pointerId);
+  _pt.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  _movido = false;
+  if (_pt.size === 2) {
+    const [a, b] = [..._pt.values()];
+    _iniD = Math.hypot(a.x - b.x, a.y - b.y); _iniEsc = JV.escala;
+  }
+});
+lienzo.addEventListener("pointermove", e => {
+  const prev = _pt.get(e.pointerId); if (!prev) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (_pt.size === 2) {
+    _pt.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const [a, b] = [..._pt.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (_iniD) JV.escala = Math.max(0.5, Math.min(3, _iniEsc * d / _iniD));
+    _movido = true; return;
+  }
+  const dx = (e.clientX - prev.x) * dpr, dy = (e.clientY - prev.y) * dpr;
+  if (Math.abs(e.clientX - prev.x) + Math.abs(e.clientY - prev.y) > 3) _movido = true;
+  JV.ox += dx; JV.oy += dy;
+  _pt.set(e.pointerId, { x: e.clientX, y: e.clientY });
+});
+lienzo.addEventListener("pointerup", e => {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (!_movido && _pt.size === 1) {
+    const mx = e.clientX * dpr - lienzo.getBoundingClientRect().left * dpr;
+    const my = e.clientY * dpr - lienzo.getBoundingClientRect().top * dpr;
+    let hit = null, mejor = 1e9;
+    for (const n of JV.nodos) {
+      const p = posNodo(n);
+      const d = Math.hypot(p.sx - mx, p.sy - my);
+      if (d < (n.r + 14) * JV.escala && d < mejor) { mejor = d; hit = n; }
+    }
+    if (hit) focoEn(hit);
+  }
+  _pt.delete(e.pointerId);
+});
+lienzo.addEventListener("wheel", e => {
+  e.preventDefault();
+  JV.escala = Math.max(0.5, Math.min(3, JV.escala * (e.deltaY < 0 ? 1.1 : 0.9)));
+}, { passive: false });
+window.addEventListener("resize", () => { if (JV.abierto) ajustarLienzo(); });
+
+/* ── Filtro de expertos en el chat: chips por color ── */
+// clasifica una línea a un experto (para el filtro y el color del chat)
+function expertoDeLinea(quien, texto) {
+  if (quien === "cerebro") return "cerebro";
+  for (const [re, id] of _MAP_EXP) if (re.test(texto)) return id;
+  return "cerebro";
+}
+// ¿el filtro OCULTA esta línea? (filtro vacío = mostrar todo)
+function filtroTapa(quien, texto) {
+  if (!JV.filtro.size) return false;
+  return !JV.filtro.has(expertoDeLinea(quien, texto));
+}
+async function pintarFiltroExpertos() {
+  await cargarExpertos();
+  const barra = $("filtro-expertos");
+  barra.innerHTML = "";
+  const chip = (id, nombre, color, sel) => {
+    const b = document.createElement("button");
+    b.className = "chip-exp" + (sel ? " activo" : "");
+    if (sel) { b.style.background = color; b.style.borderColor = color; }
+    b.innerHTML = `<i style="background:${color}"></i>${nombre}`;
+    b.onclick = () => {
+      if (id === "__todos") JV.filtro.clear();
+      else if (JV.filtro.has(id)) JV.filtro.delete(id);
+      else JV.filtro.add(id);
+      pintarFiltroExpertos();
+    };
+    barra.appendChild(b);
+  };
+  chip("__todos", "Todos", "#2ea86c", JV.filtro.size === 0);
+  for (const n of JV.nodos)
+    chip(n.id, n.nombre, n.color, JV.filtro.has(n.id));
+}
+
+/* abrir un panel del cajón derecho por id lógico (usado por los tiles) */
+function abrirPanel(cual) {
+  const map = { grafo: "panel-grafo", oficina: "panel-oficina",
+    imagenes: "panel-imagenes", flujos: "panel-flujos",
+    tareas: "panel-tareas", registro: "panel-registro" };
+  const id = map[cual]; if (!id) return;
+  refrescarPaneles();
+  abrir("cajon-der", true);
+  const pan = $(id); if (pan) { pan.open = true; pan.scrollIntoView({ block: "nearest" }); }
+  if (cual === "grafo") pintarGrafoVisual();
+}
 
 $("entrada").addEventListener("input", function () {
   this.style.height = "auto";

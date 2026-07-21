@@ -207,6 +207,52 @@ def crear_app() -> FastAPI:
                                 status_code=403)
         return FileResponse(p)
 
+    # ── Jarvis: cerebro central + expertos y roles (para la vista 3D de voz) ──
+    # Colores estables por experto; el cerebro es verde y va en el centro.
+    _EXPERTOS_ROLES = [
+        ("planificador", "rol",     "#4a90d9", "descompone la meta en subtareas"),
+        ("generador",    "rol",     "#8f7ae8", "escribe el codigo/So la respuesta"),
+        ("evaluador",    "rol",     "#d9a441", "juzga si el resultado cumple"),
+        ("juez",         "rol",     "#e05b7c", "arbitra entre respuestas"),
+        ("critico",      "rol",     "#d96a4a", "critica y remata la calidad"),
+        ("investigador", "rol",     "#5fc9c0", "busca y sintetiza fuentes"),
+        ("lector_web",   "rol",     "#57a0e0", "navega y extrae de paginas"),
+        ("busqueda_web", "rol",     "#a3c94a", "busca en la web sin API key"),
+        ("proactividad", "rol",     "#c95fa4", "propone siguientes pasos"),
+        ("vista",        "rol",     "#7ec8a9", "revisa el render visual"),
+    ]
+
+    def _color_experto(nombre: str) -> str:
+        paleta = ["#2ea86c", "#4a90d9", "#d9a441", "#c95fa4", "#5fc9c0",
+                  "#d96a4a", "#8f7ae8", "#a3c94a", "#e05b7c", "#57a0e0"]
+        return paleta[sum(ord(c) for c in nombre) % len(paleta)]
+
+    @app.get("/api/expertos")
+    def expertos():
+        """Catalogo para la vista Jarvis: cerebro central + micro-expertos
+        (los .npz reales en disco) + roles/subsistemas sobre el modelo."""
+        salida = [{"id": "cerebro", "nombre": "Cognia", "tipo": "cerebro",
+                   "color": "#2ea86c", "central": True,
+                   "descripcion": "el modelo central que razona y decide"}]
+        # micro-expertos = carpetas con config.json en microexpertos/;
+        # activo = tiene pesos.npz (pide_grafico fue KILL, no tiene pesos).
+        try:
+            base = Path(__file__).resolve().parent.parent / "microexpertos"
+            for d in sorted(base.iterdir()):
+                if d.is_dir() and (d / "config.json").exists():
+                    activo = (d / "pesos.npz").exists()
+                    salida.append({"id": d.name, "nombre": d.name,
+                                   "tipo": "microexperto", "activo": activo,
+                                   "color": _color_experto(d.name),
+                                   "descripcion": "micro-experto byte-level (colonia)"
+                                   + ("" if activo else " — inactivo (KILL)")})
+        except Exception:
+            pass
+        for nombre, tipo, color, desc in _EXPERTOS_ROLES:
+            salida.append({"id": nombre, "nombre": nombre, "tipo": tipo,
+                           "color": color, "descripcion": desc})
+        return salida
+
     # ── paneles: oficina, grafo, monitores ──
     @app.get("/api/oficina")
     def oficina():
