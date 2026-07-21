@@ -8126,3 +8126,36 @@ esta corrida (la última fue 2026-07-15 con 3.9.0); la cubren la suite
 actualizada + el smoke piped en vivo de los comandos editados (/help,
 /cognia-info, /backup con 676MB reales). Pendiente del dueño (previo):
 yankear 3.8.4.
+
+---
+
+## 2026-07-20 (cierre) — cognia-ai 4.0.0 PUBLICADO a PyPI y verificado
+
+Goal del dueno: optimizar para CPU todo lo implementado desde el ultimo
+upload, dejar TODO funcionando, publicar (permiso explicito) y verificar.
+
+**El hallazgo que definio el trabajo:** PyPI estaba en 3.9.1 publicado desde
+la rama cognia-x (791 commits) y TODO el trabajo del dia vivia en main (111
+commits), divergidas desde 3.5.1. Publicar main a secas habria sido un
+release-REGRESION. La reunificacion: 18 ficheros en conflicto, 42 hunks, con
+el principio "cognia-x manda en estructura, main se injerta" — y varios casos
+de ambos lados arreglando el mismo bug por separado (REPL sin consola,
+--spec-type silencioso, busqueda con ambito de fichero).
+
+**Verificaciones, en orden y todas en verde:**
+1. Suite unificada: 5020 passed (~1600 tests mas que main).
+2. Smoke CPU en venv virgen, SIN GPU y SIN servidor: colonia numpy con
+   paridad 1e-6, patrones, degradacion honesta de juez/critico/proactividad,
+   busqueda_web+lector con red real, feromona, doctor.
+3. GATE e2e camino feliz: 4/5 al principio (cognia-x puro da HOY 3/5). La
+   traza revelo la causa real: el 3B escribia `def suma(): ...` SIN llamarla
+   — el script corria sin output y el agente se estancaba re-ejecutando.
+   Fix en la capa correcta: generar_codigo escribe scripts EJECUTABLES
+   (main-guard si la entry no lleva args) + remate determinista al cerrar
+   por estancamiento. GATE: 5/5 DOS veces seguidas.
+4. Publicado con twine (token de .env, redactado) y verificado INSTALANDO
+   DESDE PYPI en venv virgen: smoke completo TODO OK contra site-packages.
+
+**PyPI: https://pypi.org/project/cognia-ai/4.0.0/ — tag v4.0.0, main
+pusheado.** El wheel embarca los patrones curados y la colonia (pesos .npz,
+sin torch). 4.0.0 porque la reunificacion es un major honesto.
