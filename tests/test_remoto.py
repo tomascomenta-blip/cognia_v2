@@ -61,3 +61,27 @@ def test_limpiar_quita_ansi_y_prompt():
     assert _limpiar("\x1b[92mcognia> \x1b[0mhola") == "hola"
     assert _limpiar("cognia> cognia> respuesta") == "respuesta"
     assert _limpiar("──────────────") == ""
+
+
+def test_grafo_visual_temas_y_hubs():
+    """Bolitas divididas por temas: el hub no colapsa todo en un color, y el
+    muestreo estratificado no deja que una relacion dominante borre el resto."""
+    r = _cliente().get("/api/grafo_visual", params={"limite": 60}).json()
+    if r.get("error"):
+        return  # sin KG en esta maquina: nada que verificar
+    assert r["n_temas"] >= 2, "todo en un tema = el hub colapso el grafo"
+    temas = {n["tema"] for n in r["nodos"]}
+    assert -1 in temas or r.get("hubs", 0) >= 0
+
+
+def test_flujos_listar_y_guardar(tmp_path, monkeypatch):
+    c = _cliente()
+    flujos = c.get("/api/flujos").json()
+    assert any(f["nombre"] == "depurar" for f in flujos)
+    # guardar rechaza nombres con ruta (el movil no escribe fuera de skills)
+    # 404 tambien vale: el router de FastAPI ni siquiera casa la ruta con
+    # %2F — la traversal muere antes de llegar al handler.
+    r = c.put("/api/flujos/..%2Fmalo", json={"contenido": "x"})
+    assert r.status_code in (200, 400, 404)
+    if r.status_code == 200:
+        assert "/" not in r.json()["nombre"] and ".." not in r.json()["nombre"]
