@@ -227,8 +227,15 @@
     color: #fff; font-size: 13px; font-weight: 600; }
   #grafo-svg { width: 100%; height: 300px; background: var(--panel-2);
     border-radius: 10px; touch-action: none; }
-  .lleno #grafo-svg { height: calc(100% - 90px); }
+  .lleno #grafo-svg { height: calc(100% - 130px); }
   #grafo-detalle { margin-top: 8px; }
+  .leyenda-grafo { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center;
+    font-size: 12px; }
+  .leyenda-grafo b { width: 100%; margin-bottom: 2px; font-size: 12px; }
+  .chip-tema { display: inline-flex; align-items: center; gap: 5px;
+    color: var(--texto); }
+  .chip-tema i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .chip-tema small { color: var(--texto-2); }
   #flujo-editor { width: 100%; min-height: 40vh; font-family: ui-monospace, monospace;
     font-size: 12px; background: var(--panel-2); color: var(--texto);
     border: 1px solid var(--borde); border-radius: 8px; padding: 8px; }
@@ -789,27 +796,42 @@ async function refrescarPaneles() {
 /* ── Grafo de bolitas: temas por color, conexiones, concepto al tocar ── */
 const PALETA = ["#2ea86c", "#4a90d9", "#d9a441", "#c95fa4", "#5fc9c0",
                 "#d96a4a", "#8f7ae8", "#a3c94a", "#e05b7c", "#57a0e0"];
+const corta = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + "…" : (s || ""));
+// nombre legible para MOSTRAR (los conceptos del KG son claves snake_case);
+// el nombre crudo se conserva para consultar /api/grafo.
+const linda = (s, n) => corta((s || "").replace(/_/g, " ").trim(), n);
+const escSVG = s => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 async function pintarGrafoVisual() {
-  const g = await api("/api/grafo_visual?limite=90");
+  const g = await api("/api/grafo_visual?limite=60");
   const svg = $("grafo-svg");
+  const det = $("grafo-detalle");
   if (g.error || !g.nodos.length) {
     svg.innerHTML = `<text x="20" y="40" fill="var(--texto-2)" font-size="12">${g.error || "Grafo vacío."}</text>`;
     return;
   }
-  // layout: cada tema (componente) en su celda; nodos en círculo dentro
+  const lleno = $("panel-grafo").classList.contains("lleno");
+  // agrupar por tema; el "nombre del tema" = su hub (o el primer concepto)
   const temas = {};
   for (const n of g.nodos) (temas[n.tema] = temas[n.tema] || []).push(n);
   const claves = Object.keys(temas);
+  const nombreTema = {};
+  claves.forEach(t => {
+    const hub = temas[t].find(n => n.hub) || temas[t][0];
+    nombreTema[t] = t < 0 ? "sueltos" : linda(hub.nombre, 18);
+  });
   const cols = Math.ceil(Math.sqrt(claves.length));
   const filas = Math.ceil(claves.length / cols);
   const W = 400, H = 300, cw = W / cols, chh = H / filas;
   const pos = {};
+  let headers = "";
   claves.forEach((t, i) => {
     const cx = (i % cols) * cw + cw / 2;
-    const cy = Math.floor(i / cols) * chh + chh / 2;
+    const cy0 = Math.floor(i / cols) * chh;
+    const cy = cy0 + chh / 2 + 6;
+    const color = t < 0 ? "#8a9a90" : PALETA[t % PALETA.length];
+    // titulo del tema arriba de la celda: se lee de que va el grupo
+    headers += `<text x="${cx.toFixed(1)}" y="${(cy0 + 12).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="600" fill="${color}" pointer-events="none">${escSVG(nombreTema[t])}</text>`;
     let miembros = temas[t];
-    // grupos densos: 14 visibles + bolita "+N" que despliega el resto en la
-    // ficha de abajo (en movil, 43 bolitas en una celda se pisan)
     let resto = [];
     if (miembros.length > 15) {
       resto = miembros.slice(14);
@@ -817,57 +839,63 @@ async function pintarGrafoVisual() {
       miembros.push({id: "mas-" + t, nombre: "+" + resto.length,
                      tema: miembros[0].tema, mas: resto.map(x => x.nombre)});
     }
-    const r = Math.min(cw, chh) / 2 - 16;
+    const r = Math.min(cw, chh) / 2 - 20;
     miembros.forEach((n, j) => {
-      // grupos densos en ESPIRAL de angulo aureo: sin solaparse las bolitas
-      // (en circulo, 43 nodos se pisaban y bloqueaban el toque)
       let dx = 0, dy = 0;
       if (miembros.length > 1) {
-        const ang = (2 * Math.PI * j) / miembros.length;
+        const ang = (2 * Math.PI * j) / miembros.length - Math.PI / 2;
         dx = r * Math.cos(ang); dy = r * Math.sin(ang);
       }
-      pos[n.id] = {
-        x: cx + dx,
-        y: cy + dy,
-        color: n.tema < 0 ? "#8a9a90" : PALETA[n.tema % PALETA.length],
-        hub: !!n.hub, mas: n.mas || null, nombre: n.nombre,
-      };
+      pos[n.id] = { x: cx + dx, y: cy + dy, color,
+        hub: !!n.hub, mas: n.mas || null, nombre: n.nombre };
     });
   });
   let out = "";
   for (const a of g.aristas) {
     const p1 = pos[a.de], p2 = pos[a.a];
     if (p1 && p2)
-      out += `<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" stroke="${p1.color}" stroke-opacity="0.35" stroke-width="1"/>`;
+      out += `<line x1="${p1.x.toFixed(1)}" y1="${p1.y.toFixed(1)}" x2="${p2.x.toFixed(1)}" y2="${p2.y.toFixed(1)}" stroke="${p1.color}" stroke-opacity="0.3" stroke-width="1"/>`;
   }
+  let etiquetas = "";
   for (const [id, p] of Object.entries(pos)) {
-    out += `<circle data-nombre="${p.nombre.replace(/"/g, "&quot;")}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.hub || p.mas ? 10 : 7}" fill="${p.color}" stroke="var(--fondo)" stroke-width="1.5" style="cursor:pointer"/>`;
+    const rr = p.hub || p.mas ? 9 : 6;
+    out += `<circle data-nombre="${escSVG(p.nombre)}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rr}" fill="${p.color}" stroke="var(--fondo)" stroke-width="1.5" style="cursor:pointer"/>`;
+    // etiqueta legible: siempre en hubs y en "+N"; y en TODOS al ver en grande
+    if (p.mas) {
+      etiquetas += `<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" dy="3" text-anchor="middle" font-size="8" fill="#fff" pointer-events="none">${escSVG(p.nombre)}</text>`;
+    } else if (p.hub || lleno) {
+      etiquetas += `<text x="${p.x.toFixed(1)}" y="${(p.y + rr + 8).toFixed(1)}" text-anchor="middle" font-size="${lleno ? 8 : 8.5}" fill="var(--texto)" stroke="var(--fondo)" stroke-width="0.5" paint-order="stroke" pointer-events="none">${escSVG(linda(p.nombre, lleno ? 12 : 16))}</text>`;
+    }
   }
-  svg.innerHTML = out +
-    `<text x="6" y="14" fill="var(--texto-2)" font-size="10">${g.nodos.length} conceptos · ${g.n_temas} temas</text>`;
-  // etiquetas +N sobre las bolitas de desbordamiento
-  for (const [id, p] of Object.entries(pos)) if (p.mas)
-    svg.innerHTML += `<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" dy="3" text-anchor="middle" font-size="8" fill="#fff" pointer-events="none">${p.nombre}</text>`;
+  svg.innerHTML = headers + out + etiquetas +
+    `<text x="6" y="294" fill="var(--texto-2)" font-size="9">${g.nodos.length} conceptos · ${g.n_temas} temas · toca una bolita</text>`;
   svg.querySelectorAll("circle").forEach(c =>
     c.addEventListener("click", () => {
       const nombre = c.dataset.nombre;
       const p = Object.values(pos).find(x => x.nombre === nombre);
       if (p && p.mas) {
-        $("grafo-detalle").innerHTML = "<b>" + p.mas.length + " conceptos más</b><div>" +
-          p.mas.map(n => `<button class=\"chip\" style=\"margin:3px\" onclick=\"verConcepto('${n.replace(/'/g, "")}')\">${n}</button>`).join("") + "</div>";
+        det.innerHTML = "<b>" + p.mas.length + " conceptos más</b><div>" +
+          p.mas.map(n => `<button class=\"chip\" style=\"margin:3px\" onclick=\"verConcepto('${n.replace(/'/g, "")}')\">${escSVG(linda(n, 24))}</button>`).join("") + "</div>";
       } else verConcepto(nombre);
     }));
+  // leyenda de temas: color -> de que va cada grupo (clave de la claridad)
+  det.innerHTML = '<div class="leyenda-grafo"><b>Temas</b>' +
+    claves.map(t => {
+      const color = t < 0 ? "#8a9a90" : PALETA[t % PALETA.length];
+      return `<span class="chip-tema"><i style="background:${color}"></i>${escSVG(nombreTema[t])} <small>(${temas[t].length})</small></span>`;
+    }).join("") + '</div><div style="margin-top:6px;color:var(--texto-2);font-size:12px">Toca una bolita para ver el concepto y sus relaciones.</div>';
 }
 async function verConcepto(nombre) {
-  $("grafo-detalle").innerHTML = `<b>${nombre}</b> — cargando…`;
+  const bonito = escSVG((nombre || "").replace(/_/g, " ").trim());
+  $("grafo-detalle").innerHTML = `<b>${bonito}</b> — cargando…`;
   const g = await api("/api/grafo?tema=" + encodeURIComponent(nombre));
   const li = x => Array.isArray(x) ? x.join(" — ")
     : (x && x.subject ? `${x.subject} —${x.predicate}→ ${x.object}`
        : (x && x.predicate ? `—${x.predicate}→ ${x.object ?? x.concept ?? ""}`
           : JSON.stringify(x)));
-  $("grafo-detalle").innerHTML = `<b>${nombre}</b><pre>` +
-    ((g.hechos || []).map(li).join("\n") || "(sin hechos directos)") +
-    "\n· vecinos ·\n" + ((g.vecinos || []).map(li).join("\n") || "(sin vecinos)") + "</pre>";
+  $("grafo-detalle").innerHTML = `<b>${bonito}</b><pre>` +
+    escSVG(((g.hechos || []).map(li).join("\n") || "(sin hechos directos)") +
+    "\n· vecinos ·\n" + ((g.vecinos || []).map(li).join("\n") || "(sin vecinos)")).replace(/_/g, " ") + "</pre>";
 }
 
 /* ── Flujos de trabajo (skills): ver y editar ── */
