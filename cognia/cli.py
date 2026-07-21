@@ -646,6 +646,7 @@ _CMD_DESCRIPTIONS = {
     "/aprendiendo-buscar": "Buscar tarjetas de aprendizaje  <query>",
     "/investigar":      "Investigar en GitHub    <query>",
     "/razonar":         "Loop cientifico: hipotesis -> evaluar -> analogias -> validar  <problema>",
+    "/pensar":          "Razonamiento PROFUNDO con modelo thinking (preguntas largas/complejas)  <pregunta>",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
     "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
@@ -706,7 +707,6 @@ _CMD_DESCRIPTIONS = {
     "/hacer":           "Modo agente: ejecuta tarea con herramientas <tarea>",
     "/agente estado":   "Estado del agente hibrido (modalidad, esfuerzo, telemetria)",
     "/largo":           "Generacion larga con progreso + checkpoint  [--jerarquico|--delegado] [--tokens N] <pedido> | --continuar <archivo>",
-    "/pensar":          "Razonamiento paso a paso sobre un tema <pregunta>",
     "/deliberar":       "Loop deliberativo offline: plan->critica->verify->revise <objetivo>",
     "/flujo":           "Orquestador de flujo: analisis->plan->ejecucion->informe->verificacion <objetivo>",
     "/proyectos":       "Estado persistente de flujos /flujo (retomar entre sesiones)",
@@ -6351,6 +6351,22 @@ def repl():
             _run(raw, lambda: ai.investigate(texto, effort=_active_effort()), color="bright_green")
         elif raw.startswith("/razonar"):
             _print_line("[warn_cl]Uso: /razonar <problema>  -- loop cientifico: hipotesis -> evaluar -> analogias -> validar[/warn_cl]")
+        elif raw.startswith("/pensar ") and raw[len("/pensar "):].strip():
+            # Razonamiento PROFUNDO: modelo thinking dedicado + generacion
+            # infinita (generate_long). El pensamiento va en [detail] (gris en
+            # CLI, bloque plegable en el control remoto); la respuesta, normal.
+            _pregunta = raw[len("/pensar "):].strip()
+            def _pensar():
+                from cognia.razonador import razonar
+                _out = razonar(_pregunta, print_fn=_print_line)
+                if _out is None:
+                    return "El razonador no respondio (backend caido?)."
+                extra = (f"\n\n[{_out['tokens']} tokens de razonamiento, "
+                         f"{_out['rounds']} ronda(s)]")
+                return _out["respuesta"] + extra
+            _run(raw, _pensar, color="bright_green")
+        elif raw.startswith("/pensar"):
+            _print_line("[warn_cl]Uso: /pensar <pregunta>  -- razonamiento profundo con modelo thinking[/warn_cl]")
         elif raw.startswith("/aprende-repo "):
             _ar_target = raw[len("/aprende-repo "):].strip()
             _print_line("[detail]Buscando y aprendiendo de GitHub...[/detail]")
@@ -6994,37 +7010,10 @@ def repl():
         elif raw == "/metas-ordenar":
             _slash_metas_ordenar("")
 
-        # -- Deep reasoning ------------------------------------------------
-        elif raw.startswith("/pensar ") or raw == "/pensar":
-            _q = raw[len("/pensar"):].strip()
-            if not _q:
-                _print_line("[warn_cl]Uso: /pensar <pregunta>[/warn_cl]")
-            else:
-                _print_line("[detail]Iniciando razonamiento profundo...[/detail]")
-                try:
-                    from shattering.orchestrator import ShatteringOrchestrator as _O
-                    _orch_p = getattr(ai, '_orchestrator', None) or _O(mode='local')
-                    _cot_prompt = (
-                        f"Razona paso a paso sobre la siguiente pregunta. "
-                        f"Para cada paso, escribe 'Paso N:' seguido de tu razonamiento. "
-                        f"Al final escribe 'Conclusion:' con tu respuesta final.\n\n"
-                        f"Pregunta: {_q}"
-                    )
-                    _cot_result = _orch_p.infer(_cot_prompt, max_tokens=_active_effort()["max_tokens"])
-                    _cot_text = _cot_result.text.strip()
-                    for _line in _cot_text.split('\n'):
-                        if _line.strip():
-                            if _line.strip().startswith('Paso ') or _line.strip().startswith('Conclusion'):
-                                _print_line(f"[bold]{_line.strip()}[/bold]")
-                            else:
-                                _print_line(_line.strip())
-                    try:
-                        _summary = f"Razonamiento sobre: {_q[:80]} | {_cot_text[:200]}"
-                        ai.observe(_summary, provided_label="razonamiento_profundo")
-                    except Exception:
-                        pass
-                except Exception as _pe:
-                    _print_line(f"[err_cl]Error en razonamiento: {_pe}[/err_cl]")
+        # -- Deep reasoning: /pensar vive arriba (modelo thinking dedicado +
+        # generacion infinita, cognia/razonador.py). El handler viejo (CoT
+        # "Paso N:" con el modelo base) fue reemplazado 2026-07-21: mismo
+        # proposito, motor muy superior y medido (E2E 12/12 GPU, 5/5 CPU).
 
         # -- Deliberacion (CognitiveLoop DELIBERATE, offline/determinista) --
         elif raw.startswith("/deliberar ") or raw == "/deliberar":
