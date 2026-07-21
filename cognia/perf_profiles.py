@@ -65,9 +65,13 @@ def _build_profiles() -> dict:
         },
         # GPU real (CUDA/Metal): offload total, contexto grande, todos los
         # threads logicos (el CPU solo alimenta a la GPU).
+        # 32768 = n_ctx_train nativo del Qwen2.5 (sin RoPE OOD, sin perdida de
+        # calidad). En el 7B Q4_K_M la KV cache pasa de ~1.8GB (16k) a ~3.7GB
+        # (32k); con pesos ~4.7GB + buffers cabe holgado en una GPU de 16GB.
+        # Env-overridable: bajar a 16384 en GPUs de <=12GB.
         "gpu": {
             "LLAMA_N_GPU_LAYERS":  "99",
-            "LLAMA_CTX_SIZE":      "16384",
+            "LLAMA_CTX_SIZE":      "32768",
             "LLAMA_N_THREADS":     str(logical),
             "COGNIA_PERF_PROFILE": "gpu",
         },
