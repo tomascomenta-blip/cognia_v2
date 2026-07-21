@@ -39,7 +39,12 @@ def test_app_movil_se_sirve():
     assert 'data-tema' in r.text or "aplicarTema" in r.text
 
 
-def test_registrar_proyecto_valida_carpetas(tmp_path):
+def test_registrar_proyecto_valida_carpetas(tmp_path, monkeypatch):
+    # aislar el registro: sin esto el test contaminaba el proyectos.json REAL
+    # del usuario (aparecieron 6 proyectos tmp en su app; reporte 2026-07-20)
+    from cognia.remoto import sesiones as _ses
+    monkeypatch.setattr(_ses, "FICHERO_PROYECTOS",
+                        tmp_path / "proyectos.json")
     pr = registrar_proyecto(str(tmp_path))
     assert pr["nombre"] == tmp_path.name
     # repetir la misma carpeta reusa el proyecto (no duplica)
@@ -104,12 +109,39 @@ def test_reclasificar_separa_log_de_chat():
         assert quien == "log", texto
     casos_chat = [
         "¡Hola! Saludos desde el móvil.",
-        "RESULTADO ejecutar: 350",
         "Modo actual: sencillo.",
+        "- **Tamaño del Modelo**: 8B parámetros",  # viñeta de respuesta, no diff
+        "busca esto en el archivo",  # imperativo del chat, no la tool 'buscar'
     ]
     for texto in casos_chat:
         quien, _ = reclasificar("cognia", texto, False)
         assert quien == "cognia", texto
+
+
+def test_reclasificar_actividad_plegable():
+    """Pedido del dueno 2026-07-20: pasos, agentes, workflows y acciones de
+    archivo van al chat como bloques plegables +/− ('actividad'), no como
+    chat plano ni al Registro. Solo los logs quedan fuera."""
+    from cognia.remoto.sesiones import reclasificar
+    casos_actividad = [
+        "RESULTADO ejecutar: 350",
+        "escribir_archivo saludo.txt",
+        "leer_archivo saludo.txt",
+        'buscar "inversiones" en docs/',
+        "paso 3 de 5",
+        "Objetivo verificado: 1/1 criterios reales cumplidos",
+        '+ "Hola desde el móvil."',
+        "[planner] descomponiendo la meta",
+        "Plan de subtareas:",
+        # caja rich: se juzga el CONTENIDO, no el marco
+        "│ RESULTADO leer_archivo saludo.txt: Hola │",
+    ]
+    for texto in casos_actividad:
+        quien, _ = reclasificar("cognia", texto, False)
+        assert quien == "actividad", texto
+    # el marco puro de la caja sigue siendo log (no aporta contenido)
+    quien, _ = reclasificar("cognia", "╭──────────────╮", False)
+    assert quien == "log"
 
 
 def test_reclasificar_traceback_multilinea_con_estado():

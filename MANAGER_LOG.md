@@ -8213,3 +8213,42 @@ http://192.168.0.5:8777). Suite: 5026 passed.
 
 Pendiente natural (anotado, no bloqueante): PWA manifest para "instalar" en
 el home del celular, y autenticacion por token para salir de la LAN.
+
+---
+
+## 2026-07-20 (noche) — Actividad plegable +/− en el chat del control remoto
+
+Pedido del dueno: que los pasos del agente, los workflows y las acciones de
+archivo APAREZCAN en el chat principal como bloques plegables con +/−,
+expandibles para ver el contenido; solo los logs quedan fuera (en Registro).
+
+Hecho:
+- `reclasificar()` ahora devuelve una tercera clase: "actividad" (ademas de
+  log/cognia). Cubre pasos ("paso N", ACCION, RESULTADO), tools del modo
+  sencillo (escribir_archivo/leer_archivo/ejecutar/buscar/...), workflows
+  ([planner]/[research]/directivas/D1:), diffs ("+ ") y "Objetivo verificado".
+  Las cajas rich "│ ... │" se juzgan por su CONTENIDO (el marco puro sigue
+  siendo log).
+- Frontend: grupos `details.actividad` ("Actividad · N pasos") que se abren en
+  vivo mientras Cognia trabaja; chip +/− (CSS ::before); lineas largas o
+  multilinea anidan su propio `details` con vista previa + contenido completo.
+
+Tres bugs cazados al verificar EN EL NAVEGADOR (no en pytest):
+1. El bloque se veia como una linea verde de 2px: #chat es flex-column y
+   details.actividad tenia overflow:hidden -> min-height=0 -> el flex lo
+   APLASTABA. Fix: flex-shrink:0. (pytest jamas lo habria visto.)
+2. El chip abierto mostraba basura: el heredoc de bash convirtio el escape
+   CSS del signo menos (U+2212) en 0x91 + "2" (interpreto el prefijo como
+   octal). Tercera mordida de la misma serpiente; regla reafirmada: Write
+   tool para codigo con escapes.
+3. Contaminacion de datos reales por tests: test_registrar_proyecto escribia
+   en el proyectos.json REAL (6 proyectos tmp visibles en la app del dueno) y
+   los tests de _es_idea_web hacian que la colonia anotara discrepancias en el
+   feromona.json REAL (observaciones duplicadas que cuentan para el umbral de
+   20). Fix: monkeypatch en el test + fixture autouse `_feromona_aislada` en
+   conftest.py; ficheros reales limpiados/revertidos.
+
+Verificacion: tests/test_remoto.py 11/11 (contrato nuevo: RESULTADO ->
+actividad + test de la clase actividad); capturas del bloque abierto (chip −,
+4 pasos visibles) y plegado (chip +) en el navegador real; suite completa
+corriendo como compuerta final antes del commit.

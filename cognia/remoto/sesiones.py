@@ -71,6 +71,28 @@ _FRAGMENTOS_BANNER = (
 # restos ANSI guardados como texto literal en transcripciones viejas
 _ANSI_LITERAL = re.compile(r"\[\d{1,3}m")
 
+# ACTIVIDAD: lo que Cognia HACE (pasos del agente, acciones de herramientas,
+# workflows de la oficina, pipeline de creacion). En el chat va como bloque
+# plegable +/- — visible pero agrupado, nunca escondido como los logs.
+_RE_ACTIVIDAD = re.compile(
+    r"^\s*("
+    r"paso \d+|ACCION\b|RESULTADO |\$ |Archivos escritos|Plan(?: de subtareas)?:"
+    r"|\[detail\]|\[research\]|\[planner\]|\[generator\]|\[evaluator\]"
+    r"|\[storage\]|\[vista\]|\[github\]|\[arxiv\]|\[hf\]|\[contra\]"
+    r"|Correccion \d|Defectos vistos|Critico \(|Remate:|Sugerencia"
+    r"|jefe planificando|directiva|\[trabajador|D\d+:|META:"
+    r"|herramienta\(s\)|Presupuesto de pasos|hibrido:"
+    # el modo sencillo imprime la herramienta a secas (medido en /hacer real)
+    r"|escribir_archivo\b|leer_archivo\b|ejecutar\b|buscar\b|anotar\b"
+    r"|generar_codigo\b|delegar_subtarea\b|kg_buscar\b|copiar_archivo\b"
+    r"|apendar_archivo\b|Objetivo verificado"
+    r"|\+ "      # lineas de diff al escribir (solo +: '- ' es vineta de respuesta)
+    r")")
+
+
+def _es_actividad(linea: str) -> bool:
+    return bool(_RE_ACTIVIDAD.match(linea))
+
 
 def _es_log(linea: str) -> bool:
     """True si la linea pertenece al Registro, no al chat."""
@@ -79,9 +101,17 @@ def _es_log(linea: str) -> bool:
     t = linea.strip()
     if not t:
         return False
-    # interior del banner: toda linea que empiece con el marco
-    if t.startswith(("│", "┌", "└", "├", "╭", "╰")):
+    # marcos puros del panel (┌───┐, └───┘): log siempre
+    if t.startswith(("┌", "└", "├", "╭", "╰")):
         return True
+    # "│ contenido │": los paneles rich envuelven TAMBIEN resultados y
+    # respuestas del agente — se juzga el CONTENIDO, no el marco (medido:
+    # "│ RESULTADO leer_archivo ... │" acababa en el Registro)
+    if t.startswith("│"):
+        interior = t.strip("│").strip()
+        if not interior:
+            return True
+        return _es_log(interior)
     if any(f in t for f in _FRAGMENTOS_BANNER):
         return True
     arte = len(_ARTE.findall(t))
@@ -106,7 +136,12 @@ def reclasificar(quien: str, texto: str, en_traza: bool) -> tuple[str, bool]:
         if _SIGUE_TRAZA.match(texto):
             return "log", True
         en_traza = False
-    return ("log" if _es_log(texto) else "cognia"), en_traza
+    if _es_log(texto):
+        return "log", en_traza
+    interior = t.strip("│").strip() if t.startswith("│") else texto
+    if _es_actividad(interior):
+        return "actividad", en_traza
+    return "cognia", en_traza
 
 
 def _python_cognia() -> list[str]:

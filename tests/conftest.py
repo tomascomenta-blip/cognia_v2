@@ -78,3 +78,21 @@ def _semilla_reproducible():
         _np.random.seed(20260720)
     except ImportError:
         pass
+
+
+# ── El rastro de feromona NUNCA se escribe desde tests ─────────────────
+# Medido el 2026-07-20: los tests que llaman _es_idea_web (test_deteccion_
+# idea_web, test_program_creator_web) hacian que la colonia registrara sus
+# discrepancias en el cognia/microexpertos/feromona.json REAL — cada corrida
+# de la suite anadia observaciones duplicadas ("simple Markov chain text
+# generator" x5) que ademas cuentan para el umbral de 20 confirmaciones.
+# Redirigir SIEMPRE a tmp_path: los tests que quieren un rastro concreto
+# (test_colonia.rastro_temporal) lo vuelven a apuntar ellos mismos encima.
+@_pytest.fixture(autouse=True)
+def _feromona_aislada(tmp_path, monkeypatch):
+    try:
+        from cognia.colonia import feromona as _fer
+        monkeypatch.setattr(_fer, "RUTA_RASTRO",
+                            tmp_path / "feromona_test.json")
+    except ImportError:
+        pass
