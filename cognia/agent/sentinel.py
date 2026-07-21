@@ -49,6 +49,10 @@ _ALLOW_PREFIXES = {
     # lanzadores: abrir apps/archivos/URLs (para "abre Chrome/YouTube/una app").
     # Un payload destructivo dentro sigue cazado por el BLOCK (corre antes).
     "start", "explorer", "open", "xdg-open", "wt", "code", "notepad",
+    # consolas y utilidades del sistema (el dueño pidió poder abrirlas/usarlas;
+    # un payload destructivo DENTRO sigue cazado por _BLOCK, que corre antes)
+    "powershell", "pwsh", "cmd", "tasklist", "taskmgr", "calc", "mspaint",
+    "curl", "wget", "ping", "ipconfig", "systeminfo", "hostname",
 }
 # git subcomandos que NO son de solo-lectura pero son parte del flujo normal
 # de un agente de código (commit/add/checkout local); push/reset-hard/clean

@@ -262,6 +262,11 @@ class Sesion:
                    # Sentinel (rm -rf, format, shutdown, borrados recursivos...)
                    # sigue activo como ultima red.
                    COGNIA_ACCESO_TOTAL="1",
+                   # computer-use completo: tools de pantalla (captura, click,
+                   # teclado) activas y sin confirmacion interactiva — el dueno
+                   # pidio acceso total a su equipo desde el movil. FAILSAFE de
+                   # pyautogui sigue: mover el mouse a una esquina ABORTA.
+                   COGNIA_SCREEN="1", COGNIA_SCREEN_AUTO="1",
                    PYTHONPATH=(raiz_repo + (os.pathsep + pp if pp else "")))
         self.proc = subprocess.Popen(
             _python_cognia(), cwd=self.ruta_proyecto,

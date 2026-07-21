@@ -36,6 +36,12 @@ _CHAT_GUARDS = (
 
 # (regex, tool). First match wins. Spanish imperative/infinitive + common forms.
 _RULES = [
+    # abrir apps/URLs/pestañas ANTES que leer_archivo: "abre una pestaña de
+    # Chrome con YouTube", "abre PowerShell", "abre youtube.com". (Reporte del
+    # dueño 2026-07-21: "abre PowerShell" caía al chat y el modelo se negaba.)
+    (r"\b(abr[ieí]r?|abre|lanz[aá]r?|arranc[aá]r?)\s+(una?\s+)?(pesta[ñn]a|navegador|chrome|firefox|edge|brave)\b", "abrir"),
+    (r"\b(abr[ieí]r?|abre|lanz[aá]r?)\s+(el\s+|la\s+|una?\s+)?(powershell|terminal|consola|cmd|s[ií]mbolo del sistema|explorador|explorer|calculadora|bloc de notas|notepad|paint|spotify|discord|steam|word|excel)\b", "abrir"),
+    (r"\b(abr[ieí]r?|abre)\s+(https?://|www\.|\S+\.(com|net|org|es|co|io|tv|me|app)\b)", "abrir"),
     (r"\b(le[eé]|leer|mostra?r?|ver|abr[ií]r?)\s+(el\s+)?(archivo|fichero|c[oó]digo|file)\b", "leer_archivo"),
     (r"\bque\s+(contiene|tiene|dice)\s+(el\s+)?(archivo|fichero)\b", "leer_archivo"),
     (r"\b(escrib[ií]r?|cre[aá]r?|gener[aá]r?|guard[aá]r?)\s+(un\s+|el\s+|una\s+)?(archivo|fichero|script|file|funci[oó]n|clase|programa|html|json)\b", "escribir_archivo"),
@@ -61,6 +67,8 @@ _ACTION_VERBS = (
     "mueve", "mové", "copia", "copiá", "renombra", "descarga", "descargá",
     "instala", "instalá", "corre", "corré", "ejecuta", "ejecutá", "lee", "leé",
     "busca", "buscá", "lista", "listá", "analiza", "analizá",
+    "abre", "abrí", "lanza", "lanzá", "cierra", "cerrá", "arranca",
+    "captura", "capturá", "clickea", "clic", "teclea", "presiona", "pulsa",
 )
 
 
