@@ -395,12 +395,18 @@ def crear_app() -> FastAPI:
                    _os.environ.get("PYTHONPATH", ""))
         # --sin-modelo: el panel es para VER la oficina; el motor con modelo
         # se maneja desde el chat (/oficina) si se quiere.
+        # --host 0.0.0.0: el iframe lo abre el MOVIL con la IP del PC en la LAN,
+        # no localhost; sin esto la oficina quedaba invisible desde el telefono.
+        # stderr a un log (no DEVNULL) para no perder el motivo si el arranque
+        # falla en silencio (familia de degradacion silenciosa de Cognia).
+        log_ofi = ruta / "oficina3d.log"
         _oficina3d["proc"] = subprocess.Popen(
             [sys.executable, "-m", "cognia.oficina",
-             "--puerto", str(_oficina3d["puerto"]),
+             "--puerto", str(_oficina3d["puerto"]), "--host", "0.0.0.0",
              "--estado", str(estado), "--sin-modelo"],
             cwd=str(ruta), env=env,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            stdout=subprocess.DEVNULL,
+            stderr=open(log_ofi, "w", encoding="utf-8"))
         return {"ok": True, "puerto": _oficina3d["puerto"]}
 
     app.mount("/static", StaticFiles(directory=str(ESTATICOS)), name="static")

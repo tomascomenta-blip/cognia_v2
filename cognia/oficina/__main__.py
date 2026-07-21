@@ -16,6 +16,10 @@ def main():
     # 8766: el 8765 es del cognia_desktop_api (colisión cazada en el e2e
     # 2026-07-15: /oficina dejaba un server residual que pisaba al desktop).
     ap.add_argument("--puerto", type=int, default=8766)
+    # --host 0.0.0.0 para que el control remoto (movil en la LAN) alcance el
+    # iframe: por defecto 127.0.0.1 dejaba la oficina invisible desde el telefono
+    # (cazado 2026-07-20: el panel quedaba en blanco). El default sigue seguro.
+    ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--estado", default=os.path.join(os.getcwd(), "oficina_estado.json"))
     ap.add_argument("--sin-modelo", action="store_true",
                     help="solo dashboard/control, sin motor (no carga el 3B)")
@@ -49,8 +53,8 @@ def main():
             print(f"[oficina] SIN MOTOR: el modelo no cargó ({e}). "
                   "El dashboard funciona igual; las metas quedan pendientes.")
 
-    srv = crear_server(of, puerto=args.puerto)
-    print(f"[oficina] dashboard: http://127.0.0.1:{args.puerto}  (Ctrl+C corta)")
+    srv = crear_server(of, host=args.host, puerto=args.puerto)
+    print(f"[oficina] dashboard: http://{args.host}:{args.puerto}  (Ctrl+C corta)")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
