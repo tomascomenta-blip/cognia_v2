@@ -32,6 +32,18 @@ def test_comandos_del_repl_disponibles():
     assert len(cmds) > 50, "el catalogo debe ser el del REPL completo"
 
 
+def test_expertos_catalogo_jarvis():
+    """La vista Jarvis necesita el cerebro central + los expertos con color."""
+    r = _cliente().get("/api/expertos").json()
+    ids = {e["id"] for e in r}
+    cerebro = [e for e in r if e.get("central")]
+    assert len(cerebro) == 1 and cerebro[0]["id"] == "cerebro"
+    # roles siempre presentes; micro-expertos segun haya en disco
+    assert {"planificador", "generador", "evaluador", "juez"} <= ids
+    # cada nodo lleva color (para pintar la constelacion y el filtro del chat)
+    assert all(e.get("color", "").startswith("#") for e in r)
+
+
 def test_app_movil_se_sirve():
     r = _cliente().get("/")
     assert r.status_code == 200
@@ -142,6 +154,20 @@ def test_reclasificar_actividad_plegable():
     # el marco puro de la caja sigue siendo log (no aporta contenido)
     quien, _ = reclasificar("cognia", "╭──────────────╮", False)
     assert quien == "log"
+
+
+def test_reclasificar_paneles_rich_fuera_del_chat():
+    """Los paneles enmarcados '│ ... │' (ayuda/estado) son chrome, no la
+    respuesta: van a actividad (plegable), no al chat como markdown.
+    Reporte 2026-07-20: '│ local │' y '│ Recibido: 1 parte(s) │' se colaban."""
+    from cognia.remoto.sesiones import reclasificar
+    for texto in ["│ local                        │",
+                  "│ <ruta> | <contenido>. Recibido: 1 parte(s).   │"]:
+        quien, _ = reclasificar("cognia", texto, False)
+        assert quien == "actividad", texto
+    # una respuesta normal (sin marco) sigue yendo al chat
+    quien, _ = reclasificar("cognia", "Claro, aquí tienes el resumen.", False)
+    assert quien == "cognia"
 
 
 def test_reclasificar_traceback_multilinea_con_estado():

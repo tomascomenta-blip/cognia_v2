@@ -141,6 +141,13 @@ def reclasificar(quien: str, texto: str, en_traza: bool) -> tuple[str, bool]:
     interior = t.strip("│").strip() if t.startswith("│") else texto
     if _es_actividad(interior):
         return "actividad", en_traza
+    # panel Rich "│ ... │" que no es log ni una accion reconocida: sigue siendo
+    # CHROME (ayuda, estado, tabla, "Recibido: N parte(s)"), nunca la respuesta
+    # conversacional — Cognia no enmarca sus respuestas. Va a actividad
+    # (plegable), no al chat. (Cazado 2026-07-20: paneles "│ local │" y
+    # "│ Recibido: 1 parte(s) │" se colaban al chat y se renderizaban como md.)
+    if t.startswith("│"):
+        return "actividad", en_traza
     return "cognia", en_traza
 
 
