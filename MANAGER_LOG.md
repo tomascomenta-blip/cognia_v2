@@ -8497,3 +8497,27 @@ HALLAZGO IMPORTANTE (el gate hizo su trabajo) — TECHO DE Nº DE TOOLS del mode
 
 Estado final de la sesion: 4.1.0 (trio dev-agent) y 4.2.0 (RRULE) en PyPI; main
 pusheado (afdb7ae + publicacion). Apagado del equipo a peticion del dueno tras el cierre.
+
+## 2026-07-22 (tarde) — GOAL assets IA: F1 ENTREGADO (imagenes transparentes en GPU)
+
+Goal del dueno (remote): juegos/web con assets de imagen transparentes generados,
+flota MiniCPM+LoRAs, motor de animacion 2D por keyframes. Plan en PLAN_ASSETS_IA.md
+(F0-F6), basado en 4 investigaciones verificadas + mapeo del codigo real.
+
+F0 investigacion: LayerDiffuse (transparencia RGBA nativa), LoRAs (pixel/PvZ/game),
+flota = 1 MiniCPM5-1B + N LoRAs (no 1M por experto; MiniCPM4-MCP bate a GPT-4o),
+animacion = formato DragonBones + motor determinista + auto-rig AnimatedDrawings.
+
+F1 backend de imagenes transparentes (GPU) — ENTREGADO (commit 0f8e80f):
+- cognia/assets/diffusion_backend.py: generar_transparente() con SDXL base +
+  LayerDiffuse (diffuser_layerdiffuse MIT) -> PNG RGBA nativo. Imports perezosos
+  (nodo CPU no arrastra torch). GPU-only, kill-switch, pipeline cacheado.
+- Entorno: venv312gpu (torch 2.11+cu128, RTX 5060 Ti 16GB) + diffusers/peft/einops/cv2.
+  Modelos en ~/.cache/huggingface, layer_diffuse en ~/.cognia/layerdiffuse_src.
+- Verificacion REAL: girasol 1024x1024 en 22s, alfa 82.4% transparente, recorte
+  limpio sobre tablero (estetica PvZ sin LoRA). tests 5/5 en venv312 (CPU).
+- No se toca pyproject ni se publica (subsistema GPU experimental).
+
+PENDIENTE: F2 (LoRAs pixel/PvZ + experto de imagenes que escribe el prompt),
+F3 (flota MiniCPM tooling via fleet_router), F4 (puente program_creator),
+F5 (motor animacion keyframes), F6 (E2E). Router LayerDiffuse-nativo vs +BiRefNet.
