@@ -69,9 +69,10 @@ ROLE_TOOLS = {
                      "buscar", "repo_map", "recordar", "kg_buscar", "notas",
                      "anotar", "resumir", "responder"},
     "implementador": {"leer_archivo", "listar", "buscar", "repo_map",
-                      "escribir_archivo", "apendar_archivo", "copiar_archivo",
-                      "generar_codigo", "py_validar", "json_validar", "tests",
-                      "ejecutar", "notas", "anotar", "responder"},
+                      "escribir_archivo", "editar_archivo", "apendar_archivo",
+                      "copiar_archivo", "generar_codigo", "py_validar",
+                      "json_validar", "tests", "ejecutar", "notas", "anotar",
+                      "responder"},
 }
 
 
@@ -294,6 +295,49 @@ def _escribir_archivo(args, ctx):
         ft.append(str(wpath))
         ctx["agent_state"]["files_touched"] = ft[-15:]
     return f"RESULTADO escribir_archivo {_disp(wpath)}: OK ({len(content)} chars)"
+
+
+@tool("editar_archivo",
+      "editar_archivo <path> | <<<<<<< SEARCH\\n...\\n=======\\n...\\n>>>>>>> REPLACE  -- edicion quirurgica por bloque")
+def _editar_archivo(args, ctx):
+    """Edicion SEARCH/REPLACE (idea de Aider): cambia solo el bloque indicado en
+    vez de reescribir el fichero entero. Barato y seguro para el modelo pequeno
+    (no arrastra el resto del fichero). Acepta varios bloques seguidos. Si el
+    SEARCH no casa, el error nombra el bloque y sugiere las lineas parecidas."""
+    from cognia.agent.edit_block import apply_edits, parse_bloques, EditError
+    parts = re.split(r"\s*\|\s*", args, maxsplit=1)
+    if len(parts) != 2:
+        return ("RESULTADO editar_archivo ERROR: formato (usa ruta | bloque "
+                "<<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE)")
+    try:
+        wpath = _resolve_write_path(parts[0].strip())
+    except ValueError as e:
+        return f"RESULTADO editar_archivo ERROR: {e}"
+    if not wpath.exists():
+        return (f"RESULTADO editar_archivo ERROR: {_disp(wpath)} no existe "
+                f"(para crearlo usa escribir_archivo)")
+    bloques = parse_bloques(_strip_fences(parts[1]))
+    old = wpath.read_text(encoding="utf-8", errors="replace")
+    try:
+        nuevo, estrategias = apply_edits(old, bloques)
+    except EditError as e:
+        return f"RESULTADO editar_archivo ERROR: {e}"
+    if nuevo == old:
+        return f"RESULTADO editar_archivo {_disp(wpath)}: sin cambios (el REPLACE es igual)"
+    wpath.write_text(nuevo, encoding="utf-8")
+    show_diff = ctx.get("show_diff")
+    if callable(show_diff):
+        try:
+            show_diff(old, nuevo, str(wpath))
+        except Exception:
+            pass
+    ft = ctx.setdefault("agent_state", {}).setdefault("files_touched", [])
+    if str(wpath) not in ft:
+        ft.append(str(wpath))
+        ctx["agent_state"]["files_touched"] = ft[-15:]
+    n = len(estrategias)
+    return (f"RESULTADO editar_archivo {_disp(wpath)}: OK ({n} bloque"
+            f"{'s' if n != 1 else ''} [{', '.join(estrategias)}], {len(nuevo)} chars)")
 
 
 @tool("apendar_archivo",
