@@ -97,6 +97,39 @@ def test_recortar_alfa_todo_transparente_no_rompe():
     assert cb._recortar_alfa(im) is im  # bbox None -> devuelve la misma
 
 
+def test_metodos_registrados():
+    assert cb._METODOS == ("auto", "layerdiffuse", "birefnet")
+
+
+def test_router_birefnet_siempre_recorta():
+    # metodo='birefnet' -> siempre BiRefNet, sin importar spec/frac/gate
+    assert cb._debe_rescatar("birefnet", None, 0.99, 0.0) is True
+    assert cb._debe_rescatar("birefnet", {"transparencia_nativa": True}, 0.99, 0.5) is True
+
+
+def test_router_layerdiffuse_nunca_recorta():
+    # metodo='layerdiffuse' -> nunca BiRefNet, aunque el fondo sea opaco
+    assert cb._debe_rescatar("layerdiffuse", None, 0.0, 0.5) is False
+
+
+def test_router_auto_estilo_incompatible():
+    # auto + estilo incompatible (transparencia_nativa=False) -> rescata
+    spec_incompat = {"transparencia_nativa": False}
+    assert cb._debe_rescatar("auto", spec_incompat, 0.9, 0.0) is True
+    # auto + estilo compatible + fondo limpio -> no rescata
+    spec_ok = {"transparencia_nativa": True}
+    assert cb._debe_rescatar("auto", spec_ok, 0.9, 0.0) is False
+
+
+def test_router_auto_rescate_por_gate():
+    # auto + gate activo + LayerDiffuse quedó corto (frac<min_transp) -> rescata
+    assert cb._debe_rescatar("auto", None, 0.10, 0.50) is True
+    # auto + gate activo pero LayerDiffuse lo alcanzó -> no rescata
+    assert cb._debe_rescatar("auto", None, 0.80, 0.50) is False
+    # auto + gate off (min_transp=0) + sin estilo -> no rescata
+    assert cb._debe_rescatar("auto", None, 0.0, 0.0) is False
+
+
 def test_frac_transparente():
     pytest.importorskip("numpy")
     from PIL import Image

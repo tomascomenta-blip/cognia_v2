@@ -238,12 +238,39 @@ def frac_transparente(img) -> float:
     return float((a < 16).mean())
 
 
+_METODOS = ("auto", "layerdiffuse", "birefnet")
+
+
+def _debe_rescatar(metodo: str, spec, frac: float, min_transp: float) -> bool:
+    """Router de transparencia: decide si, tras generar con LayerDiffuse, hay que
+    recortar con BiRefNet (fallback universal). Lógica pura -> testeable sin GPU.
+
+    - metodo='birefnet': siempre recorta con BiRefNet (fuerza la vía + recorte).
+    - metodo='layerdiffuse': nunca (transparencia nativa pura).
+    - metodo='auto':
+        * estilo incompatible con LayerDiffuse (transparencia_nativa=False,
+          p.ej. Pony/NoobAI/Illustrious que dejan fondo sólido, issue #124) -> sí.
+        * si el gate está activo (min_transp>0) y LayerDiffuse no lo alcanzó
+          (fondo aún opaco) -> sí (rescate del gate).
+        * si no -> no (LayerDiffuse nativo basta)."""
+    if metodo == "birefnet":
+        return True
+    if metodo == "layerdiffuse":
+        return False
+    # auto:
+    if spec is not None and not spec.get("transparencia_nativa", True):
+        return True
+    if min_transp > 0 and frac < min_transp:
+        return True
+    return False
+
+
 def generar_transparente(prompt: str, *, estilo: str = None, negative: str = "",
                          seed: int = 12345, pasos: int = 25,
                          ancho: int = 1024, alto: int = 1024,
                          asset: bool = True, recortar: bool = False,
                          min_transp: float = 0.0, reintentos: int = 2,
-                         salida: str = None) -> str:
+                         metodo: str = "auto", salida: str = None) -> str:
     """Genera un PNG RGBA transparente y devuelve su ruta.
 
     prompt: descripción del objeto. Si `asset` (default), se añade un sufijo que
@@ -253,8 +280,14 @@ def generar_transparente(prompt: str, *, estilo: str = None, negative: str = "",
     min_transp: gate de calidad de transparencia (0=off). Si el fondo no queda lo
             bastante transparente (LayerDiffuse tiene variancia por seed), reintenta
             con otras seeds hasta `reintentos` y se queda con el MEJOR alfa.
+    metodo: router de transparencia — 'auto' (LayerDiffuse nativo, con rescate
+            BiRefNet si el estilo es incompatible o el gate no se alcanza),
+            'layerdiffuse' (nativo puro, sin BiRefNet) o 'birefnet' (siempre recorta
+            con BiRefNet tras generar; para full-body o finetunes incompatibles).
     ancho/alto: múltiplos de 64 (requisito del decoder RGBA). Se ajustan si no.
     salida: ruta de PNG; por defecto ~/.cognia/assets/<hash>.png."""
+    if metodo not in _METODOS:
+        raise AssetsError(f"metodo invalido: {metodo!r} (validos: {list(_METODOS)})")
     ancho = _ajustar_dim(ancho)
     alto = _ajustar_dim(alto)
 
@@ -286,6 +319,12 @@ def generar_transparente(prompt: str, *, estilo: str = None, negative: str = "",
         if transp >= min_transp and opaco >= OPACO_MIN:  # limpio y con sujeto -> corta
             break
     img = mejor_img
+
+    # Router de transparencia: si LayerDiffuse no basta (estilo incompatible o el
+    # gate quedó corto) o se pidió BiRefNet explícito, recortar con BiRefNet.
+    if _debe_rescatar(metodo, spec, frac_transparente(img), min_transp):
+        from .matting import quitar_fondo
+        img = quitar_fondo(img)  # PIL RGBA con el fondo segmentado por BiRefNet
 
     if spec and spec.get("downscale"):
         img = _pixelar(img, spec["downscale"])
