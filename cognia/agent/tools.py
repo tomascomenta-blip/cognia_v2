@@ -66,10 +66,11 @@ def build_tools_doc(allowed: set = None) -> str:
 # implementador si. Acota el blast-radius de una subtarea delegada.
 ROLE_TOOLS = {
     "investigador": {"leer_archivo", "listar", "arbol", "contar_lineas",
-                     "buscar", "repo_map", "recordar", "kg_buscar", "notas",
-                     "anotar", "resumir", "responder"},
+                     "buscar", "repo_map", "code_grafo", "recordar", "kg_buscar",
+                     "notas", "anotar", "resumir", "responder"},
     "implementador": {"leer_archivo", "listar", "buscar", "repo_map",
-                      "escribir_archivo", "editar_archivo", "apendar_archivo",
+                      "code_grafo", "escribir_archivo", "editar_archivo",
+                      "apendar_archivo",
                       "copiar_archivo", "generar_codigo", "py_validar",
                       "json_validar", "tests", "ejecutar", "notas", "anotar",
                       "responder"},
@@ -795,6 +796,24 @@ def _repo_map(args, ctx):
         cab += f", sesgado a '{terms[:60]}'"
     cab += "):"
     return cab + "\n" + res["texto"]
+
+
+@tool("code_grafo",
+      "code_grafo <modulo-o-simbolo>         -- vecindad en el grafo de codigo (def/refs/importa)")
+def _code_grafo(args, ctx):
+    """Navegacion tipo LSP sin language server: dado un modulo devuelve que
+    importa / quien lo importa / que define; dado un simbolo (func o clase)
+    devuelve donde se define y que modulos lo referencian. Construido del AST
+    (no de la BD), asi nunca miente por estado de indice desactualizado."""
+    from cognia.knowledge.code_nav import vecindad, formatear
+    obj = args.strip()
+    if not obj:
+        return "RESULTADO code_grafo ERROR: uso: code_grafo <modulo-o-simbolo>"
+    try:
+        v = vecindad(obj)
+    except Exception as exc:
+        return f"RESULTADO code_grafo ERROR: {exc}"
+    return f"RESULTADO code_grafo:\n{formatear(v)}"
 
 
 @tool("buscar_en_repo",
