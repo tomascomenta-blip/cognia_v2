@@ -6103,8 +6103,16 @@ def repl():
                         f"modo simple, sin autocompletado.[/detail]")
             session = None
 
+    # Cola de INYECCION del enrutador por inferencia: cuando el modelo decide
+    # que un mensaje libre ES un /comando, la linea se encola aqui y el proximo
+    # _get_input la devuelve — el comando entra por el MISMO camino que si el
+    # usuario lo hubiera tecleado (todo el elif chain intacto).
+    _inyectadas: list = []
+
     if session is not None:
         def _get_input():
+            if _inyectadas:
+                return _inyectadas.pop(0)
             line = session.prompt("cognia> ").strip()
             while line.endswith("\\"):
                 continuation = session.prompt("  ").strip()
@@ -6112,6 +6120,8 @@ def repl():
             return line
     else:
         def _get_input():
+            if _inyectadas:
+                return _inyectadas.pop(0)
             return input(_G + "cognia> " + _R).strip()
 
     # Warm-up del 0.5B del fast-path en background (portero instalado o cascada
@@ -7790,8 +7800,38 @@ def repl():
             except Exception:
                 _intent = None
             _needs_tool = bool(_intent and _intent.needs_agent)
+            # ── Enrutado por INFERENCIA sobre TODO el catalogo (goal
+            # 2026-07-21): si las reglas rapidas no vieron una accion, el
+            # PROPIO MODELO lee el mensaje + el catalogo de comandos "/" y
+            # elige CHAT / AGENTE / un comando concreto. La eleccion se
+            # valida (solo comandos existentes, destructivos vetados) y el
+            # comando se inyecta al REPL como si el usuario lo tecleara.
+            if (not _needs_tool
+                    and (_intent is None or _intent.reason != "conversacional")
+                    and len(raw.split()) >= 3):
+                try:
+                    from cognia.enrutador import (activo as _enr_activo,
+                                                  catalogo_compacto, decidir)
+                    if _enr_activo():
+                        _cat_r = catalogo_compacto(_CMD_DESCRIPTIONS)
+                        _orch_r = getattr(ai, '_orchestrator', None)
+                        if _orch_r is not None:
+                            _ruta, _extra = decidir(
+                                raw,
+                                lambda p: _inferir_para_agente(_orch_r, p),
+                                _cat_r)
+                            if _ruta == "comando":
+                                _print_line(f"[detail]Infiero que esto pide "
+                                            f"{_extra.split()[0]} -- lo uso.[/detail]")
+                                _inyectadas.append(_extra)
+                                continue
+                            if _ruta == "agente":
+                                _needs_tool = True
+                except Exception:
+                    pass
             if _needs_tool:
-                _hint = _intent.suggested_tool
+                _hint = (_intent.suggested_tool if _intent
+                         and _intent.needs_agent else "")
                 _hmsg = f" (sugiero {_hint})" if _hint else ""
                 _print_line(f"[detail]Detectada accion{_hmsg} -- activando agente...[/detail]")
                 _resp = _run_agent_task(ai, raw, _print_line, hint=_hint)
