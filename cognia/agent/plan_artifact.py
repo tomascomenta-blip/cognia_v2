@@ -107,8 +107,8 @@ class Plan:
 def _plan_path() -> Path:
     """Ruta del plan en el workspace del agente (sobrevive entre pasos)."""
     try:
-        from cognia.agents.workers.dev_tools import AGENT_WORKSPACE_ROOT
-        base = Path(AGENT_WORKSPACE_ROOT)
+        from cognia.agents.workers.dev_tools import _root_actual
+        base = Path(_root_actual())
     except Exception:
         base = Path.home() / ".cognia"
     return base / ".plan.json"

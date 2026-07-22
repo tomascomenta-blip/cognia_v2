@@ -207,9 +207,9 @@ def register(tool_decorator) -> None:
             return f"RESULTADO crear_flujo ERROR: {exc}"
         # persistir en el workspace del agente
         try:
-            from cognia.agents.workers.dev_tools import AGENT_WORKSPACE_ROOT
+            from cognia.agents.workers.dev_tools import _root_actual
             from pathlib import Path
-            dest = Path(AGENT_WORKSPACE_ROOT) / ".flujo.json"
+            dest = Path(_root_actual()) / ".flujo.json"
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(to_json(flujo), encoding="utf-8")
         except Exception:

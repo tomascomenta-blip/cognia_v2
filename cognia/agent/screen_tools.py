@@ -113,8 +113,8 @@ def captura(ctx: dict, region=None) -> str:
         return err
     global _acciones_hechas
     try:
-        from cognia.agents.workers.dev_tools import AGENT_WORKSPACE_ROOT
-        base = Path(AGENT_WORKSPACE_ROOT)
+        from cognia.agents.workers.dev_tools import _root_actual
+        base = Path(_root_actual())
     except Exception:
         base = Path.home() / ".cognia" / "capturas"
     base.mkdir(parents=True, exist_ok=True)

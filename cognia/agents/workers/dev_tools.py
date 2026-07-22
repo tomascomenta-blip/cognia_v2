@@ -40,6 +40,22 @@ AGENT_WORKSPACE_ROOT = (
     or os.getcwd()
 )
 
+
+_ROOT_DE_IMPORT = AGENT_WORKSPACE_ROOT
+
+
+def _root_actual() -> str:
+    """Workspace en CALL-time (no import-time). Cazado en la campana
+    2026-07-21: la constante se fijaba al importar, y un proceso largo que
+    cambia COGNIA_AGENT_WORKSPACE/cwd entre tareas seguia anclado al PRIMER
+    workspace — 6 tareas de agente escribieron todas en la carpeta de la
+    primera. Precedencia: (1) la variable de modulo si alguien la REDIRIGIO
+    (contrato de tests/deploys documentado arriba), (2) la env var, (3) cwd.
+    Mismo patron call-time que los knobs de node/llama_backend."""
+    if AGENT_WORKSPACE_ROOT != _ROOT_DE_IMPORT:
+        return AGENT_WORKSPACE_ROOT
+    return os.environ.get("COGNIA_AGENT_WORKSPACE") or os.getcwd()
+
 SEARCH_TIMEOUT_S = 15
 # venv* cubre venv, venv312, .venv; model_shards/checkpoints son pesados y binarios
 _SEARCH_IGNORE_DIRS = {".git", "node_modules", "__pycache__", "model_shards", "checkpoints"}
@@ -59,7 +75,7 @@ def search_code(pattern: str, root: str = ".", glob: str = "*.py", max_results: 
     """Busqueda regex de contenido. Retorna matches como {file, line_no, line}."""
     root_path = Path(root)
     if not root_path.is_absolute():
-        root_path = Path(AGENT_WORKSPACE_ROOT) / root_path
+        root_path = Path(_root_actual()) / root_path
     rx = re.compile(pattern)
     deadline = time.monotonic() + SEARCH_TIMEOUT_S
     matches: List[dict] = []
@@ -100,7 +116,7 @@ def search_code(pattern: str, root: str = ".", glob: str = "*.py", max_results: 
 # --- gates de seguridad compartidos por write_file / edit_file / run_tests ---
 
 def _workspace() -> Path:
-    return Path(AGENT_WORKSPACE_ROOT).resolve()
+    return Path(_root_actual()).resolve()
 
 def _resolve_in_workspace(path: str) -> Path:
     """Resuelve path (relativo al workspace o absoluto) y exige que quede DENTRO."""
