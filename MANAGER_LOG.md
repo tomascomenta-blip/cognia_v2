@@ -8548,3 +8548,45 @@ con imports perezosos (nodo CPU intacto; tests 13/13 en venv312). PENDIENTE: F2b
 estilos incompatibles/full-body), F3 (flota MiniCPM tooling via fleet_router), F4
 completo (program_creator genera juegos/web usando el pipeline de assets), F5
 (animacion por keyframes/capas). Deps GPU en venv312gpu; NO se toca pyproject ni se publica.
+
+## 2026-07-22 (noche) — GOAL assets IA: F2b ENTREGADO (BiRefNet + router + experto de imagenes)
+
+Continuacion autonoma del goal (dueno: "empieza por F2b, sigue sin preguntar").
+Tres unidades, cada una verificada REAL en GPU + tests de regresion, commit+push
+por unidad. main: 66ab98d, 7859ff8, 87715fe.
+
+1. BiRefNet como recorte universal (66ab98d) — cognia/assets/matting.py:
+   quitar_fondo(img|ruta) -> PNG RGBA con ZhengPeng7/BiRefNet (MIT, apto comercial
+   vs RMBG-2.0 no-comercial). Es el fallback que el plan manda para donde
+   LayerDiffuse rompe: finetunes incompatibles (Pony/NoobAI/Illustrious, issue #124,
+   dejan fondo solido) y personajes full-body. Imports perezosos, GPU-only,
+   kill-switch heredado. _combinar_alfa() no resucita pixeles ya transparentes.
+   VERIF: robot LayerDiffuse (68.5% transp) aplanado sobre cian solido (0.0%) ->
+   BiRefNet lo devolvio a 69.1% transp con sujeto intacto. Mirado sobre tablero: OK.
+
+2. Router de transparencia (7859ff8) — generar_transparente(metodo=
+   'auto'|'layerdiffuse'|'birefnet'). auto: LayerDiffuse nativo + rescate BiRefNet
+   si el estilo es incompatible (transparencia_nativa=False) o el gate min_transp
+   no se alcanza. birefnet: siempre recorta (full-body). _debe_rescatar() = logica
+   pura testeable. VERIF: 'full body knight', metodo='birefnet', recortar=True en
+   UNA llamada -> 61.6% transp, caballero recortado limpio (incl. espada) sobre bbox.
+
+3. Experto de imagenes (87715fe) — cognia/assets/prompt_expert.py:
+   expandir_prompt(pedido, estilo, llm) -> {prompt, negative, fuente}. Expande
+   "un perro" -> etiquetas visuales ricas en INGLES usando el LLM del repo
+   (cognia.llm_local.generar); LLM opcional/inyectable (patron LlmFn); fallback a
+   plantilla determinista si no hay LLM. generar_desde_pedido() = atajo E2E.
+   VERIF: LlamaBackend.try_load() dio None aqui (sin GGUF cargado) -> via LLM
+   verificada por inyeccion (10 tests); plantilla en vivo. E2E GPU: 'a pirate
+   treasure chest full of gold' estilo pvz -> cofre cartoon con oro, transparente.
+   HALLAZGO honesto: el mismo pedido en ESPANOL sale mal (SDXL rinde en ingles; la
+   plantilla no traduce, la via LLM si). Documentado; lo endurece el LoRA de F3.
+
+Tests: 33/33 en venv312 (CPU) [backend 18 + matting 5 + experto 10]. NADA de
+pyproject ni publicacion (subsistema GPU experimental). Deps nuevas en venv312gpu:
+timm+kornia (CUIDADO: pip arrastro torch CPU de PyPI -> repuesto 2.11.0+cu128 del
+indice cu128; CUDA restaurado y verificado).
+
+ESTADO GOAL: F0 + F1 + F2 (a+b) HECHOS. PENDIENTE: F3 (flota MiniCPM5-1B tooling
+via fleet_router), F4 completo (program_creator genera juegos/web usando assets),
+F5 (animacion por keyframes/capas), F6 (E2E).
