@@ -4,7 +4,7 @@
 
 ## [4.2.0] - 2026-07-22
 
-### Recurrencia RRULE + documentación auto-generada del código (integración OSS, cont.)
+### Recurrencia RRULE en reminders (integración OSS, cont.)
 
 - **Reminders con RRULE (RFC-5545)** (idea de Cal.com): además de los atajos
   `daily`/`weekly`/`monthly`, `recur` acepta una regla estándar con `FREQ=` para
@@ -12,13 +12,14 @@
   "último viernes de mes" (`BYDAY=-1FR`), días concretos (`BYDAY=MO,WE,FR`) y fin
   de serie (`COUNT`/`UNTIL`, que deja de reagendar). Aditivo y compatible: los
   atajos siguen por su ruta rápida; sin migración de schema. Nueva dep pura-Python
-  `python-dateutil`.
-- **`code_wiki`** (idea de deepwiki-open): genera documentación Markdown + diagramas
-  Mermaid por módulo desde el grafo de código (define / importa / importado_por),
-  determinista y sin LLM. Completa la suite de inteligencia de código junto a
-  `repo_map` y `code_grafo`.
+  `python-dateutil`. 7 tests nuevos.
 
-11 tests nuevos. Detalle de la investigación en `RESEARCH_NOCTURNA_20260721.md`.
+Nota: se prototipó también `code_wiki` (deepwiki-open nativo) pero se **revirtió**
+antes de publicar — el gate e2e A/B (n=6) mostró que registrarlo como tool
+default-ON del agente degradaba sistemáticamente el modelo pequeño (techo de nº de
+tools: `calcular` fallaba 5/6 con él vs 1/6 sin él). Volverá como comando CLI. Los
+3 tools de 4.1.0 no tienen este efecto (A/B idéntico a baseline). Detalle en
+`RESEARCH_NOCTURNA_20260721.md` y `MANAGER_LOG.md`.
 
 ---
 
