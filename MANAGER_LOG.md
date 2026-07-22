@@ -8467,3 +8467,33 @@ PUBLICACION (autorizada explicitamente por el dueno esta noche):
 
 Estado final: main pusheado (10ade27), 4.1.0 en PyPI, RESEARCH_NOCTURNA_20260721.md
 con el backlog priorizado para la proxima iteracion. Apagado programado 04:30 (sin /f).
+
+## 2026-07-22 (madrugada) — PUBLICADO 4.2.0 a PyPI (RRULE) + hallazgo: techo de nº de tools
+
+Continuacion pedida por el dueno ("continua ... al acabar apaga el equipo").
+
+ENTREGADO en 4.2.0 (https://pypi.org/project/cognia-ai/4.2.0/):
+- Reminders con RRULE RFC-5545 (Cal.com nativo): cadencias arbitrarias
+  (cada-2-semanas, ultimo-viernes, BYDAY, COUNT/UNTIL) ademas de los 3 atajos.
+  Aditivo/compatible, +dep python-dateutil (pura Python). 7 tests.
+- Validacion: suite 5092 passed / 0 failed; gate e2e 5/5 al 1er intento;
+  twine check PASSED; verificado en PyPI (JSON+simple index+pip download) y smoke
+  test del wheel (RRULE viernes-por-medio -> 2026-03-20 correcto).
+
+HALLAZGO IMPORTANTE (el gate hizo su trabajo) — TECHO DE Nº DE TOOLS del modelo chico:
+- Se prototipo `code_wiki` (deepwiki-open nativo) y se registro como tool default-ON.
+- El gate mostro fallo CONCENTRADO y consistente en `calcular+guardar` (no disperso).
+- Reproduccion minima: el modelo loopeaba en `calcular` y ALUCINABA un tool
+  inexistente `crear_archivo` (el real es `escribir_archivo`) -> 3 fallos -> cierre.
+- A/B RIGUROSO (n=6 por lado): SIN code_wiki `calcular` falla 1/6 (ruido disperso,
+  = baseline 4.1.0); CON code_wiki falla 5/6 (concentrado). Regresion REAL.
+- Causa: registrar un 4º tool default-ON alarga la lista y satura la seleccion del
+  modelo cuantizado. Los 3 tools de 4.1.0 NO tienen este efecto (A/B identico a
+  baseline) -> hay un techo, y el 4º lo cruza.
+- DECISION: revert de code_wiki (commit 72c7d20). El modulo/valor puede volver como
+  COMANDO CLI (sin tocar el prompt del agente) en otra iteracion. 4.2.0 = solo RRULE.
+- Leccion: las utilidades extra de dev van como comandos CLI, NO como tools
+  default-ON del agente. Medir siempre el camino feliz A/B antes de sumar un tool.
+
+Estado final de la sesion: 4.1.0 (trio dev-agent) y 4.2.0 (RRULE) en PyPI; main
+pusheado (afdb7ae + publicacion). Apagado del equipo a peticion del dueno tras el cierre.
