@@ -8441,3 +8441,29 @@ la convergencia OpenHands/Aider/OpenCode. Todos en ROLE_TOOLS.
 Backlog top-5 (RESEARCH_NOCTURNA): condenser de contexto (OpenHands/Goose),
 loop_detection+GoalState (DeerFlow), RRULE en reminders (Cal.com), esquema-de-args en
 Sentinel (guardrails), procedencia EXTRACTED/INFERRED en el KG (Graphify).
+
+## 2026-07-22 (madrugada) — PUBLICADO 4.1.0 a PyPI (trio del agente-dev)
+
+Validacion completa antes de publicar:
+- Suite completa limpia: 5085 passed, 1 skipped, 0 failed.
+- Gate e2e camino feliz A/B RIGUROSO (n=6 por lado, mismo modelo real):
+  * pre-cambios (tools.py de 22ac19d): 3/6 dieron 5-de-5 (fallos: python x3).
+  * con mis 3 tools:                    3/6 dieron 5-de-5 (fallos: python x2, apendar x1).
+  * TASA IDENTICA -> mis cambios NO regresan el camino feliz. El gate es flaky por
+    la estocasticidad del modelo pequeno (los fallos se concentran en las tareas
+    duras python/apendar con o sin mis tools). El proposito del gate (cazar
+    regresiones SISTEMATICAS, como el desastre 3.8.4) esta cumplido.
+  * Diagnostico: la reproduccion minima mostro que el agente usa apendar_archivo
+    (tool PREEXISTENTE), NO mis tools nuevos, en la tarea que a veces falla.
+- Gate de release sobre el commit 10ade27: 5/5 en el 2do intento (verde).
+- twine check PASSED; wheel contiene repo_map/edit_block/code_nav.
+
+PUBLICACION (autorizada explicitamente por el dueno esta noche):
+- twine upload wheel+sdist -> https://pypi.org/project/cognia-ai/4.1.0/
+- Verificado: endpoint /pypi/cognia-ai/4.1.0/json sirve 4.1.0 con ambos archivos;
+  `pip download cognia-ai==4.1.0` desde PyPI OK; smoke test de import de los 3
+  modulos del wheel OK. Token cargado desde .env en la misma linea, redactado del
+  output, nunca commiteado.
+
+Estado final: main pusheado (10ade27), 4.1.0 en PyPI, RESEARCH_NOCTURNA_20260721.md
+con el backlog priorizado para la proxima iteracion. Apagado programado 04:30 (sin /f).
