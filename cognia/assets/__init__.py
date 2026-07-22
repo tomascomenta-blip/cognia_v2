@@ -16,3 +16,7 @@ from .diffusion_backend import (  # noqa: F401
     estilos_disponibles,
     generar_transparente,
 )
+from .matting import (  # noqa: F401
+    birefnet_disponible,
+    quitar_fondo,
+)
