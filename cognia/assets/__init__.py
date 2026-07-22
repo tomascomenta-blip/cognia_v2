@@ -13,5 +13,6 @@ API pública: `generar_transparente(prompt, ...)` -> ruta de PNG RGBA.
 from .diffusion_backend import (  # noqa: F401
     AssetsError,
     backend_disponible,
+    estilos_disponibles,
     generar_transparente,
 )

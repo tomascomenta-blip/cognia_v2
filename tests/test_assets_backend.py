@@ -41,8 +41,37 @@ def test_backend_disponible_devuelve_tupla(monkeypatch):
 
 def test_import_no_arrastra_torch():
     # Importar el paquete NO debe requerir torch (imports perezosos).
-    import sys
     mod = importlib.import_module("cognia.assets")
     assert hasattr(mod, "generar_transparente")
-    # backend_disponible es barato y no importa torch salvo para chequearlo;
-    # el import del paquete en sí no debe fallar aunque falte torch.
+    assert hasattr(mod, "estilos_disponibles")
+
+
+def test_componer_prompt_con_trigger():
+    p = cb._componer_prompt("a chest", asset=True, trigger="pvz, cartoon")
+    assert p.startswith("pvz, cartoon, a chest")
+    assert "isolated single object" in p
+
+
+def test_registro_estilos():
+    assert "pixel" in cb._ESTILOS and "pvz" in cb._ESTILOS
+    assert cb._ESTILOS["pixel"]["downscale"] == 8
+    assert cb._ESTILOS["pvz"]["trigger"] == "pvz, cartoon"
+
+
+def test_estilos_disponibles_es_lista():
+    r = cb.estilos_disponibles()
+    assert isinstance(r, list)
+    assert set(r).issubset(set(cb._ESTILOS))
+
+
+def test_estilo_desconocido_no_esta_en_registro():
+    assert "inexistente_xyz" not in cb._ESTILOS
+
+
+def test_pixelar_preserva_tamano_y_alfa():
+    from PIL import Image
+    im = Image.new("RGBA", (256, 256), (200, 50, 50, 255))
+    out = cb._pixelar(im, 8)
+    assert out.size == (256, 256) and out.mode == "RGBA"
+    # factor 1 o 0 -> no cambia
+    assert cb._pixelar(im, 1) is im
