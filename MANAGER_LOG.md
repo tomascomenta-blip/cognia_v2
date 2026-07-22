@@ -8409,3 +8409,35 @@ Limite honesto: el techo restante es capacidad del 7B en logica dura
 (VM/ajedrez/raytracer) y variancia en detalles finos — no plumbing. Con el
 canal de reparacion vivo y la 2a pasada, la mitad de los fallos restantes
 son de "el programa corre pero no imprime exactamente la evidencia pedida".
+
+---
+
+## 2026-07-21/22 (noche) — Sesion autonoma OSS: trio del agente-dev + investigacion profunda
+
+Deadline 04:30 (apagado programado via scripts/auto_shutdown.py, sin /f, cancelable).
+Baseline verde antes de tocar: 5065 passed, 1 skipped, 0 failed. Modelo real en
+C:\Users\usuario\.cognia\models (D: desaparecio pero _find_gguf lo resuelve).
+
+Investigacion: 6 agentes en paralelo sobre ~40 proyectos (web verificada). Sintesis
+en RESEARCH_NOCTURNA_20260721.md (veredictos de existencia + componentes concretos +
+mapeo a Cognia + backlog priorizado). Honestidad: Hyperframes=falso positivo (render
+video HeyGen), Qwythos=modelo 9B no framework, OpenClaude=folklore no verificable,
+Voicebox=gated (usar Piper), Petals/exo/prima.cpp=sharding WAN sincrono VETADO.
+
+IMPLEMENTADO (aditivo, CPU puro, cero deps nuevas, sin tocar el bucle caliente;
+cada uno con tests + verificacion real + commit + push):
+1. repo_map (2514abb) — PageRank personalizado sobre el grafo de imports (Aider
+   repo-map). Selector de contexto para el modelo chico. 6 tests; real 398 mod 0.78s.
+2. editar_archivo (2c9a34c) — SEARCH/REPLACE en cascada exacto->sangria con
+   error-como-prompt (Aider EditBlockCoder). 9 tests; real re-indent 4->8 + workspace
+   confinado. Evita reescribir ficheros enteros con el 3B (perdida de datos).
+3. code_grafo (46d3698) — navegacion tipo LSP find-def/find-refs desde AST sin BD ni
+   language server (OpenCode/SCIP). 5 tests; real KnowledgeGraph def+11 refs. Construido
+   del AST (no de la BD) para NO caer en la degradacion silenciosa por indice viejo.
+
+Trio: ubicar (repo_map) -> navegar (code_grafo) -> editar quirurgico (editar_archivo),
+la convergencia OpenHands/Aider/OpenCode. Todos en ROLE_TOOLS.
+
+Backlog top-5 (RESEARCH_NOCTURNA): condenser de contexto (OpenHands/Goose),
+loop_detection+GoalState (DeerFlow), RRULE en reminders (Cal.com), esquema-de-args en
+Sentinel (guardrails), procedencia EXTRACTED/INFERRED en el KG (Graphify).
