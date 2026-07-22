@@ -8521,3 +8521,30 @@ F1 backend de imagenes transparentes (GPU) — ENTREGADO (commit 0f8e80f):
 PENDIENTE: F2 (LoRAs pixel/PvZ + experto de imagenes que escribe el prompt),
 F3 (flota MiniCPM tooling via fleet_router), F4 (puente program_creator),
 F5 (motor animacion keyframes), F6 (E2E). Router LayerDiffuse-nativo vs +BiRefNet.
+
+## 2026-07-22 (tarde/noche) — GOAL assets IA: F2a + gate + mini-demo F4
+
+Continuacion autonoma (dueno: "nunca pares, solo para para refrescar contexto").
+
+F2a estilos (commit c54031e): generar_transparente(estilo=...) con registro _ESTILOS
+(pixel/pvz) -> LoRA + trigger + peso + downscale. LoRAs: nerijs/pixel-art-xl (HF) y
+PvZ Civitai 175527 (~/.cognia/loras). FIX Civitai<->diffusers: claves lora_te* rompen
+el loader -> cargar solo lora_unet_*. Verificado: pixel 'chest' + pvz 'peashooter'.
+
+Recorte al bbox del alfa (f53dbc7): recortar=True -> asset game-ready.
+
+Gate de transparencia (34aa4e6): min_transp + reintentos por seed + piso de opacidad
+(evita sujeto diminuto). frac_transparente() como metrica. LayerDiffuse tiene variancia
+por seed; el gate da fiabilidad.
+
+Mini-demo F4 (E2E): 3 assets PvZ (girasol/peashooter/zombi) recortados+transparentes ->
+HTML autocontenido con sprites embebidos (base64), zombi animado por CSS. Escena hecha
+con IMAGENES, no cuadrados. Enviada al dueno. (~/.cognia/assets/demo_escena_pvz.html)
+
+ESTADO GOAL: F0 (investigacion) + F1 (backend transparente GPU) + F2a (estilos) +
+gate + semilla de F4 = HECHOS y verificados en la RTX 5060 Ti. Todo en cognia/assets/
+con imports perezosos (nodo CPU intacto; tests 13/13 en venv312). PENDIENTE: F2b
+(experto de imagenes que escribe el prompt; BiRefNet como fallback universal para
+estilos incompatibles/full-body), F3 (flota MiniCPM tooling via fleet_router), F4
+completo (program_creator genera juegos/web usando el pipeline de assets), F5
+(animacion por keyframes/capas). Deps GPU en venv312gpu; NO se toca pyproject ni se publica.
