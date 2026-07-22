@@ -66,12 +66,12 @@ def build_tools_doc(allowed: set = None) -> str:
 # implementador si. Acota el blast-radius de una subtarea delegada.
 ROLE_TOOLS = {
     "investigador": {"leer_archivo", "listar", "arbol", "contar_lineas",
-                     "buscar", "recordar", "kg_buscar", "notas", "anotar",
-                     "resumir", "responder"},
-    "implementador": {"leer_archivo", "listar", "buscar", "escribir_archivo",
-                      "apendar_archivo", "copiar_archivo", "generar_codigo",
-                      "py_validar", "json_validar", "tests", "ejecutar",
-                      "notas", "anotar", "responder"},
+                     "buscar", "repo_map", "recordar", "kg_buscar", "notas",
+                     "anotar", "resumir", "responder"},
+    "implementador": {"leer_archivo", "listar", "buscar", "repo_map",
+                      "escribir_archivo", "apendar_archivo", "copiar_archivo",
+                      "generar_codigo", "py_validar", "json_validar", "tests",
+                      "ejecutar", "notas", "anotar", "responder"},
 }
 
 
@@ -729,6 +729,28 @@ def _docs_libreria(args, ctx):
     except (ErrorMCP, IndexError) as exc:
         return f"RESULTADO docs_libreria ERROR: {exc}"
     return f"RESULTADO docs_libreria {nombre}: {salida[:2500]}"
+
+
+@tool("repo_map",
+      "repo_map [terminos]                   -- mapa rankeado del codigo relevante (PageRank sobre el grafo)")
+def _repo_map(args, ctx):
+    """Selector de contexto tipo Aider: dado un tema (o nada), devuelve los
+    modulos mas relevantes del codigo de Cognia rankeados por PageRank
+    personalizado sobre el grafo de imports. Para el agente que necesita ubicar
+    'donde vive esto' antes de leer/editar, sin volcar el repo entero."""
+    from cognia.knowledge.repo_map import repo_map
+    terms = args.strip()
+    try:
+        res = repo_map(mentioned=terms or None)
+    except Exception as exc:
+        return f"RESULTADO repo_map ERROR: {exc}"
+    if not res["texto"]:
+        return "RESULTADO repo_map: (sin codigo indexado)"
+    cab = f"RESULTADO repo_map ({len(res['modulos'])}/{res['n_modulos']} modulos"
+    if terms:
+        cab += f", sesgado a '{terms[:60]}'"
+    cab += "):"
+    return cab + "\n" + res["texto"]
 
 
 @tool("buscar_en_repo",
