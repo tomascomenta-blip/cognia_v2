@@ -11,6 +11,7 @@ CAMBIOS v2:
 import json
 import os
 import random
+import re
 import urllib.request as _req
 from dataclasses import dataclass
 from typing import Callable, List, Optional
@@ -247,6 +248,70 @@ def _build_prompt(category: str, extra_hint: str) -> str:
     )
 
 
+# ── Completitud contra la idea (campana 2026-07-21) ───────────────────────
+# Medido en 20 tareas web duras: el patron nº1 de fallo (11/20) era OMITIR
+# componentes pedidos (animaciones, validacion, drag&drop, stepper...) y
+# paginas cortas. Estas pistas tecnicas mapean lo que la IDEA pide a la
+# evidencia minima que el HTML debe contener; lo que falte entra como defecto
+# al bucle de reparacion (mismo canal que los defectos visuales).
+_PISTAS_COMPONENTES = [
+    (r"drag\s*(and|&)\s*drop|arrastrabl", r"draggable|dragstart",
+     "drag and drop pedido: falta draggable/dragstart"),
+    (r"localstorage|persistencia", r"localStorage",
+     "persistencia pedida: falta localStorage"),
+    (r"animad|animacion|animación|keyframes|transicion|transición|parpade",
+     r"animation|transition|@keyframes",
+     "animacion pedida: no hay animation/transition/@keyframes en el CSS"),
+    (r"grafic|gráfic|velas|sparkline|dona|barras|linea de|línea de",
+     r"<svg|<canvas|conic-gradient",
+     "grafico pedido: no hay <svg>/<canvas>"),
+    (r"\bmodal\b", r"modal|<dialog", "modal pedido: no hay modal/dialog"),
+    (r"validad|validaci", r"required|pattern=|checkValidity|setCustomValidity",
+     "validacion pedida: no hay required/pattern/checkValidity"),
+    (r"teclado|flechas del teclado|con escape",
+     r"keydown|keyup|ArrowLeft|ArrowRight|Escape",
+     "teclado pedido: no hay keydown/Arrow*/Escape"),
+    (r"stepper|3 pasos|tres pasos", r"step",
+     "stepper/pasos pedidos: no hay steps"),
+    (r"formulario", r"<form|<input", "formulario pedido: no hay form/input"),
+    (r"cronometro|cronómetro|temporizador|en vivo|actualizandose|cada segundo",
+     r"setInterval|requestAnimationFrame",
+     "actualizacion en vivo pedida: no hay setInterval/rAF"),
+    (r"buscador|busqueda|búsqueda|filtro|filtrar",
+     r"filter|includes\(|indexOf|toLowerCase",
+     "buscador/filtro pedido: no hay logica de filtrado en JS"),
+    (r"\b3d\b|rotan|voltea|volteo|se voltea",
+     r"rotateY|rotateX|rotate3d|perspective",
+     "efecto 3D pedido: no hay rotateX/rotateY/perspective"),
+    (r"ordenar por columna|ordenable", r"sort\(",
+     "orden por columna pedido: no hay sort()"),
+    (r"colapsable|deslizante|lateral", r"translateX|translateY|width|toggle",
+     "panel colapsable/deslizante pedido: no hay mecanica de colapso"),
+]
+
+
+def componentes_faltantes(idea: str, html: str) -> list:
+    """Componentes que la IDEA pide y el HTML no evidencia. Cada entrada es
+    una pista accionable para el prompt de reparacion."""
+    idea_l = (idea or "").lower()
+    faltas = []
+    for re_idea, re_html, mensaje in _PISTAS_COMPONENTES:
+        if re.search(re_idea, idea_l) and not re.search(re_html, html or "",
+                                                        re.I):
+            faltas.append(mensaje)
+    return faltas
+
+
+def _componentes_de_idea(category: str) -> list:
+    """Trocea la idea en sus componentes pedidos (por comas y ' y ') para
+    enumerarlos en el prompt como checklist obligatoria."""
+    t = re.sub(r"^\s*pagina web (de|del|con)?\s*", "", (category or ""),
+               flags=re.I)
+    partes = [p.strip(" .") for p in re.split(r",| y (?=[a-z])", t)
+              if len(p.strip()) > 8]
+    return partes[:10]
+
+
 def _build_prompt_web(category: str, extra_hint: str) -> str:
     """
     Prompt para paginas web. Un solo index.html autocontenido.
@@ -296,6 +361,14 @@ def _build_prompt_web(category: str, extra_hint: str) -> str:
         f"currency symbol where money (toLocaleString)\n"
         f"- Render a complete first frame IMMEDIATELY on load — never a blank "
         f"page waiting for the first setInterval tick\n"
+        # Campana 2026-07-21 (11/20 fallos por omision): la idea multi-
+        # componente se ENUMERA y se exige completa. Paginas grandes valen.
+        + "".join(
+            f"- REQUIRED component {i}: {c}\n"
+            for i, c in enumerate(_componentes_de_idea(category), start=1))
+        + f"- Implement EVERY required component above — a page that skips "
+        f"any of them is WRONG. Prefer a LONGER page over an incomplete "
+        f"one; there is no size limit.\n"
         f"- {extra_hint}\n\n"
         f"Respond EXACTLY in this format:\n\n"
         f"Title: <short title>\n"

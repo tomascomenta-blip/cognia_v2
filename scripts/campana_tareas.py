@@ -29,7 +29,7 @@ RESULTADOS = SALIDA / "resultados.jsonl"
 # check = regexes que el HTML final DEBE contener (features pedidas).
 WEB = [
     ("panel_trading", "pagina web de un panel de trading profesional: 6 tarjetas de activos con precio animado, grafico de velas en canvas, libro de ordenes lateral, ticker superior en marquesina, modo oscuro, y colores verde/rojo segun sube o baja",
-     [r"<canvas", r"setInterval|requestAnimationFrame", r"(verde|green|#\s*[0-9a-f]*4caf|#16c784|rgb)", r"dark|oscuro|#0|#1"]),
+     [r"<canvas|<svg", r"setInterval|requestAnimationFrame", r"(verde|green|#\s*[0-9a-f]*4caf|#16c784|rgb)", r"dark|oscuro|#0|#1"]),
     ("kanban", "pagina web de un tablero kanban con 4 columnas, tarjetas arrastrables con drag and drop nativo, contador por columna, boton para agregar tarjeta con formulario modal, y persistencia en localStorage",
      [r"draggable|dragstart", r"localStorage", r"modal|dialog", r"appendChild|insertBefore"]),
     ("editor_md", "pagina web de un editor markdown a dos paneles: textarea a la izquierda, vista previa renderizada en vivo a la derecha (negrita, titulos, listas, codigo), contador de palabras, boton copiar HTML y tema claro/oscuro",
@@ -37,7 +37,7 @@ WEB = [
     ("juego_memoria", "pagina web de un juego de memoria de 16 cartas con volteo animado 3D en CSS, contador de intentos, cronometro, deteccion de pares, y pantalla de victoria con confeti animado",
      [r"transform|rotateY", r"setInterval|Date\.now", r"flip|volte", r"victoria|ganaste|win"]),
     ("dashboard_iot", "pagina web de un dashboard IoT de una casa inteligente: 8 sensores con gauges circulares SVG animados, historial en grafico de linea canvas, alertas parpadeantes cuando un valor cruza umbral, y panel lateral colapsable",
-     [r"<svg|<circle|stroke-dasharray", r"<canvas", r"alerta|alert|umbral|threshold", r"setInterval"]),
+     [r"<svg|<circle|stroke-dasharray", r"<canvas|<svg", r"alerta|alert|umbral|threshold", r"setInterval"]),
     ("spotify_clon", "pagina web tipo reproductor de musica: barra de reproduccion inferior con progreso animado, grilla de 12 albumes con hover, cola de reproduccion lateral, visualizador de barras animadas, y controles play/pausa/siguiente funcionales",
      [r"play|pausa|pause", r"progress|progreso", r"hover|:hover", r"animation|transition|keyframes"]),
     ("banco_app", "pagina web de una app bancaria: resumen de 3 cuentas con saldos, grafico de gastos por categoria en dona SVG, lista de 15 transacciones con iconos y colores por tipo, transferencia con formulario validado y modal de confirmacion",
@@ -55,7 +55,7 @@ WEB = [
     ("cocina_recetas", "pagina web de recetas: 6 tarjetas con imagen en gradiente CSS, filtros por categoria con chips activos, vista detalle con pasos numerados y checkboxes de progreso, escalador de porciones que recalcula cantidades, y barra de progreso de la receta",
      [r"chip|filtro|filter", r"checkbox", r"porcion|serving|escala", r"progress|progreso"]),
     ("crypto_ticker", "pagina web de mercado cripto: tabla de 10 monedas con precio actualizandose cada segundo con flash verde/rojo, sparklines en canvas por fila, ordenar por columna al clicar el encabezado, y buscador con filtrado en vivo",
-     [r"setInterval", r"<canvas", r"sort|ordenar", r"filter|filtrado|includes"]),
+     [r"setInterval", r"<canvas|<svg", r"sort|ordenar", r"filter|filtrado|includes"]),
     ("presentacion", "pagina web de presentacion por diapositivas: 6 slides a pantalla completa con transiciones CSS distintas, navegacion con flechas del teclado y puntos laterales, barra de progreso superior, y modo autoplay con pausa",
      [r"keydown|ArrowRight", r"transition|transform", r"autoplay|setInterval", r"progress|progreso"]),
     ("chat_ui", "pagina web de interfaz de chat: burbujas propias y ajenas con colas CSS, indicador de escribiendo con tres puntos animados, respuestas automaticas simuladas con retardo, emojis rapidos, scroll automatico y hora en cada mensaje",

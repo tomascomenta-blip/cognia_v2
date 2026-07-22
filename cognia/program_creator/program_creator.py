@@ -222,17 +222,31 @@ def run_program_hobby(
             if verbose and visual.nota:
                 print(f"   [vista] {visual.nota}")
 
-            if visual.defectos:
-                if verbose:
+            # Completitud contra la IDEA (campana 2026-07-21): lo pedido y no
+            # implementado entra como defecto al MISMO canal de reparacion.
+            # (Patron nº1 de fallo en 20 tareas duras: componentes omitidos.)
+            try:
+                from cognia.program_creator.generator import (
+                    componentes_faltantes)
+                _faltas = componentes_faltantes(program.category, program.code)
+            except Exception:
+                _faltas = []
+            if _faltas and verbose:
+                print(f"   📋 Componentes pedidos ausentes: "
+                      f"{'; '.join(_faltas)}")
+
+            if visual.defectos or _faltas:
+                if verbose and visual.defectos:
                     print(f"   👁️  Defectos vistos en el navegador: "
                           f"{'; '.join(visual.defectos)}")
+                if verbose:
                     print("   🔧 Pidiendo correccion al modelo...")
 
                 # El navegador sabe QUE falla; el analisis estatico sabe DONDE.
                 # Medido el 2026-07-19: con solo el sintoma ("todo sale del
                 # mismo color") el modelo refactorizo el ternario y dejo la
                 # clase en el sitio equivocado. Hay que darle el selector.
-                pistas = list(visual.defectos)
+                pistas = list(visual.defectos) + _faltas
                 if exec_result.execution_errors:
                     pistas += [l for l in exec_result.execution_errors.splitlines()
                                if l.strip()]
@@ -242,6 +256,15 @@ def run_program_hobby(
                 # calidad del 2026-07-20 detectando mas defectos, una unica
                 # oportunidad dejaba paginas reparables sin reparar
                 # ("Correccion descartada" y a guardar con el defecto).
+                def _faltas_de(codigo):
+                    try:
+                        from cognia.program_creator.generator import (
+                            componentes_faltantes)
+                        return componentes_faltantes(program.category, codigo)
+                    except Exception:
+                        return []
+
+                _total = len(visual.defectos) + len(_faltas)
                 for _ronda in range(1, 4):
                     arreglado = reparar_web(program, pistas)
                     if arreglado is None:
@@ -250,16 +273,19 @@ def run_program_hobby(
                         break
                     visual_2 = revisar_en_navegador(
                         arreglado.code, requiere_grafico=_con_grafico)
-                    if len(visual_2.defectos) < len(visual.defectos):
+                    _faltas_2 = _faltas_de(arreglado.code)
+                    _total_2 = len(visual_2.defectos) + len(_faltas_2)
+                    if _total_2 < _total:
                         program = arreglado
                         visual  = visual_2
+                        _faltas, _total = _faltas_2, _total_2
                         exec_result = revisar_html(program.code)
                         if verbose:
                             print(f"   ✅ Correccion {_ronda} aceptada "
-                                  f"({len(visual.defectos)} defectos restantes)")
-                        if not visual.defectos:
+                                  f"({_total} pendientes)")
+                        if not _total:
                             break
-                        pistas = list(visual.defectos)   # los que quedan
+                        pistas = list(visual.defectos) + _faltas
                     else:
                         # Sin mejora: no se insiste a ciegas (regla 11).
                         if verbose:
