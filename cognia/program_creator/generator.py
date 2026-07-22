@@ -475,7 +475,8 @@ def _call_llm(prompt: str, lenguaje: str = "python",
     return _call_ollama(prompt)
 
 
-def reparar_python(program: GeneratedProgram, error: str) -> Optional[GeneratedProgram]:
+def reparar_python(program: GeneratedProgram, error: str,
+                   llm: "Optional[LlmFn]" = None) -> Optional[GeneratedProgram]:
     """
     Le devuelve el traceback al modelo para que corrija su propio programa.
 
@@ -509,7 +510,7 @@ def reparar_python(program: GeneratedProgram, error: str) -> Optional[GeneratedP
         f"Python Code:\n```python\n<fixed code>\n```"
     )
 
-    raw = _call_llm(prompt, "python", temperature=0.2)
+    raw = _call_llm(prompt, "python", temperature=0.2, llm=llm)
     if not raw:
         return None
 
@@ -521,7 +522,8 @@ def reparar_python(program: GeneratedProgram, error: str) -> Optional[GeneratedP
     return arreglado
 
 
-def reparar_web(program: GeneratedProgram, defectos: List[str]) -> Optional[GeneratedProgram]:
+def reparar_web(program: GeneratedProgram, defectos: List[str],
+                llm: "Optional[LlmFn]" = None) -> Optional[GeneratedProgram]:
     """
     Le devuelve al modelo los defectos VISTOS en el navegador para que corrija.
 
@@ -547,7 +549,7 @@ def reparar_web(program: GeneratedProgram, defectos: List[str]) -> Optional[Gene
         f"HTML Code:\n```html\n<!DOCTYPE html>\n<fixed page>\n```"
     )
 
-    raw = _call_llm(prompt, "html", temperature=0.2)
+    raw = _call_llm(prompt, "html", temperature=0.2, llm=llm)
     if not raw:
         return None
 

@@ -266,7 +266,7 @@ def run_program_hobby(
 
                 _total = len(visual.defectos) + len(_faltas)
                 for _ronda in range(1, 4):
-                    arreglado = reparar_web(program, pistas)
+                    arreglado = reparar_web(program, pistas, llm=llm)
                     if arreglado is None:
                         if verbose:
                             print("   ↩️  El modelo no devolvio una correccion valida.")
@@ -335,7 +335,7 @@ def run_program_hobby(
                         print(f"   🔧 Reparacion {n_arreglo}/{MAX_REPARACIONES}: "
                               f"{exec_result.execution_errors.strip().splitlines()[-1][:70]}")
 
-                    arreglado = reparar_python(program, exec_result.execution_errors)
+                    arreglado = reparar_python(program, exec_result.execution_errors, llm=llm)
                     if arreglado is None:
                         if verbose:
                             print("   ↩️  El modelo no devolvio codigo valido.")
