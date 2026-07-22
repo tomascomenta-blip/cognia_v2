@@ -104,9 +104,21 @@ def hard_oracle_evidence(trace: list) -> str:
 
 def slug_from_task(task: str) -> str:
     """Nombre de skill (kebab, <= 40 chars) a partir de la tarea."""
-    words = re.findall(r"[a-záéíóúñ0-9]{3,}", (task or "").lower())
+    # pelar el prefijo de deseo/cortesia ANTES de trocear: "quiero que me
+    # crees una calculadora" generaba la skill 'quiero-crees-calculadora',
+    # que luego GANABA el matching sobre skills legitimas (campana 2026-07-21:
+    # dos tests de skills en rojo por una skill espuria auto-capturada).
+    t = (task or "").lower()
+    try:
+        from cognia.agent.intent import _PREFIJOS_DESEO
+        t = _PREFIJOS_DESEO.sub("", t, count=1)
+    except Exception:
+        pass
+    words = re.findall(r"[a-záéíóúñ0-9]{3,}", t)
     stop = {"que", "una", "los", "las", "del", "para", "con", "the", "and",
-            "for", "una", "este", "esta", "crea", "crear", "hace", "hacer"}
+            "for", "una", "este", "esta", "crea", "crear", "hace", "hacer",
+            "quiero", "quisiera", "necesito", "podrias", "puedes", "crees",
+            "hagas", "haga", "gustaria", "deseo", "haz", "hazme"}
     kept = [w for w in words if w not in stop][:5]
     slug = "-".join(kept)[:40].strip("-")
     return slug or "procedimiento-verificado"

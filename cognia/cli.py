@@ -8742,6 +8742,33 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                            if not r.satisfied]
                 _print_fn(f"[warn_cl]Objetivo NO verificado ({_st.satisfied_count}/"
                           f"{_st.total}): falta {'; '.join(_faltan)[:200]}[/warn_cl]")
+                # ── SEGUNDA PASADA dirigida (campana 2026-07-21) ──────────
+                # Patron medido en 7 tareas de agente multi-entregable: el
+                # loop cerraba tras los primeros pasos dejando entregables
+                # nombrados sin crear (creaba datos.csv pero no analiza.py).
+                # Si el contrato dice que falta algo CONCRETO, se relanza UNA
+                # vez el loop pidiendo SOLO lo pendiente (no un retry ciego:
+                # va guiado por los criterios reales incumplidos).
+                if not guidance.startswith("SEGUNDA PASADA"):
+                    _print_fn("[detail]Segunda pasada: completando lo que "
+                              "falta del contrato...[/detail]")
+                    _resto = ("SEGUNDA PASADA. La tarea original era: "
+                              + task[:400] + "\nYa esta hecho parte; SOLO "
+                              "falta: " + "; ".join(_faltan)[:400]
+                              + "\nCompleta exactamente eso.")
+                    _r2 = _run_agent_task(
+                        ai, _resto, _print_fn, max_steps=max_steps,
+                        hint=hint, guidance="SEGUNDA PASADA",
+                        allowed_tools=allowed_tools,
+                        delegation_depth=delegation_depth)
+                    _st2 = GoalContract.from_spec(task[:120],
+                                                  _criteria).check()
+                    _task_ok = _st2.complete
+                    if _st2.complete:
+                        _print_fn(f"[ok_cl]Objetivo verificado en 2a pasada: "
+                                  f"{_st2.satisfied_count}/{_st2.total} "
+                                  f"criterios[/ok_cl]")
+                        result_text = (result_text or "") + "\n" + (_r2 or "")
     except Exception:
         pass
 

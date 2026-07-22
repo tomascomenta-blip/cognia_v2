@@ -86,7 +86,7 @@ class TestRechazoDuro:
     un programa que revienta no es una virtud.
     """
 
-    def _evaluar(self, salida_stderr):
+    def _evaluar(self, salida_stderr, success=False):
         from cognia.program_creator.evaluator import evaluate_program
         from cognia.program_creator.generator import GeneratedProgram
         from cognia.program_creator.sandbox_runner import ExecutionResult
@@ -98,7 +98,7 @@ class TestRechazoDuro:
                                           for i in range(40)),
             category="demo")
         res = ExecutionResult(
-            success=False, execution_output="x" * 900,
+            success=success, execution_output="x" * 900,
             execution_errors=salida_stderr, exit_code=0, timed_out=False,
             code_length=1200)
         return evaluate_program(prog, res)
@@ -109,9 +109,19 @@ class TestRechazoDuro:
         assert any("Rechazo duro" in n for n in ev.notes)
 
     def test_sin_tests_en_rojo_decide_la_nota(self):
-        """El rechazo duro es solo para tests rojos, no un castigo general."""
-        ev = self._evaluar("")
+        """Sin tests rojos Y con ejecucion sana, decide la nota. (El helper
+        simula success=False, que desde la campana 2026-07-21 tambien es
+        rechazo duro — aqui se fuerza el caso sano.)"""
+        ev = self._evaluar("", success=True)
         assert ev.should_store == (ev.total_score >= 5.0)
+
+    def test_crash_no_se_guarda_aunque_puntue(self):
+        """Compuerta de la campana 2026-07-21: un python que REVIENTA no entra
+        a la biblioteca aunque el output previo al crash le sume nota (cazado:
+        motor de regex guardado con IndexError en runtime)."""
+        ev = self._evaluar("IndexError: string index out of range")
+        assert ev.should_store is False
+        assert any("ejecucion termino en error" in n for n in ev.notes)
 
 
 class TestNoDaFalsosPositivos:
