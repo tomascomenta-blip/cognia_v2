@@ -32,11 +32,43 @@ _RECUR_DELTA = {"daily": 86400.0, "weekly": 604800.0}
 _RECUR_VALIDOS = set(_RECUR_DELTA) | {"monthly"}
 
 
-def _proxima_ocurrencia(fire_at: float, recur: str, ahora: float) -> float:
+def _es_rrule(recur) -> bool:
+    """True si `recur` es una regla de recurrencia RFC-5545 (Cal.com nativo
+    extendido, 2026-07-22): contiene 'FREQ='. Habilita cadencias que
+    daily/weekly/monthly no cubren — cada 2 semanas (FREQ=WEEKLY;INTERVAL=2),
+    'último viernes de mes' (FREQ=MONTHLY;BYDAY=-1FR), días concretos
+    (BYDAY=MO,WE,FR), y fin de serie (COUNT/UNTIL) — con una sola representación
+    estándar y serializable. Los atajos previos siguen intactos."""
+    return isinstance(recur, str) and "FREQ=" in recur.upper()
+
+
+def _rrule_valida(recur: str) -> bool:
+    """Valida una RRULE parseándola con dateutil. False si dateutil no está
+    instalado o la regla no parsea (no rompe: create la rechaza con mensaje)."""
+    try:
+        import datetime
+
+        from dateutil.rrule import rrulestr
+        rrulestr(recur, dtstart=datetime.datetime.now())
+        return True
+    except Exception:
+        return False
+
+
+def _proxima_ocurrencia(fire_at: float, recur: str, ahora: float):
     """Siguiente fire_at estrictamente futuro respetando la cadencia. Si el
     daemon estuvo caído y se saltó varias, avanza hasta pasar `ahora` (no
-    dispara N veces para 'ponerse al día')."""
+    dispara N veces para 'ponerse al día'). Para una RRULE devuelve None cuando
+    la serie ya se agotó (COUNT/UNTIL); el llamador NO reagenda en ese caso."""
     import datetime
+    if _es_rrule(recur):
+        try:
+            from dateutil.rrule import rrulestr
+            regla = rrulestr(recur, dtstart=datetime.datetime.fromtimestamp(fire_at))
+        except Exception:
+            return None
+        prox = regla.after(datetime.datetime.fromtimestamp(ahora), inc=False)
+        return prox.timestamp() if prox is not None else None
     if recur in _RECUR_DELTA:
         delta = _RECUR_DELTA[recur]
         prox = fire_at + delta
@@ -135,13 +167,17 @@ class ReminderManager:
     ) -> dict:
         """
         Crea un recordatorio con fire_at como Unix timestamp.
-        `recur` (None|daily|weekly|monthly): al dispararse un recordatorio
-        recurrente se agenda automáticamente su próxima ocurrencia.
+        `recur` (None|daily|weekly|monthly|RRULE): al dispararse un recordatorio
+        recurrente se agenda automáticamente su próxima ocurrencia. Además de los
+        atajos, acepta una RRULE RFC-5545 (con FREQ=) para cadencias arbitrarias
+        —ej. "FREQ=WEEKLY;INTERVAL=2;BYDAY=FR" (viernes por medio).
         Retorna dict del reminder con id y status='pending'.
         """
-        if recur is not None and recur not in _RECUR_VALIDOS:
+        if (recur is not None and recur not in _RECUR_VALIDOS
+                and not (_es_rrule(recur) and _rrule_valida(recur))):
             raise ValueError(
-                f"recur invalido: {recur!r} (validos: {sorted(_RECUR_VALIDOS)})")
+                f"recur invalido: {recur!r} (validos: {sorted(_RECUR_VALIDOS)} "
+                f"o una RRULE RFC-5545 con FREQ=; requiere python-dateutil)")
         now = time.time()
         with get_pool(self._db).get() as conn:
             cur = conn.execute(
@@ -169,13 +205,16 @@ class ReminderManager:
         minutes: int,
         body: str = "",
         goal_id: int = None,
+        recur: str = None,
     ) -> dict:
         """
         Crea un recordatorio relativo al tiempo actual.
-        fire_at = now + minutes * 60
+        fire_at = now + minutes * 60. `recur` (None|daily|weekly|monthly|RRULE)
+        se pasa a create() para hacer recurrente la primera ocurrencia.
         """
         fire_at = time.time() + minutes * 60
-        return self.create(user_id, title, fire_at, body=body, goal_id=goal_id)
+        return self.create(user_id, title, fire_at, body=body, goal_id=goal_id,
+                           recur=recur)
 
     def get_pending(self, user_id: str) -> list:
         """Retorna recordatorios pendientes del usuario ordenados por fire_at ASC."""
@@ -256,10 +295,12 @@ class ReminderManager:
                 try:
                     prox = _proxima_ocurrencia(
                         reminder["fire_at"], reminder["recur"], now)
-                    self.create(reminder["user_id"], reminder["title"], prox,
-                                body=reminder["body"],
-                                goal_id=reminder["goal_id"],
-                                recur=reminder["recur"])
+                    # prox is None -> serie RRULE agotada (COUNT/UNTIL): no reagendar.
+                    if prox is not None:
+                        self.create(reminder["user_id"], reminder["title"], prox,
+                                    body=reminder["body"],
+                                    goal_id=reminder["goal_id"],
+                                    recur=reminder["recur"])
                 except Exception:
                     pass
 
