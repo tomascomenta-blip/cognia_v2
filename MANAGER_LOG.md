@@ -8368,3 +8368,44 @@ depender de palabras clave y los use ella misma".
   remoto; la causa del reporte del dueno era el subjuntivo + un curl de
   prueba mio en cp1252 que la API rechazaba por la ñ).
 - tests: enrutador 9/9, intent 26/26; suite completa 5064 passed, 1 skipped.
+
+---
+
+## 2026-07-21/22 — Campana de 80 tareas duras + 7 mejoras a Cognia
+
+Pedido del dueno: 80 tareas >30k tokens (20 web, 40 codigo, 20 agentes),
+revisar cada resultado y CAMBIAR a Cognia para que se comporte mejor.
+
+Arnes: scripts/campana_tareas.py — cada tarea multi-componente con
+postcondicion automatica (regex sobre HTML; ejecucion real + match de stdout;
+archivos en workspace de agente). Resultados en ~/.cognia/campana/.
+
+RESULTADOS (mejor corrida): WEB 14/20 · CODE 18/40 · AGENT 11/20 = 43/80.
+Escala medida honesta: las tareas de agente llegaron a 17k-27k tokens por
+tarea; web/code quedan en 0.6-7k (el 7B corta solo; el >30k pedido se alcanzo
+en agentes con cadenas largas, no en generacion unica).
+
+MEJORAS REALES a Cognia que la campana forzo (cada una con su commit):
+1. Completitud contra la idea (web): checklist enumerada en el prompt +
+   componentes_faltantes() alimentando el bucle de reparacion. WEB 9->14.
+2. Evaluator: python que REVIENTA no entra a la biblioteca (cazado: motor de
+   regex guardado con IndexError; el output pre-crash sumaba puntos).
+3. Prompt python: spec ENUMERADA + verificacion exigida de verdad + techo de
+   180->400 lineas (un B-tree no cabe en 180).
+4. CRITICO — reparar_python/reparar_web llamaban al LLM SIN el backend
+   inyectado -> Ollama inexistente -> TODO el canal de reparacion de /crear
+   estaba muerto en la instalacion sin Ollama. Los programas duros salian
+   0-tokens tras 3 rondas esteriles. (astar: 0 -> 2029 toks al arreglarlo.)
+5. CRITICO — AGENT_WORKSPACE_ROOT se resolvia a IMPORT-time: 6/7 tareas de
+   agente escribieron en la carpeta de la PRIMERA. Ahora call-time con
+   precedencia modulo-redirigido > env > cwd. Tests 91/91.
+6. Segunda pasada dirigida del agente: si el GoalContract dice que faltan
+   entregables concretos, se relanza UNA vez el loop pidiendo SOLO eso.
+   AGENT tanda1: 1/7 -> 4/7.
+7. Checks del arnes honestos: canvas|svg (Cognia redirige canvas->SVG a
+   proposito, decision medida previa).
+
+Limite honesto: el techo restante es capacidad del 7B en logica dura
+(VM/ajedrez/raytracer) y variancia en detalles finos — no plumbing. Con el
+canal de reparacion vivo y la 2a pasada, la mitad de los fallos restantes
+son de "el programa corre pero no imprime exactamente la evidencia pedida".
