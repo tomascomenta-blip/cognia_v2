@@ -8590,3 +8590,44 @@ indice cu128; CUDA restaurado y verificado).
 ESTADO GOAL: F0 + F1 + F2 (a+b) HECHOS. PENDIENTE: F3 (flota MiniCPM5-1B tooling
 via fleet_router), F4 completo (program_creator genera juegos/web usando assets),
 F5 (animacion por keyframes/capas), F6 (E2E).
+
+## 2026-07-22 (noche) — GOAL assets IA: F3 unidad 1 (base MiniCPM5-1B servido en GPU)
+
+Continuacion autonoma. Se des-arriesga F3 verificando el BASE de la flota antes de
+montar routing/LoRAs. commit 62a6b69.
+
+VERIFICACION DE LA PREMISA (antes de construir): openbmb/MiniCPM5-1B EXISTE en HF
+(no gated, Apache-2.0, safetensors, 1.08B, 391k descargas). La asuncion del plan es
+correcta. Descargado a ~/.cache/huggingface.
+
+ENTREGADO — cognia/agent/minicpm_expert.py:
+- Sirve MiniCPM5-1B en GPU (carga 3.1s, 2.2GB VRAM). generar() [LlmFn-compatible] +
+  tool_call() -> [{name, arguments}] parseando el formato XML nativo de MiniCPM5
+  (<function name><param name>...). Imports perezosos, GPU-only, kill-switch
+  COGNIA_FLEET_GPU=0. Es la BASE; el LoRA por rol y el ruteo van encima.
+- DIAGNOSTICO (causa raiz): MiniCPM5 registra <function>/<param> como tokens
+  ESPECIALES -> skip_special_tokens=True los borraba y rompia el parseo. Fix:
+  tool_call decodifica sin saltar especiales y quita solo tokens de control de chat.
+- Tests: 9/9 CPU (parser: 1/varias/CDATA/sin-llamada/sin-params, _quitar_think,
+  kill-switch) + suite flota+assets 42/42.
+- GPU REAL: generar() da chat coherente; tool_call() enruta 2/3 (asset vs reminder)
+  con argumentos limpios.
+
+HALLAZGOS HONESTOS (medidos, refuerzan el plan: el valor esta en los LoRAs por rol,
+no en el base solo):
+1. El base tool-callea IMPERFECTO (~2/3) y flojea en ESPANOL (leyo "comprar pan"
+   como "pan of food", no reconocio crear_reminder aun disponible). Emite bien las
+   llamadas correctas; falta FIABILIDAD.
+2. Probe usar el base como experto de imagenes de F2b (para tapar el hueco
+   espanol->ingles de la plantilla): DEGRADA. Alucino ("beeping"), se quedo en
+   espanol y derivo el sujeto ("pocion"->"espejo holografico"). => NO se cablea;
+   la plantilla es mas predecible hasta tener el LoRA de imagenes.
+3. openbmb/MiniCPM4-MCP (el que bate a GPT-4o) NO es un adapter: es un modelo
+   COMPLETO ~8B (5 shards) sobre MiniCPM4, no un LoRA para nuestro 1B. => no hay
+   atajo de adapter listo; el LoRA de tooling hay que ENTRENARLO.
+
+PENDIENTE F3 (nucleo, multi-sesion): entrenar los LoRAs por rol con QLoRA/Unsloth
+en la 5060 Ti (~4-6GB) — tooling (xLAM/Glaive) e imagenes (diffusiondb/
+Stable-Diffusion-Prompts) — y cablear el ruteo tooling en cognia/agent/fleet_router.py
+(hoy detector lexico a "accion"/qwen3_4b). Luego F4 (puente program_creator), F5
+(animacion keyframes), F6 (E2E). NADA de pyproject ni publicacion (subsistema GPU).
