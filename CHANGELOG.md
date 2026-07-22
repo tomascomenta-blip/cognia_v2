@@ -2,6 +2,30 @@
 
 ---
 
+## [4.1.0] - 2026-07-22
+
+### Trío del agente-dev: ubicar → navegar → editar quirúrgico (integración OSS)
+
+Investigación de ~40 proyectos OSS (Aider, OpenHands, OpenCode, SCIP…) →
+tres herramientas nuevas del agente, todas CPU puro, cero dependencias nuevas,
+sin tocar el bucle ni el sampling. Detalle en `RESEARCH_NOCTURNA_20260721.md`.
+
+- **`repo_map`** (idea de Aider): selector de contexto por PageRank personalizado
+  sobre el grafo de imports. Dado un tema (o nada), rankea los módulos del código
+  más relevantes bajo un presupuesto de tokens — contexto denso para el modelo
+  chico en vez de volcar el repo. Evoluciona `code_graph.py`; caché por mtime.
+- **`editar_archivo`** (idea de Aider `EditBlockCoder`): edición SEARCH/REPLACE
+  por bloque con matching en cascada (exacto → tolerante a sangría) y
+  error-como-prompt. Evita reescribir ficheros enteros con el modelo pequeño
+  (gasto de tokens + pérdida de datos por "acortado"). Confinado al workspace.
+- **`code_grafo`** (idea de OpenCode/SCIP): navegación tipo LSP sin language
+  server — find-definition / find-references / call-hierarchy construidas del
+  AST (no de la BD, para no degradar en silencio por índice viejo).
+
+Los tres en `ROLE_TOOLS` (investigador/implementador). 20 tests nuevos.
+
+---
+
 ## [3.9.1] - 2026-07-15
 
 ### Instalación fácil + oficina honesta (bugs cazados por e2e del producto instalado)
