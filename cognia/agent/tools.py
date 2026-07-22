@@ -66,8 +66,8 @@ def build_tools_doc(allowed: set = None) -> str:
 # implementador si. Acota el blast-radius de una subtarea delegada.
 ROLE_TOOLS = {
     "investigador": {"leer_archivo", "listar", "arbol", "contar_lineas",
-                     "buscar", "repo_map", "code_grafo", "code_wiki", "recordar",
-                     "kg_buscar", "notas", "anotar", "resumir", "responder"},
+                     "buscar", "repo_map", "code_grafo", "recordar", "kg_buscar",
+                     "notas", "anotar", "resumir", "responder"},
     "implementador": {"leer_archivo", "listar", "buscar", "repo_map",
                       "code_grafo", "escribir_archivo", "editar_archivo",
                       "apendar_archivo",
@@ -814,27 +814,6 @@ def _code_grafo(args, ctx):
     except Exception as exc:
         return f"RESULTADO code_grafo ERROR: {exc}"
     return f"RESULTADO code_grafo:\n{formatear(v)}"
-
-
-@tool("code_wiki",
-      "code_wiki <modulo>                    -- pagina wiki (define/importa/importado_por + Mermaid) de un modulo")
-def _code_wiki(args, ctx):
-    """Documentacion Markdown auto-generada de un modulo desde el grafo de codigo
-    (idea deepwiki-open). Util para entender un modulo de un vistazo sin leerlo
-    entero. Sin argumento devuelve el indice (modulos por nº de importadores)."""
-    from cognia.knowledge.code_wiki import generar_wiki
-    obj = args.strip()
-    try:
-        w = generar_wiki()
-    except Exception as exc:
-        return f"RESULTADO code_wiki ERROR: {exc}"
-    if not obj:
-        return "RESULTADO code_wiki (indice):\n" + w["index"][:2500]
-    pag = w["paginas"].get(obj)
-    if pag is None:
-        return (f"RESULTADO code_wiki: modulo '{obj}' no indexado "
-                f"(usa el nombre completo, p.ej. cognia.agent.tools)")
-    return "RESULTADO code_wiki:\n" + pag
 
 
 @tool("buscar_en_repo",
