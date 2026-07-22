@@ -95,3 +95,17 @@ def test_recortar_alfa_todo_transparente_no_rompe():
     from PIL import Image
     im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     assert cb._recortar_alfa(im) is im  # bbox None -> devuelve la misma
+
+
+def test_frac_transparente():
+    pytest.importorskip("numpy")
+    from PIL import Image
+    # 64x64, mitad transparente (alfa 0) mitad opaca (alfa 255)
+    im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    for y in range(32):
+        for x in range(64):
+            im.putpixel((x, y), (10, 20, 30, 255))
+    f = cb.frac_transparente(im)
+    assert 0.45 < f < 0.55  # ~50%
+    # todo transparente -> ~1.0
+    assert cb.frac_transparente(Image.new("RGBA", (32, 32), (0, 0, 0, 0))) > 0.99

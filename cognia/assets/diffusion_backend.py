@@ -230,10 +230,19 @@ def _pixelar(img, factor: int):
     return img
 
 
+def frac_transparente(img) -> float:
+    """Fracción de píxeles casi-transparentes (alfa<16). Métrica de 'qué tan
+    limpio quedó el fondo' — LayerDiffuse no siempre lo deja transparente."""
+    import numpy as np
+    a = np.asarray(img.split()[-1])
+    return float((a < 16).mean())
+
+
 def generar_transparente(prompt: str, *, estilo: str = None, negative: str = "",
                          seed: int = 12345, pasos: int = 25,
                          ancho: int = 1024, alto: int = 1024,
                          asset: bool = True, recortar: bool = False,
+                         min_transp: float = 0.0, reintentos: int = 2,
                          salida: str = None) -> str:
     """Genera un PNG RGBA transparente y devuelve su ruta.
 
@@ -241,6 +250,9 @@ def generar_transparente(prompt: str, *, estilo: str = None, negative: str = "",
             favorece un objeto aislado (mejor transparencia y reuso como asset).
     estilo: None (SDXL base), 'pixel', 'pvz', ... (aplica LoRA + trigger + post).
     recortar: si True, recorta al bounding-box del alfa (asset ajustado, game-ready).
+    min_transp: gate de calidad de transparencia (0=off). Si el fondo no queda lo
+            bastante transparente (LayerDiffuse tiene variancia por seed), reintenta
+            con otras seeds hasta `reintentos` y se queda con el MEJOR alfa.
     ancho/alto: múltiplos de 64 (requisito del decoder RGBA). Se ajustan si no.
     salida: ruta de PNG; por defecto ~/.cognia/assets/<hash>.png."""
     ancho = _ajustar_dim(ancho)
@@ -251,12 +263,29 @@ def generar_transparente(prompt: str, *, estilo: str = None, negative: str = "",
     trigger = spec["trigger"] if spec else ""
     p = _componer_prompt(prompt, asset, trigger)
 
+    import numpy as np
     import torch
-    gen = torch.Generator(device="cuda").manual_seed(int(seed))
-    imgs = pipe(prompt=p, negative_prompt=negative, generator=gen,
-                num_inference_steps=int(pasos), width=ancho, height=alto,
-                num_images_per_prompt=1, return_dict=False)[0]
-    img = imgs[0]  # PIL RGBA
+    intentos = 1 + max(0, int(reintentos)) if min_transp > 0 else 1
+    # El sujeto debe OCUPAR algo: sin este piso, el gate premiaría imágenes casi
+    # vacías (muy transparentes) donde el objeto salió diminuto/fragmentado.
+    OPACO_MIN = 0.10
+    mejor_img, mejor_score = None, -1.0
+    for i in range(intentos):
+        gen = torch.Generator(device="cuda").manual_seed(int(seed) + i)
+        imgs = pipe(prompt=p, negative_prompt=negative, generator=gen,
+                    num_inference_steps=int(pasos), width=ancho, height=alto,
+                    num_images_per_prompt=1, return_dict=False)[0]
+        img = imgs[0]  # PIL RGBA
+        a = np.asarray(img.split()[-1])
+        transp = float((a < 16).mean())
+        opaco = float((a > 240).mean())
+        # Score: fondo limpio pero con sujeto presente. Penaliza sujeto ausente.
+        score = transp if opaco >= OPACO_MIN else transp * 0.1
+        if score > mejor_score:
+            mejor_img, mejor_score = img, score
+        if transp >= min_transp and opaco >= OPACO_MIN:  # limpio y con sujeto -> corta
+            break
+    img = mejor_img
 
     if spec and spec.get("downscale"):
         img = _pixelar(img, spec["downscale"])
