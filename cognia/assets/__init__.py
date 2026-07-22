@@ -20,3 +20,7 @@ from .matting import (  # noqa: F401
     birefnet_disponible,
     quitar_fondo,
 )
+from .prompt_expert import (  # noqa: F401
+    expandir_prompt,
+    generar_desde_pedido,
+)
