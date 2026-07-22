@@ -361,6 +361,16 @@ def evaluate_program(program: GeneratedProgram,
         should_store = False
         all_notes.append("Rechazo duro: la suite de tests esta en rojo.")
 
+    # Compuerta dura 2 (campana 2026-07-21): un programa PYTHON cuya ejecucion
+    # REVIENTA no entra a la biblioteca, aunque el output previo al crash le
+    # sume puntos. Cazado: un motor de regex guardado con IndexError en runtime
+    # — imprimio bastante antes de morir y supero el umbral. "Codigo que corre
+    # o no cuenta". (timeout no cuenta como crash: programas interactivos.)
+    if (getattr(program, "lenguaje", "python") != "html"
+            and not result.success and not result.timed_out):
+        should_store = False
+        all_notes.append("Rechazo duro: la ejecucion termino en error.")
+
     evaluation = EvaluationResult(
         functionality_score=round(func_score,  2),
         creativity_score=   round(creat_score, 2),

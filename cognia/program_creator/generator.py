@@ -228,7 +228,10 @@ def _build_prompt(category: str, extra_hint: str) -> str:
         f"CRITICAL RULES — all must be followed:\n"
         f"- Standard library ONLY (no pip packages, no numpy, no pandas)\n"
         f"- Terminal only, no GUI\n"
-        f"- Maximum 180 lines\n"
+        # 180 lineas ahogaba las tareas DURAS (un B-tree con insercion+borrado+
+        # rango no cabe): 400 da aire sin invitar a la palabreria (campana
+        # 2026-07-21, btree fallo 3 rondas seguidas contra el limite).
+        f"- Maximum 400 lines\n"
         f"- NEVER use input(), sys.stdin, or ANY function waiting for user input\n"
         f"- Program must run 100% automatically from start to finish\n"
         f"- Use built-in sample data, constants, or random generation — never ask the user\n"
@@ -237,6 +240,17 @@ def _build_prompt(category: str, extra_hint: str) -> str:
         f"- No network access\n"
         f"- Do NOT import os, subprocess, socket, shutil, signal, ctypes\n"
         f"- To clear terminal: print('\\033[2J\\033[H', end='') NOT os.system\n"
+        # Campana 2026-07-21: los programas duros omitian partes de la spec
+        # (un huffman sin la verificacion pedida, "comprimiendo" al 470%).
+        # La spec se ENUMERA y la verificacion pedida se EXIGE de verdad.
+        + "".join(
+            f"- REQUIRED part {i}: {c}\n"
+            for i, c in enumerate(_componentes_de_idea(category), start=1))
+        + f"- Implement EVERY required part above and PRINT visible evidence "
+        f"of each one (counts, PASS/FAIL lines, results)\n"
+        f"- If the idea asks to VERIFY or CHECK something, actually verify it "
+        f"in code (compare values) and print the verification verdict — do "
+        f"not just claim it\n"
         f"- {extra_hint}\n\n"
         f"Respond EXACTLY in this format:\n\n"
         f"Title: <short title>\n"
@@ -287,6 +301,10 @@ _PISTAS_COMPONENTES = [
      "orden por columna pedido: no hay sort()"),
     (r"colapsable|deslizante|lateral", r"translateX|translateY|width|toggle",
      "panel colapsable/deslizante pedido: no hay mecanica de colapso"),
+    (r"markdown|renderizada en vivo", r"replace\(|innerHTML",
+     "render de markdown pedido: no hay replace()/innerHTML que transforme"),
+    (r"responsive|movil|móvil|telefono|teléfono", r"@media|clamp\(|minmax\(",
+     "responsive pedido: no hay @media/clamp/minmax"),
 ]
 
 
@@ -305,8 +323,8 @@ def componentes_faltantes(idea: str, html: str) -> list:
 def _componentes_de_idea(category: str) -> list:
     """Trocea la idea en sus componentes pedidos (por comas y ' y ') para
     enumerarlos en el prompt como checklist obligatoria."""
-    t = re.sub(r"^\s*pagina web (de|del|con)?\s*", "", (category or ""),
-               flags=re.I)
+    t = re.sub(r"^\s*(pagina web|programa( python)?|script)\s*(de|del|con|:)?\s*",
+               "", (category or ""), flags=re.I)
     partes = [p.strip(" .") for p in re.split(r",| y (?=[a-z])", t)
               if len(p.strip()) > 8]
     return partes[:10]
