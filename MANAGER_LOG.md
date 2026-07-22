@@ -8344,3 +8344,27 @@ Cognia "no queria abrir PowerShell". Tres causas reales, tres fixes:
 - CLI real verificado: /pensar caracol-pozo -> "8 dias" correcto, 1805 tokens.
 - Suite completa: 5049 passed + 1 fallo de duplicado /pensar (habia un /pensar
   viejo) -> reemplazado con nota; 14/14 en los tests del area despues.
+
+---
+
+## 2026-07-21 (noche) — Goal: Cognia infiere sobre TODO su catalogo
+
+Pedido: "que infiera sobre TODAS sus herramientas y comandos; que deje de
+depender de palabras clave y los use ella misma".
+
+- cognia/enrutador.py: si las reglas rapidas no ven una accion, el PROPIO
+  MODELO lee el mensaje + los 217 comandos "/" (catalogo compactado) y elige
+  CHAT / AGENTE / "/comando args". Validacion dura (solo comandos existentes;
+  /salir, /reset, /borrar... vetados; basura -> chat). El comando se inyecta
+  al REPL por la cola de _get_input (mismo elif-chain). Few-shot en el prompt
+  (medido: sin ejemplos el 7B elegia mal con 217 comandos; con 6 rutea fino).
+  Kill-switch COGNIA_ENRUTADOR=0.
+- Precedencia: intent regex (instantaneo) > inferencia > chat.
+- Verificado con modelo real: stats->/stats, piensa-a-fondo->/pensar,
+  investiga->/investigar, opinion->CHAT; y en el REPL de verdad la frase de
+  estadisticas EJECUTO /stats (inyeccion funcionando).
+- Fix antes del enrutador (mismo dia): intent entiende deseo+subjuntivo
+  ("quiero que me abras una pestaña" -> ABRE la pestaña real; verificado E2E
+  remoto; la causa del reporte del dueno era el subjuntivo + un curl de
+  prueba mio en cp1252 que la API rechazaba por la ñ).
+- tests: enrutador 9/9, intent 26/26; suite completa 5064 passed, 1 skipped.
