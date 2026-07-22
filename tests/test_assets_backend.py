@@ -75,3 +75,23 @@ def test_pixelar_preserva_tamano_y_alfa():
     assert out.size == (256, 256) and out.mode == "RGBA"
     # factor 1 o 0 -> no cambia
     assert cb._pixelar(im, 1) is im
+
+
+def test_recortar_alfa_bbox():
+    from PIL import Image
+    # lienzo 256x256 transparente con un cuadro opaco 40x40 en (100,100)
+    im = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    for y in range(100, 140):
+        for x in range(100, 140):
+            im.putpixel((x, y), (255, 0, 0, 255))
+    out = cb._recortar_alfa(im, margen=0)
+    assert out.size == (40, 40)
+    # con margen 8 crece 16 en cada dimension (8 por lado, sin salir del lienzo)
+    out2 = cb._recortar_alfa(im, margen=8)
+    assert out2.size == (56, 56)
+
+
+def test_recortar_alfa_todo_transparente_no_rompe():
+    from PIL import Image
+    im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    assert cb._recortar_alfa(im) is im  # bbox None -> devuelve la misma

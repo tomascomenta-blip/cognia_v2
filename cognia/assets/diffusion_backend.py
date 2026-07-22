@@ -205,6 +205,19 @@ def _componer_prompt(prompt: str, asset: bool, trigger: str = "") -> str:
     return p + (_PROMPT_ASSET if asset else "")
 
 
+def _recortar_alfa(img, margen: int = 8):
+    """Recorta la imagen RGBA al bounding-box de su canal alfa (+ margen). Deja
+    el asset ajustado (sin el gran borde transparente) -> listo para juego/web."""
+    alpha = img.split()[-1]
+    bbox = alpha.getbbox()
+    if not bbox:
+        return img
+    l, t, r, b = bbox
+    w, h = img.size
+    return img.crop((max(0, l - margen), max(0, t - margen),
+                     min(w, r + margen), min(h, b + margen)))
+
+
 def _pixelar(img, factor: int):
     """Downscale ×factor + upscale nearest -> pixel-perfect a tamaño original
     (técnica del autor de pixel-art-xl). Preserva alfa."""
@@ -220,12 +233,14 @@ def _pixelar(img, factor: int):
 def generar_transparente(prompt: str, *, estilo: str = None, negative: str = "",
                          seed: int = 12345, pasos: int = 25,
                          ancho: int = 1024, alto: int = 1024,
-                         asset: bool = True, salida: str = None) -> str:
+                         asset: bool = True, recortar: bool = False,
+                         salida: str = None) -> str:
     """Genera un PNG RGBA transparente y devuelve su ruta.
 
     prompt: descripción del objeto. Si `asset` (default), se añade un sufijo que
             favorece un objeto aislado (mejor transparencia y reuso como asset).
     estilo: None (SDXL base), 'pixel', 'pvz', ... (aplica LoRA + trigger + post).
+    recortar: si True, recorta al bounding-box del alfa (asset ajustado, game-ready).
     ancho/alto: múltiplos de 64 (requisito del decoder RGBA). Se ajustan si no.
     salida: ruta de PNG; por defecto ~/.cognia/assets/<hash>.png."""
     ancho = _ajustar_dim(ancho)
@@ -245,6 +260,8 @@ def generar_transparente(prompt: str, *, estilo: str = None, negative: str = "",
 
     if spec and spec.get("downscale"):
         img = _pixelar(img, spec["downscale"])
+    if recortar:
+        img = _recortar_alfa(img)
 
     if salida is None:
         h = abs(hash((prompt, estilo, seed, pasos, ancho, alto))) % (10 ** 10)
