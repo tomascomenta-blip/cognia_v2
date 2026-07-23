@@ -65,6 +65,31 @@ RUNTIME_JS = r"""
 """
 
 
+def insertar_animacion(html: str, baked: dict, assets: dict, *,
+                       canvas_id: str = "cognia_anim", origen=None,
+                       escala: float = 1.0) -> str:
+    """F6: inserta una animación por keyframes (F5) dentro de una página ya existente
+    (p.ej. un juego/web generado con sprites F4). Añade un <canvas>, el runtime y los
+    datos horneados, todo inline (offline). Compone F4 (sprites) + F5 (animación) en
+    una sola página autocontenida. Determinista y puro (testeable sin navegador)."""
+    cfg = json.dumps({"origen": origen, "escala": escala} if origen
+                     else {"escala": escala})
+    canvas = (f'<canvas id="{canvas_id}" style="width:100%;max-width:640px;'
+              f'height:360px;display:block;margin:0 auto"></canvas>')
+    bloque = (
+        f'\n{canvas}\n<script>window.__ANIM_{canvas_id}__={json.dumps(baked)};'
+        f'window.__ANIMA_{canvas_id}__={json.dumps(assets)};</script>\n'
+        f'<script>{RUNTIME_JS}</script>\n'
+        f'<script>cogniaAnim.reproducir(document.getElementById("{canvas_id}"),'
+        f'window.__ANIM_{canvas_id}__, window.__ANIMA_{canvas_id}__, {cfg});</script>\n'
+    )
+    import re
+    mb = re.search(r"</body\s*>", html, re.IGNORECASE)
+    if mb:
+        return html[:mb.start()] + bloque + html[mb.start():]
+    return html + bloque
+
+
 def pagina_animada(baked: dict, assets: dict, *, titulo: str = "Animación Cognia",
                    fondo: str = "#71c5e8", ancho: int = 640, alto: int = 480,
                    origen=None, escala: float = 1.0) -> str:

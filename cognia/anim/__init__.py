@@ -8,4 +8,4 @@ tabla de frames que `runtime` reproduce en web (Canvas2D autocontenido, offline)
 API: engine.posar/bake, runtime.pagina_animada.
 """
 from .engine import bake, posar, mat_trs, mat_mul  # noqa: F401
-from .runtime import pagina_animada, RUNTIME_JS     # noqa: F401
+from .runtime import pagina_animada, insertar_animacion, RUNTIME_JS  # noqa: F401

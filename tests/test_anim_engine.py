@@ -102,3 +102,23 @@ def test_posar_ordena_por_z():
     r["slots"].append({"name": "fondo", "bone": "root", "asset": "f", "z": -5, "w": 5, "h": 5})
     capas = eng.posar(r, "swing", 0.0)
     assert [c["slot"] for c in capas] == ["fondo", "mano"]   # z -5 antes que z 1
+
+
+def test_insertar_animacion_en_pagina_existente():
+    from cognia.anim import insertar_animacion, bake
+    baked = bake(_rig(), "swing")
+    html = "<!DOCTYPE html><html><head></head><body><h1>Juego</h1></body></html>"
+    out = insertar_animacion(html, baked, {"m": "data:image/png;base64,AAA"},
+                             canvas_id="anim1")
+    assert '<canvas id="anim1"' in out
+    assert "cogniaAnim.reproducir" in out
+    # el bloque va antes de </body> (compone con la pagina F4)
+    assert out.index("cogniaAnim.reproducir") < out.index("</body>")
+    assert "<h1>Juego</h1>" in out          # no rompe el contenido existente
+
+
+def test_insertar_animacion_sin_body():
+    from cognia.anim import insertar_animacion, bake
+    baked = bake(_rig(), "swing")
+    out = insertar_animacion("<div>x</div>", baked, {"m": "data:image/png;base64,Q"})
+    assert "<canvas" in out and "cogniaAnim.reproducir" in out
