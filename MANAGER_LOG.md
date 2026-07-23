@@ -8671,3 +8671,38 @@ PENDIENTE F3: cablear el ruteo en cognia/agent/fleet_router.py + cli.py para que
 cerebro delegue turnos de tooling al experto GPU (decision de residencia del modelo);
 LoRA de imagenes (diffusiondb) como 2do rol. Luego F4 (puente program_creator),
 F5 (animacion keyframes), F6 (E2E).
+
+## 2026-07-22/23 (noche autonoma hasta 4:30) — F4 + F5 + VISION de pantalla
+
+Dueno: "continua todo el plan hasta acabarlo" + acceso total con apagado a las 4:30
+(programado: shutdown /s a 2026-07-23 04:30). Commit+push por unidad verificada.
+
+F4 puente program_creator (a5051c5) — cognia/program_creator/asset_bridge.py: los
+juegos/web generados usan IMAGENES transparentes reales (data URIs base64, offline),
+no cuadrados CSS. El modelo referencia <img data-asset="X">; inyectar_assets mete el
+objeto ASSETS + cableado que rellena src -> robusto al modelo chico. VERIF navegador
+real (Playwright): 4 sprites PvZ en una escena-juego, 7 <img> cargan data:image/png,
+zombie animado. La verificacion visual cazo un defecto (sol con recuadro gris) -> el
+gate min_transp del router F2b lo rescato con BiRefNet. 6 tests.
+
+F5 motor de animacion (a460586) — cognia/anim/: engine.py determinista (huesos +
+slots + timelines con easing + FK por matrices afines), bake() hornea a tabla de
+frames; runtime.py Canvas2D AUTOCONTENIDO (sin PixiJS/CDN) solo dibuja. VERIF
+navegador: rig (girasol que se mece + sol que orbita/late), 60 frames@30fps, 17k
+pixeles pintados, MOVIMIENTO confirmado (3 hashes de canvas distintos). 10 tests.
+
+VISION ver+actuar en tiempo real (7af59ec + bc392d4) — pedido del dueno. Se descubrio
+que gran parte YA existia desconectado (islas): cognia/pantalla (mss+dHash+Vigia) y
+cognia/control/escritorio (arbol UIA) — 2 agentes lo mapearon y VERIFICARON que corren.
+- cognia/vision/percepcion.py: ServicioPercepcion compone captura+cambios+UIA+gate.
+  instantanea()/percibir() real-time read-only (modo sombra). SEGURIDAD que faltaba:
+  sobre ventana sensible NO captura ni lee el arbol. VERIF real: leyo ventana 1920x1080
+  + 12 controles UIA, stream 3s. 7 tests.
+- cognia/vision/agente_pantalla.py: bucle percibir->politica->gate->actuar. DRY-RUN
+  por defecto; acciones gateadas por GestorPermisos; ventana sensible corta. VERIF real
+  dry-run: decidio clic, gate lo denego, no ejecuto. 6 tests. + README con las ideas.
+- Servicio lateral: NO toca el loop del agente ni suma tool default-ON (techo de tools).
+
+Suite: assets/flota/anim/vision 70+ tests verdes en venv312. Nada de pyproject.
+PENDIENTE: F6 (capstone F4+F5), F3 ruteo/LoRA imagenes, y QLoRA de respuestas largas
+(pedido del dueno: maxima longitud posible).
