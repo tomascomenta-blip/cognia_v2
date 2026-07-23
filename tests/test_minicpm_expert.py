@@ -72,3 +72,27 @@ def test_quitar_think():
     assert me._quitar_think("Sin think") == "Sin think"
     # think con contenido multilinea
     assert me._quitar_think("<think>a\nb</think>  hola ") == "hola"
+
+
+def test_tooling_disponible_killswitch(monkeypatch):
+    monkeypatch.setenv("COGNIA_FLEET_GPU", "0")
+    ok, motivo = me.tooling_disponible()
+    assert ok is False and "COGNIA_FLEET_GPU=0" in motivo
+
+
+def test_tooling_disponible_sin_adapter(monkeypatch, tmp_path):
+    # sin GPU la base ya corta; si hubiera GPU, la falta del adapter debe cortar.
+    # Forzamos la ruta del adapter a una inexistente y comprobamos el mensaje
+    # cuando el prerequisito base pasa (si no hay GPU, se corta antes: aceptamos ambas).
+    monkeypatch.setenv("COGNIA_FLEET_GPU", "1")
+    monkeypatch.setattr(me, "_ADAPTER_TOOLING", str(tmp_path / "no_existe"))
+    ok, motivo = me.tooling_disponible()
+    assert ok is False
+    assert ("adapter de tooling" in motivo) or ("CUDA" in motivo) or ("torch" in motivo)
+
+
+def test_accion_re_parsea_formato_cognia():
+    m = me._ACCION_RE.search("ACCION: escribir_archivo notas.txt | hola")
+    assert m and m.group(1) == "escribir_archivo"
+    # tolera tilde y minusculas/mayusculas
+    assert me._ACCION_RE.search("ACCIÓN: calcular 2+2").group(1) == "calcular"

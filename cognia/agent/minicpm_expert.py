@@ -25,8 +25,14 @@ este módulo en un nodo CPU no carga nada; modelo cacheado; GPU-only (coherente 
 "sin PyTorch en nodos": la flota generativa vive en GPU, como el subsistema de imagen);
 kill-switch COGNIA_FLEET_GPU=0.
 
+El rol "tooling" YA tiene su LoRA entrenado (generar_accion): dado el prompt del
+agente (TOOLS_DOC + contexto) emite la `ACCION: <tool> <args>` en el formato REAL de
+Cognia. Entrenado sobre el dataset SFT verificado del repo; medido base 0% -> LoRA
+97% tool-match / 77% exact en held-out de tareas no vistas.
+
 Env:
-  COGNIA_MINICPM_MODEL  id/ruta del base (default openbmb/MiniCPM5-1B)
+  COGNIA_MINICPM_MODEL            id/ruta del base (default openbmb/MiniCPM5-1B)
+  COGNIA_MINICPM_TOOLING_ADAPTER  ruta del LoRA de tooling (default ~/.cognia/loras/minicpm_tooling)
 """
 from __future__ import annotations
 
@@ -36,6 +42,14 @@ import re
 _MODELO_DEFECTO = "openbmb/MiniCPM5-1B"
 _MODEL = None
 _TOK = None
+_MODEL_TOOLING = None  # base + adapter de tooling (ACCION), cacheado aparte
+
+# Adapter del rol "tooling": LoRA que enseña a emitir el formato REAL de Cognia
+# (ACCION: <tool> <args>). Entrenado sobre el dataset SFT verificado del repo
+# (cognia_v3/training/tooluse). Medido: base 0% -> LoRA 97% tool-match en held-out.
+_ADAPTER_TOOLING = os.environ.get(
+    "COGNIA_MINICPM_TOOLING_ADAPTER",
+    os.path.expanduser("~/.cognia/loras/minicpm_tooling"))
 
 
 class ExpertoError(RuntimeError):
@@ -105,6 +119,66 @@ def _parsear_tool_calls(texto: str) -> list:
 def _quitar_think(texto: str) -> str:
     """Quita un bloque <think>...</think> inicial (modo razonamiento)."""
     return re.sub(r"^\s*<think>.*?</think>\s*", "", texto or "", flags=re.DOTALL).strip()
+
+
+_ACCION_RE = re.compile(r"ACCI[OÓ]N:\s*(\w+)\s*(.*)", re.IGNORECASE | re.DOTALL)
+
+
+def tooling_disponible() -> tuple:
+    """(ok, motivo). El experto de tooling (ACCION) además del base necesita el
+    adapter LoRA en disco."""
+    ok, motivo = expert_disponible()
+    if not ok:
+        return ok, motivo
+    if not os.path.isdir(_ADAPTER_TOOLING):
+        return False, (f"falta el adapter de tooling en {_ADAPTER_TOOLING} "
+                       f"(entrenar con cognia_v3/training/tooluse/train_minicpm_lora.py)")
+    return True, "ok"
+
+
+def _cargar_tooling():
+    """Carga (una vez) base + adapter de tooling como PeftModel en GPU, eval."""
+    global _MODEL_TOOLING
+    if _MODEL_TOOLING is not None:
+        return _MODEL_TOOLING, _cargar()[1]
+    ok, motivo = tooling_disponible()
+    if not ok:
+        raise ExpertoError(f"experto de tooling no disponible: {motivo}")
+    from peft import PeftModel
+    base, tok = _cargar()
+    _MODEL_TOOLING = PeftModel.from_pretrained(base, _ADAPTER_TOOLING).eval()
+    return _MODEL_TOOLING, tok
+
+
+def generar_accion(agent_prompt: str, *, system: str = None,
+                   max_tokens: int = 200) -> str:
+    """Rol tooling: dado el prompt del agente (TOOLS_DOC + contexto de la tarea, el
+    MISMO que arma cli.py:_run_agent_task), emite la siguiente `ACCION: <tool> <args>`
+    en el formato REAL de Cognia. Devuelve solo el primer bloque ACCION (recortado
+    como en el loop de producción). El LoRA de tooling hace que MiniCPM5-1B hable
+    este protocolo (el base no lo hace: 0% -> 97% tool-match, medido)."""
+    import torch
+    if system is None:
+        from shattering.model_constants import COGNIA_SYSTEM_PROMPT
+        system = COGNIA_SYSTEM_PROMPT
+    model, tok = _cargar_tooling()
+    mensajes = [{"role": "system", "content": system},
+                {"role": "user", "content": agent_prompt}]
+    inputs = tok.apply_chat_template(
+        mensajes, tokenize=True, add_generation_prompt=True,
+        return_tensors="pt", return_dict=True, enable_thinking=False).to("cuda")
+    with torch.no_grad():
+        out = model.generate(**inputs, max_new_tokens=int(max_tokens),
+                             do_sample=False, pad_token_id=tok.eos_token_id)
+    texto = tok.decode(out[0, inputs["input_ids"].shape[1]:],
+                       skip_special_tokens=True).strip()
+    # Recorta al primer bloque ACCION (el mismo criterio que el loop del deploy).
+    try:
+        from cognia.agent.loop import first_action_block
+        texto = first_action_block(texto)
+    except Exception:
+        pass
+    return texto
 
 
 # Tokens de control de chat a quitar cuando conservamos los tags de función.
