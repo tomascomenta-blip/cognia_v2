@@ -8631,3 +8631,43 @@ en la 5060 Ti (~4-6GB) — tooling (xLAM/Glaive) e imagenes (diffusiondb/
 Stable-Diffusion-Prompts) — y cablear el ruteo tooling en cognia/agent/fleet_router.py
 (hoy detector lexico a "accion"/qwen3_4b). Luego F4 (puente program_creator), F5
 (animacion keyframes), F6 (E2E). NADA de pyproject ni publicacion (subsistema GPU).
+
+## 2026-07-22 (noche) — GOAL assets IA: F3 LoRA de tooling ENTRENADO y verificado
+
+Continuacion autonoma ("continua"). El hallazgo previo (el valor esta en los LoRAs
+por rol, no el base) se materializa: primer LoRA de la flota entrenado. commit 183d731.
+
+VERIFICAR ANTES DE CONSTRUIR (evito un error caro): el agente de Cognia NO usa
+JSON/OpenAI ni el XML nativo de MiniCPM; usa formato propio `ACCION: <tool> <args>`
+(cli.py:8158 arma el prompt, :8506 lo parsea con regex). Entrenar el XML habria sido
+inutil. Ademas YA existe infra: cognia_v3/training/tooluse/ con gen_trajectories.py
+y un dataset SFT VERIFICADO (data/tooluse_train_v3.jsonl, 795 pares, formato ACCION).
+=> se REUSA, no se duplica.
+
+ENTRENADO — cognia_v3/training/tooluse/train_minicpm_lora.py:
+- bf16 + peft LoRA (r=16, 11.2M params, 1%), SIN QLoRA (el 1B cabe en 16GB). Re-templa
+  el prompt crudo del dataset a MiniCPM; SFT completion-only. Held-out por task_id
+  (tareas no vistas) + anti-fuga de prompts.
+- DIAGNOSTICO DE MEMORIA (causa raiz, no parche): el vocab de MiniCPM ~130K hace que
+  los logits [bs,seqlen,vocab] sean el sumidero de VRAM. Con bs=4 desbordaba a shared
+  memory WDDM -> 100% util pero ~55s/paso (no cerro 1 epoca en 2.5h). Se MATO, se
+  bajo a bs=2 + gradient_checkpointing -> VRAM 7GB, 0.67s/paso, ~11 min. (Al matar,
+  la VRAM cayo de 15.7GB a 435MB: era el propio train, no residuales.)
+
+RESULTADO (gate pre-registrado LoRA > base en tool-match, 137 prompts held-out):
+  BASE 0/137 (0%)  ->  LoRA 133/137 (97%) tool-match, 105/137 (77%) exact.
+  loss 0.59 -> 0.10 -> 0.076. PASA. El base NO habla el protocolo ACCION; el LoRA si.
+
+INTEGRACION — cognia/agent/minicpm_expert.py: generar_accion(agent_prompt) carga
+base+adapter (PeftModel) y emite la ACCION en el formato real (recorta al 1er bloque
+como el deploy). tooling_disponible() chequea GPU+adapter. Verificado E2E.
+LIMITACION honesta: sesgo hacia escribir_archivo (349/795 del dataset) -> tools raras
+(tests/apendar) a veces se desvian; se mejora con trayectorias mas balanceadas.
+
+Tests: 12/12 minicpm + 45/45 flota+assets (venv312 CPU). Adapter (44MB) NO commiteado
+(artefacto, ~/.cognia/loras/minicpm_tooling). NO se toca pyproject.
+
+PENDIENTE F3: cablear el ruteo en cognia/agent/fleet_router.py + cli.py para que el
+cerebro delegue turnos de tooling al experto GPU (decision de residencia del modelo);
+LoRA de imagenes (diffusiondb) como 2do rol. Luego F4 (puente program_creator),
+F5 (animacion keyframes), F6 (E2E).
