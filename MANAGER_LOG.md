@@ -8706,3 +8706,31 @@ cognia/control/escritorio (arbol UIA) — 2 agentes lo mapearon y VERIFICARON qu
 Suite: assets/flota/anim/vision 70+ tests verdes en venv312. Nada de pyproject.
 PENDIENTE: F6 (capstone F4+F5), F3 ruteo/LoRA imagenes, y QLoRA de respuestas largas
 (pedido del dueno: maxima longitud posible).
+
+## 2026-07-23 — Cierre de la corrida autonoma: F6 + experimento de respuestas LARGAS
+
+F6 (86a7300): insertar_animacion() compone F4 (sprites transparentes) + F5 (animacion
+por keyframes) en una misma pagina autocontenida. 12 tests. CIERRA el plan F0-F6.
+
+EXPERIMENTO respuestas largas (a70e181) — idea del dueno, gate NO superado:
+- Hipotesis del dueno VALIDADA en mecanismo: el techo es el SESGO DE LONGITUD aprendido,
+  no la arquitectura (MiniCPM5-1B tiene contexto 131072). Precedente: LongWriter.
+- LoRA sobre THUDM/LongWriter-6k (SEQLEN=3072, 1200 ejemplos, 2 epocas, loss 2.10->1.94).
+- GATE (LoRA >= 2x base en longitud, held-out): BASE mediana 1525 tok -> LoRA 2904 tok
+  (x1.9, uno toco el tope 4096). NO PASA por poco -> el adapter NO se cablea a nada.
+- Verificado LEYENDO el texto: es coherente (intro/secciones/conclusion, sin loops). El
+  ratio de tokens distintos bajo era un proxy ENGANOSO (vocabulario tecnico repetido).
+- REGRESION honesta: entrenado con datos EN/ZH, responde en INGLES a prompts en ESPANOL.
+  Falta mezclar corpus largo en espanol. El objetivo real de la receta es el 14B.
+
+LECCION CARA (ya en el modulo y en memoria): secuencias de longitud VARIABLE fragmentan
+el asignador CUDA -> VRAM reservada al limite -> spillover WDDM -> s/paso trepa (3s->60s)
+-> el driver mata el proceso (exit 4, sin traceback). Sintoma: VRAM allocated estable
+pero s/paso creciendo. FIX: padding a longitud FIJA + attention_mask + checkpoints.
+
+ESTADO FINAL DE LA CORRIDA: plan de assets F0-F6 COMPLETO y verificado (imagenes
+transparentes, estilos, BiRefNet+router, experto de imagenes, flota MiniCPM + LoRA de
+tooling 97%, puente a juegos/web, motor de animacion, composicion). Subsistema VISION
+entregado (percepcion de pantalla real-time read-only + bucle actuar con dry-run y gate
+de permisos). Experimento de respuestas largas documentado con su gate no superado.
+Todo pusheado a origin/main. NADA de pyproject ni publicacion a PyPI.
