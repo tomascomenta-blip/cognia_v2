@@ -7,3 +7,8 @@ gate de ventana sensible en un servicio real-time read-only (modo sombra). El VL
 determinista sin VRAM.
 """
 from .percepcion import Percepcion, ServicioPercepcion, describir  # noqa: F401
+from .agente_pantalla import (  # noqa: F401
+    AgentePantalla,
+    Registro,
+    politica_por_control,
+)
