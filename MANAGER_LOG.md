@@ -8877,3 +8877,14 @@ Es la primera vez que el repo tiene un numero honesto de cuanto de lo que genera
 - PUBLICACION A PYPI: BLOQUEADA por falta de token (sin ~/.pypirc ni TWINE_* en el
   entorno; dueno dormido; publicar es irreversible y no se inventa credencial).
   Paquete y comando exacto listos en PUBLICAR_4.3.0.md. Es lo unico que falta.
+
+### Cierre de la corrida (~00:15)
+- Enganche del sello a la generacion (run_program_hobby sella cada producto) +
+  biblioteca sellada (56 productos: 35 corren, 21 no).
+- Comandos CLI /autoprueba y /arbitro (exponen capacidad ya construida y probada).
+- test db_pool anti-flaky (mide el stall por-acquire, no el tiempo agregado).
+- GATES FINALES: suite 5276 passed (2 flaky-por-carga confirmados aislados:
+  db_pool_gc_reclaim y repl_piped, ambos pasan solos); gate camino feliz 5/5;
+  twine check PASSED; wheel 4.3.0 reconstruido tras cada cambio empaquetado.
+- PyPI sigue pendiente SOLO por el token (ver PUBLICAR_4.3.0.md). Todo lo demas,
+  entregado y verificado.

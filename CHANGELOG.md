@@ -49,6 +49,11 @@
   - **Arranque**: `import cognia` pasa de **436.6 ms a 211.7 ms (-51.5%)**
     sacando `networkx` (110 ms) y `asyncio` (96 ms) del camino de import.
 
+- **Dos comandos nuevos en el CLI** que exponen lo anterior para el dueño:
+  `/autoprueba [límite]` corre y puntúa los productos generados, y `/arbitro`
+  muestra el estado del árbitro de colisiones (incidentes acumulados en modo
+  sombra, para calibrarlo antes de activarlo).
+
 Nota honesta: el manual de herramientas para el agente quedó **escrito, probado y
 apagado por defecto**. El A/B del gate del camino feliz (n≥5 por brazo) mostró que
 plegarlo al prompt del agente baja de 10/10 corridas perfectas a entre 1/5 y 4/6;
