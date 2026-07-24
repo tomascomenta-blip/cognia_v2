@@ -72,14 +72,26 @@ def test_explicit_close_is_not_double_counted(db):
 def test_pool_survives_many_leaks_without_stalling(db):
     # If reclaim worked, the pool never empties, so acquire() never hits the 10s
     # Queue timeout. 20 leaked acquires must complete fast.
+    #
+    # El umbral mide STALLS de 10s, no rendimiento absoluto: con el bug, aunque
+    # UN solo acquire se quede en el timeout la cuenta se dispara a >=10s. El
+    # antiguo `elapsed < 5.0` era flaky bajo carga (medido 2026-07-24: fallaba en
+    # la suite completa por CPU ocupada y pasaba aislado — nunca por regresion).
+    # Se afloja el techo a 8s (bien por debajo de un solo stall de 10s, asi el
+    # bug sigue cazado) y se afirma directamente lo que importa: que NINGUN
+    # acquire individual se acerco al timeout de la Queue.
     import time
     pool = get_pool(db)
+    peor = 0.0
     t0 = time.perf_counter()
     for _ in range(20):
+        ta = time.perf_counter()
         c = db_connect_pooled(db)
         c.execute("SELECT 1")
+        peor = max(peor, time.perf_counter() - ta)
         del c
         gc.collect()
     elapsed = time.perf_counter() - t0
-    assert elapsed < 5.0           # nowhere near 10s-per-stall behaviour
+    assert peor < 2.0              # ningun acquire cerca del timeout de 10s
+    assert elapsed < 8.0           # nowhere near 10s-per-stall behaviour
     assert pool_stats()[db]["available"] == pool.size
