@@ -650,6 +650,7 @@ _CMD_DESCRIPTIONS = {
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
     "/autoprueba":      "Probar y puntuar los productos generados (compila/arranca/calidad)  [limite]",
+    "/arbitro":         "Estado del arbitro de colisiones entre generadores (incidentes, modo)",
     "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
     "/mapa-codigo":     "Mapa del codigo         [ruta|buscar <t>|depende|usan <mod>]",
     "/mcp":             "Servidores MCP libres   [herramientas|probar <servidor>]",
@@ -6319,6 +6320,15 @@ def repl():
                 slash_autoprueba(_ap_args)
             except Exception as _ap_e:
                 _print_line(f"[err_cl]autoprueba no disponible: {_ap_e}[/err_cl]")
+        elif raw == "/arbitro" or raw == "/árbitro":
+            # Estado del arbitro de colisiones (solo lectura). Util para calibrar
+            # los umbrales viendo que incidentes acumulo en modo sombra antes de
+            # activarlo (COGNIA_ARBITRO_SOMBRA=0).
+            try:
+                from cognia.arbitro import resumen_estado
+                _show_response(resumen_estado(), "cyan")
+            except Exception as _ar_e:
+                _print_line(f"[err_cl]arbitro no disponible: {_ar_e}[/err_cl]")
         elif raw == "/mcp":
             _show_response(_slash_mcp(""), "cyan")
         elif raw.startswith("/mcp "):

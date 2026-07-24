@@ -481,3 +481,31 @@ def aviso_para_el_cerebro(registro=None, max_n: int = 3, marcar: bool = False) -
         return texto
     except Exception:
         return ""
+
+
+def resumen_estado(registro=None) -> str:
+    """Estado del arbitro para el CLI (/arbitro): modo, cuantos archivos vigila
+    y TODOS los incidentes historicos (no solo los pendientes), para que el
+    dueno calibre los umbrales antes de sacar el modo sombra. Solo lectura."""
+    try:
+        estado = cargar(registro)
+        incidentes = estado.get("incidentes", [])
+        props = estado.get("propiedad", {})
+        modo = "SOMBRA (observa y avisa, no bloquea)" if modo_sombra() else "ACTIVO (bloquea)"
+        lineas = [
+            f"Arbitro de colisiones — modo {modo}",
+            f"Archivos vigilados: {len(props)} | incidentes historicos: {len(incidentes)}",
+        ]
+        if not incidentes:
+            lineas.append("Sin colisiones registradas. Todo limpio.")
+            return "\n".join(lineas)
+        pend = sum(1 for i in incidentes if not i.get("avisado"))
+        lineas.append(f"Pendientes de avisar al cerebro: {pend}")
+        lineas.append("")
+        for inc in incidentes[-10:]:
+            lineas.append("  - " + _frase(inc))
+        if len(incidentes) > 10:
+            lineas.append(f"  (+{len(incidentes) - 10} mas en {NOMBRE_REGISTRO})")
+        return "\n".join(lineas)
+    except Exception as e:
+        return f"Arbitro: no pude leer el estado ({e})"

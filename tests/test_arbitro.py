@@ -267,3 +267,25 @@ def test_revisar_no_levanta_con_registro_ilegible(tmp_path, monkeypatch):
     assert v["veredicto"] == "OK"
     assert "no pudo revisar" in v["detalle"]
     assert arbitro.detener(v) is True
+
+
+def test_resumen_estado_vacio(tmp_path):
+    """Sin incidentes: dice que esta limpio y en que modo corre."""
+    from cognia.arbitro import resumen_estado
+    reg = str(tmp_path / ".arbitro.json")
+    txt = resumen_estado(reg)
+    assert "modo" in txt.lower()
+    assert "limpio" in txt.lower() or "Sin colisiones" in txt
+
+
+def test_resumen_estado_con_incidente(tmp_path, monkeypatch):
+    """Tras una colision, el resumen la nombra."""
+    from cognia import arbitro
+    monkeypatch.setenv("COGNIA_ARBITRO_SOMBRA", "0")
+    reg = str(tmp_path / ".arbitro.json")
+    arbitro.registrar_creacion("gen_a", "motor.py", "def f():\n    return 1\n" * 30, reg)
+    puede, ver = arbitro.permitir_escritura("gen_b", "motor.py", "x=1\n", reg)
+    assert puede is False                       # destruye -> bloqueado
+    txt = arbitro.resumen_estado(reg)
+    assert "motor.py" in txt and "gen_b" in txt
+    assert "incidentes historicos: 1" in txt
