@@ -86,19 +86,26 @@ if HAS_SEMANTIC:
 else:
     print("[WARN] sentence-transformers no encontrado. Usando n-gramas.")
 
-try:
-    import numpy as np
-    HAS_NUMPY = True
-except ImportError:
-    HAS_NUMPY = False
+# PORQUE find_spec: el simbolo `np` NO se usaba en este modulo y HAS_NUMPY no
+# tiene ningun consumidor en todo el repo (grep 2026-07-23), asi que el import
+# era 49ms de arranque puros de deuda. Se conserva la constante por compatibilidad
+# con codigo externo. Los modulos que SI usan numpy (memory/episodic_fast.py,
+# memory/semantic_search.py, semantic_cache.py) lo importan por su cuenta.
+HAS_NUMPY = importlib.util.find_spec("numpy") is not None
+if not HAS_NUMPY:
     print("[WARN] numpy no encontrado. Clustering basico disponible.")
 
-try:
-    import networkx as nx
-    HAS_NETWORKX = True
+# PORQUE find_spec y no `import networkx`: importar networkx aca costaba 110ms
+# de los 436ms de `import cognia` (medido con -X importtime en la maquina del
+# dueno; en el i3-10110U el factor es ~3x). Nadie usa el simbolo `nx` desde
+# config: el unico consumidor es cognia/knowledge/graph.py, que ahora lo
+# importa dentro de las dos funciones que lo necesitan (_get_graph y
+# find_path). find_spec solo mira el sys.path, no ejecuta el paquete, asi que
+# HAS_NETWORKX sigue significando exactamente lo mismo.
+HAS_NETWORKX = importlib.util.find_spec("networkx") is not None
+if HAS_NETWORKX:
     print("[OK] networkx cargado (knowledge graph activo)")
-except ImportError:
-    HAS_NETWORKX = False
+else:
     print("[WARN] networkx no encontrado. Instala con: pip install networkx")
 
 # ── Cache de embeddings ───────────────────────────────────────────────

@@ -41,26 +41,27 @@ _SERVER_PROC_NAMES = ("llama-server", "llama-server.exe",
 
 def _physical_cpu_count() -> int:
     """Nucleos fisicos via psutil; sin psutil, os.cpu_count()//2 (minimo 1)."""
-    try:
-        import psutil
-        n = psutil.cpu_count(logical=False)
-        if n:
-            return n
-    except ImportError:
-        pass
-    return max(1, (os.cpu_count() or 4) // 2)
+    from node.cpu_threads import nucleos_fisicos
+    return nucleos_fisicos()
 
 
 def _build_profiles() -> dict:
     """Construye PROFILES con los threads calculados para esta maquina."""
+    from node.cpu_threads import hilos_cpu_optimos
     logical = os.cpu_count() or 4
     return {
         # DEFAULT: CPU puro. Threads = nucleos fisicos (hyperthreading no ayuda
-        # en el GEMM de llama.cpp; los threads logicos extra solo pisan cache).
+        # en el GEMM de llama.cpp; los threads logicos extra solo pisan cache),
+        # PERO con piso 4: "nucleos fisicos" pelado castigaba justo a la maquina
+        # objetivo del release. Medido con llama-bench (Qwen3-1.7B Q4_K_M,
+        # -ngl 0, tg32, r=5, proceso atado por afinidad a 4 CPUs logicas = el
+        # analogo del i3-10110U de 2 fisicos): 2 hilos -> 25.86 tok/s,
+        # 4 hilos -> 39.03 tok/s (+51%). Aplicar este perfil en un i3 bajaba
+        # el decode un tercio. Ver node/cpu_threads.py para la tabla completa.
         "cpu": {
             "LLAMA_N_GPU_LAYERS":  "0",
             "LLAMA_CTX_SIZE":      "4096",
-            "LLAMA_N_THREADS":     str(_physical_cpu_count()),
+            "LLAMA_N_THREADS":     str(hilos_cpu_optimos()),
             "COGNIA_PERF_PROFILE": "cpu",
         },
         # GPU real (CUDA/Metal): offload total, contexto grande, todos los

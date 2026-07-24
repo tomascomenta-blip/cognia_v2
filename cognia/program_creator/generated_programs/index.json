@@ -331,7 +331,10 @@
     "total_score": 7.5,
     "created_at": "2026-07-20T01:00:06.319288",
     "directory": "dashboard_de_inversiones",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.5,
+    "verificado_en": "2026-07-23T22:51:43"
   },
   {
     "id": "priorityqueue_with_heapq_and_priority_change",
@@ -381,7 +384,10 @@
     "total_score": 6.8,
     "created_at": "2026-07-20T04:30:10.010247",
     "directory": "automated_news_brief_generator",
-    "self_proposed": true
+    "self_proposed": true,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-23T22:51:43"
   },
   {
     "id": "investment_dashboard_simulation_03",
@@ -411,7 +417,10 @@
     "total_score": 6.4,
     "created_at": "2026-07-20T12:13:01.599395",
     "directory": "dashboard_de_inversiones_02",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-23T22:51:43"
   },
   {
     "id": "inversin_dashboard_01",
@@ -441,7 +450,10 @@
     "total_score": 6.5,
     "created_at": "2026-07-20T13:30:57.141816",
     "directory": "dashboard_de_inversiones_09",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.5,
+    "verificado_en": "2026-07-23T22:51:43"
   },
   {
     "id": "simulated_investment_dashboard",
@@ -481,6 +493,39 @@
     "total_score": 6.5,
     "created_at": "2026-07-20T14:17:06.385965",
     "directory": "dashboard_de_inversiones_11",
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-23T22:51:43"
+  },
+  {
+    "id": "dashboard_de_inversiones_12",
+    "title": "Dashboard de Inversiones",
+    "category": "dashboard web de inversiones",
+    "description": "Página de dashboard que muestra resumen de inversiones, gráficos y detalles en un diseño responsivo.",
+    "total_score": 7.9,
+    "created_at": "2026-07-21T19:51:42.946276",
+    "directory": "dashboard_de_inversiones_12",
+    "self_proposed": false
+  },
+  {
+    "id": "dashboard_de_inversiones_13",
+    "title": "Dashboard de Inversiones",
+    "category": "dashboard web de inversiones",
+    "description": "Pantalla de resumen y animación para una plataforma de inversiones.",
+    "total_score": 6.2,
+    "created_at": "2026-07-21T19:52:08.961752",
+    "directory": "dashboard_de_inversiones_13",
+    "self_proposed": false
+  },
+  {
+    "id": "dashboard_de_inversiones_14",
+    "title": "Dashboard de Inversiones",
+    "category": "dashboard de inversiones con gráficos pastel y nombres de empresas|RUTA: AGENTE",
+    "description": "Un programa que genera un dashboard de inversiones con gráficos pastel usando datos de ejemplo.",
+    "total_score": 7.6,
+    "created_at": "2026-07-21T19:53:08.743567",
+    "directory": "dashboard_de_inversiones_14",
     "self_proposed": false
   }
 ]

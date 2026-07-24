@@ -46,6 +46,13 @@ class StoredProgramMeta:
     created_at:    str
     directory:     str
     self_proposed: bool = False
+    # Sello del lazo generar->probar->puntuar (verificacion.reflejar_en_index).
+    # total_score es lo que OPINO el juez LLM; puntaje_real es lo que se midio
+    # corriendo el producto. Medido el 2026-07-23 sobre 6 productos reales: el
+    # juez le dio 6.4 a un dashboard que mide 9.5 y 7.5 a otro que ni arranca.
+    verificado:    bool  = None
+    puntaje_real:  float = None
+    verificado_en: str   = ""
 
 
 # ── Utilidades internas ────────────────────────────────────────────────────────
@@ -261,10 +268,17 @@ def save_program(program: GeneratedProgram, eval_result: EvaluationResult,
 def list_programs(storage_dir: Path = None) -> list[StoredProgramMeta]:
     if storage_dir is None: storage_dir = DEFAULT_STORAGE_DIR
     programs = []
+    # Las claves que el dataclass NO conoce se descartan en vez de tumbar la
+    # entrada entera: el `except TypeError: continue` de antes hacia DESAPARECER
+    # el programa de la biblioteca por un campo nuevo en el index. Medido el
+    # 2026-07-23: al reflejar el sello de verificacion en 5 entradas,
+    # get_program_count() decia 53 y list_programs() devolvia 48, en silencio.
+    conocidas = set(StoredProgramMeta.__dataclass_fields__)
     for entry in _load_index(storage_dir):
         try:
-            if "self_proposed" not in entry: entry["self_proposed"] = False
-            programs.append(StoredProgramMeta(**entry))
+            datos = {k: v for k, v in entry.items() if k in conocidas}
+            datos.setdefault("self_proposed", False)
+            programs.append(StoredProgramMeta(**datos))
         except TypeError:
             continue
     return sorted(programs, key=lambda p: p.created_at, reverse=True)

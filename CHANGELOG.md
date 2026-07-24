@@ -2,6 +2,64 @@
 
 ---
 
+## [4.3.0] - 2026-07-24
+
+### Pensamiento profundo en tres actos, árbitro de colisiones y auto-verificación de productos
+
+- **`/pensar` ahora sueña, planifica y ejecuta** (`cognia/pensamiento_profundo.py`).
+  Deja de ser "pregunta → respuesta": el razonador *thinking* primero **imagina**
+  la idea con temperatura alta y un guion de 7 secciones que incluye
+  "LO QUE NADIE PIDIÓ"; después la baja a un **plan** ejecutable (temperatura
+  baja, sobre el `Plan` mutable ya existente); y por último **lo ejecuta** con el
+  agente real, llevando la idea en cada paso para que lo construido no se
+  aguade. Cada paso tiene compuerta: no se marca hecho si dejó un `.py` que no
+  compila (una sola pasada de reparación, sin insistir a ciegas). Una pregunta
+  normal sigue por el camino de siempre. 16 tests.
+- **Árbitro de colisiones entre generadores** (`cognia/arbitro.py`). Varios
+  generadores escriben en el mismo workspace y hasta hoy nadie vigilaba: un
+  módulo de 970 bytes podía quedar en 148 y roto sin que nada avisara. El árbitro
+  registra quién creó cada archivo (con huella sha256) y, antes de cada
+  escritura, dictamina `PISA_AJENO`, `DESTRUYE` (pierde >60% del tamaño, o un
+  `.py` que compilaba deja de compilar) u `OK`. Bloquea y el incidente **le llega
+  al cerebro**. Enganchado a la ruta real de escritura. Arranca en **modo sombra**
+  (`COGNIA_ARBITRO_SOMBRA=1`): observa y registra sin bloquear, para calibrar
+  umbrales sobre incidentes reales antes de cortarle el paso a flujos que hoy
+  funcionan. 23 tests.
+- **Cognia prueba y puntúa sus propios productos** (`cognia/autoprueba.py`,
+  `scripts/e2e_autoprueba.py`, `cognia/program_creator/verificacion.py`). Batería
+  real —compila → importa → arranca → sin stubs— siempre en subproceso con
+  timeout, y puntaje 0-10 con desglose explícito. Cada producto queda con su
+  `.verificacion.json`: ahora un programa guardado dice si **corre de verdad**, no
+  solo lo que opinó un juez. Primer número honesto de la biblioteca: de 56
+  productos, **44 compilan y 36 arrancan**, media 6.71/10.
+- **System prompt del cerebro** (`cognia/system_prompt.py`). `infer()` acepta
+  `system=` (antes estaba hardcodeado y ningún caller podía cambiarlo). El
+  cerebro recibe un prompt grande de identidad y conducta; las llamadas de ≤32
+  tokens son clasificadores y reciben el corto.
+- **Optimización para CPU**, con `llama-bench` real (Qwen3-1.7B Q4_K_M, `-ngl 0`,
+  tg32, r=5):
+  - **Hilos**: había dos defaults contradictorios y los dos estaban mal. El
+    backend usaba *todos* los hilos lógicos (12 → 39.81 tok/s) cuando el pico
+    está en los físicos (6 → 45.65 tok/s): **+14.7%**. Y el perfil `cpu` usaba
+    núcleos físicos pelados, que en un i3-10110U son 2 (25.86 tok/s) frente a 4
+    (39.03 tok/s): **+50.9%** — el perfil "de CPU" castigaba justo a la máquina
+    objetivo del release. Ahora ambos salen de `node/cpu_threads.py`: físicos,
+    con piso 4 y techo en el default previo, así el cambio solo puede *bajar*
+    hilos y las mediciones históricas del i3 quedan intactas.
+  - **Arranque**: `import cognia` pasa de **436.6 ms a 211.7 ms (-51.5%)**
+    sacando `networkx` (110 ms) y `asyncio` (96 ms) del camino de import.
+
+Nota honesta: el manual de herramientas para el agente quedó **escrito, probado y
+apagado por defecto**. El A/B del gate del camino feliz (n≥5 por brazo) mostró que
+plegarlo al prompt del agente baja de 10/10 corridas perfectas a entre 1/5 y 4/6;
+se re-midió el control con la misma carga de CPU (6/6) para descartar que fuera el
+sistema ocupado. El prompt del agente ya está saturado y cada instrucción nueva
+compite con el formato `ACCION`. Se enciende con `COGNIA_SYSTEM_PROMPT_PERFIL`
+y hay que volver a medir antes de dejarlo puesto. Mismo criterio que llevó a
+revertir `code_wiki` en 4.2.0.
+
+---
+
 ## [4.2.0] - 2026-07-22
 
 ### Recurrencia RRULE en reminders (integración OSS, cont.)

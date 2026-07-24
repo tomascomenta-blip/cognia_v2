@@ -4,7 +4,6 @@ cognia/cognia.py
 Clase principal Cognia v3 — integración de todos los módulos.
 """
 
-import asyncio
 import json
 import time
 import random
@@ -1246,6 +1245,10 @@ class Cognia:
 
     async def sleep(self) -> str:
         """Ciclo de sueño v3 (async): delega al hilo del executor para no bloquear el event loop."""
+        # PORQUE lazy: asyncio costaba 96ms de los 436ms de `import cognia`
+        # (medido con -X importtime) y este es su UNICO uso en el modulo. Un
+        # arranque del CLI no llama a sleep(), asi que no paga el import.
+        import asyncio
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self._sleep_sync)
 

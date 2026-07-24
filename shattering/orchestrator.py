@@ -699,22 +699,17 @@ class ShatteringOrchestrator:
         self._try_load_llama()
         if self._llama is not None:
             from node.inference_pipeline import _apply_qwen_template
-            # El system ChatML: el que pida el caller (el agente manda el suyo)
-            # o, por defecto, el del CEREBRO. Antes estaba hardcodeado a la
-            # constante de 4 lineas y el caller no tenia forma de cambiarlo.
+            # El system ChatML: el que pida el caller, o la constante canonica.
+            # infer() ahora ACEPTA system= (antes estaba hardcodeado aca y
+            # ningun caller podia cambiarlo), pero el DEFAULT sigue siendo la
+            # constante corta y esto es deliberado: infer() es el camino del
+            # AGENTE, y el A/B del gate del camino feliz (2026-07-23, n>=5 por
+            # brazo, sistema quieto) mostro que cualquier prompt mas largo aca
+            # baja de 10/10 corridas perfectas a 3/5. El prompt grande del
+            # cerebro se aplica donde el modelo CONVERSA con el usuario
+            # (astream y adaptive_prompt), no donde ejecuta herramientas.
             if system is None:
-                # Una llamada de pocos tokens NO es conversacion: es un
-                # CLASIFICADOR ("responde SOLO el numero", max_tokens=16, lo usa
-                # el loop para el presupuesto de pasos). Ahi identidad y
-                # conducta no ayudan: gastan prefill y le dan ganas de charlar.
-                if _max_toks is not None and _max_toks <= 32:
-                    system = COGNIA_SYSTEM_PROMPT
-                else:
-                    try:
-                        from cognia.system_prompt import build_system_prompt
-                        system = build_system_prompt(rol="cerebro")
-                    except Exception:
-                        system = COGNIA_SYSTEM_PROMPT
+                system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
             result = self._llama.generate(formatted, max_tokens=_max_toks,
                                           temperature=temperature, stop=stop,

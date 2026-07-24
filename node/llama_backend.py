@@ -94,7 +94,13 @@ def _n_gpu_layers() -> int:
 
 
 def _n_threads() -> int:
-    return _env_int("LLAMA_N_THREADS", max(4, os.cpu_count() or 4))
+    # El default historico era max(4, cpu_count()) = TODOS los hilos logicos.
+    # Medido con llama-bench (Qwen3-1.7B Q4_K_M, -ngl 0, tg32, r=5) en la 6c/12t:
+    # 12 hilos -> 39.81 tok/s, 6 hilos (fisicos) -> 45.65 tok/s = +14.7%.
+    # hilos_cpu_optimos() cappea a nucleos fisicos con piso 4, asi que en el
+    # i3-10110U (2 fisicos / 4 logicos) devuelve 4 = el default de siempre.
+    from .cpu_threads import hilos_cpu_optimos
+    return _env_int("LLAMA_N_THREADS", hilos_cpu_optimos(max(4, os.cpu_count() or 4)))
 
 
 def _draft_gguf() -> Optional[Path]:
@@ -502,7 +508,14 @@ class _LlamaServerBackend:
         # Medido en i3-10110U (b9391, Q4_K_M): el 4o hilo logico compite con
         # el SO y empeora decode Y prefill -> cpu-1 para ambos. Override:
         # LLAMA_N_THREADS (main lo lee en call-time para perf_profiles).
-        n_threads_decode = _env_int("LLAMA_N_THREADS", max(1, (os.cpu_count() or 4) - 1))
+        # 2026-07-23: cpu-1 escala mal hacia arriba. En la 6c/12t daba 11 hilos,
+        # y llama-bench mide 12 hilos -> 39.81 tok/s vs 6 (fisicos) -> 45.65
+        # (+14.7%). hilos_cpu_optimos() toma cpu-1 como TECHO, asi que en el i3
+        # sigue dando 3 (la medicion de arriba intacta) y solo baja en maquinas
+        # con mas de 4 nucleos fisicos.
+        from .cpu_threads import hilos_cpu_optimos
+        n_threads_decode = _env_int(
+            "LLAMA_N_THREADS", hilos_cpu_optimos(max(1, (os.cpu_count() or 4) - 1)))
         n_threads_batch  = n_threads_decode
         cmd = [
             binary,

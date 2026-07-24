@@ -223,6 +223,36 @@ def _strip_fences(text: str) -> str:
     return t.strip("\n")
 
 
+_ESCAPES_LITERALES = (("\\n", "\n"), ("\\t", "\t"))
+
+
+def _texto_literal(text: str) -> str:
+    """El texto que el usuario QUISO apendar, sin el envoltorio del modelo.
+
+    Medido el 2026-07-24 reproduciendo la tarea 'apendar' del gate del camino
+    feliz (3 corridas): el 7B emite el argumento entre comillas y a veces con
+    el salto de linea escapado como texto —
+
+        apendar_archivo bitacora.txt | 'tercera'
+        apendar_archivo bitacora.txt | "tercera\\n"
+
+    — y el archivo terminaba con la linea literal `"tercera\\n"`, comillas y
+    barra incluidas. La postcondicion del gate (ultima linea == "tercera")
+    fallaba por eso, no por el agente equivocando la tool.
+
+    Se limpia SOLO el caso inequivoco: el texto entero envuelto en la MISMA
+    comilla, sin esa comilla adentro. Un texto que legitimamente lleva comillas
+    en el medio ('dijo "hola"') no se toca. Es de una linea, asi que no aplica
+    a codigo (para eso esta escribir_archivo).
+    """
+    t = (text or "").strip()
+    if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'" and t[0] not in t[1:-1]:
+        t = t[1:-1]
+        for esc, real in _ESCAPES_LITERALES:
+            t = t.replace(esc, real)
+    return t
+
+
 def _orch(ctx: dict):
     """Reuse the Cognia instance's orchestrator, building a local one if needed."""
     ai = ctx.get("ai")
@@ -282,6 +312,11 @@ def _escribir_archivo(args, ctx):
     except ValueError as e:
         return f"RESULTADO escribir_archivo ERROR: {e}"
     content = _strip_fences(parts[1])
+    # NOTA (2026-07-24): se probo aplicar tambien aca la limpieza de envoltorio
+    # (_texto_literal) para texto plano de una linea. El A/B del gate dio 3/6
+    # corridas perfectas contra 4/6 sin el cambio: sin evidencia de mejora sobre
+    # la tool MAS usada del agente, no entra. Queda en apendar_archivo, que es
+    # donde el defecto esta probado y el riesgo es menor.
     old = wpath.read_text(encoding="utf-8") if wpath.exists() else ""
     wpath.parent.mkdir(parents=True, exist_ok=True)
     wpath.write_text(content, encoding="utf-8")
@@ -351,7 +386,7 @@ def _apendar_archivo(args, ctx):
         wpath = _resolve_write_path(parts[0].strip())
     except ValueError as e:
         return f"RESULTADO apendar_archivo ERROR: {e}"
-    text = _strip_fences(parts[1])
+    text = _texto_literal(_strip_fences(parts[1]))
     wpath.parent.mkdir(parents=True, exist_ok=True)
     # Start on a fresh line if the file has content not ending in a newline,
     # so "append a line" never glues onto the previous one.

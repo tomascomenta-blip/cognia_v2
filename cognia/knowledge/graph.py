@@ -74,8 +74,10 @@ _PRED_MAP = {
 
 _AUTO_WEIGHT = 0.6
 
-if HAS_NETWORKX:
-    import networkx as nx
+# PORQUE lazy: `import networkx` cuesta 110ms de los 436ms de `import cognia`
+# (medido con -X importtime) y el grafo en memoria solo se construye cuando
+# alguien pide _get_graph()/find_path(). Un arranque del CLI que no toca el KG
+# no paga nada. `nx` se importa dentro de las dos funciones que lo usan.
 
 
 class KnowledgeGraph:
@@ -122,6 +124,7 @@ class KnowledgeGraph:
     def _get_graph(self):
         if not HAS_NETWORKX:
             return None
+        import networkx as nx  # lazy: ver nota de arriba (110ms de arranque)
         if self._dirty or self._graph is None:
             self._graph = nx.DiGraph()
             conn = db_connect(self.db)
@@ -239,6 +242,7 @@ class KnowledgeGraph:
         g = self._get_graph()
         if g is None:
             return None
+        import networkx as nx  # lazy: ver nota de arriba (110ms de arranque)
         try:
             return nx.shortest_path(g, source.lower(), target.lower())
         except Exception:

@@ -8183,10 +8183,18 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # turno user: ahi el modelo lo respeta mas y el TOOLS_DOC no se infla. Es el
     # mismo texto en cada paso -> el prefix-cache de llama.cpp lo procesa una
     # sola vez (en CPU, esa es la diferencia entre gratis y caro).
+    # None = la constante canonica corta (shattering/model_constants.py). NO se
+    # le manda el system prompt grande: medido el 2026-07-23 con el gate del
+    # camino feliz y el sistema quieto, cualquier texto extra en el prompt del
+    # agente lo baja de 10/10 corridas perfectas a 3/5. El agente ya recibe su
+    # manual por el TOOLS_DOC; el prompt grande vive donde Cognia CONVERSA.
+    # Para experimentar: COGNIA_SYSTEM_PROMPT_PERFIL=completo|compacto.
     _SYS_AGENTE = None
     try:
         from cognia.system_prompt import build_system_prompt
-        _SYS_AGENTE = build_system_prompt(rol="agente", perfil="minimo")
+        _perfil_pedido = os.environ.get("COGNIA_SYSTEM_PROMPT_PERFIL", "").strip().lower()
+        if _perfil_pedido in ("completo", "compacto"):
+            _SYS_AGENTE = build_system_prompt(rol="agente", perfil=_perfil_pedido)
     except Exception:
         _SYS_AGENTE = None
 

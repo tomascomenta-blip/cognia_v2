@@ -1,0 +1,27 @@
+{
+  "verificado": false,
+  "puntaje_real": 6.0,
+  "fecha": "2026-07-23T22:51:43",
+  "motivos": [
+    "compila: 2/2 .py compilan",
+    "arranca: exit 0, 5 chars de salida",
+    "sin_stubs: archivos sin cuerpo: main.py (1 lineas utiles)",
+    "documentacion: sin documentacion",
+    "descripcion: sin descripcion contra la cual cotejar",
+    "stub duro: archivos sin cuerpo: main.py (1 lineas utiles)"
+  ],
+  "id": "cognia_game",
+  "title": "cognia game",
+  "lenguaje": "python",
+  "entrypoint": "main.py",
+  "fallo_duro": "stubs",
+  "desglose": {
+    "compila": 3.0,
+    "arranca": 3.0,
+    "sin_stubs": 0.0,
+    "documentacion": 0.0,
+    "coincide_descripcion": 0.0
+  },
+  "score_juez": null,
+  "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
+}

@@ -1094,10 +1094,22 @@ class TestEnvTunables:
         assert lb._ctx_size() == 8192
 
     def test_n_threads_env_overrides_hardcoded_default(self, monkeypatch):
-        """LLAMA_N_THREADS overrides the historical max(4, cpu_count) default."""
+        """LLAMA_N_THREADS overrides the computed default.
+
+        El default ya NO es max(4, cpu_count) (todos los hilos logicos): desde
+        2026-07-23 pasa por node/cpu_threads.hilos_cpu_optimos(), que cappea a
+        nucleos fisicos con piso 4. Medido con llama-bench (Qwen3-1.7B Q4_K_M,
+        -ngl 0, tg32, r=5) en la 6c/12t: 12 hilos -> 39.81 tok/s, 6 hilos ->
+        45.65 tok/s (+14.7%). El detalle de la medicion en node/cpu_threads.py.
+        """
+        import os
         import node.llama_backend as lb
+        from node.cpu_threads import hilos_cpu_optimos
         monkeypatch.delenv("LLAMA_N_THREADS", raising=False)
-        assert lb._n_threads() == max(4, __import__("os").cpu_count() or 4)
+        esperado = hilos_cpu_optimos(max(4, os.cpu_count() or 4))
+        assert lb._n_threads() == esperado
+        # y nunca por encima del default historico (el cambio solo baja hilos)
+        assert esperado <= max(4, os.cpu_count() or 4)
         monkeypatch.setenv("LLAMA_N_THREADS", "6")
         assert lb._n_threads() == 6
 
