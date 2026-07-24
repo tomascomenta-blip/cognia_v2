@@ -8888,3 +8888,16 @@ Es la primera vez que el repo tiene un numero honesto de cuanto de lo que genera
   twine check PASSED; wheel 4.3.0 reconstruido tras cada cambio empaquetado.
 - PyPI sigue pendiente SOLO por el token (ver PUBLICAR_4.3.0.md). Todo lo demas,
   entregado y verificado.
+
+### PUBLICADO a PyPI (00:35 aprox)
+El token estaba en `.env` como PYPI_TOKEN (yo habia buscado solo en las variables
+del shell y en ~/.pypirc; el dueno lo señalo). Publicado con el token cargado en
+la MISMA linea del comando, sin dejarlo en historial ni logs.
+
+VERIFICACION REAL (no el mensaje del upload):
+- API de PyPI: version 4.3.0 con sus dos artefactos (whl 8947 KB, tar.gz 9233 KB).
+- `pip install cognia-ai==4.3.0` en venv LIMPIO desde PyPI: instala sin errores,
+  reporta 4.3.0, e importan las 5 piezas nuevas (system_prompt, arbitro,
+  autoprueba, pensamiento_profundo, program_creator.verificacion, node.cpu_threads).
+  hilos_cpu_optimos(8) -> 6 (nucleos fisicos) y el arbitro reporta modo SOMBRA.
+La corrida queda CERRADA con todo lo pedido entregado y publicado.
