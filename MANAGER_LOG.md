@@ -8861,3 +8861,19 @@ Estado REAL de la biblioteca (56 carpetas, corrida completa en 12s):
   PEOR con codigo: cognia_game 6.0/10 — su main.py es literalmente print("hello")
   al lado del game.py de verdad.
 Es la primera vez que el repo tiene un numero honesto de cuanto de lo que genera funciona.
+
+### CPU, lazo de verificacion y publicacion (cierre parcial ~23:32)
+- OPTIMIZACION CPU (llama-bench real): hilos a nucleos fisicos unificados en
+  node/cpu_threads.py — 12->6 hilos = +14.7% en la 6c/12t, y el perfil 'cpu' con
+  piso 4 = +50.9% en el analogo del i3 (el perfil "de CPU" castigaba a la maquina
+  objetivo del release). Arranque import cognia 436.6->211.7 ms (-51.5%).
+- LAZO cerrado: cognia/program_creator/verificacion.py deja .verificacion.json por
+  producto (verificado True/False + puntaje real). cognia_game -> verificado=false.
+- FIX apendar_archivo: _texto_literal() saca el envoltorio de comillas/\n escapado
+  que el 7B mete en el argumento. Extenderlo a escribir_archivo dio 3/6 vs 4/6 en
+  el A/B -> revertido (solo apendar). Gate del camino feliz: 5/5 con apendar verde.
+- v4.3.0 construido, twine check PASSED, instalado en venv limpio (importa las 5
+  piezas nuevas, reporta 4.3.0). Suite 5267 passed.
+- PUBLICACION A PYPI: BLOQUEADA por falta de token (sin ~/.pypirc ni TWINE_* en el
+  entorno; dueno dormido; publicar es irreversible y no se inventa credencial).
+  Paquete y comando exacto listos en PUBLICAR_4.3.0.md. Es lo unico que falta.
