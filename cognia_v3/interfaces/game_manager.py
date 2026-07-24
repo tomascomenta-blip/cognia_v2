@@ -677,9 +677,17 @@ class GameManager:
             return random.choice(list(existing_categories))
         if prefer_game:
             return random.choice(GAME_CATEGORIES)
-        # Mezcla de juegos y programas genéricos
-        from generator import PROGRAM_CATEGORIES
-        return random.choice(GAME_CATEGORIES + PROGRAM_CATEGORIES)
+        # Mezcla de juegos y programas genéricos.
+        # Ruta REAL del paquete: `from generator import PROGRAM_CATEGORIES` no
+        # resolvia nunca (no hay modulo top-level 'generator', y el nombre
+        # PROGRAM_CATEGORIES no existe en el repo). El equivalente vivo es
+        # FALLBACK_CATEGORIES, la lista de programas NO-juego del generador.
+        # Este import estaba SIN try/except: reventaba con ModuleNotFoundError.
+        try:
+            from cognia.program_creator.generator import FALLBACK_CATEGORIES
+        except Exception:
+            FALLBACK_CATEGORIES = []
+        return random.choice(GAME_CATEGORIES + list(FALLBACK_CATEGORIES))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -733,8 +741,15 @@ class AutonomousManager:
             if not pending:
                 return {"action": "no_questions", "message": "Sin preguntas pendientes"}
 
-            from researcher import research_question
-            from knowledge_integrator import integrate_research
+            # RUTA REAL DEL PAQUETE. Antes eran imports hermanos sueltos
+            # (`from researcher import ...`) que NO resuelven nunca: esos
+            # modulos viven en cognia/research_engine/. El except de abajo se
+            # tragaba el ModuleNotFoundError, el ciclo caia a _memory_cycle() y
+            # se reportaba como 'idle' exitoso -> el ciclo de investigacion
+            # autonoma NO CORRIO NUNCA y searches_done no podia pasar de 0.
+            # (Medido 2026-07-24; mismo defecto que el de cognia/voz/jarvis.py.)
+            from cognia.research_engine.researcher import research_question
+            from cognia.research_engine.knowledge_integrator import integrate_research
 
             proposal = pending[0]
             result = research_question(proposal)
@@ -753,6 +768,11 @@ class AutonomousManager:
                     "message": f"Investigué '{result.topic}': +{integration.triples_added} triples, +{integration.concepts_touched} conceptos",
                     "searches_done": self.searches_done,
                 }
+        except ModuleNotFoundError as e:
+            # Un fallo de CABLEADO no es un fallo de la investigacion: se grita.
+            # Tragarlo junto al resto fue lo que dejo este ciclo muerto y mudo
+            # durante meses (searches_done clavado en 0, reportando 'idle' OK).
+            print(f"[Autonomous] ERROR DE CABLEADO (no es la investigacion): {e}")
         except Exception as e:
             print(f"[Autonomous] Research error: {e}")
 

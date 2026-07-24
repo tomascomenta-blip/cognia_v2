@@ -50,6 +50,19 @@ class WebSearch:
                 data = json.loads(resp.read().decode("utf-8"))
 
             result = self._parse_response(data, max_results)
+            # La Instant Answer API NO es un buscador: ante una consulta tecnica
+            # devuelve abstract vacio, 0 RelatedTopics y 0 Results, y hasta hoy
+            # eso salia como exito con error=None -> /buscar-web imprimia
+            # "(Sin resultados)" y el tool_router devolvia {} sin avisar de nada.
+            # (Medido 2026-07-24: 0/3 consultas tecnicas utiles. El repo YA lo
+            # habia documentado en cognia_v3/core/investigador.py y la leccion
+            # nunca habia llegado hasta aca.)
+            # Cuando eso pasa, se cae al buscador DE VERDAD del repo
+            # (cognia.busqueda_web: Wikipedia + HackerNews + arXiv).
+            if not self._util(result):
+                real = self._buscar_de_verdad(query, max_results)
+                if real is not None:
+                    result = real
             self._cache[query_lower] = (result, time.time())
             return result
 
@@ -59,6 +72,44 @@ class WebSearch:
                 "related_topics": [], "answer": "", "cached": False,
                 "error": str(e)[:200]
             }
+
+    @staticmethod
+    def _util(result: dict) -> bool:
+        """True si la respuesta trae ALGO que el llamador pueda usar."""
+        return bool((result.get("abstract") or "").strip()
+                    or result.get("related_topics")
+                    or (result.get("answer") or "").strip())
+
+    def _buscar_de_verdad(self, query: str, max_results: int):
+        """El buscador real del repo (Wikipedia + HackerNews + arXiv), servido
+        con el MISMO contrato de salida para no tocar a quien ya nos llama.
+
+        Devuelve None si tampoco hay nada, para que el caller conserve el
+        resultado vacio original (pero ahora con `error` explicando el porque,
+        en vez de un exito silencioso).
+        """
+        try:
+            from cognia.busqueda_web import buscar
+            hits = buscar(query, max_resultados=max_results) or []
+        except Exception as e:
+            return {"query": query, "abstract": "", "abstract_source": "",
+                    "related_topics": [], "answer": "", "cached": False,
+                    "error": f"instant answer vacio y el buscador real fallo: {e}"[:200]}
+        if not hits:
+            return {"query": query, "abstract": "", "abstract_source": "",
+                    "related_topics": [], "answer": "", "cached": False,
+                    "error": "sin resultados (instant answer vacio y el buscador real tampoco encontro)"}
+        primero = hits[0]
+        return {
+            "query": query,
+            "abstract": (primero.get("fragmento") or "").strip(),
+            "abstract_source": primero.get("fuente") or primero.get("url") or "",
+            "related_topics": [f"{h.get('titulo', '')}: {h.get('url', '')}".strip(": ")
+                               for h in hits[:max_results]],
+            "answer": "",
+            "cached": False,
+            "error": None,
+        }
 
     def _parse_response(self, data: dict, max_results: int) -> dict:
         abstract = data.get("AbstractText", "") or data.get("Abstract", "")

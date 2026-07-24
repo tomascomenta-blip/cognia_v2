@@ -48,6 +48,10 @@ DIR_PRODUCTOS = Path(__file__).resolve().parent / "program_creator" / "generated
 TIMEOUT_ARRANQUE_SEG = 6      # corto a proposito: solo queremos ver si levanta
 TIMEOUT_IMPORT_SEG   = 6
 MAX_SALIDA_CHARS     = 4000
+# Codigos de retorno propios de _correr(), nombrados: eran -3 y -4 magicos y eso
+# fue justo lo que dejo pasar el bug de "culpar al producto por un fallo del SO".
+RC_TIMEOUT  = -3   # el producto seguia vivo al vencer el timeout (NO es fallo)
+RC_NO_LANZO = -4   # el SO no pudo crear el proceso: indeterminado, no del producto
 
 # Un archivo con menos de esto no es codigo, es un placeholder. Medido: el
 # main.py de cognia_game es literalmente `print("hello")`.
@@ -241,9 +245,9 @@ def _correr(argv, cwd, timeout):
                 if isinstance(v, bytes):
                     return v.decode("utf-8", errors="replace")
                 return v or ""
-            return -3, _txt(tex.stdout)[:MAX_SALIDA_CHARS], _txt(tex.stderr)[:MAX_SALIDA_CHARS], True
+            return RC_TIMEOUT, _txt(tex.stdout)[:MAX_SALIDA_CHARS], _txt(tex.stderr)[:MAX_SALIDA_CHARS], True
         except Exception as exc:
-            return -4, "", f"[autoprueba] no se pudo lanzar: {exc}", False
+            return RC_NO_LANZO, "", f"[autoprueba] no se pudo lanzar: {exc}", False
 
 
 def _fase_compila(prod):
@@ -284,6 +288,13 @@ def _fase_importa(prod, timeout):
     if _es_falta_de_teclado(err):
         return {"ok": True, "detalle": "sin guarda __main__: se ejecuto al importar y pidio input() (EOFError)",
                 "stderr": err[:300]}
+    # rc == RC_NO_LANZO: el SO no pudo crear el proceso (archivo de paginacion
+    # chico, sin memoria, permisos). Eso NO es culpa del producto y no puede
+    # contar como fallo suyo: seria un veredicto falso, y ademas volvia flaky a
+    # los tests que dependen de esta fase. Se reporta como INDETERMINADO.
+    if rc == RC_NO_LANZO:
+        return {"ok": None, "detalle": f"indeterminado (el SO no pudo lanzar el subproceso): {err.strip()[:160]}",
+                "stderr": err[:600], "entorno": True}
     firma = _hay_error_python(err)
     if firma or rc != 0:
         primera = next((l for l in reversed((err or "").splitlines()) if l.strip()), "")

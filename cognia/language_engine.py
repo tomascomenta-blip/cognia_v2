@@ -1521,10 +1521,21 @@ class LanguageEngine:
         Ante cualquier fallo devuelve True, que es el comportamiento previo: si
         no se puede evaluar la pertinencia, no se fuerza una investigacion.
         """
+        # RUTA REAL DEL PAQUETE primero. Antes la UNICA via era
+        # `from investigador import _terminos` — un top-level que no existe —,
+        # asi que el `except ImportError: return True` era el camino NORMAL y
+        # este filtro decia "si, es pertinente" SIEMPRE. Peor: era intermitente,
+        # porque cognia_v3/core/investigador.py hace sys.path.insert al
+        # importarse, y entonces el bare import empezaba a resolver; la misma
+        # entrada daba respuestas opuestas segun quien hubiera importado antes.
+        # (Medido 2026-07-24: pertinente('fotosintesis','bitcoin') = True.)
         try:
-            from investigador import _terminos
+            from cognia_v3.core.investigador import _terminos
         except ImportError:
-            return True
+            try:
+                from investigador import _terminos   # modulo suelto en la raiz
+            except ImportError:
+                return True
         try:
             terminos_pregunta = _terminos(question)
             if not terminos_pregunta:
