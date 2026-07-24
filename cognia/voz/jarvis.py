@@ -139,7 +139,16 @@ def _construir_cerebro():
     from cognia.first_run import apply_config
     apply_config()
     from cognia.cognia import Cognia
-    from respuestas_articuladas import responder_articulado
+    # Ruta COMPLETA del paquete. Antes era `from respuestas_articuladas import
+    # ...`, que solo resuelve si el cwd es la raiz del repo: en una instalacion
+    # desde PyPI el modulo vive en cognia_v3/interfaces/ y Jarvis moria con
+    # ModuleNotFoundError al construir el cerebro (verificado 2026-07-24 en un
+    # venv limpio con cognia-ai 4.3.0). El fallback conserva el camino viejo
+    # para quien tenga el modulo suelto en la raiz.
+    try:
+        from cognia_v3.interfaces.respuestas_articuladas import responder_articulado
+    except ModuleNotFoundError:
+        from respuestas_articuladas import responder_articulado
     ai = Cognia()
     return lambda texto: responder_articulado(ai, texto)
 

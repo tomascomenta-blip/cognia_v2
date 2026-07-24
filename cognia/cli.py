@@ -8893,7 +8893,17 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # Register agent task as a conversation turn so follow-up questions work
     try:
         from cognia_v3.memory.conversation_memory import get_conversation_context
-        from vectors import text_to_vector
+        # `cognia.vectors` PRIMERO: `from vectors import ...` solo resuelve si el
+        # cwd es la raiz del repo. En una instalacion desde PyPI lanzaba
+        # ModuleNotFoundError, el except de abajo lo tragaba, y el turno NUNCA se
+        # registraba: las preguntas de seguimiento tras un /hacer dejaban de
+        # funcionar SIN AVISO. (Verificado 2026-07-24 en venv limpio con 4.3.0;
+        # es el patron de "degradacion silenciosa" del repo.) El resto de los
+        # call-sites de text_to_vector ya usaban este orden.
+        try:
+            from cognia.vectors import text_to_vector
+        except ImportError:
+            from vectors import text_to_vector
         _task_vec = text_to_vector(task[:200])
         if _task_vec:
             get_conversation_context(ai).add_turn(
