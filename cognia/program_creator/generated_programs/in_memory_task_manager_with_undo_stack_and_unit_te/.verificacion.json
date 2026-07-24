@@ -4,13 +4,13 @@
   "fecha": "2026-07-23T23:33:36",
   "motivos": [
     "compila: 1/1 .py compilan",
-    "arranca: exit 0, 677 chars de salida",
+    "arranca: exit 0, 184 chars de salida",
     "sin_stubs: sin senales de stub",
     "documentacion: solo description.txt (generado por el pipeline, no es doc del autor)",
     "descripcion: cumple lo que promete (8/13 palabras clave)"
   ],
-  "id": "automated_news_brief_generator",
-  "title": "Automated News Brief Generator",
+  "id": "in_memory_task_manager_with_undo_stack_and_unit_te",
+  "title": "In-Memory Task Manager with Undo Stack and Unit Tests",
   "lenguaje": "python",
   "entrypoint": "program.py",
   "fallo_duro": null,
@@ -21,6 +21,6 @@
     "documentacion": 0.5,
     "coincide_descripcion": 1.0
   },
-  "score_juez": 6.8,
+  "score_juez": 6.7,
   "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
 }

@@ -1,0 +1,26 @@
+{
+  "verificado": false,
+  "puntaje_real": 6.0,
+  "fecha": "2026-07-23T23:33:43",
+  "motivos": [
+    "compila: documento HTML completo",
+    "arranca: revisar_html: selector CSS que nunca casa: .quote.down (la clase 'down' se aplica sin 'quote'); .quote.up (la clase 'up' se aplica sin 'quote')",
+    "sin_stubs: 100 lineas utiles de HTML",
+    "documentacion: la pagina declara <title> pero no trae README",
+    "descripcion: coincide a medias (5/14 palabras clave)"
+  ],
+  "id": "investment_dashboard_simulator_01",
+  "title": "Investment Dashboard Simulator",
+  "lenguaje": "html",
+  "entrypoint": "index.html",
+  "fallo_duro": "arranca",
+  "desglose": {
+    "compila": 3.0,
+    "arranca": 0.0,
+    "sin_stubs": 2.0,
+    "documentacion": 0.5,
+    "coincide_descripcion": 0.5
+  },
+  "score_juez": 8.7,
+  "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
+}

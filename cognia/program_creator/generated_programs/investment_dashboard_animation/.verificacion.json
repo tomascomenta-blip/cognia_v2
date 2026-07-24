@@ -1,16 +1,16 @@
 {
   "verificado": true,
   "puntaje_real": 9.5,
-  "fecha": "2026-07-23T23:33:36",
+  "fecha": "2026-07-23T23:33:37",
   "motivos": [
     "compila: documento HTML completo",
     "arranca: revisar_html OK",
-    "sin_stubs: 172 lineas utiles de HTML",
+    "sin_stubs: 112 lineas utiles de HTML",
     "documentacion: la pagina declara <title> pero no trae README",
-    "descripcion: cumple lo que promete (9/11 palabras clave)"
+    "descripcion: cumple lo que promete (8/16 palabras clave)"
   ],
-  "id": "dashboard_de_inversiones_11",
-  "title": "Dashboard de Inversiones",
+  "id": "investment_dashboard_animation",
+  "title": "Investment Dashboard Animation",
   "lenguaje": "html",
   "entrypoint": "index.html",
   "fallo_duro": null,
@@ -21,6 +21,6 @@
     "documentacion": 0.5,
     "coincide_descripcion": 1.0
   },
-  "score_juez": 6.5,
+  "score_juez": 8.7,
   "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
 }

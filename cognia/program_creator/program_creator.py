@@ -439,6 +439,30 @@ def run_program_hobby(
         timestamp=     timestamp,
     )
 
+    # SELLO DE VERIFICACION REAL (2026-07-24): el score que guarda save_program
+    # viene del juez LLM; no dice si el programa CORRE. Aca, tras guardarlo, se
+    # corre de verdad (compila/importa/arranca/sin-stubs) y se deja su
+    # .verificacion.json al lado. Best-effort y fuera del camino critico: si la
+    # verificacion falla, el producto ya esta guardado igual. El dueno pidio
+    # "que cognia pruebe end to end sus propios productos y evalue cosas".
+    base_dir = storage_dir or DEFAULT_STORAGE_DIR
+    for _meta in stored_list:
+        _carpeta = getattr(_meta, "directory", None)
+        if not _carpeta:
+            continue
+        try:
+            from cognia.program_creator.verificacion import (
+                verificar_al_crear, sello_de_calidad, escribir_sello)
+            _dir = Path(base_dir) / _carpeta
+            _res = verificar_al_crear(_dir)
+            escribir_sello(_dir, sello_de_calidad(_res))   # acepta el veredicto directo
+            if verbose:
+                _ok = "corre" if _res.get("ok") else "NO corre"
+                print(f"   🔬 '{getattr(_meta, 'title', _carpeta)}' verificado: "
+                      f"{_ok} ({_res.get('puntaje', '?')}/10)")
+        except Exception:
+            pass
+
     if verbose:
         total_stored = get_program_count(storage_dir)
         print(f"\n🎨 Sesión completada en {duration}s")

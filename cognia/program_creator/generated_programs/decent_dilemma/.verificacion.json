@@ -1,16 +1,16 @@
 {
   "verificado": true,
-  "puntaje_real": 9.5,
+  "puntaje_real": 9.0,
   "fecha": "2026-07-23T23:33:36",
   "motivos": [
     "compila: 1/1 .py compilan",
-    "arranca: exit 0, 677 chars de salida",
+    "arranca: pidio input() y stdin esta cerrado (EOFError) = arranco",
     "sin_stubs: sin senales de stub",
     "documentacion: solo description.txt (generado por el pipeline, no es doc del autor)",
-    "descripcion: cumple lo que promete (8/13 palabras clave)"
+    "descripcion: coincide a medias (5/11 palabras clave)"
   ],
-  "id": "automated_news_brief_generator",
-  "title": "Automated News Brief Generator",
+  "id": "decent_dilemma",
+  "title": "Decent Dilemma",
   "lenguaje": "python",
   "entrypoint": "program.py",
   "fallo_duro": null,
@@ -19,8 +19,8 @@
     "arranca": 3.0,
     "sin_stubs": 2.0,
     "documentacion": 0.5,
-    "coincide_descripcion": 1.0
+    "coincide_descripcion": 0.5
   },
-  "score_juez": 6.8,
+  "score_juez": 8.4,
   "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
 }

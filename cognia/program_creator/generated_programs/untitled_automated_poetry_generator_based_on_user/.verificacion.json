@@ -1,16 +1,16 @@
 {
   "verificado": true,
   "puntaje_real": 9.5,
-  "fecha": "2026-07-23T23:33:36",
+  "fecha": "2026-07-23T23:33:47",
   "motivos": [
     "compila: 1/1 .py compilan",
-    "arranca: exit 0, 677 chars de salida",
+    "arranca: pidio input() y stdin esta cerrado (EOFError) = arranco",
     "sin_stubs: sin senales de stub",
     "documentacion: solo description.txt (generado por el pipeline, no es doc del autor)",
-    "descripcion: cumple lo que promete (8/13 palabras clave)"
+    "descripcion: cumple lo que promete (5/7 palabras clave)"
   ],
-  "id": "automated_news_brief_generator",
-  "title": "Automated News Brief Generator",
+  "id": "untitled_automated_poetry_generator_based_on_user",
+  "title": "Untitled Automated Poetry Generator Based On User-Inputted Lyrics And A Random Poem Selection Algorithm",
   "lenguaje": "python",
   "entrypoint": "program.py",
   "fallo_duro": null,
@@ -21,6 +21,6 @@
     "documentacion": 0.5,
     "coincide_descripcion": 1.0
   },
-  "score_juez": 6.8,
+  "score_juez": 6.5,
   "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
 }

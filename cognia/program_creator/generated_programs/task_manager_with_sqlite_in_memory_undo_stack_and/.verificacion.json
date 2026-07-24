@@ -1,26 +1,26 @@
 {
-  "verificado": true,
-  "puntaje_real": 9.5,
-  "fecha": "2026-07-23T23:33:36",
+  "verificado": false,
+  "puntaje_real": 6.5,
+  "fecha": "2026-07-23T23:33:46",
   "motivos": [
     "compila: 1/1 .py compilan",
-    "arranca: exit 0, 677 chars de salida",
+    "arranca: Traceback (most recent call last) -> FAILED (errors=1)",
     "sin_stubs: sin senales de stub",
     "documentacion: solo description.txt (generado por el pipeline, no es doc del autor)",
-    "descripcion: cumple lo que promete (8/13 palabras clave)"
+    "descripcion: cumple lo que promete (8/12 palabras clave)"
   ],
-  "id": "automated_news_brief_generator",
-  "title": "Automated News Brief Generator",
+  "id": "task_manager_with_sqlite_in_memory_undo_stack_and",
+  "title": "Task Manager with SQLite in Memory, Undo Stack, and Unit Tests",
   "lenguaje": "python",
   "entrypoint": "program.py",
-  "fallo_duro": null,
+  "fallo_duro": "arranca",
   "desglose": {
     "compila": 3.0,
-    "arranca": 3.0,
+    "arranca": 0.0,
     "sin_stubs": 2.0,
     "documentacion": 0.5,
     "coincide_descripcion": 1.0
   },
-  "score_juez": 6.8,
+  "score_juez": 6.7,
   "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
 }

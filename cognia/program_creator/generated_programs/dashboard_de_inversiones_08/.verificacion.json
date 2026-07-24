@@ -1,0 +1,26 @@
+{
+  "verificado": false,
+  "puntaje_real": 0.0,
+  "fecha": "2026-07-23T23:33:47",
+  "motivos": [
+    "compila: la carpeta no tiene ningun .py ni .html",
+    "arranca: la carpeta no tiene ningun .py ni .html",
+    "sin_stubs: la carpeta no tiene ningun .py ni .html",
+    "documentacion: sin documentacion",
+    "descripcion: sin descripcion contra la cual cotejar"
+  ],
+  "id": "dashboard_de_inversiones_08",
+  "title": "dashboard de inversiones 08",
+  "lenguaje": "vacio",
+  "entrypoint": null,
+  "fallo_duro": "sin_codigo",
+  "desglose": {
+    "compila": 0.0,
+    "arranca": 0.0,
+    "sin_stubs": 0.0,
+    "documentacion": 0.0,
+    "coincide_descripcion": 0.0
+  },
+  "score_juez": null,
+  "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
+}

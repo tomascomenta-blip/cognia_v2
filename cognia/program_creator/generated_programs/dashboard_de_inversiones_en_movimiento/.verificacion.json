@@ -5,12 +5,12 @@
   "motivos": [
     "compila: documento HTML completo",
     "arranca: revisar_html: depende de recursos externos: http://",
-    "sin_stubs: 411 lineas utiles de HTML",
+    "sin_stubs: 575 lineas utiles de HTML",
     "documentacion: la pagina declara <title> pero no trae README",
-    "descripcion: cumple lo que promete (5/9 palabras clave)"
+    "descripcion: cumple lo que promete (6/8 palabras clave)"
   ],
-  "id": "dashboard_de_inversiones",
-  "title": "Dashboard de Inversiones",
+  "id": "dashboard_de_inversiones_en_movimiento",
+  "title": "Dashboard de Inversiones en Movimiento",
   "lenguaje": "html",
   "entrypoint": "index.html",
   "fallo_duro": "arranca",
@@ -21,6 +21,6 @@
     "documentacion": 0.5,
     "coincide_descripcion": 1.0
   },
-  "score_juez": 7.5,
+  "score_juez": 6.0,
   "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
 }

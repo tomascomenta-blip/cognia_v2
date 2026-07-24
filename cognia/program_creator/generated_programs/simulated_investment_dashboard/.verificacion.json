@@ -1,16 +1,16 @@
 {
   "verificado": false,
-  "puntaje_real": 6.5,
-  "fecha": "2026-07-23T23:33:36",
+  "puntaje_real": 6.0,
+  "fecha": "2026-07-23T23:33:44",
   "motivos": [
     "compila: documento HTML completo",
     "arranca: revisar_html: depende de recursos externos: http://",
-    "sin_stubs: 411 lineas utiles de HTML",
+    "sin_stubs: 217 lineas utiles de HTML",
     "documentacion: la pagina declara <title> pero no trae README",
-    "descripcion: cumple lo que promete (5/9 palabras clave)"
+    "descripcion: coincide a medias (5/15 palabras clave)"
   ],
-  "id": "dashboard_de_inversiones",
-  "title": "Dashboard de Inversiones",
+  "id": "simulated_investment_dashboard",
+  "title": "Simulated Investment Dashboard",
   "lenguaje": "html",
   "entrypoint": "index.html",
   "fallo_duro": "arranca",
@@ -19,8 +19,8 @@
     "arranca": 0.0,
     "sin_stubs": 2.0,
     "documentacion": 0.5,
-    "coincide_descripcion": 1.0
+    "coincide_descripcion": 0.5
   },
-  "score_juez": 7.5,
+  "score_juez": 6.2,
   "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
 }

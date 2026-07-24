@@ -4,13 +4,13 @@
   "fecha": "2026-07-23T23:33:36",
   "motivos": [
     "compila: 1/1 .py compilan",
-    "arranca: exit 0, 677 chars de salida",
+    "arranca: exit 0, 2007 chars de salida",
     "sin_stubs: sin senales de stub",
     "documentacion: solo description.txt (generado por el pipeline, no es doc del autor)",
-    "descripcion: cumple lo que promete (8/13 palabras clave)"
+    "descripcion: cumple lo que promete (7/8 palabras clave)"
   ],
-  "id": "automated_news_brief_generator",
-  "title": "Automated News Brief Generator",
+  "id": "dashboard_de_inversiones_14",
+  "title": "Dashboard de Inversiones",
   "lenguaje": "python",
   "entrypoint": "program.py",
   "fallo_duro": null,
@@ -21,6 +21,6 @@
     "documentacion": 0.5,
     "coincide_descripcion": 1.0
   },
-  "score_juez": 6.8,
+  "score_juez": 7.6,
   "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
 }
