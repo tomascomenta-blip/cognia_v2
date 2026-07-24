@@ -649,6 +649,7 @@ _CMD_DESCRIPTIONS = {
     "/pensar":          "Pensamiento PROFUNDO: pregunta -> razona y contesta; crear algo -> suena la idea, la planifica y la ejecuta  <pedido>",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
+    "/autoprueba":      "Probar y puntuar los productos generados (compila/arranca/calidad)  [limite]",
     "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
     "/mapa-codigo":     "Mapa del codigo         [ruta|buscar <t>|depende|usan <mod>]",
     "/mcp":             "Servidores MCP libres   [herramientas|probar <servidor>]",
@@ -6305,6 +6306,19 @@ def repl():
                 _run(raw, show_library, color="cyan")
             else:
                 _print_line("[warn_cl][WARN] Modulo de programacion hobby no disponible.[/warn_cl]")
+        elif raw in ("/autoprueba", "/verificar-productos") or raw.startswith("/autoprueba "):
+            # Cognia corre y puntua sus propios productos generados (compila/
+            # importa/arranca/sin-stubs). El cuerpo ya estaba listo en
+            # cognia/autoprueba.py; aca solo se cablea. Arg: un numero = limite.
+            _ap_args = raw[len("/autoprueba "):].strip() if raw.startswith("/autoprueba ") else ""
+            try:
+                # slash_autoprueba imprime el reporte en vivo (flush=True), asi
+                # que se llama directo y NO por _run (que captura stdout y
+                # tragaria el reporte linea por linea).
+                from cognia.autoprueba import slash_autoprueba
+                slash_autoprueba(_ap_args)
+            except Exception as _ap_e:
+                _print_line(f"[err_cl]autoprueba no disponible: {_ap_e}[/err_cl]")
         elif raw == "/mcp":
             _show_response(_slash_mcp(""), "cyan")
         elif raw.startswith("/mcp "):
