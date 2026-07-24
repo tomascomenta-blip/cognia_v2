@@ -651,6 +651,7 @@ _CMD_DESCRIPTIONS = {
     "/crear":           "Crear programa ahora    <idea>",
     "/autoprueba":      "Probar y puntuar los productos generados (compila/arranca/calidad)  [limite]",
     "/arbitro":         "Estado del arbitro de colisiones entre generadores (incidentes, modo)",
+    "/ver":             "Cognia MIRA tu pantalla y la describe; con pregunta, te responde sobre lo que ve  [pregunta]",
     "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
     "/mapa-codigo":     "Mapa del codigo         [ruta|buscar <t>|depende|usan <mod>]",
     "/mcp":             "Servidores MCP libres   [herramientas|probar <servidor>]",
@@ -6320,6 +6321,18 @@ def repl():
                 slash_autoprueba(_ap_args)
             except Exception as _ap_e:
                 _print_line(f"[err_cl]autoprueba no disponible: {_ap_e}[/err_cl]")
+        elif raw == "/ver" or raw.startswith("/ver "):
+            # OJOS: mira la pantalla AHORA y la describe; con pregunta, la
+            # contesta usando lo que ve. cognia/vision/ ya sabia percibir
+            # (captura + arbol UIA -> texto, ventanas sensibles redactadas) pero
+            # no habia forma de alcanzarlo desde el CLI: capacidad construida y
+            # desconectada. Sin VLM ni VRAM extra: lo consume el cerebro de texto.
+            _ver_q = raw[len("/ver "):].strip() if raw.startswith("/ver ") else ""
+            try:
+                from cognia.vision.mirar import ver as _mirar
+                _run(raw, lambda: _mirar(_ver_q, ai), color="cyan")
+            except Exception as _v_e:
+                _print_line(f"[err_cl]vision no disponible: {_v_e}[/err_cl]")
         elif raw == "/arbitro" or raw == "/árbitro":
             # Estado del arbitro de colisiones (solo lectura). Util para calibrar
             # los umbrales viendo que incidentes acumulo en modo sombra antes de
