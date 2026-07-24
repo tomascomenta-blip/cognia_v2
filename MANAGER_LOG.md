@@ -8734,3 +8734,130 @@ tooling 97%, puente a juegos/web, motor de animacion, composicion). Subsistema V
 entregado (percepcion de pantalla real-time read-only + bucle actuar con dry-run y gate
 de permisos). Experimento de respuestas largas documentado con su gate no superado.
 Todo pusheado a origin/main. NADA de pyproject ni publicacion a PyPI.
+
+## 2026-07-23 — Pensamiento profundo en TRES ACTOS (sonar -> planificar -> ejecutar)
+
+Pedido del dueno: que el pensamiento profundo deje de ser "pregunta -> respuesta" y sea un
+pipeline: primero CREAR una idea con toda la imaginacion posible (mas alla del prompt),
+despues bajarla a un plan, y despues EJECUTARLO siguiendolo.
+
+ENTREGADO
+- `cognia/pensamiento_profundo.py` (nuevo): imaginar() con el razonador a t=0.95 y prompt
+  de 7 secciones (incluye "LO QUE NADIE PIDIO"), planificar() a t=0.3 que devuelve el `Plan`
+  mutable de agent/plan_artifact.py, ejecutar() que recorre el plan con el agente real
+  llevando la IDEA en cada paso, y pensar_profundo() que orquesta. La IDEA + el PLAN quedan
+  en `IDEA.md` dentro del workspace.
+- `/pensar` cableado: pregunta -> razonador directo (comportamiento previo intacto);
+  pedido de crear -> los tres actos. `--idea` corta despues del plan.
+- `scripts/e2e_pensamiento_profundo.py`: E2E real contra los modelos.
+- `tests/test_pensamiento_profundo.py`: 16 tests.
+
+VERIFICACION REAL (4 corridas contra Qwen3-4B-Thinking + 7B, pedido semilla
+"Hace un juego dificil en Python que se juegue en la terminal")
+- La parte NUEVA funciona: de una semilla de 8 palabras salieron ideas de ~7000 chars con
+  nombres propios, numeros y mecanicas ("Neural Lace" con la memoria de Aethelred y decay
+  de 0.5 nodos/s; "Ecos del Tiempo" con ramas temporales y modo tiempo-parado), y el codigo
+  generado conserva esos valores concretos (aethelred/stabilize/repair/decay en los .py).
+- Cada corrida destapo un defecto REAL, todos arreglados y con test de regresion:
+  1. el plan salia mono-archivo y cada paso pisaba main.py con escribir_archivo (13
+     escrituras -> 10 lineas finales). Fix: el acto 2 exige un archivo distinto por paso.
+  2. un paso reescribia desde cero un modulo ya hecho (nodes.py 970b -> 148b, stub roto).
+     Fix: _inventario() muestra lo ya construido y prohibe escribir_archivo sobre existentes.
+  3. el plan avanzaba sobre codigo que no compilaba (4 de 8 .py con SyntaxError). Fix:
+     compuerta por paso (_rotos + _reparar): UNA pasada de reparacion y, si sigue roto, el
+     paso NO se marca hecho. Honesto por diseno.
+
+REVERTIDO POR EVIDENCIA (lo importante de esta entrada)
+Se intento arreglar en `cognia/agent/tools.py` la causa raiz mas frecuente: el 7B envuelve
+el archivo entero en ''' o """ (3/3 corridas) o lo rodea de prosa y marcadores
+'<<<<<<< SEARCH'. Los unitarios pasaban (12/12) y el diagnostico era solido, PERO el A/B del
+gate del camino feliz lo mato:
+    CONTROL (sin el cambio): 10/10 corridas perfectas (50/50 tareas)
+    CON el cambio:            5/10 corridas perfectas
+Bloques alternados (CON n=4, SIN n=4, CON n=6, SIN n=6): el fallo sigue al brazo, no al
+tiempo. No se encontro mecanismo (la tarea que mas falla, 'apendar', ni siquiera toca .py),
+asi que NO se especula: el cambio queda REVERTIDO y el agente base intacto. La compuerta
+equivalente vive solo dentro del pipeline, donde no puede degradar /hacer.
+Pendiente para otra sesion: reproduccion minima de ese efecto antes de volver a tocar tools.py.
+
+LIMITE HONESTO: el pipeline (idea -> plan -> ejecucion) funciona; el techo esta en el
+CONSTRUCTOR. El 7B escribe modulos pobres y a veces invalidos, asi que el juego resultante
+compila a medias y no arranca de una. Lo que esta sesion arregla es el metodo, no la
+capacidad del modelo que escribe el codigo.
+
+## 2026-07-24 (madrugada) — Corrida autonoma: system prompt, arbitro, auto-E2E, CPU
+
+Encargo del dueno (2026-07-23 22:10, se fue a dormir): apagado a las 04:30, que Cognia
+pruebe E2E sus propios productos y los evalue, un arbitro que detenga al generador que
+rompe el trabajo de otro y avise al cerebro, un system prompt enorme para cerebro y
+agentes, optimizar para CPU, y publicar a PyPI si todo pasa.
+
+### Apagado
+Programado y verificado con scripts/auto_shutdown.py: tarea CogniaAutoShutdown,
+NextRun 07/24/2026 04:30:00, shutdown /s /t 60 (60s de gracia, sin /f).
+
+### System prompt (cognia/system_prompt.py) — la leccion de la noche
+Se escribio el prompt grande (identidad + conducta + manual de herramientas con reglas
+nacidas de fallos medidos) y se cableo el punto correcto: `ShatteringOrchestrator.infer()`
+ahora acepta `system=` (antes estaba HARDCODEADO a la constante de 4 lineas en
+_local_infer, sin forma de que el caller lo cambiara).
+
+Pero la medicion mando. A/B sobre el gate del camino feliz, n>=5 por brazo:
+
+    sin nada (estado previo) ...................... 10/10 corridas perfectas
+    manual completo en el turno system ............  1/5
+    manual compacto en el turno system ............  4/6
+    conducta en system + manual en TOOLS_DOC ......  3/6
+    manual en TOOLS_DOC + system minimo ...........  2/6
+    control repetido BAJO LA MISMA CARGA de fondo .  6/6 perfectas
+
+La ultima fila es la que decide: se sospecho que los fallos venian de la CPU ocupada por
+los agentes constructores, y se re-midio el control con esa misma carga. El control
+aguanto. O sea: NO era la carga, era el prompt.
+
+Lectura honesta: el prompt del agente ya esta saturado (TOOLS_DOC + few-shot + guidance +
+reglas evolucionadas). Cada instruccion nueva compite con el formato ACCION en vez de
+reforzarlo. Mas texto no es mas obediencia.
+
+CONFIGURACION QUE QUEDA:
+- CEREBRO: system prompt grande ACTIVO (es el default de infer() cuando el caller no pide
+  otro). Ahi el pedido se cumple y no hay evidencia de dano: el gate mide al agente.
+- AGENTE: identidad minima, como estaba. El manual de herramientas quedo escrito, probado
+  y APAGADO por defecto; se enciende con COGNIA_SYSTEM_PROMPT_PERFIL=completo|compacto y
+  hay que volver a medir con este gate antes de dejarlo puesto (tiene sentido con un
+  modelo mas grande que el 7B de esta maquina).
+- CLASIFICADORES: una llamada con max_tokens<=32 ("responde SOLO el numero") recibe el
+  system corto, no el del cerebro. Es un clasificador, no una conversacion: la identidad
+  solo gasta prefill y le da ganas de charlar.
+
+### Arbitro de colisiones (cognia/arbitro.py) — 23 tests
+Registro de propiedad por archivo (creador historico + huella sha256/bytes) y veredicto
+antes de cada escritura: PISA_AJENO (lo creo otro), DESTRUYE (pierde >60% del tamano, o un
+.py que compilaba deja de compilar), OK. Bloquea y acumula el incidente; el cerebro se
+entera por aviso_para_el_cerebro(), que se inyecta en el history del agente al empezar la
+tarea (NO en el TOOLS_DOC: ese es el prefijo cacheado y engordarlo degrada, ver arriba).
+Enganchado a la ruta REAL de escritura (dev_tools.write_file). Modo sombra por defecto
+(COGNIA_ARBITRO_SOMBRA=1): observa y registra sin bloquear, para calibrar umbrales sobre
+incidentes reales antes de cortarle el paso a flujos que hoy funcionan.
+Bug real cazado al construirlo: en Windows write_text traduce \n a \r\n, asi que la huella
+en memoria nunca coincidia con la del disco y marcaba colisiones falsas. huella() normaliza.
+
+Verificacion real (dos generadores peleando por motor.py, con COGNIA_ARBITRO_SOMBRA=0):
+  program_creator crea motor.py (294 bytes) -> OK
+  tool_synthesis intenta dejarlo en 22 bytes -> BLOQUEADO (-93%), archivo INTACTO en disco
+  aviso al cerebro: "El generador 'tool_synthesis' intento pisar motor.py, que creo
+  'program_creator', reduciendolo de 294 a 22 bytes. Lo detuve."
+
+### Auto-E2E de productos (cognia/autoprueba.py + scripts/e2e_autoprueba.py) — 19 tests
+Cognia corre y puntua sus propios productos: compila (ast) -> importa (subproceso aislado)
+-> arranca (subproceso, timeout 6s, cwd propio) -> sin_stubs, y puntaje 0-10 con desglose
+explicito (compila 3, arranca 3, sin stubs 2, documentacion 1, coincide con su descripcion 1).
+Todo en subproceso: el codigo generado no se importa jamas en el proceso principal.
+Dos reglas que ya nos habian mordido y aca estan cubiertas: un timeout NO es fallo (un juego
+espera input), y un SyntaxError del script principal NO imprime "Traceback".
+
+Estado REAL de la biblioteca (56 carpetas, corrida completa en 12s):
+  44/56 compilan | 36/56 arrancan | media 6.71/10 | 12 carpetas sin codigo
+  PEOR con codigo: cognia_game 6.0/10 — su main.py es literalmente print("hello")
+  al lado del game.py de verdad.
+Es la primera vez que el repo tiene un numero honesto de cuanto de lo que genera funciona.

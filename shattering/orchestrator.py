@@ -239,7 +239,8 @@ class ShatteringOrchestrator:
               temperature: Optional[float] = None,
               stop: Optional[list] = None,
               repeat_penalty: Optional[float] = None,
-              grammar: Optional[str] = None) -> InferResult:
+              grammar: Optional[str] = None,
+              system: Optional[str] = None) -> InferResult:
         """
         Route the prompt, load the right sub-model, and return generated text.
 
@@ -289,6 +290,7 @@ class ShatteringOrchestrator:
                 stop=stop,
                 repeat_penalty=repeat_penalty,
                 grammar=grammar,
+                system=system,
             )
 
         return InferResult(
@@ -369,7 +371,15 @@ class ShatteringOrchestrator:
         self._try_load_llama()
         if self._llama is not None:
             from node.inference_pipeline import _apply_qwen_template
-            system = COGNIA_SYSTEM_PROMPT
+            # astream es el chat en vivo con el usuario: le corresponde el system
+            # prompt del CEREBRO (cognia/system_prompt.py, 2026-07-23). Esta
+            # funcion no recibe `system` del caller; si el modulo fallara, cae a
+            # la constante canonica y el chat conserva su identidad.
+            try:
+                from cognia.system_prompt import build_system_prompt
+                system = build_system_prompt(rol="cerebro")
+            except Exception:
+                system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
             loop = _asyncio.get_running_loop()
             queue: _asyncio.Queue = _asyncio.Queue()
@@ -677,7 +687,8 @@ class ShatteringOrchestrator:
                      max_tokens: Optional[int] = None,
                      stop: Optional[list] = None,
                      repeat_penalty: Optional[float] = None,
-                     grammar: Optional[str] = None):
+                     grammar: Optional[str] = None,
+                     system: Optional[str] = None):
         """Returns (text, mode, tokens_generated). max_tokens=None uses self._max_tokens.
         repeat_penalty!=None desalienta la degeneracion (cola repetida) que a temp=0
         el 3B genera hasta el cap; el agente lo usa en el paso ReAct (ver cli.py)."""
@@ -688,7 +699,22 @@ class ShatteringOrchestrator:
         self._try_load_llama()
         if self._llama is not None:
             from node.inference_pipeline import _apply_qwen_template
-            system = COGNIA_SYSTEM_PROMPT
+            # El system ChatML: el que pida el caller (el agente manda el suyo)
+            # o, por defecto, el del CEREBRO. Antes estaba hardcodeado a la
+            # constante de 4 lineas y el caller no tenia forma de cambiarlo.
+            if system is None:
+                # Una llamada de pocos tokens NO es conversacion: es un
+                # CLASIFICADOR ("responde SOLO el numero", max_tokens=16, lo usa
+                # el loop para el presupuesto de pasos). Ahi identidad y
+                # conducta no ayudan: gastan prefill y le dan ganas de charlar.
+                if _max_toks is not None and _max_toks <= 32:
+                    system = COGNIA_SYSTEM_PROMPT
+                else:
+                    try:
+                        from cognia.system_prompt import build_system_prompt
+                        system = build_system_prompt(rol="cerebro")
+                    except Exception:
+                        system = COGNIA_SYSTEM_PROMPT
             formatted = _apply_qwen_template(prompt, system)
             result = self._llama.generate(formatted, max_tokens=_max_toks,
                                           temperature=temperature, stop=stop,

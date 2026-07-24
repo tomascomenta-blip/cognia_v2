@@ -47,4 +47,9 @@ def test_cli_streaming_uses_adaptive_prompt_built_on_canonical():
     assert "COGNIA_SYSTEM_PROMPT" in inspect.getsource(adaptive_prompt)
     # Identity survives the augmentation even with no learned traits.
     import types
-    assert adaptive_prompt.build_adaptive_system_prompt(types.SimpleNamespace()) == COGNIA_SYSTEM_PROMPT
+    # La base pasó a ser el system prompt grande (cognia/system_prompt.py,
+    # 2026-07-23); la identidad se sigue afirmando igual y la constante sigue
+    # siendo el fallback si ese modulo fallara.
+    _salida = adaptive_prompt.build_adaptive_system_prompt(types.SimpleNamespace())
+    assert "Cognia" in _salida and "Tomas Montes" in _salida
+    assert _salida == adaptive_prompt._base()

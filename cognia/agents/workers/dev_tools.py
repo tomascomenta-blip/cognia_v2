@@ -164,6 +164,24 @@ def write_file(path: str, content: str) -> dict:
     if resolved.suffix == ".py":
         _validate_py(content, "write_file")
 
+    # ARBITRO DE COLISIONES (cognia/arbitro.py, 2026-07-23): antes de pisar un
+    # archivo, preguntar si esta escritura ROMPE el trabajo de otro generador
+    # (lo reduce a un esqueleto, o lo deja sin compilar). En modo sombra —el
+    # default— solo registra y deja pasar; con COGNIA_ARBITRO_SOMBRA=0 bloquea
+    # y el incidente le llega al cerebro. Best-effort por diseno: si el arbitro
+    # falla, la escritura sigue su camino como si no existiera.
+    _veredicto = None
+    try:
+        from cognia.arbitro import permitir_escritura
+        _generador = os.environ.get("COGNIA_GENERADOR", "agente")
+        _puede, _veredicto = permitir_escritura(_generador, str(resolved), content)
+        if not _puede:
+            raise ValueError(
+                f"arbitro: escritura detenida en {resolved.name} — "
+                f"{_veredicto.get('detalle', 'romperia el trabajo de otro generador')}")
+    except ImportError:
+        pass
+
     backup = None
     existed = resolved.is_file()
     if existed:
@@ -172,6 +190,12 @@ def write_file(path: str, content: str) -> dict:
 
     resolved.parent.mkdir(parents=True, exist_ok=True)
     resolved.write_text(content, encoding="utf-8")
+    try:
+        from cognia.arbitro import confirmar_escritura
+        confirmar_escritura(os.environ.get("COGNIA_GENERADOR", "agente"),
+                            str(resolved), content)
+    except Exception:
+        pass
     return {
         "path": str(resolved),
         "bytes_written": len(content.encode("utf-8")),

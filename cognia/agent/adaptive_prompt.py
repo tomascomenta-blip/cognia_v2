@@ -19,6 +19,22 @@ import re
 
 from shattering.model_constants import COGNIA_SYSTEM_PROMPT
 
+
+def _base() -> str:
+    """La BASE del system prompt del cerebro.
+
+    Antes era la constante de 4 lineas (COGNIA_SYSTEM_PROMPT). Desde 2026-07-23
+    es el system prompt grande de cognia/system_prompt.py (identidad + conducta
+    + rol), que ademas se adapta al tamano del modelo. La constante queda como
+    ultimo recurso: si el modulo nuevo fallara, el cerebro sigue teniendo
+    identidad en vez de quedarse sin prompt.
+    """
+    try:
+        from cognia.system_prompt import build_system_prompt
+        return build_system_prompt(rol="cerebro")
+    except Exception:
+        return _base()
+
 # Profile keys we manage (namespaced so we never collide with other code).
 _K_NAME = "adapt_nombre"
 _K_LANG = "adapt_idioma"
@@ -97,7 +113,7 @@ def build_adaptive_system_prompt(ai) -> str:
     """
     prof = getattr(ai, "user_profile", None)
     if prof is None:
-        return COGNIA_SYSTEM_PROMPT
+        return _base()
 
     parts = []
     try:
@@ -121,7 +137,7 @@ def build_adaptive_system_prompt(ai) -> str:
         if topics:
             parts.append("Temas frecuentes del usuario: " + ", ".join(topics) + ".")
     except Exception:
-        return COGNIA_SYSTEM_PROMPT
+        return _base()
 
     # Capability evolution: reflect tools Cognia synthesized for itself, so its
     # self-description grows as it gains skills (independent of user traits).
@@ -133,9 +149,9 @@ def build_adaptive_system_prompt(ai) -> str:
         cap_note = ""
 
     if not parts and not cap_note:
-        return COGNIA_SYSTEM_PROMPT
+        return _base()
 
-    prompt = COGNIA_SYSTEM_PROMPT
+    prompt = _base()
     if parts:
         prompt += "\n\nSobre el usuario (aprendido en sesiones previas):\n- " + "\n- ".join(parts)
     if cap_note:

@@ -30,7 +30,16 @@ def ai(tmp_path):
 
 
 def test_unknown_user_gets_plain_prompt(ai):
-    assert build_adaptive_system_prompt(ai) == COGNIA_SYSTEM_PROMPT
+    """Sin nada aprendido, devuelve la BASE tal cual.
+
+    Desde 2026-07-23 la base ya no es la constante de 4 lineas: es el system
+    prompt grande del cerebro (cognia/system_prompt.py). Lo que el test protege
+    sigue siendo lo mismo: sin traits aprendidos no se agrega nada encima."""
+    from cognia.agent.adaptive_prompt import _base
+    salida = build_adaptive_system_prompt(ai)
+    assert salida == _base()
+    assert "Cognia" in salida and "Tomas Montes" in salida
+    assert "Sobre el usuario" not in salida
 
 
 def test_learns_name(ai):

@@ -646,7 +646,7 @@ _CMD_DESCRIPTIONS = {
     "/aprendiendo-buscar": "Buscar tarjetas de aprendizaje  <query>",
     "/investigar":      "Investigar en GitHub    <query>",
     "/razonar":         "Loop cientifico: hipotesis -> evaluar -> analogias -> validar  <problema>",
-    "/pensar":          "Razonamiento PROFUNDO con modelo thinking (preguntas largas/complejas)  <pregunta>",
+    "/pensar":          "Pensamiento PROFUNDO: pregunta -> razona y contesta; crear algo -> suena la idea, la planifica y la ejecuta  <pedido>",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
     "/imagenes":        "Ver/borrar capturas     [borrar input|output|todo|<n>]",
@@ -1100,7 +1100,7 @@ HELP_TEXT = """
     /agente estado                  Estado del agente hibrido (modalidad, esfuerzo, telemetria)
     /esfuerzo [nivel]               Ver/fijar esfuerzo (bajo/medio/alto/maximo) y modalidades
     /modelo [3b|7b|...]             Ver/cambiar el modelo activo del fleet
-    /pensar <problema>              Razonamiento paso a paso (stepwise)
+    /pensar <pedido>                Pensamiento profundo: idea sonada -> plan -> ejecucion (--idea corta antes de ejecutar)
     /deliberar <pregunta>           Deliberacion multi-perspectiva
     /flujo <objetivo>               Orquestador de flujos multi-paso
     /largo <tema>                   Generacion larga por secciones (/largo --continuar)
@@ -6362,21 +6362,39 @@ def repl():
         elif raw.startswith("/razonar"):
             _print_line("[warn_cl]Uso: /razonar <problema>  -- loop cientifico: hipotesis -> evaluar -> analogias -> validar[/warn_cl]")
         elif raw.startswith("/pensar ") and raw[len("/pensar "):].strip():
-            # Razonamiento PROFUNDO: modelo thinking dedicado + generacion
-            # infinita (generate_long). El pensamiento va en [detail] (gris en
-            # CLI, bloque plegable en el control remoto); la respuesta, normal.
+            # Razonamiento PROFUNDO. Dos caminos, decididos por el pedido:
+            #   PREGUNTA  -> razonador directo (thinking + generacion infinita).
+            #   CONSTRUIR -> pipeline de TRES ACTOS (pensamiento_profundo.py):
+            #                sonar la idea, bajarla a plan, ejecutarla con el
+            #                agente. Pedido del dueno 2026-07-23.
+            # El pensamiento va en [detail] (gris en CLI, bloque plegable en el
+            # control remoto); la respuesta, normal.
             _pregunta = raw[len("/pensar "):].strip()
+            _solo_idea = _pregunta.startswith("--idea ")
+            if _solo_idea:
+                _pregunta = _pregunta[len("--idea "):].strip()
             def _pensar():
-                from cognia.razonador import razonar
-                _out = razonar(_pregunta, print_fn=_print_line)
-                if _out is None:
-                    return "El razonador no respondio (backend caido?)."
-                extra = (f"\n\n[{_out['tokens']} tokens de razonamiento, "
-                         f"{_out['rounds']} ronda(s)]")
-                return _out["respuesta"] + extra
+                from cognia.pensamiento_profundo import (
+                    es_pregunta, pensar_profundo, resumen as _resumen)
+                if es_pregunta(_pregunta) and not _solo_idea:
+                    from cognia.razonador import razonar
+                    _out = razonar(_pregunta, print_fn=_print_line)
+                    if _out is None:
+                        return "El razonador no respondio (backend caido?)."
+                    return _out["respuesta"] + (
+                        f"\n\n[{_out['tokens']} tokens de razonamiento, "
+                        f"{_out['rounds']} ronda(s)]")
+                # el runner del acto 3 es el agente real de este mismo CLI
+                _runner = (lambda tarea, guia: _run_agent_task(
+                    ai, tarea, _print_line, guidance=guia))
+                return _resumen(pensar_profundo(
+                    _pregunta, runner=_runner, print_fn=_print_line,
+                    ejecutar_plan=not _solo_idea))
             _run(raw, _pensar, color="bright_green")
         elif raw.startswith("/pensar"):
-            _print_line("[warn_cl]Uso: /pensar <pregunta>  -- razonamiento profundo con modelo thinking[/warn_cl]")
+            _print_line("[warn_cl]Uso: /pensar <pedido>  -- pregunta: razona y contesta; "
+                        "pedido de crear: suena la idea, la baja a plan y la ejecuta "
+                        "(--idea para quedarte en la idea+plan)[/warn_cl]")
         elif raw.startswith("/aprende-repo "):
             _ar_target = raw[len("/aprende-repo "):].strip()
             _print_line("[detail]Buscando y aprendiendo de GitHub...[/detail]")
@@ -8155,6 +8173,23 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     except Exception:
         pass
 
+    # SYSTEM PROMPT grande (cognia/system_prompt.py, 2026-07-23): identidad +
+    # conducta + manejo de herramientas con las reglas que salieron de fallos
+    # MEDIDOS. Va PRIMERO y es estable entre pasos, asi el prefix-cache de
+    # llama.cpp lo procesa una sola vez (clave en CPU). El perfil se elige por
+    # el tamano del modelo: compacto en 3B (sobre-instruir lo degrada), completo
+    # en 7B+. Best-effort: si falla, el agente sigue con el TOOLS_DOC de antes.
+    # Va como turno SYSTEM de ChatML (orch.infer(system=...)), no dentro del
+    # turno user: ahi el modelo lo respeta mas y el TOOLS_DOC no se infla. Es el
+    # mismo texto en cada paso -> el prefix-cache de llama.cpp lo procesa una
+    # sola vez (en CPU, esa es la diferencia entre gratis y caro).
+    _SYS_AGENTE = None
+    try:
+        from cognia.system_prompt import build_system_prompt
+        _SYS_AGENTE = build_system_prompt(rol="agente", perfil="minimo")
+    except Exception:
+        _SYS_AGENTE = None
+
     TOOLS_DOC = (
         "You are an autonomous agent. Start your reply with ACCION: on the first line.\n\n"
         "ACCION: <tool> <args>\n\n"
@@ -8171,6 +8206,17 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         "- Usa recordar/kg_buscar para consultar la memoria de Cognia.\n"
         "- responder solo cuando termines. Nada de texto fuera de la linea ACCION."
     )
+
+    # Reglas de herramientas nacidas de fallos MEDIDOS (cognia/system_prompt.py).
+    # Van AQUI, pegadas al manual que el agente ya lee, y NO en el turno system:
+    # dos manuales compitiendo bajan el gate de 10/10 a 3/5 (medido 2026-07-23).
+    try:
+        from cognia.system_prompt import reglas_de_herramientas
+        _reglas = reglas_de_herramientas()
+        if _reglas:
+            TOOLS_DOC = TOOLS_DOC + "\n\n" + _reglas
+    except Exception:
+        pass
 
     # Few-shot ACCION dirigido (palanca +62pp, cognia/agent/fewshot.py): SOLO
     # cuando hay una pista fuerte de la tool inicial (hint de intent o entry
@@ -8242,6 +8288,19 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             pass
 
     history = [f"{_prior_ctx}TAREA: {task}"]
+    # AVISO DEL ARBITRO: si un generador rompio (o intento romper) el trabajo de
+    # otro, el cerebro se entera aca, al empezar la tarea. Va en el history y NO
+    # en el TOOLS_DOC a proposito: el TOOLS_DOC es el prefijo estable que el
+    # prefix-cache reusa, y ademas el A/B del 2026-07-23 mostro que engordar el
+    # prompt fijo degrada al agente. Esto aparece SOLO cuando hay incidentes.
+    try:
+        from cognia.arbitro import aviso_para_el_cerebro
+        _aviso = aviso_para_el_cerebro(marcar=True)
+        if _aviso:
+            history.append(_aviso)
+            _print_fn(f"[warn_cl]{_aviso.splitlines()[0]}[/warn_cl]")
+    except Exception:
+        pass
     if guidance:
         history.append(guidance)
     if hint:
@@ -8474,7 +8533,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                 _gram = None
             raw_response = orch.infer(
                 prompt, temperature=_step_temp, stop=["\nACCION:", "\nACCIÓN:"],
-                max_tokens=256, grammar=_gram,
+                max_tokens=256, grammar=_gram, system=_SYS_AGENTE,
             ).text.strip()
             _step_temp = 0.0
         except Exception as e:
