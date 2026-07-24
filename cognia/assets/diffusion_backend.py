@@ -336,3 +336,101 @@ def generar_transparente(prompt: str, *, estilo: str = None, negative: str = "",
         salida = str(_out_dir() / f"asset_{h}.png")
     img.save(salida)
     return salida
+
+
+# ── Edicion (img2img): editar una imagen YA HECHA ───────────────────────────
+# Pedido del dueno: "que el modelo de imagenes pueda editar imagenes ya hechas".
+# txt2img crea desde cero; esto TOMA una imagen y la transforma segun un prompt,
+# conservando la composicion (strength controla cuanto se aparta del original).
+# Reusa los MISMOS componentes del pipeline transparente (VAE transparente + LoRA
+# de atencion): el encoder de SDXL es estandar (codifica RGB) y el decoder
+# transparente re-deriva el alfa a la salida -> la edicion sigue saliendo RGBA.
+
+_PIPE_IMG2IMG = None  # cache del pipeline img2img (comparte componentes con _PIPE)
+
+
+def _cargar_img2img():
+    """Pipeline img2img que COMPARTE los componentes del txt2img (no recarga
+    pesos ni VRAM): mismo UNet con la LoRA, mismo VAE transparente."""
+    global _PIPE_IMG2IMG
+    if _PIPE_IMG2IMG is not None:
+        return _PIPE_IMG2IMG
+    base = _cargar_pipeline()
+    from diffusers import StableDiffusionXLImg2ImgPipeline
+    pipe = StableDiffusionXLImg2ImgPipeline(**base.components)
+    pipe.set_progress_bar_config(disable=True)
+    # El VAE transparente (TransparentVAEDecoder) trae un latents_std/mean
+    # malformado (escalar) que el prepare_latents de img2img intenta reshapear a
+    # [1,4,1,1] y revienta ("shape invalid for input of size 1"). SDXL base no
+    # usa esa normalizacion: con ambos en None, diffusers cae al camino correcto
+    # (scaling_factor). Seguro tambien para txt2img, que no los lee.
+    try:
+        pipe.vae.config.latents_mean = None
+        pipe.vae.config.latents_std = None
+    except Exception:
+        pass
+    _PIPE_IMG2IMG = pipe
+    return _PIPE_IMG2IMG
+
+
+def editar_transparente(imagen, prompt: str, *, estilo: str = None,
+                        negative: str = "", seed: int = 12345, pasos: int = 30,
+                        strength: float = 0.6, asset: bool = True,
+                        recortar: bool = False, metodo: str = "auto",
+                        min_transp: float = 0.0, salida: str = None) -> str:
+    """Edita una imagen EXISTENTE segun `prompt` (img2img SDXL + transparencia).
+
+    imagen:   ruta a un PNG/JPG o un PIL.Image. Se lleva a RGB para codificar
+              (el decoder transparente re-deriva el alfa a la salida).
+    prompt:   como debe cambiar / quedar la imagen.
+    strength: 0..1 — cuanto se aparta del original. 0.2 = retoque sutil,
+              0.6 = cambio notable conservando la composicion, 0.9 = casi reinventa.
+    estilo:   igual que en generar_transparente (aplica LoRA + trigger si hay).
+    El resto de parametros se comportan como en generar_transparente.
+    Devuelve la ruta del PNG RGBA editado."""
+    if metodo not in _METODOS:
+        raise AssetsError(f"metodo invalido: {metodo!r} (validos: {list(_METODOS)})")
+    strength = max(0.0, min(1.0, float(strength)))
+
+    from PIL import Image
+    if isinstance(imagen, (str, Path)):
+        src = Image.open(imagen)
+    else:
+        src = imagen
+    # El encoder de SDXL codifica RGB. Una imagen con alfa se compone sobre
+    # blanco para no meter basura en los canales de color al codificar.
+    if src.mode in ("RGBA", "LA", "P"):
+        rgba = src.convert("RGBA")
+        fondo = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+        fondo.alpha_composite(rgba)
+        src = fondo.convert("RGB")
+    else:
+        src = src.convert("RGB")
+    # Dimensiones al multiplo de 64 que exige el decoder RGBA.
+    src = src.resize((_ajustar_dim(src.width), _ajustar_dim(src.height)))
+
+    pipe = _cargar_img2img()
+    spec = _aplicar_estilo(pipe, estilo)
+    trigger = spec["trigger"] if spec else ""
+    p = _componer_prompt(prompt, asset, trigger)
+
+    import torch
+    gen = torch.Generator(device="cuda").manual_seed(int(seed))
+    imgs = pipe(prompt=p, image=src, strength=strength, negative_prompt=negative,
+                generator=gen, num_inference_steps=int(pasos),
+                num_images_per_prompt=1, return_dict=False)[0]
+    img = imgs[0]  # PIL RGBA (decoder transparente)
+
+    if _debe_rescatar(metodo, spec, frac_transparente(img), min_transp):
+        from .matting import quitar_fondo
+        img = quitar_fondo(img)
+    if spec and spec.get("downscale"):
+        img = _pixelar(img, spec["downscale"])
+    if recortar:
+        img = _recortar_alfa(img)
+
+    if salida is None:
+        h = abs(hash((prompt, estilo, seed, pasos, strength))) % (10 ** 10)
+        salida = str(_out_dir() / f"editado_{h}.png")
+    img.save(salida)
+    return salida
