@@ -8950,3 +8950,51 @@ que instalar).
 GATES: suite 5293 passed / 0 failed (23 tests nuevos); camino feliz 5/5;
 autoprueba 6/8 sin fallo duro (los 2 son paginas HTML que dependen de recursos
 externos, ya conocido). v4.3.1.
+
+
+================================================================================
+ARBITRO VISUAL (VLM) + LAZO DISENO-A-CODIGO — 2026-07-24
+================================================================================
+Pedido del dueno: el cerebro imagina el producto final como una IMAGEN y un
+arbitro evalua si la pagina construida se PARECE a esa vision, corrigiendola
+ronda tras ronda. Antes NO existia un ojo real: critico.py juzga sobre hechos
+medidos por la sonda (texto, no pixeles) y nunca compara lo visto vs lo querido.
+
+VLM real (no habia): se bajo Qwen2.5-VL-3B-Instruct Q4_K_M + mmproj f16 a
+~/.cognia/models. llama-server ya soportaba --mmproj; se sirve en :8081 con
+scripts/servir_vlm.py (COGNIA_VLM_URL). Elegido el 3B por VRAM: coexiste con el
+coder-14b (cerebro) en la 5060 Ti de 16GB.
+
+HALLAZGO CLAVE (medido, no supuesto): el VLM chico discrimina FATAL con dos
+imagenes separadas — a un par IDENTICO le dio 6.5 (y alucino defectos) y a un par
+TOTALMENTE distinto (dashboard vs juego) 7.0: no discriminaba. Componiendo mockup
+y screenshot LADO A LADO en UNA sola imagen: identicas 8.5, distintas 0.0, con
+defectos correctos. Los VLM pequenos atienden mal a varias imagenes a la vez; una
+imagen partida lo arregla. Es el modo por defecto de arbitro_visual (fallback a
+dos imagenes solo si no hay PIL).
+
+GATE pre-registrado (scripts/gate_arbitro_visual.py): separacion media
+emparejados 8.07 vs no-emparejados 4.70 = 3.37 (umbral >=3.0), sin inversiones ->
+PASA. Conclusion con datos: el arbitro zero-shot SIRVE; NO hace falta entrenar un
+LoRA (y menos un QLoRA, que en la 5060 Ti no fue el camino). Solo se entrenaria si
+el baseline fallara, y no falla.
+
+Parser tolerante: el 3B a veces omite la linea NOTA (pone el numero en VEREDICTO);
+_parsear_visual rescata nota y/o defectos igual, y devuelve los defectos aunque
+falte la nota (el lazo repara con ellos).
+
+Lazo (program_creator/diseno_a_codigo.py): vision(imaginar) -> genera pagina ->
+revisar_en_navegador(screenshot) -> arbitro_visual(defectos) -> reparar_web ->
+disyuntor. Fuerza web: _es_idea_web dejaba "dashboard de cripto" como script
+Python de terminal. E2E real con cerebro-14b + VLM: la fidelidad SUBE ronda a
+ronda (3.0 -> 6.0 -> 6.5), arbitro activo cada ronda, la pagina se acerca a la
+vision. Corte por tope/gate/disyuntor.
+
+img2img (assets.editar_transparente): editar una imagen YA HECHA (SDXL img2img +
+VAE transparente). Fix: el latents_std malformado (escalar) del TransparentVAE
+reventaba prepare_latents; se anula para caer al scaling_factor de SDXL.
+Verificado en GPU (mockup + edicion de un sprite -> RGBA en 10s).
+
+GATES: suite 5323 passed / 0 failed antes del cambio; 35 tests nuevos verdes
+(arbitro_visual, mockup, diseno_a_codigo, assets_editar). Commit 449cee0 en main
+(local; pendiente push si el dueno quiere). Sin tocar el lazo hobby existente.
