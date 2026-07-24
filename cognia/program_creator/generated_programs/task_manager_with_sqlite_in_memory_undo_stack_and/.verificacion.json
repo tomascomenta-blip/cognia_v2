@@ -1,7 +1,7 @@
 {
   "verificado": false,
   "puntaje_real": 6.5,
-  "fecha": "2026-07-23T23:33:46",
+  "fecha": "2026-07-24T00:09:03",
   "motivos": [
     "compila: 1/1 .py compilan",
     "arranca: Traceback (most recent call last) -> FAILED (errors=1)",

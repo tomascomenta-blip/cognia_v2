@@ -78,7 +78,10 @@
     "description": "Simulates the growth of reaction diffusion patterns using the logistic map and reaction-diffusion equations.",
     "total_score": 7.3,
     "created_at": "2026-04-05T19:57:40.410793",
-    "directory": "reaction_diffusion_simulator"
+    "directory": "reaction_diffusion_simulator",
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "euclidean_empire",
@@ -87,7 +90,10 @@
     "description": "A simple text-based strategy game where players manage resources and build their empire in a world governed by geometric shapes.",
     "total_score": 8.9,
     "created_at": "2026-04-05T20:16:34.388728",
-    "directory": "euclidean_empire"
+    "directory": "euclidean_empire",
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "stem_encryptor",
@@ -96,7 +102,10 @@
     "description": "A terminal-based cipher toy that encrypts a message by shifting each letter in the word to its corresponding \"stem\" position.",
     "total_score": 6.5,
     "created_at": "2026-04-05T20:34:45.299769",
-    "directory": "stem_encryptor"
+    "directory": "stem_encryptor",
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "fractal_pattern_renderer",
@@ -105,7 +114,10 @@
     "description": "A terminal-based program that renders different types of fractals and provides a menu system to select themes.",
     "total_score": 7.3,
     "created_at": "2026-04-05T20:57:48.030130",
-    "directory": "fractal_pattern_renderer"
+    "directory": "fractal_pattern_renderer",
+    "verificado": true,
+    "puntaje_real": 7.5,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "royal_favors",
@@ -114,7 +126,10 @@
     "description": "A simple text-based strategy game inspired by Palacio Alatriste, where the player must choose which favors to grant to their lord.",
     "total_score": 7.6,
     "created_at": "2026-04-05T21:07:21.912043",
-    "directory": "royal_favors"
+    "directory": "royal_favors",
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "story_spinner",
@@ -123,7 +138,10 @@
     "description": "Generates a short, randomized story based on user input.",
     "total_score": 7.1,
     "created_at": "2026-04-05T21:18:07.212605",
-    "directory": "story_spinner"
+    "directory": "story_spinner",
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:09:03"
   },
   {
     "id": "decent_dilemma",
@@ -132,7 +150,10 @@
     "description": "A simple text-based strategy game where you manage resources and make decisions to balance serotonin levels.",
     "total_score": 8.4,
     "created_at": "2026-04-05T21:47:44.182521",
-    "directory": "decent_dilemma"
+    "directory": "decent_dilemma",
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "untitled_word_frequency_analyzer",
@@ -141,7 +162,10 @@
     "description": "Analyzes the frequency of words in a given text and provides their counts.",
     "total_score": 7.0,
     "created_at": "2026-04-06T21:11:44.693445",
-    "directory": "untitled_word_frequency_analyzer"
+    "directory": "untitled_word_frequency_analyzer",
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:09:03"
   },
   {
     "id": "untitled_automated_poetry_generator_based_on_user",
@@ -151,7 +175,10 @@
     "total_score": 6.5,
     "created_at": "2026-04-06T21:39:41.593818",
     "directory": "untitled_automated_poetry_generator_based_on_user",
-    "self_proposed": true
+    "self_proposed": true,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:09:03"
   },
   {
     "id": "permutation_patterns",
@@ -161,7 +188,10 @@
     "total_score": 7.5,
     "created_at": "2026-04-07T20:38:21.934009",
     "directory": "permutation_patterns",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 8.5,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "untitled_procedural_story_generator_with_built_in",
@@ -171,7 +201,10 @@
     "total_score": 7.0,
     "created_at": "2026-04-16T20:26:09.051112",
     "directory": "untitled_procedural_story_generator_with_built_in",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:09:03"
   },
   {
     "id": "investment_dashboard_simulator",
@@ -181,7 +214,10 @@
     "total_score": 7.8,
     "created_at": "2026-07-19T21:14:42.429894",
     "directory": "investment_dashboard_simulator",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "investment_dashboard_simulation",
@@ -191,7 +227,10 @@
     "total_score": 8.2,
     "created_at": "2026-07-19T21:19:00.994758",
     "directory": "investment_dashboard_simulation",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "investment_dashboard_simulator_01",
@@ -201,7 +240,10 @@
     "total_score": 8.7,
     "created_at": "2026-07-19T21:19:22.424686",
     "directory": "investment_dashboard_simulator_01",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.0,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "investment_dashboard",
@@ -211,7 +253,10 @@
     "total_score": 8.7,
     "created_at": "2026-07-19T21:24:16.462471",
     "directory": "investment_dashboard",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "investment_dashboard_01",
@@ -221,7 +266,10 @@
     "total_score": 8.7,
     "created_at": "2026-07-19T22:37:07.874630",
     "directory": "investment_dashboard_01",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "investment_dashboard_animation",
@@ -231,7 +279,10 @@
     "total_score": 8.7,
     "created_at": "2026-07-19T22:50:07.280408",
     "directory": "investment_dashboard_animation",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "investment_dashboard_simulation_01",
@@ -241,7 +292,10 @@
     "total_score": 8.7,
     "created_at": "2026-07-19T22:53:07.769069",
     "directory": "investment_dashboard_simulation_01",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "task_manager_with_sqlite_in_memory_undo_stack_and",
@@ -251,7 +305,10 @@
     "total_score": 6.7,
     "created_at": "2026-07-20T00:11:46.909752",
     "directory": "task_manager_with_sqlite_in_memory_undo_stack_and",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.5,
+    "verificado_en": "2026-07-24T00:09:03"
   },
   {
     "id": "task_manager_with_sqlite_in_memory_undo_stack_and_01",
@@ -261,7 +318,10 @@
     "total_score": 6.7,
     "created_at": "2026-07-20T00:12:05.675629",
     "directory": "task_manager_with_sqlite_in_memory_undo_stack_and_01",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.5,
+    "verificado_en": "2026-07-24T00:09:03"
   },
   {
     "id": "in_memory_task_manager_with_undo_stack_and_unit_te",
@@ -271,7 +331,10 @@
     "total_score": 6.7,
     "created_at": "2026-07-20T00:14:37.409563",
     "directory": "in_memory_task_manager_with_undo_stack_and_unit_te",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "text_compressor",
@@ -291,7 +354,10 @@
     "total_score": 7.0,
     "created_at": "2026-07-20T00:33:48.279081",
     "directory": "text_compressor_01",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:09:03"
   },
   {
     "id": "python_project_map",
@@ -301,7 +367,10 @@
     "total_score": 6.0,
     "created_at": "2026-07-20T00:40:11.886308",
     "directory": "python_project_map",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 8.5,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "python_project_map",
@@ -311,7 +380,10 @@
     "total_score": 7.0,
     "created_at": "2026-07-20T00:42:55.931479",
     "directory": "python_project_map",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 8.5,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "python_project_map_with_ast",
@@ -321,7 +393,10 @@
     "total_score": 6.5,
     "created_at": "2026-07-20T00:43:40.084978",
     "directory": "python_project_map_with_ast",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "dashboard_de_inversiones",
@@ -334,7 +409,7 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.5,
-    "verificado_en": "2026-07-23T22:51:43"
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "priorityqueue_with_heapq_and_priority_change",
@@ -344,7 +419,10 @@
     "total_score": 7.3,
     "created_at": "2026-07-20T01:32:48.527014",
     "directory": "priorityqueue_with_heapq_and_priority_change",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "investment_dashboard_02",
@@ -354,7 +432,10 @@
     "total_score": 7.9,
     "created_at": "2026-07-20T02:54:19.253824",
     "directory": "investment_dashboard_02",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "investment_dashboard_simulation_02",
@@ -364,7 +445,10 @@
     "total_score": 8.7,
     "created_at": "2026-07-20T02:54:50.578446",
     "directory": "investment_dashboard_simulation_02",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "token_estimator",
@@ -374,7 +458,10 @@
     "total_score": 7.6,
     "created_at": "2026-07-20T02:58:38.719079",
     "directory": "token_estimator",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:09:03"
   },
   {
     "id": "automated_news_brief_generator",
@@ -387,7 +474,7 @@
     "self_proposed": true,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-23T22:51:43"
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "investment_dashboard_simulation_03",
@@ -397,7 +484,10 @@
     "total_score": 7.7,
     "created_at": "2026-07-20T11:55:55.930047",
     "directory": "investment_dashboard_simulation_03",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "inversin_dashboard",
@@ -407,7 +497,10 @@
     "total_score": 8.4,
     "created_at": "2026-07-20T12:06:14.153932",
     "directory": "inversin_dashboard",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "dashboard_de_inversiones_02",
@@ -420,7 +513,7 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-23T22:51:43"
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "inversin_dashboard_01",
@@ -430,7 +523,10 @@
     "total_score": 7.6,
     "created_at": "2026-07-20T12:23:15.357664",
     "directory": "inversin_dashboard_01",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "simulacin_de_dashboard_de_inversiones",
@@ -440,7 +536,10 @@
     "total_score": 6.7,
     "created_at": "2026-07-20T12:24:05.993933",
     "directory": "simulacin_de_dashboard_de_inversiones",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.5,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "dashboard_de_inversiones_09",
@@ -453,7 +552,7 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.5,
-    "verificado_en": "2026-07-23T22:51:43"
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "simulated_investment_dashboard",
@@ -463,7 +562,10 @@
     "total_score": 6.2,
     "created_at": "2026-07-20T13:31:24.828193",
     "directory": "simulated_investment_dashboard",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.0,
+    "verificado_en": "2026-07-24T00:09:01"
   },
   {
     "id": "dashboard_de_inversiones_en_movimiento",
@@ -473,7 +575,10 @@
     "total_score": 6.0,
     "created_at": "2026-07-20T13:49:34.157651",
     "directory": "dashboard_de_inversiones_en_movimiento",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.5,
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "inversin_dashboard_02",
@@ -483,7 +588,10 @@
     "total_score": 6.5,
     "created_at": "2026-07-20T14:16:41.254575",
     "directory": "inversin_dashboard_02",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:08:55"
   },
   {
     "id": "dashboard_de_inversiones_11",
@@ -496,7 +604,7 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-23T22:51:43"
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "dashboard_de_inversiones_12",
@@ -506,7 +614,10 @@
     "total_score": 7.9,
     "created_at": "2026-07-21T19:51:42.946276",
     "directory": "dashboard_de_inversiones_12",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 8.5,
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "dashboard_de_inversiones_13",
@@ -516,7 +627,10 @@
     "total_score": 6.2,
     "created_at": "2026-07-21T19:52:08.961752",
     "directory": "dashboard_de_inversiones_13",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 8.5,
+    "verificado_en": "2026-07-24T00:08:54"
   },
   {
     "id": "dashboard_de_inversiones_14",
@@ -526,6 +640,9 @@
     "total_score": 7.6,
     "created_at": "2026-07-21T19:53:08.743567",
     "directory": "dashboard_de_inversiones_14",
-    "self_proposed": false
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-24T00:08:54"
   }
 ]

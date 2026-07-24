@@ -1,0 +1,8 @@
+Title         : Dashboard de Inversiones
+Category      : dashboard de inversiones con gráficos pastel y nombres de empresas|RUTA: AGENTE
+Created at    : 2026-07-21T19:53:08.743567
+Score         : 7.6 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  Un programa que genera un dashboard de inversiones con gráficos pastel usando datos de ejemplo.

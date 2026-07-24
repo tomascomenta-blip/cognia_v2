@@ -1,7 +1,7 @@
 {
   "verificado": false,
   "puntaje_real": 6.0,
-  "fecha": "2026-07-23T23:33:36",
+  "fecha": "2026-07-24T00:08:54",
   "motivos": [
     "compila: 2/2 .py compilan",
     "arranca: exit 0, 5 chars de salida",
