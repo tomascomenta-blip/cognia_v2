@@ -2,6 +2,58 @@
 
 ---
 
+## [4.3.1] - 2026-07-24
+
+### Deuda técnica: cinco fallos silenciosos, y los ojos por fin conectados
+
+Auditoría del repo con verificación ejecutada (no lectura). Todos los hallazgos
+comparten el modo de falla que este repo tiene documentado: **no explotan, se
+callan y devuelven algo plausible**.
+
+- **La voz estaba rota en toda instalación desde PyPI.** `cognia/voz/jarvis.py`
+  importaba `respuestas_articuladas` por su nombre suelto, que solo resuelve con
+  el cwd en la raíz del repo; el módulo se empaqueta en `cognia_v3/interfaces/`.
+  Jarvis moría con `ModuleNotFoundError` al construir el cerebro.
+- **El ciclo de investigación autónoma no corrió nunca.** `game_manager.py`
+  importaba `researcher` y `knowledge_integrator` como hermanos sueltos; el
+  `except` se tragaba el error, el ciclo caía a memoria y se reportaba "idle"
+  exitoso, con `searches_done` clavado en 0. Ahora un fallo de *cableado* se
+  grita aparte de un fallo de la investigación.
+- **El buscador web devolvía vacío con `error=None`.** `cognia/search/web_search.py`
+  envuelve la Instant Answer API de DuckDuckGo, que no es un buscador: ante una
+  consulta técnica responde vacío, y eso salía como éxito (`/buscar-web` imprimía
+  "sin resultados" sin explicar por qué). Ahora cae al buscador real del repo
+  (Wikipedia + HackerNews + arXiv). Medido: **0/3 → 3/3** consultas útiles.
+- **El filtro de pertinencia decía que sí a todo**, y de forma no determinista
+  según el orden de imports del proceso. Medido: `pertinente("fotosíntesis",
+  "bitcoin")` daba `True`; ahora da `False`.
+- **Se culpaba al producto por un fallo del sistema operativo.** Si el SO no podía
+  crear el subproceso, la autoprueba lo anotaba como fallo del producto —
+  veredicto falso que además volvía flaky esa fase. Ahora es *indeterminado*.
+- **Preguntas de seguimiento tras `/hacer`**: el turno de conversación nunca se
+  registraba en instalación limpia (mismo patrón de import).
+
+### Multimodal: `/ver`
+
+Cognia **mira tu pantalla y responde sobre lo que ve**. El módulo de percepción
+(captura + árbol de controles → texto, con las ventanas sensibles redactadas por
+seguridad) existía, estaba probado… y no había forma de alcanzarlo desde el CLI.
+Sin VLM y sin VRAM extra: lo consume el cerebro de texto de siempre.
+
+```
+/ver                      → describe lo que hay en pantalla
+/ver ¿qué ventana tengo?  → te responde usando lo que ve
+```
+
+- **Extras declarados**: `pip install "cognia-ai[vision]"` (ojos) y
+  `"cognia-ai[voz]"` (oídos y boca). Estaban sin declarar: el código existía y el
+  usuario no tenía cómo saber qué instalar para encenderlo.
+
+**Verificación**: 5293 tests (23 nuevos de regresión, cada uno falla sin su fix),
+gate del camino feliz 5/5, y los 387 módulos del paquete importan limpio.
+
+---
+
 ## [4.3.0] - 2026-07-24
 
 ### Pensamiento profundo en tres actos, árbitro de colisiones y auto-verificación de productos

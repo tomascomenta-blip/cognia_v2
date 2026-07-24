@@ -8901,3 +8901,52 @@ VERIFICACION REAL (no el mensaje del upload):
   autoprueba, pensamiento_profundo, program_creator.verificacion, node.cpu_threads).
   hilos_cpu_optimos(8) -> 6 (nucleos fisicos) y el arbitro reporta modo SOMBRA.
 La corrida queda CERRADA con todo lo pedido entregado y publicado.
+
+## 2026-07-24 (06:00-06:45) — Deuda tecnica: cinco fallos silenciosos + /ver
+
+Encargo: eliminar deuda tecnica de forma pulida y profunda, sin danio colateral,
+con capacidad multimodal, publicar y apagar.
+
+METODO: auditoria con EVIDENCIA EJECUTADA (2 agentes) + verificacion propia. Nada
+se reporto ni se arreglo sin correrlo antes. Se descarto explicitamente lo que
+PARECIA deuda y no lo era.
+
+LO QUE NO ERA DEUDA (medido, para no volver a mirarlo)
+- 387 modulos del paquete importan OK, 0 rotos. En instalacion limpia desde PyPI:
+  368 OK y 1 "roto" que es intencional (cognia.tui pide el extra [tui]).
+- "228 tests sin asercion" fue un FALSO POSITIVO de mi propio detector (no veia
+  pytest.raises en el AST). Con el detector corregido: 53 de 4810 (1.1%), y sus
+  nombres los declaran honestamente (no_crash, does_not_raise, is_noop). Son
+  tests legitimos de "no debe reventar". La suite esta sana.
+
+DEUDA REAL ARREGLADA (cada una con test que falla sin el fix)
+1. La VOZ estaba rota en TODA instalacion desde PyPI: jarvis importaba
+   'respuestas_articuladas' por su nombre suelto (vive en cognia_v3/interfaces/).
+   Verificado en venv limpio con 4.3.0: ModuleNotFoundError al construir el cerebro.
+2. El ciclo de INVESTIGACION AUTONOMA no corrio nunca: imports hermanos rotos en
+   game_manager.py, tragados por el except -> 'idle' exitoso y searches_done en 0.
+   Ademas 'from generator import PROGRAM_CATEGORIES': ese simbolo NO EXISTE en el
+   repo (el vivo es FALLBACK_CATEGORIES).
+3. El BUSCADOR WEB devolvia vacio con error=None (Instant Answer API no es un
+   buscador). El repo ya lo habia medido en cognia_v3/core/investigador.py y la
+   leccion nunca llego a cognia/search/web_search.py. Ahora cae al buscador real:
+   0/3 -> 3/3 consultas utiles contra red real.
+4. El FILTRO DE PERTINENCIA decia True siempre, y de forma NO DETERMINISTA (segun
+   quien hubiera importado antes cognia_v3.core.investigador, que hace sys.path.insert).
+5. AUTOPRUEBA culpaba al producto cuando fallaba el SO al lanzar el subproceso.
+   Ahora es indeterminado (ok=None). Los -3/-4 magicos pasan a RC_TIMEOUT/RC_NO_LANZO.
+6. Las preguntas de seguimiento tras /hacer no se registraban en instalacion limpia.
+
+MULTIMODAL: comando /ver
+cognia/vision/ sabia percibir la pantalla (captura + arbol UIA -> texto, ventanas
+sensibles redactadas) y estaba verificado, pero NADIE podia alcanzarlo: no habia
+comando. Capacidad construida, probada y desconectada. Ahora:
+  /ver                     -> "Ventana activa: '...'. Controles (12): ..."
+  /ver que ventana tengo?  -> "Tienes abierta la ventana '...'"   [correcto]
+Sin VLM ni VRAM extra: lo consume el cerebro de texto. Extras [vision] y [voz]
+declarados en pyproject (estaban sin declarar: el usuario no tenia como saber
+que instalar).
+
+GATES: suite 5293 passed / 0 failed (23 tests nuevos); camino feliz 5/5;
+autoprueba 6/8 sin fallo duro (los 2 son paginas HTML que dependen de recursos
+externos, ya conocido). v4.3.1.
