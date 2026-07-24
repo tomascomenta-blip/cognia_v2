@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognia-ai"
-version = "4.3.0"
+version = "4.3.1"
 description = "Local cognitive AI that runs offline on a small model, with episodic memory, self-improving prompts, and an AI-native image/scene creator"
 readme = "README.md"
 license = { text = "MIT" }
@@ -59,7 +59,19 @@ llama    = ["llama-cpp-python>=0.2.20"]
 # TUI (python -m cognia.tui): textual no va en las deps duras (pesado);
 # sin el extra, el entry point avisa "pip install cognia-ai[tui]".
 tui      = ["textual>=0.60.0"]
-all      = ["sentence-transformers>=2.2.0", "pdfplumber>=0.10.0", "llama-cpp-python>=0.2.20", "textual>=0.60.0"]
+# OJOS (comando /ver): Cognia mira la pantalla y responde sobre lo que ve.
+# Captura con mss + arbol de controles con uiautomation (Windows). Sin VLM: la
+# percepcion se rinde como TEXTO y la consume el cerebro de siempre.
+#   pip install "cognia-ai[vision]"
+# Estaban SIN DECLARAR hasta 4.3.1: el codigo existia y el usuario no tenia como
+# saber que instalar para encenderlo.
+vision   = ["mss>=9.0", "uiautomation>=2.0; sys_platform == 'win32'"]
+# OIDOS Y BOCA (python -m cognia.voz.jarvis): palabra de activacion, transcripcion
+# y voz. Pesados y muy dependientes del SO, por eso van aparte del core.
+#   pip install "cognia-ai[voz]"
+voz      = ["sounddevice>=0.4", "faster-whisper>=1.0", "openwakeword>=0.6", "piper-tts>=1.2"]
+all      = ["sentence-transformers>=2.2.0", "pdfplumber>=0.10.0", "llama-cpp-python>=0.2.20",
+            "textual>=0.60.0", "mss>=9.0", "uiautomation>=2.0; sys_platform == 'win32'"]
 
 [project.urls]
 Homepage   = "https://github.com/tomascomenta-blip/cognia_v2"
