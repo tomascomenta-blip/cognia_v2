@@ -400,7 +400,10 @@ def _print_backend_status() -> None:
         print("Backend local (GGUF): no instalado -- instala con: cognia install-model")
         return
     print(f"Backend local (GGUF): instalado ({gguf})")
-    port = os.environ.get("LLAMA_SERVER_PORT", "8088")
+    # 8080: puerto unico del backend (ver node/llama_backend._DEFAULT_PORT y
+    # scripts/servir_flota.py). Antes decia 8088 y reportaba "no corriendo"
+    # aunque la flota estuviera servida.
+    port = os.environ.get("LLAMA_SERVER_PORT", "8080")
     try:
         urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2)
         print(f"  llama-server: corriendo en 127.0.0.1:{port}")
@@ -510,6 +513,15 @@ def main() -> None:
     elif cmd == "":
         from cognia.first_run import run_wizard
         run_wizard(force=False)
+        # Chequeo de arranque (2026-07-25): decir QUE backend hay antes de que
+        # el usuario escriba nada. "Cognia degrada en silencio" llevaba meses
+        # escrito como leccion y volvio a pasar igual, porque una leccion en
+        # prosa no se ejecuta. Esta es la misma leccion como chequeo.
+        try:
+            from cognia import backend_activo
+            backend_activo.chequeo_arranque()
+        except Exception:
+            pass
         from cognia.cli import repl
         repl()
     else:

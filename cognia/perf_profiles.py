@@ -29,8 +29,12 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PROFILE = "cpu"
 
-# Puerto por defecto del llama-server (mismo default que node/llama_backend.py)
-_DEFAULT_PORT = 8088
+# Puerto por defecto del llama-server (mismo default que node/llama_backend.py).
+# 8088 -> 8080 el 2026-07-25: esta copia se quedo con el valor viejo cuando
+# llama_backend unifico el puerto, y el comentario "mismo default que
+# node/llama_backend.py" paso a ser falso. Un default duplicado que se
+# desincroniza es la version en pequeno del bug de los dos backends.
+_DEFAULT_PORT = 8080
 
 # Nombres exactos del binario llama-server (no tocar otros procesos)
 _SERVER_PROC_NAMES = ("llama-server", "llama-server.exe",
@@ -131,7 +135,7 @@ def profile_summary(name: str) -> str:
 # -- llama-server corriendo ----------------------------------------------------
 
 def _server_port() -> int:
-    """Puerto del llama-server (LLAMA_SERVER_PORT o 8088, como llama_backend)."""
+    """Puerto del llama-server (LLAMA_SERVER_PORT o 8080, como llama_backend)."""
     try:
         return int(os.environ.get("LLAMA_SERVER_PORT", "").strip() or _DEFAULT_PORT)
     except ValueError:

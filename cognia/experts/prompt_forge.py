@@ -37,7 +37,7 @@ from .registry import (
 
 # URL del llama-server local (POST /completion). Se lee en call-time para
 # que los tests puedan overridear con COGNIA_LLM_URL.
-_LLM_URL_DEFAULT = "http://127.0.0.1:8088/completion"
+_LLM_URL_DEFAULT = "http://127.0.0.1:8080/completion"   # puerto unico (2026-07-25)
 _LLM_TIMEOUT_S = 60
 _LLM_N_PREDICT = 700
 _LLM_TEMPERATURE = 0.7
@@ -312,11 +312,17 @@ def forge_prompt(nombre: str, dedicacion: str, modelo: str,
     en 127.0.0.1:8088). Si una llamada devuelve None, texto muy corto o
     lanza, ESA seccion cae a su plantilla de _FALLBACK_SECTIONS. Resultado
     tipico con LLM: 1500-3000 palabras; solo plantillas: ~1200.
+
+    Si alguna seccion cayo a plantilla, el markdown devuelto ARRANCA con una
+    linea de aviso (y se grita por stderr + backend_audit.jsonl): el .md queda
+    en disco y un prompt de plantilla se lee igual de bien que uno forjado, asi
+    que el degradado tiene que viajar con el documento.
     """
     if llm_fn is None:
         llm_fn = _llm_local
     partes = [f"# Prompt de comportamiento: {nombre}"]
     total = len(SECCIONES)
+    de_plantilla = []          # secciones que NO penso ningun modelo
     for i, key in enumerate(SECCIONES, start=1):
         titulo = _TITULOS[key]
         gen = _GEN_TEMPLATE.format(
@@ -331,11 +337,33 @@ def forge_prompt(nombre: str, dedicacion: str, modelo: str,
             texto = _FALLBACK_SECTIONS[key].format(
                 nombre=nombre, dedicacion=dedicacion).strip()
             origen = "plantilla"
+            de_plantilla.append(titulo)
         else:
             origen = "llm"
         print_fn(f"  [{i}/{total}] {titulo}: {origen} "
                  f"({len(texto.split())} palabras)")
         partes.append(f"## {titulo}\n\n{texto}")
+
+    if de_plantilla:
+        # La linea por seccion se pierde en el scroll y el .md queda en disco
+        # para siempre: el aviso viaja DENTRO del prompt, no solo en la consola.
+        # Sin '## ' a proposito: el documento sigue teniendo 8 secciones.
+        partes.insert(1, (
+            f"> ATENCION: {len(de_plantilla)}/{total} secciones de este prompt "
+            f"NO las escribio ningun modelo: son PLANTILLA ESTATICA porque el "
+            f"LLM local no respondio o devolvio texto inusable "
+            f"({', '.join(de_plantilla)}). Vuelve a forjarlo con el modelo "
+            f"servido si quieres un experto de verdad."))
+        print_fn(f"  [!] {len(de_plantilla)}/{total} secciones salieron de "
+                 f"PLANTILLA ESTATICA (el LLM no respondio)")
+        try:
+            from .. import backend_activo
+            backend_activo.sin_backend(
+                "prompt_forge",
+                f"{len(de_plantilla)}/{total} secciones del prompt de "
+                f"'{nombre}' son plantilla estatica, no generadas")
+        except Exception:
+            pass
     return "\n\n".join(partes) + "\n"
 
 

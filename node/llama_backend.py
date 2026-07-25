@@ -56,7 +56,14 @@ def _request_timeout_s(max_tokens: int, payload_len: int) -> int:
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-_DEFAULT_PORT   = 8088
+# 8080 y no 8088 (cambiado 2026-07-25): eran DOS backends. Este arrancaba
+# llama-server en :8088 con LLAMA_GGUF_PATH y atendia chat/agente/create_program,
+# mientras cognia/llm_local.py sondeaba :8080, que es donde
+# scripts/servir_flota.py sirve la flota adoptada por gate. Resultado medido: los
+# productos salian del qwen2.5-7b RETIRADO por la auditoria del 24/07 y la flota
+# estaba apagada. Con un solo puerto, si la flota corre este backend la ADOPTA
+# (ver _ping/_check_adopted_server abajo) en vez de levantar un segundo modelo.
+_DEFAULT_PORT   = int(os.environ.get("LLAMA_SERVER_PORT", "8080"))
 # 90s cubria el GGUF 3B de 1.9GB, pero el 7B (4.7GB) tarda >90s en carga fria en
 # el i3 (falla "did not start within 90s", medido 2026-07-04). El wait es un
 # poll a /health que CORTA apenas responde, asi que un timeout mas alto NO
@@ -964,6 +971,26 @@ class LlamaBackend:
     def __init__(self, impl) -> None:
         self._impl = impl
 
+    def _auditar(self, via: str) -> None:
+        """
+        Deja constancia de que ESTE backend atendio una peticion: modelo + puerto.
+
+        Anadido 2026-07-25. Sin esto no habia forma de saber, mirando una corrida,
+        si el producto lo hizo la flota de :8080 o el qwen2.5-7b RETIRADO que este
+        mismo modulo levantaba en :8088. No lanza nunca: es instrumentacion.
+        """
+        try:
+            from cognia import backend_activo
+            base = getattr(self._impl, "_base", None)
+            if base:
+                backend_activo.registrar(via, base, rol="backend-inyectado")
+            else:   # in-process (llama-cpp-python): no hay puerto que auditar
+                backend_activo.registrar(via, "in-process",
+                                         rol="llama-cpp-python",
+                                         gguf=str(self.gguf_path))
+        except Exception:
+            pass
+
     @property
     def last_tokens_predicted(self) -> Optional[int]:
         """Real token count from the last generate() call, or None if unknown."""
@@ -1022,6 +1049,7 @@ class LlamaBackend:
         # impl lo MERGEA con los stops de fin-de-turno, nunca los reemplaza.
         if stop is not None:
             extra["stop"] = stop
+        self._auditar("generate")
         return self._impl.generate(prompt, max_tokens, temperature, **extra)
 
     def generate_long(self, prompt: str, max_total_tokens: int = None,
@@ -1381,6 +1409,7 @@ class LlamaBackend:
         # grammar (string GBNF): solo si se pasa (ver generate())
         if grammar is not None:
             extra["grammar"] = grammar
+        self._auditar("stream_generate")
         if hasattr(self._impl, "stream_generate"):
             yield from self._impl.stream_generate(prompt, max_tokens, temperature, **extra)
         else:
@@ -1398,6 +1427,7 @@ class LlamaBackend:
         # cache_prompt: solo cuando es False (ver generate())
         if not cache_prompt:
             extra["cache_prompt"] = False
+        self._auditar("chat")
         if hasattr(self._impl, "stream_chat"):
             yield from self._impl.stream_chat(messages, max_tokens, temperature, **extra)
         else:
@@ -1418,14 +1448,30 @@ class LlamaBackend:
     @classmethod
     def try_load(cls) -> Optional["LlamaBackend"]:
         """
-        Try to build a working backend. Returns None (silently) if:
+        Try to build a working backend. Returns None if:
         - No GGUF model found
         - Neither llama-cpp-python nor llama-server binary is available
         - Any initialisation error
+
+        Ya NO es silencioso (2026-07-25). Cada None pasa por
+        cognia.backend_activo.sin_backend(): grita por stderr y queda en
+        ~/.cognia/backend_audit.jsonl. Devolver None en silencio es exactamente
+        como el sistema estuvo degradando durante meses sin que se viera en la
+        salida — el caller sigue pudiendo manejar el None, pero ya no puede
+        hacerlo sin que quede registro.
         """
+        def _gritar(detalle: str):
+            try:
+                from cognia import backend_activo
+                backend_activo.sin_backend("llama_backend.try_load", detalle)
+            except Exception:
+                pass
+            return None
+
         gguf = _find_gguf()
         if gguf is None:
-            return None   # no model → nothing to do
+            return _gritar("no hay GGUF (revisa LLAMA_GGUF_PATH en "
+                           "~/.cognia/config.env)")
 
         # Try in-process Python bindings first
         if _LlamaCppBackend.available():
@@ -1441,6 +1487,22 @@ class LlamaBackend:
                 return cls(_LlamaServerBackend(gguf, port))
             except Exception as exc:
                 logger.debug("[llama_backend] llama-server init failed: %s", exc)
+                return _gritar(f"llama-server no arranco en :{port}: {exc}")
 
-        logger.debug("[llama_backend] no backend available (GGUF found but no runtime)")
-        return None
+        # Diagnostico PRECISO, no generico. Un verificador de contexto fresco
+        # (2026-07-25) recibio "ni el binario llama-server" con el binario
+        # PRESENTE en ~/.cognia/llama: lo que faltaba era apply_config(), que es
+        # quien mete LLAMA_SERVER_PATH y LLAMA_GGUF_PATH en el entorno. Un aviso
+        # que apunta a la causa equivocada hace perder mas tiempo que el
+        # silencio, porque se investiga lo que no es.
+        binario_en_casa = (Path.home() / ".cognia" / "llama" /
+                           "llama-server.exe")
+        if binario_en_casa.is_file() and not os.environ.get("LLAMA_SERVER_PATH"):
+            return _gritar(
+                f"el binario existe ({binario_en_casa}) pero LLAMA_SERVER_PATH "
+                f"no esta en el entorno: falta llamar "
+                f"cognia.first_run.apply_config() antes de usar el backend "
+                f"(el CLI lo hace; un script suelto, no). Ademas por eso el "
+                f"GGUF elegido fue {gguf.name} y no el de config.env.")
+        return _gritar(f"GGUF encontrado ({gguf.name}) pero no hay runtime: "
+                       f"ni llama-cpp-python ni el binario llama-server")
