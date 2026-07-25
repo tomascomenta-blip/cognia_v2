@@ -164,6 +164,29 @@ def test_generacion_inicial_fallida():
     assert "no se pudo generar" in res.motivo_corte
 
 
+def test_mockup_provisto_no_se_regenera():
+    """Con mockup_path se usa ESE mockup (no se llama a generar_mockup): permite
+    generar el mockup aparte cuando SDXL no cabe junto a cerebro+VLM."""
+    capturado = {}
+
+    def _arb(idea, informe, mockup=None, **kw):
+        capturado["mockup"] = mockup
+        return None
+
+    with patch.object(d2c._mockup, "imaginar_vision",
+                      return_value={"brief": "b", "prompt_imagen": "p"}), \
+         patch.object(d2c._mockup, "generar_mockup") as _gm, \
+         patch.object(d2c, "generate_program", return_value=_prog()), \
+         patch.object(d2c, "revisar_en_navegador", return_value=_informe([])), \
+         patch.object(d2c, "arbitrar_desde_informe", side_effect=_arb), \
+         patch.object(d2c, "reparar_web", return_value=None):
+        res = d2c.construir_para_mockup("un juego", verbose=False,
+                                        mockup_path="/ruta/mock.png")
+    _gm.assert_not_called()                       # NO se regenero
+    assert res.mockup == "/ruta/mock.png"
+    assert capturado["mockup"] == "/ruta/mock.png"  # llego al arbitro
+
+
 def test_idea_no_web_se_reporta():
     prog_py = GeneratedProgram(title="P", description="d", code="print(1)",
                                category="x", lenguaje="python")

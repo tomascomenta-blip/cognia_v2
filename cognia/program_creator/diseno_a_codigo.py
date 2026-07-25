@@ -99,6 +99,7 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                           max_rondas: int = MAX_RONDAS_DEFECTO,
                           gate_nota: Optional[float] = None,
                           usar_mockup_imagen: bool = True,
+                          mockup_path: Optional[str] = None,
                           requiere_grafico: bool = False,
                           verbose: bool = True) -> ResultadoDiseno:
     """
@@ -132,7 +133,13 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
             print(f"🧠 Vision: {res.brief[:120]}")
 
         # ── 2. El modelo de imagenes DIBUJA el objetivo (opcional/GPU) ──────
-        if usar_mockup_imagen:
+        # mockup_path: usar un mockup YA hecho (util cuando SDXL no puede coexistir
+        # con cerebro+VLM en la GPU: se genera aparte y se pasa aqui).
+        if mockup_path:
+            res.mockup = mockup_path
+            if verbose:
+                print(f"🎨 Mockup (provisto): {res.mockup}")
+        elif usar_mockup_imagen:
             res.mockup = _mockup.generar_mockup(res.prompt_imagen or idea)
             if verbose:
                 print(f"🎨 Mockup: {res.mockup or 'no disponible (uso brief de texto)'}")
