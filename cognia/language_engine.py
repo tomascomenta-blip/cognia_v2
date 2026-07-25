@@ -115,6 +115,22 @@ except ImportError:
 from .logger_config import get_logger as _get_le_logger
 _le_logger = _get_le_logger(__name__)
 
+
+# Marcador que ENCABEZA toda respuesta que no paso por un LLM. Es texto visible
+# a proposito: el STAGE 5 devolvia una frase canned con used_llm=False y en la
+# pantalla se leia igual que una respuesta pensada.
+MARCA_SIN_LLM = "[SIN LLM]"
+
+
+def _grito_degradado(via: str, detalle: str) -> None:
+    """Degradado RUIDOSO (stderr + ~/.cognia/backend_audit.jsonl). El import va
+    dentro y todo envuelto: instrumentar no puede tumbar el motor de lenguaje."""
+    try:
+        from . import backend_activo
+        backend_activo.sin_backend(via, detalle)
+    except Exception:
+        pass
+
 try:
     from cognia.memory_response_engine import MemoryContextBuilder
     HAS_MEM_BUILDER = True
@@ -1244,10 +1260,18 @@ class LanguageEngine:
         # ══════════════════════════════════════════════════════════════
         self._stats["fallbacks"] += 1
         latency  = (time.perf_counter() - t0) * 1000
+        _motivo = llm_result.get('error', 'LLM no disponible')
         fallback = sym_response.text or (
             f"No pude procesar tu pregunta ahora mismo. "
-            f"({llm_result.get('error', 'LLM no disponible')})"
+            f"({_motivo})"
         )
+        # El texto sale MARCADO: used_llm=False lo sabia el EngineResult, pero
+        # el usuario (y los logs de conversacion) veian una respuesta a secas.
+        fallback = f"{MARCA_SIN_LLM} {fallback}"
+        _grito_degradado(
+            "language_engine.fallback",
+            f"STAGE 5: respuesta SIN LLM ({_motivo}); sale marcada "
+            f"'{MARCA_SIN_LLM}'")
         return EngineResult(
             response       = fallback,
             stage_used     = "fallback",
@@ -1283,6 +1307,12 @@ class LanguageEngine:
                     "Shard inference failed, falling back to Ollama: %s", _shard_exc,
                     extra={"op": "language_engine._call_ollama", "context": "shard_fallback"},
                 )
+                # Los shards reales cayeron y contesta OTRO modelo (Ollama).
+                # Sin esto, la respuesta se atribuia al orquestador de shards.
+                _grito_degradado(
+                    "language_engine.shard",
+                    f"la inferencia por shards fallo ({_shard_exc}); contesta "
+                    f"Ollama ({self.modelo}), NO los shards")
 
         try:
             from cognia.prompt_optimizer import TOKEN_LIMITS

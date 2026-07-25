@@ -25,6 +25,57 @@ from .config import HAS_RESEARCH_ENGINE, HAS_PROGRAM_CREATOR
 _SKILLS_DIR = Path(__file__).parent.parent / "cognia_skills"
 
 # ---------------------------------------------------------------------------
+# Degradado ruidoso (FASE A2, 2026-07-25)
+# ---------------------------------------------------------------------------
+# POR QUE: el fast-path de streaming del REPL entero vive dentro de un
+# `try: ... except Exception: pass`. Cuando algo ahi adentro lanza (un import
+# que no esta, el portero, el fleet_router), el turno cae al camino articulado
+# — que llama a Ollama, que en esta maquina NO esta instalado — y termina en
+# una respuesta canned. El usuario ve una respuesta pobre y CERO pistas de por
+# que. Estas dos funciones no cambian el flujo: lo hacen visible.
+_DEGRADADO = "[DEGRADADO]"
+
+
+def _gritar_degradado(via: str, detalle: str = "") -> None:
+    """sin_backend() que no puede romper nada (mismo patron que
+    node/llama_backend.try_load): es instrumentacion, no camino critico."""
+    try:
+        from cognia import backend_activo
+        backend_activo.sin_backend(via, detalle)
+    except Exception:
+        try:
+            print(f"[backend] DEGRADADO: {via} -- {detalle}",
+                  file=sys.stderr, flush=True)
+        except Exception:
+            pass
+
+
+# Turno actual del REPL/agente. Solo existe para de-duplicar avisos: varios de
+# los puntos instrumentados estan en caminos que se recorren muchas veces por
+# turno, y una linea por vuelta tapa la salida entera.
+_TURNO_DEGRADADO = [0]
+_AVISOS_VISTOS: set = set()
+
+
+def _nuevo_turno_degradado() -> None:
+    """Arranca un turno nuevo: los avisos vuelven a poder salir una vez."""
+    _TURNO_DEGRADADO[0] += 1
+    _AVISOS_VISTOS.clear()
+
+
+def _aviso_degradado(via: str, detalle: str = "") -> None:
+    """Aviso VISIBLE + registro en el audit, UNA vez por turno y por motivo."""
+    clave = (_TURNO_DEGRADADO[0], via, detalle)
+    if clave in _AVISOS_VISTOS:
+        return
+    _AVISOS_VISTOS.add(clave)
+    try:
+        print(f"[degradado] {via}: {detalle}", file=sys.stderr, flush=True)
+    except Exception:
+        pass
+    _gritar_degradado(via, detalle)
+
+# ---------------------------------------------------------------------------
 # Optional: rich
 # ---------------------------------------------------------------------------
 try:
@@ -8012,13 +8063,19 @@ def repl():
             if not _needs_tool:
                 # Fast-path: stream tokens from llama.cpp if available
                 _streamed = False
+                _nuevo_turno_degradado()
                 try:
                     from shattering.orchestrator import ShatteringOrchestrator as _SO
                     _orch_cli = getattr(ai, '_orchestrator', None)
                     if _orch_cli is None:
                         try:
                             _orch_cli = _SO(mode='local')
-                        except Exception:
+                        except Exception as _e_orch:
+                            _aviso_degradado(
+                                "cli.fast_path.orquestador",
+                                f"no pude construir ShatteringOrchestrator "
+                                f"({type(_e_orch).__name__}: {_e_orch}); sin "
+                                f"streaming, el turno va al camino articulado")
                             _orch_cli = None
                     if _orch_cli is not None:
                         _llama = getattr(_orch_cli, '_llama', None)
@@ -8026,8 +8083,15 @@ def repl():
                             try:
                                 _orch_cli._try_load_llama()
                                 _llama = getattr(_orch_cli, '_llama', None)
-                            except Exception:
-                                pass
+                            except Exception as _e_load:
+                                _aviso_degradado(
+                                    "cli.fast_path._try_load_llama",
+                                    f"{type(_e_load).__name__}: {_e_load}")
+                        if _llama is None:
+                            _aviso_degradado(
+                                "cli.fast_path.sin_llama",
+                                "no hay backend llama.cpp; el turno cae al "
+                                "camino articulado (Ollama/canned)")
                         if _llama is not None:
                             # Fast-path de habla: PORTERO 0.5B+LoRA por presencia
                             # (PREREG_PORTERO_FASE2: saludo/cortesia E identidad,
@@ -8042,7 +8106,11 @@ def repl():
                                     _fb = fast_speech_backend()
                                     if _fb is not None:
                                         _llama_turn = _fb
-                            except Exception:
+                            except Exception as _e_port:
+                                _aviso_degradado(
+                                    "cli.fast_path.portero",
+                                    f"speech_cascade fallo ({type(_e_port).__name__}: "
+                                    f"{_e_port}); el turno se queda en el 3B")
                                 _llama_turn = _llama
                             # Ruteo por eje de la COLONIA (AUDIT 2026-07-12):
                             # turnos de razonamiento -> miembro qwen3_4b crudo
@@ -8067,7 +8135,12 @@ def repl():
                                         if _mb is not None:
                                             _llama_turn = _mb
                                             _member_turn = True
-                            except Exception:
+                            except Exception as _e_fleet:
+                                _aviso_degradado(
+                                    "cli.fast_path.fleet_router",
+                                    f"member_for_chat_turn/fleet_backend fallo "
+                                    f"({type(_e_fleet).__name__}: {_e_fleet}); "
+                                    f"el turno se queda en el 3B, sin colonia")
                                 _llama_turn = _llama
                             # Fleet: el chat general corre con la BASE pura (el
                             # experto regresiona G1 -8pp); EXCEPTO identidad,
@@ -8079,8 +8152,13 @@ def repl():
                                 if _llama_turn is _llama and getattr(_llama, "fleet_experts", []):
                                     from cognia.agent.fleet_router import expert_for_chat_turn
                                     _llama.activate_expert(expert_for_chat_turn(raw))
-                            except Exception:
-                                pass
+                            except Exception as _e_exp:
+                                # El experto de identidad da 20/20 vs 0/20 de la
+                                # base: perderlo en silencio cambia la respuesta.
+                                _aviso_degradado(
+                                    "cli.fast_path.experto",
+                                    f"activate_expert fallo ({type(_e_exp).__name__}: "
+                                    f"{_e_exp}); corre la base sin experto")
                             from cognia.agent.adaptive_prompt import build_adaptive_system_prompt
                             from cognia.user_prefs import personalize_prompt
                             _system = personalize_prompt(build_adaptive_system_prompt(ai))
@@ -8115,7 +8193,13 @@ def repl():
                                 # El miembro 4B va CRUDO: el audit lo midio sin
                                 # stepwise (92.5) y sobre-instruir degrada.
                                 _raw_llm = raw if _member_turn else augment_stepwise(raw)
-                            except Exception:
+                            except Exception as _e_step:
+                                # CoT por turno: 0.3125 -> 0.8125 en bench_reasoning.
+                                # Perderlo baja la calidad del turno entero.
+                                _aviso_degradado(
+                                    "cli.fast_path.stepwise",
+                                    f"augment_stepwise fallo ({type(_e_step).__name__}: "
+                                    f"{_e_step}); turno SIN CoT dirigido")
                                 _raw_llm = raw
                             _messages = _build_stream_messages(
                                 ai, _raw_llm, _system, _hist_ctx)
@@ -8159,6 +8243,11 @@ def repl():
                                 # leave _streamed False so we fall through to the
                                 # articulated path instead of printing a blank reply.
                                 _streamed = bool(_full_response)
+                                if not _streamed:
+                                    _aviso_degradado(
+                                        "cli.fast_path.stream_vacio",
+                                        "el backend no emitio un solo token; "
+                                        "el turno cae al camino articulado")
                                 if _streamed:
                                     elapsed = time.time() - t0
                                     _show_footer(elapsed, _full_response)
@@ -8173,11 +8262,28 @@ def repl():
                                     except Exception:
                                         pass
                             except Exception as _se:
+                                _aviso_degradado(
+                                    "cli.fast_path.stream",
+                                    f"el stream se corto ({type(_se).__name__}: {_se}); "
+                                    + ("respuesta PARCIAL, no se reintenta"
+                                       if _tokens_buf else
+                                       "sin tokens, cae al camino articulado"))
                                 if _tokens_buf:
                                     _streamed = True  # partial stream — don't retry
                                 print()
-                except Exception:
-                    pass
+                except Exception as _e_fast:
+                    # ESTE es el except caro: envuelve TODO el fast-path. Cuando
+                    # salta, el turno se va al camino articulado -> Ollama (que
+                    # en esta maquina NO esta instalado) -> respuesta canned, y
+                    # hasta hoy no dejaba ni una linea. No cambiamos el flujo:
+                    # el fallback sigue salvando la corrida, pero gritando.
+                    _aviso_degradado(
+                        "cli.fast_path",
+                        f"fast-path de streaming ABORTADO ({type(_e_fast).__name__}: "
+                        f"{_e_fast}); el turno cae al camino articulado")
+                    if os.environ.get("COGNIA_DEBUG") == "1":
+                        import traceback as _tb
+                        _tb.print_exc()
 
                 if not _streamed:
                     try:
@@ -8314,6 +8420,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     (build_tools_doc + run_tool via ctx['_allowed_tools']) y la profundidad acota
     la recursion de delegacion.
     """
+    # Turno nuevo para el de-dup de avisos: un degradado que ya se aviso en el
+    # turno de chat anterior tiene que volver a verse en esta corrida del agente.
+    # Los sub-agentes tambien cuentan como turno propio (delegation_depth>0).
+    _nuevo_turno_degradado()
     from cognia.agent.tools import run_tool, build_tools_doc
     from cognia.compresion_salidas import comprimir
     from cognia.agent.loop import (
@@ -8577,8 +8687,14 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         _print_fn(f"[detail]hibrido: modalidad={_hyb['modalidad']} "
                   f"dificultad={_hyb['dificultad']} esfuerzo={_hyb['esfuerzo']}"
                   f"[/detail]")
-    except Exception:
-        pass
+    except Exception as _e_hyb:
+        # Sin perfil hibrido la corrida usa el presupuesto base y la delegacion
+        # por default: la tarea sigue, pero con OTRO presupuesto que el pedido.
+        _print_fn(f"[warn_cl]degradado: sin perfil hibrido "
+                  f"({type(_e_hyb).__name__}: {_e_hyb}) -- presupuesto y "
+                  f"delegacion quedan en los valores base[/warn_cl]")
+        _aviso_degradado("cli.agente.hybrid_router",
+                         f"{type(_e_hyb).__name__}: {_e_hyb}")
     _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {AGENT_HARD_CAP})[/detail]")
 
     # Auto-decompose: gateado por DIFICULTAD estimada o encadenamiento
@@ -8594,8 +8710,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             r"(,?\s+y\s+(luego|despu[eé]s)\b|,\s*then\b|\band\s+then\b|;\s*(luego|then)\b)",
             task, re.IGNORECASE)
         _decompone = _est_dif(task) >= 0.30 or bool(_multi_paso)
-    except Exception:
+    except Exception as _e_dif:
+        # El fallback es el gate VIEJO que el E-INT 2026-07-08 midio como proxy
+        # pobre (largo-pero-simple paga ~30s de decompose inutil; corto-pero-duro
+        # no se descompone). Si se usa, tiene que verse en la salida.
         _decompone = len(task) > 120   # fallback al gate viejo
+        _print_fn(f"[warn_cl]degradado: estimate_difficulty fallo "
+                  f"({type(_e_dif).__name__}: {_e_dif}) -- uso la heuristica "
+                  f"vieja len(task)>120 -> decompone={_decompone}[/warn_cl]")
+        _aviso_degradado("cli.agente.estimate_difficulty",
+                         f"{type(_e_dif).__name__}: {_e_dif}; heuristica len>120")
     if _decompone:
         try:
             _decomp_prompt = (
@@ -8769,7 +8893,15 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                       "qwen2.5-coder + set COGNIA_OLLAMA_MODEL=qwen2.5-coder) o "
                       "shards: cognia install-weights --standalone[/warn_cl]")
             _print_fn("[detail]En el repo de desarrollo: python scripts/servir_modelo.py[/detail]")
-            result_text = "(sin backend de inferencia: el agente no puede generar codigo)"
+            # Que quede en el audit ademas de en pantalla: una corrida que murio
+            # aca no se puede distinguir despues de una que respondio mal.
+            _aviso_degradado(
+                "cli.agente.sin_backend",
+                "respuesta vacia" if not raw_response
+                else "el orquestador devolvio el aviso 'No inference backend "
+                     "available' COMO texto de respuesta")
+            result_text = (f"{_DEGRADADO} (sin backend de inferencia: el agente "
+                           f"no puede generar codigo)")
             break
 
         _print_fn(f"[detail]paso {total_steps}: {raw_response[:120]}[/detail]")
@@ -8807,6 +8939,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                     _print_fn("[detail]cierre rechazado: la tarea pide ejecutar "
                               "y no hubo ejecucion[/detail]")
                     continue
+                # Cierre por PROSA: el modelo nunca emitio una ACCION valida y
+                # aceptamos su texto libre como resultado final. Sigue siendo el
+                # comportamiento de siempre (no quemar presupuesto), pero es un
+                # cierre de segunda: ninguna tool corrio, nada se verifico.
+                _print_fn("[warn_cl]degradado: cierro con PROSA (2 pasos sin "
+                          "ACCION valida) -- no se ejecuto ninguna tool[/warn_cl]")
+                _aviso_degradado(
+                    "cli.agente.cierre_por_prosa",
+                    f"{_no_action_streak} pasos sin ACCION; tomo el texto libre "
+                    f"como resultado final")
                 result_text = raw_response
                 break
             continue

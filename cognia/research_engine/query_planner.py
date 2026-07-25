@@ -19,6 +19,37 @@ from typing import List
 from ..llm_local import generar
 from .relevance import tokenizar
 
+# Como se planifico la ULTIMA busqueda de este proceso. El plan es una lista de
+# strings: no se le puede colgar un campo sin romper a quien la consume. Esto es
+# ese campo, aparte. planificar_busquedas() lo deja siempre puesto y ademas
+# devuelve el origen en la propia llamada (ver `con_origen`).
+_ULTIMO_PLAN: dict = {"origen": None, "motivo": "todavia no se planifico nada"}
+
+
+def ultimo_origen() -> dict:
+    """{'origen': 'llm'|'llm+deterministico'|'deterministico', 'motivo': str}.
+
+    origen='deterministico' significa que NO hubo LLM: las queries salieron del
+    glosario y las facetas fijas, no de pensar la pregunta."""
+    return dict(_ULTIMO_PLAN)
+
+
+def _marcar_plan(origen: str, motivo: str, gritar: bool = False) -> None:
+    global _ULTIMO_PLAN
+    _ULTIMO_PLAN = {"origen": origen, "motivo": motivo}
+    # Solo grita el degradado REAL (se pidio LLM y no hubo). Planificar sin LLM
+    # a proposito (usar_llm=False) es una eleccion, no un fallo: gritarlo seria
+    # ruido y el ruido se aprende a ignorar.
+    if not gritar:
+        return
+    # Sin LLM la investigacion no se cae, pero busca OTRA cosa: eso tiene que
+    # verse en la corrida y quedar en la auditoria, no solo en un print.
+    try:
+        from .. import backend_activo
+        backend_activo.sin_backend("research.query_planner", motivo)
+    except Exception:
+        pass
+
 # GitHub y HuggingFace estan en ingles: buscar 'modelo pequeno contexto' no
 # devuelve nada util. Se traducen los terminos de dominio mas comunes.
 GLOSARIO = {
@@ -364,7 +395,7 @@ def _pedir_al_llm(pregunta: str, n: int) -> List[str]:
         f"command line parsing\n"
         f"software development tools\n"
     )
-    texto = generar(prompt, temperature=0.3, max_tokens=200)
+    texto = generar(prompt, temperature=0.3, max_tokens=200, via="query_planner")
     if not texto:
         print("[planner] Sin LLM local. Usando plan deterministico.")
         return []
@@ -393,20 +424,29 @@ def _pedir_al_llm(pregunta: str, n: int) -> List[str]:
     return queries[:n]
 
 
-def planificar_busquedas(pregunta: str, n: int = 5, usar_llm: bool = True) -> List[str]:
+def planificar_busquedas(pregunta: str, n: int = 5, usar_llm: bool = True,
+                         con_origen: bool = False):
     """
     Convierte una pregunta en n queries de busqueda.
 
     Args:
-        pregunta: la pregunta en lenguaje natural (espanol o ingles)
-        n:        cuantas queries generar
-        usar_llm: si intentar mejorarlas con el LLM local
+        pregunta:   la pregunta en lenguaje natural (espanol o ingles)
+        n:          cuantas queries generar
+        usar_llm:   si intentar mejorarlas con el LLM local
+        con_origen: True -> devuelve (queries, origen) en vez de solo queries.
+                    El origen dice si las penso un LLM o si salieron del plan
+                    deterministico (glosario + facetas fijas): sin eso, una
+                    investigacion degradada se lee igual que una buena. Quien
+                    no lo pida puede consultarlo con ultimo_origen().
 
     Returns:
-        Lista de queries. Nunca vacia si la pregunta tiene alguna palabra util.
+        Lista de queries (o (lista, dict origen) con con_origen=True). Nunca
+        vacia si la pregunta tiene alguna palabra util.
     """
     plan = planificar_deterministico(pregunta, n)
 
+    origen, motivo, gritar = "deterministico", (
+        "no se pidio LLM: queries del glosario y las facetas fijas"), False
     if usar_llm:
         del_llm = _pedir_al_llm(pregunta, n)
         if del_llm:
@@ -415,5 +455,15 @@ def planificar_busquedas(pregunta: str, n: int = 5, usar_llm: bool = True) -> Li
             # deterministicas que no esten repetidas.
             vistas = {q.lower() for q in del_llm}
             plan = del_llm + [q for q in plan if q.lower() not in vistas]
+            origen = "llm+deterministico"
+            motivo = f"el LLM propuso {len(del_llm)} de las {n} queries"
+        else:
+            origen, gritar = "deterministico", True
+            motivo = ("SIN LLM: las queries salieron del glosario y las facetas "
+                      "fijas, nadie penso la pregunta")
 
-    return plan[:n]
+    _marcar_plan(origen, motivo, gritar)
+    queries = plan[:n]
+    if con_origen:
+        return queries, ultimo_origen()
+    return queries

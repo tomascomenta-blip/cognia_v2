@@ -18,6 +18,12 @@ Dos salidas, ambas utiles al arbitro:
 Degrada con gracia: sin LLM, el brief cae a la idea cruda; sin backend de imagen
 (o COGNIA_ASSETS=0), generar_mockup devuelve None y el lazo sigue con solo el
 brief de texto. Nunca lanza hacia el llamador.
+
+PERO NO EN SILENCIO (2026-07-25): "degradar con gracia" se habia vuelto degradar
+sin que se notara — la vision devuelta era la idea cruda copiada dos veces y
+parecia imaginada. Ahora el dict de imaginar_vision lleva
+{"degradado": bool, "motivo": str} y cada degradado grita por stderr y queda en
+~/.cognia/backend_audit.jsonl.
 """
 from __future__ import annotations
 
@@ -29,6 +35,17 @@ from typing import Callable, Dict, Optional
 from ..llm_local import generar
 
 logger = logging.getLogger(__name__)
+
+
+def _grito(via: str, detalle: str) -> None:
+    """Degradado RUIDOSO (stderr + backend_audit.jsonl). Import dentro: este
+    modulo nunca lanza hacia el llamador y la instrumentacion tampoco."""
+    try:
+        from .. import backend_activo
+        backend_activo.sin_backend(via, detalle)
+    except Exception:
+        pass
+
 
 # Firma del backend inyectable, igual que en generator.py:
 #   (prompt, system, max_tokens, temperature) -> texto|None
@@ -78,12 +95,21 @@ def _parsear_vision(texto: str) -> Optional[Dict]:
         return None
 
 
+def _fallback_vision(idea: str, motivo: str) -> Dict:
+    """La 'vision' que NO se imagino: la idea cruda, marcada como tal."""
+    _grito("mockup.imaginar_vision", motivo)
+    cruda = (idea or "").strip()
+    return {"brief": cruda, "prompt_imagen": cruda,
+            "degradado": True, "motivo": motivo}
+
+
 def imaginar_vision(idea: str, llm: Optional[LlmFn] = None) -> Dict:
     """El cerebro imagina el producto. Devuelve
-    {"brief": str, "prompt_imagen": str}. NUNCA lanza: sin LLM o sin respuesta
-    parseable, cae a la idea cruda (el lazo sigue funcionando)."""
-    fallback = {"brief": (idea or "").strip(),
-                "prompt_imagen": (idea or "").strip()}
+    {"brief": str, "prompt_imagen": str, "degradado": bool, "motivo": str}.
+
+    NUNCA lanza: sin LLM o sin respuesta parseable, cae a la idea cruda (el lazo
+    sigue funcionando) — pero con degradado=True y gritando, porque una idea
+    cruda copiada en los dos campos NO es una vision imaginada."""
     try:
         prompt = _PLANTILLA_VISION.format(idea=(idea or "")[:400])
         raw = None
@@ -92,21 +118,30 @@ def imaginar_vision(idea: str, llm: Optional[LlmFn] = None) -> Dict:
                 raw = llm(prompt, _SISTEMA_VISION, 400, 0.7)
             except Exception as e:
                 logger.warning("mockup: backend inyectado fallo (%s)", e)
+                _grito("mockup.imaginar_vision",
+                       f"el backend inyectado fallo ({e}); pruebo con llm_local")
         if not raw:
             raw = generar(prompt, system=_SISTEMA_VISION,
-                          temperature=0.7, max_tokens=400)
+                          temperature=0.7, max_tokens=400, via="mockup")
         if not raw:
-            return fallback
+            return _fallback_vision(
+                idea, "ningun LLM imagino el producto: la 'vision' es la idea "
+                      "cruda copiada (el arbitro juzgara contra ella)")
         parsed = _parsear_vision(raw)
         if parsed is None:
-            return fallback
+            return _fallback_vision(
+                idea, "la respuesta del LLM no traia BRIEF/IMAGEN: la 'vision' "
+                      "es la idea cruda copiada")
         # Rellenar huecos con la idea para no dejar campos vacios.
-        parsed["brief"] = parsed["brief"] or fallback["brief"]
+        cruda = (idea or "").strip()
+        parsed["brief"] = parsed["brief"] or cruda
         parsed["prompt_imagen"] = parsed["prompt_imagen"] or parsed["brief"]
+        parsed["degradado"] = False
+        parsed["motivo"] = ""
         return parsed
     except Exception as e:
         logger.warning("mockup: imaginar_vision fallo (%s)", e)
-        return fallback
+        return _fallback_vision(idea, f"imaginar_vision fallo ({e})")
 
 
 def _componer_sobre_blanco(ruta_rgba: str, salida: str) -> str:
@@ -133,12 +168,18 @@ def generar_mockup(descripcion: str, *, salida: str = None,
         from cognia.assets import backend_disponible, generar_transparente
     except Exception as e:
         logger.warning("mockup: no pude importar cognia.assets (%s)", e)
+        _grito("mockup.generar",
+               f"sin cognia.assets ({e}): NO hay imagen objetivo, el arbitro "
+               f"juzgara contra el texto (mas laxo)")
         return None
 
     try:
         ok, motivo = backend_disponible()
         if not ok:
             logger.info("mockup: backend de imagen no disponible (%s)", motivo)
+            _grito("mockup.generar",
+                   f"backend de imagen no disponible ({motivo}): NO hay imagen "
+                   f"objetivo, el arbitro juzgara contra el texto (mas laxo)")
             return None
 
         prompt = (descripcion or "").strip() + _SUFIJO_MOCKUP
@@ -165,4 +206,6 @@ def generar_mockup(descripcion: str, *, salida: str = None,
         return final
     except Exception as e:
         logger.warning("mockup: generar_mockup fallo (%s)", e)
+        _grito("mockup.generar",
+               f"el dibujo del mockup fallo ({e}): NO hay imagen objetivo")
         return None

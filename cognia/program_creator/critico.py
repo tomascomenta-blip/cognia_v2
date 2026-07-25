@@ -38,6 +38,20 @@ from ..llm_local import disponible, generar
 
 logger = logging.getLogger(__name__)
 
+
+def _grito(via: str, detalle: str) -> None:
+    """Degradado RUIDOSO (stderr + ~/.cognia/backend_audit.jsonl).
+
+    POR QUE: 'None si no hay backend' dejaba al pipeline seguir SIN critico y
+    nada en la salida lo decia — la pagina salia igual, solo que nadie la habia
+    suspendido. El import va dentro: instrumentar no puede romper el pipeline."""
+    try:
+        from .. import backend_activo
+        backend_activo.sin_backend(via, detalle)
+    except Exception:
+        pass
+
+
 _SYSTEM = (
     "You are a senior UI designer brutally honest about reviewing someone "
     "else's work. You never inflate grades. A mediocre-functional page is "
@@ -125,6 +139,9 @@ def _preguntar_experto(url: str, prompt: str) -> Optional[str]:
     except Exception as e:
         logger.warning("critico: el experto de %s no respondio (%s); "
                        "caigo al modelo residente", url, e)
+        _grito("critico.experto",
+               f"el critico experto de {url} no respondio ({e}); critica el "
+               f"modelo residente, que NO es el experto configurado")
         return None
 
 
@@ -141,21 +158,46 @@ def criticar_web(idea: str, html: str, hechos: dict) -> Optional[Dict]:
 
     # El experto, si el dueno lo tiene servido. Se lee AQUI y no al importar.
     url_experto = os.environ.get("COGNIA_CRITICO_URL", "").strip()
+    experto_caido = False
     if url_experto:
         texto = _preguntar_experto(url_experto, prompt)
         if texto:
             resultado = _parsear(texto)
             if resultado is not None:
                 resultado["critico"] = "experto"
+                resultado["degradado"] = False
                 return resultado
+            _grito("critico.experto",
+                   f"el experto de {url_experto} respondio algo imparseable; "
+                   f"critica el modelo residente")
+        experto_caido = True
 
     if not disponible():
+        # SIN CRITICO: el pipeline sigue y entrega la pagina sin que ningun
+        # profesional la haya suspendido. Ese es el fallo caro, no una rama mas.
+        _grito("critico",
+               "no hay backend LLM: la pagina se entrega SIN CRITICA "
+               "profesional (nadie la puntuo ni listo defectos)")
         return None
-    texto = generar(prompt, system=_SYSTEM, temperature=0.2, max_tokens=400)
+    texto = generar(prompt, system=_SYSTEM, temperature=0.2, max_tokens=400,
+                    via="critico")
     if not texto:
         logger.warning("critico: sin respuesta del LLM")
+        _grito("critico",
+               "el modelo residente no devolvio critica: la pagina se entrega "
+               "SIN CRITICA profesional")
         return None
     resultado = _parsear(texto)
     if resultado is not None:
         resultado["critico"] = "residente"
+        # Marca en la SALIDA: quien pidio el experto tiene que enterarse de que
+        # lo critico el residente, no el modelo que configuro.
+        resultado["degradado"] = experto_caido
+        if experto_caido:
+            resultado["motivo_degradado"] = (
+                f"el experto de {url_experto} no respondio; critico el residente")
+    else:
+        _grito("critico",
+               "respuesta del residente imparseable: la pagina se entrega SIN "
+               "CRITICA profesional")
     return resultado

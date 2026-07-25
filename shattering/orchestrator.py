@@ -43,6 +43,35 @@ _QWEN_VOCAB   = QWEN25_CODER_3B["vocab_size"]
 logger = logging.getLogger(__name__)
 
 
+# ── Degradado ruidoso (FASE A2, 2026-07-25) ──────────────────────────────────
+# POR QUE: este archivo estaba lleno de `except Exception: pass/return ""` que
+# apagaban el backend o devolvian el aviso de error COMO respuesta. Medido el
+# 2026-07-20: el bucle del agente encadeno 40 pasos sobre uno de esos avisos
+# teniendo un llama-server sano en :8080, y nada en la salida lo delataba.
+# El control de flujo NO cambia — el fallback que hoy salva la corrida sigue
+# salvandola — pero ya no puede hacerlo en silencio.
+#
+# Marcador de texto: cuando el degradado se devuelve como si fuera la respuesta
+# del modelo, el texto arranca con esto para que sea inconfundible aguas abajo.
+DEGRADADO = "[DEGRADADO]"
+
+
+def _gritar_degradado(via: str, detalle: str = "") -> None:
+    """sin_backend() sin poder romper nada: es instrumentacion, no camino
+    critico (mismo patron que node/llama_backend.try_load)."""
+    try:
+        from cognia import backend_activo
+        backend_activo.sin_backend(via, detalle)
+    except Exception:
+        # Ultimo recurso: si ni el modulo de auditoria carga, igual se ve.
+        try:
+            import sys as _sys
+            print(f"[backend] DEGRADADO: {via} -- {detalle}",
+                  file=_sys.stderr, flush=True)
+        except Exception:
+            pass
+
+
 # ── Latent Persistence Cache (Phase 20.2) ────────────────────────────────────
 
 import threading as _threading
@@ -343,7 +372,15 @@ class ShatteringOrchestrator:
                     yield None, None
                     return
                 if item[0] == "__error__":
+                    # No es solo "un error": el fallback de abajo TIRA la historia
+                    # multi-turno y reintenta con el ultimo mensaje del usuario a
+                    # secas. La conversacion pierde memoria y hasta hoy eso solo
+                    # aparecia en un logger.warning que nadie mira.
                     logger.warning("[Orchestrator] stream_chat error: %s; falling back", item[1])
+                    _gritar_degradado(
+                        "orchestrator.astream_chat",
+                        f"stream_chat fallo ({item[1]}); caigo a astream() con SOLO "
+                        f"el ultimo mensaje: se pierde la historia multi-turno")
                     break
                 yield item[0], None
 
@@ -400,6 +437,13 @@ class ShatteringOrchestrator:
                     return
                 if item[0] == "__error__":
                     logger.warning("[Orchestrator] llama.cpp stream error: %s; falling back", item[1])
+                    # self._llama = None apaga llama.cpp para el resto de la
+                    # instancia y el chat pasa a shards numpy (otra calidad,
+                    # otra velocidad) sin que nada lo diga en la salida.
+                    _gritar_degradado(
+                        "orchestrator.astream",
+                        f"stream llama.cpp fallo ({item[1]}); DESHABILITO llama.cpp "
+                        f"en esta instancia y caigo a shards numpy")
                     self._llama = None
                     break
                 yield item[0], None
@@ -662,7 +706,10 @@ class ShatteringOrchestrator:
             if self._llama:
                 logger.info("[Orchestrator] llama.cpp backend active")
         except Exception as exc:
+            # logger.debug era invisible: _llama quedaba en None y TODO el
+            # sistema pasaba a shards/simulacion sin una sola linea en la salida.
             logger.debug("[Orchestrator] llama.cpp backend unavailable: %s", exc)
+            _gritar_degradado("orchestrator._try_load_llama", str(exc))
 
     def reload_llama(self) -> "Optional[object]":
         """Recarga el backend llama.cpp (p.ej. tras cambiar LLAMA_GGUF_PATH).
@@ -723,6 +770,13 @@ class ShatteringOrchestrator:
                 return result, "llama.cpp", toks
             # llama.cpp failed mid-session — disable and fall through to numpy
             logger.warning("[Orchestrator] llama.cpp returned None, falling back to numpy")
+            # Esto no degrada UNA peticion: apaga el backend para toda la
+            # sesion (self._llama=None y _llama_checked ya esta en True, asi
+            # que no se reintenta). Todo lo que venga despues corre en numpy.
+            _gritar_degradado(
+                "orchestrator._local_infer",
+                "generate() devolvio None; DESHABILITO llama.cpp para TODA la "
+                "sesion (no se reintenta) y sigo con shards numpy")
             self._llama = None
 
         # If real Qwen .npz shards are present, run the full shard pipeline
@@ -748,12 +802,22 @@ class ShatteringOrchestrator:
                     specs     = sm_specs
                     break
 
+        # Estos dos returns NO son respuestas del modelo: son avisos de fallo
+        # que viajaban como si lo fueran (el caller los imprime al usuario y el
+        # loop del agente los reintenta). El prefijo DEGRADADO los vuelve
+        # inconfundibles sin cambiar el flujo ni el modo devuelto.
         if not specs:
-            return f"[Simulation] No bundle configured for '{sub_model}'.", "simulation", 0
+            _gritar_degradado("orchestrator._local_infer",
+                              f"no hay bundle configurado para '{sub_model}'")
+            return (f"{DEGRADADO} [Simulation] No bundle configured for "
+                    f"'{sub_model}'.", "simulation", 0)
 
         engines = self._fragments.load_all(specs)
         if not engines:
-            return f"[Simulation] No engines loaded for '{sub_model}'.", "simulation", 0
+            _gritar_degradado("orchestrator._local_infer",
+                              f"ningun engine cargo para '{sub_model}'")
+            return (f"{DEGRADADO} [Simulation] No engines loaded for "
+                    f"'{sub_model}'.", "simulation", 0)
 
         has_real_weights = self._any_real_weights(specs)
         if not has_real_weights:
@@ -1366,9 +1430,18 @@ class ShatteringOrchestrator:
 
         try:
             from cognia.llm_local import generar
-            return (generar(prompt, max_tokens=800) or "").strip()
-        except Exception:
+            texto = (generar(prompt, max_tokens=800) or "").strip()
+        except Exception as exc:
+            # El "" que devolvia aca es el respaldo del respaldo fallando: ni
+            # Ollama ni llm_local. Quien llama lo trata como "no hay nada" y
+            # sigue con el texto sin refinar; sin este grito, nadie se entera.
+            _gritar_degradado("orchestrator._generar_con_respaldo",
+                              f"ni Ollama ni cognia.llm_local: {exc}")
             return ""
+        if not texto:
+            _gritar_degradado("orchestrator._generar_con_respaldo",
+                              "ni Ollama ni cognia.llm_local devolvieron texto")
+        return texto
 
     def _call_ollama_domain(self, prompt: str, sub_model: str) -> str:
         system = self._SYSTEM_PROMPTS.get(sub_model, "You are a helpful assistant.")
@@ -1398,15 +1471,32 @@ class ShatteringOrchestrator:
                 data = json.loads(resp.read())
             return data.get("response", "").strip()
         except Exception as exc:
-            logger.debug("[Orchestrator] Ollama call failed (%s): %s",
-                         self._ollama_url, exc)
+            logger.warning("[Orchestrator] Ollama call failed (%s): %s",
+                           self._ollama_url, exc)
+            # UNA vez por proceso: en una maquina sin Ollama (el caso normal
+            # aca) esto se llama en cada refinado y cada dominio; gritarlo
+            # siempre seria ruido que tapa el resto de la salida.
+            if not getattr(self, "_ollama_grito", False):
+                self._ollama_grito = True
+                _gritar_degradado("orchestrator._call_ollama",
+                                  f"{self._ollama_url} no responde ({exc}); "
+                                  f"paso al respaldo (aviso unico por proceso)")
             return ""
 
     def _unavailable_response(self, sub_model: str) -> str:
+        # Esto se DEVUELVE como si fuera la respuesta del modelo: quien llama
+        # (chat, agente) lo imprime tal cual. El prefijo DEGRADADO lo hace
+        # inconfundible; el texto historico se conserva entero porque hay
+        # callers que lo matchean por substring (cli.py y test_agente_backend).
         if self._shards_available():
-            return f"[{sub_model.upper()}] Shard inference failed. Check logs for details."
+            _gritar_degradado("orchestrator._unavailable_response",
+                              f"shard inference fallo para '{sub_model}'")
+            return (f"{DEGRADADO} [{sub_model.upper()}] Shard inference failed. "
+                    f"Check logs for details.")
+        _gritar_degradado("orchestrator._unavailable_response",
+                          f"sin backend de inferencia para '{sub_model}'")
         return (
-            f"[{sub_model.upper()}] No inference backend available. "
+            f"{DEGRADADO} [{sub_model.upper()}] No inference backend available. "
             f"Instala el modelo local con: cognia install-model  "
             f"(o arranca Ollama: ollama serve && ollama pull "
             f"{self._ollama_model})"

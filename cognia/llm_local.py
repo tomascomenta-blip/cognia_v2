@@ -79,13 +79,13 @@ def disponible() -> bool:
     return detectar_backend() is not None
 
 
-def _post(url: str, payload: dict) -> Optional[dict]:
+def _post(url: str, payload: dict, timeout: int = TIMEOUT_GEN) -> Optional[dict]:
     datos = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         url, data=datos, headers={"Content-Type": "application/json"}
     )
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT_GEN) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8", errors="replace"))
     except urllib.error.HTTPError as e:
         print(f"[llm] HTTP {e.code} en {url}")
@@ -100,16 +100,32 @@ def generar(
     system:      str   = "",
     temperature: float = 0.4,
     max_tokens:  int   = 600,
+    via:         str   = "llm_local",
+    # 120s alcanzaba para 600 tokens; una generacion larga (un contrato de
+    # prueba, ~1400 tokens) se cortaba a mitad y el llamador lo veia como
+    # "no hay backend" — otro degradado disfrazado. Configurable por llamada.
+    timeout:     int   = TIMEOUT_GEN,
 ) -> Optional[str]:
     """
     Genera texto con el backend que haya. None si no hay ninguno o si fallo.
 
-    El que llama DEBE manejar el None: que no haya modelo es un estado normal
-    en esta maquina, no una excepcion.
+    El que llama DEBE manejar el None. Pero desde 2026-07-25 el None YA NO ES
+    SILENCIOSO: toda llamada deja quien la atendio (modelo + puerto) y toda
+    ausencia de backend grita por stderr y queda en ~/.cognia/backend_audit.jsonl.
+    "Que no haya modelo es un estado normal" fue justamente lo que dejo que el
+    sistema degradara durante meses sin que se notara en la salida.
+
+    `via` identifica al llamador en la auditoria ('create_program', 'critico',
+    'mockup', ...). El default sirve para los que todavia no lo pasan.
     """
+    from . import backend_activo
+
     backend = detectar_backend()
     if not backend:
+        backend_activo.sin_backend(
+            via, "ni llama-server (:8080) ni Ollama (:11434) responden")
         return None
+    backend_activo.registrar(via, backend["url"])
 
     if backend["tipo"] == "llama":
         mensajes = ([{"role": "system", "content": system}] if system else [])
@@ -119,7 +135,7 @@ def generar(
             "messages":    mensajes,
             "temperature": temperature,
             "max_tokens":  max_tokens,
-        })
+        }, timeout=timeout)
         if not data:
             return None
         try:

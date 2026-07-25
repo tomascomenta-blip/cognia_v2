@@ -40,6 +40,18 @@ _MIN_CHARS = 15
 _MAX_CHARS = 200
 
 
+def _grito(motivo: str) -> None:
+    """La lista vacia de este modulo tiene DOS significados opuestos: "no hay
+    nada que proponer" (bien) y "no hubo modelo que lo pensara" (degradado).
+    Sin distinguirlos, el rol de proactividad podia llevar meses apagado sin que
+    nadie lo notara. Esto grita el segundo caso y lo deja en el jsonl."""
+    try:
+        from . import backend_activo
+        backend_activo.sin_backend("proactividad", motivo)
+    except Exception:
+        pass
+
+
 def proponer_extras(tarea: str, respuesta: str,
                     max_propuestas: int = 3) -> List[str]:
     """
@@ -51,6 +63,8 @@ def proponer_extras(tarea: str, respuesta: str,
     """
     try:
         if not disponible():
+            _grito("no hay backend LLM: NADIE penso en extras para el usuario "
+                   "(la lista vacia no significa 'no habia nada que proponer')")
             return []
 
         prompt = (
@@ -66,8 +80,11 @@ def proponer_extras(tarea: str, respuesta: str,
             f"exactly: NADA"
         )
 
-        respuesta_llm = generar(prompt, temperature=0.4, max_tokens=250)
+        respuesta_llm = generar(prompt, temperature=0.4, max_tokens=250,
+                                via="proactividad")
         if not respuesta_llm:
+            _grito("el modelo residente no devolvio nada: NADIE penso en "
+                   "extras para el usuario")
             return []
 
         limpia = respuesta_llm.strip()
@@ -91,4 +108,5 @@ def proponer_extras(tarea: str, respuesta: str,
 
     except Exception as e:
         logger.warning("Proactividad: me la salto: %s", e)
+        _grito(f"la proactividad fallo ({e}): NADIE penso en extras")
         return []

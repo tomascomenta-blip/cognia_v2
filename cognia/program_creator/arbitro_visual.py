@@ -49,6 +49,33 @@ VLM_URL_DEFECTO = "http://127.0.0.1:8081"
 TIMEOUT_SONDEO = 2
 TIMEOUT_VLM = 180
 
+# Estado del ULTIMO arbitraje de este proceso. Existe porque el degradado del
+# arbitro es un None: no se le puede colgar un campo. Con esto el llamador puede
+# preguntar "esto lo miro alguien?" DESPUES, sin cambiar el contrato (None).
+_ULTIMO: dict = {"sin_vlm": None, "motivo": "todavia no se arbitro nada"}
+
+
+def _marcar(sin_vlm: bool, motivo: str) -> None:
+    """Registra como termino el arbitraje. Si degrado, ademas GRITA: un lazo
+    que sigue sin que nadie mire el pixel tiene que verse en la corrida."""
+    global _ULTIMO
+    _ULTIMO = {"sin_vlm": sin_vlm, "motivo": motivo}
+    if not sin_vlm:
+        return
+    try:
+        from .. import backend_activo
+        backend_activo.sin_backend("arbitro_visual", motivo)
+    except Exception:
+        pass
+
+
+def ultimo_estado() -> dict:
+    """{'sin_vlm': bool|None, 'motivo': str} del ultimo arbitrar_visual().
+
+    sin_vlm=True significa NADIE MIRO LA PAGINA: el None que devolvio el arbitro
+    NO es un veredicto, y el resultado del lazo no se puede llamar 'juzgado'."""
+    return dict(_ULTIMO)
+
 # Un solo sistema, dos modos de imagen. LADO A LADO es el modo por defecto: el
 # VLM chico (Qwen2.5-VL-3B) razona MUCHO mejor con UNA imagen partida en dos
 # mitades que con dos imagenes separadas. Medido el 2026-07-24 en esta maquina
@@ -268,9 +295,11 @@ def arbitrar_visual(idea: str, screenshot, mockup=None, *,
         url:          override del backend VLM.
 
     Returns:
-        {"nota": float, "veredicto": str, "defectos": [str], "critico": "vlm"}
-        o None si no hay VLM vivo, no se pudieron leer las imagenes o nada parseo.
-        NUNCA lanza.
+        {"nota": float, "veredicto": str, "defectos": [str], "critico": "vlm",
+         "sin_vlm": False} — el sin_vlm=False dice explicitamente QUE SE MIRO.
+        o None si no hay VLM vivo, no se pudieron leer las imagenes o nada
+        parseo. Ese None NO es un veredicto: ultimo_estado()['sin_vlm'] queda en
+        True y el degradado se grita por stderr. NUNCA lanza.
     """
     tmp_compuesta = None
     try:
@@ -290,6 +319,8 @@ def arbitrar_visual(idea: str, screenshot, mockup=None, *,
             if compuesta is not None:
                 datauri = _datauri_png(compuesta)
                 if datauri is None:
+                    _marcar(True, "no se pudo leer la imagen compuesta "
+                                  "mockup+screenshot: NADIE juzgo el pixel")
                     return None
                 imagenes = [datauri]
                 prompt = _RUBRICA.format(idea=(idea or "")[:400],
@@ -299,6 +330,8 @@ def arbitrar_visual(idea: str, screenshot, mockup=None, *,
                 img_mockup = _datauri_png(mockup)
                 img_screenshot = _datauri_png(screenshot)
                 if img_mockup is None or img_screenshot is None:
+                    _marcar(True, "mockup o screenshot ilegibles: NADIE juzgo "
+                                  "el pixel")
                     return None
                 imagenes = [img_mockup, img_screenshot]
                 prompt = (
@@ -313,6 +346,7 @@ def arbitrar_visual(idea: str, screenshot, mockup=None, *,
             # Sin mockup: solo el screenshot; la vision va como texto.
             img_screenshot = _datauri_png(screenshot)
             if img_screenshot is None:
+                _marcar(True, "screenshot ilegible: NADIE juzgo el pixel")
                 return None
             imagenes = [img_screenshot]
             prompt = (
@@ -328,19 +362,28 @@ def arbitrar_visual(idea: str, screenshot, mockup=None, *,
         ok, motivo = vlm_disponible(u)
         if not ok:
             logger.warning("arbitro_visual: %s", motivo)
+            _marcar(True, f"{motivo}: la pagina NO fue mirada por nadie, el "
+                          f"lazo sigue solo con la sonda estructural")
             return None
 
         texto = _preguntar_vlm(u, prompt, imagenes)
         if not texto:
+            _marcar(True, f"el VLM de {u} no devolvio texto: NADIE juzgo el pixel")
             return None
         resultado = _parsear_visual(texto)
         if resultado is None:
+            _marcar(True, "veredicto del VLM imparseable: NADIE juzgo el pixel")
             return None
         resultado["critico"] = "vlm"
+        # Marca POSITIVA en la salida: este dict SI lo miro un VLM. Su ausencia
+        # (o sin_vlm=True) nunca puede confundirse con "juzgado".
+        resultado["sin_vlm"] = False
+        _marcar(False, f"juzgado por el VLM de {u}")
         return resultado
     except Exception as e:
         # Un arbitro roto no tumba la generacion (misma politica que critico.py).
         logger.warning("arbitro_visual: fallo inesperado (%s)", e)
+        _marcar(True, f"el arbitro fallo ({e}): NADIE juzgo el pixel")
         return None
     finally:
         if tmp_compuesta:
@@ -359,9 +402,12 @@ def arbitrar_desde_informe(idea: str, informe, mockup=None, *,
         shots = list(getattr(informe, "output_images", []) or []) \
             or list(getattr(informe, "input_images", []) or [])
         if not shots:
+            _marcar(True, "el informe visual no trajo ningun screenshot: no "
+                          "hubo nada que mirar")
             return None
         return arbitrar_visual(idea, shots[-1], mockup,
                                vision_texto=vision_texto, url=url)
     except Exception as e:
         logger.warning("arbitro_visual: informe sin screenshot usable (%s)", e)
+        _marcar(True, f"informe sin screenshot usable ({e}): NADIE juzgo el pixel")
         return None

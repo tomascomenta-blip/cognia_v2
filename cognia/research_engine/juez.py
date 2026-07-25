@@ -47,6 +47,32 @@ MAX_JUZGADOS = 12
 HUNDIMIENTO = 0.1
 
 
+def _sellar(hallazgos: List, juzgado: bool, motivo: str = "") -> List:
+    """Estampa `juzgado` (y `motivo_sin_juicio`) en cada hallazgo.
+
+    POR QUE: sin LLM, juzgar() devolvia la lista TAL CUAL — indistinguible de
+    una lista que el juez habia revisado y aprobado. El orden decia "esto
+    responde a la pregunta" y nadie lo habia mirado. El sello viaja con el dato;
+    los que ya venian sellados (llamadas anidadas) no se pisan."""
+    for h in hallazgos:
+        try:
+            h.juzgado = juzgado
+            if not juzgado:
+                h.motivo_sin_juicio = motivo
+        except Exception:
+            pass  # un hallazgo con __slots__ no puede llevar el sello; no rompe
+    return hallazgos
+
+
+def _grito(motivo: str) -> None:
+    """El degradado del juez, a stderr y a ~/.cognia/backend_audit.jsonl."""
+    try:
+        from .. import backend_activo
+        backend_activo.sin_backend("research.juez", motivo)
+    except Exception:
+        pass
+
+
 def _parsear_veredictos(texto: str) -> dict[int, bool]:
     """
     Extrae {numero: es_relevante} de la respuesta del modelo.
@@ -76,10 +102,16 @@ def juzgar(pregunta: str, hallazgos: List, max_llm: int = MAX_JUZGADOS) -> List:
     Devuelve la lista completa: primero los juzgados SI (por su relevancia
     original), luego los no juzgados, al final los NO con la relevancia
     hundida. Nunca lanza; sin LLM o con respuesta imparseable devuelve la
-    lista tal cual.
+    lista tal cual — pero SELLADA con juzgado=False, porque una lista sin
+    juicio no puede parecer una lista aprobada.
     """
-    if not hallazgos or not disponible():
+    if not hallazgos:
         return hallazgos
+    if not disponible():
+        motivo = ("no hay backend LLM: los hallazgos van SIN JUZGAR, ordenados "
+                  "solo por coincidencia lexica (el caso 'Bernhard Rust')")
+        _grito(motivo)
+        return _sellar(hallazgos, False, motivo)
 
     lote = hallazgos[:max_llm]
     entrada = "\n".join(
@@ -97,16 +129,20 @@ def juzgar(pregunta: str, hallazgos: List, max_llm: int = MAX_JUZGADOS) -> List:
         f"1: SI\n2: NO\n..."
     )
 
-    respuesta = generar(prompt, temperature=0.1, max_tokens=200)
+    respuesta = generar(prompt, temperature=0.1, max_tokens=200, via="research.juez")
     if not respuesta:
         logger.warning("Juez: el LLM no respondio; hallazgos sin juzgar.")
-        return hallazgos
+        motivo = "el LLM no respondio: los hallazgos van SIN JUZGAR"
+        _grito(motivo)
+        return _sellar(hallazgos, False, motivo)
 
     veredictos = _parsear_veredictos(respuesta)
     if not veredictos:
         logger.warning("Juez: respuesta imparseable, me la salto: %r",
                        respuesta[:120])
-        return hallazgos
+        motivo = "veredicto imparseable: los hallazgos van SIN JUZGAR"
+        _grito(motivo)
+        return _sellar(hallazgos, False, motivo)
 
     # La regla de la duda: solo el NO explicito hunde. Un numero ausente es un
     # SI implicito — el modelo puede cortar la lista y eso no es culpa del
@@ -126,4 +162,10 @@ def juzgar(pregunta: str, hallazgos: List, max_llm: int = MAX_JUZGADOS) -> List:
         logger.info("Juez: hundidos %d de %d por no responder a la pregunta.",
                     len(no), len(lote))
 
+    # El lote SI paso por el juez; la cola (hallazgos[max_llm:]) y los que el
+    # modelo se salto NO. El sello distingue los tres casos en el propio dato.
+    _sellar(si + no, True)
+    _sellar(sin_juicio, False, "el modelo no emitio veredicto para este numero")
+    _sellar(hallazgos[max_llm:], False,
+            f"fuera del lote juzgado (solo se juzgan los primeros {max_llm})")
     return si + sin_juicio + hallazgos[max_llm:] + no

@@ -54,6 +54,20 @@ CICLOS_MAX_DEFECTO = 4
 TIEMPO_MAX_DEFECTO = 2400    # 40 min: pulir > rapidez, pero con techo
 
 
+def _grito(via: str, detalle: str) -> None:
+    """Deja constancia RUIDOSA de un degradado (stderr + backend_audit.jsonl).
+
+    POR QUE: hasta el 2026-07-25 el lazo se cortaba solo cuando el pensador no
+    respondia y el reporte decia "el pensador decidio ENTREGAR" — una decision
+    que nadie tomo. Un degradado que no se ve se repite para siempre. El import
+    va DENTRO: la instrumentacion nunca puede tumbar el lazo."""
+    try:
+        from .. import backend_activo
+        backend_activo.sin_backend(via, detalle)
+    except Exception:
+        pass
+
+
 # ── flota: cambiar de combo (autonomo) ──────────────────────────────────────
 
 def _combo(modo: str, verbose: bool = True) -> bool:
@@ -97,6 +111,8 @@ def _pensador(prompt: str, system: str = "", max_tokens: int = 900,
         return (texto or "").strip() or None
     except Exception as e:
         logger.warning("pulidor: el pensador no respondio (%s)", e)
+        _grito("pulidor.pensador",
+               f"el cerebro de :8080 no respondio ({e}); el ciclo sigue SIN pensador")
         return None
 
 
@@ -139,7 +155,14 @@ def _decidir(goal: str, nota, defectos: List[str], ciclo: int,
                     temperature=0.2)
     decision = {"seguir": False, "cambios": []}
     if not raw:
-        return decision          # sin pensador: entregar lo que hay
+        # Sin pensador se entrega lo que hay, PERO eso no es una decision de
+        # calidad: es un backend caido. La marca viaja en el dict para que el
+        # motivo del corte no mienta ("el pensador decidio ENTREGAR").
+        decision["sin_pensador"] = True
+        _grito("pulidor.decidir",
+               f"el pensador no respondio en el ciclo {ciclo}: se entrega lo "
+               f"que hay SIN que nadie lo haya decidido")
+        return decision
     seguir = bool(re.search(r"DECISION\s*:\s*SEGUIR", raw, re.I))
     cambios = [l.strip().lstrip("-*").strip() for l in raw.splitlines()
                if l.strip().startswith(("- ", "* "))]
@@ -168,9 +191,15 @@ def _juzgar(goal: str, html: str, dir_trabajo: Path,
                                  vision_texto=goal)
     defectos = list(informe.defectos or [])
     nota = None
-    if arb:
+    if arb and not arb.get("sin_vlm"):
         nota = arb.get("nota")
         defectos += [f"(visual) {d}" for d in arb.get("defectos", [])]
+    else:
+        # NADIE MIRO EL PIXEL. Sin esto, el ciclo seguia con solo la sonda
+        # estructural y el reporte no distinguia "juzgado 6.0" de "no juzgado".
+        _grito("pulidor.arbitro_visual",
+               "el arbitro visual no emitio veredicto (VLM caido o ilegible): "
+               "el ciclo sigue SOLO con la sonda estructural")
     shots = (informe.output_images or []) + (informe.input_images or [])
     return nota, defectos, (shots[-1] if shots else None)
 
@@ -221,11 +250,17 @@ class ResultadoPulido:
     motivo: str = ""
     historia: List[dict] = field(default_factory=list)
     directorio: Optional[str] = None
+    # Todo lo que el lazo hizo A CIEGAS (goal canned, sin pensador, sin arbitro,
+    # sin mockup). Va al resumen y al reporte.md: una corrida degradada tiene que
+    # poder distinguirse de una sana DESPUES, no solo en el stderr del momento.
+    degradaciones: List[str] = field(default_factory=list)
 
     def resumen(self) -> str:
         n = f"{self.nota_final:.1f}/10" if self.nota_final is not None else "s/nota"
+        aviso = (f" | DEGRADADO ({len(self.degradaciones)}): "
+                 f"{self.degradaciones[0]}") if self.degradaciones else ""
         return (f"'{self.goal[:60]}' -> {self.ciclos} ciclo(s), nota {n}, "
-                f"corte: {self.motivo}")
+                f"corte: {self.motivo}{aviso}")
 
 
 def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
@@ -259,9 +294,21 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
         if not goal:
             if gestionar_flota:
                 _combo("pensar", verbose)
-            goal = sonar_goal() or "una pagina web visual e interactiva"
+            sonado = sonar_goal()
+            goal = sonado or "una pagina web visual e interactiva"
             res.goal = goal
-            if verbose:
+            if not sonado:
+                # El goal CANNED se veia igual que un sueno de verdad en la
+                # salida y en el reporte: parecia que el modelo habia elegido
+                # construir "una pagina web visual e interactiva".
+                res.degradaciones.append(
+                    "GOAL CANNED: el pensador no propuso ningun sueno; se uso "
+                    "el goal de relleno 'una pagina web visual e interactiva'")
+                _grito("pulidor.sonar_goal",
+                       "sin sueno del pensador: goal CANNED de relleno")
+                if verbose:
+                    print("⚠️  Sin sueno del pensador: goal CANNED de relleno")
+            elif verbose:
                 print(f"💭 Sueno del modelo: {goal}")
 
         from .diseno_a_codigo import construir_para_mockup
@@ -284,8 +331,14 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
                 print("🎨 Imaginando el mockup objetivo (SDXL, GPU sola)...")
             mockup_ruta = _generar_mockup_subproceso(
                 goal, dir_final / "mockup.png", verbose)
-            if verbose and not mockup_ruta:
-                print("   sin mockup: el juez usara el goal en texto")
+            if not mockup_ruta:
+                # Sin imagen objetivo el juez es MUCHO mas laxo (medido: 8.5 a
+                # paneles vacios juzgando contra el goal en texto).
+                res.degradaciones.append(
+                    "SIN MOCKUP objetivo: el arbitro juzga contra el goal en "
+                    "texto (mas laxo que contra la imagen)")
+                if verbose:
+                    print("   sin mockup: el juez usara el goal en texto")
 
         html, program = None, None
         mejor_nota = None
@@ -348,6 +401,12 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
             res.historia.append({"ciclo": ciclo, "nota": nota,
                                  "n_defectos": len(defectos)})
             res.nota_final = nota if nota is not None else res.nota_final
+            if nota is None:
+                # Ciclo SIN VEREDICTO: no es un 0 ni un aprobado, es que nadie
+                # miro. El disyuntor y el gate lo saltan; el reporte lo dice.
+                res.degradaciones.append(
+                    f"ciclo {ciclo}: SIN NOTA, el arbitro visual no juzgo "
+                    f"(el gate y el disyuntor no pudieron aplicarse)")
             # Checkpoint del MEJOR ciclo: un ciclo puede EMPEORAR (medido
             # 2026-07-25: 7.0 -> 7.5 -> 6.0) y sin esto se entregaba el ultimo.
             if nota is not None and (mejor_nota is None or nota > mejor_nota):
@@ -378,7 +437,19 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
             decision = _decidir(goal, nota, defectos, ciclo, ciclos_max,
                                 res.historia)
             if not decision["seguir"]:
-                res.motivo = "el pensador decidio ENTREGAR"
+                if decision.get("sin_pensador"):
+                    # El corte es identico, el motivo NO: sin esto el reporte
+                    # atribuia al pensador una decision que nunca tomo.
+                    res.motivo = ("SIN PENSADOR: se entrega lo que hay (el "
+                                  "cerebro no respondio; nadie lo decidio)")
+                    res.degradaciones.append(
+                        f"ciclo {ciclo}: el pensador no respondio; el lazo se "
+                        f"corto sin decision de calidad")
+                    if verbose:
+                        print("⚠️  El pensador NO respondio: se corta el lazo "
+                              "sin decision (no es un ENTREGAR)")
+                else:
+                    res.motivo = "el pensador decidio ENTREGAR"
                 break
             cambios = decision["cambios"] + defectos[:3]
             if verbose:
@@ -408,6 +479,12 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
                        f"- corte: {res.motivo}", "", "## Historia"]
             reporte += [f"- ciclo {h['ciclo']}: nota={h['nota']} "
                         f"defectos={h['n_defectos']}" for h in res.historia]
+            # Lo que se hizo A CIEGAS. Va SIEMPRE, tambien cuando no hubo nada:
+            # "sin degradaciones" es informacion, la ausencia de seccion no.
+            reporte += ["", "## Degradaciones (lo que se hizo a ciegas)"]
+            reporte += ([f"- {d}" for d in res.degradaciones]
+                        or ["- ninguna: goal real, pensador, arbitro y mockup "
+                            "respondieron"])
             (dir_final / "reporte.md").write_text("\n".join(reporte),
                                                   encoding="utf-8")
         if not res.motivo:
