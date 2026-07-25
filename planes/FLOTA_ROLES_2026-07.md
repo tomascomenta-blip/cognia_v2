@@ -86,6 +86,22 @@ HALLAZGO operativo: UIGEN DEBE ir por el camino del constructor
 bloque <think> se come el presupuesto y el fence sale truncado (1 fallo
 reproducido y corregido así durante el A/B).
 
+### SMOKE A/B RAZONADORES — gpt-oss-20b ARRASA ✅
+5 problemas con respuesta exacta (pre-verificados a mano), :8080, temp 0.1:
+
+| Modelo | Aciertos | Tiempo total |
+|---|---|---|
+| **gpt-oss-20b (MXFP4)** | **5/5** | **13s** |
+| Qwen3-4B-Thinking-2507 | 4/5 | 95s |
+| qwen2.5-coder-14b | 3/5 | 19s |
+
+gpt-oss-20b es a la vez el MAS listo y el MAS rapido: PENSADOR por defecto
+(modo `pensar` de servir_flota). El coder-14b falla justo lo que un no-pensador
+falla (inclusion-exclusion, proporciones). El 4B queda como razonador barato
+residente y el 1.7B como razonador-CPU. Pendiente: OpenReasoning-Nemotron-14B
+(descargando) para el rol PENSADOR-EN-LAZO (gpt-oss no convive con VL-3B:
+13.7+3.2 > 16GB).
+
 ## Estado de ejecución
 - [x] Investigación del estado del arte (jul-2026) con fuentes
 - [ ] Descarga gpt-oss-20b MXFP4 + OpenReasoning-Nemotron-14B Q4 (en curso)
