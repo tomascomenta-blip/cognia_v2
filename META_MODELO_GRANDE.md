@@ -20,6 +20,41 @@ Un oráculo que *siempre* acierta al elegir modelo no consigue ni una tarea más
 que correr solo el mejor. **La capacidad no se suma: se rutea, y el techo es
 `max()`.** Ese es el resultado más sólido de la sesión y no se discute.
 
+### CORRECCIÓN al párrafo de arriba (2026-07-25, tras revisar la literatura)
+
+**Ese `+0` está medido sobre un set SATURADO** (el mejor modelo hace 6/6). Un
+oráculo de ruteo sobre un set que el mejor ya aprueba **no puede mostrar
+ganancia por construcción**. No es evidencia de que no haya margen: es evidencia
+de que ese banco no podía medirlo.
+
+Lo que sí está respaldado por medición externa es la *dirección*: el
+**Co-Failure Ceiling** ([arXiv:2606.27288](https://arxiv.org/abs/2606.27288), 67
+modelos) da un techo formal `precisión ≤ 1 − β`, con β = 0.079 en código
+evaluado por ejecución, y concluye que *"combinar modelos rara vez supera al
+mejor individual sin una señal de ruteo a nivel de query"*. Y **Self-MoA**
+([arXiv:2502.00674](https://arxiv.org/abs/2502.00674)) muestra que agregar 6
+propuestas del **mejor modelo solo** supera a mezclar modelos distintos
+(AlpacaEval 65.7 vs 59.1).
+
+**El `+0` hay que volver a medirlo sobre el banco duro.** Hasta entonces es una
+observación, no un resultado.
+
+## El giro que sí sobrevive: no rutear, AGRUPAR
+
+La literatura separa dos cosas que yo había juntado:
+
+- **Elegir** entre modelos (¿cuál uso para esta tarea?) → +0, y encima requiere
+  saber cuál antes de generar.
+- **Agrupar** candidatos de varios modelos y **filtrar por ejecución** → sí gana.
+  El *Barrel of Monkeys* de CodeMonkeys
+  ([arXiv:2501.14723](https://arxiv.org/abs/2501.14723)) juntó sus candidatos con
+  los del top-4 del leaderboard y su selector ejecutable dio **66.2 % contra
+  62.8 % del mejor miembro aislado**.
+
+> **La flota vale como fuente de DIVERSIDAD DE ERRORES (ρ bajo), no como menú a
+> elegir.** Es un uso distinto del mismo hardware, y es el que la evidencia
+> respalda.
+
 ## Por qué eso NO cierra la puerta
 
 Ese oráculo era sobre **modelos**. Y era un oráculo *hipotético*: en producción
@@ -120,3 +155,104 @@ _(se rellena a medida que salen; nada de esto se toca retroactivamente)_
 | 2. Curva pass@k | pendiente | — |
 | 3. Marcador Laguna XS | corriendo (banco fácil) | — |
 | 4. Refinamiento guiado | pendiente | — |
+| 5. Re-medir el oráculo de ruteo en banco NO saturado | pendiente | — |
+
+---
+
+## Prioridades tras revisar la literatura (2026-07-25)
+
+Ordenadas por ganancia esperada / esfuerzo. Cada una con su número publicado.
+
+**#1 — Reparación con contraejemplo, tope 3-4 rondas.** `scripts/reparar_contraejemplo.py`
+En **este dominio exacto** (web + Playwright), TDDev midió **+34,5 a +48,0
+puntos** en acc@5 ([arXiv:2605.17242](https://arxiv.org/html/2605.17242));
+self-repair a escala 8B da +16 a +30 pp en MBPP
+([arXiv:2604.10508](https://arxiv.org/abs/2604.10508)). Es la apuesta más alta.
+**La sutileza que casi todos hacen mal:** hay que pasar el **contraejemplo del
+verificador**, no la traza ni el código roto ni una auto-crítica. Un estudio
+preregistrado con **control placebo** sobre modelos chicos congelados
+([arXiv:2606.31511](https://arxiv.org/abs/2606.31511)) encontró que el código
+fallido y la traza de ejecución **empatan con un placebo sin contenido**. Lo
+único con señal real son contrafactuales ejecutables externos — que es
+literalmente lo que `juez_ejecutable` ya produce (`visibles('.tile')=16,
+esperaba 0`). La pieza estaba construida por accidente afortunado.
+
+**#2 — Best-of-N con pool HETEROGÉNEO y selección ejecutable, N pequeño (4-8).**
+S* hizo que un **7B superara a un 32B en +10,1 pp** en LiveCodeBench
+([arXiv:2502.14382](https://arxiv.org/html/2502.14382v1)). Aquí es donde la
+flota aporta: como diversidad de errores, no como menú.
+
+**#3 — Escalar el VERIFICADOR y medir su tasa de falsos positivos.**
+CodeRM: pasar de 1 a 16 aserciones da +5 a +8 pp
+([arXiv:2501.01054](https://arxiv.org/pdf/2501.01054)), y **los modelos chicos se
+benefician más**. Pero el efecto real es mayor, porque **la tasa de falsos
+positivos del contrato ES el techo de todo lo demás**: con FP > 0 hay un límite
+que ningún presupuesto de cómputo cruza
+([arXiv:2411.17501](https://arxiv.org/abs/2411.17501)).
+
+**#4 — Dos A/B baratos con prior fuerte.** (a) *Thinking OFF* para el rol
+CONSTRUCTOR: el CoT explícito **degrada el seguimiento de instrucciones
+constreñidas en 15 de 15 modelos** ([arXiv:2505.11423](https://arxiv.org/abs/2505.11423)),
+y generar contra un contrato es exactamente eso. (b) Tope de tokens de
+pensamiento en ~6K: −50 % de cómputo por −6 % de precisión
+([arXiv:2604.10739](https://arxiv.org/html/2604.10739v1)).
+
+**#5 — RLVR / Step-GRPO con la recompensa ejecutable.** Es la única de la lista
+que **crea** capacidad en vez de extraerla: WebGen-Agent llevó a
+Qwen2.5-Coder-7B de **12,4 % a 45,4 %**
+([arXiv:2509.22644](https://arxiv.org/html/2509.22644v1)). Alto esfuerzo, va
+última. Aviso: medir **pass@k**, no pass@1 — RLVR agudiza la distribución, no la
+expande ([arXiv:2504.13837](https://arxiv.org/abs/2504.13837)), y si el pipeline
+final es best-of-N se opera en k grande, donde el modelo base puede ganar.
+
+## Lo que la literatura MATA (no gastar tiempo aquí)
+
+- **Auto-crítica sin señal externa.** CommonSenseQA 75,8 → 38,1
+  ([arXiv:2310.01798](https://arxiv.org/abs/2310.01798)); la revisión TACL no
+  halló **ningún** caso exitoso ([arXiv:2406.01297](https://arxiv.org/abs/2406.01297)).
+- **Pedirle al modelo que escriba la crítica** teniendo ya un pass/fail: el
+  re-prompting simple captura casi todo el beneficio
+  ([arXiv:2402.08115](https://arxiv.org/abs/2402.08115)).
+- **Debate multi-agente homogéneo:** pierde contra self-consistency al mismo
+  coste ([arXiv:2502.08788](https://arxiv.org/abs/2502.08788)).
+- **Mixture-of-Agents con modelos de calidad desigual:** el modelo flojo
+  arrastra al conjunto ([arXiv:2502.00674](https://arxiv.org/abs/2502.00674)).
+- **Construir un PRM.** DeepSeek-R1 los abandonó por reward hacking
+  ([arXiv:2501.12948](https://arxiv.org/abs/2501.12948)). Un verificador
+  ejecutable es lo que un PRM aproxima mal.
+- **Más tokens de pensamiento:** inverse scaling medido; R1-32B pico a 12K y
+  **peor** a 16K ([arXiv:2604.10739](https://arxiv.org/html/2604.10739v1)).
+- **Repo-map por grafo/PageRank:** ripgrep sin índice **38,61 % EM vs 19,44 %**
+  de GraphCoder, a 1/80 de latencia
+  ([arXiv:2601.23254](https://arxiv.org/html/2601.23254v2)). Afecta al trío del
+  agente-dev de la 4.1.0.
+
+## El riesgo que hay que instrumentar DESDE EL DÍA UNO
+
+**Un verificador imperfecto es un generador de fallos silenciosos** — que es
+exactamente el modo de fallo característico de este proyecto, con otra cara.
+
+SpecBench ([arXiv:2605.21384](https://arxiv.org/abs/2605.21384)) identifica que
+el reward hacking **no lo causa la mala cobertura de tests, sino la brecha entre
+dificultad de la tarea y capacidad del modelo** — y que **los modelos chicos
+hackean más**. Este proyecto está justo en ese régimen: va a producir páginas
+que pasan el contrato y son basura.
+
+**Contramedida obligatoria:** una suite **held-out** por tarea (aserciones que el
+modelo nunca ve) desde el principio, no como refinamiento posterior. Y medir el
+poder discriminativo del contrato sin ground truth con LOAUC/ACES
+([arXiv:2604.03922](https://arxiv.org/pdf/2604.03922)).
+
+## El límite honesto, con número
+
+Con tasa de falsos positivos > 0 hay un **techo duro que ningún presupuesto de
+cómputo cruza**, y *"ninguna cantidad de inference scaling de un modelo débil le
+permite igualar la precisión single-sample de un modelo suficientemente fuerte"*
+([arXiv:2411.17501](https://arxiv.org/abs/2411.17501), Princeton). A razón
+coste-beneficio 4, el **N óptimo es ≤ 5**.
+
+Y el único resultado publicado de "modelo abierto + test-time scaling alcanza
+frontier" (oro en IOI, [arXiv:2510.14232](https://arxiv.org/abs/2510.14232)) usó
+**gpt-oss-120b y ~14.600 millones de tokens**, quedó **16 % por debajo** del
+frontier, y **probaron el 20b: rindió peor**. Eso acota lo que es razonable
+esperar aquí.
