@@ -1535,11 +1535,15 @@ except Exception:
 
 # ── Tools de IMAGEN (cableado del barrido nocturno 2026-07-24) ──────────
 # cognia.assets estaba verificado en GPU y el agente no podia alcanzarlo.
+# OPT-IN DURO (COGNIA_IMG_TOOLS=1), como las de pantalla: registradas
+# default-ON bajaban el camino feliz de 4.25/5 a 2.5/5 (A/B n=4+4 medido
+# 2026-07-25) — el techo de nº de tools del modelo chico es real.
 # Imports perezosos dentro de cada tool; sin GPU devuelven ERROR legible.
-try:
-    from cognia.agent import image_tools as _image_tools
-    _image_tools.register(tool)
-    for _t in ("imagen_generar", "imagen_editar", "imagen_quitar_fondo"):
-        ROLE_TOOLS["implementador"].add(_t)
-except Exception:
-    pass
+if os.environ.get("COGNIA_IMG_TOOLS") == "1":
+    try:
+        from cognia.agent import image_tools as _image_tools
+        _image_tools.register(tool)
+        for _t in ("imagen_generar", "imagen_editar", "imagen_quitar_fondo"):
+            ROLE_TOOLS["implementador"].add(_t)
+    except Exception:
+        pass
