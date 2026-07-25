@@ -1439,8 +1439,25 @@ def _print_line(text):
         print(_strip_markup(text))
 
 
-def _show_response(text, color="cyan"):
+def _show_response(text, color="cyan", respuesta_final=False):
+    """Muestra una respuesta. `respuesta_final=True` = ESTO es lo que el
+    usuario pidio (el cierre del agente), no chrome.
+
+    En el control remoto la respuesta final va SIN panel: el clasificador del
+    movil manda a "Actividad" (plegado) todo lo enmarcado en "│ ... │", asi que
+    el marco de terminal escondia justo la respuesta. Cazado 2026-07-25: "Se ha
+    abierto Chrome con YouTube... aqui tienes la captura" quedo plegada y el
+    dueno la vio como que Cognia no habia contestado. El resto de paneles
+    (ayuda, estado, tablas) SI siguen enmarcados: son chrome y su sitio es
+    Actividad."""
     text = _to_str(text)
+    if respuesta_final and os.environ.get("COGNIA_REMOTO", "").strip() == "1":
+        # flush OBLIGATORIO: stdout a un pipe es block-buffered (8 KB), y rich
+        # sí vaciaba. Sin esto la respuesta se queda en el buffer del REPL y no
+        # llega al movil hasta el siguiente mensaje — medido al verificar este
+        # mismo cambio: el proceso quedo inactivo con la respuesta atrapada.
+        print(f"\n{text.strip()}\n", flush=True)
+        return
     if _HAS_RICH and _console:
         _console.print(Panel(_escape(text.strip()), border_style=color, padding=(0, 1)))
     else:
@@ -3510,7 +3527,7 @@ def _slash_skill(arg: str, ai):
         return
     _print_line(f"[detail]Ejecutando con skill '{s.name}'...[/detail]")
     _resp = _run_agent_task(ai, task, _print_line, guidance=skill_guidance(s))
-    _show_response(_resp, _ACCENT)
+    _show_response(_resp, _ACCENT, respuesta_final=True)
     _session_log.append({"input": f"/skill {name} {task}", "output": _resp, "elapsed": 0})
     _persist_turn(ai, f"/skill {name} {task}", _resp)
 
@@ -7051,7 +7068,7 @@ def repl():
                 _print_line("[detail]Iniciando agente...[/detail]")
                 _resp = _run_agent_task(ai, _tarea, _print_line)
                 if _resp:
-                    _show_response(_resp, "cyan")
+                    _show_response(_resp, "cyan", respuesta_final=True)
                 else:
                     _print_line("[warn_cl]El agente no produjo respuesta.[/warn_cl]")
                 _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
@@ -7989,7 +8006,7 @@ def repl():
                 _hmsg = f" (sugiero {_hint})" if _hint else ""
                 _print_line(f"[detail]Detectada accion{_hmsg} -- activando agente...[/detail]")
                 _resp = _run_agent_task(ai, raw, _print_line, hint=_hint)
-                _show_response(_resp, _ACCENT)
+                _show_response(_resp, _ACCENT, respuesta_final=True)
                 _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
                 _persist_turn(ai, raw, _resp)
             if not _needs_tool:

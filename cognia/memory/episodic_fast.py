@@ -146,6 +146,9 @@ class VectorCache:
             self._matrix = np.zeros((0, 384), dtype=np.float32)
             self._meta = []
             self._db_count = 0
+            self._max_id_visto = None      # sin base: el proximo va completo
+            self._n_hasta_max = 0
+            self._built_include_forgotten = include_forgotten
             return
 
         # Paso 1: detectar la dimension dominante
@@ -217,6 +220,15 @@ class VectorCache:
 
         self._meta = meta
         self._db_count = len(rows)
+        # Base para los refrescos incrementales: hasta que id llegue este build
+        # y cuantas filas activas hay hasta ahi (si ese conteo baja, hubo
+        # olvidos/borrados y el incremental se descarta solo).
+        try:
+            self._max_id_visto = max(int(r[0]) for r in rows)
+            self._n_hasta_max = len(rows)
+            self._built_include_forgotten = include_forgotten
+        except Exception:
+            self._max_id_visto = None
         self._db_hash = getattr(self, '_hash_cache_val', 0)
         self._built_at = time.perf_counter()
         # Invalidate throttle so next _get_db_hash() re-queries the DB.
@@ -230,6 +242,121 @@ class VectorCache:
             extra={"op": "vector_cache.build", "context": f"n={len(rows)}"}
         )
 
+    # Cuantos episodios recientes refrescan sus escalares (confidence,
+    # importance, feedback_weight) en un refresco incremental. Cubre de sobra
+    # los 50 que vigila _get_db_hash().
+    _RECIENTES_A_REFRESCAR = 200
+
+    def _refresh_locked(self, include_forgotten: bool = False):
+        """Pone el cache al dia SIN releer los 65k vectores si solo hubo altas.
+
+        POR QUE: cada mensaje del usuario guarda un episodio -> el hash cambia
+        -> se reconstruia la matriz ENTERA. Medido en una sesion real del dueno
+        (2026-07-25): "VectorCache construido: 65290 vectores en 5737.8ms" y un
+        "Operacion lenta: 5978ms retrieve_similar" en CADA turno. O(n) por
+        mensaje, y creciendo.
+
+        Solo se hace incremental cuando es DEMOSTRABLEMENTE seguro: misma
+        vista (include_forgotten), matriz ya construida, y el numero de
+        episodios activos con id <= max_id_visto sin cambios (si bajo, hubo
+        olvidos/borrados y la matriz vieja ya no vale -> build completo).
+        Ante cualquier duda o error: build completo."""
+        if (self._matrix is None or not self._meta
+                or getattr(self, "_max_id_visto", None) is None
+                or getattr(self, "_built_include_forgotten", None) != include_forgotten):
+            return self._build_locked(include_forgotten)
+
+        max_id = self._max_id_visto
+        cond = "" if include_forgotten else "AND forgotten = 0"
+        conn = None
+        try:
+            conn = db_connect(self.db_path)
+            (n_viejos,) = conn.execute(
+                f"SELECT COUNT(*) FROM episodic_memory WHERE id <= ? {cond}",
+                (max_id,)).fetchone()
+            if n_viejos != getattr(self, "_n_hasta_max", -1):
+                return self._build_locked(include_forgotten)   # cambio lo viejo
+
+            nuevas = conn.execute(f"""
+                SELECT id, observation, label, vector, confidence, importance,
+                       emotion_score, emotion_label, surprise,
+                       COALESCE(feedback_weight, 1.0)
+                FROM episodic_memory WHERE id > ? {cond}
+            """, (max_id,)).fetchall()
+
+            # escalares recientes: pueden haber cambiado sin alta ninguna
+            recientes = conn.execute(f"""
+                SELECT id, confidence, importance, COALESCE(feedback_weight, 1.0)
+                FROM episodic_memory
+                WHERE id > ? {cond}
+            """, (max_id - self._RECIENTES_A_REFRESCAR,)).fetchall()
+        except Exception as exc:
+            log_db_error(logger, "vector_cache.refresh", exc)
+            return self._build_locked(include_forgotten)
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+        t0 = time.perf_counter()
+        dim = int(self._matrix.shape[1])
+        vectores, meta_nueva = [], []
+        for row in nuevas:
+            try:
+                vec = json.loads(row[3])
+            except Exception:
+                continue
+            if len(vec) != dim:          # otra dimension: no entra en la matriz
+                continue
+            (ep_id, obs, label, _vs, conf, imp,
+             emo_score, emo_label, surprise, fb_weight) = row
+            vectores.append(vec)
+            meta_nueva.append({
+                "id": ep_id, "observation": obs, "label": label,
+                "confidence": float(conf or 0.5),
+                "importance": float(imp or 1.0),
+                "emotion_score": float(emo_score or 0.0),
+                "emotion_label": emo_label or "neutral",
+                "surprise": float(surprise or 0.0),
+                "feedback_weight": float(fb_weight or 1.0),
+            })
+
+        if vectores:
+            mat = np.array(vectores, dtype=np.float32)
+            norms = np.linalg.norm(mat, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            mat = mat / norms
+            self._matrix = np.vstack([self._matrix, mat])
+            self._meta.extend(meta_nueva)
+            if self._faiss_index is not None:
+                try:
+                    self._faiss_index.add(mat)      # FAISS anade incremental
+                except Exception:
+                    self._faiss_index = None        # se recreara en el proximo build
+
+        if recientes:
+            pos = {m["id"]: i for i, m in enumerate(self._meta)}
+            for ep_id, conf, imp, fb in recientes:
+                i = pos.get(ep_id)
+                if i is not None:
+                    self._meta[i]["confidence"] = float(conf or 0.5)
+                    self._meta[i]["importance"] = float(imp or 1.0)
+                    self._meta[i]["feedback_weight"] = float(fb or 1.0)
+
+        if nuevas:
+            self._max_id_visto = max(int(r[0]) for r in nuevas)
+            self._n_hasta_max = n_viejos + len(nuevas)
+        self._db_count = len(self._meta)
+        self._db_hash = self._get_db_hash()
+        self._hash_cache_ts = 0.0
+        logger.info(
+            f"VectorCache incremental: +{len(vectores)} vectores "
+            f"(total {len(self._meta)}) en {(time.perf_counter()-t0)*1000:.1f}ms",
+            extra={"op": "vector_cache.refresh", "context": f"n={len(self._meta)}"}
+        )
+
     def search(self, query_vector: list, top_k: int = 5,
                include_forgotten: bool = False) -> list:
         """
@@ -241,13 +368,13 @@ class VectorCache:
             now = time.monotonic()
             if self._dirty:
                 if (now - self._dirty_since) >= DEBOUNCE_S or self._matrix is None:
-                    self._build_locked(include_forgotten)
+                    self._refresh_locked(include_forgotten)
                     self._dirty = False
                 # else: debounce window — search stale matrix
             else:
                 current_hash = self._get_db_hash()
                 if self._needs_rebuild(current_hash):
-                    self._build_locked(include_forgotten)
+                    self._refresh_locked(include_forgotten)
 
             if self._matrix is None or len(self._meta) == 0:
                 return []

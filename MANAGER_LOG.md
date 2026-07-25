@@ -9147,3 +9147,82 @@ Verificacion REAL (no solo pytest):
 Pendiente natural (NO hecho, no bloqueante): subir imagen DESDE el movil (no hay
 input file ni endpoint de upload) y video en cualquier direccion (no hay ffmpeg
 ni encoder en el repo; cognia/anim son poses en runtime, no un fichero).
+
+---
+
+## 2026-07-25 — Sesion 20260725-102111: por que "no pudo responder" (5 fixes)
+
+Reporte del dueno: "la mayoria de preguntas no las pudo responder". Leida la
+transcripcion entera, no habia UN fallo sino CINCO, y ninguno era del modelo.
+
+1. MINTIO sobre una accion. "Hola podrias crear una carpeta que se llame..."
+   -> respondio "```bash mkdir nueva_carpeta``` La carpeta ha sido creada" SIN
+   crear nada, y al reclamarle ("No la creaste") repitio la mentira.
+   CAUSA (medida): intent.detect() casaba el guard "^hola" y devolvia
+   reason="conversacional"; cli.py ADEMAS veta el enrutador por inferencia con
+   ese reason (linea 7963) -> la cortesia cerraba las DOS puertas al agente.
+   FIX: el saludo se PELA y se juzga lo que sigue ("hola" a secas sigue siendo
+   chat). Faltaban reglas: crear carpeta (-> ejecutar/mkdir) y traer ventana al
+   frente. Antes 'conversacional', ahora 'regla:ejecutar'.
+
+2. TRES tareas muertas por el mismo error: "pantalla localizar ERROR: The
+   confidence keyword argument is only available if OpenCV is installed".
+   CAUSA: el fallback capturaba TypeError y pyscreeze lanza NotImplementedError
+   -> nunca corria. Y "no encontrada" tampoco funcionaba: pyscreeze>=1.0 lanza
+   ImageNotFoundException en vez de devolver None (el `if box is None` era
+   codigo muerto), y salia como ERROR. Para el agente un ERROR es accion
+   fallida y TRES lo apagan ("sin progreso"): por eso murieron los 3 intentos.
+   Ojo: son DOS ImageNotFoundException distintas (pyautogui y pyscreeze); hay
+   que capturar las dos — capturar solo la de pyscreeze dejaba "ERROR: " vacio.
+   FIX + verificado real: no encontrada -> "no encontrada"; recorte real de la
+   pantalla -> "centro (180, 140)" exacto.
+
+3. FALTABA la capacidad entera de ventanas. "Pone al frente la pestaña de
+   Chrome" no tenia tool: solo buscar-imagen-en-pantalla. Nuevas
+   pantalla_ventanas y pantalla_activar_ventana (pygetwindow, con restore si
+   esta minimizada y fallback minimize+restore si Windows bloquea el foco).
+   Verificado contra ventanas reales de la maquina.
+
+4. La UNICA respuesta buena quedo ESCONDIDA. "Se ha abierto Chrome con YouTube
+   ... aqui tienes el archivo: captura_102245.png" se plego dentro de Actividad.
+   CAUSA: el CLI la imprime con _show_response -> Panel rich -> el clasificador
+   manda todo "│...│" a actividad. La premisa escrita en sesiones.py ("Cognia
+   no enmarca sus respuestas") era FALSA para el agente.
+   FIX: el remoto exporta COGNIA_REMOTO=1 y ahi la RESPUESTA FINAL va sin
+   marco; el chrome (ayuda, estado, tablas) sigue enmarcado y sigue en
+   Actividad. El clasificador no se toco.
+   BUG PROPIO cazado al verificar: el print pelado a un pipe es block-buffered
+   (8 KB) y rich SI vaciaba -> la respuesta se quedaba en el buffer y el chat
+   parecia congelado. flush=True + PYTHONUNBUFFERED=1 en el subproceso. El
+   test que lo cubre lee con el REPL VIVO: subprocess.run() no puede verlo
+   (al terminar el proceso, el buffer se vacia solo y el test pasaria igual).
+
+5. ~6 s de latencia en CADA mensaje. Los logs de la sesion: "VectorCache
+   construido: 65290 vectores en 5737.8ms" + "Operacion lenta: 5978ms
+   retrieve_similar" en cada turno. CAUSA: cada mensaje guarda un episodio ->
+   cambia el hash -> se reconstruia la matriz ENTERA (O(n) por turno, creciendo).
+   FIX: _refresh_locked incremental — si solo hubo altas, se anaden esas filas
+   (FAISS tambien admite add incremental); si el conteo de activos hasta el
+   max_id cambio (olvidos/borrados) se cae a build completo; los escalares de
+   los 200 mas recientes se refrescan siempre (el ranking usa importance).
+   MEDIDO en la base real del dueno (145k filas, 65k vectores de dim 384):
+   build completo 5883 ms -> refresco incremental 14.6 ms.
+
+Verificacion e2e real (REPL de verdad por el remoto, dos corridas): el mensaje
+literal del dueno "Hola podrias crear una carpeta que se llame prueba_fix_0725"
+CREA LA CARPETA en disco (antes: la fingia). Confirmado borrando la carpeta
+entre corridas.
+
+LIMITE HONESTO — lo que NO queda cerrado: en las dos corridas e2e el turno no
+llego a cerrar (sin respuesta final en el chat). Medido: el proceso real del
+REPL (789 MB) consume 0.00 s de CPU en 15 s y tiene una conexion saliente en
+CloseWait -> esta BLOQUEADO EN RED, no pensando. En esta maquina no hay ningun
+backend de inferencia escuchando (8080/8081/11434 vacios), a diferencia de la
+sesion del dueno (respondia en ~0.95 s). No se parchea a ciegas: hace falta
+reproducir con el modelo servido y ver que llamada se queda sin timeout.
+Tampoco se toco: `mkdir` de algo que ya existe devuelve exit 1 y el agente lo
+cuenta como accion fallida (empuja hacia el apagado por "sin progreso").
+
+Tests: 20 de regresion nuevos (intent 5, screen_tools 5, episodic incremental 5,
+remoto respuesta visible 5, y el del flush verificado FALLANDO sin el fix).
+Suite: 5385 passed, 1 skipped.

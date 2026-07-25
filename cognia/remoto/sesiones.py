@@ -255,7 +255,16 @@ class Sesion:
         pp = os.environ.get("PYTHONPATH", "")
         env = dict(os.environ,
                    PYTHONUTF8="1", PYTHONIOENCODING="utf-8",
+                   # sin esto, cualquier print() del REPL a este pipe queda
+                   # block-buffered (8 KB) y el movil no lo ve hasta que se
+                   # llene el buffer: el chat parece congelado
+                   PYTHONUNBUFFERED="1",
                    NO_COLOR="1", TERM="dumb",
+                   # "corres dentro del control remoto": el CLI deja de
+                   # enmarcar la RESPUESTA FINAL del agente en un panel rich.
+                   # El marco la mandaba a Actividad (plegada) y parecia que
+                   # Cognia no habia contestado (sesion 2026-07-25).
+                   COGNIA_REMOTO="1",
                    # ACCESO TOTAL en el control remoto: el dueño pilota SU maquina
                    # desde el movil sin canal de confirmacion, asi Cognia puede
                    # abrir apps/navegar/operar el equipo. El BLOCK duro del

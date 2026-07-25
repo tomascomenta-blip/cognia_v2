@@ -27,9 +27,20 @@ class Intent:
     reason: str = ""
 
 
+# Saludo de apertura: se PELA antes de juzgar, no descarta el mensaje.
+# Cazado 2026-07-25 en una sesion real: "Hola podrias crear una carpeta que se
+# llame..." casaba el guard de "hola" y volvia conversacional -> ni agente ni
+# enrutador (cli.py veta el enrutador cuando reason=="conversacional") -> el
+# chat contesto "```mkdir nueva_carpeta``` la carpeta ha sido creada" SIN crear
+# nada. La cortesia no puede desactivar la ejecucion.
+_SALUDO_APERTURA = re.compile(
+    r"^\s*(hola|buenas(?:\s+(?:tardes|noches|d[ií]as))?|buen(?:os)?\s+d[ií]as?"
+    r"|hey|ey|holi|qu[eé]\s+tal|c[oó]mo\s+(?:est[aá]s|va)|saludos)"
+    r"[\s,!¡.:;·\-]*", re.I)
+
 # Phrasings that look like an action but are really conversational -> force chat.
 _CHAT_GUARDS = (
-    r"^\s*(hola|buenas|gracias|chau|adios|como estas|que tal|quien eres|quien sos)\b",
+    r"^\s*(gracias|chau|adios|como estas|que tal|quien eres|quien sos)\b",
     r"^\s*(que es|que son|que significa|por que|para que|cual es|quien fue|quien es)\b",
     r"^\s*(explica|explicame|contame|definí|define|opina|opinas|crees que)\b",
 )
@@ -42,8 +53,16 @@ _RULES = [
     (r"\babr(?:e|a|as|i|í|ir|irme|ime|eme)\b.*\b(pesta[ñn]a|navegador|chrome|firefox|edge|brave|youtube|google)\b", "abrir"),
     (r"\b(?:abr(?:e|a|as|i|í|ir|irme|ime|eme)|lanz[aá]r?|lances?)\s+(el\s+|la\s+|una?\s+)?(powershell|terminal|consola|cmd|s[ií]mbolo del sistema|explorador|explorer|calculadora|bloc de notas|notepad|paint|spotify|discord|steam|word|excel)\b", "abrir"),
     (r"\babr(?:e|a|as|i|í|ir|irme|ime|eme)\b.*\s(https?://|www\.|\S+\.(com|net|org|es|co|io|tv|me|app)\b)", "abrir"),
+    # ventanas: "pone Chrome al frente, esta detras de otras ventanas" (pedido
+    # real 2026-07-25). Necesita la tool de ventanas, no leer_archivo.
+    (r"\b(pon(?:e|er|é|es|ga)|tra(?:e|er|é)|mostr[aá]r?|enfoc[aá]r?|maximiz[aá]r?|restaur[aá]r?|activ[aá]r?)\b.*\b(al\s+frente|adelante|primer\s+plano|encima|visible)\b", "pantalla_activar_ventana"),
+    (r"\b(al\s+frente|primer\s+plano)\b.*\b(ventana|pesta[ñn]a|chrome|firefox|edge|roblox|explorador)\b", "pantalla_activar_ventana"),
     (r"\b(le[eé]|leer|mostra?r?|ver|abr[ií]r?)\s+(el\s+)?(archivo|fichero|c[oó]digo|file)\b", "leer_archivo"),
     (r"\bque\s+(contiene|tiene|dice)\s+(el\s+)?(archivo|fichero)\b", "leer_archivo"),
+    # carpetas ANTES que archivos: "crea una carpeta" no es escribir_archivo,
+    # se hace con `ejecutar` (mkdir). Faltaba, y el mensaje caia al chat, que
+    # respondia "la carpeta ha sido creada" sin crear nada (sesion 2026-07-25).
+    (r"\b(cre[aá]r?|gener[aá]r?|hac[eé]r?|arm[aá]r?)\s+(un[ao]?\s+|el\s+|la\s+)?(carpeta|directorio|folder|subcarpeta)\b", "ejecutar"),
     (r"\b(escrib[ií]r?|cre[aá]r?|gener[aá]r?|guard[aá]r?)\s+(un\s+|el\s+|una\s+)?(archivo|fichero|script|file|funci[oó]n|clase|programa|html|json)\b", "escribir_archivo"),
     (r"\b(agreg[aá]r?|añad[ií]r?|apend[aá]r?)\s+.*\b(al\s+archivo|al\s+final)\b", "apendar_archivo"),
     (r"\b(busc[aá]r?|encontr[aá]r?|grep)\b.*\b(en|dentro de)\b", "buscar"),
@@ -102,6 +121,13 @@ def detect(text: str) -> Intent:
     t = (text or "").strip().lower()
     if not t:
         return Intent(False, reason="vacio")
+
+    # Un saludo NO decide nada por si solo: se pela y se juzga lo que sigue.
+    # "hola" a secas sigue siendo conversacional (no queda nucleo).
+    sin_saludo = _SALUDO_APERTURA.sub("", t, count=1).strip()
+    if not sin_saludo:
+        return Intent(False, reason="conversacional")
+    t = sin_saludo
 
     for guard in _CHAT_GUARDS:
         if re.search(guard, t):

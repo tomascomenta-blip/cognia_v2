@@ -130,18 +130,62 @@ def captura(ctx: dict, region=None) -> str:
         return f"RESULTADO pantalla captura ERROR: {exc}"
 
 
+def _excs_no_encontrada() -> tuple:
+    """Las excepciones de 'la imagen no esta en pantalla'.
+
+    Son DOS clases distintas y hay que capturar las dos: pyautogui define su
+    propia ImageNotFoundException y no es la de pyscreeze (medido 2026-07-25:
+    capturar solo la de pyscreeze dejaba pasar la de pyautogui, que salia como
+    'ERROR: ' con mensaje vacio)."""
+    excs = []
+    for modulo in ("pyautogui", "pyscreeze"):
+        try:
+            mod = __import__(modulo)
+            exc = getattr(mod, "ImageNotFoundException", None)
+            if isinstance(exc, type) and issubclass(exc, BaseException):
+                excs.append(exc)
+        except Exception:
+            pass
+    return tuple(excs) or (_NuncaOcurre,)
+
+
+class _NuncaOcurre(Exception):
+    """Centinela: si no hay ninguna clase que capturar, el except no dispara."""
+
+
 def localizar(ctx: dict, image_path: str, confidence: float = 0.9):
     """Localiza una imagen en pantalla (READ-ONLY). Devuelve centro o None."""
     ok, err = _gate(ctx, "localizar", destructiva=False, detalle=image_path)
     if not ok:
         return err
     global _acciones_hechas
+    if not Path(image_path).is_file():
+        return f"RESULTADO pantalla localizar ERROR: no existe {image_path}"
     try:
         g = _gui()
+        # pyscreeze >=1.0 NO devuelve None cuando no encuentra: lanza
+        # ImageNotFoundException (USE_IMAGE_NOT_FOUND_EXCEPTION=True). Esa
+        # excepcion se colaba al except Exception y salia como ERROR — para el
+        # agente un ERROR es una accion fallida, y tres seguidas lo apagan.
+        # "No esta en pantalla" es un RESULTADO normal, no un fallo.
+        _NoEsta = _excs_no_encontrada()
         try:
             box = g.locateOnScreen(image_path, confidence=confidence)
-        except TypeError:                       # sin opencv, sin confidence
-            box = g.locateOnScreen(image_path)
+        except _NoEsta:
+            _audit("localizar", {"img": image_path}, "no encontrada")
+            return "RESULTADO pantalla localizar: no encontrada"
+        except (TypeError, NotImplementedError):
+            # sin opencv no hay `confidence`: se reintenta SIN el keyword.
+            # Cazado 2026-07-25 en una sesion real del dueno: pyscreeze lanza
+            # NotImplementedError (no TypeError), asi que este fallback nunca
+            # corria y cada localizar moria con "ERROR: The confidence keyword
+            # argument is only available if OpenCV is installed". Tres tareas
+            # seguidas del agente se apagaron por esto ("sin progreso").
+            try:
+                box = g.locateOnScreen(image_path)
+            except _NoEsta:
+                _audit("localizar", {"img": image_path}, "no encontrada")
+                return "RESULTADO pantalla localizar: no encontrada"
         _acciones_hechas += 1
         if box is None:
             _audit("localizar", {"img": image_path}, "no encontrada")
@@ -205,6 +249,72 @@ def tecla(ctx: dict, *teclas: str) -> str:
         return f"RESULTADO pantalla tecla ERROR: {exc}"
 
 
+def ventanas(ctx: dict, filtro: str = "") -> str:
+    """Lista las ventanas abiertas con titulo (READ-ONLY)."""
+    ok, err = _gate(ctx, "ventanas", destructiva=False, detalle=filtro)
+    if not ok:
+        return err
+    try:
+        import pygetwindow as gw
+        titulos = [w.title for w in gw.getAllWindows() if w.title.strip()]
+        if filtro:
+            f = filtro.lower()
+            titulos = [t for t in titulos if f in t.lower()]
+        if not titulos:
+            return ("RESULTADO pantalla ventanas: ninguna" +
+                    (f" con '{filtro}'" if filtro else ""))
+        _audit("ventanas", {"filtro": filtro, "n": len(titulos)}, "OK")
+        return "RESULTADO pantalla ventanas: " + " | ".join(titulos[:15])
+    except Exception as exc:
+        return f"RESULTADO pantalla ventanas ERROR: {exc}"
+
+
+def activar_ventana(ctx: dict, titulo: str) -> str:
+    """Trae al frente la ventana cuyo titulo CONTIENE `titulo`.
+
+    Faltaba (cazado 2026-07-25): el dueno pidio "pone Chrome al frente, esta
+    detras de otras ventanas" y el agente no tenia ninguna tool de ventanas —
+    solo podia buscar una imagen en pantalla, que ademas fallaba. Sin esto,
+    capturar una app concreta es a ciegas.
+
+    Es DESTRUCTIVA en el sentido del gate: cambia el foco de la maquina."""
+    titulo = (titulo or "").strip()
+    if not titulo:
+        return "RESULTADO pantalla activar_ventana ERROR: falta el titulo"
+    ok, err = _gate(ctx, "activar_ventana", destructiva=True, detalle=titulo)
+    if not ok:
+        return err
+    global _acciones_hechas
+    try:
+        import pygetwindow as gw
+        cands = [w for w in gw.getAllWindows()
+                 if titulo.lower() in w.title.lower() and w.title.strip()]
+        if not cands:
+            _audit("activar_ventana", {"titulo": titulo}, "no encontrada")
+            return (f"RESULTADO pantalla activar_ventana: no hay ventana con "
+                    f"'{titulo}' (usa pantalla_ventanas para ver los titulos)")
+        v = cands[0]
+        try:
+            if v.isMinimized:
+                v.restore()
+        except Exception:
+            pass
+        v.activate()
+        _acciones_hechas += 1
+        _audit("activar_ventana", {"titulo": v.title}, "OK")
+        return f"RESULTADO pantalla activar_ventana: {v.title}"
+    except Exception as exc:
+        # activate() de pygetwindow falla si otro proceso tiene el foreground
+        # lock de Windows; el minimizar+restaurar suele saltarselo.
+        try:
+            v.minimize(); v.restore()
+            _acciones_hechas += 1
+            _audit("activar_ventana", {"titulo": v.title}, "OK (restore)")
+            return f"RESULTADO pantalla activar_ventana: {v.title}"
+        except Exception:
+            return f"RESULTADO pantalla activar_ventana ERROR: {exc}"
+
+
 # ── Registro como @tool (danger) ────────────────────────────────────────────
 def register(tool_decorator) -> None:
     """Registra las tools de pantalla en el registry del agente. Llamado
@@ -221,6 +331,20 @@ def register(tool_decorator) -> None:
                     "pantalla y devuelve sus coordenadas", danger=True)
     def _t_localizar(args, ctx):
         return localizar(ctx, args.strip())
+
+    @tool_decorator("pantalla_ventanas",
+                    "pantalla_ventanas [filtro] -- lista las ventanas abiertas "
+                    "por titulo (para saber que hay y como se llama)",
+                    danger=True)
+    def _t_ventanas(args, ctx):
+        return ventanas(ctx, args.strip())
+
+    @tool_decorator("pantalla_activar_ventana",
+                    "pantalla_activar_ventana <titulo> -- trae esa ventana al "
+                    "frente (usar ANTES de capturar una app concreta)",
+                    danger=True)
+    def _t_activar(args, ctx):
+        return activar_ventana(ctx, args)
 
     @tool_decorator("pantalla_click",
                     "pantalla_click <x> <y> -- click del mouse en (x,y) "
