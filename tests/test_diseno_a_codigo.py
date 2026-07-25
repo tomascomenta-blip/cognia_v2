@@ -152,6 +152,137 @@ def test_disyuntor_corta_si_el_sintoma_no_cambia():
     assert res.rondas < 6           # corto antes del tope
 
 
+# ── defectos estaticos: elementos que desaparecen / alert() ─────────────────
+
+def test_detecta_ids_desaparecidos():
+    """El bug del juego arcade: draw() vaciaba el contenedor con innerHTML=''
+    y borraba #ship y #hud — la pagina quedaba en puntitos sobre negro."""
+    fuente = '<div id="game"><div id="ship"></div><div id="hud"></div></div>'
+    dom = '<div id="game"><div class="asteroid"></div></div>'
+    perdidos = d2c._ids_desaparecidos(fuente, dom)
+    assert perdidos == ["ship", "hud"]
+
+
+def test_ids_presentes_no_disparan():
+    fuente = '<div id="game"><div id="ship"></div></div>'
+    dom = '<div id="game"><div id="ship" style="left:10px"></div></div>'
+    assert d2c._ids_desaparecidos(fuente, dom) == []
+
+
+def test_defecto_estatico_por_alert():
+    inf = _informe([])
+    inf.dom_renderizado = "<div></div>"
+    defs = d2c._defectos_estaticos("<script>alert('Game Over')</script>", inf)
+    assert any("alert()" in d for d in defs)
+
+
+def test_los_defectos_estaticos_entran_al_lazo():
+    """El lazo debe pasar los defectos estaticos a reparar_web junto al resto."""
+    capturado = {}
+
+    def _reparar(program, defectos, llm=None):
+        capturado["defectos"] = list(defectos)
+        return None
+
+    inf = _informe(["algo"])
+    inf.dom_renderizado = "<div></div>"     # sin #ship -> desaparecido
+    prog = _prog(code='<html><body><div id="ship"></div>'
+                      "<script>alert(1)</script></body></html>")
+    ps = _parchar(
+        informe_ret={"return_value": inf},
+        arb_ret={"return_value": None},
+        reparado_ret={"side_effect": _reparar},
+        prog_ini=prog)
+    _run(ps, gate_nota=7.0)
+    assert any("DESAPARECEN" in d for d in capturado["defectos"])
+    assert any("alert()" in d for d in capturado["defectos"])
+
+
+# ── el brief entra a la generacion ──────────────────────────────────────────
+
+def test_el_brief_viaja_en_la_idea_de_generacion():
+    """Hasta 2026-07-24 la vision solo la veia el arbitro; el constructor
+    generaba a ciegas. El brief debe ir en la idea forzada."""
+    capturado = {}
+
+    def _gen(forced_idea=None, llm=None):
+        capturado["idea"] = forced_idea
+        return _prog()
+
+    with patch.object(d2c._mockup, "imaginar_vision",
+                      return_value={"brief": "neon arcade con HUD",
+                                    "prompt_imagen": "p"}), \
+         patch.object(d2c._mockup, "generar_mockup", return_value=None), \
+         patch.object(d2c, "generate_program", side_effect=_gen), \
+         patch.object(d2c, "revisar_en_navegador", return_value=_informe([])), \
+         patch.object(d2c, "arbitrar_desde_informe", return_value=None), \
+         patch.object(d2c, "reparar_web", return_value=None):
+        d2c.construir_para_mockup("un juego", verbose=False)
+    assert "TARGET LOOK" in capturado["idea"]
+    assert "neon arcade con HUD" in capturado["idea"]
+
+
+# ── sprites: el cerebro le pide elementos al modelo de imagenes ─────────────
+
+def test_proponer_sprites_parsea_lineas():
+    def _llm(prompt, system, max_tokens, temperature):
+        return ("SPRITE nave: sleek neon spaceship seen from above\n"
+                "basura sin formato\n"
+                "SPRITE asteroide: glowing yellow asteroid rock with craters\n")
+    specs = d2c._proponer_sprites("juego", "arcade neon", llm=_llm)
+    assert [s["name"] for s in specs] == ["nave", "asteroide"]
+    assert "spaceship" in specs[0]["prompt"]
+
+
+def test_sprites_con_assets_precalc_no_toca_gpu():
+    """Con assets pre-generados el lazo NO llama a preparar_assets (GPU), el
+    fuente que ve el LLM queda limpio y el entregable lleva el base64."""
+    specs = [{"name": "nave", "prompt": "spaceship"}]
+    assets = {"nave": "data:image/png;base64,AAAA"}
+    capturado = {}
+
+    def _llm_falso(prompt, system, max_tokens, temperature):
+        capturado["prompt"] = prompt
+        return ('Title: J\nDescription: d\nHTML Code:\n```html\n'
+                '<!DOCTYPE html>\n<html><body>'
+                '<img data-asset="nave"></body></html>\n```')
+
+    with patch.object(d2c._mockup, "imaginar_vision",
+                      return_value={"brief": "b", "prompt_imagen": "p"}), \
+         patch.object(d2c._mockup, "generar_mockup", return_value=None), \
+         patch.object(d2c, "revisar_en_navegador", return_value=_informe([])), \
+         patch.object(d2c, "arbitrar_desde_informe", return_value=None), \
+         patch.object(d2c, "reparar_web", return_value=None), \
+         patch("cognia.program_creator.asset_bridge.preparar_assets") as _pa:
+        res = d2c.construir_para_mockup(
+            "un juego", verbose=False, llm=_llm_falso,
+            sprites=specs, assets=assets)
+
+    _pa.assert_not_called()                       # GPU intacta
+    assert 'data-asset="nave"' in capturado["prompt"]   # el modelo los conocio
+    assert "base64" not in res.html               # fuente limpio
+    assert "base64,AAAA" in res.html_entregable() # entregable con sprite
+
+
+def test_sin_gpu_el_lazo_sigue_sin_sprites():
+    """preparar_assets muere (GPU ocupada) -> se degrada a la via normal."""
+    with patch.object(d2c._mockup, "imaginar_vision",
+                      return_value={"brief": "b", "prompt_imagen": "p"}), \
+         patch.object(d2c._mockup, "generar_mockup", return_value=None), \
+         patch.object(d2c, "generate_program", return_value=_prog()) as _gp, \
+         patch.object(d2c, "revisar_en_navegador", return_value=_informe([])), \
+         patch.object(d2c, "arbitrar_desde_informe", return_value=None), \
+         patch.object(d2c, "reparar_web", return_value=None), \
+         patch("cognia.program_creator.asset_bridge.preparar_assets",
+               side_effect=RuntimeError("CUDA out of memory")):
+        res = d2c.construir_para_mockup(
+            "un juego", verbose=False,
+            sprites=[{"name": "n", "prompt": "x"}])
+    _gp.assert_called_once()          # cayo a la generacion normal
+    assert res.assets == {}
+    assert res.motivo_corte == "sin defectos"
+
+
 # ── entradas degeneradas ─────────────────────────────────────────────────────
 
 def test_generacion_inicial_fallida():

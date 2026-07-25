@@ -20,7 +20,8 @@ def _fake_res(html="<html><body>ok</body></html>", nota=6.5, rondas=2,
               defectos=None, mockup=None, motivo="tope de rondas"):
     return types.SimpleNamespace(
         html=html, program=object(), nota_visual=nota, rondas=rondas,
-        defectos=defectos or ["x"], mockup=mockup, motivo_corte=motivo)
+        defectos=defectos or ["x"], mockup=mockup, motivo_corte=motivo,
+        assets={}, html_entregable=lambda: html)
 
 
 def test_idea_vacia_devuelve_uso():

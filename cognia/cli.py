@@ -6462,16 +6462,22 @@ def repl():
             # --mockup opta por dibujar el mockup con el modelo de imagenes (SDXL);
             # por defecto compara contra el brief de texto (menos VRAM).
             _arg_c = raw[len("/construir "):].strip()
-            _use_mock = False
-            if _arg_c.startswith("--mockup "):
-                _use_mock, _arg_c = True, _arg_c[len("--mockup "):].strip()
+            _use_mock = _use_spr = False
+            while True:
+                if _arg_c.startswith("--mockup "):
+                    _use_mock, _arg_c = True, _arg_c[len("--mockup "):].strip()
+                elif _arg_c.startswith("--sprites "):
+                    _use_spr, _arg_c = True, _arg_c[len("--sprites "):].strip()
+                else:
+                    break
             if not _arg_c:
-                _print_line("[warn_cl]Uso: /construir [--mockup] <idea>[/warn_cl]")
+                _print_line("[warn_cl]Uso: /construir [--mockup] [--sprites] <idea>[/warn_cl]")
             else:
-                _run(raw, lambda: ai.construir_web(_arg_c, usar_mockup=_use_mock),
+                _run(raw, lambda: ai.construir_web(
+                        _arg_c, usar_mockup=_use_mock, usar_sprites=_use_spr),
                      color="bright_green")
         elif raw == "/construir":
-            _print_line("[warn_cl]Uso: /construir [--mockup] <idea>  — ejemplo: "
+            _print_line("[warn_cl]Uso: /construir [--mockup] [--sprites] <idea>  — ejemplo: "
                         "/construir landing de una cafeteria de especialidad[/warn_cl]")
         elif raw.startswith("/encolar "):
             if HAS_PROGRAM_CREATOR:

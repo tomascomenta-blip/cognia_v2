@@ -185,13 +185,18 @@ def _datauri_png(ruta) -> Optional[str]:
         return None
 
 
-def _lado_a_lado(mockup, screenshot, salida, *, alto: int = 512) -> Optional[str]:
+def _lado_a_lado(mockup, screenshot, salida, *, alto: int = 700) -> Optional[str]:
     """Compone el mockup (IZQUIERDA=objetivo) y el screenshot (DERECHA=real) en
     UNA sola imagen con una banda de etiquetas arriba. Devuelve la ruta, o None si
     no hay PIL o algo falla (el llamador cae al modo de dos imagenes).
 
     POR QUE: el VLM chico discrimina mucho mejor con una imagen partida que con
-    dos imagenes separadas (medido 2026-07-24, ver cabecera del modulo)."""
+    dos imagenes separadas (medido 2026-07-24, ver cabecera del modulo).
+
+    alto=700 y no 512, tambien medido: con dos escenas oscuras y densas (juego
+    arcade vs su mockup) a 512 el 3B ALUCINABA la mitad derecha vacia y daba 0.0;
+    a 700 la lee bien y da notas coherentes (7.5). La resolucion de la compuesta
+    es parte del contrato de calidad del arbitro."""
     try:
         from PIL import Image, ImageDraw
     except Exception:

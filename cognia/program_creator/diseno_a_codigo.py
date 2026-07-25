@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -75,10 +76,23 @@ class ResultadoDiseno:
     defectos:    List[str] = field(default_factory=list)  # los que quedaron
     motivo_corte: str = ""                       # por que paro el lazo
     historia:    List[dict] = field(default_factory=list)  # por ronda
+    assets:      dict = field(default_factory=dict)  # sprites {name: data URI}
 
     @property
     def html(self) -> Optional[str]:
+        """El FUENTE limpio (con data-asset, sin base64). Para entregar al
+        usuario usar html_entregable(), que embebe los sprites."""
         return self.program.code if self.program else None
+
+    def html_entregable(self) -> Optional[str]:
+        """El HTML final con los sprites embebidos (si los hay). Es lo que se
+        guarda/abre; el fuente limpio es lo que ve el LLM al reparar."""
+        if not self.program:
+            return None
+        if self.assets:
+            from .asset_bridge import inyectar_assets
+            return inyectar_assets(self.program.code, self.assets)
+        return self.program.code
 
     def resumen(self) -> str:
         n = f"{self.nota_visual:.1f}/10" if self.nota_visual is not None else "s/nota"
@@ -95,11 +109,84 @@ def _defectos_de(informe: InformeVisual, arb: Optional[dict]) -> List[str]:
     return defectos
 
 
+def _ids_desaparecidos(html_fuente: str, dom_renderizado: str) -> List[str]:
+    """Elementos con id que existen en el FUENTE pero ya no estan en el DOM tras
+    correr el JS. Es el bug del juego arcade (2026-07-24): draw() hacia
+    game.innerHTML='' cada frame y BORRABA la nave y el HUD — la pagina quedaba
+    en puntitos moviles sobre negro. HTML valido, sonda contenta (algo se movia),
+    y el elemento central del juego no existia en pantalla. Solo comparar fuente
+    vs renderizado lo detecta. Logica pura -> testeable sin navegador."""
+    if not html_fuente or not dom_renderizado:
+        return []
+    ids = re.findall(r'\bid\s*=\s*["\']([\w-]+)["\']', html_fuente)
+    return [i for i in dict.fromkeys(ids)          # unicos, en orden
+            if f'id="{i}"' not in dom_renderizado
+            and f"id='{i}'" not in dom_renderizado]
+
+
+def _defectos_estaticos(codigo: str, informe: InformeVisual) -> List[str]:
+    """Defectos detectables SIN VLM que el arbitro y la sonda no ven."""
+    defectos = []
+    perdidos = _ids_desaparecidos(codigo, informe.dom_renderizado or "")
+    if perdidos:
+        defectos.append(
+            "estos elementos existen en el fuente pero DESAPARECEN del DOM al "
+            f"correr el JS: #{', #'.join(perdidos[:5])}. Causa tipica: un "
+            "contenedor se vacia con innerHTML='' en cada frame y borra a sus "
+            "hijos estaticos. ARREGLO: crea un contenedor SEPARADO solo para los "
+            "elementos dinamicos y nunca vacies el que contiene los estaticos")
+    if re.search(r"\balert\s*\(", codigo or ""):
+        defectos.append(
+            "usa alert() — bloquea la pagina (y el modo headless). Muestra el "
+            "game over / los mensajes en un overlay <div> dentro de la pagina")
+    return defectos
+
+
+def _proponer_sprites(idea: str, brief: str,
+                      llm: Optional[LlmFn] = None) -> List[dict]:
+    """El CEREBRO le pide elementos al modelo de imagenes: propone que sprites
+    necesita la escena (pedido del dueno). Devuelve specs [{name, prompt}] para
+    asset_bridge.preparar_assets, o [] si no hay LLM o nada parsea. El formato
+    pedido es una linea por sprite ('SPRITE nombre: prompt'), no JSON: el 14B lo
+    respeta mucho mas."""
+    from ..llm_local import generar
+    pedido = (
+        f'Product: "{(idea or "")[:300]}"\n'
+        f'Look: "{(brief or "")[:300]}"\n\n'
+        "List the 2-4 image sprites this scene needs (main characters/objects "
+        "only, not backgrounds or text). One line each, EXACTLY:\n"
+        "SPRITE <short_snake_case_name>: <image generation prompt in English, "
+        "concrete and visual>\n")
+    try:
+        raw = None
+        if llm is not None:
+            try:
+                raw = llm(pedido, "", 300, 0.4)
+            except Exception:
+                raw = None
+        if not raw:
+            raw = generar(pedido, temperature=0.4, max_tokens=300)
+        if not raw:
+            return []
+        specs = []
+        for linea in raw.splitlines():
+            m = re.match(r"\s*SPRITE\s+([\w-]+)\s*:\s*(.+)", linea, re.I)
+            if m and len(m.group(2).strip()) > 10:
+                specs.append({"name": m.group(1).strip().lower(),
+                              "prompt": m.group(2).strip()})
+        return specs[:4]
+    except Exception as e:
+        logger.warning("diseno_a_codigo: _proponer_sprites fallo (%s)", e)
+        return []
+
+
 def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                           max_rondas: int = MAX_RONDAS_DEFECTO,
                           gate_nota: Optional[float] = None,
                           usar_mockup_imagen: bool = True,
                           mockup_path: Optional[str] = None,
+                          sprites=None,
+                          assets: Optional[dict] = None,
                           requiere_grafico: bool = False,
                           verbose: bool = True) -> ResultadoDiseno:
     """
@@ -115,6 +202,14 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                             (default COGNIA_GATE_VISUAL o 7.0).
         usar_mockup_imagen: si True, el modelo de imagenes dibuja el mockup (GPU).
                             Si no hay backend, cae a comparar contra el brief de texto.
+        sprites:            elementos que el modelo de imagenes debe generar para
+                            la escena. "auto" = el CEREBRO los propone desde la
+                            vision (pedido del dueno); o una lista de specs
+                            [{name, prompt}] (asset_bridge). None = sin sprites.
+        assets:             sprites YA generados {name: data URI} (para cuando
+                            SDXL no coexiste con cerebro+VLM en la GPU: se
+                            generan aparte y se pasan aqui). Requiere `sprites`
+                            con las specs para describirselos al modelo.
         requiere_grafico:   se pasa a la sonda (si la idea pide un grafico).
 
     Returns:
@@ -150,8 +245,52 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
         # sin la palabra "web" caia a un script Python de terminal (medido). Se
         # fuerza web prefijando una pista fuerte cuando la idea no la trae; el
         # enumerador de componentes ya sabe quitar ese prefijo.
+        #
+        # El BRIEF va EN la idea, a proposito: hasta el 2026-07-24 la vision solo
+        # la veia el arbitro — el constructor generaba a ciegas y la fidelidad
+        # arrancaba en 3-5. Ademas _componentes_de_idea trocea el brief en
+        # REQUIRED components, o sea que el aspecto pedido se vuelve checklist.
         idea_build = idea if _es_idea_web(idea) else f"pagina web: {idea}"
-        program = generate_program(forced_idea=idea_build, llm=llm)
+        if res.brief and res.brief != idea.strip():
+            idea_build += f". TARGET LOOK, match it: {res.brief}"
+
+        # ── 2b. El cerebro le PIDE elementos al modelo de imagenes ─────────
+        # (pedido del dueno). Los sprites van como <img data-asset> en el
+        # fuente; el base64 se inyecta SOLO al renderizar/entregar — nunca al
+        # LLM (1.2MB de data URIs revientan el contexto de reparacion).
+        specs = []
+        if sprites == "auto":
+            specs = _proponer_sprites(idea, res.brief, llm=llm)
+            if verbose and specs:
+                print("🖼️  Sprites pedidos por el cerebro: "
+                      + ", ".join(s["name"] for s in specs))
+        elif sprites:
+            specs = list(sprites)
+
+        if specs and assets is not None:
+            res.assets = dict(assets)
+        elif specs:
+            try:
+                from .asset_bridge import preparar_assets
+                res.assets = preparar_assets(specs, recortar=True)
+            except Exception as e:
+                # Tipico: la GPU esta ocupada por cerebro+VLM. El lazo sigue
+                # sin sprites en vez de morir (se puede regenerar despues).
+                logger.warning("diseno_a_codigo: sin sprites (%s)", e)
+                if verbose:
+                    print(f"🖼️  Sprites no disponibles ({e}); sigo sin ellos.")
+                specs = []
+
+        if specs and res.assets:
+            from .asset_bridge import build_prompt_web_con_assets
+            from .generator import _SISTEMA_WEB, _call_llm, _parse_response
+            prompt_a = build_prompt_web_con_assets(
+                idea_build, specs,
+                extra_hint="Render a complete first frame immediately on load.")
+            raw = _call_llm(prompt_a, "html", llm=llm)
+            program = _parse_response(raw, idea, "html") if raw else None
+        else:
+            program = generate_program(forced_idea=idea_build, llm=llm)
         if program is None:
             res.motivo_corte = "no se pudo generar la pagina inicial"
             return res
@@ -168,9 +307,15 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
             tmp_dir = Path(tmp)
             for ronda in range(1, max_rondas + 1):
                 res.rondas = ronda
+                # Lo que se renderiza lleva los sprites embebidos; lo que ve el
+                # LLM al reparar es el fuente limpio (program.code).
+                codigo_render = program.code
+                if res.assets:
+                    from .asset_bridge import inyectar_assets
+                    codigo_render = inyectar_assets(program.code, res.assets)
                 # La sonda estructural (con screenshot: hay que pasar dir_programa)
                 informe = revisar_en_navegador(
-                    program.code, dir_programa=tmp_dir / f"r{ronda}",
+                    codigo_render, dir_programa=tmp_dir / f"r{ronda}",
                     requiere_grafico=requiere_grafico)
                 # El OJO: compara el screenshot contra el mockup (o el brief).
                 arb = arbitrar_desde_informe(
@@ -178,7 +323,8 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                 if arb is not None:
                     res.nota_visual = arb.get("nota")
 
-                defectos = _defectos_de(informe, arb)
+                defectos = _defectos_de(informe, arb) \
+                    + _defectos_estaticos(program.code, informe)
                 res.defectos = defectos
                 nota = res.nota_visual
                 res.historia.append({

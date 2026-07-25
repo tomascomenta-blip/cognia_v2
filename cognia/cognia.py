@@ -494,7 +494,7 @@ class Cognia:
             return f"[ERROR] {exc}"
 
     def construir_web(self, idea: str, *, usar_mockup: bool = False,
-                      max_rondas: int = 3) -> str:
+                      usar_sprites: bool = False, max_rondas: int = 3) -> str:
         """Construye una pagina web para `idea` y la ITERA hasta que se parezca a
         la vision que el cerebro imagina, con el arbitro VISUAL (VLM) mirando el
         render cada ronda. Guarda el index.html resultante y devuelve el resumen.
@@ -531,16 +531,18 @@ class Cognia:
             print(f"[Construir] '{idea[:60]}' — arbitro visual dirigiendo...")
             res = construir_para_mockup(
                 idea.strip(), llm=llm, max_rondas=max_rondas,
-                usar_mockup_imagen=usar_mockup, verbose=True)
+                usar_mockup_imagen=usar_mockup,
+                sprites="auto" if usar_sprites else None, verbose=True)
 
-            if not res.html:
+            html_final = res.html_entregable()
+            if not html_final:
                 return f"No se pudo construir: {res.motivo_corte}{aviso_vlm}"
 
             slug = re.sub(r"[^a-z0-9]+", "_", idea.strip().lower())[:40].strip("_") \
                 or "web"
             dest = Path(DEFAULT_STORAGE_DIR) / "construidos" / slug
             dest.mkdir(parents=True, exist_ok=True)
-            (dest / "index.html").write_text(res.html, encoding="utf-8")
+            (dest / "index.html").write_text(html_final, encoding="utf-8")
             linea_mock = ""
             if res.mockup and Path(res.mockup).exists():
                 shutil.copy(res.mockup, dest / "mockup.png")
