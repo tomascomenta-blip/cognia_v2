@@ -442,6 +442,33 @@ def _call_ollama(prompt: str) -> Optional[str]:
         return None
 
 
+def _preguntar_constructor(url: str, prompt: str, system: str,
+                           temperature: float) -> Optional[str]:
+    """POST directo al CONSTRUCTOR experto (formato OpenAI). None si falla.
+    Mismo patron que critico._preguntar_experto: la URL se lee en cada llamada
+    y un experto caido nunca rompe el camino normal."""
+    try:
+        cuerpo = json.dumps({
+            "model": "local",
+            "messages": [{"role": "system", "content": system},
+                         {"role": "user", "content": prompt}],
+            "temperature": temperature,
+            # Los expertos de UI con razonamiento (UIGEN-X) gastan presupuesto
+            # pensando antes del HTML; 6000 como el camino normal + margen.
+            "max_tokens": 8000,
+        }).encode("utf-8")
+        peticion = _req.Request(
+            url.rstrip("/") + "/v1/chat/completions", data=cuerpo,
+            headers={"Content-Type": "application/json"})
+        with _req.urlopen(peticion, timeout=TIMEOUT_SEC) as r:
+            datos = json.loads(r.read().decode("utf-8"))
+        return datos["choices"][0]["message"]["content"]
+    except Exception as exc:
+        print(f"[generator] constructor experto de {url} no respondio ({exc}); "
+              f"caigo al camino normal")
+        return None
+
+
 def _call_llm(prompt: str, lenguaje: str = "python",
               temperature: float = 0.90,
               llm: "Optional[LlmFn]" = None) -> Optional[str]:
@@ -453,8 +480,22 @@ def _call_llm(prompt: str, lenguaje: str = "python",
     temperature 0.90 por defecto porque GENERAR es creativo; las reparaciones
     pasan 0.2 — a 0.9 el modelo "repara" reescribiendo media pagina (medido
     2026-07-20: 3 rondas descartadas con "no mejoraba").
+
+    CONSTRUCTOR experto (reformulacion de flota 2026-07-24): si
+    COGNIA_CONSTRUCTOR_URL apunta a un backend (p.ej. UIGEN-X-8B servido en otro
+    puerto), las peticiones de HTML van PRIMERO a el — el constructor web es el
+    cuello medido del lazo diseno-a-codigo (juegos 5.0-7.0 con el 14B). La env
+    se lee en CADA llamada, no al importar; si el experto no responde se cae al
+    camino de siempre.
     """
     system = _SISTEMA_WEB if lenguaje == "html" else _SISTEMA_PYTHON
+    if lenguaje == "html":
+        url_constructor = os.environ.get("COGNIA_CONSTRUCTOR_URL", "").strip()
+        if url_constructor:
+            texto = _preguntar_constructor(url_constructor, prompt, system,
+                                           temperature)
+            if texto:
+                return texto
     if llm is not None:
         try:
             raw = llm(prompt, system, 6000, temperature)
