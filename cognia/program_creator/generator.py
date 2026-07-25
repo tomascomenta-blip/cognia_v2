@@ -448,8 +448,13 @@ def _preguntar_constructor(url: str, prompt: str, system: str,
     Mismo patron que critico._preguntar_experto: la URL se lee en cada llamada
     y un experto caido nunca rompe el camino normal."""
     try:
+        # llama-server ignora el nombre del modelo y acepta "local"; Ollama
+        # (que es como se sirve Laguna XS 2.1, sin soporte en llama.cpp b10066)
+        # exige el nombre EXACTO y devuelve 404 con cualquier otro. Un 404 aqui
+        # se leeria como "el constructor no respondio" y el modelo cargaria con
+        # la culpa: por eso el nombre es configurable.
         cuerpo = json.dumps({
-            "model": "local",
+            "model": os.environ.get("COGNIA_CONSTRUCTOR_MODELO", "local"),
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": prompt}],
             "temperature": temperature,

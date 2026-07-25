@@ -1,0 +1,248 @@
+{
+  "filas": [
+    {
+      "tarea": "memoria_4x4",
+      "cond": "junto",
+      "rep": 1,
+      "aprobado": false,
+      "segundos": 12.100000381469727,
+      "checks_ok": 8,
+      "checks": 10,
+      "motivo": "falla critica: tras 1 click hay EXACTAMENTE 1 destapada (visibles('.tile')=0, esperaba 1); tras 2 clicks hay E"
+    },
+    {
+      "tarea": "memoria_4x4",
+      "cond": "partido",
+      "rep": 1,
+      "aprobado": false,
+      "segundos": 17.67689561843872,
+      "checks_ok": 7,
+      "checks": 10,
+      "motivo": "falla critica: al cargar NINGUNA carta muestra su emoji (visibles('.tile')=16, esperaba 0); tras 1 click hay E"
+    },
+    {
+      "tarea": "memoria_4x4",
+      "cond": "junto",
+      "rep": 2,
+      "aprobado": false,
+      "segundos": 13.228590488433838,
+      "checks_ok": 8,
+      "checks": 10,
+      "motivo": "falla critica: tras 1 click hay EXACTAMENTE 1 destapada (visibles('.tile')=0, esperaba 1); tras 2 clicks hay E"
+    },
+    {
+      "tarea": "memoria_4x4",
+      "cond": "partido",
+      "rep": 2,
+      "aprobado": false,
+      "segundos": 23.974574089050293,
+      "checks_ok": 4,
+      "checks": 10,
+      "motivo": "falla critica: al cargar NINGUNA carta muestra su emoji (visibles('.tile')=16, esperaba 0); tras 1 click hay E"
+    },
+    {
+      "tarea": "contador",
+      "cond": "junto",
+      "rep": 1,
+      "aprobado": true,
+      "segundos": 6.666996717453003,
+      "checks_ok": 14,
+      "checks": 14,
+      "motivo": "14/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "tarea": "contador",
+      "cond": "partido",
+      "rep": 1,
+      "aprobado": true,
+      "segundos": 10.701565980911255,
+      "checks_ok": 13,
+      "checks": 14,
+      "motivo": "13/14 checks OK (9/10 del contrato)"
+    },
+    {
+      "tarea": "contador",
+      "cond": "junto",
+      "rep": 2,
+      "aprobado": true,
+      "segundos": 8.437546968460083,
+      "checks_ok": 12,
+      "checks": 14,
+      "motivo": "12/14 checks OK (9/10 del contrato)"
+    },
+    {
+      "tarea": "contador",
+      "cond": "partido",
+      "rep": 2,
+      "aprobado": true,
+      "segundos": 9.66499948501587,
+      "checks_ok": 14,
+      "checks": 14,
+      "motivo": "14/14 checks OK (10/10 del contrato)"
+    },
+    {
+      "tarea": "tareas_todo",
+      "cond": "junto",
+      "rep": 1,
+      "aprobado": true,
+      "segundos": 6.7966344356536865,
+      "checks_ok": 11,
+      "checks": 12,
+      "motivo": "11/12 checks OK (8/8 del contrato)"
+    },
+    {
+      "tarea": "tareas_todo",
+      "cond": "partido",
+      "rep": 1,
+      "aprobado": true,
+      "segundos": 12.735998392105103,
+      "checks_ok": 11,
+      "checks": 12,
+      "motivo": "11/12 checks OK (8/8 del contrato)"
+    },
+    {
+      "tarea": "tareas_todo",
+      "cond": "junto",
+      "rep": 2,
+      "aprobado": true,
+      "segundos": 7.236999750137329,
+      "checks_ok": 11,
+      "checks": 12,
+      "motivo": "11/12 checks OK (8/8 del contrato)"
+    },
+    {
+      "tarea": "tareas_todo",
+      "cond": "partido",
+      "rep": 2,
+      "aprobado": false,
+      "segundos": 13.44900631904602,
+      "checks_ok": 4,
+      "checks": 12,
+      "motivo": "falla critica: ahora hay 1 tarea (count('.tarea')=0, esperaba 1); la tarea dice lo que escribi (no existe '.ta"
+    },
+    {
+      "tarea": "calculadora",
+      "cond": "junto",
+      "rep": 1,
+      "aprobado": true,
+      "segundos": 11.910106182098389,
+      "checks_ok": 10,
+      "checks": 10,
+      "motivo": "10/10 checks OK (6/6 del contrato)"
+    },
+    {
+      "tarea": "calculadora",
+      "cond": "partido",
+      "rep": 1,
+      "aprobado": true,
+      "segundos": 13.521900415420532,
+      "checks_ok": 10,
+      "checks": 10,
+      "motivo": "10/10 checks OK (6/6 del contrato)"
+    },
+    {
+      "tarea": "calculadora",
+      "cond": "junto",
+      "rep": 2,
+      "aprobado": true,
+      "segundos": 10.014999151229858,
+      "checks_ok": 10,
+      "checks": 10,
+      "motivo": "10/10 checks OK (6/6 del contrato)"
+    },
+    {
+      "tarea": "calculadora",
+      "cond": "partido",
+      "rep": 2,
+      "aprobado": false,
+      "segundos": 17.51957130432129,
+      "checks_ok": 8,
+      "checks": 10,
+      "motivo": "falla critica: la pantalla muestra 5 ('2' no contiene '5')"
+    },
+    {
+      "tarea": "semaforo",
+      "cond": "junto",
+      "rep": 1,
+      "aprobado": false,
+      "segundos": 8.588998079299927,
+      "checks_ok": 9,
+      "checks": 11,
+      "motivo": "falla critica: pasa a AMBAR (js='amarillo', esperaba 'ambar')"
+    },
+    {
+      "tarea": "semaforo",
+      "cond": "partido",
+      "rep": 1,
+      "aprobado": false,
+      "segundos": 17.183088779449463,
+      "checks_ok": 9,
+      "checks": 11,
+      "motivo": "falla critica: pasa a AMBAR (js='amarillo', esperaba 'ambar')"
+    },
+    {
+      "tarea": "semaforo",
+      "cond": "junto",
+      "rep": 2,
+      "aprobado": false,
+      "segundos": 7.85099983215332,
+      "checks_ok": 9,
+      "checks": 11,
+      "motivo": "falla critica: pasa a AMBAR (js='amarillo', esperaba 'ambar')"
+    },
+    {
+      "tarea": "semaforo",
+      "cond": "partido",
+      "rep": 2,
+      "aprobado": false,
+      "segundos": 16.015125036239624,
+      "checks_ok": 9,
+      "checks": 11,
+      "motivo": "falla critica: pasa a AMBAR (js='amarillo', esperaba 'ambar')"
+    },
+    {
+      "tarea": "filtro_lista",
+      "cond": "junto",
+      "rep": 1,
+      "aprobado": true,
+      "segundos": 7.550556182861328,
+      "checks_ok": 10,
+      "checks": 11,
+      "motivo": "10/11 checks OK (7/7 del contrato)"
+    },
+    {
+      "tarea": "filtro_lista",
+      "cond": "partido",
+      "rep": 1,
+      "aprobado": true,
+      "segundos": 12.032999753952026,
+      "checks_ok": 10,
+      "checks": 11,
+      "motivo": "10/11 checks OK (7/7 del contrato)"
+    },
+    {
+      "tarea": "filtro_lista",
+      "cond": "junto",
+      "rep": 2,
+      "aprobado": true,
+      "segundos": 7.480010509490967,
+      "checks_ok": 10,
+      "checks": 11,
+      "motivo": "10/11 checks OK (7/7 del contrato)"
+    },
+    {
+      "tarea": "filtro_lista",
+      "cond": "partido",
+      "rep": 2,
+      "aprobado": true,
+      "segundos": 19.77199959754944,
+      "checks_ok": 10,
+      "checks": 11,
+      "motivo": "10/11 checks OK (7/7 del contrato)"
+    }
+  ],
+  "n": 2,
+  "junto": 8,
+  "partido": 6,
+  "total": 12
+}

@@ -53,7 +53,16 @@ POOL = {
     "construir-ui":   "UIGEN-X-8B",
     "pensar":         "gpt-oss-20b",
     "pensar-en-lazo": "OpenReasoning-Nemotron-14B",
+    # Laguna XS 2.1 (33B-A3B) NO lo sirve servir_flota: llama.cpp b10066 no lo
+    # soporta (hace falta el PR ggml-org/llama.cpp#25165, y en esta maquina no
+    # hay cmake/CUDA/MSVC para compilarlo). Va por Ollama, que trae su propio
+    # runtime y expone API OpenAI en :11434/v1. Se mide por el MISMO camino y
+    # con los MISMOS contratos que los demas: la comparacion es limpia.
+    "laguna":         "Laguna-XS-2.1 (33B-A3B, via ollama)",
 }
+
+# Combos que NO se sirven con servir_flota.py: {combo: url del backend}.
+EXTERNOS = {"laguna": "http://127.0.0.1:11434"}
 
 
 def _flota(modo: str) -> float:
@@ -69,12 +78,20 @@ def _flota(modo: str) -> float:
     return coste
 
 
-def generar_html(idea: str) -> str | None:
+def generar_html(idea: str, url: str = "http://127.0.0.1:8080",
+                 modelo: str | None = None) -> str | None:
     """El camino real del constructor web del sistema."""
     import os
     from cognia.program_creator.generator import (_SISTEMA_WEB, _call_llm,
                                                   _parse_response)
-    os.environ["COGNIA_CONSTRUCTOR_URL"] = "http://127.0.0.1:8080"
+    os.environ["COGNIA_CONSTRUCTOR_URL"] = url
+    # Ollama exige el nombre EXACTO del modelo en el payload; llama-server
+    # acepta cualquiera ("local"). Sin esto, Ollama responde 404 y el harness
+    # lo leeria como "el modelo no devolvio HTML" — un falso KILL.
+    if modelo:
+        os.environ["COGNIA_CONSTRUCTOR_MODELO"] = modelo
+    else:
+        os.environ.pop("COGNIA_CONSTRUCTOR_MODELO", None)
     from cognia import backend_activo
     backend_activo.resetear_cache()      # el modelo del puerto cambio
     crudo = _call_llm(idea, "html", temperature=0.2)
@@ -140,7 +157,19 @@ def main(argv: list) -> int:
             (SALIDA / f"{t['id']}__{modo}"
              f"{'' if n == 1 else f'__r{rep}'}" / "index.html").is_file()
             for t in tareas for rep in range(1, n + 1))
-        if "--reanudar" in argv and completo:
+
+        url_modelo = EXTERNOS.get(modo, "http://127.0.0.1:8080")
+        nombre_ollama = "laguna-xs-2.1" if modo == "laguna" else None
+
+        if modo in EXTERNOS:
+            # Backend externo (Ollama): no hay combo que servir. Pero SI hay que
+            # dejarle la GPU: llama-server tiene los 16GB tomados y Laguna XS
+            # necesita ~20GB con los expertos en RAM.
+            print(f"  backend externo en {url_modelo}: paro la flota para "
+                  f"liberar GPU y RAM", flush=True)
+            _flota("parar")
+            time.sleep(3)
+        elif "--reanudar" in argv and completo:
             print("  ya estaba completo en disco: no cambio de combo, "
                   "solo re-juzgo", flush=True)
         else:
@@ -174,7 +203,7 @@ def main(argv: list) -> int:
 
                 t0 = time.time()
                 try:
-                    html = generar_html(t["idea"])
+                    html = generar_html(t["idea"], url_modelo, nombre_ollama)
                 except Exception as exc:
                     html = None
                     print(f"  {t['id']}: EXCEPCION al generar: {exc}",
