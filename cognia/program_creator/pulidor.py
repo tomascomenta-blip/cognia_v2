@@ -74,13 +74,18 @@ def _combo(modo: str, verbose: bool = True) -> bool:
 
 def _pensador(prompt: str, system: str = "", max_tokens: int = 900,
               temperature: float = 0.3) -> Optional[str]:
-    """Habla con el cerebro servido en :8080 (en fase pensar: gpt-oss)."""
+    """Habla con el cerebro servido en :8080 (en fase pensar: gpt-oss).
+
+    PISO de tokens a 1024: gpt-oss razona en reasoning_content ANTES de emitir
+    content; con presupuestos chicos el razonamiento se come todo y content
+    llega VACIO con finish=length (medido 2026-07-25: sonar_goal con 100 tokens
+    devolvia None y el sueno caia al fallback generico)."""
     try:
         cuerpo = json.dumps({
             "model": "local",
             "messages": ([{"role": "system", "content": system}] if system else [])
                         + [{"role": "user", "content": prompt}],
-            "temperature": temperature, "max_tokens": max_tokens,
+            "temperature": temperature, "max_tokens": max(1024, max_tokens),
         }).encode("utf-8")
         req = urllib.request.Request(
             "http://127.0.0.1:8080/v1/chat/completions", data=cuerpo,
