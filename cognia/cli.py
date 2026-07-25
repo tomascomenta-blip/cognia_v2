@@ -649,7 +649,8 @@ _CMD_DESCRIPTIONS = {
     "/pensar":          "Pensamiento PROFUNDO: pregunta -> razona y contesta; crear algo -> suena la idea, la planifica y la ejecuta  <pedido>",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
-    "/construir":       "Construir web con arbitro visual (VLM)  [--mockup] <idea>",
+    "/construir":       "Construir web con arbitro visual (VLM)  [--mockup] [--sprites] <idea>",
+    "/flota":           "Cambiar el combo de modelos servidos  [construir|construir-ui|pensar|pensar-en-lazo|juzgar|parar|estado]",
     "/autoprueba":      "Probar y puntuar los productos generados (compila/arranca/calidad)  [limite]",
     "/arbitro":         "Estado del arbitro de colisiones entre generadores (incidentes, modo)",
     "/ver":             "Cognia MIRA tu pantalla y la describe; con pregunta, te responde sobre lo que ve  [pregunta]",
@@ -6479,6 +6480,28 @@ def repl():
         elif raw == "/construir":
             _print_line("[warn_cl]Uso: /construir [--mockup] [--sprites] <idea>  — ejemplo: "
                         "/construir landing de una cafeteria de especialidad[/warn_cl]")
+        elif raw == "/flota" or raw.startswith("/flota "):
+            # Cambia el COMBO de modelos servidos (flota por roles 2026-07-24).
+            # El REPL habla con :8080 via llm_local: cambiar el combo cambia el
+            # cerebro EN CALIENTE sin reiniciar el REPL. Sin args: estado.
+            _fl_modo = raw[len("/flota "):].strip() if raw.startswith("/flota ") else "estado"
+            _fl_scr = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "scripts", "servir_flota.py")
+            if os.path.isfile(_fl_scr):
+                import subprocess
+                subprocess.run([sys.executable, _fl_scr, _fl_modo])
+                if _fl_modo not in ("estado", "parar"):
+                    # llm_local cachea el backend detectado: forzar re-sondeo
+                    # para que el REPL vea el cerebro nuevo YA.
+                    try:
+                        from cognia.llm_local import detectar_backend
+                        detectar_backend(forzar=True)
+                    except Exception:
+                        pass
+            else:
+                _print_line("[detail]/flota esta disponible desde el repo de "
+                            "Cognia (no en la instalacion pip).[/detail]")
         elif raw.startswith("/encolar "):
             if HAS_PROGRAM_CREATOR:
                 _idea_enc = raw[len("/encolar "):].strip()

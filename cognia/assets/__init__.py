@@ -25,3 +25,7 @@ from .prompt_expert import (  # noqa: F401
     expandir_prompt,
     generar_desde_pedido,
 )
+from .especulativa import (  # noqa: F401
+    generar_especulativa,
+    lightning_disponible,
+)

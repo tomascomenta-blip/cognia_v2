@@ -1531,3 +1531,15 @@ try:
     ROLE_TOOLS["implementador"].add("crear_flujo")
 except Exception:
     pass
+
+
+# ── Tools de IMAGEN (cableado del barrido nocturno 2026-07-24) ──────────
+# cognia.assets estaba verificado en GPU y el agente no podia alcanzarlo.
+# Imports perezosos dentro de cada tool; sin GPU devuelven ERROR legible.
+try:
+    from cognia.agent import image_tools as _image_tools
+    _image_tools.register(tool)
+    for _t in ("imagen_generar", "imagen_editar", "imagen_quitar_fondo"):
+        ROLE_TOOLS["implementador"].add(_t)
+except Exception:
+    pass
