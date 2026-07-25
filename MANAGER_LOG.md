@@ -8998,3 +8998,34 @@ Verificado en GPU (mockup + edicion de un sprite -> RGBA en 10s).
 GATES: suite 5323 passed / 0 failed antes del cambio; 35 tests nuevos verdes
 (arbitro_visual, mockup, diseno_a_codigo, assets_editar). Commit 449cee0 en main
 (local; pendiente push si el dueno quiere). Sin tocar el lazo hobby existente.
+
+
+================================================================================
+REFORMULACION DE LA FLOTA POR ROLES — 2026-07-24 (tarde)
+================================================================================
+Pedido del dueno: reformular los expertos para acercarse a GLM 5.2. GLM 5.2 es
+744B-A40B (Q4=376GB): fisicamente inalcanzable en 16GB — se aproxima su PERFIL
+por ruteo de roles. Plan completo con auditoria y gates:
+planes/FLOTA_ROLES_2026-07.md.
+
+INVESTIGADO (jul-2026, con fuentes): mejores pensadores que caben — gpt-oss-20b
+(MXFP4 13.7GB, GPU entera, ~o3-mini, esfuerzo low/med/high), OpenReasoning-
+Nemotron-14B (destilado R1-0528 SOTA, ~9GB, convive con VL-3B), Qwen3.6-35B-A3B
+(el techo, pero Q4=23GB sobre 31GB RAM: anotado, no adoptado). R2 de DeepSeek NO
+existe (rumor).
+
+A/B CONSTRUCTOR (gate pre-registrado +1.0): UIGEN-X-8B 8.7 vs coder-14b 7.5
+(juez VL-7B, 3 ideas, generacion cruda). ADOPTADO. En el juego (la debilidad
+medida): 2.5 -> 7.5. Hallazgo: UIGEN necesita el camino del constructor
+(COGNIA_CONSTRUCTOR_URL, 8000 tokens); por el generico (6000) su <think>
+truncaba el fence.
+
+AUDITORIA CORREGIDA AL VERIFICAR: Qwen3-1.7B se conserva (es el razonador-CPU
+de razonador.py — la auditoria inicial lo daba por redundante y el codigo
+manda). qwen2.5-7b-instruct retirado (nadie lo rutea; queda en disco).
+
+SMOKE RAZONADORES (5 problemas exactos, parcial): coder-14b 3/5 (19s);
+Qwen3-4B-Thinking 4/5 (95s). Pendiente gpt-oss-20b y Nemotron-14B (descargando).
+
+scripts/servir_flota.py: combos por modo (construir/construir-ui/pensar/
+pensar-en-lazo/juzgar) con la regla de VRAM. Commit de la unidad verificada.
