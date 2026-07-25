@@ -149,13 +149,23 @@ def _decidir(goal: str, nota, defectos: List[str], ciclo: int,
     return decision
 
 
-def _juzgar(goal: str, html: str, dir_trabajo: Path) -> tuple:
+def _juzgar(goal: str, html: str, dir_trabajo: Path,
+            mockup: Optional[str] = None) -> tuple:
     """Renderiza y pide veredicto al juez fino (VL-7B servido). Devuelve
-    (nota|None, defectos, ruta_screenshot|None)."""
+    (nota|None, defectos, ruta_screenshot|None).
+
+    requiere_grafico viene del GOAL (la sonda no lo conoce): sin esto, una
+    pagina con los paneles de grafico VACIOS pasaba sin defecto estructural y
+    el juez de texto le daba 8.5 (medido en el sueno del 2026-07-25).
+    mockup: si hay imagen objetivo, el arbitro compara CONTRA ELLA (mucho mas
+    exigente que juzgar contra la intencion en texto — medido en el juego)."""
     from .arbitro_visual import arbitrar_desde_informe
+    from .program_creator import _idea_pide_grafico
     from .vista_navegador import revisar_en_navegador
-    informe = revisar_en_navegador(html, dir_programa=dir_trabajo)
-    arb = arbitrar_desde_informe(goal, informe, mockup=None, vision_texto=goal)
+    informe = revisar_en_navegador(html, dir_programa=dir_trabajo,
+                                   requiere_grafico=_idea_pide_grafico(goal))
+    arb = arbitrar_desde_informe(goal, informe, mockup=mockup,
+                                 vision_texto=goal)
     defectos = list(informe.defectos or [])
     nota = None
     if arb:
@@ -163,6 +173,43 @@ def _juzgar(goal: str, html: str, dir_trabajo: Path) -> tuple:
         defectos += [f"(visual) {d}" for d in arb.get("defectos", [])]
     shots = (informe.output_images or []) + (informe.input_images or [])
     return nota, defectos, (shots[-1] if shots else None)
+
+
+def _gpu_python() -> Optional[str]:
+    """El python CON torch/CUDA (venv312gpu) para generar el mockup en
+    subproceso: el pulidor corre en venv312 (sin torch) y SDXL necesita la GPU
+    libre — la flota se apaga antes. Override: COGNIA_GPU_PYTHON."""
+    env = os.environ.get("COGNIA_GPU_PYTHON", "").strip()
+    if env and Path(env).is_file():
+        return env
+    cand = _RAIZ / "venv312gpu" / "Scripts" / "python.exe"
+    return str(cand) if cand.is_file() else None
+
+
+def _generar_mockup_subproceso(prompt: str, salida: Path,
+                               verbose: bool = True) -> Optional[str]:
+    """Mockup con SDXL en el python GPU. None si no hay GPU-python o falla
+    (el pulidor sigue en modo texto — nunca se rompe por esto)."""
+    py = _gpu_python()
+    if py is None:
+        return None
+    codigo = (
+        "import sys; sys.path.insert(0, r'%s')\n"
+        "from cognia.program_creator.mockup import generar_mockup\n"
+        "r = generar_mockup(%r, salida=r'%s', ancho=1024, alto=768, pasos=24)\n"
+        "print('MOCKUP_OK' if r else 'MOCKUP_FAIL')\n"
+    ) % (str(_RAIZ), prompt, str(salida))
+    try:
+        r = subprocess.run([py, "-c", codigo], capture_output=True, text=True,
+                           timeout=600)
+        if "MOCKUP_OK" in (r.stdout or "") and salida.exists():
+            return str(salida)
+        if verbose:
+            print(f"   mockup no disponible ({(r.stdout or r.stderr)[-120:]})")
+        return None
+    except Exception as e:
+        logger.warning("pulidor: mockup en subproceso fallo (%s)", e)
+        return None
 
 
 @dataclass
@@ -183,13 +230,19 @@ class ResultadoPulido:
 
 def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
           gate_final: float = None, tiempo_max_s: int = TIEMPO_MAX_DEFECTO,
-          gestionar_flota: bool = True, verbose: bool = True) -> ResultadoPulido:
+          gestionar_flota: bool = True, usar_mockup: bool = True,
+          verbose: bool = True) -> ResultadoPulido:
     """El loop thinking completo. NUNCA lanza: devuelve lo mejor que haya.
 
     goal: que construir y pulir. None -> el modelo SUENA uno.
     gestionar_flota: True (default) = el pulidor cambia los combos el solo.
                      False = asume cerebro:8080 + VLM:8081 ya servidos (mas
                      rapido para pruebas; juez = el VLM que este).
+    usar_mockup: True (default) = fase de IMAGINACION: la flota se apaga, SDXL
+                 (python GPU, subproceso) dibuja el mockup objetivo, y el juez
+                 compara CONTRA LA IMAGEN — mucho mas exigente que el goal en
+                 texto (medido: 8.5 a paneles vacios en modo texto). Sin GPU
+                 python o si falla, degrada al modo texto sin romper.
     """
     if gate_final is None:
         try:
@@ -220,8 +273,24 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
         dir_final.mkdir(parents=True, exist_ok=True)
         res.directorio = str(dir_final)
 
+        # ── fase de IMAGINACION (opcional): el mockup objetivo ────────────
+        # SDXL necesita la GPU sola: la flota se apaga, se dibuja, y el combo
+        # siguiente la vuelve a levantar. El precio (~1 min) compra un juez
+        # con dientes durante TODOS los ciclos.
+        mockup_ruta = None
+        if usar_mockup and gestionar_flota:
+            _combo("parar", verbose)
+            if verbose:
+                print("🎨 Imaginando el mockup objetivo (SDXL, GPU sola)...")
+            mockup_ruta = _generar_mockup_subproceso(
+                goal, dir_final / "mockup.png", verbose)
+            if verbose and not mockup_ruta:
+                print("   sin mockup: el juez usara el goal en texto")
+
         html, program = None, None
         mejor_nota = None
+        mejor_html = None            # checkpoint: SIEMPRE se entrega el mejor
+        mejor_ciclo = None           # ciclo del checkpoint (para el reporte)
 
         for ciclo in range(1, ciclos_max + 1):
             res.ciclos = ciclo
@@ -234,8 +303,17 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
                 if gestionar_flota:
                     _combo("construir-ui", verbose)
                     os.environ["COGNIA_CONSTRUCTOR_URL"] = "http://127.0.0.1:8080"
-                r1 = construir_para_mockup(goal, usar_mockup_imagen=False,
-                                           max_rondas=2, verbose=verbose)
+                # Hasta 2 intentos: UIGEN a veces trunca su primer intento
+                # (piensa largo); un reintento con otra semilla suele salir.
+                r1 = None
+                for _intento in range(2):
+                    r1 = construir_para_mockup(goal, usar_mockup_imagen=False,
+                                               mockup_path=mockup_ruta,
+                                               max_rondas=2, verbose=verbose)
+                    if r1.html_entregable():
+                        break
+                    if verbose:
+                        print("   ↩️  construccion fallida; reintento")
                 program = r1.program
                 html = r1.html_entregable()
                 if not html:
@@ -265,10 +343,15 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
             # ── 2. JUZGAR fino ─────────────────────────────────────────────
             if gestionar_flota:
                 _combo("juzgar", verbose)
-            nota, defectos, shot = _juzgar(goal, html, dir_final / f"c{ciclo}")
+            nota, defectos, shot = _juzgar(goal, html, dir_final / f"c{ciclo}",
+                                           mockup=mockup_ruta)
             res.historia.append({"ciclo": ciclo, "nota": nota,
                                  "n_defectos": len(defectos)})
             res.nota_final = nota if nota is not None else res.nota_final
+            # Checkpoint del MEJOR ciclo: un ciclo puede EMPEORAR (medido
+            # 2026-07-25: 7.0 -> 7.5 -> 6.0) y sin esto se entregaba el ultimo.
+            if nota is not None and (mejor_nota is None or nota > mejor_nota):
+                mejor_html, mejor_ciclo = html, ciclo
             if verbose:
                 n_txt = f"{nota:.1f}" if nota is not None else "s/nota"
                 print(f"🏁 Ciclo {ciclo}: nota {n_txt}, {len(defectos)} defectos")
@@ -303,7 +386,20 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
                 for c in decision["cambios"]:
                     print(f"   - {c}")
 
-        res.html = html
+        # Se entrega el MEJOR ciclo, no el ultimo (un ciclo puede empeorar).
+        if mejor_html is not None:
+            res.html = mejor_html
+            res.nota_final = mejor_nota if mejor_nota is not None else res.nota_final
+            # mejor_nota se actualiza tras el disyuntor; el checkpoint manda:
+            notas_hist = [h["nota"] for h in res.historia
+                          if h.get("nota") is not None]
+            if notas_hist:
+                res.nota_final = max(notas_hist)
+            if mejor_ciclo is not None and mejor_ciclo != res.ciclos:
+                res.motivo += f" (entregado el ciclo {mejor_ciclo}, el mejor)"
+            html = mejor_html
+        else:
+            res.html = html
         if html:
             (dir_final / "index.html").write_text(html, encoding="utf-8")
             reporte = [f"# Pulido: {goal}", "",

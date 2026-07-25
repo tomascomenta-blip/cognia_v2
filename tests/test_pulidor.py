@@ -94,6 +94,10 @@ def test_disyuntor_sin_mejora_entre_ciclos(tmp_path):
     res = _run(ps, gate_final=8.5, ciclos_max=4)
     assert res.ciclos == 2
     assert "sin mejora" in res.motivo
+    # Se entrega el MEJOR ciclo (v1, nota 6.0), no el ultimo (v2, 5.5)
+    assert "v1" in res.html
+    assert res.nota_final == 6.0
+    assert "el mejor" in res.motivo
 
 
 def test_tope_de_ciclos(tmp_path):
@@ -114,7 +118,7 @@ def test_reparacion_sin_cambio_corta_sin_rejuzgar(tmp_path):
     juez (medido: una nota 'subio' 7.5->8.5 con html identico). Se corta."""
     juzgadas = []
 
-    def _juzgar_contando(goal, html, d):
+    def _juzgar_contando(goal, html, d, mockup=None):
         juzgadas.append(1)
         return (6.0, ["x"], None)
 

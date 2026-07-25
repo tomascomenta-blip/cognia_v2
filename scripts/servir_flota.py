@@ -42,7 +42,11 @@ COMBOS = {
     "construir-ui": [
         # UIGEN como cerebro TOTAL del lazo (vision + html + reparaciones):
         # llm_local sondea :8080 y lo encuentra a el.
-        ("servir_modelo.py", ["--modelo", "UIGEN", "--sin-draft"]),
+        # ctx 12288 y no 8192: UIGEN piensa largo ANTES del HTML y con 8k el
+        # fence salia truncado aunque max_tokens fuera 12000 (medido 2026-07-25
+        # en el pulidor con mockup). KV a 12k ~2.2GB: cabe con VL-3B (~14GB).
+        ("servir_modelo.py", ["--modelo", "UIGEN", "--sin-draft",
+                              "--ctx", "12288"]),
         ("servir_vlm.py", ["--modelo", "VL-3B"]),
     ],
     "pensar": [
