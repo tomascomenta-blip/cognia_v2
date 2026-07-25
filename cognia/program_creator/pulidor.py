@@ -246,11 +246,19 @@ def pulir(goal: str = None, *, ciclos_max: int = CICLOS_MAX_DEFECTO,
                     _combo("construir-ui", verbose)
                     os.environ["COGNIA_CONSTRUCTOR_URL"] = "http://127.0.0.1:8080"
                 arreglado = reparar_web(program, cambios)
-                if arreglado is not None:
+                if arreglado is not None and arreglado.code != program.code:
                     program = arreglado
                     html = program.code
-                elif verbose:
-                    print("   ↩️  la reparacion no devolvio algo valido; juzgo lo actual")
+                else:
+                    # Nada cambio: re-juzgar solo muestrearia el RUIDO del juez
+                    # (medido 2026-07-25: una reparacion truncada dejo el html
+                    # identico y la nota "subio" 7.5->8.5 cruzando el gate sin
+                    # mejora real). Sin cambio no hay veredicto nuevo: se corta.
+                    if verbose:
+                        print("   ↩️  la reparacion no cambio el html; "
+                              "insistir seria juzgar el ruido. Corto aqui.")
+                    res.motivo = "la reparacion no avanzo (se entrega lo juzgado)"
+                    break
 
             (dir_final / f"ciclo_{ciclo}.html").write_text(html, encoding="utf-8")
 

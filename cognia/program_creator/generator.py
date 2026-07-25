@@ -454,8 +454,10 @@ def _preguntar_constructor(url: str, prompt: str, system: str,
                          {"role": "user", "content": prompt}],
             "temperature": temperature,
             # Los expertos de UI con razonamiento (UIGEN-X) gastan presupuesto
-            # pensando antes del HTML; 6000 como el camino normal + margen.
-            "max_tokens": 8000,
+            # pensando antes del HTML. 12000 y no 8000: en REPARACIONES el
+            # prompt trae la pagina entera y la respuesta tambien — con 8000
+            # el fence salia truncado (medido 2026-07-25 en el pulidor).
+            "max_tokens": 12000,
         }).encode("utf-8")
         peticion = _req.Request(
             url.rstrip("/") + "/v1/chat/completions", data=cuerpo,

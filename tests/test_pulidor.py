@@ -109,6 +109,32 @@ def test_tope_de_ciclos(tmp_path):
     assert res.motivo == "tope de ciclos"
 
 
+def test_reparacion_sin_cambio_corta_sin_rejuzgar(tmp_path):
+    """Si la reparacion no cambia el html, re-juzgar solo muestrea el ruido del
+    juez (medido: una nota 'subio' 7.5->8.5 con html identico). Se corta."""
+    juzgadas = []
+
+    def _juzgar_contando(goal, html, d):
+        juzgadas.append(1)
+        return (6.0, ["x"], None)
+
+    ps = [
+        patch.object(pl, "_combo", return_value=True),
+        patch("cognia.program_creator.diseno_a_codigo.construir_para_mockup",
+              return_value=_R1("<html><body>v1</body></html>")),
+        patch.object(pl, "_juzgar", side_effect=_juzgar_contando),
+        patch.object(pl, "_decidir",
+                     return_value={"seguir": True, "cambios": ["algo"]}),
+        # la "reparacion" devuelve EL MISMO codigo -> no avanzo
+        patch("cognia.program_creator.generator.reparar_web",
+              return_value=_prog("<html><body>v1</body></html>")),
+        patch("cognia.program_creator.storage.DEFAULT_STORAGE_DIR", tmp_path),
+    ]
+    res = _run(ps, gate_final=9.5, ciclos_max=4)
+    assert len(juzgadas) == 1            # solo se juzgo el ciclo 1
+    assert "no avanzo" in res.motivo
+
+
 def test_decidir_parsea_formato():
     with patch.object(pl, "_pensador", return_value=(
             "DECISION: SEGUIR\nCAMBIOS:\n- mas contraste en el header\n- ejes")):
