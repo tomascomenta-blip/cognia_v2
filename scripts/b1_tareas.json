@@ -1,0 +1,110 @@
+{
+  "_por_que": "Set de tareas de FASE B1. Los contratos estan escritos A MANO y ANTES de generar ningun codigo. Si el contrato se escribe mirando la implementacion, el producto se pone su propio examen y lo aprueba siempre: es el mismo error por el que un juego de memoria con las 16 cartas destapadas saco 7.5/10 del arbitro visual. Cada contrato describe la MECANICA que la idea exige, con selectores que el generador debe respetar porque estan en el enunciado.",
+  "_regla_selectores": "El enunciado le DICE al modelo que selectores usar. Sin eso, un contrato pre-escrito no puede apuntar a nada y la medicion seria de adivinanza de nombres, no de capacidad.",
+
+  "tareas": [
+    {
+      "id": "memoria_4x4",
+      "idea": "Un juego de memoria 4x4 en un solo archivo HTML. 16 cartas con 8 pares de emojis de animales. OBLIGATORIO: cada carta es un <div class=\"tile\">. Al cargar, las cartas estan BOCA ABAJO: no se ve su emoji. Al hacer click en una carta se destapa y se ve su emoji. Si se destapan dos que no coinciden, tras un segundo se vuelven a tapar. Un contador con id=\"moves\" cuenta los intentos.",
+      "contrato": {
+        "nombre": "memoria 4x4",
+        "pasos": [
+          {"accion": "contar", "selector": ".tile", "esperado": 16, "nombre": "hay 16 cartas", "critico": true},
+          {"accion": "contar_visible", "selector": ".tile", "esperado": 0, "nombre": "al cargar NINGUNA carta muestra su emoji", "critico": true},
+          {"accion": "click", "selector": ".tile", "indice": 0, "nombre": "click en la carta 1"},
+          {"accion": "contar_visible", "selector": ".tile", "esperado": 1, "nombre": "tras 1 click hay EXACTAMENTE 1 destapada", "critico": true},
+          {"accion": "click", "selector": ".tile", "indice": 1, "nombre": "click en la carta 2"},
+          {"accion": "contar_visible", "selector": ".tile", "esperado": 2, "nombre": "tras 2 clicks hay EXACTAMENTE 2 destapadas", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "contador",
+      "idea": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que suma 1 y un <button id=\"menos\"> que resta 1. Empieza en 0 y NUNCA baja de 0.",
+      "contrato": {
+        "nombre": "contador con tope inferior",
+        "pasos": [
+          {"accion": "texto", "selector": "#valor", "contiene": "0", "nombre": "empieza en 0", "critico": true},
+          {"accion": "click", "selector": "#mas", "nombre": "click en +"},
+          {"accion": "texto", "selector": "#valor", "contiene": "1", "nombre": "tras + vale 1", "critico": true},
+          {"accion": "click", "selector": "#mas", "nombre": "click en + otra vez"},
+          {"accion": "texto", "selector": "#valor", "contiene": "2", "nombre": "tras dos + vale 2", "critico": true},
+          {"accion": "click", "selector": "#menos", "nombre": "click en -"},
+          {"accion": "texto", "selector": "#valor", "contiene": "1", "nombre": "tras - vuelve a 1", "critico": true},
+          {"accion": "click", "selector": "#menos", "nombre": "- hasta el suelo"},
+          {"accion": "click", "selector": "#menos", "nombre": "- por debajo de 0"},
+          {"accion": "texto", "selector": "#valor", "contiene": "0", "nombre": "NO baja de 0", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "tareas_todo",
+      "idea": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"lista\">. Cada tarea anadida es un <li class=\"tarea\">. La lista empieza VACIA. Al escribir texto y pulsar el boton se anade la tarea con ese texto.",
+      "contrato": {
+        "nombre": "lista de tareas",
+        "pasos": [
+          {"accion": "contar", "selector": ".tarea", "esperado": 0, "nombre": "la lista empieza VACIA", "critico": true},
+          {"accion": "escribir", "selector": "#nueva", "texto": "comprar pan", "nombre": "escribo la primera tarea"},
+          {"accion": "click", "selector": "#anadir", "nombre": "pulso anadir"},
+          {"accion": "contar", "selector": ".tarea", "esperado": 1, "nombre": "ahora hay 1 tarea", "critico": true},
+          {"accion": "texto", "selector": ".tarea", "contiene": "comprar pan", "nombre": "la tarea dice lo que escribi", "critico": true},
+          {"accion": "escribir", "selector": "#nueva", "texto": "regar plantas", "nombre": "escribo la segunda"},
+          {"accion": "click", "selector": "#anadir", "nombre": "pulso anadir"},
+          {"accion": "contar", "selector": ".tarea", "esperado": 2, "nombre": "ahora hay 2 tareas", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "calculadora",
+      "idea": "Una calculadora en un solo archivo HTML. OBLIGATORIO: una pantalla <div id=\"pantalla\"> y botones con class=\"tecla\" y un atributo data-t con su valor: data-t=\"2\", data-t=\"3\", data-t=\"+\", data-t=\"=\". Al pulsar 2, luego +, luego 3, luego =, la pantalla muestra 5.",
+      "contrato": {
+        "nombre": "calculadora: 2+3=5",
+        "pasos": [
+          {"accion": "existe", "selector": "#pantalla", "nombre": "hay pantalla", "critico": true},
+          {"accion": "click", "selector": "[data-t='2']", "nombre": "pulso 2"},
+          {"accion": "click", "selector": "[data-t='+']", "nombre": "pulso +"},
+          {"accion": "click", "selector": "[data-t='3']", "nombre": "pulso 3"},
+          {"accion": "click", "selector": "[data-t='=']", "nombre": "pulso ="},
+          {"accion": "texto", "selector": "#pantalla", "contiene": "5", "nombre": "la pantalla muestra 5", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "semaforo",
+      "idea": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un <button id=\"avanzar\">. Cada click en el boton avanza el ciclo rojo -> verde -> ambar -> rojo, cambiando data-color.",
+      "contrato": {
+        "nombre": "semaforo ciclico",
+        "pasos": [
+          {"accion": "js", "expr": "document.querySelector('#luz').dataset.color", "esperado": "rojo", "nombre": "arranca en ROJO", "critico": true},
+          {"accion": "click", "selector": "#avanzar", "nombre": "avanzo 1"},
+          {"accion": "js", "expr": "document.querySelector('#luz').dataset.color", "esperado": "verde", "nombre": "pasa a VERDE", "critico": true},
+          {"accion": "click", "selector": "#avanzar", "nombre": "avanzo 2"},
+          {"accion": "js", "expr": "document.querySelector('#luz').dataset.color", "esperado": "ambar", "nombre": "pasa a AMBAR", "critico": true},
+          {"accion": "click", "selector": "#avanzar", "nombre": "avanzo 3"},
+          {"accion": "js", "expr": "document.querySelector('#luz').dataset.color", "esperado": "rojo", "nombre": "cierra el ciclo en ROJO", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "filtro_lista",
+      "idea": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos <li class=\"item\"> con estos textos: manzana, banana, cereza, datil, kiwi. Al escribir en el input, solo quedan VISIBLES los items cuyo texto contiene lo escrito. Al borrar el input vuelven a verse los 5.",
+      "contrato": {
+        "nombre": "filtro de lista",
+        "pasos": [
+          {"accion": "contar_visible", "selector": ".item", "esperado": 5, "nombre": "al cargar se ven los 5", "critico": true},
+          {"accion": "escribir", "selector": "#buscar", "texto": "an", "nombre": "escribo 'an'"},
+          {"accion": "contar_visible", "selector": ".item", "esperado": 2, "nombre": "'an' deja solo manzana y banana", "critico": true},
+          {"accion": "escribir", "selector": "#buscar", "texto": "kiwi", "nombre": "escribo 'kiwi'"},
+          {"accion": "contar_visible", "selector": ".item", "esperado": 1, "nombre": "'kiwi' deja solo 1", "critico": true},
+          {"accion": "escribir", "selector": "#buscar", "texto": "", "nombre": "borro el filtro"},
+          {"accion": "contar_visible", "selector": ".item", "esperado": 5, "nombre": "al borrar vuelven los 5", "critico": true}
+        ]
+      }
+    }
+  ]
+}

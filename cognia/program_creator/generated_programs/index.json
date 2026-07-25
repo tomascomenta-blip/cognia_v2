@@ -81,7 +81,10 @@
     "directory": "reaction_diffusion_simulator",
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "euclidean_empire",
@@ -93,7 +96,10 @@
     "directory": "euclidean_empire",
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "stem_encryptor",
@@ -105,7 +111,10 @@
     "directory": "stem_encryptor",
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "fractal_pattern_renderer",
@@ -117,7 +126,10 @@
     "directory": "fractal_pattern_renderer",
     "verificado": true,
     "puntaje_real": 7.5,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "royal_favors",
@@ -129,7 +141,10 @@
     "directory": "royal_favors",
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "story_spinner",
@@ -141,7 +156,10 @@
     "directory": "story_spinner",
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:09:03"
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "decent_dilemma",
@@ -153,7 +171,10 @@
     "directory": "decent_dilemma",
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "untitled_word_frequency_analyzer",
@@ -165,7 +186,10 @@
     "directory": "untitled_word_frequency_analyzer",
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:09:03"
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "untitled_automated_poetry_generator_based_on_user",
@@ -178,7 +202,10 @@
     "self_proposed": true,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:09:03"
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "permutation_patterns",
@@ -191,7 +218,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 8.5,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "untitled_procedural_story_generator_with_built_in",
@@ -204,7 +234,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:09:03"
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard_simulator",
@@ -217,7 +250,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard_simulation",
@@ -230,7 +266,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard_simulator_01",
@@ -243,7 +282,10 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.0,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard",
@@ -256,7 +298,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard_01",
@@ -269,7 +314,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard_animation",
@@ -282,7 +330,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard_simulation_01",
@@ -295,7 +346,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "task_manager_with_sqlite_in_memory_undo_stack_and",
@@ -308,7 +362,10 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.5,
-    "verificado_en": "2026-07-24T00:09:03"
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "task_manager_with_sqlite_in_memory_undo_stack_and_01",
@@ -321,7 +378,10 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.5,
-    "verificado_en": "2026-07-24T00:09:03"
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "in_memory_task_manager_with_undo_stack_and_unit_te",
@@ -334,7 +394,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "text_compressor",
@@ -357,7 +420,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:09:03"
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "python_project_map",
@@ -383,7 +449,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 8.5,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "python_project_map_with_ast",
@@ -396,7 +465,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "dashboard_de_inversiones",
@@ -409,7 +481,10 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.5,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "priorityqueue_with_heapq_and_priority_change",
@@ -422,7 +497,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard_02",
@@ -435,7 +513,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard_simulation_02",
@@ -448,7 +529,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "token_estimator",
@@ -461,7 +545,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:09:03"
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "automated_news_brief_generator",
@@ -474,7 +561,10 @@
     "self_proposed": true,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-25T00:20:08",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "investment_dashboard_simulation_03",
@@ -487,7 +577,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "inversin_dashboard",
@@ -500,7 +593,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "dashboard_de_inversiones_02",
@@ -513,7 +609,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "inversin_dashboard_01",
@@ -526,7 +625,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.0,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "simulacin_de_dashboard_de_inversiones",
@@ -539,7 +641,10 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.5,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "dashboard_de_inversiones_09",
@@ -552,7 +657,10 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.5,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "simulated_investment_dashboard",
@@ -565,7 +673,10 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.0,
-    "verificado_en": "2026-07-24T00:09:01"
+    "verificado_en": "2026-07-24T00:09:01",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "dashboard_de_inversiones_en_movimiento",
@@ -578,7 +689,10 @@
     "self_proposed": false,
     "verificado": false,
     "puntaje_real": 6.5,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "inversin_dashboard_02",
@@ -591,7 +705,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:55"
+    "verificado_en": "2026-07-24T00:08:55",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "dashboard_de_inversiones_11",
@@ -604,7 +721,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "dashboard_de_inversiones_12",
@@ -617,7 +737,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 8.5,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "dashboard_de_inversiones_13",
@@ -630,7 +753,10 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 8.5,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
   },
   {
     "id": "dashboard_de_inversiones_14",
@@ -643,6 +769,377 @@
     "self_proposed": false,
     "verificado": true,
     "puntaje_real": 9.5,
-    "verificado_en": "2026-07-24T00:08:54"
+    "verificado_en": "2026-07-24T00:08:54",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "juego_undertale_pixelart",
+    "title": "Juego Undertale Pixelart",
+    "category": "juego pixelart inspirado en undertale en un solo HTML con gráficos reales|RUTA: AGENTE",
+    "description": "Juego pixelart inspirado en Undertale con animaciones y gráficos reales.",
+    "total_score": 5.4,
+    "created_at": "2026-07-25T11:29:48.671556",
+    "directory": "juego_undertale_pixelart",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.5,
+    "verificado_en": "2026-07-25T11:30:11",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "juego_undertale_pixel_art",
+    "title": "Juego Undertale Pixel Art",
+    "category": "juego pixelart inspirado en undertale en un solo HTML con gráficos reales|RUTA: AGENTE",
+    "description": "Un juego pixel art inspirado en Undertale con animaciones en vivo.",
+    "total_score": 5.1,
+    "created_at": "2026-07-25T11:30:10.791301",
+    "directory": "juego_undertale_pixel_art",
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-25T11:30:11",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "juego_minecraft",
+    "title": "Juego Minecraft",
+    "category": "juego Minecraft",
+    "description": "Un juego terminal de Minecraft simple utilizando solo el biblioteca estándar de Python.",
+    "total_score": 7.0,
+    "created_at": "2026-07-25T11:31:48.978618",
+    "directory": "juego_minecraft",
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.0,
+    "verificado_en": "2026-07-25T11:31:59",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "minecraft_juego",
+    "title": "Minecraft Juego",
+    "category": "juego Minecraft",
+    "description": "Un juego de Minecraft simple en la terminal con bloques de tierra, aire y piedra.",
+    "total_score": 7.8,
+    "created_at": "2026-07-25T11:31:59.284817",
+    "directory": "minecraft_juego",
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-07-25T11:31:59",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "buscador_web_multi_estrategia",
+    "title": "Buscador Web Multi Estrategia",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "buscador_web_multi_estrategia",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "cognia_game",
+    "title": "Cognia Game",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-25T00:20:08",
+    "directory": "cognia_game",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 6.0,
+    "verificado_en": "2026-07-25T00:20:08",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "un_dashboard_simple_de_ventas_mensuales",
+    "title": "Un Dashboard Simple De Ventas Mensuales",
+    "category": "(de construidos/)",
+    "description": "",
+    "total_score": null,
+    "created_at": "",
+    "directory": "construidos/un_dashboard_simple_de_ventas_mensuales",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "verificador": null,
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "dashboard_de_inversiones_01",
+    "title": "Dashboard De Inversiones 01",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "dashboard_de_inversiones_01",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "dashboard_de_inversiones_03",
+    "title": "Dashboard De Inversiones 03",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "dashboard_de_inversiones_03",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "dashboard_de_inversiones_04",
+    "title": "Dashboard De Inversiones 04",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "dashboard_de_inversiones_04",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "dashboard_de_inversiones_05",
+    "title": "Dashboard De Inversiones 05",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "dashboard_de_inversiones_05",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "dashboard_de_inversiones_06",
+    "title": "Dashboard De Inversiones 06",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "dashboard_de_inversiones_06",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "dashboard_de_inversiones_07",
+    "title": "Dashboard De Inversiones 07",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "dashboard_de_inversiones_07",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "dashboard_de_inversiones_08",
+    "title": "Dashboard De Inversiones 08",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "dashboard_de_inversiones_08",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "dashboard_de_inversiones_10",
+    "title": "Dashboard De Inversiones 10",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "dashboard_de_inversiones_10",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "dashboard_de_inversiones_animado",
+    "title": "Dashboard De Inversiones Animado",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "dashboard_de_inversiones_animado",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "inversin_dinmica",
+    "title": "Inversin Dinmica",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "inversin_dinmica",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "un_dashboard_de_habitos_con_grafico_sema",
+    "title": "Un Dashboard De Habitos Con Grafico Sema",
+    "category": "(de pulidos/)",
+    "description": "",
+    "total_score": null,
+    "created_at": "",
+    "directory": "pulidos/un_dashboard_de_habitos_con_grafico_sema",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "verificador": null,
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "un_juego_de_memoria_4_4_con_piezas_de_an",
+    "title": "Un Juego De Memoria 4 4 Con Piezas De An",
+    "category": "(de pulidos/)",
+    "description": "",
+    "total_score": null,
+    "created_at": "",
+    "directory": "pulidos/un_juego_de_memoria_4_4_con_piezas_de_an",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "verificador": "juez_ejecutable (contrato)",
+    "veredicto_ejecutable": "FALLIDO",
+    "verificado_por_ejecucion": true
+  },
+  {
+    "id": "un_visor_meteorol_gico_3d_que_muestra_la",
+    "title": "Un Visor Meteorol Gico 3D Que Muestra La",
+    "category": "(de pulidos/)",
+    "description": "",
+    "total_score": null,
+    "created_at": "",
+    "directory": "pulidos/un_visor_meteorol_gico_3d_que_muestra_la",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "verificador": null,
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "una_pagina_web_visual_e_interactiva",
+    "title": "Una Pagina Web Visual E Interactiva",
+    "category": "(de pulidos/)",
+    "description": "",
+    "total_score": null,
+    "created_at": "",
+    "directory": "pulidos/una_pagina_web_visual_e_interactiva",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "verificador": null,
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "una_tarjeta_de_perfil_interactiva_con_av",
+    "title": "Una Tarjeta De Perfil Interactiva Con Av",
+    "category": "(de pulidos/)",
+    "description": "",
+    "total_score": null,
+    "created_at": "",
+    "directory": "pulidos/una_tarjeta_de_perfil_interactiva_con_av",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "verificador": null,
+    "veredicto_ejecutable": "VIVO",
+    "verificado_por_ejecucion": false
+  },
+  {
+    "id": "simulacin_de_dashboard_de_inversiones_01",
+    "title": "Simulacin De Dashboard De Inversiones 01",
+    "category": "",
+    "description": "",
+    "total_score": null,
+    "created_at": "2026-07-24T00:09:03",
+    "directory": "simulacin_de_dashboard_de_inversiones_01",
+    "self_proposed": false,
+    "verificado": false,
+    "puntaje_real": 0.0,
+    "verificado_en": "2026-07-24T00:09:03",
+    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
+    "veredicto_ejecutable": "NO APLICA (no es web)",
+    "verificado_por_ejecucion": false
   }
 ]
