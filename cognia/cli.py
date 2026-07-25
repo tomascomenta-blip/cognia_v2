@@ -6498,6 +6498,19 @@ def repl():
                     "bright_green")
             except Exception as _pe:
                 _print_line(f"[err_cl]Error en /pulir: {_escape(str(_pe))}[/err_cl]")
+        elif raw == "/sellar-biblioteca" or raw.startswith("/sellar-biblioteca "):
+            # Proceso batch que existia sin llamador (barrido 2026-07-24):
+            # sella con .verificacion.json los productos YA guardados.
+            _sb_arg = raw[len("/sellar-biblioteca"):].strip()
+            _sb_lim = int(_sb_arg) if _sb_arg.isdigit() else None
+            try:
+                from cognia.program_creator.verificacion import sellar_biblioteca
+                _sb_r = sellar_biblioteca(limite=_sb_lim)
+                _show_response(
+                    f"Sellados: {len(_sb_r.get('sellados', _sb_r)) if isinstance(_sb_r, dict) else _sb_r}",
+                    "bright_green")
+            except Exception as _se:
+                _print_line(f"[err_cl]Error sellando: {_escape(str(_se))}[/err_cl]")
         elif raw == "/fatiga":
             # El monitor de fatiga corre desde siempre DENTRO de cognia.py y
             # su reporte legible no era alcanzable (barrido 2026-07-24).
