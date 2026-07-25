@@ -97,6 +97,76 @@ class TestParseoHTML:
         assert _parse_response(raw, "pagina web", lenguaje="python") is None
 
 
+class TestRespuestaRepetida:
+    """El modelo HACE la pagina y el parser la tiraba (medido 2026-07-25).
+
+    Forma REAL de la respuesta del 14B por /completion (prompt crudo, sin
+    plantilla de chat): una cabecera Title/Description, la pagina COMPLETA, y
+    despues la MISMA pagina reemitida N veces (7 copias identicas en
+    calculadora, 14 en semaforo) hasta que el tope de 6000 tokens corta la
+    copia N+1 por la mitad. Ademas cierra el fence y arranca la copia siguiente
+    en la MISMA linea ('``` Title: ...').
+
+    Antes del fix: _parse_response acumulaba todos los bloques en uno, el
+    ultimo fence quedaba abierto y devolvia None -> generate_program None ->
+    construir_para_mockup cortaba con 'no se pudo generar la pagina inicial'
+    y rondas=0, tirando 7 paginas completas y validas.
+    """
+
+    def _crudo_repetido(self, copias: int, cola: str = "") -> str:
+        cabecera = "Title: Repetida\nDescription: x\nHTML Code:\n"
+        cuerpo = ""
+        for i in range(copias):
+            cuerpo += "```html\n" + PAGINA_BUENA + "\n"
+            # El cierre viene pegado al arranque de la copia siguiente, como en
+            # las respuestas reales volcadas.
+            cuerpo += "``` Title: Repetida  \n" if i < copias - 1 else "```\n"
+        return cabecera + cuerpo + cola
+
+    def test_repeticion_cortada_a_medias_no_se_tira(self):
+        # 7 copias completas + una octava truncada = lo medido en calculadora.
+        crudo = (self._crudo_repetido(7).rstrip("\n").rsplit("```", 1)[0]
+                 + "``` Title: Repetida  \n```html\n"
+                 + PAGINA_BUENA[:400])
+        prog = _parse_response(crudo, "pagina web", lenguaje="html")
+        assert prog is not None, "se tiro una respuesta con 7 paginas completas"
+        assert prog.code.count("</html>") == 1
+        assert prog.code.strip() == PAGINA_BUENA.strip()
+
+    def test_repeticion_completa_no_se_entrega_pegada(self):
+        """Aunque la ultima copia cierre bien, entregar 7 <html> pegados es
+        un documento invalido: se colapsa a uno."""
+        prog = _parse_response(self._crudo_repetido(7), "pagina web",
+                               lenguaje="html")
+        assert prog is not None
+        assert prog.code.count("</html>") == 1
+
+    def test_truncado_de_verdad_sigue_regenerando(self):
+        """Sin ninguna copia completa NO hay nada que rescatar: None (regenerar)."""
+        crudo = ("Title: Cortada\nDescription: x\nHTML Code:\n```html\n"
+                 + PAGINA_BUENA[:400])
+        assert _parse_response(crudo, "pagina web", lenguaje="html") is None
+
+    def test_fence_pegado_en_la_primera_linea_se_rescata(self):
+        """Forma REAL medida: cabecera y fence de apertura en la MISMA linea.
+        El escaner por lineas no veia ningun bloque y la pagina se perdia."""
+        crudo = ("``` ``` Title: Semaforo Description: x HTML Code: ```html "
+                 + PAGINA_BUENA + "\n``` ``` ```")
+        prog = _parse_response(crudo, "pagina web", lenguaje="html")
+        assert prog is not None, "se tiro una pagina completa por el fence pegado"
+        assert prog.code.strip() == PAGINA_BUENA.strip()
+
+    def test_repeticion_en_python_tambien_se_rescata(self):
+        codigo = "for i in range(5):\n    print('hola', i)\nprint('fin del programa')"
+        crudo = ("Title: Hola\nDescription: x\nPython Code:\n"
+                 + "```python\n" + codigo + "\n``` Title: Hola  \n"
+                 + "```python\n" + codigo + "\n``` Title: Hola  \n"
+                 + "```python\n" + codigo[:20])
+        prog = _parse_response(crudo, "demo", lenguaje="python")
+        assert prog is not None
+        assert prog.code.strip() == codigo
+
+
 class TestRevisionHTML:
     def test_pagina_completa_pasa(self):
         r = revisar_html(PAGINA_BUENA)

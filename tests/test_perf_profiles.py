@@ -166,7 +166,10 @@ class TestRestartHint:
         with patch.object(pp, "_server_running", return_value=True):
             hint = pp.restart_backend_hint()
         assert "proximo arranque" in hint
-        assert "8088" in hint
+        # 8088 -> 8080 el 2026-07-25: el backend se unifico en un solo puerto
+        # (node/llama_backend._DEFAULT_PORT). perf_profiles tenia una COPIA del
+        # default que se habia quedado atras, y este test la fijaba.
+        assert "8080" in hint
 
     def test_empty_when_no_server(self):
         with patch.object(pp, "_server_running", return_value=False):
@@ -179,7 +182,7 @@ class TestRestartHint:
 
     def test_garbage_port_falls_back_to_default(self, monkeypatch):
         monkeypatch.setenv("LLAMA_SERVER_PORT", "no-un-puerto")
-        assert pp._server_port() == 8088
+        assert pp._server_port() == 8080   # puerto unico (2026-07-25)
 
 
 class TestKillLlamaServer:

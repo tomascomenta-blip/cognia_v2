@@ -490,6 +490,8 @@ def _call_llm(prompt: str, lenguaje: str = "python",
     se lee en CADA llamada, no al importar; si el experto no responde se cae al
     camino de siempre.
     """
+    from .. import backend_activo
+
     system = _SISTEMA_WEB if lenguaje == "html" else _SISTEMA_PYTHON
     if lenguaje == "html":
         url_constructor = os.environ.get("COGNIA_CONSTRUCTOR_URL", "").strip()
@@ -497,11 +499,25 @@ def _call_llm(prompt: str, lenguaje: str = "python",
             texto = _preguntar_constructor(url_constructor, prompt, system,
                                            temperature)
             if texto:
+                backend_activo.registrar("create_program", url_constructor,
+                                         rol="constructor-ui", lenguaje=lenguaje)
                 return texto
     if llm is not None:
         try:
             raw = llm(prompt, system, 6000, temperature)
             if raw:
+                # El backend inyectado GANA sobre llm_local: es el que atendio
+                # los "5.4/10" de hoy sirviendo el 7B retirado en :8088. Ahora
+                # queda dicho que modelo y que puerto fue.
+                url = getattr(llm, "url_base", None) or _url_backend_inyectado(llm)
+                if url:
+                    backend_activo.registrar("create_program", url,
+                                             rol="inyectado", lenguaje=lenguaje)
+                else:
+                    backend_activo.registrar("create_program",
+                                             "http://127.0.0.1:8080",
+                                             rol="inyectado(url desconocida)",
+                                             lenguaje=lenguaje)
                 return raw
         except Exception as exc:
             print(f"[generator] backend real fallo: {exc}")
@@ -512,10 +528,41 @@ def _call_llm(prompt: str, lenguaje: str = "python",
         # 2000 tokens truncaban programas con tests: el fence ni se cerraba y
         # el lazo de reparacion gastaba sus intentos en "falta el resto".
         max_tokens=6000,
+        via="create_program",
     )
     if texto:
         return texto
+    # Ollama no esta instalado en esta maquina (.env lo dice desde la migracion).
+    # Llegar aqui es degradar: que se vea.
+    backend_activo.sin_backend(
+        "create_program",
+        f"ni constructor, ni backend inyectado, ni llm_local respondieron "
+        f"(lenguaje={lenguaje}); ultimo intento: Ollama")
     return _call_ollama(prompt)
+
+
+def _url_backend_inyectado(llm) -> Optional[str]:
+    """
+    La URL del backend inyectado, si se puede sacar. El `llm` es un callable
+    (a veces un bound method de LlamaBackend, a veces un lambda del CLI), asi
+    que se busca el _base/_port por donde este.
+    """
+    for obj in (llm, getattr(llm, "__self__", None)):
+        if obj is None:
+            continue
+        for cadena in ("_base", "base_url"):
+            v = getattr(obj, cadena, None)
+            if isinstance(v, str) and v.startswith("http"):
+                return v
+        impl = getattr(obj, "_impl", None)
+        if impl is not None:
+            v = getattr(impl, "_base", None)
+            if isinstance(v, str) and v.startswith("http"):
+                return v
+        p = getattr(obj, "_port", None)
+        if isinstance(p, int):
+            return f"http://127.0.0.1:{p}"
+    return None
 
 
 def reparar_python(program: GeneratedProgram, error: str,
@@ -604,6 +651,104 @@ def reparar_web(program: GeneratedProgram, defectos: List[str],
     return arreglado
 
 
+def _bloques_de_codigo(lineas: list, fence_abre: str) -> tuple:
+    """(bloques, lineas_fuera) del crudo. bloques = [(contenido, cerrado)].
+
+    Antes esto no existia: se acumulaba TODO en una sola lista, asi que N bloques
+    se pegaban en un unico "programa" y bastaba que el ULTIMO fence quedara
+    abierto para tirar la respuesta entera. Separarlos es lo que permite quedarse
+    con el trabajo completo cuando la cola viene rota (ver _elegir_codigo).
+
+    El CIERRE se reconoce por prefijo (``` ...) y no por igualdad exacta: medido
+    2026-07-25, el 14B cierra y arranca la copia siguiente en la MISMA linea
+    ('``` Title: Calculadora Minimalista'). Con `s == "```"` ese cierre no
+    existia, el fence quedaba abierto para siempre y se tiraban 7 paginas
+    completas por truncamiento. Riesgo asumido: una pagina que contenga una
+    linea literal ``` (demo de markdown) se corta ahi -> se regenera.
+    """
+    bloques, fuera, actual, dentro = [], [], None, False
+    for line in lineas:
+        s = line.strip()
+        if not dentro:
+            if s.lower().startswith(fence_abre):
+                dentro, actual = True, []
+            else:
+                fuera.append(line)
+        elif s.startswith("```"):
+            bloques.append(("\n".join(actual), True))
+            dentro, actual = False, None
+        else:
+            actual.append(line)
+    if dentro:                       # fence abierto que nunca cerro
+        bloques.append(("\n".join(actual), False))
+    return bloques, fuera
+
+
+def _bloques_por_texto(raw: str, fence_abre: str) -> list:
+    """Rescate a nivel de TEXTO: bloques cuando el fence NO vino en su linea.
+
+    Medido 2026-07-25: una de cada ocho respuestas del 14B llegaba con la
+    cabecera y el fence pegados en la primera linea ('``` ``` Title: ... HTML
+    Code: ```html <!DOCTYPE html>'). El escaner por lineas no veia ningun
+    bloque y la pagina —completa y valida— se perdia entera. Solo se usa
+    cuando el escaner por lineas no encontro NADA, asi que no puede cambiar el
+    resultado de una respuesta bien formada.
+    """
+    bloques, bajo, i = [], raw.lower(), raw.lower().find(fence_abre)
+    while i != -1:
+        ini = i + len(fence_abre)
+        fin = raw.find("```", ini)
+        if fin == -1:
+            bloques.append((raw[ini:], False))
+            break
+        bloques.append((raw[ini:fin], True))
+        i = bajo.find(fence_abre, fin)
+    return bloques
+
+
+def _elegir_codigo(bloques: list) -> tuple:
+    """(codigo, aviso) a partir de los bloques con fence del crudo.
+
+    codigo=None significa "no hay nada aprovechable" (truncado de verdad).
+
+    POR QUE (medido 2026-07-25, 4 de 8 corridas del lazo diseno-a-codigo): el
+    14B servido por /completion (prompt crudo, sin plantilla de chat) termina la
+    pagina y SIGUE, reemitiendo la MISMA respuesta completa una y otra vez —
+    7 copias identicas de 3201 chars en calculadora, 14 de 1558 en semaforo —
+    hasta que el tope de 6000 tokens corta la copia N+1 por la mitad. El
+    guard de truncamiento miraba solo si el ultimo fence habia cerrado y
+    devolvia None: se tiraban 7 paginas completas y validas por culpa de la
+    octava a medias. Cognia HACIA el trabajo y no lo ENTREGABA.
+
+    Ademas, cuando la ultima copia SI cerraba, la concatenacion entregaba las
+    7 copias pegadas como un solo "documento" (7 <html> en un archivo). Los
+    duplicados se colapsan tambien en ese caso.
+    """
+    if not bloques:
+        return None, ""
+    cerrados = [c for c, ok in bloques if ok]
+    abierta  = bloques[-1][0] if not bloques[-1][1] else None
+    if not cerrados:
+        return None, ""                      # truncado real: nada completo
+
+    unicos = list(dict.fromkeys(c.strip() for c in cerrados if c.strip()))
+    if not unicos:
+        return None, ""
+    cola = (abierta or "").strip()
+    # La cola rota, ¿es el ARRANQUE de otra copia de lo mismo? Entonces es el
+    # loop de repeticion, no una segunda parte del programa. Una cola trivial
+    # (ruido de cierre) tampoco justifica tirar lo que ya esta completo.
+    cola_repite = bool(cola) and (len(cola) < 20
+                                  or any(u.startswith(cola[:200]) for u in unicos))
+    if len(unicos) < len(cerrados) or cola_repite:
+        return unicos[0], (f"el modelo repitio la respuesta ({len(bloques)} "
+                           f"bloques, {len(unicos)} distinto(s)): me quedo con "
+                           f"el primero completo en vez de tirar la respuesta")
+    if abierta is not None:
+        return None, ""                      # varias partes y la ultima cortada
+    return "\n".join(cerrados), ""
+
+
 def _parse_response(raw: str, category: str,
                     lenguaje: str = "python") -> Optional[GeneratedProgram]:
     if not raw:
@@ -622,33 +767,42 @@ def _parse_response(raw: str, category: str,
     # del bloque de codigo esperado.
     fence_abre = "```html" if lenguaje == "html" else "```python"
 
-    lines, title, desc, code_lines, in_code = raw.splitlines(), "", "", [], False
-    abrio_fence = False
+    bloques, fuera = _bloques_de_codigo(raw.splitlines(), fence_abre)
+    rescate = ""
+    if not bloques:
+        bloques = _bloques_por_texto(raw, fence_abre)
+        if bloques:
+            rescate = ("el fence no vino en su propia linea: rescato el bloque "
+                       "por texto en vez de tirar la respuesta")
 
-    for line in lines:
+    # Title/Description solo FUERA de los fences: un `title:` dentro del CSS o
+    # del codigo no es la cabecera de la respuesta.
+    title, desc = "", ""
+    for line in fuera:
         s = line.strip()
         if s.lower().startswith("title:"):
             title = s[6:].strip()
         elif s.lower().startswith("description:"):
             desc = s[12:].strip()
-        elif s.lower().startswith(fence_abre):
-            in_code = True
-            abrio_fence = True
-        elif s == "```" and in_code:
-            in_code = False
-        elif in_code:
-            code_lines.append(line)
 
-    # Fence abierto y nunca cerrado = la respuesta se corto por limite de
-    # tokens. Antes se aceptaba el trozo y el sandbox devolvia un SyntaxError
-    # enganoso, contra el que el lazo de reparacion gastaba sus tres intentos
-    # sin poder ganar. Truncado no es codigo con un bug: es codigo incompleto,
-    # y lo que corresponde es regenerar.
-    if abrio_fence and in_code:
-        print("[generator] ⚠️  Respuesta truncada (fence sin cerrar): regenero.")
+    codigo, aviso = _elegir_codigo(bloques)
+    if codigo is not None and rescate:
+        aviso = f"{rescate}{('; ' + aviso) if aviso else ''}"
+    if aviso:
+        # Degradado VISIBLE (regla del repo): rescatar trabajo de una respuesta
+        # rota no puede pasar en silencio.
+        print(f"[generator] ⚠️  {aviso}.")
+    # Sin ningun bloque completo = la respuesta se corto por limite de tokens.
+    # Antes se aceptaba el trozo y el sandbox devolvia un SyntaxError enganoso,
+    # contra el que el lazo de reparacion gastaba sus tres intentos sin poder
+    # ganar. Truncado no es codigo con un bug: es codigo incompleto, y lo que
+    # corresponde es regenerar.
+    if codigo is None:
+        if bloques:
+            print("[generator] ⚠️  Respuesta truncada (fence sin cerrar): regenero.")
         return None
 
-    code = "\n".join(code_lines).strip()
+    code = codigo.strip()
     if not title:
         title = f"Untitled {category.title()}"
     if not desc:
