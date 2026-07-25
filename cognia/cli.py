@@ -8662,10 +8662,26 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                 _gram = grammar_para(allowed_tools)
             except Exception:
                 _gram = None
-            raw_response = orch.infer(
-                prompt, temperature=_step_temp, stop=["\nACCION:", "\nACCIÓN:"],
-                max_tokens=256, grammar=_gram, system=_SYS_AGENTE,
-            ).text.strip()
+            raw_response = None
+            # Experto de TOOLING (MiniCPM + LoRA, 0%->97% tool-match medido) —
+            # OPT-IN DURO (COGNIA_MINICPM_TOOLING=1). Barrido 2026-07-24: el
+            # experto entrenado no tenia NINGUN llamador en produccion. Recibe
+            # el MISMO prompt del loop (TOOLS_DOC + contexto, el formato con el
+            # que se entreno). Cualquier fallo (sin torch/VRAM/pesos) cae al
+            # camino de siempre sin ruido — un experto caido no rompe /hacer.
+            if os.environ.get("COGNIA_MINICPM_TOOLING") == "1":
+                try:
+                    from cognia.agent import minicpm_expert as _mce
+                    _ok_t, _ = _mce.tooling_disponible()
+                    if _ok_t:
+                        raw_response = (_mce.generar_accion(prompt) or "").strip() or None
+                except Exception:
+                    raw_response = None
+            if raw_response is None:
+                raw_response = orch.infer(
+                    prompt, temperature=_step_temp, stop=["\nACCION:", "\nACCIÓN:"],
+                    max_tokens=256, grammar=_gram, system=_SYS_AGENTE,
+                ).text.strip()
             _step_temp = 0.0
         except Exception as e:
             _print_fn(f"[err_cl]Agente: error LLM: {e}[/err_cl]")
