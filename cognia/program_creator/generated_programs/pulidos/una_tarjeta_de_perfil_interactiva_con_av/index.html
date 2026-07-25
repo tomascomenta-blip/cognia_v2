@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil Interactivo</title>
+    <style>
+        :root {
+            --primary: #34d399;
+            --secondary: #4f46e5;
+            --dark: #1e1e2d;
+            --light: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-light: rgba(255, 255, 255, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--dark), #1a1a2e);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--light);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary);
+            color: var(--dark);
+            font-size: 3rem;
+            margin: 0 auto 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.4s ease;
+        }
+
+        .avatar:hover {
+            transform: rotate(3deg) scale(1.05);
+        }
+
+        .avatar svg path {
+            transition: stroke-dashoffset 0.8s ease-out;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: var(--glass);
+            border-radius: 16px;
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--glass-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            color: var(--light);
+            font-size: 0.85rem;
+        }
+
+        .contact-btn {
+            display: block;
+            width: 100%;
+            background: var(--primary);
+            color: var(--dark);
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease, transform 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .contact-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(52, 211, 153, 0.3);
+            background: rgba(52, 211, 153, 0.9);
+        }
+
+        .contact-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.5s ease;
+        }
+
+        .contact-btn:hover::after {
+            transform: translateX(100%);
+        }
+
+        .contact-btn i {
+            margin-right: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin: 20px 0;
+        }
+
+        .chart {
+            width: 100%;
+            height: 100%;
+            background: var(--glass-light);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 3;
+        }
+
+        .chart-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .chart-grid-line {
+            position: absolute;
+            width: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .chart-grid-text {
+            position: absolute;
+            font-size: 0.8rem;
+            color: var(--light);
+            pointer-events: none;
+        }
+
+        .chart-grid-text-y {
+            text-align: right;
+            margin-right: 10px;
+        }
+
+        .chart-grid-text-x {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .chart-axis {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            stroke: var(--light);
+            stroke-width: 1;
+        }
+
+        .chart-axis-x {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+        }
+
+        .chart-axis-y {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 10px;
+            height: 100%;
+        }
+
+        .chart-axis-label-y {
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-size: 0.8rem;
+            color: var(--light);
+        }
+
+        .chart-axis-label-x {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            font-size: 0.8rem;
+            color: var(--light);
+        }
+
+        @media (max-width: 480px) {
+            .glass-card {
+                padding: 20px;
+            }
+            
+            .avatar {
+                width: 120px;
+                height: 120px;
+            }
+            
+            .stat-card {
+                padding: 12px;
+            }
+            
+            .stat-value {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="glass-card">
+        <div class="avatar">
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="45" stroke="#1e1e2d" stroke-width="4" fill="none"/>
+                <circle cx="50" cy="50" r="30" fill="#34d399"/>
+                <circle cx="50" cy="50" r="10" fill="#4f46e5"/>
+                <path d="M35 60A5 5 0 0 1 35 50V40C35 38.8954 35.8954 38 37 38H63C64.1046 38 65 38.8954 65 40V50A5 5 0 0 1 65 60H35ZM35 65C35 66.1046 35.8954 67 37 67H63C64.1046 67 65 66.1046 65 65V55C65 53.8954 64.1046 53 63 53H37C35.8954 53 35 53.8954 35 55V65Z" fill="#1e1e2d"/>
+            </svg>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-code"></i>
+                </div>
+                <div class="stat-value" id="code-lines">24,567</div>
+                <div class="stat-label">Líneas de código</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="stat-value" id="projects">21</div>
+                <div class="stat-label">Proyectos completados</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-value" id="experience">8.7</div>
+                <div class="stat-label">Años de experiencia</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <svg class="chart" viewBox="0 0 100 100">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto">
+                        <path d="M0 0 L10 5 L0 10 z" fill="#34d399"/>
+                    </marker>
+                </defs>
+                <polyline class="chart-line" points="10,90 20,70 30,60 40,50 50,40 60,30 70,20 80,10 90,5" marker-end="url(#arrow)"/>
+            </svg>
+            <div class="chart-grid">
+                <div class="chart-grid-line" style="height: 20%;"></div>
+                <div class="chart-grid-line" style="height: 40%;"></div>
+                <div class="chart-grid-line" style="height: 60%;"></div>
+                <div class="chart-grid-line" style="height: 80%;"></div>
+                <div class="chart-grid-text chart-grid-text-y">10</div>
+                <div class="chart-grid-text chart-grid-text-y">8</div>
+                <div class="chart-grid-text chart-grid-text-y">6</div>
+                <div class="chart-grid-text chart-grid-text-y">4</div>
+                <div class="chart-grid-text chart-grid-text-y">2</div>
+                <div class="chart-grid-text chart-grid-text-y">0</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 1</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 2</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 3</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 4</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 5</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 6</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 7</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 8</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 9</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 10</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 11</div>
+                <div class="chart-grid-text chart-grid-text-x">Mes 12</div>
+            </div>
+            <div class="chart-axis">
+                <line class="chart-axis-x" x1="0" y1="100" x2="100" y2="100"/>
+                <line class="chart-axis-y" x1="0" y1="0" x2="0" y2="100"/>
+            </div>
+            <div class="chart-axis-label-y">Progreso</div>
+            <div class="chart-axis-label-x">Tiempo</div>
+        </div>
+        
+        <div class="contact-btn" id="contactBtn">
+            <i class="fas fa-envelope"></i> Contáctame
+        </div>
+    </div>
+
+    <script>
+        const stats = [
+            { id: 'code-lines', value: 24567, min: 10000, max: 40000, interval: 50 },
+            { id: 'projects', value: 21, min: 5, max: 30, interval: 100 },
+            { id: 'experience', value: 8.7, min: 0, max: 10, interval: 80 }
+        ];
+
+        // Initialize stats with random values
+        stats.forEach(stat => {
+            const target = Math.floor(Math.random() * (stat.max - stat.min)) + stat.min;
+            const current = document.getElementById(stat.id).textContent;
+            const diff = target - parseInt(current);
+            const step = Math.ceil(diff / 20);
+            
+            const update = () => {
+                let val = parseInt(document.getElementById(stat.id).textContent);
+                val += step;
+                if (val >= target) val = target;
+                document.getElementById(stat.id).textContent = val.toLocaleString();
+                
+                if (val < target) {
+                    requestAnimationFrame(update);
+                }
+            };
+            update();
+        });
+
+        // Avatar animation
+        const avatar = document.querySelector('.avatar');
+        let angle = 0;
+        setInterval(() => {
+            angle = (angle + 0.5) % 360;
+            avatar.style.transform = `rotate(${angle}deg) scale(${1 + Math.sin(angle/10)/2})`;
+        }, 3000);
+
+        // Contact button animation
+        const contactBtn = document.getElementById('contactBtn');
+        contactBtn.addEventListener('mouseenter', () => {
+            contactBtn.style.transform = 'translateY(-3px)';
+            contactBtn.style.boxShadow = '0 10px 25px rgba(52, 211, 153, 0.3)';
+        });
+        
+        contactBtn.addEventListener('mouseleave', () => {
+            contactBtn.style.transform = 'translateY(0)';
+            contactBtn.style.boxShadow = 'none';
+        });
+    </script>
+</body>
+</html>

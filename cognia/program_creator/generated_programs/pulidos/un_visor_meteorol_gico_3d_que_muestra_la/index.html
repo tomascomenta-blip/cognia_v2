@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Visor Meteorológico 3D</title>
+  <style>
+    :root {
+      --primary: #3a86ff;
+      --secondary: #ff5f6d;
+      --background: #f0f7ff;
+      --card: #ffffff;
+      --text-primary: #1a1a1a;
+      --text-secondary: #6a6a6a;
+      --wind-blue: #007bff;
+      --wind-green: #28a745;
+      --wind-red: #dc3545;
+      --temp-cold: #6c757d;
+      --temp-warm: #dc3545;
+      --temp-hot: #ff6b6b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    /* Header Bar */
+    .header {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+    }
+
+    .time-location {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .time {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .location {
+      background: var(--card);
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .location i {
+      color: var(--primary);
+    }
+
+    .key-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 8px 0;
+    }
+
+    .metric {
+      background: var(--card);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .metric-value {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    /* Main Content */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 2fr 3fr;
+      gap: 20px;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    /* Wind Trajectory Panel (Left) */
+    .wind-panel {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+      height: 100%;
+      position: relative;
+    }
+
+    .wind-panel h2 {
+      color: var(--text-primary);
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+    }
+
+    .wind-container {
+      height: 400px;
+      position: relative;
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .wind-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .wind-line {
+      stroke-linecap: round;
+      stroke-width: 1px;
+      stroke-linejoin: round;
+      opacity: 0.8;
+    }
+
+    .wind-line.speed-1 {
+      stroke: var(--wind-blue);
+      stroke-width: 2px;
+    }
+    .wind-line.speed-2 {
+      stroke: var(--wind-green);
+      stroke-width: 3px;
+    }
+    .wind-line.speed-3 {
+      stroke: var(--wind-red);
+      stroke-width: 4px;
+    }
+
+    /* Temperature Map Panel (Right) */
+    .temp-panel {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .temp-panel h2 {
+      color: var(--text-primary);
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+    }
+
+    .temp-container {
+      height: 400px;
+      position: relative;
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+    }
+
+    .temp-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .temp-cell {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      background: var(--temp-cold);
+      opacity: 0.6;
+    }
+
+    .temp-cell.temp-1 {
+      background: var(--temp-cold);
+    }
+    .temp-cell.temp-2 {
+      background: #6a73e8;
+    }
+    .temp-cell.temp-3 {
+      background: #6c757d;
+    }
+    .temp-cell.temp-4 {
+      background: #dc3545;
+    }
+    .temp-cell.temp-5 {
+      background: var(--temp-hot);
+    }
+
+    .temp-label {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    /* Bottom Data Panel */
+    .bottom-panel {
+      width: 100%;
+      max-width: 1200px;
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      margin-bottom: 15px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .time-location {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header Bar -->
+  <div class="header">
+    <div class="header-content">
+      <div class="time-location">
+        <div class="time" id="time">10:30 AM</div>
+        <div class="location">
+          <i class="fas fa-map-marker-alt"></i>
+          <span id="location">Madrid, ES</span>
+        </div>
+      </div>
+      <div class="key-metrics">
+        <div class="metric">
+          <i class="fas fa-wind"></i>
+          <div class="metric-value" id="wind-speed">12.5 km/h</div>
+        </div>
+        <div class="metric">
+          <i class="fas fa-temperature-high"></i>
+          <div class="metric-value" id="temp-current">22°C</div>
+        </div>
+        <div class="metric">
+          <i class="fas fa-droplet"></i>
+          <div class="metric-value" id="humidity">68%</div>
+        </div>
+        <div class="metric">
+          <i class="fas fa-sun"></i>
+          <div class="metric-value" id="uv-index">5.2</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-grid">
+    <!-- Wind Trajectory Panel -->
+    <div class="wind-panel">
+      <h2>Trajectory de Viento</h2>
+      <div class="wind-container">
+        <div class="wind-lines" id="wind-trajectory"></div>
+      </div>
+    </div>
+
+    <!-- Temperature Map Panel -->
+    <div class="temp-panel">
+      <h2>Mapa de Temperatura</h2>
+      <div class="temp-container">
+        <div class="temp-grid" id="temp-grid"></div>
+        <div class="temp-label" id="temp-range">20°C - 28°C</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Data Panel -->
+  <div class="bottom-panel">
+    <div class="section-title">Previsión Horaria</div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left;color:#898781;font-size:12px">Hora</th>
+          <th style="text-align:left;color:#898781;font-size:12px">Temperatura</th>
+          <th style="text-align:left;color:#898781;font-size:12px">Viento</th>
+          <th style="text-align:left;color:#898781;font-size:12px">Humedad</th>
+        </tr>
+      </thead>
+      <tbody id="forecast-table">
+        <tr><td>12:00 PM</td><td><span class="temp" style="color:var(--temp-cold)">19°C</span></td><td><span class="wind" style="color:var(--wind-blue)">10 km/h</span></td><td>65%</td></tr>
+        <tr><td>1:00 PM</td><td><span class="temp" style="color:var(--temp-cold)">21°C</span></td><td><span class="wind" style="color:var(--wind-green)">15 km/h</span></td><td>62%</td></tr>
+        <tr><td>2:00 PM</td><td><span class="temp" style="color:var(--temp-warm)">24°C</span></td><td><span class="wind" style="color:var(--wind-red)">20 km/h</span></td><td>68%</td></tr>
+        <tr><td>3:00 PM</td><td><span class="temp" style="color:var(--temp-warm)">26°C</span></td><td><span class="wind" style="color:var(--wind-red)">25 km/h</span></td><td>72%</td></tr>
+        <tr><td>4:00 PM</td><td><span class="temp" style="color:var(--temp-hot)">28°C</span></td><td><span class="wind" style="color:var(--wind-red)">30 km/h</span></td><td>75%</td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">Datos Adicionales</div>
+    <div class="data-grid" id="data-grid">
+      <div class="data-item">
+        <div class="data-label">Presión</div>
+        <div class="data-value" id="pressure">1013 hPa</div>
+      </div>
+      <div class="data-item">
+        <div class="data-label">Nubosidad</div>
+        <div class="data-value" id="cloudiness">Partially Cloudy</div>
+      </div>
+      <div class="data-item">
+        <div class="data-label">Visibilidad</div>
+        <div class="data-value" id="visibility">10 km</div>
+      </div>
+      <div class="data-item">
+        <div class="data-label">Precipitación</div>
+        <div class="data-value" id="precipitation">0.0 mm/h</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize data
+    let windSpeed = 12.5;
+    let currentTemp = 22;
+    let humidity = 68;
+    let uvIndex = 5.2;
+    let pressure = 1013;
+    let cloudiness = "Partially Cloudy";
+    let visibility = "10 km";
+    let precipitation = "0.0 mm/h";
+
+    // Time and location
+    const locations = [
+      { city: "Madrid", country: "ES", timezone: 2 }, // UTC+2
+      { city: "Seville", country: "ES", timezone: 2 },
+      { city: "Barcelona", country: "ES", timezone: 2 },
+      { city: "Málaga", country: "ES", timezone: 2 }
+    ];
+    let currentLocationIndex = 0;
+
+    function updateData() {
+      // Wind data
+      windSpeed = Math.random() * 40 + 10;
+      currentTemp = Math.floor(15 + Math.sin(Date.now() * 0.001) * 5);
+      humidity = Math.random() * 30 + 30;
+      uvIndex = Math.random() * 10;
+      pressure = 1000 + Math.random() * 100;
+      cloudiness = ["Clear", "Partially Cloudy", "Cloudy", "Overcast", "Rain"][Math.floor(Math.random() * 5)];
+      visibility = (Math.random() * 50 + 5).toFixed(0) + " km";
+      precipitation = (Math.random() * 2).toFixed(1) + " mm/h";
+
+      // Update DOM elements
+      document.getElementById('wind-speed').textContent = windSpeed.toFixed(1) + ' km/h';
+      document.getElementById('temp-current').textContent = currentTemp + '°C';
+      document.getElementById('humidity').textContent = humidity + '%';
+      document.getElementById('uv-index').textContent = uvIndex.toFixed(1);
+      document.getElementById('pressure').textContent = pressure + ' hPa';
+      document.getElementById('cloudiness').textContent = cloudiness;
+      document.getElementById('visibility').textContent = visibility;
+      document.getElementById('precipitation').textContent = precipitation;
+
+      // Update temperature range
+      const tempMin = Math.floor(currentTemp - 3);
+      const tempMax = Math.floor(currentTemp + 3);
+      document.getElementById('temp-range').textContent = `${tempMin}°C - ${tempMax}°C`;
+
+      // Generate wind trajectory
+      const trajectoryContainer = document.getElementById('wind-trajectory');
+      trajectoryContainer.innerHTML = '';
+      
+      const maxLines = 10;
+      const lineLength = 50;
+      const lineCount = Math.min(Math.floor(Date.now() * 0.01), maxLines);
+      
+      for (let i = 0; i < lineCount; i++) {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", 'line');
+        line.className = 'wind-line';
+        line.setAttribute('x1', 100 + Math.random() * 300);
+        line.setAttribute('y1', 100 + Math.random() * 300);
+        line.setAttribute('x2', 100 + Math.random() * 300);
+        line.setAttribute('y2', 100 + Math.random() * 300);
+        line.setAttribute('stroke', getWindColor(windSpeed));
+        line.setAttribute('stroke-width', getWindThickness(windSpeed));
+        
+        // Add direction indicator
+        const direction = Math.random() * 360;
+        const arrow = document.createElementNS("http://www.w3.org/2000/svg", 'line');
+        arrow.setAttribute('x1', line.getAttribute('x2'));
+        arrow.setAttribute('y1', line.getAttribute('y2'));
+        arrow.setAttribute('x2', line.getAttribute('x2') + Math.cos(direction * Math.PI/180) * 10);
+        arrow.setAttribute('y2', line.getAttribute('y2') + Math.sin(direction * Math.PI/180) * 10);
+        arrow.setAttribute('stroke', line.getAttribute('stroke'));
+        arrow.setAttribute('stroke-width', 2);
+        
+        trajectoryContainer.appendChild(line);
+        trajectoryContainer.appendChild(arrow);
+      }
+
+      // Generate temperature grid
+      const gridContainer = document.getElementById('temp-grid');
+      gridContainer.innerHTML = '';
+      const cellsPerRow = 10;
+      const rows = 10;
+      const cellSize = 10;
+      const tempValues = Array(cellsPerRow * rows).fill().map((_, i) => {
+        const temp = 15 + Math.sin(Date.now() * 0.002 + i) * 3;
+        return temp;
+      });
+
+      tempValues.forEach((temp, index) => {
+        const cell = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
+        cell.className = 'temp-cell';
+        const tempClass = getTempClass(temp);
+        cell.classList.add(tempClass);
+        cell.setAttribute('x', (index % cellsPerRow) * cellSize);
+        cell.setAttribute('y', Math.floor(index / cellsPerRow) * cellSize);
+        cell.setAttribute('width', cellSize);
+        cell.setAttribute('height', cellSize);
+        gridContainer.appendChild(cell);
+      });
+    }
+
+    function getWindColor(speed) {
+      if (speed <= 20) return var(--wind-blue);
+      if (speed <= 40) return var(--wind-green);
+      return var(--wind-red);
+    }
+
+    function getWindThickness(speed) {
+      if (speed <= 10) return 2;
+      if (speed <= 25) return 3;
+      return 4;
+    }
+
+    function getTempClass(temp) {
+      if (temp <= 20) return 'temp-1';
+      if (temp <= 24) return 'temp-2';
+      if (temp <= 28) return 'temp-3';
+      if (temp <= 32) return 'temp-4';
+      return 'temp-5';
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const seconds = now.getSeconds().toString().padStart(2, '0');
+      document.getElementById('time').textContent = `${hours}:${minutes} ${now.getHours() >= 12 ? 'PM' : 'AM'}`;
+    }
+
+    function updateLocation() {
+      const locations = [
+        { city: "Madrid", country: "ES", timezone: 2 },
+        { city: "Seville", country: "ES", timezone: 2 },
+        { city: "Barcelona", country: "ES", timezone: 2 },
+        { city: "Málaga", country: "ES", timezone: 2 }
+      ];
+      currentLocationIndex = (currentLocationIndex + 1) % locations.length;
+      const location = locations[currentLocationIndex];
+      document.getElementById('location').textContent = `${location.city}, ${location.country}`;
+    }
+
+    // Initialize immediately
+    updateData();
+    updateClock();
+    updateLocation();
+
+    // Update every second
+    setInterval(() => {
+      updateData();
+      updateClock();
+      updateLocation();
+    }, 1000);
+
+    // Add initial wind lines and temperature cells
+    updateData();
+  </script>
+</body>
+</html>

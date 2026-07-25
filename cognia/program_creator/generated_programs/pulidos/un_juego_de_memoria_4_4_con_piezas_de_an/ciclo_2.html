@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Memoria Animal</title>
+    <style>
+        :root {
+            --vibrant-bg: #f5f7fa;
+            --vibrant-card: #e0e7ff;
+            --vibrant-primary: #ff6f61;
+            --vibrant-secondary: #ffbd59;
+            --vibrant-tertiary: #6b5b95;
+            --vibrant-accent: #88d8b0;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--vibrant-bg);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        header {
+            width: 100%;
+            max-width: 800px;
+            padding: 15px 20px;
+            background: var(--vibrant-card);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        .score-board {
+            display: flex;
+            gap: 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .score-value {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--vibrant-primary);
+        }
+        
+        .move-counter {
+            font-size: 1.1rem;
+            color: var(--text-light);
+        }
+        
+        .game-container {
+            width: 100%;
+            max-width: 800px;
+            height: 400px;
+            background: var(--vibrant-card);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 8px;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .tile {
+            width: 100%;
+            height: 100%;
+            background: var(--vibrant-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .tile.flipped {
+            transform: rotateY(180deg);
+            background: linear-gradient(135deg, var(--vibrant-primary) 0%, var(--vibrant-secondary) 100%);
+            color: white;
+        }
+        
+        .tile.matched {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px 30px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        
+        footer {
+            width: 100%;
+            max-width: 800px;
+            padding: 15px 20px;
+            background: var(--vibrant-card);
+            border-radius: 12px;
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+        
+        /* Animations */
+        @keyframes flip {
+            0% { transform: rotateY(0deg); }
+            50% { transform: rotateY(180deg); }
+            100% { transform: rotateY(180deg); }
+        }
+        
+        .tile.flipping {
+            animation: flip 0.6s ease-out forwards;
+        }
+        
+        .tile.flipping.reverse {
+            animation: flip 0.6s ease-in forwards;
+            transform: rotateY(0deg);
+        }
+        
+        .score-value {
+            transition: opacity 0.5s ease;
+        }
+        
+        .move-counter {
+            transition: opacity 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="score-board">
+            <div>Puntuación: <span id="score">100</span></div>
+            <div>Movimientos: <span id="moves">0</span></div>
+        </div>
+        <div id="timer">Tiempo restante: 100s</div>
+    </header>
+    <div class="game-container">
+        <div id="game-grid" class="grid-container"></div>
+        <div id="game-over" class="game-over" style="display:none;">¡Felicidades! Has ganado</div>
+    </div>
+    <footer>
+        <div><i class="fas fa-paw"></i> Juego de Memoria</div>
+        <div><i class="fas fa-copyright"></i> 2023</div>
+    </footer>
+    
+    <script>
+        const animals = ['🐶', '🐱', '🐭', '🐹', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐵', '🐸', '🐵', '🐸'];
+        const gridContainer = document.getElementById('game-grid');
+        const scoreDisplay = document.getElementById('score');
+        const movesDisplay = document.getElementById('moves');
+        const timerDisplay = document.getElementById('timer');
+        const gameOver = document.getElementById('game-over');
+        
+        let score = 100;
+        let moves = 0;
+        let time = 100;
+        let flippedTiles = [];
+        let matchedTiles = new Set();
+        
+        // Initialize game
+        function initGame() {
+            // Create game grid
+            animals.sort(() => 0.5 - Math.random());
+            animals.forEach(animal => {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                tile.textContent = animal;
+                tile.dataset.id = animals.indexOf(animal);
+                tile.addEventListener('click', () => flipTile(tile));
+                gridContainer.appendChild(tile);
+            });
+            
+            // Set initial state
+            scoreDisplay.textContent = score;
+            movesDisplay.textContent = moves;
+            timerDisplay.textContent = `Tiempo restante: ${time}s`;
+            
+            // Start countdown timer
+            startTimer();
+        }
+        
+        // Flip tile
+        function flipTile(tile) {
+            // If tile is already matched or flipped, do nothing
+            if (tile.classList.contains('matched') || tile.classList.contains('flipped')) return;
+            
+            // Add flipped class for animation
+            tile.classList.add('flipping');
+            
+            // Check if we have two flipped tiles
+            flippedTiles.push(tile);
+            
+            // If we have two flipped tiles, check for match
+            if (flippedTiles.length === 2) {
+                checkMatch();
+            }
+        }
+        
+        // Check for match
+        function checkMatch() {
+            const [tile1, tile2] = flippedTiles;
+            
+            // If not matched, flip them back
+            if (tile1.dataset.id !== tile2.dataset.id) {
+                setTimeout(() => {
+                    tile1.classList.remove('flipping');
+                    tile1.classList.add('flipping', 'reverse');
+                    tile2.classList.remove('flipping');
+                    tile2.classList.add('flipping', 'reverse');
+                    
+                    // After animation, remove flipped class
+                    setTimeout(() => {
+                        tile1.classList.remove('flipping', 'reverse');
+                        tile2.classList.remove('flipping', 'reverse');
+                    }, 600);
+                }, 600);
+                
+                // Increment moves and update score
+                moves++;
+                updateScore(-10);
+                movesDisplay.textContent = moves;
+            } else {
+                // If matched, add matched class
+                tile1.classList.add('matched');
+                tile2.classList.add('matched');
+                matchedTiles.add(tile1.dataset.id);
+                matchedTiles.add(tile2.dataset.id);
+                
+                // Increment moves and update score
+                moves++;
+                updateScore(20);
+                movesDisplay.textContent = moves;
+                
+                // Check if game is over
+                if (matchedTiles.size === animals.length) {
+                    gameOver.style.display = 'block';
+                    scoreDisplay.style.opacity = '0';
+                    movesDisplay.style.opacity = '0';
+                }
+            }
+            
+            // Remove flipped tiles from array
+            flippedTiles = [];
+        }
+        
+        // Update score
+        function updateScore(points) {
+            score += points;
+            scoreDisplay.textContent = score;
+            scoreDisplay.style.color = (points >= 0 ? 'green' : 'red');
+        }
+        
+        // Start timer
+        function startTimer() {
+            if (time > 0) {
+                time--;
+                timerDisplay.textContent = `Tiempo restante: ${time}s`;
+                setTimeout(startTimer, 1000);
+            }
+        }
+        
+        // Add smooth animations
+        function animateScore() {
+            const target = parseInt(scoreDisplay.textContent);
+            let current = parseInt(scoreDisplay.textContent);
+            
+            const interval = setInterval(() => {
+                if (current < target) {
+                    current++;
+                    scoreDisplay.textContent = current;
+                } else {
+                    clearInterval(interval);
+                }
+            }, 20);
+        }
+        
+        // Initialize game
+        window.onload = () => {
+            initGame();
+            
+            // Initial score animation
+            animateScore();
+            
+            // Auto-flip some tiles on load for visual effect
+            setTimeout(() => {
+                const tiles = document.querySelectorAll('.tile');
+                tiles.forEach(tile => {
+                    setTimeout(() => {
+                        tile.classList.add('flipping', 'reverse');
+                        setTimeout(() => {
+                            tile.classList.remove('flipping', 'reverse');
+                        }, 600);
+                    }, Math.random() * 5000);
+                });
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

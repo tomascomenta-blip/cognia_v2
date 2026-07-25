@@ -9086,3 +9086,17 @@ juego). Mejora futura: pulidor con fase de mockup.
 GATES: suite 5361 passed / 0 failed; camino feliz 4/5,5/5,5/5,4/5 (90%, sobre
 el baseline flaky ~50-85%); regresion de tools aislada por A/B n=4+4 y resuelta.
 9 commits esta noche, todos con unidad verificada.
+
+SEGUNDO CICLO DE MEJORA NOCTURNA (01:30-02:20) — pulidor v2
+El limite documentado del v1 (juez blando en modo texto) quedo CERRADO:
+- Fase de IMAGINACION en el pulidor: la flota se apaga sola, SDXL dibuja el
+  mockup (subproceso python-GPU, cross-venv) y el juez compara contra la
+  IMAGEN todos los ciclos. Notas honestas 7.0/7.5/6.0 (antes 8.5 regalado).
+- requiere_grafico desde el goal (paneles vacios = defecto estructural).
+- ctx 12288 en construir-ui (con 8192 UIGEN truncaba aunque max_tokens=12000).
+- CHECKPOINT del mejor ciclo: se entrega el MEJOR, no el ultimo (medido
+  7.0->7.5->6.0; antes se entregaba el 6.0).
+SUENO FINAL e2e (sistema completo): "juego de memoria 4x4 de animales" —
+mockup + construccion + juez vs mockup (7.5 honesto) + pensador con cambios
+concretos (CSS grid, paleta, colores inline) + disyuntor entregando el mejor
+ciclo. 4.3 min. Tests: 9/9 pulidor.

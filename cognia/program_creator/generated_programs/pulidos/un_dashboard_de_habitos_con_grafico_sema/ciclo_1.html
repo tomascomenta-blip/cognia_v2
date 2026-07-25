@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Hábitos</title>
+  <style>
+    :root {
+      --bg-light: #f5f5f5;
+      --bg-card: #ffffff;
+      --text-dark: #2d3748;
+      --text-muted: #718096;
+      --blue-primary: #2a78d6;
+      --blue-secondary: #1a5bb8;
+      --orange-accent: #ff6b6b;
+      --green-accent: #4caf50;
+      --gray-light: #e2e8f0;
+      --gray-medium: #cbd5e0;
+      --font-base: 'Inter', sans-serif;
+      --font-title: 'Montserrat', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg-light);
+      color: var(--text-dark);
+      font-family: var(--font-base);
+      min-height: 100vh;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header with progress ring */
+    header {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .progress-ring {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    .progress-ring svg {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .progress-ring .ring {
+      stroke-width: 20;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s ease-out;
+    }
+
+    .progress-ring .progress {
+      stroke-width: 16;
+      stroke-linecap: round;
+      fill: none;
+    }
+
+    .progress-ring .text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    /* Summary metrics */
+    .summary {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .metric-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .metric-card h3 {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .metric-card .value {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .metric-card .delta {
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .metric-card .delta.green {
+      color: var(--green-accent);
+    }
+
+    .metric-card .delta.red {
+      color: var(--orange-accent);
+    }
+
+    .metric-card .delta::before {
+      content: attr(data-icon);
+      font-size: 1.2rem;
+      margin-right: 4px;
+      display: inline-block;
+    }
+
+    /* Weekly chart */
+    .weekly-chart {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .weekly-chart svg {
+      width: 100%;
+      height: 250px;
+    }
+
+    .weekly-chart .grid {
+      stroke: var(--gray-light);
+      stroke-width: 1;
+    }
+
+    .weekly-chart .grid-light {
+      stroke-opacity: 0.5;
+    }
+
+    .weekly-chart .axis {
+      stroke: #e2e8f0;
+      stroke-width: 2;
+    }
+
+    .weekly-chart .tick-label {
+      fill: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .weekly-chart .bar {
+      fill: var(--blue-primary);
+      transition: height 0.3s ease;
+      cursor: pointer;
+    }
+
+    .weekly-chart .bar.completed {
+      fill: var(--green-accent);
+    }
+
+    .weekly-chart .tooltip {
+      background: white;
+      border-radius: 6px;
+      padding: 8px 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      position: absolute;
+      z-index: 10;
+      font-size: 0.9rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .weekly-chart .tooltip.show {
+      opacity: 1;
+    }
+
+    .tooltip .label {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    /* Detail table */
+    .detail-table {
+      background: var(--bg-card);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .detail-table thead {
+      background: var(--gray-medium);
+    }
+
+    .detail-table th {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px 16px;
+    }
+
+    .detail-table tbody {
+      background: var(--bg-light);
+    }
+
+    .detail-table td {
+      padding: 10px 16px;
+      text-align: center;
+    }
+
+    .detail-table td:nth-child(1) {
+      text-align: left;
+    }
+
+    .detail-table tr:nth-child(odd) td {
+      background: var(--gray-light);
+    }
+
+    .icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      margin: 0 8px;
+    }
+
+    .completed {
+      background: var(--green-accent);
+    }
+
+    .pending {
+      background: var(--orange-accent);
+    }
+
+    /* Animations */
+    @keyframes animateBars {
+      0% { height: 20px; }
+      100% { height: 80px; }
+    }
+
+    @keyframes animateRing {
+      0% { stroke-dashoffset: 424; }
+      100% { stroke-dashoffset: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="progress-ring">
+      <svg viewBox="0 0 100 100">
+        <circle class="ring" cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-dasharray="251.2 251.2" stroke-width="20"/>
+        <circle class="progress" cx="50" cy="50" r="40" fill="none" stroke="var(--green-accent)" stroke-dasharray="251.2 251.2" stroke-width="16"/>
+        <text class="text" id="daily-progress">75%</text>
+      </svg>
+    </div>
+    
+    <div class="summary">
+      <div class="metric-card">
+        <h3>Progreso Diario</h3>
+        <div class="value" id="daily-total">85%</div>
+        <div class="delta green" data-icon="▲">+3.2% vs ayer</div>
+      </div>
+      
+      <div class="metric-card">
+        <h3>Hábitos Completados</h3>
+        <div class="value" id="completed-habits">42/48</div>
+        <div class="delta" data-icon="▲">+5 de esta semana</div>
+      </div>
+      
+      <div class="metric-card">
+        <h3>Estilo de Vida</h3>
+        <div class="value" id="lifestyle-score">88/100</div>
+        <div class="delta" data-icon="▲">+2.1 en 30 días</div>
+      </div>
+      
+      <div class="metric-card">
+        <h3>Mejoras Semanales</h3>
+        <div class="value" id="weekly-improvements">12</div>
+        <div class="delta green" data-icon="▲">+2 en esta semana</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="weekly-chart">
+    <svg id="weekly-chart"></svg>
+    <div class="tooltip">
+      <div class="label" id="tooltip-label"></div>
+      <div id="tooltip-value"></div>
+    </div>
+  </div>
+
+  <div class="detail-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Progreso</th>
+          <th>Complejidad</th>
+          <th>Ult. Completado</th>
+          <th>Recompensa</th>
+        </tr>
+      </thead>
+      <tbody id="habits-table">
+        <!-- Datos simularán -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    // Datos simulados
+    const habitsData = [
+      { name: "Ejercicio Diario", progress: 78, complexity: "moderado", lastCompleted: "12/25", reward: "500 pts" },
+      { name: "Lectura diaria", progress: 92, complexity: "fácil", lastCompleted: "12/26", reward: "300 pts" },
+      { name: "Dieta balanceada", progress: 65, complexity: "difícil", lastCompleted: "12/24", reward: "800 pts" },
+      { name: "Meditación", progress: 82, complexity: "fácil", lastCompleted: "12/25", reward: "400 pts" },
+      { name: "Ahorro mensual", progress: 55, complexity: "moderado", lastCompleted: "12/23", reward: "600 pts" },
+      { name: "Aprender algo nuevo", progress: 70, complexity: "difícil", lastCompleted: "12/22", reward: "700 pts" }
+    ];
+
+    const dailyProgress = 75;
+    const dailyTotal = 85;
+    const completedHabits = 42;
+    const lifestyleScore = 88;
+    const weeklyImprovements = 12;
+
+    // Inicializar elementos con valores iniciales
+    document.getElementById('daily-progress').textContent = `${dailyProgress}%`;
+    document.getElementById('daily-total').textContent = `${dailyTotal}%`;
+    document.getElementById('completed-habits').textContent = `${completedHabits}/48`;
+    document.getElementById('lifestyle-score').textContent = `${lifestyleScore}/100`;
+    document.getElementById('weekly-improvements').textContent = `${weeklyImprovements}`;
+
+    // Inicializar tabla de hábitos
+    const tableBody = document.getElementById('habits-table');
+    habitsData.forEach(habit => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>
+          <div class="icon ${habit.progress >= 80 ? 'completed' : habit.progress >= 50 ? 'completed' : 'pending'}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-check-circle">${habit.progress >= 80 ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.97zM22 11.08" stroke-linecap="round"/>' : habit.progress >= 50 ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.97zM22 11.08" stroke-linecap="round"/>' : '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.97zM22 11.08" stroke-linecap="round"/>'}</svg>
+          </div>
+          ${habit.name}
+        </td>
+        <td>
+          <div class="progress-bar-container">
+            <div class="progress-bar" style="width: ${habit.progress}%"></div>
+            <span class="progress-text">${habit.progress}%</span>
+          </div>
+        </td>
+        <td>${habit.complexity}</td>
+        <td>${habit.lastCompleted}</td>
+        <td>${habit.reward}</td>
+      `;
+      tableBody.appendChild(row);
+    });
+
+    // Gráfico semanal
+    function drawWeeklyChart() {
+      const data = [62, 75, 88, 94, 72, 85, 90]; // Ejemplo de datos simulados
+      const svg = document.getElementById('weekly-chart');
+      const width = svg.clientWidth;
+      const height = svg.clientHeight;
+      const padding = { top: 40, right: 20, bottom: 30, left: 50 };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+      const x = d3.scaleBand()
+        .domain(d3.range(data.length))
+        .range([0, chartWidth])
+        .padding(0.1);
+      const y = d3.scaleLinear()
+        .domain([0, d3.max(data)])
+        .range([chartHeight, 0]);
+
+      const xAxis = d3.axisBottom(x).tickFormat(i => `Semana ${i+1}`);
+      const yAxis = d3.axisLeft(y).ticks(5);
+
+      svg.innerHTML = '';
+      svg.append('g')
+        .attr('transform', `translate(${padding.left},${padding.top})`)
+        .call(d3.axisLeft(y).tickFormat(d3.format(',.0f')));
+
+      svg.append('g')
+        .attr('transform', `translate(${padding.left},${padding.top + chartHeight})`)
+        .call(d3.axisBottom(x))
+        .selectAll("text")
+        .attr("transform", "rotate(-45)")
+        .style("text-anchor", "end");
+
+      svg.selectAll('.bar')
+        .data(data)
+        .enter()
+        .append('rect')
+        .attr('class', 'bar')
+        .attr('x', (d, i) => x(i))
+        .attr('y', d => y(d))
+        .attr('width', x.bandwidth())
+        .attr('height', d => chartHeight - y(d))
+        .attr('fill', d => d >= 80 ? '#4caf50' : d >= 60 ? '#ff9800' : '#ff5252');
+
+      svg.selectAll('.bar-text')
+        .data(data)
+        .enter()
+        .append('text')
+        .attr('class', 'bar-text')
+        .attr('x', d => x(d) + x.bandwidth()/2)
+        .attr('y', d => y(d) - 5)
+        .attr('text-anchor', 'middle')
+        .text(d => d + '%')
+        .attr('fill', 'white');
+    }
+
+    drawWeeklyChart();
+
+    // Animate chart
+    setInterval(() => {
+      const data = d3.range(7).map(() => 60 + Math.random() * 30);
+      drawWeeklyChart();
+    }, 5000);
+
+    // Animar anillo de progreso
+    const ring = document.querySelector('.progress-ring .progress');
+    const text = document.querySelector('.progress-ring .text');
+    const ringText = text.textContent;
+    const ringWidth = ring.getTotalLength();
+    const ringAnim = ring.animate([
+      { strokeDashoffset: ringWidth, strokeDasharray: ringWidth + ' ' + ringWidth },
+      { strokeDashoffset: 0, strokeDasharray: '0 ' + ringWidth }
+    ], {
+      duration: 2000,
+      easing: 'ease-in-out',
+      iterations: Infinity
+    });
+
+    // Animate progress text
+    text.textContent = '100%';
+    let progressValue = 75;
+    setInterval(() => {
+      progressValue = Math.min(100, progressValue + Math.random() * 2);
+      text.textContent = `${Math.round(progressValue)}%`;
+    }, 10000);
+  </script>
+</body>
+</html>
