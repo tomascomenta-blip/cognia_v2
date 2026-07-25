@@ -132,9 +132,21 @@ def main(argv: list) -> int:
         etiqueta = POOL.get(modo, modo)
         print(f"\n{'=' * 70}\nMODELO: {etiqueta}  (combo '{modo}')\n{'=' * 70}",
               flush=True)
-        coste = _flota(modo)
-        swaps.append({"modo": modo, "modelo": etiqueta, "segundos": coste})
-        print(f"  swap de modelo: {coste:.1f}s", flush=True)
+
+        # Si TODO lo de este modelo ya esta en disco, no se cambia de combo.
+        # Ademas de ahorrar el swap, evita matar un llama-server que otra
+        # medicion pueda estar usando: servir_flota mata antes de levantar.
+        completo = all(
+            (SALIDA / f"{t['id']}__{modo}"
+             f"{'' if n == 1 else f'__r{rep}'}" / "index.html").is_file()
+            for t in tareas for rep in range(1, n + 1))
+        if "--reanudar" in argv and completo:
+            print("  ya estaba completo en disco: no cambio de combo, "
+                  "solo re-juzgo", flush=True)
+        else:
+            coste = _flota(modo)
+            swaps.append({"modo": modo, "modelo": etiqueta, "segundos": coste})
+            print(f"  swap de modelo: {coste:.1f}s", flush=True)
 
         for t in tareas:
             pasadas = []
@@ -142,6 +154,24 @@ def main(argv: list) -> int:
                 sufijo = "" if n == 1 else f"__r{rep}"
                 d = SALIDA / f"{t['id']}__{modo}{sufijo}"
                 d.mkdir(parents=True, exist_ok=True)
+
+                # Reanudacion: una corrida de 72 generaciones se corta por
+                # cualquier motivo (paso el 2026-07-25 a mitad de un swap de
+                # flota) y repetir lo ya generado es tirar GPU. Se rejuzga el
+                # HTML guardado, que ademas es gratis y correcto: el veredicto
+                # depende del juez actual, no de cuando se genero.
+                if "--reanudar" in argv and (d / "index.html").is_file():
+                    v = juzgar(d, t["contrato"])
+                    pasadas.append({
+                        "aprobado": v.aprobado, "motivo": v.motivo[:120],
+                        "gen_s": 0.0, "reusado": True,
+                        "checks_ok": sum(1 for c in v.checks if c.ok),
+                        "checks": len(v.checks)})
+                    print(f"  {t['id']:<16} r{rep} "
+                          f"{'APROBADO' if v.aprobado else 'FALLIDO '} "
+                          f"(reusado de disco)", flush=True)
+                    continue
+
                 t0 = time.time()
                 try:
                     html = generar_html(t["idea"])
