@@ -46,6 +46,9 @@ sys.path.insert(0, str(RAIZ))
 
 TAREAS = RAIZ / "scripts" / "b1_tareas.json"
 SALIDA = RAIZ / "cognia" / "program_creator" / "generated_programs" / "b1_oraculo"
+# Cada banco escribe en su propio directorio: mezclarlos haria que --reanudar
+# reusara HTML de otro set con el mismo id de tarea.
+SALIDA_POR_BANCO = {"b1_tareas_duras.json": "b1_duras"}
 
 # Pool: combo de servir_flota.py -> etiqueta legible del modelo que sirve.
 POOL = {
@@ -119,9 +122,21 @@ def juzgar(dir_prod: Path, contrato: dict):
 
 
 def main(argv: list) -> int:
-    datos = json.loads(TAREAS.read_text(encoding="utf-8"))
+    # --tareas-json permite cambiar de banco. Hizo falta porque el set de 6
+    # quedo SATURADO (gpt-oss-20b: 6/6) y un banco sin cabecera no puede medir
+    # progreso hacia un modelo mas grande: no hay hueco donde verlo.
+    fichero = TAREAS
+    if "--tareas-json" in argv:
+        fichero = Path(argv[argv.index("--tareas-json") + 1])
+        if not fichero.is_absolute():
+            fichero = RAIZ / fichero
+    datos = json.loads(fichero.read_text(encoding="utf-8"))
     tareas = datos["tareas"]
     modelos = list(POOL)
+    print(f"banco: {fichero.name} ({len(tareas)} tareas)", flush=True)
+    global SALIDA
+    if fichero.name in SALIDA_POR_BANCO:
+        SALIDA = SALIDA.parent / SALIDA_POR_BANCO[fichero.name]
 
     if "--tareas" in argv:
         pedidas = argv[argv.index("--tareas") + 1].split(",")

@@ -1,0 +1,180 @@
+{
+  "_por_que": "El set de 6 tareas (b1_tareas.json) esta SATURADO: gpt-oss-20b hace 6/6. Un banco que el mejor modelo actual ya aprueba no puede medir progreso hacia un modelo grande — no tiene cabecera. Estas 8 tareas estan disenadas para que un 20B falle y un frontier acierte.",
+
+  "_que_las_hace_dificiles": "NO la longitud: la COMPOSICION. Cada tarea tiene 3-5 requisitos que INTERACTUAN, de modo que acertar uno no implica acertar el siguiente y una solucion parcial falla el contrato. Es lo que separa escalas de modelo: mantener varias restricciones a la vez en un solo pase. Ademas hay logica ALGORITMICA real (precedencia de operadores, deteccion de ganador, colision consigo mismo, tramos de descuento), no solo cableado de DOM.",
+
+  "_regla_selectores": "El enunciado DICE los selectores. Sin eso el contrato pre-escrito no tiene a que apuntar y se mediria adivinacion de nombres, no capacidad.",
+
+  "tareas": [
+    {
+      "id": "undo_redo",
+      "idea": "Una lista con UNDO y REDO en un solo archivo HTML. OBLIGATORIO: <input id=\"txt\">, <button id=\"add\">, <button id=\"undo\">, <button id=\"redo\">, y una lista donde cada elemento es <li class=\"it\">. Al pulsar add se anade el texto del input. undo deshace la ultima accion; redo la rehace. REGLA CLAVE: si despues de un undo se hace una accion NUEVA, el redo deja de estar disponible (se pierde la rama rehacible). La lista empieza vacia.",
+      "contrato": {
+        "nombre": "undo/redo con rama invalidada",
+        "pasos": [
+          {"accion": "contar", "selector": ".it", "esperado": 0, "nombre": "empieza vacia", "critico": true},
+          {"accion": "escribir", "selector": "#txt", "texto": "uno"},
+          {"accion": "click", "selector": "#add"},
+          {"accion": "escribir", "selector": "#txt", "texto": "dos"},
+          {"accion": "click", "selector": "#add"},
+          {"accion": "contar", "selector": ".it", "esperado": 2, "nombre": "hay 2 tras dos add", "critico": true},
+          {"accion": "click", "selector": "#undo"},
+          {"accion": "contar", "selector": ".it", "esperado": 1, "nombre": "undo deja 1", "critico": true},
+          {"accion": "click", "selector": "#redo"},
+          {"accion": "contar", "selector": ".it", "esperado": 2, "nombre": "redo vuelve a 2", "critico": true},
+          {"accion": "click", "selector": "#undo"},
+          {"accion": "escribir", "selector": "#txt", "texto": "tres"},
+          {"accion": "click", "selector": "#add"},
+          {"accion": "click", "selector": "#redo"},
+          {"accion": "contar", "selector": ".it", "esperado": 2, "nombre": "tras accion nueva el redo NO revive la rama vieja", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "descuento_tramos",
+      "idea": "Una calculadora de descuento por tramos en un solo archivo HTML. OBLIGATORIO: <input id=\"cant\" type=\"number\"> para la cantidad y <span id=\"total\"> con el total. Precio unitario 10. Descuento POR TRAMOS (marginal, como un impuesto progresivo): las primeras 10 unidades sin descuento, de la 11 a la 50 un 10% de descuento, y de la 51 en adelante un 20%. El total se recalcula al cambiar la cantidad y se muestra con dos decimales. Ejemplo: 60 unidades = 10*10 + 40*9 + 10*8 = 540.00",
+      "contrato": {
+        "nombre": "descuento marginal por tramos",
+        "pasos": [
+          {"accion": "escribir", "selector": "#cant", "texto": "5"},
+          {"accion": "texto", "selector": "#total", "contiene": "50", "nombre": "5 unidades = 50", "critico": true},
+          {"accion": "escribir", "selector": "#cant", "texto": "10"},
+          {"accion": "texto", "selector": "#total", "contiene": "100", "nombre": "10 unidades = 100 (borde del tramo)", "critico": true},
+          {"accion": "escribir", "selector": "#cant", "texto": "20"},
+          {"accion": "texto", "selector": "#total", "contiene": "190", "nombre": "20 unidades = 190 (10*10 + 10*9)", "critico": true},
+          {"accion": "escribir", "selector": "#cant", "texto": "60"},
+          {"accion": "texto", "selector": "#total", "contiene": "540", "nombre": "60 unidades = 540 (los tres tramos)", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "form_cruzado",
+      "idea": "Un formulario con validacion CRUZADA en un solo archivo HTML. OBLIGATORIO: <input id=\"pass\" type=\"password\">, <input id=\"pass2\" type=\"password\">, <input id=\"edad\" type=\"number\">, y <button id=\"enviar\">. El boton esta DESHABILITADO (atributo disabled) salvo que se cumpla TODO a la vez: la contrasena tiene 8 caracteres o mas, las dos contrasenas coinciden, y la edad esta entre 18 y 120. El estado del boton se actualiza en cada pulsacion de tecla.",
+      "contrato": {
+        "nombre": "submit solo con las tres reglas a la vez",
+        "pasos": [
+          {"accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": true, "nombre": "arranca deshabilitado", "critico": true},
+          {"accion": "escribir", "selector": "#pass", "texto": "abcd1234"},
+          {"accion": "escribir", "selector": "#pass2", "texto": "abcd1234"},
+          {"accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": true, "nombre": "sigue deshabilitado sin edad", "critico": true},
+          {"accion": "escribir", "selector": "#edad", "texto": "30"},
+          {"accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": false, "nombre": "se habilita con las tres", "critico": true},
+          {"accion": "escribir", "selector": "#pass2", "texto": "abcd12345"},
+          {"accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": true, "nombre": "se vuelve a deshabilitar si dejan de coincidir", "critico": true},
+          {"accion": "escribir", "selector": "#pass2", "texto": "abcd1234"},
+          {"accion": "escribir", "selector": "#edad", "texto": "9"},
+          {"accion": "js", "expr": "document.querySelector('#enviar').disabled", "esperado": true, "nombre": "se deshabilita con edad fuera de rango", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "tabla_compuesta",
+      "idea": "Una tabla con FILTRO, ORDEN y PAGINACION combinados, en un solo archivo HTML. OBLIGATORIO: exactamente 23 filas de datos en JS con campos nombre y edad; se muestran como <tr class=\"fila\"> dentro de un tbody. Paginacion de 10 por pagina con <button id=\"sig\"> y <button id=\"prev\">, y <span id=\"pagina\"> con el numero de pagina actual empezando en 1. <input id=\"q\"> filtra por nombre. <button id=\"ordenar\"> alterna el orden por edad ascendente/descendente. LOS TRES SE COMBINAN: al filtrar, la paginacion se recalcula sobre el resultado filtrado y se vuelve a la pagina 1.",
+      "contrato": {
+        "nombre": "filtro + orden + paginacion combinados",
+        "pasos": [
+          {"accion": "contar_visible", "selector": ".fila", "esperado": 10, "nombre": "pagina 1 muestra 10 de 23", "critico": true},
+          {"accion": "texto", "selector": "#pagina", "contiene": "1", "nombre": "arranca en pagina 1", "critico": true},
+          {"accion": "click", "selector": "#sig"},
+          {"accion": "click", "selector": "#sig"},
+          {"accion": "contar_visible", "selector": ".fila", "esperado": 3, "nombre": "la pagina 3 muestra las 3 ultimas", "critico": true},
+          {"accion": "click", "selector": "#prev"},
+          {"accion": "contar_visible", "selector": ".fila", "esperado": 10, "nombre": "prev vuelve a 10", "critico": true},
+          {"accion": "js", "expr": "(function(){var a=document.querySelectorAll('.fila');return a.length>0})()", "esperado": true, "nombre": "hay filas"},
+          {"accion": "click", "selector": "#ordenar"},
+          {"accion": "contar_visible", "selector": ".fila", "esperado": 10, "nombre": "ordenar no rompe la paginacion", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "precedencia",
+      "idea": "Una calculadora que respeta la PRECEDENCIA de operadores, en un solo archivo HTML. OBLIGATORIO: <div id=\"pantalla\"> y botones con class=\"k\" y atributo data-k con su valor: data-k=\"2\", data-k=\"3\", data-k=\"4\", data-k=\"7\", data-k=\"+\", data-k=\"-\", data-k=\"*\", data-k=\"=\", data-k=\"C\". La multiplicacion se evalua ANTES que la suma: 2+3*4 debe dar 14, NO 20. C limpia la pantalla.",
+      "contrato": {
+        "nombre": "precedencia de operadores",
+        "pasos": [
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k='+']"},
+          {"accion": "click", "selector": "[data-k='3']"},
+          {"accion": "click", "selector": "[data-k='*']"},
+          {"accion": "click", "selector": "[data-k='4']"},
+          {"accion": "click", "selector": "[data-k='=']"},
+          {"accion": "texto", "selector": "#pantalla", "contiene": "14", "nombre": "2+3*4 = 14, no 20", "critico": true},
+          {"accion": "click", "selector": "[data-k='C']"},
+          {"accion": "click", "selector": "[data-k='7']"},
+          {"accion": "click", "selector": "[data-k='-']"},
+          {"accion": "click", "selector": "[data-k='2']"},
+          {"accion": "click", "selector": "[data-k='*']"},
+          {"accion": "click", "selector": "[data-k='3']"},
+          {"accion": "click", "selector": "[data-k='=']"},
+          {"accion": "texto", "selector": "#pantalla", "contiene": "1", "nombre": "7-2*3 = 1", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "tres_en_raya",
+      "idea": "Un tres en raya en un solo archivo HTML. OBLIGATORIO: 9 casillas <div class=\"c\"> con data-i de 0 a 8, y <div id=\"estado\"> con el estado. Empieza X. Al clicar una casilla vacia se pone la marca y pasa el turno. Al completar tres en linea, #estado contiene la palabra \"gana\" y NO se pueden poner mas marcas (las casillas quedan bloqueadas). Si se llenan las 9 sin linea, #estado contiene \"empate\".",
+      "contrato": {
+        "nombre": "tres en raya con bloqueo tras victoria",
+        "pasos": [
+          {"accion": "contar", "selector": ".c", "esperado": 9, "nombre": "hay 9 casillas", "critico": true},
+          {"accion": "contar_visible", "selector": ".c", "esperado": 0, "nombre": "empieza sin marcas", "critico": true},
+          {"accion": "click", "selector": "[data-i='0']"},
+          {"accion": "click", "selector": "[data-i='3']"},
+          {"accion": "click", "selector": "[data-i='1']"},
+          {"accion": "click", "selector": "[data-i='4']"},
+          {"accion": "click", "selector": "[data-i='2']"},
+          {"accion": "texto", "selector": "#estado", "contiene": "gana", "nombre": "X gana con la fila 0-1-2", "critico": true},
+          {"accion": "click", "selector": "[data-i='5']"},
+          {"accion": "contar_visible", "selector": ".c", "esperado": 5, "nombre": "tras ganar NO se pueden poner mas marcas", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "temporizador",
+      "idea": "Un cronometro en un solo archivo HTML. OBLIGATORIO: <span id=\"t\"> con los segundos transcurridos como numero entero (empieza en 0), <button id=\"start\">, <button id=\"pause\"> y <button id=\"reset\">. start arranca el conteo, pause lo detiene MANTENIENDO el valor, start vuelve a reanudar DESDE ese valor (no desde cero), y reset lo pone a 0 y lo detiene. Pulsar start dos veces seguidas NO debe acelerar el conteo (no se crean dos intervalos).",
+      "contrato": {
+        "nombre": "cronometro con pausa, reanudacion y doble-start",
+        "pasos": [
+          {"accion": "texto", "selector": "#t", "contiene": "0", "nombre": "empieza en 0", "critico": true},
+          {"accion": "click", "selector": "#start"},
+          {"accion": "click", "selector": "#start", "nombre": "doble start (no debe duplicar el intervalo)"},
+          {"accion": "esperar", "ms": 2600},
+          {"accion": "js", "expr": "parseInt(document.querySelector('#t').textContent)<=4", "esperado": true, "nombre": "el doble start NO acelera el conteo", "critico": true},
+          {"accion": "js", "expr": "parseInt(document.querySelector('#t').textContent)>=1", "esperado": true, "nombre": "el conteo avanzo", "critico": true},
+          {"accion": "click", "selector": "#pause"},
+          {"accion": "js", "expr": "window.__v=parseInt(document.querySelector('#t').textContent), true", "esperado": true, "nombre": "guardo el valor en pausa"},
+          {"accion": "esperar", "ms": 1600},
+          {"accion": "js", "expr": "parseInt(document.querySelector('#t').textContent)===window.__v", "esperado": true, "nombre": "en pausa NO avanza", "critico": true},
+          {"accion": "click", "selector": "#reset"},
+          {"accion": "texto", "selector": "#t", "contiene": "0", "nombre": "reset vuelve a 0", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "serpiente",
+      "idea": "Un juego de la serpiente en un solo archivo HTML, en una grilla de 10x10 hecha con divs. OBLIGATORIO: cada celda es <div class=\"cel\"> con data-x y data-y; la serpiente ocupa celdas con class=\"cel snake\" y la comida es class=\"cel food\". La serpiente empieza con longitud 1 y se mueve con las flechas del teclado. Al comer la comida CRECE en 1. NO puede invertir el sentido 180 grados en un solo paso (si va a la derecha, la flecha izquierda se ignora). Expone el estado en window.juego = {largo, x, y, dir}.",
+      "contrato": {
+        "nombre": "serpiente: crecimiento y no-inversion",
+        "pasos": [
+          {"accion": "contar", "selector": ".cel", "esperado": 100, "nombre": "grilla de 10x10", "critico": true},
+          {"accion": "js", "expr": "typeof window.juego === 'object' && window.juego !== null", "esperado": true, "nombre": "expone window.juego", "critico": true},
+          {"accion": "contar", "selector": ".snake", "min": 1, "nombre": "la serpiente esta en la grilla", "critico": true},
+          {"accion": "contar", "selector": ".food", "esperado": 1, "nombre": "hay exactamente una comida", "critico": true},
+          {"accion": "tecla", "key": "ArrowRight"},
+          {"accion": "esperar", "ms": 600},
+          {"accion": "js", "expr": "window.juego.dir === 'right' || window.juego.dir === 'ArrowRight' || window.juego.dir === 'derecha'", "esperado": true, "nombre": "la direccion cambio a derecha", "critico": true},
+          {"accion": "tecla", "key": "ArrowLeft"},
+          {"accion": "esperar", "ms": 600},
+          {"accion": "js", "expr": "!(window.juego.dir === 'left' || window.juego.dir === 'ArrowLeft' || window.juego.dir === 'izquierda')", "esperado": true, "nombre": "NO invierte 180 grados en un paso", "critico": true}
+        ]
+      }
+    }
+  ]
+}
