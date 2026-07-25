@@ -92,21 +92,27 @@ reproducido y corregido así durante el A/B).
 | Modelo | Aciertos | Tiempo total |
 |---|---|---|
 | **gpt-oss-20b (MXFP4)** | **5/5** | **13s** |
+| OpenReasoning-Nemotron-14B Q4 | 4/5 | 400s |
 | Qwen3-4B-Thinking-2507 | 4/5 | 95s |
 | qwen2.5-coder-14b | 3/5 | 19s |
 
 gpt-oss-20b es a la vez el MAS listo y el MAS rapido: PENSADOR por defecto
 (modo `pensar` de servir_flota). El coder-14b falla justo lo que un no-pensador
 falla (inclusion-exclusion, proporciones). El 4B queda como razonador barato
-residente y el 1.7B como razonador-CPU. Pendiente: OpenReasoning-Nemotron-14B
-(descargando) para el rol PENSADOR-EN-LAZO (gpt-oss no convive con VL-3B:
-13.7+3.2 > 16GB).
+residente y el 1.7B como razonador-CPU.
+
+Nemotron-14B: 4/5 pero a 80-100s por problema (piensa larguisimo; su fallo en
+P3 huele a truncado a 4096 tokens). Gate "superar al 14b" PASA (4/5 > 3/5) ->
+queda DISPONIBLE como pensador-en-lazo (su combo arranca verificado), pero el
+lazo diseno-a-codigo por defecto sigue con coder-14b + UIGEN: construir paginas
+no es razonamiento puro y la latencia de Nemotron (400s los 5) no se paga sola.
+Se reevaluara si aparece una tarea del lazo que falle por razonamiento.
 
 ## Estado de ejecución
 - [x] Investigación del estado del arte (jul-2026) con fuentes
-- [ ] Descarga gpt-oss-20b MXFP4 + OpenReasoning-Nemotron-14B Q4 (en curso)
+- [x] Descarga gpt-oss-20b MXFP4 + OpenReasoning-Nemotron-14B Q4
 - [x] COGNIA_CONSTRUCTOR_URL en generator (+ 4 tests)
 - [x] A/B constructor UIGEN vs 14B (juez VL-7B) — ADOPTADO
-- [ ] Smoke A/B razonadores (pendiente de descarga)
+- [x] Smoke A/B razonadores — gpt-oss ADOPTADO; Nemotron disponible
 - [x] servir_flota.py (5 modos, 3 verificados arrancando: construir,
       construir-ui, juzgar) + retiros verificados contra el código

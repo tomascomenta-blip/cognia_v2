@@ -9029,3 +9029,10 @@ Qwen3-4B-Thinking 4/5 (95s). Pendiente gpt-oss-20b y Nemotron-14B (descargando).
 
 scripts/servir_flota.py: combos por modo (construir/construir-ui/pensar/
 pensar-en-lazo/juzgar) con la regla de VRAM. Commit de la unidad verificada.
+
+CIERRE REFORMULACION FLOTA — 2026-07-24 (noche)
+Nemotron-14B bajado y medido: 4/5 en 400s (gate "superar al 14b" pasa, pero
+80-100s/problema). Queda DISPONIBLE como pensador-en-lazo; el lazo por defecto
+sigue coder-14b + UIGEN. Tabla final del smoke (5 problemas exactos):
+gpt-oss-20b 5/5 13s | Nemotron-14B 4/5 400s | Qwen3-4B-Think 4/5 95s |
+coder-14b 3/5 19s. Flota final y roles en planes/FLOTA_ROLES_2026-07.md.
