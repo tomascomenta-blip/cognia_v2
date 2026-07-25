@@ -461,6 +461,32 @@ class Cognia:
             informe += f" (errores: {errores})"
         return informe
 
+    @staticmethod
+    def _archivos_de_programas(programas) -> str:
+        """Rutas entregables de los programas recien creados: el producto
+        (index.html / program.py) y las capturas del render real.
+
+        Se nombran para que se PUEDAN ver: el chat del control remoto inserta
+        cualquier imagen cuya ruta aparezca en el texto, y un 'Guardados: 2' a
+        secas deja al usuario sin nada que mirar."""
+        from pathlib import Path
+        from cognia.program_creator.storage import DEFAULT_STORAGE_DIR
+        raiz = Path(DEFAULT_STORAGE_DIR)
+        lineas = []
+        for p in programas:
+            carpeta = raiz / getattr(p, "directory", "")
+            if not carpeta.is_dir():
+                continue
+            producto = next((carpeta / n for n in ("index.html", "program.py")
+                             if (carpeta / n).is_file()), None)
+            if producto:
+                lineas.append(f"  {producto}")
+            capturas = sorted(carpeta.glob("*_images/*.png"),
+                              key=lambda q: q.stat().st_mtime, reverse=True)
+            for cap in capturas[:2]:        # las 2 mas recientes bastan
+                lineas.append(f"  {cap}")
+        return ("Archivos:\n" + "\n".join(lineas)) if lineas else ""
+
     def create_program(self, idea: str) -> str:
         """Crea un programa Python ahora con la idea dada. No espera al sleep."""
         if not HAS_PROGRAM_CREATOR:
@@ -478,11 +504,22 @@ class Cognia:
             )
             if result.stored > 0:
                 names = ", ".join(p.title for p in result.programs)
-                return (
+                salida = (
                     f"Creacion completada en {result.duration_sec}s.\n"
                     f"Guardados: {result.stored} — {names}\n"
                     f"Usa /biblioteca para verlos."
                 )
+                # Adjuntar lo VISIBLE: el HTML y las capturas del render real.
+                # Cazado 2026-07-25 (sesion ...112753): el dueno pidio "creas un
+                # juego pixelart ... y me mandas una foto del gameplay real" y
+                # solo recibio "Creacion completada", teniendo las capturas de
+                # validacion ya guardadas en input_images/. Con la ruta en el
+                # texto, el control remoto las muestra en el chat.
+                try:
+                    salida += "\n" + _archivos_de_programas(result.programs)
+                except Exception:
+                    pass    # adjuntar nunca puede romper la creacion
+                return salida.rstrip()
             return (
                 f"Creacion completada en {result.duration_sec}s.\n"
                 f"Intentos: {result.attempted}. Ninguno supero el umbral de calidad.\n"

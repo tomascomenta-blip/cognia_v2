@@ -453,6 +453,40 @@ def _contar_lineas(args, ctx):
 # SEARCH TOOLS
 # ══════════════════════════════════════════════════════════════════════
 
+# Marcas de que un "patron" es en realidad una pregunta sobre el mundo y no
+# algo que pueda estar en los archivos del proyecto.
+_RE_CODIGO = re.compile(
+    r"[{}()\[\];=<>]|\bdef\b|\bclass\b|\bimport\b|\bfunction\b|\.py\b|\.js\b"
+    r"|\.json\b|\.md\b|--|__|::")
+
+
+# Senal POSITIVA de que se pregunta por el mundo, no por el proyecto.
+_RE_PREGUNTA_MUNDO = re.compile(
+    r"\b(qu[eé]\s+(es|son|significa|fue)|qui[eé]n(es)?\s+(es|fue|son|lo|la)"
+    r"|cu[aá]ndo\s|d[oó]nde\s|por\s+qu[eé]\s|para\s+qu[eé]\s"
+    r"|cu[aá]l\s+es|cu[aá]nto[as]?\s|c[oó]mo\s+(funciona|se\s+llama)"
+    r"|en\s+(internet|la\s+web|wikipedia|google)"
+    r"|qui[eé]n\s+(invent|desarroll|cre|escrib|fund))", re.IGNORECASE)
+
+
+def _parece_pregunta_del_mundo(patron: str) -> bool:
+    """True si el patron es una PREGUNTA sobre algo externo al proyecto.
+
+    Exige una senal POSITIVA de pregunta (que es / quien / donde / "en
+    internet"...), no solo que no parezca codigo: con el criterio laxo,
+    "archivo config settings" — un grep legitimo — se iba a Wikipedia
+    (lo casco tests/test_buscar_fallback.py, y con razon).
+    Ante la duda, NO: mejor "sin coincidencias" que una busqueda inventada."""
+    p = (patron or "").strip()
+    if len(p) < 6 or _RE_CODIGO.search(p):
+        return False
+    if not (2 <= len(p.split()) <= 14):
+        return False
+    if any(Path(t).exists() for t in p.split()):    # rutas del proyecto: no
+        return False
+    return bool(_RE_PREGUNTA_MUNDO.search(p))
+
+
 @tool("buscar", "buscar <patron> | <directorio>        -- busca texto en archivos")
 def _buscar(args, ctx):
     parts = re.split(r"\s*\|\s*", args, maxsplit=1)
@@ -542,11 +576,42 @@ def _buscar(args, ctx):
             pass
     if results:
         return f"RESULTADO buscar '{patron}'{nota}: " + " | ".join(results)
+    # Nada en los archivos. Si lo que se pregunta es del MUNDO (no un patron de
+    # codigo), preguntarselo a la WEB en vez de contestar "no hay nada".
+    # Cazado 2026-07-25 (sesion 20260725-112753): el dueno pidio "busca que es
+    # undertale y quien lo desarrollo" y Cognia grepeo README.md -> "sin
+    # coincidencias". cognia/busqueda_web.py (wikipedia+hackernews+arxiv) ya
+    # existia y el agente no la alcanzaba: capacidad construida y desconectada,
+    # el modo de fallo de la casa.
+    # Va DENTRO de `buscar` a proposito, y no como tool nueva: el A/B del
+    # 2026-07-25 midio que sumar tools al catalogo degrada al modelo chico
+    # (camino feliz 4.25/5 -> 2.5/5). Cero coste en el prompt.
+    if _parece_pregunta_del_mundo(patron):
+        try:
+            from cognia.busqueda_web import buscar as _buscar_web
+            # sin arxiv: para una pregunta general mete ruido (medido: "que es
+            # undertale" traia un paper de charmonium entre los resultados).
+            # Mismo recorte que usa research_engine.
+            hallazgos = _buscar_web(patron, max_resultados=4,
+                                    fuentes=("wikipedia", "hackernews"))
+        except Exception:
+            hallazgos = []      # sin red o modulo caido: sigue el mensaje normal
+        if hallazgos:
+            lineas = []
+            for h in hallazgos:
+                frag = re.sub(r"\s+", " ", (h.get("fragmento") or "")).strip()
+                lineas.append(f"[{h.get('fuente','web')}] {h.get('titulo','')}"
+                              + (f" — {frag[:180]}" if frag else "")
+                              + (f" ({h.get('url')})" if h.get("url") else ""))
+            return (f"RESULTADO buscar '{patron}': nada en los archivos; "
+                    f"esto es lo que dice la WEB:\n" + "\n".join(lineas))
     # Decir DONDE se busco: "sin resultados" a secas hacia que el agente
     # concluyera cosas falsas sobre el codigo sin poder sospechar del ambito.
     return (f"RESULTADO buscar '{patron}'{nota}: sin coincidencias en "
             f"'{directorio}'. Para acotar a un fichero o carpeta: "
-            f"buscar <patron> | <ruta>")
+            f"buscar <patron> | <ruta>. Si lo que buscas NO esta en el "
+            f"proyecto sino en el mundo, preguntalo entero "
+            f"(ej: buscar que es <tema>) y se consulta la web.")
 
 
 # ══════════════════════════════════════════════════════════════════════

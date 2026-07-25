@@ -9226,3 +9226,56 @@ cuenta como accion fallida (empuja hacia el apagado por "sin progreso").
 Tests: 20 de regresion nuevos (intent 5, screen_tools 5, episodic incremental 5,
 remoto respuesta visible 5, y el del flush verificado FALLANDO sin el fix).
 Suite: 5385 passed, 1 skipped.
+
+---
+
+## 2026-07-25 (tarde) — Sesion 20260725-112753: entregas vacias y grep al mundo
+
+El dueno: "sigue dando errores". Lo bueno primero, medido en SU sesion: el
+VectorCache incremental YA corre en produccion ("+109 vectores en 31.7ms",
+"+46 en 24.4ms", "+14 en 22.1ms" — antes ~6000ms por mensaje), y la respuesta
+del agente llego al CHAT ("Se ha abierto Chrome con YouTube...") en vez de
+plegada en Actividad. Los fixes de la manana funcionan.
+
+Lo que fallaba era otra cosa: Cognia HACE el trabajo y no lo ENTREGA.
+
+1. "Podrias abrir Chrome en Youtube y enviarme una foto" -> tomo la captura de
+   verdad (captura_112804.png estaba en disco, 676 KB, y /api/imagen la sirve)
+   pero contesto "se ha tomado una foto" SIN LA RUTA. Y al insistir ("Me envias
+   la foto") respondio "Aqui tienes la foto" con las manos vacias. El chat solo
+   puede insertar una imagen si su ruta esta en el texto.
+   FIX: _adjuntar_archivos() en el cierre de _run_agent_task saca las rutas de
+   los RESULTADOS reales del turno (solo OK, solo si el archivo EXISTE, sin
+   repetir lo que la respuesta ya menciona). No se le pide al modelo que se
+   acuerde.
+2. "Me envias la foto" iba al CHAT (reason=chat) -> el modelo contestaba de
+   memoria. Nueva regla de intent: enviar/mandar/pasar/mostrar + foto|captura|
+   pantallazo|imagen -> accion con hint pantalla_captura. "gracias por la foto"
+   y "que es una foto sintetica" siguen siendo chat.
+3. "Quiero que busques que es undertale y quien lo desarrollo" -> grep en
+   README.md -> "sin coincidencias". El agente NO tenia busqueda web, y
+   cognia/busqueda_web.py (wikipedia+hackernews+arxiv) existia hace meses:
+   capacidad construida y desconectada otra vez.
+   FIX dentro de `buscar`, NO como tool nueva: el A/B del 2026-07-25 midio que
+   sumar tools degrada al modelo chico (4.25/5 -> 2.5/5; por eso las de imagen
+   son opt-in). Si no hay coincidencias locales Y el patron es una PREGUNTA del
+   mundo, se consulta la web. Verificado real: ahora devuelve "Undertale ...
+   creado por el desarrollador independiente estadounidense Toby Fox".
+   Sin arxiv (metia un paper de charmonium en "que es undertale").
+   El primer criterio era laxo y rompio tests/test_buscar_fallback.py:
+   "archivo config settings" — un grep legitimo — se iba a Wikipedia. Ahora
+   exige senal POSITIVA de pregunta (que es / quien / donde / "en internet").
+   El test viejo tenia razon y se conservo tal cual.
+4. "creas un juego pixelart ... y me mandas una foto del gameplay real" -> solo
+   "Creacion completada. Guardados: 2". Las capturas del render existian en
+   generated_programs/<prog>/input_images/. create_program ahora adjunta el
+   producto (index.html) y sus capturas.
+   HALLAZGO al mirarlas: el "Juego Undertale Pixelart" (5.1/10) es UN GRAFICO
+   DE LINEAS con un titulo encima. No es un juego. Se guardo igual. El adjunto
+   no lo arregla, pero lo vuelve VISIBLE: el dueno ve la captura en vez de leer
+   "Creacion completada" y confiar. La calidad del creador de juegos queda
+   como frente abierto (la memoria del proyecto apunta a UIGEN para web/juegos).
+
+Tests: 10 nuevos (intent 2, screen/adjuntar 3, fallback web 5). Suite: 5396
+passed, 1 skipped. Sigue abierto lo de ayer: reproducir el cuelgue del turno
+con el backend de inferencia servido.

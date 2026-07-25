@@ -220,3 +220,34 @@ def test_activar_ventana_sin_titulo_no_toca_la_maquina(monkeypatch):
     monkeypatch.setenv("COGNIA_SCREEN_AUTO", "1")
     r = st.activar_ventana({}, "   ")
     assert "ERROR" in r and "titulo" in r
+
+
+# ── Regresion 2026-07-25 (sesion 20260725-112753) ─────────────────────────
+# Cognia TOMO la captura (el PNG estaba en disco) y contesto "Aqui tienes la
+# foto" sin decir DONDE. Sin ruta en el texto, el control remoto no tiene nada
+# que insertar: el dueno pidio la foto y no recibio nada.
+
+def test_la_respuesta_adjunta_los_archivos_producidos(tmp_path):
+    from cognia.cli import _adjuntar_archivos
+    png = tmp_path / "captura_112804.png"
+    png.write_bytes(b"\x89PNG fake")
+    history = [f"RESULTADO pantalla captura: {png} (1920x1080)"]
+    salida = _adjuntar_archivos("Aquí tienes la foto de la pantalla.", history)
+    assert str(png) in salida
+    assert salida.startswith("Aquí tienes la foto")
+
+
+def test_no_adjunta_archivos_de_un_error_ni_inexistentes(tmp_path):
+    from cognia.cli import _adjuntar_archivos
+    fantasma = tmp_path / "no_existe.png"
+    history = [f"RESULTADO pantalla captura ERROR: fallo {fantasma}",
+               r"RESULTADO ejecutar (exit 0): listo"]
+    assert _adjuntar_archivos("Listo.", history) == "Listo."
+
+
+def test_no_repite_la_ruta_si_la_respuesta_ya_la_dice(tmp_path):
+    from cognia.cli import _adjuntar_archivos
+    png = tmp_path / "x.png"
+    png.write_bytes(b"\x89PNG fake")
+    texto = f"La dejé en {png}"
+    assert _adjuntar_archivos(texto, [f"RESULTADO pantalla captura: {png}"]) == texto

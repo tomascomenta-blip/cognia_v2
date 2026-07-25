@@ -53,6 +53,13 @@ _RULES = [
     (r"\babr(?:e|a|as|i|í|ir|irme|ime|eme)\b.*\b(pesta[ñn]a|navegador|chrome|firefox|edge|brave|youtube|google)\b", "abrir"),
     (r"\b(?:abr(?:e|a|as|i|í|ir|irme|ime|eme)|lanz[aá]r?|lances?)\s+(el\s+|la\s+|una?\s+)?(powershell|terminal|consola|cmd|s[ií]mbolo del sistema|explorador|explorer|calculadora|bloc de notas|notepad|paint|spotify|discord|steam|word|excel)\b", "abrir"),
     (r"\babr(?:e|a|as|i|í|ir|irme|ime|eme)\b.*\s(https?://|www\.|\S+\.(com|net|org|es|co|io|tv|me|app)\b)", "abrir"),
+    # "me envias la foto" / "mandame la captura": es una ENTREGA, no charla.
+    # Cazado 2026-07-25 (sesion ...112753): fue al chat y el modelo contesto
+    # "Aqui tienes la foto" sin foto ninguna, teniendo la captura en disco.
+    (r"\b(env[ií]a|env[ií]as|enviame|env[ií]ame|manda|mandas|mandame|m[aá]ndame"
+     r"|pasa|pasas|pasame|p[aá]same|mostr[aá]me|mu[eé]strame|ens[eé][ñn]ame)\b"
+     r".{0,20}\b(foto|captura|pantallazo|imagen|screenshot|pantalla)\b",
+     "pantalla_captura"),
     # ventanas: "pone Chrome al frente, esta detras de otras ventanas" (pedido
     # real 2026-07-25). Necesita la tool de ventanas, no leer_archivo.
     (r"\b(pon(?:e|er|é|es|ga)|tra(?:e|er|é)|mostr[aá]r?|enfoc[aá]r?|maximiz[aá]r?|restaur[aá]r?|activ[aá]r?)\b.*\b(al\s+frente|adelante|primer\s+plano|encima|visible)\b", "pantalla_activar_ventana"),

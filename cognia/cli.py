@@ -8259,6 +8259,44 @@ def _inferir_para_agente(orch, prompt: str) -> str:
     return (generar(prompt, temperature=0.2, max_tokens=400) or "").strip()
 
 
+# Rutas de archivo que el agente PRODUJO y que valen como entrega (imagenes:
+# capturas de pantalla y generadas). Windows y POSIX.
+_RE_ARCHIVO_ENTREGA = re.compile(
+    r"((?:[A-Za-z]:[\\/]|/)[^\s\"'<>|]+?\.(?:png|jpe?g|webp|gif|bmp|svg))",
+    re.IGNORECASE)
+
+
+def _adjuntar_archivos(result_text: str, history: list) -> str:
+    """Anexa a la respuesta las imagenes producidas en el turno.
+
+    El modelo dice "aqui tienes la foto" y se olvida de la RUTA; sin ruta, el
+    control remoto no tiene nada que insertar y el usuario se queda sin su
+    foto aunque el archivo exista. Se toman de los RESULTADOS que salieron OK
+    (nunca de un ERROR), se comprueba que el archivo EXISTA de verdad, y no se
+    repite lo que la respuesta ya menciona."""
+    if not result_text:
+        return result_text
+    vistas = []
+    for h in history:
+        if not isinstance(h, str) or not h.startswith("RESULTADO "):
+            continue
+        if re.search(r"\bERROR\b", h[:120]):
+            continue
+        for ruta in _RE_ARCHIVO_ENTREGA.findall(h):
+            if ruta in vistas or ruta in result_text:
+                continue
+            try:
+                if Path(ruta).is_file():
+                    vistas.append(ruta)
+            except Exception:
+                pass
+    if not vistas:
+        return result_text
+    etiqueta = "Archivo" if len(vistas) == 1 else "Archivos"
+    return result_text.rstrip() + "\n\n" + etiqueta + ":\n" + "\n".join(
+        f"  {r}" for r in vistas)
+
+
 def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                     hint: str = "", guidance: str = "",
                     allowed_tools: set = None, delegation_depth: int = 0) -> str:
@@ -9092,6 +9130,17 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # final o el ultimo RESULTADO real antes de rendir el fallo generico.
     _last_result = next((h for h in reversed(history) if h.startswith("RESULTADO ")), "")
     result_text = result_text or _last_prose or _last_result
+
+    # ADJUNTAR lo producido. Cazado 2026-07-25 (sesion 20260725-112753): el
+    # agente TOMO la captura (captura_112804.png existia en disco) y contesto
+    # "Aqui tienes la foto" SIN decir donde estaba. El dueno pidio "me envias
+    # la foto" y no recibio nada: el movil solo puede insertar una imagen si su
+    # ruta aparece en el texto. No se le pide al modelo que se acuerde: las
+    # rutas se sacan de los RESULTADOS reales del turno.
+    try:
+        result_text = _adjuntar_archivos(result_text, history)
+    except Exception:
+        pass        # adjuntar nunca puede romper la respuesta
 
     # Proactividad (main): proponer lo que el usuario no pidio pero le
     # serviria. SOLO sugerencia — la regla de oro es proponer, nunca ejecutar
