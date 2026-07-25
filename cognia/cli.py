@@ -649,6 +649,7 @@ _CMD_DESCRIPTIONS = {
     "/pensar":          "Pensamiento PROFUNDO: pregunta -> razona y contesta; crear algo -> suena la idea, la planifica y la ejecuta  <pedido>",
     "/aprende-repo":    "Aprender de un repo GitHub <url_o_query>",
     "/crear":           "Crear programa ahora    <idea>",
+    "/construir":       "Construir web con arbitro visual (VLM)  [--mockup] <idea>",
     "/autoprueba":      "Probar y puntuar los productos generados (compila/arranca/calidad)  [limite]",
     "/arbitro":         "Estado del arbitro de colisiones entre generadores (incidentes, modo)",
     "/ver":             "Cognia MIRA tu pantalla y la describe; con pregunta, te responde sobre lo que ve  [pregunta]",
@@ -914,6 +915,16 @@ _CMD_DETAILS = {
         "Usa herramientas como /buscar-web, /kg-agregar, /ejecutar para completar la tarea. "
         "Ejemplo: /hacer Investiga las ventajas de FastAPI vs Flask"
     ),
+    "/construir": (
+        "Lazo diseno-a-codigo: el cerebro imagina como deberia verse el producto y "
+        "un arbitro VISUAL (un VLM que MIRA el render) evalua si la pagina se parece "
+        "a esa vision; sus observaciones vuelven al modelo y la pagina se repara "
+        "ronda tras ronda hasta acercarse. Guarda el index.html y reporta la "
+        "fidelidad. Necesita el VLM servido (python scripts/servir_vlm.py, puerto "
+        "8081); sin el, degrada a la sonda estructural. Con --mockup, el modelo de "
+        "imagenes dibuja el mockup objetivo (usa SDXL: no coexiste con cerebro+VLM "
+        "en 16GB). Ejemplo: /construir landing de una cafeteria de especialidad"
+    ),
     "/largo": (
         "Genera una respuesta larga (por defecto hasta 5000 tokens, --tokens N escala "
         "hasta 200000) con el fast-path llama.cpp y continuacion automatica por rondas, "
@@ -1108,6 +1119,7 @@ HELP_TEXT = """
     /flujo <objetivo>               Orquestador de flujos multi-paso
     /largo <tema>                   Generacion larga por secciones (/largo --continuar)
     /crear <idea>                   Crear un programa Python ahora (sandbox + biblioteca)
+    /construir [--mockup] <idea>    Construir una web y acercarla a la vision con el arbitro VISUAL (VLM)
     /encolar <idea>                 Encolar idea para el hobby de programacion
     /investigar <pregunta>          Investigacion autonoma (web + LLM + KG)
     /resumir <ruta|texto>           Resumir archivo o texto largo
@@ -6444,6 +6456,23 @@ def repl():
             _run(raw, lambda: ai.create_program(_idea), color="bright_green")
         elif raw == "/crear":
             _print_line("[warn_cl]Uso: /crear <idea>  — ejemplo: /crear juego de Snake en terminal[/warn_cl]")
+        elif raw.startswith("/construir "):
+            # Lazo diseno-a-codigo: el cerebro imagina el producto y el arbitro
+            # VISUAL (VLM) mira el render y lo acerca a esa vision, ronda a ronda.
+            # --mockup opta por dibujar el mockup con el modelo de imagenes (SDXL);
+            # por defecto compara contra el brief de texto (menos VRAM).
+            _arg_c = raw[len("/construir "):].strip()
+            _use_mock = False
+            if _arg_c.startswith("--mockup "):
+                _use_mock, _arg_c = True, _arg_c[len("--mockup "):].strip()
+            if not _arg_c:
+                _print_line("[warn_cl]Uso: /construir [--mockup] <idea>[/warn_cl]")
+            else:
+                _run(raw, lambda: ai.construir_web(_arg_c, usar_mockup=_use_mock),
+                     color="bright_green")
+        elif raw == "/construir":
+            _print_line("[warn_cl]Uso: /construir [--mockup] <idea>  — ejemplo: "
+                        "/construir landing de una cafeteria de especialidad[/warn_cl]")
         elif raw.startswith("/encolar "):
             if HAS_PROGRAM_CREATOR:
                 _idea_enc = raw[len("/encolar "):].strip()

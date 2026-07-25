@@ -493,6 +493,69 @@ class Cognia:
         except Exception as exc:
             return f"[ERROR] {exc}"
 
+    def construir_web(self, idea: str, *, usar_mockup: bool = False,
+                      max_rondas: int = 3) -> str:
+        """Construye una pagina web para `idea` y la ITERA hasta que se parezca a
+        la vision que el cerebro imagina, con el arbitro VISUAL (VLM) mirando el
+        render cada ronda. Guarda el index.html resultante y devuelve el resumen.
+
+        usar_mockup=False por defecto: compara contra el BRIEF de texto (cerebro +
+        VLM caben en la GPU). usar_mockup=True dibuja el mockup con el modelo de
+        imagenes (SDXL) — no coexiste con cerebro+VLM en 16GB, usar con cuidado."""
+        if not HAS_PROGRAM_CREATOR:
+            return "[ERROR] Modulo ProgramCreator no disponible."
+        if not idea.strip():
+            return "Uso: /construir <idea>"
+        try:
+            import re
+            import shutil
+            from pathlib import Path
+
+            from cognia.program_creator.diseno_a_codigo import construir_para_mockup
+            from cognia.program_creator.program_creator import _llm_de_cognia
+            from cognia.program_creator.storage import DEFAULT_STORAGE_DIR
+
+            # El arbitro necesita el VLM (servir_vlm.py en :8081). Si no esta, el
+            # lazo NO se rompe: degrada a la sonda estructural. Se avisa, no se corta.
+            aviso_vlm = ""
+            try:
+                from cognia.program_creator.arbitro_visual import vlm_disponible
+                ok_vlm, _ = vlm_disponible()
+                if not ok_vlm:
+                    aviso_vlm = ("\n(nota: sin VLM en :8081 el arbitro visual no "
+                                 "opina; arrancalo con  python scripts/servir_vlm.py)")
+            except Exception:
+                pass
+
+            llm = _llm_de_cognia(self)
+            print(f"[Construir] '{idea[:60]}' — arbitro visual dirigiendo...")
+            res = construir_para_mockup(
+                idea.strip(), llm=llm, max_rondas=max_rondas,
+                usar_mockup_imagen=usar_mockup, verbose=True)
+
+            if not res.html:
+                return f"No se pudo construir: {res.motivo_corte}{aviso_vlm}"
+
+            slug = re.sub(r"[^a-z0-9]+", "_", idea.strip().lower())[:40].strip("_") \
+                or "web"
+            dest = Path(DEFAULT_STORAGE_DIR) / "construidos" / slug
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / "index.html").write_text(res.html, encoding="utf-8")
+            linea_mock = ""
+            if res.mockup and Path(res.mockup).exists():
+                shutil.copy(res.mockup, dest / "mockup.png")
+                linea_mock = f"\nMockup:  {dest / 'mockup.png'}"
+
+            nota = (f"{res.nota_visual:.1f}/10" if res.nota_visual is not None
+                    else "s/nota")
+            return (
+                f"Construido en {res.rondas} ronda(s). Fidelidad visual: {nota}. "
+                f"Corte: {res.motivo_corte}.\n"
+                f"Pagina: {dest / 'index.html'}{linea_mock}\n"
+                f"Defectos pendientes: {len(res.defectos)}{aviso_vlm}")
+        except Exception as exc:
+            return f"[ERROR] {exc}"
+
     # ── Método core ────────────────────────────────────────────────────
 
     def observe(self, observation: str, provided_label: str = None) -> dict:
