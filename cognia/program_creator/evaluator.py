@@ -396,7 +396,11 @@ def format_evaluation_text(eval_result: EvaluationResult) -> str:
     lines = [
         "=== PROGRAM EVALUATION ===",
         "",
-        f"Total Score       : {eval_result.total_score:.1f} / 10",
+        "AVISO: esta evaluacion es AUTO-ASIGNADA (regex + AST sobre el propio",
+        "codigo). NO se ejecuto el producto. Para un veredicto por ejecucion:",
+        "  python -m cognia.program_creator.juez_ejecutable <dir del producto>",
+        "",
+        f"Total Score       : {eval_result.total_score:.1f} / 10  (SIN VERIFICAR)",
         f"Functionality     : {eval_result.functionality_score:.1f} / 4.0",
         f"Creativity        : {eval_result.creativity_score:.1f} / 4.0",
         f"Error Penalty     : {eval_result.error_score:.1f} / 2.0  (higher = fewer errors)",

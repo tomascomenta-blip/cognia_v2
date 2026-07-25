@@ -399,7 +399,12 @@ def run_program_hobby(
             _session_stats["programs_stored"] += 1
 
             if verbose:
-                print(f"   ✅ '{program.title}' guardado (score={eval_result.total_score:.1f})")
+                # El score que se imprime va etiquetado: es AUTO-ASIGNADO por
+                # evaluator.py (regex+AST), no medido ejecutando. Ver
+                # storage.etiqueta_auto.
+                from .storage import etiqueta_auto
+                print(f"   ✅ '{program.title}' guardado "
+                      f"({etiqueta_auto(eval_result.total_score)})")
 
             # Las capturas se dejan JUNTO a la pagina guardada: input_images
             # (lo que miro para validarse) y output_images (el resultado).
@@ -419,7 +424,10 @@ def run_program_hobby(
                               f"output_images: {len(final.output_images)}")
         else:
             if verbose:
-                print(f"   🗑️  '{program.title}' descartado (score={eval_result.total_score:.1f} < {STORE_THRESHOLD})")
+                from .storage import etiqueta_auto
+                print(f"   🗑️  '{program.title}' descartado "
+                      f"({etiqueta_auto(eval_result.total_score)} < "
+                      f"{STORE_THRESHOLD})")
 
         # Pausa entre generaciones
         if attempt < max_attempts:

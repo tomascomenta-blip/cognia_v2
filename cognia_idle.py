@@ -280,7 +280,10 @@ def run_hobby_cycle(cognia, idle_state: IdleState):
             storage_dir=None,
         )
         if result and result.stored > 0:
-            print(f"{col(C.GREEN, f'   ✅ Programa guardado: {result.programs[0].title} (score={result.programs[0].total_score:.1f})')}")
+            # score AUTO-ASIGNADO: va etiquetado, nunca como numero pelado.
+            from cognia.program_creator.storage import etiqueta_auto
+            _et = etiqueta_auto(result.programs[0].total_score)
+            print(f"{col(C.GREEN, f'   ✅ Programa guardado: {result.programs[0].title} ({_et})')}")
         elif result:
             print(f"{col(C.DIM, f'   🗑️  Programa descartado (score insuficiente)')}")
     except Exception as e:

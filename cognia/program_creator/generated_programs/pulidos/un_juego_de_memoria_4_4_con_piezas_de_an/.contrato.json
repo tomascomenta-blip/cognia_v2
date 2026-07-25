@@ -1,0 +1,29 @@
+{
+  "nombre": "juego de memoria 4x4 con piezas de animales",
+  "por_que": "El VLM le puso 7.5/10 mirando un PNG. Estos son los hechos que un juego de memoria tiene que cumplir y que una foto no distingue: el estado inicial (cartas boca abajo) y que un click las voltee de a una.",
+  "pasos": [
+    {"accion": "contar", "selector": ".tile", "esperado": 16,
+     "nombre": "hay 16 cartas", "critico": true},
+
+    {"accion": "contar_visible", "selector": ".tile", "esperado": 0,
+     "nombre": "al cargar NINGUNA carta muestra su simbolo", "critico": true},
+
+    {"accion": "click", "selector": ".tile", "indice": 0,
+     "nombre": "click en la primera carta"},
+    {"accion": "contar_visible", "selector": ".tile", "esperado": 1,
+     "nombre": "tras 1 click hay EXACTAMENTE 1 carta destapada", "critico": true},
+
+    {"accion": "click", "selector": ".tile", "indice": 1,
+     "nombre": "click en la segunda carta"},
+    {"accion": "contar_visible", "selector": ".tile", "esperado": 2,
+     "nombre": "tras 2 clicks hay EXACTAMENTE 2 cartas destapadas", "critico": true},
+
+    {"accion": "texto", "selector": "#moves", "contiene": "1",
+     "nombre": "el contador de movimientos avanzo tras el par"},
+
+    {"accion": "esperar", "ms": 1600,
+     "nombre": "espero a que el par no coincidente se vuelva a tapar"},
+    {"accion": "contar_visible", "selector": ".tile", "esperado": 0,
+     "nombre": "un par que no coincide vuelve a taparse", "critico": true}
+  ]
+}
