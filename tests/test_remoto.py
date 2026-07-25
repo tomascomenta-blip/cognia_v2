@@ -87,6 +87,97 @@ def test_imagen_fuera_de_la_biblioteca_prohibida():
     assert r.status_code == 403
 
 
+# ── Regresion 2026-07-25: las imagenes del AGENTE no se veian en el chat ──
+# El front detectaba la ruta del "RESULTADO imagen_generar OK: <ruta>" y pedia
+# /api/imagen, pero el endpoint solo abria la biblioteca de program_creator:
+# 403 -> onerror -> el <img> se borraba. Insercion de imagenes que fallaba en
+# silencio. Ahora se autoriza por raices (proyectos registrados incluidos).
+
+def _png_minimo(destino: Path) -> Path:
+    """PNG 1x1 real (no un stub): el endpoint devuelve bytes de verdad."""
+    import base64
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_bytes(base64.b64decode(
+        b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk"
+        b"YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="))
+    return destino
+
+
+def test_imagen_del_workspace_del_agente_se_sirve(tmp_path, monkeypatch):
+    """Una imagen en <proyecto>/imagenes/ (donde image_tools deja las suyas)
+    DEBE poder insertarse en el chat. Antes del fix: 403."""
+    from cognia.remoto import sesiones as _ses
+    monkeypatch.setattr(_ses, "FICHERO_PROYECTOS", tmp_path / "proyectos.json")
+    proyecto = tmp_path / "mi_proyecto"
+    proyecto.mkdir()
+    registrar_proyecto(str(proyecto))
+    png = _png_minimo(proyecto / "imagenes" / "gen_12345678.png")
+    r = _cliente().get("/api/imagen", params={"ruta": str(png)})
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"] == "image/png"
+    assert r.content.startswith(b"\x89PNG")
+
+
+def test_imagen_admite_jpg_y_webp(tmp_path, monkeypatch):
+    """No solo PNG: una captura o un asset bajado puede ser jpg/webp."""
+    from cognia.remoto import sesiones as _ses
+    monkeypatch.setattr(_ses, "FICHERO_PROYECTOS", tmp_path / "proyectos.json")
+    proyecto = tmp_path / "proy2"
+    proyecto.mkdir()
+    registrar_proyecto(str(proyecto))
+    cli = _cliente()
+    for nombre, mime in (("captura.jpg", "image/jpeg"),
+                         ("asset.webp", "image/webp")):
+        f = proyecto / nombre
+        f.write_bytes(b"bytes-de-imagen")
+        r = cli.get("/api/imagen", params={"ruta": str(f)})
+        assert r.status_code == 200, (nombre, r.text)
+        assert r.headers["content-type"] == mime
+
+
+def test_imagen_no_servible_da_error_legible(tmp_path, monkeypatch):
+    """Un .txt DENTRO del proyecto no es 403 (esta permitido) sino 415 con
+    motivo: el chat lo muestra en vez de tragarselo."""
+    from cognia.remoto import sesiones as _ses
+    monkeypatch.setattr(_ses, "FICHERO_PROYECTOS", tmp_path / "proyectos.json")
+    proyecto = tmp_path / "proy3"
+    proyecto.mkdir()
+    registrar_proyecto(str(proyecto))
+    doc = proyecto / "notas.txt"
+    doc.write_text("hola", encoding="utf-8")
+    r = _cliente().get("/api/imagen", params={"ruta": str(doc)})
+    assert r.status_code == 415
+    assert "formato" in r.json()["error"]
+
+
+def test_imagen_no_escapa_del_proyecto_con_dotdot(tmp_path, monkeypatch):
+    """Ampliar las raices no puede abrir el disco: '..' se resuelve ANTES."""
+    from cognia.remoto import sesiones as _ses
+    monkeypatch.setattr(_ses, "FICHERO_PROYECTOS", tmp_path / "proyectos.json")
+    proyecto = tmp_path / "proy4"
+    proyecto.mkdir()
+    registrar_proyecto(str(proyecto))
+    fuera = _png_minimo(tmp_path.parent / "secreto_fuera.png")
+    r = _cliente().get("/api/imagen",
+                       params={"ruta": str(proyecto / ".." / ".." / fuera.name)})
+    assert r.status_code == 403
+    fuera.unlink(missing_ok=True)
+
+
+def test_front_detecta_rutas_de_imagen_y_no_borra_en_fallo():
+    """Contrato del front (se rompio dos veces por editar solo el back):
+    regex multi-formato, insercion de TODAS las rutas y fallo VISIBLE."""
+    html = (Path(__file__).resolve().parent.parent
+            / "cognia" / "remoto" / "static" / "index.html").read_text(
+                encoding="utf-8")
+    assert "RUTA_IMG" in html and "function rutasImagen" in html
+    for ext in ("png", "jpe?g", "webp", "gif"):
+        assert ext in html.split("const EXT_IMG")[1][:120]
+    # el onerror ya no puede limitarse a borrar el <img>
+    assert "img.remove()" not in html
+    assert "img-fallo" in html
+
+
 def test_limpiar_quita_ansi_y_prompt():
     assert _limpiar("\x1b[92mcognia> \x1b[0mhola") == "hola"
     assert _limpiar("cognia> cognia> respuesta") == "respuesta"

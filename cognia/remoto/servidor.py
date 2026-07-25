@@ -11,6 +11,7 @@ Sirve la app movil (static/) y expone:
 from __future__ import annotations
 
 import json
+import os
 import queue
 import random
 import time
@@ -69,6 +70,50 @@ def _comandos() -> list[dict]:
                 sorted(_CMD_DESCRIPTIONS.items())]
     except Exception:
         return []
+
+
+# Formatos que el chat sabe insertar. El agente genera PNG (RGBA transparente),
+# pero una captura o un asset descargado puede ser jpg/webp.
+_EXTS_IMAGEN = {
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".webp": "image/webp", ".gif": "image/gif", ".bmp": "image/bmp",
+    ".svg": "image/svg+xml",
+}
+
+
+def _raices_imagen() -> list[Path]:
+    """Carpetas cuyas imagenes puede insertar el chat.
+
+    Los proyectos registrados son la raiz que importa: el REPL corre con cwd
+    ahi, y ahi caen las imagenes del agente (<proyecto>/imagenes/) y las que
+    genere cualquier script suyo."""
+    raices = [RAIZ_DATOS.resolve()]
+    try:
+        from cognia.program_creator.storage import DEFAULT_STORAGE_DIR
+        raices.append(Path(DEFAULT_STORAGE_DIR).resolve())
+    except Exception:
+        pass
+    for pr in cargar_proyectos():
+        try:
+            raices.append(Path(pr["ruta"]).resolve())
+        except Exception:
+            pass
+    ws = os.environ.get("COGNIA_AGENT_WORKSPACE")
+    if ws:
+        try:
+            raices.append(Path(ws).resolve())
+        except Exception:
+            pass
+    return raices
+
+
+def _dentro_de_raices(p: Path) -> bool:
+    """True si p cuelga de alguna raiz permitida (ya resuelta: sin .. ni
+    symlinks que se escapen)."""
+    for raiz in _raices_imagen():
+        if p == raiz or raiz in p.parents:
+            return True
+    return False
 
 
 def _imagenes_recientes(limite: int = 30) -> list[dict]:
@@ -195,17 +240,33 @@ def crear_app() -> FastAPI:
 
     @app.get("/api/imagen")
     def imagen(ruta: str):
-        p = Path(ruta)
-        # solo PNGs de la biblioteca de programas: nada de leer discos ajenos
+        """Sirve una imagen para insertarla en el chat.
+
+        Antes solo abria PNGs de la biblioteca de programas, y ese era el bug
+        (medido 2026-07-25): el agente deja SUS imagenes en el workspace
+        (<proyecto>/imagenes/gen_*.png via image_tools), el front las detectaba
+        en el texto, pedia esta ruta, recibia 403 y el onerror BORRABA el <img>.
+        Inserción de imágenes que existía y desaparecía en silencio.
+        Ahora se autoriza por RAICES (proyectos registrados + biblioteca +
+        datos del remoto), no por una sola carpeta; sigue sin poder leer el
+        disco entero."""
         try:
-            from cognia.program_creator.storage import DEFAULT_STORAGE_DIR
-            raiz = Path(DEFAULT_STORAGE_DIR).resolve()
-            if raiz not in p.resolve().parents or p.suffix != ".png":
-                raise ValueError
+            p = Path(ruta).resolve()
         except Exception:
-            return JSONResponse({"error": "ruta fuera de la biblioteca"},
-                                status_code=403)
-        return FileResponse(p)
+            return JSONResponse({"error": "ruta invalida"}, status_code=400)
+        # la RAIZ se juzga primero: "fuera de mis carpetas" es 403 sea cual sea
+        # la extension (un C:/Windows/win.ini nunca es un problema de formato)
+        if not _dentro_de_raices(p):
+            return JSONResponse(
+                {"error": "ruta fuera de los proyectos y la biblioteca"},
+                status_code=403)
+        if p.suffix.lower() not in _EXTS_IMAGEN:
+            return JSONResponse(
+                {"error": f"formato no servible: {p.suffix or 'sin extension'}"},
+                status_code=415)
+        if not p.is_file():
+            return JSONResponse({"error": "no existe"}, status_code=404)
+        return FileResponse(p, media_type=_EXTS_IMAGEN[p.suffix.lower()])
 
     # ── Jarvis: cerebro central + expertos y roles (para la vista 3D de voz) ──
     # Colores estables por experto; el cerebro es verde y va en el centro.

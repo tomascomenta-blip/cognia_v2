@@ -9100,3 +9100,50 @@ SUENO FINAL e2e (sistema completo): "juego de memoria 4x4 de animales" —
 mockup + construccion + juez vs mockup (7.5 honesto) + pensador con cambios
 concretos (CSS grid, paleta, colores inline) + disyuntor entregando el mejor
 ciclo. 4.3 min. Tests: 9/9 pulidor.
+
+---
+
+## 2026-07-25 — Las imagenes del chat existian y fallaban en SILENCIO (remoto)
+
+Pregunta del dueno: "¿Cognia puede enviar mensajes con insercion de imagenes?".
+Verificando salio un bug vivo, no una funcion faltante.
+
+La insercion EXISTIA: el front detecta rutas de imagen en el texto y crea el
+<img> (agregarImagen), tanto en la respuesta como dentro de Actividad. Pero
+/api/imagen solo abria la biblioteca de program_creator, y el agente deja SUS
+imagenes en <proyecto>/imagenes/ (image_tools -> _salida_en_workspace). Camino
+real: RESULTADO imagen_generar OK: <ruta> -> el front la pide -> 403 -> onerror
+-> img.remove(). La imagen desaparecia sin dejar rastro: el modo de fallo de la
+casa (capacidad construida que degrada en vacio, no en excepcion).
+
+Medido ANTES del fix (curl al servidor vivo): imagen de la biblioteca 200,
+imagen del workspace del agente 403.
+
+Hecho:
+- servidor.py: /api/imagen autoriza por RAICES (proyectos registrados +
+  biblioteca + ~/.cognia/remoto + COGNIA_AGENT_WORKSPACE) en vez de una sola
+  carpeta; png/jpg/jpeg/webp/gif/bmp/svg con su media_type; 403 fuera de raiz,
+  415 formato no servible, 404 no existe. La raiz se juzga ANTES que la
+  extension (win.ini sigue siendo 403, no 415).
+- index.html: RUTA_IMG multi-formato + rutasImagen() (TODAS las de la linea, sin
+  repetir) sustituye a RUTA_PNG (solo .png, solo la primera); ![alt](ruta) se
+  limpia del markdown porque la imagen va como <img> real; onerror ya NO borra:
+  pinta .img-fallo con el motivo y el codigo; click abre en grande; el CSS de
+  img.inline deja de estar restringido a .msg (dentro de Actividad iba sin
+  max-width y se desbordaba).
+
+Verificacion REAL (no solo pytest):
+- curl tras el fix: workspace del agente 200 image/png 3351 B, PNG del proyecto
+  Desktop 200 67536 B, biblioteca 200 (no se rompio), C:\Windows\win.ini 403.
+- Navegador (viewport movil 420x880, misma app en http para poder automatizarla):
+  sesion con la ruta del agente -> DOM con 2 img.inline cargadas de verdad
+  (naturalWidth 360x200) en Actividad y en la respuesta, 0 rotas, y el caso no
+  servible visible como "no_servible.png — ruta fuera de los proyectos y la
+  biblioteca (403)" en vez de desaparecer.
+- tests/test_remoto.py: 6 tests nuevos (workspace del agente, jpg/webp, 415
+  legible, escape con .., contrato del front) 19/19.
+- Suite: 5366 passed, 1 skipped (297s).
+
+Pendiente natural (NO hecho, no bloqueante): subir imagen DESDE el movil (no hay
+input file ni endpoint de upload) y video en cualquier direccion (no hay ffmpeg
+ni encoder en el repo; cognia/anim son poses en runtime, no un fichero).

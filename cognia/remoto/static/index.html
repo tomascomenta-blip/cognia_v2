@@ -96,8 +96,15 @@
   .msg.accion { align-self: flex-start; color: var(--acento); font-size: 12.5px;
     background: none; border: 1px dashed var(--acento-2);
     font-family: ui-monospace, monospace; }
-  .msg img.inline { max-width: 100%; border-radius: 10px; display: block;
-    margin-top: 4px; }
+  /* sin restringir a .msg: las imagenes tambien salen dentro de Actividad,
+     y ahi quedaban SIN max-width (se desbordaban a tamano natural) */
+  img.inline { max-width: 100%; height: auto; border-radius: 10px;
+    display: block; margin-top: 4px; cursor: zoom-in;
+    background: rgba(127,127,127,.10); }
+  /* una imagen que no se puede servir se ve fallar, no desaparece */
+  .img-fallo { margin-top: 4px; padding: 6px 10px; border-radius: 8px;
+    border: 1px dashed var(--acento-2); color: var(--texto-2);
+    font-size: 12px; font-family: ui-monospace, monospace; }
   /* respuesta de Cognia: UN bloque continuo, sin globo, markdown renderizado */
   .msg.cognia.bloque { align-self: stretch; max-width: 100%; width: 100%;
     background: none; border: none; border-left: 3px solid var(--acento-2);
@@ -557,7 +564,23 @@ const ES_LOG = t => /^\d{4}-\d{2}-\d{2} .*\|\s*(INFO|WARNING|DEBUG|ERROR)\s*\|/.
 const ES_PENSANDO = t =>
   /^\s*(\[detail\]|paso \d|\[research\]|\[planner\]|\[generator\]|\[evaluator\]|\[storage\]|\[vista\]|\[contra\]|\[github\]|\[arxiv\]|\[hf\])/.test(t);
 const ES_ACCION = t => /^(RESULTADO |ACCION|\$ |Archivos escritos|Correccion|Defectos)/.test(t);
-const RUTA_PNG = /([A-Za-z]:\\[^ ]*?\.png|[A-Za-z]:\/[^ ]*?\.png)/;
+/* Rutas de imagen dentro del texto de un mensaje. Antes solo .png y solo la
+   PRIMERA de la linea; el agente genera png pero una captura o un asset bajado
+   puede ser jpg/webp, y un paso puede escupir varias. La forma markdown
+   ![alt](ruta) admite espacios porque el parentesis delimita. */
+const EXT_IMG = "png|jpe?g|webp|gif|bmp|svg";
+const RUTA_IMG = new RegExp(
+  "!\\[[^\\]]*\\]\\(\\s*([A-Za-z]:[\\\\/][^)]+?\\.(?:" + EXT_IMG + "))\\s*\\)" +
+  "|([A-Za-z]:[\\\\/][^ \"'<>|]*?\\.(?:" + EXT_IMG + "))", "gi");
+// todas las rutas de imagen de una linea, sin repetir
+function rutasImagen(texto) {
+  const vistas = [];
+  for (const m of texto.matchAll(RUTA_IMG)) {
+    const r = m[1] || m[2];
+    if (r && !vistas.includes(r)) vistas.push(r);
+  }
+  return vistas;
+}
 
 let logsBuffer = [];
 function registrarLog(texto) {
@@ -573,6 +596,9 @@ function escHTML(s) {
 }
 function mdInline(s) {
   // s ya viene escapado; aplicar solo inline
+  // ![alt](ruta): la imagen la inserta agregarImagen() como <img> real fuera
+  // del markdown; aqui solo se quita para que no quede la sintaxis en crudo.
+  s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, "");
   s = s.replace(/`([^`]+)`/g, (m, c) => "<code>" + c + "</code>");
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/__([^_]+)__/g, "<strong>$1</strong>");
@@ -671,25 +697,38 @@ function burbujaActividad(texto) {
   grupoActividad.querySelector(".act-titulo").textContent =
     "Actividad · " + n + (n === 1 ? " paso" : " pasos");
   chat.scrollTop = chat.scrollHeight;
-  // imagen inline tambien dentro de la actividad
-  const png = texto.match(RUTA_PNG);
-  if (png) {
-    const img = document.createElement("img");
-    img.className = "inline"; img.loading = "lazy";
-    img.src = "/api/imagen?ruta=" + encodeURIComponent(png[1]);
-    img.onerror = () => img.remove();
-    grupoActividad.querySelector(".items").appendChild(img);
-  }
+  // imagen inline tambien dentro de la actividad (RESULTADO imagen_generar OK: ...)
+  agregarImagen(grupoActividad.querySelector(".items"), texto);
 }
 
+/* Inserta en `cont` cada imagen nombrada en `texto`.
+   El onerror ya NO borra el <img>: borrarlo hacia que una imagen no servible
+   desapareciera sin dejar rastro y el chat mintiera por omision (el bug de
+   2026-07-25 vivio meses asi). Ahora falla a la VISTA, con el motivo real. */
 function agregarImagen(cont, texto) {
-  const png = texto.match(RUTA_PNG);
-  if (!png) return;
-  const img = document.createElement("img");
-  img.className = "inline"; img.loading = "lazy";
-  img.src = "/api/imagen?ruta=" + encodeURIComponent(png[1]);
-  img.onerror = () => img.remove();
-  cont.appendChild(img);
+  for (const ruta of rutasImagen(texto)) {
+    if (cont.querySelector('img[data-ruta="' + CSS.escape(ruta) + '"]')) continue;
+    const img = document.createElement("img");
+    img.className = "inline"; img.loading = "lazy";
+    img.dataset.ruta = ruta;
+    img.alt = ruta.split(/[\\/]/).pop();
+    img.src = "/api/imagen?ruta=" + encodeURIComponent(ruta);
+    img.onclick = () => window.open(img.src, "_blank");   // verla en grande
+    img.onerror = async () => {
+      let motivo = "no se pudo cargar";
+      try {
+        const r = await fetch(img.src);
+        const j = await r.json().catch(() => ({}));
+        motivo = (j.error || r.statusText) + " (" + r.status + ")";
+      } catch (e) { /* red caida: queda el motivo generico */ }
+      const aviso = document.createElement("div");
+      aviso.className = "img-fallo";
+      aviso.textContent = "🖼 " + img.alt + " — " + motivo;
+      aviso.title = ruta;
+      img.replaceWith(aviso);
+    };
+    cont.appendChild(img);
+  }
 }
 
 // La respuesta de Cognia se acumula en UN bloque continuo (sin globos por
