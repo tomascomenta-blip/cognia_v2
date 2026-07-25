@@ -651,6 +651,8 @@ _CMD_DESCRIPTIONS = {
     "/crear":           "Crear programa ahora    <idea>",
     "/construir":       "Construir web con arbitro visual (VLM)  [--mockup] [--sprites] <idea>",
     "/flota":           "Cambiar el combo de modelos servidos  [construir|construir-ui|pensar|pensar-en-lazo|juzgar|parar|estado]",
+    "/pulir":           "LOOP THINKING: construir->juzgar->pensar en ciclos hasta pulir  [goal] (sin goal: el modelo suena uno)",
+    "/fatiga":          "Estado del monitor de fatiga cognitiva",
     "/autoprueba":      "Probar y puntuar los productos generados (compila/arranca/calidad)  [limite]",
     "/arbitro":         "Estado del arbitro de colisiones entre generadores (incidentes, modo)",
     "/ver":             "Cognia MIRA tu pantalla y la describe; con pregunta, te responde sobre lo que ve  [pregunta]",
@@ -6480,6 +6482,32 @@ def repl():
         elif raw == "/construir":
             _print_line("[warn_cl]Uso: /construir [--mockup] [--sprites] <idea>  — ejemplo: "
                         "/construir landing de una cafeteria de especialidad[/warn_cl]")
+        elif raw == "/pulir" or raw.startswith("/pulir "):
+            # LOOP THINKING (2026-07-24): construir -> juzgar -> pensar ->
+            # ¿otro ciclo? Pulido sobre rapidez. Sin goal: el modelo SUEÑA uno.
+            # Gestiona los combos de la flota EL SOLO (cambia :8080/:8081).
+            _pl_goal = raw[len("/pulir "):].strip() if raw.startswith("/pulir ") else None
+            try:
+                from cognia.program_creator.pulidor import pulir
+                print("[Pulidor] Loop thinking en marcha (esto prioriza calidad, "
+                      "puede tardar; va cambiando la flota solo)...")
+                _pl_res = pulir(_pl_goal or None)
+                _show_response(
+                    _pl_res.resumen() + (
+                        f"\nGuardado en: {_pl_res.directorio}" if _pl_res.directorio else ""),
+                    "bright_green")
+            except Exception as _pe:
+                _print_line(f"[err_cl]Error en /pulir: {_escape(str(_pe))}[/err_cl]")
+        elif raw == "/fatiga":
+            # El monitor de fatiga corre desde siempre DENTRO de cognia.py y
+            # su reporte legible no era alcanzable (barrido 2026-07-24).
+            try:
+                if getattr(ai, "fatigue", None):
+                    _show_response(ai.fatigue.format_status(), "cyan")
+                else:
+                    _print_line("[detail]Monitor de fatiga no activo en esta sesion.[/detail]")
+            except Exception as _fe:
+                _print_line(f"[warn_cl]No pude leer la fatiga: {_escape(str(_fe))}[/warn_cl]")
         elif raw == "/flota" or raw.startswith("/flota "):
             # Cambia el COMBO de modelos servidos (flota por roles 2026-07-24).
             # El REPL habla con :8080 via llm_local: cambiar el combo cambia el
