@@ -9036,3 +9036,53 @@ Nemotron-14B bajado y medido: 4/5 en 400s (gate "superar al 14b" pasa, pero
 sigue coder-14b + UIGEN. Tabla final del smoke (5 problemas exactos):
 gpt-oss-20b 5/5 13s | Nemotron-14B 4/5 400s | Qwen3-4B-Think 4/5 95s |
 coder-14b 3/5 19s. Flota final y roles en planes/FLOTA_ROLES_2026-07.md.
+
+
+================================================================================
+CORRIDA NOCTURNA HASTA LAS 4:30 — 2026-07-24/25 (apagado programado y verificado)
+================================================================================
+Mandato del dueno: (1) cablear en profundidad lo existente [modo ultracode,
+pocos agentes], (2) "speculative decoding para difusion" + mejor imagen,
+(3) loop thinking de pulido sobre un goal (usuario o sueno del modelo),
+todo autonomo y facil de usar. Deadline 4:30 con shutdown programado.
+
+FASE 1 — CABLEADO (barrido ultracode: 4 agentes sonnet/low, 155k tokens):
+- /flota (combos en caliente; llm_local re-sondea), /fatiga, /sellar-biblioteca
+  (8 productos sellados e2e), /pulir. Todos verificados por el REPL real.
+- Tools de imagen para el agente (imagen_generar/editar/quitar_fondo) —
+  REGRESION CAZADA POR A/B: default-ON bajaban el camino feliz 4.25/5 -> 2.5/5
+  (techo de nº de tools del modelo chico, la regla que ya protegia a pantalla).
+  Quedaron OPT-IN (COGNIA_IMG_TOOLS=1); con flag OFF el gate subio a 4.5/5 (90%).
+- MiniCPM tooling (LoRA 0->97%) cableado al paso ReAct con OPT-IN
+  (COGNIA_MINICPM_TOOLING=1) y fallback limpio verificado (flag ON sin torch:
+  5/5; OFF: 5/5). El experto entrenado POR FIN tiene camino a produccion.
+- Hallazgos que NO se cablearon (honestidad): contracts espera plan/design/
+  code/test y flow.py usa analisis/plan/ejecucion/informe — requiere adaptador,
+  no cableado; prompt_expert: la vision/sprites ya expanden prompts, doble
+  expansion sin medir = ruido.
+
+FASE 2 — DIFUSION ESPECULATIVA (cognia/assets/especulativa.py):
+draft SDXL-Lightning 4 pasos (k candidatos) -> juez (VLM o heuristica alfa) ->
+accept o refine img2img del base. MEDIDO: 22.0s -> 9.6s (2.29x) con draft
+aceptado y calidad igual o mejor. Mismo orden que el draft-verify del LLM
+(2.4x). Lightning exige Euler trailing + cfg 1.5 (solo durante el draft).
+FLUX.1-schnell anotado como candidato futuro (mejor adherencia; sin
+transparencia LayerDiffuse).
+
+FASE 3 — LOOP THINKING (/pulir, cognia/program_creator/pulidor.py):
+construir (UIGEN) -> juzgar (VL-7B) -> pensar (gpt-oss decide ENTREGAR/SEGUIR
+con cambios) -> reparar -> ... Gestion AUTONOMA de la flota entre fases
+(servir_flota subprocess). Cortes: gate 8.5, decision, tope, tiempo, disyuntor
+anti-ruido (sin cambio de html NO se re-juzga: una nota "subio" 7.5->8.5 con
+html identico — ruido del juez cruzando el gate; cortado de raiz).
+E2E reales: goal usuario (tarjeta glassmorphism): 8.7 en 3.1 min, 1 ciclo.
+Sueno del modelo ("visor meteorologico 3D"): 2 ciclos, 8.5, 5.9 min — el
+pensador pidio cambios CONCRETOS entre ciclos. Fix medido: gpt-oss razona en
+reasoning_content y con <1024 tokens el content llega vacio (piso 1024).
+LIMITE HONESTO: contra goal de solo-texto el juez es blando (dio 8.5 con dos
+paneles de grafico vacios); con mockup-imagen tiene dientes (medido en el
+juego). Mejora futura: pulidor con fase de mockup.
+
+GATES: suite 5361 passed / 0 failed; camino feliz 4/5,5/5,5/5,4/5 (90%, sobre
+el baseline flaky ~50-85%); regresion de tools aislada por A/B n=4+4 y resuelta.
+9 commits esta noche, todos con unidad verificada.
