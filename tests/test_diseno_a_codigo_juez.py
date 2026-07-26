@@ -91,7 +91,9 @@ def test_fallido_del_juez_bloquea_el_corte_por_nota():
         juez_ret={"return_value": _veredicto(
             False, [("al cargar NINGUNA carta muestra su emoji",
                      "visibles('.tile')=16, esperaba 0")])})
-    res = _run(ps, gate_nota=7.0)
+    # max_rondas=3 explicito: el default de produccion es 1 (2026-07-27) y
+    # este test necesita llegar a reparar_web para capturar los defectos.
+    res = _run(ps, gate_nota=7.0, max_rondas=3)
     # Antes de este cableado, nota 9.5 >= 7.0 cortaba con "fidelidad": el VLM
     # entregaba un producto que el juez acababa de reprobar.
     assert res.sello == "FALLIDO"

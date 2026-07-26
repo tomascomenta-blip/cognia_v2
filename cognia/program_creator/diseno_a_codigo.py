@@ -53,9 +53,18 @@ LlmFn = Callable[[str, str, int, float], Optional[str]]
 # COGNIA_GATE_VISUAL.
 GATE_VISUAL_DEFECTO = 7.0
 
-# Tope de rondas de reparacion guiadas por el arbitro. Mismo espiritu que el lazo
-# web hobby (3, umbral de Aider); el disyuntor puede cortar antes.
-MAX_RONDAS_DEFECTO = 3
+# Tope de rondas de reparacion guiadas por el arbitro. Era 3 (umbral de Aider);
+# desde el A/B nocturno del 2026-07-26/27 (PREREG_BON_RONDAS_20260726.md, 4
+# enmiendas) es 1: con el juez interno FUNCIONANDO, reparar RESTA — primera
+# generacion sola 5,2,5 (media 4.0/6, 65 s/tarea) contra 3,4,3 (3.33) del lazo
+# con reparacion, 3,4,2 con BoN (KILL), 3,3,4 con escalada de esfuerzo (KILL) y
+# 2,1,4 (KILL) anclando la entrega por checks_ok. La causa medida: el contrato
+# GENERADO es mas debil que el examen held-out (aprueba contadores que el
+# externo reprueba) y sus contraejemplos desvian la reparacion. La ronda unica
+# conserva el sello del juez (APROBADO/FALLIDO sigue siendo veraz); el tope
+# vuelve a subir cuando el contrato interno mejore (direccion CodeRM, #3 de
+# las prioridades de META_MODELO_GRANDE.md).
+MAX_RONDAS_DEFECTO = 1
 
 
 def _gate() -> float:
@@ -534,13 +543,6 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
 
             tope_duro = max(max_rondas, max_rondas_progreso or 0)
             checks_ok_prev: Optional[int] = None
-            # Entrega best-of-so-far (4ta enmienda del prereg, 2026-07-26):
-            # se conserva la version con MAS checks_ok del juez. El brazo D
-            # midio que entregar la ULTIMA version deja que una reparacion
-            # mala empeore la entrega (primera generacion sola 4.0/6 contra
-            # 3.33/6 del lazo entero): reparar solo puede SUMAR si la entrega
-            # ancla en lo mejor juzgado.
-            mejor_juzgado: Optional[tuple] = None    # (checks_ok, program)
             for ronda in range(1, tope_duro + 1):
                 res.rondas = ronda
                 # Lo que se renderiza lleva los sprites embebidos; lo que ve el
@@ -583,9 +585,6 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                     hay_progreso = (checks_ok_prev is not None
                                     and checks_ok_ronda > checks_ok_prev)
                     checks_ok_prev = checks_ok_ronda
-                    if (mejor_juzgado is None
-                            or checks_ok_ronda > mejor_juzgado[0]):
-                        mejor_juzgado = (checks_ok_ronda, program)
                     if not veredicto.aprobado:
                         contraejemplos = [
                             f"(juez) {c.nombre}: {c.detalle}"
@@ -675,14 +674,6 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                     break
                 program = arreglado
                 res.program = program
-
-            # La entrega ancla en la MEJOR version juzgada, no en la ultima:
-            # una reparacion que bajo checks_ok no puede empeorar lo que se
-            # entrega. Con APROBADO no se toca (esa version ya corto el lazo).
-            if (res.sello != "APROBADO" and mejor_juzgado is not None
-                    and mejor_juzgado[1] is not res.program):
-                res.program = mejor_juzgado[1]
-                res.motivo_corte += " (entrega: ronda con mas checks_ok)"
 
         return res
     except Exception as e:

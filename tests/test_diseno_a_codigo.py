@@ -96,7 +96,7 @@ def test_fusiona_defectos_estructurales_y_visuales():
                                   "defectos": ["el header deberia ser una barra"],
                                   "critico": "vlm"}},
         reparado_ret={"side_effect": _reparar})
-    res = _run(ps, gate_nota=7.0)
+    res = _run(ps, gate_nota=7.0, max_rondas=3)
     # El estructural va tal cual; el visual va prefijado con "(visual)".
     assert "la pagina no cambia sola" in capturado["defectos"]
     assert any(d.startswith("(visual) ") for d in capturado["defectos"])
@@ -116,7 +116,7 @@ def test_sin_vlm_usa_solo_defectos_estructurales():
         informe_ret={"return_value": _informe(["errores de JavaScript: x"])},
         arb_ret={"return_value": None},        # arbitro no disponible
         reparado_ret={"side_effect": _reparar})
-    res = _run(ps, gate_nota=7.0)
+    res = _run(ps, gate_nota=7.0, max_rondas=3)
     assert capturado["defectos"] == ["errores de JavaScript: x"]
     assert res.nota_visual is None           # nunca hubo arbitro
     assert not any(d.startswith("(visual)") for d in capturado["defectos"])
@@ -197,7 +197,7 @@ def test_los_defectos_estaticos_entran_al_lazo():
         arb_ret={"return_value": None},
         reparado_ret={"side_effect": _reparar},
         prog_ini=prog)
-    _run(ps, gate_nota=7.0)
+    _run(ps, gate_nota=7.0, max_rondas=3)
     assert any("DESAPARECEN" in d for d in capturado["defectos"])
     assert any("alert()" in d for d in capturado["defectos"])
 
