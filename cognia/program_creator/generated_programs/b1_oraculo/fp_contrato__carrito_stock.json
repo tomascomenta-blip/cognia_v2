@@ -1,0 +1,238 @@
+{
+  "fase1_frontier": {
+    "carrito_stock": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    }
+  },
+  "fase2_pool": {
+    "carrito_stock__pensar__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r2": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: la cantidad es 2 (js='p1 x 2', esperaba '2'); al llegar a 0 la linea DESAPARECE (js=1, esperaba 0)",
+        "checks_ok": 17,
+        "checks": 19,
+        "fallas_criticas": [
+          "la cantidad es 2 (js='p1 x 2', esperaba '2')",
+          "al llegar a 0 la linea DESAPARECE (js=1, esperaba 0)"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)",
+        "checks_ok": 18,
+        "checks": 19,
+        "fallas_criticas": [
+          "al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r2": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r3": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: p3 tiene stock 1: se deshabilita al primer add (js=False, esperaba True); al quitar una, el boton se re-habilita (js=True, esperaba False)",
+        "checks_ok": 16,
+        "checks": 19,
+        "fallas_criticas": [
+          "p3 tiene stock 1: se deshabilita al primer add (js=False, esperaba True)",
+          "al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r5": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: dos veces el mismo producto = UNA linea (count('.linea')=0, esperaba 1); la cantidad es 2 (excepcion: Error: Page.evaluate: TypeError: Cannot rea",
+        "checks_ok": 6,
+        "checks": 19,
+        "fallas_criticas": [
+          "dos veces el mismo producto = UNA linea (count('.linea')=0, esperaba 1)",
+          "la cantidad es 2 (excepcion: Error: Page.evaluate: TypeError: Cannot read properties of null (reading 'textContent')\n    at eval (eval at evaluate (:303:30), <anonymous>:1:60)\n    at UtilityScript.evaluate (<anonymous>:310:18)\n    at UtilityScript.<anonymous> (<anonymous>:1:44))",
+          "al tope de stock (2) el boton se deshabilita (js=False, esperaba True)",
+          "total = 2*100 = 200 ('Total: $0' no contiene '200')"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: la cantidad es 2 (js='x2', esperaba '2')",
+        "checks_ok": 18,
+        "checks": 19,
+        "fallas_criticas": [
+          "la cantidad es 2 (js='x2', esperaba '2')"
+        ],
+        "cargo": true
+      }
+    }
+  },
+  "resumen": {
+    "pensar": {
+      "juzgados": 6,
+      "aprueban_original": 4,
+      "falsos_positivos": 0,
+      "errores_harness": 0,
+      "tasa_fp": 0.0
+    },
+    "laguna": {
+      "juzgados": 6,
+      "aprueban_original": 3,
+      "falsos_positivos": 0,
+      "errores_harness": 0,
+      "tasa_fp": 0.0
+    },
+    "total": {
+      "juzgados": 12,
+      "aprueban_original": 7,
+      "falsos_positivos": 0,
+      "errores_harness": 0,
+      "tasa_fp": 0.0
+    }
+  }
+}

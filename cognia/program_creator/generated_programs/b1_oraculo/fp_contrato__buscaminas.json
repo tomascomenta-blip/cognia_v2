@@ -1,0 +1,262 @@
+{
+  "fase1_frontier": {
+    "buscaminas": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    }
+  },
+  "fase2_pool": {
+    "buscaminas__pensar__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r2": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r6": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": false,
+        "motivo": "falla critica: la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True); la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17",
+        "checks_ok": 17,
+        "checks": 23,
+        "fallas_criticas": [
+          "la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True)",
+          "la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17,22) (js=1, esperaba 8)",
+          "la celda 16 dice 1 (vecina solo de 12) (js='', esperaba '1')",
+          "la celda 17 dice 2 (vecina de 12 y 18) (js='', esperaba '2')"
+        ],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r2": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: la celda 4 se abre (js=False, esperaba True); CASCADA: abrir una celda vacia abre varias (js=0 (falsy))",
+        "checks_ok": 17,
+        "checks": 20,
+        "fallas_criticas": [
+          "la celda 4 se abre (js=False, esperaba True)",
+          "CASCADA: abrir una celda vacia abre varias (js=0 (falsy))"
+        ],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": false,
+        "motivo": "falla critica: la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True); la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17",
+        "checks_ok": 17,
+        "checks": 23,
+        "fallas_criticas": [
+          "la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True)",
+          "la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17,22) (js=1, esperaba 8)",
+          "la celda 16 dice 1 (vecina solo de 12) (js='', esperaba '1')",
+          "la celda 17 dice 2 (vecina de 12 y 18) (js='', esperaba '2')"
+        ],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: empieza todo cerrado (count('.abierta')=22, esperaba 0)",
+        "checks_ok": 18,
+        "checks": 20,
+        "fallas_criticas": [
+          "empieza todo cerrado (count('.abierta')=22, esperaba 0)"
+        ],
+        "cargo": true
+      }
+    }
+  },
+  "resumen": {
+    "pensar": {
+      "juzgados": 6,
+      "aprueban_original": 6,
+      "falsos_positivos": 0,
+      "errores_harness": 0,
+      "tasa_fp": 0.0
+    },
+    "laguna": {
+      "juzgados": 6,
+      "aprueban_original": 4,
+      "falsos_positivos": 2,
+      "errores_harness": 0,
+      "tasa_fp": 0.5
+    },
+    "total": {
+      "juzgados": 12,
+      "aprueban_original": 10,
+      "falsos_positivos": 2,
+      "errores_harness": 0,
+      "tasa_fp": 0.2
+    }
+  }
+}

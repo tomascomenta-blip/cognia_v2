@@ -1,0 +1,240 @@
+{
+  "fase1_frontier": {
+    "hoja_calculo": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23'); REFEREN",
+        "checks_ok": 25,
+        "checks": 28,
+        "fallas_criticas": [
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23')",
+          "REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        ],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA por otra rama: C2 se recalcula a 8 (js='5', esperaba '8'); CASCADA 2 saltos por otra rama: C3 = 18 (js='12', esperaba '18'); SOBRESCRITUR",
+        "checks_ok": 27,
+        "checks": 30,
+        "fallas_criticas": [
+          "CASCADA por otra rama: C2 se recalcula a 8 (js='5', esperaba '8')",
+          "CASCADA 2 saltos por otra rama: C3 = 18 (js='12', esperaba '18')",
+          "SOBRESCRITURA: pisar la formula C2 con un literal recalcula C3 a 14 (js='12', esperaba '14')"
+        ],
+        "cargo": true
+      }
+    }
+  },
+  "fase2_pool": {
+    "hoja_calculo__pensar__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "checks_ok": 27,
+        "checks": 28,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "29/30 checks OK (26/26 del contrato)",
+        "checks_ok": 29,
+        "checks": 30,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r2": {
+      "original": {
+        "aprobado": true,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "checks_ok": 27,
+        "checks": 28,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "29/30 checks OK (26/26 del contrato)",
+        "checks_ok": 29,
+        "checks": 30,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r3": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23'); REFEREN",
+        "checks_ok": 24,
+        "checks": 28,
+        "fallas_criticas": [
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23')",
+          "REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r4": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: C1 = B1+A1 = 13 (js='CIRC', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='CIRC', esperaba '23')",
+        "checks_ok": 25,
+        "checks": 28,
+        "fallas_criticas": [
+          "C1 = B1+A1 = 13 (js='CIRC', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='CIRC', esperaba '23')"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "checks_ok": 27,
+        "checks": 28,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "29/30 checks OK (26/26 del contrato)",
+        "checks_ok": 29,
+        "checks": 30,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r6": {
+      "original": {
+        "aprobado": true,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "checks_ok": 27,
+        "checks": 28,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "29/30 checks OK (26/26 del contrato)",
+        "checks_ok": 29,
+        "checks": 30,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r1": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')",
+        "checks_ok": 25,
+        "checks": 28,
+        "fallas_criticas": [
+          "B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8')",
+          "C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r2": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23'); REFEREN",
+        "checks_ok": 24,
+        "checks": 28,
+        "fallas_criticas": [
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23')",
+          "REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r3": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cambiar A1, B1 se recalcula a 13 (js='NaN',",
+        "checks_ok": 23,
+        "checks": 28,
+        "fallas_criticas": [
+          "B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8')",
+          "C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')",
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='NaN', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='CIRC', esperaba '23')"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r4": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23'); REFEREN",
+        "checks_ok": 24,
+        "checks": 28,
+        "fallas_criticas": [
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23')",
+          "REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r5": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cambiar A1, B1 se recalcula a 13 (js='=A1+A",
+        "checks_ok": 23,
+        "checks": 28,
+        "fallas_criticas": [
+          "B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8')",
+          "C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')",
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='=A1+A2', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='=B1+A1', esperaba '23')"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cambiar A1, B1 se recalcula a 13 (js='=A1+A",
+        "checks_ok": 22,
+        "checks": 28,
+        "fallas_criticas": [
+          "B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8')",
+          "C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')",
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='=A1+A2', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='=B1+A1', esperaba '23')"
+        ],
+        "cargo": true
+      }
+    }
+  },
+  "resumen": {
+    "pensar": {
+      "juzgados": 6,
+      "aprueban_original": 4,
+      "falsos_positivos": 0,
+      "errores_harness": 0,
+      "tasa_fp": 0.0
+    },
+    "laguna": {
+      "juzgados": 6,
+      "aprueban_original": 0,
+      "falsos_positivos": 0,
+      "errores_harness": 0,
+      "tasa_fp": null
+    },
+    "total": {
+      "juzgados": 12,
+      "aprueban_original": 4,
+      "falsos_positivos": 0,
+      "errores_harness": 0,
+      "tasa_fp": 0.0
+    }
+  }
+}

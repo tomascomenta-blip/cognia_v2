@@ -1,0 +1,912 @@
+{
+  "fase1_frontier": {
+    "hoja_calculo": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23'); REFEREN",
+        "checks_ok": 25,
+        "checks": 28,
+        "fallas_criticas": [
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23')",
+          "REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        ],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA por otra rama: C2 se recalcula a 8 (js='5', esperaba '8'); CASCADA 2 saltos por otra rama: C3 = 18 (js='12', esperaba '18'); SOBRESCRITUR",
+        "checks_ok": 27,
+        "checks": 30,
+        "fallas_criticas": [
+          "CASCADA por otra rama: C2 se recalcula a 8 (js='5', esperaba '8')",
+          "CASCADA 2 saltos por otra rama: C3 = 18 (js='12', esperaba '18')",
+          "SOBRESCRITURA: pisar la formula C2 con un literal recalcula C3 a 14 (js='12', esperaba '14')"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban": {
+      "original": {
+        "aprobado": true,
+        "motivo": "17/20 checks OK (14/16 del contrato)",
+        "checks_ok": 17,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    }
+  },
+  "fase2_pool": {
+    "hoja_calculo__pensar__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "checks_ok": 27,
+        "checks": 28,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "29/30 checks OK (26/26 del contrato)",
+        "checks_ok": 29,
+        "checks": 30,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r2": {
+      "original": {
+        "aprobado": true,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "checks_ok": 27,
+        "checks": 28,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "29/30 checks OK (26/26 del contrato)",
+        "checks_ok": 29,
+        "checks": 30,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r3": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23'); REFEREN",
+        "checks_ok": 24,
+        "checks": 28,
+        "fallas_criticas": [
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23')",
+          "REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r4": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: C1 = B1+A1 = 13 (js='CIRC', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='CIRC', esperaba '23')",
+        "checks_ok": 25,
+        "checks": 28,
+        "fallas_criticas": [
+          "C1 = B1+A1 = 13 (js='CIRC', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='CIRC', esperaba '23')"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "checks_ok": 27,
+        "checks": 28,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "29/30 checks OK (26/26 del contrato)",
+        "checks_ok": 29,
+        "checks": 30,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__pensar__r6": {
+      "original": {
+        "aprobado": true,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "checks_ok": 27,
+        "checks": 28,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "29/30 checks OK (26/26 del contrato)",
+        "checks_ok": 29,
+        "checks": 30,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r1": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')",
+        "checks_ok": 25,
+        "checks": 28,
+        "fallas_criticas": [
+          "B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8')",
+          "C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r2": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23'); REFEREN",
+        "checks_ok": 24,
+        "checks": 28,
+        "fallas_criticas": [
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23')",
+          "REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r3": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cambiar A1, B1 se recalcula a 13 (js='NaN',",
+        "checks_ok": 23,
+        "checks": 28,
+        "fallas_criticas": [
+          "B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8')",
+          "C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')",
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='NaN', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='CIRC', esperaba '23')"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r4": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23'); REFEREN",
+        "checks_ok": 24,
+        "checks": 28,
+        "fallas_criticas": [
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='13', esperaba '23')",
+          "REFERENCIA CIRCULAR detectada, no cuelga (js=False, esperaba True)"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r5": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cambiar A1, B1 se recalcula a 13 (js='=A1+A",
+        "checks_ok": 23,
+        "checks": 28,
+        "fallas_criticas": [
+          "B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8')",
+          "C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')",
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='=A1+A2', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='=B1+A1', esperaba '23')"
+        ],
+        "cargo": true
+      }
+    },
+    "hoja_calculo__laguna__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cambiar A1, B1 se recalcula a 13 (js='=A1+A",
+        "checks_ok": 22,
+        "checks": 28,
+        "fallas_criticas": [
+          "B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8')",
+          "C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')",
+          "CASCADA: al cambiar A1, B1 se recalcula a 13 (js='=A1+A2', esperaba '13')",
+          "CASCADA en 2 saltos: C1 se recalcula a 23 (js='=B1+A1', esperaba '23')"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r2": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: la cantidad es 2 (js='p1 x 2', esperaba '2'); al llegar a 0 la linea DESAPARECE (js=1, esperaba 0)",
+        "checks_ok": 17,
+        "checks": 19,
+        "fallas_criticas": [
+          "la cantidad es 2 (js='p1 x 2', esperaba '2')",
+          "al llegar a 0 la linea DESAPARECE (js=1, esperaba 0)"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__pensar__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)",
+        "checks_ok": 18,
+        "checks": 19,
+        "fallas_criticas": [
+          "al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r2": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r3": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: p3 tiene stock 1: se deshabilita al primer add (js=False, esperaba True); al quitar una, el boton se re-habilita (js=True, esperaba False)",
+        "checks_ok": 16,
+        "checks": 19,
+        "fallas_criticas": [
+          "p3 tiene stock 1: se deshabilita al primer add (js=False, esperaba True)",
+          "al quitar una, el boton se re-habilita (js=True, esperaba False)"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "checks_ok": 19,
+        "checks": 19,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r5": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: dos veces el mismo producto = UNA linea (count('.linea')=0, esperaba 1); la cantidad es 2 (excepcion: Error: Page.evaluate: TypeError: Cannot rea",
+        "checks_ok": 6,
+        "checks": 19,
+        "fallas_criticas": [
+          "dos veces el mismo producto = UNA linea (count('.linea')=0, esperaba 1)",
+          "la cantidad es 2 (excepcion: Error: Page.evaluate: TypeError: Cannot read properties of null (reading 'textContent')\n    at eval (eval at evaluate (:303:30), <anonymous>:1:60)\n    at UtilityScript.evaluate (<anonymous>:310:18)\n    at UtilityScript.<anonymous> (<anonymous>:1:44))",
+          "al tope de stock (2) el boton se deshabilita (js=False, esperaba True)",
+          "total = 2*100 = 200 ('Total: $0' no contiene '200')"
+        ],
+        "cargo": true
+      }
+    },
+    "carrito_stock__laguna__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: la cantidad es 2 (js='x2', esperaba '2')",
+        "checks_ok": 18,
+        "checks": 19,
+        "fallas_criticas": [
+          "la cantidad es 2 (js='x2', esperaba '2')"
+        ],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "20/20 checks OK (16/16 del contrato)",
+        "checks_ok": 20,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r2": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2); LIMITE WIP: t3 NO entra, doing sigue en 2 (js=1, esperaba 2); t3 se queda en todo (js=2, esper",
+        "checks_ok": 15,
+        "checks": 20,
+        "fallas_criticas": [
+          "t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2)",
+          "LIMITE WIP: t3 NO entra, doing sigue en 2 (js=1, esperaba 2)",
+          "t3 se queda en todo (js=2, esperaba 1)",
+          "liberado un hueco, t3 SI entra (js=1, esperaba 2)"
+        ],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: 3 tarjetas en todo (js=0, esperaba 3); el contador dice 3 ('' no contiene '3'); t1 pasa a doing (js=0, esperaba 1)",
+        "checks_ok": 3,
+        "checks": 20,
+        "fallas_criticas": [
+          "3 tarjetas en todo (js=0, esperaba 3)",
+          "el contador dice 3 ('' no contiene '3')",
+          "t1 pasa a doing (js=0, esperaba 1)",
+          "t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2)"
+        ],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r1": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: el contador dice 3 ('' no contiene '3'); t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2)",
+        "checks_ok": 9,
+        "checks": 20,
+        "fallas_criticas": [
+          "el contador dice 3 ('' no contiene '3')",
+          "t1 pasa a doing (js=0, esperaba 1)",
+          "t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2)",
+          "LIMITE WIP: t3 NO entra, doing sigue en 2 (js=0, esperaba 2)"
+        ],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r2": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": false,
+        "motivo": "falla critica: menos en todo NO hace nada: siguen 3 (js=2, esperaba 3); el contador de todo sigue en 3 ('(2)' no contiene '3'); cont-doing marca 1 (nunca se ley",
+        "checks_ok": 13,
+        "checks": 23,
+        "fallas_criticas": [
+          "menos en todo NO hace nada: siguen 3 (js=2, esperaba 3)",
+          "el contador de todo sigue en 3 ('(2)' no contiene '3')",
+          "cont-doing marca 1 (nunca se leyo ese contador) ('(2)' no contiene '1')",
+          "IDA Y VUELTA: t3 vuelve a todo (js=2, esperaba 3)"
+        ],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r6": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r2": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__pensar__r6": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": false,
+        "motivo": "falla critica: la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True); la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17",
+        "checks_ok": 17,
+        "checks": 23,
+        "fallas_criticas": [
+          "la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True)",
+          "la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17,22) (js=1, esperaba 8)",
+          "la celda 16 dice 1 (vecina solo de 12) (js='', esperaba '1')",
+          "la celda 17 dice 2 (vecina de 12 y 18) (js='', esperaba '2')"
+        ],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r2": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: la celda 4 se abre (js=False, esperaba True); CASCADA: abrir una celda vacia abre varias (js=0 (falsy))",
+        "checks_ok": 17,
+        "checks": 20,
+        "fallas_criticas": [
+          "la celda 4 se abre (js=False, esperaba True)",
+          "CASCADA: abrir una celda vacia abre varias (js=0 (falsy))"
+        ],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": false,
+        "motivo": "falla critica: la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True); la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17",
+        "checks_ok": 17,
+        "checks": 23,
+        "fallas_criticas": [
+          "la cascada sube hasta la 15 (tambien cero) (js=False, esperaba True)",
+          "la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17,22) (js=1, esperaba 8)",
+          "la celda 16 dice 1 (vecina solo de 12) (js='', esperaba '1')",
+          "la celda 17 dice 2 (vecina de 12 y 18) (js='', esperaba '2')"
+        ],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "buscaminas__laguna__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: empieza todo cerrado (count('.abierta')=22, esperaba 0)",
+        "checks_ok": 18,
+        "checks": 20,
+        "fallas_criticas": [
+          "empieza todo cerrado (count('.abierta')=22, esperaba 0)"
+        ],
+        "cargo": true
+      }
+    }
+  },
+  "resumen": {
+    "pensar": {
+      "juzgados": 24,
+      "aprueban_original": 18,
+      "falsos_positivos": 0,
+      "errores_harness": 0,
+      "tasa_fp": 0.0
+    },
+    "laguna": {
+      "juzgados": 24,
+      "aprueban_original": 12,
+      "falsos_positivos": 3,
+      "errores_harness": 0,
+      "tasa_fp": 0.25
+    },
+    "total": {
+      "juzgados": 48,
+      "aprueban_original": 30,
+      "falsos_positivos": 3,
+      "errores_harness": 0,
+      "tasa_fp": 0.1
+    }
+  }
+}

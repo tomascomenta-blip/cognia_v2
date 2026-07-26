@@ -1,0 +1,259 @@
+{
+  "fase1_frontier": {
+    "kanban": {
+      "original": {
+        "aprobado": true,
+        "motivo": "17/20 checks OK (14/16 del contrato)",
+        "checks_ok": 17,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    }
+  },
+  "fase2_pool": {
+    "kanban__pensar__r1": {
+      "original": {
+        "aprobado": true,
+        "motivo": "20/20 checks OK (16/16 del contrato)",
+        "checks_ok": 20,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "23/23 checks OK (19/19 del contrato)",
+        "checks_ok": 23,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r2": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2); LIMITE WIP: t3 NO entra, doing sigue en 2 (js=1, esperaba 2); t3 se queda en todo (js=2, esper",
+        "checks_ok": 15,
+        "checks": 20,
+        "fallas_criticas": [
+          "t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2)",
+          "LIMITE WIP: t3 NO entra, doing sigue en 2 (js=1, esperaba 2)",
+          "t3 se queda en todo (js=2, esperaba 1)",
+          "liberado un hueco, t3 SI entra (js=1, esperaba 2)"
+        ],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__pensar__r6": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: 3 tarjetas en todo (js=0, esperaba 3); el contador dice 3 ('' no contiene '3'); t1 pasa a doing (js=0, esperaba 1)",
+        "checks_ok": 3,
+        "checks": 20,
+        "fallas_criticas": [
+          "3 tarjetas en todo (js=0, esperaba 3)",
+          "el contador dice 3 ('' no contiene '3')",
+          "t1 pasa a doing (js=0, esperaba 1)",
+          "t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2)"
+        ],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r1": {
+      "original": {
+        "aprobado": false,
+        "motivo": "falla critica: el contador dice 3 ('' no contiene '3'); t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2)",
+        "checks_ok": 9,
+        "checks": 20,
+        "fallas_criticas": [
+          "el contador dice 3 ('' no contiene '3')",
+          "t1 pasa a doing (js=0, esperaba 1)",
+          "t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2)",
+          "LIMITE WIP: t3 NO entra, doing sigue en 2 (js=0, esperaba 2)"
+        ],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r2": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r3": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": false,
+        "motivo": "falla critica: menos en todo NO hace nada: siguen 3 (js=2, esperaba 3); el contador de todo sigue en 3 ('(2)' no contiene '3'); cont-doing marca 1 (nunca se ley",
+        "checks_ok": 13,
+        "checks": 23,
+        "fallas_criticas": [
+          "menos en todo NO hace nada: siguen 3 (js=2, esperaba 3)",
+          "el contador de todo sigue en 3 ('(2)' no contiene '3')",
+          "cont-doing marca 1 (nunca se leyo ese contador) ('(2)' no contiene '1')",
+          "IDA Y VUELTA: t3 vuelve a todo (js=2, esperaba 3)"
+        ],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r4": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r5": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    },
+    "kanban__laguna__r6": {
+      "original": {
+        "aprobado": true,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "checks_ok": 19,
+        "checks": 20,
+        "fallas_criticas": [],
+        "cargo": true
+      },
+      "heldout": {
+        "aprobado": true,
+        "motivo": "22/23 checks OK (19/19 del contrato)",
+        "checks_ok": 22,
+        "checks": 23,
+        "fallas_criticas": [],
+        "cargo": true
+      }
+    }
+  },
+  "resumen": {
+    "pensar": {
+      "juzgados": 6,
+      "aprueban_original": 4,
+      "falsos_positivos": 0,
+      "errores_harness": 0,
+      "tasa_fp": 0.0
+    },
+    "laguna": {
+      "juzgados": 6,
+      "aprueban_original": 5,
+      "falsos_positivos": 1,
+      "errores_harness": 0,
+      "tasa_fp": 0.2
+    },
+    "total": {
+      "juzgados": 12,
+      "aprueban_original": 9,
+      "falsos_positivos": 1,
+      "errores_harness": 0,
+      "tasa_fp": 0.111
+    }
+  }
+}

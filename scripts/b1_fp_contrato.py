@@ -51,6 +51,12 @@ def _juzgar(html: Path, contrato: dict) -> dict:
 def main(argv: list) -> int:
     orig = _contratos("b1_tareas_brutales.json")
     heldout = _contratos("b1_contratos_heldout.json")
+    global TAREAS
+    sufijo = ""
+    if "--tareas" in argv:
+        pedidas = argv[argv.index("--tareas") + 1].split(",")
+        TAREAS = [t for t in TAREAS if t in pedidas]
+        sufijo = "__" + "_".join(TAREAS)
 
     # ── FASE 1: el held-out contra la referencia frontier ────────────────────
     print("=" * 78)
@@ -74,7 +80,7 @@ def main(argv: list) -> int:
         for f in (vo["fallas_criticas"] if not vo["aprobado"] else []):
             print(f"      original FALLA: {f}")
 
-    salida = POOL_DIR / "fp_contrato.json"
+    salida = POOL_DIR / f"fp_contrato{sufijo}.json"
     if heldout_roto:
         salida.write_text(json.dumps({"fase1_frontier": frontier},
                                      indent=2, ensure_ascii=False),
