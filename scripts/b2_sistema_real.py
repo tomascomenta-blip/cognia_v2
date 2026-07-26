@@ -52,14 +52,15 @@ def correr_sistema(idea: str, destino: Path) -> tuple[str | None, float, str]:
 
     try:
         from cognia.program_creator import diseno_a_codigo
-        from node.llama_backend import LlamaBackend
-        b = LlamaBackend.try_load()
+        # llm=None: cada pieza usa llm_local (/v1/chat/completions, auditado).
+        # La version anterior inyectaba LlamaBackend.generate (/completion con
+        # prompt CRUDO) y con gpt-oss de cerebro eso hacia que el razonamiento
+        # saliera en texto plano y agotara max_tokens antes del HTML: el lazo
+        # rechazaba la generacion inicial ("no es un documento HTML completo")
+        # y caia al camino corto en 5 de 6 tareas — o sea que este script no
+        # media el lazo. Probe medido 2026-07-26: mismo prompt, /completion
+        # stop_type=limit con el pensamiento como contenido; chat, limpio.
         llm = None
-        if b is not None:
-            def llm(prompt, system="", max_tokens=2000, temperature=0.9):
-                full = f"{system}\n\n{prompt}" if system else prompt
-                return b.generate(full, max_tokens=max_tokens,
-                                  temperature=temperature)
         # Firma real (diseno_a_codigo.py:183): idea posicional y el RESTO
         # keyword-only. Llamarla con destino posicional lanzaba TypeError y el
         # script caia al camino corto SIN decir que no habia medido el lazo:

@@ -114,20 +114,32 @@ def _get_seed_concepts(cognia_instance=None) -> list[str]:
 def _llm_de_cognia(cognia_instance):
     """Backend real del REPL como funcion inyectable para el generador.
 
-    (prompt, system, max_tokens, temperature) -> texto | None. Usa el
-    orquestador de la instancia (llama-server GGUF); rechaza el modo
-    "simulation" (texto placeholder, inservible para generar programas).
-    None si la instancia no tiene orquestador — el generador cae a Ollama."""
+    (prompt, system, max_tokens, temperature) -> texto | None.
+
+    Desde 2026-07-26 delega en llm_local.generar (/v1/chat/completions) en vez
+    de orch.infer (/completion con prompt crudo). Con un cerebro DE
+    RAZONAMIENTO (gpt-oss-20b, combo pensar) el prompt crudo sin plantilla
+    hace que el modelo piense EN TEXTO PLANO y agote max_tokens antes del
+    HTML. Medido 2026-07-26 con el mismo prompt contra el mismo server:
+    /completion devuelve "We need to produce..." + fence truncado
+    (stop_type=limit); /v1/chat/completions devuelve Title/fence limpios
+    porque el server separa el razonamiento en reasoning_content. Era la
+    causa de que el lazo diseno-a-codigo rechazara la generacion inicial
+    ("no es un documento HTML completo") y cayera al camino corto — capacidad
+    atribuida a plomeria, la MISMA clase de bug que el confound de Ollama
+    (num_ctx) cerrado esta noche.
+
+    Se conserva el gate del orquestador: sin orquestador se devuelve None y
+    cada pieza cae a su propio camino (que tambien es llm_local, auditado)."""
     orch = getattr(cognia_instance, "_orchestrator", None)
     if orch is None:
         return None
 
+    from ..llm_local import generar
+
     def llm(prompt, system="", max_tokens=2000, temperature=0.9):
-        full = f"{system}\n\n{prompt}" if system else prompt
-        r = orch.infer(full, max_tokens=max_tokens, temperature=temperature)
-        if r is None or getattr(r, "mode", "") == "simulation":
-            return None
-        return (r.text or "").strip() or None
+        return generar(prompt, system=system, temperature=temperature,
+                       max_tokens=max_tokens, via="construir") or None
 
     return llm
 
