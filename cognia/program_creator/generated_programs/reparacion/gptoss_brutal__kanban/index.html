@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  /* Reset básico */
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;padding:20px;}
+  
+  /* Tablero */
+  #board{display:flex;gap:10px;justify-content:center;}
+  .col{background:#fff;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.1);flex:1;padding:10px;}
+  .col h2{font-size:1.2rem;margin-bottom:10px;text-align:center;}
+  .col h2 span{background:#333;color:#fff;border-radius:12px;padding:2px 8px;font-size:.8rem;}
+  
+  /* Tarjetas */
+  .card{background:#e3f2fd;border-radius:4px;padding:10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;justify-content:space-between;align-items:center;animation:fadeIn .5s ease forwards;}
+  .card p{margin:0;font-weight:bold;}
+  .card button{background:#1976d2;color:#fff;border:none;border-radius:3px;padding:4px 6px;margin-left:4px;cursor:pointer;}
+  .card button:disabled{background:#aaa;cursor:not-allowed;}
+  
+  /* Animación */
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateX(-20px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+</style>
+</head>
+<body>
+
+<div id="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">3</span></h2>
+    <div class="card" data-id="t1">
+      <p>t1</p>
+      <div>
+        <button class="mas">→</button>
+        <button class="menos" disabled>←</button>
+      </div>
+    </div>
+    <div class="card" data-id="t2">
+      <p>t2</p>
+      <div>
+        <button class="mas">→</button>
+        <button class="menos" disabled>←</button>
+      </div>
+    </div>
+    <div class="card" data-id="t3">
+      <p>t3</p>
+      <div>
+        <button class="mas">→</button>
+        <button class="menos" disabled>←</button>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cols = {
+    todo: document.querySelector('.col[data-col="todo"]'),
+    doing: document.querySelector('.col[data-col="doing"]'),
+    done: document.querySelector('.col[data-col="done"]')
+  };
+
+  const counters = {
+    todo: document.getElementById('cont-todo'),
+    doing: document.getElementById('cont-doing'),
+    done: document.getElementById('cont-done')
+  };
+
+  // Actualiza los contadores
+  function updateCounters() {
+    counters.todo.textContent = cols.todo.querySelectorAll('.card').length;
+    counters.doing.textContent = cols.doing.querySelectorAll('.card').length;
+    counters.done.textContent = cols.done.querySelectorAll('.card').length;
+  }
+
+  // Mueve una tarjeta a la columna indicada
+  function moveCard(card, targetCol) {
+    targetCol.appendChild(card);
+    updateCounters();
+    updateButtons(card);
+  }
+
+  // Actualiza los botones de una tarjeta según su posición
+  function updateButtons(card) {
+    const currentCol = card.parentElement.getAttribute('data-col');
+    const masBtn = card.querySelector('.mas');
+    const menosBtn = card.querySelector('.menos');
+
+    // Deshabilita el botón de avanzar si está en 'done' o si 'doing' está lleno
+    if (currentCol === 'done' || (currentCol === 'todo' && cols.doing.querySelectorAll('.card').length >= 2)) {
+      masBtn.disabled = true;
+    } else {
+      masBtn.disabled = false;
+    }
+
+    // Deshabilita el botón de retroceder si está en 'todo'
+    menosBtn.disabled = currentCol === 'todo';
+  }
+
+  // Añade listeners a los botones
+  function initButtons() {
+    document.querySelectorAll('.card').forEach(card => {
+      const masBtn = card.querySelector('.mas');
+      const menosBtn = card.querySelector('.menos');
+
+      masBtn.addEventListener('click', () => {
+        const currentCol = card.parentElement.getAttribute('data-col');
+        if (currentCol === 'todo' && cols.doing.querySelectorAll('.card').length >= 2) return; // WIP
+        if (currentCol === 'done') return; // No avanzar
+        const nextCol = currentCol === 'todo' ? cols.doing : cols.done;
+        moveCard(card, nextCol);
+      });
+
+      menosBtn.addEventListener('click', () => {
+        const currentCol = card.parentElement.getAttribute('data-col');
+        if (currentCol === 'todo') return; // No retroceder
+        const prevCol = currentCol === 'doing' ? cols.todo : cols.doing;
+        moveCard(card, prevCol);
+      });
+
+      updateButtons(card);
+    });
+  }
+
+  // Inicializa todo
+  updateCounters();
+  initButtons();
+});
+</script>
+</body>
+</html>

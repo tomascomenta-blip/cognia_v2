@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tabla con Filtro, Orden y Paginación</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:20px;background:#f4f4f4;}
+  h1{font-size:1.5em;margin-bottom:10px;}
+  .controls{margin-bottom:15px;}
+  .controls input{padding:5px;font-size:1em;}
+  .controls button{padding:5px 10px;font-size:1em;margin-left:5px;}
+  table{width:100%;border-collapse:collapse;background:#fff;}
+  th,td{border:1px solid #ddd;padding:8px;text-align:left;}
+  th{background:#f0f0f0;}
+  .pagination{margin-top:10px;}
+  .pagination button{padding:5px 10px;font-size:1em;margin-right:5px;}
+  .pagination span{font-weight:bold;}
+  /* Animación de entrada */
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  tr.fila{
+    opacity:0;
+    animation:fadeIn 0.5s ease forwards;
+    animation-delay:calc(var(--index)*0.1s);
+  }
+</style>
+</head>
+<body>
+<h1>Tabla de Personas</h1>
+<div class="controls">
+  <input type="text" id="q" placeholder="Buscar por nombre">
+  <button id="ordenar">Ordenar por edad ↑</button>
+</div>
+<table>
+  <thead>
+    <tr><th>Nombre</th><th>Edad</th></tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+<div class="pagination">
+  <button id="prev">Anterior</button>
+  <button id="sig">Siguiente</button>
+  <span id="pagina">1</span>
+</div>
+
+<script>
+  // 23 datos de ejemplo
+  const datos = [
+    {nombre:"Ana", edad:28},
+    {nombre:"Luis", edad:34},
+    {nombre:"María", edad:22},
+    {nombre:"Carlos", edad:45},
+    {nombre:"Elena", edad:31},
+    {nombre:"Jorge", edad:39},
+    {nombre:"Sofía", edad:27},
+    {nombre:"Pedro", edad:52},
+    {nombre:"Lucía", edad:23},
+    {nombre:"Miguel", edad:36},
+    {nombre:"Isabel", edad:29},
+    {nombre:"Fernando", edad:41},
+    {nombre:"Raquel", edad:24},
+    {nombre:"Antonio", edad:47},
+    {nombre:"Beatriz", edad:30},
+    {nombre:"David", edad:38},
+    {nombre:"Clara", edad:26},
+    {nombre:"Javier", edad:43},
+    {nombre:"Patricia", edad:33},
+    {nombre:"Roberto", edad:40},
+    {nombre:"Laura", edad:25},
+    {nombre:"Alberto", edad:48},
+    {nombre:"Santiago", edad:35} /* nuevo registro para completar 23 */
+  ];
+
+  const rowsPerPage = 10;
+  let currentPage = 1;
+  let sortAsc = true;
+  let filterText = '';
+
+  const tbody = document.getElementById('tbody');
+  const paginaSpan = document.getElementById('pagina');
+  const prevBtn = document.getElementById('prev');
+  const sigBtn = document.getElementById('sig');
+  const ordenarBtn = document.getElementById('ordenar');
+  const qInput = document.getElementById('q');
+
+  function renderTable(){
+    // Filtrar
+    let filtered = datos.filter(item => item.nombre.toLowerCase().includes(filterText.toLowerCase()));
+    // Ordenar
+    filtered.sort((a,b)=> sortAsc ? a.edad-b.edad : b.edad-a.edad);
+    // Paginación
+    const totalPages = Math.ceil(filtered.length/rowsPerPage) || 1;
+    if(currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage-1)*rowsPerPage;
+    const pageData = filtered.slice(start, start+rowsPerPage);
+    // Renderizar filas
+    tbody.innerHTML = '';
+    pageData.forEach((item,idx)=>{
+      const tr = document.createElement('tr');
+      tr.className = 'fila';
+      tr.style.setProperty('--index', idx);
+      tr.innerHTML = `<td>${item.nombre}</td><td>${item.edad}</td>`;
+      tbody.appendChild(tr);
+    });
+    // Actualizar paginación
+    paginaSpan.textContent = currentPage;
+    prevBtn.disabled = currentPage===1;
+    sigBtn.disabled = currentPage===totalPages;
+    // Actualizar texto del botón ordenar
+    ordenarBtn.textContent = sortAsc ? 'Ordenar por edad ↑' : 'Ordenar por edad ↓';
+  }
+
+  // Eventos
+  qInput.addEventListener('input', e=>{
+    filterText = e.target.value;
+    currentPage = 1;
+    renderTable();
+  });
+
+  ordenarBtn.addEventListener('click', ()=>{
+    sortAsc = !sortAsc;
+    renderTable();
+  });
+
+  prevBtn.addEventListener('click', ()=>{
+    if(currentPage>1){currentPage--; renderTable();}
+  });
+
+  sigBtn.addEventListener('click', ()=>{
+    const filtered = datos.filter(item => item.nombre.toLowerCase().includes(filterText.toLowerCase()));
+    const totalPages = Math.ceil(filtered.length/rowsPerPage) || 1;
+    if(currentPage<totalPages){currentPage++; renderTable();}
+  });
+
+  // Render inicial
+  renderTable();
+</script>
+</body>
+</html>

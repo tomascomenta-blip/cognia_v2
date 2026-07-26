@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cronómetro</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  .container{
+    text-align:center;
+    padding:20px;
+    background:#fff;
+    border-radius:8px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    animation:fadeIn 1s ease-in-out;
+  }
+  #t{
+    font-size:48px;
+    font-weight:bold;
+    display:block;
+    margin-bottom:20px;
+  }
+  button{
+    margin:5px;
+    padding:10px 20px;
+    font-size:16px;
+    cursor:pointer;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(-20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <span id="t">0</span>
+  <button id="start">Start</button>
+  <button id="pause">Pause</button>
+  <button id="reset">Reset</button>
+</div>
+<script>
+  let elapsed = 0;
+  let intervalId = null;
+  const span = document.getElementById('t');
+  const startBtn = document.getElementById('start');
+  const pauseBtn = document.getElementById('pause');
+  const resetBtn = document.getElementById('reset');
+
+  function updateDisplay(){
+    span.textContent = elapsed;
+  }
+
+  function startTimer(){
+    if (intervalId === null){
+      intervalId = setInterval(() => {
+        elapsed++;
+        updateDisplay();
+      }, 1000);
+    }
+  }
+
+  function pauseTimer(){
+    if (intervalId !== null){
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  function resetTimer(){
+    pauseTimer();
+    elapsed = 0;
+    updateDisplay();
+  }
+
+  startBtn.addEventListener('click', startTimer);
+  pauseBtn.addEventListener('click', pauseTimer);
+  resetBtn.addEventListener('click', resetTimer);
+
+  updateDisplay();
+</script>
+</body>
+</html>

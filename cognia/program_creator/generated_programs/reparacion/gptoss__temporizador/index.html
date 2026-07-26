@@ -1,0 +1,103 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cronómetro</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(270deg, #ff9a9e, #fad0c4, #fad0c4);
+    background-size:600% 600%;
+    animation: gradientMove 10s ease infinite;
+  }
+  @keyframes gradientMove{
+    0%{background-position:0% 50%;}
+    50%{background-position:100% 50%;}
+    100%{background-position:0% 50%;}
+  }
+  .container{
+    background:#fff;
+    padding:30px;
+    border-radius:10px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.2);
+    text-align:center;
+    animation: fadeIn 1s ease forwards;
+    opacity:0;
+  }
+  @keyframes fadeIn{
+    to{opacity:1;}
+  }
+  #t{
+    font-size:4rem;
+    display:block;
+    margin-bottom:20px;
+  }
+  button{
+    padding:10px 20px;
+    margin:5px;
+    font-size:1rem;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+    transition:background 0.3s;
+  }
+  button:hover{
+    background:#ddd;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <span id="t">0</span>
+  <button id="start">Start</button>
+  <button id="pause">Pause</button>
+  <button id="reset">Reset</button>
+</div>
+
+<script>
+  let seconds = 0;
+  let intervalId = null;
+
+  const display = document.getElementById('t');
+  const startBtn = document.getElementById('start');
+  const pauseBtn = document.getElementById('pause');
+  const resetBtn = document.getElementById('reset');
+
+  function updateDisplay() {
+    display.textContent = seconds;
+  }
+
+  function start() {
+    if (!intervalId) {
+      intervalId = setInterval(() => {
+        seconds++;
+        updateDisplay();
+      }, 1000);
+    }
+  }
+
+  function pause() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  function reset() {
+    pause();
+    seconds = 0;
+    updateDisplay();
+  }
+
+  startBtn.addEventListener('click', start);
+  pauseBtn.addEventListener('click', pause);
+  resetBtn.addEventListener('click', reset);
+</script>
+</body>
+</html>

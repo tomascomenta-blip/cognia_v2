@@ -469,7 +469,23 @@ def _preguntar_constructor(url: str, prompt: str, system: str,
             headers={"Content-Type": "application/json"})
         with _req.urlopen(peticion, timeout=TIMEOUT_SEC) as r:
             datos = json.loads(r.read().decode("utf-8"))
-        return datos["choices"][0]["message"]["content"]
+        eleccion = datos["choices"][0]
+        # TRUNCAMIENTO: si el server corta por limite, lo que vuelve es una
+        # pagina a medias SIN el fence de cierre, el parser no encuentra codigo
+        # y el resultado se lee como "el modelo no supo hacerlo". Es capacidad
+        # atribuida a un limite de configuracion.
+        # Medido 2026-07-25 dos veces en la misma sesion: Laguna XS con num_ctx
+        # 4096 de Ollama devolvia 0 CARACTERES tras 3881 tokens de razonamiento;
+        # gpt-oss-20b servido a n_ctx 8192 cortaba la tarea 'kanban' a los 7931
+        # tokens. En ambos casos el modelo estaba bien y la config, mal.
+        if eleccion.get("finish_reason") == "length":
+            uso = datos.get("usage", {}).get("completion_tokens", "?")
+            print(f"[generator] TRUNCADO por limite de contexto en {url} "
+                  f"({uso} tokens, finish_reason=length). La respuesta viene a "
+                  f"medias: esto NO es que el modelo no sepa, es que no cabe. "
+                  f"Sube el contexto del server.", file=__import__("sys").stderr,
+                  flush=True)
+        return eleccion["message"]["content"]
     except Exception as exc:
         print(f"[generator] constructor experto de {url} no respondio ({exc}); "
               f"caigo al camino normal")

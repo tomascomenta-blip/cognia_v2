@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista con Undo/Redo</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    margin:20px;
+    background:#fff;
+    animation: bgChange 3s forwards;
+  }
+  @keyframes bgChange{
+    0%{background:#fff;}
+    100%{background:#e0f7fa;}
+  }
+  ul{list-style:none;padding:0;}
+  li.it{
+    padding:5px 10px;
+    margin:5px 0;
+    background:#c8e6c9;
+    border-radius:4px;
+  }
+  button:disabled{opacity:.5;}
+</style>
+</head>
+<body>
+  <input id="txt" placeholder="Texto">
+  <button id="add">Add</button>
+  <button id="undo" disabled>Undo</button>
+  <button id="redo" disabled>Redo</button>
+  <ul id="list"></ul>
+
+<script>
+const txt   = document.getElementById('txt');
+const addBtn= document.getElementById('add');
+const undoBtn= document.getElementById('undo');
+const redoBtn= document.getElementById('redo');
+const list  = document.getElementById('list');
+
+let actions   = [];   // historial de acciones
+let redoStack = [];   // acciones que se pueden rehacer
+
+function updateButtons(){
+  undoBtn.disabled = actions.length===0;
+  redoBtn.disabled = redoStack.length===0;
+}
+
+function addItem(text){
+  const li = document.createElement('li');
+  li.textContent = text;
+  li.className = 'it';
+  list.appendChild(li);
+}
+
+addBtn.addEventListener('click', ()=>{
+  const txtVal = txt.value.trim();
+  if(!txtVal) return;
+  addItem(txtVal);
+  actions.push({type:'add', text:txtVal});
+  redoStack = [];          // se pierde la rama de redo
+  updateButtons();
+  txt.value = '';
+});
+
+undoBtn.addEventListener('click', ()=>{
+  if(actions.length===0) return;
+  const last = actions.pop();
+  if(last.type==='add'){
+    const items = list.querySelectorAll('li.it');
+    if(items.length>0) items[items.length-1].remove();
+  }
+  redoStack.push(last);
+  updateButtons();
+});
+
+redoBtn.addEventListener('click', ()=>{
+  if(redoStack.length===0) return;
+  const last = redoStack.pop();
+  if(last.type==='add'){
+    addItem(last.text);
+  }
+  actions.push(last);
+  updateButtons();
+});
+
+updateButtons();
+</script>
+</body>
+</html>

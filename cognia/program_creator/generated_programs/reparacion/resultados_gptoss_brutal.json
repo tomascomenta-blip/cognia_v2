@@ -1,0 +1,69 @@
+{
+  "etiqueta": "gptoss_brutal",
+  "banco": "scripts/b1_tareas_brutales.json",
+  "rondas": 4,
+  "filas": [
+    {
+      "tarea": "hoja_calculo",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 30.46618962287903,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 27,
+          "checks": 28
+        }
+      ]
+    },
+    {
+      "tarea": "carrito_stock",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 20.874908924102783,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19
+        }
+      ]
+    },
+    {
+      "tarea": "kanban",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 125.42544889450073,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 18,
+          "checks": 20
+        }
+      ]
+    },
+    {
+      "tarea": "buscaminas",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 28.942908763885498,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 20
+        }
+      ]
+    }
+  ],
+  "pass_r0": 1.0,
+  "pass_final": 1.0
+}

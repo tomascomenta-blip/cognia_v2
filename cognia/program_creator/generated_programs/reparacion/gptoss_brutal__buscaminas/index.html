@@ -1,0 +1,166 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  #grid{
+    display:flex;
+    flex-wrap:wrap;
+    width:200px;
+    height:200px;
+    border:2px solid #333;
+    animation:scaleIn 0.8s ease-out forwards;
+  }
+  .c{
+    width:40px;
+    height:40px;
+    box-sizing:border-box;
+    border:1px solid #999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+    font-size:18px;
+    cursor:pointer;
+    user-select:none;
+    background:#e0e0e0;
+    transition:background 0.2s;
+  }
+  .c.abierta{
+    background:#d0d0d0;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ff6666;
+    color:#fff;
+  }
+  #estado{
+    margin-top:15px;
+    font-size:20px;
+    font-weight:bold;
+  }
+  @keyframes scaleIn{
+    from{transform:scale(0.8);opacity:0;}
+    to{transform:scale(1);opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <!-- 25 cells with data-i 0-24 -->
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const mines = new Set([6,12,18]); // posiciones fijas
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const cells = Array.from(document.querySelectorAll('.c'));
+
+  // Precalcular vecinos de cada celda
+  const neighborsMap = {};
+  cells.forEach(cell => {
+    const i = +cell.dataset.i;
+    const r = Math.floor(i/5), c = i%5;
+    const neigh = [];
+    for(let dr=-1; dr<=1; dr++){
+      for(let dc=-1; dc<=1; dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          neigh.push(nr*5+nc);
+        }
+      }
+    }
+    neighborsMap[i] = neigh;
+  });
+
+  // Función para abrir una celda
+  function openCell(i){
+    const cell = cells[i];
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    cell.classList.add('abierta');
+    if(mines.has(i)){
+      cell.textContent = '💣';
+      estado.textContent = 'perdiste';
+      // Opcional: deshabilitar todas las celdas
+      cells.forEach(c=>c.style.pointerEvents='none');
+      return;
+    }
+    const adj = neighborsMap[i].filter(n=>mines.has(n)).length;
+    if(adj>0){
+      cell.textContent = adj;
+    }else{
+      cell.textContent = '';
+      // Recursivamente abrir vecinos
+      neighborsMap[i].forEach(n=>openCell(n));
+    }
+  }
+
+  // Función para alternar bandera
+  function toggleFlag(i){
+    const cell = cells[i];
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent = '🚩';
+    }
+  }
+
+  // Eventos
+  cells.forEach(cell=>{
+    const i = +cell.dataset.i;
+    cell.addEventListener('click', e=>{
+      e.preventDefault();
+      openCell(i);
+    });
+    cell.addEventListener('contextmenu', e=>{
+      e.preventDefault();
+      toggleFlag(i);
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora con Precedencia</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    animation:fadeIn 1s ease-out;
+  }
+  @keyframes fadeIn{
+    0%{opacity:0;}
+    100%{opacity:1;}
+  }
+  .calculator{
+    background:#222;
+    color:#fff;
+    width:260px;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,.3);
+    animation:slideIn 1s ease-out;
+  }
+  @keyframes slideIn{
+    0%{transform:translateX(-300px);opacity:0;}
+    100%{transform:translateX(0);opacity:1;}
+  }
+  #pantalla{
+    background:#444;
+    padding:10px;
+    border-radius:5px;
+    font-size:1.5rem;
+    text-align:right;
+    margin-bottom:15px;
+    overflow:hidden;
+  }
+  .buttons{
+    display:flex;
+    flex-wrap:wrap;
+  }
+  .k{
+    background:#333;
+    border:none;
+    border-radius:5px;
+    color:#fff;
+    font-size:1.2rem;
+    padding:15px;
+    margin:5px;
+    flex:1 1 30%;
+    cursor:pointer;
+    transition:background .2s,transform .1s;
+  }
+  .k:hover{background:#555;}
+  .k:active{
+    background:#777;
+    transform:scale(.95);
+  }
+</style>
+</head>
+<body>
+<div class="calculator">
+  <div id="pantalla"></div>
+  <div class="buttons">
+    <button class="k" data-k="7">7</button>
+    <button class="k" data-k="2">2</button>
+    <button class="k" data-k="3">3</button>
+    <button class="k" data-k="4">4</button>
+    <button class="k" data-k="+">+</button>
+    <button class="k" data-k="-">-</button>
+    <button class="k" data-k="*">*</button>
+    <button class="k" data-k="=">=</button>
+    <button class="k" data-k="C">C</button>
+  </div>
+</div>
+<script>
+  let expr = '';
+  const pantalla = document.getElementById('pantalla');
+  document.querySelectorAll('.k').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const val = btn.dataset.k;
+      if(val==='C'){
+        expr='';
+        pantalla.textContent='';
+      }else if(val==='='){
+        try{
+          expr = eval(expr).toString();
+          pantalla.textContent=expr;
+        }catch(e){
+          pantalla.textContent='Error';
+          expr='';
+        }
+      }else{
+        expr+=val;
+        pantalla.textContent=expr;
+      }
+    });
+  });
+</script>
+</body>
+</html>

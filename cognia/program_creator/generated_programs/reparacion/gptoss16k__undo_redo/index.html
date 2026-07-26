@@ -1,0 +1,119 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista con Undo/Redo</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+    animation: fadeIn 1.5s ease-out;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+  #controls{
+    margin-bottom:15px;
+  }
+  input, button{
+    padding:8px 12px;
+    margin-right:5px;
+    font-size:14px;
+  }
+  button:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  ul{
+    list-style:none;
+    padding:0;
+  }
+  li.it{
+    background:#fff;
+    margin:5px 0;
+    padding:10px;
+    border-radius:4px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    animation: slideIn 0.3s ease-out;
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-20px); opacity:0;}
+    to{transform:translateX(0); opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="controls">
+  <input id="txt" placeholder="Escribe algo...">
+  <button id="add">Añadir</button>
+  <button id="undo" disabled>Undo</button>
+  <button id="redo" disabled>Redo</button>
+</div>
+<ul id="list"></ul>
+
+<script>
+  const txt = document.getElementById('txt');
+  const addBtn = document.getElementById('add');
+  const undoBtn = document.getElementById('undo');
+  const redoBtn = document.getElementById('redo');
+  const list = document.getElementById('list');
+
+  const actions = [];   // historial de acciones
+  const redoStack = []; // acciones que se pueden rehacer
+
+  function updateButtons() {
+    undoBtn.disabled = actions.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+
+  function addItem(text) {
+    const li = document.createElement('li');
+    li.className = 'it';
+    li.textContent = text;
+    list.appendChild(li);
+  }
+
+  addBtn.addEventListener('click', () => {
+    const text = txt.value.trim();
+    if (!text) return;
+    addItem(text);
+    actions.push({type:'add', text});
+    redoStack.length = 0; // se pierde la rama de redo
+    updateButtons();
+    txt.value = '';
+    txt.focus();
+  });
+
+  undoBtn.addEventListener('click', () => {
+    if (actions.length === 0) return;
+    const last = actions.pop();
+    if (last.type === 'add') {
+      // eliminar último <li>
+      const items = list.querySelectorAll('li.it');
+      if (items.length > 0) items[items.length-1].remove();
+      redoStack.push(last);
+    }
+    updateButtons();
+  });
+
+  redoBtn.addEventListener('click', () => {
+    if (redoStack.length === 0) return;
+    const action = redoStack.pop();
+    if (action.type === 'add') {
+      addItem(action.text);
+      actions.push(action);
+    }
+    updateButtons();
+  });
+
+  // Animación inicial de la página
+  window.addEventListener('load', () => {
+    document.body.style.opacity = 1;
+  });
+</script>
+</body>
+</html>

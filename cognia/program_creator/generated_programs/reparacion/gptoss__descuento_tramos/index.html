@@ -1,0 +1,74 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Calculadora de Descuento por Tramos</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f8ff;
+    margin:0;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+  }
+  h1{
+    font-size:2rem;
+    margin-bottom:20px;
+    animation:slideIn 1s ease-out;
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-100%);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+  label{
+    font-size:1.2rem;
+  }
+  input{
+    font-size:1.2rem;
+    padding:5px;
+    margin-left:10px;
+    width:80px;
+  }
+  #total{
+    font-weight:bold;
+    color:#006400;
+    font-size:1.5rem;
+    animation:colorChange 2s infinite alternate;
+  }
+  @keyframes colorChange{
+    from{color:#006400;}
+    to{color:#8B0000;}
+  }
+</style>
+</head>
+<body>
+<h1>Calculadora de Descuento por Tramos</h1>
+<div>
+  <label for="cant">Cantidad:</label>
+  <input id="cant" type="number" min="0" value="0">
+</div>
+<p>Total: <span id="total">0.00</span></p>
+<script>
+  function calculate(){
+    const cant = parseInt(document.getElementById('cant').value,10) || 0;
+    const unitPrice = 10;
+    let total = 0;
+    if(cant <= 10){
+      total = cant * unitPrice;
+    }else if(cant <= 50){
+      total = 10 * unitPrice + (cant - 10) * unitPrice * 0.9;
+    }else{
+      total = 10 * unitPrice + 40 * unitPrice * 0.9 + (cant - 50) * unitPrice * 0.8;
+    }
+    document.getElementById('total').textContent = total.toFixed(2);
+  }
+  document.getElementById('cant').addEventListener('input',calculate);
+  window.addEventListener('load',calculate);
+</script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tabla con filtro, orden y paginación</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:20px;background:#fafafa;}
+  #container{opacity:0;animation:fadeIn 1s forwards;max-width:800px;margin:auto;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  table{border-collapse:collapse;width:100%;margin-top:10px;background:#fff;}
+  th,td{border:1px solid #ccc;padding:8px;text-align:left;}
+  th{background:#f0f0f0;}
+  button{margin-right:5px;padding:5px 10px;border:none;background:#007bff;color:#fff;border-radius:3px;cursor:pointer;}
+  button:disabled{background:#aaa;cursor:default;}
+  input{padding:5px;margin-right:10px;border:1px solid #ccc;border-radius:3px;}
+  .fila{background:#fff;}
+  .fila:nth-child(even){background:#f9f9f9;}
+</style>
+</head>
+<body>
+<div id="container">
+  <h2>Tabla de personas</h2>
+  <input type="text" id="q" placeholder="Buscar por nombre">
+  <button id="ordenar">Ordenar por edad ↑</button>
+  <button id="reset">Reset</button>
+  <table>
+    <thead><tr><th>Nombre</th><th>Edad</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div style="margin-top:10px;">
+    <button id="prev">Prev</button>
+    <span id="pagina">1</span>
+    <button id="sig">Next</button>
+  </div>
+</div>
+
+<script>
+const datos = [
+  {nombre:"Ana",edad:28},
+  {nombre:"Luis",edad:34},
+  {nombre:"María",edad:22},
+  {nombre:"Carlos",edad:45},
+  {nombre:"Elena",edad:19},
+  {nombre:"Javier",edad:31},
+  {nombre:"Sofía",edad:27},
+  {nombre:"Pedro",edad:38},
+  {nombre:"Laura",edad:23},
+  {nombre:"Miguel",edad:41},
+  {nombre:"Isabel",edad:29},
+  {nombre:"Roberto",edad:36},
+  {nombre:"Patricia",edad:24},
+  {nombre:"Fernando",edad:33},
+  {nombre:"Ana María",edad:30},
+  {nombre:"Luis Miguel",edad:26},
+  {nombre:"María José",edad:35},
+  {nombre:"Carlos Alberto",edad:40},
+  {nombre:"Elena Ruiz",edad:20},
+  {nombre:"Javier López",edad:37},
+  {nombre:"Sofía García",edad:21},
+  {nombre:"Pedro Sánchez",edad:39},
+  {nombre:"María Luisa",edad:23} /* nuevo registro para 23 elementos */
+];
+
+let currentPage = 1;
+const itemsPerPage = 10;
+let orderAsc = true;
+let filterText = "";
+
+const tbody = document.getElementById('tbody');
+const paginaSpan = document.getElementById('pagina');
+const prevBtn = document.getElementById('prev');
+const nextBtn = document.getElementById('sig');
+const ordenarBtn = document.getElementById('ordenar');
+const resetBtn = document.getElementById('reset');
+const qInput = document.getElementById('q');
+
+function render() {
+  const filtered = datos.filter(item =>
+    item.nombre.toLowerCase().includes(filterText.toLowerCase())
+  );
+  const sorted = filtered.slice().sort((a, b) =>
+    orderAsc ? a.edad - b.edad : b.edad - a.edad
+  );
+  const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * itemsPerPage;
+  const pageItems = sorted.slice(start, start + itemsPerPage);
+
+  tbody.innerHTML = "";
+  pageItems.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.className = 'fila';
+    tr.innerHTML = `<td>${item.nombre}</td><td>${item.edad}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  paginaSpan.textContent = currentPage;
+  prevBtn.disabled = currentPage === 1;
+  nextBtn.disabled = currentPage === totalPages;
+  ordenarBtn.textContent = `Ordenar por edad ${orderAsc ? '↑' : '↓'}`;
+}
+
+qInput.addEventListener('input', () => {
+  filterText = qInput.value;
+  currentPage = 1;
+  render();
+});
+
+ordenarBtn.addEventListener('click', () => {
+  orderAsc = !orderAsc;
+  render();
+});
+
+resetBtn.addEventListener('click', () => {
+  filterText = "";
+  qInput.value = "";
+  orderAsc = true;
+  currentPage = 1;
+  render();
+});
+
+prevBtn.addEventListener('click', () => {
+  if (currentPage > 1) {
+    currentPage--;
+    render();
+  }
+});
+
+nextBtn.addEventListener('click', () => {
+  const filtered = datos.filter(item =>
+    item.nombre.toLowerCase().includes(filterText.toLowerCase())
+  );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  if (currentPage < totalPages) {
+    currentPage++;
+    render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>

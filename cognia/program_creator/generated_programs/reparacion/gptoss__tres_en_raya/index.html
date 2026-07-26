@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tres en Raya</title>
+<style>
+  body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+    background:#f0f0f0;
+    font-family:sans-serif;
+  }
+  #tablero{
+    display:grid;
+    grid-template-columns:repeat(3,80px);
+    grid-template-rows:repeat(3,80px);
+    gap:5px;
+    margin-bottom:20px;
+  }
+  .c{
+    background:#fff;
+    border:2px solid #333;
+    font-size:48px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    opacity:0;
+    animation:fadeIn 0.5s forwards;
+  }
+  .c.win{
+    background:#a0e7a0;
+  }
+  #estado{
+    font-size:24px;
+    font-weight:bold;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="tablero">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+</div>
+<div id="estado">X</div>
+
+<script>
+(() => {
+  const cells = document.querySelectorAll('.c');
+  const estado = document.getElementById('estado');
+  const board = Array(9).fill(null);
+  let turn = 'X';
+  let gameOver = false;
+
+  // Animate cells on load
+  cells.forEach((cell, i) => {
+    cell.style.animationDelay = `${i * 0.1}s`;
+  });
+
+  const winCombos = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  const checkWin = () => {
+    for (const combo of winCombos) {
+      const [a,b,c] = combo;
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+        return combo;
+      }
+    }
+    return null;
+  };
+
+  const updateEstado = (msg) => {
+    estado.textContent = msg;
+  };
+
+  const handleClick = (e) => {
+    if (gameOver) return;
+    const idx = parseInt(e.target.dataset.i, 10);
+    if (board[idx]) return; // already occupied
+
+    board[idx] = turn;
+    e.target.textContent = turn;
+
+    const winner = checkWin();
+    if (winner) {
+      gameOver = true;
+      winner.forEach(i => cells[i].classList.add('win'));
+      updateEstado('gana');
+      return;
+    }
+
+    if (board.every(v => v)) {
+      gameOver = true;
+      updateEstado('empate');
+      return;
+    }
+
+    // switch turn
+    turn = turn === 'X' ? 'O' : 'X';
+    updateEstado(turn);
+  };
+
+  cells.forEach(cell => cell.addEventListener('click', handleClick));
+})();
+</script>
+</body>
+</html>

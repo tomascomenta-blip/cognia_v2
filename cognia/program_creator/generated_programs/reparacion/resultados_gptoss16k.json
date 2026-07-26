@@ -1,0 +1,143 @@
+{
+  "etiqueta": "gptoss16k",
+  "banco": "scripts/b1_tareas_duras.json",
+  "rondas": 4,
+  "filas": [
+    {
+      "tarea": "undo_redo",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 22.33045530319214,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 17,
+          "checks": 19
+        }
+      ]
+    },
+    {
+      "tarea": "descuento_tramos",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 12.760666608810425,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 11,
+          "checks": 12
+        }
+      ]
+    },
+    {
+      "tarea": "form_cruzado",
+      "aprobado": true,
+      "aprobado_en_ronda": 1,
+      "rondas_usadas": 1,
+      "segundos": 50.067055225372314,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": false,
+          "checks_ok": 11,
+          "checks": 15
+        },
+        {
+          "ronda": 1,
+          "aprobado": true,
+          "checks_ok": 14,
+          "checks": 15
+        }
+      ]
+    },
+    {
+      "tarea": "tabla_compuesta",
+      "aprobado": true,
+      "aprobado_en_ronda": 1,
+      "rondas_usadas": 1,
+      "segundos": 60.096325397491455,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": false,
+          "checks_ok": 12,
+          "checks": 14
+        },
+        {
+          "ronda": 1,
+          "aprobado": true,
+          "checks_ok": 13,
+          "checks": 14
+        }
+      ]
+    },
+    {
+      "tarea": "precedencia",
+      "aprobado": false,
+      "aprobado_en_ronda": null,
+      "rondas_usadas": 0,
+      "segundos": 22.355501174926758,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": false,
+          "checks_ok": 0,
+          "checks": 0,
+          "nota": "sin HTML"
+        }
+      ]
+    },
+    {
+      "tarea": "tres_en_raya",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 13.224647045135498,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 13,
+          "checks": 14
+        }
+      ]
+    },
+    {
+      "tarea": "temporizador",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 29.687774181365967,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 15,
+          "checks": 16
+        }
+      ]
+    },
+    {
+      "tarea": "serpiente",
+      "aprobado": false,
+      "aprobado_en_ronda": null,
+      "rondas_usadas": 0,
+      "segundos": 25.651071548461914,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": false,
+          "checks_ok": 0,
+          "checks": 0,
+          "nota": "sin HTML"
+        }
+      ]
+    }
+  ],
+  "pass_r0": 0.5,
+  "pass_final": 0.75
+}
