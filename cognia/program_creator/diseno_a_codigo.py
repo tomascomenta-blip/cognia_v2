@@ -534,6 +534,13 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
 
             tope_duro = max(max_rondas, max_rondas_progreso or 0)
             checks_ok_prev: Optional[int] = None
+            # Entrega best-of-so-far (4ta enmienda del prereg, 2026-07-26):
+            # se conserva la version con MAS checks_ok del juez. El brazo D
+            # midio que entregar la ULTIMA version deja que una reparacion
+            # mala empeore la entrega (primera generacion sola 4.0/6 contra
+            # 3.33/6 del lazo entero): reparar solo puede SUMAR si la entrega
+            # ancla en lo mejor juzgado.
+            mejor_juzgado: Optional[tuple] = None    # (checks_ok, program)
             for ronda in range(1, tope_duro + 1):
                 res.rondas = ronda
                 # Lo que se renderiza lleva los sprites embebidos; lo que ve el
@@ -576,6 +583,9 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                     hay_progreso = (checks_ok_prev is not None
                                     and checks_ok_ronda > checks_ok_prev)
                     checks_ok_prev = checks_ok_ronda
+                    if (mejor_juzgado is None
+                            or checks_ok_ronda > mejor_juzgado[0]):
+                        mejor_juzgado = (checks_ok_ronda, program)
                     if not veredicto.aprobado:
                         contraejemplos = [
                             f"(juez) {c.nombre}: {c.detalle}"
@@ -665,6 +675,14 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                     break
                 program = arreglado
                 res.program = program
+
+            # La entrega ancla en la MEJOR version juzgada, no en la ultima:
+            # una reparacion que bajo checks_ok no puede empeorar lo que se
+            # entrega. Con APROBADO no se toca (esa version ya corto el lazo).
+            if (res.sello != "APROBADO" and mejor_juzgado is not None
+                    and mejor_juzgado[1] is not res.program):
+                res.program = mejor_juzgado[1]
+                res.motivo_corte += " (entrega: ronda con mas checks_ok)"
 
         return res
     except Exception as e:

@@ -161,6 +161,27 @@ CALIDAD DEL CONTRATO INTERNO como señal de reparación (aprueba lo que el
 externo reprueba y sus contraejemplos desvían), y el siguiente trabajo es
 mejorar el contrato (más aserciones, CodeRM-style), no la mecánica de rondas.
 
+## CUARTA ENMIENDA (2026-07-26 ~17:20, tras cerrar el brazo D, ANTES de implementar el E)
+
+- **primgen (primera generación, max_rondas=1): 5, 2, 5 (media 4.0, ~65
+  s/tarea)** > baseline con reparación (3.33). La lectura pre-registrada se
+  cumple: **el lazo de reparación actual resta valor**.
+- Tasa de "sin verificar" en producción (unidad 4, primera medición): **9 de
+  79 construcciones = 11.4%** (8 de 9 por fallo del pensador/backend, 1 con
+  contrato pero sin veredicto de harness).
+
+**Brazo E pre-registrado — ENTREGA BEST-OF-SO-FAR:** el lazo conserva la
+versión con MÁS checks_ok del juez entre todas las rondas y entrega ESA, no
+la última. La reparación deja de poder empeorar la entrega (en términos del
+juez interno); si nunca mejora, se entrega la primera generación juzgada.
+Config: candidatos=1, max_rondas=3, n=3.
+
+| veredicto brazo E | condición |
+|---|---|
+| **PASA** | media ≥ 4.5 y mínimo ≥ 4 (recupera el nivel pre-fix con juez activo) |
+| **GRIS** | media > 4.0 (supera a primgen: la reparación vuelve a aportar) |
+| **KILL** | media ≤ 4.0 — la política de producción pasa a max_rondas=1 hasta mejorar el contrato interno |
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es

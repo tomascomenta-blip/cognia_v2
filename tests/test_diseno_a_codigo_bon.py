@@ -158,7 +158,7 @@ def test_sin_progreso_el_tope_fijo_manda():
                {"return_value": _prog("<html><body>vN</body></html>")})
     res = _run(ps, max_rondas=3, max_rondas_progreso=5)
     assert res.rondas == 3
-    assert res.motivo_corte == "tope de rondas"
+    assert res.motivo_corte.startswith("tope de rondas")
 
 
 def test_sin_max_rondas_progreso_comportamiento_de_siempre():
@@ -168,6 +168,36 @@ def test_sin_max_rondas_progreso_comportamiento_de_siempre():
     res = _run(ps, max_rondas=3)
     assert res.rondas == 3
     assert res.motivo_corte == "tope de rondas"
+
+
+# ── Entrega best-of-so-far: reparar no puede empeorar la entrega ─────────────
+
+def test_entrega_ancla_en_la_ronda_con_mas_checks_ok():
+    """Brazo D (2026-07-26): entregar la ULTIMA version dejaba que una
+    reparacion mala empeorara la entrega (primgen 4.0 vs 3.33 del lazo).
+    Si checks_ok bajo tras reparar, se entrega la version mejor juzgada."""
+    inicial = _prog("<html><body>v1-buena</body></html>")
+    peor = _prog("<html><body>v2-rota</body></html>")
+    # r1: 5 ok (la inicial); r2: 2 ok (la reparada la empeoro); r3: 1 ok.
+    vs = [_veredicto(False, n_ok=5, falla="a"),
+          _veredicto(False, n_ok=2, falla="b"),
+          _veredicto(False, n_ok=1, falla="c")]
+    ps = _base({"return_value": inicial}, {"side_effect": vs},
+               {"return_value": peor})
+    res = _run(ps, max_rondas=3)
+    assert res.program.code == inicial.code       # NO la ultima reparada
+    assert "mas checks_ok" in res.motivo_corte
+
+
+def test_entrega_conserva_la_reparada_si_mejoro():
+    inicial = _prog("<html><body>v1</body></html>")
+    mejorada = _prog("<html><body>v2-mejor</body></html>")
+    vs = [_veredicto(False, n_ok=3, falla="a"), _veredicto(True, n_ok=6)]
+    ps = _base({"return_value": inicial}, {"side_effect": vs},
+               {"return_value": mejorada})
+    res = _run(ps, max_rondas=3)
+    assert res.sello == "APROBADO"
+    assert res.program.code == mejorada.code
 
 
 # ── Telemetria: el sello queda contado, tambien el "sin verificar" ───────────
