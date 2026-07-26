@@ -178,11 +178,13 @@ _(se rellena a medida que salen; nada de esto se toca retroactivamente)_
 
 | Paso | Estado | Número |
 |---|---|---|
-| 1. Línea base dura | pendiente | — |
-| 2. Curva pass@k | pendiente | — |
-| 3. Marcador Laguna XS | corriendo (banco fácil) | — |
+| 1. Línea base dura | HECHO (banco brutal, n=6) | gpt-oss pass@1 75%, Laguna 50% |
+| 2. Curva pass@k | parcial | pass@6 gpt-oss = 100% (4/4 tareas) |
+| 3. Marcador Laguna XS | HECHO | 50% pass@1; peor que el 20B |
 | 4. Refinamiento guiado | pendiente | — |
 | 5. Re-medir el oráculo de ruteo en banco NO saturado | pendiente | — |
+| **FP del contrato (held-out, 48 productos)** | **HECHO 2026-07-25** | **gpt-oss 0% (0/18) — sus números se sostienen; Laguna 25% (3/12) — techos. PREREG_FP_CONTRATO_20260725.md** |
+| Confound "no devolvió HTML" (≈14%) | HECHO 2026-07-25 | era num_ctx 4096: control positivo reproduce (2/3 length), config actual 0 muertes; scripts/b1_confound_repro.py |
 
 ---
 

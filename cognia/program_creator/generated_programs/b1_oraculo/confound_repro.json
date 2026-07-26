@@ -1,0 +1,160 @@
+{
+  "brazo_a": [
+    {
+      "tarea": "serpiente",
+      "ok": true,
+      "s": 58.5,
+      "finish_reason": "length",
+      "chars": 0,
+      "con_fence": false,
+      "con_html": false,
+      "usage": {
+        "prompt_tokens": 227,
+        "completion_tokens": 3869,
+        "total_tokens": 4096
+      }
+    },
+    {
+      "tarea": "serpiente",
+      "ok": true,
+      "s": 45.5,
+      "finish_reason": "length",
+      "chars": 2020,
+      "con_fence": false,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 227,
+        "completion_tokens": 3869,
+        "total_tokens": 4096
+      }
+    },
+    {
+      "tarea": "serpiente",
+      "ok": true,
+      "s": 44.4,
+      "finish_reason": "stop",
+      "chars": 3043,
+      "con_fence": true,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 227,
+        "completion_tokens": 3777,
+        "total_tokens": 4004
+      }
+    }
+  ],
+  "brazo_b": [
+    {
+      "tarea": "serpiente",
+      "ok": true,
+      "s": 31.9,
+      "finish_reason": "stop",
+      "chars": 3686,
+      "con_fence": true,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 227,
+        "completion_tokens": 1701,
+        "total_tokens": 1928
+      }
+    },
+    {
+      "tarea": "serpiente",
+      "ok": true,
+      "s": 76.1,
+      "finish_reason": "stop",
+      "chars": 3074,
+      "con_fence": true,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 227,
+        "completion_tokens": 6245,
+        "total_tokens": 6472
+      }
+    },
+    {
+      "tarea": "serpiente",
+      "ok": true,
+      "s": 72.8,
+      "finish_reason": "stop",
+      "chars": 3682,
+      "con_fence": true,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 227,
+        "completion_tokens": 5987,
+        "total_tokens": 6214
+      }
+    },
+    {
+      "tarea": "serpiente",
+      "ok": true,
+      "s": 98.7,
+      "finish_reason": "stop",
+      "chars": 4412,
+      "con_fence": false,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 227,
+        "completion_tokens": 8006,
+        "total_tokens": 8233
+      }
+    },
+    {
+      "tarea": "undo_redo",
+      "ok": true,
+      "s": 153.0,
+      "finish_reason": "length",
+      "chars": 6743,
+      "con_fence": true,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 193,
+        "completion_tokens": 12000,
+        "total_tokens": 12193
+      }
+    },
+    {
+      "tarea": "undo_redo",
+      "ok": true,
+      "s": 42.6,
+      "finish_reason": "stop",
+      "chars": 2554,
+      "con_fence": true,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 193,
+        "completion_tokens": 3465,
+        "total_tokens": 3658
+      }
+    },
+    {
+      "tarea": "undo_redo",
+      "ok": true,
+      "s": 62.3,
+      "finish_reason": "stop",
+      "chars": 1977,
+      "con_fence": true,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 193,
+        "completion_tokens": 5101,
+        "total_tokens": 5294
+      }
+    },
+    {
+      "tarea": "undo_redo",
+      "ok": true,
+      "s": 68.3,
+      "finish_reason": "stop",
+      "chars": 1701,
+      "con_fence": true,
+      "con_html": true,
+      "usage": {
+        "prompt_tokens": 193,
+        "completion_tokens": 5628,
+        "total_tokens": 5821
+      }
+    }
+  ]
+}
