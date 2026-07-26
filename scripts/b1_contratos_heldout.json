@@ -1,0 +1,123 @@
+{
+  "_por_que": "Suite HELD-OUT del banco brutal: aserciones DISTINTAS sobre el mismo DOM, que ningun modelo vio y que el contrato original no menciona. Existe para medir la tasa de FALSOS POSITIVOS del contrato original: un producto que aprueba el contrato pero falla consecuencias logicas del mismo enunciado no funciona — paso el examen, no la materia. La literatura (SpecBench, arXiv:2605.21384) dice que este es el regimen de mayor reward hacking: modelo chico + verificador ejecutable.",
+
+  "_regla_de_diseno": "Cada check es una CONSECUENCIA LOGICA del enunciado (mismo texto que vieron los modelos), nunca un requisito nuevo. Solo se usan los selectores que el enunciado declara OBLIGATORIOS. Un producto correcto tiene que pasar esto por necesidad; si un producto que la referencia frontier resolvio bien lo falla, el bug es del contrato held-out y se arregla el contrato, no el producto.",
+
+  "_validado_contra_frontier": "Antes de tocar los 48 productos del pool, esta suite corre contra los productos de frontier_brutal que aprobaron el contrato original. Ese paso caza falsos negativos del held-out (el metodo que ya cazo seis).",
+
+  "tareas": [
+    {
+      "id": "hoja_calculo",
+      "contrato": {
+        "nombre": "hoja de calculo HELD-OUT: resta, cadena B2->C2->C3, sobrescritura",
+        "pasos": [
+          {"accion": "escribir", "selector": "[data-ref='B2']", "texto": "7"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "escribir", "selector": "[data-ref='C2']", "texto": "=B2-2"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 400},
+          {"accion": "js", "expr": "document.querySelector(\"[data-ref='C2']\").value.trim()", "esperado": "5", "nombre": "RESTA: C2 = B2-2 = 5 (el operador - nunca se probo)", "critico": true},
+          {"accion": "escribir", "selector": "[data-ref='C3']", "texto": "=C2+B2"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 400},
+          {"accion": "js", "expr": "document.querySelector(\"[data-ref='C3']\").value.trim()", "esperado": "12", "nombre": "C3 = C2+B2 = 12 (referencia a una formula)", "critico": true},
+          {"accion": "escribir", "selector": "[data-ref='B2']", "texto": "10"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 500},
+          {"accion": "js", "expr": "document.querySelector(\"[data-ref='C2']\").value.trim()", "esperado": "8", "nombre": "CASCADA por otra rama: C2 se recalcula a 8", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\"[data-ref='C3']\").value.trim()", "esperado": "18", "nombre": "CASCADA 2 saltos por otra rama: C3 = 18", "critico": true},
+          {"accion": "escribir", "selector": "[data-ref='C2']", "texto": "4"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 500},
+          {"accion": "js", "expr": "document.querySelector(\"[data-ref='C3']\").value.trim()", "esperado": "14", "nombre": "SOBRESCRITURA: pisar la formula C2 con un literal recalcula C3 a 14", "critico": true},
+          {"accion": "escribir", "selector": "[data-ref='A1']", "texto": "=A1+1"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 500},
+          {"accion": "js", "expr": "/CIRC/i.test(document.querySelector(\"[data-ref='A1']\").value)", "esperado": true, "nombre": "AUTORREFERENCIA: =A1+1 en A1 es circular (informativo: ciclo de longitud 1)", "critico": false}
+        ]
+      }
+    },
+
+    {
+      "id": "carrito_stock",
+      "contrato": {
+        "nombre": "carrito HELD-OUT: p2 al tope, re-tope, y quitar con dos lineas",
+        "pasos": [
+          {"accion": "click", "selector": "[data-id='p2'].add"},
+          {"accion": "click", "selector": "[data-id='p2'].add"},
+          {"accion": "click", "selector": "[data-id='p2'].add"},
+          {"accion": "contar", "selector": ".linea", "esperado": 1, "nombre": "tres adds de p2 = UNA linea", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\".linea[data-id='p2'] .cant\").textContent.trim()", "esperado": "3", "nombre": "cantidad de p2 = 3", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\"[data-id='p2'].add\").disabled", "esperado": true, "nombre": "p2 al tope de stock (3): add deshabilitado", "critico": true},
+          {"accion": "texto", "selector": "#total", "contiene": "150", "nombre": "total = 3*50 = 150", "critico": true},
+          {"accion": "click", "selector": "[data-id='p1'].add"},
+          {"accion": "contar", "selector": ".linea", "esperado": 2, "nombre": "p1 abre una segunda linea", "critico": true},
+          {"accion": "texto", "selector": "#total", "contiene": "250", "nombre": "total = 150 + 100 = 250", "critico": true},
+          {"accion": "click", "selector": "[data-id='p2'].quitar"},
+          {"accion": "js", "expr": "document.querySelector(\".linea[data-id='p2'] .cant\").textContent.trim()", "esperado": "2", "nombre": "quitar baja p2 a 2", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\"[data-id='p2'].add\").disabled", "esperado": false, "nombre": "bajo el tope, p2.add se re-habilita", "critico": true},
+          {"accion": "click", "selector": "[data-id='p2'].add"},
+          {"accion": "js", "expr": "document.querySelector(\"[data-id='p2'].add\").disabled", "esperado": true, "nombre": "RE-TOPE: volver a 3 vuelve a deshabilitar", "critico": true},
+          {"accion": "click", "selector": "[data-id='p1'].quitar"},
+          {"accion": "js", "expr": "document.querySelectorAll(\".linea[data-id='p1']\").length", "esperado": 0, "nombre": "la linea de p1 desaparece al llegar a 0", "critico": true},
+          {"accion": "texto", "selector": "#total", "contiene": "150", "nombre": "total vuelve a 150 con la otra linea intacta", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "kanban",
+      "contrato": {
+        "nombre": "kanban HELD-OUT: menos en todo es noop, ida y vuelta, WIP desde otro estado",
+        "pasos": [
+          {"accion": "click", "selector": "[data-id='t1'] .menos"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='todo'] .card\").length", "esperado": 3, "nombre": "menos en todo NO hace nada: siguen 3", "critico": true},
+          {"accion": "texto", "selector": "#cont-todo", "contiene": "3", "nombre": "el contador de todo sigue en 3", "critico": true},
+          {"accion": "click", "selector": "[data-id='t3'] .mas"},
+          {"accion": "texto", "selector": "#cont-doing", "contiene": "1", "nombre": "cont-doing marca 1 (nunca se leyo ese contador)", "critico": true},
+          {"accion": "click", "selector": "[data-id='t3'] .menos"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='todo'] .card\").length", "esperado": 3, "nombre": "IDA Y VUELTA: t3 vuelve a todo", "critico": true},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='doing'] .card\").length", "esperado": 0, "nombre": "doing queda vacio", "critico": true},
+          {"accion": "click", "selector": "[data-id='t2'] .mas"},
+          {"accion": "click", "selector": "[data-id='t2'] .mas"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='done'] .card\").length", "esperado": 1, "nombre": "t2 llega a done en dos pasos", "critico": true},
+          {"accion": "click", "selector": "[data-id='t1'] .mas"},
+          {"accion": "click", "selector": "[data-id='t3'] .mas"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='doing'] .card\").length", "esperado": 2, "nombre": "t1 y t3 llenan doing", "critico": true},
+          {"accion": "click", "selector": "[data-id='t1'] .menos"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='doing'] .card\").length", "esperado": 1, "nombre": "t1 retrocede y libera doing", "critico": true},
+          {"accion": "texto", "selector": "#cont-doing", "contiene": "1", "nombre": "cont-doing acompana: 1", "critico": true},
+          {"accion": "texto", "selector": "#cont-todo", "contiene": "1", "nombre": "cont-todo acompana: 1 (solo t1)", "critico": true},
+          {"accion": "texto", "selector": "#cont-done", "contiene": "1", "nombre": "cont-done acompana: 1 (t2)", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "buscaminas",
+      "contrato": {
+        "nombre": "buscaminas HELD-OUT: cascada inferior-izquierda exacta, bandera, otra mina",
+        "pasos": [
+          {"accion": "click", "selector": "[data-i='20']"},
+          {"accion": "esperar", "ms": 600},
+          {"accion": "js", "expr": "document.querySelector(\"[data-i='20']\").classList.contains('abierta')", "esperado": true, "nombre": "la celda 20 (esquina inferior izquierda) se abre", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\"[data-i='15']\").classList.contains('abierta')", "esperado": true, "nombre": "la cascada sube hasta la 15 (tambien cero)", "critico": true},
+          {"accion": "js", "expr": "document.querySelectorAll('.abierta').length", "esperado": 8, "nombre": "la region de la 20 abre EXACTAMENTE 8 celdas (15,20,21 + bordes 10,11,16,17,22)", "critico": true},
+          {"accion": "js", "expr": "!document.querySelector(\"[data-i='18']\").classList.contains('abierta')", "esperado": true, "nombre": "la mina 18 queda cerrada aunque sus vecinas 17 y 22 se abran", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\"[data-i='16']\").textContent.trim()", "esperado": "2", "nombre": "la celda 16 dice 2 (vecina de 12 y 18)", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\"[data-i='22']\").textContent.trim()", "esperado": "1", "nombre": "la celda 22 dice 1 (vecina solo de 18)", "critico": true},
+          {"accion": "js", "expr": "(() => { const el = document.querySelector(\"[data-i='24']\"); el.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true})); return true; })()", "nombre": "click derecho en la 24"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "js", "expr": "document.querySelector(\"[data-i='24']\").classList.contains('bandera')", "esperado": true, "nombre": "la 24 tiene bandera", "critico": true},
+          {"accion": "click", "selector": "[data-i='24']"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "js", "expr": "!document.querySelector(\"[data-i='24']\").classList.contains('abierta')", "esperado": true, "nombre": "una celda con bandera NO se abre al click", "critico": true},
+          {"accion": "js", "expr": "!/perdiste/i.test(document.querySelector('#estado').textContent)", "esperado": true, "nombre": "sin tocar mina, no dice perdiste", "critico": true},
+          {"accion": "click", "selector": "[data-i='12']"},
+          {"accion": "esperar", "ms": 400},
+          {"accion": "texto", "selector": "#estado", "contiene": "perdiste", "nombre": "abrir la mina 12 (la del centro, nunca tocada) pierde", "critico": true}
+        ]
+      }
+    }
+  ]
+}
