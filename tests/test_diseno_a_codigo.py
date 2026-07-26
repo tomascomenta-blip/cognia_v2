@@ -209,7 +209,7 @@ def test_el_brief_viaja_en_la_idea_de_generacion():
     generaba a ciegas. El brief debe ir en la idea forzada."""
     capturado = {}
 
-    def _gen(forced_idea=None, llm=None):
+    def _gen(forced_idea=None, llm=None, temperature=0.90):
         capturado["idea"] = forced_idea
         return _prog()
 

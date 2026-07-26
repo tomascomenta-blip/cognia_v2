@@ -877,11 +877,16 @@ def clear_custom_ideas() -> int:
 
 def generate_program(seed_concepts: Optional[list] = None,
                      forced_idea:   Optional[str]  = None,
-                     llm:           Optional[LlmFn] = None) -> Optional[GeneratedProgram]:
+                     llm:           Optional[LlmFn] = None,
+                     temperature:   float = 0.90) -> Optional[GeneratedProgram]:
     """Genera un programa. Intenta idea autónoma primero, fallback a lista predefinida.
 
     llm: backend real inyectado por el caller (run_program_hobby lo construye
-    sobre el orquestador del REPL); sin él se intenta Ollama (OLLAMA_URL)."""
+    sobre el orquestador del REPL); sin él se intenta Ollama (OLLAMA_URL).
+    temperature: 0.90 por defecto (el hobby ES creativo). Los llamadores con
+    una idea CONSTRENIDA (selectores OBLIGATORIOS, contrato que cumplir) deben
+    bajarla: medido 2026-07-26 en b2, mismo modelo y server, la generacion a
+    0.2 aprueba el contrato 6/7 y a 0.9 aprueba 1/5."""
     self_proposed = False
 
     if forced_idea:
@@ -915,7 +920,7 @@ def generate_program(seed_concepts: Optional[list] = None,
 
     prompt  = (_build_prompt_web(category, extra_hint) if lenguaje == "html"
                else _build_prompt(category, extra_hint))
-    raw     = _call_llm(prompt, lenguaje, llm=llm)
+    raw     = _call_llm(prompt, lenguaje, temperature=temperature, llm=llm)
     program = _parse_response(raw, category, lenguaje) if raw else None
 
     if raw is None:

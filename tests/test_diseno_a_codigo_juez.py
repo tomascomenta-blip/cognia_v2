@@ -142,6 +142,41 @@ def test_juez_del_lazo_sin_backend_no_insiste(tmp_path):
     gc.assert_not_called()                   # sin backend ni se intenta
 
 
+def test_construccion_inicial_va_a_temperatura_baja():
+    """El lazo construye contra una VISION (y selectores OBLIGATORIOS): la
+    generacion inicial debe ir a 0.2, no a la 0.9 creativa del hobby. Medido
+    2026-07-26 en b2: 0.2 aprueba el contrato 6/7, 0.9 aprueba 1/5."""
+    capturado = {}
+
+    def _gen(seed_concepts=None, forced_idea=None, llm=None, temperature=0.90):
+        capturado["temperature"] = temperature
+        return _prog()
+
+    with patch.object(d2c._mockup, "imaginar_vision",
+                      return_value={"brief": "b", "prompt_imagen": "p"}), \
+         patch.object(d2c._mockup, "generar_mockup", return_value=None), \
+         patch.object(d2c, "generate_program", side_effect=_gen), \
+         patch.object(d2c, "revisar_en_navegador", return_value=_informe([])), \
+         patch.object(d2c, "arbitrar_desde_informe", return_value=None), \
+         patch.object(d2c, "reparar_web", return_value=None), \
+         patch.object(d2c, "_juez_del_lazo", return_value=None):
+        d2c.construir_para_mockup("un contador web", verbose=False)
+    assert capturado["temperature"] == 0.2
+
+
+def test_generate_program_propaga_temperature():
+    from cognia.program_creator import generator as g
+    capturado = {}
+
+    def _llm_capturador(prompt, lenguaje, temperature=0.90, llm=None):
+        capturado["temperature"] = temperature
+        return None                      # corta el resto del camino
+
+    with patch.object(g, "_call_llm", side_effect=_llm_capturador):
+        g.generate_program(forced_idea="una pagina web x", temperature=0.2)
+    assert capturado["temperature"] == 0.2
+
+
 def test_juez_del_lazo_veredicto_con_error_es_none(tmp_path):
     """Playwright ausente u otro fallo del harness NO es un FALLIDO del
     producto: el lazo debe seguir como si no hubiera juez."""

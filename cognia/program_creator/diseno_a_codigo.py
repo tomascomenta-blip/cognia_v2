@@ -344,10 +344,16 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
             prompt_a = build_prompt_web_con_assets(
                 idea_build, specs,
                 extra_hint="Render a complete first frame immediately on load.")
-            raw = _call_llm(prompt_a, "html", llm=llm)
+            # temperature 0.2 y no la 0.9 creativa: aqui hay una VISION que
+            # cumplir (y a menudo selectores OBLIGATORIOS). Medido en b2
+            # (2026-07-26, mismo modelo/server): 0.2 aprueba el contrato 6/7;
+            # 0.9 aprueba 1/5 — a 0.9 el modelo "interpreta" la idea y pierde
+            # los selectores que el enunciado exige.
+            raw = _call_llm(prompt_a, "html", temperature=0.2, llm=llm)
             program = _parse_response(raw, idea, "html") if raw else None
         else:
-            program = generate_program(forced_idea=idea_build, llm=llm)
+            program = generate_program(forced_idea=idea_build, llm=llm,
+                                       temperature=0.2)
         if program is None:
             res.motivo_corte = "no se pudo generar la pagina inicial"
             return res
