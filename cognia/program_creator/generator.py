@@ -653,6 +653,9 @@ def reparar_python(program: GeneratedProgram, error: str,
 def reparar_web(program: GeneratedProgram, defectos: List[str],
                 llm: "Optional[LlmFn]" = None,
                 profundo: bool = False) -> Optional[GeneratedProgram]:
+    # `profundo` quedo sin uso en el lazo (el brazo "escalada" no PASO su
+    # criterio; PREREG_BON_RONDAS_20260726.md, 5ta enmienda) pero se conserva
+    # el parametro por compatibilidad de firma con los mocks/llamadores.
     """
     Le devuelve al modelo los defectos VISTOS en el navegador para que corrija.
 
@@ -678,26 +681,18 @@ def reparar_web(program: GeneratedProgram, defectos: List[str],
         f"HTML Code:\n```html\n<!DOCTYPE html>\n<fixed page>\n```"
     )
 
-    # ESCALADA de esfuerzo (2da enmienda del prereg, 2026-07-26):
-    # - Normal: effort=low. Sin el, un contraejemplo confuso ("muestra 5:
-    #   '28' no contiene '5'") manda al pensador a hipotetizar 50k chars y la
-    #   respuesta nunca llega (probe_reparacion_budget.py: 6/6 muertas sin
-    #   esto, 2/2 completadas con esto). Pero low ABARATA el arreglo: en el
-    #   brazo basefix el corte dominante paso a ser disyuntor D6 (sintoma
-    #   identico tras reparar) — completa sin profundizar.
-    # - profundo=True (el llamador lo pide cuando la ronda anterior NO movio
-    #   checks_ok): esfuerzo default con presupuesto 24000, que cubre la cola
-    #   de espirales observada (22-53k chars ~ 5-13k tokens) y deja sitio a
-    #   la respuesta.
-    # timeout=400 por la cola; un reintento porque es estocastica y rendirse
-    # al primer None ya costo una noche entera.
-    extra = ({"max_tokens": 24000} if profundo
-             else {"reasoning_effort": "low"})
-    raw = _call_llm(prompt, "html", temperature=0.2, llm=llm,
-                    timeout=400, **extra)
+    # Esfuerzo DEFAULT, no "low": la unica pareja de series con n=6 (config
+    # pre-fix 4.5/6 contra primera-generacion-sin-reparar 3.17/6) dice que la
+    # reparacion que PIENSA aporta +1.33 tareas, y el regimen effort=low que
+    # probo esta noche del 26/27 (todas sus series ~2.3-3.3) la abarataba
+    # hasta restar: completaba siempre pero el sintoma no se movia (D6 por
+    # todas partes). El coste del esfuerzo default es la cola de espirales de
+    # razonamiento (22-53k chars, probe_reparacion_budget.py) que consume el
+    # presupuesto y devuelve vacio: se paga con timeout 400 + UN reintento —
+    # estrictamente mas completions que el regimen original, misma calidad.
+    raw = _call_llm(prompt, "html", temperature=0.2, llm=llm, timeout=400)
     if not raw:
-        raw = _call_llm(prompt, "html", temperature=0.2, llm=llm,
-                        timeout=400, **extra)
+        raw = _call_llm(prompt, "html", temperature=0.2, llm=llm, timeout=400)
     if not raw:
         return None
 

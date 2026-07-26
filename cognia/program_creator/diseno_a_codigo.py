@@ -53,18 +53,14 @@ LlmFn = Callable[[str, str, int, float], Optional[str]]
 # COGNIA_GATE_VISUAL.
 GATE_VISUAL_DEFECTO = 7.0
 
-# Tope de rondas de reparacion guiadas por el arbitro. Era 3 (umbral de Aider);
-# desde el A/B nocturno del 2026-07-26/27 (PREREG_BON_RONDAS_20260726.md, 4
-# enmiendas) es 1: con el juez interno FUNCIONANDO, reparar RESTA — primera
-# generacion sola 5,2,5 (media 4.0/6, 65 s/tarea) contra 3,4,3 (3.33) del lazo
-# con reparacion, 3,4,2 con BoN (KILL), 3,3,4 con escalada de esfuerzo (KILL) y
-# 2,1,4 (KILL) anclando la entrega por checks_ok. La causa medida: el contrato
-# GENERADO es mas debil que el examen held-out (aprueba contadores que el
-# externo reprueba) y sus contraejemplos desvian la reparacion. La ronda unica
-# conserva el sello del juez (APROBADO/FALLIDO sigue siendo veraz); el tope
-# vuelve a subir cuando el contrato interno mejore (direccion CodeRM, #3 de
-# las prioridades de META_MODELO_GRANDE.md).
-MAX_RONDAS_DEFECTO = 1
+# Tope de rondas de reparacion guiadas por el arbitro. 3 (umbral de Aider);
+# el disyuntor puede cortar antes. En el A/B nocturno del 2026-07-26/27 el
+# tope bajo a 1 durante unas horas por un n=3 enganoso (primera generacion
+# 5,2,5) que a n=6 se revirtio (5,2,5,2,3,2 = 3.17 contra 4.5 del lazo
+# completo con reparacion a esfuerzo default, tambien n=6): REPARAR APORTA
+# +1.33 tareas cuando la reparacion piensa. Detalle y series en
+# PREREG_BON_RONDAS_20260726.md (5 enmiendas).
+MAX_RONDAS_DEFECTO = 3
 
 
 def _gate() -> float:
@@ -655,18 +651,7 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                               f"{ronda + 1} (tope {tope_duro})")
 
                 # Reparar con TODOS los defectos (estructurales + visuales).
-                # profundo: si el juez existe y esta ronda NO movio checks_ok,
-                # la reparacion barata (effort=low) ya demostro que no alcanza
-                # — se escala a esfuerzo default con presupuesto grande
-                # (2da enmienda del prereg 2026-07-26). La primera ronda
-                # siempre va barata: aun no hay señal de estancamiento.
-                profundo = (veredicto is not None and ronda > 1
-                            and not hay_progreso)
-                if profundo and verbose:
-                    print("   ⛏️  checks_ok estancado: reparacion PROFUNDA "
-                          "(esfuerzo default, presupuesto 24000)")
-                arreglado = reparar_web(program, defectos, llm=llm,
-                                        profundo=profundo)
+                arreglado = reparar_web(program, defectos, llm=llm)
                 if arreglado is None:
                     res.motivo_corte = "el modelo no devolvio una correccion valida"
                     if verbose:

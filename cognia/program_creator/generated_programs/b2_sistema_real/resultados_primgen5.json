@@ -1,0 +1,89 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": 1
+  },
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": true,
+      "motivo": "10/10 checks OK (6/6 del contrato)",
+      "segundos": 36.85833692550659,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 10,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: tras + vale 1 ('2,00' no contiene '1'); tras dos + vale 2 ('4,00' no contiene '2'); tras - vuelve a 1 ('3",
+      "segundos": 55.78598165512085,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 14,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "11/12 checks OK (8/8 del contrato)",
+      "segundos": 32.63903021812439,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 12,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "calculadora": {
+      "aprobado": false,
+      "motivo": "falla critica: la pantalla muestra 5 ('6' no contiene '5')",
+      "segundos": 53.11540246009827,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 10,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "semaforo": {
+      "aprobado": false,
+      "motivo": "falla critica: pasa a AMBAR (js='rojo', esperaba 'ambar'); cierra el ciclo en ROJO (js='verde', esperaba 'rojo')",
+      "segundos": 34.4021098613739,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 8,
+      "checks": 11,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "filtro_lista": {
+      "aprobado": true,
+      "motivo": "10/11 checks OK (7/7 del contrato)",
+      "segundos": 61.19333791732788,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 11,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    }
+  },
+  "techo": 6,
+  "real": 3,
+  "desperdicio": [
+    "contador",
+    "calculadora",
+    "semaforo"
+  ],
+  "n_tareas": 6
+}

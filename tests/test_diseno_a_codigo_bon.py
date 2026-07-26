@@ -170,31 +170,15 @@ def test_sin_max_rondas_progreso_comportamiento_de_siempre():
     assert res.motivo_corte == "tope de rondas"
 
 
-# ── El default de produccion entrega la primera generacion juzgada ───────────
+# ── La politica de rondas es 3, decidida con series de n=6 ───────────────────
 
-def test_default_de_produccion_es_una_ronda():
-    """A/B nocturno 2026-07-26/27: con el juez interno funcionando, reparar
-    RESTA (primgen 4.0/6 vs 3.33 con reparacion; best-of-so-far 2.33 KILL).
-    El default queda en 1 ronda hasta que el contrato interno mejore. Este
-    test protege la politica: si alguien vuelve a subir el default, que sea
-    a proposito y con un numero nuevo."""
-    assert d2c.MAX_RONDAS_DEFECTO == 1
-
-
-def test_con_default_no_se_repara_y_el_sello_queda():
-    reparado = {"llamado": False}
-
-    def _reparar(program, defectos, llm=None, profundo=False):
-        reparado["llamado"] = True
-        return _prog("<html><body>v2</body></html>")
-
-    vs = [_veredicto(False, n_ok=3)]
-    ps = _base({"return_value": _prog()}, {"side_effect": vs},
-               {"side_effect": _reparar})
-    res = _run(ps)                            # sin max_rondas: el default
-    assert res.rondas == 1
-    assert res.sello == "FALLIDO"             # el juez sigue sellando
-    assert reparado["llamado"] is False       # pero no se gasta reparacion
+def test_default_de_produccion_son_tres_rondas():
+    """La unica pareja de series con n=6 (config con reparacion a esfuerzo
+    default 4.5/6 contra primera-generacion 3.17/6) dice que reparar APORTA.
+    El default bajo a 1 durante unas horas por un n=3 enganoso que n=6
+    revirtio (5ta enmienda del prereg): si alguien lo vuelve a cambiar, que
+    sea con una serie de n>=6, no con tres corridas."""
+    assert d2c.MAX_RONDAS_DEFECTO == 3
 
 
 # ── Telemetria: el sello queda contado, tambien el "sin verificar" ───────────

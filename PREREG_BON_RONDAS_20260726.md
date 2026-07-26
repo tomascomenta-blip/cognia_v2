@@ -182,6 +182,39 @@ Config: candidatos=1, max_rondas=3, n=3.
 | **GRIS** | media > 4.0 (supera a primgen: la reparación vuelve a aportar) |
 | **KILL** | media ≤ 4.0 — la política de producción pasa a max_rondas=1 hasta mejorar el contrato interno |
 
+## QUINTA ENMIENDA (2026-07-26 ~18:40 — primgen a n=6 REVIERTE el veredicto del brazo D)
+
+Serie primgen completa (n=6): **5, 2, 5, 2, 3, 2 — media 3.17, mínimo 2**.
+El 4.0 de n=3 era suerte: con n=6 la primera generación queda ≤ baseline con
+reparación (3.33) y MUY por debajo de la serie pre-fix (4.5, n=6). La regla
+[[gate-e2e-flaky]] otra vez: ningún veredicto con n=3 en este banco.
+
+**Lectura final con las únicas dos series robustas (n=6):**
+
+| config | serie | media |
+|---|---|---|
+| pre-fix (reparación a esfuerzo default) | 3,4,5,5,4,6 | **4.5** |
+| primgen (sin reparar) | 5,2,5,2,3,2 | **3.17** |
+
+**Reparar APORTA (+1.33 tareas) cuando va a esfuerzo default.** Lo que restó
+esta noche fue la reparación BARATA (effort=low) que introduje con el fix de
+las espirales: completa siempre pero arregla poco (D6 por todas partes). Los
+brazos n=3 (baseline 3.33 / BoN 3.0 / escalada 3.33 / bestsofar 2.33) son
+todos del régimen barato y ninguno es concluyente por sí solo, pero apilan en
+la misma dirección.
+
+**Política final de la noche (restauración + fixes buenos):**
+- MAX_RONDAS_DEFECTO vuelve a 3 (revierte la 4ta enmienda, que se decidió
+  con el n=3 engañoso).
+- reparar_web vuelve a esfuerzo DEFAULT (12000 tokens) y conserva timeout
+  400 + UN reintento (estrictamente más completions que pre-fix, misma
+  calidad). La escalada `profundo` se retira (su brazo no PASÓ).
+- El contrato conserva effort=low (3/3 válidos e igual de ricos contra 2/3
+  malformados del default — probe_contrato_effort.py) y la validación de
+  pasos.
+- Verificación de cierre: n=3 de la config restaurada (esperable ~4+; el
+  n=6 queda para otra noche).
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es
