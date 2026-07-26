@@ -1,0 +1,103 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Tareas</title>
+<style>
+  /* Fondo animado */
+  @keyframes fondo {
+    0%   { background: #f0f8ff; }
+    50%  { background: #ffe4e1; }
+    100% { background: #f0f8ff; }
+  }
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    animation: fondo 10s infinite;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  /* Contenedor que se desliza al cargar */
+  @keyframes deslizar {
+    from { transform: translateX(-100%); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+  }
+  #app {
+    background: #fff;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: deslizar 1s ease-out;
+    width: 320px;
+  }
+  #nueva {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  #anadir {
+    width: 100%;
+    padding: 8px;
+    background: #28a745;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  #anadir:hover {
+    background: #218838;
+  }
+  #lista {
+    list-style: none;
+    padding: 0;
+    margin-top: 15px;
+  }
+  .tarea {
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 4px solid #17a2b8;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <input type="text" id="nueva" placeholder="Nueva tarea">
+  <button id="anadir">Añadir</button>
+  <ul id="lista"></ul>
+</div>
+
+<script>
+  // Función para añadir tarea
+  function añadirTarea() {
+    const input = document.getElementById('nueva');
+    const texto = input.value.trim();
+    if (!texto) return; // no añadir si está vacío
+
+    const li = document.createElement('li');
+    li.className = 'tarea';
+    li.textContent = texto;
+
+    document.getElementById('lista').appendChild(li);
+    input.value = ''; // limpiar campo
+    input.focus();
+  }
+
+  // Evento click del botón
+  document.getElementById('anadir').addEventListener('click', añadirTarea);
+
+  // También añadir con Enter
+  document.getElementById('nueva').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') añadirTarea();
+  });
+</script>
+</body>
+</html>

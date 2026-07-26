@@ -1,0 +1,61 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        #contador {
+            font-size: 2em;
+            margin: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="contador">
+        <span id="valor">0</span>
+    </div>
+    <button id="mas">+</button>
+    <button id="menos">-</button>
+
+    <script>
+        let valor = 0;
+
+        document.getElementById('mas').addEventListener('click', function() {
+            valor++;
+            document.getElementById('valor').textContent = valor;
+        });
+
+        document.getElementById('menos').addEventListener('click', function() {
+            if (valor > 0) {
+                valor--;
+                document.getElementById('valor').textContent = valor;
+            }
+        });
+    </script>
+</body>
+</html>

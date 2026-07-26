@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo</title>
+<style>
+  body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+    background:#f0f0f0;
+    font-family:sans-serif;
+  }
+  #luz{
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    background:#555;
+    margin-bottom:20px;
+    /* Pulse animation that runs automatically on load */
+    animation:pulse 2s infinite;
+    /* Smooth transition when the color changes */
+    transition:background-color 0.5s ease;
+  }
+  /* Color styles based on data-color attribute */
+  #luz[data-color="rojo"]{ background:#c00; }
+  #luz[data-color="verde"]{ background:#0c0; }
+  #luz[data-color="ambar"]{ background:#c90; }
+
+  @keyframes pulse{
+    0%{transform:scale(1);}
+    50%{transform:scale(1.1);}
+    100%{transform:scale(1);}
+  }
+
+  #avanzar{
+    padding:10px 20px;
+    font-size:1rem;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+  <!-- Semáforo -->
+  <div id="luz" data-color="rojo"></div>
+  <!-- Botón para avanzar -->
+  <button id="avanzar">Avanzar</button>
+
+<script>
+  (function(){
+    const luz = document.getElementById('luz');
+    const btn = document.getElementById('avanzar');
+    const colores = ['rojo','verde','ambar'];
+    btn.addEventListener('click',()=>{
+      const actual = luz.dataset.color;
+      const idx = colores.indexOf(actual);
+      const siguiente = colores[(idx+1)%colores.length];
+      luz.dataset.color = siguiente;
+    });
+  })();
+</script>
+</body>
+</html>

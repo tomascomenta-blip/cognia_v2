@@ -1,0 +1,150 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Kanban Board</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .board {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        .col {
+            width: 300px;
+            min-height: 400px;
+            background-color: #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .col h3 {
+            margin-top: 0;
+            text-align: center;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .card button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .mas {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .menos {
+            background-color: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="board">
+        <div class="col" data-col="todo">
+            <h3>To Do <span id="cont-todo">(0)</span></h3>
+            <div class="card" data-id="t1">
+                Tarea 1
+                <button class="mas">+</button>
+                <button class="menos">-</button>
+            </div>
+            <div class="card" data-id="t2">
+                Tarea 2
+                <button class="mas">+</button>
+                <button class="menos">-</button>
+            </div>
+            <div class="card" data-id="t3">
+                Tarea 3
+                <button class="mas">+</button>
+                <button class="menos">-</button>
+            </div>
+        </div>
+        
+        <div class="col" data-col="doing">
+            <h3>Doing <span id="cont-doing">(0)</span></h3>
+        </div>
+        
+        <div class="col" data-col="done">
+            <h3>Done <span id="cont-done">(0)</span></h3>
+        </div>
+    </div>
+
+    <script>
+        // Inicializar contadores
+        function actualizarContadores() {
+            const todoCards = document.querySelectorAll('.col[data-col="todo"] .card');
+            const doingCards = document.querySelectorAll('.col[data-col="doing"] .card');
+            const doneCards = document.querySelectorAll('.col[data-col="done"] .card');
+            
+            document.getElementById('cont-todo').textContent = `(${todoCards.length})`;
+            document.getElementById('cont-doing').textContent = `(${doingCards.length})`;
+            document.getElementById('cont-done').textContent = `(${doneCards.length})`;
+        }
+        
+        // Mover tarjeta
+        function moverCard(card, direction) {
+            const currentCol = card.parentElement;
+            const currentColType = currentCol.dataset.col;
+            
+            let targetCol;
+            switch(currentColType) {
+                case 'todo':
+                    if (direction === 'mas' && document.querySelectorAll('.col[data-col="doing"] .card').length >= 2) {
+                        return; // WIP limit reached
+                    }
+                    targetCol = document.querySelector('.col[data-col="doing"]');
+                    break;
+                case 'doing':
+                    targetCol = direction === 'mas' ? 
+                        document.querySelector('.col[data-col="done"]') : 
+                        document.querySelector('.col[data-col="todo"]');
+                    break;
+                case 'done':
+                    if (direction === 'menos') {
+                        targetCol = document.querySelector('.col[data-col="doing"]');
+                    } else {
+                        return; // No puede avanzar más
+                    }
+                    break;
+            }
+            
+            card.remove();
+            targetCol.appendChild(card);
+            actualizarContadores();
+        }
+        
+        // Agregar eventos a botones
+        document.querySelectorAll('.card').forEach(card => {
+            const masBtn = card.querySelector('.mas');
+            const menosBtn = card.querySelector('.menos');
+            
+            masBtn.addEventListener('click', () => moverCard(card, 'mas'));
+            menosBtn.addEventListener('click', () => moverCard(card, 'menos'));
+        });
+        
+        // Contador inicial
+        actualizarContadores();
+    </script>
+</body>
+</html>

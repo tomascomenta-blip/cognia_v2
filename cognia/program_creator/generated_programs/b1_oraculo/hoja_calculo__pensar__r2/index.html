@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f0f0f0;padding:20px;}
+  table{margin:auto;border-collapse:collapse;}
+  td{border:1px solid #999;padding:0;}
+  input.celda{width:80px;height:30px;text-align:right;font-size:14px;border:none;background:#fff;}
+  input.celda:focus{outline:none;background:#e0f7ff;}
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  input.celda{animation:fadeIn 0.5s ease forwards;}
+</style>
+</head>
+<body>
+<table>
+  <tr>
+    <td><input class="celda" data-ref="A1" value="" style="animation-delay:0.1s;"></td>
+    <td><input class="celda" data-ref="A2" value="" style="animation-delay:0.2s;"></td>
+    <td><input class="celda" data-ref="A3" value="" style="animation-delay:0.3s;"></td>
+  </tr>
+  <tr>
+    <td><input class="celda" data-ref="B1" value="" style="animation-delay:0.4s;"></td>
+    <td><input class="celda" data-ref="B2" value="" style="animation-delay:0.5s;"></td>
+    <td><input class="celda" data-ref="B3" value="" style="animation-delay:0.6s;"></td>
+  </tr>
+  <tr>
+    <td><input class="celda" data-ref="C1" value="" style="animation-delay:0.7s;"></td>
+    <td><input class="celda" data-ref="C2" value="" style="animation-delay:0.8s;"></td>
+    <td><input class="celda" data-ref="C3" value="" style="animation-delay:0.9s;"></td>
+  </tr>
+</table>
+<script>
+(function(){
+  const cells=document.querySelectorAll('.celda');
+  const refMap={};
+  cells.forEach(c=>{refMap[c.dataset.ref]=c; c.dataset.raw=c.value;});
+  let computing=false;
+  function evaluateCell(ref, visited){
+    if(visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    const cell=refMap[ref];
+    const raw=cell.dataset.raw;
+    let val;
+    if(raw.startsWith('=')){
+      val=evaluateFormula(raw, visited);
+    }else{
+      val=parseFloat(raw);
+      if(isNaN(val)) val=0;
+    }
+    visited.delete(ref);
+    return val;
+  }
+  function evaluateFormula(formula, visited){
+    let expr=formula.slice(1);
+    const tokens=[];
+    const ops=[];
+    let i=0;
+    while(i<expr.length){
+      if(expr[i]===' '){i++;continue;}
+      if(expr[i]==='+'||expr[i]==='-'){
+        ops.push(expr[i]);i++;continue;
+      }
+      let j=i;
+      while(j<expr.length && /[A-C1-3]/.test(expr[j])) j++;
+      const part=expr.slice(i,j);
+      if(/^[A-C][1-3]$/.test(part)){
+        const val=evaluateCell(part, visited);
+        if(val==='CIRC') return 'CIRC';
+        tokens.push(parseFloat(val));
+      }else{
+        tokens.push(parseFloat(part));
+      }
+      i=j;
+    }
+    let result=tokens[0]||0;
+    for(let k=0;k<ops.length;k++){
+      if(ops[k]==='+') result+=tokens[k+1];
+      else result-=tokens[k+1];
+    }
+    return result;
+  }
+  function recalcAll(){
+    computing=true;
+    cells.forEach(c=>{
+      const raw=c.dataset.raw;
+      let val;
+      if(raw.startsWith('=')){
+        val=evaluateFormula(raw, new Set([c.dataset.ref]));
+      }else{
+        val=parseFloat(raw);
+        if(isNaN(val)) val='';
+      }
+      c.value=val;
+    });
+    computing=false;
+  }
+  cells.forEach(c=>{
+    c.addEventListener('input',function(){
+      if(computing)return;
+      c.dataset.raw=c.value;
+      recalcAll();
+    });
+  });
+  recalcAll();
+})();
+</script>
+</body>
+</html>

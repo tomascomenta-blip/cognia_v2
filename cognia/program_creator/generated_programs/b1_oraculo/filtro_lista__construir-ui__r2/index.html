@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filtro de Lista</title>
+    <style>
+        :root {
+            --color-bg: #f0f8ff;
+            --color-text: #333;
+            --color-accent: #4a90e2;
+            --color-border: #e0e0e0;
+            --color-hover: #cce6ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            text-align: center;
+            color: var(--color-accent);
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #buscar {
+            width: 300px;
+            padding: 12px 16px;
+            font-size: 1rem;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(74, 144, 226, 0); }
+        }
+
+        .item {
+            padding: 12px 16px;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            background-color: white;
+            margin-bottom: 10px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .item {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .item:nth-child(1) { animation-delay: 0.1s; }
+        .item:nth-child(2) { animation-delay: 0.2s; }
+        .item:nth-child(3) { animation-delay: 0.3s; }
+        .item:nth-child(4) { animation-delay: 0.4s; }
+        .item:nth-child(5) { animation-delay: 0.5s; }
+    </style>
+</head>
+<body>
+    <h1>Filtro de Lista</h1>
+    <input type="text" id="buscar" placeholder="Escribe para filtrar...">
+
+    <ul id="lista">
+        <li class="item">manzana</li>
+        <li class="item">banana</li>
+        <li class="item">cereza</li>
+        <li class="item">datil</li>
+        <li class="item">kiwi</li>
+    </ul>
+
+    <script>
+        const input = document.getElementById('buscar');
+        const items = document.querySelectorAll('.item');
+
+        input.addEventListener('input', () => {
+            const query = input.value.toLowerCase();
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    item.classList.add('visible');
+                } else {
+                    item.classList.remove('visible');
+                }
+            });
+        });
+
+        // Reset on blur if input is empty
+        input.addEventListener('blur', () => {
+            if (input.value === '') {
+                items.forEach(item => {
+                    item.classList.add('visible');
+                });
+            }
+        });
+
+        // Show all items when input is empty
+        input.addEventListener('input', () => {
+            if (input.value === '') {
+                items.forEach(item => {
+                    item.classList.add('visible');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

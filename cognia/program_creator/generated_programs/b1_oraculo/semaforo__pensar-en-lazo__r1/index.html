@@ -1,0 +1,33 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Signale</title>
+  <style>
+	#luz {
+	  width: 100px;
+	  height: 100px;
+	  background-color: red;
+	}
+	#luz[data-color="rojo"] { background-color: red; }
+	#luz[data-color="verde"] { background-color: green; }
+	#luz[data-color="amarillo"] { background-color: yellow; }
+  </style>
+</head>
+<body>
+  <div id="luz" data-color="rojo"></div>
+  <button id="avanzar">Avanzar</button>
+
+  <script>
+	const colors = ['rojo', 'verde', 'amarillo'];
+	let currentColorIndex = 0;
+
+	function advanceLight() {
+	  currentColorIndex = (currentColorIndex + 1) % 3;
+	  document.getElementById('luz').setAttribute('data-color', colors[currentColorIndex]);
+	}
+
+	document.getElementById('avanzar').addEventListener('click', advanceLight);
+  </script>
+</body>
+</html>

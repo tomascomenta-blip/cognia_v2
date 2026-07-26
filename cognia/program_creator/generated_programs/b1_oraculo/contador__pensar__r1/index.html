@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contador</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background: #f0f0f0;
+    overflow: hidden;
+  }
+  #contenedor {
+    background: #fff;
+    padding: 20px 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    text-align: center;
+    animation: slideIn 1s ease-out forwards;
+  }
+  #valor {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 20px;
+  }
+  button {
+    font-size: 1rem;
+    padding: 10px 20px;
+    margin: 0 10px;
+    cursor: pointer;
+  }
+  @keyframes slideIn {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div id="contenedor">
+  <span id="valor">0</span>
+  <button id="mas">+</button>
+  <button id="menos">-</button>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const valorSpan = document.getElementById('valor');
+    const masBtn = document.getElementById('mas');
+    const menosBtn = document.getElementById('menos');
+    let valor = 0;
+    function actualizar() {
+      valorSpan.textContent = valor;
+    }
+    masBtn.addEventListener('click', function() {
+      valor++;
+      actualizar();
+    });
+    menosBtn.addEventListener('click', function() {
+      if (valor > 0) {
+        valor--;
+        actualizar();
+      }
+    });
+  });
+</script>
+</body>
+</html>

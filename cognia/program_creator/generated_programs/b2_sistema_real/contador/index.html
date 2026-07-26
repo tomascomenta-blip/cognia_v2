@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador Interactivo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f9;
+        }
+        .container {
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+        }
+        #counter {
+            font-size: 2em;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        #chart {
+            width: 100%;
+            height: 300px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+        }
+        .axis-label {
+            fill: #666;
+        }
+        .gridline {
+            stroke: #eee;
+            stroke-width: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Contador Interactivo</h1>
+        <div id="counter">0</div>
+        <button id="mas">+</button>
+        <button id="menos">-</button>
+        <h2>Gráfica de Valores</h2>
+        <svg id="chart"></svg>
+    </div>
+
+    <script>
+        let value = 0;
+        const values = [];
+        const maxValues = 20;
+
+        function updateCounter() {
+            document.getElementById('valor').textContent = value;
+            values.push(value);
+            if (values.length > maxValues) {
+                values.shift();
+            }
+            drawChart();
+        }
+
+        document.getElementById('mas').addEventListener('click', () => {
+            value++;
+            updateCounter();
+        });
+
+        document.getElementById('menos').addEventListener('click', () => {
+            if (value > 0) {
+                value--;
+                updateCounter();
+            }
+        });
+
+        function drawChart() {
+            const chart = document.getElementById('chart');
+            chart.innerHTML = '';
+            const width = chart.clientWidth;
+            const height = chart.clientHeight;
+            const maxValue = Math.max(...values, 1);
+            const minValue = Math.min(...values, 0);
+
+            const xScale = width / maxValues;
+            const yScale = height / (maxValue - minValue);
+
+            const svgNS = "http://www.w3.org/2000/svg";
+            const axis = document.createElementNS(svgNS, 'g');
+            axis.setAttribute('transform', `translate(0, ${height})`);
+
+            for (let i = 0; i <= maxValue; i += maxValue / 5) {
+                const y = height - (i - minValue) * yScale;
+                const line = document.createElementNS(svgNS, 'line');
+                line.setAttribute('x1', 0);
+                line.setAttribute('y1', y);
+                line.setAttribute('x2', width);
+                line.setAttribute('y2', y);
+                line.classList.add('gridline');
+                chart.appendChild(line);
+
+                const label = document.createElementNS(svgNS, 'text');
+                label.setAttribute('x', -5);
+                label.setAttribute('y', y + 3);
+                label.classList.add('axis-label');
+                label.textContent = i.toFixed(0);
+                axis.appendChild(label);
+            }
+
+            chart.appendChild(axis);
+
+            for (let i = 0; i < values.length; i++) {
+                const x1 = i * xScale;
+                const y1 = height - (values[i] - minValue) * yScale;
+                const x2 = (i + 1) * xScale;
+                const y2 = height - (values[i + 1] ? values[i + 1] - minValue : minValue) * yScale;
+                const line = document.createElementNS(svgNS, 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', 'blue');
+                line.setAttribute('stroke-width', 2);
+                chart.appendChild(line);
+            }
+        }
+
+        // Initialize the first frame
+        updateCounter();
+    </script>
+</body>
+</html>

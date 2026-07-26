@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Simple</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        #calculadora {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 300px;
+            text-align: center;
+        }
+        #pantalla {
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 24px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tecla {
+            background-color: #ddd;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .tecla:hover {
+            background-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="calculadora">
+        <div id="pantalla"></div>
+        <button class="tecla" data-t="7">7</button>
+        <button class="tecla" data-t="8">8</button>
+        <button class="tecla" data-t="9">9</button>
+        <button class="tecla" data-t="/">/</button>
+        <button class="tecla" data-t="4">4</button>
+        <button class="tecla" data-t="5">5</button>
+        <button class="tecla" data-t="6">*</button>
+        <button class="tecla" data-t="-">-</button>
+        <button class="tecla" data-t="1">1</button>
+        <button class="tecla" data-t="2">2</button>
+        <button class="tecla" data-t="3">+</button>
+        <button class="tecla" data-t="0">0</button>
+        <button class="tecla" data-t=".">.</button>
+        <button class="tecla" data-t="=">=</button>
+        <button class="tecla" data-t="C">C</button>
+    </div>
+
+    <script>
+        const pantalla = document.getElementById('pantalla');
+        let estado = 'esperando entrada';
+        let primerOperando = '';
+        let operacion = '';
+        let segundoOperando = '';
+
+        document.querySelectorAll('.tecla').forEach(button => {
+            button.addEventListener('click', () => {
+                const valor = button.getAttribute('data-t');
+
+                if (estado === 'esperando entrada') {
+                    if (valor === 'C') {
+                        pantalla.textContent = '';
+                        primerOperando = '';
+                        operacion = '';
+                        segundoOperando = '';
+                    } else if (valor !== '=' && valor !== '+' && valor !== '-' && valor !== '*' && valor !== '/') {
+                        primerOperando += valor;
+                        pantalla.textContent = primerOperando;
+                        estado = 'esperando operación';
+                    }
+                } else if (estado === 'esperando operación') {
+                    if (valor === 'C') {
+                        pantalla.textContent = '';
+                        primerOperando = '';
+                        operacion = '';
+                        segundoOperando = '';
+                        estado = 'esperando entrada';
+                    } else if (valor === '=' || valor === '+' || valor === '-' || valor === '*' || valor === '/') {
+                        operacion = valor;
+                        estado = 'esperando segundo operando';
+                    }
+                } else if (estado === 'esperando segundo operando') {
+                    if (valor === 'C') {
+                        pantalla.textContent = '';
+                        primerOperando = '';
+                        operacion = '';
+                        segundoOperando = '';
+                        estado = 'esperando entrada';
+                    } else if (valor === '=') {
+                        segundoOperando = primerOperando;
+                        let resultado;
+                        switch (operacion) {
+                            case '+':
+                                resultado = parseFloat(primerOperando) + parseFloat(segundoOperando);
+                                break;
+                            case '-':
+                                resultado = parseFloat(primerOperando) - parseFloat(segundoOperando);
+                                break;
+                            case '*':
+                                resultado = parseFloat(primerOperando) * parseFloat(segundoOperando);
+                                break;
+                            case '/':
+                                resultado = parseFloat(primerOperando) / parseFloat(segundoOperando);
+                                break;
+                        }
+                        pantalla.textContent = resultado;
+                        primerOperando = resultado.toString();
+                        operacion = '';
+                        segundoOperando = '';
+                        estado = 'esperando entrada';
+                    } else {
+                        primerOperando += valor;
+                        pantalla.textContent = primerOperando;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

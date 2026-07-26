@@ -1,0 +1,110 @@
+{
+  "nombre": "Visor meteorológico 3D - pruebas funcionales",
+  "pasos": [
+    {
+      "nombre": "Verificar que al cargar la página se muestra al menos un elemento de ciudad",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar_visible",
+          "selector": ".data-item",
+          "esperado": 1
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que el panel de temperatura muestra un valor con unidad",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": "#temp-current",
+          "contiene": "°"
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que el panel de viento muestra una velocidad con unidad",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "texto",
+          "selector": "#wind-speed",
+          "contiene": "km/h"
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que al hacer clic en otra ciudad se actualiza la ubicación mostrada",
+      "critico": false,
+      "acciones": [
+        {
+          "accion": "click",
+          "selector": ".data-item",
+          "indice": 1
+        },
+        {
+          "accion": "esperar",
+          "ms": 500
+        },
+        {
+          "accion": "texto",
+          "selector": "#location",
+          "contiene": "City"
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que la tabla de pronóstico contiene al menos tres filas",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "js",
+          "expr": "document.querySelectorAll('#forecast-table tr').length",
+          "esperado": 3
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que el panel de métricas clave muestra los cuatro indicadores",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar_visible",
+          "selector": ".metric",
+          "esperado": 4
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que la tecla derecha cambia la ciudad mostrada",
+      "critico": false,
+      "acciones": [
+        {
+          "accion": "tecla",
+          "key": "ArrowRight"
+        },
+        {
+          "accion": "esperar",
+          "ms": 500
+        },
+        {
+          "accion": "texto",
+          "selector": "#location",
+          "contiene": "City"
+        }
+      ]
+    },
+    {
+      "nombre": "Verificar que el visor 3D está visible en la página",
+      "critico": true,
+      "acciones": [
+        {
+          "accion": "contar_visible",
+          "selector": ".main-grid",
+          "esperado": 1
+        }
+      ]
+    }
+  ]
+}

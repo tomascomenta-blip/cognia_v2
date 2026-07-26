@@ -1,0 +1,2928 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --accent: #ff9f43;
+            --border: #3a3a3a;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .calculator {
+            background-color: var(--bg-secondary);
+            border-radius: 20px;
+            width: 400px;
+            height: 550px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .calculator-header {
+            background-color: var(--accent);
+            color: var(--text-primary);
+            padding: 20px 0;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 2px solid var(--border);
+        }
+
+        #pantalla {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 48px;
+            padding: 20px;
+            text-align: right;
+            flex: 1;
+            overflow-y: auto;
+            line-height: 1.2;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .buttons-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 20px;
+        }
+
+        .tecla {
+            background-color: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60px;
+        }
+
+        .tecla:hover {
+            background-color: var(--accent);
+            transform: translateY(-3px);
+        }
+
+        .tecla.operator {
+            background-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        .tecla.operator:hover {
+            background-color: #ff8f33;
+        }
+
+        .tecla.equal {
+            background-color: var(--accent);
+            color: var(--text-primary);
+            grid-column: span 2;
+        }
+
+        .tecla.equal:hover {
+            background-color: #ff8f33;
+        }
+
+        .tecla.clear {
+            background-color: var(--accent);
+            color: var(--text-primary);
+            grid-column: span 2;
+        }
+
+        .tecla.clear:hover {
+            background-color: #ff8f33;
+        }
+
+        .tecla.zero {
+            grid-column: span 2;
+        }
+
+        .tecla.zero:hover {
+            background-color: var(--accent);
+        }
+
+        .tecla:active {
+            transform: translateY(3px);
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.equal {
+            grid-column: span 2;
+        }
+
+        .tecla.clear {
+            grid-column: span 2;
+        }
+
+        .tecla.zero {
+            grid-column: span 2;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla.operator {
+            grid-column: span 1;
+        }
+
+        .tecla

@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  table { border-collapse: collapse; }
+  td { border: 1px solid #999; width: 60px; height: 40px; text-align: center; }
+  input.celda { width: 50px; height: 30px; font-size: 16px; padding: 2px; }
+</style>
+</head>
+<body>
+
+<h2>Mini Hoja de Cálculo (3x3)</h2>
+<table>
+  <tr>
+    <td><input type="text" class="celda" data-ref="A1"></td>
+    <td><input type="text" class="celda" data-ref="A2"></td>
+    <td><input type="text" class="celda" data-ref="A3"></td>
+  </tr>
+  <tr>
+    <td><input type="text" class="celda" data-ref="B1"></td>
+    <td><input type="text" class="celda" data-ref="B2"></td>
+    <td><input type="text" class="celda" data-ref="B3"></td>
+  </tr>
+  <tr>
+    <td><input type="text" class="celda" data-ref="C1"></td>
+    <td><input type="text" class="celda" data-ref="C2"></td>
+    <td><input type="text" class="celda" data-ref="C3"></td>
+  </tr>
+</table>
+
+<script>
+const dependencyMap = {}; // Maps referenced cell to dependents
+const dependencies = {};  // Stores each cell's current references
+let evaluating = new Set(); // Tracks cells being evaluated for cycle detection
+
+function parseRefs(formula) {
+  return formula.match(/[A-Z][0-9]+/g) || [];
+}
+
+// Initialize on page load
+document.querySelectorAll('.celda').forEach(cell => {
+  const ref = cell.dataset.ref;
+  if (cell.value.startsWith('=')) {
+    const refs = parseRefs(cell.value);
+    dependencies[ref] = refs;
+    refs.forEach(r => {
+      if (!dependencyMap[r]) dependencyMap[r] = [];
+      dependencyMap[r].push(ref);
+    });
+  }
+});
+
+// Handle cell change event
+document.querySelectorAll('.celda').forEach(cell => {
+  cell.addEventListener('input', handleCellChange);
+});
+
+function handleCellChange(event) {
+  const cell = event.target;
+  const currentRef = cell.dataset.ref;
+  
+  let newRefs = [];
+  if (cell.value.startsWith('=')) {
+    newRefs = parseRefs(cell.value);
+    
+    // Remove old dependencies from dependencyMap
+    const oldRefs = dependencies[currentRef] || [];
+    oldRefs.forEach(r => {
+      const index = dependencyMap[r]?.indexOf(currentRef) ?? -1;
+      if (index !== -1) dependencyMap[r].splice(index, 1);
+    });
+    
+    // Update dependencies object
+    dependencies[currentRef] = newRefs;
+    
+    // Add new references to dependencyMap
+    newRefs.forEach(r => {
+      if (!dependencyMap[r]) dependencyMap[r] = [];
+      dependencyMap[r].push(currentRef);
+    });
+  } else {
+    const oldRefs = dependencies[currentRef];
+    if (oldRefs) {
+      oldRefs.forEach(r => {
+        const index = dependencyMap[r]?.indexOf(currentRef) ?? -1;
+        if (index !== -1) dependencyMap[r].splice(index, 1);
+      });
+      delete dependencies[currentRef];
+    }
+  }
+
+  // Get all affected cells and recalculate them
+  const affected = getDependentCells(currentRef);
+  affected.forEach(ref => calculateCell(ref));
+}
+
+function getDependentCells(startRef) {
+  const visited = new Set();
+  const queue = [startRef];
+  
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!dependencyMap[current]) continue;
+    for (const dependent of dependencyMap[current]) {
+      if (!visited.has(dependent)) {
+        visited.add(dependent);
+        queue.push(dependent);
+      }
+    }
+  }
+  
+  return Array.from(visited);
+}
+
+function calculateCell(cellRef) {
+  const cell = document.querySelector(`.celda[data-ref="${cellRef}"]`);
+  if (!cell || !cell.value.startsWith('=')) return;
+  
+  // Check for circular reference
+  if (evaluating.has(cellRef)) {
+    cell.value = 'CIRC';
+    return;
+  }
+  evaluating.add(cellRef);
+  
+  try {
+    const formula = cell.value.slice(1); // Remove '='
+    const refs = dependencies[cellRef] || [];
+    
+    // Ensure all referenced cells are calculated first
+    for (const ref of refs) calculateCell(ref);
+    
+    let result;
+    try {
+      result = evaluateFormula(formula, refs);
+    } catch (e) {
+      throw new Error('Invalid formula');
+    }
+    
+    cell.value = result.toString();
+  } finally {
+    evaluating.delete(cellRef);
+  }
+}
+
+function evaluateFormula(formula, refs) {
+  let expr = formula;
+  for (const ref of refs) {
+    const referencedCell = document.querySelector(`.celda[data-ref="${ref}"]`);
+    if (!referencedCell) continue;
+    expr = expr.replace(new RegExp(ref, 'g'), referencedCell.value);
+  }
+  
+  try {
+    return eval(expr);
+  } catch (e) {
+    throw new Error('Invalid formula');
+  }
+}
+
+// Auto-calculate on load for initial formulas
+document.querySelectorAll('.celda').forEach(cell => {
+  if (cell.value.startsWith('=')) calculateCell(cell.dataset.ref);
+});
+</script>
+
+</body>
+</html>

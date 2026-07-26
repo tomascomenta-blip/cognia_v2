@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Juego de Memoria</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .counter {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+    .game-board {
+      display: grid;
+      grid-template-columns: repeat(4, 80px);
+      grid-template-rows: repeat(4, 80px);
+      gap: 10px;
+    }
+    .tile {
+      width: 80px;
+      height: 80px;
+      background-color: #333;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 40px;
+      transition: transform 0.5s;
+      perspective: 1000px;
+    }
+    .tile.flipped {
+      transform: rotateY(180deg);
+    }
+    .tile.front, .tile.back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 10px;
+    }
+    .tile.back {
+      background-color: #333;
+    }
+    .tile.front {
+      background-color: white;
+      transform: rotateY(180deg);
+      display: none;
+    }
+    .tile.flipped .back {
+      display: none;
+    }
+    .tile.flipped .front {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+  <h1>Juego de Memoria</h1>
+  <div class="counter">Movimientos: <span id="moves">0</span></div>
+  <div class="game-board" id="gameBoard"></div>
+
+  <script>
+    const emojis = ['🐶', '🐱', '🦊', '🐰', '🐻', '🐼', '🐨', '🐯'];
+    const shuffledEmojis = [...emojis, ...emojis].sort(() => Math.random() - 0.5);
+    
+    let firstCard = null;
+    let secondCard = null;
+    let lockBoard = false;
+    let moves = 0;
+
+    const gameBoard = document.getElementById('gameBoard');
+
+    shuffledEmojis.forEach((emoji, index) => {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.index = index;
+      
+      const front = document.createElement('div');
+      front.className = 'front';
+      front.textContent = emoji;
+      
+      const back = document.createElement('div');
+      back.className = 'back';
+      
+      tile.appendChild(front);
+      tile.appendChild(back);
+      
+      tile.addEventListener('click', () => handleClick(tile));
+      gameBoard.appendChild(tile);
+    });
+
+    function handleClick(tile) {
+      if (lockBoard || tile.classList.contains('flipped')) return;
+
+      tile.classList.add('flipped');
+
+      if (!firstCard) {
+        firstCard = tile;
+      } else {
+        secondCard = tile;
+        lockBoard = true;
+        moves++;
+        document.getElementById('moves').textContent = moves;
+
+        checkMatch();
+      }
+    }
+
+    function checkMatch() {
+      const isMatch = firstCard.dataset.index === secondCard.dataset.index;
+
+      if (isMatch) {
+        resetSelection();
+      } else {
+        setTimeout(() => {
+          firstCard.classList.remove('flipped');
+          secondCard.classList.remove('flipped');
+          resetSelection();
+        }, 1000);
+      }
+    }
+
+    function resetSelection() {
+      firstCard = null;
+      secondCard = null;
+      lockBoard = false;
+    }
+  </script>
+</body>
+</html>

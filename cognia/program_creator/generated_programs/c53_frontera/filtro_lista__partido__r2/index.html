@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filtro de Elementos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+        #buscar {
+            width: 80%;
+            max-width: 400px;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            width: 80%;
+            max-width: 400px;
+        }
+        .item {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .item.hidden {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+    </style>
+</head>
+<body>
+    <input type="text" id="buscar" placeholder="Buscar elementos...">
+    <ul>
+        <li class="item">manzana</li>
+        <li class="item">banana</li>
+        <li class="item">cereza</li>
+        <li class="item">datil</li>
+        <li class="item">kiwi</li>
+    </ul>
+
+    <script>
+        document.getElementById('buscar').addEventListener('input', function() {
+            const filtro = this.value.toLowerCase();
+            const items = document.querySelectorAll('.item');
+
+            items.forEach(item => {
+                const texto = item.textContent.toLowerCase();
+                if (texto.includes(filtro)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

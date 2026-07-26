@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+#spreadsheet {
+  display: inline-block;
+}
+.row {
+  display: flex;
+}
+.celda {
+  width: 60px;
+  height: 30px;
+  border: 1px solid #999;
+  text-align: center;
+  margin: 2px;
+  padding: 5px;
+  box-sizing: border-box;
+}
+</style>
+</head>
+<body>
+<h2>Mini Hoja de Cálculo (3x3)</h2>
+<div id="spreadsheet">
+  <div class="row">
+    <input type="text" class="celda" data-ref="A1">
+    <input type="text" class="celda" data-ref="A2">
+    <input type="text" class="celda" data-ref="A3">
+  </div>
+  <div class="row">
+    <input type="text" class="celda" data-ref="B1">
+    <input type="text" class="celda" data-ref="B2">
+    <input type="text" class="celda" data-ref="B3">
+  </div>
+  <div class="row">
+    <input type="text" class="celda" data-ref="C1">
+    <input type="text" class="celda" data-ref="C2">
+    <input type="text" class="celda" data-ref="C3">
+  </div>
+</div>
+
+<script>
+window.onload = function() {
+  const cells = document.querySelectorAll('.celda');
+  const dependencies = {}; // Maps cell ref to array of dependents
+  const cellDependencies = {}; // Maps cell ref to its dependencies (array of refs)
+
+  // Initialize dependencies and cellDependencies for formulas on load
+  for (const cell of cells) {
+    const ref = cell.dataset.ref;
+    if (cell.value.startsWith('=')) {
+      const formula = cell.value.slice(1);
+      const deps = parseFormula(formula);
+      cellDependencies[ref] = deps;
+      for (const dep of deps) {
+        if (!dependencies[dep]) dependencies[dep] = [];
+        dependencies[dep].push(ref);
+      }
+    }
+  }
+
+  // Evaluate all formula cells on load
+  for (const cell of cells) {
+    const ref = cell.dataset.ref;
+    if (cell.value.startsWith('=')) {
+      try {
+        const result = evaluateCell(ref);
+        if (result === 'CIRC') {
+          cell.value = 'CIRC';
+        } else if (typeof result === 'number' && !isNaN(result)) {
+          cell.value = result.toString();
+        }
+      } catch (e) {
+        console.error('Error initializing', ref, e);
+      }
+    }
+  }
+
+  // Attach event listeners to each cell
+  cells.forEach(cell => {
+    cell.addEventListener('input', handleCellChange);
+  });
+};
+
+function parseFormula(formula) {
+  const regex = /[A-C][1-3]/g;
+  return formula.match(regex) || [];
+}
+
+function handleCellChange(event) {
+  const cell = event.target;
+  const ref = cell.dataset.ref;
+
+  if (cell.value.startsWith('=')) {
+    // Update dependencies for this cell
+    const oldDeps = cellDependencies[ref] || [];
+    const newFormula = cell.value.slice(1);
+    const newDeps = parseFormula(newFormula);
+
+    // Remove old dependencies from the global map
+    for (const dep of oldDeps) {
+      if (dependencies[dep]) {
+        const index = dependencies[dep].indexOf(ref);
+        if (index !== -1) dependencies[dep].splice(index, 1);
+      }
+    }
+
+    // Add new dependencies to the global map
+    for (const dep of newDeps) {
+      if (!dependencies[dep]) dependencies[dep] = [];
+      dependencies[dep].push(ref);
+    }
+
+    // Update cell's own dependencies
+    cellDependencies[ref] = newDeps;
+  }
+
+  // Recalculate all dependents of this cell
+  recalculateDependents(ref);
+}
+
+function evaluateCell(ref) {
+  const visited = new Set();
+  return _evaluateCellRecursive(ref, visited);
+}
+
+function _evaluateCellRecursive(ref, visited) {
+  if (visited.has(ref)) {
+    return 'CIRC';
+  }
+  const cell = document.querySelector(`[data-ref="${ref}"]`);
+  if (!cell) return NaN;
+
+  let result;
+  if (cell.value.startsWith('=')) {
+    visited.add(ref);
+    const formula = cell.value.slice(1); // remove '='
+    result = evaluateFormula(formula, visited);
+    visited.delete(ref);
+  } else {
+    result = parseFloat(cell.value) || 0;
+  }
+
+  return result;
+}
+
+function evaluateFormula(formula, visited) {
+  const tokens = formula.match(/[A-C][1-3]|[+-]/g);
+  if (!tokens || tokens.length === 0) return NaN;
+
+  let result = getCellValue(tokens[0], visited); // first token is a cell ref
+  for (let i = 1; i < tokens.length; i += 2) {
+    const op = tokens[i];
+    const nextCell = tokens[i + 1];
+    if (!nextCell) break;
+
+    const value = getCellValue(nextCell, visited);
+    if (op === '+') result += value;
+    else if (op === '-') result -= value;
+  }
+
+  return result;
+}
+
+function getCellValue(ref, visited) {
+  // Check for circular reference in this cell's evaluation
+  const evaluated = _evaluateCellRecursive(ref, visited);
+  if (evaluated === 'CIRC') return NaN; // or handle error?
+  return evaluated;
+}
+
+function recalculateDependents(ref) {
+  const queue = [];
+  const dependents = dependencies[ref] || [];
+  for (const depRef of dependents) {
+    queue.push(depRef);
+  }
+
+  while (queue.length > 0) {
+    const currentRef = queue.shift();
+    const cell = document.querySelector(`[data-ref="${currentRef}"]`);
+    if (!cell) continue;
+
+    let result;
+    try {
+      result = evaluateCell(currentRef);
+    } catch (e) {
+      console.error('Error evaluating', currentRef, e);
+      result = 'ERROR';
+    }
+
+    if (result === 'CIRC') {
+      cell.value = 'CIRC';
+    } else if (typeof result === 'number' && !isNaN(result)) {
+      cell.value = result.toString();
+    } else {
+      // Invalid formula or error, maybe leave as is?
+      console.warn('Invalid result for', currentRef);
+    }
+
+    // Add dependents of this cell to the queue
+    const nextDependents = dependencies[currentRef] || [];
+    for (const depRef of nextDependents) {
+      if (!queue.includes(depRef)) {
+        queue.push(depRef);
+      }
+    }
+  }
+}
+</script>
+</body>
+</html>

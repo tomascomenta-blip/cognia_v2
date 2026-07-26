@@ -1,0 +1,50 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>To-Do List</title>
+<style>
+input {
+  width: 100%;
+  height: 40px;
+  padding: 8px;
+  border: none;
+  border-radius: 0;
+  background-color: #f0f0f0;
+  color: #222;
+  font-size: 16px;
+}
+button {
+  background-color: #4a76a8;
+  color: white;
+  padding: 10px 20px;
+  font-size: 18px;
+  border: none;
+  border-radius: 0;
+}
+li {
+  font-family: sans-serif;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+</style>
+<body>
+<div class="container">
+  <input id="nueva" type="text" placeholder="Ingresa tu tarea" />
+  <button id="anadir">Agregar</button>
+  <ul id="lista" class="tarea">
+  </ul>
+</div>
+<script>
+document.getElementById('anadir').addEventListener('click', function() {
+  const inputValue = document.getElementById('nueva').value;
+  if (inputValue) {
+    const newItem = document.createElement('li');
+    newItem.textContent = inputValue;
+    newItem.className = 'tarea';
+    document.getElementById('lista').appendChild(newItem);
+  }
+});
+</script>
+</body>
+</html>

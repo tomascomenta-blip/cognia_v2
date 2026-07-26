@@ -1,0 +1,53 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Filter List</title>
+    <style>
+        .hidden {
+            display: none;
+        }
+        ul {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <input id="buscar" type="text" oninput="search()">
+
+    <ul>
+        <li class="item">manzana</li>
+        <li class="item">banana</li>
+        <li class="item">cereza</li>
+        <li class="item">datil</li>
+        <li class="item">kiwi</li>
+    </ul>
+
+    <script>
+        function search() {
+            let term = document.getElementById('buscar').value;
+            term = term.toLowerCase();
+            const items = document.querySelectorAll('li');
+            if (term === '') {
+                for (let i = 0; i < items.length; i++) {
+                    items[i].classList.remove('hidden');
+                }
+            } else {
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].textContent.includes(term)) {
+                        items[i].classList.remove('hidden');
+                    } else {
+                        items[i].classList.add('hidden');
+                    }
+                }
+            }
+        }
+
+        window.onload = function() {
+            setTimeout(function() {
+                document.querySelector('ul').style.opacity = 1;
+            }, 500);
+        };
+    </script>
+</body>
+</html>

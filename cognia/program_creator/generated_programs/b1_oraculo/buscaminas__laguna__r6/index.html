@@ -1,0 +1,156 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscaminas 5x5</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        #estado {
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(5, 30px);
+            grid-gap: 2px;
+        }
+        .c {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+        }
+        .c.abierta {
+            background-color: #ddd;
+        }
+        .c.bandera::after {
+            content: "🚩";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="estado">Bienvenido al Buscaminas</div>
+    <div class="container" id="grid"></div>
+
+    <script>
+        const mines = new Array(25).fill(false);
+        mines[6] = true;
+        mines[12] = true;
+        mines[18] = true;
+
+        function getMineCount(i) {
+            let row = Math.floor(i / 5);
+            let col = i % 5;
+            let count = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const r = row + dr;
+                    const c = col + dc;
+                    if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+                        const neighborIndex = r * 5 + c;
+                        if (mines[neighborIndex]) count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        function getNeighbors(i) {
+            let row = Math.floor(i / 5);
+            let col = i % 5;
+            let neighbors = [];
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const r = row + dr;
+                    const c = col + dc;
+                    if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+                        neighbors.push(r * 5 + c);
+                    }
+                }
+            }
+            return neighbors;
+        }
+
+        function openCell(i) {
+            const cell = document.querySelector(`[data-i="${i}"]`);
+            if (cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+
+            const count = getMineCount(i);
+            cell.classList.add('abierta');
+
+            if (count === 0) {
+                const neighbors = getNeighbors(i);
+                for (const j of neighbors) {
+                    openCell(j);
+                }
+            } else {
+                cell.textContent = count;
+            }
+        }
+
+        function handleLeftClick(cell) {
+            const i = parseInt(cell.dataset.i);
+            if (cell.classList.contains('bandera') || cell.classList.contains('abierta')) return;
+
+            if (mines[i]) {
+                document.getElementById('estado').textContent = 'perdiste';
+                cell.classList.add('abierta');
+                cell.textContent = '💣';
+                return;
+            }
+
+            const count = getMineCount(i);
+            if (count === 0) {
+                openCell(i);
+            } else {
+                cell.classList.add('abierta');
+                cell.textContent = count;
+            }
+        }
+
+        // Initialize grid
+        const grid = document.getElementById('grid');
+        for (let i = 0; i < 25; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'c';
+            cell.dataset.i = i;
+            cell.addEventListener('click', () => handleLeftClick(cell));
+            cell.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                cell.classList.toggle('bandera');
+            });
+            grid.appendChild(cell);
+        }
+
+        // Auto-start animation: reveal all safe cells initially
+        window.onload = function() {
+            for (let i = 0; i < 25; i++) {
+                if (!mines[i]) {
+                    openCell(i);
+                }
+            }
+        };
+    </script>
+</body>
+</html>

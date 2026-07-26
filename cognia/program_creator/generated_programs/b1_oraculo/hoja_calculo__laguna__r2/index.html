@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+    font-family: Arial, sans-serif;
+}
+table {
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+td {
+    border: 1px solid #333;
+    padding: 5px;
+}
+.celda {
+    width: 60px;
+    height: 30px;
+    text-align: center;
+    transition: opacity 1s ease-in-out;
+}
+</style>
+</head>
+<body>
+
+<table>
+  <tr>
+    <td><input type="text" class="celda" data-ref="A1"></td>
+    <td><input type="text" class="celda" data-ref="A2"></td>
+    <td><input type="text" class="celda" data-ref="A3"></td>
+  </tr>
+  <tr>
+    <td><input type="text" class="celda" data-ref="B1"></td>
+    <td><input type="text" class="celda" data-ref="B2"></td>
+    <td><input type="text" class="celda" data-ref="B3"></td>
+  </tr>
+  <tr>
+    <td><input type="text" class="celda" data-ref="C1"></td>
+    <td><input type="text" class="celda" data-ref="C2"></td>
+    <td><input type="text" class="celda" data-ref="C3"></td>
+  </tr>
+</table>
+
+<script>
+const cellMap = {};
+
+document.querySelectorAll('.celda').forEach(input => {
+    const ref = input.dataset.ref;
+    cellMap[ref] = {
+        element: input,
+        dependencies: [],
+        dependents: []
+    };
+
+    input.addEventListener('input', function() {
+        const currentRef = this.dataset.ref;
+        const currentValue = this.value;
+
+        let isFormula = currentValue.startsWith('=');
+        if (isFormula) {
+            const expr = currentValue.slice(1);
+            const parsedRefs = parseFormula(expr).references;
+            
+            cellMap[currentRef].dependencies = parsedRefs;
+
+            for (const depRef of parsedRefs) {
+                if (!cellMap[depRef]) continue;
+                const depCell = cellMap[depRef];
+                if (!depCell.dependents.includes(currentRef)) {
+                    depCell.dependents.push(currentRef);
+                }
+            }
+        }
+
+        const newValue = calculateValue(currentRef);
+        this.value = newValue;
+
+        const dependents = cellMap[currentRef].dependents;
+        for (const depRef of dependents) {
+            recalculateCell(depRef);
+        }
+    });
+});
+
+function parseFormula(formula) {
+    const regex = /[A-Z][0-9]+/g;
+    return { references: formula.match(regex) || [] };
+}
+
+const processingCells = new Set();
+
+function calculateValue(cellRef) {
+    if (processingCells.has(cellRef)) {
+        return "CIRC";
+    }
+    processingCells.add(cellRef);
+
+    const cell = cellMap[cellRef];
+    let formula = cell.element.value;
+
+    if (!formula.startsWith('=')) {
+        processingCells.delete(cellRef);
+        return formula;
+    }
+
+    const expr = formula.slice(1);
+    const parsedRefs = parseFormula(expr).references;
+
+    let evaluatedExpr = expr;
+    for (const ref of parsedRefs) {
+        const depValue = calculateValue(ref);
+        if (depValue === "CIRC") {
+            processingCells.delete(cellRef);
+            return "CIRC";
+        }
+        evaluatedExpr = evaluatedExpr.replace(new RegExp(ref, 'g'), depValue);
+    }
+
+    try {
+        const result = eval(evaluatedExpr);
+        cell.element.value = result;
+        processingCells.delete(cellRef);
+        return result;
+    } catch (e) {
+        cell.element.value = "ERROR";
+        processingCells.delete(cellRef);
+        return "ERROR";
+    }
+}
+
+function recalculateCell(ref) {
+    const newValue = calculateValue(ref);
+    cellMap[ref].element.value = newValue;
+    
+    const dependents = cellMap[ref].dependents;
+    for (const depRef of dependents) {
+        recalculateCell(depRef);
+    }
+}
+
+window.onload = function() {
+    const cells = document.querySelectorAll('.celda');
+    let delay = 0;
+    cells.forEach(cell => {
+        cell.style.opacity = '0';
+        setTimeout(() => {
+            cell.style.transition = 'opacity 1s ease-in-out';
+            cell.style.opacity = '1';
+        }, delay);
+        delay += 200;
+    });
+};
+</script>
+
+</body>
+</html>

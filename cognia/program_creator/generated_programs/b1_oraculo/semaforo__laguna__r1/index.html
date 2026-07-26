@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Semaforo</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    #luz {
+      width: 80px;
+      height: 240px;
+      border: 3px solid #333;
+      border-radius: 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      align-items: center;
+      padding: 15px;
+      background-color: #fff;
+    }
+    .light {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: gray;
+      transition: background-color 0.3s ease;
+    }
+    button#avanzar {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background-color: #4CAF50;
+      color: white;
+    }
+    button#avanzar:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div id="luz" data-color="rojo">
+    <div class="light" id="rojo"></div>
+    <div class="light" id="ambar"></div>
+    <div class="light" id="verde"></div>
+  </div>
+  <button id="avanzar">Avanzar</button>
+
+  <script>
+    const luz = document.getElementById('luz');
+    const avanzarBtn = document.getElementById('avanzar');
+    let currentColorIndex = 0;
+    const colors = ['rojo', 'verde', 'ambar'];
+
+    function updateLights() {
+      // Turn off all lights first
+      document.getElementById('rojo').style.backgroundColor = 'gray';
+      document.getElementById('verde').style.backgroundColor = 'gray';
+      document.getElementById('ambar').style.backgroundColor = 'gray';
+
+      const currentColor = colors[currentColorIndex];
+      luz.dataset.color = currentColor;
+
+      // Turn on the current light
+      if (currentColor === 'rojo') {
+        document.getElementById('rojo').style.backgroundColor = 'red';
+      } else if (currentColor === 'verde') {
+        document.getElementById('verde').style.backgroundColor = 'green';
+      } else if (currentColor === 'ambar') {
+        document.getElementById('ambar').style.backgroundColor = 'yellow';
+      }
+    }
+
+    // Initialize the first state on load
+    updateLights();
+
+    avanzarBtn.addEventListener('click', () => {
+      currentColorIndex = (currentColorIndex + 1) % colors.length;
+      updateLights();
+    });
+  </script>
+</body>
+</html>

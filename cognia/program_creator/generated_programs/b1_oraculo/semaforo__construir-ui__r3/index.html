@@ -1,0 +1,259 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaforo</title>
+    <style>
+        :root {
+            --color-rojo: #e74c3c;
+            --color-verde: #2ecc71;
+            --color-amarillo: #f1c40f;
+            --color-fondo: #2c3e50;
+            --color-texto: #ecf0f1;
+            --color-botón: #3498db;
+            --color-botón-hover: #2980b9;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--color-fondo);
+            color: var(--color-texto);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .contenedor {
+            position: relative;
+            width: 200px;
+            height: 300px;
+            border-radius: 15px;
+            background-color: #fff;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .luz {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            transition: all 1s ease-in-out;
+            position: relative;
+        }
+
+        .luz::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--color-rojo);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .luz::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--color-rojo);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .luz::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--color-rojo);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .luz::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--color-rojo);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .luz.rojo::before {
+            opacity: 1;
+        }
+
+        .luz.rojo::after {
+            opacity: 1;
+        }
+
+        .luz.verde::before {
+            opacity: 0;
+        }
+
+        .luz.verde::after {
+            opacity: 0;
+        }
+
+        .luz.verde::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--color-verde);
+            opacity: 1;
+        }
+
+        .luz.verde::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--color-verde);
+            opacity: 1;
+        }
+
+        .luz.ambar::before {
+            opacity: 0;
+        }
+
+        .luz.ambar::after {
+            opacity: 0;
+        }
+
+        .luz.ambar::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--color-amarillo);
+            opacity: 1;
+        }
+
+        .luz.ambar::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--color-amarillo);
+            opacity: 1;
+        }
+
+        .botón {
+            background-color: var(--color-botón);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .botón:hover {
+            background-color: var(--color-botón-hover);
+            transform: translateY(-2px);
+        }
+
+        .botón:active {
+            transform: translateY(0);
+        }
+
+        .mensaje {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <div id="luz" class="luz rojo" data-color="rojo"></div>
+        <button id="avanzar" class="botón">Avanzar</button>
+        <div class="mensaje" id="mensaje">Semaforo en rojo</div>
+    </div>
+
+    <script>
+        const luz = document.getElementById('luz');
+        const boton = document.getElementById('avanzar');
+        const mensaje = document.getElementById('mensaje');
+        const estados = ['rojo', 'verde', 'amarillo'];
+        let indice = 0;
+
+        // Inicializar mensaje
+        mensaje.textContent = `Semaforo en ${luz.dataset.color}`;
+
+        // Función para cambiar el estado del semáforo
+        function cambiarEstado() {
+            // Ocultar el estado actual
+            luz.classList.remove(estados[indice]);
+            
+            // Avanzar al siguiente estado
+            indice = (indice + 1) % estados.length;
+            
+            // Mostrar el nuevo estado
+            luz.classList.add(estados[indice]);
+            
+            // Actualizar mensaje
+            mensaje.textContent = `Semaforo en ${estados[indice]}`;
+        }
+
+        // Evento al hacer clic en el botón
+        boton.addEventListener('click', cambiarEstado);
+
+        // Animación automática al cargar la página
+        setInterval(cambiarEstado, 3000);
+    </script>
+</body>
+</html>

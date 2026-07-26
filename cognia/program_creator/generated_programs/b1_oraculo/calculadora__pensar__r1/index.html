@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Calculadora</title>
+<style>
+  body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+  }
+  #calculator{
+    width:260px;
+    background:#222;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,.3);
+    animation:slideIn 1s ease-out;
+  }
+  #pantalla{
+    height:50px;
+    background:#444;
+    color:#fff;
+    font-size:2em;
+    text-align:right;
+    padding:10px;
+    margin-bottom:15px;
+    border-radius:5px;
+    overflow:hidden;
+  }
+  .tecla{
+    width:60px;
+    height:60px;
+    margin:5px;
+    background:#555;
+    color:#fff;
+    font-size:1.5em;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+    transition:background .2s;
+  }
+  .tecla:hover{
+    background:#777;
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-300px); opacity:0;}
+    to{transform:translateX(0); opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="calculator">
+  <div id="pantalla"></div>
+  <div>
+    <button class="tecla" data-t="7">7</button>
+    <button class="tecla" data-t="8">8</button>
+    <button class="tecla" data-t="9">9</button>
+    <button class="tecla" data-t="/">/</button>
+  </div>
+  <div>
+    <button class="tecla" data-t="4">4</button>
+    <button class="tecla" data-t="5">5</button>
+    <button class="tecla" data-t="6">6</button>
+    <button class="tecla" data-t="*">*</button>
+  </div>
+  <div>
+    <button class="tecla" data-t="1">1</button>
+    <button class="tecla" data-t="2">2</button>
+    <button class="tecla" data-t="3">3</button>
+    <button class="tecla" data-t="-">-</button>
+  </div>
+  <div>
+    <button class="tecla" data-t="0">0</button>
+    <button class="tecla" data-t=".">.</button>
+    <button class="tecla" data-t="C">C</button>
+    <button class="tecla" data-t="+">+</button>
+  </div>
+  <div>
+    <button class="tecla" data-t="=" style="width:250px;">=</button>
+  </div>
+</div>
+
+<script>
+  const pantalla = document.getElementById('pantalla');
+  let expr = '';
+  document.querySelectorAll('.tecla').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const val = btn.dataset.t;
+      if(val==='C'){
+        expr='';
+        pantalla.textContent='';
+      }else if(val==='='){
+        try{
+          const res = eval(expr);
+          pantalla.textContent = res;
+          expr = res.toString();
+        }catch(e){
+          pantalla.textContent='Error';
+          expr='';
+        }
+      }else{
+        expr += val;
+        pantalla.textContent = expr;
+      }
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Tareas</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f0f8ff;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  animation: fadeIn 2s ease-in-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.container {
+  background: #fff;
+  padding: 20px 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  width: 300px;
+  text-align: center;
+}
+h1 {
+  margin-top: 0;
+  font-size: 1.5em;
+  color: #333;
+  animation: slideIn 1s ease-out;
+}
+@keyframes slideIn {
+  from { transform: translateX(-50px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+input#nueva {
+  width: 80%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+button#anadir {
+  padding: 8px 12px;
+  background: #28a745;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+button#anadir:hover {
+  background: #218838;
+}
+ul#lista {
+  list-style: none;
+  padding: 0;
+  margin-top: 15px;
+  text-align: left;
+}
+li.tarea {
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Lista de Tareas</h1>
+  <input type="text" id="nueva" placeholder="Nueva tarea">
+  <br>
+  <button id="anadir">Añadir</button>
+  <ul id="lista"></ul>
+</div>
+<script>
+document.getElementById('anadir').addEventListener('click', function() {
+  const input = document.getElementById('nueva');
+  const text = input.value.trim();
+  if (text) {
+    const li = document.createElement('li');
+    li.className = 'tarea';
+    li.textContent = text;
+    document.getElementById('lista').appendChild(li);
+    input.value = '';
+    input.focus();
+  }
+});
+</script>
+</body>
+</html>

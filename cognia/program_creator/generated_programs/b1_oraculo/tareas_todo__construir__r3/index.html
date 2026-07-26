@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Tareas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #nueva {
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            width: 300px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+        #anadir {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #anadir:hover {
+            background-color: #218838;
+        }
+        #lista {
+            list-style-type: none;
+            padding: 0;
+            width: 300px;
+        }
+        .tarea {
+            background-color: #fff;
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .tarea:hover {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lista de Tareas</h1>
+    <input type="text" id="nueva" placeholder="Nueva tarea">
+    <button id="anadir">Añadir</button>
+    <ul id="lista"></ul>
+
+    <script>
+        document.getElementById('anadir').addEventListener('click', function() {
+            const nuevaTarea = document.getElementById('nueva').value.trim();
+            if (nuevaTarea !== '') {
+                const li = document.createElement('li');
+                li.className = 'tarea';
+                li.textContent = nuevaTarea;
+                document.getElementById('lista').appendChild(li);
+                document.getElementById('nueva').value = '';
+            }
+        });
+    </script>
+</body>
+</html>

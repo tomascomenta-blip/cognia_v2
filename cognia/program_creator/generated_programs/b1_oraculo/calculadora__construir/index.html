@@ -1,0 +1,101 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        #calculadora {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #pantalla {
+            width: 100%;
+            height: 50px;
+            background-color: #e0e0e0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: right;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 24px;
+            box-sizing: border-box;
+        }
+        .teclas {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .tecla {
+            background-color: #ddd;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .tecla:hover {
+            background-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="calculadora">
+        <div id="pantalla">0</div>
+        <div class="teclas">
+            <button class="tecla" data-t="2">2</button>
+            <button class="tecla" data-t="3">3</button>
+            <button class="tecla" data-t="+">+</button>
+            <button class="tecla" data-t="=">=</button>
+        </div>
+    </div>
+
+    <script>
+        const pantalla = document.getElementById('pantalla');
+        const teclas = document.querySelectorAll('.tecla');
+
+        let valorActual = '';
+        let operacion = '';
+        let valorAnterior = '';
+
+        teclas.forEach(tecla => {
+            tecla.addEventListener('click', () => {
+                const valor = tecla.getAttribute('data-t');
+
+                if (valor === '=') {
+                    if (operacion === '+') {
+                        valorActual = parseFloat(valorAnterior) + parseFloat(valorActual);
+                    }
+                    pantalla.textContent = valorActual;
+                    valorAnterior = '';
+                    operacion = '';
+                } else if (['+', '2', '3'].includes(valor)) {
+                    if (valor === '+') {
+                        operacion = valor;
+                        valorAnterior = valorActual;
+                        valorActual = '';
+                    } else {
+                        valorActual += valor;
+                        pantalla.textContent = valorActual;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

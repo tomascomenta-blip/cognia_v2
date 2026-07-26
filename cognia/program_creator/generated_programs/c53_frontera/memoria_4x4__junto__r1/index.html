@@ -1,0 +1,120 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Memoria</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #moves {
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 10px;
+        }
+        .tile {
+            width: 100px;
+            height: 100px;
+            background-color: #4CAF50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .tile.flipped {
+            transform: rotateY(180deg);
+        }
+        .tile.matched {
+            background-color: #8BC34A;
+            cursor: default;
+        }
+        .tile.back {
+            background-color: #4CAF50;
+            transform: rotateY(0deg);
+        }
+    </style>
+</head>
+<body>
+    <div id="moves">Movimientos: 0</div>
+    <div class="board" id="board"></div>
+
+    <script>
+        const emojis = [
+            '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼',
+            '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'
+        ];
+        let moves = 0;
+        let flippedTiles = [];
+        let matchedTiles = [];
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function createBoard() {
+            const board = document.getElementById('board');
+            shuffle(emojis);
+            emojis.forEach(emoji => {
+                const tile = document.createElement('div');
+                tile.classList.add('tile', 'back');
+                tile.dataset.emoji = emoji;
+                tile.addEventListener('click', flipTile);
+                board.appendChild(tile);
+            });
+        }
+
+        function flipTile() {
+            if (flippedTiles.length >= 2 || this.classList.contains('matched')) return;
+            this.classList.remove('back');
+            this.classList.add('flipped');
+            flippedTiles.push(this);
+            moves++;
+            document.getElementById('moves').textContent = `Movimientos: ${moves}`;
+
+            if (flippedTiles.length === 2) {
+                checkMatch();
+            }
+        }
+
+        function checkMatch() {
+            const [tile1, tile2] = flippedTiles;
+            if (tile1.dataset.emoji === tile2.dataset.emoji) {
+                tile1.classList.add('matched');
+                tile2.classList.add('matched');
+                matchedTiles.push(tile1, tile2);
+            } else {
+                setTimeout(() => {
+                    tile1.classList.remove('flipped');
+                    tile1.classList.add('back');
+                    tile2.classList.remove('flipped');
+                    tile2.classList.add('back');
+                }, 1000);
+            }
+            flippedTiles = [];
+
+            if (matchedTiles.length === 16) {
+                alert('¡Has ganado!');
+            }
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>

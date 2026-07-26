@@ -1,0 +1,156 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filtro de Lista</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a1a1a;
+            --accent: #ff6b6b;
+            --bg: #f5f5f5;
+            --text: #333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .search-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 30px;
+        }
+
+        #buscar {
+            width: 100%;
+            padding: 12px 20px 12px 25px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        #buscar:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.2);
+        }
+
+        .list-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            width: 100%;
+            max-width: 400px;
+            justify-content: center;
+        }
+
+        .item {
+            background-color: white;
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 15px 20px;
+            font-size: 18px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .item:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .item:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .item:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .item:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .item:nth-child(5) {
+            animation-delay: 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-container">
+        <input type="text" id="buscar" placeholder="Buscar...">
+    </div>
+    <div class="list-container">
+        <li class="item">manzana</li>
+        <li class="item">banana</li>
+        <li class="item">cereza</li>
+        <li class="item">datil</li>
+        <li class="item">kiwi</li>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const input = document.getElementById('buscar');
+            const items = document.querySelectorAll('.item');
+            
+            // Animation on load
+            items.forEach((item, index) => {
+                item.style.animationDelay = `${index * 0.1}s`;
+            });
+
+            input.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                
+                items.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        item.classList.add('visible');
+                    } else {
+                        item.classList.remove('visible');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

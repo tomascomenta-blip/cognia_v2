@@ -1,0 +1,64 @@
+La página web consiste en un diseño simple pero funcional que simula el comportamiento de un semáforo. La estructura principal se compone de dos elementos: un `<div>` que representa la luz del semáforo y un `<button>` que permite avanzar el ciclo de colores.
+
+### Estructura y Elementos
+
+1. **Div con Luz del Semaforo**:
+   - **Identificador**: `luz`
+   - **Atributo**: `data-color` inicializado a `"rojo"`
+   - **Descripción**: Este `<div>` se utiliza para visualizar la luz del semáforo. Su color inicial es rojo, simbolizando el estado de "detenerse".
+
+2. **Botón para Avanzar**:
+   - **Identificador**: `avanzar`
+   - **Descripción**: Este botón, etiquetado como "Avanzar", se utiliza para cambiar el estado del semáforo a través de los colores del ciclo estándar: rojo, verde y amarillo.
+
+### Estados Iniciales
+
+- **Estado Inicial del Div**:
+  - **Color**: Rojo
+  - **Atributo `data-color`**: `"rojo"`
+
+- **Estado Inicial del Botón**:
+  - **Texto**: "Avanzar"
+  - **Funcionalidad**: Activo y listo para ser presionado.
+
+### Comportamiento al Interactuar
+
+1. **Primer Click en el Botón**:
+   - **Cambio en el Div**:
+     - **Color**: Cambia a verde
+     - **Atributo `data-color`**: Actualiza a `"verde"`
+   - **Texto del Botón**: No cambia, permanece como "Avanzar".
+
+2. **Segundo Click en el Botón**:
+   - **Cambio en el Div**:
+     - **Color**: Cambia a amarillo
+     - **Atributo `data-color`**: Actualiza a `"amarillo"`
+   - **Texto del Botón**: No cambia, permanece como "Avanzar".
+
+3. **Tercer Click en el Botón**:
+   - **Cambio en el Div**:
+     - **Color**: Cambia a rojo
+     - **Atributo `data-color`**: Actualiza a `"rojo"`
+   - **Texto del Botón**: No cambia, permanece como "Avanzar".
+
+4. **Ciclo Continuo**:
+   - Después del tercer click, el ciclo se reinicia, y cada nuevo click en el botón seguirá el mismo patrón: rojo -> verde -> amarillo -> rojo, y así sucesivamente.
+
+### Diseño Visual
+
+- **Div con Luz**:
+  - **Tamaño**: Pequeño, suficiente para que la luz sea visible pero no demasiado grande.
+  - **Forma**: Redonda o cuadrada, dependiendo de la preferencia visual.
+  - **Color Inicial**: Rojo brillante para simular la luz de detenerse.
+
+- **Botón**:
+  - **Tamaño**: Proporcional al tamaño del div de la luz.
+  - **Texto**: "Avanzar" centrado y legible.
+  - **Estilo**: Botón estándar con bordes redondeados para una apariencia moderna.
+
+### Interacción
+
+- **Responsividad**: La página es simple y no requiere interacciones adicionales, por lo que el enfoque principal está en el botón de "Avanzar".
+- **Feedback**: Cada cambio de color en el div proporciona un feedback visual claro al usuario sobre el estado actual del semáforo.
+
+Este diseño y comportamiento proporcionan una simulación sencilla pero efectiva del funcionamiento de un semáforo, utilizando solo un archivo HTML y manipulando los atributos y estilos de los elementos a través de interacciones simples.

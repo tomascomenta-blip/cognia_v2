@@ -30,6 +30,406 @@
         "texto": "simple Markov chain text generator",
         "experto": "web",
         "heuristica": "no-web"
+      },
+      {
+        "texto": "pagina web de portafolio con tarjetas que rotan en 3D al mover el mouse (perspective y transform), seccion de habilidade",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "pagina web de portafolio con tarjetas que rotan en 3D al mover el mouse (perspective y transform), seccion de habilidade",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "pagina web de un checkout de 3 pasos con stepper visual: datos, tarjeta con vista previa que se voltea al escribir el CV",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "pagina web de un checkout de 3 pasos con stepper visual: datos, tarjeta con vista previa que se voltea al escribir el CV",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "pagina web de portafolio con tarjetas que rotan en 3D al mover el mouse (perspective y transform), seccion de habilidade",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "pagina web de portafolio con tarjetas que rotan en 3D al mover el mouse (perspective y transform), seccion de habilidade",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "pagina web de un checkout de 3 pasos con stepper visual: datos, tarjeta con vista previa que se voltea al escribir el CV",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "pagina web: Un visor meteorológico 3D que muestra la trayectoria del viento y la temperatura en tiempo real.. TARGET LOO",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "juego pixelart inspirado en undertale en un solo HTML con gráficos reales|RUTA: AGENTE",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "juego pixelart inspirado en undertale en un solo HTML con gráficos reales|RUTA: AGENTE",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un contador en un solo archivo HTML. OBLIGATORIO: un <span id=\"valor\"> que muestra el numero, un <button id=\"mas\"> que s",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Una lista de tareas en un solo archivo HTML. OBLIGATORIO: un <input id=\"nueva\">, un <button id=\"anadir\"> y una <ul id=\"l",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un semaforo en un solo archivo HTML. OBLIGATORIO: un <div id=\"luz\"> cuyo atributo data-color vale \"rojo\" al cargar, y un",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos ",
+        "experto": "python_module",
+        "heuristica": "web"
+      },
+      {
+        "texto": "Un filtro de lista en un solo archivo HTML. OBLIGATORIO: un <input id=\"buscar\"> y una lista con exactamente 5 elementos ",
+        "experto": "python_module",
+        "heuristica": "web"
       }
     ],
     "experto_acerto": 0,

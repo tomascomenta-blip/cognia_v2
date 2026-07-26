@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Minesweeper</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #estado { margin-bottom: 15px; font-weight: bold; }
+    #grid { display: grid; grid-template-columns: repeat(5, 30px); gap: 2px; }
+    .c { width: 30px; height: 30px; border: 1px solid black; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; }
+    .abierto { background-color: #ccc; font-weight: bold; }
+    .bandera::after { content: '🚩'; }
+  </style>
+</head>
+<body>
+  <div id="estado"></div>
+  <div id="grid"></div>
+
+<script>
+  // Generate grid cells
+  const grid = document.getElementById('grid');
+  for (let i = 0; i < 25; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'c';
+    cell.dataset.i = i;
+    grid.appendChild(cell);
+  }
+
+  // Mines positions: 6, 12, 18 (row 1 col 1, row 2 col 2, row 3 col 3)
+  const mines = [6, 12, 18];
+  let gameOver = false;
+
+  document.querySelectorAll('.c').forEach(cell => {
+    cell.addEventListener('click', handleClick);
+    cell.addEventListener('contextmenu', handleRightClick);
+  });
+
+  function handleClick(e) {
+    if (gameOver) return;
+    
+    const i = parseInt(e.target.dataset.i);
+    if (e.target.classList.contains('abierto') || e.target.classList.contains('bandera')) return;
+
+    // Check mine hit
+    if (mines.includes(i)) {
+      e.target.classList.add('abierto');
+      document.getElementById('estado').textContent = 'perdiste';
+      gameOver = true;
+      return;
+    }
+
+    const count = getAdjacentMines(i);
+    e.target.classList.add('abierto');
+    
+    if (count === 0) {
+      e.target.textContent = '';
+      openNeighbors(e.target, i);
+    } else {
+      e.target.textContent = count;
+    }
+  }
+
+  function handleRightClick(e) {
+    e.preventDefault();
+    const cell = e.target;
+    if (cell.classList.contains('abierto')) return;
+    cell.classList.toggle('bandera');
+  }
+
+  function getAdjacentMines(i) {
+    let count = 0;
+    const row = Math.floor(i / 5);
+    const col = i % 5;
+
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+          const neighborIndex = r * 5 + c;
+          if (mines.includes(neighborIndex)) count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  function openNeighbors(cell, i) {
+    const row = Math.floor(i / 5);
+    const col = i % 5;
+
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const r = row + dr;
+        const c = col + dc;
+        if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+          const neighborIndex = r * 5 + c;
+          const neighborCell = document.querySelector(`[data-i="${neighborIndex}"]`);
+
+          if (!neighborCell.classList.contains('abierto') && !neighborCell.classList.contains('bandera')) {
+            handleClick({ target: neighborCell });
+          }
+        }
+      }
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+Title         : Juego Undertale Pixelart
+Category      : juego pixelart inspirado en undertale en un solo HTML con gráficos reales|RUTA: AGENTE
+Created at    : 2026-07-25T11:29:48.671556
+Score         : 5.4 / 10
+Self-proposed : No — from predefined category
+
+Description:
+  Juego pixelart inspirado en Undertale con animaciones y gráficos reales.

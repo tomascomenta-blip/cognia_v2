@@ -1,0 +1,1520 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Tareas</title>
+    <style>
+        :root {
+            --color-bg: #f0f4f8;
+            --color-text: #1a1a1a;
+            --color-accent: #4a90e2;
+            --color-border: #e0e0e0;
+            --color-success: #4caf50;
+            --color-error: #f44336;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--color-accent);
+            animation: slideIn 0.6s ease-out;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        #nueva {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        #nueva:focus {
+            border: 2px solid var(--color-accent);
+            box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
+        }
+
+        #anadir {
+            background: var(--color-accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        #anadir:hover {
+            background: #357abd;
+            transform: translateY(-2px);
+        }
+
+        #anadir:active {
+            transform: translateY(0);
+        }
+
+        #lista {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .tarea {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .tarea:last-child {
+            border-bottom: none;
+        }
+
+        .tarea:hover {
+            background-color: #f8f9fa;
+        }
+
+        .tarea.completed {
+            text-decoration: line-through;
+            color: #888;
+            background-color: #e8f0fe;
+        }
+
+        .tarea.completed .btn {
+            background-color: var(--color-success);
+        }
+
+        .btn {
+            background: none;
+            border: none;
+            color: var(--color-accent);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background-color: rgba(74, 144, 226, 0.1);
+        }
+
+        .btn.completed {
+            background-color: var(--color-success);
+            color: white;
+        }
+
+        .btn.completed:hover {
+            background-color: rgba(75, 199, 199, 0.2);
+        }
+
+        .btn.remove {
+            background-color: var(--color-error);
+            color: white;
+        }
+
+        .btn.remove:hover {
+            background-color: rgba(244, 67, 54, 0.2);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .animate-on-scroll {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+
+        .animate-on-scroll.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .animate-on-scroll:nth-child(1) {
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .animate-on-scroll:nth-child(2) {
+            animation: fadeIn 0.8s ease-out 0.1s;
+        }
+
+        .animate-on-scroll:nth-child(3) {
+            animation: fadeIn 0.8s ease-out 0.2s;
+        }
+
+        .animate-on-scroll:nth-child(4) {
+            animation: fadeIn 0.8s ease-out 0.3s;
+        }
+
+        .animate-on-scroll:nth-child(5) {
+            animation: fadeIn 0.8s ease-out 0.4s;
+        }
+
+        .animate-on-scroll:nth-child(6) {
+            animation: fadeIn 0.8s ease-out 0.5s;
+        }
+
+        .animate-on-scroll:nth-child(7) {
+            animation: fadeIn 0.8s ease-out 0.6s;
+        }
+
+        .animate-on-scroll:nth-child(8) {
+            animation: fadeIn 0.8s ease-out 0.7s;
+        }
+
+        .animate-on-scroll:nth-child(9) {
+            animation: fadeIn 0.8s ease-out 0.8s;
+        }
+
+        .animate-on-scroll:nth-child(10) {
+            animation: fadeIn 0.8s ease-out 0.9s;
+        }
+
+        .animate-on-scroll:nth-child(11) {
+            animation: fadeIn 0.8s ease-out 1.0s;
+        }
+
+        .animate-on-scroll:nth-child(12) {
+            animation: fadeIn 0.8s ease-out 1.1s;
+        }
+
+        .animate-on-scroll:nth-child(13) {
+            animation: fadeIn 0.8s ease-out 1.2s;
+        }
+
+        .animate-on-scroll:nth-child(14) {
+            animation: fadeIn 0.8s ease-out 1.3s;
+        }
+
+        .animate-on-scroll:nth-child(15) {
+            animation: fadeIn 0.8s ease-out 1.4s;
+        }
+
+        .animate-on-scroll:nth-child(16) {
+            animation: fadeIn 0.8s ease-out 1.5s;
+        }
+
+        .animate-on-scroll:nth-child(17) {
+            animation: fadeIn 0.8s ease-out 1.6s;
+        }
+
+        .animate-on-scroll:nth-child(18) {
+            animation: fadeIn 0.8s ease-out 1.7s;
+        }
+
+        .animate-on-scroll:nth-child(19) {
+            animation: fadeIn 0.8s ease-out 1.8s;
+        }
+
+        .animate-on-scroll:nth-child(20) {
+            animation: fadeIn 0.8s ease-out 1.9s;
+        }
+
+        .animate-on-scroll:nth-child(21) {
+            animation: fadeIn 0.8s ease-out 2.0s;
+        }
+
+        .animate-on-scroll:nth-child(22) {
+            animation: fadeIn 0.8s ease-out 2.1s;
+        }
+
+        .animate-on-scroll:nth-child(23) {
+            animation: fadeIn 0.8s ease-out 2.2s;
+        }
+
+        .animate-on-scroll:nth-child(24) {
+            animation: fadeIn 0.8s ease-out 2.3s;
+        }
+
+        .animate-on-scroll:nth-child(25) {
+            animation: fadeIn 0.8s ease-out 2.4s;
+        }
+
+        .animate-on-scroll:nth-child(26) {
+            animation: fadeIn 0.8s ease-out 2.5s;
+        }
+
+        .animate-on-scroll:nth-child(27) {
+            animation: fadeIn 0.8s ease-out 2.6s;
+        }
+
+        .animate-on-scroll:nth-child(28) {
+            animation: fadeIn 0.8s ease-out 2.7s;
+        }
+
+        .animate-on-scroll:nth-child(29) {
+            animation: fadeIn 0.8s ease-out 2.8s;
+        }
+
+        .animate-on-scroll:nth-child(30) {
+            animation: fadeIn 0.8s ease-out 2.9s;
+        }
+
+        .animate-on-scroll:nth-child(31) {
+            animation: fadeIn 0.8s ease-out 3.0s;
+        }
+
+        .animate-on-scroll:nth-child(32) {
+            animation: fadeIn 0.8s ease-out 3.1s;
+        }
+
+        .animate-on-scroll:nth-child(33) {
+            animation: fadeIn 0.8s ease-out 3.2s;
+        }
+
+        .animate-on-scroll:nth-child(34) {
+            animation: fadeIn 0.8s ease-out 3.3s;
+        }
+
+        .animate-on-scroll:nth-child(35) {
+            animation: fadeIn 0.8s ease-out 3.4s;
+        }
+
+        .animate-on-scroll:nth-child(36) {
+            animation: fadeIn 0.8s ease-out 3.5s;
+        }
+
+        .animate-on-scroll:nth-child(37) {
+            animation: fadeIn 0.8s ease-out 3.6s;
+        }
+
+        .animate-on-scroll:nth-child(38) {
+            animation: fadeIn 0.8s ease-out 3.7s;
+        }
+
+        .animate-on-scroll:nth-child(39) {
+            animation: fadeIn 0.8s ease-out 3.8s;
+        }
+
+        .animate-on-scroll:nth-child(40) {
+            animation: fadeIn 0.8s ease-out 3.9s;
+        }
+
+        .animate-on-scroll:nth-child(41) {
+            animation: fadeIn 0.8s ease-out 4.0s;
+        }
+
+        .animate-on-scroll:nth-child(42) {
+            animation: fadeIn 0.8s ease-out 4.1s;
+        }
+
+        .animate-on-scroll:nth-child(43) {
+            animation: fadeIn 0.8s ease-out 4.2s;
+        }
+
+        .animate-on-scroll:nth-child(44) {
+            animation: fadeIn 0.8s ease-out 4.3s;
+        }
+
+        .animate-on-scroll:nth-child(45) {
+            animation: fadeIn 0.8s ease-out 4.4s;
+        }
+
+        .animate-on-scroll:nth-child(46) {
+            animation: fadeIn 0.8s ease-out 4.5s;
+        }
+
+        .animate-on-scroll:nth-child(47) {
+            animation: fadeIn 0.8s ease-out 4.6s;
+        }
+
+        .animate-on-scroll:nth-child(48) {
+            animation: fadeIn 0.8s ease-out 4.7s;
+        }
+
+        .animate-on-scroll:nth-child(49) {
+            animation: fadeIn 0.8s ease-out 4.8s;
+        }
+
+        .animate-on-scroll:nth-child(50) {
+            animation: fadeIn 0.8s ease-out 4.9s;
+        }
+
+        .animate-on-scroll:nth-child(51) {
+            animation: fadeIn 0.8s ease-out 5.0s;
+        }
+
+        .animate-on-scroll:nth-child(52) {
+            animation: fadeIn 0.8s ease-out 5.1s;
+        }
+
+        .animate-on-scroll:nth-child(53) {
+            animation: fadeIn 0.8s ease-out 5.2s;
+        }
+
+        .animate-on-scroll:nth-child(54) {
+            animation: fadeIn 0.8s ease-out 5.3s;
+        }
+
+        .animate-on-scroll:nth-child(55) {
+            animation: fadeIn 0.8s ease-out 5.4s;
+        }
+
+        .animate-on-scroll:nth-child(56) {
+            animation: fadeIn 0.8s ease-out 5.5s;
+        }
+
+        .animate-on-scroll:nth-child(57) {
+            animation: fadeIn 0.8s ease-out 5.6s;
+        }
+
+        .animate-on-scroll:nth-child(58) {
+            animation: fadeIn 0.8s ease-out 5.7s;
+        }
+
+        .animate-on-scroll:nth-child(59) {
+            animation: fadeIn 0.8s ease-out 5.8s;
+        }
+
+        .animate-on-scroll:nth-child(60) {
+            animation: fadeIn 0.8s ease-out 5.9s;
+        }
+
+        .animate-on-scroll:nth-child(61) {
+            animation: fadeIn 0.8s ease-out 6.0s;
+        }
+
+        .animate-on-scroll:nth-child(62) {
+            animation: fadeIn 0.8s ease-out 6.1s;
+        }
+
+        .animate-on-scroll:nth-child(63) {
+            animation: fadeIn 0.8s ease-out 6.2s;
+        }
+
+        .animate-on-scroll:nth-child(64) {
+            animation: fadeIn 0.8s ease-out 6.3s;
+        }
+
+        .animate-on-scroll:nth-child(65) {
+            animation: fadeIn 0.8s ease-out 6.4s;
+        }
+
+        .animate-on-scroll:nth-child(66) {
+            animation: fadeIn 0.8s ease-out 6.5s;
+        }
+
+        .animate-on-scroll:nth-child(67) {
+            animation: fadeIn 0.8s ease-out 6.6s;
+        }
+
+        .animate-on-scroll:nth-child(68) {
+            animation: fadeIn 0.8s ease-out 6.7s;
+        }
+
+        .animate-on-scroll:nth-child(69) {
+            animation: fadeIn 0.8s ease-out 6.8s;
+        }
+
+        .animate-on-scroll:nth-child(70) {
+            animation: fadeIn 0.8s ease-out 6.9s;
+        }
+
+        .animate-on-scroll:nth-child(71) {
+            animation: fadeIn 0.8s ease-out 7.0s;
+        }
+
+        .animate-on-scroll:nth-child(72) {
+            animation: fadeIn 0.8s ease-out 7.1s;
+        }
+
+        .animate-on-scroll:nth-child(73) {
+            animation: fadeIn 0.8s ease-out 7.2s;
+        }
+
+        .animate-on-scroll:nth-child(74) {
+            animation: fadeIn 0.8s ease-out 7.3s;
+        }
+
+        .animate-on-scroll:nth-child(75) {
+            animation: fadeIn 0.8s ease-out 7.4s;
+        }
+
+        .animate-on-scroll:nth-child(76) {
+            animation: fadeIn 0.8s ease-out 7.5s;
+        }
+
+        .animate-on-scroll:nth-child(77) {
+            animation: fadeIn 0.8s ease-out 7.6s;
+        }
+
+        .animate-on-scroll:nth-child(78) {
+            animation: fadeIn 0.8s ease-out 7.7s;
+        }
+
+        .animate-on-scroll:nth-child(79) {
+            animation: fadeIn 0.8s ease-out 7.8s;
+        }
+
+        .animate-on-scroll:nth-child(80) {
+            animation: fadeIn 0.8s ease-out 7.9s;
+        }
+
+        .animate-on-scroll:nth-child(81) {
+            animation: fadeIn 0.8s ease-out 8.0s;
+        }
+
+        .animate-on-scroll:nth-child(82) {
+            animation: fadeIn 0.8s ease-out 8.1s;
+        }
+
+        .animate-on-scroll:nth-child(83) {
+            animation: fadeIn 0.8s ease-out 8.2s;
+        }
+
+        .animate-on-scroll:nth-child(84) {
+            animation: fadeIn 0.8s ease-out 8.3s;
+        }
+
+        .animate-on-scroll:nth-child(85) {
+            animation: fadeIn 0.8s ease-out 8.4s;
+        }
+
+        .animate-on-scroll:nth-child(86) {
+            animation: fadeIn 0.8s ease-out 8.5s;
+        }
+
+        .animate-on-scroll:nth-child(87) {
+            animation: fadeIn 0.8s ease-out 8.6s;
+        }
+
+        .animate-on-scroll:nth-child(88) {
+            animation: fadeIn 0.8s ease-out 8.7s;
+        }
+
+        .animate-on-scroll:nth-child(89) {
+            animation: fadeIn 0.8s ease-out 8.8s;
+        }
+
+        .animate-on-scroll:nth-child(90) {
+            animation: fadeIn 0.8s ease-out 8.9s;
+        }
+
+        .animate-on-scroll:nth-child(91) {
+            animation: fadeIn 0.8s ease-out 9.0s;
+        }
+
+        .animate-on-scroll:nth-child(92) {
+            animation: fadeIn 0.8s ease-out 9.1s;
+        }
+
+        .animate-on-scroll:nth-child(93) {
+            animation: fadeIn 0.8s ease-out 9.2s;
+        }
+
+        .animate-on-scroll:nth-child(94) {
+            animation: fadeIn 0.8s ease-out 9.3s;
+        }
+
+        .animate-on-scroll:nth-child(95) {
+            animation: fadeIn 0.8s ease-out 9.4s;
+        }
+
+        .animate-on-scroll:nth-child(96) {
+            animation: fadeIn 0.8s ease-out 9.5s;
+        }
+
+        .animate-on-scroll:nth-child(97) {
+            animation: fadeIn 0.8s ease-out 9.6s;
+        }
+
+        .animate-on-scroll:nth-child(98) {
+            animation: fadeIn 0.8s ease-out 9.7s;
+        }
+
+        .animate-on-scroll:nth-child(99) {
+            animation: fadeIn 0.8s ease-out 9.8s;
+        }
+
+        .animate-on-scroll:nth-child(100) {
+            animation: fadeIn 0.8s ease-out 9.9s;
+        }
+
+        .animate-on-scroll:nth-child(101) {
+            animation: fadeIn 0.8s ease-out 10.0s;
+        }
+
+        .animate-on-scroll:nth-child(102) {
+            animation: fadeIn 0.8s ease-out 10.1s;
+        }
+
+        .animate-on-scroll:nth-child(103) {
+            animation: fadeIn 0.8s ease-out 10.2s;
+        }
+
+        .animate-on-scroll:nth-child(104) {
+            animation: fadeIn 0.8s ease-out 10.3s;
+        }
+
+        .animate-on-scroll:nth-child(105) {
+            animation: fadeIn 0.8s ease-out 10.4s;
+        }
+
+        .animate-on-scroll:nth-child(106) {
+            animation: fadeIn 0.8s ease-out 10.5s;
+        }
+
+        .animate-on-scroll:nth-child(107) {
+            animation: fadeIn 0.8s ease-out 10.6s;
+        }
+
+        .animate-on-scroll:nth-child(108) {
+            animation: fadeIn 0.8s ease-out 10.7s;
+        }
+
+        .animate-on-scroll:nth-child(109) {
+            animation: fadeIn 0.8s ease-out 10.8s;
+        }
+
+        .animate-on-scroll:nth-child(110) {
+            animation: fadeIn 0.8s ease-out 10.9s;
+        }
+
+        .animate-on-scroll:nth-child(111) {
+            animation: fadeIn 0.8s ease-out 11.0s;
+        }
+
+        .animate-on-scroll:nth-child(112) {
+            animation: fadeIn 0.8s ease-out 11.1s;
+        }
+
+        .animate-on-scroll:nth-child(113) {
+            animation: fadeIn 0.8s ease-out 11.2s;
+        }
+
+        .animate-on-scroll:nth-child(114) {
+            animation: fadeIn 0.8s ease-out 11.3s;
+        }
+
+        .animate-on-scroll:nth-child(115) {
+            animation: fadeIn 0.8s ease-out 11.4s;
+        }
+
+        .animate-on-scroll:nth-child(116) {
+            animation: fadeIn 0.8s ease-out 11.5s;
+        }
+
+        .animate-on-scroll:nth-child(117) {
+            animation: fadeIn 0.8s ease-out 11.6s;
+        }
+
+        .animate-on-scroll:nth-child(118) {
+            animation: fadeIn 0.8s ease-out 11.7s;
+        }
+
+        .animate-on-scroll:nth-child(119) {
+            animation: fadeIn 0.8s ease-out 11.8s;
+        }
+
+        .animate-on-scroll:nth-child(120) {
+            animation: fadeIn 0.8s ease-out 11.9s;
+        }
+
+        .animate-on-scroll:nth-child(121) {
+            animation: fadeIn 0.8s ease-out 12.0s;
+        }
+
+        .animate-on-scroll:nth-child(122) {
+            animation: fadeIn 0.8s ease-out 12.1s;
+        }
+
+        .animate-on-scroll:nth-child(123) {
+            animation: fadeIn 0.8s ease-out 12.2s;
+        }
+
+        .animate-on-scroll:nth-child(124) {
+            animation: fadeIn 0.8s ease-out 12.3s;
+        }
+
+        .animate-on-scroll:nth-child(125) {
+            animation: fadeIn 0.8s ease-out 12.4s;
+        }
+
+        .animate-on-scroll:nth-child(126) {
+            animation: fadeIn 0.8s ease-out 12.5s;
+        }
+
+        .animate-on-scroll:nth-child(127) {
+            animation: fadeIn 0.8s ease-out 12.6s;
+        }
+
+        .animate-on-scroll:nth-child(128) {
+            animation: fadeIn 0.8s ease-out 12.7s;
+        }
+
+        .animate-on-scroll:nth-child(129) {
+            animation: fadeIn 0.8s ease-out 12.8s;
+        }
+
+        .animate-on-scroll:nth-child(130) {
+            animation: fadeIn 0.8s ease-out 12.9s;
+        }
+
+        .animate-on-scroll:nth-child(131) {
+            animation: fadeIn 0.8s ease-out 13.0s;
+        }
+
+        .animate-on-scroll:nth-child(132) {
+            animation: fadeIn 0.8s ease-out 13.1s;
+        }
+
+        .animate-on-scroll:nth-child(133) {
+            animation: fadeIn 0.8s ease-out 13.2s;
+        }
+
+        .animate-on-scroll:nth-child(134) {
+            animation: fadeIn 0.8s ease-out 13.3s;
+        }
+
+        .animate-on-scroll:nth-child(135) {
+            animation: fadeIn 0.8s ease-out 13.4s;
+        }
+
+        .animate-on-scroll:nth-child(136) {
+            animation: fadeIn 0.8s ease-out 13.5s;
+        }
+
+        .animate-on-scroll:nth-child(137) {
+            animation: fadeIn 0.8s ease-out 13.6s;
+        }
+
+        .animate-on-scroll:nth-child(138) {
+            animation: fadeIn 0.8s ease-out 13.7s;
+        }
+
+        .animate-on-scroll:nth-child(139) {
+            animation: fadeIn 0.8s ease-out 13.8s;
+        }
+
+        .animate-on-scroll:nth-child(140) {
+            animation: fadeIn 0.8s ease-out 13.9s;
+        }
+
+        .animate-on-scroll:nth-child(141) {
+            animation: fadeIn 0.8s ease-out 14.0s;
+        }
+
+        .animate-on-scroll:nth-child(142) {
+            animation: fadeIn 0.8s ease-out 14.1s;
+        }
+
+        .animate-on-scroll:nth-child(143) {
+            animation: fadeIn 0.8s ease-out 14.2s;
+        }
+
+        .animate-on-scroll:nth-child(144) {
+            animation: fadeIn 0.8s ease-out 14.3s;
+        }
+
+        .animate-on-scroll:nth-child(145) {
+            animation: fadeIn 0.8s ease-out 14.4s;
+        }
+
+        .animate-on-scroll:nth-child(146) {
+            animation: fadeIn 0.8s ease-out 14.5s;
+        }
+
+        .animate-on-scroll:nth-child(147) {
+            animation: fadeIn 0.8s ease-out 14.6s;
+        }
+
+        .animate-on-scroll:nth-child(148) {
+            animation: fadeIn 0.8s ease-out 14.7s;
+        }
+
+        .animate-on-scroll:nth-child(149) {
+            animation: fadeIn 0.8s ease-out 14.8s;
+        }
+
+        .animate-on-scroll:nth-child(150) {
+            animation: fadeIn 0.8s ease-out 14.9s;
+        }
+
+        .animate-on-scroll:nth-child(151) {
+            animation: fadeIn 0.8s ease-out 15.0s;
+        }
+
+        .animate-on-scroll:nth-child(152) {
+            animation: fadeIn 0.8s ease-out 15.1s;
+        }
+
+        .animate-on-scroll:nth-child(153) {
+            animation: fadeIn 0.8s ease-out 15.2s;
+        }
+
+        .animate-on-scroll:nth-child(154) {
+            animation: fadeIn 0.8s ease-out 15.3s;
+        }
+
+        .animate-on-scroll:nth-child(155) {
+            animation: fadeIn 0.8s ease-out 15.4s;
+        }
+
+        .animate-on-scroll:nth-child(156) {
+            animation: fadeIn 0.8s ease-out 15.5s;
+        }
+
+        .animate-on-scroll:nth-child(157) {
+            animation: fadeIn 0.8s ease-out 15.6s;
+        }
+
+        .animate-on-scroll:nth-child(158) {
+            animation: fadeIn 0.8s ease-out 15.7s;
+        }
+
+        .animate-on-scroll:nth-child(159) {
+            animation: fadeIn 0.8s ease-out 15.8s;
+        }
+
+        .animate-on-scroll:nth-child(160) {
+            animation: fadeIn 0.8s ease-out 15.9s;
+        }
+
+        .animate-on-scroll:nth-child(161) {
+            animation: fadeIn 0.8s ease-out 16.0s;
+        }
+
+        .animate-on-scroll:nth-child(162) {
+            animation: fadeIn 0.8s ease-out 16.1s;
+        }
+
+        .animate-on-scroll:nth-child(163) {
+            animation: fadeIn 0.8s ease-out 16.2s;
+        }
+
+        .animate-on-scroll:nth-child(164) {
+            animation: fadeIn 0.8s ease-out 16.3s;
+        }
+
+        .animate-on-scroll:nth-child(165) {
+            animation: fadeIn 0.8s ease-out 16.4s;
+        }
+
+        .animate-on-scroll:nth-child(166) {
+            animation: fadeIn 0.8s ease-out 16.5s;
+        }
+
+        .animate-on-scroll:nth-child(167) {
+            animation: fadeIn 0.8s ease-out 16.6s;
+        }
+
+        .animate-on-scroll:nth-child(168) {
+            animation: fadeIn 0.8s ease-out 16.7s;
+        }
+
+        .animate-on-scroll:nth-child(169) {
+            animation: fadeIn 0.8s ease-out 16.8s;
+        }
+
+        .animate-on-scroll:nth-child(170) {
+            animation: fadeIn 0.8s ease-out 16.9s;
+        }
+
+        .animate-on-scroll:nth-child(171) {
+            animation: fadeIn 0.8s ease-out 17.0s;
+        }
+
+        .animate-on-scroll:nth-child(172) {
+            animation: fadeIn 0.8s ease-out 17.1s;
+        }
+
+        .animate-on-scroll:nth-child(173) {
+            animation: fadeIn 0.8s ease-out 17.2s;
+        }
+
+        .animate-on-scroll:nth-child(174) {
+            animation: fadeIn 0.8s ease-out 17.3s;
+        }
+
+        .animate-on-scroll:nth-child(175) {
+            animation: fadeIn 0.8s ease-out 17.4s;
+        }
+
+        .animate-on-scroll:nth-child(176) {
+            animation: fadeIn 0.8s ease-out 17.5s;
+        }
+
+        .animate-on-scroll:nth-child(177) {
+            animation: fadeIn 0.8s ease-out 17.6s;
+        }
+
+        .animate-on-scroll:nth-child(178) {
+            animation: fadeIn 0.8s ease-out 17.7s;
+        }
+
+        .animate-on-scroll:nth-child(179) {
+            animation: fadeIn 0.8s ease-out 17.8s;
+        }
+
+        .animate-on-scroll:nth-child(180) {
+            animation: fadeIn 0.8s ease-out 17.9s;
+        }
+
+        .animate-on-scroll:nth-child(181) {
+            animation: fadeIn 0.8s ease-out 18.0s;
+        }
+
+        .animate-on-scroll:nth-child(182) {
+            animation: fadeIn 0.8s ease-out 18.1s;
+        }
+
+        .animate-on-scroll:nth-child(183) {
+            animation: fadeIn 0.8s ease-out 18.2s;
+        }
+
+        .animate-on-scroll:nth-child(184) {
+            animation: fadeIn 0.8s ease-out 18.3s;
+        }
+
+        .animate-on-scroll:nth-child(185) {
+            animation: fadeIn 0.8s ease-out 18.4s;
+        }
+
+        .animate-on-scroll:nth-child(186) {
+            animation: fadeIn 0.8s ease-out 18.5s;
+        }
+
+        .animate-on-scroll:nth-child(187) {
+            animation: fadeIn 0.8s ease-out 18.6s;
+        }
+
+        .animate-on-scroll:nth-child(188) {
+            animation: fadeIn 0.8s ease-out 18.7s;
+        }
+
+        .animate-on-scroll:nth-child(189) {
+            animation: fadeIn 0.8s ease-out 18.8s;
+        }
+
+        .animate-on-scroll:nth-child(190) {
+            animation: fadeIn 0.8s ease-out 18.9s;
+        }
+
+        .animate-on-scroll:nth-child(191) {
+            animation: fadeIn 0.8s ease-out 19.0s;
+        }
+
+        .animate-on-scroll:nth-child(192) {
+            animation: fadeIn 0.8s ease-out 19.1s;
+        }
+
+        .animate-on-scroll:nth-child(193) {
+            animation: fadeIn 0.8s ease-out 19.2s;
+        }
+
+        .animate-on-scroll:nth-child(194) {
+            animation: fadeIn 0.8s ease-out 19.3s;
+        }
+
+        .animate-on-scroll:nth-child(195) {
+            animation: fadeIn 0.8s ease-out 19.4s;
+        }
+
+        .animate-on-scroll:nth-child(196) {
+            animation: fadeIn 0.8s ease-out 19.5s;
+        }
+
+        .animate-on-scroll:nth-child(197) {
+            animation: fadeIn 0.8s ease-out 19.6s;
+        }
+
+        .animate-on-scroll:nth-child(198) {
+            animation: fadeIn 0.8s ease-out 19.7s;
+        }
+
+        .animate-on-scroll:nth-child(199) {
+            animation: fadeIn 0.8s ease-out 19.8s;
+        }
+
+        .animate-on-scroll:nth-child(200) {
+            animation: fadeIn 0.8s ease-out 19.9s;
+        }
+
+        .animate-on-scroll:nth-child(201) {
+            animation: fadeIn 0.8s ease-out 20.0s;
+        }
+
+        .animate-on-scroll:nth-child(202) {
+            animation: fadeIn 0.8s ease-out 20.1s;
+        }
+
+        .animate-on-scroll:nth-child(203) {
+            animation: fadeIn 0.8s ease-out 20.2s;
+        }
+
+        .animate-on-scroll:nth-child(204) {
+            animation: fadeIn 0.8s ease-out 20.3s;
+        }
+
+        .animate-on-scroll:nth-child(205) {
+            animation: fadeIn 0.8s ease-out 20.4s;
+        }
+
+        .animate-on-scroll:nth-child(206) {
+            animation: fadeIn 0.8s ease-out 20.5s;
+        }
+
+        .animate-on-scroll:nth-child(207) {
+            animation: fadeIn 0.8s ease-out 20.6s;
+        }
+
+        .animate-on-scroll:nth-child(208) {
+            animation: fadeIn 0.8s ease-out 20.7s;
+        }
+
+        .animate-on-scroll:nth-child(209) {
+            animation: fadeIn 0.8s ease-out 20.8s;
+        }
+
+        .animate-on-scroll:nth-child(210) {
+            animation: fadeIn 0.8s ease-out 20.9s;
+        }
+
+        .animate-on-scroll:nth-child(211) {
+            animation: fadeIn 0.8s ease-out 21.0s;
+        }
+
+        .animate-on-scroll:nth-child(212) {
+            animation: fadeIn 0.8s ease-out 21.1s;
+        }
+
+        .animate-on-scroll:nth-child(213) {
+            animation: fadeIn 0.8s ease-out 21.2s;
+        }
+
+        .animate-on-scroll:nth-child(214) {
+            animation: fadeIn 0.8s ease-out 21.3s;
+        }
+
+        .animate-on-scroll:nth-child(215) {
+            animation: fadeIn 0.8s ease-out 21.4s;
+        }
+
+        .animate-on-scroll:nth-child(216) {
+            animation: fadeIn 0.8s ease-out 21.5s;
+        }
+
+        .animate-on-scroll:nth-child(217) {
+            animation: fadeIn 0.8s ease-out 21.6s;
+        }
+
+        .animate-on-scroll:nth-child(218) {
+            animation: fadeIn 0.8s ease-out 21.7s;
+        }
+
+        .animate-on-scroll:nth-child(219) {
+            animation: fadeIn 0.8s ease-out 21.8s;
+        }
+
+        .animate-on-scroll:nth-child(220) {
+            animation: fadeIn 0.8s ease-out 21.9s;
+        }
+
+        .animate-on-scroll:nth-child(221) {
+            animation: fadeIn 0.8s ease-out 22.0s;
+        }
+
+        .animate-on-scroll:nth-child(222) {
+            animation: fadeIn 0.8s ease-out 22.1s;
+        }
+
+        .animate-on-scroll:nth-child(223) {
+            animation: fadeIn 0.8s ease-out 22.2s;
+        }
+
+        .animate-on-scroll:nth-child(224) {
+            animation: fadeIn 0.8s ease-out 22.3s;
+        }
+
+        .animate-on-scroll:nth-child(225) {
+            animation: fadeIn 0.8s ease-out 22.4s;
+        }
+
+        .animate-on-scroll:nth-child(226) {
+            animation: fadeIn 0.8s ease-out 22.5s;
+        }
+
+        .animate-on-scroll:nth-child(227) {
+            animation: fadeIn 0.8s ease-out 22.6s;
+        }
+
+        .animate-on-scroll:nth-child(228) {
+            animation: fadeIn 0.8s ease-out 22.7s;
+        }
+
+        .animate-on-scroll:nth-child(229) {
+            animation: fadeIn 0.8s ease-out 22.8s;
+        }
+
+        .animate-on-scroll:nth-child(230) {
+            animation: fadeIn 0.8s ease-out 22.9s;
+        }
+
+        .animate-on-scroll:nth-child(231) {
+            animation: fadeIn 0.8s ease-out 23.0s;
+        }
+
+        .animate-on-scroll:nth-child(232) {
+            animation: fadeIn 0.8s ease-out 23.1s;
+        }
+
+        .animate-on-scroll:nth-child(233) {
+            animation: fadeIn 0.8s ease-out 23.2s;
+        }
+
+        .animate-on-scroll:nth-child(234) {
+            animation: fadeIn 0.8s ease-out 23.3s;
+        }
+
+        .animate-on-scroll:nth-child(235) {
+            animation: fadeIn 0.8s ease-out 23.4s;
+        }
+
+        .animate-on-scroll:nth-child(236) {
+            animation: fadeIn 0.8s ease-out 23.5s;
+        }
+
+        .animate-on-scroll:nth-child(237) {
+            animation: fadeIn 0.8s ease-out 23.6s;
+        }
+
+        .animate-on-scroll:nth-child(238) {
+            animation: fadeIn 0.8s ease-out 23.7s;
+        }
+
+        .animate-on-scroll:nth-child(239) {
+            animation: fadeIn 0.8s ease-out 23.8s;
+        }
+
+        .animate-on-scroll:nth-child(240) {
+            animation: fadeIn 0.8s ease-out 23.9s;
+        }
+
+        .animate-on-scroll:nth-child(241) {
+            animation: fadeIn 0.8s ease-out 24.0s;
+        }
+
+        .animate-on-scroll:nth-child(242) {
+            animation: fadeIn 0.8s ease-out 24.1s;
+        }
+
+        .animate-on-scroll:nth-child(243) {
+            animation: fadeIn 0.8s ease-out 24.2s;
+        }
+
+        .animate-on-scroll:nth-child(244) {
+            animation: fadeIn 0.8s ease-out 24.3s;
+        }
+
+        .animate-on-scroll:nth-child(245) {
+            animation: fadeIn 0.8s ease-out 24.4s;
+        }
+
+        .animate-on-scroll:nth-child(246) {
+            animation: fadeIn 0.8s ease-out 24.5s;
+        }
+
+        .animate-on-scroll:nth-child(247) {
+            animation: fadeIn 0.8s ease-out 24.6s;
+        }
+
+        .animate-on-scroll:nth-child(248) {
+            animation: fadeIn 0.8s ease-out 24.7s;
+        }
+
+        .animate-on-scroll:nth-child(249) {
+            animation: fadeIn 0.8s ease-out 24.8s;
+        }
+
+        .animate-on-scroll:nth-child(250) {
+            animation: fadeIn 0.8s ease-out 24.9s;
+        }
+
+        .animate-on-scroll:nth-child(251) {
+            animation: fadeIn 0.8s ease-out 25.0s;
+        }
+
+        .animate-on-scroll:nth-child(252) {
+            animation: fadeIn 0.8s ease-out 25.1s;
+        }
+
+        .animate-on-scroll:nth-child(253) {
+            animation: fadeIn 0.8s ease-out 25.2s;
+        }
+
+        .animate-on-scroll:nth-child(254) {
+            animation: fadeIn 0.8s ease-out 25.3s;
+        }
+
+        .animate-on-scroll:nth-child(255) {
+            animation: fadeIn 0.8s ease-out 25.4s;
+        }
+
+        .animate-on-scroll:nth-child(256) {
+            animation: fadeIn 0.8s ease-out 25.5s;
+        }
+
+        .animate-on-scroll:nth-child(257) {
+            animation: fadeIn 0.8s ease-out 25.6s;
+        }
+
+        .animate-on-scroll:nth-child(258) {
+            animation: fadeIn 0.8s ease-out 25.7s;
+        }
+
+        .animate-on-scroll:nth-child(259) {
+            animation: fadeIn 0.8s ease-out 25.8s;
+        }
+
+        .animate-on-scroll:nth-child(260) {
+            animation: fadeIn 0.8s ease-out 25.9s;
+        }
+
+        .animate-on-scroll:nth-child(261) {
+            animation: fadeIn 0.8s ease-out 26.0s;
+        }
+
+        .animate-on-scroll:nth-child(262) {
+            animation: fadeIn 0.8s ease-out 26.1s;
+        }
+
+        .animate-on-scroll:nth-child(263) {
+            animation: fadeIn 0.8s ease-out 26.2s;
+        }
+
+        .animate-on-scroll:nth-child(264) {
+            animation: fadeIn 0.8s ease-out 26.3s;
+        }
+
+        .animate-on-scroll:nth-child(265) {
+            animation: fadeIn 0.8s ease-out 26.4s;
+        }
+
+        .animate-on-scroll:nth-child(266) {
+            animation: fadeIn 0.8s ease-out 26.5s;
+        }
+
+        .animate-on-scroll:nth-child(267) {
+            animation: fadeIn 0.8s ease-out 26.6s;
+        }
+
+        .animate-on-scroll:nth-child(268) {
+            animation: fadeIn 0.8s ease-out 26.7s;
+        }
+
+        .animate-on-scroll:nth-child(269) {
+            animation: fadeIn 0.8s ease-out 26.8s;
+        }
+
+        .animate-on-scroll:nth-child(270) {
+            animation: fadeIn 0.8s ease-out 26.9s;
+        }
+
+        .animate-on-scroll:nth-child(271) {
+            animation: fadeIn 0.8s ease-out 27.0s;
+        }
+
+        .animate-on-scroll:nth-child(272) {
+            animation: fadeIn 0.8s ease-out 27.1s;
+        }
+
+        .animate-on-scroll:nth-child(273) {
+            animation: fadeIn 0.8s ease-out 27.2s;
+        }
+
+        .animate-on-scroll:nth-child(274) {
+            animation: fadeIn 0.8s ease-out 27.3s;
+        }
+
+        .animate-on-scroll:nth-child(275) {
+            animation: fadeIn 0.8s ease-out 27.4s;
+        }
+
+        .animate-on-scroll:nth-child(276) {
+            animation: fadeIn 0.8s ease-out 27.5s;
+        }
+
+        .animate-on-scroll:nth-child(277) {
+            animation: fadeIn 0.8s ease-out 27.6s;
+        }
+
+        .animate-on-scroll:nth-child(278) {
+            animation: fadeIn 0.8s ease-out 27.7s;
+        }
+
+        .animate-on-scroll:nth-child(279) {
+            animation: fadeIn 0.8s ease-out 27.8s;
+        }
+
+        .animate-on-scroll:nth-child(280) {
+            animation: fadeIn 0.8s ease-out 27.9s;
+        }
+
+        .animate-on-scroll:nth-child(281) {
+            animation: fadeIn 0.8s ease-out 28.0s;
+        }
+
+        .animate-on-scroll:nth-child(282) {
+            animation: fadeIn 0.8s ease-out 28.1s;
+        }
+
+        .animate-on-scroll:nth-child(283) {
+            animation: fadeIn 0.8s ease-out 28.2s;
+        }
+
+        .animate-on-scroll:nth-child(284) {
+            animation: fadeIn 0.8s ease-out 28.3s;
+        }
+
+        .animate-on-scroll:nth-child(285) {
+            animation: fadeIn 0.8s ease-out 28.4s;
+        }
+
+        .animate-on-scroll:nth-child(286) {
+            animation: fadeIn 0.8s ease-out 28.5s;
+        }
+
+        .animate-on-scroll:nth-child(287) {
+            animation: fadeIn 0.8s ease-out 28.6s;
+        }
+
+        .animate-on-scroll:nth-child(288) {
+            animation: fadeIn 0.8s ease-out 28.7s;
+        }
+
+        .animate-on-scroll:nth-child(289) {
+            animation: fadeIn 0.8s ease-out 28.8s;
+        }
+
+        .animate-on-scroll:nth-child(290) {
+            animation: fadeIn 0.8s ease-out 28.9s;
+        }
+
+        .animate-on-scroll:nth-child(291) {
+            animation: fadeIn 0.8s ease-out 29.0s;
+        }
+
+        .animate-on-scroll:nth-child(292) {
+            animation: fadeIn 0.8s ease-out 29.1s;
+        }
+
+        .animate-on-scroll:nth-child(293) {
+            animation: fadeIn 0.8s ease-out 29.2s;
+        }
+
+        .animate-on-scroll:nth-child(294) {
+            animation: fadeIn 0.8s ease-out 29.3s;
+        }
+
+        .animate-on-scroll:nth-child(295) {
+            animation: fadeIn 0.8s ease-out 29.4s;
+        }
+
+        .animate-on-scroll:nth-child(296) {
+            animation: fadeIn 0.8s ease-out 29.5s;
+        }
+
+        .animate-on-scroll:nth-child(297) {
+            animation: fadeIn 0.8s ease-out 29.6s;
+        }
+
+        .animate-on-scroll:nth-child(298) {
+            animation: fadeIn 0.8s ease-out 29.7s;
+        }
+
+        .animate-on-scroll:nth-child(299) {
+            animation: fadeIn 0.8s ease-out 29.8s;
+        }
+
+        .animate-on-scroll:nth-child(300) {
+            animation: fadeIn 0.8s ease-out 29.9s;
+        }
+
+        .animate-on-scroll:nth-child(301) {
+            animation: fadeIn 0.8s ease-out 30.0s;
+        }
+
+        .animate-on-scroll:nth-child(302) {
+            animation: fadeIn 0.8s ease-out 30.1s;
+        }
+
+        .animate-on-scroll:nth-child(303) {
+            animation: fadeIn 0.8s ease-out 30.2s;
+        }
+
+        .animate-on-scroll:nth-child(304) {
+            animation: fadeIn 0.8s ease-out 30.3s;
+        }
+
+        .animate-on-scroll:nth-child(305) {
+            animation: fadeIn 0.8s ease-out 30.4s;
+        }
+
+        .animate-on-scroll:nth-child(306) {
+            animation: fadeIn 0.8s ease-out 30.5s;
+        }
+
+        .animate-on-scroll:nth-child(307) {
+            animation: fadeIn 0.8s ease-out 30.6s;
+        }
+
+        .animate-on-scroll:nth-child(308) {
+            animation: fadeIn 0.8s ease-out 30.7s;
+        }
+
+        .animate-on-scroll:nth-child(309) {
+            animation: fadeIn 0.8s ease-out 30.8s;
+        }
+
+        .animate-on-scroll:nth-child(310) {
+            animation: fadeIn 0.8s ease-out 30.9s;
+        }
+
+        .animate-on-scroll:nth-child(311) {
+            animation: fadeIn 0.8s ease-out 31.0s;
+        }
+
+        .animate-on-scroll:nth-child(312) {
+            animation: fadeIn 0.8s ease-out 31.1s;
+        }
+
+        .animate-on-scroll:nth-child(313) {
+            animation: fadeIn 0.8s ease-out 31.2s;
+        }
+
+        .animate-on-scroll:nth-child(314) {
+            animation: fadeIn 0.8s ease-out 31.3s;
+        }
+
+        .animate-on-scroll:nth-child(315) {
+            animation: fadeIn 0.8s ease-out 31.4s;
+        }
+
+        .animate-on-scroll:nth-child(316) {
+            animation: fadeIn 0.8s ease-out 31.5s;
+        }
+
+        .animate-on-scroll:nth-child(317) {
+            animation: fadeIn 0.8s ease-out 31.6s;
+        }
+
+        .animate-on-scroll:nth-child(318) {
+            animation: fadeIn 0.8s ease-out 31.7s;
+        }
+
+        .animate-on-scroll:nth-child(319) {
+            animation: fadeIn 0.8s ease-out 31.8s;
+        }
+
+        .animate-on-scroll:nth-child(320) {
+            animation: fadeIn 0.8s ease-out 31.9s;
+        }
+
+        .animate-on-scroll:nth-child(321) {
+            animation: fadeIn 0.8s ease-out 32.0s;
+        }
+
+        .animate-on-scroll:nth-child(322) {
+            animation: fadeIn 0.8s ease-out 32.1s;
+        }
+
+        .animate-on-scroll:nth-child(323) {
+            animation: fadeIn 0.8s ease-out 32.2s;
+        }
+
+        .animate-on-scroll:nth-child(324) {
+            animation: fadeIn 0.8s ease-out 32.3s;
+        }
+
+        .animate-on-scroll:nth-child(325) {
+            animation: fadeIn 0.8s ease-out 32.4s;
+        }
+
+        .animate-on-scroll:nth-child(326) {
+            animation: fadeIn 0.8s ease-out 32.5s;
+        }
+
+        .animate-on-scroll:nth-child(327) {
+            animation: fadeIn 0.8s ease-out 32.6s;
+        }
+
+        .animate-on-scroll:nth-child(328) {
+            animation: fadeIn 0.8s ease-out 32.7s;
+        }
+
+        .animate-on-scroll:nth-child(329) {
+            animation: fadeIn 0.8s ease-out 32.8s;
+        }
+
+        .animate-on-scroll:nth-child(330) {
+            animation: fadeIn 0.8s ease-out 32.9s;
+        }
+
+        .animate-on-scroll:nth-child(331) {
+            animation: fadeIn 0.8s ease-out 33.0s;
+        }
+
+        .animate-on-scroll:nth-child(332) {
+            animation: fadeIn 0.8s ease-out 33.1s;
+        }
+
+       

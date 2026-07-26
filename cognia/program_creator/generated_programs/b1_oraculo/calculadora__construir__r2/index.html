@@ -1,0 +1,122 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        #calculadora {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #pantalla {
+            width: 100%;
+            height: 50px;
+            margin-bottom: 20px;
+            background-color: #e0e0e0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 24px;
+            box-sizing: border-box;
+        }
+        .tecla {
+            width: 50px;
+            height: 50px;
+            margin: 5px;
+            background-color: #ddd;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .tecla:hover {
+            background-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="calculadora">
+        <div id="pantalla">0</div>
+        <div class="tecla" data-t="2">2</div>
+        <div class="tecla" data-t="3">3</div>
+        <div class="tecla" data-t="+">+</div>
+        <div class="tecla" data-t="=">=</div>
+    </div>
+
+    <script>
+        const pantalla = document.getElementById('pantalla');
+        const teclas = document.querySelectorAll('.tecla');
+
+        let valorActual = '';
+        let valorAnterior = '';
+        let operacion = '';
+
+        teclas.forEach(tecla => {
+            tecla.addEventListener('click', () => {
+                const valor = tecla.getAttribute('data-t');
+                if (valor === '=') {
+                    calcular();
+                } else if (valor === '+' || valor === '-' || valor === '*' || valor === '/') {
+                    operacion = valor;
+                    valorAnterior = valorActual;
+                    valorActual = '';
+                } else {
+                    valorActual += valor;
+                }
+                actualizarPantalla();
+            });
+        });
+
+        function calcular() {
+            let resultado;
+            const anterior = parseFloat(valorAnterior);
+            const actual = parseFloat(valorActual);
+            switch (operacion) {
+                case '+':
+                    resultado = anterior + actual;
+                    break;
+                case '-':
+                    resultado = anterior - actual;
+                    break;
+                case '*':
+                    resultado = anterior * actual;
+                    break;
+                case '/':
+                    resultado = anterior / actual;
+                    break;
+                default:
+                    return;
+            }
+            valorActual = resultado;
+            operacion = '';
+            valorAnterior = '';
+        }
+
+        function actualizarPantalla() {
+            pantalla.textContent = valorActual || valorAnterior || '0';
+        }
+    </script>
+</body>
+</html>

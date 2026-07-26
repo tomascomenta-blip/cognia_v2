@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filtro de Lista con Animación</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #e0f7fa;
+    color: #00796b;
+  }
+  input {
+    margin-bottom: 20px;
+    padding: 10px;
+    font-size: 16px;
+    width: 80%;
+    max-width: 400px;
+    border: 2px solid #00796b;
+    border-radius: 4px;
+  }
+  ul {
+    list-style-type: none;
+    padding: 0;
+    width: 80%;
+    max-width: 400px;
+  }
+  li {
+    padding: 10px;
+    margin: 5px 0;
+    background-color: #b2ebf2;
+    border: 1px solid #00796b;
+    border-radius: 4px;
+    transition: opacity 0.3s;
+  }
+  li.hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+</style>
+</head>
+<body>
+
+<input id="buscar" type="text" placeholder="Buscar fruta...">
+
+<ul id="lista">
+  <li class="item">manzana</li>
+  <li class="item">banana</li>
+  <li class="item">cereza</li>
+  <li class="item">datil</li>
+  <li class="item">kiwi</li>
+</ul>
+
+<script>
+  const buscarInput = document.getElementById('buscar');
+  const listaItems = document.querySelectorAll('.item');
+
+  buscarInput.addEventListener('input', function() {
+    const filtro = buscarInput.value.toLowerCase();
+    listaItems.forEach(item => {
+      if (item.textContent.toLowerCase().includes(filtro)) {
+        item.classList.remove('hidden');
+        item.style.color = 'black'; // Reset color
+      } else {
+        item.classList.add('hidden');
+        item.style.color = 'black'; // Reset color
+      }
+    });
+  });
+
+  // Animation on load
+  window.onload = function() {
+    listaItems.forEach(item => {
+      setTimeout(() => {
+        item.style.opacity = 1;
+        item.style.visibility = 'visible';
+      }, Math.random() * 1000);
+    });
+  };
+</script>
+
+</body>
+</html>

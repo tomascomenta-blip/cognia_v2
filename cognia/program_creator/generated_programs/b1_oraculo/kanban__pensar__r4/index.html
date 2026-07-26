@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban</title>
+<style>
+body{font-family:sans-serif;background:#f0f0f0;margin:0;padding:0;}
+.board{display:flex;justify-content:space-around;padding:20px;}
+.col{background:#e0e0e0;border-radius:8px;width:30%;min-height:400px;display:flex;flex-direction:column;gap:10px;padding:10px;box-sizing:border-box;animation:fadeIn 1s ease forwards;}
+.col h2{margin:0;font-size:1.2rem;display:flex;justify-content:space-between;align-items:center;}
+.cards{flex:1;display:flex;flex-direction:column;gap:8px;}
+.card{background:white;border-radius:6px;padding:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:flex;justify-content:space-between;align-items:center;transition:all 0.3s ease;}
+.card button{margin-left:4px;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cols = {
+    todo: document.querySelector('[data-col="todo"] .cards'),
+    doing: document.querySelector('[data-col="doing"] .cards'),
+    done: document.querySelector('[data-col="done"] .cards')
+  };
+  const createCard = (id, delay=0) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.style.animation = `slideIn 0.5s ease forwards`;
+    card.style.animationDelay = `${delay}s`;
+    card.innerHTML = `
+      <span>${id}</span>
+      <div>
+        <button class="mas">+</button>
+        <button class="menos">-</button>
+      </div>
+    `;
+    card.querySelector('.mas').addEventListener('click', () => moveCard(card, 1));
+    card.querySelector('.menos').addEventListener('click', () => moveCard(card, -1));
+    return card;
+  };
+  const moveCard = (card, dir) => {
+    const currentCol = card.parentElement.parentElement.dataset.col;
+    const nextCol = dir === 1 ? nextColumn(currentCol) : prevColumn(currentCol);
+    if (!nextCol) return;
+    if (nextCol === 'doing' && cols.doing.children.length >= 2) return;
+    if (currentCol === 'todo' && dir === -1) return;
+    if (currentCol === 'done' && dir === 1) return;
+    cols[nextCol].appendChild(card);
+    updateCounts();
+  };
+  const nextColumn = (col) => {
+    if (col === 'todo') return 'doing';
+    if (col === 'doing') return 'done';
+    return null;
+  };
+  const prevColumn = (col) => {
+    if (col === 'doing') return 'todo';
+    if (col === 'done') return 'doing';
+    return null;
+  };
+  const updateCounts = () => {
+    document.getElementById('cont-todo').textContent = cols.todo.children.length;
+    document.getElementById('cont-doing').textContent = cols.doing.children.length;
+    document.getElementById('cont-done').textContent = cols.done.children.length;
+  };
+  ['t1','t2','t3'].forEach((id, idx) => {
+    const card = createCard(id, idx*0.2);
+    cols.todo.appendChild(card);
+  });
+  updateCounts();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "verificado": false,
+  "puntaje_real": 6.5,
+  "fecha": "2026-07-25T11:30:11",
+  "motivos": [
+    "compila: documento HTML completo",
+    "arranca: revisar_html: no se anima sola (ni setInterval ni CSS animation)",
+    "sin_stubs: 85 lineas utiles de HTML",
+    "documentacion: la pagina declara <title> pero no trae README",
+    "descripcion: cumple lo que promete (6/7 palabras clave)"
+  ],
+  "id": "juego_undertale_pixelart",
+  "title": "Juego Undertale Pixelart",
+  "lenguaje": "html",
+  "entrypoint": "index.html",
+  "fallo_duro": "arranca",
+  "desglose": {
+    "compila": 3.0,
+    "arranca": 0.0,
+    "sin_stubs": 2.0,
+    "documentacion": 0.5,
+    "coincide_descripcion": 1.0
+  },
+  "score_juez": 5.4,
+  "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)"
+}

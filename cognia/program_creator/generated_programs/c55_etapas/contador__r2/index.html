@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador Minimalista</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #valor {
+            font-size: 4em;
+            margin: 20px 0;
+            color: white;
+            background-color: #333;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+        }
+        button:active {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <span id="valor">0</span>
+    <button id="mas">+</button>
+    <button id="menos">-</button>
+
+    <script>
+        let valor = 0;
+        const valorElement = document.getElementById('valor');
+        const masButton = document.getElementById('mas');
+        const menosButton = document.getElementById('menos');
+
+        masButton.addEventListener('click', () => {
+            valor++;
+            valorElement.textContent = valor;
+        });
+
+        menosButton.addEventListener('click', () => {
+            if (valor > 0) {
+                valor--;
+                valorElement.textContent = valor;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mini Hoja de Cálculo</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            background: #f0f0f0;
+        }
+        table { border-collapse: collapse; }
+        td { padding: 5px; }
+        input.celda { 
+            width: 60px; 
+            height: 30px; 
+            text-align: center; 
+            font-size: 16px;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        input.celda:focus { 
+            border-color: #e74c3c;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <table>
+        <tr>
+            <td><input type="text" class="celda" data-ref="A1"></td>
+            <td><input type="text" class="celda" data-ref="B1"></td>
+            <td><input type="text" class="celda" data-ref="C1"></td>
+        </tr>
+        <tr>
+            <td><input type="text" class="celda" data-ref="A2"></td>
+            <td><input type="text" class="celda" data-ref="B2"></td>
+            <td><input type="text" class="celda" data-ref="C2"></td>
+        </tr>
+        <tr>
+            <td><input type="text" class="celda" data-ref="A3"></td>
+            <td><input type="text" class="celda" data-ref="B3"></td>
+            <td><input type="text" class="celda" data-ref="C3"></td>
+        </tr>
+    </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cells = document.querySelectorAll('.celda');
+            
+            // Maps for dependencies
+            let dependenciesMap = {};  // cellId -> [dependencies]
+            let dependentsMap = {};    // cellId -> [dependents]
+
+            function parseFormula(formula) {
+                return [...new Set(formula.match(/[A-C][1-3]/g) || [])];
+            }
+
+            cells.forEach(cell => {
+                const formula = cell.value.trim();
+                if (formula.startsWith('=')) {
+                    cell.dataset.formula = formula.slice(1);
+                    const deps = parseFormula(formula);
+                    dependenciesMap[cell.dataset.ref] = deps;
+                    
+                    // Update dependents map for each dependency
+                    deps.forEach(dep => {
+                        if (!dependentsMap[dep]) dependentsMap[dep] = [];
+                        dependentsMap[dep].push(cell.dataset.ref);
+                    });
+                } else {
+                    delete cell.dataset.formula;
+                }
+            });
+
+            function evaluateCell(cellId) {
+                const cell = document.querySelector(`[data-ref="${cellId}"]`);
+                if (!cell || !cell.dataset.formula) return;
+                
+                let evaluatingStack = [];
+                let result;
+
+                function evaluateWithCheck(currentCellId) {
+                    if (evaluatingStack.includes(currentCellId)) return "CIRC";
+                    evaluatingStack.push(currentCellId);
+                    
+                    const currentFormula = document.querySelector(`[data-ref="${currentCellId}"]`).dataset.formula;
+                    const deps = parseFormula('=' + currentFormula);
+                    
+                    let hasCircular = false;
+                    for (const dep of deps) {
+                        const depValue = evaluateWithCheck(dep);
+                        if (depValue === "CIRC") {
+                            hasCircular = true;
+                            break;
+                        }
+                    }
+
+                    if (hasCircular) {
+                        evaluatingStack.pop();
+                        return "CIRC";
+                    }
+
+                    let expr = currentFormula.replace(/[A-C][1-3]/g, match => {
+                        const depCell = document.querySelector(`[data-ref="${match}"]`);
+                        return depCell.value;
+                    });
+
+                    try {
+                        result = eval(expr);
+                    } catch (e) {
+                        evaluatingStack.pop();
+                        return "CIRC";
+                    }
+
+                    evaluatingStack.pop();
+                    return isNaN(result) ? "CIRC" : result;
+                }
+
+                const value = evaluateWithCheck(cellId);
+                cell.value = value;
+            }
+
+            // Initial evaluation of all cells
+            cells.forEach(cell => {
+                if (cell.dataset.formula) {
+                    evaluateCell(cell.dataset.ref);
+                } else {
+                    const val = parseFloat(cell.value) || 0;
+                    cell.value = val;
+                }
+            });
+
+            // Handle input changes
+            cells.forEach(cell => {
+                cell.addEventListener('input', (e) => {
+                    const newValue = e.target.value.trim();
+                    
+                    if (newValue.startsWith('=')) {
+                        e.target.dataset.formula = newValue.slice(1);
+                        const deps = parseFormula(newValue);
+                        
+                        // Update dependencies map
+                        dependenciesMap[e.target.dataset.ref] = deps;
+                        
+                        // Update dependents map for each dependency
+                        deps.forEach(dep => {
+                            if (!dependentsMap[dep]) dependentsMap[dep] = [];
+                            const currentDependents = dependentsMap[dep];
+                            if (!currentDependents.includes(e.target.dataset.ref)) {
+                                currentDependents.push(e.target.dataset.ref);
+                            }
+                        });
+                    } else {
+                        delete e.target.dataset.formula;
+                        const val = parseFloat(newValue) || 0;
+                        e.target.value = val;
+                    }
+
+                    if (e.target.dataset.formula) {
+                        evaluateCell(e.target.dataset.ref);
+                    }
+
+                    // Recalculate all dependents
+                    const dependents = dependentsMap[e.target.dataset.ref] || [];
+                    for (const depId of dependents) {
+                        evaluateCell(depId);
+                    }
+                });
+            });
+
+            // Demo initialization with sample data
+            document.querySelector('[data-ref="A1"]').value = 5;
+            document.querySelector('[data-ref="B1"]').value = "=A1+3";
+            document.querySelector('[data-ref="C1"]').value = "=B1-2";
+            
+            // Trigger initial calculations
+            cells.forEach(cell => {
+                if (cell.dataset.formula) evaluateCell(cell.dataset.ref);
+            });
+
+            // Animation on load
+            setTimeout(() => {
+                document.querySelectorAll('.celda').forEach((input, index) => {
+                    input.style.transform = 'scale(1.1)';
+                    setTimeout(() => input.style.transform = 'scale(1)', 300);
+                });
+            }, 500);
+        });
+    </script>
+</body>
+</html>

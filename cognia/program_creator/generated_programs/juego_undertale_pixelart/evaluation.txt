@@ -1,0 +1,17 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 5.4 / 10
+Functionality     : 1.0 / 4.0
+Creativity        : 2.4 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Defectos en la página: no se anima sola (ni setInterval ni CSS animation)
+En navegador: la pagina no cambia sola: los valores siguen identicos en 6 lecturas separadas 700 ms; todo el texto sale del mismo color (rgb(255, 255, 255)): las clases de estado no estan pintando. ARREGLO DIRECTO: en el JS que actualiza cada valor, pon el.style.color = (cambio >= 0 ? 'green' : 'red') sobre el MISMO elemento cuyo textContent cambias. No dependas de clases CSS.
+  • Dibuja un gráfico propio.
+  • Página con cuerpo (3214 chars).
+  • Técnicas: svg, flexbox, formato numérico.
+  • JS estructurado (3 funciones).
+  • Página no trivial: 81 líneas.
+  • Original program title.

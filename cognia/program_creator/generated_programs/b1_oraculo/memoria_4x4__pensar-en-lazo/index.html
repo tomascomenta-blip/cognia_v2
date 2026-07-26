@@ -1,0 +1,686 @@
+<think>
+We are creating a 4x4 memory game with 16 tiles (cards). Each tile is initially face down (so we don't see the emoji). 
+ When a tile is clicked, it flips to show the emoji. 
+ If two flipped tiles do not match, they are flipped back to face down after a 1 second delay.
+ We need to keep a count of the moves (each click is a move) and display it.
+
+ Steps:
+ 1. We have 16 tiles arranged in 4 rows and 4 columns.
+ 2. Each tile has a unique id and stores an emoji (from a set of 8 pairs, so 16 emojis in total, with 8 pairs).
+ 3. We'll use a 2D array to represent the board (4x4) and store the state of each tile (face down or up) and the emoji.
+
+ Implementation:
+ - We'll create an array of 16 emojis (8 pairs) and then assign them to the 16 tiles in the board.
+ - The board will be represented as a 4x4 grid. We can use a list of lists for the board data.
+ - Each tile in the board will have:
+		state: 0 for face down, 1 for face up.
+		emoji: the character to display when face up.
+
+ - We'll also have a variable `moves` that counts the number of clicks (each click is a move).
+
+ How the game works:
+   - Initially, all tiles are face down.
+   - When a tile is clicked:
+		- If it's already face up, we ignore (or we can skip, but typically in memory games, you can only click on face down tiles).
+		- Otherwise, flip it to face up.
+		- Then, check if there is another tile face up that matches (same emoji). 
+		- If there is a match, then we remove both from the board (or mark them as matched and possibly remove them from play? but the problem says they stay, but if matched they remain face up?).
+		- However, the problem says: "Si se destapan dos que no coinciden, tras un segundo se vuelven a tapar." 
+		  So if two flipped tiles do not match, they are flipped back after 1 second.
+
+   But note: we are to count the moves. Each click is a move.
+
+   We have to consider:
+	 - On a click, we flip the tile. Then we check for a match with any other face up tile? 
+		Actually, we should check only the last two? But note: it's possible that by flipping one, we match with a previously flipped one that is still face up? 
+		However, the problem says: when two are flipped and they don't match, they are flipped back after 1 second. So we must remember the last flip?
+
+   Alternatively, we can do:
+	 - We'll keep a list of the currently face up tiles that are not matched. 
+	 - When a tile is flipped, we check if there is another face up tile with the same emoji. 
+		- If yes, then we remove both (or mark them as matched and they remain face up? but the problem doesn't say they are removed, so they stay face up and are considered matched? 
+		  and then we don't flip them back). 
+		- If not, then we wait 1 second and then flip both back? But note: the problem says "dos" meaning two. So we are only comparing the two that were just flipped? 
+
+   Actually, the typical memory game rule: 
+		- You flip one tile, then you flip a second tile. 
+		- If they match, they stay face up and you get a point. 
+		- If they don't match, they are flipped back.
+
+   But note: the problem says "Al hacer click en una carta se destapa y se ve su emoji. Si se destapan dos que no coinciden, tras un segundo se vuelven a tapar."
+
+   This implies that we are only comparing the two that were just flipped? But what if there are already some face up? 
+
+   Clarification: 
+		The problem does not specify that the game is played by flipping two at a time. It says: 
+		  - On a click, one tile is flipped.
+		  - Then, if there are two flipped tiles that don't match, they are flipped back after 1 second.
+
+   However, the typical rule is that you flip two tiles in one move? But the problem says "cada intento" (each move) is a click.
+
+   Let me re-read: 
+		"Un contador con id="moves" cuenta los intentos."
+
+   And: 
+		"Al hacer click en una carta se destapa y se ve su emoji."
+
+   So each click is a move. 
+
+   How to handle:
+		- We have to remember the last flipped tile? 
+		- Actually, we can have multiple face up tiles? But the problem says: when two that don't match are flipped, they are flipped back. 
+
+   But note: if we flip a tile and there is already a face up tile that matches, then we have a match and we don't flip back? 
+
+   So the rule should be:
+		- When a tile is flipped (clicked), we check if there is any other face up tile with the same emoji. 
+		- If there is, then we remove both (or mark them as matched and they remain face up) and we don't flip them back. 
+		- If there isn't, then we wait 1 second and then flip this tile back? But note: the problem says "dos", meaning two. 
+
+   Actually, the problem says: "Si se destapan dos que no coinciden" meaning if two are flipped and they don't match. 
+
+   So we must be flipping two tiles? 
+
+   How about we interpret the game as:
+		- The player clicks on a tile: that's the first flip. 
+		- Then the player must click on a second tile: that's the second flip. 
+		- Then we check: if the two flipped tiles match, they stay face up and the move count increases by 1 (for the two clicks? but the problem says each click is a move) -> wait, the problem says "cada intento" meaning each attempt? 
+
+   But the problem says: "Un contador con id="moves" cuenta los intentos." and "Al hacer click en una carta" (each click). 
+
+   So each click is a move. 
+
+   Therefore, we have two possibilities:
+
+   Possibility 1: 
+		- The game is played by clicking one tile at a time. 
+		- When a tile is clicked, it flips. 
+		- Then, if there is already a face up tile with the same emoji, then we have a match and we remove both (and the move count is 1 for that click? but we matched two tiles with one click? that doesn't make sense).
+
+   Possibility 2 (more typical):
+		- The game is played by clicking two tiles per move? But the problem says each click is a move.
+
+   After re-thinking: 
+		The problem says: "Al hacer click en una carta se destapa y se ve su emoji." 
+		Then, if two that are flipped (meaning two that are currently face up) do not match, they are flipped back after 1 second.
+
+   So it's not necessarily the last two. It could be any two? 
+
+   But that would be inefficient. 
+
+   I think the intended behavior is:
+		- The player clicks on a tile: it flips. 
+		- Then, if there is already a face up tile that matches, then we have a match and we remove both (and the move count for that click is 1, but we matched two tiles?).
+		- Otherwise, we wait for the next click? 
+
+   But the problem says: "Si se destapan dos que no coinciden" meaning if two are flipped and they don't match. 
+
+   How do we know which two? 
+
+   Actually, the problem does not specify that we are flipping two at a time. It says: 
+		- On a click, one tile is flipped. 
+		- Then, if there are two flipped tiles (any two) that don't match, they are flipped back after 1 second? 
+
+   But that would be ambiguous.
+
+   Let me look at the typical implementation of a memory game: 
+		- You click on a tile, it flips. 
+		- Then you click on another tile, it flips. 
+		- Then if they match, they stay and you get a point. 
+		- If they don't match, they flip back after a timeout.
+
+   And each click is a move? 
+
+   But the problem says: "Un contador con id="moves" cuenta los intentos." and "Al hacer click en una carta" (each click). 
+
+   So each click is a move. 
+
+   Therefore, we must design:
+		- We have a board of 16 face down tiles.
+		- When a tile is clicked (move 1), it flips. 
+		- Then, if there is already a face up tile that matches, then we remove both (and the move count is 1 for that click? but we matched two tiles? that doesn't add up).
+
+   Alternatively, we can think: 
+		- The move count is the number of clicks. 
+		- When a tile is clicked, we flip it. 
+		- Then, we check: if there is another face up tile with the same emoji, then we have a match and we remove both (and the move count for that click is 1, but we matched two tiles? and we remove two tiles from the board? but the problem doesn't say remove, it says they stay face up). 
+		- But note: if we have two face up tiles that are matching, they are considered a pair and we don't flip them back. 
+
+   However, the problem says: "Si se destapan dos que no coinciden" meaning if two are flipped and they don't match, then they are flipped back. 
+
+   So we must be flipping two tiles? 
+
+   How about we do:
+		- We have a state variable that remembers the last flipped tile? 
+		- When a tile is clicked:
+			- If it's face down, flip it to face up. 
+			- Then, if there is already a face up tile (from a previous click) that matches, then we have a match and we remove both (and the move count is 2? but we are counting each click as a move, so we have two moves? but the problem says the move count is the number of clicks, so we have two moves for two clicks). 
+			- But the problem doesn't say we have to match two at a time. 
+
+   After reading the problem again: 
+		"Al hacer click en una carta se destapa y se ve su emoji. Si se destapan dos que no coinciden, tras un segundo se vuelven a tapar."
+
+   This implies that after flipping one tile, if there are two flipped tiles (which would be the one we just flipped and one that was already face up) that don't match, then they are flipped back. 
+
+   But note: if we flip one tile and there is already one face up, then we have two face up. We check if they match? 
+		- If they match, then we leave them face up and remove them from the pool of active tiles? 
+		- If they don't match, then we wait 1 second and flip both back.
+
+   So the algorithm for a click on tile (i, j):
+		- If the tile is already face up, then we do nothing? or we skip? (but the problem doesn't say, so we can skip or consider it as a move? but typically you can only click face down). 
+		- Otherwise, flip it to face up and increment the move count.
+		- Then, check if there is another face up tile (anywhere) with the same emoji. 
+			- If there is, then we have a match. We remove both (mark them as matched? and they remain face up). 
+			- If there isn't, then we set a timer for 1 second. After 1 second, we flip both the current tile and the other face up tile that we found? But wait, we didn't find a matching one, so we have to flip back the current tile and the other one that was already face up? 
+
+   But note: the problem says "dos" meaning two. So we are flipping back two tiles: the one we just flipped and the one that was already face up? 
+
+   However, what if there are more than two face up? 
+
+   The problem doesn't specify. 
+
+   Let me assume that the game is played such that at most two tiles are face up at the same time? 
+
+   But that is not typical. 
+
+   Alternatively, we can do:
+		- We maintain a list of currently face up tiles that are not matched. 
+		- When we flip a tile, we add it to the list. 
+		- Then we check: if there is another tile in the list with the same emoji, then we remove both from the list (and they are considered matched). 
+		- Otherwise, we set a timer for 1 second. After 1 second, we flip back all the tiles in the list? But the problem says "dos", meaning two. 
+
+   But note: the problem says "Si se destapan dos que no coinciden", meaning if two are flipped and they don't match. 
+
+   So we are only concerned with the two that were just flipped? 
+
+   How about we remember the last flipped tile? 
+
+   Actually, the problem does not specify the behavior for more than two face up. 
+
+   Since the problem says "dos", I think we are to assume that we are only comparing the two that were flipped in the last two moves? 
+
+   But that would be a different game. 
+
+   After careful thought, I think the intended behavior is the typical memory game:
+		- The player clicks on a tile: it flips. 
+		- Then the player clicks on another tile: it flips. 
+		- Then if they match, they stay face up and the move count is 2 (for the two clicks). 
+		- If they don't match, they are flipped back after 1 second and the move count is 2.
+
+   But the problem says: "Al hacer click en una carta" (one click) and then "Si se destapan dos" (two). 
+
+   How can we have two flipped from one click? 
+
+   I think the problem might be translated and the intended meaning is:
+		- The player makes a move by clicking on one tile. 
+		- Then, if there are two tiles that are face up and they don't match, they are flipped back after 1 second. 
+
+   But that doesn't specify which two. 
+
+   Given the ambiguity, I will implement the typical memory game:
+
+		We have a board of 4x4, all face down.
+		We have a list of 8 pairs of emojis (so 16 emojis, each pair has two identical emojis).
+
+		Steps:
+		  - We assign the emojis to the board randomly? or in a fixed pattern? The problem doesn't specify, so we can do fixed or random. 
+			But the problem says "16 cartas con 8 pares de emojis de animales", so we have 8 pairs. We'll assign them in a fixed pattern for simplicity.
+
+		  - We'll have a variable `flipFirst` to remember the first tile of the current move? 
+			But the problem says each click is a move. 
+
+		Actually, in the typical game, a move consists of two clicks. 
+
+		How to reconcile with the problem? 
+		  The problem says: "Un contador con id="moves" cuenta los intentos." and "Al hacer click en una carta" (each click). 
+
+		So we must count each click as a move. 
+
+		Therefore, we design:
+
+		  - On a click on a face down tile:
+				- Flip it to face up. 
+				- Increment the move count.
+				- Then, check if there is another face up tile (anywhere) with the same emoji. 
+					- If there is, then we have a match. We remove both from the board (or mark them as matched and they remain face up). 
+					- And we do not set a timer because they are matched.
+				- If there isn't, then we set a timer for 1 second. After 1 second, we flip back the tile we just flipped? 
+					But note: there might be other face up tiles? 
+
+		  However, the problem says "Si se destapan dos que no coinciden", meaning two that are flipped and don't match. 
+
+		  So we must flip back two? 
+
+		  How do we know which two? 
+
+		  Actually, we just flipped one. The other one must be one that was already face up? 
+
+		  So we can do:
+				- We maintain a list of currently face up tiles that are not matched. 
+				- When we flip a tile, we add it to the list. 
+				- Then we check: if there is another tile in the list with the same emoji, then we remove both from the list (and they are matched). 
+				- Otherwise, we set a timer for 1 second. After 1 second, we flip back the tile we just flipped? 
+					But the problem says "dos", so we must flip back two? 
+
+		  But note: the list might have more than two? 
+
+		  The problem doesn't specify. 
+
+		  Given the ambiguity, I will assume that the game is played such that at most two tiles are face up at the same time? 
+
+		  How? 
+			- We can enforce that the player must click on a face down tile. 
+			- And after a match, we remove the two matched tiles from the active board? 
+
+		  But the problem doesn't say remove, it says they remain face up. 
+
+		  So we can have multiple face up tiles? 
+
+		  However, the problem says: "Si se destapan dos que no coinciden", meaning two that are flipped and don't match. 
+
+		  So if we have more than two face up, we might have multiple pairs that don't match? 
+
+		  This is getting complicated. 
+
+   After reading the problem again: 
+		"Al cargar, las cartas estan BOCA ABAJO: no se ve su emoji. Al hacer click en una carta se destapa y se ve su emoji. Si se destapan dos que no coinciden, tras un segundo se vuelven a tapar."
+
+   It doesn't specify the behavior for more than two. 
+
+   I think the intended behavior is that we only have two tiles face up at a time? 
+
+   How? 
+		- The player clicks on a tile: it flips. 
+		- Then the player clicks on a second tile: it flips. 
+		- Then we check: if they match, they stay. 
+		- If they don't match, they are flipped back after 1 second. 
+
+   And then the next move starts. 
+
+   So we can design:
+
+		- We have a state variable `waitingForSecond` that is set to the first flipped tile after the first click. 
+		- When a tile is clicked:
+			- If `waitingForSecond` is not None, then we are in the middle of a move (which consists of two clicks). 
+				- Then we flip the second tile. 
+				- Then we check if the two flipped tiles (the one in `waitingForSecond` and the current one) match. 
+					- If they match, then we set `waitingForSecond` to None and they remain face up. 
+					- If they don't match, then we set a timer for 1 second to flip both back. 
+			- If `waitingForSecond` is None, then we set `waitingForSecond` to the current tile and flip it.
+
+		- But note: the problem says each click is a move. So we count each click. 
+
+		- Also, we must not allow clicking on a face up tile? 
+
+		- Steps for a click:
+			- If the tile is face up, then we skip? (or the problem doesn't say, so we can skip) 
+			- Else:
+				- Flip it to face up.
+				- If `waitingForSecond` is None, then set `waitingForSecond` to this tile.
+				- Else:
+					- We have two tiles: `waitingForSecond` and the current tile.
+					- Check if they have the same emoji.
+						- If yes, then we set `waitingForSecond` to None (and they remain face up).
+						- If not, then we set a timer for 1 second. After 1 second, we flip both back to face down and set `waitingForSecond` to None.
+
+		- But what if the player clicks on a tile that is already face up? We skip.
+
+		- Also, after a match, we remove the two tiles from the active board? 
+			- The problem doesn't say remove, so they remain face up. 
+			- But then they are not clickable anymore? 
+
+		- So we can mark them as matched and then skip them in future clicks.
+
+   However, the problem says: "Al hacer click en una carta" meaning a face down card? 
+
+   So we only allow clicking on face down cards. 
+
+   Therefore, we can have:
+
+		- Each tile has a state: 
+			- 'face_down'
+			- 'face_up'
+			- 'matched' (which is a special face up that is not clickable)
+
+		But the problem doesn't say we have a matched state. It says when matched, they remain face up. 
+
+		So we can have:
+			- 'face_down': not visible, clickable.
+			- 'face_up': visible, but if they are part of a matched pair, they remain face up and are not clickable? 
+			- But the problem doesn't say they are not clickable. 
+
+		However, if they are face up and not matched, they are still clickable? 
+
+		But that would be confusing. 
+
+		Let me re-read: 
+			"Al hacer click en una carta" -> the word "carta" might imply a face down card? 
+
+		We'll assume that only face down cards are clickable. 
+
+		So when a card is face up (whether matched or not) it is not clickable? 
+
+		But note: if two are face up and not matched, they are still face up and we are going to flip them back after 1 second. 
+
+		So during that 1 second, they are face up and should not be clicked? 
+
+		We can mark them as 'unmatched_face_up' and then after 1 second flip them to face down. 
+
+		But the problem doesn't specify. 
+
+   Given the complexity, I will implement the following:
+
+		We have a 4x4 grid. Each cell is an object with:
+			- state: one of ['face_down', 'face_up', 'matched'] 
+			- emoji: the character to display when face up.
+
+		We also have:
+			- moves: a counter for the number of clicks (each click on a face down tile counts).
+			- waitingForSecond: the coordinates of the first tile flipped in the current move, or None if we are not in the middle of a move.
+
+		Steps on click on a tile (i, j):
+			- If the tile is not face down, then do nothing (return).
+			- Else:
+				- Flip the tile to face up.
+				- moves += 1
+				- If waitingForSecond is None:
+					- set waitingForSecond = (i, j)
+				- Else:
+					- Let tile1 = the tile at waitingForSecond
+					- Let tile2 = the tile at (i, j)
+					- If tile1.emoji == tile2.emoji:
+						 - Mark both tiles as 'matched' (so they remain face up and are not clickable).
+						 - waitingForSecond = None
+					- Else:
+						 - We set a timer for 1 second. 
+						 - After 1 second, we flip both tile1 and tile2 back to face down and set waitingForSecond to None.
+
+		But note: what if during the 1 second timeout, the user clicks again? 
+			- We are in a state where we have two face up tiles that are not matched. 
+			- We should not allow any clicks during this timeout? 
+
+		However, the problem doesn't specify. 
+
+		We can do:
+			- During the timeout, we disable the board (so no clicks are allowed). 
+			- After the timeout, we flip them back and then enable the board.
+
+		But the problem doesn't say. 
+
+		Alternatively, we can allow clicks during the timeout? 
+			- But then we might have more than two face up? 
+
+		Given the problem says "Si se destapan dos que no coinciden", it implies that we are only concerned with the two that were just flipped. 
+
+		So we can allow clicks on other face down tiles during the timeout? 
+
+		However, the two that are currently face up and unmatched are still face up and should not be clicked? 
+
+		We'll mark them as 'unmatched_face_up' and then after the timeout, flip them to face down. 
+
+		And during the timeout, we do not allow clicks on these two tiles? 
+
+		But the problem doesn't specify. 
+
+		To keep it simple, I will assume that during the timeout, the board is frozen and no clicks are allowed. 
+
+		We can set a flag `inTimeout` and when the timeout expires, we flip them back and reset the flag.
+
+		Steps for the timeout:
+			- When we set the timeout, we set `inTimeout = True` and remember the two tiles to flip back.
+			- After 1 second, we flip both tiles back to face down and set `inTimeout = False`.
+
+		And during `inTimeout`, we ignore any click events.
+
+   However, the problem doesn't specify that the board is frozen. 
+
+   Given the ambiguity, I will implement the following simpler version:
+
+		We do not allow more than one pair of unmatched face up tiles at a time. 
+		And during the timeout, we do not process any clicks.
+
+   But note: the problem says "cada intento" meaning each attempt (click) is counted. 
+
+   So if we are in a timeout, and the user clicks, should we count it? 
+
+   The problem doesn't say. 
+
+   I think we should not count clicks during the timeout because the problem says "Al hacer click en una carta" and during the timeout the two unmatched cards are face up and not considered "carta" (face down card). 
+
+   So we can ignore clicks during the timeout.
+
+   Implementation:
+
+		We'll have:
+			- board: a 4x4 list of dictionaries or objects. We can use a list of lists of dictionaries or a class. 
+			- moves: an integer counter.
+			- waitingForSecond: (i, j) or None.
+			- inTimeout: boolean, and a variable to remember which two tiles are in timeout? 
+
+		Alternatively, we can use a queue for the unmatched face up tiles? 
+
+		But we are only allowing one pair at a time? 
+
+		Actually, we are only flipping two at a time. 
+
+		So we can do:
+
+			- When we flip the second tile and they don't match, we set:
+				  inTimeout = True
+				  timeoutTiles = [tile1, tile2]   # the two tiles that are unmatched
+
+			- Then after 1 second, we flip both back to face down and set inTimeout = False.
+
+		And during inTimeout, we ignore click events.
+
+   But what if the user clicks on a different face down tile during the timeout? 
+		- We are ignoring it. 
+
+   This might be acceptable.
+
+   However, the problem doesn't specify. 
+
+   Given the complexity, I will implement the typical memory game with two clicks per move and a timeout for mismatches, and during the timeout the board is frozen.
+
+   Steps:
+
+		moves = 0
+		waitingForSecond = None
+		inTimeout = False
+		timeoutTimeout = None   # the timer
+
+		For each click event on a tile (i, j):
+			if inTimeout: 
+				return   # ignore
+
+			if board[i][j]['state'] != 'face_down':
+				return   # already face up or matched, skip
+
+			# Flip the tile to face up
+			board[i][j]['state'] = 'face_up'
+			moves += 1
+
+			if waitingForSecond is None:
+				waitingForSecond = (i, j)
+			else:
+				# We have a second tile
+				i1, j1 = waitingForSecond
+				i2, j2 = i, j
+				tile1 = board[i1][j1]
+				tile2 = board[i2][j2]
+
+				if tile1['emoji'] == tile2['emoji']:
+					# Match!
+					# Mark both as matched
+					board[i1][j1]['state'] = 'matched'
+					board[i2][j2]['state'] = 'matched'
+					waitingForSecond = None
+				else:
+					# No match: set a timeout to flip them back
+					inTimeout = True
+					# Remember these two tiles
+					timeoutTiles = [(i1, j1), (i2, j2)]
+					# Schedule a timeout
+					timeoutTimeout = setTimeout(flipBack, 1000)   # 1000 milliseconds
+
+				# Reset waitingForSecond to None because we've processed the second click
+				waitingForSecond = None
+
+		The flipBack function:
+			def flipBack():
+				for (i, j) in timeoutTiles:
+					board[i][j]['state'] = 'face_down'
+				inTimeout = False
+				# Also, we need to clear the timeoutTimeout? 
+				# But we are using a single timeout at a time, so we can set timeoutTimeout = None
+
+		However, note: what if during the timeout, we set another timeout? 
+			- We are only allowing one timeout at a time. 
+
+		But we are setting inTimeout = True and then when we get a second click during the timeout, we ignore. 
+
+		And when the timeout expires, we flip back and set inTimeout = False.
+
+   But note: the problem says "cada intento" (each click) is counted. 
+		- In this design, we count the first click and the second click as two moves. 
+
+   This matches the problem: each click is a move.
+
+   However, the problem says: "Si se destapan dos que no coinciden" meaning two that are flipped and don't match. 
+		- In our design, we flip two tiles (the first and the second) and then if they don't match, we flip them back. 
+
+   So it matches.
+
+   Now, the emojis: we have 8 pairs of animal emojis. 
+		We can use a list of 8 emojis, and then duplicate each one to form 16. 
+
+   We'll assign them to the board in a fixed pattern? or randomly? 
+		The problem doesn't specify. 
+
+   We'll do fixed for simplicity. 
+
+   We can assign by row:
+
+		Row0: [0,0,1,1]
+		Row1: [2,2,3,3]
+		Row2: [4,4,5,5]
+		Row3: [6,6,7,7]
+
+   But then the board is:
+
+		0 0 1 1
+		2 2 3 3
+		4 4 5 5
+		6 6 7 7
+
+   But that is not shuffled. 
+
+   We can shuffle the pairs? 
+
+   However, the problem doesn't require randomness. 
+
+   We'll do fixed for now.
+
+   Emojis: we can use:
+		['🐶', '🐱', '👥', '👥', ...] but we need 8 distinct pairs.
+
+   Let me choose 8 distinct animal emojis:
+
+		🐶, 🐤, 🐼, 🐯, 🐃, 🐉, 🐍, 🐏
+
+   But note: we need pairs, so we'll have two of each.
+
+   We can create a list of 16 emojis:
+
+		emojis = ['🐶', '🐶', '🐱', '🐱', '👥', '👥', ...] 
+
+   But wait, the problem says "animales", so we should use animal emojis. 
+
+   Let me use:
+
+		['🐶', '🐱', '👥', '👥', ...] -> but '👥' is not an animal.
+
+   We'll use only animal emojis:
+
+		We can use: 
+			🐶, 🐤, 🐼, 🐯, 🐃, 🐉, 🐍, 🐏
+
+		Then duplicate each: 
+			['🐶','🐶','🐱','🐱','熊','熊','羊','羊','牛','牛','猪','猪','鸡','鸡','鸭','鸭'] -> but we need emojis.
+
+   Actually, we can use:
+
+		['🐶', '🐶', '🐱', '🐱', '熊', '熊', '羊', '羊', '牛', '牛', '猪', '猪', '鸡', '鸡', '鸭', '鸭']
+
+   But the problem says emojis, so we should use the emoji characters. 
+
+   We can use:
+
+		['🐶', '🐶', '🐱', '🐱', '熊', '熊', '羊', '羊', '牛', '牛', '猪', '猪', '鸡', '鸡', '鸭', '鸭']
+
+   But note: the problem says "8 pares de emojis de animales", so we have 8 distinct animal emojis, each appearing twice.
+
+   We'll use:
+
+		animal_emojis = [
+			'🐶',  # dog
+			'🐱',  # cat
+			'熊',   # bear (in Chinese, but it's an emoji? not exactly, but for the sake of the example)
+			'羊',   # sheep
+			'牛',   # cow
+			'猪',   # pig
+			'鸡',   # chicken
+			'鸭'	# duck
+		]
+
+   But these are not standard emojis. 
+
+   Alternatively, we can use the standard emojis from the set:
+
+		🐶, 🐤, 🐼, 🐯, 🐃, 🐉, 🐍, 🐏
+
+   But note: 🐼 is a bear, 🐯 is a goat, 🐃 is a sheep, 🐉 is a pig, 🐍 is a cow, 🐏 is a cow? 
+
+   Actually, let me check:
+
+		🐶: dog
+		🐱: cat
+		熊: bear (Chinese character, not emoji)
+		... 
+
+   We should use the official emojis. 
+
+   I found: 
+		🐶, 🐤, 🐼, 🐯, 🐃, 🐉, 🐍, 🐏
+
+   But note: 
+		熊 (bear) is 🐼
+		羊 (sheep) is 🐯
+		牛 (cow) is 🐍
+		猪 (pig) is 🐉
+		鸡 (chicken) is not a standard emoji? 
+		鸭 (duck) is not a standard emoji? 
+
+   We can use:
+
+		['🐶', '🐱', '熊', '羊', '牛', '猪', '鸡', '鸭'] -> but these are not all emojis.
+
+   Alternatively, we can use:
+
+		['🐶', '🐱', '熊', '羊', '牛', '猪', '鸡', '鸭'] and hope the browser displays them? 
+
+   But the problem says " emojis", so we should use the official emojis.
+
+   I found a list: 
+		https://emojipedia.org/
+
+   We can use:
+
+		🐶, 🐤, 🐼, 🐯, 🐃, 🐉, 🐍, 🐏
+
+   But note: 
+		熊 (bear) is 🐼
+		羊 (sheep) is 🐯
+		牛 (cow) is 🐍
+		猪 (pig) is 🐉
+		... and

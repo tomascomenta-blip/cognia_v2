@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculadora</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #222;
+        }
+        .calculator {
+            width: 300px;
+            padding: 20px;
+            border-radius: 15px;
+            background: #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #pantalla {
+            width: 100%;
+            height: 60px;
+            font-size: 2em;
+            text-align: right;
+            padding: 10px;
+            margin-bottom: 20px;
+            background: #444;
+            border-radius: 10px;
+            color: white;
+        }
+        .teclas {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .tecla {
+            padding: 20px;
+            font-size: 1.5em;
+            border: none;
+            border-radius: 10px;
+            background: #555;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.3s;
+        }
+        .tecla:active {
+            transform: scale(0.95);
+            background: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div id="pantalla"></div>
+        <div class="teclas">
+            <button class="tecla" data-t="7">7</button>
+            <button class="tecla" data-t="8">8</button>
+            <button class="tecla" data-t="9">9</button>
+            <button class="tecla" data-t="/">÷</button>
+            
+            <button class="tecla" data-t="4">4</button>
+            <button class="tecla" data-t="5">5</button>
+            <button class="tecla" data-t="6">6</button>
+            <button class="tecla" data-t="*">×</button>
+            
+            <button class="tecla" data-t="1">1</button>
+            <button class="tecla" data-t="2">2</button>
+            <button class="tecla" data-t="3">3</button>
+            <button class="tecla" data-t="-">-</button>
+            
+            <button class="tecla" data-t="0">0</button>
+            <button class="tecla" data-t=".">.</button>
+            <button class="tecla" data-t="+">+</button>
+            <button class="tecla" data-t="=">=</button>
+        </div>
+    </div>
+
+    <script>
+        const pantalla = document.getElementById('pantalla');
+        let expresion = '';
+
+        document.querySelectorAll('.tecla').forEach(tecla => {
+            tecla.addEventListener('click', () => {
+                const valor = tecla.getAttribute('data-t');
+                
+                if (valor === '=') {
+                    try {
+                        expresion = eval(expresion);
+                        pantalla.textContent = expresion;
+                        expresion = '';
+                    } catch (e) {
+                        pantalla.textContent = 'Error';
+                        expresion = '';
+                    }
+                } else if (valor === '.') {
+                    expresion += valor;
+                    pantalla.textContent = expresion;
+                } else {
+                    expresion += valor;
+                    pantalla.textContent = expresion;
+                }
+            });
+        });
+
+        // Animación de entrada
+        pantalla.style.opacity = 0;
+        pantalla.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            pantalla.style.transition = 'all 0.5s ease';
+            pantalla.style.opacity = 1;
+            pantalla.style.transform = 'translateY(0)';
+        }, 300);
+
+        // Animación de botones
+        document.querySelectorAll('.tecla').forEach((boton, index) => {
+            boton.style.opacity = 0;
+            boton.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                boton.style.transition = 'all 0.3s ease';
+                boton.style.opacity = 1;
+                boton.style.transform = 'scale(1)';
+            }, 500 + index * 50);
+        });
+    </script>
+</body>
+</html>

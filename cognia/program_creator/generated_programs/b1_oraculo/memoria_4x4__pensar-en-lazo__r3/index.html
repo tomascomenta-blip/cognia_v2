@@ -1,0 +1,675 @@
+<think>
+We are creating a 4x4 memory game with 16 cards (8 pairs) of animal emojis.
+ The page will have a 4x4 grid of cards. Each card is initially face down (so we see a back side, which we can represent with a placeholder).
+ When a card is clicked, it flips to show the emoji. If two cards are flipped and they don't match, they are flipped back after a delay (1 second).
+ We need a counter (with id="moves") that counts the number of moves (clicks) made.
+
+ Steps:
+ 1. We'll create an HTML structure with a 4x4 grid of tiles. Each tile is a div with class "tile".
+ 2. Each tile has an attribute "data-value" that holds the emoji string for that card. We'll have 8 pairs of the same emojis.
+ 3. We'll use JavaScript to:
+	- Track the current state of the game (which tiles are flipped, how many moves, etc.)
+	- When a tile is clicked, flip it to show the emoji. If it's the first click of a pair, remember it. If the second click matches, remove both (or mark as matched) and then check for a win condition? (But the problem doesn't require win condition, just the flipping and counting moves).
+	- If two flipped tiles don't match, wait for 1 second and then flip them back.
+ 4. We'll have a counter element (with id="moves") that increments on every click (but note: we don't want to count the flips back? The problem says "cada intento" meaning each click. So every time a tile is clicked, we increment the move count).
+
+ Implementation details:
+  - We'll have an array of 8 emojis (animal faces). We can use a list of strings for the emojis.
+  - We'll create a 4x4 grid and assign each tile an emoji randomly? But the problem says 8 pairs. So we need exactly two of each. We can create a list of 16 items: 8 pairs (each pair repeated twice). Then shuffle the list and assign to the grid.
+
+ However, note: the problem says "16 cartas con 8 pares de emojis de animales". So we have 8 distinct emojis, each appearing twice.
+
+ Steps in code:
+  a. Define the list of emojis (8 distinct ones).
+  b. Create a list of 16 items: each emoji repeated twice.
+  c. Shuffle the list to randomize the positions.
+
+ But note: the problem does not require randomness? It just says 8 pairs. We can do random to make it a game.
+
+ However, the problem says "Write complete, self-contained HTML pages with inline CSS and JavaScript and no external resources."
+
+ We'll do:
+
+  HTML:
+	- A container for the grid (div with class "grid")
+	- Inside, 16 tiles (div with class "tile") arranged in 4 rows and 4 columns.
+
+  CSS:
+	- Style the grid: 4x4, each tile is a square, face down (so we show a back image or a placeholder). We can use a background image for the back? But the problem says "boca abajo", so we can have a class for face down and face up.
+
+  JavaScript:
+	- We'll have a variable to track the current state of the board (which tiles are flipped, and which are matched).
+	- We'll have a variable `moves` that starts at 0 and increments on every click.
+	- We'll have a variable `activePair` to remember the first tile of a pair that was clicked and is still open.
+
+  How it works:
+	- Initially, all tiles are face down (class "tile" with class "face-down" or just without "face-up").
+	- When a tile is clicked:
+		* If it is already face up, ignore? (But the problem doesn't say, but typically you can only click face down. So we can skip if it's already face up? Or the problem says "destapar", so only face down can be clicked. So we can check: if the tile is face down, then flip it to face up and then check for a match.)
+		* Flip the tile (remove "face-down" and add "face-up", or toggle classes).
+		* Then, if there is no active pair, set the current tile as active (store its index and the emoji).
+		* If there is an active pair, then check if the current tile matches the active pair's tile.
+			- If it matches, then remove the active pair (mark both as matched? or just leave them face up and then we don't flip them back) and reset active pair to null. Also, we don't flip them back because they are matched.
+			- If it doesn't match, then we wait for 1 second and then flip both the active pair and the current tile back to face down. And then reset active pair to null.
+
+	However, note: the problem says "Si se destapan dos que no coinciden, tras un segundo se vuelven a tapar." So we have to flip them back after 1 second.
+
+	We can use a timeout to flip them back.
+
+  Steps in code for a click:
+
+	if (tile is face down) {
+		flip it to face up (remove class "face-down", add "face-up")
+		moves++
+
+		if (activePair is null) {
+			activePair = {
+				index: current tile index,
+				emoji: current tile's emoji
+			}
+		} else {
+			if (activePair.emoji == current tile's emoji) {
+				// match!
+				// remove the activePair tile and the current tile from being active? and mark them as matched?
+				// We can set both to a state that they are matched and won't be flipped again? But the problem doesn't say we remove them. We just leave them face up? And then they are out of the game? Actually, in memory games, matched pairs are removed or left face up and then the next pairs are found.
+
+				// We'll mark them as matched by setting a class "matched" or just leave them face up? And then we reset activePair to null.
+
+				// But note: we don't want to flip them back. So we just leave them face up and set activePair to null.
+
+				// Also, we can remove the activePair and the current tile from the active set.
+
+				// However, we don't have a list of matched tiles? We can just set activePair to null and then the next click will start a new active pair.
+
+				// But we must remember that these two tiles are now matched and should not be flipped again? Actually, we can leave them face up and they are out of the game. So we can set a class "matched" and then when clicking, skip if matched.
+
+				// Alternatively, we can remove them from the board? But the problem doesn't specify. We'll leave them face up and then they are not clickable? We can set a class "matched" and then in the click event, if the tile has class "matched", we skip.
+
+				// So we do:
+				//   Mark both the activePair tile and the current tile as matched (add class "matched").
+				//   Then set activePair to null.
+
+				// How to get the activePair tile? We stored its index. So we can get the tile by index and mark it as matched.
+
+				// Also, we need to remove the activePair from the active state.
+
+				// Then, we can also check if all pairs are matched? But the problem doesn't require that.
+
+			} else {
+				// no match: we set a timeout to flip both back after 1 second.
+				// We remember the two tiles: activePair tile and current tile.
+				// We set a timeout to flip both back to face down and then reset activePair to null.
+
+				// But note: we must also remove the activePair from the active state? We are going to flip them back and then set activePair to null.
+
+				// So we do:
+				//   Set a timeout (1000 ms) to flip both tiles back to face down and then set activePair to null.
+
+				// However, what if during the timeout, another click happens? We must prevent that? Actually, we can set activePair to a temporary state? Or we can just flip them back and then set activePair to null.
+
+				// But note: during the timeout, if the user clicks again, we should not start a new active pair until the timeout is done? Actually, we can set activePair to a special state (like "pending") to indicate that we are waiting? Or we can just flip them back and then set activePair to null, and then the next click will work.
+
+				// However, the problem says: after one second, they are flipped back. So during that second, the board has two extra face up tiles. And if the user clicks again, we have to handle it? But the problem doesn't specify. We'll assume that the user can click again and we have to handle it.
+
+				// So we do:
+				//   We set a timeout to flip both back and then set activePair to null.
+
+				// But note: we must also remove the activePair from the active state? We are going to flip them back and then set activePair to null.
+
+				// However, we must also consider: what if the activePair tile is clicked again during the timeout? It shouldn't be because it's face up? But we are going to flip it back? Actually, during the timeout period, the tile is still face up. So we must prevent it from being clicked? Or we can just let it be clicked? But if it's clicked again, we have to handle it? That would be an error because it's already face up? So we should avoid that.
+
+				// We can set a flag that during the timeout, we are in a "cooldown" for these two tiles? But the problem doesn't specify.
+
+				// Alternatively, we can set the activePair to a state that we are waiting, and then when the timeout happens, we flip them back and set activePair to null.
+
+				// We'll do:
+				//   activePair = { ... }  (we are going to use the same activePair for the two tiles? Actually, we have two tiles: the activePair tile and the current tile. We need to remember both until the timeout.
+
+				//   We can store both indices in the activePair? Or we can store the two tiles.
+
+				//   Let me change: when we have an activePair, we store the first tile. Then when we get a second tile that doesn't match, we remember both and then set a timeout to flip them back.
+
+				//   So we can have:
+				//		activePair = {
+				//			firstIndex: ...,
+				//			secondIndex: ...   // but we don't have the second until we get it?
+				//		}
+
+				//   Actually, we can do:
+
+				//		if (activePair exists) {
+				//			if (current tile matches activePair's tile) {
+				//				// match: mark both as matched and set activePair to null.
+				//			} else {
+				//				// no match: remember both indices and set a timeout to flip them back and then set activePair to null.
+				//				let timeout = setTimeout(flipBack, 1000, activePair.index, currentTileIndex);
+				//				// and then set activePair to null? But during the timeout, we don't want to start a new active pair? Actually, we can set activePair to null immediately? But then if the user clicks again during the timeout, we might start a new active pair? That's acceptable? Because the two tiles we are about to flip back are still face up? So we have to prevent them from being clicked? Or we can just let them be clicked? But if they are clicked again, we have to flip them back? That would be an error.
+
+				//   Alternatively, we can set activePair to a special state (like "pending") and then when the timeout happens, we flip them back and set activePair to null.
+
+				//   But note: the problem says that after one second they are flipped back. So during that second, they are still face up and can be clicked? That would be confusing. So we should avoid that.
+
+				//   We can set a flag that the board is in a "pending" state? And during that state, we don't start a new active pair? But we can still have other tiles clicked? Actually, the problem doesn't specify.
+
+				//   Let me re-read: "Si se destapan dos que no coinciden, tras un segundo se vuelven a tapar." It doesn't say anything about other clicks. So we assume that during that second, the user can click other tiles? But that would be bad because the two unmatched tiles are still face up and might be clicked again? We don't want that.
+
+				//   We can mark the two tiles as "pending" and then when the timeout happens, we flip them back. And during the timeout, if a tile is clicked and it is one of these two, we ignore? Or we can set a class "pending" and then in the click event, if the tile has class "pending", we skip? But then we have to remove the class when we flip them back.
+
+				//   Alternatively, we can set the activePair to a state that we are waiting and then when the timeout happens, we flip them back and set activePair to null. And during the waiting, we don't start a new active pair? But we can still have other tiles clicked? That would be acceptable? Because the two unmatched tiles are still face up and we don't want them to be clicked again? So we can set a flag that the board is in a "cooldown" for these two tiles? But we don't want to prevent other tiles from being clicked.
+
+				//   Actually, we can do: when we have two unmatched tiles, we set a timeout to flip them back. And during that timeout, if a tile is clicked, we check if it is one of these two? If yes, we ignore? But that complicates.
+
+				//   Another idea: we can set the two tiles to a state "pending" and then when the timeout happens, we flip them back and remove the pending state. And in the click event, if the tile is pending, we skip.
+
+				//   We'll do:
+
+				//		When we have a match, we mark both as "matched" and set activePair to null.
+
+				//		When we have a mismatch, we set a timeout to flip them back. And we mark both tiles as "pending" (so they are not clickable during the timeout). Then when the timeout happens, we flip them back and remove the "pending" state and set activePair to null.
+
+				//   But note: we don't want to mark them as "pending" for the entire game? Only during the timeout.
+
+				//   We can add a class "pending" to both tiles? Then in the click event, if the tile has class "pending", we skip.
+
+				//   Steps for mismatch:
+				//		- Mark both tiles (activePair tile and current tile) as "pending" (add class "pending").
+				//		- Set a timeout to:
+				//			 remove the class "pending" and class "face-up" and add class "face-down" for both tiles.
+				//			 then set activePair to null.
+				//		- And then set activePair to null? But we are going to set it to null in the timeout? Actually, we can set it to null immediately? Because we are going to flip them back and then set activePair to null? But during the timeout, we don't want to start a new active pair? Actually, we can set activePair to null immediately? Because the two tiles are pending and won't be clicked? And other tiles can be clicked? But if we set activePair to null, then the next click will start a new active pair? That is acceptable.
+
+				//   So:
+				//		activePair = null   // immediately after setting the timeout? But then the next click will start a new active pair? Yes.
+
+				//   However, we must remember the two tiles for the timeout? We can store them in the timeout function.
+
+				//   We'll do:
+
+				//		let tile1 = the activePair tile (by index)
+				//		let tile2 = the current tile (by index)
+
+				//		// Mark both as pending and face up? They are already face up? We just add the pending class.
+				//		// Then set a timeout to flip them back and remove pending.
+
+				//		// But note: we don't want to flip them back until the timeout? So we set the timeout.
+
+				//		// We can write a function that flips two tiles (by index) back to face down and removes the pending class.
+
+				//		// Also, we set activePair to null.
+
+				//   So:
+
+				//		activePair = null   // we set it to null so that the next click will start a new active pair.
+
+				//		// But we must remember the two tiles for the timeout? We can pass them to the timeout function.
+
+				//		let timeout = setTimeout(() => {
+				//			// flip both tiles back to face down and remove pending class.
+				//			tiles[activePair_index].classList.remove('face-up');
+				//			tiles[activePair_index].classList.add('face-down');
+				//			tiles[activePair_index].classList.remove('pending');
+				//			// same for current tile index
+				//			tiles[current_index].classList.remove('face-up');
+				//			tiles[current_index].classList.add('face-down');
+				//			tiles[current_index].classList.remove('pending');
+				//		}, 1000);
+
+				//   But note: we have to store the two indices? We can store them in the closure.
+
+				//   Alternatively, we can store the two tiles in the activePair? But we set activePair to null.
+
+				//   We can do:
+
+				//		let tile1 = activePair_tile (we have the index from activePair)
+				//		let tile2 = current_tile_index
+
+				//		// Then set the timeout with these two indices.
+
+				//   So:
+
+				//		let timeout = setTimeout(flipBack, 1000, tile1, tile2);
+
+				//   And then define flipBack as a function that takes two indices.
+
+				//   But we can also do without a function:
+
+				//		let tile1 = activePair.index;
+				//		let tile2 = currentTileIndex;
+
+				//		// Mark both as pending
+				//		tiles[tile1].classList.add('pending');
+				//		tiles[tile2].classList.add('pending');
+
+				//		// Set timeout
+				//		let timeout = setTimeout(() => {
+				//			// Flip both back to face down and remove pending
+				//			tiles[tile1].classList.remove('face-up');
+				//			tiles[tile1].classList.add('face-down');
+				//			tiles[tile1].classList.remove('pending');
+
+				//			tiles[tile2].classList.remove('face-up');
+				//			tiles[tile2].classList.add('face-down');
+				//			tiles[tile2].classList.remove('pending');
+				//		}, 1000);
+
+				//		// Then set activePair to null
+				//		activePair = null;
+
+				//   But note: what if during the timeout, the same tile is clicked again? We have the pending class so we skip? We'll check in the click event: if the tile has class "pending", we skip.
+
+			}
+		}
+	}
+
+  We'll also need to initialize:
+	- The board: 4x4 grid of tiles, each with a data-value for the emoji and initially face down.
+	- The activePair variable: initially null.
+	- The moves counter: initially 0.
+
+  How to represent the tiles?
+	We can have an array of tiles (16 elements) and each tile is a div with:
+		- class "tile"
+		- class "face-down" initially
+		- data-value: the emoji string
+
+	And when flipped, we remove "face-down" and add "face-up", and then we show the emoji? How? We can set the innerHTML to the emoji? Or we can have a background image? But the problem says emojis. We can use the emoji character.
+
+	We can do: each tile has a <span> inside that holds the emoji? But initially, the span is hidden? Or we can have the emoji in the background of the face-down? But that would show the emoji even when face down? We don't want that.
+
+	We can have:
+		<div class="tile face-down">
+			<span class="emoji" data-value=":)" >   <!-- but initially hidden? -->
+		</div>
+
+	But we can also do: when face down, the span is hidden, and when face up, we show it? Or we can set the innerHTML when flipped.
+
+	Alternatively, we can have the emoji as the background image for the face-up state? But the problem says emojis, so we can use the emoji character.
+
+	We'll do:
+
+		Each tile has:
+			- a class "tile"
+			- a class "face-down" initially
+			- an attribute "data-value" with the emoji string.
+
+		And when flipped, we set the innerHTML to the emoji? But we don't have an element for the emoji? We can do:
+
+			<div class="tile" data-value=":)" >
+				<!-- when face down, we show nothing? or a placeholder? -->
+			</div>
+
+		But we need to show the emoji when face up. So we can have:
+
+			<div class="tile face-down" data-value=":)" >
+				<!-- we can have a span that is hidden when face down? -->
+				<span class="show-on-face-up" >:)</span>
+			</div>
+
+		But that would show the emoji even when face down? No, because we can set the span to be hidden when face down? We can use CSS: .tile.face-down .show-on-face-up { display: none; } and .tile.face-up .show-on-face-up { display: block; }
+
+		Alternatively, we can set the innerHTML when we flip the tile? But we have the data-value, so we can set the innerHTML to the data-value? But we don't have an element to set? We can do:
+
+			tile.innerHTML = tile.dataset.value;
+
+		But then when we flip back, we have to set it to an empty string? Or we can store the value and then when flipping back, we set it to empty? But that would work.
+
+		We'll do:
+
+			When flipping a tile to face up: set tile.innerHTML = tile.dataset.value.
+			When flipping back to face down: set tile.innerHTML = ''.
+
+		But note: we have to do that for both the activePair tile and the current tile when they are flipped back.
+
+		However, we can also use a span that we toggle? But the above is simpler.
+
+  Steps for flipping a tile to face up:
+
+		tile.classList.remove('face-down');
+		tile.classList.add('face-up');
+		tile.innerHTML = tile.dataset.value;
+
+  Steps for flipping a tile to face down:
+
+		tile.classList.add('face-down');
+		tile.classList.remove('face-up');
+		tile.innerHTML = '';
+
+  But note: we have to do this for both tiles in the mismatch case.
+
+  We'll create an array of tiles (16) and assign the emojis.
+
+  How to generate the emojis? We'll define a list of 8 distinct emojis.
+
+  Example emojis: 
+	  :dog-face: :cat-face: :t-rex: :unicorn: :koala: :dino: :penguin: :butterfly:
+
+  But note: we need to use valid emojis. We can use the ones from the emoji set.
+
+  We'll use:
+
+	  emojis = [
+		  "🐶",
+		  "🐱",
+		  "🦖",
+		  "🦄",
+		  "🐨",
+		  " dinosaur " -> but we can use :dino: which is 🐧,
+		  "🐧",
+		  "🦋"
+	  ]
+
+  But note: the problem says "animales", so we can use animal faces.
+
+  We'll use:
+
+	  emojis = [
+		  "🐶",  // dog
+		  "🐱",  // cat
+		  "🦄",  // unicorn
+		  "🩬",  // koala? but there isn't a koala emoji? Let me check: there is a koala: 🪧? Actually, we can use the ones that are standard.
+
+	  Alternatively, we can use:
+
+		  "🐶", "🐱", "骥", "🦄", "熊猫", " dinosaur ", ... -> but we need emojis.
+
+	  We can use:
+
+		  "🐶", "🐱", "独角兽", ... -> but we need the actual unicode.
+
+	  Let me list some:
+
+		  Dog: 🐤 (U+1F920) or the dog face: :dog-face: -> U+1F920
+		  Cat: 🐤 (U+1F921)
+		  Monkey: 🐤 (U+1F923) -> but we can use others.
+
+	  We'll use:
+
+		  emojis = [
+			  "🐶",  // U+1F920
+			  "🐱",  // U+1F921
+			  "🦄",  // U+1F92E
+			  "骥",   // but this is not an emoji? We can use unicorn: "🦄"
+			  " panda " -> but not an emoji? We can use the panda emoji: "🐼"
+			  " dinosaur " -> "🦖"
+			  " kangaroo " -> "🦢"
+			  " butterfly " -> "🦋"
+		  ]
+
+	  But we need 8 distinct. Let me list:
+
+		  1. Dog: "🐶"
+		  2. Cat: "🐱"
+		  3. Monkey: "🪧" -> but that's a gorilla? Actually, we can use:
+		  4. Unicorn: "🦄"
+		  5. Panda: "🐼"
+		  6. T-rex: "🦖"
+		  7. Kangaroo: "🦢"
+		  8. Butterfly: "🦋"
+
+	  But note: the problem says "animales", so butterfly is not an animal? But it's an insect. We can replace with a giraffe? "🩣" -> giraffe.
+
+	  So:
+
+		  emojis = [
+			  "🐶", "🐱", "🪧", "🦄", "🐼", "🦖", "🦢", "🩣"
+		  ]
+
+	  But we need to check the unicode:
+
+		  Monkey: 🪧 (U+1F92E) -> actually, that's a gorilla? 
+		  We can use:
+
+			  Monkey: 🪧 (gorilla) -> but it's an animal.
+
+	  We'll use these 8.
+
+  Then, we create a list of 16 items: each emoji repeated twice.
+
+	  pairs = emojis.map(emoji => [emoji, emoji]); // but then we have 8 pairs? Then we flatten and shuffle.
+
+	  Actually, we can do:
+
+		  all_emojis = emojis.map(emoji => [emoji, emoji]).flat(); // this gives 16 items: [e1, e1, e2, e2, ...]
+		  then shuffle.
+
+  How to shuffle? We can use Math.random and sort? Or we can use a random permutation.
+
+	  all_emojis.sort(() => Math.random());
+
+  Then assign to the 16 tiles.
+
+  We'll create the grid:
+
+	  We have a 4x4 grid. We can create an array of 4 rows, each row is an array of 4 tiles.
+
+	  But we can also just create an array of 16 tiles and then arrange them in the grid.
+
+	  We'll create a container div with class "grid", then inside we have rows (divs) and then tiles.
+
+	  We can do:
+
+		  <div class="grid">
+			  <div class="row">...</div>
+			  <div class="row">...</div>
+			  ... 4 times
+		  </div>
+
+	  And each row has 4 tiles.
+
+  We'll generate the HTML for the grid? Or we can create the tiles in the HTML and then assign the data-value by JavaScript? We can do both.
+
+  Since the problem says "complete, self-contained", we can generate the HTML for the grid with placeholders and then assign the data-value and the initial state by JavaScript.
+
+  But we can also generate the entire grid in JavaScript? But the problem says "HTML pages", so we can write the HTML and then use JavaScript to assign the data-value.
+
+  We'll do:
+
+	  We write the HTML for the grid with 16 tiles, each with a unique id? Or we can use an array of tiles and assign by index.
+
+	  We'll create an array `tiles` of 16 tiles (div elements) and then assign the data-value and the initial state.
+
+  Steps:
+
+	  // Define the emojis
+	  const emojis = ["🐶", "🐱", "🪧", "🦄", "🐼", "🦖", "🦢", "🩣"];
+	  // Create a list of 16 items: each emoji twice
+	  const emojiList = emojis.map(emoji => [emoji, emoji]).flat();
+	  // Shuffle the list
+	  emojiList.sort(() => Math.random());
+
+	  // Now, we have 16 emojis in random order.
+
+	  // We have the grid in the HTML? We'll create the grid in the HTML and then assign the data-value by JavaScript.
+
+	  // But we can also generate the grid in JavaScript? The problem says "HTML pages", so we can write the HTML structure and then assign the data-value.
+
+	  // We'll write the HTML for the grid:
+
+		  <div id="grid" class="grid">
+			  <div class="row">
+				  <div class="tile"></div>
+				  <div class="tile"></div>
+				  <div class="tile"></div>
+				  <div class="tile"></div>
+			  </div>
+			  ... 3 more rows
+		  </div>
+
+	  Then, we get all the tiles by:
+
+		  const tiles = document.querySelectorAll('.tile');
+
+	  Then, we assign the data-value:
+
+		  for (i=0 to 15) {
+			  tiles[i].dataset.value = emojiList[i];
+		  }
+
+	  And we set the initial state: all have class "face-down".
+
+  Then, we set up the event listener for clicks.
+
+  We'll also have a counter for moves: we'll create an element with id="moves" and set it to 0.
+
+  Steps for the click event:
+
+	  for each tile in tiles:
+		  tile.addEventListener('click', handleTileClick);
+
+	  function handleTileClick(event) {
+		  const tile = event.target;
+		  if (tile.classList.contains('face-up') || tile.classList.contains('matched')) {
+			  // skip if already face up or matched (matched tiles are left face up and we don't want to click them again)
+			  return;
+		  }
+		  if (tile.classList.contains('pending')) {
+			  // skip if pending (during the timeout period)
+			  return;
+		  }
+
+		  // Otherwise, it's face down and not pending and not matched.
+
+		  // Flip the tile to face up
+		  tile.classList.remove('face-down');
+		  tile.classList.add('face-up');
+		  tile.innerHTML = tile.dataset.value;
+
+		  // Increment the move counter
+		  moves++;
+
+		  // Now, check activePair
+		  if (activePair === null) {
+			  activePair = {
+				  index: index of this tile (we can get by: Array.from(tiles).indexOf(tile)? But that is O(n). We can store the index in the tile? Or we can use a separate array for the state.
+
+		  We need to know the index of the tile? We can store the index in the tile? Or we can have an array `tileIndex` that maps the tile to an index? Or we can store the activePair as the tile element itself? Then we don't need the index.
+
+		  We can do:
+
+			  activePair = tile;   // store the tile element
+
+		  Then, when we get a second click, we compare the emoji of the current tile with the activePair tile.
+
+		  So:
+
+			  if (activePair) {
+				  if (activePair.dataset.value === tile.dataset.value) {
+					  // match!
+					  // Mark both as matched
+					  activePair.classList.add('matched');
+					  tile.classList.add('matched');
+					  // Reset activePair
+					  activePair = null;
+
+					  // Also, we can remove the activePair tile from being active? We already set it to matched.
+
+				  } else {
+					  // mismatch: we set a timeout to flip both back and mark them as pending? and then remove pending after timeout.
+
+					  // First, mark both as pending
+					  activePair.classList.add('pending');
+					  tile.classList.add('pending');
+
+					  // Remember the two tiles for the timeout
+					  let tile1 = activePair;
+					  let tile2 = tile;
+
+					  // Set a timeout to flip them back and remove pending
+					  setTimeout(() => {
+						  // Flip tile1 back to face down and remove pending
+						  tile1.classList.remove('face-up');
+						  tile1.classList.add('face-down');
+						  tile1.innerHTML = '';
+						  tile1.classList.remove('pending');
+
+						  tile2.classList.remove('face-up');
+						  tile2.classList.add('face-down');
+						  tile2.innerHTML = '';
+						  tile2.classList.remove('pending');
+
+						  // Reset activePair to null
+						  activePair = null;
+					  }, 1000);
+
+					  // And set activePair to null? But we are going to set it to null in the timeout? But we want to reset the activePair immediately so that the next click can start a new active pair? But note: we have set the two tiles to pending, so they won't be clicked again until the timeout. And we set activePair to null? Actually, we set it to null in the timeout? But we want to reset it immediately? Because the next click should not see an active pair.
+
+					  // So we set activePair to null immediately? But then the timeout function will set it to null again? That's okay? Or we can set it to null immediately and then the timeout doesn't touch it.
+
+					  activePair = null;
+
+				  }
+			  } else {
+				  // This should not happen because we set activePair to the tile above? Actually, we set activePair to tile only if it was null? So we don't get here.
+
+				  // Actually, we set activePair to tile in the if (activePair === null) block? So we don't get here.
+
+				  // So we can remove the else.
+
+			  }
+
+		  } else {
+			  // This is the case when activePair is not null? But we set activePair to the tile above? So we don't get here.
+
+		  }
+
+	  }
+
+  But note: we set activePair to the tile only when activePair is null? So the above code for the else (when activePair is not null) is not reached? Actually, we have:
+
+		  if (activePair === null) {
+			  activePair = tile;
+		  } else {
+			  // then we do the match/mismatch check
+		  }
+
+  So we need to restructure:
+
+	  if (activePair === null) {
+		  activePair = tile;
+	  } else {
+		  // Check if the current tile matches the activePair tile
+		  if (activePair.dataset.value === tile.dataset.value) {
+			  // match
+			  activePair.classList.add('matched');
+			  tile.classList.add('matched');
+			  activePair = null;
+		  } else {
+			  // mismatch
+			  // ... as above
+		  }
+	  }
+
+  So the complete handleTileClick:
+
+	  function handleTileClick(event) {
+		  const tile = event.target;
+		  if (tile.classList.contains('face-up') || tile.classList.contains('matched') || tile.classList.contains('pending')) {
+			  return;
+		  }
+
+		  // Flip the tile to face up
+		  tile.classList.remove('face-down');
+		  tile.classList.add('face-up');
+		  tile.innerHTML = tile.dataset.value;
+
+		  moves++;
+
+		  if (activePair === null) {
+			  activePair = tile;
+		  } else {
+			  if (activePair.dataset.value === tile.dataset.value) {
+				  // match
+				  activePair.classList.add('matched');
+				  tile.classList.add('matched');
+				  activePair = null;
+			  } else {
+				  // mismatch
+				  activePair.classList.add('pending');
+				  tile.classList.add('pending');
+
+				  // Remember the two tiles
+				  let tile1 = activePair;
+				  let tile2 = tile;
+
+				  // Set timeout to flip them back
+				  setTimeout(()

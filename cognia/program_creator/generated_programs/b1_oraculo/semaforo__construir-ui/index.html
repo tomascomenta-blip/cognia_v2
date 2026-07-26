@@ -1,0 +1,169 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaforo</title>
+    <style>
+        :root {
+            --color-rojo: #e74c3c;
+            --color-verde: #2ecc71;
+            --color-amarillo: #f1c40f;
+            --color-fondo: #2c3e50;
+            --color-texto: #ecf0f1;
+            --color-botón: #3498db;
+            --color-botón-hover: #2980b9;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--color-fondo);
+            color: var(--color-texto);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .contenedor {
+            position: relative;
+            width: 200px;
+            height: 300px;
+            border-radius: 50%;
+            background-color: #34495e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+
+        #luz {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.5s ease;
+        }
+
+        #luz.rojo {
+            background-color: var(--color-rojo);
+            color: white;
+        }
+
+        #luz.verde {
+            background-color: var(--color-verde);
+            color: white;
+        }
+
+        #luz.ambar {
+            background-color: var(--color-amarillo);
+            color: black;
+        }
+
+        .botón-container {
+            margin-top: 30px;
+        }
+
+        #avanzar {
+            padding: 12px 24px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            background-color: var(--color-botón);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #avanzar:hover {
+            background-color: var(--color-botón-hover);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #avanzar:active {
+            transform: translateY(0);
+        }
+
+        .animar {
+            animation: pulsar 1.5s infinite;
+        }
+
+        @keyframes pulsar {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .mensaje {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-texto);
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <div id="luz" class="animar" data-color="rojo">ROJO</div>
+    </div>
+    <div class="botón-container">
+        <button id="avanzar">Avanzar</button>
+    </div>
+    <div class="mensaje" id="mensaje">Presiona el botón para avanzar el semáforo</div>
+
+    <script>
+        const luz = document.getElementById('luz');
+        const avanzarBtn = document.getElementById('avanzar');
+        const mensaje = document.getElementById('mensaje');
+
+        const colores = ['rojo', 'verde', 'amarillo'];
+        let indice = 0;
+
+        function actualizarLuz() {
+            const color = colores[indice];
+            luz.setAttribute('data-color', color);
+            luz.textContent = color.toUpperCase();
+            mensaje.textContent = `Semaforo en: ${color.toUpperCase()}`;
+            mensaje.style.display = 'block';
+            
+            // Cambiar el estado del botón según el color
+            if (color === 'rojo') {
+                avanzarBtn.disabled = false;
+            } else {
+                avanzarBtn.disabled = true;
+            }
+        }
+
+        function avanzarCiclo() {
+            indice = (indice + 1) % colores.length;
+            actualizarLuz();
+        }
+
+        avanzarBtn.addEventListener('click', avanzarCiclo);
+
+        // Inicializar el semáforo
+        actualizarLuz();
+    </script>
+</body>
+</html>

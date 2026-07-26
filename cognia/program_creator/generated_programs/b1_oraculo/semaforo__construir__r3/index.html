@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaforo</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        #semaforo {
+            width: 100px;
+            height: 300px;
+            background-color: #333;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .luz {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #666;
+        }
+        #luz-rojo {
+            background-color: red;
+        }
+        #luz-verde {
+            background-color: green;
+        }
+        #luz-ambar {
+            background-color: yellow;
+        }
+        #avanzar {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="semaforo">
+        <div id="luz-rojo" class="luz" data-color="rojo"></div>
+        <div id="luz-verde" class="luz" data-color="verde"></div>
+        <div id="luz-ambar" class="luz" data-color="ambar"></div>
+    </div>
+    <button id="avanzar">Avanzar</button>
+
+    <script>
+        const luces = document.querySelectorAll('.luz');
+        const avanzarButton = document.getElementById('avanzar');
+
+        let currentColor = 'rojo';
+
+        function cambiarColor() {
+            luces.forEach(luz => {
+                luz.style.backgroundColor = '#666';
+            });
+
+            const luzActual = document.querySelector(`#luz-${currentColor}`);
+            luzActual.style.backgroundColor = luzActual.dataset.color;
+
+            currentColor = currentColor === 'rojo' ? 'verde' : currentColor === 'verde' ? 'ambar' : 'rojo';
+        }
+
+        avanzarButton.addEventListener('click', cambiarColor);
+
+        // Cambiar color automáticamente al cargar la página
+        cambiarColor();
+    </script>
+</body>
+</html>

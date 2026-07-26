@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Filtered List</title>
+	<style>
+		ul {
+			list-style-type: none;
+			padding: 10px;
+			font-family: sans-serif;
+		}
+		li {
+			margin-bottom: 10px;
+			font-weight: bold;
+			transition: visibility none duration 0.3s;
+		}
+		input {
+			border: 1px solid #ddd;
+			padding: 8px;
+			display: block;
+			text-align: center;
+			width: 100%;
+			margin-top: 20px;
+		}
+	</style>
+	<script>
+		function filterList(searchValue) {
+			let items = document.querySelectorAll('li');
+			if (searchValue.trim() === '') {
+				for (let i = 0; i < items.length; i++) {
+					items[i].style.visibility = 'visible';
+				}
+			} else {
+				let lowerSearch = searchValue.toLowerCase();
+				for (let i = 0; i < items.length; i++) {
+					let text = items[i].textContent;
+					if (text.toLowerCase().includes(lowerSearch)) {
+						items[i].style.visibility = 'visible';
+					} else {
+						items[i].style.visibility = 'hidden';
+					}
+				}
+			}
+		}
+
+		window.onload = function() {
+			filterList('');
+		};
+
+		document.getElementById('buscar').addEventListener('input', function() {
+			filterList(this.value);
+		});
+	</head>
+	<body>
+		<div>
+			<input id="buscar" type="text" placeholder="Search...">
+		</div>
+		<ul>
+			<li class="item">manzana</li>
+			<li class="item">banana</li>
+			<li class="item">cereza</li>
+			<li class="item">datil</li>
+			<li class="item">kiwi</li>
+		</ul>
+	</body>
+</html>

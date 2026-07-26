@@ -1,0 +1,13 @@
+La página web es una interfaz simple y minimalista diseñada para gestionar una lista de tareas. Se compone de tres elementos principales: un campo de entrada de texto, un botón y una lista desordenada vacía.
+
+Al abrir la página, el campo de entrada de texto está vacío y listo para recibir el texto de la nueva tarea. El botón está habilitado y muestra el texto "Añadir". La lista desordenada está vacía, sin elementos visibles.
+
+Cuando el usuario comienza a escribir en el campo de entrada de texto, el contenido del campo se actualiza en tiempo real para reflejar lo que el usuario está escribiendo. El botón permanece habilitado mientras haya texto en el campo de entrada.
+
+Cuando el usuario pulsa el botón "Añadir", se produce una acción que añade un nuevo elemento a la lista desordenada. Este nuevo elemento es un elemento de lista (<li>) con la clase "tarea". El texto del nuevo elemento de lista se establece como el contenido del campo de entrada de texto. Luego, el campo de entrada de texto se vacía automáticamente para que el usuario pueda escribir una nueva tarea.
+
+Si el usuario intenta pulsar el botón "Añadir" sin escribir nada en el campo de entrada de texto, el botón permanecerá deshabilitado y no se añadirá ningún elemento a la lista desordenada.
+
+El diseño de la página es limpio y centrado en la funcionalidad. Los colores y fuentes utilizados son sencillos y atractivos, facilitando la lectura y la interacción del usuario. La lista de tareas se muestra de manera clara y organizada, con cada tarea en una línea separada.
+
+El comportamiento de la página es intuitivo y fácil de usar. El usuario puede añadir tareas de manera rápida y sencilla, simplemente escribiendo el texto de la tarea y pulsando el botón "Añadir". La página responde de manera inmediata a las interacciones del usuario, proporcionando retroalimentación visual y asegurando que el usuario siempre esté al tanto de los cambios en la lista de tareas.

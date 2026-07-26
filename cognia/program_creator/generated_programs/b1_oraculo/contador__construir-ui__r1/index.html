@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador en HTML</title>
+    <style>
+        :root {
+            --color-fondo: #0f0f0f;
+            --color-texto: #ffffff;
+            --color-botones: #ff6b6b;
+            --color-botones-activo: #ff4d4d;
+            --color-animacion: #00ff99;
+            --fondo-animado: linear-gradient(45deg, #0f0f0f, #1a1a1a, #0f0f0f);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--color-fondo);
+            color: var(--color-texto);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .contenedor {
+            background: var(--fondo-animado);
+            background-size: 400% 400%;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0, 255, 153, 0.3);
+            padding: 40px 30px;
+            text-align: center;
+            animation: gradientAnim 10s ease infinite;
+        }
+
+        @keyframes gradientAnim {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: var(--color-texto);
+            text-shadow: 0 0 10px rgba(0, 255, 153, 0.5);
+        }
+
+        #valor {
+            font-size: 5rem;
+            font-weight: bold;
+            margin: 20px 0;
+            color: var(--color-texto);
+            text-shadow: 0 0 15px rgba(0, 255, 153, 0.7);
+            transition: all 0.3s ease;
+        }
+
+        .botones {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--color-botones);
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            background: var(--color-botones-activo);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .boton-menos {
+            background: var(--color-botones);
+        }
+
+        .boton-menos:hover {
+            background: var(--color-botones-activo);
+        }
+
+        .boton-menos:active {
+            transform: translateY(0);
+        }
+
+        .boton-mas {
+            background: var(--color-botones);
+        }
+
+        .boton-mas:hover {
+            background: var(--color-botones-activo);
+        }
+
+        .boton-mas:active {
+            transform: translateY(0);
+        }
+
+        .animacion {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .boton-menos:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .boton-mas:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .boton-menos:disabled:hover {
+            background: var(--color-botones);
+        }
+
+        .boton-mas:disabled:hover {
+            background: var(--color-botones);
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <h1>Contador</h1>
+        <span id="valor">0</span>
+        <div class="botones">
+            <button id="menos" class="boton-menos">-</button>
+            <button id="mas" class="boton-mas">+</button>
+        </div>
+    </div>
+
+    <script>
+        const valor = document.getElementById('valor');
+        const botonMas = document.getElementById('mas');
+        const botonMenos = document.getElementById('menos');
+        let numero = 0;
+
+        function actualizarValor() {
+            valor.textContent = numero;
+            valor.classList.remove('animacion');
+        }
+
+        function agregarAnimacion() {
+            valor.classList.add('animacion');
+        }
+
+        botonMas.addEventListener('click', () => {
+            numero++;
+            agregarAnimacion();
+            actualizarValor();
+        });
+
+        botonMenos.addEventListener('click', () => {
+            if (numero > 0) {
+                numero--;
+                agregarAnimacion();
+                actualizarValor();
+            }
+        });
+
+        // Inicializar el valor
+        actualizarValor();
+
+        // Animación automática al cargar
+        setTimeout(() => {
+            agregarAnimacion();
+        }, 1000);
+    </script>
+</body>
+</html>

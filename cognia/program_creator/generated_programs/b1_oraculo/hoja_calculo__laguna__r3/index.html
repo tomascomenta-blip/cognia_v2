@@ -1,0 +1,146 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Mini Hoja de Cálculo</title>
+  <style>
+    table { border-collapse: collapse; }
+    td { padding: 5px; }
+    input.celda { width: 60px; height: 25px; text-align: center; }
+  </style>
+</head>
+<body>
+  <table>
+    <tr>
+      <td><input type="text" class="celda" data-ref="A1"></td>
+      <td><input type="text" class="celda" data-ref="A2"></td>
+      <td><input type="text" class="celda" data-ref="A3"></td>
+    </tr>
+    <tr>
+      <td><input type="text" class="celda" data-ref="B1"></td>
+      <td><input type="text" class="celda" data-ref="B2"></td>
+      <td><input type="text" class="celda" data-ref="B3"></td>
+    </tr>
+    <tr>
+      <td><input type="text" class="celda" data-ref="C1"></td>
+      <td><input type="text" class="celda" data-ref="C2"></td>
+      <td><input type="text" class="celda" data-ref="C3"></td>
+    </tr>
+  </table>
+
+  <script>
+    const dependencyMap = {};
+    const dependentsMap = {};
+    let evaluating = new Set();
+
+    function parseFormula(formula) {
+      return formula.match(/[A-Z][0-9]+/g) || [];
+    }
+
+    function calculateValue(cell) {
+      const ref = cell.dataset.ref;
+      if (evaluating.has(ref)) return "CIRC";
+      
+      evaluating.add(ref);
+      
+      let expr = cell.value.slice(1);
+      const deps = dependencyMap[ref] || [];
+      
+      for (const depRef of deps) {
+        const depCell = document.querySelector(`[data-ref="${depRef}"]`);
+        if (!depCell) continue;
+        const val = calculateValue(depCell);
+        if (val === "CIRC") {
+          evaluating.delete(ref);
+          return "CIRC";
+        }
+        expr = expr.replace(new RegExp(depRef, 'g'), val);
+      }
+      
+      try {
+        const result = eval(expr);
+        evaluating.delete(ref);
+        return result;
+      } catch (e) {
+        evaluating.delete(ref);
+        return "CIRC";
+      }
+    }
+
+    function updateDependents(cellRef) {
+      const dependents = dependentsMap[cellRef] || [];
+      for (const depCell of dependents) {
+        const newValue = calculateValue(depCell);
+        
+        if (newValue === "CIRC") {
+          depCell.value = "CIRC";
+        } else {
+          depCell.value = String(newValue);
+        }
+        
+        updateDependents(depCell.dataset.ref);
+      }
+    }
+
+    function handleInputChange(cell) {
+      const ref = cell.dataset.ref;
+      const newValue = cell.value;
+      
+      if (newValue.startsWith('=')) {
+        const oldDeps = dependencyMap[ref] || [];
+        const newFormula = newValue.slice(1);
+        const newDeps = parseFormula(newFormula);
+        
+        for (const dep of oldDeps) {
+          if (dependentsMap[dep]) {
+            const index = dependentsMap[dep].indexOf(cell);
+            if (index !== -1) dependentsMap[dep].splice(index, 1);
+          }
+        }
+        
+        for (const dep of newDeps) {
+          if (!dependentsMap[dep]) dependentsMap[dep] = [];
+          dependentsMap[dep].push(cell);
+        }
+        
+        dependencyMap[ref] = newDeps;
+      } else {
+        const oldDeps = dependencyMap[ref] || [];
+        for (const dep of oldDeps) {
+          if (dependentsMap[dep]) {
+            const index = dependentsMap[dep].indexOf(cell);
+            if (index !== -1) dependentsMap[dep].splice(index, 1);
+          }
+        }
+        delete dependencyMap[ref];
+      }
+      
+      updateDependents(ref);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const cells = document.querySelectorAll('.celda');
+      
+      cells.forEach(cell => {
+        const ref = cell.dataset.ref;
+        
+        if (cell.value.startsWith('=')) {
+          const formula = cell.value.slice(1);
+          const deps = parseFormula(formula);
+          dependencyMap[ref] = deps;
+          
+          for (const dep of deps) {
+            if (!dependentsMap[dep]) dependentsMap[dep] = [];
+            dependentsMap[dep].push(cell);
+          }
+        } else {
+          delete dependencyMap[ref];
+        }
+        
+        cell.addEventListener('input', () => handleInputChange(cell));
+      });
+    });
+  </script>
+</body>
+</html>

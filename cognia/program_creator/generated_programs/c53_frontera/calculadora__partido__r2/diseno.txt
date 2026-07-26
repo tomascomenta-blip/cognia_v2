@@ -1,0 +1,13 @@
+La página web es una calculadora simple, compuesta por una pantalla y una serie de botones. La pantalla se representa con un elemento `<div>` que tiene el identificador `pantalla`. Este elemento es donde se mostrará el resultado de las operaciones y los números ingresados por el usuario.
+
+Los botones de la calculadora están representados por elementos `<button>` con la clase `tecla`. Cada botón tiene un atributo `data-t` que contiene el valor que se mostrará en la pantalla o la operación que se realizará. Por ejemplo, un botón con `data-t="2"` mostrará el número 2 en la pantalla, mientras que un botón con `data-t="+" realizará la operación de suma.
+
+Cuando la página se carga, la pantalla está vacía y los botones están listos para ser presionados. El estado inicial de la calculadora es "esperando entrada", donde el usuario puede comenzar a ingresar números o operaciones.
+
+Cuando el usuario presiona un botón con `data-t="2"`, el número 2 se muestra en la pantalla. El estado de la calculadora cambia a "esperando operación", indicando que el usuario puede ahora seleccionar una operación matemática.
+
+Si el usuario luego presiona un botón con `data-t="+"`, la operación de suma se almacena internamente, y el estado cambia a "esperando segundo operando". En este estado, el usuario puede presionar otro botón con `data-t="3"`, que se mostrará en la pantalla junto con el primer número y la operación.
+
+Finalmente, si el usuario presiona el botón con `data-t="="`, la calculadora realiza la operación de suma entre 2 y 3, y el resultado, que es 5, se muestra en la pantalla. El estado de la calculadora vuelve a "esperando entrada", permitiendo que el usuario comience una nueva operación o borre la pantalla para iniciar una nueva secuencia de cálculos.
+
+Este comportamiento se mantiene para todas las operaciones matemáticas básicas que se puedan realizar con la calculadora, permitiendo al usuario realizar múltiples cálculos en una sola sesión.

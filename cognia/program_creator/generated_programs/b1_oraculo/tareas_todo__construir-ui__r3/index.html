@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Tareas</title>
+    <style>
+        :root {
+            --color-bg: #f0f4f8;
+            --color-text: #1a1a1a;
+            --color-accent: #4a90e2;
+            --color-border: #e0e0e0;
+            --color-completed: #d4edda;
+            --color-completed-text: #155724;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--color-bg);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--color-text);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+            color: var(--color-accent);
+            animation: fadeIn 1s ease-out;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: slideIn 0.8s ease-out;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        #nueva {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #nueva:focus {
+            border: 2px solid var(--color-accent);
+            box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
+        }
+
+        #anadir {
+            background-color: var(--color-accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #anadir:hover {
+            background-color: #357abd;
+            transform: translateY(-2px);
+        }
+
+        #anadir:active {
+            transform: translateY(0);
+        }
+
+        #lista {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .tarea {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--color-border);
+            transition: all 0.3s ease;
+        }
+
+        .tarea:last-child {
+            border-bottom: none;
+        }
+
+        .tarea.completed {
+            background-color: var(--color-completed);
+            color: var(--color-completed-text);
+            text-decoration: line-through;
+        }
+
+        .tarea input[type="checkbox"] {
+            margin-right: 15px;
+            transform: scale(1.2);
+        }
+
+        .tarea span {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .tarea span:hover {
+            text-decoration: underline;
+        }
+
+        .tarea span.completed {
+            text-decoration: line-through;
+        }
+
+        .tarea button {
+            background: none;
+            border: none;
+            color: var(--color-accent);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .tarea button:hover {
+            color: #357abd;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Lista de Tareas</h1>
+    <div class="container">
+        <div class="input-group">
+            <input type="text" id="nueva" placeholder="Escribe una nueva tarea...">
+            <button id="anadir">Añadir</button>
+        </div>
+        <ul id="lista"></ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const nuevaTarea = document.getElementById('nueva');
+            const anadirBtn = document.getElementById('anadir');
+            const lista = document.getElementById('lista');
+
+            anadirBtn.addEventListener('click', agregarTarea);
+            nuevaTarea.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    agregarTarea();
+                }
+            });
+
+            function agregarTarea() {
+                const texto = nuevaTarea.value.trim();
+                if (texto === '') return;
+
+                const li = document.createElement('li');
+                li.className = 'tarea';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.addEventListener('change', function() {
+                    li.classList.toggle('completed', this.checked);
+                });
+
+                const span = document.createElement('span');
+                span.textContent = texto;
+
+                const btnEliminar = document.createElement('button');
+                btnEliminar.innerHTML = '×';
+                btnEliminar.addEventListener('click', function() {
+                    lista.removeChild(li);
+                    nuevaTarea.value = '';
+                });
+
+                li.appendChild(checkbox);
+                li.appendChild(span);
+                li.appendChild(btnEliminar);
+
+                lista.appendChild(li);
+                nuevaTarea.value = '';
+                nuevaTarea.focus();
+            }
+        });
+    </script>
+</body>
+</html>

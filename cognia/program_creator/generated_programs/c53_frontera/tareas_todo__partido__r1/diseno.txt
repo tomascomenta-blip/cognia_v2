@@ -1,0 +1,18 @@
+La página web es una interfaz simple y funcional para gestionar una lista de tareas. Se compone de tres elementos principales: un campo de entrada de texto, un botón y una lista desordenada.
+
+El campo de entrada de texto, identificado por el ID "nueva", es donde el usuario puede escribir el texto de la tarea que desea agregar. Este campo está vacío al inicio, esperando la interacción del usuario.
+
+El botón, identificado por el ID "anadir", está deshabilitado inicialmente. Su función es añadir la tarea escrita en el campo de entrada a la lista. El botón permanece inactivo hasta que el usuario haya ingresado algún texto en el campo de entrada.
+
+La lista desordenada, identificada por el ID "lista", está vacía al principio. Su propósito es mostrar todas las tareas que el usuario ha añadido. Cada tarea se representa como un elemento de lista, con la clase "tarea".
+
+Cuando el usuario comienza a escribir en el campo de entrada, el botón "anadir" se habilita, indicando que es posible añadir la tarea. Si el usuario borra todo el texto, el botón vuelve a estar deshabilitado.
+
+Cuando el usuario ha escrito el texto de la tarea y hace clic en el botón "anadir", ocurre lo siguiente:
+
+1. El texto ingresado en el campo de entrada se utiliza para crear un nuevo elemento de lista (<li>) con la clase "tarea".
+2. Este nuevo elemento se añade a la lista desordenada.
+3. El campo de entrada se vacía automáticamente, preparando el formulario para la siguiente tarea.
+4. El botón "anadir" se vuelve nuevamente deshabilitado, esperando que el usuario ingrese una nueva tarea.
+
+Este proceso se repite cada vez que el usuario añade una nueva tarea, manteniendo una lista actualizada de tareas en la página. La interfaz es intuitiva y fácil de usar, permitiendo al usuario gestionar sus tareas de manera eficiente.

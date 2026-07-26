@@ -1,0 +1,585 @@
+<think>
+We are creating a 4x4 memory game with 16 tiles (cards). Each tile is a div with class "tile".
+ There are 8 pairs of emojis (so 16 unique emojis, but each pair is the same).
+ Initially, all tiles are face down (so we don't see the emoji).
+ When a tile is clicked, it flips to show the emoji.
+ If two tiles are flipped and they don't match, after one second they both flip back to face down.
+ We have a move counter with id="moves" that increments on each flip (and also when a pair is matched? but note: the problem says "intentos", so each flip counts as a move? Actually, the problem says: "Un contador con id='moves' cuenta los intentos." and "intentos" likely means attempts, so each time we flip a tile (whether it's a first click or a flip back after mismatch) might be considered? But note: the problem says "cada intento" is a click? Let me read again.
+
+ Actually, the problem says: "Al hacer click en una carta se destapa y se ve su emoji." and then if two don't match, they are flipped back after a second. So the move counter should count each click (each time we flip a tile from face down to face up). But note: when we flip back, that's not a click? So we only count the clicks that reveal a tile.
+
+ However, the problem says: "cuenta los intentos". And an "intento" is an attempt to reveal a tile. So we count each click on a tile that was face down.
+
+ Steps:
+ 1. We have a 4x4 grid. We'll represent the grid as a 2D array of 4x4, but we can also use a list of tiles.
+ 2. Each tile has:
+	- an id (we can assign unique ids, or use index)
+	- a state: face down (hidden) or face up (shown)
+	- the emoji to display when face up.
+
+ 3. We have 8 pairs of emojis. We'll create a list of 16 emojis, but each pair is the same. We can have a list of 8 emojis, and then duplicate each one to form 16.
+
+ 4. We need to randomly assign the emojis to the tiles? Or we can have a fixed pattern? The problem doesn't specify, so we can do random. But note: the problem says "16 cartas con 8 pares", so we have 8 pairs.
+
+ 5. We'll create an array of 16 emojis (each pair repeated twice). Then we shuffle the array and assign to the grid.
+
+ 6. The grid will be represented as a 4x4 matrix. We can use a list of lists.
+
+ 7. We'll create an HTML table or just a grid of divs. Since it's 4x4, we can do:
+
+	<div id="grid" class="grid">
+		<div class="tile" id="tile0"></div>
+		... 16 times ...
+	</div>
+
+ 8. But we can also use a 4x4 structure with rows and columns.
+
+ 9. We'll use JavaScript to manage the state.
+
+ 10. The initial state: all tiles are face down. We set the state of each tile to hidden.
+
+ 11. When a tile is clicked:
+		- If it's already face up, we do nothing? Or we can ignore? The problem doesn't say, but typically you can only click on face down tiles. So we can skip if it's already face up.
+		- Otherwise, we flip it to face up and show the emoji.
+		- Then we check: if there is another tile with the same emoji that is face up? Then we have a match. We remove both (or mark as matched and then remove from the game? or just leave them face up and not flip back?).
+		- But the problem says: if two that don't match, then after one second they flip back. So if they match, we leave them face up and count that as a successful move? And then we don't flip them back.
+
+ 12. How to handle matches?
+		- When we flip a tile, we check if there is another tile with the same emoji that is currently face up.
+		- If yes, then we remove both from the game (or mark them as matched and then we don't consider them again). We can set their state to "matched" and then they are not flipped back. Also, we increment the move counter by 1 (because one click) and then we also get a point? But the problem doesn't say about points, only the move counter. So we just count the click.
+
+		However, note: the problem says "cuenta los intentos", so each click is an intento. So when we click a tile, we count one move. Then if we get a match, we don't have to click again? But the next click will be on a different tile.
+
+		But wait: when we click the first tile, we show it. Then we click a second tile. If they match, then we have two clicks? So two moves? And then we remove the pair.
+
+		Actually, the problem says: "Al hacer click en una carta se destapa y se ve su emoji." and then if two that don't match, they are flipped back. So the process:
+
+		  - Click 1: tile A is flipped -> move count becomes 1.
+		  - Click 2: tile B is flipped -> move count becomes 2.
+		  - Then we check: if A and B are the same, then we leave them face up and they are removed from the game (so we don't flip them back). Then we continue.
+		  - If they are different, then after 1 second, we flip both back (so they become face down again) and move count remains 2? But then we continue.
+
+		So the move counter counts every click.
+
+ 13. We need to track:
+		- The grid: 4x4, each cell has:
+			- id (we can use row*4 + col for id)
+			- state: 'face-down', 'face-up', or 'matched'? Actually, we can have:
+				state: boolean (false for face down, true for face up) and then when matched, we can set state to 'matched' and then we don't consider it again? Or we can remove it from the grid? But we have to keep the tile in the grid but mark it as matched so that we don't flip it again.
+
+		Alternatively, we can have:
+			- hidden: true or false (for face down or up). And then when matched, we set hidden to false and also mark it as matched? But then we don't want to flip it again.
+
+		Actually, we can have:
+			- Each tile has a property: isMatched (boolean). When a pair is matched, we set both tiles to isMatched = true and then we don't consider them again.
+
+		Steps for a click:
+			- If the tile is already face up or matched, skip? But the problem says we only click on face down. So we can skip if it's not face down.
+
+			- Flip the tile: set hidden to false (so show the emoji) and then check for a match.
+
+			- How to check for a match? We look for another tile that is face up and has the same emoji and is not matched.
+
+			- If found, then we set both tiles to matched (and leave them face up). And we remove them from the active tiles? And we don't flip them back.
+
+			- If not found, then we wait for one second: then we flip both the current tile and the other tile that we found (if any) back to face down? But note: we only flipped one tile so far? Actually, we flipped one tile and then we found none? Then we don't have to flip back? But wait: we only flipped one tile? Then we don't have a pair? So we just leave it face up? But then the next click might be on another tile and then we have two face up? Then we check if they match.
+
+			Actually, the problem says: "Si se destapan dos que no coinciden, tras un segundo se vuelven a tapar." -> meaning: if two are destapados (face up) and they don't coincide (match), then after one second they are taped (face down) again.
+
+			So we must have two face up tiles that are not matching? How do we know which two? Actually, we flip one tile at a time. So when we flip the first tile, we don't have two. Then we flip the second tile: now we have two face up. Then we check: if they match, we leave them. If not, we set a timer to flip both back after one second.
+
+			Therefore, we need to remember the last flipped tile? Actually, we can do:
+
+				- We maintain a variable: `lastMatchedIndex` or `lastFlipped`? But we might have multiple flips? Actually, we can have:
+
+				- We maintain a list of currently face up tiles? Or we can note that after a flip, we check for a match with the current tile and any other face up tile.
+
+			Algorithm for a click on tile (x,y):
+
+				if the tile is already face up or matched: do nothing.
+
+				else:
+					set the tile to face up (hidden=false) and show the emoji.
+
+					Then, we check: are there any other face up tile (that is not matched) with the same emoji? 
+
+					If yes, then we found a match. We set both tiles to matched (and leave them face up). And we remove them from the active set? And we increment the move count by 1 (for this click) and then we also remove the pair? And then we reset the "waiting" state? 
+
+					If no, then we set a timer: after 1 second, we flip this tile back to face down (and also we need to remember that we have one face up tile? Actually, we have only one face up tile at this moment? Because we just flipped one and there was none other? So we don't have two? Then we don't need to flip back? But wait: what if there was already a face up tile from a previous click? 
+
+				Actually, we must consider: we might have multiple face up tiles? Because we might have flipped one, then later another, and then we check for a match? But if we have two face up tiles that are not matching, we set a timer to flip both back? How do we know which two? 
+
+			We can do:
+
+				We maintain a list of currently face up tiles (that are not matched). When we flip a tile, we add it to the list. Then we check: in the list, is there another tile with the same emoji? 
+
+				If yes, then we remove both from the list and mark them as matched. And we don't set a timer.
+
+				If no, then we set a timer for that tile? But note: the problem says "two that don't match", meaning we have two face up tiles that are not matching? Actually, we just flipped one, so now we have one face up tile? Then we don't have two? So we don't set a timer? 
+
+			But wait: the problem says: "Si se destapan dos que no coinciden" -> meaning when two are open and they don't match. So we have to have two open? How do we get two open? 
+
+			Actually, we flip one tile: now we have one open. Then we flip another: now we have two open. Then we check: if they match, we remove both. If not, we set a timer to flip both back.
+
+			So we need to remember the last two flips? Or we can check after every flip: if there are two face up tiles? Then we check if they match? But what if there are more than two? Actually, we can have more than two? Because we might flip three? Then we have to check for any pair? 
+
+			However, the typical memory game: you flip two tiles at a time? Actually, no: you flip one, then flip another, and if they match, you remove them. If not, you flip them back. Then you continue. So you never have more than two face up at a time? 
+
+			But the problem doesn't specify. However, the description implies that we flip one tile at a time, and then when we have two face up, we check if they match. If not, we flip them back after one second.
+
+			So we can assume that we never have more than two face up? Because after two, we either remove them (if match) or flip them back (if not). Then we reset.
+
+			Therefore, we can have:
+
+				- A variable `openTile` that stores the first tile that is currently face up? Or we can have a list of open tiles, but we know that we can have at most two.
+
+			Steps:
+
+				When a tile is clicked:
+
+					if it's already open or matched: skip.
+
+					else:
+
+						flip it to open.
+
+						Then, if there is already one open tile (from a previous click that hasn't been resolved), then we have two open tiles.
+
+						Then we check: if the two open tiles have the same emoji? 
+
+							If yes: then we mark both as matched, and remove them from the open state (so set the list of open tiles to empty). And we increment the move count by 1 (for this click) and then we also record that we found a pair? But the problem doesn't require recording pairs, only the move count.
+
+						If no: then we set a timer to flip both back after one second.
+
+						But note: we just flipped one tile, and there was one already open? So now we have two. We check: if they match -> remove both. If not, set a timer to flip both back.
+
+					However, what if we flip a tile and there is no open tile? Then we just leave it open? And then the next click will be the second.
+
+			So we can maintain:
+
+				- A list `openTiles` (which will have at most two tiles). 
+
+				- When we flip a tile (from face down to face up), we add it to `openTiles`.
+
+				- Then, if `openTiles` has two tiles, we check if they match.
+
+					- If they match: 
+						  mark both as matched (so we remove them from the game? and set their state to matched, and remove them from `openTiles`).
+						  and then we reset `openTiles` to empty.
+
+					- If they don't match:
+						  we set a timer (for 1 second) to flip both back to face down and remove them from `openTiles`.
+
+			But note: when we flip back, we set them to face down and remove from `openTiles`. Then we reset the timer? 
+
+			Also, we must increment the move count on every click (every time we flip a tile from face down to face up).
+
+ 14. Implementation:
+
+		We'll create:
+
+			- A 4x4 grid of tiles. Each tile is an object with:
+				  id: unique id (we can use row*4+col)
+				  row, col: position
+				  emoji: the emoji string (like '<img src="emoji">' or just the emoji character? We can use the emoji character as a string)
+				  state: we can have:
+						 hidden: boolean (true for face down, false for face up) -> but we also have matched? Actually, when matched, we leave it face up and then we don't touch again. So we can have:
+						 matched: boolean (if matched, then we don't consider it again)
+
+			- Alternatively, we can have:
+				  hidden: true (face down) or false (face up). And when matched, we set hidden to false and also set a flag matched=true? But then we don't flip it again.
+
+			- We'll maintain an array `tiles` of 16 tiles.
+
+			- We'll also have a list `openTiles` that holds the tiles that are currently face up and not matched.
+
+			- A move counter: `moves` (with id="moves" in the HTML, so we have an element with that id to update).
+
+		Steps for a click on a tile at (x,y):
+
+			tile = tiles[x*4+y]   (if we index by row and col, but we have 4x4: so row in [0,3], col in [0,3])
+
+			if tile.matched: 
+				// already matched, do nothing
+				return
+
+			if tile.hidden is false: 
+				// already face up? then do nothing? but we shouldn't click on face up? so skip.
+				return
+
+			// Otherwise, we flip it: set hidden to false (so show it) and add to openTiles.
+			tile.hidden = false;
+			openTiles.push(tile);
+
+			// Now, if openTiles has two tiles, we check for a match.
+			if (openTiles.length == 2) {
+				tile1 = openTiles[0];
+				tile2 = openTiles[1];
+				if (tile1.emoji == tile2.emoji) {
+					// match!
+					tile1.matched = true;
+					tile2.matched = true;
+					// remove them from openTiles
+					openTiles = []; // reset
+					// and we don't set a timer
+				} else {
+					// no match: set a timer to flip both back after 1 second
+					// We'll set a timer to flip both back and then clear openTiles.
+					// But note: we have to remember which two? We have them in openTiles.
+					// We can set a timer that will flip both and then reset openTiles.
+					// However, we must also check: what if during the timer, a click happens? Then we have to prevent flipping? 
+					// We can set a flag: inCooldown? Or we can just set the timer and when it fires, we flip both back and remove from openTiles.
+
+					// But note: the problem says "tras un segundo", so exactly one second.
+
+					// We'll set:
+					let timeout = setTimeout(flipBack, 1000);
+					// We'll store the timeout in the tile? Or we can store in a global variable? But we might have multiple? Actually, we only have one pair in cooldown at a time? Because after we set the timer, we are waiting for one second, and during that time we don't allow any more clicks? Actually, the problem doesn't say. But typically, you can click again? But then we have to handle: if we have two open tiles and we are waiting for the flip back, and then a third click? 
+
+					// However, the problem says: we flip two that don't match and then after one second they flip back. So during that one second, the two tiles are still face up? And if the user clicks again, it would be on a face down tile? Because the two open tiles are still face up? But we don't want to match with one of them? Actually, we can: because the two open tiles are still active? 
+
+					// But the problem doesn't specify. We'll assume that during the one second, the two tiles are face up and can be clicked? But that would be confusing. Typically, you cannot click on a face up tile? So we should prevent clicking on the two open tiles? 
+
+					// Alternatively, we can set the two tiles to a special state: "inCooldown" so that they cannot be clicked again until the timer expires? 
+
+					// However, the problem says: "cada carta es un <div class="tile">", and when clicked, we flip it. So if it's face up, we don't flip it again? We skip. So we don't have to do anything? 
+
+					// But note: we have two tiles that are face up and not matched. They are in the openTiles list. And we set a timer to flip them back. During that time, if the user clicks on one of them, we skip because it's already face up? 
+
+					// So we can do:
+
+					//   We set the timer.
+
+					//   When the timer fires, we flip both tiles back to face down (set hidden=true) and remove them from openTiles.
+
+					//   And we clear the timer? But we only set one timer at a time? So we can have a global variable `timeout` that we set, and then when we set a new one, we clear the old one? But we only have one pair in cooldown? 
+
+					//   Actually, we can have only one pair in cooldown at a time? Because we reset openTiles when we have a match or when we flip back.
+
+					//   So we can store the timeout in a variable `flipBackTimeout` and when we set it, we remember the two tiles? 
+
+					//   Alternatively, we can store the two tiles in the timeout function? 
+
+					//   We'll create a function `flipBack` that takes the two tiles? But we have them in openTiles? But after the timer, we can use the openTiles? But what if during the timer, the user clicks and changes openTiles? 
+
+					//   Actually, we are going to flip back the two tiles that are currently in openTiles? But if the user clicks during the timer, we add a new tile to openTiles? Then openTiles would have three? 
+
+					//   We must prevent that: we can set a flag that we are in cooldown? 
+
+					//   Alternatively, we can store the two tiles that are to be flipped back in the timeout function.
+
+					//   We'll do:
+
+					//		let timeout = setTimeout(() => {
+					//			// flip back the two tiles that were in openTiles at the time of the match? But we have to store them?
+					//			// Actually, we can store the two tiles in the timeout function? But we can't pass variables? We can use a closure.
+
+					//		}, 1000);
+
+					//   But we can do:
+
+					//		let tileA = openTiles[0];
+					//		let tileB = openTiles[1];
+					//		let timeout = setTimeout(flipBackIndividual(tileA, tileB), 1000);
+
+					//   Then in flipBackIndividual, we flip both back and remove them from openTiles? But note: during the timeout, the openTiles might have changed? 
+
+					//   Actually, we are going to flip back exactly tileA and tileB? And then remove them from openTiles? But what if during the timeout, the user clicked and added another tile? Then openTiles would have three? But we are going to remove tileA and tileB? Then the third tile remains? 
+
+					//   That would be incorrect.
+
+					//   Therefore, we must not allow any more clicks until the flip back? 
+
+					//   We can set a flag: `inCooldown` and when we set the timeout, we set `inCooldown = true`. Then when the timeout fires, we flip back and set `inCooldown = false`.
+
+					//   And when `inCooldown` is true, we skip any click? 
+
+					//   But the problem doesn't say we skip clicks? It says: when you click a tile, you flip it. So if we are in cooldown, we should still allow clicks? But then we have to handle the openTiles list? 
+
+					//   Alternatively, we can design so that during the cooldown, we don't add new tiles to openTiles? 
+
+					//   Actually, we can: when we set the timeout, we set a flag `waitingForFlipBack` and we remember the two tiles. Then when a click happens, if `waitingForFlipBack` is true, we skip? 
+
+					//   But the problem doesn't say we skip, so we must allow? 
+
+					//   Let me re-read: "Si se destapan dos que no coinciden, tras un segundo se vuelven a tapar." -> it doesn't say anything about during that second. So we can assume that during that second, the two tiles are face up and the user can click on other tiles? 
+
+					//   But then we have to handle: if the user clicks on a third tile? Then we have three face up? Then we check: if there is a match among the three? But the problem doesn't specify. 
+
+					//   We'll stick to the typical memory game: you can only have two face up at a time? And if you have two that don't match, they are flipped back after one second, and during that second, you cannot click? 
+
+					//   But the problem doesn't say. 
+
+					//   We'll do: we set a flag `inCooldown` and during cooldown, we skip any click? 
+
+					//   Alternatively, we can allow clicks during cooldown? But then we have to manage the openTiles list and the flip back timer? 
+
+					//   Given the complexity, and the problem says "un contador con id='moves'", we are only required to count the moves (clicks). So we can count the click even during cooldown? But then we have to flip the tile? 
+
+					//   We'll do: we allow clicks during cooldown? 
+
+					//   How? 
+
+					//   We have two tiles in openTiles (that are not matched) and we set a timer to flip them back. Then if the user clicks on a third tile, we add it to openTiles? Then we have three. Then we check: if there is a pair? 
+
+					//   But the problem says: we only flip back two that don't match? So if we have three, we don't flip back? 
+
+					//   This is getting complicated.
+
+			Given the complexity, and the problem says "un contador con id='moves'", and the typical memory game, I think we should follow the rule: we only allow two face up at a time. So when we have two face up and they don't match, we set a timer to flip them back, and during that time, we do not allow any more clicks? 
+
+			But the problem doesn't specify. 
+
+			Alternatively, we can design so that we only flip one tile at a time? And then when we flip a tile, we check if there is a match with any other face up tile? But then we might have more than two? 
+
+			We'll do the following:
+
+				We maintain:
+					openTiles: list of tiles that are currently face up and not matched.
+
+				When a tile is clicked:
+
+					if it is matched: skip.
+
+					if it is already face up: skip.
+
+					else:
+
+						flip it to face up -> add to openTiles.
+
+						Then, we check: in openTiles, is there another tile with the same emoji? 
+
+							If yes: then we remove both from openTiles and mark them as matched. And we do not set a timer.
+
+							If no: then we set a timer to flip this tile back to face down (and remove from openTiles) after one second? But wait: we only flipped one tile? Then we don't have two? So we don't set a timer? 
+
+						But then how do we handle two? 
+
+				Actually, we must check for a match with every tile in openTiles? 
+
+				Example: 
+					We have openTiles = [tileA] (from a previous click). Then we click tileB: now openTiles = [tileA, tileB]. Then we check: is there a match? 
+					We can iterate over openTiles to see if there is a duplicate emoji? 
+
+				We can do:
+
+					// After adding the new tile, we check the entire openTiles for a pair? 
+					// We can group by emoji? 
+
+					// But note: we might have more than two? 
+
+					// We can do: 
+					let emojis = openTiles.map(tile => tile.emoji);
+					// then check if there is a duplicate? 
+
+					// Actually, we can do: 
+					let count = {};
+					for (let tile of openTiles) {
+						count[tile.emoji] = (count[tile.emoji] || 0) + 1;
+					}
+
+					// Then we look for any emoji that has count>=2? 
+					// But note: we have 8 pairs, so each emoji appears exactly twice? 
+
+					// So if we find an emoji that appears twice, then we have a match? 
+
+					// Then we remove all tiles with that emoji? 
+
+					// But wait: we might have more than two? Then we remove two? 
+
+					// Actually, we can: 
+					for (let emoji in count) {
+						if (count[emoji] >= 2) {
+							// we found a pair? But we have to remove exactly two tiles with that emoji? 
+							// But note: we might have more than two? But we only have two of each emoji? 
+							// So we can remove two tiles with that emoji? 
+							// But we have to remove them from openTiles and mark them as matched.
+
+							// How to remove? 
+							let indices = [];
+							for (let i=0; i<openTiles.length; i++) {
+								if (openTiles[i].emoji == emoji) {
+									indices.push(i);
+									if (indices.length == 2) break;
+								}
+							}
+							// remove the two tiles at indices (from the end to the beginning)
+							for (let i of indices.sort((a,b)=>b-a)) {
+								tile = openTiles[i];
+								tile.matched = true;
+								openTiles.splice(i,1);
+							}
+							// and break? because we found one pair? 
+							break;
+						}
+					}
+
+					// Then, if we removed a pair, we are done.
+
+					// If we didn't remove any pair, then we set a timer to flip back all tiles in openTiles? after one second? 
+
+					// But the problem says: "Si se destapan dos que no coinciden" -> meaning two that don't match. But we might have more than two? 
+
+					// We'll set a timer to flip back all tiles in openTiles after one second? 
+
+					// But the problem says "dos", so two. 
+
+					// We'll change: we only allow two face up at a time? 
+
+			Given the complexity, and to match the problem description, we'll assume that the user only clicks on face down tiles, and we only have at most two face up at a time. 
+
+			We'll do:
+
+				We maintain a list `openTiles` that has at most two tiles.
+
+				When a tile is clicked:
+
+					if it is matched or already face up: skip.
+
+					else:
+
+						flip it to face up -> add to openTiles.
+
+						if openTiles.length == 2:
+
+							tile1 = openTiles[0]
+							tile2 = openTiles[1]
+
+							if tile1.emoji == tile2.emoji:
+								mark both as matched.
+								remove them from openTiles.
+								// and we do not set a timer.
+							else:
+								// set a timer to flip both back after 1 second.
+								// We'll create a function that flips both back and removes them from openTiles.
+								let timeout = setTimeout(flipBack, 1000);
+								// and we store this timeout? But we only have one at a time? 
+								// We can store it in a global variable? 
+								// But we can also clear the previous timeout? 
+								// We'll have a global variable `timeout` that we set, and if there is a previous timeout, we clear it? 
+								// But we only have one active timeout at a time? 
+								// We'll do: 
+								//   if (timeoutRef) { clearTimeout(timeoutRef); }
+								//   timeoutRef = setTimeout(flipBack, 1000);
+								// But we don't have a global timeoutRef? 
+
+								// Alternatively, we can store the timeout in the tile? 
+
+								// We'll create a function flipBack that flips the two tiles in openTiles back to face down and removes them from openTiles.
+
+								// But note: during the timeout, if the user clicks, we have to skip? because the two tiles are still face up? and we don't want to add more? 
+
+								// We'll set a flag: `inCooldown` and during cooldown, we skip any click? 
+
+								// We'll set `inCooldown = true` and when the timeout fires, we set `inCooldown = false`.
+
+								// And when `inCooldown` is true, we skip the click? 
+
+								// But the problem doesn't say to skip, but it's safer.
+
+								// We'll do: 
+								//   inCooldown = true;
+								//   timeoutRef = setTimeout(() => {
+								//		inCooldown = false;
+								//		flipBack();
+								//   }, 1000);
+
+								//   where flipBack() flips both tiles in openTiles back to face down and removes them from openTiles.
+
+						else: // openTiles has only one tile, so we do nothing? 
+							// we leave it face up.
+
+			But then how do we handle if we have one face up and then we click another? Then we have two, and we check.
+
+			And if we have two and they match, we remove them.
+
+			If they don't match, we set a cooldown and a timer to flip them back.
+
+			And during cooldown, we skip any click? 
+
+			We'll implement:
+
+				inCooldown = false; // initially
+
+				function flipBack() {
+					// flip both tiles in openTiles back to face down
+					for (let tile of openTiles) {
+						tile.hidden = true; // face down
+					}
+					openTiles = []; // reset
+					inCooldown = false;
+				}
+
+				When a click happens:
+
+					if (inCooldown) {
+						// skip
+						return;
+					}
+
+					// else, proceed as above.
+
+			But note: the problem doesn't say to skip during cooldown, but it's necessary to prevent adding more face up tiles.
+
+ 15. We also need to initialize the grid:
+
+		We have 16 tiles. We'll create an array of 16 emojis: we have 8 pairs, so we create an array of 8 emojis, then duplicate each one to get 16.
+
+		Example emojis: 
+			['🐶','🐶','🐱','🐱','熊','熊','鸟','鸟'] -> but we want 8 distinct pairs? 
+
+		We'll use:
+
+			['🐶','🐱','熊','鹰','鸟','鱼','青蛙','龟'] -> then duplicate: 
+			['🐶','🐶','🐱','🐱','熊','熊','鹰','鹰','鸟','鸟','鱼','鱼','青蛙','青蛙','龟','龟']
+
+		Then we shuffle this array.
+
+		Then assign to the 4x4 grid.
+
+ 16. HTML structure:
+
+		We'll create a div with class "grid", and inside 16 divs with class "tile". Each tile initially has no emoji (so we show nothing? or a placeholder?).
+
+		We can set the inner HTML of each tile to an empty string? Then when flipped, we set it to the emoji.
+
+		Example:
+
+			<div class="tile" id="tile0"></div>
+
+		Then in JavaScript, we can set the innerHTML to the emoji.
+
+ 17. CSS:
+
+		We'll style the grid to be 4x4, each tile is 100% of the cell? 
+
+		We can do:
+
+			.grid {
+				display: grid;
+				width: 100%;
+				height: 100%;
+				grid-template-rows: repeat(4, 25%);
+				grid-template-columns: repeat(4, 25%);
+			}
+
+			.tile {
+				width: 100%;
+				height: 100%;
+				background: #AAA; // or something
+				border: 1px solid #CCC;
+				cursor: pointer;
+			}
+
+		But we can also use flexbox? 
+
+		Alternatively, we can use a table? But the problem says divs.
+
+ 18. JavaScript code structure:
+
+		We'll create:
+
+			// Global variables
+			let tiles = []; // array of 16 tiles
+			let openTiles = []; // list of currently open (face up) tiles that are not matched
+			let moves = 0; // move counter, and we'll update the HTML element

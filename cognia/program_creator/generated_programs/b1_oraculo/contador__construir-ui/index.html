@@ -1,0 +1,141 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --secondary: #10b981;
+            --background: #f9fafb;
+            --text: #1f2937;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--background) 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text);
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            padding: 40px 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #valor {
+            font-size: 6rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 20px 0;
+            transition: all 0.4s ease;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-minus {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .btn-minus:hover {
+            background: linear-gradient(135deg, #d97706, #b45309);
+        }
+
+        .btn-plus {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .btn-plus:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="valor">0</div>
+        <div class="buttons">
+            <button id="menos" class="btn-minus">-</button>
+            <button id="mas" class="btn-plus">+</button>
+        </div>
+    </div>
+
+    <script>
+        const valor = document.getElementById('valor');
+        let count = 0;
+
+        function updateDisplay() {
+            valor.textContent = count;
+            valor.style.fontSize = `${6 + count * 0.1}rem`;
+            valor.style.transform = `scale(${1 + count * 0.02})`;
+        }
+
+        document.getElementById('mas').addEventListener('click', () => {
+            count++;
+            updateDisplay();
+        });
+
+        document.getElementById('menos').addEventListener('click', () => {
+            if (count > 0) {
+                count--;
+                updateDisplay();
+            }
+        });
+
+        // Initial animation
+        setTimeout(() => {
+            valor.style.opacity = '1';
+            valor.style.transform = 'scale(1)';
+        }, 500);
+    </script>
+</body>
+</html>

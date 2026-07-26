@@ -1,0 +1,26 @@
+La página web es un juego de memoria simple y atractivo, diseñado para una experiencia de usuario intuitiva y fluida. La interfaz principal se compone de una cuadrícula de 4x4, formada por 16 elementos `<div class="tile">`. Cada uno de estos elementos representa una carta en el juego.
+
+### Estructura y Diseño:
+- **Cuadrícula de Cartas**: La página se presenta como una cuadrícula de 4x4, con 16 cartas en total. Cada carta es un `<div class="tile">`.
+- **Estados Iniciales**: Al cargar la página, todas las cartas están boca abajo, ocultando sus emojis. Esto se logra mediante un estilo CSS que aplica una imagen de fondo o un color sólido que cubre el contenido de las cartas.
+- **Emojis de Animales**: Cada carta contiene un emoji de un animal, y hay 8 pares de emojis diferentes, asegurando que haya 2 cartas con el mismo emoji.
+
+### Comportamiento:
+1. **Interacción Inicial**: Cuando el usuario carga la página, el contador con el id="moves" se inicializa en 0, indicando que no se han realizado movimientos.
+2. **Destapar una Carta**: Al hacer clic en una carta, se ejecuta una función que cambia el estado de la carta, revelando el emoji contenido en ella. Esto se logra mediante la modificación de las clases CSS de la carta, aplicando un estilo que muestra el emoji.
+3. **Segunda Carta**: Si el usuario hace clic en otra carta, se destapa y se muestra su emoji. El contador de movimientos se incrementa en 1.
+4. **Comparación de Cartas**:
+   - Si las dos cartas destapadas contienen el mismo emoji, se mantienen boca arriba, indicando que el par ha sido encontrado.
+   - Si las cartas no coinciden, se ejecuta una función que espera un segundo (1000 milisegundos) antes de volver a tapar las cartas, ocultando nuevamente los emojis y restaurando su estado inicial.
+5. **Fin del Juego**: El juego continúa hasta que todas las cartas han sido emparejadas. En este momento, todas las cartas permanecen boca arriba, y el contador de movimientos muestra el número total de intentos realizados.
+
+### Elementos Visuales:
+- **Cartas**: Cada carta tiene un tamaño uniforme y un borde suave para dar una sensación de separación entre ellas.
+- **Emojis**: Los emojis de los animales son grandes y centrados dentro de cada carta, asegurando que sean fáciles de identificar.
+- **Contador de Movimientos**: El contador con el id="moves" se coloca en una posición visible, generalmente en la parte superior o inferior de la página, para que el usuario pueda seguir su progreso.
+
+### Transiciones y Animaciones:
+- **Destapar Carta**: Al destapar una carta, se puede incluir una ligera animación de desplazamiento o rotación para mejorar la experiencia visual.
+- **Volver a Tapar Cartas**: Cuando las cartas no coinciden y se vuelven a tapar, se puede aplicar una animación de desvanecimiento o retroceso para indicar que las cartas se están ocultando nuevamente.
+
+Este diseño y comportamiento garantizan una experiencia de juego sencilla y agradable, con una lógica clara y un feedback visual que guía al usuario a través del proceso de emparejamiento de cartas.

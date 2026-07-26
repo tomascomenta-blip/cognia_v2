@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es-ES">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Ventas Mensuales</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f8f8;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            width: 90%;
+            max-width: 600px;
+            margin: auto;
+        }
+        .kpi-card {
+            background: #fff;
+            border: 1px solid rgba(0,0,0,.1);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+        .kpi-card div {
+            margin: 6px 0;
+        }
+        .kpi-value {
+            font-size: 26px;
+            font-weight: 650;
+        }
+        .kpi-delta {
+            font-size: 13px;
+        }
+        .sales-chart {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 20px;
+        }
+        .sales-chart svg {
+            width: 100%;
+            height: 100%;
+        }
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .table-container table th, .table-container table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .table-container table th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="kpi-card">
+            <div class="kpi-value" id="kpi-total">14.324,53 €</div>
+            <div class="kpi-delta" id="kpi-delta">▲ +171,93 € desde apertura</div>
+        </div>
+        <div class="sales-chart">
+            <svg class="sales-chart" style="width:100%;height:100%;border:1px solid #ccc" viewBox="0 0 600 150">
+                <g transform="translate(10, 10)">
+                    <path d="M20,110 H280 V90 H20" stroke="black" stroke-width="2"/>
+                    <text x="140" y="120" font-size="12" font-weight="bold">150,00 €</text>
+                    <line x1="20" y1="100" x2="580" y2="100" stroke="grey" stroke-width="1"/>
+                </g>
+                <g transform="translate(300, 100)">
+                    <text x="100" y="20" font-size="12" font-weight="bold">Monto Total</text>
+                    <text x="100" y="40" font-size="12">Vendido</text>
+                    <path d="M20,100 H280 V80 H20" stroke="black" stroke-width="2"/>
+                    <line x1="20" y1="100" x2="580" y2="100" stroke="grey" stroke-width="1"/>
+                    <line x1="280" y1="80" x2="310" y2="80" stroke="black" stroke-width="2"/>
+                    <text x="295" y="85" font-size="10">300,00 €</text>
+                </g>
+            </svg>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="font-weight: bold;">Producto</th>
+                        <th style="font-weight: bold;">Cantidad</th>
+                        <th style="font-weight: bold;">Precio</th>
+                        <th style="font-weight: bold;">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="sales-table">
+                    <tr>
+                        <td>Artículo 1</td>
+                        <td>200</td>
+                        <td>150,00 €</td>
+                        <td>30,000,00 €</td>
+                    </tr>
+                    <tr>
+                        <td>Artículo 2</td>
+                        <td>150</td>
+                        <td>180,00 €</td>
+                        <td>27,000,00 €</td>
+                    </tr>
+                    <tr>
+                        <td>Artículo 3</td>
+                        <td>100</td>
+                        <td>250,00 €</td>
+                        <td>25,000,00 €</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        setInterval(() => {
+            const kpiTotal = document.getElementById('kpi-total');
+            const kpiDelta = document.getElementById('kpi-delta');
+
+            const newValue = (Number(kpiTotal.textContent.replace(',', '.')) + 200 * Math.random()).toFixed(2);
+            const newDelta = (Math.random() > 0.5 ? 1 : -1) * 200;
+
+            kpiTotal.textContent = newValue.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'});
+            kpiDelta.textContent = `▲ +${newDelta.toFixed(2)} € desde apertura` if newDelta > 0 else `▼ -${-newDelta.toFixed(2)} € desde apertura`;
+            kpiTotal.style.color = (newDelta >= 0 ? 'green' : 'red');
+            kpiDelta.style.color = (newDelta >= 0 ? 'green' : 'red');
+        }, 700);
+
+        setInterval(() => {
+            const salesTable = document.getElementById('sales-table');
+            const rows = salesTable.getElementsByTagName('tr');
+
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                const quantity = row.cells[1].textContent;
+                const price = row.cells[2].textContent.replace(',', '');
+                const total = (quantity * price).toFixed(2);
+
+                row.cells[3].textContent = total.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'});
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

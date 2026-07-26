@@ -1,0 +1,9 @@
+La página web es una sencilla interfaz de usuario que se centra en un contador funcional. La estructura de la página es minimalista y se compone de tres elementos principales: un elemento `<span>` que muestra el valor actual del contador, y dos botones que permiten incrementar y decrementar el contador.
+
+Al cargar la página, el estado inicial del contador es 0. Este valor se muestra en el `<span>` con el id "valor". Los dos botones, identificados como "mas" y "menos", están disponibles para el usuario, pero el botón "menos" está deshabilitado inicialmente, ya que el contador no puede bajar de 0.
+
+Cuando el usuario interactúa con el botón "mas", el valor del contador aumenta en 1. El nuevo valor se refleja inmediatamente en el `<span>`. Si el valor del contador es mayor que 0, el botón "menos" se habilita, permitiendo al usuario decrementar el contador.
+
+Si el usuario presiona el botón "menos", el valor del contador disminuye en 1. El nuevo valor se muestra en el `<span>`. Si el contador llega a 0 después de la operación, el botón "menos" se deshabilita nuevamente para evitar que el valor baje más allá de 0.
+
+La interfaz es intuitiva y fácil de usar, con un diseño limpio que se centra en la funcionalidad del contador. Los elementos están bien posicionados para que el usuario pueda interactuar con ellos de manera fluida y sin distracciones.

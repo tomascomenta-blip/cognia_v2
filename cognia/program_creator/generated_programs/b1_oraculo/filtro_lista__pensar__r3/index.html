@@ -1,0 +1,71 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Filtro de lista</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:linear-gradient(135deg,#f0f8ff,#e6e6fa);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    margin:0;
+    padding:20px;
+    animation:bgMove 10s infinite alternate;
+  }
+  @keyframes bgMove{
+    0%{background-position:0% 0%;}
+    100%{background-position:100% 100%;}
+  }
+  ul{list-style:none;padding:0;margin:20px 0;}
+  li.item{
+    background:#fff;
+    margin:5px 0;
+    padding:10px 15px;
+    border-radius:5px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    opacity:0;
+    transform:translateX(-20px);
+    animation:slideIn .5s forwards;
+  }
+  li.item:nth-child(1){animation-delay:.1s;}
+  li.item:nth-child(2){animation-delay:.2s;}
+  li.item:nth-child(3){animation-delay:.3s;}
+  li.item:nth-child(4){animation-delay:.4s;}
+  li.item:nth-child(5){animation-delay:.5s;}
+  @keyframes slideIn{to{opacity:1;transform:translateX(0);}}
+  input#buscar{
+    padding:8px 12px;
+    font-size:16px;
+    border:2px solid #ccc;
+    border-radius:4px;
+    width:200px;
+  }
+</style>
+</head>
+<body>
+<input type="text" id="buscar" placeholder="Buscar...">
+<ul>
+  <li class="item">manzana</li>
+  <li class="item">banana</li>
+  <li class="item">cereza</li>
+  <li class="item">datil</li>
+  <li class="item">kiwi</li>
+</ul>
+<script>
+  const input=document.getElementById('buscar');
+  const items=document.querySelectorAll('li.item');
+  input.addEventListener('input',()=>{
+    const f=input.value.toLowerCase();
+    items.forEach(it=>{
+      const t=it.textContent.toLowerCase();
+      it.style.display=!f||t.includes(f)?'':'none';
+    });
+  });
+</script>
+</body>
+</html>

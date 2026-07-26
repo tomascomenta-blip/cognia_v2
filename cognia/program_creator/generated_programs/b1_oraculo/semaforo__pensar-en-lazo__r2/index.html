@@ -1,0 +1,41 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Semaforo</title>
+    <style>
+        #luz {
+            height: 100px;
+            width: 100px;
+            background-color: #000;
+        }
+        #luz[data-color="rojo"] {
+            background-color: #FF0000;
+        }
+        #luz[data-color="verde"] {
+            background-color: #00FF00;
+        }
+        #luz[data-color="amarillo"] {
+            background-color: #FFFF00;
+        }
+    </style>
+</head>
+<body>
+    <div id="luz" data-color="rojo"></div>
+    <button id="avanzar">Avanzar</button>
+    <script>
+        const colors = ['rojo', 'verde', 'amarillo'];
+        const $luz = document.getElementById('luz');
+        const $boton = document.getElementById('avanzar');
+
+        function avanzar() {
+            const currentColor = $luz.getAttribute('data-color');
+            const currentIndex = colors.indexOf(currentColor);
+            const nextIndex = (currentIndex + 1) % colors.length;
+            $luz.setAttribute('data-color', colors[nextIndex]);
+        }
+
+        $boton.addEventListener('click', avanzar);
+    </script>
+</body>
+</html>

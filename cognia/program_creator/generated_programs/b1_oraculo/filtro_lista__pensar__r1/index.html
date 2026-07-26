@@ -1,0 +1,46 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Filtro de lista</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:20px;}
+  h1{text-align:center;color:#333;}
+  #buscar{width:100%;padding:10px;font-size:16px;margin-bottom:20px;}
+  ul{list-style:none;padding:0;}
+  li.item{background:#fff;border:1px solid #ddd;padding:10px;margin-bottom:5px;transition:opacity 0.3s ease;}
+  li.item.hidden{opacity:0;height:0;overflow:hidden;margin:0;padding:0;border:none;}
+  @keyframes fadeIn{
+    0%{opacity:0;transform:translateY(20px);}
+    100%{opacity:1;transform:translateY(0);}
+  }
+  ul{animation:fadeIn 1s ease-out;}
+</style>
+</head>
+<body>
+<h1>Filtro de lista</h1>
+<input type="text" id="buscar" placeholder="Buscar...">
+<ul id="lista">
+  <li class="item">manzana</li>
+  <li class="item">banana</li>
+  <li class="item">cereza</li>
+  <li class="item">datil</li>
+  <li class="item">kiwi</li>
+</ul>
+<script>
+  const input=document.getElementById('buscar');
+  const items=document.querySelectorAll('.item');
+  input.addEventListener('input',()=>{
+    const filter=input.value.toLowerCase();
+    items.forEach(el=>{
+      if(el.textContent.toLowerCase().includes(filter)){
+        el.classList.remove('hidden');
+      }else{
+        el.classList.add('hidden');
+      }
+    });
+  });
+</script>
+</body>
+</html>

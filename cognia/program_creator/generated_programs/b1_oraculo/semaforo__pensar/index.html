@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo</title>
+<style>
+  body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+    background:#f0f0f0;
+    font-family:sans-serif;
+  }
+  #luz{
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    margin:20px;
+    animation:pulse 2s infinite;
+  }
+  #luz[data-color="rojo"]{background-color:red;}
+  #luz[data-color="verde"]{background-color:green;}
+  #luz[data-color="ambar"]{background-color:orange;}
+  @keyframes pulse{
+    0%{transform:scale(1);}
+    50%{transform:scale(1.1);}
+    100%{transform:scale(1);}
+  }
+  button{
+    padding:10px 20px;
+    font-size:16px;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo"></div>
+<button id="avanzar">Avanzar</button>
+<script>
+  document.getElementById('avanzar').addEventListener('click', function(){
+    const luz = document.getElementById('luz');
+    const current = luz.getAttribute('data-color');
+    const colors = ['rojo','verde','ambar'];
+    const idx = colors.indexOf(current);
+    const next = colors[(idx+1)%colors.length];
+    luz.setAttribute('data-color', next);
+  });
+</script>
+</body>
+</html>

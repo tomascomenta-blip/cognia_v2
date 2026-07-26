@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Un juego de memoria 4x4</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    background-color: #f0f0f0;
+    color: #333;
+}
+#moves {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5em;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 80px);
+    grid-gap: 10px;
+}
+.tile {
+    width: 80px;
+    height: 80px;
+    background-color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+.tile.matched {
+    background-color: #90EE90;
+}
+.tile.flipped {
+    transform: rotateY(180deg);
+}
+</style>
+</head>
+<body>
+<div id="moves">0</div>
+<div class="grid" id="gameBoard"></div>
+<script>
+const emojis = [
+    '🐶', '🐱', '🐭', '🐹',
+    '🐰', '🦊', '🐻', '🐼'
+].flatMap(emoji => [emoji, emoji]);
+
+const shuffle = array => array.sort(() => Math.random() - 0.5);
+
+const gameBoard = document.getElementById('gameBoard');
+const movesCounter = document.getElementById('moves');
+let moves = 0;
+let flippedTiles = [];
+
+const createTile = emoji => {
+    const tile = document.createElement('div');
+    tile.classList.add('tile');
+    tile.dataset.emoji = emoji;
+    tile.addEventListener('click', flipTile);
+    return tile;
+};
+
+const flipTile = event => {
+    const tile = event.target;
+    if (tile.classList.contains('flipped') || flippedTiles.length === 2) return;
+    tile.classList.add('flipped');
+    flippedTiles.push(tile);
+    moves++;
+    movesCounter.textContent = moves;
+    if (flippedTiles.length === 2) {
+        setTimeout(checkMatch, 1000);
+    }
+};
+
+const checkMatch = () => {
+    const [tile1, tile2] = flippedTiles;
+    if (tile1.dataset.emoji === tile2.dataset.emoji) {
+        tile1.classList.add('matched');
+        tile2.classList.add('matched');
+    } else {
+        tile1.classList.remove('flipped');
+        tile2.classList.remove('flipped');
+    }
+    flippedTiles = [];
+};
+
+const startGame = () => {
+    gameBoard.innerHTML = '';
+    shuffle(emojis).forEach(emoji => gameBoard.appendChild(createTile(emoji)));
+};
+
+startGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .calculator {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            width: 360px;
+            height: 500px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .pantalla {
+            background: rgba(255, 255, 255, 0.2);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            font-size: 3rem;
+            color: white;
+            text-align: right;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 20px;
+        }
+        .tecla {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tecla:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .tecla.numero {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .tecla.operador {
+            background: rgba(255, 100, 100, 0.3);
+        }
+        .tecla.igual {
+            background: rgba(76, 175, 80, 0.3);
+            grid-column: span 2;
+        }
+        .tecla.clear {
+            background: rgba(255, 100, 100, 0.3);
+            grid-column: span 2;
+        }
+        .tecla:active {
+            transform: translateY(2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div id="pantalla">0</div>
+        <div class="buttons">
+            <button class="tecla clear" data-t="C">C</button>
+            <button class="tecla" data-t="7">7</button>
+            <button class="tecla" data-t="8">8</button>
+            <button class="tecla" data-t="9">9</button>
+            <button class="tecla operador" data-t="/">/</button>
+            <button class="tecla" data-t="4">4</button>
+            <button class="tecla" data-t="5">5</button>
+            <button class="tecla" data-t="6">6</button>
+            <button class="tecla operador" data-t="*">*</button>
+            <button class="tecla" data-t="1">1</button>
+            <button class="tecla" data-t="2">2</button>
+            <button class="tecla" data-t="3">3</button>
+            <button class="tecla operador" data-t="-">-</button>
+            <button class="tecla" data-t="0">0</button>
+            <button class="tecla" data-t=".">.</button>
+            <button class="tecla igual" data-t="=">=</button>
+            <button class="tecla operador" data-t="+">+</button>
+        </div>
+    </div>
+
+    <script>
+        const pantalla = document.getElementById('pantalla');
+        let displayValue = '0';
+        let firstNumber = null;
+        let operator = null;
+
+        document.querySelectorAll('.tecla').forEach(button => {
+            button.addEventListener('click', () => {
+                const value = button.getAttribute('data-t');
+                
+                if (value === 'C') {
+                    displayValue = '0';
+                    firstNumber = null;
+                    operator = null;
+                } else if (value === '+' || value === '-' || value === '*' || value === '/') {
+                    if (firstNumber === null) {
+                        firstNumber = parseFloat(displayValue);
+                        operator = value;
+                        displayValue = '0';
+                    } else {
+                        calculate();
+                        firstNumber = parseFloat(displayValue);
+                        operator = value;
+                        displayValue = '0';
+                    }
+                } else if (value === '=') {
+                    if (firstNumber !== null && operator !== null) {
+                        calculate();
+                        firstNumber = null;
+                        operator = null;
+                    }
+                } else {
+                    if (displayValue === '0' && value !== '.') {
+                        displayValue = value;
+                    } else {
+                        displayValue += value;
+                    }
+                }
+                
+                pantalla.textContent = displayValue;
+            });
+        });
+
+        function calculate() {
+            let result;
+            const secondNumber = parseFloat(displayValue);
+            
+            switch (operator) {
+                case '+':
+                    result = firstNumber + secondNumber;
+                    break;
+                case '-':
+                    result = firstNumber - secondNumber;
+                    break;
+                case '*':
+                    result = firstNumber * secondNumber;
+                    break;
+                case '/':
+                    result = firstNumber / secondNumber;
+                    break;
+                default:
+                    return;
+            }
+            
+            displayValue = result.toString();
+            firstNumber = null;
+            operator = null;
+        }
+
+        // Animate on load
+        window.addEventListener('load', () => {
+            const calculator = document.querySelector('.calculator');
+            calculator.style.opacity = 1;
+            calculator.style.transform = 'translateY(0)';
+        });
+    </script>
+</body>
+</html>

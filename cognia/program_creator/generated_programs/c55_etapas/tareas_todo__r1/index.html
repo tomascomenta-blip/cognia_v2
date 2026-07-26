@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Una lista de tareas animada</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        #container {
+            width: 90%;
+            max-width: 400px;
+            background-color: #e0f7fa;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input {
+            background-color: #fff;
+        }
+        button {
+            background-color: #00838f;
+            color: #fff;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #005f69;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li.tarea {
+            padding: 10px;
+            background-color: #e0f7fa;
+            border-bottom: 1px solid #b2ebf2;
+            transition: background-color 0.3s;
+        }
+        li.tarea:hover {
+            background-color: #b2ebf2;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <input type="text" id="nueva" placeholder="Nueva tarea">
+        <button id="anadir">Añadir</button>
+        <ul id="lista"></ul>
+    </div>
+    <script>
+        document.getElementById('anadir').addEventListener('click', function() {
+            var nuevaTarea = document.getElementById('nueva').value.trim();
+            if (nuevaTarea !== '') {
+                var li = document.createElement('li');
+                li.className = 'tarea';
+                li.textContent = nuevaTarea;
+                document.getElementById('lista').appendChild(li);
+                document.getElementById('nueva').value = '';
+            }
+        });
+
+        // Simulación de animación
+        setInterval(function() {
+            var tarea = document.createElement('li');
+            tarea.className = 'tarea';
+            tarea.textContent = 'Tarea simulada ' + Math.floor(Math.random() * 100);
+            document.getElementById('lista').appendChild(tarea);
+        }, 5000);
+
+        // Animate the list on load
+        window.onload = function() {
+            var list = document.getElementById('lista');
+            for (var i = 0; i < 5; i++) {
+                var li = document.createElement('li');
+                li.className = 'tarea';
+                li.textContent = 'Tarea inicial ' + (i + 1);
+                list.appendChild(li);
+            }
+        };
+    </script>
+</body>
+</html>

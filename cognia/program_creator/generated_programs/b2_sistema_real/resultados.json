@@ -1,0 +1,61 @@
+{
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": false,
+      "motivo": "falla critica: tras 1 click hay EXACTAMENTE 1 destapada (visibles('.tile')=0, esperaba 1); tras 2 clicks hay EXACTAMENTE",
+      "segundos": 33.04352331161499,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=5.0)",
+      "checks_ok": 8,
+      "checks": 10
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: empieza en 0 (no existe '#valor'); tras + vale 1 (no existe '#valor'); tras dos + vale 2 (no existe '#val",
+      "segundos": 28.97296404838562,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=5.0)",
+      "checks_ok": 7,
+      "checks": 14
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "11/12 checks OK (8/8 del contrato)",
+      "segundos": 31.973190307617188,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=7.5)",
+      "checks_ok": 11,
+      "checks": 12
+    },
+    "calculadora": {
+      "aprobado": false,
+      "motivo": "falla critica: la pantalla muestra 5 ('3' no contiene '5')",
+      "segundos": 50.095927715301514,
+      "como": "create_program",
+      "checks_ok": 8,
+      "checks": 10
+    },
+    "semaforo": {
+      "aprobado": false,
+      "motivo": "falla critica: arranca en ROJO (excepcion: Error: Page.evaluate: TypeError: Cannot read properties of null (reading 'dat",
+      "segundos": 16.28229331970215,
+      "como": "create_program",
+      "checks_ok": 5,
+      "checks": 11
+    },
+    "filtro_lista": {
+      "aprobado": true,
+      "motivo": "10/11 checks OK (7/7 del contrato)",
+      "segundos": 43.66053128242493,
+      "como": "create_program",
+      "checks_ok": 10,
+      "checks": 11
+    }
+  },
+  "techo": 6,
+  "real": 2,
+  "desperdicio": [
+    "memoria_4x4",
+    "contador",
+    "calculadora",
+    "semaforo"
+  ],
+  "n_tareas": 6
+}

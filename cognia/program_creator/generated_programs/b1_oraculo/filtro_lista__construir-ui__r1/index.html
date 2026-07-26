@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filtro de Lista</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.05);
+        }
+
+        #buscar {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        #buscar:focus {
+            border-color: #2980b9;
+            box-shadow: 0 0 10px rgba(41, 128, 185, 0.3);
+            outline: none;
+        }
+
+        .item {
+            padding: 15px 20px;
+            margin: 10px 0;
+            background: rgba(245, 249, 255, 0.8);
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .item.hidden {
+            opacity: 0;
+            transform: scale(0.8);
+            display: none;
+        }
+
+        .item:active {
+            border-left-color: #27ae60;
+        }
+
+        .item:hover {
+            background: rgba(230, 245, 255, 0.9);
+            border-left-color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Lista de Frutas</h1>
+        <input type="text" id="buscar" placeholder="Buscar fruta...">
+        <ul>
+            <li class="item">manzana</li>
+            <li class="item">banana</li>
+            <li class="item">cereza</li>
+            <li class="item">datil</li>
+            <li class="item">kiwi</li>
+        </ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const input = document.getElementById('buscar');
+            const items = document.querySelectorAll('.item');
+            
+            input.addEventListener('input', function() {
+                const value = this.value.toLowerCase();
+                
+                items.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(value)) {
+                        item.classList.remove('hidden');
+                    } else {
+                        item.classList.add('hidden');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

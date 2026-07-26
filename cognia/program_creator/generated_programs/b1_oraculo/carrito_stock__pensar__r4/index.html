@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:20px;background:#f9f9f9;}
+  .products{display:flex;gap:20px;margin-bottom:30px;}
+  .prod{border:1px solid #ccc;padding:15px;width:150px;text-align:center;background:#fff;border-radius:5px;
+        animation:slideIn 0.8s ease forwards;opacity:0;}
+  .prod:nth-child(1){animation-delay:0.1s;}
+  .prod:nth-child(2){animation-delay:0.3s;}
+  .prod:nth-child(3){animation-delay:0.5s;}
+  @keyframes slideIn{from{opacity:0;transform:translateX(-50px);}to{opacity:1;transform:translateX(0);}}
+  button{padding:5px 10px;margin-top:10px;border:none;background:#28a745;color:#fff;border-radius:3px;cursor:pointer;}
+  button:disabled{background:#aaa;cursor:not-allowed;}
+  #cart{margin-top:20px;}
+  .linea{display:flex;align-items:center;gap:10px;margin:5px 0;animation:fadeIn 0.3s ease forwards;opacity:0;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  #total{font-weight:bold;color:#28a745;animation:colorChange 2s infinite alternate;}
+  @keyframes colorChange{from{color:#28a745;}to{color:#007bff;}}
+</style>
+</head>
+<body>
+
+<h1>Productos</h1>
+<div class="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <h3>Producto 1</h3>
+    <p>Precio: 100</p>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <h3>Producto 2</h3>
+    <p>Precio: 50</p>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <h3>Producto 3</h3>
+    <p>Precio: 25</p>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<h2>Carrito</h2>
+<div id="cart"></div>
+<p>Total: <span id="total">0</span></p>
+
+<script>
+  const products = document.querySelectorAll('.prod');
+  const cartDiv = document.getElementById('cart');
+  const totalSpan = document.getElementById('total');
+  const cart = {}; // id -> quantity
+
+  function updateTotal() {
+    let total = 0;
+    for (const id in cart) {
+      const prod = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prod.dataset.precio);
+      total += cart[id] * price;
+    }
+    totalSpan.textContent = total;
+  }
+
+  function addToCart(id) {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prod.dataset.stock);
+    const addBtn = prod.querySelector(`.add[data-id="${id}"]`);
+    const currentQty = cart[id] || 0;
+    if (currentQty < stock) {
+      cart[id] = currentQty + 1;
+      let line = document.querySelector(`.linea[data-id="${id}"]`);
+      if (!line) {
+        line = document.createElement('div');
+        line.className = 'linea';
+        line.dataset.id = id;
+        line.innerHTML = `<span class="cant">1</span> <button class="quitar" data-id="${id}">-</button>`;
+        cartDiv.appendChild(line);
+        line.querySelector('.quitar').addEventListener('click', () => removeFromCart(id));
+      } else {
+        line.querySelector('.cant').textContent = cart[id];
+      }
+      if (cart[id] >= stock) addBtn.disabled = true;
+      updateTotal();
+    }
+  }
+
+  function removeFromCart(id) {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    const addBtn = prod.querySelector(`.add[data-id="${id}"]`);
+    const currentQty = cart[id] || 0;
+    if (currentQty > 0) {
+      cart[id] = currentQty - 1;
+      if (cart[id] === 0) {
+        const line = document.querySelector(`.linea[data-id="${id}"]`);
+        if (line) line.remove();
+        delete cart[id];
+      } else {
+        const line = document.querySelector(`.linea[data-id="${id}"]`);
+        if (line) line.querySelector('.cant').textContent = cart[id];
+      }
+      addBtn.disabled = false;
+      updateTotal();
+    }
+  }
+
+  products.forEach(prod => {
+    const id = prod.dataset.id;
+    const addBtn = prod.querySelector(`.add[data-id="${id}"]`);
+    addBtn.addEventListener('click', () => addToCart(id));
+  });
+</script>
+</body>
+</html>

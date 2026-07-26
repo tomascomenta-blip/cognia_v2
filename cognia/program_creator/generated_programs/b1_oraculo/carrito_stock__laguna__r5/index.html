@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Carrito de Compra</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .productos {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+        .prod {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+            width: 150px;
+            text-align: center;
+        }
+        .prod button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            cursor: pointer;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+        }
+        .prod button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .carrito {
+            border: 2px solid #333;
+            padding: 15px;
+            border-radius: 8px;
+            background: white;
+        }
+        .linea {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .linea button {
+            padding: 4px 8px;
+            cursor: pointer;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        #total {
+            font-weight: bold;
+            font-size: 1.2em;
+            text-align: right;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Productos</h1>
+    <div class="productos">
+        <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+            <h3>Producto 1</h3>
+            <p>Precio: $100</p>
+            <p>Stock: 2</p>
+            <button class="add" data-id="p1">Agregar</button>
+        </div>
+        <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+            <h3>Producto 2</h3>
+            <p>Precio: $50</p>
+            <p>Stock: 3</p>
+            <button class="add" data-id="p2">Agregar</button>
+        </div>
+        <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+            <h3>Producto 3</h3>
+            <p>Precio: $25</p>
+            <p>Stock: 1</p>
+            <button class="add" data-id="p3">Agregar</button>
+        </div>
+    </div>
+
+    <h2>Carrito de Compra</h2>
+    <div class="carrito">
+        <div id="cart-items"></div>
+        <span id="total">Total: $0</span>
+    </div>
+
+    <script>
+        // Estado del carrito: objeto con id del producto como clave y cantidad como valor
+        let cart = {};
+
+        // Función para agregar un producto al carrito
+        function addToCart(productId) {
+            const product = document.querySelector(`.prod[data-id="${productId}"]`);
+            const price = parseInt(product.dataset.precio);
+            const stock = parseInt(product.dataset.stock);
+            
+            // Si ya está en el carrito, incrementamos la cantidad
+            if (cart[productId]) {
+                // Verificamos si no se excede el stock
+                if (cart[productId] < stock) {
+                    cart[productId]++;
+                }
+            } else {
+                // Nuevo producto en el carrito
+                cart[productId] = 1;
+            }
+            
+            updateCart();
+        }
+
+        // Función para quitar un producto del carrito
+        function removeFromCart(productId) {
+            if (cart[productId]) {
+                cart[productId]--;
+                
+                // Si la cantidad llega a 0, eliminamos el producto del carrito
+                if (cart[productId] <= 0) {
+                    delete cart[productId];
+                }
+            }
+            
+            updateCart();
+        }
+
+        // Función para actualizar la interfaz del carrito
+        function updateCart() {
+            const cartContainer = document.getElementById('cart-items');
+            const totalSpan = document.getElementById('total');
+            
+            // Limpiamos el contenedor del carrito
+            cartContainer.innerHTML = '';
+            
+            let total = 0;
+            
+            // Creamos una línea para cada producto en el carrito
+            for (const productId in cart) {
+                const product = document.querySelector(`.prod[data-id="${productId}"]`);
+                const price = parseInt(product.dataset.precio);
+                const quantity = cart[productId];
+                const lineTotal = price * quantity;
+                
+                total += lineTotal;
+                
+                // Creamos la línea del producto
+                const linea = document.createElement('div');
+                linea.className = 'linea';
+                linea.dataset.id = productId;
+                
+                linea.innerHTML = `
+                    <span>${product.querySelector('h3').textContent}</span>
+                    <span class="cant">${quantity} x $${price} = $${lineTotal}</span>
+                    <button class="quitar" data-id="${productId}">Quitar</button>
+                `;
+                
+                cartContainer.appendChild(linea);
+            }
+            
+            // Actualizamos el total
+            totalSpan.textContent = `Total: $${total}`;
+            
+            // Actualizamos los botones de agregar (habilitar/deshabilitar según stock)
+            for (const productId in cart) {
+                const product = document.querySelector(`.prod[data-id="${productId}"]`);
+                const addButton = product.querySelector('.add');
+                const stock = parseInt(product.dataset.stock);
+                
+                if (cart[productId] >= stock) {
+                    addButton.disabled = true;
+                } else {
+                    addButton.disabled = false;
+                }
+            }
+        }
+
+        // Agregar event listeners a los botones de agregar
+        document.querySelectorAll('.add').forEach(button => {
+            button.addEventListener('click', function() {
+                const productId = this.dataset.id;
+                addToCart(productId);
+            });
+        });
+
+        // Agregar event listeners a los botones de quitar (delegación de eventos)
+        document.getElementById('cart-items').addEventListener('click', function(e) {
+            if (e.target.classList.contains('quitar')) {
+                const productId = e.target.dataset.id;
+                removeFromCart(productId);
+            }
+        });
+
+        // Animación de carga
+        window.addEventListener('load', function() {
+            // Simular una animación de carga del carrito
+            document.querySelectorAll('.prod').forEach((product, index) => {
+                const button = product.querySelector('.add');
+                setTimeout(() => {
+                    button.style.animation = 'pulse 1s infinite';
+                }, (index + 1) * 500);
+            });
+        });
+
+        // Añadir estilo para la animación
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  .board{display:flex;justify-content:space-around;padding:20px;}
+  .col{background:#fff;width:30%;min-height:400px;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.1);padding:10px;box-sizing:border-box;position:relative;overflow-y:auto;}
+  .col[data-col="todo"]{background:#e8f5e9;}
+  .col[data-col="doing"]{background:#e3f2fd;}
+  .col[data-col="done"]{background:#fce4ec;}
+  .col h2{margin-top:0;text-align:center;}
+  .card{background:#fff;border:1px solid #ccc;border-radius:3px;padding:10px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);position:relative;}
+  .card button{background:#1976d2;color:#fff;border:none;border-radius:3px;padding:2px 5px;font-size:12px;cursor:pointer;margin-right:5px;}
+  .card button.menos{background:#d32f2f;}
+  .count{position:absolute;top:5px;right:5px;background:#000;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+  .col{animation:fadeIn 0.5s ease forwards;}
+  .card{animation:fadeIn 0.5s ease forwards;}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo" class="count">0</span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing" class="count">0</span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done" class="count">0</span></h2>
+  </div>
+</div>
+<script>
+  const todoCol = document.querySelector('.col[data-col="todo"]');
+  const doingCol = document.querySelector('.col[data-col="doing"]');
+  const doneCol = document.querySelector('.col[data-col="done"]');
+
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.innerHTML = `<span>${id}</span>`;
+    const mas = document.createElement('button');
+    mas.className = 'mas';
+    mas.textContent = '→';
+    const menos = document.createElement('button');
+    menos.className = 'menos';
+    menos.textContent = '←';
+    card.appendChild(mas);
+    card.appendChild(menos);
+    card.style.animation = 'fadeIn 0.5s ease forwards';
+    mas.addEventListener('click',()=>moveCard(card,'right'));
+    menos.addEventListener('click',()=>moveCard(card,'left'));
+    return card;
+  }
+
+  function moveCard(card,direction){
+    const currentCol = card.parentElement;
+    const current = currentCol.dataset.col;
+    if(direction==='right'){
+      if(current==='todo'){
+        if(doingCol.children.length>=2)return;
+        doingCol.appendChild(card);
+      }else if(current==='doing'){
+        doneCol.appendChild(card);
+      }else{
+        return;
+      }
+    }else if(direction==='left'){
+      if(current==='doing'){
+        todoCol.appendChild(card);
+      }else if(current==='done'){
+        doingCol.appendChild(card);
+      }else{
+        return;
+      }
+    }
+    updateCounts();
+  }
+
+  function updateCounts(){
+    const todoCount = todoCol.querySelectorAll('.card').length;
+    const doingCount = doingCol.querySelectorAll('.card').length;
+    const doneCount = doneCol.querySelectorAll('.card').length;
+    document.getElementById('cont-todo').textContent = todoCount;
+    document.getElementById('cont-doing').textContent = doingCount;
+    document.getElementById('cont-done').textContent = doneCount;
+  }
+
+  function init(){
+    ['t1','t2','t3'].forEach(id=>{
+      const card=createCard(id);
+      todoCol.appendChild(card);
+    });
+    updateCounts();
+  }
+
+  window.addEventListener('load',init);
+</script>
+</body>
+</html>

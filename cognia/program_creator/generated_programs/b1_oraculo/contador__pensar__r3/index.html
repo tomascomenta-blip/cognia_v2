@@ -1,0 +1,83 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contador Animado</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    background:#f0f8ff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+  }
+  #valor{
+    font-size:4rem;
+    margin:20px;
+    color:#2c3e50;
+    animation:fadeIn 1s ease-out;
+  }
+  button{
+    font-size:1.5rem;
+    padding:10px 20px;
+    margin:0 10px;
+    cursor:pointer;
+    border:none;
+    border-radius:5px;
+    background:#3498db;
+    color:white;
+    transition:background .3s;
+  }
+  button:hover{background:#2980b9;}
+  button:active{transform:scale(.95);}
+  @keyframes fadeIn{
+    from{opacity:0; transform:translateY(-20px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+</style>
+</head>
+<body>
+  <span id="valor">0</span>
+  <div>
+    <button id="mas">+</button>
+    <button id="menos">-</button>
+  </div>
+
+<script>
+  const valorEl = document.getElementById('valor');
+  const masBtn = document.getElementById('mas');
+  const menosBtn = document.getElementById('menos');
+  let valor = 0;
+
+  function actualizar() {
+    valorEl.textContent = valor;
+  }
+
+  masBtn.addEventListener('click', () => {
+    valor++;
+    actualizar();
+  });
+
+  menosBtn.addEventListener('click', () => {
+    if (valor > 0) {
+      valor--;
+      actualizar();
+    }
+  });
+
+  // Animación automática al cargar la página: sube de 0 a 10 en 5 segundos
+  let autoIncrement = setInterval(() => {
+    if (valor < 10) {
+      valor++;
+      actualizar();
+    } else {
+      clearInterval(autoIncrement);
+    }
+  }, 500);
+</script>
+</body>
+</html>

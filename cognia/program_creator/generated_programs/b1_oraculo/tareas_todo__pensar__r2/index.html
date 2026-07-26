@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lista de Tareas</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+  }
+  #app{
+    background:#fff;
+    padding:20px;
+    border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    width:300px;
+    text-align:center;
+    animation:slideIn 1s ease-out;
+  }
+  h1{
+    margin:0 0 15px;
+    font-size:1.5em;
+  }
+  #nueva{
+    width:80%;
+    padding:8px;
+    margin-bottom:10px;
+    border:1px solid #ccc;
+    border-radius:4px;
+  }
+  #anadir{
+    padding:8px 12px;
+    background:#28a745;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  #anadir:hover{
+    background:#218838;
+  }
+  #lista{
+    list-style:none;
+    padding:0;
+    margin-top:15px;
+    text-align:left;
+  }
+  .tarea{
+    padding:6px 8px;
+    border-bottom:1px solid #eee;
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-100%); opacity:0;}
+    to{transform:translateX(0); opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Lista de Tareas</h1>
+  <input type="text" id="nueva" placeholder="Nueva tarea">
+  <button id="anadir">Añadir</button>
+  <ul id="lista"></ul>
+</div>
+<script>
+  const input = document.getElementById('nueva');
+  const button = document.getElementById('anadir');
+  const lista = document.getElementById('lista');
+
+  function agregarTarea(){
+    const texto = input.value.trim();
+    if(texto){
+      const li = document.createElement('li');
+      li.className = 'tarea';
+      li.textContent = texto;
+      lista.appendChild(li);
+      input.value = '';
+      input.focus();
+    }
+  }
+
+  button.addEventListener('click', agregarTarea);
+  input.addEventListener('keyup', e => {
+    if(e.key === 'Enter') agregarTarea();
+  });
+</script>
+</body>
+</html>

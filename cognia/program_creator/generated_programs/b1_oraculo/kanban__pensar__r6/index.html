@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;}
+  #board{display:flex;justify-content:space-around;padding:20px;}
+  .col{background:#fff;border-radius:5px;width:30%;min-height:300px;padding:10px;
+        box-shadow:0 2px 5px rgba(0,0,0,.1);animation:slideIn .5s ease forwards;
+        animation-delay:var(--delay,0s);}
+  .col h2{margin:0 0 10px;font-size:1.2em;display:flex;justify-content:space-between;}
+  .card{background:#e3e3e3;margin:5px 0;padding:10px;border-radius:3px;
+        display:flex;justify-content:space-between;align-items:center;
+        animation:fadeIn .3s ease forwards;}
+  button{padding:2px 5px;font-size:.8em;cursor:pointer;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  @keyframes slideIn{from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:translateX(0);}}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+</style>
+</head>
+<body>
+<div id="board">
+  <div class="col" data-col="todo" style="--delay:0s;">
+    <h2>Todo <span id="cont-todo"></span></h2>
+  </div>
+  <div class="col" data-col="doing" style="--delay:.2s;">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done" style="--delay:.4s;">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const board = document.getElementById('board');
+  const todoCol = board.querySelector('.col[data-col="todo"]');
+  const doingCol = board.querySelector('.col[data-col="doing"]');
+  const doneCol = board.querySelector('.col[data-col="done"]');
+
+  // Crear tarjetas iniciales
+  ['t1', 't2', 't3'].forEach(id => {
+    const card = createCard(id);
+    todoCol.appendChild(card);
+  });
+
+  updateCounts();
+
+  // Delegación de eventos
+  board.addEventListener('click', e => {
+    if (e.target.classList.contains('mas')) moveCard(e.target, 'right');
+    else if (e.target.classList.contains('menos')) moveCard(e.target, 'left');
+  });
+
+  function createCard(id) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.innerHTML = `<span>${id}</span>`;
+    const masBtn = document.createElement('button');
+    masBtn.className = 'mas';
+    masBtn.textContent = '+';
+    const menosBtn = document.createElement('button');
+    menosBtn.className = 'menos';
+    menosBtn.textContent = '-';
+    card.appendChild(masBtn);
+    card.appendChild(menosBtn);
+    return card;
+  }
+
+  function moveCard(btn, dir) {
+    const card = btn.parentElement;
+    const currentCol = card.parentElement;
+    const colName = currentCol.dataset.col;
+    let targetCol = null;
+
+    if (dir === 'right') {
+      if (colName === 'todo') targetCol = doingCol;
+      else if (colName === 'doing') targetCol = doneCol;
+      else return; // done no puede avanzar
+      // Regla WIP
+      if (targetCol.dataset

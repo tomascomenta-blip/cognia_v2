@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Contador</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+    background:#f0f0f0;
+  }
+  #container {
+    text-align:center;
+    background:#fff;
+    padding:30px;
+    border-radius:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+    animation: fadeIn 1s ease-out;
+  }
+  #valor {
+    font-size:48px;
+    display:block;
+    margin:20px 0;
+    animation: bounce 1s ease-out;
+  }
+  button {
+    font-size:18px;
+    padding:10px 20px;
+    margin:0 10px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+    background:#007bff;
+    color:#fff;
+    transition:background 0.3s;
+  }
+  button:hover {
+    background:#0056b3;
+  }
+  @keyframes fadeIn {
+    from {opacity:0; transform:translateY(-20px);}
+    to {opacity:1; transform:translateY(0);}
+  }
+  @keyframes bounce {
+    0%, 100% {transform:scale(1);}
+    50% {transform:scale(1.2);}
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <span id="valor">0</span>
+  <button id="mas">+</button>
+  <button id="menos">-</button>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const valorSpan = document.getElementById('valor');
+  const masBtn = document.getElementById('mas');
+  const menosBtn = document.getElementById('menos');
+  let valor = 0;
+  function update() {
+    valorSpan.textContent = valor;
+  }
+  masBtn.addEventListener('click', function() {
+    valor++;
+    update();
+  });
+  menosBtn.addEventListener('click', function() {
+    if (valor > 0) {
+      valor--;
+      update();
+    }
+  });
+});
+</script>
+</body>
+</html>

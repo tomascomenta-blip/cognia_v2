@@ -1,0 +1,116 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        #calculadora {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            text-align: center;
+        }
+        #pantalla {
+            background-color: #e0e0e0;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-size: 24px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tecla {
+            background-color: #ddd;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s;
+        }
+        .tecla:hover {
+            background-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="calculadora">
+        <div id="pantalla">0</div>
+        <div class="tecla" data-t="2">2</div>
+        <div class="tecla" data-t="3">3</div>
+        <div class="tecla" data-t="+">+</div>
+        <div class="tecla" data-t="=">=</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const pantalla = document.getElementById('pantalla');
+            const teclas = document.querySelectorAll('.tecla');
+            let display = '0';
+            let currentOperation = null;
+            let firstOperand = null;
+
+            teclas.forEach(tecla => {
+                tecla.addEventListener('click', () => {
+                    const valor = tecla.getAttribute('data-t');
+                    handleInput(valor);
+                });
+            });
+
+            function handleInput(value) {
+                if (value === '=') {
+                    if (currentOperation && firstOperand !== null) {
+                        const secondOperand = parseFloat(display);
+                        let result;
+                        switch (currentOperation) {
+                            case '+':
+                                result = firstOperand + secondOperand;
+                                break;
+                            case '-':
+                                result = firstOperand - secondOperand;
+                                break;
+                            case '*':
+                                result = firstOperand * secondOperand;
+                                break;
+                            case '/':
+                                result = firstOperand / secondOperand;
+                                break;
+                        }
+                        pantalla.textContent = result;
+                        firstOperand = null;
+                        currentOperation = null;
+                    }
+                } else if (['+', '-', '*', '/'].includes(value)) {
+                    if (firstOperand === null) {
+                        firstOperand = parseFloat(display);
+                    }
+                    currentOperation = value;
+                    display = '0';
+                } else {
+                    if (display === '0') {
+                        display = value;
+                    } else {
+                        display += value;
+                    }
+                }
+                pantalla.textContent = display;
+            }
+        });
+    </script>
+</body>
+</html>

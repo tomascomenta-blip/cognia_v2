@@ -1,0 +1,185 @@
+{
+  "resultados": {
+    "memoria_4x4": {
+      "construir": {
+        "aprobado": false,
+        "motivo": "falla critica: tras 1 click hay EXACTAMENTE 1 destapada (visibles('.tile')=0, esperaba 1); tras 2 clicks hay EXACTAMENTE",
+        "checks_ok": 5,
+        "checks": 10
+      },
+      "construir-ui": {
+        "aprobado": false,
+        "motivo": "falla critica: contenido (0 chars de texto, 0 elementos); hay 16 cartas (count('.tile')=0, esperaba 16); tras 1 click ha",
+        "checks_ok": 3,
+        "checks": 10
+      },
+      "pensar": {
+        "aprobado": true,
+        "motivo": "10/10 checks OK (6/6 del contrato)",
+        "checks_ok": 10,
+        "checks": 10
+      },
+      "pensar-en-lazo": {
+        "aprobado": false,
+        "motivo": "falla critica: hay 16 cartas (count('.tile')=0, esperaba 16); tras 1 click hay EXACTAMENTE 1 destapada (visibles('.tile'",
+        "checks_ok": 4,
+        "checks": 10
+      }
+    },
+    "contador": {
+      "construir": {
+        "aprobado": true,
+        "motivo": "14/14 checks OK (10/10 del contrato)",
+        "checks_ok": 14,
+        "checks": 14
+      },
+      "construir-ui": {
+        "aprobado": true,
+        "motivo": "13/14 checks OK (10/10 del contrato)",
+        "checks_ok": 13,
+        "checks": 14
+      },
+      "pensar": {
+        "aprobado": true,
+        "motivo": "14/14 checks OK (10/10 del contrato)",
+        "checks_ok": 14,
+        "checks": 14
+      },
+      "pensar-en-lazo": {
+        "aprobado": true,
+        "motivo": "14/14 checks OK (10/10 del contrato)",
+        "checks_ok": 14,
+        "checks": 14
+      }
+    },
+    "tareas_todo": {
+      "construir": {
+        "aprobado": true,
+        "motivo": "11/12 checks OK (8/8 del contrato)",
+        "checks_ok": 11,
+        "checks": 12
+      },
+      "construir-ui": {
+        "aprobado": true,
+        "motivo": "11/12 checks OK (8/8 del contrato)",
+        "checks_ok": 11,
+        "checks": 12
+      },
+      "pensar": {
+        "aprobado": true,
+        "motivo": "11/12 checks OK (8/8 del contrato)",
+        "checks_ok": 11,
+        "checks": 12
+      },
+      "pensar-en-lazo": {
+        "aprobado": false,
+        "motivo": "el modelo no devolvio HTML"
+      }
+    },
+    "calculadora": {
+      "construir": {
+        "aprobado": true,
+        "motivo": "10/10 checks OK (6/6 del contrato)",
+        "checks_ok": 10,
+        "checks": 10
+      },
+      "construir-ui": {
+        "aprobado": true,
+        "motivo": "9/10 checks OK (6/6 del contrato)",
+        "checks_ok": 9,
+        "checks": 10
+      },
+      "pensar": {
+        "aprobado": true,
+        "motivo": "10/10 checks OK (6/6 del contrato)",
+        "checks_ok": 10,
+        "checks": 10
+      },
+      "pensar-en-lazo": {
+        "aprobado": false,
+        "motivo": "falla critica: la pantalla muestra 5 ('' no contiene '5')",
+        "checks_ok": 8,
+        "checks": 10
+      }
+    },
+    "semaforo": {
+      "construir": {
+        "aprobado": false,
+        "motivo": "el modelo no devolvio HTML"
+      },
+      "construir-ui": {
+        "aprobado": false,
+        "motivo": "falla critica: pasa a AMBAR (js='verde', esperaba 'ambar'); cierra el ciclo en ROJO (js='verde', esperaba 'rojo')",
+        "checks_ok": 7,
+        "checks": 11
+      },
+      "pensar": {
+        "aprobado": true,
+        "motivo": "10/11 checks OK (7/7 del contrato)",
+        "checks_ok": 10,
+        "checks": 11
+      },
+      "pensar-en-lazo": {
+        "aprobado": false,
+        "motivo": "falla critica: pasa a VERDE (js='rojo', esperaba 'verde'); pasa a AMBAR (js='rojo', esperaba 'ambar')",
+        "checks_ok": 8,
+        "checks": 11
+      }
+    },
+    "filtro_lista": {
+      "construir": {
+        "aprobado": false,
+        "motivo": "el modelo no devolvio HTML"
+      },
+      "construir-ui": {
+        "aprobado": false,
+        "motivo": "falla critica: 'an' deja solo manzana y banana (visibles('.item')=0, esperaba 2); 'kiwi' deja solo 1 (visibles('.item')=",
+        "checks_ok": 8,
+        "checks": 11
+      },
+      "pensar": {
+        "aprobado": true,
+        "motivo": "10/11 checks OK (7/7 del contrato)",
+        "checks_ok": 10,
+        "checks": 11
+      },
+      "pensar-en-lazo": {
+        "aprobado": false,
+        "motivo": "falla critica: contenido (0 chars de texto, 0 elementos); al cargar se ven los 5 (visibles('.item')=0, esperaba 5); 'an'",
+        "checks_ok": 2,
+        "checks": 11
+      }
+    }
+  },
+  "techo": 6,
+  "individuales": {
+    "construir": 3,
+    "construir-ui": 3,
+    "pensar": 6,
+    "pensar-en-lazo": 1
+  },
+  "mejor": 6,
+  "n_tareas": 6,
+  "swaps": [
+    {
+      "modo": "construir",
+      "modelo": "qwen2.5-coder-14b",
+      "segundos": 11.449462175369263
+    },
+    {
+      "modo": "construir-ui",
+      "modelo": "UIGEN-X-8B",
+      "segundos": 19.46031951904297
+    },
+    {
+      "modo": "pensar",
+      "modelo": "gpt-oss-20b",
+      "segundos": 10.917882204055786
+    },
+    {
+      "modo": "pensar-en-lazo",
+      "modelo": "OpenReasoning-Nemotron-14B",
+      "segundos": 15.523375749588013
+    }
+  ]
+}

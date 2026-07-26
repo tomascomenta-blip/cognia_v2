@@ -1,0 +1,116 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:0;padding:20px;display:flex;justify-content:center;align-items:center;min-height:100vh;}
+  #contenedor{display:grid;grid-template-columns:repeat(5,40px);grid-template-rows:repeat(5,40px);gap:2px;}
+  .c{background:#bbb;border:1px solid #999;display:flex;justify-content:center;align-items:center;font-weight:bold;font-size:18px;cursor:pointer;user-select:none;}
+  .c.abierta{background:#e0e0e0;cursor:default;}
+  .c.bandera{background:#ff0;}
+  #estado{margin-top:20px;font-size:18px;font-weight:bold;}
+</style>
+</head>
+<body>
+<div id="contenedor"></div>
+<div id="estado"></div>
+<script>
+(() => {
+  const minas = [6,12,18];
+  const contenedor = document.getElementById('contenedor');
+  const estado = document.getElementById('estado');
+  const size = 5;
+
+  // Crear celdas
+  for(let i=0;i<25;i++){
+    const div = document.createElement('div');
+    div.className='c';
+    div.dataset.i = i;
+    div.dataset.opened = 'false';
+    div.dataset.flag = 'false';
+    div.dataset.mine = minas.includes(i) ? 'true' : 'false';
+    contenedor.appendChild(div);
+  }
+
+  // Contar minas adyacentes
+  function countAdj(i){
+    const r = Math.floor(i/size);
+    const c = i%size;
+    let count=0;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<size && nc>=0 && nc<size){
+          const ni = nr*size+nc;
+          if(minas.includes(ni)) count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  // Abrir celda (recursiva)
+  function abrir(i){
+    const cell = contenedor.querySelector(`[data-i='${i}']`);
+    if(cell.dataset.opened==='true' || cell.dataset.flag==='true') return;
+    cell.dataset.opened='true';
+    cell.classList.add('abierta');
+    const adj = countAdj(i);
+    if(adj>0) cell.textContent = adj;
+    if(adj===0){
+      // abrir vecinos
+      const r = Math.floor(i/size);
+      const c = i%size;
+      for(let dr=-1;dr<=1;dr++){
+        for(let dc=-1;dc<=1;dc++){
+          if(dr===0 && dc===0) continue;
+          const nr=r+dr, nc=c+dc;
+          if(nr>=0 && nr<size && nc>=0 && nc<size){
+            const ni = nr*size+nc;
+            abrir(ni);
+          }
+        }
+      }
+    }
+  }
+
+  // Evento click izquierdo
+  contenedor.addEventListener('click', e=>{
+    if(e.target.classList.contains('c')){
+      const i = parseInt(e.target.dataset.i);
+      if(e.target.dataset.flag==='true') return;
+      if(e.target.dataset.mine==='true'){
+        e.target.textContent='💣';
+        estado.textContent='perdiste';
+        // Revelar todas las minas
+        minas.forEach(m=>{
+          const mcell = contenedor.querySelector(`[data-i='${m}']`);
+          if(mcell.dataset.mine==='true'){
+            mcell.textContent='💣';
+            mcell.classList.add('abierta');
+          }
+        });
+        // Desactivar eventos
+        contenedor.style.pointerEvents='none';
+      }else{
+        abrir(i);
+      }
+    }
+  });
+
+  // Evento click derecho (bandera)
+  contenedor.addEventListener('contextmenu', e=>{
+    e.preventDefault();
+    if(e.target.classList.contains('c')){
+      const flag = e.target.dataset.flag==='true';
+      e.target.dataset.flag = flag?'false':'true';
+      e.target.classList.toggle('bandera', !flag);
+    }
+  });
+})();
+</script>
+</body>
+</html>

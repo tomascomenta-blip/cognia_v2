@@ -1,0 +1,61 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Filtro de Lista</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        #buscar {
+            width: 300px;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .item {
+            background-color: #f0f0f0;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <input type="text" id="buscar" placeholder="Buscar frutas...">
+    <ul>
+        <li class="item">manzana</li>
+        <li class="item">banana</li>
+        <li class="item">cereza</li>
+        <li class="item">datil</li>
+        <li class="item">kiwi</li>
+    </ul>
+
+    <script>
+        const buscarInput = document.getElementById('buscar');
+        const items = document.querySelectorAll('.item');
+
+        buscarInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

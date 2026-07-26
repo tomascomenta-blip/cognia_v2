@@ -1,0 +1,45 @@
+La página web consiste en una interfaz simple y funcional que simula el comportamiento de un semáforo utilizando HTML. La estructura de la página es minimalista, centrada en dos elementos principales: un `<div>` que representa la luz del semáforo y un `<button>` que permite avanzar el ciclo de colores.
+
+### Estructura y Elementos
+
+1. **Div de Luz (`<div id="luz">`)**:
+   - **Atributo `data-color`**: Este atributo almacena el color actual de la luz del semáforo. Al cargar la página, el valor de `data-color` es "rojo", indicando que la luz inicialmente está en rojo.
+   - **Visualización**: El `<div>` se presenta como un círculo o cuadrado con un fondo rojo, simulating la luz roja de un semáforo.
+
+2. **Botón de Avanzar (`<button id="avanzar">`)**:
+   - **Texto del Botón**: El botón muestra el texto "Avanzar", indicando que al hacer clic, se avanzará al siguiente estado del semáforo.
+   - **Ubicación**: El botón se coloca debajo o al lado del `<div>` de luz, de manera que sea fácil de interactuar.
+
+### Estados Iniciales
+
+- **Estado Inicial**:
+  - **Luz**: El `<div>` de luz tiene un fondo rojo y el atributo `data-color` establecido en "rojo".
+  - **Botón**: El botón está habilitado y listo para ser clickeado.
+
+### Comportamiento al Interactuar
+
+1. **Primer Click en el Botón**:
+   - **Cambio de Color**: El fondo del `<div>` de luz cambia a verde, simulating la luz verde del semáforo.
+   - **Actualización de `data-color`**: El atributo `data-color` del `<div>` se actualiza a "verde".
+   - **Botón**: El botón permanece habilitado para permitir el siguiente cambio.
+
+2. **Segundo Click en el Botón**:
+   - **Cambio de Color**: El fondo del `<div>` de luz cambia a amarillo, simulating la luz amarilla del semáforo.
+   - **Actualización de `data-color`**: El atributo `data-color` del `<div>` se actualiza a "amarillo".
+   - **Botón**: El botón permanece habilitado para permitir el siguiente cambio.
+
+3. **Tercer Click en el Botón**:
+   - **Cambio de Color**: El fondo del `<div>` de luz cambia a rojo nuevamente, completando el ciclo.
+   - **Actualización de `data-color`**: El atributo `data-color` del `<div>` se actualiza a "rojo".
+   - **Botón**: El botón permanece habilitado para permitir que el ciclo se repita desde el principio.
+
+### Repetición del Ciclo
+
+El ciclo de colores se repite indefinidamente cada vez que se hace clic en el botón. Cada clic avanza el semáforo al siguiente estado, y al llegar al final del ciclo, regresa al estado inicial (rojo). Esta interacción proporciona una experiencia visual y funcional que simula el comportamiento de un semáforo real.
+
+### Diseño Visual
+
+- **Estilo de la Luz**: La luz (el `<div>`) puede tener bordes redondeados para simular una luz de semáforo real. El tamaño del `<div>` puede ser ajustado para que sea proporcional a una luz de semáforo estándar.
+- **Estilo del Botón**: El botón puede tener un estilo simple pero atractivo, con un color de fondo que se destaque del fondo de la página y un texto claro y legible.
+
+Esta página web es una herramienta útil para demostrar el funcionamiento básico de un semáforo y puede ser utilizada en contextos educativos o para ilustrar conceptos de programación y diseño de interfaces de usuario.

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Calculadora</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+
+    .calculadora {
+      background-color: #333;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    #pantalla {
+      background-color: #fff;
+      color: #000;
+      padding: 20px;
+      font-size: 2em;
+      text-align: right;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      min-height: 40px;
+    }
+
+    .botones {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .tecla {
+      padding: 20px;
+      font-size: 1.5em;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #4a4a4a;
+      color: white;
+    }
+
+    .tecla:hover {
+      background-color: #6a6a6a;
+    }
+
+    .tecla.operacion {
+      background-color: #ff9500;
+    }
+
+    .tecla.operacion:hover {
+      background-color: #ffb347;
+    }
+
+    .tecla.igual {
+      background-color: #1c8cff;
+    }
+
+    .tecla.igual:hover {
+      background-color: #4da6ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="calculadora">
+    <div id="pantalla"></div>
+    <div class="botones">
+      <button class="tecla" data-t="7">7</button>
+      <button class="tecla" data-t="8">8</button>
+      <button class="tecla" data-t="9">9</button>
+      <button class="tecla operacion" data-t="/">÷</button>
+
+      <button class="tecla" data-t="4">4</button>
+      <button class="tecla" data-t="5">5</button>
+      <button class="tecla" data-t="6">6</button>
+      <button class="tecla operacion" data-t="*">×</button>
+
+      <button class="tecla" data-t="1">1</button>
+      <button class="tecla" data-t="2">2</button>
+      <button class="tecla" data-t="3">3</button>
+      <button class="tecla operacion" data-t="-">-</button>
+
+      <button class="tecla" data-t="0">0</button>
+      <button class="tecla" data-t=".">.</button>
+      <button class="tecla igual" data-t="=">=</button>
+      <button class="tecla operacion" data-t="+">+</button>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.tecla').forEach(tecla => {
+      tecla.addEventListener('click', () => {
+        const valor = tecla.getAttribute('data-t');
+        const pantalla = document.getElementById('pantalla');
+        
+        if (valor === '=') {
+          try {
+            pantalla.textContent = eval(pantalla.textContent);
+          } catch (e) {
+            pantalla.textContent = 'Error';
+          }
+        } else {
+          pantalla.textContent += valor;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+  }
+  .board{
+    display:flex;
+    gap:20px;
+  }
+  .col{
+    background:#fff;
+    padding:10px;
+    border-radius:5px;
+    flex:1;
+    min-height:200px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    animation:fadeIn 1s ease-out;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(20px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .cards{
+    margin-top:10px;
+  }
+  .card{
+    background:#e3f2fd;
+    padding:10px;
+    margin-bottom:10px;
+    border-radius:3px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    animation:cardIn 0.5s ease-out;
+  }
+  @keyframes cardIn{
+    from{opacity:0;transform:translateX(-20px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+  button{
+    margin-left:5px;
+    padding:2px 5px;
+    cursor:pointer;
+  }
+  button:disabled{
+    opacity:0.5;
+    cursor:not-allowed;
+  }
+  .count{
+    margin-top:10px;
+    font-weight:bold;
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="cards"></div>
+    <div class="count">Todo: <span id="cont-todo"></span></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div class="cards"></div>
+    <div class="count">Doing: <span id="cont-doing"></span></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="cards"></div>
+    <div class="count">Done: <span id="cont-done"></span></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const order = ['todo','doing','done'];
+  const columns = {};
+  order.forEach(col=>{
+    columns[col] = document.querySelector(`.col[data-col="${col}"] .cards`);
+  });
+
+  // Crear tarjetas iniciales
+  const initialIds = ['t1','t2','t3'];
+  initialIds.forEach(id=>{
+    const card = createCard(id);
+    columns['todo'].appendChild(card);
+  });
+
+  updateCounts();
+
+  // Delegar eventos de los botones
+  document.querySelectorAll('.col').forEach(colDiv=>{
+    colDiv.addEventListener('click', e=>{
+      if(e.target.classList.contains('mas')){
+        moveCard(e.target.closest('.card'),1);
+      }else if(e.target.classList.contains('menos')){
+        moveCard(e.target.closest('.card'),-1);
+      }
+    });
+  });
+
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    const idSpan = document.createElement('span');
+    idSpan.textContent = id;
+    const masBtn = document.createElement('button');
+    masBtn.className = 'mas';
+    masBtn.textContent = '+';
+    const menosBtn = document.createElement('button');
+    menosBtn.className = 'menos';
+    menosBtn.textContent = '-';
+    card.appendChild(idSpan);
+    card.appendChild(masBtn);
+    card.appendChild(menosBtn);
+    return card;
+  }
+
+  function moveCard(card, dir){
+    const currentCol = card.closest('.col').dataset.col;
+    const idx = order.indexOf(currentCol);
+    const targetIdx = idx + dir;
+    if(targetIdx < 0 || targetIdx >= order.length) return; // no puede moverse
+    const targetCol = order[targetIdx];
+    // Regla WIP: Doing solo 2 tarjetas
+    if(targetCol === 'doing' && columns['doing'].children.length >= 2) return;
+    columns[targetCol].appendChild(card);
+    updateCounts();
+  }
+
+  function updateCounts(){
+    document.getElementById('cont-todo').textContent = columns['todo'].children.length;
+    document.getElementById('cont-doing').textContent = columns['doing'].children.length;
+    document.getElementById('cont-done').textContent = columns['done'].children.length;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+    background:#fafafa;
+    font-family:Arial,Helvetica,sans-serif;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3,80px);
+    gap:5px;
+  }
+  .celda{
+    width:80px;
+    height:30px;
+    text-align:center;
+    font-size:14px;
+    border:1px solid #ccc;
+    border-radius:3px;
+    animation:fadeIn 1s ease-in-out, colorChange 3s infinite alternate;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+  @keyframes colorChange{
+    0%{background:#fff;}
+    50%{background:#e0f7fa;}
+    100%{background:#fff;}
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <input type="text" class="celda" data-ref="A1">
+  <input type="text" class="celda" data-ref="A2">
+  <input type="text" class="celda" data-ref="A3">
+  <input type="text" class="celda" data-ref="B1">
+  <input type="text" class="celda" data-ref="B2">
+  <input type="text" class="celda" data-ref="B3">
+  <input type="text" class="celda" data-ref="C1">
+  <input type="text" class="celda" data-ref="C2">
+  <input type="text" class="celda" data-ref="C3">
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const cells = {};
+  const inputs = document.querySelectorAll('.celda');
+  inputs.forEach(cell=>{
+    cells[cell.dataset.ref] = cell;
+    // Store initial formula if present
+    if(cell.value.startsWith('=')) cell.dataset.formula = cell.value;
+    else cell.dataset.formula = '';
+    // Listen to user input
+    cell.addEventListener('input', function(e){
+      if(isUpdating) return;
+      const val = e.target.value;
+      if(val.startsWith('=')) e.target.dataset.formula = val;
+      else e.target.dataset.formula = '';
+      recalcAll();
+    });
+  });
+
+  let isUpdating = false;
+
+  function recalcAll(){
+    isUpdating = true;
+    for(const ref in cells){
+      const cell = cells[ref];
+      const formula = cell.dataset.formula;
+      if(formula){
+        const val = evaluateCell(ref, new Set());
+        cell.value = val === 'CIRC' ? 'CIRC' : val.toString();
+      }
+    }
+    isUpdating = false;
+  }
+
+  function evaluateCell(ref, visited){
+    if(visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    const cell = cells[ref];
+    const raw = cell.dataset.formula || cell.value;
+    if(!raw.startsWith('=')) {
+      const num = parseInt(raw,10);
+      return isNaN(num) ? 0 : num;
+    }
+    const expr = raw.substring(1);
+    const res = evalExpr(expr, visited);
+    return res;
+  }
+
+  function evalExpr(expr, visited){
+    let i = 0;
+    function skipSpaces(){ while(i<expr.length && expr[i]===' ') i++; }
+    function parseOperand(){
+      skipSpaces();
+      if(i>=expr.length) return 0;
+      if(/[A-C]/.test(expr[i])){
+        const ref = expr.substr(i,2);
+        i+=2;
+        const val = evaluateCell(ref, visited);
+        if(val==='CIRC') return 'CIRC';
+        return val;
+      }else{
+        let start=i;
+        while(i<expr.length && /[0-9]/.test(expr[i])) i++;
+        return parseInt(expr.substring(start,i),10);
+      }
+    }
+    let result = parseOperand();
+    if(result==='CIRC') return 'CIRC';
+    while(i<expr.length){
+      skipSpaces();
+      if(i>=expr.length) break;
+      const op = expr[i++];
+      const operand = parseOperand();
+      if(operand==='CIRC') return 'CIRC';
+      if(op==='+') result += operand;
+      else if(op==='-') result -= operand;
+    }
+    return result;
+  }
+
+  // Initial calculation
+  recalcAll();
+});
+</script>
+</body>
+</html>

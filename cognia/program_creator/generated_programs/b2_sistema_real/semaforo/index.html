@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaforo</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        #semaforo {
+            width: 100px;
+            height: 300px;
+            background-color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            border-radius: 10px;
+        }
+        .luz {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            transition: background-color 0.5s;
+        }
+        #rojo {
+            background-color: red;
+        }
+        #verde {
+            background-color: green;
+        }
+        #amarillo {
+            background-color: yellow;
+        }
+        #avanzar {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="semaforo">
+        <div id="rojo" class="luz"></div>
+        <div id="amarillo" class="luz"></div>
+        <div id="verde" class="luz"></div>
+    </div>
+    <button id="avanzar">Avanzar</button>
+
+    <script>
+        const luces = {
+            rojo: 'amarillo',
+            amarillo: 'verde',
+            verde: 'rojo'
+        };
+
+        let colorActual = 'rojo';
+
+        document.getElementById('luz').setAttribute('data-color', colorActual);
+
+        document.getElementById('avanzar').addEventListener('click', () => {
+            colorActual = luces[colorActual];
+            document.getElementById('luz').setAttribute('data-color', colorActual);
+            actualizarSemaforo();
+        });
+
+        function actualizarSemaforo() {
+            const lucesElementos = document.querySelectorAll('.luz');
+            lucesElementos.forEach(luz => luz.style.backgroundColor = 'gray');
+
+            document.getElementById(colorActual).style.backgroundColor = colorActual;
+        }
+
+        // Iniciar el semáforo con el color rojo
+        actualizarSemaforo();
+    </script>
+</body>
+</html>

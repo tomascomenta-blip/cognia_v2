@@ -1,0 +1,209 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Moderna</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --accent: #4caf50;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --border: #333;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .calculator {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            width: 360px;
+            height: 500px;
+            display: flex;
+            flex-direction: column;
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #pantalla {
+            flex: 1;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            padding: 20px;
+            font-size: 2.5rem;
+            text-align: right;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .tecla {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 60px;
+        }
+
+        .tecla:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .tecla.operator {
+            background: var(--accent);
+            color: white;
+        }
+
+        .tecla.operator:hover {
+            background: #45a049;
+        }
+
+        .tecla.equal {
+            background: var(--accent);
+            color: white;
+            grid-column: span 2;
+        }
+
+        .tecla.equal:hover {
+            background: #45a049;
+        }
+
+        .tecla.clear {
+            background: #f44336;
+            color: white;
+        }
+
+        .tecla.clear:hover {
+            background: #d32f2f;
+        }
+
+        .tecla.zero {
+            grid-column: span 2;
+        }
+
+        .tecla.zero:hover {
+            transform: translateY(-2px);
+        }
+
+        .tecla:active {
+            transform: translateY(2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div id="pantalla">0</div>
+        <div class="buttons">
+            <button class="tecla clear" data-t="C">C</button>
+            <button class="tecla" data-t="7">7</button>
+            <button class="tecla" data-t="8">8</button>
+            <button class="tecla" data-t="9">9</button>
+            <button class="tecla operator" data-t="/">÷</button>
+            
+            <button class="tecla" data-t="4">4</button>
+            <button class="tecla" data-t="5">5</button>
+            <button class="tecla" data-t="6">6</button>
+            <button class="tecla operator" data-t="*">×</button>
+            
+            <button class="tecla" data-t="1">1</button>
+            <button class="tecla" data-t="2">2</button>
+            <button class="tecla" data-t="3">3</button>
+            <button class="tecla operator" data-t="-">−</button>
+            
+            <button class="tecla zero" data-t="0">0</button>
+            <button class="tecla" data-t=".">.</button>
+            <button class="tecla equal" data-t="=">=</button>
+            <button class="tecla operator" data-t="+">+</button>
+        </div>
+    </div>
+
+    <script>
+        const pantalla = document.getElementById('pantalla');
+        let expresion = '0';
+        let resultado = 0;
+
+        function actualizarPantalla() {
+            pantalla.textContent = expresion;
+        }
+
+        function limpiar() {
+            expresion = '0';
+            resultado = 0;
+            actualizarPantalla();
+        }
+
+        function agregar(valor) {
+            if (expresion === '0' || expresion === 'Error') {
+                expresion = valor;
+            } else {
+                expresion += valor;
+            }
+            actualizarPantalla();
+        }
+
+        function calcular() {
+            try {
+                resultado = eval(expresion);
+                expresion = resultado.toString();
+            } catch {
+                expresion = 'Error';
+            }
+            actualizarPantalla();
+        }
+
+        document.querySelectorAll('.tecla').forEach(botón => {
+            botón.addEventListener('click', () => {
+                const valor = botón.getAttribute('data-t');
+                
+                if (valor === 'C') {
+                    limpiar();
+                } else if (valor === '=') {
+                    calcular();
+                } else {
+                    agregar(valor);
+                }
+            });
+        });
+
+        // Inicialización
+        actualizarPantalla();
+    </script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Light Simulation</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #luz {
+            width: 100px;
+            height: 300px;
+            border: 2px solid #000;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #fff;
+            margin-bottom: 20px;
+            transition: background-color 0.5s;
+        }
+        .luz-roja, .luz-verde, .luz-amarilla {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            transition: background-color 0.5s;
+        }
+        .luz-roja {
+            background-color: red;
+        }
+        .luz-verde {
+            background-color: green;
+        }
+        .luz-amarilla {
+            background-color: yellow;
+        }
+        #avanzar {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="luz" data-color="rojo">
+        <div class="luz-roja"></div>
+        <div class="luz-amarilla"></div>
+        <div class="luz-verde"></div>
+    </div>
+    <button id="avanzar">Avanzar</button>
+
+    <script>
+        const luz = document.getElementById('luz');
+        const avanzaButton = document.getElementById('avanzar');
+        const luces = document.querySelectorAll('.luz-roja, .luz-verde, .luz-amarilla');
+
+        const colores = ['rojo', 'amarilla', 'verde'];
+        let currentIndex = 0;
+
+        function actualizarLuz() {
+            luces.forEach(luz => luz.classList.remove('luz-roja', 'luz-verde', 'luz-amarilla'));
+            luces[currentIndex].classList.add(`luz-${colores[currentIndex]}`);
+            luz.setAttribute('data-color', colores[currentIndex]);
+        }
+
+        avanzaButton.addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % colores.length;
+            actualizarLuz();
+        });
+
+        // Iniciar el ciclo automático
+        setInterval(() => {
+            currentIndex = (currentIndex + 1) % colores.length;
+            actualizarLuz();
+        }, 3000);
+
+        // Iniciar con la luz roja
+        actualizarLuz();
+    </script>
+</body>
+</html>

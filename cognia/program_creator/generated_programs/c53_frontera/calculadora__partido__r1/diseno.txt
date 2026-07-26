@@ -1,0 +1,26 @@
+La página web es una calculadora simple y minimalista, diseñada para funcionar en un solo archivo HTML. La interfaz está compuesta por dos elementos principales: una pantalla y un conjunto de botones.
+
+La pantalla es un elemento `<div>` con el id "pantalla". Al iniciar, esta pantalla está vacía y muestra un estado de "espera", listo para recibir la primera entrada del usuario.
+
+Los botones de la calculadora son elementos `<button>` con la clase "tecla". Cada botón tiene un atributo `data-t` que almacena el valor específico del botón. Los botones disponibles son:
+
+1. Botón con `data-t="2"`
+2. Botón con `data-t="3"`
+3. Botón con `data-t="+"`
+4. Botón con `data-t="="`
+
+Cuando la página se carga, todos los botones están en un estado "inactivo", esperando a ser presionados por el usuario. El color de fondo de los botones es gris claro, y su texto es negro.
+
+El comportamiento de la calculadora se describe a continuación:
+
+1. **Interacción 1**: El usuario presiona el botón con `data-t="2"`. La pantalla actualiza su contenido para mostrar "2". El botón presionado cambia de color a azul, indicando que ha sido seleccionado. Los otros botones vuelven al estado "inactivo".
+
+2. **Interacción 2**: El usuario presiona el botón con `data-t="+"`. La pantalla actualiza su contenido para mostrar "2+". El botón presionado cambia de color a azul, mientras que los otros botones vuelven al estado "inactivo".
+
+3. **Interacción 3**: El usuario presiona el botón con `data-t="3"`. La pantalla actualiza su contenido para mostrar "2+3". El botón presionado cambia de color a azul, mientras que los otros botones vuelven al estado "inactivo".
+
+4. **Interacción 4**: El usuario presiona el botón con `data-t="="`. La pantalla actualiza su contenido para mostrar "5". El botón presionado cambia de color a azul, mientras que los otros botones vuelven al estado "inactivo".
+
+Después de cada interacción, la pantalla muestra el resultado de la operación realizada. Los botones vuelven al estado "inactivo" después de cada presión, esperando la siguiente entrada del usuario.
+
+La calculadora es intuitiva y fácil de usar, con una interfaz limpia y minimalista que enfatiza la funcionalidad básica de una calculadora.

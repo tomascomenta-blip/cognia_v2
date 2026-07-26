@@ -1,0 +1,83 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Semáforo</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    text-align:center;
+    margin-top:50px;
+  }
+  #luz{
+    width:80px;
+    height:220px;
+    background:#333;
+    border-radius:10px;
+    margin:auto;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-around;
+    padding:10px;
+  }
+  .light{
+    width:60px;
+    height:60px;
+    border-radius:50%;
+    background:#111;
+    opacity:0.3;
+  }
+  .red{background:red;}
+  .verde{background:green;}
+  .ambar{background:orange;}
+  .red{animation:redCycle 6s infinite;}
+  .verde{animation:verdeCycle 6s infinite;}
+  .ambar{animation:ambarCycle 6s infinite;}
+  @keyframes redCycle{
+    0%{opacity:1;}
+    33%{opacity:1;}
+    34%{opacity:0.3;}
+    100%{opacity:0.3;}
+  }
+  @keyframes verdeCycle{
+    0%{opacity:0.3;}
+    33%{opacity:0.3;}
+    34%{opacity:1;}
+    66%{opacity:1;}
+    67%{opacity:0.3;}
+    100%{opacity:0.3;}
+  }
+  @keyframes ambarCycle{
+    0%{opacity:0.3;}
+    66%{opacity:0.3;}
+    67%{opacity:1;}
+    100%{opacity:1;}
+  }
+  button{
+    margin-top:20px;
+    padding:10px 20px;
+    font-size:16px;
+  }
+</style>
+</head>
+<body>
+<div id="luz" data-color="rojo">
+  <div class="light red"></div>
+  <div class="light verde"></div>
+  <div class="light ambar"></div>
+</div>
+<button id="avanzar">Avanzar</button>
+
+<script>
+  const luz = document.getElementById('luz');
+  const btn  = document.getElementById('avanzar');
+  const colores = ['rojo','verde','ambar'];
+  let idx = 0;
+  btn.addEventListener('click', () => {
+    idx = (idx + 1) % colores.length;
+    luz.dataset.color = colores[idx];
+  });
+</script>
+</body>
+</html>

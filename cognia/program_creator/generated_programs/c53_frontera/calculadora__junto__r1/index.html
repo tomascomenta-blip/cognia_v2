@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #calculadora {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 300px;
+        }
+        #pantalla {
+            background-color: #e0e0e0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            height: 50px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 10px;
+            font-size: 24px;
+        }
+        .tecla {
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 60px;
+            height: 60px;
+            margin: 5px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .tecla:hover {
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div id="calculadora">
+        <div id="pantalla"></div>
+        <div>
+            <button class="tecla" data-t="7">7</button>
+            <button class="tecla" data-t="8">8</button>
+            <button class="tecla" data-t="9">9</button>
+            <button class="tecla" data-t="/">/</button>
+        </div>
+        <div>
+            <button class="tecla" data-t="4">4</button>
+            <button class="tecla" data-t="5">5</button>
+            <button class="tecla" data-t="6">6</button>
+            <button class="tecla" data-t="*">*</button>
+        </div>
+        <div>
+            <button class="tecla" data-t="1">1</button>
+            <button class="tecla" data-t="2">2</button>
+            <button class="tecla" data-t="3">3</button>
+            <button class="tecla" data-t="-">-</button>
+        </div>
+        <div>
+            <button class="tecla" data-t="0">0</button>
+            <button class="tecla" data-t=".">.</button>
+            <button class="tecla" data-t="=">=</button>
+            <button class="tecla" data-t="+">+</button>
+        </div>
+    </div>
+
+    <script>
+        const pantalla = document.getElementById('pantalla');
+        const teclas = document.querySelectorAll('.tecla');
+
+        let valorActual = '';
+        let valorAnterior = '';
+        let operacion = '';
+
+        teclas.forEach(tecla => {
+            tecla.addEventListener('click', () => {
+                const valor = tecla.getAttribute('data-t');
+
+                if (valor === '=') {
+                    calcular();
+                } else if (['+', '-', '*', '/'].includes(valor)) {
+                    cambiarOperacion(valor);
+                } else {
+                    agregarNumero(valor);
+                }
+            });
+        });
+
+        function agregarNumero(numero) {
+            valorActual += numero;
+            actualizarPantalla();
+        }
+
+        function cambiarOperacion(nuevaOperacion) {
+            if (valorActual === '') return;
+            if (valorAnterior !== '') {
+                calcular();
+            }
+            operacion = nuevaOperacion;
+            valorAnterior = valorActual;
+            valorActual = '';
+        }
+
+        function calcular() {
+            if (valorActual === '' || valorAnterior === '') return;
+            let resultado;
+            const anterior = parseFloat(valorAnterior);
+            const actual = parseFloat(valorActual);
+
+            switch (operacion) {
+                case '+':
+                    resultado = anterior + actual;
+                    break;
+                case '-':
+                    resultado = anterior - actual;
+                    break;
+                case '*':
+                    resultado = anterior * actual;
+                    break;
+                case '/':
+                    resultado = anterior / actual;
+                    break;
+                default:
+                    return;
+            }
+
+            valorActual = resultado;
+            operacion = '';
+            valorAnterior = '';
+            actualizarPantalla();
+        }
+
+        function actualizarPantalla() {
+            pantalla.textContent = valorActual;
+        }
+    </script>
+</body>
+</html>

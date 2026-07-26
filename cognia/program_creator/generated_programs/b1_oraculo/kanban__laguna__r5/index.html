@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Board</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .board {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .col {
+            width: 300px;
+            background-color: #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 400px;
+        }
+
+        .col-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #999;
+        }
+
+        .col-title {
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .card-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 6px;
+            padding: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        button {
+            width: 25px;
+            height: 25px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        button.menos {
+            background-color: #f44336;
+        }
+
+        .card:first-child {
+            animation: slideInFromLeft 0.5s ease-out;
+        }
+
+        .card:nth-child(2) {
+            animation: slideInFromLeft 0.5s ease-out 0.1s backwards;
+        }
+
+        .card:nth-child(3) {
+            animation: slideInFromLeft 0.5s ease-out 0.2s backwards;
+        }
+
+        @keyframes slideInFromLeft {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="board">
+        <!-- Columna TODO -->
+        <div class="col" data-col="todo">
+            <div class="col-header">
+                <span class="col-title">TODO</span>
+                <span id="cont-todo">3</span>
+            </div>
+            <div class="card-container" id="container-todo">
+                <div class="card" data-id="t1">
+                    <span>Tarea 1</span>
+                    <div class="card-buttons">
+                        <button class="mas">+</button>
+                        <button class="menos">-</button>
+                    </div>
+                </div>
+                <div class="card" data-id="t2">
+                    <span>Tarea 2</span>
+                    <div class="card-buttons">
+                        <button class="mas">+</button>
+                        <button class="menos">-</button>
+                    </div>
+                </div>
+                <div class="card" data-id="t3">
+                    <span>Tarea 3</span>
+                    <div class="card-buttons">
+                        <button class="mas">+</button>
+                        <button class="menos">-</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna DOING -->
+        <div class="col" data-col="doing">
+            <div class="col-header">
+                <span class="col-title">DOING</span>
+                <span id="cont-doing">0</span>
+            </div>
+            <div class="card-container" id="container-doing">
+            </div>
+        </div>
+
+        <!-- Columna DONE -->
+        <div class="col" data-col="done">
+            <div class="col-header">
+                <span class="col-title">DONE</span>
+                <span id="cont-done">0</span>
+            </div>
+            <div class="card-container" id="container-done">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Contenedores de cada columna
+        const containerTodo = document.getElementById('container-todo');
+        const containerDoing = document.getElementById('container-doing');
+        const containerDone = document.getElementById('container-done');
+
+        // Función para contar tarjetas en una columna
+        function countCards(container) {
+            return container.querySelectorAll('.card').length;
+        }
+
+        // Función para actualizar los contadores
+        function updateCounters() {
+            document.getElementById('cont-todo').textContent = countCards(containerTodo);
+            document.getElementById('cont-doing').textContent = countCards(containerDoing);
+            document.getElementById('cont-done').textContent = countCards(containerDone);
+        }
+
+        // Función para mover una tarjeta a la derecha
+        function moveRight(card) {
+            const currentCol = card.parentElement.parentElement;
+            const currentColName = currentCol.getAttribute('data-col');
+
+            let nextCol;
+            switch (currentColName) {
+                case 'todo':
+                    nextCol = document.querySelector('[data-col="doing"]');
+                    break;
+                case 'doing':
+                    nextCol = document.querySelector('[data-col="done"]');
+                    break;
+                case 'done':
+                    return; // No puede avanzar más
+            }
+
+            const nextContainer = nextCol.querySelector('.card-container');
+
+            // Verificar límite WIP para la columna "doing"
+            if (nextCol.getAttribute('data-col') === 'doing') {
+                if (countCards(nextContainer) >= 2) {
+                    return; // No se puede mover, doing está lleno
+                }
+            }
+
+            nextContainer.appendChild(card);
+            updateCounters();
+        }
+
+        // Función para mover una tarjeta a la izquierda
+        function moveLeft(card) {
+            const currentCol = card.parentElement.parentElement;
+            const currentColName = currentCol.getAttribute('data-col');
+
+            let prevCol;
+            switch (currentColName) {
+                case 'doing':
+                    prevCol = document.querySelector('[data-col="todo"]');
+                    break;
+                case 'done':
+                    prevCol = document.querySelector('[data-col="doing"]');
+                    break;
+                case 'todo':
+                    return; // No puede retroceder más
+            }
+
+            const prevContainer = prevCol.querySelector('.card-container');
+            prevContainer.appendChild(card);
+            updateCounters();
+        }
+
+        // Agregar eventos a los botones de cada tarjeta
+        document.querySelectorAll('.card').forEach(card => {
+            const btnMas = card.querySelector('button.mas');
+            const btnMenos = card.querySelector('button.menos');
+
+            btnMas.addEventListener('click', () => moveRight(card));
+            btnMenos.addEventListener('click', () => moveLeft(card));
+        });
+
+        // Animación de carga inicial
+        document.querySelectorAll('.card').forEach((card, index) => {
+            card.style.animation = `slideInFromLeft 0.5s ease-out ${index * 0.1}s forwards`;
+        });
+
+        // Contador inicial (ya están en el HTML)
+        updateCounters();
+    </script>
+</body>
+</html>

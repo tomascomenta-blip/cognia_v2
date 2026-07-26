@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        #valor {
+            font-size: 2em;
+            margin: 20px;
+            padding: 10px 20px;
+            border: 2px solid #333;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <span id="valor">0</span>
+    <button id="menos" disabled>-</button>
+    <button id="mas">+</button>
+
+    <script>
+        let contador = 0;
+        const valorElement = document.getElementById('valor');
+        const menosButton = document.getElementById('menos');
+        const masButton = document.getElementById('mas');
+
+        masButton.addEventListener('click', () => {
+            contador++;
+            valorElement.textContent = contador;
+            menosButton.disabled = contador === 0;
+        });
+
+        menosButton.addEventListener('click', () => {
+            if (contador > 0) {
+                contador--;
+                valorElement.textContent = contador;
+                menosButton.disabled = contador === 0;
+            }
+        });
+    </script>
+</body>
+</html>

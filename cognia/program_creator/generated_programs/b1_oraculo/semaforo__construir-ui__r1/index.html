@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaforo</title>
+    <style>
+        body {
+            background: #0f0f0f;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        #semaforo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 300px;
+            height: 400px;
+            background: rgba(15, 15, 15, 0.8);
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #luz {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 1s ease-in-out;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #luz.rojo {
+            background: #ff0000;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+        }
+
+        #luz.verde {
+            background: #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+        }
+
+        #luz.ambar {
+            background: #ffff00;
+            box-shadow: 0 0 20px rgba(255, 255, 0, 0.8);
+        }
+
+        #luz {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.8);
+        }
+
+        #luz.rojo {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #luz.verde {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #luz.ambar {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #luz {
+            animation: pulse 1s infinite;
+        }
+
+        #luz.rojo {
+            animation: none;
+        }
+
+        #luz.verde {
+            animation: none;
+        }
+
+        #luz.ambar {
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(255, 0, 0, 0.8); }
+            100% { box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); }
+        }
+
+        #luz.rojo {
+            animation: pulse-rojo 1s infinite;
+        }
+
+        #luz.verde {
+            animation: pulse-verde 1s infinite;
+        }
+
+        #luz.ambar {
+            animation: pulse-ambar 1s infinite;
+        }
+
+        @keyframes pulse-rojo {
+            0% { box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(255, 0, 0, 0.8); }
+            100% { box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); }
+        }
+
+        @keyframes pulse-verde {
+            0% { box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(0, 255, 0, 0.8); }
+            100% { box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); }
+        }
+
+        @keyframes pulse-ambar {
+            0% { box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(255, 255, 0, 0.8); }
+            100% { box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); }
+        }
+
+        #semaforo::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+            border-radius: 15px;
+            z-index: 1;
+        }
+
+        #semaforo::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+            border-radius: 15px;
+            z-index: 2;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #avanzar {
+            background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        #avanzar:hover {
+            background: linear-gradient(135deg, #cc0000 0%, #990000 100%);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+        }
+
+        #avanzar:active {
+            transform: translateY(3px);
+        }
+
+        .status {
+            margin-top: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Señalización de Tránsito</h1>
+    <div id="semaforo">
+        <div id="luz" data-color="rojo"></div>
+    </div>
+    <button id="avanzar">Avanzar</button>
+    <div class="status" id="estado">Estado: Rojo</div>
+
+    <script>
+        const luz = document.getElementById('luz');
+        const avanzar = document.getElementById('avanzar');
+        const estado = document.getElementById('estado');
+        const estados = ['rojo', 'verde', 'ambar'];
+        let indice = 0;
+
+        // Inicializar estado
+        luz.classList.add(estados[indice]);
+        estado.textContent = `Estado: ${estados[indice].charAt(0).toUpperCase() + estados[indice].slice(1)}`;
+
+        // Animación inicial
+        setTimeout(() => {
+            luz.classList.remove('rojo');
+            luz.classList.add('verde');
+            estado.textContent = `Estado: ${estados[indice + 1].charAt(0).toUpperCase() + estados[indice + 1].slice(1)}`;
+            setTimeout(() => {
+                luz.classList.remove('verde');
+                luz.classList.add('ambar');
+                estado.textContent = `Estado: ${estados[indice + 2].charAt(0).toUpperCase() + estados[indice + 2].slice(1)}`;
+                setTimeout(() => {
+                    luz.classList.remove('ambar');
+                    luz.classList.add('rojo');
+                    estado.textContent = `Estado: ${estados[indice].charAt(0).toUpperCase() + estados[indice].slice(1)}`;
+                }, 3000);
+            }, 3000);
+        }, 0);
+
+        avanzar.addEventListener('click', () => {
+            luz.classList.remove(estados[indice]);
+            luz.classList.add(estados[(indice + 1) % 3]);
+            estado.textContent = `Estado: ${estados[(indice + 1) % 3].charAt(0).toUpperCase() + estados[(indice + 1) % 3].slice(1)}`;
+            indice = (indice + 1) % 3;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+La página web es una sencilla interfaz de usuario para un juego de memoria 4x4. Está compuesta por una cuadrícula de 16 cartas, organizadas en cuatro filas y cuatro columnas. Cada carta es representada por un elemento `<div>` con la clase "tile". Al cargar la página, todas las cartas están boca abajo, es decir, no se ven los emojis que contienen.
+
+La estructura de la página es bastante simple. En la parte superior, hay un contador con el id "moves", que muestra el número de intentos que el jugador ha realizado. Este contador comienza en cero y aumenta cada vez que el jugador destapa una carta.
+
+Cuando el jugador hace clic en una carta, su estado cambia de "boca abajo" a "boca arriba". En este estado, se puede ver el emoji que contiene la carta. Si el jugador destapa una segunda carta y los emojis de las dos cartas no coinciden, se espera un segundo antes de que las cartas vuelvan a su estado original, es decir, boca abajo.
+
+Si las dos cartas que el jugador destapa contienen emojis iguales, permanecen boca arriba y no se vuelven a tapar. Esto indica que el jugador ha encontrado un par de emojis.
+
+El juego termina cuando todas las cartas han sido emparejadas y están boca arriba. En este momento, el contador muestra el número total de intentos que el jugador ha realizado para completar el juego.
+
+El comportamiento de la página es bastante intuitivo. El jugador simplemente hace clic en las cartas para destaparlas y tratar de encontrar pares de emojis. El contador en la parte superior proporciona una indicación de cuántos intentos ha realizado el jugador hasta el momento.
+
+En resumen, la página web es una interfaz de usuario simple y fácil de usar para un juego de memoria 4x4. La estructura de la página es compuesta por una cuadrícula de 16 cartas y un contador de intentos. El comportamiento de la página es intuitivo y se basa en el hecho de que el jugador hace clic en las cartas para destaparlas y tratar de encontrar pares de emojis.

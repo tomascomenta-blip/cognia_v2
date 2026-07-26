@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Tareas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #nueva {
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 10px;
+            width: 300px;
+        }
+        #anadir {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #lista {
+            list-style-type: none;
+            padding: 0;
+            width: 300px;
+        }
+        .tarea {
+            background-color: #fff;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .tarea:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <input type="text" id="nueva" placeholder="Escribe una nueva tarea">
+    <button id="anadir">Añadir</button>
+    <ul id="lista"></ul>
+
+    <script>
+        document.getElementById('anadir').addEventListener('click', function() {
+            const nuevaTarea = document.getElementById('nueva').value.trim();
+            if (nuevaTarea !== '') {
+                const li = document.createElement('li');
+                li.className = 'tarea';
+                li.textContent = nuevaTarea;
+                document.getElementById('lista').appendChild(li);
+                document.getElementById('nueva').value = '';
+            }
+        });
+    </script>
+</body>
+</html>

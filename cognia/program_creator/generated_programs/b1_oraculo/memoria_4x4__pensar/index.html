@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Juego de Memoria 4x4</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    text-align:center;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+  }
+  h1{margin-bottom:10px;}
+  #moves{margin-bottom:20px;font-size:1.2em;}
+  #board{
+    display:grid;
+    grid-template-columns:repeat(4,80px);
+    grid-gap:10px;
+    justify-content:center;
+  }
+  .tile{
+    width:80px;height:80px;
+    background:#2e3d49;
+    color:transparent;
+    font-size:48px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    user-select:none;
+    border-radius:8px;
+    transition:background 0.3s;
+  }
+  .tile.flipped,.tile.matched{
+    color:#000;
+    background:#fff;
+  }
+  .tile.matched{
+    cursor:default;
+    pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<h1>Juego de Memoria 4x4</h1>
+<div id="moves">Movimientos: 0</div>
+<div id="board"></div>
+
+<script>
+(() => {
+  const emojis = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+  const pairs = [...emojis, ...emojis]; // 16 cards
+  // Shuffle
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  }
+
+  const board = document.getElementById('board');
+  pairs.forEach(emoji => {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.dataset.emoji = emoji;
+    board.appendChild(tile);
+  });
+
+  let firstTile = null;
+  let secondTile = null;
+  let busy = false;
+  let moves = 0;
+
+  board.addEventListener('click', e => {
+    const tile = e.target.closest('.tile');
+    if (!tile || busy || tile.classList.contains('flipped') || tile.classList.contains('matched')) return;
+
+    tile.innerText = tile.dataset.emoji;
+    tile.classList.add('flipped');
+
+    if (!firstTile) {
+      firstTile = tile;
+    } else {
+      secondTile = tile;
+      moves++;
+      document.getElementById('moves').innerText = `Movimientos: ${moves}`;
+      busy = true;
+
+      if (firstTile.dataset.emoji === secondTile.dataset.emoji) {
+        // Match found
+        firstTile.classList.add('matched');
+        secondTile.classList.add('matched');
+        resetTurn();
+      } else {
+        // No match – flip back after 1s
+        setTimeout(() => {
+          firstTile.innerText = '';
+          firstTile.classList.remove('flipped');
+          secondTile.innerText = '';
+          secondTile.classList.remove('flipped');
+          resetTurn();
+        }, 1000);
+      }
+    }
+  });
+
+  function resetTurn() {
+    firstTile = null;
+    secondTile = null;
+    busy = false;
+  }
+})();
+</script>
+</body>
+</html>

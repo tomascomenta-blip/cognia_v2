@@ -1,0 +1,205 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaforo</title>
+    <style>
+        body {
+            background: #0f0f0f;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #fff;
+        }
+
+        #semaforo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 200px;
+            height: 300px;
+            border: 5px solid #fff;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            background: #1a1a1a;
+            position: relative;
+        }
+
+        #luz {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 1s ease-in-out;
+        }
+
+        #luz.rojo {
+            background: #e74c3c;
+        }
+
+        #luz.verde {
+            background: #2ecc71;
+        }
+
+        #luz.ambar {
+            background: #f39c12;
+        }
+
+        #luz {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.8);
+        }
+
+        #luz.rojo {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #luz.verde {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #luz.ambar {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #luz.rojo {
+            animation: fadeOut 1s ease-in-out forwards;
+        }
+
+        #luz.verde {
+            animation: fadeOut 1s ease-in-out forwards;
+        }
+
+        #luz.ambar {
+            animation: fadeOut 1s ease-in-out forwards;
+        }
+
+        @keyframes fadeOut {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+        }
+
+        #luz.rojo {
+            animation-delay: 0s;
+        }
+
+        #luz.verde {
+            animation-delay: 1s;
+        }
+
+        #luz.ambar {
+            animation-delay: 2s;
+        }
+
+        #avanzar {
+            background: #2ecc71;
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        #avanzar:hover {
+            background: #27ae60;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #avanzar:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            margin-top: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Semaforo</h1>
+    <div id="semaforo">
+        <div id="luz" data-color="rojo"></div>
+    </div>
+    <button id="avanzar">Avanzar</button>
+    <div class="status" id="status">Estado: Rojo</div>
+
+    <script>
+        const luz = document.getElementById('luz');
+        const avanzar = document.getElementById('avanzar');
+        const status = document.getElementById('status');
+        let color = 'rojo';
+
+        avanzar.addEventListener('click', () => {
+            // Remover animación de salida
+            luz.classList.remove('rojo', 'verde', 'ambar');
+            luz.classList.add('rojo');
+            luz.style.animation = 'none';
+            luz.offsetHeight; // Forcer reflow
+            luz.style.animation = null;
+
+            // Actualizar estado
+            status.textContent = `Estado: ${color}`;
+            status.style.color = color === 'rojo' ? '#e74c3c' : 
+                                 color === 'verde' ? '#2ecc71' : '#f39c12';
+
+            // Cambiar color
+            switch (color) {
+                case 'rojo':
+                    color = 'verde';
+                    break;
+                case 'verde':
+                    color = 'ambar';
+                    break;
+                case 'ambar':
+                    color = 'rojo';
+                    break;
+            }
+
+            // Aplicar nuevo color
+            luz.classList.remove('rojo', 'verde', 'ambar');
+            luz.classList.add(color);
+            luz.style.animation = `fadeIn 1s ease-in-out forwards`;
+        });
+
+        // Iniciar animación de entrada
+        luz.classList.add('rojo');
+        luz.style.animation = `fadeIn 1s ease-in-out forwards`;
+
+        function fadeIn() {
+            luz.style.opacity = 1;
+            luz.style.transform = 'translate(-50%, -50%) scale(1)';
+        }
+    </script>
+</body>
+</html>

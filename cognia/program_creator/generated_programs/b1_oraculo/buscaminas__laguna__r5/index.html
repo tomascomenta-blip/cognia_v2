@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscaminas 5x5</title>
+    <style>
+        body { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { display: grid; grid-template-columns: repeat(5, 40px); grid-gap: 1px; width: 200px; height: 200px; }
+        .c {
+            width: 40px; height: 40px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; cursor: pointer; background-color: #f0f0f0;
+        }
+        .abierta { background-color: #ccc; color: black; }
+        .bandera::after { content: '🚩'; font-size: 24px; }
+        #estado { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="estado">Buscaminas 5x5</div>
+    <div class="container" id="grid"></div>
+
+    <script>
+        const minePositions = [6, 12, 18];
+        let adjacentMines = new Array(25).fill(0);
+
+        // Precompute adjacent mines for each cell
+        for (let i = 0; i < 25; i++) {
+            let row = Math.floor(i / 5), col = i % 5;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    let r = row + dr, c = col + dc;
+                    if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+                        let neighborIndex = r * 5 + c;
+                        if (minePositions.includes(neighborIndex)) adjacentMines[i]++;
+                    }
+                }
+            }
+        }
+
+        // Create grid cells
+        const grid = document.getElementById('grid');
+        for (let i = 0; i < 25; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'c';
+            cell.dataset.i = i;
+            grid.appendChild(cell);
+
+            // Click handler
+            cell.addEventListener('click', function(e) {
+                if (this.classList.contains('bandera') || this.classList.contains('abierta')) return;
+                
+                const index = parseInt(this.dataset.i);
+                this.classList.add('abierta');
+
+                if (minePositions.includes(index)) {
+                    document.getElementById('estado').textContent = 'perdiste';
+                    return;
+                }
+
+                const count = adjacentMines[index];
+                if (count > 0) {
+                    this.textContent = count;
+                } else {
+                    revealCascada(this);
+                }
+            });
+
+            // Right-click handler
+            cell.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                this.classList.toggle('bandera');
+            });
+        }
+
+        function revealCascada(startCell) {
+            const queue = [startCell];
+            
+            while (queue.length > 0) {
+                const current = queue.shift();
+                const index = parseInt(current.dataset.i);
+                const row = Math.floor(index / 5), col = index % 5;
+
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        const r = row + dr, c = col + dc;
+                        
+                        if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+                            const neighborIndex = r * 5 + c;
+                            const neighborCell = document.querySelector(`[data-i="${neighborIndex}"]`);
+
+                            if (!neighborCell.classList.contains('abierta') && !neighborCell.classList.contains('bandera')) {
+                                neighborCell.classList.add('abierta');
+                                const count = adjacentMines[neighborIndex];
+                                
+                                if (count > 0) {
+                                    neighborCell.textContent = count;
+                                } else {
+                                    queue.push(neighborCell);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Auto-start animation on load
+        window.onload = () => {
+            document.getElementById('estado').textContent = 'Buscaminas 5x5 - ¡Comienza jugando!';
+        };
+    </script>
+</body>
+</html>

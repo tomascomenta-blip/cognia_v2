@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador Simple</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        #valor {
+            font-size: 2em;
+            margin: 20px;
+            padding: 10px 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: #fff;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <span id="valor">0</span>
+    <button id="mas">+</button>
+    <button id="menos">-</button>
+
+    <script>
+        let contador = 0;
+        const valorElement = document.getElementById('valor');
+        const masButton = document.getElementById('mas');
+        const menosButton = document.getElementById('menos');
+
+        masButton.addEventListener('click', () => {
+            contador++;
+            valorElement.textContent = contador;
+        });
+
+        menosButton.addEventListener('click', () => {
+            if (contador > 0) {
+                contador--;
+                valorElement.textContent = contador;
+            }
+        });
+    </script>
+</body>
+</html>

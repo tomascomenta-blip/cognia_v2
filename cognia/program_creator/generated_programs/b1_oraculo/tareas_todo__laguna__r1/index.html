@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <titleLista de Tareas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        
+        .container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        #nueva {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        #anadir {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        #anadir:hover {
+            background-color: #45a049;
+        }
+        
+        #lista {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .tarea {
+            padding: 12px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Lista de Tareas</h1>
+    
+    <div class="container">
+        <input type="text" id="nueva" placeholder="Nueva tarea...">
+        <button id="anadir">Añadir</button>
+    </div>
+    
+    <ul id="lista"></ul>
+
+    <script>
+        document.getElementById('anadir').addEventListener('click', function() {
+            const input = document.getElementById('nueva');
+            const texto = input.value.trim();
+            
+            if (texto !== '') {
+                const lista = document.getElementById('lista');
+                const li = document.createElement('li');
+                li.className = 'tarea';
+                li.textContent = texto;
+                
+                // Añadir botón de eliminar
+                const span = document.createElement('span');
+                span.textContent = '×';
+                span.style.cursor = 'pointer';
+                span.style.fontWeight = 'bold';
+                span.style.color = '#ff0000';
+                span.addEventListener('click', function() {
+                    li.remove();
+                });
+                
+                li.appendChild(span);
+                lista.appendChild(li);
+                input.value = '';
+            }
+        });
+
+        // Permite añadir tareas presionando Enter
+        document.getElementById('nueva').addEventListener('keypress', function(e) {
+            if (e.which === 13 || e.keyCode === 13) {
+                document.getElementById('anadir').click();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+La página web es una interfaz simple y minimalista, diseñada para ser fácil de usar y entender. Se compone de tres elementos principales: un elemento de texto, un botón de suma y un botón de resta.
+
+El elemento de texto es un elemento `<span>` con el identificador "valor". Este elemento muestra el número actual del contador. Al iniciar la página, el contador comienza en 0, por lo que el texto dentro del `<span>` muestra "0".
+
+Los dos botones, con los identificadores "mas" y "menos", son los controles principales de la página. El botón "mas" está diseñado para incrementar el contador en 1 cada vez que se hace clic en él. El botón "menos" está diseñado para decrementar el contador en 1 cada vez que se hace clic en él.
+
+El comportamiento de la página es sencillo y directo. Cuando se hace clic en el botón "mas", el número dentro del `<span>` aumenta en 1. Si el contador ya está en 0, al hacer clic en el botón "menos", el número permanece en 0, ya que el contador nunca puede bajar de 0. Si el contador está en un número mayor que 0, al hacer clic en el botón "menos", el número dentro del `<span>` disminuye en 1.
+
+La página no tiene ningún otro elemento o estado. La interacción con los botones es la única forma de modificar el contenido de la página. La simplicidad de la interfaz y la claridad del comportamiento hacen que la página sea fácil de usar y entender.

@@ -1,0 +1,15 @@
+=== PROGRAM EVALUATION ===
+
+Total Score       : 5.1 / 10
+Functionality     : 1.5 / 4.0
+Creativity        : 1.6 / 4.0
+Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
+Store Decision    : YES — kept in library
+
+--- Notes ---
+  • Defectos en la página: En navegador: 4 de los 4 valores que se actualizan comparten un unico color (rgb(195, 195, 195)): los estados (sube/baja, verde/rojo) no se estan pintando sobre los valores vivos. ARREGLO DIRECTO: en el JS que actualiza cada valor, pon el.style.color = (cambio >= 0 ? 'green' : 'red') sobre el MISMO elemento cuyo textContent cambias. No dependas de clases CSS.; la idea pide un grafico y la pagina no tiene ningun <svg> ni <canvas> de tamano util: dibuja el grafico como inline svg (polyline para la linea, text para los valores del eje)
+  • Se actualiza sola (JS en marcha).
+  • Página con cuerpo (2455 chars).
+  • Técnicas: flexbox, formato numérico.
+  • JS estructurado (3 funciones).
+  • Original program title.

@@ -1,0 +1,119 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Mini Hoja de Cálculo</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .spreadsheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 300px; }
+    .celda { width: 80px; height: 30px; text-align: center; padding: 2px; }
+    input { border: 1px solid #999; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h2>Hoja de Cálculo 3x3</h2>
+  <div class="spreadsheet">
+    <!-- Fila A -->
+    <input type="text" class="celda" data-ref="A1">
+    <input type="text" class="celda" data-ref="A2">
+    <input type="text" class="celda" data-ref="A3">
+    <!-- Fila B -->
+    <input type="text" class="celda" data-ref="B1">
+    <input type="text" class="celda" data-ref="B2">
+    <input type="text" class="celda" data-ref="B3">
+    <!-- Fila C -->
+    <input type="text" class="celda" data-ref="C1">
+    <input type="text" class="celda" data-ref="C2">
+    <input type="text" class="celda" data-ref="C3">
+  </div>
+
+  <script>
+    const cells = Array.from(document.querySelectorAll('.celda'));
+
+    function getValue(ref, processingStack = new Set()) {
+      if (processingStack.has(ref)) throw new Error('Circular reference detected');
+      
+      const cell = document.querySelector(`[data-ref="${ref}"]`);
+      let val = cell.value;
+      
+      if (val.startsWith('=')) {
+        processingStack.add(ref);
+        try {
+          const result = evaluateFormula(val.slice(1), ref, processingStack);
+          return isNaN(result) ? 'CIRC' : result.toString();
+        } finally {
+          processingStack.delete(ref);
+        }
+      } else {
+        return parseFloat(val) || 0;
+      }
+    }
+
+    function evaluateFormula(formulaStr, currentRef, processingStack) {
+      let expr = formulaStr;
+      const cellRefs = expr.match(/[A-C][1-3]/g);
+      
+      if (cellRefs) {
+        for (const ref of cellRefs) {
+          try {
+            const val = getValue(ref, processingStack);
+            expr = expr.replace(new RegExp(`\\b${ref}\\b`, 'g'), val.toString());
+          } catch (e) {
+            if (e.message === 'Circular reference detected') throw e;
+            return NaN;
+          }
+        }
+      }
+
+      try {
+        const result = eval(expr);
+        return isNaN(result) ? NaN : result;
+      } catch (e) {
+        console.error("Error evaluating expression", expr, e);
+        return NaN;
+      }
+    }
+
+    function calculateCellValue(cell) {
+      const ref = cell.dataset.ref;
+      let val = cell.value;
+      
+      if (val.startsWith('=')) {
+        try {
+          return getValue(ref, new Set());
+        } catch (e) {
+          console.error("Error calculating", e);
+          return 'CIRC';
+        }
+      } else {
+        return val;
+      }
+    }
+
+    function recalculateAll() {
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const cell of cells) {
+          const newValue = calculateCellValue(cell);
+          if (newValue !== cell.value) {
+            cell.value = newValue;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    // Event listeners
+    cells.forEach(cell => {
+      cell.addEventListener('input', recalculateAll);
+    });
+
+    // Inicialización al cargar la página
+    window.addEventListener('load', () => {
+      setTimeout(recalculateAll, 100); // Pequeño delay para asegurar que los valores estén listos
+    });
+  </script>
+</body>
+</html>

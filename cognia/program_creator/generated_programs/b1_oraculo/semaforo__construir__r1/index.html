@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaforo</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        #semaforo {
+            width: 100px;
+            height: 300px;
+            background-color: #333;
+            border-radius: 10px;
+            position: relative;
+        }
+        .luz {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #luz-rojo {
+            background-color: red;
+            top: 10%;
+        }
+        #luz-verde {
+            background-color: green;
+            top: 50%;
+        }
+        #luz-ambar {
+            background-color: yellow;
+            top: 90%;
+        }
+        #avanzar {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="semaforo">
+        <div id="luz-rojo" class="luz"></div>
+        <div id="luz-verde" class="luz"></div>
+        <div id="luz-ambar" class="luz"></div>
+    </div>
+    <button id="avanzar">Avanzar</button>
+
+    <script>
+        const luz = document.getElementById('luz-rojo');
+        const avanzarButton = document.getElementById('avanzar');
+        let color = 'rojo';
+
+        avanzarButton.addEventListener('click', () => {
+            switch (color) {
+                case 'rojo':
+                    luz.style.top = '50%';
+                    color = 'verde';
+                    break;
+                case 'verde':
+                    luz.style.top = '90%';
+                    color = 'ambar';
+                    break;
+                case 'ambar':
+                    luz.style.top = '10%';
+                    color = 'rojo';
+                    break;
+            }
+        });
+
+        // Inicializar el ciclo
+        luz.style.top = '10%';
+    </script>
+</body>
+</html>

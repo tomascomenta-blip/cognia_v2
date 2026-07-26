@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Memoria - Animales</title>
+    <style>
+        :root {
+            --tile-size: 120px;
+            --tile-gap: 10px;
+            --card-bg: #f0f8ff;
+            --card-border: #a0c4ff;
+            --emoji-color: #4a148c;
+            --emoji-bg: #f5f7fa;
+            --emoji-border: #e0e7ff;
+            --flip-bg: #e0f7fa;
+            --flip-border: #4caf50;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f0f8ff 0%, #e8f0fe 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: var(--emoji-color);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(4, var(--tile-size));
+            grid-gap: var(--tile-gap);
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 30px;
+        }
+
+        .tile {
+            width: var(--tile-size);
+            height: var(--tile-size);
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.4s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transform-style: preserve-3d;
+            perspective: 1000px;
+        }
+
+        .tile.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .tile.flipped .front {
+            transform: rotateY(180deg);
+        }
+
+        .tile .back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--card-bg) 0%, var(--card-bg) 100%);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--emoji-color);
+            background: var(--emoji-bg);
+            border: 2px solid var(--emoji-border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .tile .front {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--flip-bg) 0%, var(--flip-bg) 100%);
+            border: 2px solid var(--flip-border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--emoji-color);
+            background: var(--emoji-bg);
+            border: 2px solid var(--emoji-border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transform: rotateY(180deg);
+        }
+
+        #moves {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--emoji-color);
+            background: rgba(255, 255, 255, 0.7);
+            padding: 10px 20px;
+            border-radius: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(74, 20, 140, 0.3); }
+            50% { box-shadow: 0 0 0 10px rgba(74, 20, 140, 0); }
+        }
+
+        .win {
+            animation: win 1s ease-out;
+        }
+
+        @keyframes win {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        .lose {
+            animation: lose 1s ease-out;
+        }
+
+        @keyframes lose {
+            0% { transform: scale(1); }
+            100% { transform: scale(0.9); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Juego de Memoria</h1>
+    <div id="moves">Movimientos: 0</div>
+    <div id="game-board"></div>
+
+    <script>
+        const emojis = [
+            '🐶', '🐱', '🐭', '🐹', 
+            '🐰', '🦊', '🐻', '🐼'
+        ];
+        
+        const gameBoard = document.getElementById('game-board');
+        const movesDisplay = document.getElementById('moves');
+        let firstCard = null;
+        let secondCard = null;
+        let moves = 0;
+        let matchedPairs = 0;
+        let gameActive = true;
+
+        // Create and shuffle cards
+        function createBoard() {
+            const shuffled = emojis.sort(() => 0.5 - Math.random()).concat(emojis).sort(() => 0.5 - Math.random());
+            
+            shuffled.forEach(emoji => {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                tile.dataset.emoji = emoji;
+                
+                tile.innerHTML = `
+                    <div class="back"></div>
+                    <div class="front">${emoji}</div>
+                `;
+                
+                tile.addEventListener('click', () => handleCardClick(tile));
+                
+                gameBoard.appendChild(tile);
+            });
+        }
+
+        // Handle card clicks
+        function handleCardClick(tile) {
+            if (!gameActive || tile.classList.contains('flipped') || tile.classList.contains('matched')) return;
+            
+            tile.classList.add('flipped');
+            moves++;
+            movesDisplay.textContent = `Movimientos: ${moves}`;
+            
+            if (!firstCard) {
+                firstCard = tile;
+                return;
+            }
+            
+            secondCard = tile;
+            checkMatch();
+        }
+
+        // Check if cards match
+        function checkMatch() {
+            const firstEmoji = firstCard.dataset.emoji;
+            const secondEmoji = secondCard.dataset.emoji;
+            
+            if (firstEmoji === secondEmoji) {
+                firstCard.classList.add('matched');
+                secondCard.classList.add('matched');
+                matchedPairs++;
+                
+                if (matchedPairs === 8) {
+                    gameActive = false;
+                    movesDisplay.classList.add('win');
+                    setTimeout(() => {
+                        movesDisplay.textContent = `¡Felicidades! Completado en ${moves} movimientos`;
+                    }, 500);
+                }
+            } else {
+                movesDisplay.classList.add('lose');
+                setTimeout(() => {
+                    movesDisplay.classList.remove('lose');
+                }, 500);
+                
+                setTimeout(() => {
+                    firstCard.classList.remove('flipped');
+                    secondCard.classList.remove('flipped');
+                    firstCard = null;
+                    secondCard = null;
+                }, 1000);
+            }
+        }
+
+        // Initialize game
+        document.addEventListener('DOMContentLoaded', () => {
+            createBoard();
+        });
+    </script>
+</body>
+</html>

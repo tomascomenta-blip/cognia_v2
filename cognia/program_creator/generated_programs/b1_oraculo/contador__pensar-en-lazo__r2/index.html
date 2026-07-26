@@ -1,0 +1,59 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Counter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0;
+    }
+    #valor {
+      display: block;
+      margin: 10px;
+	  padding: 10px;
+      font-size: 24px;
+      color: #333;
+	  background-color: #fff;
+	  border: none;
+	  width: 100%;
+    }
+    button {
+      display: block;
+      margin: 20px auto;
+	  padding: 10px;
+      font-size: 16px;
+      background-color: #4a76a8;
+	  color: #fff;
+	  border: none;
+	  cursor: pointer;
+	  width: 100%;
+	  max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+  <span id="valor">0</span>
+  <button id="mas">Increment</button>
+  <button id="menos">Decrement</button>
+
+  <script>
+    let counter = 0;
+    document.getElementById('valor').textContent = counter;
+
+    document.getElementById('mas').addEventListener('click', () => {
+      counter++;
+      document.getElementById('valor').textContent = counter;
+    });
+
+    document.getElementById('menos').addEventListener('click', () => {
+      if (counter > 0) {
+        counter--;
+        document.getElementById('valor').textContent = counter;
+      }
+    });
+  </script>
+</body>
+</html>

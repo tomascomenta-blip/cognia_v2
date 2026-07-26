@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Filter List</title>
+  <style>
+    .item {
+      color: #4a76a8;
+      padding: 8px;
+	  margin-bottom: 10px;
+	  border-radius: 4px;
+	  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+	}
+	.hidden {
+	  display: none;
+	}
+  </style>
+</head>
+<body>
+  <input id="buscar" type="text" placeholder="Search..." style="border: 1px solid #cdd3ff; padding: 8px; color: #2c2c2c; background: #fff; border-radius: 4px; box-shadow: 0 0 2px #00000000; width: 100%; max-width: 400px; margin-top: 20px;"/>
+  <ul id="fruitList">
+	<li class="item hidden">manzana</li>
+	<li class="item hidden">banana</li>
+	<li class="item hidden">cereza</li>
+	<li class="item hidden">datil</li>
+	<li class="item hidden">kiwi</li>
+  </ul>
+
+  <script>
+	function filterList() {
+	  const input = document.getElementById('buscar');
+	  const searchValue = input.value.toLowerCase();
+	  const items = document.querySelectorAll('li.item');
+	  
+	  if (searchValue === '') {
+		for (let i = 0; i < items.length; i++) {
+		  items[i].classList.remove('hidden');
+		}
+	  } else {
+		for (let i = 0; i < items.length; i++) {
+		  const itemText = items[i].textContent.toLowerCase();
+		  if (itemText.includes(searchValue)) {
+			items[i].classList.remove('hidden');
+		  } else {
+			items[i].classList.add('hidden');
+		  }
+		}
+	  }
+	}
+
+	document.getElementById('buscar').oninput = function() {
+	  filterList();
+	};
+  </script>
+</body>
+</html>
+### Explanation
+1. **HTML Structure**: The HTML page includes a search input (`<input id="buscar">`) and a list (`<ul>`) with five fruits (`<li>` elements).
+2. **CSS**: The `.item` class styles each list element, and the `.hidden` class is used to hide elements by setting `display: none`.
+3. **JavaScript**:
+   - The `filterList` function processes the search input:
+	 - If the input is empty, it removes the `.hidden` class from all list items, making them visible.
+	 - If the input contains text, it checks each item's text. Items containing the search text (case-insensitive) are shown by removing `.hidden`, others are hidden by adding `.hidden`.
+   - The `oninput` event on the search input triggers `filterList` whenever the input's content changes, ensuring real-time filtering.
+
+This approach efficiently handles the visibility of list items based on the search input, providing an interactive and responsive user experience.

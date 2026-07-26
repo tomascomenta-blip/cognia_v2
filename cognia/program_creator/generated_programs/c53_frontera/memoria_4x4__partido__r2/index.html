@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        #moves {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #333;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 10px;
+        }
+        .tile {
+            width: 100px;
+            height: 100px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .tile.flipped {
+            transform: rotateY(180deg);
+        }
+        .tile.matched {
+            background-color: #d4edda;
+        }
+        .tile.hidden::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #fff;
+            z-index: 1;
+            transition: opacity 0.3s ease;
+        }
+        .tile.hidden.flipped::before {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="moves">Moves: 0</div>
+    <div class="grid" id="gameGrid"></div>
+
+    <script>
+        const emojis = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'].flatMap(emoji => [emoji, emoji]);
+        const grid = document.getElementById('gameGrid');
+        const movesCounter = document.getElementById('moves');
+        let moves = 0;
+        let flippedTiles = [];
+        let matchedTiles = [];
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function createTile(emoji) {
+            const tile = document.createElement('div');
+            tile.classList.add('tile', 'hidden');
+            tile.textContent = emoji;
+            tile.addEventListener('click', flipTile);
+            return tile;
+        }
+
+        function flipTile() {
+            if (flippedTiles.length < 2 && !this.classList.contains('flipped') && !this.classList.contains('matched')) {
+                this.classList.add('flipped');
+                flippedTiles.push(this);
+
+                if (flippedTiles.length === 2) {
+                    moves++;
+                    movesCounter.textContent = `Moves: ${moves}`;
+                    checkForMatch();
+                }
+            }
+        }
+
+        function checkForMatch() {
+            const [tile1, tile2] = flippedTiles;
+            if (tile1.textContent === tile2.textContent) {
+                tile1.classList.add('matched');
+                tile2.classList.add('matched');
+                matchedTiles.push(tile1, tile2);
+            } else {
+                setTimeout(() => {
+                    tile1.classList.remove('flipped');
+                    tile2.classList.remove('flipped');
+                }, 1000);
+            }
+            flippedTiles = [];
+
+            if (matchedTiles.length === emojis.length) {
+                alert(`Congratulations! You completed the game in ${moves} moves.`);
+            }
+        }
+
+        function initGame() {
+            shuffleArray(emojis);
+            emojis.forEach(emoji => grid.appendChild(createTile(emoji)));
+        }
+
+        initGame();
+    </script>
+</body>
+</html>

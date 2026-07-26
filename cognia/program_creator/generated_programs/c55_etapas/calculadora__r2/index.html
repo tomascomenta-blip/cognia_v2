@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Simple</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            color: #333; /* Darker text color */
+        }
+        #calculadora {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        #pantalla {
+            width: 100%;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #e0e0e0;
+            text-align: center;
+            font-size: 24px;
+            border-radius: 5px;
+            font-weight: bold; /* Bolder text */
+        }
+        .tecla {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold; /* Bolder text */
+        }
+        .tecla:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="calculadora">
+        <div id="pantalla">0</div>
+        <button class="tecla" data-t="2">2</button>
+        <button class="tecla" data-t="3">3</button>
+        <button class="tecla" data-t="+">+</button>
+        <button class="tecla" data-t="=">=</button>
+    </div>
+
+    <script>
+        let pantalla = document.getElementById('pantalla');
+        let botones = document.querySelectorAll('.tecla');
+        let valorActual = '';
+        let operacion = '';
+        let resultado = 0;
+
+        botones.forEach(boton => {
+            boton.addEventListener('click', function() {
+                let valor = this.getAttribute('data-t');
+                if (valor === '=') {
+                    if (operacion === '+') {
+                        resultado = parseFloat(valorActual) + parseFloat(pantalla.innerText);
+                    }
+                    pantalla.innerText = resultado;
+                } else if (valor === '+') {
+                    operacion = valor;
+                    valorActual = pantalla.innerText;
+                    pantalla.innerText = '0';
+                } else {
+                    if (pantalla.innerText === '0') {
+                        pantalla.innerText = valor;
+                    } else {
+                        pantalla.innerText += valor;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

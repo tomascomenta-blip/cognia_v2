@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    #grid { display: grid; grid-template-columns: repeat(5, 30px); }
+    .c { width:30px; height:30px; border:1px solid #333; display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; }
+    .abierta { background-color:#ccc; font-weight:bold; }
+    .bandera::after { content:'🚩'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+</style>
+</head>
+<body>
+<div id="estado">Bienvenido</div>
+<div id="grid"></div>
+
+<script>
+const mines = [6,12,18];
+let counts = new Array(25).fill(0);
+
+// Precompute adjacent mine counts for each cell
+for (let i=0; i<25; i++) {
+    const row = Math.floor(i / 5);
+    const col = i % 5;
+    let count = 0;
+    
+    for (let dr=-1; dr<=1; dr++) {
+        for (let dc=-1; dc<=1; dc++) {
+            if (dr === 0 && dc === 0) continue; // Skip self
+            const r = row + dr;
+            const c = col + dc;
+            
+            if (r >= 0 && r < 5 && c >= 0 && c < 5) {
+                const neighborI = r * 5 + c;
+                if (mines.includes(neighborI)) count++;
+            }
+        }
+    }
+    counts[i] = count;
+}
+
+// Create grid cells
+const grid = document.getElementById('grid');
+for (let i=0; i<25; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'c';
+    cell.dataset.i = i;
+    
+    // Left click handler
+    cell.addEventListener('click', function(e) {
+        if (this.classList.contains('bandera') || this.classList.contains('abierta')) return;
+        
+        const i = parseInt(this.dataset.i);
+        if (mines.includes(i)) {
+            document.getElementById('estado').textContent = 'perdiste';
+            this.classList.add('abierta');
+            this.textContent = '*';
+            return;
+        }
+
+        this.classList.add('abierta');
+        const count = counts[i];
+        
+        if (count === 0) {
+            cascadeOpen(i);
+        } else {
+            this.textContent = count;
+        }
+    });
+    
+    // Right click handler for flags
+    cell.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        this.classList.toggle('bandera');
+    });
+
+    grid.appendChild(cell);
+}
+
+// Cascade opening for zero cells
+function cascadeOpen(startI) {
+    const queue = [startI];
+    
+    while (queue.length > 0) {
+        const i = queue.shift();
+        const cell = document.querySelector(`[data-i="${i}"]`);
+        
+        if (!cell || cell.classList.contains('bandera') || cell.classList.contains('abierta')) continue;
+
+        cell.classList.add('abierta');
+        cell.textContent = counts[i];
+
+        if (counts[i] === 0) {
+            for (let dr=-1; dr<=1; dr++) {
+                for (let dc=-1; dc<=1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    
+                    const row = Math.floor(i / 5) + dr;
+                    const col = i % 5 + dc;
+                    
+                    if (row >= 0 && row < 5 && col >= 0 && col < 5) {
+                        const neighborI = row * 5 + col;
+                        queue.push(neighborI);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Initial state message
+document.getElementById('estado').textContent = 'Bienvenido';
+</script>
+</body>
+</html>

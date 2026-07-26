@@ -1,0 +1,100 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title Lista de Tareas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        input#nueva {
+            padding: 10px;
+            width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        button#anadir {
+            padding: 10px 20px;
+            margin-left: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button#anadir:hover {
+            background-color: #45a049;
+        }
+        
+        ul#lista {
+            list-style-type: none;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            max-width: 400px;
+            margin-top: 20px;
+        }
+        
+        li.tarea {
+            padding: 12px;
+            margin-bottom: 8px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .eliminar {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h2 Lista de Tareas</h2>
+    <input type="text" id="nueva" placeholder="Escribe una nueva tarea...">
+    <button id="anadir">Añadir</button>
+    
+    <ul id="lista"></ul>
+
+    <script>
+        document.getElementById('anadir').addEventListener('click', function() {
+            const input = document.getElementById('nueva');
+            const texto = input.value.trim();
+            
+            if (texto === '') return;
+            
+            const li = document.createElement('li');
+            li.className = 'tarea';
+            li.textContent = texto;
+            
+            // Añadir botón de eliminar
+            const btnEliminar = document.createElement('button');
+            btnEliminar.className = 'eliminar';
+            btnEliminar.textContent = 'X';
+            btnEliminar.addEventListener('click', function() {
+                li.remove();
+            });
+            
+            li.appendChild(btnEliminar);
+            
+            document.getElementById('lista').appendChild(li);
+            input.value = '';
+        });
+    </script>
+</body>
+</html>

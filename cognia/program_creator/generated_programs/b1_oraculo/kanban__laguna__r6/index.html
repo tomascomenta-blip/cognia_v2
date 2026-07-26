@@ -1,0 +1,172 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Kanban Board</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .board {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        .col {
+            width: 300px;
+            min-height: 400px;
+            background-color: #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .col h3 {
+            margin-top: 0;
+            text-align: center;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .card button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .mas {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .menos {
+            background-color: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="board">
+        <div class="col" data-col="todo">
+            <h3>To Do <span id="cont-todo">(0)</span></h3>
+            <div class="card" data-id="t1">
+                Tarea 1
+                <button class="mas">➡️</button>
+                <button class="menos">⬅️</button>
+            </div>
+            <div class="card" data-id="t2">
+                Tarea 2
+                <button class="mas">➡️</button>
+                <button class="menos">⬅️</button>
+            </div>
+            <div class="card" data-id="t3">
+                Tarea 3
+                <button class="mas">➡️</button>
+                <button class="menos">⬅️</button>
+            </div>
+        </div>
+        <div class="col" data-col="doing">
+            <h3>Doing <span id="cont-doing">(0)</span></h3>
+        </div>
+        <div class="col" data-col="done">
+            <h3>Done <span id="cont-done">(0)</span></h3>
+        </div>
+    </div>
+
+    <script>
+        // Inicializar contadores
+        function actualizarContadores() {
+            const todoCount = document.querySelectorAll('[data-col="todo"] .card').length;
+            const doingCount = document.querySelectorAll('[data-col="doing"] .card').length;
+            const doneCount = document.querySelectorAll('[data-col="done"] .card').length;
+            
+            document.getElementById('cont-todo').textContent = `(${todoCount})`;
+            document.getElementById('cont-doing').textContent = `(${doingCount})`;
+            document.getElementById('cont-done').textContent = `(${doneCount})`;
+        }
+
+        // Mover tarjeta
+        function moverTarjeta(card, direccion) {
+            const colActual = card.parentElement;
+            const colActualId = colActual.dataset.col;
+            
+            let nuevaColId;
+            if (direccion === 'mas') {
+                // Mover a la derecha
+                if (colActualId === 'todo') nuevaColId = 'doing';
+                else if (colActualId === 'doing') nuevaColId = 'done';
+                else return; // Ya está en done, no puede avanzar más
+            } else {
+                // Mover a la izquierda
+                if (colActualId === 'done') nuevaColId = 'doing';
+                else if (colActualId === 'doing') nuevaColId = 'todo';
+                else return; // Ya está en todo, no puede retroceder más
+            }
+            
+            const nuevaCol = document.querySelector(`[data-col="${nuevaColId}"]`);
+            
+            // Verificar límite WIP para doing (máximo 2 tarjetas)
+            if (nuevaColId === 'doing') {
+                const cardsInDoing = nuevaCol.querySelectorAll('.card').length;
+                if (cardsInDoing >= 2 && direccion === 'mas') {
+                    return; // No puede agregar más tarjetas a doing
+                }
+            }
+            
+            nuevaCol.appendChild(card);
+            actualizarContadores();
+        }
+
+        // Agregar eventos a los botones
+        document.querySelectorAll('.card').forEach(card => {
+            const btnMas = card.querySelector('.mas');
+            const btnMenos = card.querySelector('.menos');
+            
+            btnMas.addEventListener('click', () => moverTarjeta(card, 'mas'));
+            btnMenos.addEventListener('click', () => moverTarjeta(card, 'menos'));
+        });
+
+        // Contador inicial
+        actualizarContadores();
+
+        // Animación de carga
+        document.querySelectorAll('.card').forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.5s ease-out';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 300);
+        });
+
+        // Animación de contadores
+        const colores = ['#cont-todo', '#cont-doing', '#cont-done'];
+        colores.forEach((id, index) => {
+            const span = document.getElementById(id.replace('#', ''));
+            span.style.opacity = '0';
+            
+            setTimeout(() => {
+                span.style.transition = 'opacity 1s ease-out';
+                span.style.opacity = '1';
+            }, index * 200 + 500);
+        });
+    </script>
+</body>
+</html>

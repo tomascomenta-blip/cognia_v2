@@ -1,0 +1,89 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tasks List</title>
+  <style>
+	* {
+	  font-family: sans-serif;
+	  margin: 0;
+	  padding: 0;
+	  color: #2C3E50;
+	  background-color: #FAFAFA;
+	  font-size: 14px;
+	}
+	#app {
+	  padding: 20px;
+	  margin: 20px;
+	  border: 1px solid #E1E1E1;
+	  border-radius: 8px;
+	  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+	  background: #F9F9F9;
+	}
+	#nueva {
+	  display: block;
+	  width: 100%;
+	  padding: 10px;
+	  margin-bottom: 15px;
+	  border: 1px solid #E1E1E1;
+	  border-radius: 4px;
+	  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+	}
+	#anadir {
+	  background: #4CAF50;
+	  color: white;
+	  padding: 10px 15px;
+	  border: none;
+	  border-radius: 8px;
+	  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+	}
+	#lista {
+	  list-style-type: none;
+	  margin: 0;
+	  padding: 0;
+	}
+	.tarea {
+	  cursor: pointer;
+	  padding: 10px;
+	  border-bottom: 1px solid #E1E1E1;
+	  margin-bottom: 10px;
+	  background: #F9F9F9;
+	  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	}
+	.tarea:hover {
+	  background: #FDFDFD;
+	  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+	}
+	footer {
+	  margin-top: 50px;
+	  text-align: center;
+	  color: #795548;
+	}
+  </style>
+  <script>
+	// Initialize the list
+	const lista = document.getElementById('lista');
+	const input = document.getElementById('nueva');
+	const button = document.getElementById('anadir');
+	
+	// Add task functionality
+	button.addEventListener('click', () => {
+	  const task = input.value().trim();
+	  if (task) {
+		const newItem = document.createElement('li');
+		newItem.classList.add('tarea');
+		newItem.textContent = task;
+		lista.appendChild(newItem);
+		input.value = '';
+	  }
+	});
+  </script>
+</head>
+<body id="app">
+  <h1>Task List</h1>
+  <input id="nueva" type="text" placeholder="Add a task..." />
+  <button id="anadir">Add Task</button>
+  <ul id="lista"></ul>
+  <footer>Created by <a href="https://vicx.fr">Vicx</a></footer>
+</body>
+</html>

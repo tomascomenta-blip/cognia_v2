@@ -1,0 +1,41 @@
+La página web consiste en un solo archivo HTML que presenta una interfaz simple y funcional para filtrar una lista de elementos. La estructura de la página es minimalista, centrada en proporcionar una experiencia de usuario eficiente y intuitiva.
+
+### Estructura de la Página
+
+1. **Input de Búsqueda**: Se encuentra en la parte superior de la página y se identifica por su `id="buscar"`. Este input es donde el usuario podrá escribir el texto que desea buscar en la lista.
+
+2. **Lista de Elementos**: Bajo el input de búsqueda, se encuentra una lista desordenada (`<ul>`) que contiene exactamente 5 elementos (`<li class="item">`). Cada elemento de la lista tiene un texto específico: manzana, banana, cereza, datil y kiwi.
+
+### Estado Inicial
+
+- **Input de Búsqueda**: El input está vacío al inicio, listo para recibir la entrada del usuario.
+- **Lista de Elementos**: Todos los 5 elementos de la lista están visibles y listos para ser filtrados.
+
+### Comportamiento al Interactuar
+
+1. **Escritura en el Input**:
+   - Cuando el usuario comienza a escribir en el input de búsqueda, la página comienza a monitorear los cambios en tiempo real.
+   - A medida que el usuario escribe, la página filtra la lista de elementos, mostrando solo aquellos cuyo texto contiene la cadena de caracteres ingresada.
+   - Por ejemplo, si el usuario escribe "ma", solo se mostrará el elemento "manzana". Si escribe "an", se mostrarán "manzana" y "banana".
+   - Si el usuario escribe una cadena que no coincide con ningún elemento, la lista se vaciará, mostrando que no hay coincidencias.
+
+2. **Borrado del Input**:
+   - Si el usuario borra el contenido del input (ya sea presionando la tecla "Backspace" o haciendo clic en el icono de limpiar, si está presente), la página detecta este cambio.
+   - Al borrar el contenido del input, todos los 5 elementos de la lista vuelven a ser visibles, restaurando la vista inicial de la página.
+
+### Diseño y Apariencia
+
+- **Input de Búsqueda**: El input es un campo de texto simple y claro, con un borde suave para indicar su límite. Puede tener un placeholder que sugiera al usuario que escriba para buscar.
+- **Lista de Elementos**: Los elementos de la lista están dispuestos de manera clara y ordenada, con un margen o espacio entre ellos para mejorar la legibilidad. Cada elemento puede tener un estilo básico, como un color de texto y un fondo suave, para distinguirlos entre sí.
+
+### Transiciones y Animaciones
+
+- Para mejorar la experiencia del usuario, se pueden agregar transiciones suaves al mostrar y ocultar los elementos de la lista. Por ejemplo, los elementos que aparecen pueden hacerlo con un desplazamiento suave o una animación de opacidad.
+- Si se desea, se puede agregar un indicador visual (como un ícono de búsqueda o una animación de carga) que se muestre mientras la página está procesando la entrada del usuario.
+
+### Consideraciones Adicionales
+
+- **Responsive Design**: Aunque no es una parte del comportamiento, es importante asegurarse de que la página sea responsive, adaptándose bien a diferentes tamaños de pantalla y dispositivos.
+- **Accesibilidad**: Se deben considerar aspectos de accesibilidad, como el uso de etiquetas adecuadas para el input y la lista, y asegurarse de que la navegación por teclado funcione correctamente.
+
+Esta página web proporciona una solución sencilla pero efectiva para filtrar una lista de elementos, ofreciendo una experiencia de usuario intuitiva y eficiente.

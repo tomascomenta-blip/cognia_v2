@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Filtro de Lista</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    #buscar {
+      width: 100%;
+      max-width: 300px;
+      padding: 8px;
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    li.item {
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <input type="text" id="buscar" placeholder="Buscar fruta...">
+  <ul>
+    <li class="item">manzana</li>
+    <li class="item">banana</li>
+    <li class="item">cereza</li>
+    <li class="item">datil</li>
+    <li class="item">kiwi</li>
+  </ul>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('buscar');
+      const items = document.querySelectorAll('.item');
+
+      // Función de filtrado
+      input.addEventListener('input', () => {
+        const query = input.value.toLowerCase();
+        items.forEach(item => {
+          const text = item.textContent.toLowerCase();
+          if (text.includes(query)) {
+            item.style.display = 'block';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+      });
+
+      // Animación de entrada
+      items.forEach((item, index) => {
+        setTimeout(() => {
+          item.style.animation = `fadeIn 0.5s ease-in-out ${index * 0.2}s forwards`;
+        }, 100);
+      });
+    });
+  </script>
+</body>
+</html>

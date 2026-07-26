@@ -1,0 +1,202 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .calculator {
+      background: rgba(30, 30, 47, 0.8);
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      width: 400px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    #pantalla {
+      background: #2a2a40;
+      border: 2px solid #4CAF50;
+      border-radius: 12px;
+      color: #4CAF50;
+      font-size: 48px;
+      padding: 20px;
+      text-align: right;
+      margin-bottom: 20px;
+      height: 100px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      overflow: hidden;
+    }
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .tecla {
+      width: 80px;
+      height: 80px;
+      font-size: 24px;
+      margin: 5px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tecla[data-t="="] {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .tecla[data-t="+"] {
+      background-color: #FF9800;
+      color: white;
+    }
+    .tecla[data-t="*"] {
+      background-color: #FF9800;
+      color: white;
+    }
+    .tecla[data-t="-"] {
+      background-color: #FF9800;
+      color: white;
+    }
+    .tecla[data-t="0"] {
+      background-color: #f0f0f0;
+    }
+    .tecla[data-t="1"] {
+      background-color: #f0f0f0;
+    }
+    .tecla[data-t="2"] {
+      background-color: #f0f0f0;
+    }
+    .tecla[data-t="3"] {
+      background-color: #f0f0f0;
+    }
+    .tecla[data-t="4"] {
+      background-color: #f0f0f0;
+    }
+    .tecla[data-t="5"] {
+      background-color: #f0f0f0;
+    }
+    .tecla[data-t="6"] {
+      background-color: #f0f0f0;
+    }
+    .tecla[data-t="7"] {
+      background-color: #f0f0f0;
+    }
+    .tecla[data-t="8"] {
+      background-color: #f0f0f0;
+    }
+    .tecla[data-t="9"] {
+      background-color: #f0f0f0;
+    }
+    .tecla:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="calculator">
+    <div id="pantalla">0</div>
+    <div class="buttons">
+      <div class="tecla" data-t="7">7</div>
+      <div class="tecla" data-t="8">8</div>
+      <div class="tecla" data-t="9">9</div>
+      <div class="tecla" data-t="/">/</div>
+      <div class="tecla" data-t="4">4</div>
+      <div class="tecla" data-t="5">5</div>
+      <div class="tecla" data-t="6">6</div>
+      <div class="tecla" data-t="*">*</div>
+      <div class="tecla" data-t="1">1</div>
+      <div class="tecla" data-t="2">2</div>
+      <div class="tecla" data-t="3">3</div>
+      <div class="tecla" data-t="-">-</div>
+      <div class="tecla" data-t="0">0</div>
+      <div class="tecla" data-t=".">.</div>
+      <div class="tecla" data-t="=">=</div>
+      <div class="tecla" data-t="+">+</div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const pantalla = document.getElementById('pantalla');
+      const teclas = document.querySelectorAll('.tecla');
+      
+      let currentInput = '';
+      let firstOperand = null;
+      let operator = null;
+      
+      function updateDisplay() {
+        if (firstOperand !== null && operator !== null) {
+          pantalla.textContent = `${firstOperand} ${operator} ${currentInput}`;
+        } else {
+          pantalla.textContent = currentInput || '0';
+        }
+      }
+      
+      function calculate(a, b, op) {
+        const numA = parseFloat(a);
+        const numB = parseFloat(b);
+        switch (op) {
+          case '+': return numA + numB;
+          case '-': return numA - numB;
+          case '*': return numA * numB;
+          case '/': return numA / numB;
+          default: return 0;
+        }
+      }
+      
+      teclas.forEach(tecla => {
+        tecla.addEventListener('click', () => {
+          const value = tecla.getAttribute('data-t');
+          
+          if (value === '=') {
+            if (firstOperand !== null && operator !== null) {
+              const result = calculate(firstOperand, currentInput, operator);
+              currentInput = result.toString();
+              firstOperand = null;
+              operator = null;
+            }
+          } else if (['+', '-', '*', '/'].includes(value)) {
+            if (firstOperand === null) {
+              firstOperand = currentInput;
+              operator = value;
+              currentInput = '';
+            } else {
+              const result = calculate(firstOperand, currentInput, operator);
+              firstOperand = result.toString();
+              operator = value;
+              currentInput = '';
+            }
+          } else {
+            currentInput += value;
+          }
+          
+          updateDisplay();
+        });
+      });
+      
+      // Initialize display
+      updateDisplay();
+    });
+  </script>
+</body>
+</html>
