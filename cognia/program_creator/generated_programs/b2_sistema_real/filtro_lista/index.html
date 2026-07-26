@@ -1,71 +1,172 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filtro de Lista</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-        input {
-            padding: 10px;
-            margin-bottom: 20px;
-            width: 300px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        li.item {
-            padding: 10px;
-            margin: 5px 0;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            transition: opacity 0.3s;
-        }
-        li.item.hidden {
-            opacity: 0;
-            display: none;
-        }
-    </style>
+<meta charset="utf-8">
+<title>Dashboard de Frutas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f5f5f5;color:#333;}
+  header{background:#4CAF50;color:white;padding:1rem;text-align:center;}
+  section{background:white;margin:1rem auto;padding:1rem;max-width:800px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+  h2{margin-top:0;color:#4CAF50;}
+  ul{list-style:none;padding:0;margin:0;}
+  li.item{padding:.5rem 0;border-bottom:1px solid #eee;}
+  li.item:last-child{border-bottom:none;}
+  input#buscar{width:100%;padding:.5rem;font-size:1rem;border:1px solid #ccc;border-radius:4px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th,td{padding:.5rem;border-bottom:1px solid #eee;}
+  th{background:#f0f0f0;text-align:left;color:#555;}
+  td{text-align:right;}
+  svg{width:100%;height:200px;}
+  .bar{fill:#2196F3;}
+  .bar-label{font-size:12px;fill:white;}
+  .axis-label{font-size:12px;fill:#777;}
+</style>
 </head>
 <body>
-    <input type="text" id="buscar" placeholder="Buscar...">
-    <ul>
-        <li class="item">manzana</li>
-        <li class="item">banana</li>
-        <li class="item">cereza</li>
-        <li class="item">datil</li>
-        <li class="item">kiwi</li>
-    </ul>
-
-    <script>
-        document.getElementById('buscar').addEventListener('input', function() {
-            const filter = this.value.toLowerCase();
-            const items = document.querySelectorAll('.item');
-
-            items.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                if (text.includes(filter)) {
-                    item.classList.remove('hidden');
-                } else {
-                    item.classList.add('hidden');
-                }
-            });
-        });
-    </script>
+<header>
+<h1>Dashboard de Frutas</h1>
+</header>
+<section id="summary">
+<h2>Resumen</h2>
+<p>Frutas totales: <span id="total-fruits">5</span></p>
+<p>Longitud media de nombre: <span id="avg-length">0</span></p>
+</section>
+<section id="chart-section">
+<h2>Popularidad de Frutas</h2>
+<svg id="chart" viewBox="0 0 500 200" preserveAspectRatio="xMidYMid meet"></svg>
+</section>
+<section id="table-section">
+<h2>Precios y Variaciones</h2>
+<table id="price-table">
+<thead>
+<tr><th>Fruta</th><th>Precio</th><th>Variación</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</section>
+<section id="filter-section">
+<h2>Filtro de Lista</h2>
+<input type="text" id="buscar" placeholder="Buscar fruta...">
+<ul id="fruit-list">
+<li class="item">manzana</li>
+<li class="item">banana</li>
+<li class="item">cereza</li>
+<li class="item">datil</li>
+<li class="item">kiwi</li>
+</ul>
+</section>
+<script>
+const UPDATE_INTERVAL = 2000;
+const FRUITS = ['manzana','banana','cereza','datil','kiwi'];
+const MAX_PRICE = 10;
+const MAX_CHANGE = 5;
+const MAX_POP = 100;
+function randomBetween(min,max){return Math.random()*(max-min)+min;}
+function formatCurrency(val){return val.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function formatNumber(val){return val.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function updateSummary(){
+const total = FRUITS.length;
+const avgLen = FRUITS.reduce((sum, f)=>sum+f.length,0)/total;
+document.getElementById('total-fruits').textContent=total;
+document.getElementById('avg-length').textContent=formatNumber(avgLen);
+}
+function generateChartData(){
+const data=[];
+FRUITS.forEach(f=>{data.push({name:f,value:Math.round(randomBetween(10,MAX_POP))});});
+return data;
+}
+function renderChart(){
+const svg=document.getElementById('chart');
+const data=generateChartData();
+const width=500,height=200,margin={top:20,right:20,bottom:30,left:40};
+const maxVal=Math.max(...data.map(d=>d.value));
+const barWidth=(width-margin.left-margin.right)/data.length;
+svg.innerHTML='';
+const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+g.setAttribute('transform',`translate(${margin.left},0)`);
+data.forEach((d,i)=>{
+const barHeight=(d.value/maxVal)*(height-margin.top-margin.bottom);
+const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+rect.setAttribute('x',i*barWidth);
+rect.setAttribute('y',height-margin.bottom-barHeight);
+rect.setAttribute('width',barWidth*0.8);
+rect.setAttribute('height',barHeight);
+rect.setAttribute('class','bar');
+g.appendChild(rect);
+const label=document.createElementNS('http://www.w3.org/2000/svg','text');
+label.setAttribute('x',i*barWidth+barWidth*0.4);
+label.setAttribute('y',height-margin.bottom-barHeight-5);
+label.setAttribute('class','bar-label');
+label.textContent=d.value;
+g.appendChild(label);
+const nameLabel=document.createElementNS('http://www.w3.org/2000/svg','text');
+nameLabel.setAttribute('x',i*barWidth+barWidth*0.4);
+nameLabel.setAttribute('y',height-margin.bottom+15);
+nameLabel.setAttribute('class','axis-label');
+nameLabel.textContent=d.name;
+g.appendChild(nameLabel);
+});
+svg.appendChild(g);
+const yAxis=document.createElementNS('http://www.w3.org/2000/svg','g');
+for(let i=0;i<=5;i++){
+const y=margin.top+(height-margin.top-margin.bottom)*i/5;
+const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+line.setAttribute('x1',margin.left);
+line.setAttribute('x2',width-margin.right);
+line.setAttribute('y1',y);
+line.setAttribute('y2',y);
+line.setAttribute('stroke','#e0e0e0');
+line.setAttribute('stroke-width','1');
+yAxis.appendChild(line);
+const label=document.createElementNS('http://www.w3.org/2000/svg','text');
+label.setAttribute('x',margin.left-10);
+label.setAttribute('y',y+3);
+label.setAttribute('class','axis-label');
+label.textContent=Math.round(maxVal*i/5);
+yAxis.appendChild(label);
+}
+svg.appendChild(yAxis);
+}
+function generateTableData(){
+const data=[];
+FRUITS.forEach(f=>{data.push({name:f,price:randomBetween(1,MAX_PRICE),change:randomBetween(-MAX_CHANGE,MAX_CHANGE)});});
+return data;
+}
+function renderTable(){
+const tbody=document.querySelector('#price-table tbody');
+tbody.innerHTML='';
+const data=generateTableData();
+data.forEach(d=>{
+const tr=document.createElement('tr');
+const color=d.change>=0?'#006300':'#d03b3b';
+const arrow=d.change>=0?'▲':'▼';
+tr.innerHTML=`<td><strong>${d.name}</strong></td>
+<td style="text-align:right;font-variant-numeric:tabular-nums">${formatCurrency(d.price)}</td>
+<td style="text-align:right;font-variant-numeric:tabular-nums;color:${color}">${arrow} ${Math.abs(d.change).toFixed(2)}</td>`;
+tbody.appendChild(tr);
+});
+}
+function filterList(){
+const input=document.getElementById('buscar').value.toLowerCase();
+const items=document.querySelectorAll('#fruit-list .item');
+items.forEach(item=>{
+if(item.textContent.toLowerCase().includes(input)){
+item.style.display='list-item';
+}else{
+item.style.display='none';
+}
+});
+}
+document.getElementById('buscar').addEventListener('input',filterList);
+function init(){
+updateSummary();
+renderChart();
+renderTable();
+filterList();
+}
+init();
+setInterval(()=>{renderChart();renderTable();},UPDATE_INTERVAL);
+</script>
 </body>
 </html>

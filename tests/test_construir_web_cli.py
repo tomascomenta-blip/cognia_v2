@@ -17,10 +17,12 @@ def _fake_self():
 
 
 def _fake_res(html="<html><body>ok</body></html>", nota=6.5, rondas=2,
-              defectos=None, mockup=None, motivo="tope de rondas"):
+              defectos=None, mockup=None, motivo="tope de rondas",
+              sello="APROBADO"):
     return types.SimpleNamespace(
         html=html, program=object(), nota_visual=nota, rondas=rondas,
         defectos=defectos or ["x"], mockup=mockup, motivo_corte=motivo,
+        sello=sello, veredicto=None, contrato=None,
         assets={}, html_entregable=lambda: html)
 
 
@@ -39,8 +41,22 @@ def test_guarda_html_y_reporta_fidelidad(tmp_path):
     destino = tmp_path / "construidos" / "dashboard_de_ventas" / "index.html"
     assert destino.exists()
     assert "ok" in destino.read_text(encoding="utf-8")
+    # El sello del juez manda; la fidelidad visual solo acompana a un APROBADO.
+    assert "APROBADO por juez ejecutable" in out
     assert "6.5/10" in out
     assert "2 ronda" in out
+
+
+def test_sin_verificar_no_muestra_numero(tmp_path):
+    """Regla del dueno: si no hubo contrato, el sello dice 'sin verificar' y
+    NUNCA aparece un numero de calidad al lado."""
+    res = _fake_res(sello="sin verificar", nota=6.5)
+    with patch("cognia.program_creator.diseno_a_codigo.construir_para_mockup",
+               return_value=res), \
+         patch("cognia.program_creator.storage.DEFAULT_STORAGE_DIR", tmp_path):
+        out = Cognia.construir_web(_fake_self(), "dashboard de ventas")
+    assert "sin verificar" in out
+    assert "6.5/10" not in out
 
 
 def test_sin_html_reporta_el_motivo(tmp_path):

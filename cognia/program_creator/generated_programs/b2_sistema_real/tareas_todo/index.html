@@ -1,496 +1,171 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Tareas</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            width: 100%;
-        }
-        li.tarea {
-            background-color: #f9f9f9;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-        }
-        @media (max-width: 600px) {
-            input[type="text"], button {
-                width: 90%;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Lista de tareas y datos dinámicos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f5f5f5;color:#333;}
+  .container{max-width:800px;margin:0 auto;padding:1rem;}
+  h1,h2{margin:0.5rem 0;text-align:center;}
+  section{background:#fff;padding:1rem;margin-bottom:1rem;border-radius:8px;}
+  .summary div{display:flex;justify-content:space-between;margin:0.5rem 0;}
+  .summary span{font-weight:bold;}
+  .chart svg{width:100%;height:300px;}
+  table{width:100%;border-collapse:collapse;}
+  th,td{padding:0.5rem;text-align:right;font-variant-numeric:tabular-nums;}
+  th{text-align:left;color:#898781;font-size:12px;}
+  .tarea{background:#e0f7fa;margin-bottom:0.5rem;padding:0.5rem;border-radius:4px;}
+  input[type="text"]{width:calc(100% - 110px);padding:0.5rem;margin-right:0.5rem;}
+  button{padding:0.5rem 1rem;}
+  ul{list-style:none;padding:0;margin:0;}
+</style>
 </head>
 <body>
-    <div class="container">
-        <input type="text" id="nueva" placeholder="Nueva tarea">
-        <button id="anadir">Añadir</button>
-        <ul id="lista"></ul>
-    </div>
+<div class="container">
+  <h1>Dashboard y Lista de Tareas</h1>
 
-    <script>
-        document.getElementById('anadir').addEventListener('click', function() {
-            const nuevaTarea = document.getElementById('nueva').value.trim();
-            if (nuevaTarea !== '') {
-                const li = document.createElement('li');
-                li.className = 'tarea';
-                li.textContent = nuevaTarea;
-                document.getElementById('lista').appendChild(li);
-                document.getElementById('nueva').value = '';
-            }
-        });
-    </script>
-</body>
-</html>
-``` Title: Lista de Tareas Minimalista
-HTML Code:
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Tareas</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            width: 100%;
-        }
-        li.tarea {
-            background-color: #f9f9f9;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-        }
-        @media (max-width: 600px) {
-            input[type="text"], button {
-                width: 90%;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <input type="text" id="nueva" placeholder="Nueva tarea">
-        <button id="anadir">Añadir</button>
-        <ul id="lista"></ul>
-    </div>
+  <!-- Sección 1: Resumen -->
+  <section class="summary">
+    <h2>Resumen</h2>
+    <div><span>Promedio:</span> <span id="promedio">0.00</span></div>
+    <div><span>Máximo:</span> <span id="maximo">0.00</span></div>
+    <div><span>Minimo:</span> <span id="minimo">0.00</span></div>
+  </section>
 
-    <script>
-        document.getElementById('anadir').addEventListener('click', function() {
-            const nuevaTarea = document.getElementById('nueva').value.trim();
-            if (nuevaTarea !== '') {
-                const li = document.createElement('li');
-                li.className = 'tarea';
-                li.textContent = nuevaTarea;
-                document.getElementById('lista').appendChild(li);
-                document.getElementById('nueva').value = '';
-            }
-        });
-    </script>
-</body>
-</html>
-``` Title: Lista de Tareas Minimalista
-HTML Code:
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Tareas</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            width: 100%;
-        }
-        li.tarea {
-            background-color: #f9f9f9;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-        }
-        @media (max-width: 600px) {
-            input[type="text"], button {
-                width: 90%;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <input type="text" id="nueva" placeholder="Nueva tarea">
-        <button id="anadir">Añadir</button>
-        <ul id="lista"></ul>
-    </div>
+  <!-- Sección 2: Gráfico -->
+  <section class="chart">
+    <h2>Gráfico de datos</h2>
+    <svg id="grafico" viewBox="0 0 600 300"></svg>
+  </section>
 
-    <script>
-        document.getElementById('anadir').addEventListener('click', function() {
-            const nuevaTarea = document.getElementById('nueva').value.trim();
-            if (nuevaTarea !== '') {
-                const li = document.createElement('li');
-                li.className = 'tarea';
-                li.textContent = nuevaTarea;
-                document.getElementById('lista').appendChild(li);
-                document.getElementById('nueva').value = '';
-            }
-        });
-    </script>
-</body>
-</html>
-``` Title: Lista de Tareas Minimalista
-HTML Code:
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Tareas</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            width: 100%;
-        }
-        li.tarea {
-            background-color: #f9f9f9;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-        }
-        @media (max-width: 600px) {
-            input[type="text"], button {
-                width: 90%;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <input type="text" id="nueva" placeholder="Nueva tarea">
-        <button id="anadir">Añadir</button>
-        <ul id="lista"></ul>
-    </div>
+  <!-- Sección 3: Tabla de detalle -->
+  <section class="detail">
+    <h2>Detalle de valores</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Índice</th>
+          <th>Valor</th>
+          <th>Cambio</th>
+        </tr>
+      </thead>
+      <tbody id="detalle"></tbody>
+    </table>
+  </section>
 
-    <script>
-        document.getElementById('anadir').addEventListener('click', function() {
-            const nuevaTarea = document.getElementById('nueva').value.trim();
-            if (nuevaTarea !== '') {
-                const li = document.createElement('li');
-                li.className = 'tarea';
-                li.textContent = nuevaTarea;
-                document.getElementById('lista').appendChild(li);
-                document.getElementById('nueva').value = '';
-            }
-        });
-    </script>
-</body>
-</html>
-``` Title: Lista de Tareas Minimalista
-HTML Code:
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Tareas</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            width: 100%;
-        }
-        li.tarea {
-            background-color: #f9f9f9;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-        }
-        @media (max-width: 600px) {
-            input[type="text"], button {
-                width: 90%;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <input type="text" id="nueva" placeholder="Nueva tarea">
-        <button id="anadir">Añadir</button>
-        <ul id="lista"></ul>
-    </div>
+  <!-- Sección 4: Lista de tareas -->
+  <section class="tasks">
+    <h2>Lista de tareas</h2>
+    <input type="text" id="nueva" placeholder="Nueva tarea">
+    <button id="anadir">Añadir</button>
+    <ul id="lista"></ul>
+  </section>
+</div>
 
-    <script>
-        document.getElementById('anadir').addEventListener('click', function() {
-            const nuevaTarea = document.getElementById('nueva').value.trim();
-            if (nuevaTarea !== '') {
-                const li = document.createElement('li');
-                li.className = 'tarea';
-                li.textContent = nuevaTarea;
-                document.getElementById('lista').appendChild(li);
-                document.getElementById('nueva').value = '';
-            }
-        });
-    </script>
-</body>
-</html>
-``` Title: Lista de Tareas Minimalista
-HTML Code:
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Tareas</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
-            text-align: center;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            width: 100%;
-        }
-        li.tarea {
-            background-color: #f9f9f9;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-        }
-        @media (max-width: 600px) {
-            input[type="text"], button {
-                width: 90%;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <input type="text" id="nueva" placeholder="Nueva tarea">
-        <button id="anadir">Añadir</button>
-        <ul id="lista"></ul>
-    </div>
+<script>
+(function(){
+  const dataLen = 10;
+  let datos = Array.from({length:dataLen}, () => Math.random()*90+10);
+  let prevDatos = datos.slice();
 
-    <script>
-        document.getElementById('anadir').addEventListener('click', function() {
-            const nuevaTarea = document.getElementById('nueva').value.trim();
-            if (nuevaTarea !== '') {
-                const li = document.createElement('li');
-                li.className = 'tarea';
-                li.textContent = nuevaTarea;
-                document.getElementById('lista').appendChild(li);
-                document.getElementById('nueva').value = '';
-            }
-        });
-    </script>
+  const fmt = n => n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  const actualizarResumen = () => {
+    const sum = datos.reduce((a,b)=>a+b,0);
+    const avg = sum/datos.length;
+    const max = Math.max(...datos);
+    const min = Math.min(...datos);
+    document.getElementById('promedio').textContent = fmt(avg);
+    document.getElementById('maximo').textContent = fmt(max);
+    document.getElementById('minimo').textContent = fmt(min);
+  };
+
+  const actualizarDetalle = () => {
+    const tbody = document.getElementById('detalle');
+    tbody.innerHTML = '';
+    datos.forEach((val,i)=>{
+      const prev = prevDatos[i]||val;
+      const cambio = val - prev;
+      const color = cambio>=0?'#006300':'#d03b3b';
+      const flecha = cambio>=0?'▲':'▼';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td>${fmt(val)}</td>
+        <td style="color:${color}">${flecha} ${Math.abs(cambio).toFixed(2)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  };
+
+  const actualizarGrafico = () => {
+    const svg = document.getElementById('grafico');
+    const width = 600, height = 300;
+    const margin = {l:50,t:20,r:20,b:40};
+    const barSpacing = 5;
+    const barWidth = (width - margin.l - margin.r)/dataLen - barSpacing;
+    const min = Math.min(...datos);
+    const max = Math.max(...datos);
+    const scaleY = v => height - margin.b - ((v - min)/(max - min))*(height - margin.t - margin.b);
+    const barHeight = v => (v - min)/(max - min)*(height - margin.t - margin.b);
+
+    let content = '';
+
+    // Gridlines y axis labels
+    const gridCount = 5;
+    for(let i=0;i<=gridCount;i++){
+      const val = min + i*(max-min)/gridCount;
+      const y = scaleY(val);
+      content += `<line x1="${margin.l}" y1="${y}" x2="${width - margin.r}" y2="${y}" stroke="#e0e0e0" stroke-width="1"/>`;
+      content += `<text x="${margin.l-10}" y="${y+4}" text-anchor="end" font-size="12">${fmt(val)}</text>`;
+    }
+
+    // Bars
+    datos.forEach((v,i)=>{
+      const x = margin.l + i*(barWidth+barSpacing);
+      const y = scaleY(v);
+      const h = barHeight(v);
+      content += `<rect x="${x}" y="${y}" width="${barWidth}" height="${h}" fill="#2196f3"/>`;
+    });
+
+    // Axes
+    content += `<line x1="${margin.l}" y1="${margin.t}" x2="${margin.l}" y2="${height - margin.b}" stroke="#000" stroke-width="2"/>`;
+    content += `<line x1="${margin.l}" y1="${height - margin.b}" x2="${width - margin.r}" y2="${height - margin.b}" stroke="#000" stroke-width="2"/>`;
+
+    // X axis labels
+    datos.forEach((_,i)=>{
+      const x = margin.l + i*(barWidth+barSpacing) + barWidth/2;
+      content += `<text x="${x}" y="${height - margin.b + 20}" text-anchor="middle" font-size="12">${i+1}</text>`;
+    });
+
+    svg.innerHTML = content;
+  };
+
+  const actualizarTodo = () => {
+    prevDatos = datos.slice();
+    datos = datos.map(()=>Math.random()*90+10);
+    actualizarResumen();
+    actualizarDetalle();
+    actualizarGrafico();
+  };
+
+  // Inicializar
+  actualizarTodo();
+  setInterval(actualizarTodo, 3000);
+
+  // Lista de tareas
+  document.getElementById('anadir').addEventListener('click',()=>{
+    const input = document.getElementById('nueva');
+    const texto = input.value.trim();
+    if(!texto) return;
+    const li = document.createElement('li');
+    li.className = 'tarea';
+    li.textContent = texto;
+    document.getElementById('lista').appendChild(li);
+    input.value = '';
+  });
+})();
+</script>
 </body>
 </html>

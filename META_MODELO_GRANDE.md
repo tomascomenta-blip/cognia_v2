@@ -182,9 +182,11 @@ _(se rellena a medida que salen; nada de esto se toca retroactivamente)_
 | 2. Curva pass@k | parcial | pass@6 gpt-oss = 100% (4/4 tareas) |
 | 3. Marcador Laguna XS | HECHO | 50% pass@1; peor que el 20B |
 | 4. Refinamiento guiado | pendiente | — |
-| 5. Re-medir el oráculo de ruteo en banco NO saturado | pendiente | — |
+| 5. Re-medir el oráculo de ruteo en banco NO saturado | HECHO 2026-07-26 (sobre los n=6 del brutal, 2 modelos) | +0 a nivel tarea (pensar 4/4 solo). A nivel muestra parecía +4.2%, pero corregido por los FP del held-out la ventaja de Laguna en kanban era hackeo: **+0 exacto también por muestra**. Caveats: solo 2 modelos, y pensar satura la mayoría — sigue sin ser el banco ideal para rutear |
 | **FP del contrato (held-out, 48 productos)** | **HECHO 2026-07-25** | **gpt-oss 0% (0/18) — sus números se sostienen; Laguna 25% (3/12) — techos. PREREG_FP_CONTRATO_20260725.md** |
 | Confound "no devolvió HTML" (≈14%) | HECHO 2026-07-25 | era num_ctx 4096: control positivo reproduce (2/3 length), config actual 0 muertes; scripts/b1_confound_repro.py |
+| **Juez ejecutable EN el lazo de producción** | **HECHO 2026-07-26 (mecanismo verificado e2e)** | El lazo entrega por sello del juez, no por nota del VLM; contraejemplos → reparar_web. Caso real medido: ronda 1 FALLIDO (4 contraejemplos) → ronda 2 reparado → APROBADO por juez. Para llegar hubo que arreglar 4 bugs de plomería en cascada, todos "presupuesto de tokens que no contaba el razonamiento" (commits 463a6eb, 776f445, d7e1419) |
+| b2 (sistema real, 6 tareas, n=1 por corrida) | serie medida, NO concluyente | baseline 2/6 → post-fixes: 3/6, 4/6, 3/6 (configs distintas; solo la última es la final). Media ~3.3 vs 2, pero a n=1 el ruido domina (regla gate-e2e-flaky); réplicas de la config final en curso. Los fallos restantes: mecánica a 1-2 checks del pase que la reparación no remata en ≤3 rondas |
 
 ---
 

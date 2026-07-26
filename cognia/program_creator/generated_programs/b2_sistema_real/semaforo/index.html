@@ -1,86 +1,177 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Semaforo</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-            margin: 0;
-        }
-        #semaforo {
-            width: 100px;
-            height: 300px;
-            background-color: #333;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-around;
-            border-radius: 10px;
-        }
-        .luz {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            transition: background-color 0.5s;
-        }
-        #rojo {
-            background-color: red;
-        }
-        #verde {
-            background-color: green;
-        }
-        #amarillo {
-            background-color: yellow;
-        }
-        #avanzar {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Semáforo Automático</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f0f0;color:#333;}
+  header{background:#222;color:#fff;padding:1rem;text-align:center;}
+  section{background:#fff;margin:1rem auto;padding:1rem;border-radius:8px;max-width:600px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  #luz{width:120px;height:120px;border-radius:50%;margin:0 auto 1rem auto;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fff;transition:background-color .5s;}
+  #luz[data-color="rojo"]{background:#c00;}
+  #luz[data-color="verde"]{background:#0c0;}
+  #luz[data-color="ambar"]{background:#cc0;}
+  button{display:block;margin:0 auto;padding:.5rem 1rem;font-size:1rem;background:#0066cc;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  button:hover{background:#005bb5;}
+  table{width:100%;border-collapse:collapse;}
+  th,td{border:1px solid #ddd;padding:.5rem;text-align:center;}
+  th{background:#f9f9f9;}
+  .chart{width:100%;overflow-x:auto;}
+  svg{display:block;width:100%;height:200px;}
+  .grid line{stroke:#e0e0e0;stroke-width:1;}
+  .bar{fill:#0066cc;}
+  .label{font-size:.8rem;}
+</style>
 </head>
 <body>
-    <div id="semaforo">
-        <div id="rojo" class="luz"></div>
-        <div id="amarillo" class="luz"></div>
-        <div id="verde" class="luz"></div>
-    </div>
-    <button id="avanzar">Avanzar</button>
+<header>
+  <h1>Semáforo Automático</h1>
+  <p>Avanza entre rojo, verde y ambar automáticamente.</p>
+</header>
 
-    <script>
-        const luces = {
-            rojo: 'amarillo',
-            amarillo: 'verde',
-            verde: 'rojo'
-        };
+<section id="semaforo">
+  <div id="luz" data-color="rojo">Rojo</div>
+  <button id="avanzar">Avanzar</button>
+</section>
 
-        let colorActual = 'rojo';
+<section id="grafico">
+  <h2>Conteo de colores</h2>
+  <div class="chart" id="chartContainer"></div>
+</section>
 
-        document.getElementById('luz').setAttribute('data-color', colorActual);
+<section id="log">
+  <h2>Registro de cambios</h2>
+  <table id="logTable">
+    <thead><tr><th>Hora</th><th>Color</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
 
-        document.getElementById('avanzar').addEventListener('click', () => {
-            colorActual = luces[colorActual];
-            document.getElementById('luz').setAttribute('data-color', colorActual);
-            actualizarSemaforo();
-        });
+<script>
+/* Tunable constants */
+const COLORS = ['rojo', 'verde', 'ambar'];
+const INTERVAL_MS = 2000; // 2 segundos
+const MAX_LOG_ENTRIES = 10;
 
-        function actualizarSemaforo() {
-            const lucesElementos = document.querySelectorAll('.luz');
-            lucesElementos.forEach(luz => luz.style.backgroundColor = 'gray');
+/* State */
+let currentIndex = 0;
+let counts = {rojo:0, verde:0, ambar:0};
+let logEntries = [];
 
-            document.getElementById(colorActual).style.backgroundColor = colorActual;
-        }
+/* DOM elements */
+const luz = document.getElementById('luz');
+const btn = document.getElementById('avanzar');
+const chartContainer = document.getElementById('chartContainer');
+const logTableBody = document.querySelector('#logTable tbody');
 
-        // Iniciar el semáforo con el color rojo
-        actualizarSemaforo();
-    </script>
+/* Utility to format numbers */
+function fmt(num){ return num.toLocaleString('es-ES'); }
+
+/* Update the light */
+function updateLight() {
+  const color = COLORS[currentIndex];
+  luz.dataset.color = color;
+  luz.textContent = color.charAt(0).toUpperCase() + color.slice(1);
+  // Set the text color to match the traffic light color
+  luz.style.color = color === 'rojo' ? 'red' : color === 'verde' ? 'green' : 'orange';
+  counts[color] = (counts[color] || 0) + 1;
+  addLogEntry(color);
+  renderChart();
+}
+
+/* Advance to next color */
+function advance() {
+  currentIndex = (currentIndex + 1) % COLORS.length;
+  updateLight();
+}
+
+/* Log entry */
+function addLogEntry(color) {
+  const now = new Date();
+  logEntries.unshift({time: now, color});
+  if (logEntries.length > MAX_LOG_ENTRIES) logEntries.pop();
+  renderLog();
+}
+
+/* Render log table */
+function renderLog() {
+  logTableBody.innerHTML = '';
+  logEntries.forEach(entry => {
+    const tr = document.createElement('tr');
+    const tdTime = document.createElement('td');
+    const tdColor = document.createElement('td');
+    tdTime.textContent = entry.time.toLocaleTimeString('es-ES', {hour12:false});
+    tdColor.textContent = entry.color.charAt(0).toUpperCase() + entry.color.slice(1);
+    // Color the text to match the traffic light color
+    tdColor.style.color = entry.color === 'rojo' ? 'red' : entry.color === 'verde' ? 'green' : 'orange';
+    tr.appendChild(tdTime);
+    tr.appendChild(tdColor);
+    logTableBody.appendChild(tr);
+  });
+}
+
+/* Render chart */
+function renderChart() {
+  const maxCount = Math.max(...Object.values(counts), 1);
+  const yMax = Math.ceil(maxCount / 5) * 5; // round up to nearest 5
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 300 ${yMax * 20 + 40}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  // Gridlines and Y labels
+  for (let i = 0; i <= 5; i++) {
+    const y = yMax - i * (yMax / 5);
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', '40');
+    line.setAttribute('y1', `${20 + i * (yMax * 20 / 5)}`);
+    line.setAttribute('x2', '260');
+    line.setAttribute('y2', `${20 + i * (yMax * 20 / 5)}`);
+    line.setAttribute('class', 'grid');
+    svg.appendChild(line);
+
+    const label = document.createElementNS(svgNS, 'text');
+    label.setAttribute('x', '30');
+    label.setAttribute('y', `${20 + i * (yMax * 20 / 5) + 5}`);
+    label.setAttribute('class', 'label');
+    label.textContent = fmt(Math.round(y));
+    svg.appendChild(label);
+  }
+
+  // Bars
+  const barWidth = 60;
+  const barGap = 20;
+  COLORS.forEach((color, idx) => {
+    const count = counts[color];
+    const barHeight = (count / yMax) * (yMax * 20);
+    const rect = document.createElementNS(svgNS, 'rect');
+    rect.setAttribute('x', `${40 + idx * (barWidth + barGap)}`);
+    rect.setAttribute('y', `${20 + (yMax * 20) - barHeight}`);
+    rect.setAttribute('width', barWidth);
+    rect.setAttribute('height', barHeight);
+    rect.setAttribute('class', 'bar');
+    rect.setAttribute('fill', color === 'rojo' ? '#c00' : color === 'verde' ? '#0c0' : '#cc0');
+    svg.appendChild(rect);
+
+    const label = document.createElementNS(svgNS, 'text');
+    label.setAttribute('x', `${40 + idx * (barWidth + barGap) + barWidth / 2}`);
+    label.setAttribute('y', `${20 + (yMax * 20) + 15}`);
+    label.setAttribute('class', 'label');
+    label.setAttribute('text-anchor', 'middle');
+    label.textContent = color.charAt(0).toUpperCase() + color.slice(1);
+    svg.appendChild(label);
+  });
+
+  chartContainer.innerHTML = '';
+  chartContainer.appendChild(svg);
+}
+
+/* Initialize */
+document.addEventListener('DOMContentLoaded', () => {
+  updateLight(); // first frame
+  btn.addEventListener('click', advance);
+  setInterval(advance, INTERVAL_MS);
+});
+</script>
 </body>
 </html>

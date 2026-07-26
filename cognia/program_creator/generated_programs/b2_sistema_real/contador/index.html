@@ -1,138 +1,46 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contador Interactivo</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #f4f4f9;
-        }
-        .container {
-            text-align: center;
-            width: 90%;
-            max-width: 600px;
-        }
-        #counter {
-            font-size: 2em;
-            margin: 20px 0;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            font-size: 1em;
-            cursor: pointer;
-        }
-        #chart {
-            width: 100%;
-            height: 300px;
-            background-color: #fff;
-            border: 1px solid #ddd;
-        }
-        .axis-label {
-            fill: #666;
-        }
-        .gridline {
-            stroke: #eee;
-            stroke-width: 0.5;
-        }
-    </style>
+<meta charset="utf-8">
+<title>Contador Animado</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  .section{padding:1rem;background:#fff;margin:1rem auto;max-width:600px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  .summary{font-size:2rem;text-align:center;}
+  .buttons{display:flex;justify-content:center;margin-top:.5rem;}
+  button{margin:0 .5rem;padding:.5rem 1rem;font-size:1rem;}
+  .chart{overflow:auto;}
+  svg{width:100%;height:200px;}
+  .grid{stroke:#e0e0e0;stroke-width:1;}
+  .bar{fill:#4caf50;}
+  .axis{fill:#000;font-size:10px;}
+  table{width:100%;border-collapse:collapse;}
+  th,td{border:1px solid #ddd;padding:.5rem;text-align:center;}
+  th{background:#eee;}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>Contador Interactivo</h1>
-        <div id="counter">0</div>
-        <button id="mas">+</button>
-        <button id="menos">-</button>
-        <h2>Gráfica de Valores</h2>
-        <svg id="chart"></svg>
-    </div>
-
-    <script>
-        let value = 0;
-        const values = [];
-        const maxValues = 20;
-
-        function updateCounter() {
-            document.getElementById('valor').textContent = value;
-            values.push(value);
-            if (values.length > maxValues) {
-                values.shift();
-            }
-            drawChart();
-        }
-
-        document.getElementById('mas').addEventListener('click', () => {
-            value++;
-            updateCounter();
-        });
-
-        document.getElementById('menos').addEventListener('click', () => {
-            if (value > 0) {
-                value--;
-                updateCounter();
-            }
-        });
-
-        function drawChart() {
-            const chart = document.getElementById('chart');
-            chart.innerHTML = '';
-            const width = chart.clientWidth;
-            const height = chart.clientHeight;
-            const maxValue = Math.max(...values, 1);
-            const minValue = Math.min(...values, 0);
-
-            const xScale = width / maxValues;
-            const yScale = height / (maxValue - minValue);
-
-            const svgNS = "http://www.w3.org/2000/svg";
-            const axis = document.createElementNS(svgNS, 'g');
-            axis.setAttribute('transform', `translate(0, ${height})`);
-
-            for (let i = 0; i <= maxValue; i += maxValue / 5) {
-                const y = height - (i - minValue) * yScale;
-                const line = document.createElementNS(svgNS, 'line');
-                line.setAttribute('x1', 0);
-                line.setAttribute('y1', y);
-                line.setAttribute('x2', width);
-                line.setAttribute('y2', y);
-                line.classList.add('gridline');
-                chart.appendChild(line);
-
-                const label = document.createElementNS(svgNS, 'text');
-                label.setAttribute('x', -5);
-                label.setAttribute('y', y + 3);
-                label.classList.add('axis-label');
-                label.textContent = i.toFixed(0);
-                axis.appendChild(label);
-            }
-
-            chart.appendChild(axis);
-
-            for (let i = 0; i < values.length; i++) {
-                const x1 = i * xScale;
-                const y1 = height - (values[i] - minValue) * yScale;
-                const x2 = (i + 1) * xScale;
-                const y2 = height - (values[i + 1] ? values[i + 1] - minValue : minValue) * yScale;
-                const line = document.createElementNS(svgNS, 'line');
-                line.setAttribute('x1', x1);
-                line.setAttribute('y1', y1);
-                line.setAttribute('x2', x2);
-                line.setAttribute('y2', y2);
-                line.setAttribute('stroke', 'blue');
-                line.setAttribute('stroke-width', 2);
-                chart.appendChild(line);
-            }
-        }
-
-        // Initialize the first frame
-        updateCounter();
-    </script>
+<div class="section summary"><span id="valor">0</span></div>
+<div class="section buttons"><button id="mas">+</button><button id="menos">-</button></div>
+<div class="section chart"><svg id="chart"></svg></div>
+<div class="section"><table id="table"><thead><tr><th>Hora</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
+<script>
+  const valorEl=document.getElementById('valor');
+  const mas=document.getElementById('mas');
+  const menos=document.getElementById('menos');
+  const chart=document.getElementById('chart');
+  const tbody=document.querySelector('#table tbody');
+  let value=0;
+  const history=[];
+  function updateDisplay(){valorEl.textContent=value.toLocaleString();}
+  function add(delta){value=Math.max(0,value+delta);updateDisplay();record();}
+  function record(){const now=new Date();history.push({time:now,value});if(history.length>20)history.shift();drawChart();drawTable();}
+  function drawChart(){const w=chart.clientWidth;const h=chart.clientHeight;const max=Math.max(...history.map(d=>d.value),1);const barW= w/(history.length+1);chart.innerHTML='';const gridLines=5;for(let i=0;i<=gridLines;i++){const y=h*(i/gridLines);chart.innerHTML+=`<line class="grid" x1="0" y1="${y}" x2="${w}" y2="${y}"/>`;chart.innerHTML+=`<text class="axis" x="0" y="${y+3}">${(max*(gridLines-i)/gridLines).toFixed(0)}</text>`;}history.forEach((d,i)=>{const barHeight=h*(d.value/max);const x=barW*i+barW/2;chart.innerHTML+=`<rect class="bar" x="${x}" y="${h-barHeight}" width="${barW*0.8}" height="${barHeight}"/>`;});}
+  function drawTable(){tbody.innerHTML='';history.forEach(d=>{tbody.innerHTML+=`<tr><td>${d.time.toLocaleTimeString()}</td><td>${d.value.toLocaleString()}</td></tr>`;});}
+  mas.onclick=()=>add(1);
+  menos.onclick=()=>add(-1);
+  setInterval(()=>add(1),1000);
+  updateDisplay();record();
+</script>
 </body>
 </html>

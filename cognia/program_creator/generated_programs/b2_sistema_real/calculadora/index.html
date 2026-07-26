@@ -1,116 +1,90 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-            margin: 0;
-        }
-        #calculadora {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
-            text-align: center;
-        }
-        #pantalla {
-            background-color: #e0e0e0;
-            padding: 10px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            font-size: 24px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .tecla {
-            background-color: #ddd;
-            border: none;
-            padding: 10px 20px;
-            margin: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: background-color 0.3s;
-        }
-        .tecla:hover {
-            background-color: #ccc;
-        }
-    </style>
+<meta charset="utf-8">
+<title>Calculadora y Gráfico Automático</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#f0f0f0;}
+#summary{margin:20px;text-align:center;}
+#summary h2{margin:0;font-size:1.2rem;}
+#summary p{margin:5px 0;font-size:1rem;}
+#summary #resultado{font-weight:bold;}
+#calc{margin:20px;display:flex;flex-direction:column;align-items:center;background:#fff;padding:10px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+#pantalla{width:200px;height:40px;background:#222;color:#0f0;font-size:1.5rem;text-align:right;padding:5px;margin-bottom:10px;border-radius:4px;}
+.tecla{width:40px;height:40px;margin:2px;font-size:1.2rem;background:#ddd;border:none;border-radius:4px;cursor:pointer;}
+.tecla:active{background:#bbb;}
+#chart{margin:20px;width:90%;max-width:600px;}
+svg{width:100%;height:300px;}
+.grid{stroke:#ccc;stroke-width:.5;}
+.label{font-size:10px;fill:#000;}
+.bar{fill:#4caf50;transition:height .5s ease-out,y .5s ease-out;}
+</style>
 </head>
 <body>
-    <div id="calculadora">
-        <div id="pantalla">0</div>
-        <div class="tecla" data-t="2">2</div>
-        <div class="tecla" data-t="3">3</div>
-        <div class="tecla" data-t="+">+</div>
-        <div class="tecla" data-t="=">=</div>
-    </div>
+<div id="summary"><h2>Resumen</h2><p>Resultado: <span id="resultado">0</span></p></div>
+<div id="calc"><div id="pantalla"></div><div><button class="tecla" data-t="2">2</button><button class="tecla" data-t="+">+</button><button class="tecla" data-t="3">3</button><button class="tecla" data-t="=">=</button></div></div>
+<div id="chart"></div>
+<script>
+const pantalla=document.getElementById('pantalla');
+const teclas=document.querySelectorAll('.tecla');
+const resultado=document.getElementById('resultado');
+let expr='';
+let prevResult=0;
+teclas.forEach(b=>b.onclick=e=>{
+  const t=b.dataset.t;
+  if(t==='='){
+    try{
+      const r=eval(expr);
+      pantalla.textContent=r;
+      const diff=r-prevResult;
+      resultado.textContent=r.toLocaleString();
+      resultado.style.color=diff>=0?'green':'red';
+      prevResult=r;
+    }catch(e){
+      pantalla.textContent='Error';
+    }
+    expr='';
+  }else{
+    expr+=t;
+    pantalla.textContent=expr;
+  }
+});
+const seq=['2','+','3','='];
+seq.forEach((t,i)=>setTimeout(()=>teclas[i].click(),i*500));
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const pantalla = document.getElementById('pantalla');
-            const teclas = document.querySelectorAll('.tecla');
-            let display = '0';
-            let currentOperation = null;
-            let firstOperand = null;
-
-            teclas.forEach(tecla => {
-                tecla.addEventListener('click', () => {
-                    const valor = tecla.getAttribute('data-t');
-                    handleInput(valor);
-                });
-            });
-
-            function handleInput(value) {
-                if (value === '=') {
-                    if (currentOperation && firstOperand !== null) {
-                        const secondOperand = parseFloat(display);
-                        let result;
-                        switch (currentOperation) {
-                            case '+':
-                                result = firstOperand + secondOperand;
-                                break;
-                            case '-':
-                                result = firstOperand - secondOperand;
-                                break;
-                            case '*':
-                                result = firstOperand * secondOperand;
-                                break;
-                            case '/':
-                                result = firstOperand / secondOperand;
-                                break;
-                        }
-                        pantalla.textContent = result;
-                        firstOperand = null;
-                        currentOperation = null;
-                    }
-                } else if (['+', '-', '*', '/'].includes(value)) {
-                    if (firstOperand === null) {
-                        firstOperand = parseFloat(display);
-                    }
-                    currentOperation = value;
-                    display = '0';
-                } else {
-                    if (display === '0') {
-                        display = value;
-                    } else {
-                        display += value;
-                    }
-                }
-                pantalla.textContent = display;
-            }
-        });
-    </script>
+const data=[12,5,9,20,7];
+const min=Math.min(...data);
+const max=Math.max(...data);
+const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+svg.setAttribute('viewBox','0 0 600 300');
+for(let i=0;i<=5;i++){
+  const y=300-i*60;
+  const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('class','grid');
+  line.setAttribute('x1',0);
+  line.setAttribute('y1',y);
+  line.setAttribute('x2',600);
+  line.setAttribute('y2',y);
+  svg.appendChild(line);
+  const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+  txt.setAttribute('class','label');
+  txt.setAttribute('x',5);
+  txt.setAttribute('y',y+3);
+  txt.textContent=(min + i*(max-min)/5).toFixed(0);
+  svg.appendChild(txt);
+}
+data.forEach((v,i)=>{
+  const bar=document.createElementNS('http://www.w3.org/2000/svg','rect');
+  bar.setAttribute('class','bar');
+  bar.setAttribute('x',i*120+5);
+  bar.setAttribute('y',300);
+  bar.setAttribute('width',110);
+  bar.setAttribute('height',0);
+  svg.appendChild(bar);
+  const h=(v-min)*(280)/(max-min);
+  setTimeout(()=>{bar.setAttribute('height',h);bar.setAttribute('y',300-h);},200);
+});
+document.getElementById('chart').appendChild(svg);
+</script>
 </body>
 </html>

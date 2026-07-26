@@ -86,15 +86,27 @@ class _FakeCognia:
         self._orchestrator = _FakeOrch(mode)
 
 
-def test_llm_de_cognia_usa_orquestador_real():
-    llm = _llm_de_cognia(_FakeCognia(mode="local"))
-    assert llm("hola", "sys", 100, 0.5) == "texto generado por el backend"
+def test_llm_de_cognia_delega_en_llm_local():
+    """Desde 2026-07-26 el wrapper delega en llm_local.generar (endpoint de
+    CHAT): orch.infer con prompt crudo hacia que un cerebro de razonamiento
+    (gpt-oss) pensara en texto plano y agotara max_tokens antes del HTML.
+    El modo "simulation" ya no aplica: llm_local no lo produce, y sin backend
+    generar devuelve None (el wrapper lo propaga)."""
+    from unittest.mock import patch
+
+    with patch("cognia.llm_local.generar",
+               return_value="texto generado por el backend") as g:
+        llm = _llm_de_cognia(_FakeCognia(mode="local"))
+        assert llm("hola", "sys", 100, 0.5) == "texto generado por el backend"
+    assert g.call_args.kwargs["system"] == "sys"
 
 
-def test_llm_de_cognia_rechaza_simulation():
-    """Texto de modo simulacion = placeholder; jamas alimenta la generacion."""
-    llm = _llm_de_cognia(_FakeCognia(mode="simulation"))
-    assert llm("hola", "sys", 100, 0.5) is None
+def test_llm_de_cognia_sin_backend_propaga_none():
+    from unittest.mock import patch
+
+    with patch("cognia.llm_local.generar", return_value=None):
+        llm = _llm_de_cognia(_FakeCognia(mode="local"))
+        assert llm("hola", "sys", 100, 0.5) is None
 
 
 def test_llm_de_cognia_sin_orquestador():
