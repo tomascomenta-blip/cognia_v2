@@ -1,242 +1,182 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<title>Semáforo y Dashboard de Datos</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<title>Semáforo y Dashboard</title>
 <style>
-  body{
-    margin:0;
-    font-family:Arial,Helvetica,sans-serif;
-    background:#f9f9f9;
-    color:#333;
-  }
-  #container{
-    max-width:800px;
-    margin:auto;
-    padding:20px;
-  }
-  header{
-    text-align:center;
-    margin-bottom:20px;
-  }
-  #summary{
-    display:flex;
-    justify-content:space-around;
-    margin-bottom:20px;
-  }
-  .summary-item{
-    text-align:center;
-  }
-  .summary-item h2{
-    margin:0;
-    font-size:1.5em;
-  }
-  #chart{
-    margin-bottom:20px;
-  }
-  #chart svg{
-    width:100%;
-    height:auto;
-  }
-  #table{
-    margin-bottom:20px;
-  }
-  table{
-    width:100%;
-    border-collapse:collapse;
-  }
-  th,td{
-    border:1px solid #ddd;
-    padding:8px;
-    text-align:center;
-  }
-  th{
-    background:#f2f2f2;
-  }
-  #control{
-    text-align:center;
-    margin-bottom:20px;
-  }
-  #luz{
-    width:60px;
-    height:60px;
-    border-radius:50%;
-    border:2px solid #333;
-    margin:0 auto 10px;
-  }
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;}
+  header, main{max-width:800px;margin:auto;padding:10px;}
+  #summary{display:flex;flex-wrap:wrap;gap:10px;}
+  #summary p{background:#fff;padding:5px 10px;border-radius:5px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  #chart{width:100%;height:200px;background:#fff;border:1px solid #ccc;border-radius:5px;}
+  #table-container{margin-top:20px;overflow-x:auto;}
+  #data-table{width:100%;border-collapse:collapse;}
+  #data-table th,#data-table td{border:1px solid #ccc;padding:5px;text-align:center;}
+  #luz{width:60px;height:180px;border-radius:10px;margin:20px auto;position:relative;}
   #luz[data-color="rojo"]{background:red;}
   #luz[data-color="verde"]{background:green;}
   #luz[data-color="ambar"]{background:orange;}
-  #avanzar{
-    padding:10px 20px;
-    background:#007bff;
-    color:#fff;
-    border:none;
-    border-radius:4px;
-    cursor:pointer;
-  }
-  #avanzar:hover{background:#0056b3;}
-  @media (max-width:600px){
-    #summary{flex-direction:column;}
-    .summary-item{margin-bottom:10px;}
-  }
+  #avanzar{padding:10px 20px;font-size:1rem;cursor:pointer;}
+  pre{background:#000;color:#0f0;padding:10px;border-radius:5px;overflow:auto;}
 </style>
 </head>
 <body>
-<div id="container">
-  <header>
-    <h1>Semáforo y Dashboard de Datos</h1>
-  </header>
-  <section id="summary">
-    <div class="summary-item">
-      <h2>Máximo</h2>
-      <p id="max">0</p>
-    </div>
-    <div class="summary-item">
-      <h2>Promedio</h2>
-      <p id="avg">0.00</p>
-    </div>
-    <div class="summary-item">
-      <h2>Mínimo</h2>
-      <p id="min">0</p>
-    </div>
-  </section>
-  <section id="chart">
-    <svg id="chartSvg" viewBox="0 0 600 200" preserveAspectRatio="xMidYMid meet"></svg>
-  </section>
-  <section id="table">
-    <table>
-      <thead>
-        <tr><th>Hora</th><th>Valor</th></tr>
-      </thead>
-      <tbody id="dataTableBody"></tbody>
+<header>
+  <h1>Semáforo y Dashboard</h1>
+  <div id="summary">
+    <p>Visitas: 0</p>
+    <p>Último valor: 0</p>
+    <p>Tiempo: 00:00:00</p>
+    <p>Datos totales: 0</p>
+    <p>Media: 0.00</p>
+  </div>
+</header>
+
+<main>
+  <div id="luz" data-color="rojo"></div>
+  <button id="avanzar">Avanzar semáforo</button>
+
+  <svg id="chart"></svg>
+
+  <div id="table-container">
+    <table id="data-table">
+      <thead><tr><th>Hora</th><th>Valor</th></tr></thead>
+      <tbody></tbody>
     </table>
-  </section>
-  <section id="control">
-    <div id="luz" data-color="rojo"></div>
-    <button id="avanzar">Avanzar</button>
-  </section>
-</div>
+  </div>
+
+  <pre id="ascii-art">
+     _____
+    |     |
+    |  R  |
+    |  G  |
+    |  Y  |
+    |_____|
+  </pre>
+</main>
+
 <script>
-const UPDATE_INTERVAL_MS = 1000;
-const DATA_LENGTH = 20;
-const COLORS = ["rojo","verde","ambar"];
-let currentColorIndex = 0;
-let data = [];
+const colors = ["rojo","verde","ambar"];
+let colorIndex = 0;
+const luz = document.getElementById('luz');
+const avanzarBtn = document.getElementById('avanzar');
+const summary = document.getElementById('summary');
+const chartSvg = document.getElementById('chart');
+const tableBody = document.querySelector('#data-table tbody');
+let counter = 0;
+const data = [];
+const maxDataPoints = 20;
 
-function initData(){
-  for(let i=0;i<DATA_LENGTH;i++){
-    data.push({
-      time:new Date(Date.now()-(DATA_LENGTH-i)*UPDATE_INTERVAL_MS),
-      value:Math.floor(Math.random()*1000)
-    });
-  }
-}
-
-function addDataPoint(){
+function updateData() {
+  counter++;
   const now = new Date();
-  const value = Math.floor(Math.random()*1000);
-  data.push({time:now,value});
-  if(data.length>DATA_LENGTH) data.shift();
+  data.push({time: now, value: counter});
+  if (data.length > maxDataPoints) data.shift();
+  updateSummary();
+  updateChart();
+  updateTable();
 }
 
-function computeStats(){
+function updateSummary() {
+  const last = data[data.length-1];
+  const avg = data.reduce((sum, d)=>sum+d.value,0)/data.length;
+  summary.innerHTML = `
+    <p>Visitas: ${counter.toLocaleString()}</p>
+    <p>Último valor: ${last.value.toLocaleString()}</p>
+    <p>Tiempo: ${last.time.toLocaleTimeString()}</p>
+    <p>Datos totales: ${data.length}</p>
+    <p>Media: ${avg.toFixed(2)}</p>
+  `;
+}
+
+function updateChart() {
+  const width = chartSvg.clientWidth;
+  const height = chartSvg.clientHeight;
+  const padding = 40;
+  const innerWidth = width - 2*padding;
+  const innerHeight = height - 2*padding;
   const values = data.map(d=>d.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const sum = values.reduce((a,b)=>a+b,0);
-  const avg = sum/values.length;
-  return {min,max,avg};
-}
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const yScale = y => padding + innerHeight - ((y - minVal)/(maxVal - minVal || 1) * innerHeight);
+  const xScale = i => padding + (i/(data.length-1||1))*innerWidth;
 
-function renderSummary(){
-  const stats = computeStats();
-  document.getElementById('min').textContent = stats.min.toLocaleString();
-  document.getElementById('max').textContent = stats.max.toLocaleString();
-  document.getElementById('avg').textContent = stats.avg.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-}
+  chartSvg.innerHTML = '';
 
-function renderChart(){
-  const svg = document.getElementById('chartSvg');
-  const width = 600;
-  const height = 200;
-  const margin = {top:20,right:20,bottom:30,left:50};
-  const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
-  const values = data.map(d=>d.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const yScale = v => margin.top + innerHeight - ((v - min)/(max - min))*innerHeight;
-  const xScale = (i)=>margin.left + (i/(data.length-1))*innerWidth;
-  let pathD='';
-  data.forEach((d,i)=>{
-    const x=xScale(i);
-    const y=yScale(d.value);
-    pathD+=(i===0?'M':'L')+x+','+y+' ';
+  // Gridlines and Y labels
+  const gridLines = 5;
+  for(let i=0;i<=gridLines;i++){
+    const y = padding + i*(innerHeight/gridLines);
+    const val = maxVal - i*((maxVal-minVal)/gridLines);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',padding);
+    line.setAttribute('y1',y);
+    line.setAttribute('x2',width-padding);
+    line.setAttribute('y2',y);
+    line.setAttribute('stroke','#e0e0e0');
+    line.setAttribute('stroke-width','1');
+    chartSvg.appendChild(line);
+    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.setAttribute('x',5);
+    text.setAttribute('y',y+5);
+    text.setAttribute('font-size','10');
+    text.textContent = val.toFixed(0);
+    chartSvg.appendChild(text);
+  }
+
+  // Axes
+  const xAxis = document.createElementNS('http://www.w3.org/2000/svg','line');
+  xAxis.setAttribute('x1',padding);
+  xAxis.setAttribute('y1',height-padding);
+  xAxis.setAttribute('x2',width-padding);
+  xAxis.setAttribute('y2',height-padding);
+  xAxis.setAttribute('stroke','#000');
+  xAxis.setAttribute('stroke-width','1');
+  chartSvg.appendChild(xAxis);
+
+  const yAxis = document.createElementNS('http://www.w3.org/2000/svg','line');
+  yAxis.setAttribute('x1',padding);
+  yAxis.setAttribute('y1',padding);
+  yAxis.setAttribute('x2',padding);
+  yAxis.setAttribute('y2',height-padding);
+  yAxis.setAttribute('stroke','#000');
+  yAxis.setAttribute('stroke-width','1');
+  chartSvg.appendChild(yAxis);
+
+  // Path
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  let d = '';
+  data.forEach((dpt,i)=>{
+    const x = xScale(i);
+    const y = yScale(dpt.value);
+    d += `${i===0?'M':'L'}${x},${y} `;
   });
-  const ticks=5;
-  const tickValues=[];
-  const tickStep=(max-min)/(ticks-1);
-  for(let i=0;i<ticks;i++) tickValues.push(min + i*tickStep);
-  let gridlines='',tickLabels='';
-  tickValues.forEach((tv,idx)=>{
-    const y=yScale(tv);
-    gridlines+=`<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#ccc" stroke-width="1"/>`;
-    tickLabels+=`<text x="${margin.left-10}" y="${y+4}" text-anchor="end" font-size="12">${tv.toLocaleString()}</text>`;
-  });
-  const firstTime=data[0].time.toLocaleTimeString();
-  const lastTime=data[data.length-1].time.toLocaleTimeString();
-  const xLabels=`<text x="${margin.left}" y="${height - margin.bottom + 20}" text-anchor="start" font-size="12">${firstTime}</text>
-  <text x="${width - margin.right}" y="${height - margin.bottom + 20}" text-anchor="end" font-size="12">${lastTime}</text>`;
-  const path=`<path d="${pathD.trim()}" fill="none" stroke="#007bff" stroke-width="2"/>`;
-  svg.innerHTML=gridlines+tickLabels+path+xLabels;
+  path.setAttribute('d',d);
+  path.setAttribute('fill','none');
+  path.setAttribute('stroke','steelblue');
+  path.setAttribute('stroke-width','2');
+  chartSvg.appendChild(path);
 }
 
-function renderTable(){
-  const tbody=document.getElementById('dataTableBody');
-  tbody.innerHTML='';
-  const recent=data.slice(-5).reverse();
-  recent.forEach((d,idx)=>{
-    const tr=document.createElement('tr');
-    const tdTime=document.createElement('td');
-    tdTime.textContent=d.time.toLocaleTimeString();
-    const tdValue=document.createElement('td');
-    tdValue.textContent=d.value.toLocaleString();
-    const prevIndex=data.length-1-idx-1;
-    if(prevIndex>=0){
-      const prev=data[prevIndex];
-      const change=d.value - prev.value;
-      tdValue.style.color = (change >= 0 ? 'green' : 'red');
-    } else {
-      tdValue.style.color = 'black';
-    }
-    tr.appendChild(tdTime);
-    tr.appendChild(tdValue);
-    tbody.appendChild(tr);
-  });
+function updateTable() {
+  const rows = data.map(d=>{
+    const time = d.time.toLocaleTimeString();
+    const val = d.value.toLocaleString();
+    return `<tr><td>${time}</td><td>${val}</td></tr>`;
+  }).join('');
+  tableBody.innerHTML = rows;
 }
 
-function cycleColor(){
-  currentColorIndex=(currentColorIndex+1)%COLORS.length;
-  const luz=document.getElementById('luz');
-  luz.setAttribute('data-color',COLORS[currentColorIndex]);
+function cycleColor() {
+  colorIndex = (colorIndex+1)%colors.length;
+  luz.setAttribute('data-color',colors[colorIndex]);
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
-  initData();
-  renderSummary();
-  renderChart();
-  renderTable();
-  const btn=document.getElementById('avanzar');
-  if(btn) btn.addEventListener('click',cycleColor);
-  setInterval(()=>{
-    addDataPoint();
-    renderSummary();
-    renderChart();
-    renderTable();
-  },UPDATE_INTERVAL_MS);
-});
+avanzarBtn.addEventListener('click',cycleColor);
+setInterval(updateData,1000);
+setInterval(cycleColor,3000);
+window.addEventListener('resize', updateChart);
+updateData();
 </script>
 </body>
 </html>

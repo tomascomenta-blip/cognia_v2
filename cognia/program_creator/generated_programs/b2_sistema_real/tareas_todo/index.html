@@ -1,78 +1,106 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Lista de tareas</title>
+<meta charset="utf-8">
+<title>Lista de tareas con animación</title>
 <style>
-  body{
-    font-family:Arial,Helvetica,sans-serif;
-    margin:0;
-    padding:20px;
-    background:linear-gradient(120deg,#f6d365,#fda085);
-    background-size:400% 400%;
-    animation:gradientBG 15s ease infinite;
-  }
-  @keyframes gradientBG{
-    0%{background-position:0% 50%;}
-    50%{background-position:100% 50%;}
-    100%{background-position:0% 50%;}
-  }
-  h1{
-    color:#fff;
-    text-align:center;
-    margin-bottom:20px;
-    animation:slideIn 1s ease-out;
-  }
-  @keyframes slideIn{
-    0%{transform:translateX(-100%);opacity:0;}
-    100%{transform:translateX(0);opacity:1;}
-  }
-  #nueva{
-    width:70%;
-    padding:10px;
-    font-size:16px;
-    border:1px solid #ccc;
-    border-radius:4px;
-  }
-  #anadir{
-    padding:10px 20px;
-    font-size:16px;
-    margin-left:10px;
-    border:none;
-    background:#4CAF50;
-    color:#fff;
-    border-radius:4px;
-    cursor:pointer;
-  }
-  #anadir:hover{background:#45a049;}
-  ul{list-style:none;padding:0;margin-top:20px;}
-  .tarea{
-    background:#fff;
-    margin:5px 0;
-    padding:10px;
-    border-radius:5px;
-    box-shadow:0 2px 5px rgba(0,0,0,0.1);
-  }
+body{font-family:Arial,sans-serif;margin:0;padding:10px;}
+h1{font-size:1.2em;margin:0 0 10px;}
+.section{margin-bottom:20px;}
+.chart{border:1px solid #ccc;padding:5px;}
+.tasks{border:1px solid #ccc;padding:5px;}
+.tarea{margin:2px 0;}
 </style>
 </head>
 <body>
-<h1>Lista de tareas</h1>
-<input type="text" id="nueva" placeholder="Nueva tarea">
+<h1>Resumen</h1>
+<div class="section" id="summary">Contador: <span id="counter">0</span> | Media: <span id="avg">0</span></div>
+<h1>Gráfico</h1>
+<div class="section chart"><svg id="chart" width="100%" height="200"></svg></div>
+<h1>Tareas</h1>
+<div class="section tasks">
+<input id="nueva" placeholder="Nueva tarea">
 <button id="anadir">Añadir</button>
 <ul id="lista"></ul>
+</div>
 <script>
-  document.getElementById('anadir').addEventListener('click', function(){
-    const input = document.getElementById('nueva');
-    const text = input.value.trim();
-    if(text){
-      const li = document.createElement('li');
-      li.textContent = text;
-      li.className = 'tarea';
-      document.getElementById('lista').appendChild(li);
-      input.value = '';
+document.addEventListener('DOMContentLoaded', function(){
+  let counter=0;
+  function updateSummary(){
+    counter++;
+    const counterEl=document.getElementById('counter');
+    counterEl.textContent=counter;
+    counterEl.style.color='green';
+  }
+  let data=[0,0,0,0,0];
+  function updateChart(){
+    data=data.map(()=>Math.floor(Math.random()*100)+1);
+    const max=Math.max(...data);
+    const svg=document.getElementById('chart');
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+    const w=svg.clientWidth, h=svg.clientHeight;
+    const margin=10, barW=(w-2*margin)/data.length;
+    for(let i=0;i<data.length;i++){
+      const val=data[i];
+      const hBar=val/max*h;
+      const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+      rect.setAttribute('x',margin+i*barW);
+      rect.setAttribute('y',h-hBar);
+      rect.setAttribute('width',barW-2);
+      rect.setAttribute('height',hBar);
+      rect.setAttribute('fill','#4CAF50');
+      svg.appendChild(rect);
+    }
+    for(let i=0;i<=5;i++){
+      const y=h-i*h/5;
+      const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1','0');
+      line.setAttribute('y1',y);
+      line.setAttribute('x2',w);
+      line.setAttribute('y2',y);
+      line.setAttribute('stroke','#eee');
+      svg.appendChild(line);
+      const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+      text.setAttribute('x','5');
+      text.setAttribute('y',y+5);
+      text.setAttribute('font-size','10');
+      text.textContent=Math.round(max*i/5);
+      svg.appendChild(text);
+    }
+    const avgEl=document.getElementById('avg');
+    const avg=(data.reduce((a,b)=>a+b,0)/data.length).toFixed(2);
+    avgEl.textContent=avg;
+    avgEl.style.color='green';
+  }
+  const anadirBtn=document.getElementById('anadir');
+  const nuevaInput=document.getElementById('nueva');
+  const lista=document.getElementById('lista');
+  anadirBtn.addEventListener('click', function(){
+    const txt=nuevaInput.value.trim();
+    if(txt){
+      const li=document.createElement('li');
+      li.className='tarea';
+      li.textContent=txt;
+      lista.appendChild(li);
+      nuevaInput.value='';
+      nuevaInput.focus();
     }
   });
+  nuevaInput.addEventListener('keydown', function(e){
+    if(e.key==='Enter'){
+      anadirBtn.click();
+    }
+  });
+  // Ensure list is visible
+  lista.style.listStyleType='none';
+  lista.style.padding='0';
+  lista.style.margin='0';
+  // Initial calls
+  updateSummary();
+  updateChart();
+  setInterval(updateSummary,1000);
+  setInterval(updateChart,2000);
+});
 </script>
 </body>
 </html>

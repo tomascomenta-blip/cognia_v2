@@ -1,116 +1,82 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Calculadora</title>
+<meta charset="utf-8">
+<title>Calculadora y Gráfico Automático</title>
 <style>
-  body{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-    margin:0;
-    background:#f0f0f0;
-    font-family:Arial,Helvetica,sans-serif;
-  }
-  #calculator{
-    width:260px;
-    background:#222;
-    border-radius:10px;
-    padding:15px;
-    box-shadow:0 4px 15px rgba(0,0,0,0.3);
-    animation:slideIn 1s ease-out forwards;
-  }
-  #pantalla{
-    height:50px;
-    background:#000;
-    color:#0f0;
-    font-size:1.8em;
-    text-align:right;
-    padding:10px;
-    border-radius:5px;
-    margin-bottom:10px;
-    overflow:hidden;
-    white-space:nowrap;
-    text-overflow:ellipsis;
-  }
-  #teclas{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:8px;
-  }
-  .tecla{
-    background:#444;
-    color:#fff;
-    border:none;
-    border-radius:5px;
-    font-size:1.4em;
-    padding:15px 0;
-    cursor:pointer;
-    transition:background 0.2s;
-    animation:fadeIn 0.5s ease forwards;
-    animation-delay:0.2s;
-  }
-  .tecla:hover{background:#555;}
-  @keyframes slideIn{
-    from{transform:translateX(-100%); opacity:0;}
-    to{transform:translateX(0); opacity:1;}
-  }
-  @keyframes fadeIn{
-    from{opacity:0;}
-    to{opacity:1;}
-  }
+  body{font-family:sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  header{background:#333;color:#fff;padding:1rem;text-align:center;}
+  section{padding:1rem;background:#fff;margin:1rem auto;max-width:600px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  #pantalla{height:50px;background:#222;color:#0f0;font-size:2rem;text-align:right;padding:.5rem;margin-bottom:1rem;border-radius:4px;}
+  .tecla{display:inline-block;width:60px;height:60px;margin:5px;background:#ddd;border-radius:8px;font-size:1.5rem;cursor:pointer;user-select:none;}
+  .tecla:active{background:#bbb;}
+  svg{width:100%;height:200px;}
+  .grid line{stroke:#ccc;stroke-width:.5;}
+  .bar{fill:#4caf50;}
+  .axis text{font-size:.8rem;}
 </style>
 </head>
 <body>
-<div id="calculator">
+<header>Calculadora y Gráfico Automático</header>
+<section id="calc">
   <div id="pantalla"></div>
   <div id="teclas">
-    <button class="tecla" data-t="7">7</button>
-    <button class="tecla" data-t="8">8</button>
-    <button class="tecla" data-t="9">9</button>
-    <button class="tecla" data-t="/">/</button>
-    <button class="tecla" data-t="4">4</button>
-    <button class="tecla" data-t="5">5</button>
-    <button class="tecla" data-t="6">6</button>
-    <button class="tecla" data-t="*">*</button>
-    <button class="tecla" data-t="1">1</button>
-    <button class="tecla" data-t="2">2</button>
-    <button class="tecla" data-t="3">3</button>
-    <button class="tecla" data-t="-">-</button>
-    <button class="tecla" data-t="0">0</button>
-    <button class="tecla" data-t=".">.</button>
-    <button class="tecla" data-t="=">=</button>
-    <button class="tecla" data-t="+">+</button>
+    <div class="tecla" data-t="2">2</div>
+    <div class="tecla" data-t="+">+</div>
+    <div class="tecla" data-t="3">3</div>
+    <div class="tecla" data-t="=">=</div>
   </div>
-</div>
-
+</section>
+<section id="chart">
+  <svg id="chartSvg"></svg>
+</section>
 <script>
-  (function(){
-    const pantalla = document.getElementById('pantalla');
-    let expr = '';
-    const teclas = document.querySelectorAll('.tecla');
-    teclas.forEach(btn=>{
-      btn.addEventListener('click',()=>{
-        const val = btn.dataset.t;
-        if(val === '='){
-          try{
-            // Evaluate the expression safely
-            const result = eval(expr);
-            pantalla.textContent = result;
-            expr = result.toString();
-          }catch(e){
-            pantalla.textContent = 'Error';
-            expr = '';
-          }
-        }else{
-          expr += val;
-          pantalla.textContent = expr;
-        }
-      });
-    });
-  })();
+  // Calculadora
+  const pantalla=document.getElementById('pantalla');
+  let cur='',op='',op1='';
+  const press=v=>{
+    if(!isNaN(v)){cur+=v;pantalla.textContent=cur;}
+    else if(v==='+'||v==='-'){op1=cur;op=v;cur='';pantalla.textContent=op1+op;}
+    else if(v==='='){const r=op==='+'?+op1++cur:op==='-'?+op1-+cur:0;pantalla.textContent=r.toLocaleString();cur='';op='';op1='';}
+  };
+  const seq=['2','+','3','='];let i=0;
+  const next=()=>{if(i<seq.length){press(seq[i++]);setTimeout(next,800);}};
+  next();
+
+  // Gráfico
+  const data=[12,7,9,15,6];
+  const svg=document.getElementById('chartSvg');
+  const w=svg.clientWidth,h=svg.clientHeight,p=40;
+  const max=Math.max(...data),min=Math.min(...data);
+  const scaleY=y=>p+(h-2*p)*(max-y)/(max-min);
+  const bw=(w-2*p)/data.length*0.8;
+  const grid=document.createElementNS('http://www.w3.org/2000/svg','g');grid.setAttribute('class','grid');
+  for(let i=0;i<=5;i++){
+    const y=p+(h-2*p)*i/5;
+    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',p);l.setAttribute('y1',y);l.setAttribute('x2',w-p);l.setAttribute('y2',y);
+    grid.appendChild(l);
+  }
+  svg.appendChild(grid);
+  data.forEach((d,idx)=>{
+    const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    const x=p+idx*(w-2*p)/data.length+bw*0.1;
+    const y=scaleY(d);
+    const hgt=h-2*p-(y-p);
+    r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',bw);r.setAttribute('height',hgt);r.setAttribute('class','bar');
+    svg.appendChild(r);
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',x+bw/2);t.setAttribute('y',y-5);t.setAttribute('text-anchor','middle');t.textContent=d.toLocaleString();
+    svg.appendChild(t);
+  });
+  const axis=document.createElementNS('http://www.w3.org/2000/svg','g');axis.setAttribute('class','axis');
+  const yMax=document.createElementNS('http://www.w3.org/2000/svg','text');
+  yMax.setAttribute('x',p-10);yMax.setAttribute('y',p);yMax.setAttribute('text-anchor','end');yMax.textContent=max.toLocaleString();
+  axis.appendChild(yMax);
+  const yMin=document.createElementNS('http://www.w3.org/2000/svg','text');
+  yMin.setAttribute('x',p-10);yMin.setAttribute('y',h-p);yMin.setAttribute('text-anchor','end');yMin.textContent=min.toLocaleString();
+  axis.appendChild(yMin);
+  svg.appendChild(axis);
 </script>
 </body>
 </html>

@@ -1,74 +1,174 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<title>Contador Automático</title>
+<meta charset="UTF-8">
+<title>Contador Animado</title>
 <style>
-  body{font-family:sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#f0f0f0;}
-  header,section,footer{width:90%;max-width:600px;margin:10px 0;background:#fff;padding:10px;border-radius:5px;}
-  #valor{font-size:2em;color:#333;}
-  button{margin:5px;padding:5px 10px;}
-  table{width:100%;border-collapse:collapse;}
-  th,td{border:1px solid #ddd;padding:4px;text-align:center;}
-  .grid line{stroke:#eee;stroke-width:1;}
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f9f9f9;color:#333;}
+  header{background:#4CAF50;color:white;padding:1rem;text-align:center;}
+  section{padding:1rem;margin:0 auto;max-width:800px;}
+  #summary{display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:8px;padding:1rem;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+  #valor{font-size:3rem;font-weight:bold;}
+  button{padding:.5rem 1rem;margin:0 .5rem;font-size:1rem;border:none;border-radius:4px;cursor:pointer;}
+  button#mas{background:#2196F3;color:white;}
+  button#menos{background:#f44336;color:white;}
+  button:hover{opacity:.8;}
+  .chart{background:#fff;border-radius:8px;padding:1rem;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+  th,td{padding:.5rem;text-align:left;border-bottom:1px solid #ddd;}
+  th{background:#f2f2f2;}
+  .up{color:#4CAF50;}
+  .down{color:#f44336;}
+  @media(max-width:600px){
+    #summary{flex-direction:column;}
+    button{margin:.5rem 0;}
+  }
 </style>
 </head>
 <body>
-<header><span id="valor">0</span></header>
-<section>
-  <button id="mas">+</button>
-  <button id="menos">-</button>
+<header><h1>Contador Animado</h1></header>
+<section id="summary">
+  <div>
+    <button id="menos">-</button>
+    <span id="valor">0</span>
+    <button id="mas">+</button>
+  </div>
 </section>
-<section>
-  <svg id="chart" width="100%" height="200"></svg>
+<section class="chart">
+  <svg id="chart" width="100%" height="300"></svg>
 </section>
-<section>
-  <table id="tabla"><thead><tr><th>Tiempo</th><th>Valor</th></tr></thead><tbody></tbody></table>
+<section class="details">
+  <table id="table">
+    <thead><tr><th>Tiempo</th><th>Valor</th></tr></thead>
+    <tbody></tbody>
+  </table>
 </section>
 <script>
-let val=0, datos=[0], t=0, prevVal=0;
-const valor=document.getElementById('valor'),
-      mas=document.getElementById('mas'),
-      menos=document.getElementById('menos'),
-      chart=document.getElementById('chart'),
-      tabla=document.querySelector('#tabla tbody');
+/* constants */
+const UPDATE_INTERVAL = 1000; // ms
+const MAX_HISTORY = 30; // number of points to keep
 
-function update(){
-  valor.textContent=val.toLocaleString('es-ES');
-  const cambio=val-prevVal;
-  valor.style.color = cambio>=0?'green':'red';
-  prevVal=val;
+/* state */
+let counter = 0;
+let data = []; // array of {time, value}
+let lastChange = 0;
 
-  datos.push(val);
-  t++;
+/* elements */
+const valorEl = document.getElementById('valor');
+const masBtn = document.getElementById('mas');
+const menosBtn = document.getElementById('menos');
+const chartEl = document.getElementById('chart');
+const tableBody = document.querySelector('#table tbody');
 
-  const max=Math.max(...datos), min=Math.min(...datos);
-  const h=chart.clientHeight,w=chart.clientWidth;
-  chart.innerHTML='';
-  const yScale=d=>h-((d-min)/(max-min||1))*h;
-  const xScale=i=>w*(i/(datos.length-1||1));
+/* helper functions */
+function formatNumber(n){return n.toLocaleString('es-ES');}
+function updateValor(){valorEl.textContent = formatNumber(counter); valorEl.className = lastChange>0?'up':lastChange<0?'down':'';}
+function addDataPoint(){const now = new Date(); data.push({time:now,value:counter}); if(data.length>MAX_HISTORY)data.shift();}
 
-  chart.innerHTML+=`<g class="grid">${datos.map((_,i)=>`<line x1="${xScale(i)}" y1="0" x2="${xScale(i)}" y2="${h}"/>`).join('')}</g>`;
-  chart.innerHTML+=`<g class="grid">${[min,max].map(v=>`<line x1="0" y1="${yScale(v)}" x2="${w}" y2="${yScale(v)}"/>`).join('')}</g>`;
-  chart.innerHTML+=`<polyline fill="none" stroke="steelblue" stroke-width="2" points="${datos.map((d,i)=>`${xScale(i)},${yScale(d)}`).join(' ')}"/>`;
-  chart.innerHTML+=`<text x="0" y="${yScale(min)}" dy="3" font-size="10">${min.toLocaleString('es-ES')}</text>`;
-  chart.innerHTML+=`<text x="0" y="${yScale(max)}" dy="3" font-size="10">${max.toLocaleString('es-ES')}</text>`;
-
-  const tr=document.createElement('tr');
-  const tdTime=document.createElement('td');
-  tdTime.textContent=t;
-  const tdVal=document.createElement('td');
-  tdVal.textContent=val.toLocaleString('es-ES');
-  tdVal.style.color = cambio>=0?'green':'red';
-  tr.append(tdTime,tdVal);
-  tabla.appendChild(tr);
+/* chart drawing */
+function drawChart(){
+  const width = chartEl.clientWidth;
+  const height = chartEl.clientHeight;
+  const padding = 40;
+  chartEl.innerHTML = '';
+  if(data.length<2)return;
+  const values = data.map(d=>d.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const yScale = (max-min===0)?0: (y)=> (height - padding - ((y - min)/(max-min))*(height-2*padding));
+  const xScale = (i)=> padding + (i/(data.length-1))*(width-2*padding);
+  const pathData = data.map((d,i)=>`${i===0?'M':'L'}${xScale(i)},${yScale(d.value)}`).join(' ');
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',pathData);
+  path.setAttribute('fill','none');
+  path.setAttribute('stroke','#2196F3');
+  path.setAttribute('stroke-width','2');
+  chartEl.appendChild(path);
+  // gridlines and labels
+  const ticks = 5;
+  const tickStep = (max-min)/ (ticks-1 || 1);
+  for(let i=0;i<ticks;i++){
+    const val = min + i*tickStep;
+    const y = yScale(val);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',padding);
+    line.setAttribute('x2',width-padding);
+    line.setAttribute('y1',y);
+    line.setAttribute('y2',y);
+    line.setAttribute('stroke','#e0e0e0');
+    line.setAttribute('stroke-dasharray','2,2');
+    chartEl.appendChild(line);
+    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('x',padding-10);
+    label.setAttribute('y',y+4);
+    label.setAttribute('text-anchor','end');
+    label.setAttribute('font-size','10');
+    label.textContent = formatNumber(val);
+    chartEl.appendChild(label);
+  }
+  // x-axis labels (last 5)
+  const xTicks = Math.min(5,data.length);
+  for(let i=0;i<xTicks;i++){
+    const idx = data.length-1 - i;
+    const d = data[idx];
+    const x = xScale(idx);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',x);
+    line.setAttribute('x2',x);
+    line.setAttribute('y1',height-padding);
+    line.setAttribute('y2',height-padding+5);
+    line.setAttribute('stroke','#000');
+    chartEl.appendChild(line);
+    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('x',x);
+    label.setAttribute('y',height-padding+15);
+    label.setAttribute('text-anchor','middle');
+    label.setAttribute('font-size','10');
+    label.textContent = d.time.toLocaleTimeString('es-ES', {hour12:false, hour:'2-digit', minute:'2-digit'});
+    chartEl.appendChild(label);
+  }
 }
 
-mas.onclick=e=>{val++;update();};
-menos.onclick=e=>{if(val>0){val--;update();}};
+/* table update */
+function updateTable(){
+  tableBody.innerHTML = '';
+  data.slice().reverse().forEach(d=>{
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td');
+    td1.textContent = d.time.toLocaleTimeString('es-ES', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    const td2 = document.createElement('td');
+    td2.textContent = formatNumber(d.value);
+    tr.appendChild(td1);
+    tr.appendChild(td2);
+    tableBody.appendChild(tr);
+  });
+}
 
-setTimeout(()=>{setInterval(()=>{val++;update();},1000);},3000);
-update();
+/* auto update */
+function autoUpdate(){
+  const change = Math.random()<0.5? -1:1;
+  lastChange = change;
+  if(counter+change<0) lastChange = 0;
+  counter = Math.max(0,counter+change);
+  updateValor();
+  addDataPoint();
+  drawChart();
+  updateTable();
+}
+
+/* button handlers */
+masBtn.addEventListener('click',()=>{lastChange=1;counter++;updateValor();addDataPoint();drawChart();updateTable();});
+menosBtn.addEventListener('click',()=>{if(counter>0){lastChange=-1;counter--;updateValor();addDataPoint();drawChart();updateTable();}});
+
+/* init */
+function init(){
+  updateValor();
+  addDataPoint();
+  drawChart();
+  updateTable();
+  setInterval(autoUpdate,UPDATE_INTERVAL);
+}
+window.addEventListener('load',init);
 </script>
 </body>
 </html>
