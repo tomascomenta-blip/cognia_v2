@@ -1,0 +1,85 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null
+  },
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": true,
+      "motivo": "10/10 checks OK (6/6 del contrato)",
+      "segundos": 95.68288064002991,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: empieza en 0 ('1' no contiene '0'); tras + vale 1 ('2' no contiene '1'); tras dos + vale 2 ('4' no contie",
+      "segundos": 100.87121629714966,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 14,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "11/12 checks OK (8/8 del contrato)",
+      "segundos": 84.36098074913025,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 12,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "calculadora": {
+      "aprobado": true,
+      "motivo": "10/10 checks OK (6/6 del contrato)",
+      "segundos": 96.09751534461975,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "semaforo": {
+      "aprobado": true,
+      "motivo": "10/11 checks OK (7/7 del contrato)",
+      "segundos": 35.24669814109802,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 11,
+      "rondas": 1,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
+    "filtro_lista": {
+      "aprobado": false,
+      "motivo": "sin HTML",
+      "segundos": 115.4965398311615,
+      "como": "create_program",
+      "rondas": 0,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "no se pudo generar la pagina inicial",
+      "bon": null
+    }
+  },
+  "techo": 6,
+  "real": 4,
+  "desperdicio": [
+    "contador",
+    "filtro_lista"
+  ],
+  "n_tareas": 6
+}

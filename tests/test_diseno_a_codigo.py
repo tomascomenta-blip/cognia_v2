@@ -1,4 +1,4 @@
-"""
+﻿"""
 El lazo DISENO-A-CODIGO con arbitro visual: el cerebro imagina el producto, el
 modelo de imagenes dibuja el mockup, y la pagina se itera hasta parecerse a esa
 vision. Estos tests parchean las piezas pesadas (LLM, GPU, navegador) y verifican
@@ -86,7 +86,7 @@ def test_corta_por_gate_de_fidelidad():
 def test_fusiona_defectos_estructurales_y_visuales():
     capturado = {}
 
-    def _reparar(program, defectos, llm=None):
+    def _reparar(program, defectos, llm=None, profundo=False):
         capturado["defectos"] = list(defectos)
         return None      # corta tras capturar
 
@@ -108,7 +108,7 @@ def test_fusiona_defectos_estructurales_y_visuales():
 def test_sin_vlm_usa_solo_defectos_estructurales():
     capturado = {}
 
-    def _reparar(program, defectos, llm=None):
+    def _reparar(program, defectos, llm=None, profundo=False):
         capturado["defectos"] = list(defectos)
         return None
 
@@ -184,7 +184,7 @@ def test_los_defectos_estaticos_entran_al_lazo():
     """El lazo debe pasar los defectos estaticos a reparar_web junto al resto."""
     capturado = {}
 
-    def _reparar(program, defectos, llm=None):
+    def _reparar(program, defectos, llm=None, profundo=False):
         capturado["defectos"] = list(defectos)
         return None
 

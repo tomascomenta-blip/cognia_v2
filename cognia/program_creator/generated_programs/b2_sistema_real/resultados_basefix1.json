@@ -1,0 +1,88 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null
+  },
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": false,
+      "motivo": "falla critica: al cargar NINGUNA carta muestra su emoji (visibles('.tile')=2, esperaba 0); tras 1 click hay EXACTAMENTE ",
+      "segundos": 80.2709538936615,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 8,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: tras dos + vale 2 ('1' no contiene '2'); tras - vuelve a 1 ('0' no contiene '1')",
+      "segundos": 45.86254906654358,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 12,
+      "checks": 14,
+      "rondas": 2,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "11/12 checks OK (8/8 del contrato)",
+      "segundos": 146.22303175926208,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 12,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "calculadora": {
+      "aprobado": true,
+      "motivo": "10/10 checks OK (6/6 del contrato)",
+      "segundos": 81.39258742332458,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 10,
+      "rondas": 2,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
+    "semaforo": {
+      "aprobado": true,
+      "motivo": "11/11 checks OK (7/7 del contrato)",
+      "segundos": 128.7436158657074,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "filtro_lista": {
+      "aprobado": false,
+      "motivo": "falla critica: al borrar vuelven los 5 (visibles('.item')=3, esperaba 5)",
+      "segundos": 126.28987097740173,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    }
+  },
+  "techo": 6,
+  "real": 3,
+  "desperdicio": [
+    "memoria_4x4",
+    "contador",
+    "filtro_lista"
+  ],
+  "n_tareas": 6
+}

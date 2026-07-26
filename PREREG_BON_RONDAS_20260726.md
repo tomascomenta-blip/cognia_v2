@@ -92,6 +92,46 @@ Cambia el diseño de la medición, no los umbrales:
   (mismos umbrales: PASA si media ≥ 5/6 y ninguna corrida < 4; KILL si
   media ≤ baseline post-fix).
 
+## SEGUNDA ENMIENDA (2026-07-26 ~16:00, tras cerrar basefix y bonfix, ANTES de implementar el brazo C)
+
+Resultados ya cerrados de los dos primeros brazos post-fix:
+
+- **basefix: 3, 4, 3 (media 3.33)** — POR DEBAJO de la serie pre-fix (4.5).
+  El fix de reparación (effort=low) eliminó las muertes pero abarató la
+  reparación: el corte dominante pasó a ser disyuntor D6 (síntoma idéntico
+  tras reparar) — 6 de 8 fallos. Reparar necesita pensamiento; low lo
+  completa pero no lo profundiza.
+- **bonfix: 3, 4, 2 (media 3.0) → KILL del BoN k=3 EN ESTE RÉGIMEN** (media ≤
+  baseline, coste ~2×). Mecanismo visto en la meta: a temperature 0.2 los 3
+  candidatos son casi clones (checks_ok 9,9,9 / 7,7,7) — 0 de 16 tareas
+  tuvieron un candidato aprobado en fase BoN. El KILL es del par
+  (BoN, temp 0.2, reparación plana), no de la idea BoN: queda pendiente
+  re-probarla con candidatos 2..k a temperatura alta cuando la reparación
+  esté resuelta.
+
+**Brazo C pre-registrado — ESCALADA de esfuerzo en reparación:** la primera
+reparación de cada tarea va a effort=low; a partir de la ronda 2, si
+checks_ok NO creció respecto de la ronda anterior, la reparación escala a
+esfuerzo default (sin kwarg) con max_tokens 24000 y timeout 400 — presupuesto
+que cubre la cola de espirales observada (22-53k chars ≈ 5-13k tokens) y deja
+sitio a la respuesta. Config: candidatos=1, sin rondas-progreso, n=3.
+
+| veredicto brazo C | condición |
+|---|---|
+| **PASA** | media > 3.33 (baseline post-fix) y mínimo ≥ 4 |
+| **GRIS** | media > 3.33 con mínimo < 4 |
+| **KILL** | media ≤ 3.33 |
+
+Si C pasa, la config candidata de producción es "escalada" y el resto de la
+noche (banco brutal) corre con ella.
+
+**Brazo rondasfix ABORTADO en la réplica 1 (n=1, se descarta):** el lanzador
+crea un proceso nuevo por réplica y las réplicas 2-3 habrían cargado el
+código de escalada recién editado — condiciones mezcladas dentro del brazo.
+Además su condición de disparo (checks_ok creciendo) casi no ocurre con
+reparación plana: el experimento B se re-plantea SOBRE la escalada si C pasa
+(la extensión de rondas solo tiene sentido cuando las reparaciones progresan).
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es

@@ -1,0 +1,223 @@
+{
+  "config": {
+    "candidatos": 3,
+    "rondas_progreso": null
+  },
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": false,
+      "motivo": "falla critica: tras 1 click hay EXACTAMENTE 1 destapada (visibles('.tile')=0, esperaba 1); tras 2 clicks hay EXACTAMENTE",
+      "segundos": 240.54523277282715,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 5,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 9,
+            "checks": 12
+          },
+          {
+            "candidato": 2,
+            "sello": "FALLIDO",
+            "checks_ok": 6,
+            "checks": 12
+          },
+          {
+            "candidato": 3,
+            "sello": "FALLIDO",
+            "checks_ok": 6,
+            "checks": 12
+          }
+        ]
+      }
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: empieza en 0 ('1' no contiene '0'); tras + vale 1 ('2' no contiene '1'); tras dos + vale 2 ('4' no contie",
+      "segundos": 243.24869322776794,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 14,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 9,
+            "checks": 12
+          },
+          {
+            "candidato": 2,
+            "sello": "FALLIDO",
+            "checks_ok": 9,
+            "checks": 12
+          },
+          {
+            "candidato": 3,
+            "sello": "sin HTML"
+          }
+        ]
+      }
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "11/12 checks OK (8/8 del contrato)",
+      "segundos": 234.16347551345825,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 12,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 6,
+            "checks": 12
+          },
+          {
+            "candidato": 2,
+            "sello": "FALLIDO",
+            "checks_ok": 6,
+            "checks": 12
+          },
+          {
+            "candidato": 3,
+            "sello": "FALLIDO",
+            "checks_ok": 6,
+            "checks": 12
+          }
+        ]
+      }
+    },
+    "calculadora": {
+      "aprobado": false,
+      "motivo": "falla critica: la pantalla muestra 5 ('28' no contiene '5')",
+      "segundos": 197.6716697216034,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 11,
+            "checks": 12
+          },
+          {
+            "candidato": 2,
+            "sello": "FALLIDO",
+            "checks_ok": 8,
+            "checks": 12
+          },
+          {
+            "candidato": 3,
+            "sello": "FALLIDO",
+            "checks_ok": 10,
+            "checks": 12
+          }
+        ]
+      }
+    },
+    "semaforo": {
+      "aprobado": true,
+      "motivo": "11/11 checks OK (7/7 del contrato)",
+      "segundos": 187.61321473121643,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 9,
+            "checks": 12
+          },
+          {
+            "candidato": 2,
+            "sello": "FALLIDO",
+            "checks_ok": 9,
+            "checks": 12
+          },
+          {
+            "candidato": 3,
+            "sello": "FALLIDO",
+            "checks_ok": 9,
+            "checks": 12
+          }
+        ]
+      }
+    },
+    "filtro_lista": {
+      "aprobado": false,
+      "motivo": "falla critica: 'an' deja solo manzana y banana (visibles('.item')=5, esperaba 2); 'kiwi' deja solo 1 (visibles('.item')=",
+      "segundos": 278.5475285053253,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 7,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 8,
+            "checks": 12
+          },
+          {
+            "candidato": 2,
+            "sello": "sin HTML"
+          },
+          {
+            "candidato": 3,
+            "sello": "FALLIDO",
+            "checks_ok": 5,
+            "checks": 12
+          }
+        ]
+      }
+    }
+  },
+  "techo": 6,
+  "real": 2,
+  "desperdicio": [
+    "memoria_4x4",
+    "contador",
+    "calculadora",
+    "filtro_lista"
+  ],
+  "n_tareas": 6
+}

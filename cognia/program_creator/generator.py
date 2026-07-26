@@ -502,7 +502,8 @@ def _call_llm(prompt: str, lenguaje: str = "python",
               # (4 de 4 reparaciones muertas en el brazo BoN); con
               # reasoning_effort=low repara en ~3000 tokens y 25s.
               reasoning_effort: "Optional[str]" = None,
-              timeout: "Optional[int]" = None) -> Optional[str]:
+              timeout: "Optional[int]" = None,
+              max_tokens: "Optional[int]" = None) -> Optional[str]:
     """
     UN solo camino de LLM, unificado en el merge 4.0: backend inyectado
     (cognia-x: funciona pip-instalado sobre el orquestador) → llm_local
@@ -562,7 +563,7 @@ def _call_llm(prompt: str, lenguaje: str = "python",
         # reparar_web con gpt-oss volvia con contenido VACIO y _call_llm caia
         # hasta el 404 de Ollama ("no devolvio una correccion valida"). Mismo
         # numero que _preguntar_constructor, que ya se subio por esta razon.
-        max_tokens=12000,
+        max_tokens=max_tokens or 12000,
         via="create_program",
         reasoning_effort=reasoning_effort,
         **({"timeout": timeout} if timeout else {}),
@@ -650,7 +651,8 @@ def reparar_python(program: GeneratedProgram, error: str,
 
 
 def reparar_web(program: GeneratedProgram, defectos: List[str],
-                llm: "Optional[LlmFn]" = None) -> Optional[GeneratedProgram]:
+                llm: "Optional[LlmFn]" = None,
+                profundo: bool = False) -> Optional[GeneratedProgram]:
     """
     Le devuelve al modelo los defectos VISTOS en el navegador para que corrija.
 
@@ -676,18 +678,26 @@ def reparar_web(program: GeneratedProgram, defectos: List[str],
         f"HTML Code:\n```html\n<!DOCTYPE html>\n<fixed page>\n```"
     )
 
-    # reasoning_effort=low: reparar es aplicar cambios puntuales, no deducir.
-    # Sin el, un contraejemplo confuso ("muestra 5: '28' no contiene '5'")
-    # manda al pensador a hipotetizar 50k chars y la respuesta nunca llega
-    # (probe_reparacion_budget.py, 2026-07-26: 6/6 muertas sin esto, 2/2
-    # reparadas con esto). timeout=400 por la cola (el default de 120 cortaria
-    # una reparacion legitimamente lenta). Un reintento: la cola es
-    # estocastica y rendirse al primer None ya costo una noche entera.
+    # ESCALADA de esfuerzo (2da enmienda del prereg, 2026-07-26):
+    # - Normal: effort=low. Sin el, un contraejemplo confuso ("muestra 5:
+    #   '28' no contiene '5'") manda al pensador a hipotetizar 50k chars y la
+    #   respuesta nunca llega (probe_reparacion_budget.py: 6/6 muertas sin
+    #   esto, 2/2 completadas con esto). Pero low ABARATA el arreglo: en el
+    #   brazo basefix el corte dominante paso a ser disyuntor D6 (sintoma
+    #   identico tras reparar) — completa sin profundizar.
+    # - profundo=True (el llamador lo pide cuando la ronda anterior NO movio
+    #   checks_ok): esfuerzo default con presupuesto 24000, que cubre la cola
+    #   de espirales observada (22-53k chars ~ 5-13k tokens) y deja sitio a
+    #   la respuesta.
+    # timeout=400 por la cola; un reintento porque es estocastica y rendirse
+    # al primer None ya costo una noche entera.
+    extra = ({"max_tokens": 24000} if profundo
+             else {"reasoning_effort": "low"})
     raw = _call_llm(prompt, "html", temperature=0.2, llm=llm,
-                    reasoning_effort="low", timeout=400)
+                    timeout=400, **extra)
     if not raw:
         raw = _call_llm(prompt, "html", temperature=0.2, llm=llm,
-                        reasoning_effort="low", timeout=400)
+                        timeout=400, **extra)
     if not raw:
         return None
 

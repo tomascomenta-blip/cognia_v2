@@ -646,7 +646,18 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                               f"{ronda + 1} (tope {tope_duro})")
 
                 # Reparar con TODOS los defectos (estructurales + visuales).
-                arreglado = reparar_web(program, defectos, llm=llm)
+                # profundo: si el juez existe y esta ronda NO movio checks_ok,
+                # la reparacion barata (effort=low) ya demostro que no alcanza
+                # — se escala a esfuerzo default con presupuesto grande
+                # (2da enmienda del prereg 2026-07-26). La primera ronda
+                # siempre va barata: aun no hay señal de estancamiento.
+                profundo = (veredicto is not None and ronda > 1
+                            and not hay_progreso)
+                if profundo and verbose:
+                    print("   ⛏️  checks_ok estancado: reparacion PROFUNDA "
+                          "(esfuerzo default, presupuesto 24000)")
+                arreglado = reparar_web(program, defectos, llm=llm,
+                                        profundo=profundo)
                 if arreglado is None:
                     res.motivo_corte = "el modelo no devolvio una correccion valida"
                     if verbose:

@@ -1,4 +1,4 @@
-"""
+﻿"""
 El JUEZ EJECUTABLE dentro del lazo diseno-a-codigo (2026-07-25).
 
 Antes de esto el lazo entregaba por nota_visual de un VLM de 3B — el juez que
@@ -79,7 +79,7 @@ def test_aprobado_del_juez_corta_aunque_haya_defectos_visuales():
 def test_fallido_del_juez_bloquea_el_corte_por_nota():
     capturado = {}
 
-    def _reparar(program, defectos, llm=None):
+    def _reparar(program, defectos, llm=None, profundo=False):
         capturado["defectos"] = list(defectos)
         return None                          # corta tras capturar
 

@@ -73,6 +73,62 @@ def test_reparar_web_pide_effort_low_y_reintenta_una_vez():
     assert llamadas == ["low", "low"]
 
 
+# ── escalada: estancamiento -> reparacion profunda ───────────────────────────
+
+def test_reparar_web_profundo_escala_a_esfuerzo_default():
+    capturado = {}
+
+    def _generar_falso(prompt, system="", temperature=0.4, max_tokens=600,
+                       via="", timeout=120, reasoning_effort=None):
+        capturado["max_tokens"] = max_tokens
+        capturado["reasoning_effort"] = reasoning_effort
+        return "Title: P\nDescription: d\nHTML Code:\n```html\n<!DOCTYPE html>\n<html><body>y</body></html>\n```"
+
+    with patch.object(g, "generar", side_effect=_generar_falso):
+        r = g.reparar_web(_prog(), ["(juez) x: esperaba 1"], profundo=True)
+    assert r is not None
+    assert capturado["max_tokens"] == 24000
+    assert capturado["reasoning_effort"] is None      # esfuerzo default
+
+
+def test_lazo_escala_cuando_checks_ok_no_crece():
+    """Ronda 1 repara barato; si la ronda 2 muestra el mismo checks_ok, la
+    reparacion de la ronda 2 va profunda."""
+    from cognia.program_creator import diseno_a_codigo as d2c
+    from cognia.program_creator.juez_ejecutable import Check, Veredicto
+    from cognia.program_creator.vista_navegador import InformeVisual
+
+    def _veredicto(n_ok, falla):
+        v = Veredicto(producto="x", aprobado=False, con_contrato=True)
+        v.checks = [Check(f"ok{i}", True, "ok", critico=True)
+                    for i in range(n_ok)]
+        v.checks.append(Check(falla, False, "esperaba", critico=True))
+        v.motivo = "test"
+        return v
+
+    profundos = []
+
+    def _reparar(program, defectos, llm=None, profundo=False):
+        profundos.append(profundo)
+        return _prog()
+
+    with patch.object(d2c._mockup, "imaginar_vision",
+                      return_value={"brief": "b", "prompt_imagen": "p"}), \
+         patch.object(d2c._mockup, "generar_mockup", return_value=None), \
+         patch.object(d2c, "generate_program", return_value=_prog()), \
+         patch.object(d2c, "revisar_en_navegador",
+                      return_value=InformeVisual(defectos=[],
+                                                 input_images=["/t.png"])), \
+         patch.object(d2c, "arbitrar_desde_informe", return_value=None), \
+         patch.object(d2c, "reparar_web", side_effect=_reparar), \
+         patch.object(d2c, "_juez_del_lazo", side_effect=[
+             _veredicto(3, "a"), _veredicto(3, "b"), _veredicto(3, "c")]):
+        d2c.construir_para_mockup("un contador web", verbose=False,
+                                  max_rondas=3)
+    # ronda 1: sin señal -> barata; ronda 2: checks_ok 3->3 estancado -> profunda
+    assert profundos == [False, True]
+
+
 # ── contratos malformados se rechazan, los legitimos no ──────────────────────
 
 def test_pasos_con_dict_donde_va_string_se_rechazan():

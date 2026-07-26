@@ -1,0 +1,195 @@
+{
+  "config": {
+    "candidatos": 3,
+    "rondas_progreso": null
+  },
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": true,
+      "motivo": "10/10 checks OK (6/6 del contrato)",
+      "segundos": 103.5301342010498,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 10,
+      "rondas": 1,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "sin defectos",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "sin juez"
+          }
+        ]
+      }
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: tras dos + vale 2 ('3' no contiene '2'); tras - vuelve a 1 ('2' no contiene '1')",
+      "segundos": 213.36825942993164,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 12,
+      "checks": 14,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": {
+        "k": 3,
+        "elegido": 3,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 9,
+            "checks": 12
+          },
+          {
+            "candidato": 2,
+            "sello": "FALLIDO",
+            "checks_ok": 9,
+            "checks": 12
+          },
+          {
+            "candidato": 3,
+            "sello": "FALLIDO",
+            "checks_ok": 11,
+            "checks": 12
+          }
+        ]
+      }
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "12/12 checks OK (8/8 del contrato)",
+      "segundos": 266.7672665119171,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 12,
+      "checks": 12,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 11,
+            "checks": 14
+          },
+          {
+            "candidato": 2,
+            "sello": "sin HTML"
+          },
+          {
+            "candidato": 3,
+            "sello": "FALLIDO",
+            "checks_ok": 10,
+            "checks": 14
+          }
+        ]
+      }
+    },
+    "calculadora": {
+      "aprobado": true,
+      "motivo": "10/10 checks OK (6/6 del contrato)",
+      "segundos": 271.7122619152069,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 10,
+            "checks": 12
+          },
+          {
+            "candidato": 2,
+            "sello": "FALLIDO",
+            "checks_ok": 8,
+            "checks": 12
+          },
+          {
+            "candidato": 3,
+            "sello": "FALLIDO",
+            "checks_ok": 9,
+            "checks": 12
+          }
+        ]
+      }
+    },
+    "semaforo": {
+      "aprobado": false,
+      "motivo": "falla critica: pasa a AMBAR (js='rojo', esperaba 'ambar'); cierra el ciclo en ROJO (js='verde', esperaba 'rojo')",
+      "segundos": 101.97533631324768,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "sin defectos",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "sin juez"
+          }
+        ]
+      }
+    },
+    "filtro_lista": {
+      "aprobado": true,
+      "motivo": "10/11 checks OK (7/7 del contrato)",
+      "segundos": 189.74968361854553,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": {
+        "k": 3,
+        "elegido": 1,
+        "candidatos": [
+          {
+            "candidato": 1,
+            "sello": "FALLIDO",
+            "checks_ok": 7,
+            "checks": 12
+          },
+          {
+            "candidato": 2,
+            "sello": "FALLIDO",
+            "checks_ok": 7,
+            "checks": 12
+          },
+          {
+            "candidato": 3,
+            "sello": "FALLIDO",
+            "checks_ok": 7,
+            "checks": 12
+          }
+        ]
+      }
+    }
+  },
+  "techo": 6,
+  "real": 4,
+  "desperdicio": [
+    "contador",
+    "semaforo"
+  ],
+  "n_tareas": 6
+}
