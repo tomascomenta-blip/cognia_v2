@@ -96,3 +96,18 @@ def _feromona_aislada(tmp_path, monkeypatch):
                             tmp_path / "feromona_test.json")
     except ImportError:
         pass
+
+
+# ── La telemetria de sellos NUNCA se escribe desde tests ───────────────
+# Mismo motivo que la feromona: construir_para_mockup appendea una linea por
+# construccion a generated_programs/telemetria_sellos.jsonl (contador de
+# "sin verificar" en produccion, 2026-07-26) y los tests del lazo lo llaman
+# decenas de veces — contaminarian la tasa real con sellos de mentira.
+@_pytest.fixture(autouse=True)
+def _telemetria_sellos_aislada(tmp_path, monkeypatch):
+    try:
+        from cognia.program_creator import diseno_a_codigo as _d2c
+        monkeypatch.setattr(_d2c, "RUTA_TELEMETRIA",
+                            tmp_path / "telemetria_test.jsonl")
+    except ImportError:
+        pass

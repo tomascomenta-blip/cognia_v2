@@ -26,10 +26,12 @@ rondas, o el disyuntor detecta que insistir no avanza (regla 11 del repo).
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
 import tempfile
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, List, Optional
@@ -87,6 +89,7 @@ class ResultadoDiseno:
     contrato_intentos: int = 0                  # intentos de generarlo (tope 2)
     veredicto:   Optional[dict] = None          # ultimo veredicto del juez (dict)
     sello:       str = "sin verificar"          # APROBADO | FALLIDO | sin verificar
+    bon:         Optional[dict] = None          # best-of-N inicial {k, elegido, candidatos}
 
     @property
     def html(self) -> Optional[str]:
@@ -191,7 +194,8 @@ def _proponer_sprites(idea: str, brief: str,
         return []
 
 
-def _juez_del_lazo(idea: str, codigo_render: str, tmp_dir: Path, ronda: int,
+def _juez_del_lazo(idea: str, codigo_render: str, tmp_dir: Path,
+                   ronda: "int | str",
                    res: "ResultadoDiseno", verbose: bool = False):
     """
     El juez EJECUTABLE dentro del lazo: genera el contrato de la idea (una sola
@@ -252,6 +256,112 @@ def _juez_del_lazo(idea: str, codigo_render: str, tmp_dir: Path, ronda: int,
     return v
 
 
+def _mejor_de_n(idea: str, primero, generar, k: int, tmp_dir: Path,
+                res: "ResultadoDiseno", verbose: bool = False):
+    """
+    Best-of-N VERIFICADO sobre la generacion inicial (2026-07-26).
+
+    La serie b2 de la config final (3,4,5,5,4 sobre 6) mostro que el cuello es
+    la VARIANZA de la generacion inicial: las tareas que fallan ROTAN entre
+    corridas. Antes de gastar rondas de reparacion, el juez ve hasta k
+    candidatos SECUENCIALES: se queda con el PRIMERO que aprueba (el caso bueno
+    no paga ningun candidato extra) o, si ninguno aprueba, con el de mas
+    checks_ok. Sin contrato posible no hay seleccion y se devuelve el primero:
+    elegir sin juez seria elegir por opinion (la leccion del VLM que firmo 7.5
+    a un juego de memoria con las cartas destapadas).
+    """
+    candidatos: List[dict] = []
+    mejor, mejor_ok, mejor_idx = primero, -1, 1
+    p = primero
+    for i in range(1, k + 1):
+        if i > 1:
+            try:
+                p = generar()
+            except Exception as e:
+                logger.warning("diseno_a_codigo: candidato %d fallo (%s)", i, e)
+                p = None
+            if p is None or getattr(p, "lenguaje", "html") != "html":
+                candidatos.append({"candidato": i, "sello": "sin HTML"})
+                continue
+        codigo = p.code
+        if res.assets:
+            from .asset_bridge import inyectar_assets
+            codigo = inyectar_assets(p.code, res.assets)
+        v = _juez_del_lazo(idea, codigo, tmp_dir, f"0c{i}", res, verbose=verbose)
+        if v is None and i == 1 and res.contrato is None \
+                and not res.contrato_fallido:
+            # El intento 1 de contrato fallo por la cola del razonamiento del
+            # pensador (~1 de 2, medido). El reintento se paga AQUI, sobre el
+            # MISMO candidato: reintentarlo generando el candidato 2 gastaria
+            # 60-90s de GPU solo para volver a pedir el contrato, y dejaria
+            # al candidato 1 fuera de la seleccion sin haberlo juzgado
+            # (hallazgo del revisor 2026-07-26).
+            v = _juez_del_lazo(idea, codigo, tmp_dir, f"0c{i}b", res,
+                               verbose=verbose)
+        if v is None:
+            candidatos.append({"candidato": i, "sello": "sin juez"})
+            if res.contrato is None:
+                # Sin contrato tras los reintentos (o backend caido): no va a
+                # haber juez y elegir es imposible — generar mas candidatos
+                # seria gastar GPU a ciegas. Se sigue con el primero.
+                break
+            continue
+        ok = sum(1 for c in v.checks if c.ok)
+        candidatos.append({"candidato": i,
+                           "sello": "APROBADO" if v.aprobado else "FALLIDO",
+                           "checks_ok": ok, "checks": len(v.checks)})
+        if verbose:
+            print(f"🏅 BoN candidato {i}/{k}: "
+                  f"{'APROBADO' if v.aprobado else 'FALLIDO'} ({ok} checks OK)")
+        if v.aprobado:
+            # El APROBADO del BoN ES el veredicto de la entrega: el llamador
+            # corta sin re-juzgar (re-juzgar el mismo HTML con un juez con
+            # flakiness conocida seria doble jeopardy contra el candidato
+            # bueno, y contradice el coste-0 del caso bueno del prereg).
+            res.veredicto = v.a_dict()
+            res.sello = "APROBADO"
+            res.bon = {"k": k, "elegido": i, "candidatos": candidatos}
+            return p
+        if ok > mejor_ok:
+            mejor, mejor_ok, mejor_idx = p, ok, i
+    res.bon = {"k": k, "elegido": mejor_idx, "candidatos": candidatos}
+    return mejor
+
+
+# Telemetria de sellos en produccion (2026-07-26). Los tests la redirigen a
+# tmp_path desde conftest, igual que el rastro de feromona.
+RUTA_TELEMETRIA = (Path(__file__).resolve().parent / "generated_programs"
+                   / "telemetria_sellos.jsonl")
+
+
+def _registrar_sello(res: "ResultadoDiseno") -> None:
+    """Contador de salud del juez en produccion: cada construccion deja una
+    linea append-only con su sello. La metrica que importa es la fraccion que
+    sale SIN VERIFICAR — el pensador falla la generacion de contrato ~1 de 2
+    veces por la cola de su razonamiento, hay un reintento, y hasta hoy nadie
+    media cuantos productos quedaban sin sello. Best-effort: nunca rompe el
+    lazo."""
+    try:
+        RUTA_TELEMETRIA.parent.mkdir(parents=True, exist_ok=True)
+        linea = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                 "idea": (res.idea or "")[:80],
+                 "sello": res.sello,
+                 # con_contrato separa el fallo del PENSADOR (no hubo
+                 # contrato) del fallo de harness (contrato si, pero
+                 # juzgar_web sin veredicto): sin esto la "salud del
+                 # pensador" absorberia fallos de Playwright.
+                 "con_contrato": res.contrato is not None,
+                 "contrato_intentos": res.contrato_intentos,
+                 "contrato_fallido": res.contrato_fallido,
+                 "rondas": res.rondas,
+                 "motivo_corte": res.motivo_corte,
+                 "bon": res.bon}
+        with open(RUTA_TELEMETRIA, "a", encoding="utf-8") as f:
+            f.write(json.dumps(linea, ensure_ascii=False) + "\n")
+    except Exception as e:
+        logger.debug("diseno_a_codigo: telemetria de sello no escrita (%s)", e)
+
+
 def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                           max_rondas: int = MAX_RONDAS_DEFECTO,
                           gate_nota: Optional[float] = None,
@@ -260,6 +370,8 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                           sprites=None,
                           assets: Optional[dict] = None,
                           requiere_grafico: bool = False,
+                          candidatos_iniciales: int = 1,
+                          max_rondas_progreso: Optional[int] = None,
                           verbose: bool = True) -> ResultadoDiseno:
     """
     Construye una pagina para una idea y la itera hasta que se PAREZCA a la
@@ -283,6 +395,15 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                             generan aparte y se pasan aqui). Requiere `sprites`
                             con las specs para describirselos al modelo.
         requiere_grafico:   se pasa a la sonda (si la idea pide un grafico).
+        candidatos_iniciales: best-of-N VERIFICADO sobre la generacion inicial
+                            (PREREG_BON_RONDAS_20260726.md). >1 = el juez ve
+                            hasta N candidatos secuenciales y se queda con el
+                            primero que aprueba, ANTES de gastar rondas de
+                            reparacion. 1 = comportamiento de siempre.
+        max_rondas_progreso: si esta puesto (p.ej. 5), el tope de rondas se
+                            extiende hasta ahi MIENTRAS checks_ok del juez
+                            crezca entre rondas (progreso real, no espiral;
+                            el disyuntor sigue rigiendo). None = tope fijo.
 
     Returns:
         ResultadoDiseno. NUNCA lanza hacia el llamador (best-effort como el resto
@@ -353,22 +474,29 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                     print(f"🖼️  Sprites no disponibles ({e}); sigo sin ellos.")
                 specs = []
 
+        # temperature 0.2 y no la 0.9 creativa: aqui hay una VISION que
+        # cumplir (y a menudo selectores OBLIGATORIOS). Medido en b2
+        # (2026-07-26, mismo modelo/server): 0.2 aprueba el contrato 6/7;
+        # 0.9 aprueba 1/5 — a 0.9 el modelo "interpreta" la idea y pierde
+        # los selectores que el enunciado exige.
+        # La generacion inicial queda en un closure porque best-of-N la
+        # vuelve a pedir tal cual para los candidatos 2..k.
         if specs and res.assets:
             from .asset_bridge import build_prompt_web_con_assets
             from .generator import _SISTEMA_WEB, _call_llm, _parse_response
             prompt_a = build_prompt_web_con_assets(
                 idea_build, specs,
                 extra_hint="Render a complete first frame immediately on load.")
-            # temperature 0.2 y no la 0.9 creativa: aqui hay una VISION que
-            # cumplir (y a menudo selectores OBLIGATORIOS). Medido en b2
-            # (2026-07-26, mismo modelo/server): 0.2 aprueba el contrato 6/7;
-            # 0.9 aprueba 1/5 — a 0.9 el modelo "interpreta" la idea y pierde
-            # los selectores que el enunciado exige.
-            raw = _call_llm(prompt_a, "html", temperature=0.2, llm=llm)
-            program = _parse_response(raw, idea, "html") if raw else None
+
+            def _generar_inicial():
+                raw = _call_llm(prompt_a, "html", temperature=0.2, llm=llm)
+                return _parse_response(raw, idea, "html") if raw else None
         else:
-            program = generate_program(forced_idea=idea_build, llm=llm,
-                                       temperature=0.2)
+            def _generar_inicial():
+                return generate_program(forced_idea=idea_build, llm=llm,
+                                        temperature=0.2)
+
+        program = _generar_inicial()
         if program is None:
             res.motivo_corte = "no se pudo generar la pagina inicial"
             return res
@@ -383,7 +511,30 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
         disyuntor = Disyuntor(f"mockup: {idea[:40]}")
         with tempfile.TemporaryDirectory(prefix="cognia_d2c_") as tmp:
             tmp_dir = Path(tmp)
-            for ronda in range(1, max_rondas + 1):
+
+            # ── 3b. Best-of-N verificado ANTES de gastar reparacion ────────
+            if candidatos_iniciales > 1:
+                program = _mejor_de_n(idea, program, _generar_inicial,
+                                      candidatos_iniciales, tmp_dir, res,
+                                      verbose=verbose)
+                res.program = program
+                if res.sello == "APROBADO":
+                    # El juez ya aprobo un candidato: entrar al lazo seria
+                    # re-juzgar el mismo HTML (doble jeopardy con un juez con
+                    # flakiness conocida) y gastar sonda+arbitro para nada.
+                    res.motivo_corte = ("aprobado por juez ejecutable "
+                                        "(best-of-N)")
+                    return res
+
+            # max_rondas_progreso <= max_rondas no puede extender nada, pero
+            # SI registraria verdes en el disyuntor (debilitando D1/D2/D6b a
+            # cambio de nada): se normaliza a None.
+            if max_rondas_progreso and max_rondas_progreso <= max_rondas:
+                max_rondas_progreso = None
+
+            tope_duro = max(max_rondas, max_rondas_progreso or 0)
+            checks_ok_prev: Optional[int] = None
+            for ronda in range(1, tope_duro + 1):
                 res.rondas = ronda
                 # Lo que se renderiza lleva los sprites embebidos; lo que ve el
                 # LLM al reparar es el fuente limpio (program.code).
@@ -413,9 +564,18 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                 # (arXiv:2606.31511 — traza y auto-critica empatan con placebo).
                 veredicto = _juez_del_lazo(idea, codigo_render, tmp_dir,
                                            ronda, res, verbose=verbose)
+                hay_progreso = False
+                checks_ok_ronda: Optional[int] = None
                 if veredicto is not None:
                     res.veredicto = veredicto.a_dict()
                     res.sello = "APROBADO" if veredicto.aprobado else "FALLIDO"
+                    # Progreso real = checks_ok CRECIO respecto a la ronda
+                    # anterior. Es la senal que autoriza extender el tope
+                    # (max_rondas_progreso); una espiral no la produce.
+                    checks_ok_ronda = sum(1 for c in veredicto.checks if c.ok)
+                    hay_progreso = (checks_ok_prev is not None
+                                    and checks_ok_ronda > checks_ok_prev)
+                    checks_ok_prev = checks_ok_ronda
                     if not veredicto.aprobado:
                         contraejemplos = [
                             f"(juez) {c.nombre}: {c.detalle}"
@@ -429,6 +589,7 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                     "n_defectos": len(defectos),
                     "arbitro": bool(arb),
                     "sello": res.sello,
+                    "checks_ok": checks_ok_ronda,
                 })
                 if verbose:
                     n_txt = f"{nota:.1f}" if nota is not None else "s/nota"
@@ -454,9 +615,16 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                 # ronda es el punto de partida (el modelo aun no reparo nada):
                 # hubo_cambio=False para no gastar una huella de D6 antes de tiempo
                 # (mismo criterio que el lazo hobby, program_creator.py:323).
+                # Con max_rondas_progreso activo, una ronda cuyo checks_ok
+                # CRECIO se registra como verde: progreso corta la racha
+                # esteril (la regla del propio disyuntor) — si no, su D1
+                # (3 intentos) cortaria en la ronda 4 justo a la reparacion
+                # que esta rematando. Sin el flag, comportamiento identico
+                # al de siempre.
                 disyuntor.registrar(
                     huella_de_texto("|".join(sorted(defectos))),
-                    ok=False, hubo_cambio=(ronda > 1))
+                    ok=bool(max_rondas_progreso) and hay_progreso,
+                    hubo_cambio=(ronda > 1))
                 motivo = disyuntor.motivo_corte()
                 if motivo:
                     res.motivo_corte = f"disyuntor {motivo}"
@@ -464,9 +632,18 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
                         print(f"   ⛔ Disyuntor ({motivo}): dejo de parchear a ciegas.")
                     break
 
-                if ronda == max_rondas:
-                    res.motivo_corte = "tope de rondas"
-                    break
+                if ronda >= max_rondas:
+                    # Con checks_ok creciendo la reparacion esta rematando, no
+                    # espiralando: se le deja seguir hasta max_rondas_progreso.
+                    # Sin progreso (o sin la opcion), el tope fijo manda.
+                    if not (max_rondas_progreso and hay_progreso
+                            and ronda < tope_duro):
+                        res.motivo_corte = "tope de rondas"
+                        break
+                    if verbose:
+                        print(f"   ▶ checks_ok creciendo "
+                              f"({checks_ok_ronda} OK): extiendo a ronda "
+                              f"{ronda + 1} (tope {tope_duro})")
 
                 # Reparar con TODOS los defectos (estructurales + visuales).
                 arreglado = reparar_web(program, defectos, llm=llm)
@@ -483,3 +660,7 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
         logger.warning("diseno_a_codigo: fallo inesperado (%s)", e)
         res.motivo_corte = f"error: {e}"
         return res
+    finally:
+        # El contador de salud corre en TODAS las salidas: la tasa de
+        # "sin verificar" solo es real si tambien cuenta los fallos tempranos.
+        _registrar_sello(res)

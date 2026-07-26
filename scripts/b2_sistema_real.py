@@ -36,7 +36,9 @@ ORACULO = BASE / "b1_oraculo" / "resultados.json"
 SALIDA = BASE / "b2_sistema_real"
 
 
-def correr_sistema(idea: str, destino: Path) -> tuple[str | None, float, str]:
+def correr_sistema(idea: str, destino: Path, *, candidatos: int = 1,
+                   rondas_progreso: int | None = None
+                   ) -> tuple[str | None, float, str, dict]:
     """
     El camino de produccion para web. Devuelve (html, segundos, como).
 
@@ -49,6 +51,11 @@ def correr_sistema(idea: str, destino: Path) -> tuple[str | None, float, str]:
     os.environ.pop("COGNIA_CONSTRUCTOR_URL", None)   # que rutee EL sistema
     from cognia import backend_activo
     backend_activo.resetear_cache()
+
+    # La meta del lazo se conserva AUNQUE el lazo no produzca HTML: en esas
+    # filas es donde el A/B necesita ver cuantos candidatos quemo el BoN y
+    # por que corto (hallazgo del revisor 2026-07-26).
+    meta: dict = {}
 
     try:
         from cognia.program_creator import diseno_a_codigo
@@ -68,7 +75,9 @@ def correr_sistema(idea: str, destino: Path) -> tuple[str | None, float, str]:
         # usar_mockup_imagen=False: el mockup con SDXL exige la GPU entera y
         # aqui la ocupa el cerebro; se mide el lazo de construccion+arbitro.
         res = diseno_a_codigo.construir_para_mockup(
-            idea, llm=llm, usar_mockup_imagen=False, verbose=False)
+            idea, llm=llm, usar_mockup_imagen=False, verbose=False,
+            candidatos_iniciales=candidatos,
+            max_rondas_progreso=rondas_progreso)
         # html_entregable() es lo que el sistema ENTREGA (sprites embebidos);
         # .html es el fuente limpio que ve el LLM al reparar. Se prefiere el
         # entregable: es el producto, no el intermedio.
@@ -78,10 +87,15 @@ def correr_sistema(idea: str, destino: Path) -> tuple[str | None, float, str]:
         except Exception:
             pass
         html = html or getattr(res, "html", None)
+        # Meta del lazo para la salida: sello interno, rondas y BoN. Permite
+        # atribuir el resultado (¿lo salvo el BoN? ¿remato una ronda extra?)
+        # sin re-leer logs.
+        meta = {"rondas": res.rondas, "sello_lazo": res.sello,
+                "motivo_corte": res.motivo_corte, "bon": res.bon}
         if html:
             return (html, time.time() - t0,
                     f"diseno_a_codigo ({res.rondas} rondas, "
-                    f"nota_visual={res.nota_visual})")
+                    f"nota_visual={res.nota_visual})", meta)
         # Si el lazo no produjo programa, decir POR QUE en vez de caer mudo.
         print(f"    el lazo completo no produjo programa "
               f"(rondas={getattr(res, 'rondas', '?')}, "
@@ -97,7 +111,8 @@ def correr_sistema(idea: str, destino: Path) -> tuple[str | None, float, str]:
         from cognia.program_creator.generator import _call_llm, _parse_response
         crudo = _call_llm(idea, "html", temperature=0.2)
         if not crudo:
-            return None, time.time() - t0, "create_program (sin respuesta)"
+            return (None, time.time() - t0,
+                    "create_program (sin respuesta)", meta)
         html = None
         try:
             prog = _parse_response(crudo, lenguaje="html")
@@ -107,9 +122,10 @@ def correr_sistema(idea: str, destino: Path) -> tuple[str | None, float, str]:
         if not html and "```" in crudo:
             trozo = crudo.split("```")[1]
             html = trozo[4:] if trozo.lstrip()[:4].lower() == "html" else trozo
-        return (html or None), time.time() - t0, "create_program"
+        return (html or None), time.time() - t0, "create_program", meta
     except Exception as exc:
-        return None, time.time() - t0, f"ERROR {type(exc).__name__}: {exc}"
+        return (None, time.time() - t0,
+                f"ERROR {type(exc).__name__}: {exc}", meta)
 
 
 def main(argv: list) -> int:
@@ -125,6 +141,21 @@ def main(argv: list) -> int:
     if "--tareas" in argv:
         pedidas = argv[argv.index("--tareas") + 1].split(",")
         tareas = [t for t in tareas if t["id"] in pedidas]
+    # Brazos del A/B de PREREG_BON_RONDAS_20260726.md. Sin flags = config final.
+    def _flag_entero(nombre: str):
+        if nombre not in argv:
+            return None
+        try:
+            return int(argv[argv.index(nombre) + 1])
+        except (IndexError, ValueError):
+            print(f"uso: {nombre} <entero>", file=sys.stderr)
+            raise SystemExit(2)
+
+    candidatos = _flag_entero("--candidatos") or 1
+    rondas_progreso = _flag_entero("--rondas-progreso")
+    if candidatos > 1 or rondas_progreso:
+        print(f"  config: candidatos={candidatos}, "
+              f"rondas_progreso={rondas_progreso}\n", flush=True)
 
     fuente = ORACULO_REJUZGADO if ORACULO_REJUZGADO.is_file() else ORACULO
     if not fuente.is_file():
@@ -142,10 +173,12 @@ def main(argv: list) -> int:
         d = SALIDA / t["id"]
         d.mkdir(parents=True, exist_ok=True)
         print(f"  {t['id']} ...", flush=True)
-        html, segs, como = correr_sistema(t["idea"], d)
+        html, segs, como, meta = correr_sistema(
+            t["idea"], d, candidatos=candidatos,
+            rondas_progreso=rondas_progreso)
         if not html:
             reales[t["id"]] = {"aprobado": False, "motivo": "sin HTML",
-                               "segundos": segs, "como": como}
+                               "segundos": segs, "como": como, **meta}
             print(f"    SIN HTML ({segs:.0f}s, via {como})", flush=True)
             continue
         (d / "index.html").write_text(html, encoding="utf-8")
@@ -153,7 +186,7 @@ def main(argv: list) -> int:
         reales[t["id"]] = {"aprobado": v.aprobado, "motivo": v.motivo[:120],
                            "segundos": segs, "como": como,
                            "checks_ok": sum(1 for c in v.checks if c.ok),
-                           "checks": len(v.checks)}
+                           "checks": len(v.checks), **meta}
         print(f"    {'APROBADO' if v.aprobado else 'FALLIDO '} "
               f"({segs:.0f}s, via {como})", flush=True)
 
@@ -191,7 +224,9 @@ def main(argv: list) -> int:
 
     salida = SALIDA / "resultados.json"
     salida.write_text(json.dumps(
-        {"sistema_real": reales, "techo": techo, "real": real_n,
+        {"config": {"candidatos": candidatos,
+                    "rondas_progreso": rondas_progreso},
+         "sistema_real": reales, "techo": techo, "real": real_n,
          "desperdicio": desperdicio, "n_tareas": n},
         indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nJSON: {salida}")
