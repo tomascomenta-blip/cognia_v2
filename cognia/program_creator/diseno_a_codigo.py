@@ -77,6 +77,15 @@ class ResultadoDiseno:
     motivo_corte: str = ""                       # por que paro el lazo
     historia:    List[dict] = field(default_factory=list)  # por ronda
     assets:      dict = field(default_factory=dict)  # sprites {name: data URI}
+    # ── juez ejecutable (2026-07-25) ─────────────────────────────────────────
+    # El sello es lo UNICO que habla de calidad funcional. "APROBADO"/"FALLIDO"
+    # los pone el juez ejecutable con un contrato; sin contrato queda
+    # "sin verificar" y NUNCA se convierte en numero: un 7.5 del arbitro visual
+    # a un juego de memoria con las cartas destapadas es como se llego aqui.
+    contrato:    Optional[dict] = None          # contrato ejecutable de la idea
+    contrato_fallido: bool = False              # ya se intento generar y no salio
+    veredicto:   Optional[dict] = None          # ultimo veredicto del juez (dict)
+    sello:       str = "sin verificar"          # APROBADO | FALLIDO | sin verificar
 
     @property
     def html(self) -> Optional[str]:
@@ -96,7 +105,8 @@ class ResultadoDiseno:
 
     def resumen(self) -> str:
         n = f"{self.nota_visual:.1f}/10" if self.nota_visual is not None else "s/nota"
-        return (f"'{self.idea[:50]}' -> {self.rondas} ronda(s), fidelidad {n}, "
+        return (f"'{self.idea[:50]}' -> {self.rondas} ronda(s), "
+                f"sello: {self.sello}, fidelidad {n}, "
                 f"{len(self.defectos)} defecto(s), corte: {self.motivo_corte}")
 
 
@@ -178,6 +188,53 @@ def _proponer_sprites(idea: str, brief: str,
     except Exception as e:
         logger.warning("diseno_a_codigo: _proponer_sprites fallo (%s)", e)
         return []
+
+
+def _juez_del_lazo(idea: str, codigo_render: str, tmp_dir: Path, ronda: int,
+                   res: "ResultadoDiseno", verbose: bool = False):
+    """
+    El juez EJECUTABLE dentro del lazo: genera el contrato de la idea (una sola
+    vez, con el pensador + inventario del DOM) y juzga el producto de esta ronda
+    en Chromium real. Devuelve el Veredicto, o None si no hay juez posible (sin
+    backend LLM para el contrato, o sin Playwright) — en ese caso el lazo sigue
+    con los cortes visuales y el sello queda "sin verificar".
+
+    POR QUE (2026-07-25): el lazo entregaba por nota_visual de un VLM de 3B, y
+    ese juez firmo 7.5/10 a un juego de memoria con las 16 cartas destapadas.
+    Medido en b2_sistema_real: 2/6 tareas con el VLM decidiendo, con 4 tareas
+    que ALGUN modelo del pool ya resolvia y el lazo perdia igual.
+    """
+    from . import juez_ejecutable
+
+    html = tmp_dir / f"juez_r{ronda}.html"
+    html.write_text(codigo_render, encoding="utf-8")
+
+    if res.contrato is None:
+        if res.contrato_fallido:
+            return None
+        try:
+            from ..llm_local import disponible
+            if disponible():
+                res.contrato = juez_ejecutable.generar_contrato(idea, html)
+        except Exception as e:
+            logger.warning("diseno_a_codigo: generar_contrato fallo (%s)", e)
+        if res.contrato is None:
+            # Se intento y no salio: no volver a pagar el intento cada ronda.
+            res.contrato_fallido = True
+            if verbose:
+                print("   ⚖️  Sin contrato ejecutable: el producto saldra "
+                      "SIN VERIFICAR (el arbitro visual solo opina).")
+            return None
+
+    try:
+        v = juez_ejecutable.juzgar_web(html, res.contrato)
+    except Exception as e:
+        logger.warning("diseno_a_codigo: juez_ejecutable fallo (%s)", e)
+        return None
+    if v.error:                     # p.ej. Playwright no instalado
+        logger.warning("diseno_a_codigo: juez sin veredicto (%s)", v.error)
+        return None
+    return v
 
 
 def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
@@ -325,25 +382,52 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
 
                 defectos = _defectos_de(informe, arb) \
                     + _defectos_estaticos(program.code, informe)
+
+                # ── El JUEZ EJECUTABLE decide la entrega (2026-07-25) ──────
+                # Con contrato, el veredicto por ejecucion manda: aprueba el
+                # juez o no se entrega como bueno. La nota del VLM queda como
+                # telemetria. Sus contraejemplos (`visibles('.tile')=16,
+                # esperaba 0`) van al canal de reparacion: es la unica senal
+                # con efecto medido sobre modelos chicos congelados
+                # (arXiv:2606.31511 — traza y auto-critica empatan con placebo).
+                veredicto = _juez_del_lazo(idea, codigo_render, tmp_dir,
+                                           ronda, res, verbose=verbose)
+                if veredicto is not None:
+                    res.veredicto = veredicto.a_dict()
+                    res.sello = "APROBADO" if veredicto.aprobado else "FALLIDO"
+                    if not veredicto.aprobado:
+                        contraejemplos = [
+                            f"(juez) {c.nombre}: {c.detalle}"
+                            for c in veredicto.checks if not c.ok]
+                        defectos = contraejemplos + defectos
+
                 res.defectos = defectos
                 nota = res.nota_visual
                 res.historia.append({
                     "ronda": ronda, "nota": nota,
                     "n_defectos": len(defectos),
                     "arbitro": bool(arb),
+                    "sello": res.sello,
                 })
                 if verbose:
                     n_txt = f"{nota:.1f}" if nota is not None else "s/nota"
-                    print(f"── Ronda {ronda}: fidelidad {n_txt}, "
-                          f"{len(defectos)} defecto(s)")
+                    print(f"── Ronda {ronda}: sello {res.sello}, "
+                          f"fidelidad {n_txt}, {len(defectos)} defecto(s)")
 
-                # Corte por calidad: sin defectos, o el arbitro ya la aprueba.
-                if not defectos:
-                    res.motivo_corte = "sin defectos"
+                if veredicto is not None and veredicto.aprobado:
+                    res.motivo_corte = "aprobado por juez ejecutable"
                     break
-                if nota is not None and nota >= gate:
-                    res.motivo_corte = f"fidelidad {nota:.1f} >= gate {gate:.1f}"
-                    break
+
+                # Cortes de OPINION (sonda/VLM): solo mandan cuando no hubo
+                # juez. Con un FALLIDO del juez en la mano, una nota bonita no
+                # entrega — seria devolverle la decision al VLM.
+                if veredicto is None:
+                    if not defectos:
+                        res.motivo_corte = "sin defectos"
+                        break
+                    if nota is not None and nota >= gate:
+                        res.motivo_corte = f"fidelidad {nota:.1f} >= gate {gate:.1f}"
+                        break
 
                 # Disyuntor: el sintoma es el conjunto de defectos. La primera
                 # ronda es el punto de partida (el modelo aun no reparo nada):

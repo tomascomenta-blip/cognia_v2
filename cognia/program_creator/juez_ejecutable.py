@@ -514,6 +514,11 @@ Acciones disponibles:
   Si no sabes el literal, comprueba la FORMA (que no este vacio, que tenga una
   unidad, que CAMBIE tras la interaccion) en vez del contenido.
 
+  EXCEPCION unica: si la IDEA declara selectores OBLIGATORIOS (un id o class
+  concreto), usalos en los checks AUNQUE no aparezcan en el inventario. Que
+  falten es un fallo del PRODUCTO, no del contrato — un contador que la idea
+  exige con <span id="valor"> y no lo tiene esta mal aunque muestre numeros.
+
   {{"accion":"click","selector":".x","indice":0}}
   {{"accion":"tecla","key":"ArrowRight"}}
   {{"accion":"texto","selector":"#x","contiene":"..."}}

@@ -25,7 +25,10 @@ def _informe(defectos=None):
 
 def _parchar(informe_ret, arb_ret, reparado_ret, prog_ini=None):
     """Contexto comun: imaginar/mockup neutralizados, y las piezas pesadas
-    devolviendo lo que el test dicte. Devuelve una lista de patchers activos."""
+    devolviendo lo que el test dicte. Devuelve una lista de patchers activos.
+    El juez ejecutable tambien se neutraliza (LLM + Chromium): estos tests
+    verifican los cortes de OPINION; los del juez van en
+    test_diseno_a_codigo_juez.py."""
     ps = [
         patch.object(d2c._mockup, "imaginar_vision",
                      return_value={"brief": "un dashboard oscuro",
@@ -36,6 +39,7 @@ def _parchar(informe_ret, arb_ret, reparado_ret, prog_ini=None):
         patch.object(d2c, "revisar_en_navegador", **informe_ret),
         patch.object(d2c, "arbitrar_desde_informe", **arb_ret),
         patch.object(d2c, "reparar_web", **reparado_ret),
+        patch.object(d2c, "_juez_del_lazo", return_value=None),
     ]
     return ps
 
@@ -216,7 +220,8 @@ def test_el_brief_viaja_en_la_idea_de_generacion():
          patch.object(d2c, "generate_program", side_effect=_gen), \
          patch.object(d2c, "revisar_en_navegador", return_value=_informe([])), \
          patch.object(d2c, "arbitrar_desde_informe", return_value=None), \
-         patch.object(d2c, "reparar_web", return_value=None):
+         patch.object(d2c, "reparar_web", return_value=None), \
+         patch.object(d2c, "_juez_del_lazo", return_value=None):
         d2c.construir_para_mockup("un juego", verbose=False)
     assert "TARGET LOOK" in capturado["idea"]
     assert "neon arcade con HUD" in capturado["idea"]
@@ -253,6 +258,7 @@ def test_sprites_con_assets_precalc_no_toca_gpu():
          patch.object(d2c, "revisar_en_navegador", return_value=_informe([])), \
          patch.object(d2c, "arbitrar_desde_informe", return_value=None), \
          patch.object(d2c, "reparar_web", return_value=None), \
+         patch.object(d2c, "_juez_del_lazo", return_value=None), \
          patch("cognia.program_creator.asset_bridge.preparar_assets") as _pa:
         res = d2c.construir_para_mockup(
             "un juego", verbose=False, llm=_llm_falso,
@@ -273,6 +279,7 @@ def test_sin_gpu_el_lazo_sigue_sin_sprites():
          patch.object(d2c, "revisar_en_navegador", return_value=_informe([])), \
          patch.object(d2c, "arbitrar_desde_informe", return_value=None), \
          patch.object(d2c, "reparar_web", return_value=None), \
+         patch.object(d2c, "_juez_del_lazo", return_value=None), \
          patch("cognia.program_creator.asset_bridge.preparar_assets",
                side_effect=RuntimeError("CUDA out of memory")):
         res = d2c.construir_para_mockup(
@@ -310,7 +317,8 @@ def test_mockup_provisto_no_se_regenera():
          patch.object(d2c, "generate_program", return_value=_prog()), \
          patch.object(d2c, "revisar_en_navegador", return_value=_informe([])), \
          patch.object(d2c, "arbitrar_desde_informe", side_effect=_arb), \
-         patch.object(d2c, "reparar_web", return_value=None):
+         patch.object(d2c, "reparar_web", return_value=None), \
+         patch.object(d2c, "_juez_del_lazo", return_value=None):
         res = d2c.construir_para_mockup("un juego", verbose=False,
                                         mockup_path="/ruta/mock.png")
     _gm.assert_not_called()                       # NO se regenero

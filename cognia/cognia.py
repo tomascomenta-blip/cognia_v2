@@ -585,10 +585,21 @@ class Cognia:
                 shutil.copy(res.mockup, dest / "mockup.png")
                 linea_mock = f"\nMockup:  {dest / 'mockup.png'}"
 
-            nota = (f"{res.nota_visual:.1f}/10" if res.nota_visual is not None
-                    else "s/nota")
+            # El SELLO del juez ejecutable es lo unico que habla de calidad
+            # funcional. "sin verificar" se dice tal cual y sin numero al lado:
+            # una nota visual junto a un producto no verificado es como un juego
+            # de memoria con las cartas destapadas saco 7.5/10 (2026-07-25).
+            if res.sello == "APROBADO":
+                calidad = (f"APROBADO por juez ejecutable "
+                           f"(fidelidad visual {res.nota_visual:.1f}/10)"
+                           if res.nota_visual is not None
+                           else "APROBADO por juez ejecutable")
+            elif res.sello == "FALLIDO":
+                calidad = "FALLIDO segun el juez ejecutable"
+            else:
+                calidad = "sin verificar (no hubo contrato ejecutable)"
             return (
-                f"Construido en {res.rondas} ronda(s). Fidelidad visual: {nota}. "
+                f"Construido en {res.rondas} ronda(s). Sello: {calidad}. "
                 f"Corte: {res.motivo_corte}.\n"
                 f"Pagina: {dest / 'index.html'}{linea_mock}\n"
                 f"Defectos pendientes: {len(res.defectos)}{aviso_vlm}")
