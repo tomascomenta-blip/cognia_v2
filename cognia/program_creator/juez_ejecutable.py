@@ -584,7 +584,12 @@ def generar_contrato(idea: str, html: Path) -> Optional[dict]:
         # cola de la distribucion de pensamiento. La respuesta util son ~1200
         # chars: el resto del presupuesto es para que el pensador PIENSE.
         system=_SISTEMA_CONTRATO, temperature=0.2, max_tokens=9000,
-        via="juez.generar_contrato", timeout=400)
+        via="juez.generar_contrato", timeout=400,
+        # El esfuerzo REAL lo fija el template de llama-server, no la linea
+        # "Reasoning: low" del system (medido 2026-07-26 en reparar_web: la
+        # linea sola no evito 3 de 3 espirales; el kwarg las cerro 2 de 2).
+        # La linea se conserva por si el backend no soporta el kwarg.
+        reasoning_effort="low")
     if not crudo:
         return None
     txt = crudo.strip()
@@ -600,7 +605,40 @@ def generar_contrato(idea: str, html: Path) -> Optional[dict]:
         print(f"[juez] el pensador no devolvio JSON valido: {exc}",
               file=sys.stderr)
         return None
-    return c if isinstance(c.get("pasos"), list) and c["pasos"] else None
+    if not _pasos_validos(c.get("pasos")):
+        print("[juez] contrato con pasos malformados (campo no-string donde "
+              "va un string): se descarta", file=sys.stderr)
+        return None
+    return c
+
+
+def _pasos_validos(pasos) -> bool:
+    """
+    Forma minima de un contrato usable. El pensador a veces devuelve pasos con
+    DICTS donde van strings (medido 2026-07-26: 'accion' como dict →
+    AttributeError .strip() DENTRO de juzgar_web en cada ronda del lazo: un
+    contrato existente pero inusable, peor que ninguno porque bloquea el
+    reintento). Un contrato malformado se rechaza aqui y el llamador paga su
+    reintento normal.
+    """
+    if not isinstance(pasos, list) or not pasos:
+        return False
+    for p in pasos:
+        if not isinstance(p, dict):
+            return False
+        if isinstance(p.get("acciones"), list):
+            if not _pasos_validos(p["acciones"]):
+                return False
+            continue
+        for campo in ("accion", "nombre", "selector", "key"):
+            v = p.get(campo)
+            if v is not None and not isinstance(v, str):
+                return False
+        # texto numerico es legitimo: el ejecutor lo pasa por str().
+        v = p.get("texto")
+        if v is not None and not isinstance(v, (str, int, float)):
+            return False
+    return True
 
 
 def escribir_contrato(dir_producto: Path, contrato: dict) -> Path:

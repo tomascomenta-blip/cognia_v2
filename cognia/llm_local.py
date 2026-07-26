@@ -105,6 +105,16 @@ def generar(
     # prueba, ~1400 tokens) se cortaba a mitad y el llamador lo veia como
     # "no hay backend" — otro degradado disfrazado. Configurable por llamada.
     timeout:     int   = TIMEOUT_GEN,
+    # Esfuerzo de razonamiento para modelos Harmony (gpt-oss) via
+    # chat_template_kwargs de llama-server. Medido 2026-07-26 con el prompt
+    # de reparar_web: sin esto, 6 de 6 sondas mueren en finish=length con
+    # 22-53k chars de razonamiento y contenido 0 (los 12000 tokens INTEGROS
+    # pensando); con "low", 2 de 2 terminan en finish=stop con la pagina
+    # completa en ~3000 tokens y 25s. La linea "Reasoning: low" en el system
+    # NO lo consigue (3 de 3 sondas igual de muertas): el esfuerzo real lo
+    # fija el template, no el developer message. None = no tocar el template
+    # (comportamiento de siempre); servers sin el kwarg lo ignoran.
+    reasoning_effort: Optional[str] = None,
 ) -> Optional[str]:
     """
     Genera texto con el backend que haya. None si no hay ninguno o si fallo.
@@ -130,12 +140,17 @@ def generar(
     if backend["tipo"] == "llama":
         mensajes = ([{"role": "system", "content": system}] if system else [])
         mensajes.append({"role": "user", "content": prompt})
-        data = _post(backend["url"] + "/v1/chat/completions", {
+        payload = {
             "model":       "local",
             "messages":    mensajes,
             "temperature": temperature,
             "max_tokens":  max_tokens,
-        }, timeout=timeout)
+        }
+        if reasoning_effort:
+            payload["chat_template_kwargs"] = {
+                "reasoning_effort": reasoning_effort}
+        data = _post(backend["url"] + "/v1/chat/completions", payload,
+                     timeout=timeout)
         if not data:
             return None
         try:

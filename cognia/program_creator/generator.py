@@ -494,7 +494,15 @@ def _preguntar_constructor(url: str, prompt: str, system: str,
 
 def _call_llm(prompt: str, lenguaje: str = "python",
               temperature: float = 0.90,
-              llm: "Optional[LlmFn]" = None) -> Optional[str]:
+              llm: "Optional[LlmFn]" = None,
+              # reasoning_effort/timeout: los pasan las REPARACIONES.
+              # Medido 2026-07-26 (probe_reparacion_budget.py): el prompt de
+              # reparar_web manda a gpt-oss a una espiral de 22-53k chars de
+              # razonamiento que consume los 12000 tokens sin emitir contenido
+              # (4 de 4 reparaciones muertas en el brazo BoN); con
+              # reasoning_effort=low repara en ~3000 tokens y 25s.
+              reasoning_effort: "Optional[str]" = None,
+              timeout: "Optional[int]" = None) -> Optional[str]:
     """
     UN solo camino de LLM, unificado en el merge 4.0: backend inyectado
     (cognia-x: funciona pip-instalado sobre el orquestador) → llm_local
@@ -556,6 +564,8 @@ def _call_llm(prompt: str, lenguaje: str = "python",
         # numero que _preguntar_constructor, que ya se subio por esta razon.
         max_tokens=12000,
         via="create_program",
+        reasoning_effort=reasoning_effort,
+        **({"timeout": timeout} if timeout else {}),
     )
     if texto:
         return texto
@@ -666,7 +676,18 @@ def reparar_web(program: GeneratedProgram, defectos: List[str],
         f"HTML Code:\n```html\n<!DOCTYPE html>\n<fixed page>\n```"
     )
 
-    raw = _call_llm(prompt, "html", temperature=0.2, llm=llm)
+    # reasoning_effort=low: reparar es aplicar cambios puntuales, no deducir.
+    # Sin el, un contraejemplo confuso ("muestra 5: '28' no contiene '5'")
+    # manda al pensador a hipotetizar 50k chars y la respuesta nunca llega
+    # (probe_reparacion_budget.py, 2026-07-26: 6/6 muertas sin esto, 2/2
+    # reparadas con esto). timeout=400 por la cola (el default de 120 cortaria
+    # una reparacion legitimamente lenta). Un reintento: la cola es
+    # estocastica y rendirse al primer None ya costo una noche entera.
+    raw = _call_llm(prompt, "html", temperature=0.2, llm=llm,
+                    reasoning_effort="low", timeout=400)
+    if not raw:
+        raw = _call_llm(prompt, "html", temperature=0.2, llm=llm,
+                        reasoning_effort="low", timeout=400)
     if not raw:
         return None
 

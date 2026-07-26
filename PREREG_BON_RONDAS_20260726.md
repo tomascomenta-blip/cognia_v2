@@ -69,6 +69,29 @@ veces corta igual que hoy.
   generación); si ambos intentos fallan, el lazo corre sin juez — igual que
   hoy — y la corrida queda contada en la telemetría de sellos.
 
+## ENMIENDA (2026-07-26 ~14:15, ANTES de re-correr nada)
+
+La réplica 1 del brazo BoN se DETUVO y sus números se descartan: las 4
+reparaciones murieron por un bug ortogonal al BoN — el prompt de reparar_web
+manda a gpt-oss a una espiral de razonamiento de 22-53k chars que consume los
+12.000 tokens sin emitir contenido (probe_reparacion_budget.py: 6/6 sondas
+`finish=length` contenido 0; la "Reasoning: low" del system NO lo evita 3/3;
+`chat_template_kwargs.reasoning_effort=low` lo cierra 2/2 con la página
+completa en ~3.000 tokens). Con ese bug activo, el brazo BoN medía "BoN +
+reparación rota", no BoN.
+
+Cambia el diseño de la medición, no los umbrales:
+
+- reparar_web queda arreglado (effort=low + timeout 400 + un reintento) y
+  generar_contrato validado contra pasos malformados (el `dict.strip()` que
+  dejó a tareas_todo sin juez 5 rondas).
+- **Se agrega un brazo BASELINE post-fix** (config final + fixes, sin BoN ni
+  rondas): n≥3. La serie pre-fix (3,4,5,5,4,6) ya no es comparable — el fix
+  de reparación beneficia a todos los brazos.
+- Los criterios de A y B se evalúan contra la MEDIA del baseline post-fix
+  (mismos umbrales: PASA si media ≥ 5/6 y ninguna corrida < 4; KILL si
+  media ≤ baseline post-fix).
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es
