@@ -9279,3 +9279,98 @@ Lo que fallaba era otra cosa: Cognia HACE el trabajo y no lo ENTREGA.
 Tests: 10 nuevos (intent 2, screen/adjuntar 3, fallback web 5). Suite: 5396
 passed, 1 skipped. Sigue abierto lo de ayer: reproducir el cuelgue del turno
 con el backend de inferencia servido.
+
+
+## 2026-07-26 (nocturna 25/26) — El juez pasa a producción y el FP del contrato queda medido
+
+**Sesión autónoma hasta 04:30. Unidades cerradas, cada una con su número:**
+
+1. **Higiene git** — restaurado `b1_duras/resultados.json` (evidencia de 50b3ab3),
+   commiteados ~200 directorios de experimento (b1_oraculo, frontier_brutal, etc.),
+   borrada la basura de pruebas del 21/07. Suite: **5417 passed, 1 skipped**.
+   Commit 5ff6fa0.
+
+2. **FP del contrato brutal (PREREG_FP_CONTRATO_20260725.md)** — umbral
+   pre-registrado ANTES de mirar (≤10% sostiene / 10-30% techo / >30% aprobador).
+   Suite held-out validada primero contra frontier (cazó 3 falsos negativos MÍOS:
+   adyacencia de buscaminas mal calculada, lecturas de fórmula con foco,
+   fill() que corrompe al pisar fórmula) + revisión adversarial con workflow de
+   2 agentes frescos. Resultado sobre 48 productos:
+   **gpt-oss 0/18 FP (0%) — sus números (pass@1 75%, pass@6 100%) SE SOSTIENEN;
+   Laguna 3/12 (25%) — sus números son TECHOS (hackea: cascadas que solo
+   funcionan en la región examinada, kanban que retrocede desde todo)**.
+   Commits d2385fc, a50465e.
+
+3. **Confound del 14% CERRADO** — causa medida: agotamiento de num_ctx=4096
+   pensando. Dato de archivo (7 muertes a ~51s constantes, todas pre-fix) +
+   experimento con control positivo (`b1_confound_repro.py`): config vieja
+   2/3 finish_reason=length (total_tokens=4096 clavado), config actual
+   (laguna-16k) 8/8 con HTML. Las "llamadas directas" que descartaron la
+   hipótesis eran cortas y no agotaban el presupuesto. Commit c4891c1.
+
+4. **Juez ejecutable cableado al lazo de producción** — `_juez_del_lazo` en
+   diseno_a_codigo: contrato generado una vez (pensador + inventario DOM),
+   veredicto por ronda en Chromium; APROBADO corta, FALLIDO bloquea el corte
+   por nota del VLM y sus contraejemplos van al frente de reparar_web; sin
+   contrato → sello "sin verificar", nunca un número. Tests 23/23.
+   Commit 095c70c. Habilitado por el FP=0% de gpt-oss (cablear un juez con
+   FP>30% habría sido cablear un aprobador).
+
+5. **Oráculo de ruteo re-medido sobre el banco brutal** — +0 a nivel tarea
+   (pensar 4/4 solo); el aparente +4.2% a nivel muestra desaparece al corregir
+   por los FP del held-out (la ventaja de Laguna en kanban era hackeo):
+   **+0 exacto también por muestra**. Caveat: 2 modelos, mayoría saturada.
+
+**Hallazgo de producción CERRADO (commit 463a6eb):** el lazo completo con
+gpt-oss de cerebro caía al camino corto en 5/6 tareas ("no es un documento
+HTML completo"). Probe medido (`scripts/probe_harmony_crudo_vs_chat.py`):
+/completion con prompt crudo devuelve el RAZONAMIENTO como contenido
+(stop_type=limit, "We need to produce..."); /v1/chat/completions separa
+reasoning_content y el contenido llega limpio. Fix: _llm_de_cognia delega en
+llm_local.generar (chat, auditado); b2 usa el camino del residente. Tercera
+aparición de la misma clase de bug en 24h (presupuesto de tokens disfrazado
+de incapacidad). Primera corrida b2 (pre-fix): 4/6, pero TODOS los aprobados
+por el camino corto — número no atribuible al lazo.
+
+**La cadena completa del lazo (4 bugs de la misma clase en cascada, todos
+medidos con probe antes de tocar):**
+1. /completion crudo sin plantilla Harmony → el cerebro piensa en texto plano
+   (463a6eb).
+2. Generación inicial del lazo a temp 0.9 → pierde los selectores OBLIGATORIOS;
+   a 0.2 aprueba 6/7 vs 1/5 (776f445).
+3. generar_contrato a 3000 tokens → overthinking spiral (13-33k chars de
+   razonamiento, contenido 0); "Reasoning: low" + 9000 lo cierra (d7e1419).
+4. reparar_web a 6000 → contenido vacío → caía al 404 de Ollama; a 12000
+   repara de verdad (d7e1419).
+
+**VERIFICADO e2e en el lazo real (contador):** ronda 1 sello FALLIDO con 4
+contraejemplos del juez → ronda 2 la reparación guiada los arregla → APROBADO,
+motivo_corte='aprobado por juez ejecutable'. La Apuesta #1 de META corriendo
+en producción por primera vez.
+
+**Serie b2 (6 tareas, n=1 por corrida):** baseline 2/6 → run1 4/6 (pre-fix,
+suerte del camino corto) → run2 3/6 (chat, temp 0.9) → run3 4/6 (temp 0.2) →
+**config final replicada: run4 3/6, run5 4/6, run6 5/6 (media 4.0)**; réplica
+7 lanzada a las 02:45 (su número, en resultados_run7 si llegó antes del
+corte). En la config final las 6 tareas corren por el lazo entero (antes 5/6
+caían al camino corto). Lectura por gate-e2e-flaky: la mejora 2/6 → media 4.0
+es consistente pero n=3 < 6 no la cierra; el objetivo ">=4/6" NO se declara
+cumplido de forma robusta. Lo probado es el MECANISMO (sello + reparación por
+contraejemplo e2e). Las tareas que fallan VARÍAN corrida a corrida (memoria
+10/10 en run4 y falla en run5): el cuello es varianza de generación +
+reparación que no siempre remata en ≤3 rondas, no una tarea imposible.
+Suite completa final: **5430 passed, 1 skipped, 0 failed**.
+
+**Qué sigue (por valor):** (1) réplicas de b2 hasta n≥6 (~30 min c/u, sin
+tocar código); (2) best-of-N verificado DENTRO del lazo — generar 2-3
+candidatos iniciales y que el juez elija, ataca directo la varianza que es el
+cuello medido (la medición externa dice +25 pts); (3) subir el tope de rondas
+de reparación cuando el veredicto mejora entre rondas (checks_ok creciendo =
+progreso real, no espiral); (4) contador de 'sin verificar' en producción
+como métrica de salud del pensador.
+
+**Lecciones a memoria:** fp-heldout-por-modelo,
+descartar-hipotesis-reproduce-condiciones, presupuesto-tokens-razonamiento;
+actualizadas laguna-xs-candidato (medido y descartado) y
+juez-tiene-que-ejecutar (cableado al lazo).
+

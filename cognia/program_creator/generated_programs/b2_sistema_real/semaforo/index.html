@@ -2,175 +2,104 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Semáforo Automático</title>
+<title>Semáforo y Gráfica</title>
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f0f0f0;color:#333;}
-  header{background:#222;color:#fff;padding:1rem;text-align:center;}
-  section{background:#fff;margin:1rem auto;padding:1rem;border-radius:8px;max-width:600px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
-  #luz{width:120px;height:120px;border-radius:50%;margin:0 auto 1rem auto;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fff;transition:background-color .5s;}
-  #luz[data-color="rojo"]{background:#c00;}
-  #luz[data-color="verde"]{background:#0c0;}
-  #luz[data-color="ambar"]{background:#cc0;}
-  button{display:block;margin:0 auto;padding:.5rem 1rem;font-size:1rem;background:#0066cc;color:#fff;border:none;border-radius:4px;cursor:pointer;}
-  button:hover{background:#005bb5;}
+  body{font-family:Arial,sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#f0f0f0;}
+  header{padding:1rem;text-align:center;}
+  #luz{width:80px;height:80px;border-radius:50%;margin:1rem auto;background:red;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;}
+  #luz[data-color="rojo"]{background:red;}
+  #luz[data-color="verde"]{background:green;}
+  #luz[data-color="ambar"]{background:orange;}
+  #avanzar{padding:0.5rem 1rem;margin:1rem;cursor:pointer;}
+  section{width:90%;max-width:600px;margin:1rem 0;}
+  svg{width:100%;height:200px;background:white;border:1px solid #ccc;}
   table{width:100%;border-collapse:collapse;}
-  th,td{border:1px solid #ddd;padding:.5rem;text-align:center;}
-  th{background:#f9f9f9;}
-  .chart{width:100%;overflow-x:auto;}
-  svg{display:block;width:100%;height:200px;}
-  .grid line{stroke:#e0e0e0;stroke-width:1;}
-  .bar{fill:#0066cc;}
-  .label{font-size:.8rem;}
+  th,td{border:1px solid #ccc;padding:4px;text-align:right;}
 </style>
 </head>
 <body>
-<header>
-  <h1>Semáforo Automático</h1>
-  <p>Avanza entre rojo, verde y ambar automáticamente.</p>
-</header>
-
-<section id="semaforo">
-  <div id="luz" data-color="rojo">Rojo</div>
-  <button id="avanzar">Avanzar</button>
-</section>
-
-<section id="grafico">
-  <h2>Conteo de colores</h2>
-  <div class="chart" id="chartContainer"></div>
-</section>
-
-<section id="log">
-  <h2>Registro de cambios</h2>
-  <table id="logTable">
-    <thead><tr><th>Hora</th><th>Color</th></tr></thead>
-    <tbody></tbody>
-  </table>
-</section>
-
+<header><h1>Semáforo y Gráfica</h1></header>
+<section id="control"><div id="luz" data-color="rojo"></div><button id="avanzar">Avanzar</button></section>
+<section id="chart"><svg id="chartSvg"></svg></section>
+<section id="table"><table><thead><tr><th>Índice</th><th>Valor</th></tr></thead><tbody id="tableBody"></tbody></table></section>
 <script>
-/* Tunable constants */
-const COLORS = ['rojo', 'verde', 'ambar'];
-const INTERVAL_MS = 2000; // 2 segundos
-const MAX_LOG_ENTRIES = 10;
+document.addEventListener('DOMContentLoaded', function(){
+  // Semáforo
+  var luz = document.getElementById('luz');
+  var avanzarBtn = document.getElementById('avanzar');
+  var colors = ['rojo','verde','ambar'];
+  var idx = 0;
+  function setColor(c){ luz.setAttribute('data-color', c); }
+  setColor(colors[idx]);
 
-/* State */
-let currentIndex = 0;
-let counts = {rojo:0, verde:0, ambar:0};
-let logEntries = [];
-
-/* DOM elements */
-const luz = document.getElementById('luz');
-const btn = document.getElementById('avanzar');
-const chartContainer = document.getElementById('chartContainer');
-const logTableBody = document.querySelector('#logTable tbody');
-
-/* Utility to format numbers */
-function fmt(num){ return num.toLocaleString('es-ES'); }
-
-/* Update the light */
-function updateLight() {
-  const color = COLORS[currentIndex];
-  luz.dataset.color = color;
-  luz.textContent = color.charAt(0).toUpperCase() + color.slice(1);
-  // Set the text color to match the traffic light color
-  luz.style.color = color === 'rojo' ? 'red' : color === 'verde' ? 'green' : 'orange';
-  counts[color] = (counts[color] || 0) + 1;
-  addLogEntry(color);
-  renderChart();
-}
-
-/* Advance to next color */
-function advance() {
-  currentIndex = (currentIndex + 1) % COLORS.length;
-  updateLight();
-}
-
-/* Log entry */
-function addLogEntry(color) {
-  const now = new Date();
-  logEntries.unshift({time: now, color});
-  if (logEntries.length > MAX_LOG_ENTRIES) logEntries.pop();
-  renderLog();
-}
-
-/* Render log table */
-function renderLog() {
-  logTableBody.innerHTML = '';
-  logEntries.forEach(entry => {
-    const tr = document.createElement('tr');
-    const tdTime = document.createElement('td');
-    const tdColor = document.createElement('td');
-    tdTime.textContent = entry.time.toLocaleTimeString('es-ES', {hour12:false});
-    tdColor.textContent = entry.color.charAt(0).toUpperCase() + entry.color.slice(1);
-    // Color the text to match the traffic light color
-    tdColor.style.color = entry.color === 'rojo' ? 'red' : entry.color === 'verde' ? 'green' : 'orange';
-    tr.appendChild(tdTime);
-    tr.appendChild(tdColor);
-    logTableBody.appendChild(tr);
+  avanzarBtn.addEventListener('click', function(){
+    idx = (idx + 1) % colors.length;
+    setColor(colors[idx]);
   });
-}
 
-/* Render chart */
-function renderChart() {
-  const maxCount = Math.max(...Object.values(counts), 1);
-  const yMax = Math.ceil(maxCount / 5) * 5; // round up to nearest 5
-  const svgNS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(svgNS, 'svg');
-  svg.setAttribute('viewBox', `0 0 300 ${yMax * 20 + 40}`);
-  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  setInterval(function(){
+    idx = (idx + 1) % colors.length;
+    setColor(colors[idx]);
+  }, 3000);
 
-  // Gridlines and Y labels
-  for (let i = 0; i <= 5; i++) {
-    const y = yMax - i * (yMax / 5);
-    const line = document.createElementNS(svgNS, 'line');
-    line.setAttribute('x1', '40');
-    line.setAttribute('y1', `${20 + i * (yMax * 20 / 5)}`);
-    line.setAttribute('x2', '260');
-    line.setAttribute('y2', `${20 + i * (yMax * 20 / 5)}`);
-    line.setAttribute('class', 'grid');
-    svg.appendChild(line);
+  // Gráfica
+  var data = [];
+  var maxPoints = 20;
+  var svg = document.getElementById('chartSvg');
+  var tableBody = document.getElementById('tableBody');
 
-    const label = document.createElementNS(svgNS, 'text');
-    label.setAttribute('x', '30');
-    label.setAttribute('y', `${20 + i * (yMax * 20 / 5) + 5}`);
-    label.setAttribute('class', 'label');
-    label.textContent = fmt(Math.round(y));
-    svg.appendChild(label);
+  function update(){
+    var val = Math.floor(Math.random()*1000)+1;
+    data.push(val);
+    if(data.length > maxPoints) data.shift();
+    draw();
+    updateTable();
   }
 
-  // Bars
-  const barWidth = 60;
-  const barGap = 20;
-  COLORS.forEach((color, idx) => {
-    const count = counts[color];
-    const barHeight = (count / yMax) * (yMax * 20);
-    const rect = document.createElementNS(svgNS, 'rect');
-    rect.setAttribute('x', `${40 + idx * (barWidth + barGap)}`);
-    rect.setAttribute('y', `${20 + (yMax * 20) - barHeight}`);
-    rect.setAttribute('width', barWidth);
-    rect.setAttribute('height', barHeight);
-    rect.setAttribute('class', 'bar');
-    rect.setAttribute('fill', color === 'rojo' ? '#c00' : color === 'verde' ? '#0c0' : '#cc0');
-    svg.appendChild(rect);
+  function draw(){
+    var w = svg.clientWidth;
+    var h = svg.clientHeight;
+    var min = Math.min.apply(null, data);
+    var max = Math.max.apply(null, data);
+    var range = max - min || 1;
+    var points = data.map(function(v,i){
+      var x = i/(maxPoints-1)*w;
+      var y = h - (v-min)/range*h;
+      return {x: x, y: y};
+    });
+    var path = 'M' + points.map(function(p){ return p.x + ',' + p.y; }).join(' L');
+    svg.innerHTML = '';
+    for(var i=0;i<=5;i++){
+      var y = i/5*h;
+      svg.innerHTML += '<line x1="0" y1="'+y+'" x2="'+w+'" y2="'+y+'" stroke="#eee" stroke-width="1"/>';
+    }
+    for(var i=0;i<=5;i++){
+      var y = i/5*h;
+      var val = min + range*i/5;
+      svg.innerHTML += '<text x="0" y="'+(y+4)+'" font-size="10" fill="#333">'+val.toLocaleString()+'</text>';
+    }
+    svg.innerHTML += '<path d="'+path+'" fill="none" stroke="steelblue" stroke-width="2"/>';
+  }
 
-    const label = document.createElementNS(svgNS, 'text');
-    label.setAttribute('x', `${40 + idx * (barWidth + barGap) + barWidth / 2}`);
-    label.setAttribute('y', `${20 + (yMax * 20) + 15}`);
-    label.setAttribute('class', 'label');
-    label.setAttribute('text-anchor', 'middle');
-    label.textContent = color.charAt(0).toUpperCase() + color.slice(1);
-    svg.appendChild(label);
-  });
+  function updateTable(){
+    tableBody.innerHTML = '';
+    for(var i=0;i<data.length;i++){
+      var tr = document.createElement('tr');
+      var tdIndex = document.createElement('td');
+      tdIndex.textContent = i;
+      var tdValue = document.createElement('td');
+      tdValue.textContent = data[i].toLocaleString();
+      var prev = data[i-1];
+      var change = prev !== undefined ? data[i] - prev : 0;
+      tdValue.style.color = change >= 0 ? 'green' : 'red';
+      tr.appendChild(tdIndex);
+      tr.appendChild(tdValue);
+      tableBody.appendChild(tr);
+    }
+  }
 
-  chartContainer.innerHTML = '';
-  chartContainer.appendChild(svg);
-}
-
-/* Initialize */
-document.addEventListener('DOMContentLoaded', () => {
-  updateLight(); // first frame
-  btn.addEventListener('click', advance);
-  setInterval(advance, INTERVAL_MS);
+  update();
+  setInterval(update, 2000);
 });
 </script>
 </body>

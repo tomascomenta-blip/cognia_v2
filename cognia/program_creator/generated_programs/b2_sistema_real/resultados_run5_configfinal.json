@@ -1,57 +1,58 @@
 {
   "sistema_real": {
     "memoria_4x4": {
-      "aprobado": true,
-      "motivo": "10/10 checks OK (6/6 del contrato)",
-      "segundos": 184.27327346801758,
-      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
-      "checks_ok": 10,
+      "aprobado": false,
+      "motivo": "falla critica: al cargar NINGUNA carta muestra su emoji (visibles('.tile')=16, esperaba 0); tras 1 click hay EXACTAMENTE",
+      "segundos": 130.0370066165924,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 7,
       "checks": 10
     },
     "contador": {
       "aprobado": false,
       "motivo": "falla critica: empieza en 0 ('1' no contiene '0'); tras + vale 1 ('2' no contiene '1'); tras dos + vale 2 ('4' no contie",
-      "segundos": 181.21749544143677,
-      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "segundos": 217.3824963569641,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
       "checks_ok": 9,
       "checks": 14
     },
     "tareas_todo": {
       "aprobado": true,
       "motivo": "11/12 checks OK (8/8 del contrato)",
-      "segundos": 175.289794921875,
-      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "segundos": 223.40496110916138,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
       "checks_ok": 11,
       "checks": 12
     },
     "calculadora": {
       "aprobado": true,
-      "motivo": "10/10 checks OK (6/6 del contrato)",
-      "segundos": 239.4337089061737,
-      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
-      "checks_ok": 10,
+      "motivo": "9/10 checks OK (6/6 del contrato)",
+      "segundos": 55.58148694038391,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 9,
       "checks": 10
     },
     "semaforo": {
       "aprobado": true,
       "motivo": "10/11 checks OK (7/7 del contrato)",
-      "segundos": 210.96910905838013,
-      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "segundos": 52.86706852912903,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
       "checks_ok": 10,
       "checks": 11
     },
     "filtro_lista": {
       "aprobado": true,
       "motivo": "10/11 checks OK (7/7 del contrato)",
-      "segundos": 95.12272095680237,
+      "segundos": 274.1735694408417,
       "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
       "checks_ok": 10,
       "checks": 11
     }
   },
   "techo": 6,
-  "real": 5,
+  "real": 4,
   "desperdicio": [
+    "memoria_4x4",
     "contador"
   ],
   "n_tareas": 6

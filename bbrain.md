@@ -1,7 +1,7 @@
 # bbrain.md — Cerebro del repo Cognia
 
 > AUTOGENERADO por cognia/bbrain.py — no editar a mano; regenerar con `cognia bbrain`.
-> Generado: 2026-07-24 23:35:41
+> Generado: 2026-07-25 23:55:04
 
 ## Entorno
 - Python: 3.12.10 (C:\Users\usuario\Desktop\cognia_v2\venv312\Scripts\python.exe)
@@ -12,26 +12,26 @@
 - GPU: NVIDIA GeForce RTX 5060 Ti, 16311 MiB
 
 ## Backend LLM
-- GGUF activo (node.llama_backend): C:\Users\usuario\.cognia\models\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf
+- GGUF activo (node.llama_backend): C:\Users\usuario\.cognia\models\qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf
 - Modelos en C:\Users\usuario\.cognia\models: OpenReasoning-Nemotron-14B.Q4_K_M.gguf, Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf, Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf, Qwen3-1.7B-Q4_K_M.gguf, Qwen3-4B-Thinking-2507-Q4_K_M.gguf, UIGEN-X-8B.Q8_0.gguf, gpt-oss-20b-MXFP4.gguf, mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf, mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf, qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-7b-instruct-q4_k_m-00002-of-00002.gguf, qwen2.5-coder-0.5b-instruct-q8_0.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00001-of-00002.gguf, qwen2.5-coder-14b-instruct-q4_k_m-00002-of-00002.gguf
 - Shards NPZ en C:\Users\usuario\.cognia\shards\qwen-coder-3b-q4: shard_0.npz, shard_1.npz, shard_2.npz, shard_3.npz
-- Ollama: no disponible en http://localhost:11434
-- Backend en uso (llm_local): NINGUNO — Cognia degradaria a sus fallbacks en silencio
+- Ollama: disponible en http://localhost:11434
+- Backend en uso (llm_local): llama en http://127.0.0.1:8080
 
 ## Mapa del repo
 - Modulos .py top-level: 8
-- cognia/: 386 archivos .py
+- cognia/: 393 archivos .py
 - node/: 19 archivos .py
 - shattering/: 18 archivos .py
 - coordinator/: 10 archivos .py
 - storage/: 2 archivos .py
 - security/: 4 archivos .py
-- tests/: 428 archivos .py
-- Archivos de test (tests/test_*.py): 425
+- tests/: 437 archivos .py
+- Archivos de test (tests/test_*.py): 434
 
 ## Radar de cobertura (anti-danos-colaterales)
-- Modulos con simbolos publicos: 369
-- SIN ninguna mencion en tests/: 29
+- Modulos con simbolos publicos: 376
+- SIN ninguna mencion en tests/: 31
 - Fuera del radar (revisar al tocar features vecinas):
   * cognia/experts/identity_dataset.py (2 simbolos publicos)
   * cognia/experts/meta_maker.py (1 simbolos publicos)
@@ -43,6 +43,8 @@
   * cognia/program_creator/generated_programs/cognia_game/game.py (1 simbolos publicos)
   * cognia/program_creator/generated_programs/fractal_pattern_renderer/program.py (4 simbolos publicos)
   * cognia/program_creator/generated_programs/in_memory_task_manager_with_undo_stack_and_unit_te/program.py (2 simbolos publicos)
+  * cognia/program_creator/generated_programs/juego_minecraft/program.py (2 simbolos publicos)
+  * cognia/program_creator/generated_programs/minecraft_juego/program.py (5 simbolos publicos)
   * cognia/program_creator/generated_programs/priorityqueue_with_heapq_and_priority_change/program.py (2 simbolos publicos)
   * cognia/program_creator/generated_programs/royal_favors/program.py (1 simbolos publicos)
   * cognia/program_creator/generated_programs/task_manager_with_sqlite_in_memory_undo_stack_and/program.py (2 simbolos publicos)

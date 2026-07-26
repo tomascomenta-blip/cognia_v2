@@ -2,170 +2,155 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Lista de tareas y datos dinámicos</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Tareas</title>
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f5f5f5;color:#333;}
-  .container{max-width:800px;margin:0 auto;padding:1rem;}
-  h1,h2{margin:0.5rem 0;text-align:center;}
-  section{background:#fff;padding:1rem;margin-bottom:1rem;border-radius:8px;}
-  .summary div{display:flex;justify-content:space-between;margin:0.5rem 0;}
-  .summary span{font-weight:bold;}
-  .chart svg{width:100%;height:300px;}
-  table{width:100%;border-collapse:collapse;}
-  th,td{padding:0.5rem;text-align:right;font-variant-numeric:tabular-nums;}
-  th{text-align:left;color:#898781;font-size:12px;}
-  .tarea{background:#e0f7fa;margin-bottom:0.5rem;padding:0.5rem;border-radius:4px;}
-  input[type="text"]{width:calc(100% - 110px);padding:0.5rem;margin-right:0.5rem;}
-  button{padding:0.5rem 1rem;}
-  ul{list-style:none;padding:0;margin:0;}
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f5f5f5;}
+  .container{max-width:800px;margin:auto;padding:10px;}
+  h1{font-size:1.8em;text-align:center;margin:0 0 10px;}
+  .section{background:#fff;margin-bottom:10px;padding:10px;border-radius:5px;}
+  .summary{display:flex;justify-content:space-around;flex-wrap:wrap;}
+  .summary div{margin:5px;text-align:center;}
+  .chart{height:250px;}
+  svg{width:100%;height:100%;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th,td{padding:5px;border-bottom:1px solid #ddd;}
+  th{background:#eee;font-size:12px;color:#898781;text-align:left;}
+  .tarea{padding:5px;border-bottom:1px solid #ddd;}
+  #nueva{width:70%;padding:5px;}
+  #anadir{padding:5px 10px;}
+  @media(max-width:600px){.summary{flex-direction:column;}}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Dashboard y Lista de Tareas</h1>
-
-  <!-- Sección 1: Resumen -->
-  <section class="summary">
+  <h1>Dashboard de Tareas</h1>
+  <div class="section" id="summarySection">
     <h2>Resumen</h2>
-    <div><span>Promedio:</span> <span id="promedio">0.00</span></div>
-    <div><span>Máximo:</span> <span id="maximo">0.00</span></div>
-    <div><span>Minimo:</span> <span id="minimo">0.00</span></div>
-  </section>
-
-  <!-- Sección 2: Gráfico -->
-  <section class="chart">
-    <h2>Gráfico de datos</h2>
-    <svg id="grafico" viewBox="0 0 600 300"></svg>
-  </section>
-
-  <!-- Sección 3: Tabla de detalle -->
-  <section class="detail">
-    <h2>Detalle de valores</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Índice</th>
-          <th>Valor</th>
-          <th>Cambio</th>
-        </tr>
-      </thead>
-      <tbody id="detalle"></tbody>
+    <div class="summary">
+      <div><strong id="taskCount">0</strong> Tareas</div>
+      <div><strong id="avgLength">0</strong> caracteres promedio</div>
+    </div>
+  </div>
+  <div class="section" id="chartSection">
+    <h2>Gráfico de Valores</h2>
+    <div class="chart"><svg id="chartSvg"></svg></div>
+  </div>
+  <div class="section" id="tableSection">
+    <h2>Detalle de Posiciones</h2>
+    <table id="posicionesTable">
+      <thead><tr><th>Simbolo</th><th>Precio</th><th>Cambio</th></tr></thead>
+      <tbody id="posiciones"></tbody>
     </table>
-  </section>
-
-  <!-- Sección 4: Lista de tareas -->
-  <section class="tasks">
-    <h2>Lista de tareas</h2>
+  </div>
+  <div class="section" id="todoSection">
+    <h2>Lista de Tareas</h2>
     <input type="text" id="nueva" placeholder="Nueva tarea">
     <button id="anadir">Añadir</button>
     <ul id="lista"></ul>
-  </section>
+  </div>
 </div>
-
 <script>
-(function(){
-  const dataLen = 10;
-  let datos = Array.from({length:dataLen}, () => Math.random()*90+10);
-  let prevDatos = datos.slice();
-
-  const fmt = n => n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
-
-  const actualizarResumen = () => {
-    const sum = datos.reduce((a,b)=>a+b,0);
-    const avg = sum/datos.length;
-    const max = Math.max(...datos);
-    const min = Math.min(...datos);
-    document.getElementById('promedio').textContent = fmt(avg);
-    document.getElementById('maximo').textContent = fmt(max);
-    document.getElementById('minimo').textContent = fmt(min);
-  };
-
-  const actualizarDetalle = () => {
-    const tbody = document.getElementById('detalle');
-    tbody.innerHTML = '';
-    datos.forEach((val,i)=>{
-      const prev = prevDatos[i]||val;
-      const cambio = val - prev;
-      const color = cambio>=0?'#006300':'#d03b3b';
-      const flecha = cambio>=0?'▲':'▼';
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${i+1}</td>
-        <td>${fmt(val)}</td>
-        <td style="color:${color}">${flecha} ${Math.abs(cambio).toFixed(2)}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  };
-
-  const actualizarGrafico = () => {
-    const svg = document.getElementById('grafico');
-    const width = 600, height = 300;
-    const margin = {l:50,t:20,r:20,b:40};
-    const barSpacing = 5;
-    const barWidth = (width - margin.l - margin.r)/dataLen - barSpacing;
-    const min = Math.min(...datos);
-    const max = Math.max(...datos);
-    const scaleY = v => height - margin.b - ((v - min)/(max - min))*(height - margin.t - margin.b);
-    const barHeight = v => (v - min)/(max - min)*(height - margin.t - margin.b);
-
-    let content = '';
-
-    // Gridlines y axis labels
-    const gridCount = 5;
-    for(let i=0;i<=gridCount;i++){
-      const val = min + i*(max-min)/gridCount;
-      const y = scaleY(val);
-      content += `<line x1="${margin.l}" y1="${y}" x2="${width - margin.r}" y2="${y}" stroke="#e0e0e0" stroke-width="1"/>`;
-      content += `<text x="${margin.l-10}" y="${y+4}" text-anchor="end" font-size="12">${fmt(val)}</text>`;
-    }
-
-    // Bars
-    datos.forEach((v,i)=>{
-      const x = margin.l + i*(barWidth+barSpacing);
-      const y = scaleY(v);
-      const h = barHeight(v);
-      content += `<rect x="${x}" y="${y}" width="${barWidth}" height="${h}" fill="#2196f3"/>`;
-    });
-
-    // Axes
-    content += `<line x1="${margin.l}" y1="${margin.t}" x2="${margin.l}" y2="${height - margin.b}" stroke="#000" stroke-width="2"/>`;
-    content += `<line x1="${margin.l}" y1="${height - margin.b}" x2="${width - margin.r}" y2="${height - margin.b}" stroke="#000" stroke-width="2"/>`;
-
-    // X axis labels
-    datos.forEach((_,i)=>{
-      const x = margin.l + i*(barWidth+barSpacing) + barWidth/2;
-      content += `<text x="${x}" y="${height - margin.b + 20}" text-anchor="middle" font-size="12">${i+1}</text>`;
-    });
-
-    svg.innerHTML = content;
-  };
-
-  const actualizarTodo = () => {
-    prevDatos = datos.slice();
-    datos = datos.map(()=>Math.random()*90+10);
-    actualizarResumen();
-    actualizarDetalle();
-    actualizarGrafico();
-  };
-
-  // Inicializar
-  actualizarTodo();
-  setInterval(actualizarTodo, 3000);
-
-  // Lista de tareas
-  document.getElementById('anadir').addEventListener('click',()=>{
-    const input = document.getElementById('nueva');
-    const texto = input.value.trim();
-    if(!texto) return;
+  // ------------------ Tareas ------------------
+  const tasks = [];
+  function addTask(text){
+    if(!text.trim()) return;
     const li = document.createElement('li');
     li.className = 'tarea';
-    li.textContent = texto;
+    li.textContent = text;
     document.getElementById('lista').appendChild(li);
-    input.value = '';
+    tasks.push(text);
+    updateSummary();
+  }
+  document.getElementById('anadir').addEventListener('click',()=>{
+    const input = document.getElementById('nueva');
+    addTask(input.value);
+    input.value='';
   });
-})();
+  // Auto‑añadir tareas cada 5s
+  setInterval(()=>{addTask('Auto tarea '+Math.floor(Math.random()*1000));},5000);
+
+  function updateSummary(){
+    const count = tasks.length;
+    const avg = count?tasks.reduce((s,t)=>s+t.length,0)/count:0;
+    document.getElementById('taskCount').textContent = count;
+    document.getElementById('avgLength').textContent = avg.toFixed(2);
+  }
+
+  // ------------------ Gráfico SVG ------------------
+  let chartData = [];
+  function initChart(){
+    chartData = Array.from({length:5},()=>Math.floor(Math.random()*100)+1);
+    renderChart();
+  }
+  function updateChart(){
+    chartData = chartData.map(v=>Math.max(1,v+Math.floor(Math.random()*10-5)));
+    renderChart();
+  }
+  function renderChart(){
+    const svg = document.getElementById('chartSvg');
+    const width = 500, height = 250;
+    const barWidth = width/ (chartData.length*2);
+    const max = Math.max(...chartData);
+    const min = Math.min(...chartData);
+    const scale = (height-20)/(max-min||1);
+    svg.innerHTML='';
+    // Gridlines & Y labels
+    const gridCount = 5;
+    for(let i=0;i<=gridCount;i++){
+      const y = 10 + i*(height-20)/gridCount;
+      const val = max - i*(max-min)/gridCount;
+      svg.innerHTML+=`<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="#ddd" stroke-width="1"/>`;
+      svg.innerHTML+=`<text x="5" y="${y+4}" font-size="10" fill="#666">${val.toFixed(0)}</text>`;
+    }
+    // Bars
+    chartData.forEach((v,i)=>{
+      const x = 20 + i*barWidth*2;
+      const barHeight = (v-min)*scale;
+      const y = height-10-barHeight;
+      svg.innerHTML+=`<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" fill="#4682B4"/>`;
+      svg.innerHTML+=`<text x="${x+barWidth/2}" y="${height-5}" font-size="10" text-anchor="middle" fill="#333">${v}</text>`;
+    });
+    svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
+  }
+  initChart();
+  setInterval(updateChart,2000);
+
+  // ------------------ Tabla de Posiciones ------------------
+  const positions = [];
+  function initTable(){
+    const symbols = ['AAPL','GOOGL','AMZN','MSFT','TSLA'];
+    symbols.forEach(sym=>{
+      positions.push({
+        sim: sym,
+        precio: Math.random()*1500+100,
+        cambio: (Math.random()*2-1)*5
+      });
+    });
+    renderTable();
+  }
+  function updateTable(){
+    positions.forEach(p=>{
+      const oldPrecio = p.precio;
+      p.precio = oldPrecio + (Math.random()*2-1)*10;
+      p.cambio = (p.precio - oldPrecio)/oldPrecio*100;
+    });
+    renderTable();
+  }
+  function fila(p){
+    const color = p.cambio>=0?'#006300':'#d03b3b';
+    const flecha = p.cambio>=0?'▲':'▼';
+    return `<tr>
+      <td><strong>${p.sim}</strong></td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${p.precio.toLocaleString('es-ES',{style:'currency',currency:'EUR'})}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:${color}">${flecha} ${Math.abs(p.cambio).toFixed(2)}%</td>
+    </tr>`;
+  }
+  function renderTable(){
+    const tbody = document.getElementById('posiciones');
+    tbody.innerHTML = positions.map(fila).join('');
+  }
+  initTable();
+  setInterval(updateTable,3000);
 </script>
 </body>
 </html>
