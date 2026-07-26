@@ -1,0 +1,124 @@
+{
+  "_por_que": "TERCER intento de banco. Los dos anteriores se saturaron: el de 6 (gpt-oss 6/6) y el 'duro' de 8 (gpt-oss 8/8 por mayoria, y 8/8 el frontier). Construir un banco que se satura fue el error repetido de la sesion: sin cabecera, ningun metodo puede demostrar nada y todo sale '+0' por construccion.",
+
+  "_objetivo_de_dificultad": "Que el pass@1 de gpt-oss-20b caiga al 30-50%. Ahi es donde best-of-N y reparacion tienen margen medible, y donde un modelo mas grande podria distinguirse. Si sale >80% otra vez, el banco vuelve a estar mal y hay que subir mas.",
+
+  "_que_cambia_respecto_del_anterior": "No son mas requisitos: son requisitos que exigen mantener un INVARIANTE a lo largo de una secuencia larga de interacciones, mas un ALGORITMO no trivial. Un modelo puede escribir cada pieza y aun asi romper el invariante al componerlas. Ademas las secuencias del contrato son largas (10-20 acciones), asi que un bug que solo aparece en el paso 12 no se puede acertar por casualidad.",
+
+  "tareas": [
+    {
+      "id": "hoja_calculo",
+      "idea": "Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class=\"celda\"> con data-ref A1,A2,A3,B1,B2,B3,C1,C2,C3. Una celda que empieza por '=' es una FORMULA y muestra su resultado calculado (no el texto). Las formulas soportan referencias a otras celdas y los operadores + y -, por ejemplo =A1+A2 o =A1+B1-A2. Al cambiar una celda se RECALCULAN todas las que dependen de ella, en cascada (si B1 es =A1+1 y C1 es =B1+1, cambiar A1 actualiza las dos). Si se crea una referencia CIRCULAR, la celda implicada muestra el texto CIRC en vez de colgarse. El valor mostrado esta en el atributo value del input.",
+      "contrato": {
+        "nombre": "hoja de calculo con cascada y ciclos",
+        "pasos": [
+          {"accion": "contar", "selector": ".celda", "esperado": 9, "nombre": "grilla 3x3", "critico": true},
+          {"_por_que": "Se pulsa Tab tras cada escritura para DESENFOCAR. Una hoja de calculo correcta muestra la FORMULA mientras editas y el RESULTADO al salir de la celda; fill() de Playwright deja el campo enfocado, asi que sin el Tab el contrato leia '=A1+A2' y acusaba de roto a un producto que funcionaba (medido 2026-07-25 contra la referencia frontier).",
+           "accion": "escribir", "selector": "[data-ref='A1']", "texto": "5"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "escribir", "selector": "[data-ref='A2']", "texto": "3"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "escribir", "selector": "[data-ref='B1']", "texto": "=A1+A2"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 400},
+          {"accion": "js", "expr": "document.querySelector(\"[data-ref='B1']\").value.trim()", "esperado": "8", "nombre": "B1 = A1+A2 = 8", "critico": true},
+          {"accion": "escribir", "selector": "[data-ref='C1']", "texto": "=B1+A1"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 400},
+          {"accion": "js", "expr": "document.querySelector(\"[data-ref='C1']\").value.trim()", "esperado": "13", "nombre": "C1 = B1+A1 = 13", "critico": true},
+          {"accion": "escribir", "selector": "[data-ref='A1']", "texto": "10"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 500},
+          {"accion": "js", "expr": "document.querySelector(\"[data-ref='B1']\").value.trim()", "esperado": "13", "nombre": "CASCADA: al cambiar A1, B1 se recalcula a 13", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\"[data-ref='C1']\").value.trim()", "esperado": "23", "nombre": "CASCADA en 2 saltos: C1 se recalcula a 23", "critico": true},
+          {"accion": "escribir", "selector": "[data-ref='A3']", "texto": "=B3+1"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "escribir", "selector": "[data-ref='B3']", "texto": "=A3+1"},
+          {"accion": "tecla", "key": "Tab"},
+          {"accion": "esperar", "ms": 600},
+          {"accion": "js", "expr": "/CIRC/i.test(document.querySelector(\"[data-ref='A3']\").value + document.querySelector(\"[data-ref='B3']\").value)", "esperado": true, "nombre": "REFERENCIA CIRCULAR detectada, no cuelga", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "carrito_stock",
+      "idea": "Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class=\"prod\"> con data-id p1,p2,p3, data-precio 100,50,25 y data-stock 2,3,1. Cada uno tiene un <button class=\"add\" data-id=\"pX\">. El carrito muestra sus lineas como <div class=\"linea\"> con data-id, cada una con <span class=\"cant\"> y un <button class=\"quitar\" data-id=\"pX\">. <span id=\"total\"> tiene el total. REGLAS: anadir el mismo producto NO crea una linea nueva, incrementa su cantidad. NO se puede superar el stock: al llegar al tope, el boton add de ESE producto queda disabled. Al quitar una unidad, si la cantidad llega a 0 la linea DESAPARECE y el boton add vuelve a habilitarse. El total se recalcula siempre.",
+      "contrato": {
+        "nombre": "carrito con tope de stock y lineas agrupadas",
+        "pasos": [
+          {"accion": "contar", "selector": ".linea", "esperado": 0, "nombre": "carrito vacio", "critico": true},
+          {"accion": "click", "selector": "[data-id='p1'].add"},
+          {"accion": "click", "selector": "[data-id='p1'].add"},
+          {"accion": "contar", "selector": ".linea", "esperado": 1, "nombre": "dos veces el mismo producto = UNA linea", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\".linea[data-id='p1'] .cant\").textContent.trim()", "esperado": "2", "nombre": "la cantidad es 2", "critico": true},
+          {"accion": "js", "expr": "document.querySelector(\"[data-id='p1'].add\").disabled", "esperado": true, "nombre": "al tope de stock (2) el boton se deshabilita", "critico": true},
+          {"accion": "texto", "selector": "#total", "contiene": "200", "nombre": "total = 2*100 = 200", "critico": true},
+          {"accion": "click", "selector": "[data-id='p3'].add"},
+          {"accion": "js", "expr": "document.querySelector(\"[data-id='p3'].add\").disabled", "esperado": true, "nombre": "p3 tiene stock 1: se deshabilita al primer add", "critico": true},
+          {"accion": "texto", "selector": "#total", "contiene": "225", "nombre": "total = 200 + 25 = 225", "critico": true},
+          {"accion": "click", "selector": "[data-id='p1'].quitar"},
+          {"accion": "js", "expr": "document.querySelector(\"[data-id='p1'].add\").disabled", "esperado": false, "nombre": "al quitar una, el boton se re-habilita", "critico": true},
+          {"accion": "click", "selector": "[data-id='p1'].quitar"},
+          {"accion": "js", "expr": "document.querySelectorAll(\".linea[data-id='p1']\").length", "esperado": 0, "nombre": "al llegar a 0 la linea DESAPARECE", "critico": true},
+          {"accion": "texto", "selector": "#total", "contiene": "25", "nombre": "total vuelve a 25", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "kanban",
+      "idea": "Un tablero kanban en un solo archivo HTML. OBLIGATORIO: 3 columnas <div class=\"col\"> con data-col todo,doing,done. Las tarjetas son <div class=\"card\"> con data-id. Al cargar hay 3 tarjetas en todo con data-id t1,t2,t3 y las otras columnas vacias. Cada tarjeta tiene <button class=\"mas\"> que la mueve UNA columna a la derecha y <button class=\"menos\"> que la mueve una a la izquierda. Una tarjeta en done no puede avanzar mas; una en todo no puede retroceder. <span id=\"cont-todo\">, <span id=\"cont-doing\"> y <span id=\"cont-done\"> muestran cuantas tarjetas hay en cada columna y se actualizan siempre. REGLA WIP: la columna doing admite COMO MAXIMO 2 tarjetas; si esta llena, el boton mas de las tarjetas de todo no hace nada.",
+      "contrato": {
+        "nombre": "kanban con limite WIP",
+        "pasos": [
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='todo'] .card\").length", "esperado": 3, "nombre": "3 tarjetas en todo", "critico": true},
+          {"accion": "texto", "selector": "#cont-todo", "contiene": "3", "nombre": "el contador dice 3", "critico": true},
+          {"accion": "click", "selector": "[data-id='t1'] .mas"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='doing'] .card\").length", "esperado": 1, "nombre": "t1 pasa a doing", "critico": true},
+          {"accion": "click", "selector": "[data-id='t2'] .mas"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='doing'] .card\").length", "esperado": 2, "nombre": "t2 pasa a doing (2 = tope WIP)", "critico": true},
+          {"accion": "click", "selector": "[data-id='t3'] .mas"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='doing'] .card\").length", "esperado": 2, "nombre": "LIMITE WIP: t3 NO entra, doing sigue en 2", "critico": true},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='todo'] .card\").length", "esperado": 1, "nombre": "t3 se queda en todo", "critico": true},
+          {"accion": "click", "selector": "[data-id='t1'] .mas"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='done'] .card\").length", "esperado": 1, "nombre": "t1 llega a done", "critico": true},
+          {"accion": "click", "selector": "[data-id='t1'] .mas"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='done'] .card\").length", "esperado": 1, "nombre": "en done ya no avanza mas", "critico": true},
+          {"accion": "click", "selector": "[data-id='t3'] .mas"},
+          {"accion": "js", "expr": "document.querySelectorAll(\"[data-col='doing'] .card\").length", "esperado": 2, "nombre": "liberado un hueco, t3 SI entra", "critico": true},
+          {"accion": "texto", "selector": "#cont-done", "contiene": "1", "nombre": "los contadores siguen bien tras 6 movimientos", "critico": true}
+        ]
+      }
+    },
+
+    {
+      "id": "buscaminas",
+      "idea": "Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class=\"c\"> con data-i de 0 a 24; las minas estan en las celdas 6, 12 y 18. Al hacer click en una celda se revela: gana la clase 'abierta' y muestra el numero de minas adyacentes (contando las 8 vecinas), o nada si es 0. REGLA CLAVE: si se abre una celda con 0 minas adyacentes, se abren tambien EN CASCADA todas sus vecinas con 0, y los bordes de esa region. Click derecho pone una bandera (clase 'bandera') y una celda con bandera NO se abre al hacer click. <div id=\"estado\"> dice 'perdiste' si se abre una mina.",
+      "contrato": {
+        "nombre": "buscaminas con revelado en cascada",
+        "pasos": [
+          {"accion": "contar", "selector": ".c", "esperado": 25, "nombre": "grilla 5x5", "critico": true},
+          {"accion": "contar", "selector": ".abierta", "esperado": 0, "nombre": "empieza todo cerrado", "critico": true},
+          {"_por_que": "Se clica la celda 4, no la 0. Con minas en 6,12,18 la celda 0 tiene UNA mina adyacente (la 6): se abre sola con un '1' y NO cascadea. La 4 (esquina superior derecha) tiene 0 vecinas con mina y si dispara la cascada. Mi contrato original asumia mal y reprobaba a un producto correcto (medido 2026-07-25 contra la referencia frontier).",
+           "accion": "click", "selector": "[data-i='4']"},
+          {"accion": "esperar", "ms": 600},
+          {"accion": "js", "expr": "document.querySelector(\"[data-i='4']\").classList.contains('abierta')", "esperado": true, "nombre": "la celda 4 se abre", "critico": true},
+          {"accion": "js", "expr": "document.querySelectorAll('.abierta').length", "min": 4, "nombre": "CASCADA: abrir una celda vacia abre varias", "critico": true},
+          {"accion": "js", "expr": "!document.querySelector(\"[data-i='6']\").classList.contains('abierta')", "esperado": true, "nombre": "la cascada NO destapa una mina", "critico": true},
+
+          {"_por_que": "Se abren EXPLICITAMENTE antes de leer su numero: la cascada no tiene por que alcanzarlas, y leer el texto de una celda cerrada da '' y parece un fallo del producto.",
+           "accion": "click", "selector": "[data-i='11']"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "js", "expr": "document.querySelector(\"[data-i='11']\").textContent.trim()", "esperado": "2", "nombre": "la celda 11 dice 2 (vecinas de 6 y 12)", "critico": true},
+          {"accion": "click", "selector": "[data-i='7']"},
+          {"accion": "esperar", "ms": 300},
+          {"accion": "js", "expr": "document.querySelector(\"[data-i='7']\").textContent.trim()", "esperado": "2", "nombre": "la celda 7 dice 2 (vecinas de 6 y 12)", "critico": true},
+          {"accion": "click", "selector": "[data-i='6']"},
+          {"accion": "esperar", "ms": 400},
+          {"accion": "texto", "selector": "#estado", "contiene": "perdiste", "nombre": "abrir una mina pierde", "critico": true}
+        ]
+      }
+    }
+  ]
+}

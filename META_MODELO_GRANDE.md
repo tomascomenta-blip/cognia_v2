@@ -95,15 +95,42 @@ marginal, bordes de tramo) · `form_cruzado` (tres reglas simultáneas) ·
 
 ## LA META
 
+### El horizonte, MEDIDO (2026-07-25)
+
+Faltaba el número que importa. Un contexto **fresco** recibió solo los 8
+enunciados —sin ver los contratos— y escribió 8 páginas de una sola pasada:
+
+| referencia | banco duro |
+|---|---|
+| **FRONTIER, single-shot** | **8/8** |
+| gpt-oss-20b, mayoría de n=3 | **8/8** |
+| gpt-oss-20b, **pass@1** | **≈83 %** (20 de 24 muestras) |
+
+**En este banco, el 20B con 3 muestras iguala al frontier de una pasada.** Es la
+primera evidencia propia de que compute sustituye a parámetros aquí.
+
+*Caveat declarado:* la referencia frontier la produjo un subagente de la misma
+familia de modelos que diseñó las tareas. Contexto fresco y sin acceso a los
+contratos, pero una referencia de otro proveedor sería más limpia.
+
 **Objetivo:** que la máquina de 16 GB entregue **8/8** en el banco duro, con
 producto **entregable** (no oráculo: el sistema tiene que poder elegir la
 muestra buena, y con el juez puede).
 
-**Marcador intermedio, medible hoy:** igualar o superar a **Laguna XS 2.1**
-(33B-A3B, 20 GB, el modelo más grande que cabe en esta máquina) corriendo en
-una sola pasada. Si un 20B + best-of-N verificado iguala a un 33B single-shot,
-la tesis "compute sustituye a parámetros" queda demostrada **en esta máquina y
-en este dominio**.
+**Dónde está la cabecera real:** ni el frontier ni el 20B-mayoría discriminan ya
+(8/8 los dos). El hueco medible son **los 17 puntos entre el pass@1 del 20B
+(83 %) y el 100 %**. Ahí es donde best-of-N y reparación con contraejemplo
+tienen que demostrar lo suyo.
+
+**Y la comparación honesta es a ISO-CÓMPUTO, no a iso-muestra.** Un 20B genera
+3-5× más rápido que un frontier: por segundo de pared compra más intentos, y
+attempts × verificador = capacidad. Esa es la asimetría que se explota.
+
+**Marcador de parámetros:** Laguna XS 2.1 (33B-A3B, 20 GB, el mayor que cabe).
+**Sus números previos quedan ANULADOS**: se midieron con `num_ctx` 4096, y es un
+modelo de razonamiento que agotaba el contexto pensando
+(`finish_reason='length'` con **0 caracteres** y 3.881 tokens). Se re-mide con
+`laguna-16k`.
 
 **Criterio de éxito de la vía (pre-registrado):**
 

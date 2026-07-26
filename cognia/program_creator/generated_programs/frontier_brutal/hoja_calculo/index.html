@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini hoja de calculo</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --line: #d7dbe0;
+    --ink: #1d2330;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --formula: #0f766e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  h1 { font-size: 20px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  p.sub { margin: 0; color: var(--muted); font-size: 13px; }
+  .hoja {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(16,24,40,.06);
+  }
+  table { border-collapse: collapse; }
+  th {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 4px 6px;
+    text-align: center;
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    min-width: 92px;
+  }
+  th.esq { min-width: 28px; }
+  td { border: 1px solid var(--line); padding: 0; }
+  input.celda {
+    width: 108px;
+    padding: 8px 9px;
+    border: 0;
+    outline: 0;
+    font: inherit;
+    font-size: 14px;
+    background: transparent;
+    color: var(--ink);
+    text-align: right;
+  }
+  input.celda:focus {
+    box-shadow: inset 0 0 0 2px var(--accent);
+    background: #eff6ff;
+  }
+  input.celda.esformula { color: var(--formula); font-weight: 600; }
+  input.celda.error { color: #b91c1c; font-weight: 700; }
+  .barra {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  code {
+    background: #eef2f7;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 12px;
+    color: #334155;
+  }
+</style>
+</head>
+<body>
+  <h1>Mini hoja de calculo</h1>
+  <p class="sub">Escribi <code>=A1+A2</code> o <code>=A1+B1-A2</code>. Recalcula en cascada.</p>
+
+  <div class="hoja">
+    <div class="barra">
+      <span id="barra-ref">-</span>
+      <span id="barra-src"></span>
+    </div>
+    <table>
+      <thead>
+        <tr><th class="esq"></th><th>A</th><th>B</th><th>C</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th class="esq">1</th>
+          <td><input class="celda" data-ref="A1" value=""></td>
+          <td><input class="celda" data-ref="B1" value=""></td>
+          <td><input class="celda" data-ref="C1" value=""></td>
+        </tr>
+        <tr>
+          <th class="esq">2</th>
+          <td><input class="celda" data-ref="A2" value=""></td>
+          <td><input class="celda" data-ref="B2" value=""></td>
+          <td><input class="celda" data-ref="C2" value=""></td>
+        </tr>
+        <tr>
+          <th class="esq">3</th>
+          <td><input class="celda" data-ref="A3" value=""></td>
+          <td><input class="celda" data-ref="B3" value=""></td>
+          <td><input class="celda" data-ref="C3" value=""></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  var REFS = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3"];
+
+  // fuente[ref] = texto crudo tal como lo escribio el usuario ("=A1+A2" o "5" o "")
+  var fuente = {};
+  var inputs = {};
+
+  REFS.forEach(function (r) {
+    fuente[r] = "";
+    inputs[r] = document.querySelector('input.celda[data-ref="' + r + '"]');
+  });
+
+  function esFormula(txt) {
+    return typeof txt === "string" && txt.trim().charAt(0) === "=";
+  }
+
+  // Tokeniza el cuerpo de una formula en operandos y operadores + / -
+  // Devuelve {ok:true, terminos:[{signo:1|-1, tok:"A1"|"12"}]} o {ok:false}
+  function parsear(cuerpo) {
+    var s = String(cuerpo).replace(/\s+/g, "");
+    if (s === "") return { ok: false };
+    var terminos = [];
+    var signo = 1;
+    var i = 0;
+    var esperandoOperando = true;
+    while (i < s.length) {
+      var ch = s.charAt(i);
+      if (ch === "+" || ch === "-") {
+        if (esperandoOperando) {
+          // signo unario acumulado
+          if (ch === "-") signo = -signo;
+          i++;
+          continue;
+        }
+        signo = (ch === "-") ? -1 : 1;
+        esperandoOperando = true;
+        i++;
+        continue;
+      }
+      if (esperandoOperando === false) return { ok: false };
+      var m = /^([A-Za-z]+[0-9]+)|^([0-9]+(?:\.[0-9]+)?)/.exec(s.slice(i));
+      if (!m) return { ok: false };
+      var tok = m[0];
+      terminos.push({ signo: signo, tok: tok });
+      i += tok.length;
+      signo = 1;
+      esperandoOperando = false;
+    }
+    if (esperandoOperando) return { ok: false };
+    return { ok: true, terminos: terminos };
+  }
+
+  // Evalua una ref con deteccion de ciclos. visitando = set de refs en la pila.
+  // Devuelve {tipo:"num"|"txt"|"circ"|"err", valor:...}
+  function evaluar(ref, visitando) {
+    if (!Object.prototype.hasOwnProperty.call(fuente, ref)) {
+      return { tipo: "err" };
+    }
+    if (visitando[ref]) return { tipo: "circ" };
+
+    var txt = fuente[ref];
+    if (!esFormula(txt)) {
+      var t = String(txt).trim();
+      if (t === "") return { tipo: "num", valor: 0, vacio: true };
+      if (/^[+-]?[0-9]+(\.[0-9]+)?$/.test(t)) return { tipo: "num", valor: parseFloat(t) };
+      return { tipo: "txt", valor: t };
+    }
+
+    visitando[ref] = true;
+    var res;
+    try {
+      var p = parsear(txt.trim().slice(1));
+      if (!p.ok) {
+        res = { tipo: "err" };
+      } else {
+        var total = 0;
+        var fallo = null;
+        for (var k = 0; k < p.terminos.length; k++) {
+          var term = p.terminos[k];
+          var tok = term.tok;
+          var v;
+          if (/^[A-Za-z]+[0-9]+$/.test(tok)) {
+            var destino = tok.toUpperCase();
+            var sub = evaluar(destino, visitando);
+            if (sub.tipo === "circ") { fallo = { tipo: "circ" }; break; }
+            if (sub.tipo === "err") { fallo = { tipo: "err" }; break; }
+            if (sub.tipo === "txt") { fallo = { tipo: "err" }; break; }
+            v = sub.valor;
+          } else {
+            v = parseFloat(tok);
+          }
+          total += term.signo * v;
+        }
+        res = fallo ? fallo : { tipo: "num", valor: total };
+      }
+    } finally {
+      delete visitando[ref];
+    }
+    return res;
+  }
+
+  function formatear(res) {
+    if (res.tipo === "circ") return "CIRC";
+    if (res.tipo === "err") return "ERR";
+    if (res.tipo === "txt") return res.valor;
+    if (res.vacio) return "";
+    var n = res.valor;
+    if (!isFinite(n)) return "ERR";
+    // evita ruido de coma flotante
+    var r = Math.round(n * 1e10) / 1e10;
+    return String(r);
+  }
+
+  var focoActual = null;
+
+  function pintar() {
+    REFS.forEach(function (r) {
+      var inp = inputs[r];
+      var esF = esFormula(fuente[r]);
+      inp.classList.toggle("esformula", esF);
+
+      var mostrado;
+      if (focoActual === r && document.activeElement === inp) {
+        // mientras se edita, mostramos la fuente
+        mostrado = fuente[r];
+        inp.classList.remove("error");
+      } else {
+        var res = esF ? evaluar(r, {}) : evaluar(r, {});
+        mostrado = formatear(res);
+        inp.classList.toggle("error", res.tipo === "circ" || res.tipo === "err");
+      }
+      // el valor mostrado vive en el atributo value (property + attribute)
+      if (inp.value !== mostrado) inp.value = mostrado;
+      inp.setAttribute("value", mostrado);
+      inp.setAttribute("data-src", fuente[r]);
+    });
+    barra();
+  }
+
+  function barra() {
+    var b1 = document.getElementById("barra-ref");
+    var b2 = document.getElementById("barra-src");
+    if (focoActual) {
+      b1.textContent = focoActual;
+      b2.textContent = fuente[focoActual] ? fuente[focoActual] : "(vacia)";
+    } else {
+      b1.textContent = "-";
+      b2.textContent = "";
+    }
+  }
+
+  REFS.forEach(function (r) {
+    var inp = inputs[r];
+
+    inp.addEventListener("focus", function () {
+      focoActual = r;
+      inp.value = fuente[r];
+      inp.setAttribute("value", fuente[r]);
+      barra();
+    });
+
+    inp.addEventListener("input", function () {
+      fuente[r] = inp.value;
+      // recalcula todas las demas en cascada, sin tocar la que se edita
+      REFS.forEach(function (o) {
+        if (o === r) return;
+        var res = evaluar(o, {});
+        var m = formatear(res);
+        inputs[o].value = m;
+        inputs[o].setAttribute("value", m);
+        inputs[o].classList.toggle("error", res.tipo === "circ" || res.tipo === "err");
+        inputs[o].classList.toggle("esformula", esFormula(fuente[o]));
+      });
+      barra();
+    });
+
+    // change: para asignaciones programaticas (tests que hacen input.value = ... y disparan change)
+    inp.addEventListener("change", function () {
+      fuente[r] = inp.value;
+      if (document.activeElement !== inp) focoActual = null;
+      pintar();
+    });
+
+    inp.addEventListener("blur", function () {
+      fuente[r] = inp.value;
+      if (focoActual === r) focoActual = null;
+      pintar();
+    });
+
+    inp.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { inp.blur(); }
+    });
+  });
+
+  pintar();
+
+  // API auxiliar por si se dirige desde fuera
+  window.hoja = {
+    set: function (ref, txt) {
+      ref = String(ref).toUpperCase();
+      if (!Object.prototype.hasOwnProperty.call(fuente, ref)) return;
+      fuente[ref] = String(txt);
+      focoActual = null;
+      pintar();
+    },
+    get: function (ref) {
+      ref = String(ref).toUpperCase();
+      return inputs[ref] ? inputs[ref].value : undefined;
+    },
+    fuente: fuente
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscaminas 5x5</title>
+<style>
+  :root {
+    --bg: #eceff3;
+    --panel: #ffffff;
+    --line: #d3d9e0;
+    --tapada: #b9c2cd;
+    --tapada-hi: #cbd3dc;
+    --abierta: #f3f5f8;
+    --ink: #1a2230;
+    --muted: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px 60px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  h1 { font-size: 21px; margin: 0; font-weight: 650; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0; text-align: center; }
+  .marco {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 2px 6px rgba(16,24,40,.07);
+  }
+  #tablero {
+    display: grid;
+    grid-template-columns: repeat(5, 54px);
+    grid-template-rows: repeat(5, 54px);
+    gap: 5px;
+  }
+  .c {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tapada);
+    border-radius: 7px;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background .1s ease;
+  }
+  .c:hover:not(.abierta) { background: var(--tapada-hi); }
+  .c.abierta {
+    background: var(--abierta);
+    box-shadow: inset 0 0 0 1px var(--line);
+    cursor: default;
+  }
+  .c.bandera { background: #fde68a; }
+  .c.mina.abierta { background: #fecaca; box-shadow: inset 0 0 0 1px #f87171; }
+  .c[data-n="1"] { color: #2563eb; }
+  .c[data-n="2"] { color: #15803d; }
+  .c[data-n="3"] { color: #dc2626; }
+  .c[data-n="4"] { color: #6d28d9; }
+  .c[data-n="5"] { color: #b45309; }
+  #estado {
+    min-height: 24px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .01em;
+  }
+  #estado.mal { color: #dc2626; }
+  #estado.bien { color: #16a34a; }
+  #reiniciar {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 16px;
+    color: #334155;
+  }
+  #reiniciar:hover { background: #f1f5f9; }
+</style>
+</head>
+<body>
+  <h1>Buscaminas 5x5</h1>
+  <p class="sub">3 minas fijas. Click izquierdo abre, click derecho pone bandera.</p>
+
+  <div class="marco">
+    <div id="tablero">
+      <div class="c" data-i="0"></div>
+      <div class="c" data-i="1"></div>
+      <div class="c" data-i="2"></div>
+      <div class="c" data-i="3"></div>
+      <div class="c" data-i="4"></div>
+      <div class="c" data-i="5"></div>
+      <div class="c" data-i="6"></div>
+      <div class="c" data-i="7"></div>
+      <div class="c" data-i="8"></div>
+      <div class="c" data-i="9"></div>
+      <div class="c" data-i="10"></div>
+      <div class="c" data-i="11"></div>
+      <div class="c" data-i="12"></div>
+      <div class="c" data-i="13"></div>
+      <div class="c" data-i="14"></div>
+      <div class="c" data-i="15"></div>
+      <div class="c" data-i="16"></div>
+      <div class="c" data-i="17"></div>
+      <div class="c" data-i="18"></div>
+      <div class="c" data-i="19"></div>
+      <div class="c" data-i="20"></div>
+      <div class="c" data-i="21"></div>
+      <div class="c" data-i="22"></div>
+      <div class="c" data-i="23"></div>
+      <div class="c" data-i="24"></div>
+    </div>
+  </div>
+
+  <div id="estado"></div>
+  <button id="reiniciar" type="button">Reiniciar</button>
+
+<script>
+(function () {
+  "use strict";
+
+  var N = 5;
+  var TOTAL = N * N;
+  var MINAS = [6, 12, 18];
+
+  var celdas = [];
+  for (var i = 0; i < TOTAL; i++) {
+    celdas.push(document.querySelector('.c[data-i="' + i + '"]'));
+  }
+
+  function esMina(i) { return MINAS.indexOf(i) !== -1; }
+
+  function vecinos(i) {
+    var f = Math.floor(i / N), c = i % N;
+    var out = [];
+    for (var df = -1; df <= 1; df++) {
+      for (var dc = -1; dc <= 1; dc++) {
+        if (df === 0 && dc === 0) continue;
+        var nf = f + df, nc = c + dc;
+        if (nf < 0 || nf >= N || nc < 0 || nc >= N) continue;
+        out.push(nf * N + nc);
+      }
+    }
+    return out;
+  }
+
+  // numero de minas adyacentes precalculado
+  var nums = [];
+  for (var k = 0; k < TOTAL; k++) {
+    var n = 0;
+    vecinos(k).forEach(function (v) { if (esMina(v)) n++; });
+    nums.push(n);
+  }
+
+  var abiertas = [];
+  var banderas = [];
+  var terminado = false;
+  var elEstado = document.getElementById("estado");
+
+  function reset() {
+    abiertas = [];
+    banderas = [];
+    terminado = false;
+    for (var i = 0; i < TOTAL; i++) {
+      abiertas.push(false);
+      banderas.push(false);
+      var el = celdas[i];
+      el.className = "c";
+      el.textContent = "";
+      el.removeAttribute("data-n");
+    }
+    elEstado.className = "";
+    elEstado.textContent = "";
+  }
+
+  function pintarCelda(i) {
+    var el = celdas[i];
+    el.classList.toggle("bandera", banderas[i] && !abiertas[i]);
+    if (!abiertas[i]) {
+      el.classList.remove("abierta");
+      el.textContent = banderas[i] ? "⚑" : "";
+      el.removeAttribute("data-n");
+      return;
+    }
+    el.classList.add("abierta");
+    el.classList.remove("bandera");
+    if (esMina(i)) {
+      el.classList.add("mina");
+      el.textContent = "✹";
+      el.removeAttribute("data-n");
+    } else if (nums[i] > 0) {
+      el.textContent = String(nums[i]);
+      el.setAttribute("data-n", String(nums[i]));
+    } else {
+      el.textContent = "";       // 0 adyacentes -> nada
+      el.removeAttribute("data-n");
+    }
+  }
+
+  // Flood fill: al abrir una celda con 0 adyacentes se abren sus vecinas,
+  // y se sigue expandiendo por las que tambien tengan 0; los bordes numerados
+  // de la region se abren pero no propagan.
+  function abrirCascada(inicio) {
+    var pila = [inicio];
+    while (pila.length) {
+      var i = pila.pop();
+      if (i === undefined) continue;
+      if (abiertas[i]) continue;
+      if (banderas[i]) continue;       // una celda con bandera no se abre
+      if (esMina(i)) continue;
+      abiertas[i] = true;
+      pintarCelda(i);
+      if (nums[i] === 0) {
+        vecinos(i).forEach(function (v) {
+          if (!abiertas[v] && !banderas[v] && !esMina(v)) pila.push(v);
+        });
+      }
+    }
+  }
+
+  function ganado() {
+    for (var i = 0; i < TOTAL; i++) {
+      if (!esMina(i) && !abiertas[i]) return false;
+    }
+    return true;
+  }
+
+  function abrir(i) {
+    if (terminado) return;
+    if (abiertas[i]) return;
+    if (banderas[i]) return;             // con bandera no se abre
+
+    if (esMina(i)) {
+      abiertas[i] = true;
+      pintarCelda(i);
+      terminado = true;
+      MINAS.forEach(function (m) {
+        abiertas[m] = true;
+        pintarCelda(m);
+      });
+      elEstado.className = "mal";
+      elEstado.textContent = "perdiste";
+      return;
+    }
+
+    abrirCascada(i);
+
+    if (ganado()) {
+      terminado = true;
+      elEstado.className = "bien";
+      elEstado.textContent = "ganaste";
+    }
+  }
+
+  function alternarBandera(i) {
+    if (terminado) return;
+    if (abiertas[i]) return;
+    banderas[i] = !banderas[i];
+    pintarCelda(i);
+  }
+
+  var tablero = document.getElementById("tablero");
+
+  tablero.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var el = t.closest(".c");
+    if (!el) return;
+    abrir(parseInt(el.getAttribute("data-i"), 10));
+  });
+
+  tablero.addEventListener("contextmenu", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var el = t.closest(".c");
+    if (!el) return;
+    e.preventDefault();
+    alternarBandera(parseInt(el.getAttribute("data-i"), 10));
+  });
+
+  document.getElementById("reiniciar").addEventListener("click", function (e) {
+    e.stopPropagation();
+    reset();
+  });
+
+  reset();
+
+  window.buscaminas = {
+    minas: MINAS.slice(),
+    nums: nums.slice(),
+    abrir: abrir,
+    bandera: alternarBandera,
+    reset: reset
+  };
+})();
+</script>
+</body>
+</html>

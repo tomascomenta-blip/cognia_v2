@@ -1,0 +1,159 @@
+{
+  "etiqueta": "gptoss",
+  "banco": "scripts/b1_tareas_duras.json",
+  "rondas": 4,
+  "filas": [
+    {
+      "tarea": "undo_redo",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 26.135623455047607,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 17,
+          "checks": 19
+        }
+      ]
+    },
+    {
+      "tarea": "descuento_tramos",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 15.912998914718628,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 11,
+          "checks": 12
+        }
+      ]
+    },
+    {
+      "tarea": "form_cruzado",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 14.177000045776367,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 14,
+          "checks": 15
+        }
+      ]
+    },
+    {
+      "tarea": "tabla_compuesta",
+      "aprobado": true,
+      "aprobado_en_ronda": 4,
+      "rondas_usadas": 4,
+      "segundos": 223.18563199043274,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": false,
+          "checks_ok": 12,
+          "checks": 14
+        },
+        {
+          "ronda": 1,
+          "aprobado": false,
+          "checks_ok": 12,
+          "checks": 14
+        },
+        {
+          "ronda": 2,
+          "aprobado": false,
+          "checks_ok": 12,
+          "checks": 14
+        },
+        {
+          "ronda": 3,
+          "aprobado": false,
+          "checks_ok": 12,
+          "checks": 14
+        },
+        {
+          "ronda": 4,
+          "aprobado": true,
+          "checks_ok": 13,
+          "checks": 14
+        }
+      ]
+    },
+    {
+      "tarea": "precedencia",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 32.50765299797058,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 19,
+          "checks": 19
+        }
+      ]
+    },
+    {
+      "tarea": "tres_en_raya",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 18.566158533096313,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 13,
+          "checks": 14
+        }
+      ]
+    },
+    {
+      "tarea": "temporizador",
+      "aprobado": true,
+      "aprobado_en_ronda": 0,
+      "rondas_usadas": 0,
+      "segundos": 18.67600107192993,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": true,
+          "checks_ok": 15,
+          "checks": 16
+        }
+      ]
+    },
+    {
+      "tarea": "serpiente",
+      "aprobado": true,
+      "aprobado_en_ronda": 1,
+      "rondas_usadas": 1,
+      "segundos": 38.402236223220825,
+      "historia": [
+        {
+          "ronda": 0,
+          "aprobado": false,
+          "checks_ok": 12,
+          "checks": 14
+        },
+        {
+          "ronda": 1,
+          "aprobado": true,
+          "checks_ok": 13,
+          "checks": 14
+        }
+      ]
+    }
+  ],
+  "pass_r0": 0.75,
+  "pass_final": 1.0
+}

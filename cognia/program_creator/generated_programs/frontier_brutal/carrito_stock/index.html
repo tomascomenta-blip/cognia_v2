@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carrito con stock</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --line: #e2e6eb;
+    --ink: #161d2b;
+    --muted: #6b7280;
+    --accent: #16a34a;
+    --accent-dark: #15803d;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px 16px 56px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 650; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 10px; }
+  .cols { display: grid; grid-template-columns: 1.35fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 720px) { .cols { grid-template-columns: 1fr; } }
+
+  .prods { display: flex; flex-direction: column; gap: 10px; }
+  .prod {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  }
+  .prod .nombre { font-weight: 600; font-size: 15px; }
+  .prod .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .prod .crece { flex: 1; }
+  .precio { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; }
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: background .12s ease, opacity .12s ease;
+  }
+  button.add {
+    background: var(--accent);
+    color: #fff;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  button.add:hover:not(:disabled) { background: var(--accent-dark); }
+  button.add:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
+
+  .carrito {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  }
+  #lineas { display: flex; flex-direction: column; gap: 8px; min-height: 24px; }
+  .linea {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--line);
+    font-size: 14px;
+  }
+  .linea .titulo { flex: 1; }
+  .cant {
+    display: inline-block;
+    min-width: 26px;
+    text-align: center;
+    background: #eef2f7;
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .sub-linea { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 58px; text-align: right; }
+  button.quitar {
+    background: #fff;
+    border: 1px solid var(--line);
+    color: var(--danger);
+    padding: 4px 10px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  button.quitar:hover { background: #fef2f2; }
+  .vacio { color: var(--muted); font-size: 13px; padding: 6px 0; }
+  .totalrow {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 15px;
+  }
+  #total { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tienda</h1>
+  <p class="sub">Stock limitado: el boton se deshabilita al llegar al tope.</p>
+
+  <div class="cols">
+    <section>
+      <h2>Productos</h2>
+      <div class="prods">
+        <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+          <div class="crece">
+            <div class="nombre">Teclado mecanico</div>
+            <div class="meta">stock: <span class="restante" data-id="p1">2</span> / 2</div>
+          </div>
+          <div class="precio">100</div>
+          <button class="add" data-id="p1">Anadir</button>
+        </div>
+        <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+          <div class="crece">
+            <div class="nombre">Mouse inalambrico</div>
+            <div class="meta">stock: <span class="restante" data-id="p2">3</span> / 3</div>
+          </div>
+          <div class="precio">50</div>
+          <button class="add" data-id="p2">Anadir</button>
+        </div>
+        <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+          <div class="crece">
+            <div class="nombre">Alfombrilla</div>
+            <div class="meta">stock: <span class="restante" data-id="p3">1</span> / 1</div>
+          </div>
+          <div class="precio">25</div>
+          <button class="add" data-id="p3">Anadir</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Carrito</h2>
+      <div class="carrito">
+        <div id="lineas"></div>
+        <div class="vacio" id="vacio">El carrito esta vacio.</div>
+        <div class="totalrow">
+          <span>Total</span>
+          <span id="total">0</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var NOMBRES = { p1: "Teclado mecanico", p2: "Mouse inalambrico", p3: "Alfombrilla" };
+
+  var prods = {};
+  Array.prototype.forEach.call(document.querySelectorAll(".prod"), function (el) {
+    var id = el.getAttribute("data-id");
+    prods[id] = {
+      id: id,
+      el: el,
+      precio: parseFloat(el.getAttribute("data-precio")),
+      stock: parseInt(el.getAttribute("data-stock"), 10),
+      boton: document.querySelector('button.add[data-id="' + id + '"]')
+    };
+  });
+
+  // carrito: { id: cantidad }
+  var carrito = {};
+
+  var cont = document.getElementById("lineas");
+  var elVacio = document.getElementById("vacio");
+  var elTotal = document.getElementById("total");
+
+  function crearLinea(id) {
+    var l = document.createElement("div");
+    l.className = "linea";
+    l.setAttribute("data-id", id);
+
+    var titulo = document.createElement("span");
+    titulo.className = "titulo";
+    titulo.textContent = NOMBRES[id] || id;
+
+    var cant = document.createElement("span");
+    cant.className = "cant";
+    cant.textContent = "0";
+
+    var sub = document.createElement("span");
+    sub.className = "sub-linea";
+    sub.textContent = "0";
+
+    var quitar = document.createElement("button");
+    quitar.className = "quitar";
+    quitar.setAttribute("data-id", id);
+    quitar.type = "button";
+    quitar.textContent = "Quitar";
+
+    l.appendChild(titulo);
+    l.appendChild(cant);
+    l.appendChild(sub);
+    l.appendChild(quitar);
+    return l;
+  }
+
+  function lineaDe(id) {
+    return cont.querySelector('.linea[data-id="' + id + '"]');
+  }
+
+  function render() {
+    var total = 0;
+    var hay = false;
+
+    Object.keys(prods).forEach(function (id) {
+      var p = prods[id];
+      var q = carrito[id] || 0;
+      var linea = lineaDe(id);
+
+      if (q > 0) {
+        hay = true;
+        if (!linea) {
+          linea = crearLinea(id);
+          cont.appendChild(linea);
+        }
+        linea.querySelector(".cant").textContent = String(q);
+        linea.querySelector(".sub-linea").textContent = String(q * p.precio);
+        total += q * p.precio;
+      } else if (linea) {
+        // cantidad 0 -> la linea desaparece
+        linea.parentNode.removeChild(linea);
+      }
+
+      // stock: al llegar al tope el add de ESE producto queda disabled
+      p.boton.disabled = (q >= p.stock);
+      var rest = document.querySelector('.restante[data-id="' + id + '"]');
+      if (rest) rest.textContent = String(p.stock - q);
+    });
+
+    elVacio.style.display = hay ? "none" : "block";
+    elTotal.textContent = String(total);
+  }
+
+  function anadir(id) {
+    var p = prods[id];
+    if (!p) return;
+    var q = carrito[id] || 0;
+    if (q >= p.stock) return;      // nunca superar el stock
+    carrito[id] = q + 1;           // mismo producto -> incrementa, no crea linea nueva
+    render();
+  }
+
+  function quitar(id) {
+    var p = prods[id];
+    if (!p) return;
+    var q = carrito[id] || 0;
+    if (q <= 0) return;
+    q -= 1;
+    if (q === 0) delete carrito[id]; else carrito[id] = q;
+    render();                      // re-habilita el add y borra la linea si llego a 0
+  }
+
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || t.nodeType !== 1) return;
+    var btnAdd = t.closest ? t.closest("button.add") : null;
+    if (btnAdd) {
+      if (btnAdd.disabled) return;
+      anadir(btnAdd.getAttribute("data-id"));
+      return;
+    }
+    var btnQ = t.closest ? t.closest("button.quitar") : null;
+    if (btnQ) {
+      quitar(btnQ.getAttribute("data-id"));
+    }
+  });
+
+  render();
+
+  window.carritoApi = {
+    estado: function () { return JSON.parse(JSON.stringify(carrito)); },
+    anadir: anadir,
+    quitar: quitar
+  };
+})();
+</script>
+</body>
+</html>

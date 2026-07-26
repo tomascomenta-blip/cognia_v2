@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tablero kanban</title>
+<style>
+  :root {
+    --bg: #eef1f5;
+    --panel: #ffffff;
+    --line: #dfe3e9;
+    --ink: #18202f;
+    --muted: #6b7280;
+    --todo: #64748b;
+    --doing: #d97706;
+    --done: #16a34a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px 16px 60px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .wrap { max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 650; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+  .tablero {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 760px) { .tablero { grid-template-columns: 1fr; } }
+  .col {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px;
+    min-height: 160px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.05);
+  }
+  .col-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 4px 12px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+  }
+  .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--todo); }
+  .col[data-col="doing"] .punto { background: var(--doing); }
+  .col[data-col="done"] .punto { background: var(--done); }
+  .col-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 700;
+    color: var(--muted);
+    flex: 1;
+  }
+  .contador {
+    font-size: 12px;
+    font-weight: 700;
+    background: #eef2f7;
+    color: #475569;
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-variant-numeric: tabular-nums;
+  }
+  .wip { font-size: 11px; color: var(--doing); margin-left: 6px; }
+  .cards { display: flex; flex-direction: column; gap: 10px; min-height: 40px; }
+  .card {
+    background: #fbfcfe;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 10px 11px;
+    box-shadow: 0 1px 1px rgba(16,24,40,.04);
+  }
+  .card .txt { font-size: 14px; font-weight: 550; margin-bottom: 9px; }
+  .card .id { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .acciones { display: flex; gap: 6px; }
+  .card button {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: #334155;
+    border-radius: 7px;
+    padding: 6px 12px;
+    transition: background .12s ease;
+  }
+  .card button:hover:not(:disabled) { background: #eef2f7; }
+  .card button:disabled { opacity: .35; cursor: not-allowed; }
+  .col[data-col="doing"].llena { background: #fffbf3; border-color: #fcd9a4; }
+  .aviso { font-size: 12px; color: var(--doing); margin-top: 10px; min-height: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Kanban</h1>
+  <p class="sub">La columna <strong>doing</strong> admite como maximo 2 tarjetas (limite WIP).</p>
+
+  <div class="tablero">
+    <div class="col" data-col="todo">
+      <div class="col-head">
+        <span class="punto"></span>
+        <span class="col-title">Todo</span>
+        <span class="contador"><span id="cont-todo">0</span></span>
+      </div>
+      <div class="cards"></div>
+    </div>
+
+    <div class="col" data-col="doing">
+      <div class="col-head">
+        <span class="punto"></span>
+        <span class="col-title">Doing <span class="wip">WIP 2</span></span>
+        <span class="contador"><span id="cont-doing">0</span></span>
+      </div>
+      <div class="cards"></div>
+    </div>
+
+    <div class="col" data-col="done">
+      <div class="col-head">
+        <span class="punto"></span>
+        <span class="col-title">Done</span>
+        <span class="contador"><span id="cont-done">0</span></span>
+      </div>
+      <div class="cards"></div>
+    </div>
+  </div>
+
+  <div class="aviso" id="aviso"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var COLS = ["todo", "doing", "done"];
+  var WIP_DOING = 2;
+
+  var TEXTOS = {
+    t1: "Disenar el esquema",
+    t2: "Escribir los tests",
+    t3: "Revisar el PR"
+  };
+
+  // estado: id -> columna
+  var estado = { t1: "todo", t2: "todo", t3: "todo" };
+  var ORDEN = ["t1", "t2", "t3"];
+
+  var contenedores = {};
+  COLS.forEach(function (c) {
+    contenedores[c] = document.querySelector('.col[data-col="' + c + '"] .cards');
+  });
+
+  var aviso = document.getElementById("aviso");
+
+  function cuenta(col) {
+    var n = 0;
+    ORDEN.forEach(function (id) { if (estado[id] === col) n++; });
+    return n;
+  }
+
+  function crearCard(id) {
+    var card = document.createElement("div");
+    card.className = "card";
+    card.setAttribute("data-id", id);
+
+    var txt = document.createElement("div");
+    txt.className = "txt";
+    txt.textContent = TEXTOS[id] || id;
+    var sid = document.createElement("span");
+    sid.className = "id";
+    sid.textContent = " (" + id + ")";
+    txt.appendChild(sid);
+
+    var acc = document.createElement("div");
+    acc.className = "acciones";
+
+    var menos = document.createElement("button");
+    menos.className = "menos";
+    menos.type = "button";
+    menos.textContent = "←";
+    menos.setAttribute("aria-label", "mover a la izquierda");
+
+    var mas = document.createElement("button");
+    mas.className = "mas";
+    mas.type = "button";
+    mas.textContent = "→";
+    mas.setAttribute("aria-label", "mover a la derecha");
+
+    acc.appendChild(menos);
+    acc.appendChild(mas);
+    card.appendChild(txt);
+    card.appendChild(acc);
+    return card;
+  }
+
+  function render() {
+    COLS.forEach(function (c) {
+      // vaciar
+      while (contenedores[c].firstChild) {
+        contenedores[c].removeChild(contenedores[c].firstChild);
+      }
+    });
+
+    ORDEN.forEach(function (id) {
+      var col = estado[id];
+      var card = crearCard(id);
+      contenedores[col].appendChild(card);
+    });
+
+    var nTodo = cuenta("todo");
+    var nDoing = cuenta("doing");
+    var nDone = cuenta("done");
+
+    document.getElementById("cont-todo").textContent = String(nTodo);
+    document.getElementById("cont-doing").textContent = String(nDoing);
+    document.getElementById("cont-done").textContent = String(nDone);
+
+    document.querySelector('.col[data-col="doing"]').classList.toggle("llena", nDoing >= WIP_DOING);
+
+    // estado visual de los botones (la logica real se valida igual en el click)
+    ORDEN.forEach(function (id) {
+      var card = document.querySelector('.card[data-id="' + id + '"]');
+      if (!card) return;
+      var col = estado[id];
+      var mas = card.querySelector("button.mas");
+      var menos = card.querySelector("button.menos");
+      if (menos) menos.disabled = (col === "todo");
+      if (mas) mas.disabled = (col === "done") || (col === "todo" && nDoing >= WIP_DOING);
+    });
+  }
+
+  function mover(id, delta) {
+    if (!Object.prototype.hasOwnProperty.call(estado, id)) return;
+    var col = estado[id];
+    var i = COLS.indexOf(col);
+    var j = i + delta;
+    if (j < 0 || j >= COLS.length) {           // done no avanza, todo no retrocede
+      aviso.textContent = "";
+      return;
+    }
+    var destino = COLS[j];
+    if (destino === "doing" && cuenta("doing") >= WIP_DOING) {
+      aviso.textContent = "Limite WIP: doing ya tiene " + WIP_DOING + " tarjetas.";
+      return;                                   // el boton mas no hace nada
+    }
+    estado[id] = destino;
+    aviso.textContent = "";
+    render();
+  }
+
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || t.nodeType !== 1 || !t.closest) return;
+    var btn = t.closest("button.mas, button.menos");
+    if (!btn) return;
+    var card = btn.closest(".card");
+    if (!card) return;
+    var id = card.getAttribute("data-id");
+    if (btn.classList.contains("mas")) mover(id, 1);
+    else mover(id, -1);
+  });
+
+  render();
+
+  window.kanban = {
+    estado: function () { return JSON.parse(JSON.stringify(estado)); },
+    mover: mover
+  };
+})();
+</script>
+</body>
+</html>

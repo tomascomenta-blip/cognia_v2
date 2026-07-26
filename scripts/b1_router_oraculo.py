@@ -174,7 +174,13 @@ def main(argv: list) -> int:
             for t in tareas for rep in range(1, n + 1))
 
         url_modelo = EXTERNOS.get(modo, "http://127.0.0.1:8080")
-        nombre_ollama = "laguna-xs-2.1" if modo == "laguna" else None
+        # laguna-16k y NO laguna-xs-2.1: el modelo es DE RAZONAMIENTO y con el
+        # num_ctx por defecto de Ollama (4096) agota el contexto pensando y
+        # devuelve finish_reason='length' con 0 caracteres de contenido (medido
+        # 2026-07-25: 3881 tokens generados, respuesta vacia). laguna-16k es el
+        # mismo modelo con PARAMETER num_ctx 16384. Todos los numeros de Laguna
+        # anteriores a este cambio se midieron con el cerebro cortado.
+        nombre_ollama = "laguna-16k" if modo == "laguna" else None
 
         if modo in EXTERNOS:
             # Backend externo (Ollama): no hay combo que servir. Pero SI hay que
