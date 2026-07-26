@@ -1,0 +1,88 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null
+  },
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": false,
+      "motivo": "falla critica: tras 1 click hay EXACTAMENTE 1 destapada (visibles('.tile')=0, esperaba 1); tras 2 clicks hay EXACTAMENTE",
+      "segundos": 124.21077728271484,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 8,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: empieza en 0 ('1' no contiene '0'); tras + vale 1 ('2' no contiene '1'); tras dos + vale 2 ('4' no contie",
+      "segundos": 142.8271086215973,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 14,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "11/12 checks OK (8/8 del contrato)",
+      "segundos": 136.26942372322083,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 12,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "calculadora": {
+      "aprobado": false,
+      "motivo": "falla critica: la pantalla muestra 5 ('37' no contiene '5')",
+      "segundos": 362.6289539337158,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 9,
+      "checks": 10,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "semaforo": {
+      "aprobado": true,
+      "motivo": "11/11 checks OK (7/7 del contrato)",
+      "segundos": 189.78963160514832,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "filtro_lista": {
+      "aprobado": true,
+      "motivo": "10/11 checks OK (7/7 del contrato)",
+      "segundos": 233.97456622123718,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 11,
+      "rondas": 2,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    }
+  },
+  "techo": 6,
+  "real": 3,
+  "desperdicio": [
+    "memoria_4x4",
+    "contador",
+    "calculadora"
+  ],
+  "n_tareas": 6
+}

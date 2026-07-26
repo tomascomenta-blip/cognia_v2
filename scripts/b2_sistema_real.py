@@ -37,7 +37,8 @@ SALIDA = BASE / "b2_sistema_real"
 
 
 def correr_sistema(idea: str, destino: Path, *, candidatos: int = 1,
-                   rondas_progreso: int | None = None
+                   rondas_progreso: int | None = None,
+                   max_rondas: int | None = None
                    ) -> tuple[str | None, float, str, dict]:
     """
     El camino de produccion para web. Devuelve (html, segundos, como).
@@ -77,7 +78,8 @@ def correr_sistema(idea: str, destino: Path, *, candidatos: int = 1,
         res = diseno_a_codigo.construir_para_mockup(
             idea, llm=llm, usar_mockup_imagen=False, verbose=False,
             candidatos_iniciales=candidatos,
-            max_rondas_progreso=rondas_progreso)
+            max_rondas_progreso=rondas_progreso,
+            **({"max_rondas": max_rondas} if max_rondas else {}))
         # html_entregable() es lo que el sistema ENTREGA (sprites embebidos);
         # .html es el fuente limpio que ve el LLM al reparar. Se prefiere el
         # entregable: es el producto, no el intermedio.
@@ -153,9 +155,11 @@ def main(argv: list) -> int:
 
     candidatos = _flag_entero("--candidatos") or 1
     rondas_progreso = _flag_entero("--rondas-progreso")
-    if candidatos > 1 or rondas_progreso:
+    max_rondas = _flag_entero("--max-rondas")
+    if candidatos > 1 or rondas_progreso or max_rondas:
         print(f"  config: candidatos={candidatos}, "
-              f"rondas_progreso={rondas_progreso}\n", flush=True)
+              f"rondas_progreso={rondas_progreso}, "
+              f"max_rondas={max_rondas}\n", flush=True)
 
     fuente = ORACULO_REJUZGADO if ORACULO_REJUZGADO.is_file() else ORACULO
     if not fuente.is_file():
@@ -175,7 +179,7 @@ def main(argv: list) -> int:
         print(f"  {t['id']} ...", flush=True)
         html, segs, como, meta = correr_sistema(
             t["idea"], d, candidatos=candidatos,
-            rondas_progreso=rondas_progreso)
+            rondas_progreso=rondas_progreso, max_rondas=max_rondas)
         if not html:
             reales[t["id"]] = {"aprobado": False, "motivo": "sin HTML",
                                "segundos": segs, "como": como, **meta}
@@ -225,7 +229,8 @@ def main(argv: list) -> int:
     salida = SALIDA / "resultados.json"
     salida.write_text(json.dumps(
         {"config": {"candidatos": candidatos,
-                    "rondas_progreso": rondas_progreso},
+                    "rondas_progreso": rondas_progreso,
+                    "max_rondas": max_rondas},
          "sistema_real": reales, "techo": techo, "real": real_n,
          "desperdicio": desperdicio, "n_tareas": n},
         indent=2, ensure_ascii=False), encoding="utf-8")

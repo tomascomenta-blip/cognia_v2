@@ -132,6 +132,35 @@ Además su condición de disparo (checks_ok creciendo) casi no ocurre con
 reparación plana: el experimento B se re-plantea SOBRE la escalada si C pasa
 (la extensión de rondas solo tiene sentido cuando las reparaciones progresan).
 
+## TERCERA ENMIENDA (2026-07-26 ~17:00, tras cerrar el brazo C, ANTES de correr el D)
+
+- **escalada: 3, 3, 4 (media 3.33) → KILL** (empata al baseline post-fix; la
+  reparación profunda tampoco levanta el número).
+- La sonda de contratos (probe_contrato_effort.py) REFUTÓ la hipótesis del
+  contrato débil: con effort=low salen 3/3 válidos e igual de ricos (8 pasos,
+  cubren las reglas); con default salen 2/3 MALFORMADOS. O sea: pre-fix, sin
+  validación, los contratos malformados reventaban el juez cada ronda, el
+  lazo cortaba por opinión en ronda 1 y entregaba la PRIMERA GENERACIÓN
+  intacta — cuyo pass@1 (~75%) coincide con la media pre-fix (4.5/6 = 75%).
+  Post-fix el juez interno corre de verdad, bloquea esos cortes, y el lazo
+  repara... y las series dicen que reparar RESTA (~3.3/6 = 55%).
+
+**Brazo D pre-registrado — PRIMERA GENERACIÓN (max_rondas=1):** el lazo
+genera, el juez juzga una vez, no se repara nada (config: candidatos=1,
+`--max-rondas 1`), n=3. Falsa o confirma: "el lazo de reparación actual
+resta valor frente a entregar la primera generación".
+
+| lectura brazo D | condición |
+|---|---|
+| **el lazo RESTA** | media D > 3.33 (el baseline con reparación) |
+| **el lazo aporta** | media D < 3.33 |
+| **empate** | media D ≈ 3.33 (±0.33) — la reparación es ruido neto |
+
+Si D > baseline: la conclusión de la noche es que el cuello real es la
+CALIDAD DEL CONTRATO INTERNO como señal de reparación (aprueba lo que el
+externo reprueba y sus contraejemplos desvían), y el siguiente trabajo es
+mejorar el contrato (más aserciones, CodeRM-style), no la mecánica de rondas.
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es
