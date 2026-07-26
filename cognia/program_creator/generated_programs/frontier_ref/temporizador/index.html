@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cronometro</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --line: #2a2f3a;
+    --fg: #e8eaf0; --muted: #98a0b3; --accent: #5b8cff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f6f9; --panel: #fff; --line: #e0e3ea; --fg: #1a1d24; --muted: #656d7e; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .wrap { width: 100%; max-width: 380px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; text-align: center; }
+  .display { padding: 18px 0 8px; }
+  #t { font-size: 64px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .unidad { color: var(--muted); font-size: 14px; margin-left: 6px; }
+  .botones { display: flex; gap: 8px; margin-top: 20px; }
+  button {
+    flex: 1; padding: 12px 8px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--fg); font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  #start { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .estado { margin-top: 14px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cronometro</h1>
+  <p class="sub">Pausa mantiene el valor; start reanuda desde ahi.</p>
+
+  <div class="card">
+    <div class="display">
+      <span id="t">0</span><span class="unidad">s</span>
+    </div>
+    <div class="botones">
+      <button id="start" type="button">Start</button>
+      <button id="pause" type="button">Pause</button>
+      <button id="reset" type="button">Reset</button>
+    </div>
+    <p class="estado" id="estado">Detenido</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var segundos = 0;
+  var intervalo = null;   // null = parado; garantiza un unico intervalo
+
+  var elT = document.getElementById("t");
+  var elEstado = document.getElementById("estado");
+
+  function pintar() {
+    elT.textContent = String(segundos);
+    elEstado.textContent = intervalo === null ? "Detenido" : "Corriendo";
+  }
+
+  function start() {
+    if (intervalo !== null) { return; }   // ya corriendo: no crear otro intervalo
+    intervalo = setInterval(function () {
+      segundos += 1;
+      pintar();
+    }, 1000);
+    pintar();
+  }
+
+  function pause() {
+    if (intervalo !== null) {
+      clearInterval(intervalo);
+      intervalo = null;
+    }
+    pintar();   // el valor se mantiene
+  }
+
+  function reset() {
+    pause();
+    segundos = 0;
+    pintar();
+  }
+
+  document.getElementById("start").addEventListener("click", start);
+  document.getElementById("pause").addEventListener("click", pause);
+  document.getElementById("reset").addEventListener("click", reset);
+
+  pintar();
+})();
+</script>
+</body>
+</html>

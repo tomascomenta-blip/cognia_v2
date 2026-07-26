@@ -164,15 +164,17 @@
         "nombre": "serpiente: crecimiento y no-inversion",
         "pasos": [
           {"accion": "contar", "selector": ".cel", "esperado": 100, "nombre": "grilla de 10x10", "critico": true},
-          {"accion": "js", "expr": "typeof window.juego === 'object' && window.juego !== null", "esperado": true, "nombre": "expone window.juego", "critico": true},
           {"accion": "contar", "selector": ".snake", "min": 1, "nombre": "la serpiente esta en la grilla", "critico": true},
           {"accion": "contar", "selector": ".food", "esperado": 1, "nombre": "hay exactamente una comida", "critico": true},
+
+          {"_por_que": "Se comprueba el COMPORTAMIENTO observable en el DOM (donde esta la cabeza), no como el autor llamo a su variable interna. Medido 2026-07-25: el contrato exigia window.juego.dir === 'right'|'ArrowRight'|'derecha' y una solucion CORRECTA que usaba dir='der' salio FALLIDA. Un contrato que prueba la representacion en vez del comportamiento genera falsos negativos y culpa al modelo de una decision de nomenclatura.",
+           "accion": "js", "expr": "(function(){window.__x0=Math.max.apply(null,[].map.call(document.querySelectorAll('.snake'),function(e){return +e.dataset.x}));return true})()", "esperado": true, "nombre": "anoto la x de la cabeza"},
           {"accion": "tecla", "key": "ArrowRight"},
-          {"accion": "esperar", "ms": 600},
-          {"accion": "js", "expr": "window.juego.dir === 'right' || window.juego.dir === 'ArrowRight' || window.juego.dir === 'derecha'", "esperado": true, "nombre": "la direccion cambio a derecha", "critico": true},
+          {"accion": "esperar", "ms": 900},
+          {"accion": "js", "expr": "(function(){var x=Math.max.apply(null,[].map.call(document.querySelectorAll('.snake'),function(e){return +e.dataset.x}));window.__x1=x;return x!==window.__x0})()", "esperado": true, "nombre": "tras ArrowRight la serpiente SE MUEVE en x", "critico": true},
           {"accion": "tecla", "key": "ArrowLeft"},
-          {"accion": "esperar", "ms": 600},
-          {"accion": "js", "expr": "!(window.juego.dir === 'left' || window.juego.dir === 'ArrowLeft' || window.juego.dir === 'izquierda')", "esperado": true, "nombre": "NO invierte 180 grados en un paso", "critico": true}
+          {"accion": "esperar", "ms": 900},
+          {"accion": "js", "expr": "(function(){var x=Math.max.apply(null,[].map.call(document.querySelectorAll('.snake'),function(e){return +e.dataset.x}));return x>=window.__x1||Math.abs(x-window.__x1)>5})()", "esperado": true, "nombre": "NO se invierte 180 grados: sigue avanzando, no retrocede", "critico": true}
         ]
       }
     }

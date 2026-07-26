@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tabla: filtro + orden + paginacion</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --line: #2a2f3a;
+    --fg: #e8eaf0; --muted: #98a0b3; --accent: #5b8cff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f6f9; --panel: #fff; --line: #e0e3ea; --fg: #1a1d24; --muted: #656d7e; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .barra { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  #q {
+    flex: 1; min-width: 180px; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit;
+  }
+  #q:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--fg); font: inherit; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .tabla-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  td.edad, th.edad { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.fila:hover td { background: rgba(91, 140, 255, 0.08); }
+  .pie { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .pag { display: flex; align-items: center; gap: 8px; }
+  #pagina { min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .meta { color: var(--muted); font-size: 12px; }
+  .vacio { color: var(--muted); font-size: 13px; padding: 14px 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Personas</h1>
+  <p class="sub">Filtro, orden y paginacion combinados sobre 23 registros.</p>
+
+  <div class="card">
+    <div class="barra">
+      <input id="q" type="text" placeholder="Filtrar por nombre" autocomplete="off">
+      <button id="ordenar" type="button">Edad ascendente</button>
+    </div>
+
+    <div class="tabla-scroll">
+      <table>
+        <thead>
+          <tr><th>Nombre</th><th class="edad">Edad</th></tr>
+        </thead>
+        <tbody id="cuerpo"></tbody>
+      </table>
+    </div>
+    <p class="vacio" id="vacio" style="display:none">Sin resultados.</p>
+
+    <div class="pie">
+      <span class="meta" id="meta"></span>
+      <div class="pag">
+        <button id="prev" type="button">Anterior</button>
+        <span id="pagina">1</span>
+        <button id="sig" type="button">Siguiente</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var POR_PAGINA = 10;
+
+  // 23 filas de datos
+  var DATOS = [
+    { nombre: "Ana",      edad: 34 },
+    { nombre: "Bruno",    edad: 28 },
+    { nombre: "Carla",    edad: 45 },
+    { nombre: "Diego",    edad: 19 },
+    { nombre: "Elena",    edad: 52 },
+    { nombre: "Fabian",   edad: 31 },
+    { nombre: "Gloria",   edad: 27 },
+    { nombre: "Hugo",     edad: 63 },
+    { nombre: "Irene",    edad: 22 },
+    { nombre: "Javier",   edad: 40 },
+    { nombre: "Karina",   edad: 36 },
+    { nombre: "Lucas",    edad: 25 },
+    { nombre: "Marta",    edad: 58 },
+    { nombre: "Nicolas",  edad: 33 },
+    { nombre: "Olga",     edad: 47 },
+    { nombre: "Pablo",    edad: 21 },
+    { nombre: "Quimey",   edad: 38 },
+    { nombre: "Rosa",     edad: 55 },
+    { nombre: "Sergio",   edad: 29 },
+    { nombre: "Tamara",   edad: 42 },
+    { nombre: "Ulises",   edad: 24 },
+    { nombre: "Valeria",  edad: 50 },
+    { nombre: "Walter",   edad: 61 }
+  ];
+
+  var pagina = 1;
+  var asc = true;
+
+  var inQ      = document.getElementById("q");
+  var btnOrd   = document.getElementById("ordenar");
+  var btnPrev  = document.getElementById("prev");
+  var btnSig   = document.getElementById("sig");
+  var spPagina = document.getElementById("pagina");
+  var cuerpo   = document.getElementById("cuerpo");
+  var elVacio  = document.getElementById("vacio");
+  var elMeta   = document.getElementById("meta");
+
+  function normalizar(s) {
+    return String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
+
+  // filtro -> orden -> paginacion
+  function vista() {
+    var q = normalizar(inQ.value.trim());
+    var filtrado = DATOS.filter(function (d) {
+      return q === "" || normalizar(d.nombre).indexOf(q) !== -1;
+    });
+    filtrado.sort(function (a, b) {
+      if (a.edad !== b.edad) { return asc ? a.edad - b.edad : b.edad - a.edad; }
+      return a.nombre.localeCompare(b.nombre);
+    });
+    return filtrado;
+  }
+
+  function render() {
+    var filtrado = vista();
+    var total = filtrado.length;
+    var paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+
+    if (pagina > paginas) { pagina = paginas; }
+    if (pagina < 1) { pagina = 1; }
+
+    var inicio = (pagina - 1) * POR_PAGINA;
+    var trozo = filtrado.slice(inicio, inicio + POR_PAGINA);
+
+    cuerpo.textContent = "";
+    for (var i = 0; i < trozo.length; i++) {
+      var tr = document.createElement("tr");
+      tr.className = "fila";
+
+      var tdN = document.createElement("td");
+      tdN.textContent = trozo[i].nombre;
+      tr.appendChild(tdN);
+
+      var tdE = document.createElement("td");
+      tdE.className = "edad";
+      tdE.textContent = String(trozo[i].edad);
+      tr.appendChild(tdE);
+
+      cuerpo.appendChild(tr);
+    }
+
+    elVacio.style.display = total === 0 ? "block" : "none";
+    spPagina.textContent = String(pagina);
+    btnPrev.disabled = pagina <= 1;
+    btnSig.disabled = pagina >= paginas;
+    btnOrd.textContent = asc ? "Edad ascendente" : "Edad descendente";
+    elMeta.textContent = total === 0
+      ? "0 resultados"
+      : (total + " resultado" + (total === 1 ? "" : "s") + " | pagina " + pagina + " de " + paginas);
+  }
+
+  inQ.addEventListener("input", function () {
+    pagina = 1;   // al filtrar se vuelve a la pagina 1
+    render();
+  });
+
+  btnOrd.addEventListener("click", function () {
+    asc = !asc;
+    pagina = 1;
+    render();
+  });
+
+  btnPrev.addEventListener("click", function () {
+    if (pagina > 1) { pagina--; render(); }
+  });
+
+  btnSig.addEventListener("click", function () {
+    var paginas = Math.max(1, Math.ceil(vista().length / POR_PAGINA));
+    if (pagina < paginas) { pagina++; render(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

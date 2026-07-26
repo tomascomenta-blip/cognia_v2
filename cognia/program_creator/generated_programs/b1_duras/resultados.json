@@ -1,0 +1,512 @@
+{
+  "resultados": {
+    "undo_redo": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 3,
+        "n": 3,
+        "tasa": 1.0,
+        "motivo": "17/19 checks OK (14/15 del contrato)",
+        "gen_s": 15.612119356791178,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "17/19 checks OK (14/15 del contrato)",
+            "gen_s": 16.07901406288147,
+            "checks_ok": 17,
+            "checks": 19
+          },
+          {
+            "aprobado": true,
+            "motivo": "17/19 checks OK (14/15 del contrato)",
+            "gen_s": 13.565002679824829,
+            "checks_ok": 17,
+            "checks": 19
+          },
+          {
+            "aprobado": true,
+            "motivo": "17/19 checks OK (14/15 del contrato)",
+            "gen_s": 17.192341327667236,
+            "checks_ok": 17,
+            "checks": 19
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": false,
+        "exitos": 1,
+        "n": 3,
+        "tasa": 0.3333333333333333,
+        "motivo": "18/19 checks OK (15/15 del contrato)",
+        "gen_s": 54.608938773473106,
+        "pasadas": [
+          {
+            "aprobado": false,
+            "gen_s": 67.02972364425659,
+            "motivo": "el modelo no devolvio HTML"
+          },
+          {
+            "aprobado": false,
+            "gen_s": 51.57859992980957,
+            "motivo": "el modelo no devolvio HTML"
+          },
+          {
+            "aprobado": true,
+            "motivo": "18/19 checks OK (15/15 del contrato)",
+            "gen_s": 45.21849274635315,
+            "checks_ok": 18,
+            "checks": 19
+          }
+        ]
+      }
+    },
+    "descuento_tramos": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 3,
+        "n": 3,
+        "tasa": 1.0,
+        "motivo": "11/12 checks OK (8/8 del contrato)",
+        "gen_s": 9.55333399772644,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "11/12 checks OK (8/8 del contrato)",
+            "gen_s": 7.015000820159912,
+            "checks_ok": 11,
+            "checks": 12
+          },
+          {
+            "aprobado": true,
+            "motivo": "11/12 checks OK (8/8 del contrato)",
+            "gen_s": 11.08500051498413,
+            "checks_ok": 11,
+            "checks": 12
+          },
+          {
+            "aprobado": true,
+            "motivo": "11/12 checks OK (8/8 del contrato)",
+            "gen_s": 10.560000658035278,
+            "checks_ok": 11,
+            "checks": 12
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": true,
+        "exitos": 2,
+        "n": 3,
+        "tasa": 0.6666666666666666,
+        "motivo": "11/12 checks OK (8/8 del contrato)",
+        "gen_s": 38.85472583770752,
+        "pasadas": [
+          {
+            "aprobado": false,
+            "motivo": "falla critica: contenido (0 chars de texto, 0 elementos); 5 unidades = 50 (no existe '#total'); 10 unidades = 100 (borde",
+            "gen_s": 45.37523412704468,
+            "checks_ok": 2,
+            "checks": 12
+          },
+          {
+            "aprobado": true,
+            "motivo": "11/12 checks OK (8/8 del contrato)",
+            "gen_s": 34.37949252128601,
+            "checks_ok": 11,
+            "checks": 12
+          },
+          {
+            "aprobado": true,
+            "motivo": "11/12 checks OK (8/8 del contrato)",
+            "gen_s": 36.80945086479187,
+            "checks_ok": 11,
+            "checks": 12
+          }
+        ]
+      }
+    },
+    "form_cruzado": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 2,
+        "n": 3,
+        "tasa": 0.6666666666666666,
+        "motivo": "falla critica: se vuelve a deshabilitar si dejan de coincidir (js=False, esperaba True)",
+        "gen_s": 14.630874792734781,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "14/15 checks OK (11/11 del contrato)",
+            "gen_s": 16.68511652946472,
+            "checks_ok": 14,
+            "checks": 15
+          },
+          {
+            "aprobado": true,
+            "motivo": "14/15 checks OK (11/11 del contrato)",
+            "gen_s": 11.30599594116211,
+            "checks_ok": 14,
+            "checks": 15
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: se vuelve a deshabilitar si dejan de coincidir (js=False, esperaba True)",
+            "gen_s": 15.901511907577515,
+            "checks_ok": 13,
+            "checks": 15
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": true,
+        "exitos": 3,
+        "n": 3,
+        "tasa": 1.0,
+        "motivo": "14/15 checks OK (11/11 del contrato)",
+        "gen_s": 16.172213951746624,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "14/15 checks OK (11/11 del contrato)",
+            "gen_s": 20.604735136032104,
+            "checks_ok": 14,
+            "checks": 15
+          },
+          {
+            "aprobado": true,
+            "motivo": "14/15 checks OK (11/11 del contrato)",
+            "gen_s": 13.662650108337402,
+            "checks_ok": 14,
+            "checks": 15
+          },
+          {
+            "aprobado": true,
+            "motivo": "14/15 checks OK (11/11 del contrato)",
+            "gen_s": 14.249256610870361,
+            "checks_ok": 14,
+            "checks": 15
+          }
+        ]
+      }
+    },
+    "tabla_compuesta": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 2,
+        "n": 3,
+        "tasa": 0.6666666666666666,
+        "motivo": "falla critica: la pagina 3 muestra las 3 ultimas (visibles('.fila')=2, esperaba 3)",
+        "gen_s": 18.57396586736043,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 14.888406038284302,
+            "checks_ok": 13,
+            "checks": 14
+          },
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 18.22250485420227,
+            "checks_ok": 13,
+            "checks": 14
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: la pagina 3 muestra las 3 ultimas (visibles('.fila')=2, esperaba 3)",
+            "gen_s": 22.610986709594727,
+            "checks_ok": 12,
+            "checks": 14
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": false,
+        "exitos": 1,
+        "n": 3,
+        "tasa": 0.3333333333333333,
+        "motivo": "falla critica: la pagina 3 muestra las 3 ultimas (visibles('.fila')=2, esperaba 3)",
+        "gen_s": 35.95066730181376,
+        "pasadas": [
+          {
+            "aprobado": false,
+            "gen_s": 51.3139386177063,
+            "motivo": "el modelo no devolvio HTML"
+          },
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 41.70296764373779,
+            "checks_ok": 13,
+            "checks": 14
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: la pagina 3 muestra las 3 ultimas (visibles('.fila')=2, esperaba 3)",
+            "gen_s": 14.835095643997192,
+            "checks_ok": 12,
+            "checks": 14
+          }
+        ]
+      }
+    },
+    "precedencia": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 2,
+        "n": 3,
+        "tasa": 0.6666666666666666,
+        "motivo": "falla critica: 2+3*4 = 14, no 20 ('' no contiene '14'); 7-2*3 = 1 ('' no contiene '1')",
+        "gen_s": 19.494367202123005,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 17.73900294303894,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 22.360100746154785,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: 2+3*4 = 14, no 20 ('' no contiene '14'); 7-2*3 = 1 ('' no contiene '1')",
+            "gen_s": 18.383997917175293,
+            "checks_ok": 3,
+            "checks": 19
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": true,
+        "exitos": 2,
+        "n": 3,
+        "tasa": 0.6666666666666666,
+        "motivo": "el modelo no devolvio HTML",
+        "gen_s": 41.731873750686646,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 31.907259225845337,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 41.72152614593506,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": false,
+            "gen_s": 51.56683588027954,
+            "motivo": "el modelo no devolvio HTML"
+          }
+        ]
+      }
+    },
+    "tres_en_raya": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 3,
+        "n": 3,
+        "tasa": 1.0,
+        "motivo": "12/14 checks OK (9/10 del contrato)",
+        "gen_s": 14.01033322016398,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "12/14 checks OK (9/10 del contrato)",
+            "gen_s": 10.591998100280762,
+            "checks_ok": 12,
+            "checks": 14
+          },
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 9.73700213432312,
+            "checks_ok": 13,
+            "checks": 14
+          },
+          {
+            "aprobado": true,
+            "motivo": "12/14 checks OK (9/10 del contrato)",
+            "gen_s": 21.70199942588806,
+            "checks_ok": 12,
+            "checks": 14
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": true,
+        "exitos": 3,
+        "n": 3,
+        "tasa": 1.0,
+        "motivo": "13/14 checks OK (10/10 del contrato)",
+        "gen_s": 13.340075651804606,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 12.935637474060059,
+            "checks_ok": 13,
+            "checks": 14
+          },
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 14.161210060119629,
+            "checks_ok": 13,
+            "checks": 14
+          },
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 12.92337942123413,
+            "checks_ok": 13,
+            "checks": 14
+          }
+        ]
+      }
+    },
+    "temporizador": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 2,
+        "n": 3,
+        "tasa": 0.6666666666666666,
+        "motivo": "15/16 checks OK (12/12 del contrato)",
+        "gen_s": 13.011093457539877,
+        "pasadas": [
+          {
+            "aprobado": false,
+            "motivo": "falla critica: el conteo avanzo (js=False, esperaba True)",
+            "gen_s": 14.055185317993164,
+            "checks_ok": 10,
+            "checks": 16
+          },
+          {
+            "aprobado": true,
+            "motivo": "15/16 checks OK (12/12 del contrato)",
+            "gen_s": 13.915007829666138,
+            "checks_ok": 15,
+            "checks": 16
+          },
+          {
+            "aprobado": true,
+            "motivo": "15/16 checks OK (12/12 del contrato)",
+            "gen_s": 11.063087224960327,
+            "checks_ok": 15,
+            "checks": 16
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": true,
+        "exitos": 3,
+        "n": 3,
+        "tasa": 1.0,
+        "motivo": "15/16 checks OK (12/12 del contrato)",
+        "gen_s": 24.58338952064514,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "15/16 checks OK (12/12 del contrato)",
+            "gen_s": 31.77002191543579,
+            "checks_ok": 15,
+            "checks": 16
+          },
+          {
+            "aprobado": true,
+            "motivo": "15/16 checks OK (12/12 del contrato)",
+            "gen_s": 27.321624279022217,
+            "checks_ok": 15,
+            "checks": 16
+          },
+          {
+            "aprobado": true,
+            "motivo": "15/16 checks OK (12/12 del contrato)",
+            "gen_s": 14.658522367477417,
+            "checks_ok": 15,
+            "checks": 16
+          }
+        ]
+      }
+    },
+    "serpiente": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 3,
+        "n": 3,
+        "tasa": 1.0,
+        "motivo": "13/14 checks OK (10/10 del contrato)",
+        "gen_s": 15.521186192830404,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 17.19999861717224,
+            "checks_ok": 13,
+            "checks": 14
+          },
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 17.714561223983765,
+            "checks_ok": 13,
+            "checks": 14
+          },
+          {
+            "aprobado": true,
+            "motivo": "13/14 checks OK (10/10 del contrato)",
+            "gen_s": 11.648998737335205,
+            "checks_ok": 13,
+            "checks": 14
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": false,
+        "exitos": 0,
+        "n": 3,
+        "tasa": 0.0,
+        "motivo": "el modelo no devolvio HTML",
+        "gen_s": 51.22215930620829,
+        "pasadas": [
+          {
+            "aprobado": false,
+            "gen_s": 51.60832333564758,
+            "motivo": "el modelo no devolvio HTML"
+          },
+          {
+            "aprobado": false,
+            "gen_s": 50.992279291152954,
+            "motivo": "el modelo no devolvio HTML"
+          },
+          {
+            "aprobado": false,
+            "gen_s": 51.06587529182434,
+            "motivo": "el modelo no devolvio HTML"
+          }
+        ]
+      }
+    }
+  },
+  "swaps": [
+    {
+      "modo": "pensar",
+      "modelo": "gpt-oss-20b",
+      "segundos": 22.873557090759277
+    }
+  ],
+  "techo": 8,
+  "mejor_individual": 8,
+  "n_tareas": 8
+}

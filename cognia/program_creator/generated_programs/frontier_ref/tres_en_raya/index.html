@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tres en raya</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --line: #2a2f3a;
+    --fg: #e8eaf0; --muted: #98a0b3; --accent: #5b8cff; --x: #5b8cff; --o: #f0a04b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f6f9; --panel: #fff; --line: #e0e3ea; --fg: #1a1d24; --muted: #656d7e; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .wrap { width: 100%; max-width: 340px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  #tablero { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .c {
+    aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    font-size: 40px; font-weight: 700; cursor: pointer; user-select: none;
+    line-height: 1;
+  }
+  .c:hover { border-color: var(--accent); }
+  .c.x { color: var(--x); }
+  .c.o { color: var(--o); }
+  .c.win { background: rgba(39, 192, 147, 0.16); border-color: #27c093; }
+  #tablero.fin .c { cursor: default; }
+  #tablero.fin .c:hover { border-color: var(--line); }
+  #tablero.fin .c.win:hover { border-color: #27c093; }
+  #estado {
+    margin-top: 14px; padding: 11px 12px; border: 1px solid var(--line);
+    border-radius: 10px; text-align: center; font-weight: 600; background: var(--bg);
+  }
+  #reiniciar {
+    width: 100%; margin-top: 10px; padding: 10px 14px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+    font: inherit; cursor: pointer;
+  }
+  #reiniciar:hover { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tres en raya</h1>
+  <p class="sub">Empieza X. Al ganar, el tablero se bloquea.</p>
+
+  <div class="card">
+    <div id="tablero">
+      <div class="c" data-i="0"></div>
+      <div class="c" data-i="1"></div>
+      <div class="c" data-i="2"></div>
+      <div class="c" data-i="3"></div>
+      <div class="c" data-i="4"></div>
+      <div class="c" data-i="5"></div>
+      <div class="c" data-i="6"></div>
+      <div class="c" data-i="7"></div>
+      <div class="c" data-i="8"></div>
+    </div>
+    <div id="estado">Turno de X</div>
+    <button id="reiniciar" type="button">Reiniciar</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var LINEAS = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  var tablero = ["", "", "", "", "", "", "", "", ""];
+  var turno = "X";
+  var terminado = false;
+
+  var elTab = document.getElementById("tablero");
+  var elEstado = document.getElementById("estado");
+  var celdas = document.querySelectorAll(".c");
+
+  function ganadora() {
+    for (var i = 0; i < LINEAS.length; i++) {
+      var a = LINEAS[i][0], b = LINEAS[i][1], c = LINEAS[i][2];
+      if (tablero[a] && tablero[a] === tablero[b] && tablero[a] === tablero[c]) {
+        return LINEAS[i];
+      }
+    }
+    return null;
+  }
+
+  function pintar() {
+    for (var i = 0; i < celdas.length; i++) {
+      var v = tablero[i];
+      celdas[i].textContent = v;
+      celdas[i].classList.toggle("x", v === "X");
+      celdas[i].classList.toggle("o", v === "O");
+    }
+  }
+
+  function jugar(i) {
+    if (terminado) { return; }
+    if (tablero[i] !== "") { return; }
+
+    tablero[i] = turno;
+    pintar();
+
+    var linea = ganadora();
+    if (linea) {
+      terminado = true;
+      elTab.classList.add("fin");
+      for (var k = 0; k < 3; k++) { celdas[linea[k]].classList.add("win"); }
+      elEstado.textContent = turno + " gana";
+      return;
+    }
+
+    var lleno = tablero.every(function (v) { return v !== ""; });
+    if (lleno) {
+      terminado = true;
+      elTab.classList.add("fin");
+      elEstado.textContent = "empate";
+      return;
+    }
+
+    turno = (turno === "X") ? "O" : "X";
+    elEstado.textContent = "Turno de " + turno;
+  }
+
+  for (var i = 0; i < celdas.length; i++) {
+    celdas[i].addEventListener("click", function () {
+      jugar(parseInt(this.getAttribute("data-i"), 10));
+    });
+  }
+
+  document.getElementById("reiniciar").addEventListener("click", function () {
+    tablero = ["", "", "", "", "", "", "", "", ""];
+    turno = "X";
+    terminado = false;
+    elTab.classList.remove("fin");
+    for (var j = 0; j < celdas.length; j++) { celdas[j].classList.remove("win", "x", "o"); }
+    pintar();
+    elEstado.textContent = "Turno de X";
+  });
+
+  pintar();
+})();
+</script>
+</body>
+</html>

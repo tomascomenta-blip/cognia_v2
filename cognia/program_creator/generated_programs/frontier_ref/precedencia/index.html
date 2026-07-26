@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora con precedencia</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --line: #2a2f3a;
+    --fg: #e8eaf0; --muted: #98a0b3; --accent: #5b8cff; --op: #f0a04b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f6f9; --panel: #fff; --line: #e0e3ea; --fg: #1a1d24; --muted: #656d7e; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .wrap { width: 100%; max-width: 340px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  #pantalla {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px; font-size: 28px; font-weight: 600; text-align: right;
+    font-variant-numeric: tabular-nums; overflow-x: auto; white-space: nowrap;
+    min-height: 62px; letter-spacing: -0.01em;
+  }
+  .teclado { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+  .k {
+    padding: 16px 0; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--fg); font: inherit; font-size: 18px;
+    font-weight: 600; cursor: pointer;
+  }
+  .k:hover { border-color: var(--accent); }
+  .k:active { transform: translateY(1px); }
+  .k.op { color: var(--op); }
+  .k.eq { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .k.clr { color: #e2555f; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Calculadora</h1>
+  <p class="sub">Respeta la precedencia: 2+3*4 = 14.</p>
+
+  <div class="card">
+    <div id="pantalla">0</div>
+    <div class="teclado">
+      <button class="k" type="button" data-k="7">7</button>
+      <button class="k" type="button" data-k="4">4</button>
+      <button class="k" type="button" data-k="3">3</button>
+      <button class="k" type="button" data-k="2">2</button>
+
+      <button class="k op" type="button" data-k="+">+</button>
+      <button class="k op" type="button" data-k="-">-</button>
+      <button class="k op" type="button" data-k="*">*</button>
+      <button class="k clr" type="button" data-k="C">C</button>
+
+      <button class="k eq" type="button" data-k="=" style="grid-column: span 4">=</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var pantalla = document.getElementById("pantalla");
+  var expr = "";   // expresion en curso, p.ej. "2+3*4"
+
+  function mostrar() {
+    pantalla.textContent = expr === "" ? "0" : expr;
+  }
+
+  function esDigito(c) { return c >= "0" && c <= "9"; }
+  function esOp(c) { return c === "+" || c === "-" || c === "*"; }
+
+  // Tokeniza numeros enteros y operadores + - *
+  function tokenizar(s) {
+    var toks = [];
+    var i = 0;
+    while (i < s.length) {
+      var c = s.charAt(i);
+      if (esDigito(c)) {
+        var n = "";
+        while (i < s.length && esDigito(s.charAt(i))) { n += s.charAt(i); i++; }
+        toks.push({ t: "num", v: parseFloat(n) });
+      } else if (esOp(c)) {
+        toks.push({ t: "op", v: c });
+        i++;
+      } else {
+        i++;   // ignorar cualquier otro caracter
+      }
+    }
+    return toks;
+  }
+
+  // Evaluacion en dos pasadas: primero * (mayor precedencia), luego + y -.
+  function evaluar(s) {
+    var toks = tokenizar(s);
+    if (toks.length === 0) { return null; }
+    // la expresion debe terminar en numero
+    while (toks.length && toks[toks.length - 1].t === "op") { toks.pop(); }
+    if (toks.length === 0 || toks[0].t !== "num") { return null; }
+
+    // pasada 1: multiplicaciones
+    var pila = [toks[0].v];
+    var i = 1;
+    while (i < toks.length - 1) {
+      var op = toks[i].v;
+      var val = toks[i + 1].v;
+      if (op === "*") {
+        pila[pila.length - 1] = pila[pila.length - 1] * val;
+      } else if (op === "+") {
+        pila.push(val);
+      } else if (op === "-") {
+        pila.push(-val);
+      }
+      i += 2;
+    }
+
+    // pasada 2: sumas
+    var total = 0;
+    for (var j = 0; j < pila.length; j++) { total += pila[j]; }
+    return total;
+  }
+
+  function formatear(n) {
+    if (n === null || !isFinite(n)) { return "0"; }
+    return String(Math.round(n * 1e10) / 1e10);
+  }
+
+  function pulsar(k) {
+    if (k === "C") {
+      expr = "";
+    } else if (k === "=") {
+      var r = evaluar(expr);
+      expr = r === null ? "" : formatear(r);
+    } else if (esOp(k)) {
+      if (expr === "") { return; }                       // no empezar con operador
+      var ult = expr.charAt(expr.length - 1);
+      if (esOp(ult)) { expr = expr.slice(0, -1) + k; }   // reemplaza el operador
+      else { expr += k; }
+    } else {
+      expr += k;
+    }
+    mostrar();
+  }
+
+  var teclas = document.querySelectorAll(".k");
+  for (var i = 0; i < teclas.length; i++) {
+    teclas[i].addEventListener("click", function () {
+      pulsar(this.getAttribute("data-k"));
+    });
+  }
+
+  document.addEventListener("keydown", function (e) {
+    var k = e.key;
+    if (k === "Enter") { k = "="; }
+    if (k === "Escape" || k === "c" || k === "C") { k = "C"; }
+    if (esDigito(k) || esOp(k) || k === "=" || k === "C") { pulsar(k); }
+  });
+
+  mostrar();
+})();
+</script>
+</body>
+</html>

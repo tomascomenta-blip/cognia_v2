@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lista con Undo / Redo</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --line: #2a2f3a;
+    --fg: #e8eaf0;
+    --muted: #98a0b3;
+    --accent: #5b8cff;
+    --accent-2: #27c093;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6f9;
+      --panel: #ffffff;
+      --line: #e0e3ea;
+      --fg: #1a1d24;
+      --muted: #656d7e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+  .wrap { width: 100%; max-width: 520px; }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .row { display: flex; gap: 8px; margin-bottom: 12px; }
+  input[type=text] {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    min-width: 0;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #add { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .controls { display: flex; gap: 8px; margin-bottom: 16px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li.it {
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    word-break: break-word;
+  }
+  .empty { color: var(--muted); font-size: 13px; padding: 10px 0; }
+  .status { color: var(--muted); font-size: 12px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lista con Undo / Redo</h1>
+  <p class="sub">Una accion nueva despues de deshacer descarta la rama rehacible.</p>
+
+  <div class="card">
+    <div class="row">
+      <input id="txt" type="text" placeholder="Escribe algo y pulsa Anadir" autocomplete="off">
+      <button id="add" type="button">Anadir</button>
+    </div>
+    <div class="controls">
+      <button id="undo" type="button">Deshacer</button>
+      <button id="redo" type="button">Rehacer</button>
+    </div>
+    <ul id="lista"></ul>
+    <p class="empty" id="vacio">La lista esta vacia.</p>
+    <p class="status" id="status"></p>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Historial de estados: cada entrada es un array de strings (snapshot completo).
+  var historial = [[]];
+  var puntero = 0;
+
+  var txt = document.getElementById("txt");
+  var btnAdd = document.getElementById("add");
+  var btnUndo = document.getElementById("undo");
+  var btnRedo = document.getElementById("redo");
+  var lista = document.getElementById("lista");
+  var vacio = document.getElementById("vacio");
+  var status = document.getElementById("status");
+
+  function estado() {
+    return historial[puntero];
+  }
+
+  // Registra un nuevo estado. Al hacerlo, TODA la rama rehacible se pierde.
+  function empujar(nuevo) {
+    historial = historial.slice(0, puntero + 1);
+    historial.push(nuevo);
+    puntero = historial.length - 1;
+    render();
+  }
+
+  function render() {
+    var items = estado();
+    lista.textContent = "";
+    for (var i = 0; i < items.length; i++) {
+      var li = document.createElement("li");
+      li.className = "it";
+      li.textContent = items[i];
+      lista.appendChild(li);
+    }
+    vacio.style.display = items.length ? "none" : "block";
+
+    btnUndo.disabled = puntero <= 0;
+    btnRedo.disabled = puntero >= historial.length - 1;
+
+    status.textContent = "Elementos: " + items.length +
+      " | paso " + puntero + " de " + (historial.length - 1);
+  }
+
+  btnAdd.addEventListener("click", function () {
+    var valor = txt.value.trim();
+    if (!valor) { txt.focus(); return; }
+    var nuevo = estado().slice();
+    nuevo.push(valor);
+    empujar(nuevo);           // esto trunca el redo
+    txt.value = "";
+    txt.focus();
+  });
+
+  txt.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); btnAdd.click(); }
+  });
+
+  btnUndo.addEventListener("click", function () {
+    if (puntero > 0) { puntero--; render(); }
+  });
+
+  btnRedo.addEventListener("click", function () {
+    if (puntero < historial.length - 1) { puntero++; render(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validacion cruzada</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --line: #2a2f3a;
+    --fg: #e8eaf0; --muted: #98a0b3; --accent: #5b8cff;
+    --ok: #27c093; --bad: #e2555f;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f6f9; --panel: #fff; --line: #e0e3ea; --fg: #1a1d24; --muted: #656d7e; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .wrap { width: 100%; max-width: 460px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .campo { margin-bottom: 14px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--fg); font: inherit;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #enviar {
+    width: 100%; margin-top: 6px; padding: 11px 14px; border-radius: 8px;
+    border: 1px solid var(--accent); background: var(--accent); color: #fff;
+    font: inherit; font-weight: 600; cursor: pointer;
+  }
+  #enviar:disabled {
+    background: var(--panel); color: var(--muted);
+    border-color: var(--line); cursor: not-allowed;
+  }
+  ul.reglas { list-style: none; margin: 16px 0 0; padding: 16px 0 0; border-top: 1px solid var(--line); font-size: 13px; }
+  ul.reglas li { display: flex; gap: 8px; align-items: flex-start; padding: 3px 0; color: var(--muted); }
+  ul.reglas li .mark { width: 1em; flex: 0 0 auto; color: var(--bad); }
+  ul.reglas li.ok { color: var(--fg); }
+  ul.reglas li.ok .mark { color: var(--ok); }
+  .aviso { margin-top: 12px; font-size: 13px; color: var(--ok); min-height: 1.5em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Alta de cuenta</h1>
+  <p class="sub">El boton se habilita solo cuando se cumplen las tres condiciones a la vez.</p>
+
+  <form class="card" id="form" novalidate>
+    <div class="campo">
+      <label for="pass">Contrasena (minimo 8 caracteres)</label>
+      <input id="pass" type="password" autocomplete="new-password">
+    </div>
+    <div class="campo">
+      <label for="pass2">Repetir contrasena</label>
+      <input id="pass2" type="password" autocomplete="new-password">
+    </div>
+    <div class="campo">
+      <label for="edad">Edad (18 a 120)</label>
+      <input id="edad" type="number" min="18" max="120" step="1">
+    </div>
+
+    <button id="enviar" type="submit" disabled>Crear cuenta</button>
+
+    <ul class="reglas">
+      <li id="r-len"><span class="mark">x</span><span>8 caracteres o mas</span></li>
+      <li id="r-eq"><span class="mark">x</span><span>Las dos contrasenas coinciden</span></li>
+      <li id="r-edad"><span class="mark">x</span><span>Edad entre 18 y 120</span></li>
+    </ul>
+
+    <p class="aviso" id="aviso"></p>
+  </form>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var pass  = document.getElementById("pass");
+  var pass2 = document.getElementById("pass2");
+  var edad  = document.getElementById("edad");
+  var btn   = document.getElementById("enviar");
+  var aviso = document.getElementById("aviso");
+
+  var rLen  = document.getElementById("r-len");
+  var rEq   = document.getElementById("r-eq");
+  var rEdad = document.getElementById("r-edad");
+
+  function marcar(el, ok) {
+    if (ok) { el.classList.add("ok"); el.firstChild.textContent = "✓"; }
+    else    { el.classList.remove("ok"); el.firstChild.textContent = "×"; }
+  }
+
+  function validar() {
+    var p = pass.value;
+    var p2 = pass2.value;
+    var e = parseInt(edad.value, 10);
+
+    var okLen  = p.length >= 8;
+    var okEq   = p.length > 0 && p === p2;
+    var okEdad = isFinite(e) && e >= 18 && e <= 120;
+
+    marcar(rLen, okLen);
+    marcar(rEq, okEq);
+    marcar(rEdad, okEdad);
+
+    var todo = okLen && okEq && okEdad;
+    if (todo) { btn.removeAttribute("disabled"); }
+    else { btn.setAttribute("disabled", "disabled"); }
+
+    if (!todo) { aviso.textContent = ""; }
+    return todo;
+  }
+
+  ["input", "keyup", "change", "blur"].forEach(function (ev) {
+    pass.addEventListener(ev, validar);
+    pass2.addEventListener(ev, validar);
+    edad.addEventListener(ev, validar);
+  });
+
+  document.getElementById("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (validar()) { aviso.textContent = "Formulario valido, enviado."; }
+  });
+
+  validar();
+})();
+</script>
+</body>
+</html>

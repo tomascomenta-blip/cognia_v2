@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Serpiente 10x10</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --line: #2a2f3a;
+    --fg: #e8eaf0; --muted: #98a0b3; --accent: #5b8cff;
+    --snake: #27c093; --food: #e2555f;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f6f9; --panel: #fff; --line: #e0e3ea; --fg: #1a1d24; --muted: #656d7e; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .wrap { width: 100%; max-width: 400px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    gap: 2px;
+    aspect-ratio: 1 / 1;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .cel { background: var(--bg); }
+  .cel.snake { background: var(--snake); }
+  .cel.head { background: var(--snake); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.45); }
+  .cel.food { background: var(--food); border-radius: 50%; }
+  .hud { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 13px; }
+  .hud .muted { color: var(--muted); }
+  .hud b { font-variant-numeric: tabular-nums; }
+  #reiniciar {
+    margin-top: 10px; width: 100%; padding: 10px 14px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--fg);
+    font: inherit; cursor: pointer;
+  }
+  #reiniciar:hover { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Serpiente</h1>
+  <p class="sub">Flechas para mover. No se puede girar 180 grados de golpe.</p>
+
+  <div class="card">
+    <div id="grid"></div>
+    <div class="hud">
+      <span class="muted">Largo: <b id="largo">1</b></span>
+      <span class="muted" id="msg">Pulsa una flecha</span>
+    </div>
+    <button id="reiniciar" type="button">Reiniciar</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var N = 10;
+  var PASO_MS = 220;
+
+  var grid = document.getElementById("grid");
+  var elLargo = document.getElementById("largo");
+  var elMsg = document.getElementById("msg");
+
+  var celdas = [];   // celdas[y][x]
+
+  // Construir la grilla 10x10
+  for (var y = 0; y < N; y++) {
+    celdas[y] = [];
+    for (var x = 0; x < N; x++) {
+      var d = document.createElement("div");
+      d.className = "cel";
+      d.setAttribute("data-x", String(x));
+      d.setAttribute("data-y", String(y));
+      grid.appendChild(d);
+      celdas[y][x] = d;
+    }
+  }
+
+  var cuerpo;      // array de {x,y}; cuerpo[0] es la cabeza
+  var largo;
+  var dir;         // "der" | "izq" | "arr" | "aba"
+  var dirPend;     // direccion aceptada para el proximo paso
+  var comida;
+  var timer = null;
+  var vivo = true;
+
+  var VECTOR = {
+    der: { dx:  1, dy:  0 },
+    izq: { dx: -1, dy:  0 },
+    arr: { dx:  0, dy: -1 },
+    aba: { dx:  0, dy:  1 }
+  };
+  var OPUESTA = { der: "izq", izq: "der", arr: "aba", aba: "arr" };
+
+  function exponer() {
+    window.juego = {
+      largo: largo,
+      x: cuerpo[0].x,
+      y: cuerpo[0].y,
+      dir: dir
+    };
+  }
+
+  function ocupada(x, y) {
+    for (var i = 0; i < cuerpo.length; i++) {
+      if (cuerpo[i].x === x && cuerpo[i].y === y) { return true; }
+    }
+    return false;
+  }
+
+  function nuevaComida() {
+    var libres = [];
+    for (var y = 0; y < N; y++) {
+      for (var x = 0; x < N; x++) {
+        if (!ocupada(x, y)) { libres.push({ x: x, y: y }); }
+      }
+    }
+    if (libres.length === 0) { comida = null; return; }
+    comida = libres[Math.floor(Math.random() * libres.length)];
+  }
+
+  function pintar() {
+    for (var y = 0; y < N; y++) {
+      for (var x = 0; x < N; x++) {
+        celdas[y][x].className = "cel";
+      }
+    }
+    for (var i = cuerpo.length - 1; i >= 0; i--) {
+      var s = cuerpo[i];
+      celdas[s.y][s.x].className = (i === 0) ? "cel snake head" : "cel snake";
+    }
+    if (comida) {
+      celdas[comida.y][comida.x].className = "cel food";
+    }
+    elLargo.textContent = String(largo);
+    exponer();
+  }
+
+  function paso() {
+    if (!vivo) { return; }
+
+    dir = dirPend;
+    var v = VECTOR[dir];
+    var nx = cuerpo[0].x + v.dx;
+    var ny = cuerpo[0].y + v.dy;
+
+    // Muros: envolver (wrap) para que el juego no termine por el borde
+    if (nx < 0) { nx = N - 1; }
+    if (nx >= N) { nx = 0; }
+    if (ny < 0) { ny = N - 1; }
+    if (ny >= N) { ny = 0; }
+
+    // Choque con el propio cuerpo (ignorando la cola que va a moverse)
+    for (var i = 0; i < cuerpo.length - 1; i++) {
+      if (cuerpo[i].x === nx && cuerpo[i].y === ny) {
+        vivo = false;
+        detener();
+        elMsg.textContent = "Fin del juego";
+        pintar();
+        return;
+      }
+    }
+
+    cuerpo.unshift({ x: nx, y: ny });
+
+    if (comida && nx === comida.x && ny === comida.y) {
+      largo += 1;                // crece en 1
+      nuevaComida();
+      elMsg.textContent = "Comida";
+    } else {
+      elMsg.textContent = "En marcha";
+    }
+
+    while (cuerpo.length > largo) { cuerpo.pop(); }
+
+    pintar();
+  }
+
+  function arrancar() {
+    if (timer === null && vivo) {
+      timer = setInterval(paso, PASO_MS);
+    }
+  }
+
+  function detener() {
+    if (timer !== null) { clearInterval(timer); timer = null; }
+  }
+
+  function girar(nueva) {
+    if (!vivo) { return; }
+    // No invertir 180 grados en un solo paso
+    if (nueva === OPUESTA[dir]) { return; }
+    dirPend = nueva;
+    arrancar();
+  }
+
+  var TECLAS = {
+    ArrowRight: "der", ArrowLeft: "izq", ArrowUp: "arr", ArrowDown: "aba",
+    Right: "der", Left: "izq", Up: "arr", Down: "aba",
+    d: "der", a: "izq", w: "arr", s: "aba"
+  };
+
+  document.addEventListener("keydown", function (e) {
+    var n = TECLAS[e.key];
+    if (n) { e.preventDefault(); girar(n); }
+  });
+
+  function reiniciar() {
+    detener();
+    cuerpo = [{ x: 5, y: 5 }];
+    largo = 1;
+    dir = "der";
+    dirPend = "der";
+    vivo = true;
+    nuevaComida();
+    elMsg.textContent = "Pulsa una flecha";
+    pintar();
+  }
+
+  document.getElementById("reiniciar").addEventListener("click", reiniciar);
+
+  reiniciar();
+})();
+</script>
+</body>
+</html>

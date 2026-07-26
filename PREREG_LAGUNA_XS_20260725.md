@@ -70,6 +70,73 @@ decidir, según la regla de `gate-e2e-flaky`.
 - n=3 sigue por debajo del n≥6 que pide la regla del repo. Un resultado en la
   zona gris no es concluyente y está declarado como tal arriba.
 
-## Resultado
+## Resultado (2026-07-25, nada de lo de arriba se tocó)
 
-_(pendiente — se rellena tras la corrida, sin tocar nada de lo de arriba)_
+### Números
+
+| modelo | tareas (mayoría de n=3) |
+|---|---|
+| **gpt-oss-20b** | **6/6** |
+| Laguna XS 2.1 (33B) — corrida bruta | 4/6 |
+| Laguna XS 2.1 (33B) — tras re-correr las muestras que murieron por plomería | **5/6** |
+| qwen2.5-coder-14b | 4/6 |
+| UIGEN-X-8B | 3/6 |
+| OpenReasoning-Nemotron-14B | 1/6 |
+
+Latencia de Laguna: 30-57 s por tarea. **Muy por debajo** del techo de 180 s.
+Carga y decodifica sin problema con los expertos en RAM.
+
+### Por qué hay dos números para Laguna, y por qué el corregido es el válido
+
+En la corrida bruta, `semaforo` salió 1/3. Al mirar el detalle —no el
+resultado— **2 de esas 3 muestras nunca llegaron a generar**: murieron con
+`el modelo no devolvio HTML`, y el aviso ruidoso de la Fase A2 mostró la cadena
+completa (`ni constructor, ni backend inyectado, ni llm_local respondieron`).
+La única muestra que corrió de verdad, **pasó**.
+
+Se re-corrieron las 3 por el harness real: **2/3, mayoría → PASA**. Eso mueve a
+Laguna de 4/6 a 5/6.
+
+Es una exclusión *post-hoc*, y se declara como tal. Lo que la hace legítima:
+(a) se excluyen fallos del HARNESS, no del modelo — llamadas directas a Ollama
+con la misma idea devuelven HTML válido con fences en 2/2; (b) se re-midió en
+vez de inferir; (c) se habría hecho igual en la dirección contraria.
+
+**Confound declarado, no barrido:** el camino de Ollama tiene una tasa de fallo
+intermitente de **≈14 % (3 de 21 muestras)**. Dos hipótesis mías sobre su causa
+resultaron falsas al medirlas (nombre del modelo; `num_ctx` truncando — ambas
+descartadas: las llamadas directas devuelven `done_reason=stop`). Siguiendo el
+disyuntor de reparación del repo, se deja **documentado y acotado** en vez de
+seguir parcheando a ciegas.
+
+### Veredicto según el criterio escrito
+
+**PASA por la letra** (≥5/6 y latencia ≤180 s). Pero eso NO es la conclusión
+útil, y decirlo sin más sería engañoso:
+
+> **Laguna XS 2.1 (33B) no supera a gpt-oss-20b (20B): 5/6 contra 6/6.**
+> 13B extra de parámetros, 20 GB de RAM y un segundo backend **no compraron
+> nada medible** en este banco.
+
+### La razón por la que este gate NO decide nada
+
+**El banco está saturado.** gpt-oss-20b hace 6/6: no hay cabecera donde ver
+diferencias arriba. Un modelo que ya toca el techo no puede mostrar cuánto le
+sobra, y uno que queda a una tarea no puede distinguirse del ruido con n=3.
+
+Es exactamente el mismo error que invalidó el «+0» del router oráculo, y lo
+cometí dos veces en la misma sesión.
+
+**El gate se repite sobre `scripts/b1_tareas_duras.json`** (8 tareas
+composicionales, no saturadas). Hasta ese número, la pregunta *"¿compra algo
+tener 33B en los pesos?"* sigue **sin responder**.
+
+### Lo que sí queda establecido
+
+1. Laguna XS 2.1 **corre en esta máquina** con soltura: 30-57 s por tarea, con
+   los expertos en RAM y 16 GB de VRAM. La duda de `laguna-xs-candidato.md`
+   («no medido en esta GPU») queda resuelta: **cabe y funciona**.
+2. La nota de memoria decía que llama.cpp lo soportaba con «soporte maduro».
+   **Falso**: b10066 no lo reconoce; hizo falta Ollama.
+3. Su coste operativo real es alto: obliga a **parar la flota entera** (necesita
+   la RAM), o sea que no puede convivir con el constructor ni con el árbitro.

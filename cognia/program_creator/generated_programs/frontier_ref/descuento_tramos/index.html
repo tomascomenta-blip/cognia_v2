@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Descuento por tramos</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #181b22; --line: #2a2f3a;
+    --fg: #e8eaf0; --muted: #98a0b3; --accent: #5b8cff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f6f9; --panel: #fff; --line: #e0e3ea; --fg: #1a1d24; --muted: #656d7e; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .wrap { width: 100%; max-width: 520px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input[type=number] {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--fg); font: inherit;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .total-box {
+    margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line);
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .total-label { color: var(--muted); font-size: 14px; }
+  #total { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tramos { margin-top: 20px; }
+  .tramos h2 { font-size: 13px; color: var(--muted); font-weight: 500; margin: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Descuento por tramos</h1>
+  <p class="sub">Precio unitario 10. Descuento marginal: 1-10 sin descuento, 11-50 al 10%, 51+ al 20%.</p>
+
+  <div class="card">
+    <label for="cant">Cantidad de unidades</label>
+    <input id="cant" type="number" min="0" step="1" value="0">
+
+    <div class="total-box">
+      <span class="total-label">Total</span>
+      <span id="total">0.00</span>
+    </div>
+
+    <div class="tramos">
+      <h2>Desglose por tramo</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Tramo</th>
+            <th class="num">Unidades</th>
+            <th class="num">Precio/u</th>
+            <th class="num">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody id="desglose"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var PRECIO = 10;
+  // Tramos marginales: [limite superior acumulado (Infinity = sin tope), descuento]
+  var TRAMOS = [
+    { hasta: 10,       desc: 0.00, nombre: "1 - 10" },
+    { hasta: 50,       desc: 0.10, nombre: "11 - 50" },
+    { hasta: Infinity, desc: 0.20, nombre: "51 en adelante" }
+  ];
+
+  var inCant = document.getElementById("cant");
+  var outTotal = document.getElementById("total");
+  var tbody = document.getElementById("desglose");
+
+  function calcular(cantidad) {
+    var restante = cantidad;
+    var previo = 0;
+    var total = 0;
+    var filas = [];
+
+    for (var i = 0; i < TRAMOS.length && restante > 0; i++) {
+      var t = TRAMOS[i];
+      var capacidad = t.hasta - previo;           // unidades que caben en este tramo
+      var enTramo = Math.min(restante, capacidad);
+      var unitario = PRECIO * (1 - t.desc);
+      var subtotal = enTramo * unitario;
+
+      total += subtotal;
+      restante -= enTramo;
+      previo = t.hasta;
+
+      filas.push({ nombre: t.nombre, unidades: enTramo, unitario: unitario, subtotal: subtotal });
+    }
+    return { total: total, filas: filas };
+  }
+
+  function render() {
+    var n = parseInt(inCant.value, 10);
+    if (!isFinite(n) || n < 0) { n = 0; }
+
+    var r = calcular(n);
+    outTotal.textContent = r.total.toFixed(2);
+
+    tbody.textContent = "";
+    for (var i = 0; i < r.filas.length; i++) {
+      var f = r.filas[i];
+      var tr = document.createElement("tr");
+      var celdas = [f.nombre, String(f.unidades), f.unitario.toFixed(2), f.subtotal.toFixed(2)];
+      for (var j = 0; j < celdas.length; j++) {
+        var td = document.createElement("td");
+        if (j > 0) { td.className = "num"; }
+        td.textContent = celdas[j];
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+  }
+
+  inCant.addEventListener("input", render);
+  inCant.addEventListener("change", render);
+  render();
+})();
+</script>
+</body>
+</html>
