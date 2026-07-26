@@ -548,7 +548,13 @@ def _call_llm(prompt: str, lenguaje: str = "python",
         temperature=temperature,
         # 2000 tokens truncaban programas con tests: el fence ni se cerraba y
         # el lazo de reparacion gastaba sus intentos en "falta el resto".
-        max_tokens=6000,
+        # 12000 y no 6000 (2026-07-26): con un cerebro de RAZONAMIENTO el
+        # presupuesto cubre tambien el pensamiento, y en REPARACIONES el
+        # prompt trae la pagina entera y la respuesta tambien. Con 6000,
+        # reparar_web con gpt-oss volvia con contenido VACIO y _call_llm caia
+        # hasta el 404 de Ollama ("no devolvio una correccion valida"). Mismo
+        # numero que _preguntar_constructor, que ya se subio por esta razon.
+        max_tokens=12000,
         via="create_program",
     )
     if texto:

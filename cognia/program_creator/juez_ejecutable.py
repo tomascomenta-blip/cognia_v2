@@ -482,6 +482,12 @@ _JS_INVENTARIO = """
 """
 
 _SISTEMA_CONTRATO = (
+    # "Reasoning: low" es la directiva Harmony de esfuerzo para gpt-oss. Sin
+    # ella, ESTE prompt lo manda a una espiral de overthinking medida el
+    # 2026-07-26: 13k chars de razonamiento a max_tokens=3000 (contenido: 0) y
+    # 33k a 9000 (contenido: 395, aun length). Con ella termina en ~2900
+    # tokens con JSON valido. Para modelos sin Harmony es una linea inerte.
+    "Reasoning: low\n\n"
     "Eres un ingeniero de QA. Escribes contratos de prueba EJECUTABLES para "
     "productos web. Respondes SOLO con JSON valido, sin explicaciones ni fences."
 )
@@ -571,7 +577,13 @@ def generar_contrato(idea: str, html: Path) -> Optional[dict]:
         _PLANTILLA_CONTRATO.format(idea=idea, inventario=texto_inv),
         # 1400 tokens truncaban el JSON a mitad (medido: JSONDecodeError en el
         # char 4693) y el llamador lo veia como "el pensador no produjo nada".
-        system=_SISTEMA_CONTRATO, temperature=0.2, max_tokens=3000,
+        # 9000 y no 3000: con un pensador de RAZONAMIENTO el presupuesto cubre
+        # tambien los tokens de pensamiento — a 3000, gpt-oss con "Reasoning:
+        # low" termina en ~2900 y el margen era navaja (finish=length con
+        # contenido 0 en 1 de 2 probes); a 6000 aun fallaba ~1 de 2 por la
+        # cola de la distribucion de pensamiento. La respuesta util son ~1200
+        # chars: el resto del presupuesto es para que el pensador PIENSE.
+        system=_SISTEMA_CONTRATO, temperature=0.2, max_tokens=9000,
         via="juez.generar_contrato", timeout=400)
     if not crudo:
         return None

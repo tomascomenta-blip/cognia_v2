@@ -142,6 +142,23 @@ def test_juez_del_lazo_sin_backend_no_insiste(tmp_path):
     gc.assert_not_called()                   # sin backend ni se intenta
 
 
+def test_contrato_fallido_paga_un_reintento_y_solo_uno(tmp_path):
+    """El pensador falla por la cola de su razonamiento ~1 de 2 veces (medido
+    2026-07-26): un None no puede condenar la construccion entera a salir sin
+    verificar. Se reintenta UNA vez en la ronda siguiente; al segundo fallo se
+    deja de insistir."""
+    res = d2c.ResultadoDiseno(idea="x")
+    with patch("cognia.llm_local.disponible", return_value=True), \
+         patch("cognia.program_creator.juez_ejecutable.generar_contrato",
+               return_value=None) as gc:
+        d2c._juez_del_lazo("x", "<html></html>", tmp_path, 1, res)
+        assert res.contrato_fallido is False     # aun queda un intento
+        d2c._juez_del_lazo("x", "<html></html>", tmp_path, 2, res)
+        assert res.contrato_fallido is True      # segundo fallo: se corta
+        d2c._juez_del_lazo("x", "<html></html>", tmp_path, 3, res)
+    assert gc.call_count == 2                    # la ronda 3 ya no paga
+
+
 def test_construccion_inicial_va_a_temperatura_baja():
     """El lazo construye contra una VISION (y selectores OBLIGATORIOS): la
     generacion inicial debe ir a 0.2, no a la 0.9 creativa del hobby. Medido

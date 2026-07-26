@@ -83,7 +83,8 @@ class ResultadoDiseno:
     # "sin verificar" y NUNCA se convierte en numero: un 7.5 del arbitro visual
     # a un juego de memoria con las cartas destapadas es como se llego aqui.
     contrato:    Optional[dict] = None          # contrato ejecutable de la idea
-    contrato_fallido: bool = False              # ya se intento generar y no salio
+    contrato_fallido: bool = False              # sin backend, o 2 intentos fallidos
+    contrato_intentos: int = 0                  # intentos de generarlo (tope 2)
     veredicto:   Optional[dict] = None          # ultimo veredicto del juez (dict)
     sello:       str = "sin verificar"          # APROBADO | FALLIDO | sin verificar
 
@@ -214,16 +215,30 @@ def _juez_del_lazo(idea: str, codigo_render: str, tmp_dir: Path, ronda: int,
             return None
         try:
             from ..llm_local import disponible
-            if disponible():
-                res.contrato = juez_ejecutable.generar_contrato(idea, html)
+            if not disponible():
+                # Sin backend no hay a quien pedirle el contrato: no insistir.
+                res.contrato_fallido = True
+                if verbose:
+                    print("   ⚖️  Sin backend para el contrato: el producto "
+                          "saldra SIN VERIFICAR.")
+                return None
+            res.contrato_intentos += 1
+            res.contrato = juez_ejecutable.generar_contrato(idea, html)
         except Exception as e:
             logger.warning("diseno_a_codigo: generar_contrato fallo (%s)", e)
         if res.contrato is None:
-            # Se intento y no salio: no volver a pagar el intento cada ronda.
-            res.contrato_fallido = True
+            # El pensador puede fallar por la cola de su distribucion de
+            # razonamiento (medido 2026-07-26: ~1 de 2 a max_tokens justos).
+            # Se paga UN reintento en la ronda siguiente; al segundo fallo se
+            # deja de insistir.
+            if res.contrato_intentos >= 2:
+                res.contrato_fallido = True
             if verbose:
-                print("   ⚖️  Sin contrato ejecutable: el producto saldra "
-                      "SIN VERIFICAR (el arbitro visual solo opina).")
+                print("   ⚖️  Sin contrato ejecutable"
+                      + (" (reintento en la proxima ronda)"
+                         if not res.contrato_fallido else "")
+                      + ": el producto saldra SIN VERIFICAR "
+                        "(el arbitro visual solo opina).")
             return None
 
     try:
