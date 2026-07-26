@@ -50,7 +50,15 @@ COMBOS = {
         ("servir_vlm.py", ["--modelo", "VL-3B"]),
     ],
     "pensar": [
-        ("servir_modelo.py", ["--modelo", "gpt-oss", "--sin-draft"]),
+        # ctx 16384 y no el 8192 por defecto: gpt-oss-20b es un modelo de
+        # RAZONAMIENTO y con 8192 cortaba tareas reales por la mitad
+        # (finish_reason='length' a los 7931 tokens en la tarea 'kanban',
+        # medido 2026-07-25). La respuesta llegaba sin el fence de cierre, el
+        # parser no encontraba codigo, y el resultado se leia como "el modelo no
+        # supo hacerlo": pass@1 25% con 8192 contra 100% con 16384 en el mismo
+        # banco. Cabe de sobra: 12.2 GB de los 16.3 (corre solo en la GPU).
+        ("servir_modelo.py", ["--modelo", "gpt-oss", "--sin-draft",
+                              "--ctx", "16384"]),
     ],
     "pensar-en-lazo": [
         ("servir_modelo.py", ["--modelo", "OpenReasoning", "--sin-draft"]),

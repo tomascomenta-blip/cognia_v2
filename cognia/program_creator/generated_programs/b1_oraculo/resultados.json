@@ -1,0 +1,438 @@
+{
+  "resultados": {
+    "hoja_calculo": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 4,
+        "n": 6,
+        "tasa": 0.6666666666666666,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "gen_s": 41.880674163500466,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "27/28 checks OK (24/24 del contrato)",
+            "gen_s": 72.13358235359192,
+            "checks_ok": 27,
+            "checks": 28
+          },
+          {
+            "aprobado": true,
+            "motivo": "27/28 checks OK (24/24 del contrato)",
+            "gen_s": 67.54955768585205,
+            "checks_ok": 27,
+            "checks": 28
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcul",
+            "gen_s": 21.54055953025818,
+            "checks_ok": 24,
+            "checks": 28
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: C1 = B1+A1 = 13 (js='CIRC', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23 (js='CIRC', esperab",
+            "gen_s": 43.87836956977844,
+            "checks_ok": 25,
+            "checks": 28
+          },
+          {
+            "aprobado": true,
+            "motivo": "27/28 checks OK (24/24 del contrato)",
+            "gen_s": 18.68500065803528,
+            "checks_ok": 27,
+            "checks": 28
+          },
+          {
+            "aprobado": true,
+            "motivo": "27/28 checks OK (24/24 del contrato)",
+            "gen_s": 27.49697518348694,
+            "checks_ok": 27,
+            "checks": 28
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": false,
+        "exitos": 0,
+        "n": 6,
+        "tasa": 0.0,
+        "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cam",
+        "gen_s": 109.69544430573781,
+        "pasadas": [
+          {
+            "aprobado": false,
+            "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13')",
+            "gen_s": 130.14144015312195,
+            "checks_ok": 25,
+            "checks": 28
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcul",
+            "gen_s": 115.85670375823975,
+            "checks_ok": 24,
+            "checks": 28
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cam",
+            "gen_s": 109.64411449432373,
+            "checks_ok": 23,
+            "checks": 28
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 saltos: C1 se recalcul",
+            "gen_s": 73.57184410095215,
+            "checks_ok": 24,
+            "checks": 28
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cam",
+            "gen_s": 99.23527359962463,
+            "checks_ok": 23,
+            "checks": 28
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: B1 = A1+A2 = 8 (js='=A1+A2', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cam",
+            "gen_s": 129.72328972816467,
+            "checks_ok": 22,
+            "checks": 28
+          }
+        ]
+      }
+    },
+    "carrito_stock": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 4,
+        "n": 6,
+        "tasa": 0.6666666666666666,
+        "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)",
+        "gen_s": 21.165467023849487,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 18.851999521255493,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: la cantidad es 2 (js='p1 x 2', esperaba '2'); al llegar a 0 la linea DESAPARECE (js=1, esperaba 0)",
+            "gen_s": 19.330629110336304,
+            "checks_ok": 17,
+            "checks": 19
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 27.95900011062622,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 27.689170598983765,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 17.59299945831299,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)",
+            "gen_s": 15.569003343582153,
+            "checks_ok": 18,
+            "checks": 19
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": false,
+        "exitos": 3,
+        "n": 6,
+        "tasa": 0.5,
+        "motivo": "falla critica: la cantidad es 2 (js='x2', esperaba '2')",
+        "gen_s": 24.318074544270832,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 22.250545024871826,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 23.399491786956787,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: p3 tiene stock 1: se deshabilita al primer add (js=False, esperaba True); al quitar una, el boton se re-h",
+            "gen_s": 21.066771268844604,
+            "checks_ok": 16,
+            "checks": 19
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/19 checks OK (15/15 del contrato)",
+            "gen_s": 24.42191743850708,
+            "checks_ok": 19,
+            "checks": 19
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: dos veces el mismo producto = UNA linea (count('.linea')=0, esperaba 1); la cantidad es 2 (excepcion: Err",
+            "gen_s": 23.402801036834717,
+            "checks_ok": 6,
+            "checks": 19
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: la cantidad es 2 (js='x2', esperaba '2')",
+            "gen_s": 31.366920709609985,
+            "checks_ok": 18,
+            "checks": 19
+          }
+        ]
+      }
+    },
+    "kanban": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 4,
+        "n": 6,
+        "tasa": 0.6666666666666666,
+        "motivo": "falla critica: 3 tarjetas en todo (js=0, esperaba 3); el contador dice 3 ('' no contiene '3'); t1 pasa a doing (js=0, es",
+        "gen_s": 43.63676075140635,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "20/20 checks OK (16/16 del contrato)",
+            "gen_s": 35.64656066894531,
+            "checks_ok": 20,
+            "checks": 20
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2); LIMITE WIP: t3 NO entra, doing sigue en 2 (js=1, esper",
+            "gen_s": 43.09013772010803,
+            "checks_ok": 15,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 23.371999979019165,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 33.92159342765808,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 28.765635013580322,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: 3 tarjetas en todo (js=0, esperaba 3); el contador dice 3 ('' no contiene '3'); t1 pasa a doing (js=0, es",
+            "gen_s": 97.0246376991272,
+            "checks_ok": 3,
+            "checks": 20
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": true,
+        "exitos": 5,
+        "n": 6,
+        "tasa": 0.8333333333333334,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "gen_s": 17.850619316101074,
+        "pasadas": [
+          {
+            "aprobado": false,
+            "motivo": "falla critica: el contador dice 3 ('' no contiene '3'); t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WI",
+            "gen_s": 15.451727390289307,
+            "checks_ok": 9,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 17.777389764785767,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 14.874551057815552,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 18.104676723480225,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 22.31139349937439,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 18.583977460861206,
+            "checks_ok": 19,
+            "checks": 20
+          }
+        ]
+      }
+    },
+    "buscaminas": {
+      "pensar": {
+        "aprobado": true,
+        "exitos": 6,
+        "n": 6,
+        "tasa": 1.0,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "gen_s": 43.91420245170593,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 24.669184684753418,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 64.31362247467041,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 9.065998554229736,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 22.041661024093628,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 23.062001943588257,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 120.33274602890015,
+            "checks_ok": 19,
+            "checks": 20
+          }
+        ]
+      },
+      "laguna": {
+        "aprobado": true,
+        "exitos": 4,
+        "n": 6,
+        "tasa": 0.6666666666666666,
+        "motivo": "falla critica: empieza todo cerrado (count('.abierta')=22, esperaba 0)",
+        "gen_s": 88.07868496576945,
+        "pasadas": [
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 98.89994621276855,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: la celda 4 se abre (js=False, esperaba True); CASCADA: abrir una celda vacia abre varias (js=0 (falsy))",
+            "gen_s": 65.29747438430786,
+            "checks_ok": 17,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 131.64090633392334,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 84.26239824295044,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": true,
+            "motivo": "19/20 checks OK (16/16 del contrato)",
+            "gen_s": 70.90857934951782,
+            "checks_ok": 19,
+            "checks": 20
+          },
+          {
+            "aprobado": false,
+            "motivo": "falla critica: empieza todo cerrado (count('.abierta')=22, esperaba 0)",
+            "gen_s": 77.46280527114868,
+            "checks_ok": 18,
+            "checks": 20
+          }
+        ]
+      }
+    }
+  },
+  "swaps": [
+    {
+      "modo": "pensar",
+      "modelo": "gpt-oss-20b",
+      "segundos": 8.809072971343994
+    }
+  ],
+  "techo": 4,
+  "mejor_individual": 4,
+  "n_tareas": 4
+}
