@@ -1,140 +1,305 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <title>Juego de Memoria 4x4</title>
 <style>
-  body{font-family:sans-serif;margin:0;padding:0;background:#f0f0f0;color:#333;}
-  header{padding:10px;text-align:center;background:#222;color:#fff;}
-  #moves{font-size:1.2rem;margin-top:5px;}
-  #board{display:flex;flex-wrap:wrap;max-width:400px;margin:20px auto;}
-  .tile{width:20%;height:80px;margin:5px;background:#444;color:transparent;display:flex;align-items:center;justify-content:center;font-size:2rem;border-radius:8px;cursor:pointer;transition:color .3s,background .3s;}
-  .face-up{color:#000;background:#fff;}
-  .matched{background:#8f8;}
-  #chart{max-width:400px;margin:20px auto;}
-  svg{background:#fff;border:1px solid #ccc;}
-  table{width:100%;border-collapse:collapse;margin:20px auto;}
-  th,td{border:1px solid #ccc;padding:4px;text-align:center;}
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  header{
+    margin-top:20px;
+    text-align:center;
+  }
+  #moves{
+    font-size:1.2rem;
+    margin-top:10px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    width:90vmin;
+    max-width:500px;
+    margin:20px auto;
+  }
+  .tile{
+    position:relative;
+    width:100%;
+    padding-top:100%; /* square */
+    cursor:pointer;
+    perspective:1000px;
+    opacity:0;
+    animation:fadeIn 0.5s ease forwards;
+  }
+  .tile:nth-child(1){animation-delay:0.05s;}
+  .tile:nth-child(2){animation-delay:0.10s;}
+  .tile:nth-child(3){animation-delay:0.15s;}
+  .tile:nth-child(4){animation-delay:0.20s;}
+  .tile:nth-child(5){animation-delay:0.25s;}
+  .tile:nth-child(6){animation-delay:0.30s;}
+  .tile:nth-child(7){animation-delay:0.35s;}
+  .tile:nth-child(8){animation-delay:0.40s;}
+  .tile:nth-child(9){animation-delay:0.45s;}
+  .tile:nth-child(10){animation-delay:0.50s;}
+  .tile:nth-child(11){animation-delay:0.55s;}
+  .tile:nth-child(12){animation-delay:0.60s;}
+  .tile:nth-child(13){animation-delay:0.65s;}
+  .tile:nth-child(14){animation-delay:0.70s;}
+  .tile:nth-child(15){animation-delay:0.75s;}
+  .tile:nth-child(16){animation-delay:0.80s;}
+  @keyframes fadeIn{to{opacity:1;}}
+  .tile-inner{
+    position:absolute;
+    top:0;left:0;
+    width:100%;height:100%;
+    transition:transform 0.6s;
+    transform-style:preserve-3d;
+  }
+  .tile.flipped .tile-inner{transform:rotateY(180deg);}
+  .front,.back{
+    position:absolute;
+    width:100%;height:100%;
+    backface-visibility:hidden;
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:2rem;
+  }
+  .front{
+    background:#fff;
+  }
+  .back{
+    background:#2f4f4f;
+    transform:rotateY(180deg);
+  }
+  #chart{
+    width:90vmin;
+    max-width:500px;
+    height:200px;
+    background:#fff;
+    border:1px solid #ccc;
+    border-radius:8px;
+    margin:20px auto;
+  }
+  #details{
+    width:90vmin;
+    max-width:500px;
+    border-collapse:collapse;
+    margin:20px auto;
+  }
+  #details th,#details td{
+    border:1px solid #ccc;
+    padding:5px;
+    text-align:center;
+  }
+  #details th{background:#e0e0e0;}
+  /* Overlay styles */
+  #overlay{
+    position:fixed;
+    top:0;left:0;
+    width:100%;height:100%;
+    background:rgba(0,0,0,0.7);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:2rem;
+    color:#fff;
+    z-index:1000;
+    visibility:hidden;
+  }
 </style>
 </head>
 <body>
 <header>
   <h1>Juego de Memoria 4x4</h1>
-  <div id="moves">Movimientos: <span id="moves-count">0</span></div>
-  <div id="timer">Tiempo: <span id="time">0</span>s</div>
+  <div id="moves">Movimientos: 0</div>
 </header>
-<section id="board"></section>
-<section id="chart"><svg id="chart-svg" width="100%" height="200"></svg></section>
-<section id="details"><table id="details-table"><thead><tr><th>Emoji</th><th>Coincidente</th></tr></thead><tbody></tbody></table></section>
+
+<section id="chart-section">
+  <svg id="chart"></svg>
+</section>
+
+<section id="grid-section">
+  <div id="grid"></div>
+</section>
+
+<section id="details-section">
+  <table id="details">
+    <thead>
+      <tr><th>#</th><th>Cartas</th><th>Resultado</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<div id="overlay"></div>
+
 <script>
 (() => {
-  const emojis = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
-  const tiles = [];
-  const board = document.getElementById('board');
-  const movesEl = document.getElementById('moves-count');
-  const timeEl = document.getElementById('time');
-  const chartSvg = document.getElementById('chart-svg');
-  const detailsBody = document.querySelector('#details-table tbody');
-  let first = null, second = null, busy = false, moves = 0, elapsed = 0;
-  const chartData = [];
-  const matched = {};
+  /* Tunable constants */
+  const EMOJIS = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼'];
+  const GRID_SIZE = 4;
+  const TOTAL_TILES = GRID_SIZE * GRID_SIZE;
+  const FLIP_DELAY = 1000; // ms
+  const CHART_HEIGHT = 200;
+  const CHART_WIDTH = 500; // will be scaled via viewBox
 
-  // Expose variables for testing
-  window.emojis = emojis;
-  window.tiles = tiles;
-  window.matched = matched;
-  window.board = board;
-  window.first = first;
-  window.second = second;
-  window.busy = busy;
-  window.elapsed = elapsed;
-  window.chartData = chartData;
-  window.chartSvg = chartSvg;
-  window.detailsBody = detailsBody;
-  window.timeEl = timeEl;
-  window.movesEl = movesEl;
-  window.moves = moves; // initial value
+  /* State variables */
+  let tiles = [];
+  let flipped = [];
+  let moves = 0;
+  let matched = 0;
 
-  // Shuffle emojis
-  const deck = [...emojis, ...emojis].sort(()=>Math.random()-0.5);
-  deck.forEach((e,i)=>{
-    const div=document.createElement('div');
-    div.className='tile face-down';
-    div.dataset.emoji=e;
-    div.addEventListener('click',()=>handleClick(div));
-    board.appendChild(div);
-    tiles.push(div);
+  /* Utility functions */
+  const shuffle = (arr) => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  /* DOM creation */
+  const grid = document.getElementById('grid');
+  const movesEl = document.getElementById('moves');
+  const chartSvg = document.getElementById('chart');
+  const detailsTbody = document.querySelector('#details tbody');
+  const overlay = document.getElementById('overlay');
+
+  const init = () => {
+    const emojiPairs = shuffle([...EMOJIS, ...EMOJIS]); // duplicate and shuffle
+    emojiPairs.forEach((emoji, idx) => {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.emoji = emoji;
+      tile.dataset.idx = idx;
+      tile.innerHTML = `
+        <div class="tile-inner">
+          <div class="front">${emoji}</div>
+          <div class="back"></div>
+        </div>
+      `;
+      tile.addEventListener('click', () => handleClick(tile));
+      grid.appendChild(tile);
+      tiles.push(tile);
+    });
+    updateChart();
+  };
+
+  const handleClick = (tile) => {
+    if (tile.classList.contains('flipped') || flipped.length === 2) return;
+    tile.classList.add('flipped');
+    flipped.push(tile);
+    if (flipped.length === 2) {
+      moves++;
+      updateMoves();
+      const [t1, t2] = flipped;
+      const match = t1.dataset.emoji === t2.dataset.emoji;
+      const result = match ? '¡Coinciden!' : 'No coinciden';
+      addDetailRow(moves, `${t1.dataset.emoji} ${t2.dataset.emoji}`, result);
+      if (match) {
+        matched += 2;
+        flipped = [];
+        if (matched === TOTAL_TILES) {
+          setTimeout(() => showOverlay('¡Felicidades! Has terminado el juego.'), 300);
+        }
+      } else {
+        setTimeout(() => {
+          flipped.forEach(t => t.classList.remove('flipped'));
+          flipped = [];
+        }, FLIP_DELAY);
+      }
+      updateChart();
+    }
+  };
+
+  const updateMoves = () => {
+    movesEl.textContent = `Movimientos: ${moves}`;
+  };
+
+  const addDetailRow = (num, cards, result) => {
+    const tr = document.createElement('tr');
+    const tdNum = document.createElement('td');
+    tdNum.textContent = num;
+    const tdCards = document.createElement('td');
+    tdCards.textContent = cards;
+    const tdResult = document.createElement('td');
+    tdResult.textContent = result;
+    tdResult.style.color = result.includes('Coinciden') ? 'green' : 'red';
+    tr.append(tdNum, tdCards, tdResult);
+    detailsTbody.prepend(tr);
+  };
+
+  /* Chart drawing */
+  const updateChart = () => {
+    const maxMoves = Math.max(5, moves + 5);
+    const step = Math.ceil(maxMoves / 5);
+    const barHeight = (moves / maxMoves) * CHART_HEIGHT;
+    const barY = CHART_HEIGHT - barHeight;
+
+    chartSvg.setAttribute('viewBox', `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`);
+    chartSvg.innerHTML = '';
+
+    // Gridlines and Y labels
+    for (let i = 0; i <= 5; i++) {
+      const y = i * (CHART_HEIGHT / 5);
+      const value = maxMoves - i * step;
+      // line
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', '0');
+      line.setAttribute('y1', y);
+      line.setAttribute('x2', CHART_WIDTH);
+      line.setAttribute('y2', y);
+      line.setAttribute('stroke', '#e0e0e0');
+      line.setAttribute('stroke-width', '1');
+      chartSvg.appendChild(line);
+      // label
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', '5');
+      text.setAttribute('y', y + 5);
+      text.setAttribute('font-size', '12');
+      text.textContent = value;
+      chartSvg.appendChild(text);
+    }
+
+    // Bar
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', '50');
+    rect.setAttribute('y', barY);
+    rect.setAttribute('width', '100');
+    rect.setAttribute('height', barHeight);
+    rect.setAttribute('fill', '#4caf50');
+    chartSvg.appendChild(rect);
+
+    // Moves label
+    const movesLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    movesLabel.setAttribute('x', '50');
+    movesLabel.setAttribute('y', barY - 10);
+    movesLabel.setAttribute('font-size', '14');
+    movesLabel.setAttribute('fill', '#000');
+    movesLabel.textContent = `Movimientos: ${moves}`;
+    chartSvg.appendChild(movesLabel);
+  };
+
+  /* Overlay handling */
+  const showOverlay = (msg) => {
+    overlay.textContent = msg;
+    overlay.style.visibility = 'visible';
+  };
+  overlay.addEventListener('click', () => {
+    overlay.style.visibility = 'hidden';
   });
 
-  function handleClick(tile){
-    if(busy||tile.classList.contains('face-up')||tile.classList.contains('matched')) return;
-    tile.classList.remove('face-down'); tile.classList.add('face-up');
-    tile.textContent = tile.dataset.emoji;
-    if(!first){ first=tile; return; }
-    second=tile; moves++; window.moves = moves; movesEl.textContent=moves; busy=true;
-    if(first.dataset.emoji===second.dataset.emoji){
-      first.classList.add('matched'); second.classList.add('matched');
-      matched[first.dataset.emoji]=true; updateDetails();
-      first=second=null; busy=false;
-    }else{
-      setTimeout(()=>{ 
-        first.classList.remove('face-up'); first.classList.add('face-down'); first.textContent='';
-        second.classList.remove('face-up'); second.classList.add('face-down'); second.textContent='';
-        first=second=null; busy=false; 
-      },1000);
-    }
-  }
-
-  function updateDetails(){
-    detailsBody.innerHTML='';
-    Object.keys(matched).forEach(k=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${k}</td><td>${matched[k]?'✓':'✗'}</td>`;
-      detailsBody.appendChild(tr);
-    });
-  }
-
-  function drawChart(){
-    const w=chartSvg.clientWidth, h=chartSvg.clientHeight;
-    chartSvg.innerHTML='';
-    const margin=40, width=w-margin*2, height=h-margin*2;
-    const maxY=Math.max(...chartData,1);
-    let path='';
-    if(chartData.length>1){
-        path='M'+chartData.map((v,i)=>`${i*width/(chartData.length-1)},${height-(v/maxY)*height}`).join('L');
-    }else if(chartData.length===1){
-        path='M0,0L0,0';
-    }else{
-        path='M0,0';
-    }
-    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('transform',`translate(${margin},${margin})`);
-    // grid
-    for(let i=0;i<=5;i++){
-      const y=height*i/5;
-      const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-      line.setAttribute('x1',0); line.setAttribute('y1',y);
-      line.setAttribute('x2',width); line.setAttribute('y2',y);
-      line.setAttribute('stroke','#eee'); line.setAttribute('stroke-width',1);
-      g.appendChild(line);
-      const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
-      txt.setAttribute('x',-10); txt.setAttribute('y',y+4);
-      txt.setAttribute('font-size','10'); txt.textContent=(maxY*i/5).toFixed(0);
-      g.appendChild(txt);
-    }
-    // line
-    const line=document.createElementNS('http://www.w3.org/2000/svg','path');
-    line.setAttribute('d',path);
-    line.setAttribute('stroke','#00f'); line.setAttribute('stroke-width',2); line.setAttribute('fill','none');
-    g.appendChild(line);
-    chartSvg.appendChild(g);
-  }
-
-  setInterval(()=>{
-    elapsed++; timeEl.textContent=elapsed;
-    chartData.push(moves);
-    drawChart();
-  },1000);
+  /* Initialize on load */
+  window.addEventListener('load', init);
 })();
 </script>
 </body>

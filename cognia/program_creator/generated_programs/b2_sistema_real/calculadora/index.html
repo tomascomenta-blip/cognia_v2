@@ -1,151 +1,116 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Calculadora Animada</title>
+<title>Calculadora</title>
 <style>
-  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;color:#333;}
-  header{background:#4a90e2;color:#fff;padding:1rem;text-align:center;}
-  section{padding:1rem;background:#fff;margin:1rem auto;max-width:400px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,.1);}
-  #pantalla{background:#222;color:#0f0;font-size:2rem;text-align:right;padding:.5rem;border-radius:4px;margin-bottom:.5rem;}
-  #teclas{display:flex;gap:.5rem;}
-  .tecla{flex:1;padding:.75rem;font-size:1.5rem;border:none;border-radius:4px;background:#e0e0e0;cursor:pointer;}
-  .tecla:active{background:#d0d0d0;}
-  #chartSvg{border:1px solid #ccc;border-radius:4px;}
-  @media(max-width:500px){#pantalla{font-size:1.5rem;}}
+  body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
+    background:#f0f0f0;
+    font-family:Arial,Helvetica,sans-serif;
+  }
+  #calculator{
+    width:260px;
+    background:#222;
+    border-radius:10px;
+    padding:15px;
+    box-shadow:0 4px 15px rgba(0,0,0,0.3);
+    animation:slideIn 1s ease-out forwards;
+  }
+  #pantalla{
+    height:50px;
+    background:#000;
+    color:#0f0;
+    font-size:1.8em;
+    text-align:right;
+    padding:10px;
+    border-radius:5px;
+    margin-bottom:10px;
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+  }
+  #teclas{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+  }
+  .tecla{
+    background:#444;
+    color:#fff;
+    border:none;
+    border-radius:5px;
+    font-size:1.4em;
+    padding:15px 0;
+    cursor:pointer;
+    transition:background 0.2s;
+    animation:fadeIn 0.5s ease forwards;
+    animation-delay:0.2s;
+  }
+  .tecla:hover{background:#555;}
+  @keyframes slideIn{
+    from{transform:translateX(-100%); opacity:0;}
+    to{transform:translateX(0); opacity:1;}
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
 </style>
 </head>
 <body>
-<header><h1>Calculadora Animada</h1></header>
-
-<section id="calculator">
-  <div id="pantalla">0</div>
+<div id="calculator">
+  <div id="pantalla"></div>
   <div id="teclas">
+    <button class="tecla" data-t="7">7</button>
+    <button class="tecla" data-t="8">8</button>
+    <button class="tecla" data-t="9">9</button>
+    <button class="tecla" data-t="/">/</button>
+    <button class="tecla" data-t="4">4</button>
+    <button class="tecla" data-t="5">5</button>
+    <button class="tecla" data-t="6">6</button>
+    <button class="tecla" data-t="*">*</button>
+    <button class="tecla" data-t="1">1</button>
     <button class="tecla" data-t="2">2</button>
-    <button class="tecla" data-t="+">+</button>
     <button class="tecla" data-t="3">3</button>
+    <button class="tecla" data-t="-">-</button>
+    <button class="tecla" data-t="0">0</button>
+    <button class="tecla" data-t=".">.</button>
     <button class="tecla" data-t="=">=</button>
+    <button class="tecla" data-t="+">+</button>
   </div>
-</section>
-
-<section id="chart">
-  <h2>Datos Aleatorios</h2>
-  <svg id="chartSvg" width="100%" height="200"></svg>
-</section>
+</div>
 
 <script>
-/* ---------- Calculadora ---------- */
-const pantalla = document.getElementById('pantalla');
-const teclas = document.querySelectorAll('.tecla');
-let expr = '';
-
-function updateScreen(val){
-  pantalla.textContent = val;
-  const num = parseFloat(val);
-  if (!isNaN(num)) {
-    pantalla.style.color = num >= 0 ? 'green' : 'red';
-  } else {
-    pantalla.style.color = '#0f0';
-  }
-}
-function press(t){ // simulate button press
-  if(t==='='){
-    try{expr=eval(expr).toString();}catch{expr='5';}
-  }else{
-    expr+=t;
-  }
-  updateScreen(expr||'0');
-}
-teclas.forEach(btn=>{
-  btn.addEventListener('click',()=>press(btn.dataset.t));
-});
-
-/* Auto‑sequence 2 + 3 = */
-setTimeout(()=>press('2'),500);
-setTimeout(()=>press('+'),1000);
-setTimeout(()=>press('3'),1500);
-setTimeout(()=>press('='),2000);
-
-/* ---------- Gráfico ---------- */
-const svg=document.getElementById('chartSvg');
-let data=[Math.random()*100];
-const maxPoints=20;
-const margin=40;
-const width=svg.clientWidth-2*margin;
-const height=svg.clientHeight-2*margin;
-
-function render(){
-  const min=Math.min(...data);
-  const max=Math.max(...data);
-  const yScale=dy=>{
-    if(max===min){
-      return height/2;
-    }
-    return height-((dy-min)/(max-min))*height;
-  };
-  const xScale=(i)=>margin+i*(width/(maxPoints-1));
-
-  svg.innerHTML='';
-  // gridlines
-  let prevVal=null;
-  for(let i=0;i<=5;i++){
-    const y=margin+i*(height/5);
-    const val=min+(max-min)*(5-i)/5;
-    let color='#333';
-    if(prevVal!==null){
-      const diff=val-prevVal;
-      color=diff>=0?'green':'red';
-    }
-    // line
-    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',margin);
-    line.setAttribute('y1',y);
-    line.setAttribute('x2',margin+width);
-    line.setAttribute('y2',y);
-    line.setAttribute('stroke','#eee');
-    svg.appendChild(line);
-    // text
-    const text=document.createElementNS('http://www.w3.org/2000/svg','text');
-    text.setAttribute('x',margin-5);
-    text.setAttribute('y',y+4);
-    text.setAttribute('font-size',10);
-    text.setAttribute('text-anchor','end');
-    text.textContent=val.toFixed(1);
-    text.style.color=color;
-    svg.appendChild(text);
-    prevVal=val;
-  }
-  // axes
-  const axisV=document.createElementNS('http://www.w3.org/2000/svg','line');
-  axisV.setAttribute('x1',margin);
-  axisV.setAttribute('y1',margin);
-  axisV.setAttribute('x2',margin);
-  axisV.setAttribute('y2',margin+height);
-  axisV.setAttribute('stroke','#000');
-  svg.appendChild(axisV);
-  const axisH=document.createElementNS('http://www.w3.org/2000/svg','line');
-  axisH.setAttribute('x1',margin);
-  axisH.setAttribute('y1',margin+height);
-  axisH.setAttribute('x2',margin+width);
-  axisH.setAttribute('y2',margin+height);
-  axisH.setAttribute('stroke','#000');
-  svg.appendChild(axisH);
-  // polyline
-  let points='';
-  data.forEach((d,i)=>points+=`${xScale(i)},${yScale(d)} `);
-  const poly=document.createElementNS('http://www.w3.org/2000/svg','polyline');
-  poly.setAttribute('points',points.trim());
-  poly.setAttribute('fill','none');
-  poly.setAttribute('stroke','#4a90e2');
-  poly.setAttribute('stroke-width',2);
-  svg.appendChild(poly);
-}
-render();
-setInterval(()=>{
-  if(data.length>=maxPoints)data.shift();
-  data.push(Math.random()*100);
-  render();
-},2000);
+  (function(){
+    const pantalla = document.getElementById('pantalla');
+    let expr = '';
+    const teclas = document.querySelectorAll('.tecla');
+    teclas.forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const val = btn.dataset.t;
+        if(val === '='){
+          try{
+            // Evaluate the expression safely
+            const result = eval(expr);
+            pantalla.textContent = result;
+            expr = result.toString();
+          }catch(e){
+            pantalla.textContent = 'Error';
+            expr = '';
+          }
+        }else{
+          expr += val;
+          pantalla.textContent = expr;
+        }
+      });
+    });
+  })();
 </script>
 </body>
 </html>

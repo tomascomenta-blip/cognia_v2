@@ -2,237 +2,205 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Filtro de lista con gráfico animado</title>
+<title>Filtro de lista y Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;color:#333;}
-  .container{max-width:800px;margin:auto;padding:1rem;}
-  header{text-align:center;margin-bottom:1rem;}
-  .summary{display:flex;justify-content:space-around;margin-bottom:1rem;}
-  .summary div{background:#fff;padding:0.5rem 1rem;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1);}
-  .chart{width:100%;height:300px;background:#fff;border:1px solid #ccc;margin-bottom:1rem;position:relative;}
-  .chart svg{width:100%;height:100%;}
-  table{width:100%;border-collapse:collapse;background:#fff;margin-bottom:1rem;}
-  th,td{border:1px solid #ccc;padding:0.5rem;text-align:left;}
-  th{background:#eee;}
-  .list-section{margin-bottom:1rem;}
-  #buscar{width:100%;padding:0.5rem;font-size:1rem;margin-bottom:0.5rem;}
-  .item{list-style:none;padding:0.5rem;border-bottom:1px solid #ddd;transition:background-color .3s;}
-  .item.hidden{display:none;}
-  .ascii{font-family:monospace;white-space:pre;background:#222;color:#0f0;padding:0.5rem;margin-top:1rem;border-radius:4px;}
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f4f4f4;color:#333}
+  .container{max-width:800px;margin:auto;padding:1rem}
+  .section{background:#fff;margin-bottom:1rem;padding:1rem;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  h2{margin-top:0;font-size:1.5rem;color:#444}
+  #counter{font-size:2rem;font-weight:bold;color:#006600}
+  #buscar{width:100%;padding:.5rem;font-size:1rem;margin-bottom:.5rem;border:1px solid #ccc;border-radius:4px}
+  ul{list-style:none;padding:0;margin:0}
+  li.item{padding:.5rem;border-bottom:1px solid #eee}
+  li.item.hidden{display:none}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:.5rem;text-align:left;border-bottom:1px solid #ddd}
+  th{background:#f9f9f9;color:#555}
+  .price{font-variant-numeric:tabular-nums;text-align:right}
+  .change{font-variant-numeric:tabular-nums;text-align:right}
+  .up{color:#006600}
+  .down{color:#d03b3b}
+  svg{width:100%;height:200px;background:#fafafa;border:1px solid #ddd;border-radius:4px}
   @media(max-width:600px){
-    .summary{flex-direction:column;gap:0.5rem;}
+    h2{font-size:1.25rem}
+    #counter{font-size:1.5rem}
   }
 </style>
 </head>
 <body>
 <div class="container">
-  <header>
-    <h1>Filtro de lista con gráfico animado</h1>
-  </header>
-
-  <!-- Sección de resumen -->
-  <section class="summary">
-    <div>Totales: <span id="totalCount"></span></div>
-    <div>Visibles: <span id="visibleCount"></span></div>
+  <!-- Sección 1: Resumen -->
+  <section class="section" id="summary">
+    <h2>Resumen</h2>
+    <p>Visitas: <span id="counter">0</span></p>
   </section>
 
-  <!-- Sección de gráfico -->
-  <section class="chart">
-    <svg id="chartSvg"></svg>
+  <!-- Sección 2: Gráfico -->
+  <section class="section" id="chart-section">
+    <h2>Gráfico de ventas</h2>
+    <svg id="chart" viewBox="0 0 500 200" preserveAspectRatio="xMidYMid meet"></svg>
   </section>
 
-  <!-- Sección de tabla -->
-  <section>
-    <table>
+  <!-- Sección 3: Tabla de detalle -->
+  <section class="section" id="detail-section">
+    <h2>Detalle de productos</h2>
+    <table id="detail-table">
       <thead>
-        <tr><th>Fruta</th><th>Valor</th></tr>
+        <tr><th>Producto</th><th class="price">Precio</th><th class="change">Cambio</th></tr>
       </thead>
-      <tbody id="dataTableBody"></tbody>
+      <tbody></tbody>
     </table>
   </section>
 
-  <!-- Sección de filtro y lista -->
-  <section class="list-section">
-    <input type="text" id="buscar" placeholder="Buscar fruta...">
-    <ul id="fruitList">
-      <li class="item">manzana</li>
-      <li class="item">banana</li>
-      <li class="item">cereza</li>
-      <li class="item">datil</li>
-      <li class="item">kiwi</li>
-    </ul>
+  <!-- Sección 4: Lista filtrable -->
+  <section class="section" id="filter-section">
+    <h2>Lista filtrable</h2>
+    <input type="text" id="buscar" placeholder="Buscar…">
+    <ul id="lista"></ul>
   </section>
-
-  <!-- ASCII art -->
-  <pre class="ascii">
-   .-""""-.
-  / -   -  \
- |  .-. .- |
- |  \o| |o |
- |   \_/   |
-  \       /
-   `-...-`
-  </pre>
 </div>
 
 <script>
-(function(){
-  const fruits = ['manzana','banana','cereza','datil','kiwi'];
-  let data = fruits.map(name=>({
-    name,
-    value:randomVal(),
-    prevValue:0,
-    visible:true,
-    tdVal:null
-  }));
+/* ---------- Constantes ---------- */
+const FRUITS = ['manzana','banana','cereza','datil','kiwi'];
+const COUNTER_INTERVAL = 1000;      // 1 segundo
+const CHART_INTERVAL = 3000;        // 3 segundos
+const TABLE_INTERVAL = 4000;        // 4 segundos
 
-  const chartSvg = document.getElementById('chartSvg');
-  const tbody = document.getElementById('dataTableBody');
-  const totalCountEl = document.getElementById('totalCount');
-  const visibleCountEl = document.getElementById('visibleCount');
-  const buscarInput = document.getElementById('buscar');
-  const listItems = document.querySelectorAll('.item');
+/* ---------- Resumen ---------- */
+let counter = 0;
+const counterEl = document.getElementById('counter');
+function updateCounter(){
+  counter++;
+  counterEl.textContent = counter.toLocaleString('es-ES');
+}
+function initCounter(){
+  updateCounter(); // primer frame inmediato
+  setInterval(updateCounter, COUNTER_INTERVAL);
+}
 
-  function randomVal(){return Math.random()*90+10;} // 10-100
+/* ---------- Gráfico ---------- */
+const chartSvg = document.getElementById('chart');
+const MARGIN = {top:20, right:20, bottom:20, left:50};
+const SVG_WIDTH = 500;
+const SVG_HEIGHT = 200;
+const BAR_GAP = 10;
+let chartData = [];
 
-  function init(){
-    renderAll();
-    setInterval(updateValues,1000);
-    setInterval(updateListColors,500);
-    buscarInput.addEventListener('input',filterList);
-    window.addEventListener('resize',renderChart);
+function generateChartData(){
+  chartData = FRUITS.map(()=>Math.floor(Math.random()*90)+10); // 10-100
+}
+function drawChart(){
+  const min = Math.min(...chartData);
+  const max = Math.max(...chartData);
+  const usableHeight = SVG_HEIGHT - MARGIN.top - MARGIN.bottom;
+  const barWidth = (SVG_WIDTH - MARGIN.left - MARGIN.right - (BAR_GAP * (FRUITS.length-1))) / FRUITS.length;
+
+  // Y-axis ticks (5 ticks)
+  const ticks = 5;
+  const tickValues = [];
+  for(let i=0;i<ticks;i++){
+    tickValues.push(min + i*(max-min)/(ticks-1));
   }
 
-  function renderAll(){
-    renderSummary();
-    renderChart();
+  let svgContent = '';
+
+  // Gridlines and Y-axis labels
+  tickValues.forEach(val=>{
+    const y = MARGIN.top + usableHeight - (val - min)/(max-min)*usableHeight;
+    svgContent += `<line x1="${MARGIN.left}" y1="${y}" x2="${SVG_WIDTH-MARGIN.right}" y2="${y}" stroke="#e0e0e0" stroke-width="1"/>`;
+    svgContent += `<text x="${MARGIN.left-5}" y="${y+4}" text-anchor="end" font-size="10" fill="#555">${val.toFixed(0)}</text>`;
+  });
+
+  // Bars
+  chartData.forEach((val,idx)=>{
+    const x = MARGIN.left + idx*(barWidth+BAR_GAP);
+    const barHeight = (val - min)/(max-min)*usableHeight;
+    const y = MARGIN.top + usableHeight - barHeight;
+    svgContent += `<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" fill="#4caf50"/>`;
+    // Label below bar
+    svgContent += `<text x="${x+barWidth/2}" y="${SVG_HEIGHT-MARGIN.bottom+15}" text-anchor="middle" font-size="10" fill="#333">${FRUITS[idx]}</text>`;
+  });
+
+  chartSvg.innerHTML = svgContent;
+}
+function initChart(){
+  generateChartData();
+  drawChart(); // primer frame inmediato
+  setInterval(()=>{
+    generateChartData();
+    drawChart();
+  }, CHART_INTERVAL);
+}
+
+/* ---------- Tabla de detalle ---------- */
+const tableBody = document.querySelector('#detail-table tbody');
+let tableData = [];
+
+function generateTableData(){
+  tableData = FRUITS.map(fruit=>{
+    const price = (Math.random()*90+10).toFixed(2);
+    const change = (Math.random()*20-10).toFixed(2); // -10 to +10
+    return {fruit, price, change};
+  });
+}
+function renderTable(){
+  tableBody.innerHTML = '';
+  tableData.forEach(row=>{
+    const tr = document.createElement('tr');
+    const changeClass = row.change >= 0 ? 'up' : 'down';
+    const arrow = row.change >= 0 ? '▲' : '▼';
+    tr.innerHTML = `
+      <td>${row.fruit}</td>
+      <td class="price">${parseFloat(row.price).toLocaleString('es-ES',{style:'currency',currency:'EUR'})}</td>
+      <td class="change ${changeClass}">${arrow} ${Math.abs(row.change)}</td>
+    `;
+    tableBody.appendChild(tr);
+  });
+}
+function initTable(){
+  generateTableData();
+  renderTable(); // primer frame inmediato
+  setInterval(()=>{
+    generateTableData();
     renderTable();
-    filterList(); // apply initial filter (empty)
-  }
+  }, TABLE_INTERVAL);
+}
 
-  function renderSummary(){
-    totalCountEl.textContent = data.length;
-    visibleCountEl.textContent = data.filter(d=>d.visible).length;
-  }
-
-  function renderChart(){
-    const rect = chartSvg.getBoundingClientRect();
-    chartSvg.setAttribute('width',rect.width);
-    chartSvg.setAttribute('height',rect.height);
-    chartSvg.innerHTML='';
-
-    const width = rect.width;
-    const height = rect.height;
-    const padding = 40;
-    const values = data.map(d=>d.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const barWidth = (width - 2*padding) / data.length * 0.8;
-    const barGap = (width - 2*padding) / data.length * 0.2;
-
-    data.forEach((d,i)=>{
-      const barHeight = ((d.value - min) / (max - min)) * (height - 2*padding);
-      const x = padding + i*(barWidth+barGap) + barGap/2;
-      const y = height - padding - barHeight;
-      const rectEl = document.createElementNS('http://www.w3.org/2000/svg','rect');
-      rectEl.setAttribute('x',x);
-      rectEl.setAttribute('y',y);
-      rectEl.setAttribute('width',barWidth);
-      rectEl.setAttribute('height',barHeight);
-      rectEl.setAttribute('fill',getBarColor(d.value));
-      chartSvg.appendChild(rectEl);
-
-      const textEl = document.createElementNS('http://www.w3.org/2000/svg','text');
-      textEl.setAttribute('x',x+barWidth/2);
-      textEl.setAttribute('y',height-padding+15);
-      textEl.setAttribute('text-anchor','middle');
-      textEl.textContent = d.name;
-      chartSvg.appendChild(textEl);
+/* ---------- Lista filtrable ---------- */
+const listEl = document.getElementById('lista');
+function renderList(){
+  listEl.innerHTML = '';
+  FRUITS.forEach(fruit=>{
+    const li = document.createElement('li');
+    li.className = 'item';
+    li.textContent = fruit;
+    listEl.appendChild(li);
+  });
+}
+function attachFilter(){
+  const input = document.getElementById('buscar');
+  input.addEventListener('input',()=>{
+    const filter = input.value.toLowerCase();
+    document.querySelectorAll('#lista .item').forEach(li=>{
+      const text = li.textContent.toLowerCase();
+      li.classList.toggle('hidden', !text.includes(filter));
     });
+  });
+}
+function initList(){
+  renderList();
+  attachFilter();
+}
 
-    // Y axis gridlines and labels
-    const yTicks = 5;
-    for(let i=0;i<=yTicks;i++){
-      const val = min + i*(max-min)/yTicks;
-      const y = height - padding - (i*(height-2*padding)/yTicks);
-      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-      line.setAttribute('x1',padding);
-      line.setAttribute('y1',y);
-      line.setAttribute('x2',width-padding);
-      line.setAttribute('y2',y);
-      line.setAttribute('stroke','#ddd');
-      chartSvg.appendChild(line);
-
-      const label = document.createElementNS('http://www.w3.org/2000/svg','text');
-      label.setAttribute('x',padding-5);
-      label.setAttribute('y',y+4);
-      label.setAttribute('text-anchor','end');
-      label.textContent = val.toFixed(1);
-      chartSvg.appendChild(label);
-    }
-  }
-
-  function getBarColor(val){
-    const min=10, max=100;
-    const ratio=(val-min)/(max-min);
-    const r=Math.round(255-155*ratio);
-    const g=Math.round(200+55*ratio);
-    return `rgb(${r},${g},0)`;
-  }
-
-  function renderTable(){
-    tbody.innerHTML='';
-    data.forEach(d=>{
-      const tr=document.createElement('tr');
-      const tdName=document.createElement('td');
-      tdName.textContent=d.name;
-      const tdVal=document.createElement('td');
-      tdVal.textContent=d.value.toFixed(2);
-      tdVal.style.textAlign='right';
-      tdVal.style.color='black'; // initial color
-      tr.appendChild(tdName);
-      tr.appendChild(tdVal);
-      tbody.appendChild(tr);
-      d.tdVal = tdVal; // keep reference for later updates
-    });
-  }
-
-  function updateValues(){
-    data.forEach(d=>{
-      const newVal = randomVal();
-      const cambio = newVal - d.prevValue;
-      d.value = newVal;
-      if(d.tdVal){
-        d.tdVal.textContent = newVal.toFixed(2);
-        d.tdVal.style.color = cambio >= 0 ? 'green' : 'red';
-      }
-      d.prevValue = newVal;
-    });
-    renderChart();
-    renderSummary();
-  }
-
-  function filterList(){
-    const filter=buscarInput.value.toLowerCase();
-    listItems.forEach((li,i)=>{
-      const text=li.textContent.toLowerCase();
-      const visible=text.includes(filter);
-      li.style.display=visible?'':'none';
-      data[i].visible=visible;
-    });
-    renderSummary();
-  }
-
-  function updateListColors(){
-    listItems.forEach((li,i)=>{
-      const val=data[i].value;
-      const color=val>50?'#e0ffe0':'#ffe0e0';
-      li.style.backgroundColor=color;
-    });
-  }
-
-  init();
-})();
+/* ---------- Inicialización ---------- */
+document.addEventListener('DOMContentLoaded',()=>{
+  initCounter();
+  initChart();
+  initTable();
+  initList();
+});
 </script>
 </body>
 </html>

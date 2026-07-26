@@ -1,105 +1,241 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Semáforo y Gráfica</title>
+<meta charset="utf-8">
+<title>Semáforo y Dashboard de Datos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  body{font-family:Arial,sans-serif;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;background:#f0f0f0;}
-  header{padding:1rem;text-align:center;}
-  #luz{width:80px;height:80px;border-radius:50%;margin:1rem auto;background:red;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;}
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f9f9f9;
+    color:#333;
+  }
+  #container{
+    max-width:800px;
+    margin:auto;
+    padding:20px;
+  }
+  header{
+    text-align:center;
+    margin-bottom:20px;
+  }
+  #summary{
+    display:flex;
+    justify-content:space-around;
+    margin-bottom:20px;
+  }
+  .summary-item{
+    text-align:center;
+  }
+  .summary-item h2{
+    margin:0;
+    font-size:1.5em;
+  }
+  #chart{
+    margin-bottom:20px;
+  }
+  #chart svg{
+    width:100%;
+    height:auto;
+  }
+  #table{
+    margin-bottom:20px;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+  }
+  th,td{
+    border:1px solid #ddd;
+    padding:8px;
+    text-align:center;
+  }
+  th{
+    background:#f2f2f2;
+  }
+  #control{
+    text-align:center;
+    margin-bottom:20px;
+  }
+  #luz{
+    width:60px;
+    height:60px;
+    border-radius:50%;
+    border:2px solid #333;
+    margin:0 auto 10px;
+  }
   #luz[data-color="rojo"]{background:red;}
   #luz[data-color="verde"]{background:green;}
   #luz[data-color="ambar"]{background:orange;}
-  #avanzar{padding:0.5rem 1rem;margin:1rem;cursor:pointer;}
-  section{width:90%;max-width:600px;margin:1rem 0;}
-  svg{width:100%;height:200px;background:white;border:1px solid #ccc;}
-  table{width:100%;border-collapse:collapse;}
-  th,td{border:1px solid #ccc;padding:4px;text-align:right;}
+  #avanzar{
+    padding:10px 20px;
+    background:#007bff;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  #avanzar:hover{background:#0056b3;}
+  @media (max-width:600px){
+    #summary{flex-direction:column;}
+    .summary-item{margin-bottom:10px;}
+  }
 </style>
 </head>
 <body>
-<header><h1>Semáforo y Gráfica</h1></header>
-<section id="control"><div id="luz" data-color="rojo"></div><button id="avanzar">Avanzar</button></section>
-<section id="chart"><svg id="chartSvg"></svg></section>
-<section id="table"><table><thead><tr><th>Índice</th><th>Valor</th></tr></thead><tbody id="tableBody"></tbody></table></section>
+<div id="container">
+  <header>
+    <h1>Semáforo y Dashboard de Datos</h1>
+  </header>
+  <section id="summary">
+    <div class="summary-item">
+      <h2>Máximo</h2>
+      <p id="max">0</p>
+    </div>
+    <div class="summary-item">
+      <h2>Promedio</h2>
+      <p id="avg">0.00</p>
+    </div>
+    <div class="summary-item">
+      <h2>Mínimo</h2>
+      <p id="min">0</p>
+    </div>
+  </section>
+  <section id="chart">
+    <svg id="chartSvg" viewBox="0 0 600 200" preserveAspectRatio="xMidYMid meet"></svg>
+  </section>
+  <section id="table">
+    <table>
+      <thead>
+        <tr><th>Hora</th><th>Valor</th></tr>
+      </thead>
+      <tbody id="dataTableBody"></tbody>
+    </table>
+  </section>
+  <section id="control">
+    <div id="luz" data-color="rojo"></div>
+    <button id="avanzar">Avanzar</button>
+  </section>
+</div>
 <script>
-document.addEventListener('DOMContentLoaded', function(){
-  // Semáforo
-  var luz = document.getElementById('luz');
-  var avanzarBtn = document.getElementById('avanzar');
-  var colors = ['rojo','verde','ambar'];
-  var idx = 0;
-  function setColor(c){ luz.setAttribute('data-color', c); }
-  setColor(colors[idx]);
+const UPDATE_INTERVAL_MS = 1000;
+const DATA_LENGTH = 20;
+const COLORS = ["rojo","verde","ambar"];
+let currentColorIndex = 0;
+let data = [];
 
-  avanzarBtn.addEventListener('click', function(){
-    idx = (idx + 1) % colors.length;
-    setColor(colors[idx]);
-  });
-
-  setInterval(function(){
-    idx = (idx + 1) % colors.length;
-    setColor(colors[idx]);
-  }, 3000);
-
-  // Gráfica
-  var data = [];
-  var maxPoints = 20;
-  var svg = document.getElementById('chartSvg');
-  var tableBody = document.getElementById('tableBody');
-
-  function update(){
-    var val = Math.floor(Math.random()*1000)+1;
-    data.push(val);
-    if(data.length > maxPoints) data.shift();
-    draw();
-    updateTable();
-  }
-
-  function draw(){
-    var w = svg.clientWidth;
-    var h = svg.clientHeight;
-    var min = Math.min.apply(null, data);
-    var max = Math.max.apply(null, data);
-    var range = max - min || 1;
-    var points = data.map(function(v,i){
-      var x = i/(maxPoints-1)*w;
-      var y = h - (v-min)/range*h;
-      return {x: x, y: y};
+function initData(){
+  for(let i=0;i<DATA_LENGTH;i++){
+    data.push({
+      time:new Date(Date.now()-(DATA_LENGTH-i)*UPDATE_INTERVAL_MS),
+      value:Math.floor(Math.random()*1000)
     });
-    var path = 'M' + points.map(function(p){ return p.x + ',' + p.y; }).join(' L');
-    svg.innerHTML = '';
-    for(var i=0;i<=5;i++){
-      var y = i/5*h;
-      svg.innerHTML += '<line x1="0" y1="'+y+'" x2="'+w+'" y2="'+y+'" stroke="#eee" stroke-width="1"/>';
-    }
-    for(var i=0;i<=5;i++){
-      var y = i/5*h;
-      var val = min + range*i/5;
-      svg.innerHTML += '<text x="0" y="'+(y+4)+'" font-size="10" fill="#333">'+val.toLocaleString()+'</text>';
-    }
-    svg.innerHTML += '<path d="'+path+'" fill="none" stroke="steelblue" stroke-width="2"/>';
   }
+}
 
-  function updateTable(){
-    tableBody.innerHTML = '';
-    for(var i=0;i<data.length;i++){
-      var tr = document.createElement('tr');
-      var tdIndex = document.createElement('td');
-      tdIndex.textContent = i;
-      var tdValue = document.createElement('td');
-      tdValue.textContent = data[i].toLocaleString();
-      var prev = data[i-1];
-      var change = prev !== undefined ? data[i] - prev : 0;
-      tdValue.style.color = change >= 0 ? 'green' : 'red';
-      tr.appendChild(tdIndex);
-      tr.appendChild(tdValue);
-      tableBody.appendChild(tr);
+function addDataPoint(){
+  const now = new Date();
+  const value = Math.floor(Math.random()*1000);
+  data.push({time:now,value});
+  if(data.length>DATA_LENGTH) data.shift();
+}
+
+function computeStats(){
+  const values = data.map(d=>d.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const sum = values.reduce((a,b)=>a+b,0);
+  const avg = sum/values.length;
+  return {min,max,avg};
+}
+
+function renderSummary(){
+  const stats = computeStats();
+  document.getElementById('min').textContent = stats.min.toLocaleString();
+  document.getElementById('max').textContent = stats.max.toLocaleString();
+  document.getElementById('avg').textContent = stats.avg.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function renderChart(){
+  const svg = document.getElementById('chartSvg');
+  const width = 600;
+  const height = 200;
+  const margin = {top:20,right:20,bottom:30,left:50};
+  const innerWidth = width - margin.left - margin.right;
+  const innerHeight = height - margin.top - margin.bottom;
+  const values = data.map(d=>d.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const yScale = v => margin.top + innerHeight - ((v - min)/(max - min))*innerHeight;
+  const xScale = (i)=>margin.left + (i/(data.length-1))*innerWidth;
+  let pathD='';
+  data.forEach((d,i)=>{
+    const x=xScale(i);
+    const y=yScale(d.value);
+    pathD+=(i===0?'M':'L')+x+','+y+' ';
+  });
+  const ticks=5;
+  const tickValues=[];
+  const tickStep=(max-min)/(ticks-1);
+  for(let i=0;i<ticks;i++) tickValues.push(min + i*tickStep);
+  let gridlines='',tickLabels='';
+  tickValues.forEach((tv,idx)=>{
+    const y=yScale(tv);
+    gridlines+=`<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#ccc" stroke-width="1"/>`;
+    tickLabels+=`<text x="${margin.left-10}" y="${y+4}" text-anchor="end" font-size="12">${tv.toLocaleString()}</text>`;
+  });
+  const firstTime=data[0].time.toLocaleTimeString();
+  const lastTime=data[data.length-1].time.toLocaleTimeString();
+  const xLabels=`<text x="${margin.left}" y="${height - margin.bottom + 20}" text-anchor="start" font-size="12">${firstTime}</text>
+  <text x="${width - margin.right}" y="${height - margin.bottom + 20}" text-anchor="end" font-size="12">${lastTime}</text>`;
+  const path=`<path d="${pathD.trim()}" fill="none" stroke="#007bff" stroke-width="2"/>`;
+  svg.innerHTML=gridlines+tickLabels+path+xLabels;
+}
+
+function renderTable(){
+  const tbody=document.getElementById('dataTableBody');
+  tbody.innerHTML='';
+  const recent=data.slice(-5).reverse();
+  recent.forEach((d,idx)=>{
+    const tr=document.createElement('tr');
+    const tdTime=document.createElement('td');
+    tdTime.textContent=d.time.toLocaleTimeString();
+    const tdValue=document.createElement('td');
+    tdValue.textContent=d.value.toLocaleString();
+    const prevIndex=data.length-1-idx-1;
+    if(prevIndex>=0){
+      const prev=data[prevIndex];
+      const change=d.value - prev.value;
+      tdValue.style.color = (change >= 0 ? 'green' : 'red');
+    } else {
+      tdValue.style.color = 'black';
     }
-  }
+    tr.appendChild(tdTime);
+    tr.appendChild(tdValue);
+    tbody.appendChild(tr);
+  });
+}
 
-  update();
-  setInterval(update, 2000);
+function cycleColor(){
+  currentColorIndex=(currentColorIndex+1)%COLORS.length;
+  const luz=document.getElementById('luz');
+  luz.setAttribute('data-color',COLORS[currentColorIndex]);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  initData();
+  renderSummary();
+  renderChart();
+  renderTable();
+  const btn=document.getElementById('avanzar');
+  if(btn) btn.addEventListener('click',cycleColor);
+  setInterval(()=>{
+    addDataPoint();
+    renderSummary();
+    renderChart();
+    renderTable();
+  },UPDATE_INTERVAL_MS);
 });
 </script>
 </body>
