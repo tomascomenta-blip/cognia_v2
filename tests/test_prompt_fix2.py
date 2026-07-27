@@ -41,6 +41,22 @@ def test_troceo_por_frases_preserva_enumeraciones(monkeypatch):
     assert not any(p == "data-precio 100" for p in partes)
 
 
+def test_troceo_con_flag_corta_el_adorno_target_look(monkeypatch):
+    # fix2 v3 (UNDÉCIMA enmienda): el lazo adorna la idea con ". TARGET
+    # LOOK, match it: {brief}" y el troceo por frases del v2 absorbía el
+    # brief ENTERO como REQUIRED component (mecanismo verificado sin GPU
+    # tras el A/B ON 12/24 vs OFF 17/24). El troceo debe operar sobre la
+    # idea ORIGINAL: nada del brief entra a la checklist.
+    monkeypatch.setenv("COGNIA_PROMPT_FIX2", "1")
+    adornada = (_IDEA_CARRITO + ". TARGET LOOK, match it: paleta oscura "
+                "con acentos neon, tarjetas con sombra suave, tipografia "
+                "grande y bordes redondeados")
+    partes = _componentes_de_idea(adornada)
+    assert any("data-precio 100,50,25" in p for p in partes)
+    assert not any("TARGET LOOK" in p or "neon" in p or "sombra" in p
+                   for p in partes)
+
+
 def test_regla_de_numeros_exactos_en_interactiva(monkeypatch):
     monkeypatch.setenv("COGNIA_PROMPT_FIX2", "1")
     p = _build_prompt_web(_IDEA_CARRITO, "hint")

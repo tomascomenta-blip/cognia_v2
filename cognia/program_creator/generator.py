@@ -335,6 +335,13 @@ def _componentes_de_idea(category: str) -> list:
     t = re.sub(r"^\s*(pagina web|programa( python)?|script)\s*(de|del|con|:)?\s*",
                "", (category or ""), flags=re.I)
     if os.environ.get("COGNIA_PROMPT_FIX2"):
+        # El troceo opera sobre la idea ORIGINAL: el lazo adorna con
+        # ". TARGET LOOK, match it: {brief}" (diseno_a_codigo) y el A/B del
+        # 27 (décima enmienda, ON 12/24 vs OFF 17/24) mostró que el troceo
+        # por frases absorbía el brief ENTERO como REQUIRED component — la
+        # checklist convertía la estética en requisito duro. El brief sigue
+        # en la idea que ve el constructor; solo sale de la CHECKLIST.
+        t = re.split(r"[.,]?\s*TARGET LOOK\b", t)[0]
         partes = [p.strip(" .") for p in re.split(r"(?<=[^\s.])\.\s+", t)
                   if len(p.strip()) > 8]
     else:

@@ -52,6 +52,12 @@ def main(argv: list) -> int:
     replicas = (int(argv[argv.index("--replicas") + 1])
                 if "--replicas" in argv else 6)
     reanudar = "--reanudar" in argv
+    # --sufijo v3: corrida DESDE CERO en directorio propio (undécima
+    # enmienda — la corrida del v2 no se pisa y no se mezcla).
+    global SALIDA
+    if "--sufijo" in argv:
+        SALIDA = SALIDA.with_name(
+            SALIDA.name + "_" + argv[argv.index("--sufijo") + 1])
     # Flags residuales del shell cambiarian el sistema medido sin dejar
     # rastro (revision 2026-07-27); CONSTRUCTOR_URL ya lo popea correr_sistema.
     os.environ.pop("COGNIA_IDEA_PELADA", None)

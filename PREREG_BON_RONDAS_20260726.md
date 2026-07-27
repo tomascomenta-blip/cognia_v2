@@ -462,6 +462,41 @@ Dos lecturas que valen más que el fix:
    (12/24 vs 12/24 histórico) cuando el concurrente dice −5. El intercalado
    es lo único que salvó el veredicto. Referencias históricas: solo sanidad.
 
+## UNDÉCIMA ENMIENDA (2026-07-27 ~20:05, sesión nocturna — fix2 v3: trocear
+## la idea ORIGINAL; escrita ANTES de implementar y de correr)
+
+El mecanismo del fracaso del A/B anterior quedó verificado sin GPU (décima
+enmienda, lectura 1): el troceo por frases absorbía el adorno `. TARGET
+LOOK, match it: {brief}` entero como "REQUIRED component" — la checklist
+convertía la estética en requisito duro. La sonda directa corría con la
+idea pelada y no podía verlo.
+
+**Fix v3 (mismo gate `COGNIA_PROMPT_FIX2`, sin flag nuevo):** el troceo por
+frases CORTA el adorno TARGET LOOK antes de partir — trocea la idea
+ORIGINAL, como manda la décima enmienda. Sin flag, nada cambia (el troceo
+por comas de producción fragmentaba el brief y solo entraba un residuo).
+Test de regresión: con flag y una idea adornada, ningún componente contiene
+texto del brief.
+
+**A/B de confirmación DESDE CERO** (la corrida de la mañana no vale: su ON
+era el v2 defectuoso): mismo diseño de la décima enmienda — sistema
+COMPLETO, banco brutal, brazos OFF/ON intercalados a nivel tarea con orden
+rotado por celda, salida en directorio propio (la corrida previa no se
+pisa). Objetivo n=6/brazo; las réplicas corren hasta el aterrizaje
+(~21:50): si corta antes, se reporta el n alcanzado como PARCIAL
+direccional y la corrida queda reanudable con --reanudar.
+
+| veredicto (pares apareados por celda) | condición |
+|---|---|
+| el fix cobra | ON gana ≥3 celdas netas |
+| cobro dudoso | ON gana 1-2 netas — más réplicas antes de adoptar |
+| no cobra | neto ≤ 0 — revertir el gate y volver a la sonda |
+
+Declarado: ambos brazos heredan por igual el descarte de contratos vacuos
+(commit 8006037, entrado hoy ANTES de esta enmienda) y el contrato interno
+CLÁSICO. El OFF concurrente es la única vara; el 17/24 de la mañana es solo
+sanidad ([[gate-e2e-flaky]]: deriva sistémica medida de ~21 pts en 12 h).
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es
