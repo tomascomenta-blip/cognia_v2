@@ -71,8 +71,10 @@ def main(argv: list) -> int:
 
     candidatos = _flag_entero("--candidatos") or 1
     rondas_progreso = _flag_entero("--rondas-progreso")
+    max_rondas = _flag_entero("--max-rondas")
     print(f"Banco BRUTAL por el sistema real — {len(tareas)} tareas "
-          f"(candidatos={candidatos}, rondas_progreso={rondas_progreso})\n",
+          f"(candidatos={candidatos}, rondas_progreso={rondas_progreso}, "
+          f"max_rondas={max_rondas})\n",
           flush=True)
 
     SALIDA.mkdir(parents=True, exist_ok=True)
@@ -83,7 +85,7 @@ def main(argv: list) -> int:
         print(f"  {t['id']} ...", flush=True)
         html, segs, como, meta = b2.correr_sistema(
             t["idea"], d, candidatos=candidatos,
-            rondas_progreso=rondas_progreso)
+            rondas_progreso=rondas_progreso, max_rondas=max_rondas)
         if not html:
             reales[t["id"]] = {"aprobado": False, "motivo": "sin HTML",
                                "segundos": segs, "como": como, **meta}
@@ -120,7 +122,8 @@ def main(argv: list) -> int:
     salida = SALIDA / "resultados.json"
     salida.write_text(json.dumps(
         {"config": {"candidatos": candidatos,
-                    "rondas_progreso": rondas_progreso},
+                    "rondas_progreso": rondas_progreso,
+                    "max_rondas": max_rondas},
          "sistema_real": reales, "aprobados": aprob,
          "aprobados_heldout": limpios, "n_tareas": n},
         indent=2, ensure_ascii=False), encoding="utf-8")

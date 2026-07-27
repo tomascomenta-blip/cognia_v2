@@ -1,0 +1,59 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null
+  },
+  "sistema_real": {
+    "hoja_calculo": {
+      "aprobado": false,
+      "motivo": "falla critica: B1 = A1+A2 = 8 (js='5030,00', esperaba '8'); C1 = B1+A1 = 13 (js='503.000,00', esperaba '13'); CASCADA: a",
+      "segundos": 187.57399344444275,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 22,
+      "checks": 28,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "carrito_stock": {
+      "aprobado": false,
+      "motivo": "falla critica: al tope de stock (2) el boton se deshabilita (js=False, esperaba True); total = 2*100 = 200 ('225' no con",
+      "segundos": 325.96672439575195,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 16,
+      "checks": 19,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "kanban": {
+      "aprobado": false,
+      "motivo": "falla critica: 3 tarjetas en todo (js=2, esperaba 3); el contador dice 3 ('2' no contiene '3'); t2 pasa a doing (2 = top",
+      "segundos": 191.00196528434753,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 7,
+      "checks": 20,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "buscaminas": {
+      "aprobado": false,
+      "motivo": "falla critica: empieza todo cerrado (count('.abierta')=1, esperaba 0); la cascada NO destapa una mina (js=False, esperab",
+      "segundos": 157.63499760627747,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 17,
+      "checks": 20,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    }
+  },
+  "aprobados": 0,
+  "aprobados_heldout": 0,
+  "n_tareas": 4
+}

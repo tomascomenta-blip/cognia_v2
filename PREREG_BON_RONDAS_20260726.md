@@ -267,6 +267,24 @@ corre el banco brutal ×3 con la config restaurada.
 | **culpable parcial** | pelada 4-5/12 — hay más ladrones en el camino |
 | **el adorno queda absuelto** | pelada ≤ 3/12 — buscar en el resto (componentes REQUIRED, parser, temperatura) |
 
+## SÉPTIMA ENMIENDA (2026-07-27 ~22:30 — el adorno queda absuelto; triangulación)
+
+Brazo F (idea pelada, lazo completo): **0/4, 0/4** en las dos primeras
+réplicas (la 3ª corre) — quitar el TARGET LOOK no recupera nada. El adorno
+queda absuelto. Quedan dos sospechosos entre el 75% directo y el ~8-17% del
+sistema: (a) el envoltorio de `generate_program` (checklist de componentes
+REQUIRED, system prompt), y (b) el LAZO mismo (reparaciones que degradan la
+página en tareas composicionales, entregando la última versión).
+
+**Brazo G — TRIANGULA (pelada + max_rondas=1):** primera generación por el
+camino del sistema, sin adorno y sin reparación. n=3 (12 tareas).
+
+| lectura brazo G | condición |
+|---|---|
+| **el ladrón es el LAZO de reparación** | triangula ≥ 7/12 (~recupera el directo) |
+| **reparto** | 4-6/12 — ambos roban |
+| **el ladrón es generate_program** | ≤ 3/12 — el camino de generación del sistema pierde contra _call_llm directo |
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es

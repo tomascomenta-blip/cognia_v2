@@ -1,167 +1,233 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Kanban en un solo archivo</title>
+<meta charset="utf-8">
+<title>Tablero Kanban</title>
 <style>
-  body{
-    font-family:Arial,Helvetica,sans-serif;
-    background:#f0f0f0;
-    margin:0;
-    padding:20px;
-    display:flex;
-    justify-content:center;
-    align-items:flex-start;
-    min-height:100vh;
-  }
-  .board{
-    display:flex;
-    gap:20px;
-    width:100%;
-    max-width:1200px;
-  }
-  .col{
-    background:#fff;
-    border-radius:5px;
-    flex:1;
-    padding:10px;
-    box-shadow:0 2px 5px rgba(0,0,0,.1);
-    opacity:0;
-    transform:translateX(-20px);
-    animation:slideIn .5s ease forwards;
-  }
-  .col:nth-child(1){animation-delay:.1s;}
-  .col:nth-child(2){animation-delay:.2s;}
-  .col:nth-child(3){animation-delay:.3s;}
-  @keyframes slideIn{
-    to{opacity:1;transform:translateX(0);}
-  }
-  .col h2{
-    margin:0 0 10px;
-    font-size:1.2em;
-    display:flex;
-    align-items:center;
-  }
-  .col h2 span{
-    background:#333;
-    color:#fff;
-    border-radius:12px;
-    padding:2px 8px;
-    margin-left:8px;
-    font-size:.8em;
-  }
-  .cards{
-    min-height:50px;
-  }
-  .card{
-    background:#e3e3e3;
-    margin:5px 0;
-    padding:10px;
-    border-radius:3px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    opacity:0;
-    transform:translateY(-10px);
-    animation:cardIn .5s ease forwards;
-  }
-  .card:nth-child(1){animation-delay:.1s;}
-  .card:nth-child(2){animation-delay:.2s;}
-  .card:nth-child(3){animation-delay:.3s;}
-  @keyframes cardIn{
-    to{opacity:1;transform:translateY(0);}
-  }
-  button{
-    margin-left:5px;
-    padding:2px 6px;
-    font-size:.9em;
-    cursor:pointer;
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f5f5f5;}
+  header{background:#4caf50;color:white;padding:10px;text-align:center;}
+  header h1{margin:0;font-size:1.5rem;}
+  #summary{display:flex;justify-content:center;gap:20px;margin-top:5px;}
+  #summary span{background:#fff;color:#4caf50;padding:5px 10px;border-radius:5px;}
+  section{padding:10px;}
+  #board{display:flex;gap:10px;flex-wrap:wrap;}
+  .col{background:#e0e0e0;border-radius:5px;padding:10px;flex:1;min-width:200px;box-sizing:border-box;}
+  .col h2{margin-top:0;text-align:center;}
+  .cards{display:flex;flex-direction:column;gap:5px;}
+  .card{background:white;border-radius:3px;padding:5px 10px;display:flex;justify-content:space-between;align-items:center;border:1px solid #ccc;}
+  .card button{margin-left:5px;padding:2px 5px;font-size:0.8rem;}
+  .card button:disabled{opacity:0.5;}
+  #chart{margin-top:20px;}
+  svg{background:white;border:1px solid #ccc;border-radius:5px;}
+  table{width:100%;border-collapse:collapse;}
+  th,td{border:1px solid #ccc;padding:5px;text-align:center;}
+  @media(max-width:600px){
+    #board{flex-direction:column;}
   }
 </style>
 </head>
 <body>
-<div class="board">
+<header>
+  <h1>Tablero Kanban</h1>
+  <div id="summary">
+    <span id="cont-todo">Todo: 0</span>
+    <span id="cont-doing">Doing: 0</span>
+    <span id="cont-done">Done: 0</span>
+  </div>
+</header>
+<section id="board">
   <div class="col" data-col="todo">
-    <h2>Todo <span id="cont-todo"></span></h2>
-    <div class="cards"></div>
+    <h2>Todo</h2>
+    <div class="cards" id="col-todo"></div>
   </div>
   <div class="col" data-col="doing">
-    <h2>Doing <span id="cont-doing"></span></h2>
-    <div class="cards"></div>
+    <h2>Doing</h2>
+    <div class="cards" id="col-doing"></div>
   </div>
   <div class="col" data-col="done">
-    <h2>Done <span id="cont-done"></span></h2>
-    <div class="cards"></div>
+    <h2>Done</h2>
+    <div class="cards" id="col-done"></div>
   </div>
-</div>
-
+</section>
+<section id="chart">
+  <h2>Resumen de tarjetas</h2>
+  <svg id="chart-svg" width="100%" height="200"></svg>
+</section>
+<section id="details">
+  <h2>Detalle</h2>
+  <table id="detail-table">
+    <thead><tr><th>ID</th><th>Estado</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  const ids = ['t1','t2','t3'];
-  const todoCards = document.querySelector('.col[data-col="todo"] .cards');
-
-  ids.forEach(id => {
-    const card = createCard(id);
-    todoCards.appendChild(card);
+const MAX_DOING = 2;
+const MOVE_INTERVAL = 2000;
+const cards = [
+  {id:'t1', col:'todo'},
+  {id:'t2', col:'todo'},
+  {id:'t3', col:'todo'}
+];
+function renderBoard(){
+  const colTodo=document.getElementById('col-todo');
+  const colDoing=document.getElementById('col-doing');
+  const colDone=document.getElementById('col-done');
+  colTodo.innerHTML='';colDoing.innerHTML='';colDone.innerHTML='';
+  cards.forEach(card=>{
+    const div=document.createElement('div');
+    div.className='card';
+    div.dataset.id=card.id;
+    div.textContent=card.id;
+    const btnMas=document.createElement('button');
+    btnMas.className='mas';
+    btnMas.textContent='+';
+    btnMas.onclick=()=>moveCard(card.id,'right');
+    const btnMenos=document.createElement('button');
+    btnMenos.className='menos';
+    btnMenos.textContent='-';
+    btnMenos.onclick=()=>moveCard(card.id,'left');
+    div.appendChild(btnMas);
+    div.appendChild(btnMenos);
+    if(card.col==='todo') colTodo.appendChild(div);
+    else if(card.col==='doing') colDoing.appendChild(div);
+    else if(card.col==='done') colDone.appendChild(div);
   });
-
+}
+function updateCounts(){
+  const todo=cards.filter(c=>c.col==='todo').length;
+  const doing=cards.filter(c=>c.col==='doing').length;
+  const done=cards.filter(c=>c.col==='done').length;
+  document.getElementById('cont-todo').textContent=`Todo: ${todo}`;
+  document.getElementById('cont-doing').textContent=`Doing: ${doing}`;
+  document.getElementById('cont-done').textContent=`Done: ${done}`;
+}
+function renderChart(){
+  const svg=document.getElementById('chart-svg');
+  const width=svg.clientWidth;
+  const height=svg.clientHeight;
+  const todo=cards.filter(c=>c.col==='todo').length;
+  const doing=cards.filter(c=>c.col==='doing').length;
+  const done=cards.filter(c=>c.col==='done').length;
+  const counts=[todo,doing,done];
+  const max=Math.max(...counts,1);
+  const barWidth=width/4;
+  const chartHeight=height-40;
+  const scale=chartHeight/max;
+  svg.innerHTML='';
+  // gridlines and y labels
+  for(let i=0;i<=max;i++){
+    const y=chartHeight-i*scale;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',0);
+    line.setAttribute('y1',y);
+    line.setAttribute('x2',width);
+    line.setAttribute('y2',y);
+    line.setAttribute('stroke','#e0e0e0');
+    line.setAttribute('stroke-width',1);
+    svg.appendChild(line);
+    const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.setAttribute('x',-5);
+    text.setAttribute('y',y+4);
+    text.setAttribute('text-anchor','end');
+    text.setAttribute('font-size','10');
+    text.textContent=i;
+    svg.appendChild(text);
+  }
+  // bars
+  const labels=['Todo','Doing','Done'];
+  counts.forEach((cnt,idx)=>{
+    const barHeight=cnt*scale;
+    const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x',barWidth*idx+barWidth/4);
+    rect.setAttribute('y',chartHeight-barHeight);
+    rect.setAttribute('width',barWidth/2);
+    rect.setAttribute('height',barHeight);
+    rect.setAttribute('fill',idx===0?'#4caf50':idx===1?'#ff9800':'#9e9e9e');
+    svg.appendChild(rect);
+    const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',barWidth*idx+barWidth/2);
+    txt.setAttribute('y',chartHeight-barHeight-5);
+    txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('font-size','12');
+    txt.setAttribute('fill','black');
+    txt.textContent=cnt;
+    svg.appendChild(txt);
+    const lbl=document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('x',barWidth*idx+barWidth/2);
+    lbl.setAttribute('y',chartHeight+15);
+    lbl.setAttribute('text-anchor','middle');
+    lbl.setAttribute('font-size','12');
+    lbl.setAttribute('fill','black');
+    lbl.textContent=labels[idx];
+    svg.appendChild(lbl);
+  });
+}
+function renderDetail(){
+  const tbody=document.querySelector('#detail-table tbody');
+  tbody.innerHTML='';
+  cards.forEach(card=>{
+    const tr=document.createElement('tr');
+    const tdId=document.createElement('td');
+    tdId.textContent=card.id;
+    const tdCol=document.createElement('td');
+    tdCol.textContent=card.col;
+    tr.appendChild(tdId);
+    tr.appendChild(tdCol);
+    tbody.appendChild(tr);
+  });
+}
+function moveCard(id,dir){
+  const card=cards.find(c=>c.id===id);
+  if(!card)return;
+  if(dir==='right'){
+    if(card.col==='todo'){
+      const doingCount=cards.filter(c=>c.col==='doing').length;
+      if(doingCount>=MAX_DOING)return;
+      card.col='doing';
+    }else if(card.col==='doing'){
+      card.col='done';
+    }
+  }else if(dir==='left'){
+    if(card.col==='doing'){
+      card.col='todo';
+    }else if(card.col==='done'){
+      const doingCount=cards.filter(c=>c.col==='doing').length;
+      if(doingCount>=MAX_DOING)return;
+      card.col='doing';
+    }
+  }
+  renderBoard();
   updateCounts();
-
-  function createCard(id){
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.dataset.id = id;
-    card.innerHTML = `
-      <span>${id}</span>
-      <div>
-        <button class="menos">-</button>
-        <button class="mas">+</button>
-      </div>
-    `;
-    card.querySelector('.mas').addEventListener('click', moveRight);
-    card.querySelector('.menos').addEventListener('click', moveLeft);
-    return card;
+  renderChart();
+  renderDetail();
+}
+function autoMove(){
+  const idx=Math.floor(Math.random()*cards.length);
+  const card=cards[idx];
+  if(card.col==='todo'){
+    const doingCount=cards.filter(c=>c.col==='doing').length;
+    if(doingCount>=MAX_DOING)return;
+    card.col='doing';
+  }else if(card.col==='doing'){
+    card.col='done';
+  }else if(card.col==='done'){
+    const doingCount=cards.filter(c=>c.col==='doing').length;
+    if(doingCount>=MAX_DOING)return;
+    card.col='doing';
   }
-
-  function moveRight(e){
-    const card = e.target.closest('.card');
-    const currentCol = card.parentElement.parentElement;
-    const current = currentCol.dataset.col;
-    if(current === 'done') return; // no avanzar más
-
-    let target = current === 'todo' ? 'doing' : 'done';
-    const targetCol = document.querySelector(`.col[data-col="${target}"] .cards`);
-
-    // regla WIP: doing máximo 2 tarjetas
-    if(target === 'doing' && targetCol.children.length >= 2) return;
-
-    currentCol.querySelector('.cards').removeChild(card);
-    targetCol.appendChild(card);
-    updateCounts();
-  }
-
-  function moveLeft(e){
-    const card = e.target.closest('.card');
-    const currentCol = card.parentElement.parentElement;
-    const current = currentCol.dataset.col;
-    if(current === 'todo') return; // no retroceder más
-
-    let target = current === 'doing' ? 'todo' : 'doing';
-    const targetCol = document.querySelector(`.col[data-col="${target}"] .cards`);
-
-    currentCol.querySelector('.cards').removeChild(card);
-    targetCol.appendChild(card);
-    updateCounts();
-  }
-
-  function updateCounts(){
-    ['todo','doing','done'].forEach(col => {
-      const count = document.querySelector(`.col[data-col="${col}"] .cards`).children.length;
-      document.getElementById(`cont-${col}`).textContent = count;
-    });
-  }
-});
+  renderBoard();
+  updateCounts();
+  renderChart();
+  renderDetail();
+}
+function init(){
+  renderBoard();
+  updateCounts();
+  renderChart();
+  renderDetail();
+  setInterval(autoMove, MOVE_INTERVAL);
+}
+window.onload=init;
 </script>
 </body>
 </html>

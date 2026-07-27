@@ -2,222 +2,115 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Mini Hoja de Cálculo 3x3</title>
+<title>Mini hoja de cálculo</title>
 <style>
-  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;}
-  .container{max-width:600px;margin:auto;padding:10px;}
-  h2{margin:0 0 5px;}
-  .summary, .chart, .grid{background:#fff;padding:10px;margin-bottom:10px;border-radius:5px;}
-  .summary div{display:flex;justify-content:space-between;margin-bottom:5px;}
-  .grid table{width:100%;border-collapse:collapse;}
-  .grid input{width:100%;box-sizing:border-box;padding:5px;border:1px solid #ccc;border-radius:3px;text-align:right;}
-  .grid input:focus{outline:none;border-color:#4a90e2;}
-  .chart svg{width:100%;height:200px;}
-  .bar{fill:#4a90e2;}
-  .grid-label{font-size:12px;color:#555;}
+body{font-family:sans-serif;margin:0;padding:10px;}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+.celda{width:100%;box-sizing:border-box;padding:5px;}
+.chart{margin-top:10px;}
+.summary{font-weight:bold;}
 </style>
 </head>
 <body>
-<div class="container">
-  <!-- 1. Resumen -->
-  <section class="summary">
-    <h2>Resumen de columnas</h2>
-    <div id="sumA"><span class="grid-label">A:</span> <span class="value"></span></div>
-    <div id="sumB"><span class="grid-label">B:</span> <span class="value"></span></div>
-    <div id="sumC"><span class="grid-label">C:</span> <span class="value"></span></div>
-  </section>
-
-  <!-- 2. Gráfico -->
-  <section class="chart">
-    <h2>Gráfico de barras</h2>
-    <svg id="chart"></svg>
-  </section>
-
-  <!-- 3. Hoja de cálculo -->
-  <section class="grid">
-    <h2>Hoja 3x3</h2>
-    <table>
-      <tbody>
-        <tr>
-          <td><input class="celda" id="A1" data-ref="A1" value=""></td>
-          <td><input class="celda" id="B1" data-ref="B1" data-formula="A1+1" value=""></td>
-          <td><input class="celda" id="C1" data-ref="C1" data-formula="B1+1" value=""></td>
-        </tr>
-        <tr>
-          <td><input class="celda" id="A2" data-ref="A2" value=""></td>
-          <td><input class="celda" id="B2" data-ref="B2" value=""></td>
-          <td><input class="celda" id="C2" data-ref="C2" value=""></td>
-        </tr>
-        <tr>
-          <td><input class="celda" id="A3" data-ref="A3" value=""></td>
-          <td><input class="celda" id="B3" data-ref="B3" value=""></td>
-          <td><input class="celda" id="C3" data-ref="C3" data-formula="A1+B1-A2" value=""></td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
+<div class="summary" id="sum">Suma: 0</div>
+<div class="grid" id="grid">
+<input class="celda" data-ref="A1" data-formula="" value="">
+<input class="celda" data-ref="B1" data-formula="" value="">
+<input class="celda" data-ref="C1" data-formula="" value="">
+<input class="celda" data-ref="A2" data-formula="=A1+B1" value="">
+<input class="celda" data-ref="B2" data-formula="=A2-5" value="">
+<input class="celda" data-ref="C2" data-formula="=B2+10" value="">
+<input class="celda" data-ref="A3" data-formula="=C2-A1" value="">
+<input class="celda" data-ref="B3" data-formula="=A3+B1" value="">
+<input class="celda" data-ref="C3" data-formula="=B3-C2" value="">
 </div>
-
+<svg class="chart" id="chart" width="100%" height="200"></svg>
+<table id="detail" style="margin-top:10px;border-collapse:collapse;">
+<tr><th>Ref</th><th>Valor</th></tr>
+</table>
 <script>
-(function(){
-  const cells = document.querySelectorAll('.celda');
-  const cellMap = {};
-  const baseRefs = [];
-  const prevCellValues = {};
-  const prevSums = {A:0,B:0,C:0};
+const cells=document.querySelectorAll('.celda');
+const values={};
 
-  cells.forEach(c=>{
-    const ref=c.dataset.ref;
-    cellMap[ref]=c;
-    c.id=ref;
-    if(!c.dataset.formula) baseRefs.push(ref);
-    const val=parseFloat(c.value);
-    prevCellValues[ref]=isNaN(val)?0:val;
-    c.addEventListener('input',()=>{
-      const newVal=c.value;
-      if(newVal.startsWith('=')){
-        const formula=newVal.slice(1);
-        c.dataset.formula=formula;
-        evalCell(ref);
-      } else {
-        const numeric=parseFloat(newVal);
-        if(!isNaN(numeric)){
-          c.dataset.formula='';
-          const prev=prevCellValues[ref]||0;
-          const change=numeric-prev;
-          c.style.color=change>=0?'green':'red';
-          prevCellValues[ref]=numeric;
-          c.value=numeric.toString();
-        } else {
-          c.dataset.formula='';
-          const prev=prevCellValues[ref]||0;
-          const change=0-prev;
-          c.style.color=change>=0?'green':'red';
-          prevCellValues[ref]=0;
-          c.value='';
-        }
-      }
-      recomputeAll();
-    });
+function evalCell(r,stack){
+  if(stack.includes(r)) return 'CIRC';
+  const inp=document.querySelector(`[data-ref="${r}"]`);
+  const v=inp.dataset.formula;
+  if(v==='') return '';
+  if(v[0]!='=') return parseFloat(v)||0;
+  const expr=v.slice(1).replace(/[A-Z][0-9]/g,ref=>{
+    const val=evalCell(ref,stack.concat(r));
+    return val==='CIRC'?'CIRC':val;
   });
+  if(expr==='CIRC') return 'CIRC';
+  try{ return eval(expr); }catch{return 'CIRC';}
+}
 
-  function formatNum(n){return Number.isNaN(n)?'CIRC':n.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2});}
-
-  function evalCell(ref, stack=[]) {
-    const cell = cellMap[ref];
-    if(!cell) return 0;
-    if(stack.includes(ref)) {cell.value='CIRC'; cell.style.color='red'; return NaN;}
-    if(cell.dataset.formula){
-      const expr = cell.dataset.formula;
-      const tokens = expr.split(/([+-])/);
-      let val = evalToken(tokens[0], stack.concat(ref));
-      for(let i=1;i<tokens.length;i+=2){
-        const op = tokens[i];
-        const num = evalToken(tokens[i+1], stack.concat(ref));
-        val = op==='+'? val+num : val-num;
-      }
-      const prev=prevCellValues[ref]||0;
-      const change=val-prev;
-      cell.style.color=change>=0?'green':'red';
-      prevCellValues[ref]=val;
-      cell.value = formatNum(val);
-      return val;
+function recalc(){
+  const oldValues={...values};
+  cells.forEach(inp=>{
+    const r=inp.dataset.ref;
+    const oldVal=values[r];
+    const val=evalCell(r,[]);
+    inp.value=val;
+    // color based on value
+    if(typeof val==='number'){
+      inp.style.color=val>=0?'green':'red';
+    }else if(val===''){
+      inp.style.color='black';
     }else{
-      const num = parseFloat(cell.value);
-      return Number.isNaN(num)?0:num;
+      inp.style.color='red';
     }
-  }
+    values[r]=val;
+  });
+  const sum=Object.values(values).reduce((a,b)=>a+(typeof b==='number'?b:0),0);
+  document.getElementById('sum').textContent='Suma: '+sum;
+  const a=values['A1'],b=values['B1'],c=values['C1'];
+  const max=Math.max(a,b,c,1);
+  const svg=document.getElementById('chart');
+  const rect=svg.getBoundingClientRect();
+  const w=rect.width,h=rect.height;
+  const barW=w/6;
+  svg.innerHTML='';
+  [0,max/2,max].forEach(y=>{
+    const yPos=h-y/max*h;
+    svg.innerHTML+=`<line x1="0" y1="${yPos}" x2="${w}" y2="${yPos}" stroke="#eee" stroke-width="1"/>`;
+  });
+  [a,b,c].forEach((v,i)=>{
+    const hgt=v/max*h;
+    svg.innerHTML+=`<rect x="${i*barW+barW/4}" y="${h-hgt}" width="${barW/2}" height="${hgt}" fill="steelblue"/>`;
+  });
+  svg.innerHTML+=`<text x="0" y="${h-2}" font-size="10">0</text><text x="${w-20}" y="10" font-size="10">${max.toFixed(0)}</text>`;
+  const detail=document.getElementById('detail');
+  detail.innerHTML='<tr><th>Ref</th><th>Valor</th></tr>';
+  Object.entries(values).forEach(([k,v])=>{
+    const old=oldValues[k];
+    const change= (typeof v==='number' && typeof old==='number') ? v-old : 0;
+    const color= typeof v==='number' ? (change>=0?'green':'red') : (v==='CIRC'?'red':'black');
+    detail.innerHTML+=`<tr><td>${k}</td><td style="color:${color}">${v}</td></tr>`;
+  });
+}
 
-  function evalToken(tok, stack){
-    const refMatch = tok.match(/^([A-Z][1-3])$/);
-    if(refMatch) return evalCell(refMatch[1], stack);
-    const num = parseFloat(tok);
-    return Number.isNaN(num)?0:num;
-  }
+// recalc on user input
+cells.forEach(inp=>{
+  inp.addEventListener('input',()=>{
+    inp.dataset.formula=inp.value;
+    recalc();
+  });
+  inp.addEventListener('change',recalc);
+  inp.addEventListener('click',recalc);
+});
 
-  function recomputeAll(){
-    for(let i=0;i<3;i++){
-      Object.keys(cellMap).forEach(ref=>{
-        if(cellMap[ref].dataset.formula) evalCell(ref);
-      });
-    }
-    updateSummary();
-    updateChart();
-  }
-
-  function updateSummary(){
-    const sums = {A:0,B:0,C:0};
-    ['A','B','C'].forEach(col=>{
-      for(let r=1;r<=3;r++){
-        const ref=col+r;
-        const val=parseFloat(cellMap[ref].value);
-        if(!Number.isNaN(val)) sums[col]+=val;
-      }
-      const span=document.querySelector(`#sum${col} .value`);
-      span.textContent=formatNum(sums[col]);
-      const change=sums[col]-(prevSums[col]||0);
-      span.style.color=change>=0?'green':'red';
-      prevSums[col]=sums[col];
-    });
-  }
-
-  function updateChart(){
-    const svg=document.getElementById('chart');
-    svg.innerHTML='';
-    const width=svg.clientWidth;
-    const height=svg.clientHeight;
-    const sums=[...Array(3).keys()].map(i=>{const col=String.fromCharCode(65+i);let s=0;for(let r=1;r<=3;r++){const v=parseFloat(cellMap[col+r].value);if(!Number.isNaN(v))s+=v;}return s;});
-    const max=Math.max(...sums,1);
-    const barWidth=width/4;
-    sums.forEach((s,i)=>{
-      const barHeight=s/max*height;
-      const x=(i+1)*barWidth-20;
-      const y=height-barHeight;
-      const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
-      rect.setAttribute('x',x);
-      rect.setAttribute('y',y);
-      rect.setAttribute('width',30);
-      rect.setAttribute('height',barHeight);
-      rect.setAttribute('class','bar');
-      svg.appendChild(rect);
-      const label=document.createElementNS('http://www.w3.org/2000/svg','text');
-      label.setAttribute('x',x+15);
-      label.setAttribute('y',height-5);
-      label.setAttribute('text-anchor','middle');
-      label.setAttribute('font-size','12');
-      label.textContent=String.fromCharCode(65+i);
-      svg.appendChild(label);
-    });
-    const ticks=5;
-    for(let t=0;t<=ticks;t++){
-      const y=height - t*(height/ticks);
-      const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-      line.setAttribute('x1',0);line.setAttribute('y1',y);line.setAttribute('x2',width);line.setAttribute('y2',y);
-      line.setAttribute('stroke','#ddd');line.setAttribute('stroke-width','1');
-      svg.appendChild(line);
-      const val=max*(t/ticks);
-      const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
-      txt.setAttribute('x',5);txt.setAttribute('y',y-2);
-      txt.setAttribute('font-size','10');
-      txt.textContent=formatNum(val);
-      svg.appendChild(txt);
-    }
-  }
-
-  recomputeAll();
-
-  setInterval(()=>{
-    const ref=baseRefs[Math.floor(Math.random()*baseRefs.length)];
-    const val=Math.floor(Math.random()*1000);
-    const cell=cellMap[ref];
-    const prev=prevCellValues[ref]||0;
-    const change=val-prev;
-    cell.style.color=change>=0?'green':'red';
-    prevCellValues[ref]=val;
-    cell.value=val.toString();
-    recomputeAll();
-  },2000);
-})();
+setTimeout(recalc,0);
+setInterval(()=>{
+  cells[0].dataset.formula=Math.floor(Math.random()*100)+1;
+  cells[0].value=cells[0].dataset.formula;
+  cells[1].dataset.formula=Math.floor(Math.random()*100)+1;
+  cells[1].value=cells[1].dataset.formula;
+  cells[2].dataset.formula=Math.floor(Math.random()*100)+1;
+  cells[2].value=cells[2].dataset.formula;
+  recalc();
+},2000);
 </script>
 </body>
 </html>

@@ -2,159 +2,227 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Minesweeper 5x5 Demo</title>
+<title>Minas 5x5 con Animación</title>
 <style>
-  body{margin:0;font-family:Arial,sans-serif;background:#e0e0e0;display:flex;flex-direction:column;align-items:center;min-height:100vh;justify-content:center;}
-  #title{font-size:1.5rem;font-weight:bold;margin:10px;color:#333;}
-  #estado{font-size:1.2rem;margin:5px;color:#333;}
-  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:0;width:90%;max-width:400px;}
-  .c{position:relative;width:100%;padding-top:100%;background:#f0f0f0;border:1px solid #ccc;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:bold;color:#000;user-select:none;}
-  .c.abierta{background:#add8e6;color:#000;pointer-events:none;}
-  .c.bandera{background:#f0f0f0;color:#ff0000;pointer-events:none;}
-  .c.mina{background:#f0f0f0;color:#ff0000;pointer-events:none;}
-  .c.mina.revealed{background:#f0f0f0;color:#ff0000;}
+  body{font-family:sans-serif;margin:0;padding:0;background:#f0f0f0;}
+  header{background:#333;color:#fff;padding:10px;text-align:center;}
+  #summary{display:flex;justify-content:space-around;padding:10px;background:#ddd;}
+  #board{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:200px;margin:0 auto;}
+  .c{background:#bbb;color:#000;display:flex;align-items:center;justify-content:center;height:40px;cursor:pointer;}
+  .c.abierta{background:#fff;color:#000;}
+  .c.bandera{background:#ff0;}
+  .c.mina{background:#f00;color:#fff;}
+  #chart{margin:20px auto;width:90%;height:200px;}
+  #estado{font-size:1.2em;text-align:center;margin:10px;color:#900;}
+  svg{font-size:10px;}
 </style>
 </head>
 <body>
-<div id="title">Minesweeper 5x5 Demo</div>
-<div id="estado">jugando</div>
-<div id="grid"></div>
+<header>Minas 5x5 con Animación Automática</header>
+<div id="summary">
+  <div>Minas: <strong id="minas">3</strong></div>
+  <div>Abiertas: <strong id="abiertas">0</strong></div>
+  <div>Bandera: <strong id="banderas">0</strong></div>
+</div>
+<div id="board"></div>
+<svg id="chart"></svg>
+<div id="estado"></div>
+
 <script>
-(function(){
-  const mines=[6,12,18];
-  const grid=document.getElementById('grid');
-  const cells=[];
-  const counts=new Array(25).fill(0);
-  // create cells
-  for(let i=0;i<25;i++){
-    const div=document.createElement('div');
-    div.className='c';
-    div.dataset.i=i;
-    grid.appendChild(div);
-    cells.push(div);
-  }
-  // compute adjacent mine counts
-  function getNeighbors(i){
-    const r=Math.floor(i/5),c=i%5;
-    const neigh=[];
+(() => {
+  const size = 5;
+  const total = size*size;
+  const mines = [6,12,18];
+  const board = document.getElementById('board');
+  const estado = document.getElementById('estado');
+  const abiertasEl = document.getElementById('abiertas');
+  const minasEl = document.getElementById('minas');
+  const banderasEl = document.getElementById('banderas');
+  const chart = document.getElementById('chart');
+
+  const cells = [];
+  const adjCount = Array(total).fill(0);
+  const opened = new Set();
+  const flagged = new Set();
+  let gameOver = false;
+  let intervalId = null;
+
+  // Precompute adjacent mine counts
+  for(let i=0;i<total;i++){
+    const r=Math.floor(i/size), c=i%size;
+    let count=0;
     for(let dr=-1;dr<=1;dr++){
       for(let dc=-1;dc<=1;dc++){
         if(dr===0&&dc===0)continue;
-        const nr=r+dr,nc=c+dc;
-        if(nr>=0&&nr<5&&nc>=0&&nc<5){
-          neigh.push(nr*5+nc);
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0&&nr<size&&nc>=0&&nc<size){
+          const idx=nr*size+nc;
+          if(mines.includes(idx))count++;
         }
       }
     }
-    return neigh;
+    adjCount[i]=count;
   }
-  for(let i=0;i<25;i++){
-    if(mines.includes(i))continue;
-    const neigh=getNeighbors(i);
-    let cnt=0;
-    for(const n of neigh) if(mines.includes(n))cnt++;
-    counts[i]=cnt;
-  }
-  const estado=document.getElementById('estado');
-  let gameOver=false;
-  function revealMine(i){
-    const cell=cells[i];
-    cell.classList.add('mina','revealed');
-    cell.textContent='💣';
-  }
-  function revealAllMines(){
-    for(const m of mines){
-      const cell=cells[m];
-      if(!cell.classList.contains('abierta')){
-        cell.classList.add('mina','revealed');
-        cell.textContent='💣';
+
+  // Create cells
+  for(let i=0;i<total;i++){
+    const div=document.createElement('div');
+    div.className='c';
+    div.dataset.i=i;
+    div.addEventListener('click',()=>{if(!gameOver)openCell(i);});
+    div.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(gameOver)return;
+      if(opened.has(i))return;
+      if(flagged.has(i)){
+        flagged.delete(i);
+        div.classList.remove('bandera');
+      }else{
+        flagged.add(i);
+        div.classList.add('bandera');
       }
-    }
+      updateSummary();
+    });
+    board.appendChild(div);
+    cells.push(div);
   }
+
   function openCell(i){
-    if(gameOver)return;
-    const cell=cells[i];
-    if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+    if(opened.has(i)||flagged.has(i)||gameOver)return;
     if(mines.includes(i)){
-      revealMine(i);
+      // Hit mine
+      cells[i].classList.add('mina');
       estado.textContent='perdiste';
       gameOver=true;
-      revealAllMines();
+      clearInterval(intervalId);
+      revealMines();
       return;
     }
-    // open cell
-    cell.classList.add('abierta');
-    const cnt=counts[i];
-    if(cnt>0)cell.textContent=cnt;
-    else{
-      // cascade
+    // Open cell
+    opened.add(i);
+    const div=cells[i];
+    div.classList.add('abierta');
+    const cnt=adjCount[i];
+    if(cnt>0)div.textContent=cnt;
+    if(cnt===0){
+      // Cascade
       const queue=[i];
-      const visited=new Set();
-      visited.add(i);
       while(queue.length){
         const cur=queue.shift();
-        const neigh=getNeighbors(cur);
-        for(const n of neigh){
-          const ncell=cells[n];
-          if(ncell.classList.contains('abierta')||ncell.classList.contains('bandera'))continue;
-          ncell.classList.add('abierta');
-          const ncnt=counts[n];
-          if(ncnt>0){
-            ncell.textContent=ncnt;
-          }else{
-            queue.push(n);
+        const r=Math.floor(cur/size), c=cur%size;
+        for(let dr=-1;dr<=1;dr++){
+          for(let dc=-1;dc<=1;dc++){
+            if(dr===0&&dc===0)continue;
+            const nr=r+dr, nc=c+dc;
+            if(nr>=0&&nr<size&&nc>=0&&nc<size){
+              const idx=nr*size+nc;
+              if(!opened.has(idx)&&!flagged.has(idx)){
+                opened.add(idx);
+                const d=cells[idx];
+                d.classList.add('abierta');
+                const ccnt=adjCount[idx];
+                if(ccnt>0)d.textContent=ccnt;
+                if(ccnt===0)queue.push(idx);
+              }
+            }
           }
         }
       }
     }
-    // check win
-    const openedCount=cells.filter(c=>c.classList.contains('abierta')).length;
-    if(openedCount===22){
-      estado.textContent='ganaste';
-      gameOver=true;
+    updateSummary();
+    updateChart();
+    if(opened.size===total-mines.length){
+      estado.textContent='¡Ganaste!';
+      clearInterval(intervalId);
     }
   }
-  function toggleFlag(i){
-    if(gameOver)return;
-    const cell=cells[i];
-    if(cell.classList.contains('abierta'))return;
-    if(cell.classList.contains('bandera')){
-      cell.classList.remove('bandera');
-      cell.textContent='';
-    }else{
-      cell.classList.add('bandera');
-      cell.textContent='🚩';
-    }
+
+  function revealMines(){
+    mines.forEach(i=>{cells[i].classList.add('mina');});
   }
-  // event listeners
-  cells.forEach((cell,i)=>{
-    cell.addEventListener('click',()=>openCell(i));
-    cell.addEventListener('contextmenu',e=>{
-      e.preventDefault();
-      toggleFlag(i);
+
+  function updateSummary(){
+    abiertasEl.textContent=opened.size;
+    banderasEl.textContent=flagged.size;
+  }
+
+  // Chart drawing
+  function updateChart(){
+    const counts=[...Array(9).keys()].map(n=>0);
+    opened.forEach(i=>{
+      const c=adjCount[i];
+      counts[c]++;
     });
-  });
-  // auto simulation
-  let openSteps=0;
-  const maxOpen=5;
-  const simulation=setInterval(()=>{
-    if(gameOver||openSteps>=maxOpen)return clearInterval(simulation);
-    const candidates=cells.filter((c,i)=>!c.classList.contains('abierta')&&!c.classList.contains('bandera')&&!mines.includes(i)&&i!==10);
-    if(candidates.length===0)return clearInterval(simulation);
-    const idx=Math.floor(Math.random()*candidates.length);
-    const cell=candidates[idx];
-    const i=parseInt(cell.dataset.i);
-    openCell(i);
-    openSteps++;
-    // toggle flag on random unopened non-mine cell (excluding 10)
-    const flagCandidates=cells.filter((c,i)=>!c.classList.contains('abierta')&&!c.classList.contains('bandera')&&!mines.includes(i)&&i!==10);
-    if(flagCandidates.length>0 && Math.random()<0.3){
-      const fIdx=Math.floor(Math.random()*flagCandidates.length);
-      const fCell=flagCandidates[fIdx];
-      const fI=parseInt(fCell.dataset.i);
-      toggleFlag(fI);
+    const max=Math.max(...counts,1);
+    const w=chart.clientWidth;
+    const h=chart.clientHeight;
+    chart.innerHTML='';
+    // Axes
+    const yAxis=svgLine(0,h,0,h);
+    const xAxis=svgLine(0,0,w,0);
+    chart.appendChild(yAxis);
+    chart.appendChild(xAxis);
+    // Gridlines and labels
+    for(let i=0;i<=max;i++){
+      const y=h-i*h/max;
+      const line=svgLine(0,y,w,y);
+      line.style.stroke='#ccc';
+      line.style.strokeDasharray='2,2';
+      chart.appendChild(line);
+      const txt=svgText(5,y-2,i.toString());
+      chart.appendChild(txt);
     }
-  },800);
+    // Bars
+    const barWidth=w/9;
+    counts.forEach((cnt,idx)=>{
+      const barHeight=cnt*h/max;
+      const rect=svgRect(idx*barWidth, h-barHeight, barWidth-2, barHeight);
+      rect.style.fill='#4a90e2';
+      chart.appendChild(rect);
+      const txt=svgText(idx*barWidth+2, h-barHeight-2, cnt>0?cnt:'');
+      chart.appendChild(txt);
+    });
+  }
+
+  function svgLine(x1,y1,x2,y2){
+    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',x1);l.setAttribute('y1',y1);
+    l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+    l.style.stroke='#000';
+    return l;
+  }
+  function svgRect(x,y,w,h){
+    const r=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('x',x);r.setAttribute('y',y);
+    r.setAttribute('width',w);r.setAttribute('height',h);
+    return r;
+  }
+  function svgText(x,y,txt){
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',x);t.setAttribute('y',y);
+    t.textContent=txt;
+    t.style.fontSize='10px';
+    return t;
+  }
+
+  // Automatic opening
+  function openRandomCell(){
+    if(gameOver)return;
+    const candidates=[];
+    for(let i=0;i<total;i++){
+      if(!opened.has(i)&&!flagged.has(i)&&!mines.includes(i))candidates.push(i);
+    }
+    if(candidates.length===0){
+      clearInterval(intervalId);
+      return;
+    }
+    const idx=candidates[Math.floor(Math.random()*candidates.length)];
+    openCell(idx);
+  }
+
+  // Start animation after initial render
+  updateChart();
+  intervalId=setInterval(openRandomCell,800);
 })();
 </script>
 </body>
