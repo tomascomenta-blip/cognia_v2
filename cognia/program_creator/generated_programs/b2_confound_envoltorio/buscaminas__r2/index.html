@@ -1,0 +1,118 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family:sans-serif;
+    background:#222;
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:0;
+    padding:20px;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    grid-gap:2px;
+  }
+  .c{
+    width:60px;height:60px;
+    background:#444;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    cursor:pointer;
+    user-select:none;
+    position:relative;
+    animation:fadeIn 0.5s forwards;
+    animation-delay:calc(var(--i)*0.05s);
+  }
+  .c.abierta{background:#888;color:#000;}
+  .c.bandera{background:#444;}
+  .c.bandera::after{
+    content:"🚩";
+    position:absolute;
+    top:4px;right:4px;
+    font-size:20px;
+  }
+  #estado{margin-top:10px;font-size:18px;}
+  @keyframes fadeIn{
+    0%{transform:scale(0);opacity:0;}
+    100%{transform:scale(1);opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+const grid=document.getElementById('grid');
+const estado=document.getElementById('estado');
+const mines=[6,12,18];
+let gameOver=false;
+
+// Crear las 25 celdas
+for(let i=0;i<25;i++){
+  const div=document.createElement('div');
+  div.className='c';
+  div.dataset.i=i;
+  div.style.setProperty('--i',i);
+  div.addEventListener('click',()=>handleClick(div));
+  div.addEventListener('contextmenu',e=>{e.preventDefault();handleRightClick(div);});
+  grid.appendChild(div);
+}
+
+function handleClick(cell){
+  if(gameOver) return;
+  if(cell.classList.contains('bandera')) return;
+  const i=parseInt(cell.dataset.i);
+  if(mines.includes(i)){
+    cell.classList.add('abierta');
+    cell.textContent='💣';
+    estado.textContent='perdiste';
+    gameOver=true;
+    return;
+  }
+  openCell(cell);
+}
+
+function handleRightClick(cell){
+  if(gameOver) return;
+  if(cell.classList.contains('abierta')) return;
+  cell.classList.toggle('bandera');
+}
+
+function openCell(cell){
+  if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+  const i=parseInt(cell.dataset.i);
+  const adj=adjacentIndices(i);
+  const count=adj.filter(idx=>mines.includes(idx)).length;
+  cell.classList.add('abierta');
+  if(count>0) cell.textContent=count;
+  if(count===0){
+    adj.forEach(idx=>openCell(grid.children[idx]));
+  }
+}
+
+function adjacentIndices(i){
+  const row=Math.floor(i/5);
+  const col=i%5;
+  const indices=[];
+  for(let dr=-1;dr<=1;dr++){
+    for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0) continue;
+      const r=row+dr,c=col+dc;
+      if(r>=0&&r<5&&c>=0&&c<5) indices.push(r*5+c);
+    }
+  }
+  return indices;
+}
+</script>
+</body>
+</html>

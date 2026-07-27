@@ -1,0 +1,167 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de Compra con Stock</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    display:flex;
+    justify-content:space-around;
+    padding:20px;
+    background:#f0f0f0;
+  }
+  #products, #cart{
+    width:45%;
+    background:#fff;
+    border:1px solid #ccc;
+    border-radius:5px;
+    padding:15px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    animation:fadeIn 1s ease-out;
+  }
+  #products{animation:fadeInLeft 1s ease-out;}
+  #cart{animation:fadeInRight 1s ease-out;}
+  .prod{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+    padding-bottom:5px;
+    border-bottom:1px solid #ddd;
+  }
+  .prod span{flex:1;}
+  .add{
+    padding:5px 10px;
+    background:#28a745;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+    transition:transform .1s;
+  }
+  .add:disabled{background:#aaa;cursor:not-allowed;}
+  .add:active{transform:scale(.95);}
+  .linea{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:5px;
+  }
+  .quitar{
+    padding:3px 6px;
+    background:#dc3545;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+    transition:transform .1s;
+  }
+  .quitar:active{transform:scale(.95);}
+  #total{
+    font-weight:bold;
+  }
+  @keyframes fadeIn{
+    0%{opacity:0;}
+    100%{opacity:1;}
+  }
+  @keyframes fadeInLeft{
+    0%{opacity:0;transform:translateX(-20px);}
+    100%{opacity:1;transform:translateX(0);}
+  }
+  @keyframes fadeInRight{
+    0%{opacity:0;transform:translateX(20px);}
+    100%{opacity:1;transform:translateX(0);}
+  }
+</style>
+</head>
+<body>
+<div id="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - $100 - Stock: 2</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - $50 - Stock: 3</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - $25 - Stock: 1</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<div id="cart">
+  <h2>Carrito</h2>
+  <div id="lines"></div>
+  <div>Total: $<span id="total">0</span></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cart = {}; // id -> quantity
+  const linesContainer = document.getElementById('lines');
+  const totalSpan = document.getElementById('total');
+
+  function updateTotal() {
+    let total = 0;
+    for (const id in cart) {
+      const prodDiv = document.querySelector(`.prod[data-id="${id}"]`);
+      const price = parseFloat(prodDiv.dataset.precio);
+      total += cart[id] * price;
+    }
+    totalSpan.textContent = total.toFixed(2);
+  }
+
+  function updateLine(id) {
+    const qty = cart[id];
+    const existingLine = linesContainer.querySelector(`.linea[data-id="${id}"]`);
+    if (qty > 0) {
+      if (existingLine) {
+        existingLine.querySelector('.cant').textContent = qty;
+      } else {
+        const lineDiv = document.createElement('div');
+        lineDiv.className = 'linea';
+        lineDiv.dataset.id = id;
+        const prodDiv = document.querySelector(`.prod[data-id="${id}"]`);
+        lineDiv.innerHTML = `<span>${prodDiv.querySelector('span').textContent}</span> <span class="cant">${qty}</span> <button class="quitar" data-id="${id}">-</button>`;
+        linesContainer.appendChild(lineDiv);
+        lineDiv.querySelector('.quitar').addEventListener('click', () => removeItem(id));
+      }
+    } else {
+      if (existingLine) existingLine.remove();
+    }
+  }
+
+  function addItem(id) {
+    const prodDiv = document.querySelector(`.prod[data-id="${id}"]`);
+    const stock = parseInt(prodDiv.dataset.stock);
+    const currentQty = cart[id] || 0;
+    if (currentQty < stock) {
+      cart[id] = currentQty + 1;
+      updateLine(id);
+      updateTotal();
+      const addBtn = document.querySelector(`.add[data-id="${id}"]`);
+      if (cart[id] >= stock) addBtn.disabled = true;
+    }
+  }
+
+  function removeItem(id) {
+    if (!cart[id]) return;
+    cart[id] -= 1;
+    const prodDiv = document.querySelector(`.prod[data-id="${id}"]`);
+    const addBtn = document.querySelector(`.add[data-id="${id}"]`);
+    addBtn.disabled = false;
+    if (cart[id] <= 0) delete cart[id];
+    updateLine(id);
+    updateTotal();
+  }
+
+  document.querySelectorAll('.add').forEach(btn => {
+    btn.addEventListener('click', () => addItem(btn.dataset.id));
+  });
+});
+</script>
+</body>
+</html>

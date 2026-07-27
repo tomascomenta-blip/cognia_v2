@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{font-family:sans-serif;background:#f0f0f0;margin:0;padding:20px;}
+  .grid{display:grid;grid-template-columns:repeat(3,100px);grid-gap:5px;opacity:0;animation:slideIn 1s ease-out forwards;}
+  .celda{width:100%;box-sizing:border-box;padding:5px;font-size:14px;opacity:0;animation:fadeIn 0.5s ease forwards;}
+  .celda:nth-child(1){animation-delay:0.1s;}
+  .celda:nth-child(2){animation-delay:0.2s;}
+  .celda:nth-child(3){animation-delay:0.3s;}
+  .celda:nth-child(4){animation-delay:0.4s;}
+  .celda:nth-child(5){animation-delay:0.5s;}
+  .celda:nth-child(6){animation-delay:0.6s;}
+  .celda:nth-child(7){animation-delay:0.7s;}
+  .celda:nth-child(8){animation-delay:0.8s;}
+  .celda:nth-child(9){animation-delay:0.9s;}
+  @keyframes slideIn{
+    from{transform:translateX(-100%);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+  @keyframes fadeIn{
+    from{transform:translateY(20px);opacity:0;}
+    to{transform:translateY(0);opacity:1;}
+  }
+</style>
+</head>
+<body>
+<h2>Mini hoja de cálculo 3x3</h2>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="">
+  <input class="celda" data-ref="A2" value="">
+  <input class="celda" data-ref="A3" value="">
+  <input class="celda" data-ref="B1" value="">
+  <input class="celda" data-ref="B2" value="">
+  <input class="celda" data-ref="B3" value="">
+  <input class="celda" data-ref="C1" value="">
+  <input class="celda" data-ref="C2" value="">
+  <input class="celda" data-ref="C3" value="">
+</div>
+<script>
+  const cells = {};
+  document.querySelectorAll('.celda').forEach(el => {
+    cells[el.dataset.ref] = el;
+  });
+
+  let isRecalculating = false;
+
+  function compute(ref, visited) {
+    if (!visited) visited = new Set();
+    if (visited.has(ref)) return 'CIRC';
+    visited.add(ref);
+    const el = cells[ref];
+    const val = el.dataset.formula || el.value;
+    if (!val.startsWith('=')) {
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num;
+    }
+    const expr = val.slice(1);
+    const tokens = expr.match(/[+-]?[^+-]+/g) || [];
+    let result = 0;
+    for (let token of tokens) {
+      token = token.trim();
+      if (!token) continue;
+      let sign = '+';
+      if (token[0] === '+' || token[0] === '-') {
+        sign = token[0];
+        token = token.slice(1);
+      }
+      let value;
+      if (/^[A-Z][1-3]$/.test(token)) {
+        const dep = compute(token, new Set(visited));
+        if (dep === 'CIRC') return 'CIRC';
+        value = parseFloat(dep);
+        if (isNaN(value)) value = 0;
+      } else {
+        value = parseFloat(token);
+        if (isNaN(value)) value = 0;
+      }
+      if (sign === '+') result += value;
+      else result -= value;
+    }
+    return result;
+  }
+
+  function recalcAll() {
+    if (isRecalculating) return;
+    isRecalculating = true;
+    for (const ref in cells) {
+      const el = cells[ref];
+      if (el.dataset.formula) {
+        const res = compute(ref);
+        el.value = res === 'CIRC' ? 'CIRC' : res;
+      }
+    }
+    isRecalculating = false;
+  }
+
+  document.querySelectorAll('.celda').forEach(el => {
+    el.addEventListener('input', function() {
+      if (isRecalculating) return;
+      const val = el.value;
+      if (val.startsWith('=')) {
+        el.dataset.formula = val;
+      } else {
+        delete el.dataset.formula;
+      }
+      recalcAll();
+    });
+  });
+
+  // initial calculation
+  recalcAll();
+</script>
+</body>
+</html>

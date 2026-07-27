@@ -170,6 +170,25 @@ def test_sin_max_rondas_progreso_comportamiento_de_siempre():
     assert res.motivo_corte == "tope de rondas"
 
 
+# ── COGNIA_IDEA_PELADA: la idea va tal cual, sin el brief pegado ─────────────
+
+def test_idea_pelada_no_pega_el_target_look(monkeypatch):
+    """b2_confound_envoltorio.py (2026-07-27): idea directa 75% vs camino del
+    sistema 17% en el banco brutal — el adorno de la idea es el sospechoso
+    principal. Con la env puesta, el constructor recibe la idea sin brief."""
+    capturado = {}
+
+    def _gen(seed_concepts=None, forced_idea=None, llm=None, temperature=0.9):
+        capturado["idea"] = forced_idea
+        return _prog()
+
+    monkeypatch.setenv("COGNIA_IDEA_PELADA", "1")
+    ps = _base({"side_effect": _gen}, {"return_value": None},
+               {"return_value": None})
+    _run(ps)
+    assert "TARGET LOOK" not in capturado["idea"]
+
+
 # ── La politica de rondas es 3, decidida con series de n=6 ───────────────────
 
 def test_default_de_produccion_son_tres_rondas():

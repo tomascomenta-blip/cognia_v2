@@ -1,0 +1,180 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+  }
+  .board{
+    display:flex;
+    gap:20px;
+  }
+  .col{
+    background:#fff;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    flex:1;
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+    min-width:200px;
+  }
+  .col h2{
+    margin:0 0 10px;
+    font-size:1.2em;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .cards{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .card{
+    background:#e3f2fd;
+    border-radius:4px;
+    padding:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    opacity:0;
+    transform:translateX(-20px);
+    animation:fadeIn 0.5s ease forwards;
+    animation-delay:var(--delay);
+  }
+  .card button{
+    background:#1976d2;
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    padding:4px 8px;
+    cursor:pointer;
+    font-size:0.9em;
+  }
+  .card button:disabled{
+    background:#90caf9;
+    cursor:not-allowed;
+  }
+  @keyframes fadeIn{
+    to{opacity:1;transform:translateX(0);}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+    <div class="cards">
+      <div class="card" data-id="t1" style="--delay:0.2s">
+        <span>tarea 1</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+      <div class="card" data-id="t2" style="--delay:0.4s">
+        <span>tarea 2</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+      <div class="card" data-id="t3" style="--delay:0.6s">
+        <span>tarea 3</span>
+        <div>
+          <button class="mas">→</button>
+          <button class="menos">←</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+  const order = ['todo','doing','done'];
+
+  function updateCounters(){
+    order.forEach(col=>{
+      const count = document.querySelectorAll(`.col[data-col="${col}"] .card`).length;
+      document.getElementById(`cont-${col}`).textContent = count;
+    });
+  }
+
+  function updateButtons(){
+    document.querySelectorAll('.card').forEach(card=>{
+      const col = card.closest('.col').dataset.col;
+      const masBtn = card.querySelector('.mas');
+      const menosBtn = card.querySelector('.menos');
+
+      // Disable/enable based on position
+      menosBtn.disabled = (col === 'todo');
+      masBtn.disabled = (col === 'done');
+
+      // WIP rule: if doing has 2 cards, disable mas on all todo cards
+      const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+      if(doingCount >= 2){
+        if(col === 'todo'){
+          masBtn.disabled = true;
+        }
+      }
+    });
+  }
+
+  function moveCard(card, direction){
+    const col = card.closest('.col');
+    const idx = order.indexOf(col.dataset.col);
+    let targetIdx = idx + direction; // -1 for left, +1 for right
+    if(targetIdx < 0 || targetIdx > 2) return; // out of bounds
+
+    const targetCol = document.querySelector(`.col[data-col="${order[targetIdx]}"]`);
+    // WIP rule: cannot move into doing if already 2 cards
+    if(order[targetIdx] === 'doing'){
+      const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+      if(doingCount >= 2) return;
+    }
+
+    targetCol.querySelector('.cards').appendChild(card);
+    updateCounters();
+    updateButtons();
+  }
+
+  document.querySelectorAll('.mas').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      const card = e.target.closest('.card');
+      moveCard(card, +1);
+    });
+  });
+
+  document.querySelectorAll('.menos').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      const card = e.target.closest('.card');
+      moveCard(card, -1);
+    });
+  });
+
+  // Inicializar contadores y botones
+  updateCounters();
+  updateButtons();
+</script>
+</body>
+</html>

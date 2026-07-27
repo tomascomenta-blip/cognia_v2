@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:20px;
+  }
+  #estado{
+    margin-bottom:10px;
+    font-weight:bold;
+    color:#d00;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5, 40px);
+    grid-gap:2px;
+  }
+  .c{
+    width:40px;
+    height:40px;
+    background:#ccc;
+    border:1px solid #999;
+    text-align:center;
+    line-height:40px;
+    font-weight:bold;
+    cursor:pointer;
+    user-select:none;
+    animation:fadeIn 0.5s ease forwards;
+    opacity:0;
+  }
+  .c.abierta{
+    background:#eee;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ff0;
+  }
+  @keyframes fadeIn{
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div id="estado"></div>
+<div id="grid"></div>
+
+<script>
+(() => {
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const size = 5;
+  const total = size*size;
+  const minas = [6,12,18];
+  const cells = [];
+  const adjCount = new Array(total).fill(0);
+  const opened = new Array(total).fill(false);
+  const flagged = new Array(total).fill(false);
+
+  // Create cells
+  for(let i=0;i<total;i++){
+    const div = document.createElement('div');
+    div.className='c';
+    div.dataset.i=i;
+    div.style.animationDelay=`${i*0.05}s`;
+    grid.appendChild(div);
+    cells.push(div);
+  }
+
+  // Precompute adjacent mine counts
+  for(let i=0;i<total;i++){
+    if(minas.includes(i)) continue;
+    let count=0;
+    const r=Math.floor(i/size), c=i%size;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr<0||nr>=size||nc<0||nc>=size) continue;
+        const ni=nr*size+nc;
+        if(minas.includes(ni)) count++;
+      }
+    }
+    adjCount[i]=count;
+  }
+
+  // Helper to open a cell
+  function openCell(idx){
+    if(opened[idx] || flagged[idx]) return;
+    opened[idx]=true;
+    const cell=cells[idx];
+    cell.classList.add('abierta');
+    if(minas.includes(idx)){
+      cell.textContent='💣';
+      estado.textContent='perdiste';
+      // reveal all mines
+      minas.forEach(m=>{
+        const mcell=cells[m];
+        if(!mcell.classList.contains('abierta')){
+          mcell.classList.add('abierta');
+          mcell.textContent='💣';
+        }
+      });
+      return;
+    }
+    const count=adjCount[idx];
+    if(count>0) cell.textContent=count;
+    else{
+      // cascade open neighbors
+      const queue=[idx];
+      while(queue.length){
+        const cur=queue.shift();
+        const r=Math.floor(cur/size), c=cur%size;
+        for(let dr=-1;dr<=1;dr++){
+          for(let dc=-1;dc<=1;dc++){
+            if(dr===0 && dc===0) continue;
+            const nr=r+dr, nc=c+dc;
+            if(nr<0||nr>=size||nc<0||nc>=size) continue;
+            const ni=nr*size+nc;
+            if(opened[ni]||flagged[ni]) continue;
+            opened[ni]=true;
+            const ncell=cells[ni];
+            ncell.classList.add('abierta');
+            const ncount=adjCount[ni];
+            if(ncount>0) ncell.textContent=ncount;
+            else queue.push(ni);
+          }
+        }
+      }
+    }
+  }
+
+  // Event listeners
+  cells.forEach(cell=>{
+    cell.addEventListener('click',e=>{
+      const idx=parseInt(cell.dataset.i);
+      if(flagged[idx]) return;
+      openCell(idx);
+    });
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      const idx=parseInt(cell.dataset.i);
+      if(opened[idx]) return;
+      flagged[idx]=!flagged[idx];
+      cell.classList.toggle('bandera');
+      cell.textContent=flagged[idx]?'🚩':'';
+    });
+  });
+})();
+</script>
+</body>
+</html>

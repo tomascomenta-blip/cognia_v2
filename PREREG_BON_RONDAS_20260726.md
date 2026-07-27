@@ -246,6 +246,27 @@ es del tamaño del efecto buscado. Y el banco de 6 tareas fáciles se queda
 corto: con techo 6 y ruido ±1.5, un efecto de +1 tarea necesita ~n=12; el
 banco brutal (efectos esperables mayores) es mejor instrumento.
 
+## SEXTA ENMIENDA (2026-07-27 ~22:15 — el envoltorio queda acusado; brazo F pre-registrado)
+
+Confound de deriva CERRADO (b2_confound_envoltorio.py): muestras DIRECTAS de
+esta misma noche, mismo server, mismo juez → **9/12 = 75%**, clavado en el
+pass@1 histórico. No hay deriva del modelo. La brecha contra el 17% del
+sistema (2/12) es del CAMINO DEL SISTEMA: **el envoltorio del lazo destruye
+~58 puntos de capacidad ya pagada en tareas composicionales.**
+
+**Brazo F — IDEA PELADA en el lazo:** el sospechoso principal es el adorno
+de la idea (`idea_build += ". TARGET LOOK, match it: {brief}"`): en tareas
+composicionales con selectores OBLIGATORIOS, el brief estético compite con
+los requisitos duros. Se agrega `COGNIA_IDEA_PELADA=1` (el lazo construye
+con la idea tal cual; el brief sigue existiendo para árbitro/sprites) y se
+corre el banco brutal ×3 con la config restaurada.
+
+| lectura brazo F | condición |
+|---|---|
+| **el adorno es el culpable** | pelada ≥ 6/12 (recupera la mayor parte del gap) |
+| **culpable parcial** | pelada 4-5/12 — hay más ladrones en el camino |
+| **el adorno queda absuelto** | pelada ≤ 3/12 — buscar en el resto (componentes REQUIRED, parser, temperatura) |
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es

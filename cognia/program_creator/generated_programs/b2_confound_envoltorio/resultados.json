@@ -1,0 +1,111 @@
+{
+  "n_por_tarea": 3,
+  "aprobadas": 9,
+  "total": 12,
+  "detalle": {
+    "hoja_calculo": [
+      {
+        "rep": 1,
+        "aprobado": false,
+        "checks_ok": 25,
+        "checks": 28,
+        "motivo": "falla critica: C1 = B1+A1 = 13 (js='CIRC', esperaba '13'); CASCADA en 2 saltos: C1 se recalcula a 23",
+        "segundos": 47.30001783370972
+      },
+      {
+        "rep": 2,
+        "aprobado": true,
+        "checks_ok": 27,
+        "checks": 28,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "segundos": 48.804253816604614
+      },
+      {
+        "rep": 3,
+        "aprobado": true,
+        "checks_ok": 27,
+        "checks": 28,
+        "motivo": "27/28 checks OK (24/24 del contrato)",
+        "segundos": 56.8141143321991
+      }
+    ],
+    "carrito_stock": [
+      {
+        "rep": 1,
+        "aprobado": true,
+        "checks_ok": 19,
+        "checks": 19,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "segundos": 14.845590591430664
+      },
+      {
+        "rep": 2,
+        "aprobado": false,
+        "checks_ok": 18,
+        "checks": 19,
+        "motivo": "falla critica: la cantidad es 2 (excepcion: Error: Page.evaluate: TypeError: Cannot read properties ",
+        "segundos": 16.134000539779663
+      },
+      {
+        "rep": 3,
+        "aprobado": true,
+        "checks_ok": 19,
+        "checks": 19,
+        "motivo": "19/19 checks OK (15/15 del contrato)",
+        "segundos": 125.48176860809326
+      }
+    ],
+    "kanban": [
+      {
+        "rep": 1,
+        "aprobado": false,
+        "checks_ok": 11,
+        "checks": 20,
+        "motivo": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2)",
+        "segundos": 27.431071281433105
+      },
+      {
+        "rep": 2,
+        "aprobado": true,
+        "checks_ok": 17,
+        "checks": 20,
+        "motivo": "17/20 checks OK (14/16 del contrato)",
+        "segundos": 21.925999641418457
+      },
+      {
+        "rep": 3,
+        "aprobado": true,
+        "checks_ok": 19,
+        "checks": 20,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "segundos": 135.20153832435608
+      }
+    ],
+    "buscaminas": [
+      {
+        "rep": 1,
+        "aprobado": true,
+        "checks_ok": 19,
+        "checks": 20,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "segundos": 18.938000679016113
+      },
+      {
+        "rep": 2,
+        "aprobado": true,
+        "checks_ok": 19,
+        "checks": 20,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "segundos": 18.85662293434143
+      },
+      {
+        "rep": 3,
+        "aprobado": true,
+        "checks_ok": 19,
+        "checks": 20,
+        "motivo": "19/20 checks OK (16/16 del contrato)",
+        "segundos": 9.27700138092041
+      }
+    ]
+  }
+}

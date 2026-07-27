@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini hoja de cálculo 3x3</title>
+<style>
+  body{font-family:sans-serif;margin:20px;}
+  .grid{display:grid;grid-template-columns:repeat(3,80px);gap:5px;}
+  .celda{width:80px;height:25px;text-align:right;padding:2px;}
+</style>
+</head>
+<body>
+<h2>Mini hoja de cálculo 3x3</h2>
+<div class="grid">
+  <input class="celda" data-ref="A1" value="1">
+  <input class="celda" data-ref="A2" value="2">
+  <input class="celda" data-ref="A3" value="3">
+  <input class="celda" data-ref="B1" value="4">
+  <input class="celda" data-ref="B2" data-formula="=A1+A2">
+  <input class="celda" data-ref="B3" value="6">
+  <input class="celda" data-ref="C1" value="7">
+  <input class="celda" data-ref="C2" data-formula="=B2+1">
+  <input class="celda" data-ref="C3" data-formula="=C2+B3">
+</div>
+<script>
+let isUpdating = false;
+function evaluateCell(ref, visited) {
+  if (visited.has(ref)) return 'CIRC';
+  visited.add(ref);
+  const cell = document.querySelector('.celda[data-ref="'+ref+'"]');
+  const formula = cell.dataset.formula;
+  if (!formula) {
+    const val = parseFloat(cell.value);
+    visited.delete(ref);
+    return isNaN(val) ? 0 : val;
+  }
+  const expr = formula.slice(1);
+  const regex = /([+-]?)([A-Z][1-3]|\d+)/g;
+  let match;
+  let sum = 0;
+  while ((match = regex.exec(expr)) !== null) {
+    const sign = match[1];
+    const token = match[2];
+    let val;
+    if (/^[A-Z][1-3]$/.test(token)) {
+      val = evaluateCell(token, visited);
+    } else {
+      val = parseFloat(token);
+    }
+    if (val === 'CIRC') {
+      visited.delete(ref);
+      return 'CIRC';
+    }
+    if (sign === '-') sum -= val;
+    else sum += val;
+  }
+  visited.delete(ref);
+  return sum;
+}
+function recalcAll() {
+  if (isUpdating) return;
+  isUpdating = true;
+  const cells = document.querySelectorAll('.celda');
+  cells.forEach(cell => {
+    const ref = cell.dataset.ref;
+    const formula = cell.dataset.formula;
+    if (formula) {
+      const result = evaluateCell(ref, new Set());
+      cell.value = result === 'CIRC' ? 'CIRC' : result;
+    }
+  });
+  isUpdating = false;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const cells = document.querySelectorAll('.celda');
+  cells.forEach(cell => {
+    cell.addEventListener('input', function() {
+      if (isUpdating) return;
+      const val = this.value;
+      if (val.startsWith('=')) {
+        this.dataset.formula = val;
+      } else {
+        delete this.dataset.formula;
+      }
+      recalcAll();
+    });
+  });
+  recalcAll();
+});
+</script>
+</body>
+</html>

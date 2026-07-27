@@ -449,7 +449,16 @@ def construir_para_mockup(idea: str, *, llm: Optional[LlmFn] = None,
         # arrancaba en 3-5. Ademas _componentes_de_idea trocea el brief en
         # REQUIRED components, o sea que el aspecto pedido se vuelve checklist.
         idea_build = idea if _es_idea_web(idea) else f"pagina web: {idea}"
-        if res.brief and res.brief != idea.strip():
+        # COGNIA_IDEA_PELADA: construir con la idea TAL CUAL, sin pegarle el
+        # brief estetico. Medido 2026-07-27 (b2_confound_envoltorio.py): el
+        # mismo modelo, mismo server y mismo juez dan 75% con la idea directa
+        # y 17% por el camino del sistema en el banco brutal — el envoltorio
+        # destruye capacidad ya pagada en tareas composicionales, y el adorno
+        # de la idea es el sospechoso principal (el brief compite con los
+        # selectores OBLIGATORIOS del enunciado). El brief sigue existiendo
+        # para el arbitro y los sprites.
+        if res.brief and res.brief != idea.strip() \
+                and not os.environ.get("COGNIA_IDEA_PELADA"):
             idea_build += f". TARGET LOOK, match it: {res.brief}"
 
         # ── 2b. El cerebro le PIDE elementos al modelo de imagenes ─────────

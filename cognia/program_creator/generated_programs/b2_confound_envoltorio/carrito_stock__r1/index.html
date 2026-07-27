@@ -1,0 +1,185 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito con Stock</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:20px;
+    background:#f5f5f5;
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:space-around;
+  }
+  .products, .cart{
+    background:#fff;
+    padding:15px;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    width:300px;
+    margin:10px;
+  }
+  .prod{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+    opacity:0;
+    animation:fadeIn 0.6s forwards;
+  }
+  .prod:nth-child(1){animation-delay:0.1s;}
+  .prod:nth-child(2){animation-delay:0.2s;}
+  .prod:nth-child(3){animation-delay:0.3s;}
+  .prod button{
+    padding:5px 10px;
+    background:#28a745;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .prod button:disabled{
+    background:#aaa;
+    cursor:not-allowed;
+  }
+  .cart h2{margin-top:0;}
+  .linea{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:8px;
+    opacity:0;
+    animation:fadeIn 0.4s forwards;
+  }
+  .linea button{
+    padding:3px 6px;
+    background:#dc3545;
+    color:#fff;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  #total{
+    font-weight:bold;
+  }
+  @keyframes fadeIn{
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div class="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <span>Producto 1 - $100</span>
+    <button class="add" data-id="p1">Añadir</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <span>Producto 2 - $50</span>
+    <button class="add" data-id="p2">Añadir</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <span>Producto 3 - $25</span>
+    <button class="add" data-id="p3">Añadir</button>
+  </div>
+</div>
+
+<div class="cart">
+  <h2>Carrito</h2>
+  <div id="lines"></div>
+  <div>Total: $<span id="total">0</span></div>
+</div>
+
+<script>
+(() => {
+  const products = document.querySelectorAll('.prod');
+  const linesContainer = document.getElementById('lines');
+  const totalEl = document.getElementById('total');
+
+  // Helper to get product data
+  const getProductData = id => {
+    const prod = document.querySelector(`.prod[data-id="${id}"]`);
+    return {
+      precio: parseFloat(prod.dataset.precio),
+      stock: parseInt(prod.dataset.stock, 10),
+      button: prod.querySelector(`button.add[data-id="${id}"]`)
+    };
+  };
+
+  // Update total
+  const updateTotal = () => {
+    let total = 0;
+    document.querySelectorAll('.linea').forEach(line => {
+      const id = line.dataset.id;
+      const qty = parseInt(line.querySelector('.cant').textContent, 10);
+      const precio = getProductData(id).precio;
+      total += qty * precio;
+    });
+    totalEl.textContent = total.toFixed(2);
+  };
+
+  // Add product
+  const addProduct = id => {
+    const { precio, stock, button } = getProductData(id);
+    let line = document.querySelector(`.linea[data-id="${id}"]`);
+    let qty = 0;
+    if (line) {
+      qty = parseInt(line.querySelector('.cant').textContent, 10);
+    }
+    if (qty >= stock) return; // shouldn't happen due to button disable
+
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'linea';
+      line.dataset.id = id;
+      line.innerHTML = `
+        <span>${id.toUpperCase()}</span>
+        <span class="cant">1</span>
+        <button class="quitar" data-id="${id}">-</button>
+      `;
+      linesContainer.appendChild(line);
+    } else {
+      line.querySelector('.cant').textContent = qty + 1;
+    }
+
+    // Disable button if reached stock
+    if (qty + 1 >= stock) button.disabled = true;
+
+    updateTotal();
+  };
+
+  // Remove product
+  const removeProduct = id => {
+    const line = document.querySelector(`.linea[data-id="${id}"]`);
+    if (!line) return;
+    const { stock, button } = getProductData(id);
+    let qty = parseInt(line.querySelector('.cant').textContent, 10);
+    qty -= 1;
+    if (qty <= 0) {
+      line.remove();
+      button.disabled = false;
+    } else {
+      line.querySelector('.cant').textContent = qty;
+      button.disabled = false;
+    }
+    updateTotal();
+  };
+
+  // Event listeners
+  products.forEach(prod => {
+    const id = prod.dataset.id;
+    prod.querySelector('.add').addEventListener('click', () => addProduct(id));
+  });
+
+  linesContainer.addEventListener('click', e => {
+    if (e.target.classList.contains('quitar')) {
+      const id = e.target.dataset.id;
+      removeProduct(id);
+    }
+  });
+})();
+</script>
+</body>
+</html>
