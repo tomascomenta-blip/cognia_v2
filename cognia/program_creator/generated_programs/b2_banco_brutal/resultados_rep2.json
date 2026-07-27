@@ -1,0 +1,61 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null
+  },
+  "sistema_real": {
+    "hoja_calculo": {
+      "aprobado": true,
+      "motivo": "27/28 checks OK (24/24 del contrato)",
+      "segundos": 219.26706194877625,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 27,
+      "checks": 28,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null,
+      "aprobado_heldout": true,
+      "heldout_motivo": "29/30 checks OK (26/26 del contrato)"
+    },
+    "carrito_stock": {
+      "aprobado": false,
+      "motivo": "falla critica: dos veces el mismo producto = UNA linea (count('.linea')=2, esperaba 1); total = 2*100 = 200 ('225,00 €' ",
+      "segundos": 95.57231426239014,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 14,
+      "checks": 19,
+      "rondas": 1,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
+    "kanban": {
+      "aprobado": false,
+      "motivo": "falla critica: t1 pasa a doing (js=0, esperaba 1); t2 pasa a doing (2 = tope WIP) (js=0, esperaba 2); LIMITE WIP: t3 NO ",
+      "segundos": 213.81921243667603,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 5,
+      "checks": 20,
+      "rondas": 2,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    },
+    "buscaminas": {
+      "aprobado": false,
+      "motivo": "falla critica: empieza todo cerrado (count('.abierta')=2, esperaba 0)",
+      "segundos": 172.94570755958557,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 18,
+      "checks": 20,
+      "rondas": 1,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    }
+  },
+  "aprobados": 1,
+  "aprobados_heldout": 1,
+  "n_tareas": 4
+}

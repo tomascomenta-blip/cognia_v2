@@ -1,223 +1,160 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Buscaminas 5x5 con Animación</title>
+<meta charset="utf-8">
+<title>Minesweeper 5x5 Demo</title>
 <style>
-  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;padding:10px;}
-  #summary{width:100%;max-width:600px;margin-bottom:10px;display:flex;justify-content:space-around;font-size:1rem;background:#fff;padding:10px;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
-  #grid{width:100%;max-width:500px;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-bottom:10px;}
-  .c{position:relative;background:#bbb;height:0;padding-top:100%;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:bold;color:#000;border-radius:3px;}
-  .c.abierta{background:#e0e0e0;cursor:default;}
-  .c.bandera{background:#ffeb3b;cursor:default;}
-  .c.abierta.mine{background:#f44336;color:#fff;}
-  .c.abierta span,.c.bandera span{display:block;width:100%;height:100%;line-height:1;font-size:1.2rem;text-align:center;}
-  #estado{width:100%;max-width:600px;text-align:center;font-size:1.5rem;margin-bottom:10px;color:#000;}
-  #chart{width:100%;max-width:600px;height:200px;background:#fff;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,0.1);padding:10px;}
-  svg{width:100%;height:100%;}
-  .gridline{stroke:#ccc;stroke-width:1;}
-  .axis{stroke:#000;stroke-width:1.5;}
-  .label{font-size:0.8rem;fill:#000;}
-  .line{fill:none;stroke:#3f51b5;stroke-width:2;}
+  body{margin:0;font-family:Arial,sans-serif;background:#e0e0e0;display:flex;flex-direction:column;align-items:center;min-height:100vh;justify-content:center;}
+  #title{font-size:1.5rem;font-weight:bold;margin:10px;color:#333;}
+  #estado{font-size:1.2rem;margin:5px;color:#333;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:0;width:90%;max-width:400px;}
+  .c{position:relative;width:100%;padding-top:100%;background:#f0f0f0;border:1px solid #ccc;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:bold;color:#000;user-select:none;}
+  .c.abierta{background:#add8e6;color:#000;pointer-events:none;}
+  .c.bandera{background:#f0f0f0;color:#ff0000;pointer-events:none;}
+  .c.mina{background:#f0f0f0;color:#ff0000;pointer-events:none;}
+  .c.mina.revealed{background:#f0f0f0;color:#ff0000;}
 </style>
 </head>
 <body>
-<div id="summary"></div>
+<div id="title">Minesweeper 5x5 Demo</div>
+<div id="estado">jugando</div>
 <div id="grid"></div>
-<div id="estado"></div>
-<div id="chart"><svg></svg></div>
-
 <script>
-(() => {
-  const mines = [6,12,18];
-  const totalCells = 25;
-  const opened = new Set();
-  const flagged = new Set();
-  const adjacentCounts = new Array(totalCells).fill(0);
-  const openHistory = [];
-  let openInterval = null;
-
-  const summary = document.getElementById('summary');
-  const grid = document.getElementById('grid');
-  const estado = document.getElementById('estado');
-  const chart = document.getElementById('chart');
-
-  // Compute adjacent mine counts
-  const getNeighbors = (i) => {
-    const r = Math.floor(i/5), c = i%5;
-    const neigh = [];
+(function(){
+  const mines=[6,12,18];
+  const grid=document.getElementById('grid');
+  const cells=[];
+  const counts=new Array(25).fill(0);
+  // create cells
+  for(let i=0;i<25;i++){
+    const div=document.createElement('div');
+    div.className='c';
+    div.dataset.i=i;
+    grid.appendChild(div);
+    cells.push(div);
+  }
+  // compute adjacent mine counts
+  function getNeighbors(i){
+    const r=Math.floor(i/5),c=i%5;
+    const neigh=[];
     for(let dr=-1;dr<=1;dr++){
       for(let dc=-1;dc<=1;dc++){
-        if(dr===0 && dc===0) continue;
-        const nr=r+dr, nc=c+dc;
-        if(nr>=0 && nr<5 && nc>=0 && nc<5) neigh.push(nr*5+nc);
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<5&&nc>=0&&nc<5){
+          neigh.push(nr*5+nc);
+        }
       }
     }
     return neigh;
-  };
-  for(let i=0;i<totalCells;i++){
-    const neigh = getNeighbors(i);
+  }
+  for(let i=0;i<25;i++){
+    if(mines.includes(i))continue;
+    const neigh=getNeighbors(i);
     let cnt=0;
-    neigh.forEach(n=>{ if(mines.includes(n)) cnt++; });
-    adjacentCounts[i]=cnt;
+    for(const n of neigh) if(mines.includes(n))cnt++;
+    counts[i]=cnt;
   }
-
-  // Create grid cells
-  for(let i=0;i<totalCells;i++){
-    const cell = document.createElement('div');
-    cell.className='c';
-    cell.dataset.i=i;
-    cell.innerHTML='';
-    cell.addEventListener('click',()=>{ if(!flagged.has(i)) openCell(i); });
-    cell.addEventListener('contextmenu',e=>{
-      e.preventDefault();
-      if(!opened.has(i)) flagCell(i);
-    });
-    grid.appendChild(cell);
+  const estado=document.getElementById('estado');
+  let gameOver=false;
+  function revealMine(i){
+    const cell=cells[i];
+    cell.classList.add('mina','revealed');
+    cell.textContent='💣';
   }
-
-  // Open cell logic
-  const openCell = (i) => {
-    if(opened.has(i) || flagged.has(i)) return;
-    opened.add(i);
-    const cell = document.querySelector(`[data-i='${i}']`);
+  function revealAllMines(){
+    for(const m of mines){
+      const cell=cells[m];
+      if(!cell.classList.contains('abierta')){
+        cell.classList.add('mina','revealed');
+        cell.textContent='💣';
+      }
+    }
+  }
+  function openCell(i){
+    if(gameOver)return;
+    const cell=cells[i];
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
     if(mines.includes(i)){
-      cell.classList.add('abierta','mine');
-      cell.innerHTML='💣';
+      revealMine(i);
       estado.textContent='perdiste';
-      estado.style.color='red';
-      clearInterval(openInterval);
+      gameOver=true;
+      revealAllMines();
       return;
     }
+    // open cell
     cell.classList.add('abierta');
-    const count = adjacentCounts[i];
-    if(count===0 || opened.size===1){
-      cell.innerHTML='';
-      getNeighbors(i).forEach(n=>{ if(!opened.has(n) && !flagged.has(n)) openCell(n); });
-    }else{
-      cell.innerHTML=count;
-    }
-    openHistory.push(opened.size);
-    updateStats();
-    updateChart();
-    if(opened.size===totalCells - mines.length){
-      estado.textContent='¡Ganaste!';
-      estado.style.color='green';
-      clearInterval(openInterval);
-    }
-  };
-
-  // Flag cell logic
-  const flagCell = (i) => {
-    if(opened.has(i)) return;
-    const cell = document.querySelector(`[data-i='${i}']`);
-    if(flagged.has(i)){
-      flagged.delete(i);
-      cell.classList.remove('bandera');
-      cell.innerHTML='';
-    }else{
-      flagged.add(i);
-      cell.classList.add('bandera');
-      cell.innerHTML='🚩';
-    }
-    updateStats();
-  };
-
-  // Update summary stats
-  const updateStats = () => {
-    const openedCount = opened.size;
-    const flaggedCount = flagged.size;
-    summary.innerHTML = `<strong>Total:</strong> ${totalCells} | <strong>Mines:</strong> ${mines.length} | <strong>Abiertas:</strong> ${openedCount} | <strong>Banderas:</strong> ${flaggedCount}`;
-  };
-
-  // Chart drawing helpers
-  const createLine = (x1,y1,x2,y2,cls)=>{
-    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',x1); line.setAttribute('y1',y1);
-    line.setAttribute('x2',x2); line.setAttribute('y2',y2);
-    line.setAttribute('class',cls);
-    return line;
-  };
-  const createText = (x,y,text,cls)=>{
-    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x',x); t.setAttribute('y',y);
-    t.setAttribute('class',cls);
-    t.textContent=text;
-    return t;
-  };
-
-  // Update chart
-  const updateChart = () => {
-    const svg = chart.querySelector('svg');
-    if(!svg) return;
-    svg.innerHTML='';
-    const width = svg.clientWidth;
-    const height = svg.clientHeight;
-    const max = totalCells;
-    const maxX = openHistory.length-1 || 0;
-    const xScale = width / (maxX || 1);
-    const yScale = height / max;
-
-    // Y gridlines and labels
-    for(let i=0;i<=max;i+=5){
-      const y = height - i*yScale;
-      svg.appendChild(createLine(0,y,width,y,'gridline'));
-      svg.appendChild(createText(5,y-2,i,'label'));
-    }
-    // X gridlines and labels
-    const stepX = Math.max(1,Math.floor(maxX/10));
-    for(let i=0;i<=maxX;i+=stepX){
-      const x = i*xScale;
-      svg.appendChild(createLine(x,0,x,height,'gridline'));
-      svg.appendChild(createText(x+2,height-5,i,'label'));
-    }
-    // Axes
-    svg.appendChild(createLine(0,0,0,height,'axis'));
-    svg.appendChild(createLine(0,height,width,height,'axis'));
-    // Line path
-    if(openHistory.length>1){
-      let path='M';
-      openHistory.forEach((val,idx)=>{
-        const x=idx*xScale;
-        const y=height - val*yScale;
-        path+=`${x},${y} `;
-      });
-      const line=document.createElementNS('http://www.w3.org/2000/svg','path');
-      line.setAttribute('d',path.trim());
-      line.setAttribute('class','line');
-      svg.appendChild(line);
-    }
-  };
-
-  // Start automatic opening after a short delay
-  setTimeout(()=>{
-    openInterval = setInterval(()=>{
-      if(opened.size===totalCells - mines.length || estado.textContent==='perdiste') {
-        clearInterval(openInterval);
-        return;
-      }
-      // Find next non-flagged, non-opened, non-mine cell
-      let next=null;
-      for(let i=0;i<totalCells;i++){
-        if(!opened.has(i) && !flagged.has(i) && !mines.includes(i)){
-          next=i; break;
+    const cnt=counts[i];
+    if(cnt>0)cell.textContent=cnt;
+    else{
+      // cascade
+      const queue=[i];
+      const visited=new Set();
+      visited.add(i);
+      while(queue.length){
+        const cur=queue.shift();
+        const neigh=getNeighbors(cur);
+        for(const n of neigh){
+          const ncell=cells[n];
+          if(ncell.classList.contains('abierta')||ncell.classList.contains('bandera'))continue;
+          ncell.classList.add('abierta');
+          const ncnt=counts[n];
+          if(ncnt>0){
+            ncell.textContent=ncnt;
+          }else{
+            queue.push(n);
+          }
         }
       }
-      if(next!==null) openCell(next);
-    },800);
-  },500);
-
-  // Auto-flag mines after 2s
-  setTimeout(()=>{
-    mines.forEach(i=>{ flagCell(i); });
-  },2000);
-
-  // Update chart on resize
-  window.addEventListener('resize', updateChart);
-
-  // Initial render
-  updateStats();
-  updateChart();
+    }
+    // check win
+    const openedCount=cells.filter(c=>c.classList.contains('abierta')).length;
+    if(openedCount===22){
+      estado.textContent='ganaste';
+      gameOver=true;
+    }
+  }
+  function toggleFlag(i){
+    if(gameOver)return;
+    const cell=cells[i];
+    if(cell.classList.contains('abierta'))return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  }
+  // event listeners
+  cells.forEach((cell,i)=>{
+    cell.addEventListener('click',()=>openCell(i));
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      toggleFlag(i);
+    });
+  });
+  // auto simulation
+  let openSteps=0;
+  const maxOpen=5;
+  const simulation=setInterval(()=>{
+    if(gameOver||openSteps>=maxOpen)return clearInterval(simulation);
+    const candidates=cells.filter((c,i)=>!c.classList.contains('abierta')&&!c.classList.contains('bandera')&&!mines.includes(i)&&i!==10);
+    if(candidates.length===0)return clearInterval(simulation);
+    const idx=Math.floor(Math.random()*candidates.length);
+    const cell=candidates[idx];
+    const i=parseInt(cell.dataset.i);
+    openCell(i);
+    openSteps++;
+    // toggle flag on random unopened non-mine cell (excluding 10)
+    const flagCandidates=cells.filter((c,i)=>!c.classList.contains('abierta')&&!c.classList.contains('bandera')&&!mines.includes(i)&&i!==10);
+    if(flagCandidates.length>0 && Math.random()<0.3){
+      const fIdx=Math.floor(Math.random()*flagCandidates.length);
+      const fCell=flagCandidates[fIdx];
+      const fI=parseInt(fCell.dataset.i);
+      toggleFlag(fI);
+    }
+  },800);
 })();
 </script>
 </body>
