@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    background:#eaeaea;
+    margin:0;
+    padding:20px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+  }
+  #board{
+    display:flex;
+    width:100%;
+    max-width:1200px;
+  }
+  .col{
+    flex:1;
+    margin:0 10px;
+    background:#f9f9f9;
+    border-radius:6px;
+    padding:10px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    animation:slideIn 0.6s ease forwards;
+  }
+  .col h2{
+    margin-top:0;
+    text-align:center;
+  }
+  .cards{
+    min-height:50px;
+  }
+  .card{
+    background:#fff;
+    margin:8px 0;
+    padding:10px;
+    border-radius:4px;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    transition:transform .2s;
+  }
+  .card button{
+    margin-left:4px;
+    padding:2px 6px;
+    font-size:12px;
+    cursor:pointer;
+  }
+  .counter{
+    display:block;
+    text-align:center;
+    margin-top:10px;
+    font-weight:bold;
+  }
+  @keyframes slideIn{
+    from{opacity:0;transform:translateX(-20px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+</style>
+</head>
+<body>
+<div id="board">
+  <!-- Columns will be inserted by JavaScript -->
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const board = document.getElementById('board');
+  const cols = ['todo','doing','done'];
+  const colContainers = {};
+
+  // Create columns
+  cols.forEach(col=>{
+    const colDiv = document.createElement('div');
+    colDiv.className = 'col';
+    colDiv.dataset.col = col;
+
+    const title = document.createElement('h2');
+    title.textContent = col.charAt(0).toUpperCase() + col.slice(1);
+    colDiv.appendChild(title);
+
+    const cardsDiv = document.createElement('div');
+    cardsDiv.className = 'cards';
+    colDiv.appendChild(cardsDiv);
+    colContainers[col] = cardsDiv;
+
+    const counter = document.createElement('span');
+    counter.id = `cont-${col}`;
+    counter.className = 'counter';
+    counter.textContent = '0';
+    colDiv.appendChild(counter);
+
+    board.appendChild(colDiv);
+  });
+
+  // Helper to create a card
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.textContent = id;
+
+    const btnMas = document.createElement('button');
+    btnMas.className = 'mas';
+    btnMas.textContent = '+';
+    btnMas.title = 'Mover a la derecha';
+    card.appendChild(btnMas);
+
+    const btnMenos = document.createElement('button');
+    btnMenos.className = 'menos';
+    btnMenos.textContent = '-';
+    btnMenos.title = 'Mover a la izquierda';
+    card.appendChild(btnMenos);
+
+    return card;
+  }
+
+  // Add initial cards to 'todo'
+  ['t1','t2','t3'].forEach(id=>{
+    const card = createCard(id);
+    colContainers['todo'].appendChild(card);
+  });
+
+  // Update counters
+  function updateCounters(){
+    cols.forEach(col=>{
+      const count = colContainers[col].children.length;
+      document.getElementById(`cont-${col}`).textContent = count;
+    });
+  }
+  updateCounters();
+
+  // Event delegation for buttons
+  board.addEventListener('click', function(e){
+    if(!e.target.classList.contains('mas') && !e.target.classList.contains('menos')) return;
+
+    const card = e.target.closest('.card');
+    const currentColDiv = card.parentElement.parentElement; // .col
+    const currentCol = currentColDiv.dataset.col;
+    let targetCol;
+
+    if(e.target.classList.contains('mas')){
+      if(currentCol === 'todo') targetCol = 'doing';
+      else if(currentCol === 'doing') targetCol = 'done';
+      else return; // done cannot move right
+    }else{ // menos
+      if(currentCol === 'done') targetCol = 'doing';
+      else if(currentCol === 'doing') targetCol = 'todo';
+      else return; // todo cannot move left
+    }
+
+    // WIP rule: doing max 2 cards
+    if(targetCol === 'doing' && colContainers['doing'].children.length >= 2){
+      return; // cannot move into full doing
+    }
+
+    // Move card
+    colContainers[targetCol].appendChild(card);
+    updateCounters();
+  });
+});
+</script>
+</body>
+</html>

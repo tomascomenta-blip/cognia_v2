@@ -1,0 +1,154 @@
+Title: Buscaminas 5x5 con minas fijas  
+Description: Juego de buscaminas 5x5 con 3 minas fijas en posiciones 6, 12 y 18, donde se revelan celdas y se pueden colocar banderas.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con minas fijas</title>
+<style>
+  body{
+    font-family:sans-serif;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    background:#f0f0f0;
+  }
+  #tablero{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:90vmin;
+    height:90vmin;
+  }
+  .c{
+    background:#ccc;
+    border:1px solid #999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#fff;
+    border:1px solid #999;
+    cursor:default;
+  }
+  .c.abierta[data-mine="true"]{
+    background:#f88;
+  }
+  .c.bandera{
+    background:#ff0;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+  }
+</style>
+</head>
+<body>
+<div id="tablero"></div>
+<div id="estado"></div>
+<script>
+  const mines=[6,12,18];
+  const tablero=document.getElementById('tablero');
+  const estado=document.getElementById('estado');
+
+  // Create 25 cells
+  for(let i=0;i<25;i++){
+    const div=document.createElement('div');
+    div.classList.add('c');
+    div.dataset.i=i;
+    div.dataset.mine=mines.includes(i);
+    div.addEventListener('click',onClick);
+    div.addEventListener('contextmenu',onRightClick);
+    tablero.appendChild(div);
+  }
+
+  function onClick(e){
+    const cell=e.currentTarget;
+    if(cell.classList.contains('bandera')||cell.classList.contains('abierta')) return;
+    if(cell.dataset.mine==='true'){
+      cell.classList.add('abierta');
+      estado.textContent='perdiste';
+      return;
+    }
+    openCell(cell);
+  }
+
+  function onRightClick(e){
+    e.preventDefault();
+    const cell=e.currentTarget;
+    if(cell.classList.contains('abierta')) return;
+    cell.classList.toggle('bandera');
+  }
+
+  function openCell(cell){
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')||cell.dataset.mine!=='true') return;
+    cell.classList.add('abierta');
+    const i=parseInt(cell.dataset.i);
+    const adj=adjacentMines(i);
+    if(adj>0){
+      cell.textContent=adj;
+    }else{
+      cell.textContent='';
+      // Cascade opening of zero‑adjacent cells
+      const queue=[cell];
+      while(queue.length){
+        const cur=queue.shift();
+        const idx=parseInt(cur.dataset.i);
+        const neighbors=getNeighbors(idx);
+        for(const n of neighbors){
+          const nCell=document.querySelector(`.c[data-i="${n}"]`);
+          if(nCell && !nCell.classList.contains('abierta') && !nCell.classList.contains('bandera') && nCell.dataset.mine!=='true'){
+            nCell.classList.add('abierta');
+            const adjCount=adjacentMines(n);
+            if(adjCount>0){
+              nCell.textContent=adjCount;
+            }else{
+              nCell.textContent='';
+              queue.push(nCell);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function adjacentMines(i){
+    const neighbors=getNeighbors(i);
+    let count=0;
+    for(const n of neighbors){
+      if(mines.includes(n)) count++;
+    }
+    return count;
+  }
+
+  function getNeighbors(i){
+    const row=Math.floor(i/5);
+    const col=i%5;
+    const neighbors=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0) continue;
+        const r=row+dr;
+        const c=col+dc;
+        if(r>=0&&r<5&&c>=0&&c<5){
+          neighbors.push(r*5+c);
+        }
+      }
+    }
+    return neighbors;
+  }
+</script>
+</body>
+</html>
+```

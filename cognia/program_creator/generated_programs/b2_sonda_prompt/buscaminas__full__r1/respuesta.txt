@@ -1,0 +1,131 @@
+Title: Buscaminas 5x5 con 3 minas fijas  
+Description: Juego de buscaminas 5×5 con minas en las posiciones 6, 12 y 18, con apertura automática de celdas vacías y banderas por clic derecho.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+  }
+  #game{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:90vw;
+    max-width:400px;
+    margin-top:20px;
+  }
+  .c{
+    background:#bbb;
+    border:1px solid #999;
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+    font-size:1.5rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#ddd;
+    cursor:default;
+  }
+  .c.bandera{
+    color:red;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+  }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="estado"></div>
+<script>
+class Minesweeper{
+  constructor(rows=5, cols=5, mines=[6,12,18]){
+    this.rows=rows;
+    this.cols=cols;
+    this.mines=new Set(mines);
+    this.cells=[];
+    this.init();
+  }
+  init(){
+    const game=document.getElementById('game');
+    for(let i=0;i<this.rows*this.cols;i++){
+      const div=document.createElement('div');
+      div.classList.add('c');
+      div.dataset.i=i;
+      div.addEventListener('click',e=>this.openCell(e));
+      div.addEventListener('contextmenu',e=>this.toggleFlag(e));
+      game.appendChild(div);
+      this.cells.push(div);
+    }
+  }
+  getNeighbors(i){
+    const r=Math.floor(i/this.cols);
+    const c=i%this.cols;
+    const neighbors=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<this.rows&&nc>=0&&nc<this.cols){
+          neighbors.push(nr*this.cols+nc);
+        }
+      }
+    }
+    return neighbors;
+  }
+  countAdjMines(i){
+    return this.getNeighbors(i).filter(n=>this.mines.has(n)).length;
+  }
+  openCell(e){
+    const cell=e.currentTarget;
+    const i=parseInt(cell.dataset.i);
+    if(cell.classList.contains('bandera')||cell.classList.contains('abierta'))return;
+    if(this.mines.has(i)){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      document.getElementById('estado').textContent='perdiste';
+      return;
+    }
+    this.reveal(i);
+  }
+  reveal(i){
+    const cell=this.cells[i];
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+    const count=this.countAdjMines(i);
+    cell.classList.add('abierta');
+    if(count>0)cell.textContent=count;
+    if(count===0){
+      this.getNeighbors(i).forEach(n=>this.reveal(n));
+    }
+  }
+  toggleFlag(e){
+    e.preventDefault();
+    const cell=e.currentTarget;
+    if(cell.classList.contains('abierta'))return;
+    cell.classList.toggle('bandera');
+    cell.textContent=cell.classList.contains('bandera')?'🚩':'';
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{new Minesweeper();});
+</script>
+</body>
+</html>
+```

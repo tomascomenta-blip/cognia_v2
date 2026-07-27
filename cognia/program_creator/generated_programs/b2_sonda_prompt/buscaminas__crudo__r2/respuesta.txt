@@ -1,0 +1,123 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;margin:20px;}
+  #grid{display:grid;grid-template-columns:repeat(5,40px);grid-template-rows:repeat(5,40px);gap:0;}
+  .c{width:40px;height:40px;border:1px solid #999;display:flex;align-items:center;justify-content:center;font-weight:bold;cursor:pointer;user-select:none;}
+  .abierta{background:#ddd;cursor:default;}
+  .bandera{background:#ff0;}
+  #estado{margin-top:10px;font-size:1.2em;color:#d00;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const size = 5;
+  const total = size*size;
+  const mines = new Set([6,12,18]); // posiciones fijas
+  const cells = [];
+  let gameOver = false;
+
+  // Crear celdas
+  for(let i=0;i<total;i++){
+    const div = document.createElement('div');
+    div.className = 'c';
+    div.dataset.i = i;
+    grid.appendChild(div);
+    cells.push(div);
+  }
+
+  // Función para obtener vecinos
+  const neighbors = (i)=>{
+    const r = Math.floor(i/size);
+    const c = i%size;
+    const res=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<size && nc>=0 && nc<size){
+          res.push(nr*size+nc);
+        }
+      }
+    }
+    return res;
+  };
+
+  // Contar minas adyacentes
+  const countAdj = (i)=>{
+    return neighbors(i).filter(n=>mines.has(n)).length;
+  };
+
+  // Abrir celda
+  const openCell = (i)=>{
+    if(gameOver) return;
+    const cell = cells[i];
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    if(mines.has(i)){
+      cell.classList.add('abierta');
+      cell.textContent = 'M';
+      estado.textContent = 'perdiste';
+      gameOver = true;
+      return;
+    }
+    const cnt = countAdj(i);
+    cell.classList.add('abierta');
+    if(cnt>0) cell.textContent = cnt;
+    if(cnt===0){
+      // cascada
+      const queue=[i];
+      while(queue.length){
+        const cur = queue.shift();
+        neighbors(cur).forEach(n=>{
+          const c = cells[n];
+          if(c.classList.contains('abierta') || c.classList.contains('bandera')) return;
+          if(mines.has(n)) return;
+          const cCnt = countAdj(n);
+          c.classList.add('abierta');
+          if(cCnt>0) c.textContent = cCnt;
+          if(cCnt===0) queue.push(n);
+        });
+      }
+    }
+  };
+
+  // Toggle bandera
+  const toggleFlag = (i)=>{
+    if(gameOver) return;
+    const cell = cells[i];
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent = '';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent = '🚩';
+    }
+  };
+
+  // Eventos
+  cells.forEach((cell,i)=>{
+    cell.addEventListener('click',()=>openCell(i));
+    cell.addEventListener('contextmenu',(e)=>{
+      e.preventDefault();
+      toggleFlag(i);
+    });
+  });
+
+  // Evitar menú contextual global
+  document.addEventListener('contextmenu',e=>e.preventDefault());
+})();
+</script>
+</body>
+</html>
+```

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con minas fijas</title>
+<style>
+  body{
+    font-family:Arial,sans-serif;
+    background:#fafafa;
+    margin:0;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:320px;
+  }
+  .c{
+    background:#eee;
+    border:1px solid #999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+    aspect-ratio:1;
+  }
+  .c.abierta{
+    background:#ddd;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#f00;
+    color:#fff;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2rem;
+    color:#900;
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const mines = [6,12,18];
+  const estado = document.getElementById('estado');
+  const cells = Array.from(document.querySelectorAll('.c'));
+  const neighborCounts = new Array(25).fill(0);
+
+  const getNeighbors = (i) => {
+    const neighbors = [];
+    const r = Math.floor(i/5);
+    const c = i%5;
+    for(let dr=-1; dr<=1; dr++){
+      for(let dc=-1; dc<=1; dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          neighbors.push(nr*5+nc);
+        }
+      }
+    }
+    return neighbors;
+  };
+
+  for(let i=0;i<25;i++){
+    const neighbors = getNeighbors(i);
+    neighborCounts[i] = neighbors.filter(n=>mines.includes(n)).length;
+  }
+
+  const openCell = (cell, idx) => {
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    if(mines.includes(idx)){
+      cell.classList.add('abierta');
+      cell.textContent = '💣';
+      estado.textContent = 'perdiste';
+      return;
+    }
+    cell.classList.add('abierta');
+    const count = neighborCounts[idx];
+    cell.textContent = count>0?count:'';
+    if(count===0){
+      cascadeOpen(idx);
+    }
+  };
+
+  const cascadeOpen = (startIdx) => {
+    const queue = [startIdx];
+    const visited = new Set();
+    while(queue.length){
+      const idx = queue.shift();
+      const cell = cells[idx];
+      if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) continue;
+      if(mines.includes(idx)) continue;
+      cell.classList.add('abierta');
+      const count = neighborCounts[idx];
+      cell.textContent = count>0?count:'';
+      if(count===0){
+        const neighbors = getNeighbors(idx);
+        for(const n of neighbors){
+          if(!visited.has(n)){
+            visited.add(n);
+            queue.push(n);
+          }
+        }
+      }
+    }
+  };
+
+  cells.forEach(cell=>{
+    const idx = parseInt(cell.dataset.i,10);
+    cell.addEventListener('click', () => openCell(cell, idx));
+    cell.addEventListener('contextmenu', (e)=>{
+      e.preventDefault();
+      if(cell.classList.contains('abierta')) return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+        cell.textContent='';
+      }else{
+        cell.classList.add('bandera');
+        cell.textContent='⚑';
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>

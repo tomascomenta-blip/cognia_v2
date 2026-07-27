@@ -541,6 +541,28 @@ Responde SOLO este JSON:
 {{"nombre": "...", "pasos": [ ... ]}}
 """
 
+# Variante AMPLIA (dirección CodeRM, arXiv:2501.01054: más aserciones por
+# contrato = +5-8 pp, y los modelos chicos se benefician más). Medido el
+# 2026-07-27 (PREREG_CONTRATO_AMPLIO_20260727.md): con la plantilla clásica
+# de ≤8 pasos el sello interno queda al nivel del AZAR contra el examen del
+# banco en tareas composicionales (FP 32-50%, FN 50%, n=196) — los contratos
+# del banco tienen 14-24 pasos y los bugs composicionales aparecen en el
+# paso 10+. Esta plantilla NO reemplaza a la clásica hasta que el A/B
+# pre-registrado la apruebe: se selecciona con generar_contrato(modo=).
+_PLANTILLA_CONTRATO_AMPLIO = _PLANTILLA_CONTRATO.replace(
+    "ESCRIBE COMO MUCHO 8 PASOS. Un JSON de una sola linea por paso. Nada mas.",
+    """\
+COBERTURA OBLIGATORIA (un examen corto aprueba productos rotos):
+- ENUMERA mentalmente las reglas de la idea; CADA regla lleva al menos un check.
+- El ESTADO INICIAL exacto lleva su check ANTES de la primera interaccion.
+- Una regla de HISTORIA (cascada, tope, limite, undo, "no puede volver a...")
+  se prueba con una SECUENCIA de al menos 6 acciones encadenadas, y se
+  comprueba el estado DESPUES de la secuencia, no solo tras el primer paso.
+- Al menos un check NEGATIVO: algo que NO debe pasar (un tope que no se
+  supera, un boton deshabilitado que no actua, un estado que no retrocede).
+
+ESCRIBE ENTRE 10 Y 16 PASOS. Un JSON de una sola linea por paso. Nada mas.""")
+
 
 def inventario_dom(html: Path) -> dict:
     """Que selectores hay en la pagina. Estructura, nunca logica."""
@@ -556,7 +578,8 @@ def inventario_dom(html: Path) -> dict:
     return inv
 
 
-def generar_contrato(idea: str, html: Path) -> Optional[dict]:
+def generar_contrato(idea: str, html: Path,
+                     modo: str = "clasico") -> Optional[dict]:
     """
     Pide al pensador el contrato de ESTE producto, a partir de la IDEA.
 
@@ -565,6 +588,9 @@ def generar_contrato(idea: str, html: Path) -> Optional[dict]:
     que es como un juego de memoria con las cartas destapadas saco 7.5.
     Solo se le da el inventario de selectores, para que los pasos sean
     ejecutables contra ESTE DOM.
+
+    modo: "clasico" (≤8 pasos, el de produccion) o "amplio" (10-16 pasos,
+    CodeRM; en A/B pre-registrado — PREREG_CONTRATO_AMPLIO_20260727.md).
     """
     from ..llm_local import generar
 
@@ -573,8 +599,10 @@ def generar_contrato(idea: str, html: Path) -> Optional[dict]:
     texto_inv = "\n".join(f"  {sel}  x{n}" for sel, n in clases)
     texto_inv += "\n" + "\n".join(f"  {i}" for i in inv.get("ids", [])[:20])
 
+    plantilla = (_PLANTILLA_CONTRATO_AMPLIO if modo == "amplio"
+                 else _PLANTILLA_CONTRATO)
     crudo = generar(
-        _PLANTILLA_CONTRATO.format(idea=idea, inventario=texto_inv),
+        plantilla.format(idea=idea, inventario=texto_inv),
         # 1400 tokens truncaban el JSON a mitad (medido: JSONDecodeError en el
         # char 4693) y el llamador lo veia como "el pensador no produjo nada".
         # 9000 y no 3000: con un pensador de RAZONAMIENTO el presupuesto cubre
@@ -583,7 +611,10 @@ def generar_contrato(idea: str, html: Path) -> Optional[dict]:
         # contenido 0 en 1 de 2 probes); a 6000 aun fallaba ~1 de 2 por la
         # cola de la distribucion de pensamiento. La respuesta util son ~1200
         # chars: el resto del presupuesto es para que el pensador PIENSE.
-        system=_SISTEMA_CONTRATO, temperature=0.2, max_tokens=9000,
+        # El modo amplio pide 10-16 pasos (~2500 chars de respuesta): margen
+        # 2-3x sobre lo observado ([[presupuesto-tokens-razonamiento]]).
+        system=_SISTEMA_CONTRATO, temperature=0.2,
+        max_tokens=12000 if modo == "amplio" else 9000,
         via="juez.generar_contrato", timeout=400,
         # El esfuerzo REAL lo fija el template de llama-server, no la linea
         # "Reasoning: low" del system (medido 2026-07-26 en reparar_web: la

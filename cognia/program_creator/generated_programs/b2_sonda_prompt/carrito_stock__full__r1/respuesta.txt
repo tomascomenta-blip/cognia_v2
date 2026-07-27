@@ -1,0 +1,41 @@
+Title: Carrito con Stock  
+Description: Un carrito de compra con control de stock y actualización dinámica del total.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+body{font-family:sans-serif;padding:1rem;}
+.prod{margin-bottom:1rem;}
+.cart{margin-top:2rem;}
+.linea{display:flex;align-items:center;margin-bottom:.5rem;}
+.linea span.cant{margin:0 .5rem;}
+.linea button.quitar{margin-left:.5rem;}
+#total{font-weight:bold;}
+button:disabled{opacity:.5;}
+</style>
+</head>
+<body>
+<div class="prod" data-id="p1" data-precio="100" data-stock="2">Producto 1 - 100€ <button class="add" data-id="p1">Añadir</button></div>
+<div class="prod" data-id="p2" data-precio="50" data-stock="3">Producto 2 - 50€ <button class="add" data-id="p2">Añadir</button></div>
+<div class="prod" data-id="p3" data-precio="25" data-stock="1">Producto 3 - 25€ <button class="add" data-id="p3">Añadir</button></div>
+<div id="cart" class="cart"></div>
+<div>Total: <span id="total">0</span></div>
+<script>
+const addBtns=document.querySelectorAll('.add');addBtns.forEach(b=>b.addEventListener('click',addItem));
+const cart=document.getElementById('cart');const totalSpan=document.getElementById('total');
+const qty={},price={},stock={};
+document.querySelectorAll('.prod').forEach(p=>{const id=p.dataset.id;price[id]=+p.dataset.precio;stock[id]=+p.dataset.stock;qty[id]=0;});
+function addItem(e){const id=e.target.dataset.id;if(qty[id]<stock[id]){qty[id]++;updateLine(id);updateTotal();if(qty[id]>=stock[id])e.target.disabled=true;}}
+function removeItem(e){const id=e.target.dataset.id;if(qty[id]>0){qty[id]--;updateLine(id);updateTotal();const addBtn=document.querySelector('.add[data-id="'+id+'"]');if(addBtn)addBtn.disabled=false;}}
+function updateLine(id){const line=cart.querySelector('.linea[data-id="'+id+'"]');if(qty[id]>0){if(line){line.querySelector('.cant').textContent=qty[id];}else{const d=document.createElement('div');d.className='linea';d.dataset.id=id;const s=document.createElement('span');s.className='cant';s.textContent=qty[id];const b=document.createElement('button');b.className='quitar';b.dataset.id=id;b.textContent='-';b.addEventListener('click',removeItem);d.appendChild(document.createTextNode('Producto '+id+' '));d.appendChild(s);d.appendChild(b);cart.appendChild(d);}}else{if(line)line.remove();}}
+function updateTotal(){let sum=0;for(const id in qty){sum+=qty[id]*price[id];}totalSpan.textContent=sum.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+updateTotal();
+</script>
+</body>
+</html>
+```

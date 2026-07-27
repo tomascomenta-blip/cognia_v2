@@ -1,0 +1,68 @@
+You are a creative front-end developer making self-contained web pages.
+
+Write a complete HTML page for: **Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class="c"> con data-i de 0 a 24; las minas estan en las celdas 6, 12 y 18. Al hacer click en una celda se revela: gana la clase 'abierta' y muestra el numero de minas adyacentes (contando las 8 vecinas), o nada si es 0. REGLA CLAVE: si se abre una celda con 0 minas adyacentes, se abren tambien EN CASCADA todas sus vecinas con 0, y los bordes de esa region. Click derecho pone una bandera (clase 'bandera') y una celda con bandera NO se abre al hacer click. <div id="estado"> dice 'perdiste' si se abre una mina.**
+
+CRITICAL RULES — all must be followed:
+- ONE single self-contained .html file
+- Inline <style> and <script> — no external files
+- NO external resources: no CDN, no <link href=http...>, no fetch(), no remote images or fonts. It must work fully offline.
+- Implement EXACTLY the behavior the idea specifies. Nothing happens on its own: NO setInterval animations and NO random data unless the idea explicitly asks for them.
+- The INITIAL state must match the idea exactly (e.g. a counter that starts at 0 shows 0 and only changes on user action).
+- Reproduce LITERALLY every id=, class= and element the idea marks as required: automated tests will query those exact selectors.
+- Draw charts as inline <svg> — NOT <canvas>, and never a chart library
+- Responsive and legible on a phone screen
+- If you color-code state (up/down, green/red), put the state class on the SAME element your CSS selector targets. A rule like `.row.up span` only works if the class lands on `.row`, not on the inner span.
+- Set colors with a rule that matches the element you actually modify, and prefer setting style/class on the element you create in JS
+- Write ALL visible text in the SAME language as the page topic above
+- If you use <canvas>: set canvas.width = canvas.clientWidth and canvas.height = canvas.clientHeight BEFORE drawing, and redraw on resize. A canvas stretched by CSS from its default 300x150 renders squashed and blurry. Inline <svg> avoids this entirely and is preferred
+- Format numbers for humans: thousands separators, 2 decimals, currency symbol where money (toLocaleString)
+- Render a complete first frame IMMEDIATELY on load — never a blank page waiting for the first setInterval tick
+- REQUIRED component 1: Un buscaminas 5x5 con 3 minas en posiciones FIJAS en un solo archivo HTML. OBLIGATORIO: 25 celdas <div class="c"> con data-i de 0 a 24; las minas estan en las celdas 6
+- REQUIRED component 2: 12 y 18. Al hacer click en una celda se revela: gana la clase 'abierta'
+- REQUIRED component 3: muestra el numero de minas adyacentes (contando las 8 vecinas)
+- REQUIRED component 4: o nada si es 0. REGLA CLAVE: si se abre una celda con 0 minas adyacentes
+- REQUIRED component 5: se abren tambien EN CASCADA todas sus vecinas con 0
+- REQUIRED component 6: los bordes de esa region. Click derecho pone una bandera (clase 'bandera')
+- REQUIRED component 7: una celda con bandera NO se abre al hacer click. <div id="estado"> dice 'perdiste' si se abre una mina
+- Implement EVERY required component above — a page that skips any of them is WRONG. Prefer a LONGER page over an incomplete one; there is no size limit.
+- Make it visually interesting using ASCII art or ANSI colors.
+
+PROVEN PATTERNS from pages that already passed browser checks and professional review. ADAPT their techniques to this idea — do NOT copy them verbatim; change data, labels, colors and layout to fit:
+--- tabla_estados ---
+<!-- PATRON: tabla de valores con estados pintados sobre los valores VIVOS.
+     Por que funciona: el color va por estilo inline en el MISMO elemento
+     cuyo textContent cambia (no depende de que un selector CSS case);
+     flecha + color, nunca color solo; tabular-nums alinea las columnas. -->
+<table style="width:100%;border-collapse:collapse;font-size:14px">
+  <thead><tr>
+    <th style="text-align:left;color:#898781;font-size:12px">Valor</th>
+    <th style="text-align:right;color:#898781;font-size:12px">Precio</th>
+    <th style="text-align:right;color:#898781;font-size:12px">Cambio</th>
+  </tr></thead>
+  <tbody id="posiciones"></tbody>
+</table>
+<script>
+function fila(sim, precio, cambio) {
+  var tr = document.createElement('tr');
+  var color = cambio >= 0 ? '#006300' : '#d03b3b';
+  var flecha = cambio >= 0 ? '▲' : '▼';
+  tr.innerHTML =
+    '<td><strong>' + sim + '</strong></td>' +
+    '<td style="text-align:right;font-variant-numeric:tabular-nums">' +
+      precio.toLocaleString('es-ES', {style:'currency',currency:'EUR'}) + '</td>' +
+    '<td style="text-align:right;font-variant-numeric:tabular-nums;color:' + color + '">' +
+      flecha + ' ' + Math.abs(cambio).toFixed(2) + '</td>';
+  return tr;
+}
+</script>
+
+
+Respond EXACTLY in this format:
+
+Title: <short title>
+Description: <one sentence>
+HTML Code:
+```html
+<!DOCTYPE html>
+<complete working page>
+```

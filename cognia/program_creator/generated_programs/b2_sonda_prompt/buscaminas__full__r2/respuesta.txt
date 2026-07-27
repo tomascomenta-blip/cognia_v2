@@ -1,0 +1,150 @@
+Title: Un buscaminas 5x5 con 3 minas  
+Description: Juego de buscaminas 5x5 con minas fijas en las celdas 6, 12 y 18.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Un buscaminas 5x5 con 3 minas</title>
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+    margin:0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+    margin-bottom:10px;
+  }
+  .c{
+    background:#ccc;
+    border:1px solid #999;
+    aspect-ratio:1/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#eee;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#fdd;
+  }
+  #estado{
+    font-weight:bold;
+    color:red;
+    min-height:1.2em;
+  }
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+
+<script>
+(() => {
+  const mines = new Set([6,12,18]); // posiciones fijas
+  const cells = Array.from(document.querySelectorAll('.c'));
+  const estado = document.getElementById('estado');
+
+  // Precalcular vecinos y conteo de minas
+  const neighbors = cells.map((_,i)=>{
+    const r = Math.floor(i/5), c = i%5;
+    const arr=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5) arr.push(nr*5+nc);
+      }
+    }
+    return arr;
+  });
+  const counts = neighbors.map(nb=>nb.reduce((s,idx)=>s+(mines.has(idx)?1:0),0));
+
+  const opened = new Set();
+  const flagged = new Set();
+
+  function openZero(i){
+    if(opened.has(i) || flagged.has(i)) return;
+    opened.add(i);
+    const cell = cells[i];
+    cell.classList.add('abierta');
+    if(mines.has(i)){
+      cell.textContent = 'X';
+      estado.textContent = 'perdiste';
+      return;
+    }
+    const cnt = counts[i];
+    if(cnt>0){
+      cell.textContent = cnt;
+    }else{
+      cell.textContent = '';
+      neighbors[i].forEach(nb=>openZero(nb));
+    }
+  }
+
+  cells.forEach((cell,i)=>{
+    cell.addEventListener('click',()=>{
+      if(opened.has(i) || flagged.has(i)) return;
+      openZero(i);
+    });
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(opened.has(i)) return;
+      if(flagged.has(i)){
+        flagged.delete(i);
+        cell.classList.remove('bandera');
+        cell.textContent = '';
+      }else{
+        flagged.add(i);
+        cell.classList.add('bandera');
+        cell.textContent = '🚩';
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
+```

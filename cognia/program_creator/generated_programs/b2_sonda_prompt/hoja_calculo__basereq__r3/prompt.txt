@@ -1,0 +1,37 @@
+You are a creative front-end developer making self-contained web pages.
+
+Write a complete HTML page for: **Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class="celda"> con data-ref A1,A2,A3,B1,B2,B3,C1,C2,C3. Una celda que empieza por '=' es una FORMULA y muestra su resultado calculado (no el texto). Las formulas soportan referencias a otras celdas y los operadores + y -, por ejemplo =A1+A2 o =A1+B1-A2. Al cambiar una celda se RECALCULAN todas las que dependen de ella, en cascada (si B1 es =A1+1 y C1 es =B1+1, cambiar A1 actualiza las dos). Si se crea una referencia CIRCULAR, la celda implicada muestra el texto CIRC en vez de colgarse. El valor mostrado esta en el atributo value del input.**
+
+CRITICAL RULES — all must be followed:
+- ONE single self-contained .html file
+- Inline <style> and <script> — no external files
+- NO external resources: no CDN, no <link href=http...>, no fetch(), no remote images or fonts. It must work fully offline.
+- Implement EXACTLY the behavior the idea specifies. Nothing happens on its own: NO setInterval animations and NO random data unless the idea explicitly asks for them.
+- The INITIAL state must match the idea exactly (e.g. a counter that starts at 0 shows 0 and only changes on user action).
+- Reproduce LITERALLY every id=, class= and element the idea marks as required: automated tests will query those exact selectors.
+- Draw charts as inline <svg> — NOT <canvas>, and never a chart library
+- Responsive and legible on a phone screen
+- If you color-code state (up/down, green/red), put the state class on the SAME element your CSS selector targets. A rule like `.row.up span` only works if the class lands on `.row`, not on the inner span.
+- Set colors with a rule that matches the element you actually modify, and prefer setting style/class on the element you create in JS
+- Write ALL visible text in the SAME language as the page topic above
+- If you use <canvas>: set canvas.width = canvas.clientWidth and canvas.height = canvas.clientHeight BEFORE drawing, and redraw on resize. A canvas stretched by CSS from its default 300x150 renders squashed and blurry. Inline <svg> avoids this entirely and is preferred
+- Format numbers for humans: thousands separators, 2 decimals, currency symbol where money (toLocaleString)
+- Render a complete first frame IMMEDIATELY on load — never a blank page waiting for the first setInterval tick
+- REQUIRED component 1: Una mini hoja de calculo en un solo archivo HTML. OBLIGATORIO: una grilla 3x3 de <input class="celda"> con data-ref A1
+- REQUIRED component 2: C3. Una celda que empieza por '=' es una FORMULA
+- REQUIRED component 3: muestra su resultado calculado (no el texto). Las formulas soportan referencias a otras celdas
+- REQUIRED component 4: los operadores + y -
+- REQUIRED component 5: por ejemplo =A1+A2 o =A1+B1-A2. Al cambiar una celda se RECALCULAN todas las que dependen de ella
+- REQUIRED component 6: en cascada (si B1 es =A1+1 y C1 es =B1+1
+- REQUIRED component 7: cambiar A1 actualiza las dos). Si se crea una referencia CIRCULAR
+- REQUIRED component 8: la celda implicada muestra el texto CIRC en vez de colgarse. El valor mostrado esta en el atributo value del input
+- Implement EVERY required component above — a page that skips any of them is WRONG. Prefer a LONGER page over an incomplete one; there is no size limit.
+Respond EXACTLY in this format:
+
+Title: <short title>
+Description: <one sentence>
+HTML Code:
+```html
+<!DOCTYPE html>
+<complete working page>
+```

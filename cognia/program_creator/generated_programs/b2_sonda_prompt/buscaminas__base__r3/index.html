@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas 5x5 con minas fijas</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f0f0f0;margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;}
+  #grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;width:100%;max-width:300px;}
+  .c{background:#bbb;border:1px solid #999;height:60px;display:flex;align-items:center;justify-content:center;font-size:1.5em;cursor:pointer;user-select:none;}
+  .c.abierta{background:#ddd;cursor:default;}
+  .c.bandera{background:#f88;color:#fff;}
+  #estado{margin-top:20px;font-size:1.2em;color:#d00;}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+  const grid=document.getElementById('grid');
+  const estado=document.getElementById('estado');
+  const mines=[6,12,18];
+  const size=5;
+  // create cells
+  for(let i=0;i<25;i++){
+    const cell=document.createElement('div');
+    cell.className='c';
+    cell.dataset.i=i;
+    cell.addEventListener('click',onClick);
+    cell.addEventListener('contextmenu',onRightClick);
+    grid.appendChild(cell);
+  }
+  function getNeighbors(i){
+    const r=Math.floor(i/size),c=i%size;
+    const neigh=[];
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<size&&nc>=0&&nc<size){
+          neigh.push(nr*size+nc);
+        }
+      }
+    }
+    return neigh;
+  }
+  function countAdj(i){
+    return getNeighbors(i).filter(n=>mines.includes(n)).length;
+  }
+  function openCell(i){
+    const cell=document.querySelector(`.c[data-i='${i}']`);
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera'))return;
+    if(mines.includes(i)){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      estado.textContent='perdiste';
+      return;
+    }
+    const cnt=countAdj(i);
+    cell.classList.add('abierta');
+    cell.textContent=cnt>0?cnt:'';
+    if(cnt===0){
+      // cascade
+      const queue=[i];
+      const visited=new Set();
+      visited.add(i);
+      while(queue.length){
+        const cur=queue.shift();
+        const neigh=getNeighbors(cur);
+        for(const n of neigh){
+          if(visited.has(n))continue;
+          const ncell=document.querySelector(`.c[data-i='${n}']`);
+          if(ncell.classList.contains('bandera')||ncell.classList.contains('abierta'))continue;
+          if(mines.includes(n)){
+            visited.add(n);
+            continue;
+          }
+          const cntN=countAdj(n);
+          ncell.classList.add('abierta');
+          ncell.textContent=cntN>0?cntN:'';
+          visited.add(n);
+          if(cntN===0){
+            queue.push(n);
+          }
+        }
+      }
+    }
+  }
+  function onClick(e){
+    const cell=e.currentTarget;
+    const i=parseInt(cell.dataset.i);
+    openCell(i);
+  }
+  function onRightClick(e){
+    e.preventDefault();
+    const cell=e.currentTarget;
+    if(cell.classList.contains('abierta'))return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+      cell.textContent='';
+    }else{
+      cell.classList.add('bandera');
+      cell.textContent='🚩';
+    }
+  }
+</script>
+</body>
+</html>

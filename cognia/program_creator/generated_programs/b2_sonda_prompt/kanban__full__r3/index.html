@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban</title>
+<style>
+body{font-family:sans-serif;margin:0;padding:0;background:#f0f0f0;}
+.board{display:flex;gap:10px;padding:10px;}
+.col{background:#fff;border:1px solid #ccc;border-radius:4px;flex:1;display:flex;flex-direction:column;}
+.col h3{margin:0;padding:5px;background:#eee;text-align:center;}
+.card{background:#fafafa;border:1px solid #ddd;border-radius:3px;margin:5px;padding:5px;display:flex;justify-content:space-between;align-items:center;}
+button{margin-left:2px;}
+</style>
+</head>
+<body>
+<div class="board">
+<div class="col" data-col="todo"><h3>Todo (<span id="cont-todo"></span>)</h3></div>
+<div class="col" data-col="doing"><h3>En Progreso (<span id="cont-doing"></span>)</h3></div>
+<div class="col" data-col="done"><h3>Hecho (<span id="cont-done"></span>)</h3></div>
+</div>
+<script>
+function createCard(id){const c=document.createElement('div');c.className='card';c.dataset.id=id;c.textContent=id;const m=document.createElement('button');m.className='mas';m.textContent='>';c.appendChild(m);const l=document.createElement('button');l.className='menos';l.textContent='<';c.appendChild(l);return c;}
+const todo=document.querySelector('[data-col=todo]'),doing=document.querySelector('[data-col=doing]'),done=document.querySelector('[data-col=done]');
+['t1','t2','t3'].forEach(id=>todo.appendChild(createCard(id)));
+function update(){document.getElementById('cont-todo').textContent=todo.children.length;document.getElementById('cont-doing').textContent=doing.children.length;document.getElementById('cont-done').textContent=done.children.length;}
+function move(card,dir){const col=card.parentElement.dataset.col;if(col==='todo'){if(dir===-1)return;if(doing.children.length>=2)return;card.remove();doing.appendChild(card);}else if(col==='doing'){if(dir===-1){card.remove();todo.appendChild(card);}else{card.remove();done.appendChild(card);}}else if(col==='done'){if(dir===1)return;card.remove();doing.appendChild(card);}}
+document.querySelector('.board').addEventListener('click',e=>{if(e.target.classList.contains('mas')){move(e.target.parentElement,1);update();}else if(e.target.classList.contains('menos')){move(e.target.parentElement,-1);update();}});
+update();
+</script>
+</body>
+</html>

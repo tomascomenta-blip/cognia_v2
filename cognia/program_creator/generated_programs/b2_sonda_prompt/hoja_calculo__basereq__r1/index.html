@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:10px;background:#f0f0f0;}
+  table{width:100%;max-width:400px;border-collapse:collapse;margin:auto;}
+  td{padding:0;}
+  input.celda{
+    width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccc;
+    font-size:1rem;text-align:right;background:#fff;
+  }
+  @media (max-width:500px){
+    input.celda{font-size:0.9rem;padding:6px;}
+  }
+</style>
+</head>
+<body>
+<h2 style="text-align:center;">Mini Hoja de Cálculo 3x3</h2>
+<table>
+  <tbody>
+    <tr>
+      <td><input class="celda" data-ref="A1" value=""></td>
+      <td><input class="celda" data-ref="B1" value=""></td>
+      <td><input class="celda" data-ref="C1" value=""></td>
+    </tr>
+    <tr>
+      <td><input class="celda" data-ref="A2" value=""></td>
+      <td><input class="celda" data-ref="B2" value=""></td>
+      <td><input class="celda" data-ref="C2" value=""></td>
+    </tr>
+    <tr>
+      <td><input class="celda" data-ref="A3" value=""></td>
+      <td><input class="celda" data-ref="B3" value=""></td>
+      <td><input class="celda" data-ref="C3" value="=A1+B1"></td>
+    </tr>
+  </tbody>
+</table>
+
+<script>
+(() => {
+  const cells = Array.from(document.querySelectorAll('.celda'));
+  const refMap = new Map(); // ref -> cell element
+  const dependents = new Map(); // ref -> Set of cells that depend on this ref
+
+  // Initialize maps
+  cells.forEach(cell => {
+    const ref = cell.dataset.ref;
+    refMap.set(ref, cell);
+    dependents.set(ref, new Set());
+  });
+
+  // Helper: parse dependencies from a formula string
+  const parseDeps = (formula) => {
+    const deps = [];
+    const regex = /[A-C][1-3]/g;
+    let m;
+    while ((m = regex.exec(formula)) !== null) {
+      deps.push(m[0]);
+    }
+    return deps;
+  };
+
+  // Update dependency graph for a cell
+  const updateDependencies = (cell) => {
+    const oldDeps = cell._deps || [];
+    // Remove old dependencies
+    oldDeps.forEach(ref => {
+      dependents.get(ref).delete(cell);
+    });
+    // Parse new dependencies
+    const formula = cell.dataset.formula;
+    const newDeps = formula ? parseDeps(formula) : [];
+    cell._deps = newDeps;
+    // Add new dependencies
+    newDeps.forEach(ref => {
+      dependents.get(ref).add(cell);
+    });
+  };
+
+  // Evaluate a cell recursively
+  const evaluateCell = (cell, stack = new Set()) => {
+    const ref = cell.dataset.ref;
+    if (!cell.dataset.formula) {
+      // Literal value
+      const val = parseFloat(cell.value);
+      return isNaN(val) ? 0 : val;
+    }
+    if (stack.has(ref)) {
+      return 'CIRC';
+    }
+    stack.add(ref);
+    const formula = cell.dataset.formula.slice(1); // remove leading '='
+    // Replace references with their evaluated values
+    const expr = formula.replace(/[A-C][1-3]/g, (match) => {
+      const depCell = refMap.get(match);
+      const val = evaluateCell(depCell, stack);
+      if (val === 'CIRC') return 'NaN';
+      return val;
+    });
+    let result;
+    try {
+      // Evaluate the arithmetic expression (+ and - only)
+      result = Function(`return ${expr}`)();
+      if (typeof result !== 'number' || isNaN(result)) throw new Error();
+    } catch {
+      result = 'CIRC';
+    }
+    stack.delete(ref);
+    return result;
+  };
+
+  // Set displayed value for a cell
+  const setDisplayedValue = (cell, val) => {
+    const display = val === 'CIRC' ? 'CIRC' : val.toString();
+    cell.value = display;
+    cell.setAttribute('value', display);
+  };
+
+  // Recalculate a cell and its dependents
+  const recalcCellAndDependents = (cell) => {
+    const val = evaluateCell(cell);
+    setDisplayedValue(cell, val);
+    // Recalculate dependents
+    const queue = Array.from(dependents.get(cell.dataset.ref));
+    const visited = new Set();
+    while (queue.length) {
+      const cur = queue.shift();
+      if (visited.has(cur)) continue;
+      visited.add(cur);
+      const curVal = evaluateCell(cur);
+      setDisplayedValue(cur, curVal);
+      dependents.get(cur.dataset.ref).forEach(dep => queue.push(dep));
+    }
+  };
+
+  // Handle user input
+  const onInput = (e) => {
+    const cell = e.target;
+    const newVal = cell.value;
+    if (newVal.startsWith('=')) {
+      cell.dataset.formula = newVal;
+    } else {
+      delete cell.dataset.formula;
+    }
+    updateDependencies(cell);
+    recalcCellAndDependents(cell);
+  };
+
+  // Attach event listeners
+  cells.forEach(cell => {
+    cell.addEventListener('input', onInput);
+    updateDependencies(cell);
+  });
+
+  // Initial calculation
+  cells.forEach(cell => {
+    recalcCellAndDependents(cell);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+Title: Kanban en HTML  
+Description: Un tablero kanban con 3 columnas y tarjetas que se mueven con botones.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Kanban en HTML</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f5f5f5;}
+  .board{display:flex;flex-wrap:wrap;justify-content:space-between;padding:10px;}
+  .col{flex:1 1 30%;background:#fff;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.1);margin:5px;padding:10px;}
+  .col[data-col="todo"]{background:#e0f7fa;}
+  .col[data-col="doing"]{background:#fff3e0;}
+  .col[data-col="done"]{background:#e8f5e9;}
+  .col h2{font-size:1.2em;margin-top:0;}
+  .cards{min-height:20px;}
+  .card{background:#e3e3e3;padding:8px;margin-bottom:8px;border-radius:3px;display:flex;justify-content:space-between;align-items:center;}
+  .card p{margin:0;flex:1;}
+  .card button{margin-left:5px;padding:2px 6px;font-size:.9em;}
+  @media(max-width:600px){.col{flex:1 1 100%;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">3</span></h2>
+    <div class="cards">
+      <div class="card" data-id="t1"><p>Tarea t1</p><button class="menos">←</button><button class="mas">→</button></div>
+      <div class="card" data-id="t2"><p>Tarea t2</p><button class="menos">←</button><button class="mas">→</button></div>
+      <div class="card" data-id="t3"><p>Tarea t3</p><button class="menos">←</button><button class="mas">→</button></div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+    <div class="cards"></div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const board = document.querySelector('.board');
+  function updateCounters(){
+    document.querySelectorAll('.col').forEach(col=>{
+      const id = col.dataset.col;
+      const count = col.querySelectorAll('.card').length;
+      document.getElementById('cont-'+id).textContent = count.toLocaleString('es-ES');
+    });
+  }
+  function moveCard(card, dir){
+    const currentCol = card.closest('.col');
+    const cols = Array.from(currentCol.parentElement.children);
+    const idx = cols.indexOf(currentCol);
+    const targetIdx = dir==='right'?idx+1:idx-1;
+    if(targetIdx<0||targetIdx>=cols.length) return;
+    const targetCol = cols[targetIdx];
+    if(targetCol.dataset.col==='doing' && targetCol.querySelectorAll('.card').length>=2) return;
+    targetCol.querySelector('.cards').appendChild(card);
+    updateCounters();
+  }
+  board.addEventListener('click', function(e){
+    if(e.target.classList.contains('mas')){
+      const card = e.target.closest('.card');
+      moveCard(card,'right');
+    }else if(e.target.classList.contains('menos')){
+      const card = e.target.closest('.card');
+      moveCard(card,'left');
+    }
+  });
+  updateCounters();
+});
+</script>
+</body>
+</html>
+```

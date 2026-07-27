@@ -1,0 +1,730 @@
+{
+  "celdas": [
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "base",
+      "rep": 1,
+      "segundos": 41.8,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": false,
+      "motivo": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13,00', esperaba '13')",
+      "checks_ok": 23,
+      "checks": 28
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "basereq",
+      "rep": 1,
+      "segundos": 52.4,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "27/28 checks OK (24/24 del contrato)",
+      "checks_ok": 27,
+      "checks": 28,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "full",
+      "rep": 1,
+      "hint": "Keep it simple, under 60 lines. Must run fully automatically.",
+      "patrones": [],
+      "segundos": 30.2,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "27/28 checks OK (24/24 del contrato)",
+      "checks_ok": 27,
+      "checks": 28,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "crudo",
+      "rep": 1,
+      "segundos": 32.4,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "27/28 checks OK (24/24 del contrato)",
+      "checks_ok": 27,
+      "checks": 28,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "basereq",
+      "rep": 1,
+      "segundos": 17.8,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "checks_ok": 19,
+      "checks": 19,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "full",
+      "rep": 1,
+      "hint": "Keep it simple, under 60 lines. Must run fully automatically.",
+      "patrones": [
+        "grafico_svg"
+      ],
+      "segundos": 51.3,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "checks_ok": 19,
+      "checks": 19,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "crudo",
+      "rep": 1,
+      "segundos": 23.2,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "checks_ok": 19,
+      "checks": 19,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "base",
+      "rep": 1,
+      "segundos": 28.2,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "checks_ok": 19,
+      "checks": 19,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "full",
+      "rep": 1,
+      "hint": "Make it visually interesting using ASCII art or ANSI colors.",
+      "patrones": [
+        "tabla_estados"
+      ],
+      "segundos": 23.5,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "crudo",
+      "rep": 1,
+      "segundos": 22.7,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "base",
+      "rep": 1,
+      "segundos": 66.0,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "18/20 checks OK (14/16 del contrato)",
+      "checks_ok": 18,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "basereq",
+      "rep": 1,
+      "segundos": 43.9,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": false,
+      "motivo": "falla critica: t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2); LIMITE WIP: t3 NO entra, doing sig",
+      "checks_ok": 15,
+      "checks": 20
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "crudo",
+      "rep": 1,
+      "segundos": 25.3,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "base",
+      "rep": 1,
+      "segundos": 67.4,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": false
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "basereq",
+      "rep": 1,
+      "segundos": 26.7,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": false,
+      "motivo": "falla critica: la celda 4 se abre (js=False, esperaba True); CASCADA: abrir una celda vacia abre var",
+      "checks_ok": 15,
+      "checks": 20
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "full",
+      "rep": 1,
+      "hint": "Use object-oriented design. Run a demo automatically in __main__.",
+      "patrones": [
+        "tabla_estados"
+      ],
+      "segundos": 25.8,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "basereq",
+      "rep": 2,
+      "segundos": 56.6,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "27/28 checks OK (24/24 del contrato)",
+      "checks_ok": 27,
+      "checks": 28,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "full",
+      "rep": 2,
+      "hint": "Keep it simple, under 60 lines. Must run fully automatically.",
+      "patrones": [],
+      "segundos": 11.8,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "27/28 checks OK (24/24 del contrato)",
+      "checks_ok": 27,
+      "checks": 28,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "crudo",
+      "rep": 2,
+      "segundos": 37.9,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "27/28 checks OK (24/24 del contrato)",
+      "checks_ok": 27,
+      "checks": 28,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "base",
+      "rep": 2,
+      "segundos": 38.2,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": false,
+      "motivo": "falla critica: B1 = A1+A2 = 8 (js='8,00', esperaba '8'); C1 = B1+A1 = 13 (js='13,00', esperaba '13')",
+      "checks_ok": 23,
+      "checks": 28
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "full",
+      "rep": 2,
+      "hint": "Add configurable constants at the top but no runtime user input.",
+      "patrones": [
+        "grafico_svg"
+      ],
+      "segundos": 53.2,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": false,
+      "motivo": "falla critica: la cantidad es 2 (js='$100,00 x 2 = $200,00', esperaba '2')",
+      "checks_ok": 18,
+      "checks": 19
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "crudo",
+      "rep": 2,
+      "segundos": 26.7,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "checks_ok": 19,
+      "checks": 19,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "base",
+      "rep": 2,
+      "segundos": 39.8,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "checks_ok": 19,
+      "checks": 19,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "basereq",
+      "rep": 2,
+      "segundos": 27.9,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "checks_ok": 19,
+      "checks": 19,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "crudo",
+      "rep": 2,
+      "segundos": 17.0,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "20/20 checks OK (16/16 del contrato)",
+      "checks_ok": 20,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "base",
+      "rep": 2,
+      "segundos": 36.1,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "20/20 checks OK (16/16 del contrato)",
+      "checks_ok": 20,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "basereq",
+      "rep": 2,
+      "segundos": 15.3,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "full",
+      "rep": 2,
+      "hint": "Keep it simple, under 60 lines. Must run fully automatically.",
+      "patrones": [
+        "tabla_estados"
+      ],
+      "segundos": 40.3,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "20/20 checks OK (16/16 del contrato)",
+      "checks_ok": 20,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "base",
+      "rep": 2,
+      "segundos": 47.7,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "basereq",
+      "rep": 2,
+      "segundos": 50.4,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": false
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "full",
+      "rep": 2,
+      "hint": "Demonstrate itself with built-in sample data and print results.",
+      "patrones": [
+        "tabla_estados"
+      ],
+      "segundos": 57.9,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "crudo",
+      "rep": 2,
+      "segundos": 49.8,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "full",
+      "rep": 3,
+      "hint": "Medium complexity, around 80-100 lines. No user input required.",
+      "patrones": [],
+      "segundos": 15.1,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": false,
+      "motivo": "falla critica: CASCADA: al cambiar A1, B1 se recalcula a 13 (js='8', esperaba '13'); CASCADA en 2 sa",
+      "checks_ok": 24,
+      "checks": 28
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "crudo",
+      "rep": 3,
+      "segundos": 51.1,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "27/28 checks OK (24/24 del contrato)",
+      "checks_ok": 27,
+      "checks": 28,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "base",
+      "rep": 3,
+      "segundos": 54.6,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "27/28 checks OK (24/24 del contrato)",
+      "checks_ok": 27,
+      "checks": 28,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "hoja_calculo",
+      "brazo": "basereq",
+      "rep": 3,
+      "segundos": 68.8,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": false,
+      "motivo": "falla critica: B1 = A1+A2 = 8 (js='0,00', esperaba '8'); C1 = B1+A1 = 13 (js='0,00', esperaba '13');",
+      "checks_ok": 22,
+      "checks": 28
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "crudo",
+      "rep": 3,
+      "segundos": 13.3,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "checks_ok": 19,
+      "checks": 19,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "base",
+      "rep": 3,
+      "segundos": 26.8,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/19 checks OK (15/15 del contrato)",
+      "checks_ok": 19,
+      "checks": 19,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "basereq",
+      "rep": 3,
+      "segundos": 13.7,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": false,
+      "motivo": "falla critica: al quitar una, el boton se re-habilita (js=True, esperaba False)",
+      "checks_ok": 18,
+      "checks": 19
+    },
+    {
+      "tarea": "carrito_stock",
+      "brazo": "full",
+      "rep": 3,
+      "hint": "Make it data-driven with tunable constants defined at the top.",
+      "patrones": [
+        "grafico_svg"
+      ],
+      "segundos": 98.1,
+      "intentos": 1,
+      "parse_estricto_ok": false,
+      "aprobado": false,
+      "motivo": "falla critica: dos veces el mismo producto = UNA linea (count('.linea')=0, esperaba 1); la cantidad ",
+      "checks_ok": 5,
+      "checks": 19
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "base",
+      "rep": 3,
+      "segundos": 52.2,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "basereq",
+      "rep": 3,
+      "segundos": 41.2,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "full",
+      "rep": 3,
+      "hint": "Keep it simple, under 60 lines. Must run fully automatically.",
+      "patrones": [
+        "tabla_estados"
+      ],
+      "segundos": 59.1,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": false,
+      "motivo": "falla critica: el contador dice 3 ('4' no contiene '3'); t2 pasa a doing (2 = tope WIP) (js=1, esper",
+      "checks_ok": 14,
+      "checks": 20
+    },
+    {
+      "tarea": "kanban",
+      "brazo": "crudo",
+      "rep": 3,
+      "segundos": 15.2,
+      "intentos": 1,
+      "aprobado": false,
+      "motivo": "falla critica: t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2); LIMITE WIP: t3 NO entra, doing sig",
+      "checks_ok": 15,
+      "checks": 20
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "basereq",
+      "rep": 3,
+      "segundos": 16.1,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "full",
+      "rep": 3,
+      "hint": "Make it visually interesting using ASCII art or ANSI colors.",
+      "patrones": [
+        "tabla_estados"
+      ],
+      "segundos": 34.5,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "crudo",
+      "rep": 3,
+      "segundos": 31.6,
+      "intentos": 1,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    },
+    {
+      "tarea": "buscaminas",
+      "brazo": "base",
+      "rep": 3,
+      "segundos": 39.6,
+      "intentos": 1,
+      "parse_estricto_ok": true,
+      "aprobado": true,
+      "motivo": "19/20 checks OK (16/16 del contrato)",
+      "checks_ok": 19,
+      "checks": 20,
+      "aprobado_heldout": true
+    }
+  ],
+  "resumen": {
+    "crudo": {
+      "aprobados": 11,
+      "n": 12,
+      "heldout_ok": 11,
+      "parse_estricto": "N/A",
+      "por_tarea": {
+        "hoja_calculo": 3,
+        "carrito_stock": 3,
+        "kanban": 2,
+        "buscaminas": 3
+      }
+    },
+    "base": {
+      "aprobados": 10,
+      "n": 12,
+      "heldout_ok": 9,
+      "parse_estricto": "12/12",
+      "por_tarea": {
+        "hoja_calculo": 1,
+        "carrito_stock": 3,
+        "kanban": 3,
+        "buscaminas": 3
+      }
+    },
+    "basereq": {
+      "aprobados": 8,
+      "n": 12,
+      "heldout_ok": 7,
+      "parse_estricto": "12/12",
+      "por_tarea": {
+        "hoja_calculo": 2,
+        "carrito_stock": 2,
+        "kanban": 2,
+        "buscaminas": 2
+      }
+    },
+    "full": {
+      "aprobados": 8,
+      "n": 12,
+      "heldout_ok": 8,
+      "parse_estricto": "11/12",
+      "por_tarea": {
+        "hoja_calculo": 2,
+        "carrito_stock": 1,
+        "kanban": 2,
+        "buscaminas": 3
+      }
+    }
+  },
+  "pares_discordantes": {
+    "crudo->base": {
+      "gana_crudo": [
+        "hoja_calculo:r1",
+        "hoja_calculo:r2"
+      ],
+      "gana_base": [
+        "kanban:r3"
+      ]
+    },
+    "base->basereq": {
+      "gana_base": [
+        "buscaminas:r1",
+        "carrito_stock:r3",
+        "hoja_calculo:r3",
+        "kanban:r1"
+      ],
+      "gana_basereq": [
+        "hoja_calculo:r1",
+        "hoja_calculo:r2"
+      ]
+    },
+    "basereq->full": {
+      "gana_basereq": [
+        "carrito_stock:r2",
+        "kanban:r3"
+      ],
+      "gana_full": [
+        "buscaminas:r1",
+        "kanban:r1"
+      ]
+    }
+  }
+}

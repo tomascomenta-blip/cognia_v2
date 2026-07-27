@@ -1,0 +1,70 @@
+You are a creative front-end developer making self-contained web pages.
+
+Write a complete HTML page for: **Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class="prod"> con data-id p1,p2,p3, data-precio 100,50,25 y data-stock 2,3,1. Cada uno tiene un <button class="add" data-id="pX">. El carrito muestra sus lineas como <div class="linea"> con data-id, cada una con <span class="cant"> y un <button class="quitar" data-id="pX">. <span id="total"> tiene el total. REGLAS: anadir el mismo producto NO crea una linea nueva, incrementa su cantidad. NO se puede superar el stock: al llegar al tope, el boton add de ESE producto queda disabled. Al quitar una unidad, si la cantidad llega a 0 la linea DESAPARECE y el boton add vuelve a habilitarse. El total se recalcula siempre.**
+
+CRITICAL RULES — all must be followed:
+- ONE single self-contained .html file
+- Inline <style> and <script> — no external files
+- NO external resources: no CDN, no <link href=http...>, no fetch(), no remote images or fonts. It must work fully offline.
+- Implement EXACTLY the behavior the idea specifies. Nothing happens on its own: NO setInterval animations and NO random data unless the idea explicitly asks for them.
+- The INITIAL state must match the idea exactly (e.g. a counter that starts at 0 shows 0 and only changes on user action).
+- Reproduce LITERALLY every id=, class= and element the idea marks as required: automated tests will query those exact selectors.
+- Draw charts as inline <svg> — NOT <canvas>, and never a chart library
+- Responsive and legible on a phone screen
+- If you color-code state (up/down, green/red), put the state class on the SAME element your CSS selector targets. A rule like `.row.up span` only works if the class lands on `.row`, not on the inner span.
+- Set colors with a rule that matches the element you actually modify, and prefer setting style/class on the element you create in JS
+- Write ALL visible text in the SAME language as the page topic above
+- If you use <canvas>: set canvas.width = canvas.clientWidth and canvas.height = canvas.clientHeight BEFORE drawing, and redraw on resize. A canvas stretched by CSS from its default 300x150 renders squashed and blurry. Inline <svg> avoids this entirely and is preferred
+- Format numbers for humans: thousands separators, 2 decimals, currency symbol where money (toLocaleString)
+- Render a complete first frame IMMEDIATELY on load — never a blank page waiting for the first setInterval tick
+- REQUIRED component 1: Un carrito de compra con STOCK en un solo archivo HTML. OBLIGATORIO: 3 productos como <div class="prod"> con data-id p1
+- REQUIRED component 2: data-precio 100
+- REQUIRED component 3: data-stock 2
+- REQUIRED component 4: 1. Cada uno tiene un <button class="add" data-id="pX">. El carrito muestra sus lineas como <div class="linea"> con data-id
+- REQUIRED component 5: cada una con <span class="cant">
+- REQUIRED component 6: un <button class="quitar" data-id="pX">. <span id="total"> tiene el total. REGLAS: anadir el mismo producto NO crea una linea nueva
+- REQUIRED component 7: incrementa su cantidad. NO se puede superar el stock: al llegar al tope
+- REQUIRED component 8: el boton add de ESE producto queda disabled. Al quitar una unidad
+- REQUIRED component 9: si la cantidad llega a 0 la linea DESAPARECE
+- REQUIRED component 10: el boton add vuelve a habilitarse. El total se recalcula siempre
+- Implement EVERY required component above — a page that skips any of them is WRONG. Prefer a LONGER page over an incomplete one; there is no size limit.
+- Add configurable constants at the top but no runtime user input.
+
+PROVEN PATTERNS from pages that already passed browser checks and professional review. ADAPT their techniques to this idea — do NOT copy them verbatim; change data, labels, colors and layout to fit:
+--- grafico_svg ---
+<!-- PATRON: grafico de linea SVG con ejes y escala segura.
+     Por que funciona: <text> en el eje Y (sin etiquetas no se sabe que
+     numeros muestra); la escala se calcula de los datos con RANGO MINIMO
+     (sin el, min==max en el primer tick da division por cero y los
+     atributos salen NaN — error real medido); rejilla fina y recesiva. -->
+<svg id="grafico" width="100%" height="220" viewBox="0 0 600 220"></svg>
+<script>
+function pintar(datos) {                       // datos: [num, num, ...]
+  var svg = document.getElementById('grafico');
+  var M = {arriba: 12, abajo: 22, izq: 56, der: 12}, W = 600, H = 220;
+  var y0 = Math.min.apply(null, datos), y1 = Math.max.apply(null, datos);
+  if (y1 - y0 < 1) { y0 -= 1; y1 += 1; }       // <- la proteccion anti-NaN
+  var x = function(i){ return M.izq + (W-M.izq-M.der) * i / Math.max(1, datos.length-1); };
+  var y = function(v){ return M.arriba + (H-M.arriba-M.abajo) * (1 - (v-y0)/(y1-y0)); };
+  var linea = datos.map(function(v,i){ return (i?'L':'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); }).join('');
+  var rejilla = '', etiquetas = '';
+  for (var k = 0; k <= 3; k++) {
+    var v = y0 + (y1-y0) * k/3, yy = y(v).toFixed(1);
+    rejilla += '<line x1="'+M.izq+'" x2="'+(W-M.der)+'" y1="'+yy+'" y2="'+yy+'" stroke="#e1e0d9" stroke-width="1"/>';
+    etiquetas += '<text x="'+(M.izq-8)+'" y="'+yy+'" dy="4" text-anchor="end" font-size="11" fill="#898781">'+Math.round(v).toLocaleString('es-ES')+'</text>';
+  }
+  svg.innerHTML = rejilla + etiquetas +
+    '<path d="'+linea+'" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/>';
+}
+</script>
+
+
+Respond EXACTLY in this format:
+
+Title: <short title>
+Description: <one sentence>
+HTML Code:
+```html
+<!DOCTYPE html>
+<complete working page>
+```

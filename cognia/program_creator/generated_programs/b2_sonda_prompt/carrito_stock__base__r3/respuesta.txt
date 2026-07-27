@@ -1,0 +1,147 @@
+Title: Carrito de compra con STOCK  
+Description: Un carrito de compra con stock limitado y gestión de líneas.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito de compra con STOCK</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:1rem;background:#f9f9f9;}
+  h2{margin-top:2rem;}
+  .products{display:flex;flex-wrap:wrap;gap:1rem;}
+  .prod{background:#fff;border:1px solid #ddd;border-radius:8px;padding:1rem;flex:1 1 30%;box-sizing:border-box;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+  .prod h3{margin-top:0;}
+  .prod button{margin-top:.5rem;padding:.5rem 1rem;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .prod button:disabled{background:#aaa;cursor:not-allowed;}
+  #cart{background:#fff;border:1px solid #ddd;border-radius:8px;padding:1rem;margin-top:1rem;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+  .linea{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid #eee;}
+  .linea:last-child{border-bottom:none;}
+  .linea button{padding:.3rem .6rem;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  #total{font-weight:bold;font-size:1.2rem;}
+  @media(max-width:600px){
+    .prod{flex:1 1 100%;}
+  }
+</style>
+</head>
+<body>
+
+<h1>Carrito de compra con STOCK</h1>
+
+<div class="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+    <h3>Producto 1</h3>
+    <p>Precio: <span class="precio"></span></p>
+    <p>Stock: <span class="stock"></span></p>
+    <button class="add" data-id="p1">Añadir al carrito</button>
+  </div>
+  <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+    <h3>Producto 2</h3>
+    <p>Precio: <span class="precio"></span></p>
+    <p>Stock: <span class="stock"></span></p>
+    <button class="add" data-id="p2">Añadir al carrito</button>
+  </div>
+  <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+    <h3>Producto 3</h3>
+    <p>Precio: <span class="precio"></span></p>
+    <p>Stock: <span class="stock"></span></p>
+    <button class="add" data-id="p3">Añadir al carrito</button>
+  </div>
+</div>
+
+<div id="cart">
+  <h2>Carrito</h2>
+  <div id="lines"></div>
+  <p>Total: <span id="total">$0.00</span></p>
+</div>
+
+<script>
+(() => {
+  const products = document.querySelectorAll('.prod');
+  const cartLines = document.getElementById('lines');
+  const totalEl = document.getElementById('total');
+
+  const cart = {};
+
+  // Initialize product display and cart data
+  products.forEach(prod => {
+    const id = prod.dataset.id;
+    const price = parseFloat(prod.dataset.precio);
+    const stock = parseInt(prod.dataset.stock, 10);
+    cart[id] = {price, stock, qty:0};
+
+    // Show price and stock
+    prod.querySelector('.precio').textContent = price.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+    prod.querySelector('.stock').textContent = stock;
+  });
+
+  // Update total display
+  function updateTotal() {
+    let total = 0;
+    for (const id in cart) {
+      total += cart[id].price * cart[id].qty;
+    }
+    totalEl.textContent = total.toLocaleString('es-ES', {style:'currency', currency:'EUR'});
+  }
+
+  // Create or update a line in the cart
+  function renderLine(id) {
+    const item = cart[id];
+    let line = cartLines.querySelector(`.linea[data-id="${id}"]`);
+    if (item.qty > 0) {
+      if (!line) {
+        line = document.createElement('div');
+        line.className = 'linea';
+        line.dataset.id = id;
+        line.innerHTML = `<span class="cant">${item.qty}</span> <button class="quitar" data-id="${id}">Quitar</button>`;
+        cartLines.appendChild(line);
+        line.querySelector('.quitar').addEventListener('click', () => removeItem(id));
+      } else {
+        line.querySelector('.cant').textContent = item.qty;
+      }
+    } else {
+      if (line) line.remove();
+    }
+  }
+
+  // Add item to cart
+  function addItem(id) {
+    const item = cart[id];
+    if (item.qty < item.stock) {
+      item.qty++;
+      renderLine(id);
+      updateTotal();
+      if (item.qty === item.stock) {
+        document.querySelector(`.add[data-id="${id}"]`).disabled = true;
+      }
+    }
+  }
+
+  // Remove item from cart
+  function removeItem(id) {
+    const item = cart[id];
+    if (item.qty > 0) {
+      item.qty--;
+      renderLine(id);
+      updateTotal();
+      if (item.qty < item.stock) {
+        document.querySelector(`.add[data-id="${id}"]`).disabled = false;
+      }
+    }
+  }
+
+  // Attach event listeners to add buttons
+  document.querySelectorAll('.add').forEach(btn => {
+    btn.addEventListener('click', () => addItem(btn.dataset.id));
+  });
+
+  // Initial render
+  updateTotal();
+})();
+</script>
+</body>
+</html>
+```

@@ -321,12 +321,25 @@ def componentes_faltantes(idea: str, html: str) -> list:
 
 
 def _componentes_de_idea(category: str) -> list:
-    """Trocea la idea en sus componentes pedidos (por comas y ' y ') para
-    enumerarlos en el prompt como checklist obligatoria."""
+    """Trocea la idea en sus componentes pedidos para enumerarlos en el
+    prompt como checklist obligatoria.
+
+    Con COGNIA_PROMPT_FIX2 el troceo es por FRASES y no por comas: partir
+    por comas MUTILA las enumeraciones que los contratos verifican
+    ("data-precio 100,50,25" quedaba como "REQUIRED: data-precio 100", que
+    le MIENTE al modelo sobre los datos exactos). Medido 2026-07-27 en la
+    sonda del prompt del banco brutal (PREREG_BON_RONDAS, novena/décima
+    enmienda): quitar el bloque troceado recupera 2 celdas netas apareadas
+    (base 10/12 vs basereq 8/12). Env-gated para el A/B intercalado; si el
+    A/B lo confirma, pasa a defecto."""
     t = re.sub(r"^\s*(pagina web|programa( python)?|script)\s*(de|del|con|:)?\s*",
                "", (category or ""), flags=re.I)
-    partes = [p.strip(" .") for p in re.split(r",| y (?=[a-z])", t)
-              if len(p.strip()) > 8]
+    if os.environ.get("COGNIA_PROMPT_FIX2"):
+        partes = [p.strip(" .") for p in re.split(r"(?<=[^\s.])\.\s+", t)
+                  if len(p.strip()) > 8]
+    else:
+        partes = [p.strip(" .") for p in re.split(r",| y (?=[a-z])", t)
+                  if len(p.strip()) > 8]
     return partes[:10]
 
 
@@ -417,10 +430,21 @@ def _build_prompt_web(category: str, extra_hint: str) -> str:
         f"resize. A canvas stretched by CSS from its default 300x150 renders "
         f"squashed and blurry. Inline <svg> avoids this entirely and is "
         f"preferred\n"
-        f"- Format numbers for humans: thousands separators, 2 decimals, "
-        f"currency symbol where money (toLocaleString)\n"
-        f"- Render a complete first frame IMMEDIATELY on load — never a blank "
-        f"page waiting for the first setInterval tick\n"
+        + (
+            # Sonda del prompt 2026-07-27 (décima enmienda): "format numbers
+            # for humans" hizo que una hoja de calculo muestre "8,00" donde
+            # el contrato exige "8" exacto — falla critica identica en 2 de
+            # 3 réplicas. En ideas interactivas el estado EXACTO manda.
+            f"- Show numbers and text EXACTLY as the idea and the current "
+            f"state dictate: NO thousands separators, decimals or currency "
+            f"symbols the idea does not ask for (a cell computing 8 shows "
+            f"8, not 8.00)\n"
+            if interactiva and os.environ.get("COGNIA_PROMPT_FIX2") else
+            f"- Format numbers for humans: thousands separators, 2 decimals, "
+            f"currency symbol where money (toLocaleString)\n"
+        )
+        + f"- Render a complete first frame IMMEDIATELY on load — never a "
+        f"blank page waiting for the first setInterval tick\n"
         # Campana 2026-07-21 (11/20 fallos por omision): la idea multi-
         # componente se ENUMERA y se exige completa. Paginas grandes valen.
         + "".join(

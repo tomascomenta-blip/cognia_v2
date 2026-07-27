@@ -1,0 +1,165 @@
+Title: Un buscaminas 5x5 con 3 minas  
+Description: Juego de buscaminas 5x5 con minas fijas en las posiciones 6, 12 y 18.  
+HTML Code:  
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Un buscaminas 5x5 con 3 minas</title>
+<style>
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    background:#f0f0f0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:90vmin;
+    height:90vmin;
+  }
+  .c{
+    background:#ccc;
+    border:1px solid #999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#e0e0e0;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ff0;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.5rem;
+    color:red;
+  }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<div id="estado"></div>
+<script>
+  const mines = new Set([6,12,18]);
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+
+  function createCells(){
+    for(let i=0;i<25;i++){
+      const cell = document.createElement('div');
+      cell.className='c';
+      cell.dataset.i = i;
+      cell.addEventListener('click', onCellClick);
+      cell.addEventListener('contextmenu', onCellRightClick);
+      grid.appendChild(cell);
+    }
+  }
+
+  function onCellClick(e){
+    const cell = e.currentTarget;
+    if(cell.classList.contains('abierta') || cell.classList.contains('bandera')) return;
+    const i = parseInt(cell.dataset.i);
+    if(mines.has(i)){
+      cell.classList.add('abierta');
+      cell.textContent = 'M';
+      estado.textContent = 'perdiste';
+      revealAllMines();
+      return;
+    }
+    const count = countAdjMines(i);
+    cell.classList.add('abierta');
+    if(count>0) cell.textContent = count;
+    if(count===0){
+      cascadeOpen(i);
+    }
+  }
+
+  function onCellRightClick(e){
+    e.preventDefault();
+    const cell = e.currentTarget;
+    if(cell.classList.contains('abierta')) return;
+    if(cell.classList.contains('bandera')){
+      cell.classList.remove('bandera');
+    } else {
+      cell.classList.add('bandera');
+    }
+  }
+
+  function countAdjMines(i){
+    const row = Math.floor(i/5);
+    const col = i%5;
+    let count=0;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const r=row+dr;
+        const c=col+dc;
+        if(r<0||r>4||c<0||c>4) continue;
+        const idx=r*5+c;
+        if(mines.has(idx)) count++;
+      }
+    }
+    return count;
+  }
+
+  function cascadeOpen(start){
+    const queue=[start];
+    const visited=new Set();
+    while(queue.length){
+      const idx=queue.shift();
+      const cell=document.querySelector(`.c[data-i="${idx}"]`);
+      if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) continue;
+      const count=countAdjMines(idx);
+      cell.classList.add('abierta');
+      if(count>0){
+        cell.textContent=count;
+      } else {
+        cell.textContent='';
+        const row=Math.floor(idx/5);
+        const col=idx%5;
+        for(let dr=-1;dr<=1;dr++){
+          for(let dc=-1;dc<=1;dc++){
+            if(dr===0 && dc===0) continue;
+            const r=row+dr;
+            const c=col+dc;
+            if(r<0||r>4||c<0||c>4) continue;
+            const nIdx=r*5+c;
+            if(!visited.has(nIdx)){
+              visited.add(nIdx);
+              queue.push(nIdx);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function revealAllMines(){
+    mines.forEach(idx=>{
+      const cell=document.querySelector(`.c[data-i="${idx}"]`);
+      if(cell){
+        cell.classList.add('abierta');
+        cell.textContent='M';
+      }
+    });
+  }
+
+  createCells();
+</script>
+</body>
+</html>
+```

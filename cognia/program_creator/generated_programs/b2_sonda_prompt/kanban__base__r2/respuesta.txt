@@ -1,0 +1,122 @@
+Title: Kanban en una página  
+Description: Un tablero Kanban con 3 columnas y tarjetas que se pueden mover entre ellas con botones, respetando reglas de WIP y límites.  
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una página</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body{
+    font-family: Arial, sans-serif;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+    background:#eaeaea;
+  }
+  .board{
+    display:flex;
+    flex:1;
+    padding:10px;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .col{
+    flex:1;
+    min-width:200px;
+    background:#f0f0f0;
+    padding:10px;
+    border-radius:5px;
+    display:flex;
+    flex-direction:column;
+  }
+  .col h3{
+    margin-top:0;
+    font-size:1.1em;
+  }
+  .card{
+    background:#fff;
+    padding:8px;
+    margin-bottom:8px;
+    border-radius:3px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .card button{
+    margin-left:5px;
+    padding:2px 6px;
+    font-size:0.9em;
+  }
+  @media(max-width:600px){
+    .board{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h3>Todo (<span id="cont-todo"></span>)</h3>
+    <div class="card" data-id="t1">t1 <button class="mas">→</button> <button class="menos">←</button></div>
+    <div class="card" data-id="t2">t2 <button class="mas">→</button> <button class="menos">←</button></div>
+    <div class="card" data-id="t3">t3 <button class="mas">→</button> <button class="menos">←</button></div>
+  </div>
+  <div class="col" data-col="doing">
+    <h3>Doing (<span id="cont-doing"></span>)</h3>
+  </div>
+  <div class="col" data-col="done">
+    <h3>Done (<span id="cont-done"></span>)</h3>
+  </div>
+</div>
+<script>
+  // Update counters
+  function updateCounters(){
+    const cols = document.querySelectorAll('.col');
+    cols.forEach(col=>{
+      const id = col.dataset.col;
+      const count = col.querySelectorAll('.card').length;
+      document.getElementById('cont-'+id).textContent = count;
+    });
+  }
+  // Move card logic
+  function moveCard(card, direction){
+    const currentCol = card.parentElement;
+    const current = currentCol.dataset.col;
+    let targetCol = null;
+    if(direction==='right'){
+      if(current==='todo') targetCol='doing';
+      else if(current==='doing') targetCol='done';
+      else return; // done cannot move right
+    }else if(direction==='left'){
+      if(current==='doing') targetCol='todo';
+      else if(current==='done') targetCol='doing';
+      else return; // todo cannot move left
+    }
+    // WIP rule: doing max 2 cards
+    if(targetCol==='doing'){
+      const doingCol = document.querySelector('.col[data-col="doing"]');
+      if(doingCol.querySelectorAll('.card').length>=2) return;
+    }
+    const target = document.querySelector('.col[data-col="'+targetCol+'"]');
+    target.appendChild(card);
+    updateCounters();
+  }
+  // Event delegation
+  document.addEventListener('click',function(e){
+    if(e.target.classList.contains('mas')){
+      moveCard(e.target.closest('.card'),'right');
+    }else if(e.target.classList.contains('menos')){
+      moveCard(e.target.closest('.card'),'left');
+    }
+  });
+  // Initial counter update
+  updateCounters();
+</script>
+</body>
+</html>
+```

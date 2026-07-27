@@ -1,0 +1,121 @@
+Title: Kanban en una sola página  
+Description: Un tablero Kanban con 3 columnas y tarjetas que se mueven entre columnas  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body {font-family: Arial, sans-serif; margin:0; padding:0; background:#f0f0f0;}
+  .board {display:flex; flex-wrap:wrap; gap:1rem; padding:1rem;}
+  .col {background:#fff; border:1px solid #ccc; border-radius:4px; flex:1 1 30%; min-width:250px; display:flex; flex-direction:column;}
+  .col-header {background:#e0e0e0; padding:0.5rem; font-weight:bold; display:flex; justify-content:space-between; align-items:center;}
+  .col-content {flex:1; padding:0.5rem; display:flex; flex-direction:column; gap:0.5rem;}
+  .card {background:#fafafa; border:1px solid #ddd; border-radius:4px; padding:0.5rem; display:flex; flex-direction:column; gap:0.5rem;}
+  .card-title {font-weight:bold;}
+  .card-buttons {display:flex; gap:0.5rem;}
+  button {padding:0.3rem 0.6rem; border:none; border-radius:3px; cursor:pointer;}
+  button.mas {background:#4CAF50; color:white;}
+  button.menos {background:#f44336; color:white;}
+  button:disabled {background:#ccc; cursor:not-allowed;}
+  @media (max-width:600px) {
+    .col {flex:1 1 100%;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="col-header">Todo <span id="cont-todo">0</span></div>
+    <div class="col-content">
+      <div class="card" data-id="t1">
+        <div class="card-title">Tarea t1</div>
+        <div class="card-buttons">
+          <button class="mas">Avanzar</button>
+          <button class="menos">Retroceder</button>
+        </div>
+      </div>
+      <div class="card" data-id="t2">
+        <div class="card-title">Tarea t2</div>
+        <div class="card-buttons">
+          <button class="mas">Avanzar</button>
+          <button class="menos">Retroceder</button>
+        </div>
+      </div>
+      <div class="card" data-id="t3">
+        <div class="card-title">Tarea t3</div>
+        <div class="card-buttons">
+          <button class="mas">Avanzar</button>
+          <button class="menos">Retroceder</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="col-header">Doing <span id="cont-doing">0</span></div>
+    <div class="col-content"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="col-header">Done <span id="cont-done">0</span></div>
+    <div class="col-content"></div>
+  </div>
+</div>
+<script>
+  function updateCounters() {
+    document.querySelectorAll('.col').forEach(col => {
+      const colName = col.dataset.col;
+      const count = col.querySelectorAll('.card').length;
+      const span = document.getElementById(`cont-${colName}`);
+      if (span) span.textContent = count.toLocaleString();
+    });
+  }
+
+  function moveCard(card, direction) {
+    const currentCol = card.closest('.col');
+    const currentName = currentCol.dataset.col;
+    let targetName;
+
+    if (direction === 'right') {
+      if (currentName === 'todo') targetName = 'doing';
+      else if (currentName === 'doing') targetName = 'done';
+      else return; // done cannot move right
+    } else if (direction === 'left') {
+      if (currentName === 'doing') targetName = 'todo';
+      else if (currentName === 'done') targetName = 'doing';
+      else return; // todo cannot move left
+    }
+
+    if (targetName === 'doing') {
+      const doingCol = document.querySelector('.col[data-col="doing"]');
+      if (doingCol.querySelectorAll('.card').length >= 2) return; // WIP limit
+    }
+
+    const targetCol = document.querySelector(`.col[data-col="${targetName}"]`);
+    if (!targetCol) return;
+    const targetContent = targetCol.querySelector('.col-content');
+    targetContent.appendChild(card);
+    updateCounters();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    updateCounters();
+    document.querySelectorAll('.mas').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.card');
+        moveCard(card, 'right');
+      });
+    });
+    document.querySelectorAll('.menos').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.card');
+        moveCard(card, 'left');
+      });
+    });
+  });
+</script>
+</body>
+</html>
+```

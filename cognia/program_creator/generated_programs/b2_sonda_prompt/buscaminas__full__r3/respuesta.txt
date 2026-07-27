@@ -1,0 +1,157 @@
+Title: Buscaminas 5x5  
+Description: Juego de buscaminas 5x5 con minas fijas en las posiciones 6, 12 y 18.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Buscaminas 5x5</title>
+<style>
+  body{
+    font-family:Arial,sans-serif;
+    background:#f0f0f0;
+    margin:0;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+  }
+  .c{
+    background:#ccc;
+    border:1px solid #999;
+    aspect-ratio:1;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:1.2rem;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#e0e0e0;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#ffeb3b;
+  }
+  #estado{
+    margin-top:15px;
+    font-size:1.2rem;
+    color:#d32f2f;
+  }
+  @media (max-width:500px){
+    .c{font-size:1rem;}
+  }
+</style>
+</head>
+<body>
+<h1>Buscaminas 5x5</h1>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+(() => {
+  const mines = new Set([6,12,18]); // minas fijas
+  const grid = document.getElementById('grid');
+  const estado = document.getElementById('estado');
+  const cells = Array.from(grid.querySelectorAll('.c'));
+  const size = 5;
+
+  // precomputar conteo de minas adyacentes
+  const counts = cells.map(cell => {
+    const i = parseInt(cell.dataset.i,10);
+    let count = 0;
+    for (let di=-1; di<=1; di++) {
+      for (let dj=-1; dj<=1; dj++) {
+        if (di===0 && dj===0) continue;
+        const ni = Math.floor(i/size)+di;
+        const nj = i%size+dj;
+        if (ni<0||ni>=size||nj<0||nj>=size) continue;
+        const idx = ni*size+nj;
+        if (mines.has(idx)) count++;
+      }
+    }
+    return count;
+  });
+
+  function openCell(cell, i) {
+    if (cell.dataset.flagged === 'true' || cell.dataset.opened === 'true') return;
+    cell.dataset.opened = 'true';
+    cell.classList.add('abierta');
+    const count = counts[i];
+    if (count>0) cell.textContent = count;
+    if (mines.has(i)) {
+      estado.textContent = 'perdiste';
+      return;
+    }
+    if (count===0) {
+      // abrir vecinos en cascada
+      for (let di=-1; di<=1; di++) {
+        for (let dj=-1; dj<=1; dj++) {
+          if (di===0 && dj===0) continue;
+          const ni = Math.floor(i/size)+di;
+          const nj = i%size+dj;
+          if (ni<0||ni>=size||nj<0||nj>=size) continue;
+          const idx = ni*size+nj;
+          const neighbor = cells[idx];
+          if (neighbor.dataset.opened !== 'true') openCell(neighbor, idx);
+        }
+      }
+    }
+  }
+
+  function toggleFlag(cell, i) {
+    if (cell.dataset.opened === 'true') return;
+    const flagged = cell.dataset.flagged === 'true';
+    cell.dataset.flagged = flagged ? 'false' : 'true';
+    cell.classList.toggle('bandera', !flagged);
+  }
+
+  cells.forEach((cell,i)=>{
+    cell.dataset.opened = 'false';
+    cell.dataset.flagged = 'false';
+    cell.addEventListener('click', ()=> openCell(cell,i));
+    cell.addEventListener('contextmenu', e=>{
+      e.preventDefault();
+      toggleFlag(cell,i);
+    });
+  });
+})();
+</script>
+</body>
+</html>
+```

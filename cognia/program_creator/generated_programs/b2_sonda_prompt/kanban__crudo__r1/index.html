@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  body{
+    margin:0;
+    padding:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+  }
+  .board{
+    display:flex;
+    gap:20px;
+  }
+  .col{
+    background:#fff;
+    width:220px;
+    min-height:300px;
+    border-radius:6px;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+    padding:10px;
+    opacity:0;
+    animation:slideIn 0.6s ease forwards;
+  }
+  .col h2{
+    margin:0 0 10px;
+    font-size:1.2em;
+    text-align:center;
+  }
+  .cards{
+    min-height:200px;
+  }
+  .card{
+    background:#e3f2fd;
+    padding:8px;
+    margin-bottom:8px;
+    border-radius:4px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    opacity:0;
+    animation:fadeIn 0.4s ease forwards;
+  }
+  .card button{
+    margin-left:4px;
+    padding:2px 6px;
+    font-size:.9em;
+    cursor:pointer;
+  }
+  .card button.mas{background:#4caf50;color:#fff;border:none;border-radius:3px;}
+  .card button.menos{background:#f44336;color:#fff;border:none;border-radius:3px;}
+  span.counter{
+    display:block;
+    text-align:center;
+    margin-top:8px;
+    font-weight:bold;
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-30px);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo</h2>
+    <div class="cards"></div>
+    <span id="cont-todo" class="counter">0</span>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing</h2>
+    <div class="cards"></div>
+    <span id="cont-doing" class="counter">0</span>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done</h2>
+    <div class="cards"></div>
+    <span id="cont-done" class="counter">0</span>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const todoCol = document.querySelector('.col[data-col="todo"] .cards');
+  const doingCol = document.querySelector('.col[data-col="doing"] .cards');
+  const doneCol  = document.querySelector('.col[data-col="done"] .cards');
+
+  // Crear las 3 tarjetas iniciales en Todo
+  for(let i=1;i<=3;i++){
+    const card = createCard(`t${i}`);
+    todoCol.appendChild(card);
+  }
+
+  updateCounts();
+
+  // Función para crear una tarjeta
+  function createCard(id){
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.innerHTML = `
+      <span>${id}</span>
+      <div>
+        <button class="mas">→</button>
+        <button class="menos">←</button>
+      </div>
+    `;
+    // Eventos
+    card.querySelector('.mas').addEventListener('click', () => moveRight(card));
+    card.querySelector('.menos').addEventListener('click', () => moveLeft(card));
+    return card;
+  }
+
+  // Mover tarjeta a la derecha
+  function moveRight(card){
+    const col = card.closest('.col');
+    const current = col.dataset.col;
+    if(current === 'done') return; // no puede avanzar
+
+    const targetColName = current === 'todo' ? 'doing' : 'done';
+    const targetCol = document.querySelector(`.col[data-col="${targetColName}"] .cards`);
+
+    // Regla WIP: Doing solo 2 tarjetas
+    if(targetColName === 'doing' && targetCol.children.length >= 2) return;
+
+    targetCol.appendChild(card);
+    updateCounts();
+  }
+
+  // Mover tarjeta a la izquierda
+  function moveLeft(card){
+    const col = card.closest('.col');
+    const current = col.dataset.col;
+    if(current === 'todo') return; // no puede retroceder
+
+    const targetColName = current === 'doing' ? 'todo' : 'doing';
+    const targetCol = document.querySelector(`.col[data-col="${targetColName}"] .cards`);
+
+    targetCol.appendChild(card);
+    updateCounts();
+  }
+
+  // Actualizar contadores
+  function updateCounts(){
+    document.getElementById('cont-todo').textContent = document.querySelector('.col[data-col="todo"] .cards').children.length;
+    document.getElementById('cont-doing').textContent = document.querySelector('.col[data-col="doing"] .cards').children.length;
+    document.getElementById('cont-done').textContent = document.querySelector('.col[data-col="done"] .cards').children.length;
+  }
+});
+</script>
+</body>
+</html>

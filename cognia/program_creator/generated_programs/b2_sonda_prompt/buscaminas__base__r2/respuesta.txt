@@ -1,0 +1,171 @@
+Title: Minesweeper 5x5  
+Description: Un juego de buscaminas 5x5 con 3 minas fijas.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Minesweeper 5x5</title>
+<style>
+  body{
+    font-family: sans-serif;
+    margin:0;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    background:#f0f0f0;
+  }
+  #grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:2px;
+    width:100%;
+    max-width:400px;
+    animation:fadeIn 1s ease-in-out;
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+  .c{
+    aspect-ratio:1/1;
+    background:#ccc;
+    border:1px solid #999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5em;
+    cursor:pointer;
+    user-select:none;
+  }
+  .c.abierta{
+    background:#eee;
+    cursor:default;
+  }
+  .c.bandera{
+    background:#d9534f;
+    color:#fff;
+  }
+  #estado{
+    margin-top:10px;
+    font-size:1.2em;
+    min-height:1.2em;
+  }
+</style>
+</head>
+<body>
+<div id="grid">
+  <div class="c" data-i="0"></div>
+  <div class="c" data-i="1"></div>
+  <div class="c" data-i="2"></div>
+  <div class="c" data-i="3"></div>
+  <div class="c" data-i="4"></div>
+  <div class="c" data-i="5"></div>
+  <div class="c" data-i="6"></div>
+  <div class="c" data-i="7"></div>
+  <div class="c" data-i="8"></div>
+  <div class="c" data-i="9"></div>
+  <div class="c" data-i="10"></div>
+  <div class="c" data-i="11"></div>
+  <div class="c" data-i="12"></div>
+  <div class="c" data-i="13"></div>
+  <div class="c" data-i="14"></div>
+  <div class="c" data-i="15"></div>
+  <div class="c" data-i="16"></div>
+  <div class="c" data-i="17"></div>
+  <div class="c" data-i="18"></div>
+  <div class="c" data-i="19"></div>
+  <div class="c" data-i="20"></div>
+  <div class="c" data-i="21"></div>
+  <div class="c" data-i="22"></div>
+  <div class="c" data-i="23"></div>
+  <div class="c" data-i="24"></div>
+</div>
+<div id="estado"></div>
+<script>
+  const mines = [6,12,18];
+  const cells = document.querySelectorAll('.c');
+  const counts = Array(25).fill(0);
+  mines.forEach(m=>{
+    const r=Math.floor(m/5), c=m%5;
+    for(let dr=-1;dr<=1;dr++){
+      for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc;
+        if(nr>=0 && nr<5 && nc>=0 && nc<5){
+          const idx=nr*5+nc;
+          counts[idx]++;
+        }
+      }
+    }
+  });
+  let gameOver=false;
+  function openCell(cell){
+    if(gameOver) return;
+    const i=parseInt(cell.dataset.i);
+    if(cell.classList.contains('abierta')||cell.classList.contains('bandera')) return;
+    if(mines.includes(i)){
+      cell.classList.add('abierta');
+      cell.textContent='💣';
+      document.getElementById('estado').textContent='perdiste';
+      gameOver=true;
+      return;
+    }
+    cell.classList.add('abierta');
+    const cnt=counts[i];
+    if(cnt>0){
+      cell.textContent=cnt;
+    }else{
+      cell.textContent='';
+      const queue=[i];
+      const visited=new Set([i]);
+      while(queue.length){
+        const cur=queue.shift();
+        const cr=Math.floor(cur/5), cc=cur%5;
+        for(let dr=-1;dr<=1;dr++){
+          for(let dc=-1;dc<=1;dc++){
+            if(dr===0 && dc===0) continue;
+            const nr=cr+dr, nc=cc+dc;
+            if(nr>=0 && nr<5 && nc>=0 && nc<5){
+              const idx=nr*5+nc;
+              const neighbor=cells[idx];
+              if(neighbor.classList.contains('abierta')||neighbor.classList.contains('bandera')) continue;
+              if(mines.includes(idx)) continue;
+              neighbor.classList.add('abierta');
+              const ncnt=counts[idx];
+              if(ncnt>0){
+                neighbor.textContent=ncnt;
+              }else{
+                neighbor.textContent='';
+                if(!visited.has(idx)){
+                  visited.add(idx);
+                  queue.push(idx);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  cells.forEach(cell=>{
+    cell.addEventListener('click',()=>openCell(cell));
+    cell.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      if(gameOver) return;
+      if(cell.classList.contains('bandera')){
+        cell.classList.remove('bandera');
+        cell.textContent='';
+      }else{
+        cell.classList.add('bandera');
+        cell.textContent='⚑';
+      }
+    });
+  });
+</script>
+</body>
+</html>
+```

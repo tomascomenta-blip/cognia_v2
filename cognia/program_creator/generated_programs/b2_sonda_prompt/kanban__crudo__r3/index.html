@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en un solo archivo</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;padding:20px;}
+  .board{display:flex;gap:20px;justify-content:center;align-items:flex-start;}
+  .col{background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1);width:250px;padding:10px;overflow-y:auto;max-height:80vh;}
+  .col h2{font-size:1.2rem;margin-bottom:10px;text-align:center;}
+  .col span{display:block;font-weight:bold;margin-top:5px;}
+  .card{background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;padding:10px;margin-bottom:10px;position:relative;animation:fadeIn 0.5s ease forwards;}
+  .card button{margin:2px;cursor:pointer;padding:2px 6px;border:none;border-radius:4px;background:#1976d2;color:#fff;font-size:.8rem;}
+  .card button:disabled{background:#90caf9;cursor:not-allowed;}
+  @keyframes fadeIn{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  @keyframes slideIn{
+    from{transform:translateX(-100%);opacity:0;}
+    to{transform:translateX(0);opacity:1;}
+  }
+  .col[data-col="todo"]{animation:slideIn 0.8s ease-out 0.1s forwards;}
+  .col[data-col="doing"]{animation:slideIn 0.8s ease-out 0.3s forwards;}
+  .col[data-col="done"]{animation:slideIn 0.8s ease-out 0.5s forwards;}
+</style>
+</head>
+<body>
+<h1 style="text-align:center;margin-bottom:20px;">Kanban en un solo archivo</h1>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo">0</span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing">0</span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done">0</span></h2>
+  </div>
+</div>
+
+<script>
+  // Crear las tarjetas iniciales en la columna Todo
+  const initialCards = ['t1','t2','t3'];
+  const todoCol = document.querySelector('.col[data-col="todo"]');
+  initialCards.forEach(id => addCard(id, todoCol));
+
+  // Actualizar contadores al cargar
+  updateCounters();
+
+  // Función para crear una tarjeta
+  function addCard(id, parent) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.id = id;
+    card.innerHTML = `
+      <strong>${id}</strong>
+      <div style="margin-top:8px;">
+        <button class="mas">→</button>
+        <button class="menos">←</button>
+      </div>
+    `;
+    parent.appendChild(card);
+    // Añadir listeners
+    card.querySelector('.mas').addEventListener('click', () => moveCard(card, 'right'));
+    card.querySelector('.menos').addEventListener('click', () => moveCard(card, 'left'));
+  }
+
+  // Función para mover una tarjeta
+  function moveCard(card, dir) {
+    const currentCol = card.parentElement.dataset.col;
+    const doingCol = document.querySelector('.col[data-col="doing"]');
+    const todoCol = document.querySelector('.col[data-col="todo"]');
+    const doneCol = document.querySelector('.col[data-col="done"]');
+
+    if (dir === 'right') {
+      if (currentCol === 'todo') {
+        if (doingCol.children.length >= 2) return; // WIP limit
+        doingCol.appendChild(card);
+      } else if (currentCol === 'doing') {
+        doneCol.appendChild(card);
+      } else {
+        return; // already in done
+      }
+    } else if (dir === 'left') {
+      if (currentCol === 'doing') {
+        todoCol.appendChild(card);
+      } else if (currentCol === 'done') {
+        doingCol.appendChild(card);
+      } else {
+        return; // already in todo
+      }
+    }
+    updateCounters();
+  }
+
+  // Actualizar los contadores de tarjetas
+  function updateCounters() {
+    const todoCount = document.querySelectorAll('.col[data-col="todo"] .card').length;
+    const doingCount = document.querySelectorAll('.col[data-col="doing"] .card').length;
+    const doneCount = document.querySelectorAll('.col[data-col="done"] .card').length;
+    document.getElementById('cont-todo').textContent = todoCount;
+    document.getElementById('cont-doing').textContent = doingCount;
+    document.getElementById('cont-done').textContent = doneCount;
+  }
+</script>
+</body>
+</html>

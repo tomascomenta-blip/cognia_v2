@@ -1,0 +1,82 @@
+Title: Tablero Kanban en una sola página  
+Description: Un tablero Kanban con 3 columnas y tarjetas que se mueven entre ellas con botones, respetando límites de WIP y actualizando contadores.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tablero Kanban</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f4f4f4;}
+  .board{display:flex;flex-wrap:wrap;gap:10px;padding:10px;}
+  .col{background:#fff;border:1px solid #ddd;border-radius:4px;flex:1 1 30%;min-width:250px;display:flex;flex-direction:column;}
+  .header{background:#e0e0e0;padding:8px 12px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;}
+  .cards{flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:8px;}
+  .card{background:#fafafa;border:1px solid #ccc;border-radius:4px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;}
+  .card button{margin-left:4px;padding:2px 6px;font-size:0.9em;}
+  .card button:disabled{opacity:0.4;cursor:not-allowed;}
+  @media(max-width:600px){.col{flex:1 1 100%;}}
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <div class="header">Todo <span id="cont-todo"></span></div>
+    <div class="cards">
+      <div class="card" data-id="t1">t1 <button class="menos">←</button> <button class="mas">→</button></div>
+      <div class="card" data-id="t2">t2 <button class="menos">←</button> <button class="mas">→</button></div>
+      <div class="card" data-id="t3">t3 <button class="menos">←</button> <button class="mas">→</button></div>
+    </div>
+  </div>
+  <div class="col" data-col="doing">
+    <div class="header">Doing <span id="cont-doing"></span></div>
+    <div class="cards"></div>
+  </div>
+  <div class="col" data-col="done">
+    <div class="header">Done <span id="cont-done"></span></div>
+    <div class="cards"></div>
+  </div>
+</div>
+
+<script>
+  // Helper to update counters
+  function updateCounters() {
+    const cols = document.querySelectorAll('.col');
+    cols.forEach(col => {
+      const id = 'cont-' + col.dataset.col;
+      const count = col.querySelectorAll('.card').length;
+      document.getElementById(id).textContent = count;
+    });
+  }
+
+  // Move card logic
+  function moveCard(card, direction) {
+    const currentCol = card.closest('.col');
+    const currentIdx = Array.from(document.querySelectorAll('.col')).indexOf(currentCol);
+    let targetIdx = currentIdx + direction; // -1 for left, +1 for right
+    if (targetIdx < 0 || targetIdx >= 3) return; // out of bounds
+
+    const targetCol = document.querySelectorAll('.col')[targetIdx];
+
+    // WIP rule: doing can have max 2 cards
+    if (targetCol.dataset.col === 'doing' && targetCol.querySelectorAll('.card').length >= 2) return;
+
+    // Move card
+    targetCol.querySelector('.cards').appendChild(card);
+    updateCounters();
+  }
+
+  // Attach event listeners
+  document.querySelectorAll('.card').forEach(card => {
+    card.querySelector('.mas').addEventListener('click', () => moveCard(card, 1));
+    card.querySelector('.menos').addEventListener('click', () => moveCard(card, -1));
+  });
+
+  // Initial counter update
+  updateCounters();
+</script>
+</body>
+</html>
+```

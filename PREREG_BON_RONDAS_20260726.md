@@ -312,6 +312,129 @@ n=3:
 | **cobro parcial** | 3-5/12 |
 | **el fix no cobra** | ≤ 2/12 — el mecanismo era otro (volver a triangular con el prompt real registrado) |
 
+## NOVENA ENMIENDA (2026-07-27 ~05:50, sesión diurna — sondas del prompt para
+## los ~25 pts restantes; escrita ANTES de generar nada)
+
+Estado heredado: crudo 75% (9/12), sistema-con-fix 50% (12/24, serie
+2,1,1,2,3,3). Análisis ESTÁTICO de esta mañana (cero GPU) sobre el camino de
+generación del sistema (`generate_program(forced_idea=...)`), tres sospechosos
+concretos además del troceo ya nombrado:
+
+1. **Troceo REQUIRED** (`_componentes_de_idea` parte por comas): MUTILA las
+   enumeraciones que el contrato verifica — "data-precio 100" (pierde 50,25),
+   "data-stock 2" (pierde 3,1), "con data-col todo" (pierde doing,done),
+   "data-ref A1" (pierde A2..C3). La checklist le miente al modelo.
+2. **extra_hint aleatorio de COMPLEXITY_HINTS**: hints de PYTHON ("Keep it
+   simple, under 60 lines", "ASCII art", "__main__") inyectados como regla
+   en ideas web composicionales.
+3. **PROVEN PATTERNS**: a carrito_stock le inyecta el patrón `grafico_svg`
+   (dashboard por la puerta de atrás que `_idea_interactiva` no cierra);
+   kanban/buscaminas reciben `tabla_estados`.
+
+Además queda vivo (d) el formato Title/Description + `_parse_response`, y
+(e) la reparación en composicionales (absuelta PRE-fix por triangulación,
+no re-aislada POST-fix).
+
+**Sonda I (REVISADA tras la revisión de 2 agentes con contexto fresco,
+2026-07-27 ~06:15, ANTES de generar nada; el diseño original de ~05:50 tenía
+3 fallas mayores: fallback silencioso de `_call_llm` a otros backends, hint
+re-sorteado por brazo sin semilla, y un brazo `sinhintpat` que cambiaba tres
+cosas a la vez sin aislar el envoltorio base) — ESCALERA ANIDADA de 4 brazos
+DIRECTOS (sin lazo), intercalados a nivel tarea con orden rotado por celda,
+banco brutal, n=3 por brazo (12 gen/brazo), temp 0.2,
+`_preguntar_constructor` contra :8080 SIN fallback:**
+
+| brazo | prompt | el par adyacente aísla |
+|---|---|---|
+| `crudo` | la idea pelada (control de deriva CONCURRENTE) | — |
+| `base` | `_build_prompt_web` sin REQUIRED, sin extra_hint, sin patrones (líneas huérfanas limpiadas) | reglas fijas + formato |
+| `basereq` | `base` + bloque REQUIRED troceado | el troceo |
+| `full` | `basereq` + hint de COMPLEXITY_HINTS (semilla determinista por celda) + PROVEN PATTERNS | el PAR hint+patrones |
+
+Declarado: `full` reproduce el prompt del sistema DE HOY (store de patrones
+vivo); hint+patrones van JUNTOS — si ese peldaño roba, el desempate exige
+otra sonda antes de tocar código. El HTML sale de la MISMA cadena para todos
+los brazos (`_parse_response` → fence de rescate); `parse_estricto_ok` por
+celda acota solo el coste de PARSEO del formato (N/A en `crudo`), no su
+coste de calidad. El held-out corre sobre aprobados (mide FP, no FN).
+
+**Lecturas pre-registradas:**
+
+- **Primaria (apareada):** pares discordantes por celda (tarea, rep) entre
+  brazos ADYACENTES de la escalera — estilo McNemar; con 12 celdas
+  apareadas es más legible que la resta de totales.
+- Secundaria: aprobados/12 por brazo. TODAS las restas usan el `crudo`
+  concurrente de esta corrida; el 9/12 histórico es solo sanidad.
+- Sanidad automática (en el script): si el `crudo` ya no puede superar
+  5/12, ABORTAR (exit 3) y sondar finish_reason/usage antes de leer nada.
+- El peldaño cuya remoción concentre los discordantes (≥3 celdas netas) es
+  el sospechoso dominante; reparto = culpa repartida (fix a los dos).
+- Si `full` ≈ `crudo` en la apareada: el prompt queda **no acusado A ESTA
+  POTENCIA** (no "absuelto": con n=12 hay ~25% de falsa absolución aun con
+  gap real de 3) → siguiente sonda: el LAZO (sistema completo vs
+  max_rondas=1, intercalados, con un brazo que pueda re-acusar al prompt).
+  Refuerzo independiente ya medido (cruce en disco, fixprompt n=24): el
+  sello interno del lazo está al nivel del AZAR contra el examen del banco
+  (FP 3/6, FN 9/18) — el lazo repara contra una señal casi no correlacionada.
+- Todo veredicto de esta sonda con n=12/brazo es DIRECCIONAL: el fix que
+  salga se confirma con la serie del sistema completo (b2_banco_brutal,
+  n≥6, contra la referencia 12/24 post-fix — misma vara que anoche).
+
+**Qué NO se toca hasta ver la sonda:** ningún cambio a generator.py ni al
+lazo. El fix se implementa DESPUÉS de la atribución, con test de regresión.
+
+## RESULTADO de la Sonda I (2026-07-27 ~06:50) y DÉCIMA ENMIENDA (escrita
+## ANTES de implementar el fix y de correr el A/B de confirmación)
+
+Sonda I completa (48/48 celdas, sin deriva — parada automática no disparó):
+
+| brazo | aprobados | held-out ok | parse estricto | discordantes apareados |
+|---|---|---|---|---|
+| crudo | **11/12** | 11/12 | N/A | — |
+| base | 10/12 | 9/12 | 12/12 | crudo gana 2 (hoja r1,r2) / base gana 1 |
+| basereq | 8/12 | 7/12 | 12/12 | base gana 4 / basereq gana 2 |
+| full | 8/12 | 8/12 | 11/12 | empate 2/2 con basereq |
+
+**Lecturas (direccionales, n=12/brazo):**
+
+1. El crudo CONCURRENTE dio 92% (histórico 75%): la deriva entre noches es
+   ~2 celdas — toda comparación entre noches queda invalidada como vara.
+2. **El troceo REQUIRED es el peldaño más caro (−2 netos, 4 vs 2)**. No
+   llega al umbral ≥3 de "dominante": culpa repartida con las reglas base.
+3. **Reglas base: −1 neto con MECANISMO cazado**: "Format numbers for
+   humans (toLocaleString)" produce `8,00` donde el contrato exige `8`
+   (hoja_calculo r1 y r2, falla crítica idéntica). Misma clase que las
+   reglas dashboard de la octava enmienda: regla de calidad para
+   dashboards = veneno para contratos exactos.
+4. hint aleatorio + patrones: 0 neto — SIN CARGO (no se tocan).
+5. El formato Title/Description NO roba por parseo (parse estricto 35/36).
+6. full directo 8/12 (67%) > sistema con lazo 12/24 (50%, anoche): el
+   resto del gap apunta al LAZO, coherente con el hallazgo independiente
+   de hoy (sello interno al azar: FP 32-50%, FN 50%, n=196).
+
+**Fix pre-registrado (gated por env `COGNIA_PROMPT_FIX2` para poder
+intercalar):** (a) `_componentes_de_idea` trocea por FRASES, no por comas
+(las enumeraciones quedan enteras); (b) en ideas interactivas la regla de
+formato de números se invierte: "muestra los valores EXACTAMENTE como la
+idea/estado lo dictan, sin separadores ni decimales no pedidos". No se toca
+nada más (hint/patrones sin cargo; formato sin cargo).
+
+**A/B de confirmación — sistema COMPLETO (lazo real), banco brutal,
+brazos INTERCALADOS a nivel tarea en la misma corrida (fix2 OFF / fix2 ON,
+orden rotado por celda), réplicas hasta agotar la ventana (objetivo n=6
+por brazo = 48 corridas de lazo; si el aterrizaje corta antes, se reporta
+el n alcanzado como PARCIAL y la corrida queda reanudable):**
+
+| veredicto | condición (sobre los pares apareados por celda) |
+|---|---|
+| **el fix cobra** | ON gana ≥3 celdas netas sobre OFF en el apareado |
+| **cobro dudoso** | ON gana 1-2 netas — más réplicas antes de adoptar |
+| **no cobra** | neto ≤ 0 — revertir el gate y volver a la sonda |
+
+La referencia 12/24 de anoche NO entra en el veredicto (deriva medida);
+solo el OFF concurrente. El A/B hereda el contrato interno CLÁSICO (el
+amplio está en su propio prereg y NO se mezcla en esta serie).
+
 ## Qué NO decide esto
 
 - A y B se miden POR SEPARADO. Si ambos dan señal, una corrida combinada es

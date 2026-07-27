@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito con Stock</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f4f4f4;}
+  .container{max-width:600px;margin:auto;padding:1rem;}
+  h1{font-size:1.8rem;margin-bottom:0.5rem;text-align:center;}
+  .products,.cart{background:#fff;padding:1rem;border-radius:6px;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .prod{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;padding:0.5rem;border-bottom:1px solid #e0e0e0;}
+  .prod:last-child{border-bottom:none;}
+  .prod button.add{padding:0.3rem 0.6rem;font-size:0.9rem;}
+  .cart h2{margin-top:0;}
+  .linea{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;}
+  .linea button.quitar{padding:0.2rem 0.4rem;font-size:0.8rem;}
+  #total{font-weight:bold;}
+  @media(max-width:480px){
+    .prod,.linea{flex-direction:column;align-items:flex-start;}
+    .prod button.add,.linea button.quitar{margin-top:0.3rem;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Carrito de Compra</h1>
+  <div class="products">
+    <h2>Productos</h2>
+    <div class="prod" data-id="p1" data-precio="100" data-stock="2">
+      <span>Producto 1 - $100.00</span>
+      <button class="add" data-id="p1">Añadir</button>
+    </div>
+    <div class="prod" data-id="p2" data-precio="50" data-stock="3">
+      <span>Producto 2 - $50.00</span>
+      <button class="add" data-id="p2">Añadir</button>
+    </div>
+    <div class="prod" data-id="p3" data-precio="25" data-stock="1">
+      <span>Producto 3 - $25.00</span>
+      <button class="add" data-id="p3">Añadir</button>
+    </div>
+  </div>
+  <div class="cart">
+    <h2>Carrito</h2>
+    <div id="cart-lines"></div>
+    <div>Total: <span id="total">$0.00</span></div>
+  </div>
+</div>
+<script>
+  // Configurable constants
+  const PRODUCTS = [
+    {id:'p1', precio:100, stock:2},
+    {id:'p2', precio:50, stock:3},
+    {id:'p3', precio:25, stock:1}
+  ];
+
+  const cart = {}; // {id: quantity}
+
+  function formatCurrency(val){
+    return '$' + val.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+
+  function updateCart(){
+    const container = document.getElementById('cart-lines');
+    container.innerHTML = '';
+    let total = 0;
+    for(const id in cart){
+      const qty = cart[id];
+      const prod = PRODUCTS.find(p=>p.id===id);
+      const line = document.createElement('div');
+      line.className='linea';
+      line.dataset.id=id;
+      const span = document.createElement('span');
+      span.className='cant';
+      span.textContent = `${formatCurrency(prod.precio)} x ${qty} = ${formatCurrency(prod.precio*qty)}`;
+      const btn = document.createElement('button');
+      btn.className='quitar';
+      btn.dataset.id=id;
+      btn.textContent='Quitar';
+      line.appendChild(span);
+      line.appendChild(btn);
+      container.appendChild(line);
+      total += prod.precio*qty;
+    }
+    document.getElementById('total').textContent = formatCurrency(total);
+  }
+
+  function updateAddButtons(){
+    PRODUCTS.forEach(p=>{
+      const btn = document.querySelector(`.add[data-id="${p.id}"]`);
+      const qty = cart[p.id]||0;
+      btn.disabled = qty>=p.stock;
+    });
+  }
+
+  function add(id){
+    const prod = PRODUCTS.find(p=>p.id===id);
+    if(!prod) return;
+    const qty = cart[id]||0;
+    if(qty<prod.stock){
+      cart[id]=qty+1;
+      updateCart();
+      updateAddButtons();
+    }
+  }
+
+  function remove(id){
+    const qty = cart[id]||0;
+    if(qty>0){
+      cart[id]=qty-1;
+      if(cart[id]===0) delete cart[id];
+      updateCart();
+      updateAddButtons();
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    document.querySelectorAll('.add').forEach(btn=>{
+      btn.addEventListener('click',()=>add(btn.dataset.id));
+    });
+    document.addEventListener('click',e=>{
+      if(e.target.classList.contains('quitar')){
+        remove(e.target.dataset.id);
+      }
+    });
+    updateCart();
+    updateAddButtons();
+  });
+</script>
+</body>
+</html>

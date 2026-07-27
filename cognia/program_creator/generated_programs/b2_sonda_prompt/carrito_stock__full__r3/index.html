@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Carrito de compra con STOCK</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:1rem;background:#f9f9f9;}
+  h1{font-size:1.5rem;margin-bottom:1rem;}
+  #products{display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:1rem;}
+  .prod{background:#fff;border:1px solid #ccc;border-radius:4px;padding:1rem;flex:1 1 200px;box-sizing:border-box;}
+  .prod .name{display:block;font-weight:bold;margin-bottom:0.5rem;}
+  .prod .price{display:block;margin-bottom:0.5rem;color:#555;}
+  .prod .add{padding:0.5rem 1rem;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  .prod .add:disabled{background:#6c757d;cursor:not-allowed;}
+  #cart{background:#fff;border:1px solid #ccc;border-radius:4px;padding:1rem;}
+  .linea{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;}
+  .linea .cant{font-weight:bold;margin-right:0.5rem;}
+  .linea .name{flex:1;}
+  .linea .price{margin-left:0.5rem;color:#555;}
+  .linea .quitar{padding:0.3rem 0.6rem;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+  #total-container{margin-top:1rem;font-weight:bold;font-size:1.2rem;}
+  @media(max-width:600px){
+    .prod{flex:1 1 100%;}
+  }
+</style>
+</head>
+<body>
+<h1>Carrito de compra con STOCK</h1>
+<div id="products">
+  <div class="prod" data-id="p1" data-precio="100" data-stock="2" data-name="Producto 

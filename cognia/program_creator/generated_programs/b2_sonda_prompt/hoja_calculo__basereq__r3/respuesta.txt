@@ -1,0 +1,173 @@
+Title: Mini Hoja de Cálculo 3x3  
+Description: Una hoja de cálculo mínima con 3x3 celdas, fórmulas, recálculo en cascada y detección de referencias circulares.  
+
+HTML Code:
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:1rem;background:#f9f9f9;}
+  table{width:100%;border-collapse:collapse;}
+  td{padding:0;}
+  input.celda{
+    width:100%;height:2.5rem;box-sizing:border-box;
+    text-align:right;font-size:1rem;padding:0 0.5rem;border:1px solid #ccc;
+    background:#fff;color:#000;
+  }
+  input.celda:focus{outline:none;border-color:#4a90e2;}
+</style>
+</head>
+<body>
+<h2>Mini Hoja de Cálculo 3x3</h2>
+<table>
+  <tr>
+    <td><input class="celda" data-ref="A1" value="10"></td>
+    <td><input class="celda" data-ref="A2" value="20"></td>
+    <td><input class="celda" data-ref="A3" value="30"></td>
+  </tr>
+  <tr>
+    <td><input class="celda" data-ref="B1" value="=A1+1"></td>
+    <td><input class="celda" data-ref="B2" value="=B1-A1"></td>
+    <td><input class="celda" data-ref="B3" value="5"></td>
+  </tr>
+  <tr>
+    <td><input class="celda" data-ref="C1" value="=B1+1"></td>
+    <td><input class="celda" data-ref="C2" value="=C1-A3"></td>
+    <td><input class="celda" data-ref="C3" value="=C2+B3"></td>
+  </tr>
+</table>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const cells = {};
+  const updating = { flag: false };
+
+  // Build cells map and store initial formulas
+  document.querySelectorAll('.celda').forEach(input => {
+    const ref = input.dataset.ref;
+    cells[ref] = input;
+    if (input.value.trim().startsWith('=')) {
+      input.dataset.formula = input.value.trim();
+    } else {
+      input.dataset.formula = null;
+    }
+    input.addEventListener('input', function(e) {
+      if (updating.flag) return;
+      const newVal = e.target.value.trim();
+      if (newVal.startsWith('=')) {
+        e.target.dataset.formula = newVal;
+      } else {
+        e.target.dataset.formula = null;
+      }
+      evaluateAll();
+    });
+  });
+
+  function evaluateAll() {
+    Object.keys(cells).forEach(ref => {
+      const val = evaluateCell(ref, []);
+      const cell = cells[ref];
+      if (cell.value !== val) {
+        updating.flag = true;
+        cell.value = val;
+        updating.flag = false;
+      }
+    });
+  }
+
+  function evaluateCell(ref, stack) {
+    const cell = cells[ref];
+    const formula = cell.dataset.formula;
+    if (!formula) {
+      const val = cell.value.trim();
+      const num = parseFloat(val.replace(/,/g, ''));
+      if (!isNaN(num)) {
+        cell.dataset.rawValue = num;
+        return num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      } else {
+        cell.dataset.rawValue = null;
+        return val;
+      }
+    }
+    if (stack.includes(ref)) {
+      cell.dataset.rawValue = null;
+      return 'CIRC';
+    }
+    stack.push(ref);
+    const expr = formula.slice(1);
+    const tokenRegex = /[A-Z][1-3]|-?\d+(\.\d+)?|[+-]/g;
+    const tokens = expr.match(tokenRegex);
+    if (!tokens) {
+      stack.pop();
+      cell.dataset.rawValue = null;
+      return 'CIRC';
+    }
+    const evaluatedTokens = tokens.map(tok => {
+      if (/^[A-Z][1-3]$/.test(tok)) {
+        const num = getNumeric(tok, stack.slice());
+        if (num === 'CIRC') return 'CIRC';
+        return num.toString();
+      } else if (/^[+-]$/.test(tok)) {
+        return tok;
+      } else {
+        return tok;
+      }
+    });
+    if (evaluatedTokens.includes('CIRC')) {
+      stack.pop();
+      cell.dataset.rawValue = null;
+      return 'CIRC';
+    }
+    const evalStr = evaluatedTokens.join('');
+    let result;
+    try {
+      result = eval(evalStr);
+    } catch (e) {
+      result = 'CIRC';
+    }
+    if (result === 'CIRC') {
+      stack.pop();
+      cell.dataset.rawValue = null;
+      return 'CIRC';
+    }
+    if (typeof result === 'number') {
+      cell.dataset.rawValue = result;
+      result = result.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else {
+      cell.dataset.rawValue = null;
+    }
+    stack.pop();
+    return result;
+  }
+
+  function getNumeric(ref, stack) {
+    const cell = cells[ref];
+    const formula = cell.dataset.formula;
+    if (!formula) {
+      const val = cell.value.trim();
+      const num = parseFloat(val.replace(/,/g, ''));
+      if (!isNaN(num)) {
+        cell.dataset.rawValue = num;
+        return num;
+      } else {
+        cell.dataset.rawValue = null;
+        return 0;
+      }
+    }
+    const val = evaluateCell(ref, stack);
+    const raw = cell.dataset.rawValue;
+    if (raw !== null && !isNaN(raw)) return raw;
+    return 0;
+  }
+
+  // Initial evaluation
+  evaluateAll();
+});
+</script>
+</body>
+</html>
+```

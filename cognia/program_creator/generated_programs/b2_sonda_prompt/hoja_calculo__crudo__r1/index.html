@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;padding:20px;}
+  .grid{display:grid;grid-template-columns:repeat(3,80px);gap:5px;}
+  input.celda{width:80px;height:30px;text-align:right;padding:5px;}
+</style>
+</head>
+<body>
+<h2>Mini Hoja de Cálculo 3x3</h2>
+<div class="grid">
+  <input class="celda" data-ref="A1" placeholder="A1">
+  <input class="celda" data-ref="A2" placeholder="A2">
+  <input class="celda" data-ref="A3" placeholder="A3">
+  <input class="celda" data-ref="B1" placeholder="B1">
+  <input class="celda" data-ref="B2" placeholder="B2">
+  <input class="celda" data-ref="B3" placeholder="B3">
+  <input class="celda" data-ref="C1" placeholder="C1">
+  <input class="celda" data-ref="C2" placeholder="C2">
+  <input class="celda" data-ref="C3" placeholder="C3">
+</div>
+
+<script>
+(() => {
+  const refs = ['A1','A2','A3','B1','B2','B3','C1','C2','C3'];
+  const refToCell = {};
+  refs.forEach(r => {
+    refToCell[r] = document.querySelector(`input[data-ref="${r}"]`);
+  });
+
+  let computing = false;
+
+  function recomputeAll() {
+    if (computing) return;
+    computing = true;
+    const memo = {};
+    refs.forEach(r => computeCell(r, new Set(), memo));
+    computing = false;
+  }
+
+  function computeCell(ref, stack, memo) {
+    if (memo.hasOwnProperty(ref)) return memo[ref];
+    if (stack.has(ref)) { // circular reference
+      memo[ref] = 'CIRC';
+      refToCell[ref].value = 'CIRC';
+      return 'CIRC';
+    }
+    stack.add(ref);
+    const cell = refToCell[ref];
+    const formula = cell.dataset.formula;
+    if (formula) {
+      const expr = formula.slice(1).replace(/[A-C][1-3]/g, match => {
+        const val = computeCell(match, stack, memo);
+        if (val === 'CIRC') return 'CIRC';
+        return val.toString();
+      });
+      if (expr.includes('CIRC')) {
+        memo[ref] = 'CIRC';
+        cell.value = 'CIRC';
+        stack.delete(ref);
+        return 'CIRC';
+      }
+      let result;
+      try {
+        result = eval(expr);
+        if (isNaN(result)) result = 0;
+      } catch {
+        result = 0;
+      }
+      memo[ref] = result;
+      cell.value = result.toString();
+      stack.delete(ref);
+      return result;
+    } else {
+      const val = parseFloat(cell.value);
+      const num = isNaN(val) ? 0 : val;
+      memo[ref] = num;
+      stack.delete(ref);
+      return num;
+    }
+  }
+
+  // Attach event listeners
+  refs.forEach(r => {
+    const cell = refToCell[r];
+    cell.addEventListener('input', () => {
+      if (computing) return;
+      const val = cell.value;
+      if (val.startsWith('=')) {
+        cell.dataset.formula = val;
+      } else {
+        delete cell.dataset.formula;
+      }
+      recomputeAll();
+    });
+  });
+
+  // Initial calculation
+  recomputeAll();
+})();
+</script>
+</body>
+</html>
