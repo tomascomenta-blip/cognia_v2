@@ -1,0 +1,59 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null
+  },
+  "sistema_real": {
+    "hoja_calculo": {
+      "aprobado": false,
+      "motivo": "falla critica: B1 = A1+A2 = 8 (js='701,00', esperaba '8'); C1 = B1+A1 = 13 (js='=B1+A1', esperaba '13'); CASCADA: al cam",
+      "segundos": 203.54285740852356,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 22,
+      "checks": 28,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "carrito_stock": {
+      "aprobado": false,
+      "motivo": "falla critica: al tope de stock (2) el boton se deshabilita (js=False, esperaba True); p3 tiene stock 1: se deshabilita ",
+      "segundos": 414.9307153224945,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 16,
+      "checks": 19,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    },
+    "kanban": {
+      "aprobado": false,
+      "motivo": "falla critica: el contador dice 3 ('4' no contiene '3'); t2 pasa a doing (2 = tope WIP) (js=1, esperaba 2); LIMITE WIP: ",
+      "segundos": 138.83422565460205,
+      "como": "create_program",
+      "checks_ok": 13,
+      "checks": 20,
+      "rondas": 0,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "no se pudo generar la pagina inicial",
+      "bon": null
+    },
+    "buscaminas": {
+      "aprobado": false,
+      "motivo": "falla critica: abrir una mina pierde ('' no contiene 'perdiste')",
+      "segundos": 349.69765734672546,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 18,
+      "checks": 20,
+      "rondas": 2,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    }
+  },
+  "aprobados": 0,
+  "aprobados_heldout": 0,
+  "n_tareas": 4
+}

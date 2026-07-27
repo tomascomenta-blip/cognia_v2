@@ -1,0 +1,187 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Kanban en una sola página</title>
+<style>
+  body{
+    margin:0;
+    font-family:Arial,Helvetica,sans-serif;
+    background:#f0f0f0;
+  }
+  .board{
+    display:flex;
+    justify-content:space-around;
+    padding:20px;
+  }
+  .col{
+    background:#fff;
+    border-radius:5px;
+    width:30%;
+    min-height:300px;
+    padding:10px;
+    box-shadow:0 2px 5px rgba(0,0,0,.1);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    animation:fadeIn .5s ease forwards;
+    animation-delay:.2s;
+  }
+  .col h2{
+    margin:0 0 10px 0;
+    font-size:1.2em;
+    display:flex;
+    align-items:center;
+  }
+  .col h2 span{
+    margin-left:5px;
+    background:#007bff;
+    color:#fff;
+    border-radius:12px;
+    padding:2px 6px;
+    font-size:.8em;
+  }
+  .card{
+    background:#e9e9e9;
+    border-radius:3px;
+    padding:10px;
+    margin:5px 0;
+    width:90%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:0 1px 3px rgba(0,0,0,.1);
+    animation:slideIn .5s ease forwards;
+  }
+  .card:nth-child(1){animation-delay:.1s;}
+  .card:nth-child(2){animation-delay:.2s;}
+  .card:nth-child(3){animation-delay:.3s;}
+  .card button{
+    margin-left:5px;
+    padding:2px 6px;
+    border:none;
+    border-radius:3px;
+    color:#fff;
+    cursor:pointer;
+    font-size:.8em;
+  }
+  .card button.mas{background:#28a745;}
+  .card button.menos{background:#dc3545;}
+  .card button:disabled{background:#ccc;cursor:not-allowed;opacity:.6;}
+  @keyframes slideIn{
+    from{opacity:0;transform:translateX(-20px);}
+    to{opacity:1;transform:translateX(0);}
+  }
+  @keyframes fadeIn{
+    from{opacity:0;}
+    to{opacity:1;}
+  }
+</style>
+</head>
+<body>
+<div class="board">
+  <div class="col" data-col="todo">
+    <h2>Todo <span id="cont-todo"></span></h2>
+  </div>
+  <div class="col" data-col="doing">
+    <h2>Doing <span id="cont-doing"></span></h2>
+  </div>
+  <div class="col" data-col="done">
+    <h2>Done <span id="cont-done"></span></h2>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const todoCol = document.querySelector('.col[data-col="todo"]');
+  const doingCol = document.querySelector('.col[data-col="doing"]');
+  const doneCol = document.querySelector('.col[data-col="done"]');
+
+  // Create initial cards
+  ['t1','t2','t3'].forEach(id => {
+    const card = createCard(id);
+    todoCol.appendChild(card);
+  });
+
+  updateCounts();
+  updateAllButtons();
+
+  // Event delegation for buttons
+  document.querySelector('.board').addEventListener('click', function(e){
+    if(e.target.classList.contains('mas') || e.target.classList.contains('menos')){
+      const card = e.target.closest('.card');
+      const currentCol = card.parentElement;
+      const current = currentCol.dataset.col;
+      let targetCol;
+
+      if(e.target.classList.contains('mas')){
+        if(current==='todo') targetCol=doingCol;
+        else if(current==='doing') targetCol=doneCol;
+        else return; // done cannot advance
+      }else{
+        if(current==='doing') targetCol=todoCol;
+        else if(current==='done') targetCol=doingCol;
+        else return; // todo cannot retreat
+      }
+
+      // WIP rule: doing max 2 cards
+      if(targetCol.dataset.col==='doing' && targetCol.children.length>=2) return;
+
+      targetCol.appendChild(card);
+      updateCounts();
+      updateButtons(card);
+    }
+  });
+
+  function createCard(id){
+    const card=document.createElement('div');
+    card.className='card';
+    card.dataset.id=id;
+
+    const span=document.createElement('span');
+    span.textContent=id;
+
+    const btnMas=document.createElement('button');
+    btnMas.className='mas';
+    btnMas.textContent='+';
+
+    const btnMenos=document.createElement('button');
+    btnMenos.className='menos';
+    btnMenos.textContent='-';
+
+    card.appendChild(span);
+    card.appendChild(btnMas);
+    card.appendChild(btnMenos);
+    return card;
+  }
+
+  function updateButtons(card){
+    const col=card.parentElement.dataset.col;
+    const btnMas=card.querySelector('.mas');
+    const btnMenos=card.querySelector('.menos');
+    if(col==='todo'){
+      btnMas.disabled=false;
+      btnMenos.disabled=true;
+    }else if(col==='doing'){
+      btnMas.disabled=false;
+      btnMenos.disabled=false;
+    }else{ // done
+      btnMas.disabled=true;
+      btnMenos.disabled=false;
+    }
+  }
+
+  function updateAllButtons(){
+    document.querySelectorAll('.card').forEach(updateButtons);
+  }
+
+  function updateCounts(){
+    document.getElementById('cont-todo').textContent=todoCol.children.length;
+    document.getElementById('cont-doing').textContent=doingCol.children.length;
+    document.getElementById('cont-done').textContent=doneCol.children.length;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mini Hoja de Cálculo 3x3</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f0f0f0;color:#333;}
+  header{background:#4a90e2;color:white;padding:1rem;text-align:center;}
+  header h1{margin:0;font-size:1.5rem;}
+  main{display:flex;flex-direction:column;gap:1rem;padding:1rem;}
+  section{background:white;border-radius:8px;padding:1rem;box-shadow:0 2px 5px rgba(0,0,0,.1);}
+  #summary{font-size:1.2rem;font-weight:bold;}
+  #grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;}
+  .celda{width:100%;padding:0.5rem;font-size:1rem;text-align:right;border:1px solid #ccc;border-radius:4px;}
+  .celda:focus{outline:none;border-color:#4a90e2;}
+  #chart{width:100%;height:200px;}
+  svg{width:100%;height:100%;}
+  .gridline{stroke:#e0e0e0;stroke-width:1;}
+  .axis-label{font-size:0.8rem;fill:#666;}
+  @media(max-width:600px){
+    #grid{grid-template-columns:repeat(3,1fr);}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mini Hoja de Cálculo 3x3</h1>
+</header>
+<main>
+  <!-- Sección 1: Resumen -->
+  <section id="summary">Suma total: <span id="total">0</span></section>
+  <!-- Sección 2: Gráfico -->
+  <section id="chart-section">
+    <svg id="chart"></svg>
+  </section>
+  <!-- Sección 3: Tabla de celdas -->
+  <section id="grid-section">
+    <div id="grid">
+      <input class="celda" data-ref="A1" value="10">
+      <input class="celda" data-ref="A2" value="20">
+      <input class="celda" data-ref="A3" value="30">
+      <input class="celda" data-ref="B1" value="=A1+1">
+      <input class="celda" data-ref="B2" value="=A2+2">
+      <input class="celda" data-ref="B3" value="=A3+3">
+      <input class="celda" data-ref="C1" value="=B1+1">
+      <input class="celda" data-ref="C2" value="=B2+2">
+      <input class="celda" data-ref="C3" value="=B3+3">
+    </div>
+  </section>
+</main>
+<script>
+(() => {
+  const cells = {}; // ref -> input element
+  const dependents = {}; // ref -> Set of refs that depend on it
+  const formulas = {}; // ref -> formula string
+  const isFormula = {}; // ref -> boolean
+
+  // Helper to format numbers
+  const fmt = n => Number(n).toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  // Parse formula into tokens
+  const parseFormula = (formula) => {
+    const expr = formula.slice(1);
+    const tokens = expr.split(/(?=[+-])/);
+    return tokens.map(t => t.trim());
+  };
+
+  // Evaluate a cell, with cycle detection
+  const evalCell = (ref, stack=[]) => {
+    if (stack.includes(ref)) return 'CIRC';
+    if (!cells[ref]) { // numeric token
+      return Number(ref);
+    }
+    if (!isFormula[ref]) return Number(cells[ref].value.replace(/,/g,''));
+    const tokens = parseFormula(formulas[ref]);
+    let result = 0;
+    for (const tok of tokens) {
+      if (tok.startsWith('+') || tok.startsWith('-')) {
+        const op = tok[0];
+        const part = tok.slice(1);
+        const partVal = evalCell(part, [...stack, ref]);
+        if (partVal === 'CIRC') return 'CIRC';
+        result = op === '+' ? result + partVal : result - partVal;
+      } else {
+        const partVal = evalCell(tok, [...stack, ref]);
+        if (partVal === 'CIRC') return 'CIRC';
+        result += partVal;
+      }
+    }
+    return result;
+  };
+
+  // Build dependency graph
+  const buildDeps = () => {
+    Object.keys(cells).forEach(ref => dependents[ref] = new Set());
+    Object.keys(cells).forEach(ref => {
+      if (isFormula[ref]) {
+        const tokens = parseFormula(formulas[ref]);
+        tokens.forEach(tok => {
+          const clean = tok.replace(/[+-]/g,'');
+          if (dependents[clean]) dependents[clean].add(ref);
+        });
+      }
+    });
+  };
+
+  // Recalculate a cell and its dependents
+  const recalc = (ref) => {
+    if (isFormula[ref]) {
+      const val = evalCell(ref);
+      cells[ref].value = val === 'CIRC' ? 'CIRC' : fmt(val);
+    }
+    dependents[ref].forEach(dep => recalc(dep));
+  };
+
+  // Recalculate all cells
+  const recalcAll = () => {
+    Object.keys(cells).forEach(ref => recalc(ref));
+  };
+
+  // Update summary
+  const updateSummary = () => {
+    let sum = 0;
+    Object.keys(cells).forEach(ref => {
+      const val = cells[ref].value;
+      if (val !== 'CIRC') sum += Number(val.replace(/,/g,''));
+    });
+    document.getElementById('total').textContent = fmt(sum);
+  };
+
+  // Update chart
+  const updateChart = () => {
+    const svg = document.getElementById('chart');
+    const width = svg.clientWidth;
+    const height = svg.clientHeight;
+    const refs = Object.keys(cells);
+    const values = refs.map(r => {
+      const v = cells[r].value;
+      return v === 'CIRC' ? 0 : Number(v.replace(/,/g,''));
+    });
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const barWidth = width / refs.length * 0.6;
+    const barGap = width / refs.length * 0.4;
+    const bars = refs.map((r, i) => {
+      const val = values[i];
+      const barHeight = ((val - min) / range) * (height * 0.8);
+      const x = i * (barWidth + barGap) + barGap / 2;
+      const y = height - barHeight - 20;
+      return `<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" fill="#4a90e2"></rect>
+              <text x="${x + barWidth/2}" y="${y-5}" text-anchor="middle" class="axis-label">${fmt(val)}</text>`;
+    }).join('');
+    const gridLines = [];
+    const labels = [];
+    for (let i=0;i<=5;i++){
+      const y = height - i*(height*0.8)/5 - 20;
+      gridLines.push(`<line x1="0" y1="${y}" x2="${width}" y2="${y}" class="gridline"></line>`);
+      const val = min + i*(range/5);
+      labels.push(`<text x="5" y="${y+5}" class="axis-label">${fmt(val)}</text>`);
+    }
+    svg.innerHTML = gridLines.join('') + labels.join('') + bars;
+  };
+
+  // Initialize
+  const init = () => {
+    document.querySelectorAll('.celda').forEach(inp => {
+      const ref = inp.dataset.ref;
+      cells[ref] = inp;
+      if (inp.value.startsWith('=')) {
+        isFormula[ref] = true;
+        formulas[ref] = inp.value;
+        inp.dataset.formula = inp.value; // keep formula in DOM
+        inp.value = ''; // will be set by recalc
+      } else {
+        isFormula[ref] = false;
+        inp.value = fmt(Number(inp.value));
+      }
+      // Event listener for numeric cells
+      inp.addEventListener('input', () => {
+        if (!isFormula[ref]) {
+          const newVal = parseFloat(inp.value.replace(/,/g,''));
+          if (!isNaN(newVal)) {
+            cells[ref].value = fmt(newVal);
+            recalcAll();
+            updateSummary();
+            updateChart();
+          }
+        }
+      });
+    });
+    buildDeps();
+    recalcAll();
+    updateSummary();
+    updateChart();
+  };
+
+  // Randomly update non-formula cells every 2s
+  const randomUpdate = () => {
+    Object.keys(cells).forEach(ref => {
+      if (!isFormula[ref]) {
+        const newVal = Math.floor(Math.random()*100)+1;
+        cells[ref].value = fmt(newVal);
+      }
+    });
+    recalcAll();
+    updateSummary();
+    updateChart();
+  };
+
+  // Run
+  init();
+  randomUpdate(); // animate on load
+  setInterval(randomUpdate, 2000);
+  window.addEventListener('resize', updateChart);
+})();
+</script>
+</body>
+</html>
