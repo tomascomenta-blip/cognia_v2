@@ -1,0 +1,87 @@
+{
+  "config": {
+    "candidatos": 1,
+    "rondas_progreso": null,
+    "max_rondas": null
+  },
+  "sistema_real": {
+    "memoria_4x4": {
+      "aprobado": true,
+      "motivo": "10/10 checks OK (6/6 del contrato)",
+      "segundos": 120.92568492889404,
+      "como": "create_program",
+      "checks_ok": 10,
+      "checks": 10,
+      "rondas": 0,
+      "sello_lazo": "sin verificar",
+      "motivo_corte": "no se pudo generar la pagina inicial",
+      "bon": null
+    },
+    "contador": {
+      "aprobado": false,
+      "motivo": "falla critica: tras + vale 1 ('$2,00' no contiene '1'); tras dos + vale 2 ('$4,00' no contiene '2'); tras - vuelve a 1 (",
+      "segundos": 464.5554714202881,
+      "como": "diseno_a_codigo (2 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 14,
+      "rondas": 2,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "el modelo no devolvio una correccion valida",
+      "bon": null
+    },
+    "tareas_todo": {
+      "aprobado": true,
+      "motivo": "11/12 checks OK (8/8 del contrato)",
+      "segundos": 209.5464906692505,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 12,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "calculadora": {
+      "aprobado": true,
+      "motivo": "10/10 checks OK (6/6 del contrato)",
+      "segundos": 54.271650075912476,
+      "como": "diseno_a_codigo (1 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 10,
+      "rondas": 1,
+      "sello_lazo": "APROBADO",
+      "motivo_corte": "aprobado por juez ejecutable",
+      "bon": null
+    },
+    "semaforo": {
+      "aprobado": true,
+      "motivo": "11/11 checks OK (7/7 del contrato)",
+      "segundos": 169.34392023086548,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 11,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "disyuntor D6",
+      "bon": null
+    },
+    "filtro_lista": {
+      "aprobado": true,
+      "motivo": "10/11 checks OK (7/7 del contrato)",
+      "segundos": 294.41904640197754,
+      "como": "diseno_a_codigo (3 rondas, nota_visual=None)",
+      "checks_ok": 10,
+      "checks": 11,
+      "rondas": 3,
+      "sello_lazo": "FALLIDO",
+      "motivo_corte": "tope de rondas",
+      "bon": null
+    }
+  },
+  "techo": 6,
+  "real": 5,
+  "desperdicio": [
+    "contador"
+  ],
+  "n_tareas": 6
+}
